@@ -1,5 +1,5 @@
 {
-  "name": "restruct",
+  "name": "rescript-struct",
   "version": "0.1.0",
   "description": "A simple and composable way to describe relationship between JavaScript and ReScript structures",
   "main": "index.js",
@@ -8,12 +8,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DZakh-packages/restruct.git"
+    "url": "git+https://github.com/DZakh-packages/rescript-struct.git"
   },
   "author": "Dmitry Zakharov <dzakh.dev@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/DZakh-packages/restruct/issues"
+    "url": "https://github.com/DZakh-packages/rescript-struct/issues"
   },
-  "homepage": "https://github.com/DZakh-packages/restruct#readme"
+  "homepage": "https://github.com/DZakh-packages/rescript-struct#readme"
 }
