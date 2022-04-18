@@ -85,13 +85,13 @@ module Example = {
     let authorStruct: S.t<author> = S.record4(
       ~fields=(
         ("Id", S.float()),
-        ("Tags", S.array(S.string())),
-        ("IsApproved", S.option(S.coercedInt(~constructor=int =>
-              switch int {
-              | 1 => true
-              | _ => false
-              }->Ok
-            , ()))->S.default(false)),
+        ("Tags", S.option(S.array(S.string()))->S.default([])),
+        ("IsApproved", S.coercedInt(~constructor=int =>
+            switch int {
+            | 1 => true
+            | _ => false
+            }->Ok
+          , ())),
         ("Age", S.deprecated(~message="A useful explanation", S.int())),
       ),
       ~constructor=((id, tags, isAproved, deprecatedAge)) =>
@@ -100,7 +100,7 @@ module Example = {
     )
 
     t->Assert.deepEqual(
-      %raw(`{"Id": 1, "Tags": [], "IsApproved": 1, "Age": 12}`)->S.constructWith(authorStruct),
+      %raw(`{"Id": 1, "IsApproved": 1, "Age": 12}`)->S.constructWith(authorStruct),
       Ok({
         id: 1.,
         tags: [],
@@ -110,7 +110,7 @@ module Example = {
       (),
     )
     t->Assert.deepEqual(
-      %raw(`{"Id": 1, "Tags": ["Loved"]}`)->S.constructWith(authorStruct),
+      %raw(`{"Id": 1, "IsApproved": 0, "Tags": ["Loved"]}`)->S.constructWith(authorStruct),
       Ok({
         id: 1.,
         tags: ["Loved"],

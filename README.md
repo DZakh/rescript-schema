@@ -27,7 +27,7 @@ ReScript Struct allows you to define the shape of data. You can use the shape to
 
 ### Libraries using ReScript Struct
 
-- [ReScript JSON Schema](https://github.com/dzakh-packages/rescript-json-schema) - Typesafe JSON schema for ReScript
+- [ReScript JSON Schema](https://github.com/DZakh/rescript-json-schema) - Typesafe JSON schema for ReScript
 
 ### Example
 
@@ -36,19 +36,19 @@ type author = {
   id: float,
   tags: array<string>,
   isAproved: bool,
-  deprecatedAge: option<int>
+  deprecatedAge: option<int>,
 }
 
 let authorStruct: S.t<author> = S.record4(
   ~fields=(
     ("Id", S.float()),
-    ("Tags", S.array(S.string())),
-    ("IsApproved", S.option(S.coercedInt(~constructor=int =>
-          switch int {
-          | 1 => true
-          | _ => false
-          }->Ok
-        , ()))->S.default(false)),
+    ("Tags", S.option(S.array(S.string()))->S.default([])),
+    ("IsApproved", S.coercedInt(~constructor=int =>
+        switch int {
+        | 1 => true
+        | _ => false
+        }->Ok
+      , ())),
     ("Age", S.deprecated(~message="A useful explanation", S.int())),
   ),
   ~constructor=((id, tags, isAproved, deprecatedAge)) =>
@@ -58,7 +58,6 @@ let authorStruct: S.t<author> = S.record4(
 
 let constructResult1: result<author, string> = %raw(`{
   "Id": 1,
-  "Tags": [],
   "IsApproved": 1,
   "Age": 12,
 }`)->S.constructWith(authorStruct)
@@ -72,6 +71,7 @@ let constructResult1: result<author, string> = %raw(`{
 
 let constructResult2: result<author, string> = %raw(`{
   "Id": 1,
+  "IsApproved": 0,
   "Tags": ["Loved"],
 }`)->S.constructWith(authorStruct)
 // Equal to:
