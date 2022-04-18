@@ -2,18 +2,45 @@
   "name": "rescript-struct",
   "version": "0.1.0",
   "description": "A simple and composable way to describe relationship between JavaScript and ReScript structures",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "keywords": [
+    "ReScript",
+    "Struct",
+    "Runtypes",
+    "Contract",
+    "Mapping",
+    "Typesafe",
+    "JSON",
+    "Parse",
+    "Serialize",
+    "Validation"
+  ],
+  "homepage": "https://github.com/DZakh-packages/rescript-struct#readme",
+  "bugs": {
+    "url": "https://github.com/DZakh-packages/rescript-struct/issues"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/DZakh-packages/rescript-struct.git"
   },
-  "author": "Dmitry Zakharov <dzakh.dev@gmail.com>",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/DZakh-packages/rescript-struct/issues"
+  "author": "Dmitry Zakharov <dzakh.dev@gmail.com>",
+  "files": [
+    "src/**/*.res",
+    "src/**/*.resi",
+    "bsconfig.json"
+  ],
+  "scripts": {
+    "res:build": "rescript build -with-deps",
+    "res:dev": "rescript build -w",
+    "test": "ava"
   },
-  "homepage": "https://github.com/DZakh-packages/rescript-struct#readme"
+  "ava": {
+    "files": [
+      "__tests__/**/*_test.bs.js"
+    ]
+  },
+  "devDependencies": {
+    "rescript": "9.1.4",
+    "rescript-ava": "github:DZakh-packages/rescript-ava#96c0aa710f7cc41501940e9af2c7d225f1d677f5"
+  }
 }

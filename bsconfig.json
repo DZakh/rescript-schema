@@ -1,0 +1,28 @@
+{
+  "name": "rescript-struct",
+  "namespace": false,
+  "bsc-flags": [
+    "-bs-no-version-header",
+    "-bs-super-errors"
+  ],
+  "bs-dev-dependencies": [
+    "rescript-ava"
+  ],
+  "suffix": ".bs.js",
+  "package-specs": {
+    "module": "commonjs",
+    "in-source": true
+  },
+  "sources": [
+    {
+      "dir": "src"
+    },
+    {
+      "dir": "__tests__",
+      "type": "dev"
+    }
+  ],
+  "warnings": {
+    "number": "-44"
+  }
+}
