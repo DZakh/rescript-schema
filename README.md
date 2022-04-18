@@ -2,6 +2,10 @@
 
 A simple and composable way to describe relationship between JavaScript and ReScript structures.
 
+## Status
+
+> **rescript-struct** is currently in beta. Its core API is useable right now, but you might need to pull request improvements for advanced use cases, or fixes for some bugs. Some of its APIs are not "finalized" and will have breaking changes over time as we discover better solutions.
+
 ## Installation
 
 ```sh
