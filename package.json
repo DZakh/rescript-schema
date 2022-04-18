@@ -1,6 +1,6 @@
 {
   "name": "rescript-struct",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A simple and composable way to describe relationship between JavaScript and ReScript structures",
   "keywords": [
     "ReScript",
@@ -14,13 +14,13 @@
     "Serialize",
     "Validation"
   ],
-  "homepage": "https://github.com/DZakh-packages/rescript-struct#readme",
+  "homepage": "https://github.com/DZakh/rescript-struct#readme",
   "bugs": {
-    "url": "https://github.com/DZakh-packages/rescript-struct/issues"
+    "url": "https://github.com/DZakh/rescript-struct/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DZakh-packages/rescript-struct.git"
+    "url": "git+https://github.com/DZakh/rescript-struct.git"
   },
   "license": "MIT",
   "author": "Dmitry Zakharov <dzakh.dev@gmail.com>",
@@ -41,6 +41,6 @@
   },
   "devDependencies": {
     "rescript": "9.1.4",
-    "rescript-ava": "github:DZakh-packages/rescript-ava#96c0aa710f7cc41501940e9af2c7d225f1d677f5"
+    "rescript-ava": "github:DZakh/rescript-ava#96c0aa710f7cc41501940e9af2c7d225f1d677f5"
   }
 }
