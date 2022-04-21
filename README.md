@@ -127,7 +127,7 @@ let struct: S.t<string> = S.string()
 Ok("a string of text")
 ```
 
-`string` structs represent a data that is a string.
+`string` struct represents a data that is a string.
 
 
 #### `S.coercedString`
@@ -144,7 +144,9 @@ let struct: S.t<string> = S.coercedString(~constructor=value => value->Js.String
 Ok("a string of text")
 ```
 
-`coercedString` structs represent a data that is a string.
+`coercedString` struct represents a data that is a string.
+
+> 🧠 For coerced struct factories either a constructor, or a destructor is required.
 
 #### `S.bool`
 
@@ -153,14 +155,14 @@ Ok("a string of text")
 ```rescript
 let struct: S.t<bool> = S.bool()
 
-%raw(false)->S.constructWith(struct)
+%raw(`false`)->S.constructWith(struct)
 ```
 
 ```rescript
 Ok(false)
 ```
 
-`bool` structs represent a data that is a boolean.
+`bool` struct represents a data that is a boolean.
 
 #### `S.coercedBool`
 
@@ -174,14 +176,14 @@ let struct: S.t<string> = S.coercedBool(~constructor=value =>
   }->Ok
 , ())
 
-%raw(false)->S.constructWith(struct)
+%raw(`false`)->S.constructWith(struct)
 ```
 
 ```rescript
 Ok("No")
 ```
 
-`coercedBool` structs represent a data that is a boolean.
+`coercedBool` struct represents a data that is a boolean.
 
 #### `S.int`
 
@@ -190,14 +192,14 @@ Ok("No")
 ```rescript
 let struct: S.t<int> = S.int()
 
-%raw(123)->S.constructWith(struct)
+%raw(`123`)->S.constructWith(struct)
 ```
 
 ```rescript
 Ok(123)
 ```
 
-`int` structs represent a data that is an integer.
+`int` struct represents a data that is an integer.
 
 #### `S.coercedInt`
 
@@ -212,14 +214,14 @@ let struct: S.t<bool> = S.coercedInt(~constructor=value =>
   }
 , ())
 
-%raw(1)->S.constructWith(struct)
+%raw(`1`)->S.constructWith(struct)
 ```
 
 ```rescript
 Ok(true)
 ```
 
-`coercedInt` structs represent a data that is an integer.
+`coercedInt` struct represents a data that is an integer.
 
 #### `S.float`
 
@@ -228,14 +230,14 @@ Ok(true)
 ```rescript
 let struct: S.t<float> = S.float()
 
-%raw(123)->S.constructWith(struct)
+%raw(`123`)->S.constructWith(struct)
 ```
 
 ```rescript
 Ok(123.)
 ```
 
-`float` structs represent a data that is a number.
+`float` struct represents a data that is a number.
 
 #### `S.coercedFloat`
 
@@ -248,7 +250,55 @@ Js.Date.fromFloat(1643669467293.)->S.destructWith(struct)
 ```
 
 ```rescript
-Ok(%raw(`new Date(1643669467293)`))
+Ok(%raw(`1643669467293`))
 ```
 
-`coercedFloat` structs represent a data that is a number.
+`coercedFloat` struct represents a data that is a number.
+
+#### `S.array`
+
+`S.t<'value> => S.t<array<'value>>`
+
+```rescript
+let struct: S.t<array<string>> = S.array(S.string())
+
+%raw(`["Hello", "World"]`)->S.constructWith(struct)
+```
+
+```rescript
+Ok(["Hello", "World"])
+```
+
+`array` struct represents an array of data of a specific type.
+
+#### `S.dict`
+
+`S.t<'value> => S.t<Js.Dict.t<'value>>`
+
+```rescript
+let struct: S.t<Js.Dict.t<string>> = S.dict(S.string())
+
+%raw(`{"foo":"bar","baz":"qux"}`)->S.constructWith(struct)
+```
+
+```rescript
+Ok(Js.Dict.fromArray([("foo", "bar"), ("baz", "qux")]))
+```
+
+`dict` struct represents a dictionary of data of a specific type.
+
+#### `S.option`
+
+`S.t<'value> => S.t<option<'value>>`
+
+```rescript
+let struct: S.t<option<string>> = S.option(S.string())
+
+%raw(`"a string of text"`)->S.constructWith(struct)
+```
+
+```rescript
+Ok(Some("a string of text"))
+```
+
+`option` struct represents an optional data of a specific type.
