@@ -9,7 +9,6 @@ test("Constructs unknown primitive with coercion to the same type", t => {
 
   let struct = S.coercedString(~constructor=value => value->Js.String2.trim->Ok, ())
 
-  t->Assert.deepEqual(struct->S.construct(unknownPrimitive), Ok(coercedPrimitive), ())
   t->Assert.deepEqual(unknownPrimitive->S.constructWith(struct), Ok(coercedPrimitive), ())
 })
 
@@ -20,7 +19,6 @@ test("Constructs unknown primitive with coercion to another type", t => {
 
   let struct = S.coercedInt(~constructor=value => value->Js.Int.toFloat->Ok, ())
 
-  t->Assert.deepEqual(struct->S.construct(unknownPrimitive), Ok(coercedPrimitive), ())
   t->Assert.deepEqual(unknownPrimitive->S.constructWith(struct), Ok(coercedPrimitive), ())
 })
 
@@ -40,11 +38,6 @@ test("CoercedPrimitive construction fails when constructor isn't provided", t =>
   let struct = S.coercedString(~destructor=value => value->Ok, ())
 
   t->Assert.deepEqual(
-    struct->S.construct(unknownPrimitive),
-    Error("Struct missing constructor at root"),
-    (),
-  )
-  t->Assert.deepEqual(
     unknownPrimitive->S.constructWith(struct),
     Error("Struct missing constructor at root"),
     (),
@@ -56,11 +49,6 @@ test("Construction fails when user returns error in a CoercedPrimitive construct
   let unknownPrimitive = primitive->unsafeToUnknown
   let struct = S.coercedString(~constructor=_ => Error("User error"), ())
 
-  t->Assert.deepEqual(
-    struct->S.construct(unknownPrimitive),
-    Error("Struct construction failed at root. Reason: User error"),
-    (),
-  )
   t->Assert.deepEqual(
     unknownPrimitive->S.constructWith(struct),
     Error("Struct construction failed at root. Reason: User error"),
@@ -75,7 +63,6 @@ test("Destructs unknown record with with coercion to the same type", t => {
 
   let struct = S.coercedString(~destructor=value => value->Js.String2.trim->Ok, ())
 
-  t->Assert.deepEqual(struct->S.destruct(primitive), Ok(unknownCoercedPrimitive), ())
   t->Assert.deepEqual(primitive->S.destructWith(struct), Ok(unknownCoercedPrimitive), ())
 })
 
@@ -86,7 +73,6 @@ test("Destructs unknown record with with coercion to another type", t => {
 
   let struct = S.coercedFloat(~destructor=value => value->Js.Int.toFloat->Ok, ())
 
-  t->Assert.deepEqual(struct->S.destruct(primitive), Ok(unknownCoercedPrimitive), ())
   t->Assert.deepEqual(primitive->S.destructWith(struct), Ok(unknownCoercedPrimitive), ())
 })
 
@@ -95,7 +81,6 @@ test("CoercedPrimitive destruction fails when destructor isn't provided", t => {
 
   let struct = S.coercedString(~constructor=value => value->Ok, ())
 
-  t->Assert.deepEqual(struct->S.destruct(primitive), Error("Struct missing destructor at root"), ())
   t->Assert.deepEqual(
     primitive->S.destructWith(struct),
     Error("Struct missing destructor at root"),
@@ -108,11 +93,6 @@ test("Destruction fails when user returns error in a CoercedPrimitive destructor
 
   let struct = S.coercedString(~destructor=_ => Error("User error"), ())
 
-  t->Assert.deepEqual(
-    struct->S.destruct(primitive),
-    Error("Struct destruction failed at root. Reason: User error"),
-    (),
-  )
   t->Assert.deepEqual(
     primitive->S.destructWith(struct),
     Error("Struct destruction failed at root. Reason: User error"),
@@ -131,7 +111,9 @@ test("Constructs a CoercedPrimitive and destructs it back to the initial state",
   )
 
   t->Assert.deepEqual(
-    struct->S.construct(unknownPrimitive)->Belt.Result.map(record => struct->S.destruct(record)),
+    unknownPrimitive
+    ->S.constructWith(struct)
+    ->Belt.Result.map(record => record->S.destructWith(struct)),
     Ok(Ok(unknownPrimitive)),
     (),
   )

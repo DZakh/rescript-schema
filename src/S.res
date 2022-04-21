@@ -182,11 +182,8 @@ let _construct = (struct, unknown) => {
   | None => Error.MissingConstructor.make()->Error
   }
 }
-let construct = (struct, unknown) => {
-  _construct(struct, unknown)->ResultX.mapError(Error.toString)
-}
 let constructWith = (unknown, struct) => {
-  construct(struct, unknown)
+  _construct(struct, unknown)->ResultX.mapError(Error.toString)
 }
 
 let _destruct = (struct, unknown) => {
@@ -195,11 +192,8 @@ let _destruct = (struct, unknown) => {
   | None => Error.MissingDestructor.make()->Error
   }
 }
-let destruct = (struct, unknown) => {
-  _destruct(struct, unknown)->ResultX.mapError(Error.toString)
-}
 let destructWith = (unknown, struct) => {
-  destruct(struct, unknown)
+  _destruct(struct, unknown)->ResultX.mapError(Error.toString)
 }
 
 module Record = {

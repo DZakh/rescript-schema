@@ -20,5 +20,5 @@ test("Works", t => {
     (),
   )
 
-  t->Assert.deepEqual(struct->S.construct(unknownRecord), Ok(record), ())
+  t->Assert.deepEqual(unknownRecord->S.constructWith(struct), Ok(record), ())
 })

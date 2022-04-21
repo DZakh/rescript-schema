@@ -144,10 +144,7 @@ let custom: (
   unit,
 ) => t<'value>
 
-let construct: (t<'value>, Js.Json.t) => result<'value, string>
 let constructWith: (Js.Json.t, t<'value>) => result<'value, string>
-
-let destruct: (t<'value>, 'value) => result<Js.Json.t, string>
 let destructWith: ('value, t<'value>) => result<Js.Json.t, string>
 
 module Record: {

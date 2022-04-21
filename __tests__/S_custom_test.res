@@ -11,7 +11,6 @@ test("Constructs with a constructor", t => {
     (),
   )
 
-  t->Assert.deepEqual(struct->S.construct(unknownCustomData), Ok(customData), ())
   t->Assert.deepEqual(unknownCustomData->S.constructWith(struct), Ok(customData), ())
 })
 
@@ -31,11 +30,6 @@ test("Construction fails when constructor isn't provided", t => {
   let struct = S.custom(~destructor=value => value->Js.Json.string->Ok, ())
 
   t->Assert.deepEqual(
-    struct->S.construct(unknownCustomData),
-    Error("Struct missing constructor at root"),
-    (),
-  )
-  t->Assert.deepEqual(
     unknownCustomData->S.constructWith(struct),
     Error("Struct missing constructor at root"),
     (),
@@ -49,11 +43,6 @@ test("Construction fails when user returns error in constructor", t => {
   let struct = S.custom(~constructor=_ => Error("User error"), ())
 
   t->Assert.deepEqual(
-    struct->S.construct(unknownWrongCustomData),
-    Error("Struct construction failed at root. Reason: User error"),
-    (),
-  )
-  t->Assert.deepEqual(
     unknownWrongCustomData->S.constructWith(struct),
     Error("Struct construction failed at root. Reason: User error"),
     (),
@@ -66,7 +55,6 @@ test("Destructs with a destructor", t => {
 
   let struct = S.custom(~destructor=value => value->Js.Json.string->Ok, ())
 
-  t->Assert.deepEqual(struct->S.destruct(customData), Ok(unknownCustomData), ())
   t->Assert.deepEqual(customData->S.destructWith(struct), Ok(unknownCustomData), ())
 })
 
@@ -79,11 +67,6 @@ test("Destruction fails when destructor isn't provided", t => {
   )
 
   t->Assert.deepEqual(
-    struct->S.destruct(customData),
-    Error("Struct missing destructor at root"),
-    (),
-  )
-  t->Assert.deepEqual(
     customData->S.destructWith(struct),
     Error("Struct missing destructor at root"),
     (),
@@ -95,11 +78,6 @@ test("Destruction fails when user returns error in destructor", t => {
 
   let struct = S.custom(~destructor=_ => Error("User error"), ())
 
-  t->Assert.deepEqual(
-    struct->S.destruct(primitive),
-    Error("Struct destruction failed at root. Reason: User error"),
-    (),
-  )
   t->Assert.deepEqual(
     primitive->S.destructWith(struct),
     Error("Struct destruction failed at root. Reason: User error"),
@@ -118,7 +96,9 @@ test("Constructs data and destructs it back to the initial state", t => {
   )
 
   t->Assert.deepEqual(
-    struct->S.construct(unknownCustomData)->Belt.Result.map(record => struct->S.destruct(record)),
+    unknownCustomData
+    ->S.constructWith(struct)
+    ->Belt.Result.map(record => record->S.destructWith(struct)),
     Ok(Ok(unknownCustomData)),
     (),
   )
