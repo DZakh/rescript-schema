@@ -302,3 +302,40 @@ Ok(Some("a string of text"))
 ```
 
 `option` struct represents an optional data of a specific type.
+
+#### `S.record1` - `S.record10`
+
+`(~fields: (S.field<'v1>, S.field<'v2>), ~constructor: (('v1, 'v2)) => result<'value, string>=?, ~destructor: 'value => result<('v1, 'v2), string>=?, unit) => S.t<'value>`
+
+```rescript
+type author = {
+  id: string,
+}
+let struct = S.record1(~fields=("ID", S.string()), ~constructor=id => {id: id}->Ok, ())
+
+
+%raw(`{"ID": "abc"}`)->S.constructWith(struct)
+```
+
+```rescript
+Ok(Some({
+  id: "abc",
+}))
+```
+
+`record` struct represents an object and that each of its properties represent a specific type as well.
+
+The record struct factories are available up to 10 fields. If you have an object with more fields, you can create a record struct factory for any number of fields using `S.Record.factory`.
+
+#### `S.Record.factory`
+
+```rescript
+let record2: (
+  ~fields: (S.field<'v1>, S.field<'v2>),
+  ~constructor: (('v1, 'v2)) => result<'value, string>=?,
+  ~destructor: 'value => result<('v1, 'v2), string>=?,
+  unit,
+) => S.t<'value> = S.Record.factory
+```
+
+> 🧠 The `S.Record.factory` internal code isn't typesafe, so you should properly annotate the struct factory interface.
