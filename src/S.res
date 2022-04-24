@@ -8,69 +8,6 @@ let _mapTupleToUnsafeArray = %raw(`function(tuple){
   return isSingleField ? [tuple] : tuple;
 }`)
 
-module ResultX = {
-  let mapError = (result, fn) =>
-    switch result {
-    | Ok(_) as ok => ok
-    | Error(error) => Error(fn(error))
-    }
-
-  module Array = {
-    let mapi = (array: array<'a>, cb: ('a, int) => result<'b, 'e>): result<array<'b>, 'e> => {
-      let newArray = []
-      let maybeErrorRef = ref(None)
-      array
-      ->Js.Array2.findi((item, idx) => {
-        switch cb(item, idx) {
-        | Ok(value) => {
-            newArray->Js.Array2.push(value)->ignore
-            false
-          }
-        | Error(error) => {
-            maybeErrorRef.contents = Some(error)
-            true
-          }
-        }
-      })
-      ->ignore
-      switch maybeErrorRef.contents {
-      | Some(error) => Error(error)
-      | None => Ok(newArray)
-      }
-    }
-  }
-
-  module Dict = {
-    let map = (dict: Js.Dict.t<'a>, cb: ('a, string) => result<'b, 'e>): result<
-      Js.Dict.t<'b>,
-      'e,
-    > => {
-      let newDict = Js.Dict.empty()
-      let maybeErrorRef = ref(None)
-      dict
-      ->Js.Dict.keys
-      ->Js.Array2.find(key => {
-        let item = dict->Js.Dict.unsafeGet(key)
-        switch cb(item, key) {
-        | Ok(value) => {
-            newDict->Js.Dict.set(key, value)->ignore
-            false
-          }
-        | Error(error) => {
-            maybeErrorRef.contents = Some(error)
-            true
-          }
-        }
-      })
-      ->ignore
-      switch maybeErrorRef.contents {
-      | Some(error) => Error(error)
-      | None => Ok(newDict)
-      }
-    }
-  }
-}
-
 type unknown = Js.Json.t
 
 external unsafeToUnknown: 'unknown => unknown = "%identity"
@@ -113,7 +50,7 @@ let _construct = (struct, unknown) => {
   }
 }
 let constructWith = (unknown, struct) => {
-  _construct(struct, unknown)->ResultX.mapError(RescriptStruct_Error.toString)
+  _construct(struct, unknown)->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
 }
 
 let _destruct = (struct, unknown) => {
@@ -123,7 +60,7 @@ let _destruct = (struct, unknown) => {
   }
 }
 let destructWith = (unknown, struct) => {
-  _destruct(struct, unknown)->ResultX.mapError(RescriptStruct_Error.toString)
+  _destruct(struct, unknown)->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
 }
 
 module Record = {
@@ -209,7 +146,9 @@ module Record = {
                   ),
                 )
               }
-            })(unknown)->ResultX.mapError(RescriptStruct_Error.ConstructingFailed.make)
+            })(unknown)->RescriptStruct_ResultX.mapError(
+              RescriptStruct_Error.ConstructingFailed.make,
+            )
           } catch {
           | HackyAbort(error) => Error(error)
           }
@@ -306,18 +245,22 @@ let array = struct =>
     ~constructor=unknown => {
       unknown
       ->unsafeUnknownToArray
-      ->ResultX.Array.mapi((unknownItem, idx) => {
+      ->RescriptStruct_ResultX.Array.mapi((unknownItem, idx) => {
         struct
         ->_construct(unknownItem)
-        ->ResultX.mapError(RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Index(idx)))
+        ->RescriptStruct_ResultX.mapError(
+          RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Index(idx)),
+        )
       })
     },
     ~destructor=array => {
       array
-      ->ResultX.Array.mapi((item, idx) => {
+      ->RescriptStruct_ResultX.Array.mapi((item, idx) => {
         struct
         ->_destruct(item)
-        ->ResultX.mapError(RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Index(idx)))
+        ->RescriptStruct_ResultX.mapError(
+          RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Index(idx)),
+        )
       })
       ->Belt.Result.map(unsafeArrayToUnknown)
     },
@@ -330,18 +273,22 @@ let dict = struct =>
     ~constructor=unknown => {
       // TODO: Think about validating that keys are actually strings
       let unknownDict = unknown->unsafeUnknownToDict
-      unknownDict->ResultX.Dict.map((unknownItem, key) => {
+      unknownDict->RescriptStruct_ResultX.Dict.map((unknownItem, key) => {
         struct
         ->_construct(unknownItem)
-        ->ResultX.mapError(RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(key)))
+        ->RescriptStruct_ResultX.mapError(
+          RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(key)),
+        )
       })
     },
     ~destructor=dict => {
       dict
-      ->ResultX.Dict.map((item, key) => {
+      ->RescriptStruct_ResultX.Dict.map((item, key) => {
         struct
         ->_destruct(item)
-        ->ResultX.mapError(RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(key)))
+        ->RescriptStruct_ResultX.mapError(
+          RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(key)),
+        )
       })
       ->Belt.Result.map(unsafeDictToUnknown)
     },
@@ -397,7 +344,7 @@ let coerce = (
         unknown => {
           let structConstructorResult = structConstructor(unknown)
           structConstructorResult->Belt.Result.flatMap(originalValue => {
-            coercionConstructor(originalValue)->ResultX.mapError(
+            coercionConstructor(originalValue)->RescriptStruct_ResultX.mapError(
               RescriptStruct_Error.ConstructingFailed.make,
             )
           })
@@ -433,12 +380,16 @@ let custom = (
     ~kind=Custom,
     ~constructor=?maybeCustomConstructor->Belt.Option.map(customConstructor => {
       unknown => {
-        customConstructor(unknown)->ResultX.mapError(RescriptStruct_Error.ConstructingFailed.make)
+        customConstructor(unknown)->RescriptStruct_ResultX.mapError(
+          RescriptStruct_Error.ConstructingFailed.make,
+        )
       }
     }),
     ~destructor=?maybeCustomDestructor->Belt.Option.map(customDestructor => {
       value => {
-        customDestructor(value)->ResultX.mapError(RescriptStruct_Error.DestructingFailed.make)
+        customDestructor(value)->RescriptStruct_ResultX.mapError(
+          RescriptStruct_Error.DestructingFailed.make,
+        )
       }
     }),
     (),
