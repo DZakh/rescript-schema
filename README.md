@@ -313,7 +313,6 @@ type author = {
 }
 let struct = S.record1(~fields=("ID", S.string()), ~constructor=id => {id: id}->Ok, ())
 
-
 %raw(`{"ID": "abc"}`)->S.constructWith(struct)
 ```
 
@@ -339,3 +338,19 @@ let record2: (
 ```
 
 > 🧠 The `S.Record.factory` internal code isn't typesafe, so you should properly annotate the struct factory interface.
+
+#### `S.default`
+
+`(S.t<option<'value>>, 'value) => S.t<'value>`
+
+```rescript
+let struct: S.t<string> = S.option(S.string())->S.default("a string of text")
+
+%raw(`undefined`)->S.constructWith(struct)
+```
+
+```rescript
+Ok(Some("a string of text"))
+```
+
+`default` augments a struct to add coercion logic for default values, which are applied when the input is undefined.
