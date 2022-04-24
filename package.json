@@ -4,12 +4,15 @@
   "description": "A simple and composable way to describe relationship between JavaScript and ReScript structures",
   "keywords": [
     "ReScript",
+    "ReStruct",
     "Struct",
+    "Schema",
+    "JSON",
     "Runtypes",
+    "Superstruct",
     "Contract",
     "Mapping",
     "Typesafe",
-    "JSON",
     "Parse",
     "Serialize",
     "Validation"
