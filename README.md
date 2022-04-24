@@ -354,3 +354,19 @@ Ok(Some("a string of text"))
 ```
 
 `default` augments a struct to add coercion logic for default values, which are applied when the input is undefined.
+
+#### `S.deprecated`
+
+`(~message: string=?, S.t<'value>) => S.t<option<'value>>`
+
+```rescript
+let struct: S.t<option<string>> = S.deprecated(~message="The struct is deprecated", S.string())
+
+%raw(`"a string of text"`)->S.constructWith(struct)
+```
+
+```rescript
+Ok(Some("a string of text"))
+```
+
+`deprecated` struct represents a data of a specific type and makes it optional. The message may be used by an integration library.
