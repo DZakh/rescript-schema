@@ -71,76 +71,6 @@ module ResultX = {
   }
 }
 
-module Error = {
-  type locationComponent = Field(string) | Index(int)
-
-  type location = array<locationComponent>
-
-  type rec t = {kind: kind, mutable location: location}
-  and kind =
-    | MissingConstructor
-    | MissingDestructor
-    | ConstructingFailed(string)
-    | DestructingFailed(string)
-
-  module MissingConstructor = {
-    let make = () => {
-      {kind: MissingConstructor, location: []}
-    }
-  }
-
-  module MissingDestructor = {
-    let make = () => {
-      {kind: MissingDestructor, location: []}
-    }
-  }
-
-  module ConstructingFailed = {
-    let make = reason => {
-      {kind: ConstructingFailed(reason), location: []}
-    }
-  }
-
-  module DestructingFailed = {
-    let make = reason => {
-      {kind: DestructingFailed(reason), location: []}
-    }
-  }
-
-  let formatLocation = location =>
-    "." ++
-    location
-    ->Js.Array2.map(s =>
-      switch s {
-      | Field(field) => `"` ++ field ++ `"`
-      | Index(index) => `[` ++ index->Js.Int.toString ++ `]`
-      }
-    )
-    ->Js.Array2.joinWith(".")
-
-  let prependLocation = (error, location) => {
-    error.location = [location]->Js.Array2.concat(error.location)
-    error
-  }
-
-  let toString = error => {
-    let withLocationInfo = error.location->Js.Array2.length !== 0
-    switch (error.kind, withLocationInfo) {
-    | (MissingConstructor, true) =>
-      `Struct missing constructor at ${error.location->formatLocation}`
-    | (MissingConstructor, false) => `Struct missing constructor at root`
-    | (MissingDestructor, true) => `Struct missing destructor at ${error.location->formatLocation}`
-    | (MissingDestructor, false) => `Struct missing destructor at root`
-    | (ConstructingFailed(reason), true) =>
-      `Struct construction failed at ${error.location->formatLocation}. Reason: ${reason}`
-    | (ConstructingFailed(reason), false) => `Struct construction failed at root. Reason: ${reason}`
-    | (DestructingFailed(reason), true) =>
-      `Struct destruction failed at ${error.location->formatLocation}. Reason: ${reason}`
-    | (DestructingFailed(reason), false) => `Struct destruction failed at root. Reason: ${reason}`
-    }
-  }
-}
-
 type unknown = Js.Json.t
 
 external unsafeToUnknown: 'unknown => unknown = "%identity"
@@ -154,8 +84,8 @@ external unsafeOptionToUnknown: option<unknown> => unknown = "%identity"
 
 type rec t<'value> = {
   kind: kind,
-  constructor: option<unknown => result<'value, Error.t>>,
-  destructor: option<'value => result<unknown, Error.t>>,
+  constructor: option<unknown => result<'value, RescriptStruct_Error.t>>,
+  destructor: option<'value => result<unknown, RescriptStruct_Error.t>>,
   metadata: Js.Dict.t<unknown>,
 }
 and kind =
@@ -179,25 +109,25 @@ let make = (~kind, ~constructor=?, ~destructor=?, ()): t<'value> => {
 let _construct = (struct, unknown) => {
   switch struct.constructor {
   | Some(constructor) => unknown->constructor
-  | None => Error.MissingConstructor.make()->Error
+  | None => RescriptStruct_Error.MissingConstructor.make()->Error
   }
 }
 let constructWith = (unknown, struct) => {
-  _construct(struct, unknown)->ResultX.mapError(Error.toString)
+  _construct(struct, unknown)->ResultX.mapError(RescriptStruct_Error.toString)
 }
 
 let _destruct = (struct, unknown) => {
   switch struct.destructor {
   | Some(destructor) => unknown->destructor
-  | None => Error.MissingDestructor.make()->Error
+  | None => RescriptStruct_Error.MissingDestructor.make()->Error
   }
 }
 let destructWith = (unknown, struct) => {
-  _destruct(struct, unknown)->ResultX.mapError(Error.toString)
+  _destruct(struct, unknown)->ResultX.mapError(RescriptStruct_Error.toString)
 }
 
 module Record = {
-  exception HackyAbort(Error.t)
+  exception HackyAbort(RescriptStruct_Error.t)
 
   let _constructor = %raw(`function(fields, recordConstructor, construct) {
     var isSingleField = typeof fields[0] === "string";
@@ -271,9 +201,15 @@ module Record = {
               switch _construct(struct, unknownFieldValue) {
               | Ok(value) => value
               | Error(error) =>
-                raise(HackyAbort(error->Error.prependLocation(Error.Field(fieldName))))
+                raise(
+                  HackyAbort(
+                    error->RescriptStruct_Error.prependLocation(
+                      RescriptStruct_Error.Field(fieldName),
+                    ),
+                  ),
+                )
               }
-            })(unknown)->ResultX.mapError(Error.ConstructingFailed.make)
+            })(unknown)->ResultX.mapError(RescriptStruct_Error.ConstructingFailed.make)
           } catch {
           | HackyAbort(error) => Error(error)
           }
@@ -287,14 +223,21 @@ module Record = {
               ~recordDestructor=value => {
                 switch recordDestructor(value) {
                 | Ok(fieldValuesTuple) => fieldValuesTuple
-                | Error(reason) => raise(HackyAbort(Error.DestructingFailed.make(reason)))
+                | Error(reason) =>
+                  raise(HackyAbort(RescriptStruct_Error.DestructingFailed.make(reason)))
                 }
               },
               ~destruct=(struct, fieldName, fieldValue) => {
                 switch _destruct(struct, fieldValue) {
                 | Ok(unknown) => unknown
                 | Error(error) =>
-                  raise(HackyAbort(error->Error.prependLocation(Error.Field(fieldName))))
+                  raise(
+                    HackyAbort(
+                      error->RescriptStruct_Error.prependLocation(
+                        RescriptStruct_Error.Field(fieldName),
+                      ),
+                    ),
+                  )
                 }
               },
             )(value)->Ok
@@ -366,13 +309,15 @@ let array = struct =>
       ->ResultX.Array.mapi((unknownItem, idx) => {
         struct
         ->_construct(unknownItem)
-        ->ResultX.mapError(Error.prependLocation(_, Error.Index(idx)))
+        ->ResultX.mapError(RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Index(idx)))
       })
     },
     ~destructor=array => {
       array
       ->ResultX.Array.mapi((item, idx) => {
-        struct->_destruct(item)->ResultX.mapError(Error.prependLocation(_, Error.Index(idx)))
+        struct
+        ->_destruct(item)
+        ->ResultX.mapError(RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Index(idx)))
       })
       ->Belt.Result.map(unsafeArrayToUnknown)
     },
@@ -388,13 +333,15 @@ let dict = struct =>
       unknownDict->ResultX.Dict.map((unknownItem, key) => {
         struct
         ->_construct(unknownItem)
-        ->ResultX.mapError(Error.prependLocation(_, Error.Field(key)))
+        ->ResultX.mapError(RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(key)))
       })
     },
     ~destructor=dict => {
       dict
       ->ResultX.Dict.map((item, key) => {
-        struct->_destruct(item)->ResultX.mapError(Error.prependLocation(_, Error.Field(key)))
+        struct
+        ->_destruct(item)
+        ->ResultX.mapError(RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(key)))
       })
       ->Belt.Result.map(unsafeDictToUnknown)
     },
@@ -450,7 +397,9 @@ let coerce = (
         unknown => {
           let structConstructorResult = structConstructor(unknown)
           structConstructorResult->Belt.Result.flatMap(originalValue => {
-            coercionConstructor(originalValue)->ResultX.mapError(Error.ConstructingFailed.make)
+            coercionConstructor(originalValue)->ResultX.mapError(
+              RescriptStruct_Error.ConstructingFailed.make,
+            )
           })
         }
       }->Some
@@ -462,7 +411,7 @@ let coerce = (
         value => {
           switch coercionDestructor(value) {
           | Ok(primitive) => structDestructor(primitive)
-          | Error(reason) => Error.DestructingFailed.make(reason)->Error
+          | Error(reason) => RescriptStruct_Error.DestructingFailed.make(reason)->Error
           }
         }
       }->Some
@@ -484,12 +433,12 @@ let custom = (
     ~kind=Custom,
     ~constructor=?maybeCustomConstructor->Belt.Option.map(customConstructor => {
       unknown => {
-        customConstructor(unknown)->ResultX.mapError(Error.ConstructingFailed.make)
+        customConstructor(unknown)->ResultX.mapError(RescriptStruct_Error.ConstructingFailed.make)
       }
     }),
     ~destructor=?maybeCustomDestructor->Belt.Option.map(customDestructor => {
       value => {
-        customDestructor(value)->ResultX.mapError(Error.DestructingFailed.make)
+        customDestructor(value)->ResultX.mapError(RescriptStruct_Error.DestructingFailed.make)
       }
     }),
     (),
