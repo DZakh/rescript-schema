@@ -311,14 +311,6 @@ You can also define your own custom structs that are specific to your applicatio
 let trimmed: S.t<string> => S.t<string> = S.coerce(_, ~constructor=s => s->Js.String2.trim->Ok, ~destructor=s => s->Ok, ())
 ```
 ```rescript
-let nonEmptyStringStruct = S.string()->S.coerce(~constructor=s =>
-  switch s {
-  | "" => None
-  | s' => Some(s')
-  }->Ok
-, ())
-```
-```rescript
 let nonEmptyStringStruct: S.t<option<string>> = S.string()->S.coerce(
   ~constructor=s =>
     switch s {
