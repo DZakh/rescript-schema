@@ -370,3 +370,23 @@ Ok(Some("a string of text"))
 ```
 
 `deprecated` struct represents a data of a specific type and makes it optional. The message may be used by an integration library.
+
+#### `S.custom`
+
+`(~constructor: Js.Json.t => result<'value, string>=?, ~destructor: 'value => result<Js.Json.t, string>=?, unit) => S.t<'value>`
+
+You can also define your own custom structs that are specific to your application's requirements.
+
+### Integration
+
+If you're a library maintainer, you can use **rescript-struct** as a way to describe a structure and use it in your own way. The most common use case is building type-safe schemas e.g for REST APIs, databases, and forms.
+
+The detailed API documentation is a work in progress, for now, you can use `S.resi` file as a reference and [rescript-json-schema](https://github.com/DZakh/rescript-json-schema) source code.
+
+## Roadmap
+
+- [ ] Add custom Coercions
+- [ ] Add JSON module for decoding and encoding
+- [ ] Add Enum and Literal struct factories
+- [ ] Add Dynamic struct factory
+- [ ] Add Lazy struct factory
