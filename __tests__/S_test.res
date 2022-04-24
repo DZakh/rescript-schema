@@ -63,10 +63,7 @@ test("Using default value when constructing optional unknown primitive", t => {
   let defaultValue = 123.
   let unknownPrimitive = None->unsafeToUnknown
 
-  let struct =
-    S.option(S.coercedInt(~constructor=value => value->Js.Int.toFloat->Ok, ()))->S.default(
-      defaultValue,
-    )
+  let struct = S.option(S.float())->S.default(defaultValue)
 
   t->Assert.deepEqual(unknownPrimitive->S.constructWith(struct), Ok(defaultValue), ())
 })
@@ -79,7 +76,7 @@ module Example = {
       ~fields=(
         ("Id", S.float()),
         ("Tags", S.option(S.array(S.string()))->S.default([])),
-        ("IsApproved", S.coercedInt(~constructor=int =>
+        ("IsApproved", S.int()->S.coerce(~constructor=int =>
             switch int {
             | 1 => true
             | _ => false

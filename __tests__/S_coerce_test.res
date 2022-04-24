@@ -7,7 +7,7 @@ test("Constructs unknown primitive with coercion to the same type", t => {
   let coercedPrimitive = "Hello world!"
   let unknownPrimitive = primitive->unsafeToUnknown
 
-  let struct = S.coercedString(~constructor=value => value->Js.String2.trim->Ok, ())
+  let struct = S.string()->S.coerce(~constructor=value => value->Js.String2.trim->Ok, ())
 
   t->Assert.deepEqual(unknownPrimitive->S.constructWith(struct), Ok(coercedPrimitive), ())
 })
@@ -17,16 +17,16 @@ test("Constructs unknown primitive with coercion to another type", t => {
   let coercedPrimitive = 123.
   let unknownPrimitive = primitive->unsafeToUnknown
 
-  let struct = S.coercedInt(~constructor=value => value->Js.Int.toFloat->Ok, ())
+  let struct = S.int()->S.coerce(~constructor=value => value->Js.Int.toFloat->Ok, ())
 
   t->Assert.deepEqual(unknownPrimitive->S.constructWith(struct), Ok(coercedPrimitive), ())
 })
 
 test("Throws for a CoercedPrimitive factory without either a constructor, or a destructor", t => {
   t->Assert.throws(() => {
-    S.coercedString()->ignore
+    S.string()->S.coerce()->ignore
   }, ~expectations=ThrowsException.make(
-    ~message="For a Coerced struct either a constructor, or a destructor is required",
+    ~message="For coercion either a constructor, or a destructor is required",
     (),
   ), ())
 })
@@ -35,7 +35,7 @@ test("CoercedPrimitive construction fails when constructor isn't provided", t =>
   let primitive = "Hello world!"
   let unknownPrimitive = primitive->unsafeToUnknown
 
-  let struct = S.coercedString(~destructor=value => value->Ok, ())
+  let struct = S.string()->S.coerce(~destructor=value => value->Ok, ())
 
   t->Assert.deepEqual(
     unknownPrimitive->S.constructWith(struct),
@@ -47,7 +47,7 @@ test("CoercedPrimitive construction fails when constructor isn't provided", t =>
 test("Construction fails when user returns error in a CoercedPrimitive constructor", t => {
   let primitive = "Hello world!"
   let unknownPrimitive = primitive->unsafeToUnknown
-  let struct = S.coercedString(~constructor=_ => Error("User error"), ())
+  let struct = S.string()->S.coerce(~constructor=_ => Error("User error"), ())
 
   t->Assert.deepEqual(
     unknownPrimitive->S.constructWith(struct),
@@ -56,22 +56,22 @@ test("Construction fails when user returns error in a CoercedPrimitive construct
   )
 })
 
-test("Destructs unknown record with with coercion to the same type", t => {
+test("Destructs primitive with coercion to the same type", t => {
   let primitive = "  Hello world!"
   let coercedPrimitive = "Hello world!"
   let unknownCoercedPrimitive = coercedPrimitive->unsafeToUnknown
 
-  let struct = S.coercedString(~destructor=value => value->Js.String2.trim->Ok, ())
+  let struct = S.string()->S.coerce(~destructor=value => value->Js.String2.trim->Ok, ())
 
   t->Assert.deepEqual(primitive->S.destructWith(struct), Ok(unknownCoercedPrimitive), ())
 })
 
-test("Destructs unknown record with with coercion to another type", t => {
+test("Destructs primitive with coercion to another type", t => {
   let primitive = 123
   let coercedPrimitive = 123.
   let unknownCoercedPrimitive = coercedPrimitive->unsafeToUnknown
 
-  let struct = S.coercedFloat(~destructor=value => value->Js.Int.toFloat->Ok, ())
+  let struct = S.float()->S.coerce(~destructor=value => value->Js.Int.toFloat->Ok, ())
 
   t->Assert.deepEqual(primitive->S.destructWith(struct), Ok(unknownCoercedPrimitive), ())
 })
@@ -79,7 +79,7 @@ test("Destructs unknown record with with coercion to another type", t => {
 test("CoercedPrimitive destruction fails when destructor isn't provided", t => {
   let primitive = "Hello world!"
 
-  let struct = S.coercedString(~constructor=value => value->Ok, ())
+  let struct = S.string()->S.coerce(~constructor=value => value->Ok, ())
 
   t->Assert.deepEqual(
     primitive->S.destructWith(struct),
@@ -91,7 +91,7 @@ test("CoercedPrimitive destruction fails when destructor isn't provided", t => {
 test("Destruction fails when user returns error in a CoercedPrimitive destructor", t => {
   let primitive = "Hello world!"
 
-  let struct = S.coercedString(~destructor=_ => Error("User error"), ())
+  let struct = S.string()->S.coerce(~destructor=_ => Error("User error"), ())
 
   t->Assert.deepEqual(
     primitive->S.destructWith(struct),
@@ -104,11 +104,12 @@ test("Constructs a CoercedPrimitive and destructs it back to the initial state",
   let primitive = 123
   let unknownPrimitive = primitive->unsafeToUnknown
 
-  let struct = S.coercedInt(
-    ~constructor=int => int->Js.Int.toFloat->Ok,
-    ~destructor=value => value->Belt.Int.fromFloat->Ok,
-    (),
-  )
+  let struct =
+    S.int()->S.coerce(
+      ~constructor=int => int->Js.Int.toFloat->Ok,
+      ~destructor=value => value->Belt.Int.fromFloat->Ok,
+      (),
+    )
 
   t->Assert.deepEqual(
     unknownPrimitive

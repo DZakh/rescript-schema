@@ -43,7 +43,7 @@ let authorStruct: S.t<author> = S.record4(
   ~fields=(
     ("Id", S.float()),
     ("Tags", S.option(S.array(S.string()))->S.default([])),
-    ("IsApproved", S.coercedInt(~constructor=int =>
+    ("IsApproved", S.int()->S.coerce(~constructor=int =>
         switch int {
         | 1 => true
         | _ => false
@@ -129,25 +129,6 @@ Ok("a string of text")
 
 `string` struct represents a data that is a string.
 
-
-#### `S.coercedString`
-
-`(~constructor: string => result<'value, string>=?, ~destructor: 'value => result<string, string>=?, unit) => S.t<'value>`
-
-```rescript
-let struct: S.t<string> = S.coercedString(~constructor=value => value->Js.String2.trim->Ok, ())
-
-%raw(`   a string of text  `)->S.constructWith(struct)
-```
-
-```rescript
-Ok("a string of text")
-```
-
-`coercedString` struct represents a data that is a string.
-
-> 🧠 For coerced struct factories either a constructor, or a destructor is required.
-
 #### `S.bool`
 
 `unit => S.t<bool>`
@@ -163,27 +144,6 @@ Ok(false)
 ```
 
 `bool` struct represents a data that is a boolean.
-
-#### `S.coercedBool`
-
-`(~constructor: bool => result<'value, string>=?, ~destructor: 'value => result<bool, string>=?, unit) => S.t<'value>`
-
-```rescript
-let struct: S.t<string> = S.coercedBool(~constructor=value =>
-  switch value {
-  | true => "Yes"
-  | false => "No"
-  }->Ok
-, ())
-
-%raw(`false`)->S.constructWith(struct)
-```
-
-```rescript
-Ok("No")
-```
-
-`coercedBool` struct represents a data that is a boolean.
 
 #### `S.int`
 
@@ -201,28 +161,6 @@ Ok(123)
 
 `int` struct represents a data that is an integer.
 
-#### `S.coercedInt`
-
-`(~constructor: int => result<'value, string>=?, ~destructor: 'value => result<int, string>=?, unit) => S.t<'value>`
-
-```rescript
-let struct: S.t<bool> = S.coercedInt(~constructor=value =>
-  switch value {
-  | 1 => Ok(true)
-  | 0 => Ok(false)
-  | _ => Error("Invalid exit code")
-  }
-, ())
-
-%raw(`1`)->S.constructWith(struct)
-```
-
-```rescript
-Ok(true)
-```
-
-`coercedInt` struct represents a data that is an integer.
-
 #### `S.float`
 
 `unit => S.t<float>`
@@ -238,22 +176,6 @@ Ok(123.)
 ```
 
 `float` struct represents a data that is a number.
-
-#### `S.coercedFloat`
-
-`(~constructor: float => result<'value, string>=?, ~destructor: 'value => result<float, string>=?, unit) => S.t<'value>`
-
-```rescript
-let struct: S.t<Js.Date.t> = S.coercedFloat(~destructor=date => date->Js.Date.getTime->Ok, ())
-
-Js.Date.fromFloat(1643669467293.)->S.destructWith(struct)
-```
-
-```rescript
-Ok(%raw(`1643669467293`))
-```
-
-`coercedFloat` struct represents a data that is a number.
 
 #### `S.array`
 
@@ -377,6 +299,48 @@ Ok(Some("a string of text"))
 
 You can also define your own custom structs that are specific to your application's requirements.
 
+### Coercions
+
+**rescript-struct** allows structs to be augmented with coercion logic, letting you transform data during construction and destruction. This is most commonly used to apply default values to an input, but it can be used for more complex cases like pre-trimming strings, or mapping input to a convenient ReScript data structure.
+
+#### `S.coerce`
+
+`(S.t<'value>, ~constructor: 'value => result<'coercedValue, string>=?, ~destructor: 'coercedValue => result<'value, string>=?, unit) => S.t<'coercedValue>`
+
+```rescript
+let trimmed: S.t<string> => S.t<string> = S.coerce(_, ~constructor=s => s->Js.String2.trim->Ok, ~destructor=s => s->Ok, ())
+```
+```rescript
+let nonEmptyStringStruct = S.string()->S.coerce(~constructor=s =>
+  switch s {
+  | "" => None
+  | s' => Some(s')
+  }->Ok
+, ())
+```
+```rescript
+let nonEmptyStringStruct: S.t<option<string>> = S.string()->S.coerce(
+  ~constructor=s =>
+    switch s {
+    | "" => None
+    | s' => Some(s')
+    }->Ok,
+  ~destructor=nonEmptyString =>
+    {
+      switch nonEmptyString {
+      | Some(s) => s
+      | None => ""
+      }
+    }->Ok,
+  (),
+)
+```
+```rescript
+let dateStruct: S.t<Js.Date.t> = S.float()->S.coerce(~destructor=date => date->Js.Date.getTime->Ok, ())
+```
+
+> 🧠 For coercion either a constructor, or a destructor is required.
+
 ### Integration
 
 If you're a library maintainer, you can use **rescript-struct** as a way to describe a structure and use it in your own way. The most common use case is building type-safe schemas e.g for REST APIs, databases, and forms.
@@ -385,7 +349,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 
 ## Roadmap
 
-- [ ] Add custom Coercions
+- [x] Add custom Coercions
 - [ ] Add JSON module for decoding and encoding
 - [ ] Add Enum and Literal struct factories
 - [ ] Add Dynamic struct factory

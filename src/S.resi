@@ -14,33 +14,9 @@ and kind =
 and field<'value> = (string, t<'value>)
 
 let string: unit => t<string>
-let coercedString: (
-  ~constructor: string => result<'value, string>=?,
-  ~destructor: 'value => result<string, string>=?,
-  unit,
-) => t<'value>
-
 let bool: unit => t<bool>
-let coercedBool: (
-  ~constructor: bool => result<'value, string>=?,
-  ~destructor: 'value => result<bool, string>=?,
-  unit,
-) => t<'value>
-
 let int: unit => t<int>
-let coercedInt: (
-  ~constructor: int => result<'value, string>=?,
-  ~destructor: 'value => result<int, string>=?,
-  unit,
-) => t<'value>
-
 let float: unit => t<float>
-let coercedFloat: (
-  ~constructor: float => result<'value, string>=?,
-  ~destructor: 'value => result<float, string>=?,
-  unit,
-) => t<'value>
-
 let array: t<'value> => t<array<'value>>
 let dict: t<'value> => t<Js.Dict.t<'value>>
 let option: t<'value> => t<option<'value>>
@@ -137,6 +113,13 @@ let record10: (
   ~destructor: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9, 'v10), string>=?,
   unit,
 ) => t<'value>
+
+let coerce: (
+  t<'value>,
+  ~constructor: 'value => result<'coercedValue, string>=?,
+  ~destructor: 'coercedValue => result<'value, string>=?,
+  unit,
+) => t<'coercedValue>
 
 let custom: (
   ~constructor: Js.Json.t => result<'value, string>=?,

@@ -308,44 +308,6 @@ module Record = {
   }
 }
 
-module CoercedPrimitive = {
-  module Factory = {
-    let make = (
-      ~kind: kind,
-      ~constructor as maybePrimitiveConstructor: option<'primitive => result<'value, string>>=?,
-      ~destructor as maybePrimitiveDestructor: option<'value => result<'primitive, string>>=?,
-      (),
-    ) => {
-      if (
-        maybePrimitiveConstructor->Belt.Option.isNone &&
-          maybePrimitiveDestructor->Belt.Option.isNone
-      ) {
-        raiseRestructError("For a Coerced struct either a constructor, or a destructor is required")
-      }
-
-      make(
-        ~kind,
-        ~constructor=?maybePrimitiveConstructor->Belt.Option.map(primitiveConstructor => {
-          unknown => {
-            primitiveConstructor(unknown->unsafeFromUnknown)->ResultX.mapError(
-              Error.ConstructingFailed.make,
-            )
-          }
-        }),
-        ~destructor=?maybePrimitiveDestructor->Belt.Option.map(primitiveDestructor => {
-          value => {
-            switch primitiveDestructor(value) {
-            | Ok(primitive) => primitive->unsafeToUnknown->Ok
-            | Error(reason) => Error.DestructingFailed.make(reason)->Error
-            }
-          }
-        }),
-        (),
-      )
-    }
-  }
-}
-
 module Primitive = {
   module Factory = {
     let make = (~kind) => {
@@ -388,20 +350,12 @@ module Optional = {
 }
 
 let string = Primitive.Factory.make(~kind=String)
-let coercedString = (~constructor=?, ~destructor=?, ()) =>
-  CoercedPrimitive.Factory.make(~kind=String, ~constructor?, ~destructor?, ())
 
 let bool = Primitive.Factory.make(~kind=Bool)
-let coercedBool = (~constructor=?, ~destructor=?, ()) =>
-  CoercedPrimitive.Factory.make(~kind=Bool, ~constructor?, ~destructor?, ())
 
 let int = Primitive.Factory.make(~kind=Int)
-let coercedInt = (~constructor=?, ~destructor=?, ()) =>
-  CoercedPrimitive.Factory.make(~kind=Int, ~constructor?, ~destructor?, ())
 
 let float = Primitive.Factory.make(~kind=Float)
-let coercedFloat = (~constructor=?, ~destructor=?, ()) =>
-  CoercedPrimitive.Factory.make(~kind=Float, ~constructor?, ~destructor?, ())
 
 let array = struct =>
   make(
@@ -477,6 +431,45 @@ let record7 = Record.factory
 let record8 = Record.factory
 let record9 = Record.factory
 let record10 = Record.factory
+
+let coerce = (
+  struct,
+  ~constructor as maybeCoercionConstructor=?,
+  ~destructor as maybeCoercionDestructor=?,
+  (),
+) => {
+  if maybeCoercionConstructor->Belt.Option.isNone && maybeCoercionDestructor->Belt.Option.isNone {
+    raiseRestructError("For coercion either a constructor, or a destructor is required")
+  }
+  {
+    kind: struct.kind,
+    metadata: struct.metadata,
+    constructor: switch (struct.constructor, maybeCoercionConstructor) {
+    | (Some(structConstructor), Some(coercionConstructor)) =>
+      {
+        unknown => {
+          let structConstructorResult = structConstructor(unknown)
+          structConstructorResult->Belt.Result.flatMap(originalValue => {
+            coercionConstructor(originalValue)->ResultX.mapError(Error.ConstructingFailed.make)
+          })
+        }
+      }->Some
+    | (_, _) => None
+    },
+    destructor: switch (struct.destructor, maybeCoercionDestructor) {
+    | (Some(structDestructor), Some(coercionDestructor)) =>
+      {
+        value => {
+          switch coercionDestructor(value) {
+          | Ok(primitive) => structDestructor(primitive)
+          | Error(reason) => Error.DestructingFailed.make(reason)->Error
+          }
+        }
+      }->Some
+    | (_, _) => None
+    },
+  }
+}
 
 let custom = (
   ~constructor as maybeCustomConstructor=?,
