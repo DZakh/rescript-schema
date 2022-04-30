@@ -152,3 +152,7 @@ module MakeMetadata: (
 
   let mixin: (t<'value>, Details.content) => t<'value>
 }
+
+module Json: {
+  let decodeWith: (Js.Json.t, t<'value>) => result<'value, string>
+}

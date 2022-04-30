@@ -413,3 +413,89 @@ module MakeMetadata = (
     struct
   }
 }
+
+module Json = {
+  let structKindToString = structKind => {
+    switch structKind {
+    | String => "String"
+    | Int => "Int"
+    | Float => "Float"
+    | Bool => "Bool"
+    | Option(_) => "Option"
+    | Array(_) => "Array"
+    | Record(_) => "Record"
+    | Custom => "Custom"
+    | Dict(_) => "Dict"
+    | Deprecated(_) => "Deprecated"
+    | Default(_) => "Default"
+    }
+  }
+
+  let makeUnexpectedKindError = (~jsonKind: Js.Json.tagged_t, ~structKind: kind) => {
+    let got = switch jsonKind {
+    | JSONFalse | JSONTrue => "Bool"
+    | JSONString(_) => "String"
+    | JSONNull => "Null"
+    | JSONNumber(_) => "Float"
+    | JSONObject(_) => "Object"
+    | JSONArray(_) => "Array"
+    }
+    let expected = structKindToString(structKind)
+    Error(RescriptStruct_Error.DecodingFailed.UnexpectedKind.make(~expected, ~got))
+  }
+
+  let makeUnexpectedNoneError = (~structKind: kind) => {
+    let expected = structKindToString(structKind)
+    Error(RescriptStruct_Error.DecodingFailed.UnexpectedKind.make(~expected, ~got="Option"))
+  }
+
+  let rec validateNode:
+    type value. (
+      ~maybeUnknown: option<Js.Json.t>,
+      ~struct: t<value>,
+    ) => result<unit, RescriptStruct_Error.t> =
+    (~maybeUnknown, ~struct) => {
+      let structKind = struct->classify
+
+      switch maybeUnknown {
+      | Some(unknown) => {
+          let jsonKind = unknown->Js.Json.classify
+
+          switch (jsonKind, structKind) {
+          | (JSONFalse, Bool)
+          | (JSONTrue, Bool)
+          | (JSONString(_), String)
+          | (JSONNumber(_), Float)
+          | (_, Custom) =>
+            Ok()
+          | (JSONNumber(x), Int) =>
+            if x == x->Js.Math.trunc && x > -2147483648. && x < 2147483648. {
+              Ok()
+            } else {
+              makeUnexpectedKindError(~jsonKind, ~structKind)
+            }
+          | (_, Deprecated({struct: struct'})) =>
+            validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct=struct')
+          | (_, Option(struct')) =>
+            validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct=struct')
+          | (_, _) => makeUnexpectedKindError(~jsonKind, ~structKind)
+          }
+        }
+      | None =>
+        switch structKind {
+        | Option(_)
+        | Deprecated(_) =>
+          Ok()
+        | _ => makeUnexpectedNoneError(~structKind)
+        }
+      }
+    }
+
+  let decodeWith = (unknown, struct) => {
+    validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct)
+    ->Belt.Result.flatMap(() => {
+      _construct(struct, unknown)
+    })
+    ->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
+  }
+}

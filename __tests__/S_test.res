@@ -61,7 +61,7 @@ test("Destructs unknown array of primitives", t => {
 
 test("Using default value when constructing optional unknown primitive", t => {
   let defaultValue = 123.
-  let unknownPrimitive = None->unsafeToUnknown
+  let unknownPrimitive = %raw(`undefined`)
 
   let struct = S.option(S.float())->S.default(defaultValue)
 

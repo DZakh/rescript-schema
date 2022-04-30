@@ -18,6 +18,12 @@ module DestructingFailed: {
   let make: string => t
 }
 
+module DecodingFailed: {
+  module UnexpectedKind: {
+    let make: (~expected: string, ~got: string) => t
+  }
+}
+
 let prependLocation: (t, locationComponent) => t
 
 let toString: t => string
