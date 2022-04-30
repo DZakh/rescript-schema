@@ -233,7 +233,7 @@ Ok(Some("a string of text"))
 type author = {
   id: string,
 }
-let struct = S.record1(~fields=("ID", S.string()), ~constructor=id => {id: id}->Ok, ())
+let struct: S.t<author> = S.record1(~fields=("ID", S.string()), ~constructor=id => {id: id}->Ok, ())
 
 %raw(`{"ID": "abc"}`)->S.constructWith(struct)
 ```
@@ -299,6 +299,8 @@ Ok(Some("a string of text"))
 
 You can also define your own custom structs that are specific to your application's requirements.
 
+> 🧠 It's mostly needed when you want to define a new data type, for other cases, it's better to use coercion.
+
 ### Coercions
 
 **rescript-struct** allows structs to be augmented with coercion logic, letting you transform data during construction and destruction. This is most commonly used to apply default values to an input, but it can be used for more complex cases like pre-trimming strings, or mapping input to a convenient ReScript data structure.
@@ -311,24 +313,28 @@ You can also define your own custom structs that are specific to your applicatio
 let trimmed: S.t<string> => S.t<string> = S.coerce(_, ~constructor=s => s->Js.String2.trim->Ok, ~destructor=s => s->Ok, ())
 ```
 ```rescript
-let nonEmptyStringStruct: S.t<option<string>> = S.string()->S.coerce(
-  ~constructor=s =>
-    switch s {
-    | "" => None
-    | s' => Some(s')
-    }->Ok,
-  ~destructor=nonEmptyString =>
-    {
-      switch nonEmptyString {
-      | Some(s) => s
-      | None => ""
-      }
-    }->Ok,
-  (),
-)
+let nonEmptyString: unit => S.t<option<string>> = () => {
+  S.string()->S.coerce(
+    ~constructor=s =>
+      switch s {
+      | "" => None
+      | s' => Some(s')
+      }->Ok,
+    ~destructor=nonEmptyString =>
+      {
+        switch nonEmptyString {
+        | Some(s) => s
+        | None => ""
+        }
+      }->Ok,
+    (),
+  )
+}
 ```
 ```rescript
-let dateStruct: S.t<Js.Date.t> = S.float()->S.coerce(~destructor=date => date->Js.Date.getTime->Ok, ())
+let date: unit => S.t<Js.Date.t> = () => {
+  S.float()->S.coerce(~destructor=date => date->Js.Date.getTime->Ok, ())
+}
 ```
 
 > 🧠 For coercion either a constructor, or a destructor is required.
