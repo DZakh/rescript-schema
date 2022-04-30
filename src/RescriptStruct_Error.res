@@ -35,7 +35,7 @@ module DestructingFailed = {
 }
 
 module DecodingFailed = {
-  module UnexpectedKind = {
+  module UnexpectedType = {
     let make = (~expected, ~got) => {
       let reason = `Expected ${expected}, got ${got}`
       {kind: DecodingFailed(reason), location: []}

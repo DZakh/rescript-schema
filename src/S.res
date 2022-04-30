@@ -20,27 +20,32 @@ external unsafeUnknownToOption: unknown => option<unknown> = "%identity"
 external unsafeOptionToUnknown: option<unknown> => unknown = "%identity"
 
 type rec t<'value> = {
-  kind: kind,
+  tagged_t: tagged_t,
   constructor: option<unknown => result<'value, RescriptStruct_Error.t>>,
   destructor: option<'value => result<unknown, RescriptStruct_Error.t>>,
   metadata: Js.Dict.t<unknown>,
 }
-and kind =
-  | String: kind
-  | Int: kind
-  | Float: kind
-  | Bool: kind
-  | Option(t<'value>): kind
-  | Array(t<'value>): kind
-  | Record('unsafeFieldsArray): kind
-  | Custom: kind
-  | Dict(t<'value>): kind
-  | Deprecated({struct: t<'value>, maybeMessage: option<string>}): kind
-  | Default({struct: t<option<'value>>, value: 'value}): kind
+and tagged_t =
+  | String: tagged_t
+  | Int: tagged_t
+  | Float: tagged_t
+  | Bool: tagged_t
+  | Option(t<'value>): tagged_t
+  | Array(t<'value>): tagged_t
+  | Record('unsafeFieldsArray): tagged_t
+  | Custom: tagged_t
+  | Dict(t<'value>): tagged_t
+  | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
+  | Default({struct: t<option<'value>>, value: 'value}): tagged_t
 and field<'value> = (string, t<'value>)
 
-let make = (~kind, ~constructor=?, ~destructor=?, ()): t<'value> => {
-  {kind: kind, constructor: constructor, destructor: destructor, metadata: Js.Dict.empty()}
+let make = (~tagged_t, ~constructor=?, ~destructor=?, ()): t<'value> => {
+  {
+    tagged_t: tagged_t,
+    constructor: constructor,
+    destructor: destructor,
+    metadata: Js.Dict.empty(),
+  }
 }
 
 let _construct = (struct, unknown) => {
@@ -126,7 +131,7 @@ module Record = {
     }
 
     make(
-      ~kind=Record(_mapTupleToUnsafeArray(fields)),
+      ~tagged_t=Record(_mapTupleToUnsafeArray(fields)),
       ~constructor=?maybeRecordConstructor->Belt.Option.map(recordConstructor => {
         unknown => {
           try {
@@ -192,10 +197,10 @@ module Record = {
 
 module Primitive = {
   module Factory = {
-    let make = (~kind) => {
+    let make = (~tagged_t) => {
       () =>
         make(
-          ~kind,
+          ~tagged_t,
           ~constructor=unknown => {
             unknown->unsafeFromUnknown->Ok
           },
@@ -210,9 +215,9 @@ module Primitive = {
 
 module Optional = {
   module Factory = {
-    let make = (~kind, ~struct) => {
+    let make = (~tagged_t, ~struct) => {
       make(
-        ~kind,
+        ~tagged_t,
         ~constructor=unknown => {
           switch unknown->unsafeUnknownToOption {
           | Some(unknown') => _construct(struct, unknown')->Belt.Result.map(known => Some(known))
@@ -231,17 +236,17 @@ module Optional = {
   }
 }
 
-let string = Primitive.Factory.make(~kind=String)
+let string = Primitive.Factory.make(~tagged_t=String)
 
-let bool = Primitive.Factory.make(~kind=Bool)
+let bool = Primitive.Factory.make(~tagged_t=Bool)
 
-let int = Primitive.Factory.make(~kind=Int)
+let int = Primitive.Factory.make(~tagged_t=Int)
 
-let float = Primitive.Factory.make(~kind=Float)
+let float = Primitive.Factory.make(~tagged_t=Float)
 
 let array = struct =>
   make(
-    ~kind=Array(struct),
+    ~tagged_t=Array(struct),
     ~constructor=unknown => {
       unknown
       ->unsafeUnknownToArray
@@ -269,7 +274,7 @@ let array = struct =>
 
 let dict = struct =>
   make(
-    ~kind=Dict(struct),
+    ~tagged_t=Dict(struct),
     ~constructor=unknown => {
       // TODO: Think about validating that keys are actually strings
       let unknownDict = unknown->unsafeUnknownToDict
@@ -296,15 +301,15 @@ let dict = struct =>
   )
 
 let option = struct => {
-  Optional.Factory.make(~kind=Option(struct), ~struct)
+  Optional.Factory.make(~tagged_t=Option(struct), ~struct)
 }
 let deprecated = (~message as maybeMessage=?, struct) => {
-  Optional.Factory.make(~kind=Deprecated({struct: struct, maybeMessage: maybeMessage}), ~struct)
+  Optional.Factory.make(~tagged_t=Deprecated({struct: struct, maybeMessage: maybeMessage}), ~struct)
 }
 
 let default = (struct, value) => {
   make(
-    ~kind=Default({struct: struct, value: value}),
+    ~tagged_t=Default({struct: struct, value: value}),
     ~constructor=unknown => {
       _construct(struct, unknown)->Belt.Result.map(Belt.Option.getWithDefault(_, value))
     },
@@ -336,7 +341,7 @@ let coerce = (
     raiseRestructError("For coercion either a constructor, or a destructor is required")
   }
   {
-    kind: struct.kind,
+    tagged_t: struct.tagged_t,
     metadata: struct.metadata,
     constructor: switch (struct.constructor, maybeCoercionConstructor) {
     | (Some(structConstructor), Some(coercionConstructor)) =>
@@ -377,7 +382,7 @@ let custom = (
   }
 
   make(
-    ~kind=Custom,
+    ~tagged_t=Custom,
     ~constructor=?maybeCustomConstructor->Belt.Option.map(customConstructor => {
       unknown => {
         customConstructor(unknown)->RescriptStruct_ResultX.mapError(
@@ -396,7 +401,7 @@ let custom = (
   )
 }
 
-let classify = struct => struct.kind
+let classify = struct => struct.tagged_t
 
 module MakeMetadata = (
   Details: {
@@ -415,8 +420,8 @@ module MakeMetadata = (
 }
 
 module Json = {
-  let structKindToString = structKind => {
-    switch structKind {
+  let structTaggedToString = tagged_t => {
+    switch tagged_t {
     | String => "String"
     | Int => "Int"
     | Float => "Float"
@@ -431,8 +436,8 @@ module Json = {
     }
   }
 
-  let makeUnexpectedKindError = (~jsonKind: Js.Json.tagged_t, ~structKind: kind) => {
-    let got = switch jsonKind {
+  let makeUnexpectedTypeError = (~jsonTagged: Js.Json.tagged_t, ~structTagged: tagged_t) => {
+    let got = switch jsonTagged {
     | JSONFalse | JSONTrue => "Bool"
     | JSONString(_) => "String"
     | JSONNull => "Null"
@@ -440,13 +445,13 @@ module Json = {
     | JSONObject(_) => "Object"
     | JSONArray(_) => "Array"
     }
-    let expected = structKindToString(structKind)
-    Error(RescriptStruct_Error.DecodingFailed.UnexpectedKind.make(~expected, ~got))
+    let expected = structTaggedToString(structTagged)
+    Error(RescriptStruct_Error.DecodingFailed.UnexpectedType.make(~expected, ~got))
   }
 
-  let makeUnexpectedNoneError = (~structKind: kind) => {
-    let expected = structKindToString(structKind)
-    Error(RescriptStruct_Error.DecodingFailed.UnexpectedKind.make(~expected, ~got="Option"))
+  let makeUnexpectedNoneError = (~structTagged: tagged_t) => {
+    let expected = structTaggedToString(structTagged)
+    Error(RescriptStruct_Error.DecodingFailed.UnexpectedType.make(~expected, ~got="Option"))
   }
 
   let rec validateNode:
@@ -455,13 +460,13 @@ module Json = {
       ~struct: t<value>,
     ) => result<unit, RescriptStruct_Error.t> =
     (~maybeUnknown, ~struct) => {
-      let structKind = struct->classify
+      let structTagged = struct->classify
 
       switch maybeUnknown {
       | Some(unknown) => {
-          let jsonKind = unknown->Js.Json.classify
+          let jsonTagged = unknown->Js.Json.classify
 
-          switch (jsonKind, structKind) {
+          switch (jsonTagged, structTagged) {
           | (JSONFalse, Bool)
           | (JSONTrue, Bool)
           | (JSONString(_), String)
@@ -472,7 +477,7 @@ module Json = {
             if x == x->Js.Math.trunc && x > -2147483648. && x < 2147483648. {
               Ok()
             } else {
-              makeUnexpectedKindError(~jsonKind, ~structKind)
+              makeUnexpectedTypeError(~jsonTagged, ~structTagged)
             }
           | (_, Deprecated({struct: struct'})) =>
             validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct=struct')
@@ -480,16 +485,16 @@ module Json = {
             validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct=struct')
           | (_, Option(struct')) =>
             validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct=struct')
-          | (_, _) => makeUnexpectedKindError(~jsonKind, ~structKind)
+          | (_, _) => makeUnexpectedTypeError(~jsonTagged, ~structTagged)
           }
         }
       | None =>
-        switch structKind {
+        switch structTagged {
         | Option(_)
         | Deprecated(_)
         | Default(_) =>
           Ok()
-        | _ => makeUnexpectedNoneError(~structKind)
+        | _ => makeUnexpectedNoneError(~structTagged)
         }
       }
     }

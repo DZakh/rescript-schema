@@ -1,16 +1,16 @@
 type rec t<'value>
-and kind =
-  | String: kind
-  | Int: kind
-  | Float: kind
-  | Bool: kind
-  | Option(t<'value>): kind
-  | Array(t<'value>): kind
-  | Record('unsafeFieldsArray): kind
-  | Custom: kind
-  | Dict(t<'value>): kind
-  | Deprecated({struct: t<'value>, maybeMessage: option<string>}): kind
-  | Default({struct: t<option<'value>>, value: 'value}): kind
+and tagged_t =
+  | String: tagged_t
+  | Int: tagged_t
+  | Float: tagged_t
+  | Bool: tagged_t
+  | Option(t<'value>): tagged_t
+  | Array(t<'value>): tagged_t
+  | Record('unsafeFieldsArray): tagged_t
+  | Custom: tagged_t
+  | Dict(t<'value>): tagged_t
+  | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
+  | Default({struct: t<option<'value>>, value: 'value}): tagged_t
 and field<'value> = (string, t<'value>)
 
 let string: unit => t<string>
@@ -139,7 +139,7 @@ module Record: {
   ) => t<'value>
 }
 
-let classify: t<'value> => kind
+let classify: t<'value> => tagged_t
 
 module MakeMetadata: (
   Details: {
