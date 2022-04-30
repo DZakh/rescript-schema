@@ -476,6 +476,8 @@ module Json = {
             }
           | (_, Deprecated({struct: struct'})) =>
             validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct=struct')
+          | (_, Default({struct: struct'})) =>
+            validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct=struct')
           | (_, Option(struct')) =>
             validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct=struct')
           | (_, _) => makeUnexpectedKindError(~jsonKind, ~structKind)
@@ -484,7 +486,8 @@ module Json = {
       | None =>
         switch structKind {
         | Option(_)
-        | Deprecated(_) =>
+        | Deprecated(_)
+        | Default(_) =>
           Ok()
         | _ => makeUnexpectedNoneError(~structKind)
         }
