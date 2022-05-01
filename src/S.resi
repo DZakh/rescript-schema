@@ -156,4 +156,7 @@ module MakeMetadata: (
 module Json: {
   let decodeWith: (Js.Json.t, t<'value>) => result<'value, string>
   let decodeStringWith: (string, t<'value>) => result<'value, string>
+
+  let encodeWith: ('value, t<'value>) => result<Js.Json.t, string>
+  let encodeStringWith: ('value, t<'value>) => result<string, string>
 }

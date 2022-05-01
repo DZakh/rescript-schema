@@ -50,24 +50,24 @@ let make = (~tagged_t, ~constructor=?, ~destructor=?, ()): t<'value> => {
   }
 }
 
-let _construct = (struct, unknown) => {
+let _construct = (~struct, ~unknown) => {
   switch struct.constructor {
   | Some(constructor) => unknown->constructor
   | None => RescriptStruct_Error.MissingConstructor.make()->Error
   }
 }
 let constructWith = (unknown, struct) => {
-  _construct(struct, unknown)->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
+  _construct(~struct, ~unknown)->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
 }
 
-let _destruct = (struct, unknown) => {
+let _destruct = (~struct, ~value) => {
   switch struct.destructor {
-  | Some(destructor) => unknown->destructor
+  | Some(destructor) => value->destructor
   | None => RescriptStruct_Error.MissingDestructor.make()->Error
   }
 }
-let destructWith = (unknown, struct) => {
-  _destruct(struct, unknown)->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
+let destructWith = (value, struct) => {
+  _destruct(~struct, ~value)->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
 }
 
 module Record = {
@@ -142,7 +142,7 @@ module Record = {
               fieldName,
               unknownFieldValue,
             ) => {
-              switch _construct(struct, unknownFieldValue) {
+              switch _construct(~struct, ~unknown=unknownFieldValue) {
               | Ok(value) => value
               | Error(error) =>
                 raise(
@@ -174,7 +174,7 @@ module Record = {
                 }
               },
               ~destruct=(struct, fieldName, fieldValue) => {
-                switch _destruct(struct, fieldValue) {
+                switch _destruct(~struct, ~value=fieldValue) {
                 | Ok(unknown) => unknown
                 | Error(error) =>
                   raise(
@@ -222,13 +222,14 @@ module Optional = {
         ~tagged_t,
         ~constructor=unknown => {
           switch unknown->unsafeUnknownToOption {
-          | Some(unknown') => _construct(struct, unknown')->Belt.Result.map(known => Some(known))
+          | Some(unknown') =>
+            _construct(~struct, ~unknown=unknown')->Belt.Result.map(known => Some(known))
           | None => Ok(None)
           }
         },
         ~destructor=optionalValue => {
           switch optionalValue {
-          | Some(value) => _destruct(struct, value)
+          | Some(value) => _destruct(~struct, ~value)
           | None => Ok(None->unsafeOptionToUnknown)
           }
         },
@@ -253,9 +254,7 @@ let array = struct =>
       unknown
       ->unsafeUnknownToArray
       ->RescriptStruct_ResultX.Array.mapi((unknownItem, idx) => {
-        struct
-        ->_construct(unknownItem)
-        ->RescriptStruct_ResultX.mapError(
+        _construct(~struct, ~unknown=unknownItem)->RescriptStruct_ResultX.mapError(
           RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Index(idx)),
         )
       })
@@ -263,9 +262,7 @@ let array = struct =>
     ~destructor=array => {
       array
       ->RescriptStruct_ResultX.Array.mapi((item, idx) => {
-        struct
-        ->_destruct(item)
-        ->RescriptStruct_ResultX.mapError(
+        _destruct(~struct, ~value=item)->RescriptStruct_ResultX.mapError(
           RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Index(idx)),
         )
       })
@@ -280,9 +277,7 @@ let dict = struct =>
     ~constructor=unknown => {
       let unknownDict = unknown->unsafeUnknownToDict
       unknownDict->RescriptStruct_ResultX.Dict.map((unknownItem, key) => {
-        struct
-        ->_construct(unknownItem)
-        ->RescriptStruct_ResultX.mapError(
+        _construct(~struct, ~unknown=unknownItem)->RescriptStruct_ResultX.mapError(
           RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(key)),
         )
       })
@@ -290,9 +285,7 @@ let dict = struct =>
     ~destructor=dict => {
       dict
       ->RescriptStruct_ResultX.Dict.map((item, key) => {
-        struct
-        ->_destruct(item)
-        ->RescriptStruct_ResultX.mapError(
+        _destruct(~struct, ~value=item)->RescriptStruct_ResultX.mapError(
           RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(key)),
         )
       })
@@ -312,10 +305,10 @@ let default = (struct, value) => {
   make(
     ~tagged_t=Default({struct: struct, value: value}),
     ~constructor=unknown => {
-      _construct(struct, unknown)->Belt.Result.map(Belt.Option.getWithDefault(_, value))
+      _construct(~struct, ~unknown)->Belt.Result.map(Belt.Option.getWithDefault(_, value))
     },
     ~destructor=value => {
-      _destruct(struct, Some(value))
+      _destruct(~struct, ~value=Some(value))
     },
     (),
   )
@@ -548,13 +541,13 @@ module Json = {
       }
     }
 
-  let _decodeWith = (~unknown, ~struct) => {
+  let _decode = (~unknown, ~struct) => {
     validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct)->Belt.Result.flatMap(() => {
-      _construct(struct, unknown)
+      _construct(~struct, ~unknown)
     })
   }
   let decodeWith = (unknown, struct) => {
-    _decodeWith(~unknown, ~struct)->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
+    _decode(~unknown, ~struct)->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
   }
   let decodeStringWith = (string, struct) => {
     let parseResult = switch Js.Json.parseExn(string) {
@@ -568,7 +561,17 @@ module Json = {
       )
     }
     parseResult
-    ->Belt.Result.flatMap(unknown => _decodeWith(~unknown, ~struct))
+    ->Belt.Result.flatMap(unknown => _decode(~unknown, ~struct))
     ->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
+  }
+
+  let encodeWith = (value, struct) => {
+    _destruct(~struct, ~value)->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
+  }
+  let encodeStringWith = (value, struct) => {
+    switch _destruct(~struct, ~value) {
+    | Ok(unknown) => Ok(unknown->Js.Json.stringify)
+    | Error(error) => Error(error->RescriptStruct_Error.toString)
+    }
   }
 }
