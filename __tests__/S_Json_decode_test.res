@@ -319,9 +319,34 @@ module Record = {
     let struct = S.record1(~fields=("FOO", S.string()), ~constructor=foo => {foo: foo}->Ok, ())
 
     t->Assert.deepEqual(
-      %raw(`{BAR:"bar", FOO:"bar"}`)->S.Json.decodeWith(struct),
-      Error(`Struct decoding failed at root. Reason: Encountered extra properties ["BAR"] on an object. If you want to be less strict and ignore any extra properties, use Shape instead (not implemented), to ignore a specific extra property, use Deprecated`),
+      %raw(`{BAR:"bar",FOO:"bar",1:2}`)->S.Json.decodeWith(struct),
+      Error(`Struct decoding failed at root. Reason: Encountered extra properties ["1","BAR"] on an object. If you want to be less strict and ignore any extra properties, use Shape instead (not implemented), to ignore a specific extra property, use Deprecated`),
       (),
     )
   })
 }
+
+test("Decodes custom", t => {
+  let struct = S.custom(
+    ~constructor=unknown => unknown->Js.Json.decodeString->Belt.Option.getWithDefault("")->Ok,
+    (),
+  )
+
+  t->Assert.deepEqual(Js.Json.string("string")->S.Json.decodeWith(struct), Ok("string"), ())
+  t->Assert.deepEqual(Js.Json.boolean(true)->S.Json.decodeWith(struct), Ok(""), ())
+})
+
+test("Fails to decode custom", t => {
+  let struct = S.custom(~constructor=unknown =>
+    switch unknown->Js.Json.decodeString {
+    | Some(s) => Ok(s)
+    | None => Error("User error")
+    }
+  , ())
+
+  t->Assert.deepEqual(
+    Js.Json.boolean(true)->S.Json.decodeWith(struct),
+    Error("Struct construction failed at root. Reason: User error"),
+    (),
+  )
+})
