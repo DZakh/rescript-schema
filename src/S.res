@@ -278,7 +278,6 @@ let dict = struct =>
   make(
     ~tagged_t=Dict(struct),
     ~constructor=unknown => {
-      // TODO: Think about validating that keys are actually strings
       let unknownDict = unknown->unsafeUnknownToDict
       unknownDict->RescriptStruct_ResultX.Dict.map((unknownItem, key) => {
         struct
@@ -549,11 +548,27 @@ module Json = {
       }
     }
 
-  let decodeWith = (unknown, struct) => {
-    validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct)
-    ->Belt.Result.flatMap(() => {
+  let _decodeWith = (~unknown, ~struct) => {
+    validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct)->Belt.Result.flatMap(() => {
       _construct(struct, unknown)
     })
+  }
+  let decodeWith = (unknown, struct) => {
+    _decodeWith(~unknown, ~struct)->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
+  }
+  let decodeStringWith = (string, struct) => {
+    let parseResult = switch Js.Json.parseExn(string) {
+    | json => Ok(json)
+    | exception Js.Exn.Error(obj) =>
+      let maybeMessage = Js.Exn.message(obj)
+      Error(
+        RescriptStruct_Error.DecodingFailed.make(
+          maybeMessage->Belt.Option.getWithDefault("Syntax error"),
+        ),
+      )
+    }
+    parseResult
+    ->Belt.Result.flatMap(unknown => _decodeWith(~unknown, ~struct))
     ->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
   }
 }

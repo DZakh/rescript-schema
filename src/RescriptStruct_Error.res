@@ -35,23 +35,24 @@ module DestructingFailed = {
 }
 
 module DecodingFailed = {
+  let make = reason => {
+    {kind: DecodingFailed(reason), location: []}
+  }
+
   module UnexpectedType = {
     let make = (~expected, ~got) => {
-      {kind: DecodingFailed(`Expected ${expected}, got ${got}`), location: []}
+      make(`Expected ${expected}, got ${got}`)
     }
   }
 
   module ExtraProperties = {
     let make = (~properties) => {
-      {
-        kind: DecodingFailed(
-          `Encountered extra properties ${switch properties->Js.Json.stringifyAny {
-            | Some(s) => s
-            | None => ""
-            }} on an object. If you want to be less strict and ignore any extra properties, use Shape instead (not implemented), to ignore a specific extra property, use Deprecated`,
-        ),
-        location: [],
-      }
+      make(
+        `Encountered extra properties ${switch properties->Js.Json.stringifyAny {
+          | Some(s) => s
+          | None => ""
+          }} on an object. If you want to be less strict and ignore any extra properties, use Shape instead (not implemented), to ignore a specific extra property, use Deprecated`,
+      )
     }
   }
 }
