@@ -479,6 +479,17 @@ module Json = {
             } else {
               makeUnexpectedTypeError(~jsonTagged, ~structTagged)
             }
+          | (JSONArray(unknownItems), Array(itemStruct)) =>
+            unknownItems
+            ->RescriptStruct_ResultX.Array.mapi((unknownItem, idx) => {
+              validateNode(
+                ~maybeUnknown=unknownItem->unsafeUnknownToOption,
+                ~struct=itemStruct,
+              )->RescriptStruct_ResultX.mapError(
+                RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Index(idx)),
+              )
+            })
+            ->Belt.Result.map(_ => ())
           | (_, Deprecated({struct: struct'})) =>
             validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct=struct')
           | (_, Default({struct: struct'})) =>
