@@ -254,3 +254,74 @@ test("Fails to decode dict item", t => {
     (),
   )
 })
+
+module Record = {
+  type singleFieldRecord = {foo: string}
+  type optionalSingleFieldRecord = {baz: option<string>}
+
+  test("Decodes record", t => {
+    let struct = S.record1(~fields=("FOO", S.string()), ~constructor=foo => {foo: foo}->Ok, ())
+
+    t->Assert.deepEqual(%raw(`{FOO:"bar"}`)->S.Json.decodeWith(struct), Ok({foo: "bar"}), ())
+  })
+
+  test("Decodes record with optional item", t => {
+    let struct = S.record1(
+      ~fields=("FOO", S.option(S.string())),
+      ~constructor=baz => {baz: baz}->Ok,
+      (),
+    )
+
+    t->Assert.deepEqual(%raw(`{FOO:"bar"}`)->S.Json.decodeWith(struct), Ok({baz: Some("bar")}), ())
+  })
+
+  test("Decodes record with optional item when it's not present", t => {
+    let struct = S.record1(
+      ~fields=("FOO", S.option(S.string())),
+      ~constructor=baz => {baz: baz}->Ok,
+      (),
+    )
+
+    t->Assert.deepEqual(%raw(`{}`)->S.Json.decodeWith(struct), Ok({baz: None}), ())
+  })
+
+  test("Fails to decode record", t => {
+    let struct = S.record1(~fields=("FOO", S.string()), ~constructor=foo => {foo: foo}->Ok, ())
+
+    t->Assert.deepEqual(
+      Js.Json.string("string")->S.Json.decodeWith(struct),
+      Error("Struct decoding failed at root. Reason: Expected Record, got String"),
+      (),
+    )
+  })
+
+  test("Fails to decode record item when it's not present", t => {
+    let struct = S.record1(~fields=("FOO", S.string()), ~constructor=foo => {foo: foo}->Ok, ())
+
+    t->Assert.deepEqual(
+      %raw(`{}`)->S.Json.decodeWith(struct),
+      Error(`Struct decoding failed at ."FOO". Reason: Expected String, got Option`),
+      (),
+    )
+  })
+
+  test("Fails to decode record item when it's not valid", t => {
+    let struct = S.record1(~fields=("FOO", S.string()), ~constructor=foo => {foo: foo}->Ok, ())
+
+    t->Assert.deepEqual(
+      %raw(`{FOO:123}`)->S.Json.decodeWith(struct),
+      Error(`Struct decoding failed at ."FOO". Reason: Expected String, got Float`),
+      (),
+    )
+  })
+
+  test("Fails to decode record when JS object has a field that's not described", t => {
+    let struct = S.record1(~fields=("FOO", S.string()), ~constructor=foo => {foo: foo}->Ok, ())
+
+    t->Assert.deepEqual(
+      %raw(`{BAR:"bar", FOO:"bar"}`)->S.Json.decodeWith(struct),
+      Error(`Struct decoding failed at root. Reason: Encountered extra properties ["BAR"] on an object. If you want to be less strict and ignore any extra properties, use Shape instead (not implemented), to ignore a specific extra property, use Deprecated`),
+      (),
+    )
+  })
+}

@@ -349,6 +349,8 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 
 - [x] Add custom Coercions
 - [ ] Add JSON module for decoding and encoding
+- [ ] Add Shape struct factory
+- [ ] Add Nullable struct factory
 - [ ] Add Enum and Literal struct factories
 - [ ] Add Dynamic struct factory
 - [ ] Add Lazy struct factory

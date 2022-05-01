@@ -39,6 +39,8 @@ and tagged_t =
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
 and field<'value> = (string, t<'value>)
 
+external unsafeToFieldsArray: 'a => array<field<'value>> = "%identity"
+
 let make = (~tagged_t, ~constructor=?, ~destructor=?, ()): t<'value> => {
   {
     tagged_t: tagged_t,
@@ -501,6 +503,32 @@ module Json = {
               )
             })
             ->Belt.Result.map(_ => ())
+          | (JSONObject(unknownDict), Record(unsafeFieldsArray)) =>
+            let fieldsArray = unsafeFieldsArray->unsafeToFieldsArray
+            let unknownKeysSet = unknownDict->Js.Dict.keys->RescriptStruct_Set.fromArray
+
+            fieldsArray
+            ->RescriptStruct_ResultX.Array.mapi(((fieldName, fieldStruct), _) => {
+              unknownKeysSet->RescriptStruct_Set.delete(fieldName)->ignore
+
+              validateNode(
+                ~maybeUnknown=unknownDict->Js.Dict.get(fieldName),
+                ~struct=fieldStruct,
+              )->RescriptStruct_ResultX.mapError(
+                RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(fieldName)),
+              )
+            })
+            ->Belt.Result.flatMap(_ => {
+              if unknownKeysSet->RescriptStruct_Set.size === 0 {
+                Ok()
+              } else {
+                Error(
+                  RescriptStruct_Error.DecodingFailed.ExtraProperties.make(
+                    ~properties=unknownKeysSet->RescriptStruct_Set.toArray,
+                  ),
+                )
+              }
+            })
           | (_, Deprecated({struct: struct'})) =>
             validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct=struct')
           | (_, Default({struct: struct'})) =>

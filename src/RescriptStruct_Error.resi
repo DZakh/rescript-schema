@@ -22,6 +22,10 @@ module DecodingFailed: {
   module UnexpectedType: {
     let make: (~expected: string, ~got: string) => t
   }
+
+  module ExtraProperties: {
+    let make: (~properties: array<string>) => t
+  }
 }
 
 let prependLocation: (t, locationComponent) => t
