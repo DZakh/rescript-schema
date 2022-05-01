@@ -214,3 +214,43 @@ test("Fails to decode array item", t => {
     (),
   )
 })
+
+test("Decodes dict", t => {
+  let struct = S.dict(S.string())
+
+  t->Assert.deepEqual(
+    %raw(`{a:"b",c:"d"}`)->S.Json.decodeWith(struct),
+    Ok(Js.Dict.fromArray([("a", "b"), ("c", "d")])),
+    (),
+  )
+})
+
+test("Decodes dict with int keys", t => {
+  let struct = S.dict(S.string())
+
+  t->Assert.deepEqual(
+    %raw(`{1:"b",2:"d"}`)->S.Json.decodeWith(struct),
+    Ok(Js.Dict.fromArray([("1", "b"), ("2", "d")])),
+    (),
+  )
+})
+
+test("Fails to decode dict", t => {
+  let struct = S.dict(S.string())
+
+  t->Assert.deepEqual(
+    Js.Json.string("string")->S.Json.decodeWith(struct),
+    Error("Struct decoding failed at root. Reason: Expected Dict, got String"),
+    (),
+  )
+})
+
+test("Fails to decode dict item", t => {
+  let struct = S.dict(S.string())
+
+  t->Assert.deepEqual(
+    %raw(`{"a":"b","c":123}`)->S.Json.decodeWith(struct),
+    Error(`Struct decoding failed at ."c". Reason: Expected String, got Float`),
+    (),
+  )
+})

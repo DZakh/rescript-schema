@@ -490,6 +490,17 @@ module Json = {
               )
             })
             ->Belt.Result.map(_ => ())
+          | (JSONObject(unknownDict), Dict(itemStruct)) =>
+            unknownDict
+            ->RescriptStruct_ResultX.Dict.map((unknownItem, key) => {
+              validateNode(
+                ~maybeUnknown=unknownItem->unsafeUnknownToOption,
+                ~struct=itemStruct,
+              )->RescriptStruct_ResultX.mapError(
+                RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(key)),
+              )
+            })
+            ->Belt.Result.map(_ => ())
           | (_, Deprecated({struct: struct'})) =>
             validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct=struct')
           | (_, Default({struct: struct'})) =>
