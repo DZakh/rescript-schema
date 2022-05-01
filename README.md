@@ -2,6 +2,12 @@
 
 A simple and composable way to describe relationship between JavaScript and ReScript structures.
 
+It's a great tool to encode and decode JSON data with type safety.
+
+Also, other libraries can use ReScript Struct as a building block with a neat integration system:
+
+- [ReScript JSON Schema](https://github.com/DZakh/rescript-json-schema) - Typesafe JSON schema for ReScript
+
 ## Status
 
 > **rescript-struct** is currently in beta. Its core API is useable right now, but you might need to pull request improvements for advanced use cases, or fixes for some bugs. Some of its APIs are not "finalized" and will have breaking changes over time as we discover better solutions.
@@ -21,15 +27,8 @@ Then add `rescript-struct` to `bs-dependencies` in your `bsconfig.json`:
 }
 ```
 
-## Usage
 
-ReScript Struct allows you to define the shape of data. You can use the shape to serialize, validate or do whatever you need with a neat integration system.
-
-### Libraries using ReScript Struct
-
-- [ReScript JSON Schema](https://github.com/DZakh/rescript-json-schema) - Typesafe JSON schema for ReScript
-
-### Example
+## Example
 
 ```rescript
 type author = {
@@ -60,7 +59,7 @@ let constructResult1: result<author, string> = %raw(`{
   "Id": 1,
   "IsApproved": 1,
   "Age": 12,
-}`)->S.constructWith(authorStruct)
+}`)->S.Json.decodeWith(authorStruct)
 // Equal to:
 // Ok({
 //   id: 1.,
@@ -73,7 +72,7 @@ let constructResult2: result<author, string> = %raw(`{
   "Id": 1,
   "IsApproved": 0,
   "Tags": ["Loved"],
-}`)->S.constructWith(authorStruct)
+}`)->S.Json.decodeWith(authorStruct)
 // Equal to:
 // Ok({
 //   id: 1.,
@@ -95,9 +94,9 @@ let constructResult2: result<author, string> = %raw(`{
 let constructResult = data->S.constructWith(userStruct)
 ```
 
-Construct a data using the coercion logic that is built-in to the struct, returning the result with a newly coerced value or an error message.
+Construct data using the coercion logic that is built-in to the struct, returning the result with a newly coerced value or an error message.
 
-> 🧠 The function is responsible only for coercion and suitable for cases when the data is valid. If not, you'll get a runtime error or invalid state.
+> 🧠 The function is responsible only for coercion and suitable for cases when the data is valid. If not, you'll get a runtime error or invalid state. Use `S.Json.decodeWith` to safely decode data.
 
 #### `S.destructWith`
 
@@ -107,7 +106,47 @@ Construct a data using the coercion logic that is built-in to the struct, return
 let destructResult = user->S.destructWith(userStruct)
 ```
 
-Destruct a value using the coercion logic that is built-in to the struct, returning the result with a newly coerced data or an error message.
+Destruct value using the coercion logic that is built-in to the struct. It returns the result with a newly coerced data or an error message.
+
+#### `S.Json.decodeWith`
+
+`(Js.Json.t, t<'value>) => result<'value, string>`
+
+```rescript
+let decodeResult = data->S.Json.decodeWith(userStruct)
+```
+
+Decode data validating that JSON represents described struct and using the coercion logic. It returns the result with a decoded value or an error message.
+
+#### `S.Json.decodeStringWith`
+
+`(string, t<'value>) => result<'value, string>`
+
+```rescript
+let decodeResult = json->S.Json.decodeStringWith(userStruct)
+```
+
+Parse and decode data validating that JSON represents described struct and using the coercion logic. It returns the result with a decoded value or an error message.
+
+#### `S.Json.encodeWith`
+
+`('value, t<'value>) => result<Js.Json.t, string>`
+
+```rescript
+let encodeResult = user->S.Json.encodeWith(userStruct)
+```
+
+Decode value using the coercion logic. It returns the result with a decoded data or an error message.
+
+#### `S.Json.encodeStringWith`
+
+`('value, t<'value>) => result<string, string>`
+
+```rescript
+let encodeStringResult = user->S.Json.encodeStringWith(userStruct)
+```
+
+Decode value using the coercion logic and stringify it. It returns the result with a decoded stringified data or an error message.
 
 ### Types
 
@@ -348,7 +387,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 ## Roadmap
 
 - [x] Add custom Coercions
-- [ ] Add JSON module for decoding and encoding
+- [x] Add JSON module for decoding and encoding
 - [ ] Add Shape struct factory
 - [ ] Add Nullable struct factory
 - [ ] Add Enum and Literal struct factories

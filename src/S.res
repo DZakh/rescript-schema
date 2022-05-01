@@ -565,9 +565,7 @@ module Json = {
     ->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
   }
 
-  let encodeWith = (value, struct) => {
-    _destruct(~struct, ~value)->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
-  }
+  let encodeWith = destructWith
   let encodeStringWith = (value, struct) => {
     switch _destruct(~struct, ~value) {
     | Ok(unknown) => Ok(unknown->Js.Json.stringify)
