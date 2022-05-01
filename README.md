@@ -86,7 +86,7 @@ let constructResult2: result<author, string> = %raw(`{
 
 ### Core
 
-#### `S.constructWith`
+#### **`S.constructWith`**
 
 `(Js.Json.t, S.t<'value>) => result<'value, string>`
 
@@ -98,7 +98,7 @@ Construct data using the coercion logic that is built-in to the struct, returnin
 
 > 🧠 The function is responsible only for coercion and suitable for cases when the data is valid. If not, you'll get a runtime error or invalid state. Use `S.Json.decodeWith` to safely decode data.
 
-#### `S.destructWith`
+#### **`S.destructWith`**
 
 `('value, S.t<'value>) => result<Js.Json.t, string>`
 
@@ -108,7 +108,7 @@ let destructResult = user->S.destructWith(userStruct)
 
 Destruct value using the coercion logic that is built-in to the struct. It returns the result with a newly coerced data or an error message.
 
-#### `S.Json.decodeWith`
+#### **`S.Json.decodeWith`**
 
 `(Js.Json.t, t<'value>) => result<'value, string>`
 
@@ -118,7 +118,7 @@ let decodeResult = data->S.Json.decodeWith(userStruct)
 
 Decode data validating that JSON represents described struct and using the coercion logic. It returns the result with a decoded value or an error message.
 
-#### `S.Json.decodeStringWith`
+#### **`S.Json.decodeStringWith`**
 
 `(string, t<'value>) => result<'value, string>`
 
@@ -128,7 +128,7 @@ let decodeResult = json->S.Json.decodeStringWith(userStruct)
 
 Parse and decode data validating that JSON represents described struct and using the coercion logic. It returns the result with a decoded value or an error message.
 
-#### `S.Json.encodeWith`
+#### **`S.Json.encodeWith`**
 
 `('value, t<'value>) => result<Js.Json.t, string>`
 
@@ -138,7 +138,7 @@ let encodeResult = user->S.Json.encodeWith(userStruct)
 
 Decode value using the coercion logic. It returns the result with a decoded data or an error message.
 
-#### `S.Json.encodeStringWith`
+#### **`S.Json.encodeStringWith`**
 
 `('value, t<'value>) => result<string, string>`
 
@@ -152,7 +152,7 @@ Decode value using the coercion logic and stringify it. It returns the result wi
 
 **rescript-struct** exposes factory functions for a variety of common JavaScript types. You can also define your own custom struct factories.
 
-#### `S.string`
+#### **`S.string`**
 
 `unit => S.t<string>`
 
@@ -168,7 +168,7 @@ Ok("a string of text")
 
 `string` struct represents a data that is a string.
 
-#### `S.bool`
+#### **`S.bool`**
 
 `unit => S.t<bool>`
 
@@ -184,7 +184,7 @@ Ok(false)
 
 `bool` struct represents a data that is a boolean.
 
-#### `S.int`
+#### **`S.int`**
 
 `unit => S.t<int>`
 
@@ -200,7 +200,7 @@ Ok(123)
 
 `int` struct represents a data that is an integer.
 
-#### `S.float`
+#### **`S.float`**
 
 `unit => S.t<float>`
 
@@ -216,7 +216,7 @@ Ok(123.)
 
 `float` struct represents a data that is a number.
 
-#### `S.array`
+#### **`S.array`**
 
 `S.t<'value> => S.t<array<'value>>`
 
@@ -232,7 +232,7 @@ Ok(["Hello", "World"])
 
 `array` struct represents an array of data of a specific type.
 
-#### `S.dict`
+#### **`S.dict`**
 
 `S.t<'value> => S.t<Js.Dict.t<'value>>`
 
@@ -248,7 +248,7 @@ Ok(Js.Dict.fromArray([("foo", "bar"), ("baz", "qux")]))
 
 `dict` struct represents a dictionary of data of a specific type.
 
-#### `S.option`
+#### **`S.option`**
 
 `S.t<'value> => S.t<option<'value>>`
 
@@ -264,7 +264,7 @@ Ok(Some("a string of text"))
 
 `option` struct represents an optional data of a specific type.
 
-#### `S.record1` - `S.record10`
+#### **`S.record1` - `S.record10`**
 
 `(~fields: (S.field<'v1>, S.field<'v2>), ~constructor: (('v1, 'v2)) => result<'value, string>=?, ~destructor: 'value => result<('v1, 'v2), string>=?, unit) => S.t<'value>`
 
@@ -287,7 +287,7 @@ Ok(Some({
 
 The record struct factories are available up to 10 fields. If you have an object with more fields, you can create a record struct factory for any number of fields using `S.Record.factory`.
 
-#### `S.Record.factory`
+#### **`S.Record.factory`**
 
 ```rescript
 let record2: (
@@ -300,7 +300,7 @@ let record2: (
 
 > 🧠 The `S.Record.factory` internal code isn't typesafe, so you should properly annotate the struct factory interface.
 
-#### `S.default`
+#### **`S.default`**
 
 `(S.t<option<'value>>, 'value) => S.t<'value>`
 
@@ -316,7 +316,7 @@ Ok(Some("a string of text"))
 
 `default` augments a struct to add coercion logic for default values, which are applied when the input is undefined.
 
-#### `S.deprecated`
+#### **`S.deprecated`**
 
 `(~message: string=?, S.t<'value>) => S.t<option<'value>>`
 
@@ -332,7 +332,7 @@ Ok(Some("a string of text"))
 
 `deprecated` struct represents a data of a specific type and makes it optional. The message may be used by an integration library.
 
-#### `S.custom`
+#### **`S.custom`**
 
 `(~constructor: Js.Json.t => result<'value, string>=?, ~destructor: 'value => result<Js.Json.t, string>=?, unit) => S.t<'value>`
 
@@ -344,7 +344,7 @@ You can also define your own custom structs that are specific to your applicatio
 
 **rescript-struct** allows structs to be augmented with coercion logic, letting you transform data during construction and destruction. This is most commonly used to apply default values to an input, but it can be used for more complex cases like pre-trimming strings, or mapping input to a convenient ReScript data structure.
 
-#### `S.coerce`
+#### **`S.coerce`**
 
 `(S.t<'value>, ~constructor: 'value => result<'coercedValue, string>=?, ~destructor: 'coercedValue => result<'value, string>=?, unit) => S.t<'coercedValue>`
 
