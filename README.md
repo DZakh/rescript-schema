@@ -388,6 +388,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 
 - [x] Add custom Coercions
 - [x] Add JSON module for decoding and encoding
+- [ ] Make encoder and decoder work with any JS values and not only with Js.Json.t
 - [ ] Add Shape struct factory
 - [ ] Add Nullable struct factory
 - [ ] Add Enum and Literal struct factories
