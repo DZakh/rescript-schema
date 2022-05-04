@@ -2,27 +2,6 @@ open Ava
 
 external unsafeToUnknown: 'unknown => Js.Json.t = "%identity"
 
-test("Constructs unknown primitive", t => {
-  let primitive = "ReScript is Great!"
-
-  let unknownPrimitive = Js.Json.string(primitive)
-  let struct = S.string()
-
-  t->Assert.deepEqual(unknownPrimitive->S.constructWith(struct), Ok(primitive), ())
-})
-
-test(
-  "Constructs unknown primitive without validation. Note: Use Ajv.parse to safely construct with validation",
-  t => {
-    let primitivee = 123.
-
-    let unknownPrimitive = Js.Json.number(primitivee)
-    let struct = S.string()
-
-    t->Assert.unsafeDeepEqual(unknownPrimitive->S.constructWith(struct), Ok(primitivee), ())
-  },
-)
-
 test("Constructs unknown array of primitives", t => {
   let arrayOfPrimitives = ["ReScript is Great!"]
 
@@ -39,15 +18,6 @@ test("Constructs unknown dict of primitives", t => {
   let struct = S.dict(S.string())
 
   t->Assert.deepEqual(unknownDictOfPrimitives->S.constructWith(struct), Ok(dictOfPrimitives), ())
-})
-
-test("Destructs unknown primitive", t => {
-  let primitive = "ReScript is Great!"
-
-  let unknownPrimitive = Js.Json.string(primitive)
-  let struct = S.string()
-
-  t->Assert.deepEqual(primitive->S.destructWith(struct), Ok(unknownPrimitive), ())
 })
 
 test("Destructs unknown array of primitives", t => {
