@@ -1,7 +1,5 @@
 open Ava
 
-external unsafeToUnknown: 'unknown => Js.Json.t = "%identity"
-
 type recordWithTwoFields = {foo: string, bar: string}
 
 test("Works", t => {
@@ -12,13 +10,14 @@ test("Works", t => {
     unit,
   ) => S.t<'value> = S.Record.factory
 
-  let record = {foo: "foofoo", bar: "barbar"}
-  let unknownRecord = record->unsafeToUnknown
+  let value = {foo: "foofoo", bar: "barbar"}
+  let any = %raw(`{foo: "foofoo", bar: "barbar"}`)
+
   let struct = record2(
     ~fields=(("foo", S.string()), ("bar", S.string())),
     ~constructor=((foo, bar)) => {{foo: foo, bar: bar}}->Ok,
     (),
   )
 
-  t->Assert.deepEqual(unknownRecord->S.constructWith(struct), Ok(record), ())
+  t->Assert.deepEqual(any->S.constructWith(struct), Ok(value), ())
 })

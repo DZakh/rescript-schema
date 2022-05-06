@@ -2,9 +2,9 @@
 
 A simple and composable way to describe relationship between JavaScript and ReScript structures.
 
-It's a great tool to encode and decode JSON data with type safety.
+It's a great tool to decode and encode **unknown** data with type safety.
 
-Also, other libraries can use ReScript Struct as a building block with a neat integration system:
+And other libraries can use ReScript Struct as a building block with a neat integration system:
 
 - [ReScript JSON Schema](https://github.com/DZakh/rescript-json-schema) - Typesafe JSON schema for ReScript
 
@@ -59,7 +59,7 @@ let constructResult1: result<author, string> = %raw(`{
   "Id": 1,
   "IsApproved": 1,
   "Age": 12,
-}`)->S.Json.decodeWith(authorStruct)
+}`)->S.decodeWith(authorStruct)
 // Equal to:
 // Ok({
 //   id: 1.,
@@ -72,7 +72,7 @@ let constructResult2: result<author, string> = %raw(`{
   "Id": 1,
   "IsApproved": 0,
   "Tags": ["Loved"],
-}`)->S.Json.decodeWith(authorStruct)
+}`)->S.decodeWith(authorStruct)
 // Equal to:
 // Ok({
 //   id: 1.,
@@ -88,65 +88,65 @@ let constructResult2: result<author, string> = %raw(`{
 
 #### **`S.constructWith`**
 
-`(Js.Json.t, S.t<'value>) => result<'value, string>`
+`('any, S.t<'value>) => result<'value, string>`
 
 ```rescript
 let constructResult = data->S.constructWith(userStruct)
 ```
 
-Construct data using the coercion logic that is built-in to the struct, returning the result with a newly coerced value or an error message.
+Constructs value using the coercion logic that is built-in to the struct. It returns the result with a coerced value or an error message.
 
-> 🧠 The function is responsible only for coercion and suitable for cases when the data is valid. If not, you'll get a runtime error or invalid state. Use `S.Json.decodeWith` to safely decode data.
+> 🧠 The function is responsible only for coercion and suitable for cases when the data is valid. If not, you'll get a runtime error or invalid state. Use `S.decodeWith` to safely decode data with structure tests.
 
 #### **`S.destructWith`**
 
-`('value, S.t<'value>) => result<Js.Json.t, string>`
+`('value, S.t<'value>) => result<S.unknown, string>`
 
 ```rescript
 let destructResult = user->S.destructWith(userStruct)
 ```
 
-Destruct value using the coercion logic that is built-in to the struct. It returns the result with a newly coerced data or an error message.
+Destructs value using the coercion logic that is built-in to the struct. It returns the result with a coerced unknown data or an error message.
 
-#### **`S.Json.decodeWith`**
+#### **`S.decodeWith`**
 
-`(Js.Json.t, t<'value>) => result<'value, string>`
+`('any, t<'value>) => result<'value, string>`
 
 ```rescript
-let decodeResult = data->S.Json.decodeWith(userStruct)
+let decodeResult = data->S.decodeWith(userStruct)
 ```
 
-Decode data validating that JSON represents described struct and using the coercion logic. It returns the result with a decoded value or an error message.
+Decodes value testing that it represents described struct. It returns the result with a decoded coerced value or an error message.
 
-#### **`S.Json.decodeStringWith`**
+#### **`S.decodeJsonWith`**
 
 `(string, t<'value>) => result<'value, string>`
 
 ```rescript
-let decodeResult = json->S.Json.decodeStringWith(userStruct)
+let decodeResult = json->S.decodeJsonWith(userStruct)
 ```
 
-Parse and decode data validating that JSON represents described struct and using the coercion logic. It returns the result with a decoded value or an error message.
+Parses and decodes JSON string testing that it represents described struct. It returns the result with a decoded coerced value or an error message.
 
-#### **`S.Json.encodeWith`**
+#### **`S.encodeWith`**
 
-`('value, t<'value>) => result<Js.Json.t, string>`
+`('value, t<'value>) => result<S.unknown, string>`
 
 ```rescript
-let encodeResult = user->S.Json.encodeWith(userStruct)
+let encodeResult = user->S.encodeWith(userStruct)
 ```
 
-Decode value using the coercion logic. It returns the result with a decoded data or an error message.
+Encodes value using the coercion logic that is built-in to the struct. It returns the result with a coerced unknown data or an error message.
 
-#### **`S.Json.encodeStringWith`**
+#### **`S.encodeJsonWith`**
 
 `('value, t<'value>) => result<string, string>`
 
 ```rescript
-let encodeStringResult = user->S.Json.encodeStringWith(userStruct)
+let encodeStringResult = user->S.encodeJsonWith(userStruct)
 ```
 
-Decode value using the coercion logic and stringify it. It returns the result with a decoded stringified data or an error message.
+Encodes value using the coercion logic and stringifies it to JSON. It returns the result with an encoded stringified unknown data or an error message.
 
 ### Types
 
@@ -334,7 +334,7 @@ Ok(Some("a string of text"))
 
 #### **`S.custom`**
 
-`(~constructor: Js.Json.t => result<'value, string>=?, ~destructor: 'value => result<Js.Json.t, string>=?, unit) => S.t<'value>`
+`(~constructor: S.unknown => result<'value, string>=?, ~destructor: 'value => result<S.unknown, string>=?, unit) => S.t<'value>`
 
 You can also define your own custom structs that are specific to your application's requirements.
 
@@ -388,9 +388,20 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 
 - [x] Add custom Coercions
 - [x] Add JSON module for decoding and encoding
-- [ ] Make encoder and decoder work with any JS values and not only with Js.Json.t
+- [x] Make encoder and decoder work with any JS values and not only with Js.Json.t
+- [ ] Add Unknown struct factory and remove Custom
 - [ ] Add Shape struct factory
 - [ ] Add Nullable struct factory
-- [ ] Add Enum and Literal struct factories
-- [ ] Add Dynamic struct factory
-- [ ] Add Lazy struct factory
+- [ ] Add Instance struct factory
+- [ ] Add Tuple struct factory
+- [ ] Add Never struct factory
+- [ ] Add Function struct factory
+- [ ] Add Regexp struct factory
+- [ ] Add Date struct factory
+- [ ] Add Json struct factory
+- [ ] Design and add Literal struct factory
+- [ ] Design and add Enum struct factory
+- [ ] Design and add Dynamic struct factory
+- [ ] Design and add Lazy struct factory
+- [ ] Design and add Union struct factory
+- [ ] Design and add Refinements

@@ -1,41 +1,39 @@
 open Ava
 
-external unsafeToUnknown: 'unknown => Js.Json.t = "%identity"
-
 test("Constructs unknown array of primitives", t => {
-  let arrayOfPrimitives = ["ReScript is Great!"]
+  let value = ["ReScript is Great!"]
+  let any = %raw(`["ReScript is Great!"]`)
 
-  let unknownArrayOfPrimitives = Js.Json.stringArray(arrayOfPrimitives)
   let struct = S.array(S.string())
 
-  t->Assert.deepEqual(unknownArrayOfPrimitives->S.constructWith(struct), Ok(arrayOfPrimitives), ())
+  t->Assert.deepEqual(any->S.constructWith(struct), Ok(value), ())
 })
 
 test("Constructs unknown dict of primitives", t => {
-  let dictOfPrimitives = Js.Dict.fromArray([("foo", "bar"), ("baz", "qux")])
-  let unknownDictOfPrimitives = dictOfPrimitives->unsafeToUnknown
+  let value = Js.Dict.fromArray([("foo", "bar"), ("baz", "qux")])
+  let any = %raw(`{foo:"bar", baz:"qux"}`)
 
   let struct = S.dict(S.string())
 
-  t->Assert.deepEqual(unknownDictOfPrimitives->S.constructWith(struct), Ok(dictOfPrimitives), ())
+  t->Assert.deepEqual(any->S.constructWith(struct), Ok(value), ())
 })
 
 test("Destructs unknown array of primitives", t => {
-  let arrayOfPrimitives = ["ReScript is Great!"]
+  let value = ["ReScript is Great!"]
+  let any = %raw(`["ReScript is Great!"]`)
 
-  let unknownArrayOfPrimitives = Js.Json.stringArray(arrayOfPrimitives)
   let struct = S.array(S.string())
 
-  t->Assert.deepEqual(arrayOfPrimitives->S.destructWith(struct), Ok(unknownArrayOfPrimitives), ())
+  t->Assert.deepEqual(value->S.destructWith(struct), Ok(any), ())
 })
 
 test("Using default value when constructing optional unknown primitive", t => {
-  let defaultValue = 123.
-  let unknownPrimitive = %raw(`undefined`)
+  let value = 123.
+  let any = %raw(`undefined`)
 
-  let struct = S.option(S.float())->S.default(defaultValue)
+  let struct = S.option(S.float())->S.default(value)
 
-  t->Assert.deepEqual(unknownPrimitive->S.constructWith(struct), Ok(defaultValue), ())
+  t->Assert.deepEqual(any->S.constructWith(struct), Ok(value), ())
 })
 
 module Example = {

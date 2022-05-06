@@ -8,16 +8,18 @@ let _mapTupleToUnsafeArray = %raw(`function(tuple){
   return isSingleField ? [tuple] : tuple;
 }`)
 
-type unknown = Js.Json.t
+type unknown
 
-external unsafeToUnknown: 'unknown => unknown = "%identity"
-external unsafeFromUnknown: unknown => 'value = "%identity"
-external unsafeUnknownToArray: unknown => array<unknown> = "%identity"
+external unsafeAnyToUnknown: 'any => unknown = "%identity"
+external unsafeUnknownToAny: unknown => 'any = "%identity"
+external unsafeUnknownToArray: unknown => array<'anyItem> = "%identity"
 external unsafeArrayToUnknown: array<unknown> => unknown = "%identity"
-external unsafeUnknownToDict: unknown => Js.Dict.t<unknown> = "%identity"
+external unsafeUnknownToDict: unknown => Js.Dict.t<'anyItem> = "%identity"
 external unsafeDictToUnknown: Js.Dict.t<unknown> => unknown = "%identity"
 external unsafeUnknownToOption: unknown => option<unknown> = "%identity"
 external unsafeOptionToUnknown: option<unknown> => unknown = "%identity"
+external unsafeJsonToUnknown: Js.Json.t => unknown = "%identity"
+external unsafeUnknownToJson: unknown => Js.Json.t = "%identity"
 
 type rec t<'value> = {
   tagged_t: tagged_t,
@@ -56,8 +58,10 @@ let _construct = (~struct, ~unknown) => {
   | None => RescriptStruct_Error.MissingConstructor.make()->Error
   }
 }
-let constructWith = (unknown, struct) => {
-  _construct(~struct, ~unknown)->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
+let constructWith = (any, struct) => {
+  _construct(~struct, ~unknown=any->unsafeAnyToUnknown)->RescriptStruct_ResultX.mapError(
+    RescriptStruct_Error.toString,
+  )
 }
 
 let _destruct = (~struct, ~value) => {
@@ -204,10 +208,10 @@ module Primitive = {
         make(
           ~tagged_t,
           ~constructor=unknown => {
-            unknown->unsafeFromUnknown->Ok
+            unknown->unsafeUnknownToAny->Ok
           },
           ~destructor=value => {
-            value->unsafeToUnknown->Ok
+            value->unsafeAnyToUnknown->Ok
           },
           (),
         )
@@ -386,9 +390,10 @@ let custom = (
     }),
     ~destructor=?maybeCustomDestructor->Belt.Option.map(customDestructor => {
       value => {
-        customDestructor(value)->RescriptStruct_ResultX.mapError(
-          RescriptStruct_Error.DestructingFailed.make,
-        )
+        switch customDestructor(value) {
+        | Ok(any) => Ok(any->unsafeAnyToUnknown)
+        | Error(reason) => Error(RescriptStruct_Error.DestructingFailed.make(reason))
+        }
       }
     }),
     (),
@@ -404,172 +409,162 @@ module MakeMetadata = (
   },
 ) => {
   let extract = (struct): option<Details.content> => {
-    struct.metadata->Js.Dict.get(Details.namespace)->Belt.Option.map(unsafeFromUnknown)
+    struct.metadata->Js.Dict.get(Details.namespace)->Belt.Option.map(unsafeUnknownToAny)
   }
 
   let mixin = (struct, metadata: Details.content) => {
-    struct.metadata->Js.Dict.set(Details.namespace, metadata->unsafeToUnknown)
+    struct.metadata->Js.Dict.set(Details.namespace, metadata->unsafeAnyToUnknown)
     struct
   }
 }
 
-module Json = {
-  let structTaggedToString = tagged_t => {
-    switch tagged_t {
-    | String => "String"
-    | Int => "Int"
-    | Float => "Float"
-    | Bool => "Bool"
-    | Option(_) => "Option"
-    | Array(_) => "Array"
-    | Record(_) => "Record"
-    | Custom => "Custom"
-    | Dict(_) => "Dict"
-    | Deprecated(_) => "Deprecated"
-    | Default(_) => "Default"
-    }
+let structTaggedToString = tagged_t => {
+  switch tagged_t {
+  | String => "String"
+  | Int => "Int"
+  | Float => "Float"
+  | Bool => "Bool"
+  | Option(_) => "Option"
+  | Array(_) => "Array"
+  | Record(_) => "Record"
+  | Custom => "Custom"
+  | Dict(_) => "Dict"
+  | Deprecated(_) => "Deprecated"
+  | Default(_) => "Default"
   }
+}
 
-  let makeUnexpectedTypeError = (~jsonTagged: Js.Json.tagged_t, ~structTagged: tagged_t) => {
-    let got = switch jsonTagged {
-    | JSONFalse | JSONTrue => "Bool"
-    | JSONString(_) => "String"
-    | JSONNull => "Null"
-    | JSONNumber(_) => "Float"
-    | JSONObject(_) => "Object"
-    | JSONArray(_) => "Array"
-    }
-    let expected = structTaggedToString(structTagged)
-    Error(RescriptStruct_Error.DecodingFailed.UnexpectedType.make(~expected, ~got))
+let makeUnexpectedTypeError = (~typesTagged: Js.Types.tagged_t, ~structTagged: tagged_t) => {
+  let got = switch typesTagged {
+  | JSFalse | JSTrue => "Bool"
+  | JSString(_) => "String"
+  | JSNull => "Null"
+  | JSNumber(_) => "Float"
+  | JSObject(_) => "Object"
+  | JSFunction(_) => "Function"
+  | JSUndefined => "Option"
+  | JSSymbol(_) => "Symbol"
   }
+  let expected = structTaggedToString(structTagged)
+  Error(RescriptStruct_Error.DecodingFailed.UnexpectedType.make(~expected, ~got))
+}
 
-  let makeUnexpectedNoneError = (~structTagged: tagged_t) => {
-    let expected = structTaggedToString(structTagged)
-    Error(RescriptStruct_Error.DecodingFailed.UnexpectedType.make(~expected, ~got="Option"))
-  }
+let rec validateNode:
+  type value unknown. (
+    ~unknown: unknown,
+    ~struct: t<value>,
+  ) => result<unit, RescriptStruct_Error.t> =
+  (~unknown, ~struct) => {
+    let typesTagged = unknown->Js.Types.classify
+    let structTagged = struct->classify
 
-  let rec validateNode:
-    type value. (
-      ~maybeUnknown: option<Js.Json.t>,
-      ~struct: t<value>,
-    ) => result<unit, RescriptStruct_Error.t> =
-    (~maybeUnknown, ~struct) => {
-      let structTagged = struct->classify
-
-      switch maybeUnknown {
-      | Some(unknown) => {
-          let jsonTagged = unknown->Js.Json.classify
-
-          switch (jsonTagged, structTagged) {
-          | (JSONFalse, Bool)
-          | (JSONTrue, Bool)
-          | (JSONString(_), String)
-          | (JSONNumber(_), Float)
-          | (_, Custom) =>
-            Ok()
-          | (JSONNumber(x), Int) =>
-            if x == x->Js.Math.trunc && x > -2147483648. && x < 2147483648. {
-              Ok()
-            } else {
-              makeUnexpectedTypeError(~jsonTagged, ~structTagged)
-            }
-          | (JSONArray(unknownItems), Array(itemStruct)) =>
-            unknownItems
-            ->RescriptStruct_ResultX.Array.mapi((unknownItem, idx) => {
-              validateNode(
-                ~maybeUnknown=unknownItem->unsafeUnknownToOption,
-                ~struct=itemStruct,
-              )->RescriptStruct_ResultX.mapError(
-                RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Index(idx)),
-              )
-            })
-            ->Belt.Result.map(_ => ())
-          | (JSONObject(unknownDict), Dict(itemStruct)) =>
-            unknownDict
-            ->RescriptStruct_ResultX.Dict.map((unknownItem, key) => {
-              validateNode(
-                ~maybeUnknown=unknownItem->unsafeUnknownToOption,
-                ~struct=itemStruct,
-              )->RescriptStruct_ResultX.mapError(
-                RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(key)),
-              )
-            })
-            ->Belt.Result.map(_ => ())
-          | (JSONObject(unknownDict), Record(unsafeFieldsArray)) =>
-            let fieldsArray = unsafeFieldsArray->unsafeToFieldsArray
-            let unknownKeysSet = unknownDict->Js.Dict.keys->RescriptStruct_Set.fromArray
-
-            fieldsArray
-            ->RescriptStruct_ResultX.Array.mapi(((fieldName, fieldStruct), _) => {
-              unknownKeysSet->RescriptStruct_Set.delete(fieldName)->ignore
-
-              validateNode(
-                ~maybeUnknown=unknownDict->Js.Dict.get(fieldName),
-                ~struct=fieldStruct,
-              )->RescriptStruct_ResultX.mapError(
-                RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(fieldName)),
-              )
-            })
-            ->Belt.Result.flatMap(_ => {
-              if unknownKeysSet->RescriptStruct_Set.size === 0 {
-                Ok()
-              } else {
-                Error(
-                  RescriptStruct_Error.DecodingFailed.ExtraProperties.make(
-                    ~properties=unknownKeysSet->RescriptStruct_Set.toArray,
-                  ),
-                )
-              }
-            })
-          | (_, Deprecated({struct: struct'})) =>
-            validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct=struct')
-          | (_, Default({struct: struct'})) =>
-            validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct=struct')
-          | (_, Option(struct')) =>
-            validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct=struct')
-          | (_, _) => makeUnexpectedTypeError(~jsonTagged, ~structTagged)
-          }
-        }
-      | None =>
-        switch structTagged {
-        | Option(_)
-        | Deprecated(_)
-        | Default(_) =>
-          Ok()
-        | _ => makeUnexpectedNoneError(~structTagged)
-        }
+    switch (typesTagged, structTagged) {
+    | (JSFalse, Bool)
+    | (JSTrue, Bool)
+    | (JSString(_), String)
+    | (JSNumber(_), Float)
+    | (JSUndefined, Option(_))
+    | (JSUndefined, Deprecated(_))
+    | (JSUndefined, Default(_))
+    | (JSNull, Option(_))
+    | (JSNull, Deprecated(_))
+    | (JSNull, Default(_))
+    | (_, Custom) =>
+      Ok()
+    | (JSNumber(x), Int) if x == x->Js.Math.trunc && x > -2147483648. && x < 2147483648. =>
+      if x == x->Js.Math.trunc && x > -2147483648. && x < 2147483648. {
+        Ok()
+      } else {
+        makeUnexpectedTypeError(~typesTagged, ~structTagged)
       }
-    }
+    | (JSObject(obj_val), Array(itemStruct)) if Js.Array2.isArray(obj_val) =>
+      obj_val
+      ->unsafeAnyToUnknown
+      ->unsafeUnknownToArray
+      ->RescriptStruct_ResultX.Array.mapi((unknownItem, idx) => {
+        validateNode(~unknown=unknownItem, ~struct=itemStruct)->RescriptStruct_ResultX.mapError(
+          RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Index(idx)),
+        )
+      })
+      ->Belt.Result.map(_ => ())
+    | (JSObject(obj_val), Dict(itemStruct)) if !Js.Array2.isArray(obj_val) =>
+      obj_val
+      ->unsafeAnyToUnknown
+      ->unsafeUnknownToDict
+      ->RescriptStruct_ResultX.Dict.map((unknownItem, key) => {
+        validateNode(~unknown=unknownItem, ~struct=itemStruct)->RescriptStruct_ResultX.mapError(
+          RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(key)),
+        )
+      })
+      ->Belt.Result.map(_ => ())
+    | (JSObject(obj_val), Record(unsafeFieldsArray)) if !Js.Array2.isArray(obj_val) =>
+      let fieldsArray = unsafeFieldsArray->unsafeToFieldsArray
+      let unknownDict = obj_val->unsafeAnyToUnknown->unsafeUnknownToDict
+      let unknownKeysSet = unknownDict->Js.Dict.keys->RescriptStruct_Set.fromArray
 
-  let _decode = (~unknown, ~struct) => {
-    validateNode(~maybeUnknown=unknown->unsafeUnknownToOption, ~struct)->Belt.Result.flatMap(() => {
+      fieldsArray
+      ->RescriptStruct_ResultX.Array.mapi(((fieldName, fieldStruct), _) => {
+        unknownKeysSet->RescriptStruct_Set.delete(fieldName)->ignore
+
+        validateNode(
+          ~unknown=unknownDict->Js.Dict.get(fieldName),
+          ~struct=fieldStruct,
+        )->RescriptStruct_ResultX.mapError(
+          RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(fieldName)),
+        )
+      })
+      ->Belt.Result.flatMap(_ => {
+        if unknownKeysSet->RescriptStruct_Set.size === 0 {
+          Ok()
+        } else {
+          Error(
+            RescriptStruct_Error.DecodingFailed.ExtraProperties.make(
+              ~properties=unknownKeysSet->RescriptStruct_Set.toArray,
+            ),
+          )
+        }
+      })
+    | (_, Deprecated({struct: struct'})) => validateNode(~unknown, ~struct=struct')
+    | (_, Default({struct: struct'})) => validateNode(~unknown, ~struct=struct')
+    | (_, Option(struct')) => validateNode(~unknown, ~struct=struct')
+    | (_, _) => makeUnexpectedTypeError(~typesTagged, ~structTagged)
+    }
+  }
+
+let decodeWith = (any, struct) => {
+  let unknown = any->unsafeAnyToUnknown
+  validateNode(~unknown, ~struct)
+  ->Belt.Result.flatMap(() => {
+    _construct(~struct, ~unknown)
+  })
+  ->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
+}
+
+let decodeJsonWith = (string, struct) => {
+  switch Js.Json.parseExn(string) {
+  | json => Ok(json)
+  | exception Js.Exn.Error(obj) =>
+    let maybeMessage = Js.Exn.message(obj)
+    Error(
+      RescriptStruct_Error.DecodingFailed.make(
+        maybeMessage->Belt.Option.getWithDefault("Syntax error"),
+      ),
+    )
+  }
+  ->Belt.Result.flatMap(json => {
+    let unknown = json->unsafeJsonToUnknown
+    validateNode(~unknown, ~struct)->Belt.Result.flatMap(() => {
       _construct(~struct, ~unknown)
     })
-  }
-  let decodeWith = (unknown, struct) => {
-    _decode(~unknown, ~struct)->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
-  }
-  let decodeStringWith = (string, struct) => {
-    let parseResult = switch Js.Json.parseExn(string) {
-    | json => Ok(json)
-    | exception Js.Exn.Error(obj) =>
-      let maybeMessage = Js.Exn.message(obj)
-      Error(
-        RescriptStruct_Error.DecodingFailed.make(
-          maybeMessage->Belt.Option.getWithDefault("Syntax error"),
-        ),
-      )
-    }
-    parseResult
-    ->Belt.Result.flatMap(unknown => _decode(~unknown, ~struct))
-    ->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
-  }
+  })
+  ->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
+}
 
-  let encodeWith = destructWith
-  let encodeStringWith = (value, struct) => {
-    switch _destruct(~struct, ~value) {
-    | Ok(unknown) => Ok(unknown->Js.Json.stringify)
-    | Error(error) => Error(error->RescriptStruct_Error.toString)
-    }
+let encodeWith = destructWith
+
+let encodeJsonWith = (value, struct) => {
+  switch _destruct(~struct, ~value) {
+  | Ok(unknown) => Ok(unknown->unsafeUnknownToJson->Js.Json.stringify)
+  | Error(error) => Error(error->RescriptStruct_Error.toString)
   }
 }

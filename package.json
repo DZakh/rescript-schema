@@ -1,23 +1,23 @@
 {
   "name": "rescript-struct",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "A simple and composable way to describe relationship between JavaScript and ReScript structures",
   "keywords": [
     "ReScript",
-    "ReStruct",
     "Struct",
     "JSON",
     "Schema",
+    "Typesafe",
     "Encode",
     "Decode",
-    "Runtypes",
-    "Superstruct",
-    "Contract",
-    "Mapping",
-    "Typesafe",
     "Parse",
     "Serialize",
-    "Validation"
+    "Validation",
+    "Contract",
+    "Mapping",
+    "Jzon",
+    "Superstruct",
+    "Runtypes"
   ],
   "homepage": "https://github.com/DZakh/rescript-struct#readme",
   "bugs": {

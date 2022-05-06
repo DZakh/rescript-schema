@@ -13,6 +13,8 @@ and tagged_t =
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
 and field<'value> = (string, t<'value>)
 
+type unknown
+
 let string: unit => t<string>
 let bool: unit => t<bool>
 let int: unit => t<int>
@@ -122,13 +124,22 @@ let coerce: (
 ) => t<'coercedValue>
 
 let custom: (
-  ~constructor: Js.Json.t => result<'value, string>=?,
-  ~destructor: 'value => result<Js.Json.t, string>=?,
+  ~constructor: unknown => result<'value, string>=?,
+  ~destructor: 'value => result<'any, string>=?,
   unit,
 ) => t<'value>
 
-let constructWith: (Js.Json.t, t<'value>) => result<'value, string>
-let destructWith: ('value, t<'value>) => result<Js.Json.t, string>
+let constructWith: ('any, t<'value>) => result<'value, string>
+
+let decodeWith: ('any, t<'value>) => result<'value, string>
+
+let decodeJsonWith: (string, t<'value>) => result<'value, string>
+
+let destructWith: ('value, t<'value>) => result<unknown, string>
+
+let encodeWith: ('value, t<'value>) => result<unknown, string>
+
+let encodeJsonWith: ('value, t<'value>) => result<string, string>
 
 module Record: {
   let factory: (
@@ -151,12 +162,4 @@ module MakeMetadata: (
   let extract: t<'value> => option<Details.content>
 
   let mixin: (t<'value>, Details.content) => t<'value>
-}
-
-module Json: {
-  let decodeWith: (Js.Json.t, t<'value>) => result<'value, string>
-  let decodeStringWith: (string, t<'value>) => result<'value, string>
-
-  let encodeWith: ('value, t<'value>) => result<Js.Json.t, string>
-  let encodeStringWith: ('value, t<'value>) => result<string, string>
 }
