@@ -2,7 +2,7 @@
 
 A simple and composable way to describe relationship between JavaScript and ReScript structures.
 
-It's a great tool to decode and encode **unknown** data with type safety.
+It's a great tool to decode and encode any unknown data with type safety.
 
 And other libraries can use ReScript Struct as a building block with a neat integration system:
 
