@@ -84,6 +84,17 @@ test("Decodes option when provided primitive", t => {
   t->Assert.deepEqual(Js.Json.boolean(true)->S.decodeWith(struct), Ok(Some(true)), ())
 })
 
+// TODO: Think about whether it should handle null or not
+failing("Fails to decode JS null", t => {
+  let struct = S.option(S.bool())
+
+  t->Assert.deepEqual(
+    %raw(`null`)->S.decodeWith(struct),
+    Error("Struct decoding failed at root. Reason: Expected Bool, got Option"),
+    (),
+  )
+})
+
 test("Fails to decode JS undefined when struct doesn't allow optional data", t => {
   let struct = S.bool()
 

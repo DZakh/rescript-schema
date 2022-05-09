@@ -1,14 +1,5 @@
 open Ava
 
-test("Constructs unknown array of primitives", t => {
-  let value = ["ReScript is Great!"]
-  let any = %raw(`["ReScript is Great!"]`)
-
-  let struct = S.array(S.string())
-
-  t->Assert.deepEqual(any->S.constructWith(struct), Ok(value), ())
-})
-
 test("Constructs unknown dict of primitives", t => {
   let value = Js.Dict.fromArray([("foo", "bar"), ("baz", "qux")])
   let any = %raw(`{foo:"bar", baz:"qux"}`)
@@ -16,15 +7,6 @@ test("Constructs unknown dict of primitives", t => {
   let struct = S.dict(S.string())
 
   t->Assert.deepEqual(any->S.constructWith(struct), Ok(value), ())
-})
-
-test("Destructs unknown array of primitives", t => {
-  let value = ["ReScript is Great!"]
-  let any = %raw(`["ReScript is Great!"]`)
-
-  let struct = S.array(S.string())
-
-  t->Assert.deepEqual(value->S.destructWith(struct), Ok(any), ())
 })
 
 test("Using default value when constructing optional unknown primitive", t => {

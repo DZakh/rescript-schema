@@ -44,32 +44,6 @@ test("Fails to decode data with default", t => {
   )
 })
 
-test("Decodes array", t => {
-  let struct = S.array(S.string())
-
-  t->Assert.deepEqual(Js.Json.stringArray(["a", "b"])->S.decodeWith(struct), Ok(["a", "b"]), ())
-})
-
-test("Fails to decode array", t => {
-  let struct = S.array(S.string())
-
-  t->Assert.deepEqual(
-    Js.Json.string("string")->S.decodeWith(struct),
-    Error("Struct decoding failed at root. Reason: Expected Array, got String"),
-    (),
-  )
-})
-
-test("Fails to decode array item", t => {
-  let struct = S.array(S.string())
-
-  t->Assert.deepEqual(
-    %raw(`["a", 123]`)->S.decodeWith(struct),
-    Error("Struct decoding failed at .[1]. Reason: Expected String, got Float"),
-    (),
-  )
-})
-
 test("Decodes dict", t => {
   let struct = S.dict(S.string())
 
