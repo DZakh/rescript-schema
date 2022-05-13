@@ -264,12 +264,12 @@ Ok(Some("a string of text"))
 
 `option` struct represents a data of a specific type that might be undefined.
 
-#### **`S.nullable`**
+#### **`S.null`**
 
 `S.t<'value> => S.t<option<'value>>`
 
 ```rescript
-let struct: S.t<option<string>> = S.option(S.string())
+let struct: S.t<option<string>> = S.null(S.string())
 
 %raw(`null`)->S.constructWith(struct)
 ```
@@ -278,7 +278,7 @@ let struct: S.t<option<string>> = S.option(S.string())
 Ok(None)
 ```
 
-`nullable` struct represents a data of a specific type that might be null.
+`null` struct represents a data of a specific type that might be null.
 
 #### **`S.record1` - `S.record10`**
 
@@ -411,7 +411,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [x] Make encoder and decoder work with any JS values and not only with Js.Json.t
 - [x] Add Unknown struct factory and remove Custom
 - [ ] Add Shape struct factory
-- [x] Add Nullable struct factory
+- [x] Add Null struct factory
 - [ ] Add Instance struct factory
 - [ ] Add Tuple struct factory
 - [ ] Add Never struct factory

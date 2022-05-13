@@ -78,7 +78,7 @@ module Common = {
   })
 }
 
-test("Decodes option when provided primitive", t => {
+test("Successfully decodes primitive", t => {
   let struct = S.option(S.bool())
 
   t->Assert.deepEqual(Js.Json.boolean(true)->S.decodeWith(struct), Ok(Some(true)), ())

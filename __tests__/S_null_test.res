@@ -6,7 +6,7 @@ module Common = {
   let wrongAny = %raw(`123.45`)
   let jsonString = `null`
   let wrongJsonString = `123.45`
-  let factory = () => S.nullable(S.string())
+  let factory = () => S.null(S.string())
 
   test("Successfully constructs", t => {
     let struct = factory()
@@ -77,14 +77,14 @@ module Common = {
   })
 }
 
-test("Decodes nullable when provided primitive", t => {
-  let struct = S.nullable(S.bool())
+test("Successfully decodes primitive", t => {
+  let struct = S.null(S.bool())
 
   t->Assert.deepEqual(Js.Json.boolean(true)->S.decodeWith(struct), Ok(Some(true)), ())
 })
 
 test("Fails to decode JS undefined", t => {
-  let struct = S.nullable(S.bool())
+  let struct = S.null(S.bool())
 
   t->Assert.deepEqual(
     %raw(`undefined`)->S.decodeWith(struct),
@@ -96,9 +96,9 @@ test("Fails to decode JS undefined", t => {
 module MissingFieldThatMarkedAsNullable = {
   type record = {nullableField: option<string>}
 
-  test("Fails to decode record with missing field that marked as nullable", t => {
+  test("Fails to decode record with missing field that marked as null", t => {
     let struct = S.record1(
-      ~fields=("nullableField", S.nullable(S.string())),
+      ~fields=("nullableField", S.null(S.string())),
       ~constructor=nullableField => {nullableField: nullableField}->Ok,
       (),
     )

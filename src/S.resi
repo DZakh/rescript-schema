@@ -8,7 +8,7 @@ and tagged_t =
   | Float: tagged_t
   | Bool: tagged_t
   | Option(t<'value>): tagged_t
-  | Nullable(t<'value>): tagged_t
+  | Null(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
   | Record(array<field<unknown>>): tagged_t
   | Dict(t<'value>): tagged_t
@@ -24,7 +24,7 @@ let float: unit => t<float>
 let array: t<'value> => t<array<'value>>
 let dict: t<'value> => t<Js.Dict.t<'value>>
 let option: t<'value> => t<option<'value>>
-let nullable: t<'value> => t<option<'value>>
+let null: t<'value> => t<option<'value>>
 let deprecated: (~message: string=?, t<'value>) => t<option<'value>>
 let default: (t<option<'value>>, 'value) => t<'value>
 

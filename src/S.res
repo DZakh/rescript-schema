@@ -35,7 +35,7 @@ and tagged_t =
   | Float: tagged_t
   | Bool: tagged_t
   | Option(t<'value>): tagged_t
-  | Nullable(t<'value>): tagged_t
+  | Null(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
   | Record(array<field<unknown>>): tagged_t
   | Dict(t<'value>): tagged_t
@@ -237,7 +237,7 @@ module Optional = {
           | Some(value) => _destruct(~struct, ~value)
           | None =>
             switch tagged_t {
-            | Nullable(_) => Js.Null.empty->unsafeNullToUnknown
+            | Null(_) => Js.Null.empty->unsafeNullToUnknown
             | _ => None->unsafeOptionToUnknown
             }->Ok
           }
@@ -308,8 +308,8 @@ let dict = struct =>
 let option = struct => {
   Optional.Factory.make(~tagged_t=Option(struct), ~struct)
 }
-let nullable = struct => {
-  Optional.Factory.make(~tagged_t=Nullable(struct), ~struct)
+let null = struct => {
+  Optional.Factory.make(~tagged_t=Null(struct), ~struct)
 }
 let deprecated = (~message as maybeMessage=?, struct) => {
   Optional.Factory.make(~tagged_t=Deprecated({struct: struct, maybeMessage: maybeMessage}), ~struct)
@@ -406,7 +406,7 @@ let structTaggedToString = tagged_t => {
   | Float => "Float"
   | Bool => "Bool"
   | Option(_) => "Option"
-  | Nullable(_) => "Nullable"
+  | Null(_) => "Null"
   | Array(_) => "Array"
   | Record(_) => "Record"
   | Dict(_) => "Dict"
@@ -447,7 +447,7 @@ let rec validateNode:
     | (JSUndefined, Option(_))
     | (JSUndefined, Deprecated(_))
     | (JSUndefined, Default(_))
-    | (JSNull, Nullable(_))
+    | (JSNull, Null(_))
     | (JSNull, Deprecated(_))
     | (JSNull, Default(_))
     | (_, Unknown) =>
@@ -507,7 +507,7 @@ let rec validateNode:
     | (_, Deprecated({struct: struct'})) => validateNode(~unknown, ~struct=struct')
     | (_, Default({struct: struct'})) => validateNode(~unknown, ~struct=struct')
     | (_, Option(struct')) => validateNode(~unknown, ~struct=struct')
-    | (_, Nullable(struct')) => validateNode(~unknown, ~struct=struct')
+    | (_, Null(struct')) => validateNode(~unknown, ~struct=struct')
     | (_, _) => makeUnexpectedTypeError(~typesTagged, ~structTagged)
     }
   }
