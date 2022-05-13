@@ -33,11 +33,11 @@ module Custom = {
   external unsafeStringToUnknown: string => S.unknown = "%identity"
 
   test(
-    "Constructs data and destructs it back to the initial state with coercion. aka custom struct factory",
+    "Constructs data and destructs it back to the initial state with transformation. aka custom struct factory",
     t => {
       let any = %raw(`"Hello world!"`)
 
-      let struct = S.unknown()->S.coerce(
+      let struct = S.unknown()->S.transform(
         ~constructor=unknown => {
           switch unknown->Js.Types.classify {
           | JSString(string) => Ok(string)

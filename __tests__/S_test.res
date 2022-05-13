@@ -26,7 +26,7 @@ module Example = {
       ~fields=(
         ("Id", S.float()),
         ("Tags", S.option(S.array(S.string()))->S.default([])),
-        ("IsApproved", S.int()->S.coerce(~constructor=int =>
+        ("IsApproved", S.int()->S.transform(~constructor=int =>
             switch int {
             | 1 => true
             | _ => false

@@ -119,12 +119,12 @@ let record10: (
   unit,
 ) => t<'value>
 
-let coerce: (
+let transform: (
   t<'value>,
-  ~constructor: 'value => result<'coercedValue, string>=?,
-  ~destructor: 'coercedValue => result<'value, string>=?,
+  ~constructor: 'value => result<'transformedValue, string>=?,
+  ~destructor: 'transformedValue => result<'value, string>=?,
   unit,
-) => t<'coercedValue>
+) => t<'transformedValue>
 
 let constructWith: ('any, t<'value>) => result<'value, string>
 

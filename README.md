@@ -42,7 +42,7 @@ let authorStruct: S.t<author> = S.record4(
   ~fields=(
     ("Id", S.float()),
     ("Tags", S.option(S.array(S.string()))->S.default([])),
-    ("IsApproved", S.int()->S.coerce(~constructor=int =>
+    ("IsApproved", S.int()->S.transform(~constructor=int =>
         switch int {
         | 1 => true
         | _ => false
@@ -94,9 +94,9 @@ let constructResult2: result<author, string> = %raw(`{
 let constructResult = data->S.constructWith(userStruct)
 ```
 
-Constructs value using the coercion logic that is built-in to the struct. It returns the result with a coerced value or an error message.
+Constructs value using the transformation logic that is built-in to the struct. It returns the result with a transformed value or an error message.
 
-> 🧠 The function is responsible only for coercion and suitable for cases when the data is valid. If not, you'll get a runtime error or invalid state. Use `S.decodeWith` to safely decode data with structure tests.
+> 🧠 The function is responsible only for transformation and suitable for cases when the data is valid. If not, you'll get a runtime error or invalid state. Use `S.decodeWith` to safely decode data with structure tests.
 
 #### **`S.destructWith`**
 
@@ -106,7 +106,7 @@ Constructs value using the coercion logic that is built-in to the struct. It ret
 let destructResult = user->S.destructWith(userStruct)
 ```
 
-Destructs value using the coercion logic that is built-in to the struct. It returns the result with a coerced unknown data or an error message.
+Destructs value using the transformation logic that is built-in to the struct. It returns the result with a transformed unknown data or an error message.
 
 #### **`S.decodeWith`**
 
@@ -116,7 +116,7 @@ Destructs value using the coercion logic that is built-in to the struct. It retu
 let decodeResult = data->S.decodeWith(userStruct)
 ```
 
-Decodes value testing that it represents described struct. It returns the result with a decoded coerced value or an error message.
+Decodes value testing that it represents described struct. It returns the result with a decoded transformed value or an error message.
 
 #### **`S.decodeJsonWith`**
 
@@ -126,7 +126,7 @@ Decodes value testing that it represents described struct. It returns the result
 let decodeResult = json->S.decodeJsonWith(userStruct)
 ```
 
-Parses and decodes JSON string testing that it represents described struct. It returns the result with a decoded coerced value or an error message.
+Parses and decodes JSON string testing that it represents described struct. It returns the result with a decoded transformed value or an error message.
 
 #### **`S.encodeWith`**
 
@@ -136,7 +136,7 @@ Parses and decodes JSON string testing that it represents described struct. It r
 let encodeResult = user->S.encodeWith(userStruct)
 ```
 
-Encodes value using the coercion logic that is built-in to the struct. It returns the result with a coerced unknown data or an error message.
+Encodes value using the transformation logic that is built-in to the struct. It returns the result with a transformed unknown data or an error message.
 
 #### **`S.encodeJsonWith`**
 
@@ -146,7 +146,7 @@ Encodes value using the coercion logic that is built-in to the struct. It return
 let encodeStringResult = user->S.encodeJsonWith(userStruct)
 ```
 
-Encodes value using the coercion logic and stringifies it to JSON. It returns the result with an encoded stringified unknown data or an error message.
+Encodes value using the transformation logic and stringifies it to JSON. It returns the result with an encoded stringified unknown data or an error message.
 
 ### Types
 
@@ -330,7 +330,7 @@ let struct: S.t<string> = S.option(S.string())->S.default("a string of text")
 Ok(Some("a string of text"))
 ```
 
-`default` augments a struct to add coercion logic for default values, which are applied when the input is undefined.
+`default` augments a struct to add transformation logic for default values, which are applied when the input is undefined.
 
 #### **`S.deprecated`**
 
@@ -358,22 +358,22 @@ let struct: S.t<S.unknown> = S.unknown()
 %raw(`"a string of text"`)->S.constructWith(struct)
 ```
 
-`unknown` struct represents any data. Can be used together with coercion to create a custom struct factory.
+`unknown` struct represents any data. Can be used together with transformation to create a custom struct factory.
 
-### Coercions
+### Transformations
 
-**rescript-struct** allows structs to be augmented with coercion logic, letting you transform data during construction and destruction. This is most commonly used to apply default values to an input, but it can be used for more complex cases like pre-trimming strings, or mapping input to a convenient ReScript data structure.
+**rescript-struct** allows structs to be augmented with transformation logic, letting you transform data during construction and destruction. This is most commonly used to apply default values to an input, but it can be used for more complex cases like trimming strings, or mapping input to a convenient ReScript data structure.
 
-#### **`S.coerce`**
+#### **`S.transform`**
 
-`(S.t<'value>, ~constructor: 'value => result<'coercedValue, string>=?, ~destructor: 'coercedValue => result<'value, string>=?, unit) => S.t<'coercedValue>`
+`(S.t<'value>, ~constructor: 'value => result<'transformedValue, string>=?, ~destructor: 'transformedValue => result<'value, string>=?, unit) => S.t<'transformedValue>`
 
 ```rescript
-let trimmed: S.t<string> => S.t<string> = S.coerce(_, ~constructor=s => s->Js.String2.trim->Ok, ~destructor=s => s->Ok, ())
+let trimmed: S.t<string> => S.t<string> = S.transform(_, ~constructor=s => s->Js.String2.trim->Ok, ~destructor=s => s->Ok, ())
 ```
 ```rescript
 let nonEmptyString: unit => S.t<option<string>> = () => {
-  S.string()->S.coerce(
+  S.string()->S.transform(
     ~constructor=s =>
       switch s {
       | "" => None
@@ -392,11 +392,11 @@ let nonEmptyString: unit => S.t<option<string>> = () => {
 ```
 ```rescript
 let date: unit => S.t<Js.Date.t> = () => {
-  S.float()->S.coerce(~destructor=date => date->Js.Date.getTime->Ok, ())
+  S.float()->S.transform(~destructor=date => date->Js.Date.getTime->Ok, ())
 }
 ```
 
-> 🧠 For coercion either a constructor, or a destructor is required.
+> 🧠 For transformation either a constructor, or a destructor is required.
 
 ### Integration
 
@@ -406,7 +406,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 
 ## Roadmap
 
-- [x] Add custom Coercions
+- [x] Add custom transformations
 - [x] Add JSON module for decoding and encoding
 - [x] Make encoder and decoder work with any JS values and not only with Js.Json.t
 - [x] Add Unknown struct factory and remove Custom

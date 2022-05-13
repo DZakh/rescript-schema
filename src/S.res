@@ -339,25 +339,28 @@ let record8 = Record.factory
 let record9 = Record.factory
 let record10 = Record.factory
 
-let coerce = (
+let transform = (
   struct,
-  ~constructor as maybeCoercionConstructor=?,
-  ~destructor as maybeCoercionDestructor=?,
+  ~constructor as maybeTransformationConstructor=?,
+  ~destructor as maybeTransformationDestructor=?,
   (),
 ) => {
-  if maybeCoercionConstructor->Belt.Option.isNone && maybeCoercionDestructor->Belt.Option.isNone {
-    raiseRestructError("For coercion either a constructor, or a destructor is required")
+  if (
+    maybeTransformationConstructor->Belt.Option.isNone &&
+      maybeTransformationDestructor->Belt.Option.isNone
+  ) {
+    raiseRestructError("For transformation either a constructor, or a destructor is required")
   }
   {
     tagged_t: struct.tagged_t,
     metadata: struct.metadata,
-    constructor: switch (struct.constructor, maybeCoercionConstructor) {
-    | (Some(structConstructor), Some(coercionConstructor)) =>
+    constructor: switch (struct.constructor, maybeTransformationConstructor) {
+    | (Some(structConstructor), Some(transformationConstructor)) =>
       {
         unknown => {
           let structConstructorResult = structConstructor(unknown)
           structConstructorResult->Belt.Result.flatMap(originalValue => {
-            coercionConstructor(originalValue)->RescriptStruct_ResultX.mapError(
+            transformationConstructor(originalValue)->RescriptStruct_ResultX.mapError(
               RescriptStruct_Error.ConstructingFailed.make,
             )
           })
@@ -365,11 +368,11 @@ let coerce = (
       }->Some
     | (_, _) => None
     },
-    destructor: switch (struct.destructor, maybeCoercionDestructor) {
-    | (Some(structDestructor), Some(coercionDestructor)) =>
+    destructor: switch (struct.destructor, maybeTransformationDestructor) {
+    | (Some(structDestructor), Some(transformationDestructor)) =>
       {
         value => {
-          switch coercionDestructor(value) {
+          switch transformationDestructor(value) {
           | Ok(primitive) => structDestructor(primitive)
           | Error(reason) => RescriptStruct_Error.DestructingFailed.make(reason)->Error
           }
