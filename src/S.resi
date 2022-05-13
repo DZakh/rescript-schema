@@ -2,6 +2,7 @@ type unknown
 
 type rec t<'value>
 and tagged_t =
+  | Unknown: tagged_t
   | String: tagged_t
   | Int: tagged_t
   | Float: tagged_t
@@ -9,7 +10,6 @@ and tagged_t =
   | Option(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
   | Record(array<field<unknown>>): tagged_t
-  | Unknown: tagged_t
   | Dict(t<'value>): tagged_t
   | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
