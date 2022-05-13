@@ -12,9 +12,9 @@ type unknown
 
 external unsafeAnyToUnknown: 'any => unknown = "%identity"
 external unsafeUnknownToAny: unknown => 'any = "%identity"
-external unsafeUnknownToArray: unknown => array<'anyItem> = "%identity"
+external unsafeUnknownToArray: unknown => array<unknown> = "%identity"
 external unsafeArrayToUnknown: array<unknown> => unknown = "%identity"
-external unsafeUnknownToDict: unknown => Js.Dict.t<'anyItem> = "%identity"
+external unsafeUnknownToDict: unknown => Js.Dict.t<unknown> = "%identity"
 external unsafeDictToUnknown: Js.Dict.t<unknown> => unknown = "%identity"
 external unsafeUnknownToOption: unknown => option<unknown> = "%identity"
 external unsafeOptionToUnknown: option<unknown> => unknown = "%identity"
