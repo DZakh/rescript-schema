@@ -3,11 +3,6 @@ let raiseRestructError = %raw(`function(message){
   throw new RestructError(message);
 }`)
 
-let _mapTupleToUnsafeArray = %raw(`function(tuple){
-  var isSingleField = typeof tuple[0] === "string";
-  return isSingleField ? [tuple] : tuple;
-}`)
-
 type unknown
 
 external unsafeAnyToUnknown: 'any => unknown = "%identity"
@@ -44,6 +39,8 @@ and tagged_t =
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
 and field<'value> = (string, t<'value>)
 
+external unsafeAnyToFields: 'any => array<field<unknown>> = "%identity"
+
 let make = (~tagged_t, ~constructor=?, ~destructor=?, ()): t<'value> => {
   {
     tagged_t: tagged_t,
@@ -79,11 +76,12 @@ module Record = {
   exception HackyAbort(RescriptStruct_Error.t)
 
   let _constructor = %raw(`function(fields, recordConstructor, construct) {
-    var isSingleField = typeof fields[0] === "string";
+    var isSingleField = fields.length === 1;
     if (isSingleField) {
+      var field = fields[0];
       return function(unknown) {
-        var fieldName = fields[0],
-          fieldStruct = fields[1],
+        var fieldName = field[0],
+          fieldStruct = field[1],
           fieldValue = construct(fieldStruct, fieldName, unknown[fieldName]);
         return recordConstructor(fieldValue);
       }
@@ -101,11 +99,12 @@ module Record = {
   }`)
 
   let _destructor = %raw(`function(fields, recordDestructor, destruct) {
-    var isSingleField = typeof fields[0] === "string";
+    var isSingleField = fields.length === 1;
     if (isSingleField) {
+      var field = fields[0];
       return function(value) {
-        var fieldName = fields[0],
-          fieldStruct = fields[1],
+        var fieldName = field[0],
+          fieldStruct = field[1],
           fieldValue = recordDestructor(value),
           unknownFieldValue = destruct(fieldStruct, fieldName, fieldValue);
         return {
@@ -128,7 +127,7 @@ module Record = {
   }`)
 
   let factory = (
-    ~fields: 'fields,
+    ~fields as anyFields: 'fields,
     ~constructor as maybeRecordConstructor: option<'fieldValues => result<'value, string>>=?,
     ~destructor as maybeRecordDestructor: option<'value => result<'fieldValues, string>>=?,
     (),
@@ -137,8 +136,10 @@ module Record = {
       raiseRestructError("For a Record struct either a constructor, or a destructor is required")
     }
 
+    let fields = anyFields->unsafeAnyToFields
+
     make(
-      ~tagged_t=Record(_mapTupleToUnsafeArray(fields)),
+      ~tagged_t=Record(fields),
       ~constructor=?maybeRecordConstructor->Belt.Option.map(recordConstructor => {
         unknown => {
           try {
@@ -328,7 +329,7 @@ let default = (struct, value) => {
   )
 }
 
-let record1 = Record.factory
+let record1 = (~fields) => Record.factory(~fields=[fields])
 let record2 = Record.factory
 let record3 = Record.factory
 let record4 = Record.factory
