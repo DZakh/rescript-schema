@@ -34,14 +34,12 @@ and tagged_t =
   | Bool: tagged_t
   | Option(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
-  | Record('unsafeFieldsArray): tagged_t
+  | Record(array<field<unknown>>): tagged_t
   | Custom: tagged_t
   | Dict(t<'value>): tagged_t
   | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
 and field<'value> = (string, t<'value>)
-
-external unsafeToFieldsArray: 'a => array<field<'value>> = "%identity"
 
 let make = (~tagged_t, ~constructor=?, ~destructor=?, ()): t<'value> => {
   {
@@ -497,8 +495,7 @@ let rec validateNode:
         )
       })
       ->Belt.Result.map(_ => ())
-    | (JSObject(obj_val), Record(unsafeFieldsArray)) if !Js.Array2.isArray(obj_val) =>
-      let fieldsArray = unsafeFieldsArray->unsafeToFieldsArray
+    | (JSObject(obj_val), Record(fieldsArray)) if !Js.Array2.isArray(obj_val) =>
       let unknownDict = obj_val->unsafeAnyToUnknown->unsafeUnknownToDict
       let unknownKeysSet = unknownDict->Js.Dict.keys->RescriptStruct_Set.fromArray
 

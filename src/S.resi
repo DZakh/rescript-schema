@@ -1,3 +1,5 @@
+type unknown
+
 type rec t<'value>
 and tagged_t =
   | String: tagged_t
@@ -6,14 +8,12 @@ and tagged_t =
   | Bool: tagged_t
   | Option(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
-  | Record('unsafeFieldsArray): tagged_t
+  | Record(array<field<unknown>>): tagged_t
   | Custom: tagged_t
   | Dict(t<'value>): tagged_t
   | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
 and field<'value> = (string, t<'value>)
-
-type unknown
 
 let string: unit => t<string>
 let bool: unit => t<bool>
