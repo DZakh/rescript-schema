@@ -1,6 +1,6 @@
 {
   "name": "rescript-struct",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "A simple and composable way to describe relationship between JavaScript and ReScript structures",
   "keywords": [
     "ReScript",
@@ -16,6 +16,7 @@
     "Contract",
     "Mapping",
     "Jzon",
+    "Zod",
     "Superstruct",
     "Runtypes"
   ],
