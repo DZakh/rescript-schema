@@ -332,13 +332,17 @@ Ok(Some("a string of text"))
 
 `deprecated` struct represents a data of a specific type and makes it optional. The message may be used by an integration library.
 
-#### **`S.custom`**
+#### **`S.unknown`**
 
-`(~constructor: S.unknown => result<'value, string>=?, ~destructor: 'value => result<S.unknown, string>=?, unit) => S.t<'value>`
+`() => S.t<S.unknown>`
 
-You can also define your own custom structs that are specific to your application's requirements.
+```rescript
+let struct: S.t<S.unknown> = S.unknown()
 
-> 🧠 It's mostly needed when you want to define a new data type, for other cases, it's better to use coercion.
+%raw(`"a string of text"`)->S.constructWith(struct)
+```
+
+`unknown` struct represents any data. Can be used together with coercion to create a custom struct factory.
 
 ### Coercions
 
@@ -389,7 +393,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [x] Add custom Coercions
 - [x] Add JSON module for decoding and encoding
 - [x] Make encoder and decoder work with any JS values and not only with Js.Json.t
-- [ ] Add Unknown struct factory and remove Custom
+- [x] Add Unknown struct factory and remove Custom
 - [ ] Add Shape struct factory
 - [ ] Add Nullable struct factory
 - [ ] Add Instance struct factory

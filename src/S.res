@@ -35,7 +35,7 @@ and tagged_t =
   | Option(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
   | Record(array<field<unknown>>): tagged_t
-  | Custom: tagged_t
+  | Unknown: tagged_t
   | Dict(t<'value>): tagged_t
   | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
@@ -241,6 +241,8 @@ module Optional = {
   }
 }
 
+let unknown = Primitive.Factory.make(~tagged_t=Unknown)
+
 let string = Primitive.Factory.make(~tagged_t=String)
 
 let bool = Primitive.Factory.make(~tagged_t=Bool)
@@ -368,36 +370,6 @@ let coerce = (
   }
 }
 
-let custom = (
-  ~constructor as maybeCustomConstructor=?,
-  ~destructor as maybeCustomDestructor=?,
-  (),
-) => {
-  if maybeCustomConstructor->Belt.Option.isNone && maybeCustomDestructor->Belt.Option.isNone {
-    raiseRestructError("For a Custom struct either a constructor, or a destructor is required")
-  }
-
-  make(
-    ~tagged_t=Custom,
-    ~constructor=?maybeCustomConstructor->Belt.Option.map(customConstructor => {
-      unknown => {
-        customConstructor(unknown)->RescriptStruct_ResultX.mapError(
-          RescriptStruct_Error.ConstructingFailed.make,
-        )
-      }
-    }),
-    ~destructor=?maybeCustomDestructor->Belt.Option.map(customDestructor => {
-      value => {
-        switch customDestructor(value) {
-        | Ok(any) => Ok(any->unsafeAnyToUnknown)
-        | Error(reason) => Error(RescriptStruct_Error.DestructingFailed.make(reason))
-        }
-      }
-    }),
-    (),
-  )
-}
-
 let classify = struct => struct.tagged_t
 
 module MakeMetadata = (
@@ -425,7 +397,7 @@ let structTaggedToString = tagged_t => {
   | Option(_) => "Option"
   | Array(_) => "Array"
   | Record(_) => "Record"
-  | Custom => "Custom"
+  | Unknown => "Unknown"
   | Dict(_) => "Dict"
   | Deprecated(_) => "Deprecated"
   | Default(_) => "Default"
@@ -467,7 +439,7 @@ let rec validateNode:
     | (JSNull, Option(_))
     | (JSNull, Deprecated(_))
     | (JSNull, Default(_))
-    | (_, Custom) =>
+    | (_, Unknown) =>
       Ok()
     | (JSNumber(x), Int) if x == x->Js.Math.trunc && x > -2147483648. && x < 2147483648. =>
       if x == x->Js.Math.trunc && x > -2147483648. && x < 2147483648. {

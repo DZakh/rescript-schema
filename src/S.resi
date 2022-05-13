@@ -9,12 +9,13 @@ and tagged_t =
   | Option(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
   | Record(array<field<unknown>>): tagged_t
-  | Custom: tagged_t
+  | Unknown: tagged_t
   | Dict(t<'value>): tagged_t
   | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
 and field<'value> = (string, t<'value>)
 
+let unknown: unit => t<unknown>
 let string: unit => t<string>
 let bool: unit => t<bool>
 let int: unit => t<int>
@@ -122,12 +123,6 @@ let coerce: (
   ~destructor: 'coercedValue => result<'value, string>=?,
   unit,
 ) => t<'coercedValue>
-
-let custom: (
-  ~constructor: unknown => result<'value, string>=?,
-  ~destructor: 'value => result<'any, string>=?,
-  unit,
-) => t<'value>
 
 let constructWith: ('any, t<'value>) => result<'value, string>
 

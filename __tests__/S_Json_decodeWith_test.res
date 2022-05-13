@@ -154,29 +154,3 @@ module Record = {
     )
   })
 }
-
-test("Decodes custom", t => {
-  let struct = S.custom(~constructor=unknown => {
-    switch unknown->Js.Types.classify {
-    | JSString(string) => Ok(string)
-    | _ => Error("Custom isn't a String")
-    }
-  }, ())
-
-  t->Assert.deepEqual(Js.Json.string("string")->S.decodeWith(struct), Ok("string"), ())
-})
-
-test("Fails to decode custom", t => {
-  let struct = S.custom(~constructor=unknown => {
-    switch unknown->Js.Types.classify {
-    | JSString(string) => Ok(string)
-    | _ => Error("Custom isn't a String")
-    }
-  }, ())
-
-  t->Assert.deepEqual(
-    Js.Json.boolean(true)->S.decodeWith(struct),
-    Error("Struct construction failed at root. Reason: Custom isn't a String"),
-    (),
-  )
-})
