@@ -16,8 +16,9 @@ external unsafeUnknownToArray: unknown => array<unknown> = "%identity"
 external unsafeArrayToUnknown: array<unknown> => unknown = "%identity"
 external unsafeUnknownToDict: unknown => Js.Dict.t<unknown> = "%identity"
 external unsafeDictToUnknown: Js.Dict.t<unknown> => unknown = "%identity"
-external unsafeUnknownToOption: unknown => option<unknown> = "%identity"
+external unsafeUnknownToNullable: unknown => Js.Nullable.t<unknown> = "%identity"
 external unsafeOptionToUnknown: option<unknown> => unknown = "%identity"
+external unsafeNullToUnknown: Js.null<unknown> => unknown = "%identity"
 external unsafeJsonToUnknown: Js.Json.t => unknown = "%identity"
 external unsafeUnknownToJson: unknown => Js.Json.t = "%identity"
 
@@ -34,6 +35,7 @@ and tagged_t =
   | Float: tagged_t
   | Bool: tagged_t
   | Option(t<'value>): tagged_t
+  | Nullable(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
   | Record(array<field<unknown>>): tagged_t
   | Dict(t<'value>): tagged_t
@@ -224,7 +226,7 @@ module Optional = {
       make(
         ~tagged_t,
         ~constructor=unknown => {
-          switch unknown->unsafeUnknownToOption {
+          switch unknown->unsafeUnknownToNullable->Js.Nullable.toOption {
           | Some(unknown') =>
             _construct(~struct, ~unknown=unknown')->Belt.Result.map(known => Some(known))
           | None => Ok(None)
@@ -233,7 +235,11 @@ module Optional = {
         ~destructor=optionalValue => {
           switch optionalValue {
           | Some(value) => _destruct(~struct, ~value)
-          | None => Ok(None->unsafeOptionToUnknown)
+          | None =>
+            switch tagged_t {
+            | Nullable(_) => Js.Null.empty->unsafeNullToUnknown
+            | _ => None->unsafeOptionToUnknown
+            }->Ok
           }
         },
         (),
@@ -301,6 +307,9 @@ let dict = struct =>
 
 let option = struct => {
   Optional.Factory.make(~tagged_t=Option(struct), ~struct)
+}
+let nullable = struct => {
+  Optional.Factory.make(~tagged_t=Nullable(struct), ~struct)
 }
 let deprecated = (~message as maybeMessage=?, struct) => {
   Optional.Factory.make(~tagged_t=Deprecated({struct: struct, maybeMessage: maybeMessage}), ~struct)
@@ -391,14 +400,15 @@ module MakeMetadata = (
 
 let structTaggedToString = tagged_t => {
   switch tagged_t {
+  | Unknown => "Unknown"
   | String => "String"
   | Int => "Int"
   | Float => "Float"
   | Bool => "Bool"
   | Option(_) => "Option"
+  | Nullable(_) => "Nullable"
   | Array(_) => "Array"
   | Record(_) => "Record"
-  | Unknown => "Unknown"
   | Dict(_) => "Dict"
   | Deprecated(_) => "Deprecated"
   | Default(_) => "Default"
@@ -437,7 +447,7 @@ let rec validateNode:
     | (JSUndefined, Option(_))
     | (JSUndefined, Deprecated(_))
     | (JSUndefined, Default(_))
-    | (JSNull, Option(_))
+    | (JSNull, Nullable(_))
     | (JSNull, Deprecated(_))
     | (JSNull, Default(_))
     | (_, Unknown) =>
@@ -497,6 +507,7 @@ let rec validateNode:
     | (_, Deprecated({struct: struct'})) => validateNode(~unknown, ~struct=struct')
     | (_, Default({struct: struct'})) => validateNode(~unknown, ~struct=struct')
     | (_, Option(struct')) => validateNode(~unknown, ~struct=struct')
+    | (_, Nullable(struct')) => validateNode(~unknown, ~struct=struct')
     | (_, _) => makeUnexpectedTypeError(~typesTagged, ~structTagged)
     }
   }

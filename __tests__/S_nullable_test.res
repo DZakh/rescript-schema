@@ -2,11 +2,11 @@ open Ava
 
 module Common = {
   let value = None
-  let any = %raw(`undefined`)
+  let any = %raw(`null`)
   let wrongAny = %raw(`123.45`)
-  let jsonString = `undefined`
+  let jsonString = `null`
   let wrongJsonString = `123.45`
-  let factory = () => S.option(S.string())
+  let factory = () => S.nullable(S.string())
 
   test("Successfully constructs", t => {
     let struct = factory()
@@ -48,7 +48,7 @@ module Common = {
     )
   })
 
-  failing("Successfully decodes from JSON string", t => {
+  test("Successfully decodes from JSON string", t => {
     let struct = factory()
 
     t->Assert.deepEqual(jsonString->S.decodeJsonWith(struct), Ok(value), ())
@@ -70,32 +70,21 @@ module Common = {
     t->Assert.deepEqual(value->S.encodeWith(struct), Ok(any), ())
   })
 
-  // FIXME: It should fail with encoding error
-  failing("Successfully encodes to JSON string", t => {
+  test("Successfully encodes to JSON string", t => {
     let struct = factory()
 
     t->Assert.deepEqual(value->S.encodeJsonWith(struct), Ok(jsonString), ())
   })
 }
 
-test("Decodes option when provided primitive", t => {
-  let struct = S.option(S.bool())
+test("Decodes nullable when provided primitive", t => {
+  let struct = S.nullable(S.bool())
 
   t->Assert.deepEqual(Js.Json.boolean(true)->S.decodeWith(struct), Ok(Some(true)), ())
 })
 
-test("Fails to decode JS null", t => {
-  let struct = S.option(S.bool())
-
-  t->Assert.deepEqual(
-    %raw(`null`)->S.decodeWith(struct),
-    Error("Struct decoding failed at root. Reason: Expected Bool, got Null"),
-    (),
-  )
-})
-
-test("Fails to decode JS undefined when struct doesn't allow optional data", t => {
-  let struct = S.bool()
+test("Fails to decode JS undefined", t => {
+  let struct = S.nullable(S.bool())
 
   t->Assert.deepEqual(
     %raw(`undefined`)->S.decodeWith(struct),
@@ -104,4 +93,30 @@ test("Fails to decode JS undefined when struct doesn't allow optional data", t =
   )
 })
 
-todo("Fails to encode undefined to JSON string")
+module MissingFieldThatMarkedAsNullable = {
+  type record = {nullableField: option<string>}
+
+  test("Fails to decode record with missing field that marked as nullable", t => {
+    let struct = S.record1(
+      ~fields=("nullableField", S.nullable(S.string())),
+      ~constructor=nullableField => {nullableField: nullableField}->Ok,
+      (),
+    )
+
+    t->Assert.deepEqual(
+      %raw(`{}`)->S.decodeWith(struct),
+      Error(`Struct decoding failed at ."nullableField". Reason: Expected String, got Option`),
+      (),
+    )
+  })
+}
+
+test("Fails to decode JS null when struct doesn't allow optional data", t => {
+  let struct = S.bool()
+
+  t->Assert.deepEqual(
+    %raw(`null`)->S.decodeWith(struct),
+    Error("Struct decoding failed at root. Reason: Expected Bool, got Null"),
+    (),
+  )
+})

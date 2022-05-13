@@ -1,27 +1,5 @@
 open Ava
 
-test("Decodes deprecated when provided JS undefined", t => {
-  let struct = S.deprecated(S.bool())
-
-  t->Assert.deepEqual(%raw(`undefined`)->S.decodeWith(struct), Ok(None), ())
-})
-
-test("Decodes deprecated when provided primitive", t => {
-  let struct = S.deprecated(S.bool())
-
-  t->Assert.deepEqual(Js.Json.boolean(true)->S.decodeWith(struct), Ok(Some(true)), ())
-})
-
-test("Fails to decode deprecated", t => {
-  let struct = S.deprecated(S.bool())
-
-  t->Assert.deepEqual(
-    Js.Json.string("string")->S.decodeWith(struct),
-    Error("Struct decoding failed at root. Reason: Expected Bool, got String"),
-    (),
-  )
-})
-
 test("Decodes data with default when provided JS undefined", t => {
   let struct = S.option(S.bool())->S.default(false)
 

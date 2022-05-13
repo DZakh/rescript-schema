@@ -6,7 +6,7 @@ module Common = {
   let wrongAny = %raw(`123.45`)
   let jsonString = `undefined`
   let wrongJsonString = `123.45`
-  let factory = () => S.option(S.string())
+  let factory = () => S.deprecated(~message="Some warning", S.string())
 
   test("Successfully constructs", t => {
     let struct = factory()
@@ -70,7 +70,6 @@ module Common = {
     t->Assert.deepEqual(value->S.encodeWith(struct), Ok(any), ())
   })
 
-  // FIXME: It should fail with encoding error
   failing("Successfully encodes to JSON string", t => {
     let struct = factory()
 
@@ -78,30 +77,30 @@ module Common = {
   })
 }
 
-test("Decodes option when provided primitive", t => {
-  let struct = S.option(S.bool())
+test("Successfully decodes primitive", t => {
+  let struct = S.deprecated(S.bool())
 
   t->Assert.deepEqual(Js.Json.boolean(true)->S.decodeWith(struct), Ok(Some(true)), ())
 })
 
-test("Fails to decode JS null", t => {
-  let struct = S.option(S.bool())
+test("Successfully decodes undefined", t => {
+  let struct = S.deprecated(S.bool())
+
+  t->Assert.deepEqual(%raw(`undefined`)->S.decodeWith(struct), Ok(None), ())
+})
+
+test("Successfully decodes null", t => {
+  let struct = S.deprecated(S.bool())
+
+  t->Assert.deepEqual(%raw(`null`)->S.decodeWith(struct), Ok(None), ())
+})
+
+test("Successfully decodes null and encodes it as undefined", t => {
+  let struct = S.deprecated(S.bool())
 
   t->Assert.deepEqual(
-    %raw(`null`)->S.decodeWith(struct),
-    Error("Struct decoding failed at root. Reason: Expected Bool, got Null"),
+    %raw(`null`)->S.decodeWith(struct)->Belt.Result.map(S.encodeWith(_, struct)),
+    Ok(Ok(%raw(`undefined`))),
     (),
   )
 })
-
-test("Fails to decode JS undefined when struct doesn't allow optional data", t => {
-  let struct = S.bool()
-
-  t->Assert.deepEqual(
-    %raw(`undefined`)->S.decodeWith(struct),
-    Error("Struct decoding failed at root. Reason: Expected Bool, got Option"),
-    (),
-  )
-})
-
-todo("Fails to encode undefined to JSON string")
