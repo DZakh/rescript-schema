@@ -66,12 +66,12 @@ module DecodingFailed = {
   }
 
   module ExtraProperties = {
+    external unsafeStringArrayToJson: array<string> => Js.Json.t = "%identity"
     let make = (~properties) => {
       make(
-        `Encountered extra properties ${switch properties->Js.Json.stringifyAny {
-          | Some(s) => s
-          | None => ""
-          }} on an object. If you want to be less strict and ignore any extra properties, use Shape instead (not implemented), to ignore a specific extra property, use Deprecated`,
+        `Encountered extra properties ${properties
+          ->unsafeStringArrayToJson
+          ->Js.Json.stringify} on an object. If you want to be less strict and ignore any extra properties, use Shape instead (not implemented), to ignore a specific extra property, use Deprecated`,
       )
     }
   }
