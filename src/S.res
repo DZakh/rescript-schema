@@ -6,9 +6,6 @@ external unsafeUnknownToArray: unknown => array<unknown> = "%identity"
 external unsafeArrayToUnknown: array<unknown> => unknown = "%identity"
 external unsafeUnknownToDict: unknown => Js.Dict.t<unknown> = "%identity"
 external unsafeDictToUnknown: Js.Dict.t<unknown> => unknown = "%identity"
-external unsafeUnknownToNullable: unknown => Js.Nullable.t<unknown> = "%identity"
-external unsafeOptionToUnknown: option<unknown> => unknown = "%identity"
-external unsafeNullToUnknown: Js.null<unknown> => unknown = "%identity"
 external unsafeJsonToUnknown: Js.Json.t => unknown = "%identity"
 external unsafeUnknownToJson: unknown => Js.Json.t = "%identity"
 
@@ -35,6 +32,23 @@ and tagged_t =
 and field<'value> = (string, t<'value>)
 
 external unsafeAnyToFields: 'any => array<field<unknown>> = "%identity"
+
+let structTaggedToString = tagged_t => {
+  switch tagged_t {
+  | Unknown => "Unknown"
+  | String => "String"
+  | Int => "Int"
+  | Float => "Float"
+  | Bool => "Bool"
+  | Option(_) => "Option"
+  | Null(_) => "Null"
+  | Array(_) => "Array"
+  | Record(_) => "Record"
+  | Dict(_) => "Dict"
+  | Deprecated(_) => "Deprecated"
+  | Default(_) => "Default"
+  }
+}
 
 let make = (~tagged_t, ~constructor=?, ~destructor=?, ()): t<'value> => {
   {
@@ -206,11 +220,20 @@ module Primitive = {
 
 module Optional = {
   module Factory = {
+    external unsafeNullToUnknown: Js.null<unknown> => unknown = "%identity"
+    external unsafeOptionToUnknown: option<unknown> => unknown = "%identity"
+    external unsafeUnknownToOption: unknown => option<unknown> = "%identity"
+    external unsafeUnknownToNull: unknown => Js.null<unknown> = "%identity"
+
     let make = (~tagged_t, ~struct) => {
       make(
         ~tagged_t,
         ~constructor=unknown => {
-          switch unknown->unsafeUnknownToNullable->Js.Nullable.toOption {
+          let option = switch tagged_t {
+          | Null(_) => unknown->unsafeUnknownToNull->Js.Null.toOption
+          | _ => unknown->unsafeUnknownToOption
+          }
+          switch option {
           | Some(unknown') =>
             _construct(~struct, ~unknown=unknown')->Belt.Result.map(known => Some(known))
           | None => Ok(None)
@@ -385,23 +408,6 @@ module MakeMetadata = (
   }
 }
 
-let structTaggedToString = tagged_t => {
-  switch tagged_t {
-  | Unknown => "Unknown"
-  | String => "String"
-  | Int => "Int"
-  | Float => "Float"
-  | Bool => "Bool"
-  | Option(_) => "Option"
-  | Null(_) => "Null"
-  | Array(_) => "Array"
-  | Record(_) => "Record"
-  | Dict(_) => "Dict"
-  | Deprecated(_) => "Deprecated"
-  | Default(_) => "Default"
-  }
-}
-
 let makeUnexpectedTypeError = (~typesTagged: Js.Types.tagged_t, ~structTagged: tagged_t) => {
   let got = switch typesTagged {
   | JSFalse | JSTrue => "Bool"
@@ -435,7 +441,6 @@ let rec validateNode:
     | (JSUndefined, Deprecated(_))
     | (JSUndefined, Default(_))
     | (JSNull, Null(_))
-    | (JSNull, Deprecated(_))
     | (JSNull, Default(_))
     | (_, Unknown) =>
       Ok()

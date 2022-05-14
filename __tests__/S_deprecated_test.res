@@ -89,18 +89,18 @@ test("Successfully decodes undefined", t => {
   t->Assert.deepEqual(%raw(`undefined`)->S.decodeWith(struct), Ok(None), ())
 })
 
-test("Successfully decodes null", t => {
-  let struct = S.deprecated(S.bool())
-
-  t->Assert.deepEqual(%raw(`null`)->S.decodeWith(struct), Ok(None), ())
-})
-
-test("Successfully decodes null and encodes it as undefined", t => {
+test("Fails to decode null", t => {
   let struct = S.deprecated(S.bool())
 
   t->Assert.deepEqual(
-    %raw(`null`)->S.decodeWith(struct)->Belt.Result.map(S.encodeWith(_, struct)),
-    Ok(Ok(%raw(`undefined`))),
+    %raw(`null`)->S.decodeWith(struct),
+    Error(`[ReScript Struct] Failed decoding at root. Reason: Expected Bool, got Null`),
     (),
   )
+})
+
+test("Successfully decodes null for deprecated nullable struct", t => {
+  let struct = S.deprecated(S.null(S.bool()))
+
+  t->Assert.deepEqual(%raw(`null`)->S.decodeWith(struct), Ok(Some(None)), ())
 })

@@ -120,3 +120,23 @@ test("Fails to decode JS null when struct doesn't allow optional data", t => {
     (),
   )
 })
+
+test("Successfully decodes null and encodes it back for deprecated nullable struct", t => {
+  let struct = S.deprecated(S.null(S.bool()))
+
+  t->Assert.deepEqual(
+    %raw(`null`)->S.decodeWith(struct)->Belt.Result.map(S.encodeWith(_, struct)),
+    Ok(Ok(%raw(`null`))),
+    (),
+  )
+})
+
+test("Successfully decodes null and encodes it back for optional nullable struct", t => {
+  let struct = S.option(S.null(S.bool()))
+
+  t->Assert.deepEqual(
+    %raw(`null`)->S.decodeWith(struct)->Belt.Result.map(S.encodeWith(_, struct)),
+    Ok(Ok(%raw(`null`))),
+    (),
+  )
+})
