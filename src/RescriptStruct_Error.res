@@ -4,21 +4,19 @@ type location = array<locationComponent>
 
 type rec t = {kind: kind, mutable location: location}
 and kind =
-  | MissingConstructor
-  | MissingDestructor
   | ConstructingFailed(string)
   | DestructingFailed(string)
   | DecodingFailed(string)
 
 module MissingConstructor = {
   let make = () => {
-    {kind: MissingConstructor, location: []}
+    {kind: ConstructingFailed("Struct constructor is missing"), location: []}
   }
 }
 
 module MissingDestructor = {
   let make = () => {
-    {kind: MissingDestructor, location: []}
+    {kind: DestructingFailed("Struct destructor is missing"), location: []}
   }
 }
 
@@ -73,18 +71,24 @@ let formatLocation = location => {
   }
 }
 
-let prependLocation = (error, location) => {
-  error.location = [location]->Js.Array2.concat(error.location)
+let prependField = (error, field) => {
+  error.location = [Field(field)]->Js.Array2.concat(error.location)
+  error
+}
+
+let prependIndex = (error, index) => {
+  error.location = [Index(index)]->Js.Array2.concat(error.location)
   error
 }
 
 let toString = error => {
   let locationText = error.location->formatLocation
   switch error.kind {
-  | MissingConstructor => `Struct missing constructor at ${locationText}`
-  | MissingDestructor => `Struct missing destructor at ${locationText}`
-  | ConstructingFailed(reason) => `Struct construction failed at ${locationText}. Reason: ${reason}`
-  | DestructingFailed(reason) => `Struct destruction failed at ${locationText}. Reason: ${reason}`
-  | DecodingFailed(reason) => `Struct decoding failed at ${locationText}. Reason: ${reason}`
+  | ConstructingFailed(reason) =>
+    `[ReScript Struct] Failed constructing at ${locationText}. Reason: ${reason}`
+  | DestructingFailed(reason) =>
+    `[ReScript Struct] Failed destructing at ${locationText}. Reason: ${reason}`
+  | DecodingFailed(reason) =>
+    `[ReScript Struct] Failed decoding at ${locationText}. Reason: ${reason}`
   }
 }

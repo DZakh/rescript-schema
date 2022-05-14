@@ -151,13 +151,7 @@ module Record = {
               switch _construct(~struct, ~unknown=unknownFieldValue) {
               | Ok(value) => value
               | Error(error) =>
-                raise(
-                  HackyAbort(
-                    error->RescriptStruct_Error.prependLocation(
-                      RescriptStruct_Error.Field(fieldName),
-                    ),
-                  ),
-                )
+                raise(HackyAbort(error->RescriptStruct_Error.prependField(fieldName)))
               }
             })(unknown)->RescriptStruct_ResultX.mapError(
               RescriptStruct_Error.ConstructingFailed.make,
@@ -183,13 +177,7 @@ module Record = {
                 switch _destruct(~struct, ~value=fieldValue) {
                 | Ok(unknown) => unknown
                 | Error(error) =>
-                  raise(
-                    HackyAbort(
-                      error->RescriptStruct_Error.prependLocation(
-                        RescriptStruct_Error.Field(fieldName),
-                      ),
-                    ),
-                  )
+                  raise(HackyAbort(error->RescriptStruct_Error.prependField(fieldName)))
                 }
               },
             )(value)->Ok
@@ -267,7 +255,7 @@ let array = struct =>
       ->unsafeUnknownToArray
       ->RescriptStruct_ResultX.Array.mapi((unknownItem, idx) => {
         _construct(~struct, ~unknown=unknownItem)->RescriptStruct_ResultX.mapError(
-          RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Index(idx)),
+          RescriptStruct_Error.prependIndex(_, idx),
         )
       })
     },
@@ -275,7 +263,7 @@ let array = struct =>
       array
       ->RescriptStruct_ResultX.Array.mapi((item, idx) => {
         _destruct(~struct, ~value=item)->RescriptStruct_ResultX.mapError(
-          RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Index(idx)),
+          RescriptStruct_Error.prependIndex(_, idx),
         )
       })
       ->Belt.Result.map(unsafeArrayToUnknown)
@@ -290,7 +278,7 @@ let dict = struct =>
       let unknownDict = unknown->unsafeUnknownToDict
       unknownDict->RescriptStruct_ResultX.Dict.map((unknownItem, key) => {
         _construct(~struct, ~unknown=unknownItem)->RescriptStruct_ResultX.mapError(
-          RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(key)),
+          RescriptStruct_Error.prependField(_, key),
         )
       })
     },
@@ -298,7 +286,7 @@ let dict = struct =>
       dict
       ->RescriptStruct_ResultX.Dict.map((item, key) => {
         _destruct(~struct, ~value=item)->RescriptStruct_ResultX.mapError(
-          RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(key)),
+          RescriptStruct_Error.prependField(_, key),
         )
       })
       ->Belt.Result.map(unsafeDictToUnknown)
@@ -468,7 +456,7 @@ let rec validateNode:
       ->unsafeUnknownToArray
       ->RescriptStruct_ResultX.Array.mapi((unknownItem, idx) => {
         validateNode(~unknown=unknownItem, ~struct=itemStruct)->RescriptStruct_ResultX.mapError(
-          RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Index(idx)),
+          RescriptStruct_Error.prependIndex(_, idx),
         )
       })
       ->Belt.Result.map(_ => ())
@@ -478,7 +466,7 @@ let rec validateNode:
       ->unsafeUnknownToDict
       ->RescriptStruct_ResultX.Dict.map((unknownItem, key) => {
         validateNode(~unknown=unknownItem, ~struct=itemStruct)->RescriptStruct_ResultX.mapError(
-          RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(key)),
+          RescriptStruct_Error.prependField(_, key),
         )
       })
       ->Belt.Result.map(_ => ())
@@ -493,9 +481,7 @@ let rec validateNode:
         validateNode(
           ~unknown=unknownDict->Js.Dict.get(fieldName),
           ~struct=fieldStruct,
-        )->RescriptStruct_ResultX.mapError(
-          RescriptStruct_Error.prependLocation(_, RescriptStruct_Error.Field(fieldName)),
-        )
+        )->RescriptStruct_ResultX.mapError(RescriptStruct_Error.prependField(_, fieldName))
       })
       ->Belt.Result.flatMap(_ => {
         if unknownKeysSet->RescriptStruct_Set.size === 0 {

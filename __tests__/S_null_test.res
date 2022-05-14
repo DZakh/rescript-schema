@@ -43,7 +43,7 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongAny->S.decodeWith(struct),
-      Error("Struct decoding failed at root. Reason: Expected String, got Float"),
+      Error("[ReScript Struct] Failed decoding at root. Reason: Expected String, got Float"),
       (),
     )
   })
@@ -59,7 +59,7 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongJsonString->S.decodeJsonWith(struct),
-      Error(`Struct decoding failed at root. Reason: Expected String, got Float`),
+      Error(`[ReScript Struct] Failed decoding at root. Reason: Expected String, got Float`),
       (),
     )
   })
@@ -88,7 +88,7 @@ test("Fails to decode JS undefined", t => {
 
   t->Assert.deepEqual(
     %raw(`undefined`)->S.decodeWith(struct),
-    Error("Struct decoding failed at root. Reason: Expected Bool, got Option"),
+    Error("[ReScript Struct] Failed decoding at root. Reason: Expected Bool, got Option"),
     (),
   )
 })
@@ -105,7 +105,7 @@ module MissingFieldThatMarkedAsNullable = {
 
     t->Assert.deepEqual(
       %raw(`{}`)->S.decodeWith(struct),
-      Error(`Struct decoding failed at ."nullableField". Reason: Expected String, got Option`),
+      Error(`[ReScript Struct] Failed decoding at ."nullableField". Reason: Expected String, got Option`),
       (),
     )
   })
@@ -116,7 +116,7 @@ test("Fails to decode JS null when struct doesn't allow optional data", t => {
 
   t->Assert.deepEqual(
     %raw(`null`)->S.decodeWith(struct),
-    Error("Struct decoding failed at root. Reason: Expected Bool, got Null"),
+    Error("[ReScript Struct] Failed decoding at root. Reason: Expected Bool, got Null"),
     (),
   )
 })

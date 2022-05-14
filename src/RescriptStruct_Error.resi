@@ -1,5 +1,3 @@
-type locationComponent = Field(string) | Index(int)
-
 type t
 
 module MissingConstructor: {
@@ -30,6 +28,7 @@ module DecodingFailed: {
   }
 }
 
-let prependLocation: (t, locationComponent) => t
+let prependField: (t, string) => t
+let prependIndex: (t, int) => t
 
 let toString: t => string

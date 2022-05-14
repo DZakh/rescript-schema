@@ -5,7 +5,9 @@ test("Fails to decode invalid JSON", t => {
 
   t->Assert.deepEqual(
     `undefined`->S.decodeJsonWith(struct),
-    Error("Struct decoding failed at root. Reason: Unexpected token u in JSON at position 0"),
+    Error(
+      "[ReScript Struct] Failed decoding at root. Reason: Unexpected token u in JSON at position 0",
+    ),
     (),
   )
 })

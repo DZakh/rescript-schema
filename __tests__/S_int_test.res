@@ -43,7 +43,7 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongAny->S.decodeWith(struct),
-      Error("Struct decoding failed at root. Reason: Expected Int, got Float"),
+      Error("[ReScript Struct] Failed decoding at root. Reason: Expected Int, got Float"),
       (),
     )
   })
@@ -59,7 +59,7 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongJsonString->S.decodeJsonWith(struct),
-      Error(`Struct decoding failed at root. Reason: Expected Int, got Float`),
+      Error(`[ReScript Struct] Failed decoding at root. Reason: Expected Int, got Float`),
       (),
     )
   })
@@ -82,7 +82,7 @@ test("Fails to decode int when JSON is a number bigger than +2^31", t => {
 
   t->Assert.deepEqual(
     Js.Json.number(2147483648.)->S.decodeWith(struct),
-    Error("Struct decoding failed at root. Reason: Expected Int, got Float"),
+    Error("[ReScript Struct] Failed decoding at root. Reason: Expected Int, got Float"),
     (),
   )
   t->Assert.deepEqual(Js.Json.number(2147483647.)->S.decodeWith(struct), Ok(2147483647), ())
@@ -93,7 +93,7 @@ test("Fails to decode int when JSON is a number lower than -2^31", t => {
 
   t->Assert.deepEqual(
     Js.Json.number(-2147483648.)->S.decodeWith(struct),
-    Error("Struct decoding failed at root. Reason: Expected Int, got Float"),
+    Error("[ReScript Struct] Failed decoding at root. Reason: Expected Int, got Float"),
     (),
   )
   t->Assert.deepEqual(Js.Json.number(-2147483647.)->S.decodeWith(struct), Ok(-2147483647), ())

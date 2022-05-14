@@ -17,7 +17,7 @@ test("Fails to decode data with default", t => {
 
   t->Assert.deepEqual(
     Js.Json.string("string")->S.decodeWith(struct),
-    Error("Struct decoding failed at root. Reason: Expected Bool, got String"),
+    Error("[ReScript Struct] Failed decoding at root. Reason: Expected Bool, got String"),
     (),
   )
 })
@@ -47,7 +47,7 @@ test("Fails to decode dict", t => {
 
   t->Assert.deepEqual(
     Js.Json.string("string")->S.decodeWith(struct),
-    Error("Struct decoding failed at root. Reason: Expected Dict, got String"),
+    Error("[ReScript Struct] Failed decoding at root. Reason: Expected Dict, got String"),
     (),
   )
 })
@@ -57,7 +57,7 @@ test("Fails to decode dict item", t => {
 
   t->Assert.deepEqual(
     %raw(`{"a":"b","c":123}`)->S.decodeWith(struct),
-    Error(`Struct decoding failed at ."c". Reason: Expected String, got Float`),
+    Error(`[ReScript Struct] Failed decoding at ."c". Reason: Expected String, got Float`),
     (),
   )
 })
@@ -97,7 +97,7 @@ module Record = {
 
     t->Assert.deepEqual(
       Js.Json.string("string")->S.decodeWith(struct),
-      Error("Struct decoding failed at root. Reason: Expected Record, got String"),
+      Error("[ReScript Struct] Failed decoding at root. Reason: Expected Record, got String"),
       (),
     )
   })
@@ -107,7 +107,7 @@ module Record = {
 
     t->Assert.deepEqual(
       %raw(`{}`)->S.decodeWith(struct),
-      Error(`Struct decoding failed at ."FOO". Reason: Expected String, got Option`),
+      Error(`[ReScript Struct] Failed decoding at ."FOO". Reason: Expected String, got Option`),
       (),
     )
   })
@@ -117,7 +117,7 @@ module Record = {
 
     t->Assert.deepEqual(
       %raw(`{FOO:123}`)->S.decodeWith(struct),
-      Error(`Struct decoding failed at ."FOO". Reason: Expected String, got Float`),
+      Error(`[ReScript Struct] Failed decoding at ."FOO". Reason: Expected String, got Float`),
       (),
     )
   })
@@ -127,7 +127,7 @@ module Record = {
 
     t->Assert.deepEqual(
       %raw(`{BAR:"bar",FOO:"bar",1:2}`)->S.decodeWith(struct),
-      Error(`Struct decoding failed at root. Reason: Encountered extra properties ["1","BAR"] on an object. If you want to be less strict and ignore any extra properties, use Shape instead (not implemented), to ignore a specific extra property, use Deprecated`),
+      Error(`[ReScript Struct] Failed decoding at root. Reason: Encountered extra properties ["1","BAR"] on an object. If you want to be less strict and ignore any extra properties, use Shape instead (not implemented), to ignore a specific extra property, use Deprecated`),
       (),
     )
   })
