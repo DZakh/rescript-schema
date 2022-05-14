@@ -63,12 +63,6 @@ module CommonWithNested = {
     )
   })
 
-  test("Successfully encodes", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(value->S.encodeWith(struct), Ok(any), ())
-  })
-
   test("Successfully encodes to JSON string", t => {
     let struct = factory()
 

@@ -128,16 +128,6 @@ let decodeResult = json->S.decodeJsonWith(userStruct)
 
 Parses and decodes JSON string testing that it represents described struct. It returns the result with a decoded transformed value or an error message.
 
-#### **`S.encodeWith`**
-
-`('value, t<'value>) => result<S.unknown, string>`
-
-```rescript
-let encodeResult = user->S.encodeWith(userStruct)
-```
-
-Encodes value using the transformation logic that is built-in to the struct. It returns the result with a transformed unknown data or an error message.
-
 #### **`S.encodeJsonWith`**
 
 `('value, t<'value>) => result<string, string>`

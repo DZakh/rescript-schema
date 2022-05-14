@@ -134,8 +134,6 @@ let decodeJsonWith: (string, t<'value>) => result<'value, string>
 
 let destructWith: ('value, t<'value>) => result<unknown, string>
 
-let encodeWith: ('value, t<'value>) => result<unknown, string>
-
 let encodeJsonWith: ('value, t<'value>) => result<string, string>
 
 module Record: {

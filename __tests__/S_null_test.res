@@ -26,12 +26,6 @@ module Common = {
     t->Assert.deepEqual(value->S.destructWith(struct), Ok(any), ())
   })
 
-  test("Successfully destructs without validation. Note: Use S.encodeWith instead", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(wrongAny->S.destructWith(struct), Ok(wrongAny), ())
-  })
-
   test("Successfully decodes", t => {
     let struct = factory()
 
@@ -62,12 +56,6 @@ module Common = {
       Error(`[ReScript Struct] Failed decoding at root. Reason: Expected String, got Float`),
       (),
     )
-  })
-
-  test("Successfully encodes", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(value->S.encodeWith(struct), Ok(any), ())
   })
 
   test("Successfully encodes to JSON string", t => {
@@ -125,7 +113,7 @@ test("Successfully decodes null and encodes it back for deprecated nullable stru
   let struct = S.deprecated(S.null(S.bool()))
 
   t->Assert.deepEqual(
-    %raw(`null`)->S.decodeWith(struct)->Belt.Result.map(S.encodeWith(_, struct)),
+    %raw(`null`)->S.decodeWith(struct)->Belt.Result.map(S.destructWith(_, struct)),
     Ok(Ok(%raw(`null`))),
     (),
   )
@@ -135,7 +123,7 @@ test("Successfully decodes null and encodes it back for optional nullable struct
   let struct = S.option(S.null(S.bool()))
 
   t->Assert.deepEqual(
-    %raw(`null`)->S.decodeWith(struct)->Belt.Result.map(S.encodeWith(_, struct)),
+    %raw(`null`)->S.decodeWith(struct)->Belt.Result.map(S.destructWith(_, struct)),
     Ok(Ok(%raw(`null`))),
     (),
   )

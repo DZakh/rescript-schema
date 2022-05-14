@@ -26,12 +26,6 @@ module Common = {
     t->Assert.deepEqual(value->S.destructWith(struct), Ok(any), ())
   })
 
-  test("Successfully destructs without validation. Note: Use S.encodeWith instead", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(wrongAny->S.destructWith(struct), Ok(wrongAny), ())
-  })
-
   test("Successfully decodes", t => {
     let struct = factory()
 
@@ -62,12 +56,6 @@ module Common = {
       Error(`[ReScript Struct] Failed decoding at root. Reason: Expected Float, got String`),
       (),
     )
-  })
-
-  test("Successfully encodes", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(value->S.encodeWith(struct), Ok(any), ())
   })
 
   test("Successfully encodes to JSON string", t => {

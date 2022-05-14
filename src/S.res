@@ -531,8 +531,6 @@ let decodeJsonWith = (string, struct) => {
   ->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
 }
 
-let encodeWith = destructWith
-
 let encodeJsonWith = (value, struct) => {
   switch _destruct(~struct, ~value) {
   | Ok(unknown) => Ok(unknown->unsafeUnknownToJson->Js.Json.stringify)

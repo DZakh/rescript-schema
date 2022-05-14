@@ -21,12 +21,6 @@ module Common = {
 
     t->Assert.deepEqual(any->S.decodeWith(struct), Ok(any), ())
   })
-
-  test("Successfully encodes", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(any->S.encodeWith(struct), Ok(any), ())
-  })
 }
 
 module Custom = {
