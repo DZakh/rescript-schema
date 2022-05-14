@@ -105,7 +105,7 @@ module MissingFieldThatMarkedAsNullable = {
 
     t->Assert.deepEqual(
       %raw(`{}`)->S.decodeWith(struct),
-      Error(`[ReScript Struct] Failed decoding at ."nullableField". Reason: Expected String, got Option`),
+      Error(`[ReScript Struct] Failed decoding at ["nullableField"]. Reason: Expected String, got Option`),
       (),
     )
   })

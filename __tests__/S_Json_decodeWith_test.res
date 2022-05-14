@@ -57,7 +57,7 @@ test("Fails to decode dict item", t => {
 
   t->Assert.deepEqual(
     %raw(`{"a":"b","c":123}`)->S.decodeWith(struct),
-    Error(`[ReScript Struct] Failed decoding at ."c". Reason: Expected String, got Float`),
+    Error(`[ReScript Struct] Failed decoding at ["c"]. Reason: Expected String, got Float`),
     (),
   )
 })
@@ -107,7 +107,7 @@ module Record = {
 
     t->Assert.deepEqual(
       %raw(`{}`)->S.decodeWith(struct),
-      Error(`[ReScript Struct] Failed decoding at ."FOO". Reason: Expected String, got Option`),
+      Error(`[ReScript Struct] Failed decoding at ["FOO"]. Reason: Expected String, got Option`),
       (),
     )
   })
@@ -117,7 +117,7 @@ module Record = {
 
     t->Assert.deepEqual(
       %raw(`{FOO:123}`)->S.decodeWith(struct),
-      Error(`[ReScript Struct] Failed decoding at ."FOO". Reason: Expected String, got Float`),
+      Error(`[ReScript Struct] Failed decoding at ["FOO"]. Reason: Expected String, got Float`),
       (),
     )
   })

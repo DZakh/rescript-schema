@@ -59,15 +59,14 @@ let formatLocation = location => {
   if location->Js.Array2.length === 0 {
     "root"
   } else {
-    "." ++
     location
     ->Js.Array2.map(s =>
       switch s {
-      | Field(field) => `"` ++ field ++ `"`
+      | Field(field) => `["` ++ field ++ `"]`
       | Index(index) => `[` ++ index->Js.Int.toString ++ `]`
       }
     )
-    ->Js.Array2.joinWith(".")
+    ->Js.Array2.joinWith("")
   }
 }
 
