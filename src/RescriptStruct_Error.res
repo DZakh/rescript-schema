@@ -2,11 +2,33 @@ type locationComponent = Field(string) | Index(int)
 
 type location = array<locationComponent>
 
+%%raw(`class RescriptStructError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "RescriptStructError";
+  }
+}`)
+let raiseRescriptStructError = %raw(`function(message){
+  throw new RescriptStructError(message);
+}`)
+
 type rec t = {kind: kind, mutable location: location}
 and kind =
   | ConstructingFailed(string)
   | DestructingFailed(string)
   | DecodingFailed(string)
+
+module MissingRecordConstructorAndDestructor = {
+  let raise = () =>
+    raiseRescriptStructError(
+      "For a Record struct factory either a constructor, or a destructor is required",
+    )
+}
+
+module MissingTransformConstructorAndDestructor = {
+  let raise = () =>
+    raiseRescriptStructError("For transformation either a constructor, or a destructor is required")
+}
 
 module MissingConstructor = {
   let make = () => {

@@ -32,7 +32,7 @@ module CommonWithNested = {
 
     t->Assert.deepEqual(
       wrongAny->S.decodeWith(struct),
-      Error("Struct decoding failed at root. Reason: Expected Array, got Bool"),
+      Error("[ReScript Struct] Failed decoding at root. Reason: Expected Array, got Bool"),
       (),
     )
   })
@@ -42,7 +42,7 @@ module CommonWithNested = {
 
     t->Assert.deepEqual(
       nestedWrongAny->S.decodeWith(struct),
-      Error("Struct decoding failed at .[1]. Reason: Expected String, got Float"),
+      Error("[ReScript Struct] Failed decoding at [1]. Reason: Expected String, got Float"),
       (),
     )
   })
@@ -58,7 +58,7 @@ module CommonWithNested = {
 
     t->Assert.deepEqual(
       wrongJsonString->S.decodeJsonWith(struct),
-      Error(`Struct decoding failed at root. Reason: Expected Array, got Bool`),
+      Error(`[ReScript Struct] Failed decoding at root. Reason: Expected Array, got Bool`),
       (),
     )
   })

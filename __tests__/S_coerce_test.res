@@ -24,6 +24,7 @@ test(
     t->Assert.throws(() => {
       S.string()->S.transform()->ignore
     }, ~expectations=ThrowsException.make(
+      ~name="RescriptStructError",
       ~message="For transformation either a constructor, or a destructor is required",
       (),
     ), ())
@@ -35,7 +36,11 @@ test("Transformed Primitive construction fails when constructor isn't provided",
 
   let struct = S.string()->S.transform(~destructor=value => value->Ok, ())
 
-  t->Assert.deepEqual(any->S.constructWith(struct), Error("Struct missing constructor at root"), ())
+  t->Assert.deepEqual(
+    any->S.constructWith(struct),
+    Error("[ReScript Struct] Failed constructing at root. Reason: Struct constructor is missing"),
+    (),
+  )
 })
 
 test("Construction fails when user returns error in a Transformed Primitive constructor", t => {
@@ -45,7 +50,7 @@ test("Construction fails when user returns error in a Transformed Primitive cons
 
   t->Assert.deepEqual(
     any->S.constructWith(struct),
-    Error("Struct construction failed at root. Reason: User error"),
+    Error("[ReScript Struct] Failed constructing at root. Reason: User error"),
     (),
   )
 })
@@ -73,7 +78,11 @@ test("Transformed Primitive destruction fails when destructor isn't provided", t
 
   let struct = S.string()->S.transform(~constructor=value => value->Ok, ())
 
-  t->Assert.deepEqual(value->S.destructWith(struct), Error("Struct missing destructor at root"), ())
+  t->Assert.deepEqual(
+    value->S.destructWith(struct),
+    Error("[ReScript Struct] Failed destructing at root. Reason: Struct destructor is missing"),
+    (),
+  )
 })
 
 test("Destruction fails when user returns error in a Transformed Primitive destructor", t => {
@@ -83,7 +92,7 @@ test("Destruction fails when user returns error in a Transformed Primitive destr
 
   t->Assert.deepEqual(
     value->S.destructWith(struct),
-    Error("Struct destruction failed at root. Reason: User error"),
+    Error("[ReScript Struct] Failed destructing at root. Reason: User error"),
     (),
   )
 })

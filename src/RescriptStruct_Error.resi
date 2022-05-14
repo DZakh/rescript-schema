@@ -1,5 +1,13 @@
 type t
 
+module MissingRecordConstructorAndDestructor: {
+  let raise: unit => unit
+}
+
+module MissingTransformConstructorAndDestructor: {
+  let raise: unit => unit
+}
+
 module MissingConstructor: {
   let make: unit => t
 }

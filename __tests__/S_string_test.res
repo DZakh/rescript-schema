@@ -43,7 +43,7 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongAny->S.decodeWith(struct),
-      Error("Struct decoding failed at root. Reason: Expected String, got Bool"),
+      Error("[ReScript Struct] Failed decoding at root. Reason: Expected String, got Bool"),
       (),
     )
   })
@@ -59,7 +59,7 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongJsonString->S.decodeJsonWith(struct),
-      Error(`Struct decoding failed at root. Reason: Expected String, got Bool`),
+      Error(`[ReScript Struct] Failed decoding at root. Reason: Expected String, got Bool`),
       (),
     )
   })

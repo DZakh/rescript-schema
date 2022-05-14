@@ -1,8 +1,3 @@
-%%raw(`class RestructError extends Error {}`)
-let raiseRestructError = %raw(`function(message){
-  throw new RestructError(message);
-}`)
-
 type unknown
 
 external unsafeAnyToUnknown: 'any => unknown = "%identity"
@@ -133,7 +128,7 @@ module Record = {
     (),
   ): t<'value> => {
     if maybeRecordConstructor->Belt.Option.isNone && maybeRecordDestructor->Belt.Option.isNone {
-      raiseRestructError("For a Record struct either a constructor, or a destructor is required")
+      RescriptStruct_Error.MissingRecordConstructorAndDestructor.raise()
     }
 
     let fields = anyFields->unsafeAnyToFields
@@ -338,7 +333,7 @@ let transform = (
     maybeTransformationConstructor->Belt.Option.isNone &&
       maybeTransformationDestructor->Belt.Option.isNone
   ) {
-    raiseRestructError("For transformation either a constructor, or a destructor is required")
+    RescriptStruct_Error.MissingTransformConstructorAndDestructor.raise()
   }
   {
     tagged_t: struct.tagged_t,

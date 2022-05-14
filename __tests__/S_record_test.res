@@ -128,7 +128,8 @@ test("Throws for a Record factory without either a constructor, or a destructor"
   t->Assert.throws(() => {
     S.record1(~fields=("any", S.string()), ())->ignore
   }, ~expectations=ThrowsException.make(
-    ~message="For a Record struct either a constructor, or a destructor is required",
+    ~name="RescriptStructError",
+    ~message="For a Record struct factory either a constructor, or a destructor is required",
     (),
   ), ())
 })
@@ -138,7 +139,11 @@ test("Record construction fails when constructor isn't provided", t => {
 
   let struct = S.record1(~fields=("foo", S.string()), ~destructor=({foo}) => foo->Ok, ())
 
-  t->Assert.deepEqual(any->S.constructWith(struct), Error("Struct missing constructor at root"), ())
+  t->Assert.deepEqual(
+    any->S.constructWith(struct),
+    Error("[ReScript Struct] Failed constructing at root. Reason: Struct constructor is missing"),
+    (),
+  )
 })
 
 test("Nested record construction fails when constructor isn't provided", t => {
@@ -152,7 +157,7 @@ test("Nested record construction fails when constructor isn't provided", t => {
 
   t->Assert.deepEqual(
     any->S.constructWith(struct),
-    Error(`Struct missing constructor at ."nested"`),
+    Error(`[ReScript Struct] Failed constructing at ["nested"]. Reason: Struct constructor is missing`),
     (),
   )
 })
@@ -164,7 +169,7 @@ test("Construction fails when user returns error in a root record constructor", 
 
   t->Assert.deepEqual(
     any->S.constructWith(struct),
-    Error("Struct construction failed at root. Reason: User error"),
+    Error("[ReScript Struct] Failed constructing at root. Reason: User error"),
     (),
   )
 })
@@ -183,7 +188,7 @@ test("Construction fails when user returns error in a nested record constructor"
 
   t->Assert.deepEqual(
     any->S.constructWith(struct),
-    Error(`Struct construction failed at ."nested". Reason: User error`),
+    Error(`[ReScript Struct] Failed constructing at ["nested"]. Reason: User error`),
     (),
   )
 })
@@ -275,7 +280,11 @@ test("Record destruction fails when destructor isn't provided", t => {
 
   let struct = S.record1(~fields=("foo", S.string()), ~constructor=foo => {foo: foo}->Ok, ())
 
-  t->Assert.deepEqual(value->S.destructWith(struct), Error("Struct missing destructor at root"), ())
+  t->Assert.deepEqual(
+    value->S.destructWith(struct),
+    Error("[ReScript Struct] Failed destructing at root. Reason: Struct destructor is missing"),
+    (),
+  )
 })
 
 test("Nested record destruction fails when destructor isn't provided", t => {
@@ -292,7 +301,7 @@ test("Nested record destruction fails when destructor isn't provided", t => {
 
   t->Assert.deepEqual(
     value->S.destructWith(struct),
-    Error(`Struct missing destructor at ."nested"`),
+    Error(`[ReScript Struct] Failed destructing at ["nested"]. Reason: Struct destructor is missing`),
     (),
   )
 })
@@ -304,7 +313,7 @@ test("Destruction fails when user returns error in a root record destructor", t 
 
   t->Assert.deepEqual(
     value->S.destructWith(struct),
-    Error("Struct destruction failed at root. Reason: User error"),
+    Error("[ReScript Struct] Failed destructing at root. Reason: User error"),
     (),
   )
 })
@@ -323,7 +332,7 @@ test("Destruction fails when user returns error in a nested record destructor", 
 
   t->Assert.deepEqual(
     value->S.destructWith(struct),
-    Error(`Struct destruction failed at ."nested". Reason: User error`),
+    Error(`[ReScript Struct] Failed destructing at ["nested"]. Reason: User error`),
     (),
   )
 })
