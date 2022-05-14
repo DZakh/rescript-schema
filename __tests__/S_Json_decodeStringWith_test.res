@@ -1,12 +1,12 @@
 open Ava
 
-test("Fails to decode invalid JSON", t => {
+test("Fails to parse invalid JSON", t => {
   let struct = S.int()
 
   t->Assert.deepEqual(
-    `undefined`->S.decodeJsonWith(struct),
+    `undefined`->S.parseJsonWith(struct),
     Error(
-      "[ReScript Struct] Failed decoding at root. Reason: Unexpected token u in JSON at position 0",
+      "[ReScript Struct] Failed parsing at root. Reason: Unexpected token u in JSON at position 0",
     ),
     (),
   )

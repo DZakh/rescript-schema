@@ -128,13 +128,13 @@ let transform: (
 
 let constructWith: ('any, t<'value>) => result<'value, string>
 
-let decodeWith: ('any, t<'value>) => result<'value, string>
+let parseWith: ('any, t<'value>) => result<'value, string>
 
-let decodeJsonWith: (string, t<'value>) => result<'value, string>
+let parseJsonWith: (string, t<'value>) => result<'value, string>
 
 let destructWith: ('value, t<'value>) => result<unknown, string>
 
-let encodeJsonWith: ('value, t<'value>) => result<string, string>
+let serializeJsonWith: ('value, t<'value>) => result<string, string>
 
 module Record: {
   let factory: (

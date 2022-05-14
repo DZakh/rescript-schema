@@ -420,7 +420,7 @@ let makeUnexpectedTypeError = (~typesTagged: Js.Types.tagged_t, ~structTagged: t
   | JSSymbol(_) => "Symbol"
   }
   let expected = structTaggedToString(structTagged)
-  Error(RescriptStruct_Error.DecodingFailed.UnexpectedType.make(~expected, ~got))
+  Error(RescriptStruct_Error.ParsingFailed.UnexpectedType.make(~expected, ~got))
 }
 
 let rec validateNode:
@@ -488,7 +488,7 @@ let rec validateNode:
           Ok()
         } else {
           Error(
-            RescriptStruct_Error.DecodingFailed.ExtraProperties.make(
+            RescriptStruct_Error.ParsingFailed.ExtraProperties.make(
               ~properties=unknownKeysSet->RescriptStruct_Set.toArray,
             ),
           )
@@ -502,7 +502,7 @@ let rec validateNode:
     }
   }
 
-let decodeWith = (any, struct) => {
+let parseWith = (any, struct) => {
   let unknown = any->unsafeAnyToUnknown
   validateNode(~unknown, ~struct)
   ->Belt.Result.flatMap(() => {
@@ -511,13 +511,13 @@ let decodeWith = (any, struct) => {
   ->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
 }
 
-let decodeJsonWith = (string, struct) => {
+let parseJsonWith = (string, struct) => {
   switch Js.Json.parseExn(string) {
   | json => Ok(json)
   | exception Js.Exn.Error(obj) =>
     let maybeMessage = Js.Exn.message(obj)
     Error(
-      RescriptStruct_Error.DecodingFailed.make(
+      RescriptStruct_Error.ParsingFailed.make(
         maybeMessage->Belt.Option.getWithDefault("Syntax error"),
       ),
     )
@@ -531,7 +531,7 @@ let decodeJsonWith = (string, struct) => {
   ->RescriptStruct_ResultX.mapError(RescriptStruct_Error.toString)
 }
 
-let encodeJsonWith = (value, struct) => {
+let serializeJsonWith = (value, struct) => {
   switch _destruct(~struct, ~value) {
   | Ok(unknown) => Ok(unknown->unsafeUnknownToJson->Js.Json.stringify)
   | Error(error) => Error(error->RescriptStruct_Error.toString)

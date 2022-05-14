@@ -16,7 +16,7 @@ type rec t = {kind: kind, mutable location: location}
 and kind =
   | ConstructingFailed(string)
   | DestructingFailed(string)
-  | DecodingFailed(string)
+  | ParsingFailed(string)
 
 module MissingRecordConstructorAndDestructor = {
   let raise = () =>
@@ -54,9 +54,9 @@ module DestructingFailed = {
   }
 }
 
-module DecodingFailed = {
+module ParsingFailed = {
   let make = reason => {
-    {kind: DecodingFailed(reason), location: []}
+    {kind: ParsingFailed(reason), location: []}
   }
 
   module UnexpectedType = {
@@ -109,7 +109,7 @@ let toString = error => {
     `[ReScript Struct] Failed constructing at ${locationText}. Reason: ${reason}`
   | DestructingFailed(reason) =>
     `[ReScript Struct] Failed destructing at ${locationText}. Reason: ${reason}`
-  | DecodingFailed(reason) =>
-    `[ReScript Struct] Failed decoding at ${locationText}. Reason: ${reason}`
+  | ParsingFailed(reason) =>
+    `[ReScript Struct] Failed parsing at ${locationText}. Reason: ${reason}`
   }
 }

@@ -14,7 +14,7 @@ module Common = {
     t->Assert.deepEqual(any->S.constructWith(struct), Ok(value), ())
   })
 
-  test("Successfully constructs without validation. Note: Use S.decodeWith instead", t => {
+  test("Successfully constructs without validation. Note: Use S.parseWith instead", t => {
     let struct = factory()
 
     t->Assert.deepEqual(wrongAny->S.constructWith(struct), Ok(wrongAny), ())
@@ -26,69 +26,69 @@ module Common = {
     t->Assert.deepEqual(value->S.destructWith(struct), Ok(any), ())
   })
 
-  test("Successfully decodes", t => {
+  test("Successfully parses", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.decodeWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
   })
 
-  test("Fails to decode", t => {
+  test("Fails to parse", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.decodeWith(struct),
-      Error("[ReScript Struct] Failed decoding at root. Reason: Expected String, got Float"),
+      wrongAny->S.parseWith(struct),
+      Error("[ReScript Struct] Failed parsing at root. Reason: Expected String, got Float"),
       (),
     )
   })
 
-  failing("Successfully decodes from JSON string", t => {
+  failing("Successfully parses from JSON string", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(jsonString->S.decodeJsonWith(struct), Ok(value), ())
+    t->Assert.deepEqual(jsonString->S.parseJsonWith(struct), Ok(value), ())
   })
 
-  test("Fails to decode from JSON string", t => {
+  test("Fails to parse from JSON string", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongJsonString->S.decodeJsonWith(struct),
-      Error(`[ReScript Struct] Failed decoding at root. Reason: Expected String, got Float`),
+      wrongJsonString->S.parseJsonWith(struct),
+      Error(`[ReScript Struct] Failed parsing at root. Reason: Expected String, got Float`),
       (),
     )
   })
 
-  failing("Successfully encodes to JSON string", t => {
+  failing("Successfully serializes to JSON string", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(value->S.encodeJsonWith(struct), Ok(jsonString), ())
+    t->Assert.deepEqual(value->S.serializeJsonWith(struct), Ok(jsonString), ())
   })
 }
 
-test("Successfully decodes primitive", t => {
+test("Successfully parses primitive", t => {
   let struct = S.deprecated(S.bool())
 
-  t->Assert.deepEqual(Js.Json.boolean(true)->S.decodeWith(struct), Ok(Some(true)), ())
+  t->Assert.deepEqual(Js.Json.boolean(true)->S.parseWith(struct), Ok(Some(true)), ())
 })
 
-test("Successfully decodes undefined", t => {
+test("Successfully parses undefined", t => {
   let struct = S.deprecated(S.bool())
 
-  t->Assert.deepEqual(%raw(`undefined`)->S.decodeWith(struct), Ok(None), ())
+  t->Assert.deepEqual(%raw(`undefined`)->S.parseWith(struct), Ok(None), ())
 })
 
-test("Fails to decode null", t => {
+test("Fails to parse null", t => {
   let struct = S.deprecated(S.bool())
 
   t->Assert.deepEqual(
-    %raw(`null`)->S.decodeWith(struct),
-    Error(`[ReScript Struct] Failed decoding at root. Reason: Expected Bool, got Null`),
+    %raw(`null`)->S.parseWith(struct),
+    Error(`[ReScript Struct] Failed parsing at root. Reason: Expected Bool, got Null`),
     (),
   )
 })
 
-test("Successfully decodes null for deprecated nullable struct", t => {
+test("Successfully parses null for deprecated nullable struct", t => {
   let struct = S.deprecated(S.null(S.bool()))
 
-  t->Assert.deepEqual(%raw(`null`)->S.decodeWith(struct), Ok(Some(None)), ())
+  t->Assert.deepEqual(%raw(`null`)->S.parseWith(struct), Ok(Some(None)), ())
 })

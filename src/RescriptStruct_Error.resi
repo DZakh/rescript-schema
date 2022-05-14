@@ -24,7 +24,7 @@ module DestructingFailed: {
   let make: string => t
 }
 
-module DecodingFailed: {
+module ParsingFailed: {
   let make: string => t
 
   module UnexpectedType: {

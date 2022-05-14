@@ -13,13 +13,13 @@ module Common = {
   test("Successfully destructs", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.decodeWith(struct), Ok(any), ())
+    t->Assert.deepEqual(any->S.parseWith(struct), Ok(any), ())
   })
 
-  test("Successfully decodes", t => {
+  test("Successfully parses", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.decodeWith(struct), Ok(any), ())
+    t->Assert.deepEqual(any->S.parseWith(struct), Ok(any), ())
   })
 }
 

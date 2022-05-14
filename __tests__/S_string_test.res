@@ -14,7 +14,7 @@ module Common = {
     t->Assert.deepEqual(any->S.constructWith(struct), Ok(value), ())
   })
 
-  test("Successfully constructs without validation. Note: Use S.decodeWith instead", t => {
+  test("Successfully constructs without validation. Note: Use S.parseWith instead", t => {
     let struct = factory()
 
     t->Assert.deepEqual(wrongAny->S.constructWith(struct), Ok(wrongAny), ())
@@ -26,41 +26,41 @@ module Common = {
     t->Assert.deepEqual(value->S.destructWith(struct), Ok(any), ())
   })
 
-  test("Successfully decodes", t => {
+  test("Successfully parses", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.decodeWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
   })
 
-  test("Fails to decode", t => {
+  test("Fails to parse", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.decodeWith(struct),
-      Error("[ReScript Struct] Failed decoding at root. Reason: Expected String, got Bool"),
+      wrongAny->S.parseWith(struct),
+      Error("[ReScript Struct] Failed parsing at root. Reason: Expected String, got Bool"),
       (),
     )
   })
 
-  test("Successfully decodes from JSON string", t => {
+  test("Successfully parses from JSON string", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(jsonString->S.decodeJsonWith(struct), Ok(value), ())
+    t->Assert.deepEqual(jsonString->S.parseJsonWith(struct), Ok(value), ())
   })
 
-  test("Fails to decode from JSON string", t => {
+  test("Fails to parse from JSON string", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongJsonString->S.decodeJsonWith(struct),
-      Error(`[ReScript Struct] Failed decoding at root. Reason: Expected String, got Bool`),
+      wrongJsonString->S.parseJsonWith(struct),
+      Error(`[ReScript Struct] Failed parsing at root. Reason: Expected String, got Bool`),
       (),
     )
   })
 
-  test("Successfully encodes to JSON string", t => {
+  test("Successfully serializes to JSON string", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(value->S.encodeJsonWith(struct), Ok(jsonString), ())
+    t->Assert.deepEqual(value->S.serializeJsonWith(struct), Ok(jsonString), ())
   })
 }

@@ -2,7 +2,7 @@
 
 A simple and composable way to describe relationship between JavaScript and ReScript structures.
 
-It's a great tool to decode and encode any unknown data with type safety.
+It's a great tool to parse and serialize any unknown data with type safety.
 
 And other libraries can use ReScript Struct as a building block with a neat integration system:
 
@@ -59,7 +59,7 @@ let constructResult1: result<author, string> = %raw(`{
   "Id": 1,
   "IsApproved": 1,
   "Age": 12,
-}`)->S.decodeWith(authorStruct)
+}`)->S.parseWith(authorStruct)
 // Equal to:
 // Ok({
 //   id: 1.,
@@ -72,7 +72,7 @@ let constructResult2: result<author, string> = %raw(`{
   "Id": 1,
   "IsApproved": 0,
   "Tags": ["Loved"],
-}`)->S.decodeWith(authorStruct)
+}`)->S.parseWith(authorStruct)
 // Equal to:
 // Ok({
 //   id: 1.,
@@ -96,7 +96,7 @@ let constructResult = data->S.constructWith(userStruct)
 
 Constructs value using the transformation logic that is built-in to the struct. It returns the result with a transformed value or an error message.
 
-> 🧠 The function is responsible only for transformation and suitable for cases when the data is valid. If not, you'll get a runtime error or invalid state. Use `S.decodeWith` to safely decode data with structure tests.
+> 🧠 The function is responsible only for transformation and suitable for cases when the data is valid. If not, you'll get a runtime error or invalid state. Use `S.parseWith` to safely parse data with structure tests.
 
 #### **`S.destructWith`**
 
@@ -108,35 +108,35 @@ let destructResult = user->S.destructWith(userStruct)
 
 Destructs value using the transformation logic that is built-in to the struct. It returns the result with a transformed unknown data or an error message.
 
-#### **`S.decodeWith`**
+#### **`S.parseWith`**
 
 `('any, t<'value>) => result<'value, string>`
 
 ```rescript
-let decodeResult = data->S.decodeWith(userStruct)
+let parseResult = data->S.parseWith(userStruct)
 ```
 
-Decodes value testing that it represents described struct. It returns the result with a decoded transformed value or an error message.
+Parses value testing that it represents described struct. It returns the result with a parsed transformed value or an error message.
 
-#### **`S.decodeJsonWith`**
+#### **`S.parseJsonWith`**
 
 `(string, t<'value>) => result<'value, string>`
 
 ```rescript
-let decodeResult = json->S.decodeJsonWith(userStruct)
+let parseResult = jsonString->S.parseJsonWith(userStruct)
 ```
 
-Parses and decodes JSON string testing that it represents described struct. It returns the result with a decoded transformed value or an error message.
+Parses and parses JSON string testing that it represents described struct. It returns the result with a parsed transformed value or an error message.
 
-#### **`S.encodeJsonWith`**
+#### **`S.serializeJsonWith`**
 
 `('value, t<'value>) => result<string, string>`
 
 ```rescript
-let encodeStringResult = user->S.encodeJsonWith(userStruct)
+let serializeStringResult = user->S.serializeJsonWith(userStruct)
 ```
 
-Encodes value using the transformation logic and stringifies it to JSON. It returns the result with an encoded stringified unknown data or an error message.
+Serializes value using the transformation logic and stringifies it to JSON. It returns the result with an serialized stringified unknown data or an error message.
 
 ### Types
 
@@ -397,8 +397,8 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 ## Roadmap
 
 - [x] Add custom transformations
-- [x] Add JSON module for decoding and encoding
-- [x] Make encoder and decoder work with any JS values and not only with Js.Json.t
+- [x] Add JSON module for parsing and serializing
+- [x] Make parse and serialize work with any JS values and not only with Js.Json.t
 - [x] Add Unknown struct factory and remove Custom
 - [ ] Add Shape struct factory
 - [x] Add Null struct factory
