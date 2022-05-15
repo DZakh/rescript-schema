@@ -447,3 +447,4 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [ ] Design and add Lazy struct factory
 - [ ] Design and add Union struct factory
 - [ ] Design and add Refinements
+- [ ] Properly handle NaN
