@@ -350,6 +350,22 @@ Error(`[ReScript Struct] Failed parsing at root. Reason: Encountered disallowed 
 
 You can use the `S.Record.strict` function to reset a record struct to the default behavior (disallowing unrecognized keys).
 
+#### **`S.never`**
+
+`() => S.t<S.never>`
+
+```rescript
+let struct: S.t<S.never> = S.never()
+
+%raw(`undefined`)->S.parseWith(struct)
+```
+
+```rescript
+Error("[ReScript Struct] Failed parsing at root. Reason: Expected Never, got Option")
+```
+
+`never` struct will fail parsing for every value.
+
 #### **`S.default`**
 
 `(S.t<option<'value>>, 'value) => S.t<'value>`
@@ -436,7 +452,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [x] Add Null struct factory
 - [ ] Add Instance struct factory
 - [ ] Add Tuple struct factory
-- [ ] Add Never struct factory
+- [x] Add Never struct factory
 - [ ] Add Function struct factory
 - [ ] Add Regexp struct factory
 - [ ] Add Date struct factory

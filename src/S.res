@@ -1,3 +1,4 @@
+type never
 type unknown
 
 external unsafeAnyToUnknown: 'any => unknown = "%identity"
@@ -16,6 +17,7 @@ type rec t<'value> = {
   metadata: Js.Dict.t<unknown>,
 }
 and tagged_t =
+  | Never: tagged_t
   | Unknown: tagged_t
   | String: tagged_t
   | Int: tagged_t
@@ -36,20 +38,23 @@ and recordUnknownKeys =
 
 external unsafeAnyToFields: 'any => array<field<unknown>> = "%identity"
 
-let structTaggedToString = tagged_t => {
-  switch tagged_t {
-  | Unknown => "Unknown"
-  | String => "String"
-  | Int => "Int"
-  | Float => "Float"
-  | Bool => "Bool"
-  | Option(_) => "Option"
-  | Null(_) => "Null"
-  | Array(_) => "Array"
-  | Record(_) => "Record"
-  | Dict(_) => "Dict"
-  | Deprecated(_) => "Deprecated"
-  | Default(_) => "Default"
+module TaggedT = {
+  let toString = tagged_t => {
+    switch tagged_t {
+    | Never => "Never"
+    | Unknown => "Unknown"
+    | String => "String"
+    | Int => "Int"
+    | Float => "Float"
+    | Bool => "Bool"
+    | Option(_) => "Option"
+    | Null(_) => "Null"
+    | Array(_) => "Array"
+    | Record(_) => "Record"
+    | Dict(_) => "Dict"
+    | Deprecated(_) => "Deprecated"
+    | Default(_) => "Default"
+    }
   }
 }
 
@@ -284,6 +289,8 @@ module Optional = {
   }
 }
 
+let never = Primitive.Factory.make(~tagged_t=Never)
+
 let unknown = Primitive.Factory.make(~tagged_t=Unknown)
 
 let string = Primitive.Factory.make(~tagged_t=String)
@@ -448,7 +455,7 @@ let makeUnexpectedTypeError = (~typesTagged: Js.Types.tagged_t, ~structTagged: t
   | JSUndefined => "Option"
   | JSSymbol(_) => "Symbol"
   }
-  let expected = structTaggedToString(structTagged)
+  let expected = TaggedT.toString(structTagged)
   Error(RescriptStruct_Error.ParsingFailed.UnexpectedType.make(~expected, ~got))
 }
 

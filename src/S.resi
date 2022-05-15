@@ -1,7 +1,9 @@
+type never
 type unknown
 
 type rec t<'value>
 and tagged_t =
+  | Never: tagged_t
   | Unknown: tagged_t
   | String: tagged_t
   | Int: tagged_t
@@ -19,6 +21,7 @@ and recordUnknownKeys =
   | Strict
   | Strip
 
+let never: unit => t<never>
 let unknown: unit => t<unknown>
 let string: unit => t<string>
 let bool: unit => t<bool>
