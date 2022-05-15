@@ -70,6 +70,16 @@ module ParsingFailed = {
     }
   }
 
+  module UnexpectedValue = {
+    let make = (~expectedValue, ~gotValue) => {
+      if expectedValue->Js.typeof === "string" {
+        make(j`Expected "$expectedValue", got "$gotValue"`)
+      } else {
+        make(j`Expected $expectedValue, got $gotValue`)
+      }
+    }
+  }
+
   module DisallowedUnknownKeys = {
     external unsafeStringArrayToJson: array<string> => Js.Json.t = "%identity"
     let make = (~unknownKeys) => {

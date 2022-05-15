@@ -35,6 +35,10 @@ module ParsingFailed: {
     let make: (~expected: string, ~got: string) => t
   }
 
+  module UnexpectedValue: {
+    let make: (~expectedValue: 'value, ~gotValue: 'value) => t
+  }
+
   module DisallowedUnknownKeys: {
     let make: (~unknownKeys: array<string>) => t
   }

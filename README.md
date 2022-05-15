@@ -282,6 +282,21 @@ let struct: S.t<S.unknown> = S.unknown()
 
 `unknown` struct represents any data. Can be used together with transformation to create a custom struct factory.
 
+#### **`S.literal`**
+
+`S.literal<'value> => S.t<'value'>`
+
+```rescript
+const tunaStruct = S.literal(String("Tuna"))
+const twelveStruct = S.literal(Int(12))
+const importantTimestampStruct = S.literal(Float(1652628345865.))
+const truStruct = S.literal(Bool(12))
+const nullStruct = S.literal(EmptyNull)
+const undefinedStruct = S.literal(EmptyOption)
+```
+
+`literal` struct enforces that a data matches an exact value using the === operator.
+
 #### **`S.record1` - `S.record10`**
 
 `(~fields: (S.field<'v1>, S.field<'v2>), ~constructor: (('v1, 'v2)) => result<'value, string>=?, ~destructor: 'value => result<('v1, 'v2), string>=?, unit) => S.t<'value>`
@@ -457,7 +472,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [ ] Add Regexp struct factory
 - [ ] Add Date struct factory
 - [ ] Add Json struct factory
-- [ ] Design and add Literal struct factory
+- [x] Design and add Literal struct factory
 - [ ] Design and add Enum struct factory
 - [ ] Design and add Dynamic struct factory
 - [ ] Design and add Lazy struct factory

@@ -10,6 +10,14 @@ external unsafeDictToUnknown: Js.Dict.t<unknown> => unknown = "%identity"
 external unsafeJsonToUnknown: Js.Json.t => unknown = "%identity"
 external unsafeUnknownToJson: unknown => Js.Json.t = "%identity"
 
+type rec literal<'value> =
+  | String(string): literal<string>
+  | Int(int): literal<int>
+  | Float(float): literal<float>
+  | Bool(bool): literal<bool>
+  | EmptyNull: literal<option<never>>
+  | EmptyOption: literal<option<never>>
+
 type rec t<'value> = {
   tagged_t: tagged_t,
   constructor: option<unknown => result<'value, RescriptStruct_Error.t>>,
@@ -23,6 +31,7 @@ and tagged_t =
   | Int: tagged_t
   | Float: tagged_t
   | Bool: tagged_t
+  | Literal(literal<'value>): tagged_t
   | Option(t<'value>): tagged_t
   | Null(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
@@ -47,6 +56,15 @@ module TaggedT = {
     | Int => "Int"
     | Float => "Float"
     | Bool => "Bool"
+    | Literal(literal) =>
+      switch literal {
+      | String(value) => j`String Literal ("$value")`
+      | Int(value) => j`Int Literal ($value)`
+      | Float(value) => j`Float Literal ($value)`
+      | Bool(value) => j`Bool Literal ($value)`
+      | EmptyNull => `EmptyNull Literal (null)`
+      | EmptyOption => `EmptyOption Literal (undefined)`
+      }
     | Option(_) => "Option"
     | Null(_) => "Null"
     | Array(_) => "Array"
@@ -348,6 +366,36 @@ let dict = struct =>
     (),
   )
 
+let literal:
+  type value. literal<value> => t<value> =
+  innerLiteral => {
+    let tagged_t = Literal(innerLiteral)
+    switch innerLiteral {
+    | EmptyNull =>
+      make(
+        ~tagged_t,
+        ~constructor=unknown => {
+          unknown->unsafeUnknownToAny->Js.Null.toOption->Ok
+        },
+        ~destructor=value => {
+          value->Js.Null.fromOption->unsafeAnyToUnknown->Ok
+        },
+        (),
+      )
+    | _ =>
+      make(
+        ~tagged_t,
+        ~constructor=unknown => {
+          unknown->unsafeUnknownToAny->Ok
+        },
+        ~destructor=value => {
+          value->unsafeAnyToUnknown->Ok
+        },
+        (),
+      )
+    }
+  }
+
 let option = struct => {
   Optional.Factory.make(~tagged_t=Option(struct), ~struct)
 }
@@ -459,6 +507,16 @@ let makeUnexpectedTypeError = (~typesTagged: Js.Types.tagged_t, ~structTagged: t
   Error(RescriptStruct_Error.ParsingFailed.UnexpectedType.make(~expected, ~got))
 }
 
+let validateLiteral = (~expectedValue: 'value, ~gotValue: 'value) => {
+  if expectedValue === gotValue {
+    Ok()
+  } else {
+    Error(RescriptStruct_Error.ParsingFailed.UnexpectedValue.make(~expectedValue, ~gotValue))
+  }
+}
+
+let checkIsIntNumber = x => x === x->Js.Math.trunc && x < 2147483648. && x > -2147483648.
+
 let rec validateNode:
   type value unknown. (
     ~unknown: unknown,
@@ -480,12 +538,17 @@ let rec validateNode:
     | (JSNull, Default(_))
     | (_, Unknown) =>
       Ok()
-    | (JSNumber(x), Int) if x == x->Js.Math.trunc && x > -2147483648. && x < 2147483648. =>
-      if x == x->Js.Math.trunc && x > -2147483648. && x < 2147483648. {
-        Ok()
-      } else {
-        makeUnexpectedTypeError(~typesTagged, ~structTagged)
-      }
+    | (JSFalse, Literal(Bool(expectedValue))) => validateLiteral(~expectedValue, ~gotValue=false)
+    | (JSTrue, Literal(Bool(expectedValue))) => validateLiteral(~expectedValue, ~gotValue=true)
+    | (JSString(gotValue), Literal(String(expectedValue))) =>
+      validateLiteral(~expectedValue, ~gotValue)
+    | (JSNumber(gotValue), Literal(Int(expectedValue))) if checkIsIntNumber(gotValue) =>
+      validateLiteral(~expectedValue=expectedValue->Js.Int.toFloat, ~gotValue)
+    | (JSNumber(gotValue), Literal(Float(expectedValue))) =>
+      validateLiteral(~expectedValue, ~gotValue)
+    | (JSNull, Literal(EmptyNull)) => Ok()
+    | (JSUndefined, Literal(EmptyOption)) => Ok()
+    | (JSNumber(x), Int) if checkIsIntNumber(x) => Ok()
     | (JSObject(obj_val), Array(itemStruct)) if Js.Array2.isArray(obj_val) =>
       obj_val
       ->unsafeAnyToUnknown

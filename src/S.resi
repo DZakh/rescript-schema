@@ -1,6 +1,14 @@
 type never
 type unknown
 
+type rec literal<'value> =
+  | String(string): literal<string>
+  | Int(int): literal<int>
+  | Float(float): literal<float>
+  | Bool(bool): literal<bool>
+  | EmptyNull: literal<option<never>>
+  | EmptyOption: literal<option<never>>
+
 type rec t<'value>
 and tagged_t =
   | Never: tagged_t
@@ -9,6 +17,7 @@ and tagged_t =
   | Int: tagged_t
   | Float: tagged_t
   | Bool: tagged_t
+  | Literal(literal<'value>): tagged_t
   | Option(t<'value>): tagged_t
   | Null(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
@@ -27,6 +36,7 @@ let string: unit => t<string>
 let bool: unit => t<bool>
 let int: unit => t<int>
 let float: unit => t<float>
+let literal: literal<'value> => t<'value>
 let array: t<'value> => t<array<'value>>
 let dict: t<'value> => t<Js.Dict.t<'value>>
 let option: t<'value> => t<option<'value>>
