@@ -149,7 +149,7 @@ Serializes value using the transformation logic and stringifies it to JSON. It r
 ```rescript
 let struct: S.t<string> = S.string()
 
-%raw(`a string of text`)->S.constructWith(struct)
+%raw(`a string of text`)->S.parseWith(struct)
 ```
 
 ```rescript
@@ -165,7 +165,7 @@ Ok("a string of text")
 ```rescript
 let struct: S.t<bool> = S.bool()
 
-%raw(`false`)->S.constructWith(struct)
+%raw(`false`)->S.parseWith(struct)
 ```
 
 ```rescript
@@ -181,7 +181,7 @@ Ok(false)
 ```rescript
 let struct: S.t<int> = S.int()
 
-%raw(`123`)->S.constructWith(struct)
+%raw(`123`)->S.parseWith(struct)
 ```
 
 ```rescript
@@ -197,7 +197,7 @@ Ok(123)
 ```rescript
 let struct: S.t<float> = S.float()
 
-%raw(`123`)->S.constructWith(struct)
+%raw(`123`)->S.parseWith(struct)
 ```
 
 ```rescript
@@ -213,7 +213,7 @@ Ok(123.)
 ```rescript
 let struct: S.t<array<string>> = S.array(S.string())
 
-%raw(`["Hello", "World"]`)->S.constructWith(struct)
+%raw(`["Hello", "World"]`)->S.parseWith(struct)
 ```
 
 ```rescript
@@ -229,7 +229,7 @@ Ok(["Hello", "World"])
 ```rescript
 let struct: S.t<Js.Dict.t<string>> = S.dict(S.string())
 
-%raw(`{"foo":"bar","baz":"qux"}`)->S.constructWith(struct)
+%raw(`{"foo":"bar","baz":"qux"}`)->S.parseWith(struct)
 ```
 
 ```rescript
@@ -245,7 +245,7 @@ Ok(Js.Dict.fromArray([("foo", "bar"), ("baz", "qux")]))
 ```rescript
 let struct: S.t<option<string>> = S.option(S.string())
 
-%raw(`"a string of text"`)->S.constructWith(struct)
+%raw(`"a string of text"`)->S.parseWith(struct)
 ```
 
 ```rescript
@@ -261,7 +261,7 @@ Ok(Some("a string of text"))
 ```rescript
 let struct: S.t<option<string>> = S.null(S.string())
 
-%raw(`null`)->S.constructWith(struct)
+%raw(`null`)->S.parseWith(struct)
 ```
 
 ```rescript
@@ -277,7 +277,7 @@ Ok(None)
 ```rescript
 let struct: S.t<S.unknown> = S.unknown()
 
-%raw(`"a string of text"`)->S.constructWith(struct)
+%raw(`"a string of text"`)->S.parseWith(struct)
 ```
 
 `unknown` struct represents any data. Can be used together with transformation to create a custom struct factory.
@@ -292,7 +292,7 @@ type author = {
 }
 let struct: S.t<author> = S.record1(~fields=("ID", S.string()), ~constructor=id => {id: id}->Ok, ())
 
-%raw(`{"ID": "abc"}`)->S.constructWith(struct)
+%raw(`{"ID": "abc"}`)->S.parseWith(struct)
 ```
 
 ```rescript
@@ -373,7 +373,7 @@ Error("[ReScript Struct] Failed parsing at root. Reason: Expected Never, got Opt
 ```rescript
 let struct: S.t<string> = S.option(S.string())->S.default("a string of text")
 
-%raw(`undefined`)->S.constructWith(struct)
+%raw(`undefined`)->S.parseWith(struct)
 ```
 
 ```rescript
@@ -389,7 +389,7 @@ Ok(Some("a string of text"))
 ```rescript
 let struct: S.t<option<string>> = S.deprecated(~message="The struct is deprecated", S.string())
 
-%raw(`"a string of text"`)->S.constructWith(struct)
+%raw(`"a string of text"`)->S.parseWith(struct)
 ```
 
 ```rescript
