@@ -287,12 +287,12 @@ let struct: S.t<S.unknown> = S.unknown()
 `S.literal<'value> => S.t<'value'>`
 
 ```rescript
-const tunaStruct = S.literal(String("Tuna"))
-const twelveStruct = S.literal(Int(12))
-const importantTimestampStruct = S.literal(Float(1652628345865.))
-const truStruct = S.literal(Bool(12))
-const nullStruct = S.literal(EmptyNull)
-const undefinedStruct = S.literal(EmptyOption)
+let tunaStruct = S.literal(String("Tuna"))
+let twelveStruct = S.literal(Int(12))
+let importantTimestampStruct = S.literal(Float(1652628345865.))
+let truStruct = S.literal(Bool(12))
+let nullStruct = S.literal(EmptyNull)
+let undefinedStruct = S.literal(EmptyOption)
 ```
 
 `literal` struct enforces that a data matches an exact value using the === operator.
