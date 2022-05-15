@@ -31,10 +31,8 @@ and tagged_t =
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
 and field<'value> = (string, t<'value>)
 and recordUnknownKeys =
-  | Strip
-  | Passthrough
   | Strict
-  | Catchall(t<unknown>)
+  | Strip
 
 external unsafeAnyToFields: 'any => array<field<unknown>> = "%identity"
 
@@ -153,7 +151,7 @@ module Record = {
     let fields = anyFields->unsafeAnyToFields
 
     make(
-      ~tagged_t=Record({fields: fields, unknownKeys: Strip}),
+      ~tagged_t=Record({fields: fields, unknownKeys: Strict}),
       ~constructor=?maybeRecordConstructor->Belt.Option.map(recordConstructor => {
         unknown => {
           try {
@@ -202,6 +200,32 @@ module Record = {
       }),
       (),
     )
+  }
+
+  let strip = struct => {
+    let tagged_t = struct.tagged_t
+    switch tagged_t {
+    | Record({fields}) => {
+        tagged_t: Record({fields: fields, unknownKeys: Strip}),
+        constructor: struct.constructor,
+        destructor: struct.destructor,
+        metadata: struct.metadata,
+      }
+    | _ => RescriptStruct_Error.UnknownKeysRequireRecord.raise()
+    }
+  }
+
+  let strict = struct => {
+    let tagged_t = struct.tagged_t
+    switch tagged_t {
+    | Record({fields}) => {
+        tagged_t: Record({fields: fields, unknownKeys: Strict}),
+        constructor: struct.constructor,
+        destructor: struct.destructor,
+        metadata: struct.metadata,
+      }
+    | _ => RescriptStruct_Error.UnknownKeysRequireRecord.raise()
+    }
   }
 }
 
@@ -475,30 +499,44 @@ let rec validateNode:
         )
       })
       ->Belt.Result.map(_ => ())
-    | (JSObject(obj_val), Record({fields})) if !Js.Array2.isArray(obj_val) =>
+    | (JSObject(obj_val), Record({fields, unknownKeys})) if !Js.Array2.isArray(obj_val) =>
       let unknownDict = obj_val->unsafeAnyToUnknown->unsafeUnknownToDict
-      let unknownKeysSet = unknownDict->Js.Dict.keys->RescriptStruct_Set.fromArray
 
-      fields
-      ->RescriptStruct_ResultX.Array.mapi(((fieldName, fieldStruct), _) => {
-        unknownKeysSet->RescriptStruct_Set.delete(fieldName)->ignore
+      switch unknownKeys {
+      | Strip =>
+        fields
+        ->RescriptStruct_ResultX.Array.mapi(((fieldName, fieldStruct), _) => {
+          validateNode(
+            ~unknown=unknownDict->Js.Dict.get(fieldName),
+            ~struct=fieldStruct,
+          )->RescriptStruct_ResultX.mapError(RescriptStruct_Error.prependField(_, fieldName))
+        })
+        ->Belt.Result.map(_ => ())
+      | Strict => {
+          let unknownKeysSet = unknownDict->Js.Dict.keys->RescriptStruct_Set.fromArray
 
-        validateNode(
-          ~unknown=unknownDict->Js.Dict.get(fieldName),
-          ~struct=fieldStruct,
-        )->RescriptStruct_ResultX.mapError(RescriptStruct_Error.prependField(_, fieldName))
-      })
-      ->Belt.Result.flatMap(_ => {
-        if unknownKeysSet->RescriptStruct_Set.size === 0 {
-          Ok()
-        } else {
-          Error(
-            RescriptStruct_Error.ParsingFailed.ExtraProperties.make(
-              ~properties=unknownKeysSet->RescriptStruct_Set.toArray,
-            ),
-          )
+          fields
+          ->RescriptStruct_ResultX.Array.mapi(((fieldName, fieldStruct), _) => {
+            unknownKeysSet->RescriptStruct_Set.delete(fieldName)->ignore
+
+            validateNode(
+              ~unknown=unknownDict->Js.Dict.get(fieldName),
+              ~struct=fieldStruct,
+            )->RescriptStruct_ResultX.mapError(RescriptStruct_Error.prependField(_, fieldName))
+          })
+          ->Belt.Result.flatMap(_ => {
+            if unknownKeysSet->RescriptStruct_Set.size === 0 {
+              Ok()
+            } else {
+              Error(
+                RescriptStruct_Error.ParsingFailed.DisallowedUnknownKeys.make(
+                  ~unknownKeys=unknownKeysSet->RescriptStruct_Set.toArray,
+                ),
+              )
+            }
+          })
         }
-      })
+      }
     | (_, Deprecated({struct: struct'})) => validateNode(~unknown, ~struct=struct')
     | (_, Default({struct: struct'})) => validateNode(~unknown, ~struct=struct')
     | (_, Option(struct')) => validateNode(~unknown, ~struct=struct')

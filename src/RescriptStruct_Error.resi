@@ -1,11 +1,15 @@
 type t
 
 module MissingRecordConstructorAndDestructor: {
-  let raise: unit => unit
+  let raise: unit => 'a
 }
 
 module MissingTransformConstructorAndDestructor: {
-  let raise: unit => unit
+  let raise: unit => 'a
+}
+
+module UnknownKeysRequireRecord: {
+  let raise: unit => 'a
 }
 
 module MissingConstructor: {
@@ -31,8 +35,8 @@ module ParsingFailed: {
     let make: (~expected: string, ~got: string) => t
   }
 
-  module ExtraProperties: {
-    let make: (~properties: array<string>) => t
+  module DisallowedUnknownKeys: {
+    let make: (~unknownKeys: array<string>) => t
   }
 }
 

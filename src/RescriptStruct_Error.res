@@ -30,6 +30,11 @@ module MissingTransformConstructorAndDestructor = {
     raiseRescriptStructError("For transformation either a constructor, or a destructor is required")
 }
 
+module UnknownKeysRequireRecord = {
+  let raise = () =>
+    raiseRescriptStructError("Can't set up unknown keys strategy. The struct is not Record")
+}
+
 module MissingConstructor = {
   let make = () => {
     {kind: ConstructingFailed("Struct constructor is missing"), location: []}
@@ -65,13 +70,13 @@ module ParsingFailed = {
     }
   }
 
-  module ExtraProperties = {
+  module DisallowedUnknownKeys = {
     external unsafeStringArrayToJson: array<string> => Js.Json.t = "%identity"
-    let make = (~properties) => {
+    let make = (~unknownKeys) => {
       make(
-        `Encountered extra properties ${properties
+        `Encountered disallowed unknown keys ${unknownKeys
           ->unsafeStringArrayToJson
-          ->Js.Json.stringify} on an object. If you want to be less strict and ignore any extra properties, use Shape instead (not implemented), to ignore a specific extra property, use Deprecated`,
+          ->Js.Json.stringify} on an object. You can use the S.Record.strip to ignore unknown keys during parsing, or use Deprecated to ignore a specific field`,
       )
     }
   }

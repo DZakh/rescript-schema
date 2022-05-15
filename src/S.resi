@@ -16,10 +16,8 @@ and tagged_t =
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
 and field<'value> = (string, t<'value>)
 and recordUnknownKeys =
-  | Strip
-  | Passthrough
   | Strict
-  | Catchall(t<unknown>)
+  | Strip
 
 let unknown: unit => t<unknown>
 let string: unit => t<string>
@@ -148,6 +146,9 @@ module Record: {
     ~destructor: 'value => result<'fieldValues, string>=?,
     unit,
   ) => t<'value>
+
+  let strip: t<'value> => t<'value>
+  let strict: t<'value> => t<'value>
 }
 
 let classify: t<'value> => tagged_t

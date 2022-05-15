@@ -270,6 +270,18 @@ Ok(None)
 
 `null` struct represents a data of a specific type that might be null.
 
+#### **`S.unknown`**
+
+`() => S.t<S.unknown>`
+
+```rescript
+let struct: S.t<S.unknown> = S.unknown()
+
+%raw(`"a string of text"`)->S.constructWith(struct)
+```
+
+`unknown` struct represents any data. Can be used together with transformation to create a custom struct factory.
+
 #### **`S.record1` - `S.record10`**
 
 `(~fields: (S.field<'v1>, S.field<'v2>), ~constructor: (('v1, 'v2)) => result<'value, string>=?, ~destructor: 'value => result<('v1, 'v2), string>=?, unit) => S.t<'value>`
@@ -306,6 +318,38 @@ let record2: (
 
 > 🧠 The `S.Record.factory` internal code isn't typesafe, so you should properly annotate the struct factory interface.
 
+#### **`S.Record.strip`**
+
+`S.t<'value> => S.t<'value>`
+
+```rescript
+let struct = S.record1(~fields=("key", S.string()), ~constructor=key => {{key: key}}->Ok, ())->S.Record.strip
+
+%raw(`{key: "value", unknownKey: "value2"}`)->S.parseWith(struct)
+```
+
+```rescript
+Ok({key: "value"})
+```
+
+By default **rescript-struct** disallow unrecognized keys during parsing objects. You can change the behaviour to stripping unrecognized keys with the `S.Record.strip` function.
+
+#### **`S.Record.strict`**
+
+`S.t<'value> => S.t<'value>`
+
+```rescript
+let struct = S.record1(~fields=("key", S.string()), ~constructor=key => {{key: key}}->Ok, ())->S.Record.strict
+
+%raw(`{key: "value", unknownKey: "value2"}`)->S.parseWith(struct)
+```
+
+```rescript
+Error(`[ReScript Struct] Failed parsing at root. Reason: Encountered disallowed unknown keys ["unknownKey"] on an object. You can use the S.Record.strip to ignore unknown keys during parsing, or use Deprecated to ignore a specific field`)
+```
+
+You can use the `S.Record.strict` function to reset a record struct to the default behavior (disallowing unrecognized keys).
+
 #### **`S.default`**
 
 `(S.t<option<'value>>, 'value) => S.t<'value>`
@@ -337,18 +381,6 @@ Ok(Some("a string of text"))
 ```
 
 `deprecated` struct represents a data of a specific type and makes it optional. The message may be used by an integration library.
-
-#### **`S.unknown`**
-
-`() => S.t<S.unknown>`
-
-```rescript
-let struct: S.t<S.unknown> = S.unknown()
-
-%raw(`"a string of text"`)->S.constructWith(struct)
-```
-
-`unknown` struct represents any data. Can be used together with transformation to create a custom struct factory.
 
 ### Transformations
 
@@ -400,7 +432,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [x] Add JSON module for parsing and serializing
 - [x] Make parse and serialize work with any JS values and not only with Js.Json.t
 - [x] Add Unknown struct factory and remove Custom
-- [ ] Add Shape struct factory
+- [x] Add different unknown keys strategies
 - [x] Add Null struct factory
 - [ ] Add Instance struct factory
 - [ ] Add Tuple struct factory

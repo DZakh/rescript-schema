@@ -121,14 +121,4 @@ module Record = {
       (),
     )
   })
-
-  test("Fails to parse record when JS object has a field that's not described", t => {
-    let struct = S.record1(~fields=("FOO", S.string()), ~constructor=foo => {foo: foo}->Ok, ())
-
-    t->Assert.deepEqual(
-      %raw(`{BAR:"bar",FOO:"bar",1:2}`)->S.parseWith(struct),
-      Error(`[ReScript Struct] Failed parsing at root. Reason: Encountered extra properties ["1","BAR"] on an object. If you want to be less strict and ignore any extra properties, use Shape instead (not implemented), to ignore a specific extra property, use Deprecated`),
-      (),
-    )
-  })
 }
