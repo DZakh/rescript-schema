@@ -24,12 +24,17 @@ and tagged_t =
   | Option(t<'value>): tagged_t
   | Null(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
-  | Record(array<field<unknown>>): tagged_t
+  | Record({fields: array<field<unknown>>, unknownKeys: recordUnknownKeys}): tagged_t
   | Dict(t<'value>): tagged_t
   // TODO: Move to refinements
   | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
 and field<'value> = (string, t<'value>)
+and recordUnknownKeys =
+  | Strip
+  | Passthrough
+  | Strict
+  | Catchall(t<unknown>)
 
 external unsafeAnyToFields: 'any => array<field<unknown>> = "%identity"
 
@@ -148,7 +153,7 @@ module Record = {
     let fields = anyFields->unsafeAnyToFields
 
     make(
-      ~tagged_t=Record(fields),
+      ~tagged_t=Record({fields: fields, unknownKeys: Strip}),
       ~constructor=?maybeRecordConstructor->Belt.Option.map(recordConstructor => {
         unknown => {
           try {
@@ -470,11 +475,11 @@ let rec validateNode:
         )
       })
       ->Belt.Result.map(_ => ())
-    | (JSObject(obj_val), Record(fieldsArray)) if !Js.Array2.isArray(obj_val) =>
+    | (JSObject(obj_val), Record({fields})) if !Js.Array2.isArray(obj_val) =>
       let unknownDict = obj_val->unsafeAnyToUnknown->unsafeUnknownToDict
       let unknownKeysSet = unknownDict->Js.Dict.keys->RescriptStruct_Set.fromArray
 
-      fieldsArray
+      fields
       ->RescriptStruct_ResultX.Array.mapi(((fieldName, fieldStruct), _) => {
         unknownKeysSet->RescriptStruct_Set.delete(fieldName)->ignore
 
