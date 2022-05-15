@@ -22,46 +22,6 @@ test("Fails to parse data with default", t => {
   )
 })
 
-test("Parses dict", t => {
-  let struct = S.dict(S.string())
-
-  t->Assert.deepEqual(
-    %raw(`{a:"b",c:"d"}`)->S.parseWith(struct),
-    Ok(Js.Dict.fromArray([("a", "b"), ("c", "d")])),
-    (),
-  )
-})
-
-test("Parses dict with int keys", t => {
-  let struct = S.dict(S.string())
-
-  t->Assert.deepEqual(
-    %raw(`{1:"b",2:"d"}`)->S.parseWith(struct),
-    Ok(Js.Dict.fromArray([("1", "b"), ("2", "d")])),
-    (),
-  )
-})
-
-test("Fails to parse dict", t => {
-  let struct = S.dict(S.string())
-
-  t->Assert.deepEqual(
-    Js.Json.string("string")->S.parseWith(struct),
-    Error("[ReScript Struct] Failed parsing at root. Reason: Expected Dict, got String"),
-    (),
-  )
-})
-
-test("Fails to parse dict item", t => {
-  let struct = S.dict(S.string())
-
-  t->Assert.deepEqual(
-    %raw(`{"a":"b","c":123}`)->S.parseWith(struct),
-    Error(`[ReScript Struct] Failed parsing at ["c"]. Reason: Expected String, got Float`),
-    (),
-  )
-})
-
 module Record = {
   type singleFieldRecord = {foo: string}
   type optionalSingleFieldRecord = {baz: option<string>}
