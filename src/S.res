@@ -4,9 +4,7 @@ type unknown
 external unsafeAnyToUnknown: 'any => unknown = "%identity"
 external unsafeUnknownToAny: unknown => 'any = "%identity"
 external unsafeUnknownToArray: unknown => array<unknown> = "%identity"
-external unsafeArrayToUnknown: array<unknown> => unknown = "%identity"
 external unsafeUnknownToDict: unknown => Js.Dict.t<unknown> = "%identity"
-external unsafeDictToUnknown: Js.Dict.t<unknown> => unknown = "%identity"
 external unsafeJsonToUnknown: Js.Json.t => unknown = "%identity"
 external unsafeUnknownToJson: unknown => Js.Json.t = "%identity"
 
@@ -18,11 +16,19 @@ type rec literal<'value> =
   | EmptyNull: literal<option<never>>
   | EmptyOption: literal<option<never>>
 
+module Parser = {
+  type t = Transform(unknown => result<unknown, RescriptStruct_Error.t>)
+
+  let transform = (fn: 'input => result<'output, RescriptStruct_Error.t>) => {
+    Transform(fn->unsafeAnyToUnknown->unsafeUnknownToAny)
+  }
+}
+
 type rec t<'value> = {
   tagged_t: tagged_t,
-  constructor: option<unknown => result<'value, RescriptStruct_Error.t>>,
-  destructor: option<'value => result<unknown, RescriptStruct_Error.t>>,
-  metadata: Js.Dict.t<unknown>,
+  maybeConstructors: option<array<Parser.t>>,
+  maybeDestructors: option<array<Parser.t>>,
+  maybeMetadata: option<Js.Dict.t<unknown>>,
 }
 and tagged_t =
   | Never: tagged_t
@@ -76,31 +82,75 @@ module TaggedT = {
   }
 }
 
-let make = (~tagged_t, ~constructor=?, ~destructor=?, ()): t<'value> => {
-  {
-    tagged_t: tagged_t,
-    constructor: constructor,
-    destructor: destructor,
-    metadata: Js.Dict.empty(),
+let _construct: (
+  ~struct: t<'value>,
+  ~unknown: unknown,
+) => result<'value, RescriptStruct_Error.t> = (~struct, ~unknown) => {
+  switch struct.maybeConstructors {
+  | Some(constructors) => {
+      let idxRef = ref(0)
+      let valueRef = ref(unknown)
+      let maybeErrorRef = ref(None)
+
+      while idxRef.contents < constructors->Js.Array2.length && maybeErrorRef.contents == None {
+        let constructor = constructors->Js.Array2.unsafe_get(idxRef.contents)
+        switch constructor {
+        | Transform(fn) =>
+          switch fn(valueRef.contents) {
+          | Ok(newValue) => {
+              valueRef.contents = newValue
+              idxRef.contents = idxRef.contents + 1
+            }
+          | Error(_) as error => maybeErrorRef.contents = Some(error)
+          }
+        }
+      }
+
+      switch maybeErrorRef.contents {
+      | Some(error) => error
+      | None => Ok(valueRef.contents->unsafeUnknownToAny)
+      }
+    }
+  | None => Error(RescriptStruct_Error.MissingConstructor.make())
   }
 }
 
-let _construct = (~struct, ~unknown) => {
-  switch struct.constructor {
-  | Some(constructor) => unknown->constructor
-  | None => RescriptStruct_Error.MissingConstructor.make()->Error
-  }
-}
 let constructWith = (any, struct) => {
   _construct(~struct, ~unknown=any->unsafeAnyToUnknown)->RescriptStruct_ResultX.mapError(
     RescriptStruct_Error.toString,
   )
 }
 
-let _destruct = (~struct, ~value) => {
-  switch struct.destructor {
-  | Some(destructor) => value->destructor
-  | None => RescriptStruct_Error.MissingDestructor.make()->Error
+let _destruct: (~struct: t<'value>, ~value: 'value) => result<unknown, RescriptStruct_Error.t> = (
+  ~struct,
+  ~value,
+) => {
+  switch struct.maybeDestructors {
+  | Some(constructors) => {
+      let idxRef = ref(constructors->Js.Array2.length - 1)
+      let unknownRef = ref(value->unsafeAnyToUnknown)
+      let maybeErrorRef = ref(None)
+
+      while idxRef.contents >= 0 && maybeErrorRef.contents == None {
+        let constructor = constructors->Js.Array2.unsafe_get(idxRef.contents)
+        switch constructor {
+        | Transform(fn) =>
+          switch fn(unknownRef.contents) {
+          | Ok(newUnknown) => {
+              unknownRef.contents = newUnknown
+              idxRef.contents = idxRef.contents - 1
+            }
+          | Error(_) as error => maybeErrorRef.contents = Some(error)
+          }
+        }
+      }
+
+      switch maybeErrorRef.contents {
+      | Some(error) => error
+      | None => Ok(unknownRef.contents->unsafeAnyToUnknown)
+      }
+    }
+  | None => Error(RescriptStruct_Error.MissingDestructor.make())
   }
 }
 let destructWith = (value, struct) => {
@@ -173,56 +223,66 @@ module Record = {
 
     let fields = anyFields->unsafeAnyToFields
 
-    make(
-      ~tagged_t=Record({fields: fields, unknownKeys: Strict}),
-      ~constructor=?maybeRecordConstructor->Belt.Option.map(recordConstructor => {
-        unknown => {
-          try {
-            _constructor(~fields, ~recordConstructor, ~construct=(
-              struct,
-              fieldName,
-              unknownFieldValue,
-            ) => {
-              switch _construct(~struct, ~unknown=unknownFieldValue) {
-              | Ok(value) => value
-              | Error(error) =>
-                raise(HackyAbort(error->RescriptStruct_Error.prependField(fieldName)))
+    {
+      tagged_t: Record({fields: fields, unknownKeys: Strict}),
+      maybeConstructors: switch maybeRecordConstructor {
+      | Some(recordConstructor) =>
+        {
+          [
+            Parser.transform(unknown => {
+              try {
+                _constructor(~fields, ~recordConstructor, ~construct=(
+                  struct,
+                  fieldName,
+                  unknownFieldValue,
+                ) => {
+                  switch _construct(~struct, ~unknown=unknownFieldValue) {
+                  | Ok(value) => value
+                  | Error(error) =>
+                    raise(HackyAbort(error->RescriptStruct_Error.prependField(fieldName)))
+                  }
+                })(unknown)->RescriptStruct_ResultX.mapError(
+                  RescriptStruct_Error.ConstructingFailed.make,
+                )
+              } catch {
+              | HackyAbort(error) => Error(error)
               }
-            })(unknown)->RescriptStruct_ResultX.mapError(
-              RescriptStruct_Error.ConstructingFailed.make,
-            )
-          } catch {
-          | HackyAbort(error) => Error(error)
-          }
-        }
-      }),
-      ~destructor=?maybeRecordDestructor->Belt.Option.map(recordDestructor => {
-        value => {
-          try {
-            _destructor(
-              ~fields,
-              ~recordDestructor=value => {
-                switch recordDestructor(value) {
-                | Ok(fieldValuesTuple) => fieldValuesTuple
-                | Error(reason) =>
-                  raise(HackyAbort(RescriptStruct_Error.DestructingFailed.make(reason)))
-                }
-              },
-              ~destruct=(struct, fieldName, fieldValue) => {
-                switch _destruct(~struct, ~value=fieldValue) {
-                | Ok(unknown) => unknown
-                | Error(error) =>
-                  raise(HackyAbort(error->RescriptStruct_Error.prependField(fieldName)))
-                }
-              },
-            )(value)->Ok
-          } catch {
-          | HackyAbort(error) => Error(error)
-          }
-        }
-      }),
-      (),
-    )
+            }),
+          ]
+        }->Some
+      | None => None
+      },
+      maybeDestructors: switch maybeRecordDestructor {
+      | Some(recordDestructor) =>
+        Some([
+          Parser.transform(value => {
+            try {
+              _destructor(
+                ~fields,
+                ~recordDestructor=value => {
+                  switch recordDestructor(value) {
+                  | Ok(fieldValuesTuple) => fieldValuesTuple
+                  | Error(reason) =>
+                    raise(HackyAbort(RescriptStruct_Error.DestructingFailed.make(reason)))
+                  }
+                },
+                ~destruct=(struct, fieldName, fieldValue) => {
+                  switch _destruct(~struct, ~value=fieldValue) {
+                  | Ok(unknown) => unknown
+                  | Error(error) =>
+                    raise(HackyAbort(error->RescriptStruct_Error.prependField(fieldName)))
+                  }
+                },
+              )(value)->Ok
+            } catch {
+            | HackyAbort(error) => Error(error)
+            }
+          }),
+        ])
+      | None => None
+      },
+      maybeMetadata: None,
+    }
   }
 
   let strip = struct => {
@@ -230,9 +290,9 @@ module Record = {
     switch tagged_t {
     | Record({fields}) => {
         tagged_t: Record({fields: fields, unknownKeys: Strip}),
-        constructor: struct.constructor,
-        destructor: struct.destructor,
-        metadata: struct.metadata,
+        maybeConstructors: struct.maybeConstructors,
+        maybeDestructors: struct.maybeDestructors,
+        maybeMetadata: struct.maybeMetadata,
       }
     | _ => RescriptStruct_Error.UnknownKeysRequireRecord.raise()
     }
@@ -243,9 +303,9 @@ module Record = {
     switch tagged_t {
     | Record({fields}) => {
         tagged_t: Record({fields: fields, unknownKeys: Strict}),
-        constructor: struct.constructor,
-        destructor: struct.destructor,
-        metadata: struct.metadata,
+        maybeConstructors: struct.maybeConstructors,
+        maybeDestructors: struct.maybeDestructors,
+        maybeMetadata: struct.maybeMetadata,
       }
     | _ => RescriptStruct_Error.UnknownKeysRequireRecord.raise()
     }
@@ -255,55 +315,71 @@ module Record = {
 module Primitive = {
   module Factory = {
     let make = (~tagged_t) => {
-      () =>
-        make(
-          ~tagged_t,
-          ~constructor=unknown => {
-            unknown->unsafeUnknownToAny->Ok
-          },
-          ~destructor=value => {
-            value->unsafeAnyToUnknown->Ok
-          },
-          (),
-        )
+      () => {
+        tagged_t: tagged_t,
+        maybeConstructors: Some([]),
+        maybeDestructors: Some([]),
+        maybeMetadata: None,
+      }
     }
   }
 }
 
 module Optional = {
   module Factory = {
-    external unsafeNullToUnknown: Js.null<unknown> => unknown = "%identity"
-    external unsafeOptionToUnknown: option<unknown> => unknown = "%identity"
-    external unsafeUnknownToOption: unknown => option<unknown> = "%identity"
-    external unsafeUnknownToNull: unknown => Js.null<unknown> = "%identity"
-
     let make = (~tagged_t, ~struct) => {
-      make(
-        ~tagged_t,
-        ~constructor=unknown => {
-          let option = switch tagged_t {
-          | Null(_) => unknown->unsafeUnknownToNull->Js.Null.toOption
-          | _ => unknown->unsafeUnknownToOption
-          }
-          switch option {
-          | Some(unknown') =>
-            _construct(~struct, ~unknown=unknown')->Belt.Result.map(known => Some(known))
-          | None => Ok(None)
-          }
-        },
-        ~destructor=optionalValue => {
-          switch optionalValue {
-          | Some(value) => _destruct(~struct, ~value)
-          | None =>
-            switch tagged_t {
-            | Null(_) => Js.Null.empty->unsafeNullToUnknown
-            | _ => None->unsafeOptionToUnknown
-            }->Ok
-          }
-        },
-        (),
-      )
+      {
+        tagged_t: tagged_t,
+        maybeConstructors: Some([
+          Parser.transform(option => {
+            switch option {
+            | Some(innerValue) =>
+              switch _construct(~struct, ~unknown=innerValue) {
+              | Ok(value) => Ok(Some(value))
+              | Error(_) as error => error
+              }
+            | None => Ok(None)
+            }
+          }),
+        ]),
+        maybeDestructors: Some([
+          Parser.transform(optionalValue => {
+            switch optionalValue {
+            | Some(value) => _destruct(~struct, ~value)
+            | None => Ok(None->unsafeAnyToUnknown)
+            }
+          }),
+        ]),
+        maybeMetadata: None,
+      }
     }
+  }
+}
+
+module Null = {
+  let factory = struct => {
+    tagged_t: Null(struct),
+    maybeConstructors: Some([
+      Parser.transform(null => {
+        switch null->Js.Null.toOption {
+        | Some(innerValue) =>
+          switch _construct(~struct, ~unknown=innerValue) {
+          | Ok(value) => Ok(Some(value))
+          | Error(_) as error => error
+          }
+        | None => Ok(None)
+        }
+      }),
+    ]),
+    maybeDestructors: Some([
+      Parser.transform(optionalValue => {
+        switch optionalValue {
+        | Some(value) => _destruct(~struct, ~value)
+        | None => Js.Null.empty->unsafeAnyToUnknown->Ok
+        }
+      }),
+    ]),
+    maybeMetadata: None,
   }
 }
 
@@ -319,104 +395,110 @@ let int = Primitive.Factory.make(~tagged_t=Int)
 
 let float = Primitive.Factory.make(~tagged_t=Float)
 
-let array = struct =>
-  make(
-    ~tagged_t=Array(struct),
-    ~constructor=unknown => {
-      unknown
-      ->unsafeUnknownToArray
-      ->RescriptStruct_ResultX.Array.mapi((unknownItem, idx) => {
-        _construct(~struct, ~unknown=unknownItem)->RescriptStruct_ResultX.mapError(
-          RescriptStruct_Error.prependIndex(_, idx),
-        )
+let array = struct => {
+  tagged_t: Array(struct),
+  maybeConstructors: Some([
+    Parser.transform(array => {
+      array->RescriptStruct_ResultX.Array.mapi((. innerValue, idx) => {
+        switch _construct(~struct, ~unknown=innerValue) {
+        | Ok(_) as ok => ok
+        | Error(error) => Error(error->RescriptStruct_Error.prependIndex(idx))
+        }
       })
-    },
-    ~destructor=array => {
-      array
-      ->RescriptStruct_ResultX.Array.mapi((item, idx) => {
-        _destruct(~struct, ~value=item)->RescriptStruct_ResultX.mapError(
-          RescriptStruct_Error.prependIndex(_, idx),
-        )
+    }),
+  ]),
+  maybeDestructors: Some([
+    Parser.transform(array => {
+      array->RescriptStruct_ResultX.Array.mapi((. innerValue, idx) => {
+        switch _destruct(~struct, ~value=innerValue) {
+        | Ok(_) as ok => ok
+        | Error(error) => Error(error->RescriptStruct_Error.prependIndex(idx))
+        }
       })
-      ->Belt.Result.map(unsafeArrayToUnknown)
-    },
-    (),
-  )
+    }),
+  ]),
+  maybeMetadata: None,
+}
 
-let dict = struct =>
-  make(
-    ~tagged_t=Dict(struct),
-    ~constructor=unknown => {
-      let unknownDict = unknown->unsafeUnknownToDict
-      unknownDict->RescriptStruct_ResultX.Dict.map((unknownItem, key) => {
-        _construct(~struct, ~unknown=unknownItem)->RescriptStruct_ResultX.mapError(
-          RescriptStruct_Error.prependField(_, key),
-        )
+let dict = struct => {
+  tagged_t: Dict(struct),
+  maybeConstructors: Some([
+    Parser.transform(dict => {
+      dict->RescriptStruct_ResultX.Dict.map((. innerValue, key) => {
+        switch _construct(~struct, ~unknown=innerValue) {
+        | Ok(_) as ok => ok
+        | Error(error) => Error(RescriptStruct_Error.prependField(error, key))
+        }
       })
-    },
-    ~destructor=dict => {
-      dict
-      ->RescriptStruct_ResultX.Dict.map((item, key) => {
-        _destruct(~struct, ~value=item)->RescriptStruct_ResultX.mapError(
-          RescriptStruct_Error.prependField(_, key),
-        )
+    }),
+  ]),
+  maybeDestructors: Some([
+    Parser.transform(dict => {
+      dict->RescriptStruct_ResultX.Dict.map((. innerValue, key) => {
+        switch _destruct(~struct, ~value=innerValue) {
+        | Ok(_) as ok => ok
+        | Error(error) => Error(RescriptStruct_Error.prependField(error, key))
+        }
       })
-      ->Belt.Result.map(unsafeDictToUnknown)
-    },
-    (),
-  )
+    }),
+  ]),
+  maybeMetadata: None,
+}
 
 let literal:
   type value. literal<value> => t<value> =
   innerLiteral => {
     let tagged_t = Literal(innerLiteral)
     switch innerLiteral {
-    | EmptyNull =>
-      make(
-        ~tagged_t,
-        ~constructor=unknown => {
-          unknown->unsafeUnknownToAny->Js.Null.toOption->Ok
-        },
-        ~destructor=value => {
-          value->Js.Null.fromOption->unsafeAnyToUnknown->Ok
-        },
-        (),
-      )
-    | _ =>
-      make(
-        ~tagged_t,
-        ~constructor=unknown => {
-          unknown->unsafeUnknownToAny->Ok
-        },
-        ~destructor=value => {
-          value->unsafeAnyToUnknown->Ok
-        },
-        (),
-      )
+    | EmptyNull => {
+        tagged_t: tagged_t,
+        maybeConstructors: Some([Parser.transform(null => null->Js.Null.toOption->Ok)]),
+        maybeDestructors: Some([
+          Parser.transform(value => {
+            value->Js.Null.fromOption->Ok
+          }),
+        ]),
+        maybeMetadata: None,
+      }
+    | _ => {
+        tagged_t: tagged_t,
+        maybeConstructors: Some([]),
+        maybeDestructors: Some([]),
+        maybeMetadata: None,
+      }
     }
   }
+
+let null = Null.factory
 
 let option = struct => {
   Optional.Factory.make(~tagged_t=Option(struct), ~struct)
 }
-let null = struct => {
-  Optional.Factory.make(~tagged_t=Null(struct), ~struct)
-}
+
 let deprecated = (~message as maybeMessage=?, struct) => {
   Optional.Factory.make(~tagged_t=Deprecated({struct: struct, maybeMessage: maybeMessage}), ~struct)
 }
 
 let default = (struct, value) => {
-  make(
-    ~tagged_t=Default({struct: struct, value: value}),
-    ~constructor=unknown => {
-      _construct(~struct, ~unknown)->Belt.Result.map(Belt.Option.getWithDefault(_, value))
-    },
-    ~destructor=value => {
+  tagged_t: Default({struct: struct, value: value}),
+  maybeConstructors: Some([
+    Parser.transform(input => {
+      switch _construct(~struct, ~unknown=input) {
+      | Ok(maybeOutput) =>
+        switch maybeOutput {
+        | Some(output) => output
+        | None => value
+        }->Ok
+      | Error(_) as error => error
+      }
+    }),
+  ]),
+  maybeDestructors: Some([
+    Parser.transform(value => {
       _destruct(~struct, ~value=Some(value))
-    },
-    (),
-  )
+    }),
+  ]),
+  maybeMetadata: None,
 }
 
 let record1 = (~fields) => Record.factory(~fields=[fields])
@@ -444,31 +526,33 @@ let transform = (
   }
   {
     tagged_t: struct.tagged_t,
-    metadata: struct.metadata,
-    constructor: switch (struct.constructor, maybeTransformationConstructor) {
-    | (Some(structConstructor), Some(transformationConstructor)) =>
-      {
-        unknown => {
-          let structConstructorResult = structConstructor(unknown)
-          structConstructorResult->Belt.Result.flatMap(originalValue => {
-            transformationConstructor(originalValue)->RescriptStruct_ResultX.mapError(
-              RescriptStruct_Error.ConstructingFailed.make,
-            )
-          })
-        }
-      }->Some
+    maybeMetadata: struct.maybeMetadata,
+    maybeConstructors: switch (struct.maybeConstructors, maybeTransformationConstructor) {
+    | (Some(constructors), Some(transformationConstructor)) =>
+      constructors
+      ->Js.Array2.concat([
+        Parser.transform(input => {
+          switch transformationConstructor(input) {
+          | Ok(_) as ok => ok
+          | Error(reason) => Error(RescriptStruct_Error.ConstructingFailed.make(reason))
+          }
+        }),
+      ])
+      ->Some
     | (_, _) => None
     },
-    destructor: switch (struct.destructor, maybeTransformationDestructor) {
-    | (Some(structDestructor), Some(transformationDestructor)) =>
-      {
-        value => {
+    maybeDestructors: switch (struct.maybeDestructors, maybeTransformationDestructor) {
+    | (Some(destructors), Some(transformationDestructor)) =>
+      destructors
+      ->Js.Array2.concat([
+        Parser.transform(value => {
           switch transformationDestructor(value) {
-          | Ok(primitive) => structDestructor(primitive)
-          | Error(reason) => RescriptStruct_Error.DestructingFailed.make(reason)->Error
+          | Ok(_) as ok => ok
+          | Error(reason) => Error(RescriptStruct_Error.DestructingFailed.make(reason))
           }
-        }
-      }->Some
+        }),
+      ])
+      ->Some
     | (_, _) => None
     },
   }
@@ -483,12 +567,36 @@ module MakeMetadata = (
   },
 ) => {
   let extract = (struct): option<Details.content> => {
-    struct.metadata->Js.Dict.get(Details.namespace)->Belt.Option.map(unsafeUnknownToAny)
+    switch struct.maybeMetadata {
+    | Some(metadata) =>
+      metadata->Js.Dict.get(Details.namespace)->unsafeAnyToUnknown->unsafeUnknownToAny
+    | None => None
+    }
+  }
+
+  let dictUnsafeSet = (dict: Js.Dict.t<'any>, key: string, value: 'any): Js.Dict.t<'any> => {
+    ignore(dict)
+    ignore(key)
+    ignore(value)
+    %raw(`{
+      ...obj,
+      [key]: value,
+    }`)
   }
 
   let mixin = (struct, metadata: Details.content) => {
-    struct.metadata->Js.Dict.set(Details.namespace, metadata->unsafeAnyToUnknown)
-    struct
+    let structMetadata = switch struct.maybeMetadata {
+    | Some(m) => m
+    | None => Js.Dict.empty()
+    }
+    {
+      tagged_t: struct.tagged_t,
+      maybeConstructors: struct.maybeConstructors,
+      maybeDestructors: struct.maybeDestructors,
+      maybeMetadata: Some(
+        structMetadata->dictUnsafeSet(Details.namespace, metadata->unsafeAnyToUnknown),
+      ),
+    }
   }
 }
 
@@ -549,22 +657,22 @@ let rec validateNode:
     | (JSNull, Literal(EmptyNull)) => Ok()
     | (JSUndefined, Literal(EmptyOption)) => Ok()
     | (JSNumber(x), Int) if checkIsIntNumber(x) => Ok()
-    | (JSObject(obj_val), Array(itemStruct)) if Js.Array2.isArray(obj_val) =>
+    | (JSObject(obj_val), Array(innerStruct)) if Js.Array2.isArray(obj_val) =>
       obj_val
       ->unsafeAnyToUnknown
       ->unsafeUnknownToArray
-      ->RescriptStruct_ResultX.Array.mapi((unknownItem, idx) => {
-        validateNode(~unknown=unknownItem, ~struct=itemStruct)->RescriptStruct_ResultX.mapError(
+      ->RescriptStruct_ResultX.Array.mapi((. innerValue, idx) => {
+        validateNode(~unknown=innerValue, ~struct=innerStruct)->RescriptStruct_ResultX.mapError(
           RescriptStruct_Error.prependIndex(_, idx),
         )
       })
       ->Belt.Result.map(_ => ())
-    | (JSObject(obj_val), Dict(itemStruct)) if !Js.Array2.isArray(obj_val) =>
+    | (JSObject(obj_val), Dict(innerStruct)) if !Js.Array2.isArray(obj_val) =>
       obj_val
       ->unsafeAnyToUnknown
       ->unsafeUnknownToDict
-      ->RescriptStruct_ResultX.Dict.map((unknownItem, key) => {
-        validateNode(~unknown=unknownItem, ~struct=itemStruct)->RescriptStruct_ResultX.mapError(
+      ->RescriptStruct_ResultX.Dict.map((. innerValue, key) => {
+        validateNode(~unknown=innerValue, ~struct=innerStruct)->RescriptStruct_ResultX.mapError(
           RescriptStruct_Error.prependField(_, key),
         )
       })
@@ -575,7 +683,7 @@ let rec validateNode:
       switch unknownKeys {
       | Strip =>
         fields
-        ->RescriptStruct_ResultX.Array.mapi(((fieldName, fieldStruct), _) => {
+        ->RescriptStruct_ResultX.Array.mapi((. (fieldName, fieldStruct), _) => {
           validateNode(
             ~unknown=unknownDict->Js.Dict.get(fieldName),
             ~struct=fieldStruct,
@@ -586,7 +694,7 @@ let rec validateNode:
           let unknownKeysSet = unknownDict->Js.Dict.keys->RescriptStruct_Set.fromArray
 
           fields
-          ->RescriptStruct_ResultX.Array.mapi(((fieldName, fieldStruct), _) => {
+          ->RescriptStruct_ResultX.Array.mapi((. (fieldName, fieldStruct), _) => {
             unknownKeysSet->RescriptStruct_Set.delete(fieldName)->ignore
 
             validateNode(
