@@ -16,7 +16,7 @@ type rec literal<'value> =
   | EmptyNull: literal<option<never>>
   | EmptyOption: literal<option<never>>
 
-module Parser = {
+module Operation = {
   type t = Transform(unknown => result<unknown, RescriptStruct_Error.t>)
 
   let transform = (fn: 'input => result<'output, RescriptStruct_Error.t>) => {
@@ -26,8 +26,8 @@ module Parser = {
 
 type rec t<'value> = {
   tagged_t: tagged_t,
-  maybeConstructors: option<array<Parser.t>>,
-  maybeDestructors: option<array<Parser.t>>,
+  maybeConstructors: option<array<Operation.t>>,
+  maybeDestructors: option<array<Operation.t>>,
   maybeMetadata: option<Js.Dict.t<unknown>>,
 }
 and tagged_t =
@@ -82,35 +82,40 @@ module TaggedT = {
   }
 }
 
+let applyOperations = (~operations: array<Operation.t>, ~initial: unknown) => {
+  let idxRef = ref(0)
+  let valueRef = ref(initial)
+  let maybeErrorRef = ref(None)
+
+  while idxRef.contents < operations->Js.Array2.length && maybeErrorRef.contents == None {
+    let operation = operations->Js.Array2.unsafe_get(idxRef.contents)
+    switch operation {
+    | Transform(fn) =>
+      switch fn(valueRef.contents) {
+      | Ok(newValue) => {
+          valueRef.contents = newValue
+          idxRef.contents = idxRef.contents + 1
+        }
+      | Error(_) as error => maybeErrorRef.contents = Some(error)
+      }
+    }
+  }
+
+  switch maybeErrorRef.contents {
+  | Some(error) => error
+  | None => Ok(valueRef.contents)
+  }
+}
+
 let _construct: (
   ~struct: t<'value>,
   ~unknown: unknown,
 ) => result<'value, RescriptStruct_Error.t> = (~struct, ~unknown) => {
   switch struct.maybeConstructors {
-  | Some(constructors) => {
-      let idxRef = ref(0)
-      let valueRef = ref(unknown)
-      let maybeErrorRef = ref(None)
-
-      while idxRef.contents < constructors->Js.Array2.length && maybeErrorRef.contents == None {
-        let constructor = constructors->Js.Array2.unsafe_get(idxRef.contents)
-        switch constructor {
-        | Transform(fn) =>
-          switch fn(valueRef.contents) {
-          | Ok(newValue) => {
-              valueRef.contents = newValue
-              idxRef.contents = idxRef.contents + 1
-            }
-          | Error(_) as error => maybeErrorRef.contents = Some(error)
-          }
-        }
-      }
-
-      switch maybeErrorRef.contents {
-      | Some(error) => error
-      | None => Ok(valueRef.contents->unsafeUnknownToAny)
-      }
-    }
+  | Some(constructors) =>
+    applyOperations(~operations=constructors, ~initial=unknown)
+    ->unsafeAnyToUnknown
+    ->unsafeUnknownToAny
   | None => Error(RescriptStruct_Error.MissingConstructor.make())
   }
 }
@@ -126,30 +131,10 @@ let _destruct: (~struct: t<'value>, ~value: 'value) => result<unknown, RescriptS
   ~value,
 ) => {
   switch struct.maybeDestructors {
-  | Some(constructors) => {
-      let idxRef = ref(constructors->Js.Array2.length - 1)
-      let unknownRef = ref(value->unsafeAnyToUnknown)
-      let maybeErrorRef = ref(None)
-
-      while idxRef.contents >= 0 && maybeErrorRef.contents == None {
-        let constructor = constructors->Js.Array2.unsafe_get(idxRef.contents)
-        switch constructor {
-        | Transform(fn) =>
-          switch fn(unknownRef.contents) {
-          | Ok(newUnknown) => {
-              unknownRef.contents = newUnknown
-              idxRef.contents = idxRef.contents - 1
-            }
-          | Error(_) as error => maybeErrorRef.contents = Some(error)
-          }
-        }
-      }
-
-      switch maybeErrorRef.contents {
-      | Some(error) => error
-      | None => Ok(unknownRef.contents->unsafeAnyToUnknown)
-      }
-    }
+  | Some(destructors) => applyOperations(
+      ~operations=destructors,
+      ~initial=value->unsafeAnyToUnknown,
+    )
   | None => Error(RescriptStruct_Error.MissingDestructor.make())
   }
 }
@@ -229,7 +214,7 @@ module Record = {
       | Some(recordConstructor) =>
         {
           [
-            Parser.transform(unknown => {
+            Operation.transform(unknown => {
               try {
                 _constructor(~fields, ~recordConstructor, ~construct=(
                   struct,
@@ -255,7 +240,7 @@ module Record = {
       maybeDestructors: switch maybeRecordDestructor {
       | Some(recordDestructor) =>
         Some([
-          Parser.transform(value => {
+          Operation.transform(value => {
             try {
               _destructor(
                 ~fields,
@@ -331,7 +316,7 @@ module Optional = {
       {
         tagged_t: tagged_t,
         maybeConstructors: Some([
-          Parser.transform(option => {
+          Operation.transform(option => {
             switch option {
             | Some(innerValue) =>
               switch _construct(~struct, ~unknown=innerValue) {
@@ -343,7 +328,7 @@ module Optional = {
           }),
         ]),
         maybeDestructors: Some([
-          Parser.transform(optionalValue => {
+          Operation.transform(optionalValue => {
             switch optionalValue {
             | Some(value) => _destruct(~struct, ~value)
             | None => Ok(None->unsafeAnyToUnknown)
@@ -360,7 +345,7 @@ module Null = {
   let factory = struct => {
     tagged_t: Null(struct),
     maybeConstructors: Some([
-      Parser.transform(null => {
+      Operation.transform(null => {
         switch null->Js.Null.toOption {
         | Some(innerValue) =>
           switch _construct(~struct, ~unknown=innerValue) {
@@ -372,7 +357,7 @@ module Null = {
       }),
     ]),
     maybeDestructors: Some([
-      Parser.transform(optionalValue => {
+      Operation.transform(optionalValue => {
         switch optionalValue {
         | Some(value) => _destruct(~struct, ~value)
         | None => Js.Null.empty->unsafeAnyToUnknown->Ok
@@ -398,7 +383,7 @@ let float = Primitive.Factory.make(~tagged_t=Float)
 let array = struct => {
   tagged_t: Array(struct),
   maybeConstructors: Some([
-    Parser.transform(array => {
+    Operation.transform(array => {
       array->RescriptStruct_ResultX.Array.mapi((. innerValue, idx) => {
         switch _construct(~struct, ~unknown=innerValue) {
         | Ok(_) as ok => ok
@@ -408,7 +393,7 @@ let array = struct => {
     }),
   ]),
   maybeDestructors: Some([
-    Parser.transform(array => {
+    Operation.transform(array => {
       array->RescriptStruct_ResultX.Array.mapi((. innerValue, idx) => {
         switch _destruct(~struct, ~value=innerValue) {
         | Ok(_) as ok => ok
@@ -423,7 +408,7 @@ let array = struct => {
 let dict = struct => {
   tagged_t: Dict(struct),
   maybeConstructors: Some([
-    Parser.transform(dict => {
+    Operation.transform(dict => {
       dict->RescriptStruct_ResultX.Dict.map((. innerValue, key) => {
         switch _construct(~struct, ~unknown=innerValue) {
         | Ok(_) as ok => ok
@@ -433,7 +418,7 @@ let dict = struct => {
     }),
   ]),
   maybeDestructors: Some([
-    Parser.transform(dict => {
+    Operation.transform(dict => {
       dict->RescriptStruct_ResultX.Dict.map((. innerValue, key) => {
         switch _destruct(~struct, ~value=innerValue) {
         | Ok(_) as ok => ok
@@ -452,9 +437,9 @@ let literal:
     switch innerLiteral {
     | EmptyNull => {
         tagged_t: tagged_t,
-        maybeConstructors: Some([Parser.transform(null => null->Js.Null.toOption->Ok)]),
+        maybeConstructors: Some([Operation.transform(null => null->Js.Null.toOption->Ok)]),
         maybeDestructors: Some([
-          Parser.transform(value => {
+          Operation.transform(value => {
             value->Js.Null.fromOption->Ok
           }),
         ]),
@@ -482,7 +467,7 @@ let deprecated = (~message as maybeMessage=?, struct) => {
 let default = (struct, value) => {
   tagged_t: Default({struct: struct, value: value}),
   maybeConstructors: Some([
-    Parser.transform(input => {
+    Operation.transform(input => {
       switch _construct(~struct, ~unknown=input) {
       | Ok(maybeOutput) =>
         switch maybeOutput {
@@ -494,7 +479,7 @@ let default = (struct, value) => {
     }),
   ]),
   maybeDestructors: Some([
-    Parser.transform(value => {
+    Operation.transform(value => {
       _destruct(~struct, ~value=Some(value))
     }),
   ]),
@@ -531,7 +516,7 @@ let transform = (
     | (Some(constructors), Some(transformationConstructor)) =>
       constructors
       ->Js.Array2.concat([
-        Parser.transform(input => {
+        Operation.transform(input => {
           switch transformationConstructor(input) {
           | Ok(_) as ok => ok
           | Error(reason) => Error(RescriptStruct_Error.ConstructingFailed.make(reason))
@@ -543,15 +528,15 @@ let transform = (
     },
     maybeDestructors: switch (struct.maybeDestructors, maybeTransformationDestructor) {
     | (Some(destructors), Some(transformationDestructor)) =>
-      destructors
-      ->Js.Array2.concat([
-        Parser.transform(value => {
+      [
+        Operation.transform(value => {
           switch transformationDestructor(value) {
           | Ok(_) as ok => ok
           | Error(reason) => Error(RescriptStruct_Error.DestructingFailed.make(reason))
           }
         }),
-      ])
+      ]
+      ->Js.Array2.concat(destructors)
       ->Some
     | (_, _) => None
     },
