@@ -167,13 +167,13 @@ module Record: {
 let classify: t<'value> => tagged_t
 
 module MakeMetadata: (
-  Details: {
+  Config: {
     type content
     let namespace: string
   },
 ) =>
 {
-  let extract: t<'value> => option<Details.content>
+  let get: t<'value> => option<Config.content>
 
-  let mixin: (t<'value>, Details.content) => t<'value>
+  let set: (t<'value>, Config.content) => t<'value>
 }

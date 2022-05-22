@@ -131,10 +131,8 @@ let _destruct: (~struct: t<'value>, ~value: 'value) => result<unknown, RescriptS
   ~value,
 ) => {
   switch struct.maybeDestructors {
-  | Some(destructors) => applyOperations(
-      ~operations=destructors,
-      ~initial=value->unsafeAnyToUnknown,
-    )
+  | Some(destructors) =>
+    applyOperations(~operations=destructors, ~initial=value->unsafeAnyToUnknown)
   | None => Error(RescriptStruct_Error.MissingDestructor.make())
   }
 }
@@ -546,15 +544,15 @@ let transform = (
 let classify = struct => struct.tagged_t
 
 module MakeMetadata = (
-  Details: {
+  Config: {
     type content
     let namespace: string
   },
 ) => {
-  let extract = (struct): option<Details.content> => {
+  let get = (struct): option<Config.content> => {
     switch struct.maybeMetadata {
     | Some(metadata) =>
-      metadata->Js.Dict.get(Details.namespace)->unsafeAnyToUnknown->unsafeUnknownToAny
+      metadata->Js.Dict.get(Config.namespace)->unsafeAnyToUnknown->unsafeUnknownToAny
     | None => None
     }
   }
@@ -569,9 +567,9 @@ module MakeMetadata = (
     }`)
   }
 
-  let mixin = (struct, metadata: Details.content) => {
-    let structMetadata = switch struct.maybeMetadata {
-    | Some(m) => m
+  let set = (struct, content: Config.content) => {
+    let existingContent = switch struct.maybeMetadata {
+    | Some(currentContent) => currentContent
     | None => Js.Dict.empty()
     }
     {
@@ -579,7 +577,7 @@ module MakeMetadata = (
       maybeConstructors: struct.maybeConstructors,
       maybeDestructors: struct.maybeDestructors,
       maybeMetadata: Some(
-        structMetadata->dictUnsafeSet(Details.namespace, metadata->unsafeAnyToUnknown),
+        existingContent->dictUnsafeSet(Config.namespace, content->unsafeAnyToUnknown),
       ),
     }
   }
