@@ -4,46 +4,52 @@ module Common = {
   let any = %raw(`"Hello world!"`)
   let factory = () => S.unknown()
 
-  test("Successfully constructs", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(any->S.constructWith(struct), Ok(any), ())
-  })
-
-  test("Successfully destructs", t => {
+  test("Successfully parses in Safe mode", t => {
     let struct = factory()
 
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(any), ())
   })
 
-  test("Successfully parses", t => {
+  test("Successfully parses in Unsafe mode", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.parseWith(struct), Ok(any), ())
+    t->Assert.deepEqual(any->S.parseWith(~mode=Unsafe, struct), Ok(any), ())
+  })
+
+  test("Successfully serializes in Safe mode", t => {
+    let struct = factory()
+
+    t->Assert.deepEqual(any->S.serializeWith(~mode=Safe, struct), Ok(any), ())
+  })
+
+  test("Successfully serializes in Unsafe mode", t => {
+    let struct = factory()
+
+    t->Assert.deepEqual(any->S.serializeWith(~mode=Unsafe, struct), Ok(any), ())
   })
 }
 
 module Custom = {
-  external unsafeStringToUnknown: string => S.unknown = "%identity"
-
   test(
-    "Constructs data and destructs it back to the initial state with transformation. aka custom struct factory",
+    "Parses data and serializes it back to the initial state with transformation. aka custom struct factory",
     t => {
       let any = %raw(`"Hello world!"`)
 
-      let struct = S.unknown()->S.transform(
+      let struct = S.unknown()->S.transformUnknown(
         ~constructor=unknown => {
           switch unknown->Js.Types.classify {
           | JSString(string) => Ok(string)
           | _ => Error("Custom isn't a String")
           }
         },
-        ~destructor=value => value->unsafeStringToUnknown->Ok,
+        ~destructor=value => value->Ok,
         (),
       )
 
       t->Assert.deepEqual(
-        any->S.constructWith(struct)->Belt.Result.map(record => record->S.destructWith(struct)),
+        any
+        ->S.parseWith(struct)
+        ->Belt.Result.map(record => record->S.serializeWith(~mode=Safe, struct)),
         Ok(Ok(any)),
         (),
       )

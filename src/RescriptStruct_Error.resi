@@ -8,6 +8,10 @@ module MissingTransformConstructorAndDestructor: {
   let raise: unit => 'a
 }
 
+module MissingConstructorAndDestructorRefine: {
+  let raise: unit => 'a
+}
+
 module UnknownKeysRequireRecord: {
   let raise: unit => 'a
 }
@@ -20,11 +24,11 @@ module MissingDestructor: {
   let make: unit => t
 }
 
-module ConstructingFailed: {
+module ParsingOperationFailed: {
   let make: string => t
 }
 
-module DestructingFailed: {
+module SerializingOperationFailed: {
   let make: string => t
 }
 

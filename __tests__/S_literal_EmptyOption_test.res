@@ -6,28 +6,16 @@ module Common = {
   let wrongTypeAny = %raw(`"Hello world!"`)
   let factory = () => S.literal(EmptyOption)
 
-  test("Successfully constructs", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(any->S.constructWith(struct), Ok(value), ())
-  })
-
-  test("Successfully constructs without validation. Note: Use S.parseWith instead", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(wrongTypeAny->S.constructWith(struct), Ok(wrongTypeAny), ())
-  })
-
-  test("Successfully destructs", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(value->S.destructWith(struct), Ok(any), ())
-  })
-
-  test("Successfully parses", t => {
+  test("Successfully parses in Safe mode", t => {
     let struct = factory()
 
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+  })
+
+  test("Successfully parses without validation in Unsafe mode", t => {
+    let struct = factory()
+
+    t->Assert.deepEqual(wrongTypeAny->S.parseWith(~mode=Unsafe, struct), Ok(wrongTypeAny), ())
   })
 
   test("Fails to parse wrong type", t => {
@@ -40,5 +28,11 @@ module Common = {
       ),
       (),
     )
+  })
+
+  test("Successfully serializes", t => {
+    let struct = factory()
+
+    t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
   })
 }

@@ -9,25 +9,19 @@ module CommonWithNested = {
   let wrongJsonString = `true`
   let factory = () => S.array(S.string())
 
-  test("Successfully constructs", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(any->S.constructWith(struct), Ok(value), ())
-  })
-
-  test("Successfully destructs", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(value->S.destructWith(struct), Ok(any), ())
-  })
-
-  test("Successfully parses", t => {
+  test("Successfully parses in Safe mode", t => {
     let struct = factory()
 
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
   })
 
-  test("Fails to parse", t => {
+  test("Successfully parses without validation in Unsafe mode", t => {
+    let struct = factory()
+
+    t->Assert.deepEqual(nestedWrongAny->S.parseWith(~mode=Unsafe, struct), Ok(nestedWrongAny), ())
+  })
+
+  test("Fails to parse in Safe mode", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -37,7 +31,7 @@ module CommonWithNested = {
     )
   })
 
-  test("Fails to parse nested", t => {
+  test("Fails to parse nested in Safe mode", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -47,26 +41,10 @@ module CommonWithNested = {
     )
   })
 
-  test("Successfully parses from JSON string", t => {
+  test("Successfully serializes", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(jsonString->S.parseJsonWith(struct), Ok(value), ())
-  })
-
-  test("Fails to parse from JSON string", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(
-      wrongJsonString->S.parseJsonWith(struct),
-      Error(`[ReScript Struct] Failed parsing at root. Reason: Expected Array, got Bool`),
-      (),
-    )
-  })
-
-  test("Successfully serializes to JSON string", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(value->S.serializeJsonWith(struct), Ok(jsonString), ())
+    t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
   })
 }
 

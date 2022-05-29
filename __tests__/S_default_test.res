@@ -1,12 +1,21 @@
 open Ava
 
-test("Using default value when constructing optional unknown primitive", t => {
+test("Uses default value when parsing optional unknown primitive in Safe mode", t => {
   let value = 123.
   let any = %raw(`undefined`)
 
   let struct = S.option(S.float())->S.default(value)
 
-  t->Assert.deepEqual(any->S.constructWith(struct), Ok(value), ())
+  t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+})
+
+test("Uses default value when parsing optional unknown primitive in Unsafe mode", t => {
+  let value = 123.
+  let any = %raw(`undefined`)
+
+  let struct = S.option(S.float())->S.default(value)
+
+  t->Assert.deepEqual(any->S.parseWith(~mode=Unsafe, struct), Ok(value), ())
 })
 
 test("Parses data with default when provided JS undefined", t => {

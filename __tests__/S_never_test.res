@@ -4,19 +4,13 @@ module Common = {
   let any = %raw(`true`)
   let factory = () => S.never()
 
-  test("Successfully constructs without validation. Note: Use S.parseWith instead", t => {
+  test("Successfully parses without validation in Unsafe mode", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.constructWith(struct), Ok(any), ())
+    t->Assert.deepEqual(any->S.parseWith(~mode=Unsafe, struct), Ok(any), ())
   })
 
-  test("Successfully destructs", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(any->S.destructWith(struct), Ok(any), ())
-  })
-
-  test("Fails to parse", t => {
+  test("Fails to parse in Safe mode", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -24,6 +18,12 @@ module Common = {
       Error("[ReScript Struct] Failed parsing at root. Reason: Expected Never, got Bool"),
       (),
     )
+  })
+
+  test("Successfully serializes", t => {
+    let struct = factory()
+
+    t->Assert.deepEqual(any->S.serializeWith(struct), Ok(any), ())
   })
 }
 

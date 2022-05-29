@@ -9,6 +9,12 @@ type rec literal<'value> =
   | EmptyNull: literal<option<never>>
   | EmptyOption: literal<option<never>>
 
+type mode = Safe | Unsafe
+
+type recordUnknownKeys =
+  | Strict
+  | Strip
+
 type rec t<'value>
 and tagged_t =
   | Never: tagged_t
@@ -26,9 +32,6 @@ and tagged_t =
   | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
 and field<'value> = (string, t<'value>)
-and recordUnknownKeys =
-  | Strict
-  | Strip
 
 let never: unit => t<never>
 let unknown: unit => t<unknown>
@@ -43,6 +46,7 @@ let option: t<'value> => t<option<'value>>
 let null: t<'value> => t<option<'value>>
 let deprecated: (~message: string=?, t<'value>) => t<option<'value>>
 let default: (t<option<'value>>, 'value) => t<'value>
+let json: t<'value> => t<string>
 
 let record1: (
   ~fields: field<'v1>,
@@ -142,15 +146,23 @@ let transform: (
   unit,
 ) => t<'transformedValue>
 
-let constructWith: ('any, t<'value>) => result<'value, string>
+let transformUnknown: (
+  t<unknown>,
+  ~constructor: unknown => result<'transformedValue, string>=?,
+  ~destructor: 'transformedValue => result<'any, string>=?,
+  unit,
+) => t<'transformedValue>
 
-let parseWith: ('any, t<'value>) => result<'value, string>
+let refine: (
+  t<'value>,
+  ~constructor: 'value => option<string>=?,
+  ~destructor: 'value => option<string>=?,
+  unit,
+) => t<'value>
 
-let parseJsonWith: (string, t<'value>) => result<'value, string>
+let parseWith: ('any, ~mode: mode=?, t<'value>) => result<'value, string>
 
-let destructWith: ('value, t<'value>) => result<unknown, string>
-
-let serializeJsonWith: ('value, t<'value>) => result<string, string>
+let serializeWith: ('value, ~mode: mode=?, t<'value>) => result<unknown, string>
 
 module Record: {
   let factory: (

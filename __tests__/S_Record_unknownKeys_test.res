@@ -14,16 +14,16 @@ test("Fails to parse Record with unknown keys by default", t => {
   )
 })
 
-test("Successfully constructs Record with unknown keys ignoring validation", t => {
+test("Successfully parses Record with unknown keys in Unsafe mode ignoring validation", t => {
   let value = {key: "value"}
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
   let struct = S.record1(~fields=("key", S.string()), ~constructor=key => {{key: key}}->Ok, ())
 
-  t->Assert.deepEqual(any->S.constructWith(struct), Ok(value), ())
+  t->Assert.deepEqual(any->S.parseWith(~mode=Unsafe, struct), Ok(value), ())
 })
 
-test("Successfully parse Record with unknown keys when Strip strategy applyed", t => {
+test("Successfully parses Record with unknown keys when Strip strategy applyed", t => {
   let value = {key: "value"}
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 

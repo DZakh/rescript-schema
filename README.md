@@ -55,7 +55,7 @@ let authorStruct: S.t<author> = S.record4(
   (),
 )
 
-let constructResult1: result<author, string> = %raw(`{
+let parseResult1: result<author, string> = %raw(`{
   "Id": 1,
   "IsApproved": 1,
   "Age": 12,
@@ -68,7 +68,7 @@ let constructResult1: result<author, string> = %raw(`{
 //   deprecatedAge: Some(12),
 // })
 
-let constructResult2: result<author, string> = %raw(`{
+let parseResult2: result<author, string> = %raw(`{
   "Id": 1,
   "IsApproved": 0,
   "Tags": ["Loved"],
@@ -86,57 +86,31 @@ let constructResult2: result<author, string> = %raw(`{
 
 ### Core
 
-#### **`S.constructWith`**
-
-`('any, S.t<'value>) => result<'value, string>`
-
-```rescript
-let constructResult = data->S.constructWith(userStruct)
-```
-
-Constructs value using the transformation logic that is built-in to the struct. It returns the result with a transformed value or an error message.
-
-> 🧠 The function is responsible only for transformation and suitable for cases when the data is valid. If not, you'll get a runtime error or invalid state. Use `S.parseWith` to safely parse data with structure tests.
-
-#### **`S.destructWith`**
-
-`('value, S.t<'value>) => result<S.unknown, string>`
-
-```rescript
-let destructResult = user->S.destructWith(userStruct)
-```
-
-Destructs value using the transformation logic that is built-in to the struct. It returns the result with a transformed unknown data or an error message.
-
 #### **`S.parseWith`**
 
-`('any, t<'value>) => result<'value, string>`
+`('any, ~mode: mode=?, t<'value>) => result<'value, string>`
 
 ```rescript
-let parseResult = data->S.parseWith(userStruct)
+data->S.parseWith(userStruct)
 ```
 
-Parses value testing that it represents described struct. It returns the result with a parsed transformed value or an error message.
+Parses data using the transformation logic that is built-in to the struct.
+Has multiple modes:
+- `S.Safe` (default) - In this mode **rescript-struct** will check that provided data is valid.
+- `S.Unsafe` - In this mode all checks and refinements are ignored and only transformation logic is applied.
 
-#### **`S.parseJsonWith`**
+#### **`S.serializeWith`**
 
-`(string, t<'value>) => result<'value, string>`
+`('value, ~mode: mode=?, S.t<'value>) => result<S.unknown, string>`
 
 ```rescript
-let parseResult = jsonString->S.parseJsonWith(userStruct)
+user->S.serializeWith(userStruct)
 ```
 
-Parses and parses JSON string testing that it represents described struct. It returns the result with a parsed transformed value or an error message.
-
-#### **`S.serializeJsonWith`**
-
-`('value, t<'value>) => result<string, string>`
-
-```rescript
-let serializeStringResult = user->S.serializeJsonWith(userStruct)
-```
-
-Serializes value using the transformation logic and stringifies it to JSON. It returns the result with an serialized stringified unknown data or an error message.
+Serializes value using the transformation logic that is built-in to the struct. It returns the result with a transformed data or an error message.
+Has multiple modes:
+- `S.Safe` (default) - In this mode **rescript-struct** will check that provided value is valid.
+- `S.Unsafe` - In this mode all checks and refinements are ignored and only transformation logic is applied.
 
 ### Types
 
@@ -280,7 +254,7 @@ let struct: S.t<S.unknown> = S.unknown()
 %raw(`"a string of text"`)->S.parseWith(struct)
 ```
 
-`unknown` struct represents any data. Can be used together with transformation to create a custom struct factory.
+`unknown` struct represents any data. Can be used together with `S.transformUnknown` to create a custom struct factory.
 
 #### **`S.literal`**
 
@@ -290,7 +264,7 @@ let struct: S.t<S.unknown> = S.unknown()
 let tunaStruct = S.literal(String("Tuna"))
 let twelveStruct = S.literal(Int(12))
 let importantTimestampStruct = S.literal(Float(1652628345865.))
-let truStruct = S.literal(Bool(12))
+let truStruct = S.literal(Bool(true))
 let nullStruct = S.literal(EmptyNull)
 let undefinedStruct = S.literal(EmptyOption)
 ```
@@ -381,6 +355,24 @@ Error("[ReScript Struct] Failed parsing at root. Reason: Expected Never, got Opt
 
 `never` struct will fail parsing for every value.
 
+#### **`S.json`**
+
+`S.t<'value> => S.t<string>`
+
+```rescript
+let struct: S.t<string> = S.json(S.int())
+
+%raw(`123`)->S.parseWith(struct)
+```
+
+```rescript
+Ok(Some("123"))
+```
+
+`json` struct represents a data that is a JSON string containing a value of a specific type.
+
+> 🧠 If you came from Jzon and looking for `decodeStringWith`/`encodeStringWith` alternative, you can use `S.json` struct factory. Example: `data->S.parseWith(S.json(struct))`
+
 #### **`S.default`**
 
 `(S.t<option<'value>>, 'value) => S.t<'value>`
@@ -415,7 +407,7 @@ Ok(Some("a string of text"))
 
 ### Transformations
 
-**rescript-struct** allows structs to be augmented with transformation logic, letting you transform data during construction and destruction. This is most commonly used to apply default values to an input, but it can be used for more complex cases like trimming strings, or mapping input to a convenient ReScript data structure.
+**rescript-struct** allows structs to be augmented with transformation logic, letting you transform data during parsing and serializing. This is most commonly used to apply default values to an input, but it can be used for more complex cases like trimming strings, or mapping input to a convenient ReScript data structure.
 
 #### **`S.transform`**
 
@@ -451,6 +443,12 @@ let date: unit => S.t<Js.Date.t> = () => {
 
 > 🧠 For transformation either a constructor, or a destructor is required.
 
+#### **`S.transformUnknown`**
+
+`(S.t<unknown>, ~constructor: unknown => result<'transformedValue, string>=?, ~destructor: 'transformedValue => result<'any, string>=?, unit) => S.t<'transformedValue>`
+
+The same as `S.transform` but has more convinient interface to work with `S.unknown` struct factory that can be used to create custom struct factories.
+
 ### Integration
 
 If you're a library maintainer, you can use **rescript-struct** as a way to describe a structure and use it in your own way. The most common use case is building type-safe schemas e.g for REST APIs, databases, and forms.
@@ -471,7 +469,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [ ] Add Function struct factory
 - [ ] Add Regexp struct factory
 - [ ] Add Date struct factory
-- [ ] Add Json struct factory
+- [x] Add Json struct factory
 - [x] Design and add Literal struct factory
 - [ ] Design and add Enum struct factory
 - [ ] Design and add Dynamic struct factory

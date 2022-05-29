@@ -19,5 +19,5 @@ test("Works", t => {
     (),
   )
 
-  t->Assert.deepEqual(any->S.constructWith(struct), Ok(value), ())
+  t->Assert.deepEqual(any->S.parseWith(~mode=Unsafe, struct), Ok(value), ())
 })

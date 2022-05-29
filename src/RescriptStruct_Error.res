@@ -14,8 +14,7 @@ let raiseRescriptStructError = %raw(`function(message){
 
 type rec t = {kind: kind, mutable location: location}
 and kind =
-  | ConstructingFailed(string)
-  | DestructingFailed(string)
+  | SerializingFailed(string)
   | ParsingFailed(string)
 
 module MissingRecordConstructorAndDestructor = {
@@ -30,6 +29,13 @@ module MissingTransformConstructorAndDestructor = {
     raiseRescriptStructError("For transformation either a constructor, or a destructor is required")
 }
 
+module MissingConstructorAndDestructorRefine = {
+  let raise = () =>
+    raiseRescriptStructError(
+      "For refining either a constructor, or a destructor refinement is required",
+    )
+}
+
 module UnknownKeysRequireRecord = {
   let raise = () =>
     raiseRescriptStructError("Can't set up unknown keys strategy. The struct is not Record")
@@ -37,25 +43,25 @@ module UnknownKeysRequireRecord = {
 
 module MissingConstructor = {
   let make = () => {
-    {kind: ConstructingFailed("Struct constructor is missing"), location: []}
+    {kind: ParsingFailed("Struct constructor is missing"), location: []}
   }
 }
 
 module MissingDestructor = {
   let make = () => {
-    {kind: DestructingFailed("Struct destructor is missing"), location: []}
+    {kind: SerializingFailed("Struct destructor is missing"), location: []}
   }
 }
 
-module ConstructingFailed = {
+module ParsingOperationFailed = {
   let make = reason => {
-    {kind: ConstructingFailed(reason), location: []}
+    {kind: ParsingFailed(reason), location: []}
   }
 }
 
-module DestructingFailed = {
+module SerializingOperationFailed = {
   let make = reason => {
-    {kind: DestructingFailed(reason), location: []}
+    {kind: SerializingFailed(reason), location: []}
   }
 }
 
@@ -120,10 +126,8 @@ let prependIndex = (error, index) => {
 let toString = error => {
   let locationText = error.location->formatLocation
   switch error.kind {
-  | ConstructingFailed(reason) =>
-    `[ReScript Struct] Failed constructing at ${locationText}. Reason: ${reason}`
-  | DestructingFailed(reason) =>
-    `[ReScript Struct] Failed destructing at ${locationText}. Reason: ${reason}`
+  | SerializingFailed(reason) =>
+    `[ReScript Struct] Failed serializing at ${locationText}. Reason: ${reason}`
   | ParsingFailed(reason) =>
     `[ReScript Struct] Failed parsing at ${locationText}. Reason: ${reason}`
   }
