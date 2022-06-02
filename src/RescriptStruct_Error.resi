@@ -43,8 +43,8 @@ module ParsingFailed: {
     let make: (~expectedValue: 'value, ~gotValue: 'value) => t
   }
 
-  module DisallowedUnknownKeys: {
-    let make: (~unknownKeys: array<string>) => t
+  module ExcessField: {
+    let make: (~fieldName: string) => t
   }
 }
 

@@ -334,7 +334,7 @@ let struct = S.record1(~fields=("key", S.string()), ~constructor=key => {{key: k
 ```
 
 ```rescript
-Error(`[ReScript Struct] Failed parsing at root. Reason: Encountered disallowed unknown keys ["unknownKey"] on an object. You can use the S.Record.strip to ignore unknown keys during parsing, or use Deprecated to ignore a specific field`)
+Error(`[ReScript Struct] Failed parsing at root. Reason: Encountered disallowed excess key "unknownKey" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`)
 ```
 
 You can use the `S.Record.strict` function to reset a record struct to the default behavior (disallowing unrecognized keys).

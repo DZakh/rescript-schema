@@ -662,70 +662,73 @@ module Record = {
     }
   }
 
+  let getMaybeExcessKey: (
+    Js.Dict.t<unknown>,
+    Js.Dict.t<t<unknown>>,
+  ) => option<string> = %raw(`function(object, innerStructsDict) {
+    for (var key in object) {
+      if (!(key in innerStructsDict)) {
+        return key
+      }
+    }
+    return undefined
+  }`)
+
   module Constructors = {
     let make = (~recordConstructor) => {
       [
-        Operations.refinement((~input, ~struct) => {
-          let typesTagged = input->Js.Types.classify
-          switch typesTagged {
-          | JSObject(obj_val) if !Js.Array2.isArray(obj_val) => None
-          | _ => Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
-          }
-        }),
         Operations.transform((~input, ~struct, ~mode) => {
-          switch (mode, struct->classify) {
-          | (Safe, Record({fields, unknownKeys: Strict})) =>
-            let unknownKeysSet = input->Js.Dict.keys->RescriptStruct_Set.fromArray
-            fields
-            ->RescriptStruct_ResultX.Array.mapi((. (fieldName, fieldStruct), _) => {
-              switch parseInner(
-                ~struct=fieldStruct,
-                ~any=input->Js.Dict.unsafeGet(fieldName),
-                ~mode,
-              ) {
-              | Ok(_) as ok => {
-                  unknownKeysSet->RescriptStruct_Set.delete(fieldName)->ignore
-                  ok
-                }
-              | Error(error) => Error(error->RescriptStruct_Error.prependField(fieldName))
+          let maybeRefinementError = switch mode {
+          | Safe => {
+              let typesTagged = input->Js.Types.classify
+              switch typesTagged {
+              | JSObject(obj_val) if !Js.Array2.isArray(obj_val) => None
+              | _ => Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
               }
-            })
-            ->Inline.Result.flatMap(fieldValues => {
-              if unknownKeysSet->RescriptStruct_Set.size !== 0 {
-                Error(
-                  RescriptStruct_Error.ParsingFailed.DisallowedUnknownKeys.make(
-                    ~unknownKeys=unknownKeysSet->RescriptStruct_Set.toArray,
-                  ),
-                )
-              } else {
-                let fieldValuesTuple =
-                  fieldValues->Js.Array2.length === 1
-                    ? fieldValues->Js.Array2.unsafe_get(0)->unsafeAnyToUnknown->unsafeUnknownToAny
-                    : fieldValues->unsafeAnyToUnknown->unsafeUnknownToAny
-                recordConstructor(fieldValuesTuple)->Inline.Result.mapError(
-                  RescriptStruct_Error.ParsingOperationFailed.make,
-                )
+            }
+          | Unsafe => None
+          }
+          switch maybeRefinementError {
+          | None =>
+            switch struct->classify {
+            | Record({fields, unknownKeys}) => {
+                let innerStructsDict = fields->Js.Dict.fromArray
+                let fieldValuesResult = fields->RescriptStruct_ResultX.Array.mapi((.
+                  (fieldName, fieldStruct),
+                  _,
+                ) => {
+                  parseInner(
+                    ~struct=fieldStruct,
+                    ~any=input->Js.Dict.unsafeGet(fieldName),
+                    ~mode,
+                  )->Inline.Result.mapError(RescriptStruct_Error.prependField(_, fieldName))
+                })
+                switch (unknownKeys, mode) {
+                | (Strict, Safe) =>
+                  fieldValuesResult->Inline.Result.flatMap(_ => {
+                    switch getMaybeExcessKey(input, innerStructsDict) {
+                    | Some(excessKey) =>
+                      Error(
+                        RescriptStruct_Error.ParsingFailed.ExcessField.make(~fieldName=excessKey),
+                      )
+                    | None => fieldValuesResult
+                    }
+                  })
+                | (_, _) => fieldValuesResult
+                }->Inline.Result.flatMap(fieldValues => {
+                  let fieldValuesTuple =
+                    fieldValues->Js.Array2.length === 1
+                      ? fieldValues->Js.Array2.unsafe_get(0)->unsafeAnyToUnknown->unsafeUnknownToAny
+                      : fieldValues->unsafeAnyToUnknown->unsafeUnknownToAny
+                  recordConstructor(fieldValuesTuple)->Inline.Result.mapError(
+                    RescriptStruct_Error.ParsingOperationFailed.make,
+                  )
+                })
               }
-            })
-          | (_, Record({fields})) =>
-            fields
-            ->RescriptStruct_ResultX.Array.mapi((. (fieldName, fieldStruct), _) => {
-              parseInner(
-                ~struct=fieldStruct,
-                ~any=input->Js.Dict.unsafeGet(fieldName),
-                ~mode,
-              )->Inline.Result.mapError(RescriptStruct_Error.prependField(_, fieldName))
-            })
-            ->Inline.Result.flatMap(fieldValues => {
-              let fieldValuesTuple =
-                fieldValues->Js.Array2.length === 1
-                  ? fieldValues->Js.Array2.unsafe_get(0)->unsafeAnyToUnknown->unsafeUnknownToAny
-                  : fieldValues->unsafeAnyToUnknown->unsafeUnknownToAny
-              recordConstructor(fieldValuesTuple)->Inline.Result.mapError(
-                RescriptStruct_Error.ParsingOperationFailed.make,
-              )
-            })
-          | (_, _) => ()->unsafeAnyToUnknown->unsafeUnknownToAny
+            | _ =>
+              Error(RescriptStruct_Error.ParsingOperationFailed.make("Unexpected struct tagged_t"))
+            }
+          | Some(error) => Error(error)
           }
         }),
       ]

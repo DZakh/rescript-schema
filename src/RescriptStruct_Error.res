@@ -86,13 +86,10 @@ module ParsingFailed = {
     }
   }
 
-  module DisallowedUnknownKeys = {
-    external unsafeStringArrayToJson: array<string> => Js.Json.t = "%identity"
-    let make = (~unknownKeys) => {
+  module ExcessField = {
+    let make = (~fieldName) => {
       make(
-        `Encountered disallowed unknown keys ${unknownKeys
-          ->unsafeStringArrayToJson
-          ->Js.Json.stringify} on an object. You can use the S.Record.strip to ignore unknown keys during parsing, or use Deprecated to ignore a specific field`,
+        `Encountered disallowed excess key "${fieldName}" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`,
       )
     }
   }
