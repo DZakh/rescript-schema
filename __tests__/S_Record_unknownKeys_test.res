@@ -14,6 +14,18 @@ test("Fails to parse Record with unknown keys by default", t => {
   )
 })
 
+test("Fails fast and shows only one excees key in the error message", t => {
+  let any = %raw(`{key: "value", unknownKey: "value2", unknownKey2: "value2"}`)
+
+  let struct = S.record1(~fields=("key", S.string()), ~constructor=key => {{key: key}}->Ok, ())
+
+  t->Assert.deepEqual(
+    any->S.parseWith(struct),
+    Error(`[ReScript Struct] Failed parsing at root. Reason: Encountered disallowed excess key "unknownKey" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`),
+    (),
+  )
+})
+
 test("Successfully parses Record with unknown keys in Unsafe mode ignoring validation", t => {
   let value = {key: "value"}
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
