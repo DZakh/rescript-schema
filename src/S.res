@@ -746,14 +746,36 @@ module Record = {
           | None =>
             switch struct->classify {
             | Record({fields, fieldNames, unknownKeys}) => {
-                let fieldValuesResult = fieldNames->Inline.Result.Array.mapi((. fieldName, _) => {
-                  let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-                  parseInner(
-                    ~struct=fieldStruct,
-                    ~any=input->Js.Dict.unsafeGet(fieldName),
-                    ~mode,
-                  )->Inline.Result.mapError(RescriptStruct_Error.prependField(_, fieldName))
-                })
+                let fieldValuesResult = {
+                  let newArray = []
+                  let idxRef = ref(0)
+                  let maybeErrorRef = ref(None)
+                  while (
+                    idxRef.contents < fieldNames->Js.Array2.length && maybeErrorRef.contents == None
+                  ) {
+                    let idx = idxRef.contents
+                    let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+                    let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+                    switch parseInner(
+                      ~struct=fieldStruct,
+                      ~any=input->Js.Dict.unsafeGet(fieldName),
+                      ~mode,
+                    ) {
+                    | Ok(value) => {
+                        newArray->Js.Array2.push(value)->ignore
+                        idxRef.contents = idxRef.contents + 1
+                      }
+                    | Error(error) =>
+                      maybeErrorRef.contents = Some(
+                        error->RescriptStruct_Error.prependField(fieldName),
+                      )
+                    }
+                  }
+                  switch maybeErrorRef.contents {
+                  | Some(error) => Error(error)
+                  | None => Ok(newArray)
+                  }
+                }
                 switch (unknownKeys, mode) {
                 | (Strict, Safe) =>
                   fieldValuesResult->Inline.Result.flatMap(_ => {
