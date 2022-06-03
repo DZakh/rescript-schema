@@ -3,6 +3,12 @@ module Inline = {
     let mapError: (result<'ok, 'error1>, 'error1 => 'error2) => result<'ok, 'error2>
     let map: (result<'ok1, 'error>, 'ok1 => 'ok2) => result<'ok2, 'error>
     let flatMap: (result<'ok1, 'error>, 'ok1 => result<'ok2, 'error>) => result<'ok2, 'error>
+    module Array: {
+      let mapi: (array<'a>, (. 'a, int) => result<'b, 'e>) => result<array<'b>, 'e>
+    }
+    module Dict: {
+      let map: (Js.Dict.t<'a>, (. 'a, string) => result<'b, 'e>) => result<Js.Dict.t<'b>, 'e>
+    }
   } = {
     @inline
     let mapError = (result, fn) =>
@@ -24,6 +30,58 @@ module Inline = {
       | Ok(value) => fn(value)
       | Error(_) as error => error
       }
+
+    module Array = {
+      let mapi = (array, fn) => {
+        let newArray = []
+        let idxRef = ref(0)
+        let maybeErrorRef = ref(None)
+
+        while idxRef.contents < array->Js.Array2.length && maybeErrorRef.contents == None {
+          let idx = idxRef.contents
+          let item = array->Js.Array2.unsafe_get(idx)
+          switch fn(. item, idx) {
+          | Ok(value) => {
+              newArray->Js.Array2.push(value)->ignore
+              idxRef.contents = idxRef.contents + 1
+            }
+          | Error(_) as error => maybeErrorRef.contents = Some(error)
+          }
+        }
+
+        switch maybeErrorRef.contents {
+        | Some(error) => error
+        | None => Ok(newArray)
+        }
+      }
+    }
+
+    module Dict = {
+      let map = (dict, fn) => {
+        let newDict = Js.Dict.empty()
+        let keys = dict->Js.Dict.keys
+        let idxRef = ref(0)
+        let maybeErrorRef = ref(None)
+
+        while idxRef.contents < keys->Js.Array2.length && maybeErrorRef.contents == None {
+          let idx = idxRef.contents
+          let key = keys->Js.Array2.unsafe_get(idx)
+          let item = dict->Js.Dict.unsafeGet(key)
+          switch fn(. item, key) {
+          | Ok(value) => {
+              newDict->Js.Dict.set(key, value)->ignore
+              idxRef.contents = idxRef.contents + 1
+            }
+          | Error(_) as error => maybeErrorRef.contents = Some(error)
+          }
+        }
+
+        switch maybeErrorRef.contents {
+        | Some(error) => error
+        | None => Ok(newDict)
+        }
+      }
+    }
   }
 
   module Option: {
@@ -404,7 +462,7 @@ module Operations = {
       }),
       transform((~input, ~struct, ~mode) => {
         let innerStruct = unsafeGetInnerStruct(struct)
-        input->RescriptStruct_ResultX.Array.mapi((. innerValue, idx) => {
+        input->Inline.Result.Array.mapi((. innerValue, idx) => {
           parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.mapError(
             RescriptStruct_Error.prependIndex(_, idx),
           )
@@ -414,7 +472,7 @@ module Operations = {
     let destructors = [
       transform((~input, ~struct, ~mode) => {
         let innerStruct = unsafeGetInnerStruct(struct)
-        input->RescriptStruct_ResultX.Array.mapi((. innerValue, idx) => {
+        input->Inline.Result.Array.mapi((. innerValue, idx) => {
           serializeInner(~struct=innerStruct, ~value=innerValue, ~mode)->Inline.Result.mapError(
             RescriptStruct_Error.prependIndex(_, idx),
           )
@@ -442,7 +500,7 @@ module Operations = {
       }),
       transform((~input, ~struct, ~mode) => {
         let innerStruct = unsafeGetInnerStruct(struct)
-        input->RescriptStruct_ResultX.Dict.map((. innerValue, key) => {
+        input->Inline.Result.Dict.map((. innerValue, key) => {
           parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.mapError(
             RescriptStruct_Error.prependField(_, key),
           )
@@ -452,7 +510,7 @@ module Operations = {
     let destructors = [
       transform((~input, ~struct, ~mode) => {
         let innerStruct = unsafeGetInnerStruct(struct)
-        input->RescriptStruct_ResultX.Dict.map((. innerValue, key) => {
+        input->Inline.Result.Dict.map((. innerValue, key) => {
           serializeInner(~struct=innerStruct, ~value=innerValue, ~mode)->Inline.Result.mapError(
             RescriptStruct_Error.prependField(_, key),
           )
@@ -658,14 +716,6 @@ module Operations = {
 }
 
 module Record = {
-  @inline
-  let unsafeGetInnerFields = struct => {
-    switch struct->classify {
-    | Record({fields}) => fields->unsafeAnyToUnknown->unsafeUnknownToAny
-    | _ => ()->unsafeAnyToUnknown->unsafeUnknownToAny
-    }
-  }
-
   let getMaybeExcessKey: (
     . Js.Dict.t<unknown>,
     Js.Dict.t<t<unknown>>,
@@ -696,10 +746,7 @@ module Record = {
           | None =>
             switch struct->classify {
             | Record({fields, fieldNames, unknownKeys}) => {
-                let fieldValuesResult = fieldNames->RescriptStruct_ResultX.Array.mapi((.
-                  fieldName,
-                  _,
-                ) => {
+                let fieldValuesResult = fieldNames->Inline.Result.Array.mapi((. fieldName, _) => {
                   let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
                   parseInner(
                     ~struct=fieldStruct,
@@ -743,29 +790,34 @@ module Record = {
     let make = (~recordDestructor) => {
       [
         Operations.transform((~input, ~struct, ~mode) => {
-          recordDestructor(input)
-          ->Inline.Result.mapError(RescriptStruct_Error.SerializingOperationFailed.make)
-          ->Inline.Result.flatMap(fieldValuesTuple => {
-            let fields = unsafeGetInnerFields(struct)
-            let unknown = Js.Dict.empty()
-            let fieldValues =
-              fields->Js.Array2.length === 1
-                ? [fieldValuesTuple]->unsafeAnyToUnknown->unsafeUnknownToAny
-                : fieldValuesTuple->unsafeAnyToUnknown->unsafeUnknownToAny
+          switch struct->classify {
+          | Record({fields, fieldNames}) =>
+            recordDestructor(input)
+            ->Inline.Result.mapError(RescriptStruct_Error.SerializingOperationFailed.make)
+            ->Inline.Result.flatMap(fieldValuesTuple => {
+              let unknown = Js.Dict.empty()
+              let fieldValues =
+                fieldNames->Js.Array2.length === 1
+                  ? [fieldValuesTuple]->unsafeAnyToUnknown->unsafeUnknownToAny
+                  : fieldValuesTuple->unsafeAnyToUnknown->unsafeUnknownToAny
 
-            fields
-            ->RescriptStruct_ResultX.Array.mapi((. (fieldName, fieldStruct), idx) => {
-              let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
-              switch serializeInner(~struct=fieldStruct, ~value=fieldValue, ~mode) {
-              | Ok(unknownFieldValue) => {
-                  unknown->Js.Dict.set(fieldName, unknownFieldValue)
-                  Ok()
+              fieldNames
+              ->Inline.Result.Array.mapi((. fieldName, idx) => {
+                let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+                let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
+                switch serializeInner(~struct=fieldStruct, ~value=fieldValue, ~mode) {
+                | Ok(unknownFieldValue) => {
+                    unknown->Js.Dict.set(fieldName, unknownFieldValue)
+                    Ok()
+                  }
+                | Error(error) => Error(error->RescriptStruct_Error.prependField(fieldName))
                 }
-              | Error(error) => Error(error->RescriptStruct_Error.prependField(fieldName))
-              }
+              })
+              ->Inline.Result.map(_ => unknown)
             })
-            ->Inline.Result.map(_ => unknown)
-          })
+          | _ =>
+            Error(RescriptStruct_Error.ParsingOperationFailed.make("Unexpected struct tagged_t"))
+          }
         }),
       ]
     }
