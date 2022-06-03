@@ -71,7 +71,11 @@ and tagged_t =
   | Option(t<'value>): tagged_t
   | Null(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
-  | Record({fields: array<field<unknown>>, unknownKeys: recordUnknownKeys}): tagged_t
+  | Record({
+      fields: Js.Dict.t<t<unknown>>,
+      fieldNames: array<string>,
+      unknownKeys: recordUnknownKeys,
+    }): tagged_t
   | Dict(t<'value>): tagged_t
   | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
@@ -663,7 +667,7 @@ module Record = {
   }
 
   let getMaybeExcessKey: (
-    Js.Dict.t<unknown>,
+    . Js.Dict.t<unknown>,
     Js.Dict.t<t<unknown>>,
   ) => option<string> = %raw(`function(object, innerStructsDict) {
     for (var key in object) {
@@ -691,12 +695,12 @@ module Record = {
           switch maybeRefinementError {
           | None =>
             switch struct->classify {
-            | Record({fields, unknownKeys}) => {
-                let innerStructsDict = fields->Js.Dict.fromArray
-                let fieldValuesResult = fields->RescriptStruct_ResultX.Array.mapi((.
-                  (fieldName, fieldStruct),
+            | Record({fields, fieldNames, unknownKeys}) => {
+                let fieldValuesResult = fieldNames->RescriptStruct_ResultX.Array.mapi((.
+                  fieldName,
                   _,
                 ) => {
+                  let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
                   parseInner(
                     ~struct=fieldStruct,
                     ~any=input->Js.Dict.unsafeGet(fieldName),
@@ -706,7 +710,7 @@ module Record = {
                 switch (unknownKeys, mode) {
                 | (Strict, Safe) =>
                   fieldValuesResult->Inline.Result.flatMap(_ => {
-                    switch getMaybeExcessKey(input, innerStructsDict) {
+                    switch getMaybeExcessKey(. input, fields) {
                     | Some(excessKey) =>
                       Error(
                         RescriptStruct_Error.ParsingFailed.ExcessField.make(~fieldName=excessKey),
@@ -768,7 +772,7 @@ module Record = {
   }
 
   let factory = (
-    ~fields as anyFields: 'fields,
+    ~fields as fieldsArray: 'fields,
     ~constructor as maybeRecordConstructor: option<'fieldValues => result<'value, string>>=?,
     ~destructor as maybeRecordDestructor: option<'value => result<'fieldValues, string>>=?,
     (),
@@ -777,10 +781,10 @@ module Record = {
       RescriptStruct_Error.MissingRecordConstructorAndDestructor.raise()
     }
 
-    let fields = anyFields->unsafeAnyToFields
+    let fields = fieldsArray->unsafeAnyToFields->Js.Dict.fromArray
 
     {
-      tagged_t: Record({fields: fields, unknownKeys: Strict}),
+      tagged_t: Record({fields: fields, fieldNames: fields->Js.Dict.keys, unknownKeys: Strict}),
       maybeConstructors: maybeRecordConstructor->Inline.Option.map(recordConstructor => {
         Constructors.make(~recordConstructor)
       }),
@@ -794,8 +798,8 @@ module Record = {
   let strip = struct => {
     let tagged_t = struct->classify
     switch tagged_t {
-    | Record({fields}) => {
-        tagged_t: Record({fields: fields, unknownKeys: Strip}),
+    | Record({fields, fieldNames}) => {
+        tagged_t: Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strip}),
         maybeConstructors: struct.maybeConstructors,
         maybeDestructors: struct.maybeDestructors,
         maybeMetadata: struct.maybeMetadata,
@@ -807,8 +811,8 @@ module Record = {
   let strict = struct => {
     let tagged_t = struct->classify
     switch tagged_t {
-    | Record({fields}) => {
-        tagged_t: Record({fields: fields, unknownKeys: Strict}),
+    | Record({fields, fieldNames}) => {
+        tagged_t: Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strict}),
         maybeConstructors: struct.maybeConstructors,
         maybeDestructors: struct.maybeDestructors,
         maybeMetadata: struct.maybeMetadata,

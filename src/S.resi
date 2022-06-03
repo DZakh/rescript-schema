@@ -27,7 +27,11 @@ and tagged_t =
   | Option(t<'value>): tagged_t
   | Null(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
-  | Record({fields: array<field<unknown>>, unknownKeys: recordUnknownKeys}): tagged_t
+  | Record({
+      fields: Js.Dict.t<t<unknown>>,
+      fieldNames: array<string>,
+      unknownKeys: recordUnknownKeys,
+    }): tagged_t
   | Dict(t<'value>): tagged_t
   | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
