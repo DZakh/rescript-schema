@@ -38,7 +38,7 @@ type author = {
   deprecatedAge: option<int>,
 }
 
-let authorStruct: S.t<author> = S.record4(
+let authorStruct = S.record4(
   ~fields=(
     ("Id", S.float()),
     ("Tags", S.option(S.array(S.string()))->S.default([])),
@@ -55,7 +55,7 @@ let authorStruct: S.t<author> = S.record4(
   (),
 )
 
-let parseResult1: result<author, string> = %raw(`{
+%raw(`{
   "Id": 1,
   "IsApproved": 1,
   "Age": 12,
@@ -68,7 +68,7 @@ let parseResult1: result<author, string> = %raw(`{
 //   deprecatedAge: Some(12),
 // })
 
-let parseResult2: result<author, string> = %raw(`{
+%raw(`{
   "Id": 1,
   "IsApproved": 0,
   "Tags": ["Loved"],
@@ -121,7 +121,7 @@ Has multiple modes:
 `unit => S.t<string>`
 
 ```rescript
-let struct: S.t<string> = S.string()
+let struct = S.string()
 
 %raw(`a string of text`)->S.parseWith(struct)
 ```
@@ -137,7 +137,7 @@ Ok("a string of text")
 `unit => S.t<bool>`
 
 ```rescript
-let struct: S.t<bool> = S.bool()
+let struct = S.bool()
 
 %raw(`false`)->S.parseWith(struct)
 ```
@@ -153,7 +153,7 @@ Ok(false)
 `unit => S.t<int>`
 
 ```rescript
-let struct: S.t<int> = S.int()
+let struct = S.int()
 
 %raw(`123`)->S.parseWith(struct)
 ```
@@ -169,7 +169,7 @@ Ok(123)
 `unit => S.t<float>`
 
 ```rescript
-let struct: S.t<float> = S.float()
+let struct = S.float()
 
 %raw(`123`)->S.parseWith(struct)
 ```
@@ -185,7 +185,7 @@ Ok(123.)
 `S.t<'value> => S.t<array<'value>>`
 
 ```rescript
-let struct: S.t<array<string>> = S.array(S.string())
+let struct = S.array(S.string())
 
 %raw(`["Hello", "World"]`)->S.parseWith(struct)
 ```
@@ -201,7 +201,7 @@ Ok(["Hello", "World"])
 `S.t<'value> => S.t<Js.Dict.t<'value>>`
 
 ```rescript
-let struct: S.t<Js.Dict.t<string>> = S.dict(S.string())
+let struct = S.dict(S.string())
 
 %raw(`{"foo":"bar","baz":"qux"}`)->S.parseWith(struct)
 ```
@@ -217,7 +217,7 @@ Ok(Js.Dict.fromArray([("foo", "bar"), ("baz", "qux")]))
 `S.t<'value> => S.t<option<'value>>`
 
 ```rescript
-let struct: S.t<option<string>> = S.option(S.string())
+let struct = S.option(S.string())
 
 %raw(`"a string of text"`)->S.parseWith(struct)
 ```
@@ -233,7 +233,7 @@ Ok(Some("a string of text"))
 `S.t<'value> => S.t<option<'value>>`
 
 ```rescript
-let struct: S.t<option<string>> = S.null(S.string())
+let struct = S.null(S.string())
 
 %raw(`null`)->S.parseWith(struct)
 ```
@@ -249,7 +249,7 @@ Ok(None)
 `() => S.t<S.unknown>`
 
 ```rescript
-let struct: S.t<S.unknown> = S.unknown()
+let struct = S.unknown()
 
 %raw(`"a string of text"`)->S.parseWith(struct)
 ```
@@ -279,9 +279,9 @@ let undefinedStruct = S.literal(EmptyOption)
 type author = {
   id: string,
 }
-let struct: S.t<author> = S.record1(~fields=("ID", S.string()), ~constructor=id => {id: id}->Ok, ())
+let authorStruct = S.record1(~fields=("ID", S.string()), ~constructor=id => {id: id}->Ok, ())
 
-%raw(`{"ID": "abc"}`)->S.parseWith(struct)
+%raw(`{"ID": "abc"}`)->S.parseWith(authorStruct)
 ```
 
 ```rescript
@@ -344,7 +344,7 @@ You can use the `S.Record.strict` function to reset a record struct to the defau
 `() => S.t<S.never>`
 
 ```rescript
-let struct: S.t<S.never> = S.never()
+let struct = S.never()
 
 %raw(`undefined`)->S.parseWith(struct)
 ```
@@ -360,7 +360,7 @@ Error("[ReScript Struct] Failed parsing at root. Reason: Expected Never, got Opt
 `S.t<'value> => S.t<string>`
 
 ```rescript
-let struct: S.t<string> = S.json(S.int())
+let struct = S.json(S.int())
 
 %raw(`123`)->S.parseWith(struct)
 ```
@@ -378,7 +378,7 @@ Ok(Some("123"))
 `(S.t<option<'value>>, 'value) => S.t<'value>`
 
 ```rescript
-let struct: S.t<string> = S.option(S.string())->S.default("a string of text")
+let struct = S.option(S.string())->S.default("a string of text")
 
 %raw(`undefined`)->S.parseWith(struct)
 ```
@@ -394,7 +394,7 @@ Ok(Some("a string of text"))
 `(~message: string=?, S.t<'value>) => S.t<option<'value>>`
 
 ```rescript
-let struct: S.t<option<string>> = S.deprecated(~message="The struct is deprecated", S.string())
+let struct = S.deprecated(~message="The struct is deprecated", S.string())
 
 %raw(`"a string of text"`)->S.parseWith(struct)
 ```
@@ -414,10 +414,10 @@ Ok(Some("a string of text"))
 `(S.t<'value>, ~constructor: 'value => result<'transformedValue, string>=?, ~destructor: 'transformedValue => result<'value, string>=?, unit) => S.t<'transformedValue>`
 
 ```rescript
-let trimmed: S.t<string> => S.t<string> = S.transform(_, ~constructor=s => s->Js.String2.trim->Ok, ~destructor=s => s->Ok, ())
+let trimmed = S.transform(_, ~constructor=s => s->Js.String2.trim->Ok, ~destructor=s => s->Ok, ())
 ```
 ```rescript
-let nonEmptyString: unit => S.t<option<string>> = () => {
+let nonEmptyString = () => {
   S.string()->S.transform(
     ~constructor=s =>
       switch s {
@@ -436,7 +436,7 @@ let nonEmptyString: unit => S.t<option<string>> = () => {
 }
 ```
 ```rescript
-let date: unit => S.t<Js.Date.t> = () => {
+let date = () => {
   S.float()->S.transform(~destructor=date => date->Js.Date.getTime->Ok, ())
 }
 ```
