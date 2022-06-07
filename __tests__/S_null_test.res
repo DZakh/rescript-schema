@@ -65,7 +65,7 @@ module MissingFieldThatMarkedAsNullable = {
 
     t->Assert.deepEqual(
       %raw(`{}`)->S.parseWith(struct),
-      Error(`[ReScript Struct] Failed parsing at ["nullableField"]. Reason: Expected String, got Option`),
+      Error(`[ReScript Struct] Failed parsing at [nullableField]. Reason: Expected String, got Option`),
       (),
     )
   })

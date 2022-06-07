@@ -2,6 +2,7 @@ open Ava
 
 module Common = {
   let value = None
+  let wrongValue = Some(%raw(`123`))
   let any = %raw(`null`)
   let wrongTypeAny = %raw(`"Hello world!"`)
   let jsonString = `null`
@@ -38,5 +39,21 @@ module Common = {
     let struct = factory()
 
     t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
+  })
+
+  test("Successfully serializes wrong value in Unsafe mode", t => {
+    let struct = factory()
+
+    t->Assert.deepEqual(wrongValue->S.serializeWith(~mode=Unsafe, struct), Ok(any), ())
+  })
+
+  test("Fails to serialize wrong value in Safe mode", t => {
+    let struct = factory()
+
+    t->Assert.deepEqual(
+      wrongValue->S.serializeWith(struct),
+      Error(`[ReScript Struct] Failed serializing at root. Reason: Expected EmptyNull Literal (null), got Float`),
+      (),
+    )
   })
 }

@@ -39,7 +39,7 @@ module RecordField = {
 
     t->Assert.deepEqual(
       %raw(`{"key":"value"}`)->S.parseWith(struct),
-      Error(`[ReScript Struct] Failed parsing at ["oldKey"]. Reason: Expected Never, got Option`),
+      Error(`[ReScript Struct] Failed parsing at [oldKey]. Reason: Expected Never, got Option`),
       (),
     )
   })

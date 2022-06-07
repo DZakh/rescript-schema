@@ -36,7 +36,7 @@ module CommonWithNested = {
 
     t->Assert.deepEqual(
       nestedWrongAny->S.parseWith(struct),
-      Error("[ReScript Struct] Failed parsing at [1]. Reason: Expected String, got Float"),
+      Error(`[ReScript Struct] Failed parsing at [1]. Reason: Expected String, got Float`),
       (),
     )
   })

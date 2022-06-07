@@ -157,7 +157,7 @@ test("Fails to parse when nested record constructor isn't provided", t => {
 
   t->Assert.deepEqual(
     any->S.parseWith(struct),
-    Error(`[ReScript Struct] Failed parsing at ["nested"]. Reason: Struct constructor is missing`),
+    Error(`[ReScript Struct] Failed parsing at [nested]. Reason: Struct constructor is missing`),
     (),
   )
 })
@@ -188,7 +188,7 @@ test("Fails to parse when user returns error in a nested record constructor", t 
 
   t->Assert.deepEqual(
     any->S.parseWith(~mode=Unsafe, struct),
-    Error(`[ReScript Struct] Failed parsing at ["nested"]. Reason: User error`),
+    Error(`[ReScript Struct] Failed parsing at [nested]. Reason: User error`),
     (),
   )
 })
@@ -301,7 +301,7 @@ test("Fails to serialize nested record when destructor isn't provided", t => {
 
   t->Assert.deepEqual(
     value->S.serializeWith(struct),
-    Error(`[ReScript Struct] Failed serializing at ["nested"]. Reason: Struct destructor is missing`),
+    Error(`[ReScript Struct] Failed serializing at [nested]. Reason: Struct destructor is missing`),
     (),
   )
 })
@@ -332,7 +332,7 @@ test("Fails to serialize when user returns error in a nested record destructor",
 
   t->Assert.deepEqual(
     value->S.serializeWith(struct),
-    Error(`[ReScript Struct] Failed serializing at ["nested"]. Reason: User error`),
+    Error(`[ReScript Struct] Failed serializing at [nested]. Reason: User error`),
     (),
   )
 })
@@ -372,7 +372,7 @@ test("Fails to parse record item when it's not present", t => {
 
   t->Assert.deepEqual(
     %raw(`{}`)->S.parseWith(struct),
-    Error(`[ReScript Struct] Failed parsing at ["FOO"]. Reason: Expected String, got Option`),
+    Error(`[ReScript Struct] Failed parsing at [FOO]. Reason: Expected String, got Option`),
     (),
   )
 })
@@ -382,7 +382,7 @@ test("Fails to parse record item when it's not valid", t => {
 
   t->Assert.deepEqual(
     %raw(`{FOO:123}`)->S.parseWith(struct),
-    Error(`[ReScript Struct] Failed parsing at ["FOO"]. Reason: Expected String, got Float`),
+    Error(`[ReScript Struct] Failed parsing at [FOO]. Reason: Expected String, got Float`),
     (),
   )
 })

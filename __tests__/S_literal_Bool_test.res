@@ -2,6 +2,7 @@ open Ava
 
 module Common = {
   let value = false
+  let wrongValue = true
   let any = %raw(`false`)
   let wrongAny = %raw(`true`)
   let wrongTypeAny = %raw(`"Hello world!"`)
@@ -18,7 +19,7 @@ module Common = {
   test("Successfully parses without validation in Unsafe mode", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(wrongAny->S.parseWith(~mode=Unsafe, struct), Ok(wrongAny), ())
+    t->Assert.deepEqual(wrongAny->S.parseWith(~mode=Unsafe, struct), Ok(any), ())
   })
 
   test("Fails to parse wrong value", t => {
@@ -47,5 +48,21 @@ module Common = {
     let struct = factory()
 
     t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
+  })
+
+  test("Successfully serializes wrong value in Unsafe mode", t => {
+    let struct = factory()
+
+    t->Assert.deepEqual(wrongValue->S.serializeWith(~mode=Unsafe, struct), Ok(any), ())
+  })
+
+  test("Fails to serialize wrong value in Safe mode", t => {
+    let struct = factory()
+
+    t->Assert.deepEqual(
+      wrongValue->S.serializeWith(struct),
+      Error(`[ReScript Struct] Failed serializing at root. Reason: Expected false, got true`),
+      (),
+    )
   })
 }

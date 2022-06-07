@@ -36,7 +36,7 @@ module CommonWithNested = {
 
     t->Assert.deepEqual(
       nestedWrongAny->S.parseWith(struct),
-      Error(`[ReScript Struct] Failed parsing at ["key2"]. Reason: Expected String, got Bool`),
+      Error(`[ReScript Struct] Failed parsing at [key2]. Reason: Expected String, got Bool`),
       (),
     )
   })

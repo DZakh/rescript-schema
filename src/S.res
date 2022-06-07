@@ -37,7 +37,7 @@ module Inline = {
         let idxRef = ref(0)
         let maybeErrorRef = ref(None)
 
-        while idxRef.contents < array->Js.Array2.length && maybeErrorRef.contents == None {
+        while idxRef.contents < array->Js.Array2.length && maybeErrorRef.contents === None {
           let idx = idxRef.contents
           let item = array->Js.Array2.unsafe_get(idx)
           switch fn(. item, idx) {
@@ -63,7 +63,7 @@ module Inline = {
         let idxRef = ref(0)
         let maybeErrorRef = ref(None)
 
-        while idxRef.contents < keys->Js.Array2.length && maybeErrorRef.contents == None {
+        while idxRef.contents < keys->Js.Array2.length && maybeErrorRef.contents === None {
           let idx = idxRef.contents
           let key = keys->Js.Array2.unsafe_get(idx)
           let item = dict->Js.Dict.unsafeGet(key)
@@ -205,7 +205,7 @@ let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   | JSSymbol(_) => "Symbol"
   }
   let expected = TaggedT.toString(structTagged)
-  RescriptStruct_Error.ParsingFailed.UnexpectedType.make(~expected, ~got)
+  RescriptStruct_Error.UnexpectedType.make(~expected, ~got)
 }
 
 // TODO: Test that it's the correct logic
@@ -227,7 +227,7 @@ let applyOperations = (
   | Unsafe => true
   | Safe => false
   }
-  while idxRef.contents < operations->Js.Array2.length && maybeErrorRef.contents == None {
+  while idxRef.contents < operations->Js.Array2.length && maybeErrorRef.contents === None {
     let operation = operations->Js.Array2.unsafe_get(idxRef.contents)
     switch operation {
     | Transform(fn) =>
@@ -317,7 +317,7 @@ module Operations = {
   module Never = {
     let constructors = [
       refinement((~input, ~struct) => {
-        Some(makeUnexpectedTypeError(~input, ~struct))
+        Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
       }),
     ]
     let destructors = []
@@ -333,7 +333,7 @@ module Operations = {
       refinement((~input, ~struct) => {
         switch input->Js.typeof === "string" {
         | true => None
-        | false => Some(makeUnexpectedTypeError(~input, ~struct))
+        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
         }
       }),
     ]
@@ -345,7 +345,7 @@ module Operations = {
       refinement((~input, ~struct) => {
         switch input->Js.typeof === "boolean" {
         | true => None
-        | false => Some(makeUnexpectedTypeError(~input, ~struct))
+        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
         }
       }),
     ]
@@ -357,7 +357,7 @@ module Operations = {
       refinement((~input, ~struct) => {
         switch input->Js.typeof === "number" {
         | true => None
-        | false => Some(makeUnexpectedTypeError(~input, ~struct))
+        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
         }
       }),
     ]
@@ -369,7 +369,7 @@ module Operations = {
       refinement((~input, ~struct) => {
         switch input->Js.typeof === "number" && checkIsIntNumber(input) {
         | true => None
-        | false => Some(makeUnexpectedTypeError(~input, ~struct))
+        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
         }
       }),
     ]
@@ -463,7 +463,7 @@ module Operations = {
         | Safe =>
           switch Js.Array2.isArray(input) {
           | true => None
-          | _ => Some(makeUnexpectedTypeError(~input, ~struct))
+          | _ => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
           }
         | Unsafe => None
         }
@@ -499,7 +499,7 @@ module Operations = {
         | Safe =>
           switch input->getInternalClass === "[object Object]" {
           | true => None
-          | _ => Some(makeUnexpectedTypeError(~input, ~struct))
+          | _ => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
           }
         | Unsafe => None
         }
@@ -551,132 +551,114 @@ module Operations = {
   }
 
   module Literal = {
+    module WithExpectedValue = {
+      module Constructors = {
+        let make = (~checkType) => {
+          [
+            transform((~input, ~struct, ~mode) => {
+              let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
+              let ok = Ok(expectedValue)
+              if mode === Safe {
+                if !checkType(. input) {
+                  Error(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+                } else if expectedValue !== input {
+                  Error(
+                    RescriptStruct_Error.UnexpectedValue.make(
+                      ~expectedValue,
+                      ~gotValue=input,
+                      ~operation=Parsing,
+                    ),
+                  )
+                } else {
+                  ok
+                }
+              } else {
+                ok
+              }
+            }),
+          ]
+        }
+      }
+      let destructors = [
+        transform((~input, ~struct, ~mode) => {
+          let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
+          if mode === Safe && expectedValue !== input {
+            Error(
+              RescriptStruct_Error.UnexpectedValue.make(
+                ~expectedValue,
+                ~gotValue=input,
+                ~operation=Serializing,
+              ),
+            )
+          } else {
+            Ok(expectedValue)
+          }
+        }),
+      ]
+    }
+
     module EmptyNull = {
       let constructors = [
         transform((~input, ~struct, ~mode) => {
-          switch mode {
-          | Safe =>
-            switch input === Js.Null.empty {
-            | true => Ok(None)
-            | _ => Error(makeUnexpectedTypeError(~input, ~struct))
-            }
-          | Unsafe => Ok(None)
+          if mode === Safe && input !== Js.Null.empty {
+            Error(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+          } else {
+            Ok(None)
           }
         }),
       ]
       let destructors = [
-        transform((~input as _, ~struct as _, ~mode as _) => {
-          Ok(Js.Null.empty)
+        transform((~input, ~struct, ~mode) => {
+          if mode === Safe && input !== None {
+            Error(makeUnexpectedTypeError(~input, ~struct, ~operation=Serializing))
+          } else {
+            Ok(Js.Null.empty)
+          }
         }),
       ]
     }
 
     module EmptyOption = {
-      let constructors = [
-        refinement((~input, ~struct) => {
-          switch input === Js.Undefined.empty {
-          | true => None
-          | false => Some(makeUnexpectedTypeError(~input, ~struct))
+      let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
+        input === Js.Undefined.empty
+      )
+      let destructors = [
+        transform((~input, ~struct, ~mode) => {
+          if mode === Safe && input !== None {
+            Error(makeUnexpectedTypeError(~input, ~struct, ~operation=Serializing))
+          } else {
+            Ok(Js.Undefined.empty)
           }
         }),
       ]
-      let destructors = []
     }
 
     module Bool = {
-      let constructors = [
-        refinement((~input, ~struct) => {
-          switch input->Js.typeof === "boolean" {
-          | true => {
-              let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
-              if expectedValue === input {
-                None
-              } else {
-                Some(
-                  RescriptStruct_Error.ParsingFailed.UnexpectedValue.make(
-                    ~expectedValue,
-                    ~gotValue=input,
-                  ),
-                )
-              }
-            }
-          | false => Some(makeUnexpectedTypeError(~input, ~struct))
-          }
-        }),
-      ]
-      let destructors = []
+      let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
+        input->Js.typeof === "boolean"
+      )
+      let destructors = WithExpectedValue.destructors
     }
 
     module String = {
-      let constructors = [
-        refinement((~input, ~struct) => {
-          switch input->Js.typeof === "string" {
-          | true => {
-              let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
-              if expectedValue === input {
-                None
-              } else {
-                Some(
-                  RescriptStruct_Error.ParsingFailed.UnexpectedValue.make(
-                    ~expectedValue,
-                    ~gotValue=input,
-                  ),
-                )
-              }
-            }
-          | false => Some(makeUnexpectedTypeError(~input, ~struct))
-          }
-        }),
-      ]
-      let destructors = []
+      let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
+        input->Js.typeof === "string"
+      )
+      let destructors = WithExpectedValue.destructors
     }
 
     module Float = {
-      let constructors = [
-        refinement((~input, ~struct) => {
-          switch input->Js.typeof === "number" {
-          | true => {
-              let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
-              if expectedValue === input {
-                None
-              } else {
-                Some(
-                  RescriptStruct_Error.ParsingFailed.UnexpectedValue.make(
-                    ~expectedValue,
-                    ~gotValue=input,
-                  ),
-                )
-              }
-            }
-          | false => Some(makeUnexpectedTypeError(~input, ~struct))
-          }
-        }),
-      ]
-      let destructors = []
+      let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
+        input->Js.typeof === "number"
+      )
+      let destructors = WithExpectedValue.destructors
     }
 
     module Int = {
-      let constructors = [
-        refinement((~input, ~struct) => {
-          switch input->Js.typeof === "number" && checkIsIntNumber(input) {
-          | true => {
-              let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
-              if expectedValue === input {
-                None
-              } else {
-                Some(
-                  RescriptStruct_Error.ParsingFailed.UnexpectedValue.make(
-                    ~expectedValue,
-                    ~gotValue=input,
-                  ),
-                )
-              }
-            }
-          | false => Some(makeUnexpectedTypeError(~input, ~struct))
-          }
-        }),
-      ]
-      let destructors = []
+      let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
+        input->Js.typeof === "number" && checkIsIntNumber(input)
+      )
+      let destructors = WithExpectedValue.destructors
     }
   }
 }
@@ -708,7 +690,7 @@ module Record = {
           | Safe =>
             switch input->getInternalClass === "[object Object]" {
             | true => None
-            | _ => Some(makeUnexpectedTypeError(~input, ~struct))
+            | _ => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
             }
           | Unsafe => None
           }
@@ -721,7 +703,7 @@ module Record = {
               let idxRef = ref(0)
               let maybeErrorRef = ref(None)
               while (
-                idxRef.contents < fieldNames->Js.Array2.length && maybeErrorRef.contents == None
+                idxRef.contents < fieldNames->Js.Array2.length && maybeErrorRef.contents === None
               ) {
                 let idx = idxRef.contents
                 let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
@@ -749,7 +731,7 @@ module Record = {
               fieldValuesResult->Inline.Result.flatMap(_ => {
                 switch getMaybeExcessKey(. input, fields) {
                 | Some(excessKey) =>
-                  Error(RescriptStruct_Error.ParsingFailed.ExcessField.make(~fieldName=excessKey))
+                  Error(RescriptStruct_Error.ExcessField.make(~fieldName=excessKey))
                 | None => fieldValuesResult
                 }
               })
@@ -760,7 +742,7 @@ module Record = {
                   ? fieldValues->Js.Array2.unsafe_get(0)->unsafeAnyToUnknown->unsafeUnknownToAny
                   : fieldValues->unsafeAnyToUnknown->unsafeUnknownToAny
               recordConstructor(fieldValuesTuple)->Inline.Result.mapError(
-                RescriptStruct_Error.ParsingOperationFailed.make,
+                RescriptStruct_Error.ParsingFailed.make,
               )
             })
           | Some(error) => Error(error)
@@ -776,7 +758,7 @@ module Record = {
         Operations.transform((~input, ~struct, ~mode) => {
           let {fields, fieldNames} = struct->classify->unsafeAnyToUnknown->unsafeUnknownToAny
           recordDestructor(input)
-          ->Inline.Result.mapError(RescriptStruct_Error.SerializingOperationFailed.make)
+          ->Inline.Result.mapError(RescriptStruct_Error.SerializingFailed.make)
           ->Inline.Result.flatMap(fieldValuesTuple => {
             let unknown = Js.Dict.empty()
             let fieldValues =
@@ -1085,9 +1067,7 @@ let refine = (
       constructors
       ->Js.Array2.concat([
         Operations.refinement((~input, ~struct as _) => {
-          constructorRefine(input)->Inline.Option.map(
-            RescriptStruct_Error.ParsingOperationFailed.make,
-          )
+          constructorRefine(input)->Inline.Option.map(RescriptStruct_Error.ParsingFailed.make)
         }),
       ])
       ->Some
@@ -1097,9 +1077,7 @@ let refine = (
     | (Some(destructors), Some(destructorRefine)) =>
       [
         Operations.refinement((~input, ~struct as _) => {
-          destructorRefine(input)->Inline.Option.map(
-            RescriptStruct_Error.SerializingOperationFailed.make,
-          )
+          destructorRefine(input)->Inline.Option.map(RescriptStruct_Error.SerializingFailed.make)
         }),
       ]
       ->Js.Array2.concat(destructors)
@@ -1127,7 +1105,7 @@ let transform = (
       ->Js.Array2.concat([
         Operations.transform((~input, ~struct as _, ~mode as _) => {
           transformationConstructor(input)->Inline.Result.mapError(
-            RescriptStruct_Error.ParsingOperationFailed.make,
+            RescriptStruct_Error.ParsingFailed.make,
           )
         }),
       ])
@@ -1139,7 +1117,7 @@ let transform = (
       [
         Operations.transform((~input, ~struct as _, ~mode as _) => {
           transformationDestructor(input)->Inline.Result.mapError(
-            RescriptStruct_Error.SerializingOperationFailed.make,
+            RescriptStruct_Error.SerializingFailed.make,
           )
         }),
       ]

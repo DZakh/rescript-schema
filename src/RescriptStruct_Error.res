@@ -1,7 +1,3 @@
-type locationComponent = Field(string) | Index(int)
-
-type location = array<locationComponent>
-
 %%raw(`class RescriptStructError extends Error {
   constructor(message) {
     super(message);
@@ -12,10 +8,10 @@ let raiseRescriptStructError = %raw(`function(message){
   throw new RescriptStructError(message);
 }`)
 
-type rec t = {kind: kind, mutable location: location}
-and kind =
-  | SerializingFailed(string)
-  | ParsingFailed(string)
+type rec t = {operation: operation, reason: string, path: array<string>}
+and operation =
+  | Serializing
+  | Parsing
 
 module MissingRecordConstructorAndDestructor = {
   let raise = () =>
@@ -41,91 +37,83 @@ module UnknownKeysRequireRecord = {
     raiseRescriptStructError("Can't set up unknown keys strategy. The struct is not Record")
 }
 
+module ParsingFailed = {
+  let make = reason => {
+    {operation: Parsing, reason: reason, path: []}
+  }
+}
+
+module SerializingFailed = {
+  let make = reason => {
+    {operation: Serializing, reason: reason, path: []}
+  }
+}
+
 module MissingConstructor = {
   let make = () => {
-    {kind: ParsingFailed("Struct constructor is missing"), location: []}
+    {operation: Parsing, reason: "Struct constructor is missing", path: []}
   }
 }
 
 module MissingDestructor = {
   let make = () => {
-    {kind: SerializingFailed("Struct destructor is missing"), location: []}
+    {operation: Serializing, reason: "Struct destructor is missing", path: []}
   }
 }
 
-module ParsingOperationFailed = {
-  let make = reason => {
-    {kind: ParsingFailed(reason), location: []}
+module UnexpectedType = {
+  let make = (~expected, ~got, ~operation) => {
+    {operation: operation, reason: `Expected ${expected}, got ${got}`, path: []}
   }
 }
 
-module SerializingOperationFailed = {
-  let make = reason => {
-    {kind: SerializingFailed(reason), location: []}
-  }
-}
-
-module ParsingFailed = {
-  let make = reason => {
-    {kind: ParsingFailed(reason), location: []}
-  }
-
-  module UnexpectedType = {
-    let make = (~expected, ~got) => {
-      make(`Expected ${expected}, got ${got}`)
+module UnexpectedValue = {
+  let make = (~expectedValue, ~gotValue, ~operation) => {
+    let reason = if expectedValue->Js.typeof === "string" {
+      j`Expected "$expectedValue", got "$gotValue"`
+    } else {
+      j`Expected $expectedValue, got $gotValue`
     }
+    {operation: operation, reason: reason, path: []}
   }
+}
 
-  module UnexpectedValue = {
-    let make = (~expectedValue, ~gotValue) => {
-      if expectedValue->Js.typeof === "string" {
-        make(j`Expected "$expectedValue", got "$gotValue"`)
-      } else {
-        make(j`Expected $expectedValue, got $gotValue`)
-      }
-    }
-  }
-
-  module ExcessField = {
-    let make = (~fieldName) => {
-      make(
-        `Encountered disallowed excess key "${fieldName}" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`,
-      )
+module ExcessField = {
+  let make = (~fieldName) => {
+    {
+      operation: Parsing,
+      reason: `Encountered disallowed excess key "${fieldName}" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`,
+      path: [],
     }
   }
 }
 
-let formatLocation = location => {
-  if location->Js.Array2.length === 0 {
+let formatPath = path => {
+  if path->Js.Array2.length === 0 {
     "root"
   } else {
-    location
-    ->Js.Array2.map(s =>
-      switch s {
-      | Field(field) => `["` ++ field ++ `"]`
-      | Index(index) => `[` ++ index->Js.Int.toString ++ `]`
-      }
-    )
-    ->Js.Array2.joinWith("")
+    path->Js.Array2.map(pathItem => `[${pathItem}]`)->Js.Array2.joinWith("")
   }
 }
 
 let prependField = (error, field) => {
-  error.location = [Field(field)]->Js.Array2.concat(error.location)
-  error
+  {
+    operation: error.operation,
+    reason: error.reason,
+    path: [field]->Js.Array2.concat(error.path),
+  }
 }
 
 let prependIndex = (error, index) => {
-  error.location = [Index(index)]->Js.Array2.concat(error.location)
-  error
+  error->prependField(index->Js.Int.toString)
 }
 
 let toString = error => {
-  let locationText = error.location->formatLocation
-  switch error.kind {
-  | SerializingFailed(reason) =>
-    `[ReScript Struct] Failed serializing at ${locationText}. Reason: ${reason}`
-  | ParsingFailed(reason) =>
-    `[ReScript Struct] Failed parsing at ${locationText}. Reason: ${reason}`
+  let prefix = `[ReScript Struct]`
+  let operation = switch error.operation {
+  | Serializing => "serializing"
+  | Parsing => "parsing"
   }
+  let pathText = error.path->formatPath
+  `${prefix} Failed ${operation} at ${pathText}. Reason: ${error.reason}`
 }

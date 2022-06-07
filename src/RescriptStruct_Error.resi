@@ -1,4 +1,7 @@
 type t
+type operation =
+  | Serializing
+  | Parsing
 
 module MissingRecordConstructorAndDestructor: {
   let raise: unit => 'a
@@ -24,28 +27,24 @@ module MissingDestructor: {
   let make: unit => t
 }
 
-module ParsingOperationFailed: {
-  let make: string => t
-}
-
-module SerializingOperationFailed: {
-  let make: string => t
-}
-
 module ParsingFailed: {
   let make: string => t
+}
 
-  module UnexpectedType: {
-    let make: (~expected: string, ~got: string) => t
-  }
+module SerializingFailed: {
+  let make: string => t
+}
 
-  module UnexpectedValue: {
-    let make: (~expectedValue: 'value, ~gotValue: 'value) => t
-  }
+module UnexpectedType: {
+  let make: (~expected: string, ~got: string, ~operation: operation) => t
+}
 
-  module ExcessField: {
-    let make: (~fieldName: string) => t
-  }
+module UnexpectedValue: {
+  let make: (~expectedValue: 'value, ~gotValue: 'value, ~operation: operation) => t
+}
+
+module ExcessField: {
+  let make: (~fieldName: string) => t
 }
 
 let prependField: (t, string) => t
