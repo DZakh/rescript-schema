@@ -50,7 +50,7 @@ let option: t<'value> => t<option<'value>>
 let null: t<'value> => t<option<'value>>
 let deprecated: (~message: string=?, t<'value>) => t<option<'value>>
 let default: (t<option<'value>>, 'value) => t<'value>
-let json: t<'value> => t<string>
+let json: t<'value> => t<'value>
 
 let record1: (
   ~fields: field<'v1>,

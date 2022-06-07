@@ -574,7 +574,7 @@ module Operations = {
     module EmptyOption = {
       let constructors = [
         refinement((~input, ~struct) => {
-          switch input === %raw(`undefined`) {
+          switch input === Js.Undefined.empty {
           | true => None
           | false => Some(makeUnexpectedTypeError(~input, ~struct))
           }

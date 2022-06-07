@@ -357,7 +357,7 @@ Error("[ReScript Struct] Failed parsing at root. Reason: Expected Never, got Opt
 
 #### **`S.json`**
 
-`S.t<'value> => S.t<string>`
+`S.t<'value> => S.t<'value>`
 
 ```rescript
 let struct = S.json(S.int())

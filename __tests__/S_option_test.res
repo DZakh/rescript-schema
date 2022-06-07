@@ -62,5 +62,3 @@ test("Fails to parse JS undefined when struct doesn't allow optional data", t =>
     (),
   )
 })
-
-todo("Fails to serialize undefined to JSON string")
