@@ -152,6 +152,13 @@ external unsafeAnyToUnknown: 'any => unknown = "%identity"
 external unsafeUnknownToAny: unknown => 'any = "%identity"
 external unsafeAnyToFields: 'any => array<field<unknown>> = "%identity"
 
+type payloadedVariant<'payload> = {_0: 'payload}
+@inline
+let unsafeGetVariantPayload: tagged_t => 'payload = v =>
+  (v->unsafeAnyToUnknown->unsafeUnknownToAny)._0
+
+@val external getInternalClass: 'a => string = "Object.prototype.toString.call"
+
 @inline
 let classify = struct => struct.tagged_t
 
@@ -184,7 +191,9 @@ module TaggedT = {
   }
 }
 
-let makeUnexpectedTypeError = (~typesTagged: Js.Types.tagged_t, ~structTagged: tagged_t) => {
+let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
+  let typesTagged = input->Js.Types.classify
+  let structTagged = struct->classify
   let got = switch typesTagged {
   | JSFalse | JSTrue => "Bool"
   | JSString(_) => "String"
@@ -200,8 +209,10 @@ let makeUnexpectedTypeError = (~typesTagged: Js.Types.tagged_t, ~structTagged: t
 }
 
 // TODO: Test that it's the correct logic
-// TODO: Handle NaN
-let checkIsIntNumber = x => x === x->Js.Math.trunc && x < 2147483648. && x > -2147483648.
+// TODO: Write tests for NaN
+// TODO: Handle NaN for float
+@inline
+let checkIsIntNumber = x => x < 2147483648. && x > -2147483649. && x === x->Js.Math.trunc
 
 let applyOperations = (
   ~operations: array<operation>,
@@ -216,7 +227,6 @@ let applyOperations = (
   | Unsafe => true
   | Safe => false
   }
-
   while idxRef.contents < operations->Js.Array2.length && maybeErrorRef.contents == None {
     let operation = operations->Js.Array2.unsafe_get(idxRef.contents)
     switch operation {
@@ -239,7 +249,6 @@ let applyOperations = (
       }
     }
   }
-
   switch maybeErrorRef.contents {
   | Some(error) => Error(error)
   | None => Ok(valueRef.contents)
@@ -308,8 +317,7 @@ module Operations = {
   module Never = {
     let constructors = [
       refinement((~input, ~struct) => {
-        let typesTagged = input->Js.Types.classify
-        Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
+        Some(makeUnexpectedTypeError(~input, ~struct))
       }),
     ]
     let destructors = []
@@ -323,10 +331,9 @@ module Operations = {
   module String = {
     let constructors = [
       refinement((~input, ~struct) => {
-        let typesTagged = input->Js.Types.classify
-        switch typesTagged {
-        | JSString(_) => None
-        | _ => Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
+        switch input->Js.typeof === "string" {
+        | true => None
+        | false => Some(makeUnexpectedTypeError(~input, ~struct))
         }
       }),
     ]
@@ -336,12 +343,9 @@ module Operations = {
   module Bool = {
     let constructors = [
       refinement((~input, ~struct) => {
-        let typesTagged = input->Js.Types.classify
-        switch typesTagged {
-        | JSTrue
-        | JSFalse =>
-          None
-        | _ => Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
+        switch input->Js.typeof === "boolean" {
+        | true => None
+        | false => Some(makeUnexpectedTypeError(~input, ~struct))
         }
       }),
     ]
@@ -351,10 +355,9 @@ module Operations = {
   module Float = {
     let constructors = [
       refinement((~input, ~struct) => {
-        let typesTagged = input->Js.Types.classify
-        switch typesTagged {
-        | JSNumber(_) => None
-        | _ => Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
+        switch input->Js.typeof === "number" {
+        | true => None
+        | false => Some(makeUnexpectedTypeError(~input, ~struct))
         }
       }),
     ]
@@ -364,10 +367,9 @@ module Operations = {
   module Int = {
     let constructors = [
       refinement((~input, ~struct) => {
-        let typesTagged = input->Js.Types.classify
-        switch typesTagged {
-        | JSNumber(x) if checkIsIntNumber(x) => None
-        | _ => Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
+        switch input->Js.typeof === "number" && checkIsIntNumber(input) {
+        | true => None
+        | false => Some(makeUnexpectedTypeError(~input, ~struct))
         }
       }),
     ]
@@ -375,22 +377,16 @@ module Operations = {
   }
 
   module Null = {
-    @inline
-    let unsafeGetInnerStruct = struct => {
-      switch struct->classify {
-      | Null(innerStruct) => innerStruct->unsafeAnyToUnknown->unsafeUnknownToAny
-      | _ => ()->unsafeAnyToUnknown->unsafeUnknownToAny
-      }
-    }
-
     let constructors = [
       transform((~input, ~struct, ~mode) => {
         switch input->Js.Null.toOption {
         | Some(innerValue) =>
-          let innerStruct = unsafeGetInnerStruct(struct)
-          parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.map(value => Some(
-            value,
-          ))
+          let innerStruct = struct->classify->unsafeGetVariantPayload
+          parseInner(
+            ~struct=innerStruct->unsafeAnyToUnknown->unsafeUnknownToAny,
+            ~any=innerValue,
+            ~mode,
+          )->Inline.Result.map(value => Some(value))
         | None => Ok(None)
         }
       }),
@@ -398,10 +394,9 @@ module Operations = {
     let destructors = [
       transform((~input, ~struct, ~mode) => {
         switch input {
-        | Some(value) => {
-            let innerStruct = unsafeGetInnerStruct(struct)
-            serializeInner(~struct=innerStruct, ~value, ~mode)
-          }
+        | Some(value) =>
+          let innerStruct = struct->classify->unsafeGetVariantPayload
+          serializeInner(~struct=innerStruct->unsafeAnyToUnknown->unsafeUnknownToAny, ~value, ~mode)
         | None => Js.Null.empty->unsafeAnyToUnknown->Ok
         }
       }),
@@ -409,20 +404,11 @@ module Operations = {
   }
 
   module Option = {
-    @inline
-    let unsafeGetInnerStruct = struct => {
-      switch struct->classify {
-      | Option(innerStruct) => innerStruct->unsafeAnyToUnknown->unsafeUnknownToAny
-      | Deprecated({struct: innerStruct}) => innerStruct->unsafeAnyToUnknown->unsafeUnknownToAny
-      | _ => ()->unsafeAnyToUnknown->unsafeUnknownToAny
-      }
-    }
-
     let constructors = [
       transform((~input, ~struct, ~mode) => {
         switch input {
         | Some(innerValue) =>
-          let innerStruct = unsafeGetInnerStruct(struct)
+          let innerStruct = struct->classify->unsafeGetVariantPayload
           parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.map(value => Some(
             value,
           ))
@@ -434,7 +420,34 @@ module Operations = {
       transform((~input, ~struct, ~mode) => {
         switch input {
         | Some(value) => {
-            let innerStruct = unsafeGetInnerStruct(struct)
+            let innerStruct = struct->classify->unsafeGetVariantPayload
+            serializeInner(~struct=innerStruct, ~value, ~mode)
+          }
+        | None => Ok(None->unsafeAnyToUnknown)
+        }
+      }),
+    ]
+  }
+
+  module Deprecated = {
+    type payload<'value> = {struct: t<'value>}
+    let constructors = [
+      transform((~input, ~struct, ~mode) => {
+        switch input {
+        | Some(innerValue) =>
+          let {struct: innerStruct} = struct->classify->unsafeAnyToUnknown->unsafeUnknownToAny
+          parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.map(value => Some(
+            value,
+          ))
+        | None => Ok(None)
+        }
+      }),
+    ]
+    let destructors = [
+      transform((~input, ~struct, ~mode) => {
+        switch input {
+        | Some(value) => {
+            let {struct: innerStruct} = struct->classify->unsafeAnyToUnknown->unsafeUnknownToAny
             serializeInner(~struct=innerStruct, ~value, ~mode)
           }
         | None => Ok(None->unsafeAnyToUnknown)
@@ -444,34 +457,32 @@ module Operations = {
   }
 
   module Array = {
-    @inline
-    let unsafeGetInnerStruct = struct => {
-      switch struct->classify {
-      | Array(innerStruct) => innerStruct->unsafeAnyToUnknown->unsafeUnknownToAny
-      | _ => ()->unsafeAnyToUnknown->unsafeUnknownToAny
-      }
-    }
-
     let constructors = [
-      refinement((~input, ~struct) => {
-        let typesTagged = input->Js.Types.classify
-        switch typesTagged {
-        | JSObject(obj_val) if Js.Array2.isArray(obj_val) => None
-        | _ => Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
-        }
-      }),
       transform((~input, ~struct, ~mode) => {
-        let innerStruct = unsafeGetInnerStruct(struct)
-        input->Inline.Result.Array.mapi((. innerValue, idx) => {
-          parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.mapError(
-            RescriptStruct_Error.prependIndex(_, idx),
-          )
-        })
+        let maybeRefinementError = switch mode {
+        | Safe =>
+          switch Js.Array2.isArray(input) {
+          | true => None
+          | _ => Some(makeUnexpectedTypeError(~input, ~struct))
+          }
+        | Unsafe => None
+        }
+        switch maybeRefinementError {
+        | None => {
+            let innerStruct = struct->classify->unsafeGetVariantPayload
+            input->Inline.Result.Array.mapi((. innerValue, idx) => {
+              parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.mapError(
+                RescriptStruct_Error.prependIndex(_, idx),
+              )
+            })
+          }
+        | Some(error) => Error(error)
+        }
       }),
     ]
     let destructors = [
       transform((~input, ~struct, ~mode) => {
-        let innerStruct = unsafeGetInnerStruct(struct)
+        let innerStruct = struct->classify->unsafeGetVariantPayload
         input->Inline.Result.Array.mapi((. innerValue, idx) => {
           serializeInner(~struct=innerStruct, ~value=innerValue, ~mode)->Inline.Result.mapError(
             RescriptStruct_Error.prependIndex(_, idx),
@@ -482,34 +493,32 @@ module Operations = {
   }
 
   module Dict = {
-    @inline
-    let unsafeGetInnerStruct = struct => {
-      switch struct->classify {
-      | Dict(innerStruct) => innerStruct->unsafeAnyToUnknown->unsafeUnknownToAny
-      | _ => ()->unsafeAnyToUnknown->unsafeUnknownToAny
-      }
-    }
-
     let constructors = [
-      refinement((~input, ~struct) => {
-        let typesTagged = input->Js.Types.classify
-        switch typesTagged {
-        | JSObject(obj_val) if !Js.Array2.isArray(obj_val) => None
-        | _ => Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
-        }
-      }),
       transform((~input, ~struct, ~mode) => {
-        let innerStruct = unsafeGetInnerStruct(struct)
-        input->Inline.Result.Dict.map((. innerValue, key) => {
-          parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.mapError(
-            RescriptStruct_Error.prependField(_, key),
-          )
-        })
+        let maybeRefinementError = switch mode {
+        | Safe =>
+          switch input->getInternalClass === "[object Object]" {
+          | true => None
+          | _ => Some(makeUnexpectedTypeError(~input, ~struct))
+          }
+        | Unsafe => None
+        }
+        switch maybeRefinementError {
+        | None => {
+            let innerStruct = struct->classify->unsafeGetVariantPayload
+            input->Inline.Result.Dict.map((. innerValue, key) => {
+              parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.mapError(
+                RescriptStruct_Error.prependField(_, key),
+              )
+            })
+          }
+        | Some(error) => Error(error)
+        }
       }),
     ]
     let destructors = [
       transform((~input, ~struct, ~mode) => {
-        let innerStruct = unsafeGetInnerStruct(struct)
+        let innerStruct = struct->classify->unsafeGetVariantPayload
         input->Inline.Result.Dict.map((. innerValue, key) => {
           serializeInner(~struct=innerStruct, ~value=innerValue, ~mode)->Inline.Result.mapError(
             RescriptStruct_Error.prependField(_, key),
@@ -520,36 +529,22 @@ module Operations = {
   }
 
   module Default = {
-    @inline
-    let unsafeGetInnerStruct = struct => {
-      switch struct->classify {
-      | Default({struct}) => struct->unsafeAnyToUnknown->unsafeUnknownToAny
-      | _ => ()->unsafeAnyToUnknown->unsafeUnknownToAny
-      }
-    }
-
-    @inline
-    let unsafeGetDefaultValue = struct => {
-      switch struct->classify {
-      | Default({value}) => value->unsafeAnyToUnknown->unsafeUnknownToAny
-      | _ => ()->unsafeAnyToUnknown->unsafeUnknownToAny
-      }
-    }
+    type payload<'value> = {struct: t<option<'value>>, value: 'value}
 
     let constructors = [
       transform((~input, ~struct, ~mode) => {
-        let innerStruct = unsafeGetInnerStruct(struct)
+        let {struct: innerStruct, value} = struct->classify->unsafeAnyToUnknown->unsafeUnknownToAny
         parseInner(~struct=innerStruct, ~any=input, ~mode)->Inline.Result.map(maybeOutput => {
           switch maybeOutput {
           | Some(output) => output
-          | None => unsafeGetDefaultValue(struct)
+          | None => value
           }
         })
       }),
     ]
     let destructors = [
       transform((~input, ~struct, ~mode) => {
-        let innerStruct = unsafeGetInnerStruct(struct)
+        let {struct: innerStruct} = struct->classify->unsafeAnyToUnknown->unsafeUnknownToAny
         serializeInner(~struct=innerStruct, ~value=Some(input), ~mode)
       }),
     ]
@@ -558,20 +553,20 @@ module Operations = {
   module Literal = {
     module EmptyNull = {
       let constructors = [
-        refinement((~input, ~struct) => {
-          let typesTagged = input->Js.Types.classify
-          switch typesTagged {
-          | JSNull => None
-          | _ => Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
+        transform((~input, ~struct, ~mode) => {
+          switch mode {
+          | Safe =>
+            switch input === Js.Null.empty {
+            | true => Ok(None)
+            | _ => Error(makeUnexpectedTypeError(~input, ~struct))
+            }
+          | Unsafe => Ok(None)
           }
-        }),
-        transform((~input as _, ~struct as _, ~mode as _) => {
-          Ok(None)
         }),
       ]
       let destructors = [
         transform((~input as _, ~struct as _, ~mode as _) => {
-          Ok(%raw(`null`))
+          Ok(Js.Null.empty)
         }),
       ]
     }
@@ -579,10 +574,9 @@ module Operations = {
     module EmptyOption = {
       let constructors = [
         refinement((~input, ~struct) => {
-          let typesTagged = input->Js.Types.classify
-          switch typesTagged {
-          | JSUndefined => None
-          | _ => Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
+          switch input === %raw(`undefined`) {
+          | true => None
+          | false => Some(makeUnexpectedTypeError(~input, ~struct))
           }
         }),
       ]
@@ -590,36 +584,23 @@ module Operations = {
     }
 
     module Bool = {
-      @inline
-      let unsafeGetLiteralValue = struct => {
-        switch struct->classify {
-        | Literal(Bool(value)) => value->unsafeAnyToUnknown->unsafeUnknownToAny
-        | _ => ()->unsafeAnyToUnknown->unsafeUnknownToAny
-        }
-      }
-
       let constructors = [
         refinement((~input, ~struct) => {
-          let typesTagged = input->Js.Types.classify
-          let expectedValue = unsafeGetLiteralValue(struct)
-          switch (typesTagged, expectedValue) {
-          | (JSFalse, false) => None
-          | (JSTrue, true) => None
-          | (JSFalse, true) =>
-            Some(
-              RescriptStruct_Error.ParsingFailed.UnexpectedValue.make(
-                ~expectedValue,
-                ~gotValue=false,
-              ),
-            )
-          | (JSTrue, false) =>
-            Some(
-              RescriptStruct_Error.ParsingFailed.UnexpectedValue.make(
-                ~expectedValue,
-                ~gotValue=true,
-              ),
-            )
-          | (_, _) => Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
+          switch input->Js.typeof === "boolean" {
+          | true => {
+              let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
+              if expectedValue === input {
+                None
+              } else {
+                Some(
+                  RescriptStruct_Error.ParsingFailed.UnexpectedValue.make(
+                    ~expectedValue,
+                    ~gotValue=input,
+                  ),
+                )
+              }
+            }
+          | false => Some(makeUnexpectedTypeError(~input, ~struct))
           }
         }),
       ]
@@ -627,28 +608,23 @@ module Operations = {
     }
 
     module String = {
-      @inline
-      let unsafeGetLiteralValue = struct => {
-        switch struct->classify {
-        | Literal(String(value)) => value->unsafeAnyToUnknown->unsafeUnknownToAny
-        | _ => ()->unsafeAnyToUnknown->unsafeUnknownToAny
-        }
-      }
-
       let constructors = [
         refinement((~input, ~struct) => {
-          let typesTagged = input->Js.Types.classify
-          let expectedValue = unsafeGetLiteralValue(struct)
-          switch typesTagged {
-          | JSString(gotValue) =>
-            switch gotValue === expectedValue {
-            | true => None
-            | false =>
-              Some(
-                RescriptStruct_Error.ParsingFailed.UnexpectedValue.make(~expectedValue, ~gotValue),
-              )
+          switch input->Js.typeof === "string" {
+          | true => {
+              let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
+              if expectedValue === input {
+                None
+              } else {
+                Some(
+                  RescriptStruct_Error.ParsingFailed.UnexpectedValue.make(
+                    ~expectedValue,
+                    ~gotValue=input,
+                  ),
+                )
+              }
             }
-          | _ => Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
+          | false => Some(makeUnexpectedTypeError(~input, ~struct))
           }
         }),
       ]
@@ -656,28 +632,23 @@ module Operations = {
     }
 
     module Float = {
-      @inline
-      let unsafeGetLiteralValue = struct => {
-        switch struct->classify {
-        | Literal(Float(value)) => value->unsafeAnyToUnknown->unsafeUnknownToAny
-        | _ => ()->unsafeAnyToUnknown->unsafeUnknownToAny
-        }
-      }
-
       let constructors = [
         refinement((~input, ~struct) => {
-          let typesTagged = input->Js.Types.classify
-          let expectedValue = unsafeGetLiteralValue(struct)
-          switch typesTagged {
-          | JSNumber(gotValue) =>
-            switch gotValue === expectedValue {
-            | true => None
-            | false =>
-              Some(
-                RescriptStruct_Error.ParsingFailed.UnexpectedValue.make(~expectedValue, ~gotValue),
-              )
+          switch input->Js.typeof === "number" {
+          | true => {
+              let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
+              if expectedValue === input {
+                None
+              } else {
+                Some(
+                  RescriptStruct_Error.ParsingFailed.UnexpectedValue.make(
+                    ~expectedValue,
+                    ~gotValue=input,
+                  ),
+                )
+              }
             }
-          | _ => Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
+          | false => Some(makeUnexpectedTypeError(~input, ~struct))
           }
         }),
       ]
@@ -685,28 +656,23 @@ module Operations = {
     }
 
     module Int = {
-      @inline
-      let unsafeGetLiteralValue = struct => {
-        switch struct->classify {
-        | Literal(Int(value)) => value->unsafeAnyToUnknown->unsafeUnknownToAny
-        | _ => ()->unsafeAnyToUnknown->unsafeUnknownToAny
-        }
-      }
-
       let constructors = [
         refinement((~input, ~struct) => {
-          let typesTagged = input->Js.Types.classify
-          let expectedValue = unsafeGetLiteralValue(struct)
-          switch typesTagged {
-          | JSNumber(gotValue) if checkIsIntNumber(gotValue) =>
-            switch gotValue === expectedValue {
-            | true => None
-            | false =>
-              Some(
-                RescriptStruct_Error.ParsingFailed.UnexpectedValue.make(~expectedValue, ~gotValue),
-              )
+          switch input->Js.typeof === "number" && checkIsIntNumber(input) {
+          | true => {
+              let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
+              if expectedValue === input {
+                None
+              } else {
+                Some(
+                  RescriptStruct_Error.ParsingFailed.UnexpectedValue.make(
+                    ~expectedValue,
+                    ~gotValue=input,
+                  ),
+                )
+              }
             }
-          | _ => Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
+          | false => Some(makeUnexpectedTypeError(~input, ~struct))
           }
         }),
       ]
@@ -716,6 +682,12 @@ module Operations = {
 }
 
 module Record = {
+  type payload = {
+    fields: Js.Dict.t<t<unknown>>,
+    fieldNames: array<string>,
+    unknownKeys: recordUnknownKeys,
+  }
+
   let getMaybeExcessKey: (
     . Js.Dict.t<unknown>,
     Js.Dict.t<t<unknown>>,
@@ -733,74 +705,64 @@ module Record = {
       [
         Operations.transform((~input, ~struct, ~mode) => {
           let maybeRefinementError = switch mode {
-          | Safe => {
-              let typesTagged = input->Js.Types.classify
-              switch typesTagged {
-              | JSObject(obj_val) if !Js.Array2.isArray(obj_val) => None
-              | _ => Some(makeUnexpectedTypeError(~typesTagged, ~structTagged=struct->classify))
-              }
+          | Safe =>
+            switch input->getInternalClass === "[object Object]" {
+            | true => None
+            | _ => Some(makeUnexpectedTypeError(~input, ~struct))
             }
           | Unsafe => None
           }
           switch maybeRefinementError {
           | None =>
-            switch struct->classify {
-            | Record({fields, fieldNames, unknownKeys}) => {
-                let fieldValuesResult = {
-                  let newArray = []
-                  let idxRef = ref(0)
-                  let maybeErrorRef = ref(None)
-                  while (
-                    idxRef.contents < fieldNames->Js.Array2.length && maybeErrorRef.contents == None
-                  ) {
-                    let idx = idxRef.contents
-                    let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-                    let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-                    switch parseInner(
-                      ~struct=fieldStruct,
-                      ~any=input->Js.Dict.unsafeGet(fieldName),
-                      ~mode,
-                    ) {
-                    | Ok(value) => {
-                        newArray->Js.Array2.push(value)->ignore
-                        idxRef.contents = idxRef.contents + 1
-                      }
-                    | Error(error) =>
-                      maybeErrorRef.contents = Some(
-                        error->RescriptStruct_Error.prependField(fieldName),
-                      )
-                    }
+            let {fields, fieldNames, unknownKeys} =
+              struct->classify->unsafeAnyToUnknown->unsafeUnknownToAny
+            let fieldValuesResult = {
+              let newArray = []
+              let idxRef = ref(0)
+              let maybeErrorRef = ref(None)
+              while (
+                idxRef.contents < fieldNames->Js.Array2.length && maybeErrorRef.contents == None
+              ) {
+                let idx = idxRef.contents
+                let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+                let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+                switch parseInner(
+                  ~struct=fieldStruct,
+                  ~any=input->Js.Dict.unsafeGet(fieldName),
+                  ~mode,
+                ) {
+                | Ok(value) => {
+                    newArray->Js.Array2.push(value)->ignore
+                    idxRef.contents = idxRef.contents + 1
                   }
-                  switch maybeErrorRef.contents {
-                  | Some(error) => Error(error)
-                  | None => Ok(newArray)
-                  }
+                | Error(error) =>
+                  maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(fieldName))
                 }
-                switch (unknownKeys, mode) {
-                | (Strict, Safe) =>
-                  fieldValuesResult->Inline.Result.flatMap(_ => {
-                    switch getMaybeExcessKey(. input, fields) {
-                    | Some(excessKey) =>
-                      Error(
-                        RescriptStruct_Error.ParsingFailed.ExcessField.make(~fieldName=excessKey),
-                      )
-                    | None => fieldValuesResult
-                    }
-                  })
-                | (_, _) => fieldValuesResult
-                }->Inline.Result.flatMap(fieldValues => {
-                  let fieldValuesTuple =
-                    fieldValues->Js.Array2.length === 1
-                      ? fieldValues->Js.Array2.unsafe_get(0)->unsafeAnyToUnknown->unsafeUnknownToAny
-                      : fieldValues->unsafeAnyToUnknown->unsafeUnknownToAny
-                  recordConstructor(fieldValuesTuple)->Inline.Result.mapError(
-                    RescriptStruct_Error.ParsingOperationFailed.make,
-                  )
-                })
               }
-            | _ =>
-              Error(RescriptStruct_Error.ParsingOperationFailed.make("Unexpected struct tagged_t"))
+              switch maybeErrorRef.contents {
+              | Some(error) => Error(error)
+              | None => Ok(newArray)
+              }
             }
+            switch (unknownKeys, mode) {
+            | (Strict, Safe) =>
+              fieldValuesResult->Inline.Result.flatMap(_ => {
+                switch getMaybeExcessKey(. input, fields) {
+                | Some(excessKey) =>
+                  Error(RescriptStruct_Error.ParsingFailed.ExcessField.make(~fieldName=excessKey))
+                | None => fieldValuesResult
+                }
+              })
+            | (_, _) => fieldValuesResult
+            }->Inline.Result.flatMap(fieldValues => {
+              let fieldValuesTuple =
+                fieldValues->Js.Array2.length === 1
+                  ? fieldValues->Js.Array2.unsafe_get(0)->unsafeAnyToUnknown->unsafeUnknownToAny
+                  : fieldValues->unsafeAnyToUnknown->unsafeUnknownToAny
+              recordConstructor(fieldValuesTuple)->Inline.Result.mapError(
+                RescriptStruct_Error.ParsingOperationFailed.make,
+              )
+            })
           | Some(error) => Error(error)
           }
         }),
@@ -812,34 +774,30 @@ module Record = {
     let make = (~recordDestructor) => {
       [
         Operations.transform((~input, ~struct, ~mode) => {
-          switch struct->classify {
-          | Record({fields, fieldNames}) =>
-            recordDestructor(input)
-            ->Inline.Result.mapError(RescriptStruct_Error.SerializingOperationFailed.make)
-            ->Inline.Result.flatMap(fieldValuesTuple => {
-              let unknown = Js.Dict.empty()
-              let fieldValues =
-                fieldNames->Js.Array2.length === 1
-                  ? [fieldValuesTuple]->unsafeAnyToUnknown->unsafeUnknownToAny
-                  : fieldValuesTuple->unsafeAnyToUnknown->unsafeUnknownToAny
+          let {fields, fieldNames} = struct->classify->unsafeAnyToUnknown->unsafeUnknownToAny
+          recordDestructor(input)
+          ->Inline.Result.mapError(RescriptStruct_Error.SerializingOperationFailed.make)
+          ->Inline.Result.flatMap(fieldValuesTuple => {
+            let unknown = Js.Dict.empty()
+            let fieldValues =
+              fieldNames->Js.Array2.length === 1
+                ? [fieldValuesTuple]->unsafeAnyToUnknown->unsafeUnknownToAny
+                : fieldValuesTuple->unsafeAnyToUnknown->unsafeUnknownToAny
 
-              fieldNames
-              ->Inline.Result.Array.mapi((. fieldName, idx) => {
-                let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-                let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
-                switch serializeInner(~struct=fieldStruct, ~value=fieldValue, ~mode) {
-                | Ok(unknownFieldValue) => {
-                    unknown->Js.Dict.set(fieldName, unknownFieldValue)
-                    Ok()
-                  }
-                | Error(error) => Error(error->RescriptStruct_Error.prependField(fieldName))
+            fieldNames
+            ->Inline.Result.Array.mapi((. fieldName, idx) => {
+              let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+              let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
+              switch serializeInner(~struct=fieldStruct, ~value=fieldValue, ~mode) {
+              | Ok(unknownFieldValue) => {
+                  unknown->Js.Dict.set(fieldName, unknownFieldValue)
+                  Ok()
                 }
-              })
-              ->Inline.Result.map(_ => unknown)
+              | Error(error) => Error(error->RescriptStruct_Error.prependField(fieldName))
+              }
             })
-          | _ =>
-            Error(RescriptStruct_Error.ParsingOperationFailed.make("Unexpected struct tagged_t"))
-          }
+            ->Inline.Result.map(_ => unknown)
+          })
         }),
       ]
     }
@@ -1003,8 +961,8 @@ let option = innerStruct => {
 
 let deprecated = (~message as maybeMessage=?, innerStruct) => {
   tagged_t: Deprecated({struct: innerStruct, maybeMessage: maybeMessage}),
-  maybeConstructors: Some(Operations.Option.constructors),
-  maybeDestructors: Some(Operations.Option.destructors),
+  maybeConstructors: Some(Operations.Deprecated.constructors),
+  maybeDestructors: Some(Operations.Deprecated.destructors),
   maybeMetadata: None,
 }
 

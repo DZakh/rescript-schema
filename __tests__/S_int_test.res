@@ -41,20 +41,20 @@ test("Fails to parse int when JSON is a number bigger than +2^31", t => {
   let struct = S.int()
 
   t->Assert.deepEqual(
-    Js.Json.number(2147483648.)->S.parseWith(struct),
+    %raw(`2147483648`)->S.parseWith(struct),
     Error("[ReScript Struct] Failed parsing at root. Reason: Expected Int, got Float"),
     (),
   )
-  t->Assert.deepEqual(Js.Json.number(2147483647.)->S.parseWith(struct), Ok(2147483647), ())
+  t->Assert.deepEqual(%raw(`2147483647`)->S.parseWith(struct), Ok(2147483647), ())
 })
 
 test("Fails to parse int when JSON is a number lower than -2^31", t => {
   let struct = S.int()
 
   t->Assert.deepEqual(
-    Js.Json.number(-2147483648.)->S.parseWith(struct),
+    %raw(`-2147483649`)->S.parseWith(struct),
     Error("[ReScript Struct] Failed parsing at root. Reason: Expected Int, got Float"),
     (),
   )
-  t->Assert.deepEqual(Js.Json.number(-2147483647.)->S.parseWith(struct), Ok(-2147483647), ())
+  t->Assert.deepEqual(%raw(`-2147483648`)->S.parseWith(struct), Ok(-2147483648), ())
 })
