@@ -1,6 +1,5 @@
 node_modules
 .merlin
 .bsb.lock
-**/*.bs.js
-**/*.mjs
+**/*_test.bs.js
 lib
