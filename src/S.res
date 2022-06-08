@@ -864,7 +864,7 @@ module MakeMetadata = (
     ignore(key)
     ignore(value)
     %raw(`{
-      ...obj,
+      ...dict,
       [key]: value,
     }`)
   }
