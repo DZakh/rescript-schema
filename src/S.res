@@ -3,12 +3,6 @@ module Inline = {
     let mapError: (result<'ok, 'error1>, 'error1 => 'error2) => result<'ok, 'error2>
     let map: (result<'ok1, 'error>, 'ok1 => 'ok2) => result<'ok2, 'error>
     let flatMap: (result<'ok1, 'error>, 'ok1 => result<'ok2, 'error>) => result<'ok2, 'error>
-    module Array: {
-      let mapi: (array<'a>, (. 'a, int) => result<'b, 'e>) => result<array<'b>, 'e>
-    }
-    module Dict: {
-      let map: (Js.Dict.t<'a>, (. 'a, string) => result<'b, 'e>) => result<Js.Dict.t<'b>, 'e>
-    }
   } = {
     @inline
     let mapError = (result, fn) =>
@@ -30,58 +24,6 @@ module Inline = {
       | Ok(value) => fn(value)
       | Error(_) as error => error
       }
-
-    module Array = {
-      let mapi = (array, fn) => {
-        let newArray = []
-        let idxRef = ref(0)
-        let maybeErrorRef = ref(None)
-
-        while idxRef.contents < array->Js.Array2.length && maybeErrorRef.contents === None {
-          let idx = idxRef.contents
-          let item = array->Js.Array2.unsafe_get(idx)
-          switch fn(. item, idx) {
-          | Ok(value) => {
-              newArray->Js.Array2.push(value)->ignore
-              idxRef.contents = idxRef.contents + 1
-            }
-          | Error(_) as error => maybeErrorRef.contents = Some(error)
-          }
-        }
-
-        switch maybeErrorRef.contents {
-        | Some(error) => error
-        | None => Ok(newArray)
-        }
-      }
-    }
-
-    module Dict = {
-      let map = (dict, fn) => {
-        let newDict = Js.Dict.empty()
-        let keys = dict->Js.Dict.keys
-        let idxRef = ref(0)
-        let maybeErrorRef = ref(None)
-
-        while idxRef.contents < keys->Js.Array2.length && maybeErrorRef.contents === None {
-          let idx = idxRef.contents
-          let key = keys->Js.Array2.unsafe_get(idx)
-          let item = dict->Js.Dict.unsafeGet(key)
-          switch fn(. item, key) {
-          | Ok(value) => {
-              newDict->Js.Dict.set(key, value)->ignore
-              idxRef.contents = idxRef.contents + 1
-            }
-          | Error(_) as error => maybeErrorRef.contents = Some(error)
-          }
-        }
-
-        switch maybeErrorRef.contents {
-        | Some(error) => error
-        | None => Ok(newDict)
-        }
-      }
-    }
   }
 
   module Option: {
@@ -470,11 +412,26 @@ module Operations = {
         switch maybeRefinementError {
         | None => {
             let innerStruct = struct->classify->unsafeGetVariantPayload
-            input->Inline.Result.Array.mapi((. innerValue, idx) => {
-              parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.mapError(
-                RescriptStruct_Error.prependIndex(_, idx),
-              )
-            })
+
+            let newArray = []
+            let idxRef = ref(0)
+            let maybeErrorRef = ref(None)
+            while idxRef.contents < input->Js.Array2.length && maybeErrorRef.contents === None {
+              let idx = idxRef.contents
+              let innerValue = input->Js.Array2.unsafe_get(idx)
+              switch parseInner(~struct=innerStruct, ~any=innerValue, ~mode) {
+              | Ok(value) => {
+                  newArray->Js.Array2.push(value)->ignore
+                  idxRef.contents = idxRef.contents + 1
+                }
+              | Error(error) =>
+                maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependIndex(idx))
+              }
+            }
+            switch maybeErrorRef.contents {
+            | Some(error) => Error(error)
+            | None => Ok(newArray)
+            }
           }
         | Some(error) => Error(error)
         }
@@ -483,11 +440,26 @@ module Operations = {
     let destructors = [
       transform((~input, ~struct, ~mode) => {
         let innerStruct = struct->classify->unsafeGetVariantPayload
-        input->Inline.Result.Array.mapi((. innerValue, idx) => {
-          serializeInner(~struct=innerStruct, ~value=innerValue, ~mode)->Inline.Result.mapError(
-            RescriptStruct_Error.prependIndex(_, idx),
-          )
-        })
+
+        let newArray = []
+        let idxRef = ref(0)
+        let maybeErrorRef = ref(None)
+        while idxRef.contents < input->Js.Array2.length && maybeErrorRef.contents === None {
+          let idx = idxRef.contents
+          let innerValue = input->Js.Array2.unsafe_get(idx)
+          switch serializeInner(~struct=innerStruct, ~value=innerValue, ~mode) {
+          | Ok(value) => {
+              newArray->Js.Array2.push(value)->ignore
+              idxRef.contents = idxRef.contents + 1
+            }
+          | Error(error) =>
+            maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependIndex(idx))
+          }
+        }
+        switch maybeErrorRef.contents {
+        | Some(error) => Error(error)
+        | None => Ok(newArray)
+        }
       }),
     ]
   }
@@ -506,11 +478,28 @@ module Operations = {
         switch maybeRefinementError {
         | None => {
             let innerStruct = struct->classify->unsafeGetVariantPayload
-            input->Inline.Result.Dict.map((. innerValue, key) => {
-              parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.mapError(
-                RescriptStruct_Error.prependField(_, key),
-              )
-            })
+
+            let newDict = Js.Dict.empty()
+            let keys = input->Js.Dict.keys
+            let idxRef = ref(0)
+            let maybeErrorRef = ref(None)
+            while idxRef.contents < keys->Js.Array2.length && maybeErrorRef.contents === None {
+              let idx = idxRef.contents
+              let key = keys->Js.Array2.unsafe_get(idx)
+              let innerValue = input->Js.Dict.unsafeGet(key)
+              switch parseInner(~struct=innerStruct, ~any=innerValue, ~mode) {
+              | Ok(value) => {
+                  newDict->Js.Dict.set(key, value)->ignore
+                  idxRef.contents = idxRef.contents + 1
+                }
+              | Error(error) =>
+                maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(key))
+              }
+            }
+            switch maybeErrorRef.contents {
+            | Some(error) => Error(error)
+            | None => Ok(newDict)
+            }
           }
         | Some(error) => Error(error)
         }
@@ -519,11 +508,28 @@ module Operations = {
     let destructors = [
       transform((~input, ~struct, ~mode) => {
         let innerStruct = struct->classify->unsafeGetVariantPayload
-        input->Inline.Result.Dict.map((. innerValue, key) => {
-          serializeInner(~struct=innerStruct, ~value=innerValue, ~mode)->Inline.Result.mapError(
-            RescriptStruct_Error.prependField(_, key),
-          )
-        })
+
+        let newDict = Js.Dict.empty()
+        let keys = input->Js.Dict.keys
+        let idxRef = ref(0)
+        let maybeErrorRef = ref(None)
+        while idxRef.contents < keys->Js.Array2.length && maybeErrorRef.contents === None {
+          let idx = idxRef.contents
+          let key = keys->Js.Array2.unsafe_get(idx)
+          let innerValue = input->Js.Dict.unsafeGet(key)
+          switch serializeInner(~struct=innerStruct, ~value=innerValue, ~mode) {
+          | Ok(value) => {
+              newDict->Js.Dict.set(key, value)->ignore
+              idxRef.contents = idxRef.contents + 1
+            }
+          | Error(error) =>
+            maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(key))
+          }
+        }
+        switch maybeErrorRef.contents {
+        | Some(error) => Error(error)
+        | None => Ok(newDict)
+        }
       }),
     ]
   }
@@ -766,19 +772,29 @@ module Record = {
                 ? [fieldValuesTuple]->unsafeAnyToUnknown->unsafeUnknownToAny
                 : fieldValuesTuple->unsafeAnyToUnknown->unsafeUnknownToAny
 
-            fieldNames
-            ->Inline.Result.Array.mapi((. fieldName, idx) => {
+            let idxRef = ref(0)
+            let maybeErrorRef = ref(None)
+            while (
+              idxRef.contents < fieldNames->Js.Array2.length && maybeErrorRef.contents === None
+            ) {
+              let idx = idxRef.contents
+              let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
               let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
               let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
               switch serializeInner(~struct=fieldStruct, ~value=fieldValue, ~mode) {
               | Ok(unknownFieldValue) => {
                   unknown->Js.Dict.set(fieldName, unknownFieldValue)
-                  Ok()
+                  idxRef.contents = idxRef.contents + 1
                 }
-              | Error(error) => Error(error->RescriptStruct_Error.prependField(fieldName))
+              | Error(error) =>
+                maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(fieldName))
               }
-            })
-            ->Inline.Result.map(_ => unknown)
+            }
+
+            switch maybeErrorRef.contents {
+            | Some(error) => Error(error)
+            | None => Ok(unknown)
+            }
           })
         }),
       ]

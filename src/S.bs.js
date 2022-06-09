@@ -9,60 +9,6 @@ var Caml_option = require("rescript/lib/js/caml_option.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 var RescriptStruct_Error = require("./RescriptStruct_Error.bs.js");
 
-function mapi(array, fn) {
-  var newArray = [];
-  var idxRef = 0;
-  var maybeErrorRef;
-  while(idxRef < array.length && maybeErrorRef === undefined) {
-    var idx = idxRef;
-    var item = array[idx];
-    var value = fn(item, idx);
-    if (value.TAG === /* Ok */0) {
-      newArray.push(value._0);
-      idxRef = idxRef + 1 | 0;
-    } else {
-      maybeErrorRef = value;
-    }
-  };
-  var error = maybeErrorRef;
-  if (error !== undefined) {
-    return error;
-  } else {
-    return {
-            TAG: /* Ok */0,
-            _0: newArray
-          };
-  }
-}
-
-function map(dict, fn) {
-  var newDict = {};
-  var keys = Object.keys(dict);
-  var idxRef = 0;
-  var maybeErrorRef;
-  while(idxRef < keys.length && maybeErrorRef === undefined) {
-    var idx = idxRef;
-    var key = keys[idx];
-    var item = dict[key];
-    var value = fn(item, key);
-    if (value.TAG === /* Ok */0) {
-      newDict[key] = value._0;
-      idxRef = idxRef + 1 | 0;
-    } else {
-      maybeErrorRef = value;
-    }
-  };
-  var error = maybeErrorRef;
-  if (error !== undefined) {
-    return error;
-  } else {
-    return {
-            TAG: /* Ok */0,
-            _0: newDict
-          };
-  }
-}
-
 function classify(struct) {
   return struct.tagged_t;
 }
@@ -449,17 +395,32 @@ var constructors$9 = [{
                 };
         }
         var innerStruct = struct.tagged_t._0;
-        return mapi(input, (function (innerValue, idx) {
-                      var result = parseInner(innerStruct, innerValue, mode);
-                      if (result.TAG === /* Ok */0) {
-                        return result;
-                      } else {
-                        return {
-                                TAG: /* Error */1,
-                                _0: RescriptStruct_Error.prependIndex(result._0, idx)
-                              };
-                      }
-                    }));
+        var newArray = [];
+        var idxRef = 0;
+        var maybeErrorRef;
+        while(idxRef < input.length && maybeErrorRef === undefined) {
+          var idx = idxRef;
+          var innerValue = input[idx];
+          var value = parseInner(innerStruct, innerValue, mode);
+          if (value.TAG === /* Ok */0) {
+            newArray.push(value._0);
+            idxRef = idxRef + 1 | 0;
+          } else {
+            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependIndex(value._0, idx));
+          }
+        };
+        var error = maybeErrorRef;
+        if (error !== undefined) {
+          return {
+                  TAG: /* Error */1,
+                  _0: Caml_option.valFromOption(error)
+                };
+        } else {
+          return {
+                  TAG: /* Ok */0,
+                  _0: newArray
+                };
+        }
       })
   }];
 
@@ -467,17 +428,32 @@ var destructors$9 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, mode) {
         var innerStruct = struct.tagged_t._0;
-        return mapi(input, (function (innerValue, idx) {
-                      var result = serializeInner(innerStruct, innerValue, mode);
-                      if (result.TAG === /* Ok */0) {
-                        return result;
-                      } else {
-                        return {
-                                TAG: /* Error */1,
-                                _0: RescriptStruct_Error.prependIndex(result._0, idx)
-                              };
-                      }
-                    }));
+        var newArray = [];
+        var idxRef = 0;
+        var maybeErrorRef;
+        while(idxRef < input.length && maybeErrorRef === undefined) {
+          var idx = idxRef;
+          var innerValue = input[idx];
+          var value = serializeInner(innerStruct, innerValue, mode);
+          if (value.TAG === /* Ok */0) {
+            newArray.push(value._0);
+            idxRef = idxRef + 1 | 0;
+          } else {
+            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependIndex(value._0, idx));
+          }
+        };
+        var error = maybeErrorRef;
+        if (error !== undefined) {
+          return {
+                  TAG: /* Error */1,
+                  _0: Caml_option.valFromOption(error)
+                };
+        } else {
+          return {
+                  TAG: /* Ok */0,
+                  _0: newArray
+                };
+        }
       })
   }];
 
@@ -498,17 +474,34 @@ var constructors$10 = [{
                 };
         }
         var innerStruct = struct.tagged_t._0;
-        return map(input, (function (innerValue, key) {
-                      var result = parseInner(innerStruct, innerValue, mode);
-                      if (result.TAG === /* Ok */0) {
-                        return result;
-                      } else {
-                        return {
-                                TAG: /* Error */1,
-                                _0: RescriptStruct_Error.prependField(result._0, key)
-                              };
-                      }
-                    }));
+        var newDict = {};
+        var keys = Object.keys(input);
+        var idxRef = 0;
+        var maybeErrorRef;
+        while(idxRef < keys.length && maybeErrorRef === undefined) {
+          var idx = idxRef;
+          var key = keys[idx];
+          var innerValue = input[key];
+          var value = parseInner(innerStruct, innerValue, mode);
+          if (value.TAG === /* Ok */0) {
+            newDict[key] = value._0;
+            idxRef = idxRef + 1 | 0;
+          } else {
+            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependField(value._0, key));
+          }
+        };
+        var error = maybeErrorRef;
+        if (error !== undefined) {
+          return {
+                  TAG: /* Error */1,
+                  _0: Caml_option.valFromOption(error)
+                };
+        } else {
+          return {
+                  TAG: /* Ok */0,
+                  _0: newDict
+                };
+        }
       })
   }];
 
@@ -516,17 +509,34 @@ var destructors$10 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, mode) {
         var innerStruct = struct.tagged_t._0;
-        return map(input, (function (innerValue, key) {
-                      var result = serializeInner(innerStruct, innerValue, mode);
-                      if (result.TAG === /* Ok */0) {
-                        return result;
-                      } else {
-                        return {
-                                TAG: /* Error */1,
-                                _0: RescriptStruct_Error.prependField(result._0, key)
-                              };
-                      }
-                    }));
+        var newDict = {};
+        var keys = Object.keys(input);
+        var idxRef = 0;
+        var maybeErrorRef;
+        while(idxRef < keys.length && maybeErrorRef === undefined) {
+          var idx = idxRef;
+          var key = keys[idx];
+          var innerValue = input[key];
+          var value = serializeInner(innerStruct, innerValue, mode);
+          if (value.TAG === /* Ok */0) {
+            newDict[key] = value._0;
+            idxRef = idxRef + 1 | 0;
+          } else {
+            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependField(value._0, key));
+          }
+        };
+        var error = maybeErrorRef;
+        if (error !== undefined) {
+          return {
+                  TAG: /* Error */1,
+                  _0: Caml_option.valFromOption(error)
+                };
+        } else {
+          return {
+                  TAG: /* Ok */0,
+                  _0: newDict
+                };
+        }
       })
   }];
 
@@ -788,29 +798,32 @@ function make$2(recordDestructor) {
                 var fieldValuesTuple = result$1._0;
                 var unknown = {};
                 var fieldValues = fieldNames.length === 1 ? [fieldValuesTuple] : fieldValuesTuple;
-                var result$2 = mapi(fieldNames, (function (fieldName, idx) {
-                        var fieldStruct = fields[fieldName];
-                        var fieldValue = fieldValues[idx];
-                        var unknownFieldValue = serializeInner(fieldStruct, fieldValue, mode);
-                        if (unknownFieldValue.TAG !== /* Ok */0) {
-                          return {
-                                  TAG: /* Error */1,
-                                  _0: RescriptStruct_Error.prependField(unknownFieldValue._0, fieldName)
-                                };
-                        }
-                        unknown[fieldName] = unknownFieldValue._0;
-                        return {
-                                TAG: /* Ok */0,
-                                _0: undefined
-                              };
-                      }));
-                if (result$2.TAG === /* Ok */0) {
+                var idxRef = 0;
+                var maybeErrorRef;
+                while(idxRef < fieldNames.length && maybeErrorRef === undefined) {
+                  var idx = idxRef;
+                  var fieldName = fieldNames[idx];
+                  var fieldStruct = fields[fieldName];
+                  var fieldValue = fieldValues[idx];
+                  var unknownFieldValue = serializeInner(fieldStruct, fieldValue, mode);
+                  if (unknownFieldValue.TAG === /* Ok */0) {
+                    unknown[fieldName] = unknownFieldValue._0;
+                    idxRef = idxRef + 1 | 0;
+                  } else {
+                    maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependField(unknownFieldValue._0, fieldName));
+                  }
+                };
+                var error = maybeErrorRef;
+                if (error !== undefined) {
+                  return {
+                          TAG: /* Error */1,
+                          _0: Caml_option.valFromOption(error)
+                        };
+                } else {
                   return {
                           TAG: /* Ok */0,
                           _0: unknown
                         };
-                } else {
-                  return result$2;
                 }
               })
           }];
@@ -1230,7 +1243,7 @@ function MakeMetadata(funarg) {
   };
   var dictUnsafeSet = function (dict, key, value) {
     return ({
-      ...obj,
+      ...dict,
       [key]: value,
     });
   };
