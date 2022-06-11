@@ -35,22 +35,27 @@ function toString(tagged_t) {
       case /* Literal */0 :
           var literal = tagged_t._0;
           if (typeof literal === "number") {
-            if (literal === /* EmptyNull */0) {
-              return "EmptyNull Literal (null)";
-            } else {
-              return "EmptyOption Literal (undefined)";
+            switch (literal) {
+              case /* Unit */0 :
+                  return "Unit Literal (undefined)";
+              case /* EmptyNull */1 :
+                  return "EmptyNull Literal (null)";
+              case /* EmptyOption */2 :
+                  return "EmptyOption Literal (undefined)";
+              
             }
-          }
-          switch (literal.TAG | 0) {
-            case /* String */0 :
-                return "String Literal (\"" + literal._0 + "\")";
-            case /* Int */1 :
-                return "Int Literal (" + literal._0 + ")";
-            case /* Float */2 :
-                return "Float Literal (" + literal._0 + ")";
-            case /* Bool */3 :
-                return "Bool Literal (" + literal._0 + ")";
-            
+          } else {
+            switch (literal.TAG | 0) {
+              case /* String */0 :
+                  return "String Literal (\"" + literal._0 + "\")";
+              case /* Int */1 :
+                  return "Int Literal (" + literal._0 + ")";
+              case /* Float */2 :
+                  return "Float Literal (" + literal._0 + ")";
+              case /* Bool */3 :
+                  return "Bool Literal (" + literal._0 + ")";
+              
+            }
           }
       case /* Option */1 :
           return "Option";
@@ -1026,53 +1031,58 @@ function literal(innerLiteral) {
     _0: innerLiteral
   };
   if (typeof innerLiteral === "number") {
-    if (innerLiteral === /* EmptyNull */0) {
-      return {
-              tagged_t: tagged_t,
-              maybeConstructors: constructors$12,
-              maybeDestructors: destructors$13,
-              maybeMetadata: undefined
-            };
-    } else {
-      return {
-              tagged_t: tagged_t,
-              maybeConstructors: constructors$13,
-              maybeDestructors: destructors$14,
-              maybeMetadata: undefined
-            };
+    switch (innerLiteral) {
+      case /* EmptyNull */1 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeConstructors: constructors$12,
+                  maybeDestructors: destructors$13,
+                  maybeMetadata: undefined
+                };
+      case /* Unit */0 :
+      case /* EmptyOption */2 :
+          break;
+      
+    }
+  } else {
+    switch (innerLiteral.TAG | 0) {
+      case /* String */0 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeConstructors: constructors$15,
+                  maybeDestructors: destructors$12,
+                  maybeMetadata: undefined
+                };
+      case /* Int */1 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeConstructors: constructors$17,
+                  maybeDestructors: destructors$12,
+                  maybeMetadata: undefined
+                };
+      case /* Float */2 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeConstructors: constructors$16,
+                  maybeDestructors: destructors$12,
+                  maybeMetadata: undefined
+                };
+      case /* Bool */3 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeConstructors: constructors$14,
+                  maybeDestructors: destructors$12,
+                  maybeMetadata: undefined
+                };
+      
     }
   }
-  switch (innerLiteral.TAG | 0) {
-    case /* String */0 :
-        return {
-                tagged_t: tagged_t,
-                maybeConstructors: constructors$15,
-                maybeDestructors: destructors$12,
-                maybeMetadata: undefined
-              };
-    case /* Int */1 :
-        return {
-                tagged_t: tagged_t,
-                maybeConstructors: constructors$17,
-                maybeDestructors: destructors$12,
-                maybeMetadata: undefined
-              };
-    case /* Float */2 :
-        return {
-                tagged_t: tagged_t,
-                maybeConstructors: constructors$16,
-                maybeDestructors: destructors$12,
-                maybeMetadata: undefined
-              };
-    case /* Bool */3 :
-        return {
-                tagged_t: tagged_t,
-                maybeConstructors: constructors$14,
-                maybeDestructors: destructors$12,
-                maybeMetadata: undefined
-              };
-    
-  }
+  return {
+          tagged_t: tagged_t,
+          maybeConstructors: constructors$13,
+          maybeDestructors: destructors$14,
+          maybeMetadata: undefined
+        };
 }
 
 function json(struct) {

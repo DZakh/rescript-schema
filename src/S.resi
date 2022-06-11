@@ -6,6 +6,7 @@ type rec literal<'value> =
   | Int(int): literal<int>
   | Float(float): literal<float>
   | Bool(bool): literal<bool>
+  | Unit: literal<unit>
   | EmptyNull: literal<option<never>>
   | EmptyOption: literal<option<never>>
 

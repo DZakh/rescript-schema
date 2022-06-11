@@ -258,7 +258,7 @@ let struct = S.unknown()
 
 #### **`S.literal`**
 
-`S.literal<'value> => S.t<'value'>`
+`S.literal<'value> => S.t<'value>`
 
 ```rescript
 let tunaStruct = S.literal(String("Tuna"))
@@ -267,6 +267,7 @@ let importantTimestampStruct = S.literal(Float(1652628345865.))
 let truStruct = S.literal(Bool(true))
 let nullStruct = S.literal(EmptyNull)
 let undefinedStruct = S.literal(EmptyOption)
+let unitStruct = S.literal(Unit)
 ```
 
 `literal` struct enforces that a data matches an exact value using the === operator.

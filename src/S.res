@@ -46,6 +46,7 @@ type rec literal<'value> =
   | Int(int): literal<int>
   | Float(float): literal<float>
   | Bool(bool): literal<bool>
+  | Unit: literal<unit>
   | EmptyNull: literal<option<never>>
   | EmptyOption: literal<option<never>>
 
@@ -119,6 +120,7 @@ module TaggedT = {
       | Int(value) => j`Int Literal ($value)`
       | Float(value) => j`Float Literal ($value)`
       | Bool(value) => j`Bool Literal ($value)`
+      | Unit => `Unit Literal (undefined)`
       | EmptyNull => `EmptyNull Literal (null)`
       | EmptyOption => `EmptyOption Literal (undefined)`
       }
@@ -997,6 +999,12 @@ let literal:
         maybeMetadata: None,
       }
     | EmptyOption => {
+        tagged_t: tagged_t,
+        maybeConstructors: Some(Operations.Literal.EmptyOption.constructors),
+        maybeDestructors: Some(Operations.Literal.EmptyOption.destructors),
+        maybeMetadata: None,
+      }
+    | Unit => {
         tagged_t: tagged_t,
         maybeConstructors: Some(Operations.Literal.EmptyOption.constructors),
         maybeDestructors: Some(Operations.Literal.EmptyOption.destructors),
