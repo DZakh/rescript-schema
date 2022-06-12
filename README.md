@@ -272,6 +272,24 @@ let unitStruct = S.literal(Unit)
 
 `literal` struct enforces that a data matches an exact value using the === operator.
 
+
+#### **`S.literalVariant`**
+
+`(S.literal<'value>, 'variant) => S.t<'variant>`
+
+```rescript
+type fruit = Apple | Orange
+let appleStruct = S.literal(String("apple"), Apple)
+
+%raw(`"apple"`)->S.parseWith(appleStruct)
+```
+
+```rescript
+Ok(Apple)
+```
+
+The same as `literal` struct factory, but with a convenient way to transform data to ReScript value.
+
 #### **`S.record1` - `S.record10`**
 
 `(~fields: (S.field<'v1>, S.field<'v2>), ~constructor: (('v1, 'v2)) => result<'value, string>=?, ~destructor: 'value => result<('v1, 'v2), string>=?, unit) => S.t<'value>`

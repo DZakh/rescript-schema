@@ -68,7 +68,7 @@ and tagged_t =
   | Int: tagged_t
   | Float: tagged_t
   | Bool: tagged_t
-  | Literal(literal<'value>): tagged_t
+  | Literal({literal: literal<'value>, maybeVariant: option<'variant>}): tagged_t
   | Option(t<'value>): tagged_t
   | Null(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
@@ -93,12 +93,12 @@ and operation =
 
 external unsafeAnyToUnknown: 'any => unknown = "%identity"
 external unsafeUnknownToAny: unknown => 'any = "%identity"
+external unsafeToAny: 'a => 'b = "%identity"
 external unsafeAnyToFields: 'any => array<field<unknown>> = "%identity"
 
 type payloadedVariant<'payload> = {_0: 'payload}
 @inline
-let unsafeGetVariantPayload: tagged_t => 'payload = v =>
-  (v->unsafeAnyToUnknown->unsafeUnknownToAny)._0
+let unsafeGetVariantPayload: 'a => 'payload = v => (v->unsafeToAny)._0
 
 @val external getInternalClass: 'a => string = "Object.prototype.toString.call"
 
@@ -114,7 +114,7 @@ module TaggedT = {
     | Int => "Int"
     | Float => "Float"
     | Bool => "Bool"
-    | Literal(literal) =>
+    | Literal({literal}) =>
       switch literal {
       | String(value) => j`String Literal ("$value")`
       | Int(value) => j`Int Literal ($value)`
@@ -210,7 +210,7 @@ let parseInner: (
       ~operations=constructors,
       ~initial=any->unsafeAnyToUnknown,
       ~mode,
-      ~struct=struct->unsafeAnyToUnknown->unsafeUnknownToAny,
+      ~struct=struct->unsafeToAny,
     )
     ->unsafeAnyToUnknown
     ->unsafeUnknownToAny
@@ -233,7 +233,7 @@ let serializeInner: (
       ~operations=destructors,
       ~initial=value->unsafeAnyToUnknown,
       ~mode,
-      ~struct=struct->unsafeAnyToUnknown->unsafeUnknownToAny,
+      ~struct=struct->unsafeToAny,
     )
   | None => Error(RescriptStruct_Error.MissingDestructor.make())
   }
@@ -251,11 +251,11 @@ module Operations = {
       ~mode: mode,
     ) => result<'output, RescriptStruct_Error.t>,
   ) => {
-    Transform(fn->unsafeAnyToUnknown->unsafeUnknownToAny)
+    Transform(fn->unsafeToAny)
   }
 
   let refinement = (fn: (~input: 'value, ~struct: t<'value>) => option<RescriptStruct_Error.t>) => {
-    Refinement(fn->unsafeAnyToUnknown->unsafeUnknownToAny)
+    Refinement(fn->unsafeToAny)
   }
 
   module Never = {
@@ -327,7 +327,7 @@ module Operations = {
         | Some(innerValue) =>
           let innerStruct = struct->classify->unsafeGetVariantPayload
           parseInner(
-            ~struct=innerStruct->unsafeAnyToUnknown->unsafeUnknownToAny,
+            ~struct=innerStruct->unsafeToAny,
             ~any=innerValue,
             ~mode,
           )->Inline.Result.map(value => Some(value))
@@ -340,7 +340,7 @@ module Operations = {
         switch input {
         | Some(value) =>
           let innerStruct = struct->classify->unsafeGetVariantPayload
-          serializeInner(~struct=innerStruct->unsafeAnyToUnknown->unsafeUnknownToAny, ~value, ~mode)
+          serializeInner(~struct=innerStruct->unsafeToAny, ~value, ~mode)
         | None => Js.Null.empty->unsafeAnyToUnknown->Ok
         }
       }),
@@ -379,7 +379,7 @@ module Operations = {
       transform((~input, ~struct, ~mode) => {
         switch input {
         | Some(innerValue) =>
-          let {struct: innerStruct} = struct->classify->unsafeAnyToUnknown->unsafeUnknownToAny
+          let {struct: innerStruct} = struct->classify->unsafeToAny
           parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.map(value => Some(
             value,
           ))
@@ -391,7 +391,7 @@ module Operations = {
       transform((~input, ~struct, ~mode) => {
         switch input {
         | Some(value) => {
-            let {struct: innerStruct} = struct->classify->unsafeAnyToUnknown->unsafeUnknownToAny
+            let {struct: innerStruct} = struct->classify->unsafeToAny
             serializeInner(~struct=innerStruct, ~value, ~mode)
           }
         | None => Ok(None->unsafeAnyToUnknown)
@@ -541,7 +541,7 @@ module Operations = {
 
     let constructors = [
       transform((~input, ~struct, ~mode) => {
-        let {struct: innerStruct, value} = struct->classify->unsafeAnyToUnknown->unsafeUnknownToAny
+        let {struct: innerStruct, value} = struct->classify->unsafeToAny
         parseInner(~struct=innerStruct, ~any=input, ~mode)->Inline.Result.map(maybeOutput => {
           switch maybeOutput {
           | Some(output) => output
@@ -552,122 +552,207 @@ module Operations = {
     ]
     let destructors = [
       transform((~input, ~struct, ~mode) => {
-        let {struct: innerStruct} = struct->classify->unsafeAnyToUnknown->unsafeUnknownToAny
+        let {struct: innerStruct} = struct->classify->unsafeToAny
         serializeInner(~struct=innerStruct, ~value=Some(input), ~mode)
       }),
     ]
   }
+}
 
-  module Literal = {
-    module WithExpectedValue = {
-      module Constructors = {
-        let make = (~checkType) => {
-          [
-            transform((~input, ~struct, ~mode) => {
-              let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
-              let ok = Ok(expectedValue)
-              if mode === Safe {
-                if !checkType(. input) {
-                  Error(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
-                } else if expectedValue !== input {
-                  Error(
-                    RescriptStruct_Error.UnexpectedValue.make(
-                      ~expectedValue,
-                      ~gotValue=input,
-                      ~operation=Parsing,
-                    ),
-                  )
-                } else {
-                  ok
-                }
+module Literal = {
+  type payload<'value, 'variant> = {
+    literal: literal<'value>,
+    maybeVariant: option<'variant>,
+  }
+
+  module WithExpectedValue = {
+    module Constructors = {
+      let make = (~checkType) => {
+        [
+          Operations.transform((~input, ~struct, ~mode) => {
+            let {literal, maybeVariant} = struct->classify->unsafeToAny
+            let literalValue = literal->unsafeGetVariantPayload
+            let returnedValue = switch maybeVariant {
+            | Some(variant) => variant
+            | None => literalValue
+            }
+            let ok = Ok(returnedValue)
+            if mode === Safe {
+              if !checkType(. input) {
+                Error(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+              } else if literalValue !== input {
+                Error(
+                  RescriptStruct_Error.UnexpectedValue.make(
+                    ~expectedValue=literalValue,
+                    ~gotValue=input,
+                    ~operation=Parsing,
+                  ),
+                )
               } else {
                 ok
               }
-            }),
-          ]
+            } else {
+              ok
+            }
+          }),
+        ]
+      }
+    }
+    let destructors = [
+      Operations.transform((~input, ~struct, ~mode) => {
+        let {literal, maybeVariant} = struct->classify->unsafeToAny
+        let literalValue = literal->unsafeGetVariantPayload
+        let expectedValue = switch maybeVariant {
+        | Some(variant) => variant
+        | None => literalValue
+        }
+        if mode === Safe && expectedValue !== input {
+          Error(
+            RescriptStruct_Error.UnexpectedValue.make(
+              ~expectedValue,
+              ~gotValue=input,
+              ~operation=Serializing,
+            ),
+          )
+        } else {
+          Ok(literalValue)
+        }
+      }),
+    ]
+  }
+
+  let commonOptionDestructor = Operations.refinement((~input, ~struct) => {
+    let {maybeVariant} = struct->classify->unsafeToAny
+    let expectedValue = switch maybeVariant {
+    | Some(variant) => variant
+    | None => None
+    }
+    if input !== expectedValue {
+      Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Serializing))
+    } else {
+      None
+    }
+  })
+
+  module EmptyNull = {
+    let constructors = [
+      Operations.transform((~input, ~struct, ~mode) => {
+        if mode === Safe && input !== Js.Null.empty {
+          Error(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+        } else {
+          let {maybeVariant} = struct->classify->unsafeToAny
+          Ok(maybeVariant)
+        }
+      }),
+    ]
+    let destructors = [
+      commonOptionDestructor,
+      Operations.transform((~input as _, ~struct as _, ~mode as _) => {
+        Ok(Js.Null.empty)
+      }),
+    ]
+  }
+
+  module EmptyOption = {
+    let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
+      input === Js.Undefined.empty
+    )
+    let destructors = [
+      commonOptionDestructor,
+      Operations.transform((~input as _, ~struct as _, ~mode as _) => {
+        Ok(Js.Undefined.empty)
+      }),
+    ]
+  }
+
+  module Bool = {
+    let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
+      input->Js.typeof === "boolean"
+    )
+    let destructors = WithExpectedValue.destructors
+  }
+
+  module String = {
+    let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
+      input->Js.typeof === "string"
+    )
+    let destructors = WithExpectedValue.destructors
+  }
+
+  module Float = {
+    let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
+      input->Js.typeof === "number"
+    )
+    let destructors = WithExpectedValue.destructors
+  }
+
+  module Int = {
+    let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
+      input->Js.typeof === "number" && checkIsIntNumber(input)
+    )
+    let destructors = WithExpectedValue.destructors
+  }
+
+  let innerFactory:
+    type literalValue value. (
+      ~tagged_t: tagged_t,
+      ~innerLiteral: literal<literalValue>,
+    ) => t<value> =
+    (~tagged_t, ~innerLiteral) => {
+      switch innerLiteral {
+      | EmptyNull => {
+          tagged_t: tagged_t,
+          maybeConstructors: Some(EmptyNull.constructors),
+          maybeDestructors: Some(EmptyNull.destructors),
+          maybeMetadata: None,
+        }
+      | EmptyOption => {
+          tagged_t: tagged_t,
+          maybeConstructors: Some(EmptyOption.constructors),
+          maybeDestructors: Some(EmptyOption.destructors),
+          maybeMetadata: None,
+        }
+      | Unit => {
+          tagged_t: tagged_t,
+          maybeConstructors: Some(EmptyOption.constructors),
+          maybeDestructors: Some(EmptyOption.destructors),
+          maybeMetadata: None,
+        }
+      | Bool(_) => {
+          tagged_t: tagged_t,
+          maybeConstructors: Some(Bool.constructors),
+          maybeDestructors: Some(Bool.destructors),
+          maybeMetadata: None,
+        }
+      | String(_) => {
+          tagged_t: tagged_t,
+          maybeConstructors: Some(String.constructors),
+          maybeDestructors: Some(String.destructors),
+          maybeMetadata: None,
+        }
+      | Float(_) => {
+          tagged_t: tagged_t,
+          maybeConstructors: Some(Float.constructors),
+          maybeDestructors: Some(Float.destructors),
+          maybeMetadata: None,
+        }
+      | Int(_) => {
+          tagged_t: tagged_t,
+          maybeConstructors: Some(Int.constructors),
+          maybeDestructors: Some(Int.destructors),
+          maybeMetadata: None,
         }
       }
-      let destructors = [
-        transform((~input, ~struct, ~mode) => {
-          let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
-          if mode === Safe && expectedValue !== input {
-            Error(
-              RescriptStruct_Error.UnexpectedValue.make(
-                ~expectedValue,
-                ~gotValue=input,
-                ~operation=Serializing,
-              ),
-            )
-          } else {
-            Ok(expectedValue)
-          }
-        }),
-      ]
     }
 
-    module EmptyNull = {
-      let constructors = [
-        transform((~input, ~struct, ~mode) => {
-          if mode === Safe && input !== Js.Null.empty {
-            Error(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
-          } else {
-            Ok(None)
-          }
-        }),
-      ]
-      let destructors = [
-        transform((~input, ~struct, ~mode) => {
-          if mode === Safe && input !== None {
-            Error(makeUnexpectedTypeError(~input, ~struct, ~operation=Serializing))
-          } else {
-            Ok(Js.Null.empty)
-          }
-        }),
-      ]
-    }
+  let factory = innerLiteral => {
+    let tagged_t = Literal({literal: innerLiteral, maybeVariant: None})
+    innerFactory(~tagged_t, ~innerLiteral)
+  }
 
-    module EmptyOption = {
-      let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
-        input === Js.Undefined.empty
-      )
-      let destructors = [
-        transform((~input, ~struct, ~mode) => {
-          if mode === Safe && input !== None {
-            Error(makeUnexpectedTypeError(~input, ~struct, ~operation=Serializing))
-          } else {
-            Ok(Js.Undefined.empty)
-          }
-        }),
-      ]
-    }
-
-    module Bool = {
-      let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
-        input->Js.typeof === "boolean"
-      )
-      let destructors = WithExpectedValue.destructors
-    }
-
-    module String = {
-      let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
-        input->Js.typeof === "string"
-      )
-      let destructors = WithExpectedValue.destructors
-    }
-
-    module Float = {
-      let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
-        input->Js.typeof === "number"
-      )
-      let destructors = WithExpectedValue.destructors
-    }
-
-    module Int = {
-      let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
-        input->Js.typeof === "number" && checkIsIntNumber(input)
-      )
-      let destructors = WithExpectedValue.destructors
-    }
+  let variantFactory = (innerLiteral, variant) => {
+    let tagged_t = Literal({literal: innerLiteral, maybeVariant: Some(variant)})
+    innerFactory(~tagged_t, ~innerLiteral)
   }
 }
 
@@ -704,8 +789,7 @@ module Record = {
           }
           switch maybeRefinementError {
           | None =>
-            let {fields, fieldNames, unknownKeys} =
-              struct->classify->unsafeAnyToUnknown->unsafeUnknownToAny
+            let {fields, fieldNames, unknownKeys} = struct->classify->unsafeToAny
             let fieldValuesResult = {
               let newArray = []
               let idxRef = ref(0)
@@ -747,8 +831,8 @@ module Record = {
             }->Inline.Result.flatMap(fieldValues => {
               let fieldValuesTuple =
                 fieldValues->Js.Array2.length === 1
-                  ? fieldValues->Js.Array2.unsafe_get(0)->unsafeAnyToUnknown->unsafeUnknownToAny
-                  : fieldValues->unsafeAnyToUnknown->unsafeUnknownToAny
+                  ? fieldValues->Js.Array2.unsafe_get(0)->unsafeToAny
+                  : fieldValues->unsafeToAny
               recordConstructor(fieldValuesTuple)->Inline.Result.mapError(
                 RescriptStruct_Error.ParsingFailed.make,
               )
@@ -764,15 +848,15 @@ module Record = {
     let make = (~recordDestructor) => {
       [
         Operations.transform((~input, ~struct, ~mode) => {
-          let {fields, fieldNames} = struct->classify->unsafeAnyToUnknown->unsafeUnknownToAny
+          let {fields, fieldNames} = struct->classify->unsafeToAny
           recordDestructor(input)
           ->Inline.Result.mapError(RescriptStruct_Error.SerializingFailed.make)
           ->Inline.Result.flatMap(fieldValuesTuple => {
             let unknown = Js.Dict.empty()
             let fieldValues =
               fieldNames->Js.Array2.length === 1
-                ? [fieldValuesTuple]->unsafeAnyToUnknown->unsafeUnknownToAny
-                : fieldValuesTuple->unsafeAnyToUnknown->unsafeUnknownToAny
+                ? [fieldValuesTuple]->unsafeToAny
+                : fieldValuesTuple->unsafeToAny
 
             let idxRef = ref(0)
             let maybeErrorRef = ref(None)
@@ -873,7 +957,7 @@ module MakeMetadata = (
 ) => {
   let get = (struct): option<Config.content> => {
     struct.maybeMetadata->Inline.Option.map(metadata => {
-      metadata->Js.Dict.get(Config.namespace)->unsafeAnyToUnknown->unsafeUnknownToAny
+      metadata->Js.Dict.get(Config.namespace)->unsafeToAny
     })
   }
 
@@ -987,55 +1071,8 @@ let default = (innerStruct, defaultValue) => {
   maybeMetadata: None,
 }
 
-let literal:
-  type value. literal<value> => t<value> =
-  innerLiteral => {
-    let tagged_t = Literal(innerLiteral)
-    switch innerLiteral {
-    | EmptyNull => {
-        tagged_t: tagged_t,
-        maybeConstructors: Some(Operations.Literal.EmptyNull.constructors),
-        maybeDestructors: Some(Operations.Literal.EmptyNull.destructors),
-        maybeMetadata: None,
-      }
-    | EmptyOption => {
-        tagged_t: tagged_t,
-        maybeConstructors: Some(Operations.Literal.EmptyOption.constructors),
-        maybeDestructors: Some(Operations.Literal.EmptyOption.destructors),
-        maybeMetadata: None,
-      }
-    | Unit => {
-        tagged_t: tagged_t,
-        maybeConstructors: Some(Operations.Literal.EmptyOption.constructors),
-        maybeDestructors: Some(Operations.Literal.EmptyOption.destructors),
-        maybeMetadata: None,
-      }
-    | Bool(_) => {
-        tagged_t: tagged_t,
-        maybeConstructors: Some(Operations.Literal.Bool.constructors),
-        maybeDestructors: Some(Operations.Literal.Bool.destructors),
-        maybeMetadata: None,
-      }
-    | String(_) => {
-        tagged_t: tagged_t,
-        maybeConstructors: Some(Operations.Literal.String.constructors),
-        maybeDestructors: Some(Operations.Literal.String.destructors),
-        maybeMetadata: None,
-      }
-    | Float(_) => {
-        tagged_t: tagged_t,
-        maybeConstructors: Some(Operations.Literal.Float.constructors),
-        maybeDestructors: Some(Operations.Literal.Float.destructors),
-        maybeMetadata: None,
-      }
-    | Int(_) => {
-        tagged_t: tagged_t,
-        maybeConstructors: Some(Operations.Literal.Int.constructors),
-        maybeDestructors: Some(Operations.Literal.Int.destructors),
-        maybeMetadata: None,
-      }
-    }
-  }
+let literal = Literal.factory
+let literalVariant = Literal.variantFactory
 
 let json = struct => {
   tagged_t: String,
@@ -1174,8 +1211,7 @@ let dynamic = (~constructor as maybeConstructor=?, ~destructor as maybeDestructo
       [
         Operations.transform((~input, ~struct as _, ~mode) => {
           switch destructor(input) {
-          | Ok(struct) =>
-            serializeInner(~value=input->unsafeAnyToUnknown->unsafeUnknownToAny, ~struct, ~mode)
+          | Ok(struct) => serializeInner(~value=input->unsafeToAny, ~struct, ~mode)
           | Error(reason) => Error(RescriptStruct_Error.SerializingFailed.make(reason))
           }
         }),

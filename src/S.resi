@@ -24,7 +24,7 @@ and tagged_t =
   | Int: tagged_t
   | Float: tagged_t
   | Bool: tagged_t
-  | Literal(literal<'value>): tagged_t
+  | Literal({literal: literal<'value>, maybeVariant: option<'variant>}): tagged_t
   | Option(t<'value>): tagged_t
   | Null(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
@@ -45,6 +45,7 @@ let bool: unit => t<bool>
 let int: unit => t<int>
 let float: unit => t<float>
 let literal: literal<'value> => t<'value>
+let literalVariant: (literal<'value>, 'variant) => t<'variant>
 let array: t<'value> => t<array<'value>>
 let dict: t<'value> => t<Js.Dict.t<'value>>
 let option: t<'value> => t<option<'value>>

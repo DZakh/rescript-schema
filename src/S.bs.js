@@ -33,7 +33,7 @@ function toString(tagged_t) {
   } else {
     switch (tagged_t.TAG | 0) {
       case /* Literal */0 :
-          var literal = tagged_t._0;
+          var literal = tagged_t.literal;
           if (typeof literal === "number") {
             switch (literal) {
               case /* Unit */0 :
@@ -581,17 +581,20 @@ function make(checkType) {
   return [{
             TAG: /* Transform */0,
             _0: (function (input, struct, mode) {
-                var expectedValue = struct.tagged_t._0._0;
+                var match = struct.tagged_t;
+                var maybeVariant = match.maybeVariant;
+                var literalValue = match.literal._0;
+                var returnedValue = maybeVariant !== undefined ? Caml_option.valFromOption(maybeVariant) : literalValue;
                 var ok = {
                   TAG: /* Ok */0,
-                  _0: expectedValue
+                  _0: returnedValue
                 };
                 if (mode === /* Safe */0) {
                   if (checkType(input)) {
-                    if (expectedValue !== input) {
+                    if (literalValue !== input) {
                       return {
                               TAG: /* Error */1,
-                              _0: RescriptStruct_Error.UnexpectedValue.make(expectedValue, input, /* Parsing */1)
+                              _0: RescriptStruct_Error.UnexpectedValue.make(literalValue, input, /* Parsing */1)
                             };
                     } else {
                       return ok;
@@ -612,7 +615,10 @@ function make(checkType) {
 var destructors$12 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, mode) {
-        var expectedValue = struct.tagged_t._0._0;
+        var match = struct.tagged_t;
+        var maybeVariant = match.maybeVariant;
+        var literalValue = match.literal._0;
+        var expectedValue = maybeVariant !== undefined ? Caml_option.valFromOption(maybeVariant) : literalValue;
         if (mode === /* Safe */0 && expectedValue !== input) {
           return {
                   TAG: /* Error */1,
@@ -621,11 +627,24 @@ var destructors$12 = [{
         } else {
           return {
                   TAG: /* Ok */0,
-                  _0: expectedValue
+                  _0: literalValue
                 };
         }
       })
   }];
+
+var commonOptionDestructor = {
+  TAG: /* Refinement */1,
+  _0: (function (input, struct) {
+      var match = struct.tagged_t;
+      var maybeVariant = match.maybeVariant;
+      var expectedValue = maybeVariant !== undefined ? Caml_option.valFromOption(maybeVariant) : undefined;
+      if (input !== expectedValue) {
+        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Serializing */0));
+      }
+      
+    })
+};
 
 var constructors$12 = [{
     TAG: /* Transform */0,
@@ -635,52 +654,44 @@ var constructors$12 = [{
                   TAG: /* Error */1,
                   _0: makeUnexpectedTypeError(input, struct)(/* Parsing */1)
                 };
-        } else {
-          return {
-                  TAG: /* Ok */0,
-                  _0: undefined
-                };
         }
+        var match = struct.tagged_t;
+        return {
+                TAG: /* Ok */0,
+                _0: match.maybeVariant
+              };
       })
   }];
 
-var destructors$13 = [{
+var destructors$13 = [
+  commonOptionDestructor,
+  {
     TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (mode === /* Safe */0 && input !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: makeUnexpectedTypeError(input, struct)(/* Serializing */0)
-                };
-        } else {
-          return {
-                  TAG: /* Ok */0,
-                  _0: null
-                };
-        }
+    _0: (function (param, param$1, param$2) {
+        return {
+                TAG: /* Ok */0,
+                _0: null
+              };
       })
-  }];
+  }
+];
 
 var constructors$13 = make(function (input) {
       return input === undefined;
     });
 
-var destructors$14 = [{
+var destructors$14 = [
+  commonOptionDestructor,
+  {
     TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (mode === /* Safe */0 && input !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: makeUnexpectedTypeError(input, struct)(/* Serializing */0)
-                };
-        } else {
-          return {
-                  TAG: /* Ok */0,
-                  _0: undefined
-                };
-        }
+    _0: (function (param, param$1, param$2) {
+        return {
+                TAG: /* Ok */0,
+                _0: undefined
+              };
       })
-  }];
+  }
+];
 
 var constructors$14 = make(function (input) {
       return typeof input === "boolean";
@@ -701,6 +712,81 @@ var constructors$17 = make(function (input) {
         return false;
       }
     });
+
+function innerFactory(tagged_t, innerLiteral) {
+  if (typeof innerLiteral === "number") {
+    switch (innerLiteral) {
+      case /* EmptyNull */1 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeConstructors: constructors$12,
+                  maybeDestructors: destructors$13,
+                  maybeMetadata: undefined
+                };
+      case /* Unit */0 :
+      case /* EmptyOption */2 :
+          break;
+      
+    }
+  } else {
+    switch (innerLiteral.TAG | 0) {
+      case /* String */0 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeConstructors: constructors$15,
+                  maybeDestructors: destructors$12,
+                  maybeMetadata: undefined
+                };
+      case /* Int */1 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeConstructors: constructors$17,
+                  maybeDestructors: destructors$12,
+                  maybeMetadata: undefined
+                };
+      case /* Float */2 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeConstructors: constructors$16,
+                  maybeDestructors: destructors$12,
+                  maybeMetadata: undefined
+                };
+      case /* Bool */3 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeConstructors: constructors$14,
+                  maybeDestructors: destructors$12,
+                  maybeMetadata: undefined
+                };
+      
+    }
+  }
+  return {
+          tagged_t: tagged_t,
+          maybeConstructors: constructors$13,
+          maybeDestructors: destructors$14,
+          maybeMetadata: undefined
+        };
+}
+
+function factory(innerLiteral) {
+  var tagged_t = {
+    TAG: /* Literal */0,
+    literal: innerLiteral,
+    maybeVariant: undefined
+  };
+  return innerFactory(tagged_t, innerLiteral);
+}
+
+function variantFactory(innerLiteral, variant) {
+  var tagged_t_1 = Caml_option.some(variant);
+  var tagged_t = {
+    TAG: /* Literal */0,
+    literal: innerLiteral,
+    maybeVariant: tagged_t_1
+  };
+  return innerFactory(tagged_t, innerLiteral);
+}
 
 var getMaybeExcessKey = (function(object, innerStructsDict) {
     for (var key in object) {
@@ -834,7 +920,7 @@ function make$2(recordDestructor) {
           }];
 }
 
-function factory(fieldsArray, maybeRecordConstructor, maybeRecordDestructor, param) {
+function factory$1(fieldsArray, maybeRecordConstructor, maybeRecordDestructor, param) {
   if (maybeRecordConstructor === undefined && maybeRecordDestructor === undefined) {
     RescriptStruct_Error.MissingConstructorAndDestructor.raise("Record struct factory");
   }
@@ -893,7 +979,7 @@ function strict(struct) {
 function record1(fields) {
   var partial_arg = [fields];
   return function (param, param$1, param$2) {
-    return factory(partial_arg, param, param$1, param$2);
+    return factory$1(partial_arg, param, param$1, param$2);
   };
 }
 
@@ -1021,66 +1107,6 @@ function $$default(innerStruct, defaultValue) {
           },
           maybeConstructors: constructors$11,
           maybeDestructors: destructors$11,
-          maybeMetadata: undefined
-        };
-}
-
-function literal(innerLiteral) {
-  var tagged_t = {
-    TAG: /* Literal */0,
-    _0: innerLiteral
-  };
-  if (typeof innerLiteral === "number") {
-    switch (innerLiteral) {
-      case /* EmptyNull */1 :
-          return {
-                  tagged_t: tagged_t,
-                  maybeConstructors: constructors$12,
-                  maybeDestructors: destructors$13,
-                  maybeMetadata: undefined
-                };
-      case /* Unit */0 :
-      case /* EmptyOption */2 :
-          break;
-      
-    }
-  } else {
-    switch (innerLiteral.TAG | 0) {
-      case /* String */0 :
-          return {
-                  tagged_t: tagged_t,
-                  maybeConstructors: constructors$15,
-                  maybeDestructors: destructors$12,
-                  maybeMetadata: undefined
-                };
-      case /* Int */1 :
-          return {
-                  tagged_t: tagged_t,
-                  maybeConstructors: constructors$17,
-                  maybeDestructors: destructors$12,
-                  maybeMetadata: undefined
-                };
-      case /* Float */2 :
-          return {
-                  tagged_t: tagged_t,
-                  maybeConstructors: constructors$16,
-                  maybeDestructors: destructors$12,
-                  maybeMetadata: undefined
-                };
-      case /* Bool */3 :
-          return {
-                  tagged_t: tagged_t,
-                  maybeConstructors: constructors$14,
-                  maybeDestructors: destructors$12,
-                  maybeMetadata: undefined
-                };
-      
-    }
-  }
-  return {
-          tagged_t: tagged_t,
-          maybeConstructors: constructors$13,
-          maybeDestructors: destructors$14,
           maybeMetadata: undefined
         };
 }
@@ -1261,28 +1287,32 @@ function dynamic(maybeConstructor, maybeDestructor, param) {
         };
 }
 
-var record2 = factory;
+var literal = factory;
 
-var record3 = factory;
+var literalVariant = variantFactory;
 
-var record4 = factory;
+var record2 = factory$1;
 
-var record5 = factory;
+var record3 = factory$1;
 
-var record6 = factory;
+var record4 = factory$1;
 
-var record7 = factory;
+var record5 = factory$1;
 
-var record8 = factory;
+var record6 = factory$1;
 
-var record9 = factory;
+var record7 = factory$1;
 
-var record10 = factory;
+var record8 = factory$1;
+
+var record9 = factory$1;
+
+var record10 = factory$1;
 
 var transformUnknown = transform;
 
 var Record = {
-  factory: factory,
+  factory: factory$1,
   strip: strip,
   strict: strict
 };
@@ -1324,6 +1354,7 @@ exports.bool = bool;
 exports.$$int = $$int;
 exports.$$float = $$float;
 exports.literal = literal;
+exports.literalVariant = literalVariant;
 exports.array = array;
 exports.dict = dict;
 exports.option = option;
