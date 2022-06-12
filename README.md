@@ -279,7 +279,7 @@ let unitStruct = S.literal(Unit)
 
 ```rescript
 type fruit = Apple | Orange
-let appleStruct = S.literal(String("apple"), Apple)
+let appleStruct = S.literalVariant(String("apple"), Apple)
 
 %raw(`"apple"`)->S.parseWith(appleStruct)
 ```
