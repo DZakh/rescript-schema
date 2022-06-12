@@ -3,16 +3,8 @@ type operation =
   | Serializing
   | Parsing
 
-module MissingRecordConstructorAndDestructor: {
-  let raise: unit => 'a
-}
-
-module MissingTransformConstructorAndDestructor: {
-  let raise: unit => 'a
-}
-
-module MissingConstructorAndDestructorRefine: {
-  let raise: unit => 'a
+module MissingConstructorAndDestructor: {
+  let raise: string => 'a
 }
 
 module UnknownKeysRequireRecord: {

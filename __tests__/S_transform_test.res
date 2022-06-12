@@ -25,7 +25,7 @@ test(
       S.string()->S.transform()->ignore
     }, ~expectations=ThrowsException.make(
       ~name="RescriptStructError",
-      ~message="For transformation either a constructor, or a destructor is required",
+      ~message="For a struct factory Transform either a constructor, or a destructor is required",
       (),
     ), ())
   },

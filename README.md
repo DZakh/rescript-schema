@@ -406,6 +406,46 @@ Ok(Some("a string of text"))
 
 `deprecated` struct represents a data of a specific type and makes it optional. The message may be used by an integration library.
 
+#### **`S.dynamic`**
+
+`(~constructor: S.unknown => result<S.t<'value>, string>=?, ~destructor: 'value => result<S.t<'value>, string>=?, unit) => S.t<'value>`
+
+```rescript
+let struct = S.dynamic(
+  ~constructor=unknown => {
+    unknown
+    ->S.parseWith(discriminantStruct)
+    ->Belt.Result.map(discriminant => {
+      switch discriminant {
+      | #circle => circleStruct
+      | #square => squareStruct
+      | #triangle => triangleStruct
+      }
+    })
+  },
+  ~destructor=shape =>
+    switch shape {
+    | Circle(_) => circleStruct
+    | Square(_) => squareStruct
+    | Triangle(_) => triangleStruct
+    }->Ok,
+  (),
+)
+
+%raw(`{
+  "kind": "circle",
+  "radius": 1,
+}`)->S.parseWith(struct)
+```
+
+```rescript
+Ok(Circle({radius: 1.}))
+```
+
+`dynamic` allows you to create a struct with validation logic that can change at runtime. The callback will be called with parsing/serializing data and must return the struct to continue parsing/serializing with.
+
+> The complete code from the example can be found in the [test file](./__tests__/S_dynamic_discriminant_test.res).
+
 ### Transformations
 
 **rescript-struct** allows structs to be augmented with transformation logic, letting you transform data during parsing and serializing. This is most commonly used to apply default values to an input, but it can be used for more complex cases like trimming strings, or mapping input to a convenient ReScript data structure.
@@ -473,7 +513,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [x] Add Json struct factory
 - [x] Design and add Literal struct factory
 - [ ] Design and add Enum struct factory
-- [ ] Design and add Dynamic struct factory
+- [x] Design and add Dynamic struct factory
 - [ ] Design and add Lazy struct factory
 - [ ] Design and add Union struct factory
 - [ ] Design and add Refinements

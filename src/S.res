@@ -810,7 +810,7 @@ module Record = {
     (),
   ): t<'value> => {
     if maybeRecordConstructor === None && maybeRecordDestructor === None {
-      RescriptStruct_Error.MissingRecordConstructorAndDestructor.raise()
+      RescriptStruct_Error.MissingConstructorAndDestructor.raise(`Record struct factory`)
     }
 
     let fields = fieldsArray->unsafeAnyToFields->Js.Dict.fromArray
@@ -1080,7 +1080,7 @@ let refine = (
   (),
 ) => {
   if maybeConstructorRefine === None && maybeDestructorRefine === None {
-    RescriptStruct_Error.MissingConstructorAndDestructorRefine.raise()
+    RescriptStruct_Error.MissingConstructorAndDestructor.raise(`struct factory Refine`)
   }
 
   {
@@ -1118,7 +1118,7 @@ let transform = (
   (),
 ) => {
   if maybeTransformationConstructor === None && maybeTransformationDestructor === None {
-    RescriptStruct_Error.MissingTransformConstructorAndDestructor.raise()
+    RescriptStruct_Error.MissingConstructorAndDestructor.raise(`struct factory Transform`)
   }
   {
     tagged_t: struct.tagged_t,
@@ -1152,3 +1152,35 @@ let transform = (
   }
 }
 let transformUnknown = transform
+
+let dynamic = (~constructor as maybeConstructor=?, ~destructor as maybeDestructor=?, ()) => {
+  if maybeConstructor === None && maybeDestructor === None {
+    RescriptStruct_Error.MissingConstructorAndDestructor.raise(`Dynamic struct factory`)
+  }
+
+  {
+    tagged_t: Unknown,
+    maybeConstructors: maybeConstructor->Inline.Option.map(constructor => {
+      [
+        Operations.transform((~input, ~struct as _, ~mode) => {
+          switch constructor(input) {
+          | Ok(struct) => parseInner(~any=input, ~struct, ~mode)
+          | Error(reason) => Error(RescriptStruct_Error.ParsingFailed.make(reason))
+          }
+        }),
+      ]
+    }),
+    maybeDestructors: maybeDestructor->Inline.Option.map(destructor => {
+      [
+        Operations.transform((~input, ~struct as _, ~mode) => {
+          switch destructor(input) {
+          | Ok(struct) =>
+            serializeInner(~value=input->unsafeAnyToUnknown->unsafeUnknownToAny, ~struct, ~mode)
+          | Error(reason) => Error(RescriptStruct_Error.SerializingFailed.make(reason))
+          }
+        }),
+      ]
+    }),
+    maybeMetadata: None,
+  }
+}

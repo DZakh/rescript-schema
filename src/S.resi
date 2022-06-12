@@ -151,6 +151,12 @@ let transform: (
   unit,
 ) => t<'transformedValue>
 
+let dynamic: (
+  ~constructor: unknown => result<t<'value>, string>=?,
+  ~destructor: 'value => result<t<'value>, string>=?,
+  unit,
+) => t<'value>
+
 let transformUnknown: (
   t<unknown>,
   ~constructor: unknown => result<'transformedValue, string>=?,

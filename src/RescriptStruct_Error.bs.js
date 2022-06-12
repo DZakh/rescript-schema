@@ -13,36 +13,20 @@ var raiseRescriptStructError = (function(message){
   throw new RescriptStructError(message);
 });
 
-function raise(param) {
-  return raiseRescriptStructError("For a Record struct factory either a constructor, or a destructor is required");
+function raise($$location) {
+  return raiseRescriptStructError("For a " + $$location + " either a constructor, or a destructor is required");
 }
 
-var MissingRecordConstructorAndDestructor = {
+var MissingConstructorAndDestructor = {
   raise: raise
 };
 
 function raise$1(param) {
-  return raiseRescriptStructError("For transformation either a constructor, or a destructor is required");
-}
-
-var MissingTransformConstructorAndDestructor = {
-  raise: raise$1
-};
-
-function raise$2(param) {
-  return raiseRescriptStructError("For refining either a constructor, or a destructor refinement is required");
-}
-
-var MissingConstructorAndDestructorRefine = {
-  raise: raise$2
-};
-
-function raise$3(param) {
   return raiseRescriptStructError("Can't set up unknown keys strategy. The struct is not Record");
 }
 
 var UnknownKeysRequireRecord = {
-  raise: raise$3
+  raise: raise$1
 };
 
 function make(reason) {
@@ -159,9 +143,7 @@ function toString(error) {
   return "[ReScript Struct]" + " Failed " + operation + " at " + pathText + ". Reason: " + error.reason;
 }
 
-exports.MissingRecordConstructorAndDestructor = MissingRecordConstructorAndDestructor;
-exports.MissingTransformConstructorAndDestructor = MissingTransformConstructorAndDestructor;
-exports.MissingConstructorAndDestructorRefine = MissingConstructorAndDestructorRefine;
+exports.MissingConstructorAndDestructor = MissingConstructorAndDestructor;
 exports.UnknownKeysRequireRecord = UnknownKeysRequireRecord;
 exports.MissingConstructor = MissingConstructor;
 exports.MissingDestructor = MissingDestructor;

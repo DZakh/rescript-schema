@@ -13,23 +13,9 @@ and operation =
   | Serializing
   | Parsing
 
-module MissingRecordConstructorAndDestructor = {
-  let raise = () =>
-    raiseRescriptStructError(
-      "For a Record struct factory either a constructor, or a destructor is required",
-    )
-}
-
-module MissingTransformConstructorAndDestructor = {
-  let raise = () =>
-    raiseRescriptStructError("For transformation either a constructor, or a destructor is required")
-}
-
-module MissingConstructorAndDestructorRefine = {
-  let raise = () =>
-    raiseRescriptStructError(
-      "For refining either a constructor, or a destructor refinement is required",
-    )
+module MissingConstructorAndDestructor = {
+  let raise = location =>
+    raiseRescriptStructError(`For a ${location} either a constructor, or a destructor is required`)
 }
 
 module UnknownKeysRequireRecord = {

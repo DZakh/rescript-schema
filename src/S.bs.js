@@ -836,7 +836,7 @@ function make$2(recordDestructor) {
 
 function factory(fieldsArray, maybeRecordConstructor, maybeRecordDestructor, param) {
   if (maybeRecordConstructor === undefined && maybeRecordDestructor === undefined) {
-    RescriptStruct_Error.MissingRecordConstructorAndDestructor.raise(undefined);
+    RescriptStruct_Error.MissingConstructorAndDestructor.raise("Record struct factory");
   }
   var fields = Js_dict.fromArray(fieldsArray);
   return {
@@ -1143,7 +1143,7 @@ function json(struct) {
 
 function refine(struct, maybeConstructorRefine, maybeDestructorRefine, param) {
   if (maybeConstructorRefine === undefined && maybeDestructorRefine === undefined) {
-    RescriptStruct_Error.MissingConstructorAndDestructorRefine.raise(undefined);
+    RescriptStruct_Error.MissingConstructorAndDestructor.raise("struct factory Refine");
   }
   var match = struct.maybeConstructors;
   var match$1 = struct.maybeDestructors;
@@ -1177,7 +1177,7 @@ function refine(struct, maybeConstructorRefine, maybeDestructorRefine, param) {
 
 function transform(struct, maybeTransformationConstructor, maybeTransformationDestructor, param) {
   if (maybeTransformationConstructor === undefined && maybeTransformationDestructor === undefined) {
-    RescriptStruct_Error.MissingTransformConstructorAndDestructor.raise(undefined);
+    RescriptStruct_Error.MissingConstructorAndDestructor.raise("struct factory Transform");
   }
   var match = struct.maybeConstructors;
   var match$1 = struct.maybeDestructors;
@@ -1214,6 +1214,50 @@ function transform(struct, maybeTransformationConstructor, maybeTransformationDe
                     })
                 }].concat(match$1) : undefined,
           maybeMetadata: struct.maybeMetadata
+        };
+}
+
+function dynamic(maybeConstructor, maybeDestructor, param) {
+  if (maybeConstructor === undefined && maybeDestructor === undefined) {
+    RescriptStruct_Error.MissingConstructorAndDestructor.raise("Dynamic struct factory");
+  }
+  var fn = function (constructor) {
+    return [{
+              TAG: /* Transform */0,
+              _0: (function (input, param, mode) {
+                  var struct = Curry._1(constructor, input);
+                  if (struct.TAG === /* Ok */0) {
+                    return parseInner(struct._0, input, mode);
+                  } else {
+                    return {
+                            TAG: /* Error */1,
+                            _0: RescriptStruct_Error.ParsingFailed.make(struct._0)
+                          };
+                  }
+                })
+            }];
+  };
+  var fn$1 = function (destructor) {
+    return [{
+              TAG: /* Transform */0,
+              _0: (function (input, param, mode) {
+                  var struct = Curry._1(destructor, input);
+                  if (struct.TAG === /* Ok */0) {
+                    return serializeInner(struct._0, input, mode);
+                  } else {
+                    return {
+                            TAG: /* Error */1,
+                            _0: RescriptStruct_Error.SerializingFailed.make(struct._0)
+                          };
+                  }
+                })
+            }];
+  };
+  return {
+          tagged_t: /* Unknown */1,
+          maybeConstructors: maybeConstructor !== undefined ? Caml_option.some(fn(Caml_option.valFromOption(maybeConstructor))) : undefined,
+          maybeDestructors: maybeDestructor !== undefined ? Caml_option.some(fn$1(Caml_option.valFromOption(maybeDestructor))) : undefined,
+          maybeMetadata: undefined
         };
 }
 
@@ -1300,6 +1344,7 @@ exports.record8 = record8;
 exports.record9 = record9;
 exports.record10 = record10;
 exports.transform = transform;
+exports.dynamic = dynamic;
 exports.transformUnknown = transformUnknown;
 exports.refine = refine;
 exports.parseWith = parseWith;
