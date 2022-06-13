@@ -21,7 +21,7 @@ test("Example", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{"Id": 1, "IsApproved": 1, "Age": 12}`)->S.parseWith(authorStruct),
+    {"Id": 1, "IsApproved": 1, "Age": 12}->S.parseWith(authorStruct),
     Ok({
       id: 1.,
       tags: [],
@@ -31,7 +31,7 @@ test("Example", t => {
     (),
   )
   t->Assert.deepEqual(
-    %raw(`{"Id": 1, "IsApproved": 0, "Tags": ["Loved"]}`)->S.parseWith(authorStruct),
+    {"Id": 1, "IsApproved": 0, "Tags": ["Loved"]}->S.parseWith(authorStruct),
     Ok({
       id: 1.,
       tags: ["Loved"],

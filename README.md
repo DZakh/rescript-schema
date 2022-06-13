@@ -123,11 +123,11 @@ Has multiple modes:
 ```rescript
 let struct = S.string()
 
-"a string of text"->S.parseWith(struct)
+"Hello World!"->S.parseWith(struct)
 ```
 
 ```rescript
-Ok("a string of text")
+Ok("Hello World!")
 ```
 
 `string` struct represents a data that is a string.
@@ -222,11 +222,13 @@ Ok(Js.Dict.fromArray([("foo", "bar"), ("baz", "qux")]))
 ```rescript
 let struct = S.option(S.string())
 
-"a string of text"->S.parseWith(struct)
+"Hello World!"->S.parseWith(struct)
+%raw(`undefined`)->S.parseWith(struct)
 ```
 
 ```rescript
-Ok(Some("a string of text"))
+Ok(Some("Hello World!"))
+Ok(None)
 ```
 
 `option` struct represents a data of a specific type that might be undefined.
@@ -238,10 +240,12 @@ Ok(Some("a string of text"))
 ```rescript
 let struct = S.null(S.string())
 
+"Hello World!"->S.parseWith(struct)
 %raw(`null`)->S.parseWith(struct)
 ```
 
 ```rescript
+Ok(Some("Hello World!"))
 Ok(None)
 ```
 
@@ -254,7 +258,7 @@ Ok(None)
 ```rescript
 let struct = S.unknown()
 
-"a string of text"->S.parseWith(struct)
+"Hello World!"->S.parseWith(struct)
 ```
 
 `unknown` struct represents any data. Can be used together with `S.transformUnknown` to create a custom struct factory.
@@ -339,7 +343,7 @@ let struct = S.record1(~fields=("key", S.string()), ~constructor=key => {{key: k
 {
   "key": "value",
   "unknownKey": "value2",
-}`)->S.parseWith(struct)
+}->S.parseWith(struct)
 ```
 
 ```rescript
@@ -406,13 +410,15 @@ Ok(Some(123))
 `(S.t<option<'value>>, 'value) => S.t<'value>`
 
 ```rescript
-let struct = S.option(S.string())->S.default("a string of text")
+let struct = S.option(S.string())->S.default("Hello World!")
 
 %raw(`undefined`)->S.parseWith(struct)
+"Goodbye World!"->S.parseWith(struct)
 ```
 
 ```rescript
-Ok("a string of text")
+Ok("Hello World!")
+Ok("Goodbye World!")
 ```
 
 `default` augments a struct to add transformation logic for default values, which are applied when the input is undefined.
@@ -424,11 +430,13 @@ Ok("a string of text")
 ```rescript
 let struct = S.deprecated(~message="The struct is deprecated", S.string())
 
-"a string of text"->S.parseWith(struct)
+"Hello World!"->S.parseWith(struct)
+%raw(`undefined`)->S.parseWith(struct)
 ```
 
 ```rescript
-Ok(Some("a string of text"))
+Ok(Some("Hello World!"))
+Ok(None)
 ```
 
 `deprecated` struct represents a data of a specific type and makes it optional. The message may be used by an integration library.
