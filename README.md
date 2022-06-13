@@ -398,7 +398,7 @@ let struct = S.json(S.int())
 ```
 
 ```rescript
-Ok(Some(123))
+Ok(123)
 ```
 
 `json` struct represents a data that is a JSON string containing a value of a specific type.
