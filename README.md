@@ -55,11 +55,11 @@ let authorStruct = S.record4(
   (),
 )
 
-%raw(`{
+{
   "Id": 1,
   "IsApproved": 1,
   "Age": 12,
-}`)->S.parseWith(authorStruct)
+}->S.parseWith(authorStruct)
 // Equal to:
 // Ok({
 //   id: 1.,
@@ -68,11 +68,11 @@ let authorStruct = S.record4(
 //   deprecatedAge: Some(12),
 // })
 
-%raw(`{
+{
   "Id": 1,
   "IsApproved": 0,
   "Tags": ["Loved"],
-}`)->S.parseWith(authorStruct)
+}->S.parseWith(authorStruct)
 // Equal to:
 // Ok({
 //   id: 1.,
@@ -123,7 +123,7 @@ Has multiple modes:
 ```rescript
 let struct = S.string()
 
-%raw(`a string of text`)->S.parseWith(struct)
+"a string of text"->S.parseWith(struct)
 ```
 
 ```rescript
@@ -139,7 +139,7 @@ Ok("a string of text")
 ```rescript
 let struct = S.bool()
 
-%raw(`false`)->S.parseWith(struct)
+false->S.parseWith(struct)
 ```
 
 ```rescript
@@ -155,7 +155,7 @@ Ok(false)
 ```rescript
 let struct = S.int()
 
-%raw(`123`)->S.parseWith(struct)
+123->S.parseWith(struct)
 ```
 
 ```rescript
@@ -171,7 +171,7 @@ Ok(123)
 ```rescript
 let struct = S.float()
 
-%raw(`123`)->S.parseWith(struct)
+123->S.parseWith(struct)
 ```
 
 ```rescript
@@ -187,7 +187,7 @@ Ok(123.)
 ```rescript
 let struct = S.array(S.string())
 
-%raw(`["Hello", "World"]`)->S.parseWith(struct)
+["Hello", "World"]->S.parseWith(struct)
 ```
 
 ```rescript
@@ -203,7 +203,10 @@ Ok(["Hello", "World"])
 ```rescript
 let struct = S.dict(S.string())
 
-%raw(`{"foo":"bar","baz":"qux"}`)->S.parseWith(struct)
+{
+  "foo": "bar",
+  "baz": "qux",
+}->S.parseWith(struct)
 ```
 
 ```rescript
@@ -219,7 +222,7 @@ Ok(Js.Dict.fromArray([("foo", "bar"), ("baz", "qux")]))
 ```rescript
 let struct = S.option(S.string())
 
-%raw(`"a string of text"`)->S.parseWith(struct)
+"a string of text"->S.parseWith(struct)
 ```
 
 ```rescript
@@ -251,7 +254,7 @@ Ok(None)
 ```rescript
 let struct = S.unknown()
 
-%raw(`"a string of text"`)->S.parseWith(struct)
+"a string of text"->S.parseWith(struct)
 ```
 
 `unknown` struct represents any data. Can be used together with `S.transformUnknown` to create a custom struct factory.
@@ -281,7 +284,7 @@ let unitStruct = S.literal(Unit)
 type fruit = Apple | Orange
 let appleStruct = S.literalVariant(String("apple"), Apple)
 
-%raw(`"apple"`)->S.parseWith(appleStruct)
+"apple"->S.parseWith(appleStruct)
 ```
 
 ```rescript
@@ -300,7 +303,7 @@ type author = {
 }
 let authorStruct = S.record1(~fields=("ID", S.string()), ~constructor=id => {id: id}->Ok, ())
 
-%raw(`{"ID": "abc"}`)->S.parseWith(authorStruct)
+{"ID": "abc"}->S.parseWith(authorStruct)
 ```
 
 ```rescript
@@ -333,7 +336,10 @@ let record2: (
 ```rescript
 let struct = S.record1(~fields=("key", S.string()), ~constructor=key => {{key: key}}->Ok, ())->S.Record.strip
 
-%raw(`{key: "value", unknownKey: "value2"}`)->S.parseWith(struct)
+{
+  "key": "value",
+  "unknownKey": "value2",
+}`)->S.parseWith(struct)
 ```
 
 ```rescript
@@ -349,7 +355,10 @@ By default **rescript-struct** disallow unrecognized keys during parsing objects
 ```rescript
 let struct = S.record1(~fields=("key", S.string()), ~constructor=key => {{key: key}}->Ok, ())->S.Record.strict
 
-%raw(`{key: "value", unknownKey: "value2"}`)->S.parseWith(struct)
+{
+  "key": "value",
+  "unknownKey": "value2",
+}->S.parseWith(struct)
 ```
 
 ```rescript
@@ -381,11 +390,11 @@ Error("[ReScript Struct] Failed parsing at root. Reason: Expected Never, got Opt
 ```rescript
 let struct = S.json(S.int())
 
-%raw(`123`)->S.parseWith(struct)
+"123"->S.parseWith(struct)
 ```
 
 ```rescript
-Ok(Some("123"))
+Ok(Some(123))
 ```
 
 `json` struct represents a data that is a JSON string containing a value of a specific type.
@@ -403,7 +412,7 @@ let struct = S.option(S.string())->S.default("a string of text")
 ```
 
 ```rescript
-Ok(Some("a string of text"))
+Ok("a string of text")
 ```
 
 `default` augments a struct to add transformation logic for default values, which are applied when the input is undefined.
@@ -415,7 +424,7 @@ Ok(Some("a string of text"))
 ```rescript
 let struct = S.deprecated(~message="The struct is deprecated", S.string())
 
-%raw(`"a string of text"`)->S.parseWith(struct)
+"a string of text"->S.parseWith(struct)
 ```
 
 ```rescript
@@ -450,10 +459,10 @@ let struct = S.dynamic(
   (),
 )
 
-%raw(`{
+{
   "kind": "circle",
   "radius": 1,
-}`)->S.parseWith(struct)
+}->S.parseWith(struct)
 ```
 
 ```rescript
