@@ -77,6 +77,7 @@ and tagged_t =
       fieldNames: array<string>,
       unknownKeys: recordUnknownKeys,
     }): tagged_t
+  | Union(array<t<'value>>): tagged_t
   | Dict(t<'value>): tagged_t
   | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
@@ -114,6 +115,7 @@ module TaggedT = {
     | Int => "Int"
     | Float => "Float"
     | Bool => "Bool"
+    | Union(_) => "Union"
     | Literal({literal}) =>
       switch literal {
       | String(value) => j`String Literal ("$value")`
@@ -1190,33 +1192,77 @@ let transform = (
 }
 let transformUnknown = transform
 
-let dynamic = (~constructor as maybeConstructor=?, ~destructor as maybeDestructor=?, ()) => {
-  if maybeConstructor === None && maybeDestructor === None {
-    RescriptStruct_Error.MissingConstructorAndDestructor.raise(`Dynamic struct factory`)
-  }
+module Union = {
+  let constructors = [
+    Operations.transform((~input, ~struct, ~mode as _) => {
+      let innerStructs = struct->classify->unsafeGetVariantPayload
 
-  {
-    tagged_t: Unknown,
-    maybeConstructors: maybeConstructor->Inline.Option.map(constructor => {
-      [
-        Operations.transform((~input, ~struct as _, ~mode) => {
-          switch constructor(input) {
-          | Ok(struct) => parseInner(~any=input, ~struct, ~mode)
-          | Error(reason) => Error(RescriptStruct_Error.ParsingFailed.make(reason))
+      let idxRef = ref(0)
+      let maybeLastErrorRef = ref(None)
+      let maybeOkRef = ref(None)
+      while idxRef.contents < innerStructs->Js.Array2.length && maybeOkRef.contents === None {
+        let idx = idxRef.contents
+        let innerStruct = innerStructs->Js.Array2.unsafe_get(idx)
+        switch parseInner(~struct=innerStruct, ~any=input, ~mode=Safe) {
+        | Ok(_) as ok => maybeOkRef.contents = Some(ok)
+        | Error(_) as error => {
+            maybeLastErrorRef.contents = Some(error)
+            idxRef.contents = idxRef.contents + 1
           }
-        }),
-      ]
+        }
+      }
+      switch maybeOkRef.contents {
+      | Some(ok) => ok
+      | None =>
+        switch maybeLastErrorRef.contents {
+        | Some(error) => error
+        | None => %raw(`undefined`)
+        }
+      }
     }),
-    maybeDestructors: maybeDestructor->Inline.Option.map(destructor => {
-      [
-        Operations.transform((~input, ~struct as _, ~mode) => {
-          switch destructor(input) {
-          | Ok(struct) => serializeInner(~value=input->unsafeToAny, ~struct, ~mode)
-          | Error(reason) => Error(RescriptStruct_Error.SerializingFailed.make(reason))
+  ]
+
+  let destructors = [
+    Operations.transform((~input, ~struct, ~mode as _) => {
+      let innerStructs = struct->classify->unsafeGetVariantPayload
+
+      let idxRef = ref(0)
+      let maybeLastErrorRef = ref(None)
+      let maybeOkRef = ref(None)
+      while idxRef.contents < innerStructs->Js.Array2.length && maybeOkRef.contents === None {
+        let idx = idxRef.contents
+        let innerStruct = innerStructs->Js.Array2.unsafe_get(idx)
+        switch serializeInner(~struct=innerStruct, ~value=input, ~mode=Safe) {
+        | Ok(_) as ok => maybeOkRef.contents = Some(ok)
+        | Error(_) as error => {
+            maybeLastErrorRef.contents = Some(error)
+            idxRef.contents = idxRef.contents + 1
           }
-        }),
-      ]
+        }
+      }
+      switch maybeOkRef.contents {
+      | Some(ok) => ok
+      | None =>
+        switch maybeLastErrorRef.contents {
+        | Some(error) => error
+        | None => %raw(`undefined`)
+        }
+      }
     }),
-    maybeMetadata: None,
+  ]
+
+  let factory = structs => {
+    if structs->Js.Array2.length < 2 {
+      RescriptStruct_Error.UnionLackingStructs.raise()
+    }
+
+    {
+      tagged_t: Union(structs),
+      maybeConstructors: Some(constructors),
+      maybeDestructors: Some(destructors),
+      maybeMetadata: None,
+    }
   }
 }
+
+let union = Union.factory

@@ -60,26 +60,26 @@ let authorStruct = S.record4(
   "IsApproved": 1,
   "Age": 12,
 }->S.parseWith(authorStruct)
-// Equal to:
-// Ok({
-//   id: 1.,
-//   tags: [],
-//   isAproved: true,
-//   deprecatedAge: Some(12),
-// })
-
 {
-  "Id": 1,
+  "Id": 2,
   "IsApproved": 0,
   "Tags": ["Loved"],
 }->S.parseWith(authorStruct)
-// Equal to:
-// Ok({
-//   id: 1.,
-//   tags: ["Loved"],
-//   isAproved: false,
-//   deprecatedAge: None,
-// })
+```
+
+```rescript
+Ok({
+  id: 1.,
+  tags: [],
+  isAproved: true,
+  deprecatedAge: Some(12),
+})
+Ok({
+  id: 2.,
+  tags: ["Loved"],
+  isAproved: false,
+  deprecatedAge: None,
+})
 ```
 
 ## API Reference
@@ -441,45 +441,54 @@ Ok(None)
 
 `deprecated` struct represents a data of a specific type and makes it optional. The message may be used by an integration library.
 
-#### **`S.dynamic`**
+#### **`S.union`**
 
-`(~constructor: S.unknown => result<S.t<'value>, string>=?, ~destructor: 'value => result<S.t<'value>, string>=?, unit) => S.t<'value>`
+`array<S.t<'value>> => S.t<'value>`
 
 ```rescript
-let struct = S.dynamic(
-  ~constructor=unknown => {
-    unknown
-    ->S.parseWith(discriminantStruct)
-    ->Belt.Result.map(discriminant => {
-      switch discriminant {
-      | #circle => circleStruct
-      | #square => squareStruct
-      | #triangle => triangleStruct
-      }
-    })
-  },
-  ~destructor=shape =>
-    switch shape {
-    | Circle(_) => circleStruct
-    | Square(_) => squareStruct
-    | Triangle(_) => triangleStruct
-    }->Ok,
+type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, y: float})
+
+let circleStruct = S.record2(
+  ~fields=(("kind", S.literal(String("circle"))), ("radius", S.float())),
+  ~constructor=((_, radius)) => Circle({radius: radius})->Ok,
   (),
 )
+let squareStruct = S.record2(
+  ~fields=(("kind", S.literal(String("square"))), ("x", S.float())),
+  ~constructor=((_, x)) => Square({x: x})->Ok,
+  (),
+)
+let triangleStruct = S.record3(
+  ~fields=(("kind", S.literal(String("triangle"))), ("x", S.float()), ("y", S.float())),
+  ~constructor=((_, x, y)) => Triangle({x: x, y: y})->Ok,
+  (),
+)
+let struct = S.union([circleStruct, squareStruct, triangleStruct])
 
 {
   "kind": "circle",
   "radius": 1,
 }->S.parseWith(struct)
+{
+  "kind": "square",
+  "x": 2,
+}->S.parseWith(struct)
+Triangle({x: 3., y: 4.})->S.serializeWith(struct)
 ```
 
 ```rescript
 Ok(Circle({radius: 1.}))
+Ok(Square({x: 2.}))
+Ok({
+  "kind": "triangle",
+  "x": 3,
+  "y": 4,
+})
 ```
 
-`dynamic` allows you to create a struct with validation logic that can change at runtime. The callback will be called with parsing/serializing data and must return the struct to continue parsing/serializing with.
+`union` will test the input against each of the structs in order and return the first value that validates successfully.
 
-> The complete code from the example can be found in the [test file](./__tests__/S_dynamic_discriminant_test.res).
+> 🧠 Automatically changes parsing/serializing mode for union structs from Unsafe to Safe
 
 ### Transformations
 
@@ -547,10 +556,10 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [ ] Add Date struct factory
 - [x] Add Json struct factory
 - [x] Design and add Literal struct factory
-- [ ] Design and add Enum struct factory
-- [x] Design and add Dynamic struct factory
 - [ ] Design and add Lazy struct factory
-- [ ] Design and add Union struct factory
+- [x] Design and add Union struct factory
+  - [ ] Add discriminant optimization for record structs
+  - [ ] Better error message
 - [ ] Design and add Refinements
 - [ ] Properly handle NaN
 - [ ] Design and add async transforms

@@ -11,6 +11,10 @@ module UnknownKeysRequireRecord: {
   let raise: unit => 'a
 }
 
+module UnionLackingStructs: {
+  let raise: unit => 'a
+}
+
 module MissingConstructor: {
   let make: unit => t
 }

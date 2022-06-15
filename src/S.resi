@@ -33,6 +33,7 @@ and tagged_t =
       fieldNames: array<string>,
       unknownKeys: recordUnknownKeys,
     }): tagged_t
+  | Union(array<t<'value>>): tagged_t
   | Dict(t<'value>): tagged_t
   | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
@@ -53,6 +54,45 @@ let null: t<'value> => t<option<'value>>
 let deprecated: (~message: string=?, t<'value>) => t<option<'value>>
 let default: (t<option<'value>>, 'value) => t<'value>
 let json: t<'value> => t<'value>
+
+let transform: (
+  t<'value>,
+  ~constructor: 'value => result<'transformedValue, string>=?,
+  ~destructor: 'transformedValue => result<'value, string>=?,
+  unit,
+) => t<'transformedValue>
+
+let union: array<t<'value>> => t<'value>
+
+let transformUnknown: (
+  t<unknown>,
+  ~constructor: unknown => result<'transformedValue, string>=?,
+  ~destructor: 'transformedValue => result<'any, string>=?,
+  unit,
+) => t<'transformedValue>
+
+let refine: (
+  t<'value>,
+  ~constructor: 'value => option<string>=?,
+  ~destructor: 'value => option<string>=?,
+  unit,
+) => t<'value>
+
+let parseWith: ('any, ~mode: mode=?, t<'value>) => result<'value, string>
+
+let serializeWith: ('value, ~mode: mode=?, t<'value>) => result<unknown, string>
+
+module Record: {
+  let factory: (
+    ~fields: 'fields,
+    ~constructor: 'fieldValues => result<'value, string>=?,
+    ~destructor: 'value => result<'fieldValues, string>=?,
+    unit,
+  ) => t<'value>
+
+  let strip: t<'value> => t<'value>
+  let strict: t<'value> => t<'value>
+}
 
 let record1: (
   ~fields: field<'v1>,
@@ -144,49 +184,6 @@ let record10: (
   ~destructor: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9, 'v10), string>=?,
   unit,
 ) => t<'value>
-
-let transform: (
-  t<'value>,
-  ~constructor: 'value => result<'transformedValue, string>=?,
-  ~destructor: 'transformedValue => result<'value, string>=?,
-  unit,
-) => t<'transformedValue>
-
-let dynamic: (
-  ~constructor: unknown => result<t<'value>, string>=?,
-  ~destructor: 'value => result<t<'value>, string>=?,
-  unit,
-) => t<'value>
-
-let transformUnknown: (
-  t<unknown>,
-  ~constructor: unknown => result<'transformedValue, string>=?,
-  ~destructor: 'transformedValue => result<'any, string>=?,
-  unit,
-) => t<'transformedValue>
-
-let refine: (
-  t<'value>,
-  ~constructor: 'value => option<string>=?,
-  ~destructor: 'value => option<string>=?,
-  unit,
-) => t<'value>
-
-let parseWith: ('any, ~mode: mode=?, t<'value>) => result<'value, string>
-
-let serializeWith: ('value, ~mode: mode=?, t<'value>) => result<unknown, string>
-
-module Record: {
-  let factory: (
-    ~fields: 'fields,
-    ~constructor: 'fieldValues => result<'value, string>=?,
-    ~destructor: 'value => result<'fieldValues, string>=?,
-    unit,
-  ) => t<'value>
-
-  let strip: t<'value> => t<'value>
-  let strict: t<'value> => t<'value>
-}
 
 let classify: t<'value> => tagged_t
 

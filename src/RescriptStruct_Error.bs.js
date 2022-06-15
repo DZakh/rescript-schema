@@ -29,6 +29,14 @@ var UnknownKeysRequireRecord = {
   raise: raise$1
 };
 
+function raise$2(param) {
+  return raiseRescriptStructError("A Union struct factory require at least two structs");
+}
+
+var UnionLackingStructs = {
+  raise: raise$2
+};
+
 function make(reason) {
   return {
           operation: /* Parsing */1,
@@ -145,6 +153,7 @@ function toString(error) {
 
 exports.MissingConstructorAndDestructor = MissingConstructorAndDestructor;
 exports.UnknownKeysRequireRecord = UnknownKeysRequireRecord;
+exports.UnionLackingStructs = UnionLackingStructs;
 exports.MissingConstructor = MissingConstructor;
 exports.MissingDestructor = MissingDestructor;
 exports.ParsingFailed = ParsingFailed;

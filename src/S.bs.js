@@ -65,11 +65,13 @@ function toString(tagged_t) {
           return "Array";
       case /* Record */4 :
           return "Record";
-      case /* Dict */5 :
+      case /* Union */5 :
+          return "Union";
+      case /* Dict */6 :
           return "Dict";
-      case /* Deprecated */6 :
+      case /* Deprecated */7 :
           return "Deprecated";
-      case /* Default */7 :
+      case /* Default */8 :
           return "Default";
       
     }
@@ -1064,7 +1066,7 @@ function option(innerStruct) {
 function deprecated(maybeMessage, innerStruct) {
   return {
           tagged_t: {
-            TAG: /* Deprecated */6,
+            TAG: /* Deprecated */7,
             struct: innerStruct,
             maybeMessage: maybeMessage
           },
@@ -1089,7 +1091,7 @@ function array(innerStruct) {
 function dict(innerStruct) {
   return {
           tagged_t: {
-            TAG: /* Dict */5,
+            TAG: /* Dict */6,
             _0: innerStruct
           },
           maybeConstructors: constructors$10,
@@ -1101,7 +1103,7 @@ function dict(innerStruct) {
 function $$default(innerStruct, defaultValue) {
   return {
           tagged_t: {
-            TAG: /* Default */7,
+            TAG: /* Default */8,
             struct: innerStruct,
             value: defaultValue
           },
@@ -1243,46 +1245,79 @@ function transform(struct, maybeTransformationConstructor, maybeTransformationDe
         };
 }
 
-function dynamic(maybeConstructor, maybeDestructor, param) {
-  if (maybeConstructor === undefined && maybeDestructor === undefined) {
-    RescriptStruct_Error.MissingConstructorAndDestructor.raise("Dynamic struct factory");
+var constructors$18 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, param) {
+        var innerStructs = struct.tagged_t._0;
+        var idxRef = 0;
+        var maybeLastErrorRef;
+        var maybeOkRef;
+        while(idxRef < innerStructs.length && maybeOkRef === undefined) {
+          var idx = idxRef;
+          var innerStruct = innerStructs[idx];
+          var ok = parseInner(innerStruct, input, /* Safe */0);
+          if (ok.TAG === /* Ok */0) {
+            maybeOkRef = ok;
+          } else {
+            maybeLastErrorRef = ok;
+            idxRef = idxRef + 1 | 0;
+          }
+        };
+        var ok$1 = maybeOkRef;
+        if (ok$1 !== undefined) {
+          return ok$1;
+        }
+        var error = maybeLastErrorRef;
+        if (error !== undefined) {
+          return error;
+        } else {
+          return undefined;
+        }
+      })
+  }];
+
+var destructors$15 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, param) {
+        var innerStructs = struct.tagged_t._0;
+        var idxRef = 0;
+        var maybeLastErrorRef;
+        var maybeOkRef;
+        while(idxRef < innerStructs.length && maybeOkRef === undefined) {
+          var idx = idxRef;
+          var innerStruct = innerStructs[idx];
+          var ok = serializeInner(innerStruct, input, /* Safe */0);
+          if (ok.TAG === /* Ok */0) {
+            maybeOkRef = ok;
+          } else {
+            maybeLastErrorRef = ok;
+            idxRef = idxRef + 1 | 0;
+          }
+        };
+        var ok$1 = maybeOkRef;
+        if (ok$1 !== undefined) {
+          return ok$1;
+        }
+        var error = maybeLastErrorRef;
+        if (error !== undefined) {
+          return error;
+        } else {
+          return undefined;
+        }
+      })
+  }];
+
+function factory$2(structs) {
+  if (structs.length < 2) {
+    RescriptStruct_Error.UnionLackingStructs.raise(undefined);
   }
-  var fn = function (constructor) {
-    return [{
-              TAG: /* Transform */0,
-              _0: (function (input, param, mode) {
-                  var struct = Curry._1(constructor, input);
-                  if (struct.TAG === /* Ok */0) {
-                    return parseInner(struct._0, input, mode);
-                  } else {
-                    return {
-                            TAG: /* Error */1,
-                            _0: RescriptStruct_Error.ParsingFailed.make(struct._0)
-                          };
-                  }
-                })
-            }];
-  };
-  var fn$1 = function (destructor) {
-    return [{
-              TAG: /* Transform */0,
-              _0: (function (input, param, mode) {
-                  var struct = Curry._1(destructor, input);
-                  if (struct.TAG === /* Ok */0) {
-                    return serializeInner(struct._0, input, mode);
-                  } else {
-                    return {
-                            TAG: /* Error */1,
-                            _0: RescriptStruct_Error.SerializingFailed.make(struct._0)
-                          };
-                  }
-                })
-            }];
-  };
   return {
-          tagged_t: /* Unknown */1,
-          maybeConstructors: maybeConstructor !== undefined ? Caml_option.some(fn(Caml_option.valFromOption(maybeConstructor))) : undefined,
-          maybeDestructors: maybeDestructor !== undefined ? Caml_option.some(fn$1(Caml_option.valFromOption(maybeDestructor))) : undefined,
+          tagged_t: {
+            TAG: /* Union */5,
+            _0: structs
+          },
+          maybeConstructors: constructors$18,
+          maybeDestructors: destructors$15,
           maybeMetadata: undefined
         };
 }
@@ -1290,6 +1325,16 @@ function dynamic(maybeConstructor, maybeDestructor, param) {
 var literal = factory;
 
 var literalVariant = variantFactory;
+
+var union = factory$2;
+
+var transformUnknown = transform;
+
+var Record = {
+  factory: factory$1,
+  strip: strip,
+  strict: strict
+};
 
 var record2 = factory$1;
 
@@ -1308,14 +1353,6 @@ var record8 = factory$1;
 var record9 = factory$1;
 
 var record10 = factory$1;
-
-var transformUnknown = transform;
-
-var Record = {
-  factory: factory$1,
-  strip: strip,
-  strict: strict
-};
 
 function MakeMetadata(funarg) {
   var get = function (struct) {
@@ -1364,6 +1401,13 @@ exports.$$default = $$default;
 exports.default = $$default;
 exports.__esModule = true;
 exports.json = json;
+exports.transform = transform;
+exports.union = union;
+exports.transformUnknown = transformUnknown;
+exports.refine = refine;
+exports.parseWith = parseWith;
+exports.serializeWith = serializeWith;
+exports.Record = Record;
 exports.record1 = record1;
 exports.record2 = record2;
 exports.record3 = record3;
@@ -1374,13 +1418,6 @@ exports.record7 = record7;
 exports.record8 = record8;
 exports.record9 = record9;
 exports.record10 = record10;
-exports.transform = transform;
-exports.dynamic = dynamic;
-exports.transformUnknown = transformUnknown;
-exports.refine = refine;
-exports.parseWith = parseWith;
-exports.serializeWith = serializeWith;
-exports.Record = Record;
 exports.classify = classify;
 exports.MakeMetadata = MakeMetadata;
 /* constructors Not a pure module */

@@ -23,6 +23,10 @@ module UnknownKeysRequireRecord = {
     raiseRescriptStructError("Can't set up unknown keys strategy. The struct is not Record")
 }
 
+module UnionLackingStructs = {
+  let raise = () => raiseRescriptStructError("A Union struct factory require at least two structs")
+}
+
 module ParsingFailed = {
   let make = reason => {
     {operation: Parsing, reason: reason, path: []}
