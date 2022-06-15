@@ -490,6 +490,26 @@ Ok({
 
 > 🧠 Automatically changes parsing/serializing mode for union structs from Unsafe to Safe
 
+##### Enums
+
+Also, you can describe enums using `S.union` together with `S.union`.
+
+```rescript
+type outcome = Win | Draw | Loss
+
+let struct = S.union([
+  S.literalVariant(String("win"), Win),
+  S.literalVariant(String("draw"), Draw),
+  S.literalVariant(String("loss"), Loss),
+])
+
+"draw"->S.parseWith(struct)
+```
+
+```rescript
+Ok(Draw)
+```
+
 ### Transformations
 
 **rescript-struct** allows structs to be augmented with transformation logic, letting you transform data during parsing and serializing. This is most commonly used to apply default values to an input, but it can be used for more complex cases like trimming strings, or mapping input to a convenient ReScript data structure.
