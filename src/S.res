@@ -243,7 +243,7 @@ let serializeWith = (value, ~mode=Safe, struct) => {
   serializeInner(~struct, ~value, ~mode)->Inline.Result.mapError(RescriptStruct_Error.toString)
 }
 
-module Operations = {
+module Operation = {
   let transform = (
     fn: (
       ~input: 'input,
@@ -258,311 +258,13 @@ module Operations = {
     Refinement(fn->unsafeToAny)
   }
 
-  module Never = {
-    let constructors = [
-      refinement((~input, ~struct) => {
-        Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
-      }),
-    ]
-    let destructors = []
-  }
-
-  module Unknown = {
-    let constructors = []
-    let destructors = []
-  }
-
-  module String = {
-    let constructors = [
-      refinement((~input, ~struct) => {
-        switch input->Js.typeof === "string" {
-        | true => None
-        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
-        }
-      }),
-    ]
-    let destructors = []
-  }
-
-  module Bool = {
-    let constructors = [
-      refinement((~input, ~struct) => {
-        switch input->Js.typeof === "boolean" {
-        | true => None
-        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
-        }
-      }),
-    ]
-    let destructors = []
-  }
-
-  module Float = {
-    let constructors = [
-      refinement((~input, ~struct) => {
-        switch input->Js.typeof === "number" {
-        | true => None
-        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
-        }
-      }),
-    ]
-    let destructors = []
-  }
-
-  module Int = {
-    let constructors = [
-      refinement((~input, ~struct) => {
-        switch input->Js.typeof === "number" && checkIsIntNumber(input) {
-        | true => None
-        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
-        }
-      }),
-    ]
-    let destructors = []
-  }
-
-  module Null = {
-    let constructors = [
-      transform((~input, ~struct, ~mode) => {
-        switch input->Js.Null.toOption {
-        | Some(innerValue) =>
-          let innerStruct = struct->classify->unsafeGetVariantPayload
-          parseInner(
-            ~struct=innerStruct->unsafeToAny,
-            ~any=innerValue,
-            ~mode,
-          )->Inline.Result.map(value => Some(value))
-        | None => Ok(None)
-        }
-      }),
-    ]
-    let destructors = [
-      transform((~input, ~struct, ~mode) => {
-        switch input {
-        | Some(value) =>
-          let innerStruct = struct->classify->unsafeGetVariantPayload
-          serializeInner(~struct=innerStruct->unsafeToAny, ~value, ~mode)
-        | None => Js.Null.empty->unsafeAnyToUnknown->Ok
-        }
-      }),
-    ]
-  }
-
-  module Option = {
-    let constructors = [
-      transform((~input, ~struct, ~mode) => {
-        switch input {
-        | Some(innerValue) =>
-          let innerStruct = struct->classify->unsafeGetVariantPayload
-          parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.map(value => Some(
-            value,
-          ))
-        | None => Ok(None)
-        }
-      }),
-    ]
-    let destructors = [
-      transform((~input, ~struct, ~mode) => {
-        switch input {
-        | Some(value) => {
-            let innerStruct = struct->classify->unsafeGetVariantPayload
-            serializeInner(~struct=innerStruct, ~value, ~mode)
-          }
-        | None => Ok(None->unsafeAnyToUnknown)
-        }
-      }),
-    ]
-  }
-
-  module Deprecated = {
-    type payload<'value> = {struct: t<'value>}
-    let constructors = [
-      transform((~input, ~struct, ~mode) => {
-        switch input {
-        | Some(innerValue) =>
-          let {struct: innerStruct} = struct->classify->unsafeToAny
-          parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.map(value => Some(
-            value,
-          ))
-        | None => Ok(None)
-        }
-      }),
-    ]
-    let destructors = [
-      transform((~input, ~struct, ~mode) => {
-        switch input {
-        | Some(value) => {
-            let {struct: innerStruct} = struct->classify->unsafeToAny
-            serializeInner(~struct=innerStruct, ~value, ~mode)
-          }
-        | None => Ok(None->unsafeAnyToUnknown)
-        }
-      }),
-    ]
-  }
-
-  module Array = {
-    let constructors = [
-      transform((~input, ~struct, ~mode) => {
-        let maybeRefinementError = switch mode {
-        | Safe =>
-          switch Js.Array2.isArray(input) {
-          | true => None
-          | _ => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
-          }
-        | Unsafe => None
-        }
-        switch maybeRefinementError {
-        | None => {
-            let innerStruct = struct->classify->unsafeGetVariantPayload
-
-            let newArray = []
-            let idxRef = ref(0)
-            let maybeErrorRef = ref(None)
-            while idxRef.contents < input->Js.Array2.length && maybeErrorRef.contents === None {
-              let idx = idxRef.contents
-              let innerValue = input->Js.Array2.unsafe_get(idx)
-              switch parseInner(~struct=innerStruct, ~any=innerValue, ~mode) {
-              | Ok(value) => {
-                  newArray->Js.Array2.push(value)->ignore
-                  idxRef.contents = idxRef.contents + 1
-                }
-              | Error(error) =>
-                maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependIndex(idx))
-              }
-            }
-            switch maybeErrorRef.contents {
-            | Some(error) => Error(error)
-            | None => Ok(newArray)
-            }
-          }
-        | Some(error) => Error(error)
-        }
-      }),
-    ]
-    let destructors = [
-      transform((~input, ~struct, ~mode) => {
-        let innerStruct = struct->classify->unsafeGetVariantPayload
-
-        let newArray = []
-        let idxRef = ref(0)
-        let maybeErrorRef = ref(None)
-        while idxRef.contents < input->Js.Array2.length && maybeErrorRef.contents === None {
-          let idx = idxRef.contents
-          let innerValue = input->Js.Array2.unsafe_get(idx)
-          switch serializeInner(~struct=innerStruct, ~value=innerValue, ~mode) {
-          | Ok(value) => {
-              newArray->Js.Array2.push(value)->ignore
-              idxRef.contents = idxRef.contents + 1
-            }
-          | Error(error) =>
-            maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependIndex(idx))
-          }
-        }
-        switch maybeErrorRef.contents {
-        | Some(error) => Error(error)
-        | None => Ok(newArray)
-        }
-      }),
-    ]
-  }
-
-  module Dict = {
-    let constructors = [
-      transform((~input, ~struct, ~mode) => {
-        let maybeRefinementError = switch mode {
-        | Safe =>
-          switch input->getInternalClass === "[object Object]" {
-          | true => None
-          | _ => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
-          }
-        | Unsafe => None
-        }
-        switch maybeRefinementError {
-        | None => {
-            let innerStruct = struct->classify->unsafeGetVariantPayload
-
-            let newDict = Js.Dict.empty()
-            let keys = input->Js.Dict.keys
-            let idxRef = ref(0)
-            let maybeErrorRef = ref(None)
-            while idxRef.contents < keys->Js.Array2.length && maybeErrorRef.contents === None {
-              let idx = idxRef.contents
-              let key = keys->Js.Array2.unsafe_get(idx)
-              let innerValue = input->Js.Dict.unsafeGet(key)
-              switch parseInner(~struct=innerStruct, ~any=innerValue, ~mode) {
-              | Ok(value) => {
-                  newDict->Js.Dict.set(key, value)->ignore
-                  idxRef.contents = idxRef.contents + 1
-                }
-              | Error(error) =>
-                maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(key))
-              }
-            }
-            switch maybeErrorRef.contents {
-            | Some(error) => Error(error)
-            | None => Ok(newDict)
-            }
-          }
-        | Some(error) => Error(error)
-        }
-      }),
-    ]
-    let destructors = [
-      transform((~input, ~struct, ~mode) => {
-        let innerStruct = struct->classify->unsafeGetVariantPayload
-
-        let newDict = Js.Dict.empty()
-        let keys = input->Js.Dict.keys
-        let idxRef = ref(0)
-        let maybeErrorRef = ref(None)
-        while idxRef.contents < keys->Js.Array2.length && maybeErrorRef.contents === None {
-          let idx = idxRef.contents
-          let key = keys->Js.Array2.unsafe_get(idx)
-          let innerValue = input->Js.Dict.unsafeGet(key)
-          switch serializeInner(~struct=innerStruct, ~value=innerValue, ~mode) {
-          | Ok(value) => {
-              newDict->Js.Dict.set(key, value)->ignore
-              idxRef.contents = idxRef.contents + 1
-            }
-          | Error(error) =>
-            maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(key))
-          }
-        }
-        switch maybeErrorRef.contents {
-        | Some(error) => Error(error)
-        | None => Ok(newDict)
-        }
-      }),
-    ]
-  }
-
-  module Default = {
-    type payload<'value> = {struct: t<option<'value>>, value: 'value}
-
-    let constructors = [
-      transform((~input, ~struct, ~mode) => {
-        let {struct: innerStruct, value} = struct->classify->unsafeToAny
-        parseInner(~struct=innerStruct, ~any=input, ~mode)->Inline.Result.map(maybeOutput => {
-          switch maybeOutput {
-          | Some(output) => output
-          | None => value
-          }
-        })
-      }),
-    ]
-    let destructors = [
-      transform((~input, ~struct, ~mode) => {
-        let {struct: innerStruct} = struct->classify->unsafeToAny
-        serializeInner(~struct=innerStruct, ~value=Some(input), ~mode)
-      }),
-    ]
-  }
+  let empty: array<operation> = []
 }
 
 module Literal = {
   module CommonOperations = {
     module Destructor = {
-      let optionValueRefinement = Operations.refinement((~input, ~struct) => {
+      let optionValueRefinement = Operation.refinement((~input, ~struct) => {
         if input !== None {
           Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Serializing))
         } else {
@@ -570,7 +272,7 @@ module Literal = {
         }
       })
 
-      let literalValueRefinement = Operations.refinement((~input, ~struct) => {
+      let literalValueRefinement = Operation.refinement((~input, ~struct) => {
         let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
         switch expectedValue === input {
         | true => None
@@ -587,7 +289,7 @@ module Literal = {
     }
 
     module Constructor = {
-      let literalValueRefinement = Operations.refinement((~input, ~struct) => {
+      let literalValueRefinement = Operation.refinement((~input, ~struct) => {
         let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
         switch expectedValue === input {
         | true => None
@@ -603,40 +305,40 @@ module Literal = {
       })
     }
 
-    let transformToLiteralValue = Operations.transform((~input as _, ~struct, ~mode as _) => {
+    let transformToLiteralValue = Operation.transform((~input as _, ~struct, ~mode as _) => {
       let literalValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
       Ok(literalValue)
     })
   }
 
   module EmptyNull = {
-    let constructorRefinement = Operations.refinement((~input, ~struct) => {
+    let constructorRefinement = Operation.refinement((~input, ~struct) => {
       switch input === Js.Null.empty {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
       }
     })
 
-    let destructorTransform = Operations.transform((~input as _, ~struct as _, ~mode as _) => {
+    let destructorTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
       Ok(Js.Null.empty)
     })
   }
 
   module EmptyOption = {
-    let constructorRefinement = Operations.refinement((~input, ~struct) => {
+    let constructorRefinement = Operation.refinement((~input, ~struct) => {
       switch input === Js.Undefined.empty {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
       }
     })
 
-    let destructorTransform = Operations.transform((~input as _, ~struct as _, ~mode as _) => {
+    let destructorTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
       Ok(Js.Undefined.empty)
     })
   }
 
   module Bool = {
-    let constructorRefinement = Operations.refinement((~input, ~struct) => {
+    let constructorRefinement = Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "boolean" {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
@@ -645,7 +347,7 @@ module Literal = {
   }
 
   module String = {
-    let constructorRefinement = Operations.refinement((~input, ~struct) => {
+    let constructorRefinement = Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "string" {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
@@ -654,7 +356,7 @@ module Literal = {
   }
 
   module Float = {
-    let constructorRefinement = Operations.refinement((~input, ~struct) => {
+    let constructorRefinement = Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "number" {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
@@ -663,7 +365,7 @@ module Literal = {
   }
 
   module Int = {
-    let constructorRefinement = Operations.refinement((~input, ~struct) => {
+    let constructorRefinement = Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "number" && checkIsIntNumber(input) {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
@@ -680,7 +382,7 @@ module Literal = {
           tagged_t: tagged_t,
           maybeConstructors: Some([
             EmptyNull.constructorRefinement,
-            Operations.transform((~input as _, ~struct as _, ~mode as _) => {
+            Operation.transform((~input as _, ~struct as _, ~mode as _) => {
               Ok(None)
             }),
           ]),
@@ -694,7 +396,7 @@ module Literal = {
           tagged_t: tagged_t,
           maybeConstructors: Some([
             EmptyOption.constructorRefinement,
-            Operations.transform((~input as _, ~struct as _, ~mode as _) => {
+            Operation.transform((~input as _, ~struct as _, ~mode as _) => {
               Ok(None)
             }),
           ]),
@@ -764,10 +466,10 @@ module Literal = {
       type literalValue variant. (literal<literalValue>, variant) => t<variant> =
       (innerLiteral, variant) => {
         let tagged_t = Literal(innerLiteral)
-        let constructorTransform = Operations.transform((~input as _, ~struct as _, ~mode as _) => {
+        let constructorTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
           Ok(variant)
         })
-        let destructorRefinement = Operations.refinement((~input, ~struct as _) => {
+        let destructorRefinement = Operation.refinement((~input, ~struct as _) => {
           switch input === variant {
           | true => None
           | false =>
@@ -850,7 +552,7 @@ module Literal = {
   }
 
   module Unit = {
-    let constructorTransform = Operations.transform((~input as _, ~struct as _, ~mode as _) => {
+    let constructorTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
       Ok()
     })
 
@@ -938,7 +640,7 @@ module Record = {
   module Constructors = {
     let make = (~recordConstructor) => {
       [
-        Operations.transform((~input, ~struct, ~mode) => {
+        Operation.transform((~input, ~struct, ~mode) => {
           let maybeRefinementError = switch mode {
           | Safe =>
             switch input->getInternalClass === "[object Object]" {
@@ -1007,7 +709,7 @@ module Record = {
   module Destructors = {
     let make = (~recordDestructor) => {
       [
-        Operations.transform((~input, ~struct, ~mode) => {
+        Operation.transform((~input, ~struct, ~mode) => {
           let {fields, fieldNames} = struct->classify->unsafeToAny
           recordDestructor(input)
           ->Inline.Result.mapError(RescriptStruct_Error.SerializingFailed.make)
@@ -1098,262 +800,387 @@ module Record = {
   }
 }
 
-let record1 = (~fields) => Record.factory(~fields=[fields])
-let record2 = Record.factory
-let record3 = Record.factory
-let record4 = Record.factory
-let record5 = Record.factory
-let record6 = Record.factory
-let record7 = Record.factory
-let record8 = Record.factory
-let record9 = Record.factory
-let record10 = Record.factory
+module Never = {
+  let constructors = [
+    Operation.refinement((~input, ~struct) => {
+      Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+    }),
+  ]
 
-module MakeMetadata = (
-  Config: {
-    type content
-    let namespace: string
-  },
-) => {
-  let get = (struct): option<Config.content> => {
-    struct.maybeMetadata->Inline.Option.map(metadata => {
-      metadata->Js.Dict.get(Config.namespace)->unsafeToAny
-    })
-  }
-
-  let dictUnsafeSet = (dict: Js.Dict.t<'any>, key: string, value: 'any): Js.Dict.t<'any> => {
-    ignore(dict)
-    ignore(key)
-    ignore(value)
-    %raw(`{
-      ...dict,
-      [key]: value,
-    }`)
-  }
-
-  let set = (struct, content: Config.content) => {
-    let existingContent = switch struct.maybeMetadata {
-    | Some(currentContent) => currentContent
-    | None => Js.Dict.empty()
-    }
-    {
-      tagged_t: struct.tagged_t,
-      maybeConstructors: struct.maybeConstructors,
-      maybeDestructors: struct.maybeDestructors,
-      maybeMetadata: Some(
-        existingContent->dictUnsafeSet(Config.namespace, content->unsafeAnyToUnknown),
-      ),
-    }
+  let factory = () => {
+    tagged_t: Never,
+    maybeConstructors: Some(constructors),
+    maybeDestructors: Some(Operation.empty),
+    maybeMetadata: None,
   }
 }
 
-let never = () => {
-  tagged_t: Never,
-  maybeConstructors: Some(Operations.Never.constructors),
-  maybeDestructors: Some(Operations.Never.destructors),
-  maybeMetadata: None,
-}
-
-let unknown = () => {
-  tagged_t: Unknown,
-  maybeConstructors: Some(Operations.Unknown.constructors),
-  maybeDestructors: Some(Operations.Unknown.destructors),
-  maybeMetadata: None,
-}
-
-let string = () => {
-  tagged_t: String,
-  maybeConstructors: Some(Operations.String.constructors),
-  maybeDestructors: Some(Operations.String.destructors),
-  maybeMetadata: None,
-}
-
-let bool = () => {
-  tagged_t: Bool,
-  maybeConstructors: Some(Operations.Bool.constructors),
-  maybeDestructors: Some(Operations.Bool.destructors),
-  maybeMetadata: None,
-}
-
-let int = () => {
-  tagged_t: Int,
-  maybeConstructors: Some(Operations.Int.constructors),
-  maybeDestructors: Some(Operations.Int.destructors),
-  maybeMetadata: None,
-}
-
-let float = () => {
-  tagged_t: Float,
-  maybeConstructors: Some(Operations.Float.constructors),
-  maybeDestructors: Some(Operations.Float.destructors),
-  maybeMetadata: None,
-}
-
-let null = innerStruct => {
-  tagged_t: Null(innerStruct),
-  maybeConstructors: Some(Operations.Null.constructors),
-  maybeDestructors: Some(Operations.Null.destructors),
-  maybeMetadata: None,
-}
-
-let option = innerStruct => {
-  tagged_t: Option(innerStruct),
-  maybeConstructors: Some(Operations.Option.constructors),
-  maybeDestructors: Some(Operations.Option.destructors),
-  maybeMetadata: None,
-}
-
-let deprecated = (~message as maybeMessage=?, innerStruct) => {
-  tagged_t: Deprecated({struct: innerStruct, maybeMessage: maybeMessage}),
-  maybeConstructors: Some(Operations.Deprecated.constructors),
-  maybeDestructors: Some(Operations.Deprecated.destructors),
-  maybeMetadata: None,
-}
-
-let array = innerStruct => {
-  tagged_t: Array(innerStruct),
-  maybeConstructors: Some(Operations.Array.constructors),
-  maybeDestructors: Some(Operations.Array.destructors),
-  maybeMetadata: None,
-}
-
-let dict = innerStruct => {
-  tagged_t: Dict(innerStruct),
-  maybeConstructors: Some(Operations.Dict.constructors),
-  maybeDestructors: Some(Operations.Dict.destructors),
-  maybeMetadata: None,
-}
-
-let default = (innerStruct, defaultValue) => {
-  tagged_t: Default({struct: innerStruct, value: defaultValue}),
-  maybeConstructors: Some(Operations.Default.constructors),
-  maybeDestructors: Some(Operations.Default.destructors),
-  maybeMetadata: None,
-}
-
-let literal = Literal.factory
-let literalVariant = Literal.Variant.factory
-let literalUnit = Literal.Unit.factory
-
-let json = struct => {
-  tagged_t: String,
-  maybeConstructors: Some(
-    Js.Array2.concat(
-      Operations.String.constructors,
-      [
-        Operations.transform((~input, ~struct as _, ~mode) => {
-          switch Js.Json.parseExn(input) {
-          | json => Ok(json)
-          | exception Js.Exn.Error(obj) =>
-            let maybeMessage = Js.Exn.message(obj)
-            Error(
-              RescriptStruct_Error.ParsingFailed.make(
-                maybeMessage->Belt.Option.getWithDefault("Syntax error"),
-              ),
-            )
-          }->Inline.Result.flatMap(parsedJson => parseInner(~any=parsedJson, ~struct, ~mode))
-        }),
-      ],
-    ),
-  ),
-  maybeDestructors: Some(
-    Js.Array2.concat(
-      [
-        Operations.transform((~input, ~struct as _, ~mode) => {
-          serializeInner(~struct, ~value=input, ~mode)->Inline.Result.map(unknown =>
-            unknown->unsafeUnknownToAny->Js.Json.stringify
-          )
-        }),
-      ],
-      Operations.String.destructors,
-    ),
-  ),
-  maybeMetadata: None,
-}
-
-let refine = (
-  struct,
-  ~constructor as maybeConstructorRefine=?,
-  ~destructor as maybeDestructorRefine=?,
-  (),
-) => {
-  if maybeConstructorRefine === None && maybeDestructorRefine === None {
-    RescriptStruct_Error.MissingConstructorAndDestructor.raise(`struct factory Refine`)
-  }
-
-  {
-    tagged_t: struct.tagged_t,
-    maybeMetadata: struct.maybeMetadata,
-    maybeConstructors: switch (struct.maybeConstructors, maybeConstructorRefine) {
-    | (Some(constructors), Some(constructorRefine)) =>
-      constructors
-      ->Js.Array2.concat([
-        Operations.refinement((~input, ~struct as _) => {
-          constructorRefine(input)->Inline.Option.map(RescriptStruct_Error.ParsingFailed.make)
-        }),
-      ])
-      ->Some
-    | (_, _) => None
-    },
-    maybeDestructors: switch (struct.maybeDestructors, maybeDestructorRefine) {
-    | (Some(destructors), Some(destructorRefine)) =>
-      [
-        Operations.refinement((~input, ~struct as _) => {
-          destructorRefine(input)->Inline.Option.map(RescriptStruct_Error.SerializingFailed.make)
-        }),
-      ]
-      ->Js.Array2.concat(destructors)
-      ->Some
-    | (_, _) => None
-    },
+module Unknown = {
+  let factory = () => {
+    tagged_t: Unknown,
+    maybeConstructors: Some(Operation.empty),
+    maybeDestructors: Some(Operation.empty),
+    maybeMetadata: None,
   }
 }
 
-let transform = (
-  struct,
-  ~constructor as maybeTransformationConstructor=?,
-  ~destructor as maybeTransformationDestructor=?,
-  (),
-) => {
-  if maybeTransformationConstructor === None && maybeTransformationDestructor === None {
-    RescriptStruct_Error.MissingConstructorAndDestructor.raise(`struct factory Transform`)
-  }
-  {
-    tagged_t: struct.tagged_t,
-    maybeMetadata: struct.maybeMetadata,
-    maybeConstructors: switch (struct.maybeConstructors, maybeTransformationConstructor) {
-    | (Some(constructors), Some(transformationConstructor)) =>
-      constructors
-      ->Js.Array2.concat([
-        Operations.transform((~input, ~struct as _, ~mode as _) => {
-          transformationConstructor(input)->Inline.Result.mapError(
-            RescriptStruct_Error.ParsingFailed.make,
-          )
-        }),
-      ])
-      ->Some
-    | (_, _) => None
-    },
-    maybeDestructors: switch (struct.maybeDestructors, maybeTransformationDestructor) {
-    | (Some(destructors), Some(transformationDestructor)) =>
-      [
-        Operations.transform((~input, ~struct as _, ~mode as _) => {
-          transformationDestructor(input)->Inline.Result.mapError(
-            RescriptStruct_Error.SerializingFailed.make,
-          )
-        }),
-      ]
-      ->Js.Array2.concat(destructors)
-      ->Some
-    | (_, _) => None
-    },
+module String = {
+  let constructors = [
+    Operation.refinement((~input, ~struct) => {
+      switch input->Js.typeof === "string" {
+      | true => None
+      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      }
+    }),
+  ]
+  let destructors = Operation.empty
+
+  let factory = () => {
+    tagged_t: String,
+    maybeConstructors: Some(constructors),
+    maybeDestructors: Some(destructors),
+    maybeMetadata: None,
   }
 }
-let transformUnknown = transform
+
+module Bool = {
+  let constructors = [
+    Operation.refinement((~input, ~struct) => {
+      switch input->Js.typeof === "boolean" {
+      | true => None
+      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      }
+    }),
+  ]
+
+  let factory = () => {
+    tagged_t: Bool,
+    maybeConstructors: Some(constructors),
+    maybeDestructors: Some(Operation.empty),
+    maybeMetadata: None,
+  }
+}
+
+module Int = {
+  let constructors = [
+    Operation.refinement((~input, ~struct) => {
+      switch input->Js.typeof === "number" && checkIsIntNumber(input) {
+      | true => None
+      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      }
+    }),
+  ]
+
+  let factory = () => {
+    tagged_t: Int,
+    maybeConstructors: Some(constructors),
+    maybeDestructors: Some(Operation.empty),
+    maybeMetadata: None,
+  }
+}
+
+module Float = {
+  let constructors = [
+    Operation.refinement((~input, ~struct) => {
+      switch input->Js.typeof === "number" {
+      | true => None
+      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      }
+    }),
+  ]
+
+  let factory = () => {
+    tagged_t: Float,
+    maybeConstructors: Some(constructors),
+    maybeDestructors: Some(Operation.empty),
+    maybeMetadata: None,
+  }
+}
+
+module Null = {
+  let constructors = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      switch input->Js.Null.toOption {
+      | Some(innerValue) =>
+        let innerStruct = struct->classify->unsafeGetVariantPayload
+        parseInner(
+          ~struct=innerStruct->unsafeToAny,
+          ~any=innerValue,
+          ~mode,
+        )->Inline.Result.map(value => Some(value))
+      | None => Ok(None)
+      }
+    }),
+  ]
+  let destructors = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      switch input {
+      | Some(value) =>
+        let innerStruct = struct->classify->unsafeGetVariantPayload
+        serializeInner(~struct=innerStruct->unsafeToAny, ~value, ~mode)
+      | None => Js.Null.empty->unsafeAnyToUnknown->Ok
+      }
+    }),
+  ]
+
+  let factory = innerStruct => {
+    tagged_t: Null(innerStruct),
+    maybeConstructors: Some(constructors),
+    maybeDestructors: Some(destructors),
+    maybeMetadata: None,
+  }
+}
+
+module Option = {
+  let constructors = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      switch input {
+      | Some(innerValue) =>
+        let innerStruct = struct->classify->unsafeGetVariantPayload
+        parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.map(value => Some(
+          value,
+        ))
+      | None => Ok(None)
+      }
+    }),
+  ]
+  let destructors = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      switch input {
+      | Some(value) => {
+          let innerStruct = struct->classify->unsafeGetVariantPayload
+          serializeInner(~struct=innerStruct, ~value, ~mode)
+        }
+      | None => Ok(None->unsafeAnyToUnknown)
+      }
+    }),
+  ]
+
+  let factory = innerStruct => {
+    tagged_t: Option(innerStruct),
+    maybeConstructors: Some(constructors),
+    maybeDestructors: Some(destructors),
+    maybeMetadata: None,
+  }
+}
+
+module Deprecated = {
+  type payload<'value> = {struct: t<'value>}
+
+  let constructors = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      switch input {
+      | Some(innerValue) =>
+        let {struct: innerStruct} = struct->classify->unsafeToAny
+        parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.map(value => Some(
+          value,
+        ))
+      | None => Ok(None)
+      }
+    }),
+  ]
+  let destructors = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      switch input {
+      | Some(value) => {
+          let {struct: innerStruct} = struct->classify->unsafeToAny
+          serializeInner(~struct=innerStruct, ~value, ~mode)
+        }
+      | None => Ok(None->unsafeAnyToUnknown)
+      }
+    }),
+  ]
+
+  let factory = (~message as maybeMessage=?, innerStruct) => {
+    tagged_t: Deprecated({struct: innerStruct, maybeMessage: maybeMessage}),
+    maybeConstructors: Some(constructors),
+    maybeDestructors: Some(destructors),
+    maybeMetadata: None,
+  }
+}
+
+module Array = {
+  let constructors = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      let maybeRefinementError = switch mode {
+      | Safe =>
+        switch Js.Array2.isArray(input) {
+        | true => None
+        | _ => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+        }
+      | Unsafe => None
+      }
+      switch maybeRefinementError {
+      | None => {
+          let innerStruct = struct->classify->unsafeGetVariantPayload
+
+          let newArray = []
+          let idxRef = ref(0)
+          let maybeErrorRef = ref(None)
+          while idxRef.contents < input->Js.Array2.length && maybeErrorRef.contents === None {
+            let idx = idxRef.contents
+            let innerValue = input->Js.Array2.unsafe_get(idx)
+            switch parseInner(~struct=innerStruct, ~any=innerValue, ~mode) {
+            | Ok(value) => {
+                newArray->Js.Array2.push(value)->ignore
+                idxRef.contents = idxRef.contents + 1
+              }
+            | Error(error) =>
+              maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependIndex(idx))
+            }
+          }
+          switch maybeErrorRef.contents {
+          | Some(error) => Error(error)
+          | None => Ok(newArray)
+          }
+        }
+      | Some(error) => Error(error)
+      }
+    }),
+  ]
+  let destructors = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      let innerStruct = struct->classify->unsafeGetVariantPayload
+
+      let newArray = []
+      let idxRef = ref(0)
+      let maybeErrorRef = ref(None)
+      while idxRef.contents < input->Js.Array2.length && maybeErrorRef.contents === None {
+        let idx = idxRef.contents
+        let innerValue = input->Js.Array2.unsafe_get(idx)
+        switch serializeInner(~struct=innerStruct, ~value=innerValue, ~mode) {
+        | Ok(value) => {
+            newArray->Js.Array2.push(value)->ignore
+            idxRef.contents = idxRef.contents + 1
+          }
+        | Error(error) =>
+          maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependIndex(idx))
+        }
+      }
+      switch maybeErrorRef.contents {
+      | Some(error) => Error(error)
+      | None => Ok(newArray)
+      }
+    }),
+  ]
+
+  let factory = innerStruct => {
+    tagged_t: Array(innerStruct),
+    maybeConstructors: Some(constructors),
+    maybeDestructors: Some(destructors),
+    maybeMetadata: None,
+  }
+}
+
+module Dict = {
+  let constructors = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      let maybeRefinementError = switch mode {
+      | Safe =>
+        switch input->getInternalClass === "[object Object]" {
+        | true => None
+        | _ => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+        }
+      | Unsafe => None
+      }
+      switch maybeRefinementError {
+      | None => {
+          let innerStruct = struct->classify->unsafeGetVariantPayload
+
+          let newDict = Js.Dict.empty()
+          let keys = input->Js.Dict.keys
+          let idxRef = ref(0)
+          let maybeErrorRef = ref(None)
+          while idxRef.contents < keys->Js.Array2.length && maybeErrorRef.contents === None {
+            let idx = idxRef.contents
+            let key = keys->Js.Array2.unsafe_get(idx)
+            let innerValue = input->Js.Dict.unsafeGet(key)
+            switch parseInner(~struct=innerStruct, ~any=innerValue, ~mode) {
+            | Ok(value) => {
+                newDict->Js.Dict.set(key, value)->ignore
+                idxRef.contents = idxRef.contents + 1
+              }
+            | Error(error) =>
+              maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(key))
+            }
+          }
+          switch maybeErrorRef.contents {
+          | Some(error) => Error(error)
+          | None => Ok(newDict)
+          }
+        }
+      | Some(error) => Error(error)
+      }
+    }),
+  ]
+  let destructors = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      let innerStruct = struct->classify->unsafeGetVariantPayload
+
+      let newDict = Js.Dict.empty()
+      let keys = input->Js.Dict.keys
+      let idxRef = ref(0)
+      let maybeErrorRef = ref(None)
+      while idxRef.contents < keys->Js.Array2.length && maybeErrorRef.contents === None {
+        let idx = idxRef.contents
+        let key = keys->Js.Array2.unsafe_get(idx)
+        let innerValue = input->Js.Dict.unsafeGet(key)
+        switch serializeInner(~struct=innerStruct, ~value=innerValue, ~mode) {
+        | Ok(value) => {
+            newDict->Js.Dict.set(key, value)->ignore
+            idxRef.contents = idxRef.contents + 1
+          }
+        | Error(error) =>
+          maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(key))
+        }
+      }
+      switch maybeErrorRef.contents {
+      | Some(error) => Error(error)
+      | None => Ok(newDict)
+      }
+    }),
+  ]
+
+  let factory = innerStruct => {
+    tagged_t: Dict(innerStruct),
+    maybeConstructors: Some(constructors),
+    maybeDestructors: Some(destructors),
+    maybeMetadata: None,
+  }
+}
+
+module Default = {
+  type payload<'value> = {struct: t<option<'value>>, value: 'value}
+
+  let constructors = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      let {struct: innerStruct, value} = struct->classify->unsafeToAny
+      parseInner(~struct=innerStruct, ~any=input, ~mode)->Inline.Result.map(maybeOutput => {
+        switch maybeOutput {
+        | Some(output) => output
+        | None => value
+        }
+      })
+    }),
+  ]
+  let destructors = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      let {struct: innerStruct} = struct->classify->unsafeToAny
+      serializeInner(~struct=innerStruct, ~value=Some(input), ~mode)
+    }),
+  ]
+
+  let factory = (innerStruct, defaultValue) => {
+    tagged_t: Default({struct: innerStruct, value: defaultValue}),
+    maybeConstructors: Some(constructors),
+    maybeDestructors: Some(destructors),
+    maybeMetadata: None,
+  }
+}
 
 module Union = {
   let constructors = [
-    Operations.transform((~input, ~struct, ~mode as _) => {
+    Operation.transform((~input, ~struct, ~mode as _) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
 
       let idxRef = ref(0)
@@ -1382,7 +1209,7 @@ module Union = {
   ]
 
   let destructors = [
-    Operations.transform((~input, ~struct, ~mode as _) => {
+    Operation.transform((~input, ~struct, ~mode as _) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
 
       let idxRef = ref(0)
@@ -1424,4 +1251,183 @@ module Union = {
   }
 }
 
+let record1 = (~fields) => Record.factory(~fields=[fields])
+let record2 = Record.factory
+let record3 = Record.factory
+let record4 = Record.factory
+let record5 = Record.factory
+let record6 = Record.factory
+let record7 = Record.factory
+let record8 = Record.factory
+let record9 = Record.factory
+let record10 = Record.factory
+let never = Never.factory
+let unknown = Unknown.factory
+let string = String.factory
+let bool = Bool.factory
+let int = Int.factory
+let float = Float.factory
+let null = Null.factory
+let option = Option.factory
+let deprecated = Deprecated.factory
+let array = Array.factory
+let dict = Dict.factory
+let default = Default.factory
+let literal = Literal.factory
+let literalVariant = Literal.Variant.factory
+let literalUnit = Literal.Unit.factory
 let union = Union.factory
+
+let json = struct => {
+  tagged_t: String,
+  maybeConstructors: Some(
+    Js.Array2.concat(
+      String.constructors,
+      [
+        Operation.transform((~input, ~struct as _, ~mode) => {
+          switch Js.Json.parseExn(input) {
+          | json => Ok(json)
+          | exception Js.Exn.Error(obj) =>
+            let maybeMessage = Js.Exn.message(obj)
+            Error(
+              RescriptStruct_Error.ParsingFailed.make(
+                maybeMessage->Belt.Option.getWithDefault("Syntax error"),
+              ),
+            )
+          }->Inline.Result.flatMap(parsedJson => parseInner(~any=parsedJson, ~struct, ~mode))
+        }),
+      ],
+    ),
+  ),
+  maybeDestructors: Some(
+    Js.Array2.concat(
+      [
+        Operation.transform((~input, ~struct as _, ~mode) => {
+          serializeInner(~struct, ~value=input, ~mode)->Inline.Result.map(unknown =>
+            unknown->unsafeUnknownToAny->Js.Json.stringify
+          )
+        }),
+      ],
+      String.destructors,
+    ),
+  ),
+  maybeMetadata: None,
+}
+
+let refine = (
+  struct,
+  ~constructor as maybeConstructorRefine=?,
+  ~destructor as maybeDestructorRefine=?,
+  (),
+) => {
+  if maybeConstructorRefine === None && maybeDestructorRefine === None {
+    RescriptStruct_Error.MissingConstructorAndDestructor.raise(`struct factory Refine`)
+  }
+
+  {
+    tagged_t: struct.tagged_t,
+    maybeMetadata: struct.maybeMetadata,
+    maybeConstructors: switch (struct.maybeConstructors, maybeConstructorRefine) {
+    | (Some(constructors), Some(constructorRefine)) =>
+      constructors
+      ->Js.Array2.concat([
+        Operation.refinement((~input, ~struct as _) => {
+          constructorRefine(input)->Inline.Option.map(RescriptStruct_Error.ParsingFailed.make)
+        }),
+      ])
+      ->Some
+    | (_, _) => None
+    },
+    maybeDestructors: switch (struct.maybeDestructors, maybeDestructorRefine) {
+    | (Some(destructors), Some(destructorRefine)) =>
+      [
+        Operation.refinement((~input, ~struct as _) => {
+          destructorRefine(input)->Inline.Option.map(RescriptStruct_Error.SerializingFailed.make)
+        }),
+      ]
+      ->Js.Array2.concat(destructors)
+      ->Some
+    | (_, _) => None
+    },
+  }
+}
+
+let transform = (
+  struct,
+  ~constructor as maybeTransformationConstructor=?,
+  ~destructor as maybeTransformationDestructor=?,
+  (),
+) => {
+  if maybeTransformationConstructor === None && maybeTransformationDestructor === None {
+    RescriptStruct_Error.MissingConstructorAndDestructor.raise(`struct factory Transform`)
+  }
+  {
+    tagged_t: struct.tagged_t,
+    maybeMetadata: struct.maybeMetadata,
+    maybeConstructors: switch (struct.maybeConstructors, maybeTransformationConstructor) {
+    | (Some(constructors), Some(transformationConstructor)) =>
+      constructors
+      ->Js.Array2.concat([
+        Operation.transform((~input, ~struct as _, ~mode as _) => {
+          transformationConstructor(input)->Inline.Result.mapError(
+            RescriptStruct_Error.ParsingFailed.make,
+          )
+        }),
+      ])
+      ->Some
+    | (_, _) => None
+    },
+    maybeDestructors: switch (struct.maybeDestructors, maybeTransformationDestructor) {
+    | (Some(destructors), Some(transformationDestructor)) =>
+      [
+        Operation.transform((~input, ~struct as _, ~mode as _) => {
+          transformationDestructor(input)->Inline.Result.mapError(
+            RescriptStruct_Error.SerializingFailed.make,
+          )
+        }),
+      ]
+      ->Js.Array2.concat(destructors)
+      ->Some
+    | (_, _) => None
+    },
+  }
+}
+let transformUnknown = transform
+
+module MakeMetadata = (
+  Config: {
+    type content
+    let namespace: string
+  },
+) => {
+  let get = (struct): option<Config.content> => {
+    struct.maybeMetadata->Inline.Option.map(metadata => {
+      metadata->Js.Dict.get(Config.namespace)->unsafeToAny
+    })
+  }
+
+  let dictUnsafeSet = (dict: Js.Dict.t<'any>, key: string, value: 'any): Js.Dict.t<'any> => {
+    ignore(dict)
+    ignore(key)
+    ignore(value)
+    %raw(`{
+      ...dict,
+      [key]: value,
+    }`)
+  }
+
+  let set = (struct, content: Config.content) => {
+    let existingContent = switch struct.maybeMetadata {
+    | Some(currentContent) => currentContent
+    | None => Js.Dict.empty()
+    }
+    {
+      tagged_t: struct.tagged_t,
+      maybeConstructors: struct.maybeConstructors,
+      maybeDestructors: struct.maybeDestructors,
+      maybeMetadata: Some(
+        existingContent->dictUnsafeSet(Config.namespace, content->unsafeAnyToUnknown),
+      ),
+    }
+  }
+}

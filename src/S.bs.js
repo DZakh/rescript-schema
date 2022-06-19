@@ -207,372 +207,7 @@ function serializeWith(value, modeOpt, struct) {
   }
 }
 
-var constructors = [{
-    TAG: /* Refinement */1,
-    _0: (function (input, struct) {
-        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
-      })
-  }];
-
-var destructors = [];
-
-var constructors$1 = [];
-
-var destructors$1 = [];
-
-var constructors$2 = [{
-    TAG: /* Refinement */1,
-    _0: (function (input, struct) {
-        if (typeof input === "string") {
-          return ;
-        } else {
-          return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
-        }
-      })
-  }];
-
-var destructors$2 = [];
-
-var constructors$3 = [{
-    TAG: /* Refinement */1,
-    _0: (function (input, struct) {
-        if (typeof input === "boolean") {
-          return ;
-        } else {
-          return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
-        }
-      })
-  }];
-
-var destructors$3 = [];
-
-var constructors$4 = [{
-    TAG: /* Refinement */1,
-    _0: (function (input, struct) {
-        if (typeof input === "number") {
-          return ;
-        } else {
-          return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
-        }
-      })
-  }];
-
-var destructors$4 = [];
-
-var constructors$5 = [{
-    TAG: /* Refinement */1,
-    _0: (function (input, struct) {
-        if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
-          return ;
-        } else {
-          return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
-        }
-      })
-  }];
-
-var destructors$5 = [];
-
-var constructors$6 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (input === null) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: undefined
-                };
-        }
-        var innerStruct = struct.tagged_t._0;
-        var result = parseInner(innerStruct, input, mode);
-        if (result.TAG === /* Ok */0) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: Caml_option.some(result._0)
-                };
-        } else {
-          return result;
-        }
-      })
-  }];
-
-var destructors$6 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (input === undefined) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: null
-                };
-        }
-        var innerStruct = struct.tagged_t._0;
-        return serializeInner(innerStruct, Caml_option.valFromOption(input), mode);
-      })
-  }];
-
-var constructors$7 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (input === undefined) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: undefined
-                };
-        }
-        var innerStruct = struct.tagged_t._0;
-        var result = parseInner(innerStruct, Caml_option.valFromOption(input), mode);
-        if (result.TAG === /* Ok */0) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: Caml_option.some(result._0)
-                };
-        } else {
-          return result;
-        }
-      })
-  }];
-
-var destructors$7 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (input === undefined) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: undefined
-                };
-        }
-        var innerStruct = struct.tagged_t._0;
-        return serializeInner(innerStruct, Caml_option.valFromOption(input), mode);
-      })
-  }];
-
-var constructors$8 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (input === undefined) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: undefined
-                };
-        }
-        var match = struct.tagged_t;
-        var result = parseInner(match.struct, Caml_option.valFromOption(input), mode);
-        if (result.TAG === /* Ok */0) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: Caml_option.some(result._0)
-                };
-        } else {
-          return result;
-        }
-      })
-  }];
-
-var destructors$8 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (input === undefined) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: undefined
-                };
-        }
-        var match = struct.tagged_t;
-        return serializeInner(match.struct, Caml_option.valFromOption(input), mode);
-      })
-  }];
-
-var constructors$9 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        var maybeRefinementError;
-        if (mode) {
-          maybeRefinementError = undefined;
-        } else {
-          var match = Array.isArray(input);
-          maybeRefinementError = match ? undefined : Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
-        }
-        if (maybeRefinementError !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(maybeRefinementError)
-                };
-        }
-        var innerStruct = struct.tagged_t._0;
-        var newArray = [];
-        var idxRef = 0;
-        var maybeErrorRef;
-        while(idxRef < input.length && maybeErrorRef === undefined) {
-          var idx = idxRef;
-          var innerValue = input[idx];
-          var value = parseInner(innerStruct, innerValue, mode);
-          if (value.TAG === /* Ok */0) {
-            newArray.push(value._0);
-            idxRef = idxRef + 1 | 0;
-          } else {
-            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependIndex(value._0, idx));
-          }
-        };
-        var error = maybeErrorRef;
-        if (error !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(error)
-                };
-        } else {
-          return {
-                  TAG: /* Ok */0,
-                  _0: newArray
-                };
-        }
-      })
-  }];
-
-var destructors$9 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        var innerStruct = struct.tagged_t._0;
-        var newArray = [];
-        var idxRef = 0;
-        var maybeErrorRef;
-        while(idxRef < input.length && maybeErrorRef === undefined) {
-          var idx = idxRef;
-          var innerValue = input[idx];
-          var value = serializeInner(innerStruct, innerValue, mode);
-          if (value.TAG === /* Ok */0) {
-            newArray.push(value._0);
-            idxRef = idxRef + 1 | 0;
-          } else {
-            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependIndex(value._0, idx));
-          }
-        };
-        var error = maybeErrorRef;
-        if (error !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(error)
-                };
-        } else {
-          return {
-                  TAG: /* Ok */0,
-                  _0: newArray
-                };
-        }
-      })
-  }];
-
-var constructors$10 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        var maybeRefinementError;
-        if (mode) {
-          maybeRefinementError = undefined;
-        } else {
-          var match = Object.prototype.toString.call(input) === "[object Object]";
-          maybeRefinementError = match ? undefined : Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
-        }
-        if (maybeRefinementError !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(maybeRefinementError)
-                };
-        }
-        var innerStruct = struct.tagged_t._0;
-        var newDict = {};
-        var keys = Object.keys(input);
-        var idxRef = 0;
-        var maybeErrorRef;
-        while(idxRef < keys.length && maybeErrorRef === undefined) {
-          var idx = idxRef;
-          var key = keys[idx];
-          var innerValue = input[key];
-          var value = parseInner(innerStruct, innerValue, mode);
-          if (value.TAG === /* Ok */0) {
-            newDict[key] = value._0;
-            idxRef = idxRef + 1 | 0;
-          } else {
-            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependField(value._0, key));
-          }
-        };
-        var error = maybeErrorRef;
-        if (error !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(error)
-                };
-        } else {
-          return {
-                  TAG: /* Ok */0,
-                  _0: newDict
-                };
-        }
-      })
-  }];
-
-var destructors$10 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        var innerStruct = struct.tagged_t._0;
-        var newDict = {};
-        var keys = Object.keys(input);
-        var idxRef = 0;
-        var maybeErrorRef;
-        while(idxRef < keys.length && maybeErrorRef === undefined) {
-          var idx = idxRef;
-          var key = keys[idx];
-          var innerValue = input[key];
-          var value = serializeInner(innerStruct, innerValue, mode);
-          if (value.TAG === /* Ok */0) {
-            newDict[key] = value._0;
-            idxRef = idxRef + 1 | 0;
-          } else {
-            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependField(value._0, key));
-          }
-        };
-        var error = maybeErrorRef;
-        if (error !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(error)
-                };
-        } else {
-          return {
-                  TAG: /* Ok */0,
-                  _0: newDict
-                };
-        }
-      })
-  }];
-
-var constructors$11 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        var match = struct.tagged_t;
-        var value = match.value;
-        var fn = function (maybeOutput) {
-          if (maybeOutput !== undefined) {
-            return Caml_option.valFromOption(maybeOutput);
-          } else {
-            return value;
-          }
-        };
-        var result = parseInner(match.struct, input, mode);
-        if (result.TAG === /* Ok */0) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: fn(result._0)
-                };
-        } else {
-          return result;
-        }
-      })
-  }];
-
-var destructors$11 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        var match = struct.tagged_t;
-        return serializeInner(match.struct, Caml_option.some(input), mode);
-      })
-  }];
+var empty = [];
 
 var optionValueRefinement = {
   TAG: /* Refinement */1,
@@ -1205,6 +840,564 @@ function strict(struct) {
   }
 }
 
+var constructors = [{
+    TAG: /* Refinement */1,
+    _0: (function (input, struct) {
+        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+      })
+  }];
+
+function factory$4(param) {
+  return {
+          tagged_t: /* Never */0,
+          maybeConstructors: constructors,
+          maybeDestructors: empty,
+          maybeMetadata: undefined
+        };
+}
+
+function factory$5(param) {
+  return {
+          tagged_t: /* Unknown */1,
+          maybeConstructors: empty,
+          maybeDestructors: empty,
+          maybeMetadata: undefined
+        };
+}
+
+var constructors$1 = [{
+    TAG: /* Refinement */1,
+    _0: (function (input, struct) {
+        if (typeof input === "string") {
+          return ;
+        } else {
+          return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        }
+      })
+  }];
+
+function factory$6(param) {
+  return {
+          tagged_t: /* String */2,
+          maybeConstructors: constructors$1,
+          maybeDestructors: empty,
+          maybeMetadata: undefined
+        };
+}
+
+var constructors$2 = [{
+    TAG: /* Refinement */1,
+    _0: (function (input, struct) {
+        if (typeof input === "boolean") {
+          return ;
+        } else {
+          return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        }
+      })
+  }];
+
+function factory$7(param) {
+  return {
+          tagged_t: /* Bool */5,
+          maybeConstructors: constructors$2,
+          maybeDestructors: empty,
+          maybeMetadata: undefined
+        };
+}
+
+var constructors$3 = [{
+    TAG: /* Refinement */1,
+    _0: (function (input, struct) {
+        if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
+          return ;
+        } else {
+          return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        }
+      })
+  }];
+
+function factory$8(param) {
+  return {
+          tagged_t: /* Int */3,
+          maybeConstructors: constructors$3,
+          maybeDestructors: empty,
+          maybeMetadata: undefined
+        };
+}
+
+var constructors$4 = [{
+    TAG: /* Refinement */1,
+    _0: (function (input, struct) {
+        if (typeof input === "number") {
+          return ;
+        } else {
+          return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        }
+      })
+  }];
+
+function factory$9(param) {
+  return {
+          tagged_t: /* Float */4,
+          maybeConstructors: constructors$4,
+          maybeDestructors: empty,
+          maybeMetadata: undefined
+        };
+}
+
+var constructors$5 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, mode) {
+        if (input === null) {
+          return {
+                  TAG: /* Ok */0,
+                  _0: undefined
+                };
+        }
+        var innerStruct = struct.tagged_t._0;
+        var result = parseInner(innerStruct, input, mode);
+        if (result.TAG === /* Ok */0) {
+          return {
+                  TAG: /* Ok */0,
+                  _0: Caml_option.some(result._0)
+                };
+        } else {
+          return result;
+        }
+      })
+  }];
+
+var destructors = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, mode) {
+        if (input === undefined) {
+          return {
+                  TAG: /* Ok */0,
+                  _0: null
+                };
+        }
+        var innerStruct = struct.tagged_t._0;
+        return serializeInner(innerStruct, Caml_option.valFromOption(input), mode);
+      })
+  }];
+
+function factory$10(innerStruct) {
+  return {
+          tagged_t: {
+            TAG: /* Null */2,
+            _0: innerStruct
+          },
+          maybeConstructors: constructors$5,
+          maybeDestructors: destructors,
+          maybeMetadata: undefined
+        };
+}
+
+var constructors$6 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, mode) {
+        if (input === undefined) {
+          return {
+                  TAG: /* Ok */0,
+                  _0: undefined
+                };
+        }
+        var innerStruct = struct.tagged_t._0;
+        var result = parseInner(innerStruct, Caml_option.valFromOption(input), mode);
+        if (result.TAG === /* Ok */0) {
+          return {
+                  TAG: /* Ok */0,
+                  _0: Caml_option.some(result._0)
+                };
+        } else {
+          return result;
+        }
+      })
+  }];
+
+var destructors$1 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, mode) {
+        if (input === undefined) {
+          return {
+                  TAG: /* Ok */0,
+                  _0: undefined
+                };
+        }
+        var innerStruct = struct.tagged_t._0;
+        return serializeInner(innerStruct, Caml_option.valFromOption(input), mode);
+      })
+  }];
+
+function factory$11(innerStruct) {
+  return {
+          tagged_t: {
+            TAG: /* Option */1,
+            _0: innerStruct
+          },
+          maybeConstructors: constructors$6,
+          maybeDestructors: destructors$1,
+          maybeMetadata: undefined
+        };
+}
+
+var constructors$7 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, mode) {
+        if (input === undefined) {
+          return {
+                  TAG: /* Ok */0,
+                  _0: undefined
+                };
+        }
+        var match = struct.tagged_t;
+        var result = parseInner(match.struct, Caml_option.valFromOption(input), mode);
+        if (result.TAG === /* Ok */0) {
+          return {
+                  TAG: /* Ok */0,
+                  _0: Caml_option.some(result._0)
+                };
+        } else {
+          return result;
+        }
+      })
+  }];
+
+var destructors$2 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, mode) {
+        if (input === undefined) {
+          return {
+                  TAG: /* Ok */0,
+                  _0: undefined
+                };
+        }
+        var match = struct.tagged_t;
+        return serializeInner(match.struct, Caml_option.valFromOption(input), mode);
+      })
+  }];
+
+function factory$12(maybeMessage, innerStruct) {
+  return {
+          tagged_t: {
+            TAG: /* Deprecated */7,
+            struct: innerStruct,
+            maybeMessage: maybeMessage
+          },
+          maybeConstructors: constructors$7,
+          maybeDestructors: destructors$2,
+          maybeMetadata: undefined
+        };
+}
+
+var constructors$8 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, mode) {
+        var maybeRefinementError;
+        if (mode) {
+          maybeRefinementError = undefined;
+        } else {
+          var match = Array.isArray(input);
+          maybeRefinementError = match ? undefined : Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        }
+        if (maybeRefinementError !== undefined) {
+          return {
+                  TAG: /* Error */1,
+                  _0: Caml_option.valFromOption(maybeRefinementError)
+                };
+        }
+        var innerStruct = struct.tagged_t._0;
+        var newArray = [];
+        var idxRef = 0;
+        var maybeErrorRef;
+        while(idxRef < input.length && maybeErrorRef === undefined) {
+          var idx = idxRef;
+          var innerValue = input[idx];
+          var value = parseInner(innerStruct, innerValue, mode);
+          if (value.TAG === /* Ok */0) {
+            newArray.push(value._0);
+            idxRef = idxRef + 1 | 0;
+          } else {
+            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependIndex(value._0, idx));
+          }
+        };
+        var error = maybeErrorRef;
+        if (error !== undefined) {
+          return {
+                  TAG: /* Error */1,
+                  _0: Caml_option.valFromOption(error)
+                };
+        } else {
+          return {
+                  TAG: /* Ok */0,
+                  _0: newArray
+                };
+        }
+      })
+  }];
+
+var destructors$3 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, mode) {
+        var innerStruct = struct.tagged_t._0;
+        var newArray = [];
+        var idxRef = 0;
+        var maybeErrorRef;
+        while(idxRef < input.length && maybeErrorRef === undefined) {
+          var idx = idxRef;
+          var innerValue = input[idx];
+          var value = serializeInner(innerStruct, innerValue, mode);
+          if (value.TAG === /* Ok */0) {
+            newArray.push(value._0);
+            idxRef = idxRef + 1 | 0;
+          } else {
+            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependIndex(value._0, idx));
+          }
+        };
+        var error = maybeErrorRef;
+        if (error !== undefined) {
+          return {
+                  TAG: /* Error */1,
+                  _0: Caml_option.valFromOption(error)
+                };
+        } else {
+          return {
+                  TAG: /* Ok */0,
+                  _0: newArray
+                };
+        }
+      })
+  }];
+
+function factory$13(innerStruct) {
+  return {
+          tagged_t: {
+            TAG: /* Array */3,
+            _0: innerStruct
+          },
+          maybeConstructors: constructors$8,
+          maybeDestructors: destructors$3,
+          maybeMetadata: undefined
+        };
+}
+
+var constructors$9 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, mode) {
+        var maybeRefinementError;
+        if (mode) {
+          maybeRefinementError = undefined;
+        } else {
+          var match = Object.prototype.toString.call(input) === "[object Object]";
+          maybeRefinementError = match ? undefined : Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        }
+        if (maybeRefinementError !== undefined) {
+          return {
+                  TAG: /* Error */1,
+                  _0: Caml_option.valFromOption(maybeRefinementError)
+                };
+        }
+        var innerStruct = struct.tagged_t._0;
+        var newDict = {};
+        var keys = Object.keys(input);
+        var idxRef = 0;
+        var maybeErrorRef;
+        while(idxRef < keys.length && maybeErrorRef === undefined) {
+          var idx = idxRef;
+          var key = keys[idx];
+          var innerValue = input[key];
+          var value = parseInner(innerStruct, innerValue, mode);
+          if (value.TAG === /* Ok */0) {
+            newDict[key] = value._0;
+            idxRef = idxRef + 1 | 0;
+          } else {
+            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependField(value._0, key));
+          }
+        };
+        var error = maybeErrorRef;
+        if (error !== undefined) {
+          return {
+                  TAG: /* Error */1,
+                  _0: Caml_option.valFromOption(error)
+                };
+        } else {
+          return {
+                  TAG: /* Ok */0,
+                  _0: newDict
+                };
+        }
+      })
+  }];
+
+var destructors$4 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, mode) {
+        var innerStruct = struct.tagged_t._0;
+        var newDict = {};
+        var keys = Object.keys(input);
+        var idxRef = 0;
+        var maybeErrorRef;
+        while(idxRef < keys.length && maybeErrorRef === undefined) {
+          var idx = idxRef;
+          var key = keys[idx];
+          var innerValue = input[key];
+          var value = serializeInner(innerStruct, innerValue, mode);
+          if (value.TAG === /* Ok */0) {
+            newDict[key] = value._0;
+            idxRef = idxRef + 1 | 0;
+          } else {
+            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependField(value._0, key));
+          }
+        };
+        var error = maybeErrorRef;
+        if (error !== undefined) {
+          return {
+                  TAG: /* Error */1,
+                  _0: Caml_option.valFromOption(error)
+                };
+        } else {
+          return {
+                  TAG: /* Ok */0,
+                  _0: newDict
+                };
+        }
+      })
+  }];
+
+function factory$14(innerStruct) {
+  return {
+          tagged_t: {
+            TAG: /* Dict */6,
+            _0: innerStruct
+          },
+          maybeConstructors: constructors$9,
+          maybeDestructors: destructors$4,
+          maybeMetadata: undefined
+        };
+}
+
+var constructors$10 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, mode) {
+        var match = struct.tagged_t;
+        var value = match.value;
+        var fn = function (maybeOutput) {
+          if (maybeOutput !== undefined) {
+            return Caml_option.valFromOption(maybeOutput);
+          } else {
+            return value;
+          }
+        };
+        var result = parseInner(match.struct, input, mode);
+        if (result.TAG === /* Ok */0) {
+          return {
+                  TAG: /* Ok */0,
+                  _0: fn(result._0)
+                };
+        } else {
+          return result;
+        }
+      })
+  }];
+
+var destructors$5 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, mode) {
+        var match = struct.tagged_t;
+        return serializeInner(match.struct, Caml_option.some(input), mode);
+      })
+  }];
+
+function factory$15(innerStruct, defaultValue) {
+  return {
+          tagged_t: {
+            TAG: /* Default */8,
+            struct: innerStruct,
+            value: defaultValue
+          },
+          maybeConstructors: constructors$10,
+          maybeDestructors: destructors$5,
+          maybeMetadata: undefined
+        };
+}
+
+var constructors$11 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, param) {
+        var innerStructs = struct.tagged_t._0;
+        var idxRef = 0;
+        var maybeLastErrorRef;
+        var maybeOkRef;
+        while(idxRef < innerStructs.length && maybeOkRef === undefined) {
+          var idx = idxRef;
+          var innerStruct = innerStructs[idx];
+          var ok = parseInner(innerStruct, input, /* Safe */0);
+          if (ok.TAG === /* Ok */0) {
+            maybeOkRef = ok;
+          } else {
+            maybeLastErrorRef = ok;
+            idxRef = idxRef + 1 | 0;
+          }
+        };
+        var ok$1 = maybeOkRef;
+        if (ok$1 !== undefined) {
+          return ok$1;
+        }
+        var error = maybeLastErrorRef;
+        if (error !== undefined) {
+          return error;
+        } else {
+          return undefined;
+        }
+      })
+  }];
+
+var destructors$6 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, param) {
+        var innerStructs = struct.tagged_t._0;
+        var idxRef = 0;
+        var maybeLastErrorRef;
+        var maybeOkRef;
+        while(idxRef < innerStructs.length && maybeOkRef === undefined) {
+          var idx = idxRef;
+          var innerStruct = innerStructs[idx];
+          var ok = serializeInner(innerStruct, input, /* Safe */0);
+          if (ok.TAG === /* Ok */0) {
+            maybeOkRef = ok;
+          } else {
+            maybeLastErrorRef = ok;
+            idxRef = idxRef + 1 | 0;
+          }
+        };
+        var ok$1 = maybeOkRef;
+        if (ok$1 !== undefined) {
+          return ok$1;
+        }
+        var error = maybeLastErrorRef;
+        if (error !== undefined) {
+          return error;
+        } else {
+          return undefined;
+        }
+      })
+  }];
+
+function factory$16(structs) {
+  if (structs.length < 2) {
+    RescriptStruct_Error.UnionLackingStructs.raise(undefined);
+  }
+  return {
+          tagged_t: {
+            TAG: /* Union */5,
+            _0: structs
+          },
+          maybeConstructors: constructors$11,
+          maybeDestructors: destructors$6,
+          maybeMetadata: undefined
+        };
+}
+
 function record1(fields) {
   var partial_arg = [fields];
   return function (param, param$1, param$2) {
@@ -1212,138 +1405,10 @@ function record1(fields) {
   };
 }
 
-function never(param) {
-  return {
-          tagged_t: /* Never */0,
-          maybeConstructors: constructors,
-          maybeDestructors: destructors,
-          maybeMetadata: undefined
-        };
-}
-
-function unknown(param) {
-  return {
-          tagged_t: /* Unknown */1,
-          maybeConstructors: constructors$1,
-          maybeDestructors: destructors$1,
-          maybeMetadata: undefined
-        };
-}
-
-function string(param) {
-  return {
-          tagged_t: /* String */2,
-          maybeConstructors: constructors$2,
-          maybeDestructors: destructors$2,
-          maybeMetadata: undefined
-        };
-}
-
-function bool(param) {
-  return {
-          tagged_t: /* Bool */5,
-          maybeConstructors: constructors$3,
-          maybeDestructors: destructors$3,
-          maybeMetadata: undefined
-        };
-}
-
-function $$int(param) {
-  return {
-          tagged_t: /* Int */3,
-          maybeConstructors: constructors$5,
-          maybeDestructors: destructors$5,
-          maybeMetadata: undefined
-        };
-}
-
-function $$float(param) {
-  return {
-          tagged_t: /* Float */4,
-          maybeConstructors: constructors$4,
-          maybeDestructors: destructors$4,
-          maybeMetadata: undefined
-        };
-}
-
-function $$null(innerStruct) {
-  return {
-          tagged_t: {
-            TAG: /* Null */2,
-            _0: innerStruct
-          },
-          maybeConstructors: constructors$6,
-          maybeDestructors: destructors$6,
-          maybeMetadata: undefined
-        };
-}
-
-function option(innerStruct) {
-  return {
-          tagged_t: {
-            TAG: /* Option */1,
-            _0: innerStruct
-          },
-          maybeConstructors: constructors$7,
-          maybeDestructors: destructors$7,
-          maybeMetadata: undefined
-        };
-}
-
-function deprecated(maybeMessage, innerStruct) {
-  return {
-          tagged_t: {
-            TAG: /* Deprecated */7,
-            struct: innerStruct,
-            maybeMessage: maybeMessage
-          },
-          maybeConstructors: constructors$8,
-          maybeDestructors: destructors$8,
-          maybeMetadata: undefined
-        };
-}
-
-function array(innerStruct) {
-  return {
-          tagged_t: {
-            TAG: /* Array */3,
-            _0: innerStruct
-          },
-          maybeConstructors: constructors$9,
-          maybeDestructors: destructors$9,
-          maybeMetadata: undefined
-        };
-}
-
-function dict(innerStruct) {
-  return {
-          tagged_t: {
-            TAG: /* Dict */6,
-            _0: innerStruct
-          },
-          maybeConstructors: constructors$10,
-          maybeDestructors: destructors$10,
-          maybeMetadata: undefined
-        };
-}
-
-function $$default(innerStruct, defaultValue) {
-  return {
-          tagged_t: {
-            TAG: /* Default */8,
-            struct: innerStruct,
-            value: defaultValue
-          },
-          maybeConstructors: constructors$11,
-          maybeDestructors: destructors$11,
-          maybeMetadata: undefined
-        };
-}
-
 function json(struct) {
   return {
           tagged_t: /* String */2,
-          maybeConstructors: constructors$2.concat([{
+          maybeConstructors: constructors$1.concat([{
                   TAG: /* Transform */0,
                   _0: (function (input, param, mode) {
                       var result;
@@ -1391,7 +1456,7 @@ function json(struct) {
                       return result;
                     }
                   })
-              }].concat(destructors$2),
+              }].concat(empty),
           maybeMetadata: undefined
         };
 }
@@ -1472,82 +1537,17 @@ function transform(struct, maybeTransformationConstructor, maybeTransformationDe
         };
 }
 
-var constructors$12 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, param) {
-        var innerStructs = struct.tagged_t._0;
-        var idxRef = 0;
-        var maybeLastErrorRef;
-        var maybeOkRef;
-        while(idxRef < innerStructs.length && maybeOkRef === undefined) {
-          var idx = idxRef;
-          var innerStruct = innerStructs[idx];
-          var ok = parseInner(innerStruct, input, /* Safe */0);
-          if (ok.TAG === /* Ok */0) {
-            maybeOkRef = ok;
-          } else {
-            maybeLastErrorRef = ok;
-            idxRef = idxRef + 1 | 0;
-          }
-        };
-        var ok$1 = maybeOkRef;
-        if (ok$1 !== undefined) {
-          return ok$1;
-        }
-        var error = maybeLastErrorRef;
-        if (error !== undefined) {
-          return error;
-        } else {
-          return undefined;
-        }
-      })
-  }];
+var never = factory$4;
 
-var destructors$12 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, param) {
-        var innerStructs = struct.tagged_t._0;
-        var idxRef = 0;
-        var maybeLastErrorRef;
-        var maybeOkRef;
-        while(idxRef < innerStructs.length && maybeOkRef === undefined) {
-          var idx = idxRef;
-          var innerStruct = innerStructs[idx];
-          var ok = serializeInner(innerStruct, input, /* Safe */0);
-          if (ok.TAG === /* Ok */0) {
-            maybeOkRef = ok;
-          } else {
-            maybeLastErrorRef = ok;
-            idxRef = idxRef + 1 | 0;
-          }
-        };
-        var ok$1 = maybeOkRef;
-        if (ok$1 !== undefined) {
-          return ok$1;
-        }
-        var error = maybeLastErrorRef;
-        if (error !== undefined) {
-          return error;
-        } else {
-          return undefined;
-        }
-      })
-  }];
+var unknown = factory$5;
 
-function factory$4(structs) {
-  if (structs.length < 2) {
-    RescriptStruct_Error.UnionLackingStructs.raise(undefined);
-  }
-  return {
-          tagged_t: {
-            TAG: /* Union */5,
-            _0: structs
-          },
-          maybeConstructors: constructors$12,
-          maybeDestructors: destructors$12,
-          maybeMetadata: undefined
-        };
-}
+var string = factory$6;
+
+var bool = factory$7;
+
+var $$int = factory$8;
+
+var $$float = factory$9;
 
 var literal = factory;
 
@@ -1555,7 +1555,19 @@ var literalVariant = factory$1;
 
 var literalUnit = factory$2;
 
-var union = factory$4;
+var array = factory$13;
+
+var dict = factory$14;
+
+var option = factory$11;
+
+var $$null = factory$10;
+
+var deprecated = factory$12;
+
+var $$default = factory$15;
+
+var union = factory$16;
 
 var transformUnknown = transform;
 

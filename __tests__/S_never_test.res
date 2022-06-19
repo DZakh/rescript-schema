@@ -20,7 +20,7 @@ module Common = {
     )
   })
 
-  test("Successfully serializes", t => {
+  test("Successfully serializes even when value is wrong, because we rely on typesystem", t => {
     let struct = factory()
 
     t->Assert.deepEqual(any->S.serializeWith(struct), Ok(any), ())
