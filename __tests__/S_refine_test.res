@@ -1,7 +1,7 @@
 open Ava
 
 test("Refined primitive returns an error when parsed in a Safe mode", t => {
-  let struct = S.int()->S.refine(~constructor=value =>
+  let struct = S.int()->S.refine(~parser=value =>
     switch value >= 0 {
     | true => None
     | false => Some("Should be positive")
@@ -16,7 +16,7 @@ test("Refined primitive returns an error when parsed in a Safe mode", t => {
 })
 
 test("Refined primitive doesn't return an error when parsed in an Unsafe mode", t => {
-  let struct = S.int()->S.refine(~constructor=value =>
+  let struct = S.int()->S.refine(~parser=value =>
     switch value >= 0 {
     | true => None
     | false => Some("Should be positive")
@@ -27,4 +27,4 @@ test("Refined primitive doesn't return an error when parsed in an Unsafe mode", 
 })
 
 // TODO: Test serializing
-// TODO: Check that both constructors provided
+// TODO: Check that both parsers provided

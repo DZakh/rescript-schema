@@ -4,13 +4,13 @@ test("Parses data and serializes it back to the initial state with transformatio
   let any = %raw(`"Hello world!"`)
 
   let struct = S.unknown()->S.transformUnknown(
-    ~constructor=unknown => {
+    ~parser=unknown => {
       switch unknown->Js.Types.classify {
       | JSString(string) => Ok(string)
       | _ => Error("Custom isn't a String")
       }
     },
-    ~destructor=value => value->Ok,
+    ~serializer=value => value->Ok,
     (),
   )
 

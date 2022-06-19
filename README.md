@@ -42,7 +42,7 @@ let authorStruct = S.record4(
   ~fields=(
     ("Id", S.float()),
     ("Tags", S.option(S.array(S.string()))->S.default([])),
-    ("IsApproved", S.int()->S.transform(~constructor=int =>
+    ("IsApproved", S.int()->S.transform(~parser=int =>
         switch int {
         | 1 => true
         | _ => false
@@ -50,7 +50,7 @@ let authorStruct = S.record4(
       , ())),
     ("Age", S.deprecated(~message="A useful explanation", S.int())),
   ),
-  ~constructor=((id, tags, isAproved, deprecatedAge)) =>
+  ~parser=((id, tags, isAproved, deprecatedAge)) =>
     {id: id, tags: tags, isAproved: isAproved, deprecatedAge: deprecatedAge}->Ok,
   (),
 )
@@ -339,13 +339,13 @@ The same as `literal` struct factory, but with a convenient way to transform dat
 
 #### **`S.record1` - `S.record10`**
 
-`(~fields: (S.field<'v1>, S.field<'v2>), ~constructor: (('v1, 'v2)) => result<'value, string>=?, ~destructor: 'value => result<('v1, 'v2), string>=?, unit) => S.t<'value>`
+`(~fields: (S.field<'v1>, S.field<'v2>), ~parser: (('v1, 'v2)) => result<'value, string>=?, ~serializer: 'value => result<('v1, 'v2), string>=?, unit) => S.t<'value>`
 
 ```rescript
 type author = {
   id: string,
 }
-let authorStruct = S.record1(~fields=("ID", S.string()), ~constructor=id => {id: id}->Ok, ())
+let authorStruct = S.record1(~fields=("ID", S.string()), ~parser=id => {id: id}->Ok, ())
 
 {"ID": "abc"}->S.parseWith(authorStruct)
 ```
@@ -365,8 +365,8 @@ The record struct factories are available up to 10 fields. If you have an object
 ```rescript
 let record2: (
   ~fields: (S.field<'v1>, S.field<'v2>),
-  ~constructor: (('v1, 'v2)) => result<'value, string>=?,
-  ~destructor: 'value => result<('v1, 'v2), string>=?,
+  ~parser: (('v1, 'v2)) => result<'value, string>=?,
+  ~serializer: 'value => result<('v1, 'v2), string>=?,
   unit,
 ) => S.t<'value> = S.Record.factory
 ```
@@ -378,7 +378,7 @@ let record2: (
 `S.t<'value> => S.t<'value>`
 
 ```rescript
-let struct = S.record1(~fields=("key", S.string()), ~constructor=key => {{key: key}}->Ok, ())->S.Record.strip
+let struct = S.record1(~fields=("key", S.string()), ~parser=key => {{key: key}}->Ok, ())->S.Record.strip
 
 {
   "key": "value",
@@ -397,7 +397,7 @@ By default **rescript-struct** disallow unrecognized keys during parsing objects
 `S.t<'value> => S.t<'value>`
 
 ```rescript
-let struct = S.record1(~fields=("key", S.string()), ~constructor=key => {{key: key}}->Ok, ())->S.Record.strict
+let struct = S.record1(~fields=("key", S.string()), ~parser=key => {{key: key}}->Ok, ())->S.Record.strict
 
 {
   "key": "value",
@@ -490,17 +490,17 @@ type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, 
 
 let circleStruct = S.record2(
   ~fields=(("kind", S.literal(String("circle"))), ("radius", S.float())),
-  ~constructor=((_, radius)) => Circle({radius: radius})->Ok,
+  ~parser=((_, radius)) => Circle({radius: radius})->Ok,
   (),
 )
 let squareStruct = S.record2(
   ~fields=(("kind", S.literal(String("square"))), ("x", S.float())),
-  ~constructor=((_, x)) => Square({x: x})->Ok,
+  ~parser=((_, x)) => Square({x: x})->Ok,
   (),
 )
 let triangleStruct = S.record3(
   ~fields=(("kind", S.literal(String("triangle"))), ("x", S.float()), ("y", S.float())),
-  ~constructor=((_, x, y)) => Triangle({x: x, y: y})->Ok,
+  ~parser=((_, x, y)) => Triangle({x: x, y: y})->Ok,
   (),
 )
 let struct = S.union([circleStruct, squareStruct, triangleStruct])
@@ -556,20 +556,20 @@ Ok(Draw)
 
 #### **`S.transform`**
 
-`(S.t<'value>, ~constructor: 'value => result<'transformedValue, string>=?, ~destructor: 'transformedValue => result<'value, string>=?, unit) => S.t<'transformedValue>`
+`(S.t<'value>, ~parser: 'value => result<'transformedValue, string>=?, ~serializer: 'transformedValue => result<'value, string>=?, unit) => S.t<'transformedValue>`
 
 ```rescript
-let trimmed = S.transform(_, ~constructor=s => s->Js.String2.trim->Ok, ~destructor=s => s->Ok, ())
+let trimmed = S.transform(_, ~parser=s => s->Js.String2.trim->Ok, ~serializer=s => s->Ok, ())
 ```
 ```rescript
 let nonEmptyString = () => {
   S.string()->S.transform(
-    ~constructor=s =>
+    ~parser=s =>
       switch s {
       | "" => None
       | s' => Some(s')
       }->Ok,
-    ~destructor=nonEmptyString =>
+    ~serializer=nonEmptyString =>
       {
         switch nonEmptyString {
         | Some(s) => s
@@ -582,15 +582,15 @@ let nonEmptyString = () => {
 ```
 ```rescript
 let date = () => {
-  S.float()->S.transform(~destructor=date => date->Js.Date.getTime->Ok, ())
+  S.float()->S.transform(~serializer=date => date->Js.Date.getTime->Ok, ())
 }
 ```
 
-> 🧠 For transformation either a constructor, or a destructor is required.
+> 🧠 For transformation either a parser, or a serializer is required.
 
 #### **`S.transformUnknown`**
 
-`(S.t<unknown>, ~constructor: unknown => result<'transformedValue, string>=?, ~destructor: 'transformedValue => result<'any, string>=?, unit) => S.t<'transformedValue>`
+`(S.t<unknown>, ~parser: unknown => result<'transformedValue, string>=?, ~serializer: 'transformedValue => result<'any, string>=?, unit) => S.t<'transformedValue>`
 
 The same as `S.transform` but has more convinient interface to work with `S.unknown` struct factory that can be used to create custom struct factories.
 

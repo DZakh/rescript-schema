@@ -63,8 +63,8 @@ type recordUnknownKeys =
 
 type rec t<'value> = {
   tagged_t: tagged_t,
-  maybeConstructors: option<array<operation>>,
-  maybeDestructors: option<array<operation>>,
+  maybeParsers: option<array<operation>>,
+  maybeSerializers: option<array<operation>>,
   maybeMetadata: option<Js.Dict.t<unknown>>,
 }
 and tagged_t =
@@ -213,17 +213,17 @@ let parseInner: (
   ~any: 'any,
   ~mode: mode,
 ) => result<'value, RescriptStruct_Error.t> = (~struct, ~any, ~mode) => {
-  switch struct.maybeConstructors {
-  | Some(constructors) =>
+  switch struct.maybeParsers {
+  | Some(parsers) =>
     applyOperations(
-      ~operations=constructors,
+      ~operations=parsers,
       ~initial=any->unsafeAnyToUnknown,
       ~mode,
       ~struct=struct->unsafeToAny,
     )
     ->unsafeAnyToUnknown
     ->unsafeUnknownToAny
-  | None => Error(RescriptStruct_Error.MissingConstructor.make())
+  | None => Error(RescriptStruct_Error.MissingParser.make())
   }
 }
 
@@ -236,15 +236,15 @@ let serializeInner: (
   ~value: 'value,
   ~mode: mode,
 ) => result<unknown, RescriptStruct_Error.t> = (~struct, ~value, ~mode) => {
-  switch struct.maybeDestructors {
-  | Some(destructors) =>
+  switch struct.maybeSerializers {
+  | Some(serializers) =>
     applyOperations(
-      ~operations=destructors,
+      ~operations=serializers,
       ~initial=value->unsafeAnyToUnknown,
       ~mode,
       ~struct=struct->unsafeToAny,
     )
-  | None => Error(RescriptStruct_Error.MissingDestructor.make())
+  | None => Error(RescriptStruct_Error.MissingSerializer.make())
   }
 }
 
@@ -272,7 +272,7 @@ module Operation = {
 
 module Literal = {
   module CommonOperations = {
-    module Destructor = {
+    module Serializer = {
       let optionValueRefinement = Operation.refinement((~input, ~struct) => {
         if input !== None {
           Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Serializing))
@@ -297,7 +297,7 @@ module Literal = {
       })
     }
 
-    module Constructor = {
+    module Parser = {
       let literalValueRefinement = Operation.refinement((~input, ~struct) => {
         let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
         switch expectedValue === input {
@@ -321,33 +321,33 @@ module Literal = {
   }
 
   module EmptyNull = {
-    let constructorRefinement = Operation.refinement((~input, ~struct) => {
+    let parserRefinement = Operation.refinement((~input, ~struct) => {
       switch input === Js.Null.empty {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
       }
     })
 
-    let destructorTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
+    let serializerTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
       Ok(Js.Null.empty)
     })
   }
 
   module EmptyOption = {
-    let constructorRefinement = Operation.refinement((~input, ~struct) => {
+    let parserRefinement = Operation.refinement((~input, ~struct) => {
       switch input === Js.Undefined.empty {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
       }
     })
 
-    let destructorTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
+    let serializerTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
       Ok(Js.Undefined.empty)
     })
   }
 
   module Bool = {
-    let constructorRefinement = Operation.refinement((~input, ~struct) => {
+    let parserRefinement = Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "boolean" {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
@@ -356,7 +356,7 @@ module Literal = {
   }
 
   module String = {
-    let constructorRefinement = Operation.refinement((~input, ~struct) => {
+    let parserRefinement = Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "string" {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
@@ -365,7 +365,7 @@ module Literal = {
   }
 
   module Float = {
-    let constructorRefinement = Operation.refinement((~input, ~struct) => {
+    let parserRefinement = Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "number" {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
@@ -374,7 +374,7 @@ module Literal = {
   }
 
   module Int = {
-    let constructorRefinement = Operation.refinement((~input, ~struct) => {
+    let parserRefinement = Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "number" && checkIsIntNumber(input) {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
@@ -389,80 +389,80 @@ module Literal = {
       switch innerLiteral {
       | EmptyNull => {
           tagged_t: tagged_t,
-          maybeConstructors: Some([
-            EmptyNull.constructorRefinement,
+          maybeParsers: Some([
+            EmptyNull.parserRefinement,
             Operation.transform((~input as _, ~struct as _, ~mode as _) => {
               Ok(None)
             }),
           ]),
-          maybeDestructors: Some([
-            CommonOperations.Destructor.optionValueRefinement,
-            EmptyNull.destructorTransform,
+          maybeSerializers: Some([
+            CommonOperations.Serializer.optionValueRefinement,
+            EmptyNull.serializerTransform,
           ]),
           maybeMetadata: None,
         }
       | EmptyOption => {
           tagged_t: tagged_t,
-          maybeConstructors: Some([
-            EmptyOption.constructorRefinement,
+          maybeParsers: Some([
+            EmptyOption.parserRefinement,
             Operation.transform((~input as _, ~struct as _, ~mode as _) => {
               Ok(None)
             }),
           ]),
-          maybeDestructors: Some([
-            CommonOperations.Destructor.optionValueRefinement,
-            EmptyOption.destructorTransform,
+          maybeSerializers: Some([
+            CommonOperations.Serializer.optionValueRefinement,
+            EmptyOption.serializerTransform,
           ]),
           maybeMetadata: None,
         }
       | Bool(_) => {
           tagged_t: tagged_t,
-          maybeConstructors: Some([
-            Bool.constructorRefinement,
-            CommonOperations.Constructor.literalValueRefinement,
+          maybeParsers: Some([
+            Bool.parserRefinement,
+            CommonOperations.Parser.literalValueRefinement,
             CommonOperations.transformToLiteralValue,
           ]),
-          maybeDestructors: Some([
-            CommonOperations.Destructor.literalValueRefinement,
+          maybeSerializers: Some([
+            CommonOperations.Serializer.literalValueRefinement,
             CommonOperations.transformToLiteralValue,
           ]),
           maybeMetadata: None,
         }
       | String(_) => {
           tagged_t: tagged_t,
-          maybeConstructors: Some([
-            String.constructorRefinement,
-            CommonOperations.Constructor.literalValueRefinement,
+          maybeParsers: Some([
+            String.parserRefinement,
+            CommonOperations.Parser.literalValueRefinement,
             CommonOperations.transformToLiteralValue,
           ]),
-          maybeDestructors: Some([
-            CommonOperations.Destructor.literalValueRefinement,
+          maybeSerializers: Some([
+            CommonOperations.Serializer.literalValueRefinement,
             CommonOperations.transformToLiteralValue,
           ]),
           maybeMetadata: None,
         }
       | Float(_) => {
           tagged_t: tagged_t,
-          maybeConstructors: Some([
-            Float.constructorRefinement,
-            CommonOperations.Constructor.literalValueRefinement,
+          maybeParsers: Some([
+            Float.parserRefinement,
+            CommonOperations.Parser.literalValueRefinement,
             CommonOperations.transformToLiteralValue,
           ]),
-          maybeDestructors: Some([
-            CommonOperations.Destructor.literalValueRefinement,
+          maybeSerializers: Some([
+            CommonOperations.Serializer.literalValueRefinement,
             CommonOperations.transformToLiteralValue,
           ]),
           maybeMetadata: None,
         }
       | Int(_) => {
           tagged_t: tagged_t,
-          maybeConstructors: Some([
-            Int.constructorRefinement,
-            CommonOperations.Constructor.literalValueRefinement,
+          maybeParsers: Some([
+            Int.parserRefinement,
+            CommonOperations.Parser.literalValueRefinement,
             CommonOperations.transformToLiteralValue,
           ]),
-          maybeDestructors: Some([
-            CommonOperations.Destructor.literalValueRefinement,
+          maybeSerializers: Some([
+            CommonOperations.Serializer.literalValueRefinement,
             CommonOperations.transformToLiteralValue,
           ]),
           maybeMetadata: None,
@@ -475,10 +475,10 @@ module Literal = {
       type literalValue variant. (literal<literalValue>, variant) => t<variant> =
       (innerLiteral, variant) => {
         let tagged_t = Literal(innerLiteral)
-        let constructorTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
+        let parserTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
           Ok(variant)
         })
-        let destructorRefinement = Operation.refinement((~input, ~struct as _) => {
+        let serializerRefinement = Operation.refinement((~input, ~struct as _) => {
           switch input === variant {
           | true => None
           | false =>
@@ -494,64 +494,64 @@ module Literal = {
         switch innerLiteral {
         | EmptyNull => {
             tagged_t: tagged_t,
-            maybeConstructors: Some([EmptyNull.constructorRefinement, constructorTransform]),
-            maybeDestructors: Some([destructorRefinement, EmptyNull.destructorTransform]),
+            maybeParsers: Some([EmptyNull.parserRefinement, parserTransform]),
+            maybeSerializers: Some([serializerRefinement, EmptyNull.serializerTransform]),
             maybeMetadata: None,
           }
         | EmptyOption => {
             tagged_t: tagged_t,
-            maybeConstructors: Some([EmptyOption.constructorRefinement, constructorTransform]),
-            maybeDestructors: Some([destructorRefinement, EmptyOption.destructorTransform]),
+            maybeParsers: Some([EmptyOption.parserRefinement, parserTransform]),
+            maybeSerializers: Some([serializerRefinement, EmptyOption.serializerTransform]),
             maybeMetadata: None,
           }
         | Bool(_) => {
             tagged_t: tagged_t,
-            maybeConstructors: Some([
-              Bool.constructorRefinement,
-              CommonOperations.Constructor.literalValueRefinement,
-              constructorTransform,
+            maybeParsers: Some([
+              Bool.parserRefinement,
+              CommonOperations.Parser.literalValueRefinement,
+              parserTransform,
             ]),
-            maybeDestructors: Some([
-              destructorRefinement,
+            maybeSerializers: Some([
+              serializerRefinement,
               CommonOperations.transformToLiteralValue,
             ]),
             maybeMetadata: None,
           }
         | String(_) => {
             tagged_t: tagged_t,
-            maybeConstructors: Some([
-              String.constructorRefinement,
-              CommonOperations.Constructor.literalValueRefinement,
-              constructorTransform,
+            maybeParsers: Some([
+              String.parserRefinement,
+              CommonOperations.Parser.literalValueRefinement,
+              parserTransform,
             ]),
-            maybeDestructors: Some([
-              destructorRefinement,
+            maybeSerializers: Some([
+              serializerRefinement,
               CommonOperations.transformToLiteralValue,
             ]),
             maybeMetadata: None,
           }
         | Float(_) => {
             tagged_t: tagged_t,
-            maybeConstructors: Some([
-              Float.constructorRefinement,
-              CommonOperations.Constructor.literalValueRefinement,
-              constructorTransform,
+            maybeParsers: Some([
+              Float.parserRefinement,
+              CommonOperations.Parser.literalValueRefinement,
+              parserTransform,
             ]),
-            maybeDestructors: Some([
-              destructorRefinement,
+            maybeSerializers: Some([
+              serializerRefinement,
               CommonOperations.transformToLiteralValue,
             ]),
             maybeMetadata: None,
           }
         | Int(_) => {
             tagged_t: tagged_t,
-            maybeConstructors: Some([
-              Int.constructorRefinement,
-              CommonOperations.Constructor.literalValueRefinement,
-              constructorTransform,
+            maybeParsers: Some([
+              Int.parserRefinement,
+              CommonOperations.Parser.literalValueRefinement,
+              parserTransform,
             ]),
-            maybeDestructors: Some([
-              destructorRefinement,
+            maybeSerializers: Some([
+              serializerRefinement,
               CommonOperations.transformToLiteralValue,
             ]),
             maybeMetadata: None,
@@ -561,7 +561,7 @@ module Literal = {
   }
 
   module Unit = {
-    let constructorTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
+    let parserTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
       Ok()
     })
 
@@ -572,54 +572,54 @@ module Literal = {
         switch innerLiteral {
         | EmptyNull => {
             tagged_t: tagged_t,
-            maybeConstructors: Some([EmptyNull.constructorRefinement, constructorTransform]),
-            maybeDestructors: Some([EmptyNull.destructorTransform]),
+            maybeParsers: Some([EmptyNull.parserRefinement, parserTransform]),
+            maybeSerializers: Some([EmptyNull.serializerTransform]),
             maybeMetadata: None,
           }
         | EmptyOption => {
             tagged_t: tagged_t,
-            maybeConstructors: Some([EmptyOption.constructorRefinement, constructorTransform]),
-            maybeDestructors: Some([EmptyOption.destructorTransform]),
+            maybeParsers: Some([EmptyOption.parserRefinement, parserTransform]),
+            maybeSerializers: Some([EmptyOption.serializerTransform]),
             maybeMetadata: None,
           }
         | Bool(_) => {
             tagged_t: tagged_t,
-            maybeConstructors: Some([
-              Bool.constructorRefinement,
-              CommonOperations.Constructor.literalValueRefinement,
-              constructorTransform,
+            maybeParsers: Some([
+              Bool.parserRefinement,
+              CommonOperations.Parser.literalValueRefinement,
+              parserTransform,
             ]),
-            maybeDestructors: Some([CommonOperations.transformToLiteralValue]),
+            maybeSerializers: Some([CommonOperations.transformToLiteralValue]),
             maybeMetadata: None,
           }
         | String(_) => {
             tagged_t: tagged_t,
-            maybeConstructors: Some([
-              String.constructorRefinement,
-              CommonOperations.Constructor.literalValueRefinement,
-              constructorTransform,
+            maybeParsers: Some([
+              String.parserRefinement,
+              CommonOperations.Parser.literalValueRefinement,
+              parserTransform,
             ]),
-            maybeDestructors: Some([CommonOperations.transformToLiteralValue]),
+            maybeSerializers: Some([CommonOperations.transformToLiteralValue]),
             maybeMetadata: None,
           }
         | Float(_) => {
             tagged_t: tagged_t,
-            maybeConstructors: Some([
-              Float.constructorRefinement,
-              CommonOperations.Constructor.literalValueRefinement,
-              constructorTransform,
+            maybeParsers: Some([
+              Float.parserRefinement,
+              CommonOperations.Parser.literalValueRefinement,
+              parserTransform,
             ]),
-            maybeDestructors: Some([CommonOperations.transformToLiteralValue]),
+            maybeSerializers: Some([CommonOperations.transformToLiteralValue]),
             maybeMetadata: None,
           }
         | Int(_) => {
             tagged_t: tagged_t,
-            maybeConstructors: Some([
-              Int.constructorRefinement,
-              CommonOperations.Constructor.literalValueRefinement,
-              constructorTransform,
+            maybeParsers: Some([
+              Int.parserRefinement,
+              CommonOperations.Parser.literalValueRefinement,
+              parserTransform,
             ]),
-            maybeDestructors: Some([CommonOperations.transformToLiteralValue]),
+            maybeSerializers: Some([CommonOperations.transformToLiteralValue]),
             maybeMetadata: None,
           }
         }
@@ -646,8 +646,8 @@ module Record = {
     return undefined
   }`)
 
-  module Constructors = {
-    let make = (~recordConstructor) => {
+  module Parsers = {
+    let make = (~recordParser) => {
       [
         Operation.transform((~input, ~struct, ~mode) => {
           let maybeRefinementError = switch mode {
@@ -704,7 +704,7 @@ module Record = {
                 fieldValues->Js.Array2.length === 1
                   ? fieldValues->Js.Array2.unsafe_get(0)->unsafeToAny
                   : fieldValues->unsafeToAny
-              recordConstructor(fieldValuesTuple)->Inline.Result.mapError(
+              recordParser(fieldValuesTuple)->Inline.Result.mapError(
                 RescriptStruct_Error.ParsingFailed.make,
               )
             })
@@ -715,12 +715,12 @@ module Record = {
     }
   }
 
-  module Destructors = {
-    let make = (~recordDestructor) => {
+  module Serializers = {
+    let make = (~recordSerializer) => {
       [
         Operation.transform((~input, ~struct, ~mode) => {
           let {fields, fieldNames} = struct->classify->unsafeToAny
-          recordDestructor(input)
+          recordSerializer(input)
           ->Inline.Result.mapError(RescriptStruct_Error.SerializingFailed.make)
           ->Inline.Result.flatMap(fieldValuesTuple => {
             let unknown = Js.Dict.empty()
@@ -760,23 +760,23 @@ module Record = {
 
   let factory = (
     ~fields as fieldsArray: 'fields,
-    ~constructor as maybeRecordConstructor: option<'fieldValues => result<'value, string>>=?,
-    ~destructor as maybeRecordDestructor: option<'value => result<'fieldValues, string>>=?,
+    ~parser as maybeRecordParser: option<'fieldValues => result<'value, string>>=?,
+    ~serializer as maybeRecordSerializer: option<'value => result<'fieldValues, string>>=?,
     (),
   ): t<'value> => {
-    if maybeRecordConstructor === None && maybeRecordDestructor === None {
-      RescriptStruct_Error.MissingConstructorAndDestructor.raise(`Record struct factory`)
+    if maybeRecordParser === None && maybeRecordSerializer === None {
+      RescriptStruct_Error.MissingParserAndSerializer.raise(`Record struct factory`)
     }
 
     let fields = fieldsArray->unsafeAnyToFields->Js.Dict.fromArray
 
     {
       tagged_t: Record({fields: fields, fieldNames: fields->Js.Dict.keys, unknownKeys: Strict}),
-      maybeConstructors: maybeRecordConstructor->Inline.Option.map(recordConstructor => {
-        Constructors.make(~recordConstructor)
+      maybeParsers: maybeRecordParser->Inline.Option.map(recordParser => {
+        Parsers.make(~recordParser)
       }),
-      maybeDestructors: maybeRecordDestructor->Inline.Option.map(recordDestructor => {
-        Destructors.make(~recordDestructor)
+      maybeSerializers: maybeRecordSerializer->Inline.Option.map(recordSerializer => {
+        Serializers.make(~recordSerializer)
       }),
       maybeMetadata: None,
     }
@@ -787,8 +787,8 @@ module Record = {
     switch tagged_t {
     | Record({fields, fieldNames}) => {
         tagged_t: Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strip}),
-        maybeConstructors: struct.maybeConstructors,
-        maybeDestructors: struct.maybeDestructors,
+        maybeParsers: struct.maybeParsers,
+        maybeSerializers: struct.maybeSerializers,
         maybeMetadata: struct.maybeMetadata,
       }
     | _ => RescriptStruct_Error.UnknownKeysRequireRecord.raise()
@@ -800,8 +800,8 @@ module Record = {
     switch tagged_t {
     | Record({fields, fieldNames}) => {
         tagged_t: Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strict}),
-        maybeConstructors: struct.maybeConstructors,
-        maybeDestructors: struct.maybeDestructors,
+        maybeParsers: struct.maybeParsers,
+        maybeSerializers: struct.maybeSerializers,
         maybeMetadata: struct.maybeMetadata,
       }
     | _ => RescriptStruct_Error.UnknownKeysRequireRecord.raise()
@@ -810,7 +810,7 @@ module Record = {
 }
 
 module Never = {
-  let constructors = [
+  let parsers = [
     Operation.refinement((~input, ~struct) => {
       Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
     }),
@@ -818,8 +818,8 @@ module Never = {
 
   let factory = () => {
     tagged_t: Never,
-    maybeConstructors: Some(constructors),
-    maybeDestructors: Some(Operation.empty),
+    maybeParsers: Some(parsers),
+    maybeSerializers: Some(Operation.empty),
     maybeMetadata: None,
   }
 }
@@ -827,14 +827,14 @@ module Never = {
 module Unknown = {
   let factory = () => {
     tagged_t: Unknown,
-    maybeConstructors: Some(Operation.empty),
-    maybeDestructors: Some(Operation.empty),
+    maybeParsers: Some(Operation.empty),
+    maybeSerializers: Some(Operation.empty),
     maybeMetadata: None,
   }
 }
 
 module String = {
-  let constructors = [
+  let parsers = [
     Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "string" {
       | true => None
@@ -842,18 +842,18 @@ module String = {
       }
     }),
   ]
-  let destructors = Operation.empty
+  let serializers = Operation.empty
 
   let factory = () => {
     tagged_t: String,
-    maybeConstructors: Some(constructors),
-    maybeDestructors: Some(destructors),
+    maybeParsers: Some(parsers),
+    maybeSerializers: Some(serializers),
     maybeMetadata: None,
   }
 }
 
 module Bool = {
-  let constructors = [
+  let parsers = [
     Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "boolean" {
       | true => None
@@ -864,14 +864,14 @@ module Bool = {
 
   let factory = () => {
     tagged_t: Bool,
-    maybeConstructors: Some(constructors),
-    maybeDestructors: Some(Operation.empty),
+    maybeParsers: Some(parsers),
+    maybeSerializers: Some(Operation.empty),
     maybeMetadata: None,
   }
 }
 
 module Int = {
-  let constructors = [
+  let parsers = [
     Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "number" && checkIsIntNumber(input) {
       | true => None
@@ -882,14 +882,14 @@ module Int = {
 
   let factory = () => {
     tagged_t: Int,
-    maybeConstructors: Some(constructors),
-    maybeDestructors: Some(Operation.empty),
+    maybeParsers: Some(parsers),
+    maybeSerializers: Some(Operation.empty),
     maybeMetadata: None,
   }
 }
 
 module Float = {
-  let constructors = [
+  let parsers = [
     Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "number" {
       | true => None
@@ -900,14 +900,14 @@ module Float = {
 
   let factory = () => {
     tagged_t: Float,
-    maybeConstructors: Some(constructors),
-    maybeDestructors: Some(Operation.empty),
+    maybeParsers: Some(parsers),
+    maybeSerializers: Some(Operation.empty),
     maybeMetadata: None,
   }
 }
 
 module Null = {
-  let constructors = [
+  let parsers = [
     Operation.transform((~input, ~struct, ~mode) => {
       switch input->Js.Null.toOption {
       | Some(innerValue) =>
@@ -921,7 +921,7 @@ module Null = {
       }
     }),
   ]
-  let destructors = [
+  let serializers = [
     Operation.transform((~input, ~struct, ~mode) => {
       switch input {
       | Some(value) =>
@@ -934,14 +934,14 @@ module Null = {
 
   let factory = innerStruct => {
     tagged_t: Null(innerStruct),
-    maybeConstructors: Some(constructors),
-    maybeDestructors: Some(destructors),
+    maybeParsers: Some(parsers),
+    maybeSerializers: Some(serializers),
     maybeMetadata: None,
   }
 }
 
 module Option = {
-  let constructors = [
+  let parsers = [
     Operation.transform((~input, ~struct, ~mode) => {
       switch input {
       | Some(innerValue) =>
@@ -953,7 +953,7 @@ module Option = {
       }
     }),
   ]
-  let destructors = [
+  let serializers = [
     Operation.transform((~input, ~struct, ~mode) => {
       switch input {
       | Some(value) => {
@@ -967,8 +967,8 @@ module Option = {
 
   let factory = innerStruct => {
     tagged_t: Option(innerStruct),
-    maybeConstructors: Some(constructors),
-    maybeDestructors: Some(destructors),
+    maybeParsers: Some(parsers),
+    maybeSerializers: Some(serializers),
     maybeMetadata: None,
   }
 }
@@ -976,7 +976,7 @@ module Option = {
 module Deprecated = {
   type payload<'value> = {struct: t<'value>}
 
-  let constructors = [
+  let parsers = [
     Operation.transform((~input, ~struct, ~mode) => {
       switch input {
       | Some(innerValue) =>
@@ -988,7 +988,7 @@ module Deprecated = {
       }
     }),
   ]
-  let destructors = [
+  let serializers = [
     Operation.transform((~input, ~struct, ~mode) => {
       switch input {
       | Some(value) => {
@@ -1002,14 +1002,14 @@ module Deprecated = {
 
   let factory = (~message as maybeMessage=?, innerStruct) => {
     tagged_t: Deprecated({struct: innerStruct, maybeMessage: maybeMessage}),
-    maybeConstructors: Some(constructors),
-    maybeDestructors: Some(destructors),
+    maybeParsers: Some(parsers),
+    maybeSerializers: Some(serializers),
     maybeMetadata: None,
   }
 }
 
 module Array = {
-  let constructors = [
+  let parsers = [
     Operation.transform((~input, ~struct, ~mode) => {
       let maybeRefinementError = switch mode {
       | Safe =>
@@ -1047,7 +1047,7 @@ module Array = {
       }
     }),
   ]
-  let destructors = [
+  let serializers = [
     Operation.transform((~input, ~struct, ~mode) => {
       let innerStruct = struct->classify->unsafeGetVariantPayload
 
@@ -1075,14 +1075,14 @@ module Array = {
 
   let factory = innerStruct => {
     tagged_t: Array(innerStruct),
-    maybeConstructors: Some(constructors),
-    maybeDestructors: Some(destructors),
+    maybeParsers: Some(parsers),
+    maybeSerializers: Some(serializers),
     maybeMetadata: None,
   }
 }
 
 module Dict = {
-  let constructors = [
+  let parsers = [
     Operation.transform((~input, ~struct, ~mode) => {
       let maybeRefinementError = switch mode {
       | Safe =>
@@ -1122,7 +1122,7 @@ module Dict = {
       }
     }),
   ]
-  let destructors = [
+  let serializers = [
     Operation.transform((~input, ~struct, ~mode) => {
       let innerStruct = struct->classify->unsafeGetVariantPayload
 
@@ -1152,8 +1152,8 @@ module Dict = {
 
   let factory = innerStruct => {
     tagged_t: Dict(innerStruct),
-    maybeConstructors: Some(constructors),
-    maybeDestructors: Some(destructors),
+    maybeParsers: Some(parsers),
+    maybeSerializers: Some(serializers),
     maybeMetadata: None,
   }
 }
@@ -1161,7 +1161,7 @@ module Dict = {
 module Default = {
   type payload<'value> = {struct: t<option<'value>>, value: 'value}
 
-  let constructors = [
+  let parsers = [
     Operation.transform((~input, ~struct, ~mode) => {
       let {struct: innerStruct, value} = struct->classify->unsafeToAny
       parseInner(~struct=innerStruct, ~any=input, ~mode)->Inline.Result.map(maybeOutput => {
@@ -1172,7 +1172,7 @@ module Default = {
       })
     }),
   ]
-  let destructors = [
+  let serializers = [
     Operation.transform((~input, ~struct, ~mode) => {
       let {struct: innerStruct} = struct->classify->unsafeToAny
       serializeInner(~struct=innerStruct, ~value=Some(input), ~mode)
@@ -1181,14 +1181,14 @@ module Default = {
 
   let factory = (innerStruct, defaultValue) => {
     tagged_t: Default({struct: innerStruct, value: defaultValue}),
-    maybeConstructors: Some(constructors),
-    maybeDestructors: Some(destructors),
+    maybeParsers: Some(parsers),
+    maybeSerializers: Some(serializers),
     maybeMetadata: None,
   }
 }
 
 module Tuple = {
-  let constructors = [
+  let parsers = [
     Operation.transform((~input, ~struct, ~mode) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
       let numberOfStructs = innerStructs->Js.Array2.length
@@ -1243,7 +1243,7 @@ module Tuple = {
     }),
   ]
 
-  let destructors = [
+  let serializers = [
     Operation.transform((~input, ~struct, ~mode) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
       let numberOfStructs = innerStructs->Js.Array2.length
@@ -1275,8 +1275,8 @@ module Tuple = {
   let innerFactory = structs => {
     {
       tagged_t: Tuple(structs),
-      maybeConstructors: Some(constructors),
-      maybeDestructors: Some(destructors),
+      maybeParsers: Some(parsers),
+      maybeSerializers: Some(serializers),
       maybeMetadata: None,
     }
   }
@@ -1285,7 +1285,7 @@ module Tuple = {
 }
 
 module Union = {
-  let constructors = [
+  let parsers = [
     Operation.transform((~input, ~struct, ~mode as _) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
 
@@ -1314,7 +1314,7 @@ module Union = {
     }),
   ]
 
-  let destructors = [
+  let serializers = [
     Operation.transform((~input, ~struct, ~mode as _) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
 
@@ -1350,8 +1350,8 @@ module Union = {
 
     {
       tagged_t: Union(structs),
-      maybeConstructors: Some(constructors),
-      maybeDestructors: Some(destructors),
+      maybeParsers: Some(parsers),
+      maybeSerializers: Some(serializers),
       maybeMetadata: None,
     }
   }
@@ -1397,9 +1397,9 @@ let union = Union.factory
 
 let json = struct => {
   tagged_t: String,
-  maybeConstructors: Some(
+  maybeParsers: Some(
     Js.Array2.concat(
-      String.constructors,
+      String.parsers,
       [
         Operation.transform((~input, ~struct as _, ~mode) => {
           switch Js.Json.parseExn(input) {
@@ -1416,7 +1416,7 @@ let json = struct => {
       ],
     ),
   ),
-  maybeDestructors: Some(
+  maybeSerializers: Some(
     Js.Array2.concat(
       [
         Operation.transform((~input, ~struct as _, ~mode) => {
@@ -1425,7 +1425,7 @@ let json = struct => {
           )
         }),
       ],
-      String.destructors,
+      String.serializers,
     ),
   ),
   maybeMetadata: None,
@@ -1433,36 +1433,36 @@ let json = struct => {
 
 let refine = (
   struct,
-  ~constructor as maybeConstructorRefine=?,
-  ~destructor as maybeDestructorRefine=?,
+  ~parser as maybeParserRefine=?,
+  ~serializer as maybeSerializerRefine=?,
   (),
 ) => {
-  if maybeConstructorRefine === None && maybeDestructorRefine === None {
-    RescriptStruct_Error.MissingConstructorAndDestructor.raise(`struct factory Refine`)
+  if maybeParserRefine === None && maybeSerializerRefine === None {
+    RescriptStruct_Error.MissingParserAndSerializer.raise(`struct factory Refine`)
   }
 
   {
     tagged_t: struct.tagged_t,
     maybeMetadata: struct.maybeMetadata,
-    maybeConstructors: switch (struct.maybeConstructors, maybeConstructorRefine) {
-    | (Some(constructors), Some(constructorRefine)) =>
-      constructors
+    maybeParsers: switch (struct.maybeParsers, maybeParserRefine) {
+    | (Some(parsers), Some(parserRefine)) =>
+      parsers
       ->Js.Array2.concat([
         Operation.refinement((~input, ~struct as _) => {
-          constructorRefine(input)->Inline.Option.map(RescriptStruct_Error.ParsingFailed.make)
+          parserRefine(input)->Inline.Option.map(RescriptStruct_Error.ParsingFailed.make)
         }),
       ])
       ->Some
     | (_, _) => None
     },
-    maybeDestructors: switch (struct.maybeDestructors, maybeDestructorRefine) {
-    | (Some(destructors), Some(destructorRefine)) =>
+    maybeSerializers: switch (struct.maybeSerializers, maybeSerializerRefine) {
+    | (Some(serializers), Some(serializerRefine)) =>
       [
         Operation.refinement((~input, ~struct as _) => {
-          destructorRefine(input)->Inline.Option.map(RescriptStruct_Error.SerializingFailed.make)
+          serializerRefine(input)->Inline.Option.map(RescriptStruct_Error.SerializingFailed.make)
         }),
       ]
-      ->Js.Array2.concat(destructors)
+      ->Js.Array2.concat(serializers)
       ->Some
     | (_, _) => None
     },
@@ -1471,22 +1471,22 @@ let refine = (
 
 let transform = (
   struct,
-  ~constructor as maybeTransformationConstructor=?,
-  ~destructor as maybeTransformationDestructor=?,
+  ~parser as maybeTransformationParser=?,
+  ~serializer as maybeTransformationSerializer=?,
   (),
 ) => {
-  if maybeTransformationConstructor === None && maybeTransformationDestructor === None {
-    RescriptStruct_Error.MissingConstructorAndDestructor.raise(`struct factory Transform`)
+  if maybeTransformationParser === None && maybeTransformationSerializer === None {
+    RescriptStruct_Error.MissingParserAndSerializer.raise(`struct factory Transform`)
   }
   {
     tagged_t: struct.tagged_t,
     maybeMetadata: struct.maybeMetadata,
-    maybeConstructors: switch (struct.maybeConstructors, maybeTransformationConstructor) {
-    | (Some(constructors), Some(transformationConstructor)) =>
-      constructors
+    maybeParsers: switch (struct.maybeParsers, maybeTransformationParser) {
+    | (Some(parsers), Some(transformationParser)) =>
+      parsers
       ->Js.Array2.concat([
         Operation.transform((~input, ~struct as _, ~mode as _) => {
-          transformationConstructor(input)->Inline.Result.mapError(
+          transformationParser(input)->Inline.Result.mapError(
             RescriptStruct_Error.ParsingFailed.make,
           )
         }),
@@ -1494,16 +1494,16 @@ let transform = (
       ->Some
     | (_, _) => None
     },
-    maybeDestructors: switch (struct.maybeDestructors, maybeTransformationDestructor) {
-    | (Some(destructors), Some(transformationDestructor)) =>
+    maybeSerializers: switch (struct.maybeSerializers, maybeTransformationSerializer) {
+    | (Some(serializers), Some(transformationSerializer)) =>
       [
         Operation.transform((~input, ~struct as _, ~mode as _) => {
-          transformationDestructor(input)->Inline.Result.mapError(
+          transformationSerializer(input)->Inline.Result.mapError(
             RescriptStruct_Error.SerializingFailed.make,
           )
         }),
       ]
-      ->Js.Array2.concat(destructors)
+      ->Js.Array2.concat(serializers)
       ->Some
     | (_, _) => None
     },
@@ -1540,8 +1540,8 @@ module MakeMetadata = (
     }
     {
       tagged_t: struct.tagged_t,
-      maybeConstructors: struct.maybeConstructors,
-      maybeDestructors: struct.maybeDestructors,
+      maybeParsers: struct.maybeParsers,
+      maybeSerializers: struct.maybeSerializers,
       maybeMetadata: Some(
         existingContent->dictUnsafeSet(Config.namespace, content->unsafeAnyToUnknown),
       ),

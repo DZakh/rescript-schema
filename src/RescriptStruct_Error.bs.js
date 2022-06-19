@@ -2,7 +2,7 @@
 
 
 class RescriptStructError extends Error {
-  constructor(message) {
+  parser(message) {
     super(message);
     this.name = "RescriptStructError";
   }
@@ -14,10 +14,10 @@ var raiseRescriptStructError = (function(message){
 });
 
 function raise($$location) {
-  return raiseRescriptStructError("For a " + $$location + " either a constructor, or a destructor is required");
+  return raiseRescriptStructError("For a " + $$location + " either a parser, or a serializer is required");
 }
 
-var MissingConstructorAndDestructor = {
+var MissingParserAndSerializer = {
   raise: raise
 };
 
@@ -64,24 +64,24 @@ var SerializingFailed = {
 function make$2(param) {
   return {
           operation: /* Parsing */1,
-          reason: "Struct constructor is missing",
+          reason: "Struct parser is missing",
           path: []
         };
 }
 
-var MissingConstructor = {
+var MissingParser = {
   make: make$2
 };
 
 function make$3(param) {
   return {
           operation: /* Serializing */0,
-          reason: "Struct destructor is missing",
+          reason: "Struct serializer is missing",
           path: []
         };
 }
 
-var MissingDestructor = {
+var MissingSerializer = {
   make: make$3
 };
 
@@ -151,11 +151,11 @@ function toString(error) {
   return "[ReScript Struct]" + " Failed " + operation + " at " + pathText + ". Reason: " + error.reason;
 }
 
-exports.MissingConstructorAndDestructor = MissingConstructorAndDestructor;
+exports.MissingParserAndSerializer = MissingParserAndSerializer;
 exports.UnknownKeysRequireRecord = UnknownKeysRequireRecord;
 exports.UnionLackingStructs = UnionLackingStructs;
-exports.MissingConstructor = MissingConstructor;
-exports.MissingDestructor = MissingDestructor;
+exports.MissingParser = MissingParser;
+exports.MissingSerializer = MissingSerializer;
 exports.ParsingFailed = ParsingFailed;
 exports.SerializingFailed = SerializingFailed;
 exports.UnexpectedType = UnexpectedType;

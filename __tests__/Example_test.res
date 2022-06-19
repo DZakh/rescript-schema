@@ -7,7 +7,7 @@ test("Example", t => {
     ~fields=(
       ("Id", S.float()),
       ("Tags", S.option(S.array(S.string()))->S.default([])),
-      ("IsApproved", S.int()->S.transform(~constructor=int =>
+      ("IsApproved", S.int()->S.transform(~parser=int =>
           switch int {
           | 1 => true
           | _ => false
@@ -15,7 +15,7 @@ test("Example", t => {
         , ())),
       ("Age", S.deprecated(~message="A useful explanation", S.int())),
     ),
-    ~constructor=((id, tags, isAproved, deprecatedAge)) =>
+    ~parser=((id, tags, isAproved, deprecatedAge)) =>
       {id: id, tags: tags, isAproved: isAproved, deprecatedAge: deprecatedAge}->Ok,
     (),
   )

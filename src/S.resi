@@ -58,8 +58,8 @@ let json: t<'value> => t<'value>
 
 let transform: (
   t<'value>,
-  ~constructor: 'value => result<'transformedValue, string>=?,
-  ~destructor: 'transformedValue => result<'value, string>=?,
+  ~parser: 'value => result<'transformedValue, string>=?,
+  ~serializer: 'transformedValue => result<'value, string>=?,
   unit,
 ) => t<'transformedValue>
 
@@ -67,15 +67,15 @@ let union: array<t<'value>> => t<'value>
 
 let transformUnknown: (
   t<unknown>,
-  ~constructor: unknown => result<'transformedValue, string>=?,
-  ~destructor: 'transformedValue => result<'any, string>=?,
+  ~parser: unknown => result<'transformedValue, string>=?,
+  ~serializer: 'transformedValue => result<'any, string>=?,
   unit,
 ) => t<'transformedValue>
 
 let refine: (
   t<'value>,
-  ~constructor: 'value => option<string>=?,
-  ~destructor: 'value => option<string>=?,
+  ~parser: 'value => option<string>=?,
+  ~serializer: 'value => option<string>=?,
   unit,
 ) => t<'value>
 
@@ -86,8 +86,8 @@ let serializeWith: ('value, ~mode: mode=?, t<'value>) => result<unknown, string>
 module Record: {
   let factory: (
     ~fields: 'fields,
-    ~constructor: 'fieldValues => result<'value, string>=?,
-    ~destructor: 'value => result<'fieldValues, string>=?,
+    ~parser: 'fieldValues => result<'value, string>=?,
+    ~serializer: 'value => result<'fieldValues, string>=?,
     unit,
   ) => t<'value>
 
@@ -97,44 +97,44 @@ module Record: {
 
 let record1: (
   ~fields: field<'v1>,
-  ~constructor: 'v1 => result<'value, string>=?,
-  ~destructor: 'value => result<'v1, string>=?,
+  ~parser: 'v1 => result<'value, string>=?,
+  ~serializer: 'value => result<'v1, string>=?,
   unit,
 ) => t<'value>
 let record2: (
   ~fields: (field<'v1>, field<'v2>),
-  ~constructor: (('v1, 'v2)) => result<'value, string>=?,
-  ~destructor: 'value => result<('v1, 'v2), string>=?,
+  ~parser: (('v1, 'v2)) => result<'value, string>=?,
+  ~serializer: 'value => result<('v1, 'v2), string>=?,
   unit,
 ) => t<'value>
 let record3: (
   ~fields: (field<'v1>, field<'v2>, field<'v3>),
-  ~constructor: (('v1, 'v2, 'v3)) => result<'value, string>=?,
-  ~destructor: 'value => result<('v1, 'v2, 'v3), string>=?,
+  ~parser: (('v1, 'v2, 'v3)) => result<'value, string>=?,
+  ~serializer: 'value => result<('v1, 'v2, 'v3), string>=?,
   unit,
 ) => t<'value>
 let record4: (
   ~fields: (field<'v1>, field<'v2>, field<'v3>, field<'v4>),
-  ~constructor: (('v1, 'v2, 'v3, 'v4)) => result<'value, string>=?,
-  ~destructor: 'value => result<('v1, 'v2, 'v3, 'v4), string>=?,
+  ~parser: (('v1, 'v2, 'v3, 'v4)) => result<'value, string>=?,
+  ~serializer: 'value => result<('v1, 'v2, 'v3, 'v4), string>=?,
   unit,
 ) => t<'value>
 let record5: (
   ~fields: (field<'v1>, field<'v2>, field<'v3>, field<'v4>, field<'v5>),
-  ~constructor: (('v1, 'v2, 'v3, 'v4, 'v5)) => result<'value, string>=?,
-  ~destructor: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5), string>=?,
+  ~parser: (('v1, 'v2, 'v3, 'v4, 'v5)) => result<'value, string>=?,
+  ~serializer: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5), string>=?,
   unit,
 ) => t<'value>
 let record6: (
   ~fields: (field<'v1>, field<'v2>, field<'v3>, field<'v4>, field<'v5>, field<'v6>),
-  ~constructor: (('v1, 'v2, 'v3, 'v4, 'v5, 'v6)) => result<'value, string>=?,
-  ~destructor: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6), string>=?,
+  ~parser: (('v1, 'v2, 'v3, 'v4, 'v5, 'v6)) => result<'value, string>=?,
+  ~serializer: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6), string>=?,
   unit,
 ) => t<'value>
 let record7: (
   ~fields: (field<'v1>, field<'v2>, field<'v3>, field<'v4>, field<'v5>, field<'v6>, field<'v7>),
-  ~constructor: (('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7)) => result<'value, string>=?,
-  ~destructor: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7), string>=?,
+  ~parser: (('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7)) => result<'value, string>=?,
+  ~serializer: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7), string>=?,
   unit,
 ) => t<'value>
 let record8: (
@@ -148,8 +148,8 @@ let record8: (
     field<'v7>,
     field<'v8>,
   ),
-  ~constructor: (('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8)) => result<'value, string>=?,
-  ~destructor: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8), string>=?,
+  ~parser: (('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8)) => result<'value, string>=?,
+  ~serializer: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8), string>=?,
   unit,
 ) => t<'value>
 let record9: (
@@ -164,8 +164,8 @@ let record9: (
     field<'v8>,
     field<'v9>,
   ),
-  ~constructor: (('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9)) => result<'value, string>=?,
-  ~destructor: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9), string>=?,
+  ~parser: (('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9)) => result<'value, string>=?,
+  ~serializer: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9), string>=?,
   unit,
 ) => t<'value>
 let record10: (
@@ -181,8 +181,8 @@ let record10: (
     field<'v9>,
     field<'v10>,
   ),
-  ~constructor: (('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9, 'v10)) => result<'value, string>=?,
-  ~destructor: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9, 'v10), string>=?,
+  ~parser: (('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9, 'v10)) => result<'value, string>=?,
+  ~serializer: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9, 'v10), string>=?,
   unit,
 ) => t<'value>
 

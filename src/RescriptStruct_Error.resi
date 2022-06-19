@@ -3,7 +3,7 @@ type operation =
   | Serializing
   | Parsing
 
-module MissingConstructorAndDestructor: {
+module MissingParserAndSerializer: {
   let raise: string => 'a
 }
 
@@ -15,11 +15,11 @@ module UnionLackingStructs: {
   let raise: unit => 'a
 }
 
-module MissingConstructor: {
+module MissingParser: {
   let make: unit => t
 }
 
-module MissingDestructor: {
+module MissingSerializer: {
   let make: unit => t
 }
 

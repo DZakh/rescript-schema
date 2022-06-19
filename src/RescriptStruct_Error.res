@@ -1,5 +1,5 @@
 %%raw(`class RescriptStructError extends Error {
-  constructor(message) {
+  parser(message) {
     super(message);
     this.name = "RescriptStructError";
   }
@@ -13,9 +13,9 @@ and operation =
   | Serializing
   | Parsing
 
-module MissingConstructorAndDestructor = {
+module MissingParserAndSerializer = {
   let raise = location =>
-    raiseRescriptStructError(`For a ${location} either a constructor, or a destructor is required`)
+    raiseRescriptStructError(`For a ${location} either a parser, or a serializer is required`)
 }
 
 module UnknownKeysRequireRecord = {
@@ -39,15 +39,15 @@ module SerializingFailed = {
   }
 }
 
-module MissingConstructor = {
+module MissingParser = {
   let make = () => {
-    {operation: Parsing, reason: "Struct constructor is missing", path: []}
+    {operation: Parsing, reason: "Struct parser is missing", path: []}
   }
 }
 
-module MissingDestructor = {
+module MissingSerializer = {
   let make = () => {
-    {operation: Serializing, reason: "Struct destructor is missing", path: []}
+    {operation: Serializing, reason: "Struct serializer is missing", path: []}
   }
 }
 

@@ -5,8 +5,8 @@ type recordWithTwoFields = {foo: string, bar: string}
 test("Works", t => {
   let record2: (
     ~fields: (S.field<'v1>, S.field<'v2>),
-    ~constructor: (('v1, 'v2)) => result<'value, string>=?,
-    ~destructor: 'value => result<('v1, 'v2), string>=?,
+    ~parser: (('v1, 'v2)) => result<'value, string>=?,
+    ~serializer: 'value => result<('v1, 'v2), string>=?,
     unit,
   ) => S.t<'value> = S.Record.factory
 
@@ -15,7 +15,7 @@ test("Works", t => {
 
   let struct = record2(
     ~fields=(("foo", S.string()), ("bar", S.string())),
-    ~constructor=((foo, bar)) => {{foo: foo, bar: bar}}->Ok,
+    ~parser=((foo, bar)) => {{foo: foo, bar: bar}}->Ok,
     (),
   )
 

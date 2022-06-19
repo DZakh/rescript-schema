@@ -10,7 +10,7 @@ test("Successfully parses record with single field", t => {
   let value = {foo: "bar"}
   let any = %raw(`{foo: "bar"}`)
 
-  let struct = S.record1(~fields=("foo", S.string()), ~constructor=foo => {foo: foo}->Ok, ())
+  let struct = S.record1(~fields=("foo", S.string()), ~parser=foo => {foo: foo}->Ok, ())
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
@@ -21,7 +21,7 @@ test("Successfully parses record with multiple fields", t => {
 
   let struct = S.record2(
     ~fields=(("boo", S.string()), ("zoo", S.string())),
-    ~constructor=((boo, zoo)) => {boo: boo, zoo: zoo}->Ok,
+    ~parser=((boo, zoo)) => {boo: boo, zoo: zoo}->Ok,
     (),
   )
 
@@ -34,7 +34,7 @@ test("Successfully parses record with mapped field names", t => {
 
   let struct = S.record3(
     ~fields=(("Name", S.string()), ("Email", S.string()), ("Age", S.int())),
-    ~constructor=((name, email, age)) => {name: name, email: email, age: age}->Ok,
+    ~parser=((name, email, age)) => {name: name, email: email, age: age}->Ok,
     (),
   )
 
@@ -49,10 +49,10 @@ test("Successfully parses record with optional nested record when it's Some", t 
     ~fields=(
       "singleFieldRecord",
       S.option(
-        S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~constructor=foo => {foo: foo}->Ok, ()),
+        S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~parser=foo => {foo: foo}->Ok, ()),
       ),
     ),
-    ~constructor=singleFieldRecord => {singleFieldRecord: singleFieldRecord}->Ok,
+    ~parser=singleFieldRecord => {singleFieldRecord: singleFieldRecord}->Ok,
     (),
   )
 
@@ -67,10 +67,10 @@ test("Successfully parses record with optional nested record when it's None", t 
     ~fields=(
       "singleFieldRecord",
       S.option(
-        S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~constructor=foo => {foo: foo}->Ok, ()),
+        S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~parser=foo => {foo: foo}->Ok, ()),
       ),
     ),
-    ~constructor=singleFieldRecord => {singleFieldRecord: singleFieldRecord}->Ok,
+    ~parser=singleFieldRecord => {singleFieldRecord: singleFieldRecord}->Ok,
     (),
   )
 
@@ -85,10 +85,10 @@ test("Successfully parses record with deprecated nested record when it's Some", 
     ~fields=(
       "singleFieldRecord",
       S.deprecated(
-        S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~constructor=foo => {foo: foo}->Ok, ()),
+        S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~parser=foo => {foo: foo}->Ok, ()),
       ),
     ),
-    ~constructor=singleFieldRecord => {singleFieldRecord: singleFieldRecord}->Ok,
+    ~parser=singleFieldRecord => {singleFieldRecord: singleFieldRecord}->Ok,
     (),
   )
 
@@ -103,10 +103,10 @@ test("Successfully parses record with deprecated nested record when it's None", 
     ~fields=(
       "singleFieldRecord",
       S.deprecated(
-        S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~constructor=foo => {foo: foo}->Ok, ()),
+        S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~parser=foo => {foo: foo}->Ok, ()),
       ),
     ),
-    ~constructor=singleFieldRecord => {singleFieldRecord: singleFieldRecord}->Ok,
+    ~parser=singleFieldRecord => {singleFieldRecord: singleFieldRecord}->Ok,
     (),
   )
 
@@ -118,54 +118,54 @@ test("Successfully parses array of records", t => {
   let any = %raw(`[{"MUST_BE_MAPPED":"bar"},{"MUST_BE_MAPPED":"baz"}]`)
 
   let struct = S.array(
-    S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~constructor=foo => {foo: foo}->Ok, ()),
+    S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~parser=foo => {foo: foo}->Ok, ()),
   )
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-test("Throws for a Record factory without either a constructor, or a destructor", t => {
+test("Throws for a Record factory without either a parser, or a serializer", t => {
   t->Assert.throws(() => {
     S.record1(~fields=("any", S.string()), ())->ignore
   }, ~expectations=ThrowsException.make(
     ~name="RescriptStructError",
-    ~message="For a Record struct factory either a constructor, or a destructor is required",
+    ~message="For a Record struct factory either a parser, or a serializer is required",
     (),
   ), ())
 })
 
-test("Fails to parse when constructor isn't provided", t => {
+test("Fails to parse when parser isn't provided", t => {
   let any = %raw(`{foo: "bar"}`)
 
-  let struct = S.record1(~fields=("foo", S.string()), ~destructor=({foo}) => foo->Ok, ())
+  let struct = S.record1(~fields=("foo", S.string()), ~serializer=({foo}) => foo->Ok, ())
 
   t->Assert.deepEqual(
     any->S.parseWith(struct),
-    Error("[ReScript Struct] Failed parsing at root. Reason: Struct constructor is missing"),
+    Error("[ReScript Struct] Failed parsing at root. Reason: Struct parser is missing"),
     (),
   )
 })
 
-test("Fails to parse when nested record constructor isn't provided", t => {
+test("Fails to parse when nested record parser isn't provided", t => {
   let any = %raw(`{nested: {foo: "bar"}}`)
 
   let struct = S.record1(
-    ~fields=("nested", S.record1(~fields=("foo", S.string()), ~destructor=({foo}) => foo->Ok, ())),
-    ~constructor=nested => {nested: nested}->Ok,
+    ~fields=("nested", S.record1(~fields=("foo", S.string()), ~serializer=({foo}) => foo->Ok, ())),
+    ~parser=nested => {nested: nested}->Ok,
     (),
   )
 
   t->Assert.deepEqual(
     any->S.parseWith(struct),
-    Error(`[ReScript Struct] Failed parsing at [nested]. Reason: Struct constructor is missing`),
+    Error(`[ReScript Struct] Failed parsing at [nested]. Reason: Struct parser is missing`),
     (),
   )
 })
 
-test("Fails to parse when user returns error in a root record constructor", t => {
+test("Fails to parse when user returns error in a root record parser", t => {
   let any = %raw(`{foo: "bar"}`)
 
-  let struct = S.record1(~fields=("foo", S.string()), ~constructor=_ => Error("User error"), ())
+  let struct = S.record1(~fields=("foo", S.string()), ~parser=_ => Error("User error"), ())
 
   t->Assert.deepEqual(
     any->S.parseWith(struct),
@@ -174,15 +174,15 @@ test("Fails to parse when user returns error in a root record constructor", t =>
   )
 })
 
-test("Fails to parse when user returns error in a nested record constructor", t => {
+test("Fails to parse when user returns error in a nested record parser", t => {
   let any = %raw(`{nested: {foo: "bar"}}`)
 
   let struct = S.record1(
     ~fields=(
       "nested",
-      S.record1(~fields=("foo", S.string()), ~constructor=_ => Error("User error"), ()),
+      S.record1(~fields=("foo", S.string()), ~parser=_ => Error("User error"), ()),
     ),
-    ~constructor=nested => {nested: nested}->Ok,
+    ~parser=nested => {nested: nested}->Ok,
     (),
   )
 
@@ -197,7 +197,7 @@ test("Successfully serializes unknown record with single field", t => {
   let value = {foo: "bar"}
   let any = %raw(`{foo: "bar"}`)
 
-  let struct = S.record1(~fields=("foo", S.string()), ~destructor=({foo}) => foo->Ok, ())
+  let struct = S.record1(~fields=("foo", S.string()), ~serializer=({foo}) => foo->Ok, ())
 
   t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
 })
@@ -208,7 +208,7 @@ test("Successfully serializes unknown record with multiple fields", t => {
 
   let struct = S.record2(
     ~fields=(("boo", S.string()), ("zoo", S.string())),
-    ~destructor=({boo, zoo}) => (boo, zoo)->Ok,
+    ~serializer=({boo, zoo}) => (boo, zoo)->Ok,
     (),
   )
 
@@ -221,7 +221,7 @@ test("Successfully serializes unknown record with mapped field", t => {
 
   let struct = S.record3(
     ~fields=(("Name", S.string()), ("Email", S.string()), ("Age", S.int())),
-    ~destructor=({name, email, age}) => (name, email, age)->Ok,
+    ~serializer=({name, email, age}) => (name, email, age)->Ok,
     (),
   )
 
@@ -236,10 +236,10 @@ test("Successfully serializes unknown record with optional nested record when it
     ~fields=(
       "singleFieldRecord",
       S.option(
-        S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~destructor=({foo}) => foo->Ok, ()),
+        S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~serializer=({foo}) => foo->Ok, ()),
       ),
     ),
-    ~destructor=({singleFieldRecord}) => singleFieldRecord->Ok,
+    ~serializer=({singleFieldRecord}) => singleFieldRecord->Ok,
     (),
   )
 
@@ -254,10 +254,10 @@ test("Successfully serializes unknown record with optional nested record when it
     ~fields=(
       "singleFieldRecord",
       S.option(
-        S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~destructor=({foo}) => foo->Ok, ()),
+        S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~serializer=({foo}) => foo->Ok, ()),
       ),
     ),
-    ~destructor=({singleFieldRecord}) => singleFieldRecord->Ok,
+    ~serializer=({singleFieldRecord}) => singleFieldRecord->Ok,
     (),
   )
 
@@ -269,47 +269,44 @@ test("Successfully serializes unknown array of records", t => {
   let any = %raw(`[{"MUST_BE_MAPPED":"bar"},{"MUST_BE_MAPPED":"baz"}]`)
 
   let struct = S.array(
-    S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~destructor=({foo}) => foo->Ok, ()),
+    S.record1(~fields=("MUST_BE_MAPPED", S.string()), ~serializer=({foo}) => foo->Ok, ()),
   )
 
   t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
 })
 
-test("Fails to serialize record when destructor isn't provided", t => {
+test("Fails to serialize record when serializer isn't provided", t => {
   let value = {foo: "bar"}
 
-  let struct = S.record1(~fields=("foo", S.string()), ~constructor=foo => {foo: foo}->Ok, ())
+  let struct = S.record1(~fields=("foo", S.string()), ~parser=foo => {foo: foo}->Ok, ())
 
   t->Assert.deepEqual(
     value->S.serializeWith(struct),
-    Error("[ReScript Struct] Failed serializing at root. Reason: Struct destructor is missing"),
+    Error("[ReScript Struct] Failed serializing at root. Reason: Struct serializer is missing"),
     (),
   )
 })
 
-test("Fails to serialize nested record when destructor isn't provided", t => {
+test("Fails to serialize nested record when serializer isn't provided", t => {
   let value = {nested: {foo: "bar"}}
 
   let struct = S.record1(
-    ~fields=(
-      "nested",
-      S.record1(~fields=("foo", S.string()), ~constructor=foo => {foo: foo}->Ok, ()),
-    ),
-    ~destructor=({nested}) => nested->Ok,
+    ~fields=("nested", S.record1(~fields=("foo", S.string()), ~parser=foo => {foo: foo}->Ok, ())),
+    ~serializer=({nested}) => nested->Ok,
     (),
   )
 
   t->Assert.deepEqual(
     value->S.serializeWith(struct),
-    Error(`[ReScript Struct] Failed serializing at [nested]. Reason: Struct destructor is missing`),
+    Error(`[ReScript Struct] Failed serializing at [nested]. Reason: Struct serializer is missing`),
     (),
   )
 })
 
-test("Fails to serialize when user returns error in a root record destructor", t => {
+test("Fails to serialize when user returns error in a root record serializer", t => {
   let value = {foo: "bar"}
 
-  let struct = S.record1(~fields=("foo", S.string()), ~destructor=_ => Error("User error"), ())
+  let struct = S.record1(~fields=("foo", S.string()), ~serializer=_ => Error("User error"), ())
 
   t->Assert.deepEqual(
     value->S.serializeWith(struct),
@@ -318,15 +315,15 @@ test("Fails to serialize when user returns error in a root record destructor", t
   )
 })
 
-test("Fails to serialize when user returns error in a nested record destructor", t => {
+test("Fails to serialize when user returns error in a nested record serializer", t => {
   let value = {nested: {foo: "bar"}}
 
   let struct = S.record1(
     ~fields=(
       "nested",
-      S.record1(~fields=("foo", S.string()), ~destructor=_ => Error("User error"), ()),
+      S.record1(~fields=("foo", S.string()), ~serializer=_ => Error("User error"), ()),
     ),
-    ~destructor=({nested}) => nested->Ok,
+    ~serializer=({nested}) => nested->Ok,
     (),
   )
 
@@ -344,8 +341,8 @@ test(
 
     let struct = S.record3(
       ~fields=(("Name", S.string()), ("Email", S.string()), ("Age", S.int())),
-      ~constructor=((name, email, age)) => {name: name, email: email, age: age}->Ok,
-      ~destructor=({name, email, age}) => (name, email, age)->Ok,
+      ~parser=((name, email, age)) => {name: name, email: email, age: age}->Ok,
+      ~serializer=({name, email, age}) => (name, email, age)->Ok,
       (),
     )
 
@@ -358,7 +355,7 @@ test(
 )
 
 test("Fails to parse record", t => {
-  let struct = S.record1(~fields=("FOO", S.string()), ~constructor=foo => {foo: foo}->Ok, ())
+  let struct = S.record1(~fields=("FOO", S.string()), ~parser=foo => {foo: foo}->Ok, ())
 
   t->Assert.deepEqual(
     Js.Json.string("string")->S.parseWith(struct),
@@ -368,7 +365,7 @@ test("Fails to parse record", t => {
 })
 
 test("Fails to parse record item when it's not present", t => {
-  let struct = S.record1(~fields=("FOO", S.string()), ~constructor=foo => {foo: foo}->Ok, ())
+  let struct = S.record1(~fields=("FOO", S.string()), ~parser=foo => {foo: foo}->Ok, ())
 
   t->Assert.deepEqual(
     %raw(`{}`)->S.parseWith(struct),
@@ -378,7 +375,7 @@ test("Fails to parse record item when it's not present", t => {
 })
 
 test("Fails to parse record item when it's not valid", t => {
-  let struct = S.record1(~fields=("FOO", S.string()), ~constructor=foo => {foo: foo}->Ok, ())
+  let struct = S.record1(~fields=("FOO", S.string()), ~parser=foo => {foo: foo}->Ok, ())
 
   t->Assert.deepEqual(
     %raw(`{FOO:123}`)->S.parseWith(struct),

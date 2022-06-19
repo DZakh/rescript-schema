@@ -57,7 +57,7 @@ module MissingFieldThatMarkedAsNullable = {
   test("Fails to parse record with missing field that marked as null", t => {
     let struct = S.record1(
       ~fields=("nullableField", S.null(S.string())),
-      ~constructor=nullableField => {nullableField: nullableField}->Ok,
+      ~parser=nullableField => {nullableField: nullableField}->Ok,
       (),
     )
 

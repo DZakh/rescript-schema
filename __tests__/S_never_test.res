@@ -33,7 +33,7 @@ module RecordField = {
   test("Fails to parse a record with Never field", t => {
     let struct = S.record2(
       ~fields=(("key", S.string()), ("oldKey", S.never())),
-      ~constructor=((key, _oldKey)) => {key: key}->Ok,
+      ~parser=((key, _oldKey)) => {key: key}->Ok,
       (),
     )
 
@@ -53,7 +53,7 @@ module RecordField = {
           S.deprecated(~message="We stopped using the field from the v0.9.0 release", S.never()),
         ),
       ),
-      ~constructor=((key, _oldKey)) => {key: key}->Ok,
+      ~parser=((key, _oldKey)) => {key: key}->Ok,
       (),
     )
 

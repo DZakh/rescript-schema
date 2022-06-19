@@ -47,8 +47,8 @@ module Advanced = {
   let shapeStruct = {
     let circleStruct = S.record2(
       ~fields=(("kind", S.literal(String("circle"))), ("radius", S.float())),
-      ~constructor=((_, radius)) => Circle({radius: radius})->Ok,
-      ~destructor=shape =>
+      ~parser=((_, radius)) => Circle({radius: radius})->Ok,
+      ~serializer=shape =>
         switch shape {
         | Circle({radius}) => ("circle", radius)->Ok
         | _ => Error("Wrong shape")
@@ -57,8 +57,8 @@ module Advanced = {
     )
     let squareStruct = S.record2(
       ~fields=(("kind", S.literal(String("square"))), ("x", S.float())),
-      ~constructor=((_, x)) => Square({x: x})->Ok,
-      ~destructor=shape =>
+      ~parser=((_, x)) => Square({x: x})->Ok,
+      ~serializer=shape =>
         switch shape {
         | Square({x}) => ("square", x)->Ok
         | _ => Error("Wrong shape")
@@ -67,8 +67,8 @@ module Advanced = {
     )
     let triangleStruct = S.record3(
       ~fields=(("kind", S.literal(String("triangle"))), ("x", S.float()), ("y", S.float())),
-      ~constructor=((_, x, y)) => Triangle({x: x, y: y})->Ok,
-      ~destructor=shape =>
+      ~parser=((_, x, y)) => Triangle({x: x, y: y})->Ok,
+      ~serializer=shape =>
         switch shape {
         | Triangle({x, y}) => ("triangle", x, y)->Ok
         | _ => Error("Wrong shape")
