@@ -83,6 +83,11 @@ Ok({
 })
 ```
 
+### Real-world use cases
+
+- [API requests with **rescript-struct**](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Api.res)
+- [Env variables with **rescript-struct**](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Env.res)
+
 ## API Reference
 
 ### Core
