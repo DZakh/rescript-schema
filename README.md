@@ -620,3 +620,5 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [ ] Design and add Refinements
 - [ ] Properly handle NaN
 - [ ] Design and add async transforms
+- [ ] Add super transforms
+- [ ] Add preprocess logic
