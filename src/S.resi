@@ -84,107 +84,74 @@ let parseWith: ('any, ~mode: mode=?, t<'value>) => result<'value, string>
 let serializeWith: ('value, ~mode: mode=?, t<'value>) => result<unknown, string>
 
 module Record: {
-  let factory: (
-    ~fields: 'fields,
-    ~parser: 'fieldValues => result<'value, string>=?,
-    ~serializer: 'value => result<'fieldValues, string>=?,
-    unit,
-  ) => t<'value>
+  let factory: 'factory
 
   let strip: t<'value> => t<'value>
   let strict: t<'value> => t<'value>
 }
 
-let record1: (
-  ~fields: field<'v1>,
-  ~parser: 'v1 => result<'value, string>=?,
-  ~serializer: 'value => result<'v1, string>=?,
-  unit,
-) => t<'value>
-let record2: (
-  ~fields: (field<'v1>, field<'v2>),
-  ~parser: (('v1, 'v2)) => result<'value, string>=?,
-  ~serializer: 'value => result<('v1, 'v2), string>=?,
-  unit,
-) => t<'value>
-let record3: (
-  ~fields: (field<'v1>, field<'v2>, field<'v3>),
-  ~parser: (('v1, 'v2, 'v3)) => result<'value, string>=?,
-  ~serializer: 'value => result<('v1, 'v2, 'v3), string>=?,
-  unit,
-) => t<'value>
-let record4: (
-  ~fields: (field<'v1>, field<'v2>, field<'v3>, field<'v4>),
-  ~parser: (('v1, 'v2, 'v3, 'v4)) => result<'value, string>=?,
-  ~serializer: 'value => result<('v1, 'v2, 'v3, 'v4), string>=?,
-  unit,
-) => t<'value>
+let record0: (. unit) => t<unit>
+let record1: (. field<'v1>) => t<'v1>
+let record2: (. field<'v1>, field<'v2>) => t<('v1, 'v2)>
+let record3: (. field<'v1>, field<'v2>, field<'v3>) => t<('v1, 'v2, 'v3)>
+let record4: (. field<'v1>, field<'v2>, field<'v3>, field<'v4>) => t<('v1, 'v2, 'v3, 'v4)>
 let record5: (
-  ~fields: (field<'v1>, field<'v2>, field<'v3>, field<'v4>, field<'v5>),
-  ~parser: (('v1, 'v2, 'v3, 'v4, 'v5)) => result<'value, string>=?,
-  ~serializer: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5), string>=?,
-  unit,
-) => t<'value>
+  . field<'v1>,
+  field<'v2>,
+  field<'v3>,
+  field<'v4>,
+  field<'v5>,
+) => t<('v1, 'v2, 'v3, 'v4, 'v5)>
 let record6: (
-  ~fields: (field<'v1>, field<'v2>, field<'v3>, field<'v4>, field<'v5>, field<'v6>),
-  ~parser: (('v1, 'v2, 'v3, 'v4, 'v5, 'v6)) => result<'value, string>=?,
-  ~serializer: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6), string>=?,
-  unit,
-) => t<'value>
+  . field<'v1>,
+  field<'v2>,
+  field<'v3>,
+  field<'v4>,
+  field<'v5>,
+  field<'v6>,
+) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6)>
 let record7: (
-  ~fields: (field<'v1>, field<'v2>, field<'v3>, field<'v4>, field<'v5>, field<'v6>, field<'v7>),
-  ~parser: (('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7)) => result<'value, string>=?,
-  ~serializer: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7), string>=?,
-  unit,
-) => t<'value>
+  . field<'v1>,
+  field<'v2>,
+  field<'v3>,
+  field<'v4>,
+  field<'v5>,
+  field<'v6>,
+  field<'v7>,
+) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7)>
 let record8: (
-  ~fields: (
-    field<'v1>,
-    field<'v2>,
-    field<'v3>,
-    field<'v4>,
-    field<'v5>,
-    field<'v6>,
-    field<'v7>,
-    field<'v8>,
-  ),
-  ~parser: (('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8)) => result<'value, string>=?,
-  ~serializer: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8), string>=?,
-  unit,
-) => t<'value>
+  . field<'v1>,
+  field<'v2>,
+  field<'v3>,
+  field<'v4>,
+  field<'v5>,
+  field<'v6>,
+  field<'v7>,
+  field<'v8>,
+) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8)>
 let record9: (
-  ~fields: (
-    field<'v1>,
-    field<'v2>,
-    field<'v3>,
-    field<'v4>,
-    field<'v5>,
-    field<'v6>,
-    field<'v7>,
-    field<'v8>,
-    field<'v9>,
-  ),
-  ~parser: (('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9)) => result<'value, string>=?,
-  ~serializer: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9), string>=?,
-  unit,
-) => t<'value>
+  . field<'v1>,
+  field<'v2>,
+  field<'v3>,
+  field<'v4>,
+  field<'v5>,
+  field<'v6>,
+  field<'v7>,
+  field<'v8>,
+  field<'v9>,
+) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9)>
 let record10: (
-  ~fields: (
-    field<'v1>,
-    field<'v2>,
-    field<'v3>,
-    field<'v4>,
-    field<'v5>,
-    field<'v6>,
-    field<'v7>,
-    field<'v8>,
-    field<'v9>,
-    field<'v10>,
-  ),
-  ~parser: (('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9, 'v10)) => result<'value, string>=?,
-  ~serializer: 'value => result<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9, 'v10), string>=?,
-  unit,
-) => t<'value>
+  . field<'v1>,
+  field<'v2>,
+  field<'v3>,
+  field<'v4>,
+  field<'v5>,
+  field<'v6>,
+  field<'v7>,
+  field<'v8>,
+  field<'v9>,
+  field<'v10>,
+) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9, 'v10)>
 
 module Tuple: {
   let factory: 'factory

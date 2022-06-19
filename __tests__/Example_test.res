@@ -3,25 +3,23 @@ open Ava
 type author = {id: float, tags: array<string>, isAproved: bool, deprecatedAge: option<int>}
 
 test("Example", t => {
-  let authorStruct: S.t<author> = S.record4(
-    ~fields=(
+  let authorStruct =
+    S.record4(.
       ("Id", S.float()),
       ("Tags", S.option(S.array(S.string()))->S.default([])),
-      ("IsApproved", S.int()->S.transform(~parser=int =>
-          switch int {
-          | 1 => true
-          | _ => false
-          }->Ok
-        , ())),
+      (
+        "IsApproved",
+        S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),
+      ),
       ("Age", S.deprecated(~message="A useful explanation", S.int())),
-    ),
-    ~parser=((id, tags, isAproved, deprecatedAge)) =>
-      {id: id, tags: tags, isAproved: isAproved, deprecatedAge: deprecatedAge}->Ok,
-    (),
-  )
+    )->S.transform(
+      ~parser=((id, tags, isAproved, deprecatedAge)) =>
+        {id: id, tags: tags, isAproved: isAproved, deprecatedAge: deprecatedAge}->Ok,
+      (),
+    )
 
   t->Assert.deepEqual(
-    {"Id": 1, "IsApproved": 1, "Age": 12}->S.parseWith(authorStruct),
+    {"Id": 1, "IsApproved": "Yes", "Age": 12}->S.parseWith(authorStruct),
     Ok({
       id: 1.,
       tags: [],
@@ -31,7 +29,7 @@ test("Example", t => {
     (),
   )
   t->Assert.deepEqual(
-    {"Id": 1, "IsApproved": 0, "Tags": ["Loved"]}->S.parseWith(authorStruct),
+    {"Id": 1, "IsApproved": "No", "Tags": ["Loved"]}->S.parseWith(authorStruct),
     Ok({
       id: 1.,
       tags: ["Loved"],

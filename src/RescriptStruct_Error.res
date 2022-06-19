@@ -1,5 +1,5 @@
 %%raw(`class RescriptStructError extends Error {
-  parser(message) {
+  constructor(message) {
     super(message);
     this.name = "RescriptStructError";
   }

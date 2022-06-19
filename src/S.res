@@ -1,9 +1,19 @@
+external unsafeToAny: 'a => 'b = "%identity"
+
 module Inline = {
   module Fn = {
     let callWithArguments = fn => {
       fn->ignore
       %raw(`function(){return fn(arguments)}`)
     }
+  }
+
+  module Array = {
+    @inline
+    let toTuple = array =>
+      array->Js.Array2.length <= 1
+        ? array->Js.Array2.unsafe_get(0)->unsafeToAny
+        : array->unsafeToAny
   }
 
   module Result: {
@@ -101,8 +111,6 @@ and operation =
 
 external unsafeAnyToUnknown: 'any => unknown = "%identity"
 external unsafeUnknownToAny: unknown => 'any = "%identity"
-external unsafeToAny: 'a => 'b = "%identity"
-external unsafeAnyToFields: 'any => array<field<unknown>> = "%identity"
 
 type payloadedVariant<'payload> = {_0: 'payload}
 @inline
@@ -646,141 +654,98 @@ module Record = {
     return undefined
   }`)
 
-  module Parsers = {
-    let make = (~recordParser) => {
-      [
-        Operation.transform((~input, ~struct, ~mode) => {
-          let maybeRefinementError = switch mode {
-          | Safe =>
-            switch input->getInternalClass === "[object Object]" {
-            | true => None
-            | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+  let parsers = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      let maybeRefinementError = switch mode {
+      | Safe =>
+        switch input->getInternalClass === "[object Object]" {
+        | true => None
+        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+        }
+      | Unsafe => None
+      }
+      switch maybeRefinementError {
+      | None =>
+        let {fields, fieldNames, unknownKeys} = struct->classify->unsafeToAny
+
+        let newArray = []
+        let idxRef = ref(0)
+        let maybeErrorRef = ref(None)
+        while idxRef.contents < fieldNames->Js.Array2.length && maybeErrorRef.contents === None {
+          let idx = idxRef.contents
+          let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+          let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+          switch parseInner(~struct=fieldStruct, ~any=input->Js.Dict.unsafeGet(fieldName), ~mode) {
+          | Ok(value) => {
+              newArray->Js.Array2.push(value)->ignore
+              idxRef.contents = idxRef.contents + 1
             }
-          | Unsafe => None
+          | Error(error) =>
+            maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(fieldName))
           }
-          switch maybeRefinementError {
-          | None =>
-            let {fields, fieldNames, unknownKeys} = struct->classify->unsafeToAny
-            let fieldValuesResult = {
-              let newArray = []
-              let idxRef = ref(0)
-              let maybeErrorRef = ref(None)
-              while (
-                idxRef.contents < fieldNames->Js.Array2.length && maybeErrorRef.contents === None
-              ) {
-                let idx = idxRef.contents
-                let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-                let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-                switch parseInner(
-                  ~struct=fieldStruct,
-                  ~any=input->Js.Dict.unsafeGet(fieldName),
-                  ~mode,
-                ) {
-                | Ok(value) => {
-                    newArray->Js.Array2.push(value)->ignore
-                    idxRef.contents = idxRef.contents + 1
-                  }
-                | Error(error) =>
-                  maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(fieldName))
-                }
-              }
-              switch maybeErrorRef.contents {
-              | Some(error) => Error(error)
-              | None => Ok(newArray)
-              }
-            }
-            switch (unknownKeys, mode) {
-            | (Strict, Safe) =>
-              fieldValuesResult->Inline.Result.flatMap(_ => {
-                switch getMaybeExcessKey(. input, fields) {
-                | Some(excessKey) =>
-                  Error(RescriptStruct_Error.ExcessField.make(~fieldName=excessKey))
-                | None => fieldValuesResult
-                }
-              })
-            | (_, _) => fieldValuesResult
-            }->Inline.Result.flatMap(fieldValues => {
-              let fieldValuesTuple =
-                fieldValues->Js.Array2.length === 1
-                  ? fieldValues->Js.Array2.unsafe_get(0)->unsafeToAny
-                  : fieldValues->unsafeToAny
-              recordParser(fieldValuesTuple)->Inline.Result.mapError(
-                RescriptStruct_Error.ParsingFailed.make,
-              )
-            })
-          | Some(error) => Error(error)
+        }
+        if unknownKeys == Strict && mode == Safe {
+          switch getMaybeExcessKey(. input, fields) {
+          | Some(excessKey) =>
+            maybeErrorRef.contents = Some(
+              RescriptStruct_Error.ExcessField.make(~fieldName=excessKey),
+            )
+          | None => ()
           }
-        }),
-      ]
-    }
-  }
+        }
+        switch maybeErrorRef.contents {
+        | Some(error) => Error(error)
+        | None => newArray->Inline.Array.toTuple->Ok
+        }
+      | Some(error) => Error(error)
+      }
+    }),
+  ]
 
-  module Serializers = {
-    let make = (~recordSerializer) => {
-      [
-        Operation.transform((~input, ~struct, ~mode) => {
-          let {fields, fieldNames} = struct->classify->unsafeToAny
-          recordSerializer(input)
-          ->Inline.Result.mapError(RescriptStruct_Error.SerializingFailed.make)
-          ->Inline.Result.flatMap(fieldValuesTuple => {
-            let unknown = Js.Dict.empty()
-            let fieldValues =
-              fieldNames->Js.Array2.length === 1
-                ? [fieldValuesTuple]->unsafeToAny
-                : fieldValuesTuple->unsafeToAny
+  let serializers = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      let {fields, fieldNames} = struct->classify->unsafeToAny
 
-            let idxRef = ref(0)
-            let maybeErrorRef = ref(None)
-            while (
-              idxRef.contents < fieldNames->Js.Array2.length && maybeErrorRef.contents === None
-            ) {
-              let idx = idxRef.contents
-              let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-              let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-              let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
-              switch serializeInner(~struct=fieldStruct, ~value=fieldValue, ~mode) {
-              | Ok(unknownFieldValue) => {
-                  unknown->Js.Dict.set(fieldName, unknownFieldValue)
-                  idxRef.contents = idxRef.contents + 1
-                }
-              | Error(error) =>
-                maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(fieldName))
-              }
-            }
+      let unknown = Js.Dict.empty()
+      let fieldValues =
+        fieldNames->Js.Array2.length <= 1 ? [input]->unsafeToAny : input->unsafeToAny
 
-            switch maybeErrorRef.contents {
-            | Some(error) => Error(error)
-            | None => Ok(unknown)
-            }
-          })
-        }),
-      ]
-    }
-  }
+      let idxRef = ref(0)
+      let maybeErrorRef = ref(None)
+      while idxRef.contents < fieldNames->Js.Array2.length && maybeErrorRef.contents === None {
+        let idx = idxRef.contents
+        let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+        let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+        let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
+        switch serializeInner(~struct=fieldStruct, ~value=fieldValue, ~mode) {
+        | Ok(unknownFieldValue) => {
+            unknown->Js.Dict.set(fieldName, unknownFieldValue)
+            idxRef.contents = idxRef.contents + 1
+          }
+        | Error(error) =>
+          maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(fieldName))
+        }
+      }
 
-  let factory = (
-    ~fields as fieldsArray: 'fields,
-    ~parser as maybeRecordParser: option<'fieldValues => result<'value, string>>=?,
-    ~serializer as maybeRecordSerializer: option<'value => result<'fieldValues, string>>=?,
-    (),
-  ): t<'value> => {
-    if maybeRecordParser === None && maybeRecordSerializer === None {
-      RescriptStruct_Error.MissingParserAndSerializer.raise(`Record struct factory`)
-    }
+      switch maybeErrorRef.contents {
+      | Some(error) => Error(error)
+      | None => Ok(unknown)
+      }
+    }),
+  ]
 
-    let fields = fieldsArray->unsafeAnyToFields->Js.Dict.fromArray
+  let innerFactory = fieldsArray => {
+    let fields = fieldsArray->Js.Dict.fromArray
 
     {
       tagged_t: Record({fields: fields, fieldNames: fields->Js.Dict.keys, unknownKeys: Strict}),
-      maybeParsers: maybeRecordParser->Inline.Option.map(recordParser => {
-        Parsers.make(~recordParser)
-      }),
-      maybeSerializers: maybeRecordSerializer->Inline.Option.map(recordSerializer => {
-        Serializers.make(~recordSerializer)
-      }),
+      maybeParsers: Some(parsers),
+      maybeSerializers: Some(serializers),
       maybeMetadata: None,
     }
   }
+
+  let factory = Inline.Fn.callWithArguments(innerFactory)
 
   let strip = struct => {
     let tagged_t = struct->classify
@@ -1357,7 +1322,8 @@ module Union = {
   }
 }
 
-let record1 = (~fields) => Record.factory(~fields=[fields])
+let record0 = Record.factory
+let record1 = Record.factory
 let record2 = Record.factory
 let record3 = Record.factory
 let record4 = Record.factory
@@ -1449,7 +1415,9 @@ let refine = (
       parsers
       ->Js.Array2.concat([
         Operation.refinement((~input, ~struct as _) => {
-          parserRefine(input)->Inline.Option.map(RescriptStruct_Error.ParsingFailed.make)
+          (parserRefine->unsafeToAny)(. input)->Inline.Option.map(
+            RescriptStruct_Error.ParsingFailed.make,
+          )
         }),
       ])
       ->Some
@@ -1459,7 +1427,9 @@ let refine = (
     | (Some(serializers), Some(serializerRefine)) =>
       [
         Operation.refinement((~input, ~struct as _) => {
-          serializerRefine(input)->Inline.Option.map(RescriptStruct_Error.SerializingFailed.make)
+          (serializerRefine->unsafeToAny)(. input)->Inline.Option.map(
+            RescriptStruct_Error.SerializingFailed.make,
+          )
         }),
       ]
       ->Js.Array2.concat(serializers)
@@ -1478,6 +1448,7 @@ let transform = (
   if maybeTransformationParser === None && maybeTransformationSerializer === None {
     RescriptStruct_Error.MissingParserAndSerializer.raise(`struct factory Transform`)
   }
+
   {
     tagged_t: struct.tagged_t,
     maybeMetadata: struct.maybeMetadata,
@@ -1486,7 +1457,7 @@ let transform = (
       parsers
       ->Js.Array2.concat([
         Operation.transform((~input, ~struct as _, ~mode as _) => {
-          transformationParser(input)->Inline.Result.mapError(
+          (transformationParser->unsafeToAny)(. input)->Inline.Result.mapError(
             RescriptStruct_Error.ParsingFailed.make,
           )
         }),
@@ -1498,7 +1469,7 @@ let transform = (
     | (Some(serializers), Some(transformationSerializer)) =>
       [
         Operation.transform((~input, ~struct as _, ~mode as _) => {
-          transformationSerializer(input)->Inline.Result.mapError(
+          (transformationSerializer->unsafeToAny)(. input)->Inline.Result.mapError(
             RescriptStruct_Error.SerializingFailed.make,
           )
         }),

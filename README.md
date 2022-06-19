@@ -38,31 +38,32 @@ type author = {
   deprecatedAge: option<int>,
 }
 
-let authorStruct = S.record4(
-  ~fields=(
+let authorStruct =
+  S.record4(.
     ("Id", S.float()),
     ("Tags", S.option(S.array(S.string()))->S.default([])),
-    ("IsApproved", S.int()->S.transform(~parser=int =>
-        switch int {
-        | 1 => true
-        | _ => false
-        }->Ok
-      , ())),
+    (
+      "IsApproved",
+      S.union([
+        S.literalVariant(String("Yes"), true),
+        S.literalVariant(String("No"), false),
+      ]),
+    ),
     ("Age", S.deprecated(~message="A useful explanation", S.int())),
-  ),
-  ~parser=((id, tags, isAproved, deprecatedAge)) =>
-    {id: id, tags: tags, isAproved: isAproved, deprecatedAge: deprecatedAge}->Ok,
-  (),
-)
+  )->S.transform(
+    ~parser=((id, tags, isAproved, deprecatedAge)) =>
+      {id: id, tags: tags, isAproved: isAproved, deprecatedAge: deprecatedAge}->Ok,
+    (),
+  )
 
 {
   "Id": 1,
-  "IsApproved": 1,
+  "IsApproved": "Yes",
   "Age": 12,
 }->S.parseWith(authorStruct)
 {
   "Id": 2,
-  "IsApproved": 0,
+  "IsApproved": "No",
   "Tags": ["Loved"],
 }->S.parseWith(authorStruct)
 ```
@@ -198,7 +199,7 @@ Ok(["Hello", "World"])
 
 #### **`S.tuple0` - `S.tuple10`**
 
-`(. t<'v1>, t<'v2>, t<'v3>) => t<('v1, 'v2, 'v3)>`
+`(. S.t<'v1>, S.t<'v2>, S.t<'v3>) => S.t<('v1, 'v2, 'v3)>`
 
 ```rescript
 let struct = S.tuple3(. S.string(), S.int(), S.bool())
@@ -337,23 +338,21 @@ Ok()
 
 The same as `literal` struct factory, but with a convenient way to transform data to ReScript unit. It's useful for parsing function return data.
 
-#### **`S.record1` - `S.record10`**
+#### **`S.record0` - `S.record10`**
 
-`(~fields: (S.field<'v1>, S.field<'v2>), ~parser: (('v1, 'v2)) => result<'value, string>=?, ~serializer: 'value => result<('v1, 'v2), string>=?, unit) => S.t<'value>`
+`(. S.field<'v1>, S.field<'v2>, S.field<'v3>) => S.t<('v1, 'v2, 'v3)>`
 
 ```rescript
-type author = {
-  id: string,
-}
-let authorStruct = S.record1(~fields=("ID", S.string()), ~parser=id => {id: id}->Ok, ())
+type author = {id: string}
+let struct = S.record1(. ("ID", S.string()))->S.transform(~parser=id => {id: id}->Ok, ())
 
-{"ID": "abc"}->S.parseWith(authorStruct)
+{"ID": "abc"}->S.parseWith(struct)
 ```
 
 ```rescript
-Ok(Some({
+Ok({
   id: "abc",
-}))
+})
 ```
 
 `record` struct represents an object and that each of its properties represent a specific type as well.
@@ -363,12 +362,11 @@ The record struct factories are available up to 10 fields. If you have an object
 #### **`S.Record.factory`**
 
 ```rescript
-let record2: (
-  ~fields: (S.field<'v1>, S.field<'v2>),
-  ~parser: (('v1, 'v2)) => result<'value, string>=?,
-  ~serializer: 'value => result<('v1, 'v2), string>=?,
-  unit,
-) => S.t<'value> = S.Record.factory
+let record3: (
+  . S.field<'v1>,
+  S.field<'v2>,
+  S.field<'v3>,
+) => S.t<('v1, 'v2, 'v3)> = S.Record.factory
 ```
 
 > 🧠 The `S.Record.factory` internal code isn't typesafe, so you should properly annotate the struct factory interface.
@@ -378,7 +376,7 @@ let record2: (
 `S.t<'value> => S.t<'value>`
 
 ```rescript
-let struct = S.record1(~fields=("key", S.string()), ~parser=key => {{key: key}}->Ok, ())->S.Record.strip
+let struct = S.record1(. ("key", S.string()))->S.Record.strip
 
 {
   "key": "value",
@@ -387,7 +385,7 @@ let struct = S.record1(~fields=("key", S.string()), ~parser=key => {{key: key}}-
 ```
 
 ```rescript
-Ok({key: "value"})
+Ok("value")
 ```
 
 By default **rescript-struct** disallow unrecognized keys during parsing objects. You can change the behaviour to stripping unrecognized keys with the `S.Record.strip` function.
@@ -397,7 +395,7 @@ By default **rescript-struct** disallow unrecognized keys during parsing objects
 `S.t<'value> => S.t<'value>`
 
 ```rescript
-let struct = S.record1(~fields=("key", S.string()), ~parser=key => {{key: key}}->Ok, ())->S.Record.strict
+let struct = S.record1(. ("key", S.string()))->S.Record.strict
 
 {
   "key": "value",
@@ -488,42 +486,36 @@ Ok(None)
 ```rescript
 type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, y: float})
 
-let circleStruct = S.record2(
-  ~fields=(("kind", S.literal(String("circle"))), ("radius", S.float())),
-  ~parser=((_, radius)) => Circle({radius: radius})->Ok,
-  (),
-)
-let squareStruct = S.record2(
-  ~fields=(("kind", S.literal(String("square"))), ("x", S.float())),
-  ~parser=((_, x)) => Square({x: x})->Ok,
-  (),
-)
-let triangleStruct = S.record3(
-  ~fields=(("kind", S.literal(String("triangle"))), ("x", S.float()), ("y", S.float())),
-  ~parser=((_, x, y)) => Triangle({x: x, y: y})->Ok,
-  (),
-)
-let struct = S.union([circleStruct, squareStruct, triangleStruct])
+let shapeStruct = {
+  let circleStruct = S.record2(.
+    ("kind", S.literalUnit(String("circle"))),
+    ("radius", S.float()),
+  )->S.transform(~parser=(((), radius)) => Circle({radius: radius})->Ok, ())
+  let squareStruct = S.record2(.
+    ("kind", S.literalUnit(String("square"))),
+    ("x", S.float()),
+  )->S.transform(~parser=(((), x)) => Square({x: x})->Ok, ())
+  let triangleStruct = S.record3(.
+    ("kind", S.literalUnit(String("triangle"))),
+    ("x", S.float()),
+    ("y", S.float()),
+  )->S.transform(~parser=(((), x, y)) => Triangle({x: x, y: y})->Ok, ())
+  S.union([circleStruct, squareStruct, triangleStruct])
+}
 
 {
   "kind": "circle",
   "radius": 1,
-}->S.parseWith(struct)
+}->S.parseWith(shapeStruct)
 {
   "kind": "square",
   "x": 2,
-}->S.parseWith(struct)
-Triangle({x: 3., y: 4.})->S.serializeWith(struct)
+}->S.parseWith(shapeStruct)
 ```
 
 ```rescript
 Ok(Circle({radius: 1.}))
 Ok(Square({x: 2.}))
-Ok({
-  "kind": "triangle",
-  "x": 3,
-  "y": 4,
-})
 ```
 
 `union` will test the input against each of the structs in order and return the first value that validates successfully.

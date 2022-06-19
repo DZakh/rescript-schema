@@ -28,14 +28,8 @@ module Common = {
 }
 
 module RecordField = {
-  type record = {key: string}
-
   test("Fails to parse a record with Never field", t => {
-    let struct = S.record2(
-      ~fields=(("key", S.string()), ("oldKey", S.never())),
-      ~parser=((key, _oldKey)) => {key: key}->Ok,
-      (),
-    )
+    let struct = S.record2(. ("key", S.string()), ("oldKey", S.never()))
 
     t->Assert.deepEqual(
       %raw(`{"key":"value"}`)->S.parseWith(struct),
@@ -45,18 +39,14 @@ module RecordField = {
   })
 
   test("Successfully parses a record with Never field when it's optional and not present", t => {
-    let struct = S.record2(
-      ~fields=(
-        ("key", S.string()),
-        (
-          "oldKey",
-          S.deprecated(~message="We stopped using the field from the v0.9.0 release", S.never()),
-        ),
+    let struct = S.record2(.
+      ("key", S.string()),
+      (
+        "oldKey",
+        S.deprecated(~message="We stopped using the field from the v0.9.0 release", S.never()),
       ),
-      ~parser=((key, _oldKey)) => {key: key}->Ok,
-      (),
     )
 
-    t->Assert.deepEqual(%raw(`{"key":"value"}`)->S.parseWith(struct), Ok({key: "value"}), ())
+    t->Assert.deepEqual(%raw(`{"key":"value"}`)->S.parseWith(struct), Ok(("value", None)), ())
   })
 }

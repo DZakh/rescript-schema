@@ -51,23 +51,15 @@ test("Fails to parse JS undefined", t => {
   )
 })
 
-module MissingFieldThatMarkedAsNullable = {
-  type record = {nullableField: option<string>}
+test("Fails to parse record with missing field that marked as null", t => {
+  let struct = S.record1(. ("nullableField", S.null(S.string())))
 
-  test("Fails to parse record with missing field that marked as null", t => {
-    let struct = S.record1(
-      ~fields=("nullableField", S.null(S.string())),
-      ~parser=nullableField => {nullableField: nullableField}->Ok,
-      (),
-    )
-
-    t->Assert.deepEqual(
-      %raw(`{}`)->S.parseWith(struct),
-      Error(`[ReScript Struct] Failed parsing at [nullableField]. Reason: Expected String, got Option`),
-      (),
-    )
-  })
-}
+  t->Assert.deepEqual(
+    %raw(`{}`)->S.parseWith(struct),
+    Error(`[ReScript Struct] Failed parsing at [nullableField]. Reason: Expected String, got Option`),
+    (),
+  )
+})
 
 test("Fails to parse JS null when struct doesn't allow optional data", t => {
   let struct = S.bool()

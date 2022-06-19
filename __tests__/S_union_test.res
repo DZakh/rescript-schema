@@ -45,32 +45,39 @@ module Advanced = {
   type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, y: float})
 
   let shapeStruct = {
-    let circleStruct = S.record2(
-      ~fields=(("kind", S.literal(String("circle"))), ("radius", S.float())),
-      ~parser=((_, radius)) => Circle({radius: radius})->Ok,
+    let circleStruct = S.record2(.
+      ("kind", S.literalUnit(String("circle"))),
+      ("radius", S.float()),
+    )->S.transform(
+      ~parser=(((), radius)) => Circle({radius: radius})->Ok,
       ~serializer=shape =>
         switch shape {
-        | Circle({radius}) => ("circle", radius)->Ok
+        | Circle({radius}) => ((), radius)->Ok
         | _ => Error("Wrong shape")
         },
       (),
     )
-    let squareStruct = S.record2(
-      ~fields=(("kind", S.literal(String("square"))), ("x", S.float())),
-      ~parser=((_, x)) => Square({x: x})->Ok,
+    let squareStruct = S.record2(.
+      ("kind", S.literalUnit(String("square"))),
+      ("x", S.float()),
+    )->S.transform(
+      ~parser=(((), x)) => Square({x: x})->Ok,
       ~serializer=shape =>
         switch shape {
-        | Square({x}) => ("square", x)->Ok
+        | Square({x}) => ((), x)->Ok
         | _ => Error("Wrong shape")
         },
       (),
     )
-    let triangleStruct = S.record3(
-      ~fields=(("kind", S.literal(String("triangle"))), ("x", S.float()), ("y", S.float())),
-      ~parser=((_, x, y)) => Triangle({x: x, y: y})->Ok,
+    let triangleStruct = S.record3(.
+      ("kind", S.literalUnit(String("triangle"))),
+      ("x", S.float()),
+      ("y", S.float()),
+    )->S.transform(
+      ~parser=(((), x, y)) => Triangle({x: x, y: y})->Ok,
       ~serializer=shape =>
         switch shape {
-        | Triangle({x, y}) => ("triangle", x, y)->Ok
+        | Triangle({x, y}) => ((), x, y)->Ok
         | _ => Error("Wrong shape")
         },
       (),
