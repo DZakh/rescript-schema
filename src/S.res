@@ -1,6 +1,6 @@
 external unsafeToAny: 'a => 'b = "%identity"
 
-module Inline = {
+module Lib = {
   module Fn = {
     let callWithArguments = fn => {
       fn->ignore
@@ -236,7 +236,7 @@ let parseInner: (
 }
 
 let parseWith = (any, ~mode=Safe, struct) => {
-  parseInner(~struct, ~any, ~mode)->Inline.Result.mapError(RescriptStruct_Error.toString)
+  parseInner(~struct, ~any, ~mode)->Lib.Result.mapError(RescriptStruct_Error.toString)
 }
 
 let serializeInner: (
@@ -257,7 +257,7 @@ let serializeInner: (
 }
 
 let serializeWith = (value, ~mode=Safe, struct) => {
-  serializeInner(~struct, ~value, ~mode)->Inline.Result.mapError(RescriptStruct_Error.toString)
+  serializeInner(~struct, ~value, ~mode)->Lib.Result.mapError(RescriptStruct_Error.toString)
 }
 
 module Operation = {
@@ -535,7 +535,7 @@ module Record = {
         }
         switch maybeErrorRef.contents {
         | Some(error) => Error(error)
-        | None => newArray->Inline.Array.toTuple->Ok
+        | None => newArray->Lib.Array.toTuple->Ok
         }
       | Some(error) => Error(error)
       }
@@ -585,7 +585,7 @@ module Record = {
     }
   }
 
-  let factory = Inline.Fn.callWithArguments(innerFactory)
+  let factory = Lib.Fn.callWithArguments(innerFactory)
 
   let strip = struct => {
     let tagged_t = struct->classify
@@ -721,7 +721,7 @@ module Null = {
           ~struct=innerStruct->unsafeToAny,
           ~any=innerValue,
           ~mode,
-        )->Inline.Result.map(value => Some(value))
+        )->Lib.Result.map(value => Some(value))
       | None => Ok(None)
       }
     }),
@@ -751,7 +751,7 @@ module Option = {
       switch input {
       | Some(innerValue) =>
         let innerStruct = struct->classify->unsafeGetVariantPayload
-        parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.map(value => Some(
+        parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Lib.Result.map(value => Some(
           value,
         ))
       | None => Ok(None)
@@ -786,7 +786,7 @@ module Deprecated = {
       switch input {
       | Some(innerValue) =>
         let {struct: innerStruct} = struct->classify->unsafeToAny
-        parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Inline.Result.map(value => Some(
+        parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Lib.Result.map(value => Some(
           value,
         ))
       | None => Ok(None)
@@ -969,7 +969,7 @@ module Default = {
   let parsers = [
     Operation.transform((~input, ~struct, ~mode) => {
       let {struct: innerStruct, value} = struct->classify->unsafeToAny
-      parseInner(~struct=innerStruct, ~any=input, ~mode)->Inline.Result.map(maybeOutput => {
+      parseInner(~struct=innerStruct, ~any=input, ~mode)->Lib.Result.map(maybeOutput => {
         switch maybeOutput {
         | Some(output) => output
         | None => value
@@ -1086,7 +1086,7 @@ module Tuple = {
     }
   }
 
-  let factory = Inline.Fn.callWithArguments(innerFactory)
+  let factory = Lib.Fn.callWithArguments(innerFactory)
 }
 
 module Union = {
@@ -1217,7 +1217,7 @@ let json = struct => {
                 maybeMessage->Belt.Option.getWithDefault("Syntax error"),
               ),
             )
-          }->Inline.Result.flatMap(parsedJson => parseInner(~any=parsedJson, ~struct, ~mode))
+          }->Lib.Result.flatMap(parsedJson => parseInner(~any=parsedJson, ~struct, ~mode))
         }),
       ],
     ),
@@ -1226,7 +1226,7 @@ let json = struct => {
     Js.Array2.concat(
       [
         Operation.transform((~input, ~struct as _, ~mode) => {
-          serializeInner(~struct, ~value=input, ~mode)->Inline.Result.map(unknown =>
+          serializeInner(~struct, ~value=input, ~mode)->Lib.Result.map(unknown =>
             unknown->unsafeUnknownToAny->Js.Json.stringify
           )
         }),
@@ -1255,7 +1255,7 @@ let refine = (
       parsers
       ->Js.Array2.concat([
         Operation.refinement((~input, ~struct as _) => {
-          (parserRefine->unsafeToAny)(. input)->Inline.Option.map(
+          (parserRefine->unsafeToAny)(. input)->Lib.Option.map(
             RescriptStruct_Error.ParsingFailed.make,
           )
         }),
@@ -1267,7 +1267,7 @@ let refine = (
     | (Some(serializers), Some(serializerRefine)) =>
       [
         Operation.refinement((~input, ~struct as _) => {
-          (serializerRefine->unsafeToAny)(. input)->Inline.Option.map(
+          (serializerRefine->unsafeToAny)(. input)->Lib.Option.map(
             RescriptStruct_Error.SerializingFailed.make,
           )
         }),
@@ -1297,7 +1297,7 @@ let transform = (
       parsers
       ->Js.Array2.concat([
         Operation.transform((~input, ~struct as _, ~mode as _) => {
-          (transformationParser->unsafeToAny)(. input)->Inline.Result.mapError(
+          (transformationParser->unsafeToAny)(. input)->Lib.Result.mapError(
             RescriptStruct_Error.ParsingFailed.make,
           )
         }),
@@ -1309,7 +1309,7 @@ let transform = (
     | (Some(serializers), Some(transformationSerializer)) =>
       [
         Operation.transform((~input, ~struct as _, ~mode as _) => {
-          (transformationSerializer->unsafeToAny)(. input)->Inline.Result.mapError(
+          (transformationSerializer->unsafeToAny)(. input)->Lib.Result.mapError(
             RescriptStruct_Error.SerializingFailed.make,
           )
         }),
@@ -1329,7 +1329,7 @@ module MakeMetadata = (
   },
 ) => {
   let get = (struct): option<Config.content> => {
-    struct.maybeMetadata->Inline.Option.map(metadata => {
+    struct.maybeMetadata->Lib.Option.map(metadata => {
       metadata->Js.Dict.get(Config.namespace)->unsafeToAny
     })
   }
