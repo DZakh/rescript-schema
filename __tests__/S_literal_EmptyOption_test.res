@@ -48,7 +48,7 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongValue->S.serializeWith(struct),
-      Error(`[ReScript Struct] Failed serializing at root. Reason: Expected EmptyOption Literal (undefined), got Float`),
+      Error(`[ReScript Struct] Failed serializing at root. Reason: Expected undefined, got 123`),
       (),
     )
   })

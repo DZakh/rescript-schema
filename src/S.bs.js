@@ -215,29 +215,7 @@ function serializeWith(value, modeOpt, struct) {
 
 var empty = [];
 
-var optionValueRefinement = {
-  TAG: /* Refinement */1,
-  _0: (function (input, struct) {
-      if (input !== undefined) {
-        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Serializing */0));
-      }
-      
-    })
-};
-
 var literalValueRefinement = {
-  TAG: /* Refinement */1,
-  _0: (function (input, struct) {
-      var expectedValue = struct.tagged_t._0._0;
-      if (expectedValue === input) {
-        return ;
-      } else {
-        return Caml_option.some(RescriptStruct_Error.UnexpectedValue.make(expectedValue, input, /* Serializing */0));
-      }
-    })
-};
-
-var literalValueRefinement$1 = {
   TAG: /* Refinement */1,
   _0: (function (input, struct) {
       var expectedValue = struct.tagged_t._0._0;
@@ -346,118 +324,7 @@ var parserRefinement$5 = {
     })
 };
 
-function factory(innerLiteral) {
-  var tagged_t = {
-    TAG: /* Literal */0,
-    _0: innerLiteral
-  };
-  if (typeof innerLiteral === "number") {
-    if (innerLiteral === /* EmptyNull */0) {
-      return {
-              tagged_t: tagged_t,
-              maybeParsers: [
-                parserRefinement,
-                {
-                  TAG: /* Transform */0,
-                  _0: (function (param, param$1, param$2) {
-                      return {
-                              TAG: /* Ok */0,
-                              _0: undefined
-                            };
-                    })
-                }
-              ],
-              maybeSerializers: [
-                optionValueRefinement,
-                serializerTransform
-              ],
-              maybeMetadata: undefined
-            };
-    } else {
-      return {
-              tagged_t: tagged_t,
-              maybeParsers: [
-                parserRefinement$1,
-                {
-                  TAG: /* Transform */0,
-                  _0: (function (param, param$1, param$2) {
-                      return {
-                              TAG: /* Ok */0,
-                              _0: undefined
-                            };
-                    })
-                }
-              ],
-              maybeSerializers: [
-                optionValueRefinement,
-                serializerTransform$1
-              ],
-              maybeMetadata: undefined
-            };
-    }
-  }
-  switch (innerLiteral.TAG | 0) {
-    case /* String */0 :
-        return {
-                tagged_t: tagged_t,
-                maybeParsers: [
-                  parserRefinement$3,
-                  literalValueRefinement$1,
-                  transformToLiteralValue
-                ],
-                maybeSerializers: [
-                  literalValueRefinement,
-                  transformToLiteralValue
-                ],
-                maybeMetadata: undefined
-              };
-    case /* Int */1 :
-        return {
-                tagged_t: tagged_t,
-                maybeParsers: [
-                  parserRefinement$5,
-                  literalValueRefinement$1,
-                  transformToLiteralValue
-                ],
-                maybeSerializers: [
-                  literalValueRefinement,
-                  transformToLiteralValue
-                ],
-                maybeMetadata: undefined
-              };
-    case /* Float */2 :
-        return {
-                tagged_t: tagged_t,
-                maybeParsers: [
-                  parserRefinement$4,
-                  literalValueRefinement$1,
-                  transformToLiteralValue
-                ],
-                maybeSerializers: [
-                  literalValueRefinement,
-                  transformToLiteralValue
-                ],
-                maybeMetadata: undefined
-              };
-    case /* Bool */3 :
-        return {
-                tagged_t: tagged_t,
-                maybeParsers: [
-                  parserRefinement$2,
-                  literalValueRefinement$1,
-                  transformToLiteralValue
-                ],
-                maybeSerializers: [
-                  literalValueRefinement,
-                  transformToLiteralValue
-                ],
-                maybeMetadata: undefined
-              };
-    
-  }
-}
-
-function factory$1(innerLiteral, variant) {
+function factory(innerLiteral, variant) {
   var tagged_t = {
     TAG: /* Literal */0,
     _0: innerLiteral
@@ -516,7 +383,7 @@ function factory$1(innerLiteral, variant) {
                 tagged_t: tagged_t,
                 maybeParsers: [
                   parserRefinement$3,
-                  literalValueRefinement$1,
+                  literalValueRefinement,
                   parserTransform
                 ],
                 maybeSerializers: [
@@ -530,7 +397,7 @@ function factory$1(innerLiteral, variant) {
                 tagged_t: tagged_t,
                 maybeParsers: [
                   parserRefinement$5,
-                  literalValueRefinement$1,
+                  literalValueRefinement,
                   parserTransform
                 ],
                 maybeSerializers: [
@@ -544,7 +411,7 @@ function factory$1(innerLiteral, variant) {
                 tagged_t: tagged_t,
                 maybeParsers: [
                   parserRefinement$4,
-                  literalValueRefinement$1,
+                  literalValueRefinement,
                   parserTransform
                 ],
                 maybeSerializers: [
@@ -558,7 +425,7 @@ function factory$1(innerLiteral, variant) {
                 tagged_t: tagged_t,
                 maybeParsers: [
                   parserRefinement$2,
-                  literalValueRefinement$1,
+                  literalValueRefinement,
                   parserTransform
                 ],
                 maybeSerializers: [
@@ -571,90 +438,15 @@ function factory$1(innerLiteral, variant) {
   }
 }
 
-var parserTransform = {
-  TAG: /* Transform */0,
-  _0: (function (param, param$1, param$2) {
-      return {
-              TAG: /* Ok */0,
-              _0: undefined
-            };
-    })
-};
+function factory$1(innerLiteral) {
+  return factory(innerLiteral, undefined);
+}
 
 function factory$2(innerLiteral) {
-  var tagged_t = {
-    TAG: /* Literal */0,
-    _0: innerLiteral
-  };
   if (typeof innerLiteral === "number") {
-    if (innerLiteral === /* EmptyNull */0) {
-      return {
-              tagged_t: tagged_t,
-              maybeParsers: [
-                parserRefinement,
-                parserTransform
-              ],
-              maybeSerializers: [serializerTransform],
-              maybeMetadata: undefined
-            };
-    } else {
-      return {
-              tagged_t: tagged_t,
-              maybeParsers: [
-                parserRefinement$1,
-                parserTransform
-              ],
-              maybeSerializers: [serializerTransform$1],
-              maybeMetadata: undefined
-            };
-    }
-  }
-  switch (innerLiteral.TAG | 0) {
-    case /* String */0 :
-        return {
-                tagged_t: tagged_t,
-                maybeParsers: [
-                  parserRefinement$3,
-                  literalValueRefinement$1,
-                  parserTransform
-                ],
-                maybeSerializers: [transformToLiteralValue],
-                maybeMetadata: undefined
-              };
-    case /* Int */1 :
-        return {
-                tagged_t: tagged_t,
-                maybeParsers: [
-                  parserRefinement$5,
-                  literalValueRefinement$1,
-                  parserTransform
-                ],
-                maybeSerializers: [transformToLiteralValue],
-                maybeMetadata: undefined
-              };
-    case /* Float */2 :
-        return {
-                tagged_t: tagged_t,
-                maybeParsers: [
-                  parserRefinement$4,
-                  literalValueRefinement$1,
-                  parserTransform
-                ],
-                maybeSerializers: [transformToLiteralValue],
-                maybeMetadata: undefined
-              };
-    case /* Bool */3 :
-        return {
-                tagged_t: tagged_t,
-                maybeParsers: [
-                  parserRefinement$2,
-                  literalValueRefinement$1,
-                  parserTransform
-                ],
-                maybeSerializers: [transformToLiteralValue],
-                maybeMetadata: undefined
-              };
-    
+    return factory(innerLiteral, undefined);
+  } else {
+    return factory(innerLiteral, innerLiteral._0);
   }
 }
 
@@ -1630,11 +1422,11 @@ var $$int = factory$8;
 
 var $$float = factory$9;
 
-var literal = factory;
+var literal = factory$2;
 
-var literalVariant = factory$1;
+var literalVariant = factory;
 
-var literalUnit = factory$2;
+var literalUnit = factory$1;
 
 var array = factory$13;
 

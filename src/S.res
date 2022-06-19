@@ -280,31 +280,6 @@ module Operation = {
 
 module Literal = {
   module CommonOperations = {
-    module Serializer = {
-      let optionValueRefinement = Operation.refinement((~input, ~struct) => {
-        if input !== None {
-          Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Serializing))
-        } else {
-          None
-        }
-      })
-
-      let literalValueRefinement = Operation.refinement((~input, ~struct) => {
-        let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
-        switch expectedValue === input {
-        | true => None
-        | false =>
-          Some(
-            RescriptStruct_Error.UnexpectedValue.make(
-              ~expectedValue,
-              ~gotValue=input,
-              ~operation=Serializing,
-            ),
-          )
-        }
-      })
-    }
-
     module Parser = {
       let literalValueRefinement = Operation.refinement((~input, ~struct) => {
         let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
@@ -389,94 +364,6 @@ module Literal = {
       }
     })
   }
-
-  let factory:
-    type value. literal<value> => t<value> =
-    innerLiteral => {
-      let tagged_t = Literal(innerLiteral)
-      switch innerLiteral {
-      | EmptyNull => {
-          tagged_t: tagged_t,
-          maybeParsers: Some([
-            EmptyNull.parserRefinement,
-            Operation.transform((~input as _, ~struct as _, ~mode as _) => {
-              Ok(None)
-            }),
-          ]),
-          maybeSerializers: Some([
-            CommonOperations.Serializer.optionValueRefinement,
-            EmptyNull.serializerTransform,
-          ]),
-          maybeMetadata: None,
-        }
-      | EmptyOption => {
-          tagged_t: tagged_t,
-          maybeParsers: Some([
-            EmptyOption.parserRefinement,
-            Operation.transform((~input as _, ~struct as _, ~mode as _) => {
-              Ok(None)
-            }),
-          ]),
-          maybeSerializers: Some([
-            CommonOperations.Serializer.optionValueRefinement,
-            EmptyOption.serializerTransform,
-          ]),
-          maybeMetadata: None,
-        }
-      | Bool(_) => {
-          tagged_t: tagged_t,
-          maybeParsers: Some([
-            Bool.parserRefinement,
-            CommonOperations.Parser.literalValueRefinement,
-            CommonOperations.transformToLiteralValue,
-          ]),
-          maybeSerializers: Some([
-            CommonOperations.Serializer.literalValueRefinement,
-            CommonOperations.transformToLiteralValue,
-          ]),
-          maybeMetadata: None,
-        }
-      | String(_) => {
-          tagged_t: tagged_t,
-          maybeParsers: Some([
-            String.parserRefinement,
-            CommonOperations.Parser.literalValueRefinement,
-            CommonOperations.transformToLiteralValue,
-          ]),
-          maybeSerializers: Some([
-            CommonOperations.Serializer.literalValueRefinement,
-            CommonOperations.transformToLiteralValue,
-          ]),
-          maybeMetadata: None,
-        }
-      | Float(_) => {
-          tagged_t: tagged_t,
-          maybeParsers: Some([
-            Float.parserRefinement,
-            CommonOperations.Parser.literalValueRefinement,
-            CommonOperations.transformToLiteralValue,
-          ]),
-          maybeSerializers: Some([
-            CommonOperations.Serializer.literalValueRefinement,
-            CommonOperations.transformToLiteralValue,
-          ]),
-          maybeMetadata: None,
-        }
-      | Int(_) => {
-          tagged_t: tagged_t,
-          maybeParsers: Some([
-            Int.parserRefinement,
-            CommonOperations.Parser.literalValueRefinement,
-            CommonOperations.transformToLiteralValue,
-          ]),
-          maybeSerializers: Some([
-            CommonOperations.Serializer.literalValueRefinement,
-            CommonOperations.transformToLiteralValue,
-          ]),
-          maybeMetadata: None,
-        }
-      }
-    }
 
   module Variant = {
     let factory:
@@ -569,70 +456,23 @@ module Literal = {
   }
 
   module Unit = {
-    let parserTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
-      Ok()
-    })
-
-    let factory:
-      type value. literal<value> => t<unit> =
-      innerLiteral => {
-        let tagged_t = Literal(innerLiteral)
-        switch innerLiteral {
-        | EmptyNull => {
-            tagged_t: tagged_t,
-            maybeParsers: Some([EmptyNull.parserRefinement, parserTransform]),
-            maybeSerializers: Some([EmptyNull.serializerTransform]),
-            maybeMetadata: None,
-          }
-        | EmptyOption => {
-            tagged_t: tagged_t,
-            maybeParsers: Some([EmptyOption.parserRefinement, parserTransform]),
-            maybeSerializers: Some([EmptyOption.serializerTransform]),
-            maybeMetadata: None,
-          }
-        | Bool(_) => {
-            tagged_t: tagged_t,
-            maybeParsers: Some([
-              Bool.parserRefinement,
-              CommonOperations.Parser.literalValueRefinement,
-              parserTransform,
-            ]),
-            maybeSerializers: Some([CommonOperations.transformToLiteralValue]),
-            maybeMetadata: None,
-          }
-        | String(_) => {
-            tagged_t: tagged_t,
-            maybeParsers: Some([
-              String.parserRefinement,
-              CommonOperations.Parser.literalValueRefinement,
-              parserTransform,
-            ]),
-            maybeSerializers: Some([CommonOperations.transformToLiteralValue]),
-            maybeMetadata: None,
-          }
-        | Float(_) => {
-            tagged_t: tagged_t,
-            maybeParsers: Some([
-              Float.parserRefinement,
-              CommonOperations.Parser.literalValueRefinement,
-              parserTransform,
-            ]),
-            maybeSerializers: Some([CommonOperations.transformToLiteralValue]),
-            maybeMetadata: None,
-          }
-        | Int(_) => {
-            tagged_t: tagged_t,
-            maybeParsers: Some([
-              Int.parserRefinement,
-              CommonOperations.Parser.literalValueRefinement,
-              parserTransform,
-            ]),
-            maybeSerializers: Some([CommonOperations.transformToLiteralValue]),
-            maybeMetadata: None,
-          }
-        }
-      }
+    let factory = innerLiteral => {
+      Variant.factory(innerLiteral, ())
+    }
   }
+
+  let factory:
+    type value. literal<value> => t<value> =
+    innerLiteral => {
+      switch innerLiteral {
+      | EmptyNull => Variant.factory(innerLiteral, None)
+      | EmptyOption => Variant.factory(innerLiteral, None)
+      | Bool(value) => Variant.factory(innerLiteral, value)
+      | String(value) => Variant.factory(innerLiteral, value)
+      | Float(value) => Variant.factory(innerLiteral, value)
+      | Int(value) => Variant.factory(innerLiteral, value)
+      }
+    }
 }
 
 module Record = {
