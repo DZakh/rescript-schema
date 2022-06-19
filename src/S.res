@@ -55,6 +55,170 @@ module Lib = {
   }
 }
 
+module Error: {
+  type t
+  type operation =
+    | Serializing
+    | Parsing
+
+  module MissingParserAndSerializer: {
+    let raise: string => 'a
+  }
+
+  module UnknownKeysRequireRecord: {
+    let raise: unit => 'a
+  }
+
+  module UnionLackingStructs: {
+    let raise: unit => 'a
+  }
+
+  module MissingParser: {
+    let make: unit => t
+  }
+
+  module MissingSerializer: {
+    let make: unit => t
+  }
+
+  module ParsingFailed: {
+    let make: string => t
+  }
+
+  module SerializingFailed: {
+    let make: string => t
+  }
+
+  module UnexpectedType: {
+    let make: (~expected: string, ~got: string, ~operation: operation) => t
+  }
+
+  module UnexpectedValue: {
+    let make: (~expectedValue: 'value, ~gotValue: 'value, ~operation: operation) => t
+  }
+
+  module ExcessField: {
+    let make: (~fieldName: string) => t
+  }
+
+  let prependField: (t, string) => t
+  let prependIndex: (t, int) => t
+
+  let toString: t => string
+} = {
+  %%raw(`class RescriptStructError extends Error {
+    constructor(message) {
+      super(message);
+      this.name = "RescriptStructError";
+    }
+  }`)
+
+  let raiseRescriptStructError = %raw(`function(message){
+    throw new RescriptStructError(message);
+  }`)
+
+  type rec t = {operation: operation, reason: string, path: array<string>}
+  and operation =
+    | Serializing
+    | Parsing
+
+  module MissingParserAndSerializer = {
+    let raise = location =>
+      raiseRescriptStructError(`For a ${location} either a parser, or a serializer is required`)
+  }
+
+  module UnknownKeysRequireRecord = {
+    let raise = () =>
+      raiseRescriptStructError("Can't set up unknown keys strategy. The struct is not Record")
+  }
+
+  module UnionLackingStructs = {
+    let raise = () =>
+      raiseRescriptStructError("A Union struct factory require at least two structs")
+  }
+
+  module ParsingFailed = {
+    let make = reason => {
+      {operation: Parsing, reason: reason, path: []}
+    }
+  }
+
+  module SerializingFailed = {
+    let make = reason => {
+      {operation: Serializing, reason: reason, path: []}
+    }
+  }
+
+  module MissingParser = {
+    let make = () => {
+      {operation: Parsing, reason: "Struct parser is missing", path: []}
+    }
+  }
+
+  module MissingSerializer = {
+    let make = () => {
+      {operation: Serializing, reason: "Struct serializer is missing", path: []}
+    }
+  }
+
+  module UnexpectedType = {
+    let make = (~expected, ~got, ~operation) => {
+      {operation: operation, reason: `Expected ${expected}, got ${got}`, path: []}
+    }
+  }
+
+  module UnexpectedValue = {
+    let make = (~expectedValue, ~gotValue, ~operation) => {
+      let reason = if expectedValue->Js.typeof === "string" {
+        j`Expected "$expectedValue", got "$gotValue"`
+      } else {
+        j`Expected $expectedValue, got $gotValue`
+      }
+      {operation: operation, reason: reason, path: []}
+    }
+  }
+
+  module ExcessField = {
+    let make = (~fieldName) => {
+      {
+        operation: Parsing,
+        reason: `Encountered disallowed excess key "${fieldName}" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`,
+        path: [],
+      }
+    }
+  }
+
+  let formatPath = path => {
+    if path->Js.Array2.length === 0 {
+      "root"
+    } else {
+      path->Js.Array2.map(pathItem => `[${pathItem}]`)->Js.Array2.joinWith("")
+    }
+  }
+
+  let prependField = (error, field) => {
+    {
+      operation: error.operation,
+      reason: error.reason,
+      path: [field]->Js.Array2.concat(error.path),
+    }
+  }
+
+  let prependIndex = (error, index) => {
+    error->prependField(index->Js.Int.toString)
+  }
+
+  let toString = error => {
+    let prefix = `[ReScript Struct]`
+    let operation = switch error.operation {
+    | Serializing => "serializing"
+    | Parsing => "parsing"
+    }
+    let pathText = error.path->formatPath
+    `${prefix} Failed ${operation} at ${pathText}. Reason: ${error.reason}`
+  }
+}
+
 type never
 type unknown
 
@@ -100,14 +264,8 @@ and tagged_t =
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
 and field<'value> = (string, t<'value>)
 and operation =
-  | Transform(
-      (
-        . ~unknown: unknown,
-        ~struct: t<unknown>,
-        ~mode: mode,
-      ) => result<unknown, RescriptStruct_Error.t>,
-    )
-  | Refinement((. ~unknown: unknown, ~struct: t<unknown>) => option<RescriptStruct_Error.t>)
+  | Transform((. ~unknown: unknown, ~struct: t<unknown>, ~mode: mode) => result<unknown, Error.t>)
+  | Refinement((. ~unknown: unknown, ~struct: t<unknown>) => option<Error.t>)
 
 external unsafeAnyToUnknown: 'any => unknown = "%identity"
 external unsafeUnknownToAny: unknown => 'any = "%identity"
@@ -166,7 +324,7 @@ let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   | JSSymbol(_) => "Symbol"
   }
   let expected = TaggedT.toString(structTagged)
-  RescriptStruct_Error.UnexpectedType.make(~expected, ~got)
+  Error.UnexpectedType.make(~expected, ~got)
 }
 
 // TODO: Test that it's the correct logic
@@ -216,11 +374,11 @@ let applyOperations = (
   }
 }
 
-let parseInner: (
-  ~struct: t<'value>,
-  ~any: 'any,
-  ~mode: mode,
-) => result<'value, RescriptStruct_Error.t> = (~struct, ~any, ~mode) => {
+let parseInner: (~struct: t<'value>, ~any: 'any, ~mode: mode) => result<'value, Error.t> = (
+  ~struct,
+  ~any,
+  ~mode,
+) => {
   switch struct.maybeParsers {
   | Some(parsers) =>
     applyOperations(
@@ -231,19 +389,19 @@ let parseInner: (
     )
     ->unsafeAnyToUnknown
     ->unsafeUnknownToAny
-  | None => Error(RescriptStruct_Error.MissingParser.make())
+  | None => Error(Error.MissingParser.make())
   }
 }
 
 let parseWith = (any, ~mode=Safe, struct) => {
-  parseInner(~struct, ~any, ~mode)->Lib.Result.mapError(RescriptStruct_Error.toString)
+  parseInner(~struct, ~any, ~mode)->Lib.Result.mapError(Error.toString)
 }
 
 let serializeInner: (
   ~struct: t<'value>,
   ~value: 'value,
   ~mode: mode,
-) => result<unknown, RescriptStruct_Error.t> = (~struct, ~value, ~mode) => {
+) => result<unknown, Error.t> = (~struct, ~value, ~mode) => {
   switch struct.maybeSerializers {
   | Some(serializers) =>
     applyOperations(
@@ -252,26 +410,22 @@ let serializeInner: (
       ~mode,
       ~struct=struct->unsafeToAny,
     )
-  | None => Error(RescriptStruct_Error.MissingSerializer.make())
+  | None => Error(Error.MissingSerializer.make())
   }
 }
 
 let serializeWith = (value, ~mode=Safe, struct) => {
-  serializeInner(~struct, ~value, ~mode)->Lib.Result.mapError(RescriptStruct_Error.toString)
+  serializeInner(~struct, ~value, ~mode)->Lib.Result.mapError(Error.toString)
 }
 
 module Operation = {
   let transform = (
-    fn: (
-      ~input: 'input,
-      ~struct: t<'value>,
-      ~mode: mode,
-    ) => result<'output, RescriptStruct_Error.t>,
+    fn: (~input: 'input, ~struct: t<'value>, ~mode: mode) => result<'output, Error.t>,
   ) => {
     Transform(fn->unsafeToAny)
   }
 
-  let refinement = (fn: (~input: 'value, ~struct: t<'value>) => option<RescriptStruct_Error.t>) => {
+  let refinement = (fn: (~input: 'value, ~struct: t<'value>) => option<Error.t>) => {
     Refinement(fn->unsafeToAny)
   }
 
@@ -286,13 +440,7 @@ module Literal = {
         switch expectedValue === input {
         | true => None
         | false =>
-          Some(
-            RescriptStruct_Error.UnexpectedValue.make(
-              ~expectedValue,
-              ~gotValue=input,
-              ~operation=Parsing,
-            ),
-          )
+          Some(Error.UnexpectedValue.make(~expectedValue, ~gotValue=input, ~operation=Parsing))
         }
       })
     }
@@ -378,7 +526,7 @@ module Literal = {
           | true => None
           | false =>
             Some(
-              RescriptStruct_Error.UnexpectedValue.make(
+              Error.UnexpectedValue.make(
                 ~expectedValue=variant,
                 ~gotValue=input,
                 ~operation=Serializing,
@@ -520,16 +668,13 @@ module Record = {
               newArray->Js.Array2.push(value)->ignore
               idxRef.contents = idxRef.contents + 1
             }
-          | Error(error) =>
-            maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(fieldName))
+          | Error(error) => maybeErrorRef.contents = Some(error->Error.prependField(fieldName))
           }
         }
         if unknownKeys == Strict && mode == Safe {
           switch getMaybeExcessKey(. input, fields) {
           | Some(excessKey) =>
-            maybeErrorRef.contents = Some(
-              RescriptStruct_Error.ExcessField.make(~fieldName=excessKey),
-            )
+            maybeErrorRef.contents = Some(Error.ExcessField.make(~fieldName=excessKey))
           | None => ()
           }
         }
@@ -562,8 +707,7 @@ module Record = {
             unknown->Js.Dict.set(fieldName, unknownFieldValue)
             idxRef.contents = idxRef.contents + 1
           }
-        | Error(error) =>
-          maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(fieldName))
+        | Error(error) => maybeErrorRef.contents = Some(error->Error.prependField(fieldName))
         }
       }
 
@@ -596,7 +740,7 @@ module Record = {
         maybeSerializers: struct.maybeSerializers,
         maybeMetadata: struct.maybeMetadata,
       }
-    | _ => RescriptStruct_Error.UnknownKeysRequireRecord.raise()
+    | _ => Error.UnknownKeysRequireRecord.raise()
     }
   }
 
@@ -609,7 +753,7 @@ module Record = {
         maybeSerializers: struct.maybeSerializers,
         maybeMetadata: struct.maybeMetadata,
       }
-    | _ => RescriptStruct_Error.UnknownKeysRequireRecord.raise()
+    | _ => Error.UnknownKeysRequireRecord.raise()
     }
   }
 }
@@ -839,8 +983,7 @@ module Array = {
                 newArray->Js.Array2.push(value)->ignore
                 idxRef.contents = idxRef.contents + 1
               }
-            | Error(error) =>
-              maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependIndex(idx))
+            | Error(error) => maybeErrorRef.contents = Some(error->Error.prependIndex(idx))
             }
           }
           switch maybeErrorRef.contents {
@@ -867,8 +1010,7 @@ module Array = {
             newArray->Js.Array2.push(value)->ignore
             idxRef.contents = idxRef.contents + 1
           }
-        | Error(error) =>
-          maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependIndex(idx))
+        | Error(error) => maybeErrorRef.contents = Some(error->Error.prependIndex(idx))
         }
       }
       switch maybeErrorRef.contents {
@@ -914,8 +1056,7 @@ module Dict = {
                 newDict->Js.Dict.set(key, value)->ignore
                 idxRef.contents = idxRef.contents + 1
               }
-            | Error(error) =>
-              maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(key))
+            | Error(error) => maybeErrorRef.contents = Some(error->Error.prependField(key))
             }
           }
           switch maybeErrorRef.contents {
@@ -944,8 +1085,7 @@ module Dict = {
             newDict->Js.Dict.set(key, value)->ignore
             idxRef.contents = idxRef.contents + 1
           }
-        | Error(error) =>
-          maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependField(key))
+        | Error(error) => maybeErrorRef.contents = Some(error->Error.prependField(key))
         }
       }
       switch maybeErrorRef.contents {
@@ -1006,7 +1146,7 @@ module Tuple = {
           | true => None
           | false =>
             Some(
-              RescriptStruct_Error.ParsingFailed.make(
+              Error.ParsingFailed.make(
                 `Expected Tuple with ${numberOfStructs->Js.Int.toString} items, but received ${numberOfInputItems->Js.Int.toString}`,
               ),
             )
@@ -1029,8 +1169,7 @@ module Tuple = {
                 newArray->Js.Array2.push(value)->ignore
                 idxRef.contents = idxRef.contents + 1
               }
-            | Error(error) =>
-              maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependIndex(idx))
+            | Error(error) => maybeErrorRef.contents = Some(error->Error.prependIndex(idx))
             }
           }
           switch maybeErrorRef.contents {
@@ -1066,8 +1205,7 @@ module Tuple = {
             newArray->Js.Array2.push(value)->ignore
             idxRef.contents = idxRef.contents + 1
           }
-        | Error(error) =>
-          maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependIndex(idx))
+        | Error(error) => maybeErrorRef.contents = Some(error->Error.prependIndex(idx))
         }
       }
       switch maybeErrorRef.contents {
@@ -1150,7 +1288,7 @@ module Union = {
 
   let factory = structs => {
     if structs->Js.Array2.length < 2 {
-      RescriptStruct_Error.UnionLackingStructs.raise()
+      Error.UnionLackingStructs.raise()
     }
 
     {
@@ -1213,9 +1351,7 @@ let json = struct => {
           | exception Js.Exn.Error(obj) =>
             let maybeMessage = Js.Exn.message(obj)
             Error(
-              RescriptStruct_Error.ParsingFailed.make(
-                maybeMessage->Belt.Option.getWithDefault("Syntax error"),
-              ),
+              Error.ParsingFailed.make(maybeMessage->Belt.Option.getWithDefault("Syntax error")),
             )
           }->Lib.Result.flatMap(parsedJson => parseInner(~any=parsedJson, ~struct, ~mode))
         }),
@@ -1244,7 +1380,7 @@ let refine = (
   (),
 ) => {
   if maybeParserRefine === None && maybeSerializerRefine === None {
-    RescriptStruct_Error.MissingParserAndSerializer.raise(`struct factory Refine`)
+    Error.MissingParserAndSerializer.raise(`struct factory Refine`)
   }
 
   {
@@ -1255,9 +1391,7 @@ let refine = (
       parsers
       ->Js.Array2.concat([
         Operation.refinement((~input, ~struct as _) => {
-          (parserRefine->unsafeToAny)(. input)->Lib.Option.map(
-            RescriptStruct_Error.ParsingFailed.make,
-          )
+          (parserRefine->unsafeToAny)(. input)->Lib.Option.map(Error.ParsingFailed.make)
         }),
       ])
       ->Some
@@ -1267,9 +1401,7 @@ let refine = (
     | (Some(serializers), Some(serializerRefine)) =>
       [
         Operation.refinement((~input, ~struct as _) => {
-          (serializerRefine->unsafeToAny)(. input)->Lib.Option.map(
-            RescriptStruct_Error.SerializingFailed.make,
-          )
+          (serializerRefine->unsafeToAny)(. input)->Lib.Option.map(Error.SerializingFailed.make)
         }),
       ]
       ->Js.Array2.concat(serializers)
@@ -1286,7 +1418,7 @@ let transform = (
   (),
 ) => {
   if maybeTransformationParser === None && maybeTransformationSerializer === None {
-    RescriptStruct_Error.MissingParserAndSerializer.raise(`struct factory Transform`)
+    Error.MissingParserAndSerializer.raise(`struct factory Transform`)
   }
 
   {
@@ -1298,7 +1430,7 @@ let transform = (
       ->Js.Array2.concat([
         Operation.transform((~input, ~struct as _, ~mode as _) => {
           (transformationParser->unsafeToAny)(. input)->Lib.Result.mapError(
-            RescriptStruct_Error.ParsingFailed.make,
+            Error.ParsingFailed.make,
           )
         }),
       ])
@@ -1310,7 +1442,7 @@ let transform = (
       [
         Operation.transform((~input, ~struct as _, ~mode as _) => {
           (transformationSerializer->unsafeToAny)(. input)->Lib.Result.mapError(
-            RescriptStruct_Error.SerializingFailed.make,
+            Error.SerializingFailed.make,
           )
         }),
       ]

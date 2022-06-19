@@ -1,23 +1,79 @@
 'use strict';
 
-var Curry = require("rescript/lib/js/curry.js");
 var Js_exn = require("rescript/lib/js/js_exn.js");
 var Js_dict = require("rescript/lib/js/js_dict.js");
 var Js_types = require("rescript/lib/js/js_types.js");
 var Belt_Option = require("rescript/lib/js/belt_Option.js");
 var Caml_option = require("rescript/lib/js/caml_option.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
-var RescriptStruct_Error = require("./RescriptStruct_Error.bs.js");
 
 function callWithArguments(fn) {
   return (function(){return fn(arguments)});
+}
+
+class RescriptStructError extends Error {
+    constructor(message) {
+      super(message);
+      this.name = "RescriptStructError";
+    }
+  }
+;
+
+var raiseRescriptStructError = (function(message){
+    throw new RescriptStructError(message);
+  });
+
+function raise($$location) {
+  return raiseRescriptStructError("For a " + $$location + " either a parser, or a serializer is required");
+}
+
+function make(expectedValue, gotValue, operation) {
+  var reason = typeof expectedValue === "string" ? "Expected \"" + expectedValue + "\", got \"" + gotValue + "\"" : "Expected " + expectedValue + ", got " + gotValue;
+  return {
+          operation: operation,
+          reason: reason,
+          path: []
+        };
+}
+
+function make$1(fieldName) {
+  return {
+          operation: /* Parsing */1,
+          reason: "Encountered disallowed excess key \"" + fieldName + "\" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely",
+          path: []
+        };
+}
+
+function formatPath(path) {
+  if (path.length === 0) {
+    return "root";
+  } else {
+    return path.map(function (pathItem) {
+                  return "[" + pathItem + "]";
+                }).join("");
+  }
+}
+
+function prependField(error, field) {
+  return {
+          operation: error.operation,
+          reason: error.reason,
+          path: [field].concat(error.path)
+        };
+}
+
+function toString(error) {
+  var match = error.operation;
+  var operation = match ? "parsing" : "serializing";
+  var pathText = formatPath(error.path);
+  return "[ReScript Struct]" + " Failed " + operation + " at " + pathText + ". Reason: " + error.reason;
 }
 
 function classify(struct) {
   return struct.tagged_t;
 }
 
-function toString(tagged_t) {
+function toString$1(tagged_t) {
   if (typeof tagged_t === "number") {
     switch (tagged_t) {
       case /* Never */0 :
@@ -117,9 +173,13 @@ function makeUnexpectedTypeError(input, struct) {
       
     }
   }
-  var expected = toString(structTagged);
+  var expected = toString$1(structTagged);
   return function (param) {
-    return RescriptStruct_Error.UnexpectedType.make(expected, got, param);
+    return {
+            operation: param,
+            reason: "Expected " + expected + ", got " + got,
+            path: []
+          };
   };
 }
 
@@ -170,7 +230,11 @@ function parseInner(struct, any, mode) {
   } else {
     return {
             TAG: /* Error */1,
-            _0: RescriptStruct_Error.MissingParser.make(undefined)
+            _0: {
+              operation: /* Parsing */1,
+              reason: "Struct parser is missing",
+              path: []
+            }
           };
   }
 }
@@ -183,7 +247,7 @@ function parseWith(any, modeOpt, struct) {
   } else {
     return {
             TAG: /* Error */1,
-            _0: RescriptStruct_Error.toString(result._0)
+            _0: toString(result._0)
           };
   }
 }
@@ -195,7 +259,11 @@ function serializeInner(struct, value, mode) {
   } else {
     return {
             TAG: /* Error */1,
-            _0: RescriptStruct_Error.MissingSerializer.make(undefined)
+            _0: {
+              operation: /* Serializing */0,
+              reason: "Struct serializer is missing",
+              path: []
+            }
           };
   }
 }
@@ -208,7 +276,7 @@ function serializeWith(value, modeOpt, struct) {
   } else {
     return {
             TAG: /* Error */1,
-            _0: RescriptStruct_Error.toString(result._0)
+            _0: toString(result._0)
           };
   }
 }
@@ -222,7 +290,7 @@ var literalValueRefinement = {
       if (expectedValue === input) {
         return ;
       } else {
-        return Caml_option.some(RescriptStruct_Error.UnexpectedValue.make(expectedValue, input, /* Parsing */1));
+        return Caml_option.some(make(expectedValue, input, /* Parsing */1));
       }
     })
 };
@@ -344,7 +412,7 @@ function factory(innerLiteral, variant) {
         if (input === variant) {
           return ;
         } else {
-          return Caml_option.some(RescriptStruct_Error.UnexpectedValue.make(variant, input, /* Serializing */0));
+          return Caml_option.some(make(variant, input, /* Serializing */0));
         }
       })
   };
@@ -484,13 +552,13 @@ var parsers = [{
             newArray.push(value._0);
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependField(value._0, fieldName));
+            maybeErrorRef = Caml_option.some(prependField(value._0, fieldName));
           }
         };
         if (match.unknownKeys === /* Strict */0 && mode === /* Safe */0) {
           var excessKey = getMaybeExcessKey(input, fields);
           if (excessKey !== undefined) {
-            maybeErrorRef = Caml_option.some(RescriptStruct_Error.ExcessField.make(excessKey));
+            maybeErrorRef = Caml_option.some(make$1(excessKey));
           }
           
         }
@@ -529,7 +597,7 @@ var serializers = [{
             unknown[fieldName] = unknownFieldValue._0;
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependField(unknownFieldValue._0, fieldName));
+            maybeErrorRef = Caml_option.some(prependField(unknownFieldValue._0, fieldName));
           }
         };
         var error = maybeErrorRef;
@@ -567,7 +635,7 @@ var factory$3 = callWithArguments(innerFactory);
 function strip(struct) {
   var tagged_t = struct.tagged_t;
   if (typeof tagged_t === "number" || tagged_t.TAG !== /* Record */4) {
-    return RescriptStruct_Error.UnknownKeysRequireRecord.raise(undefined);
+    return raiseRescriptStructError("Can't set up unknown keys strategy. The struct is not Record");
   } else {
     return {
             tagged_t: {
@@ -586,7 +654,7 @@ function strip(struct) {
 function strict(struct) {
   var tagged_t = struct.tagged_t;
   if (typeof tagged_t === "number" || tagged_t.TAG !== /* Record */4) {
-    return RescriptStruct_Error.UnknownKeysRequireRecord.raise(undefined);
+    return raiseRescriptStructError("Can't set up unknown keys strategy. The struct is not Record");
   } else {
     return {
             tagged_t: {
@@ -874,7 +942,7 @@ var parsers$9 = [{
             newArray.push(value._0);
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependIndex(value._0, idx));
+            maybeErrorRef = Caml_option.some(prependField(value._0, idx.toString()));
           }
         };
         var error = maybeErrorRef;
@@ -907,7 +975,7 @@ var serializers$4 = [{
             newArray.push(value._0);
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependIndex(value._0, idx));
+            maybeErrorRef = Caml_option.some(prependField(value._0, idx.toString()));
           }
         };
         var error = maybeErrorRef;
@@ -961,7 +1029,7 @@ var parsers$10 = [{
             newDict[key] = value._0;
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependField(value._0, key));
+            maybeErrorRef = Caml_option.some(prependField(value._0, key));
           }
         };
         var error = maybeErrorRef;
@@ -996,7 +1064,7 @@ var serializers$5 = [{
             newDict[key] = value._0;
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependField(value._0, key));
+            maybeErrorRef = Caml_option.some(prependField(value._0, key));
           }
         };
         var error = maybeErrorRef;
@@ -1081,7 +1149,16 @@ var parsers$12 = [{
           maybeRefinementError = undefined;
         } else if (Array.isArray(input)) {
           var numberOfInputItems = input.length;
-          maybeRefinementError = numberOfStructs === numberOfInputItems ? undefined : Caml_option.some(RescriptStruct_Error.ParsingFailed.make("Expected Tuple with " + numberOfStructs.toString() + " items, but received " + numberOfInputItems.toString()));
+          if (numberOfStructs === numberOfInputItems) {
+            maybeRefinementError = undefined;
+          } else {
+            var reason = "Expected Tuple with " + numberOfStructs.toString() + " items, but received " + numberOfInputItems.toString();
+            maybeRefinementError = {
+              operation: /* Parsing */1,
+              reason: reason,
+              path: []
+            };
+          }
         } else {
           maybeRefinementError = Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
         }
@@ -1103,7 +1180,7 @@ var parsers$12 = [{
             newArray.push(value._0);
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependIndex(value._0, idx));
+            maybeErrorRef = Caml_option.some(prependField(value._0, idx.toString()));
           }
         };
         var error = maybeErrorRef;
@@ -1141,7 +1218,7 @@ var serializers$7 = [{
             newArray.push(value._0);
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependIndex(value._0, idx));
+            maybeErrorRef = Caml_option.some(prependField(value._0, idx.toString()));
           }
         };
         var error = maybeErrorRef;
@@ -1237,7 +1314,7 @@ var serializers$8 = [{
 
 function factory$17(structs) {
   if (structs.length < 2) {
-    RescriptStruct_Error.UnionLackingStructs.raise(undefined);
+    raiseRescriptStructError("A Union struct factory require at least two structs");
   }
   return {
           tagged_t: {
@@ -1267,9 +1344,14 @@ function json(struct) {
                         var obj = Caml_js_exceptions.internalToOCamlException(raw_obj);
                         if (obj.RE_EXN_ID === Js_exn.$$Error) {
                           var maybeMessage = obj._1.message;
+                          var reason = Belt_Option.getWithDefault(maybeMessage, "Syntax error");
                           result = {
                             TAG: /* Error */1,
-                            _0: RescriptStruct_Error.ParsingFailed.make(Belt_Option.getWithDefault(maybeMessage, "Syntax error"))
+                            _0: {
+                              operation: /* Parsing */1,
+                              reason: reason,
+                              path: []
+                            }
                           };
                         } else {
                           throw obj;
@@ -1308,7 +1390,7 @@ function json(struct) {
 
 function refine(struct, maybeParserRefine, maybeSerializerRefine, param) {
   if (maybeParserRefine === undefined && maybeSerializerRefine === undefined) {
-    RescriptStruct_Error.MissingParserAndSerializer.raise("struct factory Refine");
+    raise("struct factory Refine");
   }
   var match = struct.maybeParsers;
   var tmp;
@@ -1317,10 +1399,13 @@ function refine(struct, maybeParserRefine, maybeSerializerRefine, param) {
     tmp = match.concat([{
             TAG: /* Refinement */1,
             _0: (function (input, param) {
-                var fn = RescriptStruct_Error.ParsingFailed.make;
                 var option = parserRefine(input);
                 if (option !== undefined) {
-                  return Caml_option.some(Curry._1(fn, Caml_option.valFromOption(option)));
+                  return {
+                          operation: /* Parsing */1,
+                          reason: Caml_option.valFromOption(option),
+                          path: []
+                        };
                 }
                 
               })
@@ -1335,10 +1420,13 @@ function refine(struct, maybeParserRefine, maybeSerializerRefine, param) {
     tmp$1 = [{
           TAG: /* Refinement */1,
           _0: (function (input, param) {
-              var fn = RescriptStruct_Error.SerializingFailed.make;
               var option = serializerRefine(input);
               if (option !== undefined) {
-                return Caml_option.some(Curry._1(fn, Caml_option.valFromOption(option)));
+                return {
+                        operation: /* Serializing */0,
+                        reason: Caml_option.valFromOption(option),
+                        path: []
+                      };
               }
               
             })
@@ -1356,7 +1444,7 @@ function refine(struct, maybeParserRefine, maybeSerializerRefine, param) {
 
 function transform(struct, maybeTransformationParser, maybeTransformationSerializer, param) {
   if (maybeTransformationParser === undefined && maybeTransformationSerializer === undefined) {
-    RescriptStruct_Error.MissingParserAndSerializer.raise("struct factory Transform");
+    raise("struct factory Transform");
   }
   var match = struct.maybeParsers;
   var tmp;
@@ -1365,14 +1453,17 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
     tmp = match.concat([{
             TAG: /* Transform */0,
             _0: (function (input, param, param$1) {
-                var fn = RescriptStruct_Error.ParsingFailed.make;
                 var result = transformationParser(input);
                 if (result.TAG === /* Ok */0) {
                   return result;
                 } else {
                   return {
                           TAG: /* Error */1,
-                          _0: Curry._1(fn, result._0)
+                          _0: {
+                            operation: /* Parsing */1,
+                            reason: result._0,
+                            path: []
+                          }
                         };
                 }
               })
@@ -1387,14 +1478,17 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
     tmp$1 = [{
           TAG: /* Transform */0,
           _0: (function (input, param, param$1) {
-              var fn = RescriptStruct_Error.SerializingFailed.make;
               var result = transformationSerializer(input);
               if (result.TAG === /* Ok */0) {
                 return result;
               } else {
                 return {
                         TAG: /* Error */1,
-                        _0: Curry._1(fn, result._0)
+                        _0: {
+                          operation: /* Serializing */0,
+                          reason: result._0,
+                          path: []
+                        }
                       };
               }
             })
@@ -1578,4 +1672,4 @@ exports.tuple9 = tuple9;
 exports.tuple10 = tuple10;
 exports.classify = classify;
 exports.MakeMetadata = MakeMetadata;
-/* factory Not a pure module */
+/*  Not a pure module */
