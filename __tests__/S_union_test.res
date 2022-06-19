@@ -126,7 +126,11 @@ module Advanced = {
       "x": 2,
       "y": 3,
     }`)->S.parseWith(shapeStruct),
-      Error(`[ReScript Struct] Failed parsing at [kind]. Reason: Expected "triangle", got "oval"`),
+      Error({
+        code: UnexpectedValue({expected: `"triangle"`, received: `"oval"`}),
+        operation: Parsing,
+        path: ["kind"],
+      }),
       (),
     )
   })
@@ -134,7 +138,11 @@ module Advanced = {
   test("Fails to parse with wrong data type", t => {
     t->Assert.deepEqual(
       %raw(`"Hello world!"`)->S.parseWith(shapeStruct),
-      Error(`[ReScript Struct] Failed parsing at root. Reason: Expected Record, got String`),
+      Error({
+        code: UnexpectedType({expected: "Record", received: "String"}),
+        operation: Parsing,
+        path: [],
+      }),
       (),
     )
   })

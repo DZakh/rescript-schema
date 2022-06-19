@@ -17,9 +17,11 @@ test("Fails to parse invalid JSON in Safe mode", t => {
 
   t->Assert.deepEqual(
     `undefined`->S.parseWith(S.json(struct)),
-    Error(
-      "[ReScript Struct] Failed parsing at root. Reason: Unexpected token u in JSON at position 0",
-    ),
+    Error({
+      code: OperationFailed("Unexpected token u in JSON at position 0"),
+      operation: Parsing,
+      path: [],
+    }),
     (),
   )
 })
@@ -29,9 +31,11 @@ test("Fails to parse invalid JSON in Unsafe mode", t => {
 
   t->Assert.deepEqual(
     `undefined`->S.parseWith(~mode=Unsafe, S.json(struct)),
-    Error(
-      "[ReScript Struct] Failed parsing at root. Reason: Unexpected token u in JSON at position 0",
-    ),
+    Error({
+      code: OperationFailed("Unexpected token u in JSON at position 0"),
+      operation: Parsing,
+      path: [],
+    }),
     (),
   )
 })

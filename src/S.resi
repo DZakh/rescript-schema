@@ -1,3 +1,19 @@
+module Error: {
+  type operation =
+    | Serializing
+    | Parsing
+  type code =
+    | OperationFailed(string)
+    | MissingParser
+    | MissingSerializer
+    | UnexpectedType({expected: string, received: string})
+    | UnexpectedValue({expected: string, received: string})
+    | ExcessField(string)
+  type t = {operation: operation, code: code, path: array<string>}
+
+  let toString: t => string
+}
+
 type never
 type unknown
 
@@ -79,9 +95,9 @@ let refine: (
   unit,
 ) => t<'value>
 
-let parseWith: ('any, ~mode: mode=?, t<'value>) => result<'value, string>
+let parseWith: ('any, ~mode: mode=?, t<'value>) => result<'value, Error.t>
 
-let serializeWith: ('value, ~mode: mode=?, t<'value>) => result<unknown, string>
+let serializeWith: ('value, ~mode: mode=?, t<'value>) => result<unknown, Error.t>
 
 module Record: {
   let factory: 'factory
@@ -220,6 +236,12 @@ let tuple10: (
 ) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9, 'v10)>
 
 let classify: t<'value> => tagged_t
+
+module Result: {
+  let getExn: result<'a, Error.t> => 'a
+
+  let mapErrorToString: result<'a, Error.t> => result<'a, string>
+}
 
 module MakeMetadata: (
   Config: {

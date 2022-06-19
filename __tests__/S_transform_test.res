@@ -35,7 +35,11 @@ test("Fails to parse primitive with transform when parser isn't provided", t => 
 
   t->Assert.deepEqual(
     any->S.parseWith(struct),
-    Error("[ReScript Struct] Failed parsing at root. Reason: Struct parser is missing"),
+    Error({
+      code: MissingParser,
+      path: [],
+      operation: Parsing,
+    }),
     (),
   )
 })
@@ -47,7 +51,11 @@ test("Fails to parse when user returns error in a Transformed Primitive parser",
 
   t->Assert.deepEqual(
     any->S.parseWith(struct),
-    Error("[ReScript Struct] Failed parsing at root. Reason: User error"),
+    Error({
+      code: OperationFailed("User error"),
+      operation: Parsing,
+      path: [],
+    }),
     (),
   )
 })
@@ -77,7 +85,11 @@ test("Transformed Primitive serializing fails when serializer isn't provided", t
 
   t->Assert.deepEqual(
     value->S.serializeWith(struct),
-    Error("[ReScript Struct] Failed serializing at root. Reason: Struct serializer is missing"),
+    Error({
+      code: MissingSerializer,
+      operation: Serializing,
+      path: [],
+    }),
     (),
   )
 })
@@ -89,7 +101,11 @@ test("Fails to serialize when user returns error in a Transformed Primitive seri
 
   t->Assert.deepEqual(
     value->S.serializeWith(struct),
-    Error("[ReScript Struct] Failed serializing at root. Reason: User error"),
+    Error({
+      code: OperationFailed("User error"),
+      operation: Serializing,
+      path: [],
+    }),
     (),
   )
 })
@@ -104,7 +120,11 @@ test("Transform operations applyed in the right order when parsing", t => {
 
   t->Assert.deepEqual(
     any->S.parseWith(struct),
-    Error("[ReScript Struct] Failed parsing at root. Reason: First transform"),
+    Error({
+      code: OperationFailed("First transform"),
+      operation: Parsing,
+      path: [],
+    }),
     (),
   )
 })
@@ -119,7 +139,11 @@ test("Transform operations applyed in the right order when serializing", t => {
 
   t->Assert.deepEqual(
     any->S.serializeWith(struct),
-    Error("[ReScript Struct] Failed serializing at root. Reason: First transform"),
+    Error({
+      code: OperationFailed("First transform"),
+      operation: Serializing,
+      path: [],
+    }),
     (),
   )
 })

@@ -55,57 +55,7 @@ module Lib = {
   }
 }
 
-module Error: {
-  type t
-  type operation =
-    | Serializing
-    | Parsing
-
-  module MissingParserAndSerializer: {
-    let raise: string => 'a
-  }
-
-  module UnknownKeysRequireRecord: {
-    let raise: unit => 'a
-  }
-
-  module UnionLackingStructs: {
-    let raise: unit => 'a
-  }
-
-  module MissingParser: {
-    let make: unit => t
-  }
-
-  module MissingSerializer: {
-    let make: unit => t
-  }
-
-  module ParsingFailed: {
-    let make: string => t
-  }
-
-  module SerializingFailed: {
-    let make: string => t
-  }
-
-  module UnexpectedType: {
-    let make: (~expected: string, ~got: string, ~operation: operation) => t
-  }
-
-  module UnexpectedValue: {
-    let make: (~expectedValue: 'value, ~gotValue: 'value, ~operation: operation) => t
-  }
-
-  module ExcessField: {
-    let make: (~fieldName: string) => t
-  }
-
-  let prependField: (t, string) => t
-  let prependIndex: (t, int) => t
-
-  let toString: t => string
-} = {
+module Error = {
   %%raw(`class RescriptStructError extends Error {
     constructor(message) {
       super(message);
@@ -113,79 +63,82 @@ module Error: {
     }
   }`)
 
-  let raiseRescriptStructError = %raw(`function(message){
+  let raise = %raw(`function(message){
     throw new RescriptStructError(message);
   }`)
 
-  type rec t = {operation: operation, reason: string, path: array<string>}
-  and operation =
+  type operation =
     | Serializing
     | Parsing
+  type code =
+    | OperationFailed(string)
+    | MissingParser
+    | MissingSerializer
+    | UnexpectedType({expected: string, received: string})
+    | UnexpectedValue({expected: string, received: string})
+    | ExcessField(string)
+  type t = {operation: operation, code: code, path: array<string>}
+
+  module Internal = {
+    type public = t
+    type t = {code: code, path: array<string>}
+
+    @inline
+    let make = code => {
+      {code: code, path: []}
+    }
+
+    let toParseError = (self: t): public => {
+      {operation: Parsing, code: self.code, path: self.path}
+    }
+
+    let toSerializeError = (self: t): public => {
+      {operation: Serializing, code: self.code, path: self.path}
+    }
+
+    let prependField = (error, field) => {
+      {
+        ...error,
+        path: [field]->Js.Array2.concat(error.path),
+      }
+    }
+
+    let prependIndex = (error, index) => {
+      error->prependField(index->Js.Int.toString)
+    }
+
+    module UnexpectedValue = {
+      let stringify = any => {
+        switch any->unsafeToAny {
+        | Some(value) =>
+          switch value->Js.Json.stringifyAny {
+          | Some(string) => string
+          | None => "???"
+          }
+        | None => "undefined"
+        }
+      }
+      let make = (~expected, ~received) => {
+        make(
+          UnexpectedValue({
+            expected: expected->stringify,
+            received: received->stringify,
+          }),
+        )
+      }
+    }
+  }
 
   module MissingParserAndSerializer = {
-    let raise = location =>
-      raiseRescriptStructError(`For a ${location} either a parser, or a serializer is required`)
+    let raise = location => raise(`For a ${location} either a parser, or a serializer is required`)
   }
 
   module UnknownKeysRequireRecord = {
-    let raise = () =>
-      raiseRescriptStructError("Can't set up unknown keys strategy. The struct is not Record")
+    let raise = () => raise("Can't set up unknown keys strategy. The struct is not Record")
   }
 
   module UnionLackingStructs = {
-    let raise = () =>
-      raiseRescriptStructError("A Union struct factory require at least two structs")
-  }
-
-  module ParsingFailed = {
-    let make = reason => {
-      {operation: Parsing, reason: reason, path: []}
-    }
-  }
-
-  module SerializingFailed = {
-    let make = reason => {
-      {operation: Serializing, reason: reason, path: []}
-    }
-  }
-
-  module MissingParser = {
-    let make = () => {
-      {operation: Parsing, reason: "Struct parser is missing", path: []}
-    }
-  }
-
-  module MissingSerializer = {
-    let make = () => {
-      {operation: Serializing, reason: "Struct serializer is missing", path: []}
-    }
-  }
-
-  module UnexpectedType = {
-    let make = (~expected, ~got, ~operation) => {
-      {operation: operation, reason: `Expected ${expected}, got ${got}`, path: []}
-    }
-  }
-
-  module UnexpectedValue = {
-    let make = (~expectedValue, ~gotValue, ~operation) => {
-      let reason = if expectedValue->Js.typeof === "string" {
-        j`Expected "$expectedValue", got "$gotValue"`
-      } else {
-        j`Expected $expectedValue, got $gotValue`
-      }
-      {operation: operation, reason: reason, path: []}
-    }
-  }
-
-  module ExcessField = {
-    let make = (~fieldName) => {
-      {
-        operation: Parsing,
-        reason: `Encountered disallowed excess key "${fieldName}" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`,
-        path: [],
-      }
-    }
+    let raise = () => raise("A Union struct factory require at least two structs")
   }
 
   let formatPath = path => {
@@ -196,18 +149,7 @@ module Error: {
     }
   }
 
-  let prependField = (error, field) => {
-    {
-      operation: error.operation,
-      reason: error.reason,
-      path: [field]->Js.Array2.concat(error.path),
-    }
-  }
-
-  let prependIndex = (error, index) => {
-    error->prependField(index->Js.Int.toString)
-  }
-
+  // TODO: Write tests for this
   let toString = error => {
     let prefix = `[ReScript Struct]`
     let operation = switch error.operation {
@@ -215,7 +157,17 @@ module Error: {
     | Parsing => "parsing"
     }
     let pathText = error.path->formatPath
-    `${prefix} Failed ${operation} at ${pathText}. Reason: ${error.reason}`
+    let reason = switch error.code {
+    | OperationFailed(reason) => reason
+    | MissingParser => "Struct parser is missing"
+    | MissingSerializer => "Struct serializer is missing"
+    | ExcessField(fieldName) =>
+      `Encountered disallowed excess key "${fieldName}" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`
+    | UnexpectedType({expected, received})
+    | UnexpectedValue({expected, received}) =>
+      `Expected ${expected}, received ${received}`
+    }
+    `${prefix} Failed ${operation} at ${pathText}. Reason: ${reason}`
   }
 }
 
@@ -264,8 +216,10 @@ and tagged_t =
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
 and field<'value> = (string, t<'value>)
 and operation =
-  | Transform((. ~unknown: unknown, ~struct: t<unknown>, ~mode: mode) => result<unknown, Error.t>)
-  | Refinement((. ~unknown: unknown, ~struct: t<unknown>) => option<Error.t>)
+  | Transform(
+      (. ~unknown: unknown, ~struct: t<unknown>, ~mode: mode) => result<unknown, Error.Internal.t>,
+    )
+  | Refinement((. ~unknown: unknown, ~struct: t<unknown>) => option<Error.Internal.t>)
 
 external unsafeAnyToUnknown: 'any => unknown = "%identity"
 external unsafeUnknownToAny: unknown => 'any = "%identity"
@@ -313,7 +267,7 @@ module TaggedT = {
 let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   let typesTagged = input->Js.Types.classify
   let structTagged = struct->classify
-  let got = switch typesTagged {
+  let received = switch typesTagged {
   | JSFalse | JSTrue => "Bool"
   | JSString(_) => "String"
   | JSNull => "Null"
@@ -324,7 +278,7 @@ let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   | JSSymbol(_) => "Symbol"
   }
   let expected = TaggedT.toString(structTagged)
-  Error.UnexpectedType.make(~expected, ~got)
+  Error.Internal.make(UnexpectedType({expected: expected, received: received}))
 }
 
 // TODO: Test that it's the correct logic
@@ -374,11 +328,11 @@ let applyOperations = (
   }
 }
 
-let parseInner: (~struct: t<'value>, ~any: 'any, ~mode: mode) => result<'value, Error.t> = (
-  ~struct,
-  ~any,
-  ~mode,
-) => {
+let parseInner: (
+  ~struct: t<'value>,
+  ~any: 'any,
+  ~mode: mode,
+) => result<'value, Error.Internal.t> = (~struct, ~any, ~mode) => {
   switch struct.maybeParsers {
   | Some(parsers) =>
     applyOperations(
@@ -389,19 +343,21 @@ let parseInner: (~struct: t<'value>, ~any: 'any, ~mode: mode) => result<'value, 
     )
     ->unsafeAnyToUnknown
     ->unsafeUnknownToAny
-  | None => Error(Error.MissingParser.make())
+  | None => Error(Error.Internal.make(MissingParser))
   }
 }
 
 let parseWith = (any, ~mode=Safe, struct) => {
-  parseInner(~struct, ~any, ~mode)->Lib.Result.mapError(Error.toString)
+  parseInner(~struct, ~any, ~mode)->Lib.Result.mapError(internalError =>
+    internalError->Error.Internal.toParseError
+  )
 }
 
 let serializeInner: (
   ~struct: t<'value>,
   ~value: 'value,
   ~mode: mode,
-) => result<unknown, Error.t> = (~struct, ~value, ~mode) => {
+) => result<unknown, Error.Internal.t> = (~struct, ~value, ~mode) => {
   switch struct.maybeSerializers {
   | Some(serializers) =>
     applyOperations(
@@ -410,22 +366,24 @@ let serializeInner: (
       ~mode,
       ~struct=struct->unsafeToAny,
     )
-  | None => Error(Error.MissingSerializer.make())
+  | None => Error(Error.Internal.make(MissingSerializer))
   }
 }
 
 let serializeWith = (value, ~mode=Safe, struct) => {
-  serializeInner(~struct, ~value, ~mode)->Lib.Result.mapError(Error.toString)
+  serializeInner(~struct, ~value, ~mode)->Lib.Result.mapError(internalError =>
+    internalError->Error.Internal.toSerializeError
+  )
 }
 
 module Operation = {
   let transform = (
-    fn: (~input: 'input, ~struct: t<'value>, ~mode: mode) => result<'output, Error.t>,
+    fn: (~input: 'input, ~struct: t<'value>, ~mode: mode) => result<'output, Error.Internal.t>,
   ) => {
     Transform(fn->unsafeToAny)
   }
 
-  let refinement = (fn: (~input: 'value, ~struct: t<'value>) => option<Error.t>) => {
+  let refinement = (fn: (~input: 'value, ~struct: t<'value>) => option<Error.Internal.t>) => {
     Refinement(fn->unsafeToAny)
   }
 
@@ -440,7 +398,7 @@ module Literal = {
         switch expectedValue === input {
         | true => None
         | false =>
-          Some(Error.UnexpectedValue.make(~expectedValue, ~gotValue=input, ~operation=Parsing))
+          Some(Error.Internal.UnexpectedValue.make(~expected=expectedValue, ~received=input))
         }
       })
     }
@@ -455,7 +413,7 @@ module Literal = {
     let parserRefinement = Operation.refinement((~input, ~struct) => {
       switch input === Js.Null.empty {
       | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
     })
 
@@ -468,7 +426,7 @@ module Literal = {
     let parserRefinement = Operation.refinement((~input, ~struct) => {
       switch input === Js.Undefined.empty {
       | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
     })
 
@@ -481,7 +439,7 @@ module Literal = {
     let parserRefinement = Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "boolean" {
       | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
     })
   }
@@ -490,7 +448,7 @@ module Literal = {
     let parserRefinement = Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "string" {
       | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
     })
   }
@@ -499,7 +457,7 @@ module Literal = {
     let parserRefinement = Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "number" {
       | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
     })
   }
@@ -508,7 +466,7 @@ module Literal = {
     let parserRefinement = Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "number" && checkIsIntNumber(input) {
       | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
     })
   }
@@ -526,10 +484,9 @@ module Literal = {
           | true => None
           | false =>
             Some(
-              Error.UnexpectedValue.make(
-                ~expectedValue=variant,
-                ~gotValue=input,
-                ~operation=Serializing,
+              Error.Internal.UnexpectedValue.make(
+                ~expected=variant->unsafeToAny,
+                ~received=input->unsafeToAny,
               ),
             )
           }
@@ -648,7 +605,7 @@ module Record = {
       | Safe =>
         switch input->getInternalClass === "[object Object]" {
         | true => None
-        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+        | false => Some(makeUnexpectedTypeError(~input, ~struct))
         }
       | Unsafe => None
       }
@@ -668,13 +625,14 @@ module Record = {
               newArray->Js.Array2.push(value)->ignore
               idxRef.contents = idxRef.contents + 1
             }
-          | Error(error) => maybeErrorRef.contents = Some(error->Error.prependField(fieldName))
+          | Error(error) =>
+            maybeErrorRef.contents = Some(error->Error.Internal.prependField(fieldName))
           }
         }
         if unknownKeys == Strict && mode == Safe {
           switch getMaybeExcessKey(. input, fields) {
           | Some(excessKey) =>
-            maybeErrorRef.contents = Some(Error.ExcessField.make(~fieldName=excessKey))
+            maybeErrorRef.contents = Some(Error.Internal.make(ExcessField(excessKey)))
           | None => ()
           }
         }
@@ -707,7 +665,8 @@ module Record = {
             unknown->Js.Dict.set(fieldName, unknownFieldValue)
             idxRef.contents = idxRef.contents + 1
           }
-        | Error(error) => maybeErrorRef.contents = Some(error->Error.prependField(fieldName))
+        | Error(error) =>
+          maybeErrorRef.contents = Some(error->Error.Internal.prependField(fieldName))
         }
       }
 
@@ -735,10 +694,8 @@ module Record = {
     let tagged_t = struct->classify
     switch tagged_t {
     | Record({fields, fieldNames}) => {
+        ...struct,
         tagged_t: Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strip}),
-        maybeParsers: struct.maybeParsers,
-        maybeSerializers: struct.maybeSerializers,
-        maybeMetadata: struct.maybeMetadata,
       }
     | _ => Error.UnknownKeysRequireRecord.raise()
     }
@@ -748,10 +705,8 @@ module Record = {
     let tagged_t = struct->classify
     switch tagged_t {
     | Record({fields, fieldNames}) => {
+        ...struct,
         tagged_t: Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strict}),
-        maybeParsers: struct.maybeParsers,
-        maybeSerializers: struct.maybeSerializers,
-        maybeMetadata: struct.maybeMetadata,
       }
     | _ => Error.UnknownKeysRequireRecord.raise()
     }
@@ -761,7 +716,7 @@ module Record = {
 module Never = {
   let parsers = [
     Operation.refinement((~input, ~struct) => {
-      Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      Some(makeUnexpectedTypeError(~input, ~struct))
     }),
   ]
 
@@ -787,7 +742,7 @@ module String = {
     Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "string" {
       | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
     }),
   ]
@@ -806,7 +761,7 @@ module Bool = {
     Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "boolean" {
       | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
     }),
   ]
@@ -824,7 +779,7 @@ module Int = {
     Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "number" && checkIsIntNumber(input) {
       | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
     }),
   ]
@@ -842,7 +797,7 @@ module Float = {
     Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "number" {
       | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
     }),
   ]
@@ -964,7 +919,7 @@ module Array = {
       | Safe =>
         switch Js.Array2.isArray(input) {
         | true => None
-        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+        | false => Some(makeUnexpectedTypeError(~input, ~struct))
         }
       | Unsafe => None
       }
@@ -983,7 +938,7 @@ module Array = {
                 newArray->Js.Array2.push(value)->ignore
                 idxRef.contents = idxRef.contents + 1
               }
-            | Error(error) => maybeErrorRef.contents = Some(error->Error.prependIndex(idx))
+            | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependIndex(idx))
             }
           }
           switch maybeErrorRef.contents {
@@ -1010,7 +965,7 @@ module Array = {
             newArray->Js.Array2.push(value)->ignore
             idxRef.contents = idxRef.contents + 1
           }
-        | Error(error) => maybeErrorRef.contents = Some(error->Error.prependIndex(idx))
+        | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependIndex(idx))
         }
       }
       switch maybeErrorRef.contents {
@@ -1035,7 +990,7 @@ module Dict = {
       | Safe =>
         switch input->getInternalClass === "[object Object]" {
         | true => None
-        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+        | false => Some(makeUnexpectedTypeError(~input, ~struct))
         }
       | Unsafe => None
       }
@@ -1056,7 +1011,7 @@ module Dict = {
                 newDict->Js.Dict.set(key, value)->ignore
                 idxRef.contents = idxRef.contents + 1
               }
-            | Error(error) => maybeErrorRef.contents = Some(error->Error.prependField(key))
+            | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependField(key))
             }
           }
           switch maybeErrorRef.contents {
@@ -1085,7 +1040,7 @@ module Dict = {
             newDict->Js.Dict.set(key, value)->ignore
             idxRef.contents = idxRef.contents + 1
           }
-        | Error(error) => maybeErrorRef.contents = Some(error->Error.prependField(key))
+        | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependField(key))
         }
       }
       switch maybeErrorRef.contents {
@@ -1146,12 +1101,14 @@ module Tuple = {
           | true => None
           | false =>
             Some(
-              Error.ParsingFailed.make(
-                `Expected Tuple with ${numberOfStructs->Js.Int.toString} items, but received ${numberOfInputItems->Js.Int.toString}`,
+              Error.Internal.make(
+                OperationFailed(
+                  `Expected Tuple with ${numberOfStructs->Js.Int.toString} items, but received ${numberOfInputItems->Js.Int.toString}`,
+                ),
               ),
             )
           }
-        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+        | false => Some(makeUnexpectedTypeError(~input, ~struct))
         }
       | Unsafe => None
       }
@@ -1169,7 +1126,7 @@ module Tuple = {
                 newArray->Js.Array2.push(value)->ignore
                 idxRef.contents = idxRef.contents + 1
               }
-            | Error(error) => maybeErrorRef.contents = Some(error->Error.prependIndex(idx))
+            | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependIndex(idx))
             }
           }
           switch maybeErrorRef.contents {
@@ -1205,7 +1162,7 @@ module Tuple = {
             newArray->Js.Array2.push(value)->ignore
             idxRef.contents = idxRef.contents + 1
           }
-        | Error(error) => maybeErrorRef.contents = Some(error->Error.prependIndex(idx))
+        | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependIndex(idx))
         }
       }
       switch maybeErrorRef.contents {
@@ -1351,7 +1308,9 @@ let json = struct => {
           | exception Js.Exn.Error(obj) =>
             let maybeMessage = Js.Exn.message(obj)
             Error(
-              Error.ParsingFailed.make(maybeMessage->Belt.Option.getWithDefault("Syntax error")),
+              Error.Internal.make(
+                OperationFailed(maybeMessage->Belt.Option.getWithDefault("Syntax error")),
+              ),
             )
           }->Lib.Result.flatMap(parsedJson => parseInner(~any=parsedJson, ~struct, ~mode))
         }),
@@ -1384,14 +1343,15 @@ let refine = (
   }
 
   {
-    tagged_t: struct.tagged_t,
-    maybeMetadata: struct.maybeMetadata,
+    ...struct,
     maybeParsers: switch (struct.maybeParsers, maybeParserRefine) {
     | (Some(parsers), Some(parserRefine)) =>
       parsers
       ->Js.Array2.concat([
         Operation.refinement((~input, ~struct as _) => {
-          (parserRefine->unsafeToAny)(. input)->Lib.Option.map(Error.ParsingFailed.make)
+          (parserRefine->unsafeToAny)(. input)->Lib.Option.map(reason =>
+            Error.Internal.make(OperationFailed(reason))
+          )
         }),
       ])
       ->Some
@@ -1401,7 +1361,9 @@ let refine = (
     | (Some(serializers), Some(serializerRefine)) =>
       [
         Operation.refinement((~input, ~struct as _) => {
-          (serializerRefine->unsafeToAny)(. input)->Lib.Option.map(Error.SerializingFailed.make)
+          (serializerRefine->unsafeToAny)(. input)->Lib.Option.map(reason =>
+            Error.Internal.make(OperationFailed(reason))
+          )
         }),
       ]
       ->Js.Array2.concat(serializers)
@@ -1422,15 +1384,14 @@ let transform = (
   }
 
   {
-    tagged_t: struct.tagged_t,
-    maybeMetadata: struct.maybeMetadata,
+    ...struct,
     maybeParsers: switch (struct.maybeParsers, maybeTransformationParser) {
     | (Some(parsers), Some(transformationParser)) =>
       parsers
       ->Js.Array2.concat([
         Operation.transform((~input, ~struct as _, ~mode as _) => {
-          (transformationParser->unsafeToAny)(. input)->Lib.Result.mapError(
-            Error.ParsingFailed.make,
+          (transformationParser->unsafeToAny)(. input)->Lib.Result.mapError(reason =>
+            Error.Internal.make(OperationFailed(reason))
           )
         }),
       ])
@@ -1441,8 +1402,8 @@ let transform = (
     | (Some(serializers), Some(transformationSerializer)) =>
       [
         Operation.transform((~input, ~struct as _, ~mode as _) => {
-          (transformationSerializer->unsafeToAny)(. input)->Lib.Result.mapError(
-            Error.SerializingFailed.make,
+          (transformationSerializer->unsafeToAny)(. input)->Lib.Result.mapError(reason =>
+            Error.Internal.make(OperationFailed(reason))
           )
         }),
       ]
@@ -1482,12 +1443,23 @@ module MakeMetadata = (
     | None => Js.Dict.empty()
     }
     {
-      tagged_t: struct.tagged_t,
-      maybeParsers: struct.maybeParsers,
-      maybeSerializers: struct.maybeSerializers,
+      ...struct,
       maybeMetadata: Some(
         existingContent->dictUnsafeSet(Config.namespace, content->unsafeAnyToUnknown),
       ),
     }
+  }
+}
+
+module Result = {
+  let getExn = result => {
+    switch result {
+    | Ok(value) => value
+    | Error(error) => Error.raise(error->Error.toString)
+    }
+  }
+
+  let mapErrorToString = result => {
+    result->Lib.Result.mapError(Error.toString)
   }
 }

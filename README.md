@@ -94,7 +94,7 @@ Ok({
 
 #### **`S.parseWith`**
 
-`('any, ~mode: mode=?, t<'value>) => result<'value, string>`
+`('any, ~mode: mode=?, t<'value>) => result<'value, S.Error.t>`
 
 ```rescript
 data->S.parseWith(userStruct)
@@ -107,7 +107,7 @@ Has multiple modes:
 
 #### **`S.serializeWith`**
 
-`('value, ~mode: mode=?, S.t<'value>) => result<S.unknown, string>`
+`('value, ~mode: mode=?, S.t<'value>) => result<S.unknown, S.Error.t>`
 
 ```rescript
 user->S.serializeWith(userStruct)
@@ -409,7 +409,11 @@ let struct = S.record1(. ("key", S.string()))->S.Record.strict
 ```
 
 ```rescript
-Error(`[ReScript Struct] Failed parsing at root. Reason: Encountered disallowed excess key "unknownKey" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`)
+Error({
+  code: ExcessField("unknownKey"),
+  operation: Parsing,
+  path: [],
+})
 ```
 
 You can use the `S.Record.strict` function to reset a record struct to the default behavior (disallowing unrecognized keys).
@@ -425,7 +429,11 @@ let struct = S.never()
 ```
 
 ```rescript
-Error("[ReScript Struct] Failed parsing at root. Reason: Expected Never, got Option")
+Error({
+  code: UnexpectedType({expected: "Never", received: "Option"}),
+  operation: Parsing,
+  path: [],
+})
 ```
 
 `never` struct will fail parsing for every value.
@@ -545,6 +553,73 @@ let struct = S.union([
 
 ```rescript
 Ok(Draw)
+```
+
+### Error handling
+
+**rescript-struct** returns a result type with error `S.Error.t` containing detailed information about the validation problems.
+
+```rescript
+let struct = S.literal(Bool(false))
+true->S.parseWith(struct)
+```
+
+```rescript
+Error({
+  code: UnexpectedValue({expected: "false", received: "true"}),
+  operation: Parsing,
+  path: [],
+})
+```
+
+#### **`S.Error.toString`**
+
+`S.Error.t => string`
+
+```rescript
+{
+  code: UnexpectedValue({expected: "false", received: "true"}),
+  operation: Parsing,
+  path: [],
+}->S.Error.toString
+```
+
+```rescript
+"[ReScript Struct] Failed parsing at root. Reason: Expected false, received true"
+```
+
+### Result helpers
+
+#### **`S.Result.getExn`**
+
+`result<'a, S.Error.t> => 'a`
+
+```rescript
+let struct = S.literal(Bool(false))
+
+false->S.parseWith(struct)->S.Result.getExn
+true->S.parseWith(struct)->S.Result.getExn
+```
+
+```rescript
+false
+// throw new RescriptStructError("[ReScript Struct] Failed parsing at root. Reason: Expected false, received true")
+```
+
+> 🧠 It's not intended to be caught. Useful to panic with a readable error message.
+
+#### **`S.Result.mapErrorToString`**
+
+`result<'a, S.Error.t> => result<'a, string>`
+
+```rescript
+let struct = S.literal(Bool(false))
+
+true->S.parseWith(struct)->S.Result.mapErrorToString
+```
+
+```rescript
+Error("[ReScript Struct] Failed parsing at root. Reason: Expected false, received true")
 ```
 
 ### Transformations

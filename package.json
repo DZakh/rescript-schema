@@ -1,6 +1,6 @@
 {
   "name": "rescript-struct",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "A simple and composable way to describe relationship between JavaScript and ReScript structures",
   "keywords": [
     "ReScript",
@@ -8,10 +8,10 @@
     "JSON",
     "Schema",
     "Typesafe",
-    "Encode",
-    "Decode",
     "Parse",
     "Serialize",
+    "Encode",
+    "Decode",
     "Validation",
     "Contract",
     "Mapping",

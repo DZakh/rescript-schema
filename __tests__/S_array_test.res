@@ -24,7 +24,11 @@ module CommonWithNested = {
 
     t->Assert.deepEqual(
       wrongAny->S.parseWith(struct),
-      Error("[ReScript Struct] Failed parsing at root. Reason: Expected Array, got Bool"),
+      Error({
+        code: UnexpectedType({expected: "Array", received: "Bool"}),
+        operation: Parsing,
+        path: [],
+      }),
       (),
     )
   })
@@ -34,7 +38,11 @@ module CommonWithNested = {
 
     t->Assert.deepEqual(
       nestedWrongAny->S.parseWith(struct),
-      Error(`[ReScript Struct] Failed parsing at [1]. Reason: Expected String, got Float`),
+      Error({
+        code: UnexpectedType({expected: "String", received: "Float"}),
+        operation: Parsing,
+        path: ["1"],
+      }),
       (),
     )
   })

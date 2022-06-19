@@ -18,9 +18,11 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongAny->S.parseWith(struct),
-      Error(
-        "[ReScript Struct] Failed parsing at root. Reason: Expected Tuple with 2 items, but received 1",
-      ),
+      Error({
+        code: OperationFailed("Expected Tuple with 2 items, but received 1"),
+        operation: Parsing,
+        path: [],
+      }),
       (),
     )
   })
@@ -30,7 +32,11 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongTypeAny->S.parseWith(struct),
-      Error("[ReScript Struct] Failed parsing at root. Reason: Expected Tuple, got String"),
+      Error({
+        code: UnexpectedType({expected: "Tuple", received: "String"}),
+        operation: Parsing,
+        path: [],
+      }),
       (),
     )
   })

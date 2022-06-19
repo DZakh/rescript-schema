@@ -19,29 +19,61 @@ class RescriptStructError extends Error {
   }
 ;
 
-var raiseRescriptStructError = (function(message){
+var raise = (function(message){
     throw new RescriptStructError(message);
   });
 
-function raise($$location) {
-  return raiseRescriptStructError("For a " + $$location + " either a parser, or a serializer is required");
-}
-
-function make(expectedValue, gotValue, operation) {
-  var reason = typeof expectedValue === "string" ? "Expected \"" + expectedValue + "\", got \"" + gotValue + "\"" : "Expected " + expectedValue + ", got " + gotValue;
-  return {
-          operation: operation,
-          reason: reason,
-          path: []
-        };
-}
-
-function make$1(fieldName) {
+function toParseError(self) {
   return {
           operation: /* Parsing */1,
-          reason: "Encountered disallowed excess key \"" + fieldName + "\" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely",
+          code: self.code,
+          path: self.path
+        };
+}
+
+function toSerializeError(self) {
+  return {
+          operation: /* Serializing */0,
+          code: self.code,
+          path: self.path
+        };
+}
+
+function prependField(error, field) {
+  return {
+          code: error.code,
+          path: [field].concat(error.path)
+        };
+}
+
+function stringify(any) {
+  if (any === undefined) {
+    return "undefined";
+  }
+  var string = JSON.stringify(Caml_option.valFromOption(any));
+  if (string !== undefined) {
+    return string;
+  } else {
+    return "???";
+  }
+}
+
+function make(expected, received) {
+  var code_0 = stringify(expected);
+  var code_1 = stringify(received);
+  var code = {
+    TAG: /* UnexpectedValue */2,
+    expected: code_0,
+    received: code_1
+  };
+  return {
+          code: code,
           path: []
         };
+}
+
+function raise$1($$location) {
+  return raise("For a " + $$location + " either a parser, or a serializer is required");
 }
 
 function formatPath(path) {
@@ -54,19 +86,34 @@ function formatPath(path) {
   }
 }
 
-function prependField(error, field) {
-  return {
-          operation: error.operation,
-          reason: error.reason,
-          path: [field].concat(error.path)
-        };
-}
-
 function toString(error) {
   var match = error.operation;
   var operation = match ? "parsing" : "serializing";
   var pathText = formatPath(error.path);
-  return "[ReScript Struct]" + " Failed " + operation + " at " + pathText + ". Reason: " + error.reason;
+  var reason = error.code;
+  var reason$1;
+  var exit = 0;
+  if (typeof reason === "number") {
+    reason$1 = reason === /* MissingParser */0 ? "Struct parser is missing" : "Struct serializer is missing";
+  } else {
+    switch (reason.TAG | 0) {
+      case /* OperationFailed */0 :
+          reason$1 = reason._0;
+          break;
+      case /* UnexpectedType */1 :
+      case /* UnexpectedValue */2 :
+          exit = 1;
+          break;
+      case /* ExcessField */3 :
+          reason$1 = "Encountered disallowed excess key \"" + reason._0 + "\" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely";
+          break;
+      
+    }
+  }
+  if (exit === 1) {
+    reason$1 = "Expected " + reason.expected + ", received " + reason.received;
+  }
+  return "[ReScript Struct]" + " Failed " + operation + " at " + pathText + ". Reason: " + reason$1;
 }
 
 function classify(struct) {
@@ -138,49 +185,50 @@ function toString$1(tagged_t) {
 function makeUnexpectedTypeError(input, struct) {
   var typesTagged = Js_types.classify(input);
   var structTagged = struct.tagged_t;
-  var got;
+  var received;
   if (typeof typesTagged === "number") {
     switch (typesTagged) {
       case /* JSFalse */0 :
       case /* JSTrue */1 :
-          got = "Bool";
+          received = "Bool";
           break;
       case /* JSNull */2 :
-          got = "Null";
+          received = "Null";
           break;
       case /* JSUndefined */3 :
-          got = "Option";
+          received = "Option";
           break;
       
     }
   } else {
     switch (typesTagged.TAG | 0) {
       case /* JSNumber */0 :
-          got = "Float";
+          received = "Float";
           break;
       case /* JSString */1 :
-          got = "String";
+          received = "String";
           break;
       case /* JSFunction */2 :
-          got = "Function";
+          received = "Function";
           break;
       case /* JSObject */3 :
-          got = "Object";
+          received = "Object";
           break;
       case /* JSSymbol */4 :
-          got = "Symbol";
+          received = "Symbol";
           break;
       
     }
   }
   var expected = toString$1(structTagged);
-  return function (param) {
-    return {
-            operation: param,
-            reason: "Expected " + expected + ", got " + got,
-            path: []
-          };
-  };
+  return {
+          code: {
+            TAG: /* UnexpectedType */1,
+            expected: expected,
+            received: received
+          },
+          path: []
+        };
 }
 
 function applyOperations(operations, initial, mode, struct) {
@@ -196,7 +244,7 @@ function applyOperations(operations, initial, mode, struct) {
         valueRef = newValue._0;
         idxRef = idxRef + 1 | 0;
       } else {
-        maybeErrorRef = Caml_option.some(newValue._0);
+        maybeErrorRef = newValue._0;
       }
     } else if (shouldSkipRefinements) {
       idxRef = idxRef + 1 | 0;
@@ -213,7 +261,7 @@ function applyOperations(operations, initial, mode, struct) {
   if (error !== undefined) {
     return {
             TAG: /* Error */1,
-            _0: Caml_option.valFromOption(error)
+            _0: error
           };
   } else {
     return {
@@ -231,8 +279,7 @@ function parseInner(struct, any, mode) {
     return {
             TAG: /* Error */1,
             _0: {
-              operation: /* Parsing */1,
-              reason: "Struct parser is missing",
+              code: /* MissingParser */0,
               path: []
             }
           };
@@ -247,7 +294,7 @@ function parseWith(any, modeOpt, struct) {
   } else {
     return {
             TAG: /* Error */1,
-            _0: toString(result._0)
+            _0: toParseError(result._0)
           };
   }
 }
@@ -260,8 +307,7 @@ function serializeInner(struct, value, mode) {
     return {
             TAG: /* Error */1,
             _0: {
-              operation: /* Serializing */0,
-              reason: "Struct serializer is missing",
+              code: /* MissingSerializer */1,
               path: []
             }
           };
@@ -276,7 +322,7 @@ function serializeWith(value, modeOpt, struct) {
   } else {
     return {
             TAG: /* Error */1,
-            _0: toString(result._0)
+            _0: toSerializeError(result._0)
           };
   }
 }
@@ -290,7 +336,7 @@ var literalValueRefinement = {
       if (expectedValue === input) {
         return ;
       } else {
-        return Caml_option.some(make(expectedValue, input, /* Parsing */1));
+        return make(expectedValue, input);
       }
     })
 };
@@ -312,7 +358,7 @@ var parserRefinement = {
       if (input === null) {
         return ;
       } else {
-        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        return makeUnexpectedTypeError(input, struct);
       }
     })
 };
@@ -333,7 +379,7 @@ var parserRefinement$1 = {
       if (input === undefined) {
         return ;
       } else {
-        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        return makeUnexpectedTypeError(input, struct);
       }
     })
 };
@@ -354,7 +400,7 @@ var parserRefinement$2 = {
       if (typeof input === "boolean") {
         return ;
       } else {
-        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        return makeUnexpectedTypeError(input, struct);
       }
     })
 };
@@ -365,7 +411,7 @@ var parserRefinement$3 = {
       if (typeof input === "string") {
         return ;
       } else {
-        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        return makeUnexpectedTypeError(input, struct);
       }
     })
 };
@@ -376,7 +422,7 @@ var parserRefinement$4 = {
       if (typeof input === "number") {
         return ;
       } else {
-        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        return makeUnexpectedTypeError(input, struct);
       }
     })
 };
@@ -387,7 +433,7 @@ var parserRefinement$5 = {
       if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
         return ;
       } else {
-        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        return makeUnexpectedTypeError(input, struct);
       }
     })
 };
@@ -412,7 +458,7 @@ function factory(innerLiteral, variant) {
         if (input === variant) {
           return ;
         } else {
-          return Caml_option.some(make(variant, input, /* Serializing */0));
+          return make(variant, input);
         }
       })
   };
@@ -530,11 +576,11 @@ var getMaybeExcessKey = (function(object, innerStructsDict) {
 var parsers = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, mode) {
-        var maybeRefinementError = mode || Object.prototype.toString.call(input) === "[object Object]" ? undefined : Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        var maybeRefinementError = mode || Object.prototype.toString.call(input) === "[object Object]" ? undefined : makeUnexpectedTypeError(input, struct);
         if (maybeRefinementError !== undefined) {
           return {
                   TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(maybeRefinementError)
+                  _0: maybeRefinementError
                 };
         }
         var match = struct.tagged_t;
@@ -552,13 +598,19 @@ var parsers = [{
             newArray.push(value._0);
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(prependField(value._0, fieldName));
+            maybeErrorRef = prependField(value._0, fieldName);
           }
         };
         if (match.unknownKeys === /* Strict */0 && mode === /* Safe */0) {
           var excessKey = getMaybeExcessKey(input, fields);
           if (excessKey !== undefined) {
-            maybeErrorRef = Caml_option.some(make$1(excessKey));
+            maybeErrorRef = {
+              code: {
+                TAG: /* ExcessField */3,
+                _0: excessKey
+              },
+              path: []
+            };
           }
           
         }
@@ -566,7 +618,7 @@ var parsers = [{
         if (error !== undefined) {
           return {
                   TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(error)
+                  _0: error
                 };
         } else {
           return {
@@ -597,14 +649,14 @@ var serializers = [{
             unknown[fieldName] = unknownFieldValue._0;
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(prependField(unknownFieldValue._0, fieldName));
+            maybeErrorRef = prependField(unknownFieldValue._0, fieldName);
           }
         };
         var error = maybeErrorRef;
         if (error !== undefined) {
           return {
                   TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(error)
+                  _0: error
                 };
         } else {
           return {
@@ -635,7 +687,7 @@ var factory$3 = callWithArguments(innerFactory);
 function strip(struct) {
   var tagged_t = struct.tagged_t;
   if (typeof tagged_t === "number" || tagged_t.TAG !== /* Record */4) {
-    return raiseRescriptStructError("Can't set up unknown keys strategy. The struct is not Record");
+    return raise("Can't set up unknown keys strategy. The struct is not Record");
   } else {
     return {
             tagged_t: {
@@ -654,7 +706,7 @@ function strip(struct) {
 function strict(struct) {
   var tagged_t = struct.tagged_t;
   if (typeof tagged_t === "number" || tagged_t.TAG !== /* Record */4) {
-    return raiseRescriptStructError("Can't set up unknown keys strategy. The struct is not Record");
+    return raise("Can't set up unknown keys strategy. The struct is not Record");
   } else {
     return {
             tagged_t: {
@@ -673,7 +725,7 @@ function strict(struct) {
 var parsers$1 = [{
     TAG: /* Refinement */1,
     _0: (function (input, struct) {
-        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        return makeUnexpectedTypeError(input, struct);
       })
   }];
 
@@ -701,7 +753,7 @@ var parsers$2 = [{
         if (typeof input === "string") {
           return ;
         } else {
-          return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+          return makeUnexpectedTypeError(input, struct);
         }
       })
   }];
@@ -721,7 +773,7 @@ var parsers$3 = [{
         if (typeof input === "boolean") {
           return ;
         } else {
-          return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+          return makeUnexpectedTypeError(input, struct);
         }
       })
   }];
@@ -741,7 +793,7 @@ var parsers$4 = [{
         if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
           return ;
         } else {
-          return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+          return makeUnexpectedTypeError(input, struct);
         }
       })
   }];
@@ -761,7 +813,7 @@ var parsers$5 = [{
         if (typeof input === "number") {
           return ;
         } else {
-          return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+          return makeUnexpectedTypeError(input, struct);
         }
       })
   }];
@@ -923,11 +975,11 @@ function factory$12(maybeMessage, innerStruct) {
 var parsers$9 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, mode) {
-        var maybeRefinementError = mode || Array.isArray(input) ? undefined : Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        var maybeRefinementError = mode || Array.isArray(input) ? undefined : makeUnexpectedTypeError(input, struct);
         if (maybeRefinementError !== undefined) {
           return {
                   TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(maybeRefinementError)
+                  _0: maybeRefinementError
                 };
         }
         var innerStruct = struct.tagged_t._0;
@@ -942,14 +994,14 @@ var parsers$9 = [{
             newArray.push(value._0);
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(prependField(value._0, idx.toString()));
+            maybeErrorRef = prependField(value._0, idx.toString());
           }
         };
         var error = maybeErrorRef;
         if (error !== undefined) {
           return {
                   TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(error)
+                  _0: error
                 };
         } else {
           return {
@@ -975,14 +1027,14 @@ var serializers$4 = [{
             newArray.push(value._0);
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(prependField(value._0, idx.toString()));
+            maybeErrorRef = prependField(value._0, idx.toString());
           }
         };
         var error = maybeErrorRef;
         if (error !== undefined) {
           return {
                   TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(error)
+                  _0: error
                 };
         } else {
           return {
@@ -1008,11 +1060,11 @@ function factory$13(innerStruct) {
 var parsers$10 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, mode) {
-        var maybeRefinementError = mode || Object.prototype.toString.call(input) === "[object Object]" ? undefined : Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        var maybeRefinementError = mode || Object.prototype.toString.call(input) === "[object Object]" ? undefined : makeUnexpectedTypeError(input, struct);
         if (maybeRefinementError !== undefined) {
           return {
                   TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(maybeRefinementError)
+                  _0: maybeRefinementError
                 };
         }
         var innerStruct = struct.tagged_t._0;
@@ -1029,14 +1081,14 @@ var parsers$10 = [{
             newDict[key] = value._0;
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(prependField(value._0, key));
+            maybeErrorRef = prependField(value._0, key);
           }
         };
         var error = maybeErrorRef;
         if (error !== undefined) {
           return {
                   TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(error)
+                  _0: error
                 };
         } else {
           return {
@@ -1064,14 +1116,14 @@ var serializers$5 = [{
             newDict[key] = value._0;
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(prependField(value._0, key));
+            maybeErrorRef = prependField(value._0, key);
           }
         };
         var error = maybeErrorRef;
         if (error !== undefined) {
           return {
                   TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(error)
+                  _0: error
                 };
         } else {
           return {
@@ -1152,20 +1204,22 @@ var parsers$12 = [{
           if (numberOfStructs === numberOfInputItems) {
             maybeRefinementError = undefined;
           } else {
-            var reason = "Expected Tuple with " + numberOfStructs.toString() + " items, but received " + numberOfInputItems.toString();
+            var code = {
+              TAG: /* OperationFailed */0,
+              _0: "Expected Tuple with " + numberOfStructs.toString() + " items, but received " + numberOfInputItems.toString()
+            };
             maybeRefinementError = {
-              operation: /* Parsing */1,
-              reason: reason,
+              code: code,
               path: []
             };
           }
         } else {
-          maybeRefinementError = Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+          maybeRefinementError = makeUnexpectedTypeError(input, struct);
         }
         if (maybeRefinementError !== undefined) {
           return {
                   TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(maybeRefinementError)
+                  _0: maybeRefinementError
                 };
         }
         var newArray = [];
@@ -1180,14 +1234,14 @@ var parsers$12 = [{
             newArray.push(value._0);
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(prependField(value._0, idx.toString()));
+            maybeErrorRef = prependField(value._0, idx.toString());
           }
         };
         var error = maybeErrorRef;
         if (error !== undefined) {
           return {
                   TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(error)
+                  _0: error
                 };
         } else {
           return {
@@ -1218,14 +1272,14 @@ var serializers$7 = [{
             newArray.push(value._0);
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = Caml_option.some(prependField(value._0, idx.toString()));
+            maybeErrorRef = prependField(value._0, idx.toString());
           }
         };
         var error = maybeErrorRef;
         if (error !== undefined) {
           return {
                   TAG: /* Error */1,
-                  _0: Caml_option.valFromOption(error)
+                  _0: error
                 };
         } else {
           return {
@@ -1314,7 +1368,7 @@ var serializers$8 = [{
 
 function factory$17(structs) {
   if (structs.length < 2) {
-    raiseRescriptStructError("A Union struct factory require at least two structs");
+    raise("A Union struct factory require at least two structs");
   }
   return {
           tagged_t: {
@@ -1344,12 +1398,14 @@ function json(struct) {
                         var obj = Caml_js_exceptions.internalToOCamlException(raw_obj);
                         if (obj.RE_EXN_ID === Js_exn.$$Error) {
                           var maybeMessage = obj._1.message;
-                          var reason = Belt_Option.getWithDefault(maybeMessage, "Syntax error");
+                          var code = {
+                            TAG: /* OperationFailed */0,
+                            _0: Belt_Option.getWithDefault(maybeMessage, "Syntax error")
+                          };
                           result = {
                             TAG: /* Error */1,
                             _0: {
-                              operation: /* Parsing */1,
-                              reason: reason,
+                              code: code,
                               path: []
                             }
                           };
@@ -1390,7 +1446,7 @@ function json(struct) {
 
 function refine(struct, maybeParserRefine, maybeSerializerRefine, param) {
   if (maybeParserRefine === undefined && maybeSerializerRefine === undefined) {
-    raise("struct factory Refine");
+    raise$1("struct factory Refine");
   }
   var match = struct.maybeParsers;
   var tmp;
@@ -1402,8 +1458,10 @@ function refine(struct, maybeParserRefine, maybeSerializerRefine, param) {
                 var option = parserRefine(input);
                 if (option !== undefined) {
                   return {
-                          operation: /* Parsing */1,
-                          reason: Caml_option.valFromOption(option),
+                          code: {
+                            TAG: /* OperationFailed */0,
+                            _0: Caml_option.valFromOption(option)
+                          },
                           path: []
                         };
                 }
@@ -1423,8 +1481,10 @@ function refine(struct, maybeParserRefine, maybeSerializerRefine, param) {
               var option = serializerRefine(input);
               if (option !== undefined) {
                 return {
-                        operation: /* Serializing */0,
-                        reason: Caml_option.valFromOption(option),
+                        code: {
+                          TAG: /* OperationFailed */0,
+                          _0: Caml_option.valFromOption(option)
+                        },
                         path: []
                       };
               }
@@ -1444,7 +1504,7 @@ function refine(struct, maybeParserRefine, maybeSerializerRefine, param) {
 
 function transform(struct, maybeTransformationParser, maybeTransformationSerializer, param) {
   if (maybeTransformationParser === undefined && maybeTransformationSerializer === undefined) {
-    raise("struct factory Transform");
+    raise$1("struct factory Transform");
   }
   var match = struct.maybeParsers;
   var tmp;
@@ -1460,8 +1520,10 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
                   return {
                           TAG: /* Error */1,
                           _0: {
-                            operation: /* Parsing */1,
-                            reason: result._0,
+                            code: {
+                              TAG: /* OperationFailed */0,
+                              _0: result._0
+                            },
                             path: []
                           }
                         };
@@ -1485,8 +1547,10 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
                 return {
                         TAG: /* Error */1,
                         _0: {
-                          operation: /* Serializing */0,
-                          reason: result._0,
+                          code: {
+                            TAG: /* OperationFailed */0,
+                            _0: result._0
+                          },
                           path: []
                         }
                       };
@@ -1503,6 +1567,34 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
           maybeMetadata: struct.maybeMetadata
         };
 }
+
+function getExn(result) {
+  if (result.TAG === /* Ok */0) {
+    return result._0;
+  } else {
+    return raise(toString(result._0));
+  }
+}
+
+function mapErrorToString(result) {
+  if (result.TAG === /* Ok */0) {
+    return result;
+  } else {
+    return {
+            TAG: /* Error */1,
+            _0: toString(result._0)
+          };
+  }
+}
+
+var Result = {
+  getExn: getExn,
+  mapErrorToString: mapErrorToString
+};
+
+var $$Error = {
+  toString: toString
+};
 
 var never = factory$4;
 
@@ -1622,6 +1714,7 @@ function MakeMetadata(funarg) {
         };
 }
 
+exports.$$Error = $$Error;
 exports.never = never;
 exports.unknown = unknown;
 exports.string = string;
@@ -1671,5 +1764,6 @@ exports.tuple8 = tuple8;
 exports.tuple9 = tuple9;
 exports.tuple10 = tuple10;
 exports.classify = classify;
+exports.Result = Result;
 exports.MakeMetadata = MakeMetadata;
 /*  Not a pure module */

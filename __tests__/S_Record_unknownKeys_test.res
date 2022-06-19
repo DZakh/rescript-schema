@@ -9,7 +9,11 @@ test("Fails to parse Record with unknown keys by default", t => {
 
   t->Assert.deepEqual(
     any->S.parseWith(struct),
-    Error(`[ReScript Struct] Failed parsing at root. Reason: Encountered disallowed excess key "unknownKey" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`),
+    Error({
+      code: ExcessField("unknownKey"),
+      operation: Parsing,
+      path: [],
+    }),
     (),
   )
 })
@@ -21,7 +25,11 @@ test("Fails fast and shows only one excees key in the error message", t => {
 
   t->Assert.deepEqual(
     any->S.parseWith(struct),
-    Error(`[ReScript Struct] Failed parsing at root. Reason: Encountered disallowed excess key "unknownKey" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`),
+    Error({
+      code: ExcessField("unknownKey"),
+      operation: Parsing,
+      path: [],
+    }),
     (),
   )
 })
@@ -77,7 +85,11 @@ test("Can reset unknown keys strategy applying Strict strategy", t => {
 
   t->Assert.deepEqual(
     any->S.parseWith(struct),
-    Error(`[ReScript Struct] Failed parsing at root. Reason: Encountered disallowed excess key "unknownKey" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`),
+    Error({
+      code: ExcessField("unknownKey"),
+      operation: Parsing,
+      path: [],
+    }),
     (),
   )
 })

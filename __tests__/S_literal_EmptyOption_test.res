@@ -24,9 +24,11 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongTypeAny->S.parseWith(struct),
-      Error(
-        "[ReScript Struct] Failed parsing at root. Reason: Expected EmptyOption Literal (undefined), got String",
-      ),
+      Error({
+        code: UnexpectedType({expected: "EmptyOption Literal (undefined)", received: "String"}),
+        operation: Parsing,
+        path: [],
+      }),
       (),
     )
   })
@@ -48,7 +50,11 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongValue->S.serializeWith(struct),
-      Error(`[ReScript Struct] Failed serializing at root. Reason: Expected undefined, got 123`),
+      Error({
+        code: UnexpectedValue({expected: "undefined", received: "123"}),
+        operation: Serializing,
+        path: [],
+      }),
       (),
     )
   })

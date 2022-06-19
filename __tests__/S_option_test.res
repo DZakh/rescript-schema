@@ -23,7 +23,11 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongAny->S.parseWith(struct),
-      Error("[ReScript Struct] Failed parsing at root. Reason: Expected String, got Float"),
+      Error({
+        code: UnexpectedType({expected: "String", received: "Float"}),
+        operation: Parsing,
+        path: [],
+      }),
       (),
     )
   })
@@ -46,7 +50,11 @@ test("Fails to parse JS null", t => {
 
   t->Assert.deepEqual(
     %raw(`null`)->S.parseWith(struct),
-    Error("[ReScript Struct] Failed parsing at root. Reason: Expected Bool, got Null"),
+    Error({
+      code: UnexpectedType({expected: "Bool", received: "Null"}),
+      operation: Parsing,
+      path: [],
+    }),
     (),
   )
 })
@@ -56,7 +64,11 @@ test("Fails to parse JS undefined when struct doesn't allow optional data", t =>
 
   t->Assert.deepEqual(
     %raw(`undefined`)->S.parseWith(struct),
-    Error("[ReScript Struct] Failed parsing at root. Reason: Expected Bool, got Option"),
+    Error({
+      code: UnexpectedType({expected: "Bool", received: "Option"}),
+      operation: Parsing,
+      path: [],
+    }),
     (),
   )
 })

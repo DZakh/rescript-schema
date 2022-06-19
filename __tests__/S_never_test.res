@@ -15,7 +15,11 @@ module Common = {
 
     t->Assert.deepEqual(
       any->S.parseWith(struct),
-      Error("[ReScript Struct] Failed parsing at root. Reason: Expected Never, got Bool"),
+      Error({
+        code: UnexpectedType({expected: "Never", received: "Bool"}),
+        operation: Parsing,
+        path: [],
+      }),
       (),
     )
   })
@@ -33,7 +37,11 @@ module RecordField = {
 
     t->Assert.deepEqual(
       %raw(`{"key":"value"}`)->S.parseWith(struct),
-      Error(`[ReScript Struct] Failed parsing at [oldKey]. Reason: Expected Never, got Option`),
+      Error({
+        code: UnexpectedType({expected: "Never", received: "Option"}),
+        operation: Parsing,
+        path: ["oldKey"],
+      }),
       (),
     )
   })

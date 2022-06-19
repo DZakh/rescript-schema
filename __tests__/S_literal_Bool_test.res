@@ -25,7 +25,11 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongAny->S.parseWith(struct),
-      Error("[ReScript Struct] Failed parsing at root. Reason: Expected false, got true"),
+      Error({
+        code: UnexpectedValue({expected: "false", received: "true"}),
+        operation: Parsing,
+        path: [],
+      }),
       (),
     )
   })
@@ -35,9 +39,11 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongTypeAny->S.parseWith(struct),
-      Error(
-        "[ReScript Struct] Failed parsing at root. Reason: Expected Bool Literal (false), got String",
-      ),
+      Error({
+        code: UnexpectedType({expected: "Bool Literal (false)", received: "String"}),
+        operation: Parsing,
+        path: [],
+      }),
       (),
     )
   })
@@ -59,7 +65,11 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongValue->S.serializeWith(struct),
-      Error(`[ReScript Struct] Failed serializing at root. Reason: Expected false, got true`),
+      Error({
+        code: UnexpectedValue({expected: "false", received: "true"}),
+        operation: Serializing,
+        path: [],
+      }),
       (),
     )
   })

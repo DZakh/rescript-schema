@@ -10,7 +10,11 @@ test("Refined primitive returns an error when parsed in a Safe mode", t => {
 
   t->Assert.deepEqual(
     %raw(`-12`)->S.parseWith(struct),
-    Error("[ReScript Struct] Failed parsing at root. Reason: Should be positive"),
+    Error({
+      code: OperationFailed("Should be positive"),
+      operation: Parsing,
+      path: [],
+    }),
     (),
   )
 })

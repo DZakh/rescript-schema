@@ -23,9 +23,11 @@ module Common = {
 
     t->Assert.deepEqual(
       wrongTypeAny->S.parseWith(struct),
-      Error(
-        "[ReScript Struct] Failed parsing at root. Reason: Expected Int Literal (123), got String",
-      ),
+      Error({
+        code: UnexpectedType({expected: "Int Literal (123)", received: "String"}),
+        path: [],
+        operation: Parsing,
+      }),
       (),
     )
   })

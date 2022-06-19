@@ -191,7 +191,11 @@ test("Fails to parse record when provided data of another type", t => {
 
   t->Assert.deepEqual(
     Js.Json.string("string")->S.parseWith(struct),
-    Error("[ReScript Struct] Failed parsing at root. Reason: Expected Record, got String"),
+    Error({
+      code: UnexpectedType({expected: "Record", received: "String"}),
+      operation: Parsing,
+      path: [],
+    }),
     (),
   )
 })
@@ -201,7 +205,11 @@ test("Fails to parse record item when it's not present", t => {
 
   t->Assert.deepEqual(
     %raw(`{}`)->S.parseWith(struct),
-    Error(`[ReScript Struct] Failed parsing at [FOO]. Reason: Expected String, got Option`),
+    Error({
+      code: UnexpectedType({expected: "String", received: "Option"}),
+      operation: Parsing,
+      path: ["FOO"],
+    }),
     (),
   )
 })
@@ -211,7 +219,11 @@ test("Fails to parse record item when it's not valid", t => {
 
   t->Assert.deepEqual(
     %raw(`{FOO:123}`)->S.parseWith(struct),
-    Error(`[ReScript Struct] Failed parsing at [FOO]. Reason: Expected String, got Float`),
+    Error({
+      code: UnexpectedType({expected: "String", received: "Float"}),
+      operation: Parsing,
+      path: ["FOO"],
+    }),
     (),
   )
 })
