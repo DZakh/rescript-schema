@@ -4,8 +4,6 @@ module Common = {
   let value = "ReScript is Great!"
   let any = %raw(`"ReScript is Great!"`)
   let wrongAny = %raw(`true`)
-  let jsonString = `"ReScript is Great!"`
-  let wrongJsonString = `true`
   let factory = () => S.string()
 
   test("Successfully parses in Safe mode", t => {

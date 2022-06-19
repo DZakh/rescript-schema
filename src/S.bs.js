@@ -9,6 +9,10 @@ var Caml_option = require("rescript/lib/js/caml_option.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 var RescriptStruct_Error = require("./RescriptStruct_Error.bs.js");
 
+function callWithArguments(fn) {
+  return (function(){return fn(arguments)});
+}
+
 function classify(struct) {
   return struct.tagged_t;
 }
@@ -60,13 +64,15 @@ function toString(tagged_t) {
           return "Array";
       case /* Record */4 :
           return "Record";
-      case /* Union */5 :
+      case /* Tuple */5 :
+          return "Tuple";
+      case /* Union */6 :
           return "Union";
-      case /* Dict */6 :
+      case /* Dict */7 :
           return "Dict";
-      case /* Deprecated */7 :
+      case /* Deprecated */8 :
           return "Deprecated";
-      case /* Default */8 :
+      case /* Default */9 :
           return "Default";
       
     }
@@ -665,22 +671,16 @@ function make(recordConstructor) {
   return [{
             TAG: /* Transform */0,
             _0: (function (input, struct, mode) {
-                var maybeRefinementError;
-                if (mode) {
-                  maybeRefinementError = undefined;
-                } else {
-                  var match = Object.prototype.toString.call(input) === "[object Object]";
-                  maybeRefinementError = match ? undefined : Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
-                }
+                var maybeRefinementError = mode || Object.prototype.toString.call(input) === "[object Object]" ? undefined : Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
                 if (maybeRefinementError !== undefined) {
                   return {
                           TAG: /* Error */1,
                           _0: Caml_option.valFromOption(maybeRefinementError)
                         };
                 }
-                var match$1 = struct.tagged_t;
-                var fieldNames = match$1.fieldNames;
-                var fields = match$1.fields;
+                var match = struct.tagged_t;
+                var fieldNames = match.fieldNames;
+                var fields = match.fields;
                 var newArray = [];
                 var idxRef = 0;
                 var maybeErrorRef;
@@ -705,7 +705,7 @@ function make(recordConstructor) {
                       _0: newArray
                     });
                 var result;
-                if (match$1.unknownKeys || mode || fieldValuesResult.TAG !== /* Ok */0) {
+                if (match.unknownKeys || mode || fieldValuesResult.TAG !== /* Ok */0) {
                   result = fieldValuesResult;
                 } else {
                   var excessKey = getMaybeExcessKey(input, fields);
@@ -1080,7 +1080,7 @@ var destructors$2 = [{
 function factory$12(maybeMessage, innerStruct) {
   return {
           tagged_t: {
-            TAG: /* Deprecated */7,
+            TAG: /* Deprecated */8,
             struct: innerStruct,
             maybeMessage: maybeMessage
           },
@@ -1093,13 +1093,7 @@ function factory$12(maybeMessage, innerStruct) {
 var constructors$8 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, mode) {
-        var maybeRefinementError;
-        if (mode) {
-          maybeRefinementError = undefined;
-        } else {
-          var match = Array.isArray(input);
-          maybeRefinementError = match ? undefined : Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
-        }
+        var maybeRefinementError = mode || Array.isArray(input) ? undefined : Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
         if (maybeRefinementError !== undefined) {
           return {
                   TAG: /* Error */1,
@@ -1184,13 +1178,7 @@ function factory$13(innerStruct) {
 var constructors$9 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, mode) {
-        var maybeRefinementError;
-        if (mode) {
-          maybeRefinementError = undefined;
-        } else {
-          var match = Object.prototype.toString.call(input) === "[object Object]";
-          maybeRefinementError = match ? undefined : Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
-        }
+        var maybeRefinementError = mode || Object.prototype.toString.call(input) === "[object Object]" ? undefined : Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
         if (maybeRefinementError !== undefined) {
           return {
                   TAG: /* Error */1,
@@ -1267,7 +1255,7 @@ var destructors$4 = [{
 function factory$14(innerStruct) {
   return {
           tagged_t: {
-            TAG: /* Dict */6,
+            TAG: /* Dict */7,
             _0: innerStruct
           },
           maybeConstructors: constructors$9,
@@ -1311,7 +1299,7 @@ var destructors$5 = [{
 function factory$15(innerStruct, defaultValue) {
   return {
           tagged_t: {
-            TAG: /* Default */8,
+            TAG: /* Default */9,
             struct: innerStruct,
             value: defaultValue
           },
@@ -1322,6 +1310,108 @@ function factory$15(innerStruct, defaultValue) {
 }
 
 var constructors$11 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, mode) {
+        var innerStructs = struct.tagged_t._0;
+        var numberOfStructs = innerStructs.length;
+        var maybeRefinementError;
+        if (mode) {
+          maybeRefinementError = undefined;
+        } else if (Array.isArray(input)) {
+          var numberOfInputItems = input.length;
+          maybeRefinementError = numberOfStructs === numberOfInputItems ? undefined : Caml_option.some(RescriptStruct_Error.ParsingFailed.make("Expected Tuple with " + numberOfStructs.toString() + " items, but received " + numberOfInputItems.toString()));
+        } else {
+          maybeRefinementError = Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+        }
+        if (maybeRefinementError !== undefined) {
+          return {
+                  TAG: /* Error */1,
+                  _0: Caml_option.valFromOption(maybeRefinementError)
+                };
+        }
+        var newArray = [];
+        var idxRef = 0;
+        var maybeErrorRef;
+        while(idxRef < numberOfStructs && maybeErrorRef === undefined) {
+          var idx = idxRef;
+          var innerValue = input[idx];
+          var innerStruct = innerStructs[idx];
+          var value = parseInner(innerStruct, innerValue, mode);
+          if (value.TAG === /* Ok */0) {
+            newArray.push(value._0);
+            idxRef = idxRef + 1 | 0;
+          } else {
+            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependIndex(value._0, idx));
+          }
+        };
+        var error = maybeErrorRef;
+        if (error !== undefined) {
+          return {
+                  TAG: /* Error */1,
+                  _0: Caml_option.valFromOption(error)
+                };
+        } else {
+          return {
+                  TAG: /* Ok */0,
+                  _0: numberOfStructs !== 0 ? (
+                      numberOfStructs !== 1 ? newArray : newArray[0]
+                    ) : undefined
+                };
+        }
+      })
+  }];
+
+var destructors$6 = [{
+    TAG: /* Transform */0,
+    _0: (function (input, struct, mode) {
+        var innerStructs = struct.tagged_t._0;
+        var numberOfStructs = innerStructs.length;
+        var inputArray = numberOfStructs === 1 ? [input] : input;
+        var newArray = [];
+        var idxRef = 0;
+        var maybeErrorRef;
+        while(idxRef < numberOfStructs && maybeErrorRef === undefined) {
+          var idx = idxRef;
+          var innerValue = inputArray[idx];
+          var innerStruct = innerStructs[idx];
+          var value = serializeInner(innerStruct, innerValue, mode);
+          if (value.TAG === /* Ok */0) {
+            newArray.push(value._0);
+            idxRef = idxRef + 1 | 0;
+          } else {
+            maybeErrorRef = Caml_option.some(RescriptStruct_Error.prependIndex(value._0, idx));
+          }
+        };
+        var error = maybeErrorRef;
+        if (error !== undefined) {
+          return {
+                  TAG: /* Error */1,
+                  _0: Caml_option.valFromOption(error)
+                };
+        } else {
+          return {
+                  TAG: /* Ok */0,
+                  _0: newArray
+                };
+        }
+      })
+  }];
+
+function innerFactory(structs) {
+  return {
+          tagged_t: {
+            TAG: /* Tuple */5,
+            _0: structs
+          },
+          maybeConstructors: constructors$11,
+          maybeDestructors: destructors$6,
+          maybeMetadata: undefined
+        };
+}
+
+var factory$16 = callWithArguments(innerFactory);
+
+var constructors$12 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, param) {
         var innerStructs = struct.tagged_t._0;
@@ -1352,7 +1442,7 @@ var constructors$11 = [{
       })
   }];
 
-var destructors$6 = [{
+var destructors$7 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, param) {
         var innerStructs = struct.tagged_t._0;
@@ -1383,17 +1473,17 @@ var destructors$6 = [{
       })
   }];
 
-function factory$16(structs) {
+function factory$17(structs) {
   if (structs.length < 2) {
     RescriptStruct_Error.UnionLackingStructs.raise(undefined);
   }
   return {
           tagged_t: {
-            TAG: /* Union */5,
+            TAG: /* Union */6,
             _0: structs
           },
-          maybeConstructors: constructors$11,
-          maybeDestructors: destructors$6,
+          maybeConstructors: constructors$12,
+          maybeDestructors: destructors$7,
           maybeMetadata: undefined
         };
 }
@@ -1567,7 +1657,7 @@ var deprecated = factory$12;
 
 var $$default = factory$15;
 
-var union = factory$16;
+var union = factory$17;
 
 var transformUnknown = transform;
 
@@ -1594,6 +1684,32 @@ var record8 = factory$3;
 var record9 = factory$3;
 
 var record10 = factory$3;
+
+var Tuple = {
+  factory: factory$16
+};
+
+var tuple0 = factory$16;
+
+var tuple1 = factory$16;
+
+var tuple2 = factory$16;
+
+var tuple3 = factory$16;
+
+var tuple4 = factory$16;
+
+var tuple5 = factory$16;
+
+var tuple6 = factory$16;
+
+var tuple7 = factory$16;
+
+var tuple8 = factory$16;
+
+var tuple9 = factory$16;
+
+var tuple10 = factory$16;
 
 function MakeMetadata(funarg) {
   var get = function (struct) {
@@ -1660,6 +1776,18 @@ exports.record7 = record7;
 exports.record8 = record8;
 exports.record9 = record9;
 exports.record10 = record10;
+exports.Tuple = Tuple;
+exports.tuple0 = tuple0;
+exports.tuple1 = tuple1;
+exports.tuple2 = tuple2;
+exports.tuple3 = tuple3;
+exports.tuple4 = tuple4;
+exports.tuple5 = tuple5;
+exports.tuple6 = tuple6;
+exports.tuple7 = tuple7;
+exports.tuple8 = tuple8;
+exports.tuple9 = tuple9;
+exports.tuple10 = tuple10;
 exports.classify = classify;
 exports.MakeMetadata = MakeMetadata;
-/* RescriptStruct_Error Not a pure module */
+/* factory Not a pure module */

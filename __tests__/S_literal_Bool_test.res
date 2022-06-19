@@ -6,8 +6,6 @@ module Common = {
   let any = %raw(`false`)
   let wrongAny = %raw(`true`)
   let wrongTypeAny = %raw(`"Hello world!"`)
-  let jsonString = `false`
-  let wrongJsonString = `true`
   let factory = () => S.literal(Bool(false))
 
   test("Successfully parses in Safe mode", t => {

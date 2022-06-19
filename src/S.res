@@ -1,4 +1,11 @@
 module Inline = {
+  module Fn = {
+    let callWithArguments = fn => {
+      fn->ignore
+      %raw(`function(){return fn(arguments)}`)
+    }
+  }
+
   module Result: {
     let mapError: (result<'ok, 'error1>, 'error1 => 'error2) => result<'ok, 'error2>
     let map: (result<'ok1, 'error>, 'ok1 => 'ok2) => result<'ok2, 'error>
@@ -76,6 +83,7 @@ and tagged_t =
       fieldNames: array<string>,
       unknownKeys: recordUnknownKeys,
     }): tagged_t
+  | Tuple(array<t<unknown>>): tagged_t
   | Union(array<t<'value>>): tagged_t
   | Dict(t<'value>): tagged_t
   | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
@@ -127,6 +135,7 @@ module TaggedT = {
     | Option(_) => "Option"
     | Null(_) => "Null"
     | Array(_) => "Array"
+    | Tuple(_) => "Tuple"
     | Record(_) => "Record"
     | Dict(_) => "Dict"
     | Deprecated(_) => "Deprecated"
@@ -645,7 +654,7 @@ module Record = {
           | Safe =>
             switch input->getInternalClass === "[object Object]" {
             | true => None
-            | _ => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+            | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
             }
           | Unsafe => None
           }
@@ -1006,7 +1015,7 @@ module Array = {
       | Safe =>
         switch Js.Array2.isArray(input) {
         | true => None
-        | _ => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
         }
       | Unsafe => None
       }
@@ -1079,7 +1088,7 @@ module Dict = {
       | Safe =>
         switch input->getInternalClass === "[object Object]" {
         | true => None
-        | _ => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
         }
       | Unsafe => None
       }
@@ -1176,6 +1185,103 @@ module Default = {
     maybeDestructors: Some(destructors),
     maybeMetadata: None,
   }
+}
+
+module Tuple = {
+  let constructors = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      let innerStructs = struct->classify->unsafeGetVariantPayload
+      let numberOfStructs = innerStructs->Js.Array2.length
+      let maybeRefinementError = switch mode {
+      | Safe =>
+        switch Js.Array2.isArray(input) {
+        | true =>
+          let numberOfInputItems = input->Js.Array2.length
+          switch numberOfStructs === numberOfInputItems {
+          | true => None
+          | false =>
+            Some(
+              RescriptStruct_Error.ParsingFailed.make(
+                `Expected Tuple with ${numberOfStructs->Js.Int.toString} items, but received ${numberOfInputItems->Js.Int.toString}`,
+              ),
+            )
+          }
+        | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+        }
+      | Unsafe => None
+      }
+      switch maybeRefinementError {
+      | None => {
+          let newArray = []
+          let idxRef = ref(0)
+          let maybeErrorRef = ref(None)
+          while idxRef.contents < numberOfStructs && maybeErrorRef.contents === None {
+            let idx = idxRef.contents
+            let innerValue = input->Js.Array2.unsafe_get(idx)
+            let innerStruct = innerStructs->Js.Array2.unsafe_get(idx)
+            switch parseInner(~struct=innerStruct, ~any=innerValue, ~mode) {
+            | Ok(value) => {
+                newArray->Js.Array2.push(value)->ignore
+                idxRef.contents = idxRef.contents + 1
+              }
+            | Error(error) =>
+              maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependIndex(idx))
+            }
+          }
+          switch maybeErrorRef.contents {
+          | Some(error) => Error(error)
+          | None =>
+            switch numberOfStructs {
+            | 0 => ()->unsafeToAny
+            | 1 => newArray->Js.Array2.unsafe_get(0)->unsafeToAny
+            | _ => newArray
+            }->Ok
+          }
+        }
+      | Some(error) => Error(error)
+      }
+    }),
+  ]
+
+  let destructors = [
+    Operation.transform((~input, ~struct, ~mode) => {
+      let innerStructs = struct->classify->unsafeGetVariantPayload
+      let numberOfStructs = innerStructs->Js.Array2.length
+      let inputArray = numberOfStructs === 1 ? [input->unsafeToAny] : input
+
+      let newArray = []
+      let idxRef = ref(0)
+      let maybeErrorRef = ref(None)
+      while idxRef.contents < numberOfStructs && maybeErrorRef.contents === None {
+        let idx = idxRef.contents
+        let innerValue = inputArray->Js.Array2.unsafe_get(idx)
+        let innerStruct = innerStructs->Js.Array.unsafe_get(idx)
+        switch serializeInner(~struct=innerStruct, ~value=innerValue, ~mode) {
+        | Ok(value) => {
+            newArray->Js.Array2.push(value)->ignore
+            idxRef.contents = idxRef.contents + 1
+          }
+        | Error(error) =>
+          maybeErrorRef.contents = Some(error->RescriptStruct_Error.prependIndex(idx))
+        }
+      }
+      switch maybeErrorRef.contents {
+      | Some(error) => Error(error)
+      | None => Ok(newArray)
+      }
+    }),
+  ]
+
+  let innerFactory = structs => {
+    {
+      tagged_t: Tuple(structs),
+      maybeConstructors: Some(constructors),
+      maybeDestructors: Some(destructors),
+      maybeMetadata: None,
+    }
+  }
+
+  let factory = Inline.Fn.callWithArguments(innerFactory)
 }
 
 module Union = {
@@ -1276,6 +1382,17 @@ let default = Default.factory
 let literal = Literal.factory
 let literalVariant = Literal.Variant.factory
 let literalUnit = Literal.Unit.factory
+let tuple0 = Tuple.factory
+let tuple1 = Tuple.factory
+let tuple2 = Tuple.factory
+let tuple3 = Tuple.factory
+let tuple4 = Tuple.factory
+let tuple5 = Tuple.factory
+let tuple6 = Tuple.factory
+let tuple7 = Tuple.factory
+let tuple8 = Tuple.factory
+let tuple9 = Tuple.factory
+let tuple10 = Tuple.factory
 let union = Union.factory
 
 let json = struct => {

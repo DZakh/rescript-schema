@@ -5,7 +5,6 @@ module Common = {
   let wrongValue = Some(%raw(`123`))
   let any = %raw(`null`)
   let wrongTypeAny = %raw(`"Hello world!"`)
-  let jsonString = `null`
   let factory = () => S.literal(EmptyNull)
 
   test("Successfully parses in Safe mode", t => {

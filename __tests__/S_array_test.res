@@ -5,8 +5,6 @@ module CommonWithNested = {
   let any = %raw(`["Hello world!", ""]`)
   let wrongAny = %raw(`true`)
   let nestedWrongAny = %raw(`["Hello world!", 1]`)
-  let jsonString = `["Hello world!",""]`
-  let wrongJsonString = `true`
   let factory = () => S.array(S.string())
 
   test("Successfully parses in Safe mode", t => {

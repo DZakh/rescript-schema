@@ -196,6 +196,32 @@ Ok(["Hello", "World"])
 
 `array` struct represents an array of data of a specific type.
 
+#### **`S.tuple0` - `S.tuple10`**
+
+`(. t<'v1>, t<'v2>, t<'v3>) => t<('v1, 'v2, 'v3)>`
+
+```rescript
+let struct = S.tuple3(. S.string(), S.int(), S.bool())
+
+%raw(`['a', 1, true]`)->S.parseWith(struct)
+```
+
+```rescript
+Ok(("a", 1, true))
+```
+
+`tuple` struct represents that a data is an array of a specific length with values each of a specific type.
+
+The tuple struct factories are available up to 10 fields. If you have an array with more values, you can create a tuple struct factory for any number of fields using `S.Tuple.factory`.
+
+#### **`S.Tuple.factory`**
+
+```rescript
+let tuple3: (. S.t<'v1>, S.t<'v2>, S.t<'v3>) => S.t<('v1, 'v2, 'v3)> = S.Tuple.factory
+```
+
+> 🧠 The `S.Tuple.factory` internal code isn't typesafe, so you should properly annotate the struct factory interface.
+
 #### **`S.dict`**
 
 `S.t<'value> => S.t<Js.Dict.t<'value>>`
@@ -583,7 +609,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [x] Add different unknown keys strategies
 - [x] Add Null struct factory
 - [ ] Add Instance struct factory
-- [ ] Add Tuple struct factory
+- [x] Add Tuple struct factory
 - [x] Add Never struct factory
 - [ ] Add Function struct factory
 - [ ] Add Regexp struct factory

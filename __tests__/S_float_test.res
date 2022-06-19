@@ -4,8 +4,6 @@ module Common = {
   let value = 123.
   let any = %raw(`123`)
   let wrongAny = %raw(`"Hello world!"`)
-  let jsonString = `123`
-  let wrongJsonString = `"Hello world!"`
   let factory = () => S.float()
 
   test("Successfully parses in Safe mode", t => {

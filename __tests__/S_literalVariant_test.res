@@ -7,8 +7,6 @@ module Common = {
   let any = %raw(`"ReScript is Great!"`)
   let wrongAny = %raw(`"Hello world!"`)
   let wrongTypeAny = %raw(`true`)
-  let jsonString = `"Ugly string"`
-  let wrongJsonString = `"Hello world!"`
   let factory = () => S.literalVariant(String("Ugly string"), "ReScript is Great!")
 
   test("Successfully parses in Safe mode", t => {
