@@ -33,29 +33,24 @@ function toString(tagged_t) {
   } else {
     switch (tagged_t.TAG | 0) {
       case /* Literal */0 :
-          var literal = tagged_t.literal;
+          var literal = tagged_t._0;
           if (typeof literal === "number") {
-            switch (literal) {
-              case /* Unit */0 :
-                  return "Unit Literal (undefined)";
-              case /* EmptyNull */1 :
-                  return "EmptyNull Literal (null)";
-              case /* EmptyOption */2 :
-                  return "EmptyOption Literal (undefined)";
-              
+            if (literal === /* EmptyNull */0) {
+              return "EmptyNull Literal (null)";
+            } else {
+              return "EmptyOption Literal (undefined)";
             }
-          } else {
-            switch (literal.TAG | 0) {
-              case /* String */0 :
-                  return "String Literal (\"" + literal._0 + "\")";
-              case /* Int */1 :
-                  return "Int Literal (" + literal._0 + ")";
-              case /* Float */2 :
-                  return "Float Literal (" + literal._0 + ")";
-              case /* Bool */3 :
-                  return "Bool Literal (" + literal._0 + ")";
-              
-            }
+          }
+          switch (literal.TAG | 0) {
+            case /* String */0 :
+                return "String Literal (\"" + literal._0 + "\")";
+            case /* Int */1 :
+                return "Int Literal (" + literal._0 + ")";
+            case /* Float */2 :
+                return "Float Literal (" + literal._0 + ")";
+            case /* Bool */3 :
+                return "Bool Literal (" + literal._0 + ")";
+            
           }
       case /* Option */1 :
           return "Option";
@@ -579,215 +574,447 @@ var destructors$11 = [{
       })
   }];
 
-function make(checkType) {
-  return [{
-            TAG: /* Transform */0,
-            _0: (function (input, struct, mode) {
-                var match = struct.tagged_t;
-                var maybeVariant = match.maybeVariant;
-                var literalValue = match.literal._0;
-                var returnedValue = maybeVariant !== undefined ? Caml_option.valFromOption(maybeVariant) : literalValue;
-                var ok = {
-                  TAG: /* Ok */0,
-                  _0: returnedValue
-                };
-                if (mode === /* Safe */0) {
-                  if (checkType(input)) {
-                    if (literalValue !== input) {
-                      return {
-                              TAG: /* Error */1,
-                              _0: RescriptStruct_Error.UnexpectedValue.make(literalValue, input, /* Parsing */1)
-                            };
-                    } else {
-                      return ok;
-                    }
-                  } else {
-                    return {
-                            TAG: /* Error */1,
-                            _0: makeUnexpectedTypeError(input, struct)(/* Parsing */1)
-                          };
-                  }
-                } else {
-                  return ok;
-                }
-              })
-          }];
-}
-
-var destructors$12 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        var match = struct.tagged_t;
-        var maybeVariant = match.maybeVariant;
-        var literalValue = match.literal._0;
-        var expectedValue = maybeVariant !== undefined ? Caml_option.valFromOption(maybeVariant) : literalValue;
-        if (mode === /* Safe */0 && expectedValue !== input) {
-          return {
-                  TAG: /* Error */1,
-                  _0: RescriptStruct_Error.UnexpectedValue.make(expectedValue, input, /* Serializing */0)
-                };
-        } else {
-          return {
-                  TAG: /* Ok */0,
-                  _0: literalValue
-                };
-        }
-      })
-  }];
-
-var commonOptionDestructor = {
+var optionValueRefinement = {
   TAG: /* Refinement */1,
   _0: (function (input, struct) {
-      var match = struct.tagged_t;
-      var maybeVariant = match.maybeVariant;
-      var expectedValue = maybeVariant !== undefined ? Caml_option.valFromOption(maybeVariant) : undefined;
-      if (input !== expectedValue) {
+      if (input !== undefined) {
         return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Serializing */0));
       }
       
     })
 };
 
-var constructors$12 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (mode === /* Safe */0 && input !== null) {
-          return {
-                  TAG: /* Error */1,
-                  _0: makeUnexpectedTypeError(input, struct)(/* Parsing */1)
-                };
-        }
-        var match = struct.tagged_t;
-        return {
-                TAG: /* Ok */0,
-                _0: match.maybeVariant
-              };
-      })
-  }];
-
-var destructors$13 = [
-  commonOptionDestructor,
-  {
-    TAG: /* Transform */0,
-    _0: (function (param, param$1, param$2) {
-        return {
-                TAG: /* Ok */0,
-                _0: null
-              };
-      })
-  }
-];
-
-var constructors$13 = make(function (input) {
-      return input === undefined;
-    });
-
-var destructors$14 = [
-  commonOptionDestructor,
-  {
-    TAG: /* Transform */0,
-    _0: (function (param, param$1, param$2) {
-        return {
-                TAG: /* Ok */0,
-                _0: undefined
-              };
-      })
-  }
-];
-
-var constructors$14 = make(function (input) {
-      return typeof input === "boolean";
-    });
-
-var constructors$15 = make(function (input) {
-      return typeof input === "string";
-    });
-
-var constructors$16 = make(function (input) {
-      return typeof input === "number";
-    });
-
-var constructors$17 = make(function (input) {
-      if (typeof input === "number" && input < 2147483648 && input > -2147483649) {
-        return input === Math.trunc(input);
+var literalValueRefinement = {
+  TAG: /* Refinement */1,
+  _0: (function (input, struct) {
+      var expectedValue = struct.tagged_t._0._0;
+      if (expectedValue === input) {
+        return ;
       } else {
-        return false;
+        return Caml_option.some(RescriptStruct_Error.UnexpectedValue.make(expectedValue, input, /* Serializing */0));
       }
-    });
+    })
+};
 
-function innerFactory(tagged_t, innerLiteral) {
-  if (typeof innerLiteral === "number") {
-    switch (innerLiteral) {
-      case /* EmptyNull */1 :
-          return {
-                  tagged_t: tagged_t,
-                  maybeConstructors: constructors$12,
-                  maybeDestructors: destructors$13,
-                  maybeMetadata: undefined
-                };
-      case /* Unit */0 :
-      case /* EmptyOption */2 :
-          break;
-      
-    }
-  } else {
-    switch (innerLiteral.TAG | 0) {
-      case /* String */0 :
-          return {
-                  tagged_t: tagged_t,
-                  maybeConstructors: constructors$15,
-                  maybeDestructors: destructors$12,
-                  maybeMetadata: undefined
-                };
-      case /* Int */1 :
-          return {
-                  tagged_t: tagged_t,
-                  maybeConstructors: constructors$17,
-                  maybeDestructors: destructors$12,
-                  maybeMetadata: undefined
-                };
-      case /* Float */2 :
-          return {
-                  tagged_t: tagged_t,
-                  maybeConstructors: constructors$16,
-                  maybeDestructors: destructors$12,
-                  maybeMetadata: undefined
-                };
-      case /* Bool */3 :
-          return {
-                  tagged_t: tagged_t,
-                  maybeConstructors: constructors$14,
-                  maybeDestructors: destructors$12,
-                  maybeMetadata: undefined
-                };
-      
-    }
-  }
-  return {
-          tagged_t: tagged_t,
-          maybeConstructors: constructors$13,
-          maybeDestructors: destructors$14,
-          maybeMetadata: undefined
-        };
-}
+var literalValueRefinement$1 = {
+  TAG: /* Refinement */1,
+  _0: (function (input, struct) {
+      var expectedValue = struct.tagged_t._0._0;
+      if (expectedValue === input) {
+        return ;
+      } else {
+        return Caml_option.some(RescriptStruct_Error.UnexpectedValue.make(expectedValue, input, /* Parsing */1));
+      }
+    })
+};
+
+var transformToLiteralValue = {
+  TAG: /* Transform */0,
+  _0: (function (param, struct, param$1) {
+      var literalValue = struct.tagged_t._0._0;
+      return {
+              TAG: /* Ok */0,
+              _0: literalValue
+            };
+    })
+};
+
+var constructorRefinement = {
+  TAG: /* Refinement */1,
+  _0: (function (input, struct) {
+      if (input === null) {
+        return ;
+      } else {
+        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+      }
+    })
+};
+
+var destructorTransform = {
+  TAG: /* Transform */0,
+  _0: (function (param, param$1, param$2) {
+      return {
+              TAG: /* Ok */0,
+              _0: null
+            };
+    })
+};
+
+var constructorRefinement$1 = {
+  TAG: /* Refinement */1,
+  _0: (function (input, struct) {
+      if (input === undefined) {
+        return ;
+      } else {
+        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+      }
+    })
+};
+
+var destructorTransform$1 = {
+  TAG: /* Transform */0,
+  _0: (function (param, param$1, param$2) {
+      return {
+              TAG: /* Ok */0,
+              _0: undefined
+            };
+    })
+};
+
+var constructorRefinement$2 = {
+  TAG: /* Refinement */1,
+  _0: (function (input, struct) {
+      if (typeof input === "boolean") {
+        return ;
+      } else {
+        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+      }
+    })
+};
+
+var constructorRefinement$3 = {
+  TAG: /* Refinement */1,
+  _0: (function (input, struct) {
+      if (typeof input === "string") {
+        return ;
+      } else {
+        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+      }
+    })
+};
+
+var constructorRefinement$4 = {
+  TAG: /* Refinement */1,
+  _0: (function (input, struct) {
+      if (typeof input === "number") {
+        return ;
+      } else {
+        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+      }
+    })
+};
+
+var constructorRefinement$5 = {
+  TAG: /* Refinement */1,
+  _0: (function (input, struct) {
+      if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
+        return ;
+      } else {
+        return Caml_option.some(makeUnexpectedTypeError(input, struct)(/* Parsing */1));
+      }
+    })
+};
 
 function factory(innerLiteral) {
   var tagged_t = {
     TAG: /* Literal */0,
-    literal: innerLiteral,
-    maybeVariant: undefined
+    _0: innerLiteral
   };
-  return innerFactory(tagged_t, innerLiteral);
+  if (typeof innerLiteral === "number") {
+    if (innerLiteral === /* EmptyNull */0) {
+      return {
+              tagged_t: tagged_t,
+              maybeConstructors: [
+                constructorRefinement,
+                {
+                  TAG: /* Transform */0,
+                  _0: (function (param, param$1, param$2) {
+                      return {
+                              TAG: /* Ok */0,
+                              _0: undefined
+                            };
+                    })
+                }
+              ],
+              maybeDestructors: [
+                optionValueRefinement,
+                destructorTransform
+              ],
+              maybeMetadata: undefined
+            };
+    } else {
+      return {
+              tagged_t: tagged_t,
+              maybeConstructors: [
+                constructorRefinement$1,
+                {
+                  TAG: /* Transform */0,
+                  _0: (function (param, param$1, param$2) {
+                      return {
+                              TAG: /* Ok */0,
+                              _0: undefined
+                            };
+                    })
+                }
+              ],
+              maybeDestructors: [
+                optionValueRefinement,
+                destructorTransform$1
+              ],
+              maybeMetadata: undefined
+            };
+    }
+  }
+  switch (innerLiteral.TAG | 0) {
+    case /* String */0 :
+        return {
+                tagged_t: tagged_t,
+                maybeConstructors: [
+                  constructorRefinement$3,
+                  literalValueRefinement$1,
+                  transformToLiteralValue
+                ],
+                maybeDestructors: [
+                  literalValueRefinement,
+                  transformToLiteralValue
+                ],
+                maybeMetadata: undefined
+              };
+    case /* Int */1 :
+        return {
+                tagged_t: tagged_t,
+                maybeConstructors: [
+                  constructorRefinement$5,
+                  literalValueRefinement$1,
+                  transformToLiteralValue
+                ],
+                maybeDestructors: [
+                  literalValueRefinement,
+                  transformToLiteralValue
+                ],
+                maybeMetadata: undefined
+              };
+    case /* Float */2 :
+        return {
+                tagged_t: tagged_t,
+                maybeConstructors: [
+                  constructorRefinement$4,
+                  literalValueRefinement$1,
+                  transformToLiteralValue
+                ],
+                maybeDestructors: [
+                  literalValueRefinement,
+                  transformToLiteralValue
+                ],
+                maybeMetadata: undefined
+              };
+    case /* Bool */3 :
+        return {
+                tagged_t: tagged_t,
+                maybeConstructors: [
+                  constructorRefinement$2,
+                  literalValueRefinement$1,
+                  transformToLiteralValue
+                ],
+                maybeDestructors: [
+                  literalValueRefinement,
+                  transformToLiteralValue
+                ],
+                maybeMetadata: undefined
+              };
+    
+  }
 }
 
-function variantFactory(innerLiteral, variant) {
-  var tagged_t_1 = Caml_option.some(variant);
+function factory$1(innerLiteral, variant) {
   var tagged_t = {
     TAG: /* Literal */0,
-    literal: innerLiteral,
-    maybeVariant: tagged_t_1
+    _0: innerLiteral
   };
-  return innerFactory(tagged_t, innerLiteral);
+  var constructorTransform = {
+    TAG: /* Transform */0,
+    _0: (function (param, param$1, param$2) {
+        return {
+                TAG: /* Ok */0,
+                _0: variant
+              };
+      })
+  };
+  var destructorRefinement = {
+    TAG: /* Refinement */1,
+    _0: (function (input, param) {
+        if (input === variant) {
+          return ;
+        } else {
+          return Caml_option.some(RescriptStruct_Error.UnexpectedValue.make(variant, input, /* Serializing */0));
+        }
+      })
+  };
+  if (typeof innerLiteral === "number") {
+    if (innerLiteral === /* EmptyNull */0) {
+      return {
+              tagged_t: tagged_t,
+              maybeConstructors: [
+                constructorRefinement,
+                constructorTransform
+              ],
+              maybeDestructors: [
+                destructorRefinement,
+                destructorTransform
+              ],
+              maybeMetadata: undefined
+            };
+    } else {
+      return {
+              tagged_t: tagged_t,
+              maybeConstructors: [
+                constructorRefinement$1,
+                constructorTransform
+              ],
+              maybeDestructors: [
+                destructorRefinement,
+                destructorTransform$1
+              ],
+              maybeMetadata: undefined
+            };
+    }
+  }
+  switch (innerLiteral.TAG | 0) {
+    case /* String */0 :
+        return {
+                tagged_t: tagged_t,
+                maybeConstructors: [
+                  constructorRefinement$3,
+                  literalValueRefinement$1,
+                  constructorTransform
+                ],
+                maybeDestructors: [
+                  destructorRefinement,
+                  transformToLiteralValue
+                ],
+                maybeMetadata: undefined
+              };
+    case /* Int */1 :
+        return {
+                tagged_t: tagged_t,
+                maybeConstructors: [
+                  constructorRefinement$5,
+                  literalValueRefinement$1,
+                  constructorTransform
+                ],
+                maybeDestructors: [
+                  destructorRefinement,
+                  transformToLiteralValue
+                ],
+                maybeMetadata: undefined
+              };
+    case /* Float */2 :
+        return {
+                tagged_t: tagged_t,
+                maybeConstructors: [
+                  constructorRefinement$4,
+                  literalValueRefinement$1,
+                  constructorTransform
+                ],
+                maybeDestructors: [
+                  destructorRefinement,
+                  transformToLiteralValue
+                ],
+                maybeMetadata: undefined
+              };
+    case /* Bool */3 :
+        return {
+                tagged_t: tagged_t,
+                maybeConstructors: [
+                  constructorRefinement$2,
+                  literalValueRefinement$1,
+                  constructorTransform
+                ],
+                maybeDestructors: [
+                  destructorRefinement,
+                  transformToLiteralValue
+                ],
+                maybeMetadata: undefined
+              };
+    
+  }
+}
+
+var constructorTransform = {
+  TAG: /* Transform */0,
+  _0: (function (param, param$1, param$2) {
+      return {
+              TAG: /* Ok */0,
+              _0: undefined
+            };
+    })
+};
+
+function factory$2(innerLiteral) {
+  var tagged_t = {
+    TAG: /* Literal */0,
+    _0: innerLiteral
+  };
+  if (typeof innerLiteral === "number") {
+    if (innerLiteral === /* EmptyNull */0) {
+      return {
+              tagged_t: tagged_t,
+              maybeConstructors: [
+                constructorRefinement,
+                constructorTransform
+              ],
+              maybeDestructors: [destructorTransform],
+              maybeMetadata: undefined
+            };
+    } else {
+      return {
+              tagged_t: tagged_t,
+              maybeConstructors: [
+                constructorRefinement$1,
+                constructorTransform
+              ],
+              maybeDestructors: [destructorTransform$1],
+              maybeMetadata: undefined
+            };
+    }
+  }
+  switch (innerLiteral.TAG | 0) {
+    case /* String */0 :
+        return {
+                tagged_t: tagged_t,
+                maybeConstructors: [
+                  constructorRefinement$3,
+                  literalValueRefinement$1,
+                  constructorTransform
+                ],
+                maybeDestructors: [transformToLiteralValue],
+                maybeMetadata: undefined
+              };
+    case /* Int */1 :
+        return {
+                tagged_t: tagged_t,
+                maybeConstructors: [
+                  constructorRefinement$5,
+                  literalValueRefinement$1,
+                  constructorTransform
+                ],
+                maybeDestructors: [transformToLiteralValue],
+                maybeMetadata: undefined
+              };
+    case /* Float */2 :
+        return {
+                tagged_t: tagged_t,
+                maybeConstructors: [
+                  constructorRefinement$4,
+                  literalValueRefinement$1,
+                  constructorTransform
+                ],
+                maybeDestructors: [transformToLiteralValue],
+                maybeMetadata: undefined
+              };
+    case /* Bool */3 :
+        return {
+                tagged_t: tagged_t,
+                maybeConstructors: [
+                  constructorRefinement$2,
+                  literalValueRefinement$1,
+                  constructorTransform
+                ],
+                maybeDestructors: [transformToLiteralValue],
+                maybeMetadata: undefined
+              };
+    
+  }
 }
 
 var getMaybeExcessKey = (function(object, innerStructsDict) {
@@ -799,7 +1026,7 @@ var getMaybeExcessKey = (function(object, innerStructsDict) {
     return undefined
   });
 
-function make$1(recordConstructor) {
+function make(recordConstructor) {
   return [{
             TAG: /* Transform */0,
             _0: (function (input, struct, mode) {
@@ -871,7 +1098,7 @@ function make$1(recordConstructor) {
           }];
 }
 
-function make$2(recordDestructor) {
+function make$1(recordDestructor) {
   return [{
             TAG: /* Transform */0,
             _0: (function (input, struct, mode) {
@@ -922,7 +1149,7 @@ function make$2(recordDestructor) {
           }];
 }
 
-function factory$1(fieldsArray, maybeRecordConstructor, maybeRecordDestructor, param) {
+function factory$3(fieldsArray, maybeRecordConstructor, maybeRecordDestructor, param) {
   if (maybeRecordConstructor === undefined && maybeRecordDestructor === undefined) {
     RescriptStruct_Error.MissingConstructorAndDestructor.raise("Record struct factory");
   }
@@ -934,8 +1161,8 @@ function factory$1(fieldsArray, maybeRecordConstructor, maybeRecordDestructor, p
             fieldNames: Object.keys(fields),
             unknownKeys: /* Strict */0
           },
-          maybeConstructors: maybeRecordConstructor !== undefined ? Caml_option.some(make$1(Caml_option.valFromOption(maybeRecordConstructor))) : undefined,
-          maybeDestructors: maybeRecordDestructor !== undefined ? Caml_option.some(make$2(Caml_option.valFromOption(maybeRecordDestructor))) : undefined,
+          maybeConstructors: maybeRecordConstructor !== undefined ? Caml_option.some(make(Caml_option.valFromOption(maybeRecordConstructor))) : undefined,
+          maybeDestructors: maybeRecordDestructor !== undefined ? Caml_option.some(make$1(Caml_option.valFromOption(maybeRecordDestructor))) : undefined,
           maybeMetadata: undefined
         };
 }
@@ -981,7 +1208,7 @@ function strict(struct) {
 function record1(fields) {
   var partial_arg = [fields];
   return function (param, param$1, param$2) {
-    return factory$1(partial_arg, param, param$1, param$2);
+    return factory$3(partial_arg, param, param$1, param$2);
   };
 }
 
@@ -1245,7 +1472,7 @@ function transform(struct, maybeTransformationConstructor, maybeTransformationDe
         };
 }
 
-var constructors$18 = [{
+var constructors$12 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, param) {
         var innerStructs = struct.tagged_t._0;
@@ -1276,7 +1503,7 @@ var constructors$18 = [{
       })
   }];
 
-var destructors$15 = [{
+var destructors$12 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, param) {
         var innerStructs = struct.tagged_t._0;
@@ -1307,7 +1534,7 @@ var destructors$15 = [{
       })
   }];
 
-function factory$2(structs) {
+function factory$4(structs) {
   if (structs.length < 2) {
     RescriptStruct_Error.UnionLackingStructs.raise(undefined);
   }
@@ -1316,43 +1543,45 @@ function factory$2(structs) {
             TAG: /* Union */5,
             _0: structs
           },
-          maybeConstructors: constructors$18,
-          maybeDestructors: destructors$15,
+          maybeConstructors: constructors$12,
+          maybeDestructors: destructors$12,
           maybeMetadata: undefined
         };
 }
 
 var literal = factory;
 
-var literalVariant = variantFactory;
+var literalVariant = factory$1;
 
-var union = factory$2;
+var literalUnit = factory$2;
+
+var union = factory$4;
 
 var transformUnknown = transform;
 
 var Record = {
-  factory: factory$1,
+  factory: factory$3,
   strip: strip,
   strict: strict
 };
 
-var record2 = factory$1;
+var record2 = factory$3;
 
-var record3 = factory$1;
+var record3 = factory$3;
 
-var record4 = factory$1;
+var record4 = factory$3;
 
-var record5 = factory$1;
+var record5 = factory$3;
 
-var record6 = factory$1;
+var record6 = factory$3;
 
-var record7 = factory$1;
+var record7 = factory$3;
 
-var record8 = factory$1;
+var record8 = factory$3;
 
-var record9 = factory$1;
+var record9 = factory$3;
 
-var record10 = factory$1;
+var record10 = factory$3;
 
 function MakeMetadata(funarg) {
   var get = function (struct) {
@@ -1392,6 +1621,7 @@ exports.$$int = $$int;
 exports.$$float = $$float;
 exports.literal = literal;
 exports.literalVariant = literalVariant;
+exports.literalUnit = literalUnit;
 exports.array = array;
 exports.dict = dict;
 exports.option = option;
@@ -1420,4 +1650,4 @@ exports.record9 = record9;
 exports.record10 = record10;
 exports.classify = classify;
 exports.MakeMetadata = MakeMetadata;
-/* constructors Not a pure module */
+/* RescriptStruct_Error Not a pure module */

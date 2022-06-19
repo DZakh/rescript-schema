@@ -46,7 +46,6 @@ type rec literal<'value> =
   | Int(int): literal<int>
   | Float(float): literal<float>
   | Bool(bool): literal<bool>
-  | Unit: literal<unit>
   | EmptyNull: literal<option<never>>
   | EmptyOption: literal<option<never>>
 
@@ -68,7 +67,7 @@ and tagged_t =
   | Int: tagged_t
   | Float: tagged_t
   | Bool: tagged_t
-  | Literal({literal: literal<'value>, maybeVariant: option<'variant>}): tagged_t
+  | Literal(literal<'value>): tagged_t
   | Option(t<'value>): tagged_t
   | Null(t<'value>): tagged_t
   | Array(t<'value>): tagged_t
@@ -116,13 +115,12 @@ module TaggedT = {
     | Float => "Float"
     | Bool => "Bool"
     | Union(_) => "Union"
-    | Literal({literal}) =>
+    | Literal(literal) =>
       switch literal {
       | String(value) => j`String Literal ("$value")`
       | Int(value) => j`Int Literal ($value)`
       | Float(value) => j`Float Literal ($value)`
       | Bool(value) => j`Bool Literal ($value)`
-      | Unit => `Unit Literal (undefined)`
       | EmptyNull => `EmptyNull Literal (null)`
       | EmptyOption => `EmptyOption Literal (undefined)`
       }
@@ -562,199 +560,359 @@ module Operations = {
 }
 
 module Literal = {
-  type payload<'value, 'variant> = {
-    literal: literal<'value>,
-    maybeVariant: option<'variant>,
-  }
-
-  module WithExpectedValue = {
-    module Constructors = {
-      let make = (~checkType) => {
-        [
-          Operations.transform((~input, ~struct, ~mode) => {
-            let {literal, maybeVariant} = struct->classify->unsafeToAny
-            let literalValue = literal->unsafeGetVariantPayload
-            let returnedValue = switch maybeVariant {
-            | Some(variant) => variant
-            | None => literalValue
-            }
-            let ok = Ok(returnedValue)
-            if mode === Safe {
-              if !checkType(. input) {
-                Error(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
-              } else if literalValue !== input {
-                Error(
-                  RescriptStruct_Error.UnexpectedValue.make(
-                    ~expectedValue=literalValue,
-                    ~gotValue=input,
-                    ~operation=Parsing,
-                  ),
-                )
-              } else {
-                ok
-              }
-            } else {
-              ok
-            }
-          }),
-        ]
-      }
-    }
-    let destructors = [
-      Operations.transform((~input, ~struct, ~mode) => {
-        let {literal, maybeVariant} = struct->classify->unsafeToAny
-        let literalValue = literal->unsafeGetVariantPayload
-        let expectedValue = switch maybeVariant {
-        | Some(variant) => variant
-        | None => literalValue
+  module CommonOperations = {
+    module Destructor = {
+      let optionValueRefinement = Operations.refinement((~input, ~struct) => {
+        if input !== None {
+          Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Serializing))
+        } else {
+          None
         }
-        if mode === Safe && expectedValue !== input {
-          Error(
+      })
+
+      let literalValueRefinement = Operations.refinement((~input, ~struct) => {
+        let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
+        switch expectedValue === input {
+        | true => None
+        | false =>
+          Some(
             RescriptStruct_Error.UnexpectedValue.make(
               ~expectedValue,
               ~gotValue=input,
               ~operation=Serializing,
             ),
           )
-        } else {
-          Ok(literalValue)
         }
-      }),
-    ]
+      })
+    }
+
+    module Constructor = {
+      let literalValueRefinement = Operations.refinement((~input, ~struct) => {
+        let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
+        switch expectedValue === input {
+        | true => None
+        | false =>
+          Some(
+            RescriptStruct_Error.UnexpectedValue.make(
+              ~expectedValue,
+              ~gotValue=input,
+              ~operation=Parsing,
+            ),
+          )
+        }
+      })
+    }
+
+    let transformToLiteralValue = Operations.transform((~input as _, ~struct, ~mode as _) => {
+      let literalValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
+      Ok(literalValue)
+    })
   }
 
-  let commonOptionDestructor = Operations.refinement((~input, ~struct) => {
-    let {maybeVariant} = struct->classify->unsafeToAny
-    let expectedValue = switch maybeVariant {
-    | Some(variant) => variant
-    | None => None
-    }
-    if input !== expectedValue {
-      Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Serializing))
-    } else {
-      None
-    }
-  })
-
   module EmptyNull = {
-    let constructors = [
-      Operations.transform((~input, ~struct, ~mode) => {
-        if mode === Safe && input !== Js.Null.empty {
-          Error(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
-        } else {
-          let {maybeVariant} = struct->classify->unsafeToAny
-          Ok(maybeVariant)
-        }
-      }),
-    ]
-    let destructors = [
-      commonOptionDestructor,
-      Operations.transform((~input as _, ~struct as _, ~mode as _) => {
-        Ok(Js.Null.empty)
-      }),
-    ]
+    let constructorRefinement = Operations.refinement((~input, ~struct) => {
+      switch input === Js.Null.empty {
+      | true => None
+      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      }
+    })
+
+    let destructorTransform = Operations.transform((~input as _, ~struct as _, ~mode as _) => {
+      Ok(Js.Null.empty)
+    })
   }
 
   module EmptyOption = {
-    let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
-      input === Js.Undefined.empty
-    )
-    let destructors = [
-      commonOptionDestructor,
-      Operations.transform((~input as _, ~struct as _, ~mode as _) => {
-        Ok(Js.Undefined.empty)
-      }),
-    ]
+    let constructorRefinement = Operations.refinement((~input, ~struct) => {
+      switch input === Js.Undefined.empty {
+      | true => None
+      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      }
+    })
+
+    let destructorTransform = Operations.transform((~input as _, ~struct as _, ~mode as _) => {
+      Ok(Js.Undefined.empty)
+    })
   }
 
   module Bool = {
-    let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
-      input->Js.typeof === "boolean"
-    )
-    let destructors = WithExpectedValue.destructors
+    let constructorRefinement = Operations.refinement((~input, ~struct) => {
+      switch input->Js.typeof === "boolean" {
+      | true => None
+      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      }
+    })
   }
 
   module String = {
-    let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
-      input->Js.typeof === "string"
-    )
-    let destructors = WithExpectedValue.destructors
+    let constructorRefinement = Operations.refinement((~input, ~struct) => {
+      switch input->Js.typeof === "string" {
+      | true => None
+      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      }
+    })
   }
 
   module Float = {
-    let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
-      input->Js.typeof === "number"
-    )
-    let destructors = WithExpectedValue.destructors
+    let constructorRefinement = Operations.refinement((~input, ~struct) => {
+      switch input->Js.typeof === "number" {
+      | true => None
+      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      }
+    })
   }
 
   module Int = {
-    let constructors = WithExpectedValue.Constructors.make(~checkType=(. input) =>
-      input->Js.typeof === "number" && checkIsIntNumber(input)
-    )
-    let destructors = WithExpectedValue.destructors
+    let constructorRefinement = Operations.refinement((~input, ~struct) => {
+      switch input->Js.typeof === "number" && checkIsIntNumber(input) {
+      | true => None
+      | false => Some(makeUnexpectedTypeError(~input, ~struct, ~operation=Parsing))
+      }
+    })
   }
 
-  let innerFactory:
-    type literalValue value. (
-      ~tagged_t: tagged_t,
-      ~innerLiteral: literal<literalValue>,
-    ) => t<value> =
-    (~tagged_t, ~innerLiteral) => {
+  let factory:
+    type value. literal<value> => t<value> =
+    innerLiteral => {
+      let tagged_t = Literal(innerLiteral)
       switch innerLiteral {
       | EmptyNull => {
           tagged_t: tagged_t,
-          maybeConstructors: Some(EmptyNull.constructors),
-          maybeDestructors: Some(EmptyNull.destructors),
+          maybeConstructors: Some([
+            EmptyNull.constructorRefinement,
+            Operations.transform((~input as _, ~struct as _, ~mode as _) => {
+              Ok(None)
+            }),
+          ]),
+          maybeDestructors: Some([
+            CommonOperations.Destructor.optionValueRefinement,
+            EmptyNull.destructorTransform,
+          ]),
           maybeMetadata: None,
         }
       | EmptyOption => {
           tagged_t: tagged_t,
-          maybeConstructors: Some(EmptyOption.constructors),
-          maybeDestructors: Some(EmptyOption.destructors),
-          maybeMetadata: None,
-        }
-      | Unit => {
-          tagged_t: tagged_t,
-          maybeConstructors: Some(EmptyOption.constructors),
-          maybeDestructors: Some(EmptyOption.destructors),
+          maybeConstructors: Some([
+            EmptyOption.constructorRefinement,
+            Operations.transform((~input as _, ~struct as _, ~mode as _) => {
+              Ok(None)
+            }),
+          ]),
+          maybeDestructors: Some([
+            CommonOperations.Destructor.optionValueRefinement,
+            EmptyOption.destructorTransform,
+          ]),
           maybeMetadata: None,
         }
       | Bool(_) => {
           tagged_t: tagged_t,
-          maybeConstructors: Some(Bool.constructors),
-          maybeDestructors: Some(Bool.destructors),
+          maybeConstructors: Some([
+            Bool.constructorRefinement,
+            CommonOperations.Constructor.literalValueRefinement,
+            CommonOperations.transformToLiteralValue,
+          ]),
+          maybeDestructors: Some([
+            CommonOperations.Destructor.literalValueRefinement,
+            CommonOperations.transformToLiteralValue,
+          ]),
           maybeMetadata: None,
         }
       | String(_) => {
           tagged_t: tagged_t,
-          maybeConstructors: Some(String.constructors),
-          maybeDestructors: Some(String.destructors),
+          maybeConstructors: Some([
+            String.constructorRefinement,
+            CommonOperations.Constructor.literalValueRefinement,
+            CommonOperations.transformToLiteralValue,
+          ]),
+          maybeDestructors: Some([
+            CommonOperations.Destructor.literalValueRefinement,
+            CommonOperations.transformToLiteralValue,
+          ]),
           maybeMetadata: None,
         }
       | Float(_) => {
           tagged_t: tagged_t,
-          maybeConstructors: Some(Float.constructors),
-          maybeDestructors: Some(Float.destructors),
+          maybeConstructors: Some([
+            Float.constructorRefinement,
+            CommonOperations.Constructor.literalValueRefinement,
+            CommonOperations.transformToLiteralValue,
+          ]),
+          maybeDestructors: Some([
+            CommonOperations.Destructor.literalValueRefinement,
+            CommonOperations.transformToLiteralValue,
+          ]),
           maybeMetadata: None,
         }
       | Int(_) => {
           tagged_t: tagged_t,
-          maybeConstructors: Some(Int.constructors),
-          maybeDestructors: Some(Int.destructors),
+          maybeConstructors: Some([
+            Int.constructorRefinement,
+            CommonOperations.Constructor.literalValueRefinement,
+            CommonOperations.transformToLiteralValue,
+          ]),
+          maybeDestructors: Some([
+            CommonOperations.Destructor.literalValueRefinement,
+            CommonOperations.transformToLiteralValue,
+          ]),
           maybeMetadata: None,
         }
       }
     }
 
-  let factory = innerLiteral => {
-    let tagged_t = Literal({literal: innerLiteral, maybeVariant: None})
-    innerFactory(~tagged_t, ~innerLiteral)
+  module Variant = {
+    let factory:
+      type literalValue variant. (literal<literalValue>, variant) => t<variant> =
+      (innerLiteral, variant) => {
+        let tagged_t = Literal(innerLiteral)
+        let constructorTransform = Operations.transform((~input as _, ~struct as _, ~mode as _) => {
+          Ok(variant)
+        })
+        let destructorRefinement = Operations.refinement((~input, ~struct as _) => {
+          switch input === variant {
+          | true => None
+          | false =>
+            Some(
+              RescriptStruct_Error.UnexpectedValue.make(
+                ~expectedValue=variant,
+                ~gotValue=input,
+                ~operation=Serializing,
+              ),
+            )
+          }
+        })
+        switch innerLiteral {
+        | EmptyNull => {
+            tagged_t: tagged_t,
+            maybeConstructors: Some([EmptyNull.constructorRefinement, constructorTransform]),
+            maybeDestructors: Some([destructorRefinement, EmptyNull.destructorTransform]),
+            maybeMetadata: None,
+          }
+        | EmptyOption => {
+            tagged_t: tagged_t,
+            maybeConstructors: Some([EmptyOption.constructorRefinement, constructorTransform]),
+            maybeDestructors: Some([destructorRefinement, EmptyOption.destructorTransform]),
+            maybeMetadata: None,
+          }
+        | Bool(_) => {
+            tagged_t: tagged_t,
+            maybeConstructors: Some([
+              Bool.constructorRefinement,
+              CommonOperations.Constructor.literalValueRefinement,
+              constructorTransform,
+            ]),
+            maybeDestructors: Some([
+              destructorRefinement,
+              CommonOperations.transformToLiteralValue,
+            ]),
+            maybeMetadata: None,
+          }
+        | String(_) => {
+            tagged_t: tagged_t,
+            maybeConstructors: Some([
+              String.constructorRefinement,
+              CommonOperations.Constructor.literalValueRefinement,
+              constructorTransform,
+            ]),
+            maybeDestructors: Some([
+              destructorRefinement,
+              CommonOperations.transformToLiteralValue,
+            ]),
+            maybeMetadata: None,
+          }
+        | Float(_) => {
+            tagged_t: tagged_t,
+            maybeConstructors: Some([
+              Float.constructorRefinement,
+              CommonOperations.Constructor.literalValueRefinement,
+              constructorTransform,
+            ]),
+            maybeDestructors: Some([
+              destructorRefinement,
+              CommonOperations.transformToLiteralValue,
+            ]),
+            maybeMetadata: None,
+          }
+        | Int(_) => {
+            tagged_t: tagged_t,
+            maybeConstructors: Some([
+              Int.constructorRefinement,
+              CommonOperations.Constructor.literalValueRefinement,
+              constructorTransform,
+            ]),
+            maybeDestructors: Some([
+              destructorRefinement,
+              CommonOperations.transformToLiteralValue,
+            ]),
+            maybeMetadata: None,
+          }
+        }
+      }
   }
 
-  let variantFactory = (innerLiteral, variant) => {
-    let tagged_t = Literal({literal: innerLiteral, maybeVariant: Some(variant)})
-    innerFactory(~tagged_t, ~innerLiteral)
+  module Unit = {
+    let constructorTransform = Operations.transform((~input as _, ~struct as _, ~mode as _) => {
+      Ok()
+    })
+
+    let factory:
+      type value. literal<value> => t<unit> =
+      innerLiteral => {
+        let tagged_t = Literal(innerLiteral)
+        switch innerLiteral {
+        | EmptyNull => {
+            tagged_t: tagged_t,
+            maybeConstructors: Some([EmptyNull.constructorRefinement, constructorTransform]),
+            maybeDestructors: Some([EmptyNull.destructorTransform]),
+            maybeMetadata: None,
+          }
+        | EmptyOption => {
+            tagged_t: tagged_t,
+            maybeConstructors: Some([EmptyOption.constructorRefinement, constructorTransform]),
+            maybeDestructors: Some([EmptyOption.destructorTransform]),
+            maybeMetadata: None,
+          }
+        | Bool(_) => {
+            tagged_t: tagged_t,
+            maybeConstructors: Some([
+              Bool.constructorRefinement,
+              CommonOperations.Constructor.literalValueRefinement,
+              constructorTransform,
+            ]),
+            maybeDestructors: Some([CommonOperations.transformToLiteralValue]),
+            maybeMetadata: None,
+          }
+        | String(_) => {
+            tagged_t: tagged_t,
+            maybeConstructors: Some([
+              String.constructorRefinement,
+              CommonOperations.Constructor.literalValueRefinement,
+              constructorTransform,
+            ]),
+            maybeDestructors: Some([CommonOperations.transformToLiteralValue]),
+            maybeMetadata: None,
+          }
+        | Float(_) => {
+            tagged_t: tagged_t,
+            maybeConstructors: Some([
+              Float.constructorRefinement,
+              CommonOperations.Constructor.literalValueRefinement,
+              constructorTransform,
+            ]),
+            maybeDestructors: Some([CommonOperations.transformToLiteralValue]),
+            maybeMetadata: None,
+          }
+        | Int(_) => {
+            tagged_t: tagged_t,
+            maybeConstructors: Some([
+              Int.constructorRefinement,
+              CommonOperations.Constructor.literalValueRefinement,
+              constructorTransform,
+            ]),
+            maybeDestructors: Some([CommonOperations.transformToLiteralValue]),
+            maybeMetadata: None,
+          }
+        }
+      }
   }
 }
 
@@ -1074,7 +1232,8 @@ let default = (innerStruct, defaultValue) => {
 }
 
 let literal = Literal.factory
-let literalVariant = Literal.variantFactory
+let literalVariant = Literal.Variant.factory
+let literalUnit = Literal.Unit.factory
 
 let json = struct => {
   tagged_t: String,

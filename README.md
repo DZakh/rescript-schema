@@ -274,11 +274,9 @@ let importantTimestampStruct = S.literal(Float(1652628345865.))
 let truStruct = S.literal(Bool(true))
 let nullStruct = S.literal(EmptyNull)
 let undefinedStruct = S.literal(EmptyOption)
-let unitStruct = S.literal(Unit)
 ```
 
 `literal` struct enforces that a data matches an exact value using the === operator.
-
 
 #### **`S.literalVariant`**
 
@@ -296,6 +294,22 @@ Ok(Apple)
 ```
 
 The same as `literal` struct factory, but with a convenient way to transform data to ReScript value.
+
+#### **`S.literalUnit`**
+
+`(S.literal<'value>) => S.t<unit>`
+
+```rescript
+let struct = S.literalUnit(EmptyOption)
+
+%raw(`undefined`)->S.parseWith(struct)
+```
+
+```rescript
+Ok()
+```
+
+The same as `literal` struct factory, but with a convenient way to transform data to ReScript unit. It's useful for parsing function return data.
 
 #### **`S.record1` - `S.record10`**
 
