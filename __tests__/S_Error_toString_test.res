@@ -95,3 +95,15 @@ test("ExcessField error", t => {
     (),
   )
 })
+
+test("TupleSize error", t => {
+  t->Assert.is(
+    {
+      S.Error.code: TupleSize({expected: 1, received: 2}),
+      operation: Parsing,
+      path: [],
+    }->S.Error.toString,
+    `[ReScript Struct] Failed parsing at root. Reason: Expected Tuple with 1 items, received 2`,
+    (),
+  )
+})
