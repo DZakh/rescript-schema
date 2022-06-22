@@ -12,6 +12,10 @@ module Error: {
     | ExcessField(string)
   type t = {operation: operation, code: code, path: array<string>}
 
+  let prependLocation: (t, string) => t
+
+  let make: string => t
+
   let toString: t => string
 }
 
@@ -72,22 +76,31 @@ let null: t<'value> => t<option<'value>>
 let deprecated: (~message: string=?, t<'value>) => t<option<'value>>
 let default: (t<option<'value>>, 'value) => t<'value>
 let json: t<'value> => t<'value>
+let union: array<t<'value>> => t<'value>
 
 let transform: (
   t<'value>,
-  ~parser: 'value => result<'transformedValue, string>=?,
-  ~serializer: 'transformedValue => result<'value, string>=?,
+  ~parser: 'value => result<'transformed, string>=?,
+  ~serializer: 'transformed => result<'value, string>=?,
   unit,
-) => t<'transformedValue>
+) => t<'transformed>
 
-let union: array<t<'value>> => t<'value>
-
-let transformUnknown: (
-  t<unknown>,
-  ~parser: unknown => result<'transformedValue, string>=?,
-  ~serializer: 'transformedValue => result<'any, string>=?,
+let superTransform: (
+  t<'value>,
+  ~parser: (. ~value: 'value, ~struct: t<'value>, ~mode: mode) => result<'transformed, Error.t>=?,
+  ~serializer: (
+    . ~transformed: 'transformed,
+    ~struct: t<'value>,
+    ~mode: mode,
+  ) => result<'value, Error.t>=?,
   unit,
-) => t<'transformedValue>
+) => t<'transformed>
+
+let custom: (
+  ~parser: (. ~unknown: unknown, ~mode: mode) => result<'value, Error.t>=?,
+  ~serializer: (. ~value: 'value, ~mode: mode) => result<'any, Error.t>=?,
+  unit,
+) => t<'value>
 
 let refine: (
   t<'value>,

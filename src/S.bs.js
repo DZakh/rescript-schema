@@ -39,10 +39,17 @@ function toSerializeError(self) {
         };
 }
 
-function prependField(error, field) {
+function fromPublic($$public) {
+  return {
+          code: $$public.code,
+          path: $$public.path
+        };
+}
+
+function prependLocation(error, $$location) {
   return {
           code: error.code,
-          path: [field].concat(error.path)
+          path: [$$location].concat(error.path)
         };
 }
 
@@ -84,6 +91,25 @@ function formatPath(path) {
                   return "[" + pathItem + "]";
                 }).join("");
   }
+}
+
+function prependLocation$1(error, $$location) {
+  return {
+          operation: error.operation,
+          code: error.code,
+          path: [$$location].concat(error.path)
+        };
+}
+
+function make$1(reason) {
+  return {
+          operation: /* Parsing */1,
+          code: {
+            TAG: /* OperationFailed */0,
+            _0: reason
+          },
+          path: []
+        };
 }
 
 function toString(error) {
@@ -601,7 +627,7 @@ var parsers = [{
             newArray.push(value._0);
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = prependField(value._0, fieldName);
+            maybeErrorRef = prependLocation(value._0, fieldName);
           }
         };
         if (match.unknownKeys === /* Strict */0 && mode === /* Safe */0) {
@@ -652,7 +678,7 @@ var serializers = [{
             unknown[fieldName] = unknownFieldValue._0;
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = prependField(unknownFieldValue._0, fieldName);
+            maybeErrorRef = prependLocation(unknownFieldValue._0, fieldName);
           }
         };
         var error = maybeErrorRef;
@@ -997,7 +1023,7 @@ var parsers$9 = [{
             newArray.push(value._0);
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = prependField(value._0, idx.toString());
+            maybeErrorRef = prependLocation(value._0, idx.toString());
           }
         };
         var error = maybeErrorRef;
@@ -1030,7 +1056,7 @@ var serializers$4 = [{
             newArray.push(value._0);
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = prependField(value._0, idx.toString());
+            maybeErrorRef = prependLocation(value._0, idx.toString());
           }
         };
         var error = maybeErrorRef;
@@ -1084,7 +1110,7 @@ var parsers$10 = [{
             newDict[key] = value._0;
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = prependField(value._0, key);
+            maybeErrorRef = prependLocation(value._0, key);
           }
         };
         var error = maybeErrorRef;
@@ -1119,7 +1145,7 @@ var serializers$5 = [{
             newDict[key] = value._0;
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = prependField(value._0, key);
+            maybeErrorRef = prependLocation(value._0, key);
           }
         };
         var error = maybeErrorRef;
@@ -1233,7 +1259,7 @@ var parsers$12 = [{
             newArray.push(value._0);
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = prependField(value._0, idx.toString());
+            maybeErrorRef = prependLocation(value._0, idx.toString());
           }
         };
         var error = maybeErrorRef;
@@ -1271,7 +1297,7 @@ var serializers$7 = [{
             newArray.push(value._0);
             idxRef = idxRef + 1 | 0;
           } else {
-            maybeErrorRef = prependField(value._0, idx.toString());
+            maybeErrorRef = prependLocation(value._0, idx.toString());
           }
         };
         var error = maybeErrorRef;
@@ -1567,6 +1593,90 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
         };
 }
 
+function superTransform(struct, maybeTransformationParser, maybeTransformationSerializer, param) {
+  if (maybeTransformationParser === undefined && maybeTransformationSerializer === undefined) {
+    raise$1("struct factory Transform");
+  }
+  var match = struct.maybeParsers;
+  var match$1 = struct.maybeSerializers;
+  return {
+          tagged_t: struct.tagged_t,
+          maybeParsers: match !== undefined && maybeTransformationParser !== undefined ? match.concat([{
+                    TAG: /* Transform */0,
+                    _0: (function (input, struct, mode) {
+                        var result = maybeTransformationParser(input, struct, mode);
+                        if (result.TAG === /* Ok */0) {
+                          return result;
+                        } else {
+                          return {
+                                  TAG: /* Error */1,
+                                  _0: fromPublic(result._0)
+                                };
+                        }
+                      })
+                  }]) : undefined,
+          maybeSerializers: match$1 !== undefined && maybeTransformationSerializer !== undefined ? [{
+                  TAG: /* Transform */0,
+                  _0: (function (input, struct, mode) {
+                      var result = maybeTransformationSerializer(input, struct, mode);
+                      if (result.TAG === /* Ok */0) {
+                        return result;
+                      } else {
+                        return {
+                                TAG: /* Error */1,
+                                _0: fromPublic(result._0)
+                              };
+                      }
+                    })
+                }].concat(match$1) : undefined,
+          maybeMetadata: struct.maybeMetadata
+        };
+}
+
+function custom(maybeCustomParser, maybeCustomSerializer, param) {
+  if (maybeCustomParser === undefined && maybeCustomSerializer === undefined) {
+    raise$1("Custom struct factory");
+  }
+  var fn = function (customParser) {
+    return [{
+              TAG: /* Transform */0,
+              _0: (function (input, param, mode) {
+                  var result = customParser(input, mode);
+                  if (result.TAG === /* Ok */0) {
+                    return result;
+                  } else {
+                    return {
+                            TAG: /* Error */1,
+                            _0: fromPublic(result._0)
+                          };
+                  }
+                })
+            }];
+  };
+  var fn$1 = function (customSerializer) {
+    return [{
+              TAG: /* Transform */0,
+              _0: (function (input, param, mode) {
+                  var result = customSerializer(input, mode);
+                  if (result.TAG === /* Ok */0) {
+                    return result;
+                  } else {
+                    return {
+                            TAG: /* Error */1,
+                            _0: fromPublic(result._0)
+                          };
+                  }
+                })
+            }];
+  };
+  return {
+          tagged_t: /* Unknown */1,
+          maybeParsers: maybeCustomParser !== undefined ? Caml_option.some(fn(Caml_option.valFromOption(maybeCustomParser))) : undefined,
+          maybeSerializers: maybeCustomSerializer !== undefined ? Caml_option.some(fn$1(Caml_option.valFromOption(maybeCustomSerializer))) : undefined,
+          maybeMetadata: undefined
+        };
+}
+
 function getExn(result) {
   if (result.TAG === /* Ok */0) {
     return result._0;
@@ -1592,6 +1702,8 @@ var Result = {
 };
 
 var $$Error = {
+  prependLocation: prependLocation$1,
+  make: make$1,
   toString: toString
 };
 
@@ -1626,8 +1738,6 @@ var deprecated = factory$12;
 var $$default = factory$15;
 
 var union = factory$17;
-
-var transformUnknown = transform;
 
 var Record = {
   factory: factory$3,
@@ -1732,9 +1842,10 @@ exports.$$default = $$default;
 exports.default = $$default;
 exports.__esModule = true;
 exports.json = json;
-exports.transform = transform;
 exports.union = union;
-exports.transformUnknown = transformUnknown;
+exports.transform = transform;
+exports.superTransform = superTransform;
+exports.custom = custom;
 exports.refine = refine;
 exports.parseWith = parseWith;
 exports.serializeWith = serializeWith;

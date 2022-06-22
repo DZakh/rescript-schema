@@ -293,7 +293,7 @@ let struct = S.unknown()
 "Hello World!"->S.parseWith(struct)
 ```
 
-`unknown` struct represents any data. Can be used together with `S.transformUnknown` to create a custom struct factory.
+`unknown` struct represents any data.
 
 #### **`S.literal`**
 
@@ -555,6 +555,83 @@ let struct = S.union([
 Ok(Draw)
 ```
 
+#### **`S.custom`**
+
+`(~parser: (. ~unknown: S.unknown, ~mode: S.mode) => result<'value, S.Error.t>=?, ~serializer: (. ~value: 'value, ~mode: S.mode) => result<'any, S.Error.t>=?, unit) => S.t<'value>`
+
+You can also define your own custom struct factories that are specific to your application's requirements, like so:
+
+```rescript
+let nullableStruct = innerStruct =>
+  S.custom(
+    ~parser=(. ~unknown, ~mode) => {
+      switch unknown->Obj.magic->Js.Nullable.toOption {
+      | Some(innerValue) =>
+        innerValue->S.parseWith(~mode, innerStruct)->Belt.Result.map(value => Some(value))
+      | None => Ok(None)
+      }
+    },
+    ~serializer=(. ~value, ~mode) => {
+      switch value {
+      | Some(innerValue) => innerValue->S.serializeWith(~mode, innerStruct)
+      | None => Js.Null.empty->Obj.magic->Ok
+      }
+    },
+    (),
+  )
+
+"Hello world!"->S.parseWith(struct)
+%raw("null")->S.parseWith(struct)
+%raw("undefined")->S.parseWith(struct)
+123->S.parseWith(struct)
+```
+
+```rescript
+Ok(Some("Hello World!"))
+Ok(None)
+Ok(None)
+Error({
+  code: UnexpectedType({expected: "String", received: "Float"}),
+  operation: Parsing,
+  path: [],
+})
+```
+
+### Transforms
+
+**rescript-struct** allows structs to be augmented with transformation logic, letting you transform data during parsing and serializing. This is most commonly used to apply default values to an input, but it can be used for more complex cases like trimming strings, or mapping input to a convenient ReScript data structure.
+
+#### **`S.transform`**
+
+`(S.t<'value>, ~parser: 'value => result<'transformed, string>=?, ~serializer: 'transformed => result<'value, string>=?, unit) => S.t<'transformed>`
+
+```rescript
+let trimmed = S.transform(_, ~parser=s => s->Js.String2.trim->Ok, ~serializer=s => s->Js.String2.trim->Ok, ())
+```
+
+#### **`S.superTransform`**
+
+`(S.t<'value>, ~parser: (. ~value: 'value, ~struct: S.t<'value>, ~mode: S.mode) => result<'transformed, S.Error.t>=?, ~serializer: (. ~transformed: 'transformed, ~struct: S.t<'value>, ~mode: S.mode) => result<'value, S.Error.t>=?, unit) => S.t<'transformed>`
+
+```rescript
+let trimmedInSafeMode = S.superTransform(
+  _,
+  ~parser=(. ~value, ~struct as _, ~mode) =>
+    switch mode {
+    | Safe => value->Js.String2.trim
+    | Unsafe => value
+    }->Ok,
+  ~serializer=(. ~transformed, ~struct as _, ~mode) =>
+    switch mode {
+    | Safe => transformed->Js.String2.trim
+    | Unsafe => transformed
+    }->Ok,
+  (),
+)
+```
+
+The `.transform` and `.custom` functions are actually syntactic sugar atop a more versatile (and verbose) function called `superTransform`.
+
 ### Error handling
 
 **rescript-struct** returns a result type with error `S.Error.t` containing detailed information about the validation problems.
@@ -587,6 +664,18 @@ Error({
 ```rescript
 "[ReScript Struct] Failed parsing at root. Reason: Expected false, received true"
 ```
+
+#### **`S.Error.make`**
+
+`string => S.Error.t`
+
+A function to create a custom **rescript-struct** error for usage with `superTransform`.
+
+#### **`S.Error.prependLocation`**
+
+`(S.Error.t, string) => S.Error.t`
+
+A function to add location to the path field for usage with `superTransform`.
 
 ### Result helpers
 
@@ -622,50 +711,6 @@ true->S.parseWith(struct)->S.Result.mapErrorToString
 Error("[ReScript Struct] Failed parsing at root. Reason: Expected false, received true")
 ```
 
-### Transformations
-
-**rescript-struct** allows structs to be augmented with transformation logic, letting you transform data during parsing and serializing. This is most commonly used to apply default values to an input, but it can be used for more complex cases like trimming strings, or mapping input to a convenient ReScript data structure.
-
-#### **`S.transform`**
-
-`(S.t<'value>, ~parser: 'value => result<'transformedValue, string>=?, ~serializer: 'transformedValue => result<'value, string>=?, unit) => S.t<'transformedValue>`
-
-```rescript
-let trimmed = S.transform(_, ~parser=s => s->Js.String2.trim->Ok, ~serializer=s => s->Ok, ())
-```
-```rescript
-let nonEmptyString = () => {
-  S.string()->S.transform(
-    ~parser=s =>
-      switch s {
-      | "" => None
-      | s' => Some(s')
-      }->Ok,
-    ~serializer=nonEmptyString =>
-      {
-        switch nonEmptyString {
-        | Some(s) => s
-        | None => ""
-        }
-      }->Ok,
-    (),
-  )
-}
-```
-```rescript
-let date = () => {
-  S.float()->S.transform(~serializer=date => date->Js.Date.getTime->Ok, ())
-}
-```
-
-> 🧠 For transformation either a parser, or a serializer is required.
-
-#### **`S.transformUnknown`**
-
-`(S.t<unknown>, ~parser: unknown => result<'transformedValue, string>=?, ~serializer: 'transformedValue => result<'any, string>=?, unit) => S.t<'transformedValue>`
-
-The same as `S.transform` but has more convinient interface to work with `S.unknown` struct factory that can be used to create custom struct factories.
-
 ### Integration
 
 If you're a library maintainer, you can use **rescript-struct** as a way to describe a structure and use it in your own way. The most common use case is building type-safe schemas e.g for REST APIs, databases, and forms.
@@ -695,5 +740,5 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [ ] Design and add Refinements
 - [ ] Properly handle NaN
 - [ ] Design and add async transforms
-- [ ] Add super transforms
-- [ ] Add preprocess logic
+- [x] Add super transforms
+- [ ] Add preprocessors

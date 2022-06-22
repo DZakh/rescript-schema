@@ -97,15 +97,15 @@ module Error = {
       {operation: Serializing, code: self.code, path: self.path}
     }
 
-    let prependField = (error, field) => {
-      {
-        ...error,
-        path: [field]->Js.Array2.concat(error.path),
-      }
+    let fromPublic = (public: public): t => {
+      {code: public.code, path: public.path}
     }
 
-    let prependIndex = (error, index) => {
-      error->prependField(index->Js.Int.toString)
+    let prependLocation = (error, location) => {
+      {
+        ...error,
+        path: [location]->Js.Array2.concat(error.path),
+      }
     }
 
     module UnexpectedValue = {
@@ -150,7 +150,22 @@ module Error = {
     }
   }
 
-  // TODO: Write tests for this
+  let prependLocation = (error, location) => {
+    {
+      ...error,
+      path: [location]->Js.Array2.concat(error.path),
+    }
+  }
+
+  let make = reason => {
+    {
+      // This function is only needed for super<Transform/Refine>, so operation doesn't matter
+      operation: Parsing,
+      code: OperationFailed(reason),
+      path: [],
+    }
+  }
+
   let toString = error => {
     let prefix = `[ReScript Struct]`
     let operation = switch error.operation {
@@ -629,7 +644,7 @@ module Record = {
               idxRef.contents = idxRef.contents + 1
             }
           | Error(error) =>
-            maybeErrorRef.contents = Some(error->Error.Internal.prependField(fieldName))
+            maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(fieldName))
           }
         }
         if unknownKeys == Strict && mode == Safe {
@@ -669,7 +684,7 @@ module Record = {
             idxRef.contents = idxRef.contents + 1
           }
         | Error(error) =>
-          maybeErrorRef.contents = Some(error->Error.Internal.prependField(fieldName))
+          maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(fieldName))
         }
       }
 
@@ -941,7 +956,10 @@ module Array = {
                 newArray->Js.Array2.push(value)->ignore
                 idxRef.contents = idxRef.contents + 1
               }
-            | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependIndex(idx))
+            | Error(error) =>
+              maybeErrorRef.contents = Some(
+                error->Error.Internal.prependLocation(idx->Js.Int.toString),
+              )
             }
           }
           switch maybeErrorRef.contents {
@@ -968,7 +986,8 @@ module Array = {
             newArray->Js.Array2.push(value)->ignore
             idxRef.contents = idxRef.contents + 1
           }
-        | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependIndex(idx))
+        | Error(error) =>
+          maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(idx->Js.Int.toString))
         }
       }
       switch maybeErrorRef.contents {
@@ -1014,7 +1033,8 @@ module Dict = {
                 newDict->Js.Dict.set(key, value)->ignore
                 idxRef.contents = idxRef.contents + 1
               }
-            | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependField(key))
+            | Error(error) =>
+              maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(key))
             }
           }
           switch maybeErrorRef.contents {
@@ -1043,7 +1063,7 @@ module Dict = {
             newDict->Js.Dict.set(key, value)->ignore
             idxRef.contents = idxRef.contents + 1
           }
-        | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependField(key))
+        | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(key))
         }
       }
       switch maybeErrorRef.contents {
@@ -1130,7 +1150,10 @@ module Tuple = {
                 newArray->Js.Array2.push(value)->ignore
                 idxRef.contents = idxRef.contents + 1
               }
-            | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependIndex(idx))
+            | Error(error) =>
+              maybeErrorRef.contents = Some(
+                error->Error.Internal.prependLocation(idx->Js.Int.toString),
+              )
             }
           }
           switch maybeErrorRef.contents {
@@ -1166,7 +1189,8 @@ module Tuple = {
             newArray->Js.Array2.push(value)->ignore
             idxRef.contents = idxRef.contents + 1
           }
-        | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependIndex(idx))
+        | Error(error) =>
+          maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(idx->Js.Int.toString))
         }
       }
       switch maybeErrorRef.contents {
@@ -1417,7 +1441,72 @@ let transform = (
     },
   }
 }
-let transformUnknown = transform
+
+let superTransform = (
+  struct,
+  ~parser as maybeTransformationParser=?,
+  ~serializer as maybeTransformationSerializer=?,
+  (),
+) => {
+  if maybeTransformationParser === None && maybeTransformationSerializer === None {
+    Error.MissingParserAndSerializer.raise(`struct factory Transform`)
+  }
+
+  {
+    ...struct,
+    maybeParsers: switch (struct.maybeParsers, maybeTransformationParser) {
+    | (Some(parsers), Some(transformationParser)) =>
+      parsers
+      ->Js.Array2.concat([
+        Operation.transform((~input, ~struct, ~mode) => {
+          transformationParser(. ~value=input, ~struct, ~mode)->Lib.Result.mapError(
+            Error.Internal.fromPublic,
+          )
+        }),
+      ])
+      ->Some
+    | (_, _) => None
+    },
+    maybeSerializers: switch (struct.maybeSerializers, maybeTransformationSerializer) {
+    | (Some(serializers), Some(transformationSerializer)) =>
+      [
+        Operation.transform((~input, ~struct, ~mode) => {
+          transformationSerializer(. ~transformed=input, ~struct, ~mode)->Lib.Result.mapError(
+            Error.Internal.fromPublic,
+          )
+        }),
+      ]
+      ->Js.Array2.concat(serializers)
+      ->Some
+    | (_, _) => None
+    },
+  }
+}
+
+let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializer=?, ()) => {
+  if maybeCustomParser === None && maybeCustomSerializer === None {
+    Error.MissingParserAndSerializer.raise(`Custom struct factory`)
+  }
+
+  {
+    tagged_t: Unknown,
+    maybeMetadata: None,
+    maybeParsers: maybeCustomParser->Lib.Option.map(customParser => {
+      [
+        Operation.transform((~input, ~struct as _, ~mode) => {
+          customParser(. ~unknown=input, ~mode)->Lib.Result.mapError(Error.Internal.fromPublic)
+        }),
+      ]
+    }),
+    maybeSerializers: maybeCustomSerializer->Lib.Option.map(customSerializer => {
+      [
+        Operation.transform((~input, ~struct as _, ~mode) => {
+          customSerializer(. ~value=input, ~mode)->Lib.Result.mapError(Error.Internal.fromPublic)
+        }),
+      ]
+    }),
+  }
+}
 
 module MakeMetadata = (
   Config: {
