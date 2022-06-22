@@ -104,7 +104,10 @@ function toString(error) {
       case /* UnexpectedValue */2 :
           exit = 1;
           break;
-      case /* ExcessField */3 :
+      case /* TupleSize */3 :
+          reason$1 = "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString();
+          break;
+      case /* ExcessField */4 :
           reason$1 = "Encountered disallowed excess key \"" + reason._0 + "\" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely";
           break;
       
@@ -606,7 +609,7 @@ var parsers = [{
           if (excessKey !== undefined) {
             maybeErrorRef = {
               code: {
-                TAG: /* ExcessField */3,
+                TAG: /* ExcessField */4,
                 _0: excessKey
               },
               path: []
@@ -1201,18 +1204,14 @@ var parsers$12 = [{
           maybeRefinementError = undefined;
         } else if (Array.isArray(input)) {
           var numberOfInputItems = input.length;
-          if (numberOfStructs === numberOfInputItems) {
-            maybeRefinementError = undefined;
-          } else {
-            var code = {
-              TAG: /* OperationFailed */0,
-              _0: "Expected Tuple with " + numberOfStructs.toString() + " items, but received " + numberOfInputItems.toString()
-            };
-            maybeRefinementError = {
-              code: code,
-              path: []
-            };
-          }
+          maybeRefinementError = numberOfStructs === numberOfInputItems ? undefined : ({
+                code: {
+                  TAG: /* TupleSize */3,
+                  expected: numberOfStructs,
+                  received: numberOfInputItems
+                },
+                path: []
+              });
         } else {
           maybeRefinementError = makeUnexpectedTypeError(input, struct);
         }

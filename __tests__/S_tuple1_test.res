@@ -19,7 +19,10 @@ module Common = {
     t->Assert.deepEqual(
       wrongAny->S.parseWith(struct),
       Error({
-        code: OperationFailed("Expected Tuple with 1 items, but received 2"),
+        code: TupleSize({
+          expected: 1,
+          received: 2,
+        }),
         operation: Parsing,
         path: [],
       }),

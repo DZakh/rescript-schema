@@ -8,6 +8,7 @@ module Error: {
     | MissingSerializer
     | UnexpectedType({expected: string, received: string})
     | UnexpectedValue({expected: string, received: string})
+    | TupleSize({expected: int, received: int})
     | ExcessField(string)
   type t = {operation: operation, code: code, path: array<string>}
 

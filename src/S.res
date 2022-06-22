@@ -76,6 +76,7 @@ module Error = {
     | MissingSerializer
     | UnexpectedType({expected: string, received: string})
     | UnexpectedValue({expected: string, received: string})
+    | TupleSize({expected: int, received: int})
     | ExcessField(string)
   type t = {operation: operation, code: code, path: array<string>}
 
@@ -166,6 +167,8 @@ module Error = {
     | UnexpectedType({expected, received})
     | UnexpectedValue({expected, received}) =>
       `Expected ${expected}, received ${received}`
+    | TupleSize({expected, received}) =>
+      `Expected Tuple with ${expected->Js.Int.toString} items, received ${received->Js.Int.toString}`
     }
     `${prefix} Failed ${operation} at ${pathText}. Reason: ${reason}`
   }
@@ -1102,9 +1105,10 @@ module Tuple = {
           | false =>
             Some(
               Error.Internal.make(
-                OperationFailed(
-                  `Expected Tuple with ${numberOfStructs->Js.Int.toString} items, but received ${numberOfInputItems->Js.Int.toString}`,
-                ),
+                TupleSize({
+                  expected: numberOfStructs,
+                  received: numberOfInputItems,
+                }),
               ),
             )
           }
