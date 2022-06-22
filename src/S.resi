@@ -27,8 +27,9 @@ type rec literal<'value> =
   | Int(int): literal<int>
   | Float(float): literal<float>
   | Bool(bool): literal<bool>
-  | EmptyNull: literal<option<never>>
-  | EmptyOption: literal<option<never>>
+  | EmptyNull: literal<unit>
+  | EmptyOption: literal<unit>
+  | NaN: literal<unit>
 
 type mode = Safe | Unsafe
 
@@ -68,7 +69,6 @@ let int: unit => t<int>
 let float: unit => t<float>
 let literal: literal<'value> => t<'value>
 let literalVariant: (literal<'value>, 'variant) => t<'variant>
-let literalUnit: literal<'value> => t<unit>
 let array: t<'value> => t<array<'value>>
 let dict: t<'value> => t<Js.Dict.t<'value>>
 let option: t<'value> => t<option<'value>>

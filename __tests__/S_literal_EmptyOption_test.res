@@ -1,8 +1,8 @@
 open Ava
 
 module Common = {
-  let value = None
-  let wrongValue = Some(%raw(`123`))
+  let value = ()
+  let wrongValue = %raw(`123`)
   let any = %raw(`undefined`)
   let wrongTypeAny = %raw(`"Hello world!"`)
   let factory = () => S.literal(EmptyOption)

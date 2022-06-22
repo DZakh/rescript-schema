@@ -46,7 +46,7 @@ module Advanced = {
 
   let shapeStruct = {
     let circleStruct = S.record2(.
-      ("kind", S.literalUnit(String("circle"))),
+      ("kind", S.literalVariant(String("circle"), ())),
       ("radius", S.float()),
     )->S.transform(
       ~parser=(((), radius)) => Circle({radius: radius})->Ok,
@@ -58,7 +58,7 @@ module Advanced = {
       (),
     )
     let squareStruct = S.record2(.
-      ("kind", S.literalUnit(String("square"))),
+      ("kind", S.literalVariant(String("square"), ())),
       ("x", S.float()),
     )->S.transform(
       ~parser=(((), x)) => Square({x: x})->Ok,
@@ -70,7 +70,7 @@ module Advanced = {
       (),
     )
     let triangleStruct = S.record3(.
-      ("kind", S.literalUnit(String("triangle"))),
+      ("kind", S.literalVariant(String("triangle"), ())),
       ("x", S.float()),
       ("y", S.float()),
     )->S.transform(

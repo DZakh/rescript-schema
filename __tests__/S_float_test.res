@@ -44,3 +44,17 @@ test("Successfully parses number with a fractional part", t => {
 
   t->Assert.deepEqual(%raw(`123.123`)->S.parseWith(struct), Ok(123.123), ())
 })
+
+test("Fails to parse NaN", t => {
+  let struct = S.float()
+
+  t->Assert.deepEqual(
+    %raw(`NaN`)->S.parseWith(struct),
+    Error({
+      code: UnexpectedType({expected: "Float", received: "NaN Literal (NaN)"}),
+      operation: Parsing,
+      path: [],
+    }),
+    (),
+  )
+})

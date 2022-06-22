@@ -171,22 +171,27 @@ function toString$1(tagged_t) {
       case /* Literal */0 :
           var literal = tagged_t._0;
           if (typeof literal === "number") {
-            if (literal === /* EmptyNull */0) {
-              return "EmptyNull Literal (null)";
-            } else {
-              return "EmptyOption Literal (undefined)";
+            switch (literal) {
+              case /* EmptyNull */0 :
+                  return "EmptyNull Literal (null)";
+              case /* EmptyOption */1 :
+                  return "EmptyOption Literal (undefined)";
+              case /* NaN */2 :
+                  return "NaN Literal (NaN)";
+              
             }
-          }
-          switch (literal.TAG | 0) {
-            case /* String */0 :
-                return "String Literal (\"" + literal._0 + "\")";
-            case /* Int */1 :
-                return "Int Literal (" + literal._0 + ")";
-            case /* Float */2 :
-                return "Float Literal (" + literal._0 + ")";
-            case /* Bool */3 :
-                return "Bool Literal (" + literal._0 + ")";
-            
+          } else {
+            switch (literal.TAG | 0) {
+              case /* String */0 :
+                  return "String Literal (\"" + literal._0 + "\")";
+              case /* Int */1 :
+                  return "Int Literal (" + literal._0 + ")";
+              case /* Float */2 :
+                  return "Float Literal (" + literal._0 + ")";
+              case /* Bool */3 :
+                  return "Bool Literal (" + literal._0 + ")";
+              
+            }
           }
       case /* Option */1 :
           return "Option";
@@ -232,7 +237,7 @@ function makeUnexpectedTypeError(input, struct) {
   } else {
     switch (typesTagged.TAG | 0) {
       case /* JSNumber */0 :
-          received = "Float";
+          received = Number.isNaN(typesTagged._0) ? "NaN Literal (NaN)" : "Float";
           break;
       case /* JSString */1 :
           received = "String";
@@ -426,7 +431,7 @@ var serializerTransform$1 = {
 var parserRefinement$2 = {
   TAG: /* Refinement */1,
   _0: (function (input, struct) {
-      if (typeof input === "boolean") {
+      if (Number.isNaN(input)) {
         return ;
       } else {
         return makeUnexpectedTypeError(input, struct);
@@ -434,10 +439,20 @@ var parserRefinement$2 = {
     })
 };
 
+var serializerTransform$2 = {
+  TAG: /* Transform */0,
+  _0: (function (param, param$1, param$2) {
+      return {
+              TAG: /* Ok */0,
+              _0: NaN
+            };
+    })
+};
+
 var parserRefinement$3 = {
   TAG: /* Refinement */1,
   _0: (function (input, struct) {
-      if (typeof input === "string") {
+      if (typeof input === "boolean") {
         return ;
       } else {
         return makeUnexpectedTypeError(input, struct);
@@ -448,7 +463,7 @@ var parserRefinement$3 = {
 var parserRefinement$4 = {
   TAG: /* Refinement */1,
   _0: (function (input, struct) {
-      if (typeof input === "number") {
+      if (typeof input === "string") {
         return ;
       } else {
         return makeUnexpectedTypeError(input, struct);
@@ -457,6 +472,17 @@ var parserRefinement$4 = {
 };
 
 var parserRefinement$5 = {
+  TAG: /* Refinement */1,
+  _0: (function (input, struct) {
+      if (typeof input === "number") {
+        return ;
+      } else {
+        return makeUnexpectedTypeError(input, struct);
+      }
+    })
+};
+
+var parserRefinement$6 = {
   TAG: /* Refinement */1,
   _0: (function (input, struct) {
       if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
@@ -492,100 +518,112 @@ function factory(innerLiteral, variant) {
       })
   };
   if (typeof innerLiteral === "number") {
-    if (innerLiteral === /* EmptyNull */0) {
-      return {
-              tagged_t: tagged_t,
-              maybeParsers: [
-                parserRefinement,
-                parserTransform
-              ],
-              maybeSerializers: [
-                serializerRefinement,
-                serializerTransform
-              ],
-              maybeMetadata: undefined
-            };
-    } else {
-      return {
-              tagged_t: tagged_t,
-              maybeParsers: [
-                parserRefinement$1,
-                parserTransform
-              ],
-              maybeSerializers: [
-                serializerRefinement,
-                serializerTransform$1
-              ],
-              maybeMetadata: undefined
-            };
+    switch (innerLiteral) {
+      case /* EmptyNull */0 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeParsers: [
+                    parserRefinement,
+                    parserTransform
+                  ],
+                  maybeSerializers: [
+                    serializerRefinement,
+                    serializerTransform
+                  ],
+                  maybeMetadata: undefined
+                };
+      case /* EmptyOption */1 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeParsers: [
+                    parserRefinement$1,
+                    parserTransform
+                  ],
+                  maybeSerializers: [
+                    serializerRefinement,
+                    serializerTransform$1
+                  ],
+                  maybeMetadata: undefined
+                };
+      case /* NaN */2 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeParsers: [
+                    parserRefinement$2,
+                    parserTransform
+                  ],
+                  maybeSerializers: [
+                    serializerRefinement,
+                    serializerTransform$2
+                  ],
+                  maybeMetadata: undefined
+                };
+      
     }
-  }
-  switch (innerLiteral.TAG | 0) {
-    case /* String */0 :
-        return {
-                tagged_t: tagged_t,
-                maybeParsers: [
-                  parserRefinement$3,
-                  literalValueRefinement,
-                  parserTransform
-                ],
-                maybeSerializers: [
-                  serializerRefinement,
-                  transformToLiteralValue
-                ],
-                maybeMetadata: undefined
-              };
-    case /* Int */1 :
-        return {
-                tagged_t: tagged_t,
-                maybeParsers: [
-                  parserRefinement$5,
-                  literalValueRefinement,
-                  parserTransform
-                ],
-                maybeSerializers: [
-                  serializerRefinement,
-                  transformToLiteralValue
-                ],
-                maybeMetadata: undefined
-              };
-    case /* Float */2 :
-        return {
-                tagged_t: tagged_t,
-                maybeParsers: [
-                  parserRefinement$4,
-                  literalValueRefinement,
-                  parserTransform
-                ],
-                maybeSerializers: [
-                  serializerRefinement,
-                  transformToLiteralValue
-                ],
-                maybeMetadata: undefined
-              };
-    case /* Bool */3 :
-        return {
-                tagged_t: tagged_t,
-                maybeParsers: [
-                  parserRefinement$2,
-                  literalValueRefinement,
-                  parserTransform
-                ],
-                maybeSerializers: [
-                  serializerRefinement,
-                  transformToLiteralValue
-                ],
-                maybeMetadata: undefined
-              };
-    
+  } else {
+    switch (innerLiteral.TAG | 0) {
+      case /* String */0 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeParsers: [
+                    parserRefinement$4,
+                    literalValueRefinement,
+                    parserTransform
+                  ],
+                  maybeSerializers: [
+                    serializerRefinement,
+                    transformToLiteralValue
+                  ],
+                  maybeMetadata: undefined
+                };
+      case /* Int */1 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeParsers: [
+                    parserRefinement$6,
+                    literalValueRefinement,
+                    parserTransform
+                  ],
+                  maybeSerializers: [
+                    serializerRefinement,
+                    transformToLiteralValue
+                  ],
+                  maybeMetadata: undefined
+                };
+      case /* Float */2 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeParsers: [
+                    parserRefinement$5,
+                    literalValueRefinement,
+                    parserTransform
+                  ],
+                  maybeSerializers: [
+                    serializerRefinement,
+                    transformToLiteralValue
+                  ],
+                  maybeMetadata: undefined
+                };
+      case /* Bool */3 :
+          return {
+                  tagged_t: tagged_t,
+                  maybeParsers: [
+                    parserRefinement$3,
+                    literalValueRefinement,
+                    parserTransform
+                  ],
+                  maybeSerializers: [
+                    serializerRefinement,
+                    transformToLiteralValue
+                  ],
+                  maybeMetadata: undefined
+                };
+      
+    }
   }
 }
 
 function factory$1(innerLiteral) {
-  return factory(innerLiteral, undefined);
-}
-
-function factory$2(innerLiteral) {
   if (typeof innerLiteral === "number") {
     return factory(innerLiteral, undefined);
   } else {
@@ -711,7 +749,7 @@ function innerFactory(fieldsArray) {
         };
 }
 
-var factory$3 = callWithArguments(innerFactory);
+var factory$2 = callWithArguments(innerFactory);
 
 function strip(struct) {
   var tagged_t = struct.tagged_t;
@@ -758,7 +796,7 @@ var parsers$1 = [{
       })
   }];
 
-function factory$4(param) {
+function factory$3(param) {
   return {
           tagged_t: /* Never */0,
           maybeParsers: parsers$1,
@@ -767,7 +805,7 @@ function factory$4(param) {
         };
 }
 
-function factory$5(param) {
+function factory$4(param) {
   return {
           tagged_t: /* Unknown */1,
           maybeParsers: empty,
@@ -787,7 +825,7 @@ var parsers$2 = [{
       })
   }];
 
-function factory$6(param) {
+function factory$5(param) {
   return {
           tagged_t: /* String */2,
           maybeParsers: parsers$2,
@@ -807,7 +845,7 @@ var parsers$3 = [{
       })
   }];
 
-function factory$7(param) {
+function factory$6(param) {
   return {
           tagged_t: /* Bool */5,
           maybeParsers: parsers$3,
@@ -827,7 +865,7 @@ var parsers$4 = [{
       })
   }];
 
-function factory$8(param) {
+function factory$7(param) {
   return {
           tagged_t: /* Int */3,
           maybeParsers: parsers$4,
@@ -839,7 +877,7 @@ function factory$8(param) {
 var parsers$5 = [{
     TAG: /* Refinement */1,
     _0: (function (input, struct) {
-        if (typeof input === "number") {
+        if (typeof input === "number" && !Number.isNaN(input)) {
           return ;
         } else {
           return makeUnexpectedTypeError(input, struct);
@@ -847,7 +885,7 @@ var parsers$5 = [{
       })
   }];
 
-function factory$9(param) {
+function factory$8(param) {
   return {
           tagged_t: /* Float */4,
           maybeParsers: parsers$5,
@@ -892,7 +930,7 @@ var serializers$1 = [{
       })
   }];
 
-function factory$10(innerStruct) {
+function factory$9(innerStruct) {
   return {
           tagged_t: {
             TAG: /* Null */2,
@@ -940,7 +978,7 @@ var serializers$2 = [{
       })
   }];
 
-function factory$11(innerStruct) {
+function factory$10(innerStruct) {
   return {
           tagged_t: {
             TAG: /* Option */1,
@@ -988,7 +1026,7 @@ var serializers$3 = [{
       })
   }];
 
-function factory$12(maybeMessage, innerStruct) {
+function factory$11(maybeMessage, innerStruct) {
   return {
           tagged_t: {
             TAG: /* Deprecated */8,
@@ -1074,7 +1112,7 @@ var serializers$4 = [{
       })
   }];
 
-function factory$13(innerStruct) {
+function factory$12(innerStruct) {
   return {
           tagged_t: {
             TAG: /* Array */3,
@@ -1163,7 +1201,7 @@ var serializers$5 = [{
       })
   }];
 
-function factory$14(innerStruct) {
+function factory$13(innerStruct) {
   return {
           tagged_t: {
             TAG: /* Dict */7,
@@ -1207,7 +1245,7 @@ var serializers$6 = [{
       })
   }];
 
-function factory$15(innerStruct, defaultValue) {
+function factory$14(innerStruct, defaultValue) {
   return {
           tagged_t: {
             TAG: /* Default */9,
@@ -1327,7 +1365,7 @@ function innerFactory$1(structs) {
         };
 }
 
-var factory$16 = callWithArguments(innerFactory$1);
+var factory$15 = callWithArguments(innerFactory$1);
 
 var parsers$13 = [{
     TAG: /* Transform */0,
@@ -1391,7 +1429,7 @@ var serializers$8 = [{
       })
   }];
 
-function factory$17(structs) {
+function factory$16(structs) {
   if (structs.length < 2) {
     raise("A Union struct factory require at least two structs");
   }
@@ -1707,91 +1745,89 @@ var $$Error = {
   toString: toString
 };
 
-var never = factory$4;
+var never = factory$3;
 
-var unknown = factory$5;
+var unknown = factory$4;
 
-var string = factory$6;
+var string = factory$5;
 
-var bool = factory$7;
+var bool = factory$6;
 
-var $$int = factory$8;
+var $$int = factory$7;
 
-var $$float = factory$9;
+var $$float = factory$8;
 
-var literal = factory$2;
+var literal = factory$1;
 
 var literalVariant = factory;
 
-var literalUnit = factory$1;
+var array = factory$12;
 
-var array = factory$13;
+var dict = factory$13;
 
-var dict = factory$14;
+var option = factory$10;
 
-var option = factory$11;
+var $$null = factory$9;
 
-var $$null = factory$10;
+var deprecated = factory$11;
 
-var deprecated = factory$12;
+var $$default = factory$14;
 
-var $$default = factory$15;
-
-var union = factory$17;
+var union = factory$16;
 
 var Record = {
-  factory: factory$3,
+  factory: factory$2,
   strip: strip,
   strict: strict
 };
 
-var record0 = factory$3;
+var record0 = factory$2;
 
-var record1 = factory$3;
+var record1 = factory$2;
 
-var record2 = factory$3;
+var record2 = factory$2;
 
-var record3 = factory$3;
+var record3 = factory$2;
 
-var record4 = factory$3;
+var record4 = factory$2;
 
-var record5 = factory$3;
+var record5 = factory$2;
 
-var record6 = factory$3;
+var record6 = factory$2;
 
-var record7 = factory$3;
+var record7 = factory$2;
 
-var record8 = factory$3;
+var record8 = factory$2;
 
-var record9 = factory$3;
+var record9 = factory$2;
 
-var record10 = factory$3;
+var record10 = factory$2;
 
 var Tuple = {
-  factory: factory$16
+  factory: factory$15
 };
 
-var tuple0 = factory$16;
+var tuple0 = factory$15;
 
-var tuple1 = factory$16;
+var tuple1 = factory$15;
 
-var tuple2 = factory$16;
+var tuple2 = factory$15;
 
-var tuple3 = factory$16;
+var tuple3 = factory$15;
 
-var tuple4 = factory$16;
+var tuple4 = factory$15;
 
-var tuple5 = factory$16;
+var tuple5 = factory$15;
 
-var tuple6 = factory$16;
+var tuple6 = factory$15;
 
-var tuple7 = factory$16;
+var tuple7 = factory$15;
 
-var tuple8 = factory$16;
+var tuple8 = factory$15;
 
-var tuple9 = factory$16;
+var tuple9 = factory$15;
 
-var tuple10 = factory$16;
+var tuple10 = factory$15;
 
 function MakeMetadata(funarg) {
   var get = function (struct) {
@@ -1832,7 +1868,6 @@ exports.$$int = $$int;
 exports.$$float = $$float;
 exports.literal = literal;
 exports.literalVariant = literalVariant;
-exports.literalUnit = literalUnit;
 exports.array = array;
 exports.dict = dict;
 exports.option = option;

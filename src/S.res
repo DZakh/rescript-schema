@@ -197,8 +197,9 @@ type rec literal<'value> =
   | Int(int): literal<int>
   | Float(float): literal<float>
   | Bool(bool): literal<bool>
-  | EmptyNull: literal<option<never>>
-  | EmptyOption: literal<option<never>>
+  | EmptyNull: literal<unit>
+  | EmptyOption: literal<unit>
+  | NaN: literal<unit>
 
 type mode = Safe | Unsafe
 type recordUnknownKeys =
@@ -269,6 +270,7 @@ module TaggedT = {
       | Bool(value) => j`Bool Literal ($value)`
       | EmptyNull => `EmptyNull Literal (null)`
       | EmptyOption => `EmptyOption Literal (undefined)`
+      | NaN => `NaN Literal (NaN)`
       }
     | Option(_) => "Option"
     | Null(_) => "Null"
@@ -289,6 +291,7 @@ let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   | JSFalse | JSTrue => "Bool"
   | JSString(_) => "String"
   | JSNull => "Null"
+  | JSNumber(number) if Js.Float.isNaN(number) => "NaN Literal (NaN)"
   | JSNumber(_) => "Float"
   | JSObject(_) => "Object"
   | JSFunction(_) => "Function"
@@ -299,9 +302,6 @@ let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   Error.Internal.make(UnexpectedType({expected: expected, received: received}))
 }
 
-// TODO: Test that it's the correct logic
-// TODO: Write tests for NaN
-// TODO: Handle NaN for float
 @inline
 let checkIsIntNumber = x => x < 2147483648. && x > -2147483649. && x === x->Js.Math.trunc
 
@@ -453,6 +453,19 @@ module Literal = {
     })
   }
 
+  module NaN = {
+    let parserRefinement = Operation.refinement((~input, ~struct) => {
+      switch Js.Float.isNaN(input) {
+      | true => None
+      | false => Some(makeUnexpectedTypeError(~input, ~struct))
+      }
+    })
+
+    let serializerTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
+      Ok(Js.Float._NaN)
+    })
+  }
+
   module Bool = {
     let parserRefinement = Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "boolean" {
@@ -522,6 +535,12 @@ module Literal = {
             maybeSerializers: Some([serializerRefinement, EmptyOption.serializerTransform]),
             maybeMetadata: None,
           }
+        | NaN => {
+            tagged_t: tagged_t,
+            maybeParsers: Some([NaN.parserRefinement, parserTransform]),
+            maybeSerializers: Some([serializerRefinement, NaN.serializerTransform]),
+            maybeMetadata: None,
+          }
         | Bool(_) => {
             tagged_t: tagged_t,
             maybeParsers: Some([
@@ -578,18 +597,13 @@ module Literal = {
       }
   }
 
-  module Unit = {
-    let factory = innerLiteral => {
-      Variant.factory(innerLiteral, ())
-    }
-  }
-
   let factory:
     type value. literal<value> => t<value> =
     innerLiteral => {
       switch innerLiteral {
-      | EmptyNull => Variant.factory(innerLiteral, None)
-      | EmptyOption => Variant.factory(innerLiteral, None)
+      | EmptyNull => Variant.factory(innerLiteral, ())
+      | EmptyOption => Variant.factory(innerLiteral, ())
+      | NaN => Variant.factory(innerLiteral, ())
       | Bool(value) => Variant.factory(innerLiteral, value)
       | String(value) => Variant.factory(innerLiteral, value)
       | Float(value) => Variant.factory(innerLiteral, value)
@@ -814,7 +828,11 @@ module Float = {
   let parsers = [
     Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "number" {
-      | true => None
+      | true =>
+        switch Js.Float.isNaN(input) {
+        | true => Some(makeUnexpectedTypeError(~input, ~struct))
+        | false => None
+        }
       | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
     }),
@@ -1310,7 +1328,6 @@ let dict = Dict.factory
 let default = Default.factory
 let literal = Literal.factory
 let literalVariant = Literal.Variant.factory
-let literalUnit = Literal.Unit.factory
 let tuple0 = Tuple.factory
 let tuple1 = Tuple.factory
 let tuple2 = Tuple.factory

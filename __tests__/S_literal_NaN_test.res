@@ -3,9 +3,9 @@ open Ava
 module Common = {
   let value = ()
   let wrongValue = %raw(`123`)
-  let any = %raw(`null`)
+  let any = %raw(`NaN`)
   let wrongTypeAny = %raw(`"Hello world!"`)
-  let factory = () => S.literal(EmptyNull)
+  let factory = () => S.literal(NaN)
 
   test("Successfully parses in Safe mode", t => {
     let struct = factory()
@@ -28,7 +28,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongTypeAny->S.parseWith(struct),
       Error({
-        code: UnexpectedType({expected: "EmptyNull Literal (null)", received: "String"}),
+        code: UnexpectedType({expected: "NaN Literal (NaN)", received: "String"}),
         operation: Parsing,
         path: [],
       }),

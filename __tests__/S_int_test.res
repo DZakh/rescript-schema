@@ -68,3 +68,17 @@ test("Fails to parse int when JSON is a number lower than -2^31", t => {
   )
   t->Assert.deepEqual(%raw(`-2147483648`)->S.parseWith(struct), Ok(-2147483648), ())
 })
+
+test("Fails to parse NaN", t => {
+  let struct = S.int()
+
+  t->Assert.deepEqual(
+    %raw(`NaN`)->S.parseWith(struct),
+    Error({
+      code: UnexpectedType({expected: "Int", received: "NaN Literal (NaN)"}),
+      operation: Parsing,
+      path: [],
+    }),
+    (),
+  )
+})

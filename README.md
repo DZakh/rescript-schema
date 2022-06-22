@@ -306,6 +306,7 @@ let importantTimestampStruct = S.literal(Float(1652628345865.))
 let truStruct = S.literal(Bool(true))
 let nullStruct = S.literal(EmptyNull)
 let undefinedStruct = S.literal(EmptyOption)
+let nanStruct = S.literal(NaN)
 ```
 
 `literal` struct enforces that a data matches an exact value using the === operator.
@@ -326,22 +327,6 @@ Ok(Apple)
 ```
 
 The same as `literal` struct factory, but with a convenient way to transform data to ReScript value.
-
-#### **`S.literalUnit`**
-
-`(S.literal<'value>) => S.t<unit>`
-
-```rescript
-let struct = S.literalUnit(EmptyOption)
-
-%raw(`undefined`)->S.parseWith(struct)
-```
-
-```rescript
-Ok()
-```
-
-The same as `literal` struct factory, but with a convenient way to transform data to ReScript unit. It's useful for parsing function return data.
 
 #### **`S.record0` - `S.record10`**
 
@@ -501,18 +486,18 @@ type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, 
 
 let shapeStruct = {
   let circleStruct = S.record2(.
-    ("kind", S.literalUnit(String("circle"))),
+    ("kind", S.literal(String("circle"))),
     ("radius", S.float()),
-  )->S.transform(~parser=(((), radius)) => Circle({radius: radius})->Ok, ())
+  )->S.transform(~parser=((_, radius)) => Circle({radius: radius})->Ok, ())
   let squareStruct = S.record2(.
-    ("kind", S.literalUnit(String("square"))),
+    ("kind", S.literal(String("square"))),
     ("x", S.float()),
-  )->S.transform(~parser=(((), x)) => Square({x: x})->Ok, ())
+  )->S.transform(~parser=((_, x)) => Square({x: x})->Ok, ())
   let triangleStruct = S.record3(.
-    ("kind", S.literalUnit(String("triangle"))),
+    ("kind", S.literal(String("triangle"))),
     ("x", S.float()),
     ("y", S.float()),
-  )->S.transform(~parser=(((), x, y)) => Triangle({x: x, y: y})->Ok, ())
+  )->S.transform(~parser=((_, x, y)) => Triangle({x: x, y: y})->Ok, ())
   S.union([circleStruct, squareStruct, triangleStruct])
 }
 
