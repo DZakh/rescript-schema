@@ -1,6 +1,23 @@
 external unsafeToAny: 'a => 'b = "%identity"
 
 module Lib = {
+  module Url = {
+    type t
+
+    @new
+    external make: string => t = "URL"
+
+    @inline
+    let test = string => {
+      try {
+        make(string)->ignore
+        true
+      } catch {
+      | _ => false
+      }
+    }
+  }
+
   module Fn = {
     let callWithArguments = fn => {
       fn->ignore
@@ -408,6 +425,159 @@ module Operation = {
   let empty: array<operation> = []
 }
 
+let refine: (
+  t<'value>,
+  ~parser: 'value => option<string>=?,
+  ~serializer: 'value => option<string>=?,
+  unit,
+) => t<'value> = (
+  struct,
+  ~parser as maybeParserRefine=?,
+  ~serializer as maybeSerializerRefine=?,
+  (),
+) => {
+  if maybeParserRefine === None && maybeSerializerRefine === None {
+    Error.MissingParserAndSerializer.raise(`struct factory Refine`)
+  }
+
+  {
+    ...struct,
+    maybeParsers: switch (struct.maybeParsers, maybeParserRefine) {
+    | (Some(parsers), Some(parserRefine)) =>
+      parsers
+      ->Js.Array2.concat([
+        Operation.refinement((~input, ~struct as _) => {
+          (parserRefine->unsafeToAny)(. input)->Lib.Option.map(reason =>
+            Error.Internal.make(OperationFailed(reason))
+          )
+        }),
+      ])
+      ->Some
+    | (_, _) => None
+    },
+    maybeSerializers: switch (struct.maybeSerializers, maybeSerializerRefine) {
+    | (Some(serializers), Some(serializerRefine)) =>
+      [
+        Operation.refinement((~input, ~struct as _) => {
+          (serializerRefine->unsafeToAny)(. input)->Lib.Option.map(reason =>
+            Error.Internal.make(OperationFailed(reason))
+          )
+        }),
+      ]
+      ->Js.Array2.concat(serializers)
+      ->Some
+    | (_, _) => None
+    },
+  }
+}
+
+let transform = (
+  struct,
+  ~parser as maybeTransformationParser=?,
+  ~serializer as maybeTransformationSerializer=?,
+  (),
+) => {
+  if maybeTransformationParser === None && maybeTransformationSerializer === None {
+    Error.MissingParserAndSerializer.raise(`struct factory Transform`)
+  }
+
+  {
+    ...struct,
+    maybeParsers: switch (struct.maybeParsers, maybeTransformationParser) {
+    | (Some(parsers), Some(transformationParser)) =>
+      parsers
+      ->Js.Array2.concat([
+        Operation.transform((~input, ~struct as _, ~mode as _) => {
+          (transformationParser->unsafeToAny)(. input)->Lib.Result.mapError(reason =>
+            Error.Internal.make(OperationFailed(reason))
+          )
+        }),
+      ])
+      ->Some
+    | (_, _) => None
+    },
+    maybeSerializers: switch (struct.maybeSerializers, maybeTransformationSerializer) {
+    | (Some(serializers), Some(transformationSerializer)) =>
+      [
+        Operation.transform((~input, ~struct as _, ~mode as _) => {
+          (transformationSerializer->unsafeToAny)(. input)->Lib.Result.mapError(reason =>
+            Error.Internal.make(OperationFailed(reason))
+          )
+        }),
+      ]
+      ->Js.Array2.concat(serializers)
+      ->Some
+    | (_, _) => None
+    },
+  }
+}
+
+let superTransform = (
+  struct,
+  ~parser as maybeTransformationParser=?,
+  ~serializer as maybeTransformationSerializer=?,
+  (),
+) => {
+  if maybeTransformationParser === None && maybeTransformationSerializer === None {
+    Error.MissingParserAndSerializer.raise(`struct factory Transform`)
+  }
+
+  {
+    ...struct,
+    maybeParsers: switch (struct.maybeParsers, maybeTransformationParser) {
+    | (Some(parsers), Some(transformationParser)) =>
+      parsers
+      ->Js.Array2.concat([
+        Operation.transform((~input, ~struct, ~mode) => {
+          transformationParser(. ~value=input, ~struct, ~mode)->Lib.Result.mapError(
+            Error.Internal.fromPublic,
+          )
+        }),
+      ])
+      ->Some
+    | (_, _) => None
+    },
+    maybeSerializers: switch (struct.maybeSerializers, maybeTransformationSerializer) {
+    | (Some(serializers), Some(transformationSerializer)) =>
+      [
+        Operation.transform((~input, ~struct, ~mode) => {
+          transformationSerializer(. ~transformed=input, ~struct, ~mode)->Lib.Result.mapError(
+            Error.Internal.fromPublic,
+          )
+        }),
+      ]
+      ->Js.Array2.concat(serializers)
+      ->Some
+    | (_, _) => None
+    },
+  }
+}
+
+let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializer=?, ()) => {
+  if maybeCustomParser === None && maybeCustomSerializer === None {
+    Error.MissingParserAndSerializer.raise(`Custom struct factory`)
+  }
+
+  {
+    tagged_t: Unknown,
+    maybeMetadata: None,
+    maybeParsers: maybeCustomParser->Lib.Option.map(customParser => {
+      [
+        Operation.transform((~input, ~struct as _, ~mode) => {
+          customParser(. ~unknown=input, ~mode)->Lib.Result.mapError(Error.Internal.fromPublic)
+        }),
+      ]
+    }),
+    maybeSerializers: maybeCustomSerializer->Lib.Option.map(customSerializer => {
+      [
+        Operation.transform((~input, ~struct as _, ~mode) => {
+          customSerializer(. ~value=input, ~mode)->Lib.Result.mapError(Error.Internal.fromPublic)
+        }),
+      ]
+    }),
+  }
+}
+
 module Literal = {
   module CommonOperations = {
     module Parser = {
@@ -770,6 +940,10 @@ module Unknown = {
 }
 
 module String = {
+  let cuidRegex = %re(`/^c[^\s-]{8,}$/i`)
+  let uuidRegex = %re(`/^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]{12}|00000000-0000-0000-0000-000000000000)$/i`)
+  let emailRegex = %re(`/^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i`)
+
   let parsers = [
     Operation.refinement((~input, ~struct) => {
       switch input->Js.typeof === "string" {
@@ -785,6 +959,85 @@ module String = {
     maybeParsers: Some(parsers),
     maybeSerializers: Some(serializers),
     maybeMetadata: None,
+  }
+
+  let min = (struct, length) => {
+    let refiner = value =>
+      switch value->Js.String2.length < length {
+      | true => Some(`String must be ${length->Js.Int.toString} or more characters long`)
+      | false => None
+      }
+    struct->refine(~parser=refiner, ~serializer=refiner, ())
+  }
+
+  let max = (struct, length) => {
+    let refiner = value =>
+      switch value->Js.String2.length > length {
+      | true => Some(`String must be ${length->Js.Int.toString} or fewer characters long`)
+      | false => None
+      }
+    struct->refine(~parser=refiner, ~serializer=refiner, ())
+  }
+
+  let length = (struct, length) => {
+    let refiner = value =>
+      switch value->Js.String2.length === length {
+      | false => Some(`String must be exactly ${length->Js.Int.toString} characters long`)
+      | true => None
+      }
+    struct->refine(~parser=refiner, ~serializer=refiner, ())
+  }
+
+  let email = (struct, ()) => {
+    let refiner = value =>
+      switch emailRegex->Js.Re.test_(value) {
+      | false => Some(`Invalid email address`)
+      | true => None
+      }
+    struct->refine(~parser=refiner, ~serializer=refiner, ())
+  }
+
+  let uuid = (struct, ()) => {
+    let refiner = value =>
+      switch uuidRegex->Js.Re.test_(value) {
+      | false => Some(`Invalid UUID`)
+      | true => None
+      }
+    struct->refine(~parser=refiner, ~serializer=refiner, ())
+  }
+
+  let cuid = (struct, ()) => {
+    let refiner = value =>
+      switch cuidRegex->Js.Re.test_(value) {
+      | false => Some(`Invalid CUID`)
+      | true => None
+      }
+    struct->refine(~parser=refiner, ~serializer=refiner, ())
+  }
+
+  let url = (struct, ()) => {
+    let refiner = value =>
+      switch value->Lib.Url.test {
+      | false => Some(`Invalid url`)
+      | true => None
+      }
+    struct->refine(~parser=refiner, ~serializer=refiner, ())
+  }
+
+  let re = (struct, re) => {
+    let refiner = value => {
+      re->Js.Re.setLastIndex(0)
+      switch re->Js.Re.test_(value) {
+      | false => Some(`Invalid`)
+      | true => None
+      }
+    }
+    struct->refine(~parser=refiner, ~serializer=refiner, ())
+  }
+
+  let trimmed = (struct, ()) => {
+    let transformer = value => value->Js.String2.trim->Ok
+    struct->transform(~parser=transformer, ~serializer=transformer, ())
   }
 }
 
@@ -1375,154 +1628,6 @@ let json = struct => {
     ),
   ),
   maybeMetadata: None,
-}
-
-let refine = (
-  struct,
-  ~parser as maybeParserRefine=?,
-  ~serializer as maybeSerializerRefine=?,
-  (),
-) => {
-  if maybeParserRefine === None && maybeSerializerRefine === None {
-    Error.MissingParserAndSerializer.raise(`struct factory Refine`)
-  }
-
-  {
-    ...struct,
-    maybeParsers: switch (struct.maybeParsers, maybeParserRefine) {
-    | (Some(parsers), Some(parserRefine)) =>
-      parsers
-      ->Js.Array2.concat([
-        Operation.refinement((~input, ~struct as _) => {
-          (parserRefine->unsafeToAny)(. input)->Lib.Option.map(reason =>
-            Error.Internal.make(OperationFailed(reason))
-          )
-        }),
-      ])
-      ->Some
-    | (_, _) => None
-    },
-    maybeSerializers: switch (struct.maybeSerializers, maybeSerializerRefine) {
-    | (Some(serializers), Some(serializerRefine)) =>
-      [
-        Operation.refinement((~input, ~struct as _) => {
-          (serializerRefine->unsafeToAny)(. input)->Lib.Option.map(reason =>
-            Error.Internal.make(OperationFailed(reason))
-          )
-        }),
-      ]
-      ->Js.Array2.concat(serializers)
-      ->Some
-    | (_, _) => None
-    },
-  }
-}
-
-let transform = (
-  struct,
-  ~parser as maybeTransformationParser=?,
-  ~serializer as maybeTransformationSerializer=?,
-  (),
-) => {
-  if maybeTransformationParser === None && maybeTransformationSerializer === None {
-    Error.MissingParserAndSerializer.raise(`struct factory Transform`)
-  }
-
-  {
-    ...struct,
-    maybeParsers: switch (struct.maybeParsers, maybeTransformationParser) {
-    | (Some(parsers), Some(transformationParser)) =>
-      parsers
-      ->Js.Array2.concat([
-        Operation.transform((~input, ~struct as _, ~mode as _) => {
-          (transformationParser->unsafeToAny)(. input)->Lib.Result.mapError(reason =>
-            Error.Internal.make(OperationFailed(reason))
-          )
-        }),
-      ])
-      ->Some
-    | (_, _) => None
-    },
-    maybeSerializers: switch (struct.maybeSerializers, maybeTransformationSerializer) {
-    | (Some(serializers), Some(transformationSerializer)) =>
-      [
-        Operation.transform((~input, ~struct as _, ~mode as _) => {
-          (transformationSerializer->unsafeToAny)(. input)->Lib.Result.mapError(reason =>
-            Error.Internal.make(OperationFailed(reason))
-          )
-        }),
-      ]
-      ->Js.Array2.concat(serializers)
-      ->Some
-    | (_, _) => None
-    },
-  }
-}
-
-let superTransform = (
-  struct,
-  ~parser as maybeTransformationParser=?,
-  ~serializer as maybeTransformationSerializer=?,
-  (),
-) => {
-  if maybeTransformationParser === None && maybeTransformationSerializer === None {
-    Error.MissingParserAndSerializer.raise(`struct factory Transform`)
-  }
-
-  {
-    ...struct,
-    maybeParsers: switch (struct.maybeParsers, maybeTransformationParser) {
-    | (Some(parsers), Some(transformationParser)) =>
-      parsers
-      ->Js.Array2.concat([
-        Operation.transform((~input, ~struct, ~mode) => {
-          transformationParser(. ~value=input, ~struct, ~mode)->Lib.Result.mapError(
-            Error.Internal.fromPublic,
-          )
-        }),
-      ])
-      ->Some
-    | (_, _) => None
-    },
-    maybeSerializers: switch (struct.maybeSerializers, maybeTransformationSerializer) {
-    | (Some(serializers), Some(transformationSerializer)) =>
-      [
-        Operation.transform((~input, ~struct, ~mode) => {
-          transformationSerializer(. ~transformed=input, ~struct, ~mode)->Lib.Result.mapError(
-            Error.Internal.fromPublic,
-          )
-        }),
-      ]
-      ->Js.Array2.concat(serializers)
-      ->Some
-    | (_, _) => None
-    },
-  }
-}
-
-let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializer=?, ()) => {
-  if maybeCustomParser === None && maybeCustomSerializer === None {
-    Error.MissingParserAndSerializer.raise(`Custom struct factory`)
-  }
-
-  {
-    tagged_t: Unknown,
-    maybeMetadata: None,
-    maybeParsers: maybeCustomParser->Lib.Option.map(customParser => {
-      [
-        Operation.transform((~input, ~struct as _, ~mode) => {
-          customParser(. ~unknown=input, ~mode)->Lib.Result.mapError(Error.Internal.fromPublic)
-        }),
-      ]
-    }),
-    maybeSerializers: maybeCustomSerializer->Lib.Option.map(customSerializer => {
-      [
-        Operation.transform((~input, ~struct as _, ~mode) => {
-          customSerializer(. ~value=input, ~mode)->Lib.Result.mapError(Error.Internal.fromPublic)
-        }),
-      ]
-    }),
-  }
 }
 
 module MakeMetadata = (

@@ -251,6 +251,19 @@ let tuple10: (
 
 let classify: t<'value> => tagged_t
 
+module String: {
+  let min: (t<string>, int) => t<string>
+  let max: (t<string>, int) => t<string>
+  let length: (t<string>, int) => t<string>
+  let email: (t<string>, unit) => t<string>
+  let uuid: (t<string>, unit) => t<string>
+  let cuid: (t<string>, unit) => t<string>
+  let url: (t<string>, unit) => t<string>
+  let re: (t<string>, Js.Re.t) => t<string>
+
+  let trimmed: (t<string>, unit) => t<string>
+}
+
 module Result: {
   let getExn: result<'a, Error.t> => 'a
 

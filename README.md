@@ -138,6 +138,21 @@ Ok("Hello World!")
 
 `string` struct represents a data that is a string.
 
+> 🧠 **rescript-struct** includes a handful of string-specific refinements and transforms
+
+```rescript
+S.string()->S.String.max(5) // Must be 5 or more characters long
+S.string()->S.String.min(5) // Must be 5 or fewer characters long
+S.string()->S.String.length(5) // Must be exactly 5 characters long
+S.string()->S.String.email() // Invalid email address
+S.string()->S.String.url() // Invalid url
+S.string()->S.String.uuid() // Invalid UUID
+S.string()->S.String.cuid() // Invalid CUID
+S.string()->S.String.re(%re(`/[0-9]/`)) // Invalid
+
+S.string()->S.String.trimmed() // trim whitespaces
+```
+
 #### **`S.bool`**
 
 `unit => S.t<bool>`
@@ -710,9 +725,9 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [x] Add Unknown struct factory and remove Custom
 - [x] Add different unknown keys strategies
 - [x] Add Null struct factory
-- [ ] Add Instance struct factory
 - [x] Add Tuple struct factory
 - [x] Add Never struct factory
+- [ ] Add Instance struct factory
 - [ ] Add Function struct factory
 - [ ] Add Regexp struct factory
 - [ ] Add Date struct factory
@@ -723,7 +738,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
   - [ ] Add discriminant optimization for record structs
   - [ ] Better error message
 - [ ] Design and add Refinements
-- [ ] Properly handle NaN
+- [x] Properly handle NaN
 - [ ] Design and add async transforms
 - [x] Add super transforms
 - [ ] Add preprocessors
