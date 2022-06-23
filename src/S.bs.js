@@ -308,7 +308,14 @@ function applyOperations(operations, initial, mode, struct) {
 function parseInner(struct, any, mode) {
   var parsers = struct.maybeParsers;
   if (parsers !== undefined) {
-    return applyOperations(parsers, any, mode, struct);
+    if (parsers.length !== 0) {
+      return applyOperations(parsers, any, mode, struct);
+    } else {
+      return {
+              TAG: /* Ok */0,
+              _0: any
+            };
+    }
   } else {
     return {
             TAG: /* Error */1,
@@ -336,7 +343,14 @@ function parseWith(any, modeOpt, struct) {
 function serializeInner(struct, value, mode) {
   var serializers = struct.maybeSerializers;
   if (serializers !== undefined) {
-    return applyOperations(serializers, value, mode, struct);
+    if (serializers.length !== 0) {
+      return applyOperations(serializers, value, mode, struct);
+    } else {
+      return {
+              TAG: /* Ok */0,
+              _0: value
+            };
+    }
   } else {
     return {
             TAG: /* Error */1,
