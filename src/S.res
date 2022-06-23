@@ -219,6 +219,9 @@ type rec literal<'value> =
   | EmptyOption: literal<unit>
   | NaN: literal<unit>
 
+type operation =
+  | Serializing
+  | Parsing
 type mode = Safe | Unsafe
 type recordUnknownKeys =
   | Strict
@@ -327,64 +330,62 @@ let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
 @inline
 let checkIsIntNumber = x => x < 2147483648. && x > -2147483649. && x === x->Js.Math.trunc
 
-let applyOperations = (
-  ~effects: array<effect>,
-  ~initial: unknown,
-  ~mode: mode,
-  ~struct: t<unknown>,
-) => {
-  let idxRef = ref(0)
-  let valueRef = ref(initial)
-  let maybeErrorRef = ref(None)
-  let shouldSkipRefinements = switch mode {
-  | Unsafe => true
-  | Safe => false
-  }
-  while idxRef.contents < effects->Js.Array2.length && maybeErrorRef.contents === None {
-    let effect = effects->Js.Array2.unsafe_get(idxRef.contents)
-    switch effect {
-    | Transform(fn) =>
-      switch fn(. ~unknown=valueRef.contents, ~struct, ~mode) {
-      | Ok(newValue) => {
-          valueRef.contents = newValue
-          idxRef.contents = idxRef.contents + 1
+let processInner = (~operation: operation, ~input: 'input, ~mode: mode, ~struct: t<'value>) => {
+  switch operation {
+  | Parsing =>
+    switch struct.maybeParsers {
+    | Some(effects) => Ok(effects)
+    | None => Error(Error.Internal.make(MissingParser))
+    }
+  | Serializing =>
+    switch struct.maybeSerializers {
+    | Some(effects) => Ok(effects)
+    | None => Error(Error.Internal.make(MissingSerializer))
+    }
+  }->Lib.Result.flatMap(effects => {
+    let idxRef = ref(0)
+    let valueRef = ref(input->Obj.magic)
+    let maybeErrorRef = ref(None)
+    let shouldSkipRefinements = switch mode {
+    | Unsafe => true
+    | Safe => false
+    }
+    while idxRef.contents < effects->Js.Array2.length && maybeErrorRef.contents === None {
+      let effect = effects->Js.Array2.unsafe_get(idxRef.contents)
+      switch effect {
+      | Transform(fn) =>
+        switch fn(. ~unknown=valueRef.contents, ~struct=struct->Obj.magic, ~mode) {
+        | Ok(newValue) => {
+            valueRef.contents = newValue
+            idxRef.contents = idxRef.contents + 1
+          }
+        | Error(error) => maybeErrorRef.contents = Some(error)
         }
-      | Error(error) => maybeErrorRef.contents = Some(error)
-      }
-    | Refinement(fn) =>
-      if shouldSkipRefinements {
-        idxRef.contents = idxRef.contents + 1
-      } else {
-        switch fn(. ~unknown=valueRef.contents, ~struct) {
-        | None => idxRef.contents = idxRef.contents + 1
-        | Some(_) as someError => maybeErrorRef.contents = someError
+      | Refinement(fn) =>
+        if shouldSkipRefinements {
+          idxRef.contents = idxRef.contents + 1
+        } else {
+          switch fn(. ~unknown=valueRef.contents, ~struct=struct->Obj.magic) {
+          | None => idxRef.contents = idxRef.contents + 1
+          | Some(_) as someError => maybeErrorRef.contents = someError
+          }
         }
       }
     }
-  }
-  switch maybeErrorRef.contents {
-  | Some(error) => Error(error)
-  | None => Ok(valueRef.contents)
-  }
+    switch maybeErrorRef.contents {
+    | Some(error) => Error(error)
+    | None => Ok(valueRef.contents->Obj.magic)
+    }
+  })
 }
 
+@inline
 let parseInner: (
   ~struct: t<'value>,
   ~any: 'any,
   ~mode: mode,
 ) => result<'value, Error.Internal.t> = (~struct, ~any, ~mode) => {
-  switch struct.maybeParsers {
-  | Some(parsers) =>
-    applyOperations(
-      ~effects=parsers,
-      ~initial=any->unsafeAnyToUnknown,
-      ~mode,
-      ~struct=struct->Obj.magic,
-    )
-    ->unsafeAnyToUnknown
-    ->unsafeUnknownToAny
-  | None => Error(Error.Internal.make(MissingParser))
-  }
+  processInner(~operation=Parsing, ~input=any, ~mode, ~struct)
 }
 
 let parseWith = (any, ~mode=Safe, struct) => {
@@ -393,21 +394,13 @@ let parseWith = (any, ~mode=Safe, struct) => {
   )
 }
 
+@inline
 let serializeInner: (
   ~struct: t<'value>,
   ~value: 'value,
   ~mode: mode,
 ) => result<unknown, Error.Internal.t> = (~struct, ~value, ~mode) => {
-  switch struct.maybeSerializers {
-  | Some(serializers) =>
-    applyOperations(
-      ~effects=serializers,
-      ~initial=value->unsafeAnyToUnknown,
-      ~mode,
-      ~struct=struct->Obj.magic,
-    )
-  | None => Error(Error.Internal.make(MissingSerializer))
-  }
+  processInner(~operation=Serializing, ~input=value, ~mode, ~struct)
 }
 
 let serializeWith = (value, ~mode=Safe, struct) => {
