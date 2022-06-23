@@ -41,3 +41,17 @@ test("Fails to serialize invalid value", t => {
     (),
   )
 })
+
+test("Returns custom error message", t => {
+  let struct = S.string()->S.String.min(~message="Custom", 1)
+
+  t->Assert.deepEqual(
+    ""->S.parseWith(struct),
+    Error({
+      code: OperationFailed("Custom"),
+      operation: Parsing,
+      path: [],
+    }),
+    (),
+  )
+})

@@ -1,5 +1,3 @@
-external unsafeToAny: 'a => 'b = "%identity"
-
 module Lib = {
   module Url = {
     type t
@@ -28,9 +26,7 @@ module Lib = {
   module Array = {
     @inline
     let toTuple = array =>
-      array->Js.Array2.length <= 1
-        ? array->Js.Array2.unsafe_get(0)->unsafeToAny
-        : array->unsafeToAny
+      array->Js.Array2.length <= 1 ? array->Js.Array2.unsafe_get(0)->Obj.magic : array->Obj.magic
   }
 
   module Result: {
@@ -127,7 +123,7 @@ module Error = {
 
     module UnexpectedValue = {
       let stringify = any => {
-        switch any->unsafeToAny {
+        switch any->Obj.magic {
         | Some(value) =>
           switch value->Js.Json.stringifyAny {
           | Some(string) => string
@@ -262,7 +258,7 @@ external unsafeUnknownToAny: unknown => 'any = "%identity"
 
 type payloadedVariant<'payload> = {_0: 'payload}
 @inline
-let unsafeGetVariantPayload: 'a => 'payload = v => (v->unsafeToAny)._0
+let unsafeGetVariantPayload: 'a => 'payload = v => (v->Obj.magic)._0
 
 @val external getInternalClass: 'a => string = "Object.prototype.toString.call"
 
@@ -374,7 +370,7 @@ let parseInner: (
       ~operations=parsers,
       ~initial=any->unsafeAnyToUnknown,
       ~mode,
-      ~struct=struct->unsafeToAny,
+      ~struct=struct->Obj.magic,
     )
     ->unsafeAnyToUnknown
     ->unsafeUnknownToAny
@@ -399,7 +395,7 @@ let serializeInner: (
       ~operations=serializers,
       ~initial=value->unsafeAnyToUnknown,
       ~mode,
-      ~struct=struct->unsafeToAny,
+      ~struct=struct->Obj.magic,
     )
   | None => Error(Error.Internal.make(MissingSerializer))
   }
@@ -415,11 +411,11 @@ module Operation = {
   let transform = (
     fn: (~input: 'input, ~struct: t<'value>, ~mode: mode) => result<'output, Error.Internal.t>,
   ) => {
-    Transform(fn->unsafeToAny)
+    Transform(fn->Obj.magic)
   }
 
   let refinement = (fn: (~input: 'value, ~struct: t<'value>) => option<Error.Internal.t>) => {
-    Refinement(fn->unsafeToAny)
+    Refinement(fn->Obj.magic)
   }
 
   let empty: array<operation> = []
@@ -447,7 +443,7 @@ let refine: (
       parsers
       ->Js.Array2.concat([
         Operation.refinement((~input, ~struct as _) => {
-          (parserRefine->unsafeToAny)(. input)->Lib.Option.map(reason =>
+          (parserRefine->Obj.magic)(. input)->Lib.Option.map(reason =>
             Error.Internal.make(OperationFailed(reason))
           )
         }),
@@ -459,7 +455,7 @@ let refine: (
     | (Some(serializers), Some(serializerRefine)) =>
       [
         Operation.refinement((~input, ~struct as _) => {
-          (serializerRefine->unsafeToAny)(. input)->Lib.Option.map(reason =>
+          (serializerRefine->Obj.magic)(. input)->Lib.Option.map(reason =>
             Error.Internal.make(OperationFailed(reason))
           )
         }),
@@ -488,7 +484,7 @@ let transform = (
       parsers
       ->Js.Array2.concat([
         Operation.transform((~input, ~struct as _, ~mode as _) => {
-          (transformationParser->unsafeToAny)(. input)->Lib.Result.mapError(reason =>
+          (transformationParser->Obj.magic)(. input)->Lib.Result.mapError(reason =>
             Error.Internal.make(OperationFailed(reason))
           )
         }),
@@ -500,7 +496,7 @@ let transform = (
     | (Some(serializers), Some(transformationSerializer)) =>
       [
         Operation.transform((~input, ~struct as _, ~mode as _) => {
-          (transformationSerializer->unsafeToAny)(. input)->Lib.Result.mapError(reason =>
+          (transformationSerializer->Obj.magic)(. input)->Lib.Result.mapError(reason =>
             Error.Internal.make(OperationFailed(reason))
           )
         }),
@@ -686,8 +682,8 @@ module Literal = {
           | false =>
             Some(
               Error.Internal.UnexpectedValue.make(
-                ~expected=variant->unsafeToAny,
-                ~received=input->unsafeToAny,
+                ~expected=variant->Obj.magic,
+                ~received=input->Obj.magic,
               ),
             )
           }
@@ -813,7 +809,7 @@ module Record = {
       }
       switch maybeRefinementError {
       | None =>
-        let {fields, fieldNames, unknownKeys} = struct->classify->unsafeToAny
+        let {fields, fieldNames, unknownKeys} = struct->classify->Obj.magic
 
         let newArray = []
         let idxRef = ref(0)
@@ -849,11 +845,10 @@ module Record = {
 
   let serializers = [
     Operation.transform((~input, ~struct, ~mode) => {
-      let {fields, fieldNames} = struct->classify->unsafeToAny
+      let {fields, fieldNames} = struct->classify->Obj.magic
 
       let unknown = Js.Dict.empty()
-      let fieldValues =
-        fieldNames->Js.Array2.length <= 1 ? [input]->unsafeToAny : input->unsafeToAny
+      let fieldValues = fieldNames->Js.Array2.length <= 1 ? [input]->Obj.magic : input->Obj.magic
 
       let idxRef = ref(0)
       let maybeErrorRef = ref(None)
@@ -961,74 +956,89 @@ module String = {
     maybeMetadata: None,
   }
 
-  let min = (struct, length) => {
+  let min = (struct, ~message as maybeMessage=?, length) => {
     let refiner = value =>
       switch value->Js.String2.length < length {
-      | true => Some(`String must be ${length->Js.Int.toString} or more characters long`)
+      | true =>
+        Some(
+          maybeMessage->Belt.Option.getWithDefault(
+            `String must be ${length->Js.Int.toString} or more characters long`,
+          ),
+        )
       | false => None
       }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
-  let max = (struct, length) => {
+  let max = (struct, ~message as maybeMessage=?, length) => {
     let refiner = value =>
       switch value->Js.String2.length > length {
-      | true => Some(`String must be ${length->Js.Int.toString} or fewer characters long`)
+      | true =>
+        Some(
+          maybeMessage->Belt.Option.getWithDefault(
+            `String must be ${length->Js.Int.toString} or fewer characters long`,
+          ),
+        )
       | false => None
       }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
-  let length = (struct, length) => {
+  let length = (struct, ~message as maybeMessage=?, length) => {
     let refiner = value =>
       switch value->Js.String2.length === length {
-      | false => Some(`String must be exactly ${length->Js.Int.toString} characters long`)
+      | false =>
+        Some(
+          maybeMessage->Belt.Option.getWithDefault(
+            `String must be exactly ${length->Js.Int.toString} characters long`,
+          ),
+        )
       | true => None
       }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
-  let email = (struct, ()) => {
+  let email = (struct, ~message=`Invalid email address`, ()) => {
     let refiner = value =>
       switch emailRegex->Js.Re.test_(value) {
-      | false => Some(`Invalid email address`)
+      | false => Some(message)
       | true => None
       }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
-  let uuid = (struct, ()) => {
+  let uuid = (struct, ~message=`Invalid UUID`, ()) => {
     let refiner = value =>
       switch uuidRegex->Js.Re.test_(value) {
-      | false => Some(`Invalid UUID`)
+      | false => Some(message)
       | true => None
       }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
-  let cuid = (struct, ()) => {
+  let cuid = (struct, ~message=`Invalid CUID`, ()) => {
     let refiner = value =>
       switch cuidRegex->Js.Re.test_(value) {
-      | false => Some(`Invalid CUID`)
+      | false => Some(message)
       | true => None
       }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
-  let url = (struct, ()) => {
+  let url = (struct, ~message=`Invalid url`, ()) => {
     let refiner = value =>
       switch value->Lib.Url.test {
-      | false => Some(`Invalid url`)
+      | false => Some(message)
       | true => None
       }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
-  let re = (struct, re) => {
+  let pattern = (struct, ~message=`Invalid`, re) => {
     let refiner = value => {
       re->Js.Re.setLastIndex(0)
       switch re->Js.Re.test_(value) {
-      | false => Some(`Invalid`)
+      | false => Some(message)
       | true => None
       }
     }
@@ -1075,6 +1085,34 @@ module Int = {
     maybeSerializers: Some(Operation.empty),
     maybeMetadata: None,
   }
+
+  let min = (struct, ~message as maybeMessage=?, thanValue) => {
+    let refiner = value =>
+      switch value >= thanValue {
+      | false =>
+        Some(
+          maybeMessage->Belt.Option.getWithDefault(
+            `Number must be greater than or equal to ${thanValue->Js.Int.toString}`,
+          ),
+        )
+      | true => None
+      }
+    struct->refine(~parser=refiner, ~serializer=refiner, ())
+  }
+
+  let max = (struct, ~message as maybeMessage=?, thanValue) => {
+    let refiner = value =>
+      switch value <= thanValue {
+      | false =>
+        Some(
+          maybeMessage->Belt.Option.getWithDefault(
+            `Number must be lower than or equal to ${thanValue->Js.Int.toString}`,
+          ),
+        )
+      | true => None
+      }
+    struct->refine(~parser=refiner, ~serializer=refiner, ())
+  }
 }
 
 module Float = {
@@ -1097,6 +1135,9 @@ module Float = {
     maybeSerializers: Some(Operation.empty),
     maybeMetadata: None,
   }
+
+  let min = Int.min->Obj.magic
+  let max = Int.max->Obj.magic
 }
 
 module Null = {
@@ -1106,7 +1147,7 @@ module Null = {
       | Some(innerValue) =>
         let innerStruct = struct->classify->unsafeGetVariantPayload
         parseInner(
-          ~struct=innerStruct->unsafeToAny,
+          ~struct=innerStruct->Obj.magic,
           ~any=innerValue,
           ~mode,
         )->Lib.Result.map(value => Some(value))
@@ -1119,7 +1160,7 @@ module Null = {
       switch input {
       | Some(value) =>
         let innerStruct = struct->classify->unsafeGetVariantPayload
-        serializeInner(~struct=innerStruct->unsafeToAny, ~value, ~mode)
+        serializeInner(~struct=innerStruct->Obj.magic, ~value, ~mode)
       | None => Js.Null.empty->unsafeAnyToUnknown->Ok
       }
     }),
@@ -1173,7 +1214,7 @@ module Deprecated = {
     Operation.transform((~input, ~struct, ~mode) => {
       switch input {
       | Some(innerValue) =>
-        let {struct: innerStruct} = struct->classify->unsafeToAny
+        let {struct: innerStruct} = struct->classify->Obj.magic
         parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Lib.Result.map(value => Some(
           value,
         ))
@@ -1185,7 +1226,7 @@ module Deprecated = {
     Operation.transform((~input, ~struct, ~mode) => {
       switch input {
       | Some(value) => {
-          let {struct: innerStruct} = struct->classify->unsafeToAny
+          let {struct: innerStruct} = struct->classify->Obj.magic
           serializeInner(~struct=innerStruct, ~value, ~mode)
         }
       | None => Ok(None->unsafeAnyToUnknown)
@@ -1274,6 +1315,48 @@ module Array = {
     maybeSerializers: Some(serializers),
     maybeMetadata: None,
   }
+
+  let min = (struct, ~message as maybeMessage=?, length) => {
+    let refiner = value =>
+      switch value->Js.Array2.length < length {
+      | true =>
+        Some(
+          maybeMessage->Belt.Option.getWithDefault(
+            `Array must be ${length->Js.Int.toString} or more items long`,
+          ),
+        )
+      | false => None
+      }
+    struct->refine(~parser=refiner, ~serializer=refiner, ())
+  }
+
+  let max = (struct, ~message as maybeMessage=?, length) => {
+    let refiner = value =>
+      switch value->Js.Array2.length > length {
+      | true =>
+        Some(
+          maybeMessage->Belt.Option.getWithDefault(
+            `Array must be ${length->Js.Int.toString} or fewer items long`,
+          ),
+        )
+      | false => None
+      }
+    struct->refine(~parser=refiner, ~serializer=refiner, ())
+  }
+
+  let length = (struct, ~message as maybeMessage=?, length) => {
+    let refiner = value =>
+      switch value->Js.Array2.length === length {
+      | false =>
+        Some(
+          maybeMessage->Belt.Option.getWithDefault(
+            `Array must be exactly ${length->Js.Int.toString} items long`,
+          ),
+        )
+      | true => None
+      }
+    struct->refine(~parser=refiner, ~serializer=refiner, ())
+  }
 }
 
 module Dict = {
@@ -1357,7 +1440,7 @@ module Default = {
 
   let parsers = [
     Operation.transform((~input, ~struct, ~mode) => {
-      let {struct: innerStruct, value} = struct->classify->unsafeToAny
+      let {struct: innerStruct, value} = struct->classify->Obj.magic
       parseInner(~struct=innerStruct, ~any=input, ~mode)->Lib.Result.map(maybeOutput => {
         switch maybeOutput {
         | Some(output) => output
@@ -1368,7 +1451,7 @@ module Default = {
   ]
   let serializers = [
     Operation.transform((~input, ~struct, ~mode) => {
-      let {struct: innerStruct} = struct->classify->unsafeToAny
+      let {struct: innerStruct} = struct->classify->Obj.magic
       serializeInner(~struct=innerStruct, ~value=Some(input), ~mode)
     }),
   ]
@@ -1431,8 +1514,8 @@ module Tuple = {
           | Some(error) => Error(error)
           | None =>
             switch numberOfStructs {
-            | 0 => ()->unsafeToAny
-            | 1 => newArray->Js.Array2.unsafe_get(0)->unsafeToAny
+            | 0 => ()->Obj.magic
+            | 1 => newArray->Js.Array2.unsafe_get(0)->Obj.magic
             | _ => newArray
             }->Ok
           }
@@ -1446,7 +1529,7 @@ module Tuple = {
     Operation.transform((~input, ~struct, ~mode) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
       let numberOfStructs = innerStructs->Js.Array2.length
-      let inputArray = numberOfStructs === 1 ? [input->unsafeToAny] : input
+      let inputArray = numberOfStructs === 1 ? [input->Obj.magic] : input
 
       let newArray = []
       let idxRef = ref(0)
@@ -1638,7 +1721,7 @@ module MakeMetadata = (
 ) => {
   let get = (struct): option<Config.content> => {
     struct.maybeMetadata->Lib.Option.map(metadata => {
-      metadata->Js.Dict.get(Config.namespace)->unsafeToAny
+      metadata->Js.Dict.get(Config.namespace)->Obj.magic
     })
   }
 

@@ -136,21 +136,28 @@ let struct = S.string()
 Ok("Hello World!")
 ```
 
-`string` struct represents a data that is a string.
+`string` struct represents a data that is a string. It can be further constrainted with the following utility methods.
 
-> 🧠 **rescript-struct** includes a handful of string-specific refinements and transforms
+**rescript-struct** includes a handful of string-specific refinements and transforms:
 
 ```rescript
-S.string()->S.String.max(5) // Must be 5 or more characters long
-S.string()->S.String.min(5) // Must be 5 or fewer characters long
-S.string()->S.String.length(5) // Must be exactly 5 characters long
+S.string()->S.String.max(5) // String must be 5 or more characters long
+S.string()->S.String.min(5) // String must be 5 or fewer characters long
+S.string()->S.String.length(5) // String must be exactly 5 characters long
 S.string()->S.String.email() // Invalid email address
 S.string()->S.String.url() // Invalid url
 S.string()->S.String.uuid() // Invalid UUID
 S.string()->S.String.cuid() // Invalid CUID
-S.string()->S.String.re(%re(`/[0-9]/`)) // Invalid
+S.string()->S.String.pattern(%re(`/[0-9]/`)) // Invalid
 
 S.string()->S.String.trimmed() // trim whitespaces
+```
+
+When using built-in refinements, you can provide a custom error message.
+
+```
+S.string()->S.String.min(~message="String can't be empty", 1)
+S.string()->S.String.length(~message="SMS code should be 5 digits long", 5)
 ```
 
 #### **`S.bool`**
@@ -185,6 +192,13 @@ Ok(123)
 
 `int` struct represents a data that is an integer.
 
+**rescript-struct** includes some of int-specific refinements:
+
+```rescript
+S.int()->S.Int.max(5) // Number must be lower than or equal to 5
+S.int()->S.Int.min(5) // Number must be greater than or equal to 5
+```
+
 #### **`S.float`**
 
 `unit => S.t<float>`
@@ -201,6 +215,13 @@ Ok(123.)
 
 `float` struct represents a data that is a number.
 
+**rescript-struct** includes some of float-specific refinements:
+
+```rescript
+S.float()->S.Float.max(5) // Number must be lower than or equal to 5
+S.float()->S.Float.min(5) // Number must be greater than or equal to 5
+```
+
 #### **`S.array`**
 
 `S.t<'value> => S.t<array<'value>>`
@@ -216,6 +237,14 @@ Ok(["Hello", "World"])
 ```
 
 `array` struct represents an array of data of a specific type.
+
+**rescript-struct** includes some of array-specific refinements:
+
+```rescript
+S.string()->S.String.max(5) // Array must be 5 or more items long
+S.string()->S.String.min(5) // Array must be 5 or fewer items long
+S.string()->S.String.length(5) // Array must be exactly 5 items long
+```
 
 #### **`S.tuple0` - `S.tuple10`**
 

@@ -1034,71 +1034,75 @@ function factory$5(param) {
         };
 }
 
-function min(struct, length) {
+function min(struct, maybeMessage, length) {
   var refiner = function (value) {
     if (value.length < length) {
-      return "String must be " + length.toString() + " or more characters long";
+      return Belt_Option.getWithDefault(maybeMessage, "String must be " + length.toString() + " or more characters long");
     }
     
   };
   return refine(struct, refiner, refiner, undefined);
 }
 
-function max(struct, length) {
+function max(struct, maybeMessage, length) {
   var refiner = function (value) {
     if (value.length > length) {
-      return "String must be " + length.toString() + " or fewer characters long";
+      return Belt_Option.getWithDefault(maybeMessage, "String must be " + length.toString() + " or fewer characters long");
     }
     
   };
   return refine(struct, refiner, refiner, undefined);
 }
 
-function length(struct, length$1) {
+function length(struct, maybeMessage, length$1) {
   var refiner = function (value) {
     if (value.length === length$1) {
       return ;
     } else {
-      return "String must be exactly " + length$1.toString() + " characters long";
+      return Belt_Option.getWithDefault(maybeMessage, "String must be exactly " + length$1.toString() + " characters long");
     }
   };
   return refine(struct, refiner, refiner, undefined);
 }
 
-function email(struct, param) {
+function email(struct, messageOpt, param) {
+  var message = messageOpt !== undefined ? messageOpt : "Invalid email address";
   var refiner = function (value) {
     if (emailRegex.test(value)) {
       return ;
     } else {
-      return "Invalid email address";
+      return message;
     }
   };
   return refine(struct, refiner, refiner, undefined);
 }
 
-function uuid(struct, param) {
+function uuid(struct, messageOpt, param) {
+  var message = messageOpt !== undefined ? messageOpt : "Invalid UUID";
   var refiner = function (value) {
     if (uuidRegex.test(value)) {
       return ;
     } else {
-      return "Invalid UUID";
+      return message;
     }
   };
   return refine(struct, refiner, refiner, undefined);
 }
 
-function cuid(struct, param) {
+function cuid(struct, messageOpt, param) {
+  var message = messageOpt !== undefined ? messageOpt : "Invalid CUID";
   var refiner = function (value) {
     if (cuidRegex.test(value)) {
       return ;
     } else {
-      return "Invalid CUID";
+      return message;
     }
   };
   return refine(struct, refiner, refiner, undefined);
 }
 
-function url(struct, param) {
+function url(struct, messageOpt, param) {
+  var message = messageOpt !== undefined ? messageOpt : "Invalid url";
   var refiner = function (value) {
     var tmp;
     try {
@@ -1111,19 +1115,20 @@ function url(struct, param) {
     if (tmp) {
       return ;
     } else {
-      return "Invalid url";
+      return message;
     }
   };
   return refine(struct, refiner, refiner, undefined);
 }
 
-function re(struct, re$1) {
+function pattern(struct, messageOpt, re) {
+  var message = messageOpt !== undefined ? messageOpt : "Invalid";
   var refiner = function (value) {
-    re$1.lastIndex = 0;
-    if (re$1.test(value)) {
+    re.lastIndex = 0;
+    if (re.test(value)) {
       return ;
     } else {
-      return "Invalid";
+      return message;
     }
   };
   return refine(struct, refiner, refiner, undefined);
@@ -1177,6 +1182,28 @@ function factory$7(param) {
           maybeSerializers: empty,
           maybeMetadata: undefined
         };
+}
+
+function min$1(struct, maybeMessage, thanValue) {
+  var refiner = function (value) {
+    if (value >= thanValue) {
+      return ;
+    } else {
+      return Belt_Option.getWithDefault(maybeMessage, "Number must be greater than or equal to " + thanValue.toString());
+    }
+  };
+  return refine(struct, refiner, refiner, undefined);
+}
+
+function max$1(struct, maybeMessage, thanValue) {
+  var refiner = function (value) {
+    if (value <= thanValue) {
+      return ;
+    } else {
+      return Belt_Option.getWithDefault(maybeMessage, "Number must be lower than or equal to " + thanValue.toString());
+    }
+  };
+  return refine(struct, refiner, refiner, undefined);
 }
 
 var parsers$5 = [{
@@ -1427,6 +1454,37 @@ function factory$12(innerStruct) {
           maybeSerializers: serializers$4,
           maybeMetadata: undefined
         };
+}
+
+function min$2(struct, maybeMessage, length) {
+  var refiner = function (value) {
+    if (value.length < length) {
+      return Belt_Option.getWithDefault(maybeMessage, "Array must be " + length.toString() + " or more items long");
+    }
+    
+  };
+  return refine(struct, refiner, refiner, undefined);
+}
+
+function max$2(struct, maybeMessage, length) {
+  var refiner = function (value) {
+    if (value.length > length) {
+      return Belt_Option.getWithDefault(maybeMessage, "Array must be " + length.toString() + " or fewer items long");
+    }
+    
+  };
+  return refine(struct, refiner, refiner, undefined);
+}
+
+function length$1(struct, maybeMessage, length$2) {
+  var refiner = function (value) {
+    if (value.length === length$2) {
+      return ;
+    } else {
+      return Belt_Option.getWithDefault(maybeMessage, "Array must be exactly " + length$2.toString() + " items long");
+    }
+  };
+  return refine(struct, refiner, refiner, undefined);
 }
 
 var parsers$10 = [{
@@ -1934,8 +1992,24 @@ var $$String = {
   uuid: uuid,
   cuid: cuid,
   url: url,
-  re: re,
+  pattern: pattern,
   trimmed: trimmed
+};
+
+var Int = {
+  min: min$1,
+  max: max$1
+};
+
+var Float = {
+  min: min$1,
+  max: max$1
+};
+
+var $$Array = {
+  min: min$2,
+  max: max$2,
+  length: length$1
 };
 
 function MakeMetadata(funarg) {
@@ -2019,6 +2093,9 @@ exports.tuple9 = tuple9;
 exports.tuple10 = tuple10;
 exports.classify = classify;
 exports.$$String = $$String;
+exports.Int = Int;
+exports.Float = Float;
+exports.$$Array = $$Array;
 exports.Result = Result;
 exports.MakeMetadata = MakeMetadata;
 /*  Not a pure module */

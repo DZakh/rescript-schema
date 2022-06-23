@@ -252,16 +252,32 @@ let tuple10: (
 let classify: t<'value> => tagged_t
 
 module String: {
-  let min: (t<string>, int) => t<string>
-  let max: (t<string>, int) => t<string>
-  let length: (t<string>, int) => t<string>
-  let email: (t<string>, unit) => t<string>
-  let uuid: (t<string>, unit) => t<string>
-  let cuid: (t<string>, unit) => t<string>
-  let url: (t<string>, unit) => t<string>
-  let re: (t<string>, Js.Re.t) => t<string>
+  let min: (t<string>, ~message: string=?, int) => t<string>
+  let max: (t<string>, ~message: string=?, int) => t<string>
+  let length: (t<string>, ~message: string=?, int) => t<string>
+  let email: (t<string>, ~message: string=?, unit) => t<string>
+  let uuid: (t<string>, ~message: string=?, unit) => t<string>
+  let cuid: (t<string>, ~message: string=?, unit) => t<string>
+  let url: (t<string>, ~message: string=?, unit) => t<string>
+  let pattern: (t<string>, ~message: string=?, Js.Re.t) => t<string>
 
   let trimmed: (t<string>, unit) => t<string>
+}
+
+module Int: {
+  let min: (t<int>, ~message: string=?, int) => t<int>
+  let max: (t<int>, ~message: string=?, int) => t<int>
+}
+
+module Float: {
+  let min: (t<float>, ~message: string=?, float) => t<float>
+  let max: (t<float>, ~message: string=?, float) => t<float>
+}
+
+module Array: {
+  let min: (t<array<'a>>, ~message: string=?, int) => t<array<'a>>
+  let max: (t<array<'a>>, ~message: string=?, int) => t<array<'a>>
+  let length: (t<array<'a>>, ~message: string=?, int) => t<array<'a>>
 }
 
 module Result: {
