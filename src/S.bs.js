@@ -265,15 +265,15 @@ function makeUnexpectedTypeError(input, struct) {
         };
 }
 
-function applyOperations(operations, initial, mode, struct) {
+function applyOperations(effects, initial, mode, struct) {
   var idxRef = 0;
   var valueRef = initial;
   var maybeErrorRef;
   var shouldSkipRefinements = mode ? true : false;
-  while(idxRef < operations.length && maybeErrorRef === undefined) {
-    var operation = operations[idxRef];
-    if (operation.TAG === /* Transform */0) {
-      var newValue = operation._0(valueRef, struct, mode);
+  while(idxRef < effects.length && maybeErrorRef === undefined) {
+    var effect = effects[idxRef];
+    if (effect.TAG === /* Transform */0) {
+      var newValue = effect._0(valueRef, struct, mode);
       if (newValue.TAG === /* Ok */0) {
         valueRef = newValue._0;
         idxRef = idxRef + 1 | 0;
@@ -283,7 +283,7 @@ function applyOperations(operations, initial, mode, struct) {
     } else if (shouldSkipRefinements) {
       idxRef = idxRef + 1 | 0;
     } else {
-      var someError = operation._0(valueRef, struct);
+      var someError = effect._0(valueRef, struct);
       if (someError !== undefined) {
         maybeErrorRef = someError;
       } else {

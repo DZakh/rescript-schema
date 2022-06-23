@@ -228,9 +228,9 @@ type rec t<'value> = {
   @as("t")
   tagged_t: tagged_t,
   @as("p")
-  maybeParsers: option<array<operation>>,
+  maybeParsers: option<array<effect>>,
   @as("s")
-  maybeSerializers: option<array<operation>>,
+  maybeSerializers: option<array<effect>>,
   @as("m")
   maybeMetadata: option<Js.Dict.t<unknown>>,
 }
@@ -256,7 +256,7 @@ and tagged_t =
   | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
 and field<'value> = (string, t<'value>)
-and operation =
+and effect =
   | Transform(
       (. ~unknown: unknown, ~struct: t<unknown>, ~mode: mode) => result<unknown, Error.Internal.t>,
     )
@@ -328,7 +328,7 @@ let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
 let checkIsIntNumber = x => x < 2147483648. && x > -2147483649. && x === x->Js.Math.trunc
 
 let applyOperations = (
-  ~operations: array<operation>,
+  ~effects: array<effect>,
   ~initial: unknown,
   ~mode: mode,
   ~struct: t<unknown>,
@@ -340,9 +340,9 @@ let applyOperations = (
   | Unsafe => true
   | Safe => false
   }
-  while idxRef.contents < operations->Js.Array2.length && maybeErrorRef.contents === None {
-    let operation = operations->Js.Array2.unsafe_get(idxRef.contents)
-    switch operation {
+  while idxRef.contents < effects->Js.Array2.length && maybeErrorRef.contents === None {
+    let effect = effects->Js.Array2.unsafe_get(idxRef.contents)
+    switch effect {
     | Transform(fn) =>
       switch fn(. ~unknown=valueRef.contents, ~struct, ~mode) {
       | Ok(newValue) => {
@@ -376,7 +376,7 @@ let parseInner: (
   switch struct.maybeParsers {
   | Some(parsers) =>
     applyOperations(
-      ~operations=parsers,
+      ~effects=parsers,
       ~initial=any->unsafeAnyToUnknown,
       ~mode,
       ~struct=struct->Obj.magic,
@@ -401,7 +401,7 @@ let serializeInner: (
   switch struct.maybeSerializers {
   | Some(serializers) =>
     applyOperations(
-      ~operations=serializers,
+      ~effects=serializers,
       ~initial=value->unsafeAnyToUnknown,
       ~mode,
       ~struct=struct->Obj.magic,
@@ -416,7 +416,7 @@ let serializeWith = (value, ~mode=Safe, struct) => {
   )
 }
 
-module Operation = {
+module Effect = {
   let transform = (
     fn: (~input: 'input, ~struct: t<'value>, ~mode: mode) => result<'output, Error.Internal.t>,
   ) => {
@@ -427,7 +427,7 @@ module Operation = {
     Refinement(fn->Obj.magic)
   }
 
-  let empty: array<operation> = []
+  let empty: array<effect> = []
 }
 
 let refine: (
@@ -451,7 +451,7 @@ let refine: (
     | (Some(parsers), Some(parserRefine)) =>
       parsers
       ->Js.Array2.concat([
-        Operation.refinement((~input, ~struct as _) => {
+        Effect.refinement((~input, ~struct as _) => {
           (parserRefine->Obj.magic)(. input)->Lib.Option.map(reason =>
             Error.Internal.make(OperationFailed(reason))
           )
@@ -463,7 +463,7 @@ let refine: (
     maybeSerializers: switch (struct.maybeSerializers, maybeSerializerRefine) {
     | (Some(serializers), Some(serializerRefine)) =>
       [
-        Operation.refinement((~input, ~struct as _) => {
+        Effect.refinement((~input, ~struct as _) => {
           (serializerRefine->Obj.magic)(. input)->Lib.Option.map(reason =>
             Error.Internal.make(OperationFailed(reason))
           )
@@ -492,7 +492,7 @@ let transform = (
     | (Some(parsers), Some(transformationParser)) =>
       parsers
       ->Js.Array2.concat([
-        Operation.transform((~input, ~struct as _, ~mode as _) => {
+        Effect.transform((~input, ~struct as _, ~mode as _) => {
           (transformationParser->Obj.magic)(. input)->Lib.Result.mapError(reason =>
             Error.Internal.make(OperationFailed(reason))
           )
@@ -504,7 +504,7 @@ let transform = (
     maybeSerializers: switch (struct.maybeSerializers, maybeTransformationSerializer) {
     | (Some(serializers), Some(transformationSerializer)) =>
       [
-        Operation.transform((~input, ~struct as _, ~mode as _) => {
+        Effect.transform((~input, ~struct as _, ~mode as _) => {
           (transformationSerializer->Obj.magic)(. input)->Lib.Result.mapError(reason =>
             Error.Internal.make(OperationFailed(reason))
           )
@@ -533,7 +533,7 @@ let superTransform = (
     | (Some(parsers), Some(transformationParser)) =>
       parsers
       ->Js.Array2.concat([
-        Operation.transform((~input, ~struct, ~mode) => {
+        Effect.transform((~input, ~struct, ~mode) => {
           transformationParser(. ~value=input, ~struct, ~mode)->Lib.Result.mapError(
             Error.Internal.fromPublic,
           )
@@ -545,7 +545,7 @@ let superTransform = (
     maybeSerializers: switch (struct.maybeSerializers, maybeTransformationSerializer) {
     | (Some(serializers), Some(transformationSerializer)) =>
       [
-        Operation.transform((~input, ~struct, ~mode) => {
+        Effect.transform((~input, ~struct, ~mode) => {
           transformationSerializer(. ~transformed=input, ~struct, ~mode)->Lib.Result.mapError(
             Error.Internal.fromPublic,
           )
@@ -568,14 +568,14 @@ let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializ
     maybeMetadata: None,
     maybeParsers: maybeCustomParser->Lib.Option.map(customParser => {
       [
-        Operation.transform((~input, ~struct as _, ~mode) => {
+        Effect.transform((~input, ~struct as _, ~mode) => {
           customParser(. ~unknown=input, ~mode)->Lib.Result.mapError(Error.Internal.fromPublic)
         }),
       ]
     }),
     maybeSerializers: maybeCustomSerializer->Lib.Option.map(customSerializer => {
       [
-        Operation.transform((~input, ~struct as _, ~mode) => {
+        Effect.transform((~input, ~struct as _, ~mode) => {
           customSerializer(. ~value=input, ~mode)->Lib.Result.mapError(Error.Internal.fromPublic)
         }),
       ]
@@ -586,7 +586,7 @@ let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializ
 module Literal = {
   module CommonOperations = {
     module Parser = {
-      let literalValueRefinement = Operation.refinement((~input, ~struct) => {
+      let literalValueRefinement = Effect.refinement((~input, ~struct) => {
         let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
         switch expectedValue === input {
         | true => None
@@ -596,53 +596,53 @@ module Literal = {
       })
     }
 
-    let transformToLiteralValue = Operation.transform((~input as _, ~struct, ~mode as _) => {
+    let transformToLiteralValue = Effect.transform((~input as _, ~struct, ~mode as _) => {
       let literalValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
       Ok(literalValue)
     })
   }
 
   module EmptyNull = {
-    let parserRefinement = Operation.refinement((~input, ~struct) => {
+    let parserRefinement = Effect.refinement((~input, ~struct) => {
       switch input === Js.Null.empty {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
     })
 
-    let serializerTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
+    let serializerTransform = Effect.transform((~input as _, ~struct as _, ~mode as _) => {
       Ok(Js.Null.empty)
     })
   }
 
   module EmptyOption = {
-    let parserRefinement = Operation.refinement((~input, ~struct) => {
+    let parserRefinement = Effect.refinement((~input, ~struct) => {
       switch input === Js.Undefined.empty {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
     })
 
-    let serializerTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
+    let serializerTransform = Effect.transform((~input as _, ~struct as _, ~mode as _) => {
       Ok(Js.Undefined.empty)
     })
   }
 
   module NaN = {
-    let parserRefinement = Operation.refinement((~input, ~struct) => {
+    let parserRefinement = Effect.refinement((~input, ~struct) => {
       switch Js.Float.isNaN(input) {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
     })
 
-    let serializerTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
+    let serializerTransform = Effect.transform((~input as _, ~struct as _, ~mode as _) => {
       Ok(Js.Float._NaN)
     })
   }
 
   module Bool = {
-    let parserRefinement = Operation.refinement((~input, ~struct) => {
+    let parserRefinement = Effect.refinement((~input, ~struct) => {
       switch input->Js.typeof === "boolean" {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct))
@@ -651,7 +651,7 @@ module Literal = {
   }
 
   module String = {
-    let parserRefinement = Operation.refinement((~input, ~struct) => {
+    let parserRefinement = Effect.refinement((~input, ~struct) => {
       switch input->Js.typeof === "string" {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct))
@@ -660,7 +660,7 @@ module Literal = {
   }
 
   module Float = {
-    let parserRefinement = Operation.refinement((~input, ~struct) => {
+    let parserRefinement = Effect.refinement((~input, ~struct) => {
       switch input->Js.typeof === "number" {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct))
@@ -669,7 +669,7 @@ module Literal = {
   }
 
   module Int = {
-    let parserRefinement = Operation.refinement((~input, ~struct) => {
+    let parserRefinement = Effect.refinement((~input, ~struct) => {
       switch input->Js.typeof === "number" && checkIsIntNumber(input) {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct))
@@ -682,10 +682,10 @@ module Literal = {
       type literalValue variant. (literal<literalValue>, variant) => t<variant> =
       (innerLiteral, variant) => {
         let tagged_t = Literal(innerLiteral)
-        let parserTransform = Operation.transform((~input as _, ~struct as _, ~mode as _) => {
+        let parserTransform = Effect.transform((~input as _, ~struct as _, ~mode as _) => {
           Ok(variant)
         })
-        let serializerRefinement = Operation.refinement((~input, ~struct as _) => {
+        let serializerRefinement = Effect.refinement((~input, ~struct as _) => {
           switch input === variant {
           | true => None
           | false =>
@@ -807,7 +807,7 @@ module Record = {
   }`)
 
   let parsers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       let maybeRefinementError = switch mode {
       | Safe =>
         switch input->getInternalClass === "[object Object]" {
@@ -853,7 +853,7 @@ module Record = {
   ]
 
   let serializers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       let {fields, fieldNames} = struct->classify->Obj.magic
 
       let unknown = Js.Dict.empty()
@@ -921,7 +921,7 @@ module Record = {
 
 module Never = {
   let parsers = [
-    Operation.refinement((~input, ~struct) => {
+    Effect.refinement((~input, ~struct) => {
       Some(makeUnexpectedTypeError(~input, ~struct))
     }),
   ]
@@ -929,7 +929,7 @@ module Never = {
   let factory = () => {
     tagged_t: Never,
     maybeParsers: Some(parsers),
-    maybeSerializers: Some(Operation.empty),
+    maybeSerializers: Some(Effect.empty),
     maybeMetadata: None,
   }
 }
@@ -937,8 +937,8 @@ module Never = {
 module Unknown = {
   let factory = () => {
     tagged_t: Unknown,
-    maybeParsers: Some(Operation.empty),
-    maybeSerializers: Some(Operation.empty),
+    maybeParsers: Some(Effect.empty),
+    maybeSerializers: Some(Effect.empty),
     maybeMetadata: None,
   }
 }
@@ -949,14 +949,14 @@ module String = {
   let emailRegex = %re(`/^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i`)
 
   let parsers = [
-    Operation.refinement((~input, ~struct) => {
+    Effect.refinement((~input, ~struct) => {
       switch input->Js.typeof === "string" {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
     }),
   ]
-  let serializers = Operation.empty
+  let serializers = Effect.empty
 
   let factory = () => {
     tagged_t: String,
@@ -1062,7 +1062,7 @@ module String = {
 
 module Bool = {
   let parsers = [
-    Operation.refinement((~input, ~struct) => {
+    Effect.refinement((~input, ~struct) => {
       switch input->Js.typeof === "boolean" {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct))
@@ -1073,14 +1073,14 @@ module Bool = {
   let factory = () => {
     tagged_t: Bool,
     maybeParsers: Some(parsers),
-    maybeSerializers: Some(Operation.empty),
+    maybeSerializers: Some(Effect.empty),
     maybeMetadata: None,
   }
 }
 
 module Int = {
   let parsers = [
-    Operation.refinement((~input, ~struct) => {
+    Effect.refinement((~input, ~struct) => {
       switch input->Js.typeof === "number" && checkIsIntNumber(input) {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct))
@@ -1091,7 +1091,7 @@ module Int = {
   let factory = () => {
     tagged_t: Int,
     maybeParsers: Some(parsers),
-    maybeSerializers: Some(Operation.empty),
+    maybeSerializers: Some(Effect.empty),
     maybeMetadata: None,
   }
 
@@ -1126,7 +1126,7 @@ module Int = {
 
 module Float = {
   let parsers = [
-    Operation.refinement((~input, ~struct) => {
+    Effect.refinement((~input, ~struct) => {
       switch input->Js.typeof === "number" {
       | true =>
         switch Js.Float.isNaN(input) {
@@ -1141,7 +1141,7 @@ module Float = {
   let factory = () => {
     tagged_t: Float,
     maybeParsers: Some(parsers),
-    maybeSerializers: Some(Operation.empty),
+    maybeSerializers: Some(Effect.empty),
     maybeMetadata: None,
   }
 
@@ -1151,7 +1151,7 @@ module Float = {
 
 module Null = {
   let parsers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       switch input->Js.Null.toOption {
       | Some(innerValue) =>
         let innerStruct = struct->classify->unsafeGetVariantPayload
@@ -1165,7 +1165,7 @@ module Null = {
     }),
   ]
   let serializers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       switch input {
       | Some(value) =>
         let innerStruct = struct->classify->unsafeGetVariantPayload
@@ -1185,7 +1185,7 @@ module Null = {
 
 module Option = {
   let parsers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       switch input {
       | Some(innerValue) =>
         let innerStruct = struct->classify->unsafeGetVariantPayload
@@ -1197,7 +1197,7 @@ module Option = {
     }),
   ]
   let serializers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       switch input {
       | Some(value) => {
           let innerStruct = struct->classify->unsafeGetVariantPayload
@@ -1220,7 +1220,7 @@ module Deprecated = {
   type payload<'value> = {struct: t<'value>}
 
   let parsers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       switch input {
       | Some(innerValue) =>
         let {struct: innerStruct} = struct->classify->Obj.magic
@@ -1232,7 +1232,7 @@ module Deprecated = {
     }),
   ]
   let serializers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       switch input {
       | Some(value) => {
           let {struct: innerStruct} = struct->classify->Obj.magic
@@ -1253,7 +1253,7 @@ module Deprecated = {
 
 module Array = {
   let parsers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       let maybeRefinementError = switch mode {
       | Safe =>
         switch Js.Array2.isArray(input) {
@@ -1293,7 +1293,7 @@ module Array = {
     }),
   ]
   let serializers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       let innerStruct = struct->classify->unsafeGetVariantPayload
 
       let newArray = []
@@ -1370,7 +1370,7 @@ module Array = {
 
 module Dict = {
   let parsers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       let maybeRefinementError = switch mode {
       | Safe =>
         switch input->getInternalClass === "[object Object]" {
@@ -1410,7 +1410,7 @@ module Dict = {
     }),
   ]
   let serializers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       let innerStruct = struct->classify->unsafeGetVariantPayload
 
       let newDict = Js.Dict.empty()
@@ -1448,7 +1448,7 @@ module Default = {
   type payload<'value> = {struct: t<option<'value>>, value: 'value}
 
   let parsers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       let {struct: innerStruct, value} = struct->classify->Obj.magic
       parseInner(~struct=innerStruct, ~any=input, ~mode)->Lib.Result.map(maybeOutput => {
         switch maybeOutput {
@@ -1459,7 +1459,7 @@ module Default = {
     }),
   ]
   let serializers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       let {struct: innerStruct} = struct->classify->Obj.magic
       serializeInner(~struct=innerStruct, ~value=Some(input), ~mode)
     }),
@@ -1475,7 +1475,7 @@ module Default = {
 
 module Tuple = {
   let parsers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
       let numberOfStructs = innerStructs->Js.Array2.length
       let maybeRefinementError = switch mode {
@@ -1535,7 +1535,7 @@ module Tuple = {
   ]
 
   let serializers = [
-    Operation.transform((~input, ~struct, ~mode) => {
+    Effect.transform((~input, ~struct, ~mode) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
       let numberOfStructs = innerStructs->Js.Array2.length
       let inputArray = numberOfStructs === 1 ? [input->Obj.magic] : input
@@ -1577,7 +1577,7 @@ module Tuple = {
 
 module Union = {
   let parsers = [
-    Operation.transform((~input, ~struct, ~mode as _) => {
+    Effect.transform((~input, ~struct, ~mode as _) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
 
       let idxRef = ref(0)
@@ -1606,7 +1606,7 @@ module Union = {
   ]
 
   let serializers = [
-    Operation.transform((~input, ~struct, ~mode as _) => {
+    Effect.transform((~input, ~struct, ~mode as _) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
 
       let idxRef = ref(0)
@@ -1692,7 +1692,7 @@ let json = struct => {
     Js.Array2.concat(
       String.parsers,
       [
-        Operation.transform((~input, ~struct as _, ~mode) => {
+        Effect.transform((~input, ~struct as _, ~mode) => {
           switch Js.Json.parseExn(input) {
           | json => Ok(json)
           | exception Js.Exn.Error(obj) =>
@@ -1710,7 +1710,7 @@ let json = struct => {
   maybeSerializers: Some(
     Js.Array2.concat(
       [
-        Operation.transform((~input, ~struct as _, ~mode) => {
+        Effect.transform((~input, ~struct as _, ~mode) => {
           serializeInner(~struct, ~value=input, ~mode)->Lib.Result.map(unknown =>
             unknown->unsafeUnknownToAny->Js.Json.stringify
           )
