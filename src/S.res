@@ -95,7 +95,12 @@ module Error = {
 
   module Internal = {
     type public = t
-    type t = {code: code, path: array<string>}
+    type t = {
+      @as("c")
+      code: code,
+      @as("p")
+      path: array<string>,
+    }
 
     @inline
     let make = code => {
@@ -220,9 +225,13 @@ type recordUnknownKeys =
   | Strip
 
 type rec t<'value> = {
+  @as("t")
   tagged_t: tagged_t,
+  @as("p")
   maybeParsers: option<array<operation>>,
+  @as("s")
   maybeSerializers: option<array<operation>>,
+  @as("m")
   maybeMetadata: option<Js.Dict.t<unknown>>,
 }
 and tagged_t =
