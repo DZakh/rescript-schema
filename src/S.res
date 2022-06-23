@@ -365,14 +365,15 @@ let parseInner: (
   ~mode: mode,
 ) => result<'value, Error.Internal.t> = (~struct, ~any, ~mode) => {
   switch struct.maybeParsers {
-  | Some([]) => Ok(any->Obj.magic)
   | Some(parsers) =>
     applyOperations(
       ~operations=parsers,
       ~initial=any->unsafeAnyToUnknown,
       ~mode,
       ~struct=struct->Obj.magic,
-    )->Obj.magic
+    )
+    ->unsafeAnyToUnknown
+    ->unsafeUnknownToAny
   | None => Error(Error.Internal.make(MissingParser))
   }
 }
@@ -389,7 +390,6 @@ let serializeInner: (
   ~mode: mode,
 ) => result<unknown, Error.Internal.t> = (~struct, ~value, ~mode) => {
   switch struct.maybeSerializers {
-  | Some([]) => Ok(value->Obj.magic)
   | Some(serializers) =>
     applyOperations(
       ~operations=serializers,
