@@ -266,42 +266,32 @@ function makeUnexpectedTypeError(input, struct) {
 }
 
 function processInner(operation, input, mode, struct) {
-  var result;
-  if (operation) {
-    var effects = struct.p;
-    result = effects !== undefined ? ({
-          TAG: /* Ok */0,
-          _0: effects
-        }) : ({
-          TAG: /* Error */1,
-          _0: {
-            c: /* MissingParser */0,
-            p: []
-          }
-        });
-  } else {
-    var effects$1 = struct.s;
-    result = effects$1 !== undefined ? ({
-          TAG: /* Ok */0,
-          _0: effects$1
-        }) : ({
-          TAG: /* Error */1,
-          _0: {
-            c: /* MissingSerializer */1,
-            p: []
-          }
-        });
+  var maybeEffects = operation ? struct.p : struct.s;
+  if (maybeEffects === undefined) {
+    if (operation) {
+      return {
+              TAG: /* Error */1,
+              _0: {
+                c: /* MissingParser */0,
+                p: []
+              }
+            };
+    } else {
+      return {
+              TAG: /* Error */1,
+              _0: {
+                c: /* MissingSerializer */1,
+                p: []
+              }
+            };
+    }
   }
-  if (result.TAG !== /* Ok */0) {
-    return result;
-  }
-  var effects$2 = result._0;
   var idxRef = 0;
   var valueRef = input;
   var maybeErrorRef;
   var shouldSkipRefinements = mode ? true : false;
-  while(idxRef < effects$2.length && maybeErrorRef === undefined) {
-    var effect = effects$2[idxRef];
+  while(idxRef < maybeEffects.length && maybeErrorRef === undefined) {
+    var effect = maybeEffects[idxRef];
     if (effect.TAG === /* Transform */0) {
       var newValue = effect._0(valueRef, struct, mode);
       if (newValue.TAG === /* Ok */0) {

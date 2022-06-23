@@ -331,52 +331,51 @@ let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
 let checkIsIntNumber = x => x < 2147483648. && x > -2147483649. && x === x->Js.Math.trunc
 
 let processInner = (~operation: operation, ~input: 'input, ~mode: mode, ~struct: t<'value>) => {
-  switch operation {
-  | Parsing =>
-    switch struct.maybeParsers {
-    | Some(effects) => Ok(effects)
-    | None => Error(Error.Internal.make(MissingParser))
-    }
-  | Serializing =>
-    switch struct.maybeSerializers {
-    | Some(effects) => Ok(effects)
-    | None => Error(Error.Internal.make(MissingSerializer))
-    }
-  }->Lib.Result.flatMap(effects => {
-    let idxRef = ref(0)
-    let valueRef = ref(input->Obj.magic)
-    let maybeErrorRef = ref(None)
-    let shouldSkipRefinements = switch mode {
-    | Unsafe => true
-    | Safe => false
-    }
-    while idxRef.contents < effects->Js.Array2.length && maybeErrorRef.contents === None {
-      let effect = effects->Js.Array2.unsafe_get(idxRef.contents)
-      switch effect {
-      | Transform(fn) =>
-        switch fn(. ~unknown=valueRef.contents, ~struct=struct->Obj.magic, ~mode) {
-        | Ok(newValue) => {
-            valueRef.contents = newValue
-            idxRef.contents = idxRef.contents + 1
+  let maybeEffects = switch operation {
+  | Parsing => struct.maybeParsers
+  | Serializing => struct.maybeSerializers
+  }
+  switch maybeEffects {
+  | Some(effects) => {
+      let idxRef = ref(0)
+      let valueRef = ref(input->Obj.magic)
+      let maybeErrorRef = ref(None)
+      let shouldSkipRefinements = switch mode {
+      | Unsafe => true
+      | Safe => false
+      }
+      while idxRef.contents < effects->Js.Array2.length && maybeErrorRef.contents === None {
+        let effect = effects->Js.Array2.unsafe_get(idxRef.contents)
+        switch effect {
+        | Transform(fn) =>
+          switch fn(. ~unknown=valueRef.contents, ~struct=struct->Obj.magic, ~mode) {
+          | Ok(newValue) => {
+              valueRef.contents = newValue
+              idxRef.contents = idxRef.contents + 1
+            }
+          | Error(error) => maybeErrorRef.contents = Some(error)
           }
-        | Error(error) => maybeErrorRef.contents = Some(error)
-        }
-      | Refinement(fn) =>
-        if shouldSkipRefinements {
-          idxRef.contents = idxRef.contents + 1
-        } else {
-          switch fn(. ~unknown=valueRef.contents, ~struct=struct->Obj.magic) {
-          | None => idxRef.contents = idxRef.contents + 1
-          | Some(_) as someError => maybeErrorRef.contents = someError
+        | Refinement(fn) =>
+          if shouldSkipRefinements {
+            idxRef.contents = idxRef.contents + 1
+          } else {
+            switch fn(. ~unknown=valueRef.contents, ~struct=struct->Obj.magic) {
+            | None => idxRef.contents = idxRef.contents + 1
+            | Some(_) as someError => maybeErrorRef.contents = someError
+            }
           }
         }
       }
+      switch maybeErrorRef.contents {
+      | Some(error) => Error(error)
+      | None => Ok(valueRef.contents->Obj.magic)
+      }
     }
-    switch maybeErrorRef.contents {
-    | Some(error) => Error(error)
-    | None => Ok(valueRef.contents->Obj.magic)
+  | None => switch operation {
+    | Parsing => Error(Error.Internal.make(MissingParser))
+    | Serializing => Error(Error.Internal.make(MissingSerializer))
     }
-  })
+  }
 }
 
 @inline
