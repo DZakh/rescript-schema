@@ -155,7 +155,7 @@ S.string()->S.String.trimmed() // trim whitespaces
 
 When using built-in refinements, you can provide a custom error message.
 
-```
+```rescript
 S.string()->S.String.min(~message="String can't be empty", 1)
 S.string()->S.String.length(~message="SMS code should be 5 digits long", 5)
 ```
@@ -766,7 +766,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [x] Design and add Union struct factory
   - [ ] Add discriminant optimization for record structs
   - [ ] Better error message
-- [ ] Design and add Refinements
+- [ ] Design and add tagged refinements
 - [x] Properly handle NaN
 - [ ] Design and add async transforms
 - [x] Add super transforms
