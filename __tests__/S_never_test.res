@@ -24,10 +24,18 @@ module Common = {
     )
   })
 
-  test("Successfully serializes even when value is wrong, because we rely on typesystem", t => {
+  test("Fails to serialize in Safe mode", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.serializeWith(struct), Ok(any), ())
+    t->Assert.deepEqual(
+      any->S.serializeWith(struct),
+      Error({
+        code: UnexpectedType({expected: "Never", received: "Bool"}),
+        operation: Serializing,
+        path: [],
+      }),
+      (),
+    )
   })
 }
 

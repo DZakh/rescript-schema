@@ -292,21 +292,14 @@ function processInner(operation, input, mode, struct) {
   var maybeErrorRef;
   while(idxRef < effects.length && maybeErrorRef === undefined) {
     var effect = effects[idxRef];
-    if (effect.TAG === /* Transform */0) {
-      var newValue = effect._0(valueRef, struct, mode);
-      if (newValue.TAG === /* Ok */0) {
-        valueRef = newValue._0;
-        idxRef = idxRef + 1 | 0;
-      } else {
-        maybeErrorRef = newValue._0;
-      }
+    var newValue = effect(valueRef, struct, mode);
+    if (typeof newValue === "number") {
+      idxRef = idxRef + 1 | 0;
+    } else if (newValue.TAG === /* Transformed */0) {
+      valueRef = newValue._0;
+      idxRef = idxRef + 1 | 0;
     } else {
-      var someError = effect._0(valueRef, struct);
-      if (someError !== undefined) {
-        maybeErrorRef = someError;
-      } else {
-        idxRef = idxRef + 1 | 0;
-      }
+      maybeErrorRef = newValue._0;
     }
   };
   var error = maybeErrorRef;
@@ -363,21 +356,22 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
   var match = struct.p;
   var tmp;
   if (match !== undefined && maybeRefineParser !== undefined) {
-    var effect = {
-      TAG: /* Refinement */1,
-      _0: (function (input, param) {
-          var option = maybeRefineParser(input);
-          if (option !== undefined) {
-            return {
-                    c: {
-                      TAG: /* OperationFailed */0,
-                      _0: Caml_option.valFromOption(option)
-                    },
-                    p: []
-                  };
-          }
-          
-        })
+    var effect = function (input, param, param$1) {
+      var reason = maybeRefineParser(input);
+      if (reason !== undefined) {
+        return {
+                TAG: /* Failed */1,
+                _0: {
+                  c: {
+                    TAG: /* OperationFailed */0,
+                    _0: Caml_option.valFromOption(reason)
+                  },
+                  p: []
+                }
+              };
+      } else {
+        return /* Refined */0;
+      }
     };
     tmp = {
       s: match.s.concat([effect]),
@@ -389,21 +383,22 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
   var match$1 = struct.s;
   var tmp$1;
   if (match$1 !== undefined && maybeRefineSerializer !== undefined) {
-    var effect$1 = {
-      TAG: /* Refinement */1,
-      _0: (function (input, param) {
-          var option = maybeRefineSerializer(input);
-          if (option !== undefined) {
-            return {
-                    c: {
-                      TAG: /* OperationFailed */0,
-                      _0: Caml_option.valFromOption(option)
-                    },
-                    p: []
-                  };
-          }
-          
-        })
+    var effect$1 = function (input, param, param$1) {
+      var reason = maybeRefineSerializer(input);
+      if (reason !== undefined) {
+        return {
+                TAG: /* Failed */1,
+                _0: {
+                  c: {
+                    TAG: /* OperationFailed */0,
+                    _0: Caml_option.valFromOption(reason)
+                  },
+                  p: []
+                }
+              };
+      } else {
+        return /* Refined */0;
+      }
     };
     tmp$1 = {
       s: [effect$1].concat(match$1.s),
@@ -428,25 +423,22 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
   var tmp;
   if (match !== undefined && maybeTransformationParser !== undefined) {
     var transformationParser = Caml_option.valFromOption(maybeTransformationParser);
-    var effect = {
-      TAG: /* Transform */0,
-      _0: (function (input, param, param$1) {
-          var result = transformationParser(input);
-          if (result.TAG === /* Ok */0) {
-            return result;
-          } else {
-            return {
-                    TAG: /* Error */1,
-                    _0: {
-                      c: {
-                        TAG: /* OperationFailed */0,
-                        _0: result._0
-                      },
-                      p: []
-                    }
-                  };
-          }
-        })
+    var effect = function (input, param, param$1) {
+      var ok = transformationParser(input);
+      if (ok.TAG === /* Ok */0) {
+        return ok;
+      } else {
+        return {
+                TAG: /* Failed */1,
+                _0: {
+                  c: {
+                    TAG: /* OperationFailed */0,
+                    _0: ok._0
+                  },
+                  p: []
+                }
+              };
+      }
     };
     tmp = {
       s: match.s.concat([effect]),
@@ -459,25 +451,22 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
   var tmp$1;
   if (match$1 !== undefined && maybeTransformationSerializer !== undefined) {
     var transformationSerializer = Caml_option.valFromOption(maybeTransformationSerializer);
-    var effect$1 = {
-      TAG: /* Transform */0,
-      _0: (function (input, param, param$1) {
-          var result = transformationSerializer(input);
-          if (result.TAG === /* Ok */0) {
-            return result;
-          } else {
-            return {
-                    TAG: /* Error */1,
-                    _0: {
-                      c: {
-                        TAG: /* OperationFailed */0,
-                        _0: result._0
-                      },
-                      p: []
-                    }
-                  };
-          }
-        })
+    var effect$1 = function (input, param, param$1) {
+      var ok = transformationSerializer(input);
+      if (ok.TAG === /* Ok */0) {
+        return ok;
+      } else {
+        return {
+                TAG: /* Failed */1,
+                _0: {
+                  c: {
+                    TAG: /* OperationFailed */0,
+                    _0: ok._0
+                  },
+                  p: []
+                }
+              };
+      }
     };
     tmp$1 = {
       s: [effect$1].concat(match$1.s),
@@ -501,19 +490,16 @@ function superTransform(struct, maybeTransformationParser, maybeTransformationSe
   var match = struct.p;
   var tmp;
   if (match !== undefined && maybeTransformationParser !== undefined) {
-    var effect = {
-      TAG: /* Transform */0,
-      _0: (function (input, struct, mode) {
-          var result = maybeTransformationParser(input, struct, mode);
-          if (result.TAG === /* Ok */0) {
-            return result;
-          } else {
-            return {
-                    TAG: /* Error */1,
-                    _0: fromPublic(result._0)
-                  };
-          }
-        })
+    var effect = function (input, struct, mode) {
+      var ok = maybeTransformationParser(input, struct, mode);
+      if (ok.TAG === /* Ok */0) {
+        return ok;
+      } else {
+        return {
+                TAG: /* Failed */1,
+                _0: fromPublic(ok._0)
+              };
+      }
     };
     tmp = {
       s: match.s.concat([effect]),
@@ -525,19 +511,16 @@ function superTransform(struct, maybeTransformationParser, maybeTransformationSe
   var match$1 = struct.s;
   var tmp$1;
   if (match$1 !== undefined && maybeTransformationSerializer !== undefined) {
-    var effect$1 = {
-      TAG: /* Transform */0,
-      _0: (function (input, struct, mode) {
-          var result = maybeTransformationSerializer(input, struct, mode);
-          if (result.TAG === /* Ok */0) {
-            return result;
-          } else {
-            return {
-                    TAG: /* Error */1,
-                    _0: fromPublic(result._0)
-                  };
-          }
-        })
+    var effect$1 = function (input, struct, mode) {
+      var ok = maybeTransformationSerializer(input, struct, mode);
+      if (ok.TAG === /* Ok */0) {
+        return ok;
+      } else {
+        return {
+                TAG: /* Failed */1,
+                _0: fromPublic(ok._0)
+              };
+      }
     };
     tmp$1 = {
       s: [effect$1].concat(match$1.s),
@@ -559,40 +542,34 @@ function custom(maybeCustomParser, maybeCustomSerializer, param) {
     raise$1("Custom struct factory");
   }
   var fn = function (customParser) {
-    var effects = [{
-        TAG: /* Transform */0,
-        _0: (function (input, param, mode) {
-            var result = customParser(input, mode);
-            if (result.TAG === /* Ok */0) {
-              return result;
-            } else {
-              return {
-                      TAG: /* Error */1,
-                      _0: fromPublic(result._0)
-                    };
-            }
-          })
-      }];
+    var effects = [(function (input, param, mode) {
+          var ok = customParser(input, mode);
+          if (ok.TAG === /* Ok */0) {
+            return ok;
+          } else {
+            return {
+                    TAG: /* Failed */1,
+                    _0: fromPublic(ok._0)
+                  };
+          }
+        })];
     return {
             s: effects,
             u: effects
           };
   };
   var fn$1 = function (customSerializer) {
-    var effects = [{
-        TAG: /* Transform */0,
-        _0: (function (input, param, mode) {
-            var result = customSerializer(input, mode);
-            if (result.TAG === /* Ok */0) {
-              return result;
-            } else {
-              return {
-                      TAG: /* Error */1,
-                      _0: fromPublic(result._0)
-                    };
-            }
-          })
-      }];
+    var effects = [(function (input, param, mode) {
+          var ok = customSerializer(input, mode);
+          if (ok.TAG === /* Ok */0) {
+            return ok;
+          } else {
+            return {
+                    TAG: /* Failed */1,
+                    _0: fromPublic(ok._0)
+                  };
+          }
+        })];
     return {
             s: effects,
             u: effects
@@ -606,159 +583,144 @@ function custom(maybeCustomParser, maybeCustomSerializer, param) {
         };
 }
 
-var literalValueRefinement = {
-  TAG: /* Refinement */1,
-  _0: (function (input, struct) {
-      var expectedValue = struct.t._0._0;
-      if (expectedValue === input) {
-        return ;
-      } else {
-        return make(expectedValue, input);
-      }
-    })
-};
+function literalValueRefinement(input, struct, param) {
+  var expectedValue = struct.t._0._0;
+  if (expectedValue === input) {
+    return /* Refined */0;
+  } else {
+    return {
+            TAG: /* Failed */1,
+            _0: make(expectedValue, input)
+          };
+  }
+}
 
-var transformToLiteralValue = {
-  TAG: /* Transform */0,
-  _0: (function (param, struct, param$1) {
-      var literalValue = struct.t._0._0;
-      return {
-              TAG: /* Ok */0,
-              _0: literalValue
-            };
-    })
-};
+function transformToLiteralValue(param, struct, param$1) {
+  var literalValue = struct.t._0._0;
+  return {
+          TAG: /* Transformed */0,
+          _0: literalValue
+        };
+}
 
-var parserRefinement = {
-  TAG: /* Refinement */1,
-  _0: (function (input, struct) {
-      if (input === null) {
-        return ;
-      } else {
-        return makeUnexpectedTypeError(input, struct);
-      }
-    })
-};
+function parserRefinement(input, struct, param) {
+  if (input === null) {
+    return /* Refined */0;
+  } else {
+    return {
+            TAG: /* Failed */1,
+            _0: makeUnexpectedTypeError(input, struct)
+          };
+  }
+}
 
-var serializerTransform = {
-  TAG: /* Transform */0,
-  _0: (function (param, param$1, param$2) {
-      return {
-              TAG: /* Ok */0,
-              _0: null
-            };
-    })
-};
+function serializerTransform(param, param$1, param$2) {
+  return {
+          TAG: /* Transformed */0,
+          _0: null
+        };
+}
 
-var parserRefinement$1 = {
-  TAG: /* Refinement */1,
-  _0: (function (input, struct) {
-      if (input === undefined) {
-        return ;
-      } else {
-        return makeUnexpectedTypeError(input, struct);
-      }
-    })
-};
+function parserRefinement$1(input, struct, param) {
+  if (input === undefined) {
+    return /* Refined */0;
+  } else {
+    return {
+            TAG: /* Failed */1,
+            _0: makeUnexpectedTypeError(input, struct)
+          };
+  }
+}
 
-var serializerTransform$1 = {
-  TAG: /* Transform */0,
-  _0: (function (param, param$1, param$2) {
-      return {
-              TAG: /* Ok */0,
-              _0: undefined
-            };
-    })
-};
+function serializerTransform$1(param, param$1, param$2) {
+  return {
+          TAG: /* Transformed */0,
+          _0: undefined
+        };
+}
 
-var parserRefinement$2 = {
-  TAG: /* Refinement */1,
-  _0: (function (input, struct) {
-      if (Number.isNaN(input)) {
-        return ;
-      } else {
-        return makeUnexpectedTypeError(input, struct);
-      }
-    })
-};
+function parserRefinement$2(input, struct, param) {
+  if (Number.isNaN(input)) {
+    return /* Refined */0;
+  } else {
+    return {
+            TAG: /* Failed */1,
+            _0: makeUnexpectedTypeError(input, struct)
+          };
+  }
+}
 
-var serializerTransform$2 = {
-  TAG: /* Transform */0,
-  _0: (function (param, param$1, param$2) {
-      return {
-              TAG: /* Ok */0,
-              _0: NaN
-            };
-    })
-};
+function serializerTransform$2(param, param$1, param$2) {
+  return {
+          TAG: /* Transformed */0,
+          _0: NaN
+        };
+}
 
-var parserRefinement$3 = {
-  TAG: /* Refinement */1,
-  _0: (function (input, struct) {
-      if (typeof input === "boolean") {
-        return ;
-      } else {
-        return makeUnexpectedTypeError(input, struct);
-      }
-    })
-};
+function parserRefinement$3(input, struct, param) {
+  if (typeof input === "boolean") {
+    return /* Refined */0;
+  } else {
+    return {
+            TAG: /* Failed */1,
+            _0: makeUnexpectedTypeError(input, struct)
+          };
+  }
+}
 
-var parserRefinement$4 = {
-  TAG: /* Refinement */1,
-  _0: (function (input, struct) {
-      if (typeof input === "string") {
-        return ;
-      } else {
-        return makeUnexpectedTypeError(input, struct);
-      }
-    })
-};
+function parserRefinement$4(input, struct, param) {
+  if (typeof input === "string") {
+    return /* Refined */0;
+  } else {
+    return {
+            TAG: /* Failed */1,
+            _0: makeUnexpectedTypeError(input, struct)
+          };
+  }
+}
 
-var parserRefinement$5 = {
-  TAG: /* Refinement */1,
-  _0: (function (input, struct) {
-      if (typeof input === "number") {
-        return ;
-      } else {
-        return makeUnexpectedTypeError(input, struct);
-      }
-    })
-};
+function parserRefinement$5(input, struct, param) {
+  if (typeof input === "number") {
+    return /* Refined */0;
+  } else {
+    return {
+            TAG: /* Failed */1,
+            _0: makeUnexpectedTypeError(input, struct)
+          };
+  }
+}
 
-var parserRefinement$6 = {
-  TAG: /* Refinement */1,
-  _0: (function (input, struct) {
-      if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
-        return ;
-      } else {
-        return makeUnexpectedTypeError(input, struct);
-      }
-    })
-};
+function parserRefinement$6(input, struct, param) {
+  if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
+    return /* Refined */0;
+  } else {
+    return {
+            TAG: /* Failed */1,
+            _0: makeUnexpectedTypeError(input, struct)
+          };
+  }
+}
 
 function factory(innerLiteral, variant) {
   var tagged_t = {
     TAG: /* Literal */0,
     _0: innerLiteral
   };
-  var parserTransform = {
-    TAG: /* Transform */0,
-    _0: (function (param, param$1, param$2) {
-        return {
-                TAG: /* Ok */0,
-                _0: variant
-              };
-      })
+  var parserTransform = function (param, param$1, param$2) {
+    return {
+            TAG: /* Transformed */0,
+            _0: variant
+          };
   };
-  var serializerRefinement = {
-    TAG: /* Refinement */1,
-    _0: (function (input, param) {
-        if (input === variant) {
-          return ;
-        } else {
-          return make(variant, input);
-        }
-      })
+  var serializerRefinement = function (input, param, param$1) {
+    if (input === variant) {
+      return /* Refined */0;
+    } else {
+      return {
+              TAG: /* Failed */1,
+              _0: make(variant, input)
+            };
+    }
   };
   if (typeof innerLiteral === "number") {
     switch (innerLiteral) {
@@ -925,61 +887,58 @@ var getMaybeExcessKey = (function(object, innerStructsDict) {
     return undefined
   });
 
-var parserTransform = {
-  TAG: /* Transform */0,
-  _0: (function (input, struct, mode) {
-      var maybeRefinementError = mode || Object.prototype.toString.call(input) === "[object Object]" ? undefined : makeUnexpectedTypeError(input, struct);
-      if (maybeRefinementError !== undefined) {
-        return {
-                TAG: /* Error */1,
-                _0: maybeRefinementError
-              };
-      }
-      var match = struct.t;
-      var fieldNames = match.fieldNames;
-      var fields = match.fields;
-      var newArray = [];
-      var idxRef = 0;
-      var maybeErrorRef;
-      while(idxRef < fieldNames.length && maybeErrorRef === undefined) {
-        var idx = idxRef;
-        var fieldName = fieldNames[idx];
-        var fieldStruct = fields[fieldName];
-        var value = processInner(/* Parsing */1, input[fieldName], mode, fieldStruct);
-        if (value.TAG === /* Ok */0) {
-          newArray.push(value._0);
-          idxRef = idxRef + 1 | 0;
-        } else {
-          maybeErrorRef = prependLocation(value._0, fieldName);
-        }
-      };
-      if (match.unknownKeys === /* Strict */0 && mode === /* Safe */0) {
-        var excessKey = getMaybeExcessKey(input, fields);
-        if (excessKey !== undefined) {
-          maybeErrorRef = {
-            c: {
-              TAG: /* ExcessField */4,
-              _0: excessKey
-            },
-            p: []
+function parserTransform(input, struct, mode) {
+  var maybeRefinementError = mode || Object.prototype.toString.call(input) === "[object Object]" ? undefined : makeUnexpectedTypeError(input, struct);
+  if (maybeRefinementError !== undefined) {
+    return {
+            TAG: /* Failed */1,
+            _0: maybeRefinementError
           };
-        }
-        
-      }
-      var error = maybeErrorRef;
-      if (error !== undefined) {
-        return {
-                TAG: /* Error */1,
-                _0: error
-              };
-      } else {
-        return {
-                TAG: /* Ok */0,
-                _0: newArray.length <= 1 ? newArray[0] : newArray
-              };
-      }
-    })
-};
+  }
+  var match = struct.t;
+  var fieldNames = match.fieldNames;
+  var fields = match.fields;
+  var newArray = [];
+  var idxRef = 0;
+  var maybeErrorRef;
+  while(idxRef < fieldNames.length && maybeErrorRef === undefined) {
+    var idx = idxRef;
+    var fieldName = fieldNames[idx];
+    var fieldStruct = fields[fieldName];
+    var value = processInner(/* Parsing */1, input[fieldName], mode, fieldStruct);
+    if (value.TAG === /* Ok */0) {
+      newArray.push(value._0);
+      idxRef = idxRef + 1 | 0;
+    } else {
+      maybeErrorRef = prependLocation(value._0, fieldName);
+    }
+  };
+  if (match.unknownKeys === /* Strict */0 && mode === /* Safe */0) {
+    var excessKey = getMaybeExcessKey(input, fields);
+    if (excessKey !== undefined) {
+      maybeErrorRef = {
+        c: {
+          TAG: /* ExcessField */4,
+          _0: excessKey
+        },
+        p: []
+      };
+    }
+    
+  }
+  var error = maybeErrorRef;
+  if (error !== undefined) {
+    return {
+            TAG: /* Failed */1,
+            _0: error
+          };
+  } else {
+    return {
+            TAG: /* Transformed */0,
+            _0: newArray.length <= 1 ? newArray[0] : newArray
+          };
+  }
+}
 
 var parsers_s = [parserTransform];
 
@@ -990,43 +949,40 @@ var parsers = {
   u: parsers_u
 };
 
-var serializerTransform$3 = {
-  TAG: /* Transform */0,
-  _0: (function (input, struct, mode) {
-      var match = struct.t;
-      var fieldNames = match.fieldNames;
-      var fields = match.fields;
-      var unknown = {};
-      var fieldValues = fieldNames.length <= 1 ? [input] : input;
-      var idxRef = 0;
-      var maybeErrorRef;
-      while(idxRef < fieldNames.length && maybeErrorRef === undefined) {
-        var idx = idxRef;
-        var fieldName = fieldNames[idx];
-        var fieldStruct = fields[fieldName];
-        var fieldValue = fieldValues[idx];
-        var unknownFieldValue = processInner(/* Serializing */0, fieldValue, mode, fieldStruct);
-        if (unknownFieldValue.TAG === /* Ok */0) {
-          unknown[fieldName] = unknownFieldValue._0;
-          idxRef = idxRef + 1 | 0;
-        } else {
-          maybeErrorRef = prependLocation(unknownFieldValue._0, fieldName);
-        }
-      };
-      var error = maybeErrorRef;
-      if (error !== undefined) {
-        return {
-                TAG: /* Error */1,
-                _0: error
-              };
-      } else {
-        return {
-                TAG: /* Ok */0,
-                _0: unknown
-              };
-      }
-    })
-};
+function serializerTransform$3(input, struct, mode) {
+  var match = struct.t;
+  var fieldNames = match.fieldNames;
+  var fields = match.fields;
+  var unknown = {};
+  var fieldValues = fieldNames.length <= 1 ? [input] : input;
+  var idxRef = 0;
+  var maybeErrorRef;
+  while(idxRef < fieldNames.length && maybeErrorRef === undefined) {
+    var idx = idxRef;
+    var fieldName = fieldNames[idx];
+    var fieldStruct = fields[fieldName];
+    var fieldValue = fieldValues[idx];
+    var unknownFieldValue = processInner(/* Serializing */0, fieldValue, mode, fieldStruct);
+    if (unknownFieldValue.TAG === /* Ok */0) {
+      unknown[fieldName] = unknownFieldValue._0;
+      idxRef = idxRef + 1 | 0;
+    } else {
+      maybeErrorRef = prependLocation(unknownFieldValue._0, fieldName);
+    }
+  };
+  var error = maybeErrorRef;
+  if (error !== undefined) {
+    return {
+            TAG: /* Failed */1,
+            _0: error
+          };
+  } else {
+    return {
+            TAG: /* Transformed */0,
+            _0: unknown
+          };
+  }
+}
 
 var serializers_s = [serializerTransform$3];
 
@@ -1092,25 +1048,23 @@ function strict(struct) {
   }
 }
 
-var parserRefinement$7 = {
-  TAG: /* Refinement */1,
-  _0: (function (input, struct) {
-      return makeUnexpectedTypeError(input, struct);
-    })
-};
+var effects = [(function (input, struct, param) {
+      return {
+              TAG: /* Failed */1,
+              _0: makeUnexpectedTypeError(input, struct)
+            };
+    })];
 
-var parsers_s$1 = [parserRefinement$7];
-
-var parsers$1 = {
-  s: parsers_s$1,
+var effectsMap = {
+  s: effects,
   u: emptyArray
 };
 
 function factory$3(param) {
   return {
           t: /* Never */0,
-          p: parsers$1,
-          s: emptyMap,
+          p: effectsMap,
+          s: effectsMap,
           m: undefined
         };
 }
@@ -1130,28 +1084,28 @@ var uuidRegex = /^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]
 
 var emailRegex = /^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i;
 
-var parserRefinement$8 = {
-  TAG: /* Refinement */1,
-  _0: (function (input, struct) {
-      if (typeof input === "string") {
-        return ;
-      } else {
-        return makeUnexpectedTypeError(input, struct);
-      }
-    })
-};
+function parserRefinement$7(input, struct, param) {
+  if (typeof input === "string") {
+    return /* Refined */0;
+  } else {
+    return {
+            TAG: /* Failed */1,
+            _0: makeUnexpectedTypeError(input, struct)
+          };
+  }
+}
 
-var parsers_s$2 = [parserRefinement$8];
+var parsers_s$1 = [parserRefinement$7];
 
-var parsers$2 = {
-  s: parsers_s$2,
+var parsers$1 = {
+  s: parsers_s$1,
   u: emptyArray
 };
 
 function factory$5(param) {
   return {
           t: /* String */2,
-          p: parsers$2,
+          p: parsers$1,
           s: emptyMap,
           m: undefined
         };
@@ -1267,16 +1221,43 @@ function trimmed(struct, param) {
   return transform(struct, transformer, transformer, undefined);
 }
 
-var parserRefinement$9 = {
-  TAG: /* Refinement */1,
-  _0: (function (input, struct) {
-      if (typeof input === "boolean") {
-        return ;
-      } else {
-        return makeUnexpectedTypeError(input, struct);
-      }
-    })
+function parserRefinement$8(input, struct, param) {
+  if (typeof input === "boolean") {
+    return /* Refined */0;
+  } else {
+    return {
+            TAG: /* Failed */1,
+            _0: makeUnexpectedTypeError(input, struct)
+          };
+  }
+}
+
+var parsers_s$2 = [parserRefinement$8];
+
+var parsers$2 = {
+  s: parsers_s$2,
+  u: emptyArray
 };
+
+function factory$6(param) {
+  return {
+          t: /* Bool */5,
+          p: parsers$2,
+          s: emptyMap,
+          m: undefined
+        };
+}
+
+function parserRefinement$9(input, struct, param) {
+  if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
+    return /* Refined */0;
+  } else {
+    return {
+            TAG: /* Failed */1,
+            _0: makeUnexpectedTypeError(input, struct)
+          };
+  }
+}
 
 var parsers_s$3 = [parserRefinement$9];
 
@@ -1285,37 +1266,10 @@ var parsers$3 = {
   u: emptyArray
 };
 
-function factory$6(param) {
-  return {
-          t: /* Bool */5,
-          p: parsers$3,
-          s: emptyMap,
-          m: undefined
-        };
-}
-
-var parserRefinement$10 = {
-  TAG: /* Refinement */1,
-  _0: (function (input, struct) {
-      if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
-        return ;
-      } else {
-        return makeUnexpectedTypeError(input, struct);
-      }
-    })
-};
-
-var parsers_s$4 = [parserRefinement$10];
-
-var parsers$4 = {
-  s: parsers_s$4,
-  u: emptyArray
-};
-
 function factory$7(param) {
   return {
           t: /* Int */3,
-          p: parsers$4,
+          p: parsers$3,
           s: emptyMap,
           m: undefined
         };
@@ -1343,73 +1297,67 @@ function max$1(struct, maybeMessage, thanValue) {
   return refine(struct, refiner, refiner, undefined);
 }
 
-var parserRefinement$11 = {
-  TAG: /* Refinement */1,
-  _0: (function (input, struct) {
-      if (typeof input === "number" && !Number.isNaN(input)) {
-        return ;
-      } else {
-        return makeUnexpectedTypeError(input, struct);
-      }
-    })
-};
+function parserRefinement$10(input, struct, param) {
+  if (typeof input === "number" && !Number.isNaN(input)) {
+    return /* Refined */0;
+  } else {
+    return {
+            TAG: /* Failed */1,
+            _0: makeUnexpectedTypeError(input, struct)
+          };
+  }
+}
 
-var parsers_s$5 = [parserRefinement$11];
+var parsers_s$4 = [parserRefinement$10];
 
-var parsers$5 = {
-  s: parsers_s$5,
+var parsers$4 = {
+  s: parsers_s$4,
   u: emptyArray
 };
 
 function factory$8(param) {
   return {
           t: /* Float */4,
-          p: parsers$5,
+          p: parsers$4,
           s: emptyMap,
           m: undefined
         };
 }
 
-var parserEffects = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (input === null) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: undefined
-                };
-        }
-        var innerStruct = struct.t._0;
-        var result = processInner(/* Parsing */1, input, mode, innerStruct);
-        if (result.TAG === /* Ok */0) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: Caml_option.some(result._0)
-                };
-        } else {
-          return result;
-        }
-      })
-  }];
+var parserEffects = [(function (input, struct, mode) {
+      if (input === null) {
+        return {
+                TAG: /* Transformed */0,
+                _0: undefined
+              };
+      }
+      var innerStruct = struct.t._0;
+      var value = processInner(/* Parsing */1, input, mode, innerStruct);
+      if (value.TAG === /* Ok */0) {
+        return {
+                TAG: /* Transformed */0,
+                _0: Caml_option.some(value._0)
+              };
+      } else {
+        return value;
+      }
+    })];
 
-var parsers$6 = {
+var parsers$5 = {
   s: parserEffects,
   u: parserEffects
 };
 
-var serializerEffects = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (input === undefined) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: null
-                };
-        }
-        var innerStruct = struct.t._0;
-        return processInner(/* Serializing */0, Caml_option.valFromOption(input), mode, innerStruct);
-      })
-  }];
+var serializerEffects = [(function (input, struct, mode) {
+      if (input === undefined) {
+        return {
+                TAG: /* Transformed */0,
+                _0: null
+              };
+      }
+      var innerStruct = struct.t._0;
+      return processInner(/* Serializing */0, Caml_option.valFromOption(input), mode, innerStruct);
+    })];
 
 var serializers$1 = {
   s: serializerEffects,
@@ -1422,52 +1370,40 @@ function factory$9(innerStruct) {
             TAG: /* Null */2,
             _0: innerStruct
           },
-          p: parsers$6,
+          p: parsers$5,
           s: serializers$1,
           m: undefined
         };
 }
 
-var parserEffects$1 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (input === undefined) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: undefined
-                };
-        }
-        var innerStruct = struct.t._0;
-        var result = processInner(/* Parsing */1, Caml_option.valFromOption(input), mode, innerStruct);
-        if (result.TAG === /* Ok */0) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: Caml_option.some(result._0)
-                };
-        } else {
-          return result;
-        }
-      })
-  }];
+var parserEffects$1 = [(function (input, struct, mode) {
+      if (input === undefined) {
+        return /* Refined */0;
+      }
+      var innerStruct = struct.t._0;
+      var v = processInner(/* Parsing */1, Caml_option.valFromOption(input), mode, innerStruct);
+      if (v.TAG === /* Ok */0) {
+        return {
+                TAG: /* Transformed */0,
+                _0: Caml_option.some(v._0)
+              };
+      } else {
+        return v;
+      }
+    })];
 
-var parsers$7 = {
+var parsers$6 = {
   s: parserEffects$1,
   u: parserEffects$1
 };
 
-var serializerEffects$1 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (input === undefined) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: undefined
-                };
-        }
-        var innerStruct = struct.t._0;
-        return processInner(/* Serializing */0, Caml_option.valFromOption(input), mode, innerStruct);
-      })
-  }];
+var serializerEffects$1 = [(function (input, struct, mode) {
+      if (input === undefined) {
+        return /* Refined */0;
+      }
+      var innerStruct = struct.t._0;
+      return processInner(/* Serializing */0, Caml_option.valFromOption(input), mode, innerStruct);
+    })];
 
 var serializers$2 = {
   s: serializerEffects$1,
@@ -1480,52 +1416,40 @@ function factory$10(innerStruct) {
             TAG: /* Option */1,
             _0: innerStruct
           },
-          p: parsers$7,
+          p: parsers$6,
           s: serializers$2,
           m: undefined
         };
 }
 
-var parserEffects$2 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (input === undefined) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: undefined
-                };
-        }
-        var match = struct.t;
-        var result = processInner(/* Parsing */1, Caml_option.valFromOption(input), mode, match.struct);
-        if (result.TAG === /* Ok */0) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: Caml_option.some(result._0)
-                };
-        } else {
-          return result;
-        }
-      })
-  }];
+var parserEffects$2 = [(function (input, struct, mode) {
+      if (input === undefined) {
+        return /* Refined */0;
+      }
+      var match = struct.t;
+      var v = processInner(/* Parsing */1, Caml_option.valFromOption(input), mode, match.struct);
+      if (v.TAG === /* Ok */0) {
+        return {
+                TAG: /* Transformed */0,
+                _0: Caml_option.some(v._0)
+              };
+      } else {
+        return v;
+      }
+    })];
 
-var parsers$8 = {
+var parsers$7 = {
   s: parserEffects$2,
   u: parserEffects$2
 };
 
-var serializerEffects$2 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (input === undefined) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: undefined
-                };
-        }
-        var match = struct.t;
-        return processInner(/* Serializing */0, Caml_option.valFromOption(input), mode, match.struct);
-      })
-  }];
+var serializerEffects$2 = [(function (input, struct, mode) {
+      if (input === undefined) {
+        return /* Refined */0;
+      }
+      var match = struct.t;
+      return processInner(/* Serializing */0, Caml_option.valFromOption(input), mode, match.struct);
+    })];
 
 var serializers$3 = {
   s: serializerEffects$2,
@@ -1539,89 +1463,83 @@ function factory$11(maybeMessage, innerStruct) {
             struct: innerStruct,
             maybeMessage: maybeMessage
           },
-          p: parsers$8,
+          p: parsers$7,
           s: serializers$3,
           m: undefined
         };
 }
 
-var parserEffects$3 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        var maybeRefinementError = mode || Array.isArray(input) ? undefined : makeUnexpectedTypeError(input, struct);
-        if (maybeRefinementError !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: maybeRefinementError
-                };
-        }
-        var innerStruct = struct.t._0;
-        var newArray = [];
-        var idxRef = 0;
-        var maybeErrorRef;
-        while(idxRef < input.length && maybeErrorRef === undefined) {
-          var idx = idxRef;
-          var innerValue = input[idx];
-          var value = processInner(/* Parsing */1, innerValue, mode, innerStruct);
-          if (value.TAG === /* Ok */0) {
-            newArray.push(value._0);
-            idxRef = idxRef + 1 | 0;
-          } else {
-            maybeErrorRef = prependLocation(value._0, idx.toString());
-          }
-        };
-        var error = maybeErrorRef;
-        if (error !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: error
-                };
+var parserEffects$3 = [(function (input, struct, mode) {
+      var maybeRefinementError = mode || Array.isArray(input) ? undefined : makeUnexpectedTypeError(input, struct);
+      if (maybeRefinementError !== undefined) {
+        return {
+                TAG: /* Failed */1,
+                _0: maybeRefinementError
+              };
+      }
+      var innerStruct = struct.t._0;
+      var newArray = [];
+      var idxRef = 0;
+      var maybeErrorRef;
+      while(idxRef < input.length && maybeErrorRef === undefined) {
+        var idx = idxRef;
+        var innerValue = input[idx];
+        var value = processInner(/* Parsing */1, innerValue, mode, innerStruct);
+        if (value.TAG === /* Ok */0) {
+          newArray.push(value._0);
+          idxRef = idxRef + 1 | 0;
         } else {
-          return {
-                  TAG: /* Ok */0,
-                  _0: newArray
-                };
+          maybeErrorRef = prependLocation(value._0, idx.toString());
         }
-      })
-  }];
+      };
+      var error = maybeErrorRef;
+      if (error !== undefined) {
+        return {
+                TAG: /* Failed */1,
+                _0: error
+              };
+      } else {
+        return {
+                TAG: /* Transformed */0,
+                _0: newArray
+              };
+      }
+    })];
 
-var parsers$9 = {
+var parsers$8 = {
   s: parserEffects$3,
   u: parserEffects$3
 };
 
-var serializerEffects$3 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        var innerStruct = struct.t._0;
-        var newArray = [];
-        var idxRef = 0;
-        var maybeErrorRef;
-        while(idxRef < input.length && maybeErrorRef === undefined) {
-          var idx = idxRef;
-          var innerValue = input[idx];
-          var value = processInner(/* Serializing */0, innerValue, mode, innerStruct);
-          if (value.TAG === /* Ok */0) {
-            newArray.push(value._0);
-            idxRef = idxRef + 1 | 0;
-          } else {
-            maybeErrorRef = prependLocation(value._0, idx.toString());
-          }
-        };
-        var error = maybeErrorRef;
-        if (error !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: error
-                };
+var serializerEffects$3 = [(function (input, struct, mode) {
+      var innerStruct = struct.t._0;
+      var newArray = [];
+      var idxRef = 0;
+      var maybeErrorRef;
+      while(idxRef < input.length && maybeErrorRef === undefined) {
+        var idx = idxRef;
+        var innerValue = input[idx];
+        var value = processInner(/* Serializing */0, innerValue, mode, innerStruct);
+        if (value.TAG === /* Ok */0) {
+          newArray.push(value._0);
+          idxRef = idxRef + 1 | 0;
         } else {
-          return {
-                  TAG: /* Ok */0,
-                  _0: newArray
-                };
+          maybeErrorRef = prependLocation(value._0, idx.toString());
         }
-      })
-  }];
+      };
+      var error = maybeErrorRef;
+      if (error !== undefined) {
+        return {
+                TAG: /* Failed */1,
+                _0: error
+              };
+      } else {
+        return {
+                TAG: /* Transformed */0,
+                _0: newArray
+              };
+      }
+    })];
 
 var serializers$4 = {
   s: serializerEffects$3,
@@ -1634,7 +1552,7 @@ function factory$12(innerStruct) {
             TAG: /* Array */3,
             _0: innerStruct
           },
-          p: parsers$9,
+          p: parsers$8,
           s: serializers$4,
           m: undefined
         };
@@ -1671,87 +1589,81 @@ function length$1(struct, maybeMessage, length$2) {
   return refine(struct, refiner, refiner, undefined);
 }
 
-var parserEffects$4 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        var maybeRefinementError = mode || Object.prototype.toString.call(input) === "[object Object]" ? undefined : makeUnexpectedTypeError(input, struct);
-        if (maybeRefinementError !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: maybeRefinementError
-                };
-        }
-        var innerStruct = struct.t._0;
-        var newDict = {};
-        var keys = Object.keys(input);
-        var idxRef = 0;
-        var maybeErrorRef;
-        while(idxRef < keys.length && maybeErrorRef === undefined) {
-          var idx = idxRef;
-          var key = keys[idx];
-          var innerValue = input[key];
-          var value = processInner(/* Parsing */1, innerValue, mode, innerStruct);
-          if (value.TAG === /* Ok */0) {
-            newDict[key] = value._0;
-            idxRef = idxRef + 1 | 0;
-          } else {
-            maybeErrorRef = prependLocation(value._0, key);
-          }
-        };
-        var error = maybeErrorRef;
-        if (error !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: error
-                };
+var parserEffects$4 = [(function (input, struct, mode) {
+      var maybeRefinementError = mode || Object.prototype.toString.call(input) === "[object Object]" ? undefined : makeUnexpectedTypeError(input, struct);
+      if (maybeRefinementError !== undefined) {
+        return {
+                TAG: /* Failed */1,
+                _0: maybeRefinementError
+              };
+      }
+      var innerStruct = struct.t._0;
+      var newDict = {};
+      var keys = Object.keys(input);
+      var idxRef = 0;
+      var maybeErrorRef;
+      while(idxRef < keys.length && maybeErrorRef === undefined) {
+        var idx = idxRef;
+        var key = keys[idx];
+        var innerValue = input[key];
+        var value = processInner(/* Parsing */1, innerValue, mode, innerStruct);
+        if (value.TAG === /* Ok */0) {
+          newDict[key] = value._0;
+          idxRef = idxRef + 1 | 0;
         } else {
-          return {
-                  TAG: /* Ok */0,
-                  _0: newDict
-                };
+          maybeErrorRef = prependLocation(value._0, key);
         }
-      })
-  }];
+      };
+      var error = maybeErrorRef;
+      if (error !== undefined) {
+        return {
+                TAG: /* Failed */1,
+                _0: error
+              };
+      } else {
+        return {
+                TAG: /* Transformed */0,
+                _0: newDict
+              };
+      }
+    })];
 
-var parsers$10 = {
+var parsers$9 = {
   s: parserEffects$4,
   u: parserEffects$4
 };
 
-var serializerEffects$4 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        var innerStruct = struct.t._0;
-        var newDict = {};
-        var keys = Object.keys(input);
-        var idxRef = 0;
-        var maybeErrorRef;
-        while(idxRef < keys.length && maybeErrorRef === undefined) {
-          var idx = idxRef;
-          var key = keys[idx];
-          var innerValue = input[key];
-          var value = processInner(/* Serializing */0, innerValue, mode, innerStruct);
-          if (value.TAG === /* Ok */0) {
-            newDict[key] = value._0;
-            idxRef = idxRef + 1 | 0;
-          } else {
-            maybeErrorRef = prependLocation(value._0, key);
-          }
-        };
-        var error = maybeErrorRef;
-        if (error !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: error
-                };
+var serializerEffects$4 = [(function (input, struct, mode) {
+      var innerStruct = struct.t._0;
+      var newDict = {};
+      var keys = Object.keys(input);
+      var idxRef = 0;
+      var maybeErrorRef;
+      while(idxRef < keys.length && maybeErrorRef === undefined) {
+        var idx = idxRef;
+        var key = keys[idx];
+        var innerValue = input[key];
+        var value = processInner(/* Serializing */0, innerValue, mode, innerStruct);
+        if (value.TAG === /* Ok */0) {
+          newDict[key] = value._0;
+          idxRef = idxRef + 1 | 0;
         } else {
-          return {
-                  TAG: /* Ok */0,
-                  _0: newDict
-                };
+          maybeErrorRef = prependLocation(value._0, key);
         }
-      })
-  }];
+      };
+      var error = maybeErrorRef;
+      if (error !== undefined) {
+        return {
+                TAG: /* Failed */1,
+                _0: error
+              };
+      } else {
+        return {
+                TAG: /* Transformed */0,
+                _0: newDict
+              };
+      }
+    })];
 
 var serializers$5 = {
   s: serializerEffects$4,
@@ -1764,48 +1676,34 @@ function factory$13(innerStruct) {
             TAG: /* Dict */7,
             _0: innerStruct
           },
-          p: parsers$10,
+          p: parsers$9,
           s: serializers$5,
           m: undefined
         };
 }
 
-var parserEffects$5 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        var match = struct.t;
-        var value = match.value;
-        var fn = function (maybeOutput) {
-          if (maybeOutput !== undefined) {
-            return Caml_option.valFromOption(maybeOutput);
-          } else {
-            return value;
-          }
-        };
-        var result = processInner(/* Parsing */1, input, mode, match.struct);
-        if (result.TAG === /* Ok */0) {
-          return {
-                  TAG: /* Ok */0,
-                  _0: fn(result._0)
-                };
-        } else {
-          return result;
-        }
-      })
-  }];
+var parserEffects$5 = [(function (input, struct, mode) {
+      var match = struct.t;
+      var maybeOutput = processInner(/* Parsing */1, input, mode, match.struct);
+      if (maybeOutput.TAG !== /* Ok */0) {
+        return maybeOutput;
+      }
+      var maybeOutput$1 = maybeOutput._0;
+      return {
+              TAG: /* Transformed */0,
+              _0: maybeOutput$1 !== undefined ? Caml_option.valFromOption(maybeOutput$1) : match.value
+            };
+    })];
 
-var parsers$11 = {
+var parsers$10 = {
   s: parserEffects$5,
   u: parserEffects$5
 };
 
-var serializerEffects$5 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        var match = struct.t;
-        return processInner(/* Serializing */0, Caml_option.some(input), mode, match.struct);
-      })
-  }];
+var serializerEffects$5 = [(function (input, struct, mode) {
+      var match = struct.t;
+      return processInner(/* Serializing */0, Caml_option.some(input), mode, match.struct);
+    })];
 
 var serializers$6 = {
   s: serializerEffects$5,
@@ -1819,111 +1717,105 @@ function factory$14(innerStruct, defaultValue) {
             struct: innerStruct,
             value: defaultValue
           },
-          p: parsers$11,
+          p: parsers$10,
           s: serializers$6,
           m: undefined
         };
 }
 
-var parserEffects$6 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        var innerStructs = struct.t._0;
-        var numberOfStructs = innerStructs.length;
-        var maybeRefinementError;
-        if (mode) {
-          maybeRefinementError = undefined;
-        } else if (Array.isArray(input)) {
-          var numberOfInputItems = input.length;
-          maybeRefinementError = numberOfStructs === numberOfInputItems ? undefined : ({
-                c: {
-                  TAG: /* TupleSize */3,
-                  expected: numberOfStructs,
-                  received: numberOfInputItems
-                },
-                p: []
-              });
+var parserEffects$6 = [(function (input, struct, mode) {
+      var innerStructs = struct.t._0;
+      var numberOfStructs = innerStructs.length;
+      var maybeRefinementError;
+      if (mode) {
+        maybeRefinementError = undefined;
+      } else if (Array.isArray(input)) {
+        var numberOfInputItems = input.length;
+        maybeRefinementError = numberOfStructs === numberOfInputItems ? undefined : ({
+              c: {
+                TAG: /* TupleSize */3,
+                expected: numberOfStructs,
+                received: numberOfInputItems
+              },
+              p: []
+            });
+      } else {
+        maybeRefinementError = makeUnexpectedTypeError(input, struct);
+      }
+      if (maybeRefinementError !== undefined) {
+        return {
+                TAG: /* Failed */1,
+                _0: maybeRefinementError
+              };
+      }
+      var newArray = [];
+      var idxRef = 0;
+      var maybeErrorRef;
+      while(idxRef < numberOfStructs && maybeErrorRef === undefined) {
+        var idx = idxRef;
+        var innerValue = input[idx];
+        var innerStruct = innerStructs[idx];
+        var value = processInner(/* Parsing */1, innerValue, mode, innerStruct);
+        if (value.TAG === /* Ok */0) {
+          newArray.push(value._0);
+          idxRef = idxRef + 1 | 0;
         } else {
-          maybeRefinementError = makeUnexpectedTypeError(input, struct);
+          maybeErrorRef = prependLocation(value._0, idx.toString());
         }
-        if (maybeRefinementError !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: maybeRefinementError
-                };
-        }
-        var newArray = [];
-        var idxRef = 0;
-        var maybeErrorRef;
-        while(idxRef < numberOfStructs && maybeErrorRef === undefined) {
-          var idx = idxRef;
-          var innerValue = input[idx];
-          var innerStruct = innerStructs[idx];
-          var value = processInner(/* Parsing */1, innerValue, mode, innerStruct);
-          if (value.TAG === /* Ok */0) {
-            newArray.push(value._0);
-            idxRef = idxRef + 1 | 0;
-          } else {
-            maybeErrorRef = prependLocation(value._0, idx.toString());
-          }
-        };
-        var error = maybeErrorRef;
-        if (error !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: error
-                };
-        } else {
-          return {
-                  TAG: /* Ok */0,
-                  _0: numberOfStructs !== 0 ? (
-                      numberOfStructs !== 1 ? newArray : newArray[0]
-                    ) : undefined
-                };
-        }
-      })
-  }];
+      };
+      var error = maybeErrorRef;
+      if (error !== undefined) {
+        return {
+                TAG: /* Failed */1,
+                _0: error
+              };
+      } else {
+        return {
+                TAG: /* Transformed */0,
+                _0: numberOfStructs !== 0 ? (
+                    numberOfStructs !== 1 ? newArray : newArray[0]
+                  ) : undefined
+              };
+      }
+    })];
 
-var parsers$12 = {
+var parsers$11 = {
   s: parserEffects$6,
   u: parserEffects$6
 };
 
-var serializerEffects$6 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        var innerStructs = struct.t._0;
-        var numberOfStructs = innerStructs.length;
-        var inputArray = numberOfStructs === 1 ? [input] : input;
-        var newArray = [];
-        var idxRef = 0;
-        var maybeErrorRef;
-        while(idxRef < numberOfStructs && maybeErrorRef === undefined) {
-          var idx = idxRef;
-          var innerValue = inputArray[idx];
-          var innerStruct = innerStructs[idx];
-          var value = processInner(/* Serializing */0, innerValue, mode, innerStruct);
-          if (value.TAG === /* Ok */0) {
-            newArray.push(value._0);
-            idxRef = idxRef + 1 | 0;
-          } else {
-            maybeErrorRef = prependLocation(value._0, idx.toString());
-          }
-        };
-        var error = maybeErrorRef;
-        if (error !== undefined) {
-          return {
-                  TAG: /* Error */1,
-                  _0: error
-                };
+var serializerEffects$6 = [(function (input, struct, mode) {
+      var innerStructs = struct.t._0;
+      var numberOfStructs = innerStructs.length;
+      var inputArray = numberOfStructs === 1 ? [input] : input;
+      var newArray = [];
+      var idxRef = 0;
+      var maybeErrorRef;
+      while(idxRef < numberOfStructs && maybeErrorRef === undefined) {
+        var idx = idxRef;
+        var innerValue = inputArray[idx];
+        var innerStruct = innerStructs[idx];
+        var value = processInner(/* Serializing */0, innerValue, mode, innerStruct);
+        if (value.TAG === /* Ok */0) {
+          newArray.push(value._0);
+          idxRef = idxRef + 1 | 0;
         } else {
-          return {
-                  TAG: /* Ok */0,
-                  _0: newArray
-                };
+          maybeErrorRef = prependLocation(value._0, idx.toString());
         }
-      })
-  }];
+      };
+      var error = maybeErrorRef;
+      if (error !== undefined) {
+        return {
+                TAG: /* Failed */1,
+                _0: error
+              };
+      } else {
+        return {
+                TAG: /* Transformed */0,
+                _0: newArray
+              };
+      }
+    })];
 
 var serializers$7 = {
   s: serializerEffects$6,
@@ -1936,7 +1828,7 @@ function innerFactory$1(structs) {
             TAG: /* Tuple */5,
             _0: structs
           },
-          p: parsers$12,
+          p: parsers$11,
           s: serializers$7,
           m: undefined
         };
@@ -1944,72 +1836,66 @@ function innerFactory$1(structs) {
 
 var factory$15 = callWithArguments(innerFactory$1);
 
-var parserEffects$7 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, param) {
-        var innerStructs = struct.t._0;
-        var idxRef = 0;
-        var maybeLastErrorRef;
-        var maybeOkRef;
-        while(idxRef < innerStructs.length && maybeOkRef === undefined) {
-          var idx = idxRef;
-          var innerStruct = innerStructs[idx];
-          var ok = processInner(/* Parsing */1, input, /* Safe */0, innerStruct);
-          if (ok.TAG === /* Ok */0) {
-            maybeOkRef = ok;
-          } else {
-            maybeLastErrorRef = ok;
-            idxRef = idxRef + 1 | 0;
-          }
-        };
-        var ok$1 = maybeOkRef;
-        if (ok$1 !== undefined) {
-          return ok$1;
-        }
-        var error = maybeLastErrorRef;
-        if (error !== undefined) {
-          return error;
+var parserEffects$7 = [(function (input, struct, param) {
+      var innerStructs = struct.t._0;
+      var idxRef = 0;
+      var maybeLastErrorRef;
+      var maybeOkRef;
+      while(idxRef < innerStructs.length && maybeOkRef === undefined) {
+        var idx = idxRef;
+        var innerStruct = innerStructs[idx];
+        var ok = processInner(/* Parsing */1, input, /* Safe */0, innerStruct);
+        if (ok.TAG === /* Ok */0) {
+          maybeOkRef = ok;
         } else {
-          return undefined;
+          maybeLastErrorRef = ok;
+          idxRef = idxRef + 1 | 0;
         }
-      })
-  }];
+      };
+      var ok$1 = maybeOkRef;
+      if (ok$1 !== undefined) {
+        return ok$1;
+      }
+      var error = maybeLastErrorRef;
+      if (error !== undefined) {
+        return error;
+      } else {
+        return undefined;
+      }
+    })];
 
-var parsers$13 = {
+var parsers$12 = {
   s: parserEffects$7,
   u: parserEffects$7
 };
 
-var serializerEffects$7 = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, param) {
-        var innerStructs = struct.t._0;
-        var idxRef = 0;
-        var maybeLastErrorRef;
-        var maybeOkRef;
-        while(idxRef < innerStructs.length && maybeOkRef === undefined) {
-          var idx = idxRef;
-          var innerStruct = innerStructs[idx];
-          var ok = processInner(/* Serializing */0, input, /* Safe */0, innerStruct);
-          if (ok.TAG === /* Ok */0) {
-            maybeOkRef = ok;
-          } else {
-            maybeLastErrorRef = ok;
-            idxRef = idxRef + 1 | 0;
-          }
-        };
-        var ok$1 = maybeOkRef;
-        if (ok$1 !== undefined) {
-          return ok$1;
-        }
-        var error = maybeLastErrorRef;
-        if (error !== undefined) {
-          return error;
+var serializerEffects$7 = [(function (input, struct, param) {
+      var innerStructs = struct.t._0;
+      var idxRef = 0;
+      var maybeLastErrorRef;
+      var maybeOkRef;
+      while(idxRef < innerStructs.length && maybeOkRef === undefined) {
+        var idx = idxRef;
+        var innerStruct = innerStructs[idx];
+        var ok = processInner(/* Serializing */0, input, /* Safe */0, innerStruct);
+        if (ok.TAG === /* Ok */0) {
+          maybeOkRef = ok;
         } else {
-          return undefined;
+          maybeLastErrorRef = ok;
+          idxRef = idxRef + 1 | 0;
         }
-      })
-  }];
+      };
+      var ok$1 = maybeOkRef;
+      if (ok$1 !== undefined) {
+        return ok$1;
+      }
+      var error = maybeLastErrorRef;
+      if (error !== undefined) {
+        return error;
+      } else {
+        return undefined;
+      }
+    })];
 
 var serializers$8 = {
   s: serializerEffects$7,
@@ -2025,7 +1911,7 @@ function factory$16(structs) {
             TAG: /* Union */6,
             _0: structs
           },
-          p: parsers$13,
+          p: parsers$12,
           s: serializers$8,
           m: undefined
         };
