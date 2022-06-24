@@ -294,10 +294,10 @@ function processInner(operation, input, mode, struct) {
     var effect = effects[idxRef];
     var newValue = effect(valueRef, struct, mode);
     if (typeof newValue === "number") {
-      idxRef = idxRef + 1 | 0;
+      idxRef = idxRef + 1;
     } else if (newValue.TAG === /* Transformed */0) {
       valueRef = newValue._0;
-      idxRef = idxRef + 1 | 0;
+      idxRef = idxRef + 1;
     } else {
       maybeErrorRef = newValue._0;
     }
@@ -908,7 +908,7 @@ function parserTransform(input, struct, mode) {
     var value = processInner(/* Parsing */1, input[fieldName], mode, fieldStruct);
     if (value.TAG === /* Ok */0) {
       newArray.push(value._0);
-      idxRef = idxRef + 1 | 0;
+      idxRef = idxRef + 1;
     } else {
       maybeErrorRef = prependLocation(value._0, fieldName);
     }
@@ -965,7 +965,7 @@ function serializerTransform$3(input, struct, mode) {
     var unknownFieldValue = processInner(/* Serializing */0, fieldValue, mode, fieldStruct);
     if (unknownFieldValue.TAG === /* Ok */0) {
       unknown[fieldName] = unknownFieldValue._0;
-      idxRef = idxRef + 1 | 0;
+      idxRef = idxRef + 1;
     } else {
       maybeErrorRef = prependLocation(unknownFieldValue._0, fieldName);
     }
@@ -1487,7 +1487,7 @@ var parserEffects$3 = [(function (input, struct, mode) {
         var value = processInner(/* Parsing */1, innerValue, mode, innerStruct);
         if (value.TAG === /* Ok */0) {
           newArray.push(value._0);
-          idxRef = idxRef + 1 | 0;
+          idxRef = idxRef + 1;
         } else {
           maybeErrorRef = prependLocation(value._0, idx.toString());
         }
@@ -1522,7 +1522,7 @@ var serializerEffects$3 = [(function (input, struct, mode) {
         var value = processInner(/* Serializing */0, innerValue, mode, innerStruct);
         if (value.TAG === /* Ok */0) {
           newArray.push(value._0);
-          idxRef = idxRef + 1 | 0;
+          idxRef = idxRef + 1;
         } else {
           maybeErrorRef = prependLocation(value._0, idx.toString());
         }
@@ -1609,7 +1609,7 @@ var parserEffects$4 = [(function (input, struct, mode) {
         var value = processInner(/* Parsing */1, innerValue, mode, innerStruct);
         if (value.TAG === /* Ok */0) {
           newDict[key] = value._0;
-          idxRef = idxRef + 1 | 0;
+          idxRef = idxRef + 1;
         } else {
           maybeErrorRef = prependLocation(value._0, key);
         }
@@ -1646,7 +1646,7 @@ var serializerEffects$4 = [(function (input, struct, mode) {
         var value = processInner(/* Serializing */0, innerValue, mode, innerStruct);
         if (value.TAG === /* Ok */0) {
           newDict[key] = value._0;
-          idxRef = idxRef + 1 | 0;
+          idxRef = idxRef + 1;
         } else {
           maybeErrorRef = prependLocation(value._0, key);
         }
@@ -1758,7 +1758,7 @@ var parserEffects$6 = [(function (input, struct, mode) {
         var value = processInner(/* Parsing */1, innerValue, mode, innerStruct);
         if (value.TAG === /* Ok */0) {
           newArray.push(value._0);
-          idxRef = idxRef + 1 | 0;
+          idxRef = idxRef + 1;
         } else {
           maybeErrorRef = prependLocation(value._0, idx.toString());
         }
@@ -1798,7 +1798,7 @@ var serializerEffects$6 = [(function (input, struct, mode) {
         var value = processInner(/* Serializing */0, innerValue, mode, innerStruct);
         if (value.TAG === /* Ok */0) {
           newArray.push(value._0);
-          idxRef = idxRef + 1 | 0;
+          idxRef = idxRef + 1;
         } else {
           maybeErrorRef = prependLocation(value._0, idx.toString());
         }
@@ -1849,7 +1849,7 @@ var parserEffects$7 = [(function (input, struct, param) {
           maybeOkRef = ok;
         } else {
           maybeLastErrorRef = ok;
-          idxRef = idxRef + 1 | 0;
+          idxRef = idxRef + 1;
         }
       };
       var ok$1 = maybeOkRef;
@@ -1882,7 +1882,7 @@ var serializerEffects$7 = [(function (input, struct, param) {
           maybeOkRef = ok;
         } else {
           maybeLastErrorRef = ok;
-          idxRef = idxRef + 1 | 0;
+          idxRef = idxRef + 1;
         }
       };
       var ok$1 = maybeOkRef;

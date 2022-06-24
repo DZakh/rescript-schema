@@ -66,6 +66,13 @@ module Lib = {
       | None => None
       }
   }
+
+  module Int = {
+    @inline
+    let plus = (int1: int, int2: int): int => {
+      (int1->Js.Int.toFloat +. int2->Js.Int.toFloat)->Obj.magic
+    }
+  }
 }
 
 module Error = {
@@ -351,10 +358,10 @@ let processInner = (~operation: operation, ~input: 'input, ~mode: mode, ~struct:
       while idxRef.contents < effects->Js.Array2.length && maybeErrorRef.contents === None {
         let effect = effects->Js.Array2.unsafe_get(idxRef.contents)
         switch effect(. ~unknown=valueRef.contents, ~struct=struct->Obj.magic, ~mode) {
-        | Refined => idxRef.contents = idxRef.contents + 1
+        | Refined => idxRef.contents = idxRef.contents->Lib.Int.plus(1)
         | Transformed(newValue) => {
             valueRef.contents = newValue
-            idxRef.contents = idxRef.contents + 1
+            idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
         | Failed(error) => maybeErrorRef.contents = Some(error)
         }
@@ -882,7 +889,7 @@ module Record = {
         switch parseInner(~struct=fieldStruct, ~any=input->Js.Dict.unsafeGet(fieldName), ~mode) {
         | Ok(value) => {
             newArray->Js.Array2.push(value)->ignore
-            idxRef.contents = idxRef.contents + 1
+            idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
         | Error(error) =>
           maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(fieldName))
@@ -924,7 +931,7 @@ module Record = {
       switch serializeInner(~struct=fieldStruct, ~value=fieldValue, ~mode) {
       | Ok(unknownFieldValue) => {
           unknown->Js.Dict.set(fieldName, unknownFieldValue)
-          idxRef.contents = idxRef.contents + 1
+          idxRef.contents = idxRef.contents->Lib.Int.plus(1)
         }
       | Error(error) =>
         maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(fieldName))
@@ -1386,7 +1393,7 @@ module Array = {
             switch parseInner(~struct=innerStruct, ~any=innerValue, ~mode) {
             | Ok(value) => {
                 newArray->Js.Array2.push(value)->ignore
-                idxRef.contents = idxRef.contents + 1
+                idxRef.contents = idxRef.contents->Lib.Int.plus(1)
               }
             | Error(error) =>
               maybeErrorRef.contents = Some(
@@ -1422,7 +1429,7 @@ module Array = {
         switch serializeInner(~struct=innerStruct, ~value=innerValue, ~mode) {
         | Ok(value) => {
             newArray->Js.Array2.push(value)->ignore
-            idxRef.contents = idxRef.contents + 1
+            idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
         | Error(error) =>
           maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(idx->Js.Int.toString))
@@ -1516,7 +1523,7 @@ module Dict = {
             switch parseInner(~struct=innerStruct, ~any=innerValue, ~mode) {
             | Ok(value) => {
                 newDict->Js.Dict.set(key, value)->ignore
-                idxRef.contents = idxRef.contents + 1
+                idxRef.contents = idxRef.contents->Lib.Int.plus(1)
               }
             | Error(error) =>
               maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(key))
@@ -1552,7 +1559,7 @@ module Dict = {
         switch serializeInner(~struct=innerStruct, ~value=innerValue, ~mode) {
         | Ok(value) => {
             newDict->Js.Dict.set(key, value)->ignore
-            idxRef.contents = idxRef.contents + 1
+            idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
         | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(key))
         }
@@ -1657,7 +1664,7 @@ module Tuple = {
             switch parseInner(~struct=innerStruct, ~any=innerValue, ~mode) {
             | Ok(value) => {
                 newArray->Js.Array2.push(value)->ignore
-                idxRef.contents = idxRef.contents + 1
+                idxRef.contents = idxRef.contents->Lib.Int.plus(1)
               }
             | Error(error) =>
               maybeErrorRef.contents = Some(
@@ -1701,7 +1708,7 @@ module Tuple = {
         switch serializeInner(~struct=innerStruct, ~value=innerValue, ~mode) {
         | Ok(value) => {
             newArray->Js.Array2.push(value)->ignore
-            idxRef.contents = idxRef.contents + 1
+            idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
         | Error(error) =>
           maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(idx->Js.Int.toString))
@@ -1746,7 +1753,7 @@ module Union = {
         | Ok(_) as ok => maybeOkRef.contents = Some(ok)
         | Error(_) as error => {
             maybeLastErrorRef.contents = Some(error)
-            idxRef.contents = idxRef.contents + 1
+            idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
         }
       }
@@ -1780,7 +1787,7 @@ module Union = {
         | Ok(_) as ok => maybeOkRef.contents = Some(ok)
         | Error(_) as error => {
             maybeLastErrorRef.contents = Some(error)
-            idxRef.contents = idxRef.contents + 1
+            idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
         }
       }
