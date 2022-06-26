@@ -59,6 +59,7 @@ and tagged_t =
   | Dict(t<'value>): tagged_t
   | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
+  | Instance(unknown): tagged_t
 and field<'value> = (string, t<'value>)
 
 let never: unit => t<never>
@@ -67,6 +68,7 @@ let string: unit => t<string>
 let bool: unit => t<bool>
 let int: unit => t<int>
 let float: unit => t<float>
+let date: unit => t<Js.Date.t>
 let literal: literal<'value> => t<'value>
 let literalVariant: (literal<'value>, 'variant) => t<'variant>
 let array: t<'value> => t<array<'value>>

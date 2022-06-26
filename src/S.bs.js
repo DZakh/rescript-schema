@@ -7,6 +7,10 @@ var Belt_Option = require("rescript/lib/js/belt_Option.js");
 var Caml_option = require("rescript/lib/js/caml_option.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
+function factoryOf(self, data) {
+  return (data instanceof self);
+}
+
 function callWithArguments(fn) {
   return (function(){return fn(arguments)});
 }
@@ -211,6 +215,8 @@ function toString$1(tagged_t) {
           return "Deprecated";
       case /* Default */9 :
           return "Default";
+      case /* Instance */10 :
+          return "Instance (" + tagged_t._0.name + ")";
       
     }
   }
@@ -1324,6 +1330,37 @@ function factory$8(param) {
         };
 }
 
+function parserRefinement$11(input, struct, param) {
+  var factory = struct.t._0;
+  if (factoryOf(factory, input) && !Number.isNaN(input.getTime())) {
+    return /* Refined */0;
+  } else {
+    return {
+            TAG: /* Failed */1,
+            _0: makeUnexpectedTypeError(input, struct)
+          };
+  }
+}
+
+var parsers_s$5 = [parserRefinement$11];
+
+var parsers$5 = {
+  s: parsers_s$5,
+  u: emptyArray
+};
+
+function factory$9(param) {
+  return {
+          t: {
+            TAG: /* Instance */10,
+            _0: Date
+          },
+          p: parsers$5,
+          s: emptyMap,
+          m: undefined
+        };
+}
+
 var parserEffects = [(function (input, struct, mode) {
       if (input === null) {
         return {
@@ -1343,7 +1380,7 @@ var parserEffects = [(function (input, struct, mode) {
       }
     })];
 
-var parsers$5 = {
+var parsers$6 = {
   s: parserEffects,
   u: parserEffects
 };
@@ -1364,13 +1401,13 @@ var serializers$1 = {
   u: serializerEffects
 };
 
-function factory$9(innerStruct) {
+function factory$10(innerStruct) {
   return {
           t: {
             TAG: /* Null */2,
             _0: innerStruct
           },
-          p: parsers$5,
+          p: parsers$6,
           s: serializers$1,
           m: undefined
         };
@@ -1392,7 +1429,7 @@ var parserEffects$1 = [(function (input, struct, mode) {
       }
     })];
 
-var parsers$6 = {
+var parsers$7 = {
   s: parserEffects$1,
   u: parserEffects$1
 };
@@ -1410,13 +1447,13 @@ var serializers$2 = {
   u: serializerEffects$1
 };
 
-function factory$10(innerStruct) {
+function factory$11(innerStruct) {
   return {
           t: {
             TAG: /* Option */1,
             _0: innerStruct
           },
-          p: parsers$6,
+          p: parsers$7,
           s: serializers$2,
           m: undefined
         };
@@ -1438,7 +1475,7 @@ var parserEffects$2 = [(function (input, struct, mode) {
       }
     })];
 
-var parsers$7 = {
+var parsers$8 = {
   s: parserEffects$2,
   u: parserEffects$2
 };
@@ -1456,14 +1493,14 @@ var serializers$3 = {
   u: serializerEffects$2
 };
 
-function factory$11(maybeMessage, innerStruct) {
+function factory$12(maybeMessage, innerStruct) {
   return {
           t: {
             TAG: /* Deprecated */8,
             struct: innerStruct,
             maybeMessage: maybeMessage
           },
-          p: parsers$7,
+          p: parsers$8,
           s: serializers$3,
           m: undefined
         };
@@ -1506,7 +1543,7 @@ var parserEffects$3 = [(function (input, struct, mode) {
       }
     })];
 
-var parsers$8 = {
+var parsers$9 = {
   s: parserEffects$3,
   u: parserEffects$3
 };
@@ -1546,13 +1583,13 @@ var serializers$4 = {
   u: serializerEffects$3
 };
 
-function factory$12(innerStruct) {
+function factory$13(innerStruct) {
   return {
           t: {
             TAG: /* Array */3,
             _0: innerStruct
           },
-          p: parsers$8,
+          p: parsers$9,
           s: serializers$4,
           m: undefined
         };
@@ -1628,7 +1665,7 @@ var parserEffects$4 = [(function (input, struct, mode) {
       }
     })];
 
-var parsers$9 = {
+var parsers$10 = {
   s: parserEffects$4,
   u: parserEffects$4
 };
@@ -1670,13 +1707,13 @@ var serializers$5 = {
   u: serializerEffects$4
 };
 
-function factory$13(innerStruct) {
+function factory$14(innerStruct) {
   return {
           t: {
             TAG: /* Dict */7,
             _0: innerStruct
           },
-          p: parsers$9,
+          p: parsers$10,
           s: serializers$5,
           m: undefined
         };
@@ -1695,7 +1732,7 @@ var parserEffects$5 = [(function (input, struct, mode) {
             };
     })];
 
-var parsers$10 = {
+var parsers$11 = {
   s: parserEffects$5,
   u: parserEffects$5
 };
@@ -1710,14 +1747,14 @@ var serializers$6 = {
   u: serializerEffects$5
 };
 
-function factory$14(innerStruct, defaultValue) {
+function factory$15(innerStruct, defaultValue) {
   return {
           t: {
             TAG: /* Default */9,
             struct: innerStruct,
             value: defaultValue
           },
-          p: parsers$10,
+          p: parsers$11,
           s: serializers$6,
           m: undefined
         };
@@ -1779,7 +1816,7 @@ var parserEffects$6 = [(function (input, struct, mode) {
       }
     })];
 
-var parsers$11 = {
+var parsers$12 = {
   s: parserEffects$6,
   u: parserEffects$6
 };
@@ -1828,13 +1865,13 @@ function innerFactory$1(structs) {
             TAG: /* Tuple */5,
             _0: structs
           },
-          p: parsers$11,
+          p: parsers$12,
           s: serializers$7,
           m: undefined
         };
 }
 
-var factory$15 = callWithArguments(innerFactory$1);
+var factory$16 = callWithArguments(innerFactory$1);
 
 var parserEffects$7 = [(function (input, struct, param) {
       var innerStructs = struct.t._0;
@@ -1864,7 +1901,7 @@ var parserEffects$7 = [(function (input, struct, param) {
       }
     })];
 
-var parsers$12 = {
+var parsers$13 = {
   s: parserEffects$7,
   u: parserEffects$7
 };
@@ -1902,7 +1939,7 @@ var serializers$8 = {
   u: serializerEffects$7
 };
 
-function factory$16(structs) {
+function factory$17(structs) {
   if (structs.length < 2) {
     raise("A Union struct factory require at least two structs");
   }
@@ -1911,7 +1948,7 @@ function factory$16(structs) {
             TAG: /* Union */6,
             _0: structs
           },
-          p: parsers$12,
+          p: parsers$13,
           s: serializers$8,
           m: undefined
         };
@@ -2003,23 +2040,25 @@ var $$int = factory$7;
 
 var $$float = factory$8;
 
+var date = factory$9;
+
 var literal = factory$1;
 
 var literalVariant = factory;
 
-var array = factory$12;
+var array = factory$13;
 
-var dict = factory$13;
+var dict = factory$14;
 
-var option = factory$10;
+var option = factory$11;
 
-var $$null = factory$9;
+var $$null = factory$10;
 
-var deprecated = factory$11;
+var deprecated = factory$12;
 
-var $$default = factory$14;
+var $$default = factory$15;
 
-var union = factory$16;
+var union = factory$17;
 
 var Record = {
   factory: factory$2,
@@ -2050,30 +2089,30 @@ var record9 = factory$2;
 var record10 = factory$2;
 
 var Tuple = {
-  factory: factory$15
+  factory: factory$16
 };
 
-var tuple0 = factory$15;
+var tuple0 = factory$16;
 
-var tuple1 = factory$15;
+var tuple1 = factory$16;
 
-var tuple2 = factory$15;
+var tuple2 = factory$16;
 
-var tuple3 = factory$15;
+var tuple3 = factory$16;
 
-var tuple4 = factory$15;
+var tuple4 = factory$16;
 
-var tuple5 = factory$15;
+var tuple5 = factory$16;
 
-var tuple6 = factory$15;
+var tuple6 = factory$16;
 
-var tuple7 = factory$15;
+var tuple7 = factory$16;
 
-var tuple8 = factory$15;
+var tuple8 = factory$16;
 
-var tuple9 = factory$15;
+var tuple9 = factory$16;
 
-var tuple10 = factory$15;
+var tuple10 = factory$16;
 
 var $$String = {
   min: min,
@@ -2140,6 +2179,7 @@ exports.string = string;
 exports.bool = bool;
 exports.$$int = $$int;
 exports.$$float = $$float;
+exports.date = date;
 exports.literal = literal;
 exports.literalVariant = literalVariant;
 exports.array = array;

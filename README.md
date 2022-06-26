@@ -327,6 +327,24 @@ Ok(None)
 
 `null` struct represents a data of a specific type that might be null.
 
+#### **`S.date`**
+
+`() => S.t<Js.Date.t>`
+
+```rescript
+let struct = S.date()
+
+%raw(`new Date(1656245105821.)`)->S.parseWith(struct)
+```
+
+```rescript
+Ok(Js.Date.fromFloat(1656245105821.))
+```
+
+`date` struct represents JavaScript Date instances.
+
+> 🧠 To avoid unexpected runtime errors, `date` struct does **not** accept invalid `Date` objects, even though they are technically an instance of a `Date`. This meshes with the 99% use case where invalid dates create inconsistencies.
+
 #### **`S.unknown`**
 
 `() => S.t<S.unknown>`
@@ -635,7 +653,16 @@ Error({
 `(S.t<'value>, ~parser: 'value => result<'transformed, string>=?, ~serializer: 'transformed => result<'value, string>=?, unit) => S.t<'transformed>`
 
 ```rescript
-let trimmed = S.transform(_, ~parser=s => s->Js.String2.trim->Ok, ~serializer=s => s->Js.String2.trim->Ok, ())
+let intToString = S.transform(
+  _,
+  ~parser=int => int->Js.Int.toString->Ok,
+  ~serializer=string =>
+    switch string->Belt.Int.fromString {
+    | Some(int) => Ok(int)
+    | None => Error("Can't convert string to int")
+    },
+  (),
+)
 ```
 
 #### **`S.superTransform`**
@@ -759,7 +786,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [ ] Add Instance struct factory
 - [ ] Add Function struct factory
 - [ ] Add Regexp struct factory
-- [ ] Add Date struct factory
+- [x] Add Date struct factory
 - [x] Add Json struct factory
 - [x] Design and add Literal struct factory
 - [ ] Design and add Lazy struct factory

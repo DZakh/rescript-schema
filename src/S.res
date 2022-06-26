@@ -1,4 +1,21 @@
+type never
+type unknown
+
 module Lib = {
+  module Factory = {
+    type t
+
+    external fromUnknown: unknown => t = "%identity"
+
+    @get external getName: t => string = "name"
+
+    let factoryOf = (self: t, data: 'a): bool => {
+      self->ignore
+      data->ignore
+      %raw(`data instanceof self`)
+    }
+  }
+
   module Url = {
     type t
 
@@ -214,9 +231,6 @@ module Error = {
   }
 }
 
-type never
-type unknown
-
 type rec literal<'value> =
   | String(string): literal<string>
   | Int(int): literal<int>
@@ -265,6 +279,7 @@ and tagged_t =
   | Dict(t<'value>): tagged_t
   | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
+  | Instance(unknown): tagged_t
 and field<'value> = (string, t<'value>)
 and effectsMap = {
   @as("s")
@@ -315,6 +330,7 @@ module TaggedT = {
     | Dict(_) => "Dict"
     | Deprecated(_) => "Deprecated"
     | Default(_) => "Default"
+    | Instance(instance) => `Instance (${instance->Lib.Factory.fromUnknown->Lib.Factory.getName})`
     }
   }
 }
@@ -1233,6 +1249,28 @@ module Float = {
   let max = Int.max->Obj.magic
 }
 
+module Date = {
+  let parserRefinement = Effect.make((~input, ~struct, ~mode as _) => {
+    let factory = struct->classify->unsafeGetVariantPayload
+    switch factory->Lib.Factory.factoryOf(input) && !(input->Js.Date.getTime->Js.Float.isNaN) {
+    | true => Refined
+    | false => Failed(makeUnexpectedTypeError(~input, ~struct))
+    }
+  })
+
+  let parsers = {
+    safe: [parserRefinement],
+    unsafe: Effect.emptyArray,
+  }
+
+  let factory = () => {
+    tagged_t: Instance(%raw(`Date`)),
+    maybeParsers: Some(parsers),
+    maybeSerializers: Some(Effect.emptyMap),
+    maybeMetadata: None,
+  }
+}
+
 module Null = {
   let parserEffects = [
     Effect.make((~input, ~struct, ~mode) => {
@@ -1846,6 +1884,7 @@ let dict = Dict.factory
 let default = Default.factory
 let literal = Literal.factory
 let literalVariant = Literal.Variant.factory
+let date = Date.factory
 let tuple0 = Tuple.factory
 let tuple1 = Tuple.factory
 let tuple2 = Tuple.factory
