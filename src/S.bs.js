@@ -272,27 +272,8 @@ function makeUnexpectedTypeError(input, struct) {
 }
 
 function processInner(operation, input, mode, struct) {
-  var maybeEffectsMap = operation ? struct.p : struct.s;
-  if (maybeEffectsMap === undefined) {
-    if (operation) {
-      return {
-              TAG: /* Error */1,
-              _0: {
-                c: /* MissingParser */0,
-                p: []
-              }
-            };
-    } else {
-      return {
-              TAG: /* Error */1,
-              _0: {
-                c: /* MissingSerializer */1,
-                p: []
-              }
-            };
-    }
-  }
-  var effects = mode ? maybeEffectsMap.u : maybeEffectsMap.s;
+  var effectsMap = operation ? struct.p : struct.s;
+  var effects = mode ? effectsMap.u : effectsMap.s;
   var idxRef = 0;
   var valueRef = input;
   var maybeErrorRef;
@@ -355,13 +336,34 @@ var emptyMap = {
   u: emptyArray
 };
 
+function missingParser(param, param$1, param$2) {
+  return {
+          TAG: /* Failed */1,
+          _0: {
+            c: /* MissingParser */0,
+            p: []
+          }
+        };
+}
+
+function missingSerializer(param, param$1, param$2) {
+  return {
+          TAG: /* Failed */1,
+          _0: {
+            c: /* MissingSerializer */1,
+            p: []
+          }
+        };
+}
+
 function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
   if (maybeRefineParser === undefined && maybeRefineSerializer === undefined) {
     raise$1("struct factory Refine");
   }
-  var match = struct.p;
+  var currentParsers = struct.p;
+  var currentSerializers = struct.s;
   var tmp;
-  if (match !== undefined && maybeRefineParser !== undefined) {
+  if (maybeRefineParser !== undefined) {
     var effect = function (input, param, param$1) {
       var reason = maybeRefineParser(input);
       if (reason !== undefined) {
@@ -380,15 +382,14 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
       }
     };
     tmp = {
-      s: match.s.concat([effect]),
-      u: match.u
+      s: currentParsers.s.concat([effect]),
+      u: currentParsers.u
     };
   } else {
-    tmp = undefined;
+    tmp = currentParsers;
   }
-  var match$1 = struct.s;
   var tmp$1;
-  if (match$1 !== undefined && maybeRefineSerializer !== undefined) {
+  if (maybeRefineSerializer !== undefined) {
     var effect$1 = function (input, param, param$1) {
       var reason = maybeRefineSerializer(input);
       if (reason !== undefined) {
@@ -407,11 +408,11 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
       }
     };
     tmp$1 = {
-      s: [effect$1].concat(match$1.s),
-      u: match$1.u
+      s: [effect$1].concat(currentSerializers.s),
+      u: currentSerializers.u
     };
   } else {
-    tmp$1 = undefined;
+    tmp$1 = currentSerializers;
   }
   return {
           t: struct.t,
@@ -425,66 +426,64 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
   if (maybeTransformationParser === undefined && maybeTransformationSerializer === undefined) {
     raise$1("struct factory Transform");
   }
-  var match = struct.p;
-  var tmp;
-  if (match !== undefined && maybeTransformationParser !== undefined) {
+  var currentParsers = struct.p;
+  var currentSerializers = struct.s;
+  var effect;
+  if (maybeTransformationParser !== undefined) {
     var transformationParser = Caml_option.valFromOption(maybeTransformationParser);
-    var effect = function (input, param, param$1) {
-      var ok = transformationParser(input);
-      if (ok.TAG === /* Ok */0) {
-        return ok;
-      } else {
-        return {
-                TAG: /* Failed */1,
-                _0: {
-                  c: {
-                    TAG: /* OperationFailed */0,
-                    _0: ok._0
-                  },
-                  p: []
-                }
-              };
-      }
-    };
-    tmp = {
-      s: match.s.concat([effect]),
-      u: match.u.concat([effect])
-    };
+    effect = (function (input, param, param$1) {
+        var ok = transformationParser(input);
+        if (ok.TAG === /* Ok */0) {
+          return ok;
+        } else {
+          return {
+                  TAG: /* Failed */1,
+                  _0: {
+                    c: {
+                      TAG: /* OperationFailed */0,
+                      _0: ok._0
+                    },
+                    p: []
+                  }
+                };
+        }
+      });
   } else {
-    tmp = undefined;
+    effect = missingParser;
   }
-  var match$1 = struct.s;
-  var tmp$1;
-  if (match$1 !== undefined && maybeTransformationSerializer !== undefined) {
+  var effect$1;
+  if (maybeTransformationSerializer !== undefined) {
     var transformationSerializer = Caml_option.valFromOption(maybeTransformationSerializer);
-    var effect$1 = function (input, param, param$1) {
-      var ok = transformationSerializer(input);
-      if (ok.TAG === /* Ok */0) {
-        return ok;
-      } else {
-        return {
-                TAG: /* Failed */1,
-                _0: {
-                  c: {
-                    TAG: /* OperationFailed */0,
-                    _0: ok._0
-                  },
-                  p: []
-                }
-              };
-      }
-    };
-    tmp$1 = {
-      s: [effect$1].concat(match$1.s),
-      u: [effect$1].concat(match$1.u)
-    };
+    effect$1 = (function (input, param, param$1) {
+        var ok = transformationSerializer(input);
+        if (ok.TAG === /* Ok */0) {
+          return ok;
+        } else {
+          return {
+                  TAG: /* Failed */1,
+                  _0: {
+                    c: {
+                      TAG: /* OperationFailed */0,
+                      _0: ok._0
+                    },
+                    p: []
+                  }
+                };
+        }
+      });
   } else {
-    tmp$1 = undefined;
+    effect$1 = missingSerializer;
   }
   return {
           t: struct.t,
-          p: tmp,
-          s: tmp$1,
+          p: {
+            s: currentParsers.s.concat([effect]),
+            u: currentParsers.u.concat([effect])
+          },
+          s: {
+            s: [effect$1].concat(currentSerializers.s),
+            u: [effect$1].concat(currentSerializers.u)
+          },
           m: struct.m
         };
 }
@@ -493,52 +492,40 @@ function superTransform(struct, maybeTransformationParser, maybeTransformationSe
   if (maybeTransformationParser === undefined && maybeTransformationSerializer === undefined) {
     raise$1("struct factory Transform");
   }
-  var match = struct.p;
-  var tmp;
-  if (match !== undefined && maybeTransformationParser !== undefined) {
-    var effect = function (input, struct, mode) {
-      var ok = maybeTransformationParser(input, struct, mode);
-      if (ok.TAG === /* Ok */0) {
-        return ok;
-      } else {
-        return {
-                TAG: /* Failed */1,
-                _0: fromPublic(ok._0)
-              };
-      }
-    };
-    tmp = {
-      s: match.s.concat([effect]),
-      u: match.u.concat([effect])
-    };
-  } else {
-    tmp = undefined;
-  }
-  var match$1 = struct.s;
-  var tmp$1;
-  if (match$1 !== undefined && maybeTransformationSerializer !== undefined) {
-    var effect$1 = function (input, struct, mode) {
-      var ok = maybeTransformationSerializer(input, struct, mode);
-      if (ok.TAG === /* Ok */0) {
-        return ok;
-      } else {
-        return {
-                TAG: /* Failed */1,
-                _0: fromPublic(ok._0)
-              };
-      }
-    };
-    tmp$1 = {
-      s: [effect$1].concat(match$1.s),
-      u: [effect$1].concat(match$1.u)
-    };
-  } else {
-    tmp$1 = undefined;
-  }
+  var currentParsers = struct.p;
+  var currentSerializers = struct.s;
+  var effect = maybeTransformationParser !== undefined ? (function (input, struct, mode) {
+        var ok = maybeTransformationParser(input, struct, mode);
+        if (ok.TAG === /* Ok */0) {
+          return ok;
+        } else {
+          return {
+                  TAG: /* Failed */1,
+                  _0: fromPublic(ok._0)
+                };
+        }
+      }) : missingParser;
+  var effect$1 = maybeTransformationSerializer !== undefined ? (function (input, struct, mode) {
+        var ok = maybeTransformationSerializer(input, struct, mode);
+        if (ok.TAG === /* Ok */0) {
+          return ok;
+        } else {
+          return {
+                  TAG: /* Failed */1,
+                  _0: fromPublic(ok._0)
+                };
+        }
+      }) : missingSerializer;
   return {
           t: struct.t,
-          p: tmp,
-          s: tmp$1,
+          p: {
+            s: currentParsers.s.concat([effect]),
+            u: currentParsers.u.concat([effect])
+          },
+          s: {
+            s: [effect$1].concat(currentSerializers.s),
+            u: [effect$1].concat(currentSerializers.u)
+          },
           m: struct.m
         };
 }
@@ -547,44 +534,40 @@ function custom(maybeCustomParser, maybeCustomSerializer, param) {
   if (maybeCustomParser === undefined && maybeCustomSerializer === undefined) {
     raise$1("Custom struct factory");
   }
-  var fn = function (customParser) {
-    var effects = [(function (input, param, mode) {
-          var ok = customParser(input, mode);
-          if (ok.TAG === /* Ok */0) {
-            return ok;
-          } else {
-            return {
-                    TAG: /* Failed */1,
-                    _0: fromPublic(ok._0)
-                  };
-          }
-        })];
-    return {
-            s: effects,
-            u: effects
-          };
-  };
-  var fn$1 = function (customSerializer) {
-    var effects = [(function (input, param, mode) {
-          var ok = customSerializer(input, mode);
-          if (ok.TAG === /* Ok */0) {
-            return ok;
-          } else {
-            return {
-                    TAG: /* Failed */1,
-                    _0: fromPublic(ok._0)
-                  };
-          }
-        })];
-    return {
-            s: effects,
-            u: effects
-          };
-  };
+  var effect = maybeCustomParser !== undefined ? (function (input, param, mode) {
+        var ok = maybeCustomParser(input, mode);
+        if (ok.TAG === /* Ok */0) {
+          return ok;
+        } else {
+          return {
+                  TAG: /* Failed */1,
+                  _0: fromPublic(ok._0)
+                };
+        }
+      }) : missingParser;
+  var effects = [effect];
+  var effect$1 = maybeCustomSerializer !== undefined ? (function (input, param, mode) {
+        var ok = maybeCustomSerializer(input, mode);
+        if (ok.TAG === /* Ok */0) {
+          return ok;
+        } else {
+          return {
+                  TAG: /* Failed */1,
+                  _0: fromPublic(ok._0)
+                };
+        }
+      }) : missingSerializer;
+  var effects$1 = [effect$1];
   return {
           t: /* Unknown */1,
-          p: maybeCustomParser !== undefined ? Caml_option.some(fn(Caml_option.valFromOption(maybeCustomParser))) : undefined,
-          s: maybeCustomSerializer !== undefined ? Caml_option.some(fn$1(Caml_option.valFromOption(maybeCustomSerializer))) : undefined,
+          p: {
+            s: effects,
+            u: effects
+          },
+          s: {
+            s: effects$1,
+            u: effects$1
+          },
           m: undefined
         };
 }

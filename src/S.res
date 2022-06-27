@@ -251,9 +251,9 @@ type rec t<'value> = {
   @as("t")
   tagged_t: tagged_t,
   @as("p")
-  maybeParsers: option<effectsMap>,
+  parsers: effectsMap,
   @as("s")
-  maybeSerializers: option<effectsMap>,
+  serializers: effectsMap,
   @as("m")
   maybeMetadata: option<Js.Dict.t<unknown>>,
 }
@@ -356,41 +356,32 @@ let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
 let checkIsIntNumber = x => x < 2147483648. && x > -2147483649. && x === x->Js.Math.trunc
 
 let processInner = (~operation: operation, ~input: 'input, ~mode: mode, ~struct: t<'value>) => {
-  let maybeEffectsMap = switch operation {
-  | Parsing => struct.maybeParsers
-  | Serializing => struct.maybeSerializers
+  let effectsMap = switch operation {
+  | Parsing => struct.parsers
+  | Serializing => struct.serializers
   }
-  switch maybeEffectsMap {
-  | Some(effectsMap) => {
-      let effects = switch mode {
-      | Safe => effectsMap.safe
-      | Unsafe => effectsMap.unsafe
-      }
+  let effects = switch mode {
+  | Safe => effectsMap.safe
+  | Unsafe => effectsMap.unsafe
+  }
 
-      let idxRef = ref(0)
-      let valueRef = ref(input->Obj.magic)
-      let maybeErrorRef = ref(None)
-      while idxRef.contents < effects->Js.Array2.length && maybeErrorRef.contents === None {
-        let effect = effects->Js.Array2.unsafe_get(idxRef.contents)
-        switch effect(. ~unknown=valueRef.contents, ~struct=struct->Obj.magic, ~mode) {
-        | Refined => idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-        | Transformed(newValue) => {
-            valueRef.contents = newValue
-            idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-          }
-        | Failed(error) => maybeErrorRef.contents = Some(error)
-        }
+  let idxRef = ref(0)
+  let valueRef = ref(input->Obj.magic)
+  let maybeErrorRef = ref(None)
+  while idxRef.contents < effects->Js.Array2.length && maybeErrorRef.contents === None {
+    let effect = effects->Js.Array2.unsafe_get(idxRef.contents)
+    switch effect(. ~unknown=valueRef.contents, ~struct=struct->Obj.magic, ~mode) {
+    | Refined => idxRef.contents = idxRef.contents->Lib.Int.plus(1)
+    | Transformed(newValue) => {
+        valueRef.contents = newValue
+        idxRef.contents = idxRef.contents->Lib.Int.plus(1)
       }
-      switch maybeErrorRef.contents {
-      | Some(error) => Error(error)
-      | None => Ok(valueRef.contents->Obj.magic)
-      }
+    | Failed(error) => maybeErrorRef.contents = Some(error)
     }
-  | None =>
-    switch operation {
-    | Parsing => Error(Error.Internal.make(MissingParser))
-    | Serializing => Error(Error.Internal.make(MissingSerializer))
-    }
+  }
+  switch maybeErrorRef.contents {
+  | Some(error) => Error(error)
+  | None => Ok(valueRef.contents->Obj.magic)
   }
 }
 
@@ -441,6 +432,14 @@ module Effect = {
   let concatSerializer = (effects, effect) => {
     [effect]->Js.Array2.concat(effects)
   }
+
+  let missingParser = make((~input as _, ~struct as _, ~mode as _) => {
+    Failed(Error.Internal.make(MissingParser))
+  })
+
+  let missingSerializer = make((~input as _, ~struct as _, ~mode as _) => {
+    Failed(Error.Internal.make(MissingSerializer))
+  })
 }
 
 let refine: (
@@ -458,11 +457,12 @@ let refine: (
     Error.MissingParserAndSerializer.raise(`struct factory Refine`)
   }
 
+  let currentParsers = struct.parsers
+  let currentSerializers = struct.serializers
   {
     ...struct,
-    maybeParsers: switch (struct.maybeParsers, maybeRefineParser) {
-    | (Some(parsers), Some(refineParser)) =>
-      {
+    parsers: switch maybeRefineParser {
+    | Some(refineParser) => {
         let effect = Effect.make((~input, ~struct as _, ~mode as _) => {
           switch (refineParser->Obj.magic)(. input) {
           | None => Refined
@@ -470,15 +470,14 @@ let refine: (
           }
         })
         {
-          ...parsers,
-          safe: parsers.safe->Effect.concatParser(effect),
+          ...currentParsers,
+          safe: currentParsers.safe->Effect.concatParser(effect),
         }
-      }->Some
-    | (_, _) => None
+      }
+    | None => currentParsers
     },
-    maybeSerializers: switch (struct.maybeSerializers, maybeRefineSerializer) {
-    | (Some(serializers), Some(refineSerializer)) =>
-      {
+    serializers: switch maybeRefineSerializer {
+    | Some(refineSerializer) => {
         let effect = Effect.make((~input, ~struct as _, ~mode as _) => {
           switch (refineSerializer->Obj.magic)(. input) {
           | None => Refined
@@ -486,11 +485,11 @@ let refine: (
           }
         })
         {
-          ...serializers,
-          safe: serializers.safe->Effect.concatSerializer(effect),
+          ...currentSerializers,
+          safe: currentSerializers.safe->Effect.concatSerializer(effect),
         }
-      }->Some
-    | (_, _) => None
+      }
+    | None => currentSerializers
     },
   }
 }
@@ -505,39 +504,41 @@ let transform = (
     Error.MissingParserAndSerializer.raise(`struct factory Transform`)
   }
 
+  let currentParsers = struct.parsers
+  let currentSerializers = struct.serializers
   {
     ...struct,
-    maybeParsers: switch (struct.maybeParsers, maybeTransformationParser) {
-    | (Some(parsers), Some(transformationParser)) =>
-      {
-        let effect = Effect.make((~input, ~struct as _, ~mode as _) => {
+    parsers: {
+      let effect = switch maybeTransformationParser {
+      | Some(transformationParser) =>
+        Effect.make((~input, ~struct as _, ~mode as _) => {
           switch (transformationParser->Obj.magic)(. input) {
           | Ok(_) as ok => ok->Effect.fromResult
           | Error(reason) => Failed(Error.Internal.make(OperationFailed(reason)))
           }
         })
-        {
-          unsafe: parsers.unsafe->Effect.concatParser(effect),
-          safe: parsers.safe->Effect.concatParser(effect),
-        }
-      }->Some
-    | (_, _) => None
-    },
-    maybeSerializers: switch (struct.maybeSerializers, maybeTransformationSerializer) {
-    | (Some(serializers), Some(transformationSerializer)) =>
+      | None => Effect.missingParser
+      }
       {
-        let effect = Effect.make((~input, ~struct as _, ~mode as _) => {
+        unsafe: currentParsers.unsafe->Effect.concatParser(effect),
+        safe: currentParsers.safe->Effect.concatParser(effect),
+      }
+    },
+    serializers: {
+      let effect = switch maybeTransformationSerializer {
+      | Some(transformationSerializer) =>
+        Effect.make((~input, ~struct as _, ~mode as _) => {
           switch (transformationSerializer->Obj.magic)(. input) {
           | Ok(_) as ok => ok->Effect.fromResult
           | Error(reason) => Failed(Error.Internal.make(OperationFailed(reason)))
           }
         })
-        {
-          unsafe: serializers.unsafe->Effect.concatSerializer(effect),
-          safe: serializers.safe->Effect.concatSerializer(effect),
-        }
-      }->Some
-    | (_, _) => None
+      | None => Effect.missingSerializer
+      }
+      {
+        unsafe: currentSerializers.unsafe->Effect.concatSerializer(effect),
+        safe: currentSerializers.safe->Effect.concatSerializer(effect),
+      }
     },
   }
 }
@@ -552,39 +553,41 @@ let superTransform = (
     Error.MissingParserAndSerializer.raise(`struct factory Transform`)
   }
 
+  let currentParsers = struct.parsers
+  let currentSerializers = struct.serializers
   {
     ...struct,
-    maybeParsers: switch (struct.maybeParsers, maybeTransformationParser) {
-    | (Some(parsers), Some(transformationParser)) =>
-      {
-        let effect = Effect.make((~input, ~struct, ~mode) => {
+    parsers: {
+      let effect = switch maybeTransformationParser {
+      | Some(transformationParser) =>
+        Effect.make((~input, ~struct, ~mode) => {
           switch transformationParser(. ~value=input, ~struct, ~mode) {
           | Ok(_) as ok => ok->Effect.fromResult
           | Error(public) => Failed(public->Error.Internal.fromPublic)
           }
         })
-        {
-          unsafe: parsers.unsafe->Effect.concatParser(effect),
-          safe: parsers.safe->Effect.concatParser(effect),
-        }
-      }->Some
-    | (_, _) => None
-    },
-    maybeSerializers: switch (struct.maybeSerializers, maybeTransformationSerializer) {
-    | (Some(serializers), Some(transformationSerializer)) =>
+      | None => Effect.missingParser
+      }
       {
-        let effect = Effect.make((~input, ~struct, ~mode) => {
+        unsafe: currentParsers.unsafe->Effect.concatParser(effect),
+        safe: currentParsers.safe->Effect.concatParser(effect),
+      }
+    },
+    serializers: {
+      let effect = switch maybeTransformationSerializer {
+      | Some(transformationSerializer) =>
+        Effect.make((~input, ~struct, ~mode) => {
           switch transformationSerializer(. ~transformed=input, ~struct, ~mode) {
           | Ok(_) as ok => ok->Effect.fromResult
           | Error(public) => Failed(public->Error.Internal.fromPublic)
           }
         })
-        {
-          unsafe: serializers.unsafe->Effect.concatSerializer(effect),
-          safe: serializers.safe->Effect.concatSerializer(effect),
-        }
-      }->Some
-    | (_, _) => None
+      | None => Effect.missingSerializer
+      }
+      {
+        unsafe: currentSerializers.unsafe->Effect.concatSerializer(effect),
+        safe: currentSerializers.safe->Effect.concatSerializer(effect),
+      }
     },
   }
 }
@@ -597,34 +600,40 @@ let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializ
   {
     tagged_t: Unknown,
     maybeMetadata: None,
-    maybeParsers: maybeCustomParser->Lib.Option.map(customParser => {
-      let effects = [
+    parsers: {
+      let effect = switch maybeCustomParser {
+      | Some(customParser) =>
         Effect.make((~input, ~struct as _, ~mode) => {
           switch customParser(. ~unknown=input, ~mode) {
           | Ok(_) as ok => ok->Effect.fromResult
           | Error(public) => Failed(public->Error.Internal.fromPublic)
           }
-        }),
-      ]
+        })
+      | None => Effect.missingParser
+      }
+      let effects = [effect]
       {
         safe: effects,
         unsafe: effects,
       }
-    }),
-    maybeSerializers: maybeCustomSerializer->Lib.Option.map(customSerializer => {
-      let effects = [
+    },
+    serializers: {
+      let effect = switch maybeCustomSerializer {
+      | Some(customSerializer) =>
         Effect.make((~input, ~struct as _, ~mode) => {
           switch customSerializer(. ~value=input, ~mode) {
           | Ok(_) as ok => ok->Effect.fromResult
           | Error(public) => Failed(public->Error.Internal.fromPublic)
           }
-        }),
-      ]
+        })
+      | None => Effect.missingSerializer
+      }
+      let effects = [effect]
       {
         safe: effects,
         unsafe: effects,
       }
-    }),
+    },
   }
 }
 
@@ -745,102 +754,102 @@ module Literal = {
         switch innerLiteral {
         | EmptyNull => {
             tagged_t: tagged_t,
-            maybeParsers: Some({
+            parsers: {
               safe: [EmptyNull.parserRefinement, parserTransform],
               unsafe: [parserTransform],
-            }),
-            maybeSerializers: Some({
+            },
+            serializers: {
               safe: [serializerRefinement, EmptyNull.serializerTransform],
               unsafe: [EmptyNull.serializerTransform],
-            }),
+            },
             maybeMetadata: None,
           }
         | EmptyOption => {
             tagged_t: tagged_t,
-            maybeParsers: Some({
+            parsers: {
               safe: [EmptyOption.parserRefinement, parserTransform],
               unsafe: [parserTransform],
-            }),
-            maybeSerializers: Some({
+            },
+            serializers: {
               safe: [serializerRefinement, EmptyOption.serializerTransform],
               unsafe: [EmptyOption.serializerTransform],
-            }),
+            },
             maybeMetadata: None,
           }
         | NaN => {
             tagged_t: tagged_t,
-            maybeParsers: Some({
+            parsers: {
               safe: [NaN.parserRefinement, parserTransform],
               unsafe: [parserTransform],
-            }),
-            maybeSerializers: Some({
+            },
+            serializers: {
               safe: [serializerRefinement, NaN.serializerTransform],
               unsafe: [NaN.serializerTransform],
-            }),
+            },
             maybeMetadata: None,
           }
         | Bool(_) => {
             tagged_t: tagged_t,
-            maybeParsers: Some({
+            parsers: {
               safe: [
                 Bool.parserRefinement,
                 CommonOperations.Parser.literalValueRefinement,
                 parserTransform,
               ],
               unsafe: [parserTransform],
-            }),
-            maybeSerializers: Some({
+            },
+            serializers: {
               safe: [serializerRefinement, CommonOperations.transformToLiteralValue],
               unsafe: [CommonOperations.transformToLiteralValue],
-            }),
+            },
             maybeMetadata: None,
           }
         | String(_) => {
             tagged_t: tagged_t,
-            maybeParsers: Some({
+            parsers: {
               safe: [
                 String.parserRefinement,
                 CommonOperations.Parser.literalValueRefinement,
                 parserTransform,
               ],
               unsafe: [parserTransform],
-            }),
-            maybeSerializers: Some({
+            },
+            serializers: {
               safe: [serializerRefinement, CommonOperations.transformToLiteralValue],
               unsafe: [CommonOperations.transformToLiteralValue],
-            }),
+            },
             maybeMetadata: None,
           }
         | Float(_) => {
             tagged_t: tagged_t,
-            maybeParsers: Some({
+            parsers: {
               safe: [
                 Float.parserRefinement,
                 CommonOperations.Parser.literalValueRefinement,
                 parserTransform,
               ],
               unsafe: [parserTransform],
-            }),
-            maybeSerializers: Some({
+            },
+            serializers: {
               safe: [serializerRefinement, CommonOperations.transformToLiteralValue],
               unsafe: [CommonOperations.transformToLiteralValue],
-            }),
+            },
             maybeMetadata: None,
           }
         | Int(_) => {
             tagged_t: tagged_t,
-            maybeParsers: Some({
+            parsers: {
               safe: [
                 Int.parserRefinement,
                 CommonOperations.Parser.literalValueRefinement,
                 parserTransform,
               ],
               unsafe: [parserTransform],
-            }),
-            maybeSerializers: Some({
+            },
+            serializers: {
               safe: [serializerRefinement, CommonOperations.transformToLiteralValue],
               unsafe: [CommonOperations.transformToLiteralValue],
-            }),
+            },
             maybeMetadata: None,
           }
         }
@@ -969,8 +978,8 @@ module Record = {
 
     {
       tagged_t: Record({fields: fields, fieldNames: fields->Js.Dict.keys, unknownKeys: Strict}),
-      maybeParsers: Some(parsers),
-      maybeSerializers: Some(serializers),
+      parsers: parsers,
+      serializers: serializers,
       maybeMetadata: None,
     }
   }
@@ -1014,8 +1023,8 @@ module Never = {
 
   let factory = () => {
     tagged_t: Never,
-    maybeParsers: Some(effectsMap),
-    maybeSerializers: Some(effectsMap),
+    parsers: effectsMap,
+    serializers: effectsMap,
     maybeMetadata: None,
   }
 }
@@ -1023,8 +1032,8 @@ module Never = {
 module Unknown = {
   let factory = () => {
     tagged_t: Unknown,
-    maybeParsers: Some(Effect.emptyMap),
-    maybeSerializers: Some(Effect.emptyMap),
+    parsers: Effect.emptyMap,
+    serializers: Effect.emptyMap,
     maybeMetadata: None,
   }
 }
@@ -1050,8 +1059,8 @@ module String = {
 
   let factory = () => {
     tagged_t: String,
-    maybeParsers: Some(parsers),
-    maybeSerializers: Some(serializers),
+    parsers: parsers,
+    serializers: serializers,
     maybeMetadata: None,
   }
 
@@ -1165,8 +1174,8 @@ module Bool = {
 
   let factory = () => {
     tagged_t: Bool,
-    maybeParsers: Some(parsers),
-    maybeSerializers: Some(Effect.emptyMap),
+    parsers: parsers,
+    serializers: Effect.emptyMap,
     maybeMetadata: None,
   }
 }
@@ -1186,8 +1195,8 @@ module Int = {
 
   let factory = () => {
     tagged_t: Int,
-    maybeParsers: Some(parsers),
-    maybeSerializers: Some(Effect.emptyMap),
+    parsers: parsers,
+    serializers: Effect.emptyMap,
     maybeMetadata: None,
   }
 
@@ -1239,8 +1248,8 @@ module Float = {
 
   let factory = () => {
     tagged_t: Float,
-    maybeParsers: Some(parsers),
-    maybeSerializers: Some(Effect.emptyMap),
+    parsers: parsers,
+    serializers: Effect.emptyMap,
     maybeMetadata: None,
   }
 
@@ -1264,8 +1273,8 @@ module Date = {
 
   let factory = () => {
     tagged_t: Instance(%raw(`Date`)),
-    maybeParsers: Some(parsers),
-    maybeSerializers: Some(Effect.emptyMap),
+    parsers: parsers,
+    serializers: Effect.emptyMap,
     maybeMetadata: None,
   }
 }
@@ -1308,8 +1317,8 @@ module Null = {
 
   let factory = innerStruct => {
     tagged_t: Null(innerStruct),
-    maybeParsers: Some(parsers),
-    maybeSerializers: Some(serializers),
+    parsers: parsers,
+    serializers: serializers,
     maybeMetadata: None,
   }
 }
@@ -1353,8 +1362,8 @@ module Option = {
 
   let factory = innerStruct => {
     tagged_t: Option(innerStruct),
-    maybeParsers: Some(parsers),
-    maybeSerializers: Some(serializers),
+    parsers: parsers,
+    serializers: serializers,
     maybeMetadata: None,
   }
 }
@@ -1400,8 +1409,8 @@ module Deprecated = {
 
   let factory = (~message as maybeMessage=?, innerStruct) => {
     tagged_t: Deprecated({struct: innerStruct, maybeMessage: maybeMessage}),
-    maybeParsers: Some(parsers),
-    maybeSerializers: Some(serializers),
+    parsers: parsers,
+    serializers: serializers,
     maybeMetadata: None,
   }
 }
@@ -1486,8 +1495,8 @@ module Array = {
 
   let factory = innerStruct => {
     tagged_t: Array(innerStruct),
-    maybeParsers: Some(parsers),
-    maybeSerializers: Some(serializers),
+    parsers: parsers,
+    serializers: serializers,
     maybeMetadata: None,
   }
 
@@ -1615,8 +1624,8 @@ module Dict = {
 
   let factory = innerStruct => {
     tagged_t: Dict(innerStruct),
-    maybeParsers: Some(parsers),
-    maybeSerializers: Some(serializers),
+    parsers: parsers,
+    serializers: serializers,
     maybeMetadata: None,
   }
 }
@@ -1657,8 +1666,8 @@ module Default = {
 
   let factory = (innerStruct, defaultValue) => {
     tagged_t: Default({struct: innerStruct, value: defaultValue}),
-    maybeParsers: Some(parsers),
-    maybeSerializers: Some(serializers),
+    parsers: parsers,
+    serializers: serializers,
     maybeMetadata: None,
   }
 }
@@ -1766,8 +1775,8 @@ module Tuple = {
   let innerFactory = structs => {
     {
       tagged_t: Tuple(structs),
-      maybeParsers: Some(parsers),
-      maybeSerializers: Some(serializers),
+      parsers: parsers,
+      serializers: serializers,
       maybeMetadata: None,
     }
   }
@@ -1851,8 +1860,8 @@ module Union = {
 
     {
       tagged_t: Union(structs),
-      maybeParsers: Some(parsers),
-      maybeSerializers: Some(serializers),
+      parsers: parsers,
+      serializers: serializers,
       maybeMetadata: None,
     }
   }
