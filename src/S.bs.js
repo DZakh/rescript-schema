@@ -877,7 +877,7 @@ var getMaybeExcessKey = (function(object, innerStructsDict) {
   });
 
 function parserTransform(input, struct, mode) {
-  var maybeRefinementError = mode || Object.prototype.toString.call(input) === "[object Object]" ? undefined : makeUnexpectedTypeError(input, struct);
+  var maybeRefinementError = mode || typeof input === "object" && !Array.isArray(input) && input !== null ? undefined : makeUnexpectedTypeError(input, struct);
   if (maybeRefinementError !== undefined) {
     return {
             TAG: /* Failed */1,
@@ -1610,7 +1610,7 @@ function length$1(struct, maybeMessage, length$2) {
 }
 
 var parserEffects$4 = [(function (input, struct, mode) {
-      var maybeRefinementError = mode || Object.prototype.toString.call(input) === "[object Object]" ? undefined : makeUnexpectedTypeError(input, struct);
+      var maybeRefinementError = mode || typeof input === "object" && !Array.isArray(input) && input !== null ? undefined : makeUnexpectedTypeError(input, struct);
       if (maybeRefinementError !== undefined) {
         return {
                 TAG: /* Failed */1,

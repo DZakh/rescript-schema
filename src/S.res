@@ -40,6 +40,13 @@ module Lib = {
     }
   }
 
+  module Object = {
+    @inline
+    let test = data => {
+      data->Js.typeof === "object" && !Js.Array2.isArray(data) && data !== %raw(`null`)
+    }
+  }
+
   module Array = {
     @inline
     let toTuple = array =>
@@ -88,6 +95,12 @@ module Lib = {
     @inline
     let plus = (int1: int, int2: int): int => {
       (int1->Js.Int.toFloat +. int2->Js.Int.toFloat)->Obj.magic
+    }
+
+    @inline
+    let test = data => {
+      let x = data->Obj.magic
+      data->Js.typeof === "number" && x < 2147483648. && x > -2147483649. && x === x->Js.Math.trunc
     }
   }
 }
@@ -296,8 +309,6 @@ type payloadedVariant<'payload> = {_0: 'payload}
 @inline
 let unsafeGetVariantPayload: 'a => 'payload = v => (v->Obj.magic)._0
 
-@val external getInternalClass: 'a => string = "Object.prototype.toString.call"
-
 @inline
 let classify = struct => struct.tagged_t
 
@@ -351,9 +362,6 @@ let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   let expected = TaggedT.toString(structTagged)
   Error.Internal.make(UnexpectedType({expected: expected, received: received}))
 }
-
-@inline
-let checkIsIntNumber = x => x < 2147483648. && x > -2147483649. && x === x->Js.Math.trunc
 
 let processInner = (~operation: operation, ~input: 'input, ~mode: mode, ~struct: t<'value>) => {
   let effectsMap = switch operation {
@@ -724,7 +732,7 @@ module Literal = {
 
   module Int = {
     let parserRefinement = Effect.make((~input, ~struct, ~mode as _) => {
-      switch input->Js.typeof === "number" && checkIsIntNumber(input) {
+      switch Lib.Int.test(input) {
       | true => Refined
       | false => Failed(makeUnexpectedTypeError(~input, ~struct))
       }
@@ -893,7 +901,7 @@ module Record = {
   let parserTransform = Effect.make((~input, ~struct, ~mode) => {
     let maybeRefinementError = switch mode {
     | Safe =>
-      switch input->getInternalClass === "[object Object]" {
+      switch input->Lib.Object.test {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
@@ -1182,7 +1190,7 @@ module Bool = {
 
 module Int = {
   let parserRefinement = Effect.make((~input, ~struct, ~mode as _) => {
-    switch input->Js.typeof === "number" && checkIsIntNumber(input) {
+    switch Lib.Int.test(input) {
     | true => Refined
     | false => Failed(makeUnexpectedTypeError(~input, ~struct))
     }
@@ -1548,7 +1556,7 @@ module Dict = {
     Effect.make((~input, ~struct, ~mode) => {
       let maybeRefinementError = switch mode {
       | Safe =>
-        switch input->getInternalClass === "[object Object]" {
+        switch input->Lib.Object.test {
         | true => None
         | false => Some(makeUnexpectedTypeError(~input, ~struct))
         }
