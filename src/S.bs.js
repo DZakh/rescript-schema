@@ -869,7 +869,7 @@ function factory$1(innerLiteral) {
 
 var getMaybeExcessKey = (function(object, innerStructsDict) {
     for (var key in object) {
-      if (!(key in innerStructsDict)) {
+      if (!Object.prototype.hasOwnProperty.call(innerStructsDict, key)) {
         return key
       }
     }

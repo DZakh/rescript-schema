@@ -891,7 +891,7 @@ module Record = {
     Js.Dict.t<t<unknown>>,
   ) => option<string> = %raw(`function(object, innerStructsDict) {
     for (var key in object) {
-      if (!(key in innerStructsDict)) {
+      if (!Object.prototype.hasOwnProperty.call(innerStructsDict, key)) {
         return key
       }
     }
