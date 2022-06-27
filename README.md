@@ -27,7 +27,6 @@ Then add `rescript-struct` to `bs-dependencies` in your `bsconfig.json`:
 }
 ```
 
-
 ## Example
 
 ```rescript
@@ -103,7 +102,7 @@ data->S.parseWith(userStruct)
 Parses data using the transformation logic that is built-in to the struct.
 Has multiple modes:
 - `S.Safe` (default) - In this mode **rescript-struct** will check that provided data is valid.
-- `S.Unsafe` - In this mode all checks and refinements are ignored and only transformation logic is applied.
+- `S.Unsafe` - In this mode all checks and refinements are ignored and only transformation logic is applied. It's ~1.4 times faster than `Safe` mode.
 
 #### **`S.serializeWith`**
 
