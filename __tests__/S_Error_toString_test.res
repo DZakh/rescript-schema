@@ -7,7 +7,7 @@ test("OperationFailed error", t => {
       operation: Parsing,
       path: [],
     }->S.Error.toString,
-    "[ReScript Struct] Failed parsing at root. Reason: Should be positive",
+    "Failed parsing at root. Reason: Should be positive",
     (),
   )
 })
@@ -19,7 +19,7 @@ test("Error with Serializing operation", t => {
       operation: Serializing,
       path: [],
     }->S.Error.toString,
-    "[ReScript Struct] Failed serializing at root. Reason: Should be positive",
+    "Failed serializing at root. Reason: Should be positive",
     (),
   )
 })
@@ -31,7 +31,7 @@ test("Error with path", t => {
       operation: Parsing,
       path: ["0", "foo"],
     }->S.Error.toString,
-    "[ReScript Struct] Failed parsing at [0][foo]. Reason: Should be positive",
+    "Failed parsing at [0][foo]. Reason: Should be positive",
     (),
   )
 })
@@ -43,7 +43,7 @@ test("MissingParser error", t => {
       operation: Parsing,
       path: [],
     }->S.Error.toString,
-    "[ReScript Struct] Failed parsing at root. Reason: Struct parser is missing",
+    "Failed parsing at root. Reason: Struct parser is missing",
     (),
   )
 })
@@ -55,7 +55,7 @@ test("MissingSerializer error", t => {
       operation: Parsing,
       path: [],
     }->S.Error.toString,
-    "[ReScript Struct] Failed parsing at root. Reason: Struct serializer is missing",
+    "Failed parsing at root. Reason: Struct serializer is missing",
     (),
   )
 })
@@ -67,7 +67,7 @@ test("UnexpectedType error", t => {
       operation: Parsing,
       path: [],
     }->S.Error.toString,
-    "[ReScript Struct] Failed parsing at root. Reason: Expected String, received Bool",
+    "Failed parsing at root. Reason: Expected String, received Bool",
     (),
   )
 })
@@ -79,7 +79,7 @@ test("UnexpectedValue error", t => {
       operation: Parsing,
       path: [],
     }->S.Error.toString,
-    "[ReScript Struct] Failed parsing at root. Reason: Expected false, received true",
+    "Failed parsing at root. Reason: Expected false, received true",
     (),
   )
 })
@@ -91,7 +91,7 @@ test("ExcessField error", t => {
       operation: Parsing,
       path: [],
     }->S.Error.toString,
-    `[ReScript Struct] Failed parsing at root. Reason: Encountered disallowed excess key "unknownKey" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`,
+    `Failed parsing at root. Reason: Encountered disallowed excess key "unknownKey" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`,
     (),
   )
 })
@@ -103,7 +103,7 @@ test("TupleSize error", t => {
       operation: Parsing,
       path: [],
     }->S.Error.toString,
-    `[ReScript Struct] Failed parsing at root. Reason: Expected Tuple with 1 items, received 2`,
+    `Failed parsing at root. Reason: Expected Tuple with 1 items, received 2`,
     (),
   )
 })
