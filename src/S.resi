@@ -1,8 +1,6 @@
 module Error: {
-  type operation =
-    | Serializing
-    | Parsing
-  type code =
+  type rec t = {operation: operation, code: code, path: array<string>}
+  and code =
     | OperationFailed(string)
     | MissingParser
     | MissingSerializer
@@ -10,7 +8,10 @@ module Error: {
     | UnexpectedValue({expected: string, received: string})
     | TupleSize({expected: int, received: int})
     | ExcessField(string)
-  type t = {operation: operation, code: code, path: array<string>}
+    | InvalidUnion(array<t>)
+  and operation =
+    | Serializing
+    | Parsing
 
   let prependLocation: (t, string) => t
 

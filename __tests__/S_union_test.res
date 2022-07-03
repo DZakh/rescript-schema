@@ -127,9 +127,25 @@ module Advanced = {
       "y": 3,
     }`)->S.parseWith(shapeStruct),
       Error({
-        code: UnexpectedValue({expected: `"triangle"`, received: `"oval"`}),
+        code: InvalidUnion([
+          {
+            code: ExcessField("x"),
+            operation: Parsing,
+            path: [],
+          },
+          {
+            code: ExcessField("y"),
+            operation: Parsing,
+            path: [],
+          },
+          {
+            code: UnexpectedValue({expected: `"triangle"`, received: `"oval"`}),
+            operation: Parsing,
+            path: ["kind"],
+          },
+        ]),
         operation: Parsing,
-        path: ["kind"],
+        path: [],
       }),
       (),
     )
@@ -139,7 +155,23 @@ module Advanced = {
     t->Assert.deepEqual(
       %raw(`"Hello world!"`)->S.parseWith(shapeStruct),
       Error({
-        code: UnexpectedType({expected: "Record", received: "String"}),
+        code: InvalidUnion([
+          {
+            code: UnexpectedType({expected: "Record", received: "String"}),
+            operation: Parsing,
+            path: [],
+          },
+          {
+            code: UnexpectedType({expected: "Record", received: "String"}),
+            operation: Parsing,
+            path: [],
+          },
+          {
+            code: UnexpectedType({expected: "Record", received: "String"}),
+            operation: Parsing,
+            path: [],
+          },
+        ]),
         operation: Parsing,
         path: [],
       }),

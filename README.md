@@ -791,7 +791,6 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 - [ ] Design and add Lazy struct factory
 - [x] Design and add Union struct factory
   - [ ] Add discriminant optimization for record structs
-  - [ ] Better error message
 - [ ] Design and add tagged refinements
 - [x] Properly handle NaN
 - [ ] Design and add async transforms

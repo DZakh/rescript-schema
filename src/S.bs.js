@@ -30,30 +30,23 @@ var raise = (function(message){
 function toParseError(self) {
   return {
           operation: /* Parsing */1,
-          code: self.c,
-          path: self.p
+          code: self.code,
+          path: self.path
         };
 }
 
 function toSerializeError(self) {
   return {
           operation: /* Serializing */0,
-          code: self.c,
-          path: self.p
-        };
-}
-
-function fromPublic($$public) {
-  return {
-          c: $$public.code,
-          p: $$public.path
+          code: self.code,
+          path: self.path
         };
 }
 
 function prependLocation(error, $$location) {
   return {
-          c: error.c,
-          p: [$$location].concat(error.p)
+          code: error.code,
+          path: [$$location].concat(error.path)
         };
 }
 
@@ -78,8 +71,8 @@ function make(expected, received) {
     received: code_1
   };
   return {
-          c: code,
-          p: []
+          code: code,
+          path: []
         };
 }
 
@@ -116,37 +109,47 @@ function make$1(reason) {
         };
 }
 
+function toReason(nestedLevelOpt, error) {
+  var nestedLevel = nestedLevelOpt !== undefined ? nestedLevelOpt : 0;
+  var reason = error.code;
+  if (typeof reason === "number") {
+    if (reason === /* MissingParser */0) {
+      return "Struct parser is missing";
+    } else {
+      return "Struct serializer is missing";
+    }
+  }
+  switch (reason.TAG | 0) {
+    case /* OperationFailed */0 :
+        return reason._0;
+    case /* UnexpectedType */1 :
+    case /* UnexpectedValue */2 :
+        break;
+    case /* TupleSize */3 :
+        return "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString();
+    case /* ExcessField */4 :
+        return "Encountered disallowed excess key \"" + reason._0 + "\" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely";
+    case /* InvalidUnion */5 :
+        var lineBreak = "\n" + " ".repeat((nestedLevel << 1));
+        var partial_arg = nestedLevel + 1;
+        var array = reason._0.map(function (param) {
+              return toReason(partial_arg, param);
+            });
+        var reasons = Array.from(new Set(array));
+        return "Invalid union with following errors" + lineBreak + reasons.map(function (reason) {
+                      return "- " + reason;
+                    }).join(lineBreak);
+    
+  }
+  return "Expected " + reason.expected + ", received " + reason.received;
+}
+
 function toString(error) {
   var match = error.operation;
   var operation = match ? "parsing" : "serializing";
+  var reason = toReason(undefined, error);
   var pathText = formatPath(error.path);
-  var reason = error.code;
-  var reason$1;
-  var exit = 0;
-  if (typeof reason === "number") {
-    reason$1 = reason === /* MissingParser */0 ? "Struct parser is missing" : "Struct serializer is missing";
-  } else {
-    switch (reason.TAG | 0) {
-      case /* OperationFailed */0 :
-          reason$1 = reason._0;
-          break;
-      case /* UnexpectedType */1 :
-      case /* UnexpectedValue */2 :
-          exit = 1;
-          break;
-      case /* TupleSize */3 :
-          reason$1 = "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString();
-          break;
-      case /* ExcessField */4 :
-          reason$1 = "Encountered disallowed excess key \"" + reason._0 + "\" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely";
-          break;
-      
-    }
-  }
-  if (exit === 1) {
-    reason$1 = "Expected " + reason.expected + ", received " + reason.received;
-  }
-  return "[ReScript Struct]" + " Failed " + operation + " at " + pathText + ". Reason: " + reason$1;
+  return "[ReScript Struct]" + " Failed " + operation + " at " + pathText + ". Reason: " + reason;
 }
 
 function classify(struct) {
@@ -262,12 +265,12 @@ function makeUnexpectedTypeError(input, struct) {
   }
   var expected = toString$1(structTagged);
   return {
-          c: {
+          code: {
             TAG: /* UnexpectedType */1,
             expected: expected,
             received: received
           },
-          p: []
+          path: []
         };
 }
 
@@ -340,8 +343,8 @@ function missingParser(param, param$1, param$2) {
   return {
           TAG: /* Failed */1,
           _0: {
-            c: /* MissingParser */0,
-            p: []
+            code: /* MissingParser */0,
+            path: []
           }
         };
 }
@@ -350,8 +353,8 @@ function missingSerializer(param, param$1, param$2) {
   return {
           TAG: /* Failed */1,
           _0: {
-            c: /* MissingSerializer */1,
-            p: []
+            code: /* MissingSerializer */1,
+            path: []
           }
         };
 }
@@ -370,11 +373,11 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
         return {
                 TAG: /* Failed */1,
                 _0: {
-                  c: {
+                  code: {
                     TAG: /* OperationFailed */0,
                     _0: Caml_option.valFromOption(reason)
                   },
-                  p: []
+                  path: []
                 }
               };
       } else {
@@ -396,11 +399,11 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
         return {
                 TAG: /* Failed */1,
                 _0: {
-                  c: {
+                  code: {
                     TAG: /* OperationFailed */0,
                     _0: Caml_option.valFromOption(reason)
                   },
-                  p: []
+                  path: []
                 }
               };
       } else {
@@ -439,11 +442,11 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
           return {
                   TAG: /* Failed */1,
                   _0: {
-                    c: {
+                    code: {
                       TAG: /* OperationFailed */0,
                       _0: ok._0
                     },
-                    p: []
+                    path: []
                   }
                 };
         }
@@ -462,11 +465,11 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
           return {
                   TAG: /* Failed */1,
                   _0: {
-                    c: {
+                    code: {
                       TAG: /* OperationFailed */0,
                       _0: ok._0
                     },
-                    p: []
+                    path: []
                   }
                 };
         }
@@ -501,7 +504,7 @@ function superTransform(struct, maybeTransformationParser, maybeTransformationSe
         } else {
           return {
                   TAG: /* Failed */1,
-                  _0: fromPublic(ok._0)
+                  _0: ok._0
                 };
         }
       }) : missingParser;
@@ -512,7 +515,7 @@ function superTransform(struct, maybeTransformationParser, maybeTransformationSe
         } else {
           return {
                   TAG: /* Failed */1,
-                  _0: fromPublic(ok._0)
+                  _0: ok._0
                 };
         }
       }) : missingSerializer;
@@ -541,7 +544,7 @@ function custom(maybeCustomParser, maybeCustomSerializer, param) {
         } else {
           return {
                   TAG: /* Failed */1,
-                  _0: fromPublic(ok._0)
+                  _0: ok._0
                 };
         }
       }) : missingParser;
@@ -553,7 +556,7 @@ function custom(maybeCustomParser, maybeCustomSerializer, param) {
         } else {
           return {
                   TAG: /* Failed */1,
-                  _0: fromPublic(ok._0)
+                  _0: ok._0
                 };
         }
       }) : missingSerializer;
@@ -906,11 +909,11 @@ function parserTransform(input, struct, mode) {
     var excessKey = getMaybeExcessKey(input, fields);
     if (excessKey !== undefined) {
       maybeErrorRef = {
-        c: {
+        code: {
           TAG: /* ExcessField */4,
           _0: excessKey
         },
-        p: []
+        path: []
       };
     }
     
@@ -1752,12 +1755,12 @@ var parserEffects$6 = [(function (input, struct, mode) {
       } else if (Array.isArray(input)) {
         var numberOfInputItems = input.length;
         maybeRefinementError = numberOfStructs === numberOfInputItems ? undefined : ({
-              c: {
+              code: {
                 TAG: /* TupleSize */3,
                 expected: numberOfStructs,
                 received: numberOfInputItems
               },
-              p: []
+              path: []
             });
       } else {
         maybeRefinementError = makeUnexpectedTypeError(input, struct);
@@ -1859,7 +1862,7 @@ var factory$16 = callWithArguments(innerFactory$1);
 var parserEffects$7 = [(function (input, struct, param) {
       var innerStructs = struct.t._0;
       var idxRef = 0;
-      var maybeLastErrorRef;
+      var maybeErrorsRef;
       var maybeOkRef;
       while(idxRef < innerStructs.length && maybeOkRef === undefined) {
         var idx = idxRef;
@@ -1868,7 +1871,16 @@ var parserEffects$7 = [(function (input, struct, param) {
         if (ok.TAG === /* Ok */0) {
           maybeOkRef = ok;
         } else {
-          maybeLastErrorRef = ok;
+          var v = maybeErrorsRef;
+          var errors;
+          if (v !== undefined) {
+            errors = v;
+          } else {
+            var newErrosArray = [];
+            maybeErrorsRef = newErrosArray;
+            errors = newErrosArray;
+          }
+          errors.push(ok._0);
           idxRef = idxRef + 1;
         }
       };
@@ -1876,12 +1888,21 @@ var parserEffects$7 = [(function (input, struct, param) {
       if (ok$1 !== undefined) {
         return ok$1;
       }
-      var error = maybeLastErrorRef;
-      if (error !== undefined) {
-        return error;
-      } else {
+      var errors$1 = maybeErrorsRef;
+      if (errors$1 === undefined) {
         return undefined;
       }
+      var code = {
+        TAG: /* InvalidUnion */5,
+        _0: errors$1.map(toParseError)
+      };
+      return {
+              TAG: /* Failed */1,
+              _0: {
+                code: code,
+                path: []
+              }
+            };
     })];
 
 var parsers$13 = {

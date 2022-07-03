@@ -47,10 +47,23 @@ module Lib = {
     }
   }
 
+  module Set = {
+    type t<'value>
+
+    @new
+    external fromArray: array<'value> => t<'value> = "Set"
+
+    @val("Array.from")
+    external toArray: t<'value> => array<'value> = "from"
+  }
+
   module Array = {
     @inline
     let toTuple = array =>
       array->Js.Array2.length <= 1 ? array->Js.Array2.unsafe_get(0)->Obj.magic : array->Obj.magic
+
+    @inline
+    let unique = array => array->Set.fromArray->Set.toArray
   }
 
   module Result: {
@@ -117,10 +130,8 @@ module Error = {
     throw new RescriptStructError(message);
   }`)
 
-  type operation =
-    | Serializing
-    | Parsing
-  type code =
+  type rec t = {operation: operation, code: code, path: array<string>}
+  and code =
     | OperationFailed(string)
     | MissingParser
     | MissingSerializer
@@ -128,14 +139,15 @@ module Error = {
     | UnexpectedValue({expected: string, received: string})
     | TupleSize({expected: int, received: int})
     | ExcessField(string)
-  type t = {operation: operation, code: code, path: array<string>}
+    | InvalidUnion(array<t>)
+  and operation =
+    | Serializing
+    | Parsing
 
   module Internal = {
     type public = t
     type t = {
-      @as("c")
       code: code,
-      @as("p")
       path: array<string>,
     }
 
@@ -152,9 +164,7 @@ module Error = {
       {operation: Serializing, code: self.code, path: self.path}
     }
 
-    let fromPublic = (public: public): t => {
-      {code: public.code, path: public.path}
-    }
+    external fromPublic: public => t = "%identity"
 
     let prependLocation = (error, location) => {
       {
@@ -221,14 +231,8 @@ module Error = {
     }
   }
 
-  let toString = error => {
-    let prefix = `[ReScript Struct]`
-    let operation = switch error.operation {
-    | Serializing => "serializing"
-    | Parsing => "parsing"
-    }
-    let pathText = error.path->formatPath
-    let reason = switch error.code {
+  let rec toReason = (~nestedLevel=0, error) => {
+    switch error.code {
     | OperationFailed(reason) => reason
     | MissingParser => "Struct parser is missing"
     | MissingSerializer => "Struct serializer is missing"
@@ -239,7 +243,27 @@ module Error = {
       `Expected ${expected}, received ${received}`
     | TupleSize({expected, received}) =>
       `Expected Tuple with ${expected->Js.Int.toString} items, received ${received->Js.Int.toString}`
+    | InvalidUnion(errors) => {
+        let lineBreak = `\n${" "->Js.String2.repeat(nestedLevel * 2)}`
+        let reasons =
+          errors
+          ->Js.Array2.map(toReason(~nestedLevel=nestedLevel->Lib.Int.plus(1)))
+          ->Lib.Array.unique
+        `Invalid union with following errors${lineBreak}${reasons
+          ->Js.Array2.map(reason => `- ${reason}`)
+          ->Js.Array2.joinWith(lineBreak)}`
+      }
     }
+  }
+
+  let toString = error => {
+    let prefix = `[ReScript Struct]`
+    let operation = switch error.operation {
+    | Serializing => "serializing"
+    | Parsing => "parsing"
+    }
+    let reason = error->toReason
+    let pathText = error.path->formatPath
     `${prefix} Failed ${operation} at ${pathText}. Reason: ${reason}`
   }
 }
@@ -1799,15 +1823,23 @@ module Union = {
       let innerStructs = struct->classify->unsafeGetVariantPayload
 
       let idxRef = ref(0)
-      let maybeLastErrorRef = ref(None)
+      let maybeErrorsRef = ref(None)
       let maybeOkRef = ref(None)
       while idxRef.contents < innerStructs->Js.Array2.length && maybeOkRef.contents === None {
         let idx = idxRef.contents
         let innerStruct = innerStructs->Js.Array2.unsafe_get(idx)
         switch parseInner(~struct=innerStruct, ~any=input, ~mode=Safe) {
         | Ok(_) as ok => maybeOkRef.contents = Some(ok)
-        | Error(_) as error => {
-            maybeLastErrorRef.contents = Some(error)
+        | Error(error) => {
+            let errors = switch maybeErrorsRef.contents {
+            | Some(v) => v
+            | None => {
+                let newErrosArray = []
+                maybeErrorsRef.contents = Some(newErrosArray)
+                newErrosArray
+              }
+            }
+            errors->Js.Array2.push(error)->ignore
             idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
         }
@@ -1815,8 +1847,11 @@ module Union = {
       switch maybeOkRef.contents {
       | Some(ok) => ok->Effect.fromResult
       | None =>
-        switch maybeLastErrorRef.contents {
-        | Some(error) => error->Effect.fromResult
+        switch maybeErrorsRef.contents {
+        | Some(errors) =>
+          Failed(
+            Error.Internal.make(InvalidUnion(errors->Js.Array2.map(Error.Internal.toParseError))),
+          )
         | None => %raw(`undefined`)
         }
       }
