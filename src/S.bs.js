@@ -131,14 +131,14 @@ function toReason(nestedLevelOpt, error) {
         return "Encountered disallowed excess key \"" + reason._0 + "\" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely";
     case /* InvalidUnion */5 :
         var lineBreak = "\n" + " ".repeat((nestedLevel << 1));
-        var partial_arg = nestedLevel + 1;
-        var array = reason._0.map(function (param) {
-              return toReason(partial_arg, param);
+        var array = reason._0.map(function (error) {
+              var reason = toReason(nestedLevel + 1, error);
+              var nonEmptyPath = error.path;
+              var $$location = nonEmptyPath.length !== 0 ? "Failed at " + formatPath(nonEmptyPath) + ". " : "";
+              return "- " + $$location + reason;
             });
         var reasons = Array.from(new Set(array));
-        return "Invalid union with following errors" + lineBreak + reasons.map(function (reason) {
-                      return "- " + reason;
-                    }).join(lineBreak);
+        return "Invalid union with following errors" + lineBreak + reasons.join(lineBreak);
     
   }
   return "Expected " + reason.expected + ", received " + reason.received;

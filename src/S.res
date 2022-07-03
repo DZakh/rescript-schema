@@ -247,11 +247,16 @@ module Error = {
         let lineBreak = `\n${" "->Js.String2.repeat(nestedLevel * 2)}`
         let reasons =
           errors
-          ->Js.Array2.map(toReason(~nestedLevel=nestedLevel->Lib.Int.plus(1)))
+          ->Js.Array2.map(error => {
+            let reason = error->toReason(~nestedLevel=nestedLevel->Lib.Int.plus(1))
+            let location = switch error.path {
+            | [] => ""
+            | nonEmptyPath => `Failed at ${formatPath(nonEmptyPath)}. `
+            }
+            `- ${location}${reason}`
+          })
           ->Lib.Array.unique
-        `Invalid union with following errors${lineBreak}${reasons
-          ->Js.Array2.map(reason => `- ${reason}`)
-          ->Js.Array2.joinWith(lineBreak)}`
+        `Invalid union with following errors${lineBreak}${reasons->Js.Array2.joinWith(lineBreak)}`
       }
     }
   }

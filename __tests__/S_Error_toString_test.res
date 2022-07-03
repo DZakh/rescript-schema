@@ -113,14 +113,14 @@ test("InvalidUnion error", t => {
     {
       code: InvalidUnion([
         {
-          code: ExcessField("x"),
+          code: UnexpectedValue({expected: `"circle"`, received: `"oval"`}),
           operation: Parsing,
-          path: [],
+          path: ["kind"],
         },
         {
-          code: ExcessField("y"),
+          code: UnexpectedValue({expected: `"square"`, received: `"oval"`}),
           operation: Parsing,
-          path: [],
+          path: ["kind"],
         },
         {
           code: UnexpectedValue({expected: `"triangle"`, received: `"oval"`}),
@@ -132,9 +132,9 @@ test("InvalidUnion error", t => {
       path: [],
     }->S.Error.toString,
     `[ReScript Struct] Failed parsing at root. Reason: Invalid union with following errors
-- Encountered disallowed excess key "x" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely
-- Encountered disallowed excess key "y" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely
-- Expected "triangle", received "oval"`,
+- Failed at [kind]. Expected "circle", received "oval"
+- Failed at [kind]. Expected "square", received "oval"
+- Failed at [kind]. Expected "triangle", received "oval"`,
     (),
   )
 })
