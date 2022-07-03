@@ -129,14 +129,14 @@ module Advanced = {
       Error({
         code: InvalidUnion([
           {
-            code: ExcessField("x"),
+            code: UnexpectedValue({expected: `"circle"`, received: `"oval"`}),
             operation: Parsing,
-            path: [],
+            path: ["kind"],
           },
           {
-            code: ExcessField("y"),
+            code: UnexpectedValue({expected: `"square"`, received: `"oval"`}),
             operation: Parsing,
-            path: [],
+            path: ["kind"],
           },
           {
             code: UnexpectedValue({expected: `"triangle"`, received: `"oval"`}),

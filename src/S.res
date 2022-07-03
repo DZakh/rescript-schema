@@ -952,7 +952,7 @@ module Record = {
           maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(fieldName))
         }
       }
-      if unknownKeys == Strict && mode == Safe {
+      if unknownKeys == Strict && mode == Safe && maybeErrorRef.contents === None {
         switch getMaybeExcessKey(. input, fields) {
         | Some(excessKey) =>
           maybeErrorRef.contents = Some(Error.Internal.make(ExcessField(excessKey)))

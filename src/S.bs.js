@@ -905,7 +905,7 @@ function parserTransform(input, struct, mode) {
       maybeErrorRef = prependLocation(value._0, fieldName);
     }
   };
-  if (match.unknownKeys === /* Strict */0 && mode === /* Safe */0) {
+  if (match.unknownKeys === /* Strict */0 && mode === /* Safe */0 && maybeErrorRef === undefined) {
     var excessKey = getMaybeExcessKey(input, fields);
     if (excessKey !== undefined) {
       maybeErrorRef = {
