@@ -222,6 +222,7 @@ module Error = {
   }
 
   let toString = error => {
+    let prefix = `[ReScript Struct]`
     let operation = switch error.operation {
     | Serializing => "serializing"
     | Parsing => "parsing"
@@ -239,7 +240,7 @@ module Error = {
     | TupleSize({expected, received}) =>
       `Expected Tuple with ${expected->Js.Int.toString} items, received ${received->Js.Int.toString}`
     }
-    `Failed ${operation} at ${pathText}. Reason: ${reason}`
+    `${prefix} Failed ${operation} at ${pathText}. Reason: ${reason}`
   }
 }
 

@@ -146,7 +146,7 @@ function toString(error) {
   if (exit === 1) {
     reason$1 = "Expected " + reason.expected + ", received " + reason.received;
   }
-  return "Failed " + operation + " at " + pathText + ". Reason: " + reason$1;
+  return "[ReScript Struct]" + " Failed " + operation + " at " + pathText + ". Reason: " + reason$1;
 }
 
 function classify(struct) {
