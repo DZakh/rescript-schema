@@ -126,22 +126,22 @@ function toReason(nestedLevelOpt, error) {
     case /* UnexpectedValue */2 :
         break;
     case /* TupleSize */3 :
-        return "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString();
+        return "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString() + "";
     case /* ExcessField */4 :
         return "Encountered disallowed excess key \"" + reason._0 + "\" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely";
     case /* InvalidUnion */5 :
-        var lineBreak = "\n" + " ".repeat((nestedLevel << 1));
+        var lineBreak = "\n" + " ".repeat((nestedLevel << 1)) + "";
         var array = reason._0.map(function (error) {
               var reason = toReason(nestedLevel + 1, error);
               var nonEmptyPath = error.path;
               var $$location = nonEmptyPath.length !== 0 ? "Failed at " + formatPath(nonEmptyPath) + ". " : "";
-              return "- " + $$location + reason;
+              return "- " + $$location + "" + reason + "";
             });
         var reasons = Array.from(new Set(array));
-        return "Invalid union with following errors" + lineBreak + reasons.join(lineBreak);
+        return "Invalid union with following errors" + lineBreak + "" + reasons.join(lineBreak) + "";
     
   }
-  return "Expected " + reason.expected + ", received " + reason.received;
+  return "Expected " + reason.expected + ", received " + reason.received + "";
 }
 
 function toString(error) {
@@ -149,7 +149,7 @@ function toString(error) {
   var operation = match ? "parsing" : "serializing";
   var reason = toReason(undefined, error);
   var pathText = formatPath(error.path);
-  return "[ReScript Struct]" + " Failed " + operation + " at " + pathText + ". Reason: " + reason;
+  return "[ReScript Struct] Failed " + operation + " at " + pathText + ". Reason: " + reason + "";
 }
 
 function classify(struct) {
@@ -259,6 +259,9 @@ function makeUnexpectedTypeError(input, struct) {
           break;
       case /* JSSymbol */4 :
           received = "Symbol";
+          break;
+      case /* JSBigInt */5 :
+          received = "BigInt";
           break;
       
     }
@@ -1272,7 +1275,7 @@ function min$1(struct, maybeMessage, thanValue) {
     if (value >= thanValue) {
       return ;
     } else {
-      return Belt_Option.getWithDefault(maybeMessage, "Number must be greater than or equal to " + thanValue.toString());
+      return Belt_Option.getWithDefault(maybeMessage, "Number must be greater than or equal to " + thanValue.toString() + "");
     }
   };
   return refine(struct, refiner, refiner, undefined);
@@ -1283,7 +1286,7 @@ function max$1(struct, maybeMessage, thanValue) {
     if (value <= thanValue) {
       return ;
     } else {
-      return Belt_Option.getWithDefault(maybeMessage, "Number must be lower than or equal to " + thanValue.toString());
+      return Belt_Option.getWithDefault(maybeMessage, "Number must be lower than or equal to " + thanValue.toString() + "");
     }
   };
   return refine(struct, refiner, refiner, undefined);

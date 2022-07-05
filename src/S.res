@@ -153,7 +153,7 @@ module Error = {
 
     @inline
     let make = code => {
-      {code: code, path: []}
+      {code, path: []}
     }
 
     let toParseError = (self: t): public => {
@@ -388,9 +388,10 @@ let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   | JSFunction(_) => "Function"
   | JSUndefined => "Option"
   | JSSymbol(_) => "Symbol"
+  | JSBigInt(_) => "BigInt"
   }
   let expected = TaggedT.toString(structTagged)
-  Error.Internal.make(UnexpectedType({expected: expected, received: received}))
+  Error.Internal.make(UnexpectedType({expected, received}))
 }
 
 let processInner = (~operation: operation, ~input: 'input, ~mode: mode, ~struct: t<'value>) => {
@@ -414,6 +415,7 @@ let processInner = (~operation: operation, ~input: 'input, ~mode: mode, ~struct:
         valueRef.contents = newValue
         idxRef.contents = idxRef.contents->Lib.Int.plus(1)
       }
+
     | Failed(error) => maybeErrorRef.contents = Some(error)
     }
   }
@@ -512,6 +514,7 @@ let refine: (
           safe: currentParsers.safe->Effect.concatParser(effect),
         }
       }
+
     | None => currentParsers
     },
     serializers: switch maybeRefineSerializer {
@@ -527,6 +530,7 @@ let refine: (
           safe: currentSerializers.safe->Effect.concatSerializer(effect),
         }
       }
+
     | None => currentSerializers
     },
   }
@@ -791,7 +795,7 @@ module Literal = {
         })
         switch innerLiteral {
         | EmptyNull => {
-            tagged_t: tagged_t,
+            tagged_t,
             parsers: {
               safe: [EmptyNull.parserRefinement, parserTransform],
               unsafe: [parserTransform],
@@ -803,7 +807,7 @@ module Literal = {
             maybeMetadata: None,
           }
         | EmptyOption => {
-            tagged_t: tagged_t,
+            tagged_t,
             parsers: {
               safe: [EmptyOption.parserRefinement, parserTransform],
               unsafe: [parserTransform],
@@ -815,7 +819,7 @@ module Literal = {
             maybeMetadata: None,
           }
         | NaN => {
-            tagged_t: tagged_t,
+            tagged_t,
             parsers: {
               safe: [NaN.parserRefinement, parserTransform],
               unsafe: [parserTransform],
@@ -827,7 +831,7 @@ module Literal = {
             maybeMetadata: None,
           }
         | Bool(_) => {
-            tagged_t: tagged_t,
+            tagged_t,
             parsers: {
               safe: [
                 Bool.parserRefinement,
@@ -843,7 +847,7 @@ module Literal = {
             maybeMetadata: None,
           }
         | String(_) => {
-            tagged_t: tagged_t,
+            tagged_t,
             parsers: {
               safe: [
                 String.parserRefinement,
@@ -859,7 +863,7 @@ module Literal = {
             maybeMetadata: None,
           }
         | Float(_) => {
-            tagged_t: tagged_t,
+            tagged_t,
             parsers: {
               safe: [
                 Float.parserRefinement,
@@ -875,7 +879,7 @@ module Literal = {
             maybeMetadata: None,
           }
         | Int(_) => {
-            tagged_t: tagged_t,
+            tagged_t,
             parsers: {
               safe: [
                 Int.parserRefinement,
@@ -953,6 +957,7 @@ module Record = {
             newArray->Js.Array2.push(value)->ignore
             idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
+
         | Error(error) =>
           maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(fieldName))
         }
@@ -995,6 +1000,7 @@ module Record = {
           unknown->Js.Dict.set(fieldName, unknownFieldValue)
           idxRef.contents = idxRef.contents->Lib.Int.plus(1)
         }
+
       | Error(error) =>
         maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(fieldName))
       }
@@ -1015,9 +1021,9 @@ module Record = {
     let fields = fieldsArray->Js.Dict.fromArray
 
     {
-      tagged_t: Record({fields: fields, fieldNames: fields->Js.Dict.keys, unknownKeys: Strict}),
-      parsers: parsers,
-      serializers: serializers,
+      tagged_t: Record({fields, fieldNames: fields->Js.Dict.keys, unknownKeys: Strict}),
+      parsers,
+      serializers,
       maybeMetadata: None,
     }
   }
@@ -1029,7 +1035,7 @@ module Record = {
     switch tagged_t {
     | Record({fields, fieldNames}) => {
         ...struct,
-        tagged_t: Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strip}),
+        tagged_t: Record({fields, fieldNames, unknownKeys: Strip}),
       }
     | _ => Error.UnknownKeysRequireRecord.raise()
     }
@@ -1040,7 +1046,7 @@ module Record = {
     switch tagged_t {
     | Record({fields, fieldNames}) => {
         ...struct,
-        tagged_t: Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strict}),
+        tagged_t: Record({fields, fieldNames, unknownKeys: Strict}),
       }
     | _ => Error.UnknownKeysRequireRecord.raise()
     }
@@ -1097,8 +1103,8 @@ module String = {
 
   let factory = () => {
     tagged_t: String,
-    parsers: parsers,
-    serializers: serializers,
+    parsers,
+    serializers,
     maybeMetadata: None,
   }
 
@@ -1212,7 +1218,7 @@ module Bool = {
 
   let factory = () => {
     tagged_t: Bool,
-    parsers: parsers,
+    parsers,
     serializers: Effect.emptyMap,
     maybeMetadata: None,
   }
@@ -1233,7 +1239,7 @@ module Int = {
 
   let factory = () => {
     tagged_t: Int,
-    parsers: parsers,
+    parsers,
     serializers: Effect.emptyMap,
     maybeMetadata: None,
   }
@@ -1286,7 +1292,7 @@ module Float = {
 
   let factory = () => {
     tagged_t: Float,
-    parsers: parsers,
+    parsers,
     serializers: Effect.emptyMap,
     maybeMetadata: None,
   }
@@ -1311,7 +1317,7 @@ module Date = {
 
   let factory = () => {
     tagged_t: Instance(%raw(`Date`)),
-    parsers: parsers,
+    parsers,
     serializers: Effect.emptyMap,
     maybeMetadata: None,
   }
@@ -1355,8 +1361,8 @@ module Null = {
 
   let factory = innerStruct => {
     tagged_t: Null(innerStruct),
-    parsers: parsers,
-    serializers: serializers,
+    parsers,
+    serializers,
     maybeMetadata: None,
   }
 }
@@ -1388,6 +1394,7 @@ module Option = {
           let innerStruct = struct->classify->unsafeGetVariantPayload
           serializeInner(~struct=innerStruct, ~value, ~mode)->Effect.fromResult
         }
+
       | None => Refined
       }
     }),
@@ -1400,8 +1407,8 @@ module Option = {
 
   let factory = innerStruct => {
     tagged_t: Option(innerStruct),
-    parsers: parsers,
-    serializers: serializers,
+    parsers,
+    serializers,
     maybeMetadata: None,
   }
 }
@@ -1435,6 +1442,7 @@ module Deprecated = {
           let {struct: innerStruct} = struct->classify->Obj.magic
           serializeInner(~struct=innerStruct, ~value, ~mode)->Effect.fromResult
         }
+
       | None => Refined
       }
     }),
@@ -1446,9 +1454,9 @@ module Deprecated = {
   }
 
   let factory = (~message as maybeMessage=?, innerStruct) => {
-    tagged_t: Deprecated({struct: innerStruct, maybeMessage: maybeMessage}),
-    parsers: parsers,
-    serializers: serializers,
+    tagged_t: Deprecated({struct: innerStruct, maybeMessage}),
+    parsers,
+    serializers,
     maybeMetadata: None,
   }
 }
@@ -1479,6 +1487,7 @@ module Array = {
                 newArray->Js.Array2.push(value)->ignore
                 idxRef.contents = idxRef.contents->Lib.Int.plus(1)
               }
+
             | Error(error) =>
               maybeErrorRef.contents = Some(
                 error->Error.Internal.prependLocation(idx->Js.Int.toString),
@@ -1490,6 +1499,7 @@ module Array = {
           | None => Transformed(newArray)
           }
         }
+
       | Some(error) => Failed(error)
       }
     }),
@@ -1515,6 +1525,7 @@ module Array = {
             newArray->Js.Array2.push(value)->ignore
             idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
+
         | Error(error) =>
           maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(idx->Js.Int.toString))
         }
@@ -1533,8 +1544,8 @@ module Array = {
 
   let factory = innerStruct => {
     tagged_t: Array(innerStruct),
-    parsers: parsers,
-    serializers: serializers,
+    parsers,
+    serializers,
     maybeMetadata: None,
   }
 
@@ -1609,6 +1620,7 @@ module Dict = {
                 newDict->Js.Dict.set(key, value)->ignore
                 idxRef.contents = idxRef.contents->Lib.Int.plus(1)
               }
+
             | Error(error) =>
               maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(key))
             }
@@ -1618,6 +1630,7 @@ module Dict = {
           | None => Transformed(newDict)
           }
         }
+
       | Some(error) => Failed(error)
       }
     }),
@@ -1645,6 +1658,7 @@ module Dict = {
             newDict->Js.Dict.set(key, value)->ignore
             idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
+
         | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(key))
         }
       }
@@ -1662,8 +1676,8 @@ module Dict = {
 
   let factory = innerStruct => {
     tagged_t: Dict(innerStruct),
-    parsers: parsers,
-    serializers: serializers,
+    parsers,
+    serializers,
     maybeMetadata: None,
   }
 }
@@ -1704,8 +1718,8 @@ module Default = {
 
   let factory = (innerStruct, defaultValue) => {
     tagged_t: Default({struct: innerStruct, value: defaultValue}),
-    parsers: parsers,
-    serializers: serializers,
+    parsers,
+    serializers,
     maybeMetadata: None,
   }
 }
@@ -1750,6 +1764,7 @@ module Tuple = {
                 newArray->Js.Array2.push(value)->ignore
                 idxRef.contents = idxRef.contents->Lib.Int.plus(1)
               }
+
             | Error(error) =>
               maybeErrorRef.contents = Some(
                 error->Error.Internal.prependLocation(idx->Js.Int.toString),
@@ -1766,6 +1781,7 @@ module Tuple = {
             }->Transformed
           }
         }
+
       | Some(error) => Failed(error)
       }
     }),
@@ -1794,6 +1810,7 @@ module Tuple = {
             newArray->Js.Array2.push(value)->ignore
             idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
+
         | Error(error) =>
           maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(idx->Js.Int.toString))
         }
@@ -1813,8 +1830,8 @@ module Tuple = {
   let innerFactory = structs => {
     {
       tagged_t: Tuple(structs),
-      parsers: parsers,
-      serializers: serializers,
+      parsers,
+      serializers,
       maybeMetadata: None,
     }
   }
@@ -1909,8 +1926,8 @@ module Union = {
 
     {
       tagged_t: Union(structs),
-      parsers: parsers,
-      serializers: serializers,
+      parsers,
+      serializers,
       maybeMetadata: None,
     }
   }

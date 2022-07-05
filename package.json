@@ -46,7 +46,7 @@
     ]
   },
   "devDependencies": {
-    "rescript": "9.1.4",
+    "rescript": "^10.0.0-alpha.1",
     "rescript-ava": "github:DZakh/rescript-ava#007d9f63e17310f73fabab1223eb75a0c9c36035"
   }
 }
