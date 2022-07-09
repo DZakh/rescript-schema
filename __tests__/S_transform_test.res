@@ -23,7 +23,7 @@ test("Throws for a Transformed Primitive factory without either a parser, or a s
     S.string()->S.transform()->ignore
   }, ~expectations=ThrowsException.make(
     ~name="RescriptStructError",
-    ~message="For a struct factory Transform either a parser, or a serializer is required",
+    ~message=String("For a struct factory Transform either a parser, or a serializer is required"),
     (),
   ), ())
 })

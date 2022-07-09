@@ -63,7 +63,7 @@ test("Throws for a Custom factory without either a parser, or a serializer", t =
     S.custom()->ignore
   }, ~expectations=ThrowsException.make(
     ~name="RescriptStructError",
-    ~message="For a Custom struct factory either a parser, or a serializer is required",
+    ~message=String("For a Custom struct factory either a parser, or a serializer is required"),
     (),
   ), ())
 })

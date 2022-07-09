@@ -54,7 +54,7 @@ failing(
       %raw(`undefined`)->S.parseWith(struct)->ignore
     }, ~expectations=ThrowsException.make(
       ~name="RescriptStructError",
-      ~message="Provided default value (444) is different from optional Int Literal (123)",
+      ~message=String("Provided default value (444) is different from optional Int Literal (123)"),
       (),
     ), ())
   },

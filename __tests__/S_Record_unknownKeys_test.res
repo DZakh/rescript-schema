@@ -66,14 +66,14 @@ test("Raises error when unknown keys strategy applyed to a non Record struct", t
     S.string()->S.Record.strip->ignore
   }, ~expectations=ThrowsException.make(
     ~name="RescriptStructError",
-    ~message="Can\'t set up unknown keys strategy. The struct is not Record",
+    ~message=String("Can\'t set up unknown keys strategy. The struct is not Record"),
     (),
   ), ())
   t->Assert.throws(() => {
     S.string()->S.Record.strict->ignore
   }, ~expectations=ThrowsException.make(
     ~name="RescriptStructError",
-    ~message="Can\'t set up unknown keys strategy. The struct is not Record",
+    ~message=String("Can\'t set up unknown keys strategy. The struct is not Record"),
     (),
   ), ())
 })

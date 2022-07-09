@@ -46,7 +46,10 @@
     ]
   },
   "devDependencies": {
-    "rescript": "9.1.4",
-    "rescript-ava": "github:DZakh/rescript-ava#007d9f63e17310f73fabab1223eb75a0c9c36035"
+    "@dzakh/rescript-ava": "0.1.1",
+    "rescript": "9.1.4"
+  },
+  "peerDependencies": {
+    "rescript": "9.1.x"
   }
 }

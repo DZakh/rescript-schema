@@ -5,7 +5,7 @@ test("Throws for a Union struct factory without structs", t => {
     S.union([])->ignore
   }, ~expectations=ThrowsException.make(
     ~name="RescriptStructError",
-    ~message="A Union struct factory require at least two structs",
+    ~message=String("A Union struct factory require at least two structs"),
     (),
   ), ())
 })
@@ -15,7 +15,7 @@ test("Throws for a Union struct factory with single struct", t => {
     S.union([S.string()])->ignore
   }, ~expectations=ThrowsException.make(
     ~name="RescriptStructError",
-    ~message="A Union struct factory require at least two structs",
+    ~message=String("A Union struct factory require at least two structs"),
     (),
   ), ())
 })

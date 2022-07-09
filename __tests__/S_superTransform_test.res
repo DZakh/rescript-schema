@@ -34,7 +34,7 @@ test("Throws for factory without either a parser, or a serializer", t => {
     S.string()->S.superTransform()->ignore
   }, ~expectations=ThrowsException.make(
     ~name="RescriptStructError",
-    ~message="For a struct factory Transform either a parser, or a serializer is required",
+    ~message=String("For a struct factory Transform either a parser, or a serializer is required"),
     (),
   ), ())
 })

@@ -6,7 +6,7 @@
     "-bs-super-errors"
   ],
   "bs-dev-dependencies": [
-    "rescript-ava"
+    "@dzakh/rescript-ava"
   ],
   "suffix": ".bs.js",
   "package-specs": {
