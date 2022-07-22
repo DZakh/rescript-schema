@@ -282,9 +282,6 @@ type rec literal<'value> =
   | EmptyOption: literal<unit>
   | NaN: literal<unit>
 
-type operation =
-  | Serializing
-  | Parsing
 type mode = Safe | Unsafe
 type recordUnknownKeys =
   | Strict
@@ -294,7 +291,7 @@ type rec t<'value> = {
   @as("t")
   tagged_t: tagged_t,
   @as("p")
-  parsers: effectsMap,
+  parsers: parsers,
   @as("s")
   serializers: array<effect>,
   @as("m")
@@ -323,10 +320,11 @@ and tagged_t =
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
   | Instance(unknown): tagged_t
 and field<'value> = (string, t<'value>)
-and effectsMap = {
-  @as("s")
+and parsers = {
+  // Keys are the inlined mode variant
+  @as("0")
   safe: array<effect>,
-  @as("u")
+  @as("1")
   unsafe: array<effect>,
 }
 and effect = (. ~unknown: unknown, ~struct: t<unknown>, ~mode: mode) => effectResult<unknown>
@@ -393,16 +391,7 @@ let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   Error.Internal.make(UnexpectedType({expected: expected, received: received}))
 }
 
-let processInner = (~operation: operation, ~input: 'input, ~mode: mode, ~struct: t<'value>) => {
-  let effects = switch operation {
-  | Parsing =>
-    switch mode {
-    | Safe => struct.parsers.safe
-    | Unsafe => struct.parsers.unsafe
-    }
-  | Serializing => struct.serializers
-  }
-
+let processEffects = (~struct: t<'value>, ~effects: array<effect>, ~input: 'input, ~mode: mode) => {
   let idxRef = ref(0)
   let valueRef = ref(input->Obj.magic)
   let maybeErrorRef = ref(None)
@@ -429,7 +418,12 @@ let parseInner: (
   ~any: 'any,
   ~mode: mode,
 ) => result<'value, Error.Internal.t> = (~struct, ~any, ~mode) => {
-  processInner(~operation=Parsing, ~input=any, ~mode, ~struct)
+  processEffects(
+    ~effects=struct.parsers->Obj.magic->Js.Dict.unsafeGet(mode->Obj.magic),
+    ~input=any,
+    ~mode,
+    ~struct,
+  )
 }
 
 let parseWith = (any, ~mode=Safe, struct) => {
@@ -439,16 +433,15 @@ let parseWith = (any, ~mode=Safe, struct) => {
 }
 
 @inline
-let serializeInner: (
-  ~struct: t<'value>,
-  ~value: 'value,
-  ~mode: mode,
-) => result<unknown, Error.Internal.t> = (~struct, ~value, ~mode) => {
-  processInner(~operation=Serializing, ~input=value, ~mode, ~struct)
+let serializeInner: (~struct: t<'value>, ~value: 'value) => result<unknown, Error.Internal.t> = (
+  ~struct,
+  ~value,
+) => {
+  processEffects(~effects=struct.serializers, ~input=value, ~mode=Safe, ~struct)
 }
 
 let serializeWith = (value, struct) => {
-  serializeInner(~struct, ~value, ~mode=Safe)->Lib.Result.mapError(internalError =>
+  serializeInner(~struct, ~value)->Lib.Result.mapError(internalError =>
     internalError->Error.Internal.toSerializeError
   )
 }
@@ -461,7 +454,7 @@ module Effect = {
   external fromResult: result<'newValue, Error.Internal.t> => effectResult<'newValue> = "%identity"
 
   let emptyArray: array<effect> = []
-  let emptyMap: effectsMap = {safe: emptyArray, unsafe: emptyArray}
+  let emptyParsers: parsers = {safe: emptyArray, unsafe: emptyArray}
 
   let concatParser = (effects, effect) => {
     effects->Js.Array2.concat([effect])
@@ -943,7 +936,7 @@ module Record = {
     unsafe: [parserTransform],
   }
 
-  let serializerTransform = Effect.make((~input, ~struct, ~mode) => {
+  let serializerTransform = Effect.make((~input, ~struct, ~mode as _) => {
     let {fields, fieldNames} = struct->classify->Obj.magic
 
     let unknown = Js.Dict.empty()
@@ -956,7 +949,7 @@ module Record = {
       let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
       let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
       let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
-      switch serializeInner(~struct=fieldStruct, ~value=fieldValue, ~mode) {
+      switch serializeInner(~struct=fieldStruct, ~value=fieldValue) {
       | Ok(unknownFieldValue) => {
           unknown->Js.Dict.set(fieldName, unknownFieldValue)
           idxRef.contents = idxRef.contents->Lib.Int.plus(1)
@@ -1017,14 +1010,14 @@ module Never = {
     }),
   ]
 
-  let effectsMap = {
+  let parsers = {
     safe: effects,
     unsafe: Effect.emptyArray,
   }
 
   let factory = () => {
     tagged_t: Never,
-    parsers: effectsMap,
+    parsers: parsers,
     serializers: effects,
     maybeMetadata: None,
   }
@@ -1033,7 +1026,7 @@ module Never = {
 module Unknown = {
   let factory = () => {
     tagged_t: Unknown,
-    parsers: Effect.emptyMap,
+    parsers: Effect.emptyParsers,
     serializers: Effect.emptyArray,
     maybeMetadata: None,
   }
@@ -1299,11 +1292,11 @@ module Null = {
   }
 
   let serializers = [
-    Effect.make((~input, ~struct, ~mode) => {
+    Effect.make((~input, ~struct, ~mode as _) => {
       switch input {
       | Some(value) =>
         let innerStruct = struct->classify->unsafeGetVariantPayload
-        serializeInner(~struct=innerStruct->Obj.magic, ~value, ~mode)->Effect.fromResult
+        serializeInner(~struct=innerStruct->Obj.magic, ~value)->Effect.fromResult
       | None => Js.Null.empty->unsafeAnyToUnknown->Transformed
       }
     }),
@@ -1338,11 +1331,11 @@ module Option = {
   }
 
   let serializers = [
-    Effect.make((~input, ~struct, ~mode) => {
+    Effect.make((~input, ~struct, ~mode as _) => {
       switch input {
       | Some(value) => {
           let innerStruct = struct->classify->unsafeGetVariantPayload
-          serializeInner(~struct=innerStruct, ~value, ~mode)->Effect.fromResult
+          serializeInner(~struct=innerStruct, ~value)->Effect.fromResult
         }
       | None => Refined
       }
@@ -1380,11 +1373,11 @@ module Deprecated = {
   }
 
   let serializers = [
-    Effect.make((~input, ~struct, ~mode) => {
+    Effect.make((~input, ~struct, ~mode as _) => {
       switch input {
       | Some(value) => {
           let {struct: innerStruct} = struct->classify->Obj.magic
-          serializeInner(~struct=innerStruct, ~value, ~mode)->Effect.fromResult
+          serializeInner(~struct=innerStruct, ~value)->Effect.fromResult
         }
       | None => Refined
       }
@@ -1447,7 +1440,7 @@ module Array = {
   }
 
   let serializers = [
-    Effect.make((~input, ~struct, ~mode) => {
+    Effect.make((~input, ~struct, ~mode as _) => {
       let innerStruct = struct->classify->unsafeGetVariantPayload
 
       let newArray = []
@@ -1456,7 +1449,7 @@ module Array = {
       while idxRef.contents < input->Js.Array2.length && maybeErrorRef.contents === None {
         let idx = idxRef.contents
         let innerValue = input->Js.Array2.unsafe_get(idx)
-        switch serializeInner(~struct=innerStruct, ~value=innerValue, ~mode) {
+        switch serializeInner(~struct=innerStruct, ~value=innerValue) {
         | Ok(value) => {
             newArray->Js.Array2.push(value)->ignore
             idxRef.contents = idxRef.contents->Lib.Int.plus(1)
@@ -1570,7 +1563,7 @@ module Dict = {
   }
 
   let serializers = [
-    Effect.make((~input, ~struct, ~mode) => {
+    Effect.make((~input, ~struct, ~mode as _) => {
       let innerStruct = struct->classify->unsafeGetVariantPayload
 
       let newDict = Js.Dict.empty()
@@ -1581,7 +1574,7 @@ module Dict = {
         let idx = idxRef.contents
         let key = keys->Js.Array2.unsafe_get(idx)
         let innerValue = input->Js.Dict.unsafeGet(key)
-        switch serializeInner(~struct=innerStruct, ~value=innerValue, ~mode) {
+        switch serializeInner(~struct=innerStruct, ~value=innerValue) {
         | Ok(value) => {
             newDict->Js.Dict.set(key, value)->ignore
             idxRef.contents = idxRef.contents->Lib.Int.plus(1)
@@ -1627,9 +1620,9 @@ module Default = {
   }
 
   let serializers = [
-    Effect.make((~input, ~struct, ~mode) => {
+    Effect.make((~input, ~struct, ~mode as _) => {
       let {struct: innerStruct} = struct->classify->Obj.magic
-      serializeInner(~struct=innerStruct, ~value=Some(input), ~mode)->Effect.fromResult
+      serializeInner(~struct=innerStruct, ~value=Some(input))->Effect.fromResult
     }),
   ]
 
@@ -1708,7 +1701,7 @@ module Tuple = {
   }
 
   let serializers = [
-    Effect.make((~input, ~struct, ~mode) => {
+    Effect.make((~input, ~struct, ~mode as _) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
       let numberOfStructs = innerStructs->Js.Array2.length
       let inputArray = numberOfStructs === 1 ? [input->Obj.magic] : input
@@ -1720,7 +1713,7 @@ module Tuple = {
         let idx = idxRef.contents
         let innerValue = inputArray->Js.Array2.unsafe_get(idx)
         let innerStruct = innerStructs->Js.Array.unsafe_get(idx)
-        switch serializeInner(~struct=innerStruct, ~value=innerValue, ~mode) {
+        switch serializeInner(~struct=innerStruct, ~value=innerValue) {
         | Ok(value) => {
             newArray->Js.Array2.push(value)->ignore
             idxRef.contents = idxRef.contents->Lib.Int.plus(1)
@@ -1804,7 +1797,7 @@ module Union = {
       while idxRef.contents < innerStructs->Js.Array2.length && maybeOkRef.contents === None {
         let idx = idxRef.contents
         let innerStruct = innerStructs->Js.Array2.unsafe_get(idx)
-        switch serializeInner(~struct=innerStruct, ~value=input, ~mode=Safe) {
+        switch serializeInner(~struct=innerStruct, ~value=input) {
         | Ok(_) as ok => maybeOkRef.contents = Some(ok)
         | Error(_) as error => {
             maybeLastErrorRef.contents = Some(error)
