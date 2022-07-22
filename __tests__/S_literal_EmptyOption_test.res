@@ -39,13 +39,7 @@ module Common = {
     t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
   })
 
-  test("Successfully serializes wrong value in Unsafe mode", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(wrongValue->S.serializeWith(~mode=Unsafe, struct), Ok(any), ())
-  })
-
-  test("Fails to serialize wrong value in Safe mode", t => {
+  test("Fails to serialize wrong value", t => {
     let struct = factory()
 
     t->Assert.deepEqual(

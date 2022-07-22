@@ -447,8 +447,8 @@ let serializeInner: (
   processInner(~operation=Serializing, ~input=value, ~mode, ~struct)
 }
 
-let serializeWith = (value, ~mode=Safe, struct) => {
-  serializeInner(~struct, ~value, ~mode)->Lib.Result.mapError(internalError =>
+let serializeWith = (value, struct) => {
+  serializeInner(~struct, ~value, ~mode=Safe)->Lib.Result.mapError(internalError =>
     internalError->Error.Internal.toSerializeError
   )
 }
@@ -614,8 +614,8 @@ let superTransform = (
     serializers: {
       let effect = switch maybeTransformationSerializer {
       | Some(transformationSerializer) =>
-        Effect.make((~input, ~struct, ~mode) => {
-          switch transformationSerializer(. ~transformed=input, ~struct, ~mode) {
+        Effect.make((~input, ~struct, ~mode as _) => {
+          switch transformationSerializer(. ~transformed=input, ~struct) {
           | Ok(_) as ok => ok->Effect.fromResult
           | Error(public) => Failed(public->Error.Internal.fromPublic)
           }
@@ -658,8 +658,8 @@ let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializ
     serializers: {
       let effect = switch maybeCustomSerializer {
       | Some(customSerializer) =>
-        Effect.make((~input, ~struct as _, ~mode) => {
-          switch customSerializer(. ~value=input, ~mode) {
+        Effect.make((~input, ~struct as _, ~mode as _) => {
+          switch customSerializer(. ~value=input) {
           | Ok(_) as ok => ok->Effect.fromResult
           | Error(public) => Failed(public->Error.Internal.fromPublic)
           }
@@ -1964,9 +1964,9 @@ let json = innerStruct => {
         Error(Error.make(obj->Js.Exn.message->Belt.Option.getWithDefault("Failed to parse JSON")))
       }->Lib.Result.flatMap(parsedJson => parsedJson->parseWith(~mode, innerStruct))
     },
-    ~serializer=(. ~transformed, ~struct as _, ~mode) => {
+    ~serializer=(. ~transformed, ~struct as _) => {
       transformed
-      ->serializeWith(~mode, innerStruct)
+      ->serializeWith(innerStruct)
       ->Lib.Result.map(unknown => unknown->unsafeUnknownToAny->Js.Json.stringify)
     },
     (),

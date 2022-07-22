@@ -9,9 +9,9 @@ let nullableStruct = innerStruct =>
       | None => Ok(None)
       }
     },
-    ~serializer=(. ~value, ~mode) => {
+    ~serializer=(. ~value) => {
       switch value {
-      | Some(innerValue) => innerValue->S.serializeWith(~mode, innerStruct)
+      | Some(innerValue) => innerValue->S.serializeWith(innerStruct)
       | None => Js.Null.empty->Obj.magic->Ok
       }
     },
@@ -43,7 +43,7 @@ test("Correctly serializes custom struct", t => {
 })
 
 test("Fails to serialize with user error", t => {
-  let struct = S.custom(~serializer=(. ~value as _, ~mode as _) => {
+  let struct = S.custom(~serializer=(. ~value as _) => {
     Error(S.Error.make("User error"))
   }, ())
 

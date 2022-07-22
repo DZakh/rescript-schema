@@ -7,11 +7,7 @@ let trimmedInSafeMode = S.superTransform(
     | Safe => value->Js.String2.trim
     | Unsafe => value
     }->Ok,
-  ~serializer=(. ~transformed, ~struct as _, ~mode) =>
-    switch mode {
-    | Safe => transformed->Js.String2.trim
-    | Unsafe => transformed
-    }->Ok,
+  ~serializer=(. ~transformed, ~struct as _) => transformed->Js.String2.trim->Ok,
   (),
 )
 
@@ -59,20 +55,10 @@ test("Fails to parse when user returns error in parser", t => {
   )
 })
 
-test("Successfully serializes in Safe mode", t => {
+test("Successfully serializes", t => {
   let struct = S.string()->trimmedInSafeMode
 
   t->Assert.deepEqual("  Hello world!"->S.serializeWith(struct), Ok(%raw(`"Hello world!"`)), ())
-})
-
-test("Successfully serializes in Unsafe mode with different logic", t => {
-  let struct = S.string()->trimmedInSafeMode
-
-  t->Assert.deepEqual(
-    "  Hello world!"->S.serializeWith(~mode=Unsafe, struct),
-    Ok(%raw(`"  Hello world!"`)),
-    (),
-  )
 })
 
 test("Fails to serialize when user returns error in serializer", t => {
@@ -80,9 +66,7 @@ test("Fails to serialize when user returns error in serializer", t => {
 
   let struct =
     S.string()->S.superTransform(
-      ~serializer=(. ~transformed as _, ~struct as _, ~mode as _) => Error(
-        S.Error.make("User error"),
-      ),
+      ~serializer=(. ~transformed as _, ~struct as _) => Error(S.Error.make("User error")),
       (),
     )
 
@@ -128,15 +112,11 @@ test("Transform operations applyed in the right order when serializing", t => {
   let struct =
     S.int()
     ->S.superTransform(
-      ~serializer=(. ~transformed as _, ~struct as _, ~mode as _) => Error(
-        S.Error.make("Second transform"),
-      ),
+      ~serializer=(. ~transformed as _, ~struct as _) => Error(S.Error.make("Second transform")),
       (),
     )
     ->S.superTransform(
-      ~serializer=(. ~transformed as _, ~struct as _, ~mode as _) => Error(
-        S.Error.make("First transform"),
-      ),
+      ~serializer=(. ~transformed as _, ~struct as _) => Error(S.Error.make("First transform")),
       (),
     )
 

@@ -319,9 +319,8 @@ function parseWith(any, modeOpt, struct) {
   }
 }
 
-function serializeWith(value, modeOpt, struct) {
-  var mode = modeOpt !== undefined ? modeOpt : /* Safe */0;
-  var result = processInner(/* Serializing */0, value, mode, struct);
+function serializeWith(value, struct) {
+  var result = processInner(/* Serializing */0, value, /* Safe */0, struct);
   if (result.TAG === /* Ok */0) {
     return result;
   } else {
@@ -508,8 +507,8 @@ function superTransform(struct, maybeTransformationParser, maybeTransformationSe
                 };
         }
       }) : missingParser;
-  var effect$1 = maybeTransformationSerializer !== undefined ? (function (input, struct, mode) {
-        var ok = maybeTransformationSerializer(input, struct, mode);
+  var effect$1 = maybeTransformationSerializer !== undefined ? (function (input, struct, param) {
+        var ok = maybeTransformationSerializer(input, struct);
         if (ok.TAG === /* Ok */0) {
           return ok;
         } else {
@@ -549,8 +548,8 @@ function custom(maybeCustomParser, maybeCustomSerializer, param) {
         }
       }) : missingParser;
   var effects = [effect];
-  var effect$1 = maybeCustomSerializer !== undefined ? (function (input, param, mode) {
-        var ok = maybeCustomSerializer(input, mode);
+  var effect$1 = maybeCustomSerializer !== undefined ? (function (input, param, param$1) {
+        var ok = maybeCustomSerializer(input);
         if (ok.TAG === /* Ok */0) {
           return ok;
         } else {
@@ -1989,8 +1988,8 @@ function json(innerStruct) {
                 }
                 var parsedJson = result._0;
                 return parseWith(parsedJson, mode, innerStruct);
-              }), (function (transformed, param, mode) {
-                var result = serializeWith(transformed, mode, innerStruct);
+              }), (function (transformed, param) {
+                var result = serializeWith(transformed, innerStruct);
                 if (result.TAG === /* Ok */0) {
                   return {
                           TAG: /* Ok */0,

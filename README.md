@@ -1,10 +1,8 @@
 # ReScript Struct
 
-A simple and composable way to describe relationship between JavaScript and ReScript structures.
+A simple and composable tool to parse and serialize unknown data with transition to a convenient structure.
 
-It's a great tool to parse and serialize any unknown data with type safety.
-
-And other libraries can use ReScript Struct as a building block with a neat integration system:
+It has a declarative API, that allows to use **rescript-struct** as a building block for other tools, such as:
 
 - [ReScript JSON Schema](https://github.com/DZakh/rescript-json-schema) - Typesafe JSON schema for ReScript
 
@@ -106,16 +104,13 @@ Has multiple modes:
 
 #### **`S.serializeWith`**
 
-`('value, ~mode: mode=?, S.t<'value>) => result<S.unknown, S.Error.t>`
+`('value, S.t<'value>) => result<S.unknown, S.Error.t>`
 
 ```rescript
 user->S.serializeWith(userStruct)
 ```
 
 Serializes value using the transformation logic that is built-in to the struct. It returns the result with a transformed data or an error message.
-Has multiple modes:
-- `S.Safe` (default) - In this mode **rescript-struct** will check that provided value is valid.
-- `S.Unsafe` - In this mode all checks and refinements are ignored and only transformation logic is applied.
 
 ### Types
 
@@ -579,11 +574,11 @@ Ok(Square({x: 2.}))
 
 `union` will test the input against each of the structs in order and return the first value that validates successfully.
 
-> 🧠 Automatically changes parsing/serializing mode for union structs from Unsafe to Safe
+> 🧠 Automatically changes parsing mode from Unsafe to Safe
 
 ##### Enums
 
-Also, you can describe enums using `S.union` together with `S.union`.
+Also, you can describe enums using `S.union` together with `S.literalVariant`.
 
 ```rescript
 type outcome = Win | Draw | Loss
@@ -603,7 +598,7 @@ Ok(Draw)
 
 #### **`S.custom`**
 
-`(~parser: (. ~unknown: S.unknown, ~mode: S.mode) => result<'value, S.Error.t>=?, ~serializer: (. ~value: 'value, ~mode: S.mode) => result<'any, S.Error.t>=?, unit) => S.t<'value>`
+`(~parser: (. ~unknown: S.unknown, ~mode: S.mode) => result<'value, S.Error.t>=?, ~serializer: (. ~value: 'value) => result<'any, S.Error.t>=?, unit) => S.t<'value>`
 
 You can also define your own custom struct factories that are specific to your application's requirements, like so:
 
@@ -617,9 +612,9 @@ let nullableStruct = innerStruct =>
       | None => Ok(None)
       }
     },
-    ~serializer=(. ~value, ~mode) => {
+    ~serializer=(. ~value) => {
       switch value {
-      | Some(innerValue) => innerValue->S.serializeWith(~mode, innerStruct)
+      | Some(innerValue) => innerValue->S.serializeWith(innerStruct)
       | None => Js.Null.empty->Obj.magic->Ok
       }
     },
@@ -666,7 +661,7 @@ let intToString = S.transform(
 
 #### **`S.superTransform`**
 
-`(S.t<'value>, ~parser: (. ~value: 'value, ~struct: S.t<'value>, ~mode: S.mode) => result<'transformed, S.Error.t>=?, ~serializer: (. ~transformed: 'transformed, ~struct: S.t<'value>, ~mode: S.mode) => result<'value, S.Error.t>=?, unit) => S.t<'transformed>`
+`(S.t<'value>, ~parser: (. ~value: 'value, ~struct: S.t<'value>, ~mode: S.mode) => result<'transformed, S.Error.t>=?, ~serializer: (. ~transformed: 'transformed, ~struct: S.t<'value>) => result<'value, S.Error.t>=?, unit) => S.t<'transformed>`
 
 ```rescript
 let trimmedInSafeMode = S.superTransform(
@@ -676,11 +671,7 @@ let trimmedInSafeMode = S.superTransform(
     | Safe => value->Js.String2.trim
     | Unsafe => value
     }->Ok,
-  ~serializer=(. ~transformed, ~struct as _, ~mode) =>
-    switch mode {
-    | Safe => transformed->Js.String2.trim
-    | Unsafe => transformed
-    }->Ok,
+  ~serializer=(. ~transformed, ~struct as _) => transformed->Js.String2.trim->Ok,
   (),
 )
 ```

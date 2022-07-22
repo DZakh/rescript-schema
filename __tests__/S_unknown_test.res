@@ -16,15 +16,9 @@ module Common = {
     t->Assert.deepEqual(any->S.parseWith(~mode=Unsafe, struct), Ok(any), ())
   })
 
-  test("Successfully serializes in Safe mode", t => {
+  test("Successfully serializes", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.serializeWith(~mode=Safe, struct), Ok(any), ())
-  })
-
-  test("Successfully serializes in Unsafe mode", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(any->S.serializeWith(~mode=Unsafe, struct), Ok(any), ())
+    t->Assert.deepEqual(any->S.serializeWith(struct), Ok(any), ())
   })
 }
