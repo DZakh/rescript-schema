@@ -32,7 +32,7 @@ type rec literal<'value> =
   | EmptyOption: literal<unit>
   | NaN: literal<unit>
 
-type mode = Safe | Unsafe
+type parsingMode = Safe | Unsafe
 
 type recordUnknownKeys =
   | Strict
@@ -90,13 +90,17 @@ let transform: (
 
 let superTransform: (
   t<'value>,
-  ~parser: (. ~value: 'value, ~struct: t<'value>, ~mode: mode) => result<'transformed, Error.t>=?,
+  ~parser: (
+    . ~value: 'value,
+    ~struct: t<'value>,
+    ~mode: parsingMode,
+  ) => result<'transformed, Error.t>=?,
   ~serializer: (. ~transformed: 'transformed, ~struct: t<'value>) => result<'value, Error.t>=?,
   unit,
 ) => t<'transformed>
 
 let custom: (
-  ~parser: (. ~unknown: unknown, ~mode: mode) => result<'value, Error.t>=?,
+  ~parser: (. ~unknown: unknown, ~mode: parsingMode) => result<'value, Error.t>=?,
   ~serializer: (. ~value: 'value) => result<'any, Error.t>=?,
   unit,
 ) => t<'value>
@@ -108,7 +112,7 @@ let refine: (
   unit,
 ) => t<'value>
 
-let parseWith: ('any, ~mode: mode=?, t<'value>) => result<'value, Error.t>
+let parseWith: ('any, ~mode: parsingMode=?, t<'value>) => result<'value, Error.t>
 
 let serializeWith: ('value, t<'value>) => result<unknown, Error.t>
 

@@ -282,7 +282,7 @@ type rec literal<'value> =
   | EmptyOption: literal<unit>
   | NaN: literal<unit>
 
-type mode = Safe | Unsafe
+type parsingMode = Safe | Unsafe
 type recordUnknownKeys =
   | Strict
   | Strip
@@ -327,7 +327,7 @@ and parsers = {
   @as("1")
   unsafe: array<effect>,
 }
-and effect = (. ~unknown: unknown, ~struct: t<unknown>, ~mode: mode) => effectResult<unknown>
+and effect = (. ~unknown: unknown, ~struct: t<unknown>, ~mode: parsingMode) => effectResult<unknown>
 and effectResult<'value> = Refined | Transformed('value) | Failed(Error.Internal.t)
 
 external unsafeAnyToUnknown: 'any => unknown = "%identity"
@@ -391,7 +391,12 @@ let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   Error.Internal.make(UnexpectedType({expected: expected, received: received}))
 }
 
-let processEffects = (~struct: t<'value>, ~effects: array<effect>, ~input: 'input, ~mode: mode) => {
+let processEffects = (
+  ~struct: t<'value>,
+  ~effects: array<effect>,
+  ~input: 'input,
+  ~mode: parsingMode,
+) => {
   let idxRef = ref(0)
   let valueRef = ref(input->Obj.magic)
   let maybeErrorRef = ref(None)
@@ -416,7 +421,7 @@ let processEffects = (~struct: t<'value>, ~effects: array<effect>, ~input: 'inpu
 let parseInner: (
   ~struct: t<'value>,
   ~any: 'any,
-  ~mode: mode,
+  ~mode: parsingMode,
 ) => result<'value, Error.Internal.t> = (~struct, ~any, ~mode) => {
   processEffects(
     ~effects=struct.parsers->Obj.magic->Js.Dict.unsafeGet(mode->Obj.magic),
@@ -448,7 +453,7 @@ let serializeWith = (value, struct) => {
 
 module Effect = {
   external make: (
-    (~input: 'input, ~struct: t<'value>, ~mode: mode) => effectResult<'newValue>
+    (~input: 'input, ~struct: t<'value>, ~mode: parsingMode) => effectResult<'newValue>
   ) => effect = "%identity"
 
   external fromResult: result<'newValue, Error.Internal.t> => effectResult<'newValue> = "%identity"

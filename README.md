@@ -91,7 +91,7 @@ Ok({
 
 #### **`S.parseWith`**
 
-`('any, ~mode: mode=?, t<'value>) => result<'value, S.Error.t>`
+`('any, ~mode: S.parsingMode=?, S.t<'value>) => result<'value, S.Error.t>`
 
 ```rescript
 data->S.parseWith(userStruct)
@@ -598,7 +598,7 @@ Ok(Draw)
 
 #### **`S.custom`**
 
-`(~parser: (. ~unknown: S.unknown, ~mode: S.mode) => result<'value, S.Error.t>=?, ~serializer: (. ~value: 'value) => result<'any, S.Error.t>=?, unit) => S.t<'value>`
+`(~parser: (. ~unknown: S.unknown, ~mode: S.parsingMode) => result<'value, S.Error.t>=?, ~serializer: (. ~value: 'value) => result<'any, S.Error.t>=?, unit) => S.t<'value>`
 
 You can also define your own custom struct factories that are specific to your application's requirements, like so:
 
@@ -661,7 +661,7 @@ let intToString = S.transform(
 
 #### **`S.superTransform`**
 
-`(S.t<'value>, ~parser: (. ~value: 'value, ~struct: S.t<'value>, ~mode: S.mode) => result<'transformed, S.Error.t>=?, ~serializer: (. ~transformed: 'transformed, ~struct: S.t<'value>) => result<'value, S.Error.t>=?, unit) => S.t<'transformed>`
+`(S.t<'value>, ~parser: (. ~value: 'value, ~struct: S.t<'value>, ~mode: S.parsingMode) => result<'transformed, S.Error.t>=?, ~serializer: (. ~transformed: 'transformed, ~struct: S.t<'value>) => result<'value, S.Error.t>=?, unit) => S.t<'transformed>`
 
 ```rescript
 let trimmedInSafeMode = S.superTransform(
