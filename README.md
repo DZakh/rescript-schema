@@ -1,6 +1,6 @@
 # ReScript Struct
 
-A simple and composable tool to parse and serialize unknown data with transition to a convenient structure.
+A simple and composable tool to parse and serialize unknown data with transition to a convenient format.
 
 It has a declarative API, that allows to use **rescript-struct** as a building block for other tools, such as:
 
