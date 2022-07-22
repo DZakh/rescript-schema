@@ -275,8 +275,9 @@ function makeUnexpectedTypeError(input, struct) {
 }
 
 function processInner(operation, input, mode, struct) {
-  var effectsMap = operation ? struct.p : struct.s;
-  var effects = mode ? effectsMap.u : effectsMap.s;
+  var effects = operation ? (
+      mode ? struct.p.u : struct.p.s
+    ) : struct.s;
   var idxRef = 0;
   var valueRef = input;
   var maybeErrorRef;
@@ -409,10 +410,7 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
         return /* Refined */0;
       }
     };
-    tmp$1 = {
-      s: [effect$1].concat(currentSerializers.s),
-      u: currentSerializers.u
-    };
+    tmp$1 = [effect$1].concat(currentSerializers);
   } else {
     tmp$1 = currentSerializers;
   }
@@ -482,10 +480,7 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
             s: currentParsers.s.concat([effect]),
             u: currentParsers.u.concat([effect])
           },
-          s: {
-            s: [effect$1].concat(currentSerializers.s),
-            u: [effect$1].concat(currentSerializers.u)
-          },
+          s: [effect$1].concat(currentSerializers),
           m: struct.m
         };
 }
@@ -524,10 +519,7 @@ function superTransform(struct, maybeTransformationParser, maybeTransformationSe
             s: currentParsers.s.concat([effect]),
             u: currentParsers.u.concat([effect])
           },
-          s: {
-            s: [effect$1].concat(currentSerializers.s),
-            u: [effect$1].concat(currentSerializers.u)
-          },
+          s: [effect$1].concat(currentSerializers),
           m: struct.m
         };
 }
@@ -548,28 +540,23 @@ function custom(maybeCustomParser, maybeCustomSerializer, param) {
         }
       }) : missingParser;
   var effects = [effect];
-  var effect$1 = maybeCustomSerializer !== undefined ? (function (input, param, param$1) {
-        var ok = maybeCustomSerializer(input);
-        if (ok.TAG === /* Ok */0) {
-          return ok;
-        } else {
-          return {
-                  TAG: /* Failed */1,
-                  _0: ok._0
-                };
-        }
-      }) : missingSerializer;
-  var effects$1 = [effect$1];
   return {
           t: /* Unknown */1,
           p: {
             s: effects,
             u: effects
           },
-          s: {
-            s: effects$1,
-            u: effects$1
-          },
+          s: [maybeCustomSerializer !== undefined ? (function (input, param, param$1) {
+                  var ok = maybeCustomSerializer(input);
+                  if (ok.TAG === /* Ok */0) {
+                    return ok;
+                  } else {
+                    return {
+                            TAG: /* Failed */1,
+                            _0: ok._0
+                          };
+                  }
+                }) : missingSerializer],
           m: undefined
         };
 }
@@ -725,13 +712,10 @@ function factory(innerLiteral, variant) {
                     ],
                     u: [parserTransform]
                   },
-                  s: {
-                    s: [
-                      serializerRefinement,
-                      serializerTransform
-                    ],
-                    u: [serializerTransform]
-                  },
+                  s: [
+                    serializerRefinement,
+                    serializerTransform
+                  ],
                   m: undefined
                 };
       case /* EmptyOption */1 :
@@ -744,13 +728,10 @@ function factory(innerLiteral, variant) {
                     ],
                     u: [parserTransform]
                   },
-                  s: {
-                    s: [
-                      serializerRefinement,
-                      serializerTransform$1
-                    ],
-                    u: [serializerTransform$1]
-                  },
+                  s: [
+                    serializerRefinement,
+                    serializerTransform$1
+                  ],
                   m: undefined
                 };
       case /* NaN */2 :
@@ -763,13 +744,10 @@ function factory(innerLiteral, variant) {
                     ],
                     u: [parserTransform]
                   },
-                  s: {
-                    s: [
-                      serializerRefinement,
-                      serializerTransform$2
-                    ],
-                    u: [serializerTransform$2]
-                  },
+                  s: [
+                    serializerRefinement,
+                    serializerTransform$2
+                  ],
                   m: undefined
                 };
       
@@ -787,13 +765,10 @@ function factory(innerLiteral, variant) {
                     ],
                     u: [parserTransform]
                   },
-                  s: {
-                    s: [
-                      serializerRefinement,
-                      transformToLiteralValue
-                    ],
-                    u: [transformToLiteralValue]
-                  },
+                  s: [
+                    serializerRefinement,
+                    transformToLiteralValue
+                  ],
                   m: undefined
                 };
       case /* Int */1 :
@@ -807,13 +782,10 @@ function factory(innerLiteral, variant) {
                     ],
                     u: [parserTransform]
                   },
-                  s: {
-                    s: [
-                      serializerRefinement,
-                      transformToLiteralValue
-                    ],
-                    u: [transformToLiteralValue]
-                  },
+                  s: [
+                    serializerRefinement,
+                    transformToLiteralValue
+                  ],
                   m: undefined
                 };
       case /* Float */2 :
@@ -827,13 +799,10 @@ function factory(innerLiteral, variant) {
                     ],
                     u: [parserTransform]
                   },
-                  s: {
-                    s: [
-                      serializerRefinement,
-                      transformToLiteralValue
-                    ],
-                    u: [transformToLiteralValue]
-                  },
+                  s: [
+                    serializerRefinement,
+                    transformToLiteralValue
+                  ],
                   m: undefined
                 };
       case /* Bool */3 :
@@ -847,13 +816,10 @@ function factory(innerLiteral, variant) {
                     ],
                     u: [parserTransform]
                   },
-                  s: {
-                    s: [
-                      serializerRefinement,
-                      transformToLiteralValue
-                    ],
-                    u: [transformToLiteralValue]
-                  },
+                  s: [
+                    serializerRefinement,
+                    transformToLiteralValue
+                  ],
                   m: undefined
                 };
       
@@ -975,14 +941,7 @@ function serializerTransform$3(input, struct, mode) {
   }
 }
 
-var serializers_s = [serializerTransform$3];
-
-var serializers_u = [serializerTransform$3];
-
-var serializers = {
-  s: serializers_s,
-  u: serializers_u
-};
+var serializers = [serializerTransform$3];
 
 function innerFactory(fieldsArray) {
   var fields = Js_dict.fromArray(fieldsArray);
@@ -1055,7 +1014,7 @@ function factory$3(param) {
   return {
           t: /* Never */0,
           p: effectsMap,
-          s: effectsMap,
+          s: effects,
           m: undefined
         };
 }
@@ -1064,7 +1023,7 @@ function factory$4(param) {
   return {
           t: /* Unknown */1,
           p: emptyMap,
-          s: emptyMap,
+          s: emptyArray,
           m: undefined
         };
 }
@@ -1097,7 +1056,7 @@ function factory$5(param) {
   return {
           t: /* String */2,
           p: parsers$1,
-          s: emptyMap,
+          s: emptyArray,
           m: undefined
         };
 }
@@ -1234,7 +1193,7 @@ function factory$6(param) {
   return {
           t: /* Bool */5,
           p: parsers$2,
-          s: emptyMap,
+          s: emptyArray,
           m: undefined
         };
 }
@@ -1261,7 +1220,7 @@ function factory$7(param) {
   return {
           t: /* Int */3,
           p: parsers$3,
-          s: emptyMap,
+          s: emptyArray,
           m: undefined
         };
 }
@@ -1310,7 +1269,7 @@ function factory$8(param) {
   return {
           t: /* Float */4,
           p: parsers$4,
-          s: emptyMap,
+          s: emptyArray,
           m: undefined
         };
 }
@@ -1341,7 +1300,7 @@ function factory$9(param) {
             _0: Date
           },
           p: parsers$5,
-          s: emptyMap,
+          s: emptyArray,
           m: undefined
         };
 }
@@ -1370,7 +1329,7 @@ var parsers$6 = {
   u: parserEffects
 };
 
-var serializerEffects = [(function (input, struct, mode) {
+var serializers$1 = [(function (input, struct, mode) {
       if (input === undefined) {
         return {
                 TAG: /* Transformed */0,
@@ -1380,11 +1339,6 @@ var serializerEffects = [(function (input, struct, mode) {
       var innerStruct = struct.t._0;
       return processInner(/* Serializing */0, Caml_option.valFromOption(input), mode, innerStruct);
     })];
-
-var serializers$1 = {
-  s: serializerEffects,
-  u: serializerEffects
-};
 
 function factory$10(innerStruct) {
   return {
@@ -1419,18 +1373,13 @@ var parsers$7 = {
   u: parserEffects$1
 };
 
-var serializerEffects$1 = [(function (input, struct, mode) {
+var serializers$2 = [(function (input, struct, mode) {
       if (input === undefined) {
         return /* Refined */0;
       }
       var innerStruct = struct.t._0;
       return processInner(/* Serializing */0, Caml_option.valFromOption(input), mode, innerStruct);
     })];
-
-var serializers$2 = {
-  s: serializerEffects$1,
-  u: serializerEffects$1
-};
 
 function factory$11(innerStruct) {
   return {
@@ -1465,18 +1414,13 @@ var parsers$8 = {
   u: parserEffects$2
 };
 
-var serializerEffects$2 = [(function (input, struct, mode) {
+var serializers$3 = [(function (input, struct, mode) {
       if (input === undefined) {
         return /* Refined */0;
       }
       var match = struct.t;
       return processInner(/* Serializing */0, Caml_option.valFromOption(input), mode, match.struct);
     })];
-
-var serializers$3 = {
-  s: serializerEffects$2,
-  u: serializerEffects$2
-};
 
 function factory$12(maybeMessage, innerStruct) {
   return {
@@ -1533,7 +1477,7 @@ var parsers$9 = {
   u: parserEffects$3
 };
 
-var serializerEffects$3 = [(function (input, struct, mode) {
+var serializers$4 = [(function (input, struct, mode) {
       var innerStruct = struct.t._0;
       var newArray = [];
       var idxRef = 0;
@@ -1562,11 +1506,6 @@ var serializerEffects$3 = [(function (input, struct, mode) {
               };
       }
     })];
-
-var serializers$4 = {
-  s: serializerEffects$3,
-  u: serializerEffects$3
-};
 
 function factory$13(innerStruct) {
   return {
@@ -1655,7 +1594,7 @@ var parsers$10 = {
   u: parserEffects$4
 };
 
-var serializerEffects$4 = [(function (input, struct, mode) {
+var serializers$5 = [(function (input, struct, mode) {
       var innerStruct = struct.t._0;
       var newDict = {};
       var keys = Object.keys(input);
@@ -1687,11 +1626,6 @@ var serializerEffects$4 = [(function (input, struct, mode) {
       }
     })];
 
-var serializers$5 = {
-  s: serializerEffects$4,
-  u: serializerEffects$4
-};
-
 function factory$14(innerStruct) {
   return {
           t: {
@@ -1722,15 +1656,10 @@ var parsers$11 = {
   u: parserEffects$5
 };
 
-var serializerEffects$5 = [(function (input, struct, mode) {
+var serializers$6 = [(function (input, struct, mode) {
       var match = struct.t;
       return processInner(/* Serializing */0, Caml_option.some(input), mode, match.struct);
     })];
-
-var serializers$6 = {
-  s: serializerEffects$5,
-  u: serializerEffects$5
-};
 
 function factory$15(innerStruct, defaultValue) {
   return {
@@ -1806,7 +1735,7 @@ var parsers$12 = {
   u: parserEffects$6
 };
 
-var serializerEffects$6 = [(function (input, struct, mode) {
+var serializers$7 = [(function (input, struct, mode) {
       var innerStructs = struct.t._0;
       var numberOfStructs = innerStructs.length;
       var inputArray = numberOfStructs === 1 ? [input] : input;
@@ -1838,11 +1767,6 @@ var serializerEffects$6 = [(function (input, struct, mode) {
               };
       }
     })];
-
-var serializers$7 = {
-  s: serializerEffects$6,
-  u: serializerEffects$6
-};
 
 function innerFactory$1(structs) {
   return {
@@ -1909,7 +1833,7 @@ var parsers$13 = {
   u: parserEffects$7
 };
 
-var serializerEffects$7 = [(function (input, struct, param) {
+var serializers$8 = [(function (input, struct, param) {
       var innerStructs = struct.t._0;
       var idxRef = 0;
       var maybeLastErrorRef;
@@ -1936,11 +1860,6 @@ var serializerEffects$7 = [(function (input, struct, param) {
         return undefined;
       }
     })];
-
-var serializers$8 = {
-  s: serializerEffects$7,
-  u: serializerEffects$7
-};
 
 function factory$17(structs) {
   if (structs.length < 2) {
