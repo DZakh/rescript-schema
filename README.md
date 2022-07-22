@@ -1,8 +1,8 @@
 # ReScript Struct
 
-A simple and composable tool to parse and serialize unknown data with transition to a convenient format.
+Parse and serialize unknown data with ability to describe migration to a convenient format.
 
-It has a declarative API, that allows to use **rescript-struct** as a building block for other tools, such as:
+It has declarative API allowing you to use **rescript-struct** as a building block for other tools, such as:
 
 - [ReScript JSON Schema](https://github.com/DZakh/rescript-json-schema) - Typesafe JSON schema for ReScript
 
@@ -97,10 +97,11 @@ Ok({
 data->S.parseWith(userStruct)
 ```
 
-Parses data using the transformation logic that is built-in to the struct.
+Given any struct, you can call `parseWith` to check data is valid. It returns a result with valid data migrated to expected type or a **rescript-struct** error.
+
 Has multiple modes:
-- `S.Safe` (default) - In this mode **rescript-struct** will check that provided data is valid.
-- `S.Unsafe` - In this mode all checks and refinements are ignored and only transformation logic is applied. It's ~1.4 times faster than `Safe` mode.
+- `S.Safe` (default) - Always check that provided data is valid.
+- `S.Migration` - Apply checks and refinements only for transformed data. Usefull for migrating validated JavaScript structures to more ideomatic ReScript code. It's ~1.4 times faster than `Safe` mode.
 
 #### **`S.serializeWith`**
 
@@ -110,7 +111,7 @@ Has multiple modes:
 user->S.serializeWith(userStruct)
 ```
 
-Serializes value using the transformation logic that is built-in to the struct. It returns the result with a transformed data or an error message.
+Serializes value using the transformation logic that is built-in to the struct. It returns a result with a transformed data or a **rescript-struct** error.
 
 ### Types
 
@@ -574,7 +575,7 @@ Ok(Square({x: 2.}))
 
 `union` will test the input against each of the structs in order and return the first value that validates successfully.
 
-> 🧠 Automatically changes parsing mode from Unsafe to Safe
+> 🧠 Automatically changes parsing mode from Migration to Safe
 
 ##### Enums
 
@@ -669,7 +670,7 @@ let trimmedInSafeMode = S.superTransform(
   ~parser=(. ~value, ~struct as _, ~mode) =>
     switch mode {
     | Safe => value->Js.String2.trim
-    | Unsafe => value
+    | Migration => value
     }->Ok,
   ~serializer=(. ~transformed, ~struct as _) => transformed->Js.String2.trim->Ok,
   (),

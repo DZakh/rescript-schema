@@ -34,13 +34,13 @@ test("Fails fast and shows only one excees key in the error message", t => {
   )
 })
 
-test("Successfully parses Record with unknown keys in Unsafe mode ignoring validation", t => {
+test("Successfully parses Record with unknown keys in Migration mode ignoring validation", t => {
   let value = "value"
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
   let struct = S.record1(. ("key", S.string()))
 
-  t->Assert.deepEqual(any->S.parseWith(~mode=Unsafe, struct), Ok(value), ())
+  t->Assert.deepEqual(any->S.parseWith(~mode=Migration, struct), Ok(value), ())
 })
 
 test("Successfully parses Record with unknown keys when Strip strategy applyed", t => {

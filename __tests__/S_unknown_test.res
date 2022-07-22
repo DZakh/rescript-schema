@@ -10,10 +10,10 @@ module Common = {
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(any), ())
   })
 
-  test("Successfully parses in Unsafe mode", t => {
+  test("Successfully parses in Migration mode", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.parseWith(~mode=Unsafe, struct), Ok(any), ())
+    t->Assert.deepEqual(any->S.parseWith(~mode=Migration, struct), Ok(any), ())
   })
 
   test("Successfully serializes", t => {

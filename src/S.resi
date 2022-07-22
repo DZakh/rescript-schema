@@ -32,7 +32,7 @@ type rec literal<'value> =
   | EmptyOption: literal<unit>
   | NaN: literal<unit>
 
-type parsingMode = Safe | Unsafe
+type parsingMode = Safe | Migration
 
 type recordUnknownKeys =
   | Strict

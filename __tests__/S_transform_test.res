@@ -162,7 +162,7 @@ test(
 
     t->Assert.deepEqual(
       any
-      ->S.parseWith(~mode=Unsafe, struct)
+      ->S.parseWith(~mode=Migration, struct)
       ->Belt.Result.map(record => record->S.serializeWith(struct)),
       Ok(Ok(any)),
       (),

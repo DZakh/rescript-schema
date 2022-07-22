@@ -5,7 +5,7 @@ let trimmedInSafeMode = S.superTransform(
   ~parser=(. ~value, ~struct as _, ~mode) =>
     switch mode {
     | Safe => value->Js.String2.trim
-    | Unsafe => value
+    | Migration => value
     }->Ok,
   ~serializer=(. ~transformed, ~struct as _) => transformed->Js.String2.trim->Ok,
   (),
@@ -17,12 +17,12 @@ test("Successfully parses in Safe mode", t => {
   t->Assert.deepEqual("  Hello world!"->S.parseWith(struct), Ok("Hello world!"), ())
 })
 
-test("Successfully parses in Unsafe mode with different logic", t => {
+test("Successfully parses in Migration mode with different logic", t => {
   let any = "  Hello world!"
 
   let struct = S.string()->trimmedInSafeMode
 
-  t->Assert.deepEqual(any->S.parseWith(~mode=Unsafe, struct), Ok(any), ())
+  t->Assert.deepEqual(any->S.parseWith(~mode=Migration, struct), Ok(any), ())
 })
 
 test("Throws for factory without either a parser, or a serializer", t => {

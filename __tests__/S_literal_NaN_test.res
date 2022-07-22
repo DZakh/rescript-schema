@@ -14,11 +14,11 @@ module Common = {
   })
 
   test(
-    "Successfully parses in Unsafe mode without validation and returns literal value. Note: Use S.parseWith instead",
+    "Successfully parses in Migration mode without validation and returns literal value. Note: Use S.parseWith instead",
     t => {
       let struct = factory()
 
-      t->Assert.deepEqual(wrongTypeAny->S.parseWith(~mode=Unsafe, struct), Ok(value), ())
+      t->Assert.deepEqual(wrongTypeAny->S.parseWith(~mode=Migration, struct), Ok(value), ())
     },
   )
 

@@ -282,7 +282,7 @@ type rec literal<'value> =
   | EmptyOption: literal<unit>
   | NaN: literal<unit>
 
-type parsingMode = Safe | Unsafe
+type parsingMode = Safe | Migration
 type recordUnknownKeys =
   | Strict
   | Strip
@@ -325,7 +325,7 @@ and parsers = {
   @as("0")
   safe: array<effect>,
   @as("1")
-  unsafe: array<effect>,
+  migration: array<effect>,
 }
 and effect = (. ~unknown: unknown, ~struct: t<unknown>, ~mode: parsingMode) => effectResult<unknown>
 and effectResult<'value> = Refined | Transformed('value) | Failed(Error.Internal.t)
@@ -459,7 +459,7 @@ module Effect = {
   external fromResult: result<'newValue, Error.Internal.t> => effectResult<'newValue> = "%identity"
 
   let emptyArray: array<effect> = []
-  let emptyParsers: parsers = {safe: emptyArray, unsafe: emptyArray}
+  let emptyParsers: parsers = {safe: emptyArray, migration: emptyArray}
 
   let concatParser = (effects, effect) => {
     effects->Js.Array2.concat([effect])
@@ -505,6 +505,7 @@ let refine: (
           | Some(reason) => Failed(Error.Internal.make(OperationFailed(reason)))
           }
         })
+        // TODO: Add refinements to migration mode, when it has transforms
         {
           ...currentParsers,
           safe: currentParsers.safe->Effect.concatParser(effect),
@@ -553,7 +554,7 @@ let transform = (
       | None => Effect.missingParser
       }
       {
-        unsafe: currentParsers.unsafe->Effect.concatParser(effect),
+        migration: currentParsers.migration->Effect.concatParser(effect),
         safe: currentParsers.safe->Effect.concatParser(effect),
       }
     },
@@ -599,7 +600,7 @@ let superTransform = (
       | None => Effect.missingParser
       }
       {
-        unsafe: currentParsers.unsafe->Effect.concatParser(effect),
+        migration: currentParsers.migration->Effect.concatParser(effect),
         safe: currentParsers.safe->Effect.concatParser(effect),
       }
     },
@@ -641,7 +642,7 @@ let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializ
       let effects = [effect]
       {
         safe: effects,
-        unsafe: effects,
+        migration: effects,
       }
     },
     serializers: {
@@ -779,7 +780,7 @@ module Literal = {
             tagged_t: tagged_t,
             parsers: {
               safe: [EmptyNull.parserRefinement, parserTransform],
-              unsafe: [parserTransform],
+              migration: [parserTransform],
             },
             serializers: [serializerRefinement, EmptyNull.serializerTransform],
             maybeMetadata: None,
@@ -788,7 +789,7 @@ module Literal = {
             tagged_t: tagged_t,
             parsers: {
               safe: [EmptyOption.parserRefinement, parserTransform],
-              unsafe: [parserTransform],
+              migration: [parserTransform],
             },
             serializers: [serializerRefinement, EmptyOption.serializerTransform],
             maybeMetadata: None,
@@ -797,7 +798,7 @@ module Literal = {
             tagged_t: tagged_t,
             parsers: {
               safe: [NaN.parserRefinement, parserTransform],
-              unsafe: [parserTransform],
+              migration: [parserTransform],
             },
             serializers: [serializerRefinement, NaN.serializerTransform],
             maybeMetadata: None,
@@ -810,7 +811,7 @@ module Literal = {
                 CommonOperations.Parser.literalValueRefinement,
                 parserTransform,
               ],
-              unsafe: [parserTransform],
+              migration: [parserTransform],
             },
             serializers: [serializerRefinement, CommonOperations.transformToLiteralValue],
             maybeMetadata: None,
@@ -823,7 +824,7 @@ module Literal = {
                 CommonOperations.Parser.literalValueRefinement,
                 parserTransform,
               ],
-              unsafe: [parserTransform],
+              migration: [parserTransform],
             },
             serializers: [serializerRefinement, CommonOperations.transformToLiteralValue],
             maybeMetadata: None,
@@ -836,7 +837,7 @@ module Literal = {
                 CommonOperations.Parser.literalValueRefinement,
                 parserTransform,
               ],
-              unsafe: [parserTransform],
+              migration: [parserTransform],
             },
             serializers: [serializerRefinement, CommonOperations.transformToLiteralValue],
             maybeMetadata: None,
@@ -849,7 +850,7 @@ module Literal = {
                 CommonOperations.Parser.literalValueRefinement,
                 parserTransform,
               ],
-              unsafe: [parserTransform],
+              migration: [parserTransform],
             },
             serializers: [serializerRefinement, CommonOperations.transformToLiteralValue],
             maybeMetadata: None,
@@ -899,7 +900,7 @@ module Record = {
       | true => None
       | false => Some(makeUnexpectedTypeError(~input, ~struct))
       }
-    | Unsafe => None
+    | Migration => None
     }
     switch maybeRefinementError {
     | None =>
@@ -938,7 +939,7 @@ module Record = {
 
   let parsers = {
     safe: [parserTransform],
-    unsafe: [parserTransform],
+    migration: [parserTransform],
   }
 
   let serializerTransform = Effect.make((~input, ~struct, ~mode as _) => {
@@ -1017,7 +1018,7 @@ module Never = {
 
   let parsers = {
     safe: effects,
-    unsafe: Effect.emptyArray,
+    migration: Effect.emptyArray,
   }
 
   let factory = () => {
@@ -1051,7 +1052,7 @@ module String = {
 
   let parsers = {
     safe: [parserRefinement],
-    unsafe: Effect.emptyArray,
+    migration: Effect.emptyArray,
   }
 
   let factory = () => {
@@ -1166,7 +1167,7 @@ module Bool = {
 
   let parsers = {
     safe: [parserRefinement],
-    unsafe: Effect.emptyArray,
+    migration: Effect.emptyArray,
   }
 
   let factory = () => {
@@ -1187,7 +1188,7 @@ module Int = {
 
   let parsers = {
     safe: [parserRefinement],
-    unsafe: Effect.emptyArray,
+    migration: Effect.emptyArray,
   }
 
   let factory = () => {
@@ -1240,7 +1241,7 @@ module Float = {
 
   let parsers = {
     safe: [parserRefinement],
-    unsafe: Effect.emptyArray,
+    migration: Effect.emptyArray,
   }
 
   let factory = () => {
@@ -1265,7 +1266,7 @@ module Date = {
 
   let parsers = {
     safe: [parserRefinement],
-    unsafe: Effect.emptyArray,
+    migration: Effect.emptyArray,
   }
 
   let factory = () => {
@@ -1293,7 +1294,7 @@ module Null = {
 
   let parsers = {
     safe: parserEffects,
-    unsafe: parserEffects,
+    migration: parserEffects,
   }
 
   let serializers = [
@@ -1332,7 +1333,7 @@ module Option = {
 
   let parsers = {
     safe: parserEffects,
-    unsafe: parserEffects,
+    migration: parserEffects,
   }
 
   let serializers = [
@@ -1374,7 +1375,7 @@ module Deprecated = {
 
   let parsers = {
     safe: parserEffects,
-    unsafe: parserEffects,
+    migration: parserEffects,
   }
 
   let serializers = [
@@ -1406,7 +1407,7 @@ module Array = {
         | true => None
         | false => Some(makeUnexpectedTypeError(~input, ~struct))
         }
-      | Unsafe => None
+      | Migration => None
       }
       switch maybeRefinementError {
       | None => {
@@ -1441,7 +1442,7 @@ module Array = {
 
   let parsers = {
     safe: parserEffects,
-    unsafe: parserEffects,
+    migration: parserEffects,
   }
 
   let serializers = [
@@ -1529,7 +1530,7 @@ module Dict = {
         | true => None
         | false => Some(makeUnexpectedTypeError(~input, ~struct))
         }
-      | Unsafe => None
+      | Migration => None
       }
       switch maybeRefinementError {
       | None => {
@@ -1564,7 +1565,7 @@ module Dict = {
 
   let parsers = {
     safe: parserEffects,
-    unsafe: parserEffects,
+    migration: parserEffects,
   }
 
   let serializers = [
@@ -1621,7 +1622,7 @@ module Default = {
 
   let parsers = {
     safe: parserEffects,
-    unsafe: parserEffects,
+    migration: parserEffects,
   }
 
   let serializers = [
@@ -1663,7 +1664,7 @@ module Tuple = {
           }
         | false => Some(makeUnexpectedTypeError(~input, ~struct))
         }
-      | Unsafe => None
+      | Migration => None
       }
       switch maybeRefinementError {
       | None => {
@@ -1702,7 +1703,7 @@ module Tuple = {
 
   let parsers = {
     safe: parserEffects,
-    unsafe: parserEffects,
+    migration: parserEffects,
   }
 
   let serializers = [
@@ -1789,7 +1790,7 @@ module Union = {
 
   let parsers = {
     safe: parserEffects,
-    unsafe: parserEffects,
+    migration: parserEffects,
   }
 
   let serializers = [

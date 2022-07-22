@@ -4,10 +4,10 @@ module Common = {
   let any = %raw(`true`)
   let factory = () => S.never()
 
-  test("Successfully parses without validation in Unsafe mode", t => {
+  test("Successfully parses without validation in Migration mode", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.parseWith(~mode=Unsafe, struct), Ok(any), ())
+    t->Assert.deepEqual(any->S.parseWith(~mode=Migration, struct), Ok(any), ())
   })
 
   test("Fails to parse in Safe mode", t => {

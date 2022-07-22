@@ -13,10 +13,14 @@ module CommonWithNested = {
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
   })
 
-  test("Successfully parses without validation in Unsafe mode", t => {
+  test("Successfully parses without validation in Migration mode", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(nestedWrongAny->S.parseWith(~mode=Unsafe, struct), Ok(nestedWrongAny), ())
+    t->Assert.deepEqual(
+      nestedWrongAny->S.parseWith(~mode=Migration, struct),
+      Ok(nestedWrongAny),
+      (),
+    )
   })
 
   test("Fails to parse in Safe mode", t => {

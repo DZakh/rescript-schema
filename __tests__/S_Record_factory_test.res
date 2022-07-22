@@ -12,5 +12,5 @@ test("Works", t => {
 
   let struct = record3(. ("foo", S.string()), ("bar", S.string()), ("bool", S.bool()))
 
-  t->Assert.deepEqual(any->S.parseWith(~mode=Unsafe, struct), Ok(value), ())
+  t->Assert.deepEqual(any->S.parseWith(~mode=Migration, struct), Ok(value), ())
 })

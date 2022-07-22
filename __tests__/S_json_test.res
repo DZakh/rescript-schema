@@ -6,10 +6,10 @@ test("Successfully parses JSON in Safe mode", t => {
   t->Assert.deepEqual(`"Foo"`->S.parseWith(S.json(struct)), Ok("Foo"), ())
 })
 
-test("Successfully parses JSON without validation in Unsafe mode", t => {
+test("Successfully parses JSON without validation in Migration mode", t => {
   let struct = S.string()
 
-  t->Assert.deepEqual(`123`->S.parseWith(~mode=Unsafe, S.json(struct)), Ok(%raw(`123`)), ())
+  t->Assert.deepEqual(`123`->S.parseWith(~mode=Migration, S.json(struct)), Ok(%raw(`123`)), ())
 })
 
 test("Fails to parse invalid JSON in Safe mode", t => {
@@ -26,11 +26,11 @@ test("Fails to parse invalid JSON in Safe mode", t => {
   )
 })
 
-test("Fails to parse invalid JSON in Unsafe mode", t => {
+test("Fails to parse invalid JSON in Migration mode", t => {
   let struct = S.unknown()
 
   t->Assert.deepEqual(
-    `undefined`->S.parseWith(~mode=Unsafe, S.json(struct)),
+    `undefined`->S.parseWith(~mode=Migration, S.json(struct)),
     Error({
       code: OperationFailed("Unexpected token u in JSON at position 0"),
       operation: Parsing,

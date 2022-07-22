@@ -13,10 +13,10 @@ module Common = {
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
   })
 
-  test("Successfully parses without validation in Unsafe mode", t => {
+  test("Successfully parses without validation in Migration mode", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(wrongTypeAny->S.parseWith(~mode=Unsafe, struct), Ok(any), ())
+    t->Assert.deepEqual(wrongTypeAny->S.parseWith(~mode=Migration, struct), Ok(any), ())
   })
 
   test("Fails to parse wrong type", t => {
