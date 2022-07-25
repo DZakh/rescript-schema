@@ -274,13 +274,13 @@ function makeUnexpectedTypeError(input, struct) {
         };
 }
 
-function processEffects(struct, effects, input, mode) {
+function processActions(struct, actions, input, mode) {
   var idxRef = 0;
   var valueRef = input;
   var maybeErrorRef;
-  while(idxRef < effects.length && maybeErrorRef === undefined) {
-    var effect = effects[idxRef];
-    var newValue = effect(valueRef, struct, mode);
+  while(idxRef < actions.length && maybeErrorRef === undefined) {
+    var action = actions[idxRef];
+    var newValue = action(valueRef, struct, mode);
     if (typeof newValue === "number") {
       idxRef = idxRef + 1;
     } else if (newValue.TAG === /* Transformed */0) {
@@ -306,7 +306,7 @@ function processEffects(struct, effects, input, mode) {
 
 function parseWith(any, modeOpt, struct) {
   var mode = modeOpt !== undefined ? modeOpt : /* Safe */0;
-  var result = processEffects(struct, struct.p[mode], any, mode);
+  var result = processActions(struct, struct.p[mode], any, mode);
   if (result.TAG === /* Ok */0) {
     return result;
   } else {
@@ -318,7 +318,7 @@ function parseWith(any, modeOpt, struct) {
 }
 
 function serializeWith(value, struct) {
-  var result = processEffects(struct, struct.s, value, /* Safe */0);
+  var result = processActions(struct, struct.s, value, /* Safe */0);
   if (result.TAG === /* Ok */0) {
     return result;
   } else {
@@ -364,7 +364,7 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
   var currentSerializers = struct.s;
   var tmp;
   if (maybeRefineParser !== undefined) {
-    var effect = function (input, param, param$1) {
+    var action = function (input, param, param$1) {
       var reason = maybeRefineParser(input);
       if (reason !== undefined) {
         return {
@@ -382,7 +382,7 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
       }
     };
     tmp = [
-      currentParsers[0].concat([effect]),
+      currentParsers[0].concat([action]),
       currentParsers[1]
     ];
   } else {
@@ -390,7 +390,7 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
   }
   var tmp$1;
   if (maybeRefineSerializer !== undefined) {
-    var effect$1 = function (input, param, param$1) {
+    var action$1 = function (input, param, param$1) {
       var reason = maybeRefineSerializer(input);
       if (reason !== undefined) {
         return {
@@ -407,7 +407,7 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
         return /* Refined */0;
       }
     };
-    tmp$1 = [effect$1].concat(currentSerializers);
+    tmp$1 = [action$1].concat(currentSerializers);
   } else {
     tmp$1 = currentSerializers;
   }
@@ -425,10 +425,10 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
   }
   var currentParsers = struct.p;
   var currentSerializers = struct.s;
-  var effect;
+  var action;
   if (maybeTransformationParser !== undefined) {
     var transformationParser = Caml_option.valFromOption(maybeTransformationParser);
-    effect = (function (input, param, param$1) {
+    action = (function (input, param, param$1) {
         var ok = transformationParser(input);
         if (ok.TAG === /* Ok */0) {
           return ok;
@@ -446,12 +446,12 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
         }
       });
   } else {
-    effect = missingParser;
+    action = missingParser;
   }
-  var effect$1;
+  var action$1;
   if (maybeTransformationSerializer !== undefined) {
     var transformationSerializer = Caml_option.valFromOption(maybeTransformationSerializer);
-    effect$1 = (function (input, param, param$1) {
+    action$1 = (function (input, param, param$1) {
         var ok = transformationSerializer(input);
         if (ok.TAG === /* Ok */0) {
           return ok;
@@ -469,15 +469,15 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
         }
       });
   } else {
-    effect$1 = missingSerializer;
+    action$1 = missingSerializer;
   }
   return {
           t: struct.t,
           p: [
-            currentParsers[0].concat([effect]),
-            currentParsers[1].concat([effect])
+            currentParsers[0].concat([action]),
+            currentParsers[1].concat([action])
           ],
-          s: [effect$1].concat(currentSerializers),
+          s: [action$1].concat(currentSerializers),
           m: struct.m
         };
 }
@@ -488,7 +488,7 @@ function superTransform(struct, maybeTransformationParser, maybeTransformationSe
   }
   var currentParsers = struct.p;
   var currentSerializers = struct.s;
-  var effect = maybeTransformationParser !== undefined ? (function (input, struct, mode) {
+  var action = maybeTransformationParser !== undefined ? (function (input, struct, mode) {
         var ok = maybeTransformationParser(input, struct, mode);
         if (ok.TAG === /* Ok */0) {
           return ok;
@@ -499,7 +499,7 @@ function superTransform(struct, maybeTransformationParser, maybeTransformationSe
                 };
         }
       }) : missingParser;
-  var effect$1 = maybeTransformationSerializer !== undefined ? (function (input, struct, param) {
+  var action$1 = maybeTransformationSerializer !== undefined ? (function (input, struct, param) {
         var ok = maybeTransformationSerializer(input, struct);
         if (ok.TAG === /* Ok */0) {
           return ok;
@@ -513,10 +513,10 @@ function superTransform(struct, maybeTransformationParser, maybeTransformationSe
   return {
           t: struct.t,
           p: [
-            currentParsers[0].concat([effect]),
-            currentParsers[1].concat([effect])
+            currentParsers[0].concat([action]),
+            currentParsers[1].concat([action])
           ],
-          s: [effect$1].concat(currentSerializers),
+          s: [action$1].concat(currentSerializers),
           m: struct.m
         };
 }
@@ -525,7 +525,7 @@ function custom(maybeCustomParser, maybeCustomSerializer, param) {
   if (maybeCustomParser === undefined && maybeCustomSerializer === undefined) {
     raise$1("Custom struct factory");
   }
-  var effect = maybeCustomParser !== undefined ? (function (input, param, mode) {
+  var action = maybeCustomParser !== undefined ? (function (input, param, mode) {
         var ok = maybeCustomParser(input, mode);
         if (ok.TAG === /* Ok */0) {
           return ok;
@@ -536,12 +536,12 @@ function custom(maybeCustomParser, maybeCustomSerializer, param) {
                 };
         }
       }) : missingParser;
-  var effects = [effect];
+  var actions = [action];
   return {
           t: /* Unknown */1,
           p: [
-            effects,
-            effects
+            actions,
+            actions
           ],
           s: [maybeCustomSerializer !== undefined ? (function (input, param, param$1) {
                   var ok = maybeCustomSerializer(input);
@@ -860,7 +860,7 @@ function parserTransform(input, struct, mode) {
     var fieldName = fieldNames[idx];
     var fieldStruct = fields[fieldName];
     var any = input[fieldName];
-    var value = processEffects(fieldStruct, fieldStruct.p[mode], any, mode);
+    var value = processActions(fieldStruct, fieldStruct.p[mode], any, mode);
     if (value.TAG === /* Ok */0) {
       newArray.push(value._0);
       idxRef = idxRef + 1;
@@ -917,7 +917,7 @@ function serializerTransform$3(input, struct, param) {
     var fieldName = fieldNames[idx];
     var fieldStruct = fields[fieldName];
     var fieldValue = fieldValues[idx];
-    var unknownFieldValue = processEffects(fieldStruct, fieldStruct.s, fieldValue, /* Safe */0);
+    var unknownFieldValue = processActions(fieldStruct, fieldStruct.s, fieldValue, /* Safe */0);
     if (unknownFieldValue.TAG === /* Ok */0) {
       unknown[fieldName] = unknownFieldValue._0;
       idxRef = idxRef + 1;
@@ -996,7 +996,7 @@ function strict(struct) {
   }
 }
 
-var effects = [(function (input, struct, param) {
+var actions = [(function (input, struct, param) {
       return {
               TAG: /* Failed */1,
               _0: makeUnexpectedTypeError(input, struct)
@@ -1004,7 +1004,7 @@ var effects = [(function (input, struct, param) {
     })];
 
 var parsers$1 = [
-  effects,
+  actions,
   emptyArray
 ];
 
@@ -1012,7 +1012,7 @@ function factory$3(param) {
   return {
           t: /* Never */0,
           p: parsers$1,
-          s: effects,
+          s: actions,
           m: undefined
         };
 }
@@ -1303,7 +1303,7 @@ function factory$9(param) {
         };
 }
 
-var parserEffects = [(function (input, struct, mode) {
+var parserActions = [(function (input, struct, mode) {
       if (input === null) {
         return {
                 TAG: /* Transformed */0,
@@ -1311,7 +1311,7 @@ var parserEffects = [(function (input, struct, mode) {
               };
       }
       var innerStruct = struct.t._0;
-      var value = processEffects(innerStruct, innerStruct.p[mode], input, mode);
+      var value = processActions(innerStruct, innerStruct.p[mode], input, mode);
       if (value.TAG === /* Ok */0) {
         return {
                 TAG: /* Transformed */0,
@@ -1323,8 +1323,8 @@ var parserEffects = [(function (input, struct, mode) {
     })];
 
 var parsers$7 = [
-  parserEffects,
-  parserEffects
+  parserActions,
+  parserActions
 ];
 
 var serializers$1 = [(function (input, struct, param) {
@@ -1335,7 +1335,7 @@ var serializers$1 = [(function (input, struct, param) {
               };
       }
       var innerStruct = struct.t._0;
-      return processEffects(innerStruct, innerStruct.s, Caml_option.valFromOption(input), /* Safe */0);
+      return processActions(innerStruct, innerStruct.s, Caml_option.valFromOption(input), /* Safe */0);
     })];
 
 function factory$10(innerStruct) {
@@ -1350,12 +1350,12 @@ function factory$10(innerStruct) {
         };
 }
 
-var parserEffects$1 = [(function (input, struct, mode) {
+var parserActions$1 = [(function (input, struct, mode) {
       if (input === undefined) {
         return /* Refined */0;
       }
       var innerStruct = struct.t._0;
-      var v = processEffects(innerStruct, innerStruct.p[mode], Caml_option.valFromOption(input), mode);
+      var v = processActions(innerStruct, innerStruct.p[mode], Caml_option.valFromOption(input), mode);
       if (v.TAG === /* Ok */0) {
         return {
                 TAG: /* Transformed */0,
@@ -1367,8 +1367,8 @@ var parserEffects$1 = [(function (input, struct, mode) {
     })];
 
 var parsers$8 = [
-  parserEffects$1,
-  parserEffects$1
+  parserActions$1,
+  parserActions$1
 ];
 
 var serializers$2 = [(function (input, struct, param) {
@@ -1376,7 +1376,7 @@ var serializers$2 = [(function (input, struct, param) {
         return /* Refined */0;
       }
       var innerStruct = struct.t._0;
-      return processEffects(innerStruct, innerStruct.s, Caml_option.valFromOption(input), /* Safe */0);
+      return processActions(innerStruct, innerStruct.s, Caml_option.valFromOption(input), /* Safe */0);
     })];
 
 function factory$11(innerStruct) {
@@ -1391,13 +1391,13 @@ function factory$11(innerStruct) {
         };
 }
 
-var parserEffects$2 = [(function (input, struct, mode) {
+var parserActions$2 = [(function (input, struct, mode) {
       if (input === undefined) {
         return /* Refined */0;
       }
       var match = struct.t;
       var innerStruct = match.struct;
-      var v = processEffects(innerStruct, innerStruct.p[mode], Caml_option.valFromOption(input), mode);
+      var v = processActions(innerStruct, innerStruct.p[mode], Caml_option.valFromOption(input), mode);
       if (v.TAG === /* Ok */0) {
         return {
                 TAG: /* Transformed */0,
@@ -1409,8 +1409,8 @@ var parserEffects$2 = [(function (input, struct, mode) {
     })];
 
 var parsers$9 = [
-  parserEffects$2,
-  parserEffects$2
+  parserActions$2,
+  parserActions$2
 ];
 
 var serializers$3 = [(function (input, struct, param) {
@@ -1419,7 +1419,7 @@ var serializers$3 = [(function (input, struct, param) {
       }
       var match = struct.t;
       var innerStruct = match.struct;
-      return processEffects(innerStruct, innerStruct.s, Caml_option.valFromOption(input), /* Safe */0);
+      return processActions(innerStruct, innerStruct.s, Caml_option.valFromOption(input), /* Safe */0);
     })];
 
 function factory$12(maybeMessage, innerStruct) {
@@ -1435,7 +1435,7 @@ function factory$12(maybeMessage, innerStruct) {
         };
 }
 
-var parserEffects$3 = [(function (input, struct, mode) {
+var parserActions$3 = [(function (input, struct, mode) {
       var maybeRefinementError = mode || Array.isArray(input) ? undefined : makeUnexpectedTypeError(input, struct);
       if (maybeRefinementError !== undefined) {
         return {
@@ -1450,7 +1450,7 @@ var parserEffects$3 = [(function (input, struct, mode) {
       while(idxRef < input.length && maybeErrorRef === undefined) {
         var idx = idxRef;
         var innerValue = input[idx];
-        var value = processEffects(innerStruct, innerStruct.p[mode], innerValue, mode);
+        var value = processActions(innerStruct, innerStruct.p[mode], innerValue, mode);
         if (value.TAG === /* Ok */0) {
           newArray.push(value._0);
           idxRef = idxRef + 1;
@@ -1473,8 +1473,8 @@ var parserEffects$3 = [(function (input, struct, mode) {
     })];
 
 var parsers$10 = [
-  parserEffects$3,
-  parserEffects$3
+  parserActions$3,
+  parserActions$3
 ];
 
 var serializers$4 = [(function (input, struct, param) {
@@ -1485,7 +1485,7 @@ var serializers$4 = [(function (input, struct, param) {
       while(idxRef < input.length && maybeErrorRef === undefined) {
         var idx = idxRef;
         var innerValue = input[idx];
-        var value = processEffects(innerStruct, innerStruct.s, innerValue, /* Safe */0);
+        var value = processActions(innerStruct, innerStruct.s, innerValue, /* Safe */0);
         if (value.TAG === /* Ok */0) {
           newArray.push(value._0);
           idxRef = idxRef + 1;
@@ -1550,7 +1550,7 @@ function length$1(struct, maybeMessage, length$2) {
   return refine(struct, refiner, refiner, undefined);
 }
 
-var parserEffects$4 = [(function (input, struct, mode) {
+var parserActions$4 = [(function (input, struct, mode) {
       var maybeRefinementError = mode || typeof input === "object" && !Array.isArray(input) && input !== null ? undefined : makeUnexpectedTypeError(input, struct);
       if (maybeRefinementError !== undefined) {
         return {
@@ -1567,7 +1567,7 @@ var parserEffects$4 = [(function (input, struct, mode) {
         var idx = idxRef;
         var key = keys[idx];
         var innerValue = input[key];
-        var value = processEffects(innerStruct, innerStruct.p[mode], innerValue, mode);
+        var value = processActions(innerStruct, innerStruct.p[mode], innerValue, mode);
         if (value.TAG === /* Ok */0) {
           newDict[key] = value._0;
           idxRef = idxRef + 1;
@@ -1590,8 +1590,8 @@ var parserEffects$4 = [(function (input, struct, mode) {
     })];
 
 var parsers$11 = [
-  parserEffects$4,
-  parserEffects$4
+  parserActions$4,
+  parserActions$4
 ];
 
 var serializers$5 = [(function (input, struct, param) {
@@ -1604,7 +1604,7 @@ var serializers$5 = [(function (input, struct, param) {
         var idx = idxRef;
         var key = keys[idx];
         var innerValue = input[key];
-        var value = processEffects(innerStruct, innerStruct.s, innerValue, /* Safe */0);
+        var value = processActions(innerStruct, innerStruct.s, innerValue, /* Safe */0);
         if (value.TAG === /* Ok */0) {
           newDict[key] = value._0;
           idxRef = idxRef + 1;
@@ -1638,10 +1638,10 @@ function factory$14(innerStruct) {
         };
 }
 
-var parserEffects$5 = [(function (input, struct, mode) {
+var parserActions$5 = [(function (input, struct, mode) {
       var match = struct.t;
       var innerStruct = match.struct;
-      var maybeOutput = processEffects(innerStruct, innerStruct.p[mode], input, mode);
+      var maybeOutput = processActions(innerStruct, innerStruct.p[mode], input, mode);
       if (maybeOutput.TAG !== /* Ok */0) {
         return maybeOutput;
       }
@@ -1653,14 +1653,14 @@ var parserEffects$5 = [(function (input, struct, mode) {
     })];
 
 var parsers$12 = [
-  parserEffects$5,
-  parserEffects$5
+  parserActions$5,
+  parserActions$5
 ];
 
 var serializers$6 = [(function (input, struct, param) {
       var match = struct.t;
       var innerStruct = match.struct;
-      return processEffects(innerStruct, innerStruct.s, Caml_option.some(input), /* Safe */0);
+      return processActions(innerStruct, innerStruct.s, Caml_option.some(input), /* Safe */0);
     })];
 
 function factory$15(innerStruct, defaultValue) {
@@ -1676,7 +1676,7 @@ function factory$15(innerStruct, defaultValue) {
         };
 }
 
-var parserEffects$6 = [(function (input, struct, mode) {
+var parserActions$6 = [(function (input, struct, mode) {
       var innerStructs = struct.t._0;
       var numberOfStructs = innerStructs.length;
       var maybeRefinementError;
@@ -1708,7 +1708,7 @@ var parserEffects$6 = [(function (input, struct, mode) {
         var idx = idxRef;
         var innerValue = input[idx];
         var innerStruct = innerStructs[idx];
-        var value = processEffects(innerStruct, innerStruct.p[mode], innerValue, mode);
+        var value = processActions(innerStruct, innerStruct.p[mode], innerValue, mode);
         if (value.TAG === /* Ok */0) {
           newArray.push(value._0);
           idxRef = idxRef + 1;
@@ -1733,8 +1733,8 @@ var parserEffects$6 = [(function (input, struct, mode) {
     })];
 
 var parsers$13 = [
-  parserEffects$6,
-  parserEffects$6
+  parserActions$6,
+  parserActions$6
 ];
 
 var serializers$7 = [(function (input, struct, param) {
@@ -1748,7 +1748,7 @@ var serializers$7 = [(function (input, struct, param) {
         var idx = idxRef;
         var innerValue = inputArray[idx];
         var innerStruct = innerStructs[idx];
-        var value = processEffects(innerStruct, innerStruct.s, innerValue, /* Safe */0);
+        var value = processActions(innerStruct, innerStruct.s, innerValue, /* Safe */0);
         if (value.TAG === /* Ok */0) {
           newArray.push(value._0);
           idxRef = idxRef + 1;
@@ -1784,7 +1784,7 @@ function innerFactory$1(structs) {
 
 var factory$16 = callWithArguments(innerFactory$1);
 
-var parserEffects$7 = [(function (input, struct, param) {
+var parserActions$7 = [(function (input, struct, param) {
       var innerStructs = struct.t._0;
       var idxRef = 0;
       var maybeErrorsRef;
@@ -1792,7 +1792,7 @@ var parserEffects$7 = [(function (input, struct, param) {
       while(idxRef < innerStructs.length && maybeOkRef === undefined) {
         var idx = idxRef;
         var innerStruct = innerStructs[idx];
-        var ok = processEffects(innerStruct, innerStruct.p[/* Safe */0], input, /* Safe */0);
+        var ok = processActions(innerStruct, innerStruct.p[/* Safe */0], input, /* Safe */0);
         if (ok.TAG === /* Ok */0) {
           maybeOkRef = ok;
         } else {
@@ -1831,8 +1831,8 @@ var parserEffects$7 = [(function (input, struct, param) {
     })];
 
 var parsers$14 = [
-  parserEffects$7,
-  parserEffects$7
+  parserActions$7,
+  parserActions$7
 ];
 
 var serializers$8 = [(function (input, struct, param) {
@@ -1843,7 +1843,7 @@ var serializers$8 = [(function (input, struct, param) {
       while(idxRef < innerStructs.length && maybeOkRef === undefined) {
         var idx = idxRef;
         var innerStruct = innerStructs[idx];
-        var ok = processEffects(innerStruct, innerStruct.s, input, /* Safe */0);
+        var ok = processActions(innerStruct, innerStruct.s, input, /* Safe */0);
         if (ok.TAG === /* Ok */0) {
           maybeOkRef = ok;
         } else {
