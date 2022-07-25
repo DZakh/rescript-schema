@@ -290,10 +290,10 @@ type recordUnknownKeys =
 type rec t<'value> = {
   @as("t")
   tagged_t: tagged_t,
-  @as("p")
-  parsers: parsers,
-  @as("s")
-  serializers: array<action>,
+  @as("pa")
+  parseActions: parseActions,
+  @as("sa")
+  serializeActions: array<action>,
   @as("m")
   maybeMetadata: option<Js.Dict.t<unknown>>,
 }
@@ -320,7 +320,7 @@ and tagged_t =
   | Default({struct: t<option<'value>>, value: 'value}): tagged_t
   | Instance(unknown): tagged_t
 and field<'value> = (string, t<'value>)
-and parsers = {
+and parseActions = {
   // Keys are the inlined mode variant
   @as("0")
   safe: array<action>,
@@ -424,7 +424,7 @@ let parseInner: (
   ~mode: parsingMode,
 ) => result<'value, Error.Internal.t> = (~struct, ~any, ~mode) => {
   processActions(
-    ~actions=struct.parsers->Obj.magic->Js.Dict.unsafeGet(mode->Obj.magic),
+    ~actions=struct.parseActions->Obj.magic->Js.Dict.unsafeGet(mode->Obj.magic),
     ~input=any,
     ~mode,
     ~struct,
@@ -442,7 +442,7 @@ let serializeInner: (~struct: t<'value>, ~value: 'value) => result<unknown, Erro
   ~struct,
   ~value,
 ) => {
-  processActions(~actions=struct.serializers, ~input=value, ~mode=Safe, ~struct)
+  processActions(~actions=struct.serializeActions, ~input=value, ~mode=Safe, ~struct)
 }
 
 let serializeWith = (value, struct) => {
@@ -459,7 +459,7 @@ module Action = {
   external fromResult: result<'newValue, Error.Internal.t> => actionResult<'newValue> = "%identity"
 
   let emptyArray: array<action> = []
-  let emptyParsers: parsers = {safe: emptyArray, migration: emptyArray}
+  let emptyParsers: parseActions = {safe: emptyArray, migration: emptyArray}
 
   let concatParser = (actions, action) => {
     actions->Js.Array2.concat([action])
@@ -493,11 +493,11 @@ let refine: (
     Error.MissingParserAndSerializer.raise(`struct factory Refine`)
   }
 
-  let currentParsers = struct.parsers
-  let currentSerializers = struct.serializers
+  let currentParsers = struct.parseActions
+  let currentSerializers = struct.serializeActions
   {
     ...struct,
-    parsers: switch maybeRefineParser {
+    parseActions: switch maybeRefineParser {
     | Some(refineParser) => {
         let action = Action.make((~input, ~struct as _, ~mode as _) => {
           switch (refineParser->Obj.magic)(. input) {
@@ -513,7 +513,7 @@ let refine: (
       }
     | None => currentParsers
     },
-    serializers: switch maybeRefineSerializer {
+    serializeActions: switch maybeRefineSerializer {
     | Some(refineSerializer) => {
         let action = Action.make((~input, ~struct as _, ~mode as _) => {
           switch (refineSerializer->Obj.magic)(. input) {
@@ -538,11 +538,11 @@ let transform = (
     Error.MissingParserAndSerializer.raise(`struct factory Transform`)
   }
 
-  let currentParsers = struct.parsers
-  let currentSerializers = struct.serializers
+  let currentParsers = struct.parseActions
+  let currentSerializers = struct.serializeActions
   {
     ...struct,
-    parsers: {
+    parseActions: {
       let action = switch maybeTransformationParser {
       | Some(transformationParser) =>
         Action.make((~input, ~struct as _, ~mode as _) => {
@@ -558,7 +558,7 @@ let transform = (
         safe: currentParsers.safe->Action.concatParser(action),
       }
     },
-    serializers: {
+    serializeActions: {
       let action = switch maybeTransformationSerializer {
       | Some(transformationSerializer) =>
         Action.make((~input, ~struct as _, ~mode as _) => {
@@ -584,11 +584,11 @@ let superTransform = (
     Error.MissingParserAndSerializer.raise(`struct factory Transform`)
   }
 
-  let currentParsers = struct.parsers
-  let currentSerializers = struct.serializers
+  let currentParsers = struct.parseActions
+  let currentSerializers = struct.serializeActions
   {
     ...struct,
-    parsers: {
+    parseActions: {
       let action = switch maybeTransformationParser {
       | Some(transformationParser) =>
         Action.make((~input, ~struct, ~mode) => {
@@ -604,7 +604,7 @@ let superTransform = (
         safe: currentParsers.safe->Action.concatParser(action),
       }
     },
-    serializers: {
+    serializeActions: {
       let action = switch maybeTransformationSerializer {
       | Some(transformationSerializer) =>
         Action.make((~input, ~struct, ~mode as _) => {
@@ -628,7 +628,7 @@ let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializ
   {
     tagged_t: Unknown,
     maybeMetadata: None,
-    parsers: {
+    parseActions: {
       let action = switch maybeCustomParser {
       | Some(customParser) =>
         Action.make((~input, ~struct as _, ~mode) => {
@@ -645,7 +645,7 @@ let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializ
         migration: actions,
       }
     },
-    serializers: {
+    serializeActions: {
       let action = switch maybeCustomSerializer {
       | Some(customSerializer) =>
         Action.make((~input, ~struct as _, ~mode as _) => {
@@ -778,34 +778,34 @@ module Literal = {
         switch innerLiteral {
         | EmptyNull => {
             tagged_t: tagged_t,
-            parsers: {
+            parseActions: {
               safe: [EmptyNull.parserRefinement, parserTransform],
               migration: [parserTransform],
             },
-            serializers: [serializerRefinement, EmptyNull.serializerTransform],
+            serializeActions: [serializerRefinement, EmptyNull.serializerTransform],
             maybeMetadata: None,
           }
         | EmptyOption => {
             tagged_t: tagged_t,
-            parsers: {
+            parseActions: {
               safe: [EmptyOption.parserRefinement, parserTransform],
               migration: [parserTransform],
             },
-            serializers: [serializerRefinement, EmptyOption.serializerTransform],
+            serializeActions: [serializerRefinement, EmptyOption.serializerTransform],
             maybeMetadata: None,
           }
         | NaN => {
             tagged_t: tagged_t,
-            parsers: {
+            parseActions: {
               safe: [NaN.parserRefinement, parserTransform],
               migration: [parserTransform],
             },
-            serializers: [serializerRefinement, NaN.serializerTransform],
+            serializeActions: [serializerRefinement, NaN.serializerTransform],
             maybeMetadata: None,
           }
         | Bool(_) => {
             tagged_t: tagged_t,
-            parsers: {
+            parseActions: {
               safe: [
                 Bool.parserRefinement,
                 CommonOperations.Parser.literalValueRefinement,
@@ -813,12 +813,12 @@ module Literal = {
               ],
               migration: [parserTransform],
             },
-            serializers: [serializerRefinement, CommonOperations.transformToLiteralValue],
+            serializeActions: [serializerRefinement, CommonOperations.transformToLiteralValue],
             maybeMetadata: None,
           }
         | String(_) => {
             tagged_t: tagged_t,
-            parsers: {
+            parseActions: {
               safe: [
                 String.parserRefinement,
                 CommonOperations.Parser.literalValueRefinement,
@@ -826,12 +826,12 @@ module Literal = {
               ],
               migration: [parserTransform],
             },
-            serializers: [serializerRefinement, CommonOperations.transformToLiteralValue],
+            serializeActions: [serializerRefinement, CommonOperations.transformToLiteralValue],
             maybeMetadata: None,
           }
         | Float(_) => {
             tagged_t: tagged_t,
-            parsers: {
+            parseActions: {
               safe: [
                 Float.parserRefinement,
                 CommonOperations.Parser.literalValueRefinement,
@@ -839,12 +839,12 @@ module Literal = {
               ],
               migration: [parserTransform],
             },
-            serializers: [serializerRefinement, CommonOperations.transformToLiteralValue],
+            serializeActions: [serializerRefinement, CommonOperations.transformToLiteralValue],
             maybeMetadata: None,
           }
         | Int(_) => {
             tagged_t: tagged_t,
-            parsers: {
+            parseActions: {
               safe: [
                 Int.parserRefinement,
                 CommonOperations.Parser.literalValueRefinement,
@@ -852,7 +852,7 @@ module Literal = {
               ],
               migration: [parserTransform],
             },
-            serializers: [serializerRefinement, CommonOperations.transformToLiteralValue],
+            serializeActions: [serializerRefinement, CommonOperations.transformToLiteralValue],
             maybeMetadata: None,
           }
         }
@@ -937,7 +937,7 @@ module Record = {
     }
   })
 
-  let parsers = {
+  let parseActions = {
     safe: [parserTransform],
     migration: [parserTransform],
   }
@@ -971,15 +971,15 @@ module Record = {
     }
   })
 
-  let serializers = [serializerTransform]
+  let serializeActions = [serializerTransform]
 
   let innerFactory = fieldsArray => {
     let fields = fieldsArray->Js.Dict.fromArray
 
     {
       tagged_t: Record({fields: fields, fieldNames: fields->Js.Dict.keys, unknownKeys: Strict}),
-      parsers: parsers,
-      serializers: serializers,
+      parseActions: parseActions,
+      serializeActions: serializeActions,
       maybeMetadata: None,
     }
   }
@@ -1016,15 +1016,15 @@ module Never = {
     }),
   ]
 
-  let parsers = {
+  let parseActions = {
     safe: actions,
     migration: Action.emptyArray,
   }
 
   let factory = () => {
     tagged_t: Never,
-    parsers: parsers,
-    serializers: actions,
+    parseActions: parseActions,
+    serializeActions: actions,
     maybeMetadata: None,
   }
 }
@@ -1032,8 +1032,8 @@ module Never = {
 module Unknown = {
   let factory = () => {
     tagged_t: Unknown,
-    parsers: Action.emptyParsers,
-    serializers: Action.emptyArray,
+    parseActions: Action.emptyParsers,
+    serializeActions: Action.emptyArray,
     maybeMetadata: None,
   }
 }
@@ -1050,15 +1050,15 @@ module String = {
     }
   })
 
-  let parsers = {
+  let parseActions = {
     safe: [parserRefinement],
     migration: Action.emptyArray,
   }
 
   let factory = () => {
     tagged_t: String,
-    parsers: parsers,
-    serializers: Action.emptyArray,
+    parseActions: parseActions,
+    serializeActions: Action.emptyArray,
     maybeMetadata: None,
   }
 
@@ -1165,15 +1165,15 @@ module Bool = {
     }
   })
 
-  let parsers = {
+  let parseActions = {
     safe: [parserRefinement],
     migration: Action.emptyArray,
   }
 
   let factory = () => {
     tagged_t: Bool,
-    parsers: parsers,
-    serializers: Action.emptyArray,
+    parseActions: parseActions,
+    serializeActions: Action.emptyArray,
     maybeMetadata: None,
   }
 }
@@ -1186,15 +1186,15 @@ module Int = {
     }
   })
 
-  let parsers = {
+  let parseActions = {
     safe: [parserRefinement],
     migration: Action.emptyArray,
   }
 
   let factory = () => {
     tagged_t: Int,
-    parsers: parsers,
-    serializers: Action.emptyArray,
+    parseActions: parseActions,
+    serializeActions: Action.emptyArray,
     maybeMetadata: None,
   }
 
@@ -1239,15 +1239,15 @@ module Float = {
     }
   })
 
-  let parsers = {
+  let parseActions = {
     safe: [parserRefinement],
     migration: Action.emptyArray,
   }
 
   let factory = () => {
     tagged_t: Float,
-    parsers: parsers,
-    serializers: Action.emptyArray,
+    parseActions: parseActions,
+    serializeActions: Action.emptyArray,
     maybeMetadata: None,
   }
 
@@ -1264,15 +1264,15 @@ module Date = {
     }
   })
 
-  let parsers = {
+  let parseActions = {
     safe: [parserRefinement],
     migration: Action.emptyArray,
   }
 
   let factory = () => {
     tagged_t: Instance(%raw(`Date`)),
-    parsers: parsers,
-    serializers: Action.emptyArray,
+    parseActions: parseActions,
+    serializeActions: Action.emptyArray,
     maybeMetadata: None,
   }
 }
@@ -1292,12 +1292,12 @@ module Null = {
     }),
   ]
 
-  let parsers = {
+  let parseActions = {
     safe: parserActions,
     migration: parserActions,
   }
 
-  let serializers = [
+  let serializeActions = [
     Action.make((~input, ~struct, ~mode as _) => {
       switch input {
       | Some(value) =>
@@ -1310,8 +1310,8 @@ module Null = {
 
   let factory = innerStruct => {
     tagged_t: Null(innerStruct),
-    parsers: parsers,
-    serializers: serializers,
+    parseActions: parseActions,
+    serializeActions: serializeActions,
     maybeMetadata: None,
   }
 }
@@ -1331,12 +1331,12 @@ module Option = {
     }),
   ]
 
-  let parsers = {
+  let parseActions = {
     safe: parserActions,
     migration: parserActions,
   }
 
-  let serializers = [
+  let serializeActions = [
     Action.make((~input, ~struct, ~mode as _) => {
       switch input {
       | Some(value) => {
@@ -1350,8 +1350,8 @@ module Option = {
 
   let factory = innerStruct => {
     tagged_t: Option(innerStruct),
-    parsers: parsers,
-    serializers: serializers,
+    parseActions: parseActions,
+    serializeActions: serializeActions,
     maybeMetadata: None,
   }
 }
@@ -1373,12 +1373,12 @@ module Deprecated = {
     }),
   ]
 
-  let parsers = {
+  let parseActions = {
     safe: parserActions,
     migration: parserActions,
   }
 
-  let serializers = [
+  let serializeActions = [
     Action.make((~input, ~struct, ~mode as _) => {
       switch input {
       | Some(value) => {
@@ -1392,8 +1392,8 @@ module Deprecated = {
 
   let factory = (~message as maybeMessage=?, innerStruct) => {
     tagged_t: Deprecated({struct: innerStruct, maybeMessage: maybeMessage}),
-    parsers: parsers,
-    serializers: serializers,
+    parseActions: parseActions,
+    serializeActions: serializeActions,
     maybeMetadata: None,
   }
 }
@@ -1440,12 +1440,12 @@ module Array = {
     }),
   ]
 
-  let parsers = {
+  let parseActions = {
     safe: parserActions,
     migration: parserActions,
   }
 
-  let serializers = [
+  let serializeActions = [
     Action.make((~input, ~struct, ~mode as _) => {
       let innerStruct = struct->classify->unsafeGetVariantPayload
 
@@ -1473,8 +1473,8 @@ module Array = {
 
   let factory = innerStruct => {
     tagged_t: Array(innerStruct),
-    parsers: parsers,
-    serializers: serializers,
+    parseActions: parseActions,
+    serializeActions: serializeActions,
     maybeMetadata: None,
   }
 
@@ -1563,12 +1563,12 @@ module Dict = {
     }),
   ]
 
-  let parsers = {
+  let parseActions = {
     safe: parserActions,
     migration: parserActions,
   }
 
-  let serializers = [
+  let serializeActions = [
     Action.make((~input, ~struct, ~mode as _) => {
       let innerStruct = struct->classify->unsafeGetVariantPayload
 
@@ -1597,8 +1597,8 @@ module Dict = {
 
   let factory = innerStruct => {
     tagged_t: Dict(innerStruct),
-    parsers: parsers,
-    serializers: serializers,
+    parseActions: parseActions,
+    serializeActions: serializeActions,
     maybeMetadata: None,
   }
 }
@@ -1620,12 +1620,12 @@ module Default = {
     }),
   ]
 
-  let parsers = {
+  let parseActions = {
     safe: parserActions,
     migration: parserActions,
   }
 
-  let serializers = [
+  let serializeActions = [
     Action.make((~input, ~struct, ~mode as _) => {
       let {struct: innerStruct} = struct->classify->Obj.magic
       serializeInner(~struct=innerStruct, ~value=Some(input))->Action.fromResult
@@ -1634,8 +1634,8 @@ module Default = {
 
   let factory = (innerStruct, defaultValue) => {
     tagged_t: Default({struct: innerStruct, value: defaultValue}),
-    parsers: parsers,
-    serializers: serializers,
+    parseActions: parseActions,
+    serializeActions: serializeActions,
     maybeMetadata: None,
   }
 }
@@ -1701,12 +1701,12 @@ module Tuple = {
     }),
   ]
 
-  let parsers = {
+  let parseActions = {
     safe: parserActions,
     migration: parserActions,
   }
 
-  let serializers = [
+  let serializeActions = [
     Action.make((~input, ~struct, ~mode as _) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
       let numberOfStructs = innerStructs->Js.Array2.length
@@ -1738,8 +1738,8 @@ module Tuple = {
   let innerFactory = structs => {
     {
       tagged_t: Tuple(structs),
-      parsers: parsers,
-      serializers: serializers,
+      parseActions: parseActions,
+      serializeActions: serializeActions,
       maybeMetadata: None,
     }
   }
@@ -1788,12 +1788,12 @@ module Union = {
     }),
   ]
 
-  let parsers = {
+  let parseActions = {
     safe: parserActions,
     migration: parserActions,
   }
 
-  let serializers = [
+  let serializeActions = [
     Action.make((~input, ~struct, ~mode as _) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
 
@@ -1829,8 +1829,8 @@ module Union = {
 
     {
       tagged_t: Union(structs),
-      parsers: parsers,
-      serializers: serializers,
+      parseActions: parseActions,
+      serializeActions: serializeActions,
       maybeMetadata: None,
     }
   }
