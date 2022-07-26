@@ -842,15 +842,17 @@ var serializeActions = [(function (input, struct, param) {
         var fieldStruct = fields[fieldName];
         var fieldValue = fieldValues[idx];
         var fn = fieldStruct.s;
-        var unknownFieldValue = fn ? fn._0(fieldValue) : ({
-              TAG: /* Ok */0,
-              _0: fieldValue
-            });
-        if (unknownFieldValue.TAG === /* Ok */0) {
-          unknown[fieldName] = unknownFieldValue._0;
-          idxRef = idxRef + 1;
+        if (fn) {
+          var fieldData = fn._0(fieldValue);
+          if (fieldData.TAG === /* Ok */0) {
+            unknown[fieldName] = fieldData._0;
+            idxRef = idxRef + 1;
+          } else {
+            maybeErrorRef = prependLocation(fieldData._0, fieldName);
+          }
         } else {
-          maybeErrorRef = prependLocation(unknownFieldValue._0, fieldName);
+          unknown[fieldName] = fieldValue;
+          idxRef = idxRef + 1;
         }
       };
       var error = maybeErrorRef;
@@ -1330,15 +1332,17 @@ var serializeActions$4 = [(function (input, struct, param) {
         var idx = idxRef;
         var innerValue = input[idx];
         var fn = innerStruct.s;
-        var value = fn ? fn._0(innerValue) : ({
-              TAG: /* Ok */0,
-              _0: innerValue
-            });
-        if (value.TAG === /* Ok */0) {
-          newArray.push(value._0);
-          idxRef = idxRef + 1;
+        if (fn) {
+          var value = fn._0(innerValue);
+          if (value.TAG === /* Ok */0) {
+            newArray.push(value._0);
+            idxRef = idxRef + 1;
+          } else {
+            maybeErrorRef = prependLocation(value._0, idx.toString());
+          }
         } else {
-          maybeErrorRef = prependLocation(value._0, idx.toString());
+          newArray.push(innerValue);
+          idxRef = idxRef + 1;
         }
       };
       var error = maybeErrorRef;
@@ -1447,15 +1451,17 @@ var serializeActions$5 = [(function (input, struct, param) {
         var key = keys[idx];
         var innerValue = input[key];
         var fn = innerStruct.s;
-        var value = fn ? fn._0(innerValue) : ({
-              TAG: /* Ok */0,
-              _0: innerValue
-            });
-        if (value.TAG === /* Ok */0) {
-          newDict[key] = value._0;
-          idxRef = idxRef + 1;
+        if (fn) {
+          var value = fn._0(innerValue);
+          if (value.TAG === /* Ok */0) {
+            newDict[key] = value._0;
+            idxRef = idxRef + 1;
+          } else {
+            maybeErrorRef = prependLocation(value._0, key);
+          }
         } else {
-          maybeErrorRef = prependLocation(value._0, key);
+          newDict[key] = innerValue;
+          idxRef = idxRef + 1;
         }
       };
       var error = maybeErrorRef;
@@ -1590,15 +1596,17 @@ var serializeActions$7 = [(function (input, struct, param) {
         var innerValue = inputArray[idx];
         var innerStruct = innerStructs[idx];
         var fn = innerStruct.s;
-        var value = fn ? fn._0(innerValue) : ({
-              TAG: /* Ok */0,
-              _0: innerValue
-            });
-        if (value.TAG === /* Ok */0) {
-          newArray.push(value._0);
-          idxRef = idxRef + 1;
+        if (fn) {
+          var value = fn._0(innerValue);
+          if (value.TAG === /* Ok */0) {
+            newArray.push(value._0);
+            idxRef = idxRef + 1;
+          } else {
+            maybeErrorRef = prependLocation(value._0, idx.toString());
+          }
         } else {
-          maybeErrorRef = prependLocation(value._0, idx.toString());
+          newArray.push(innerValue);
+          idxRef = idxRef + 1;
         }
       };
       var error = maybeErrorRef;

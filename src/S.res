@@ -985,13 +985,20 @@ module Record = {
         let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
         let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
         let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
-        switch serializeInner(~struct=fieldStruct, ~value=fieldValue) {
-        | Ok(unknownFieldValue) => {
-            unknown->Js.Dict.set(fieldName, unknownFieldValue)
+        switch fieldStruct.serialize {
+        | Noop => {
+            unknown->Js.Dict.set(fieldName, fieldValue)
             idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
-        | Error(error) =>
-          maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(fieldName))
+        | Sync(fn) =>
+          switch fn(. fieldValue) {
+          | Ok(fieldData) => {
+              unknown->Js.Dict.set(fieldName, fieldData)
+              idxRef.contents = idxRef.contents->Lib.Int.plus(1)
+            }
+          | Error(error) =>
+            maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(fieldName))
+          }
         }
       }
 
@@ -1475,13 +1482,22 @@ module Array = {
       while idxRef.contents < input->Js.Array2.length && maybeErrorRef.contents === None {
         let idx = idxRef.contents
         let innerValue = input->Js.Array2.unsafe_get(idx)
-        switch serializeInner(~struct=innerStruct, ~value=innerValue) {
-        | Ok(value) => {
-            newArray->Js.Array2.push(value)->ignore
+        switch innerStruct.serialize {
+        | Noop => {
+            newArray->Js.Array2.push(innerValue)->ignore
             idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
-        | Error(error) =>
-          maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(idx->Js.Int.toString))
+        | Sync(fn) =>
+          switch fn(. innerValue) {
+          | Ok(value) => {
+              newArray->Js.Array2.push(value)->ignore
+              idxRef.contents = idxRef.contents->Lib.Int.plus(1)
+            }
+          | Error(error) =>
+            maybeErrorRef.contents = Some(
+              error->Error.Internal.prependLocation(idx->Js.Int.toString),
+            )
+          }
         }
       }
       switch maybeErrorRef.contents {
@@ -1598,12 +1614,20 @@ module Dict = {
         let idx = idxRef.contents
         let key = keys->Js.Array2.unsafe_get(idx)
         let innerValue = input->Js.Dict.unsafeGet(key)
-        switch serializeInner(~struct=innerStruct, ~value=innerValue) {
-        | Ok(value) => {
-            newDict->Js.Dict.set(key, value)->ignore
+        switch innerStruct.serialize {
+        | Noop => {
+            newDict->Js.Dict.set(key, innerValue)->ignore
             idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
-        | Error(error) => maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(key))
+        | Sync(fn) =>
+          switch fn(. innerValue) {
+          | Ok(value) => {
+              newDict->Js.Dict.set(key, value)->ignore
+              idxRef.contents = idxRef.contents->Lib.Int.plus(1)
+            }
+          | Error(error) =>
+            maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(key))
+          }
         }
       }
       switch maybeErrorRef.contents {
@@ -1733,13 +1757,22 @@ module Tuple = {
         let idx = idxRef.contents
         let innerValue = inputArray->Js.Array2.unsafe_get(idx)
         let innerStruct = innerStructs->Js.Array.unsafe_get(idx)
-        switch serializeInner(~struct=innerStruct, ~value=innerValue) {
-        | Ok(value) => {
-            newArray->Js.Array2.push(value)->ignore
+        switch innerStruct.serialize {
+        | Noop => {
+            newArray->Js.Array2.push(innerValue)->ignore
             idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
-        | Error(error) =>
-          maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(idx->Js.Int.toString))
+        | Sync(fn) =>
+          switch fn(. innerValue) {
+          | Ok(value) => {
+              newArray->Js.Array2.push(value)->ignore
+              idxRef.contents = idxRef.contents->Lib.Int.plus(1)
+            }
+          | Error(error) =>
+            maybeErrorRef.contents = Some(
+              error->Error.Internal.prependLocation(idx->Js.Int.toString),
+            )
+          }
         }
       }
       switch maybeErrorRef.contents {
