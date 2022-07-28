@@ -101,7 +101,7 @@ Given any struct, you can call `parseWith` to check data is valid. It returns a 
 
 Has multiple modes:
 - `S.Safe` (default) - Always check that provided data is valid.
-- `S.Migration` - Apply checks and refinements only for transformed data. Usefull for migrating validated JavaScript structures to more ideomatic ReScript code. It's ~1.5 times faster than `Safe` mode.
+- `S.Migration` - Ignore built-in checks and refinements. Useful if data is already validated by another validation library and you only want to migrate it to a more convinient ReScript data structure. It's ~1.5 times faster than `Safe` mode.
 
 #### **`S.serializeWith`**
 
