@@ -64,6 +64,11 @@ module Lib = {
 
     @inline
     let unique = array => array->Set.fromArray->Set.toArray
+
+    @inline
+    let set = (array: array<'value>, idx: int, value: 'value) => {
+      array->Obj.magic->Js.Dict.set(idx->Obj.magic, value)
+    }
   }
 
   module Result: {
@@ -900,43 +905,6 @@ module Record = {
     return undefined
   }`)
 
-  let parseActions = [
-    Action.transform((~input, ~struct, ~mode) => {
-      if mode == Safe && input->Lib.Object.test == false {
-        raiseUnexpectedTypeError(~input, ~struct)
-      }
-
-      let {fields, fieldNames, unknownKeys} = struct->classify->Obj.magic
-
-      let newArray = []
-      for idx in 0 to fieldNames->Js.Array2.length - 1 {
-        let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-        let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-        let fieldData = input->Js.Dict.unsafeGet(fieldName)
-        switch fieldStruct->getParseOperation(~mode) {
-        | Noop => newArray->Js.Array2.push(fieldData)->ignore
-        | Sync(fn) =>
-          try {
-            let value = fn(. fieldData)
-            newArray->Js.Array2.push(value)->ignore
-          } catch {
-          | Error.Internal.Exception(internalError) =>
-            raise(
-              Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName)),
-            )
-          }
-        }
-      }
-      if unknownKeys == Strict && mode == Safe {
-        switch getMaybeExcessKey(. input, fields) {
-        | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
-        | None => ()
-        }
-      }
-      newArray->Lib.Array.toTuple
-    }),
-  ]
-
   let serializeActions = [
     Action.transform((~input, ~struct, ~mode as _) => {
       let {fields, fieldNames} = struct->classify->Obj.magic
@@ -967,11 +935,66 @@ module Record = {
 
   let innerFactory = fieldsArray => {
     let fields = fieldsArray->Js.Dict.fromArray
+    let fieldNames = fields->Js.Dict.keys
+
+    let makeParseActions = (~mode) => {
+      let noopOps = []
+      let syncOps = []
+      for idx in 0 to fieldNames->Js.Array2.length - 1 {
+        let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+        let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+        switch fieldStruct->getParseOperation(~mode) {
+        | Noop => noopOps->Js.Array2.push((idx, fieldName))->ignore
+        | Sync(fn) => syncOps->Js.Array2.push((idx, fieldName, fn))->ignore
+        }
+      }
+
+      [
+        Action.transform((~input, ~struct, ~mode) => {
+          if mode == Safe && input->Lib.Object.test == false {
+            raiseUnexpectedTypeError(~input, ~struct)
+          }
+
+          let {unknownKeys} = struct->classify->Obj.magic
+
+          let newArray = []
+
+          for idx in 0 to syncOps->Js.Array2.length - 1 {
+            let (originalIdx, fieldName, fn) = syncOps->Js.Array2.unsafe_get(idx)
+            let fieldData = input->Js.Dict.unsafeGet(fieldName)
+            try {
+              let value = fn(. fieldData)
+              newArray->Lib.Array.set(originalIdx, value)
+            } catch {
+            | Error.Internal.Exception(internalError) =>
+              raise(
+                Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName)),
+              )
+            }
+          }
+
+          for idx in 0 to noopOps->Js.Array2.length - 1 {
+            let (originalIdx, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
+            let fieldData = input->Js.Dict.unsafeGet(fieldName)
+            newArray->Lib.Array.set(originalIdx, fieldData)
+          }
+
+          if unknownKeys == Strict && mode == Safe {
+            switch getMaybeExcessKey(. input, fields) {
+            | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
+            | None => ()
+            }
+          }
+
+          newArray->Lib.Array.toTuple
+        }),
+      ]
+    }
 
     make(
-      ~tagged_t=Record({fields: fields, fieldNames: fields->Js.Dict.keys, unknownKeys: Strict}),
-      ~safeParseActions=parseActions,
-      ~migrationParseActions=parseActions,
+      ~tagged_t=Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strict}),
+      ~safeParseActions=makeParseActions(~mode=Safe),
+      ~migrationParseActions=makeParseActions(~mode=Migration),
       ~serializeActions,
       (),
     )

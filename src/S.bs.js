@@ -775,59 +775,6 @@ var getMaybeExcessKey = (function(object, innerStructsDict) {
     return undefined
   });
 
-var parseActions = [{
-    TAG: /* Transform */0,
-    _0: (function (input, struct, mode) {
-        if (mode === /* Safe */0 && (typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
-          raiseUnexpectedTypeError(input, struct);
-        }
-        var match = struct.t;
-        var fieldNames = match.fieldNames;
-        var fields = match.fields;
-        var newArray = [];
-        for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-          var fieldName = fieldNames[idx];
-          var fieldStruct = fields[fieldName];
-          var fieldData = input[fieldName];
-          var fn = fieldStruct.p[mode];
-          if (fn) {
-            try {
-              var value = fn._0(fieldData);
-              newArray.push(value);
-            }
-            catch (raw_internalError){
-              var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-              if (internalError.RE_EXN_ID === Exception) {
-                throw {
-                      RE_EXN_ID: Exception,
-                      _1: prependLocation(internalError._1, fieldName),
-                      Error: new Error()
-                    };
-              }
-              throw internalError;
-            }
-          } else {
-            newArray.push(fieldData);
-          }
-        }
-        if (match.unknownKeys === /* Strict */0 && mode === /* Safe */0) {
-          var excessKey = getMaybeExcessKey(input, fields);
-          if (excessKey !== undefined) {
-            raise({
-                  TAG: /* ExcessField */4,
-                  _0: excessKey
-                });
-          }
-          
-        }
-        if (newArray.length <= 1) {
-          return newArray[0];
-        } else {
-          return newArray;
-        }
-      })
-  }];
-
 var serializeActions = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, param) {
@@ -867,12 +814,84 @@ var serializeActions = [{
 
 function innerFactory(fieldsArray) {
   var fields = Js_dict.fromArray(fieldsArray);
+  var fieldNames = Object.keys(fields);
+  var makeParseActions = function (mode) {
+    var noopOps = [];
+    var syncOps = [];
+    for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+      var fieldName = fieldNames[idx];
+      var fieldStruct = fields[fieldName];
+      var fn = fieldStruct.p[mode];
+      if (fn) {
+        syncOps.push([
+              idx,
+              fieldName,
+              fn._0
+            ]);
+      } else {
+        noopOps.push([
+              idx,
+              fieldName
+            ]);
+      }
+    }
+    return [{
+              TAG: /* Transform */0,
+              _0: (function (input, struct, mode) {
+                  if (mode === /* Safe */0 && (typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
+                    raiseUnexpectedTypeError(input, struct);
+                  }
+                  var match = struct.t;
+                  var newArray = [];
+                  for(var idx = 0 ,idx_finish = syncOps.length; idx < idx_finish; ++idx){
+                    var match$1 = syncOps[idx];
+                    var fieldName = match$1[1];
+                    var fieldData = input[fieldName];
+                    try {
+                      var value = match$1[2](fieldData);
+                      newArray[match$1[0]] = value;
+                    }
+                    catch (raw_internalError){
+                      var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                      if (internalError.RE_EXN_ID === Exception) {
+                        throw {
+                              RE_EXN_ID: Exception,
+                              _1: prependLocation(internalError._1, fieldName),
+                              Error: new Error()
+                            };
+                      }
+                      throw internalError;
+                    }
+                  }
+                  for(var idx$1 = 0 ,idx_finish$1 = noopOps.length; idx$1 < idx_finish$1; ++idx$1){
+                    var match$2 = noopOps[idx$1];
+                    var fieldData$1 = input[match$2[1]];
+                    newArray[match$2[0]] = fieldData$1;
+                  }
+                  if (match.unknownKeys === /* Strict */0 && mode === /* Safe */0) {
+                    var excessKey = getMaybeExcessKey(input, fields);
+                    if (excessKey !== undefined) {
+                      raise({
+                            TAG: /* ExcessField */4,
+                            _0: excessKey
+                          });
+                    }
+                    
+                  }
+                  if (newArray.length <= 1) {
+                    return newArray[0];
+                  } else {
+                    return newArray;
+                  }
+                })
+            }];
+  };
   return make$1({
               TAG: /* Record */4,
               fields: fields,
-              fieldNames: Object.keys(fields),
+              fieldNames: fieldNames,
               unknownKeys: /* Strict */0
-            }, parseActions, parseActions, serializeActions, undefined, undefined);
+            }, makeParseActions(/* Safe */0), makeParseActions(/* Migration */1), serializeActions, undefined, undefined);
 }
 
 var factory$2 = callWithArguments(innerFactory);
@@ -1133,7 +1152,7 @@ function factory$9(param) {
             }, [parserRefinement$11], emptyArray, emptyArray, undefined, undefined);
 }
 
-var parseActions$1 = [{
+var parseActions = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, mode) {
         if (input === null) {
@@ -1166,10 +1185,10 @@ function factory$10(innerStruct) {
   return make$1({
               TAG: /* Null */2,
               _0: innerStruct
-            }, parseActions$1, parseActions$1, serializeActions$1, undefined, undefined);
+            }, parseActions, parseActions, serializeActions$1, undefined, undefined);
 }
 
-var parseActions$2 = [{
+var parseActions$1 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, mode) {
         if (input === undefined) {
@@ -1203,10 +1222,10 @@ function factory$11(innerStruct) {
   return make$1({
               TAG: /* Option */1,
               _0: innerStruct
-            }, parseActions$2, parseActions$2, serializeActions$2, undefined, undefined);
+            }, parseActions$1, parseActions$1, serializeActions$2, undefined, undefined);
 }
 
-var parseActions$3 = [{
+var parseActions$2 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, mode) {
         if (input === undefined) {
@@ -1241,10 +1260,10 @@ function factory$12(maybeMessage, innerStruct) {
               TAG: /* Deprecated */8,
               struct: innerStruct,
               maybeMessage: maybeMessage
-            }, parseActions$3, parseActions$3, serializeActions$3, undefined, undefined);
+            }, parseActions$2, parseActions$2, serializeActions$3, undefined, undefined);
 }
 
-var parseActions$4 = [{
+var parseActions$3 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, mode) {
         if (mode === /* Safe */0 && Array.isArray(input) === false) {
@@ -1315,7 +1334,7 @@ function factory$13(innerStruct) {
   return make$1({
               TAG: /* Array */3,
               _0: innerStruct
-            }, parseActions$4, parseActions$4, serializeActions$4, undefined, undefined);
+            }, parseActions$3, parseActions$3, serializeActions$4, undefined, undefined);
 }
 
 function min$2(struct, maybeMessage, length) {
@@ -1349,7 +1368,7 @@ function length$1(struct, maybeMessage, length$2) {
   return refine(struct, refiner, refiner, undefined);
 }
 
-var parseActions$5 = [{
+var parseActions$4 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, mode) {
         if (mode === /* Safe */0 && (typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
@@ -1424,10 +1443,10 @@ function factory$14(innerStruct) {
   return make$1({
               TAG: /* Dict */7,
               _0: innerStruct
-            }, parseActions$5, parseActions$5, serializeActions$5, undefined, undefined);
+            }, parseActions$4, parseActions$4, serializeActions$5, undefined, undefined);
 }
 
-var parseActions$6 = [{
+var parseActions$5 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, mode) {
         var match = struct.t;
@@ -1460,10 +1479,10 @@ function factory$15(innerStruct, defaultValue) {
               TAG: /* Default */9,
               struct: innerStruct,
               value: defaultValue
-            }, parseActions$6, parseActions$6, serializeActions$6, undefined, undefined);
+            }, parseActions$5, parseActions$5, serializeActions$6, undefined, undefined);
 }
 
-var parseActions$7 = [{
+var parseActions$6 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, mode) {
         var innerStructs = struct.t._0;
@@ -1558,12 +1577,12 @@ function innerFactory$1(structs) {
   return make$1({
               TAG: /* Tuple */5,
               _0: structs
-            }, parseActions$7, parseActions$7, serializeActions$7, undefined, undefined);
+            }, parseActions$6, parseActions$6, serializeActions$7, undefined, undefined);
 }
 
 var factory$16 = callWithArguments(innerFactory$1);
 
-var parseActions$8 = [{
+var parseActions$7 = [{
     TAG: /* Transform */0,
     _0: (function (input, struct, param) {
         var innerStructs = struct.t._0;
@@ -1665,7 +1684,7 @@ function factory$17(structs) {
   return make$1({
               TAG: /* Union */6,
               _0: structs
-            }, parseActions$8, parseActions$8, serializeActions$8, undefined, undefined);
+            }, parseActions$7, parseActions$7, serializeActions$8, undefined, undefined);
 }
 
 function json(innerStruct) {
