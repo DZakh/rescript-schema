@@ -43,7 +43,7 @@ module Lib = {
   module Object = {
     @inline
     let test = data => {
-      data->Js.typeof === "object" && !Js.Array2.isArray(data) && data !== %raw(`null`)
+      data->Js.typeof == "object" && !Js.Array2.isArray(data) && data !== %raw(`null`)
     }
   }
 
@@ -113,7 +113,7 @@ module Lib = {
     @inline
     let test = data => {
       let x = data->Obj.magic
-      data->Js.typeof === "number" && x < 2147483648. && x > -2147483649. && x === x->Js.Math.trunc
+      data->Js.typeof == "number" && x < 2147483648. && x > -2147483649. && x == x->Js.Math.trunc
     }
   }
 }
@@ -126,7 +126,7 @@ module Error = {
     }
   }`)
 
-  let raise = %raw(`function(message){
+  let panic = %raw(`function(message){
     throw new RescriptStructError(message);
   }`)
 
@@ -151,9 +151,10 @@ module Error = {
       path: array<string>,
     }
 
-    @inline
-    let make = code => {
-      {code: code, path: []}
+    exception Exception(t)
+
+    let raise = code => {
+      raise(Exception({code: code, path: []}))
     }
 
     let toParseError = (self: t): public => {
@@ -184,8 +185,9 @@ module Error = {
         | None => "undefined"
         }
       }
-      let make = (~expected, ~received) => {
-        make(
+
+      let raise = (~expected, ~received) => {
+        raise(
           UnexpectedValue({
             expected: expected->stringify,
             received: received->stringify,
@@ -196,19 +198,19 @@ module Error = {
   }
 
   module MissingParserAndSerializer = {
-    let raise = location => raise(`For a ${location} either a parser, or a serializer is required`)
+    let panic = location => panic(`For a ${location} either a parser, or a serializer is required`)
   }
 
   module UnknownKeysRequireRecord = {
-    let raise = () => raise("Can't set up unknown keys strategy. The struct is not Record")
+    let panic = () => panic("Can't set up unknown keys strategy. The struct is not Record")
   }
 
   module UnionLackingStructs = {
-    let raise = () => raise("A Union struct factory require at least two structs")
+    let panic = () => panic("A Union struct factory require at least two structs")
   }
 
   let formatPath = path => {
-    if path->Js.Array2.length === 0 {
+    if path->Js.Array2.length == 0 {
       "root"
     } else {
       path->Js.Array2.map(pathItem => `[${pathItem}]`)->Js.Array2.joinWith("")
@@ -286,7 +288,7 @@ type parsingMode = Safe | Migration
 type recordUnknownKeys =
   | Strict
   | Strip
-type operation = Noop | Sync((. unknown) => result<unknown, Error.Internal.t>)
+type operation = Noop | Sync((. unknown) => unknown)
 type parseOperations = {
   // Keys are the inlined mode variant
   @as("0")
@@ -335,16 +337,8 @@ and tagged_t =
   | Instance(unknown): tagged_t
 and field<'value> = (string, t<'value>)
 and action =
-  | Transform(
-      (
-        . ~unknown: unknown,
-        ~struct: t<unknown>,
-        ~mode: parsingMode,
-      ) => result<unknown, Error.Internal.t>,
-    )
-  | Refine(
-      (. ~unknown: unknown, ~struct: t<unknown>, ~mode: parsingMode) => option<Error.Internal.t>,
-    )
+  | Transform((. ~unknown: unknown, ~struct: t<unknown>, ~mode: parsingMode) => unknown)
+  | Refine((. ~unknown: unknown, ~struct: t<unknown>, ~mode: parsingMode) => unit)
 
 external unsafeAnyToUnknown: 'any => unknown = "%identity"
 external unsafeUnknownToAny: unknown => 'any = "%identity"
@@ -389,7 +383,7 @@ module TaggedT = {
   }
 }
 
-let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
+let raiseUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   let typesTagged = input->Js.Types.classify
   let structTagged = struct->classify
   let received = switch typesTagged {
@@ -404,7 +398,7 @@ let makeUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   | JSSymbol(_) => "Symbol"
   }
   let expected = TaggedT.toString(structTagged)
-  Error.Internal.make(UnexpectedType({expected: expected, received: received}))
+  Error.Internal.raise(UnexpectedType({expected: expected, received: received}))
 }
 
 let processActions = (
@@ -413,31 +407,17 @@ let processActions = (
   ~mode: parsingMode,
   . input: 'input,
 ) => {
-  let idxRef = ref(0)
-  let valueRef = ref(input->Obj.magic)
-  let maybeErrorRef = ref(None)
-  while idxRef.contents < actions->Js.Array2.length && maybeErrorRef.contents === None {
-    let action = actions->Js.Array2.unsafe_get(idxRef.contents)
+  let tempOuputRef = ref(input->Obj.magic)
+  for idx in 0 to actions->Js.Array2.length - 1 {
+    let action = actions->Js.Array2.unsafe_get(idx)
     switch action {
     | Transform(fn) =>
-      switch fn(. ~unknown=valueRef.contents, ~struct=struct->Obj.magic, ~mode) {
-      | Ok(newValue) => {
-          valueRef.contents = newValue
-          idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-        }
-      | Error(error) => maybeErrorRef.contents = Some(error)
-      }
-    | Refine(fn) =>
-      switch fn(. ~unknown=valueRef.contents, ~struct=struct->Obj.magic, ~mode) {
-      | None => idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-      | Some(_) as someError => maybeErrorRef.contents = someError
-      }
+      let newValue = fn(. ~unknown=tempOuputRef.contents, ~struct=struct->Obj.magic, ~mode)
+      tempOuputRef.contents = newValue
+    | Refine(fn) => fn(. ~unknown=tempOuputRef.contents, ~struct=struct->Obj.magic, ~mode)
     }
   }
-  switch maybeErrorRef.contents {
-  | Some(error) => Error(error)
-  | None => Ok(valueRef.contents->Obj.magic)
-  }
+  tempOuputRef.contents->Obj.magic
 }
 
 let make = (
@@ -482,54 +462,45 @@ let getParseOperation = (struct, ~mode) => {
 }
 
 @inline
-let parseInner: (
-  ~struct: t<'value>,
-  ~any: 'any,
-  ~mode: parsingMode,
-) => result<'value, Error.Internal.t> = (~struct, ~any, ~mode) => {
+let parseInner: (~struct: t<'value>, ~any: 'any, ~mode: parsingMode) => 'value = (
+  ~struct,
+  ~any,
+  ~mode,
+) => {
   switch struct->getParseOperation(~mode) {
-  | Noop => Ok(any->Obj.magic)
+  | Noop => any->Obj.magic
   | Sync(fn) => fn(. any->Obj.magic)->Obj.magic
   }
 }
 
 let parseWith = (any, ~mode=Safe, struct) => {
-  parseInner(~struct, ~any, ~mode)->Lib.Result.mapError(internalError =>
-    internalError->Error.Internal.toParseError
-  )
+  try {parseInner(~struct, ~any, ~mode)->Ok} catch {
+  | Error.Internal.Exception(internalError) => internalError->Error.Internal.toParseError->Error
+  }
 }
 
 @inline
-let serializeInner: (~struct: t<'value>, ~value: 'value) => result<unknown, Error.Internal.t> = (
-  ~struct,
-  ~value,
-) => {
+let serializeInner: (~struct: t<'value>, ~value: 'value) => unknown = (~struct, ~value) => {
   switch struct.serialize {
-  | Noop => Ok(value->unsafeAnyToUnknown)
+  | Noop => value->unsafeAnyToUnknown
   | Sync(fn) => fn(. value->unsafeAnyToUnknown)
   }
 }
 
 let serializeWith = (value, struct) => {
-  serializeInner(~struct, ~value)->Lib.Result.mapError(internalError =>
-    internalError->Error.Internal.toSerializeError
-  )
+  try {
+    serializeInner(~struct, ~value)->Ok
+  } catch {
+  | Error.Internal.Exception(internalError) => internalError->Error.Internal.toSerializeError->Error
+  }
 }
 
 module Action = {
-  let transform = (
-    fn: (
-      ~input: 'input,
-      ~struct: t<'value>,
-      ~mode: parsingMode,
-    ) => result<'output, Error.Internal.t>,
-  ) => {
+  let transform = (fn: (~input: 'input, ~struct: t<'value>, ~mode: parsingMode) => unknown) => {
     Transform(fn->Obj.magic)
   }
 
-  let refine = (
-    fn: (~input: 'value, ~struct: t<'value>, ~mode: parsingMode) => option<Error.Internal.t>,
-  ) => {
+  let refine = (fn: (~input: 'value, ~struct: t<'value>, ~mode: parsingMode) => unit) => {
     Refine(fn->Obj.magic)
   }
 
@@ -544,11 +515,11 @@ module Action = {
   }
 
   let missingParser = refine((~input as _, ~struct as _, ~mode as _) => {
-    Some(Error.Internal.make(MissingParser))
+    Error.Internal.raise(MissingParser)
   })
 
   let missingSerializer = refine((~input as _, ~struct as _, ~mode as _) => {
-    Some(Error.Internal.make(MissingSerializer))
+    Error.Internal.raise(MissingSerializer)
   })
 }
 
@@ -563,8 +534,8 @@ let refine: (
   ~serializer as maybeRefineSerializer=?,
   (),
 ) => {
-  if maybeRefineParser === None && maybeRefineSerializer === None {
-    Error.MissingParserAndSerializer.raise(`struct factory Refine`)
+  if maybeRefineParser == None && maybeRefineSerializer == None {
+    Error.MissingParserAndSerializer.panic(`struct factory Refine`)
   }
 
   make(
@@ -573,9 +544,10 @@ let refine: (
     | Some(refineParser) =>
       struct.safeParseActions->Action.concatParser(
         Action.refine((~input, ~struct as _, ~mode as _) => {
-          (refineParser->Obj.magic)(. input)->Lib.Option.map(reason =>
-            Error.Internal.make(OperationFailed(reason))
-          )
+          switch (refineParser->Obj.magic)(. input) {
+          | None => ()
+          | Some(reason) => Error.Internal.raise(OperationFailed(reason))
+          }
         }),
       )
     | None => struct.safeParseActions
@@ -585,9 +557,10 @@ let refine: (
     | Some(refineSerializer) =>
       struct.serializeActions->Action.concatSerializer(
         Action.refine((~input, ~struct as _, ~mode as _) => {
-          (refineSerializer->Obj.magic)(. input)->Lib.Option.map(reason =>
-            Error.Internal.make(OperationFailed(reason))
-          )
+          switch (refineSerializer->Obj.magic)(. input) {
+          | None => ()
+          | Some(reason) => Error.Internal.raise(OperationFailed(reason))
+          }
         }),
       )
     | None => struct.serializeActions
@@ -603,15 +576,16 @@ let transform = (
   ~serializer as maybeTransformationSerializer=?,
   (),
 ) => {
-  if maybeTransformationParser === None && maybeTransformationSerializer === None {
-    Error.MissingParserAndSerializer.raise(`struct factory Transform`)
+  if maybeTransformationParser == None && maybeTransformationSerializer == None {
+    Error.MissingParserAndSerializer.panic(`struct factory Transform`)
   }
   let parseAction = switch maybeTransformationParser {
   | Some(transformationParser) =>
     Action.transform((~input, ~struct as _, ~mode as _) => {
-      (transformationParser->Obj.magic)(. input)->Lib.Result.mapError(reason =>
-        Error.Internal.make(OperationFailed(reason))
-      )
+      switch (transformationParser->Obj.magic)(. input) {
+      | Ok(transformed) => transformed
+      | Error(reason) => Error.Internal.raise(OperationFailed(reason))
+      }
     })
   | None => Action.missingParser
   }
@@ -623,9 +597,10 @@ let transform = (
       switch maybeTransformationSerializer {
       | Some(transformationSerializer) =>
         Action.transform((~input, ~struct as _, ~mode as _) => {
-          (transformationSerializer->Obj.magic)(. input)->Lib.Result.mapError(reason =>
-            Error.Internal.make(OperationFailed(reason))
-          )
+          switch (transformationSerializer->Obj.magic)(. input) {
+          | Ok(value) => value
+          | Error(reason) => Error.Internal.raise(OperationFailed(reason))
+          }
         })
       | None => Action.missingSerializer
       },
@@ -641,18 +616,17 @@ let superTransform = (
   ~serializer as maybeTransformationSerializer=?,
   (),
 ) => {
-  if maybeTransformationParser === None && maybeTransformationSerializer === None {
-    Error.MissingParserAndSerializer.raise(`struct factory Transform`)
+  if maybeTransformationParser == None && maybeTransformationSerializer == None {
+    Error.MissingParserAndSerializer.panic(`struct factory Transform`)
   }
 
   let parseAction = switch maybeTransformationParser {
   | Some(transformationParser) =>
     Action.transform((~input, ~struct, ~mode) => {
-      (transformationParser->Obj.magic)(.
-        ~value=input,
-        ~struct,
-        ~mode,
-      )->Lib.Result.mapError(public => public->Error.Internal.fromPublic)
+      switch (transformationParser->Obj.magic)(. ~value=input, ~struct, ~mode) {
+      | Ok(transformed) => transformed
+      | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
+      }
     })
   | None => Action.missingParser
   }
@@ -664,10 +638,10 @@ let superTransform = (
       switch maybeTransformationSerializer {
       | Some(transformationSerializer) =>
         Action.transform((~input, ~struct as _, ~mode as _) => {
-          (transformationSerializer->Obj.magic)(.
-            ~transformed=input,
-            ~struct,
-          )->Lib.Result.mapError(public => public->Error.Internal.fromPublic)
+          switch (transformationSerializer->Obj.magic)(. ~transformed=input, ~struct) {
+          | Ok(value) => value
+          | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
+          }
         })
       | None => Action.missingSerializer
       },
@@ -678,17 +652,18 @@ let superTransform = (
 }
 
 let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializer=?, ()) => {
-  if maybeCustomParser === None && maybeCustomSerializer === None {
-    Error.MissingParserAndSerializer.raise(`Custom struct factory`)
+  if maybeCustomParser == None && maybeCustomSerializer == None {
+    Error.MissingParserAndSerializer.panic(`Custom struct factory`)
   }
 
   let parseActions = [
     switch maybeCustomParser {
     | Some(customParser) =>
       Action.transform((~input, ~struct as _, ~mode) => {
-        customParser(. ~unknown=input, ~mode)->Lib.Result.mapError(public =>
-          public->Error.Internal.fromPublic
-        )
+        switch customParser(. ~unknown=input, ~mode) {
+        | Ok(value) => value->unsafeAnyToUnknown
+        | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
+        }
       })
     | None => Action.missingParser
     },
@@ -702,9 +677,10 @@ let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializ
       switch maybeCustomSerializer {
       | Some(customSerializer) =>
         Action.transform((~input, ~struct as _, ~mode as _) => {
-          customSerializer(. ~value=input)->Lib.Result.mapError(public =>
-            public->Error.Internal.fromPublic
-          )
+          switch customSerializer(. ~value=input) {
+          | Ok(value) => value->unsafeAnyToUnknown
+          | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
+          }
         })
       | None => Action.missingSerializer
       },
@@ -718,91 +694,81 @@ module Literal = {
     module Parser = {
       let literalValueRefinement = Action.refine((~input, ~struct, ~mode as _) => {
         let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
-        switch expectedValue === input {
-        | true => None
-        | false =>
-          Some(Error.Internal.UnexpectedValue.make(~expected=expectedValue, ~received=input))
+        if expectedValue !== input {
+          Error.Internal.UnexpectedValue.raise(~expected=expectedValue, ~received=input)
         }
       })
     }
 
     let transformToLiteralValue = Action.transform((~input as _, ~struct, ~mode as _) => {
-      let literalValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
-      Ok(literalValue)
+      struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
     })
   }
 
   module EmptyNull = {
     let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-      switch input === Js.Null.empty {
-      | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct))
+      if input !== Js.Null.empty {
+        raiseUnexpectedTypeError(~input, ~struct)
       }
     })
 
     let serializerTransform = Action.transform((~input as _, ~struct as _, ~mode as _) => {
-      Ok(Js.Null.empty)
+      Js.Null.empty->unsafeAnyToUnknown
     })
   }
 
   module EmptyOption = {
     let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-      switch input === Js.Undefined.empty {
-      | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct))
+      if input !== Js.Undefined.empty {
+        raiseUnexpectedTypeError(~input, ~struct)
       }
     })
 
     let serializerTransform = Action.transform((~input as _, ~struct as _, ~mode as _) => {
-      Ok(Js.Undefined.empty)
+      Js.Undefined.empty->unsafeAnyToUnknown
     })
   }
 
   module NaN = {
     let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-      switch Js.Float.isNaN(input) {
-      | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct))
+      if !Js.Float.isNaN(input) {
+        raiseUnexpectedTypeError(~input, ~struct)
       }
     })
 
     let serializerTransform = Action.transform((~input as _, ~struct as _, ~mode as _) => {
-      Ok(Js.Float._NaN)
+      Js.Float._NaN->unsafeAnyToUnknown
     })
   }
 
   module Bool = {
     let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-      switch input->Js.typeof === "boolean" {
-      | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct))
+      if input->Js.typeof !== "boolean" {
+        raiseUnexpectedTypeError(~input, ~struct)
       }
     })
   }
 
   module String = {
     let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-      switch input->Js.typeof === "string" {
-      | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct))
+      if input->Js.typeof !== "string" {
+        raiseUnexpectedTypeError(~input, ~struct)
       }
     })
   }
 
   module Float = {
     let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-      switch input->Js.typeof === "number" {
-      | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct))
+      if input->Js.typeof !== "number" {
+        raiseUnexpectedTypeError(~input, ~struct)
       }
     })
   }
 
   module Int = {
     let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-      switch Lib.Int.test(input) {
-      | true => None
-      | false => Some(makeUnexpectedTypeError(~input, ~struct))
+      if !Lib.Int.test(input) {
+        raiseUnexpectedTypeError(~input, ~struct)
       }
     })
   }
@@ -813,17 +779,13 @@ module Literal = {
       (innerLiteral, variant) => {
         let tagged_t = Literal(innerLiteral)
         let parserTransform = Action.transform((~input as _, ~struct as _, ~mode as _) => {
-          Ok(variant)
+          variant->unsafeAnyToUnknown
         })
         let serializerRefinement = Action.refine((~input, ~struct as _, ~mode as _) => {
-          switch input === variant {
-          | true => None
-          | false =>
-            Some(
-              Error.Internal.UnexpectedValue.make(
-                ~expected=variant->Obj.magic,
-                ~received=input->Obj.magic,
-              ),
+          if input !== variant {
+            Error.Internal.UnexpectedValue.raise(
+              ~expected=variant->Obj.magic,
+              ~received=input->Obj.magic,
             )
           }
         })
@@ -940,55 +902,38 @@ module Record = {
 
   let parseActions = [
     Action.transform((~input, ~struct, ~mode) => {
-      let maybeRefinementError = switch mode {
-      | Safe =>
-        switch input->Lib.Object.test {
-        | true => None
-        | false => Some(makeUnexpectedTypeError(~input, ~struct))
-        }
-      | Migration => None
+      if mode == Safe && input->Lib.Object.test == false {
+        raiseUnexpectedTypeError(~input, ~struct)
       }
-      switch maybeRefinementError {
-      | None =>
-        let {fields, fieldNames, unknownKeys} = struct->classify->Obj.magic
 
-        let newArray = []
-        let idxRef = ref(0)
-        let maybeErrorRef = ref(None)
-        while idxRef.contents < fieldNames->Js.Array2.length && maybeErrorRef.contents === None {
-          let idx = idxRef.contents
-          let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-          let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-          let fieldData = input->Js.Dict.unsafeGet(fieldName)
-          switch fieldStruct->getParseOperation(~mode) {
-          | Noop => {
-              newArray->Js.Array2.push(fieldData)->ignore
-              idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-            }
-          | Sync(fn) =>
-            switch fn(. fieldData) {
-            | Ok(value) => {
-                newArray->Js.Array2.push(value)->ignore
-                idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-              }
-            | Error(error) =>
-              maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(fieldName))
-            }
+      let {fields, fieldNames, unknownKeys} = struct->classify->Obj.magic
+
+      let newArray = []
+      for idx in 0 to fieldNames->Js.Array2.length - 1 {
+        let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+        let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+        let fieldData = input->Js.Dict.unsafeGet(fieldName)
+        switch fieldStruct->getParseOperation(~mode) {
+        | Noop => newArray->Js.Array2.push(fieldData)->ignore
+        | Sync(fn) =>
+          try {
+            let value = fn(. fieldData)
+            newArray->Js.Array2.push(value)->ignore
+          } catch {
+          | Error.Internal.Exception(internalError) =>
+            raise(
+              Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName)),
+            )
           }
         }
-        if unknownKeys == Strict && mode == Safe && maybeErrorRef.contents === None {
-          switch getMaybeExcessKey(. input, fields) {
-          | Some(excessKey) =>
-            maybeErrorRef.contents = Some(Error.Internal.make(ExcessField(excessKey)))
-          | None => ()
-          }
-        }
-        switch maybeErrorRef.contents {
-        | Some(error) => Error(error)
-        | None => newArray->Lib.Array.toTuple->Ok
-        }
-      | Some(error) => Error(error)
       }
+      if unknownKeys == Strict && mode == Safe {
+        switch getMaybeExcessKey(. input, fields) {
+        | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
+        | None => ()
+        }
+      }
+      newArray->Lib.Array.toTuple
     }),
   ]
 
@@ -998,35 +943,25 @@ module Record = {
 
       let unknown = Js.Dict.empty()
       let fieldValues = fieldNames->Js.Array2.length <= 1 ? [input]->Obj.magic : input->Obj.magic
-
-      let idxRef = ref(0)
-      let maybeErrorRef = ref(None)
-      while idxRef.contents < fieldNames->Js.Array2.length && maybeErrorRef.contents === None {
-        let idx = idxRef.contents
+      for idx in 0 to fieldNames->Js.Array2.length - 1 {
         let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
         let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
         let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
         switch fieldStruct.serialize {
-        | Noop => {
-            unknown->Js.Dict.set(fieldName, fieldValue)
-            idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-          }
+        | Noop => unknown->Js.Dict.set(fieldName, fieldValue)
         | Sync(fn) =>
-          switch fn(. fieldValue) {
-          | Ok(fieldData) => {
-              unknown->Js.Dict.set(fieldName, fieldData)
-              idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-            }
-          | Error(error) =>
-            maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(fieldName))
+          try {
+            let fieldData = fn(. fieldValue)
+            unknown->Js.Dict.set(fieldName, fieldData)
+          } catch {
+          | Error.Internal.Exception(internalError) =>
+            raise(
+              Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName)),
+            )
           }
         }
       }
-
-      switch maybeErrorRef.contents {
-      | Some(error) => Error(error)
-      | None => Ok(unknown)
-      }
+      unknown->unsafeAnyToUnknown
     }),
   ]
 
@@ -1056,7 +991,7 @@ module Record = {
         ~metadata=?struct.maybeMetadata,
         (),
       )
-    | _ => Error.UnknownKeysRequireRecord.raise()
+    | _ => Error.UnknownKeysRequireRecord.panic()
     }
   }
 
@@ -1072,7 +1007,7 @@ module Record = {
         ~metadata=?struct.maybeMetadata,
         (),
       )
-    | _ => Error.UnknownKeysRequireRecord.raise()
+    | _ => Error.UnknownKeysRequireRecord.panic()
     }
   }
 }
@@ -1080,7 +1015,7 @@ module Record = {
 module Never = {
   let actions = [
     Action.refine((~input, ~struct, ~mode as _) => {
-      Some(makeUnexpectedTypeError(~input, ~struct))
+      raiseUnexpectedTypeError(~input, ~struct)
     }),
   ]
 
@@ -1113,9 +1048,8 @@ module String = {
   let emailRegex = %re(`/^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i`)
 
   let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-    switch input->Js.typeof === "string" {
-    | true => None
-    | false => Some(makeUnexpectedTypeError(~input, ~struct))
+    if input->Js.typeof !== "string" {
+      raiseUnexpectedTypeError(~input, ~struct)
     }
   })
 
@@ -1159,7 +1093,7 @@ module String = {
 
   let length = (struct, ~message as maybeMessage=?, length) => {
     let refiner = value =>
-      switch value->Js.String2.length === length {
+      switch value->Js.String2.length == length {
       | false =>
         Some(
           maybeMessage->Belt.Option.getWithDefault(
@@ -1226,9 +1160,8 @@ module String = {
 
 module Bool = {
   let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-    switch input->Js.typeof === "boolean" {
-    | true => None
-    | false => Some(makeUnexpectedTypeError(~input, ~struct))
+    if input->Js.typeof !== "boolean" {
+      raiseUnexpectedTypeError(~input, ~struct)
     }
   })
 
@@ -1245,9 +1178,8 @@ module Bool = {
 
 module Int = {
   let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-    switch Lib.Int.test(input) {
-    | true => None
-    | false => Some(makeUnexpectedTypeError(~input, ~struct))
+    if !Lib.Int.test(input) {
+      raiseUnexpectedTypeError(~input, ~struct)
     }
   })
 
@@ -1292,13 +1224,12 @@ module Int = {
 
 module Float = {
   let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-    switch input->Js.typeof === "number" {
+    switch input->Js.typeof == "number" {
     | true =>
-      switch Js.Float.isNaN(input) {
-      | true => Some(makeUnexpectedTypeError(~input, ~struct))
-      | false => None
+      if Js.Float.isNaN(input) {
+        raiseUnexpectedTypeError(~input, ~struct)
       }
-    | false => Some(makeUnexpectedTypeError(~input, ~struct))
+    | false => raiseUnexpectedTypeError(~input, ~struct)
     }
   })
 
@@ -1319,9 +1250,8 @@ module Float = {
 module Date = {
   let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
     let factory = struct->classify->unsafeGetVariantPayload
-    switch factory->Lib.Factory.factoryOf(input) && !(input->Js.Date.getTime->Js.Float.isNaN) {
-    | true => None
-    | false => Some(makeUnexpectedTypeError(~input, ~struct))
+    if !(factory->Lib.Factory.factoryOf(input) && !(input->Js.Date.getTime->Js.Float.isNaN)) {
+      raiseUnexpectedTypeError(~input, ~struct)
     }
   })
 
@@ -1340,15 +1270,12 @@ module Null = {
   let parseActions = [
     Action.transform((~input, ~struct, ~mode) => {
       switch input->Js.Null.toOption {
-      | Some(innerValue) =>
+      | Some(innerData) =>
         let innerStruct = struct->classify->unsafeGetVariantPayload
-        parseInner(
-          ~struct=innerStruct->Obj.magic,
-          ~any=innerValue,
-          ~mode,
-        )->Lib.Result.map(value => Some(value))
-      | None => Ok(None)
-      }
+        let value = parseInner(~struct=innerStruct->Obj.magic, ~any=innerData, ~mode)
+        Some(value)
+      | None => None
+      }->unsafeAnyToUnknown
     }),
   ]
 
@@ -1358,7 +1285,7 @@ module Null = {
       | Some(value) =>
         let innerStruct = struct->classify->unsafeGetVariantPayload
         serializeInner(~struct=innerStruct->Obj.magic, ~value)
-      | None => Js.Null.empty->unsafeAnyToUnknown->Ok
+      | None => Js.Null.empty->unsafeAnyToUnknown
       }
     }),
   ]
@@ -1378,13 +1305,12 @@ module Option = {
   let parseActions = [
     Action.transform((~input, ~struct, ~mode) => {
       switch input {
-      | Some(innerValue) =>
+      | Some(innerData) =>
         let innerStruct = struct->classify->unsafeGetVariantPayload
-        parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Lib.Result.map(value => Some(
-          value,
-        ))
-      | None => Ok(None)
-      }
+        let value = parseInner(~struct=innerStruct, ~any=innerData, ~mode)
+        Some(value)
+      | None => None
+      }->unsafeAnyToUnknown
     }),
   ]
 
@@ -1395,7 +1321,7 @@ module Option = {
           let innerStruct = struct->classify->unsafeGetVariantPayload
           serializeInner(~struct=innerStruct, ~value)
         }
-      | None => Ok(%raw(`undefined`))
+      | None => Js.Undefined.empty->unsafeAnyToUnknown
       }
     }),
   ]
@@ -1417,13 +1343,12 @@ module Deprecated = {
   let parseActions = [
     Action.transform((~input, ~struct, ~mode) => {
       switch input {
-      | Some(innerValue) =>
+      | Some(innerData) =>
         let {struct: innerStruct} = struct->classify->Obj.magic
-        parseInner(~struct=innerStruct, ~any=innerValue, ~mode)->Lib.Result.map(value => Some(
-          value,
-        ))
-      | None => Ok(input)
-      }
+        let value = parseInner(~struct=innerStruct, ~any=innerData, ~mode)
+        Some(value)
+      | None => input
+      }->unsafeAnyToUnknown
     }),
   ]
 
@@ -1434,7 +1359,7 @@ module Deprecated = {
           let {struct: innerStruct} = struct->classify->Obj.magic
           serializeInner(~struct=innerStruct, ~value)
         }
-      | None => Ok(%raw(`undefined`))
+      | None => %raw(`undefined`)
       }
     }),
   ]
@@ -1453,42 +1378,32 @@ module Deprecated = {
 module Array = {
   let parseActions = [
     Action.transform((~input, ~struct, ~mode) => {
-      let maybeRefinementError = switch mode {
-      | Safe =>
-        switch Js.Array2.isArray(input) {
-        | true => None
-        | false => Some(makeUnexpectedTypeError(~input, ~struct))
-        }
-      | Migration => None
+      if mode == Safe && Js.Array2.isArray(input) == false {
+        raiseUnexpectedTypeError(~input, ~struct)
       }
-      switch maybeRefinementError {
-      | None => {
-          let innerStruct = struct->classify->unsafeGetVariantPayload
 
-          let newArray = []
-          let idxRef = ref(0)
-          let maybeErrorRef = ref(None)
-          while idxRef.contents < input->Js.Array2.length && maybeErrorRef.contents === None {
-            let idx = idxRef.contents
-            let innerValue = input->Js.Array2.unsafe_get(idx)
-            switch parseInner(~struct=innerStruct, ~any=innerValue, ~mode) {
-            | Ok(value) => {
-                newArray->Js.Array2.push(value)->ignore
-                idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-              }
-            | Error(error) =>
-              maybeErrorRef.contents = Some(
-                error->Error.Internal.prependLocation(idx->Js.Int.toString),
-              )
-            }
-          }
-          switch maybeErrorRef.contents {
-          | Some(error) => Error(error)
-          | None => Ok(newArray)
+      let innerStruct = struct->classify->unsafeGetVariantPayload
+
+      let newArray = []
+      for idx in 0 to input->Js.Array2.length - 1 {
+        let innerData = input->Js.Array2.unsafe_get(idx)
+        switch innerStruct->getParseOperation(~mode) {
+        | Noop => newArray->Js.Array2.push(innerData)->ignore
+        | Sync(fn) =>
+          try {
+            let value = fn(. innerData)
+            newArray->Js.Array2.push(value)->ignore
+          } catch {
+          | Error.Internal.Exception(internalError) =>
+            raise(
+              Error.Internal.Exception(
+                internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+              ),
+            )
           }
         }
-      | Some(error) => Error(error)
       }
+      newArray->unsafeAnyToUnknown
     }),
   ]
 
@@ -1497,33 +1412,25 @@ module Array = {
       let innerStruct = struct->classify->unsafeGetVariantPayload
 
       let newArray = []
-      let idxRef = ref(0)
-      let maybeErrorRef = ref(None)
-      while idxRef.contents < input->Js.Array2.length && maybeErrorRef.contents === None {
-        let idx = idxRef.contents
-        let innerValue = input->Js.Array2.unsafe_get(idx)
+      for idx in 0 to input->Js.Array2.length - 1 {
+        let innerData = input->Js.Array2.unsafe_get(idx)
         switch innerStruct.serialize {
-        | Noop => {
-            newArray->Js.Array2.push(innerValue)->ignore
-            idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-          }
+        | Noop => newArray->Js.Array2.push(innerData)->ignore
         | Sync(fn) =>
-          switch fn(. innerValue) {
-          | Ok(value) => {
-              newArray->Js.Array2.push(value)->ignore
-              idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-            }
-          | Error(error) =>
-            maybeErrorRef.contents = Some(
-              error->Error.Internal.prependLocation(idx->Js.Int.toString),
+          try {
+            let value = fn(. innerData)
+            newArray->Js.Array2.push(value)->ignore
+          } catch {
+          | Error.Internal.Exception(internalError) =>
+            raise(
+              Error.Internal.Exception(
+                internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+              ),
             )
           }
         }
       }
-      switch maybeErrorRef.contents {
-      | Some(error) => Error(error)
-      | None => Ok(newArray)
-      }
+      newArray->unsafeAnyToUnknown
     }),
   ]
 
@@ -1567,7 +1474,7 @@ module Array = {
 
   let length = (struct, ~message as maybeMessage=?, length) => {
     let refiner = value =>
-      switch value->Js.Array2.length === length {
+      switch value->Js.Array2.length == length {
       | false =>
         Some(
           maybeMessage->Belt.Option.getWithDefault(
@@ -1583,42 +1490,30 @@ module Array = {
 module Dict = {
   let parseActions = [
     Action.transform((~input, ~struct, ~mode) => {
-      let maybeRefinementError = switch mode {
-      | Safe =>
-        switch input->Lib.Object.test {
-        | true => None
-        | false => Some(makeUnexpectedTypeError(~input, ~struct))
-        }
-      | Migration => None
+      if mode == Safe && input->Lib.Object.test == false {
+        raiseUnexpectedTypeError(~input, ~struct)
       }
-      switch maybeRefinementError {
-      | None => {
-          let innerStruct = struct->classify->unsafeGetVariantPayload
 
-          let newDict = Js.Dict.empty()
-          let keys = input->Js.Dict.keys
-          let idxRef = ref(0)
-          let maybeErrorRef = ref(None)
-          while idxRef.contents < keys->Js.Array2.length && maybeErrorRef.contents === None {
-            let idx = idxRef.contents
-            let key = keys->Js.Array2.unsafe_get(idx)
-            let innerValue = input->Js.Dict.unsafeGet(key)
-            switch parseInner(~struct=innerStruct, ~any=innerValue, ~mode) {
-            | Ok(value) => {
-                newDict->Js.Dict.set(key, value)->ignore
-                idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-              }
-            | Error(error) =>
-              maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(key))
-            }
-          }
-          switch maybeErrorRef.contents {
-          | Some(error) => Error(error)
-          | None => Ok(newDict)
+      let innerStruct = struct->classify->unsafeGetVariantPayload
+
+      let newDict = Js.Dict.empty()
+      let keys = input->Js.Dict.keys
+      for idx in 0 to keys->Js.Array2.length - 1 {
+        let key = keys->Js.Array2.unsafe_get(idx)
+        let innerData = input->Js.Dict.unsafeGet(key)
+        switch innerStruct->getParseOperation(~mode) {
+        | Noop => newDict->Js.Dict.set(key, innerData)->ignore
+        | Sync(fn) =>
+          try {
+            let value = fn(. innerData)
+            newDict->Js.Dict.set(key, value)->ignore
+          } catch {
+          | Error.Internal.Exception(internalError) =>
+            raise(Error.Internal.Exception(internalError->Error.Internal.prependLocation(key)))
           }
         }
-      | Some(error) => Error(error)
       }
+      newDict->unsafeAnyToUnknown
     }),
   ]
 
@@ -1628,32 +1523,22 @@ module Dict = {
 
       let newDict = Js.Dict.empty()
       let keys = input->Js.Dict.keys
-      let idxRef = ref(0)
-      let maybeErrorRef = ref(None)
-      while idxRef.contents < keys->Js.Array2.length && maybeErrorRef.contents === None {
-        let idx = idxRef.contents
+      for idx in 0 to keys->Js.Array2.length - 1 {
         let key = keys->Js.Array2.unsafe_get(idx)
-        let innerValue = input->Js.Dict.unsafeGet(key)
+        let innerData = input->Js.Dict.unsafeGet(key)
         switch innerStruct.serialize {
-        | Noop => {
-            newDict->Js.Dict.set(key, innerValue)->ignore
-            idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-          }
+        | Noop => newDict->Js.Dict.set(key, innerData)->ignore
         | Sync(fn) =>
-          switch fn(. innerValue) {
-          | Ok(value) => {
-              newDict->Js.Dict.set(key, value)->ignore
-              idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-            }
-          | Error(error) =>
-            maybeErrorRef.contents = Some(error->Error.Internal.prependLocation(key))
+          try {
+            let value = fn(. innerData)
+            newDict->Js.Dict.set(key, value)->ignore
+          } catch {
+          | Error.Internal.Exception(internalError) =>
+            raise(Error.Internal.Exception(internalError->Error.Internal.prependLocation(key)))
           }
         }
       }
-      switch maybeErrorRef.contents {
-      | Some(error) => Error(error)
-      | None => Ok(newDict)
-      }
+      newDict->unsafeAnyToUnknown
     }),
   ]
 
@@ -1674,12 +1559,10 @@ module Default = {
   let parseActions = [
     Action.transform((~input, ~struct, ~mode) => {
       let {struct: innerStruct, value} = struct->classify->Obj.magic
-      parseInner(~struct=innerStruct, ~any=input, ~mode)->Lib.Result.map(maybeOutput =>
-        switch maybeOutput {
-        | Some(output) => output
-        | None => value
-        }
-      )
+      switch parseInner(~struct=innerStruct, ~any=input, ~mode) {
+      | Some(output) => output
+      | None => value
+      }
     }),
   ]
 
@@ -1706,58 +1589,46 @@ module Tuple = {
     Action.transform((~input, ~struct, ~mode) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
       let numberOfStructs = innerStructs->Js.Array2.length
-      let maybeRefinementError = switch mode {
-      | Safe =>
+      if mode == Safe {
         switch Js.Array2.isArray(input) {
         | true =>
           let numberOfInputItems = input->Js.Array2.length
-          switch numberOfStructs === numberOfInputItems {
-          | true => None
-          | false =>
-            Some(
-              Error.Internal.make(
-                TupleSize({
-                  expected: numberOfStructs,
-                  received: numberOfInputItems,
-                }),
+          if numberOfStructs !== numberOfInputItems {
+            Error.Internal.raise(
+              TupleSize({
+                expected: numberOfStructs,
+                received: numberOfInputItems,
+              }),
+            )
+          }
+        | false => raiseUnexpectedTypeError(~input, ~struct)
+        }
+      }
+
+      let newArray = []
+      for idx in 0 to numberOfStructs - 1 {
+        let innerData = input->Js.Array2.unsafe_get(idx)
+        let innerStruct = innerStructs->Js.Array2.unsafe_get(idx)
+        switch innerStruct->getParseOperation(~mode) {
+        | Noop => newArray->Js.Array2.push(innerData)->ignore
+        | Sync(fn) =>
+          try {
+            let value = fn(. innerData)
+            newArray->Js.Array2.push(value)->ignore
+          } catch {
+          | Error.Internal.Exception(internalError) =>
+            raise(
+              Error.Internal.Exception(
+                internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
               ),
             )
           }
-        | false => Some(makeUnexpectedTypeError(~input, ~struct))
         }
-      | Migration => None
       }
-      switch maybeRefinementError {
-      | None => {
-          let newArray = []
-          let idxRef = ref(0)
-          let maybeErrorRef = ref(None)
-          while idxRef.contents < numberOfStructs && maybeErrorRef.contents === None {
-            let idx = idxRef.contents
-            let innerValue = input->Js.Array2.unsafe_get(idx)
-            let innerStruct = innerStructs->Js.Array2.unsafe_get(idx)
-            switch parseInner(~struct=innerStruct, ~any=innerValue, ~mode) {
-            | Ok(value) => {
-                newArray->Js.Array2.push(value)->ignore
-                idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-              }
-            | Error(error) =>
-              maybeErrorRef.contents = Some(
-                error->Error.Internal.prependLocation(idx->Js.Int.toString),
-              )
-            }
-          }
-          switch maybeErrorRef.contents {
-          | Some(error) => Error(error)
-          | None =>
-            switch numberOfStructs {
-            | 0 => ()->Obj.magic
-            | 1 => newArray->Js.Array2.unsafe_get(0)->Obj.magic
-            | _ => newArray
-            }->Ok
-          }
-        }
-      | Some(error) => Error(error)
+      switch numberOfStructs {
+      | 0 => ()->unsafeAnyToUnknown
+      | 1 => newArray->Js.Array2.unsafe_get(0)->unsafeAnyToUnknown
+      | _ => newArray->unsafeAnyToUnknown
       }
     }),
   ]
@@ -1766,37 +1637,29 @@ module Tuple = {
     Action.transform((~input, ~struct, ~mode as _) => {
       let innerStructs = struct->classify->unsafeGetVariantPayload
       let numberOfStructs = innerStructs->Js.Array2.length
-      let inputArray = numberOfStructs === 1 ? [input->Obj.magic] : input
+      let inputArray = numberOfStructs == 1 ? [input->Obj.magic] : input
 
       let newArray = []
-      let idxRef = ref(0)
-      let maybeErrorRef = ref(None)
-      while idxRef.contents < numberOfStructs && maybeErrorRef.contents === None {
-        let idx = idxRef.contents
-        let innerValue = inputArray->Js.Array2.unsafe_get(idx)
+      for idx in 0 to numberOfStructs - 1 {
+        let innerData = inputArray->Js.Array2.unsafe_get(idx)
         let innerStruct = innerStructs->Js.Array.unsafe_get(idx)
         switch innerStruct.serialize {
-        | Noop => {
-            newArray->Js.Array2.push(innerValue)->ignore
-            idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-          }
+        | Noop => newArray->Js.Array2.push(innerData)->ignore
         | Sync(fn) =>
-          switch fn(. innerValue) {
-          | Ok(value) => {
-              newArray->Js.Array2.push(value)->ignore
-              idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-            }
-          | Error(error) =>
-            maybeErrorRef.contents = Some(
-              error->Error.Internal.prependLocation(idx->Js.Int.toString),
+          try {
+            let value = fn(. innerData)
+            newArray->Js.Array2.push(value)->ignore
+          } catch {
+          | Error.Internal.Exception(internalError) =>
+            raise(
+              Error.Internal.Exception(
+                internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+              ),
             )
           }
         }
       }
-      switch maybeErrorRef.contents {
-      | Some(error) => Error(error)
-      | None => Ok(newArray)
-      }
+      newArray->unsafeAnyToUnknown
     }),
   ]
 
@@ -1820,34 +1683,38 @@ module Union = {
 
       let idxRef = ref(0)
       let maybeErrorsRef = ref(None)
-      let maybeOkRef = ref(None)
-      while idxRef.contents < innerStructs->Js.Array2.length && maybeOkRef.contents === None {
+      let maybeNewValueRef = ref(None)
+      while idxRef.contents < innerStructs->Js.Array2.length && maybeNewValueRef.contents == None {
         let idx = idxRef.contents
         let innerStruct = innerStructs->Js.Array2.unsafe_get(idx)
-        switch parseInner(~struct=innerStruct, ~any=input, ~mode=Safe) {
-        | Ok(_) as ok => maybeOkRef.contents = Some(ok)
-        | Error(error) => {
-            let errors = switch maybeErrorsRef.contents {
-            | Some(v) => v
-            | None => {
-                let newErrosArray = []
-                maybeErrorsRef.contents = Some(newErrosArray)
-                newErrosArray
+        switch innerStruct->getParseOperation(~mode=Safe) {
+        | Noop => maybeNewValueRef.contents = Some(input)
+        | Sync(fn) =>
+          try {
+            let newValue = fn(. input)
+            maybeNewValueRef.contents = Some(newValue)
+          } catch {
+          | Error.Internal.Exception(internalError) => {
+              let errors = switch maybeErrorsRef.contents {
+              | Some(v) => v
+              | None => {
+                  let newErrosArray = []
+                  maybeErrorsRef.contents = Some(newErrosArray)
+                  newErrosArray
+                }
               }
+              errors->Js.Array2.push(internalError)->ignore
+              idxRef.contents = idxRef.contents->Lib.Int.plus(1)
             }
-            errors->Js.Array2.push(error)->ignore
-            idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
         }
       }
-      switch maybeOkRef.contents {
-      | Some(ok) => ok
+      switch maybeNewValueRef.contents {
+      | Some(newValue) => newValue
       | None =>
         switch maybeErrorsRef.contents {
         | Some(errors) =>
-          Error(
-            Error.Internal.make(InvalidUnion(errors->Js.Array2.map(Error.Internal.toParseError))),
-          )
+          Error.Internal.raise(InvalidUnion(errors->Js.Array2.map(Error.Internal.toParseError)))
         | None => %raw(`undefined`)
         }
       }
@@ -1860,23 +1727,25 @@ module Union = {
 
       let idxRef = ref(0)
       let maybeLastErrorRef = ref(None)
-      let maybeOkRef = ref(None)
-      while idxRef.contents < innerStructs->Js.Array2.length && maybeOkRef.contents === None {
+      let maybeNewValueRef = ref(None)
+      while idxRef.contents < innerStructs->Js.Array2.length && maybeNewValueRef.contents == None {
         let idx = idxRef.contents
         let innerStruct = innerStructs->Js.Array2.unsafe_get(idx)
-        switch serializeInner(~struct=innerStruct, ~value=input) {
-        | Ok(_) as ok => maybeOkRef.contents = Some(ok)
-        | Error(_) as error => {
-            maybeLastErrorRef.contents = Some(error)
+        try {
+          let newValue = serializeInner(~struct=innerStruct, ~value=input)
+          maybeNewValueRef.contents = Some(newValue)
+        } catch {
+        | Error.Internal.Exception(internalError) => {
+            maybeLastErrorRef.contents = Some(internalError)
             idxRef.contents = idxRef.contents->Lib.Int.plus(1)
           }
         }
       }
-      switch maybeOkRef.contents {
+      switch maybeNewValueRef.contents {
       | Some(ok) => ok
       | None =>
         switch maybeLastErrorRef.contents {
-        | Some(error) => error
+        | Some(error) => raise(Error.Internal.Exception(error))
         | None => %raw(`undefined`)
         }
       }
@@ -1885,7 +1754,7 @@ module Union = {
 
   let factory = structs => {
     if structs->Js.Array2.length < 2 {
-      Error.UnionLackingStructs.raise()
+      Error.UnionLackingStructs.panic()
     }
     make(
       ~tagged_t=Union(structs),
@@ -1994,7 +1863,7 @@ module Result = {
   let getExn = result => {
     switch result {
     | Ok(value) => value
-    | Error(error) => Error.raise(error->Error.toString)
+    | Error(error) => Error.panic(error->Error.toString)
     }
   }
 
