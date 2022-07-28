@@ -227,3 +227,22 @@ test("Fails to parse record item when it's not valid", t => {
     (),
   )
 })
+
+test(
+  "Record fields are in correct order when field structs have different operation types. We keep originalIdx to make it work",
+  t => {
+    let any = {
+      "noopOp1": 1,
+      "syncOp1": 2,
+      "noopOp2": 3,
+    }
+
+    let struct = S.record3(.
+      ("noopOp1", S.int()),
+      ("syncOp1", S.int()->S.transform(~parser=v => v->Ok, ())),
+      ("noopOp2", S.int()),
+    )
+
+    t->Assert.deepEqual(any->S.parseWith(~mode=Migration, struct), Ok((1, 2, 3)), ())
+  },
+)
