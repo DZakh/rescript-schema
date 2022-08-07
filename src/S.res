@@ -326,7 +326,7 @@ type recordUnknownKeys =
 type operation =
   | Noop
   | Sync((. unknown) => unknown)
-  | Async((. unknown) => Js.Promise.t<unknown>)
+  | Async((. unknown, . unit) => Js.Promise.t<unknown>)
 type parseOperations = {
   // Keys are the inlined mode variant
   @as("0")
@@ -491,28 +491,31 @@ let makeOperation = (~struct, ~actions, ~mode) => {
     | Some(asyncAffectedActions) =>
       Async(
         (. input) => {
-          let tempOuputRef = ref(syncOperation(. input)->Lib.Promise.resolve)
-          for idx in 0 to asyncAffectedActions->Js.Array2.length - 1 {
-            let action = asyncAffectedActions->Js.Array2.unsafe_get(idx)
-            tempOuputRef.contents =
-              tempOuputRef.contents->Lib.Promise.then(tempOutput => {
-                switch action {
-                | SyncTransform(fn) =>
-                  fn(. ~input=tempOutput, ~struct=struct->Obj.magic, ~mode)->Lib.Promise.resolve
-                | SyncRefine(fn) =>
-                  fn(. ~input=tempOutput, ~struct=struct->Obj.magic, ~mode)
-                  tempOutput->Lib.Promise.resolve
-                | AsyncRefine(fn) =>
-                  fn(.
-                    ~input=tempOutput,
-                    ~struct=struct->Obj.magic,
-                    ~mode,
-                  )->Lib.Promise.thenResolve(() => tempOutput)
-                | AsyncTransform(fn) => fn(. ~input=tempOutput, ~struct=struct->Obj.magic, ~mode)
-                }
-              })
+          let syncOutput = syncOperation(. input)
+          (. ()) => {
+            let tempOuputRef = ref(syncOutput->Lib.Promise.resolve)
+            for idx in 0 to asyncAffectedActions->Js.Array2.length - 1 {
+              let action = asyncAffectedActions->Js.Array2.unsafe_get(idx)
+              tempOuputRef.contents =
+                tempOuputRef.contents->Lib.Promise.then(tempOutput => {
+                  switch action {
+                  | SyncTransform(fn) =>
+                    fn(. ~input=tempOutput, ~struct=struct->Obj.magic, ~mode)->Lib.Promise.resolve
+                  | SyncRefine(fn) =>
+                    fn(. ~input=tempOutput, ~struct=struct->Obj.magic, ~mode)
+                    tempOutput->Lib.Promise.resolve
+                  | AsyncRefine(fn) =>
+                    fn(.
+                      ~input=tempOutput,
+                      ~struct=struct->Obj.magic,
+                      ~mode,
+                    )->Lib.Promise.thenResolve(() => tempOutput)
+                  | AsyncTransform(fn) => fn(. ~input=tempOutput, ~struct=struct->Obj.magic, ~mode)
+                  }
+                })
+            }
+            tempOuputRef.contents
           }
-          tempOuputRef.contents
         },
       )
     }
@@ -569,7 +572,7 @@ let parseAsyncWith = (any, ~mode=Safe, struct) => {
     | Noop => any->Obj.magic->Ok->Lib.Promise.resolve->Ok
     | Sync(fn) => fn(. any->Obj.magic)->Ok->Obj.magic->Lib.Promise.resolve->Ok
     | Async(fn) =>
-      fn(. any->Obj.magic)
+      fn(. any->Obj.magic)(.)
       ->Lib.Promise.thenResolve(value => Ok(value->Obj.magic))
       ->Lib.Promise.catch(exn => {
         switch exn {
@@ -1083,7 +1086,10 @@ module Record = {
         switch fieldStruct->getParseOperation(~mode) {
         | Noop => noopOps->Js.Array2.push((idx, fieldName))->ignore
         | Sync(fn) => syncOps->Js.Array2.push((idx, fieldName, fn))->ignore
-        | Async(fn) => asyncOps->Js.Array2.push((idx, fieldName, fn))->ignore
+        | Async(fn) => {
+            syncOps->Js.Array2.push((idx, fieldName, fn->Obj.magic))->ignore
+            asyncOps->Js.Array2.push((idx, fieldName))->ignore
+          }
         }
       }
       let withAsyncOps = asyncOps->Js.Array2.length > 0
@@ -1093,8 +1099,6 @@ module Record = {
           if mode === Safe && input->Lib.Object.test === false {
             raiseUnexpectedTypeError(~input, ~struct)
           }
-
-          let {unknownKeys} = struct->classify->Obj.magic
 
           let newArray = []
 
@@ -1118,6 +1122,7 @@ module Record = {
             newArray->Lib.Array.set(originalIdx, fieldData)
           }
 
+          let {unknownKeys} = struct->classify->Obj.magic
           if unknownKeys === Strict && mode === Safe {
             switch getMaybeExcessKey(. input, fields) {
             | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
@@ -1125,42 +1130,30 @@ module Record = {
             }
           }
 
-          withAsyncOps
-            ? {"tempArray": newArray, "originalInput": input}->Obj.magic
-            : newArray->Lib.Array.toTuple
+          withAsyncOps ? newArray->unsafeAnyToUnknown : newArray->Lib.Array.toTuple
         }),
       ]
 
       if withAsyncOps {
         parseActions
         ->Js.Array2.push(
-          Action.asyncTransform((~input, ~struct as _, ~mode as _) => {
-            let tempArray = input["tempArray"]
-
+          Action.asyncTransform((~input as tempArray, ~struct as _, ~mode as _) => {
             asyncOps
-            ->Js.Array2.map(((_, fieldName, fn)) => {
-              let fieldData = input["originalInput"]->Js.Dict.unsafeGet(fieldName)
-              try {
-                fn(. fieldData)->Lib.Promise.catch(exn => {
-                  switch exn {
-                  | Error.Internal.Exception(internalError) =>
-                    Error.Internal.Exception(
-                      internalError->Error.Internal.prependLocation(fieldName),
-                    )
-                  | _ => exn
-                  }->Lib.Exn.throw
-                })
-              } catch {
-              | Error.Internal.Exception(internalError) =>
-                Error.Internal.Exception(
-                  internalError->Error.Internal.prependLocation(fieldName),
-                )->Lib.Exn.throw
-              }
+            ->Js.Array2.map(((originalIdx, fieldName)) => {
+              (
+                tempArray->Js.Array2.unsafe_get(originalIdx)->Obj.magic
+              )(.)->Lib.Promise.catch(exn => {
+                switch exn {
+                | Error.Internal.Exception(internalError) =>
+                  Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName))
+                | _ => exn
+                }->Lib.Exn.throw
+              })
             })
             ->Lib.Promise.all
             ->Lib.Promise.thenResolve(asyncFieldValues => {
               asyncFieldValues->Js.Array2.forEachi((fieldValue, idx) => {
-                let (originalIdx, _, _) = asyncOps->Js.Array2.unsafe_get(idx)
+                let (originalIdx, _) = asyncOps->Js.Array2.unsafe_get(idx)
                 tempArray->Lib.Array.set(originalIdx, fieldValue)
               })
               tempArray->unsafeAnyToUnknown
@@ -1484,6 +1477,15 @@ module Null = {
   ]
 
   let factory = innerStruct => {
+    let makeSyncParseAction = fn => {
+      Action.transform((~input, ~struct as _, ~mode as _) => {
+        switch input->Js.Null.toOption {
+        | Some(innerData) => Some(fn(. innerData))
+        | None => None
+        }->unsafeAnyToUnknown
+      })
+    }
+
     let makeParseActions = (~mode) => {
       switch innerStruct->getParseOperation(~mode) {
       | Noop => [
@@ -1491,19 +1493,13 @@ module Null = {
             input->Js.Null.toOption->unsafeAnyToUnknown
           }),
         ]
-      | Sync(fn) => [
-          Action.transform((~input, ~struct as _, ~mode as _) => {
-            switch input->Js.Null.toOption {
-            | Some(innerData) => Some(fn(. innerData))
-            | None => None
-            }->unsafeAnyToUnknown
-          }),
-        ]
+      | Sync(fn) => [makeSyncParseAction(fn)]
       | Async(fn) => [
+          makeSyncParseAction(fn),
           Action.asyncTransform((~input, ~struct as _, ~mode as _) => {
-            switch input->Js.Null.toOption {
-            | Some(innerData) =>
-              fn(. innerData)->Lib.Promise.thenResolve(value => Some(value)->unsafeAnyToUnknown)
+            switch input {
+            | Some(asyncFn) =>
+              asyncFn(.)->Lib.Promise.thenResolve(value => Some(value)->unsafeAnyToUnknown)
             | None => None->unsafeAnyToUnknown->Lib.Promise.resolve
             }
           }),
@@ -1535,22 +1531,25 @@ module Option = {
   ]
 
   let factory = innerStruct => {
+    let makeSyncParseAction = fn => {
+      Action.transform((~input, ~struct as _, ~mode as _) => {
+        switch input {
+        | Some(innerData) => Some(fn(. innerData))
+        | None => None
+        }->unsafeAnyToUnknown
+      })
+    }
+
     let makeParseActions = (~mode) => {
       switch innerStruct->getParseOperation(~mode) {
       | Noop => Action.emptyArray
-      | Sync(fn) => [
-          Action.transform((~input, ~struct as _, ~mode as _) => {
-            switch input {
-            | Some(innerData) => Some(fn(. innerData))
-            | None => None
-            }->unsafeAnyToUnknown
-          }),
-        ]
+      | Sync(fn) => [makeSyncParseAction(fn)]
       | Async(fn) => [
+          makeSyncParseAction(fn),
           Action.asyncTransform((~input, ~struct as _, ~mode as _) => {
             switch input {
-            | Some(innerData) =>
-              fn(. innerData)->Lib.Promise.thenResolve(value => Some(value)->unsafeAnyToUnknown)
+            | Some(asyncFn) =>
+              asyncFn(.)->Lib.Promise.thenResolve(value => Some(value)->unsafeAnyToUnknown)
             | None => None->unsafeAnyToUnknown->Lib.Promise.resolve
             }
           }),
@@ -1579,22 +1578,25 @@ module Deprecated = {
       }),
     ]
 
+    let makeSyncParseAction = fn => {
+      Action.transform((~input, ~struct as _, ~mode as _) => {
+        switch input {
+        | Some(innerData) => Some(fn(. innerData))
+        | None => None
+        }->unsafeAnyToUnknown
+      })
+    }
+
     let makeParseActions = (~mode) => {
       switch innerStruct->getParseOperation(~mode) {
       | Noop => Action.emptyArray
-      | Sync(fn) => [
-          Action.transform((~input, ~struct as _, ~mode as _) => {
-            switch input {
-            | Some(innerData) => Some(fn(. innerData))
-            | None => None
-            }->unsafeAnyToUnknown
-          }),
-        ]
+      | Sync(fn) => [makeSyncParseAction(fn)]
       | Async(fn) => [
+          makeSyncParseAction(fn),
           Action.asyncTransform((~input, ~struct as _, ~mode as _) => {
             switch input {
-            | Some(innerData) =>
-              fn(. innerData)->Lib.Promise.thenResolve(value => Some(value)->unsafeAnyToUnknown)
+            | Some(asyncFn) =>
+              asyncFn(.)->Lib.Promise.thenResolve(value => Some(value)->unsafeAnyToUnknown)
             | None => None->unsafeAnyToUnknown->Lib.Promise.resolve
             }
           }),
@@ -1639,6 +1641,27 @@ module Array = {
     | Async(_) => Error.Unreachable.panic()
     }
 
+    let makeSyncParseAction = fn => {
+      Action.transform((~input, ~struct as _, ~mode as _) => {
+        let newArray = []
+        for idx in 0 to input->Js.Array2.length - 1 {
+          let innerData = input->Js.Array2.unsafe_get(idx)
+          try {
+            let value = fn(. innerData)
+            newArray->Js.Array2.push(value)->ignore
+          } catch {
+          | Error.Internal.Exception(internalError) =>
+            raise(
+              Error.Internal.Exception(
+                internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+              ),
+            )
+          }
+        }
+        newArray->unsafeAnyToUnknown
+      })
+    }
+
     let makeParseActions = (~mode) => {
       let parseActions = []
 
@@ -1656,51 +1679,23 @@ module Array = {
 
       switch innerStruct->getParseOperation(~mode) {
       | Noop => ()
-      | Sync(fn) =>
-        parseActions
-        ->Js.Array2.push(
-          Action.transform((~input, ~struct as _, ~mode as _) => {
-            let newArray = []
-            for idx in 0 to input->Js.Array2.length - 1 {
-              let innerData = input->Js.Array2.unsafe_get(idx)
-              try {
-                let value = fn(. innerData)
-                newArray->Js.Array2.push(value)->ignore
-              } catch {
-              | Error.Internal.Exception(internalError) =>
-                raise(
-                  Error.Internal.Exception(
-                    internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                  ),
-                )
-              }
-            }
-            newArray->unsafeAnyToUnknown
-          }),
-        )
-        ->ignore
+      | Sync(fn) => parseActions->Js.Array2.push(makeSyncParseAction(fn))->ignore
       | Async(fn) =>
+        parseActions->Js.Array2.push(makeSyncParseAction(fn))->ignore
         parseActions
         ->Js.Array2.push(
           Action.asyncTransform((~input, ~struct as _, ~mode as _) => {
             input
-            ->Js.Array2.mapi((innerData, idx) => {
-              try {
-                fn(. innerData)->Lib.Promise.catch(exn => {
-                  switch exn {
-                  | Error.Internal.Exception(internalError) =>
-                    Error.Internal.Exception(
-                      internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                    )
-                  | _ => exn
-                  }->Lib.Exn.throw
-                })
-              } catch {
-              | Error.Internal.Exception(internalError) =>
-                Error.Internal.Exception(
-                  internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                )->Lib.Exn.throw
-              }
+            ->Js.Array2.mapi((asyncFn, idx) => {
+              asyncFn(.)->Lib.Promise.catch(exn => {
+                switch exn {
+                | Error.Internal.Exception(internalError) =>
+                  Error.Internal.Exception(
+                    internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+                  )
+                | _ => exn
+                }->Lib.Exn.throw
+              })
             })
             ->Lib.Promise.all
             ->Obj.magic
@@ -1789,6 +1784,25 @@ module Dict = {
     | Async(_) => Error.Unreachable.panic()
     }
 
+    let makeSyncParseAction = fn => {
+      Action.transform((~input, ~struct as _, ~mode as _) => {
+        let newDict = Js.Dict.empty()
+        let keys = input->Js.Dict.keys
+        for idx in 0 to keys->Js.Array2.length - 1 {
+          let key = keys->Js.Array2.unsafe_get(idx)
+          let innerData = input->Js.Dict.unsafeGet(key)
+          try {
+            let value = fn(. innerData)
+            newDict->Js.Dict.set(key, value)->ignore
+          } catch {
+          | Error.Internal.Exception(internalError) =>
+            raise(Error.Internal.Exception(internalError->Error.Internal.prependLocation(key)))
+          }
+        }
+        newDict->unsafeAnyToUnknown
+      })
+    }
+
     let makeParseActions = (~mode) => {
       let parseActions = []
 
@@ -1806,37 +1820,18 @@ module Dict = {
 
       switch innerStruct->getParseOperation(~mode) {
       | Noop => ()
-      | Sync(fn) =>
-        parseActions
-        ->Js.Array2.push(
-          Action.transform((~input, ~struct as _, ~mode as _) => {
-            let newDict = Js.Dict.empty()
-            let keys = input->Js.Dict.keys
-            for idx in 0 to keys->Js.Array2.length - 1 {
-              let key = keys->Js.Array2.unsafe_get(idx)
-              let innerData = input->Js.Dict.unsafeGet(key)
-              try {
-                let value = fn(. innerData)
-                newDict->Js.Dict.set(key, value)->ignore
-              } catch {
-              | Error.Internal.Exception(internalError) =>
-                raise(Error.Internal.Exception(internalError->Error.Internal.prependLocation(key)))
-              }
-            }
-            newDict->unsafeAnyToUnknown
-          }),
-        )
-        ->ignore
+      | Sync(fn) => parseActions->Js.Array2.push(makeSyncParseAction(fn))->ignore
       | Async(fn) =>
+        parseActions->Js.Array2.push(makeSyncParseAction(fn))->ignore
         parseActions
         ->Js.Array2.push(
           Action.asyncTransform((~input, ~struct as _, ~mode as _) => {
             let keys = input->Js.Dict.keys
             keys
             ->Js.Array2.map(key => {
-              let innerData = input->Js.Dict.unsafeGet(key)
+              let asyncFn = input->Js.Dict.unsafeGet(key)
               try {
-                fn(. innerData)->Lib.Promise.catch(exn => {
+                asyncFn(.)->Lib.Promise.catch(exn => {
                   switch exn {
                   | Error.Internal.Exception(internalError) =>
                     Error.Internal.Exception(internalError->Error.Internal.prependLocation(key))
@@ -1905,7 +1900,7 @@ module Default = {
         ]
       | Async(fn) => [
           Action.asyncTransform((~input, ~struct as _, ~mode as _) => {
-            fn(. input)->Lib.Promise.thenResolve(value => {
+            fn(. input)(.)->Lib.Promise.thenResolve(value => {
               switch value->unsafeUnknownToAny {
               | Some(output) => output
               | None => defaultValue
@@ -1970,7 +1965,10 @@ module Tuple = {
         switch innerStruct->getParseOperation(~mode) {
         | Noop => noopOps->Js.Array2.push(idx)->ignore
         | Sync(fn) => syncOps->Js.Array2.push((idx, fn))->ignore
-        | Async(fn) => asyncOps->Js.Array2.push((idx, fn))->ignore
+        | Async(fn) => {
+            syncOps->Js.Array2.push((idx, fn->Obj.magic))->ignore
+            asyncOps->Js.Array2.push(idx)->ignore
+          }
         }
       }
       let withAsyncOps = asyncOps->Js.Array2.length > 0
@@ -2018,7 +2016,7 @@ module Tuple = {
           }
 
           switch withAsyncOps {
-          | true => {"tempArray": newArray, "originalInput": input}->unsafeAnyToUnknown
+          | true => newArray->unsafeAnyToUnknown
           | false =>
             switch numberOfStructs {
             | 0 => ()->unsafeAnyToUnknown
@@ -2032,33 +2030,25 @@ module Tuple = {
       if withAsyncOps {
         parseActions
         ->Js.Array2.push(
-          Action.asyncTransform((~input, ~struct as _, ~mode as _) => {
-            let tempArray = input["tempArray"]
+          Action.asyncTransform((~input as tempArray, ~struct as _, ~mode as _) => {
             asyncOps
-            ->Js.Array2.map(((originalIdx, fn)) => {
-              let innerData = input["originalInput"]->Js.Array2.unsafe_get(originalIdx)
-
-              try {
-                fn(. innerData)->Lib.Promise.catch(exn => {
-                  switch exn {
-                  | Error.Internal.Exception(internalError) =>
-                    Error.Internal.Exception(
-                      internalError->Error.Internal.prependLocation(originalIdx->Js.Int.toString),
-                    )
-                  | _ => exn
-                  }->Lib.Exn.throw
-                })
-              } catch {
-              | Error.Internal.Exception(internalError) =>
-                Error.Internal.Exception(
-                  internalError->Error.Internal.prependLocation(originalIdx->Js.Int.toString),
-                )->Lib.Exn.throw
-              }
+            ->Js.Array2.map(originalIdx => {
+              (
+                tempArray->Js.Array2.unsafe_get(originalIdx)->Obj.magic
+              )(.)->Lib.Promise.catch(exn => {
+                switch exn {
+                | Error.Internal.Exception(internalError) =>
+                  Error.Internal.Exception(
+                    internalError->Error.Internal.prependLocation(originalIdx->Js.Int.toString),
+                  )
+                | _ => exn
+                }->Lib.Exn.throw
+              })
             })
             ->Lib.Promise.all
             ->Lib.Promise.thenResolve(values => {
               values->Js.Array2.forEachi((value, idx) => {
-                let (originalIdx, _) = asyncOps->Js.Array2.unsafe_get(idx)
+                let originalIdx = asyncOps->Js.Array2.unsafe_get(idx)
                 tempArray->Lib.Array.set(originalIdx, value)
               })
               tempArray->Lib.Array.toTuple->unsafeAnyToUnknown
@@ -2130,8 +2120,8 @@ module Union = {
         let innerStruct = structs->Js.Array2.unsafe_get(idx)
         switch innerStruct->getParseOperation(~mode=Safe) {
         | Noop => noopOps->Js.Array2.push()->ignore
-        | Sync(fn) => syncOps->Js.Array2.push(fn)->ignore
-        | Async(fn) => asyncOps->Js.Array2.push(fn)->ignore
+        | Sync(fn) => syncOps->Js.Array2.push((idx, fn))->ignore
+        | Async(fn) => asyncOps->Js.Array2.push((idx, fn))->ignore
         }
       }
       let withAsyncOps = asyncOps->Js.Array2.length > 0
@@ -2148,13 +2138,13 @@ module Union = {
               idxRef.contents < syncOps->Js.Array2.length && maybeNewValueRef.contents === None
             ) {
               let idx = idxRef.contents
-              let fn = syncOps->Js.Array2.unsafe_get(idx)
+              let (originalIdx, fn) = syncOps->Js.Array2.unsafe_get(idx)
               try {
                 let newValue = fn(. input)
                 maybeNewValueRef.contents = Some(newValue)
               } catch {
               | Error.Internal.Exception(internalError) => {
-                  errorsRef.contents->Js.Array2.push(internalError)->ignore
+                  errorsRef.contents->Lib.Array.set(originalIdx, internalError)
                   idxRef.contents = idxRef.contents->Lib.Int.plus(1)
                 }
               }
@@ -2168,7 +2158,7 @@ module Union = {
             | (maybeSyncValue, true) =>
               {
                 "maybeSyncValue": maybeSyncValue,
-                "syncErrors": errorsRef.contents,
+                "tempErrors": errorsRef.contents,
                 "originalInput": input,
               }->unsafeAnyToUnknown
             }
@@ -2183,29 +2173,29 @@ module Union = {
               | Some(syncValue) => syncValue->Lib.Promise.resolve
               | None =>
                 asyncOps
-                ->Js.Array2.map(fn => {
+                ->Js.Array2.map(((originalIdx, fn)) => {
                   try {
-                    fn(. input["originalInput"])->Lib.Promise.thenResolveWithCatch(
+                    fn(. input["originalInput"])(.)->Lib.Promise.thenResolveWithCatch(
                       value => raise(HackyValidValue(value)),
                       exn =>
                         switch exn {
-                        | Error.Internal.Exception(internalError) => internalError
+                        | Error.Internal.Exception(internalError) =>
+                          input["tempErrors"]->Lib.Array.set(originalIdx, internalError)
                         | _ => exn->Lib.Exn.throw
                         },
                     )
                   } catch {
-                  | Error.Internal.Exception(internalError) => internalError->Lib.Promise.resolve
+                  | Error.Internal.Exception(internalError) =>
+                    input["tempErrors"]
+                    ->Lib.Array.set(originalIdx, internalError)
+                    ->Lib.Promise.resolve
                   }
                 })
                 ->Lib.Promise.all
                 ->Lib.Promise.thenResolveWithCatch(
-                  asyncErrors => {
+                  _ => {
                     Error.Internal.raise(
-                      InvalidUnion(
-                        input["syncErrors"]
-                        ->Js.Array2.concat(asyncErrors)
-                        ->Js.Array2.map(Error.Internal.toParseError),
-                      ),
+                      InvalidUnion(input["tempErrors"]->Js.Array2.map(Error.Internal.toParseError)),
                     )
                   },
                   exn => {

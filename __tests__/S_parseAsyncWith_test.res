@@ -78,34 +78,28 @@ module Record = {
     }, _)
   })
 
-  asyncTest("[Record] Doesn't return sync error when fails to parse sync part of async item", t => {
+  test("[Record] Returns sync error when fails to parse sync part of async item", t => {
     let struct = S.record3(. ("k1", S.int()), ("k2", S.int()->validAsyncRefine), ("k3", S.int()))
 
-    {
-      "k1": 1,
-      "k2": true,
-      "k3": 3,
-    }
-    ->S.parseAsyncWith(struct)
-    ->Belt.Result.getExn
-    ->Js.Promise.then_(result => {
-      t->Assert.deepEqual(
-        result,
-        Error({
-          S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-          path: ["k2"],
-          operation: Parsing,
-        }),
-        (),
-      )
-      Js.Promise.resolve()
-    }, _)
+    t->Assert.deepEqual(
+      {
+        "k1": 1,
+        "k2": true,
+        "k3": 3,
+      }->S.parseAsyncWith(struct),
+      Error({
+        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        path: ["k2"],
+        operation: Parsing,
+      }),
+      (),
+    )
   })
 
   test("[Record] Parses sync items first, and then starts parsing async ones", t => {
     let struct = S.record3(.
       ("k1", S.int()),
-      ("k2", S.int()->invalidSyncRefine->invalidAsyncRefine),
+      ("k2", S.int()->invalidAsyncRefine),
       ("k3", S.int()->invalidSyncRefine),
     )
 
@@ -204,21 +198,18 @@ module Tuple = {
     }, _)
   })
 
-  asyncTest("[Tuple] Doesn't return sync error when fails to parse sync part of async item", t => {
+  test("[Tuple] Returns sync error when fails to parse sync part of async item", t => {
     let struct = S.tuple3(. S.int(), S.int()->validAsyncRefine, S.int())
 
-    %raw(`[1, true, 3]`)->S.parseAsyncWith(struct)->Belt.Result.getExn->Js.Promise.then_(result => {
-      t->Assert.deepEqual(
-        result,
-        Error({
-          S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-          path: ["1"],
-          operation: Parsing,
-        }),
-        (),
-      )
-      Js.Promise.resolve()
-    }, _)
+    t->Assert.deepEqual(
+      %raw(`[1, true, 3]`)->S.parseAsyncWith(struct),
+      Error({
+        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        path: ["1"],
+        operation: Parsing,
+      }),
+      (),
+    )
   })
 
   test("[Tuple] Parses sync items first, and then starts parsing async ones", t => {
@@ -319,7 +310,6 @@ module Union = {
       S.literal(Int(3)),
     ])
 
-    // FIXME: Errors are in different order than structs
     true->S.parseAsyncWith(struct)->Belt.Result.getExn->Js.Promise.then_(result => {
       t->Assert.deepEqual(
         result,
@@ -331,12 +321,12 @@ module Union = {
               operation: Parsing,
             },
             {
-              S.Error.code: UnexpectedType({expected: "Int Literal (3)", received: "Bool"}),
+              S.Error.code: UnexpectedType({expected: "Int Literal (2)", received: "Bool"}),
               path: [],
               operation: Parsing,
             },
             {
-              S.Error.code: UnexpectedType({expected: "Int Literal (2)", received: "Bool"}),
+              S.Error.code: UnexpectedType({expected: "Int Literal (3)", received: "Bool"}),
               path: [],
               operation: Parsing,
             },
@@ -393,21 +383,18 @@ module Array = {
     }, _)
   })
 
-  asyncTest("[Array] Doesn't return sync error when fails to parse sync part of async item", t => {
+  test("[Array] Returns sync error when fails to parse sync part of async item", t => {
     let struct = S.array(S.int()->validAsyncRefine)
 
-    %raw(`[1, 2, true]`)->S.parseAsyncWith(struct)->Belt.Result.getExn->Js.Promise.then_(result => {
-      t->Assert.deepEqual(
-        result,
-        Error({
-          S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-          path: ["2"],
-          operation: Parsing,
-        }),
-        (),
-      )
-      Js.Promise.resolve()
-    }, _)
+    t->Assert.deepEqual(
+      %raw(`[1, 2, true]`)->S.parseAsyncWith(struct),
+      Error({
+        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        path: ["2"],
+        operation: Parsing,
+      }),
+      (),
+    )
   })
 
   asyncTest("[Array] Parses async items in parallel", t => {
@@ -480,24 +467,18 @@ module Dict = {
     }, _)
   })
 
-  asyncTest("[Dict] Doesn't return sync error when fails to parse sync part of async item", t => {
+  test("[Dict] Returns sync error when fails to parse sync part of async item", t => {
     let struct = S.dict(S.int()->validAsyncRefine)
 
-    {"k1": 1, "k2": 2, "k3": true}
-    ->S.parseAsyncWith(struct)
-    ->Belt.Result.getExn
-    ->Js.Promise.then_(result => {
-      t->Assert.deepEqual(
-        result,
-        Error({
-          S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-          path: ["k3"],
-          operation: Parsing,
-        }),
-        (),
-      )
-      Js.Promise.resolve()
-    }, _)
+    t->Assert.deepEqual(
+      {"k1": 1, "k2": 2, "k3": true}->S.parseAsyncWith(struct),
+      Error({
+        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        path: ["k3"],
+        operation: Parsing,
+      }),
+      (),
+    )
   })
 
   asyncTest("[Dict] Parses async items in parallel", t => {
@@ -593,21 +574,18 @@ module Null = {
     }, _)
   })
 
-  asyncTest("[Null] Doesn't return sync error when fails to parse sync part of async item", t => {
+  test("[Null] Returns sync error when fails to parse sync part of async item", t => {
     let struct = S.null(S.int()->validAsyncRefine)
 
-    true->S.parseAsyncWith(struct)->Belt.Result.getExn->Js.Promise.then_(result => {
-      t->Assert.deepEqual(
-        result,
-        Error({
-          S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-          path: [],
-          operation: Parsing,
-        }),
-        (),
-      )
-      Js.Promise.resolve()
-    }, _)
+    t->Assert.deepEqual(
+      true->S.parseAsyncWith(struct),
+      Error({
+        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        path: [],
+        operation: Parsing,
+      }),
+      (),
+    )
   })
 }
 
@@ -644,21 +622,18 @@ module Option = {
     }, _)
   })
 
-  asyncTest("[Option] Doesn't return sync error when fails to parse sync part of async item", t => {
+  test("[Option] Returns sync error when fails to parse sync part of async item", t => {
     let struct = S.option(S.int()->validAsyncRefine)
 
-    true->S.parseAsyncWith(struct)->Belt.Result.getExn->Js.Promise.then_(result => {
-      t->Assert.deepEqual(
-        result,
-        Error({
-          S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-          path: [],
-          operation: Parsing,
-        }),
-        (),
-      )
-      Js.Promise.resolve()
-    }, _)
+    t->Assert.deepEqual(
+      true->S.parseAsyncWith(struct),
+      Error({
+        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        path: [],
+        operation: Parsing,
+      }),
+      (),
+    )
   })
 }
 
@@ -695,30 +670,24 @@ module Deprecated = {
     }, _)
   })
 
-  asyncTest(
-    "[Deprecated] Doesn't return sync error when fails to parse sync part of async item",
-    t => {
-      let struct = S.deprecated(S.int()->validAsyncRefine)
+  test("[Deprecated] Returns sync error when fails to parse sync part of async item", t => {
+    let struct = S.deprecated(S.int()->validAsyncRefine)
 
-      true->S.parseAsyncWith(struct)->Belt.Result.getExn->Js.Promise.then_(result => {
-        t->Assert.deepEqual(
-          result,
-          Error({
-            S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-            path: [],
-            operation: Parsing,
-          }),
-          (),
-        )
-        Js.Promise.resolve()
-      }, _)
-    },
-  )
+    t->Assert.deepEqual(
+      true->S.parseAsyncWith(struct),
+      Error({
+        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        path: [],
+        operation: Parsing,
+      }),
+      (),
+    )
+  })
 }
 
 module Default = {
   asyncTest("[Default] Successfully parses", t => {
-    let struct = S.option(S.int()->validAsyncRefine)->S.default(10)
+    let struct = S.option(S.int()->validAsyncRefine)->validAsyncRefine->S.default(10)
 
     Js.Promise.all([1->S.parseAsyncWith(struct)->Belt.Result.getExn->Js.Promise.then_(result => {
         t->Assert.deepEqual(result, Ok(1), ())

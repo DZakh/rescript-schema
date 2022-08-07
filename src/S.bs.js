@@ -339,29 +339,32 @@ function makeOperation(struct, actions, mode) {
     return {
             TAG: /* Async */1,
             _0: (function (input) {
-                var tempOuputRef = Promise.resolve(syncOperation(input));
-                for(var idx = 0 ,idx_finish = maybeAsyncAffectedActions.length; idx < idx_finish; ++idx){
-                  var action = maybeAsyncAffectedActions[idx];
-                  tempOuputRef = tempOuputRef.then((function(action){
-                      return function (tempOutput) {
-                        switch (action.TAG | 0) {
-                          case /* AsyncRefine */0 :
-                              return action._0(tempOutput, struct, mode).then(function (param) {
-                                          return tempOutput;
-                                        });
-                          case /* AsyncTransform */1 :
-                              return action._0(tempOutput, struct, mode);
-                          case /* SyncTransform */2 :
-                              return Promise.resolve(action._0(tempOutput, struct, mode));
-                          case /* SyncRefine */3 :
-                              action._0(tempOutput, struct, mode);
-                              return Promise.resolve(tempOutput);
-                          
+                var syncOutput = syncOperation(input);
+                return function () {
+                  var tempOuputRef = Promise.resolve(syncOutput);
+                  for(var idx = 0 ,idx_finish = maybeAsyncAffectedActions.length; idx < idx_finish; ++idx){
+                    var action = maybeAsyncAffectedActions[idx];
+                    tempOuputRef = tempOuputRef.then((function(action){
+                        return function (tempOutput) {
+                          switch (action.TAG | 0) {
+                            case /* AsyncRefine */0 :
+                                return action._0(tempOutput, struct, mode).then(function (param) {
+                                            return tempOutput;
+                                          });
+                            case /* AsyncTransform */1 :
+                                return action._0(tempOutput, struct, mode);
+                            case /* SyncTransform */2 :
+                                return Promise.resolve(action._0(tempOutput, struct, mode));
+                            case /* SyncRefine */3 :
+                                action._0(tempOutput, struct, mode);
+                                return Promise.resolve(tempOutput);
+                            
+                          }
                         }
-                      }
-                      }(action)));
-                }
-                return tempOuputRef;
+                        }(action)));
+                  }
+                  return tempOuputRef;
+                };
               })
           };
   } else {
@@ -451,7 +454,7 @@ function parseAsyncWith(any, modeOpt, struct) {
     } else {
       return {
               TAG: /* Ok */0,
-              _0: fn._0(any).then(function (value) {
+              _0: fn._0(any)().then(function (value) {
                       return {
                               TAG: /* Ok */0,
                               _0: value
@@ -987,10 +990,14 @@ function innerFactory(fieldsArray) {
               fn._0
             ]);
       } else {
-        asyncOps.push([
+        syncOps.push([
               idx,
               fieldName,
               fn._0
+            ]);
+        asyncOps.push([
+              idx,
+              fieldName
             ]);
       }
     }
@@ -1001,15 +1008,14 @@ function innerFactory(fieldsArray) {
             if (mode === /* Safe */0 && (typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
               raiseUnexpectedTypeError(input, struct);
             }
-            var match = struct.t;
             var newArray = [];
             for(var idx = 0 ,idx_finish = syncOps.length; idx < idx_finish; ++idx){
-              var match$1 = syncOps[idx];
-              var fieldName = match$1[1];
+              var match = syncOps[idx];
+              var fieldName = match[1];
               var fieldData = input[fieldName];
               try {
-                var value = match$1[2](fieldData);
-                newArray[match$1[0]] = value;
+                var value = match[2](fieldData);
+                newArray[match[0]] = value;
               }
               catch (raw_internalError){
                 var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
@@ -1024,11 +1030,12 @@ function innerFactory(fieldsArray) {
               }
             }
             for(var idx$1 = 0 ,idx_finish$1 = noopOps.length; idx$1 < idx_finish$1; ++idx$1){
-              var match$2 = noopOps[idx$1];
-              var fieldData$1 = input[match$2[1]];
-              newArray[match$2[0]] = fieldData$1;
+              var match$1 = noopOps[idx$1];
+              var fieldData$1 = input[match$1[1]];
+              newArray[match$1[0]] = fieldData$1;
             }
-            if (match.unknownKeys === /* Strict */0 && mode === /* Safe */0) {
+            var match$2 = struct.t;
+            if (match$2.unknownKeys === /* Strict */0 && mode === /* Safe */0) {
               var excessKey = getMaybeExcessKey(input, fields);
               if (excessKey !== undefined) {
                 raise({
@@ -1038,44 +1045,25 @@ function innerFactory(fieldsArray) {
               }
               
             }
-            if (withAsyncOps) {
-              return {
-                      tempArray: newArray,
-                      originalInput: input
-                    };
-            } else if (newArray.length <= 1) {
-              return newArray[0];
-            } else {
+            if (withAsyncOps || newArray.length > 1) {
               return newArray;
+            } else {
+              return newArray[0];
             }
           })
       }];
     if (withAsyncOps) {
       parseActions.push({
             TAG: /* AsyncTransform */1,
-            _0: (function (input, param, param$1) {
-                var tempArray = input.tempArray;
+            _0: (function (tempArray, param, param$1) {
                 return Promise.all(asyncOps.map(function (param) {
                                   var fieldName = param[1];
-                                  var fieldData = input.originalInput[fieldName];
-                                  try {
-                                    return param[2](fieldData).catch(function (exn) {
-                                                return $$throw(exn.RE_EXN_ID === Exception ? ({
-                                                                RE_EXN_ID: Exception,
-                                                                _1: prependLocation(exn._1, fieldName)
-                                                              }) : exn);
-                                              });
-                                  }
-                                  catch (raw_internalError){
-                                    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                                    if (internalError.RE_EXN_ID === Exception) {
-                                      return $$throw({
-                                                  RE_EXN_ID: Exception,
-                                                  _1: prependLocation(internalError._1, fieldName)
-                                                });
-                                    }
-                                    throw internalError;
-                                  }
+                                  return tempArray[param[0]]().catch(function (exn) {
+                                              return $$throw(exn.RE_EXN_ID === Exception ? ({
+                                                              RE_EXN_ID: Exception,
+                                                              _1: prependLocation(exn._1, fieldName)
+                                                            }) : exn);
+                                            });
                                 })).then(function (asyncFieldValues) {
                             asyncFieldValues.forEach(function (fieldValue, idx) {
                                   var match = asyncOps[idx];
@@ -1375,6 +1363,17 @@ var serializeActions$1 = [{
   }];
 
 function factory$10(innerStruct) {
+  var makeSyncParseAction = function (fn) {
+    return {
+            TAG: /* SyncTransform */2,
+            _0: (function (input, param, param$1) {
+                if (input !== null) {
+                  return Caml_option.some(fn(input));
+                }
+                
+              })
+          };
+  };
   var makeParseActions = function (mode) {
     var fn = innerStruct.p[mode];
     if (typeof fn === "number") {
@@ -1388,32 +1387,25 @@ function factory$10(innerStruct) {
                     }
                   })
               }];
-    }
-    if (fn.TAG === /* Sync */0) {
-      var fn$1 = fn._0;
-      return [{
-                TAG: /* SyncTransform */2,
+    } else if (fn.TAG === /* Sync */0) {
+      return [makeSyncParseAction(fn._0)];
+    } else {
+      return [
+              makeSyncParseAction(fn._0),
+              {
+                TAG: /* AsyncTransform */1,
                 _0: (function (input, param, param$1) {
-                    if (input !== null) {
-                      return Caml_option.some(fn$1(input));
+                    if (input !== undefined) {
+                      return input().then(function (value) {
+                                  return Caml_option.some(value);
+                                });
+                    } else {
+                      return Promise.resolve(undefined);
                     }
-                    
                   })
-              }];
+              }
+            ];
     }
-    var fn$2 = fn._0;
-    return [{
-              TAG: /* AsyncTransform */1,
-              _0: (function (input, param, param$1) {
-                  if (input !== null) {
-                    return fn$2(input).then(function (value) {
-                                return Caml_option.some(value);
-                              });
-                  } else {
-                    return Promise.resolve(undefined);
-                  }
-                })
-            }];
   };
   return make$1({
               TAG: /* Null */2,
@@ -1441,36 +1433,40 @@ var serializeActions$2 = [{
   }];
 
 function factory$11(innerStruct) {
+  var makeSyncParseAction = function (fn) {
+    return {
+            TAG: /* SyncTransform */2,
+            _0: (function (input, param, param$1) {
+                if (input !== undefined) {
+                  return Caml_option.some(fn(Caml_option.valFromOption(input)));
+                }
+                
+              })
+          };
+  };
   var makeParseActions = function (mode) {
     var fn = innerStruct.p[mode];
     if (typeof fn === "number") {
       return emptyArray;
-    }
-    if (fn.TAG === /* Sync */0) {
-      var fn$1 = fn._0;
-      return [{
-                TAG: /* SyncTransform */2,
+    } else if (fn.TAG === /* Sync */0) {
+      return [makeSyncParseAction(fn._0)];
+    } else {
+      return [
+              makeSyncParseAction(fn._0),
+              {
+                TAG: /* AsyncTransform */1,
                 _0: (function (input, param, param$1) {
                     if (input !== undefined) {
-                      return Caml_option.some(fn$1(Caml_option.valFromOption(input)));
+                      return input().then(function (value) {
+                                  return Caml_option.some(value);
+                                });
+                    } else {
+                      return Promise.resolve(undefined);
                     }
-                    
                   })
-              }];
+              }
+            ];
     }
-    var fn$2 = fn._0;
-    return [{
-              TAG: /* AsyncTransform */1,
-              _0: (function (input, param, param$1) {
-                  if (input !== undefined) {
-                    return fn$2(Caml_option.valFromOption(input)).then(function (value) {
-                                return Caml_option.some(value);
-                              });
-                  } else {
-                    return Promise.resolve(undefined);
-                  }
-                })
-            }];
   };
   return make$1({
               TAG: /* Option */1,
@@ -1496,36 +1492,40 @@ function factory$12(maybeMessage, innerStruct) {
           }
         })
     }];
+  var makeSyncParseAction = function (fn) {
+    return {
+            TAG: /* SyncTransform */2,
+            _0: (function (input, param, param$1) {
+                if (input !== undefined) {
+                  return Caml_option.some(fn(Caml_option.valFromOption(input)));
+                }
+                
+              })
+          };
+  };
   var makeParseActions = function (mode) {
     var fn = innerStruct.p[mode];
     if (typeof fn === "number") {
       return emptyArray;
-    }
-    if (fn.TAG === /* Sync */0) {
-      var fn$1 = fn._0;
-      return [{
-                TAG: /* SyncTransform */2,
+    } else if (fn.TAG === /* Sync */0) {
+      return [makeSyncParseAction(fn._0)];
+    } else {
+      return [
+              makeSyncParseAction(fn._0),
+              {
+                TAG: /* AsyncTransform */1,
                 _0: (function (input, param, param$1) {
                     if (input !== undefined) {
-                      return Caml_option.some(fn$1(Caml_option.valFromOption(input)));
+                      return input().then(function (value) {
+                                  return Caml_option.some(value);
+                                });
+                    } else {
+                      return Promise.resolve(undefined);
                     }
-                    
                   })
-              }];
+              }
+            ];
     }
-    var fn$2 = fn._0;
-    return [{
-              TAG: /* AsyncTransform */1,
-              _0: (function (input, param, param$1) {
-                  if (input !== undefined) {
-                    return fn$2(Caml_option.valFromOption(input)).then(function (value) {
-                                return Caml_option.some(value);
-                              });
-                  } else {
-                    return Promise.resolve(undefined);
-                  }
-                })
-            }];
   };
   return make$1({
               TAG: /* Deprecated */8,
@@ -1569,6 +1569,33 @@ function factory$13(innerStruct) {
   } else {
     serializeActions = panic("Unreachable");
   }
+  var makeSyncParseAction = function (fn) {
+    return {
+            TAG: /* SyncTransform */2,
+            _0: (function (input, param, param$1) {
+                var newArray = [];
+                for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
+                  var innerData = input[idx];
+                  try {
+                    var value = fn(innerData);
+                    newArray.push(value);
+                  }
+                  catch (raw_internalError){
+                    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                    if (internalError.RE_EXN_ID === Exception) {
+                      throw {
+                            RE_EXN_ID: Exception,
+                            _1: prependLocation(internalError._1, idx.toString()),
+                            Error: new Error()
+                          };
+                    }
+                    throw internalError;
+                  }
+                }
+                return newArray;
+              })
+          };
+  };
   var makeParseActions = function (mode) {
     var parseActions = [];
     if (mode === /* Safe */0) {
@@ -1585,56 +1612,19 @@ function factory$13(innerStruct) {
     var fn = innerStruct.p[mode];
     if (typeof fn !== "number") {
       if (fn.TAG === /* Sync */0) {
-        var fn$1 = fn._0;
-        parseActions.push({
-              TAG: /* SyncTransform */2,
-              _0: (function (input, param, param$1) {
-                  var newArray = [];
-                  for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
-                    var innerData = input[idx];
-                    try {
-                      var value = fn$1(innerData);
-                      newArray.push(value);
-                    }
-                    catch (raw_internalError){
-                      var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                      if (internalError.RE_EXN_ID === Exception) {
-                        throw {
-                              RE_EXN_ID: Exception,
-                              _1: prependLocation(internalError._1, idx.toString()),
-                              Error: new Error()
-                            };
-                      }
-                      throw internalError;
-                    }
-                  }
-                  return newArray;
-                })
-            });
+        parseActions.push(makeSyncParseAction(fn._0));
       } else {
-        var fn$2 = fn._0;
+        parseActions.push(makeSyncParseAction(fn._0));
         parseActions.push({
               TAG: /* AsyncTransform */1,
               _0: (function (input, param, param$1) {
-                  return Promise.all(input.map(function (innerData, idx) {
-                                  try {
-                                    return fn$2(innerData).catch(function (exn) {
-                                                return $$throw(exn.RE_EXN_ID === Exception ? ({
-                                                                RE_EXN_ID: Exception,
-                                                                _1: prependLocation(exn._1, idx.toString())
-                                                              }) : exn);
-                                              });
-                                  }
-                                  catch (raw_internalError){
-                                    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                                    if (internalError.RE_EXN_ID === Exception) {
-                                      return $$throw({
-                                                  RE_EXN_ID: Exception,
-                                                  _1: prependLocation(internalError._1, idx.toString())
-                                                });
-                                    }
-                                    throw internalError;
-                                  }
+                  return Promise.all(input.map(function (asyncFn, idx) {
+                                  return asyncFn().catch(function (exn) {
+                                              return $$throw(exn.RE_EXN_ID === Exception ? ({
+                                                              RE_EXN_ID: Exception,
+                                                              _1: prependLocation(exn._1, idx.toString())
+                                                            }) : exn);
+                                            });
                                 }));
                 })
             });
@@ -1716,6 +1706,35 @@ function factory$14(innerStruct) {
   } else {
     serializeActions = panic("Unreachable");
   }
+  var makeSyncParseAction = function (fn) {
+    return {
+            TAG: /* SyncTransform */2,
+            _0: (function (input, param, param$1) {
+                var newDict = {};
+                var keys = Object.keys(input);
+                for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+                  var key = keys[idx];
+                  var innerData = input[key];
+                  try {
+                    var value = fn(innerData);
+                    newDict[key] = value;
+                  }
+                  catch (raw_internalError){
+                    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                    if (internalError.RE_EXN_ID === Exception) {
+                      throw {
+                            RE_EXN_ID: Exception,
+                            _1: prependLocation(internalError._1, key),
+                            Error: new Error()
+                          };
+                    }
+                    throw internalError;
+                  }
+                }
+                return newDict;
+              })
+          };
+  };
   var makeParseActions = function (mode) {
     var parseActions = [];
     if (mode === /* Safe */0) {
@@ -1732,44 +1751,17 @@ function factory$14(innerStruct) {
     var fn = innerStruct.p[mode];
     if (typeof fn !== "number") {
       if (fn.TAG === /* Sync */0) {
-        var fn$1 = fn._0;
-        parseActions.push({
-              TAG: /* SyncTransform */2,
-              _0: (function (input, param, param$1) {
-                  var newDict = {};
-                  var keys = Object.keys(input);
-                  for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-                    var key = keys[idx];
-                    var innerData = input[key];
-                    try {
-                      var value = fn$1(innerData);
-                      newDict[key] = value;
-                    }
-                    catch (raw_internalError){
-                      var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                      if (internalError.RE_EXN_ID === Exception) {
-                        throw {
-                              RE_EXN_ID: Exception,
-                              _1: prependLocation(internalError._1, key),
-                              Error: new Error()
-                            };
-                      }
-                      throw internalError;
-                    }
-                  }
-                  return newDict;
-                })
-            });
+        parseActions.push(makeSyncParseAction(fn._0));
       } else {
-        var fn$2 = fn._0;
+        parseActions.push(makeSyncParseAction(fn._0));
         parseActions.push({
               TAG: /* AsyncTransform */1,
               _0: (function (input, param, param$1) {
                   var keys = Object.keys(input);
                   return Promise.all(keys.map(function (key) {
-                                    var innerData = input[key];
+                                    var asyncFn = input[key];
                                     try {
-                                      return fn$2(innerData).catch(function (exn) {
+                                      return asyncFn().catch(function (exn) {
                                                   return $$throw(exn.RE_EXN_ID === Exception ? ({
                                                                   RE_EXN_ID: Exception,
                                                                   _1: prependLocation(exn._1, key)
@@ -1854,7 +1846,7 @@ function factory$15(innerStruct, defaultValue) {
     return [{
               TAG: /* AsyncTransform */1,
               _0: (function (input, param, param$1) {
-                  return fn$2(input).then(function (value) {
+                  return fn$2(input)().then(function (value) {
                               if (value !== undefined) {
                                 return Caml_option.valFromOption(value);
                               } else {
@@ -1925,10 +1917,11 @@ function innerFactory$1(structs) {
               fn._0
             ]);
       } else {
-        asyncOps.push([
+        syncOps.push([
               idx,
               fn._0
             ]);
+        asyncOps.push(idx);
       }
     }
     var withAsyncOps = asyncOps.length > 0;
@@ -1977,10 +1970,7 @@ function innerFactory$1(structs) {
               newArray[originalIdx$1] = innerData$1;
             }
             if (withAsyncOps) {
-              return {
-                      tempArray: newArray,
-                      originalInput: input
-                    };
+              return newArray;
             } else if (numberOfStructs !== 0) {
               if (numberOfStructs !== 1) {
                 return newArray;
@@ -1995,33 +1985,18 @@ function innerFactory$1(structs) {
     if (withAsyncOps) {
       parseActions.push({
             TAG: /* AsyncTransform */1,
-            _0: (function (input, param, param$1) {
-                var tempArray = input.tempArray;
-                return Promise.all(asyncOps.map(function (param) {
-                                  var originalIdx = param[0];
-                                  var innerData = input.originalInput[originalIdx];
-                                  try {
-                                    return param[1](innerData).catch(function (exn) {
-                                                return $$throw(exn.RE_EXN_ID === Exception ? ({
-                                                                RE_EXN_ID: Exception,
-                                                                _1: prependLocation(exn._1, originalIdx.toString())
-                                                              }) : exn);
-                                              });
-                                  }
-                                  catch (raw_internalError){
-                                    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                                    if (internalError.RE_EXN_ID === Exception) {
-                                      return $$throw({
-                                                  RE_EXN_ID: Exception,
-                                                  _1: prependLocation(internalError._1, originalIdx.toString())
-                                                });
-                                    }
-                                    throw internalError;
-                                  }
+            _0: (function (tempArray, param, param$1) {
+                return Promise.all(asyncOps.map(function (originalIdx) {
+                                  return tempArray[originalIdx]().catch(function (exn) {
+                                              return $$throw(exn.RE_EXN_ID === Exception ? ({
+                                                              RE_EXN_ID: Exception,
+                                                              _1: prependLocation(exn._1, originalIdx.toString())
+                                                            }) : exn);
+                                            });
                                 })).then(function (values) {
                             values.forEach(function (value, idx) {
-                                  var match = asyncOps[idx];
-                                  tempArray[match[0]] = value;
+                                  var originalIdx = asyncOps[idx];
+                                  tempArray[originalIdx] = value;
                                   
                                 });
                             if (tempArray.length <= 1) {
@@ -2102,9 +2077,15 @@ function factory$17(structs) {
     if (typeof fn === "number") {
       noopOps.push(undefined);
     } else if (fn.TAG === /* Sync */0) {
-      syncOps.push(fn._0);
+      syncOps.push([
+            idx,
+            fn._0
+          ]);
     } else {
-      asyncOps.push(fn._0);
+      asyncOps.push([
+            idx,
+            fn._0
+          ]);
     }
   }
   var withAsyncOps = asyncOps.length > 0;
@@ -2120,36 +2101,36 @@ function factory$17(structs) {
             var maybeNewValueRef;
             while(idxRef < syncOps.length && maybeNewValueRef === undefined) {
               var idx = idxRef;
-              var fn = syncOps[idx];
+              var match = syncOps[idx];
               try {
-                var newValue = fn(input);
+                var newValue = match[1](input);
                 maybeNewValueRef = Caml_option.some(newValue);
               }
               catch (raw_internalError){
                 var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
                 if (internalError.RE_EXN_ID === Exception) {
-                  errorsRef.push(internalError._1);
+                  errorsRef[match[0]] = internalError._1;
                   idxRef = idxRef + 1;
                 } else {
                   throw internalError;
                 }
               }
             };
-            var match = maybeNewValueRef;
-            if (match !== undefined) {
+            var match$1 = maybeNewValueRef;
+            if (match$1 !== undefined) {
               if (withAsyncOps) {
                 return {
-                        maybeSyncValue: match,
-                        syncErrors: errorsRef,
+                        maybeSyncValue: match$1,
+                        tempErrors: errorsRef,
                         originalInput: input
                       };
               } else {
-                return Caml_option.valFromOption(match);
+                return Caml_option.valFromOption(match$1);
               }
             } else if (withAsyncOps) {
               return {
-                      maybeSyncValue: match,
-                      syncErrors: errorsRef,
+                      maybeSyncValue: match$1,
+                      tempErrors: errorsRef,
                       originalInput: input
                     };
             } else {
@@ -2168,33 +2149,36 @@ function factory$17(structs) {
                 if (syncValue !== undefined) {
                   return Promise.resolve(Caml_option.valFromOption(syncValue));
                 } else {
-                  return Promise.all(asyncOps.map(function (fn) {
+                  return Promise.all(asyncOps.map(function (param) {
+                                    var originalIdx = param[0];
                                     try {
-                                      return fn(input.originalInput).then((function (value) {
+                                      return param[1](input.originalInput)().then((function (value) {
                                                     throw {
                                                           RE_EXN_ID: HackyValidValue,
                                                           _1: value,
                                                           Error: new Error()
                                                         };
                                                   }), (function (exn) {
-                                                    if (exn.RE_EXN_ID === Exception) {
-                                                      return exn._1;
-                                                    } else {
+                                                    if (exn.RE_EXN_ID !== Exception) {
                                                       return $$throw(exn);
                                                     }
+                                                    var array = input.tempErrors;
+                                                    array[originalIdx] = exn._1;
+                                                    
                                                   }));
                                     }
                                     catch (raw_internalError){
                                       var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
                                       if (internalError.RE_EXN_ID === Exception) {
-                                        return Promise.resolve(internalError._1);
+                                        var array = input.tempErrors;
+                                        return Promise.resolve((array[originalIdx] = internalError._1, undefined));
                                       }
                                       throw internalError;
                                     }
-                                  })).then((function (asyncErrors) {
+                                  })).then((function (param) {
                                 return raise({
                                             TAG: /* InvalidUnion */5,
-                                            _0: input.syncErrors.concat(asyncErrors).map(toParseError)
+                                            _0: input.tempErrors.map(toParseError)
                                           });
                               }), (function (exn) {
                                 if (exn.RE_EXN_ID === HackyValidValue) {
