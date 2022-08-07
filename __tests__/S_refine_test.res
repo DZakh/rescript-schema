@@ -19,7 +19,7 @@ test("Refined primitive returns an error when parsed in a Safe mode", t => {
   )
 })
 
-test("Refined primitive doesn't return an error when parsed in an Migration mode", t => {
+test("Refined primitive returns an error when parsed in a Migration mode", t => {
   let struct = S.int()->S.refine(~parser=value =>
     switch value >= 0 {
     | true => None
@@ -27,8 +27,15 @@ test("Refined primitive doesn't return an error when parsed in an Migration mode
     }
   , ())
 
-  t->Assert.deepEqual(%raw(`-12`)->S.parseWith(~mode=Migration, struct), Ok(-12), ())
+  t->Assert.deepEqual(
+    %raw(`-12`)->S.parseWith(~mode=Migration, struct),
+    Error({
+      code: OperationFailed("Should be positive"),
+      operation: Parsing,
+      path: [],
+    }),
+    (),
+  )
 })
 
 // TODO: Test serializing
-// TODO: Check that both parsers provided

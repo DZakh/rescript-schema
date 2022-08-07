@@ -9,6 +9,7 @@ module Error: {
     | TupleSize({expected: int, received: int})
     | ExcessField(string)
     | InvalidUnion(array<t>)
+    | UnexpectedAsync
   and operation =
     | Serializing
     | Parsing
@@ -112,7 +113,15 @@ let refine: (
   unit,
 ) => t<'value>
 
+let asyncRefine: (t<'value>, ~parser: 'value => Js.Promise.t<option<string>>, unit) => t<'value>
+
 let parseWith: ('any, ~mode: parsingMode=?, t<'value>) => result<'value, Error.t>
+
+let parseAsyncWith: (
+  'any,
+  ~mode: parsingMode=?,
+  t<'value>,
+) => result<Js.Promise.t<result<'value, Error.t>>, Error.t>
 
 let serializeWith: ('value, t<'value>) => result<unknown, Error.t>
 
