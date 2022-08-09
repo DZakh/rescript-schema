@@ -339,11 +339,11 @@ type rec t<'value> = {
   @as("t")
   tagged_t: tagged_t,
   @as("sp")
-  safeParseActions: array<action>,
+  safeParseActionFactories: array<actionFactory>,
   @as("mp")
-  migrationParseActions: array<action>,
+  migrationParseActionFactories: array<actionFactory>,
   @as("sa")
-  serializeActions: array<action>,
+  serializeActionFactories: array<actionFactory>,
   @as("s")
   serialize: operation,
   @as("p")
@@ -375,12 +375,9 @@ and tagged_t =
   | Instance(unknown): tagged_t
 and field<'value> = (string, t<'value>)
 and action =
-  | AsyncRefine((. ~input: unknown, ~struct: t<unknown>, ~mode: parsingMode) => Js.Promise.t<unit>)
-  | AsyncTransform(
-      (. ~input: unknown, ~struct: t<unknown>, ~mode: parsingMode) => Js.Promise.t<unknown>,
-    )
-  | SyncTransform((. ~input: unknown, ~struct: t<unknown>, ~mode: parsingMode) => unknown)
-  | SyncRefine((. ~input: unknown, ~struct: t<unknown>, ~mode: parsingMode) => unit)
+  | SyncTransform((. unknown) => unknown)
+  | AsyncTransform((. unknown) => Js.Promise.t<unknown>)
+and actionFactory = (. ~struct: t<unknown>, ~mode: parsingMode) => action
 
 external unsafeAnyToUnknown: 'any => unknown = "%identity"
 external unsafeUnknownToAny: unknown => 'any = "%identity"
@@ -443,74 +440,60 @@ let raiseUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   Error.Internal.raise(UnexpectedType({expected: expected, received: received}))
 }
 
-let makeOperation = (~struct, ~actions, ~mode) => {
-  switch actions {
+let makeOperation = (~actionFactories, ~struct, ~mode) => {
+  switch actionFactories {
   | [] => Noop
   | _ =>
-    let firstSyncActions = []
-    let maybeAsyncActionIdxRef = ref(None)
-    let idxRef = ref(0)
-    while idxRef.contents < actions->Js.Array2.length && maybeAsyncActionIdxRef.contents === None {
-      let idx = idxRef.contents
-      let action = actions->Js.Array2.unsafe_get(idx)
-      switch action {
-      | SyncTransform(_)
-      | SyncRefine(_) => {
-          firstSyncActions->Js.Array2.push(action)->ignore
-          idxRef.contents = idxRef.contents->Lib.Int.plus(1)
+    let lastActionIdx = actionFactories->Js.Array2.length - 1
+    let lastSyncActionIdxRef = ref(lastActionIdx)
+    let actions = []
+    for idx in 0 to lastSyncActionIdxRef.contents {
+      let actionFactory = actionFactories->Js.Array2.unsafe_get(idx)
+      let action = actionFactory(. ~struct, ~mode)
+      actions->Js.Array2.push(action)->ignore
+      if lastSyncActionIdxRef.contents === lastActionIdx {
+        switch action {
+        | AsyncTransform(_) => lastSyncActionIdxRef.contents = idx - 1
+        | SyncTransform(_) => ()
         }
-      | AsyncTransform(_)
-      | AsyncRefine(_) =>
-        maybeAsyncActionIdxRef.contents = Some(idx)
       }
     }
-    let maybeAsyncAffectedActions =
-      maybeAsyncActionIdxRef.contents->Lib.Option.map(asyncActionIdx => {
-        actions->Js.Array2.sliceFrom(asyncActionIdx)
-      })
 
-    let syncOperation = (. input) => {
-      let tempOuputRef = ref(input->Obj.magic)
-      for idx in 0 to firstSyncActions->Js.Array2.length - 1 {
-        let firstSyncAction = firstSyncActions->Js.Array2.unsafe_get(idx)
-        switch firstSyncAction {
-        | SyncTransform(fn) =>
-          let newValue = fn(. ~input=tempOuputRef.contents, ~struct=struct->Obj.magic, ~mode)
+    let syncOperation = switch lastSyncActionIdxRef.contents === 0 {
+    // Shortcut to get a fn of the first SyncTransform
+    | true => (actions->Js.Array2.unsafe_get(0)->Obj.magic)._0
+    | false =>
+      (. input) => {
+        let tempOuputRef = ref(input->Obj.magic)
+        for idx in 0 to lastSyncActionIdxRef.contents {
+          let action = actions->Js.Array2.unsafe_get(idx)
+          // Shortcut to get SyncTransform fn
+          let newValue = (action->Obj.magic)._0(. tempOuputRef.contents)
           tempOuputRef.contents = newValue
-        | SyncRefine(fn) => fn(. ~input=tempOuputRef.contents, ~struct=struct->Obj.magic, ~mode)
-        | AsyncTransform(_)
-        | AsyncRefine(_) =>
-          Error.Unreachable.panic()
         }
+        tempOuputRef.contents
       }
-      tempOuputRef.contents
     }
 
-    switch maybeAsyncAffectedActions {
-    | None => Sync(syncOperation)
-    | Some(asyncAffectedActions) =>
+    switch lastActionIdx === lastSyncActionIdxRef.contents {
+    | true => Sync(syncOperation)
+    | false =>
       Async(
         (. input) => {
-          let syncOutput = syncOperation(. input)
+          let syncOutput = switch lastSyncActionIdxRef.contents {
+          // For the case when an async action is the first
+          | -1 => input
+          | _ => syncOperation(. input)
+          }
           (. ()) => {
             let tempOuputRef = ref(syncOutput->Lib.Promise.resolve)
-            for idx in 0 to asyncAffectedActions->Js.Array2.length - 1 {
-              let action = asyncAffectedActions->Js.Array2.unsafe_get(idx)
+            for idx in lastSyncActionIdxRef.contents + 1 to lastActionIdx {
+              let action = actions->Js.Array2.unsafe_get(idx)
               tempOuputRef.contents =
                 tempOuputRef.contents->Lib.Promise.then(tempOutput => {
                   switch action {
-                  | SyncTransform(fn) =>
-                    fn(. ~input=tempOutput, ~struct=struct->Obj.magic, ~mode)->Lib.Promise.resolve
-                  | SyncRefine(fn) =>
-                    fn(. ~input=tempOutput, ~struct=struct->Obj.magic, ~mode)
-                    tempOutput->Lib.Promise.resolve
-                  | AsyncRefine(fn) =>
-                    fn(.
-                      ~input=tempOutput,
-                      ~struct=struct->Obj.magic,
-                      ~mode,
-                    )->Lib.Promise.thenResolve(() => tempOutput)
-                  | AsyncTransform(fn) => fn(. ~input=tempOutput, ~struct=struct->Obj.magic, ~mode)
+                  | SyncTransform(fn) => fn(. tempOutput)->Lib.Promise.resolve
+                  | AsyncTransform(fn) => fn(. tempOutput)
                   }
                 })
             }
@@ -524,33 +507,37 @@ let makeOperation = (~struct, ~actions, ~mode) => {
 
 let make = (
   ~tagged_t,
-  ~safeParseActions,
-  ~migrationParseActions,
-  ~serializeActions,
+  ~safeParseActionFactories,
+  ~migrationParseActionFactories,
+  ~serializeActionFactories,
   ~metadata as maybeMetadata=?,
   (),
 ) => {
   let struct = {
     tagged_t: tagged_t,
-    safeParseActions: safeParseActions,
-    migrationParseActions: migrationParseActions,
-    serializeActions: serializeActions,
+    safeParseActionFactories: safeParseActionFactories,
+    migrationParseActionFactories: migrationParseActionFactories,
+    serializeActionFactories: serializeActionFactories,
     serialize: %raw("undefined"),
     parseOperations: %raw("undefined"),
     maybeMetadata: maybeMetadata,
   }
   {
     ...struct,
-    serialize: makeOperation(~struct, ~actions=struct.serializeActions, ~mode=Safe),
+    serialize: makeOperation(~actionFactories=struct.serializeActionFactories, ~struct, ~mode=Safe),
     parseOperations: {
-      safe: makeOperation(~struct, ~actions=struct.safeParseActions, ~mode=Safe),
-      migration: makeOperation(~struct, ~actions=struct.migrationParseActions, ~mode=Migration),
+      safe: makeOperation(~actionFactories=struct.safeParseActionFactories, ~struct, ~mode=Safe),
+      migration: makeOperation(
+        ~actionFactories=struct.migrationParseActionFactories,
+        ~struct,
+        ~mode=Migration,
+      ),
     },
   }
 }
 
 @inline
-let getParseOperation = (struct, ~mode) => {
+let getParseOperation = (struct: t<'value>, ~mode: parsingMode): operation => {
   struct.parseOperations->Obj.magic->Js.Dict.unsafeGet(mode->Obj.magic)
 }
 
@@ -606,43 +593,37 @@ let serializeWith = (value, struct) => {
 }
 
 module Action = {
-  let transform = (fn: (~input: 'input, ~struct: t<'value>, ~mode: parsingMode) => unknown) => {
-    SyncTransform(fn->Obj.magic)
+  @inline
+  let factory = (fn: (. ~struct: t<'value>, ~mode: parsingMode) => action): actionFactory => fn
+
+  @inline
+  let make = (action: action): actionFactory => (. ~struct as _, ~mode as _) => action
+
+  let emptyArray: array<actionFactory> = []
+
+  let concatParser = (parsers, parser) => {
+    parsers->Js.Array2.concat([parser])
   }
 
-  let refine = (fn: (~input: 'value, ~struct: t<'value>, ~mode: parsingMode) => unit) => {
-    SyncRefine(fn->Obj.magic)
+  let concatSerializer = (serializers, serializer) => {
+    [serializer]->Js.Array2.concat(serializers)
   }
 
-  let asyncRefine = (
-    fn: (~input: 'value, ~struct: t<'value>, ~mode: parsingMode) => Js.Promise.t<unit>,
-  ) => {
-    AsyncRefine(fn->Obj.magic)
-  }
+  let missingParser = make(
+    SyncTransform(
+      (. _) => {
+        Error.Internal.raise(MissingParser)
+      },
+    ),
+  )
 
-  let asyncTransform = (
-    fn: (~input: 'value, ~struct: t<'value>, ~mode: parsingMode) => Js.Promise.t<unknown>,
-  ) => {
-    AsyncTransform(fn->Obj.magic)
-  }
-
-  let emptyArray: array<action> = []
-
-  let concatParser = (actions, action) => {
-    actions->Js.Array2.concat([action])
-  }
-
-  let concatSerializer = (actions, action) => {
-    [action]->Js.Array2.concat(actions)
-  }
-
-  let missingParser = refine((~input as _, ~struct as _, ~mode as _) => {
-    Error.Internal.raise(MissingParser)
-  })
-
-  let missingSerializer = refine((~input as _, ~struct as _, ~mode as _) => {
-    Error.Internal.raise(MissingSerializer)
-  })
+  let missingSerializer = make(
+    SyncTransform(
+      (. _) => {
+        Error.Internal.raise(MissingSerializer)
+      },
+    ),
+  )
 }
 
 let refine: (
@@ -660,35 +641,46 @@ let refine: (
     Error.MissingParserAndSerializer.panic(`struct factory Refine`)
   }
 
-  let maybeParseAction = maybeRefineParser->Lib.Option.map(refineParser => {
-    Action.refine((~input, ~struct as _, ~mode as _) => {
-      switch (refineParser->Obj.magic)(. input) {
-      | None => ()
-      | Some(reason) => Error.Internal.raise(OperationFailed(reason))
-      }
-    })
-  })
-  make(
-    ~tagged_t=struct.tagged_t,
-    ~safeParseActions=switch maybeParseAction {
-    | Some(parseAction) => struct.safeParseActions->Action.concatParser(parseAction)
-    | None => struct.safeParseActions
-    },
-    ~migrationParseActions=switch maybeParseAction {
-    | Some(parseAction) => struct.migrationParseActions->Action.concatParser(parseAction)
-    | None => struct.migrationParseActions
-    },
-    ~serializeActions=switch maybeRefineSerializer {
-    | Some(refineSerializer) =>
-      struct.serializeActions->Action.concatSerializer(
-        Action.refine((~input, ~struct as _, ~mode as _) => {
-          switch (refineSerializer->Obj.magic)(. input) {
-          | None => ()
+  let maybeParseActionFactory = maybeRefineParser->Lib.Option.map(refineParser => {
+    Action.make(
+      SyncTransform(
+        (. input) => {
+          switch (refineParser->Obj.magic)(. input) {
+          | None => input
           | Some(reason) => Error.Internal.raise(OperationFailed(reason))
           }
-        }),
+        },
+      ),
+    )
+  })
+
+  make(
+    ~tagged_t=struct.tagged_t,
+    ~safeParseActionFactories=switch maybeParseActionFactory {
+    | Some(parseActionFactory) =>
+      struct.safeParseActionFactories->Action.concatParser(parseActionFactory)
+    | None => struct.safeParseActionFactories
+    },
+    ~migrationParseActionFactories=switch maybeParseActionFactory {
+    | Some(parseActionFactory) =>
+      struct.migrationParseActionFactories->Action.concatParser(parseActionFactory)
+    | None => struct.migrationParseActionFactories
+    },
+    ~serializeActionFactories=switch maybeRefineSerializer {
+    | Some(refineSerializer) =>
+      struct.serializeActionFactories->Action.concatSerializer(
+        Action.make(
+          SyncTransform(
+            (. input) => {
+              switch (refineSerializer->Obj.magic)(. input) {
+              | None => input
+              | Some(reason) => Error.Internal.raise(OperationFailed(reason))
+              }
+            },
+          ),
+        ),
       )
-    | None => struct.serializeActions
+    | None => struct.serializeActionFactories
     },
     ~metadata=?struct.maybeMetadata,
     (),
@@ -696,19 +688,28 @@ let refine: (
 }
 
 let asyncRefine = (struct, ~parser, ()) => {
-  let parseAction = Action.asyncRefine((~input, ~struct as _, ~mode as _) => {
-    (parser->Obj.magic)(. input)->Lib.Promise.thenResolve(result => {
-      switch result {
-      | None => ()
-      | Some(reason) => Error.Internal.raise(OperationFailed(reason))
-      }
-    })
-  })
+  let parseActionFactory = Action.make(
+    AsyncTransform(
+      (. input) => {
+        (parser->Obj.magic)(. input)->Lib.Promise.thenResolve(result => {
+          switch result {
+          | None => input
+          | Some(reason) => Error.Internal.raise(OperationFailed(reason))
+          }
+        })
+      },
+    ),
+  )
+
   make(
     ~tagged_t=struct.tagged_t,
-    ~safeParseActions=struct.safeParseActions->Action.concatParser(parseAction),
-    ~migrationParseActions=struct.migrationParseActions->Action.concatParser(parseAction),
-    ~serializeActions=struct.serializeActions,
+    ~safeParseActionFactories=struct.safeParseActionFactories->Action.concatParser(
+      parseActionFactory,
+    ),
+    ~migrationParseActionFactories=struct.migrationParseActionFactories->Action.concatParser(
+      parseActionFactory,
+    ),
+    ~serializeActionFactories=struct.serializeActionFactories,
     ~metadata=?struct.maybeMetadata,
     (),
   )
@@ -723,29 +724,41 @@ let transform = (
   if maybeTransformationParser === None && maybeTransformationSerializer === None {
     Error.MissingParserAndSerializer.panic(`struct factory Transform`)
   }
-  let parseAction = switch maybeTransformationParser {
+  let parseActionFactory = switch maybeTransformationParser {
   | Some(transformationParser) =>
-    Action.transform((~input, ~struct as _, ~mode as _) => {
-      switch (transformationParser->Obj.magic)(. input) {
-      | Ok(transformed) => transformed
-      | Error(reason) => Error.Internal.raise(OperationFailed(reason))
-      }
-    })
+    Action.make(
+      SyncTransform(
+        (. input) => {
+          switch (transformationParser->Obj.magic)(. input) {
+          | Ok(transformed) => transformed
+          | Error(reason) => Error.Internal.raise(OperationFailed(reason))
+          }
+        },
+      ),
+    )
   | None => Action.missingParser
   }
   make(
     ~tagged_t=struct.tagged_t,
-    ~safeParseActions=struct.safeParseActions->Action.concatParser(parseAction),
-    ~migrationParseActions=struct.migrationParseActions->Action.concatParser(parseAction),
-    ~serializeActions=struct.serializeActions->Action.concatSerializer(
+    ~safeParseActionFactories=struct.safeParseActionFactories->Action.concatParser(
+      parseActionFactory,
+    ),
+    ~migrationParseActionFactories=struct.migrationParseActionFactories->Action.concatParser(
+      parseActionFactory,
+    ),
+    ~serializeActionFactories=struct.serializeActionFactories->Action.concatSerializer(
       switch maybeTransformationSerializer {
       | Some(transformationSerializer) =>
-        Action.transform((~input, ~struct as _, ~mode as _) => {
-          switch (transformationSerializer->Obj.magic)(. input) {
-          | Ok(value) => value
-          | Error(reason) => Error.Internal.raise(OperationFailed(reason))
-          }
-        })
+        Action.make(
+          SyncTransform(
+            (. input) => {
+              switch (transformationSerializer->Obj.magic)(. input) {
+              | Ok(value) => value
+              | Error(reason) => Error.Internal.raise(OperationFailed(reason))
+              }
+            },
+          ),
+        )
       | None => Action.missingSerializer
       },
     ),
@@ -764,29 +777,39 @@ let superTransform = (
     Error.MissingParserAndSerializer.panic(`struct factory Transform`)
   }
 
-  let parseAction = switch maybeTransformationParser {
+  let parseActionFactory = switch maybeTransformationParser {
   | Some(transformationParser) =>
-    Action.transform((~input, ~struct, ~mode) => {
-      switch (transformationParser->Obj.magic)(. ~value=input, ~struct, ~mode) {
-      | Ok(transformed) => transformed
-      | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
-      }
-    })
+    Action.factory((. ~struct, ~mode) => SyncTransform(
+      (. input) => {
+        switch (transformationParser->Obj.magic)(. ~value=input, ~struct, ~mode) {
+        | Ok(transformed) => transformed
+        | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
+        }
+      },
+    ))
   | None => Action.missingParser
   }
   make(
     ~tagged_t=struct.tagged_t,
-    ~safeParseActions=struct.safeParseActions->Action.concatParser(parseAction),
-    ~migrationParseActions=struct.migrationParseActions->Action.concatParser(parseAction),
-    ~serializeActions=struct.serializeActions->Action.concatSerializer(
+    ~safeParseActionFactories=struct.safeParseActionFactories->Action.concatParser(
+      parseActionFactory,
+    ),
+    ~migrationParseActionFactories=struct.migrationParseActionFactories->Action.concatParser(
+      parseActionFactory,
+    ),
+    ~serializeActionFactories=struct.serializeActionFactories->Action.concatSerializer(
       switch maybeTransformationSerializer {
       | Some(transformationSerializer) =>
-        Action.transform((~input, ~struct as _, ~mode as _) => {
-          switch (transformationSerializer->Obj.magic)(. ~transformed=input, ~struct) {
-          | Ok(value) => value
-          | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
-          }
-        })
+        Action.make(
+          SyncTransform(
+            (. input) => {
+              switch (transformationSerializer->Obj.magic)(. ~transformed=input, ~struct) {
+              | Ok(value) => value
+              | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
+              }
+            },
+          ),
+        )
       | None => Action.missingSerializer
       },
     ),
@@ -803,29 +826,37 @@ let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializ
   let parseActions = [
     switch maybeCustomParser {
     | Some(customParser) =>
-      Action.transform((~input, ~struct as _, ~mode) => {
-        switch customParser(. ~unknown=input, ~mode) {
-        | Ok(value) => value->unsafeAnyToUnknown
-        | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
-        }
-      })
+      Action.factory((. ~struct as _, ~mode) => SyncTransform(
+        (. input) => {
+          let input = input->unsafeUnknownToAny
+          switch customParser(. ~unknown=input, ~mode) {
+          | Ok(value) => value->unsafeAnyToUnknown
+          | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
+          }
+        },
+      ))
     | None => Action.missingParser
     },
   ]
 
   make(
     ~tagged_t=Unknown,
-    ~migrationParseActions=parseActions,
-    ~safeParseActions=parseActions,
-    ~serializeActions=[
+    ~migrationParseActionFactories=parseActions,
+    ~safeParseActionFactories=parseActions,
+    ~serializeActionFactories=[
       switch maybeCustomSerializer {
       | Some(customSerializer) =>
-        Action.transform((~input, ~struct as _, ~mode as _) => {
-          switch customSerializer(. ~value=input) {
-          | Ok(value) => value->unsafeAnyToUnknown
-          | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
-          }
-        })
+        Action.make(
+          SyncTransform(
+            (. input) => {
+              let input = input->unsafeUnknownToAny
+              switch customSerializer(. ~value=input) {
+              | Ok(value) => value->unsafeAnyToUnknown
+              | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
+              }
+            },
+          ),
+        )
       | None => Action.missingSerializer
       },
     ],
@@ -836,85 +867,130 @@ let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializ
 module Literal = {
   module CommonOperations = {
     module Parser = {
-      let literalValueRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-        let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
-        if expectedValue !== input {
-          Error.Internal.UnexpectedValue.raise(~expected=expectedValue, ~received=input)
-        }
-      })
+      let literalValueRefinement = Action.factory((. ~struct, ~mode as _) => SyncTransform(
+        (. input) => {
+          let expectedValue = struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
+          switch expectedValue === input {
+          | true => input
+          | false => Error.Internal.UnexpectedValue.raise(~expected=expectedValue, ~received=input)
+          }
+        },
+      ))
     }
 
-    let transformToLiteralValue = Action.transform((~input as _, ~struct, ~mode as _) => {
-      struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
-    })
+    let transformToLiteralValue = Action.factory((. ~struct, ~mode as _) => SyncTransform(
+      (. _) => {
+        struct->classify->unsafeGetVariantPayload->unsafeGetVariantPayload
+      },
+    ))
   }
 
   module EmptyNull = {
-    let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-      if input !== Js.Null.empty {
-        raiseUnexpectedTypeError(~input, ~struct)
-      }
-    })
+    let parserRefinement = Action.factory((. ~struct, ~mode as _) => SyncTransform(
+      (. input) => {
+        if input->unsafeUnknownToAny !== Js.Null.empty {
+          raiseUnexpectedTypeError(~input, ~struct)
+        } else {
+          input
+        }
+      },
+    ))
 
-    let serializerTransform = Action.transform((~input as _, ~struct as _, ~mode as _) => {
-      Js.Null.empty->unsafeAnyToUnknown
-    })
+    let serializerTransform = Action.make(
+      SyncTransform(
+        (. _) => {
+          Js.Null.empty->unsafeAnyToUnknown
+        },
+      ),
+    )
   }
 
   module EmptyOption = {
-    let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-      if input !== Js.Undefined.empty {
-        raiseUnexpectedTypeError(~input, ~struct)
-      }
-    })
+    let parserRefinement = Action.factory((. ~struct, ~mode as _) => SyncTransform(
+      (. input) => {
+        if input->unsafeUnknownToAny !== Js.Undefined.empty {
+          raiseUnexpectedTypeError(~input, ~struct)
+        } else {
+          input
+        }
+      },
+    ))
 
-    let serializerTransform = Action.transform((~input as _, ~struct as _, ~mode as _) => {
-      Js.Undefined.empty->unsafeAnyToUnknown
-    })
+    let serializerTransform = Action.make(
+      SyncTransform(
+        (. _) => {
+          Js.Undefined.empty->unsafeAnyToUnknown
+        },
+      ),
+    )
   }
 
   module NaN = {
-    let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-      if !Js.Float.isNaN(input) {
-        raiseUnexpectedTypeError(~input, ~struct)
-      }
-    })
+    let parserRefinement = Action.factory((. ~struct, ~mode as _) => SyncTransform(
+      (. input) => {
+        if !Js.Float.isNaN(input->unsafeUnknownToAny) {
+          raiseUnexpectedTypeError(~input, ~struct)
+        } else {
+          input
+        }
+      },
+    ))
 
-    let serializerTransform = Action.transform((~input as _, ~struct as _, ~mode as _) => {
-      Js.Float._NaN->unsafeAnyToUnknown
-    })
+    let serializerTransform = Action.make(
+      SyncTransform(
+        (. _) => {
+          Js.Float._NaN->unsafeAnyToUnknown
+        },
+      ),
+    )
   }
 
   module Bool = {
-    let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-      if input->Js.typeof !== "boolean" {
-        raiseUnexpectedTypeError(~input, ~struct)
-      }
-    })
+    let parserRefinement = Action.factory((. ~struct, ~mode as _) => SyncTransform(
+      (. input) => {
+        if input->Js.typeof !== "boolean" {
+          raiseUnexpectedTypeError(~input, ~struct)
+        } else {
+          input
+        }
+      },
+    ))
   }
 
   module String = {
-    let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-      if input->Js.typeof !== "string" {
-        raiseUnexpectedTypeError(~input, ~struct)
-      }
-    })
+    let parserRefinement = Action.factory((. ~struct, ~mode as _) => SyncTransform(
+      (. input) => {
+        if input->Js.typeof !== "string" {
+          raiseUnexpectedTypeError(~input, ~struct)
+        } else {
+          input
+        }
+      },
+    ))
   }
 
   module Float = {
-    let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-      if input->Js.typeof !== "number" {
-        raiseUnexpectedTypeError(~input, ~struct)
-      }
-    })
+    let parserRefinement = Action.factory((. ~struct, ~mode as _) => SyncTransform(
+      (. input) => {
+        if input->Js.typeof !== "number" {
+          raiseUnexpectedTypeError(~input, ~struct)
+        } else {
+          input
+        }
+      },
+    ))
   }
 
   module Int = {
-    let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-      if !Lib.Int.test(input) {
-        raiseUnexpectedTypeError(~input, ~struct)
-      }
-    })
+    let parserRefinement = Action.factory((. ~struct, ~mode as _) => SyncTransform(
+      (. input) => {
+        if !Lib.Int.test(input) {
+          raiseUnexpectedTypeError(~input, ~struct)
+        } else {
+          input
+        }
+      },
+    ))
   }
 
   module Variant = {
@@ -922,88 +998,110 @@ module Literal = {
       type literalValue variant. (literal<literalValue>, variant) => t<variant> =
       (innerLiteral, variant) => {
         let tagged_t = Literal(innerLiteral)
-        let parserTransform = Action.transform((~input as _, ~struct as _, ~mode as _) => {
-          variant->unsafeAnyToUnknown
-        })
-        let serializerRefinement = Action.refine((~input, ~struct as _, ~mode as _) => {
-          if input !== variant {
-            Error.Internal.UnexpectedValue.raise(
-              ~expected=variant->Obj.magic,
-              ~received=input->Obj.magic,
-            )
-          }
-        })
+        let parserTransform = Action.make(
+          SyncTransform(
+            (. _) => {
+              variant->unsafeAnyToUnknown
+            },
+          ),
+        )
+        let serializerRefinement = Action.make(
+          SyncTransform(
+            (. input) => {
+              if input !== variant->unsafeAnyToUnknown {
+                Error.Internal.UnexpectedValue.raise(
+                  ~expected=variant->unsafeAnyToUnknown,
+                  ~received=input,
+                )
+              } else {
+                input
+              }
+            },
+          ),
+        )
         switch innerLiteral {
         | EmptyNull =>
           make(
             ~tagged_t,
-            ~safeParseActions=[EmptyNull.parserRefinement, parserTransform],
-            ~migrationParseActions=[parserTransform],
-            ~serializeActions=[serializerRefinement, EmptyNull.serializerTransform],
+            ~safeParseActionFactories=[EmptyNull.parserRefinement, parserTransform],
+            ~migrationParseActionFactories=[parserTransform],
+            ~serializeActionFactories=[serializerRefinement, EmptyNull.serializerTransform],
             (),
           )
         | EmptyOption =>
           make(
             ~tagged_t,
-            ~safeParseActions=[EmptyOption.parserRefinement, parserTransform],
-            ~migrationParseActions=[parserTransform],
-            ~serializeActions=[serializerRefinement, EmptyOption.serializerTransform],
+            ~safeParseActionFactories=[EmptyOption.parserRefinement, parserTransform],
+            ~migrationParseActionFactories=[parserTransform],
+            ~serializeActionFactories=[serializerRefinement, EmptyOption.serializerTransform],
             (),
           )
         | NaN =>
           make(
             ~tagged_t,
-            ~safeParseActions=[NaN.parserRefinement, parserTransform],
-            ~migrationParseActions=[parserTransform],
-            ~serializeActions=[serializerRefinement, NaN.serializerTransform],
+            ~safeParseActionFactories=[NaN.parserRefinement, parserTransform],
+            ~migrationParseActionFactories=[parserTransform],
+            ~serializeActionFactories=[serializerRefinement, NaN.serializerTransform],
             (),
           )
         | Bool(_) =>
           make(
             ~tagged_t,
-            ~safeParseActions=[
+            ~safeParseActionFactories=[
               Bool.parserRefinement,
               CommonOperations.Parser.literalValueRefinement,
               parserTransform,
             ],
-            ~migrationParseActions=[parserTransform],
-            ~serializeActions=[serializerRefinement, CommonOperations.transformToLiteralValue],
+            ~migrationParseActionFactories=[parserTransform],
+            ~serializeActionFactories=[
+              serializerRefinement,
+              CommonOperations.transformToLiteralValue,
+            ],
             (),
           )
         | String(_) =>
           make(
             ~tagged_t,
-            ~safeParseActions=[
+            ~safeParseActionFactories=[
               String.parserRefinement,
               CommonOperations.Parser.literalValueRefinement,
               parserTransform,
             ],
-            ~migrationParseActions=[parserTransform],
-            ~serializeActions=[serializerRefinement, CommonOperations.transformToLiteralValue],
+            ~migrationParseActionFactories=[parserTransform],
+            ~serializeActionFactories=[
+              serializerRefinement,
+              CommonOperations.transformToLiteralValue,
+            ],
             (),
           )
         | Float(_) =>
           make(
             ~tagged_t,
-            ~safeParseActions=[
+            ~safeParseActionFactories=[
               Float.parserRefinement,
               CommonOperations.Parser.literalValueRefinement,
               parserTransform,
             ],
-            ~migrationParseActions=[parserTransform],
-            ~serializeActions=[serializerRefinement, CommonOperations.transformToLiteralValue],
+            ~migrationParseActionFactories=[parserTransform],
+            ~serializeActionFactories=[
+              serializerRefinement,
+              CommonOperations.transformToLiteralValue,
+            ],
             (),
           )
         | Int(_) =>
           make(
             ~tagged_t,
-            ~safeParseActions=[
+            ~safeParseActionFactories=[
               Int.parserRefinement,
               CommonOperations.Parser.literalValueRefinement,
               parserTransform,
             ],
-            ~migrationParseActions=[parserTransform],
-            ~serializeActions=[serializerRefinement, CommonOperations.transformToLiteralValue],
+            ~migrationParseActionFactories=[parserTransform],
+            ~serializeActionFactories=[
+              serializerRefinement,
+              CommonOperations.transformToLiteralValue,
+            ],
             (),
           )
         }
@@ -1033,7 +1131,7 @@ module Record = {
   }
 
   let getMaybeExcessKey: (
-    . Js.Dict.t<unknown>,
+    . unknown,
     Js.Dict.t<t<unknown>>,
   ) => option<string> = %raw(`function(object, innerStructsDict) {
     for (var key in object) {
@@ -1043,33 +1141,35 @@ module Record = {
     }
   }`)
 
-  let serializeActions = [
-    Action.transform((~input, ~struct, ~mode as _) => {
-      let {fields, fieldNames} = struct->classify->Obj.magic
+  let serializeActionFactories = [
+    Action.factory((. ~struct, ~mode as _) => SyncTransform(
+      (. input) => {
+        let {fields, fieldNames} = struct->classify->Obj.magic
 
-      let unknown = Js.Dict.empty()
-      let fieldValues = fieldNames->Js.Array2.length <= 1 ? [input]->Obj.magic : input->Obj.magic
-      for idx in 0 to fieldNames->Js.Array2.length - 1 {
-        let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-        let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-        let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
-        switch fieldStruct.serialize {
-        | Noop => unknown->Js.Dict.set(fieldName, fieldValue)
-        | Sync(fn) =>
-          try {
-            let fieldData = fn(. fieldValue)
-            unknown->Js.Dict.set(fieldName, fieldData)
-          } catch {
-          | Error.Internal.Exception(internalError) =>
-            raise(
-              Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName)),
-            )
+        let unknown = Js.Dict.empty()
+        let fieldValues = fieldNames->Js.Array2.length <= 1 ? [input]->Obj.magic : input->Obj.magic
+        for idx in 0 to fieldNames->Js.Array2.length - 1 {
+          let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+          let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+          let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
+          switch fieldStruct.serialize {
+          | Noop => unknown->Js.Dict.set(fieldName, fieldValue)
+          | Sync(fn) =>
+            try {
+              let fieldData = fn(. fieldValue)
+              unknown->Js.Dict.set(fieldName, fieldData)
+            } catch {
+            | Error.Internal.Exception(internalError) =>
+              raise(
+                Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName)),
+              )
+            }
+          | Async(_) => Error.Unreachable.panic()
           }
-        | Async(_) => Error.Unreachable.panic()
         }
-      }
-      unknown->unsafeAnyToUnknown
-    }),
+        unknown->unsafeAnyToUnknown
+      },
+    )),
   ]
 
   let innerFactory = fieldsArray => {
@@ -1095,70 +1195,80 @@ module Record = {
       let withAsyncOps = asyncOps->Js.Array2.length > 0
 
       let parseActions = [
-        Action.transform((~input, ~struct, ~mode) => {
-          if mode === Safe && input->Lib.Object.test === false {
-            raiseUnexpectedTypeError(~input, ~struct)
-          }
-
-          let newArray = []
-
-          for idx in 0 to syncOps->Js.Array2.length - 1 {
-            let (originalIdx, fieldName, fn) = syncOps->Js.Array2.unsafe_get(idx)
-            let fieldData = input->Js.Dict.unsafeGet(fieldName)
-            try {
-              let value = fn(. fieldData)
-              newArray->Lib.Array.set(originalIdx, value)
-            } catch {
-            | Error.Internal.Exception(internalError) =>
-              raise(
-                Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName)),
-              )
+        Action.factory((. ~struct, ~mode) => SyncTransform(
+          (. input) => {
+            if mode === Safe && input->Lib.Object.test === false {
+              raiseUnexpectedTypeError(~input, ~struct)
             }
-          }
 
-          for idx in 0 to noopOps->Js.Array2.length - 1 {
-            let (originalIdx, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
-            let fieldData = input->Js.Dict.unsafeGet(fieldName)
-            newArray->Lib.Array.set(originalIdx, fieldData)
-          }
+            let newArray = []
 
-          let {unknownKeys} = struct->classify->Obj.magic
-          if unknownKeys === Strict && mode === Safe {
-            switch getMaybeExcessKey(. input, fields) {
-            | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
-            | None => ()
+            for idx in 0 to syncOps->Js.Array2.length - 1 {
+              let (originalIdx, fieldName, fn) = syncOps->Js.Array2.unsafe_get(idx)
+              let fieldData = input->unsafeUnknownToAny->Js.Dict.unsafeGet(fieldName)
+              try {
+                let value = fn(. fieldData)
+                newArray->Lib.Array.set(originalIdx, value)
+              } catch {
+              | Error.Internal.Exception(internalError) =>
+                raise(
+                  Error.Internal.Exception(
+                    internalError->Error.Internal.prependLocation(fieldName),
+                  ),
+                )
+              }
             }
-          }
 
-          withAsyncOps ? newArray->unsafeAnyToUnknown : newArray->Lib.Array.toTuple
-        }),
+            for idx in 0 to noopOps->Js.Array2.length - 1 {
+              let (originalIdx, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
+              let fieldData = input->unsafeUnknownToAny->Js.Dict.unsafeGet(fieldName)
+              newArray->Lib.Array.set(originalIdx, fieldData)
+            }
+
+            let {unknownKeys} = struct->classify->Obj.magic
+            if unknownKeys === Strict && mode === Safe {
+              switch getMaybeExcessKey(. input, fields) {
+              | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
+              | None => ()
+              }
+            }
+
+            withAsyncOps ? newArray->unsafeAnyToUnknown : newArray->Lib.Array.toTuple
+          },
+        )),
       ]
 
       if withAsyncOps {
         parseActions
         ->Js.Array2.push(
-          Action.asyncTransform((~input as tempArray, ~struct as _, ~mode as _) => {
-            asyncOps
-            ->Js.Array2.map(((originalIdx, fieldName)) => {
-              (
-                tempArray->Js.Array2.unsafe_get(originalIdx)->Obj.magic
-              )(.)->Lib.Promise.catch(exn => {
-                switch exn {
-                | Error.Internal.Exception(internalError) =>
-                  Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName))
-                | _ => exn
-                }->Lib.Exn.throw
-              })
-            })
-            ->Lib.Promise.all
-            ->Lib.Promise.thenResolve(asyncFieldValues => {
-              asyncFieldValues->Js.Array2.forEachi((fieldValue, idx) => {
-                let (originalIdx, _) = asyncOps->Js.Array2.unsafe_get(idx)
-                tempArray->Lib.Array.set(originalIdx, fieldValue)
-              })
-              tempArray->unsafeAnyToUnknown
-            })
-          }),
+          Action.make(
+            AsyncTransform(
+              (. tempArray) => {
+                asyncOps
+                ->Js.Array2.map(((originalIdx, fieldName)) => {
+                  (
+                    tempArray->unsafeUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
+                  )(.)->Lib.Promise.catch(exn => {
+                    switch exn {
+                    | Error.Internal.Exception(internalError) =>
+                      Error.Internal.Exception(
+                        internalError->Error.Internal.prependLocation(fieldName),
+                      )
+                    | _ => exn
+                    }->Lib.Exn.throw
+                  })
+                })
+                ->Lib.Promise.all
+                ->Lib.Promise.thenResolve(asyncFieldValues => {
+                  asyncFieldValues->Js.Array2.forEachi((fieldValue, idx) => {
+                    let (originalIdx, _) = asyncOps->Js.Array2.unsafe_get(idx)
+                    tempArray->unsafeUnknownToAny->Lib.Array.set(originalIdx, fieldValue)
+                  })
+                  tempArray->unsafeAnyToUnknown
+                })
+              },
+            ),
+          ),
         )
         ->ignore
       }
@@ -1168,9 +1278,9 @@ module Record = {
 
     make(
       ~tagged_t=Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strict}),
-      ~safeParseActions=makeParseActions(~mode=Safe),
-      ~migrationParseActions=makeParseActions(~mode=Migration),
-      ~serializeActions,
+      ~safeParseActionFactories=makeParseActions(~mode=Safe),
+      ~migrationParseActionFactories=makeParseActions(~mode=Migration),
+      ~serializeActionFactories,
       (),
     )
   }
@@ -1183,9 +1293,9 @@ module Record = {
     | Record({fields, fieldNames}) =>
       make(
         ~tagged_t=Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strip}),
-        ~safeParseActions=struct.safeParseActions,
-        ~migrationParseActions=struct.migrationParseActions,
-        ~serializeActions=struct.serializeActions,
+        ~safeParseActionFactories=struct.safeParseActionFactories,
+        ~migrationParseActionFactories=struct.migrationParseActionFactories,
+        ~serializeActionFactories=struct.serializeActionFactories,
         ~metadata=?struct.maybeMetadata,
         (),
       )
@@ -1199,9 +1309,9 @@ module Record = {
     | Record({fields, fieldNames}) =>
       make(
         ~tagged_t=Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strict}),
-        ~safeParseActions=struct.safeParseActions,
-        ~migrationParseActions=struct.migrationParseActions,
-        ~serializeActions=struct.serializeActions,
+        ~safeParseActionFactories=struct.safeParseActionFactories,
+        ~migrationParseActionFactories=struct.migrationParseActionFactories,
+        ~serializeActionFactories=struct.serializeActionFactories,
         ~metadata=?struct.maybeMetadata,
         (),
       )
@@ -1212,17 +1322,19 @@ module Record = {
 
 module Never = {
   let actions = [
-    Action.refine((~input, ~struct, ~mode as _) => {
-      raiseUnexpectedTypeError(~input, ~struct)
-    }),
+    Action.factory((. ~struct, ~mode as _) => SyncTransform(
+      (. input) => {
+        raiseUnexpectedTypeError(~input, ~struct)
+      },
+    )),
   ]
 
   let factory = () => {
     make(
       ~tagged_t=Never,
-      ~safeParseActions=actions,
-      ~migrationParseActions=Action.emptyArray,
-      ~serializeActions=actions,
+      ~safeParseActionFactories=actions,
+      ~migrationParseActionFactories=Action.emptyArray,
+      ~serializeActionFactories=actions,
       (),
     )
   }
@@ -1232,9 +1344,9 @@ module Unknown = {
   let factory = () => {
     make(
       ~tagged_t=Unknown,
-      ~safeParseActions=Action.emptyArray,
-      ~migrationParseActions=Action.emptyArray,
-      ~serializeActions=Action.emptyArray,
+      ~safeParseActionFactories=Action.emptyArray,
+      ~migrationParseActionFactories=Action.emptyArray,
+      ~serializeActionFactories=Action.emptyArray,
       (),
     )
   }
@@ -1245,18 +1357,22 @@ module String = {
   let uuidRegex = %re(`/^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]{12}|00000000-0000-0000-0000-000000000000)$/i`)
   let emailRegex = %re(`/^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i`)
 
-  let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-    if input->Js.typeof !== "string" {
-      raiseUnexpectedTypeError(~input, ~struct)
-    }
-  })
+  let parserRefinement = Action.factory((. ~struct, ~mode as _) => SyncTransform(
+    (. input) => {
+      if input->Js.typeof !== "string" {
+        raiseUnexpectedTypeError(~input, ~struct)
+      } else {
+        input
+      }
+    },
+  ))
 
   let factory = () => {
     make(
       ~tagged_t=String,
-      ~safeParseActions=[parserRefinement],
-      ~migrationParseActions=Action.emptyArray,
-      ~serializeActions=Action.emptyArray,
+      ~safeParseActionFactories=[parserRefinement],
+      ~migrationParseActionFactories=Action.emptyArray,
+      ~serializeActionFactories=Action.emptyArray,
       (),
     )
   }
@@ -1357,36 +1473,44 @@ module String = {
 }
 
 module Bool = {
-  let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-    if input->Js.typeof !== "boolean" {
-      raiseUnexpectedTypeError(~input, ~struct)
-    }
-  })
+  let parserRefinement = Action.factory((. ~struct, ~mode as _) => SyncTransform(
+    (. input) => {
+      if input->Js.typeof !== "boolean" {
+        raiseUnexpectedTypeError(~input, ~struct)
+      } else {
+        input
+      }
+    },
+  ))
 
   let factory = () => {
     make(
       ~tagged_t=Bool,
-      ~safeParseActions=[parserRefinement],
-      ~migrationParseActions=Action.emptyArray,
-      ~serializeActions=Action.emptyArray,
+      ~safeParseActionFactories=[parserRefinement],
+      ~migrationParseActionFactories=Action.emptyArray,
+      ~serializeActionFactories=Action.emptyArray,
       (),
     )
   }
 }
 
 module Int = {
-  let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-    if !Lib.Int.test(input) {
-      raiseUnexpectedTypeError(~input, ~struct)
-    }
-  })
+  let parserRefinement = Action.factory((. ~struct, ~mode as _) => SyncTransform(
+    (. input) => {
+      if !Lib.Int.test(input) {
+        raiseUnexpectedTypeError(~input, ~struct)
+      } else {
+        input
+      }
+    },
+  ))
 
   let factory = () => {
     make(
       ~tagged_t=Int,
-      ~safeParseActions=[parserRefinement],
-      ~migrationParseActions=Action.emptyArray,
-      ~serializeActions=Action.emptyArray,
+      ~safeParseActionFactories=[parserRefinement],
+      ~migrationParseActionFactories=Action.emptyArray,
+      ~serializeActionFactories=Action.emptyArray,
       (),
     )
   }
@@ -1421,22 +1545,26 @@ module Int = {
 }
 
 module Float = {
-  let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-    switch input->Js.typeof === "number" {
-    | true =>
-      if Js.Float.isNaN(input) {
-        raiseUnexpectedTypeError(~input, ~struct)
+  let parserRefinement = Action.factory((. ~struct, ~mode as _) => SyncTransform(
+    (. input) => {
+      switch input->Js.typeof === "number" {
+      | true =>
+        if Js.Float.isNaN(input->unsafeUnknownToAny) {
+          raiseUnexpectedTypeError(~input, ~struct)
+        } else {
+          input
+        }
+      | false => raiseUnexpectedTypeError(~input, ~struct)
       }
-    | false => raiseUnexpectedTypeError(~input, ~struct)
-    }
-  })
+    },
+  ))
 
   let factory = () => {
     make(
       ~tagged_t=Float,
-      ~safeParseActions=[parserRefinement],
-      ~migrationParseActions=Action.emptyArray,
-      ~serializeActions=Action.emptyArray,
+      ~safeParseActionFactories=[parserRefinement],
+      ~migrationParseActionFactories=Action.emptyArray,
+      ~serializeActionFactories=Action.emptyArray,
       (),
     )
   }
@@ -1446,98 +1574,127 @@ module Float = {
 }
 
 module Date = {
-  let parserRefinement = Action.refine((~input, ~struct, ~mode as _) => {
-    let factory = struct->classify->unsafeGetVariantPayload
-    if !(factory->Lib.Factory.factoryOf(input) && !(input->Js.Date.getTime->Js.Float.isNaN)) {
-      raiseUnexpectedTypeError(~input, ~struct)
-    }
-  })
+  let parserRefinement = Action.factory((. ~struct, ~mode as _) => SyncTransform(
+    (. input) => {
+      let factory = struct->classify->unsafeGetVariantPayload
+      if (
+        !(
+          factory->Lib.Factory.factoryOf(input) &&
+            !(input->unsafeUnknownToAny->Js.Date.getTime->Js.Float.isNaN)
+        )
+      ) {
+        raiseUnexpectedTypeError(~input, ~struct)
+      } else {
+        input
+      }
+    },
+  ))
 
   let factory = () => {
     make(
       ~tagged_t=Instance(%raw(`Date`)),
-      ~safeParseActions=[parserRefinement],
-      ~migrationParseActions=Action.emptyArray,
-      ~serializeActions=Action.emptyArray,
+      ~safeParseActionFactories=[parserRefinement],
+      ~migrationParseActionFactories=Action.emptyArray,
+      ~serializeActionFactories=Action.emptyArray,
       (),
     )
   }
 }
 
 module Null = {
-  let serializeActions = [
-    Action.transform((~input, ~struct, ~mode as _) => {
-      switch input {
-      | Some(value) =>
-        let innerStruct = struct->classify->unsafeGetVariantPayload
-        serializeInner(~struct=innerStruct->Obj.magic, ~value)
-      | None => Js.Null.empty->unsafeAnyToUnknown
-      }
-    }),
+  let serializeActionFactories = [
+    Action.factory((. ~struct, ~mode as _) => SyncTransform(
+      (. input) => {
+        switch input->unsafeUnknownToAny {
+        | Some(value) =>
+          let innerStruct = struct->classify->unsafeGetVariantPayload
+          serializeInner(~struct=innerStruct->Obj.magic, ~value)
+        | None => Js.Null.empty->unsafeAnyToUnknown
+        }
+      },
+    )),
   ]
 
   let factory = innerStruct => {
     let makeSyncParseAction = fn => {
-      Action.transform((~input, ~struct as _, ~mode as _) => {
-        switch input->Js.Null.toOption {
-        | Some(innerData) => Some(fn(. innerData))
-        | None => None
-        }->unsafeAnyToUnknown
-      })
+      Action.make(
+        SyncTransform(
+          (. input) => {
+            switch input->unsafeUnknownToAny->Js.Null.toOption {
+            | Some(innerData) => Some(fn(. innerData))
+            | None => None
+            }->unsafeAnyToUnknown
+          },
+        ),
+      )
     }
 
     let makeParseActions = (~mode) => {
       switch innerStruct->getParseOperation(~mode) {
       | Noop => [
-          Action.transform((~input, ~struct as _, ~mode as _) => {
-            input->Js.Null.toOption->unsafeAnyToUnknown
-          }),
+          Action.make(
+            SyncTransform(
+              (. input) => {
+                input->unsafeUnknownToAny->Js.Null.toOption->unsafeAnyToUnknown
+              },
+            ),
+          ),
         ]
       | Sync(fn) => [makeSyncParseAction(fn)]
       | Async(fn) => [
           makeSyncParseAction(fn),
-          Action.asyncTransform((~input, ~struct as _, ~mode as _) => {
-            switch input {
-            | Some(asyncFn) =>
-              asyncFn(.)->Lib.Promise.thenResolve(value => Some(value)->unsafeAnyToUnknown)
-            | None => None->unsafeAnyToUnknown->Lib.Promise.resolve
-            }
-          }),
+          Action.make(
+            AsyncTransform(
+              (. input) => {
+                switch input->unsafeUnknownToAny {
+                | Some(asyncFn) =>
+                  asyncFn(.)->Lib.Promise.thenResolve(value => Some(value)->unsafeAnyToUnknown)
+                | None => None->unsafeAnyToUnknown->Lib.Promise.resolve
+                }
+              },
+            ),
+          ),
         ]
       }
     }
 
     make(
       ~tagged_t=Null(innerStruct),
-      ~safeParseActions=makeParseActions(~mode=Safe),
-      ~migrationParseActions=makeParseActions(~mode=Migration),
-      ~serializeActions,
+      ~safeParseActionFactories=makeParseActions(~mode=Safe),
+      ~migrationParseActionFactories=makeParseActions(~mode=Migration),
+      ~serializeActionFactories,
       (),
     )
   }
 }
 
 module Option = {
-  let serializeActions = [
-    Action.transform((~input, ~struct, ~mode as _) => {
-      switch input {
-      | Some(value) => {
-          let innerStruct = struct->classify->unsafeGetVariantPayload
-          serializeInner(~struct=innerStruct, ~value)
+  let serializeActionFactories = [
+    Action.factory((. ~struct, ~mode as _) => SyncTransform(
+      (. input) => {
+        switch input->unsafeUnknownToAny {
+        | Some(value) => {
+            let innerStruct = struct->classify->unsafeGetVariantPayload
+            serializeInner(~struct=innerStruct, ~value)
+          }
+        | None => Js.Undefined.empty->unsafeAnyToUnknown
         }
-      | None => Js.Undefined.empty->unsafeAnyToUnknown
-      }
-    }),
+      },
+    )),
   ]
 
   let factory = innerStruct => {
     let makeSyncParseAction = fn => {
-      Action.transform((~input, ~struct as _, ~mode as _) => {
-        switch input {
-        | Some(innerData) => Some(fn(. innerData))
-        | None => None
-        }->unsafeAnyToUnknown
-      })
+      Action.make(
+        SyncTransform(
+          (. input) => {
+            switch input->unsafeUnknownToAny {
+            | Some(innerData) => Some(fn(. innerData))
+            | None => None
+            }->unsafeAnyToUnknown
+          },
+        ),
+      )
     }
 
     let makeParseActions = (~mode) => {
@@ -1546,22 +1703,26 @@ module Option = {
       | Sync(fn) => [makeSyncParseAction(fn)]
       | Async(fn) => [
           makeSyncParseAction(fn),
-          Action.asyncTransform((~input, ~struct as _, ~mode as _) => {
-            switch input {
-            | Some(asyncFn) =>
-              asyncFn(.)->Lib.Promise.thenResolve(value => Some(value)->unsafeAnyToUnknown)
-            | None => None->unsafeAnyToUnknown->Lib.Promise.resolve
-            }
-          }),
+          Action.make(
+            AsyncTransform(
+              (. input) => {
+                switch input->unsafeUnknownToAny {
+                | Some(asyncFn) =>
+                  asyncFn(.)->Lib.Promise.thenResolve(value => Some(value)->unsafeAnyToUnknown)
+                | None => None->unsafeAnyToUnknown->Lib.Promise.resolve
+                }
+              },
+            ),
+          ),
         ]
       }
     }
 
     make(
       ~tagged_t=Option(innerStruct),
-      ~safeParseActions=makeParseActions(~mode=Safe),
-      ~migrationParseActions=makeParseActions(~mode=Migration),
-      ~serializeActions,
+      ~safeParseActionFactories=makeParseActions(~mode=Safe),
+      ~migrationParseActionFactories=makeParseActions(~mode=Migration),
+      ~serializeActionFactories,
       (),
     )
   }
@@ -1569,22 +1730,30 @@ module Option = {
 
 module Deprecated = {
   let factory = (~message as maybeMessage=?, innerStruct) => {
-    let serializeActions = [
-      Action.transform((~input, ~struct as _, ~mode as _) => {
-        switch input {
-        | Some(value) => serializeInner(~struct=innerStruct, ~value)
-        | None => %raw(`undefined`)
-        }
-      }),
+    let serializeActionFactories = [
+      Action.make(
+        SyncTransform(
+          (. input) => {
+            switch input->unsafeUnknownToAny {
+            | Some(value) => serializeInner(~struct=innerStruct, ~value)
+            | None => %raw(`undefined`)
+            }
+          },
+        ),
+      ),
     ]
 
     let makeSyncParseAction = fn => {
-      Action.transform((~input, ~struct as _, ~mode as _) => {
-        switch input {
-        | Some(innerData) => Some(fn(. innerData))
-        | None => None
-        }->unsafeAnyToUnknown
-      })
+      Action.make(
+        SyncTransform(
+          (. input) => {
+            switch input->unsafeUnknownToAny {
+            | Some(innerData) => Some(fn(. innerData))
+            | None => None
+            }->unsafeAnyToUnknown
+          },
+        ),
+      )
     }
 
     let makeParseActions = (~mode) => {
@@ -1593,22 +1762,26 @@ module Deprecated = {
       | Sync(fn) => [makeSyncParseAction(fn)]
       | Async(fn) => [
           makeSyncParseAction(fn),
-          Action.asyncTransform((~input, ~struct as _, ~mode as _) => {
-            switch input {
-            | Some(asyncFn) =>
-              asyncFn(.)->Lib.Promise.thenResolve(value => Some(value)->unsafeAnyToUnknown)
-            | None => None->unsafeAnyToUnknown->Lib.Promise.resolve
-            }
-          }),
+          Action.make(
+            AsyncTransform(
+              (. input) => {
+                switch input->unsafeUnknownToAny {
+                | Some(asyncFn) =>
+                  asyncFn(.)->Lib.Promise.thenResolve(value => Some(value)->unsafeAnyToUnknown)
+                | None => None->unsafeAnyToUnknown->Lib.Promise.resolve
+                }
+              },
+            ),
+          ),
         ]
       }
     }
 
     make(
       ~tagged_t=Deprecated({struct: innerStruct, maybeMessage: maybeMessage}),
-      ~safeParseActions=makeParseActions(~mode=Safe),
-      ~migrationParseActions=makeParseActions(~mode=Migration),
-      ~serializeActions,
+      ~safeParseActionFactories=makeParseActions(~mode=Safe),
+      ~migrationParseActionFactories=makeParseActions(~mode=Migration),
+      ~serializeActionFactories,
       (),
     )
   }
@@ -1616,50 +1789,58 @@ module Deprecated = {
 
 module Array = {
   let factory = innerStruct => {
-    let serializeActions = switch innerStruct.serialize {
+    let serializeActionFactories = switch innerStruct.serialize {
     | Noop => Action.emptyArray
     | Sync(fn) => [
-        Action.transform((~input, ~struct as _, ~mode as _) => {
-          let newArray = []
-          for idx in 0 to input->Js.Array2.length - 1 {
-            let innerData = input->Js.Array2.unsafe_get(idx)
-            try {
-              let value = fn(. innerData)
-              newArray->Js.Array2.push(value)->ignore
-            } catch {
-            | Error.Internal.Exception(internalError) =>
-              raise(
-                Error.Internal.Exception(
-                  internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                ),
-              )
-            }
-          }
-          newArray->unsafeAnyToUnknown
-        }),
+        Action.make(
+          SyncTransform(
+            (. input) => {
+              let newArray = []
+              for idx in 0 to input->unsafeUnknownToAny->Js.Array2.length - 1 {
+                let innerData = input->unsafeUnknownToAny->Js.Array2.unsafe_get(idx)
+                try {
+                  let value = fn(. innerData)
+                  newArray->Js.Array2.push(value)->ignore
+                } catch {
+                | Error.Internal.Exception(internalError) =>
+                  raise(
+                    Error.Internal.Exception(
+                      internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+                    ),
+                  )
+                }
+              }
+              newArray->unsafeAnyToUnknown
+            },
+          ),
+        ),
       ]
     | Async(_) => Error.Unreachable.panic()
     }
 
     let makeSyncParseAction = fn => {
-      Action.transform((~input, ~struct as _, ~mode as _) => {
-        let newArray = []
-        for idx in 0 to input->Js.Array2.length - 1 {
-          let innerData = input->Js.Array2.unsafe_get(idx)
-          try {
-            let value = fn(. innerData)
-            newArray->Js.Array2.push(value)->ignore
-          } catch {
-          | Error.Internal.Exception(internalError) =>
-            raise(
-              Error.Internal.Exception(
-                internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-              ),
-            )
-          }
-        }
-        newArray->unsafeAnyToUnknown
-      })
+      Action.make(
+        SyncTransform(
+          (. input) => {
+            let newArray = []
+            for idx in 0 to input->unsafeUnknownToAny->Js.Array2.length - 1 {
+              let innerData = input->unsafeUnknownToAny->Js.Array2.unsafe_get(idx)
+              try {
+                let value = fn(. innerData)
+                newArray->Js.Array2.push(value)->ignore
+              } catch {
+              | Error.Internal.Exception(internalError) =>
+                raise(
+                  Error.Internal.Exception(
+                    internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+                  ),
+                )
+              }
+            }
+            newArray->unsafeAnyToUnknown
+          },
+        ),
+      )
     }
 
     let makeParseActions = (~mode) => {
@@ -1668,11 +1849,15 @@ module Array = {
       if mode === Safe {
         parseActions
         ->Js.Array2.push(
-          Action.refine((~input, ~struct, ~mode as _) => {
-            if Js.Array2.isArray(input) === false {
-              raiseUnexpectedTypeError(~input, ~struct)
-            }
-          }),
+          Action.factory((. ~struct, ~mode as _) => SyncTransform(
+            (. input) => {
+              if Js.Array2.isArray(input) === false {
+                raiseUnexpectedTypeError(~input, ~struct)
+              } else {
+                input
+              }
+            },
+          )),
         )
         ->ignore
       }
@@ -1684,22 +1869,27 @@ module Array = {
         parseActions->Js.Array2.push(makeSyncParseAction(fn))->ignore
         parseActions
         ->Js.Array2.push(
-          Action.asyncTransform((~input, ~struct as _, ~mode as _) => {
-            input
-            ->Js.Array2.mapi((asyncFn, idx) => {
-              asyncFn(.)->Lib.Promise.catch(exn => {
-                switch exn {
-                | Error.Internal.Exception(internalError) =>
-                  Error.Internal.Exception(
-                    internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                  )
-                | _ => exn
-                }->Lib.Exn.throw
-              })
-            })
-            ->Lib.Promise.all
-            ->Obj.magic
-          }),
+          Action.make(
+            AsyncTransform(
+              (. input) => {
+                input
+                ->unsafeUnknownToAny
+                ->Js.Array2.mapi((asyncFn, idx) => {
+                  asyncFn(.)->Lib.Promise.catch(exn => {
+                    switch exn {
+                    | Error.Internal.Exception(internalError) =>
+                      Error.Internal.Exception(
+                        internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+                      )
+                    | _ => exn
+                    }->Lib.Exn.throw
+                  })
+                })
+                ->Lib.Promise.all
+                ->Obj.magic
+              },
+            ),
+          ),
         )
         ->ignore
       }
@@ -1709,9 +1899,9 @@ module Array = {
 
     make(
       ~tagged_t=Array(innerStruct),
-      ~safeParseActions=makeParseActions(~mode=Safe),
-      ~migrationParseActions=makeParseActions(~mode=Migration),
-      ~serializeActions,
+      ~safeParseActionFactories=makeParseActions(~mode=Safe),
+      ~migrationParseActionFactories=makeParseActions(~mode=Migration),
+      ~serializeActionFactories,
       (),
     )
   }
@@ -1761,46 +1951,56 @@ module Array = {
 
 module Dict = {
   let factory = innerStruct => {
-    let serializeActions = switch innerStruct.serialize {
+    let serializeActionFactories = switch innerStruct.serialize {
     | Noop => Action.emptyArray
     | Sync(fn) => [
-        Action.transform((~input, ~struct as _, ~mode as _) => {
-          let newDict = Js.Dict.empty()
-          let keys = input->Js.Dict.keys
-          for idx in 0 to keys->Js.Array2.length - 1 {
-            let key = keys->Js.Array2.unsafe_get(idx)
-            let innerData = input->Js.Dict.unsafeGet(key)
-            try {
-              let value = fn(. innerData)
-              newDict->Js.Dict.set(key, value)->ignore
-            } catch {
-            | Error.Internal.Exception(internalError) =>
-              raise(Error.Internal.Exception(internalError->Error.Internal.prependLocation(key)))
-            }
-          }
-          newDict->unsafeAnyToUnknown
-        }),
+        Action.make(
+          SyncTransform(
+            (. input) => {
+              let newDict = Js.Dict.empty()
+              let keys = input->unsafeUnknownToAny->Js.Dict.keys
+              for idx in 0 to keys->Js.Array2.length - 1 {
+                let key = keys->Js.Array2.unsafe_get(idx)
+                let innerData = input->unsafeUnknownToAny->Js.Dict.unsafeGet(key)
+                try {
+                  let value = fn(. innerData)
+                  newDict->Js.Dict.set(key, value)->ignore
+                } catch {
+                | Error.Internal.Exception(internalError) =>
+                  raise(
+                    Error.Internal.Exception(internalError->Error.Internal.prependLocation(key)),
+                  )
+                }
+              }
+              newDict->unsafeAnyToUnknown
+            },
+          ),
+        ),
       ]
     | Async(_) => Error.Unreachable.panic()
     }
 
     let makeSyncParseAction = fn => {
-      Action.transform((~input, ~struct as _, ~mode as _) => {
-        let newDict = Js.Dict.empty()
-        let keys = input->Js.Dict.keys
-        for idx in 0 to keys->Js.Array2.length - 1 {
-          let key = keys->Js.Array2.unsafe_get(idx)
-          let innerData = input->Js.Dict.unsafeGet(key)
-          try {
-            let value = fn(. innerData)
-            newDict->Js.Dict.set(key, value)->ignore
-          } catch {
-          | Error.Internal.Exception(internalError) =>
-            raise(Error.Internal.Exception(internalError->Error.Internal.prependLocation(key)))
-          }
-        }
-        newDict->unsafeAnyToUnknown
-      })
+      Action.make(
+        SyncTransform(
+          (. input) => {
+            let newDict = Js.Dict.empty()
+            let keys = input->unsafeUnknownToAny->Js.Dict.keys
+            for idx in 0 to keys->Js.Array2.length - 1 {
+              let key = keys->Js.Array2.unsafe_get(idx)
+              let innerData = input->unsafeUnknownToAny->Js.Dict.unsafeGet(key)
+              try {
+                let value = fn(. innerData)
+                newDict->Js.Dict.set(key, value)->ignore
+              } catch {
+              | Error.Internal.Exception(internalError) =>
+                raise(Error.Internal.Exception(internalError->Error.Internal.prependLocation(key)))
+              }
+            }
+            newDict->unsafeAnyToUnknown
+          },
+        ),
+      )
     }
 
     let makeParseActions = (~mode) => {
@@ -1809,11 +2009,15 @@ module Dict = {
       if mode === Safe {
         parseActions
         ->Js.Array2.push(
-          Action.refine((~input, ~struct, ~mode as _) => {
-            if input->Lib.Object.test === false {
-              raiseUnexpectedTypeError(~input, ~struct)
-            }
-          }),
+          Action.factory((. ~struct, ~mode as _) => SyncTransform(
+            (. input) => {
+              if input->Lib.Object.test === false {
+                raiseUnexpectedTypeError(~input, ~struct)
+              } else {
+                input
+              }
+            },
+          )),
         )
         ->ignore
       }
@@ -1825,36 +2029,40 @@ module Dict = {
         parseActions->Js.Array2.push(makeSyncParseAction(fn))->ignore
         parseActions
         ->Js.Array2.push(
-          Action.asyncTransform((~input, ~struct as _, ~mode as _) => {
-            let keys = input->Js.Dict.keys
-            keys
-            ->Js.Array2.map(key => {
-              let asyncFn = input->Js.Dict.unsafeGet(key)
-              try {
-                asyncFn(.)->Lib.Promise.catch(exn => {
-                  switch exn {
+          Action.make(
+            AsyncTransform(
+              (. input) => {
+                let keys = input->unsafeUnknownToAny->Js.Dict.keys
+                keys
+                ->Js.Array2.map(key => {
+                  let asyncFn = input->unsafeUnknownToAny->Js.Dict.unsafeGet(key)
+                  try {
+                    asyncFn(.)->Lib.Promise.catch(exn => {
+                      switch exn {
+                      | Error.Internal.Exception(internalError) =>
+                        Error.Internal.Exception(internalError->Error.Internal.prependLocation(key))
+                      | _ => exn
+                      }->Lib.Exn.throw
+                    })
+                  } catch {
                   | Error.Internal.Exception(internalError) =>
-                    Error.Internal.Exception(internalError->Error.Internal.prependLocation(key))
-                  | _ => exn
-                  }->Lib.Exn.throw
+                    Error.Internal.Exception(
+                      internalError->Error.Internal.prependLocation(key),
+                    )->Lib.Exn.throw
+                  }
                 })
-              } catch {
-              | Error.Internal.Exception(internalError) =>
-                Error.Internal.Exception(
-                  internalError->Error.Internal.prependLocation(key),
-                )->Lib.Exn.throw
-              }
-            })
-            ->Lib.Promise.all
-            ->Lib.Promise.thenResolve(values => {
-              let tempDict = Js.Dict.empty()
-              values->Js.Array2.forEachi((value, idx) => {
-                let key = keys->Js.Array2.unsafe_get(idx)
-                tempDict->Js.Dict.set(key, value)
-              })
-              tempDict->unsafeAnyToUnknown
-            })
-          }),
+                ->Lib.Promise.all
+                ->Lib.Promise.thenResolve(values => {
+                  let tempDict = Js.Dict.empty()
+                  values->Js.Array2.forEachi((value, idx) => {
+                    let key = keys->Js.Array2.unsafe_get(idx)
+                    tempDict->Js.Dict.set(key, value)
+                  })
+                  tempDict->unsafeAnyToUnknown
+                })
+              },
+            ),
+          ),
         )
         ->ignore
       }
@@ -1864,9 +2072,9 @@ module Dict = {
 
     make(
       ~tagged_t=Dict(innerStruct),
-      ~safeParseActions=makeParseActions(~mode=Safe),
-      ~migrationParseActions=makeParseActions(~mode=Migration),
-      ~serializeActions,
+      ~safeParseActionFactories=makeParseActions(~mode=Safe),
+      ~migrationParseActionFactories=makeParseActions(~mode=Migration),
+      ~serializeActionFactories,
       (),
     )
   }
@@ -1874,83 +2082,102 @@ module Dict = {
 
 module Default = {
   let factory = (innerStruct, defaultValue) => {
-    let serializeActions = [
-      Action.transform((~input, ~struct as _, ~mode as _) => {
-        serializeInner(~struct=innerStruct, ~value=Some(input))
-      }),
+    let serializeActionFactories = [
+      Action.make(
+        SyncTransform(
+          (. input) => {
+            serializeInner(~struct=innerStruct, ~value=Some(input->unsafeUnknownToAny))
+          },
+        ),
+      ),
     ]
 
     let makeParseActions = (~mode) => {
       switch innerStruct->getParseOperation(~mode) {
       | Noop => [
-          Action.transform((~input, ~struct as _, ~mode as _) => {
-            switch input {
-            | Some(output) => output
-            | None => defaultValue
-            }->unsafeAnyToUnknown
-          }),
+          Action.make(
+            SyncTransform(
+              (. input) => {
+                switch input->unsafeUnknownToAny {
+                | Some(output) => output
+                | None => defaultValue
+                }->unsafeAnyToUnknown
+              },
+            ),
+          ),
         ]
       | Sync(fn) => [
-          Action.transform((~input, ~struct as _, ~mode as _) => {
-            switch fn(. input)->unsafeUnknownToAny {
-            | Some(output) => output
-            | None => defaultValue
-            }->unsafeAnyToUnknown
-          }),
+          Action.make(
+            SyncTransform(
+              (. input) => {
+                switch fn(. input)->unsafeUnknownToAny {
+                | Some(output) => output
+                | None => defaultValue
+                }->unsafeAnyToUnknown
+              },
+            ),
+          ),
         ]
       | Async(fn) => [
-          Action.asyncTransform((~input, ~struct as _, ~mode as _) => {
-            fn(. input)(.)->Lib.Promise.thenResolve(value => {
-              switch value->unsafeUnknownToAny {
-              | Some(output) => output
-              | None => defaultValue
-              }->unsafeAnyToUnknown
-            })
-          }),
+          Action.make(
+            AsyncTransform(
+              (. input) => {
+                fn(. input)(.)->Lib.Promise.thenResolve(value => {
+                  switch value->unsafeUnknownToAny {
+                  | Some(output) => output
+                  | None => defaultValue
+                  }->unsafeAnyToUnknown
+                })
+              },
+            ),
+          ),
         ]
       }
     }
 
     make(
       ~tagged_t=Default({struct: innerStruct, value: defaultValue}),
-      ~safeParseActions=makeParseActions(~mode=Safe),
-      ~migrationParseActions=makeParseActions(~mode=Migration),
-      ~serializeActions,
+      ~safeParseActionFactories=makeParseActions(~mode=Safe),
+      ~migrationParseActionFactories=makeParseActions(~mode=Migration),
+      ~serializeActionFactories,
       (),
     )
   }
 }
 
 module Tuple = {
-  let serializeActions = [
-    Action.transform((~input, ~struct, ~mode as _) => {
-      let innerStructs = struct->classify->unsafeGetVariantPayload
-      let numberOfStructs = innerStructs->Js.Array2.length
-      let inputArray = numberOfStructs === 1 ? [input->Obj.magic] : input
+  let serializeActionFactories = [
+    Action.factory((. ~struct, ~mode as _) => SyncTransform(
+      (. input) => {
+        let innerStructs = struct->classify->unsafeGetVariantPayload
+        let numberOfStructs = innerStructs->Js.Array2.length
+        let inputArray =
+          numberOfStructs === 1 ? [input->unsafeUnknownToAny] : input->unsafeUnknownToAny
 
-      let newArray = []
-      for idx in 0 to numberOfStructs - 1 {
-        let innerData = inputArray->Js.Array2.unsafe_get(idx)
-        let innerStruct = innerStructs->Js.Array.unsafe_get(idx)
-        switch innerStruct.serialize {
-        | Noop => newArray->Js.Array2.push(innerData)->ignore
-        | Sync(fn) =>
-          try {
-            let value = fn(. innerData)
-            newArray->Js.Array2.push(value)->ignore
-          } catch {
-          | Error.Internal.Exception(internalError) =>
-            raise(
-              Error.Internal.Exception(
-                internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-              ),
-            )
+        let newArray = []
+        for idx in 0 to numberOfStructs - 1 {
+          let innerData = inputArray->Js.Array2.unsafe_get(idx)
+          let innerStruct = innerStructs->Js.Array.unsafe_get(idx)
+          switch innerStruct.serialize {
+          | Noop => newArray->Js.Array2.push(innerData)->ignore
+          | Sync(fn) =>
+            try {
+              let value = fn(. innerData)
+              newArray->Js.Array2.push(value)->ignore
+            } catch {
+            | Error.Internal.Exception(internalError) =>
+              raise(
+                Error.Internal.Exception(
+                  internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+                ),
+              )
+            }
+          | Async(_) => Error.Unreachable.panic()
           }
-        | Async(_) => Error.Unreachable.panic()
         }
-      }
-      newArray->unsafeAnyToUnknown
-    }),
+        newArray->unsafeAnyToUnknown
+      },
+    )),
   ]
 
   let innerFactory = structs => {
@@ -1974,86 +2201,92 @@ module Tuple = {
       let withAsyncOps = asyncOps->Js.Array2.length > 0
 
       let parseActions = [
-        Action.transform((~input, ~struct, ~mode) => {
-          if mode === Safe {
-            switch Js.Array2.isArray(input) {
-            | true =>
-              let numberOfInputItems = input->Js.Array2.length
-              if numberOfStructs !== numberOfInputItems {
-                Error.Internal.raise(
-                  TupleSize({
-                    expected: numberOfStructs,
-                    received: numberOfInputItems,
-                  }),
+        Action.factory((. ~struct, ~mode) => SyncTransform(
+          (. input) => {
+            if mode === Safe {
+              switch Js.Array2.isArray(input) {
+              | true =>
+                let numberOfInputItems = input->unsafeUnknownToAny->Js.Array2.length
+                if numberOfStructs !== numberOfInputItems {
+                  Error.Internal.raise(
+                    TupleSize({
+                      expected: numberOfStructs,
+                      received: numberOfInputItems,
+                    }),
+                  )
+                }
+              | false => raiseUnexpectedTypeError(~input, ~struct)
+              }
+            }
+
+            let newArray = []
+
+            for idx in 0 to syncOps->Js.Array2.length - 1 {
+              let (originalIdx, fn) = syncOps->Js.Array2.unsafe_get(idx)
+              let innerData = input->unsafeUnknownToAny->Js.Array2.unsafe_get(originalIdx)
+              try {
+                let value = fn(. innerData)
+                newArray->Lib.Array.set(originalIdx, value)
+              } catch {
+              | Error.Internal.Exception(internalError) =>
+                raise(
+                  Error.Internal.Exception(
+                    internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+                  ),
                 )
               }
-            | false => raiseUnexpectedTypeError(~input, ~struct)
             }
-          }
 
-          let newArray = []
-
-          for idx in 0 to syncOps->Js.Array2.length - 1 {
-            let (originalIdx, fn) = syncOps->Js.Array2.unsafe_get(idx)
-            let innerData = input->Js.Array2.unsafe_get(originalIdx)
-            try {
-              let value = fn(. innerData)
-              newArray->Lib.Array.set(originalIdx, value)
-            } catch {
-            | Error.Internal.Exception(internalError) =>
-              raise(
-                Error.Internal.Exception(
-                  internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                ),
-              )
+            for idx in 0 to noopOps->Js.Array2.length - 1 {
+              let originalIdx = noopOps->Js.Array2.unsafe_get(idx)
+              let innerData = input->unsafeUnknownToAny->Js.Array2.unsafe_get(originalIdx)
+              newArray->Lib.Array.set(originalIdx, innerData)
             }
-          }
 
-          for idx in 0 to noopOps->Js.Array2.length - 1 {
-            let originalIdx = noopOps->Js.Array2.unsafe_get(idx)
-            let innerData = input->Js.Array2.unsafe_get(originalIdx)
-            newArray->Lib.Array.set(originalIdx, innerData)
-          }
-
-          switch withAsyncOps {
-          | true => newArray->unsafeAnyToUnknown
-          | false =>
-            switch numberOfStructs {
-            | 0 => ()->unsafeAnyToUnknown
-            | 1 => newArray->Js.Array2.unsafe_get(0)->unsafeAnyToUnknown
-            | _ => newArray->unsafeAnyToUnknown
+            switch withAsyncOps {
+            | true => newArray->unsafeAnyToUnknown
+            | false =>
+              switch numberOfStructs {
+              | 0 => ()->unsafeAnyToUnknown
+              | 1 => newArray->Js.Array2.unsafe_get(0)->unsafeAnyToUnknown
+              | _ => newArray->unsafeAnyToUnknown
+              }
             }
-          }
-        }),
+          },
+        )),
       ]
 
       if withAsyncOps {
         parseActions
         ->Js.Array2.push(
-          Action.asyncTransform((~input as tempArray, ~struct as _, ~mode as _) => {
-            asyncOps
-            ->Js.Array2.map(originalIdx => {
-              (
-                tempArray->Js.Array2.unsafe_get(originalIdx)->Obj.magic
-              )(.)->Lib.Promise.catch(exn => {
-                switch exn {
-                | Error.Internal.Exception(internalError) =>
-                  Error.Internal.Exception(
-                    internalError->Error.Internal.prependLocation(originalIdx->Js.Int.toString),
-                  )
-                | _ => exn
-                }->Lib.Exn.throw
-              })
-            })
-            ->Lib.Promise.all
-            ->Lib.Promise.thenResolve(values => {
-              values->Js.Array2.forEachi((value, idx) => {
-                let originalIdx = asyncOps->Js.Array2.unsafe_get(idx)
-                tempArray->Lib.Array.set(originalIdx, value)
-              })
-              tempArray->Lib.Array.toTuple->unsafeAnyToUnknown
-            })
-          }),
+          Action.make(
+            AsyncTransform(
+              (. tempArray) => {
+                asyncOps
+                ->Js.Array2.map(originalIdx => {
+                  (
+                    tempArray->unsafeUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
+                  )(.)->Lib.Promise.catch(exn => {
+                    switch exn {
+                    | Error.Internal.Exception(internalError) =>
+                      Error.Internal.Exception(
+                        internalError->Error.Internal.prependLocation(originalIdx->Js.Int.toString),
+                      )
+                    | _ => exn
+                    }->Lib.Exn.throw
+                  })
+                })
+                ->Lib.Promise.all
+                ->Lib.Promise.thenResolve(values => {
+                  values->Js.Array2.forEachi((value, idx) => {
+                    let originalIdx = asyncOps->Js.Array2.unsafe_get(idx)
+                    tempArray->unsafeUnknownToAny->Lib.Array.set(originalIdx, value)
+                  })
+                  tempArray->unsafeUnknownToAny->Lib.Array.toTuple->unsafeAnyToUnknown
+                })
+              },
+            ),
+          ),
         )
         ->ignore
       }
@@ -2063,9 +2296,9 @@ module Tuple = {
 
     make(
       ~tagged_t=Tuple(structs),
-      ~safeParseActions=makeParseActions(~mode=Safe),
-      ~migrationParseActions=makeParseActions(~mode=Migration),
-      ~serializeActions,
+      ~safeParseActionFactories=makeParseActions(~mode=Safe),
+      ~migrationParseActionFactories=makeParseActions(~mode=Migration),
+      ~serializeActionFactories,
       (),
     )
   }
@@ -2076,35 +2309,39 @@ module Tuple = {
 module Union = {
   exception HackyValidValue(unknown)
 
-  let serializeActions = [
-    Action.transform((~input, ~struct, ~mode as _) => {
-      let innerStructs = struct->classify->unsafeGetVariantPayload
+  let serializeActionFactories = [
+    Action.factory((. ~struct, ~mode as _) => SyncTransform(
+      (. input) => {
+        let innerStructs = struct->classify->unsafeGetVariantPayload
 
-      let idxRef = ref(0)
-      let maybeLastErrorRef = ref(None)
-      let maybeNewValueRef = ref(None)
-      while idxRef.contents < innerStructs->Js.Array2.length && maybeNewValueRef.contents === None {
-        let idx = idxRef.contents
-        let innerStruct = innerStructs->Js.Array2.unsafe_get(idx)
-        try {
-          let newValue = serializeInner(~struct=innerStruct, ~value=input)
-          maybeNewValueRef.contents = Some(newValue)
-        } catch {
-        | Error.Internal.Exception(internalError) => {
-            maybeLastErrorRef.contents = Some(internalError)
-            idxRef.contents = idxRef.contents->Lib.Int.plus(1)
+        let idxRef = ref(0)
+        let maybeLastErrorRef = ref(None)
+        let maybeNewValueRef = ref(None)
+        while (
+          idxRef.contents < innerStructs->Js.Array2.length && maybeNewValueRef.contents === None
+        ) {
+          let idx = idxRef.contents
+          let innerStruct = innerStructs->Js.Array2.unsafe_get(idx)
+          try {
+            let newValue = serializeInner(~struct=innerStruct, ~value=input)
+            maybeNewValueRef.contents = Some(newValue)
+          } catch {
+          | Error.Internal.Exception(internalError) => {
+              maybeLastErrorRef.contents = Some(internalError)
+              idxRef.contents = idxRef.contents->Lib.Int.plus(1)
+            }
           }
         }
-      }
-      switch maybeNewValueRef.contents {
-      | Some(ok) => ok
-      | None =>
-        switch maybeLastErrorRef.contents {
-        | Some(error) => raise(Error.Internal.Exception(error))
-        | None => %raw(`undefined`)
+        switch maybeNewValueRef.contents {
+        | Some(ok) => ok
+        | None =>
+          switch maybeLastErrorRef.contents {
+          | Some(error) => raise(Error.Internal.Exception(error))
+          | None => %raw(`undefined`)
+          }
         }
-      }
-    }),
+      },
+    )),
   ]
 
   let factory = structs => {
@@ -2130,83 +2367,94 @@ module Union = {
         Action.emptyArray
       } else {
         let parseActions = [
-          Action.transform((~input, ~struct as _, ~mode as _) => {
-            let idxRef = ref(0)
-            let errorsRef = ref([])
-            let maybeNewValueRef = ref(None)
-            while (
-              idxRef.contents < syncOps->Js.Array2.length && maybeNewValueRef.contents === None
-            ) {
-              let idx = idxRef.contents
-              let (originalIdx, fn) = syncOps->Js.Array2.unsafe_get(idx)
-              try {
-                let newValue = fn(. input)
-                maybeNewValueRef.contents = Some(newValue)
-              } catch {
-              | Error.Internal.Exception(internalError) => {
-                  errorsRef.contents->Lib.Array.set(originalIdx, internalError)
-                  idxRef.contents = idxRef.contents->Lib.Int.plus(1)
+          Action.make(
+            SyncTransform(
+              (. input) => {
+                let idxRef = ref(0)
+                let errorsRef = ref([])
+                let maybeNewValueRef = ref(None)
+                while (
+                  idxRef.contents < syncOps->Js.Array2.length && maybeNewValueRef.contents === None
+                ) {
+                  let idx = idxRef.contents
+                  let (originalIdx, fn) = syncOps->Js.Array2.unsafe_get(idx)
+                  try {
+                    let newValue = fn(. input)
+                    maybeNewValueRef.contents = Some(newValue)
+                  } catch {
+                  | Error.Internal.Exception(internalError) => {
+                      errorsRef.contents->Lib.Array.set(originalIdx, internalError)
+                      idxRef.contents = idxRef.contents->Lib.Int.plus(1)
+                    }
+                  }
                 }
-              }
-            }
-            switch (maybeNewValueRef.contents, withAsyncOps) {
-            | (Some(newValue), false) => newValue
-            | (None, false) =>
-              Error.Internal.raise(
-                InvalidUnion(errorsRef.contents->Js.Array2.map(Error.Internal.toParseError)),
-              )
-            | (maybeSyncValue, true) =>
-              {
-                "maybeSyncValue": maybeSyncValue,
-                "tempErrors": errorsRef.contents,
-                "originalInput": input,
-              }->unsafeAnyToUnknown
-            }
-          }),
+                switch (maybeNewValueRef.contents, withAsyncOps) {
+                | (Some(newValue), false) => newValue
+                | (None, false) =>
+                  Error.Internal.raise(
+                    InvalidUnion(errorsRef.contents->Js.Array2.map(Error.Internal.toParseError)),
+                  )
+                | (maybeSyncValue, true) =>
+                  {
+                    "maybeSyncValue": maybeSyncValue,
+                    "tempErrors": errorsRef.contents,
+                    "originalInput": input,
+                  }->unsafeAnyToUnknown
+                }
+              },
+            ),
+          ),
         ]
 
         if withAsyncOps {
           parseActions
           ->Js.Array2.push(
-            Action.asyncTransform((~input, ~struct as _, ~mode as _) => {
-              switch input["maybeSyncValue"] {
-              | Some(syncValue) => syncValue->Lib.Promise.resolve
-              | None =>
-                asyncOps
-                ->Js.Array2.map(((originalIdx, fn)) => {
-                  try {
-                    fn(. input["originalInput"])(.)->Lib.Promise.thenResolveWithCatch(
-                      value => raise(HackyValidValue(value)),
-                      exn =>
+            Action.make(
+              AsyncTransform(
+                (. input) => {
+                  let input = input->unsafeUnknownToAny
+                  switch input["maybeSyncValue"] {
+                  | Some(syncValue) => syncValue->Lib.Promise.resolve
+                  | None =>
+                    asyncOps
+                    ->Js.Array2.map(((originalIdx, fn)) => {
+                      try {
+                        fn(. input["originalInput"])(.)->Lib.Promise.thenResolveWithCatch(
+                          value => raise(HackyValidValue(value)),
+                          exn =>
+                            switch exn {
+                            | Error.Internal.Exception(internalError) =>
+                              input["tempErrors"]->Lib.Array.set(originalIdx, internalError)
+                            | _ => exn->Lib.Exn.throw
+                            },
+                        )
+                      } catch {
+                      | Error.Internal.Exception(internalError) =>
+                        input["tempErrors"]
+                        ->Lib.Array.set(originalIdx, internalError)
+                        ->Lib.Promise.resolve
+                      }
+                    })
+                    ->Lib.Promise.all
+                    ->Lib.Promise.thenResolveWithCatch(
+                      _ => {
+                        Error.Internal.raise(
+                          InvalidUnion(
+                            input["tempErrors"]->Js.Array2.map(Error.Internal.toParseError),
+                          ),
+                        )
+                      },
+                      exn => {
                         switch exn {
-                        | Error.Internal.Exception(internalError) =>
-                          input["tempErrors"]->Lib.Array.set(originalIdx, internalError)
+                        | HackyValidValue(value) => value
                         | _ => exn->Lib.Exn.throw
-                        },
+                        }
+                      },
                     )
-                  } catch {
-                  | Error.Internal.Exception(internalError) =>
-                    input["tempErrors"]
-                    ->Lib.Array.set(originalIdx, internalError)
-                    ->Lib.Promise.resolve
                   }
-                })
-                ->Lib.Promise.all
-                ->Lib.Promise.thenResolveWithCatch(
-                  _ => {
-                    Error.Internal.raise(
-                      InvalidUnion(input["tempErrors"]->Js.Array2.map(Error.Internal.toParseError)),
-                    )
-                  },
-                  exn => {
-                    switch exn {
-                    | HackyValidValue(value) => value
-                    | _ => exn->Lib.Exn.throw
-                    }
-                  },
-                )
-              }
-            }),
+                },
+              ),
+            ),
           )
           ->ignore
         }
@@ -2217,9 +2465,9 @@ module Union = {
 
     make(
       ~tagged_t=Union(structs),
-      ~safeParseActions=parseActions,
-      ~migrationParseActions=parseActions,
-      ~serializeActions,
+      ~safeParseActionFactories=parseActions,
+      ~migrationParseActionFactories=parseActions,
+      ~serializeActionFactories,
       (),
     )
   }
