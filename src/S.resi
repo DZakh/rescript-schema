@@ -16,7 +16,9 @@ module Error: {
 
   let prependLocation: (t, string) => t
 
-  let make: string => t
+  let raiseCustom: t => 'a
+
+  let raise: string => 'a
 
   let toString: t => string
 }
@@ -84,36 +86,27 @@ let union: array<t<'value>> => t<'value>
 
 let transform: (
   t<'value>,
-  ~parser: 'value => result<'transformed, string>=?,
-  ~serializer: 'transformed => result<'value, string>=?,
+  ~parser: 'value => 'transformed=?,
+  ~serializer: 'transformed => 'value=?,
   unit,
 ) => t<'transformed>
 
 let superTransform: (
   t<'value>,
-  ~parser: (
-    . ~value: 'value,
-    ~struct: t<'value>,
-    ~mode: parsingMode,
-  ) => result<'transformed, Error.t>=?,
-  ~serializer: (. ~transformed: 'transformed, ~struct: t<'value>) => result<'value, Error.t>=?,
+  ~parser: (. ~value: 'value, ~struct: t<'value>, ~mode: parsingMode) => 'transformed=?,
+  ~serializer: (. ~transformed: 'transformed, ~struct: t<'value>) => 'value=?,
   unit,
 ) => t<'transformed>
 
 let custom: (
-  ~parser: (. ~unknown: unknown, ~mode: parsingMode) => result<'value, Error.t>=?,
-  ~serializer: (. ~value: 'value) => result<'any, Error.t>=?,
+  ~parser: (. ~unknown: unknown, ~mode: parsingMode) => 'value=?,
+  ~serializer: (. ~value: 'value) => 'any=?,
   unit,
 ) => t<'value>
 
-let refine: (
-  t<'value>,
-  ~parser: 'value => option<string>=?,
-  ~serializer: 'value => option<string>=?,
-  unit,
-) => t<'value>
+let refine: (t<'value>, ~parser: 'value => unit=?, ~serializer: 'value => unit=?, unit) => t<'value>
 
-let asyncRefine: (t<'value>, ~parser: 'value => Js.Promise.t<option<string>>, unit) => t<'value>
+let asyncRefine: (t<'value>, ~parser: 'value => Js.Promise.t<unit>, unit) => t<'value>
 
 let parseWith: ('any, ~mode: parsingMode=?, t<'value>) => result<'value, Error.t>
 

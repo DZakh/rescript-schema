@@ -1,13 +1,10 @@
 open Ava
 
-let validAsyncRefine = S.asyncRefine(_, ~parser=_ => None->Promise.resolve, ())
-let invalidAsyncRefine = S.asyncRefine(
-  _,
-  ~parser=_ => Some("Async user error")->Promise.resolve,
-  (),
-)
-let invalidSyncRefine = S.refine(_, ~parser=_ => Some("Sync user error"), ())
+let validAsyncRefine = S.asyncRefine(_, ~parser=_ => Promise.resolve(), ())
+let invalidSyncRefine = S.refine(_, ~parser=_ => S.Error.raise("Sync user error"), ())
 let unresolvedPromise = Promise.make((_, _) => ())
+let invalidPromise = Promise.resolve()->Promise.then(() => S.Error.raise("Async user error"))
+let invalidAsyncRefine = S.asyncRefine(_, ~parser=_ => invalidPromise, ())
 
 asyncTest("Successfully parses without asyncRefine", t => {
   let struct = S.string()
@@ -447,7 +444,7 @@ module Array = {
           if actionCounter.contents <= 2 {
             unresolvedPromise
           } else {
-            Promise.resolve(Some("Async user error"))
+            invalidPromise
           }
         },
         (),
@@ -531,7 +528,7 @@ module Dict = {
           if actionCounter.contents <= 2 {
             unresolvedPromise
           } else {
-            Promise.resolve(Some("Async user error"))
+            invalidPromise
           }
         },
         (),

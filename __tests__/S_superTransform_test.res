@@ -6,8 +6,8 @@ let trimmedInSafeMode = S.superTransform(
     switch mode {
     | Safe => value->Js.String2.trim
     | Migration => value
-    }->Ok,
-  ~serializer=(. ~transformed, ~struct as _) => transformed->Js.String2.trim->Ok,
+    },
+  ~serializer=(. ~transformed, ~struct as _) => transformed->Js.String2.trim,
   (),
 )
 
@@ -40,7 +40,7 @@ test("Fails to parse when user returns error in parser", t => {
 
   let struct =
     S.string()->S.superTransform(
-      ~parser=(. ~value as _, ~struct as _, ~mode as _) => Error(S.Error.make("User error")),
+      ~parser=(. ~value as _, ~struct as _, ~mode as _) => S.Error.raise("User error"),
       (),
     )
 
@@ -66,7 +66,7 @@ test("Fails to serialize when user returns error in serializer", t => {
 
   let struct =
     S.string()->S.superTransform(
-      ~serializer=(. ~transformed as _, ~struct as _) => Error(S.Error.make("User error")),
+      ~serializer=(. ~transformed as _, ~struct as _) => S.Error.raise("User error"),
       (),
     )
 
@@ -87,11 +87,11 @@ test("Transform operations applyed in the right order when parsing", t => {
   let struct =
     S.int()
     ->S.superTransform(
-      ~parser=(. ~value as _, ~struct as _, ~mode as _) => Error(S.Error.make("First transform")),
+      ~parser=(. ~value as _, ~struct as _, ~mode as _) => S.Error.raise("First transform"),
       (),
     )
     ->S.superTransform(
-      ~parser=(. ~value as _, ~struct as _, ~mode as _) => Error(S.Error.make("Second transform")),
+      ~parser=(. ~value as _, ~struct as _, ~mode as _) => S.Error.raise("Second transform"),
       (),
     )
 
@@ -112,11 +112,11 @@ test("Transform operations applyed in the right order when serializing", t => {
   let struct =
     S.int()
     ->S.superTransform(
-      ~serializer=(. ~transformed as _, ~struct as _) => Error(S.Error.make("Second transform")),
+      ~serializer=(. ~transformed as _, ~struct as _) => S.Error.raise("Second transform"),
       (),
     )
     ->S.superTransform(
-      ~serializer=(. ~transformed as _, ~struct as _) => Error(S.Error.make("First transform")),
+      ~serializer=(. ~transformed as _, ~struct as _) => S.Error.raise("First transform"),
       (),
     )
 

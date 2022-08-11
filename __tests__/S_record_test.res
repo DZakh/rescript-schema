@@ -38,7 +38,7 @@ test("Successfully parses record with mapped field names", t => {
       ("Name", S.string()),
       ("Email", S.string()),
       ("Age", S.int()),
-    )->S.transform(~parser=((name, email, age)) => {name: name, email: email, age: age}->Ok, ())
+    )->S.transform(~parser=((name, email, age)) => {name: name, email: email, age: age}, ())
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
@@ -136,7 +136,7 @@ test("Successfully serializes record with mapped field", t => {
       ("Name", S.string()),
       ("Email", S.string()),
       ("Age", S.int()),
-    )->S.transform(~serializer=({name, email, age}) => (name, email, age)->Ok, ())
+    )->S.transform(~serializer=({name, email, age}) => (name, email, age), ())
 
   t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
 })
@@ -239,7 +239,7 @@ test(
 
     let struct = S.record3(.
       ("noopOp1", S.int()),
-      ("syncOp1", S.int()->S.transform(~parser=v => v->Ok, ())),
+      ("syncOp1", S.int()->S.transform(~parser=v => v, ())),
       ("noopOp2", S.int()),
     )
 

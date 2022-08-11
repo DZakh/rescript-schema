@@ -48,8 +48,12 @@ let authorStruct =
     ),
     ("Age", S.deprecated(~message="A useful explanation", S.int())),
   )->S.transform(
-    ~parser=((id, tags, isAproved, deprecatedAge)) =>
-      {id: id, tags: tags, isAproved: isAproved, deprecatedAge: deprecatedAge}->Ok,
+    ~parser=((id, tags, isAproved, deprecatedAge)) => {
+      id: id,
+      tags: tags,
+      isAproved: isAproved,
+      deprecatedAge: deprecatedAge,
+    },
     (),
   )
 
@@ -391,7 +395,7 @@ The same as `literal` struct factory, but with a convenient way to transform dat
 
 ```rescript
 type author = {id: string}
-let struct = S.record1(. ("ID", S.string()))->S.transform(~parser=id => {id: id}->Ok, ())
+let struct = S.record1(. ("ID", S.string()))->S.transform(~parser=id => {id: id}, ())
 
 {"ID": "abc"}->S.parseWith(struct)
 ```
@@ -545,16 +549,16 @@ let shapeStruct = {
   let circleStruct = S.record2(.
     ("kind", S.literal(String("circle"))),
     ("radius", S.float()),
-  )->S.transform(~parser=((_, radius)) => Circle({radius: radius})->Ok, ())
+  )->S.transform(~parser=((_, radius)) => Circle({radius: radius}), ())
   let squareStruct = S.record2(.
     ("kind", S.literal(String("square"))),
     ("x", S.float()),
-  )->S.transform(~parser=((_, x)) => Square({x: x})->Ok, ())
+  )->S.transform(~parser=((_, x)) => Square({x: x}), ())
   let triangleStruct = S.record3(.
     ("kind", S.literal(String("triangle"))),
     ("x", S.float()),
     ("y", S.float()),
-  )->S.transform(~parser=((_, x, y)) => Triangle({x: x, y: y})->Ok, ())
+  )->S.transform(~parser=((_, x, y)) => Triangle({x: x, y: y}), ())
   S.union([circleStruct, squareStruct, triangleStruct])
 }
 
@@ -599,24 +603,32 @@ Ok(Draw)
 
 #### **`S.custom`**
 
-`(~parser: (. ~unknown: S.unknown, ~mode: S.parsingMode) => result<'value, S.Error.t>=?, ~serializer: (. ~value: 'value) => result<'any, S.Error.t>=?, unit) => S.t<'value>`
+`(~parser: (. ~unknown: S.unknown, ~mode: S.parsingMode) => 'value=?, ~serializer: (. ~value: 'value) => 'any=?, unit) => S.t<'value>`
 
-You can also define your own custom struct factories that are specific to your application's requirements, like so:
+You can also define your own custom struct factories that are specific to your application's requirements:
 
 ```rescript
 let nullableStruct = innerStruct =>
   S.custom(
     ~parser=(. ~unknown, ~mode) => {
-      switch unknown->Obj.magic->Js.Nullable.toOption {
-      | Some(innerValue) =>
-        innerValue->S.parseWith(~mode, innerStruct)->Belt.Result.map(value => Some(value))
-      | None => Ok(None)
-      }
+      unknown
+      ->Obj.magic
+      ->Js.Nullable.toOption
+      ->Belt.Option.map(innerValue =>
+        switch innerValue->S.parseWith(~mode, innerStruct) {
+        | Ok(value) => value
+        | Error(error) => S.Error.raiseCustom(error)
+        }
+      )
     },
     ~serializer=(. ~value) => {
       switch value {
-      | Some(innerValue) => innerValue->S.serializeWith(innerStruct)
-      | None => Js.Null.empty->Obj.magic->Ok
+      | Some(innerValue) =>
+        switch innerValue->S.serializeWith(innerStruct) {
+        | Ok(value) => value
+        | Error(error) => S.Error.raiseCustom(error)
+        }
+      | None => %raw("null")
       }
     },
     (),
@@ -641,28 +653,28 @@ Error({
 
 ### Transforms
 
-**rescript-struct** allows structs to be augmented with transformation logic, letting you transform data during parsing and serializing. This is most commonly used to apply default values to an input, but it can be used for more complex cases like trimming strings, or mapping input to a convenient ReScript data structure.
+**rescript-struct** allows structs to be augmented with transformation logic, letting you transform value during parsing and serializing. This is most commonly used for mapping value to a more convenient ReScript data structure.
 
 #### **`S.transform`**
 
-`(S.t<'value>, ~parser: 'value => result<'transformed, string>=?, ~serializer: 'transformed => result<'value, string>=?, unit) => S.t<'transformed>`
+`(S.t<'value>, ~parser: 'value => 'transformed=?, ~serializer: 'transformed => 'value=?, unit) => S.t<'transformed>`
 
 ```rescript
-let intToString = S.transform(
-  _,
-  ~parser=int => int->Js.Int.toString->Ok,
-  ~serializer=string =>
-    switch string->Belt.Int.fromString {
-    | Some(int) => Ok(int)
-    | None => Error("Can't convert string to int")
-    },
-  (),
-)
+let intToString = struct =>
+  struct->S.transform(
+    ~parser=int => int->Js.Int.toString,
+    ~serializer=string =>
+      switch string->Belt.Int.fromString {
+      | Some(int) => int
+      | None => S.Error.raise("Can't convert string to int")
+      },
+    (),
+  )
 ```
 
 #### **`S.superTransform`**
 
-`(S.t<'value>, ~parser: (. ~value: 'value, ~struct: S.t<'value>, ~mode: S.parsingMode) => result<'transformed, S.Error.t>=?, ~serializer: (. ~transformed: 'transformed, ~struct: S.t<'value>) => result<'value, S.Error.t>=?, unit) => S.t<'transformed>`
+`(S.t<'value>, ~parser: (. ~value: 'value, ~struct: S.t<'value>, ~mode: S.parsingMode) => 'transformed=?, ~serializer: (. ~transformed: 'transformed, ~struct: S.t<'value>) => 'value=?, unit) => S.t<'transformed>`
 
 ```rescript
 let trimmedInSafeMode = S.superTransform(
@@ -671,13 +683,13 @@ let trimmedInSafeMode = S.superTransform(
     switch mode {
     | Safe => value->Js.String2.trim
     | Migration => value
-    }->Ok,
-  ~serializer=(. ~transformed, ~struct as _) => transformed->Js.String2.trim->Ok,
+    },
+  ~serializer=(. ~transformed, ~struct as _) => transformed->Js.String2.trim,
   (),
 )
 ```
 
-The `.transform` and `.custom` functions are actually syntactic sugar atop a more versatile (and verbose) function called `superTransform`.
+The `transform` and `custom` functions are actually syntactic sugar atop a more versatile (and verbose) function called `superTransform`.
 
 ### Error handling
 
@@ -712,17 +724,23 @@ Error({
 "[ReScript Struct] Failed parsing at root. Reason: Expected false, received true"
 ```
 
-#### **`S.Error.make`**
+#### **`S.Error.raise`**
 
-`string => S.Error.t`
+`string => 'a`
 
-A function to create a custom **rescript-struct** error for usage with `superTransform`.
+A function to raise an error during parsing/serializing operation.
+
+#### **`S.Error.raiseCustom`**
+
+`S.Error.t => 'a`
+
+A function to raise a custom error during parsing/serializing operation.
 
 #### **`S.Error.prependLocation`**
 
 `(S.Error.t, string) => S.Error.t`
 
-A function to add location to the path field for usage with `superTransform`.
+A function to add location to the error path field.
 
 ### Result helpers
 

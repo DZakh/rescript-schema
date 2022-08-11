@@ -12,11 +12,12 @@ test("Example", t => {
         S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),
       ),
       ("Age", S.deprecated(~message="A useful explanation", S.int())),
-    )->S.transform(
-      ~parser=((id, tags, isAproved, deprecatedAge)) =>
-        {id: id, tags: tags, isAproved: isAproved, deprecatedAge: deprecatedAge}->Ok,
-      (),
-    )
+    )->S.transform(~parser=((id, tags, isAproved, deprecatedAge)) => {
+      id: id,
+      tags: tags,
+      isAproved: isAproved,
+      deprecatedAge: deprecatedAge,
+    }, ())
 
   t->Assert.deepEqual(
     {"Id": 1, "IsApproved": "Yes", "Age": 12}->S.parseWith(authorStruct),
@@ -39,3 +40,14 @@ test("Example", t => {
     (),
   )
 })
+
+let intToString = struct =>
+  struct->S.transform(
+    ~parser=int => int->Js.Int.toString,
+    ~serializer=string =>
+      switch string->Belt.Int.fromString {
+      | Some(int) => int
+      | None => S.Error.raise("Can't convert string to int")
+      },
+    (),
+  )

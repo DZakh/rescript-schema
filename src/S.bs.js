@@ -106,15 +106,26 @@ function prependLocation$1(error, $$location) {
         };
 }
 
-function make(reason) {
-  return {
-          operation: /* Parsing */1,
+function raiseCustom(error) {
+  throw {
+        RE_EXN_ID: Exception,
+        _1: error,
+        Error: new Error()
+      };
+}
+
+function raise$2(message) {
+  throw {
+        RE_EXN_ID: Exception,
+        _1: {
           code: {
             TAG: /* OperationFailed */0,
-            _0: reason
+            _0: message
           },
           path: []
-        };
+        },
+        Error: new Error()
+      };
 }
 
 function toReason(nestedLevelOpt, error) {
@@ -343,7 +354,7 @@ function makeOperation(actionFactories, struct, mode) {
   }
 }
 
-function make$1(tagged_t, safeParseActionFactories, migrationParseActionFactories, serializeActionFactories, maybeMetadata, param) {
+function make(tagged_t, safeParseActionFactories, migrationParseActionFactories, serializeActionFactories, maybeMetadata, param) {
   var struct_s = undefined;
   var struct_p = undefined;
   var struct = {
@@ -508,15 +519,8 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
     var action = {
       TAG: /* SyncTransform */0,
       _0: (function (input) {
-          var reason = refineParser(input);
-          if (reason !== undefined) {
-            return raise({
-                        TAG: /* OperationFailed */0,
-                        _0: Caml_option.valFromOption(reason)
-                      });
-          } else {
-            return input;
-          }
+          refineParser(input);
+          return input;
         })
     };
     return function (param, param$1) {
@@ -529,15 +533,8 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
     var action = {
       TAG: /* SyncTransform */0,
       _0: (function (input) {
-          var reason = maybeRefineSerializer(input);
-          if (reason !== undefined) {
-            return raise({
-                        TAG: /* OperationFailed */0,
-                        _0: Caml_option.valFromOption(reason)
-                      });
-          } else {
-            return input;
-          }
+          maybeRefineSerializer(input);
+          return input;
         })
     };
     var serializer = function (param, param$1) {
@@ -547,29 +544,22 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
   } else {
     tmp = struct.sa;
   }
-  return make$1(struct.t, maybeParseActionFactory !== undefined ? struct.sp.concat([maybeParseActionFactory]) : struct.sp, maybeParseActionFactory !== undefined ? struct.mp.concat([maybeParseActionFactory]) : struct.mp, tmp, struct.m, undefined);
+  return make(struct.t, maybeParseActionFactory !== undefined ? struct.sp.concat([maybeParseActionFactory]) : struct.sp, maybeParseActionFactory !== undefined ? struct.mp.concat([maybeParseActionFactory]) : struct.mp, tmp, struct.m, undefined);
 }
 
 function asyncRefine(struct, parser, param) {
   var action = {
     TAG: /* AsyncTransform */1,
     _0: (function (input) {
-        return parser(input).then(function (result) {
-                    if (result !== undefined) {
-                      return raise({
-                                  TAG: /* OperationFailed */0,
-                                  _0: result
-                                });
-                    } else {
-                      return input;
-                    }
+        return parser(input).then(function (param) {
+                    return input;
                   });
       })
   };
   var parseActionFactory = function (param, param$1) {
     return action;
   };
-  return make$1(struct.t, struct.sp.concat([parseActionFactory]), struct.mp.concat([parseActionFactory]), struct.sa, struct.m, undefined);
+  return make(struct.t, struct.sp.concat([parseActionFactory]), struct.mp.concat([parseActionFactory]), struct.sa, struct.m, undefined);
 }
 
 function transform(struct, maybeTransformationParser, maybeTransformationSerializer, param) {
@@ -578,20 +568,9 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
   }
   var parseActionFactory;
   if (maybeTransformationParser !== undefined) {
-    var transformationParser = Caml_option.valFromOption(maybeTransformationParser);
     var action = {
       TAG: /* SyncTransform */0,
-      _0: (function (input) {
-          var transformed = transformationParser(input);
-          if (transformed.TAG === /* Ok */0) {
-            return transformed._0;
-          } else {
-            return raise({
-                        TAG: /* OperationFailed */0,
-                        _0: transformed._0
-                      });
-          }
-        })
+      _0: Caml_option.valFromOption(maybeTransformationParser)
     };
     parseActionFactory = (function (param, param$1) {
         return action;
@@ -601,20 +580,9 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
   }
   var serializer;
   if (maybeTransformationSerializer !== undefined) {
-    var transformationSerializer = Caml_option.valFromOption(maybeTransformationSerializer);
     var action$1 = {
       TAG: /* SyncTransform */0,
-      _0: (function (input) {
-          var value = transformationSerializer(input);
-          if (value.TAG === /* Ok */0) {
-            return value._0;
-          } else {
-            return raise({
-                        TAG: /* OperationFailed */0,
-                        _0: value._0
-                      });
-          }
-        })
+      _0: Caml_option.valFromOption(maybeTransformationSerializer)
     };
     serializer = (function (param, param$1) {
         return action$1;
@@ -622,7 +590,7 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
   } else {
     serializer = missingSerializer;
   }
-  return make$1(struct.t, struct.sp.concat([parseActionFactory]), struct.mp.concat([parseActionFactory]), [serializer].concat(struct.sa), struct.m, undefined);
+  return make(struct.t, struct.sp.concat([parseActionFactory]), struct.mp.concat([parseActionFactory]), [serializer].concat(struct.sa), struct.m, undefined);
 }
 
 function superTransform(struct, maybeTransformationParser, maybeTransformationSerializer, param) {
@@ -636,15 +604,7 @@ function superTransform(struct, maybeTransformationParser, maybeTransformationSe
         return {
                 TAG: /* SyncTransform */0,
                 _0: (function (input) {
-                    var transformed = transformationParser(input, struct, mode);
-                    if (transformed.TAG === /* Ok */0) {
-                      return transformed._0;
-                    }
-                    throw {
-                          RE_EXN_ID: Exception,
-                          _1: transformed._0,
-                          Error: new Error()
-                        };
+                    return transformationParser(input, struct, mode);
                   })
               };
       });
@@ -657,15 +617,7 @@ function superTransform(struct, maybeTransformationParser, maybeTransformationSe
     var action = {
       TAG: /* SyncTransform */0,
       _0: (function (input) {
-          var value = transformationSerializer(input, struct);
-          if (value.TAG === /* Ok */0) {
-            return value._0;
-          }
-          throw {
-                RE_EXN_ID: Exception,
-                _1: value._0,
-                Error: new Error()
-              };
+          return transformationSerializer(input, struct);
         })
     };
     serializer = (function (param, param$1) {
@@ -674,7 +626,7 @@ function superTransform(struct, maybeTransformationParser, maybeTransformationSe
   } else {
     serializer = missingSerializer;
   }
-  return make$1(struct.t, struct.sp.concat([parseActionFactory]), struct.mp.concat([parseActionFactory]), [serializer].concat(struct.sa), struct.m, undefined);
+  return make(struct.t, struct.sp.concat([parseActionFactory]), struct.mp.concat([parseActionFactory]), [serializer].concat(struct.sa), struct.m, undefined);
 }
 
 function custom(maybeCustomParser, maybeCustomSerializer, param) {
@@ -685,15 +637,7 @@ function custom(maybeCustomParser, maybeCustomSerializer, param) {
           return {
                   TAG: /* SyncTransform */0,
                   _0: (function (input) {
-                      var value = maybeCustomParser(input, mode);
-                      if (value.TAG === /* Ok */0) {
-                        return value._0;
-                      }
-                      throw {
-                            RE_EXN_ID: Exception,
-                            _1: value._0,
-                            Error: new Error()
-                          };
+                      return maybeCustomParser(input, mode);
                     })
                 };
         }) : missingParser];
@@ -701,17 +645,7 @@ function custom(maybeCustomParser, maybeCustomSerializer, param) {
   if (maybeCustomSerializer !== undefined) {
     var action = {
       TAG: /* SyncTransform */0,
-      _0: (function (input) {
-          var value = maybeCustomSerializer(input);
-          if (value.TAG === /* Ok */0) {
-            return value._0;
-          }
-          throw {
-                RE_EXN_ID: Exception,
-                _1: value._0,
-                Error: new Error()
-              };
-        })
+      _0: Caml_option.valFromOption(maybeCustomSerializer)
     };
     tmp = (function (param, param$1) {
         return action;
@@ -719,7 +653,7 @@ function custom(maybeCustomParser, maybeCustomSerializer, param) {
   } else {
     tmp = missingSerializer;
   }
-  return make$1(/* Unknown */1, parseActions, parseActions, [tmp], undefined, undefined);
+  return make(/* Unknown */1, parseActions, parseActions, [tmp], undefined, undefined);
 }
 
 function literalValueRefinement(struct, param) {
@@ -899,7 +833,7 @@ function factory(innerLiteral, variant) {
   if (typeof innerLiteral === "number") {
     switch (innerLiteral) {
       case /* EmptyNull */0 :
-          return make$1(tagged_t, [
+          return make(tagged_t, [
                       parserRefinement,
                       parserTransform
                     ], [parserTransform], [
@@ -907,7 +841,7 @@ function factory(innerLiteral, variant) {
                       serializerTransform
                     ], undefined, undefined);
       case /* EmptyOption */1 :
-          return make$1(tagged_t, [
+          return make(tagged_t, [
                       parserRefinement$1,
                       parserTransform
                     ], [parserTransform], [
@@ -915,7 +849,7 @@ function factory(innerLiteral, variant) {
                       serializerTransform$1
                     ], undefined, undefined);
       case /* NaN */2 :
-          return make$1(tagged_t, [
+          return make(tagged_t, [
                       parserRefinement$2,
                       parserTransform
                     ], [parserTransform], [
@@ -927,7 +861,7 @@ function factory(innerLiteral, variant) {
   } else {
     switch (innerLiteral.TAG | 0) {
       case /* String */0 :
-          return make$1(tagged_t, [
+          return make(tagged_t, [
                       parserRefinement$4,
                       literalValueRefinement,
                       parserTransform
@@ -936,7 +870,7 @@ function factory(innerLiteral, variant) {
                       transformToLiteralValue
                     ], undefined, undefined);
       case /* Int */1 :
-          return make$1(tagged_t, [
+          return make(tagged_t, [
                       parserRefinement$6,
                       literalValueRefinement,
                       parserTransform
@@ -945,7 +879,7 @@ function factory(innerLiteral, variant) {
                       transformToLiteralValue
                     ], undefined, undefined);
       case /* Float */2 :
-          return make$1(tagged_t, [
+          return make(tagged_t, [
                       parserRefinement$5,
                       literalValueRefinement,
                       parserTransform
@@ -954,7 +888,7 @@ function factory(innerLiteral, variant) {
                       transformToLiteralValue
                     ], undefined, undefined);
       case /* Bool */3 :
-          return make$1(tagged_t, [
+          return make(tagged_t, [
                       parserRefinement$3,
                       literalValueRefinement,
                       parserTransform
@@ -1139,7 +1073,7 @@ function innerFactory(fieldsArray) {
     }
     return parseActions;
   };
-  return make$1({
+  return make({
               TAG: /* Record */4,
               fields: fields,
               fieldNames: fieldNames,
@@ -1154,7 +1088,7 @@ function strip(struct) {
   if (typeof tagged_t === "number" || tagged_t.TAG !== /* Record */4) {
     return panic("Can't set up unknown keys strategy. The struct is not Record");
   } else {
-    return make$1({
+    return make({
                 TAG: /* Record */4,
                 fields: tagged_t.fields,
                 fieldNames: tagged_t.fieldNames,
@@ -1168,7 +1102,7 @@ function strict(struct) {
   if (typeof tagged_t === "number" || tagged_t.TAG !== /* Record */4) {
     return panic("Can't set up unknown keys strategy. The struct is not Record");
   } else {
-    return make$1({
+    return make({
                 TAG: /* Record */4,
                 fields: tagged_t.fields,
                 fieldNames: tagged_t.fieldNames,
@@ -1187,11 +1121,11 @@ var actions = [(function (struct, param) {
     })];
 
 function factory$3(param) {
-  return make$1(/* Never */0, actions, emptyArray, actions, undefined, undefined);
+  return make(/* Never */0, actions, emptyArray, actions, undefined, undefined);
 }
 
 function factory$4(param) {
-  return make$1(/* Unknown */1, emptyArray, emptyArray, emptyArray, undefined, undefined);
+  return make(/* Unknown */1, emptyArray, emptyArray, emptyArray, undefined, undefined);
 }
 
 var cuidRegex = /^c[^\s-]{8,}$/i;
@@ -1214,13 +1148,13 @@ function parserRefinement$7(struct, param) {
 }
 
 function factory$5(param) {
-  return make$1(/* String */2, [parserRefinement$7], emptyArray, emptyArray, undefined, undefined);
+  return make(/* String */2, [parserRefinement$7], emptyArray, emptyArray, undefined, undefined);
 }
 
 function min(struct, maybeMessage, length) {
   var refiner = function (value) {
     if (value.length < length) {
-      return Belt_Option.getWithDefault(maybeMessage, "String must be " + length.toString() + " or more characters long");
+      return raise$2(Belt_Option.getWithDefault(maybeMessage, "String must be " + length.toString() + " or more characters long"));
     }
     
   };
@@ -1230,7 +1164,7 @@ function min(struct, maybeMessage, length) {
 function max(struct, maybeMessage, length) {
   var refiner = function (value) {
     if (value.length > length) {
-      return Belt_Option.getWithDefault(maybeMessage, "String must be " + length.toString() + " or fewer characters long");
+      return raise$2(Belt_Option.getWithDefault(maybeMessage, "String must be " + length.toString() + " or fewer characters long"));
     }
     
   };
@@ -1239,11 +1173,10 @@ function max(struct, maybeMessage, length) {
 
 function length(struct, maybeMessage, length$1) {
   var refiner = function (value) {
-    if (value.length === length$1) {
-      return ;
-    } else {
-      return Belt_Option.getWithDefault(maybeMessage, "String must be exactly " + length$1.toString() + " characters long");
+    if (value.length !== length$1) {
+      return raise$2(Belt_Option.getWithDefault(maybeMessage, "String must be exactly " + length$1.toString() + " characters long"));
     }
+    
   };
   return refine(struct, refiner, refiner, undefined);
 }
@@ -1251,11 +1184,10 @@ function length(struct, maybeMessage, length$1) {
 function email(struct, messageOpt, param) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid email address";
   var refiner = function (value) {
-    if (emailRegex.test(value)) {
-      return ;
-    } else {
-      return message;
+    if (!emailRegex.test(value)) {
+      return raise$2(message);
     }
+    
   };
   return refine(struct, refiner, refiner, undefined);
 }
@@ -1263,11 +1195,10 @@ function email(struct, messageOpt, param) {
 function uuid(struct, messageOpt, param) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid UUID";
   var refiner = function (value) {
-    if (uuidRegex.test(value)) {
-      return ;
-    } else {
-      return message;
+    if (!uuidRegex.test(value)) {
+      return raise$2(message);
     }
+    
   };
   return refine(struct, refiner, refiner, undefined);
 }
@@ -1275,11 +1206,10 @@ function uuid(struct, messageOpt, param) {
 function cuid(struct, messageOpt, param) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid CUID";
   var refiner = function (value) {
-    if (cuidRegex.test(value)) {
-      return ;
-    } else {
-      return message;
+    if (!cuidRegex.test(value)) {
+      return raise$2(message);
     }
+    
   };
   return refine(struct, refiner, refiner, undefined);
 }
@@ -1295,11 +1225,10 @@ function url(struct, messageOpt, param) {
     catch (exn){
       tmp = false;
     }
-    if (tmp) {
-      return ;
-    } else {
-      return message;
+    if (!tmp) {
+      return raise$2(message);
     }
+    
   };
   return refine(struct, refiner, refiner, undefined);
 }
@@ -1308,21 +1237,17 @@ function pattern(struct, messageOpt, re) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid";
   var refiner = function (value) {
     re.lastIndex = 0;
-    if (re.test(value)) {
-      return ;
-    } else {
-      return message;
+    if (!re.test(value)) {
+      return raise$2(message);
     }
+    
   };
   return refine(struct, refiner, refiner, undefined);
 }
 
 function trimmed(struct, param) {
-  var transformer = function (value) {
-    return {
-            TAG: /* Ok */0,
-            _0: value.trim()
-          };
+  var transformer = function (prim) {
+    return prim.trim();
   };
   return transform(struct, transformer, transformer, undefined);
 }
@@ -1341,7 +1266,7 @@ function parserRefinement$8(struct, param) {
 }
 
 function factory$6(param) {
-  return make$1(/* Bool */5, [parserRefinement$8], emptyArray, emptyArray, undefined, undefined);
+  return make(/* Bool */5, [parserRefinement$8], emptyArray, emptyArray, undefined, undefined);
 }
 
 function parserRefinement$9(struct, param) {
@@ -1358,27 +1283,25 @@ function parserRefinement$9(struct, param) {
 }
 
 function factory$7(param) {
-  return make$1(/* Int */3, [parserRefinement$9], emptyArray, emptyArray, undefined, undefined);
+  return make(/* Int */3, [parserRefinement$9], emptyArray, emptyArray, undefined, undefined);
 }
 
 function min$1(struct, maybeMessage, thanValue) {
   var refiner = function (value) {
-    if (value >= thanValue) {
-      return ;
-    } else {
-      return Belt_Option.getWithDefault(maybeMessage, "Number must be greater than or equal to " + thanValue.toString());
+    if (value < thanValue) {
+      return raise$2(Belt_Option.getWithDefault(maybeMessage, "Number must be greater than or equal to " + thanValue.toString()));
     }
+    
   };
   return refine(struct, refiner, refiner, undefined);
 }
 
 function max$1(struct, maybeMessage, thanValue) {
   var refiner = function (value) {
-    if (value <= thanValue) {
-      return ;
-    } else {
-      return Belt_Option.getWithDefault(maybeMessage, "Number must be lower than or equal to " + thanValue.toString());
+    if (value > thanValue) {
+      return raise$2(Belt_Option.getWithDefault(maybeMessage, "Number must be lower than or equal to " + thanValue.toString()));
     }
+    
   };
   return refine(struct, refiner, refiner, undefined);
 }
@@ -1397,7 +1320,7 @@ function parserRefinement$10(struct, param) {
 }
 
 function factory$8(param) {
-  return make$1(/* Float */4, [parserRefinement$10], emptyArray, emptyArray, undefined, undefined);
+  return make(/* Float */4, [parserRefinement$10], emptyArray, emptyArray, undefined, undefined);
 }
 
 function parserRefinement$11(struct, param) {
@@ -1415,7 +1338,7 @@ function parserRefinement$11(struct, param) {
 }
 
 function factory$9(param) {
-  return make$1({
+  return make({
               TAG: /* Instance */10,
               _0: Date
             }, [parserRefinement$11], emptyArray, emptyArray, undefined, undefined);
@@ -1496,7 +1419,7 @@ function factory$10(innerStruct) {
               })
           ];
   };
-  return make$1({
+  return make({
               TAG: /* Null */2,
               _0: innerStruct
             }, makeParseActions(/* Safe */0), makeParseActions(/* Migration */1), serializeActionFactories$1, undefined, undefined);
@@ -1565,7 +1488,7 @@ function factory$11(innerStruct) {
               })
           ];
   };
-  return make$1({
+  return make({
               TAG: /* Option */1,
               _0: innerStruct
             }, makeParseActions(/* Safe */0), makeParseActions(/* Migration */1), serializeActionFactories$2, undefined, undefined);
@@ -1633,7 +1556,7 @@ function factory$12(maybeMessage, innerStruct) {
               })
           ];
   };
-  return make$1({
+  return make({
               TAG: /* Deprecated */8,
               struct: innerStruct,
               maybeMessage: maybeMessage
@@ -1749,7 +1672,7 @@ function factory$13(innerStruct) {
     }
     return parseActions;
   };
-  return make$1({
+  return make({
               TAG: /* Array */3,
               _0: innerStruct
             }, makeParseActions(/* Safe */0), makeParseActions(/* Migration */1), serializeActionFactories, undefined, undefined);
@@ -1758,7 +1681,7 @@ function factory$13(innerStruct) {
 function min$2(struct, maybeMessage, length) {
   var refiner = function (value) {
     if (value.length < length) {
-      return Belt_Option.getWithDefault(maybeMessage, "Array must be " + length.toString() + " or more items long");
+      return raise$2(Belt_Option.getWithDefault(maybeMessage, "Array must be " + length.toString() + " or more items long"));
     }
     
   };
@@ -1768,7 +1691,7 @@ function min$2(struct, maybeMessage, length) {
 function max$2(struct, maybeMessage, length) {
   var refiner = function (value) {
     if (value.length > length) {
-      return Belt_Option.getWithDefault(maybeMessage, "Array must be " + length.toString() + " or fewer items long");
+      return raise$2(Belt_Option.getWithDefault(maybeMessage, "Array must be " + length.toString() + " or fewer items long"));
     }
     
   };
@@ -1777,11 +1700,10 @@ function max$2(struct, maybeMessage, length) {
 
 function length$1(struct, maybeMessage, length$2) {
   var refiner = function (value) {
-    if (value.length === length$2) {
-      return ;
-    } else {
-      return Belt_Option.getWithDefault(maybeMessage, "Array must be exactly " + length$2.toString() + " items long");
+    if (value.length !== length$2) {
+      return raise$2(Belt_Option.getWithDefault(maybeMessage, "Array must be exactly " + length$2.toString() + " items long"));
     }
+    
   };
   return refine(struct, refiner, refiner, undefined);
 }
@@ -1921,7 +1843,7 @@ function factory$14(innerStruct) {
     }
     return parseActions;
   };
-  return make$1({
+  return make({
               TAG: /* Dict */7,
               _0: innerStruct
             }, makeParseActions(/* Safe */0), makeParseActions(/* Migration */1), serializeActionFactories, undefined, undefined);
@@ -1996,7 +1918,7 @@ function factory$15(innerStruct, defaultValue) {
                 return action$2;
               })];
   };
-  return make$1({
+  return make({
               TAG: /* Default */9,
               struct: innerStruct,
               value: defaultValue
@@ -2157,7 +2079,7 @@ function innerFactory$1(structs) {
     }
     return parseActions;
   };
-  return make$1({
+  return make({
               TAG: /* Tuple */5,
               _0: structs
             }, makeParseActions(/* Safe */0), makeParseActions(/* Migration */1), serializeActionFactories$3, undefined, undefined);
@@ -2348,7 +2270,7 @@ function factory$17(structs) {
     }
     parseActions = parseActions$1;
   }
-  return make$1({
+  return make({
               TAG: /* Union */6,
               _0: structs
             }, parseActions, parseActions, serializeActionFactories$4, undefined, undefined);
@@ -2356,45 +2278,37 @@ function factory$17(structs) {
 
 function json(innerStruct) {
   return superTransform(factory$5(undefined), (function (value, param, mode) {
-                var result;
-                var exit = 0;
-                var json;
+                var parsedJson;
                 try {
-                  json = JSON.parse(value);
-                  exit = 1;
+                  parsedJson = JSON.parse(value);
                 }
                 catch (raw_obj){
                   var obj = Caml_js_exceptions.internalToOCamlException(raw_obj);
                   if (obj.RE_EXN_ID === Js_exn.$$Error) {
-                    result = {
-                      TAG: /* Error */1,
-                      _0: make(Belt_Option.getWithDefault(obj._1.message, "Failed to parse JSON"))
-                    };
+                    parsedJson = raise$2(Belt_Option.getWithDefault(obj._1.message, "Failed to parse JSON"));
                   } else {
                     throw obj;
                   }
                 }
-                if (exit === 1) {
-                  result = {
-                    TAG: /* Ok */0,
-                    _0: json
-                  };
+                var transformed = parseWith(parsedJson, mode, innerStruct);
+                if (transformed.TAG === /* Ok */0) {
+                  return transformed._0;
                 }
-                if (result.TAG !== /* Ok */0) {
-                  return result;
-                }
-                var parsedJson = result._0;
-                return parseWith(parsedJson, mode, innerStruct);
+                throw {
+                      RE_EXN_ID: Exception,
+                      _1: transformed._0,
+                      Error: new Error()
+                    };
               }), (function (transformed, param) {
-                var result = serializeWith(transformed, innerStruct);
-                if (result.TAG === /* Ok */0) {
-                  return {
-                          TAG: /* Ok */0,
-                          _0: JSON.stringify(result._0)
-                        };
-                } else {
-                  return result;
+                var unknown = serializeWith(transformed, innerStruct);
+                if (unknown.TAG === /* Ok */0) {
+                  return JSON.stringify(unknown._0);
                 }
+                throw {
+                      RE_EXN_ID: Exception,
+                      _1: unknown._0,
+                      Error: new Error()
+                    };
               }), undefined);
 }
 
@@ -2424,7 +2338,8 @@ var Result = {
 
 var $$Error = {
   prependLocation: prependLocation$1,
-  make: make,
+  raiseCustom: raiseCustom,
+  raise: raise$2,
   toString: toString
 };
 

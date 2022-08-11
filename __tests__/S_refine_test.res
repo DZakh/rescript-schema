@@ -2,9 +2,8 @@ open Ava
 
 test("Refined primitive returns an error when parsed in a Safe mode", t => {
   let struct = S.int()->S.refine(~parser=value =>
-    switch value >= 0 {
-    | true => None
-    | false => Some("Should be positive")
+    if value < 0 {
+      S.Error.raise("Should be positive")
     }
   , ())
 
@@ -21,9 +20,8 @@ test("Refined primitive returns an error when parsed in a Safe mode", t => {
 
 test("Refined primitive returns an error when parsed in a Migration mode", t => {
   let struct = S.int()->S.refine(~parser=value =>
-    switch value >= 0 {
-    | true => None
-    | false => Some("Should be positive")
+    if value < 0 {
+      S.Error.raise("Should be positive")
     }
   , ())
 

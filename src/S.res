@@ -93,36 +93,16 @@ module Lib = {
     }
   }
 
-  module Result: {
-    let mapError: (result<'ok, 'error1>, 'error1 => 'error2) => result<'ok, 'error2>
-    let map: (result<'ok1, 'error>, 'ok1 => 'ok2) => result<'ok2, 'error>
-    let flatMap: (result<'ok1, 'error>, 'ok1 => result<'ok2, 'error>) => result<'ok2, 'error>
-  } = {
+  module Result = {
     @inline
     let mapError = (result, fn) =>
       switch result {
       | Ok(_) as ok => ok
       | Error(error) => Error(fn(error))
       }
-
-    @inline
-    let map = (result, fn) =>
-      switch result {
-      | Ok(value) => Ok(fn(value))
-      | Error(_) as error => error
-      }
-
-    @inline
-    let flatMap = (result, fn) =>
-      switch result {
-      | Ok(value) => fn(value)
-      | Error(_) as error => error
-      }
   }
 
-  module Option: {
-    let map: (option<'value1>, 'value1 => 'value2) => option<'value2>
-  } = {
+  module Option = {
     @inline
     let map = (option, fn) =>
       switch option {
@@ -258,13 +238,12 @@ module Error = {
     }
   }
 
-  let make = reason => {
-    {
-      // This function is only needed for super<Transform/Refine>, so operation doesn't matter
-      operation: Parsing,
-      code: OperationFailed(reason),
-      path: [],
-    }
+  let raiseCustom = error => {
+    raise(Internal.Exception(error->Internal.fromPublic))
+  }
+
+  let raise = message => {
+    raise(Internal.Exception({code: OperationFailed(message), path: []}))
   }
 
   let rec toReason = (~nestedLevel=0, error) => {
@@ -628,8 +607,8 @@ module Action = {
 
 let refine: (
   t<'value>,
-  ~parser: 'value => option<string>=?,
-  ~serializer: 'value => option<string>=?,
+  ~parser: 'value => unit=?,
+  ~serializer: 'value => unit=?,
   unit,
 ) => t<'value> = (
   struct,
@@ -645,10 +624,8 @@ let refine: (
     Action.make(
       SyncTransform(
         (. input) => {
-          switch (refineParser->Obj.magic)(. input) {
-          | None => input
-          | Some(reason) => Error.Internal.raise(OperationFailed(reason))
-          }
+          let () = (refineParser->Obj.magic)(. input)
+          input
         },
       ),
     )
@@ -672,10 +649,8 @@ let refine: (
         Action.make(
           SyncTransform(
             (. input) => {
-              switch (refineSerializer->Obj.magic)(. input) {
-              | None => input
-              | Some(reason) => Error.Internal.raise(OperationFailed(reason))
-              }
+              let () = (refineSerializer->Obj.magic)(. input)
+              input
             },
           ),
         ),
@@ -691,11 +666,8 @@ let asyncRefine = (struct, ~parser, ()) => {
   let parseActionFactory = Action.make(
     AsyncTransform(
       (. input) => {
-        (parser->Obj.magic)(. input)->Lib.Promise.thenResolve(result => {
-          switch result {
-          | None => input
-          | Some(reason) => Error.Internal.raise(OperationFailed(reason))
-          }
+        (parser->Obj.magic)(. input)->Lib.Promise.thenResolve(() => {
+          input
         })
       },
     ),
@@ -725,17 +697,7 @@ let transform = (
     Error.MissingParserAndSerializer.panic(`struct factory Transform`)
   }
   let parseActionFactory = switch maybeTransformationParser {
-  | Some(transformationParser) =>
-    Action.make(
-      SyncTransform(
-        (. input) => {
-          switch (transformationParser->Obj.magic)(. input) {
-          | Ok(transformed) => transformed
-          | Error(reason) => Error.Internal.raise(OperationFailed(reason))
-          }
-        },
-      ),
-    )
+  | Some(transformationParser) => Action.make(SyncTransform(transformationParser->Obj.magic))
   | None => Action.missingParser
   }
   make(
@@ -749,16 +711,7 @@ let transform = (
     ~serializeActionFactories=struct.serializeActionFactories->Action.concatSerializer(
       switch maybeTransformationSerializer {
       | Some(transformationSerializer) =>
-        Action.make(
-          SyncTransform(
-            (. input) => {
-              switch (transformationSerializer->Obj.magic)(. input) {
-              | Ok(value) => value
-              | Error(reason) => Error.Internal.raise(OperationFailed(reason))
-              }
-            },
-          ),
-        )
+        Action.make(SyncTransform(transformationSerializer->Obj.magic))
       | None => Action.missingSerializer
       },
     ),
@@ -781,10 +734,7 @@ let superTransform = (
   | Some(transformationParser) =>
     Action.factory((. ~struct, ~mode) => SyncTransform(
       (. input) => {
-        switch (transformationParser->Obj.magic)(. ~value=input, ~struct, ~mode) {
-        | Ok(transformed) => transformed
-        | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
-        }
+        (transformationParser->Obj.magic)(. ~value=input, ~struct, ~mode)
       },
     ))
   | None => Action.missingParser
@@ -803,10 +753,7 @@ let superTransform = (
         Action.make(
           SyncTransform(
             (. input) => {
-              switch (transformationSerializer->Obj.magic)(. ~transformed=input, ~struct) {
-              | Ok(value) => value
-              | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
-              }
+              (transformationSerializer->Obj.magic)(. ~transformed=input, ~struct)
             },
           ),
         )
@@ -829,10 +776,7 @@ let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializ
       Action.factory((. ~struct as _, ~mode) => SyncTransform(
         (. input) => {
           let input = input->unsafeUnknownToAny
-          switch customParser(. ~unknown=input, ~mode) {
-          | Ok(value) => value->unsafeAnyToUnknown
-          | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
-          }
+          customParser(. ~unknown=input, ~mode)->unsafeAnyToUnknown
         },
       ))
     | None => Action.missingParser
@@ -845,18 +789,7 @@ let custom = (~parser as maybeCustomParser=?, ~serializer as maybeCustomSerializ
     ~safeParseActionFactories=parseActions,
     ~serializeActionFactories=[
       switch maybeCustomSerializer {
-      | Some(customSerializer) =>
-        Action.make(
-          SyncTransform(
-            (. input) => {
-              let input = input->unsafeUnknownToAny
-              switch customSerializer(. ~value=input) {
-              | Ok(value) => value->unsafeAnyToUnknown
-              | Error(public) => raise(Error.Internal.Exception(public->Error.Internal.fromPublic))
-              }
-            },
-          ),
-        )
+      | Some(customSerializer) => Action.make(SyncTransform(customSerializer->Obj.magic))
       | None => Action.missingSerializer
       },
     ],
@@ -1379,95 +1312,88 @@ module String = {
 
   let min = (struct, ~message as maybeMessage=?, length) => {
     let refiner = value =>
-      switch value->Js.String2.length < length {
-      | true =>
-        Some(
+      if value->Js.String2.length < length {
+        Error.raise(
           maybeMessage->Belt.Option.getWithDefault(
             `String must be ${length->Js.Int.toString} or more characters long`,
           ),
         )
-      | false => None
       }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
   let max = (struct, ~message as maybeMessage=?, length) => {
     let refiner = value =>
-      switch value->Js.String2.length > length {
-      | true =>
-        Some(
+      if value->Js.String2.length > length {
+        Error.raise(
           maybeMessage->Belt.Option.getWithDefault(
             `String must be ${length->Js.Int.toString} or fewer characters long`,
           ),
         )
-      | false => None
       }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
   let length = (struct, ~message as maybeMessage=?, length) => {
     let refiner = value =>
-      switch value->Js.String2.length === length {
-      | false =>
-        Some(
+      if value->Js.String2.length !== length {
+        Error.raise(
           maybeMessage->Belt.Option.getWithDefault(
             `String must be exactly ${length->Js.Int.toString} characters long`,
           ),
         )
-      | true => None
       }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
   let email = (struct, ~message=`Invalid email address`, ()) => {
-    let refiner = value =>
-      switch emailRegex->Js.Re.test_(value) {
-      | false => Some(message)
-      | true => None
+    let refiner = value => {
+      if !(emailRegex->Js.Re.test_(value)) {
+        Error.raise(message)
       }
+    }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
   let uuid = (struct, ~message=`Invalid UUID`, ()) => {
-    let refiner = value =>
-      switch uuidRegex->Js.Re.test_(value) {
-      | false => Some(message)
-      | true => None
+    let refiner = value => {
+      if !(uuidRegex->Js.Re.test_(value)) {
+        Error.raise(message)
       }
+    }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
   let cuid = (struct, ~message=`Invalid CUID`, ()) => {
-    let refiner = value =>
-      switch cuidRegex->Js.Re.test_(value) {
-      | false => Some(message)
-      | true => None
+    let refiner = value => {
+      if !(cuidRegex->Js.Re.test_(value)) {
+        Error.raise(message)
       }
+    }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
   let url = (struct, ~message=`Invalid url`, ()) => {
-    let refiner = value =>
-      switch value->Lib.Url.test {
-      | false => Some(message)
-      | true => None
+    let refiner = value => {
+      if !(value->Lib.Url.test) {
+        Error.raise(message)
       }
+    }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
   let pattern = (struct, ~message=`Invalid`, re) => {
     let refiner = value => {
       re->Js.Re.setLastIndex(0)
-      switch re->Js.Re.test_(value) {
-      | false => Some(message)
-      | true => None
+      if !(re->Js.Re.test_(value)) {
+        Error.raise(message)
       }
     }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
   let trimmed = (struct, ()) => {
-    let transformer = value => value->Js.String2.trim->Ok
+    let transformer = Js.String2.trim
     struct->transform(~parser=transformer, ~serializer=transformer, ())
   }
 }
@@ -1516,30 +1442,28 @@ module Int = {
   }
 
   let min = (struct, ~message as maybeMessage=?, thanValue) => {
-    let refiner = value =>
-      switch value >= thanValue {
-      | false =>
-        Some(
+    let refiner = value => {
+      if value < thanValue {
+        Error.raise(
           maybeMessage->Belt.Option.getWithDefault(
             `Number must be greater than or equal to ${thanValue->Js.Int.toString}`,
           ),
         )
-      | true => None
       }
+    }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
   let max = (struct, ~message as maybeMessage=?, thanValue) => {
-    let refiner = value =>
-      switch value <= thanValue {
-      | false =>
-        Some(
+    let refiner = value => {
+      if value > thanValue {
+        Error.raise(
           maybeMessage->Belt.Option.getWithDefault(
             `Number must be lower than or equal to ${thanValue->Js.Int.toString}`,
           ),
         )
-      | true => None
       }
+    }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 }
@@ -1907,44 +1831,41 @@ module Array = {
   }
 
   let min = (struct, ~message as maybeMessage=?, length) => {
-    let refiner = value =>
-      switch value->Js.Array2.length < length {
-      | true =>
-        Some(
+    let refiner = value => {
+      if value->Js.Array2.length < length {
+        Error.raise(
           maybeMessage->Belt.Option.getWithDefault(
             `Array must be ${length->Js.Int.toString} or more items long`,
           ),
         )
-      | false => None
       }
+    }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
   let max = (struct, ~message as maybeMessage=?, length) => {
-    let refiner = value =>
-      switch value->Js.Array2.length > length {
-      | true =>
-        Some(
+    let refiner = value => {
+      if value->Js.Array2.length > length {
+        Error.raise(
           maybeMessage->Belt.Option.getWithDefault(
             `Array must be ${length->Js.Int.toString} or fewer items long`,
           ),
         )
-      | false => None
       }
+    }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 
   let length = (struct, ~message as maybeMessage=?, length) => {
-    let refiner = value =>
-      switch value->Js.Array2.length === length {
-      | false =>
-        Some(
+    let refiner = value => {
+      if value->Js.Array2.length !== length {
+        Error.raise(
           maybeMessage->Belt.Option.getWithDefault(
             `Array must be exactly ${length->Js.Int.toString} items long`,
           ),
         )
-      | true => None
       }
+    }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
 }
@@ -2515,16 +2436,20 @@ let union = Union.factory
 let json = innerStruct => {
   string()->superTransform(
     ~parser=(. ~value, ~struct as _, ~mode) => {
-      switch Js.Json.parseExn(value) {
-      | json => Ok(json)
-      | exception Js.Exn.Error(obj) =>
-        Error(Error.make(obj->Js.Exn.message->Belt.Option.getWithDefault("Failed to parse JSON")))
-      }->Lib.Result.flatMap(parsedJson => parsedJson->parseWith(~mode, innerStruct))
+      let parsedJson = try Js.Json.parseExn(value) catch {
+      | Js.Exn.Error(obj) =>
+        Error.raise(obj->Js.Exn.message->Belt.Option.getWithDefault("Failed to parse JSON"))
+      }
+      switch parsedJson->parseWith(~mode, innerStruct) {
+      | Ok(transformed) => transformed
+      | Error(error) => Error.raiseCustom(error)
+      }
     },
     ~serializer=(. ~transformed, ~struct as _) => {
-      transformed
-      ->serializeWith(innerStruct)
-      ->Lib.Result.map(unknown => unknown->unsafeUnknownToAny->Js.Json.stringify)
+      switch transformed->serializeWith(innerStruct) {
+      | Ok(unknown) => unknown->unsafeUnknownToAny->Js.Json.stringify
+      | Error(error) => Error.raiseCustom(error)
+      }
     },
     (),
   )
