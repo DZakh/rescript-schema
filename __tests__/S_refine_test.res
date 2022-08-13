@@ -1,6 +1,6 @@
 open Ava
 
-test("Refined primitive returns an error when parsed in a Safe mode", t => {
+test("Refined primitive returns an error when parsed", t => {
   let struct = S.int()->S.refine(~parser=value =>
     if value < 0 {
       S.Error.raise("Should be positive")
@@ -9,24 +9,6 @@ test("Refined primitive returns an error when parsed in a Safe mode", t => {
 
   t->Assert.deepEqual(
     %raw(`-12`)->S.parseWith(struct),
-    Error({
-      code: OperationFailed("Should be positive"),
-      operation: Parsing,
-      path: [],
-    }),
-    (),
-  )
-})
-
-test("Refined primitive returns an error when parsed in a Migration mode", t => {
-  let struct = S.int()->S.refine(~parser=value =>
-    if value < 0 {
-      S.Error.raise("Should be positive")
-    }
-  , ())
-
-  t->Assert.deepEqual(
-    %raw(`-12`)->S.parseWith(~mode=Migration, struct),
     Error({
       code: OperationFailed("Should be positive"),
       operation: Parsing,

@@ -2,12 +2,12 @@ open Ava
 
 let nullableStruct = innerStruct =>
   S.custom(
-    ~parser=(. ~unknown, ~mode) => {
+    ~parser=(. ~unknown) => {
       unknown
       ->Obj.magic
       ->Js.Nullable.toOption
       ->Belt.Option.map(innerValue =>
-        switch innerValue->S.parseWith(~mode, innerStruct) {
+        switch innerValue->S.parseWith(innerStruct) {
         | Ok(value) => value
         | Error(error) => S.Error.raiseCustom(error)
         }

@@ -95,17 +95,13 @@ Ok({
 
 #### **`S.parseWith`**
 
-`('any, ~mode: S.parsingMode=?, S.t<'value>) => result<'value, S.Error.t>`
+`('any, S.t<'value>) => result<'value, S.Error.t>`
 
 ```rescript
 data->S.parseWith(userStruct)
 ```
 
 Given any struct, you can call `parseWith` to check data is valid. It returns a result with valid data migrated to expected type or a **rescript-struct** error.
-
-Has multiple modes:
-- `S.Safe` (default) - Always check that provided data is valid.
-- `S.Migration` - Ignore built-in checks and refinements. Useful if data is already validated by another validation library and you only want to migrate it to a more convinient ReScript data structure. It's ~1.5 times faster than `Safe` mode.
 
 #### **`S.serializeWith`**
 
@@ -579,8 +575,6 @@ Ok(Square({x: 2.}))
 
 `union` will test the input against each of the structs in order and return the first value that validates successfully.
 
-> 🧠 Automatically changes parsing mode from Migration to Safe
-
 ##### Enums
 
 Also, you can describe enums using `S.union` together with `S.literalVariant`.
@@ -603,19 +597,19 @@ Ok(Draw)
 
 #### **`S.custom`**
 
-`(~parser: (. ~unknown: S.unknown, ~mode: S.parsingMode) => 'value=?, ~serializer: (. ~value: 'value) => 'any=?, unit) => S.t<'value>`
+`(~parser: (. ~unknown: S.unknown) => 'value=?, ~serializer: (. ~value: 'value) => 'any=?, unit) => S.t<'value>`
 
 You can also define your own custom struct factories that are specific to your application's requirements:
 
 ```rescript
 let nullableStruct = innerStruct =>
   S.custom(
-    ~parser=(. ~unknown, ~mode) => {
+    ~parser=(. ~unknown) => {
       unknown
       ->Obj.magic
       ->Js.Nullable.toOption
       ->Belt.Option.map(innerValue =>
-        switch innerValue->S.parseWith(~mode, innerStruct) {
+        switch innerValue->S.parseWith(innerStruct) {
         | Ok(value) => value
         | Error(error) => S.Error.raiseCustom(error)
         }
@@ -674,16 +668,12 @@ let intToString = struct =>
 
 #### **`S.superTransform`**
 
-`(S.t<'value>, ~parser: (. ~value: 'value, ~struct: S.t<'value>, ~mode: S.parsingMode) => 'transformed=?, ~serializer: (. ~transformed: 'transformed, ~struct: S.t<'value>) => 'value=?, unit) => S.t<'transformed>`
+`(S.t<'value>, ~parser: (. ~value: 'value, ~struct: S.t<'value>) => 'transformed=?, ~serializer: (. ~transformed: 'transformed, ~struct: S.t<'value>) => 'value=?, unit) => S.t<'transformed>`
 
 ```rescript
 let trimmedInSafeMode = S.superTransform(
   _,
-  ~parser=(. ~value, ~struct as _, ~mode) =>
-    switch mode {
-    | Safe => value->Js.String2.trim
-    | Migration => value
-    },
+  ~parser=(. ~value, ~struct as _) => value->Js.String2.trim,
   ~serializer=(. ~transformed, ~struct as _) => transformed->Js.String2.trim,
   (),
 )

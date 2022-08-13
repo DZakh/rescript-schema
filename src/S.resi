@@ -35,8 +35,6 @@ type rec literal<'value> =
   | EmptyOption: literal<unit>
   | NaN: literal<unit>
 
-type parsingMode = Safe | Migration
-
 type recordUnknownKeys =
   | Strict
   | Strip
@@ -93,13 +91,13 @@ let transform: (
 
 let superTransform: (
   t<'value>,
-  ~parser: (. ~value: 'value, ~struct: t<'value>, ~mode: parsingMode) => 'transformed=?,
+  ~parser: (. ~value: 'value, ~struct: t<'value>) => 'transformed=?,
   ~serializer: (. ~transformed: 'transformed, ~struct: t<'value>) => 'value=?,
   unit,
 ) => t<'transformed>
 
 let custom: (
-  ~parser: (. ~unknown: unknown, ~mode: parsingMode) => 'value=?,
+  ~parser: (. ~unknown: unknown) => 'value=?,
   ~serializer: (. ~value: 'value) => 'any=?,
   unit,
 ) => t<'value>
@@ -108,13 +106,9 @@ let refine: (t<'value>, ~parser: 'value => unit=?, ~serializer: 'value => unit=?
 
 let asyncRefine: (t<'value>, ~parser: 'value => Js.Promise.t<unit>, unit) => t<'value>
 
-let parseWith: ('any, ~mode: parsingMode=?, t<'value>) => result<'value, Error.t>
+let parseWith: ('any, t<'value>) => result<'value, Error.t>
 
-let parseAsyncWith: (
-  'any,
-  ~mode: parsingMode=?,
-  t<'value>,
-) => result<Js.Promise.t<result<'value, Error.t>>, Error.t>
+let parseAsyncWith: ('any, t<'value>) => result<Js.Promise.t<result<'value, Error.t>>, Error.t>
 
 let serializeWith: ('value, t<'value>) => result<unknown, Error.t>
 

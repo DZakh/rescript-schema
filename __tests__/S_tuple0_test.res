@@ -7,7 +7,7 @@ module Common = {
   let wrongTypeAny = %raw(`"Hello world!"`)
   let factory = () => S.tuple0(.)
 
-  test("Successfully parses in Safe mode", t => {
+  test("Successfully parses ", t => {
     let struct = factory()
 
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())

@@ -2,27 +2,15 @@ open Ava
 
 let trimmedInSafeMode = S.superTransform(
   _,
-  ~parser=(. ~value, ~struct as _, ~mode) =>
-    switch mode {
-    | Safe => value->Js.String2.trim
-    | Migration => value
-    },
+  ~parser=(. ~value, ~struct as _) => value->Js.String2.trim,
   ~serializer=(. ~transformed, ~struct as _) => transformed->Js.String2.trim,
   (),
 )
 
-test("Successfully parses in Safe mode", t => {
+test("Successfully parses ", t => {
   let struct = S.string()->trimmedInSafeMode
 
   t->Assert.deepEqual("  Hello world!"->S.parseWith(struct), Ok("Hello world!"), ())
-})
-
-test("Successfully parses in Migration mode with different logic", t => {
-  let any = "  Hello world!"
-
-  let struct = S.string()->trimmedInSafeMode
-
-  t->Assert.deepEqual(any->S.parseWith(~mode=Migration, struct), Ok(any), ())
 })
 
 test("Throws for factory without either a parser, or a serializer", t => {
@@ -40,7 +28,7 @@ test("Fails to parse when user returns error in parser", t => {
 
   let struct =
     S.string()->S.superTransform(
-      ~parser=(. ~value as _, ~struct as _, ~mode as _) => S.Error.raise("User error"),
+      ~parser=(. ~value as _, ~struct as _) => S.Error.raise("User error"),
       (),
     )
 
@@ -87,11 +75,11 @@ test("Transform operations applyed in the right order when parsing", t => {
   let struct =
     S.int()
     ->S.superTransform(
-      ~parser=(. ~value as _, ~struct as _, ~mode as _) => S.Error.raise("First transform"),
+      ~parser=(. ~value as _, ~struct as _) => S.Error.raise("First transform"),
       (),
     )
     ->S.superTransform(
-      ~parser=(. ~value as _, ~struct as _, ~mode as _) => S.Error.raise("Second transform"),
+      ~parser=(. ~value as _, ~struct as _) => S.Error.raise("Second transform"),
       (),
     )
 

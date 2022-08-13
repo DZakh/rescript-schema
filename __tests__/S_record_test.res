@@ -243,6 +243,6 @@ test(
       ("noopOp2", S.int()),
     )
 
-    t->Assert.deepEqual(any->S.parseWith(~mode=Migration, struct), Ok((1, 2, 3)), ())
+    t->Assert.deepEqual(any->S.parseWith(struct), Ok((1, 2, 3)), ())
   },
 )

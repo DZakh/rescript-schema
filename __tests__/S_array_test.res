@@ -7,23 +7,13 @@ module CommonWithNested = {
   let nestedWrongAny = %raw(`["Hello world!", 1]`)
   let factory = () => S.array(S.string())
 
-  test("Successfully parses in Safe mode", t => {
+  test("Successfully parses", t => {
     let struct = factory()
 
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
   })
 
-  test("Successfully parses without validation in Migration mode", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(
-      nestedWrongAny->S.parseWith(~mode=Migration, struct),
-      Ok(nestedWrongAny),
-      (),
-    )
-  })
-
-  test("Fails to parse in Safe mode", t => {
+  test("Fails to parse", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -37,7 +27,7 @@ module CommonWithNested = {
     )
   })
 
-  test("Fails to parse nested in Safe mode", t => {
+  test("Fails to parse nested", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
