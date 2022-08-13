@@ -917,50 +917,46 @@ var getMaybeExcessKey = (function(object, innerStructsDict) {
     }
   });
 
-var serializeActionFactories = [(function (struct, param) {
-      return {
-              TAG: /* SyncTransform */0,
-              _0: (function (input) {
-                  var match = struct.t;
-                  var fieldNames = match.fieldNames;
-                  var fields = match.fields;
-                  var unknown = {};
-                  var fieldValues = fieldNames.length <= 1 ? [input] : input;
-                  for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-                    var fieldName = fieldNames[idx];
-                    var fieldStruct = fields[fieldName];
-                    var fieldValue = fieldValues[idx];
-                    var fn = fieldStruct.s;
-                    if (typeof fn === "number") {
-                      unknown[fieldName] = fieldValue;
-                    } else if (fn.TAG === /* Sync */0) {
-                      try {
-                        var fieldData = fn._0(fieldValue);
-                        unknown[fieldName] = fieldData;
-                      }
-                      catch (raw_internalError){
-                        var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                        if (internalError.RE_EXN_ID === Exception) {
-                          throw {
-                                RE_EXN_ID: Exception,
-                                _1: prependLocation(internalError._1, fieldName),
-                                Error: new Error()
-                              };
-                        }
-                        throw internalError;
-                      }
-                    } else {
-                      panic("Unreachable");
-                    }
-                  }
-                  return unknown;
-                })
-            };
-    })];
-
 function innerFactory(fieldsArray) {
   var fields = Js_dict.fromArray(fieldsArray);
   var fieldNames = Object.keys(fields);
+  var serializeActionFactories = [(function (param, param$1) {
+        return {
+                TAG: /* SyncTransform */0,
+                _0: (function (input) {
+                    var unknown = {};
+                    var fieldValues = fieldNames.length <= 1 ? [input] : input;
+                    for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+                      var fieldName = fieldNames[idx];
+                      var fieldStruct = fields[fieldName];
+                      var fieldValue = fieldValues[idx];
+                      var fn = fieldStruct.s;
+                      if (typeof fn === "number") {
+                        unknown[fieldName] = fieldValue;
+                      } else if (fn.TAG === /* Sync */0) {
+                        try {
+                          var fieldData = fn._0(fieldValue);
+                          unknown[fieldName] = fieldData;
+                        }
+                        catch (raw_internalError){
+                          var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                          if (internalError.RE_EXN_ID === Exception) {
+                            throw {
+                                  RE_EXN_ID: Exception,
+                                  _1: prependLocation(internalError._1, fieldName),
+                                  Error: new Error()
+                                };
+                          }
+                          throw internalError;
+                        }
+                      } else {
+                        panic("Unreachable");
+                      }
+                    }
+                    return unknown;
+                  })
+              };
+      })];
   var makeParseActions = function (mode) {
     var noopOps = [];
     var syncOps = [];
@@ -1111,16 +1107,15 @@ function strict(struct) {
   }
 }
 
-var actions = [(function (struct, param) {
-      return {
-              TAG: /* SyncTransform */0,
-              _0: (function (input) {
-                  return raiseUnexpectedTypeError(input, struct);
-                })
-            };
-    })];
-
 function factory$3(param) {
+  var actions = [(function (struct, param) {
+        return {
+                TAG: /* SyncTransform */0,
+                _0: (function (input) {
+                    return raiseUnexpectedTypeError(input, struct);
+                  })
+              };
+      })];
   return make(/* Never */0, actions, emptyArray, actions, undefined, undefined);
 }
 
@@ -1134,21 +1129,20 @@ var uuidRegex = /^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]
 
 var emailRegex = /^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i;
 
-function parserRefinement$7(struct, param) {
-  return {
-          TAG: /* SyncTransform */0,
-          _0: (function (input) {
-              if (typeof input !== "string") {
-                return raiseUnexpectedTypeError(input, struct);
-              } else {
-                return input;
-              }
-            })
-        };
-}
-
 function factory$5(param) {
-  return make(/* String */2, [parserRefinement$7], emptyArray, emptyArray, undefined, undefined);
+  var parserRefinement = function (struct, param) {
+    return {
+            TAG: /* SyncTransform */0,
+            _0: (function (input) {
+                if (typeof input !== "string") {
+                  return raiseUnexpectedTypeError(input, struct);
+                } else {
+                  return input;
+                }
+              })
+          };
+  };
+  return make(/* String */2, [parserRefinement], emptyArray, emptyArray, undefined, undefined);
 }
 
 function min(struct, maybeMessage, length) {
@@ -1252,38 +1246,36 @@ function trimmed(struct, param) {
   return transform(struct, transformer, transformer, undefined);
 }
 
-function parserRefinement$8(struct, param) {
-  return {
-          TAG: /* SyncTransform */0,
-          _0: (function (input) {
-              if (typeof input !== "boolean") {
-                return raiseUnexpectedTypeError(input, struct);
-              } else {
-                return input;
-              }
-            })
-        };
-}
-
 function factory$6(param) {
-  return make(/* Bool */5, [parserRefinement$8], emptyArray, emptyArray, undefined, undefined);
-}
-
-function parserRefinement$9(struct, param) {
-  return {
-          TAG: /* SyncTransform */0,
-          _0: (function (input) {
-              if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
-                return input;
-              } else {
-                return raiseUnexpectedTypeError(input, struct);
-              }
-            })
-        };
+  var parserRefinement = function (struct, param) {
+    return {
+            TAG: /* SyncTransform */0,
+            _0: (function (input) {
+                if (typeof input !== "boolean") {
+                  return raiseUnexpectedTypeError(input, struct);
+                } else {
+                  return input;
+                }
+              })
+          };
+  };
+  return make(/* Bool */5, [parserRefinement], emptyArray, emptyArray, undefined, undefined);
 }
 
 function factory$7(param) {
-  return make(/* Int */3, [parserRefinement$9], emptyArray, emptyArray, undefined, undefined);
+  var parserRefinement = function (struct, param) {
+    return {
+            TAG: /* SyncTransform */0,
+            _0: (function (input) {
+                if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
+                  return input;
+                } else {
+                  return raiseUnexpectedTypeError(input, struct);
+                }
+              })
+          };
+  };
+  return make(/* Int */3, [parserRefinement], emptyArray, emptyArray, undefined, undefined);
 }
 
 function min$1(struct, maybeMessage, thanValue) {
@@ -1306,66 +1298,63 @@ function max$1(struct, maybeMessage, thanValue) {
   return refine(struct, refiner, refiner, undefined);
 }
 
-function parserRefinement$10(struct, param) {
-  return {
-          TAG: /* SyncTransform */0,
-          _0: (function (input) {
-              if (typeof input === "number" && !Number.isNaN(input)) {
-                return input;
-              } else {
-                return raiseUnexpectedTypeError(input, struct);
-              }
-            })
-        };
-}
-
 function factory$8(param) {
-  return make(/* Float */4, [parserRefinement$10], emptyArray, emptyArray, undefined, undefined);
-}
-
-function parserRefinement$11(struct, param) {
-  return {
-          TAG: /* SyncTransform */0,
-          _0: (function (input) {
-              var factory = struct.t._0;
-              if (factoryOf(factory, input) && !Number.isNaN(input.getTime())) {
-                return input;
-              } else {
-                return raiseUnexpectedTypeError(input, struct);
-              }
-            })
-        };
+  var parserRefinement = function (struct, param) {
+    return {
+            TAG: /* SyncTransform */0,
+            _0: (function (input) {
+                if (typeof input === "number" && !Number.isNaN(input)) {
+                  return input;
+                } else {
+                  return raiseUnexpectedTypeError(input, struct);
+                }
+              })
+          };
+  };
+  return make(/* Float */4, [parserRefinement], emptyArray, emptyArray, undefined, undefined);
 }
 
 function factory$9(param) {
+  var parserRefinement = function (struct, param) {
+    return {
+            TAG: /* SyncTransform */0,
+            _0: (function (input) {
+                var factory = struct.t._0;
+                if (factoryOf(factory, input) && !Number.isNaN(input.getTime())) {
+                  return input;
+                } else {
+                  return raiseUnexpectedTypeError(input, struct);
+                }
+              })
+          };
+  };
   return make({
               TAG: /* Instance */10,
               _0: Date
-            }, [parserRefinement$11], emptyArray, emptyArray, undefined, undefined);
+            }, [parserRefinement], emptyArray, emptyArray, undefined, undefined);
 }
 
-var serializeActionFactories$1 = [(function (struct, param) {
-      return {
-              TAG: /* SyncTransform */0,
-              _0: (function (input) {
-                  if (input === undefined) {
-                    return null;
-                  }
-                  var value = Caml_option.valFromOption(input);
-                  var innerStruct = struct.t._0;
-                  var fn = innerStruct.s;
-                  if (typeof fn === "number") {
-                    return value;
-                  } else if (fn.TAG === /* Sync */0) {
-                    return fn._0(value);
-                  } else {
-                    return panic("Unreachable");
-                  }
-                })
-            };
-    })];
-
 function factory$10(innerStruct) {
+  var serializeActionFactories = [(function (struct, param) {
+        return {
+                TAG: /* SyncTransform */0,
+                _0: (function (input) {
+                    if (input === undefined) {
+                      return null;
+                    }
+                    var value = Caml_option.valFromOption(input);
+                    var innerStruct = struct.t._0;
+                    var fn = innerStruct.s;
+                    if (typeof fn === "number") {
+                      return value;
+                    } else if (fn.TAG === /* Sync */0) {
+                      return fn._0(value);
+                    } else {
+                      return panic("Unreachable");
+                    }
+                  })
+              };
+      })];
   var makeSyncParseAction = function (fn) {
     var action = {
       TAG: /* SyncTransform */0,
@@ -1422,31 +1411,30 @@ function factory$10(innerStruct) {
   return make({
               TAG: /* Null */2,
               _0: innerStruct
-            }, makeParseActions(/* Safe */0), makeParseActions(/* Migration */1), serializeActionFactories$1, undefined, undefined);
+            }, makeParseActions(/* Safe */0), makeParseActions(/* Migration */1), serializeActionFactories, undefined, undefined);
 }
 
-var serializeActionFactories$2 = [(function (struct, param) {
-      return {
-              TAG: /* SyncTransform */0,
-              _0: (function (input) {
-                  if (input === undefined) {
-                    return ;
-                  }
-                  var value = Caml_option.valFromOption(input);
-                  var innerStruct = struct.t._0;
-                  var fn = innerStruct.s;
-                  if (typeof fn === "number") {
-                    return value;
-                  } else if (fn.TAG === /* Sync */0) {
-                    return fn._0(value);
-                  } else {
-                    return panic("Unreachable");
-                  }
-                })
-            };
-    })];
-
 function factory$11(innerStruct) {
+  var serializeActionFactories = [(function (struct, param) {
+        return {
+                TAG: /* SyncTransform */0,
+                _0: (function (input) {
+                    if (input === undefined) {
+                      return ;
+                    }
+                    var value = Caml_option.valFromOption(input);
+                    var innerStruct = struct.t._0;
+                    var fn = innerStruct.s;
+                    if (typeof fn === "number") {
+                      return value;
+                    } else if (fn.TAG === /* Sync */0) {
+                      return fn._0(value);
+                    } else {
+                      return panic("Unreachable");
+                    }
+                  })
+              };
+      })];
   var makeSyncParseAction = function (fn) {
     var action = {
       TAG: /* SyncTransform */0,
@@ -1491,7 +1479,7 @@ function factory$11(innerStruct) {
   return make({
               TAG: /* Option */1,
               _0: innerStruct
-            }, makeParseActions(/* Safe */0), makeParseActions(/* Migration */1), serializeActionFactories$2, undefined, undefined);
+            }, makeParseActions(/* Safe */0), makeParseActions(/* Migration */1), serializeActionFactories, undefined, undefined);
 }
 
 function factory$12(maybeMessage, innerStruct) {
@@ -1925,7 +1913,7 @@ function factory$15(innerStruct, defaultValue) {
             }, makeParseActions(/* Safe */0), makeParseActions(/* Migration */1), serializeActionFactories, undefined, undefined);
 }
 
-var serializeActionFactories$3 = [(function (struct, param) {
+var serializeActionFactories = [(function (struct, param) {
       return {
               TAG: /* SyncTransform */0,
               _0: (function (input) {
@@ -2082,63 +2070,61 @@ function innerFactory$1(structs) {
   return make({
               TAG: /* Tuple */5,
               _0: structs
-            }, makeParseActions(/* Safe */0), makeParseActions(/* Migration */1), serializeActionFactories$3, undefined, undefined);
+            }, makeParseActions(/* Safe */0), makeParseActions(/* Migration */1), serializeActionFactories, undefined, undefined);
 }
 
 var factory$16 = callWithArguments(innerFactory$1);
 
 var HackyValidValue = /* @__PURE__ */Caml_exceptions.create("S.Union.HackyValidValue");
 
-var serializeActionFactories$4 = [(function (struct, param) {
-      return {
-              TAG: /* SyncTransform */0,
-              _0: (function (input) {
-                  var innerStructs = struct.t._0;
-                  var idxRef = 0;
-                  var maybeLastErrorRef;
-                  var maybeNewValueRef;
-                  while(idxRef < innerStructs.length && maybeNewValueRef === undefined) {
-                    var idx = idxRef;
-                    var innerStruct = innerStructs[idx];
-                    try {
-                      var fn = innerStruct.s;
-                      var newValue;
-                      newValue = typeof fn === "number" ? input : (
-                          fn.TAG === /* Sync */0 ? fn._0(input) : panic("Unreachable")
-                        );
-                      maybeNewValueRef = Caml_option.some(newValue);
-                    }
-                    catch (raw_internalError){
-                      var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                      if (internalError.RE_EXN_ID === Exception) {
-                        maybeLastErrorRef = internalError._1;
-                        idxRef = idxRef + 1;
-                      } else {
-                        throw internalError;
-                      }
-                    }
-                  };
-                  var ok = maybeNewValueRef;
-                  if (ok !== undefined) {
-                    return Caml_option.valFromOption(ok);
-                  }
-                  var error = maybeLastErrorRef;
-                  if (error !== undefined) {
-                    throw {
-                          RE_EXN_ID: Exception,
-                          _1: error,
-                          Error: new Error()
-                        };
-                  }
-                  return undefined;
-                })
-            };
-    })];
-
 function factory$17(structs) {
   if (structs.length < 2) {
     panic("A Union struct factory require at least two structs");
   }
+  var serializeActionFactories = [(function (param, param$1) {
+        return {
+                TAG: /* SyncTransform */0,
+                _0: (function (input) {
+                    var idxRef = 0;
+                    var maybeLastErrorRef;
+                    var maybeNewValueRef;
+                    while(idxRef < structs.length && maybeNewValueRef === undefined) {
+                      var idx = idxRef;
+                      var innerStruct = structs[idx];
+                      try {
+                        var fn = innerStruct.s;
+                        var newValue;
+                        newValue = typeof fn === "number" ? input : (
+                            fn.TAG === /* Sync */0 ? fn._0(input) : panic("Unreachable")
+                          );
+                        maybeNewValueRef = Caml_option.some(newValue);
+                      }
+                      catch (raw_internalError){
+                        var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                        if (internalError.RE_EXN_ID === Exception) {
+                          maybeLastErrorRef = internalError._1;
+                          idxRef = idxRef + 1;
+                        } else {
+                          throw internalError;
+                        }
+                      }
+                    };
+                    var ok = maybeNewValueRef;
+                    if (ok !== undefined) {
+                      return Caml_option.valFromOption(ok);
+                    }
+                    var error = maybeLastErrorRef;
+                    if (error !== undefined) {
+                      throw {
+                            RE_EXN_ID: Exception,
+                            _1: error,
+                            Error: new Error()
+                          };
+                    }
+                    return undefined;
+                  })
+              };
+      })];
   var noopOps = [];
   var syncOps = [];
   var asyncOps = [];
@@ -2273,7 +2259,7 @@ function factory$17(structs) {
   return make({
               TAG: /* Union */6,
               _0: structs
-            }, parseActions, parseActions, serializeActionFactories$4, undefined, undefined);
+            }, parseActions, parseActions, serializeActionFactories, undefined, undefined);
 }
 
 function json(innerStruct) {
