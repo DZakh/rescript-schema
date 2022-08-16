@@ -35,6 +35,10 @@ type rec literal<'value> =
   | EmptyOption: literal<unit>
   | NaN: literal<unit>
 
+type action<'input, 'output> =
+  | Sync((. 'input) => 'output)
+  | Async((. 'input) => Js.Promise.t<'output>)
+
 type recordUnknownKeys =
   | Strict
   | Strip
@@ -89,10 +93,10 @@ let transform: (
   unit,
 ) => t<'transformed>
 
-let superTransform: (
+let advancedTransform: (
   t<'value>,
-  ~parser: (. ~value: 'value, ~struct: t<'value>) => 'transformed=?,
-  ~serializer: (. ~transformed: 'transformed, ~struct: t<'value>) => 'value=?,
+  ~parser: (. ~struct: t<'value>) => action<'value, 'transformed>=?,
+  ~serializer: (. ~struct: t<'value>) => action<'transformed, 'value>=?,
   unit,
 ) => t<'transformed>
 

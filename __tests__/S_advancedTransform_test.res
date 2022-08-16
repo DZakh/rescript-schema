@@ -1,9 +1,9 @@
 open Ava
 
-let trimmedInSafeMode = S.superTransform(
+let trimmedInSafeMode = S.advancedTransform(
   _,
-  ~parser=(. ~value, ~struct as _) => value->Js.String2.trim,
-  ~serializer=(. ~transformed, ~struct as _) => transformed->Js.String2.trim,
+  ~parser=(. ~struct as _) => Sync((. value) => value->Js.String2.trim),
+  ~serializer=(. ~struct as _) => Sync((. transformed) => transformed->Js.String2.trim),
   (),
 )
 
@@ -15,7 +15,7 @@ test("Successfully parses ", t => {
 
 test("Throws for factory without either a parser, or a serializer", t => {
   t->Assert.throws(() => {
-    S.string()->S.superTransform()->ignore
+    S.string()->S.advancedTransform()->ignore
   }, ~expectations=ThrowsException.make(
     ~name="RescriptStructError",
     ~message=String("For a struct factory Transform either a parser, or a serializer is required"),
@@ -27,8 +27,8 @@ test("Fails to parse when user returns error in parser", t => {
   let any = %raw(`"Hello world!"`)
 
   let struct =
-    S.string()->S.superTransform(
-      ~parser=(. ~value as _, ~struct as _) => S.Error.raise("User error"),
+    S.string()->S.advancedTransform(
+      ~parser=(. ~struct as _) => Sync((. _) => S.Error.raise("User error")),
       (),
     )
 
@@ -53,8 +53,8 @@ test("Fails to serialize when user returns error in serializer", t => {
   let value = "Hello world!"
 
   let struct =
-    S.string()->S.superTransform(
-      ~serializer=(. ~transformed as _, ~struct as _) => S.Error.raise("User error"),
+    S.string()->S.advancedTransform(
+      ~serializer=(. ~struct as _) => Sync((. _) => S.Error.raise("User error")),
       (),
     )
 
@@ -74,12 +74,12 @@ test("Transform operations applyed in the right order when parsing", t => {
 
   let struct =
     S.int()
-    ->S.superTransform(
-      ~parser=(. ~value as _, ~struct as _) => S.Error.raise("First transform"),
+    ->S.advancedTransform(
+      ~parser=(. ~struct as _) => Sync((. _) => S.Error.raise("First transform")),
       (),
     )
-    ->S.superTransform(
-      ~parser=(. ~value as _, ~struct as _) => S.Error.raise("Second transform"),
+    ->S.advancedTransform(
+      ~parser=(. ~struct as _) => Sync((. _) => S.Error.raise("Second transform")),
       (),
     )
 
@@ -99,12 +99,12 @@ test("Transform operations applyed in the right order when serializing", t => {
 
   let struct =
     S.int()
-    ->S.superTransform(
-      ~serializer=(. ~transformed as _, ~struct as _) => S.Error.raise("Second transform"),
+    ->S.advancedTransform(
+      ~serializer=(. ~struct as _) => Sync((. _) => S.Error.raise("Second transform")),
       (),
     )
-    ->S.superTransform(
-      ~serializer=(. ~transformed as _, ~struct as _) => S.Error.raise("First transform"),
+    ->S.advancedTransform(
+      ~serializer=(. ~struct as _) => Sync((. _) => S.Error.raise("First transform")),
       (),
     )
 
