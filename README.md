@@ -726,7 +726,7 @@ let intToString = struct =>
 
 > 🧠 Transform functions should not throw. Use `S.Error.raise` or `S.Error.raiseCustom` to exit with failure.
 
-#### **`S.advancedTransform`**
+#### **`S.advancedTransform`** _Advanced_
 
 `type action<'input, 'output> = Sync((. 'input) => 'output) | Async((. 'input) => Js.Promise.t<'output>)`
 
@@ -826,13 +826,13 @@ Error({
 
 A function to exit with failure during refinements and transforms.
 
-#### **`S.Error.raiseCustom`**
+#### **`S.Error.raiseCustom`** _Advanced_
 
 `S.Error.t => 'a`
 
 A function to exit with failure during refinements and transforms.
 
-#### **`S.Error.prependLocation`**
+#### **`S.Error.prependLocation`** _Advanced_
 
 `(S.Error.t, string) => S.Error.t`
 
