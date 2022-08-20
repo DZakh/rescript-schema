@@ -928,7 +928,7 @@ function innerFactory(fieldsArray) {
               TAG: /* Record */4,
               fields: fields,
               fieldNames: fieldNames,
-              unknownKeys: /* Strict */0
+              unknownKeys: /* Strip */1
             }, parseActionFactories, [(function (param) {
                   return {
                           TAG: /* Sync */0,

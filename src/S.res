@@ -963,7 +963,7 @@ module Record = {
     let fieldNames = fields->Js.Dict.keys
 
     make(
-      ~tagged_t=Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strict}),
+      ~tagged_t=Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strip}),
       ~parseActionFactories={
         let noopOps = []
         let syncOps = []

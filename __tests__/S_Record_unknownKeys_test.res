@@ -2,26 +2,18 @@ open Ava
 
 type recordWithOneField = {key: string}
 
-test("Fails to parse Record with unknown keys by default", t => {
+test("Successfully parses Record with unknown keys by default", t => {
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
   let struct = S.record1(. ("key", S.string()))
 
-  t->Assert.deepEqual(
-    any->S.parseWith(struct),
-    Error({
-      code: ExcessField("unknownKey"),
-      operation: Parsing,
-      path: [],
-    }),
-    (),
-  )
+  t->Assert.deepEqual(any->S.parseWith(struct), Ok("value"), ())
 })
 
 test("Fails fast and shows only one excees key in the error message", t => {
   let any = %raw(`{key: "value", unknownKey: "value2", unknownKey2: "value2"}`)
 
-  let struct = S.record1(. ("key", S.string()))
+  let struct = S.record1(. ("key", S.string()))->S.Record.strict
 
   t->Assert.deepEqual(
     any->S.parseWith(struct),

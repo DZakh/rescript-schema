@@ -438,25 +438,6 @@ let record3: (
 
 > 🧠 The `S.Record.factory` internal code isn't typesafe, so you should properly annotate the struct factory interface.
 
-#### **`S.Record.strip`**
-
-`S.t<'value> => S.t<'value>`
-
-```rescript
-let struct = S.record1(. ("key", S.string()))->S.Record.strip
-
-{
-  "key": "value",
-  "unknownKey": "value2",
-}->S.parseWith(struct)
-```
-
-```rescript
-Ok("value")
-```
-
-By default **rescript-struct** disallow unrecognized keys during parsing objects. You can change the behaviour to stripping unrecognized keys with the `S.Record.strip` function.
-
 #### **`S.Record.strict`**
 
 `S.t<'value> => S.t<'value>`
@@ -478,7 +459,27 @@ Error({
 })
 ```
 
-You can use the `S.Record.strict` function to reset a record struct to the default behavior (disallowing unrecognized keys).
+By default **rescript-struct** silently strips unrecognized keys when parsing objects. You can change the behaviour to disallow unrecognized keys with the `S.Record.strict` function.
+
+#### **`S.Record.strip`**
+
+`S.t<'value> => S.t<'value>`
+
+```rescript
+let struct = S.record1(. ("key", S.string()))->S.Record.strip
+
+{
+  "key": "value",
+  "unknownKey": "value2",
+}->S.parseWith(struct)
+```
+
+```rescript
+Ok("value")
+```
+
+You can use the `S.Record.strip` function to reset a record struct to the default behavior (stripping unrecognized keys).
+
 
 #### **`S.never`**
 
