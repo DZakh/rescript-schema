@@ -880,25 +880,10 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 
 ## Roadmap
 
-- [x] Add custom transformations
-- [x] Add JSON module for parsing and serializing
-- [x] Make parse and serialize work with any JS values and not only with Js.Json.t
-- [x] Add Unknown struct factory and remove Custom
-- [x] Add different unknown keys strategies
-- [x] Add Null struct factory
-- [x] Add Tuple struct factory
-- [x] Add Never struct factory
-- [ ] Add Instance struct factory
-- [ ] Add Function struct factory
-- [ ] Add Regexp struct factory
-- [x] Add Date struct factory
-- [x] Add Json struct factory
-- [x] Design and add Literal struct factory
-- [ ] Design and add Lazy struct factory
-- [x] Design and add Union struct factory
-  - [ ] Add discriminant optimization for record structs
-- [ ] Design and add tagged refinements
-- [x] Properly handle NaN
-- [x] Design and add async transforms
-- [x] Add super transforms
-- [ ] Add preprocessors
+- [ ] Add tag system for flexible integration system
+- [ ] Add custom configuration
+- [ ] Add name property to the custom struct factory for better error messages
+- [ ] Add discriminant optimization for record unions
+- [ ] Add async serializing support
+- [ ] Documentation improvements
+- [ ] Test coverage improvements
