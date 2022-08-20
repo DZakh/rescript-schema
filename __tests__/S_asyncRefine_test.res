@@ -19,7 +19,6 @@ asyncTest("Successfully parses using parseAsyncWith", t => {
 
   %raw(`"Hello world!"`)
   ->S.parseAsyncWith(struct)
-  ->Belt.Result.getExn
   ->Promise.thenResolve(result => {
     t->Assert.deepEqual(result, Ok("Hello world!"), ())
   })
@@ -34,7 +33,6 @@ asyncTest("Fails to parse with user error", t => {
 
   %raw(`"Hello world!"`)
   ->S.parseAsyncWith(struct)
-  ->Belt.Result.getExn
   ->Promise.thenResolve(result => {
     t->Assert.deepEqual(
       result,
@@ -57,7 +55,6 @@ asyncTest("Can apply other actions after asyncRefine", t => {
 
   %raw(`"    Hello world!"`)
   ->S.parseAsyncWith(struct)
-  ->Belt.Result.getExn
   ->Promise.thenResolve(result => {
     t->Assert.deepEqual(result, Ok("Hello world!"), ())
   })

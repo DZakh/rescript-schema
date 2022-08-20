@@ -1,6 +1,6 @@
 open Ava
 
-let trimmedInSafeMode = S.advancedTransform(
+let trimmed = S.advancedTransform(
   _,
   ~parser=(. ~struct as _) => Sync((. value) => value->Js.String2.trim),
   ~serializer=(. ~struct as _) => Sync((. transformed) => transformed->Js.String2.trim),
@@ -8,7 +8,7 @@ let trimmedInSafeMode = S.advancedTransform(
 )
 
 test("Successfully parses ", t => {
-  let struct = S.string()->trimmedInSafeMode
+  let struct = S.string()->trimmed
 
   t->Assert.deepEqual("  Hello world!"->S.parseWith(struct), Ok("Hello world!"), ())
 })
@@ -44,7 +44,7 @@ test("Fails to parse when user returns error in parser", t => {
 })
 
 test("Successfully serializes", t => {
-  let struct = S.string()->trimmedInSafeMode
+  let struct = S.string()->trimmed
 
   t->Assert.deepEqual("  Hello world!"->S.serializeWith(struct), Ok(%raw(`"Hello world!"`)), ())
 })
@@ -117,4 +117,78 @@ test("Transform operations applyed in the right order when serializing", t => {
     }),
     (),
   )
+})
+
+test("Fails to parse async using parseWith", t => {
+  let struct =
+    S.string()->S.advancedTransform(
+      ~parser=(. ~struct as _) => Async((. value) => Promise.resolve(value)),
+      (),
+    )
+
+  t->Assert.deepEqual(
+    %raw(`"Hello world!"`)->S.parseWith(struct),
+    Error({
+      code: UnexpectedAsync,
+      operation: Parsing,
+      path: [],
+    }),
+    (),
+  )
+})
+
+asyncTest("Successfully parses async using parseAsyncWith", t => {
+  let struct =
+    S.string()->S.advancedTransform(
+      ~parser=(. ~struct as _) => Async((. value) => Promise.resolve(value)),
+      (),
+    )
+
+  %raw(`"Hello world!"`)
+  ->S.parseAsyncWith(struct)
+  ->Promise.thenResolve(result => {
+    t->Assert.deepEqual(result, Ok("Hello world!"), ())
+  })
+})
+
+asyncTest("Fails to parse async with user error", t => {
+  let struct =
+    S.string()->S.advancedTransform(
+      ~parser=(. ~struct as _) => Async((. _) => S.Error.raise("User error")),
+      (),
+    )
+
+  %raw(`"Hello world!"`)
+  ->S.parseAsyncWith(struct)
+  ->Promise.thenResolve(result => {
+    t->Assert.deepEqual(
+      result,
+      Error({
+        S.Error.code: OperationFailed("User error"),
+        path: [],
+        operation: Parsing,
+      }),
+      (),
+    )
+  })
+})
+
+asyncTest("Can apply other actions after async transform", t => {
+  let struct =
+    S.string()
+    ->S.advancedTransform(
+      ~parser=(. ~struct as _) => Async((. value) => Promise.resolve(value)),
+      (),
+    )
+    ->S.String.trimmed()
+    ->S.advancedTransform(
+      ~parser=(. ~struct as _) => Async((. value) => Promise.resolve(value)),
+      (),
+    )
+
+  %raw(`"    Hello world!"`)
+  ->S.parseAsyncWith(struct)
+  ->Promise.thenResolve(result => {
+    t->Assert.deepEqual(result, Ok("Hello world!"), ())
+  })
 })

@@ -112,9 +112,18 @@ let asyncRefine: (t<'value>, ~parser: 'value => Js.Promise.t<unit>, unit) => t<'
 
 let parseWith: ('any, t<'value>) => result<'value, Error.t>
 
-let parseAsyncWith: ('any, t<'value>) => result<Js.Promise.t<result<'value, Error.t>>, Error.t>
+let parseAsyncWith: ('any, t<'value>) => Js.Promise.t<result<'value, Error.t>>
+
+let parseAsyncInStepsWith: (
+  'any,
+  t<'value>,
+) => result<unit => Js.Promise.t<result<'value, Error.t>>, Error.t>
 
 let serializeWith: ('value, t<'value>) => result<unknown, Error.t>
+
+let isAsyncParse: t<'value> => bool
+
+let isAsyncSerialize: t<'value> => bool
 
 module Record: {
   let factory: 'factory

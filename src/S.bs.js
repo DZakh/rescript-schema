@@ -180,6 +180,24 @@ function classify(struct) {
   return struct.t;
 }
 
+function isAsyncParse(struct) {
+  var match = struct.p;
+  if (typeof match === "number" || match.TAG === /* SyncOperation */0) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+function isAsyncSerialize(struct) {
+  var match = struct.s;
+  if (typeof match === "number" || match.TAG === /* SyncOperation */0) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
 function toString$1(tagged_t) {
   if (typeof tagged_t === "number") {
     switch (tagged_t) {
@@ -408,41 +426,88 @@ function parseAsyncWith(any, struct) {
   try {
     var fn = struct.p;
     if (typeof fn === "number") {
-      return {
-              TAG: /* Ok */0,
-              _0: Promise.resolve({
-                    TAG: /* Ok */0,
-                    _0: any
-                  })
-            };
+      return Promise.resolve({
+                  TAG: /* Ok */0,
+                  _0: any
+                });
     } else if (fn.TAG === /* SyncOperation */0) {
-      return {
-              TAG: /* Ok */0,
-              _0: Promise.resolve({
-                    TAG: /* Ok */0,
-                    _0: fn._0(any)
-                  })
-            };
+      return Promise.resolve({
+                  TAG: /* Ok */0,
+                  _0: fn._0(any)
+                });
     } else {
-      return {
-              TAG: /* Ok */0,
-              _0: fn._0(any)().then(function (value) {
-                      return {
-                              TAG: /* Ok */0,
-                              _0: value
-                            };
-                    }).catch(function (exn) {
-                    if (exn.RE_EXN_ID === Exception) {
-                      return {
-                              TAG: /* Error */1,
-                              _0: toParseError(exn._1)
-                            };
-                    } else {
-                      return $$throw(exn);
-                    }
-                  })
-            };
+      return fn._0(any)().then(function (value) {
+                    return {
+                            TAG: /* Ok */0,
+                            _0: value
+                          };
+                  }).catch(function (exn) {
+                  if (exn.RE_EXN_ID === Exception) {
+                    return {
+                            TAG: /* Error */1,
+                            _0: toParseError(exn._1)
+                          };
+                  } else {
+                    return $$throw(exn);
+                  }
+                });
     }
+  }
+  catch (raw_internalError){
+    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+    if (internalError.RE_EXN_ID === Exception) {
+      return Promise.resolve({
+                  TAG: /* Error */1,
+                  _0: toParseError(internalError._1)
+                });
+    }
+    throw internalError;
+  }
+}
+
+function parseAsyncInStepsWith(any, struct) {
+  try {
+    var fn = struct.p;
+    var tmp;
+    if (typeof fn === "number") {
+      tmp = (function (param) {
+          return Promise.resolve({
+                      TAG: /* Ok */0,
+                      _0: any
+                    });
+        });
+    } else if (fn.TAG === /* SyncOperation */0) {
+      var syncValue = fn._0(any);
+      tmp = (function (param) {
+          return Promise.resolve({
+                      TAG: /* Ok */0,
+                      _0: syncValue
+                    });
+        });
+    } else {
+      var asyncFn = fn._0(any);
+      tmp = (function (param) {
+          return asyncFn().then(function (value) {
+                        return {
+                                TAG: /* Ok */0,
+                                _0: value
+                              };
+                      }).catch(function (exn) {
+                      if (exn.RE_EXN_ID === Exception) {
+                        return {
+                                TAG: /* Error */1,
+                                _0: toParseError(exn._1)
+                              };
+                      } else {
+                        return $$throw(exn);
+                      }
+                    });
+        });
+    }
+    return {
+            TAG: /* Ok */0,
+            _0: tmp
+          };
   }
   catch (raw_internalError){
     var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
@@ -563,7 +628,7 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
   if (maybeTransformationParser !== undefined) {
     var action = {
       TAG: /* Sync */0,
-      _0: Caml_option.valFromOption(maybeTransformationParser)
+      _0: maybeTransformationParser
     };
     parser = (function (param) {
         return action;
@@ -575,7 +640,7 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
   if (maybeTransformationSerializer !== undefined) {
     var action$1 = {
       TAG: /* Sync */0,
-      _0: Caml_option.valFromOption(maybeTransformationSerializer)
+      _0: maybeTransformationSerializer
     };
     serializer = (function (param) {
         return action$1;
@@ -2077,40 +2142,62 @@ var Result = {
 };
 
 function json(innerStruct) {
-  return advancedTransform(factory$5(undefined), (function (param) {
-                return {
-                        TAG: /* Sync */0,
-                        _0: (function (value) {
-                            var parsedJson;
-                            try {
-                              parsedJson = JSON.parse(value);
-                            }
-                            catch (raw_obj){
-                              var obj = Caml_js_exceptions.internalToOCamlException(raw_obj);
-                              if (obj.RE_EXN_ID === Js_exn.$$Error) {
-                                parsedJson = raise$2(Belt_Option.getWithDefault(obj._1.message, "Failed to parse JSON"));
-                              } else {
-                                throw obj;
+  return advancedTransform(transform(factory$5(undefined), (function (jsonString) {
+                    try {
+                      return JSON.parse(jsonString);
+                    }
+                    catch (raw_obj){
+                      var obj = Caml_js_exceptions.internalToOCamlException(raw_obj);
+                      if (obj.RE_EXN_ID === Js_exn.$$Error) {
+                        return raise$2(Belt_Option.getWithDefault(obj._1.message, "Failed to parse JSON"));
+                      }
+                      throw obj;
+                    }
+                  }), (function (prim) {
+                    return JSON.stringify(prim);
+                  }), undefined), (function (param) {
+                var match = innerStruct.p;
+                var tmp;
+                tmp = typeof match === "number" || match.TAG === /* SyncOperation */0 ? false : true;
+                if (tmp) {
+                  return {
+                          TAG: /* Async */1,
+                          _0: (function (parsedJson) {
+                              return parseAsyncWith(parsedJson, innerStruct).then(function (result) {
+                                          if (result.TAG === /* Ok */0) {
+                                            return result._0;
+                                          }
+                                          throw {
+                                                RE_EXN_ID: Exception,
+                                                _1: result._0,
+                                                Error: new Error()
+                                              };
+                                        });
+                            })
+                        };
+                } else {
+                  return {
+                          TAG: /* Sync */0,
+                          _0: (function (parsedJson) {
+                              var value = parseWith(parsedJson, innerStruct);
+                              if (value.TAG === /* Ok */0) {
+                                return value._0;
                               }
-                            }
-                            var transformed = parseWith(parsedJson, innerStruct);
-                            if (transformed.TAG === /* Ok */0) {
-                              return transformed._0;
-                            }
-                            throw {
-                                  RE_EXN_ID: Exception,
-                                  _1: transformed._0,
-                                  Error: new Error()
-                                };
-                          })
-                      };
+                              throw {
+                                    RE_EXN_ID: Exception,
+                                    _1: value._0,
+                                    Error: new Error()
+                                  };
+                            })
+                        };
+                }
               }), (function (param) {
                 return {
                         TAG: /* Sync */0,
-                        _0: (function (transformed) {
-                            var unknown = serializeWith(transformed, innerStruct);
+                        _0: (function (value) {
+                            var unknown = serializeWith(value, innerStruct);
                             if (unknown.TAG === /* Ok */0) {
-                              return JSON.stringify(unknown._0);
+                              return unknown._0;
                             }
                             throw {
                                   RE_EXN_ID: Exception,
@@ -2302,7 +2389,10 @@ exports.refine = refine;
 exports.asyncRefine = asyncRefine;
 exports.parseWith = parseWith;
 exports.parseAsyncWith = parseAsyncWith;
+exports.parseAsyncInStepsWith = parseAsyncInStepsWith;
 exports.serializeWith = serializeWith;
+exports.isAsyncParse = isAsyncParse;
+exports.isAsyncSerialize = isAsyncSerialize;
 exports.Record = Record;
 exports.record0 = record0;
 exports.record1 = record1;

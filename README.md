@@ -103,6 +103,26 @@ data->S.parseWith(userStruct)
 
 Given any struct, you can call `parseWith` to check data is valid. It returns a result with valid data migrated to expected type or a **rescript-struct** error.
 
+#### **`S.parseAsyncWith`**
+
+`('any, S.t<'value>) => Js.Promise.t<result<'value, S.Error.t>>`
+
+```rescript
+data->S.parseAsyncWith(userStruct)
+```
+
+If you use asynchronous refinements or transforms (more on those later), you'll need to use `parseAsyncWith`. It will parse all synchronous branches first and then continue with asynchronous refinements and transforms in parallel.
+
+#### **`S.parseAsyncInStepsWith`** _Advanced_
+
+`('any, S.t<'value>) => result<unit => Js.Promise.t<result<'value, S.Error.t>>, S.Error.t>`
+
+```rescript
+data->S.parseAsyncInStepsWith(userStruct)
+```
+
+After parsing synchronous branches will return a function to run asynchronous refinements and transforms.
+
 #### **`S.serializeWith`**
 
 `('value, S.t<'value>) => result<S.unknown, S.Error.t>`
@@ -645,6 +665,43 @@ Error({
 })
 ```
 
+
+### Refinements
+
+**rescript-struct** lets you provide custom validation logic via refinements.
+
+There are many so-called "refinement types" you may wish to check for that can't be represented in ReScript's type system. For instance: checking that a number is an integer or that a string is a valid email address.
+
+#### **`S.refine`**
+
+`(S.t<'value>, ~parser: 'value => unit=?, ~serializer: 'value => unit=?, unit) => S.t<'value>`
+
+```rescript
+let shortStringStruct = S.string()->S.refine(~parser=value =>
+  if value->Js.String2.length > 255 {
+    S.Error.raise("String can't be more than 255 characters")
+  }
+, ())
+```
+
+> 🧠 Refinement functions should not throw. Use `S.Error.raise` or `S.Error.raiseCustom` to exit with failure.
+
+#### **`S.asyncRefine`**
+
+`(S.t<'value>, ~parser: 'value => Js.Promise.t<unit>, unit) => S.t<'value>`
+
+```rescript
+let userIdStruct = S.string()->S.asyncRefine(~parser=string =>
+  verfiyUserExistsInDb(~userId=string)->Promise.thenResolve(isExistingUser =>
+    if not(isExistingUser) {
+      S.Error.raise("User doesn't exist")
+    }
+  )
+, ())
+```
+
+> 🧠 If you use async refinements, you must use the `parseAsyncWith` to parse data! Otherwise **rescript-struct** will return an `UnexpectedAsync` error.
+
 ### Transforms
 
 **rescript-struct** allows structs to be augmented with transformation logic, letting you transform value during parsing and serializing. This is most commonly used for mapping value to a more convenient ReScript data structure.
@@ -666,20 +723,68 @@ let intToString = struct =>
   )
 ```
 
-#### **`S.superTransform`**
+> 🧠 Transform functions should not throw. Use `S.Error.raise` or `S.Error.raiseCustom` to exit with failure.
 
-`(S.t<'value>, ~parser: (. ~value: 'value, ~struct: S.t<'value>) => 'transformed=?, ~serializer: (. ~transformed: 'transformed, ~struct: S.t<'value>) => 'value=?, unit) => S.t<'transformed>`
+#### **`S.advancedTransform`**
+
+`type action<'input, 'output> = Sync((. 'input) => 'output) | Async((. 'input) => Js.Promise.t<'output>)`
+
+`(S.t<'value>, ~parser: (. ~struct: S.t<'value>) => S.action<'value, 'transformed>=?, ~serializer: (. ~struct: S.t<'value>) => S.action<'transformed, 'value>=?, unit) => S.t<'transformed>`
+
+The `transform`, `refine`, `asyncRefine`, and `custom` functions are actually syntactic sugar atop a more versatile (and verbose) function called `advancedTransform`.
 
 ```rescript
-let trimmedInSafeMode = S.superTransform(
-  _,
-  ~parser=(. ~value, ~struct as _) => value->Js.String2.trim,
-  ~serializer=(. ~transformed, ~struct as _) => transformed->Js.String2.trim,
-  (),
-)
+let json = innerStruct => {
+  S.string()
+  ->S.transform(~parser=jsonString => {
+    try jsonString->Js.Json.parseExn catch {
+    | Js.Exn.Error(obj) =>
+      S.Error.raise(obj->Js.Exn.message->Belt.Option.getWithDefault("Failed to parse JSON"))
+    }
+  }, ~serializer=Js.Json.stringify, ())
+  ->S.advancedTransform(
+    ~parser=(. ~struct as _) => {
+      switch innerStruct->S.isAsyncParse {
+      | true =>
+        Async(
+          (. parsedJson) => {
+            switch parsedJson->S.parseAsyncWith(innerStruct) {
+            | Ok(promise) =>
+              promise->Promise.thenResolve(result => {
+                switch result {
+                | Ok(value) => value
+                | Error(error) => S.Error.raiseCustom(error)
+                }
+              })
+            | Error(error) => S.Error.raiseCustom(error)
+            }
+          },
+        )
+      | false =>
+        Sync(
+          (. parsedJson) => {
+            switch parsedJson->S.parseWith(innerStruct) {
+            | Ok(value) => value
+            | Error(error) => S.Error.raiseCustom(error)
+            }
+          },
+        )
+      }
+    },
+    ~serializer=(. ~struct as _) => {
+      Sync(
+        (. value) => {
+          switch value->S.serializeWith(innerStruct) {
+          | Ok(unknown) => unknown->Obj.magic
+          | Error(error) => S.Error.raiseCustom(error)
+          }
+        },
+      )
+    },
+    (),
+  )
+}
 ```
-
-The `transform` and `custom` functions are actually syntactic sugar atop a more versatile (and verbose) function called `superTransform`.
 
 ### Error handling
 
@@ -718,13 +823,13 @@ Error({
 
 `string => 'a`
 
-A function to raise an error during parsing/serializing operation.
+A function to exit with failure during refinements and transforms.
 
 #### **`S.Error.raiseCustom`**
 
 `S.Error.t => 'a`
 
-A function to raise a custom error during parsing/serializing operation.
+A function to exit with failure during refinements and transforms.
 
 #### **`S.Error.prependLocation`**
 
@@ -793,6 +898,6 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
   - [ ] Add discriminant optimization for record structs
 - [ ] Design and add tagged refinements
 - [x] Properly handle NaN
-- [ ] Design and add async transforms
+- [x] Design and add async transforms
 - [x] Add super transforms
 - [ ] Add preprocessors

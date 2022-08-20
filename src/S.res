@@ -356,6 +356,22 @@ type payloadedVariant<'payload> = {_0: 'payload}
 @inline
 let classify = struct => struct.tagged_t
 
+@inline
+let isAsyncParse = struct =>
+  switch struct.parse {
+  | AsyncOperation(_) => true
+  | NoopOperation
+  | SyncOperation(_) => false
+  }
+
+@inline
+let isAsyncSerialize = struct =>
+  switch struct.serialize {
+  | AsyncOperation(_) => true
+  | NoopOperation
+  | SyncOperation(_) => false
+  }
+
 module TaggedT = {
   let toString = tagged_t => {
     switch tagged_t {
@@ -509,8 +525,8 @@ let parseWith = (any, struct) => {
 let parseAsyncWith = (any, struct) => {
   try {
     switch struct.parse {
-    | NoopOperation => any->Obj.magic->Ok->Lib.Promise.resolve->Ok
-    | SyncOperation(fn) => fn(. any->Obj.magic)->Ok->Obj.magic->Lib.Promise.resolve->Ok
+    | NoopOperation => any->Obj.magic->Ok->Lib.Promise.resolve
+    | SyncOperation(fn) => fn(. any->Obj.magic)->Ok->Obj.magic->Lib.Promise.resolve
     | AsyncOperation(fn) =>
       fn(. any->Obj.magic)(.)
       ->Lib.Promise.thenResolve(value => Ok(value->Obj.magic))
@@ -521,8 +537,35 @@ let parseAsyncWith = (any, struct) => {
         | _ => exn->Lib.Exn.throw
         }
       })
-      ->Ok
     }
+  } catch {
+  | Error.Internal.Exception(internalError) =>
+    internalError->Error.Internal.toParseError->Error->Lib.Promise.resolve
+  }
+}
+
+let parseAsyncInStepsWith = (any, struct) => {
+  try {
+    switch struct.parse {
+    | NoopOperation => () => any->Obj.magic->Ok->Lib.Promise.resolve
+    | SyncOperation(fn) => {
+        let syncValue = fn(. any->unsafeAnyToUnknown)->unsafeUnknownToAny
+        () => syncValue->Ok->Lib.Promise.resolve
+      }
+    | AsyncOperation(fn) => {
+        let asyncFn = fn(. any->unsafeAnyToUnknown)
+        () =>
+          asyncFn(.)
+          ->Lib.Promise.thenResolve(value => Ok(value->Obj.magic))
+          ->Lib.Promise.catch(exn => {
+            switch exn {
+            | Error.Internal.Exception(internalError) =>
+              internalError->Error.Internal.toParseError->Error
+            | _ => exn->Lib.Exn.throw
+            }
+          })
+      }
+    }->Ok
   } catch {
   | Error.Internal.Exception(internalError) => internalError->Error.Internal.toParseError->Error
   }
@@ -653,7 +696,12 @@ let asyncRefine = (struct, ~parser, ()) => {
   )
 }
 
-let transform = (
+let transform: (
+  t<'value>,
+  ~parser: 'value => 'transformed=?,
+  ~serializer: 'transformed => 'value=?,
+  unit,
+) => t<'transformed> = (
   struct,
   ~parser as maybeTransformationParser=?,
   ~serializer as maybeTransformationSerializer=?,
@@ -2242,26 +2290,45 @@ let tuple10 = Tuple.factory
 let union = Union.factory
 
 let json = innerStruct => {
-  string()->advancedTransform(
+  string()
+  ->transform(~parser=jsonString => {
+    try jsonString->Js.Json.parseExn catch {
+    | Js.Exn.Error(obj) =>
+      Error.raise(obj->Js.Exn.message->Belt.Option.getWithDefault("Failed to parse JSON"))
+    }
+  }, ~serializer=Js.Json.stringify, ())
+  ->advancedTransform(
     ~parser=(. ~struct as _) => {
-      Sync(
-        (. value) => {
-          let parsedJson = try value->Js.Json.parseExn catch {
-          | Js.Exn.Error(obj) =>
-            Error.raise(obj->Js.Exn.message->Belt.Option.getWithDefault("Failed to parse JSON"))
-          }
-          switch parsedJson->parseWith(innerStruct) {
-          | Ok(transformed) => transformed
-          | Error(error) => Error.raiseCustom(error)
-          }
-        },
-      )
+      switch innerStruct->isAsyncParse {
+      | true =>
+        Async(
+          (. parsedJson) => {
+            parsedJson
+            ->parseAsyncWith(innerStruct)
+            ->Lib.Promise.thenResolve(result => {
+              switch result {
+              | Ok(value) => value
+              | Error(error) => Error.raiseCustom(error)
+              }
+            })
+          },
+        )
+      | false =>
+        Sync(
+          (. parsedJson) => {
+            switch parsedJson->parseWith(innerStruct) {
+            | Ok(value) => value
+            | Error(error) => Error.raiseCustom(error)
+            }
+          },
+        )
+      }
     },
     ~serializer=(. ~struct as _) => {
       Sync(
-        (. transformed) => {
-          switch transformed->serializeWith(innerStruct) {
-          | Ok(unknown) => unknown->unsafeUnknownToAny->Js.Json.stringify
+        (. value) => {
+          switch value->serializeWith(innerStruct) {
+          | Ok(unknown) => unknown->unsafeUnknownToAny
           | Error(error) => Error.raiseCustom(error)
           }
         },
