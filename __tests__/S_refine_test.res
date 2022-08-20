@@ -1,10 +1,9 @@
 open Ava
 
-test("Refined primitive returns an error when parsed in a Safe mode", t => {
+test("Refined primitive returns an error when parsed", t => {
   let struct = S.int()->S.refine(~parser=value =>
-    switch value >= 0 {
-    | true => None
-    | false => Some("Should be positive")
+    if value < 0 {
+      S.Error.raise("Should be positive")
     }
   , ())
 
@@ -19,16 +18,4 @@ test("Refined primitive returns an error when parsed in a Safe mode", t => {
   )
 })
 
-test("Refined primitive doesn't return an error when parsed in an Migration mode", t => {
-  let struct = S.int()->S.refine(~parser=value =>
-    switch value >= 0 {
-    | true => None
-    | false => Some("Should be positive")
-    }
-  , ())
-
-  t->Assert.deepEqual(%raw(`-12`)->S.parseWith(~mode=Migration, struct), Ok(-12), ())
-})
-
 // TODO: Test serializing
-// TODO: Check that both parsers provided

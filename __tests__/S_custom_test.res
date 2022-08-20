@@ -2,17 +2,25 @@ open Ava
 
 let nullableStruct = innerStruct =>
   S.custom(
-    ~parser=(. ~unknown, ~mode) => {
-      switch unknown->Obj.magic->Js.Nullable.toOption {
-      | Some(innerValue) =>
-        innerValue->S.parseWith(~mode, innerStruct)->Belt.Result.map(value => Some(value))
-      | None => Ok(None)
-      }
+    ~parser=(. ~unknown) => {
+      unknown
+      ->Obj.magic
+      ->Js.Nullable.toOption
+      ->Belt.Option.map(innerValue =>
+        switch innerValue->S.parseWith(innerStruct) {
+        | Ok(value) => value
+        | Error(error) => S.Error.raiseCustom(error)
+        }
+      )
     },
     ~serializer=(. ~value) => {
       switch value {
-      | Some(innerValue) => innerValue->S.serializeWith(innerStruct)
-      | None => Js.Null.empty->Obj.magic->Ok
+      | Some(innerValue) =>
+        switch innerValue->S.serializeWith(innerStruct) {
+        | Ok(value) => value
+        | Error(error) => S.Error.raiseCustom(error)
+        }
+      | None => %raw("null")
       }
     },
     (),
@@ -44,7 +52,7 @@ test("Correctly serializes custom struct", t => {
 
 test("Fails to serialize with user error", t => {
   let struct = S.custom(~serializer=(. ~value as _) => {
-    Error(S.Error.make("User error"))
+    S.Error.raise("User error")
   }, ())
 
   t->Assert.deepEqual(

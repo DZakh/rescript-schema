@@ -4,7 +4,7 @@ test("Parses unknown primitive with transformation to the same type", t => {
   let any = %raw(`"  Hello world!"`)
   let transformedValue = "Hello world!"
 
-  let struct = S.string()->S.transform(~parser=value => value->Js.String2.trim->Ok, ())
+  let struct = S.string()->S.transform(~parser=value => value->Js.String2.trim, ())
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(transformedValue), ())
 })
@@ -13,7 +13,7 @@ test("Parses unknown primitive with transformation to another type", t => {
   let any = %raw(`123`)
   let transformedValue = 123.
 
-  let struct = S.int()->S.transform(~parser=value => value->Js.Int.toFloat->Ok, ())
+  let struct = S.int()->S.transform(~parser=value => value->Js.Int.toFloat, ())
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(transformedValue), ())
 })
@@ -31,7 +31,7 @@ test("Throws for a Transformed Primitive factory without either a parser, or a s
 test("Fails to parse primitive with transform when parser isn't provided", t => {
   let any = %raw(`"Hello world!"`)
 
-  let struct = S.string()->S.transform(~serializer=value => value->Ok, ())
+  let struct = S.string()->S.transform(~serializer=value => value, ())
 
   t->Assert.deepEqual(
     any->S.parseWith(struct),
@@ -47,7 +47,7 @@ test("Fails to parse primitive with transform when parser isn't provided", t => 
 test("Fails to parse when user returns error in a Transformed Primitive parser", t => {
   let any = %raw(`"Hello world!"`)
 
-  let struct = S.string()->S.transform(~parser=_ => Error("User error"), ())
+  let struct = S.string()->S.transform(~parser=_ => S.Error.raise("User error"), ())
 
   t->Assert.deepEqual(
     any->S.parseWith(struct),
@@ -64,7 +64,7 @@ test("Successfully serializes primitive with transformation to the same type", t
   let value = "  Hello world!"
   let transformedAny = %raw(`"Hello world!"`)
 
-  let struct = S.string()->S.transform(~serializer=value => value->Js.String2.trim->Ok, ())
+  let struct = S.string()->S.transform(~serializer=value => value->Js.String2.trim, ())
 
   t->Assert.deepEqual(value->S.serializeWith(struct), Ok(transformedAny), ())
 })
@@ -73,7 +73,7 @@ test("Successfully serializes primitive with transformation to another type", t 
   let value = 123
   let transformedAny = %raw(`123`)
 
-  let struct = S.float()->S.transform(~serializer=value => value->Js.Int.toFloat->Ok, ())
+  let struct = S.float()->S.transform(~serializer=value => value->Js.Int.toFloat, ())
 
   t->Assert.deepEqual(value->S.serializeWith(struct), Ok(transformedAny), ())
 })
@@ -81,7 +81,7 @@ test("Successfully serializes primitive with transformation to another type", t 
 test("Transformed Primitive serializing fails when serializer isn't provided", t => {
   let value = "Hello world!"
 
-  let struct = S.string()->S.transform(~parser=value => value->Ok, ())
+  let struct = S.string()->S.transform(~parser=value => value, ())
 
   t->Assert.deepEqual(
     value->S.serializeWith(struct),
@@ -97,7 +97,7 @@ test("Transformed Primitive serializing fails when serializer isn't provided", t
 test("Fails to serialize when user returns error in a Transformed Primitive serializer", t => {
   let value = "Hello world!"
 
-  let struct = S.string()->S.transform(~serializer=_ => Error("User error"), ())
+  let struct = S.string()->S.transform(~serializer=_ => S.Error.raise("User error"), ())
 
   t->Assert.deepEqual(
     value->S.serializeWith(struct),
@@ -115,8 +115,8 @@ test("Transform operations applyed in the right order when parsing", t => {
 
   let struct =
     S.int()
-    ->S.transform(~parser=_ => Error("First transform"), ())
-    ->S.transform(~parser=_ => Error("Second transform"), ())
+    ->S.transform(~parser=_ => S.Error.raise("First transform"), ())
+    ->S.transform(~parser=_ => S.Error.raise("Second transform"), ())
 
   t->Assert.deepEqual(
     any->S.parseWith(struct),
@@ -134,8 +134,8 @@ test("Transform operations applyed in the right order when serializing", t => {
 
   let struct =
     S.int()
-    ->S.transform(~serializer=_ => Error("Second transform"), ())
-    ->S.transform(~serializer=_ => Error("First transform"), ())
+    ->S.transform(~serializer=_ => S.Error.raise("Second transform"), ())
+    ->S.transform(~serializer=_ => S.Error.raise("First transform"), ())
 
   t->Assert.deepEqual(
     any->S.serializeWith(struct),
@@ -155,15 +155,13 @@ test(
 
     let struct =
       S.int()->S.transform(
-        ~parser=int => int->Js.Int.toFloat->Ok,
-        ~serializer=value => value->Belt.Int.fromFloat->Ok,
+        ~parser=int => int->Js.Int.toFloat,
+        ~serializer=value => value->Belt.Int.fromFloat,
         (),
       )
 
     t->Assert.deepEqual(
-      any
-      ->S.parseWith(~mode=Migration, struct)
-      ->Belt.Result.map(record => record->S.serializeWith(struct)),
+      any->S.parseWith(struct)->Belt.Result.map(record => record->S.serializeWith(struct)),
       Ok(Ok(any)),
       (),
     )

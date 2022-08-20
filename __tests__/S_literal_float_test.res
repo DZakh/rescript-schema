@@ -8,16 +8,10 @@ module Common = {
   let wrongTypeAny = %raw(`"Hello world!"`)
   let factory = () => S.literal(Float(123.))
 
-  test("Successfully parses in Safe mode", t => {
+  test("Successfully parses", t => {
     let struct = factory()
 
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
-  })
-
-  test("Successfully parses without validation in Migration mode", t => {
-    let struct = factory()
-
-    t->Assert.deepEqual(wrongAny->S.parseWith(~mode=Migration, struct), Ok(any), ())
   })
 
   test("Fails to parse wrong value", t => {

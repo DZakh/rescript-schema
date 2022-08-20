@@ -9,13 +9,16 @@ module Error: {
     | TupleSize({expected: int, received: int})
     | ExcessField(string)
     | InvalidUnion(array<t>)
+    | UnexpectedAsync
   and operation =
     | Serializing
     | Parsing
 
   let prependLocation: (t, string) => t
 
-  let make: string => t
+  let raiseCustom: t => 'a
+
+  let raise: string => 'a
 
   let toString: t => string
 }
@@ -32,7 +35,9 @@ type rec literal<'value> =
   | EmptyOption: literal<unit>
   | NaN: literal<unit>
 
-type parsingMode = Safe | Migration
+type action<'input, 'output> =
+  | Sync((. 'input) => 'output)
+  | Async((. 'input) => Js.Promise.t<'output>)
 
 type recordUnknownKeys =
   | Strict
@@ -83,38 +88,42 @@ let union: array<t<'value>> => t<'value>
 
 let transform: (
   t<'value>,
-  ~parser: 'value => result<'transformed, string>=?,
-  ~serializer: 'transformed => result<'value, string>=?,
+  ~parser: 'value => 'transformed=?,
+  ~serializer: 'transformed => 'value=?,
   unit,
 ) => t<'transformed>
 
-let superTransform: (
+let advancedTransform: (
   t<'value>,
-  ~parser: (
-    . ~value: 'value,
-    ~struct: t<'value>,
-    ~mode: parsingMode,
-  ) => result<'transformed, Error.t>=?,
-  ~serializer: (. ~transformed: 'transformed, ~struct: t<'value>) => result<'value, Error.t>=?,
+  ~parser: (. ~struct: t<'value>) => action<'value, 'transformed>=?,
+  ~serializer: (. ~struct: t<'value>) => action<'transformed, 'value>=?,
   unit,
 ) => t<'transformed>
 
 let custom: (
-  ~parser: (. ~unknown: unknown, ~mode: parsingMode) => result<'value, Error.t>=?,
-  ~serializer: (. ~value: 'value) => result<'any, Error.t>=?,
+  ~parser: (. ~unknown: unknown) => 'value=?,
+  ~serializer: (. ~value: 'value) => 'any=?,
   unit,
 ) => t<'value>
 
-let refine: (
+let refine: (t<'value>, ~parser: 'value => unit=?, ~serializer: 'value => unit=?, unit) => t<'value>
+
+let asyncRefine: (t<'value>, ~parser: 'value => Js.Promise.t<unit>, unit) => t<'value>
+
+let parseWith: ('any, t<'value>) => result<'value, Error.t>
+
+let parseAsyncWith: ('any, t<'value>) => Js.Promise.t<result<'value, Error.t>>
+
+let parseAsyncInStepsWith: (
+  'any,
   t<'value>,
-  ~parser: 'value => option<string>=?,
-  ~serializer: 'value => option<string>=?,
-  unit,
-) => t<'value>
-
-let parseWith: ('any, ~mode: parsingMode=?, t<'value>) => result<'value, Error.t>
+) => result<unit => Js.Promise.t<result<'value, Error.t>>, Error.t>
 
 let serializeWith: ('value, t<'value>) => result<unknown, Error.t>
+
+let isAsyncParse: t<'value> => bool
+
+let isAsyncSerialize: t<'value> => bool
 
 module Record: {
   let factory: 'factory

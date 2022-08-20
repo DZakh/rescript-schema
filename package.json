@@ -47,6 +47,7 @@
   },
   "devDependencies": {
     "@dzakh/rescript-ava": "0.1.1",
+    "@ryyppy/rescript-promise": "^2.1.0",
     "rescript": "9.1.4"
   },
   "peerDependencies": {

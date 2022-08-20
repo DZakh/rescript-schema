@@ -49,11 +49,11 @@ module Advanced = {
       ("kind", S.literalVariant(String("circle"), ())),
       ("radius", S.float()),
     )->S.transform(
-      ~parser=(((), radius)) => Circle({radius: radius})->Ok,
+      ~parser=(((), radius)) => Circle({radius: radius}),
       ~serializer=shape =>
         switch shape {
-        | Circle({radius}) => ((), radius)->Ok
-        | _ => Error("Wrong shape")
+        | Circle({radius}) => ((), radius)
+        | _ => S.Error.raise("Wrong shape")
         },
       (),
     )
@@ -61,11 +61,11 @@ module Advanced = {
       ("kind", S.literalVariant(String("square"), ())),
       ("x", S.float()),
     )->S.transform(
-      ~parser=(((), x)) => Square({x: x})->Ok,
+      ~parser=(((), x)) => Square({x: x}),
       ~serializer=shape =>
         switch shape {
-        | Square({x}) => ((), x)->Ok
-        | _ => Error("Wrong shape")
+        | Square({x}) => ((), x)
+        | _ => S.Error.raise("Wrong shape")
         },
       (),
     )
@@ -74,11 +74,11 @@ module Advanced = {
       ("x", S.float()),
       ("y", S.float()),
     )->S.transform(
-      ~parser=(((), x, y)) => Triangle({x: x, y: y})->Ok,
+      ~parser=(((), x, y)) => Triangle({x: x, y: y}),
       ~serializer=shape =>
         switch shape {
-        | Triangle({x, y}) => ((), x, y)->Ok
-        | _ => Error("Wrong shape")
+        | Triangle({x, y}) => ((), x, y)
+        | _ => S.Error.raise("Wrong shape")
         },
       (),
     )
