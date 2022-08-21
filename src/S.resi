@@ -45,27 +45,27 @@ type recordUnknownKeys =
 
 type rec t<'value>
 and tagged_t =
-  | Never: tagged_t
-  | Unknown: tagged_t
-  | String: tagged_t
-  | Int: tagged_t
-  | Float: tagged_t
-  | Bool: tagged_t
-  | Literal(literal<'value>): tagged_t
-  | Option(t<'value>): tagged_t
-  | Null(t<'value>): tagged_t
-  | Array(t<'value>): tagged_t
+  | Never
+  | Unknown
+  | String
+  | Int
+  | Float
+  | Bool
+  | Literal(literal<unknown>)
+  | Option(t<unknown>)
+  | Null(t<unknown>)
+  | Array(t<unknown>)
   | Record({
       fields: Js.Dict.t<t<unknown>>,
       fieldNames: array<string>,
       unknownKeys: recordUnknownKeys,
-    }): tagged_t
-  | Tuple(array<t<unknown>>): tagged_t
-  | Union(array<t<'value>>): tagged_t
-  | Dict(t<'value>): tagged_t
-  | Deprecated({struct: t<'value>, maybeMessage: option<string>}): tagged_t
-  | Default({struct: t<option<'value>>, value: 'value}): tagged_t
-  | Instance(unknown): tagged_t
+    })
+  | Tuple(array<t<unknown>>)
+  | Union(array<t<unknown>>)
+  | Dict(t<unknown>)
+  | Deprecated({struct: t<unknown>, maybeMessage: option<string>})
+  | Default({struct: t<option<unknown>>, value: unknown})
+  | Instance(unknown)
 and field<'value> = (string, t<'value>)
 
 let never: unit => t<never>
@@ -101,6 +101,7 @@ let advancedTransform: (
 ) => t<'transformed>
 
 let custom: (
+  ~name: string,
   ~parser: (. ~unknown: unknown) => 'value=?,
   ~serializer: (. ~value: 'value) => 'any=?,
   unit,

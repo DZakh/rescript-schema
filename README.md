@@ -618,13 +618,14 @@ Ok(Draw)
 
 #### **`S.custom`**
 
-`(~parser: (. ~unknown: S.unknown) => 'value=?, ~serializer: (. ~value: 'value) => 'any=?, unit) => S.t<'value>`
+`(~name: string, ~parser: (. ~unknown: S.unknown) => 'value=?, ~serializer: (. ~value: 'value) => 'any=?, unit) => S.t<'value>`
 
 You can also define your own custom struct factories that are specific to your application's requirements:
 
 ```rescript
 let nullableStruct = innerStruct =>
   S.custom(
+    ~name="Nullable",
     ~parser=(. ~unknown) => {
       unknown
       ->Obj.magic
@@ -882,7 +883,7 @@ The detailed API documentation is a work in progress, for now, you can use `S.re
 
 - [ ] Add tag system for flexible integration system
 - [ ] Add custom configuration
-- [ ] Add name property to the custom struct factory for better error messages
+- [x] Add name property to the custom struct factory for better error messages
 - [ ] Add discriminant optimization for record unions
 - [ ] Add async serializing support
 - [ ] Documentation improvements

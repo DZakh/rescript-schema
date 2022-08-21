@@ -2,6 +2,7 @@ open Ava
 
 let nullableStruct = innerStruct =>
   S.custom(
+    ~name="Nullable",
     ~parser=(. ~unknown) => {
       unknown
       ->Obj.magic
@@ -51,9 +52,13 @@ test("Correctly serializes custom struct", t => {
 })
 
 test("Fails to serialize with user error", t => {
-  let struct = S.custom(~serializer=(. ~value as _) => {
-    S.Error.raise("User error")
-  }, ())
+  let struct = S.custom(
+    ~name="Test",
+    ~serializer=(. ~value as _) => {
+      S.Error.raise("User error")
+    },
+    (),
+  )
 
   t->Assert.deepEqual(
     None->S.serializeWith(struct),
@@ -68,7 +73,7 @@ test("Fails to serialize with user error", t => {
 
 test("Throws for a Custom factory without either a parser, or a serializer", t => {
   t->Assert.throws(() => {
-    S.custom()->ignore
+    S.custom(~name="Test", ())->ignore
   }, ~expectations=ThrowsException.make(
     ~name="RescriptStructError",
     ~message=String("For a Custom struct factory either a parser, or a serializer is required"),
