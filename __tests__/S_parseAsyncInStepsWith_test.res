@@ -612,7 +612,7 @@ module Option = {
 
 module Deprecated = {
   asyncTest("[Deprecated] Successfully parses", t => {
-    let struct = S.deprecated(S.int()->validAsyncRefine)
+    let struct = S.int()->validAsyncRefine->S.deprecated()
 
     Promise.all([
       (1->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)()->Promise.thenResolve(result => {
@@ -627,7 +627,7 @@ module Deprecated = {
   })
 
   asyncTest("[Deprecated] Fails to parse with invalid async refine", t => {
-    let struct = S.deprecated(S.int()->invalidAsyncRefine)
+    let struct = S.int()->invalidAsyncRefine->S.deprecated()
 
     (1->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)()->Promise.thenResolve(result => {
       t->Assert.deepEqual(
@@ -643,7 +643,7 @@ module Deprecated = {
   })
 
   test("[Deprecated] Returns sync error when fails to parse sync part of async item", t => {
-    let struct = S.deprecated(S.int()->validAsyncRefine)
+    let struct = S.int()->validAsyncRefine->S.deprecated()
 
     t->Assert.deepEqual(
       true->S.parseAsyncInStepsWith(struct),

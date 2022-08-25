@@ -4,7 +4,7 @@ module Common = {
   let value = None
   let any = %raw(`undefined`)
   let wrongAny = %raw(`123.45`)
-  let factory = () => S.deprecated(~message="Some warning", S.string())
+  let factory = () => S.string()->S.deprecated(~message="Some warning", ())
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -34,19 +34,19 @@ module Common = {
 }
 
 test("Successfully parses primitive", t => {
-  let struct = S.deprecated(S.bool())
+  let struct = S.bool()->S.deprecated()
 
   t->Assert.deepEqual(Js.Json.boolean(true)->S.parseWith(struct), Ok(Some(true)), ())
 })
 
 test("Successfully parses undefined", t => {
-  let struct = S.deprecated(S.bool())
+  let struct = S.bool()->S.deprecated()
 
   t->Assert.deepEqual(%raw(`undefined`)->S.parseWith(struct), Ok(None), ())
 })
 
 test("Fails to parse null", t => {
-  let struct = S.deprecated(S.bool())
+  let struct = S.bool()->S.deprecated()
 
   t->Assert.deepEqual(
     %raw(`null`)->S.parseWith(struct),
@@ -60,7 +60,7 @@ test("Fails to parse null", t => {
 })
 
 test("Successfully parses null for deprecated nullable struct", t => {
-  let struct = S.deprecated(S.null(S.bool()))
+  let struct = S.null(S.bool())->S.deprecated()
 
   t->Assert.deepEqual(%raw(`null`)->S.parseWith(struct), Ok(Some(None)), ())
 })

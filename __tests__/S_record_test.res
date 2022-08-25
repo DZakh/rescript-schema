@@ -73,7 +73,7 @@ test("Successfully parses record with deprecated nested record when it's Some", 
 
   let struct = S.record1(. (
     "singleFieldRecord",
-    S.deprecated(S.record1(. ("MUST_BE_MAPPED", S.string()))),
+    S.record1(. ("MUST_BE_MAPPED", S.string()))->S.deprecated(),
   ))
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
@@ -85,7 +85,7 @@ test("Successfully parses record with deprecated nested record when it's None", 
 
   let struct = S.record1(. (
     "singleFieldRecord",
-    S.deprecated(S.record1(. ("MUST_BE_MAPPED", S.string()))),
+    S.record1(. ("MUST_BE_MAPPED", S.string()))->S.deprecated(),
   ))
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())

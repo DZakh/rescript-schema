@@ -53,7 +53,7 @@ module RecordField = {
       ("key", S.string()),
       (
         "oldKey",
-        S.deprecated(~message="We stopped using the field from the v0.9.0 release", S.never()),
+        S.never()->S.deprecated(~message="We stopped using the field from the v0.9.0 release", ()),
       ),
     )
 

@@ -1502,7 +1502,7 @@ module Option = {
 }
 
 module Deprecated = {
-  let factory = (~message as maybeMessage=?, innerStruct) => {
+  let factory = (innerStruct, ~message as maybeMessage=?, ()) => {
     make(
       ~name=`Deprecated`,
       ~tagged_t=Deprecated({struct: innerStruct->Obj.magic, maybeMessage}),

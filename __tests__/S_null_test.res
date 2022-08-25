@@ -82,7 +82,7 @@ test("Fails to parse JS null when struct doesn't allow optional data", t => {
 })
 
 test("Successfully parses null and serializes it back for deprecated nullable struct", t => {
-  let struct = S.deprecated(S.null(S.bool()))
+  let struct = S.null(S.bool())->S.deprecated()
 
   t->Assert.deepEqual(
     %raw(`null`)->S.parseWith(struct)->Belt.Result.map(S.serializeWith(_, struct)),

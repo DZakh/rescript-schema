@@ -1293,7 +1293,7 @@ function factory$11(innerStruct) {
                 })], undefined, undefined);
 }
 
-function factory$12(maybeMessage, innerStruct) {
+function factory$12(innerStruct, maybeMessage, param) {
   var makeSyncParseAction = function (fn) {
     var action = {
       TAG: /* Sync */0,

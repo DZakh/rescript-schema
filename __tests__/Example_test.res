@@ -11,7 +11,7 @@ test("Example", t => {
         "IsApproved",
         S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),
       ),
-      ("Age", S.deprecated(~message="A useful explanation", S.int())),
+      ("Age", S.int()->S.deprecated(~message="Will be removed in APIv2", ())),
     )->S.transform(~parser=((id, tags, isAproved, deprecatedAge)) => {
       id,
       tags,
