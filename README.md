@@ -47,15 +47,12 @@ let authorStruct =
       ]),
     ),
     ("Age", S.deprecated(~message="A useful explanation", S.int())),
-  )->S.transform(
-    ~parser=((id, tags, isAproved, deprecatedAge)) => {
-      id: id,
-      tags: tags,
-      isAproved: isAproved,
-      deprecatedAge: deprecatedAge,
-    },
-    (),
-  )
+  )->S.transform(~parser=((id, tags, isAproved, deprecatedAge)) => {
+    id,
+    tags,
+    isAproved,
+    deprecatedAge,
+  }, ())
 
 {
   "Id": 1,
@@ -575,7 +572,7 @@ let shapeStruct = {
     ("kind", S.literal(String("triangle"))),
     ("x", S.float()),
     ("y", S.float()),
-  )->S.transform(~parser=((_, x, y)) => Triangle({x: x, y: y}), ())
+  )->S.transform(~parser=((_, x, y)) => Triangle({x, y}), ())
   S.union([circleStruct, squareStruct, triangleStruct])
 }
 
