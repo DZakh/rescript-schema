@@ -149,23 +149,23 @@ function toReason(nestedLevelOpt, error) {
       case /* UnexpectedValue */2 :
           break;
       case /* TupleSize */3 :
-          return "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString();
+          return "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString() + "";
       case /* ExcessField */4 :
           return "Encountered disallowed excess key \"" + reason._0 + "\" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely";
       case /* InvalidUnion */5 :
-          var lineBreak = "\n" + " ".repeat((nestedLevel << 1));
+          var lineBreak = "\n" + " ".repeat((nestedLevel << 1)) + "";
           var array = reason._0.map(function (error) {
                 var reason = toReason(nestedLevel + 1, error);
                 var nonEmptyPath = error.path;
                 var $$location = nonEmptyPath.length !== 0 ? "Failed at " + formatPath(nonEmptyPath) + ". " : "";
-                return "- " + $$location + reason;
+                return "- " + $$location + "" + reason + "";
               });
           var reasons = Array.from(new Set(array));
-          return "Invalid union with following errors" + lineBreak + reasons.join(lineBreak);
+          return "Invalid union with following errors" + lineBreak + "" + reasons.join(lineBreak) + "";
       
     }
   }
-  return "Expected " + reason.expected + ", received " + reason.received;
+  return "Expected " + reason.expected + ", received " + reason.received + "";
 }
 
 function toString(error) {
@@ -173,7 +173,7 @@ function toString(error) {
   var operation = match ? "parsing" : "serializing";
   var reason = toReason(undefined, error);
   var pathText = formatPath(error.path);
-  return "[ReScript Struct]" + " Failed " + operation + " at " + pathText + ". Reason: " + reason;
+  return "[ReScript Struct] Failed " + operation + " at " + pathText + ". Reason: " + reason + "";
 }
 
 function classify(struct) {
@@ -231,6 +231,9 @@ function raiseUnexpectedTypeError(input, struct) {
           break;
       case /* JSSymbol */4 :
           tmp = "Symbol";
+          break;
+      case /* JSBigInt */5 :
+          tmp = "BigInt";
           break;
       
     }
@@ -526,10 +529,9 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
           return input;
         })
     };
-    var serializer = function (param) {
-      return action;
-    };
-    tmp = [serializer].concat(struct.sf);
+    tmp = [(function (param) {
+            return action;
+          })].concat(struct.sf);
   } else {
     tmp = struct.sf;
   }
@@ -545,41 +547,40 @@ function asyncRefine(struct, parser, param) {
                   });
       })
   };
-  var parser$1 = function (param) {
-    return action;
-  };
-  return make(struct.n, struct.t, struct.pf.concat([parser$1]), struct.sf, struct.m, undefined);
+  return make(struct.n, struct.t, struct.pf.concat([(function (param) {
+                      return action;
+                    })]), struct.sf, struct.m, undefined);
 }
 
 function transform(struct, maybeTransformationParser, maybeTransformationSerializer, param) {
   if (maybeTransformationParser === undefined && maybeTransformationSerializer === undefined) {
     panic$1("struct factory Transform");
   }
-  var parser;
+  var tmp;
   if (maybeTransformationParser !== undefined) {
     var action = {
       TAG: /* Sync */0,
       _0: maybeTransformationParser
     };
-    parser = (function (param) {
+    tmp = (function (param) {
         return action;
       });
   } else {
-    parser = missingParser;
+    tmp = missingParser;
   }
-  var serializer;
+  var tmp$1;
   if (maybeTransformationSerializer !== undefined) {
     var action$1 = {
       TAG: /* Sync */0,
       _0: maybeTransformationSerializer
     };
-    serializer = (function (param) {
+    tmp$1 = (function (param) {
         return action$1;
       });
   } else {
-    serializer = missingSerializer;
+    tmp$1 = missingSerializer;
   }
-  return make(struct.n, struct.t, struct.pf.concat([parser]), [serializer].concat(struct.sf), struct.m, undefined);
+  return make(struct.n, struct.t, struct.pf.concat([tmp]), [tmp$1].concat(struct.sf), struct.m, undefined);
 }
 
 function advancedTransform(struct, maybeTransformationParser, maybeTransformationSerializer, param) {
@@ -845,7 +846,6 @@ function innerFactory(fieldsArray) {
                       asyncFieldValues.forEach(function (fieldValue, idx) {
                             var match = asyncOps[idx];
                             tempArray[match[0]] = fieldValue;
-                            
                           });
                       return tempArray;
                     });
@@ -1100,7 +1100,7 @@ function factory$7(param) {
 function min$1(struct, maybeMessage, thanValue) {
   var refiner = function (value) {
     if (value < thanValue) {
-      return raise$2(Belt_Option.getWithDefault(maybeMessage, "Number must be greater than or equal to " + thanValue.toString()));
+      return raise$2(Belt_Option.getWithDefault(maybeMessage, "Number must be greater than or equal to " + thanValue.toString() + ""));
     }
     
   };
@@ -1110,7 +1110,7 @@ function min$1(struct, maybeMessage, thanValue) {
 function max$1(struct, maybeMessage, thanValue) {
   var refiner = function (value) {
     if (value > thanValue) {
-      return raise$2(Belt_Option.getWithDefault(maybeMessage, "Number must be lower than or equal to " + thanValue.toString()));
+      return raise$2(Belt_Option.getWithDefault(maybeMessage, "Number must be lower than or equal to " + thanValue.toString() + ""));
     }
     
   };
@@ -1577,7 +1577,6 @@ function factory$14(innerStruct) {
                         values.forEach(function (value, idx) {
                               var key = keys[idx];
                               tempDict[key] = value;
-                              
                             });
                         return tempDict;
                       });
@@ -1804,7 +1803,6 @@ function innerFactory$1(structs) {
                       values.forEach(function (value, idx) {
                             var originalIdx = asyncOps[idx];
                             tempArray[originalIdx] = value;
-                            
                           });
                       if (tempArray.length <= 1) {
                         return tempArray[0];
@@ -2010,7 +2008,6 @@ function factory$17(structs) {
                                                 }
                                                 var array = input.tempErrors;
                                                 array[originalIdx] = exn._1;
-                                                
                                               }));
                                 }
                                 catch (raw_internalError){

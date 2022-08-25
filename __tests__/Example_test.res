@@ -13,10 +13,10 @@ test("Example", t => {
       ),
       ("Age", S.deprecated(~message="A useful explanation", S.int())),
     )->S.transform(~parser=((id, tags, isAproved, deprecatedAge)) => {
-      id: id,
-      tags: tags,
-      isAproved: isAproved,
-      deprecatedAge: deprecatedAge,
+      id,
+      tags,
+      isAproved,
+      deprecatedAge,
     }, ())
 
   t->Assert.deepEqual(

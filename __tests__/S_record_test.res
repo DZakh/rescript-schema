@@ -38,7 +38,7 @@ test("Successfully parses record with mapped field names", t => {
       ("Name", S.string()),
       ("Email", S.string()),
       ("Age", S.int()),
-    )->S.transform(~parser=((name, email, age)) => {name: name, email: email, age: age}, ())
+    )->S.transform(~parser=((name, email, age)) => {name, email, age}, ())
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })

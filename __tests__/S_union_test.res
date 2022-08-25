@@ -74,7 +74,7 @@ module Advanced = {
       ("x", S.float()),
       ("y", S.float()),
     )->S.transform(
-      ~parser=(((), x, y)) => Triangle({x: x, y: y}),
+      ~parser=(((), x, y)) => Triangle({x, y}),
       ~serializer=shape =>
         switch shape {
         | Triangle({x, y}) => ((), x, y)

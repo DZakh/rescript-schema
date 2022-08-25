@@ -160,7 +160,7 @@ module Error = {
     exception Exception(t)
 
     let raise = code => {
-      raise(Exception({code: code, path: []}))
+      raise(Exception({code, path: []}))
     }
 
     let toParseError = (internalError: t): public => {
@@ -384,6 +384,7 @@ let raiseUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
       | JSFunction(_) => "Function"
       | JSUndefined => "Option"
       | JSSymbol(_) => "Symbol"
+      | JSBigInt(_) => "BigInt"
       },
     }),
   )
@@ -463,13 +464,13 @@ let make = (
   (),
 ) => {
   let struct = {
-    name: name,
-    tagged_t: tagged_t,
-    parseActionFactories: parseActionFactories,
-    serializeActionFactories: serializeActionFactories,
+    name,
+    tagged_t,
+    parseActionFactories,
+    serializeActionFactories,
     serialize: %raw("undefined"),
     parse: %raw("undefined"),
-    maybeMetadata: maybeMetadata,
+    maybeMetadata,
   }
   {
     ...struct,
@@ -520,6 +521,7 @@ let parseAsyncInStepsWith = (any, struct) => {
         let syncValue = fn(. any->unsafeAnyToUnknown)->unsafeUnknownToAny
         () => syncValue->Ok->Lib.Promise.resolve
       }
+
     | AsyncOperation(fn) => {
         let asyncFn = fn(. any->unsafeAnyToUnknown)
         () =>
@@ -949,7 +951,7 @@ module Record = {
 
     make(
       ~name="Record",
-      ~tagged_t=Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strip}),
+      ~tagged_t=Record({fields, fieldNames, unknownKeys: Strip}),
       ~parseActionFactories={
         let noopOps = []
         let syncOps = []
@@ -1092,7 +1094,7 @@ module Record = {
     | Record({fields, fieldNames}) =>
       make(
         ~name=struct.name,
-        ~tagged_t=Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strip}),
+        ~tagged_t=Record({fields, fieldNames, unknownKeys: Strip}),
         ~parseActionFactories=struct.parseActionFactories,
         ~serializeActionFactories=struct.serializeActionFactories,
         ~metadata=?struct.maybeMetadata,
@@ -1108,7 +1110,7 @@ module Record = {
     | Record({fields, fieldNames}) =>
       make(
         ~name=struct.name,
-        ~tagged_t=Record({fields: fields, fieldNames: fieldNames, unknownKeys: Strict}),
+        ~tagged_t=Record({fields, fieldNames, unknownKeys: Strict}),
         ~parseActionFactories=struct.parseActionFactories,
         ~serializeActionFactories=struct.serializeActionFactories,
         ~metadata=?struct.maybeMetadata,
@@ -1503,7 +1505,7 @@ module Deprecated = {
   let factory = (~message as maybeMessage=?, innerStruct) => {
     make(
       ~name=`Deprecated`,
-      ~tagged_t=Deprecated({struct: innerStruct->Obj.magic, maybeMessage: maybeMessage}),
+      ~tagged_t=Deprecated({struct: innerStruct->Obj.magic, maybeMessage}),
       ~parseActionFactories={
         let makeSyncParseAction = fn => {
           Action.make(
