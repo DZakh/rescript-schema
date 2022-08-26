@@ -8,10 +8,6 @@ var Caml_option = require("rescript/lib/js/caml_option.js");
 var Caml_exceptions = require("rescript/lib/js/caml_exceptions.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
-function parentOf(class_, data) {
-  return (data instanceof class_);
-}
-
 function callWithArguments(fn) {
   return (function(){return fn(arguments)});
 }
@@ -1133,15 +1129,11 @@ function factory$8(param) {
 }
 
 function factory$9(param) {
-  var class_ = Date;
-  return make("Instance (Date)", {
-              TAG: /* Instance */10,
-              _0: class_
-            }, [(function (struct) {
+  return make("Date", /* Date */6, [(function (struct) {
                   return {
                           TAG: /* Sync */0,
                           _0: (function (input) {
-                              if (parentOf(class_, input) && !Number.isNaN(input.getTime())) {
+                              if ((input instanceof Date) && !Number.isNaN(input.getTime())) {
                                 return input;
                               } else {
                                 return raiseUnexpectedTypeError(input, struct);

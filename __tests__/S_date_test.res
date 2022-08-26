@@ -18,7 +18,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongAny->S.parseWith(struct),
       Error({
-        code: UnexpectedType({expected: "Instance (Date)", received: "String"}),
+        code: UnexpectedType({expected: "Date", received: "String"}),
         operation: Parsing,
         path: [],
       }),
@@ -39,7 +39,7 @@ test("Fails to parse Date with invalid time", t => {
   t->Assert.deepEqual(
     %raw("new Date('invalid')")->S.parseWith(struct),
     Error({
-      code: UnexpectedType({expected: "Instance (Date)", received: "Object"}),
+      code: UnexpectedType({expected: "Date", received: "Object"}),
       path: [],
       operation: Parsing,
     }),

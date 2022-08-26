@@ -65,7 +65,7 @@ and tagged_t =
   | Dict(t<unknown>)
   | Deprecated({struct: t<unknown>, maybeMessage: option<string>})
   | Default({struct: t<option<unknown>>, value: unknown})
-  | Instance(unknown)
+  | Date
 and field<'value> = (string, t<'value>)
 
 let never: unit => t<never>

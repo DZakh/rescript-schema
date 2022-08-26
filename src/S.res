@@ -24,16 +24,6 @@ module Lib = {
     external all: array<t<'a>> => t<array<'a>> = "all"
   }
 
-  module Class = {
-    type t
-
-    let parentOf = (class_: t, data: 'a): bool => {
-      class_->ignore
-      data->ignore
-      %raw(`data instanceof class_`)
-    }
-  }
-
   module Url = {
     type t
 
@@ -339,7 +329,7 @@ and tagged_t =
   | Dict(t<unknown>)
   | Deprecated({struct: t<unknown>, maybeMessage: option<string>})
   | Default({struct: t<option<unknown>>, value: unknown})
-  | Instance(unknown)
+  | Date
 and field<'value> = (string, t<'value>)
 and action<'input, 'output> =
   | Sync((. 'input) => 'output)
@@ -1367,15 +1357,13 @@ module Float = {
 
 module Date = {
   let factory = () => {
-    let class_ = %raw(`Date`)
-
     make(
-      ~name=`Instance (Date)`,
-      ~tagged_t=Instance(class_),
+      ~name="Date",
+      ~tagged_t=Date,
       ~parseActionFactories=[
         Action.factory((. ~struct) => Sync(
           (. input) => {
-            if class_->Lib.Class.parentOf(input) && input->Js.Date.getTime->Js.Float.isNaN->not {
+            if %raw(`input instanceof Date`) && input->Js.Date.getTime->Js.Float.isNaN->not {
               input
             } else {
               raiseUnexpectedTypeError(~input, ~struct)
