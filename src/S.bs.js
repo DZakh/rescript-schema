@@ -176,6 +176,10 @@ function classify(struct) {
   return struct.t;
 }
 
+function name(struct) {
+  return struct.n;
+}
+
 function isAsyncParse(struct) {
   var match = struct.p;
   if (typeof match === "number" || match.TAG === /* SyncOperation */0) {
@@ -2339,6 +2343,7 @@ exports.tuple8 = tuple8;
 exports.tuple9 = tuple9;
 exports.tuple10 = tuple10;
 exports.classify = classify;
+exports.name = name;
 exports.$$String = $$String;
 exports.Int = Int;
 exports.Float = Float;

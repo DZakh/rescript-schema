@@ -345,6 +345,9 @@ type payloadedVariant<'payload> = {_0: 'payload}
 let classify = struct => struct.tagged_t
 
 @inline
+let name = struct => struct.name
+
+@inline
 let isAsyncParse = struct =>
   switch struct.parse {
   | AsyncOperation(_) => true

@@ -264,6 +264,8 @@ let tuple10: (
 
 let classify: t<'value> => tagged_t
 
+let name: t<'value> => string
+
 module String: {
   let min: (t<string>, ~message: string=?, int) => t<string>
   let max: (t<string>, ~message: string=?, int) => t<string>
