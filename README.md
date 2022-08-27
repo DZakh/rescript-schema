@@ -726,9 +726,9 @@ let intToString = struct =>
 
 #### **`S.advancedTransform`** _Advanced_
 
-`type action<'input, 'output> = Sync((. 'input) => 'output) | Async((. 'input) => Js.Promise.t<'output>)`
+`type action<'input, 'output> = Sync('input => 'output) | Async('input => Js.Promise.t<'output>)`
 
-`(S.t<'value>, ~parser: (. ~struct: S.t<'value>) => S.action<'value, 'transformed>=?, ~serializer: (. ~struct: S.t<'value>) => S.action<'transformed, 'value>=?, unit) => S.t<'transformed>`
+`(S.t<'value>, ~parser: (~struct: S.t<'value>) => S.action<'value, 'transformed>=?, ~serializer: (~struct: S.t<'value>) => S.action<'transformed, 'value>=?, unit) => S.t<'transformed>`
 
 The `transform`, `refine`, `asyncRefine`, and `custom` functions are actually syntactic sugar atop a more versatile (and verbose) function called `advancedTransform`.
 
@@ -742,11 +742,11 @@ let json = innerStruct => {
     }
   }, ~serializer=Js.Json.stringify, ())
   ->S.advancedTransform(
-    ~parser=(. ~struct as _) => {
+    ~parser=(~struct as _) => {
       switch innerStruct->S.isAsyncParse {
       | true =>
         Async(
-          (. parsedJson) => {
+          parsedJson => {
             switch parsedJson->S.parseAsyncWith(innerStruct) {
             | Ok(promise) =>
               promise->Promise.thenResolve(result => {
@@ -761,7 +761,7 @@ let json = innerStruct => {
         )
       | false =>
         Sync(
-          (. parsedJson) => {
+          parsedJson => {
             switch parsedJson->S.parseWith(innerStruct) {
             | Ok(value) => value
             | Error(error) => S.Error.raiseCustom(error)
@@ -770,9 +770,9 @@ let json = innerStruct => {
         )
       }
     },
-    ~serializer=(. ~struct as _) => {
+    ~serializer=(~struct as _) => {
       Sync(
-        (. value) => {
+        value => {
           switch value->S.serializeWith(innerStruct) {
           | Ok(unknown) => unknown->Obj.magic
           | Error(error) => S.Error.raiseCustom(error)

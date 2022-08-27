@@ -339,10 +339,14 @@ and field<'value> = (string, t<'value>)
 and action<'input, 'output> =
   | Sync('input => 'output)
   | Async('input => Js.Promise.t<'output>)
-and actionFactory = (. ~struct: t<unknown>) => action<unknown, unknown>
+and actionFactory = (~struct: t<unknown>) => action<unknown, unknown>
 
-external unsafeAnyToUnknown: 'any => unknown = "%identity"
-external unsafeUnknownToAny: unknown => 'any = "%identity"
+external castAnyToUnknown: 'any => unknown = "%identity"
+external castUnknownToAny: unknown => 'any = "%identity"
+external castActionFactoryToUncurried: (
+  actionFactory,
+  . ~struct: t<unknown>,
+) => action<unknown, unknown> = "%identity"
 
 type payloadedVariant<'payload> = {_0: 'payload}
 
@@ -397,7 +401,7 @@ let makeOperation = (~actionFactories, ~struct) => {
     let actions = []
     for idx in 0 to lastSyncActionIdxRef.contents {
       let actionFactory = actionFactories->Js.Array2.unsafe_get(idx)
-      let action = actionFactory(. ~struct)
+      let action = (actionFactory->castActionFactoryToUncurried)(. ~struct)
       actions->Js.Array2.push(action)->ignore
       if lastSyncActionIdxRef.contents === lastActionIdx {
         switch action {
@@ -516,12 +520,12 @@ let parseAsyncInStepsWith = (any, struct) => {
     switch struct.parse {
     | NoopOperation => () => any->Obj.magic->Ok->Lib.Promise.resolve
     | SyncOperation(fn) => {
-        let syncValue = fn(. any->unsafeAnyToUnknown)->unsafeUnknownToAny
+        let syncValue = fn(. any->castAnyToUnknown)->castUnknownToAny
         () => syncValue->Ok->Lib.Promise.resolve
       }
 
     | AsyncOperation(fn) => {
-        let asyncFn = fn(. any->unsafeAnyToUnknown)
+        let asyncFn = fn(. any->castAnyToUnknown)
         () =>
           asyncFn(.)
           ->Lib.Promise.thenResolve(value => Ok(value->Obj.magic))
@@ -542,8 +546,8 @@ let parseAsyncInStepsWith = (any, struct) => {
 @inline
 let serializeInner: (~struct: t<'value>, ~value: 'value) => unknown = (~struct, ~value) => {
   switch struct.serialize {
-  | NoopOperation => value->unsafeAnyToUnknown
-  | SyncOperation(fn) => fn(. value->unsafeAnyToUnknown)
+  | NoopOperation => value->castAnyToUnknown
+  | SyncOperation(fn) => fn(. value->castAnyToUnknown)
   | AsyncOperation(_) => Error.Unreachable.panic()
   }
 }
@@ -558,12 +562,11 @@ let serializeWith = (value, struct) => {
 
 module Action = {
   @inline
-  let factory = (fn: (. ~struct: t<'value>) => action<'input, 'output>): actionFactory =>
+  let factory = (fn: (~struct: t<'value>) => action<'input, 'output>): actionFactory =>
     fn->Obj.magic
 
   @inline
-  let make = (action: action<'input, 'output>): actionFactory =>
-    (. ~struct as _) => action->Obj.magic
+  let make = (action: action<'input, 'output>): actionFactory => (~struct as _) => action->Obj.magic
 
   let emptyArray: array<actionFactory> = []
 
@@ -705,8 +708,8 @@ let transform: (
 
 let advancedTransform: (
   t<'value>,
-  ~parser: (. ~struct: t<'value>) => action<'value, 'transformed>=?,
-  ~serializer: (. ~struct: t<'value>) => action<'transformed, 'value>=?,
+  ~parser: (~struct: t<'value>) => action<'value, 'transformed>=?,
+  ~serializer: (~struct: t<'value>) => action<'transformed, 'value>=?,
   unit,
 ) => t<'transformed> = (
   struct,
@@ -754,7 +757,7 @@ let custom = (
     ~parseActionFactories=[
       switch maybeCustomParser {
       | Some(customParser) =>
-        Action.factory((. ~struct as _) => Sync(
+        Action.factory((~struct as _) => Sync(
           input => {
             customParser(. ~unknown=input)
           },
@@ -781,10 +784,10 @@ module Literal = {
 
         let makeParseActionFactories = (~literalValue, ~test) => {
           [
-            Action.factory((. ~struct) => Sync(
+            Action.factory((~struct) => Sync(
               input => {
                 if test->Lib.Fn.call1(input) {
-                  if literalValue->unsafeAnyToUnknown === input {
+                  if literalValue->castAnyToUnknown === input {
                     variant
                   } else {
                     Error.Internal.UnexpectedValue.raise(~expected=literalValue, ~received=input)
@@ -819,7 +822,7 @@ module Literal = {
             ~name="EmptyNull Literal (null)",
             ~tagged_t,
             ~parseActionFactories=[
-              Action.factory((. ~struct) => Sync(
+              Action.factory((~struct) => Sync(
                 input => {
                   if input === Js.Null.empty {
                     variant
@@ -837,7 +840,7 @@ module Literal = {
             ~name="EmptyOption Literal (undefined)",
             ~tagged_t,
             ~parseActionFactories=[
-              Action.factory((. ~struct) => Sync(
+              Action.factory((~struct) => Sync(
                 input => {
                   if input === Js.Undefined.empty {
                     variant
@@ -855,7 +858,7 @@ module Literal = {
             ~name="NaN Literal (NaN)",
             ~tagged_t,
             ~parseActionFactories=[
-              Action.factory((. ~struct) => Sync(
+              Action.factory((~struct) => Sync(
                 input => {
                   if Js.Float.isNaN(input) {
                     variant
@@ -971,7 +974,7 @@ module Record = {
         let withAsyncOps = asyncOps->Js.Array2.length > 0
 
         let parseActionFactories = [
-          Action.factory((. ~struct) => Sync(
+          Action.factory((~struct) => Sync(
             input => {
               if input->Lib.Object.test === false {
                 raiseUnexpectedTypeError(~input, ~struct)
@@ -1003,13 +1006,13 @@ module Record = {
 
               let {unknownKeys} = struct->classify->Obj.magic
               if unknownKeys === Strict {
-                switch getMaybeExcessKey(. input->unsafeAnyToUnknown, fields) {
+                switch getMaybeExcessKey(. input->castAnyToUnknown, fields) {
                 | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
                 | None => ()
                 }
               }
 
-              withAsyncOps ? newArray->unsafeAnyToUnknown : newArray->Lib.Array.toTuple
+              withAsyncOps ? newArray->castAnyToUnknown : newArray->Lib.Array.toTuple
             },
           )),
         ]
@@ -1023,7 +1026,7 @@ module Record = {
                   asyncOps
                   ->Js.Array2.map(((originalIdx, fieldName)) => {
                     (
-                      tempArray->unsafeUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
+                      tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
                     )(.)->Lib.Promise.catch(exn => {
                       switch exn {
                       | Error.Internal.Exception(internalError) =>
@@ -1038,7 +1041,7 @@ module Record = {
                   ->Lib.Promise.thenResolve(asyncFieldValues => {
                     asyncFieldValues->Js.Array2.forEachi((fieldValue, idx) => {
                       let (originalIdx, _) = asyncOps->Js.Array2.unsafe_get(idx)
-                      tempArray->unsafeUnknownToAny->Lib.Array.set(originalIdx, fieldValue)
+                      tempArray->castUnknownToAny->Lib.Array.set(originalIdx, fieldValue)
                     })
                     tempArray
                   })
@@ -1052,7 +1055,7 @@ module Record = {
         parseActionFactories
       },
       ~serializeActionFactories=[
-        Action.factory((. ~struct as _) => Sync(
+        Action.factory((~struct as _) => Sync(
           input => {
             let unknown = Js.Dict.empty()
             let fieldValues =
@@ -1124,7 +1127,7 @@ module Record = {
 module Never = {
   let factory = () => {
     let actionFactories = [
-      Action.factory((. ~struct) => Sync(
+      Action.factory((~struct) => Sync(
         input => {
           raiseUnexpectedTypeError(~input, ~struct)
         },
@@ -1163,7 +1166,7 @@ module String = {
       ~name=`String`,
       ~tagged_t=String,
       ~parseActionFactories=[
-        Action.factory((. ~struct) => Sync(
+        Action.factory((~struct) => Sync(
           input => {
             if input->Js.typeof === "string" {
               input
@@ -1272,7 +1275,7 @@ module Bool = {
       ~name=`Bool`,
       ~tagged_t=Bool,
       ~parseActionFactories=[
-        Action.factory((. ~struct) => Sync(
+        Action.factory((~struct) => Sync(
           input => {
             if input->Js.typeof === "boolean" {
               input
@@ -1294,7 +1297,7 @@ module Int = {
       ~name=`Int`,
       ~tagged_t=Int,
       ~parseActionFactories=[
-        Action.factory((. ~struct) => Sync(
+        Action.factory((~struct) => Sync(
           input => {
             if Lib.Int.test(input) {
               input
@@ -1342,7 +1345,7 @@ module Float = {
       ~name=`Float`,
       ~tagged_t=Float,
       ~parseActionFactories=[
-        Action.factory((. ~struct) => Sync(
+        Action.factory((~struct) => Sync(
           input => {
             switch input->Js.typeof === "number" {
             | true =>
@@ -1371,7 +1374,7 @@ module Date = {
       ~name="Date",
       ~tagged_t=Date,
       ~parseActionFactories=[
-        Action.factory((. ~struct) => Sync(
+        Action.factory((~struct) => Sync(
           input => {
             if %raw(`input instanceof Date`) && input->Js.Date.getTime->Js.Float.isNaN->not {
               input
@@ -1433,11 +1436,11 @@ module Null = {
         }
       },
       ~serializeActionFactories=[
-        Action.factory((. ~struct as _) => Sync(
+        Action.factory((~struct as _) => Sync(
           input => {
             switch input {
             | Some(value) => serializeInner(~struct=innerStruct, ~value)
-            | None => Js.Null.empty->unsafeAnyToUnknown
+            | None => Js.Null.empty->castAnyToUnknown
             }
           },
         )),
@@ -1485,11 +1488,11 @@ module Option = {
         }
       },
       ~serializeActionFactories=[
-        Action.factory((. ~struct as _) => Sync(
+        Action.factory((~struct as _) => Sync(
           input => {
             switch input {
             | Some(value) => serializeInner(~struct=innerStruct, ~value)
-            | None => Js.Undefined.empty->unsafeAnyToUnknown
+            | None => Js.Undefined.empty->castAnyToUnknown
             }
           },
         )),
@@ -1585,7 +1588,7 @@ module Array = {
         }
 
         let parseActionFactories = [
-          Action.factory((. ~struct) => Sync(
+          Action.factory((~struct) => Sync(
             input => {
               if Js.Array2.isArray(input) === false {
                 raiseUnexpectedTypeError(~input, ~struct)
@@ -1735,7 +1738,7 @@ module Dict = {
         }
 
         let parseActionFactories = [
-          Action.factory((. ~struct) => Sync(
+          Action.factory((~struct) => Sync(
             input => {
               if input->Lib.Object.test === false {
                 raiseUnexpectedTypeError(~input, ~struct)
@@ -1855,7 +1858,7 @@ module Default = {
             Action.make(
               Sync(
                 input => {
-                  switch fn(. input)->unsafeUnknownToAny {
+                  switch fn(. input)->castUnknownToAny {
                   | Some(output) => output
                   | None => defaultValue
                   }
@@ -1868,7 +1871,7 @@ module Default = {
               Async(
                 input => {
                   fn(. input)(.)->Lib.Promise.thenResolve(value => {
-                    switch value->unsafeUnknownToAny {
+                    switch value->castUnknownToAny {
                     | Some(output) => output
                     | None => defaultValue
                     }
@@ -1918,7 +1921,7 @@ module Tuple = {
         let withAsyncOps = asyncOps->Js.Array2.length > 0
 
         let parseActionFactories = [
-          Action.factory((. ~struct) => Sync(
+          Action.factory((~struct) => Sync(
             input => {
               switch Js.Array2.isArray(input) {
               | true =>
@@ -1959,12 +1962,12 @@ module Tuple = {
               }
 
               switch withAsyncOps {
-              | true => newArray->unsafeAnyToUnknown
+              | true => newArray->castAnyToUnknown
               | false =>
                 switch numberOfStructs {
-                | 0 => ()->unsafeAnyToUnknown
-                | 1 => newArray->Js.Array2.unsafe_get(0)->unsafeAnyToUnknown
-                | _ => newArray->unsafeAnyToUnknown
+                | 0 => ()->castAnyToUnknown
+                | 1 => newArray->Js.Array2.unsafe_get(0)->castAnyToUnknown
+                | _ => newArray->castAnyToUnknown
                 }
               }
             },
@@ -1980,7 +1983,7 @@ module Tuple = {
                   asyncOps
                   ->Js.Array2.map(originalIdx => {
                     (
-                      tempArray->unsafeUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
+                      tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
                     )(.)->Lib.Promise.catch(exn => {
                       switch exn {
                       | Error.Internal.Exception(internalError) =>
@@ -1997,9 +2000,9 @@ module Tuple = {
                   ->Lib.Promise.thenResolve(values => {
                     values->Js.Array2.forEachi((value, idx) => {
                       let originalIdx = asyncOps->Js.Array2.unsafe_get(idx)
-                      tempArray->unsafeUnknownToAny->Lib.Array.set(originalIdx, value)
+                      tempArray->castUnknownToAny->Lib.Array.set(originalIdx, value)
                     })
-                    tempArray->unsafeUnknownToAny->Lib.Array.toTuple
+                    tempArray->castUnknownToAny->Lib.Array.toTuple
                   })
                 },
               ),
@@ -2011,7 +2014,7 @@ module Tuple = {
         parseActionFactories
       },
       ~serializeActionFactories=[
-        Action.factory((. ~struct as _) => Sync(
+        Action.factory((~struct as _) => Sync(
           input => {
             let inputArray = numberOfStructs === 1 ? [input] : input->Obj.magic
 
@@ -2056,7 +2059,7 @@ module Union = {
     }
 
     let serializeActionFactories = [
-      Action.factory((. ~struct as _) => Sync(
+      Action.factory((~struct as _) => Sync(
         input => {
           let idxRef = ref(0)
           let maybeLastErrorRef = ref(None)
@@ -2136,7 +2139,7 @@ module Union = {
                     "maybeSyncValue": maybeSyncValue,
                     "tempErrors": errorsRef.contents,
                     "originalInput": input,
-                  }->unsafeAnyToUnknown
+                  }->castAnyToUnknown
                 }
               },
             ),
@@ -2239,7 +2242,7 @@ module MakeMetadata = (
     {
       ...struct,
       maybeMetadata: Some(
-        existingContent->dictUnsafeSet(Config.namespace, content->unsafeAnyToUnknown),
+        existingContent->dictUnsafeSet(Config.namespace, content->castAnyToUnknown),
       ),
     }
   }
@@ -2306,7 +2309,7 @@ let json = innerStruct => {
     }
   }, ~serializer=Js.Json.stringify, ())
   ->advancedTransform(
-    ~parser=(. ~struct as _) => {
+    ~parser=(~struct as _) => {
       switch innerStruct->isAsyncParse {
       | true =>
         Async(
@@ -2332,11 +2335,11 @@ let json = innerStruct => {
         )
       }
     },
-    ~serializer=(. ~struct as _) => {
+    ~serializer=(~struct as _) => {
       Sync(
         value => {
           switch value->serializeWith(innerStruct) {
-          | Ok(unknown) => unknown->unsafeUnknownToAny
+          | Ok(unknown) => unknown->castUnknownToAny
           | Error(error) => Error.raiseCustom(error)
           }
         },

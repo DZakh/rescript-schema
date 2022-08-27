@@ -95,8 +95,8 @@ let transform: (
 
 let advancedTransform: (
   t<'value>,
-  ~parser: (. ~struct: t<'value>) => action<'value, 'transformed>=?,
-  ~serializer: (. ~struct: t<'value>) => action<'transformed, 'value>=?,
+  ~parser: (~struct: t<'value>) => action<'value, 'transformed>=?,
+  ~serializer: (~struct: t<'value>) => action<'transformed, 'value>=?,
   unit,
 ) => t<'transformed>
 

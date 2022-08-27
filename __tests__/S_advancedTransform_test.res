@@ -2,8 +2,8 @@ open Ava
 
 let trimmed = S.advancedTransform(
   _,
-  ~parser=(. ~struct as _) => Sync(value => value->Js.String2.trim),
-  ~serializer=(. ~struct as _) => Sync(transformed => transformed->Js.String2.trim),
+  ~parser=(~struct as _) => Sync(value => value->Js.String2.trim),
+  ~serializer=(~struct as _) => Sync(transformed => transformed->Js.String2.trim),
   (),
 )
 
@@ -28,7 +28,7 @@ test("Fails to parse when user returns error in parser", t => {
 
   let struct =
     S.string()->S.advancedTransform(
-      ~parser=(. ~struct as _) => Sync(_ => S.Error.raise("User error")),
+      ~parser=(~struct as _) => Sync(_ => S.Error.raise("User error")),
       (),
     )
 
@@ -54,7 +54,7 @@ test("Fails to serialize when user returns error in serializer", t => {
 
   let struct =
     S.string()->S.advancedTransform(
-      ~serializer=(. ~struct as _) => Sync(_ => S.Error.raise("User error")),
+      ~serializer=(~struct as _) => Sync(_ => S.Error.raise("User error")),
       (),
     )
 
@@ -74,12 +74,9 @@ test("Transform operations applyed in the right order when parsing", t => {
 
   let struct =
     S.int()
+    ->S.advancedTransform(~parser=(~struct as _) => Sync(_ => S.Error.raise("First transform")), ())
     ->S.advancedTransform(
-      ~parser=(. ~struct as _) => Sync(_ => S.Error.raise("First transform")),
-      (),
-    )
-    ->S.advancedTransform(
-      ~parser=(. ~struct as _) => Sync(_ => S.Error.raise("Second transform")),
+      ~parser=(~struct as _) => Sync(_ => S.Error.raise("Second transform")),
       (),
     )
 
@@ -100,11 +97,11 @@ test("Transform operations applyed in the right order when serializing", t => {
   let struct =
     S.int()
     ->S.advancedTransform(
-      ~serializer=(. ~struct as _) => Sync(_ => S.Error.raise("Second transform")),
+      ~serializer=(~struct as _) => Sync(_ => S.Error.raise("Second transform")),
       (),
     )
     ->S.advancedTransform(
-      ~serializer=(. ~struct as _) => Sync(_ => S.Error.raise("First transform")),
+      ~serializer=(~struct as _) => Sync(_ => S.Error.raise("First transform")),
       (),
     )
 
@@ -122,7 +119,7 @@ test("Transform operations applyed in the right order when serializing", t => {
 test("Fails to parse async using parseWith", t => {
   let struct =
     S.string()->S.advancedTransform(
-      ~parser=(. ~struct as _) => Async(value => Promise.resolve(value)),
+      ~parser=(~struct as _) => Async(value => Promise.resolve(value)),
       (),
     )
 
@@ -140,7 +137,7 @@ test("Fails to parse async using parseWith", t => {
 asyncTest("Successfully parses async using parseAsyncWith", t => {
   let struct =
     S.string()->S.advancedTransform(
-      ~parser=(. ~struct as _) => Async(value => Promise.resolve(value)),
+      ~parser=(~struct as _) => Async(value => Promise.resolve(value)),
       (),
     )
 
@@ -154,7 +151,7 @@ asyncTest("Successfully parses async using parseAsyncWith", t => {
 asyncTest("Fails to parse async with user error", t => {
   let struct =
     S.string()->S.advancedTransform(
-      ~parser=(. ~struct as _) => Async(_ => S.Error.raise("User error")),
+      ~parser=(~struct as _) => Async(_ => S.Error.raise("User error")),
       (),
     )
 
@@ -176,9 +173,9 @@ asyncTest("Fails to parse async with user error", t => {
 asyncTest("Can apply other actions after async transform", t => {
   let struct =
     S.string()
-    ->S.advancedTransform(~parser=(. ~struct as _) => Async(value => Promise.resolve(value)), ())
+    ->S.advancedTransform(~parser=(~struct as _) => Async(value => Promise.resolve(value)), ())
     ->S.String.trimmed()
-    ->S.advancedTransform(~parser=(. ~struct as _) => Async(value => Promise.resolve(value)), ())
+    ->S.advancedTransform(~parser=(~struct as _) => Async(value => Promise.resolve(value)), ())
 
   %raw(`"    Hello world!"`)
   ->S.parseAsyncWith(struct)
