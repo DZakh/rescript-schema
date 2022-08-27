@@ -1,12 +1,12 @@
-'use strict';
 
-var Js_exn = require("rescript/lib/js/js_exn.js");
-var Js_dict = require("rescript/lib/js/js_dict.js");
-var Js_types = require("rescript/lib/js/js_types.js");
-var Belt_Option = require("rescript/lib/js/belt_Option.js");
-var Caml_option = require("rescript/lib/js/caml_option.js");
-var Caml_exceptions = require("rescript/lib/js/caml_exceptions.js");
-var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
+
+import * as Js_exn from "../node_modules/rescript/lib/es6/js_exn.js";
+import * as Js_dict from "../node_modules/rescript/lib/es6/js_dict.js";
+import * as Js_types from "../node_modules/rescript/lib/es6/js_types.js";
+import * as Belt_Option from "../node_modules/rescript/lib/es6/belt_Option.js";
+import * as Caml_option from "../node_modules/rescript/lib/es6/caml_option.js";
+import * as Caml_exceptions from "../node_modules/rescript/lib/es6/caml_exceptions.js";
+import * as Caml_js_exceptions from "../node_modules/rescript/lib/es6/caml_js_exceptions.js";
 
 function callWithArguments(fn) {
   return (function(){return fn(arguments)});
@@ -2289,67 +2289,68 @@ function MakeMetadata(funarg) {
         };
 }
 
-exports.$$Error = $$Error;
-exports.never = never;
-exports.unknown = unknown;
-exports.string = string;
-exports.bool = bool;
-exports.$$int = $$int;
-exports.$$float = $$float;
-exports.date = date;
-exports.literal = literal;
-exports.literalVariant = literalVariant;
-exports.array = array;
-exports.dict = dict;
-exports.option = option;
-exports.$$null = $$null;
-exports.deprecated = deprecated;
-exports.$$default = $$default;
-exports.default = $$default;
-exports.__esModule = true;
-exports.json = json;
-exports.union = union;
-exports.transform = transform;
-exports.advancedTransform = advancedTransform;
-exports.custom = custom;
-exports.refine = refine;
-exports.asyncRefine = asyncRefine;
-exports.parseWith = parseWith;
-exports.parseAsyncWith = parseAsyncWith;
-exports.parseAsyncInStepsWith = parseAsyncInStepsWith;
-exports.serializeWith = serializeWith;
-exports.isAsyncParse = isAsyncParse;
-exports.isAsyncSerialize = isAsyncSerialize;
-exports.Record = Record;
-exports.record0 = record0;
-exports.record1 = record1;
-exports.record2 = record2;
-exports.record3 = record3;
-exports.record4 = record4;
-exports.record5 = record5;
-exports.record6 = record6;
-exports.record7 = record7;
-exports.record8 = record8;
-exports.record9 = record9;
-exports.record10 = record10;
-exports.Tuple = Tuple;
-exports.tuple0 = tuple0;
-exports.tuple1 = tuple1;
-exports.tuple2 = tuple2;
-exports.tuple3 = tuple3;
-exports.tuple4 = tuple4;
-exports.tuple5 = tuple5;
-exports.tuple6 = tuple6;
-exports.tuple7 = tuple7;
-exports.tuple8 = tuple8;
-exports.tuple9 = tuple9;
-exports.tuple10 = tuple10;
-exports.classify = classify;
-exports.name = name;
-exports.$$String = $$String;
-exports.Int = Int;
-exports.Float = Float;
-exports.$$Array = $$Array;
-exports.Result = Result;
-exports.MakeMetadata = MakeMetadata;
+export {
+  $$Error ,
+  never ,
+  unknown ,
+  string ,
+  bool ,
+  $$int ,
+  $$float ,
+  date ,
+  literal ,
+  literalVariant ,
+  array ,
+  dict ,
+  option ,
+  $$null ,
+  deprecated ,
+  $$default ,
+  $$default as default,
+  json ,
+  union ,
+  transform ,
+  advancedTransform ,
+  custom ,
+  refine ,
+  asyncRefine ,
+  parseWith ,
+  parseAsyncWith ,
+  parseAsyncInStepsWith ,
+  serializeWith ,
+  isAsyncParse ,
+  isAsyncSerialize ,
+  Record ,
+  record0 ,
+  record1 ,
+  record2 ,
+  record3 ,
+  record4 ,
+  record5 ,
+  record6 ,
+  record7 ,
+  record8 ,
+  record9 ,
+  record10 ,
+  Tuple ,
+  tuple0 ,
+  tuple1 ,
+  tuple2 ,
+  tuple3 ,
+  tuple4 ,
+  tuple5 ,
+  tuple6 ,
+  tuple7 ,
+  tuple8 ,
+  tuple9 ,
+  tuple10 ,
+  classify ,
+  name ,
+  $$String ,
+  Int ,
+  Float ,
+  $$Array ,
+  Result ,
+  MakeMetadata ,
+}
 /*  Not a pure module */

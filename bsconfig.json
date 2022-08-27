@@ -11,7 +11,7 @@
   ],
   "suffix": ".bs.js",
   "package-specs": {
-    "module": "commonjs",
+    "module": "es6-global",
     "in-source": true
   },
   "sources": [
@@ -22,8 +22,5 @@
       "dir": "__tests__",
       "type": "dev"
     }
-  ],
-  "warnings": {
-    "number": "-44"
-  }
+  ]
 }
