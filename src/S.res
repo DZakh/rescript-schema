@@ -46,6 +46,11 @@ module Lib = {
       fn->ignore
       %raw(`function(){return fn(arguments)}`)
     }
+
+    @inline
+    let call1 = (fn: 'arg1 => 'return, arg1: 'arg1): 'return => {
+      Obj.magic(fn)(. arg1)
+    }
   }
 
   module Object = {
@@ -332,8 +337,8 @@ and tagged_t =
   | Date
 and field<'value> = (string, t<'value>)
 and action<'input, 'output> =
-  | Sync((. 'input) => 'output)
-  | Async((. 'input) => Js.Promise.t<'output>)
+  | Sync('input => 'output)
+  | Async('input => Js.Promise.t<'output>)
 and actionFactory = (. ~struct: t<unknown>) => action<unknown, unknown>
 
 external unsafeAnyToUnknown: 'any => unknown = "%identity"
@@ -435,8 +440,8 @@ let makeOperation = (~actionFactories, ~struct) => {
               tempOuputRef.contents =
                 tempOuputRef.contents->Lib.Promise.then(tempOutput => {
                   switch action {
-                  | Sync(fn) => fn(. tempOutput)->Lib.Promise.resolve
-                  | Async(fn) => fn(. tempOutput)
+                  | Sync(fn) => fn->Lib.Fn.call1(tempOutput)->Lib.Promise.resolve
+                  | Async(fn) => fn->Lib.Fn.call1(tempOutput)
                   }
                 })
             }
@@ -572,7 +577,7 @@ module Action = {
 
   let missingParser = make(
     Sync(
-      (. _) => {
+      _ => {
         Error.Internal.raise(MissingParser)
       },
     ),
@@ -580,7 +585,7 @@ module Action = {
 
   let missingSerializer = make(
     Sync(
-      (. _) => {
+      _ => {
         Error.Internal.raise(MissingSerializer)
       },
     ),
@@ -605,8 +610,8 @@ let refine: (
   let maybeParseActionFactory = maybeRefineParser->Lib.Option.map(refineParser => {
     Action.make(
       Sync(
-        (. input) => {
-          let () = (refineParser->Obj.magic)(. input)
+        input => {
+          let () = refineParser->Lib.Fn.call1(input)
           input
         },
       ),
@@ -626,8 +631,8 @@ let refine: (
       struct.serializeActionFactories->Action.concatSerializer(
         Action.make(
           Sync(
-            (. input) => {
-              let () = (refineSerializer->Obj.magic)(. input)
+            input => {
+              let () = refineSerializer->Lib.Fn.call1(input)
               input
             },
           ),
@@ -647,8 +652,10 @@ let asyncRefine = (struct, ~parser, ()) => {
     ~parseActionFactories=struct.parseActionFactories->Action.concatParser(
       Action.make(
         Async(
-          (. input) => {
-            (parser->Obj.magic)(. input)->Lib.Promise.thenResolve(() => {
+          input => {
+            parser
+            ->Lib.Fn.call1(input)
+            ->Lib.Promise.thenResolve(() => {
               input
             })
           },
@@ -748,7 +755,7 @@ let custom = (
       switch maybeCustomParser {
       | Some(customParser) =>
         Action.factory((. ~struct as _) => Sync(
-          (. input) => {
+          input => {
             customParser(. ~unknown=input)
           },
         ))
@@ -775,8 +782,8 @@ module Literal = {
         let makeParseActionFactories = (~literalValue, ~test) => {
           [
             Action.factory((. ~struct) => Sync(
-              (. input) => {
-                if test(. input) {
+              input => {
+                if test->Lib.Fn.call1(input) {
                   if literalValue->unsafeAnyToUnknown === input {
                     variant
                   } else {
@@ -794,7 +801,7 @@ module Literal = {
           [
             Action.make(
               Sync(
-                (. input) => {
+                input => {
                   if input === variant {
                     output
                   } else {
@@ -813,7 +820,7 @@ module Literal = {
             ~tagged_t,
             ~parseActionFactories=[
               Action.factory((. ~struct) => Sync(
-                (. input) => {
+                input => {
                   if input === Js.Null.empty {
                     variant
                   } else {
@@ -831,7 +838,7 @@ module Literal = {
             ~tagged_t,
             ~parseActionFactories=[
               Action.factory((. ~struct) => Sync(
-                (. input) => {
+                input => {
                   if input === Js.Undefined.empty {
                     variant
                   } else {
@@ -849,7 +856,7 @@ module Literal = {
             ~tagged_t,
             ~parseActionFactories=[
               Action.factory((. ~struct) => Sync(
-                (. input) => {
+                input => {
                   if Js.Float.isNaN(input) {
                     variant
                   } else {
@@ -865,7 +872,7 @@ module Literal = {
           make(
             ~name=j`Bool Literal ($bool)`,
             ~tagged_t,
-            ~parseActionFactories=makeParseActionFactories(~literalValue=bool, ~test=(. input) =>
+            ~parseActionFactories=makeParseActionFactories(~literalValue=bool, ~test=input =>
               input->Js.typeof === "boolean"
             ),
             ~serializeActionFactories=makeSerializeActionFactories(bool),
@@ -875,7 +882,7 @@ module Literal = {
           make(
             ~name=`String Literal ("${string}")`,
             ~tagged_t,
-            ~parseActionFactories=makeParseActionFactories(~literalValue=string, ~test=(. input) =>
+            ~parseActionFactories=makeParseActionFactories(~literalValue=string, ~test=input =>
               input->Js.typeof === "string"
             ),
             ~serializeActionFactories=makeSerializeActionFactories(string),
@@ -885,7 +892,7 @@ module Literal = {
           make(
             ~name=`Float Literal (${float->Js.Float.toString})`,
             ~tagged_t,
-            ~parseActionFactories=makeParseActionFactories(~literalValue=float, ~test=(. input) =>
+            ~parseActionFactories=makeParseActionFactories(~literalValue=float, ~test=input =>
               input->Js.typeof === "number"
             ),
             ~serializeActionFactories=makeSerializeActionFactories(float),
@@ -895,7 +902,7 @@ module Literal = {
           make(
             ~name=`Int Literal (${int->Js.Int.toString})`,
             ~tagged_t,
-            ~parseActionFactories=makeParseActionFactories(~literalValue=int, ~test=(. input) =>
+            ~parseActionFactories=makeParseActionFactories(~literalValue=int, ~test=input =>
               input->Lib.Int.test
             ),
             ~serializeActionFactories=makeSerializeActionFactories(int),
@@ -965,7 +972,7 @@ module Record = {
 
         let parseActionFactories = [
           Action.factory((. ~struct) => Sync(
-            (. input) => {
+            input => {
               if input->Lib.Object.test === false {
                 raiseUnexpectedTypeError(~input, ~struct)
               }
@@ -1012,7 +1019,7 @@ module Record = {
           ->Js.Array2.push(
             Action.make(
               Async(
-                (. tempArray) => {
+                tempArray => {
                   asyncOps
                   ->Js.Array2.map(((originalIdx, fieldName)) => {
                     (
@@ -1046,7 +1053,7 @@ module Record = {
       },
       ~serializeActionFactories=[
         Action.factory((. ~struct as _) => Sync(
-          (. input) => {
+          input => {
             let unknown = Js.Dict.empty()
             let fieldValues =
               fieldNames->Js.Array2.length <= 1 ? [input]->Obj.magic : input->Obj.magic
@@ -1118,7 +1125,7 @@ module Never = {
   let factory = () => {
     let actionFactories = [
       Action.factory((. ~struct) => Sync(
-        (. input) => {
+        input => {
           raiseUnexpectedTypeError(~input, ~struct)
         },
       )),
@@ -1157,7 +1164,7 @@ module String = {
       ~tagged_t=String,
       ~parseActionFactories=[
         Action.factory((. ~struct) => Sync(
-          (. input) => {
+          input => {
             if input->Js.typeof === "string" {
               input
             } else {
@@ -1266,7 +1273,7 @@ module Bool = {
       ~tagged_t=Bool,
       ~parseActionFactories=[
         Action.factory((. ~struct) => Sync(
-          (. input) => {
+          input => {
             if input->Js.typeof === "boolean" {
               input
             } else {
@@ -1288,7 +1295,7 @@ module Int = {
       ~tagged_t=Int,
       ~parseActionFactories=[
         Action.factory((. ~struct) => Sync(
-          (. input) => {
+          input => {
             if Lib.Int.test(input) {
               input
             } else {
@@ -1336,7 +1343,7 @@ module Float = {
       ~tagged_t=Float,
       ~parseActionFactories=[
         Action.factory((. ~struct) => Sync(
-          (. input) => {
+          input => {
             switch input->Js.typeof === "number" {
             | true =>
               if Js.Float.isNaN(input) {
@@ -1365,7 +1372,7 @@ module Date = {
       ~tagged_t=Date,
       ~parseActionFactories=[
         Action.factory((. ~struct) => Sync(
-          (. input) => {
+          input => {
             if %raw(`input instanceof Date`) && input->Js.Date.getTime->Js.Float.isNaN->not {
               input
             } else {
@@ -1389,7 +1396,7 @@ module Null = {
         let makeSyncParseAction = fn => {
           Action.make(
             Sync(
-              (. input) => {
+              input => {
                 switch input->Js.Null.toOption {
                 | Some(innerData) => Some(fn(. innerData))
                 | None => None
@@ -1403,7 +1410,7 @@ module Null = {
         | NoopOperation => [
             Action.make(
               Sync(
-                (. input) => {
+                input => {
                   input->Js.Null.toOption
                 },
               ),
@@ -1414,7 +1421,7 @@ module Null = {
             makeSyncParseAction(fn),
             Action.make(
               Async(
-                (. input) => {
+                input => {
                   switch input {
                   | Some(asyncFn) => asyncFn(.)->Lib.Promise.thenResolve(value => Some(value))
                   | None => None->Lib.Promise.resolve
@@ -1427,7 +1434,7 @@ module Null = {
       },
       ~serializeActionFactories=[
         Action.factory((. ~struct as _) => Sync(
-          (. input) => {
+          input => {
             switch input {
             | Some(value) => serializeInner(~struct=innerStruct, ~value)
             | None => Js.Null.empty->unsafeAnyToUnknown
@@ -1449,7 +1456,7 @@ module Option = {
         let makeSyncParseAction = fn => {
           Action.make(
             Sync(
-              (. input) => {
+              input => {
                 switch input {
                 | Some(innerData) => Some(fn(. innerData))
                 | None => None
@@ -1466,7 +1473,7 @@ module Option = {
             makeSyncParseAction(fn),
             Action.make(
               Async(
-                (. input) => {
+                input => {
                   switch input {
                   | Some(asyncFn) => asyncFn(.)->Lib.Promise.thenResolve(value => Some(value))
                   | None => None->Lib.Promise.resolve
@@ -1479,7 +1486,7 @@ module Option = {
       },
       ~serializeActionFactories=[
         Action.factory((. ~struct as _) => Sync(
-          (. input) => {
+          input => {
             switch input {
             | Some(value) => serializeInner(~struct=innerStruct, ~value)
             | None => Js.Undefined.empty->unsafeAnyToUnknown
@@ -1501,7 +1508,7 @@ module Deprecated = {
         let makeSyncParseAction = fn => {
           Action.make(
             Sync(
-              (. input) => {
+              input => {
                 switch input {
                 | Some(innerData) => Some(fn(. innerData))
                 | None => None
@@ -1518,7 +1525,7 @@ module Deprecated = {
             makeSyncParseAction(fn),
             Action.make(
               Async(
-                (. input) => {
+                input => {
                   switch input {
                   | Some(asyncFn) => asyncFn(.)->Lib.Promise.thenResolve(value => Some(value))
                   | None => None->Lib.Promise.resolve
@@ -1532,7 +1539,7 @@ module Deprecated = {
       ~serializeActionFactories=[
         Action.make(
           Sync(
-            (. input) => {
+            input => {
               switch input {
               | Some(value) => serializeInner(~struct=innerStruct, ~value)
               | None => %raw(`undefined`)
@@ -1555,7 +1562,7 @@ module Array = {
         let makeSyncParseAction = fn => {
           Action.make(
             Sync(
-              (. input) => {
+              input => {
                 let newArray = []
                 for idx in 0 to input->Js.Array2.length - 1 {
                   let innerData = input->Js.Array2.unsafe_get(idx)
@@ -1579,7 +1586,7 @@ module Array = {
 
         let parseActionFactories = [
           Action.factory((. ~struct) => Sync(
-            (. input) => {
+            input => {
               if Js.Array2.isArray(input) === false {
                 raiseUnexpectedTypeError(~input, ~struct)
               } else {
@@ -1598,7 +1605,7 @@ module Array = {
           ->Js.Array2.push(
             Action.make(
               Async(
-                (. input) => {
+                input => {
                   input
                   ->Js.Array2.mapi((asyncFn, idx) => {
                     asyncFn(.)->Lib.Promise.catch(exn => {
@@ -1628,7 +1635,7 @@ module Array = {
         | SyncOperation(fn) => [
             Action.make(
               Sync(
-                (. input) => {
+                input => {
                   let newArray = []
                   for idx in 0 to input->Js.Array2.length - 1 {
                     let innerData = input->Js.Array2.unsafe_get(idx)
@@ -1705,7 +1712,7 @@ module Dict = {
         let makeSyncParseAction = fn => {
           Action.make(
             Sync(
-              (. input) => {
+              input => {
                 let newDict = Js.Dict.empty()
                 let keys = input->Js.Dict.keys
                 for idx in 0 to keys->Js.Array2.length - 1 {
@@ -1729,7 +1736,7 @@ module Dict = {
 
         let parseActionFactories = [
           Action.factory((. ~struct) => Sync(
-            (. input) => {
+            input => {
               if input->Lib.Object.test === false {
                 raiseUnexpectedTypeError(~input, ~struct)
               } else {
@@ -1748,7 +1755,7 @@ module Dict = {
           ->Js.Array2.push(
             Action.make(
               Async(
-                (. input) => {
+                input => {
                   let keys = input->Js.Dict.keys
                   keys
                   ->Js.Array2.map(key => {
@@ -1794,7 +1801,7 @@ module Dict = {
         | SyncOperation(fn) => [
             Action.make(
               Sync(
-                (. input) => {
+                input => {
                   let newDict = Js.Dict.empty()
                   let keys = input->Js.Dict.keys
                   for idx in 0 to keys->Js.Array2.length - 1 {
@@ -1835,7 +1842,7 @@ module Default = {
         | NoopOperation => [
             Action.make(
               Sync(
-                (. input) => {
+                input => {
                   switch input {
                   | Some(output) => output
                   | None => defaultValue
@@ -1847,7 +1854,7 @@ module Default = {
         | SyncOperation(fn) => [
             Action.make(
               Sync(
-                (. input) => {
+                input => {
                   switch fn(. input)->unsafeUnknownToAny {
                   | Some(output) => output
                   | None => defaultValue
@@ -1859,7 +1866,7 @@ module Default = {
         | AsyncOperation(fn) => [
             Action.make(
               Async(
-                (. input) => {
+                input => {
                   fn(. input)(.)->Lib.Promise.thenResolve(value => {
                     switch value->unsafeUnknownToAny {
                     | Some(output) => output
@@ -1875,7 +1882,7 @@ module Default = {
       ~serializeActionFactories=[
         Action.make(
           Sync(
-            (. input) => {
+            input => {
               serializeInner(~struct=innerStruct, ~value=Some(input))
             },
           ),
@@ -1912,7 +1919,7 @@ module Tuple = {
 
         let parseActionFactories = [
           Action.factory((. ~struct) => Sync(
-            (. input) => {
+            input => {
               switch Js.Array2.isArray(input) {
               | true =>
                 let numberOfInputItems = input->Js.Array2.length
@@ -1969,7 +1976,7 @@ module Tuple = {
           ->Js.Array2.push(
             Action.make(
               Async(
-                (. tempArray) => {
+                tempArray => {
                   asyncOps
                   ->Js.Array2.map(originalIdx => {
                     (
@@ -2005,7 +2012,7 @@ module Tuple = {
       },
       ~serializeActionFactories=[
         Action.factory((. ~struct as _) => Sync(
-          (. input) => {
+          input => {
             let inputArray = numberOfStructs === 1 ? [input] : input->Obj.magic
 
             let newArray = []
@@ -2050,7 +2057,7 @@ module Union = {
 
     let serializeActionFactories = [
       Action.factory((. ~struct as _) => Sync(
-        (. input) => {
+        input => {
           let idxRef = ref(0)
           let maybeLastErrorRef = ref(None)
           let maybeNewValueRef = ref(None)
@@ -2099,7 +2106,7 @@ module Union = {
         let parseActionFactories = [
           Action.make(
             Sync(
-              (. input) => {
+              input => {
                 let idxRef = ref(0)
                 let errorsRef = ref([])
                 let maybeNewValueRef = ref(None)
@@ -2141,7 +2148,7 @@ module Union = {
           ->Js.Array2.push(
             Action.make(
               Async(
-                (. input) => {
+                input => {
                   switch input["maybeSyncValue"] {
                   | Some(syncValue) => syncValue->Lib.Promise.resolve
                   | None =>
@@ -2303,7 +2310,7 @@ let json = innerStruct => {
       switch innerStruct->isAsyncParse {
       | true =>
         Async(
-          (. parsedJson) => {
+          parsedJson => {
             parsedJson
             ->parseAsyncWith(innerStruct)
             ->Lib.Promise.thenResolve(result => {
@@ -2316,7 +2323,7 @@ let json = innerStruct => {
         )
       | false =>
         Sync(
-          (. parsedJson) => {
+          parsedJson => {
             switch parsedJson->parseWith(innerStruct) {
             | Ok(value) => value
             | Error(error) => Error.raiseCustom(error)
@@ -2327,7 +2334,7 @@ let json = innerStruct => {
     },
     ~serializer=(. ~struct as _) => {
       Sync(
-        (. value) => {
+        value => {
           switch value->serializeWith(innerStruct) {
           | Ok(unknown) => unknown->unsafeUnknownToAny
           | Error(error) => Error.raiseCustom(error)

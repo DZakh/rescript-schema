@@ -2,7 +2,7 @@ open Ava
 
 let validAsyncRefine = S.advancedTransform(
   _,
-  ~parser=(. ~struct as _) => Async((. value) => Promise.resolve(value)),
+  ~parser=(. ~struct as _) => Async(value => Promise.resolve(value)),
   (),
 )
 let invalidSyncRefine = S.refine(_, ~parser=_ => S.Error.raise("Sync user error"), ())
@@ -10,7 +10,7 @@ let unresolvedPromise = Promise.make((_, _) => ())
 let invalidPromise = Promise.resolve()->Promise.then(() => S.Error.raise("Async user error"))
 let invalidAsyncRefine = S.advancedTransform(
   _,
-  ~parser=(. ~struct as _) => Async((. _) => invalidPromise),
+  ~parser=(. ~struct as _) => Async(_ => invalidPromise),
   (),
 )
 
@@ -128,14 +128,14 @@ module Record = {
 
     let struct = S.record2(. ("k1", S.int()->S.advancedTransform(~parser=(. ~struct as _) => {
           Async(
-            (. _) => {
+            _ => {
               actionCounter.contents = actionCounter.contents + 1
               unresolvedPromise
             },
           )
         }, ())), ("k2", S.int()->S.advancedTransform(~parser=(. ~struct as _) => {
           Async(
-            (. _) => {
+            _ => {
               actionCounter.contents = actionCounter.contents + 1
               unresolvedPromise
             },
@@ -160,7 +160,7 @@ module Record = {
 
   asyncTest("[Record] Doesn't wait for pending async items when fails to parse", t => {
     let struct = S.record2(. ("k1", S.int()->S.advancedTransform(~parser=(. ~struct as _) => {
-          Async((. _) => unresolvedPromise)
+          Async(_ => unresolvedPromise)
         }, ())), ("k2", S.int()->invalidAsyncRefine))
 
     (
@@ -232,14 +232,14 @@ module Tuple = {
 
     let struct = S.tuple2(. S.int()->S.advancedTransform(~parser=(. ~struct as _) => {
         Async(
-          (. _) => {
+          _ => {
             actionCounter.contents = actionCounter.contents + 1
             unresolvedPromise
           },
         )
       }, ()), S.int()->S.advancedTransform(~parser=(. ~struct as _) => {
         Async(
-          (. _) => {
+          _ => {
             actionCounter.contents = actionCounter.contents + 1
             unresolvedPromise
           },
@@ -257,7 +257,7 @@ module Tuple = {
 
   asyncTest("[Tuple] Doesn't wait for pending async items when fails to parse", t => {
     let struct = S.tuple2(. S.int()->S.advancedTransform(~parser=(. ~struct as _) => {
-        Async((. _) => unresolvedPromise)
+        Async(_ => unresolvedPromise)
       }, ()), S.int()->invalidAsyncRefine)
 
     ([1, 2]->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)()->Promise.thenResolve(result => {
@@ -336,14 +336,14 @@ module Union = {
 
     let struct = S.union([S.literal(Int(2))->S.advancedTransform(~parser=(. ~struct as _) => {
         Async(
-          (. _) => {
+          _ => {
             actionCounter.contents = actionCounter.contents + 1
             unresolvedPromise
           },
         )
       }, ()), S.literal(Int(2))->S.advancedTransform(~parser=(. ~struct as _) => {
         Async(
-          (. _) => {
+          _ => {
             actionCounter.contents = actionCounter.contents + 1
             unresolvedPromise
           },
@@ -390,7 +390,7 @@ module Array = {
 
     let struct = S.array(S.int()->S.advancedTransform(~parser=(. ~struct as _) => {
         Async(
-          (. _) => {
+          _ => {
             actionCounter.contents = actionCounter.contents + 1
             unresolvedPromise
           },
@@ -411,7 +411,7 @@ module Array = {
 
     let struct = S.array(S.int()->S.advancedTransform(~parser=(. ~struct as _) => {
         Async(
-          (. _) => {
+          _ => {
             actionCounter.contents = actionCounter.contents + 1
             if actionCounter.contents <= 2 {
               unresolvedPromise
@@ -468,7 +468,7 @@ module Dict = {
 
     let struct = S.dict(S.int()->S.advancedTransform(~parser=(. ~struct as _) => {
         Async(
-          (. _) => {
+          _ => {
             actionCounter.contents = actionCounter.contents + 1
             unresolvedPromise
           },
@@ -489,7 +489,7 @@ module Dict = {
 
     let struct = S.dict(S.int()->S.advancedTransform(~parser=(. ~struct as _) => {
         Async(
-          (. _) => {
+          _ => {
             actionCounter.contents = actionCounter.contents + 1
             if actionCounter.contents <= 2 {
               unresolvedPromise

@@ -36,8 +36,8 @@ type rec literal<'value> =
   | NaN: literal<unit>
 
 type action<'input, 'output> =
-  | Sync((. 'input) => 'output)
-  | Async((. 'input) => Js.Promise.t<'output>)
+  | Sync('input => 'output)
+  | Async('input => Js.Promise.t<'output>)
 
 type recordUnknownKeys =
   | Strict
