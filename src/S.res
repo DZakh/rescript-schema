@@ -42,9 +42,9 @@ module Lib = {
   }
 
   module Fn = {
-    let callWithArguments = fn => {
-      fn->ignore
-      %raw(`function(){return fn(arguments)}`)
+    @inline
+    let getArguments = (): array<'a> => {
+      %raw(`arguments`)
     }
 
     @inline
@@ -948,148 +948,149 @@ module Record = {
     }
   }`)
 
-  let innerFactory = fieldsArray => {
-    let fields = fieldsArray->Js.Dict.fromArray
-    let fieldNames = fields->Js.Dict.keys
+  let factory = (
+    () => {
+      let fieldsArray = Lib.Fn.getArguments()
+      let fields = fieldsArray->Js.Dict.fromArray
+      let fieldNames = fields->Js.Dict.keys
 
-    make(
-      ~name="Record",
-      ~tagged_t=Record({fields, fieldNames, unknownKeys: Strip}),
-      ~parseActionFactories={
-        let noopOps = []
-        let syncOps = []
-        let asyncOps = []
-        for idx in 0 to fieldNames->Js.Array2.length - 1 {
-          let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-          let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-          switch fieldStruct.parse {
-          | NoopOperation => noopOps->Js.Array2.push((idx, fieldName))->ignore
-          | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fieldName, fn))->ignore
-          | AsyncOperation(fn) => {
-              syncOps->Js.Array2.push((idx, fieldName, fn->Obj.magic))->ignore
-              asyncOps->Js.Array2.push((idx, fieldName))->ignore
+      make(
+        ~name="Record",
+        ~tagged_t=Record({fields, fieldNames, unknownKeys: Strip}),
+        ~parseActionFactories={
+          let noopOps = []
+          let syncOps = []
+          let asyncOps = []
+          for idx in 0 to fieldNames->Js.Array2.length - 1 {
+            let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+            let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+            switch fieldStruct.parse {
+            | NoopOperation => noopOps->Js.Array2.push((idx, fieldName))->ignore
+            | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fieldName, fn))->ignore
+            | AsyncOperation(fn) => {
+                syncOps->Js.Array2.push((idx, fieldName, fn->Obj.magic))->ignore
+                asyncOps->Js.Array2.push((idx, fieldName))->ignore
+              }
             }
           }
-        }
-        let withAsyncOps = asyncOps->Js.Array2.length > 0
+          let withAsyncOps = asyncOps->Js.Array2.length > 0
 
-        let parseActionFactories = [
-          Action.factory((~struct) => Sync(
+          let parseActionFactories = [
+            Action.factory((~struct) => Sync(
+              input => {
+                if input->Lib.Object.test === false {
+                  raiseUnexpectedTypeError(~input, ~struct)
+                }
+
+                let newArray = []
+
+                for idx in 0 to syncOps->Js.Array2.length - 1 {
+                  let (originalIdx, fieldName, fn) = syncOps->Js.Array2.unsafe_get(idx)
+                  let fieldData = input->Js.Dict.unsafeGet(fieldName)
+                  try {
+                    let value = fn(. fieldData)
+                    newArray->Lib.Array.set(originalIdx, value)
+                  } catch {
+                  | Error.Internal.Exception(internalError) =>
+                    raise(
+                      Error.Internal.Exception(
+                        internalError->Error.Internal.prependLocation(fieldName),
+                      ),
+                    )
+                  }
+                }
+
+                for idx in 0 to noopOps->Js.Array2.length - 1 {
+                  let (originalIdx, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
+                  let fieldData = input->Js.Dict.unsafeGet(fieldName)
+                  newArray->Lib.Array.set(originalIdx, fieldData)
+                }
+
+                let {unknownKeys} = struct->classify->Obj.magic
+                if unknownKeys === Strict {
+                  switch getMaybeExcessKey(. input->castAnyToUnknown, fields) {
+                  | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
+                  | None => ()
+                  }
+                }
+
+                withAsyncOps ? newArray->castAnyToUnknown : newArray->Lib.Array.toTuple
+              },
+            )),
+          ]
+
+          if withAsyncOps {
+            parseActionFactories
+            ->Js.Array2.push(
+              Action.make(
+                Async(
+                  tempArray => {
+                    asyncOps
+                    ->Js.Array2.map(((originalIdx, fieldName)) => {
+                      (
+                        tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
+                      )(.)->Lib.Promise.catch(exn => {
+                        switch exn {
+                        | Error.Internal.Exception(internalError) =>
+                          Error.Internal.Exception(
+                            internalError->Error.Internal.prependLocation(fieldName),
+                          )
+                        | _ => exn
+                        }->Lib.Exn.throw
+                      })
+                    })
+                    ->Lib.Promise.all
+                    ->Lib.Promise.thenResolve(asyncFieldValues => {
+                      asyncFieldValues->Js.Array2.forEachi((fieldValue, idx) => {
+                        let (originalIdx, _) = asyncOps->Js.Array2.unsafe_get(idx)
+                        tempArray->castUnknownToAny->Lib.Array.set(originalIdx, fieldValue)
+                      })
+                      tempArray
+                    })
+                  },
+                ),
+              ),
+            )
+            ->ignore
+          }
+
+          parseActionFactories
+        },
+        ~serializeActionFactories=[
+          Action.factory((~struct as _) => Sync(
             input => {
-              if input->Lib.Object.test === false {
-                raiseUnexpectedTypeError(~input, ~struct)
-              }
-
-              let newArray = []
-
-              for idx in 0 to syncOps->Js.Array2.length - 1 {
-                let (originalIdx, fieldName, fn) = syncOps->Js.Array2.unsafe_get(idx)
-                let fieldData = input->Js.Dict.unsafeGet(fieldName)
-                try {
-                  let value = fn(. fieldData)
-                  newArray->Lib.Array.set(originalIdx, value)
-                } catch {
-                | Error.Internal.Exception(internalError) =>
-                  raise(
-                    Error.Internal.Exception(
-                      internalError->Error.Internal.prependLocation(fieldName),
-                    ),
-                  )
+              let unknown = Js.Dict.empty()
+              let fieldValues =
+                fieldNames->Js.Array2.length <= 1 ? [input]->Obj.magic : input->Obj.magic
+              for idx in 0 to fieldNames->Js.Array2.length - 1 {
+                let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+                let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+                let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
+                switch fieldStruct.serialize {
+                | NoopOperation => unknown->Js.Dict.set(fieldName, fieldValue)
+                | SyncOperation(fn) =>
+                  try {
+                    let fieldData = fn(. fieldValue)
+                    unknown->Js.Dict.set(fieldName, fieldData)
+                  } catch {
+                  | Error.Internal.Exception(internalError) =>
+                    raise(
+                      Error.Internal.Exception(
+                        internalError->Error.Internal.prependLocation(fieldName),
+                      ),
+                    )
+                  }
+                | AsyncOperation(_) => Error.Unreachable.panic()
                 }
               }
-
-              for idx in 0 to noopOps->Js.Array2.length - 1 {
-                let (originalIdx, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
-                let fieldData = input->Js.Dict.unsafeGet(fieldName)
-                newArray->Lib.Array.set(originalIdx, fieldData)
-              }
-
-              let {unknownKeys} = struct->classify->Obj.magic
-              if unknownKeys === Strict {
-                switch getMaybeExcessKey(. input->castAnyToUnknown, fields) {
-                | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
-                | None => ()
-                }
-              }
-
-              withAsyncOps ? newArray->castAnyToUnknown : newArray->Lib.Array.toTuple
+              unknown
             },
           )),
-        ]
-
-        if withAsyncOps {
-          parseActionFactories
-          ->Js.Array2.push(
-            Action.make(
-              Async(
-                tempArray => {
-                  asyncOps
-                  ->Js.Array2.map(((originalIdx, fieldName)) => {
-                    (
-                      tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
-                    )(.)->Lib.Promise.catch(exn => {
-                      switch exn {
-                      | Error.Internal.Exception(internalError) =>
-                        Error.Internal.Exception(
-                          internalError->Error.Internal.prependLocation(fieldName),
-                        )
-                      | _ => exn
-                      }->Lib.Exn.throw
-                    })
-                  })
-                  ->Lib.Promise.all
-                  ->Lib.Promise.thenResolve(asyncFieldValues => {
-                    asyncFieldValues->Js.Array2.forEachi((fieldValue, idx) => {
-                      let (originalIdx, _) = asyncOps->Js.Array2.unsafe_get(idx)
-                      tempArray->castUnknownToAny->Lib.Array.set(originalIdx, fieldValue)
-                    })
-                    tempArray
-                  })
-                },
-              ),
-            ),
-          )
-          ->ignore
-        }
-
-        parseActionFactories
-      },
-      ~serializeActionFactories=[
-        Action.factory((~struct as _) => Sync(
-          input => {
-            let unknown = Js.Dict.empty()
-            let fieldValues =
-              fieldNames->Js.Array2.length <= 1 ? [input]->Obj.magic : input->Obj.magic
-            for idx in 0 to fieldNames->Js.Array2.length - 1 {
-              let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-              let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-              let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
-              switch fieldStruct.serialize {
-              | NoopOperation => unknown->Js.Dict.set(fieldName, fieldValue)
-              | SyncOperation(fn) =>
-                try {
-                  let fieldData = fn(. fieldValue)
-                  unknown->Js.Dict.set(fieldName, fieldData)
-                } catch {
-                | Error.Internal.Exception(internalError) =>
-                  raise(
-                    Error.Internal.Exception(
-                      internalError->Error.Internal.prependLocation(fieldName),
-                    ),
-                  )
-                }
-              | AsyncOperation(_) => Error.Unreachable.panic()
-              }
-            }
-            unknown
-          },
-        )),
-      ],
-      (),
-    )
-  }
-
-  let factory = Lib.Fn.callWithArguments(innerFactory)
+        ],
+        (),
+      )
+    }
+  )->Obj.magic
 
   let strip = struct => {
     let tagged_t = struct->classify
@@ -1897,157 +1898,158 @@ module Default = {
 }
 
 module Tuple = {
-  let innerFactory = structs => {
-    let numberOfStructs = structs->Js.Array2.length
+  let factory = (
+    () => {
+      let structs = Lib.Fn.getArguments()
+      let numberOfStructs = structs->Js.Array2.length
 
-    make(
-      ~name="Tuple",
-      ~tagged_t=Tuple(structs),
-      ~parseActionFactories={
-        let noopOps = []
-        let syncOps = []
-        let asyncOps = []
-        for idx in 0 to structs->Js.Array2.length - 1 {
-          let innerStruct = structs->Js.Array2.unsafe_get(idx)
-          switch innerStruct.parse {
-          | NoopOperation => noopOps->Js.Array2.push(idx)->ignore
-          | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fn))->ignore
-          | AsyncOperation(fn) => {
-              syncOps->Js.Array2.push((idx, fn->Obj.magic))->ignore
-              asyncOps->Js.Array2.push(idx)->ignore
+      make(
+        ~name="Tuple",
+        ~tagged_t=Tuple(structs),
+        ~parseActionFactories={
+          let noopOps = []
+          let syncOps = []
+          let asyncOps = []
+          for idx in 0 to structs->Js.Array2.length - 1 {
+            let innerStruct = structs->Js.Array2.unsafe_get(idx)
+            switch innerStruct.parse {
+            | NoopOperation => noopOps->Js.Array2.push(idx)->ignore
+            | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fn))->ignore
+            | AsyncOperation(fn) => {
+                syncOps->Js.Array2.push((idx, fn->Obj.magic))->ignore
+                asyncOps->Js.Array2.push(idx)->ignore
+              }
             }
           }
-        }
-        let withAsyncOps = asyncOps->Js.Array2.length > 0
+          let withAsyncOps = asyncOps->Js.Array2.length > 0
 
-        let parseActionFactories = [
-          Action.factory((~struct) => Sync(
-            input => {
-              switch Js.Array2.isArray(input) {
-              | true =>
-                let numberOfInputItems = input->Js.Array2.length
-                if numberOfStructs !== numberOfInputItems {
-                  Error.Internal.raise(
-                    TupleSize({
-                      expected: numberOfStructs,
-                      received: numberOfInputItems,
-                    }),
-                  )
+          let parseActionFactories = [
+            Action.factory((~struct) => Sync(
+              input => {
+                switch Js.Array2.isArray(input) {
+                | true =>
+                  let numberOfInputItems = input->Js.Array2.length
+                  if numberOfStructs !== numberOfInputItems {
+                    Error.Internal.raise(
+                      TupleSize({
+                        expected: numberOfStructs,
+                        received: numberOfInputItems,
+                      }),
+                    )
+                  }
+                | false => raiseUnexpectedTypeError(~input, ~struct)
                 }
-              | false => raiseUnexpectedTypeError(~input, ~struct)
-              }
+
+                let newArray = []
+
+                for idx in 0 to syncOps->Js.Array2.length - 1 {
+                  let (originalIdx, fn) = syncOps->Js.Array2.unsafe_get(idx)
+                  let innerData = input->Js.Array2.unsafe_get(originalIdx)
+                  try {
+                    let value = fn(. innerData)
+                    newArray->Lib.Array.set(originalIdx, value)
+                  } catch {
+                  | Error.Internal.Exception(internalError) =>
+                    raise(
+                      Error.Internal.Exception(
+                        internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+                      ),
+                    )
+                  }
+                }
+
+                for idx in 0 to noopOps->Js.Array2.length - 1 {
+                  let originalIdx = noopOps->Js.Array2.unsafe_get(idx)
+                  let innerData = input->Js.Array2.unsafe_get(originalIdx)
+                  newArray->Lib.Array.set(originalIdx, innerData)
+                }
+
+                switch withAsyncOps {
+                | true => newArray->castAnyToUnknown
+                | false =>
+                  switch numberOfStructs {
+                  | 0 => ()->castAnyToUnknown
+                  | 1 => newArray->Js.Array2.unsafe_get(0)->castAnyToUnknown
+                  | _ => newArray->castAnyToUnknown
+                  }
+                }
+              },
+            )),
+          ]
+
+          if withAsyncOps {
+            parseActionFactories
+            ->Js.Array2.push(
+              Action.make(
+                Async(
+                  tempArray => {
+                    asyncOps
+                    ->Js.Array2.map(originalIdx => {
+                      (
+                        tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
+                      )(.)->Lib.Promise.catch(exn => {
+                        switch exn {
+                        | Error.Internal.Exception(internalError) =>
+                          Error.Internal.Exception(
+                            internalError->Error.Internal.prependLocation(
+                              originalIdx->Js.Int.toString,
+                            ),
+                          )
+                        | _ => exn
+                        }->Lib.Exn.throw
+                      })
+                    })
+                    ->Lib.Promise.all
+                    ->Lib.Promise.thenResolve(values => {
+                      values->Js.Array2.forEachi((value, idx) => {
+                        let originalIdx = asyncOps->Js.Array2.unsafe_get(idx)
+                        tempArray->castUnknownToAny->Lib.Array.set(originalIdx, value)
+                      })
+                      tempArray->castUnknownToAny->Lib.Array.toTuple
+                    })
+                  },
+                ),
+              ),
+            )
+            ->ignore
+          }
+
+          parseActionFactories
+        },
+        ~serializeActionFactories=[
+          Action.factory((~struct as _) => Sync(
+            input => {
+              let inputArray = numberOfStructs === 1 ? [input] : input->Obj.magic
 
               let newArray = []
-
-              for idx in 0 to syncOps->Js.Array2.length - 1 {
-                let (originalIdx, fn) = syncOps->Js.Array2.unsafe_get(idx)
-                let innerData = input->Js.Array2.unsafe_get(originalIdx)
-                try {
-                  let value = fn(. innerData)
-                  newArray->Lib.Array.set(originalIdx, value)
-                } catch {
-                | Error.Internal.Exception(internalError) =>
-                  raise(
-                    Error.Internal.Exception(
-                      internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                    ),
-                  )
+              for idx in 0 to numberOfStructs - 1 {
+                let innerData = inputArray->Js.Array2.unsafe_get(idx)
+                let innerStruct = structs->Js.Array.unsafe_get(idx)
+                switch innerStruct.serialize {
+                | NoopOperation => newArray->Js.Array2.push(innerData)->ignore
+                | SyncOperation(fn) =>
+                  try {
+                    let value = fn(. innerData)
+                    newArray->Js.Array2.push(value)->ignore
+                  } catch {
+                  | Error.Internal.Exception(internalError) =>
+                    raise(
+                      Error.Internal.Exception(
+                        internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+                      ),
+                    )
+                  }
+                | AsyncOperation(_) => Error.Unreachable.panic()
                 }
               }
-
-              for idx in 0 to noopOps->Js.Array2.length - 1 {
-                let originalIdx = noopOps->Js.Array2.unsafe_get(idx)
-                let innerData = input->Js.Array2.unsafe_get(originalIdx)
-                newArray->Lib.Array.set(originalIdx, innerData)
-              }
-
-              switch withAsyncOps {
-              | true => newArray->castAnyToUnknown
-              | false =>
-                switch numberOfStructs {
-                | 0 => ()->castAnyToUnknown
-                | 1 => newArray->Js.Array2.unsafe_get(0)->castAnyToUnknown
-                | _ => newArray->castAnyToUnknown
-                }
-              }
+              newArray
             },
           )),
-        ]
-
-        if withAsyncOps {
-          parseActionFactories
-          ->Js.Array2.push(
-            Action.make(
-              Async(
-                tempArray => {
-                  asyncOps
-                  ->Js.Array2.map(originalIdx => {
-                    (
-                      tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
-                    )(.)->Lib.Promise.catch(exn => {
-                      switch exn {
-                      | Error.Internal.Exception(internalError) =>
-                        Error.Internal.Exception(
-                          internalError->Error.Internal.prependLocation(
-                            originalIdx->Js.Int.toString,
-                          ),
-                        )
-                      | _ => exn
-                      }->Lib.Exn.throw
-                    })
-                  })
-                  ->Lib.Promise.all
-                  ->Lib.Promise.thenResolve(values => {
-                    values->Js.Array2.forEachi((value, idx) => {
-                      let originalIdx = asyncOps->Js.Array2.unsafe_get(idx)
-                      tempArray->castUnknownToAny->Lib.Array.set(originalIdx, value)
-                    })
-                    tempArray->castUnknownToAny->Lib.Array.toTuple
-                  })
-                },
-              ),
-            ),
-          )
-          ->ignore
-        }
-
-        parseActionFactories
-      },
-      ~serializeActionFactories=[
-        Action.factory((~struct as _) => Sync(
-          input => {
-            let inputArray = numberOfStructs === 1 ? [input] : input->Obj.magic
-
-            let newArray = []
-            for idx in 0 to numberOfStructs - 1 {
-              let innerData = inputArray->Js.Array2.unsafe_get(idx)
-              let innerStruct = structs->Js.Array.unsafe_get(idx)
-              switch innerStruct.serialize {
-              | NoopOperation => newArray->Js.Array2.push(innerData)->ignore
-              | SyncOperation(fn) =>
-                try {
-                  let value = fn(. innerData)
-                  newArray->Js.Array2.push(value)->ignore
-                } catch {
-                | Error.Internal.Exception(internalError) =>
-                  raise(
-                    Error.Internal.Exception(
-                      internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                    ),
-                  )
-                }
-              | AsyncOperation(_) => Error.Unreachable.panic()
-              }
-            }
-            newArray
-          },
-        )),
-      ],
-      (),
-    )
-  }
-
-  let factory = Lib.Fn.callWithArguments(innerFactory)
+        ],
+        (),
+      )
+    }
+  )->Obj.magic
 }
 
 module Union = {

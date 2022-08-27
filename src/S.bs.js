@@ -8,10 +8,6 @@ import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as Caml_exceptions from "rescript/lib/es6/caml_exceptions.js";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
-function callWithArguments(fn) {
-  return (function(){return fn(arguments)});
-}
-
 var $$throw = (function(exn){throw exn});
 
 class RescriptStructError extends Error {
@@ -746,7 +742,8 @@ var getMaybeExcessKey = (function(object, innerStructsDict) {
     }
   });
 
-function innerFactory(fieldsArray) {
+function factory$2(param) {
+  var fieldsArray = arguments;
   var fields = Js_dict.fromArray(fieldsArray);
   var fieldNames = Object.keys(fields);
   var noopOps = [];
@@ -900,8 +897,6 @@ function innerFactory(fieldsArray) {
                         };
                 })], undefined, undefined);
 }
-
-var factory$2 = callWithArguments(innerFactory);
 
 function strip(struct) {
   var tagged_t = struct.t;
@@ -1705,7 +1700,8 @@ function factory$15(innerStruct, defaultValue) {
                 })], undefined, undefined);
 }
 
-function innerFactory$1(structs) {
+function factory$16(param) {
+  var structs = arguments;
   var numberOfStructs = structs.length;
   var noopOps = [];
   var syncOps = [];
@@ -1855,7 +1851,9 @@ function innerFactory$1(structs) {
                 })], undefined, undefined);
 }
 
-var factory$16 = callWithArguments(innerFactory$1);
+var Tuple = {
+  factory: factory$16
+};
 
 var HackyValidValue = /* @__PURE__ */Caml_exceptions.create("S.Union.HackyValidValue");
 
@@ -2201,10 +2199,6 @@ var record8 = factory$2;
 var record9 = factory$2;
 
 var record10 = factory$2;
-
-var Tuple = {
-  factory: factory$16
-};
 
 var tuple0 = factory$16;
 
