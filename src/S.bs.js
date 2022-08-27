@@ -1,12 +1,12 @@
 
 
-import * as Js_exn from "../node_modules/rescript/lib/es6/js_exn.js";
-import * as Js_dict from "../node_modules/rescript/lib/es6/js_dict.js";
-import * as Js_types from "../node_modules/rescript/lib/es6/js_types.js";
-import * as Belt_Option from "../node_modules/rescript/lib/es6/belt_Option.js";
-import * as Caml_option from "../node_modules/rescript/lib/es6/caml_option.js";
-import * as Caml_exceptions from "../node_modules/rescript/lib/es6/caml_exceptions.js";
-import * as Caml_js_exceptions from "../node_modules/rescript/lib/es6/caml_js_exceptions.js";
+import * as Js_exn from "rescript/lib/es6/js_exn.js";
+import * as Js_dict from "rescript/lib/es6/js_dict.js";
+import * as Js_types from "rescript/lib/es6/js_types.js";
+import * as Belt_Option from "rescript/lib/es6/belt_Option.js";
+import * as Caml_option from "rescript/lib/es6/caml_option.js";
+import * as Caml_exceptions from "rescript/lib/es6/caml_exceptions.js";
+import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
 function callWithArguments(fn) {
   return (function(){return fn(arguments)});

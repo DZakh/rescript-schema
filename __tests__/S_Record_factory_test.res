@@ -1,6 +1,6 @@
 open Ava
 
-test("Works", t => {
+ava->test("Works", t => {
   let record3: (
     . S.field<'v1>,
     S.field<'v2>,

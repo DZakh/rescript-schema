@@ -2,7 +2,7 @@ open Ava
 
 type author = {id: float, tags: array<string>, isAproved: bool, deprecatedAge: option<int>}
 
-test("Example", t => {
+ava->test("Example", t => {
   let authorStruct =
     S.record4(.
       ("Id", S.float()),

@@ -1,12 +1,12 @@
 open Ava
 
-test("Successfully parses JSON", t => {
+ava->test("Successfully parses JSON", t => {
   let struct = S.string()
 
   t->Assert.deepEqual(`"Foo"`->S.parseWith(S.json(struct)), Ok("Foo"), ())
 })
 
-test("Fails to parse invalid JSON", t => {
+ava->test("Fails to parse invalid JSON", t => {
   let struct = S.unknown()
 
   t->Assert.deepEqual(
@@ -20,13 +20,13 @@ test("Fails to parse invalid JSON", t => {
   )
 })
 
-test("Successfully serializes JSON", t => {
+ava->test("Successfully serializes JSON", t => {
   let struct = S.string()
 
   t->Assert.deepEqual(`Foo`->S.serializeWith(S.json(struct)), Ok(%raw(`'"Foo"'`)), ())
 })
 
-failing("Fails to serialize Option to JSON", t => {
+ava->Failing.test("Fails to serialize Option to JSON", t => {
   let struct = S.option(S.unknown())
 
   t->Assert.deepEqual(None->S.serializeWith(S.json(struct))->Belt.Result.isError, true, ())

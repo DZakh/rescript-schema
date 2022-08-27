@@ -1,6 +1,6 @@
 open Ava
 
-test("OperationFailed error", t => {
+ava->test("OperationFailed error", t => {
   t->Assert.is(
     {
       code: OperationFailed("Should be positive"),
@@ -12,7 +12,7 @@ test("OperationFailed error", t => {
   )
 })
 
-test("Error with Serializing operation", t => {
+ava->test("Error with Serializing operation", t => {
   t->Assert.is(
     {
       code: OperationFailed("Should be positive"),
@@ -24,7 +24,7 @@ test("Error with Serializing operation", t => {
   )
 })
 
-test("Error with path", t => {
+ava->test("Error with path", t => {
   t->Assert.is(
     {
       code: OperationFailed("Should be positive"),
@@ -36,7 +36,7 @@ test("Error with path", t => {
   )
 })
 
-test("MissingParser error", t => {
+ava->test("MissingParser error", t => {
   t->Assert.is(
     {
       code: MissingParser,
@@ -48,7 +48,7 @@ test("MissingParser error", t => {
   )
 })
 
-test("MissingSerializer error", t => {
+ava->test("MissingSerializer error", t => {
   t->Assert.is(
     {
       code: MissingSerializer,
@@ -60,7 +60,7 @@ test("MissingSerializer error", t => {
   )
 })
 
-test("UnexpectedType error", t => {
+ava->test("UnexpectedType error", t => {
   t->Assert.is(
     {
       code: UnexpectedType({expected: "String", received: "Bool"}),
@@ -72,7 +72,7 @@ test("UnexpectedType error", t => {
   )
 })
 
-test("UnexpectedValue error", t => {
+ava->test("UnexpectedValue error", t => {
   t->Assert.is(
     {
       code: UnexpectedValue({expected: "false", received: "true"}),
@@ -84,7 +84,7 @@ test("UnexpectedValue error", t => {
   )
 })
 
-test("ExcessField error", t => {
+ava->test("ExcessField error", t => {
   t->Assert.is(
     {
       code: ExcessField("unknownKey"),
@@ -96,7 +96,7 @@ test("ExcessField error", t => {
   )
 })
 
-test("TupleSize error", t => {
+ava->test("TupleSize error", t => {
   t->Assert.is(
     {
       code: TupleSize({expected: 1, received: 2}),
@@ -108,7 +108,7 @@ test("TupleSize error", t => {
   )
 })
 
-test("InvalidUnion error", t => {
+ava->test("InvalidUnion error", t => {
   t->Assert.is(
     {
       code: InvalidUnion([
@@ -139,7 +139,7 @@ test("InvalidUnion error", t => {
   )
 })
 
-test("InvalidUnion filters similar reasons", t => {
+ava->test("InvalidUnion filters similar reasons", t => {
   t->Assert.is(
     {
       code: InvalidUnion([
@@ -168,7 +168,7 @@ test("InvalidUnion filters similar reasons", t => {
   )
 })
 
-test("Nested InvalidUnion error", t => {
+ava->test("Nested InvalidUnion error", t => {
   t->Assert.is(
     {
       code: InvalidUnion([

@@ -9,13 +9,13 @@ module Common = {
   let wrongTypeAny = %raw(`true`)
   let factory = () => S.literalVariant(String("Ugly string"), "ReScript is Great!")
 
-  test("Successfully parses", t => {
+  ava->test("Successfully parses", t => {
     let struct = factory()
 
     t->Assert.deepEqual(unknownAny->S.parseWith(struct), Ok(value), ())
   })
 
-  test("Fails to parse wrong value", t => {
+  ava->test("Fails to parse wrong value", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -29,7 +29,7 @@ module Common = {
     )
   })
 
-  test("Fails to parse wrong type", t => {
+  ava->test("Fails to parse wrong type", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -43,13 +43,13 @@ module Common = {
     )
   })
 
-  test("Successfully serializes", t => {
+  ava->test("Successfully serializes", t => {
     let struct = factory()
 
     t->Assert.deepEqual(value->S.serializeWith(struct), Ok(unknownAny), ())
   })
 
-  test("Fails to serialize wrong value", t => {
+  ava->test("Fails to serialize wrong value", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -66,25 +66,25 @@ module Common = {
 
 type variant = Apple
 
-test("Successfully parses null to provided variant", t => {
+ava->test("Successfully parses null to provided variant", t => {
   let struct = S.literalVariant(EmptyNull, Apple)
 
   t->Assert.deepEqual(%raw(`null`)->S.parseWith(struct), Ok(Apple), ())
 })
 
-test("Successfully parses undefined to provided variant", t => {
+ava->test("Successfully parses undefined to provided variant", t => {
   let struct = S.literalVariant(EmptyOption, Apple)
 
   t->Assert.deepEqual(%raw(`undefined`)->S.parseWith(struct), Ok(Apple), ())
 })
 
-test("Successfully serializes variant to null", t => {
+ava->test("Successfully serializes variant to null", t => {
   let struct = S.literalVariant(EmptyNull, Apple)
 
   t->Assert.deepEqual(Apple->S.serializeWith(struct), Ok(%raw(`null`)), ())
 })
 
-test("Successfully serializes variant to undefined", t => {
+ava->test("Successfully serializes variant to undefined", t => {
   let struct = S.literalVariant(EmptyOption, Apple)
 
   t->Assert.deepEqual(Apple->S.serializeWith(struct), Ok(%raw(`undefined`)), ())

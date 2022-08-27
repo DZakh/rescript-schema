@@ -33,7 +33,7 @@
   "exports": {
     ".": "./src/S.bs.js"
   },
-  "module": "./src/S.bs.js",
+  "type": "module",
   "files": [
     "src/**/*.res",
     "src/**/*.resi",
@@ -50,7 +50,7 @@
     ]
   },
   "devDependencies": {
-    "@dzakh/rescript-ava": "0.2.0",
+    "@dzakh/rescript-ava": "0.3.0",
     "@ryyppy/rescript-promise": "2.1.0",
     "ava": "4.3.3",
     "rescript": "10.0.0"

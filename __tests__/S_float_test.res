@@ -6,13 +6,13 @@ module Common = {
   let wrongAny = %raw(`"Hello world!"`)
   let factory = () => S.float()
 
-  test("Successfully parses", t => {
+  ava->test("Successfully parses", t => {
     let struct = factory()
 
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
   })
 
-  test("Fails to parse", t => {
+  ava->test("Fails to parse", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -26,20 +26,20 @@ module Common = {
     )
   })
 
-  test("Successfully serializes", t => {
+  ava->test("Successfully serializes", t => {
     let struct = factory()
 
     t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
   })
 }
 
-test("Successfully parses number with a fractional part", t => {
+ava->test("Successfully parses number with a fractional part", t => {
   let struct = S.float()
 
   t->Assert.deepEqual(%raw(`123.123`)->S.parseWith(struct), Ok(123.123), ())
 })
 
-test("Fails to parse NaN", t => {
+ava->test("Fails to parse NaN", t => {
   let struct = S.float()
 
   t->Assert.deepEqual(

@@ -1,6 +1,6 @@
 open Ava
 
-test("Uses default value when parsing optional unknown primitive ", t => {
+ava->test("Uses default value when parsing optional unknown primitive ", t => {
   let value = 123.
   let any = %raw(`undefined`)
 
@@ -9,19 +9,19 @@ test("Uses default value when parsing optional unknown primitive ", t => {
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-test("Parses data with default when provided JS undefined", t => {
+ava->test("Parses data with default when provided JS undefined", t => {
   let struct = S.option(S.bool())->S.default(false)
 
   t->Assert.deepEqual(%raw(`undefined`)->S.parseWith(struct), Ok(false), ())
 })
 
-test("Parses data with default when provided primitive", t => {
+ava->test("Parses data with default when provided primitive", t => {
   let struct = S.option(S.bool())->S.default(false)
 
   t->Assert.deepEqual(%raw(`true`)->S.parseWith(struct), Ok(true), ())
 })
 
-test("Fails to parse data with default", t => {
+ava->test("Fails to parse data with default", t => {
   let struct = S.option(S.bool())->S.default(false)
 
   t->Assert.deepEqual(
@@ -36,7 +36,7 @@ test("Fails to parse data with default", t => {
 })
 
 // FIXME: Add value checks for Literal
-failing(
+ava->Failing.test(
   "Raises error when providing default value different from optional literal struct value",
   t => {
     let struct = S.option(S.literal(Int(123)))->S.default(444)

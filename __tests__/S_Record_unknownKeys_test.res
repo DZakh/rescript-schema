@@ -2,7 +2,7 @@ open Ava
 
 type recordWithOneField = {key: string}
 
-test("Successfully parses Record with unknown keys by default", t => {
+ava->test("Successfully parses Record with unknown keys by default", t => {
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
   let struct = S.record1(. ("key", S.string()))
@@ -10,7 +10,7 @@ test("Successfully parses Record with unknown keys by default", t => {
   t->Assert.deepEqual(any->S.parseWith(struct), Ok("value"), ())
 })
 
-test("Fails fast and shows only one excees key in the error message", t => {
+ava->test("Fails fast and shows only one excees key in the error message", t => {
   let any = %raw(`{key: "value", unknownKey: "value2", unknownKey2: "value2"}`)
 
   let struct = S.record1(. ("key", S.string()))->S.Record.strict
@@ -26,7 +26,7 @@ test("Fails fast and shows only one excees key in the error message", t => {
   )
 })
 
-test("Successfully parses Record with unknown keys when Strip strategy applyed", t => {
+ava->test("Successfully parses Record with unknown keys when Strip strategy applyed", t => {
   let value = "value"
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
@@ -35,7 +35,7 @@ test("Successfully parses Record with unknown keys when Strip strategy applyed",
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-test("Works correctly when the same unknown keys strategy applyed multiple times", t => {
+ava->test("Works correctly when the same unknown keys strategy applyed multiple times", t => {
   let value = "value"
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
@@ -44,7 +44,7 @@ test("Works correctly when the same unknown keys strategy applyed multiple times
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-test("Raises error when unknown keys strategy applyed to a non Record struct", t => {
+ava->test("Raises error when unknown keys strategy applyed to a non Record struct", t => {
   t->Assert.throws(() => {
     S.string()->S.Record.strip->ignore
   }, ~expectations=ThrowsException.make(
@@ -61,7 +61,7 @@ test("Raises error when unknown keys strategy applyed to a non Record struct", t
   ), ())
 })
 
-test("Can reset unknown keys strategy applying Strict strategy", t => {
+ava->test("Can reset unknown keys strategy applying Strict strategy", t => {
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
   let struct = S.record1(. ("key", S.string()))->S.Record.strip->S.Record.strict
