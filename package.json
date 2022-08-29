@@ -30,9 +30,6 @@
   },
   "license": "MIT",
   "author": "Dmitry Zakharov <dzakh.dev@gmail.com>",
-  "exports": {
-    ".": "./src/S.bs.js"
-  },
   "type": "module",
   "files": [
     "src/**/*.res",
