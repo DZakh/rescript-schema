@@ -6,10 +6,6 @@ It has declarative API allowing you to use **rescript-struct** as a building blo
 
 - [ReScript JSON Schema](https://github.com/DZakh/rescript-json-schema) - Typesafe JSON schema for ReScript
 
-## Status
-
-> **rescript-struct** is currently in beta. Its core API is useable right now, but you might need to pull request improvements for advanced use cases, or fixes for some bugs. Some of its APIs are not "finalized" and will have breaking changes over time as we discover better solutions.
-
 ## Installation
 
 ```sh
