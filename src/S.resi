@@ -23,6 +23,8 @@ module Error: {
   let toString: t => string
 }
 
+exception Raised(Error.t)
+
 type never
 type unknown
 
@@ -113,6 +115,8 @@ let asyncRefine: (t<'value>, ~parser: 'value => Js.Promise.t<unit>, unit) => t<'
 
 let parseWith: ('any, t<'value>) => result<'value, Error.t>
 
+let parseOrRaiseWith: ('any, t<'value>) => 'value
+
 let parseAsyncWith: ('any, t<'value>) => Js.Promise.t<result<'value, Error.t>>
 
 let parseAsyncInStepsWith: (
@@ -122,9 +126,9 @@ let parseAsyncInStepsWith: (
 
 let serializeWith: ('value, t<'value>) => result<unknown, Error.t>
 
-let isAsyncParse: t<'value> => bool
+let serializeOrRaiseWith: ('value, t<'value>) => unknown
 
-let isAsyncSerialize: t<'value> => bool
+let isAsyncParse: t<'value> => bool
 
 module Record: {
   let factory: 'factory

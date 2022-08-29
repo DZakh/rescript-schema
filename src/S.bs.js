@@ -168,6 +168,8 @@ function toString(error) {
   return "[ReScript Struct] Failed " + operation + " at " + pathText + ". Reason: " + reason + "";
 }
 
+var Raised = /* @__PURE__ */Caml_exceptions.create("S.Raised");
+
 function classify(struct) {
   return struct.t;
 }
@@ -178,15 +180,6 @@ function name(struct) {
 
 function isAsyncParse(struct) {
   var match = struct.p;
-  if (typeof match === "number" || match.TAG === /* SyncOperation */0) {
-    return false;
-  } else {
-    return true;
-  }
-}
-
-function isAsyncSerialize(struct) {
-  var match = struct.s;
   if (typeof match === "number" || match.TAG === /* SyncOperation */0) {
     return false;
   } else {
@@ -352,6 +345,30 @@ function parseWith(any, struct) {
   }
 }
 
+function parseOrRaiseWith(any, struct) {
+  try {
+    var fn = struct.p;
+    if (typeof fn === "number") {
+      return any;
+    } else if (fn.TAG === /* SyncOperation */0) {
+      return fn._0(any);
+    } else {
+      return raise(/* UnexpectedAsync */2);
+    }
+  }
+  catch (raw_internalError){
+    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+    if (internalError.RE_EXN_ID === Exception) {
+      throw {
+            RE_EXN_ID: Raised,
+            _1: toParseError(internalError._1),
+            Error: new Error()
+          };
+    }
+    throw internalError;
+  }
+}
+
 function parseAsyncWith(any, struct) {
   try {
     var fn = struct.p;
@@ -470,6 +487,30 @@ function serializeWith(value, struct) {
               TAG: /* Error */1,
               _0: toSerializeError(internalError._1)
             };
+    }
+    throw internalError;
+  }
+}
+
+function serializeOrRaiseWith(value, struct) {
+  try {
+    var fn = struct.s;
+    if (typeof fn === "number") {
+      return value;
+    } else if (fn.TAG === /* SyncOperation */0) {
+      return fn._0(value);
+    } else {
+      return panic("Unreachable");
+    }
+  }
+  catch (raw_internalError){
+    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+    if (internalError.RE_EXN_ID === Exception) {
+      throw {
+            RE_EXN_ID: Raised,
+            _1: toSerializeError(internalError._1),
+            Error: new Error()
+          };
     }
     throw internalError;
   }
@@ -2285,6 +2326,7 @@ function MakeMetadata(funarg) {
 
 export {
   $$Error ,
+  Raised ,
   never ,
   unknown ,
   string ,
@@ -2309,11 +2351,12 @@ export {
   refine ,
   asyncRefine ,
   parseWith ,
+  parseOrRaiseWith ,
   parseAsyncWith ,
   parseAsyncInStepsWith ,
   serializeWith ,
+  serializeOrRaiseWith ,
   isAsyncParse ,
-  isAsyncSerialize ,
   Record ,
   record0 ,
   record1 ,

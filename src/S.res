@@ -280,6 +280,8 @@ module Error = {
   }
 }
 
+exception Raised(Error.t)
+
 type rec literal<'value> =
   | String(string): literal<string>
   | Int(int): literal<int>
@@ -359,14 +361,6 @@ let name = struct => struct.name
 @inline
 let isAsyncParse = struct =>
   switch struct.parse {
-  | AsyncOperation(_) => true
-  | NoopOperation
-  | SyncOperation(_) => false
-  }
-
-@inline
-let isAsyncSerialize = struct =>
-  switch struct.serialize {
   | AsyncOperation(_) => true
   | NoopOperation
   | SyncOperation(_) => false
@@ -493,6 +487,19 @@ let parseWith = (any, struct) => {
   }
 }
 
+let parseOrRaiseWith = (any, struct) => {
+  try {
+    switch struct.parse {
+    | NoopOperation => any->Obj.magic
+    | SyncOperation(fn) => fn(. any->Obj.magic)->Obj.magic
+    | AsyncOperation(_) => Error.Internal.raise(UnexpectedAsync)
+    }
+  } catch {
+  | Error.Internal.Exception(internalError) =>
+    raise(Raised(internalError->Error.Internal.toParseError))
+  }
+}
+
 let parseAsyncWith = (any, struct) => {
   try {
     switch struct.parse {
@@ -557,6 +564,15 @@ let serializeWith = (value, struct) => {
     serializeInner(~struct, ~value)->Ok
   } catch {
   | Error.Internal.Exception(internalError) => internalError->Error.Internal.toSerializeError->Error
+  }
+}
+
+let serializeOrRaiseWith = (value, struct) => {
+  try {
+    serializeInner(~struct, ~value)
+  } catch {
+  | Error.Internal.Exception(internalError) =>
+    raise(Raised(internalError->Error.Internal.toSerializeError))
   }
 }
 

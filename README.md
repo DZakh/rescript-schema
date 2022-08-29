@@ -100,6 +100,20 @@ data->S.parseWith(userStruct)
 
 Given any struct, you can call `parseWith` to check data is valid. It returns a result with valid data migrated to expected type or a **rescript-struct** error.
 
+#### **`S.parseOrRaiseWith`**
+
+`('any, S.t<'value>) => 'value`
+
+```rescript
+try {
+  data->S.parseOrRaiseWith(userStruct)
+} catch {
+| S.Raised(error) => Js.Exn.raise(error->S.Error.toString)
+}
+```
+
+The exception-based version of `parseWith`.
+
 #### **`S.parseAsyncWith`**
 
 `('any, S.t<'value>) => Js.Promise.t<result<'value, S.Error.t>>`
@@ -129,6 +143,20 @@ user->S.serializeWith(userStruct)
 ```
 
 Serializes value using the transformation logic that is built-in to the struct. It returns a result with a transformed data or a **rescript-struct** error.
+
+#### **`S.serializeOrRaiseWith`**
+
+`('value, S.t<'value>) => S.unknown`
+
+```rescript
+try {
+  user->S.serializeOrRaiseWith(userStruct)
+} catch {
+| S.Raised(error) => Js.Exn.raise(error->S.Error.toString)
+}
+```
+
+The exception-based version of `serializeWith`.
 
 ### Types
 
