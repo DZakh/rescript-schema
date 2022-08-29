@@ -1,6 +1,6 @@
 {
   "name": "rescript-struct",
-  "version": "0.26.0",
+  "version": "0.27.0",
   "description": "A simple and composable way to describe relationship between JavaScript and ReScript structures",
   "keywords": [
     "ReScript",
@@ -30,7 +30,6 @@
   },
   "license": "MIT",
   "author": "Dmitry Zakharov <dzakh.dev@gmail.com>",
-  "type": "module",
   "files": [
     "src/**/*.res",
     "src/**/*.resi",
@@ -47,7 +46,7 @@
     ]
   },
   "devDependencies": {
-    "@dzakh/rescript-ava": "0.3.0",
+    "@dzakh/rescript-ava": "0.4.0",
     "@ryyppy/rescript-promise": "2.1.0",
     "ava": "4.3.3",
     "rescript": "10.0.0"

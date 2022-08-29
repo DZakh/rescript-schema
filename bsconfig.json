@@ -1,17 +1,13 @@
 {
   "name": "rescript-struct",
   "namespace": false,
-  "bsc-flags": [
-    "-bs-no-version-header",
-    "-bs-super-errors"
-  ],
   "bs-dev-dependencies": [
     "@dzakh/rescript-ava",
     "@ryyppy/rescript-promise"
   ],
   "suffix": ".bs.js",
   "package-specs": {
-    "module": "es6",
+    "module": "commonjs",
     "in-source": true
   },
   "sources": [
