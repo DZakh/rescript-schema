@@ -1,8 +1,18 @@
 # ReScript Struct
 
-Parse and serialize unknown data with ability to describe migration to a convenient format.
+Safely parse and serialize data with ability to describe migration to a convenient format.
 
-It has declarative API allowing you to use **rescript-struct** as a building block for other tools, such as:
+Highlights:
+
+- Parses any data, not only JSON
+- Asynchronous refinements and transforms
+- Support for both result and exception based API
+- Ability to disallow unrecognized object keys 
+- Fast: The **3rd** fastest parsing library in the whole JavaScript ecosystem ([benchmark](https://dzakh.github.io/rescript-runtime-type-benchmarks/))
+- Tiny: [7kb minified + zipped](https://bundle.js.org/?q=github%3ADZakh%2Frescript-struct%2Fmain%2Fsrc%2FS.bs.js&treeshake=%5B*+as+S%5D&config=%7B%22esbuild%22%3A%7B%22external%22%3A%5B%22rescript%22%5D%7D%7D)
+
+
+Also, it has declarative API allowing you to use **rescript-struct** as a building block for other tools, such as:
 
 - [ReScript JSON Schema](https://github.com/DZakh/rescript-json-schema) - Typesafe JSON schema for ReScript
 
@@ -21,7 +31,14 @@ Then add `rescript-struct` to `bs-dependencies` in your `bsconfig.json`:
 }
 ```
 
-## Example
+## Examples
+
+### Real-world use cases
+
+- [API layer with **rescript-struct**](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Api.res)
+- [Env variables with **rescript-struct**](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Env.res)
+
+### Basic usage
 
 ```rescript
 type author = {
@@ -76,11 +93,6 @@ Ok({
   deprecatedAge: None,
 })
 ```
-
-### Real-world use cases
-
-- [API requests with **rescript-struct**](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Api.res)
-- [Env variables with **rescript-struct**](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Env.res)
 
 ## API Reference
 
@@ -896,9 +908,9 @@ Error("[ReScript Struct] Failed parsing at root. Reason: Expected false, receive
 
 ### Integration
 
-If you're a library maintainer, you can use **rescript-struct** as a way to describe a structure and use it in your own way. The most common use case is building type-safe schemas e.g for REST APIs, databases, and forms.
+If you're a library maintainer, you can use **rescript-struct** to get information about described structures. The most common use case is building type-safe schemas e.g for REST APIs, databases, and forms.
 
-The detailed API documentation is a work in progress, for now, you can use `S.resi` file as a reference and [rescript-json-schema](https://github.com/DZakh/rescript-json-schema) source code.
+Documentation for this feature is work in progress, for now, you can use `S.resi` file as a reference and [rescript-json-schema](https://github.com/DZakh/rescript-json-schema) source code.
 
 ## Roadmap
 
