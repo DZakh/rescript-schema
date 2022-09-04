@@ -46,7 +46,7 @@ type recordUnknownKeys =
   | Strip
 
 type rec t<'value>
-and tagged_t =
+and tagged =
   | Never
   | Unknown
   | String
@@ -265,7 +265,7 @@ let tuple10: (
   t<'v10>,
 ) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9, 'v10)>
 
-let classify: t<'value> => tagged_t
+let classify: t<'value> => tagged
 
 let name: t<'value> => string
 

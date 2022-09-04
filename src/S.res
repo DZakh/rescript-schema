@@ -319,7 +319,7 @@ type rec t<'value> = {
   @as("n")
   name: string,
   @as("t")
-  tagged_t: tagged_t,
+  tagged: tagged,
   @as("pf")
   parseActionFactories: array<actionFactory>,
   @as("sf")
@@ -331,7 +331,7 @@ type rec t<'value> = {
   @as("m")
   maybeMetadataDict: option<Js.Dict.t<unknown>>,
 }
-and tagged_t =
+and tagged =
   | Never
   | Unknown
   | String
@@ -411,7 +411,7 @@ module Metadata = {
 }
 
 @inline
-let classify = struct => struct.tagged_t
+let classify = struct => struct.tagged
 
 @inline
 let name = struct => struct.name
@@ -511,7 +511,7 @@ let makeOperation = (~actionFactories, ~struct) => {
 
 let make = (
   ~name,
-  ~tagged_t,
+  ~tagged,
   ~parseActionFactories,
   ~serializeActionFactories,
   ~metadataDict as maybeMetadataDict=?,
@@ -519,7 +519,7 @@ let make = (
 ) => {
   let struct = {
     name,
-    tagged_t,
+    tagged,
     parseActionFactories,
     serializeActionFactories,
     serialize: %raw("undefined"),
@@ -697,7 +697,7 @@ let refine: (
 
   make(
     ~name=struct.name,
-    ~tagged_t=struct.tagged_t,
+    ~tagged=struct.tagged,
     ~parseActionFactories=switch maybeParseActionFactory {
     | Some(parseActionFactory) =>
       struct.parseActionFactories->Action.concatParser(parseActionFactory)
@@ -725,7 +725,7 @@ let refine: (
 let asyncRefine = (struct, ~parser, ()) => {
   make(
     ~name=struct.name,
-    ~tagged_t=struct.tagged_t,
+    ~tagged=struct.tagged,
     ~parseActionFactories=struct.parseActionFactories->Action.concatParser(
       Action.make(
         Async(
@@ -762,7 +762,7 @@ let transform: (
 
   make(
     ~name=struct.name,
-    ~tagged_t=struct.tagged_t,
+    ~tagged=struct.tagged,
     ~parseActionFactories=struct.parseActionFactories->Action.concatParser(
       switch maybeTransformationParser {
       | Some(transformationParser) => Action.make(Sync(transformationParser->Obj.magic))
@@ -797,7 +797,7 @@ let advancedTransform: (
 
   make(
     ~name=struct.name,
-    ~tagged_t=struct.tagged_t,
+    ~tagged=struct.tagged,
     ~parseActionFactories=struct.parseActionFactories->Action.concatParser(
       switch maybeTransformationParser {
       | Some(transformationParser) => transformationParser->Obj.magic
@@ -827,7 +827,7 @@ let custom = (
 
   make(
     ~name,
-    ~tagged_t=Unknown,
+    ~tagged=Unknown,
     ~parseActionFactories=[
       switch maybeCustomParser {
       | Some(customParser) =>
@@ -854,7 +854,7 @@ module Literal = {
     let factory:
       type literalValue variant. (literal<literalValue>, variant) => t<variant> =
       (innerLiteral, variant) => {
-        let tagged_t = Literal(innerLiteral->Obj.magic)
+        let tagged = Literal(innerLiteral->Obj.magic)
 
         let makeParseActionFactories = (~literalValue, ~test) => {
           [
@@ -894,7 +894,7 @@ module Literal = {
         | EmptyNull =>
           make(
             ~name="EmptyNull Literal (null)",
-            ~tagged_t,
+            ~tagged,
             ~parseActionFactories=[
               Action.factory((~struct) => Sync(
                 input => {
@@ -912,7 +912,7 @@ module Literal = {
         | EmptyOption =>
           make(
             ~name="EmptyOption Literal (undefined)",
-            ~tagged_t,
+            ~tagged,
             ~parseActionFactories=[
               Action.factory((~struct) => Sync(
                 input => {
@@ -930,7 +930,7 @@ module Literal = {
         | NaN =>
           make(
             ~name="NaN Literal (NaN)",
-            ~tagged_t,
+            ~tagged,
             ~parseActionFactories=[
               Action.factory((~struct) => Sync(
                 input => {
@@ -948,7 +948,7 @@ module Literal = {
         | Bool(bool) =>
           make(
             ~name=j`Bool Literal ($bool)`,
-            ~tagged_t,
+            ~tagged,
             ~parseActionFactories=makeParseActionFactories(~literalValue=bool, ~test=input =>
               input->Js.typeof === "boolean"
             ),
@@ -958,7 +958,7 @@ module Literal = {
         | String(string) =>
           make(
             ~name=`String Literal ("${string}")`,
-            ~tagged_t,
+            ~tagged,
             ~parseActionFactories=makeParseActionFactories(~literalValue=string, ~test=input =>
               input->Js.typeof === "string"
             ),
@@ -968,7 +968,7 @@ module Literal = {
         | Float(float) =>
           make(
             ~name=`Float Literal (${float->Js.Float.toString})`,
-            ~tagged_t,
+            ~tagged,
             ~parseActionFactories=makeParseActionFactories(~literalValue=float, ~test=input =>
               input->Js.typeof === "number"
             ),
@@ -978,7 +978,7 @@ module Literal = {
         | Int(int) =>
           make(
             ~name=`Int Literal (${int->Js.Int.toString})`,
-            ~tagged_t,
+            ~tagged,
             ~parseActionFactories=makeParseActionFactories(~literalValue=int, ~test=input =>
               input->Lib.Int.test
             ),
@@ -1030,7 +1030,7 @@ module Record = {
 
       make(
         ~name="Record",
-        ~tagged_t=Record({fields, fieldNames, unknownKeys: Strip}),
+        ~tagged=Record({fields, fieldNames, unknownKeys: Strip}),
         ~parseActionFactories={
           let noopOps = []
           let syncOps = []
@@ -1167,12 +1167,12 @@ module Record = {
   )->Obj.magic
 
   let strip = struct => {
-    let tagged_t = struct->classify
-    switch tagged_t {
+    let tagged = struct->classify
+    switch tagged {
     | Record({fields, fieldNames}) =>
       make(
         ~name=struct.name,
-        ~tagged_t=Record({fields, fieldNames, unknownKeys: Strip}),
+        ~tagged=Record({fields, fieldNames, unknownKeys: Strip}),
         ~parseActionFactories=struct.parseActionFactories,
         ~serializeActionFactories=struct.serializeActionFactories,
         ~metadataDict=?struct.maybeMetadataDict,
@@ -1183,12 +1183,12 @@ module Record = {
   }
 
   let strict = struct => {
-    let tagged_t = struct->classify
-    switch tagged_t {
+    let tagged = struct->classify
+    switch tagged {
     | Record({fields, fieldNames}) =>
       make(
         ~name=struct.name,
-        ~tagged_t=Record({fields, fieldNames, unknownKeys: Strict}),
+        ~tagged=Record({fields, fieldNames, unknownKeys: Strict}),
         ~parseActionFactories=struct.parseActionFactories,
         ~serializeActionFactories=struct.serializeActionFactories,
         ~metadataDict=?struct.maybeMetadataDict,
@@ -1211,7 +1211,7 @@ module Never = {
 
     make(
       ~name=`Never`,
-      ~tagged_t=Never,
+      ~tagged=Never,
       ~parseActionFactories=actionFactories,
       ~serializeActionFactories=actionFactories,
       (),
@@ -1223,7 +1223,7 @@ module Unknown = {
   let factory = () => {
     make(
       ~name=`Unknown`,
-      ~tagged_t=Unknown,
+      ~tagged=Unknown,
       ~parseActionFactories=Action.emptyArray,
       ~serializeActionFactories=Action.emptyArray,
       (),
@@ -1239,7 +1239,7 @@ module String = {
   let factory = () => {
     make(
       ~name=`String`,
-      ~tagged_t=String,
+      ~tagged=String,
       ~parseActionFactories=[
         Action.factory((~struct) => Sync(
           input => {
@@ -1348,7 +1348,7 @@ module Bool = {
   let factory = () => {
     make(
       ~name=`Bool`,
-      ~tagged_t=Bool,
+      ~tagged=Bool,
       ~parseActionFactories=[
         Action.factory((~struct) => Sync(
           input => {
@@ -1370,7 +1370,7 @@ module Int = {
   let factory = () => {
     make(
       ~name=`Int`,
-      ~tagged_t=Int,
+      ~tagged=Int,
       ~parseActionFactories=[
         Action.factory((~struct) => Sync(
           input => {
@@ -1418,7 +1418,7 @@ module Float = {
   let factory = () => {
     make(
       ~name=`Float`,
-      ~tagged_t=Float,
+      ~tagged=Float,
       ~parseActionFactories=[
         Action.factory((~struct) => Sync(
           input => {
@@ -1447,7 +1447,7 @@ module Date = {
   let factory = () => {
     make(
       ~name="Date",
-      ~tagged_t=Date,
+      ~tagged=Date,
       ~parseActionFactories=[
         Action.factory((~struct) => Sync(
           input => {
@@ -1469,7 +1469,7 @@ module Null = {
   let factory = innerStruct => {
     make(
       ~name=`Null`,
-      ~tagged_t=Null(innerStruct->Obj.magic),
+      ~tagged=Null(innerStruct->Obj.magic),
       ~parseActionFactories={
         let makeSyncParseAction = fn => {
           Action.make(
@@ -1529,7 +1529,7 @@ module Option = {
   let factory = innerStruct => {
     make(
       ~name=`Option`,
-      ~tagged_t=Option(innerStruct->Obj.magic),
+      ~tagged=Option(innerStruct->Obj.magic),
       ~parseActionFactories={
         let makeSyncParseAction = fn => {
           Action.make(
@@ -1599,7 +1599,7 @@ module Array = {
   let factory = innerStruct => {
     make(
       ~name=`Array`,
-      ~tagged_t=Array(innerStruct->Obj.magic),
+      ~tagged=Array(innerStruct->Obj.magic),
       ~parseActionFactories={
         let makeSyncParseAction = fn => {
           Action.make(
@@ -1749,7 +1749,7 @@ module Dict = {
   let factory = innerStruct => {
     make(
       ~name=`Dict`,
-      ~tagged_t=Dict(innerStruct->Obj.magic),
+      ~tagged=Dict(innerStruct->Obj.magic),
       ~parseActionFactories={
         let makeSyncParseAction = fn => {
           Action.make(
@@ -1882,7 +1882,7 @@ module Defaulted = {
   let factory = (innerStruct, defaultValue) => {
     make(
       ~name=innerStruct.name,
-      ~tagged_t=innerStruct.tagged_t,
+      ~tagged=innerStruct.tagged,
       ~parseActionFactories=[
         Action.factory((~struct as _) => {
           switch innerStruct.parse {
@@ -1942,7 +1942,7 @@ module Tuple = {
 
       make(
         ~name="Tuple",
-        ~tagged_t=Tuple(structs),
+        ~tagged=Tuple(structs),
         ~parseActionFactories={
           let noopOps = []
           let syncOps = []
@@ -2243,7 +2243,7 @@ module Union = {
 
     make(
       ~name=`Union`,
-      ~tagged_t=Union(structs->Obj.magic),
+      ~tagged=Union(structs->Obj.magic),
       ~parseActionFactories,
       ~serializeActionFactories,
       (),

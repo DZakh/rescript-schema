@@ -328,12 +328,12 @@ function makeOperation(actionFactories, struct) {
   }
 }
 
-function make$2(name, tagged_t, parseActionFactories, serializeActionFactories, maybeMetadataDict, param) {
+function make$2(name, tagged, parseActionFactories, serializeActionFactories, maybeMetadataDict, param) {
   var struct_s = undefined;
   var struct_p = undefined;
   var struct = {
     n: name,
-    t: tagged_t,
+    t: tagged,
     pf: parseActionFactories,
     sf: serializeActionFactories,
     s: struct_s,
@@ -342,7 +342,7 @@ function make$2(name, tagged_t, parseActionFactories, serializeActionFactories, 
   };
   return {
           n: name,
-          t: tagged_t,
+          t: tagged,
           pf: parseActionFactories,
           sf: serializeActionFactories,
           s: makeOperation(serializeActionFactories, struct),
@@ -691,7 +691,7 @@ function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
 }
 
 function factory(innerLiteral, variant) {
-  var tagged_t = {
+  var tagged = {
     TAG: /* Literal */0,
     _0: innerLiteral
   };
@@ -731,7 +731,7 @@ function factory(innerLiteral, variant) {
   if (typeof innerLiteral === "number") {
     switch (innerLiteral) {
       case /* EmptyNull */0 :
-          return make$2("EmptyNull Literal (null)", tagged_t, [(function (struct) {
+          return make$2("EmptyNull Literal (null)", tagged, [(function (struct) {
                           return {
                                   TAG: /* Sync */0,
                                   _0: (function (input) {
@@ -744,7 +744,7 @@ function factory(innerLiteral, variant) {
                                 };
                         })], makeSerializeActionFactories(null), undefined, undefined);
       case /* EmptyOption */1 :
-          return make$2("EmptyOption Literal (undefined)", tagged_t, [(function (struct) {
+          return make$2("EmptyOption Literal (undefined)", tagged, [(function (struct) {
                           return {
                                   TAG: /* Sync */0,
                                   _0: (function (input) {
@@ -757,7 +757,7 @@ function factory(innerLiteral, variant) {
                                 };
                         })], makeSerializeActionFactories(undefined), undefined, undefined);
       case /* NaN */2 :
-          return make$2("NaN Literal (NaN)", tagged_t, [(function (struct) {
+          return make$2("NaN Literal (NaN)", tagged, [(function (struct) {
                           return {
                                   TAG: /* Sync */0,
                                   _0: (function (input) {
@@ -775,12 +775,12 @@ function factory(innerLiteral, variant) {
     switch (innerLiteral.TAG | 0) {
       case /* String */0 :
           var string = innerLiteral._0;
-          return make$2("String Literal (\"" + string + "\")", tagged_t, makeParseActionFactories(string, (function (input) {
+          return make$2("String Literal (\"" + string + "\")", tagged, makeParseActionFactories(string, (function (input) {
                             return typeof input === "string";
                           })), makeSerializeActionFactories(string), undefined, undefined);
       case /* Int */1 :
           var $$int = innerLiteral._0;
-          return make$2("Int Literal (" + $$int.toString() + ")", tagged_t, makeParseActionFactories($$int, (function (input) {
+          return make$2("Int Literal (" + $$int.toString() + ")", tagged, makeParseActionFactories($$int, (function (input) {
                             if (typeof input === "number" && input < 2147483648 && input > -2147483649) {
                               return input === Math.trunc(input);
                             } else {
@@ -789,12 +789,12 @@ function factory(innerLiteral, variant) {
                           })), makeSerializeActionFactories($$int), undefined, undefined);
       case /* Float */2 :
           var $$float = innerLiteral._0;
-          return make$2("Float Literal (" + $$float.toString() + ")", tagged_t, makeParseActionFactories($$float, (function (input) {
+          return make$2("Float Literal (" + $$float.toString() + ")", tagged, makeParseActionFactories($$float, (function (input) {
                             return typeof input === "number";
                           })), makeSerializeActionFactories($$float), undefined, undefined);
       case /* Bool */3 :
           var bool = innerLiteral._0;
-          return make$2("Bool Literal (" + bool + ")", tagged_t, makeParseActionFactories(bool, (function (input) {
+          return make$2("Bool Literal (" + bool + ")", tagged, makeParseActionFactories(bool, (function (input) {
                             return typeof input === "boolean";
                           })), makeSerializeActionFactories(bool), undefined, undefined);
       
@@ -975,28 +975,28 @@ function factory$2(param) {
 }
 
 function strip(struct) {
-  var tagged_t = struct.t;
-  if (typeof tagged_t === "number" || tagged_t.TAG !== /* Record */4) {
+  var tagged = struct.t;
+  if (typeof tagged === "number" || tagged.TAG !== /* Record */4) {
     return panic("Can't set up unknown keys strategy. The struct is not Record");
   } else {
     return make$2(struct.n, {
                 TAG: /* Record */4,
-                fields: tagged_t.fields,
-                fieldNames: tagged_t.fieldNames,
+                fields: tagged.fields,
+                fieldNames: tagged.fieldNames,
                 unknownKeys: /* Strip */1
               }, struct.pf, struct.sf, struct.m, undefined);
   }
 }
 
 function strict(struct) {
-  var tagged_t = struct.t;
-  if (typeof tagged_t === "number" || tagged_t.TAG !== /* Record */4) {
+  var tagged = struct.t;
+  if (typeof tagged === "number" || tagged.TAG !== /* Record */4) {
     return panic("Can't set up unknown keys strategy. The struct is not Record");
   } else {
     return make$2(struct.n, {
                 TAG: /* Record */4,
-                fields: tagged_t.fields,
-                fieldNames: tagged_t.fieldNames,
+                fields: tagged.fields,
+                fieldNames: tagged.fieldNames,
                 unknownKeys: /* Strict */0
               }, struct.pf, struct.sf, struct.m, undefined);
   }
