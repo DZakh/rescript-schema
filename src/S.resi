@@ -65,7 +65,6 @@ and tagged_t =
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
-  | Deprecated({struct: t<unknown>, maybeMessage: option<string>})
   | Date
 and field<'value> = (string, t<'value>)
 
@@ -301,6 +300,12 @@ module Array: {
 
 module Defaulted: {
   type tagged = WithDefaultValue(unknown)
+
+  let classify: t<'value> => option<tagged>
+}
+
+module Deprecated: {
+  type tagged = WithoutMessage | WithMessage(string)
 
   let classify: t<'value> => option<tagged>
 }

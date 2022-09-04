@@ -350,7 +350,6 @@ and tagged_t =
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
-  | Deprecated({struct: t<unknown>, maybeMessage: option<string>})
   | Date
 and field<'value> = (string, t<'value>)
 and action<'input, 'output> =
@@ -1579,57 +1578,21 @@ module Option = {
 }
 
 module Deprecated = {
-  let factory = (innerStruct, ~message as maybeMessage=?, ()) => {
-    make(
-      ~name=`Deprecated`,
-      ~tagged_t=Deprecated({struct: innerStruct->Obj.magic, maybeMessage}),
-      ~parseActionFactories={
-        let makeSyncParseAction = fn => {
-          Action.make(
-            Sync(
-              input => {
-                switch input {
-                | Some(innerData) => Some(fn(. innerData))
-                | None => None
-                }
-              },
-            ),
-          )
-        }
+  type tagged = WithoutMessage | WithMessage(string)
 
-        switch innerStruct.parse {
-        | NoopOperation => Action.emptyArray
-        | SyncOperation(fn) => [makeSyncParseAction(fn)]
-        | AsyncOperation(fn) => [
-            makeSyncParseAction(fn),
-            Action.make(
-              Async(
-                input => {
-                  switch input {
-                  | Some(asyncFn) => asyncFn(.)->Lib.Promise.thenResolve(value => Some(value))
-                  | None => None->Lib.Promise.resolve
-                  }
-                },
-              ),
-            ),
-          ]
-        }
+  let metadataId = Metadata.Id.make(~namespace="rescript-struct", ~name="Deprecated")
+
+  let factory = (innerStruct, ~message as maybeMessage=?, ()) => {
+    Option.factory(innerStruct)->Metadata.set(
+      ~id=metadataId,
+      ~metadata=switch maybeMessage {
+      | Some(message) => WithMessage(message)
+      | None => WithoutMessage
       },
-      ~serializeActionFactories=[
-        Action.make(
-          Sync(
-            input => {
-              switch input {
-              | Some(value) => serializeInner(~struct=innerStruct, ~value)
-              | None => %raw(`undefined`)
-              }
-            },
-          ),
-        ),
-      ],
-      (),
     )
   }
+
+  let classify = struct => struct->Metadata.get(~id=metadataId)
 }
 
 module Array = {

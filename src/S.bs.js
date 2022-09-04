@@ -1362,71 +1362,16 @@ function factory$11(innerStruct) {
                 })], undefined, undefined);
 }
 
+var metadataId = "rescript-struct:Deprecated";
+
 function factory$12(innerStruct, maybeMessage, param) {
-  var makeSyncParseAction = function (fn) {
-    var partial_arg = {
-      TAG: /* Sync */0,
-      _0: (function (input) {
-          if (input !== undefined) {
-            return Caml_option.some(fn(Caml_option.valFromOption(input)));
-          }
-          
-        })
-    };
-    return function (param) {
-      return partial_arg;
-    };
-  };
-  var fn = innerStruct.p;
-  var tmp;
-  if (typeof fn === "number") {
-    tmp = emptyArray;
-  } else if (fn.TAG === /* SyncOperation */0) {
-    tmp = [makeSyncParseAction(fn._0)];
-  } else {
-    var partial_arg = {
-      TAG: /* Async */1,
-      _0: (function (input) {
-          if (input !== undefined) {
-            return input().then(function (value) {
-                        return Caml_option.some(value);
-                      });
-          } else {
-            return Promise.resolve(undefined);
-          }
-        })
-    };
-    tmp = [
-      makeSyncParseAction(fn._0),
-      (function (param) {
-          return partial_arg;
-        })
-    ];
-  }
-  var partial_arg$1 = {
-    TAG: /* Sync */0,
-    _0: (function (input) {
-        if (input === undefined) {
-          return undefined;
-        }
-        var value = Caml_option.valFromOption(input);
-        var fn = innerStruct.s;
-        if (typeof fn === "number") {
-          return value;
-        } else if (fn.TAG === /* SyncOperation */0) {
-          return fn._0(value);
-        } else {
-          return panic("Unreachable");
-        }
-      })
-  };
-  return make$2("Deprecated", {
-              TAG: /* Deprecated */8,
-              struct: innerStruct,
-              maybeMessage: maybeMessage
-            }, tmp, [(function (param) {
-                  return partial_arg$1;
-                })], undefined, undefined);
+  return set(factory$11(innerStruct), metadataId, maybeMessage !== undefined ? /* WithMessage */({
+                  _0: maybeMessage
+                }) : /* WithoutMessage */0);
+}
+
+function classify$1(struct) {
+  return get(struct, metadataId);
 }
 
 function factory$13(innerStruct) {
@@ -1702,7 +1647,7 @@ function factory$14(innerStruct) {
             }, parseActionFactories, tmp, undefined, undefined);
 }
 
-var metadataId = "rescript-struct:Defaulted";
+var metadataId$1 = "rescript-struct:Defaulted";
 
 function factory$15(innerStruct, defaultValue) {
   var partial_arg = {
@@ -1762,13 +1707,13 @@ function factory$15(innerStruct, defaultValue) {
                             };
                     })], [(function (param) {
                       return partial_arg;
-                    })], undefined, undefined), metadataId, /* WithDefaultValue */{
+                    })], undefined, undefined), metadataId$1, /* WithDefaultValue */{
               _0: defaultValue
             });
 }
 
-function classify$1(struct) {
-  return get(struct, metadataId);
+function classify$2(struct) {
+  return get(struct, metadataId$1);
 }
 
 function factory$16(param) {
@@ -2322,6 +2267,10 @@ var $$Array = {
 };
 
 var Defaulted = {
+  classify: classify$2
+};
+
+var Deprecated = {
   classify: classify$1
 };
 
@@ -2393,6 +2342,7 @@ exports.Int = Int;
 exports.Float = Float;
 exports.$$Array = $$Array;
 exports.Defaulted = Defaulted;
+exports.Deprecated = Deprecated;
 exports.Result = Result;
 exports.Metadata = Metadata;
 /*  Not a pure module */

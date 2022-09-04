@@ -613,53 +613,6 @@ module Option = {
   })
 }
 
-module Deprecated = {
-  ava->asyncTest("[Deprecated] Successfully parses", t => {
-    let struct = S.int()->validAsyncRefine->S.deprecated()
-
-    Promise.all([
-      (1->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)()->Promise.thenResolve(result => {
-        t->Assert.deepEqual(result, Ok(Some(1)), ())
-      }),
-      (
-        %raw(`undefined`)->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn
-      )()->Promise.thenResolve(result => {
-        t->Assert.deepEqual(result, Ok(None), ())
-      }),
-    ])->Promise.thenResolve(_ => ())
-  })
-
-  ava->asyncTest("[Deprecated] Fails to parse with invalid async refine", t => {
-    let struct = S.int()->invalidAsyncRefine->S.deprecated()
-
-    (1->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)()->Promise.thenResolve(result => {
-      t->Assert.deepEqual(
-        result,
-        Error({
-          S.Error.code: OperationFailed("Async user error"),
-          path: [],
-          operation: Parsing,
-        }),
-        (),
-      )
-    })
-  })
-
-  ava->test("[Deprecated] Returns sync error when fails to parse sync part of async item", t => {
-    let struct = S.int()->validAsyncRefine->S.deprecated()
-
-    t->Assert.deepEqual(
-      true->S.parseAsyncInStepsWith(struct),
-      Error({
-        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-        path: [],
-        operation: Parsing,
-      }),
-      (),
-    )
-  })
-}
-
 module Defaulted = {
   ava->asyncTest("[Defaulted] Successfully parses", t => {
     let struct = S.option(S.int()->validAsyncRefine)->validAsyncRefine->S.defaulted(10)
