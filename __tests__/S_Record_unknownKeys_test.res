@@ -44,21 +44,13 @@ ava->test("Works correctly when the same unknown keys strategy applyed multiple 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-ava->test("Raises error when unknown keys strategy applyed to a non Record struct", t => {
-  t->Assert.throws(() => {
+ava->test("Doesn't raise an error when unknown keys strategy applyed to a non Record struct", t => {
+  t->Assert.notThrows(() => {
     S.string()->S.Record.strip->ignore
-  }, ~expectations=ThrowsException.make(
-    ~name="RescriptStructError",
-    ~message=String("Can\'t set up unknown keys strategy. The struct is not Record"),
-    (),
-  ), ())
-  t->Assert.throws(() => {
+  }, ())
+  t->Assert.notThrows(() => {
     S.string()->S.Record.strict->ignore
-  }, ~expectations=ThrowsException.make(
-    ~name="RescriptStructError",
-    ~message=String("Can\'t set up unknown keys strategy. The struct is not Record"),
-    (),
-  ), ())
+  }, ())
 })
 
 ava->test("Can reset unknown keys strategy applying Strict strategy", t => {

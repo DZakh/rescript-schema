@@ -41,10 +41,6 @@ type action<'input, 'output> =
   | Sync('input => 'output)
   | Async('input => Js.Promise.t<'output>)
 
-type recordUnknownKeys =
-  | Strict
-  | Strip
-
 type rec t<'value>
 and tagged =
   | Never
@@ -57,11 +53,7 @@ and tagged =
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
-  | Record({
-      fields: Js.Dict.t<t<unknown>>,
-      fieldNames: array<string>,
-      unknownKeys: recordUnknownKeys,
-    })
+  | Record({fields: Js.Dict.t<t<unknown>>, fieldNames: array<string>})
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
@@ -130,6 +122,12 @@ let serializeOrRaiseWith: ('value, t<'value>) => unknown
 let isAsyncParse: t<'value> => bool
 
 module Record: {
+  module UnknownKeys: {
+    type tagged = Strict | Strip
+
+    let classify: t<'value> => tagged
+  }
+
   let factory: 'factory
 
   let strip: t<'value> => t<'value>
@@ -324,5 +322,11 @@ module Metadata: {
 
   let get: (t<'value>, ~id: Id.t<'metadata>) => option<'metadata>
 
-  let set: (t<'value>, ~id: Id.t<'metadata>, ~metadata: 'metadata) => t<'value>
+  let set: (
+    t<'value>,
+    ~id: Id.t<'metadata>,
+    ~metadata: 'metadata,
+    ~withParserUpdate: bool,
+    ~withSerializerUpdate: bool,
+  ) => t<'value>
 }

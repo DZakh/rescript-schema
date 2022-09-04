@@ -102,6 +102,13 @@ module Lib = {
       }
 
     @inline
+    let getWithDefault = (option, default) =>
+      switch option {
+      | Some(value) => value
+      | None => default
+      }
+
+    @inline
     let flatMap = (option, fn) =>
       switch option {
       | Some(value) => fn(value)
@@ -222,10 +229,6 @@ module Error = {
     let panic = () => panic("Unreachable")
   }
 
-  module UnknownKeysRequireRecord = {
-    let panic = () => panic("Can't set up unknown keys strategy. The struct is not Record")
-  }
-
   module UnionLackingStructs = {
     let panic = () => panic("A Union struct factory require at least two structs")
   }
@@ -307,9 +310,6 @@ type rec literal<'value> =
   | EmptyOption: literal<unit>
   | NaN: literal<unit>
 
-type recordUnknownKeys =
-  | Strict
-  | Strip
 type operation =
   | NoopOperation
   | SyncOperation((. unknown) => unknown)
@@ -342,11 +342,7 @@ and tagged =
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
-  | Record({
-      fields: Js.Dict.t<t<unknown>>,
-      fieldNames: array<string>,
-      unknownKeys: recordUnknownKeys,
-    })
+  | Record({fields: Js.Dict.t<t<unknown>>, fieldNames: array<string>})
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
@@ -365,50 +361,6 @@ external castActionFactoryToUncurried: (
 ) => action<unknown, unknown> = "%identity"
 
 type payloadedVariant<'payload> = {_0: 'payload}
-
-module Metadata = {
-  external castDictOfAnyToUnknown: Js.Dict.t<'any> => Js.Dict.t<unknown> = "%identity"
-
-  module Id: {
-    type t<'metadata>
-    let make: (~namespace: string, ~name: string) => t<'metadata>
-    external toKey: t<'metadata> => string = "%identity"
-  } = {
-    type t<'metadata> = string
-
-    let make = (~namespace, ~name) => {
-      `${namespace}:${name}`
-    }
-
-    external toKey: t<'metadata> => string = "%identity"
-  }
-
-  module Change = {
-    let make = (~id: Id.t<'metadata>, ~metadata: 'metadata) => {
-      let metadataChange = Js.Dict.empty()
-      metadataChange->Js.Dict.set(id->Id.toKey, metadata)
-      metadataChange->castDictOfAnyToUnknown
-    }
-  }
-
-  let get = (struct, ~id: Id.t<'metadata>): option<'metadata> => {
-    struct.maybeMetadataDict->Lib.Option.flatMap(metadataDict => {
-      metadataDict->Js.Dict.get(id->Id.toKey)->Obj.magic
-    })
-  }
-
-  let set = (struct, ~id: Id.t<'metadata>, ~metadata: 'metadata) => {
-    {
-      ...struct,
-      maybeMetadataDict: Some(
-        Lib.Dict.immutableShallowMerge(
-          struct.maybeMetadataDict->Belt.Option.getUnsafe,
-          Change.make(~id, ~metadata),
-        ),
-      ),
-    }
-  }
-}
 
 @inline
 let classify = struct => struct.tagged
@@ -631,6 +583,75 @@ let serializeOrRaiseWith = (value, struct) => {
   } catch {
   | Error.Internal.Exception(internalError) =>
     raise(Raised(internalError->Error.Internal.toSerializeError))
+  }
+}
+
+module Metadata = {
+  external castDictOfAnyToUnknown: Js.Dict.t<'any> => Js.Dict.t<unknown> = "%identity"
+
+  module Id: {
+    type t<'metadata>
+    let make: (~namespace: string, ~name: string) => t<'metadata>
+    external toKey: t<'metadata> => string = "%identity"
+  } = {
+    type t<'metadata> = string
+
+    let make = (~namespace, ~name) => {
+      `${namespace}:${name}`
+    }
+
+    external toKey: t<'metadata> => string = "%identity"
+  }
+
+  module Change = {
+    @inline
+    let make = (~id: Id.t<'metadata>, ~metadata: 'metadata) => {
+      let metadataChange = Js.Dict.empty()
+      metadataChange->Js.Dict.set(id->Id.toKey, metadata)
+      metadataChange->castDictOfAnyToUnknown
+    }
+  }
+
+  let get = (struct, ~id: Id.t<'metadata>): option<'metadata> => {
+    struct.maybeMetadataDict->Lib.Option.flatMap(metadataDict => {
+      metadataDict->Js.Dict.get(id->Id.toKey)->Obj.magic
+    })
+  }
+
+  let set = (
+    struct,
+    ~id: Id.t<'metadata>,
+    ~metadata: 'metadata,
+    ~withParserUpdate,
+    ~withSerializerUpdate,
+  ) => {
+    let structWithNewMetadata = {
+      ...struct,
+      maybeMetadataDict: Some(
+        Lib.Dict.immutableShallowMerge(
+          struct.maybeMetadataDict->Obj.magic,
+          Change.make(~id, ~metadata),
+        ),
+      ),
+    }
+    switch (withParserUpdate, withSerializerUpdate) {
+    | (false, false) => structWithNewMetadata
+    | _ => {
+        ...structWithNewMetadata,
+        parse: withParserUpdate
+          ? makeOperation(
+              ~actionFactories=structWithNewMetadata.parseActionFactories,
+              ~struct=structWithNewMetadata,
+            )
+          : structWithNewMetadata.parse,
+        serialize: withSerializerUpdate
+          ? makeOperation(
+              ~actionFactories=structWithNewMetadata.serializeActionFactories,
+              ~struct=structWithNewMetadata,
+            )
+          : structWithNewMetadata.serialize,
+      }
+    }
   }
 }
 
@@ -1005,10 +1026,17 @@ module Literal = {
 }
 
 module Record = {
-  type payload = {
-    fields: Js.Dict.t<t<unknown>>,
-    fieldNames: array<string>,
-    unknownKeys: recordUnknownKeys,
+  module UnknownKeys = {
+    type tagged =
+      | Strict
+      | Strip
+
+    let metadataId: Metadata.Id.t<tagged> = Metadata.Id.make(
+      ~namespace="rescript-struct",
+      ~name="Record_UnknownKeys",
+    )
+
+    let classify = struct => struct->Metadata.get(~id=metadataId)->Lib.Option.getWithDefault(Strip)
   }
 
   let getMaybeExcessKey: (
@@ -1030,7 +1058,7 @@ module Record = {
 
       make(
         ~name="Record",
-        ~tagged=Record({fields, fieldNames, unknownKeys: Strip}),
+        ~tagged=Record({fields, fieldNames}),
         ~parseActionFactories={
           let noopOps = []
           let syncOps = []
@@ -1050,47 +1078,49 @@ module Record = {
           let withAsyncOps = asyncOps->Js.Array2.length > 0
 
           let parseActionFactories = [
-            Action.factory((~struct) => Sync(
-              input => {
-                if input->Lib.Object.test === false {
-                  raiseUnexpectedTypeError(~input, ~struct)
-                }
-
-                let newArray = []
-
-                for idx in 0 to syncOps->Js.Array2.length - 1 {
-                  let (originalIdx, fieldName, fn) = syncOps->Js.Array2.unsafe_get(idx)
-                  let fieldData = input->Js.Dict.unsafeGet(fieldName)
-                  try {
-                    let value = fn(. fieldData)
-                    newArray->Lib.Array.set(originalIdx, value)
-                  } catch {
-                  | Error.Internal.Exception(internalError) =>
-                    raise(
-                      Error.Internal.Exception(
-                        internalError->Error.Internal.prependLocation(fieldName),
-                      ),
-                    )
+            Action.factory((~struct) => {
+              let unknownKeys = struct->UnknownKeys.classify
+              Sync(
+                input => {
+                  if input->Lib.Object.test === false {
+                    raiseUnexpectedTypeError(~input, ~struct)
                   }
-                }
 
-                for idx in 0 to noopOps->Js.Array2.length - 1 {
-                  let (originalIdx, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
-                  let fieldData = input->Js.Dict.unsafeGet(fieldName)
-                  newArray->Lib.Array.set(originalIdx, fieldData)
-                }
+                  let newArray = []
 
-                let {unknownKeys} = struct->classify->Obj.magic
-                if unknownKeys === Strict {
-                  switch getMaybeExcessKey(. input->castAnyToUnknown, fields) {
-                  | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
-                  | None => ()
+                  for idx in 0 to syncOps->Js.Array2.length - 1 {
+                    let (originalIdx, fieldName, fn) = syncOps->Js.Array2.unsafe_get(idx)
+                    let fieldData = input->Js.Dict.unsafeGet(fieldName)
+                    try {
+                      let value = fn(. fieldData)
+                      newArray->Lib.Array.set(originalIdx, value)
+                    } catch {
+                    | Error.Internal.Exception(internalError) =>
+                      raise(
+                        Error.Internal.Exception(
+                          internalError->Error.Internal.prependLocation(fieldName),
+                        ),
+                      )
+                    }
                   }
-                }
 
-                withAsyncOps ? newArray->castAnyToUnknown : newArray->Lib.Array.toTuple
-              },
-            )),
+                  for idx in 0 to noopOps->Js.Array2.length - 1 {
+                    let (originalIdx, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
+                    let fieldData = input->Js.Dict.unsafeGet(fieldName)
+                    newArray->Lib.Array.set(originalIdx, fieldData)
+                  }
+
+                  if unknownKeys === UnknownKeys.Strict {
+                    switch getMaybeExcessKey(. input->castAnyToUnknown, fields) {
+                    | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
+                    | None => ()
+                    }
+                  }
+
+                  withAsyncOps ? newArray->castAnyToUnknown : newArray->Lib.Array.toTuple
+                },
+              )
+            }),
           ]
 
           if withAsyncOps {
@@ -1167,35 +1197,21 @@ module Record = {
   )->Obj.magic
 
   let strip = struct => {
-    let tagged = struct->classify
-    switch tagged {
-    | Record({fields, fieldNames}) =>
-      make(
-        ~name=struct.name,
-        ~tagged=Record({fields, fieldNames, unknownKeys: Strip}),
-        ~parseActionFactories=struct.parseActionFactories,
-        ~serializeActionFactories=struct.serializeActionFactories,
-        ~metadataDict=?struct.maybeMetadataDict,
-        (),
-      )
-    | _ => Error.UnknownKeysRequireRecord.panic()
-    }
+    struct->Metadata.set(
+      ~id=UnknownKeys.metadataId,
+      ~metadata=UnknownKeys.Strip,
+      ~withParserUpdate=true,
+      ~withSerializerUpdate=false,
+    )
   }
 
   let strict = struct => {
-    let tagged = struct->classify
-    switch tagged {
-    | Record({fields, fieldNames}) =>
-      make(
-        ~name=struct.name,
-        ~tagged=Record({fields, fieldNames, unknownKeys: Strict}),
-        ~parseActionFactories=struct.parseActionFactories,
-        ~serializeActionFactories=struct.serializeActionFactories,
-        ~metadataDict=?struct.maybeMetadataDict,
-        (),
-      )
-    | _ => Error.UnknownKeysRequireRecord.panic()
-    }
+    struct->Metadata.set(
+      ~id=UnknownKeys.metadataId,
+      ~metadata=UnknownKeys.Strict,
+      ~withParserUpdate=true,
+      ~withSerializerUpdate=false,
+    )
   }
 }
 
@@ -1260,7 +1276,7 @@ module String = {
     let refiner = value =>
       if value->Js.String2.length < length {
         Error.raise(
-          maybeMessage->Belt.Option.getWithDefault(
+          maybeMessage->Lib.Option.getWithDefault(
             `String must be ${length->Js.Int.toString} or more characters long`,
           ),
         )
@@ -1272,7 +1288,7 @@ module String = {
     let refiner = value =>
       if value->Js.String2.length > length {
         Error.raise(
-          maybeMessage->Belt.Option.getWithDefault(
+          maybeMessage->Lib.Option.getWithDefault(
             `String must be ${length->Js.Int.toString} or fewer characters long`,
           ),
         )
@@ -1284,7 +1300,7 @@ module String = {
     let refiner = value =>
       if value->Js.String2.length !== length {
         Error.raise(
-          maybeMessage->Belt.Option.getWithDefault(
+          maybeMessage->Lib.Option.getWithDefault(
             `String must be exactly ${length->Js.Int.toString} characters long`,
           ),
         )
@@ -1391,7 +1407,7 @@ module Int = {
     let refiner = value => {
       if value < thanValue {
         Error.raise(
-          maybeMessage->Belt.Option.getWithDefault(
+          maybeMessage->Lib.Option.getWithDefault(
             `Number must be greater than or equal to ${thanValue->Js.Int.toString}`,
           ),
         )
@@ -1404,7 +1420,7 @@ module Int = {
     let refiner = value => {
       if value > thanValue {
         Error.raise(
-          maybeMessage->Belt.Option.getWithDefault(
+          maybeMessage->Lib.Option.getWithDefault(
             `Number must be lower than or equal to ${thanValue->Js.Int.toString}`,
           ),
         )
@@ -1589,6 +1605,8 @@ module Deprecated = {
       | Some(message) => WithMessage(message)
       | None => WithoutMessage
       },
+      ~withParserUpdate=false,
+      ~withSerializerUpdate=false,
     )
   }
 
@@ -1709,7 +1727,7 @@ module Array = {
     let refiner = value => {
       if value->Js.Array2.length < length {
         Error.raise(
-          maybeMessage->Belt.Option.getWithDefault(
+          maybeMessage->Lib.Option.getWithDefault(
             `Array must be ${length->Js.Int.toString} or more items long`,
           ),
         )
@@ -1722,7 +1740,7 @@ module Array = {
     let refiner = value => {
       if value->Js.Array2.length > length {
         Error.raise(
-          maybeMessage->Belt.Option.getWithDefault(
+          maybeMessage->Lib.Option.getWithDefault(
             `Array must be ${length->Js.Int.toString} or fewer items long`,
           ),
         )
@@ -1735,7 +1753,7 @@ module Array = {
     let refiner = value => {
       if value->Js.Array2.length !== length {
         Error.raise(
-          maybeMessage->Belt.Option.getWithDefault(
+          maybeMessage->Lib.Option.getWithDefault(
             `Array must be exactly ${length->Js.Int.toString} items long`,
           ),
         )
@@ -1889,29 +1907,20 @@ module Defaulted = {
           | NoopOperation =>
             Sync(
               input => {
-                switch input->castUnknownToAny {
-                | Some(output) => output
-                | None => defaultValue
-                }
+                input->castUnknownToAny->Lib.Option.getWithDefault(defaultValue)
               },
             )
           | SyncOperation(fn) =>
             Sync(
               input => {
-                switch fn(. input)->castUnknownToAny {
-                | Some(output) => output
-                | None => defaultValue
-                }
+                fn(. input)->castUnknownToAny->Lib.Option.getWithDefault(defaultValue)
               },
             )
           | AsyncOperation(fn) =>
             Async(
               input => {
                 fn(. input)(.)->Lib.Promise.thenResolve(value => {
-                  switch value->castUnknownToAny {
-                  | Some(output) => output
-                  | None => defaultValue
-                  }
+                  value->castUnknownToAny->Lib.Option.getWithDefault(defaultValue)
                 })
               },
             )
@@ -1928,7 +1937,12 @@ module Defaulted = {
         ),
       ],
       (),
-    )->Metadata.set(~id=metadataId, ~metadata=WithDefaultValue(defaultValue->castAnyToUnknown))
+    )->Metadata.set(
+      ~id=metadataId,
+      ~metadata=WithDefaultValue(defaultValue->castAnyToUnknown),
+      ~withParserUpdate=false,
+      ~withSerializerUpdate=false,
+    )
   }
 
   let classify = struct => struct->Metadata.get(~id=metadataId)
@@ -2308,7 +2322,7 @@ let json = innerStruct => {
   ->transform(~parser=jsonString => {
     try jsonString->Js.Json.parseExn catch {
     | Js.Exn.Error(obj) =>
-      Error.raise(obj->Js.Exn.message->Belt.Option.getWithDefault("Failed to parse JSON"))
+      Error.raise(obj->Js.Exn.message->Lib.Option.getWithDefault("Failed to parse JSON"))
     }
   }, ~serializer=Js.Json.stringify, ())
   ->advancedTransform(
