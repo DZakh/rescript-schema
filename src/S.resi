@@ -66,7 +66,6 @@ and tagged_t =
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
   | Deprecated({struct: t<unknown>, maybeMessage: option<string>})
-  | Default({struct: t<option<unknown>>, value: unknown})
   | Date
 and field<'value> = (string, t<'value>)
 
@@ -83,10 +82,11 @@ let array: t<'value> => t<array<'value>>
 let dict: t<'value> => t<Js.Dict.t<'value>>
 let option: t<'value> => t<option<'value>>
 let null: t<'value> => t<option<'value>>
-let deprecated: (t<'value>, ~message: string=?, unit) => t<option<'value>>
-let default: (t<option<'value>>, 'value) => t<'value>
 let json: t<'value> => t<'value>
 let union: array<t<'value>> => t<'value>
+
+let deprecated: (t<'value>, ~message: string=?, unit) => t<option<'value>>
+let defaulted: (t<option<'value>>, 'value) => t<'value>
 
 let transform: (
   t<'value>,
@@ -299,20 +299,25 @@ module Array: {
   let length: (t<array<'a>>, ~message: string=?, int) => t<array<'a>>
 }
 
+module Defaulted: {
+  type tagged = WithDefaultValue(unknown)
+
+  let classify: t<'value> => option<tagged>
+}
+
 module Result: {
   let getExn: result<'a, Error.t> => 'a
 
   let mapErrorToString: result<'a, Error.t> => result<'a, string>
 }
 
-module MakeMetadata: (
-  Config: {
-    type content
-    let namespace: string
-  },
-) =>
-{
-  let get: t<'value> => option<Config.content>
+module Metadata: {
+  module Id: {
+    type t<'metadata>
+    let make: (~namespace: string, ~name: string) => t<'metadata>
+  }
 
-  let set: (t<'value>, Config.content) => t<'value>
+  let get: (t<'value>, ~id: Id.t<'metadata>) => option<'metadata>
+
+  let set: (t<'value>, ~id: Id.t<'metadata>, ~metadata: 'metadata) => t<'value>
 }

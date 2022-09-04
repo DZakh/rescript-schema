@@ -171,6 +171,40 @@ function toString(error) {
 
 var Raised = /* @__PURE__ */Caml_exceptions.create("S.Raised");
 
+function make(namespace, name) {
+  return "" + namespace + ":" + name + "";
+}
+
+var Id = {
+  make: make
+};
+
+function make$1(id, metadata) {
+  var metadataChange = {};
+  metadataChange[id] = metadata;
+  return metadataChange;
+}
+
+function get(struct, id) {
+  var option = struct.m;
+  if (option !== undefined) {
+    return Js_dict.get(Caml_option.valFromOption(option), id);
+  }
+  
+}
+
+function set(struct, id, metadata) {
+  return {
+          n: struct.n,
+          t: struct.t,
+          pf: struct.pf,
+          sf: struct.sf,
+          s: struct.s,
+          p: struct.p,
+          m: Caml_option.some(Object.assign({}, struct.m, make$1(id, metadata)))
+        };
+}
+
 function classify(struct) {
   return struct.t;
 }
@@ -294,7 +328,7 @@ function makeOperation(actionFactories, struct) {
   }
 }
 
-function make(name, tagged_t, parseActionFactories, serializeActionFactories, maybeMetadata, param) {
+function make$2(name, tagged_t, parseActionFactories, serializeActionFactories, maybeMetadataDict, param) {
   var struct_s = undefined;
   var struct_p = undefined;
   var struct = {
@@ -304,7 +338,7 @@ function make(name, tagged_t, parseActionFactories, serializeActionFactories, ma
     sf: serializeActionFactories,
     s: struct_s,
     p: struct_p,
-    m: maybeMetadata
+    m: maybeMetadataDict
   };
   return {
           n: name,
@@ -313,7 +347,7 @@ function make(name, tagged_t, parseActionFactories, serializeActionFactories, ma
           sf: serializeActionFactories,
           s: makeOperation(serializeActionFactories, struct),
           p: makeOperation(parseActionFactories, struct),
-          m: maybeMetadata
+          m: maybeMetadataDict
         };
 }
 
@@ -574,7 +608,7 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
   } else {
     tmp = struct.sf;
   }
-  return make(struct.n, struct.t, maybeParseActionFactory !== undefined ? struct.pf.concat([maybeParseActionFactory]) : struct.pf, tmp, struct.m, undefined);
+  return make$2(struct.n, struct.t, maybeParseActionFactory !== undefined ? struct.pf.concat([maybeParseActionFactory]) : struct.pf, tmp, struct.m, undefined);
 }
 
 function asyncRefine(struct, parser, param) {
@@ -589,7 +623,7 @@ function asyncRefine(struct, parser, param) {
   var parser$1 = function (param) {
     return partial_arg;
   };
-  return make(struct.n, struct.t, struct.pf.concat([parser$1]), struct.sf, struct.m, undefined);
+  return make$2(struct.n, struct.t, struct.pf.concat([parser$1]), struct.sf, struct.m, undefined);
 }
 
 function transform(struct, maybeTransformationParser, maybeTransformationSerializer, param) {
@@ -620,14 +654,14 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
   } else {
     serializer = missingSerializer;
   }
-  return make(struct.n, struct.t, struct.pf.concat([parser]), [serializer].concat(struct.sf), struct.m, undefined);
+  return make$2(struct.n, struct.t, struct.pf.concat([parser]), [serializer].concat(struct.sf), struct.m, undefined);
 }
 
 function advancedTransform(struct, maybeTransformationParser, maybeTransformationSerializer, param) {
   if (maybeTransformationParser === undefined && maybeTransformationSerializer === undefined) {
     panic$1("struct factory Transform");
   }
-  return make(struct.n, struct.t, struct.pf.concat([maybeTransformationParser !== undefined ? maybeTransformationParser : missingParser]), [maybeTransformationSerializer !== undefined ? maybeTransformationSerializer : missingSerializer].concat(struct.sf), struct.m, undefined);
+  return make$2(struct.n, struct.t, struct.pf.concat([maybeTransformationParser !== undefined ? maybeTransformationParser : missingParser]), [maybeTransformationSerializer !== undefined ? maybeTransformationSerializer : missingSerializer].concat(struct.sf), struct.m, undefined);
 }
 
 function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
@@ -646,7 +680,7 @@ function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
   } else {
     tmp = missingSerializer;
   }
-  return make(name, /* Unknown */1, [maybeCustomParser !== undefined ? (function (param) {
+  return make$2(name, /* Unknown */1, [maybeCustomParser !== undefined ? (function (param) {
                     return {
                             TAG: /* Sync */0,
                             _0: (function (input) {
@@ -697,7 +731,7 @@ function factory(innerLiteral, variant) {
   if (typeof innerLiteral === "number") {
     switch (innerLiteral) {
       case /* EmptyNull */0 :
-          return make("EmptyNull Literal (null)", tagged_t, [(function (struct) {
+          return make$2("EmptyNull Literal (null)", tagged_t, [(function (struct) {
                           return {
                                   TAG: /* Sync */0,
                                   _0: (function (input) {
@@ -710,7 +744,7 @@ function factory(innerLiteral, variant) {
                                 };
                         })], makeSerializeActionFactories(null), undefined, undefined);
       case /* EmptyOption */1 :
-          return make("EmptyOption Literal (undefined)", tagged_t, [(function (struct) {
+          return make$2("EmptyOption Literal (undefined)", tagged_t, [(function (struct) {
                           return {
                                   TAG: /* Sync */0,
                                   _0: (function (input) {
@@ -723,7 +757,7 @@ function factory(innerLiteral, variant) {
                                 };
                         })], makeSerializeActionFactories(undefined), undefined, undefined);
       case /* NaN */2 :
-          return make("NaN Literal (NaN)", tagged_t, [(function (struct) {
+          return make$2("NaN Literal (NaN)", tagged_t, [(function (struct) {
                           return {
                                   TAG: /* Sync */0,
                                   _0: (function (input) {
@@ -741,12 +775,12 @@ function factory(innerLiteral, variant) {
     switch (innerLiteral.TAG | 0) {
       case /* String */0 :
           var string = innerLiteral._0;
-          return make("String Literal (\"" + string + "\")", tagged_t, makeParseActionFactories(string, (function (input) {
+          return make$2("String Literal (\"" + string + "\")", tagged_t, makeParseActionFactories(string, (function (input) {
                             return typeof input === "string";
                           })), makeSerializeActionFactories(string), undefined, undefined);
       case /* Int */1 :
           var $$int = innerLiteral._0;
-          return make("Int Literal (" + $$int.toString() + ")", tagged_t, makeParseActionFactories($$int, (function (input) {
+          return make$2("Int Literal (" + $$int.toString() + ")", tagged_t, makeParseActionFactories($$int, (function (input) {
                             if (typeof input === "number" && input < 2147483648 && input > -2147483649) {
                               return input === Math.trunc(input);
                             } else {
@@ -755,12 +789,12 @@ function factory(innerLiteral, variant) {
                           })), makeSerializeActionFactories($$int), undefined, undefined);
       case /* Float */2 :
           var $$float = innerLiteral._0;
-          return make("Float Literal (" + $$float.toString() + ")", tagged_t, makeParseActionFactories($$float, (function (input) {
+          return make$2("Float Literal (" + $$float.toString() + ")", tagged_t, makeParseActionFactories($$float, (function (input) {
                             return typeof input === "number";
                           })), makeSerializeActionFactories($$float), undefined, undefined);
       case /* Bool */3 :
           var bool = innerLiteral._0;
-          return make("Bool Literal (" + bool + ")", tagged_t, makeParseActionFactories(bool, (function (input) {
+          return make$2("Bool Literal (" + bool + ")", tagged_t, makeParseActionFactories(bool, (function (input) {
                             return typeof input === "boolean";
                           })), makeSerializeActionFactories(bool), undefined, undefined);
       
@@ -896,7 +930,7 @@ function factory$2(param) {
           return partial_arg;
         });
   }
-  return make("Record", {
+  return make$2("Record", {
               TAG: /* Record */4,
               fields: fields,
               fieldNames: fieldNames,
@@ -945,7 +979,7 @@ function strip(struct) {
   if (typeof tagged_t === "number" || tagged_t.TAG !== /* Record */4) {
     return panic("Can't set up unknown keys strategy. The struct is not Record");
   } else {
-    return make(struct.n, {
+    return make$2(struct.n, {
                 TAG: /* Record */4,
                 fields: tagged_t.fields,
                 fieldNames: tagged_t.fieldNames,
@@ -959,7 +993,7 @@ function strict(struct) {
   if (typeof tagged_t === "number" || tagged_t.TAG !== /* Record */4) {
     return panic("Can't set up unknown keys strategy. The struct is not Record");
   } else {
-    return make(struct.n, {
+    return make$2(struct.n, {
                 TAG: /* Record */4,
                 fields: tagged_t.fields,
                 fieldNames: tagged_t.fieldNames,
@@ -977,11 +1011,11 @@ function factory$3(param) {
                   })
               };
       })];
-  return make("Never", /* Never */0, actionFactories, actionFactories, undefined, undefined);
+  return make$2("Never", /* Never */0, actionFactories, actionFactories, undefined, undefined);
 }
 
 function factory$4(param) {
-  return make("Unknown", /* Unknown */1, emptyArray, emptyArray, undefined, undefined);
+  return make$2("Unknown", /* Unknown */1, emptyArray, emptyArray, undefined, undefined);
 }
 
 var cuidRegex = /^c[^\s-]{8,}$/i;
@@ -991,7 +1025,7 @@ var uuidRegex = /^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]
 var emailRegex = /^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i;
 
 function factory$5(param) {
-  return make("String", /* String */2, [(function (struct) {
+  return make$2("String", /* String */2, [(function (struct) {
                   return {
                           TAG: /* Sync */0,
                           _0: (function (input) {
@@ -1107,7 +1141,7 @@ function trimmed(struct, param) {
 }
 
 function factory$6(param) {
-  return make("Bool", /* Bool */5, [(function (struct) {
+  return make$2("Bool", /* Bool */5, [(function (struct) {
                   return {
                           TAG: /* Sync */0,
                           _0: (function (input) {
@@ -1122,7 +1156,7 @@ function factory$6(param) {
 }
 
 function factory$7(param) {
-  return make("Int", /* Int */3, [(function (struct) {
+  return make$2("Int", /* Int */3, [(function (struct) {
                   return {
                           TAG: /* Sync */0,
                           _0: (function (input) {
@@ -1157,7 +1191,7 @@ function max$1(struct, maybeMessage, thanValue) {
 }
 
 function factory$8(param) {
-  return make("Float", /* Float */4, [(function (struct) {
+  return make$2("Float", /* Float */4, [(function (struct) {
                   return {
                           TAG: /* Sync */0,
                           _0: (function (input) {
@@ -1172,7 +1206,7 @@ function factory$8(param) {
 }
 
 function factory$9(param) {
-  return make("Date", /* Date */6, [(function (struct) {
+  return make$2("Date", /* Date */6, [(function (struct) {
                   return {
                           TAG: /* Sync */0,
                           _0: (function (input) {
@@ -1239,7 +1273,7 @@ function factory$10(innerStruct) {
         })
     ];
   }
-  return make("Null", {
+  return make$2("Null", {
               TAG: /* Null */2,
               _0: innerStruct
             }, tmp, [(function (param) {
@@ -1304,7 +1338,7 @@ function factory$11(innerStruct) {
         })
     ];
   }
-  return make("Option", {
+  return make$2("Option", {
               TAG: /* Option */1,
               _0: innerStruct
             }, tmp, [(function (param) {
@@ -1386,7 +1420,7 @@ function factory$12(innerStruct, maybeMessage, param) {
         }
       })
   };
-  return make("Deprecated", {
+  return make$2("Deprecated", {
               TAG: /* Deprecated */8,
               struct: innerStruct,
               maybeMessage: maybeMessage
@@ -1498,7 +1532,7 @@ function factory$13(innerStruct) {
   } else {
     tmp = panic("Unreachable");
   }
-  return make("Array", {
+  return make$2("Array", {
               TAG: /* Array */3,
               _0: innerStruct
             }, parseActionFactories, tmp, undefined, undefined);
@@ -1662,64 +1696,16 @@ function factory$14(innerStruct) {
   } else {
     tmp = panic("Unreachable");
   }
-  return make("Dict", {
+  return make$2("Dict", {
               TAG: /* Dict */7,
               _0: innerStruct
             }, parseActionFactories, tmp, undefined, undefined);
 }
 
+var metadataId = "rescript-struct:Defaulted";
+
 function factory$15(innerStruct, defaultValue) {
-  var fn = innerStruct.p;
-  var tmp;
-  if (typeof fn === "number") {
-    var partial_arg = {
-      TAG: /* Sync */0,
-      _0: (function (input) {
-          if (input !== undefined) {
-            return Caml_option.valFromOption(input);
-          } else {
-            return defaultValue;
-          }
-        })
-    };
-    tmp = [(function (param) {
-          return partial_arg;
-        })];
-  } else if (fn.TAG === /* SyncOperation */0) {
-    var fn$1 = fn._0;
-    var partial_arg$1 = {
-      TAG: /* Sync */0,
-      _0: (function (input) {
-          var output = fn$1(input);
-          if (output !== undefined) {
-            return Caml_option.valFromOption(output);
-          } else {
-            return defaultValue;
-          }
-        })
-    };
-    tmp = [(function (param) {
-          return partial_arg$1;
-        })];
-  } else {
-    var fn$2 = fn._0;
-    var partial_arg$2 = {
-      TAG: /* Async */1,
-      _0: (function (input) {
-          return fn$2(input)().then(function (value) {
-                      if (value !== undefined) {
-                        return Caml_option.valFromOption(value);
-                      } else {
-                        return defaultValue;
-                      }
-                    });
-        })
-    };
-    tmp = [(function (param) {
-          return partial_arg$2;
-        })];
-  }
-  var partial_arg$3 = {
+  var partial_arg = {
     TAG: /* Sync */0,
     _0: (function (input) {
         var value = Caml_option.some(input);
@@ -1733,13 +1719,56 @@ function factory$15(innerStruct, defaultValue) {
         }
       })
   };
-  return make("Default", {
-              TAG: /* Default */9,
-              struct: innerStruct,
-              value: defaultValue
-            }, tmp, [(function (param) {
-                  return partial_arg$3;
-                })], undefined, undefined);
+  return set(make$2(innerStruct.n, innerStruct.t, [(function (param) {
+                      var fn = innerStruct.p;
+                      if (typeof fn === "number") {
+                        return {
+                                TAG: /* Sync */0,
+                                _0: (function (input) {
+                                    if (input !== undefined) {
+                                      return Caml_option.valFromOption(input);
+                                    } else {
+                                      return defaultValue;
+                                    }
+                                  })
+                              };
+                      }
+                      if (fn.TAG === /* SyncOperation */0) {
+                        var fn$1 = fn._0;
+                        return {
+                                TAG: /* Sync */0,
+                                _0: (function (input) {
+                                    var output = fn$1(input);
+                                    if (output !== undefined) {
+                                      return Caml_option.valFromOption(output);
+                                    } else {
+                                      return defaultValue;
+                                    }
+                                  })
+                              };
+                      }
+                      var fn$2 = fn._0;
+                      return {
+                              TAG: /* Async */1,
+                              _0: (function (input) {
+                                  return fn$2(input)().then(function (value) {
+                                              if (value !== undefined) {
+                                                return Caml_option.valFromOption(value);
+                                              } else {
+                                                return defaultValue;
+                                              }
+                                            });
+                                })
+                            };
+                    })], [(function (param) {
+                      return partial_arg;
+                    })], undefined, undefined), metadataId, /* WithDefaultValue */{
+              _0: defaultValue
+            });
+}
+
+function classify$1(struct) {
+  return get(struct, metadataId);
 }
 
 function factory$16(param) {
@@ -1852,7 +1881,7 @@ function factory$16(param) {
           return partial_arg;
         });
   }
-  return make("Tuple", {
+  return make$2("Tuple", {
               TAG: /* Tuple */5,
               _0: structs
             }, parseActionFactories, [(function (param) {
@@ -2077,7 +2106,7 @@ function factory$17(structs) {
     }
     parseActionFactories = parseActionFactories$1;
   }
-  return make("Union", {
+  return make$2("Union", {
               TAG: /* Union */6,
               _0: structs
             }, parseActionFactories, serializeActionFactories, undefined, undefined);
@@ -2208,11 +2237,11 @@ var option = factory$11;
 
 var $$null = factory$10;
 
+var union = factory$17;
+
 var deprecated = factory$12;
 
-var $$default = factory$15;
-
-var union = factory$17;
+var defaulted = factory$15;
 
 var Record = {
   factory: factory$2,
@@ -2292,38 +2321,15 @@ var $$Array = {
   length: length$1
 };
 
-function MakeMetadata(funarg) {
-  var get = function (struct) {
-    var option = struct.m;
-    if (option !== undefined) {
-      return Caml_option.some(Js_dict.get(Caml_option.valFromOption(option), funarg.namespace));
-    }
-    
-  };
-  var dictUnsafeSet = function (dict, key, value) {
-    return ({
-      ...dict,
-      [key]: value,
-    });
-  };
-  var set = function (struct, content) {
-    var currentContent = struct.m;
-    var existingContent = currentContent !== undefined ? Caml_option.valFromOption(currentContent) : ({});
-    return {
-            n: struct.n,
-            t: struct.t,
-            pf: struct.pf,
-            sf: struct.sf,
-            s: struct.s,
-            p: struct.p,
-            m: Caml_option.some(dictUnsafeSet(existingContent, funarg.namespace, content))
-          };
-  };
-  return {
-          get: get,
-          set: set
-        };
-}
+var Defaulted = {
+  classify: classify$1
+};
+
+var Metadata = {
+  Id: Id,
+  get: get,
+  set: set
+};
 
 exports.$$Error = $$Error;
 exports.Raised = Raised;
@@ -2340,12 +2346,10 @@ exports.array = array;
 exports.dict = dict;
 exports.option = option;
 exports.$$null = $$null;
-exports.deprecated = deprecated;
-exports.$$default = $$default;
-exports.default = $$default;
-exports.__esModule = true;
 exports.json = json;
 exports.union = union;
+exports.deprecated = deprecated;
+exports.defaulted = defaulted;
 exports.transform = transform;
 exports.advancedTransform = advancedTransform;
 exports.custom = custom;
@@ -2388,6 +2392,7 @@ exports.$$String = $$String;
 exports.Int = Int;
 exports.Float = Float;
 exports.$$Array = $$Array;
+exports.Defaulted = Defaulted;
 exports.Result = Result;
-exports.MakeMetadata = MakeMetadata;
+exports.Metadata = Metadata;
 /*  Not a pure module */

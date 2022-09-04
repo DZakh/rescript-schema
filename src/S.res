@@ -100,6 +100,13 @@ module Lib = {
       | Some(value) => Some(fn(value))
       | None => None
       }
+
+    @inline
+    let flatMap = (option, fn) =>
+      switch option {
+      | Some(value) => fn(value)
+      | None => None
+      }
   }
 
   module Int = {
@@ -117,6 +124,15 @@ module Lib = {
 
   module Exn = {
     let throw: exn => 'a = %raw(`function(exn){throw exn}`)
+  }
+
+  module Dict = {
+    @val
+    external immutableShallowMerge: (
+      @as(json`{}`) _,
+      Js.Dict.t<'a>,
+      Js.Dict.t<'a>,
+    ) => Js.Dict.t<'a> = "Object.assign"
   }
 }
 
@@ -313,7 +329,7 @@ type rec t<'value> = {
   @as("p")
   parse: operation,
   @as("m")
-  maybeMetadata: option<Js.Dict.t<unknown>>,
+  maybeMetadataDict: option<Js.Dict.t<unknown>>,
 }
 and tagged_t =
   | Never
@@ -335,7 +351,6 @@ and tagged_t =
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
   | Deprecated({struct: t<unknown>, maybeMessage: option<string>})
-  | Default({struct: t<option<unknown>>, value: unknown})
   | Date
 and field<'value> = (string, t<'value>)
 and action<'input, 'output> =
@@ -351,6 +366,50 @@ external castActionFactoryToUncurried: (
 ) => action<unknown, unknown> = "%identity"
 
 type payloadedVariant<'payload> = {_0: 'payload}
+
+module Metadata = {
+  external castDictOfAnyToUnknown: Js.Dict.t<'any> => Js.Dict.t<unknown> = "%identity"
+
+  module Id: {
+    type t<'metadata>
+    let make: (~namespace: string, ~name: string) => t<'metadata>
+    external toKey: t<'metadata> => string = "%identity"
+  } = {
+    type t<'metadata> = string
+
+    let make = (~namespace, ~name) => {
+      `${namespace}:${name}`
+    }
+
+    external toKey: t<'metadata> => string = "%identity"
+  }
+
+  module Change = {
+    let make = (~id: Id.t<'metadata>, ~metadata: 'metadata) => {
+      let metadataChange = Js.Dict.empty()
+      metadataChange->Js.Dict.set(id->Id.toKey, metadata)
+      metadataChange->castDictOfAnyToUnknown
+    }
+  }
+
+  let get = (struct, ~id: Id.t<'metadata>): option<'metadata> => {
+    struct.maybeMetadataDict->Lib.Option.flatMap(metadataDict => {
+      metadataDict->Js.Dict.get(id->Id.toKey)->Obj.magic
+    })
+  }
+
+  let set = (struct, ~id: Id.t<'metadata>, ~metadata: 'metadata) => {
+    {
+      ...struct,
+      maybeMetadataDict: Some(
+        Lib.Dict.immutableShallowMerge(
+          struct.maybeMetadataDict->Belt.Option.getUnsafe,
+          Change.make(~id, ~metadata),
+        ),
+      ),
+    }
+  }
+}
 
 @inline
 let classify = struct => struct.tagged_t
@@ -456,7 +515,7 @@ let make = (
   ~tagged_t,
   ~parseActionFactories,
   ~serializeActionFactories,
-  ~metadata as maybeMetadata=?,
+  ~metadataDict as maybeMetadataDict=?,
   (),
 ) => {
   let struct = {
@@ -466,7 +525,7 @@ let make = (
     serializeActionFactories,
     serialize: %raw("undefined"),
     parse: %raw("undefined"),
-    maybeMetadata,
+    maybeMetadataDict,
   }
   {
     ...struct,
@@ -659,7 +718,7 @@ let refine: (
       )
     | None => struct.serializeActionFactories
     },
-    ~metadata=?struct.maybeMetadata,
+    ~metadataDict=?struct.maybeMetadataDict,
     (),
   )
 }
@@ -682,7 +741,7 @@ let asyncRefine = (struct, ~parser, ()) => {
       ),
     ),
     ~serializeActionFactories=struct.serializeActionFactories,
-    ~metadata=?struct.maybeMetadata,
+    ~metadataDict=?struct.maybeMetadataDict,
     (),
   )
 }
@@ -717,7 +776,7 @@ let transform: (
       | None => Action.missingSerializer
       },
     ),
-    ~metadata=?struct.maybeMetadata,
+    ~metadataDict=?struct.maybeMetadataDict,
     (),
   )
 }
@@ -752,7 +811,7 @@ let advancedTransform: (
       | None => Action.missingSerializer
       },
     ),
-    ~metadata=?struct.maybeMetadata,
+    ~metadataDict=?struct.maybeMetadataDict,
     (),
   )
 }
@@ -1117,7 +1176,7 @@ module Record = {
         ~tagged_t=Record({fields, fieldNames, unknownKeys: Strip}),
         ~parseActionFactories=struct.parseActionFactories,
         ~serializeActionFactories=struct.serializeActionFactories,
-        ~metadata=?struct.maybeMetadata,
+        ~metadataDict=?struct.maybeMetadataDict,
         (),
       )
     | _ => Error.UnknownKeysRequireRecord.panic()
@@ -1133,7 +1192,7 @@ module Record = {
         ~tagged_t=Record({fields, fieldNames, unknownKeys: Strict}),
         ~parseActionFactories=struct.parseActionFactories,
         ~serializeActionFactories=struct.serializeActionFactories,
-        ~metadata=?struct.maybeMetadata,
+        ~metadataDict=?struct.maybeMetadataDict,
         (),
       )
     | _ => Error.UnknownKeysRequireRecord.panic()
@@ -1852,53 +1911,50 @@ module Dict = {
   }
 }
 
-module Default = {
+module Defaulted = {
+  type tagged = WithDefaultValue(unknown)
+
+  let metadataId = Metadata.Id.make(~namespace="rescript-struct", ~name="Defaulted")
+
   let factory = (innerStruct, defaultValue) => {
     make(
-      ~name=`Default`,
-      ~tagged_t=Default({struct: innerStruct->Obj.magic, value: defaultValue->Obj.magic}),
-      ~parseActionFactories={
-        switch innerStruct.parse {
-        | NoopOperation => [
-            Action.make(
-              Sync(
-                input => {
-                  switch input {
+      ~name=innerStruct.name,
+      ~tagged_t=innerStruct.tagged_t,
+      ~parseActionFactories=[
+        Action.factory((~struct as _) => {
+          switch innerStruct.parse {
+          | NoopOperation =>
+            Sync(
+              input => {
+                switch input->castUnknownToAny {
+                | Some(output) => output
+                | None => defaultValue
+                }
+              },
+            )
+          | SyncOperation(fn) =>
+            Sync(
+              input => {
+                switch fn(. input)->castUnknownToAny {
+                | Some(output) => output
+                | None => defaultValue
+                }
+              },
+            )
+          | AsyncOperation(fn) =>
+            Async(
+              input => {
+                fn(. input)(.)->Lib.Promise.thenResolve(value => {
+                  switch value->castUnknownToAny {
                   | Some(output) => output
                   | None => defaultValue
                   }
-                },
-              ),
-            ),
-          ]
-        | SyncOperation(fn) => [
-            Action.make(
-              Sync(
-                input => {
-                  switch fn(. input)->castUnknownToAny {
-                  | Some(output) => output
-                  | None => defaultValue
-                  }
-                },
-              ),
-            ),
-          ]
-        | AsyncOperation(fn) => [
-            Action.make(
-              Async(
-                input => {
-                  fn(. input)(.)->Lib.Promise.thenResolve(value => {
-                    switch value->castUnknownToAny {
-                    | Some(output) => output
-                    | None => defaultValue
-                    }
-                  })
-                },
-              ),
-            ),
-          ]
-        }
-      },
+                })
+              },
+            )
+          }
+        }),
+      ],
       ~serializeActionFactories=[
         Action.make(
           Sync(
@@ -1909,8 +1965,10 @@ module Default = {
         ),
       ],
       (),
-    )
+    )->Metadata.set(~id=metadataId, ~metadata=WithDefaultValue(defaultValue->castAnyToUnknown))
   }
+
+  let classify = struct => struct->Metadata.get(~id=metadataId)
 }
 
 module Tuple = {
@@ -2230,42 +2288,6 @@ module Union = {
   }
 }
 
-module MakeMetadata = (
-  Config: {
-    type content
-    let namespace: string
-  },
-) => {
-  let get = (struct): option<Config.content> => {
-    struct.maybeMetadata->Lib.Option.map(metadata => {
-      metadata->Js.Dict.get(Config.namespace)->Obj.magic
-    })
-  }
-
-  let dictUnsafeSet = (dict: Js.Dict.t<'any>, key: string, value: 'any): Js.Dict.t<'any> => {
-    ignore(dict)
-    ignore(key)
-    ignore(value)
-    %raw(`{
-      ...dict,
-      [key]: value,
-    }`)
-  }
-
-  let set = (struct, content: Config.content) => {
-    let existingContent = switch struct.maybeMetadata {
-    | Some(currentContent) => currentContent
-    | None => Js.Dict.empty()
-    }
-    {
-      ...struct,
-      maybeMetadata: Some(
-        existingContent->dictUnsafeSet(Config.namespace, content->castAnyToUnknown),
-      ),
-    }
-  }
-}
-
 module Result = {
   let getExn = result => {
     switch result {
@@ -2301,7 +2323,7 @@ let option = Option.factory
 let deprecated = Deprecated.factory
 let array = Array.factory
 let dict = Dict.factory
-let default = Default.factory
+let defaulted = Defaulted.factory
 let literal = Literal.factory
 let literalVariant = Literal.Variant.factory
 let date = Date.factory

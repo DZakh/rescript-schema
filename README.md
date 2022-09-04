@@ -51,7 +51,7 @@ type author = {
 let authorStruct =
   S.record4(.
     ("Id", S.float()),
-    ("Tags", S.option(S.array(S.string()))->S.default([])),
+    ("Tags", S.option(S.array(S.string()))->S.defaulted([])),
     (
       "IsApproved",
       S.union([
@@ -552,42 +552,6 @@ Ok(123)
 
 > 🧠 If you came from Jzon and looking for `decodeStringWith`/`encodeStringWith` alternative, you can use `S.json` struct factory. Example: `data->S.parseWith(S.json(struct))`
 
-#### **`S.default`**
-
-`(S.t<option<'value>>, 'value) => S.t<'value>`
-
-```rescript
-let struct = S.option(S.string())->S.default("Hello World!")
-
-%raw(`undefined`)->S.parseWith(struct)
-"Goodbye World!"->S.parseWith(struct)
-```
-
-```rescript
-Ok("Hello World!")
-Ok("Goodbye World!")
-```
-
-`default` augments a struct to add transformation logic for default values, which are applied when the input is undefined.
-
-#### **`S.deprecated`**
-
-`(~message: string=?, S.t<'value>) => S.t<option<'value>>`
-
-```rescript
-let struct = S.deprecated(~message="The struct is deprecated", S.string())
-
-"Hello World!"->S.parseWith(struct)
-%raw(`undefined`)->S.parseWith(struct)
-```
-
-```rescript
-Ok(Some("Hello World!"))
-Ok(None)
-```
-
-`deprecated` struct represents a data of a specific type and makes it optional. The message may be used by an integration library.
-
 #### **`S.union`**
 
 `array<S.t<'value>> => S.t<'value>`
@@ -700,6 +664,41 @@ Error({
 })
 ```
 
+#### **`S.defaulted`**
+
+`(S.t<option<'value>>, 'value) => S.t<'value>`
+
+```rescript
+let struct = S.option(S.string())->S.defaulted("Hello World!")
+
+%raw(`undefined`)->S.parseWith(struct)
+"Goodbye World!"->S.parseWith(struct)
+```
+
+```rescript
+Ok("Hello World!")
+Ok("Goodbye World!")
+```
+
+`defaulted` augments a struct to add transformation logic for default values, which are applied when the input is undefined.
+
+#### **`S.deprecated`**
+
+`(~message: string=?, S.t<'value>) => S.t<option<'value>>`
+
+```rescript
+let struct = S.deprecated(~message="The struct is deprecated", S.string())
+
+"Hello World!"->S.parseWith(struct)
+%raw(`undefined`)->S.parseWith(struct)
+```
+
+```rescript
+Ok(Some("Hello World!"))
+Ok(None)
+```
+
+`deprecated` struct represents a data of a specific type and makes it optional. The message may be used by an integration library.
 
 ### Refinements
 

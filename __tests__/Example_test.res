@@ -6,7 +6,7 @@ ava->test("Example", t => {
   let authorStruct =
     S.record4(.
       ("Id", S.float()),
-      ("Tags", S.option(S.array(S.string()))->S.default([])),
+      ("Tags", S.option(S.array(S.string()))->S.defaulted([])),
       (
         "IsApproved",
         S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),
