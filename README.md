@@ -913,10 +913,11 @@ Documentation for this feature is work in progress, for now, you can use `S.resi
 
 ## Roadmap
 
-- [ ] Add tag system for flexible integration system
+- [x] Add tag system for flexible integration system
 - [ ] Add custom configuration
 - [x] Add name property to the custom struct factory for better error messages
 - [ ] Add discriminant optimization for record unions
 - [ ] Add async serializing support
 - [ ] Documentation improvements
 - [ ] Test coverage improvements
+- [ ] Add JS/TS API
