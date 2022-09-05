@@ -33,9 +33,9 @@ module Common = {
   })
 }
 
-module RecordField = {
-  ava->test("Fails to parse a record with Never field", t => {
-    let struct = S.record2(. ("key", S.string()), ("oldKey", S.never()))
+module ObjectField = {
+  ava->test("Fails to parse a object with Never field", t => {
+    let struct = S.object2(. ("key", S.string()), ("oldKey", S.never()))
 
     t->Assert.deepEqual(
       %raw(`{"key":"value"}`)->S.parseWith(struct),
@@ -49,9 +49,9 @@ module RecordField = {
   })
 
   ava->test(
-    "Successfully parses a record with Never field when it's optional and not present",
+    "Successfully parses a object with Never field when it's optional and not present",
     t => {
-      let struct = S.record2(.
+      let struct = S.object2(.
         ("key", S.string()),
         (
           "oldKey",

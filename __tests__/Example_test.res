@@ -4,7 +4,7 @@ type author = {id: float, tags: array<string>, isAproved: bool, deprecatedAge: o
 
 ava->test("Example", t => {
   let authorStruct =
-    S.record4(.
+    S.object4(.
       ("Id", S.float()),
       ("Tags", S.option(S.array(S.string()))->S.defaulted([])),
       (

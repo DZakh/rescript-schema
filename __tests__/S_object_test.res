@@ -2,39 +2,39 @@ open Ava
 
 type user = {name: string, email: string, age: int}
 
-ava->test("Successfully parses record without fields", t => {
+ava->test("Successfully parses object without fields", t => {
   let value = ()
   let any = %raw(`{}`)
 
-  let struct = S.record0(.)
+  let struct = S.object0(.)
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-ava->test("Successfully parses record with single field", t => {
+ava->test("Successfully parses object with single field", t => {
   let value = "bar"
   let any = %raw(`{foo: "bar"}`)
 
-  let struct = S.record1(. ("foo", S.string()))
+  let struct = S.object1(. ("foo", S.string()))
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-ava->test("Successfully parses record with multiple fields", t => {
+ava->test("Successfully parses object with multiple fields", t => {
   let value = ("bar", "jee")
   let any = %raw(`{boo: "bar", zoo: "jee"}`)
 
-  let struct = S.record2(. ("boo", S.string()), ("zoo", S.string()))
+  let struct = S.object2(. ("boo", S.string()), ("zoo", S.string()))
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-ava->test("Successfully parses record with mapped field names", t => {
+ava->test("Successfully parses object with mapped field names", t => {
   let value = {name: "Dmitry", email: "dzakh.dev@gmail.com", age: 21}
   let any = %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)
 
   let struct =
-    S.record3(.
+    S.object3(.
       ("Name", S.string()),
       ("Email", S.string()),
       ("Age", S.int()),
@@ -43,96 +43,96 @@ ava->test("Successfully parses record with mapped field names", t => {
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-ava->test("Successfully parses record with optional nested record when it's Some", t => {
+ava->test("Successfully parses object with optional nested object when it's Some", t => {
   let value = Some("bar")
-  let any = %raw(`{"singleFieldRecord":{"MUST_BE_MAPPED":"bar"}}`)
+  let any = %raw(`{"singleFieldObject":{"MUST_BE_MAPPED":"bar"}}`)
 
-  let struct = S.record1(. (
-    "singleFieldRecord",
-    S.option(S.record1(. ("MUST_BE_MAPPED", S.string()))),
+  let struct = S.object1(. (
+    "singleFieldObject",
+    S.option(S.object1(. ("MUST_BE_MAPPED", S.string()))),
   ))
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-ava->test("Successfully parses record with optional nested record when it's None", t => {
+ava->test("Successfully parses object with optional nested object when it's None", t => {
   let value = None
   let any = %raw(`{}`)
 
-  let struct = S.record1(. (
-    "singleFieldRecord",
-    S.option(S.record1(. ("MUST_BE_MAPPED", S.string()))),
+  let struct = S.object1(. (
+    "singleFieldObject",
+    S.option(S.object1(. ("MUST_BE_MAPPED", S.string()))),
   ))
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-ava->test("Successfully parses record with deprecated nested record when it's Some", t => {
+ava->test("Successfully parses object with deprecated nested object when it's Some", t => {
   let value = Some("bar")
-  let any = %raw(`{"singleFieldRecord":{"MUST_BE_MAPPED":"bar"}}`)
+  let any = %raw(`{"singleFieldObject":{"MUST_BE_MAPPED":"bar"}}`)
 
-  let struct = S.record1(. (
-    "singleFieldRecord",
-    S.record1(. ("MUST_BE_MAPPED", S.string()))->S.deprecated(),
+  let struct = S.object1(. (
+    "singleFieldObject",
+    S.object1(. ("MUST_BE_MAPPED", S.string()))->S.deprecated(),
   ))
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-ava->test("Successfully parses record with deprecated nested record when it's None", t => {
+ava->test("Successfully parses object with deprecated nested object when it's None", t => {
   let value = None
   let any = %raw(`{}`)
 
-  let struct = S.record1(. (
-    "singleFieldRecord",
-    S.record1(. ("MUST_BE_MAPPED", S.string()))->S.deprecated(),
+  let struct = S.object1(. (
+    "singleFieldObject",
+    S.object1(. ("MUST_BE_MAPPED", S.string()))->S.deprecated(),
   ))
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-ava->test("Successfully parses array of records", t => {
+ava->test("Successfully parses array of objects", t => {
   let value = ["bar", "baz"]
   let any = %raw(`[{"MUST_BE_MAPPED":"bar"},{"MUST_BE_MAPPED":"baz"}]`)
 
-  let struct = S.array(S.record1(. ("MUST_BE_MAPPED", S.string())))
+  let struct = S.array(S.object1(. ("MUST_BE_MAPPED", S.string())))
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-ava->test("Successfully serializes record without fields", t => {
+ava->test("Successfully serializes object without fields", t => {
   let value = ()
   let any = %raw(`{}`)
 
-  let struct = S.record0(.)
+  let struct = S.object0(.)
 
   t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
 })
 
-ava->test("Successfully serializes record with single field", t => {
+ava->test("Successfully serializes object with single field", t => {
   let value = "bar"
   let any = %raw(`{foo: "bar"}`)
 
-  let struct = S.record1(. ("foo", S.string()))
+  let struct = S.object1(. ("foo", S.string()))
 
   t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
 })
 
-ava->test("Successfully serializes record with multiple fields", t => {
+ava->test("Successfully serializes object with multiple fields", t => {
   let value = ("bar", "jee")
   let any = %raw(`{boo: "bar", zoo: "jee"}`)
 
-  let struct = S.record2(. ("boo", S.string()), ("zoo", S.string()))
+  let struct = S.object2(. ("boo", S.string()), ("zoo", S.string()))
 
   t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
 })
 
-ava->test("Successfully serializes record with mapped field", t => {
+ava->test("Successfully serializes object with mapped field", t => {
   let value = {name: "Dmitry", email: "dzakh.dev@gmail.com", age: 21}
   let any = %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)
 
   let struct =
-    S.record3(.
+    S.object3(.
       ("Name", S.string()),
       ("Email", S.string()),
       ("Age", S.int()),
@@ -141,58 +141,58 @@ ava->test("Successfully serializes record with mapped field", t => {
   t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
 })
 
-ava->test("Successfully serializes record with optional nested record when it's Some", t => {
+ava->test("Successfully serializes object with optional nested object when it's Some", t => {
   let value = Some("bar")
-  let any = %raw(`{"singleFieldRecord":{"MUST_BE_MAPPED":"bar"}}`)
+  let any = %raw(`{"singleFieldObject":{"MUST_BE_MAPPED":"bar"}}`)
 
-  let struct = S.record1(. (
-    "singleFieldRecord",
-    S.option(S.record1(. ("MUST_BE_MAPPED", S.string()))),
+  let struct = S.object1(. (
+    "singleFieldObject",
+    S.option(S.object1(. ("MUST_BE_MAPPED", S.string()))),
   ))
 
   t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
 })
 
-ava->test("Successfully serializes record with optional nested record when it's None", t => {
+ava->test("Successfully serializes object with optional nested object when it's None", t => {
   let value = None
-  let any = %raw(`{"singleFieldRecord":undefined}`)
+  let any = %raw(`{"singleFieldObject":undefined}`)
 
-  let struct = S.record1(. (
-    "singleFieldRecord",
-    S.option(S.record1(. ("MUST_BE_MAPPED", S.string()))),
+  let struct = S.object1(. (
+    "singleFieldObject",
+    S.option(S.object1(. ("MUST_BE_MAPPED", S.string()))),
   ))
 
   t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
 })
 
-ava->test("Successfully serializes unknown array of records", t => {
+ava->test("Successfully serializes unknown array of objects", t => {
   let value = ["bar", "baz"]
   let any = %raw(`[{"MUST_BE_MAPPED":"bar"},{"MUST_BE_MAPPED":"baz"}]`)
 
-  let struct = S.array(S.record1(. ("MUST_BE_MAPPED", S.string())))
+  let struct = S.array(S.object1(. ("MUST_BE_MAPPED", S.string())))
 
   t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
 })
 
-ava->test("Successfully parses a record and serializes it back to the initial state", t => {
+ava->test("Successfully parses a object and serializes it back to the initial state", t => {
   let any = %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)
 
-  let struct = S.record3(. ("Name", S.string()), ("Email", S.string()), ("Age", S.int()))
+  let struct = S.object3(. ("Name", S.string()), ("Email", S.string()), ("Age", S.int()))
 
   t->Assert.deepEqual(
-    any->S.parseWith(struct)->Belt.Result.map(record => record->S.serializeWith(struct)),
+    any->S.parseWith(struct)->Belt.Result.map(object => object->S.serializeWith(struct)),
     Ok(Ok(any)),
     (),
   )
 })
 
-ava->test("Fails to parse record when provided data of another type", t => {
-  let struct = S.record1(. ("FOO", S.string()))
+ava->test("Fails to parse object when provided data of another type", t => {
+  let struct = S.object1(. ("FOO", S.string()))
 
   t->Assert.deepEqual(
     Js.Json.string("string")->S.parseWith(struct),
     Error({
-      code: UnexpectedType({expected: "Record", received: "String"}),
+      code: UnexpectedType({expected: "Object", received: "String"}),
       operation: Parsing,
       path: [],
     }),
@@ -200,8 +200,8 @@ ava->test("Fails to parse record when provided data of another type", t => {
   )
 })
 
-ava->test("Fails to parse record item when it's not present", t => {
-  let struct = S.record1(. ("FOO", S.string()))
+ava->test("Fails to parse object item when it's not present", t => {
+  let struct = S.object1(. ("FOO", S.string()))
 
   t->Assert.deepEqual(
     %raw(`{}`)->S.parseWith(struct),
@@ -214,8 +214,8 @@ ava->test("Fails to parse record item when it's not present", t => {
   )
 })
 
-ava->test("Fails to parse record item when it's not valid", t => {
-  let struct = S.record1(. ("FOO", S.string()))
+ava->test("Fails to parse object item when it's not valid", t => {
+  let struct = S.object1(. ("FOO", S.string()))
 
   t->Assert.deepEqual(
     %raw(`{FOO:123}`)->S.parseWith(struct),
@@ -229,7 +229,7 @@ ava->test("Fails to parse record item when it's not valid", t => {
 })
 
 ava->test(
-  "Record fields are in correct order when field structs have different operation types. We keep originalIdx to make it work",
+  "Object fields are in correct order when field structs have different operation types. We keep originalIdx to make it work",
   t => {
     let any = {
       "noopOp1": 1,
@@ -237,7 +237,7 @@ ava->test(
       "noopOp2": 3,
     }
 
-    let struct = S.record3(.
+    let struct = S.object3(.
       ("noopOp1", S.int()),
       ("syncOp1", S.int()->S.transform(~parser=v => v, ())),
       ("noopOp2", S.int()),

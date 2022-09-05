@@ -66,9 +66,9 @@ ava->asyncTest("Fails to parse with invalidAsyncRefine", t => {
   })
 })
 
-module Record = {
-  ava->asyncTest("[Record] Successfully parses", t => {
-    let struct = S.record3(. ("k1", S.int()), ("k2", S.int()->validAsyncRefine), ("k3", S.int()))
+module Object = {
+  ava->asyncTest("[Object] Successfully parses", t => {
+    let struct = S.object3(. ("k1", S.int()), ("k2", S.int()->validAsyncRefine), ("k3", S.int()))
 
     (
       {
@@ -83,8 +83,8 @@ module Record = {
     })
   })
 
-  ava->test("[Record] Returns sync error when fails to parse sync part of async item", t => {
-    let struct = S.record3(. ("k1", S.int()), ("k2", S.int()->validAsyncRefine), ("k3", S.int()))
+  ava->test("[Object] Returns sync error when fails to parse sync part of async item", t => {
+    let struct = S.object3(. ("k1", S.int()), ("k2", S.int()->validAsyncRefine), ("k3", S.int()))
 
     t->Assert.deepEqual(
       {
@@ -101,8 +101,8 @@ module Record = {
     )
   })
 
-  ava->test("[Record] Parses sync items first, and then starts parsing async ones", t => {
-    let struct = S.record3(.
+  ava->test("[Object] Parses sync items first, and then starts parsing async ones", t => {
+    let struct = S.object3(.
       ("k1", S.int()),
       ("k2", S.int()->invalidAsyncRefine),
       ("k3", S.int()->invalidSyncRefine),
@@ -123,10 +123,10 @@ module Record = {
     )
   })
 
-  ava->asyncTest("[Record] Parses async items in parallel", t => {
+  ava->asyncTest("[Object] Parses async items in parallel", t => {
     let actionCounter = ref(0)
 
-    let struct = S.record2(. ("k1", S.int()->S.advancedTransform(~parser=(~struct as _) => {
+    let struct = S.object2(. ("k1", S.int()->S.advancedTransform(~parser=(~struct as _) => {
           Async(
             _ => {
               actionCounter.contents = actionCounter.contents + 1
@@ -158,8 +158,8 @@ module Record = {
     })
   })
 
-  ava->asyncTest("[Record] Doesn't wait for pending async items when fails to parse", t => {
-    let struct = S.record2(. ("k1", S.int()->S.advancedTransform(~parser=(~struct as _) => {
+  ava->asyncTest("[Object] Doesn't wait for pending async items when fails to parse", t => {
+    let struct = S.object2(. ("k1", S.int()->S.advancedTransform(~parser=(~struct as _) => {
           Async(_ => unresolvedPromise)
         }, ())), ("k2", S.int()->invalidAsyncRefine))
 

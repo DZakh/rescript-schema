@@ -143,7 +143,7 @@ function toReason(nestedLevelOpt, error) {
       case /* TupleSize */3 :
           return "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString() + "";
       case /* ExcessField */4 :
-          return "Encountered disallowed excess key \"" + reason._0 + "\" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely";
+          return "Encountered disallowed excess key \"" + reason._0 + "\" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely";
       case /* InvalidUnion */5 :
           var lineBreak = "\n" + " ".repeat((nestedLevel << 1)) + "";
           var array = reason._0.map(function (error) {
@@ -823,7 +823,7 @@ function factory$1(innerLiteral) {
   }
 }
 
-var metadataId = "rescript-struct:Record_UnknownKeys";
+var metadataId = "rescript-struct:Object_UnknownKeys";
 
 function classify$1(struct) {
   var option = get(struct, metadataId);
@@ -954,8 +954,8 @@ function factory$2(param) {
           return partial_arg;
         });
   }
-  return make("Record", {
-              TAG: /* Record */4,
+  return make("Object", {
+              TAG: /* Object */4,
               fields: fields,
               fieldNames: fieldNames
             }, parseActionFactories, [(function (param) {
@@ -2200,38 +2200,38 @@ var deprecated = factory$12;
 
 var defaulted = factory$15;
 
-var Record_UnknownKeys = {
+var Object_UnknownKeys = {
   classify: classify$1
 };
 
-var Record = {
-  UnknownKeys: Record_UnknownKeys,
+var $$Object = {
+  UnknownKeys: Object_UnknownKeys,
   factory: factory$2,
   strip: strip,
   strict: strict
 };
 
-var record0 = factory$2;
+var object0 = factory$2;
 
-var record1 = factory$2;
+var object1 = factory$2;
 
-var record2 = factory$2;
+var object2 = factory$2;
 
-var record3 = factory$2;
+var object3 = factory$2;
 
-var record4 = factory$2;
+var object4 = factory$2;
 
-var record5 = factory$2;
+var object5 = factory$2;
 
-var record6 = factory$2;
+var object6 = factory$2;
 
-var record7 = factory$2;
+var object7 = factory$2;
 
-var record8 = factory$2;
+var object8 = factory$2;
 
-var record9 = factory$2;
+var object9 = factory$2;
 
-var record10 = factory$2;
+var object10 = factory$2;
 
 var tuple0 = factory$16;
 
@@ -2328,18 +2328,18 @@ exports.parseAsyncInStepsWith = parseAsyncInStepsWith;
 exports.serializeWith = serializeWith;
 exports.serializeOrRaiseWith = serializeOrRaiseWith;
 exports.isAsyncParse = isAsyncParse;
-exports.Record = Record;
-exports.record0 = record0;
-exports.record1 = record1;
-exports.record2 = record2;
-exports.record3 = record3;
-exports.record4 = record4;
-exports.record5 = record5;
-exports.record6 = record6;
-exports.record7 = record7;
-exports.record8 = record8;
-exports.record9 = record9;
-exports.record10 = record10;
+exports.$$Object = $$Object;
+exports.object0 = object0;
+exports.object1 = object1;
+exports.object2 = object2;
+exports.object3 = object3;
+exports.object4 = object4;
+exports.object5 = object5;
+exports.object6 = object6;
+exports.object7 = object7;
+exports.object8 = object8;
+exports.object9 = object9;
+exports.object10 = object10;
 exports.Tuple = Tuple;
 exports.tuple0 = tuple0;
 exports.tuple1 = tuple1;

@@ -263,7 +263,7 @@ module Error = {
     | MissingSerializer => "Struct serializer is missing"
     | UnexpectedAsync => "Encountered unexpected asynchronous transform or refine. Use parseAsyncWith instead of parseWith"
     | ExcessField(fieldName) =>
-      `Encountered disallowed excess key "${fieldName}" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`
+      `Encountered disallowed excess key "${fieldName}" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`
     | UnexpectedType({expected, received})
     | UnexpectedValue({expected, received}) =>
       `Expected ${expected}, received ${received}`
@@ -342,7 +342,7 @@ and tagged =
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
-  | Record({fields: Js.Dict.t<t<unknown>>, fieldNames: array<string>})
+  | Object({fields: Js.Dict.t<t<unknown>>, fieldNames: array<string>})
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
@@ -1025,7 +1025,7 @@ module Literal = {
     }
 }
 
-module Record = {
+module Object = {
   module UnknownKeys = {
     type tagged =
       | Strict
@@ -1033,7 +1033,7 @@ module Record = {
 
     let metadataId: Metadata.Id.t<tagged> = Metadata.Id.make(
       ~namespace="rescript-struct",
-      ~name="Record_UnknownKeys",
+      ~name="Object_UnknownKeys",
     )
 
     let classify = struct => struct->Metadata.get(~id=metadataId)->Lib.Option.getWithDefault(Strip)
@@ -1057,8 +1057,8 @@ module Record = {
       let fieldNames = fields->Js.Dict.keys
 
       make(
-        ~name="Record",
-        ~tagged=Record({fields, fieldNames}),
+        ~name="Object",
+        ~tagged=Object({fields, fieldNames}),
         ~parseActionFactories={
           let noopOps = []
           let syncOps = []
@@ -2278,17 +2278,17 @@ module Result = {
   }
 }
 
-let record0 = Record.factory
-let record1 = Record.factory
-let record2 = Record.factory
-let record3 = Record.factory
-let record4 = Record.factory
-let record5 = Record.factory
-let record6 = Record.factory
-let record7 = Record.factory
-let record8 = Record.factory
-let record9 = Record.factory
-let record10 = Record.factory
+let object0 = Object.factory
+let object1 = Object.factory
+let object2 = Object.factory
+let object3 = Object.factory
+let object4 = Object.factory
+let object5 = Object.factory
+let object6 = Object.factory
+let object7 = Object.factory
+let object8 = Object.factory
+let object9 = Object.factory
+let object10 = Object.factory
 let never = Never.factory
 let unknown = Unknown.factory
 let string = String.factory

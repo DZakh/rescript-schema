@@ -45,7 +45,7 @@ module Advanced = {
   type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, y: float})
 
   let shapeStruct = {
-    let circleStruct = S.record2(.
+    let circleStruct = S.object2(.
       ("kind", S.literalVariant(String("circle"), ())),
       ("radius", S.float()),
     )->S.transform(
@@ -57,7 +57,7 @@ module Advanced = {
         },
       (),
     )
-    let squareStruct = S.record2(.
+    let squareStruct = S.object2(.
       ("kind", S.literalVariant(String("square"), ())),
       ("x", S.float()),
     )->S.transform(
@@ -69,7 +69,7 @@ module Advanced = {
         },
       (),
     )
-    let triangleStruct = S.record3(.
+    let triangleStruct = S.object3(.
       ("kind", S.literalVariant(String("triangle"), ())),
       ("x", S.float()),
       ("y", S.float()),
@@ -157,17 +157,17 @@ module Advanced = {
       Error({
         code: InvalidUnion([
           {
-            code: UnexpectedType({expected: "Record", received: "String"}),
+            code: UnexpectedType({expected: "Object", received: "String"}),
             operation: Parsing,
             path: [],
           },
           {
-            code: UnexpectedType({expected: "Record", received: "String"}),
+            code: UnexpectedType({expected: "Object", received: "String"}),
             operation: Parsing,
             path: [],
           },
           {
-            code: UnexpectedType({expected: "Record", received: "String"}),
+            code: UnexpectedType({expected: "Object", received: "String"}),
             operation: Parsing,
             path: [],
           },

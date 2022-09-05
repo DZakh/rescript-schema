@@ -53,7 +53,7 @@ and tagged =
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
-  | Record({fields: Js.Dict.t<t<unknown>>, fieldNames: array<string>})
+  | Object({fields: Js.Dict.t<t<unknown>>, fieldNames: array<string>})
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
@@ -121,7 +121,7 @@ let serializeOrRaiseWith: ('value, t<'value>) => unknown
 
 let isAsyncParse: t<'value> => bool
 
-module Record: {
+module Object: {
   module UnknownKeys: {
     type tagged = Strict | Strip
 
@@ -134,19 +134,19 @@ module Record: {
   let strict: t<'value> => t<'value>
 }
 
-let record0: (. unit) => t<unit>
-let record1: (. field<'v1>) => t<'v1>
-let record2: (. field<'v1>, field<'v2>) => t<('v1, 'v2)>
-let record3: (. field<'v1>, field<'v2>, field<'v3>) => t<('v1, 'v2, 'v3)>
-let record4: (. field<'v1>, field<'v2>, field<'v3>, field<'v4>) => t<('v1, 'v2, 'v3, 'v4)>
-let record5: (
+let object0: (. unit) => t<unit>
+let object1: (. field<'v1>) => t<'v1>
+let object2: (. field<'v1>, field<'v2>) => t<('v1, 'v2)>
+let object3: (. field<'v1>, field<'v2>, field<'v3>) => t<('v1, 'v2, 'v3)>
+let object4: (. field<'v1>, field<'v2>, field<'v3>, field<'v4>) => t<('v1, 'v2, 'v3, 'v4)>
+let object5: (
   . field<'v1>,
   field<'v2>,
   field<'v3>,
   field<'v4>,
   field<'v5>,
 ) => t<('v1, 'v2, 'v3, 'v4, 'v5)>
-let record6: (
+let object6: (
   . field<'v1>,
   field<'v2>,
   field<'v3>,
@@ -154,7 +154,7 @@ let record6: (
   field<'v5>,
   field<'v6>,
 ) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6)>
-let record7: (
+let object7: (
   . field<'v1>,
   field<'v2>,
   field<'v3>,
@@ -163,7 +163,7 @@ let record7: (
   field<'v6>,
   field<'v7>,
 ) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7)>
-let record8: (
+let object8: (
   . field<'v1>,
   field<'v2>,
   field<'v3>,
@@ -173,7 +173,7 @@ let record8: (
   field<'v7>,
   field<'v8>,
 ) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8)>
-let record9: (
+let object9: (
   . field<'v1>,
   field<'v2>,
   field<'v3>,
@@ -184,7 +184,7 @@ let record9: (
   field<'v8>,
   field<'v9>,
 ) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9)>
-let record10: (
+let object10: (
   . field<'v1>,
   field<'v2>,
   field<'v3>,

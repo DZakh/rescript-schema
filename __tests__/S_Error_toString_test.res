@@ -91,7 +91,7 @@ ava->test("ExcessField error", t => {
       operation: Parsing,
       path: [],
     }->S.Error.toString,
-    `[ReScript Struct] Failed parsing at root. Reason: Encountered disallowed excess key "unknownKey" on an object. Use Deprecated to ignore a specific field, or S.Record.strip to ignore excess keys completely`,
+    `[ReScript Struct] Failed parsing at root. Reason: Encountered disallowed excess key "unknownKey" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`,
     (),
   )
 })
@@ -144,17 +144,17 @@ ava->test("InvalidUnion filters similar reasons", t => {
     {
       code: InvalidUnion([
         {
-          code: UnexpectedType({expected: "Record", received: "String"}),
+          code: UnexpectedType({expected: "Object", received: "String"}),
           operation: Parsing,
           path: [],
         },
         {
-          code: UnexpectedType({expected: "Record", received: "String"}),
+          code: UnexpectedType({expected: "Object", received: "String"}),
           operation: Parsing,
           path: [],
         },
         {
-          code: UnexpectedType({expected: "Record", received: "String"}),
+          code: UnexpectedType({expected: "Object", received: "String"}),
           operation: Parsing,
           path: [],
         },
@@ -163,7 +163,7 @@ ava->test("InvalidUnion filters similar reasons", t => {
       path: [],
     }->S.Error.toString,
     `[ReScript Struct] Failed parsing at root. Reason: Invalid union with following errors
-- Expected Record, received String`,
+- Expected Object, received String`,
     (),
   )
 })
@@ -175,17 +175,17 @@ ava->test("Nested InvalidUnion error", t => {
         {
           code: InvalidUnion([
             {
-              code: UnexpectedType({expected: "Record", received: "String"}),
+              code: UnexpectedType({expected: "Object", received: "String"}),
               operation: Parsing,
               path: [],
             },
             {
-              code: UnexpectedType({expected: "Record", received: "String"}),
+              code: UnexpectedType({expected: "Object", received: "String"}),
               operation: Parsing,
               path: [],
             },
             {
-              code: UnexpectedType({expected: "Record", received: "String"}),
+              code: UnexpectedType({expected: "Object", received: "String"}),
               operation: Parsing,
               path: [],
             },
@@ -199,7 +199,7 @@ ava->test("Nested InvalidUnion error", t => {
     }->S.Error.toString,
     `[ReScript Struct] Failed parsing at root. Reason: Invalid union with following errors
 - Invalid union with following errors
-  - Expected Record, received String`,
+  - Expected Object, received String`,
     (),
   )
 })

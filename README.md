@@ -49,7 +49,7 @@ type author = {
 }
 
 let authorStruct =
-  S.record4(.
+  S.object4(.
     ("Id", S.float()),
     ("Tags", S.option(S.array(S.string()))->S.defaulted([])),
     (
@@ -438,13 +438,13 @@ Ok(Apple)
 
 The same as `literal` struct factory, but with a convenient way to transform data to ReScript value.
 
-#### **`S.record0` - `S.record10`**
+#### **`S.object0` - `S.object10`**
 
 `(. S.field<'v1>, S.field<'v2>, S.field<'v3>) => S.t<('v1, 'v2, 'v3)>`
 
 ```rescript
 type author = {id: string}
-let struct = S.record1(. ("ID", S.string()))->S.transform(~parser=id => {id: id}, ())
+let struct = S.object1(. ("ID", S.string()))->S.transform(~parser=id => {id: id}, ())
 
 {"ID": "abc"}->S.parseWith(struct)
 ```
@@ -455,28 +455,28 @@ Ok({
 })
 ```
 
-`record` struct represents an object and that each of its properties represent a specific type as well.
+`object` struct represents an object and that each of its properties represent a specific type as well.
 
-The record struct factories are available up to 10 fields. If you have an object with more fields, you can create a record struct factory for any number of fields using `S.Record.factory`.
+The object struct factories are available up to 10 fields. If you have an object with more fields, you can create a object struct factory for any number of fields using `S.Object.factory`.
 
-#### **`S.Record.factory`**
+#### **`S.Object.factory`**
 
 ```rescript
-let record3: (
+let object3: (
   . S.field<'v1>,
   S.field<'v2>,
   S.field<'v3>,
-) => S.t<('v1, 'v2, 'v3)> = S.Record.factory
+) => S.t<('v1, 'v2, 'v3)> = S.Object.factory
 ```
 
-> 🧠 The `S.Record.factory` internal code isn't typesafe, so you should properly annotate the struct factory interface.
+> 🧠 The `S.Object.factory` internal code isn't typesafe, so you should properly annotate the struct factory interface.
 
-#### **`S.Record.strict`**
+#### **`S.Object.strict`**
 
 `S.t<'value> => S.t<'value>`
 
 ```rescript
-let struct = S.record1(. ("key", S.string()))->S.Record.strict
+let struct = S.object1(. ("key", S.string()))->S.Object.strict
 
 {
   "key": "value",
@@ -492,14 +492,14 @@ Error({
 })
 ```
 
-By default **rescript-struct** silently strips unrecognized keys when parsing objects. You can change the behaviour to disallow unrecognized keys with the `S.Record.strict` function.
+By default **rescript-struct** silently strips unrecognized keys when parsing objects. You can change the behaviour to disallow unrecognized keys with the `S.Object.strict` function.
 
-#### **`S.Record.strip`**
+#### **`S.Object.strip`**
 
 `S.t<'value> => S.t<'value>`
 
 ```rescript
-let struct = S.record1(. ("key", S.string()))->S.Record.strip
+let struct = S.object1(. ("key", S.string()))->S.Object.strip
 
 {
   "key": "value",
@@ -511,7 +511,7 @@ let struct = S.record1(. ("key", S.string()))->S.Record.strip
 Ok("value")
 ```
 
-You can use the `S.Record.strip` function to reset a record struct to the default behavior (stripping unrecognized keys).
+You can use the `S.Object.strip` function to reset a object struct to the default behavior (stripping unrecognized keys).
 
 
 #### **`S.never`**
@@ -560,15 +560,15 @@ Ok(123)
 type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, y: float})
 
 let shapeStruct = {
-  let circleStruct = S.record2(.
+  let circleStruct = S.object2(.
     ("kind", S.literal(String("circle"))),
     ("radius", S.float()),
   )->S.transform(~parser=((_, radius)) => Circle({radius: radius}), ())
-  let squareStruct = S.record2(.
+  let squareStruct = S.object2(.
     ("kind", S.literal(String("square"))),
     ("x", S.float()),
   )->S.transform(~parser=((_, x)) => Square({x: x}), ())
-  let triangleStruct = S.record3(.
+  let triangleStruct = S.object3(.
     ("kind", S.literal(String("triangle"))),
     ("x", S.float()),
     ("y", S.float()),
@@ -916,7 +916,7 @@ Documentation for this feature is work in progress, for now, you can use `S.resi
 - [x] Add tag system for flexible integration system
 - [ ] Add custom configuration
 - [x] Add name property to the custom struct factory for better error messages
-- [ ] Add discriminant optimization for record unions
+- [ ] Add discriminant optimization for object unions
 - [ ] Add async serializing support
 - [ ] Documentation improvements
 - [ ] Test coverage improvements

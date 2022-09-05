@@ -166,7 +166,7 @@ ava->test(
       )
 
     t->Assert.deepEqual(
-      any->S.parseWith(struct)->Belt.Result.map(record => record->S.serializeWith(struct)),
+      any->S.parseWith(struct)->Belt.Result.map(object => object->S.serializeWith(struct)),
       Ok(Ok(any)),
       (),
     )

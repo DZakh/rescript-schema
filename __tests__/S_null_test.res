@@ -53,8 +53,8 @@ ava->test("Fails to parse JS undefined", t => {
   )
 })
 
-ava->test("Fails to parse record with missing field that marked as null", t => {
-  let struct = S.record1(. ("nullableField", S.null(S.string())))
+ava->test("Fails to parse object with missing field that marked as null", t => {
+  let struct = S.object1(. ("nullableField", S.null(S.string())))
 
   t->Assert.deepEqual(
     %raw(`{}`)->S.parseWith(struct),
