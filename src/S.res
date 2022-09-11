@@ -355,6 +355,8 @@ and actionFactory = (~struct: t<unknown>) => action<unknown, unknown>
 
 external castAnyToUnknown: 'any => unknown = "%identity"
 external castUnknownToAny: unknown => 'any = "%identity"
+external castUnknownStructToAnyStruct: t<unknown> => t<'any> = "%identity"
+external castAnyStructToUnknownStruct: t<'any> => t<unknown> = "%identity"
 external castActionFactoryToUncurried: (
   actionFactory,
   . ~struct: t<unknown>,
@@ -836,7 +838,7 @@ let advancedTransform: (
   )
 }
 
-let advancedPreprocess = (
+let rec advancedPreprocess = (
   struct,
   ~parser as maybePreprocessParser=?,
   ~serializer as maybePreprocessSerializer=?,
@@ -846,24 +848,47 @@ let advancedPreprocess = (
     Error.MissingParserAndSerializer.panic(`struct factory Preprocess`)
   }
 
-  make(
-    ~name=struct.name,
-    ~tagged=struct.tagged,
-    ~parseActionFactories=[
-      switch maybePreprocessParser {
-      | Some(transformationParser) => transformationParser->Obj.magic
-      | None => Action.missingParser
-      },
-    ]->Action.appendParsers(struct.parseActionFactories),
-    ~serializeActionFactories=[
-      switch maybePreprocessSerializer {
-      | Some(transformationSerializer) => transformationSerializer->Obj.magic
-      | None => Action.missingSerializer
-      },
-    ]->Action.appendSerializers(struct.serializeActionFactories),
-    ~metadataDict=?struct.maybeMetadataDict,
-    (),
-  )
+  switch struct->classify {
+  | Union(unionStructs) =>
+    make(
+      ~name=struct.name,
+      ~tagged=Union(
+        unionStructs->Js.Array2.map(unionStruct =>
+          unionStruct
+          ->castUnknownStructToAnyStruct
+          ->advancedPreprocess(
+            ~parser=?maybePreprocessParser,
+            ~serializer=?maybePreprocessSerializer,
+            (),
+          )
+          ->castAnyStructToUnknownStruct
+        ),
+      ),
+      ~parseActionFactories=struct.parseActionFactories,
+      ~serializeActionFactories=struct.serializeActionFactories,
+      ~metadataDict=?struct.maybeMetadataDict,
+      (),
+    )
+  | _ =>
+    make(
+      ~name=struct.name,
+      ~tagged=struct.tagged,
+      ~parseActionFactories=[
+        switch maybePreprocessParser {
+        | Some(transformationParser) => transformationParser->Obj.magic
+        | None => Action.missingParser
+        },
+      ]->Action.appendParsers(struct.parseActionFactories),
+      ~serializeActionFactories=[
+        switch maybePreprocessSerializer {
+        | Some(transformationSerializer) => transformationSerializer->Obj.magic
+        | None => Action.missingSerializer
+        },
+      ]->Action.appendSerializers(struct.serializeActionFactories),
+      ~metadataDict=?struct.maybeMetadataDict,
+      (),
+    )
+  }
 }
 
 let custom = (

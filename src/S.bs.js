@@ -679,6 +679,15 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
   if (maybePreprocessParser === undefined && maybePreprocessSerializer === undefined) {
     panic$1("struct factory Preprocess");
   }
+  var unionStructs = struct.t;
+  if (typeof unionStructs !== "number" && unionStructs.TAG === /* Union */5) {
+    return make(struct.n, {
+                TAG: /* Union */5,
+                _0: unionStructs._0.map(function (unionStruct) {
+                      return advancedPreprocess(unionStruct, maybePreprocessParser, maybePreprocessSerializer, undefined);
+                    })
+              }, struct.pf, struct.sf, struct.m, undefined);
+  }
   return make(struct.n, struct.t, [maybePreprocessParser !== undefined ? Caml_option.valFromOption(maybePreprocessParser) : missingParser].concat(struct.pf), struct.sf.concat([maybePreprocessSerializer !== undefined ? Caml_option.valFromOption(maybePreprocessSerializer) : missingSerializer]), struct.m, undefined);
 }
 
