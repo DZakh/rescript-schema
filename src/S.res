@@ -338,7 +338,7 @@ and tagged =
   | Int
   | Float
   | Bool
-  | Literal(literal<unknown>)
+  | Literal
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
@@ -901,11 +901,29 @@ let custom = (
 }
 
 module Literal = {
+  type tagged =
+    | String(string)
+    | Int(int)
+    | Float(float)
+    | Bool(bool)
+    | EmptyNull
+    | EmptyOption
+    | NaN
+
+  external castLiteralToTagged: literal<'a> => tagged = "%identity"
+
+  let metadataId: Metadata.Id.t<tagged> = Metadata.Id.make(
+    ~namespace="rescript-struct",
+    ~name="Literal",
+  )
+
+  let classify = struct => struct->Metadata.get(~id=metadataId)
+
   module Variant = {
     let factory:
       type literalValue variant. (literal<literalValue>, variant) => t<variant> =
       (innerLiteral, variant) => {
-        let tagged = Literal(innerLiteral->Obj.magic)
+        let tagged = Literal
 
         let makeParseActionFactories = (~literalValue, ~test) => {
           [
@@ -1036,7 +1054,12 @@ module Literal = {
             ~serializeActionFactories=makeSerializeActionFactories(int),
             (),
           )
-        }
+        }->Metadata.set(
+          ~id=metadataId,
+          ~metadata=innerLiteral->castLiteralToTagged,
+          ~withParserUpdate=false,
+          ~withSerializerUpdate=false,
+        )
       }
   }
 

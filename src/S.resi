@@ -49,7 +49,7 @@ and tagged =
   | Int
   | Float
   | Bool
-  | Literal(literal<unknown>)
+  | Literal
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
@@ -311,6 +311,19 @@ module Defaulted: {
 
 module Deprecated: {
   type tagged = WithoutMessage | WithMessage(string)
+
+  let classify: t<'value> => option<tagged>
+}
+
+module Literal: {
+  type tagged =
+    | String(string)
+    | Int(int)
+    | Float(float)
+    | Bool(bool)
+    | EmptyNull
+    | EmptyOption
+    | NaN
 
   let classify: t<'value> => option<tagged>
 }

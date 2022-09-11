@@ -708,11 +708,13 @@ function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
                   }) : missingParser], [tmp], undefined, undefined);
 }
 
+var metadataId = "rescript-struct:Literal";
+
+function classify$1(struct) {
+  return get(struct, metadataId);
+}
+
 function factory(innerLiteral, variant) {
-  var tagged = {
-    TAG: /* Literal */0,
-    _0: innerLiteral
-  };
   var makeParseActionFactories = function (literalValue, test) {
     return [(function (struct) {
                 return {
@@ -746,78 +748,87 @@ function factory(innerLiteral, variant) {
                 return partial_arg;
               })];
   };
+  var tmp;
   if (typeof innerLiteral === "number") {
     switch (innerLiteral) {
       case /* EmptyNull */0 :
-          return make("EmptyNull Literal (null)", tagged, [(function (struct) {
-                          return {
-                                  TAG: /* Sync */0,
-                                  _0: (function (input) {
-                                      if (input === null) {
-                                        return variant;
-                                      } else {
-                                        return raiseUnexpectedTypeError(input, struct);
-                                      }
-                                    })
-                                };
-                        })], makeSerializeActionFactories(null), undefined, undefined);
+          tmp = make("EmptyNull Literal (null)", /* Literal */6, [(function (struct) {
+                    return {
+                            TAG: /* Sync */0,
+                            _0: (function (input) {
+                                if (input === null) {
+                                  return variant;
+                                } else {
+                                  return raiseUnexpectedTypeError(input, struct);
+                                }
+                              })
+                          };
+                  })], makeSerializeActionFactories(null), undefined, undefined);
+          break;
       case /* EmptyOption */1 :
-          return make("EmptyOption Literal (undefined)", tagged, [(function (struct) {
-                          return {
-                                  TAG: /* Sync */0,
-                                  _0: (function (input) {
-                                      if (input === undefined) {
-                                        return variant;
-                                      } else {
-                                        return raiseUnexpectedTypeError(input, struct);
-                                      }
-                                    })
-                                };
-                        })], makeSerializeActionFactories(undefined), undefined, undefined);
+          tmp = make("EmptyOption Literal (undefined)", /* Literal */6, [(function (struct) {
+                    return {
+                            TAG: /* Sync */0,
+                            _0: (function (input) {
+                                if (input === undefined) {
+                                  return variant;
+                                } else {
+                                  return raiseUnexpectedTypeError(input, struct);
+                                }
+                              })
+                          };
+                  })], makeSerializeActionFactories(undefined), undefined, undefined);
+          break;
       case /* NaN */2 :
-          return make("NaN Literal (NaN)", tagged, [(function (struct) {
-                          return {
-                                  TAG: /* Sync */0,
-                                  _0: (function (input) {
-                                      if (Number.isNaN(input)) {
-                                        return variant;
-                                      } else {
-                                        return raiseUnexpectedTypeError(input, struct);
-                                      }
-                                    })
-                                };
-                        })], makeSerializeActionFactories(NaN), undefined, undefined);
+          tmp = make("NaN Literal (NaN)", /* Literal */6, [(function (struct) {
+                    return {
+                            TAG: /* Sync */0,
+                            _0: (function (input) {
+                                if (Number.isNaN(input)) {
+                                  return variant;
+                                } else {
+                                  return raiseUnexpectedTypeError(input, struct);
+                                }
+                              })
+                          };
+                  })], makeSerializeActionFactories(NaN), undefined, undefined);
+          break;
       
     }
   } else {
     switch (innerLiteral.TAG | 0) {
       case /* String */0 :
           var string = innerLiteral._0;
-          return make("String Literal (\"" + string + "\")", tagged, makeParseActionFactories(string, (function (input) {
-                            return typeof input === "string";
-                          })), makeSerializeActionFactories(string), undefined, undefined);
+          tmp = make("String Literal (\"" + string + "\")", /* Literal */6, makeParseActionFactories(string, (function (input) {
+                      return typeof input === "string";
+                    })), makeSerializeActionFactories(string), undefined, undefined);
+          break;
       case /* Int */1 :
           var $$int = innerLiteral._0;
-          return make("Int Literal (" + $$int.toString() + ")", tagged, makeParseActionFactories($$int, (function (input) {
-                            if (typeof input === "number" && input < 2147483648 && input > -2147483649) {
-                              return input === Math.trunc(input);
-                            } else {
-                              return false;
-                            }
-                          })), makeSerializeActionFactories($$int), undefined, undefined);
+          tmp = make("Int Literal (" + $$int.toString() + ")", /* Literal */6, makeParseActionFactories($$int, (function (input) {
+                      if (typeof input === "number" && input < 2147483648 && input > -2147483649) {
+                        return input === Math.trunc(input);
+                      } else {
+                        return false;
+                      }
+                    })), makeSerializeActionFactories($$int), undefined, undefined);
+          break;
       case /* Float */2 :
           var $$float = innerLiteral._0;
-          return make("Float Literal (" + $$float.toString() + ")", tagged, makeParseActionFactories($$float, (function (input) {
-                            return typeof input === "number";
-                          })), makeSerializeActionFactories($$float), undefined, undefined);
+          tmp = make("Float Literal (" + $$float.toString() + ")", /* Literal */6, makeParseActionFactories($$float, (function (input) {
+                      return typeof input === "number";
+                    })), makeSerializeActionFactories($$float), undefined, undefined);
+          break;
       case /* Bool */3 :
           var bool = innerLiteral._0;
-          return make("Bool Literal (" + bool + ")", tagged, makeParseActionFactories(bool, (function (input) {
-                            return typeof input === "boolean";
-                          })), makeSerializeActionFactories(bool), undefined, undefined);
+          tmp = make("Bool Literal (" + bool + ")", /* Literal */6, makeParseActionFactories(bool, (function (input) {
+                      return typeof input === "boolean";
+                    })), makeSerializeActionFactories(bool), undefined, undefined);
+          break;
       
     }
   }
+  return set(tmp, metadataId, innerLiteral, false, false);
 }
 
 function factory$1(innerLiteral) {
@@ -828,10 +839,10 @@ function factory$1(innerLiteral) {
   }
 }
 
-var metadataId = "rescript-struct:Object_UnknownKeys";
+var metadataId$1 = "rescript-struct:Object_UnknownKeys";
 
-function classify$1(struct) {
-  var option = get(struct, metadataId);
+function classify$2(struct) {
+  var option = get(struct, metadataId$1);
   if (option !== undefined) {
     return Caml_option.valFromOption(option);
   } else {
@@ -883,7 +894,7 @@ function factory$2(param) {
   }
   var withAsyncOps = asyncOps.length > 0;
   var parseActionFactories = [(function (struct) {
-        var unknownKeys = classify$1(struct);
+        var unknownKeys = classify$2(struct);
         return {
                 TAG: /* Sync */0,
                 _0: (function (input) {
@@ -960,7 +971,7 @@ function factory$2(param) {
         });
   }
   return make("Object", {
-              TAG: /* Object */4,
+              TAG: /* Object */3,
               fields: fields,
               fieldNames: fieldNames
             }, parseActionFactories, [(function (param) {
@@ -1003,11 +1014,11 @@ function factory$2(param) {
 }
 
 function strip(struct) {
-  return set(struct, metadataId, /* Strip */1, true, false);
+  return set(struct, metadataId$1, /* Strip */1, true, false);
 }
 
 function strict(struct) {
-  return set(struct, metadataId, /* Strict */0, true, false);
+  return set(struct, metadataId$1, /* Strict */0, true, false);
 }
 
 function factory$3(param) {
@@ -1219,7 +1230,7 @@ function factory$8(param) {
 }
 
 function factory$9(param) {
-  return make("Date", /* Date */6, [(function (struct) {
+  return make("Date", /* Date */7, [(function (struct) {
                   return {
                           TAG: /* Sync */0,
                           _0: (function (input) {
@@ -1287,7 +1298,7 @@ function factory$10(innerStruct) {
     ];
   }
   return make("Null", {
-              TAG: /* Null */2,
+              TAG: /* Null */1,
               _0: innerStruct
             }, tmp, [(function (param) {
                   return {
@@ -1352,7 +1363,7 @@ function factory$11(innerStruct) {
     ];
   }
   return make("Option", {
-              TAG: /* Option */1,
+              TAG: /* Option */0,
               _0: innerStruct
             }, tmp, [(function (param) {
                   return {
@@ -1375,16 +1386,16 @@ function factory$11(innerStruct) {
                 })], undefined, undefined);
 }
 
-var metadataId$1 = "rescript-struct:Deprecated";
+var metadataId$2 = "rescript-struct:Deprecated";
 
 function factory$12(innerStruct, maybeMessage, param) {
-  return set(factory$11(innerStruct), metadataId$1, maybeMessage !== undefined ? /* WithMessage */({
+  return set(factory$11(innerStruct), metadataId$2, maybeMessage !== undefined ? /* WithMessage */({
                   _0: maybeMessage
                 }) : /* WithoutMessage */0, false, false);
 }
 
-function classify$2(struct) {
-  return get(struct, metadataId$1);
+function classify$3(struct) {
+  return get(struct, metadataId$2);
 }
 
 function factory$13(innerStruct) {
@@ -1491,7 +1502,7 @@ function factory$13(innerStruct) {
     tmp = panic("Unreachable");
   }
   return make("Array", {
-              TAG: /* Array */3,
+              TAG: /* Array */2,
               _0: innerStruct
             }, parseActionFactories, tmp, undefined, undefined);
 }
@@ -1658,12 +1669,12 @@ function factory$14(innerStruct) {
     tmp = panic("Unreachable");
   }
   return make("Dict", {
-              TAG: /* Dict */7,
+              TAG: /* Dict */6,
               _0: innerStruct
             }, parseActionFactories, tmp, undefined, undefined);
 }
 
-var metadataId$2 = "rescript-struct:Defaulted";
+var metadataId$3 = "rescript-struct:Defaulted";
 
 function factory$15(innerStruct, defaultValue) {
   var partial_arg = {
@@ -1723,13 +1734,13 @@ function factory$15(innerStruct, defaultValue) {
                             };
                     })], [(function (param) {
                       return partial_arg;
-                    })], undefined, undefined), metadataId$2, /* WithDefaultValue */{
+                    })], undefined, undefined), metadataId$3, /* WithDefaultValue */{
               _0: defaultValue
             }, false, false);
 }
 
-function classify$3(struct) {
-  return get(struct, metadataId$2);
+function classify$4(struct) {
+  return get(struct, metadataId$3);
 }
 
 function factory$16(param) {
@@ -1843,7 +1854,7 @@ function factory$16(param) {
         });
   }
   return make("Tuple", {
-              TAG: /* Tuple */5,
+              TAG: /* Tuple */4,
               _0: structs
             }, parseActionFactories, [(function (param) {
                   return {
@@ -2068,7 +2079,7 @@ function factory$17(structs) {
     parseActionFactories = parseActionFactories$1;
   }
   return make("Union", {
-              TAG: /* Union */6,
+              TAG: /* Union */5,
               _0: structs
             }, parseActionFactories, serializeActionFactories, undefined, undefined);
 }
@@ -2206,7 +2217,7 @@ var deprecated = factory$12;
 var defaulted = factory$15;
 
 var Object_UnknownKeys = {
-  classify: classify$1
+  classify: classify$2
 };
 
 var $$Object = {
@@ -2289,11 +2300,15 @@ var $$Array = {
 };
 
 var Defaulted = {
-  classify: classify$3
+  classify: classify$4
 };
 
 var Deprecated = {
-  classify: classify$2
+  classify: classify$3
+};
+
+var Literal = {
+  classify: classify$1
 };
 
 var Metadata = {
@@ -2366,6 +2381,7 @@ exports.Float = Float;
 exports.$$Array = $$Array;
 exports.Defaulted = Defaulted;
 exports.Deprecated = Deprecated;
+exports.Literal = Literal;
 exports.Result = Result;
 exports.Metadata = Metadata;
 /*  Not a pure module */
