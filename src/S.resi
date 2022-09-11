@@ -93,6 +93,13 @@ let advancedTransform: (
   unit,
 ) => t<'transformed>
 
+let advancedPreprocess: (
+  t<'value>,
+  ~parser: (~struct: t<'value>) => action<unknown, 'value>=?,
+  ~serializer: (~struct: t<'value>) => action<'value, 'any>=?,
+  unit,
+) => t<'value>
+
 let custom: (
   ~name: string,
   ~parser: (. ~unknown: unknown) => 'value=?,

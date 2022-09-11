@@ -614,10 +614,9 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
           return input;
         })
     };
-    var serializer = function (param) {
-      return partial_arg;
-    };
-    tmp = [serializer].concat(struct.sf);
+    tmp = [(function (param) {
+            return partial_arg;
+          })].concat(struct.sf);
   } else {
     tmp = struct.sf;
   }
@@ -633,41 +632,40 @@ function asyncRefine(struct, parser, param) {
                   });
       })
   };
-  var parser$1 = function (param) {
-    return partial_arg;
-  };
-  return make(struct.n, struct.t, struct.pf.concat([parser$1]), struct.sf, struct.m, undefined);
+  return make(struct.n, struct.t, struct.pf.concat([(function (param) {
+                      return partial_arg;
+                    })]), struct.sf, struct.m, undefined);
 }
 
 function transform(struct, maybeTransformationParser, maybeTransformationSerializer, param) {
   if (maybeTransformationParser === undefined && maybeTransformationSerializer === undefined) {
     panic$1("struct factory Transform");
   }
-  var parser;
+  var tmp;
   if (maybeTransformationParser !== undefined) {
     var partial_arg = {
       TAG: /* Sync */0,
       _0: maybeTransformationParser
     };
-    parser = (function (param) {
+    tmp = (function (param) {
         return partial_arg;
       });
   } else {
-    parser = missingParser;
+    tmp = missingParser;
   }
-  var serializer;
+  var tmp$1;
   if (maybeTransformationSerializer !== undefined) {
     var partial_arg$1 = {
       TAG: /* Sync */0,
       _0: maybeTransformationSerializer
     };
-    serializer = (function (param) {
+    tmp$1 = (function (param) {
         return partial_arg$1;
       });
   } else {
-    serializer = missingSerializer;
+    tmp$1 = missingSerializer;
   }
-  return make(struct.n, struct.t, struct.pf.concat([parser]), [serializer].concat(struct.sf), struct.m, undefined);
+  return make(struct.n, struct.t, struct.pf.concat([tmp]), [tmp$1].concat(struct.sf), struct.m, undefined);
 }
 
 function advancedTransform(struct, maybeTransformationParser, maybeTransformationSerializer, param) {
@@ -675,6 +673,13 @@ function advancedTransform(struct, maybeTransformationParser, maybeTransformatio
     panic$1("struct factory Transform");
   }
   return make(struct.n, struct.t, struct.pf.concat([maybeTransformationParser !== undefined ? maybeTransformationParser : missingParser]), [maybeTransformationSerializer !== undefined ? maybeTransformationSerializer : missingSerializer].concat(struct.sf), struct.m, undefined);
+}
+
+function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerializer, param) {
+  if (maybePreprocessParser === undefined && maybePreprocessSerializer === undefined) {
+    panic$1("struct factory Preprocess");
+  }
+  return make(struct.n, struct.t, [maybePreprocessParser !== undefined ? Caml_option.valFromOption(maybePreprocessParser) : missingParser].concat(struct.pf), struct.sf.concat([maybePreprocessSerializer !== undefined ? Caml_option.valFromOption(maybePreprocessSerializer) : missingSerializer]), struct.m, undefined);
 }
 
 function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
@@ -2318,6 +2323,7 @@ exports.deprecated = deprecated;
 exports.defaulted = defaulted;
 exports.transform = transform;
 exports.advancedTransform = advancedTransform;
+exports.advancedPreprocess = advancedPreprocess;
 exports.custom = custom;
 exports.refine = refine;
 exports.asyncRefine = asyncRefine;

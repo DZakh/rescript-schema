@@ -665,12 +665,12 @@ module Action = {
 
   let emptyArray: array<actionFactory> = []
 
-  let concatParser = (parsers, parser) => {
-    parsers->Js.Array2.concat([parser])
+  let appendParsers = (existingParsers, appendedParser) => {
+    existingParsers->Js.Array2.concat(appendedParser)
   }
 
-  let concatSerializer = (serializers, serializer) => {
-    [serializer]->Js.Array2.concat(serializers)
+  let appendSerializers = (existingSerializers, appendedSerializers) => {
+    appendedSerializers->Js.Array2.concat(existingSerializers)
   }
 
   let missingParser = make(
@@ -721,12 +721,12 @@ let refine: (
     ~tagged=struct.tagged,
     ~parseActionFactories=switch maybeParseActionFactory {
     | Some(parseActionFactory) =>
-      struct.parseActionFactories->Action.concatParser(parseActionFactory)
+      struct.parseActionFactories->Action.appendParsers([parseActionFactory])
     | None => struct.parseActionFactories
     },
     ~serializeActionFactories=switch maybeRefineSerializer {
     | Some(refineSerializer) =>
-      struct.serializeActionFactories->Action.concatSerializer(
+      struct.serializeActionFactories->Action.appendSerializers([
         Action.make(
           Sync(
             input => {
@@ -735,7 +735,7 @@ let refine: (
             },
           ),
         ),
-      )
+      ])
     | None => struct.serializeActionFactories
     },
     ~metadataDict=?struct.maybeMetadataDict,
@@ -747,7 +747,7 @@ let asyncRefine = (struct, ~parser, ()) => {
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseActionFactories=struct.parseActionFactories->Action.concatParser(
+    ~parseActionFactories=struct.parseActionFactories->Action.appendParsers([
       Action.make(
         Async(
           input => {
@@ -759,7 +759,7 @@ let asyncRefine = (struct, ~parser, ()) => {
           },
         ),
       ),
-    ),
+    ]),
     ~serializeActionFactories=struct.serializeActionFactories,
     ~metadataDict=?struct.maybeMetadataDict,
     (),
@@ -784,18 +784,18 @@ let transform: (
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseActionFactories=struct.parseActionFactories->Action.concatParser(
+    ~parseActionFactories=struct.parseActionFactories->Action.appendParsers([
       switch maybeTransformationParser {
       | Some(transformationParser) => Action.make(Sync(transformationParser->Obj.magic))
       | None => Action.missingParser
       },
-    ),
-    ~serializeActionFactories=struct.serializeActionFactories->Action.concatSerializer(
+    ]),
+    ~serializeActionFactories=struct.serializeActionFactories->Action.appendSerializers([
       switch maybeTransformationSerializer {
       | Some(transformationSerializer) => Action.make(Sync(transformationSerializer->Obj.magic))
       | None => Action.missingSerializer
       },
-    ),
+    ]),
     ~metadataDict=?struct.maybeMetadataDict,
     (),
   )
@@ -819,18 +819,48 @@ let advancedTransform: (
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseActionFactories=struct.parseActionFactories->Action.concatParser(
+    ~parseActionFactories=struct.parseActionFactories->Action.appendParsers([
       switch maybeTransformationParser {
       | Some(transformationParser) => transformationParser->Obj.magic
       | None => Action.missingParser
       },
-    ),
-    ~serializeActionFactories=struct.serializeActionFactories->Action.concatSerializer(
+    ]),
+    ~serializeActionFactories=struct.serializeActionFactories->Action.appendSerializers([
       switch maybeTransformationSerializer {
       | Some(transformationSerializer) => transformationSerializer->Obj.magic
       | None => Action.missingSerializer
       },
-    ),
+    ]),
+    ~metadataDict=?struct.maybeMetadataDict,
+    (),
+  )
+}
+
+let advancedPreprocess = (
+  struct,
+  ~parser as maybePreprocessParser=?,
+  ~serializer as maybePreprocessSerializer=?,
+  (),
+) => {
+  if maybePreprocessParser === None && maybePreprocessSerializer === None {
+    Error.MissingParserAndSerializer.panic(`struct factory Preprocess`)
+  }
+
+  make(
+    ~name=struct.name,
+    ~tagged=struct.tagged,
+    ~parseActionFactories=[
+      switch maybePreprocessParser {
+      | Some(transformationParser) => transformationParser->Obj.magic
+      | None => Action.missingParser
+      },
+    ]->Action.appendParsers(struct.parseActionFactories),
+    ~serializeActionFactories=[
+      switch maybePreprocessSerializer {
+      | Some(transformationSerializer) => transformationSerializer->Obj.magic
+      | None => Action.missingSerializer
+      },
+    ]->Action.appendSerializers(struct.serializeActionFactories),
     ~metadataDict=?struct.maybeMetadataDict,
     (),
   )
