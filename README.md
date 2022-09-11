@@ -7,10 +7,10 @@ Highlights:
 - Parses any data, not only JSON
 - Asynchronous refinements and transforms
 - Support for both result and exception based API
-- Ability to disallow unrecognized object keys 
+- Ability to disallow unrecognized object keys
+- Built-in `union`, `literal` and many other structs
 - Fast: The **3rd** fastest parsing library in the whole JavaScript ecosystem ([benchmark](https://dzakh.github.io/rescript-runtime-type-benchmarks/))
 - Tiny: [7kb minified + zipped](https://bundle.js.org/?q=github%3ADZakh%2Frescript-struct%2Fmain%2Fsrc%2FS.bs.js&treeshake=%5B*+as+S%5D&config=%7B%22esbuild%22%3A%7B%22external%22%3A%5B%22rescript%22%5D%7D%7D)
-
 
 Also, it has declarative API allowing you to use **rescript-struct** as a building block for other tools, such as:
 
@@ -512,7 +512,6 @@ Ok("value")
 ```
 
 You can use the `S.Object.strip` function to reset a object struct to the default behavior (stripping unrecognized keys).
-
 
 #### **`S.never`**
 
