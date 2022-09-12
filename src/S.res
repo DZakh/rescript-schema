@@ -116,6 +116,15 @@ module Lib = {
       }
   }
 
+  module Exn = {
+    type error
+
+    @new
+    external makeError: string => error = "Error"
+
+    let raiseError = (error: error): 'a => error->Obj.magic->raise
+  }
+
   module Int = {
     @inline
     let plus = (int1: int, int2: int): int => {
@@ -127,10 +136,6 @@ module Lib = {
       let x = data->Obj.magic
       data->Js.typeof === "number" && x < 2147483648. && x > -2147483649. && x === x->Js.Math.trunc
     }
-  }
-
-  module Exn = {
-    let throw: exn => 'a = %raw(`function(exn){throw exn}`)
   }
 
   module Dict = {
@@ -145,7 +150,7 @@ module Lib = {
 
 module Error = {
   @inline
-  let panic = message => Js.Exn.raiseError(`[rescript-struct] ${message}`)
+  let panic = message => Lib.Exn.raiseError(Lib.Exn.makeError(`[rescript-struct] ${message}`))
 
   type rec t = {operation: operation, code: code, path: array<string>}
   and code =
@@ -518,7 +523,7 @@ let parseAsyncWith = (any, struct) => {
         switch exn {
         | Error.Internal.Exception(internalError) =>
           internalError->Error.Internal.toParseError->Error
-        | _ => exn->Lib.Exn.throw
+        | _ => raise(exn)
         }
       })
     }
@@ -546,7 +551,7 @@ let parseAsyncInStepsWith = (any, struct) => {
             switch exn {
             | Error.Internal.Exception(internalError) =>
               internalError->Error.Internal.toParseError->Error
-            | _ => exn->Lib.Exn.throw
+            | _ => raise(exn)
             }
           })
       }
@@ -1212,7 +1217,7 @@ module Object = {
                             internalError->Error.Internal.prependLocation(fieldName),
                           )
                         | _ => exn
-                        }->Lib.Exn.throw
+                        }->raise
                       })
                     })
                     ->Lib.Promise.all
@@ -1747,7 +1752,7 @@ module Array = {
                           internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
                         )
                       | _ => exn
-                      }->Lib.Exn.throw
+                      }->raise
                     })
                   })
                   ->Lib.Promise.all
@@ -1900,13 +1905,13 @@ module Dict = {
                             internalError->Error.Internal.prependLocation(key),
                           )
                         | _ => exn
-                        }->Lib.Exn.throw
+                        }->raise
                       })
                     } catch {
                     | Error.Internal.Exception(internalError) =>
                       Error.Internal.Exception(
                         internalError->Error.Internal.prependLocation(key),
-                      )->Lib.Exn.throw
+                      )->raise
                     }
                   })
                   ->Lib.Promise.all
@@ -2119,7 +2124,7 @@ module Tuple = {
                             ),
                           )
                         | _ => exn
-                        }->Lib.Exn.throw
+                        }->raise
                       })
                     })
                     ->Lib.Promise.all
@@ -2289,7 +2294,7 @@ module Union = {
                             switch exn {
                             | Error.Internal.Exception(internalError) =>
                               input["tempErrors"]->Lib.Array.set(originalIdx, internalError)
-                            | _ => exn->Lib.Exn.throw
+                            | _ => raise(exn)
                             },
                         )
                       } catch {
@@ -2311,7 +2316,7 @@ module Union = {
                       exn => {
                         switch exn {
                         | HackyValidValue(value) => value
-                        | _ => exn->Lib.Exn.throw
+                        | _ => raise(exn)
                         }
                       },
                     )

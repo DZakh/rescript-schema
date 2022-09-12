@@ -24,9 +24,8 @@ ava->test(
     t->Assert.throws(() => {
       S.string()->S.transform()->ignore
     }, ~expectations=ThrowsException.make(
-      ~name="RescriptStructError",
       ~message=String(
-        "For a struct factory Transform either a parser, or a serializer is required",
+        "[rescript-struct] For a struct factory Transform either a parser, or a serializer is required",
       ),
       (),
     ), ())

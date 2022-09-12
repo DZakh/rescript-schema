@@ -8,8 +8,6 @@ var Caml_option = require("rescript/lib/js/caml_option.js");
 var Caml_exceptions = require("rescript/lib/js/caml_exceptions.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
-var $$throw = (function(exn){throw exn});
-
 var Exception = /* @__PURE__ */Caml_exceptions.create("S.Error.Internal.Exception");
 
 function raise(code) {
@@ -67,15 +65,15 @@ function raise$1(expected, received) {
 }
 
 function panic($$location) {
-  return Js_exn.raiseError("[rescript-struct] " + ("For a " + $$location + " either a parser, or a serializer is required") + "");
+  throw new Error("[rescript-struct] " + ("For a " + $$location + " either a parser, or a serializer is required") + "");
 }
 
 function panic$1(param) {
-  return Js_exn.raiseError("[rescript-struct] Unreachable");
+  throw new Error("[rescript-struct] Unreachable");
 }
 
 function panic$2(param) {
-  return Js_exn.raiseError("[rescript-struct] A Union struct factory require at least two structs");
+  throw new Error("[rescript-struct] A Union struct factory require at least two structs");
 }
 
 function formatPath(path) {
@@ -392,9 +390,8 @@ function parseAsyncWith(any, struct) {
                             TAG: /* Error */1,
                             _0: toParseError(exn._1)
                           };
-                  } else {
-                    return $$throw(exn);
                   }
+                  throw exn;
                 });
     }
   }
@@ -443,9 +440,8 @@ function parseAsyncInStepsWith(any, struct) {
                                 TAG: /* Error */1,
                                 _0: toParseError(exn._1)
                               };
-                      } else {
-                        return $$throw(exn);
                       }
+                      throw exn;
                     });
         });
     }
@@ -959,10 +955,10 @@ function factory$2(param) {
           return Promise.all(asyncOps.map(function (param) {
                             var fieldName = param[1];
                             return tempArray[param[0]]().catch(function (exn) {
-                                        return $$throw(exn.RE_EXN_ID === Exception ? ({
-                                                        RE_EXN_ID: Exception,
-                                                        _1: prependLocation(exn._1, fieldName)
-                                                      }) : exn);
+                                        throw exn.RE_EXN_ID === Exception ? ({
+                                                  RE_EXN_ID: Exception,
+                                                  _1: prependLocation(exn._1, fieldName)
+                                                }) : exn;
                                       });
                           })).then(function (asyncFieldValues) {
                       asyncFieldValues.forEach(function (fieldValue, idx) {
@@ -1457,10 +1453,10 @@ function factory$13(innerStruct) {
         _0: (function (input) {
             return Promise.all(input.map(function (asyncFn, idx) {
                             return asyncFn().catch(function (exn) {
-                                        return $$throw(exn.RE_EXN_ID === Exception ? ({
-                                                        RE_EXN_ID: Exception,
-                                                        _1: prependLocation(exn._1, idx.toString())
-                                                      }) : exn);
+                                        throw exn.RE_EXN_ID === Exception ? ({
+                                                  RE_EXN_ID: Exception,
+                                                  _1: prependLocation(exn._1, idx.toString())
+                                                }) : exn;
                                       });
                           }));
           })
@@ -1604,19 +1600,20 @@ function factory$14(innerStruct) {
                               var asyncFn = input[key];
                               try {
                                 return asyncFn().catch(function (exn) {
-                                            return $$throw(exn.RE_EXN_ID === Exception ? ({
-                                                            RE_EXN_ID: Exception,
-                                                            _1: prependLocation(exn._1, key)
-                                                          }) : exn);
+                                            throw exn.RE_EXN_ID === Exception ? ({
+                                                      RE_EXN_ID: Exception,
+                                                      _1: prependLocation(exn._1, key)
+                                                    }) : exn;
                                           });
                               }
                               catch (raw_internalError){
                                 var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
                                 if (internalError.RE_EXN_ID === Exception) {
-                                  return $$throw({
-                                              RE_EXN_ID: Exception,
-                                              _1: prependLocation(internalError._1, key)
-                                            });
+                                  throw {
+                                        RE_EXN_ID: Exception,
+                                        _1: prependLocation(internalError._1, key),
+                                        Error: new Error()
+                                      };
                                 }
                                 throw internalError;
                               }
@@ -1838,10 +1835,10 @@ function factory$16(param) {
       _0: (function (tempArray) {
           return Promise.all(asyncOps.map(function (originalIdx) {
                             return tempArray[originalIdx]().catch(function (exn) {
-                                        return $$throw(exn.RE_EXN_ID === Exception ? ({
-                                                        RE_EXN_ID: Exception,
-                                                        _1: prependLocation(exn._1, originalIdx.toString())
-                                                      }) : exn);
+                                        throw exn.RE_EXN_ID === Exception ? ({
+                                                  RE_EXN_ID: Exception,
+                                                  _1: prependLocation(exn._1, originalIdx.toString())
+                                                }) : exn;
                                       });
                           })).then(function (values) {
                       values.forEach(function (value, idx) {
@@ -2049,11 +2046,12 @@ function factory$17(structs) {
                                                       Error: new Error()
                                                     };
                                               }), (function (exn) {
-                                                if (exn.RE_EXN_ID !== Exception) {
-                                                  return $$throw(exn);
+                                                if (exn.RE_EXN_ID === Exception) {
+                                                  var array = input.tempErrors;
+                                                  array[originalIdx] = exn._1;
+                                                  return ;
                                                 }
-                                                var array = input.tempErrors;
-                                                array[originalIdx] = exn._1;
+                                                throw exn;
                                               }));
                                 }
                                 catch (raw_internalError){
@@ -2072,9 +2070,8 @@ function factory$17(structs) {
                           }), (function (exn) {
                             if (exn.RE_EXN_ID === HackyValidValue) {
                               return exn._1;
-                            } else {
-                              return $$throw(exn);
                             }
+                            throw exn;
                           }));
             }
           })
@@ -2096,7 +2093,7 @@ function getExn(result) {
     return result._0;
   }
   var message = toString(result._0);
-  return Js_exn.raiseError("[rescript-struct] " + message + "");
+  throw new Error("[rescript-struct] " + message + "");
 }
 
 function mapErrorToString(result) {
@@ -2184,7 +2181,7 @@ function json(innerStruct) {
               }), undefined);
 }
 
-var $$Error = {
+var $$Error$1 = {
   prependLocation: prependLocation$1,
   raiseCustom: raiseCustom,
   raise: raise$2,
@@ -2324,7 +2321,7 @@ var Metadata = {
   set: set
 };
 
-exports.$$Error = $$Error;
+exports.$$Error = $$Error$1;
 exports.Raised = Raised;
 exports.never = never;
 exports.unknown = unknown;

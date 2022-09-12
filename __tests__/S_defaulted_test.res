@@ -50,8 +50,9 @@ ava->Failing.test(
     t->Assert.throws(() => {
       %raw(`undefined`)->S.parseWith(struct)->ignore
     }, ~expectations=ThrowsException.make(
-      ~name="RescriptStructError",
-      ~message=String("Provided default value (444) is different from optional Int Literal (123)"),
+      ~message=String(
+        "[rescript-struct] Provided default value (444) is different from optional Int Literal (123)",
+      ),
       (),
     ), ())
   },

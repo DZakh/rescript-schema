@@ -75,8 +75,9 @@ ava->test("Throws for a Custom factory without either a parser, or a serializer"
   t->Assert.throws(() => {
     S.custom(~name="Test", ())->ignore
   }, ~expectations=ThrowsException.make(
-    ~name="RescriptStructError",
-    ~message=String("For a Custom struct factory either a parser, or a serializer is required"),
+    ~message=String(
+      "[rescript-struct] For a Custom struct factory either a parser, or a serializer is required",
+    ),
     (),
   ), ())
 })
