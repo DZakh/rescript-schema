@@ -849,7 +849,7 @@ Error({
 ```
 
 ```rescript
-"[ReScript Struct] Failed parsing at root. Reason: Expected false, received true"
+"Failed parsing at root. Reason: Expected false, received true"
 ```
 
 #### **`S.Error.raise`**
@@ -885,7 +885,7 @@ true->S.parseWith(struct)->S.Result.getExn
 
 ```rescript
 false
-// throw new RescriptStructError("[ReScript Struct] Failed parsing at root. Reason: Expected false, received true")
+// throw new Error("[rescript-struct] Failed parsing at root. Reason: Expected false, received true")
 ```
 
 > 🧠 It's not intended to be caught. Useful to panic with a readable error message.
@@ -901,7 +901,7 @@ true->S.parseWith(struct)->S.Result.mapErrorToString
 ```
 
 ```rescript
-Error("[ReScript Struct] Failed parsing at root. Reason: Expected false, received true")
+Error("Failed parsing at root. Reason: Expected false, received true")
 ```
 
 ### Integration

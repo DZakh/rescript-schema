@@ -287,14 +287,13 @@ module Error = {
   }
 
   let toString = error => {
-    let prefix = `[ReScript Struct]`
     let operation = switch error.operation {
     | Serializing => "serializing"
     | Parsing => "parsing"
     }
     let reason = error->toReason
     let pathText = error.path->formatPath
-    `${prefix} Failed ${operation} at ${pathText}. Reason: ${reason}`
+    `Failed ${operation} at ${pathText}. Reason: ${reason}`
   }
 }
 

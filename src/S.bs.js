@@ -161,7 +161,7 @@ function toString(error) {
   var operation = match ? "parsing" : "serializing";
   var reason = toReason(undefined, error);
   var pathText = formatPath(error.path);
-  return "[ReScript Struct] Failed " + operation + " at " + pathText + ". Reason: " + reason + "";
+  return "Failed " + operation + " at " + pathText + ". Reason: " + reason + "";
 }
 
 var Raised = /* @__PURE__ */Caml_exceptions.create("S.Raised");
