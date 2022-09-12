@@ -144,14 +144,8 @@ module Lib = {
 }
 
 module Error = {
-  %%raw(`class RescriptStructError extends Error {
-    constructor(message) {
-      super(message);
-      this.name = "RescriptStructError";
-    }
-  }`)
-
-  let panic = %raw(`function(message){throw new RescriptStructError(message)}`)
+  @inline
+  let panic = message => Js.Exn.raiseError(`[rescript-struct] ${message}`)
 
   type rec t = {operation: operation, code: code, path: array<string>}
   and code =

@@ -10,16 +10,6 @@ var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
 var $$throw = (function(exn){throw exn});
 
-class RescriptStructError extends Error {
-    constructor(message) {
-      super(message);
-      this.name = "RescriptStructError";
-    }
-  }
-;
-
-var panic = (function(message){throw new RescriptStructError(message)});
-
 var Exception = /* @__PURE__ */Caml_exceptions.create("S.Error.Internal.Exception");
 
 function raise(code) {
@@ -76,8 +66,16 @@ function raise$1(expected, received) {
             });
 }
 
-function panic$1($$location) {
-  return panic("For a " + $$location + " either a parser, or a serializer is required");
+function panic($$location) {
+  return Js_exn.raiseError("[rescript-struct] " + ("For a " + $$location + " either a parser, or a serializer is required") + "");
+}
+
+function panic$1(param) {
+  return Js_exn.raiseError("[rescript-struct] Unreachable");
+}
+
+function panic$2(param) {
+  return Js_exn.raiseError("[rescript-struct] A Union struct factory require at least two structs");
 }
 
 function formatPath(path) {
@@ -473,7 +471,7 @@ function serializeWith(value, struct) {
     var fn = struct.s;
     var tmp;
     tmp = typeof fn === "number" ? value : (
-        fn.TAG === /* SyncOperation */0 ? fn._0(value) : panic("Unreachable")
+        fn.TAG === /* SyncOperation */0 ? fn._0(value) : panic$1(undefined)
       );
     return {
             TAG: /* Ok */0,
@@ -500,7 +498,7 @@ function serializeOrRaiseWith(value, struct) {
     } else if (fn.TAG === /* SyncOperation */0) {
       return fn._0(value);
     } else {
-      return panic("Unreachable");
+      return panic$1(undefined);
     }
   }
   catch (raw_internalError){
@@ -590,7 +588,7 @@ function missingSerializer(param) {
 
 function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
   if (maybeRefineParser === undefined && maybeRefineSerializer === undefined) {
-    panic$1("struct factory Refine");
+    panic("struct factory Refine");
   }
   var fn = function (refineParser) {
     var partial_arg = {
@@ -639,7 +637,7 @@ function asyncRefine(struct, parser, param) {
 
 function transform(struct, maybeTransformationParser, maybeTransformationSerializer, param) {
   if (maybeTransformationParser === undefined && maybeTransformationSerializer === undefined) {
-    panic$1("struct factory Transform");
+    panic("struct factory Transform");
   }
   var tmp;
   if (maybeTransformationParser !== undefined) {
@@ -670,14 +668,14 @@ function transform(struct, maybeTransformationParser, maybeTransformationSeriali
 
 function advancedTransform(struct, maybeTransformationParser, maybeTransformationSerializer, param) {
   if (maybeTransformationParser === undefined && maybeTransformationSerializer === undefined) {
-    panic$1("struct factory Transform");
+    panic("struct factory Transform");
   }
   return make(struct.n, struct.t, struct.pf.concat([maybeTransformationParser !== undefined ? maybeTransformationParser : missingParser]), [maybeTransformationSerializer !== undefined ? maybeTransformationSerializer : missingSerializer].concat(struct.sf), struct.m, undefined);
 }
 
 function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerializer, param) {
   if (maybePreprocessParser === undefined && maybePreprocessSerializer === undefined) {
-    panic$1("struct factory Preprocess");
+    panic("struct factory Preprocess");
   }
   var unionStructs = struct.t;
   if (typeof unionStructs !== "number" && unionStructs.TAG === /* Union */5) {
@@ -693,7 +691,7 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
 
 function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
   if (maybeCustomParser === undefined && maybeCustomSerializer === undefined) {
-    panic$1("Custom struct factory");
+    panic("Custom struct factory");
   }
   var tmp;
   if (maybeCustomSerializer !== undefined) {
@@ -1013,7 +1011,7 @@ function factory$2(param) {
                                     throw internalError;
                                   }
                                 } else {
-                                  panic("Unreachable");
+                                  panic$1(undefined);
                                 }
                               }
                               return unknown;
@@ -1323,7 +1321,7 @@ function factory$10(innerStruct) {
                               } else if (fn.TAG === /* SyncOperation */0) {
                                 return fn._0(value);
                               } else {
-                                return panic("Unreachable");
+                                return panic$1(undefined);
                               }
                             })
                         };
@@ -1388,7 +1386,7 @@ function factory$11(innerStruct) {
                               } else if (fn.TAG === /* SyncOperation */0) {
                                 return fn._0(value);
                               } else {
-                                return panic("Unreachable");
+                                return panic$1(undefined);
                               }
                             })
                         };
@@ -1508,7 +1506,7 @@ function factory$13(innerStruct) {
           return partial_arg$1;
         })];
   } else {
-    tmp = panic("Unreachable");
+    tmp = panic$1(undefined);
   }
   return make("Array", {
               TAG: /* Array */2,
@@ -1675,7 +1673,7 @@ function factory$14(innerStruct) {
           return partial_arg$1;
         })];
   } else {
-    tmp = panic("Unreachable");
+    tmp = panic$1(undefined);
   }
   return make("Dict", {
               TAG: /* Dict */6,
@@ -1696,7 +1694,7 @@ function factory$15(innerStruct, defaultValue) {
         } else if (fn.TAG === /* SyncOperation */0) {
           return fn._0(value);
         } else {
-          return panic("Unreachable");
+          return panic$1(undefined);
         }
       })
   };
@@ -1894,7 +1892,7 @@ function factory$16(param) {
                                     throw internalError;
                                   }
                                 } else {
-                                  panic("Unreachable");
+                                  panic$1(undefined);
                                 }
                               }
                               return newArray;
@@ -1911,7 +1909,7 @@ var HackyValidValue = /* @__PURE__ */Caml_exceptions.create("S.Union.HackyValidV
 
 function factory$17(structs) {
   if (structs.length < 2) {
-    panic("A Union struct factory require at least two structs");
+    panic$2(undefined);
   }
   var serializeActionFactories = [(function (param) {
         return {
@@ -1927,7 +1925,7 @@ function factory$17(structs) {
                         var fn = innerStruct.s;
                         var newValue;
                         newValue = typeof fn === "number" ? input : (
-                            fn.TAG === /* SyncOperation */0 ? fn._0(input) : panic("Unreachable")
+                            fn.TAG === /* SyncOperation */0 ? fn._0(input) : panic$1(undefined)
                           );
                         maybeNewValueRef = Caml_option.some(newValue);
                       }
@@ -2096,9 +2094,9 @@ function factory$17(structs) {
 function getExn(result) {
   if (result.TAG === /* Ok */0) {
     return result._0;
-  } else {
-    return panic(toString(result._0));
   }
+  var message = toString(result._0);
+  return Js_exn.raiseError("[rescript-struct] " + message + "");
 }
 
 function mapErrorToString(result) {
@@ -2393,4 +2391,4 @@ exports.Deprecated = Deprecated;
 exports.Literal = Literal;
 exports.Result = Result;
 exports.Metadata = Metadata;
-/*  Not a pure module */
+/* No side effect */
