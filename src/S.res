@@ -401,49 +401,52 @@ let makeOperation = (~actionFactories, ~struct) => {
   | [] => NoopOperation
   | _ =>
     let lastActionIdx = actionFactories->Js.Array2.length - 1
-    let lastSyncActionIdxRef = ref(lastActionIdx)
+    let firstAsyncActionIdxRef = ref(-1)
     let actions = []
-    for idx in 0 to lastSyncActionIdxRef.contents {
+    for idx in 0 to lastActionIdx {
       let actionFactory = actionFactories->Js.Array2.unsafe_get(idx)
       let action = (actionFactory->castActionFactoryToUncurried)(. ~struct)
       actions->Js.Array2.push(action)->ignore
-      if lastSyncActionIdxRef.contents === lastActionIdx {
+      if firstAsyncActionIdxRef.contents === -1 {
         switch action {
-        | Async(_) => lastSyncActionIdxRef.contents = idx - 1
+        | Async(_) => firstAsyncActionIdxRef.contents = idx
         | Sync(_) => ()
         }
       }
     }
 
-    let syncOperation = switch lastSyncActionIdxRef.contents === 0 {
-    // Shortcut to get a fn of the first Sync
-    | true => (actions->Js.Array2.unsafe_get(0)->Obj.magic)._0
-    | false =>
-      (. input) => {
-        let tempOuputRef = ref(input->Obj.magic)
-        for idx in 0 to lastSyncActionIdxRef.contents {
-          let action = actions->Js.Array2.unsafe_get(idx)
-          // Shortcut to get Sync fn
-          let newValue = (action->Obj.magic)._0(. tempOuputRef.contents)
-          tempOuputRef.contents = newValue
+    let syncOperation = {
+      let lastSyncActionIdx =
+        firstAsyncActionIdxRef.contents === -1 ? lastActionIdx : firstAsyncActionIdxRef.contents - 1
+      switch lastSyncActionIdx === 0 {
+      // Shortcut to get a fn of the first Sync
+      | true => (actions->Js.Array2.unsafe_get(0)->Obj.magic)._0
+      | false =>
+        (. input) => {
+          let tempOuputRef = ref(input->Obj.magic)
+          for idx in 0 to lastSyncActionIdx {
+            let action = actions->Js.Array2.unsafe_get(idx)
+            // Shortcut to get Sync fn
+            let newValue = (action->Obj.magic)._0(. tempOuputRef.contents)
+            tempOuputRef.contents = newValue
+          }
+          tempOuputRef.contents
         }
-        tempOuputRef.contents
       }
     }
 
-    switch lastActionIdx === lastSyncActionIdxRef.contents {
+    switch firstAsyncActionIdxRef.contents === -1 {
     | true => SyncOperation(syncOperation)
     | false =>
       AsyncOperation(
         (. input) => {
-          let syncOutput = switch lastSyncActionIdxRef.contents {
-          // For the case when an async action is the first
-          | -1 => input
+          let syncOutput = switch firstAsyncActionIdxRef.contents {
+          | 0 => input
           | _ => syncOperation(. input)
           }
           (. ()) => {
             let tempOuputRef = ref(syncOutput->Lib.Promise.resolve)
-            for idx in lastSyncActionIdxRef.contents + 1 to lastActionIdx {
+            for idx in firstAsyncActionIdxRef.contents to lastActionIdx {
               let action = actions->Js.Array2.unsafe_get(idx)
               tempOuputRef.contents =
                 tempOuputRef.contents->Lib.Promise.then(tempOutput => {

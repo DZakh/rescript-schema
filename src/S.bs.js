@@ -235,29 +235,30 @@ function makeOperation(actionFactories, struct) {
     return /* NoopOperation */0;
   }
   var lastActionIdx = actionFactories.length - 1 | 0;
-  var lastSyncActionIdxRef = {
-    contents: lastActionIdx
+  var firstAsyncActionIdxRef = {
+    contents: -1
   };
   var actions = [];
-  for(var idx = 0 ,idx_finish = lastSyncActionIdxRef.contents; idx <= idx_finish; ++idx){
+  for(var idx = 0; idx <= lastActionIdx; ++idx){
     var actionFactory = actionFactories[idx];
     var action = actionFactory(struct);
     actions.push(action);
-    if (lastSyncActionIdxRef.contents === lastActionIdx && action.TAG !== /* Sync */0) {
-      lastSyncActionIdxRef.contents = idx - 1 | 0;
+    if (firstAsyncActionIdxRef.contents === -1 && action.TAG !== /* Sync */0) {
+      firstAsyncActionIdxRef.contents = idx;
     }
     
   }
-  var syncOperation = lastSyncActionIdxRef.contents === 0 ? actions[0]._0 : (function (input) {
+  var lastSyncActionIdx = firstAsyncActionIdxRef.contents === -1 ? lastActionIdx : firstAsyncActionIdxRef.contents - 1 | 0;
+  var syncOperation = lastSyncActionIdx === 0 ? actions[0]._0 : (function (input) {
         var tempOuputRef = input;
-        for(var idx = 0 ,idx_finish = lastSyncActionIdxRef.contents; idx <= idx_finish; ++idx){
+        for(var idx = 0; idx <= lastSyncActionIdx; ++idx){
           var action = actions[idx];
           var newValue = action._0(tempOuputRef);
           tempOuputRef = newValue;
         }
         return tempOuputRef;
       });
-  if (lastActionIdx === lastSyncActionIdxRef.contents) {
+  if (firstAsyncActionIdxRef.contents === -1) {
     return {
             TAG: /* SyncOperation */0,
             _0: syncOperation
@@ -266,11 +267,11 @@ function makeOperation(actionFactories, struct) {
     return {
             TAG: /* AsyncOperation */1,
             _0: (function (input) {
-                var match = lastSyncActionIdxRef.contents;
-                var syncOutput = match !== -1 ? syncOperation(input) : input;
+                var match = firstAsyncActionIdxRef.contents;
+                var syncOutput = match !== 0 ? syncOperation(input) : input;
                 return function () {
                   var tempOuputRef = Promise.resolve(syncOutput);
-                  for(var idx = lastSyncActionIdxRef.contents + 1 | 0; idx <= lastActionIdx; ++idx){
+                  for(var idx = firstAsyncActionIdxRef.contents; idx <= lastActionIdx; ++idx){
                     var action = actions[idx];
                     tempOuputRef = tempOuputRef.then((function(action){
                         return function (tempOutput) {
