@@ -343,7 +343,9 @@ and migration<'input, 'output> =
   | Sync('input => 'output)
   | Async('input => Js.Promise.t<'output>)
 and internalMigrationFactoryCtx = {
+  @as("m")
   migrations: array<unknown => unknown>,
+  @as("i")
   mutable firstAsyncMigrationIdx: int,
 }
 and internalMigrationFactory = (. ~ctx: internalMigrationFactoryCtx, ~struct: t<unknown>) => unit
@@ -366,7 +368,15 @@ module MigrationFactory = {
       }
     }
 
+    @inline
     let planSyncMigration = (ctx, migration: 'a => 'b) => {
+      ctx.migrations->Js.Array2.push(migration->Obj.magic)->ignore
+    }
+
+    let planAsyncMigration = (ctx, migration: 'a => Js.Promise.t<'b>) => {
+      if ctx.firstAsyncMigrationIdx === -1 {
+        ctx.firstAsyncMigrationIdx = ctx.migrations->Js.Array2.length
+      }
       ctx.migrations->Js.Array2.push(migration->Obj.magic)->ignore
     }
 
@@ -376,13 +386,6 @@ module MigrationFactory = {
 
     let planMissingSerializerMigration = ctx => {
       ctx->planSyncMigration(_ => Error.Internal.raise(MissingSerializer))
-    }
-
-    let planAsyncMigration = (ctx, migration: 'a => Js.Promise.t<'b>) => {
-      if ctx.firstAsyncMigrationIdx === -1 {
-        ctx.firstAsyncMigrationIdx = ctx.migrations->Js.Array2.length
-      }
-      ctx.migrations->Js.Array2.push(migration->Obj.magic)->ignore
     }
   }
 
