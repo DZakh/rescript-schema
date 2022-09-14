@@ -8,7 +8,7 @@ module Lib = {
     @send
     external thenResolve: (t<'a>, @uncurry ('a => 'b)) => t<'b> = "then"
 
-    @send external then: (t<'a>, @uncurry ('a => t<'b>)) => t<'b> = "then"
+    @send external then: (t<'a>, 'a => t<'b>) => t<'b> = "then"
 
     @send
     external thenResolveWithCatch: (t<'a>, @uncurry ('a => 'b), @uncurry (exn => 'b)) => t<'b> =
@@ -94,13 +94,6 @@ module Lib = {
   }
 
   module Option = {
-    @inline
-    let map = (option, fn) =>
-      switch option {
-      | Some(value) => Some(fn(value))
-      | None => None
-      }
-
     @inline
     let getWithDefault = (option, default) =>
       switch option {
@@ -319,9 +312,9 @@ type rec t<'value> = {
   @as("t")
   tagged: tagged,
   @as("pf")
-  parseActionFactories: array<actionFactory>,
+  parseMigrationFactory: internalMigrationFactory,
   @as("sf")
-  serializeActionFactories: array<actionFactory>,
+  serializeMigrationFactory: internalMigrationFactory,
   @as("s")
   serialize: operation,
   @as("p")
@@ -346,21 +339,109 @@ and tagged =
   | Dict(t<unknown>)
   | Date
 and field<'value> = (string, t<'value>)
-and action<'input, 'output> =
+and migration<'input, 'output> =
   | Sync('input => 'output)
   | Async('input => Js.Promise.t<'output>)
-and actionFactory = (~struct: t<unknown>) => action<unknown, unknown>
+and internalMigrationFactoryCtx = {
+  migrations: array<unknown => unknown>,
+  mutable firstAsyncMigrationIdx: int,
+}
+and internalMigrationFactory = (. ~ctx: internalMigrationFactoryCtx, ~struct: t<unknown>) => unit
 
 external castAnyToUnknown: 'any => unknown = "%identity"
 external castUnknownToAny: unknown => 'any = "%identity"
 external castUnknownStructToAnyStruct: t<unknown> => t<'any> = "%identity"
 external castAnyStructToUnknownStruct: t<'any> => t<unknown> = "%identity"
-external castActionFactoryToUncurried: (
-  actionFactory,
+external castPublicMigrationFactoryToUncurried: (
+  (~struct: t<'value>) => migration<'input, 'output>,
   . ~struct: t<unknown>,
-) => action<unknown, unknown> = "%identity"
+) => migration<unknown, unknown> = "%identity"
 
-type payloadedVariant<'payload> = {_0: 'payload}
+module MigrationFactory = {
+  module Ctx = {
+    let make = () => {
+      {
+        migrations: [],
+        firstAsyncMigrationIdx: -1,
+      }
+    }
+
+    let planSyncMigration = (ctx, migration: 'a => 'b) => {
+      ctx.migrations->Js.Array2.push(migration->Obj.magic)->ignore
+    }
+
+    let planMissingParserMigration = ctx => {
+      ctx->planSyncMigration(_ => Error.Internal.raise(MissingParser))
+    }
+
+    let planMissingSerializerMigration = ctx => {
+      ctx->planSyncMigration(_ => Error.Internal.raise(MissingSerializer))
+    }
+
+    let planAsyncMigration = (ctx, migration: 'a => Js.Promise.t<'b>) => {
+      if ctx.firstAsyncMigrationIdx === -1 {
+        ctx.firstAsyncMigrationIdx = ctx.migrations->Js.Array2.length
+      }
+      ctx.migrations->Js.Array2.push(migration->Obj.magic)->ignore
+    }
+  }
+
+  external make: (
+    (. ~ctx: internalMigrationFactoryCtx, ~struct: t<'value>) => unit
+  ) => internalMigrationFactory = "%identity"
+
+  let empty = make((. ~ctx as _, ~struct as _) => ())
+
+  let compile = (migrationFactory, ~struct) => {
+    let ctx = Ctx.make()
+    migrationFactory(. ~ctx, ~struct)
+    let {migrations, firstAsyncMigrationIdx} = ctx
+    switch migrations {
+    | [] => NoopOperation
+    | _ =>
+      let lastMigrationIdx = migrations->Js.Array2.length - 1
+      let lastSyncMigrationIdx =
+        firstAsyncMigrationIdx === -1 ? lastMigrationIdx : firstAsyncMigrationIdx - 1
+      let syncOperation = switch lastSyncMigrationIdx < 1 {
+      // Shortcut to get a fn of the first Sync
+      | true => migrations->Js.Array2.unsafe_get(0)->Obj.magic
+      | false =>
+        (. input) => {
+          let tempOuputRef = ref(input->Obj.magic)
+          for idx in 0 to lastSyncMigrationIdx {
+            let migration = migrations->Js.Array2.unsafe_get(idx)
+            // Shortcut to get Sync fn
+            let newValue = (migration->Obj.magic)(. tempOuputRef.contents)
+            tempOuputRef.contents = newValue
+          }
+          tempOuputRef.contents
+        }
+      }
+
+      switch firstAsyncMigrationIdx === -1 {
+      | true => SyncOperation(syncOperation)
+      | false =>
+        AsyncOperation(
+          (. input) => {
+            let syncOutput = switch firstAsyncMigrationIdx {
+            | 0 => input
+            | _ => syncOperation(. input)
+            }
+            (. ()) => {
+              let tempOuputRef = ref(syncOutput->Lib.Promise.resolve)
+              for idx in firstAsyncMigrationIdx to lastMigrationIdx {
+                let migration = migrations->Js.Array2.unsafe_get(idx)
+                tempOuputRef.contents =
+                  tempOuputRef.contents->Lib.Promise.then(migration->Obj.magic)
+              }
+              tempOuputRef.contents
+            }
+          },
+        )
+      }
+    }
+  }
+}
 
 @inline
 let classify = struct => struct.tagged
@@ -396,95 +477,27 @@ let raiseUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   )
 }
 
-let makeOperation = (~actionFactories, ~struct) => {
-  switch actionFactories {
-  | [] => NoopOperation
-  | _ =>
-    let lastActionIdx = actionFactories->Js.Array2.length - 1
-    let firstAsyncActionIdxRef = ref(-1)
-    let actions = []
-    for idx in 0 to lastActionIdx {
-      let actionFactory = actionFactories->Js.Array2.unsafe_get(idx)
-      let action = (actionFactory->castActionFactoryToUncurried)(. ~struct)
-      actions->Js.Array2.push(action)->ignore
-      if firstAsyncActionIdxRef.contents === -1 {
-        switch action {
-        | Async(_) => firstAsyncActionIdxRef.contents = idx
-        | Sync(_) => ()
-        }
-      }
-    }
-
-    let syncOperation = {
-      let lastSyncActionIdx =
-        firstAsyncActionIdxRef.contents === -1 ? lastActionIdx : firstAsyncActionIdxRef.contents - 1
-      switch lastSyncActionIdx === 0 {
-      // Shortcut to get a fn of the first Sync
-      | true => (actions->Js.Array2.unsafe_get(0)->Obj.magic)._0
-      | false =>
-        (. input) => {
-          let tempOuputRef = ref(input->Obj.magic)
-          for idx in 0 to lastSyncActionIdx {
-            let action = actions->Js.Array2.unsafe_get(idx)
-            // Shortcut to get Sync fn
-            let newValue = (action->Obj.magic)._0(. tempOuputRef.contents)
-            tempOuputRef.contents = newValue
-          }
-          tempOuputRef.contents
-        }
-      }
-    }
-
-    switch firstAsyncActionIdxRef.contents === -1 {
-    | true => SyncOperation(syncOperation)
-    | false =>
-      AsyncOperation(
-        (. input) => {
-          let syncOutput = switch firstAsyncActionIdxRef.contents {
-          | 0 => input
-          | _ => syncOperation(. input)
-          }
-          (. ()) => {
-            let tempOuputRef = ref(syncOutput->Lib.Promise.resolve)
-            for idx in firstAsyncActionIdxRef.contents to lastActionIdx {
-              let action = actions->Js.Array2.unsafe_get(idx)
-              tempOuputRef.contents =
-                tempOuputRef.contents->Lib.Promise.then(tempOutput => {
-                  switch action {
-                  | Sync(fn) => fn->Lib.Fn.call1(tempOutput)->Lib.Promise.resolve
-                  | Async(fn) => fn->Lib.Fn.call1(tempOutput)
-                  }
-                })
-            }
-            tempOuputRef.contents
-          }
-        },
-      )
-    }
-  }
-}
-
 let make = (
   ~name,
   ~tagged,
-  ~parseActionFactories,
-  ~serializeActionFactories,
+  ~parseMigrationFactory,
+  ~serializeMigrationFactory,
   ~metadataDict as maybeMetadataDict=?,
   (),
 ) => {
   let struct = {
     name,
     tagged,
-    parseActionFactories,
-    serializeActionFactories,
+    parseMigrationFactory,
+    serializeMigrationFactory,
     serialize: %raw("undefined"),
     parse: %raw("undefined"),
     maybeMetadataDict,
   }
   {
     ...struct,
-    serialize: makeOperation(~actionFactories=struct.serializeActionFactories, ~struct),
-    parse: makeOperation(~actionFactories=struct.parseActionFactories, ~struct),
+    serialize: struct.serializeMigrationFactory->MigrationFactory.compile(~struct),
+    parse: struct.parseMigrationFactory->MigrationFactory.compile(~struct),
   }
 }
 
@@ -642,55 +655,18 @@ module Metadata = {
     | _ => {
         ...structWithNewMetadata,
         parse: withParserUpdate
-          ? makeOperation(
-              ~actionFactories=structWithNewMetadata.parseActionFactories,
+          ? structWithNewMetadata.parseMigrationFactory->MigrationFactory.compile(
               ~struct=structWithNewMetadata,
             )
           : structWithNewMetadata.parse,
         serialize: withSerializerUpdate
-          ? makeOperation(
-              ~actionFactories=structWithNewMetadata.serializeActionFactories,
+          ? structWithNewMetadata.serializeMigrationFactory->MigrationFactory.compile(
               ~struct=structWithNewMetadata,
             )
           : structWithNewMetadata.serialize,
       }
     }
   }
-}
-
-module Action = {
-  @inline
-  let factory = (fn: (~struct: t<'value>) => action<'input, 'output>): actionFactory =>
-    fn->Obj.magic
-
-  @inline
-  let make = (action: action<'input, 'output>): actionFactory => (~struct as _) => action->Obj.magic
-
-  let emptyArray: array<actionFactory> = []
-
-  let appendParsers = (existingParsers, appendedParser) => {
-    existingParsers->Js.Array2.concat(appendedParser)
-  }
-
-  let appendSerializers = (existingSerializers, appendedSerializers) => {
-    appendedSerializers->Js.Array2.concat(existingSerializers)
-  }
-
-  let missingParser = make(
-    Sync(
-      _ => {
-        Error.Internal.raise(MissingParser)
-      },
-    ),
-  )
-
-  let missingSerializer = make(
-    Sync(
-      _ => {
-        Error.Internal.raise(MissingSerializer)
-      },
-    ),
-  )
 }
 
 let refine: (
@@ -708,38 +684,30 @@ let refine: (
     Error.MissingParserAndSerializer.panic(`struct factory Refine`)
   }
 
-  let maybeParseActionFactory = maybeRefineParser->Lib.Option.map(refineParser => {
-    Action.make(
-      Sync(
-        input => {
-          let () = refineParser->Lib.Fn.call1(input)
-          input
-        },
-      ),
-    )
-  })
-
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseActionFactories=switch maybeParseActionFactory {
-    | Some(parseActionFactory) =>
-      struct.parseActionFactories->Action.appendParsers([parseActionFactory])
-    | None => struct.parseActionFactories
+    ~parseMigrationFactory=switch maybeRefineParser {
+    | Some(refineParser) =>
+      MigrationFactory.make((. ~ctx, ~struct as compilingStruct) => {
+        struct.parseMigrationFactory(. ~ctx, ~struct=compilingStruct)
+        ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+          let () = refineParser->Lib.Fn.call1(input)
+          input
+        })
+      })
+    | None => struct.parseMigrationFactory
     },
-    ~serializeActionFactories=switch maybeRefineSerializer {
+    ~serializeMigrationFactory=switch maybeRefineSerializer {
     | Some(refineSerializer) =>
-      struct.serializeActionFactories->Action.appendSerializers([
-        Action.make(
-          Sync(
-            input => {
-              let () = refineSerializer->Lib.Fn.call1(input)
-              input
-            },
-          ),
-        ),
-      ])
-    | None => struct.serializeActionFactories
+      MigrationFactory.make((. ~ctx, ~struct as compilingStruct) => {
+        ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+          let () = refineSerializer->Lib.Fn.call1(input)
+          input
+        })
+        struct.serializeMigrationFactory(. ~ctx, ~struct=compilingStruct)
+      })
+    | None => struct.serializeMigrationFactory
     },
     ~metadataDict=?struct.maybeMetadataDict,
     (),
@@ -750,20 +718,19 @@ let asyncRefine = (struct, ~parser, ()) => {
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseActionFactories=struct.parseActionFactories->Action.appendParsers([
-      Action.make(
-        Async(
-          input => {
-            parser
-            ->Lib.Fn.call1(input)
-            ->Lib.Promise.thenResolve(() => {
-              input
-            })
+    ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as compilingStruct) => {
+      struct.parseMigrationFactory(. ~ctx, ~struct=compilingStruct)
+      ctx->MigrationFactory.Ctx.planAsyncMigration(input => {
+        parser
+        ->Lib.Fn.call1(input)
+        ->Lib.Promise.thenResolve(
+          () => {
+            input
           },
-        ),
-      ),
-    ]),
-    ~serializeActionFactories=struct.serializeActionFactories,
+        )
+      })
+    }),
+    ~serializeMigrationFactory=struct.serializeMigrationFactory,
     ~metadataDict=?struct.maybeMetadataDict,
     (),
   )
@@ -776,29 +743,32 @@ let transform: (
   unit,
 ) => t<'transformed> = (
   struct,
-  ~parser as maybeTransformationParser=?,
-  ~serializer as maybeTransformationSerializer=?,
+  ~parser as maybeTransformParser=?,
+  ~serializer as maybeTransformSerializer=?,
   (),
 ) => {
-  if maybeTransformationParser === None && maybeTransformationSerializer === None {
+  if maybeTransformParser === None && maybeTransformSerializer === None {
     Error.MissingParserAndSerializer.panic(`struct factory Transform`)
   }
 
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseActionFactories=struct.parseActionFactories->Action.appendParsers([
-      switch maybeTransformationParser {
-      | Some(transformationParser) => Action.make(Sync(transformationParser->Obj.magic))
-      | None => Action.missingParser
-      },
-    ]),
-    ~serializeActionFactories=struct.serializeActionFactories->Action.appendSerializers([
-      switch maybeTransformationSerializer {
-      | Some(transformationSerializer) => Action.make(Sync(transformationSerializer->Obj.magic))
-      | None => Action.missingSerializer
-      },
-    ]),
+    ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as compilingStruct) => {
+      struct.parseMigrationFactory(. ~ctx, ~struct=compilingStruct)
+      switch maybeTransformParser {
+      | Some(transformParser) => ctx->MigrationFactory.Ctx.planSyncMigration(transformParser)
+      | None => ctx->MigrationFactory.Ctx.planMissingParserMigration
+      }
+    }),
+    ~serializeMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as compilingStruct) => {
+      switch maybeTransformSerializer {
+      | Some(transformSerializer) =>
+        ctx->MigrationFactory.Ctx.planSyncMigration(transformSerializer)
+      | None => ctx->MigrationFactory.Ctx.planMissingSerializerMigration
+      }
+      struct.serializeMigrationFactory(. ~ctx, ~struct=compilingStruct)
+    }),
     ~metadataDict=?struct.maybeMetadataDict,
     (),
   )
@@ -806,34 +776,48 @@ let transform: (
 
 let advancedTransform: (
   t<'value>,
-  ~parser: (~struct: t<'value>) => action<'value, 'transformed>=?,
-  ~serializer: (~struct: t<'value>) => action<'transformed, 'value>=?,
+  ~parser: (~struct: t<'value>) => migration<'value, 'transformed>=?,
+  ~serializer: (~struct: t<'value>) => migration<'transformed, 'value>=?,
   unit,
 ) => t<'transformed> = (
   struct,
-  ~parser as maybeTransformationParser=?,
-  ~serializer as maybeTransformationSerializer=?,
+  ~parser as maybeTransformParser=?,
+  ~serializer as maybeTransformSerializer=?,
   (),
 ) => {
-  if maybeTransformationParser === None && maybeTransformationSerializer === None {
+  if maybeTransformParser === None && maybeTransformSerializer === None {
     Error.MissingParserAndSerializer.panic(`struct factory Transform`)
   }
 
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseActionFactories=struct.parseActionFactories->Action.appendParsers([
-      switch maybeTransformationParser {
-      | Some(transformationParser) => transformationParser->Obj.magic
-      | None => Action.missingParser
-      },
-    ]),
-    ~serializeActionFactories=struct.serializeActionFactories->Action.appendSerializers([
-      switch maybeTransformationSerializer {
-      | Some(transformationSerializer) => transformationSerializer->Obj.magic
-      | None => Action.missingSerializer
-      },
-    ]),
+    ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as compilingStruct) => {
+      struct.parseMigrationFactory(. ~ctx, ~struct=compilingStruct)
+      switch maybeTransformParser {
+      | Some(transformParser) =>
+        switch (transformParser->castPublicMigrationFactoryToUncurried)(.
+          ~struct=compilingStruct->castUnknownStructToAnyStruct,
+        ) {
+        | Sync(syncMigration) => ctx->MigrationFactory.Ctx.planSyncMigration(syncMigration)
+        | Async(asyncMigration) => ctx->MigrationFactory.Ctx.planAsyncMigration(asyncMigration)
+        }
+      | None => ctx->MigrationFactory.Ctx.planMissingParserMigration
+      }
+    }),
+    ~serializeMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as compilingStruct) => {
+      switch maybeTransformSerializer {
+      | Some(transformSerializer) =>
+        switch (transformSerializer->castPublicMigrationFactoryToUncurried)(.
+          ~struct=compilingStruct->castUnknownStructToAnyStruct,
+        ) {
+        | Sync(syncMigration) => ctx->MigrationFactory.Ctx.planSyncMigration(syncMigration)
+        | Async(asyncMigration) => ctx->MigrationFactory.Ctx.planAsyncMigration(asyncMigration)
+        }
+      | None => ctx->MigrationFactory.Ctx.planMissingSerializerMigration
+      }
+      struct.serializeMigrationFactory(. ~ctx, ~struct=compilingStruct)
+    }),
     ~metadataDict=?struct.maybeMetadataDict,
     (),
   )
@@ -865,8 +849,8 @@ let rec advancedPreprocess = (
           ->castAnyStructToUnknownStruct
         ),
       ),
-      ~parseActionFactories=struct.parseActionFactories,
-      ~serializeActionFactories=struct.serializeActionFactories,
+      ~parseMigrationFactory=struct.parseMigrationFactory,
+      ~serializeMigrationFactory=struct.serializeMigrationFactory,
       ~metadataDict=?struct.maybeMetadataDict,
       (),
     )
@@ -874,18 +858,32 @@ let rec advancedPreprocess = (
     make(
       ~name=struct.name,
       ~tagged=struct.tagged,
-      ~parseActionFactories=[
+      ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as compilingStruct) => {
         switch maybePreprocessParser {
-        | Some(transformationParser) => transformationParser->Obj.magic
-        | None => Action.missingParser
-        },
-      ]->Action.appendParsers(struct.parseActionFactories),
-      ~serializeActionFactories=[
+        | Some(preprocessParser) =>
+          switch (preprocessParser->castPublicMigrationFactoryToUncurried)(.
+            ~struct=compilingStruct->castUnknownStructToAnyStruct,
+          ) {
+          | Sync(syncMigration) => ctx->MigrationFactory.Ctx.planSyncMigration(syncMigration)
+          | Async(asyncMigration) => ctx->MigrationFactory.Ctx.planAsyncMigration(asyncMigration)
+          }
+        | None => ctx->MigrationFactory.Ctx.planMissingParserMigration
+        }
+        struct.parseMigrationFactory(. ~ctx, ~struct=compilingStruct)
+      }),
+      ~serializeMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as compilingStruct) => {
+        struct.serializeMigrationFactory(. ~ctx, ~struct=compilingStruct)
         switch maybePreprocessSerializer {
-        | Some(transformationSerializer) => transformationSerializer->Obj.magic
-        | None => Action.missingSerializer
-        },
-      ]->Action.appendSerializers(struct.serializeActionFactories),
+        | Some(preprocessSerializer) =>
+          switch (preprocessSerializer->castPublicMigrationFactoryToUncurried)(.
+            ~struct=compilingStruct->castUnknownStructToAnyStruct,
+          ) {
+          | Sync(syncMigration) => ctx->MigrationFactory.Ctx.planSyncMigration(syncMigration)
+          | Async(asyncMigration) => ctx->MigrationFactory.Ctx.planAsyncMigration(asyncMigration)
+          }
+        | None => ctx->MigrationFactory.Ctx.planMissingSerializerMigration
+        }
+      }),
       ~metadataDict=?struct.maybeMetadataDict,
       (),
     )
@@ -905,23 +903,19 @@ let custom = (
   make(
     ~name,
     ~tagged=Unknown,
-    ~parseActionFactories=[
+    ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) => {
       switch maybeCustomParser {
-      | Some(customParser) =>
-        Action.factory((~struct as _) => Sync(
-          input => {
-            customParser(. ~unknown=input)
-          },
-        ))
-      | None => Action.missingParser
-      },
-    ],
-    ~serializeActionFactories=[
+      | Some(customParser) => ctx->MigrationFactory.Ctx.planSyncMigration(customParser->Obj.magic)
+      | None => ctx->MigrationFactory.Ctx.planMissingParserMigration
+      }
+    }),
+    ~serializeMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) => {
       switch maybeCustomSerializer {
-      | Some(customSerializer) => Action.make(Sync(customSerializer->Obj.magic))
-      | None => Action.missingSerializer
-      },
-    ],
+      | Some(customSerializer) =>
+        ctx->MigrationFactory.Ctx.planSyncMigration(customSerializer->Obj.magic)
+      | None => ctx->MigrationFactory.Ctx.planMissingSerializerMigration
+      }
+    }),
     (),
   )
 }
@@ -951,38 +945,32 @@ module Literal = {
       (innerLiteral, variant) => {
         let tagged = Literal
 
-        let makeParseActionFactories = (~literalValue, ~test) => {
-          [
-            Action.factory((~struct) => Sync(
-              input => {
-                if test->Lib.Fn.call1(input) {
-                  if literalValue->castAnyToUnknown === input {
-                    variant
-                  } else {
-                    Error.Internal.UnexpectedValue.raise(~expected=literalValue, ~received=input)
-                  }
+        let makeParseMigrationFactory = (~literalValue, ~test) => {
+          MigrationFactory.make((. ~ctx, ~struct) =>
+            ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+              if test->Lib.Fn.call1(input) {
+                if literalValue->castAnyToUnknown === input {
+                  variant
                 } else {
-                  raiseUnexpectedTypeError(~input, ~struct)
+                  Error.Internal.UnexpectedValue.raise(~expected=literalValue, ~received=input)
                 }
-              },
-            )),
-          ]
+              } else {
+                raiseUnexpectedTypeError(~input, ~struct)
+              }
+            })
+          )
         }
 
-        let makeSerializeActionFactories = output => {
-          [
-            Action.make(
-              Sync(
-                input => {
-                  if input === variant {
-                    output
-                  } else {
-                    Error.Internal.UnexpectedValue.raise(~expected=variant, ~received=input)
-                  }
-                },
-              ),
-            ),
-          ]
+        let makeSerializeMigrationFactory = output => {
+          MigrationFactory.make((. ~ctx, ~struct as _) =>
+            ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+              if input === variant {
+                output
+              } else {
+                Error.Internal.UnexpectedValue.raise(~expected=variant, ~received=input)
+              }
+            })
+          )
         }
 
         switch innerLiteral {
@@ -990,94 +978,88 @@ module Literal = {
           make(
             ~name="EmptyNull Literal (null)",
             ~tagged,
-            ~parseActionFactories=[
-              Action.factory((~struct) => Sync(
-                input => {
-                  if input === Js.Null.empty {
-                    variant
-                  } else {
-                    raiseUnexpectedTypeError(~input, ~struct)
-                  }
-                },
-              )),
-            ],
-            ~serializeActionFactories=makeSerializeActionFactories(Js.Null.empty),
+            ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct) =>
+              ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+                if input === Js.Null.empty {
+                  variant
+                } else {
+                  raiseUnexpectedTypeError(~input, ~struct)
+                }
+              })
+            ),
+            ~serializeMigrationFactory=makeSerializeMigrationFactory(Js.Null.empty),
             (),
           )
         | EmptyOption =>
           make(
             ~name="EmptyOption Literal (undefined)",
             ~tagged,
-            ~parseActionFactories=[
-              Action.factory((~struct) => Sync(
-                input => {
-                  if input === Js.Undefined.empty {
-                    variant
-                  } else {
-                    raiseUnexpectedTypeError(~input, ~struct)
-                  }
-                },
-              )),
-            ],
-            ~serializeActionFactories=makeSerializeActionFactories(Js.Undefined.empty),
+            ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct) =>
+              ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+                if input === Js.Undefined.empty {
+                  variant
+                } else {
+                  raiseUnexpectedTypeError(~input, ~struct)
+                }
+              })
+            ),
+            ~serializeMigrationFactory=makeSerializeMigrationFactory(Js.Undefined.empty),
             (),
           )
         | NaN =>
           make(
             ~name="NaN Literal (NaN)",
             ~tagged,
-            ~parseActionFactories=[
-              Action.factory((~struct) => Sync(
-                input => {
-                  if Js.Float.isNaN(input) {
-                    variant
-                  } else {
-                    raiseUnexpectedTypeError(~input, ~struct)
-                  }
-                },
-              )),
-            ],
-            ~serializeActionFactories=makeSerializeActionFactories(Js.Float._NaN),
+            ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct) =>
+              ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+                if Js.Float.isNaN(input) {
+                  variant
+                } else {
+                  raiseUnexpectedTypeError(~input, ~struct)
+                }
+              })
+            ),
+            ~serializeMigrationFactory=makeSerializeMigrationFactory(Js.Float._NaN),
             (),
           )
         | Bool(bool) =>
           make(
             ~name=j`Bool Literal ($bool)`,
             ~tagged,
-            ~parseActionFactories=makeParseActionFactories(~literalValue=bool, ~test=input =>
+            ~parseMigrationFactory=makeParseMigrationFactory(~literalValue=bool, ~test=input =>
               input->Js.typeof === "boolean"
             ),
-            ~serializeActionFactories=makeSerializeActionFactories(bool),
+            ~serializeMigrationFactory=makeSerializeMigrationFactory(bool),
             (),
           )
         | String(string) =>
           make(
             ~name=`String Literal ("${string}")`,
             ~tagged,
-            ~parseActionFactories=makeParseActionFactories(~literalValue=string, ~test=input =>
+            ~parseMigrationFactory=makeParseMigrationFactory(~literalValue=string, ~test=input =>
               input->Js.typeof === "string"
             ),
-            ~serializeActionFactories=makeSerializeActionFactories(string),
+            ~serializeMigrationFactory=makeSerializeMigrationFactory(string),
             (),
           )
         | Float(float) =>
           make(
             ~name=`Float Literal (${float->Js.Float.toString})`,
             ~tagged,
-            ~parseActionFactories=makeParseActionFactories(~literalValue=float, ~test=input =>
+            ~parseMigrationFactory=makeParseMigrationFactory(~literalValue=float, ~test=input =>
               input->Js.typeof === "number"
             ),
-            ~serializeActionFactories=makeSerializeActionFactories(float),
+            ~serializeMigrationFactory=makeSerializeMigrationFactory(float),
             (),
           )
         | Int(int) =>
           make(
             ~name=`Int Literal (${int->Js.Int.toString})`,
             ~tagged,
-            ~parseActionFactories=makeParseActionFactories(~literalValue=int, ~test=input =>
+            ~parseMigrationFactory=makeParseMigrationFactory(~literalValue=int, ~test=input =>
               input->Lib.Int.test
             ),
-            ~serializeActionFactories=makeSerializeActionFactories(int),
+            ~serializeMigrationFactory=makeSerializeMigrationFactory(int),
             (),
           )
         }->Metadata.set(
@@ -1138,7 +1120,9 @@ module Object = {
       make(
         ~name="Object",
         ~tagged=Object({fields, fieldNames}),
-        ~parseActionFactories={
+        ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct) => {
+          let unknownKeys = struct->UnknownKeys.classify
+
           let noopOps = []
           let syncOps = []
           let asyncOps = []
@@ -1156,120 +1140,109 @@ module Object = {
           }
           let withAsyncOps = asyncOps->Js.Array2.length > 0
 
-          let parseActionFactories = [
-            Action.factory((~struct) => {
-              let unknownKeys = struct->UnknownKeys.classify
-              Sync(
-                input => {
-                  if input->Lib.Object.test === false {
-                    raiseUnexpectedTypeError(~input, ~struct)
-                  }
+          ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+            if input->Lib.Object.test === false {
+              raiseUnexpectedTypeError(~input, ~struct)
+            }
 
-                  let newArray = []
+            let newArray = []
 
-                  for idx in 0 to syncOps->Js.Array2.length - 1 {
-                    let (originalIdx, fieldName, fn) = syncOps->Js.Array2.unsafe_get(idx)
-                    let fieldData = input->Js.Dict.unsafeGet(fieldName)
-                    try {
-                      let value = fn(. fieldData)
-                      newArray->Lib.Array.set(originalIdx, value)
-                    } catch {
-                    | Error.Internal.Exception(internalError) =>
-                      raise(
-                        Error.Internal.Exception(
-                          internalError->Error.Internal.prependLocation(fieldName),
-                        ),
-                      )
-                    }
-                  }
+            for idx in 0 to syncOps->Js.Array2.length - 1 {
+              let (originalIdx, fieldName, fn) = syncOps->Js.Array2.unsafe_get(idx)
+              let fieldData = input->Js.Dict.unsafeGet(fieldName)
+              try {
+                let value = fn(. fieldData)
+                newArray->Lib.Array.set(originalIdx, value)
+              } catch {
+              | Error.Internal.Exception(internalError) =>
+                raise(
+                  Error.Internal.Exception(
+                    internalError->Error.Internal.prependLocation(fieldName),
+                  ),
+                )
+              }
+            }
 
-                  for idx in 0 to noopOps->Js.Array2.length - 1 {
-                    let (originalIdx, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
-                    let fieldData = input->Js.Dict.unsafeGet(fieldName)
-                    newArray->Lib.Array.set(originalIdx, fieldData)
-                  }
+            for idx in 0 to noopOps->Js.Array2.length - 1 {
+              let (originalIdx, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
+              let fieldData = input->Js.Dict.unsafeGet(fieldName)
+              newArray->Lib.Array.set(originalIdx, fieldData)
+            }
 
-                  if unknownKeys === UnknownKeys.Strict {
-                    switch getMaybeExcessKey(. input->castAnyToUnknown, fields) {
-                    | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
-                    | None => ()
-                    }
-                  }
+            if unknownKeys === UnknownKeys.Strict {
+              switch getMaybeExcessKey(. input->castAnyToUnknown, fields) {
+              | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
+              | None => ()
+              }
+            }
 
-                  withAsyncOps ? newArray->castAnyToUnknown : newArray->Lib.Array.toTuple
-                },
-              )
-            }),
-          ]
+            withAsyncOps ? newArray->castAnyToUnknown : newArray->Lib.Array.toTuple
+          })
 
           if withAsyncOps {
-            parseActionFactories
-            ->Js.Array2.push(
-              Action.make(
-                Async(
-                  tempArray => {
-                    asyncOps
-                    ->Js.Array2.map(((originalIdx, fieldName)) => {
-                      (
-                        tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
-                      )(.)->Lib.Promise.catch(exn => {
-                        switch exn {
-                        | Error.Internal.Exception(internalError) =>
-                          Error.Internal.Exception(
-                            internalError->Error.Internal.prependLocation(fieldName),
-                          )
-                        | _ => exn
-                        }->raise
-                      })
-                    })
-                    ->Lib.Promise.all
-                    ->Lib.Promise.thenResolve(asyncFieldValues => {
-                      asyncFieldValues->Js.Array2.forEachi((fieldValue, idx) => {
-                        let (originalIdx, _) = asyncOps->Js.Array2.unsafe_get(idx)
-                        tempArray->castUnknownToAny->Lib.Array.set(originalIdx, fieldValue)
-                      })
-                      tempArray
-                    })
-                  },
-                ),
-              ),
-            )
-            ->ignore
+            ctx->MigrationFactory.Ctx.planAsyncMigration(tempArray => {
+              asyncOps
+              ->Js.Array2.map(
+                ((originalIdx, fieldName)) => {
+                  (
+                    tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
+                  )(.)->Lib.Promise.catch(
+                    exn => {
+                      switch exn {
+                      | Error.Internal.Exception(internalError) =>
+                        Error.Internal.Exception(
+                          internalError->Error.Internal.prependLocation(fieldName),
+                        )
+                      | _ => exn
+                      }->raise
+                    },
+                  )
+                },
+              )
+              ->Lib.Promise.all
+              ->Lib.Promise.thenResolve(
+                asyncFieldValues => {
+                  asyncFieldValues->Js.Array2.forEachi(
+                    (fieldValue, idx) => {
+                      let (originalIdx, _) = asyncOps->Js.Array2.unsafe_get(idx)
+                      tempArray->castUnknownToAny->Lib.Array.set(originalIdx, fieldValue)
+                    },
+                  )
+                  tempArray
+                },
+              )
+            })
           }
-
-          parseActionFactories
-        },
-        ~serializeActionFactories=[
-          Action.factory((~struct as _) => Sync(
-            input => {
-              let unknown = Js.Dict.empty()
-              let fieldValues =
-                fieldNames->Js.Array2.length <= 1 ? [input]->Obj.magic : input->Obj.magic
-              for idx in 0 to fieldNames->Js.Array2.length - 1 {
-                let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-                let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-                let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
-                switch fieldStruct.serialize {
-                | NoopOperation => unknown->Js.Dict.set(fieldName, fieldValue)
-                | SyncOperation(fn) =>
-                  try {
-                    let fieldData = fn(. fieldValue)
-                    unknown->Js.Dict.set(fieldName, fieldData)
-                  } catch {
-                  | Error.Internal.Exception(internalError) =>
-                    raise(
-                      Error.Internal.Exception(
-                        internalError->Error.Internal.prependLocation(fieldName),
-                      ),
-                    )
-                  }
-                | AsyncOperation(_) => Error.Unreachable.panic()
+        }),
+        ~serializeMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) =>
+          ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+            let unknown = Js.Dict.empty()
+            let fieldValues =
+              fieldNames->Js.Array2.length <= 1 ? [input]->Obj.magic : input->Obj.magic
+            for idx in 0 to fieldNames->Js.Array2.length - 1 {
+              let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+              let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+              let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
+              switch fieldStruct.serialize {
+              | NoopOperation => unknown->Js.Dict.set(fieldName, fieldValue)
+              | SyncOperation(fn) =>
+                try {
+                  let fieldData = fn(. fieldValue)
+                  unknown->Js.Dict.set(fieldName, fieldData)
+                } catch {
+                | Error.Internal.Exception(internalError) =>
+                  raise(
+                    Error.Internal.Exception(
+                      internalError->Error.Internal.prependLocation(fieldName),
+                    ),
+                  )
                 }
+              | AsyncOperation(_) => Error.Unreachable.panic()
               }
-              unknown
-            },
-          )),
-        ],
+            }
+            unknown
+          })
+        ),
         (),
       )
     }
@@ -1296,19 +1269,17 @@ module Object = {
 
 module Never = {
   let factory = () => {
-    let actionFactories = [
-      Action.factory((~struct) => Sync(
-        input => {
-          raiseUnexpectedTypeError(~input, ~struct)
-        },
-      )),
-    ]
+    let migrationFactory = MigrationFactory.make((. ~ctx, ~struct) =>
+      ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+        raiseUnexpectedTypeError(~input, ~struct)
+      })
+    )
 
     make(
       ~name=`Never`,
       ~tagged=Never,
-      ~parseActionFactories=actionFactories,
-      ~serializeActionFactories=actionFactories,
+      ~parseMigrationFactory=migrationFactory,
+      ~serializeMigrationFactory=migrationFactory,
       (),
     )
   }
@@ -1319,8 +1290,8 @@ module Unknown = {
     make(
       ~name=`Unknown`,
       ~tagged=Unknown,
-      ~parseActionFactories=Action.emptyArray,
-      ~serializeActionFactories=Action.emptyArray,
+      ~parseMigrationFactory=MigrationFactory.empty,
+      ~serializeMigrationFactory=MigrationFactory.empty,
       (),
     )
   }
@@ -1335,18 +1306,16 @@ module String = {
     make(
       ~name=`String`,
       ~tagged=String,
-      ~parseActionFactories=[
-        Action.factory((~struct) => Sync(
-          input => {
-            if input->Js.typeof === "string" {
-              input
-            } else {
-              raiseUnexpectedTypeError(~input, ~struct)
-            }
-          },
-        )),
-      ],
-      ~serializeActionFactories=Action.emptyArray,
+      ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct) =>
+        ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+          if input->Js.typeof === "string" {
+            input
+          } else {
+            raiseUnexpectedTypeError(~input, ~struct)
+          }
+        })
+      ),
+      ~serializeMigrationFactory=MigrationFactory.empty,
       (),
     )
   }
@@ -1444,18 +1413,16 @@ module Bool = {
     make(
       ~name=`Bool`,
       ~tagged=Bool,
-      ~parseActionFactories=[
-        Action.factory((~struct) => Sync(
-          input => {
-            if input->Js.typeof === "boolean" {
-              input
-            } else {
-              raiseUnexpectedTypeError(~input, ~struct)
-            }
-          },
-        )),
-      ],
-      ~serializeActionFactories=Action.emptyArray,
+      ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct) =>
+        ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+          if input->Js.typeof === "boolean" {
+            input
+          } else {
+            raiseUnexpectedTypeError(~input, ~struct)
+          }
+        })
+      ),
+      ~serializeMigrationFactory=MigrationFactory.empty,
       (),
     )
   }
@@ -1466,18 +1433,16 @@ module Int = {
     make(
       ~name=`Int`,
       ~tagged=Int,
-      ~parseActionFactories=[
-        Action.factory((~struct) => Sync(
-          input => {
-            if Lib.Int.test(input) {
-              input
-            } else {
-              raiseUnexpectedTypeError(~input, ~struct)
-            }
-          },
-        )),
-      ],
-      ~serializeActionFactories=Action.emptyArray,
+      ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct) =>
+        ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+          if Lib.Int.test(input) {
+            input
+          } else {
+            raiseUnexpectedTypeError(~input, ~struct)
+          }
+        })
+      ),
+      ~serializeMigrationFactory=MigrationFactory.empty,
       (),
     )
   }
@@ -1514,22 +1479,20 @@ module Float = {
     make(
       ~name=`Float`,
       ~tagged=Float,
-      ~parseActionFactories=[
-        Action.factory((~struct) => Sync(
-          input => {
-            switch input->Js.typeof === "number" {
-            | true =>
-              if Js.Float.isNaN(input) {
-                raiseUnexpectedTypeError(~input, ~struct)
-              } else {
-                input
-              }
-            | false => raiseUnexpectedTypeError(~input, ~struct)
+      ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct) =>
+        ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+          switch input->Js.typeof === "number" {
+          | true =>
+            if Js.Float.isNaN(input) {
+              raiseUnexpectedTypeError(~input, ~struct)
+            } else {
+              input
             }
-          },
-        )),
-      ],
-      ~serializeActionFactories=Action.emptyArray,
+          | false => raiseUnexpectedTypeError(~input, ~struct)
+          }
+        })
+      ),
+      ~serializeMigrationFactory=MigrationFactory.empty,
       (),
     )
   }
@@ -1543,18 +1506,16 @@ module Date = {
     make(
       ~name="Date",
       ~tagged=Date,
-      ~parseActionFactories=[
-        Action.factory((~struct) => Sync(
-          input => {
-            if %raw(`input instanceof Date`) && input->Js.Date.getTime->Js.Float.isNaN->not {
-              input
-            } else {
-              raiseUnexpectedTypeError(~input, ~struct)
-            }
-          },
-        )),
-      ],
-      ~serializeActionFactories=Action.emptyArray,
+      ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct) =>
+        ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+          if %raw(`input instanceof Date`) && input->Js.Date.getTime->Js.Float.isNaN->not {
+            input
+          } else {
+            raiseUnexpectedTypeError(~input, ~struct)
+          }
+        })
+      ),
+      ~serializeMigrationFactory=MigrationFactory.empty,
       (),
     )
   }
@@ -1565,56 +1526,37 @@ module Null = {
     make(
       ~name=`Null`,
       ~tagged=Null(innerStruct->Obj.magic),
-      ~parseActionFactories={
-        let makeSyncParseAction = fn => {
-          Action.make(
-            Sync(
-              input => {
-                switch input->Js.Null.toOption {
-                | Some(innerData) => Some(fn(. innerData))
-                | None => None
-                }
-              },
-            ),
-          )
-        }
-
-        switch innerStruct.parse {
-        | NoopOperation => [
-            Action.make(
-              Sync(
-                input => {
-                  input->Js.Null.toOption
-                },
-              ),
-            ),
-          ]
-        | SyncOperation(fn) => [makeSyncParseAction(fn)]
-        | AsyncOperation(fn) => [
-            makeSyncParseAction(fn),
-            Action.make(
-              Async(
-                input => {
-                  switch input {
-                  | Some(asyncFn) => asyncFn(.)->Lib.Promise.thenResolve(value => Some(value))
-                  | None => None->Lib.Promise.resolve
-                  }
-                },
-              ),
-            ),
-          ]
-        }
-      },
-      ~serializeActionFactories=[
-        Action.factory((~struct as _) => Sync(
-          input => {
-            switch input {
-            | Some(value) => serializeInner(~struct=innerStruct, ~value)
-            | None => Js.Null.empty->castAnyToUnknown
+      ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) => {
+        let planSyncMigration = fn => {
+          ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+            switch input->Js.Null.toOption {
+            | Some(innerData) => Some(fn(. innerData))
+            | None => None
             }
-          },
-        )),
-      ],
+          })
+        }
+        switch innerStruct.parse {
+        | NoopOperation => ctx->MigrationFactory.Ctx.planSyncMigration(Js.Null.toOption)
+        | SyncOperation(fn) => planSyncMigration(fn)
+        | AsyncOperation(fn) => {
+            planSyncMigration(fn)
+            ctx->MigrationFactory.Ctx.planAsyncMigration(input => {
+              switch input {
+              | Some(asyncFn) => asyncFn(.)->Lib.Promise.thenResolve(value => Some(value))
+              | None => None->Lib.Promise.resolve
+              }
+            })
+          }
+        }
+      }),
+      ~serializeMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) =>
+        ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+          switch input {
+          | Some(value) => serializeInner(~struct=innerStruct, ~value)
+          | None => Js.Null.empty->castAnyToUnknown
+          }
+        })
+      ),
       (),
     )
   }
@@ -1625,48 +1567,37 @@ module Option = {
     make(
       ~name=`Option`,
       ~tagged=Option(innerStruct->Obj.magic),
-      ~parseActionFactories={
-        let makeSyncParseAction = fn => {
-          Action.make(
-            Sync(
-              input => {
-                switch input {
-                | Some(innerData) => Some(fn(. innerData))
-                | None => None
-                }
-              },
-            ),
-          )
-        }
-
-        switch innerStruct.parse {
-        | NoopOperation => Action.emptyArray
-        | SyncOperation(fn) => [makeSyncParseAction(fn)]
-        | AsyncOperation(fn) => [
-            makeSyncParseAction(fn),
-            Action.make(
-              Async(
-                input => {
-                  switch input {
-                  | Some(asyncFn) => asyncFn(.)->Lib.Promise.thenResolve(value => Some(value))
-                  | None => None->Lib.Promise.resolve
-                  }
-                },
-              ),
-            ),
-          ]
-        }
-      },
-      ~serializeActionFactories=[
-        Action.factory((~struct as _) => Sync(
-          input => {
+      ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) => {
+        let planSyncMigration = fn => {
+          ctx->MigrationFactory.Ctx.planSyncMigration(input => {
             switch input {
-            | Some(value) => serializeInner(~struct=innerStruct, ~value)
-            | None => Js.Undefined.empty->castAnyToUnknown
+            | Some(innerData) => Some(fn(. innerData))
+            | None => None
             }
-          },
-        )),
-      ],
+          })
+        }
+        switch innerStruct.parse {
+        | NoopOperation => ()
+        | SyncOperation(fn) => planSyncMigration(fn)
+        | AsyncOperation(fn) => {
+            planSyncMigration(fn)
+            ctx->MigrationFactory.Ctx.planAsyncMigration(input => {
+              switch input {
+              | Some(asyncFn) => asyncFn(.)->Lib.Promise.thenResolve(value => Some(value))
+              | None => None->Lib.Promise.resolve
+              }
+            })
+          }
+        }
+      }),
+      ~serializeMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) =>
+        ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+          switch input {
+          | Some(value) => serializeInner(~struct=innerStruct, ~value)
+          | None => Js.Undefined.empty->castAnyToUnknown
+          }
+        })
+      ),
       (),
     )
   }
@@ -1697,107 +1628,88 @@ module Array = {
     make(
       ~name=`Array`,
       ~tagged=Array(innerStruct->Obj.magic),
-      ~parseActionFactories={
-        let makeSyncParseAction = fn => {
-          Action.make(
-            Sync(
-              input => {
-                let newArray = []
-                for idx in 0 to input->Js.Array2.length - 1 {
-                  let innerData = input->Js.Array2.unsafe_get(idx)
-                  try {
-                    let value = fn(. innerData)
-                    newArray->Js.Array2.push(value)->ignore
-                  } catch {
-                  | Error.Internal.Exception(internalError) =>
-                    raise(
-                      Error.Internal.Exception(
-                        internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                      ),
-                    )
-                  }
-                }
-                newArray
-              },
-            ),
-          )
-        }
+      ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct) => {
+        ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+          if Js.Array2.isArray(input) === false {
+            raiseUnexpectedTypeError(~input, ~struct)
+          } else {
+            input
+          }
+        })
 
-        let parseActionFactories = [
-          Action.factory((~struct) => Sync(
-            input => {
-              if Js.Array2.isArray(input) === false {
-                raiseUnexpectedTypeError(~input, ~struct)
-              } else {
-                input
+        let planSyncMigration = fn => {
+          ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+            let newArray = []
+            for idx in 0 to input->Js.Array2.length - 1 {
+              let innerData = input->Js.Array2.unsafe_get(idx)
+              try {
+                let value = fn(. innerData)
+                newArray->Js.Array2.push(value)->ignore
+              } catch {
+              | Error.Internal.Exception(internalError) =>
+                raise(
+                  Error.Internal.Exception(
+                    internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+                  ),
+                )
               }
-            },
-          )),
-        ]
+            }
+            newArray
+          })
+        }
 
         switch innerStruct.parse {
         | NoopOperation => ()
-        | SyncOperation(fn) => parseActionFactories->Js.Array2.push(makeSyncParseAction(fn))->ignore
+        | SyncOperation(fn) => planSyncMigration(fn)
         | AsyncOperation(fn) =>
-          parseActionFactories->Js.Array2.push(makeSyncParseAction(fn))->ignore
-          parseActionFactories
-          ->Js.Array2.push(
-            Action.make(
-              Async(
-                input => {
-                  input
-                  ->Js.Array2.mapi((asyncFn, idx) => {
-                    asyncFn(.)->Lib.Promise.catch(exn => {
-                      switch exn {
-                      | Error.Internal.Exception(internalError) =>
-                        Error.Internal.Exception(
-                          internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                        )
-                      | _ => exn
-                      }->raise
-                    })
-                  })
-                  ->Lib.Promise.all
-                  ->Obj.magic
-                },
-              ),
-            ),
-          )
-          ->ignore
-        }
-
-        parseActionFactories
-      },
-      ~serializeActionFactories={
-        switch innerStruct.serialize {
-        | NoopOperation => Action.emptyArray
-        | SyncOperation(fn) => [
-            Action.make(
-              Sync(
-                input => {
-                  let newArray = []
-                  for idx in 0 to input->Js.Array2.length - 1 {
-                    let innerData = input->Js.Array2.unsafe_get(idx)
-                    try {
-                      let value = fn(. innerData)
-                      newArray->Js.Array2.push(value)->ignore
-                    } catch {
+          planSyncMigration(fn)
+          ctx->MigrationFactory.Ctx.planAsyncMigration(input => {
+            input
+            ->Js.Array2.mapi(
+              (asyncFn, idx) => {
+                asyncFn(.)->Lib.Promise.catch(
+                  exn => {
+                    switch exn {
                     | Error.Internal.Exception(internalError) =>
-                      raise(
-                        Error.Internal.Exception(
-                          internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                        ),
+                      Error.Internal.Exception(
+                        internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
                       )
-                    }
-                  }
-                  newArray
-                },
-              ),
-            ),
-          ]
+                    | _ => exn
+                    }->raise
+                  },
+                )
+              },
+            )
+            ->Lib.Promise.all
+            ->Obj.magic
+          })
+        }
+      }),
+      ~serializeMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) => {
+        switch innerStruct.serialize {
+        | NoopOperation => ()
+        | SyncOperation(fn) =>
+          ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+            let newArray = []
+            for idx in 0 to input->Js.Array2.length - 1 {
+              let innerData = input->Js.Array2.unsafe_get(idx)
+              try {
+                let value = fn(. innerData)
+                newArray->Js.Array2.push(value)->ignore
+              } catch {
+              | Error.Internal.Exception(internalError) =>
+                raise(
+                  Error.Internal.Exception(
+                    internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+                  ),
+                )
+              }
+            }
+            newArray
+          })
         | AsyncOperation(_) => Error.Unreachable.panic()
         }
-      },
+      }),
       (),
     )
   }
@@ -1847,125 +1759,102 @@ module Dict = {
     make(
       ~name=`Dict`,
       ~tagged=Dict(innerStruct->Obj.magic),
-      ~parseActionFactories={
-        let makeSyncParseAction = fn => {
-          Action.make(
-            Sync(
-              input => {
-                let newDict = Js.Dict.empty()
-                let keys = input->Js.Dict.keys
-                for idx in 0 to keys->Js.Array2.length - 1 {
-                  let key = keys->Js.Array2.unsafe_get(idx)
-                  let innerData = input->Js.Dict.unsafeGet(key)
-                  try {
-                    let value = fn(. innerData)
-                    newDict->Js.Dict.set(key, value)->ignore
-                  } catch {
-                  | Error.Internal.Exception(internalError) =>
-                    raise(
-                      Error.Internal.Exception(internalError->Error.Internal.prependLocation(key)),
-                    )
-                  }
-                }
-                newDict
-              },
-            ),
-          )
+      ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct) => {
+        let planSyncMigration = fn => {
+          ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+            let newDict = Js.Dict.empty()
+            let keys = input->Js.Dict.keys
+            for idx in 0 to keys->Js.Array2.length - 1 {
+              let key = keys->Js.Array2.unsafe_get(idx)
+              let innerData = input->Js.Dict.unsafeGet(key)
+              try {
+                let value = fn(. innerData)
+                newDict->Js.Dict.set(key, value)->ignore
+              } catch {
+              | Error.Internal.Exception(internalError) =>
+                raise(Error.Internal.Exception(internalError->Error.Internal.prependLocation(key)))
+              }
+            }
+            newDict
+          })
         }
 
-        let parseActionFactories = [
-          Action.factory((~struct) => Sync(
-            input => {
-              if input->Lib.Object.test === false {
-                raiseUnexpectedTypeError(~input, ~struct)
-              } else {
-                input
-              }
-            },
-          )),
-        ]
+        ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+          if input->Lib.Object.test === false {
+            raiseUnexpectedTypeError(~input, ~struct)
+          } else {
+            input
+          }
+        })
 
         switch innerStruct.parse {
         | NoopOperation => ()
-        | SyncOperation(fn) => parseActionFactories->Js.Array2.push(makeSyncParseAction(fn))->ignore
+        | SyncOperation(fn) => planSyncMigration(fn)
         | AsyncOperation(fn) =>
-          parseActionFactories->Js.Array2.push(makeSyncParseAction(fn))->ignore
-          parseActionFactories
-          ->Js.Array2.push(
-            Action.make(
-              Async(
-                input => {
-                  let keys = input->Js.Dict.keys
-                  keys
-                  ->Js.Array2.map(key => {
-                    let asyncFn = input->Js.Dict.unsafeGet(key)
-                    try {
-                      asyncFn(.)->Lib.Promise.catch(exn => {
-                        switch exn {
-                        | Error.Internal.Exception(internalError) =>
-                          Error.Internal.Exception(
-                            internalError->Error.Internal.prependLocation(key),
-                          )
-                        | _ => exn
-                        }->raise
-                      })
-                    } catch {
-                    | Error.Internal.Exception(internalError) =>
-                      Error.Internal.Exception(
-                        internalError->Error.Internal.prependLocation(key),
-                      )->raise
-                    }
-                  })
-                  ->Lib.Promise.all
-                  ->Lib.Promise.thenResolve(values => {
-                    let tempDict = Js.Dict.empty()
-                    values->Js.Array2.forEachi((value, idx) => {
-                      let key = keys->Js.Array2.unsafe_get(idx)
-                      tempDict->Js.Dict.set(key, value)
-                    })
-                    tempDict
-                  })
-                },
-              ),
-            ),
-          )
-          ->ignore
-        }
-
-        parseActionFactories
-      },
-      ~serializeActionFactories={
-        switch innerStruct.serialize {
-        | NoopOperation => Action.emptyArray
-        | SyncOperation(fn) => [
-            Action.make(
-              Sync(
-                input => {
-                  let newDict = Js.Dict.empty()
-                  let keys = input->Js.Dict.keys
-                  for idx in 0 to keys->Js.Array2.length - 1 {
+          planSyncMigration(fn)
+          ctx->MigrationFactory.Ctx.planAsyncMigration(input => {
+            let keys = input->Js.Dict.keys
+            keys
+            ->Js.Array2.map(
+              key => {
+                let asyncFn = input->Js.Dict.unsafeGet(key)
+                try {
+                  asyncFn(.)->Lib.Promise.catch(
+                    exn => {
+                      switch exn {
+                      | Error.Internal.Exception(internalError) =>
+                        Error.Internal.Exception(internalError->Error.Internal.prependLocation(key))
+                      | _ => exn
+                      }->raise
+                    },
+                  )
+                } catch {
+                | Error.Internal.Exception(internalError) =>
+                  Error.Internal.Exception(
+                    internalError->Error.Internal.prependLocation(key),
+                  )->raise
+                }
+              },
+            )
+            ->Lib.Promise.all
+            ->Lib.Promise.thenResolve(
+              values => {
+                let tempDict = Js.Dict.empty()
+                values->Js.Array2.forEachi(
+                  (value, idx) => {
                     let key = keys->Js.Array2.unsafe_get(idx)
-                    let innerData = input->Js.Dict.unsafeGet(key)
-                    try {
-                      let value = fn(. innerData)
-                      newDict->Js.Dict.set(key, value)->ignore
-                    } catch {
-                    | Error.Internal.Exception(internalError) =>
-                      raise(
-                        Error.Internal.Exception(
-                          internalError->Error.Internal.prependLocation(key),
-                        ),
-                      )
-                    }
-                  }
-                  newDict
-                },
-              ),
-            ),
-          ]
+                    tempDict->Js.Dict.set(key, value)
+                  },
+                )
+                tempDict
+              },
+            )
+          })
+        }
+      }),
+      ~serializeMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) => {
+        switch innerStruct.serialize {
+        | NoopOperation => ()
+        | SyncOperation(fn) =>
+          ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+            let newDict = Js.Dict.empty()
+            let keys = input->Js.Dict.keys
+            for idx in 0 to keys->Js.Array2.length - 1 {
+              let key = keys->Js.Array2.unsafe_get(idx)
+              let innerData = input->Js.Dict.unsafeGet(key)
+              try {
+                let value = fn(. innerData)
+                newDict->Js.Dict.set(key, value)->ignore
+              } catch {
+              | Error.Internal.Exception(internalError) =>
+                raise(Error.Internal.Exception(internalError->Error.Internal.prependLocation(key)))
+              }
+            }
+            newDict
+          })
         | AsyncOperation(_) => Error.Unreachable.panic()
         }
-      },
+      }),
       (),
     )
   }
@@ -1980,41 +1869,31 @@ module Defaulted = {
     make(
       ~name=innerStruct.name,
       ~tagged=innerStruct.tagged,
-      ~parseActionFactories=[
-        Action.factory((~struct as _) => {
-          switch innerStruct.parse {
-          | NoopOperation =>
-            Sync(
-              input => {
-                input->castUnknownToAny->Lib.Option.getWithDefault(defaultValue)
+      ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) => {
+        switch innerStruct.parse {
+        | NoopOperation =>
+          ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+            input->castUnknownToAny->Lib.Option.getWithDefault(defaultValue)
+          })
+        | SyncOperation(fn) =>
+          ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+            fn(. input)->castUnknownToAny->Lib.Option.getWithDefault(defaultValue)
+          })
+        | AsyncOperation(fn) =>
+          ctx->MigrationFactory.Ctx.planAsyncMigration(input => {
+            fn(. input)(.)->Lib.Promise.thenResolve(
+              value => {
+                value->castUnknownToAny->Lib.Option.getWithDefault(defaultValue)
               },
             )
-          | SyncOperation(fn) =>
-            Sync(
-              input => {
-                fn(. input)->castUnknownToAny->Lib.Option.getWithDefault(defaultValue)
-              },
-            )
-          | AsyncOperation(fn) =>
-            Async(
-              input => {
-                fn(. input)(.)->Lib.Promise.thenResolve(value => {
-                  value->castUnknownToAny->Lib.Option.getWithDefault(defaultValue)
-                })
-              },
-            )
-          }
-        }),
-      ],
-      ~serializeActionFactories=[
-        Action.make(
-          Sync(
-            input => {
-              serializeInner(~struct=innerStruct, ~value=Some(input))
-            },
-          ),
-        ),
-      ],
+          })
+        }
+      }),
+      ~serializeMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) => {
+        ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+          serializeInner(~struct=innerStruct, ~value=Some(input))
+        })
+      }),
       (),
     )->Metadata.set(
       ~id=metadataId,
@@ -2036,7 +1915,7 @@ module Tuple = {
       make(
         ~name="Tuple",
         ~tagged=Tuple(structs),
-        ~parseActionFactories={
+        ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct) => {
           let noopOps = []
           let syncOps = []
           let asyncOps = []
@@ -2053,129 +1932,121 @@ module Tuple = {
           }
           let withAsyncOps = asyncOps->Js.Array2.length > 0
 
-          let parseActionFactories = [
-            Action.factory((~struct) => Sync(
-              input => {
-                switch Js.Array2.isArray(input) {
-                | true =>
-                  let numberOfInputItems = input->Js.Array2.length
-                  if numberOfStructs !== numberOfInputItems {
-                    Error.Internal.raise(
-                      TupleSize({
-                        expected: numberOfStructs,
-                        received: numberOfInputItems,
-                      }),
-                    )
-                  }
-                | false => raiseUnexpectedTypeError(~input, ~struct)
-                }
+          ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+            switch Js.Array2.isArray(input) {
+            | true =>
+              let numberOfInputItems = input->Js.Array2.length
+              if numberOfStructs !== numberOfInputItems {
+                Error.Internal.raise(
+                  TupleSize({
+                    expected: numberOfStructs,
+                    received: numberOfInputItems,
+                  }),
+                )
+              }
+            | false => raiseUnexpectedTypeError(~input, ~struct)
+            }
 
-                let newArray = []
+            let newArray = []
 
-                for idx in 0 to syncOps->Js.Array2.length - 1 {
-                  let (originalIdx, fn) = syncOps->Js.Array2.unsafe_get(idx)
-                  let innerData = input->Js.Array2.unsafe_get(originalIdx)
-                  try {
-                    let value = fn(. innerData)
-                    newArray->Lib.Array.set(originalIdx, value)
-                  } catch {
-                  | Error.Internal.Exception(internalError) =>
-                    raise(
-                      Error.Internal.Exception(
-                        internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                      ),
-                    )
-                  }
-                }
+            for idx in 0 to syncOps->Js.Array2.length - 1 {
+              let (originalIdx, fn) = syncOps->Js.Array2.unsafe_get(idx)
+              let innerData = input->Js.Array2.unsafe_get(originalIdx)
+              try {
+                let value = fn(. innerData)
+                newArray->Lib.Array.set(originalIdx, value)
+              } catch {
+              | Error.Internal.Exception(internalError) =>
+                raise(
+                  Error.Internal.Exception(
+                    internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+                  ),
+                )
+              }
+            }
 
-                for idx in 0 to noopOps->Js.Array2.length - 1 {
-                  let originalIdx = noopOps->Js.Array2.unsafe_get(idx)
-                  let innerData = input->Js.Array2.unsafe_get(originalIdx)
-                  newArray->Lib.Array.set(originalIdx, innerData)
-                }
+            for idx in 0 to noopOps->Js.Array2.length - 1 {
+              let originalIdx = noopOps->Js.Array2.unsafe_get(idx)
+              let innerData = input->Js.Array2.unsafe_get(originalIdx)
+              newArray->Lib.Array.set(originalIdx, innerData)
+            }
 
-                switch withAsyncOps {
-                | true => newArray->castAnyToUnknown
-                | false =>
-                  switch numberOfStructs {
-                  | 0 => ()->castAnyToUnknown
-                  | 1 => newArray->Js.Array2.unsafe_get(0)->castAnyToUnknown
-                  | _ => newArray->castAnyToUnknown
-                  }
-                }
-              },
-            )),
-          ]
+            switch withAsyncOps {
+            | true => newArray->castAnyToUnknown
+            | false =>
+              switch numberOfStructs {
+              | 0 => ()->castAnyToUnknown
+              | 1 => newArray->Js.Array2.unsafe_get(0)->castAnyToUnknown
+              | _ => newArray->castAnyToUnknown
+              }
+            }
+          })
 
           if withAsyncOps {
-            parseActionFactories
-            ->Js.Array2.push(
-              Action.make(
-                Async(
-                  tempArray => {
-                    asyncOps
-                    ->Js.Array2.map(originalIdx => {
-                      (
-                        tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
-                      )(.)->Lib.Promise.catch(exn => {
-                        switch exn {
-                        | Error.Internal.Exception(internalError) =>
-                          Error.Internal.Exception(
-                            internalError->Error.Internal.prependLocation(
-                              originalIdx->Js.Int.toString,
-                            ),
-                          )
-                        | _ => exn
-                        }->raise
-                      })
-                    })
-                    ->Lib.Promise.all
-                    ->Lib.Promise.thenResolve(values => {
-                      values->Js.Array2.forEachi((value, idx) => {
-                        let originalIdx = asyncOps->Js.Array2.unsafe_get(idx)
-                        tempArray->castUnknownToAny->Lib.Array.set(originalIdx, value)
-                      })
-                      tempArray->castUnknownToAny->Lib.Array.toTuple
-                    })
-                  },
-                ),
-              ),
-            )
-            ->ignore
+            ctx->MigrationFactory.Ctx.planAsyncMigration(tempArray => {
+              asyncOps
+              ->Js.Array2.map(
+                originalIdx => {
+                  (
+                    tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
+                  )(.)->Lib.Promise.catch(
+                    exn => {
+                      switch exn {
+                      | Error.Internal.Exception(internalError) =>
+                        Error.Internal.Exception(
+                          internalError->Error.Internal.prependLocation(
+                            originalIdx->Js.Int.toString,
+                          ),
+                        )
+                      | _ => exn
+                      }->raise
+                    },
+                  )
+                },
+              )
+              ->Lib.Promise.all
+              ->Lib.Promise.thenResolve(
+                values => {
+                  values->Js.Array2.forEachi(
+                    (value, idx) => {
+                      let originalIdx = asyncOps->Js.Array2.unsafe_get(idx)
+                      tempArray->castUnknownToAny->Lib.Array.set(originalIdx, value)
+                    },
+                  )
+                  tempArray->castUnknownToAny->Lib.Array.toTuple
+                },
+              )
+            })
           }
+        }),
+        ~serializeMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) =>
+          ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+            let inputArray = numberOfStructs === 1 ? [input] : input->Obj.magic
 
-          parseActionFactories
-        },
-        ~serializeActionFactories=[
-          Action.factory((~struct as _) => Sync(
-            input => {
-              let inputArray = numberOfStructs === 1 ? [input] : input->Obj.magic
-
-              let newArray = []
-              for idx in 0 to numberOfStructs - 1 {
-                let innerData = inputArray->Js.Array2.unsafe_get(idx)
-                let innerStruct = structs->Js.Array.unsafe_get(idx)
-                switch innerStruct.serialize {
-                | NoopOperation => newArray->Js.Array2.push(innerData)->ignore
-                | SyncOperation(fn) =>
-                  try {
-                    let value = fn(. innerData)
-                    newArray->Js.Array2.push(value)->ignore
-                  } catch {
-                  | Error.Internal.Exception(internalError) =>
-                    raise(
-                      Error.Internal.Exception(
-                        internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                      ),
-                    )
-                  }
-                | AsyncOperation(_) => Error.Unreachable.panic()
+            let newArray = []
+            for idx in 0 to numberOfStructs - 1 {
+              let innerData = inputArray->Js.Array2.unsafe_get(idx)
+              let innerStruct = structs->Js.Array.unsafe_get(idx)
+              switch innerStruct.serialize {
+              | NoopOperation => newArray->Js.Array2.push(innerData)->ignore
+              | SyncOperation(fn) =>
+                try {
+                  let value = fn(. innerData)
+                  newArray->Js.Array2.push(value)->ignore
+                } catch {
+                | Error.Internal.Exception(internalError) =>
+                  raise(
+                    Error.Internal.Exception(
+                      internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+                    ),
+                  )
                 }
+              | AsyncOperation(_) => Error.Unreachable.panic()
               }
-              newArray
-            },
-          )),
-        ],
+            }
+            newArray
+          })
+        ),
         (),
       )
     }
@@ -2190,9 +2061,105 @@ module Union = {
       Error.UnionLackingStructs.panic()
     }
 
-    let serializeActionFactories = [
-      Action.factory((~struct as _) => Sync(
-        input => {
+    make(
+      ~name=`Union`,
+      ~tagged=Union(structs->Obj.magic),
+      ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) => {
+        let noopOps = []
+        let syncOps = []
+        let asyncOps = []
+        for idx in 0 to structs->Js.Array2.length - 1 {
+          let innerStruct = structs->Js.Array2.unsafe_get(idx)
+          switch innerStruct.parse {
+          | NoopOperation => noopOps->Js.Array2.push()->ignore
+          | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fn))->ignore
+          | AsyncOperation(fn) => asyncOps->Js.Array2.push((idx, fn))->ignore
+          }
+        }
+        let withAsyncOps = asyncOps->Js.Array2.length > 0
+
+        if noopOps->Js.Array2.length === 0 {
+          ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+            let idxRef = ref(0)
+            let errorsRef = ref([])
+            let maybeNewValueRef = ref(None)
+            while (
+              idxRef.contents < syncOps->Js.Array2.length && maybeNewValueRef.contents === None
+            ) {
+              let idx = idxRef.contents
+              let (originalIdx, fn) = syncOps->Js.Array2.unsafe_get(idx)
+              try {
+                let newValue = fn(. input)
+                maybeNewValueRef.contents = Some(newValue)
+              } catch {
+              | Error.Internal.Exception(internalError) => {
+                  errorsRef.contents->Lib.Array.set(originalIdx, internalError)
+                  idxRef.contents = idxRef.contents->Lib.Int.plus(1)
+                }
+              }
+            }
+            switch (maybeNewValueRef.contents, withAsyncOps) {
+            | (Some(newValue), false) => newValue
+            | (None, false) =>
+              Error.Internal.raise(
+                InvalidUnion(errorsRef.contents->Js.Array2.map(Error.Internal.toParseError)),
+              )
+            | (maybeSyncValue, true) =>
+              {
+                "maybeSyncValue": maybeSyncValue,
+                "tempErrors": errorsRef.contents,
+                "originalInput": input,
+              }->castAnyToUnknown
+            }
+          })
+
+          if withAsyncOps {
+            ctx->MigrationFactory.Ctx.planAsyncMigration(input => {
+              switch input["maybeSyncValue"] {
+              | Some(syncValue) => syncValue->Lib.Promise.resolve
+              | None =>
+                asyncOps
+                ->Js.Array2.map(
+                  ((originalIdx, fn)) => {
+                    try {
+                      fn(. input["originalInput"])(.)->Lib.Promise.thenResolveWithCatch(
+                        value => raise(HackyValidValue(value)),
+                        exn =>
+                          switch exn {
+                          | Error.Internal.Exception(internalError) =>
+                            input["tempErrors"]->Lib.Array.set(originalIdx, internalError)
+                          | _ => raise(exn)
+                          },
+                      )
+                    } catch {
+                    | Error.Internal.Exception(internalError) =>
+                      input["tempErrors"]
+                      ->Lib.Array.set(originalIdx, internalError)
+                      ->Lib.Promise.resolve
+                    }
+                  },
+                )
+                ->Lib.Promise.all
+                ->Lib.Promise.thenResolveWithCatch(
+                  _ => {
+                    Error.Internal.raise(
+                      InvalidUnion(input["tempErrors"]->Js.Array2.map(Error.Internal.toParseError)),
+                    )
+                  },
+                  exn => {
+                    switch exn {
+                    | HackyValidValue(value) => value
+                    | _ => raise(exn)
+                    }
+                  },
+                )
+              }
+            })
+          }
+        }
+      }),
+      ~serializeMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) =>
+        ctx->MigrationFactory.Ctx.planSyncMigration(input => {
           let idxRef = ref(0)
           let maybeLastErrorRef = ref(None)
           let maybeNewValueRef = ref(None)
@@ -2217,128 +2184,8 @@ module Union = {
             | None => %raw(`undefined`)
             }
           }
-        },
-      )),
-    ]
-
-    let parseActionFactories = {
-      let noopOps = []
-      let syncOps = []
-      let asyncOps = []
-      for idx in 0 to structs->Js.Array2.length - 1 {
-        let innerStruct = structs->Js.Array2.unsafe_get(idx)
-        switch innerStruct.parse {
-        | NoopOperation => noopOps->Js.Array2.push()->ignore
-        | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fn))->ignore
-        | AsyncOperation(fn) => asyncOps->Js.Array2.push((idx, fn))->ignore
-        }
-      }
-      let withAsyncOps = asyncOps->Js.Array2.length > 0
-
-      if noopOps->Js.Array2.length > 0 {
-        Action.emptyArray
-      } else {
-        let parseActionFactories = [
-          Action.make(
-            Sync(
-              input => {
-                let idxRef = ref(0)
-                let errorsRef = ref([])
-                let maybeNewValueRef = ref(None)
-                while (
-                  idxRef.contents < syncOps->Js.Array2.length && maybeNewValueRef.contents === None
-                ) {
-                  let idx = idxRef.contents
-                  let (originalIdx, fn) = syncOps->Js.Array2.unsafe_get(idx)
-                  try {
-                    let newValue = fn(. input)
-                    maybeNewValueRef.contents = Some(newValue)
-                  } catch {
-                  | Error.Internal.Exception(internalError) => {
-                      errorsRef.contents->Lib.Array.set(originalIdx, internalError)
-                      idxRef.contents = idxRef.contents->Lib.Int.plus(1)
-                    }
-                  }
-                }
-                switch (maybeNewValueRef.contents, withAsyncOps) {
-                | (Some(newValue), false) => newValue
-                | (None, false) =>
-                  Error.Internal.raise(
-                    InvalidUnion(errorsRef.contents->Js.Array2.map(Error.Internal.toParseError)),
-                  )
-                | (maybeSyncValue, true) =>
-                  {
-                    "maybeSyncValue": maybeSyncValue,
-                    "tempErrors": errorsRef.contents,
-                    "originalInput": input,
-                  }->castAnyToUnknown
-                }
-              },
-            ),
-          ),
-        ]
-
-        if withAsyncOps {
-          parseActionFactories
-          ->Js.Array2.push(
-            Action.make(
-              Async(
-                input => {
-                  switch input["maybeSyncValue"] {
-                  | Some(syncValue) => syncValue->Lib.Promise.resolve
-                  | None =>
-                    asyncOps
-                    ->Js.Array2.map(((originalIdx, fn)) => {
-                      try {
-                        fn(. input["originalInput"])(.)->Lib.Promise.thenResolveWithCatch(
-                          value => raise(HackyValidValue(value)),
-                          exn =>
-                            switch exn {
-                            | Error.Internal.Exception(internalError) =>
-                              input["tempErrors"]->Lib.Array.set(originalIdx, internalError)
-                            | _ => raise(exn)
-                            },
-                        )
-                      } catch {
-                      | Error.Internal.Exception(internalError) =>
-                        input["tempErrors"]
-                        ->Lib.Array.set(originalIdx, internalError)
-                        ->Lib.Promise.resolve
-                      }
-                    })
-                    ->Lib.Promise.all
-                    ->Lib.Promise.thenResolveWithCatch(
-                      _ => {
-                        Error.Internal.raise(
-                          InvalidUnion(
-                            input["tempErrors"]->Js.Array2.map(Error.Internal.toParseError),
-                          ),
-                        )
-                      },
-                      exn => {
-                        switch exn {
-                        | HackyValidValue(value) => value
-                        | _ => raise(exn)
-                        }
-                      },
-                    )
-                  }
-                },
-              ),
-            ),
-          )
-          ->ignore
-        }
-
-        parseActionFactories
-      }
-    }
-
-    make(
-      ~name=`Union`,
-      ~tagged=Union(structs->Obj.magic),
-      ~parseActionFactories,
-      ~serializeActionFactories,
+        })
+      ),
       (),
     )
   }

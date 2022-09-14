@@ -760,9 +760,9 @@ let intToString = struct =>
 
 #### **`S.advancedTransform`** _Advanced_
 
-`type action<'input, 'output> = Sync('input => 'output) | Async('input => Js.Promise.t<'output>)`
+`type migration<'input, 'output> = Sync('input => 'output) | Async('input => Js.Promise.t<'output>)`
 
-`(S.t<'value>, ~parser: (~struct: S.t<'value>) => S.action<'value, 'transformed>=?, ~serializer: (~struct: S.t<'value>) => S.action<'transformed, 'value>=?, unit) => S.t<'transformed>`
+`(S.t<'value>, ~parser: (~struct: S.t<'value>) => S.migration<'value, 'transformed>=?, ~serializer: (~struct: S.t<'value>) => S.migration<'transformed, 'value>=?, unit) => S.t<'transformed>`
 
 The `transform`, `refine`, `asyncRefine`, and `custom` functions are actually syntactic sugar atop a more versatile (and verbose) function called `advancedTransform`.
 

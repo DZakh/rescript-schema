@@ -166,6 +166,66 @@ function toString(error) {
 
 var Raised = /* @__PURE__ */Caml_exceptions.create("S.Raised");
 
+function planSyncMigration(ctx, migration) {
+  ctx.migrations.push(migration);
+}
+
+function planAsyncMigration(ctx, migration) {
+  if (ctx.firstAsyncMigrationIdx === -1) {
+    ctx.firstAsyncMigrationIdx = ctx.migrations.length;
+  }
+  ctx.migrations.push(migration);
+}
+
+function empty(param, param$1) {
+  
+}
+
+function compile(migrationFactory, struct) {
+  var ctx = {
+    migrations: [],
+    firstAsyncMigrationIdx: -1
+  };
+  migrationFactory(ctx, struct);
+  var migrations = ctx.migrations;
+  var firstAsyncMigrationIdx = ctx.firstAsyncMigrationIdx;
+  if (migrations.length === 0) {
+    return /* NoopOperation */0;
+  }
+  var lastMigrationIdx = migrations.length - 1 | 0;
+  var lastSyncMigrationIdx = firstAsyncMigrationIdx === -1 ? lastMigrationIdx : firstAsyncMigrationIdx - 1 | 0;
+  var syncOperation = lastSyncMigrationIdx < 1 ? migrations[0] : (function (input) {
+        var tempOuputRef = input;
+        for(var idx = 0; idx <= lastSyncMigrationIdx; ++idx){
+          var migration = migrations[idx];
+          var newValue = migration(tempOuputRef);
+          tempOuputRef = newValue;
+        }
+        return tempOuputRef;
+      });
+  if (firstAsyncMigrationIdx === -1) {
+    return {
+            TAG: /* SyncOperation */0,
+            _0: syncOperation
+          };
+  } else {
+    return {
+            TAG: /* AsyncOperation */1,
+            _0: (function (input) {
+                var syncOutput = firstAsyncMigrationIdx !== 0 ? syncOperation(input) : input;
+                return function () {
+                  var tempOuputRef = Promise.resolve(syncOutput);
+                  for(var idx = firstAsyncMigrationIdx; idx <= lastMigrationIdx; ++idx){
+                    var migration = migrations[idx];
+                    tempOuputRef = tempOuputRef.then(migration);
+                  }
+                  return tempOuputRef;
+                };
+              })
+          };
+  }
+}
+
 function classify(struct) {
   return struct.t;
 }
@@ -230,74 +290,14 @@ function raiseUnexpectedTypeError(input, struct) {
             });
 }
 
-function makeOperation(actionFactories, struct) {
-  if (actionFactories.length === 0) {
-    return /* NoopOperation */0;
-  }
-  var lastActionIdx = actionFactories.length - 1 | 0;
-  var firstAsyncActionIdxRef = {
-    contents: -1
-  };
-  var actions = [];
-  for(var idx = 0; idx <= lastActionIdx; ++idx){
-    var actionFactory = actionFactories[idx];
-    var action = actionFactory(struct);
-    actions.push(action);
-    if (firstAsyncActionIdxRef.contents === -1 && action.TAG !== /* Sync */0) {
-      firstAsyncActionIdxRef.contents = idx;
-    }
-    
-  }
-  var lastSyncActionIdx = firstAsyncActionIdxRef.contents === -1 ? lastActionIdx : firstAsyncActionIdxRef.contents - 1 | 0;
-  var syncOperation = lastSyncActionIdx === 0 ? actions[0]._0 : (function (input) {
-        var tempOuputRef = input;
-        for(var idx = 0; idx <= lastSyncActionIdx; ++idx){
-          var action = actions[idx];
-          var newValue = action._0(tempOuputRef);
-          tempOuputRef = newValue;
-        }
-        return tempOuputRef;
-      });
-  if (firstAsyncActionIdxRef.contents === -1) {
-    return {
-            TAG: /* SyncOperation */0,
-            _0: syncOperation
-          };
-  } else {
-    return {
-            TAG: /* AsyncOperation */1,
-            _0: (function (input) {
-                var match = firstAsyncActionIdxRef.contents;
-                var syncOutput = match !== 0 ? syncOperation(input) : input;
-                return function () {
-                  var tempOuputRef = Promise.resolve(syncOutput);
-                  for(var idx = firstAsyncActionIdxRef.contents; idx <= lastActionIdx; ++idx){
-                    var action = actions[idx];
-                    tempOuputRef = tempOuputRef.then((function(action){
-                        return function (tempOutput) {
-                          if (action.TAG === /* Sync */0) {
-                            return Promise.resolve(action._0(tempOutput));
-                          } else {
-                            return action._0(tempOutput);
-                          }
-                        }
-                        }(action)));
-                  }
-                  return tempOuputRef;
-                };
-              })
-          };
-  }
-}
-
-function make(name, tagged, parseActionFactories, serializeActionFactories, maybeMetadataDict, param) {
+function make(name, tagged, parseMigrationFactory, serializeMigrationFactory, maybeMetadataDict, param) {
   var struct_s = undefined;
   var struct_p = undefined;
   var struct = {
     n: name,
     t: tagged,
-    pf: parseActionFactories,
-    sf: serializeActionFactories,
+    pf: parseMigrationFactory,
+    sf: serializeMigrationFactory,
     s: struct_s,
     p: struct_p,
     m: maybeMetadataDict
@@ -305,10 +305,10 @@ function make(name, tagged, parseActionFactories, serializeActionFactories, mayb
   return {
           n: name,
           t: tagged,
-          pf: parseActionFactories,
-          sf: serializeActionFactories,
-          s: makeOperation(serializeActionFactories, struct),
-          p: makeOperation(parseActionFactories, struct),
+          pf: parseMigrationFactory,
+          sf: serializeMigrationFactory,
+          s: compile(serializeMigrationFactory, struct),
+          p: compile(parseMigrationFactory, struct),
           m: maybeMetadataDict
         };
 }
@@ -553,121 +553,99 @@ function set(struct, id, metadata, withParserUpdate, withSerializerUpdate) {
           t: structWithNewMetadata_t,
           pf: structWithNewMetadata_pf,
           sf: structWithNewMetadata_sf,
-          s: withSerializerUpdate ? makeOperation(structWithNewMetadata_sf, structWithNewMetadata) : structWithNewMetadata_s,
-          p: withParserUpdate ? makeOperation(structWithNewMetadata_pf, structWithNewMetadata) : structWithNewMetadata_p,
+          s: withSerializerUpdate ? compile(structWithNewMetadata_sf, structWithNewMetadata) : structWithNewMetadata_s,
+          p: withParserUpdate ? compile(structWithNewMetadata_pf, structWithNewMetadata) : structWithNewMetadata_p,
           m: structWithNewMetadata_m
         };
-}
-
-var emptyArray = [];
-
-var partial_arg = {
-  TAG: /* Sync */0,
-  _0: (function (param) {
-      return raise(/* MissingParser */0);
-    })
-};
-
-function missingParser(param) {
-  return partial_arg;
-}
-
-var partial_arg$1 = {
-  TAG: /* Sync */0,
-  _0: (function (param) {
-      return raise(/* MissingSerializer */1);
-    })
-};
-
-function missingSerializer(param) {
-  return partial_arg$1;
 }
 
 function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
   if (maybeRefineParser === undefined && maybeRefineSerializer === undefined) {
     panic("struct factory Refine");
   }
-  var fn = function (refineParser) {
-    var partial_arg = {
-      TAG: /* Sync */0,
-      _0: (function (input) {
-          refineParser(input);
-          return input;
-        })
-    };
-    return function (param) {
-      return partial_arg;
-    };
-  };
-  var maybeParseActionFactory = maybeRefineParser !== undefined ? Caml_option.some(fn(Caml_option.valFromOption(maybeRefineParser))) : undefined;
-  var tmp;
-  if (maybeRefineSerializer !== undefined) {
-    var partial_arg = {
-      TAG: /* Sync */0,
-      _0: (function (input) {
-          maybeRefineSerializer(input);
-          return input;
-        })
-    };
-    tmp = [(function (param) {
-            return partial_arg;
-          })].concat(struct.sf);
-  } else {
-    tmp = struct.sf;
-  }
-  return make(struct.n, struct.t, maybeParseActionFactory !== undefined ? struct.pf.concat([maybeParseActionFactory]) : struct.pf, tmp, struct.m, undefined);
+  return make(struct.n, struct.t, maybeRefineParser !== undefined ? (function (ctx, compilingStruct) {
+                  struct.pf(ctx, compilingStruct);
+                  planSyncMigration(ctx, (function (input) {
+                          maybeRefineParser(input);
+                          return input;
+                        }));
+                }) : struct.pf, maybeRefineSerializer !== undefined ? (function (ctx, compilingStruct) {
+                  planSyncMigration(ctx, (function (input) {
+                          maybeRefineSerializer(input);
+                          return input;
+                        }));
+                  struct.sf(ctx, compilingStruct);
+                }) : struct.sf, struct.m, undefined);
 }
 
 function asyncRefine(struct, parser, param) {
-  var partial_arg = {
-    TAG: /* Async */1,
-    _0: (function (input) {
-        return parser(input).then(function (param) {
-                    return input;
-                  });
-      })
-  };
-  return make(struct.n, struct.t, struct.pf.concat([(function (param) {
-                      return partial_arg;
-                    })]), struct.sf, struct.m, undefined);
+  return make(struct.n, struct.t, (function (ctx, compilingStruct) {
+                struct.pf(ctx, compilingStruct);
+                planAsyncMigration(ctx, (function (input) {
+                        return parser(input).then(function (param) {
+                                    return input;
+                                  });
+                      }));
+              }), struct.sf, struct.m, undefined);
 }
 
-function transform(struct, maybeTransformationParser, maybeTransformationSerializer, param) {
-  if (maybeTransformationParser === undefined && maybeTransformationSerializer === undefined) {
+function transform(struct, maybeTransformParser, maybeTransformSerializer, param) {
+  if (maybeTransformParser === undefined && maybeTransformSerializer === undefined) {
     panic("struct factory Transform");
   }
-  var tmp;
-  if (maybeTransformationParser !== undefined) {
-    var partial_arg = {
-      TAG: /* Sync */0,
-      _0: maybeTransformationParser
-    };
-    tmp = (function (param) {
-        return partial_arg;
-      });
-  } else {
-    tmp = missingParser;
-  }
-  var tmp$1;
-  if (maybeTransformationSerializer !== undefined) {
-    var partial_arg$1 = {
-      TAG: /* Sync */0,
-      _0: maybeTransformationSerializer
-    };
-    tmp$1 = (function (param) {
-        return partial_arg$1;
-      });
-  } else {
-    tmp$1 = missingSerializer;
-  }
-  return make(struct.n, struct.t, struct.pf.concat([tmp]), [tmp$1].concat(struct.sf), struct.m, undefined);
+  return make(struct.n, struct.t, (function (ctx, compilingStruct) {
+                struct.pf(ctx, compilingStruct);
+                if (maybeTransformParser !== undefined) {
+                  return planSyncMigration(ctx, maybeTransformParser);
+                } else {
+                  return planSyncMigration(ctx, (function (param) {
+                                return raise(/* MissingParser */0);
+                              }));
+                }
+              }), (function (ctx, compilingStruct) {
+                if (maybeTransformSerializer !== undefined) {
+                  planSyncMigration(ctx, maybeTransformSerializer);
+                } else {
+                  planSyncMigration(ctx, (function (param) {
+                          return raise(/* MissingSerializer */1);
+                        }));
+                }
+                struct.sf(ctx, compilingStruct);
+              }), struct.m, undefined);
 }
 
-function advancedTransform(struct, maybeTransformationParser, maybeTransformationSerializer, param) {
-  if (maybeTransformationParser === undefined && maybeTransformationSerializer === undefined) {
+function advancedTransform(struct, maybeTransformParser, maybeTransformSerializer, param) {
+  if (maybeTransformParser === undefined && maybeTransformSerializer === undefined) {
     panic("struct factory Transform");
   }
-  return make(struct.n, struct.t, struct.pf.concat([maybeTransformationParser !== undefined ? maybeTransformationParser : missingParser]), [maybeTransformationSerializer !== undefined ? maybeTransformationSerializer : missingSerializer].concat(struct.sf), struct.m, undefined);
+  return make(struct.n, struct.t, (function (ctx, compilingStruct) {
+                struct.pf(ctx, compilingStruct);
+                if (maybeTransformParser === undefined) {
+                  return planSyncMigration(ctx, (function (param) {
+                                return raise(/* MissingParser */0);
+                              }));
+                }
+                var syncMigration = maybeTransformParser(compilingStruct);
+                if (syncMigration.TAG === /* Sync */0) {
+                  return planSyncMigration(ctx, syncMigration._0);
+                } else {
+                  return planAsyncMigration(ctx, syncMigration._0);
+                }
+              }), (function (ctx, compilingStruct) {
+                if (maybeTransformSerializer !== undefined) {
+                  var syncMigration = maybeTransformSerializer(compilingStruct);
+                  if (syncMigration.TAG === /* Sync */0) {
+                    planSyncMigration(ctx, syncMigration._0);
+                  } else {
+                    planAsyncMigration(ctx, syncMigration._0);
+                  }
+                } else {
+                  planSyncMigration(ctx, (function (param) {
+                          return raise(/* MissingSerializer */1);
+                        }));
+                }
+                struct.sf(ctx, compilingStruct);
+              }), struct.m, undefined);
 }
 
 function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerializer, param) {
@@ -683,33 +661,57 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
                     })
               }, struct.pf, struct.sf, struct.m, undefined);
   }
-  return make(struct.n, struct.t, [maybePreprocessParser !== undefined ? Caml_option.valFromOption(maybePreprocessParser) : missingParser].concat(struct.pf), struct.sf.concat([maybePreprocessSerializer !== undefined ? Caml_option.valFromOption(maybePreprocessSerializer) : missingSerializer]), struct.m, undefined);
+  return make(struct.n, struct.t, (function (ctx, compilingStruct) {
+                if (maybePreprocessParser !== undefined) {
+                  var syncMigration = maybePreprocessParser(compilingStruct);
+                  if (syncMigration.TAG === /* Sync */0) {
+                    planSyncMigration(ctx, syncMigration._0);
+                  } else {
+                    planAsyncMigration(ctx, syncMigration._0);
+                  }
+                } else {
+                  planSyncMigration(ctx, (function (param) {
+                          return raise(/* MissingParser */0);
+                        }));
+                }
+                struct.pf(ctx, compilingStruct);
+              }), (function (ctx, compilingStruct) {
+                struct.sf(ctx, compilingStruct);
+                if (maybePreprocessSerializer === undefined) {
+                  return planSyncMigration(ctx, (function (param) {
+                                return raise(/* MissingSerializer */1);
+                              }));
+                }
+                var syncMigration = maybePreprocessSerializer(compilingStruct);
+                if (syncMigration.TAG === /* Sync */0) {
+                  return planSyncMigration(ctx, syncMigration._0);
+                } else {
+                  return planAsyncMigration(ctx, syncMigration._0);
+                }
+              }), struct.m, undefined);
 }
 
 function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
   if (maybeCustomParser === undefined && maybeCustomSerializer === undefined) {
     panic("Custom struct factory");
   }
-  var tmp;
-  if (maybeCustomSerializer !== undefined) {
-    var partial_arg = {
-      TAG: /* Sync */0,
-      _0: Caml_option.valFromOption(maybeCustomSerializer)
-    };
-    tmp = (function (param) {
-        return partial_arg;
-      });
-  } else {
-    tmp = missingSerializer;
-  }
-  return make(name, /* Unknown */1, [maybeCustomParser !== undefined ? (function (param) {
-                    return {
-                            TAG: /* Sync */0,
-                            _0: (function (input) {
-                                return maybeCustomParser(input);
-                              })
-                          };
-                  }) : missingParser], [tmp], undefined, undefined);
+  return make(name, /* Unknown */1, (function (ctx, param) {
+                if (maybeCustomParser !== undefined) {
+                  return planSyncMigration(ctx, Caml_option.valFromOption(maybeCustomParser));
+                } else {
+                  return planSyncMigration(ctx, (function (param) {
+                                return raise(/* MissingParser */0);
+                              }));
+                }
+              }), (function (ctx, param) {
+                if (maybeCustomSerializer !== undefined) {
+                  return planSyncMigration(ctx, Caml_option.valFromOption(maybeCustomSerializer));
+                } else {
+                  return planSyncMigration(ctx, (function (param) {
+                                return raise(/* MissingSerializer */1);
+                              }));
+                }
+              }), undefined, undefined);
 }
 
 var metadataId = "rescript-struct:Literal";
@@ -719,83 +721,67 @@ function classify$1(struct) {
 }
 
 function factory(innerLiteral, variant) {
-  var makeParseActionFactories = function (literalValue, test) {
-    return [(function (struct) {
-                return {
-                        TAG: /* Sync */0,
-                        _0: (function (input) {
-                            if (test(input)) {
-                              if (literalValue === input) {
-                                return variant;
-                              } else {
-                                return raise$1(literalValue, input);
-                              }
-                            } else {
-                              return raiseUnexpectedTypeError(input, struct);
-                            }
-                          })
-                      };
-              })];
-  };
-  var makeSerializeActionFactories = function (output) {
-    var partial_arg = {
-      TAG: /* Sync */0,
-      _0: (function (input) {
-          if (input === variant) {
-            return output;
-          } else {
-            return raise$1(variant, input);
-          }
-        })
+  var makeParseMigrationFactory = function (literalValue, test) {
+    return function (ctx, struct) {
+      planSyncMigration(ctx, (function (input) {
+              if (test(input)) {
+                if (literalValue === input) {
+                  return variant;
+                } else {
+                  return raise$1(literalValue, input);
+                }
+              } else {
+                return raiseUnexpectedTypeError(input, struct);
+              }
+            }));
     };
-    return [(function (param) {
-                return partial_arg;
-              })];
+  };
+  var makeSerializeMigrationFactory = function (output) {
+    return function (ctx, param) {
+      planSyncMigration(ctx, (function (input) {
+              if (input === variant) {
+                return output;
+              } else {
+                return raise$1(variant, input);
+              }
+            }));
+    };
   };
   var tmp;
   if (typeof innerLiteral === "number") {
     switch (innerLiteral) {
       case /* EmptyNull */0 :
-          tmp = make("EmptyNull Literal (null)", /* Literal */6, [(function (struct) {
-                    return {
-                            TAG: /* Sync */0,
-                            _0: (function (input) {
-                                if (input === null) {
-                                  return variant;
-                                } else {
-                                  return raiseUnexpectedTypeError(input, struct);
-                                }
-                              })
-                          };
-                  })], makeSerializeActionFactories(null), undefined, undefined);
+          tmp = make("EmptyNull Literal (null)", /* Literal */6, (function (ctx, struct) {
+                  planSyncMigration(ctx, (function (input) {
+                          if (input === null) {
+                            return variant;
+                          } else {
+                            return raiseUnexpectedTypeError(input, struct);
+                          }
+                        }));
+                }), makeSerializeMigrationFactory(null), undefined, undefined);
           break;
       case /* EmptyOption */1 :
-          tmp = make("EmptyOption Literal (undefined)", /* Literal */6, [(function (struct) {
-                    return {
-                            TAG: /* Sync */0,
-                            _0: (function (input) {
-                                if (input === undefined) {
-                                  return variant;
-                                } else {
-                                  return raiseUnexpectedTypeError(input, struct);
-                                }
-                              })
-                          };
-                  })], makeSerializeActionFactories(undefined), undefined, undefined);
+          tmp = make("EmptyOption Literal (undefined)", /* Literal */6, (function (ctx, struct) {
+                  planSyncMigration(ctx, (function (input) {
+                          if (input === undefined) {
+                            return variant;
+                          } else {
+                            return raiseUnexpectedTypeError(input, struct);
+                          }
+                        }));
+                }), makeSerializeMigrationFactory(undefined), undefined, undefined);
           break;
       case /* NaN */2 :
-          tmp = make("NaN Literal (NaN)", /* Literal */6, [(function (struct) {
-                    return {
-                            TAG: /* Sync */0,
-                            _0: (function (input) {
-                                if (Number.isNaN(input)) {
-                                  return variant;
-                                } else {
-                                  return raiseUnexpectedTypeError(input, struct);
-                                }
-                              })
-                          };
-                  })], makeSerializeActionFactories(NaN), undefined, undefined);
+          tmp = make("NaN Literal (NaN)", /* Literal */6, (function (ctx, struct) {
+                  planSyncMigration(ctx, (function (input) {
+                          if (Number.isNaN(input)) {
+                            return variant;
+                          } else {
+                            return raiseUnexpectedTypeError(input, struct);
+                          }
+                        }));
+                }), makeSerializeMigrationFactory(NaN), undefined, undefined);
           break;
       
     }
@@ -803,31 +789,31 @@ function factory(innerLiteral, variant) {
     switch (innerLiteral.TAG | 0) {
       case /* String */0 :
           var string = innerLiteral._0;
-          tmp = make("String Literal (\"" + string + "\")", /* Literal */6, makeParseActionFactories(string, (function (input) {
+          tmp = make("String Literal (\"" + string + "\")", /* Literal */6, makeParseMigrationFactory(string, (function (input) {
                       return typeof input === "string";
-                    })), makeSerializeActionFactories(string), undefined, undefined);
+                    })), makeSerializeMigrationFactory(string), undefined, undefined);
           break;
       case /* Int */1 :
           var $$int = innerLiteral._0;
-          tmp = make("Int Literal (" + $$int.toString() + ")", /* Literal */6, makeParseActionFactories($$int, (function (input) {
+          tmp = make("Int Literal (" + $$int.toString() + ")", /* Literal */6, makeParseMigrationFactory($$int, (function (input) {
                       if (typeof input === "number" && input < 2147483648 && input > -2147483649) {
                         return input === Math.trunc(input);
                       } else {
                         return false;
                       }
-                    })), makeSerializeActionFactories($$int), undefined, undefined);
+                    })), makeSerializeMigrationFactory($$int), undefined, undefined);
           break;
       case /* Float */2 :
           var $$float = innerLiteral._0;
-          tmp = make("Float Literal (" + $$float.toString() + ")", /* Literal */6, makeParseActionFactories($$float, (function (input) {
+          tmp = make("Float Literal (" + $$float.toString() + ")", /* Literal */6, makeParseMigrationFactory($$float, (function (input) {
                       return typeof input === "number";
-                    })), makeSerializeActionFactories($$float), undefined, undefined);
+                    })), makeSerializeMigrationFactory($$float), undefined, undefined);
           break;
       case /* Bool */3 :
           var bool = innerLiteral._0;
-          tmp = make("Bool Literal (" + bool + ")", /* Literal */6, makeParseActionFactories(bool, (function (input) {
+          tmp = make("Bool Literal (" + bool + ")", /* Literal */6, makeParseMigrationFactory(bool, (function (input) {
                       return typeof input === "boolean";
-                    })), makeSerializeActionFactories(bool), undefined, undefined);
+                    })), makeSerializeMigrationFactory(bool), undefined, undefined);
           break;
       
     }
@@ -866,155 +852,143 @@ function factory$2(param) {
   var fieldsArray = arguments;
   var fields = Js_dict.fromArray(fieldsArray);
   var fieldNames = Object.keys(fields);
-  var noopOps = [];
-  var syncOps = [];
-  var asyncOps = [];
-  for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-    var fieldName = fieldNames[idx];
-    var fieldStruct = fields[fieldName];
-    var fn = fieldStruct.p;
-    if (typeof fn === "number") {
-      noopOps.push([
-            idx,
-            fieldName
-          ]);
-    } else if (fn.TAG === /* SyncOperation */0) {
-      syncOps.push([
-            idx,
-            fieldName,
-            fn._0
-          ]);
-    } else {
-      syncOps.push([
-            idx,
-            fieldName,
-            fn._0
-          ]);
-      asyncOps.push([
-            idx,
-            fieldName
-          ]);
-    }
-  }
-  var withAsyncOps = asyncOps.length > 0;
-  var parseActionFactories = [(function (struct) {
-        var unknownKeys = classify$2(struct);
-        return {
-                TAG: /* Sync */0,
-                _0: (function (input) {
-                    if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
-                      raiseUnexpectedTypeError(input, struct);
-                    }
-                    var newArray = [];
-                    for(var idx = 0 ,idx_finish = syncOps.length; idx < idx_finish; ++idx){
-                      var match = syncOps[idx];
-                      var fieldName = match[1];
-                      var fieldData = input[fieldName];
-                      try {
-                        var value = match[2](fieldData);
-                        newArray[match[0]] = value;
-                      }
-                      catch (raw_internalError){
-                        var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                        if (internalError.RE_EXN_ID === Exception) {
-                          throw {
-                                RE_EXN_ID: Exception,
-                                _1: prependLocation(internalError._1, fieldName),
-                                Error: new Error()
-                              };
-                        }
-                        throw internalError;
-                      }
-                    }
-                    for(var idx$1 = 0 ,idx_finish$1 = noopOps.length; idx$1 < idx_finish$1; ++idx$1){
-                      var match$1 = noopOps[idx$1];
-                      var fieldData$1 = input[match$1[1]];
-                      newArray[match$1[0]] = fieldData$1;
-                    }
-                    if (unknownKeys === /* Strict */0) {
-                      var excessKey = getMaybeExcessKey(input, fields);
-                      if (excessKey !== undefined) {
-                        raise({
-                              TAG: /* ExcessField */4,
-                              _0: excessKey
-                            });
-                      }
-                      
-                    }
-                    if (withAsyncOps || newArray.length > 1) {
-                      return newArray;
-                    } else {
-                      return newArray[0];
-                    }
-                  })
-              };
-      })];
-  if (withAsyncOps) {
-    var partial_arg = {
-      TAG: /* Async */1,
-      _0: (function (tempArray) {
-          return Promise.all(asyncOps.map(function (param) {
-                            var fieldName = param[1];
-                            return tempArray[param[0]]().catch(function (exn) {
-                                        throw exn.RE_EXN_ID === Exception ? ({
-                                                  RE_EXN_ID: Exception,
-                                                  _1: prependLocation(exn._1, fieldName)
-                                                }) : exn;
-                                      });
-                          })).then(function (asyncFieldValues) {
-                      asyncFieldValues.forEach(function (fieldValue, idx) {
-                            var match = asyncOps[idx];
-                            tempArray[match[0]] = fieldValue;
-                          });
-                      return tempArray;
-                    });
-        })
-    };
-    parseActionFactories.push(function (param) {
-          return partial_arg;
-        });
-  }
   return make("Object", {
               TAG: /* Object */3,
               fields: fields,
               fieldNames: fieldNames
-            }, parseActionFactories, [(function (param) {
-                  return {
-                          TAG: /* Sync */0,
-                          _0: (function (input) {
-                              var unknown = {};
-                              var fieldValues = fieldNames.length <= 1 ? [input] : input;
-                              for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-                                var fieldName = fieldNames[idx];
-                                var fieldStruct = fields[fieldName];
-                                var fieldValue = fieldValues[idx];
-                                var fn = fieldStruct.s;
-                                if (typeof fn === "number") {
-                                  unknown[fieldName] = fieldValue;
-                                } else if (fn.TAG === /* SyncOperation */0) {
-                                  try {
-                                    var fieldData = fn._0(fieldValue);
-                                    unknown[fieldName] = fieldData;
-                                  }
-                                  catch (raw_internalError){
-                                    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                                    if (internalError.RE_EXN_ID === Exception) {
-                                      throw {
-                                            RE_EXN_ID: Exception,
-                                            _1: prependLocation(internalError._1, fieldName),
-                                            Error: new Error()
-                                          };
-                                    }
-                                    throw internalError;
-                                  }
-                                } else {
-                                  panic$1(undefined);
-                                }
+            }, (function (ctx, struct) {
+                var unknownKeys = classify$2(struct);
+                var noopOps = [];
+                var syncOps = [];
+                var asyncOps = [];
+                for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+                  var fieldName = fieldNames[idx];
+                  var fieldStruct = fields[fieldName];
+                  var fn = fieldStruct.p;
+                  if (typeof fn === "number") {
+                    noopOps.push([
+                          idx,
+                          fieldName
+                        ]);
+                  } else if (fn.TAG === /* SyncOperation */0) {
+                    syncOps.push([
+                          idx,
+                          fieldName,
+                          fn._0
+                        ]);
+                  } else {
+                    syncOps.push([
+                          idx,
+                          fieldName,
+                          fn._0
+                        ]);
+                    asyncOps.push([
+                          idx,
+                          fieldName
+                        ]);
+                  }
+                }
+                var withAsyncOps = asyncOps.length > 0;
+                planSyncMigration(ctx, (function (input) {
+                        if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
+                          raiseUnexpectedTypeError(input, struct);
+                        }
+                        var newArray = [];
+                        for(var idx = 0 ,idx_finish = syncOps.length; idx < idx_finish; ++idx){
+                          var match = syncOps[idx];
+                          var fieldName = match[1];
+                          var fieldData = input[fieldName];
+                          try {
+                            var value = match[2](fieldData);
+                            newArray[match[0]] = value;
+                          }
+                          catch (raw_internalError){
+                            var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                            if (internalError.RE_EXN_ID === Exception) {
+                              throw {
+                                    RE_EXN_ID: Exception,
+                                    _1: prependLocation(internalError._1, fieldName),
+                                    Error: new Error()
+                                  };
+                            }
+                            throw internalError;
+                          }
+                        }
+                        for(var idx$1 = 0 ,idx_finish$1 = noopOps.length; idx$1 < idx_finish$1; ++idx$1){
+                          var match$1 = noopOps[idx$1];
+                          var fieldData$1 = input[match$1[1]];
+                          newArray[match$1[0]] = fieldData$1;
+                        }
+                        if (unknownKeys === /* Strict */0) {
+                          var excessKey = getMaybeExcessKey(input, fields);
+                          if (excessKey !== undefined) {
+                            raise({
+                                  TAG: /* ExcessField */4,
+                                  _0: excessKey
+                                });
+                          }
+                          
+                        }
+                        if (withAsyncOps || newArray.length > 1) {
+                          return newArray;
+                        } else {
+                          return newArray[0];
+                        }
+                      }));
+                if (withAsyncOps) {
+                  return planAsyncMigration(ctx, (function (tempArray) {
+                                return Promise.all(asyncOps.map(function (param) {
+                                                  var fieldName = param[1];
+                                                  return tempArray[param[0]]().catch(function (exn) {
+                                                              throw exn.RE_EXN_ID === Exception ? ({
+                                                                        RE_EXN_ID: Exception,
+                                                                        _1: prependLocation(exn._1, fieldName)
+                                                                      }) : exn;
+                                                            });
+                                                })).then(function (asyncFieldValues) {
+                                            asyncFieldValues.forEach(function (fieldValue, idx) {
+                                                  var match = asyncOps[idx];
+                                                  tempArray[match[0]] = fieldValue;
+                                                });
+                                            return tempArray;
+                                          });
+                              }));
+                }
+                
+              }), (function (ctx, param) {
+                planSyncMigration(ctx, (function (input) {
+                        var unknown = {};
+                        var fieldValues = fieldNames.length <= 1 ? [input] : input;
+                        for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+                          var fieldName = fieldNames[idx];
+                          var fieldStruct = fields[fieldName];
+                          var fieldValue = fieldValues[idx];
+                          var fn = fieldStruct.s;
+                          if (typeof fn === "number") {
+                            unknown[fieldName] = fieldValue;
+                          } else if (fn.TAG === /* SyncOperation */0) {
+                            try {
+                              var fieldData = fn._0(fieldValue);
+                              unknown[fieldName] = fieldData;
+                            }
+                            catch (raw_internalError){
+                              var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                              if (internalError.RE_EXN_ID === Exception) {
+                                throw {
+                                      RE_EXN_ID: Exception,
+                                      _1: prependLocation(internalError._1, fieldName),
+                                      Error: new Error()
+                                    };
                               }
-                              return unknown;
-                            })
-                        };
-                })], undefined, undefined);
+                              throw internalError;
+                            }
+                          } else {
+                            panic$1(undefined);
+                          }
+                        }
+                        return unknown;
+                      }));
+              }), undefined, undefined);
 }
 
 function strip(struct) {
@@ -1026,19 +1000,16 @@ function strict(struct) {
 }
 
 function factory$3(param) {
-  var actionFactories = [(function (struct) {
-        return {
-                TAG: /* Sync */0,
-                _0: (function (input) {
-                    return raiseUnexpectedTypeError(input, struct);
-                  })
-              };
-      })];
-  return make("Never", /* Never */0, actionFactories, actionFactories, undefined, undefined);
+  var migrationFactory = function (ctx, struct) {
+    planSyncMigration(ctx, (function (input) {
+            return raiseUnexpectedTypeError(input, struct);
+          }));
+  };
+  return make("Never", /* Never */0, migrationFactory, migrationFactory, undefined, undefined);
 }
 
 function factory$4(param) {
-  return make("Unknown", /* Unknown */1, emptyArray, emptyArray, undefined, undefined);
+  return make("Unknown", /* Unknown */1, empty, empty, undefined, undefined);
 }
 
 var cuidRegex = /^c[^\s-]{8,}$/i;
@@ -1048,18 +1019,15 @@ var uuidRegex = /^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]
 var emailRegex = /^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i;
 
 function factory$5(param) {
-  return make("String", /* String */2, [(function (struct) {
-                  return {
-                          TAG: /* Sync */0,
-                          _0: (function (input) {
-                              if (typeof input === "string") {
-                                return input;
-                              } else {
-                                return raiseUnexpectedTypeError(input, struct);
-                              }
-                            })
-                        };
-                })], emptyArray, undefined, undefined);
+  return make("String", /* String */2, (function (ctx, struct) {
+                planSyncMigration(ctx, (function (input) {
+                        if (typeof input === "string") {
+                          return input;
+                        } else {
+                          return raiseUnexpectedTypeError(input, struct);
+                        }
+                      }));
+              }), empty, undefined, undefined);
 }
 
 function min(struct, maybeMessage, length) {
@@ -1167,33 +1135,27 @@ function trimmed(struct, param) {
 }
 
 function factory$6(param) {
-  return make("Bool", /* Bool */5, [(function (struct) {
-                  return {
-                          TAG: /* Sync */0,
-                          _0: (function (input) {
-                              if (typeof input === "boolean") {
-                                return input;
-                              } else {
-                                return raiseUnexpectedTypeError(input, struct);
-                              }
-                            })
-                        };
-                })], emptyArray, undefined, undefined);
+  return make("Bool", /* Bool */5, (function (ctx, struct) {
+                planSyncMigration(ctx, (function (input) {
+                        if (typeof input === "boolean") {
+                          return input;
+                        } else {
+                          return raiseUnexpectedTypeError(input, struct);
+                        }
+                      }));
+              }), empty, undefined, undefined);
 }
 
 function factory$7(param) {
-  return make("Int", /* Int */3, [(function (struct) {
-                  return {
-                          TAG: /* Sync */0,
-                          _0: (function (input) {
-                              if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
-                                return input;
-                              } else {
-                                return raiseUnexpectedTypeError(input, struct);
-                              }
-                            })
-                        };
-                })], emptyArray, undefined, undefined);
+  return make("Int", /* Int */3, (function (ctx, struct) {
+                planSyncMigration(ctx, (function (input) {
+                        if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
+                          return input;
+                        } else {
+                          return raiseUnexpectedTypeError(input, struct);
+                        }
+                      }));
+              }), empty, undefined, undefined);
 }
 
 function min$1(struct, maybeMessage, thanValue) {
@@ -1219,175 +1181,129 @@ function max$1(struct, maybeMessage, thanValue) {
 }
 
 function factory$8(param) {
-  return make("Float", /* Float */4, [(function (struct) {
-                  return {
-                          TAG: /* Sync */0,
-                          _0: (function (input) {
-                              if (typeof input === "number" && !Number.isNaN(input)) {
-                                return input;
-                              } else {
-                                return raiseUnexpectedTypeError(input, struct);
-                              }
-                            })
-                        };
-                })], emptyArray, undefined, undefined);
+  return make("Float", /* Float */4, (function (ctx, struct) {
+                planSyncMigration(ctx, (function (input) {
+                        if (typeof input === "number" && !Number.isNaN(input)) {
+                          return input;
+                        } else {
+                          return raiseUnexpectedTypeError(input, struct);
+                        }
+                      }));
+              }), empty, undefined, undefined);
 }
 
 function factory$9(param) {
-  return make("Date", /* Date */7, [(function (struct) {
-                  return {
-                          TAG: /* Sync */0,
-                          _0: (function (input) {
-                              if ((input instanceof Date) && !Number.isNaN(input.getTime())) {
-                                return input;
-                              } else {
-                                return raiseUnexpectedTypeError(input, struct);
-                              }
-                            })
-                        };
-                })], emptyArray, undefined, undefined);
+  return make("Date", /* Date */7, (function (ctx, struct) {
+                planSyncMigration(ctx, (function (input) {
+                        if ((input instanceof Date) && !Number.isNaN(input.getTime())) {
+                          return input;
+                        } else {
+                          return raiseUnexpectedTypeError(input, struct);
+                        }
+                      }));
+              }), empty, undefined, undefined);
 }
 
 function factory$10(innerStruct) {
-  var makeSyncParseAction = function (fn) {
-    var partial_arg = {
-      TAG: /* Sync */0,
-      _0: (function (input) {
-          if (input !== null) {
-            return Caml_option.some(fn(input));
-          }
-          
-        })
-    };
-    return function (param) {
-      return partial_arg;
-    };
-  };
-  var fn = innerStruct.p;
-  var tmp;
-  if (typeof fn === "number") {
-    var partial_arg = {
-      TAG: /* Sync */0,
-      _0: (function (input) {
-          if (input === null) {
-            return ;
-          } else {
-            return Caml_option.some(input);
-          }
-        })
-    };
-    tmp = [(function (param) {
-          return partial_arg;
-        })];
-  } else if (fn.TAG === /* SyncOperation */0) {
-    tmp = [makeSyncParseAction(fn._0)];
-  } else {
-    var partial_arg$1 = {
-      TAG: /* Async */1,
-      _0: (function (input) {
-          if (input !== undefined) {
-            return input().then(function (value) {
-                        return Caml_option.some(value);
-                      });
-          } else {
-            return Promise.resolve(undefined);
-          }
-        })
-    };
-    tmp = [
-      makeSyncParseAction(fn._0),
-      (function (param) {
-          return partial_arg$1;
-        })
-    ];
-  }
   return make("Null", {
               TAG: /* Null */1,
               _0: innerStruct
-            }, tmp, [(function (param) {
-                  return {
-                          TAG: /* Sync */0,
-                          _0: (function (input) {
-                              if (input === undefined) {
-                                return null;
-                              }
-                              var value = Caml_option.valFromOption(input);
-                              var fn = innerStruct.s;
-                              if (typeof fn === "number") {
-                                return value;
-                              } else if (fn.TAG === /* SyncOperation */0) {
-                                return fn._0(value);
-                              } else {
-                                return panic$1(undefined);
-                              }
-                            })
-                        };
-                })], undefined, undefined);
+            }, (function (ctx, param) {
+                var planSyncMigration$1 = function (fn) {
+                  planSyncMigration(ctx, (function (input) {
+                          if (input !== null) {
+                            return Caml_option.some(fn(input));
+                          }
+                          
+                        }));
+                };
+                var fn = innerStruct.p;
+                if (typeof fn === "number") {
+                  return planSyncMigration(ctx, (function (prim) {
+                                if (prim === null) {
+                                  return ;
+                                } else {
+                                  return Caml_option.some(prim);
+                                }
+                              }));
+                }
+                if (fn.TAG === /* SyncOperation */0) {
+                  return planSyncMigration$1(fn._0);
+                }
+                planSyncMigration$1(fn._0);
+                planAsyncMigration(ctx, (function (input) {
+                        if (input !== undefined) {
+                          return input().then(function (value) {
+                                      return Caml_option.some(value);
+                                    });
+                        } else {
+                          return Promise.resolve(undefined);
+                        }
+                      }));
+              }), (function (ctx, param) {
+                planSyncMigration(ctx, (function (input) {
+                        if (input === undefined) {
+                          return null;
+                        }
+                        var value = Caml_option.valFromOption(input);
+                        var fn = innerStruct.s;
+                        if (typeof fn === "number") {
+                          return value;
+                        } else if (fn.TAG === /* SyncOperation */0) {
+                          return fn._0(value);
+                        } else {
+                          return panic$1(undefined);
+                        }
+                      }));
+              }), undefined, undefined);
 }
 
 function factory$11(innerStruct) {
-  var makeSyncParseAction = function (fn) {
-    var partial_arg = {
-      TAG: /* Sync */0,
-      _0: (function (input) {
-          if (input !== undefined) {
-            return Caml_option.some(fn(Caml_option.valFromOption(input)));
-          }
-          
-        })
-    };
-    return function (param) {
-      return partial_arg;
-    };
-  };
-  var fn = innerStruct.p;
-  var tmp;
-  if (typeof fn === "number") {
-    tmp = emptyArray;
-  } else if (fn.TAG === /* SyncOperation */0) {
-    tmp = [makeSyncParseAction(fn._0)];
-  } else {
-    var partial_arg = {
-      TAG: /* Async */1,
-      _0: (function (input) {
-          if (input !== undefined) {
-            return input().then(function (value) {
-                        return Caml_option.some(value);
-                      });
-          } else {
-            return Promise.resolve(undefined);
-          }
-        })
-    };
-    tmp = [
-      makeSyncParseAction(fn._0),
-      (function (param) {
-          return partial_arg;
-        })
-    ];
-  }
   return make("Option", {
               TAG: /* Option */0,
               _0: innerStruct
-            }, tmp, [(function (param) {
-                  return {
-                          TAG: /* Sync */0,
-                          _0: (function (input) {
-                              if (input === undefined) {
-                                return ;
-                              }
-                              var value = Caml_option.valFromOption(input);
-                              var fn = innerStruct.s;
-                              if (typeof fn === "number") {
-                                return value;
-                              } else if (fn.TAG === /* SyncOperation */0) {
-                                return fn._0(value);
-                              } else {
-                                return panic$1(undefined);
-                              }
-                            })
-                        };
-                })], undefined, undefined);
+            }, (function (ctx, param) {
+                var planSyncMigration$1 = function (fn) {
+                  planSyncMigration(ctx, (function (input) {
+                          if (input !== undefined) {
+                            return Caml_option.some(fn(Caml_option.valFromOption(input)));
+                          }
+                          
+                        }));
+                };
+                var fn = innerStruct.p;
+                if (typeof fn === "number") {
+                  return ;
+                }
+                if (fn.TAG === /* SyncOperation */0) {
+                  return planSyncMigration$1(fn._0);
+                }
+                planSyncMigration$1(fn._0);
+                planAsyncMigration(ctx, (function (input) {
+                        if (input !== undefined) {
+                          return input().then(function (value) {
+                                      return Caml_option.some(value);
+                                    });
+                        } else {
+                          return Promise.resolve(undefined);
+                        }
+                      }));
+              }), (function (ctx, param) {
+                planSyncMigration(ctx, (function (input) {
+                        if (input === undefined) {
+                          return ;
+                        }
+                        var value = Caml_option.valFromOption(input);
+                        var fn = innerStruct.s;
+                        if (typeof fn === "number") {
+                          return value;
+                        } else if (fn.TAG === /* SyncOperation */0) {
+                          return fn._0(value);
+                        } else {
+                          return panic$1(undefined);
+                        }
+                      }));
+              }), undefined, undefined);
 }
 
 var metadataId$2 = "rescript-struct:Deprecated";
@@ -1403,112 +1319,91 @@ function classify$3(struct) {
 }
 
 function factory$13(innerStruct) {
-  var makeSyncParseAction = function (fn) {
-    var partial_arg = {
-      TAG: /* Sync */0,
-      _0: (function (input) {
-          var newArray = [];
-          for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
-            var innerData = input[idx];
-            try {
-              var value = fn(innerData);
-              newArray.push(value);
-            }
-            catch (raw_internalError){
-              var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-              if (internalError.RE_EXN_ID === Exception) {
-                throw {
-                      RE_EXN_ID: Exception,
-                      _1: prependLocation(internalError._1, idx.toString()),
-                      Error: new Error()
-                    };
-              }
-              throw internalError;
-            }
-          }
-          return newArray;
-        })
-    };
-    return function (param) {
-      return partial_arg;
-    };
-  };
-  var parseActionFactories = [(function (struct) {
-        return {
-                TAG: /* Sync */0,
-                _0: (function (input) {
-                    if (Array.isArray(input) === false) {
-                      return raiseUnexpectedTypeError(input, struct);
-                    } else {
-                      return input;
-                    }
-                  })
-              };
-      })];
-  var fn = innerStruct.p;
-  if (typeof fn !== "number") {
-    parseActionFactories.push(makeSyncParseAction(fn._0));
-    if (fn.TAG !== /* SyncOperation */0) {
-      var partial_arg = {
-        TAG: /* Async */1,
-        _0: (function (input) {
-            return Promise.all(input.map(function (asyncFn, idx) {
-                            return asyncFn().catch(function (exn) {
-                                        throw exn.RE_EXN_ID === Exception ? ({
-                                                  RE_EXN_ID: Exception,
-                                                  _1: prependLocation(exn._1, idx.toString())
-                                                }) : exn;
-                                      });
-                          }));
-          })
-      };
-      parseActionFactories.push(function (param) {
-            return partial_arg;
-          });
-    }
-    
-  }
-  var fn$1 = innerStruct.s;
-  var tmp;
-  if (typeof fn$1 === "number") {
-    tmp = emptyArray;
-  } else if (fn$1.TAG === /* SyncOperation */0) {
-    var fn$2 = fn$1._0;
-    var partial_arg$1 = {
-      TAG: /* Sync */0,
-      _0: (function (input) {
-          var newArray = [];
-          for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
-            var innerData = input[idx];
-            try {
-              var value = fn$2(innerData);
-              newArray.push(value);
-            }
-            catch (raw_internalError){
-              var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-              if (internalError.RE_EXN_ID === Exception) {
-                throw {
-                      RE_EXN_ID: Exception,
-                      _1: prependLocation(internalError._1, idx.toString()),
-                      Error: new Error()
-                    };
-              }
-              throw internalError;
-            }
-          }
-          return newArray;
-        })
-    };
-    tmp = [(function (param) {
-          return partial_arg$1;
-        })];
-  } else {
-    tmp = panic$1(undefined);
-  }
   return make("Array", {
               TAG: /* Array */2,
               _0: innerStruct
-            }, parseActionFactories, tmp, undefined, undefined);
+            }, (function (ctx, struct) {
+                planSyncMigration(ctx, (function (input) {
+                        if (Array.isArray(input) === false) {
+                          return raiseUnexpectedTypeError(input, struct);
+                        } else {
+                          return input;
+                        }
+                      }));
+                var planSyncMigration$1 = function (fn) {
+                  planSyncMigration(ctx, (function (input) {
+                          var newArray = [];
+                          for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
+                            var innerData = input[idx];
+                            try {
+                              var value = fn(innerData);
+                              newArray.push(value);
+                            }
+                            catch (raw_internalError){
+                              var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                              if (internalError.RE_EXN_ID === Exception) {
+                                throw {
+                                      RE_EXN_ID: Exception,
+                                      _1: prependLocation(internalError._1, idx.toString()),
+                                      Error: new Error()
+                                    };
+                              }
+                              throw internalError;
+                            }
+                          }
+                          return newArray;
+                        }));
+                };
+                var fn = innerStruct.p;
+                if (typeof fn === "number") {
+                  return ;
+                }
+                if (fn.TAG === /* SyncOperation */0) {
+                  return planSyncMigration$1(fn._0);
+                }
+                planSyncMigration$1(fn._0);
+                planAsyncMigration(ctx, (function (input) {
+                        return Promise.all(input.map(function (asyncFn, idx) {
+                                        return asyncFn().catch(function (exn) {
+                                                    throw exn.RE_EXN_ID === Exception ? ({
+                                                              RE_EXN_ID: Exception,
+                                                              _1: prependLocation(exn._1, idx.toString())
+                                                            }) : exn;
+                                                  });
+                                      }));
+                      }));
+              }), (function (ctx, param) {
+                var fn = innerStruct.s;
+                if (typeof fn === "number") {
+                  return ;
+                }
+                if (fn.TAG !== /* SyncOperation */0) {
+                  return panic$1(undefined);
+                }
+                var fn$1 = fn._0;
+                planSyncMigration(ctx, (function (input) {
+                        var newArray = [];
+                        for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
+                          var innerData = input[idx];
+                          try {
+                            var value = fn$1(innerData);
+                            newArray.push(value);
+                          }
+                          catch (raw_internalError){
+                            var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                            if (internalError.RE_EXN_ID === Exception) {
+                              throw {
+                                    RE_EXN_ID: Exception,
+                                    _1: prependLocation(internalError._1, idx.toString()),
+                                    Error: new Error()
+                                  };
+                            }
+                            throw internalError;
+                          }
+                        }
+                        return newArray;
+                      }));
+              }), undefined, undefined);
 }
 
 function min$2(struct, maybeMessage, length) {
@@ -1545,201 +1440,167 @@ function length$1(struct, maybeMessage, length$2) {
 }
 
 function factory$14(innerStruct) {
-  var makeSyncParseAction = function (fn) {
-    var partial_arg = {
-      TAG: /* Sync */0,
-      _0: (function (input) {
-          var newDict = {};
-          var keys = Object.keys(input);
-          for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-            var key = keys[idx];
-            var innerData = input[key];
-            try {
-              var value = fn(innerData);
-              newDict[key] = value;
-            }
-            catch (raw_internalError){
-              var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-              if (internalError.RE_EXN_ID === Exception) {
-                throw {
-                      RE_EXN_ID: Exception,
-                      _1: prependLocation(internalError._1, key),
-                      Error: new Error()
-                    };
-              }
-              throw internalError;
-            }
-          }
-          return newDict;
-        })
-    };
-    return function (param) {
-      return partial_arg;
-    };
-  };
-  var parseActionFactories = [(function (struct) {
-        return {
-                TAG: /* Sync */0,
-                _0: (function (input) {
-                    if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
-                      return raiseUnexpectedTypeError(input, struct);
-                    } else {
-                      return input;
-                    }
-                  })
-              };
-      })];
-  var fn = innerStruct.p;
-  if (typeof fn !== "number") {
-    parseActionFactories.push(makeSyncParseAction(fn._0));
-    if (fn.TAG !== /* SyncOperation */0) {
-      var partial_arg = {
-        TAG: /* Async */1,
-        _0: (function (input) {
-            var keys = Object.keys(input);
-            return Promise.all(keys.map(function (key) {
-                              var asyncFn = input[key];
-                              try {
-                                return asyncFn().catch(function (exn) {
-                                            throw exn.RE_EXN_ID === Exception ? ({
-                                                      RE_EXN_ID: Exception,
-                                                      _1: prependLocation(exn._1, key)
-                                                    }) : exn;
-                                          });
-                              }
-                              catch (raw_internalError){
-                                var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                                if (internalError.RE_EXN_ID === Exception) {
-                                  throw {
-                                        RE_EXN_ID: Exception,
-                                        _1: prependLocation(internalError._1, key),
-                                        Error: new Error()
-                                      };
-                                }
-                                throw internalError;
-                              }
-                            })).then(function (values) {
-                        var tempDict = {};
-                        values.forEach(function (value, idx) {
-                              var key = keys[idx];
-                              tempDict[key] = value;
-                            });
-                        return tempDict;
-                      });
-          })
-      };
-      parseActionFactories.push(function (param) {
-            return partial_arg;
-          });
-    }
-    
-  }
-  var fn$1 = innerStruct.s;
-  var tmp;
-  if (typeof fn$1 === "number") {
-    tmp = emptyArray;
-  } else if (fn$1.TAG === /* SyncOperation */0) {
-    var fn$2 = fn$1._0;
-    var partial_arg$1 = {
-      TAG: /* Sync */0,
-      _0: (function (input) {
-          var newDict = {};
-          var keys = Object.keys(input);
-          for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-            var key = keys[idx];
-            var innerData = input[key];
-            try {
-              var value = fn$2(innerData);
-              newDict[key] = value;
-            }
-            catch (raw_internalError){
-              var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-              if (internalError.RE_EXN_ID === Exception) {
-                throw {
-                      RE_EXN_ID: Exception,
-                      _1: prependLocation(internalError._1, key),
-                      Error: new Error()
-                    };
-              }
-              throw internalError;
-            }
-          }
-          return newDict;
-        })
-    };
-    tmp = [(function (param) {
-          return partial_arg$1;
-        })];
-  } else {
-    tmp = panic$1(undefined);
-  }
   return make("Dict", {
               TAG: /* Dict */6,
               _0: innerStruct
-            }, parseActionFactories, tmp, undefined, undefined);
+            }, (function (ctx, struct) {
+                var planSyncMigration$1 = function (fn) {
+                  planSyncMigration(ctx, (function (input) {
+                          var newDict = {};
+                          var keys = Object.keys(input);
+                          for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+                            var key = keys[idx];
+                            var innerData = input[key];
+                            try {
+                              var value = fn(innerData);
+                              newDict[key] = value;
+                            }
+                            catch (raw_internalError){
+                              var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                              if (internalError.RE_EXN_ID === Exception) {
+                                throw {
+                                      RE_EXN_ID: Exception,
+                                      _1: prependLocation(internalError._1, key),
+                                      Error: new Error()
+                                    };
+                              }
+                              throw internalError;
+                            }
+                          }
+                          return newDict;
+                        }));
+                };
+                planSyncMigration(ctx, (function (input) {
+                        if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
+                          return raiseUnexpectedTypeError(input, struct);
+                        } else {
+                          return input;
+                        }
+                      }));
+                var fn = innerStruct.p;
+                if (typeof fn === "number") {
+                  return ;
+                }
+                if (fn.TAG === /* SyncOperation */0) {
+                  return planSyncMigration$1(fn._0);
+                }
+                planSyncMigration$1(fn._0);
+                planAsyncMigration(ctx, (function (input) {
+                        var keys = Object.keys(input);
+                        return Promise.all(keys.map(function (key) {
+                                          var asyncFn = input[key];
+                                          try {
+                                            return asyncFn().catch(function (exn) {
+                                                        throw exn.RE_EXN_ID === Exception ? ({
+                                                                  RE_EXN_ID: Exception,
+                                                                  _1: prependLocation(exn._1, key)
+                                                                }) : exn;
+                                                      });
+                                          }
+                                          catch (raw_internalError){
+                                            var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                                            if (internalError.RE_EXN_ID === Exception) {
+                                              throw {
+                                                    RE_EXN_ID: Exception,
+                                                    _1: prependLocation(internalError._1, key),
+                                                    Error: new Error()
+                                                  };
+                                            }
+                                            throw internalError;
+                                          }
+                                        })).then(function (values) {
+                                    var tempDict = {};
+                                    values.forEach(function (value, idx) {
+                                          var key = keys[idx];
+                                          tempDict[key] = value;
+                                        });
+                                    return tempDict;
+                                  });
+                      }));
+              }), (function (ctx, param) {
+                var fn = innerStruct.s;
+                if (typeof fn === "number") {
+                  return ;
+                }
+                if (fn.TAG !== /* SyncOperation */0) {
+                  return panic$1(undefined);
+                }
+                var fn$1 = fn._0;
+                planSyncMigration(ctx, (function (input) {
+                        var newDict = {};
+                        var keys = Object.keys(input);
+                        for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+                          var key = keys[idx];
+                          var innerData = input[key];
+                          try {
+                            var value = fn$1(innerData);
+                            newDict[key] = value;
+                          }
+                          catch (raw_internalError){
+                            var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                            if (internalError.RE_EXN_ID === Exception) {
+                              throw {
+                                    RE_EXN_ID: Exception,
+                                    _1: prependLocation(internalError._1, key),
+                                    Error: new Error()
+                                  };
+                            }
+                            throw internalError;
+                          }
+                        }
+                        return newDict;
+                      }));
+              }), undefined, undefined);
 }
 
 var metadataId$3 = "rescript-struct:Defaulted";
 
 function factory$15(innerStruct, defaultValue) {
-  var partial_arg = {
-    TAG: /* Sync */0,
-    _0: (function (input) {
-        var value = Caml_option.some(input);
-        var fn = innerStruct.s;
-        if (typeof fn === "number") {
-          return value;
-        } else if (fn.TAG === /* SyncOperation */0) {
-          return fn._0(value);
-        } else {
-          return panic$1(undefined);
-        }
-      })
-  };
-  return set(make(innerStruct.n, innerStruct.t, [(function (param) {
-                      var fn = innerStruct.p;
-                      if (typeof fn === "number") {
-                        return {
-                                TAG: /* Sync */0,
-                                _0: (function (input) {
+  return set(make(innerStruct.n, innerStruct.t, (function (ctx, param) {
+                    var fn = innerStruct.p;
+                    if (typeof fn === "number") {
+                      return planSyncMigration(ctx, (function (input) {
                                     if (input !== undefined) {
                                       return Caml_option.valFromOption(input);
                                     } else {
                                       return defaultValue;
                                     }
-                                  })
-                              };
-                      }
-                      if (fn.TAG === /* SyncOperation */0) {
-                        var fn$1 = fn._0;
-                        return {
-                                TAG: /* Sync */0,
-                                _0: (function (input) {
+                                  }));
+                    }
+                    if (fn.TAG === /* SyncOperation */0) {
+                      var fn$1 = fn._0;
+                      return planSyncMigration(ctx, (function (input) {
                                     var option = fn$1(input);
                                     if (option !== undefined) {
                                       return Caml_option.valFromOption(option);
                                     } else {
                                       return defaultValue;
                                     }
-                                  })
-                              };
-                      }
-                      var fn$2 = fn._0;
-                      return {
-                              TAG: /* Async */1,
-                              _0: (function (input) {
-                                  return fn$2(input)().then(function (value) {
-                                              if (value !== undefined) {
-                                                return Caml_option.valFromOption(value);
-                                              } else {
-                                                return defaultValue;
-                                              }
-                                            });
-                                })
-                            };
-                    })], [(function (param) {
-                      return partial_arg;
-                    })], undefined, undefined), metadataId$3, /* WithDefaultValue */{
+                                  }));
+                    }
+                    var fn$2 = fn._0;
+                    planAsyncMigration(ctx, (function (input) {
+                            return fn$2(input)().then(function (value) {
+                                        if (value !== undefined) {
+                                          return Caml_option.valFromOption(value);
+                                        } else {
+                                          return defaultValue;
+                                        }
+                                      });
+                          }));
+                  }), (function (ctx, param) {
+                    planSyncMigration(ctx, (function (input) {
+                            var value = Caml_option.some(input);
+                            var fn = innerStruct.s;
+                            if (typeof fn === "number") {
+                              return value;
+                            } else if (fn.TAG === /* SyncOperation */0) {
+                              return fn._0(value);
+                            } else {
+                              return panic$1(undefined);
+                            }
+                          }));
+                  }), undefined, undefined), metadataId$3, /* WithDefaultValue */{
               _0: defaultValue
             }, false, false);
 }
@@ -1751,152 +1612,140 @@ function classify$4(struct) {
 function factory$16(param) {
   var structs = arguments;
   var numberOfStructs = structs.length;
-  var noopOps = [];
-  var syncOps = [];
-  var asyncOps = [];
-  for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
-    var innerStruct = structs[idx];
-    var fn = innerStruct.p;
-    if (typeof fn === "number") {
-      noopOps.push(idx);
-    } else if (fn.TAG === /* SyncOperation */0) {
-      syncOps.push([
-            idx,
-            fn._0
-          ]);
-    } else {
-      syncOps.push([
-            idx,
-            fn._0
-          ]);
-      asyncOps.push(idx);
-    }
-  }
-  var withAsyncOps = asyncOps.length > 0;
-  var parseActionFactories = [(function (struct) {
-        return {
-                TAG: /* Sync */0,
-                _0: (function (input) {
-                    if (Array.isArray(input)) {
-                      var numberOfInputItems = input.length;
-                      if (numberOfStructs !== numberOfInputItems) {
-                        raise({
-                              TAG: /* TupleSize */3,
-                              expected: numberOfStructs,
-                              received: numberOfInputItems
-                            });
-                      }
-                      
-                    } else {
-                      raiseUnexpectedTypeError(input, struct);
-                    }
-                    var newArray = [];
-                    for(var idx = 0 ,idx_finish = syncOps.length; idx < idx_finish; ++idx){
-                      var match = syncOps[idx];
-                      var originalIdx = match[0];
-                      var innerData = input[originalIdx];
-                      try {
-                        var value = match[1](innerData);
-                        newArray[originalIdx] = value;
-                      }
-                      catch (raw_internalError){
-                        var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                        if (internalError.RE_EXN_ID === Exception) {
-                          throw {
-                                RE_EXN_ID: Exception,
-                                _1: prependLocation(internalError._1, idx.toString()),
-                                Error: new Error()
-                              };
-                        }
-                        throw internalError;
-                      }
-                    }
-                    for(var idx$1 = 0 ,idx_finish$1 = noopOps.length; idx$1 < idx_finish$1; ++idx$1){
-                      var originalIdx$1 = noopOps[idx$1];
-                      var innerData$1 = input[originalIdx$1];
-                      newArray[originalIdx$1] = innerData$1;
-                    }
-                    if (withAsyncOps) {
-                      return newArray;
-                    } else if (numberOfStructs !== 0) {
-                      if (numberOfStructs !== 1) {
-                        return newArray;
-                      } else {
-                        return newArray[0];
-                      }
-                    } else {
-                      return ;
-                    }
-                  })
-              };
-      })];
-  if (withAsyncOps) {
-    var partial_arg = {
-      TAG: /* Async */1,
-      _0: (function (tempArray) {
-          return Promise.all(asyncOps.map(function (originalIdx) {
-                            return tempArray[originalIdx]().catch(function (exn) {
-                                        throw exn.RE_EXN_ID === Exception ? ({
-                                                  RE_EXN_ID: Exception,
-                                                  _1: prependLocation(exn._1, originalIdx.toString())
-                                                }) : exn;
-                                      });
-                          })).then(function (values) {
-                      values.forEach(function (value, idx) {
-                            var originalIdx = asyncOps[idx];
-                            tempArray[originalIdx] = value;
-                          });
-                      if (tempArray.length <= 1) {
-                        return tempArray[0];
-                      } else {
-                        return tempArray;
-                      }
-                    });
-        })
-    };
-    parseActionFactories.push(function (param) {
-          return partial_arg;
-        });
-  }
   return make("Tuple", {
               TAG: /* Tuple */4,
               _0: structs
-            }, parseActionFactories, [(function (param) {
-                  return {
-                          TAG: /* Sync */0,
-                          _0: (function (input) {
-                              var inputArray = numberOfStructs === 1 ? [input] : input;
-                              var newArray = [];
-                              for(var idx = 0; idx < numberOfStructs; ++idx){
-                                var innerData = inputArray[idx];
-                                var innerStruct = structs[idx];
-                                var fn = innerStruct.s;
-                                if (typeof fn === "number") {
-                                  newArray.push(innerData);
-                                } else if (fn.TAG === /* SyncOperation */0) {
-                                  try {
-                                    var value = fn._0(innerData);
-                                    newArray.push(value);
-                                  }
-                                  catch (raw_internalError){
-                                    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                                    if (internalError.RE_EXN_ID === Exception) {
-                                      throw {
-                                            RE_EXN_ID: Exception,
-                                            _1: prependLocation(internalError._1, idx.toString()),
-                                            Error: new Error()
-                                          };
-                                    }
-                                    throw internalError;
-                                  }
-                                } else {
-                                  panic$1(undefined);
-                                }
+            }, (function (ctx, struct) {
+                var noopOps = [];
+                var syncOps = [];
+                var asyncOps = [];
+                for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
+                  var innerStruct = structs[idx];
+                  var fn = innerStruct.p;
+                  if (typeof fn === "number") {
+                    noopOps.push(idx);
+                  } else if (fn.TAG === /* SyncOperation */0) {
+                    syncOps.push([
+                          idx,
+                          fn._0
+                        ]);
+                  } else {
+                    syncOps.push([
+                          idx,
+                          fn._0
+                        ]);
+                    asyncOps.push(idx);
+                  }
+                }
+                var withAsyncOps = asyncOps.length > 0;
+                planSyncMigration(ctx, (function (input) {
+                        if (Array.isArray(input)) {
+                          var numberOfInputItems = input.length;
+                          if (numberOfStructs !== numberOfInputItems) {
+                            raise({
+                                  TAG: /* TupleSize */3,
+                                  expected: numberOfStructs,
+                                  received: numberOfInputItems
+                                });
+                          }
+                          
+                        } else {
+                          raiseUnexpectedTypeError(input, struct);
+                        }
+                        var newArray = [];
+                        for(var idx = 0 ,idx_finish = syncOps.length; idx < idx_finish; ++idx){
+                          var match = syncOps[idx];
+                          var originalIdx = match[0];
+                          var innerData = input[originalIdx];
+                          try {
+                            var value = match[1](innerData);
+                            newArray[originalIdx] = value;
+                          }
+                          catch (raw_internalError){
+                            var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                            if (internalError.RE_EXN_ID === Exception) {
+                              throw {
+                                    RE_EXN_ID: Exception,
+                                    _1: prependLocation(internalError._1, idx.toString()),
+                                    Error: new Error()
+                                  };
+                            }
+                            throw internalError;
+                          }
+                        }
+                        for(var idx$1 = 0 ,idx_finish$1 = noopOps.length; idx$1 < idx_finish$1; ++idx$1){
+                          var originalIdx$1 = noopOps[idx$1];
+                          var innerData$1 = input[originalIdx$1];
+                          newArray[originalIdx$1] = innerData$1;
+                        }
+                        if (withAsyncOps) {
+                          return newArray;
+                        } else if (numberOfStructs !== 0) {
+                          if (numberOfStructs !== 1) {
+                            return newArray;
+                          } else {
+                            return newArray[0];
+                          }
+                        } else {
+                          return ;
+                        }
+                      }));
+                if (withAsyncOps) {
+                  return planAsyncMigration(ctx, (function (tempArray) {
+                                return Promise.all(asyncOps.map(function (originalIdx) {
+                                                  return tempArray[originalIdx]().catch(function (exn) {
+                                                              throw exn.RE_EXN_ID === Exception ? ({
+                                                                        RE_EXN_ID: Exception,
+                                                                        _1: prependLocation(exn._1, originalIdx.toString())
+                                                                      }) : exn;
+                                                            });
+                                                })).then(function (values) {
+                                            values.forEach(function (value, idx) {
+                                                  var originalIdx = asyncOps[idx];
+                                                  tempArray[originalIdx] = value;
+                                                });
+                                            if (tempArray.length <= 1) {
+                                              return tempArray[0];
+                                            } else {
+                                              return tempArray;
+                                            }
+                                          });
+                              }));
+                }
+                
+              }), (function (ctx, param) {
+                planSyncMigration(ctx, (function (input) {
+                        var inputArray = numberOfStructs === 1 ? [input] : input;
+                        var newArray = [];
+                        for(var idx = 0; idx < numberOfStructs; ++idx){
+                          var innerData = inputArray[idx];
+                          var innerStruct = structs[idx];
+                          var fn = innerStruct.s;
+                          if (typeof fn === "number") {
+                            newArray.push(innerData);
+                          } else if (fn.TAG === /* SyncOperation */0) {
+                            try {
+                              var value = fn._0(innerData);
+                              newArray.push(value);
+                            }
+                            catch (raw_internalError){
+                              var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                              if (internalError.RE_EXN_ID === Exception) {
+                                throw {
+                                      RE_EXN_ID: Exception,
+                                      _1: prependLocation(internalError._1, idx.toString()),
+                                      Error: new Error()
+                                    };
                               }
-                              return newArray;
-                            })
-                        };
-                })], undefined, undefined);
+                              throw internalError;
+                            }
+                          } else {
+                            panic$1(undefined);
+                          }
+                        }
+                        return newArray;
+                      }));
+              }), undefined, undefined);
 }
 
 var Tuple = {
@@ -1909,184 +1758,168 @@ function factory$17(structs) {
   if (structs.length < 2) {
     panic$2(undefined);
   }
-  var serializeActionFactories = [(function (param) {
-        return {
-                TAG: /* Sync */0,
-                _0: (function (input) {
-                    var idxRef = 0;
-                    var maybeLastErrorRef;
-                    var maybeNewValueRef;
-                    while(idxRef < structs.length && maybeNewValueRef === undefined) {
-                      var idx = idxRef;
-                      var innerStruct = structs[idx];
-                      try {
-                        var fn = innerStruct.s;
-                        var newValue;
-                        newValue = typeof fn === "number" ? input : (
-                            fn.TAG === /* SyncOperation */0 ? fn._0(input) : panic$1(undefined)
-                          );
-                        maybeNewValueRef = Caml_option.some(newValue);
-                      }
-                      catch (raw_internalError){
-                        var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                        if (internalError.RE_EXN_ID === Exception) {
-                          maybeLastErrorRef = internalError._1;
-                          idxRef = idxRef + 1;
-                        } else {
-                          throw internalError;
-                        }
-                      }
-                    };
-                    var ok = maybeNewValueRef;
-                    if (ok !== undefined) {
-                      return Caml_option.valFromOption(ok);
-                    }
-                    var error = maybeLastErrorRef;
-                    if (error !== undefined) {
-                      throw {
-                            RE_EXN_ID: Exception,
-                            _1: error,
-                            Error: new Error()
-                          };
-                    }
-                    return undefined;
-                  })
-              };
-      })];
-  var noopOps = [];
-  var syncOps = [];
-  var asyncOps = [];
-  for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
-    var innerStruct = structs[idx];
-    var fn = innerStruct.p;
-    if (typeof fn === "number") {
-      noopOps.push(undefined);
-    } else if (fn.TAG === /* SyncOperation */0) {
-      syncOps.push([
-            idx,
-            fn._0
-          ]);
-    } else {
-      asyncOps.push([
-            idx,
-            fn._0
-          ]);
-    }
-  }
-  var withAsyncOps = asyncOps.length > 0;
-  var parseActionFactories;
-  if (noopOps.length > 0) {
-    parseActionFactories = emptyArray;
-  } else {
-    var partial_arg = {
-      TAG: /* Sync */0,
-      _0: (function (input) {
-          var idxRef = 0;
-          var errorsRef = [];
-          var maybeNewValueRef;
-          while(idxRef < syncOps.length && maybeNewValueRef === undefined) {
-            var idx = idxRef;
-            var match = syncOps[idx];
-            try {
-              var newValue = match[1](input);
-              maybeNewValueRef = Caml_option.some(newValue);
-            }
-            catch (raw_internalError){
-              var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-              if (internalError.RE_EXN_ID === Exception) {
-                errorsRef[match[0]] = internalError._1;
-                idxRef = idxRef + 1;
-              } else {
-                throw internalError;
-              }
-            }
-          };
-          var match$1 = maybeNewValueRef;
-          if (match$1 !== undefined) {
-            if (withAsyncOps) {
-              return {
-                      maybeSyncValue: match$1,
-                      tempErrors: errorsRef,
-                      originalInput: input
-                    };
-            } else {
-              return Caml_option.valFromOption(match$1);
-            }
-          } else if (withAsyncOps) {
-            return {
-                    maybeSyncValue: match$1,
-                    tempErrors: errorsRef,
-                    originalInput: input
-                  };
-          } else {
-            return raise({
-                        TAG: /* InvalidUnion */5,
-                        _0: errorsRef.map(toParseError)
-                      });
-          }
-        })
-    };
-    var parseActionFactories$1 = [(function (param) {
-          return partial_arg;
-        })];
-    if (withAsyncOps) {
-      var partial_arg$1 = {
-        TAG: /* Async */1,
-        _0: (function (input) {
-            var syncValue = input.maybeSyncValue;
-            if (syncValue !== undefined) {
-              return Promise.resolve(Caml_option.valFromOption(syncValue));
-            } else {
-              return Promise.all(asyncOps.map(function (param) {
-                                var originalIdx = param[0];
-                                try {
-                                  return param[1](input.originalInput)().then((function (value) {
-                                                throw {
-                                                      RE_EXN_ID: HackyValidValue,
-                                                      _1: value,
-                                                      Error: new Error()
-                                                    };
-                                              }), (function (exn) {
-                                                if (exn.RE_EXN_ID === Exception) {
-                                                  var array = input.tempErrors;
-                                                  array[originalIdx] = exn._1;
-                                                  return ;
-                                                }
-                                                throw exn;
-                                              }));
-                                }
-                                catch (raw_internalError){
-                                  var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                                  if (internalError.RE_EXN_ID === Exception) {
-                                    var array = input.tempErrors;
-                                    return Promise.resolve((array[originalIdx] = internalError._1, undefined));
-                                  }
-                                  throw internalError;
-                                }
-                              })).then((function (param) {
-                            return raise({
-                                        TAG: /* InvalidUnion */5,
-                                        _0: input.tempErrors.map(toParseError)
-                                      });
-                          }), (function (exn) {
-                            if (exn.RE_EXN_ID === HackyValidValue) {
-                              return exn._1;
-                            }
-                            throw exn;
-                          }));
-            }
-          })
-      };
-      parseActionFactories$1.push(function (param) {
-            return partial_arg$1;
-          });
-    }
-    parseActionFactories = parseActionFactories$1;
-  }
   return make("Union", {
               TAG: /* Union */5,
               _0: structs
-            }, parseActionFactories, serializeActionFactories, undefined, undefined);
+            }, (function (ctx, param) {
+                var noopOps = [];
+                var syncOps = [];
+                var asyncOps = [];
+                for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
+                  var innerStruct = structs[idx];
+                  var fn = innerStruct.p;
+                  if (typeof fn === "number") {
+                    noopOps.push(undefined);
+                  } else if (fn.TAG === /* SyncOperation */0) {
+                    syncOps.push([
+                          idx,
+                          fn._0
+                        ]);
+                  } else {
+                    asyncOps.push([
+                          idx,
+                          fn._0
+                        ]);
+                  }
+                }
+                var withAsyncOps = asyncOps.length > 0;
+                if (noopOps.length === 0) {
+                  planSyncMigration(ctx, (function (input) {
+                          var idxRef = 0;
+                          var errorsRef = [];
+                          var maybeNewValueRef;
+                          while(idxRef < syncOps.length && maybeNewValueRef === undefined) {
+                            var idx = idxRef;
+                            var match = syncOps[idx];
+                            try {
+                              var newValue = match[1](input);
+                              maybeNewValueRef = Caml_option.some(newValue);
+                            }
+                            catch (raw_internalError){
+                              var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                              if (internalError.RE_EXN_ID === Exception) {
+                                errorsRef[match[0]] = internalError._1;
+                                idxRef = idxRef + 1;
+                              } else {
+                                throw internalError;
+                              }
+                            }
+                          };
+                          var match$1 = maybeNewValueRef;
+                          if (match$1 !== undefined) {
+                            if (withAsyncOps) {
+                              return {
+                                      maybeSyncValue: match$1,
+                                      tempErrors: errorsRef,
+                                      originalInput: input
+                                    };
+                            } else {
+                              return Caml_option.valFromOption(match$1);
+                            }
+                          } else if (withAsyncOps) {
+                            return {
+                                    maybeSyncValue: match$1,
+                                    tempErrors: errorsRef,
+                                    originalInput: input
+                                  };
+                          } else {
+                            return raise({
+                                        TAG: /* InvalidUnion */5,
+                                        _0: errorsRef.map(toParseError)
+                                      });
+                          }
+                        }));
+                  if (withAsyncOps) {
+                    return planAsyncMigration(ctx, (function (input) {
+                                  var syncValue = input.maybeSyncValue;
+                                  if (syncValue !== undefined) {
+                                    return Promise.resolve(Caml_option.valFromOption(syncValue));
+                                  } else {
+                                    return Promise.all(asyncOps.map(function (param) {
+                                                      var originalIdx = param[0];
+                                                      try {
+                                                        return param[1](input.originalInput)().then((function (value) {
+                                                                      throw {
+                                                                            RE_EXN_ID: HackyValidValue,
+                                                                            _1: value,
+                                                                            Error: new Error()
+                                                                          };
+                                                                    }), (function (exn) {
+                                                                      if (exn.RE_EXN_ID === Exception) {
+                                                                        var array = input.tempErrors;
+                                                                        array[originalIdx] = exn._1;
+                                                                        return ;
+                                                                      }
+                                                                      throw exn;
+                                                                    }));
+                                                      }
+                                                      catch (raw_internalError){
+                                                        var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                                                        if (internalError.RE_EXN_ID === Exception) {
+                                                          var array = input.tempErrors;
+                                                          return Promise.resolve((array[originalIdx] = internalError._1, undefined));
+                                                        }
+                                                        throw internalError;
+                                                      }
+                                                    })).then((function (param) {
+                                                  return raise({
+                                                              TAG: /* InvalidUnion */5,
+                                                              _0: input.tempErrors.map(toParseError)
+                                                            });
+                                                }), (function (exn) {
+                                                  if (exn.RE_EXN_ID === HackyValidValue) {
+                                                    return exn._1;
+                                                  }
+                                                  throw exn;
+                                                }));
+                                  }
+                                }));
+                  } else {
+                    return ;
+                  }
+                }
+                
+              }), (function (ctx, param) {
+                planSyncMigration(ctx, (function (input) {
+                        var idxRef = 0;
+                        var maybeLastErrorRef;
+                        var maybeNewValueRef;
+                        while(idxRef < structs.length && maybeNewValueRef === undefined) {
+                          var idx = idxRef;
+                          var innerStruct = structs[idx];
+                          try {
+                            var fn = innerStruct.s;
+                            var newValue;
+                            newValue = typeof fn === "number" ? input : (
+                                fn.TAG === /* SyncOperation */0 ? fn._0(input) : panic$1(undefined)
+                              );
+                            maybeNewValueRef = Caml_option.some(newValue);
+                          }
+                          catch (raw_internalError){
+                            var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+                            if (internalError.RE_EXN_ID === Exception) {
+                              maybeLastErrorRef = internalError._1;
+                              idxRef = idxRef + 1;
+                            } else {
+                              throw internalError;
+                            }
+                          }
+                        };
+                        var ok = maybeNewValueRef;
+                        if (ok !== undefined) {
+                          return Caml_option.valFromOption(ok);
+                        }
+                        var error = maybeLastErrorRef;
+                        if (error !== undefined) {
+                          throw {
+                                RE_EXN_ID: Exception,
+                                _1: error,
+                                Error: new Error()
+                              };
+                        }
+                        return undefined;
+                      }));
+              }), undefined, undefined);
 }
 
 function getExn(result) {

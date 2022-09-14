@@ -37,7 +37,7 @@ type rec literal<'value> =
   | EmptyOption: literal<unit>
   | NaN: literal<unit>
 
-type action<'input, 'output> =
+type migration<'input, 'output> =
   | Sync('input => 'output)
   | Async('input => Js.Promise.t<'output>)
 
@@ -88,15 +88,15 @@ let transform: (
 
 let advancedTransform: (
   t<'value>,
-  ~parser: (~struct: t<'value>) => action<'value, 'transformed>=?,
-  ~serializer: (~struct: t<'value>) => action<'transformed, 'value>=?,
+  ~parser: (~struct: t<'value>) => migration<'value, 'transformed>=?,
+  ~serializer: (~struct: t<'value>) => migration<'transformed, 'value>=?,
   unit,
 ) => t<'transformed>
 
 let advancedPreprocess: (
   t<'value>,
-  ~parser: (~struct: t<'value>) => action<unknown, 'preprocessed>=?,
-  ~serializer: (~struct: t<'value>) => action<'preprocessed, 'any>=?,
+  ~parser: (~struct: t<'value>) => migration<unknown, 'preprocessed>=?,
+  ~serializer: (~struct: t<'value>) => migration<'preprocessed, 'any>=?,
   unit,
 ) => t<'value>
 
