@@ -1,13 +1,10 @@
 {
   "name": "rescript-struct",
   "namespace": false,
-  "bs-dev-dependencies": [
-    "@dzakh/rescript-ava",
-    "@ryyppy/rescript-promise"
-  ],
-  "suffix": ".bs.js",
+  "bs-dev-dependencies": ["@dzakh/rescript-ava", "@ryyppy/rescript-promise"],
+  "suffix": ".mjs",
   "package-specs": {
-    "module": "commonjs",
+    "module": "es6",
     "in-source": true
   },
   "sources": [
