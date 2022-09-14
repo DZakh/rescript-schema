@@ -1757,7 +1757,8 @@ function factory$17(structs) {
   return make("Union", {
               TAG: /* Union */5,
               _0: structs
-            }, (function (ctx, param) {
+            }, (function (ctx, compilingStruct) {
+                var structs = compilingStruct.t._0;
                 var noopOps = [];
                 var syncOps = [];
                 var asyncOps = [];

@@ -350,6 +350,9 @@ and internalMigrationFactoryCtx = {
 }
 and internalMigrationFactory = (. ~ctx: internalMigrationFactoryCtx, ~struct: t<unknown>) => unit
 
+type payloadedVariant<'payload> = {_0: 'payload}
+let unsafeGetVariantPayload = variant => (variant->Obj.magic)._0
+
 external castAnyToUnknown: 'any => unknown = "%identity"
 external castUnknownToAny: unknown => 'any = "%identity"
 external castUnknownStructToAnyStruct: t<unknown> => t<'any> = "%identity"
@@ -2067,7 +2070,9 @@ module Union = {
     make(
       ~name=`Union`,
       ~tagged=Union(structs->Obj.magic),
-      ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) => {
+      ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as compilingStruct) => {
+        let structs = compilingStruct->classify->unsafeGetVariantPayload
+
         let noopOps = []
         let syncOps = []
         let asyncOps = []

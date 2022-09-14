@@ -238,7 +238,7 @@ ava->test("Applies preproces for union structs separately", t => {
       S.int()->S.transform(~parser=int => #Int(int), ()),
     ])->prepareEnvStruct
 
-  t->Assert.deepEqual("f"->S.parseWith(struct), Ok(#Bool(true)), ())
+  t->Assert.deepEqual("f"->S.parseWith(struct), Ok(#Bool(false)), ())
   t->Assert.deepEqual("1"->S.parseWith(struct), Ok(#Bool(true)), ())
   t->Assert.deepEqual("2"->S.parseWith(struct), Ok(#Int(2)), ())
 })
