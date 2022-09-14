@@ -7,7 +7,7 @@ let trimmed = S.advancedTransform(
   (),
 )
 
-ava->test("Successfully parses ", t => {
+ava->test("Successfully parses", t => {
   let struct = S.string()->trimmed
 
   t->Assert.deepEqual("  Hello world!"->S.parseWith(struct), Ok("Hello world!"), ())
@@ -24,9 +24,7 @@ ava->test("Throws for factory without either a parser, or a serializer", t => {
   ), ())
 })
 
-ava->test("Fails to parse when user returns error in parser", t => {
-  let any = %raw(`"Hello world!"`)
-
+ava->test("Fails to parse when user raises error in parser", t => {
   let struct =
     S.string()->S.advancedTransform(
       ~parser=(~struct as _) => Sync(_ => S.Error.raise("User error")),
@@ -34,7 +32,7 @@ ava->test("Fails to parse when user returns error in parser", t => {
     )
 
   t->Assert.deepEqual(
-    any->S.parseWith(struct),
+    "Hello world!"->S.parseWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Parsing,
@@ -50,9 +48,7 @@ ava->test("Successfully serializes", t => {
   t->Assert.deepEqual("  Hello world!"->S.serializeWith(struct), Ok(%raw(`"Hello world!"`)), ())
 })
 
-ava->test("Fails to serialize when user returns error in serializer", t => {
-  let value = "Hello world!"
-
+ava->test("Fails to serialize when user raises error in serializer", t => {
   let struct =
     S.string()->S.advancedTransform(
       ~serializer=(~struct as _) => Sync(_ => S.Error.raise("User error")),
@@ -60,7 +56,7 @@ ava->test("Fails to serialize when user returns error in serializer", t => {
     )
 
   t->Assert.deepEqual(
-    value->S.serializeWith(struct),
+    "Hello world!"->S.serializeWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
@@ -71,8 +67,6 @@ ava->test("Fails to serialize when user returns error in serializer", t => {
 })
 
 ava->test("Transform operations applyed in the right order when parsing", t => {
-  let any = %raw(`123`)
-
   let struct =
     S.int()
     ->S.advancedTransform(~parser=(~struct as _) => Sync(_ => S.Error.raise("First transform")), ())
@@ -82,7 +76,7 @@ ava->test("Transform operations applyed in the right order when parsing", t => {
     )
 
   t->Assert.deepEqual(
-    any->S.parseWith(struct),
+    123->S.parseWith(struct),
     Error({
       code: OperationFailed("First transform"),
       operation: Parsing,
@@ -93,23 +87,21 @@ ava->test("Transform operations applyed in the right order when parsing", t => {
 })
 
 ava->test("Transform operations applyed in the right order when serializing", t => {
-  let any = %raw(`123`)
-
   let struct =
     S.int()
-    ->S.advancedTransform(
-      ~serializer=(~struct as _) => Sync(_ => S.Error.raise("Second transform")),
-      (),
-    )
     ->S.advancedTransform(
       ~serializer=(~struct as _) => Sync(_ => S.Error.raise("First transform")),
       (),
     )
+    ->S.advancedTransform(
+      ~serializer=(~struct as _) => Sync(_ => S.Error.raise("Second transform")),
+      (),
+    )
 
   t->Assert.deepEqual(
-    any->S.serializeWith(struct),
+    123->S.serializeWith(struct),
     Error({
-      code: OperationFailed("First transform"),
+      code: OperationFailed("Second transform"),
       operation: Serializing,
       path: [],
     }),

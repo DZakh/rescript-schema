@@ -1,21 +1,15 @@
 open Ava
 
 ava->test("Parses unknown primitive with transformation to the same type", t => {
-  let any = %raw(`"  Hello world!"`)
-  let transformedValue = "Hello world!"
-
   let struct = S.string()->S.transform(~parser=value => value->Js.String2.trim, ())
 
-  t->Assert.deepEqual(any->S.parseWith(struct), Ok(transformedValue), ())
+  t->Assert.deepEqual("  Hello world!"->S.parseWith(struct), Ok("Hello world!"), ())
 })
 
 ava->test("Parses unknown primitive with transformation to another type", t => {
-  let any = %raw(`123`)
-  let transformedValue = 123.
-
   let struct = S.int()->S.transform(~parser=value => value->Js.Int.toFloat, ())
 
-  t->Assert.deepEqual(any->S.parseWith(struct), Ok(transformedValue), ())
+  t->Assert.deepEqual(123->S.parseWith(struct), Ok(123.), ())
 })
 
 ava->test(
@@ -33,12 +27,10 @@ ava->test(
 )
 
 ava->test("Fails to parse primitive with transform when parser isn't provided", t => {
-  let any = %raw(`"Hello world!"`)
-
   let struct = S.string()->S.transform(~serializer=value => value, ())
 
   t->Assert.deepEqual(
-    any->S.parseWith(struct),
+    "Hello world!"->S.parseWith(struct),
     Error({
       code: MissingParser,
       path: [],
@@ -48,13 +40,11 @@ ava->test("Fails to parse primitive with transform when parser isn't provided", 
   )
 })
 
-ava->test("Fails to parse when user returns error in a Transformed Primitive parser", t => {
-  let any = %raw(`"Hello world!"`)
-
+ava->test("Fails to parse when user raises error in a Transformed Primitive parser", t => {
   let struct = S.string()->S.transform(~parser=_ => S.Error.raise("User error"), ())
 
   t->Assert.deepEqual(
-    any->S.parseWith(struct),
+    "Hello world!"->S.parseWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Parsing,
@@ -65,30 +55,22 @@ ava->test("Fails to parse when user returns error in a Transformed Primitive par
 })
 
 ava->test("Successfully serializes primitive with transformation to the same type", t => {
-  let value = "  Hello world!"
-  let transformedAny = %raw(`"Hello world!"`)
-
   let struct = S.string()->S.transform(~serializer=value => value->Js.String2.trim, ())
 
-  t->Assert.deepEqual(value->S.serializeWith(struct), Ok(transformedAny), ())
+  t->Assert.deepEqual("  Hello world!"->S.serializeWith(struct), Ok(%raw(`"Hello world!"`)), ())
 })
 
 ava->test("Successfully serializes primitive with transformation to another type", t => {
-  let value = 123
-  let transformedAny = %raw(`123`)
-
   let struct = S.float()->S.transform(~serializer=value => value->Js.Int.toFloat, ())
 
-  t->Assert.deepEqual(value->S.serializeWith(struct), Ok(transformedAny), ())
+  t->Assert.deepEqual(123->S.serializeWith(struct), Ok(%raw(`123`)), ())
 })
 
 ava->test("Transformed Primitive serializing fails when serializer isn't provided", t => {
-  let value = "Hello world!"
-
   let struct = S.string()->S.transform(~parser=value => value, ())
 
   t->Assert.deepEqual(
-    value->S.serializeWith(struct),
+    "Hello world!"->S.serializeWith(struct),
     Error({
       code: MissingSerializer,
       operation: Serializing,
@@ -98,13 +80,11 @@ ava->test("Transformed Primitive serializing fails when serializer isn't provide
   )
 })
 
-ava->test("Fails to serialize when user returns error in a Transformed Primitive serializer", t => {
-  let value = "Hello world!"
-
+ava->test("Fails to serialize when user raises error in a Transformed Primitive serializer", t => {
   let struct = S.string()->S.transform(~serializer=_ => S.Error.raise("User error"), ())
 
   t->Assert.deepEqual(
-    value->S.serializeWith(struct),
+    "Hello world!"->S.serializeWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
@@ -115,15 +95,13 @@ ava->test("Fails to serialize when user returns error in a Transformed Primitive
 })
 
 ava->test("Transform operations applyed in the right order when parsing", t => {
-  let any = %raw(`123`)
-
   let struct =
     S.int()
     ->S.transform(~parser=_ => S.Error.raise("First transform"), ())
     ->S.transform(~parser=_ => S.Error.raise("Second transform"), ())
 
   t->Assert.deepEqual(
-    any->S.parseWith(struct),
+    123->S.parseWith(struct),
     Error({
       code: OperationFailed("First transform"),
       operation: Parsing,
@@ -134,17 +112,15 @@ ava->test("Transform operations applyed in the right order when parsing", t => {
 })
 
 ava->test("Transform operations applyed in the right order when serializing", t => {
-  let any = %raw(`123`)
-
   let struct =
     S.int()
-    ->S.transform(~serializer=_ => S.Error.raise("Second transform"), ())
     ->S.transform(~serializer=_ => S.Error.raise("First transform"), ())
+    ->S.transform(~serializer=_ => S.Error.raise("Second transform"), ())
 
   t->Assert.deepEqual(
-    any->S.serializeWith(struct),
+    123->S.serializeWith(struct),
     Error({
-      code: OperationFailed("First transform"),
+      code: OperationFailed("Second transform"),
       operation: Serializing,
       path: [],
     }),

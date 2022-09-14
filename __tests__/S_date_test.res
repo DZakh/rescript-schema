@@ -6,7 +6,7 @@ module Common = {
   let wrongAny = %raw(`"Hello world!"`)
   let factory = () => S.date()
 
-  ava->test("Successfully parses ", t => {
+  ava->test("Successfully parses", t => {
     let struct = factory()
 
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
