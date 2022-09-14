@@ -1,7 +1,7 @@
 {
   "name": "rescript-struct",
   "version": "1.0.0",
-  "description": "A simple and composable way to describe relationship between JavaScript and ReScript structures",
+  "description": "Safely parse and serialize data with ability to describe migration to a convenient format",
   "keywords": [
     "ReScript",
     "Struct",
