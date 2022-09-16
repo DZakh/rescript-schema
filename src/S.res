@@ -316,9 +316,9 @@ type rec t<'value> = {
   @as("sf")
   serializeMigrationFactory: internalMigrationFactory,
   @as("s")
-  serialize: operation,
+  mutable serialize: operation,
   @as("p")
-  parse: operation,
+  mutable parse: operation,
   @as("m")
   maybeMetadataDict: option<Js.Dict.t<unknown>>,
 }
@@ -500,11 +500,9 @@ let make = (
     parse: %raw("undefined"),
     maybeMetadataDict,
   }
-  {
-    ...struct,
-    serialize: struct.serializeMigrationFactory->MigrationFactory.compile(~struct),
-    parse: struct.parseMigrationFactory->MigrationFactory.compile(~struct),
-  }
+  struct.parse = struct.parseMigrationFactory->MigrationFactory.compile(~struct)
+  struct.serialize = struct.serializeMigrationFactory->MigrationFactory.compile(~struct)
+  struct
 }
 
 let parseWith = (any, struct) => {
@@ -656,22 +654,19 @@ module Metadata = {
         ),
       ),
     }
-    switch (withParserUpdate, withSerializerUpdate) {
-    | (false, false) => structWithNewMetadata
-    | _ => {
-        ...structWithNewMetadata,
-        parse: withParserUpdate
-          ? structWithNewMetadata.parseMigrationFactory->MigrationFactory.compile(
-              ~struct=structWithNewMetadata,
-            )
-          : structWithNewMetadata.parse,
-        serialize: withSerializerUpdate
-          ? structWithNewMetadata.serializeMigrationFactory->MigrationFactory.compile(
-              ~struct=structWithNewMetadata,
-            )
-          : structWithNewMetadata.serialize,
-      }
+    if withParserUpdate {
+      structWithNewMetadata.parse =
+        structWithNewMetadata.parseMigrationFactory->MigrationFactory.compile(
+          ~struct=structWithNewMetadata,
+        )
     }
+    if withSerializerUpdate {
+      structWithNewMetadata.serialize =
+        structWithNewMetadata.serializeMigrationFactory->MigrationFactory.compile(
+          ~struct=structWithNewMetadata,
+        )
+    }
+    structWithNewMetadata
   }
 }
 

@@ -299,26 +299,18 @@ function raiseUnexpectedTypeError(input, struct) {
 }
 
 function make(name, tagged, parseMigrationFactory, serializeMigrationFactory, maybeMetadataDict, param) {
-  var struct_s = undefined;
-  var struct_p = undefined;
   var struct = {
     n: name,
     t: tagged,
     pf: parseMigrationFactory,
     sf: serializeMigrationFactory,
-    s: struct_s,
-    p: struct_p,
+    s: undefined,
+    p: undefined,
     m: maybeMetadataDict
   };
-  return {
-          n: name,
-          t: tagged,
-          pf: parseMigrationFactory,
-          sf: serializeMigrationFactory,
-          s: compile(serializeMigrationFactory, struct),
-          p: compile(parseMigrationFactory, struct),
-          m: maybeMetadataDict
-        };
+  struct.p = compile(struct.pf, struct);
+  struct.s = compile(struct.sf, struct);
+  return struct;
 }
 
 function parseWith(any, struct) {
@@ -537,34 +529,22 @@ function get(struct, id) {
 
 function set(struct, id, metadata, withParserUpdate, withSerializerUpdate) {
   var metadataChange = {};
-  var structWithNewMetadata_n = struct.n;
-  var structWithNewMetadata_t = struct.t;
-  var structWithNewMetadata_pf = struct.pf;
-  var structWithNewMetadata_sf = struct.sf;
-  var structWithNewMetadata_s = struct.s;
-  var structWithNewMetadata_p = struct.p;
-  var structWithNewMetadata_m = Caml_option.some(Object.assign({}, struct.m, (metadataChange[id] = metadata, metadataChange)));
   var structWithNewMetadata = {
-    n: structWithNewMetadata_n,
-    t: structWithNewMetadata_t,
-    pf: structWithNewMetadata_pf,
-    sf: structWithNewMetadata_sf,
-    s: structWithNewMetadata_s,
-    p: structWithNewMetadata_p,
-    m: structWithNewMetadata_m
+    n: struct.n,
+    t: struct.t,
+    pf: struct.pf,
+    sf: struct.sf,
+    s: struct.s,
+    p: struct.p,
+    m: Caml_option.some(Object.assign({}, struct.m, (metadataChange[id] = metadata, metadataChange)))
   };
-  if (!withParserUpdate && !withSerializerUpdate) {
-    return structWithNewMetadata;
+  if (withParserUpdate) {
+    structWithNewMetadata.p = compile(structWithNewMetadata.pf, structWithNewMetadata);
   }
-  return {
-          n: structWithNewMetadata_n,
-          t: structWithNewMetadata_t,
-          pf: structWithNewMetadata_pf,
-          sf: structWithNewMetadata_sf,
-          s: withSerializerUpdate ? compile(structWithNewMetadata_sf, structWithNewMetadata) : structWithNewMetadata_s,
-          p: withParserUpdate ? compile(structWithNewMetadata_pf, structWithNewMetadata) : structWithNewMetadata_p,
-          m: structWithNewMetadata_m
-        };
+  if (withSerializerUpdate) {
+    structWithNewMetadata.s = compile(structWithNewMetadata.sf, structWithNewMetadata);
+  }
+  return structWithNewMetadata;
 }
 
 function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
