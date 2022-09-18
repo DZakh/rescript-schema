@@ -1509,6 +1509,15 @@ module Int = {
     }
     struct->refine(~parser=refiner, ~serializer=refiner, ())
   }
+
+  let port = (struct, ~message="Invalid port", ()) => {
+    let refiner = value => {
+      if value < 1 || value > 65535 {
+        Error.raise(message)
+      }
+    }
+    struct->refine(~parser=refiner, ~serializer=refiner, ())
+  }
 }
 
 module Float = {

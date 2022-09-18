@@ -299,6 +299,7 @@ module String: {
 module Int: {
   let min: (t<int>, ~message: string=?, int) => t<int>
   let max: (t<int>, ~message: string=?, int) => t<int>
+  let port: (t<int>, ~message: string=?, unit) => t<int>
 }
 
 module Float: {

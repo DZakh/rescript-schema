@@ -1215,6 +1215,17 @@ function max$1(struct, maybeMessage, thanValue) {
   return refine(struct, refiner, refiner, undefined);
 }
 
+function port(struct, messageOpt, param) {
+  var message = messageOpt !== undefined ? messageOpt : "Invalid port";
+  var refiner = function (value) {
+    if (value < 1 || value > 65535) {
+      return raise$2(message);
+    }
+    
+  };
+  return refine(struct, refiner, refiner, undefined);
+}
+
 function factory$9(param) {
   return make("Float", /* Float */4, (function (ctx, struct) {
                 planSyncMigration(ctx, (function (input) {
@@ -2092,7 +2103,8 @@ var $$String = {
 
 var Int = {
   min: min$1,
-  max: max$1
+  max: max$1,
+  port: port
 };
 
 var Float = {

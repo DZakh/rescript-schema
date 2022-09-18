@@ -247,6 +247,7 @@ Ok(123)
 ```rescript
 S.int()->S.Int.max(5) // Number must be lower than or equal to 5
 S.int()->S.Int.min(5) // Number must be greater than or equal to 5
+S.int()->S.Int.port() // Invalid port
 ```
 
 #### **`S.float`**
