@@ -173,9 +173,7 @@ function planSyncMigration(ctx, migration) {
   if (match !== 1) {
     if (match !== 0) {
       ctx.a = (function (input) {
-          return prevAsyncMigration(input).then(function (data) {
-                      return migration(data);
-                    });
+          return prevAsyncMigration(input).then(migration);
         });
     } else {
       ctx.p = /* OnlySync */1;
@@ -194,9 +192,7 @@ function planAsyncMigration(ctx, migration) {
   if (match !== 1) {
     if (match !== 0) {
       ctx.a = (function (input) {
-          return prevAsyncMigration(input).then(function (data) {
-                      return migration(data);
-                    });
+          return prevAsyncMigration(input).then(migration);
         });
     } else {
       ctx.p = /* OnlyAsync */2;
@@ -1583,9 +1579,9 @@ function factory$15(innerStruct, defaultValue) {
                                     }
                                   }));
                     }
-                    var fn$2 = fn._0;
-                    planAsyncMigration(ctx, (function (input) {
-                            return fn$2(input)().then(function (value) {
+                    planSyncMigration(ctx, fn._0);
+                    planAsyncMigration(ctx, (function (asyncFn) {
+                            return asyncFn().then(function (value) {
                                         if (value !== undefined) {
                                           return Caml_option.valFromOption(value);
                                         } else {

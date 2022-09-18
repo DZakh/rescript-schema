@@ -6,7 +6,7 @@ module Lib = {
     type t<+'a> = Js.Promise.t<'a>
 
     @send
-    external thenResolve: (t<'a>, @uncurry ('a => 'b)) => t<'b> = "then"
+    external thenResolve: (t<'a>, 'a => 'b) => t<'b> = "then"
 
     @send external then: (t<'a>, 'a => t<'b>) => t<'b> = "then"
 
@@ -51,6 +51,9 @@ module Lib = {
     let call1 = (fn: 'arg1 => 'return, arg1: 'arg1): 'return => {
       Obj.magic(fn)(. arg1)
     }
+
+    @inline
+    let castToCurried = (fn: (. 'a) => 'b): ('a => 'b) => fn->Obj.magic
   }
 
   module Object = {
@@ -398,7 +401,9 @@ module MigrationFactory = {
       | OnlyAsync
       | SyncAndAsync =>
         ctx.asyncMigration = (. input) =>
-          prevAsyncMigration(. input)->Lib.Promise.thenResolve(data => nextSyncMigration(. data))
+          prevAsyncMigration(. input)->Lib.Promise.thenResolve(
+            nextSyncMigration->Lib.Fn.castToCurried,
+          )
       }
     }
 
@@ -419,7 +424,7 @@ module MigrationFactory = {
       | OnlyAsync
       | SyncAndAsync =>
         ctx.asyncMigration = (. input) =>
-          prevAsyncMigration(. input)->Lib.Promise.then(data => nextAsyncMigration(. data))
+          prevAsyncMigration(. input)->Lib.Promise.then(nextAsyncMigration->Lib.Fn.castToCurried)
       }
     }
 
@@ -1888,8 +1893,9 @@ module Defaulted = {
             fn(. input)->castUnknownToAny->Lib.Option.getWithDefault(defaultValue)
           })
         | AsyncOperation(fn) =>
-          ctx->MigrationFactory.Ctx.planAsyncMigration(input => {
-            fn(. input)(.)->Lib.Promise.thenResolve(
+          ctx->MigrationFactory.Ctx.planSyncMigration(fn->Lib.Fn.castToCurried)
+          ctx->MigrationFactory.Ctx.planAsyncMigration(asyncFn => {
+            asyncFn(.)->Lib.Promise.thenResolve(
               value => {
                 value->castUnknownToAny->Lib.Option.getWithDefault(defaultValue)
               },
