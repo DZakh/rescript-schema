@@ -37,6 +37,15 @@ type rec literal<'value> =
   | EmptyOption: literal<unit>
   | NaN: literal<unit>
 
+type taggedLiteral =
+  | String(string)
+  | Int(int)
+  | Float(float)
+  | Bool(bool)
+  | EmptyNull
+  | EmptyOption
+  | NaN
+
 type migration<'input, 'output> =
   | Sync('input => 'output)
   | Async('input => Js.Promise.t<'output>)
@@ -49,7 +58,7 @@ and tagged =
   | Int
   | Float
   | Bool
-  | Literal
+  | Literal(taggedLiteral)
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
@@ -311,19 +320,6 @@ module Defaulted: {
 
 module Deprecated: {
   type tagged = WithoutMessage | WithMessage(string)
-
-  let classify: t<'value> => option<tagged>
-}
-
-module Literal: {
-  type tagged =
-    | String(string)
-    | Int(int)
-    | Float(float)
-    | Bool(bool)
-    | EmptyNull
-    | EmptyOption
-    | NaN
 
   let classify: t<'value> => option<tagged>
 }

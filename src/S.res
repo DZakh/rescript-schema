@@ -303,12 +303,18 @@ type rec literal<'value> =
   | EmptyNull: literal<unit>
   | EmptyOption: literal<unit>
   | NaN: literal<unit>
-
+type taggedLiteral =
+  | String(string)
+  | Int(int)
+  | Float(float)
+  | Bool(bool)
+  | EmptyNull
+  | EmptyOption
+  | NaN
 type operation =
   | NoOperation
   | SyncOperation((. unknown) => unknown)
   | AsyncOperation((. unknown, . unit) => Js.Promise.t<unknown>)
-
 type rec t<'value> = {
   @as("n")
   name: string,
@@ -332,7 +338,7 @@ and tagged =
   | Int
   | Float
   | Bool
-  | Literal
+  | Literal(taggedLiteral)
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
@@ -934,29 +940,13 @@ let custom = (
 }
 
 module Literal = {
-  type tagged =
-    | String(string)
-    | Int(int)
-    | Float(float)
-    | Bool(bool)
-    | EmptyNull
-    | EmptyOption
-    | NaN
-
-  external castLiteralToTagged: literal<'a> => tagged = "%identity"
-
-  let metadataId: Metadata.Id.t<tagged> = Metadata.Id.make(
-    ~namespace="rescript-struct",
-    ~name="Literal",
-  )
-
-  let classify = struct => struct->Metadata.get(~id=metadataId)
+  external castToTaggedLiteral: literal<'a> => taggedLiteral = "%identity"
 
   module Variant = {
     let factory:
       type literalValue variant. (literal<literalValue>, variant) => t<variant> =
       (innerLiteral, variant) => {
-        let tagged = Literal
+        let tagged = Literal(innerLiteral->castToTaggedLiteral)
 
         let makeParseMigrationFactory = (~literalValue, ~test) => {
           MigrationFactory.make((. ~ctx, ~struct) =>
@@ -1075,12 +1065,7 @@ module Literal = {
             ~serializeMigrationFactory=makeSerializeMigrationFactory(int),
             (),
           )
-        }->Metadata.set(
-          ~id=metadataId,
-          ~metadata=innerLiteral->castLiteralToTagged,
-          ~withParserUpdate=false,
-          ~withSerializerUpdate=false,
-        )
+        }
       }
   }
 
