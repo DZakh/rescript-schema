@@ -18,7 +18,11 @@ Also, it has declarative API allowing you to use **rescript-struct** as a buildi
 - [rescript-json-schema](https://github.com/DZakh/rescript-json-schema) - Typesafe JSON schema for ReScript
 - Internal form library at [Carla](https://www.carla.se/)
 
-## Installation
+## How to use
+
+Works the same in the browser and in node. See the [examples](#examples) section for more examples.
+
+### Install
 
 ```sh
 npm install rescript-struct
@@ -32,13 +36,6 @@ Then add `rescript-struct` to `bs-dependencies` in your `bsconfig.json`:
 + "bs-dependencies": ["rescript-struct"]
 }
 ```
-
-## Examples
-
-### Real-world use cases
-
-- [API layer with **rescript-struct**](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Api.res)
-- [Env variables with **rescript-struct**](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Env.res)
 
 ### Basic usage
 
@@ -95,6 +92,11 @@ Ok({
   deprecatedAge: None,
 })
 ```
+
+### Examples
+
+- [API layer with **rescript-struct**](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Api.res)
+- [Env variables with **rescript-struct**](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Env.res)
 
 ## API Reference
 
