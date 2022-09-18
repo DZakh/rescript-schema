@@ -226,7 +226,7 @@ ava->test("Applies preproces for union structs separately", t => {
             }
           },
         )
-      | _ => Sync(unknown => unknown->Obj.magic)
+      | _ => Sync(Obj.magic)
       }
     },
     (),

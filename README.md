@@ -820,6 +820,50 @@ let json = innerStruct => {
 }
 ```
 
+### Preprocess _Advanced_
+
+Typically **rescript-struct** operates under a "parse then transform" paradigm. **rescript-struct** validates the input first, then passes it through a chain of transformation functions.
+
+But sometimes you want to apply some transform to the input before parsing happens. Mostly needed when you build sometimes on top of **rescript-struct**. A simplified example from [rescript-envsafe](https://github.com/DZakh/rescript-envsafe):
+
+```rescript
+let prepareEnvStruct = S.advancedPreprocess(
+  _,
+  ~parser=(~struct) => {
+    switch struct->S.classify {
+    | Bool =>
+      Sync(
+        unknown => {
+          switch unknown->Obj.magic {
+          | "true"
+          | "t"
+          | "1" => true
+          | "false"
+          | "f"
+          | "0" => false
+          | _ => unknown->Obj.magic
+          }->Obj.magic
+        },
+      )
+    | Int =>
+      Sync(
+        unknown => {
+          if unknown->Js.typeof === "string" {
+            %raw(`+unknown`)
+          } else {
+            unknown
+          }
+        },
+      )
+    | _ => Sync(Obj.magic)
+    }
+  },
+  (),
+)
+```
+
+> 🧠 When using preprocess on Union it will be applied to nested structs separately instead.
+
 ### Error handling
 
 **rescript-struct** returns a result type with error `S.Error.t` containing detailed information about the validation problems.
