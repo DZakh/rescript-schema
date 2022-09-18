@@ -1421,6 +1421,45 @@ module String = {
   }
 }
 
+module Json = {
+  let factory = innerStruct => {
+    make(
+      ~name=`Json`,
+      ~tagged=String,
+      ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct) => {
+        let process = switch innerStruct.parse {
+        | NoOperation => Obj.magic
+        | SyncOperation(fn) => fn->Obj.magic
+        | AsyncOperation(fn) => fn->Obj.magic
+        }
+        ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+          if input->Js.typeof === "string" {
+            try input->Js.Json.parseExn catch {
+            | Js.Exn.Error(obj) =>
+              Error.raise(obj->Js.Exn.message->Lib.Option.getWithDefault("Failed to parse JSON"))
+            }->Lib.Fn.call1(process, _)
+          } else {
+            raiseUnexpectedTypeError(~input, ~struct)
+          }
+        })
+        switch innerStruct.parse {
+        | AsyncOperation(_) =>
+          ctx->MigrationFactory.Ctx.planAsyncMigration(asyncFn => {
+            asyncFn(.)
+          })
+        | _ => ()
+        }
+      }),
+      ~serializeMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) => {
+        ctx->MigrationFactory.Ctx.planSyncMigration(input => {
+          serializeInner(~struct=innerStruct, ~value=input)->Obj.magic->Js.Json.stringify
+        })
+      }),
+      (),
+    )
+  }
+}
+
 module Bool = {
   let factory = () => {
     make(
@@ -2258,52 +2297,4 @@ let tuple8 = Tuple.factory
 let tuple9 = Tuple.factory
 let tuple10 = Tuple.factory
 let union = Union.factory
-
-let json = innerStruct => {
-  string()
-  ->transform(~parser=jsonString => {
-    try jsonString->Js.Json.parseExn catch {
-    | Js.Exn.Error(obj) =>
-      Error.raise(obj->Js.Exn.message->Lib.Option.getWithDefault("Failed to parse JSON"))
-    }
-  }, ~serializer=Js.Json.stringify, ())
-  ->advancedTransform(
-    ~parser=(~struct as _) => {
-      switch innerStruct->isAsyncParse {
-      | true =>
-        Async(
-          parsedJson => {
-            parsedJson
-            ->parseAsyncWith(innerStruct)
-            ->Lib.Promise.thenResolve(result => {
-              switch result {
-              | Ok(value) => value
-              | Error(error) => Error.raiseCustom(error)
-              }
-            })
-          },
-        )
-      | false =>
-        Sync(
-          parsedJson => {
-            switch parsedJson->parseWith(innerStruct) {
-            | Ok(value) => value
-            | Error(error) => Error.raiseCustom(error)
-            }
-          },
-        )
-      }
-    },
-    ~serializer=(~struct as _) => {
-      Sync(
-        value => {
-          switch value->serializeWith(innerStruct) {
-          | Ok(unknown) => unknown->castUnknownToAny
-          | Error(error) => Error.raiseCustom(error)
-          }
-        },
-      )
-    },
-    (),
-  )
-}
+let json = Json.factory

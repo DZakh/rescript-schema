@@ -687,25 +687,17 @@ module Json = {
     })
   })
 
-  ava->asyncTest(
-    "[Json] Doesn't return sync error when fails to parse sync part of async item",
-    t => {
-      let struct = S.json(S.int()->validAsyncRefine)
+  ava->test("[Json] Returns sync error when fails to parse sync part of async item", t => {
+    let struct = S.json(S.int()->validAsyncRefine)
 
-      (
-        "true"->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn
-      )()->Promise.thenResolve(result => {
-        t->Assert.deepEqual(
-          result,
-          Error({
-            S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-            path: [],
-            operation: Parsing,
-          }),
-          (),
-        )
-        ()
-      })
-    },
-  )
+    t->Assert.deepEqual(
+      "true"->S.parseAsyncInStepsWith(struct),
+      Error({
+        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        path: [],
+        operation: Parsing,
+      }),
+      (),
+    )
+  })
 }

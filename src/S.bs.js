@@ -1135,7 +1135,52 @@ function trimmed(struct, param) {
   return transform(struct, transformer, transformer, undefined);
 }
 
-function factory$6(param) {
+function factory$6(innerStruct) {
+  return make("Json", /* String */2, (function (ctx, struct) {
+                var fn = innerStruct.p;
+                var $$process = typeof fn === "number" ? (function (prim) {
+                      return prim;
+                    }) : fn._0;
+                planSyncMigration(ctx, (function (input) {
+                        if (typeof input !== "string") {
+                          return raiseUnexpectedTypeError(input, struct);
+                        }
+                        var __x;
+                        try {
+                          __x = JSON.parse(input);
+                        }
+                        catch (raw_obj){
+                          var obj = Caml_js_exceptions.internalToOCamlException(raw_obj);
+                          if (obj.RE_EXN_ID === Js_exn.$$Error) {
+                            var option = obj._1.message;
+                            __x = raise$2(option !== undefined ? Caml_option.valFromOption(option) : "Failed to parse JSON");
+                          } else {
+                            throw obj;
+                          }
+                        }
+                        return $$process(__x);
+                      }));
+                var match = innerStruct.p;
+                if (typeof match === "number" || match.TAG === /* SyncOperation */0) {
+                  return ;
+                } else {
+                  return planAsyncMigration(ctx, (function (asyncFn) {
+                                return asyncFn();
+                              }));
+                }
+              }), (function (ctx, param) {
+                planSyncMigration(ctx, (function (input) {
+                        var fn = innerStruct.s;
+                        var tmp;
+                        tmp = typeof fn === "number" ? input : (
+                            fn.TAG === /* SyncOperation */0 ? fn._0(input) : panic$1(undefined)
+                          );
+                        return JSON.stringify(tmp);
+                      }));
+              }), undefined, undefined);
+}
+
+function factory$7(param) {
   return make("Bool", /* Bool */5, (function (ctx, struct) {
                 planSyncMigration(ctx, (function (input) {
                         if (typeof input === "boolean") {
@@ -1147,7 +1192,7 @@ function factory$6(param) {
               }), empty, undefined, undefined);
 }
 
-function factory$7(param) {
+function factory$8(param) {
   return make("Int", /* Int */3, (function (ctx, struct) {
                 planSyncMigration(ctx, (function (input) {
                         if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
@@ -1181,7 +1226,7 @@ function max$1(struct, maybeMessage, thanValue) {
   return refine(struct, refiner, refiner, undefined);
 }
 
-function factory$8(param) {
+function factory$9(param) {
   return make("Float", /* Float */4, (function (ctx, struct) {
                 planSyncMigration(ctx, (function (input) {
                         if (typeof input === "number" && !Number.isNaN(input)) {
@@ -1193,7 +1238,7 @@ function factory$8(param) {
               }), empty, undefined, undefined);
 }
 
-function factory$9(param) {
+function factory$10(param) {
   return make("Date", /* Date */7, (function (ctx, struct) {
                 planSyncMigration(ctx, (function (input) {
                         if ((input instanceof Date) && !Number.isNaN(input.getTime())) {
@@ -1205,7 +1250,7 @@ function factory$9(param) {
               }), empty, undefined, undefined);
 }
 
-function factory$10(innerStruct) {
+function factory$11(innerStruct) {
   return make("Null", {
               TAG: /* Null */1,
               _0: innerStruct
@@ -1259,7 +1304,7 @@ function factory$10(innerStruct) {
               }), undefined, undefined);
 }
 
-function factory$11(innerStruct) {
+function factory$12(innerStruct) {
   return make("Option", {
               TAG: /* Option */0,
               _0: innerStruct
@@ -1309,8 +1354,8 @@ function factory$11(innerStruct) {
 
 var metadataId$2 = "rescript-struct:Deprecated";
 
-function factory$12(innerStruct, maybeMessage, param) {
-  return set(factory$11(innerStruct), metadataId$2, maybeMessage !== undefined ? /* WithMessage */({
+function factory$13(innerStruct, maybeMessage, param) {
+  return set(factory$12(innerStruct), metadataId$2, maybeMessage !== undefined ? /* WithMessage */({
                   _0: maybeMessage
                 }) : /* WithoutMessage */0, false, false);
 }
@@ -1319,7 +1364,7 @@ function classify$3(struct) {
   return get(struct, metadataId$2);
 }
 
-function factory$13(innerStruct) {
+function factory$14(innerStruct) {
   return make("Array", {
               TAG: /* Array */2,
               _0: innerStruct
@@ -1440,7 +1485,7 @@ function length$1(struct, maybeMessage, length$2) {
   return refine(struct, refiner, refiner, undefined);
 }
 
-function factory$14(innerStruct) {
+function factory$15(innerStruct) {
   return make("Dict", {
               TAG: /* Dict */6,
               _0: innerStruct
@@ -1556,7 +1601,7 @@ function factory$14(innerStruct) {
 
 var metadataId$3 = "rescript-struct:Defaulted";
 
-function factory$15(innerStruct, defaultValue) {
+function factory$16(innerStruct, defaultValue) {
   return set(make(innerStruct.n, innerStruct.t, (function (ctx, param) {
                     var fn = innerStruct.p;
                     if (typeof fn === "number") {
@@ -1610,7 +1655,7 @@ function classify$4(struct) {
   return get(struct, metadataId$3);
 }
 
-function factory$16(param) {
+function factory$17(param) {
   var structs = arguments;
   var numberOfStructs = structs.length;
   return make("Tuple", {
@@ -1750,12 +1795,12 @@ function factory$16(param) {
 }
 
 var Tuple = {
-  factory: factory$16
+  factory: factory$17
 };
 
 var HackyValidValue = /* @__PURE__ */Caml_exceptions.create("S.Union.HackyValidValue");
 
-function factory$17(structs) {
+function factory$18(structs) {
   if (structs.length < 2) {
     panic$2(undefined);
   }
@@ -1948,75 +1993,6 @@ var Result = {
   mapErrorToString: mapErrorToString
 };
 
-function json(innerStruct) {
-  return advancedTransform(transform(factory$5(undefined), (function (jsonString) {
-                    try {
-                      return JSON.parse(jsonString);
-                    }
-                    catch (raw_obj){
-                      var obj = Caml_js_exceptions.internalToOCamlException(raw_obj);
-                      if (obj.RE_EXN_ID === Js_exn.$$Error) {
-                        var option = obj._1.message;
-                        return raise$2(option !== undefined ? Caml_option.valFromOption(option) : "Failed to parse JSON");
-                      }
-                      throw obj;
-                    }
-                  }), (function (prim) {
-                    return JSON.stringify(prim);
-                  }), undefined), (function (param) {
-                var match = innerStruct.p;
-                var tmp;
-                tmp = typeof match === "number" || match.TAG === /* SyncOperation */0 ? false : true;
-                if (tmp) {
-                  return {
-                          TAG: /* Async */1,
-                          _0: (function (parsedJson) {
-                              return parseAsyncWith(parsedJson, innerStruct).then(function (result) {
-                                          if (result.TAG === /* Ok */0) {
-                                            return result._0;
-                                          }
-                                          throw {
-                                                RE_EXN_ID: Exception,
-                                                _1: result._0,
-                                                Error: new Error()
-                                              };
-                                        });
-                            })
-                        };
-                } else {
-                  return {
-                          TAG: /* Sync */0,
-                          _0: (function (parsedJson) {
-                              var value = parseWith(parsedJson, innerStruct);
-                              if (value.TAG === /* Ok */0) {
-                                return value._0;
-                              }
-                              throw {
-                                    RE_EXN_ID: Exception,
-                                    _1: value._0,
-                                    Error: new Error()
-                                  };
-                            })
-                        };
-                }
-              }), (function (param) {
-                return {
-                        TAG: /* Sync */0,
-                        _0: (function (value) {
-                            var unknown = serializeWith(value, innerStruct);
-                            if (unknown.TAG === /* Ok */0) {
-                              return unknown._0;
-                            }
-                            throw {
-                                  RE_EXN_ID: Exception,
-                                  _1: unknown._0,
-                                  Error: new Error()
-                                };
-                          })
-                      };
-              }), undefined);
-}
-
 var $$Error$1 = {
   prependLocation: prependLocation$1,
   raiseCustom: raiseCustom,
@@ -2030,31 +2006,33 @@ var unknown = factory$4;
 
 var string = factory$5;
 
-var bool = factory$6;
+var bool = factory$7;
 
-var $$int = factory$7;
+var $$int = factory$8;
 
-var $$float = factory$8;
+var $$float = factory$9;
 
-var date = factory$9;
+var date = factory$10;
 
 var literal = factory$1;
 
 var literalVariant = factory;
 
-var array = factory$13;
+var array = factory$14;
 
-var dict = factory$14;
+var dict = factory$15;
 
-var option = factory$11;
+var option = factory$12;
 
-var $$null = factory$10;
+var $$null = factory$11;
 
-var union = factory$17;
+var json = factory$6;
 
-var deprecated = factory$12;
+var union = factory$18;
 
-var defaulted = factory$15;
+var deprecated = factory$13;
+
+var defaulted = factory$16;
 
 var Object_UnknownKeys = {
   classify: classify$2
@@ -2089,27 +2067,27 @@ var object9 = factory$2;
 
 var object10 = factory$2;
 
-var tuple0 = factory$16;
+var tuple0 = factory$17;
 
-var tuple1 = factory$16;
+var tuple1 = factory$17;
 
-var tuple2 = factory$16;
+var tuple2 = factory$17;
 
-var tuple3 = factory$16;
+var tuple3 = factory$17;
 
-var tuple4 = factory$16;
+var tuple4 = factory$17;
 
-var tuple5 = factory$16;
+var tuple5 = factory$17;
 
-var tuple6 = factory$16;
+var tuple6 = factory$17;
 
-var tuple7 = factory$16;
+var tuple7 = factory$17;
 
-var tuple8 = factory$16;
+var tuple8 = factory$17;
 
-var tuple9 = factory$16;
+var tuple9 = factory$17;
 
-var tuple10 = factory$16;
+var tuple10 = factory$17;
 
 var $$String = {
   min: min,
