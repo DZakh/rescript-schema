@@ -16,6 +16,7 @@ Also, it has declarative API allowing you to use **rescript-struct** as a buildi
 
 - [rescript-envsafe](https://github.com/DZakh/rescript-envsafe) - Makes sure you don't accidentally deploy apps with missing or invalid environment variables
 - [rescript-json-schema](https://github.com/DZakh/rescript-json-schema) - Typesafe JSON schema for ReScript
+- Internal form library at [Carla](https://www.carla.se/)
 
 ## Installation
 
