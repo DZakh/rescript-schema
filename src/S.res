@@ -302,7 +302,7 @@ type rec literal<'value> =
   | NaN: literal<unit>
 
 type operation =
-  | NoopOperation
+  | NoOperation
   | SyncOperation((. unknown) => unknown)
   | AsyncOperation((. unknown, . unit) => Js.Promise.t<unknown>)
 
@@ -342,11 +342,14 @@ and field<'value> = (string, t<'value>)
 and migration<'input, 'output> =
   | Sync('input => 'output)
   | Async('input => Js.Promise.t<'output>)
+and internalMigrationFactoryCtxPhase = NoMigration | OnlySync | OnlyAsync | SyncAndAsync
 and internalMigrationFactoryCtx = {
-  @as("m")
-  migrations: array<unknown => unknown>,
-  @as("i")
-  mutable firstAsyncMigrationIdx: int,
+  @as("p")
+  mutable phase: internalMigrationFactoryCtxPhase,
+  @as("s")
+  mutable syncMigration: (. unknown) => unknown,
+  @as("a")
+  mutable asyncMigration: (. unknown) => Js.Promise.t<unknown>,
 }
 and internalMigrationFactory = (. ~ctx: internalMigrationFactoryCtx, ~struct: t<unknown>) => unit
 
@@ -364,23 +367,60 @@ external castPublicMigrationFactoryToUncurried: (
 
 module MigrationFactory = {
   module Ctx = {
+    @inline
     let make = () => {
       {
-        migrations: [],
-        firstAsyncMigrationIdx: -1,
+        phase: NoMigration,
+        syncMigration: %raw("undefined"),
+        asyncMigration: %raw("undefined"),
       }
     }
 
     @inline
-    let planSyncMigration = (ctx, migration: 'a => 'b) => {
-      ctx.migrations->Js.Array2.push(migration->Obj.magic)->ignore
+    let makeSyncMigration = (fn: 'a => 'b): ((. unknown) => unknown) => fn->Obj.magic
+
+    @inline
+    let makeAsyncMigration = (fn: 'a => Js.Promise.t<'b>): ((. unknown) => Js.Promise.t<unknown>) =>
+      fn->Obj.magic
+
+    let planSyncMigration = (ctx, migration) => {
+      let prevSyncMigration = ctx.syncMigration
+      let prevAsyncMigration = ctx.asyncMigration
+      let nextSyncMigration = makeSyncMigration(migration)
+      switch ctx.phase {
+      | NoMigration => {
+          ctx.phase = OnlySync
+          ctx.syncMigration = nextSyncMigration
+        }
+
+      | OnlySync => ctx.syncMigration = (. input) => nextSyncMigration(. prevSyncMigration(. input))
+
+      | OnlyAsync
+      | SyncAndAsync =>
+        ctx.asyncMigration = (. input) =>
+          prevAsyncMigration(. input)->Lib.Promise.thenResolve(data => nextSyncMigration(. data))
+      }
     }
 
-    let planAsyncMigration = (ctx, migration: 'a => Js.Promise.t<'b>) => {
-      if ctx.firstAsyncMigrationIdx === -1 {
-        ctx.firstAsyncMigrationIdx = ctx.migrations->Js.Array2.length
+    let planAsyncMigration = (ctx, migration) => {
+      let prevAsyncMigration = ctx.asyncMigration
+      let nextAsyncMigration = makeAsyncMigration(migration)
+      switch ctx.phase {
+      | NoMigration => {
+          ctx.phase = OnlyAsync
+          ctx.asyncMigration = nextAsyncMigration
+        }
+
+      | OnlySync => {
+          ctx.phase = SyncAndAsync
+          ctx.asyncMigration = nextAsyncMigration
+        }
+
+      | OnlyAsync
+      | SyncAndAsync =>
+        ctx.asyncMigration = (. input) =>
+          prevAsyncMigration(. input)->Lib.Promise.then(data => nextAsyncMigration(. data))
       }
-      ctx.migrations->Js.Array2.push(migration->Obj.magic)->ignore
     }
 
     let planMissingParserMigration = ctx => {
@@ -401,50 +441,17 @@ module MigrationFactory = {
   let compile = (migrationFactory, ~struct) => {
     let ctx = Ctx.make()
     migrationFactory(. ~ctx, ~struct)
-    let {migrations, firstAsyncMigrationIdx} = ctx
-    switch migrations {
-    | [] => NoopOperation
-    | _ =>
-      let lastMigrationIdx = migrations->Js.Array2.length - 1
-      let lastSyncMigrationIdx =
-        firstAsyncMigrationIdx === -1 ? lastMigrationIdx : firstAsyncMigrationIdx - 1
-      let syncOperation = switch lastSyncMigrationIdx < 1 {
-      // Shortcut to get a fn of the first Sync
-      | true => migrations->Js.Array2.unsafe_get(0)->Obj.magic
-      | false =>
+    switch ctx.phase {
+    | NoMigration => NoOperation
+    | OnlySync => SyncOperation(ctx.syncMigration)
+    | OnlyAsync => AsyncOperation((. input, . ()) => ctx.asyncMigration(. input))
+    | SyncAndAsync =>
+      AsyncOperation(
         (. input) => {
-          let tempOuputRef = ref(input->Obj.magic)
-          for idx in 0 to lastSyncMigrationIdx {
-            let migration = migrations->Js.Array2.unsafe_get(idx)
-            // Shortcut to get Sync fn
-            let newValue = (migration->Obj.magic)(. tempOuputRef.contents)
-            tempOuputRef.contents = newValue
-          }
-          tempOuputRef.contents
-        }
-      }
-
-      switch firstAsyncMigrationIdx === -1 {
-      | true => SyncOperation(syncOperation)
-      | false =>
-        AsyncOperation(
-          (. input) => {
-            let syncOutput = switch firstAsyncMigrationIdx {
-            | 0 => input
-            | _ => syncOperation(. input)
-            }
-            (. ()) => {
-              let tempOuputRef = ref(syncOutput->Lib.Promise.resolve)
-              for idx in firstAsyncMigrationIdx to lastMigrationIdx {
-                let migration = migrations->Js.Array2.unsafe_get(idx)
-                tempOuputRef.contents =
-                  tempOuputRef.contents->Lib.Promise.then(migration->Obj.magic)
-              }
-              tempOuputRef.contents
-            }
-          },
-        )
-      }
+          let syncOutput = ctx.syncMigration(. input)
+          (. ()) => ctx.asyncMigration(. syncOutput)
+        },
+      )
     }
   }
 }
@@ -459,7 +466,7 @@ let name = struct => struct.name
 let isAsyncParse = struct =>
   switch struct.parse {
   | AsyncOperation(_) => true
-  | NoopOperation
+  | NoOperation
   | SyncOperation(_) => false
   }
 
@@ -508,7 +515,7 @@ let make = (
 let parseWith = (any, struct) => {
   try {
     switch struct.parse {
-    | NoopOperation => any->Obj.magic->Ok
+    | NoOperation => any->Obj.magic->Ok
     | SyncOperation(fn) => fn(. any->Obj.magic)->Obj.magic->Ok
     | AsyncOperation(_) => Error.Internal.raise(UnexpectedAsync)
     }
@@ -520,7 +527,7 @@ let parseWith = (any, struct) => {
 let parseOrRaiseWith = (any, struct) => {
   try {
     switch struct.parse {
-    | NoopOperation => any->Obj.magic
+    | NoOperation => any->Obj.magic
     | SyncOperation(fn) => fn(. any->Obj.magic)->Obj.magic
     | AsyncOperation(_) => Error.Internal.raise(UnexpectedAsync)
     }
@@ -533,7 +540,7 @@ let parseOrRaiseWith = (any, struct) => {
 let parseAsyncWith = (any, struct) => {
   try {
     switch struct.parse {
-    | NoopOperation => any->Obj.magic->Ok->Lib.Promise.resolve
+    | NoOperation => any->Obj.magic->Ok->Lib.Promise.resolve
     | SyncOperation(fn) => fn(. any->Obj.magic)->Ok->Obj.magic->Lib.Promise.resolve
     | AsyncOperation(fn) =>
       fn(. any->Obj.magic)(.)
@@ -555,7 +562,7 @@ let parseAsyncWith = (any, struct) => {
 let parseAsyncInStepsWith = (any, struct) => {
   try {
     switch struct.parse {
-    | NoopOperation => () => any->Obj.magic->Ok->Lib.Promise.resolve
+    | NoOperation => () => any->Obj.magic->Ok->Lib.Promise.resolve
     | SyncOperation(fn) => {
         let syncValue = fn(. any->castAnyToUnknown)->castUnknownToAny
         () => syncValue->Ok->Lib.Promise.resolve
@@ -583,7 +590,7 @@ let parseAsyncInStepsWith = (any, struct) => {
 @inline
 let serializeInner: (~struct: t<'value>, ~value: 'value) => unknown = (~struct, ~value) => {
   switch struct.serialize {
-  | NoopOperation => value->castAnyToUnknown
+  | NoOperation => value->castAnyToUnknown
   | SyncOperation(fn) => fn(. value->castAnyToUnknown)
   | AsyncOperation(_) => Error.Unreachable.panic()
   }
@@ -1131,7 +1138,7 @@ module Object = {
             let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
             let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
             switch fieldStruct.parse {
-            | NoopOperation => noopOps->Js.Array2.push((idx, fieldName))->ignore
+            | NoOperation => noopOps->Js.Array2.push((idx, fieldName))->ignore
             | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fieldName, fn))->ignore
             | AsyncOperation(fn) => {
                 syncOps->Js.Array2.push((idx, fieldName, fn->Obj.magic))->ignore
@@ -1225,7 +1232,7 @@ module Object = {
               let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
               let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
               switch fieldStruct.serialize {
-              | NoopOperation => unknown->Js.Dict.set(fieldName, fieldValue)
+              | NoOperation => unknown->Js.Dict.set(fieldName, fieldValue)
               | SyncOperation(fn) =>
                 try {
                   let fieldData = fn(. fieldValue)
@@ -1537,7 +1544,7 @@ module Null = {
           })
         }
         switch innerStruct.parse {
-        | NoopOperation => ctx->MigrationFactory.Ctx.planSyncMigration(Js.Null.toOption)
+        | NoOperation => ctx->MigrationFactory.Ctx.planSyncMigration(Js.Null.toOption)
         | SyncOperation(fn) => planSyncMigration(fn)
         | AsyncOperation(fn) => {
             planSyncMigration(fn)
@@ -1578,7 +1585,7 @@ module Option = {
           })
         }
         switch innerStruct.parse {
-        | NoopOperation => ()
+        | NoOperation => ()
         | SyncOperation(fn) => planSyncMigration(fn)
         | AsyncOperation(fn) => {
             planSyncMigration(fn)
@@ -1660,7 +1667,7 @@ module Array = {
         }
 
         switch innerStruct.parse {
-        | NoopOperation => ()
+        | NoOperation => ()
         | SyncOperation(fn) => planSyncMigration(fn)
         | AsyncOperation(fn) =>
           planSyncMigration(fn)
@@ -1688,7 +1695,7 @@ module Array = {
       }),
       ~serializeMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) => {
         switch innerStruct.serialize {
-        | NoopOperation => ()
+        | NoOperation => ()
         | SyncOperation(fn) =>
           ctx->MigrationFactory.Ctx.planSyncMigration(input => {
             let newArray = []
@@ -1789,7 +1796,7 @@ module Dict = {
         })
 
         switch innerStruct.parse {
-        | NoopOperation => ()
+        | NoOperation => ()
         | SyncOperation(fn) => planSyncMigration(fn)
         | AsyncOperation(fn) =>
           planSyncMigration(fn)
@@ -1835,7 +1842,7 @@ module Dict = {
       }),
       ~serializeMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) => {
         switch innerStruct.serialize {
-        | NoopOperation => ()
+        | NoOperation => ()
         | SyncOperation(fn) =>
           ctx->MigrationFactory.Ctx.planSyncMigration(input => {
             let newDict = Js.Dict.empty()
@@ -1872,7 +1879,7 @@ module Defaulted = {
       ~tagged=innerStruct.tagged,
       ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct as _) => {
         switch innerStruct.parse {
-        | NoopOperation =>
+        | NoOperation =>
           ctx->MigrationFactory.Ctx.planSyncMigration(input => {
             input->castUnknownToAny->Lib.Option.getWithDefault(defaultValue)
           })
@@ -1923,7 +1930,7 @@ module Tuple = {
           for idx in 0 to structs->Js.Array2.length - 1 {
             let innerStruct = structs->Js.Array2.unsafe_get(idx)
             switch innerStruct.parse {
-            | NoopOperation => noopOps->Js.Array2.push(idx)->ignore
+            | NoOperation => noopOps->Js.Array2.push(idx)->ignore
             | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fn))->ignore
             | AsyncOperation(fn) => {
                 syncOps->Js.Array2.push((idx, fn->Obj.magic))->ignore
@@ -2029,7 +2036,7 @@ module Tuple = {
               let innerData = inputArray->Js.Array2.unsafe_get(idx)
               let innerStruct = structs->Js.Array.unsafe_get(idx)
               switch innerStruct.serialize {
-              | NoopOperation => newArray->Js.Array2.push(innerData)->ignore
+              | NoOperation => newArray->Js.Array2.push(innerData)->ignore
               | SyncOperation(fn) =>
                 try {
                   let value = fn(. innerData)
@@ -2074,7 +2081,7 @@ module Union = {
         for idx in 0 to structs->Js.Array2.length - 1 {
           let innerStruct = structs->Js.Array2.unsafe_get(idx)
           switch innerStruct.parse {
-          | NoopOperation => noopOps->Js.Array2.push()->ignore
+          | NoOperation => noopOps->Js.Array2.push()->ignore
           | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fn))->ignore
           | AsyncOperation(fn) => asyncOps->Js.Array2.push((idx, fn))->ignore
           }
