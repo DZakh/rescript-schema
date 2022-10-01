@@ -104,8 +104,8 @@ let advancedTransform: (
 
 let advancedPreprocess: (
   t<'value>,
-  ~parser: (~struct: t<'value>) => migration<unknown, 'preprocessed>=?,
-  ~serializer: (~struct: t<'value>) => migration<'preprocessed, 'any>=?,
+  ~parser: (~struct: t<'value>) => migration<unknown, 'parserPreprocess>=?,
+  ~serializer: (~struct: t<'value>) => migration<unknown, 'serializerPreprocess>=?,
   unit,
 ) => t<'value>
 

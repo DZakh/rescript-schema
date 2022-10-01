@@ -12,10 +12,15 @@ let preprocessNumberToString = S.advancedPreprocess(
     },
   ),
   ~serializer=(~struct as _) => Sync(
-    value => {
-      switch value->Belt.Float.fromString {
-      | Some(float) => float->Obj.magic
-      | None => value
+    unknown => {
+      if unknown->Js.typeof === "string" {
+        let string: string = unknown->Obj.magic
+        switch string->Belt.Float.fromString {
+        | Some(float) => float->Obj.magic
+        | None => string
+        }
+      } else {
+        unknown->Obj.magic
       }
     },
   ),
