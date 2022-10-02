@@ -540,24 +540,9 @@ function get(struct, id) {
   
 }
 
-function set(struct, id, metadata, withParserUpdate, withSerializerUpdate) {
+function set(struct, id, metadata) {
   var metadataChange = {};
-  var structWithNewMetadata = {
-    n: struct.n,
-    t: struct.t,
-    pf: struct.pf,
-    sf: struct.sf,
-    s: struct.s,
-    p: struct.p,
-    m: Caml_option.some(Object.assign({}, struct.m, (metadataChange[id] = metadata, metadataChange)))
-  };
-  if (withParserUpdate) {
-    structWithNewMetadata.p = compile(structWithNewMetadata.pf, structWithNewMetadata);
-  }
-  if (withSerializerUpdate) {
-    structWithNewMetadata.s = compile(structWithNewMetadata.sf, structWithNewMetadata);
-  }
-  return structWithNewMetadata;
+  return make(struct.n, struct.t, struct.pf, struct.sf, Caml_option.some(Object.assign({}, struct.m, (metadataChange[id] = metadata, metadataChange))), undefined);
 }
 
 function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
@@ -982,11 +967,11 @@ function factory$2(param) {
 }
 
 function strip(struct) {
-  return set(struct, metadataId, /* Strip */1, true, false);
+  return set(struct, metadataId, /* Strip */1);
 }
 
 function strict(struct) {
-  return set(struct, metadataId, /* Strict */0, true, false);
+  return set(struct, metadataId, /* Strict */0);
 }
 
 function factory$3(param) {
@@ -1357,7 +1342,7 @@ var metadataId$1 = "rescript-struct:Deprecated";
 function factory$13(innerStruct, maybeMessage, param) {
   return set(factory$12(innerStruct), metadataId$1, maybeMessage !== undefined ? /* WithMessage */({
                   _0: maybeMessage
-                }) : /* WithoutMessage */0, false, false);
+                }) : /* WithoutMessage */0);
 }
 
 function classify$2(struct) {
@@ -1648,7 +1633,7 @@ function factory$16(innerStruct, defaultValue) {
                           }));
                   }), undefined, undefined), metadataId$2, /* WithDefaultValue */{
               _0: defaultValue
-            }, false, false);
+            });
 }
 
 function classify$3(struct) {

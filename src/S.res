@@ -656,35 +656,18 @@ module Metadata = {
     })
   }
 
-  let set = (
-    struct,
-    ~id: Id.t<'metadata>,
-    ~metadata: 'metadata,
-    ~withParserUpdate,
-    ~withSerializerUpdate,
-  ) => {
-    let structWithNewMetadata = {
-      ...struct,
-      maybeMetadataDict: Some(
-        Lib.Dict.immutableShallowMerge(
-          struct.maybeMetadataDict->Obj.magic,
-          Change.make(~id, ~metadata),
-        ),
+  let set = (struct, ~id: Id.t<'metadata>, ~metadata: 'metadata) => {
+    make(
+      ~name=struct.name,
+      ~parseMigrationFactory=struct.parseMigrationFactory,
+      ~serializeMigrationFactory=struct.serializeMigrationFactory,
+      ~tagged=struct.tagged,
+      ~metadataDict=Lib.Dict.immutableShallowMerge(
+        struct.maybeMetadataDict->Obj.magic,
+        Change.make(~id, ~metadata),
       ),
-    }
-    if withParserUpdate {
-      structWithNewMetadata.parse =
-        structWithNewMetadata.parseMigrationFactory->MigrationFactory.compile(
-          ~struct=structWithNewMetadata,
-        )
-    }
-    if withSerializerUpdate {
-      structWithNewMetadata.serialize =
-        structWithNewMetadata.serializeMigrationFactory->MigrationFactory.compile(
-          ~struct=structWithNewMetadata,
-        )
-    }
-    structWithNewMetadata
+      (),
+    )
   }
 }
 
@@ -1247,21 +1230,11 @@ module Object = {
   )->Obj.magic
 
   let strip = struct => {
-    struct->Metadata.set(
-      ~id=UnknownKeys.metadataId,
-      ~metadata=UnknownKeys.Strip,
-      ~withParserUpdate=true,
-      ~withSerializerUpdate=false,
-    )
+    struct->Metadata.set(~id=UnknownKeys.metadataId, ~metadata=UnknownKeys.Strip)
   }
 
   let strict = struct => {
-    struct->Metadata.set(
-      ~id=UnknownKeys.metadataId,
-      ~metadata=UnknownKeys.Strict,
-      ~withParserUpdate=true,
-      ~withSerializerUpdate=false,
-    )
+    struct->Metadata.set(~id=UnknownKeys.metadataId, ~metadata=UnknownKeys.Strict)
   }
 }
 
@@ -1661,8 +1634,6 @@ module Deprecated = {
       | Some(message) => WithMessage(message)
       | None => WithoutMessage
       },
-      ~withParserUpdate=false,
-      ~withSerializerUpdate=false,
     )
   }
 
@@ -1942,12 +1913,7 @@ module Defaulted = {
         })
       }),
       (),
-    )->Metadata.set(
-      ~id=metadataId,
-      ~metadata=WithDefaultValue(defaultValue->castAnyToUnknown),
-      ~withParserUpdate=false,
-      ~withSerializerUpdate=false,
-    )
+    )->Metadata.set(~id=metadataId, ~metadata=WithDefaultValue(defaultValue->castAnyToUnknown))
   }
 
   let classify = struct => struct->Metadata.get(~id=metadataId)

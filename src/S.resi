@@ -339,11 +339,5 @@ module Metadata: {
 
   let get: (t<'value>, ~id: Id.t<'metadata>) => option<'metadata>
 
-  let set: (
-    t<'value>,
-    ~id: Id.t<'metadata>,
-    ~metadata: 'metadata,
-    ~withParserUpdate: bool,
-    ~withSerializerUpdate: bool,
-  ) => t<'value>
+  let set: (t<'value>, ~id: Id.t<'metadata>, ~metadata: 'metadata) => t<'value>
 }
