@@ -130,7 +130,7 @@ module Lib = {
     @inline
     let test = data => {
       let x = data->Obj.magic
-      data->Js.typeof === "number" && x < 2147483648. && x > -2147483649. && x === x->Js.Math.trunc
+      data->Js.typeof === "number" && x < 2147483648. && x > -2147483649. && mod(x, 1) === 0
     }
   }
 

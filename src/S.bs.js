@@ -776,7 +776,7 @@ function factory(innerLiteral, variant) {
           var $$int = innerLiteral._0;
           return make("Int Literal (" + $$int.toString() + ")", tagged, makeParseMigrationFactory($$int, (function (input) {
                             if (typeof input === "number" && input < 2147483648 && input > -2147483649) {
-                              return input === Math.trunc(input);
+                              return input % 1 === 0;
                             } else {
                               return false;
                             }
@@ -1169,7 +1169,7 @@ function factory$7(param) {
 function factory$8(param) {
   return make("Int", /* Int */3, (function (ctx, struct) {
                 planSyncMigration(ctx, (function (input) {
-                        if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input === Math.trunc(input)) {
+                        if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input % 1 === 0) {
                           return input;
                         } else {
                           return raiseUnexpectedTypeError(input, struct);
