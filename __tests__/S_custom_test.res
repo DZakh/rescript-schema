@@ -27,7 +27,7 @@ let nullableStruct = innerStruct =>
     (),
   )
 
-ava->test("Correctly parses custom struct", t => {
+test("Correctly parses custom struct", t => {
   let struct = nullableStruct(S.string())
 
   t->Assert.deepEqual("Hello world!"->S.parseWith(struct), Ok(Some("Hello world!")), ())
@@ -44,14 +44,14 @@ ava->test("Correctly parses custom struct", t => {
   )
 })
 
-ava->test("Correctly serializes custom struct", t => {
+test("Correctly serializes custom struct", t => {
   let struct = nullableStruct(S.string())
 
   t->Assert.deepEqual(Some("Hello world!")->S.serializeWith(struct), Ok(%raw(`"Hello world!"`)), ())
   t->Assert.deepEqual(None->S.serializeWith(struct), Ok(%raw("null")), ())
 })
 
-ava->test("Fails to serialize with user error", t => {
+test("Fails to serialize with user error", t => {
   let struct = S.custom(
     ~name="Test",
     ~serializer=(. ~value as _) => {
@@ -71,7 +71,7 @@ ava->test("Fails to serialize with user error", t => {
   )
 })
 
-ava->test("Throws for a Custom factory without either a parser, or a serializer", t => {
+test("Throws for a Custom factory without either a parser, or a serializer", t => {
   t->Assert.throws(() => {
     S.custom(~name="Test", ())->ignore
   }, ~expectations=ThrowsException.make(

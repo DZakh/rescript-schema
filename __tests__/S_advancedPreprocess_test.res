@@ -27,14 +27,14 @@ let preprocessNumberToString = S.advancedPreprocess(
   (),
 )
 
-ava->test("Successfully parses", t => {
+test("Successfully parses", t => {
   let struct = S.string()->preprocessNumberToString
 
   t->Assert.deepEqual(123->S.parseWith(struct), Ok("123"), ())
   t->Assert.deepEqual("Hello world!"->S.parseWith(struct), Ok("Hello world!"), ())
 })
 
-ava->test("Throws for factory without either a parser, or a serializer", t => {
+test("Throws for factory without either a parser, or a serializer", t => {
   t->Assert.throws(() => {
     S.string()->S.advancedPreprocess()->ignore
   }, ~expectations=ThrowsException.make(
@@ -45,7 +45,7 @@ ava->test("Throws for factory without either a parser, or a serializer", t => {
   ), ())
 })
 
-ava->test("Fails to parse when user raises error in parser", t => {
+test("Fails to parse when user raises error in parser", t => {
   let struct =
     S.string()->S.advancedPreprocess(
       ~parser=(~struct as _) => Sync(_ => S.Error.raise("User error")),
@@ -63,14 +63,14 @@ ava->test("Fails to parse when user raises error in parser", t => {
   )
 })
 
-ava->test("Successfully serializes", t => {
+test("Successfully serializes", t => {
   let struct = S.string()->preprocessNumberToString
 
   t->Assert.deepEqual("Hello world!"->S.serializeWith(struct), Ok(%raw(`"Hello world!"`)), ())
   t->Assert.deepEqual("123"->S.serializeWith(struct), Ok(%raw(`123`)), ())
 })
 
-ava->test("Fails to serialize when user raises error in serializer", t => {
+test("Fails to serialize when user raises error in serializer", t => {
   let struct =
     S.string()->S.advancedPreprocess(
       ~serializer=(~struct as _) => Sync(_ => S.Error.raise("User error")),
@@ -88,7 +88,7 @@ ava->test("Fails to serialize when user raises error in serializer", t => {
   )
 })
 
-ava->test("Preprocess operations applyed in the right order when parsing", t => {
+test("Preprocess operations applyed in the right order when parsing", t => {
   let struct =
     S.int()
     ->S.advancedPreprocess(
@@ -111,7 +111,7 @@ ava->test("Preprocess operations applyed in the right order when parsing", t => 
   )
 })
 
-ava->test("Preprocess operations applyed in the right order when serializing", t => {
+test("Preprocess operations applyed in the right order when serializing", t => {
   let struct =
     S.int()
     ->S.advancedPreprocess(
@@ -134,7 +134,7 @@ ava->test("Preprocess operations applyed in the right order when serializing", t
   )
 })
 
-ava->test("Fails to parse async using parseWith", t => {
+test("Fails to parse async using parseWith", t => {
   let struct =
     S.string()->S.advancedPreprocess(
       ~parser=(~struct as _) => Async(value => Promise.resolve(value)),
@@ -152,7 +152,7 @@ ava->test("Fails to parse async using parseWith", t => {
   )
 })
 
-ava->asyncTest("Successfully parses async using parseAsyncWith", t => {
+asyncTest("Successfully parses async using parseAsyncWith", t => {
   let struct =
     S.string()->S.advancedPreprocess(
       ~parser=(~struct as _) => Async(value => Promise.resolve(value)),
@@ -166,7 +166,7 @@ ava->asyncTest("Successfully parses async using parseAsyncWith", t => {
   })
 })
 
-ava->asyncTest("Fails to parse async with user error", t => {
+asyncTest("Fails to parse async with user error", t => {
   let struct =
     S.string()->S.advancedPreprocess(
       ~parser=(~struct as _) => Async(_ => S.Error.raise("User error")),
@@ -188,7 +188,7 @@ ava->asyncTest("Fails to parse async with user error", t => {
   })
 })
 
-ava->asyncTest("Can apply other actions after async preprocess", t => {
+asyncTest("Can apply other actions after async preprocess", t => {
   let struct =
     S.string()
     ->S.advancedPreprocess(~parser=(~struct as _) => Async(value => Promise.resolve(value)), ())
@@ -202,7 +202,7 @@ ava->asyncTest("Can apply other actions after async preprocess", t => {
   })
 })
 
-ava->test("Applies preproces for union structs separately", t => {
+test("Applies preproces for union structs separately", t => {
   let prepareEnvStruct = S.advancedPreprocess(
     _,
     ~parser=(~struct) => {

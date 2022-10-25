@@ -6,13 +6,13 @@ module Common = {
   let wrongAny = %raw(`"Hello world!"`)
   let factory = () => S.date()
 
-  ava->test("Successfully parses", t => {
+  test("Successfully parses", t => {
     let struct = factory()
 
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
   })
 
-  ava->test("Fails to ", t => {
+  test("Fails to ", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -26,14 +26,14 @@ module Common = {
     )
   })
 
-  ava->test("Successfully serializes", t => {
+  test("Successfully serializes", t => {
     let struct = factory()
 
     t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
   })
 }
 
-ava->test("Fails to parse Date with invalid time", t => {
+test("Fails to parse Date with invalid time", t => {
   let struct = S.date()
 
   t->Assert.deepEqual(

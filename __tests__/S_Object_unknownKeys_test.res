@@ -2,7 +2,7 @@ open Ava
 
 type objectWithOneField = {key: string}
 
-ava->test("Successfully parses Object with unknown keys by default", t => {
+test("Successfully parses Object with unknown keys by default", t => {
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
   let struct = S.object1(. ("key", S.string()))
@@ -10,7 +10,7 @@ ava->test("Successfully parses Object with unknown keys by default", t => {
   t->Assert.deepEqual(any->S.parseWith(struct), Ok("value"), ())
 })
 
-ava->test("Fails fast and shows only one excees key in the error message", t => {
+test("Fails fast and shows only one excees key in the error message", t => {
   let any = %raw(`{key: "value", unknownKey: "value2", unknownKey2: "value2"}`)
 
   let struct = S.object1(. ("key", S.string()))->S.Object.strict
@@ -26,7 +26,7 @@ ava->test("Fails fast and shows only one excees key in the error message", t => 
   )
 })
 
-ava->test("Successfully parses Object with unknown keys when Strip strategy applyed", t => {
+test("Successfully parses Object with unknown keys when Strip strategy applyed", t => {
   let value = "value"
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
@@ -35,7 +35,7 @@ ava->test("Successfully parses Object with unknown keys when Strip strategy appl
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-ava->test("Works correctly when the same unknown keys strategy applyed multiple times", t => {
+test("Works correctly when the same unknown keys strategy applyed multiple times", t => {
   let value = "value"
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
@@ -44,7 +44,7 @@ ava->test("Works correctly when the same unknown keys strategy applyed multiple 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
 
-ava->test("Doesn't raise an error when unknown keys strategy applyed to a non Object struct", t => {
+test("Doesn't raise an error when unknown keys strategy applyed to a non Object struct", t => {
   t->Assert.notThrows(() => {
     S.string()->S.Object.strip->ignore
   }, ())
@@ -53,7 +53,7 @@ ava->test("Doesn't raise an error when unknown keys strategy applyed to a non Ob
   }, ())
 })
 
-ava->test("Can reset unknown keys strategy applying Strict strategy", t => {
+test("Can reset unknown keys strategy applying Strict strategy", t => {
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
   let struct = S.object1(. ("key", S.string()))->S.Object.strip->S.Object.strict

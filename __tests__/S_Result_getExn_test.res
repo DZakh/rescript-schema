@@ -1,10 +1,10 @@
 open Ava
 
-ava->test("Gets value with Ok", t => {
+test("Gets value with Ok", t => {
   t->Assert.is(Ok("value")->S.Result.getExn, "value", ())
 })
 
-ava->test("Throws an Error with Error", t => {
+test("Throws an Error with Error", t => {
   t->Assert.throws(() => {
     Error({
       code: OperationFailed("Should be positive"),

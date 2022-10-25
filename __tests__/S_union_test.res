@@ -1,6 +1,6 @@
 open Ava
 
-ava->test("Throws for a Union struct factory without structs", t => {
+test("Throws for a Union struct factory without structs", t => {
   t->Assert.throws(() => {
     S.union([])->ignore
   }, ~expectations=ThrowsException.make(
@@ -9,7 +9,7 @@ ava->test("Throws for a Union struct factory without structs", t => {
   ), ())
 })
 
-ava->test("Throws for a Union struct factory with single struct", t => {
+test("Throws for a Union struct factory with single struct", t => {
   t->Assert.throws(() => {
     S.union([S.string()])->ignore
   }, ~expectations=ThrowsException.make(
@@ -18,13 +18,13 @@ ava->test("Throws for a Union struct factory with single struct", t => {
   ), ())
 })
 
-ava->test("Successfully creates a Union struct factory with two structs", t => {
+test("Successfully creates a Union struct factory with two structs", t => {
   t->Assert.notThrows(() => {
     S.union([S.string(), S.string()])->ignore
   }, ())
 })
 
-ava->test("Successfully parses literalVariants", t => {
+test("Successfully parses literalVariants", t => {
   let struct = S.union([
     S.literalVariant(String("apple"), #apple),
     S.literalVariant(String("orange"), #orange),
@@ -83,7 +83,7 @@ module Advanced = {
     S.union([circleStruct, squareStruct, triangleStruct])
   }
 
-  ava->test("Successfully parses Circle shape", t => {
+  test("Successfully parses Circle shape", t => {
     t->Assert.deepEqual(
       %raw(`{
       "kind": "circle",
@@ -94,7 +94,7 @@ module Advanced = {
     )
   })
 
-  ava->test("Successfully parses Square shape", t => {
+  test("Successfully parses Square shape", t => {
     t->Assert.deepEqual(
       %raw(`{
       "kind": "square",
@@ -105,7 +105,7 @@ module Advanced = {
     )
   })
 
-  ava->test("Successfully parses Triangle shape", t => {
+  test("Successfully parses Triangle shape", t => {
     t->Assert.deepEqual(
       %raw(`{
       "kind": "triangle",
@@ -117,7 +117,7 @@ module Advanced = {
     )
   })
 
-  ava->test("Fails to parse with unknown kind", t => {
+  test("Fails to parse with unknown kind", t => {
     t->Assert.deepEqual(
       %raw(`{
       "kind": "oval",
@@ -149,7 +149,7 @@ module Advanced = {
     )
   })
 
-  ava->test("Fails to parse with wrong data type", t => {
+  test("Fails to parse with wrong data type", t => {
     t->Assert.deepEqual(
       %raw(`"Hello world!"`)->S.parseWith(shapeStruct),
       Error({
@@ -177,7 +177,7 @@ module Advanced = {
     )
   })
 
-  ava->test("Successfully serializes Circle shape", t => {
+  test("Successfully serializes Circle shape", t => {
     t->Assert.deepEqual(
       Circle({radius: 1.})->S.serializeWith(shapeStruct),
       Ok(
@@ -190,7 +190,7 @@ module Advanced = {
     )
   })
 
-  ava->test("Successfully serializes Square shape", t => {
+  test("Successfully serializes Square shape", t => {
     t->Assert.deepEqual(
       Square({x: 2.})->S.serializeWith(shapeStruct),
       Ok(
@@ -203,7 +203,7 @@ module Advanced = {
     )
   })
 
-  ava->test("Successfully serializes Triangle shape", t => {
+  test("Successfully serializes Triangle shape", t => {
     t->Assert.deepEqual(
       Triangle({x: 2., y: 3.})->S.serializeWith(shapeStruct),
       Ok(

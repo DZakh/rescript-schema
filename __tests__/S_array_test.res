@@ -7,13 +7,13 @@ module CommonWithNested = {
   let nestedWrongAny = %raw(`["Hello world!", 1]`)
   let factory = () => S.array(S.string())
 
-  ava->test("Successfully parses", t => {
+  test("Successfully parses", t => {
     let struct = factory()
 
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
   })
 
-  ava->test("Fails to parse", t => {
+  test("Fails to parse", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -27,7 +27,7 @@ module CommonWithNested = {
     )
   })
 
-  ava->test("Fails to parse nested", t => {
+  test("Fails to parse nested", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -41,14 +41,14 @@ module CommonWithNested = {
     )
   })
 
-  ava->test("Successfully serializes", t => {
+  test("Successfully serializes", t => {
     let struct = factory()
 
     t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
   })
 }
 
-ava->test("Successfully parses array of optional items", t => {
+test("Successfully parses array of optional items", t => {
   let struct = S.array(S.option(S.string()))
 
   t->Assert.deepEqual(

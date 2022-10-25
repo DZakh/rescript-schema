@@ -8,13 +8,13 @@ module Common = {
   let wrongTypeAny = %raw(`true`)
   let factory = () => S.literal(String("ReScript is Great!"))
 
-  ava->test("Successfully parses", t => {
+  test("Successfully parses", t => {
     let struct = factory()
 
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
   })
 
-  ava->test("Fails to parse wrong value", t => {
+  test("Fails to parse wrong value", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -28,7 +28,7 @@ module Common = {
     )
   })
 
-  ava->test("Fails to parse wrong type", t => {
+  test("Fails to parse wrong type", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -42,13 +42,13 @@ module Common = {
     )
   })
 
-  ava->test("Successfully serializes", t => {
+  test("Successfully serializes", t => {
     let struct = factory()
 
     t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
   })
 
-  ava->test("Fails to serialize wrong value", t => {
+  test("Fails to serialize wrong value", t => {
     let struct = factory()
 
     t->Assert.deepEqual(

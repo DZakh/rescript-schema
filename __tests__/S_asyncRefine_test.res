@@ -1,6 +1,6 @@
 open Ava
 
-ava->test("Fails to parse using parseWith", t => {
+test("Fails to parse using parseWith", t => {
   let struct = S.string()->S.asyncRefine(~parser=_ => Promise.resolve(), ())
 
   t->Assert.deepEqual(
@@ -14,7 +14,7 @@ ava->test("Fails to parse using parseWith", t => {
   )
 })
 
-ava->asyncTest("Successfully parses using parseAsyncWith", t => {
+asyncTest("Successfully parses using parseAsyncWith", t => {
   let struct = S.string()->S.asyncRefine(~parser=_ => Promise.resolve(), ())
 
   %raw(`"Hello world!"`)
@@ -24,7 +24,7 @@ ava->asyncTest("Successfully parses using parseAsyncWith", t => {
   })
 })
 
-ava->asyncTest("Fails to parse with user error", t => {
+asyncTest("Fails to parse with user error", t => {
   let struct =
     S.string()->S.asyncRefine(
       ~parser=_ => Promise.resolve()->Promise.then(() => S.Error.raise("User error")),
@@ -46,7 +46,7 @@ ava->asyncTest("Fails to parse with user error", t => {
   })
 })
 
-ava->asyncTest("Can apply other actions after asyncRefine", t => {
+asyncTest("Can apply other actions after asyncRefine", t => {
   let struct =
     S.string()
     ->S.asyncRefine(~parser=_ => Promise.resolve(), ())

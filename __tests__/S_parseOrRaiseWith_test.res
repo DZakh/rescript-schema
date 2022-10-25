@@ -1,18 +1,18 @@
 open Ava
 
-ava->test("Successfully parses", t => {
+test("Successfully parses", t => {
   let struct = S.bool()
 
   t->Assert.deepEqual(true->S.parseOrRaiseWith(struct), true, ())
 })
 
-ava->test("Successfully parses unknown", t => {
+test("Successfully parses unknown", t => {
   let struct = S.unknown()
 
   t->Assert.deepEqual(true->S.parseOrRaiseWith(struct), true->Obj.magic, ())
 })
 
-ava->test("Fails to parse", t => {
+test("Fails to parse", t => {
   let struct = S.bool()
 
   let maybeError = try {

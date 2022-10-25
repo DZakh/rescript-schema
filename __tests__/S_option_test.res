@@ -6,13 +6,13 @@ module Common = {
   let wrongAny = %raw(`123.45`)
   let factory = () => S.option(S.string())
 
-  ava->test("Successfully parses", t => {
+  test("Successfully parses", t => {
     let struct = factory()
 
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
   })
 
-  ava->test("Fails to parse", t => {
+  test("Fails to parse", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -26,20 +26,20 @@ module Common = {
     )
   })
 
-  ava->test("Successfully serializes", t => {
+  test("Successfully serializes", t => {
     let struct = factory()
 
     t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
   })
 }
 
-ava->test("Successfully parses primitive", t => {
+test("Successfully parses primitive", t => {
   let struct = S.option(S.bool())
 
   t->Assert.deepEqual(Js.Json.boolean(true)->S.parseWith(struct), Ok(Some(true)), ())
 })
 
-ava->test("Fails to parse JS null", t => {
+test("Fails to parse JS null", t => {
   let struct = S.option(S.bool())
 
   t->Assert.deepEqual(
@@ -53,7 +53,7 @@ ava->test("Fails to parse JS null", t => {
   )
 })
 
-ava->test("Fails to parse JS undefined when struct doesn't allow optional data", t => {
+test("Fails to parse JS undefined when struct doesn't allow optional data", t => {
   let struct = S.bool()
 
   t->Assert.deepEqual(

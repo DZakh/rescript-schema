@@ -4,7 +4,7 @@ module Common = {
   let any = %raw(`true`)
   let factory = () => S.never()
 
-  ava->test("Fails to ", t => {
+  test("Fails to ", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -18,7 +18,7 @@ module Common = {
     )
   })
 
-  ava->test("Fails to serialize ", t => {
+  test("Fails to serialize ", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -34,7 +34,7 @@ module Common = {
 }
 
 module ObjectField = {
-  ava->test("Fails to parse a object with Never field", t => {
+  test("Fails to parse a object with Never field", t => {
     let struct = S.object2(. ("key", S.string()), ("oldKey", S.never()))
 
     t->Assert.deepEqual(
@@ -48,21 +48,15 @@ module ObjectField = {
     )
   })
 
-  ava->test(
-    "Successfully parses a object with Never field when it's optional and not present",
-    t => {
-      let struct = S.object2(.
-        ("key", S.string()),
-        (
-          "oldKey",
-          S.never()->S.deprecated(
-            ~message="We stopped using the field from the v0.9.0 release",
-            (),
-          ),
-        ),
-      )
+  test("Successfully parses a object with Never field when it's optional and not present", t => {
+    let struct = S.object2(.
+      ("key", S.string()),
+      (
+        "oldKey",
+        S.never()->S.deprecated(~message="We stopped using the field from the v0.9.0 release", ()),
+      ),
+    )
 
-      t->Assert.deepEqual(%raw(`{"key":"value"}`)->S.parseWith(struct), Ok(("value", None)), ())
-    },
-  )
+    t->Assert.deepEqual(%raw(`{"key":"value"}`)->S.parseWith(struct), Ok(("value", None)), ())
+  })
 }

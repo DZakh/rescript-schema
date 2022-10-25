@@ -6,13 +6,13 @@ module Common = {
   let wrongAny = %raw(`123.45`)
   let factory = () => S.string()->S.deprecated(~message="Some warning", ())
 
-  ava->test("Successfully parses", t => {
+  test("Successfully parses", t => {
     let struct = factory()
 
     t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
   })
 
-  ava->test("Fails to parse", t => {
+  test("Fails to parse", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
@@ -26,26 +26,26 @@ module Common = {
     )
   })
 
-  ava->test("Successfully serializes", t => {
+  test("Successfully serializes", t => {
     let struct = factory()
 
     t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
   })
 }
 
-ava->test("Successfully parses primitive", t => {
+test("Successfully parses primitive", t => {
   let struct = S.bool()->S.deprecated()
 
   t->Assert.deepEqual(Js.Json.boolean(true)->S.parseWith(struct), Ok(Some(true)), ())
 })
 
-ava->test("Successfully parses undefined", t => {
+test("Successfully parses undefined", t => {
   let struct = S.bool()->S.deprecated()
 
   t->Assert.deepEqual(%raw(`undefined`)->S.parseWith(struct), Ok(None), ())
 })
 
-ava->test("Fails to parse null", t => {
+test("Fails to parse null", t => {
   let struct = S.bool()->S.deprecated()
 
   t->Assert.deepEqual(
@@ -59,7 +59,7 @@ ava->test("Fails to parse null", t => {
   )
 })
 
-ava->test("Successfully parses null for deprecated nullable struct", t => {
+test("Successfully parses null for deprecated nullable struct", t => {
   let struct = S.null(S.bool())->S.deprecated()
 
   t->Assert.deepEqual(%raw(`null`)->S.parseWith(struct), Ok(Some(None)), ())

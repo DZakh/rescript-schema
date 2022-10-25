@@ -1,12 +1,12 @@
 open Ava
 
-ava->test("Successfully parses", t => {
+test("Successfully parses", t => {
   let struct = S.string()->S.String.trimmed()
 
   t->Assert.deepEqual("   Hello world!"->S.parseWith(struct), Ok("Hello world!"), ())
 })
 
-ava->test("Successfully serializes", t => {
+test("Successfully serializes", t => {
   let struct = S.string()->S.String.trimmed()
 
   t->Assert.deepEqual("   Hello world!"->S.serializeWith(struct), Ok(%raw(`"Hello world!"`)), ())

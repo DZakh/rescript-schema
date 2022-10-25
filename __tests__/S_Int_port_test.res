@@ -1,12 +1,12 @@
 open Ava
 
-ava->test("Successfully parses valid data", t => {
+test("Successfully parses valid data", t => {
   let struct = S.int()->S.Int.port()
 
   t->Assert.deepEqual(8080->S.parseWith(struct), Ok(8080), ())
 })
 
-ava->test("Fails to parse invalid data", t => {
+test("Fails to parse invalid data", t => {
   let struct = S.int()->S.Int.port()
 
   t->Assert.deepEqual(
@@ -20,13 +20,13 @@ ava->test("Fails to parse invalid data", t => {
   )
 })
 
-ava->test("Successfully serializes valid value", t => {
+test("Successfully serializes valid value", t => {
   let struct = S.int()->S.Int.port()
 
   t->Assert.deepEqual(8080->S.serializeWith(struct), Ok(%raw(`8080`)), ())
 })
 
-ava->test("Fails to serialize invalid value", t => {
+test("Fails to serialize invalid value", t => {
   let struct = S.int()->S.Int.port()
 
   t->Assert.deepEqual(
@@ -40,7 +40,7 @@ ava->test("Fails to serialize invalid value", t => {
   )
 })
 
-ava->test("Returns custom error message", t => {
+test("Returns custom error message", t => {
   let struct = S.string()->S.String.uuid(~message="Custom", ())
 
   t->Assert.deepEqual(

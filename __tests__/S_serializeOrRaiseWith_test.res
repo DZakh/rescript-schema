@@ -1,12 +1,12 @@
 open Ava
 
-ava->test("Successfully serializes", t => {
+test("Successfully serializes", t => {
   let struct = S.bool()
 
   t->Assert.deepEqual(true->S.serializeOrRaiseWith(struct), true->Obj.magic, ())
 })
 
-ava->test("Fails to serialize", t => {
+test("Fails to serialize", t => {
   let struct = S.bool()->S.refine(~serializer=_ => S.Error.raise("User error"), ())
 
   let maybeError = try {
