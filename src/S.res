@@ -1274,17 +1274,6 @@ module Object = {
 }
 
 module Object2 = {
-  let getMaybeExcessKey: (
-    . unknown,
-    Js.Dict.t<t<unknown>>,
-  ) => option<string> = %raw(`function(object, innerStructsDict) {
-    for (var key in object) {
-      if (!Object.prototype.hasOwnProperty.call(innerStructsDict, key)) {
-        return key
-      }
-    }
-  }`)
-
   module FieldPlaceholder = {
     type t
 
@@ -1362,7 +1351,7 @@ module Object2 = {
         let actualFieldName = switch builderCtx->BuilderCtx.getMaybeFieldNameOverride(~idx) {
         | Some(fieldNameOverride) => {
             originalFieldNames->Stdlib.Array.set(idx, fieldNameOverride)
-            fieldNameParseOverrides->Js.Dict.set(fieldName, fieldNameOverride)
+            fieldNameParseOverrides->Js.Dict.set(fieldNameOverride, fieldName)
             fieldNameOverride
           }
 
@@ -1403,90 +1392,110 @@ module Object2 = {
             fieldNameParseOverrides
             ->Js.Dict.get(originalFieldName)
             ->Belt.Option.getWithDefault(originalFieldName)
+          let isInlined = switch fieldStruct.tagged {
+          | Bool
+          | Float
+          | Int
+          | String => true
+          | _ => false
+          }
           switch fieldStruct.parse {
           | NoOperation => noopOps->Js.Array2.push((originalFieldName, fieldName))->ignore
-          | SyncOperation(fn) => syncOps->Js.Array2.push((originalFieldName, fieldName, fn))->ignore
+          | SyncOperation(fn) =>
+            syncOps->Js.Array2.push((originalFieldName, fieldName, fn, isInlined))->ignore
           | AsyncOperation(fn) => {
-              syncOps->Js.Array2.push((originalFieldName, fieldName, fn->Obj.magic))->ignore
+              syncOps
+              ->Js.Array2.push((originalFieldName, fieldName, fn->Obj.magic, isInlined))
+              ->ignore
               asyncOps->Js.Array2.push((originalFieldName, fieldName))->ignore
             }
           }
         }
-        let withAsyncOps = asyncOps->Js.Array2.length > 0
 
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          if input->Stdlib.Object.test === false {
-            raiseUnexpectedTypeError(~input, ~struct)
-          }
-
-          let newObject = Js.Dict.empty()
-
-          for idx in 0 to syncOps->Js.Array2.length - 1 {
-            let (originalFieldName, fieldName, fn) = syncOps->Js.Array2.unsafe_get(idx)
-            let fieldData = input->Js.Dict.unsafeGet(originalFieldName)
-            try {
-              let value = fn(. fieldData)
-              newObject->Js.Dict.set(fieldName, value)
-            } catch {
-            | Error.Internal.Exception(internalError) =>
-              raise(
-                Error.Internal.Exception(
-                  internalError->Error.Internal.prependLocation(originalFieldName),
-                ),
-              )
+        ctx->TransformationFactory.Ctx.planSyncTransformation({
+          let syncMigration = {
+            let syncMigrationRef = ref(`function (input) {
+              if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
+                raiseUnexpectedTypeError(input, struct);
+              }
+            `)
+            syncMigrationRef.contents = syncMigrationRef.contents ++ `var newObject = {`
+            for idx in 0 to noopOps->Js.Array2.length - 1 {
+              let (originalFieldName, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
+              syncMigrationRef.contents =
+                syncMigrationRef.contents ++ `${fieldName}: input.${originalFieldName},`
             }
-          }
+            syncMigrationRef.contents = syncMigrationRef.contents ++ `};`
 
-          for idx in 0 to noopOps->Js.Array2.length - 1 {
-            let (originalFieldName, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
-            let fieldData = input->Js.Dict.unsafeGet(originalFieldName)
-            newObject->Js.Dict.set(fieldName, fieldData)
-          }
+            for idx in 0 to syncOps->Js.Array2.length - 1 {
+              let (originalFieldName, fieldName, fn, isInlined) = syncOps->Js.Array2.unsafe_get(idx)
 
-          if withStrictUnknownKeys {
-            switch getMaybeExcessKey(. input->castAnyToUnknown, originalFields) {
-            | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
-            | None => ()
+              if isInlined {
+                let inlinedFn =
+                  fn
+                  ->Obj.magic
+                  ->Js.Int.toString
+                  ->Js.String2.replace("function (input) ", "")
+                  ->Js.String2.replaceByRe(%re(`/input/g`), "rescriptStruct_inlinedData")
+                  ->Js.String2.replaceByRe(%re(`/return (.+);/g`), `newObject.${fieldName} = ($1)`)
+
+                syncMigrationRef.contents =
+                  syncMigrationRef.contents ++
+                  `
+                  var rescriptStruct_inlinedData = input.${originalFieldName};
+                  try ${inlinedFn}
+                  catch (exn){
+                    catchFieldError(exn, "${originalFieldName}");
+                  }
+                `
+              } else {
+                syncMigrationRef.contents =
+                  syncMigrationRef.contents ++
+                  `
+                  try {
+                    newObject.${fieldName} = syncOps[${idx->Js.Int.toString}][2](input.${originalFieldName});
+                  } catch (exn){
+                    catchFieldError(exn, "${originalFieldName}");
+                  }
+                `
+              }
             }
+            if withStrictUnknownKeys {
+              syncMigrationRef.contents =
+                syncMigrationRef.contents ++ `
+                  for (var key in input) {
+                    switch (key) {`
+              for idx in 0 to originalFieldNames->Js.Array2.length - 1 {
+                let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
+                syncMigrationRef.contents =
+                  syncMigrationRef.contents ++ `case "${originalFieldName}": break;`
+              }
+              syncMigrationRef.contents =
+                syncMigrationRef.contents ++ `default: raiseOnExcessField(key);
+                  }
+                }`
+            }
+            syncMigrationRef.contents ++ `return newObject;}`
           }
 
-          newObject
+          %raw(`new Function('syncOps', 'originalFields', 'raiseUnexpectedTypeError','raiseOnExcessField', 'catchFieldError', 'return ' + syncMigration)`)(.
+            ~syncOps,
+            ~originalFields,
+            ~raiseUnexpectedTypeError,
+            ~raiseOnExcessField=exccessFieldName =>
+              Error.Internal.raise(ExcessField(exccessFieldName)),
+            ~catchFieldError=(~exn, ~fieldName) => {
+              switch exn {
+              | Error.Internal.Exception(internalError) =>
+                Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName))
+              | _ => exn
+              }->raise
+            },
+            // Use the syncMigration two times, so rescript compiler doesn't inline the variable
+            ~syncMigration,
+            ~syncMigration,
+          )
         })
-
-        // if withAsyncOps {
-        //   ctx->TransformationFactory.Ctx.planAsyncMigration(tempArray => {
-        //     asyncOps
-        //     ->Js.Array2.map(
-        //       ((originalIdx, fieldName)) => {
-        //         (
-        //           tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
-        //         )(.)->Stdlib.Promise.catch(
-        //           exn => {
-        //             switch exn {
-        //             | Error.Internal.Exception(internalError) =>
-        //               Error.Internal.Exception(
-        //                 internalError->Error.Internal.prependLocation(fieldName),
-        //               )
-        //             | _ => exn
-        //             }->raise
-        //           },
-        //         )
-        //       },
-        //     )
-        //     ->Stdlib.Promise.all
-        //     ->Stdlib.Promise.thenResolve(
-        //       asyncFieldValues => {
-        //         asyncFieldValues->Js.Array2.forEachi(
-        //           (fieldValue, idx) => {
-        //             let (originalIdx, _) = asyncOps->Js.Array2.unsafe_get(idx)
-        //             tempArray->castUnknownToAny->Stdlib.Array.set(originalIdx, fieldValue)
-        //           },
-        //         )
-        //         tempArray
-        //       },
-        //     )
-        //   })
-        // }
       }),
       ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
         let fieldNames = %raw("undefined")

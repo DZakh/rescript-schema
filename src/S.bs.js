@@ -976,14 +976,6 @@ function strict(struct) {
   return set(struct, metadataId, /* Strict */0);
 }
 
-var getMaybeExcessKey$1 = (function(object, innerStructsDict) {
-    for (var key in object) {
-      if (!Object.prototype.hasOwnProperty.call(innerStructsDict, key)) {
-        return key
-      }
-    }
-  });
-
 var value = (Symbol("rescript-struct:Object.FieldPlaceholder"));
 
 function addFieldUsage(builderCtx, struct, maybeNameOverride) {
@@ -1020,7 +1012,7 @@ function fromBuilderResult(builderResult, builderCtx) {
   var fieldNameParseOverrides = {};
   originalFieldNames.forEach(function (fieldName, idx) {
         var fieldNameOverride = getMaybeFieldNameOverride(builderCtx, idx);
-        var actualFieldName = fieldNameOverride !== undefined ? (originalFieldNames[idx] = fieldNameOverride, fieldNameParseOverrides[fieldName] = fieldNameOverride, fieldNameOverride) : fieldName;
+        var actualFieldName = fieldNameOverride !== undefined ? (originalFieldNames[idx] = fieldNameOverride, fieldNameParseOverrides[fieldNameOverride] = fieldName, fieldNameOverride) : fieldName;
         var fieldStruct = fieldStructs[idx];
         originalFields[actualFieldName] = fieldStruct;
       });
@@ -1055,6 +1047,8 @@ function factory$3(builder) {
                   var originalFieldName = originalFieldNames[idx];
                   var fieldStruct = originalFields[originalFieldName];
                   var fieldName = Belt_Option.getWithDefault(Js_dict.get(fieldNameParseOverrides, originalFieldName), originalFieldName);
+                  var match = fieldStruct.t;
+                  var isInlined = typeof match === "number" ? !(match > 5 || match < 2) : false;
                   var fn = fieldStruct.p;
                   if (typeof fn === "number") {
                     noopOps.push([
@@ -1065,13 +1059,15 @@ function factory$3(builder) {
                     syncOps.push([
                           originalFieldName,
                           fieldName,
-                          fn._0
+                          fn._0,
+                          isInlined
                         ]);
                   } else {
                     syncOps.push([
                           originalFieldName,
                           fieldName,
-                          fn._0
+                          fn._0,
+                          isInlined
                         ]);
                     asyncOps.push([
                           originalFieldName,
@@ -1079,48 +1075,44 @@ function factory$3(builder) {
                         ]);
                   }
                 }
-                planSyncTransformation(ctx, (function (input) {
-                        if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
-                          raiseUnexpectedTypeError(input, struct);
-                        }
-                        var newObject = {};
-                        for(var idx = 0 ,idx_finish = syncOps.length; idx < idx_finish; ++idx){
-                          var match = syncOps[idx];
-                          var originalFieldName = match[0];
-                          var fieldData = input[originalFieldName];
-                          try {
-                            var value = match[2](fieldData);
-                            newObject[match[1]] = value;
-                          }
-                          catch (raw_internalError){
-                            var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                            if (internalError.RE_EXN_ID === Exception) {
-                              throw {
-                                    RE_EXN_ID: Exception,
-                                    _1: prependLocation(internalError._1, originalFieldName),
-                                    Error: new Error()
-                                  };
-                            }
-                            throw internalError;
-                          }
-                        }
-                        for(var idx$1 = 0 ,idx_finish$1 = noopOps.length; idx$1 < idx_finish$1; ++idx$1){
-                          var match$1 = noopOps[idx$1];
-                          var fieldData$1 = input[match$1[0]];
-                          newObject[match$1[1]] = fieldData$1;
-                        }
-                        if (withStrictUnknownKeys) {
-                          var excessKey = getMaybeExcessKey$1(input, originalFields);
-                          if (excessKey !== undefined) {
-                            raise({
-                                  TAG: /* ExcessField */4,
-                                  _0: excessKey
-                                });
-                          }
-                          
-                        }
-                        return newObject;
-                      }));
+                var syncMigrationRef = "function (input) {\n              if ((typeof input === \"object\" && !Array.isArray(input) && input !== null) === false) {\n                raiseUnexpectedTypeError(input, struct);\n              }\n            ";
+                syncMigrationRef = syncMigrationRef + "var newObject = {";
+                for(var idx$1 = 0 ,idx_finish$1 = noopOps.length; idx$1 < idx_finish$1; ++idx$1){
+                  var match$1 = noopOps[idx$1];
+                  syncMigrationRef = syncMigrationRef + ("" + match$1[1] + ": input." + match$1[0] + ",");
+                }
+                syncMigrationRef = syncMigrationRef + "};";
+                for(var idx$2 = 0 ,idx_finish$2 = syncOps.length; idx$2 < idx_finish$2; ++idx$2){
+                  var match$2 = syncOps[idx$2];
+                  var fieldName$1 = match$2[1];
+                  var originalFieldName$1 = match$2[0];
+                  if (match$2[3]) {
+                    var inlinedFn = match$2[2].toString().replace("function (input) ", "").replace(/input/g, "rescriptStruct_inlinedData").replace(/return (.+);/g, "newObject." + fieldName$1 + " = ($1)");
+                    syncMigrationRef = syncMigrationRef + ("\n                  var rescriptStruct_inlinedData = input." + originalFieldName$1 + ";\n                  try " + inlinedFn + "\n                  catch (exn){\n                    catchFieldError(exn, \"" + originalFieldName$1 + "\");\n                  }\n                ");
+                  } else {
+                    syncMigrationRef = syncMigrationRef + ("\n                  try {\n                    newObject." + fieldName$1 + " = syncOps[" + idx$2.toString() + "][2](input." + originalFieldName$1 + ");\n                  } catch (exn){\n                    catchFieldError(exn, \"" + originalFieldName$1 + "\");\n                  }\n                ");
+                  }
+                }
+                if (withStrictUnknownKeys) {
+                  syncMigrationRef = syncMigrationRef + "\n                  for (var key in input) {\n                    switch (key) {";
+                  for(var idx$3 = 0 ,idx_finish$3 = originalFieldNames.length; idx$3 < idx_finish$3; ++idx$3){
+                    var originalFieldName$2 = originalFieldNames[idx$3];
+                    syncMigrationRef = syncMigrationRef + ("case \"" + originalFieldName$2 + "\": break;");
+                  }
+                  syncMigrationRef = syncMigrationRef + "default: raiseOnExcessField(key);\n                  }\n                }";
+                }
+                var syncMigration = syncMigrationRef + "return newObject;}";
+                planSyncTransformation(ctx, (new Function('syncOps', 'originalFields', 'raiseUnexpectedTypeError','raiseOnExcessField', 'catchFieldError', 'return ' + syncMigration))(syncOps, originalFields, raiseUnexpectedTypeError, (function (exccessFieldName) {
+                            return raise({
+                                        TAG: /* ExcessField */4,
+                                        _0: exccessFieldName
+                                      });
+                          }), (function (exn, fieldName) {
+                            throw exn.RE_EXN_ID === Exception ? ({
+                                      RE_EXN_ID: Exception,
+                                      _1: prependLocation(exn._1, fieldName)
+                                    }) : exn;
+                          }), syncMigration, syncMigration));
               }), (function (ctx, param) {
                 var fieldNames = undefined;
                 var fields = undefined;
