@@ -1,7 +1,7 @@
 type never
 type unknown
 
-module Lib = {
+module Stdlib = {
   module Promise = {
     type t<+'a> = Js.Promise.t<'a>
 
@@ -146,7 +146,7 @@ module Lib = {
 
 module Error = {
   @inline
-  let panic = message => Lib.Exn.raiseError(Lib.Exn.makeError(`[rescript-struct] ${message}`))
+  let panic = message => Stdlib.Exn.raiseError(Stdlib.Exn.makeError(`[rescript-struct] ${message}`))
 
   type rec t = {operation: operation, code: code, path: array<string>}
   and code =
@@ -269,14 +269,14 @@ module Error = {
         let reasons =
           errors
           ->Js.Array2.map(error => {
-            let reason = error->toReason(~nestedLevel=nestedLevel->Lib.Int.plus(1))
+            let reason = error->toReason(~nestedLevel=nestedLevel->Stdlib.Int.plus(1))
             let location = switch error.path {
             | [] => ""
             | nonEmptyPath => `Failed at ${formatPath(nonEmptyPath)}. `
             }
             `- ${location}${reason}`
           })
-          ->Lib.Array.unique
+          ->Stdlib.Array.unique
         `Invalid union with following errors${lineBreak}${reasons->Js.Array2.joinWith(lineBreak)}`
       }
     }
@@ -407,8 +407,8 @@ module MigrationFactory = {
       | OnlyAsync
       | SyncAndAsync =>
         ctx.asyncMigration = (. input) =>
-          prevAsyncMigration(. input)->Lib.Promise.thenResolve(
-            nextSyncMigration->Lib.Fn.castToCurried,
+          prevAsyncMigration(. input)->Stdlib.Promise.thenResolve(
+            nextSyncMigration->Stdlib.Fn.castToCurried,
           )
       }
     }
@@ -430,7 +430,9 @@ module MigrationFactory = {
       | OnlyAsync
       | SyncAndAsync =>
         ctx.asyncMigration = (. input) =>
-          prevAsyncMigration(. input)->Lib.Promise.then(nextAsyncMigration->Lib.Fn.castToCurried)
+          prevAsyncMigration(. input)->Stdlib.Promise.then(
+            nextAsyncMigration->Stdlib.Fn.castToCurried,
+          )
       }
     }
 
@@ -551,12 +553,12 @@ let parseOrRaiseWith = (any, struct) => {
 let parseAsyncWith = (any, struct) => {
   try {
     switch struct.parse {
-    | NoOperation => any->Obj.magic->Ok->Lib.Promise.resolve
-    | SyncOperation(fn) => fn(. any->Obj.magic)->Ok->Obj.magic->Lib.Promise.resolve
+    | NoOperation => any->Obj.magic->Ok->Stdlib.Promise.resolve
+    | SyncOperation(fn) => fn(. any->Obj.magic)->Ok->Obj.magic->Stdlib.Promise.resolve
     | AsyncOperation(fn) =>
       fn(. any->Obj.magic)(.)
-      ->Lib.Promise.thenResolve(value => Ok(value->Obj.magic))
-      ->Lib.Promise.catch(exn => {
+      ->Stdlib.Promise.thenResolve(value => Ok(value->Obj.magic))
+      ->Stdlib.Promise.catch(exn => {
         switch exn {
         | Error.Internal.Exception(internalError) =>
           internalError->Error.Internal.toParseError->Error
@@ -566,25 +568,25 @@ let parseAsyncWith = (any, struct) => {
     }
   } catch {
   | Error.Internal.Exception(internalError) =>
-    internalError->Error.Internal.toParseError->Error->Lib.Promise.resolve
+    internalError->Error.Internal.toParseError->Error->Stdlib.Promise.resolve
   }
 }
 
 let parseAsyncInStepsWith = (any, struct) => {
   try {
     switch struct.parse {
-    | NoOperation => () => any->Obj.magic->Ok->Lib.Promise.resolve
+    | NoOperation => () => any->Obj.magic->Ok->Stdlib.Promise.resolve
     | SyncOperation(fn) => {
         let syncValue = fn(. any->castAnyToUnknown)->castUnknownToAny
-        () => syncValue->Ok->Lib.Promise.resolve
+        () => syncValue->Ok->Stdlib.Promise.resolve
       }
 
     | AsyncOperation(fn) => {
         let asyncFn = fn(. any->castAnyToUnknown)
         () =>
           asyncFn(.)
-          ->Lib.Promise.thenResolve(value => Ok(value->Obj.magic))
-          ->Lib.Promise.catch(exn => {
+          ->Stdlib.Promise.thenResolve(value => Ok(value->Obj.magic))
+          ->Stdlib.Promise.catch(exn => {
             switch exn {
             | Error.Internal.Exception(internalError) =>
               internalError->Error.Internal.toParseError->Error
@@ -651,7 +653,7 @@ module Metadata = {
   }
 
   let get = (struct, ~id: Id.t<'metadata>): option<'metadata> => {
-    struct.maybeMetadataDict->Lib.Option.flatMap(metadataDict => {
+    struct.maybeMetadataDict->Stdlib.Option.flatMap(metadataDict => {
       metadataDict->Js.Dict.get(id->Id.toKey)->Obj.magic
     })
   }
@@ -662,7 +664,7 @@ module Metadata = {
       ~parseMigrationFactory=struct.parseMigrationFactory,
       ~serializeMigrationFactory=struct.serializeMigrationFactory,
       ~tagged=struct.tagged,
-      ~metadataDict=Lib.Dict.immutableShallowMerge(
+      ~metadataDict=Stdlib.Dict.immutableShallowMerge(
         struct.maybeMetadataDict->Obj.magic,
         Change.make(~id, ~metadata),
       ),
@@ -694,7 +696,7 @@ let refine: (
       MigrationFactory.make((. ~ctx, ~struct as compilingStruct) => {
         struct.parseMigrationFactory(. ~ctx, ~struct=compilingStruct)
         ctx->MigrationFactory.Ctx.planSyncMigration(input => {
-          let () = refineParser->Lib.Fn.call1(input)
+          let () = refineParser->Stdlib.Fn.call1(input)
           input
         })
       })
@@ -704,7 +706,7 @@ let refine: (
     | Some(refineSerializer) =>
       MigrationFactory.make((. ~ctx, ~struct as compilingStruct) => {
         ctx->MigrationFactory.Ctx.planSyncMigration(input => {
-          let () = refineSerializer->Lib.Fn.call1(input)
+          let () = refineSerializer->Stdlib.Fn.call1(input)
           input
         })
         struct.serializeMigrationFactory(. ~ctx, ~struct=compilingStruct)
@@ -724,8 +726,8 @@ let asyncRefine = (struct, ~parser, ()) => {
       struct.parseMigrationFactory(. ~ctx, ~struct=compilingStruct)
       ctx->MigrationFactory.Ctx.planAsyncMigration(input => {
         parser
-        ->Lib.Fn.call1(input)
-        ->Lib.Promise.thenResolve(
+        ->Stdlib.Fn.call1(input)
+        ->Stdlib.Promise.thenResolve(
           () => {
             input
           },
@@ -934,7 +936,7 @@ module Literal = {
         let makeParseMigrationFactory = (~literalValue, ~test) => {
           MigrationFactory.make((. ~ctx, ~struct) =>
             ctx->MigrationFactory.Ctx.planSyncMigration(input => {
-              if test->Lib.Fn.call1(input) {
+              if test->Stdlib.Fn.call1(input) {
                 if literalValue->castAnyToUnknown === input {
                   variant
                 } else {
@@ -1043,7 +1045,7 @@ module Literal = {
             ~name=`Int Literal (${int->Js.Int.toString})`,
             ~tagged,
             ~parseMigrationFactory=makeParseMigrationFactory(~literalValue=int, ~test=input =>
-              input->Lib.Int.test
+              input->Stdlib.Int.test
             ),
             ~serializeMigrationFactory=makeSerializeMigrationFactory(int),
             (),
@@ -1078,7 +1080,8 @@ module Object = {
       ~name="Object_UnknownKeys",
     )
 
-    let classify = struct => struct->Metadata.get(~id=metadataId)->Lib.Option.getWithDefault(Strip)
+    let classify = struct =>
+      struct->Metadata.get(~id=metadataId)->Stdlib.Option.getWithDefault(Strip)
   }
 
   let getMaybeExcessKey: (
@@ -1094,7 +1097,7 @@ module Object = {
 
   let factory = (
     () => {
-      let fieldsArray = Lib.Fn.getArguments()
+      let fieldsArray = Stdlib.Fn.getArguments()
       let fields = fieldsArray->Js.Dict.fromArray
       let fieldNames = fields->Js.Dict.keys
 
@@ -1122,7 +1125,7 @@ module Object = {
           let withAsyncOps = asyncOps->Js.Array2.length > 0
 
           ctx->MigrationFactory.Ctx.planSyncMigration(input => {
-            if input->Lib.Object.test === false {
+            if input->Stdlib.Object.test === false {
               raiseUnexpectedTypeError(~input, ~struct)
             }
 
@@ -1133,7 +1136,7 @@ module Object = {
               let fieldData = input->Js.Dict.unsafeGet(fieldName)
               try {
                 let value = fn(. fieldData)
-                newArray->Lib.Array.set(originalIdx, value)
+                newArray->Stdlib.Array.set(originalIdx, value)
               } catch {
               | Error.Internal.Exception(internalError) =>
                 raise(
@@ -1147,7 +1150,7 @@ module Object = {
             for idx in 0 to noopOps->Js.Array2.length - 1 {
               let (originalIdx, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
               let fieldData = input->Js.Dict.unsafeGet(fieldName)
-              newArray->Lib.Array.set(originalIdx, fieldData)
+              newArray->Stdlib.Array.set(originalIdx, fieldData)
             }
 
             if unknownKeys === UnknownKeys.Strict {
@@ -1157,7 +1160,7 @@ module Object = {
               }
             }
 
-            withAsyncOps ? newArray->castAnyToUnknown : newArray->Lib.Array.toTuple
+            withAsyncOps ? newArray->castAnyToUnknown : newArray->Stdlib.Array.toTuple
           })
 
           if withAsyncOps {
@@ -1167,7 +1170,7 @@ module Object = {
                 ((originalIdx, fieldName)) => {
                   (
                     tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
-                  )(.)->Lib.Promise.catch(
+                  )(.)->Stdlib.Promise.catch(
                     exn => {
                       switch exn {
                       | Error.Internal.Exception(internalError) =>
@@ -1180,13 +1183,13 @@ module Object = {
                   )
                 },
               )
-              ->Lib.Promise.all
-              ->Lib.Promise.thenResolve(
+              ->Stdlib.Promise.all
+              ->Stdlib.Promise.thenResolve(
                 asyncFieldValues => {
                   asyncFieldValues->Js.Array2.forEachi(
                     (fieldValue, idx) => {
                       let (originalIdx, _) = asyncOps->Js.Array2.unsafe_get(idx)
-                      tempArray->castUnknownToAny->Lib.Array.set(originalIdx, fieldValue)
+                      tempArray->castUnknownToAny->Stdlib.Array.set(originalIdx, fieldValue)
                     },
                   )
                   tempArray
@@ -1295,7 +1298,7 @@ module String = {
     let refiner = value =>
       if value->Js.String2.length < length {
         Error.raise(
-          maybeMessage->Lib.Option.getWithDefault(
+          maybeMessage->Stdlib.Option.getWithDefault(
             `String must be ${length->Js.Int.toString} or more characters long`,
           ),
         )
@@ -1307,7 +1310,7 @@ module String = {
     let refiner = value =>
       if value->Js.String2.length > length {
         Error.raise(
-          maybeMessage->Lib.Option.getWithDefault(
+          maybeMessage->Stdlib.Option.getWithDefault(
             `String must be ${length->Js.Int.toString} or fewer characters long`,
           ),
         )
@@ -1319,7 +1322,7 @@ module String = {
     let refiner = value =>
       if value->Js.String2.length !== length {
         Error.raise(
-          maybeMessage->Lib.Option.getWithDefault(
+          maybeMessage->Stdlib.Option.getWithDefault(
             `String must be exactly ${length->Js.Int.toString} characters long`,
           ),
         )
@@ -1356,7 +1359,7 @@ module String = {
 
   let url = (struct, ~message=`Invalid url`, ()) => {
     let refiner = value => {
-      if !(value->Lib.Url.test) {
+      if !(value->Stdlib.Url.test) {
         Error.raise(message)
       }
     }
@@ -1394,8 +1397,8 @@ module Json = {
           if input->Js.typeof === "string" {
             try input->Js.Json.parseExn catch {
             | Js.Exn.Error(obj) =>
-              Error.raise(obj->Js.Exn.message->Lib.Option.getWithDefault("Failed to parse JSON"))
-            }->Lib.Fn.call1(process, _)
+              Error.raise(obj->Js.Exn.message->Stdlib.Option.getWithDefault("Failed to parse JSON"))
+            }->Stdlib.Fn.call1(process, _)
           } else {
             raiseUnexpectedTypeError(~input, ~struct)
           }
@@ -1445,7 +1448,7 @@ module Int = {
       ~tagged=Int,
       ~parseMigrationFactory=MigrationFactory.make((. ~ctx, ~struct) =>
         ctx->MigrationFactory.Ctx.planSyncMigration(input => {
-          if Lib.Int.test(input) {
+          if Stdlib.Int.test(input) {
             input
           } else {
             raiseUnexpectedTypeError(~input, ~struct)
@@ -1461,7 +1464,7 @@ module Int = {
     let refiner = value => {
       if value < thanValue {
         Error.raise(
-          maybeMessage->Lib.Option.getWithDefault(
+          maybeMessage->Stdlib.Option.getWithDefault(
             `Number must be greater than or equal to ${thanValue->Js.Int.toString}`,
           ),
         )
@@ -1474,7 +1477,7 @@ module Int = {
     let refiner = value => {
       if value > thanValue {
         Error.raise(
-          maybeMessage->Lib.Option.getWithDefault(
+          maybeMessage->Stdlib.Option.getWithDefault(
             `Number must be lower than or equal to ${thanValue->Js.Int.toString}`,
           ),
         )
@@ -1561,8 +1564,8 @@ module Null = {
             planSyncMigration(fn)
             ctx->MigrationFactory.Ctx.planAsyncMigration(input => {
               switch input {
-              | Some(asyncFn) => asyncFn(.)->Lib.Promise.thenResolve(value => Some(value))
-              | None => None->Lib.Promise.resolve
+              | Some(asyncFn) => asyncFn(.)->Stdlib.Promise.thenResolve(value => Some(value))
+              | None => None->Stdlib.Promise.resolve
               }
             })
           }
@@ -1602,8 +1605,8 @@ module Option = {
             planSyncMigration(fn)
             ctx->MigrationFactory.Ctx.planAsyncMigration(input => {
               switch input {
-              | Some(asyncFn) => asyncFn(.)->Lib.Promise.thenResolve(value => Some(value))
-              | None => None->Lib.Promise.resolve
+              | Some(asyncFn) => asyncFn(.)->Stdlib.Promise.thenResolve(value => Some(value))
+              | None => None->Stdlib.Promise.resolve
               }
             })
           }
@@ -1684,7 +1687,7 @@ module Array = {
             input
             ->Js.Array2.mapi(
               (asyncFn, idx) => {
-                asyncFn(.)->Lib.Promise.catch(
+                asyncFn(.)->Stdlib.Promise.catch(
                   exn => {
                     switch exn {
                     | Error.Internal.Exception(internalError) =>
@@ -1697,7 +1700,7 @@ module Array = {
                 )
               },
             )
-            ->Lib.Promise.all
+            ->Stdlib.Promise.all
             ->Obj.magic
           })
         }
@@ -1735,7 +1738,7 @@ module Array = {
     let refiner = value => {
       if value->Js.Array2.length < length {
         Error.raise(
-          maybeMessage->Lib.Option.getWithDefault(
+          maybeMessage->Stdlib.Option.getWithDefault(
             `Array must be ${length->Js.Int.toString} or more items long`,
           ),
         )
@@ -1748,7 +1751,7 @@ module Array = {
     let refiner = value => {
       if value->Js.Array2.length > length {
         Error.raise(
-          maybeMessage->Lib.Option.getWithDefault(
+          maybeMessage->Stdlib.Option.getWithDefault(
             `Array must be ${length->Js.Int.toString} or fewer items long`,
           ),
         )
@@ -1761,7 +1764,7 @@ module Array = {
     let refiner = value => {
       if value->Js.Array2.length !== length {
         Error.raise(
-          maybeMessage->Lib.Option.getWithDefault(
+          maybeMessage->Stdlib.Option.getWithDefault(
             `Array must be exactly ${length->Js.Int.toString} items long`,
           ),
         )
@@ -1797,7 +1800,7 @@ module Dict = {
         }
 
         ctx->MigrationFactory.Ctx.planSyncMigration(input => {
-          if input->Lib.Object.test === false {
+          if input->Stdlib.Object.test === false {
             raiseUnexpectedTypeError(~input, ~struct)
           } else {
             input
@@ -1816,7 +1819,7 @@ module Dict = {
               key => {
                 let asyncFn = input->Js.Dict.unsafeGet(key)
                 try {
-                  asyncFn(.)->Lib.Promise.catch(
+                  asyncFn(.)->Stdlib.Promise.catch(
                     exn => {
                       switch exn {
                       | Error.Internal.Exception(internalError) =>
@@ -1833,8 +1836,8 @@ module Dict = {
                 }
               },
             )
-            ->Lib.Promise.all
-            ->Lib.Promise.thenResolve(
+            ->Stdlib.Promise.all
+            ->Stdlib.Promise.thenResolve(
               values => {
                 let tempDict = Js.Dict.empty()
                 values->Js.Array2.forEachi(
@@ -1890,18 +1893,18 @@ module Defaulted = {
         switch innerStruct.parse {
         | NoOperation =>
           ctx->MigrationFactory.Ctx.planSyncMigration(input => {
-            input->castUnknownToAny->Lib.Option.getWithDefault(defaultValue)
+            input->castUnknownToAny->Stdlib.Option.getWithDefault(defaultValue)
           })
         | SyncOperation(fn) =>
           ctx->MigrationFactory.Ctx.planSyncMigration(input => {
-            fn(. input)->castUnknownToAny->Lib.Option.getWithDefault(defaultValue)
+            fn(. input)->castUnknownToAny->Stdlib.Option.getWithDefault(defaultValue)
           })
         | AsyncOperation(fn) =>
-          ctx->MigrationFactory.Ctx.planSyncMigration(fn->Lib.Fn.castToCurried)
+          ctx->MigrationFactory.Ctx.planSyncMigration(fn->Stdlib.Fn.castToCurried)
           ctx->MigrationFactory.Ctx.planAsyncMigration(asyncFn => {
-            asyncFn(.)->Lib.Promise.thenResolve(
+            asyncFn(.)->Stdlib.Promise.thenResolve(
               value => {
-                value->castUnknownToAny->Lib.Option.getWithDefault(defaultValue)
+                value->castUnknownToAny->Stdlib.Option.getWithDefault(defaultValue)
               },
             )
           })
@@ -1922,7 +1925,7 @@ module Defaulted = {
 module Tuple = {
   let factory = (
     () => {
-      let structs = Lib.Fn.getArguments()
+      let structs = Stdlib.Fn.getArguments()
       let numberOfStructs = structs->Js.Array2.length
 
       make(
@@ -1967,7 +1970,7 @@ module Tuple = {
               let innerData = input->Js.Array2.unsafe_get(originalIdx)
               try {
                 let value = fn(. innerData)
-                newArray->Lib.Array.set(originalIdx, value)
+                newArray->Stdlib.Array.set(originalIdx, value)
               } catch {
               | Error.Internal.Exception(internalError) =>
                 raise(
@@ -1981,7 +1984,7 @@ module Tuple = {
             for idx in 0 to noopOps->Js.Array2.length - 1 {
               let originalIdx = noopOps->Js.Array2.unsafe_get(idx)
               let innerData = input->Js.Array2.unsafe_get(originalIdx)
-              newArray->Lib.Array.set(originalIdx, innerData)
+              newArray->Stdlib.Array.set(originalIdx, innerData)
             }
 
             switch withAsyncOps {
@@ -2002,7 +2005,7 @@ module Tuple = {
                 originalIdx => {
                   (
                     tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
-                  )(.)->Lib.Promise.catch(
+                  )(.)->Stdlib.Promise.catch(
                     exn => {
                       switch exn {
                       | Error.Internal.Exception(internalError) =>
@@ -2017,16 +2020,16 @@ module Tuple = {
                   )
                 },
               )
-              ->Lib.Promise.all
-              ->Lib.Promise.thenResolve(
+              ->Stdlib.Promise.all
+              ->Stdlib.Promise.thenResolve(
                 values => {
                   values->Js.Array2.forEachi(
                     (value, idx) => {
                       let originalIdx = asyncOps->Js.Array2.unsafe_get(idx)
-                      tempArray->castUnknownToAny->Lib.Array.set(originalIdx, value)
+                      tempArray->castUnknownToAny->Stdlib.Array.set(originalIdx, value)
                     },
                   )
-                  tempArray->castUnknownToAny->Lib.Array.toTuple
+                  tempArray->castUnknownToAny->Stdlib.Array.toTuple
                 },
               )
             })
@@ -2108,8 +2111,8 @@ module Union = {
                 maybeNewValueRef.contents = Some(newValue)
               } catch {
               | Error.Internal.Exception(internalError) => {
-                  errorsRef.contents->Lib.Array.set(originalIdx, internalError)
-                  idxRef.contents = idxRef.contents->Lib.Int.plus(1)
+                  errorsRef.contents->Stdlib.Array.set(originalIdx, internalError)
+                  idxRef.contents = idxRef.contents->Stdlib.Int.plus(1)
                 }
               }
             }
@@ -2131,31 +2134,31 @@ module Union = {
           if withAsyncOps {
             ctx->MigrationFactory.Ctx.planAsyncMigration(input => {
               switch input["maybeSyncValue"] {
-              | Some(syncValue) => syncValue->Lib.Promise.resolve
+              | Some(syncValue) => syncValue->Stdlib.Promise.resolve
               | None =>
                 asyncOps
                 ->Js.Array2.map(
                   ((originalIdx, fn)) => {
                     try {
-                      fn(. input["originalInput"])(.)->Lib.Promise.thenResolveWithCatch(
+                      fn(. input["originalInput"])(.)->Stdlib.Promise.thenResolveWithCatch(
                         value => raise(HackyValidValue(value)),
                         exn =>
                           switch exn {
                           | Error.Internal.Exception(internalError) =>
-                            input["tempErrors"]->Lib.Array.set(originalIdx, internalError)
+                            input["tempErrors"]->Stdlib.Array.set(originalIdx, internalError)
                           | _ => raise(exn)
                           },
                       )
                     } catch {
                     | Error.Internal.Exception(internalError) =>
                       input["tempErrors"]
-                      ->Lib.Array.set(originalIdx, internalError)
-                      ->Lib.Promise.resolve
+                      ->Stdlib.Array.set(originalIdx, internalError)
+                      ->Stdlib.Promise.resolve
                     }
                   },
                 )
-                ->Lib.Promise.all
-                ->Lib.Promise.thenResolveWithCatch(
+                ->Stdlib.Promise.all
+                ->Stdlib.Promise.thenResolveWithCatch(
                   _ => {
                     Error.Internal.raise(
                       InvalidUnion(input["tempErrors"]->Js.Array2.map(Error.Internal.toParseError)),
@@ -2187,7 +2190,7 @@ module Union = {
             } catch {
             | Error.Internal.Exception(internalError) => {
                 maybeLastErrorRef.contents = Some(internalError)
-                idxRef.contents = idxRef.contents->Lib.Int.plus(1)
+                idxRef.contents = idxRef.contents->Stdlib.Int.plus(1)
               }
             }
           }
@@ -2215,7 +2218,7 @@ module Result = {
   }
 
   let mapErrorToString = result => {
-    result->Lib.Result.mapError(Error.toString)
+    result->Stdlib.Result.mapError(Error.toString)
   }
 }
 
