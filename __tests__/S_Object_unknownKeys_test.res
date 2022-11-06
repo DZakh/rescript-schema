@@ -11,12 +11,14 @@ test("Successfully parses Object with unknown keys by default", t => {
 })
 
 test("Fails fast and shows only one excees key in the error message", t => {
-  let any = %raw(`{key: "value", unknownKey: "value2", unknownKey2: "value2"}`)
-
-  let struct = S.object1(. ("key", S.string()))->S.Object.strict
+  let struct = S.object(o =>
+    {
+      "key": o->S.field(S.string()),
+    }
+  )->S.Object.strict
 
   t->Assert.deepEqual(
-    any->S.parseWith(struct),
+    %raw(`{key: "value", unknownKey: "value2", unknownKey2: "value2"}`)->S.parseWith(struct),
     Error({
       code: ExcessField("unknownKey"),
       operation: Parsing,

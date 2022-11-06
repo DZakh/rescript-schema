@@ -150,6 +150,13 @@ module Object: {
   let strict: t<'value> => t<'value>
 }
 
+module Object2: {
+  type builderCtx
+}
+
+let field: (Object2.builderCtx, ~name: string=?, t<'value>) => 'value
+let object: (Object2.builderCtx => 'value) => t<'value>
+
 let object0: (. unit) => t<unit>
 let object1: (. field<'v1>) => t<'v1>
 let object2: (. field<'v1>, field<'v2>) => t<('v1, 'v2)>

@@ -1273,6 +1273,260 @@ module Object = {
   }
 }
 
+module Object2 = {
+  let getMaybeExcessKey: (
+    . unknown,
+    Js.Dict.t<t<unknown>>,
+  ) => option<string> = %raw(`function(object, innerStructsDict) {
+    for (var key in object) {
+      if (!Object.prototype.hasOwnProperty.call(innerStructsDict, key)) {
+        return key
+      }
+    }
+  }`)
+
+  module FieldPlaceholder = {
+    type t
+
+    let value: t = %raw(`Symbol("rescript-struct:Object.FieldPlaceholder")`)
+
+    let castToAny: t => 'a = Obj.magic
+  }
+
+  module BuilderCtx = {
+    type struct = t<unknown>
+    type t = {structs: array<struct>, nameOverrides: Js.Dict.t<string>}
+
+    let make = () => {
+      structs: [],
+      nameOverrides: Js.Dict.empty(),
+    }
+
+    let addFieldUsage = (builderCtx, ~struct, ~maybeNameOverride) => {
+      switch maybeNameOverride {
+      | Some(nameOverride) =>
+        builderCtx.nameOverrides->Js.Dict.set(
+          builderCtx.structs->Js.Array2.length->Js.Int.toString,
+          nameOverride,
+        )
+      | None => ()
+      }
+      builderCtx.structs->Js.Array2.push(struct)->ignore
+    }
+
+    let getFieldStructs = builderCtx => builderCtx.structs
+
+    let getMaybeFieldNameOverride = (builderCtx, ~idx) => {
+      builderCtx.nameOverrides->Js.Dict.get(idx->Js.Int.toString)
+    }
+  }
+
+  let field = (builderCtx, ~name as maybeNameOverride=?, struct) => {
+    let struct = struct->castAnyStructToUnknownStruct
+    builderCtx->BuilderCtx.addFieldUsage(~struct, ~maybeNameOverride)
+    FieldPlaceholder.value->FieldPlaceholder.castToAny
+  }
+
+  module Instruction = {
+    type struct = t<unknown>
+    type t = {
+      fieldNameParseOverrides: Js.Dict.t<string>,
+      originalFields: Js.Dict.t<struct>,
+      originalFieldNames: array<string>,
+    }
+
+    let fromBuilderResult = (builderResult, ~builderCtx) => {
+      if builderResult->Stdlib.Object.test->not {
+        Error.panic("The object builder result should be an object.")
+      }
+      let builderResult: Js.Dict.t<unknown> = builderResult->Obj.magic
+
+      let originalFieldNames = builderResult->Js.Dict.keys
+      let fieldStructs = builderCtx->BuilderCtx.getFieldStructs
+
+      {
+        let fieldNamesNumber = originalFieldNames->Js.Array2.length
+        let fieldStructsNumber = fieldStructs->Js.Array2.length
+        if fieldNamesNumber > fieldStructsNumber {
+          Error.panic("The object builder result missing field defenitions.")
+        }
+        if fieldNamesNumber < fieldStructsNumber {
+          Error.panic("The object builder result has unused field defenitions.")
+        }
+      }
+
+      let originalFields = Js.Dict.empty()
+      let fieldNameParseOverrides = Js.Dict.empty()
+
+      originalFieldNames->Js.Array2.forEachi((fieldName, idx) => {
+        let actualFieldName = switch builderCtx->BuilderCtx.getMaybeFieldNameOverride(~idx) {
+        | Some(fieldNameOverride) => {
+            originalFieldNames->Stdlib.Array.set(idx, fieldNameOverride)
+            fieldNameParseOverrides->Js.Dict.set(fieldName, fieldNameOverride)
+            fieldNameOverride
+          }
+
+        | None => fieldName
+        }
+        let fieldStruct = fieldStructs->Js.Array2.unsafe_get(idx)
+        originalFields->Js.Dict.set(actualFieldName, fieldStruct)
+      })
+
+      {
+        fieldNameParseOverrides,
+        originalFieldNames,
+        originalFields,
+      }
+    }
+  }
+
+  let factory = builder => {
+    let {originalFieldNames, originalFields, fieldNameParseOverrides} = {
+      let builderCtx = BuilderCtx.make()
+      builder(builderCtx)->castAnyToUnknown->Instruction.fromBuilderResult(~builderCtx)
+    }
+
+    make(
+      ~name="Object",
+      ~tagged=Object({fields: originalFields, fieldNames: originalFieldNames}),
+      ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
+        let withStrictUnknownKeys =
+          struct->Object.UnknownKeys.classify === Object.UnknownKeys.Strict
+
+        let noopOps = []
+        let syncOps = []
+        let asyncOps = []
+        for idx in 0 to originalFieldNames->Js.Array2.length - 1 {
+          let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
+          let fieldStruct = originalFields->Js.Dict.unsafeGet(originalFieldName)
+          let fieldName =
+            fieldNameParseOverrides
+            ->Js.Dict.get(originalFieldName)
+            ->Belt.Option.getWithDefault(originalFieldName)
+          switch fieldStruct.parse {
+          | NoOperation => noopOps->Js.Array2.push((originalFieldName, fieldName))->ignore
+          | SyncOperation(fn) => syncOps->Js.Array2.push((originalFieldName, fieldName, fn))->ignore
+          | AsyncOperation(fn) => {
+              syncOps->Js.Array2.push((originalFieldName, fieldName, fn->Obj.magic))->ignore
+              asyncOps->Js.Array2.push((originalFieldName, fieldName))->ignore
+            }
+          }
+        }
+        let withAsyncOps = asyncOps->Js.Array2.length > 0
+
+        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+          if input->Stdlib.Object.test === false {
+            raiseUnexpectedTypeError(~input, ~struct)
+          }
+
+          let newObject = Js.Dict.empty()
+
+          for idx in 0 to syncOps->Js.Array2.length - 1 {
+            let (originalFieldName, fieldName, fn) = syncOps->Js.Array2.unsafe_get(idx)
+            let fieldData = input->Js.Dict.unsafeGet(originalFieldName)
+            try {
+              let value = fn(. fieldData)
+              newObject->Js.Dict.set(fieldName, value)
+            } catch {
+            | Error.Internal.Exception(internalError) =>
+              raise(
+                Error.Internal.Exception(
+                  internalError->Error.Internal.prependLocation(originalFieldName),
+                ),
+              )
+            }
+          }
+
+          for idx in 0 to noopOps->Js.Array2.length - 1 {
+            let (originalFieldName, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
+            let fieldData = input->Js.Dict.unsafeGet(originalFieldName)
+            newObject->Js.Dict.set(fieldName, fieldData)
+          }
+
+          if withStrictUnknownKeys {
+            switch getMaybeExcessKey(. input->castAnyToUnknown, originalFields) {
+            | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
+            | None => ()
+            }
+          }
+
+          newObject
+        })
+
+        // if withAsyncOps {
+        //   ctx->TransformationFactory.Ctx.planAsyncMigration(tempArray => {
+        //     asyncOps
+        //     ->Js.Array2.map(
+        //       ((originalIdx, fieldName)) => {
+        //         (
+        //           tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
+        //         )(.)->Stdlib.Promise.catch(
+        //           exn => {
+        //             switch exn {
+        //             | Error.Internal.Exception(internalError) =>
+        //               Error.Internal.Exception(
+        //                 internalError->Error.Internal.prependLocation(fieldName),
+        //               )
+        //             | _ => exn
+        //             }->raise
+        //           },
+        //         )
+        //       },
+        //     )
+        //     ->Stdlib.Promise.all
+        //     ->Stdlib.Promise.thenResolve(
+        //       asyncFieldValues => {
+        //         asyncFieldValues->Js.Array2.forEachi(
+        //           (fieldValue, idx) => {
+        //             let (originalIdx, _) = asyncOps->Js.Array2.unsafe_get(idx)
+        //             tempArray->castUnknownToAny->Stdlib.Array.set(originalIdx, fieldValue)
+        //           },
+        //         )
+        //         tempArray
+        //       },
+        //     )
+        //   })
+        // }
+      }),
+      ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
+        let fieldNames = %raw("undefined")
+        let fields = %raw("undefined")
+
+        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+          let unknown = Js.Dict.empty()
+          let fieldValues =
+            fieldNames->Js.Array2.length <= 1 ? [input]->Obj.magic : input->Obj.magic
+          for idx in 0 to fieldNames->Js.Array2.length - 1 {
+            let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+            let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+            let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
+            switch fieldStruct.serialize {
+            | NoOperation => unknown->Js.Dict.set(fieldName, fieldValue)
+            | SyncOperation(fn) =>
+              try {
+                let fieldData = fn(. fieldValue)
+                unknown->Js.Dict.set(fieldName, fieldData)
+              } catch {
+              | Error.Internal.Exception(internalError) =>
+                raise(
+                  Error.Internal.Exception(
+                    internalError->Error.Internal.prependLocation(fieldName),
+                  ),
+                )
+              }
+            | AsyncOperation(_) => Error.Unreachable.panic()
+            }
+          }
+          unknown
+        })
+      }),
+      (),
+    )
+  }
+
+  type builderCtx = BuilderCtx.t
+}
+
 module Never = {
   let factory = () => {
     let transformationFactory = TransformationFactory.make((. ~ctx, ~struct) =>
@@ -2257,6 +2511,8 @@ module Result = {
   }
 }
 
+let field = Object2.field
+let object = Object2.factory
 let object0 = Object.factory
 let object1 = Object.factory
 let object2 = Object.factory

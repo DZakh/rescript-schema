@@ -12,35 +12,44 @@ test("Successfully parses object without fields", t => {
 })
 
 test("Successfully parses object with single field", t => {
-  let value = "bar"
-  let any = %raw(`{foo: "bar"}`)
+  let struct = S.object(o =>
+    {
+      "foo": o->S.field(S.string()),
+    }
+  )
 
-  let struct = S.object1(. ("foo", S.string()))
-
-  t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+  t->Assert.deepEqual(%raw(`{foo: "bar"}`)->S.parseWith(struct), Ok({"foo": "bar"}), ())
 })
 
 test("Successfully parses object with multiple fields", t => {
-  let value = ("bar", "jee")
-  let any = %raw(`{boo: "bar", zoo: "jee"}`)
+  let struct = S.object(o =>
+    {
+      "boo": o->S.field(S.string()),
+      "zoo": o->S.field(S.string()),
+    }
+  )
 
-  let struct = S.object2(. ("boo", S.string()), ("zoo", S.string()))
-
-  t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+  t->Assert.deepEqual(
+    %raw(`{boo: "bar", zoo: "jee"}`)->S.parseWith(struct),
+    Ok({"boo": "bar", "zoo": "jee"}),
+    (),
+  )
 })
 
 test("Successfully parses object with mapped field names", t => {
-  let value = {name: "Dmitry", email: "dzakh.dev@gmail.com", age: 21}
-  let any = %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)
+  let struct = S.object(o =>
+    {
+      "name": o->S.field(~name="Name", S.string()),
+      "email": o->S.field(~name="Email", S.string()),
+      "age": o->S.field(~name="Age", S.int()),
+    }
+  )
 
-  let struct =
-    S.object3(.
-      ("Name", S.string()),
-      ("Email", S.string()),
-      ("Age", S.int()),
-    )->S.transform(~parser=((name, email, age)) => {name, email, age}, ())
-
-  t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+  t->Assert.deepEqual(
+    %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)->S.parseWith(struct),
+    Ok({"name": "Dmitry", "email": "dzakh.dev@gmail.com", "age": 21}),
+    (),
+  )
 })
 
 test("Successfully parses object with optional nested object when it's Some", t => {
