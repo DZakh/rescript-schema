@@ -39,7 +39,7 @@
     "res:build": "rescript build -with-deps",
     "res:dev": "rescript build -with-deps -w",
     "test": "ava",
-    "coverage": "c8 ava --clean"
+    "coverage": "c8 --reporter=lcov npm test"
   },
   "ava": {
     "files": [
