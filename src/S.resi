@@ -46,7 +46,7 @@ type taggedLiteral =
   | EmptyOption
   | NaN
 
-type migration<'input, 'output> =
+type transformation<'input, 'output> =
   | Sync('input => 'output)
   | Async('input => Js.Promise.t<'output>)
 
@@ -97,15 +97,15 @@ let transform: (
 
 let advancedTransform: (
   t<'value>,
-  ~parser: (~struct: t<'value>) => migration<'value, 'transformed>=?,
-  ~serializer: (~struct: t<'value>) => migration<'transformed, 'value>=?,
+  ~parser: (~struct: t<'value>) => transformation<'value, 'transformed>=?,
+  ~serializer: (~struct: t<'value>) => transformation<'transformed, 'value>=?,
   unit,
 ) => t<'transformed>
 
 let advancedPreprocess: (
   t<'value>,
-  ~parser: (~struct: t<'value>) => migration<unknown, 'parserPreprocess>=?,
-  ~serializer: (~struct: t<'value>) => migration<unknown, 'serializerPreprocess>=?,
+  ~parser: (~struct: t<'value>) => transformation<unknown, 'parserPreprocess>=?,
+  ~serializer: (~struct: t<'value>) => transformation<unknown, 'serializerPreprocess>=?,
   unit,
 ) => t<'value>
 

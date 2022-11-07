@@ -1,7 +1,7 @@
 {
   "name": "rescript-struct",
   "version": "2.0.0",
-  "description": "Safely parse and serialize data with ability to describe migration to a convenient format",
+  "description": "Safely parse and serialize with transformation to convenient ReScript data structures",
   "keywords": [
     "ReScript",
     "Struct",
@@ -18,7 +18,8 @@
     "Jzon",
     "Zod",
     "Superstruct",
-    "Runtypes"
+    "Runtypes",
+    "Ajv"
   ],
   "homepage": "https://github.com/DZakh/rescript-struct#readme",
   "bugs": {
