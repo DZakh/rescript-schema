@@ -3,3 +3,4 @@ node_modules
 .bsb.lock
 **/*_test.bs.js
 lib
+coverage
