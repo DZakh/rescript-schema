@@ -166,41 +166,41 @@ function toString(error) {
 
 var Raised = /* @__PURE__ */Caml_exceptions.create("S.Raised");
 
-function planSyncMigration(ctx, migration) {
-  var prevSyncMigration = ctx.s;
-  var prevAsyncMigration = ctx.a;
+function planSyncTransformation(ctx, transformation) {
+  var prevSyncTransformation = ctx.s;
+  var prevAsyncTransformation = ctx.a;
   var match = ctx.p;
   if (match !== 1) {
     if (match !== 0) {
       ctx.a = (function (input) {
-          return prevAsyncMigration(input).then(migration);
+          return prevAsyncTransformation(input).then(transformation);
         });
     } else {
       ctx.p = /* OnlySync */1;
-      ctx.s = migration;
+      ctx.s = transformation;
     }
   } else {
     ctx.s = (function (input) {
-        return migration(prevSyncMigration(input));
+        return transformation(prevSyncTransformation(input));
       });
   }
 }
 
-function planAsyncMigration(ctx, migration) {
-  var prevAsyncMigration = ctx.a;
+function planAsyncTransformation(ctx, transformation) {
+  var prevAsyncTransformation = ctx.a;
   var match = ctx.p;
   if (match !== 1) {
     if (match !== 0) {
       ctx.a = (function (input) {
-          return prevAsyncMigration(input).then(migration);
+          return prevAsyncTransformation(input).then(transformation);
         });
     } else {
       ctx.p = /* OnlyAsync */2;
-      ctx.a = migration;
+      ctx.a = transformation;
     }
   } else {
     ctx.p = /* SyncAndAsync */3;
-    ctx.a = migration;
+    ctx.a = transformation;
   }
 }
 
@@ -208,16 +208,16 @@ function empty(param, param$1) {
   
 }
 
-function compile(migrationFactory, struct) {
+function compile(transformationFactory, struct) {
   var ctx = {
-    p: /* NoMigration */0,
+    p: /* NoTransformation */0,
     s: undefined,
     a: undefined
   };
-  migrationFactory(ctx, struct);
+  transformationFactory(ctx, struct);
   var match = ctx.p;
   switch (match) {
-    case /* NoMigration */0 :
+    case /* NoTransformation */0 :
         return /* NoOperation */0;
     case /* OnlySync */1 :
         return {
@@ -311,12 +311,12 @@ function raiseUnexpectedTypeError(input, struct) {
             });
 }
 
-function make(name, tagged, parseMigrationFactory, serializeMigrationFactory, maybeMetadataDict, param) {
+function make(name, tagged, parseTransformationFactory, serializeTransformationFactory, maybeMetadataDict, param) {
   var struct = {
     n: name,
     t: tagged,
-    pf: parseMigrationFactory,
-    sf: serializeMigrationFactory,
+    pf: parseTransformationFactory,
+    sf: serializeTransformationFactory,
     s: undefined,
     p: undefined,
     m: maybeMetadataDict
@@ -551,12 +551,12 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
   }
   return make(struct.n, struct.t, maybeRefineParser !== undefined ? (function (ctx, compilingStruct) {
                   struct.pf(ctx, compilingStruct);
-                  planSyncMigration(ctx, (function (input) {
+                  planSyncTransformation(ctx, (function (input) {
                           maybeRefineParser(input);
                           return input;
                         }));
                 }) : struct.pf, maybeRefineSerializer !== undefined ? (function (ctx, compilingStruct) {
-                  planSyncMigration(ctx, (function (input) {
+                  planSyncTransformation(ctx, (function (input) {
                           maybeRefineSerializer(input);
                           return input;
                         }));
@@ -567,7 +567,7 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
 function asyncRefine(struct, parser, param) {
   return make(struct.n, struct.t, (function (ctx, compilingStruct) {
                 struct.pf(ctx, compilingStruct);
-                planAsyncMigration(ctx, (function (input) {
+                planAsyncTransformation(ctx, (function (input) {
                         return parser(input).then(function (param) {
                                     return input;
                                   });
@@ -582,17 +582,17 @@ function transform(struct, maybeTransformParser, maybeTransformSerializer, param
   return make(struct.n, struct.t, (function (ctx, compilingStruct) {
                 struct.pf(ctx, compilingStruct);
                 if (maybeTransformParser !== undefined) {
-                  return planSyncMigration(ctx, maybeTransformParser);
+                  return planSyncTransformation(ctx, maybeTransformParser);
                 } else {
-                  return planSyncMigration(ctx, (function (param) {
+                  return planSyncTransformation(ctx, (function (param) {
                                 return raise(/* MissingParser */0);
                               }));
                 }
               }), (function (ctx, compilingStruct) {
                 if (maybeTransformSerializer !== undefined) {
-                  planSyncMigration(ctx, maybeTransformSerializer);
+                  planSyncTransformation(ctx, maybeTransformSerializer);
                 } else {
-                  planSyncMigration(ctx, (function (param) {
+                  planSyncTransformation(ctx, (function (param) {
                           return raise(/* MissingSerializer */1);
                         }));
                 }
@@ -607,26 +607,26 @@ function advancedTransform(struct, maybeTransformParser, maybeTransformSerialize
   return make(struct.n, struct.t, (function (ctx, compilingStruct) {
                 struct.pf(ctx, compilingStruct);
                 if (maybeTransformParser === undefined) {
-                  return planSyncMigration(ctx, (function (param) {
+                  return planSyncTransformation(ctx, (function (param) {
                                 return raise(/* MissingParser */0);
                               }));
                 }
-                var syncMigration = maybeTransformParser(compilingStruct);
-                if (syncMigration.TAG === /* Sync */0) {
-                  return planSyncMigration(ctx, syncMigration._0);
+                var syncTransformation = maybeTransformParser(compilingStruct);
+                if (syncTransformation.TAG === /* Sync */0) {
+                  return planSyncTransformation(ctx, syncTransformation._0);
                 } else {
-                  return planAsyncMigration(ctx, syncMigration._0);
+                  return planAsyncTransformation(ctx, syncTransformation._0);
                 }
               }), (function (ctx, compilingStruct) {
                 if (maybeTransformSerializer !== undefined) {
-                  var syncMigration = maybeTransformSerializer(compilingStruct);
-                  if (syncMigration.TAG === /* Sync */0) {
-                    planSyncMigration(ctx, syncMigration._0);
+                  var syncTransformation = maybeTransformSerializer(compilingStruct);
+                  if (syncTransformation.TAG === /* Sync */0) {
+                    planSyncTransformation(ctx, syncTransformation._0);
                   } else {
-                    planAsyncMigration(ctx, syncMigration._0);
+                    planAsyncTransformation(ctx, syncTransformation._0);
                   }
                 } else {
-                  planSyncMigration(ctx, (function (param) {
+                  planSyncTransformation(ctx, (function (param) {
                           return raise(/* MissingSerializer */1);
                         }));
                 }
@@ -649,14 +649,14 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
   }
   return make(struct.n, struct.t, (function (ctx, compilingStruct) {
                 if (maybePreprocessParser !== undefined) {
-                  var syncMigration = maybePreprocessParser(compilingStruct);
-                  if (syncMigration.TAG === /* Sync */0) {
-                    planSyncMigration(ctx, syncMigration._0);
+                  var syncTransformation = maybePreprocessParser(compilingStruct);
+                  if (syncTransformation.TAG === /* Sync */0) {
+                    planSyncTransformation(ctx, syncTransformation._0);
                   } else {
-                    planAsyncMigration(ctx, syncMigration._0);
+                    planAsyncTransformation(ctx, syncTransformation._0);
                   }
                 } else {
-                  planSyncMigration(ctx, (function (param) {
+                  planSyncTransformation(ctx, (function (param) {
                           return raise(/* MissingParser */0);
                         }));
                 }
@@ -664,15 +664,15 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
               }), (function (ctx, compilingStruct) {
                 struct.sf(ctx, compilingStruct);
                 if (maybePreprocessSerializer === undefined) {
-                  return planSyncMigration(ctx, (function (param) {
+                  return planSyncTransformation(ctx, (function (param) {
                                 return raise(/* MissingSerializer */1);
                               }));
                 }
-                var syncMigration = maybePreprocessSerializer(compilingStruct);
-                if (syncMigration.TAG === /* Sync */0) {
-                  return planSyncMigration(ctx, syncMigration._0);
+                var syncTransformation = maybePreprocessSerializer(compilingStruct);
+                if (syncTransformation.TAG === /* Sync */0) {
+                  return planSyncTransformation(ctx, syncTransformation._0);
                 } else {
-                  return planAsyncMigration(ctx, syncMigration._0);
+                  return planAsyncTransformation(ctx, syncTransformation._0);
                 }
               }), struct.m, undefined);
 }
@@ -683,17 +683,17 @@ function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
   }
   return make(name, /* Unknown */1, (function (ctx, param) {
                 if (maybeCustomParser !== undefined) {
-                  return planSyncMigration(ctx, Caml_option.valFromOption(maybeCustomParser));
+                  return planSyncTransformation(ctx, Caml_option.valFromOption(maybeCustomParser));
                 } else {
-                  return planSyncMigration(ctx, (function (param) {
+                  return planSyncTransformation(ctx, (function (param) {
                                 return raise(/* MissingParser */0);
                               }));
                 }
               }), (function (ctx, param) {
                 if (maybeCustomSerializer !== undefined) {
-                  return planSyncMigration(ctx, Caml_option.valFromOption(maybeCustomSerializer));
+                  return planSyncTransformation(ctx, Caml_option.valFromOption(maybeCustomSerializer));
                 } else {
-                  return planSyncMigration(ctx, (function (param) {
+                  return planSyncTransformation(ctx, (function (param) {
                                 return raise(/* MissingSerializer */1);
                               }));
                 }
@@ -705,9 +705,9 @@ function factory(innerLiteral, variant) {
     TAG: /* Literal */0,
     _0: innerLiteral
   };
-  var makeParseMigrationFactory = function (literalValue, test) {
+  var makeParseTransformationFactory = function (literalValue, test) {
     return function (ctx, struct) {
-      planSyncMigration(ctx, (function (input) {
+      planSyncTransformation(ctx, (function (input) {
               if (test(input)) {
                 if (literalValue === input) {
                   return variant;
@@ -720,9 +720,9 @@ function factory(innerLiteral, variant) {
             }));
     };
   };
-  var makeSerializeMigrationFactory = function (output) {
+  var makeSerializeTransformationFactory = function (output) {
     return function (ctx, param) {
-      planSyncMigration(ctx, (function (input) {
+      planSyncTransformation(ctx, (function (input) {
               if (input === variant) {
                 return output;
               } else {
@@ -735,62 +735,62 @@ function factory(innerLiteral, variant) {
     switch (innerLiteral) {
       case /* EmptyNull */0 :
           return make("EmptyNull Literal (null)", tagged, (function (ctx, struct) {
-                        planSyncMigration(ctx, (function (input) {
+                        planSyncTransformation(ctx, (function (input) {
                                 if (input === null) {
                                   return variant;
                                 } else {
                                   return raiseUnexpectedTypeError(input, struct);
                                 }
                               }));
-                      }), makeSerializeMigrationFactory(null), undefined, undefined);
+                      }), makeSerializeTransformationFactory(null), undefined, undefined);
       case /* EmptyOption */1 :
           return make("EmptyOption Literal (undefined)", tagged, (function (ctx, struct) {
-                        planSyncMigration(ctx, (function (input) {
+                        planSyncTransformation(ctx, (function (input) {
                                 if (input === undefined) {
                                   return variant;
                                 } else {
                                   return raiseUnexpectedTypeError(input, struct);
                                 }
                               }));
-                      }), makeSerializeMigrationFactory(undefined), undefined, undefined);
+                      }), makeSerializeTransformationFactory(undefined), undefined, undefined);
       case /* NaN */2 :
           return make("NaN Literal (NaN)", tagged, (function (ctx, struct) {
-                        planSyncMigration(ctx, (function (input) {
+                        planSyncTransformation(ctx, (function (input) {
                                 if (Number.isNaN(input)) {
                                   return variant;
                                 } else {
                                   return raiseUnexpectedTypeError(input, struct);
                                 }
                               }));
-                      }), makeSerializeMigrationFactory(NaN), undefined, undefined);
+                      }), makeSerializeTransformationFactory(NaN), undefined, undefined);
       
     }
   } else {
     switch (innerLiteral.TAG | 0) {
       case /* String */0 :
           var string = innerLiteral._0;
-          return make("String Literal (\"" + string + "\")", tagged, makeParseMigrationFactory(string, (function (input) {
+          return make("String Literal (\"" + string + "\")", tagged, makeParseTransformationFactory(string, (function (input) {
                             return typeof input === "string";
-                          })), makeSerializeMigrationFactory(string), undefined, undefined);
+                          })), makeSerializeTransformationFactory(string), undefined, undefined);
       case /* Int */1 :
           var $$int = innerLiteral._0;
-          return make("Int Literal (" + $$int.toString() + ")", tagged, makeParseMigrationFactory($$int, (function (input) {
+          return make("Int Literal (" + $$int.toString() + ")", tagged, makeParseTransformationFactory($$int, (function (input) {
                             if (typeof input === "number" && input < 2147483648 && input > -2147483649) {
                               return input % 1 === 0;
                             } else {
                               return false;
                             }
-                          })), makeSerializeMigrationFactory($$int), undefined, undefined);
+                          })), makeSerializeTransformationFactory($$int), undefined, undefined);
       case /* Float */2 :
           var $$float = innerLiteral._0;
-          return make("Float Literal (" + $$float.toString() + ")", tagged, makeParseMigrationFactory($$float, (function (input) {
+          return make("Float Literal (" + $$float.toString() + ")", tagged, makeParseTransformationFactory($$float, (function (input) {
                             return typeof input === "number";
-                          })), makeSerializeMigrationFactory($$float), undefined, undefined);
+                          })), makeSerializeTransformationFactory($$float), undefined, undefined);
       case /* Bool */3 :
           var bool = innerLiteral._0;
-          return make("Bool Literal (" + bool + ")", tagged, makeParseMigrationFactory(bool, (function (input) {
+          return make("Bool Literal (" + bool + ")", tagged, makeParseTransformationFactory(bool, (function (input) {
                             return typeof input === "boolean";
-                          })), makeSerializeMigrationFactory(bool), undefined, undefined);
+                          })), makeSerializeTransformationFactory(bool), undefined, undefined);
       
     }
   }
@@ -864,7 +864,7 @@ function factory$2(param) {
                   }
                 }
                 var withAsyncOps = asyncOps.length > 0;
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
                           raiseUnexpectedTypeError(input, struct);
                         }
@@ -911,7 +911,7 @@ function factory$2(param) {
                         }
                       }));
                 if (withAsyncOps) {
-                  return planAsyncMigration(ctx, (function (tempArray) {
+                  return planAsyncTransformation(ctx, (function (tempArray) {
                                 return Promise.all(asyncOps.map(function (param) {
                                                   var fieldName = param[1];
                                                   return tempArray[param[0]]().catch(function (exn) {
@@ -931,7 +931,7 @@ function factory$2(param) {
                 }
                 
               }), (function (ctx, param) {
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         var unknown = {};
                         var fieldValues = fieldNames.length <= 1 ? [input] : input;
                         for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
@@ -975,12 +975,12 @@ function strict(struct) {
 }
 
 function factory$3(param) {
-  var migrationFactory = function (ctx, struct) {
-    planSyncMigration(ctx, (function (input) {
+  var transformationFactory = function (ctx, struct) {
+    planSyncTransformation(ctx, (function (input) {
             return raiseUnexpectedTypeError(input, struct);
           }));
   };
-  return make("Never", /* Never */0, migrationFactory, migrationFactory, undefined, undefined);
+  return make("Never", /* Never */0, transformationFactory, transformationFactory, undefined, undefined);
 }
 
 function factory$4(param) {
@@ -995,7 +995,7 @@ var emailRegex = /^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@
 
 function factory$5(param) {
   return make("String", /* String */2, (function (ctx, struct) {
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         if (typeof input === "string") {
                           return input;
                         } else {
@@ -1115,7 +1115,7 @@ function factory$6(innerStruct) {
                 var $$process = typeof fn === "number" ? (function (prim) {
                       return prim;
                     }) : fn._0;
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         if (typeof input !== "string") {
                           return raiseUnexpectedTypeError(input, struct);
                         }
@@ -1138,12 +1138,12 @@ function factory$6(innerStruct) {
                 if (typeof match === "number" || match.TAG === /* SyncOperation */0) {
                   return ;
                 } else {
-                  return planAsyncMigration(ctx, (function (asyncFn) {
+                  return planAsyncTransformation(ctx, (function (asyncFn) {
                                 return asyncFn();
                               }));
                 }
               }), (function (ctx, param) {
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         var fn = innerStruct.s;
                         var tmp;
                         tmp = typeof fn === "number" ? input : (
@@ -1156,7 +1156,7 @@ function factory$6(innerStruct) {
 
 function factory$7(param) {
   return make("Bool", /* Bool */5, (function (ctx, struct) {
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         if (typeof input === "boolean") {
                           return input;
                         } else {
@@ -1168,7 +1168,7 @@ function factory$7(param) {
 
 function factory$8(param) {
   return make("Int", /* Int */3, (function (ctx, struct) {
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input % 1 === 0) {
                           return input;
                         } else {
@@ -1213,7 +1213,7 @@ function port(struct, messageOpt, param) {
 
 function factory$9(param) {
   return make("Float", /* Float */4, (function (ctx, struct) {
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         if (typeof input === "number" && !Number.isNaN(input)) {
                           return input;
                         } else {
@@ -1225,7 +1225,7 @@ function factory$9(param) {
 
 function factory$10(param) {
   return make("Date", /* Date */6, (function (ctx, struct) {
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         if ((input instanceof Date) && !Number.isNaN(input.getTime())) {
                           return input;
                         } else {
@@ -1240,8 +1240,8 @@ function factory$11(innerStruct) {
               TAG: /* Null */2,
               _0: innerStruct
             }, (function (ctx, param) {
-                var planSyncMigration$1 = function (fn) {
-                  planSyncMigration(ctx, (function (input) {
+                var planSyncTransformation$1 = function (fn) {
+                  planSyncTransformation(ctx, (function (input) {
                           if (input !== null) {
                             return Caml_option.some(fn(input));
                           }
@@ -1250,7 +1250,7 @@ function factory$11(innerStruct) {
                 };
                 var fn = innerStruct.p;
                 if (typeof fn === "number") {
-                  return planSyncMigration(ctx, (function (prim) {
+                  return planSyncTransformation(ctx, (function (prim) {
                                 if (prim === null) {
                                   return ;
                                 } else {
@@ -1259,10 +1259,10 @@ function factory$11(innerStruct) {
                               }));
                 }
                 if (fn.TAG === /* SyncOperation */0) {
-                  return planSyncMigration$1(fn._0);
+                  return planSyncTransformation$1(fn._0);
                 }
-                planSyncMigration$1(fn._0);
-                planAsyncMigration(ctx, (function (input) {
+                planSyncTransformation$1(fn._0);
+                planAsyncTransformation(ctx, (function (input) {
                         if (input !== undefined) {
                           return input().then(function (value) {
                                       return Caml_option.some(value);
@@ -1272,7 +1272,7 @@ function factory$11(innerStruct) {
                         }
                       }));
               }), (function (ctx, param) {
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         if (input === undefined) {
                           return null;
                         }
@@ -1294,8 +1294,8 @@ function factory$12(innerStruct) {
               TAG: /* Option */1,
               _0: innerStruct
             }, (function (ctx, param) {
-                var planSyncMigration$1 = function (fn) {
-                  planSyncMigration(ctx, (function (input) {
+                var planSyncTransformation$1 = function (fn) {
+                  planSyncTransformation(ctx, (function (input) {
                           if (input !== undefined) {
                             return Caml_option.some(fn(Caml_option.valFromOption(input)));
                           }
@@ -1307,10 +1307,10 @@ function factory$12(innerStruct) {
                   return ;
                 }
                 if (fn.TAG === /* SyncOperation */0) {
-                  return planSyncMigration$1(fn._0);
+                  return planSyncTransformation$1(fn._0);
                 }
-                planSyncMigration$1(fn._0);
-                planAsyncMigration(ctx, (function (input) {
+                planSyncTransformation$1(fn._0);
+                planAsyncTransformation(ctx, (function (input) {
                         if (input !== undefined) {
                           return input().then(function (value) {
                                       return Caml_option.some(value);
@@ -1320,7 +1320,7 @@ function factory$12(innerStruct) {
                         }
                       }));
               }), (function (ctx, param) {
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         if (input === undefined) {
                           return ;
                         }
@@ -1354,15 +1354,15 @@ function factory$14(innerStruct) {
               TAG: /* Array */3,
               _0: innerStruct
             }, (function (ctx, struct) {
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         if (Array.isArray(input) === false) {
                           return raiseUnexpectedTypeError(input, struct);
                         } else {
                           return input;
                         }
                       }));
-                var planSyncMigration$1 = function (fn) {
-                  planSyncMigration(ctx, (function (input) {
+                var planSyncTransformation$1 = function (fn) {
+                  planSyncTransformation(ctx, (function (input) {
                           var newArray = [];
                           for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
                             var innerData = input[idx];
@@ -1390,10 +1390,10 @@ function factory$14(innerStruct) {
                   return ;
                 }
                 if (fn.TAG === /* SyncOperation */0) {
-                  return planSyncMigration$1(fn._0);
+                  return planSyncTransformation$1(fn._0);
                 }
-                planSyncMigration$1(fn._0);
-                planAsyncMigration(ctx, (function (input) {
+                planSyncTransformation$1(fn._0);
+                planAsyncTransformation(ctx, (function (input) {
                         return Promise.all(input.map(function (asyncFn, idx) {
                                         return asyncFn().catch(function (exn) {
                                                     throw exn.RE_EXN_ID === Exception ? ({
@@ -1412,7 +1412,7 @@ function factory$14(innerStruct) {
                   return panic$1(undefined);
                 }
                 var fn$1 = fn._0;
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         var newArray = [];
                         for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
                           var innerData = input[idx];
@@ -1475,8 +1475,8 @@ function factory$15(innerStruct) {
               TAG: /* Dict */7,
               _0: innerStruct
             }, (function (ctx, struct) {
-                var planSyncMigration$1 = function (fn) {
-                  planSyncMigration(ctx, (function (input) {
+                var planSyncTransformation$1 = function (fn) {
+                  planSyncTransformation(ctx, (function (input) {
                           var newDict = {};
                           var keys = Object.keys(input);
                           for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
@@ -1501,7 +1501,7 @@ function factory$15(innerStruct) {
                           return newDict;
                         }));
                 };
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
                           return raiseUnexpectedTypeError(input, struct);
                         } else {
@@ -1513,10 +1513,10 @@ function factory$15(innerStruct) {
                   return ;
                 }
                 if (fn.TAG === /* SyncOperation */0) {
-                  return planSyncMigration$1(fn._0);
+                  return planSyncTransformation$1(fn._0);
                 }
-                planSyncMigration$1(fn._0);
-                planAsyncMigration(ctx, (function (input) {
+                planSyncTransformation$1(fn._0);
+                planAsyncTransformation(ctx, (function (input) {
                         var keys = Object.keys(input);
                         return Promise.all(keys.map(function (key) {
                                           var asyncFn = input[key];
@@ -1557,7 +1557,7 @@ function factory$15(innerStruct) {
                   return panic$1(undefined);
                 }
                 var fn$1 = fn._0;
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         var newDict = {};
                         var keys = Object.keys(input);
                         for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
@@ -1590,7 +1590,7 @@ function factory$16(innerStruct, defaultValue) {
   return set(make(innerStruct.n, innerStruct.t, (function (ctx, param) {
                     var fn = innerStruct.p;
                     if (typeof fn === "number") {
-                      return planSyncMigration(ctx, (function (input) {
+                      return planSyncTransformation(ctx, (function (input) {
                                     if (input !== undefined) {
                                       return Caml_option.valFromOption(input);
                                     } else {
@@ -1600,7 +1600,7 @@ function factory$16(innerStruct, defaultValue) {
                     }
                     if (fn.TAG === /* SyncOperation */0) {
                       var fn$1 = fn._0;
-                      return planSyncMigration(ctx, (function (input) {
+                      return planSyncTransformation(ctx, (function (input) {
                                     var option = fn$1(input);
                                     if (option !== undefined) {
                                       return Caml_option.valFromOption(option);
@@ -1609,8 +1609,8 @@ function factory$16(innerStruct, defaultValue) {
                                     }
                                   }));
                     }
-                    planSyncMigration(ctx, fn._0);
-                    planAsyncMigration(ctx, (function (asyncFn) {
+                    planSyncTransformation(ctx, fn._0);
+                    planAsyncTransformation(ctx, (function (asyncFn) {
                             return asyncFn().then(function (value) {
                                         if (value !== undefined) {
                                           return Caml_option.valFromOption(value);
@@ -1620,7 +1620,7 @@ function factory$16(innerStruct, defaultValue) {
                                       });
                           }));
                   }), (function (ctx, param) {
-                    planSyncMigration(ctx, (function (input) {
+                    planSyncTransformation(ctx, (function (input) {
                             var value = Caml_option.some(input);
                             var fn = innerStruct.s;
                             if (typeof fn === "number") {
@@ -1669,7 +1669,7 @@ function factory$17(param) {
                   }
                 }
                 var withAsyncOps = asyncOps.length > 0;
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         if (Array.isArray(input)) {
                           var numberOfInputItems = input.length;
                           if (numberOfStructs !== numberOfInputItems) {
@@ -1722,7 +1722,7 @@ function factory$17(param) {
                         }
                       }));
                 if (withAsyncOps) {
-                  return planAsyncMigration(ctx, (function (tempArray) {
+                  return planAsyncTransformation(ctx, (function (tempArray) {
                                 return Promise.all(asyncOps.map(function (originalIdx) {
                                                   return tempArray[originalIdx]().catch(function (exn) {
                                                               throw exn.RE_EXN_ID === Exception ? ({
@@ -1745,7 +1745,7 @@ function factory$17(param) {
                 }
                 
               }), (function (ctx, param) {
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         var inputArray = numberOfStructs === 1 ? [input] : input;
                         var newArray = [];
                         for(var idx = 0; idx < numberOfStructs; ++idx){
@@ -1816,7 +1816,7 @@ function factory$18(structs) {
                 }
                 var withAsyncOps = asyncOps.length > 0;
                 if (noopOps.length === 0) {
-                  planSyncMigration(ctx, (function (input) {
+                  planSyncTransformation(ctx, (function (input) {
                           var idxRef = 0;
                           var errorsRef = [];
                           var maybeNewValueRef;
@@ -1862,7 +1862,7 @@ function factory$18(structs) {
                           }
                         }));
                   if (withAsyncOps) {
-                    return planAsyncMigration(ctx, (function (input) {
+                    return planAsyncTransformation(ctx, (function (input) {
                                   var syncValue = input.maybeSyncValue;
                                   if (syncValue !== undefined) {
                                     return Promise.resolve(Caml_option.valFromOption(syncValue));
@@ -1912,7 +1912,7 @@ function factory$18(structs) {
                 }
                 
               }), (function (ctx, param) {
-                planSyncMigration(ctx, (function (input) {
+                planSyncTransformation(ctx, (function (input) {
                         var idxRef = 0;
                         var maybeLastErrorRef;
                         var maybeNewValueRef;

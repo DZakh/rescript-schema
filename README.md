@@ -2,14 +2,14 @@
 
 # ReScript Struct
 
-Safely parse and serialize data with ability to describe migration to a convenient format.
+Safely parse and serialize with transformation to convenient ReScript data structures.
 
 Highlights:
 
 - Parses any data, not only JSON
 - Asynchronous refinements and transforms
 - Support for both result and exception based API
-- Ability to disallow unrecognized object keys
+- Ability to disallow excessive object fields
 - Built-in `union`, `literal` and many other structs
 - Fast: The **3rd** fastest parsing library in the whole JavaScript ecosystem ([benchmark](https://dzakh.github.io/rescript-runtime-type-benchmarks/))
 - Tiny: [7kb minified + zipped](https://bundle.js.org/?q=github%3ADZakh%2Frescript-struct%2Fmain%2Fsrc%2FS.bs.js&treeshake=%5B*+as+S%5D&config=%7B%22esbuild%22%3A%7B%22external%22%3A%5B%22rescript%22%5D%7D%7D)
@@ -112,7 +112,7 @@ Ok({
 data->S.parseWith(userStruct)
 ```
 
-Given any struct, you can call `parseWith` to check data is valid. It returns a result with valid data migrated to expected type or a **rescript-struct** error.
+Given any struct, you can call `parseWith` to check data is valid. It returns a result with valid data transformed to expected type or a **rescript-struct** error.
 
 #### **`S.parseOrRaiseWith`**
 
@@ -767,9 +767,9 @@ let intToString = struct =>
 
 #### **`S.advancedTransform`** _Advanced_
 
-`type migration<'input, 'output> = Sync('input => 'output) | Async('input => Js.Promise.t<'output>)`
+`type transformation<'input, 'output> = Sync('input => 'output) | Async('input => Js.Promise.t<'output>)`
 
-`(S.t<'value>, ~parser: (~struct: S.t<'value>) => S.migration<'value, 'transformed>=?, ~serializer: (~struct: S.t<'value>) => S.migration<'transformed, 'value>=?, unit) => S.t<'transformed>`
+`(S.t<'value>, ~parser: (~struct: S.t<'value>) => S.transformation<'value, 'transformed>=?, ~serializer: (~struct: S.t<'value>) => S.transformation<'transformed, 'value>=?, unit) => S.t<'transformed>`
 
 The `transform`, `refine`, `asyncRefine`, and `custom` functions are actually syntactic sugar atop a more versatile (and verbose) function called `advancedTransform`.
 
