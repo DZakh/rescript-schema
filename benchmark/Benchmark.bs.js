@@ -18,7 +18,54 @@ var Suite = {
 };
 
 run(new Benchmark.Suite().add("String struct factory", (function (param) {
-            return S.string(undefined);
+              return S.string(undefined);
+            })).add("Advanced object struct factory", (function (param) {
+            return S.transform(S.object7([
+                            "number",
+                            S.$$float(undefined)
+                          ], [
+                            "negNumber",
+                            S.$$float(undefined)
+                          ], [
+                            "maxNumber",
+                            S.$$float(undefined)
+                          ], [
+                            "string",
+                            S.string(undefined)
+                          ], [
+                            "longString",
+                            S.string(undefined)
+                          ], [
+                            "boolean",
+                            S.bool(undefined)
+                          ], [
+                            "deeplyNested",
+                            S.object3([
+                                  "foo",
+                                  S.string(undefined)
+                                ], [
+                                  "num",
+                                  S.$$float(undefined)
+                                ], [
+                                  "bool",
+                                  S.bool(undefined)
+                                ])
+                          ]), (function (param) {
+                          var match = param[6];
+                          return {
+                                  number: param[0],
+                                  negNumber: param[1],
+                                  maxNumber: param[2],
+                                  string: param[3],
+                                  longString: param[4],
+                                  boolean: param[5],
+                                  deeplyNested: {
+                                    foo: match[0],
+                                    num: match[1],
+                                    bool: match[2]
+                                  }
+                                };
+                        }), undefined, undefined);
           })));
 
 exports.Suite = Suite;
