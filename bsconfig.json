@@ -1,10 +1,7 @@
 {
   "name": "rescript-struct",
   "namespace": false,
-  "bs-dev-dependencies": [
-    "@dzakh/rescript-ava",
-    "@ryyppy/rescript-promise"
-  ],
+  "bs-dev-dependencies": ["@dzakh/rescript-ava", "@ryyppy/rescript-promise"],
   "suffix": ".bs.js",
   "package-specs": {
     "module": "commonjs",
@@ -16,6 +13,10 @@
     },
     {
       "dir": "__tests__",
+      "type": "dev"
+    },
+    {
+      "dir": "benchmark",
       "type": "dev"
     }
   ]
