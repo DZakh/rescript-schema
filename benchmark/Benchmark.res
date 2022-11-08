@@ -35,5 +35,3 @@ Suite.make()
   S.string()
 })
 ->Suite.run
-
-// https://github.com/benchmark-action/github-action-benchmark/tree/master/examples/benchmarkjs
