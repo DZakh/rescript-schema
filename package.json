@@ -13,6 +13,8 @@
     "Encode",
     "Decode",
     "Validation",
+    "Transform",
+    "Migration",
     "Contract",
     "Mapping",
     "Jzon",
@@ -40,7 +42,8 @@
     "res:build": "rescript build -with-deps",
     "res:dev": "rescript build -with-deps -w",
     "test": "ava",
-    "coverage": "c8 --reporter=lcov npm test"
+    "coverage": "c8 --reporter=lcov npm test",
+    "benchmark": "node ./benchmark/Benchmark.bs.js"
   },
   "ava": {
     "files": [
@@ -51,6 +54,7 @@
     "@dzakh/rescript-ava": "1.0.0",
     "@ryyppy/rescript-promise": "2.1.0",
     "ava": "5.0.1",
+    "benchmark": "2.1.4",
     "c8": "7.12.0",
     "rescript": "10.0.1"
   },

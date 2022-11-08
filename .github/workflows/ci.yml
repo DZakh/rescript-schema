@@ -10,8 +10,8 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
     name: Test
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -20,7 +20,41 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run res:build
+
       - run: npm run coverage
       - uses: codecov/codecov-action@v2
         with:
           files: coverage/lcov.info
+
+  benchmark:
+    name: Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: npm
+      - run: npm ci
+      - run: npm run res:build
+
+      - name: Run benchmark
+        run: npm run benchmark | tee output.txt
+
+      - name: Download previous benchmark data
+        uses: actions/cache@v1
+        with:
+          path: ./cache
+          key: ${{ runner.os }}-benchmark
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: "benchmarkjs"
+          output-file-path: output.txt
+          external-data-json-path: ./cache/benchmark-data.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          alert-threshold: "150%"
+          comment-always: true
+          comment-on-alert: true
+          fail-on-alert: true
