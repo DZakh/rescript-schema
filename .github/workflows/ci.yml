@@ -22,7 +22,7 @@ jobs:
       - run: npm run res:build
 
       - run: npm run coverage
-      - uses: codecov/codecov-action@v2
+      - uses: codecov/codecov-action@v3
         with:
           files: coverage/lcov.info
 
@@ -42,7 +42,7 @@ jobs:
         run: npm run benchmark | tee output.txt
 
       - name: Download previous benchmark data
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ./cache
           key: ${{ runner.os }}-benchmark
