@@ -976,6 +976,8 @@ function strict(struct) {
   return set(struct, metadataId, /* Strict */0);
 }
 
+var errorVar = "$_e";
+
 var value = (Symbol("rescript-struct:Object.FieldPlaceholder"));
 
 function addFieldUsage(builderCtx, struct, maybeNameOverride) {
@@ -1075,8 +1077,9 @@ function factory$3(builder) {
                         ]);
                   }
                 }
-                var originalObjectVar = "$oo";
-                var newObjectVar = "$no";
+                var originalObjectVar = "$_oo";
+                var newObjectVar = "$_no";
+                var fieldNameVar = "$_fn";
                 var refinement = "if(" + ("(typeof " + originalObjectVar + " === \"object\" && !Array.isArray(" + originalObjectVar + ") && " + originalObjectVar + " !== null) === false") + "){" + ("raiseUnexpectedTypeError(" + originalObjectVar + ", struct)") + "}";
                 var stringRef = "var " + newObjectVar + "={";
                 for(var idx$1 = 0 ,idx_finish$1 = noopOps.length; idx$1 < idx_finish$1; ++idx$1){
@@ -1089,14 +1092,16 @@ function factory$3(builder) {
                   var match$2 = syncOps[idx$2];
                   var fieldName$1 = match$2[1];
                   var originalFieldName$1 = match$2[0];
+                  stringRef$1 = stringRef$1 + ("" + fieldNameVar + "=\"" + originalFieldName$1 + "\";");
                   if (match$2[3]) {
-                    var inlinedFn = match$2[2].toString().replace("function (input) ", "").replace(/return (.+);/g, "" + newObjectVar + "." + fieldName$1 + " = ($1)");
-                    stringRef$1 = stringRef$1 + ("\n                  var input = " + originalObjectVar + "." + originalFieldName$1 + ";\n                  try " + inlinedFn + "\n                  catch (exn){\n                    catchFieldError(exn, \"" + originalFieldName$1 + "\");\n                  }\n                ");
+                    var inlinedFn = match$2[2].toString().replace("function (input) ", "").replace(/return (.+);/g, "" + newObjectVar + "." + fieldName$1 + "=($1)");
+                    stringRef$1 = stringRef$1 + ("var input=" + originalObjectVar + "." + originalFieldName$1 + ";" + inlinedFn + "");
                   } else {
-                    stringRef$1 = stringRef$1 + ("try {\n                    " + newObjectVar + "." + fieldName$1 + " = syncOps[" + idx$2.toString() + "][2](" + originalObjectVar + "." + originalFieldName$1 + ");\n                  } catch (exn){\n                    catchFieldError(exn, \"" + originalFieldName$1 + "\");\n                  }\n                ");
+                    stringRef$1 = stringRef$1 + ("" + newObjectVar + "." + fieldName$1 + "=syncOps[" + idx$2.toString() + "][2](" + originalObjectVar + "." + originalFieldName$1 + ");");
                   }
                 }
-                var newObjectConstruction = stringRef$1;
+                var tryContent = stringRef$1;
+                var newObjectConstruction = "var " + fieldNameVar + ";" + ("try{" + tryContent + "}catch(" + errorVar + "){" + ("catchFieldError(" + errorVar + ", \"" + fieldNameVar + "\")") + "}");
                 var stringRef$2 = "for(var key in " + originalObjectVar + "){switch(key){";
                 for(var idx$3 = 0 ,idx_finish$3 = originalFieldNames.length; idx$3 < idx_finish$3; ++idx$3){
                   var originalFieldName$2 = originalFieldNames[idx$3];

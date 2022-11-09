@@ -1275,6 +1275,10 @@ module Object = {
 
 module Object2 = {
   module Inline = {
+    module Constant = {
+      let errorVar = "$_e"
+    }
+
     module Fn = {
       @inline
       let make = (~arguments, ~content) => {
@@ -1286,6 +1290,13 @@ module Object2 = {
       @inline
       let make = (~condition, ~content) => {
         `if(${condition}){${content}}`
+      }
+    }
+
+    module TryCatch = {
+      @inline
+      let make = (~tryContent, ~catchContent) => {
+        `try{${tryContent}}catch(${Constant.errorVar}){${catchContent}}`
       }
     }
   }
@@ -1429,8 +1440,9 @@ module Object2 = {
         }
 
         ctx->TransformationFactory.Ctx.planSyncTransformation({
-          let originalObjectVar = "$oo"
-          let newObjectVar = "$no"
+          let originalObjectVar = "$_oo"
+          let newObjectVar = "$_no"
+          let fieldNameVar = "$_fn"
 
           let refinement = Inline.If.make(
             ~condition=`(typeof ${originalObjectVar} === "object" && !Array.isArray(${originalObjectVar}) && ${originalObjectVar} !== null) === false`,
@@ -1448,41 +1460,40 @@ module Object2 = {
           }
 
           let newObjectConstruction = {
-            let stringRef = ref(``)
-            for idx in 0 to syncOps->Js.Array2.length - 1 {
-              let (originalFieldName, fieldName, fn, isInlined) = syncOps->Js.Array2.unsafe_get(idx)
-              if isInlined {
-                let inlinedFn =
-                  fn
-                  ->Obj.magic
-                  ->Js.Int.toString
-                  ->Js.String2.replace("function (input) ", "")
-                  ->Js.String2.replaceByRe(
-                    %re(`/return (.+);/g`),
-                    `${newObjectVar}.${fieldName} = ($1)`,
-                  )
+            let tryContent = {
+              let stringRef = ref("")
+              for idx in 0 to syncOps->Js.Array2.length - 1 {
+                let (originalFieldName, fieldName, fn, isInlined) =
+                  syncOps->Js.Array2.unsafe_get(idx)
+                stringRef.contents = stringRef.contents ++ `${fieldNameVar}="${originalFieldName}";`
+                if isInlined {
+                  let inlinedFn =
+                    fn
+                    ->Obj.magic
+                    ->Js.Int.toString
+                    ->Js.String2.replace("function (input) ", "")
+                    ->Js.String2.replaceByRe(
+                      %re(`/return (.+);/g`),
+                      `${newObjectVar}.${fieldName}=($1)`,
+                    )
 
-                stringRef.contents =
-                  stringRef.contents ++
-                  `
-                  var input = ${originalObjectVar}.${originalFieldName};
-                  try ${inlinedFn}
-                  catch (exn){
-                    catchFieldError(exn, "${originalFieldName}");
-                  }
-                `
-              } else {
-                stringRef.contents =
-                  stringRef.contents ++
-                  `try {
-                    ${newObjectVar}.${fieldName} = syncOps[${idx->Js.Int.toString}][2](${originalObjectVar}.${originalFieldName});
-                  } catch (exn){
-                    catchFieldError(exn, "${originalFieldName}");
-                  }
-                `
+                  stringRef.contents =
+                    stringRef.contents ++
+                    `var input=${originalObjectVar}.${originalFieldName};${inlinedFn}`
+                } else {
+                  stringRef.contents =
+                    stringRef.contents ++
+                    `${newObjectVar}.${fieldName}=syncOps[${idx->Js.Int.toString}][2](${originalObjectVar}.${originalFieldName});`
+                }
               }
+              stringRef.contents
             }
-            stringRef.contents
+
+            `var ${fieldNameVar};` ++
+            Inline.TryCatch.make(
+              ~tryContent,
+              ~catchContent=`catchFieldError(${Inline.Constant.errorVar}, "${fieldNameVar}")`,
+            )
           }
 
           let unknownKeysRefinement = {
