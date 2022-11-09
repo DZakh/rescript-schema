@@ -1274,6 +1274,22 @@ module Object = {
 }
 
 module Object2 = {
+  module Inline = {
+    module Fn = {
+      @inline
+      let make = (~arguments, ~content) => {
+        `function(${arguments}){${content}}`
+      }
+    }
+
+    module If = {
+      @inline
+      let make = (~condition, ~content) => {
+        `if(${condition}){${content}}`
+      }
+    }
+  }
+
   module FieldPlaceholder = {
     type t
 
@@ -1379,7 +1395,7 @@ module Object2 = {
       ~name="Object",
       ~tagged=Object({fields: originalFields, fieldNames: originalFieldNames}),
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
-        let withStrictUnknownKeys =
+        let withUnknownKeysRefinement =
           struct->Object.UnknownKeys.classify === Object.UnknownKeys.Strict
 
         let noopOps = []
@@ -1413,25 +1429,28 @@ module Object2 = {
         }
 
         ctx->TransformationFactory.Ctx.planSyncTransformation({
-          let syncTransformation = {
-            let syncTransformationRef = ref(`function (__originalObject) {
-              if ((typeof __originalObject === "object" && !Array.isArray(__originalObject) && __originalObject !== null) === false) {
-                // TODO: Pass struct (?)
-                raiseUnexpectedTypeError(__originalObject, struct);
-              }
-            `)
-            syncTransformationRef.contents = syncTransformationRef.contents ++ `var __newObject = {`
+          let originalObjectVar = "$oo"
+          let newObjectVar = "$no"
+
+          let refinement = Inline.If.make(
+            ~condition=`(typeof ${originalObjectVar} === "object" && !Array.isArray(${originalObjectVar}) && ${originalObjectVar} !== null) === false`,
+            ~content=`raiseUnexpectedTypeError(${originalObjectVar}, struct)`,
+          )
+
+          let initialNewObject = {
+            let stringRef = ref(`var ${newObjectVar}={`)
             for idx in 0 to noopOps->Js.Array2.length - 1 {
               let (originalFieldName, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
-              syncTransformationRef.contents =
-                syncTransformationRef.contents ++
-                `${fieldName}: __originalObject.${originalFieldName},`
+              stringRef.contents =
+                stringRef.contents ++ `${fieldName}:${originalObjectVar}.${originalFieldName},`
             }
-            syncTransformationRef.contents = syncTransformationRef.contents ++ `};`
+            stringRef.contents ++ `};`
+          }
 
+          let newObjectConstruction = {
+            let stringRef = ref(``)
             for idx in 0 to syncOps->Js.Array2.length - 1 {
               let (originalFieldName, fieldName, fn, isInlined) = syncOps->Js.Array2.unsafe_get(idx)
-
               if isInlined {
                 let inlinedFn =
                   fn
@@ -1440,47 +1459,47 @@ module Object2 = {
                   ->Js.String2.replace("function (input) ", "")
                   ->Js.String2.replaceByRe(
                     %re(`/return (.+);/g`),
-                    `__newObject.${fieldName} = ($1)`,
+                    `${newObjectVar}.${fieldName} = ($1)`,
                   )
 
-                syncTransformationRef.contents =
-                  syncTransformationRef.contents ++
+                stringRef.contents =
+                  stringRef.contents ++
                   `
-                  var input = __originalObject.${originalFieldName};
+                  var input = ${originalObjectVar}.${originalFieldName};
                   try ${inlinedFn}
                   catch (exn){
                     catchFieldError(exn, "${originalFieldName}");
                   }
                 `
               } else {
-                syncTransformationRef.contents =
-                  syncTransformationRef.contents ++
-                  `
-                  try {
-                    __newObject.${fieldName} = syncOps[${idx->Js.Int.toString}][2](__originalObject.${originalFieldName});
+                stringRef.contents =
+                  stringRef.contents ++
+                  `try {
+                    ${newObjectVar}.${fieldName} = syncOps[${idx->Js.Int.toString}][2](${originalObjectVar}.${originalFieldName});
                   } catch (exn){
                     catchFieldError(exn, "${originalFieldName}");
                   }
                 `
               }
             }
-            if withStrictUnknownKeys {
-              syncTransformationRef.contents =
-                syncTransformationRef.contents ++ `
-                  for (var key in __originalObject) {
-                    switch (key) {`
-              for idx in 0 to originalFieldNames->Js.Array2.length - 1 {
-                let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
-                syncTransformationRef.contents =
-                  syncTransformationRef.contents ++ `case "${originalFieldName}": break;`
-              }
-              syncTransformationRef.contents =
-                syncTransformationRef.contents ++ `default: raiseOnExcessField(key);
-                  }
-                }`
-            }
-            syncTransformationRef.contents ++ `return __newObject;}`
+            stringRef.contents
           }
+
+          let unknownKeysRefinement = {
+            let stringRef = ref(`for(var key in ${originalObjectVar}){switch(key){`)
+            for idx in 0 to originalFieldNames->Js.Array2.length - 1 {
+              let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
+              stringRef.contents = stringRef.contents ++ `case"${originalFieldName}":break;`
+            }
+            stringRef.contents ++ `default:raiseOnExcessField(key);}}`
+          }
+
+          let syncTransformation = Inline.Fn.make(
+            ~arguments=originalObjectVar,
+            ~content=`${refinement}${initialNewObject}${newObjectConstruction}${withUnknownKeysRefinement
+                ? unknownKeysRefinement
+                : ""}return ${newObjectVar}`,
+          )
 
           %raw(`new Function('syncOps', 'originalFields', 'raiseUnexpectedTypeError','raiseOnExcessField', 'catchFieldError', 'return ' + syncTransformation)`)(.
             ~syncOps,

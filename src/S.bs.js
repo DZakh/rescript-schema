@@ -1039,7 +1039,7 @@ function factory$3(builder) {
               fields: originalFields,
               fieldNames: originalFieldNames
             }, (function (ctx, struct) {
-                var withStrictUnknownKeys = classify$1(struct) === /* Strict */0;
+                var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
                 var noopOps = [];
                 var syncOps = [];
                 var asyncOps = [];
@@ -1075,33 +1075,37 @@ function factory$3(builder) {
                         ]);
                   }
                 }
-                var syncTransformationRef = "function (__originalObject) {\n              if ((typeof __originalObject === \"object\" && !Array.isArray(__originalObject) && __originalObject !== null) === false) {\n                // TODO: Pass struct (?)\n                raiseUnexpectedTypeError(__originalObject, struct);\n              }\n            ";
-                syncTransformationRef = syncTransformationRef + "var __newObject = {";
+                var originalObjectVar = "$oo";
+                var newObjectVar = "$no";
+                var refinement = "if(" + ("(typeof " + originalObjectVar + " === \"object\" && !Array.isArray(" + originalObjectVar + ") && " + originalObjectVar + " !== null) === false") + "){" + ("raiseUnexpectedTypeError(" + originalObjectVar + ", struct)") + "}";
+                var stringRef = "var " + newObjectVar + "={";
                 for(var idx$1 = 0 ,idx_finish$1 = noopOps.length; idx$1 < idx_finish$1; ++idx$1){
                   var match$1 = noopOps[idx$1];
-                  syncTransformationRef = syncTransformationRef + ("" + match$1[1] + ": __originalObject." + match$1[0] + ",");
+                  stringRef = stringRef + ("" + match$1[1] + ":" + originalObjectVar + "." + match$1[0] + ",");
                 }
-                syncTransformationRef = syncTransformationRef + "};";
+                var initialNewObject = stringRef + "};";
+                var stringRef$1 = "";
                 for(var idx$2 = 0 ,idx_finish$2 = syncOps.length; idx$2 < idx_finish$2; ++idx$2){
                   var match$2 = syncOps[idx$2];
                   var fieldName$1 = match$2[1];
                   var originalFieldName$1 = match$2[0];
                   if (match$2[3]) {
-                    var inlinedFn = match$2[2].toString().replace("function (input) ", "").replace(/return (.+);/g, "__newObject." + fieldName$1 + " = ($1)");
-                    syncTransformationRef = syncTransformationRef + ("\n                  var input = __originalObject." + originalFieldName$1 + ";\n                  try " + inlinedFn + "\n                  catch (exn){\n                    catchFieldError(exn, \"" + originalFieldName$1 + "\");\n                  }\n                ");
+                    var inlinedFn = match$2[2].toString().replace("function (input) ", "").replace(/return (.+);/g, "" + newObjectVar + "." + fieldName$1 + " = ($1)");
+                    stringRef$1 = stringRef$1 + ("\n                  var input = " + originalObjectVar + "." + originalFieldName$1 + ";\n                  try " + inlinedFn + "\n                  catch (exn){\n                    catchFieldError(exn, \"" + originalFieldName$1 + "\");\n                  }\n                ");
                   } else {
-                    syncTransformationRef = syncTransformationRef + ("\n                  try {\n                    __newObject." + fieldName$1 + " = syncOps[" + idx$2.toString() + "][2](__originalObject." + originalFieldName$1 + ");\n                  } catch (exn){\n                    catchFieldError(exn, \"" + originalFieldName$1 + "\");\n                  }\n                ");
+                    stringRef$1 = stringRef$1 + ("try {\n                    " + newObjectVar + "." + fieldName$1 + " = syncOps[" + idx$2.toString() + "][2](" + originalObjectVar + "." + originalFieldName$1 + ");\n                  } catch (exn){\n                    catchFieldError(exn, \"" + originalFieldName$1 + "\");\n                  }\n                ");
                   }
                 }
-                if (withStrictUnknownKeys) {
-                  syncTransformationRef = syncTransformationRef + "\n                  for (var key in __originalObject) {\n                    switch (key) {";
-                  for(var idx$3 = 0 ,idx_finish$3 = originalFieldNames.length; idx$3 < idx_finish$3; ++idx$3){
-                    var originalFieldName$2 = originalFieldNames[idx$3];
-                    syncTransformationRef = syncTransformationRef + ("case \"" + originalFieldName$2 + "\": break;");
-                  }
-                  syncTransformationRef = syncTransformationRef + "default: raiseOnExcessField(key);\n                  }\n                }";
+                var newObjectConstruction = stringRef$1;
+                var stringRef$2 = "for(var key in " + originalObjectVar + "){switch(key){";
+                for(var idx$3 = 0 ,idx_finish$3 = originalFieldNames.length; idx$3 < idx_finish$3; ++idx$3){
+                  var originalFieldName$2 = originalFieldNames[idx$3];
+                  stringRef$2 = stringRef$2 + ("case\"" + originalFieldName$2 + "\":break;");
                 }
-                var syncTransformation = syncTransformationRef + "return __newObject;}";
+                var unknownKeysRefinement = stringRef$2 + "default:raiseOnExcessField(key);}}";
+                var syncTransformation = "function(" + originalObjectVar + "){" + ("" + refinement + "" + initialNewObject + "" + newObjectConstruction + "" + (
+                    withUnknownKeysRefinement ? unknownKeysRefinement : ""
+                  ) + "return " + newObjectVar + "") + "}";
                 planSyncTransformation(ctx, (new Function('syncOps', 'originalFields', 'raiseUnexpectedTypeError','raiseOnExcessField', 'catchFieldError', 'return ' + syncTransformation))(syncOps, originalFields, raiseUnexpectedTypeError, (function (exccessFieldName) {
                             return raise({
                                         TAG: /* ExcessField */4,
