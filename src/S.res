@@ -1472,14 +1472,11 @@ module Object2 = {
                     ->Obj.magic
                     ->Js.Int.toString
                     ->Js.String2.replace("function (input) ", "")
-                    ->Js.String2.replaceByRe(
-                      %re(`/return (.+);/g`),
-                      `${newObjectVar}.${fieldName}=($1)`,
-                    )
+                    ->Js.String2.replaceByRe(%re(`/return/g`), "")
 
                   stringRef.contents =
                     stringRef.contents ++
-                    `var input=${originalObjectVar}.${originalFieldName};${inlinedFn}`
+                    `var input=${originalObjectVar}.${originalFieldName};${inlinedFn};${newObjectVar}.${fieldName}=input;`
                 } else {
                   stringRef.contents =
                     stringRef.contents ++
@@ -1492,7 +1489,7 @@ module Object2 = {
             `var ${fieldNameVar};` ++
             Inline.TryCatch.make(
               ~tryContent,
-              ~catchContent=`catchFieldError(${Inline.Constant.errorVar}, "${fieldNameVar}")`,
+              ~catchContent=`catchFieldError(${Inline.Constant.errorVar},"${fieldNameVar}")`,
             )
           }
 
@@ -1500,7 +1497,7 @@ module Object2 = {
             let stringRef = ref(`for(var key in ${originalObjectVar}){switch(key){`)
             for idx in 0 to originalFieldNames->Js.Array2.length - 1 {
               let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
-              stringRef.contents = stringRef.contents ++ `case"${originalFieldName}":break;`
+              stringRef.contents = stringRef.contents ++ `case"${originalFieldName}":continue;`
             }
             stringRef.contents ++ `default:raiseOnExcessField(key);}}`
           }
@@ -1512,7 +1509,7 @@ module Object2 = {
                 : ""}return ${newObjectVar}`,
           )
 
-          %raw(`new Function('syncOps', 'originalFields', 'raiseUnexpectedTypeError','raiseOnExcessField', 'catchFieldError', 'return ' + syncTransformation)`)(.
+          %raw(`new Function('syncOps','originalFields','raiseUnexpectedTypeError','raiseOnExcessField','catchFieldError','return ' + syncTransformation)`)(.
             ~syncOps,
             ~originalFields,
             ~raiseUnexpectedTypeError,

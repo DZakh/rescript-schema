@@ -1094,24 +1094,24 @@ function factory$3(builder) {
                   var originalFieldName$1 = match$2[0];
                   stringRef$1 = stringRef$1 + ("" + fieldNameVar + "=\"" + originalFieldName$1 + "\";");
                   if (match$2[3]) {
-                    var inlinedFn = match$2[2].toString().replace("function (input) ", "").replace(/return (.+);/g, "" + newObjectVar + "." + fieldName$1 + "=($1)");
-                    stringRef$1 = stringRef$1 + ("var input=" + originalObjectVar + "." + originalFieldName$1 + ";" + inlinedFn + "");
+                    var inlinedFn = match$2[2].toString().replace("function (input) ", "").replace(/return/g, "");
+                    stringRef$1 = stringRef$1 + ("var input=" + originalObjectVar + "." + originalFieldName$1 + ";" + inlinedFn + ";" + newObjectVar + "." + fieldName$1 + "=input;");
                   } else {
                     stringRef$1 = stringRef$1 + ("" + newObjectVar + "." + fieldName$1 + "=syncOps[" + idx$2.toString() + "][2](" + originalObjectVar + "." + originalFieldName$1 + ");");
                   }
                 }
                 var tryContent = stringRef$1;
-                var newObjectConstruction = "var " + fieldNameVar + ";" + ("try{" + tryContent + "}catch(" + errorVar + "){" + ("catchFieldError(" + errorVar + ", \"" + fieldNameVar + "\")") + "}");
+                var newObjectConstruction = "var " + fieldNameVar + ";" + ("try{" + tryContent + "}catch(" + errorVar + "){" + ("catchFieldError(" + errorVar + ",\"" + fieldNameVar + "\")") + "}");
                 var stringRef$2 = "for(var key in " + originalObjectVar + "){switch(key){";
                 for(var idx$3 = 0 ,idx_finish$3 = originalFieldNames.length; idx$3 < idx_finish$3; ++idx$3){
                   var originalFieldName$2 = originalFieldNames[idx$3];
-                  stringRef$2 = stringRef$2 + ("case\"" + originalFieldName$2 + "\":break;");
+                  stringRef$2 = stringRef$2 + ("case\"" + originalFieldName$2 + "\":continue;");
                 }
                 var unknownKeysRefinement = stringRef$2 + "default:raiseOnExcessField(key);}}";
                 var syncTransformation = "function(" + originalObjectVar + "){" + ("" + refinement + "" + initialNewObject + "" + newObjectConstruction + "" + (
                     withUnknownKeysRefinement ? unknownKeysRefinement : ""
                   ) + "return " + newObjectVar + "") + "}";
-                planSyncTransformation(ctx, (new Function('syncOps', 'originalFields', 'raiseUnexpectedTypeError','raiseOnExcessField', 'catchFieldError', 'return ' + syncTransformation))(syncOps, originalFields, raiseUnexpectedTypeError, (function (exccessFieldName) {
+                planSyncTransformation(ctx, (new Function('syncOps','originalFields','raiseUnexpectedTypeError','raiseOnExcessField','catchFieldError','return ' + syncTransformation))(syncOps, originalFields, raiseUnexpectedTypeError, (function (exccessFieldName) {
                             return raise({
                                         TAG: /* ExcessField */4,
                                         _0: exccessFieldName
