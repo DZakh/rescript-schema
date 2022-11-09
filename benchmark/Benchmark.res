@@ -148,6 +148,50 @@ let makeAdvancedStrictObjectStruct = () => {
   ->S.Object.strict
 }
 
+let makeAdvancedObjectStructV3 = (. ()) => {
+  S.object(o =>
+    {
+      "number": o->S.field(S.float()),
+      "negNumber": o->S.field(S.float()),
+      "maxNumber": o->S.field(S.float()),
+      "string": o->S.field(S.string()),
+      "longString": o->S.field(S.string()),
+      "boolean": o->S.field(S.bool()),
+      "deeplyNested": o->S.field(
+        S.object(o =>
+          {
+            "foo": o->S.field(S.string()),
+            "num": o->S.field(S.float()),
+            "bool": o->S.field(S.bool()),
+          }
+        ),
+      ),
+    }
+  )
+}
+
+let makeAdvancedStrictObjectStructV3 = (. ()) => {
+  S.object(o =>
+    {
+      "number": o->S.field(S.float()),
+      "negNumber": o->S.field(S.float()),
+      "maxNumber": o->S.field(S.float()),
+      "string": o->S.field(S.string()),
+      "longString": o->S.field(S.string()),
+      "boolean": o->S.field(S.bool()),
+      "deeplyNested": o->S.field(
+        S.object(o =>
+          {
+            "foo": o->S.field(S.string()),
+            "num": o->S.field(S.float()),
+            "bool": o->S.field(S.bool()),
+          }
+        )->S.Object.strict,
+      ),
+    }
+  )->S.Object.strict
+}
+
 Suite.make()
 ->Suite.add("String struct factory", makeStringStruct)
 ->Suite.addWithPrepare("Parse string", () => {
@@ -165,6 +209,7 @@ Suite.make()
   }
 })
 ->Suite.add("Advanced object struct factory", makeAdvancedObjectStruct)
+->Suite.add("Advanced object struct factory V3", makeAdvancedObjectStructV3)
 ->Suite.addWithPrepare("Parse advanced object", () => {
   let struct = makeAdvancedObjectStruct(.)
   let data = makeTestObject(.)
@@ -172,8 +217,22 @@ Suite.make()
     data->S.parseWith(struct)
   }
 })
+->Suite.addWithPrepare("Parse advanced object V3", () => {
+  let struct = makeAdvancedObjectStructV3(.)
+  let data = makeTestObject(.)
+  (. ()) => {
+    data->S.parseWith(struct)
+  }
+})
 ->Suite.addWithPrepare("Parse advanced strict object", () => {
   let struct = makeAdvancedStrictObjectStruct()
+  let data = makeTestObject(.)
+  (. ()) => {
+    data->S.parseWith(struct)
+  }
+})
+->Suite.addWithPrepare("Parse advanced strict object V3", () => {
+  let struct = makeAdvancedStrictObjectStructV3(.)
   let data = makeTestObject(.)
   (. ()) => {
     data->S.parseWith(struct)
