@@ -1,6 +1,7 @@
 open Ava
 
 type user = {name: string, email: string, age: int}
+type options = {fast?: bool, mode: int}
 
 test("Successfully parses object without fields", t => {
   let value = ()
@@ -21,6 +22,42 @@ test("Successfully parses object with single field", t => {
   t->Assert.deepEqual(%raw(`{foo: "bar"}`)->S.parseWith(struct), Ok({"foo": "bar"}), ())
 })
 
+test("Fails to parse invalid object", t => {
+  let struct = S.object(o =>
+    {
+      "foo": o->S.field(S.string()),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(` 12`)->S.parseWith(struct),
+    Error({
+      code: UnexpectedType({expected: "Object", received: "Float"}),
+      operation: Parsing,
+      path: [],
+    }),
+    (),
+  )
+})
+
+test("Fails to parse object with invalid string field", t => {
+  let struct = S.object(o =>
+    {
+      "foo": o->S.field(S.string()),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{foo: 12}`)->S.parseWith(struct),
+    Error({
+      code: UnexpectedType({expected: "String", received: "Float"}),
+      operation: Parsing,
+      path: ["foo"],
+    }),
+    (),
+  )
+})
+
 test("Successfully parses object with multiple fields", t => {
   let struct = S.object(o =>
     {
@@ -34,6 +71,43 @@ test("Successfully parses object with multiple fields", t => {
     Ok({"boo": "bar", "zoo": "jee"}),
     (),
   )
+})
+
+test("Successfully parses object with transformed field", t => {
+  let struct = S.object(o =>
+    {
+      "string": o->S.field(S.string()->S.transform(~parser=string => string ++ "foo", ())),
+    }
+  )
+
+  t->Assert.deepEqual(%raw(`{string: "bar"}`)->S.parseWith(struct), Ok({"string": "barfoo"}), ())
+})
+
+test("Successfully parses object with optional fields", t => {
+  let struct = S.object(o =>
+    {
+      "boo": o->S.field(S.option(S.string())),
+      "zoo": o->S.field(S.option(S.string())),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{boo: "bar"}`)->S.parseWith(struct),
+    Ok({"boo": Some("bar"), "zoo": None}),
+    (),
+  )
+})
+
+test("Successfully parses object with optional fields using (?)", t => {
+  let optionsStruct = S.object(o => {
+    let fastField = o->S.field(S.option(S.bool()))
+    {
+      fast: ?fastField,
+      mode: o->S.field(S.int()),
+    }
+  })
+
+  t->Assert.deepEqual(%raw(`{mode: 1}`)->S.parseWith(optionsStruct), Ok({mode: 1}), ())
 })
 
 test("Successfully parses object with mapped field names", t => {

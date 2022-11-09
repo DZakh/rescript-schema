@@ -328,6 +328,8 @@ type rec t<'value> = {
   mutable serialize: operation,
   @as("p")
   mutable parse: operation,
+  @as("ip")
+  isParseInlinable: bool,
   @as("m")
   maybeMetadataDict: option<Js.Dict.t<unknown>>,
 }
@@ -514,6 +516,7 @@ let make = (
   ~tagged,
   ~parseTransformationFactory,
   ~serializeTransformationFactory,
+  ~isParseInlinable=false,
   ~metadataDict as maybeMetadataDict=?,
   (),
 ) => {
@@ -524,6 +527,7 @@ let make = (
     serializeTransformationFactory,
     serialize: %raw("undefined"),
     parse: %raw("undefined"),
+    isParseInlinable,
     maybeMetadataDict,
   }
   struct.parse = struct.parseTransformationFactory->TransformationFactory.compile(~struct)
@@ -694,20 +698,22 @@ let refine: (
     Error.MissingParserAndSerializer.panic(`struct factory Refine`)
   }
 
+  let nextParseTransformationFactory = switch maybeRefineParser {
+  | Some(refineParser) =>
+    TransformationFactory.make((. ~ctx, ~struct as compilingStruct) => {
+      struct.parseTransformationFactory(. ~ctx, ~struct=compilingStruct)
+      ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+        let () = refineParser->Stdlib.Fn.call1(input)
+        input
+      })
+    })
+  | None => struct.parseTransformationFactory
+  }
+
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseTransformationFactory=switch maybeRefineParser {
-    | Some(refineParser) =>
-      TransformationFactory.make((. ~ctx, ~struct as compilingStruct) => {
-        struct.parseTransformationFactory(. ~ctx, ~struct=compilingStruct)
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          let () = refineParser->Stdlib.Fn.call1(input)
-          input
-        })
-      })
-    | None => struct.parseTransformationFactory
-    },
+    ~parseTransformationFactory=nextParseTransformationFactory,
     ~serializeTransformationFactory=switch maybeRefineSerializer {
     | Some(refineSerializer) =>
       TransformationFactory.make((. ~ctx, ~struct as compilingStruct) => {
@@ -720,6 +726,9 @@ let refine: (
     | None => struct.serializeTransformationFactory
     },
     ~metadataDict=?struct.maybeMetadataDict,
+    ~isParseInlinable=nextParseTransformationFactory === struct.parseTransformationFactory
+      ? struct.isParseInlinable
+      : false,
     (),
   )
 }
@@ -784,6 +793,7 @@ let transform: (
       struct.serializeTransformationFactory(. ~ctx, ~struct=compilingStruct)
     }),
     ~metadataDict=?struct.maybeMetadataDict,
+    ~isParseInlinable=false,
     (),
   )
 }
@@ -1313,11 +1323,13 @@ module Object2 = {
     type struct = t<unknown>
     type t = {structs: array<struct>, nameOverrides: Js.Dict.t<string>}
 
+    @inline
     let make = () => {
       structs: [],
       nameOverrides: Js.Dict.empty(),
     }
 
+    @inline
     let addFieldUsage = (builderCtx, ~struct, ~maybeNameOverride) => {
       switch maybeNameOverride {
       | Some(nameOverride) =>
@@ -1330,8 +1342,10 @@ module Object2 = {
       builderCtx.structs->Js.Array2.push(struct)->ignore
     }
 
+    @inline
     let getFieldStructs = builderCtx => builderCtx.structs
 
+    @inline
     let getMaybeFieldNameOverride = (builderCtx, ~idx) => {
       builderCtx.nameOverrides->Js.Dict.get(idx->Js.Int.toString)
     }
@@ -1351,6 +1365,7 @@ module Object2 = {
       originalFieldNames: array<string>,
     }
 
+    @inline
     let fromBuilderResult = (builderResult, ~builderCtx) => {
       if builderResult->Stdlib.Object.test->not {
         Error.panic("The object builder result should be an object.")
@@ -1399,7 +1414,10 @@ module Object2 = {
   let factory = builder => {
     let {originalFieldNames, originalFields, fieldNameParseOverrides} = {
       let builderCtx = BuilderCtx.make()
-      builder(builderCtx)->castAnyToUnknown->Instruction.fromBuilderResult(~builderCtx)
+      builder
+      ->Stdlib.Fn.call1(builderCtx)
+      ->castAnyToUnknown
+      ->Instruction.fromBuilderResult(~builderCtx)
     }
 
     make(
@@ -1419,34 +1437,29 @@ module Object2 = {
             fieldNameParseOverrides
             ->Js.Dict.get(originalFieldName)
             ->Belt.Option.getWithDefault(originalFieldName)
-          let isInlined = switch fieldStruct.tagged {
-          | Bool
-          | Float
-          | Int
-          | String => true
-          | _ => false
-          }
           switch fieldStruct.parse {
           | NoOperation => noopOps->Js.Array2.push((originalFieldName, fieldName))->ignore
           | SyncOperation(fn) =>
-            syncOps->Js.Array2.push((originalFieldName, fieldName, fn, isInlined))->ignore
+            syncOps->Js.Array2.push((originalFieldName, fieldName, fn, fieldStruct))->ignore
           | AsyncOperation(fn) => {
               syncOps
-              ->Js.Array2.push((originalFieldName, fieldName, fn->Obj.magic, isInlined))
+              ->Js.Array2.push((originalFieldName, fieldName, fn->Obj.magic, fieldStruct))
               ->ignore
               asyncOps->Js.Array2.push((originalFieldName, fieldName))->ignore
             }
           }
         }
 
-        ctx->TransformationFactory.Ctx.planSyncTransformation({
+        let inlinedParseFunction = {
           let originalObjectVar = "$_oo"
           let newObjectVar = "$_no"
           let fieldNameVar = "$_fn"
+          let ctxVar = "$_c"
 
           let refinement = Inline.If.make(
+            // TODO: Measure the fastest condition
             ~condition=`(typeof ${originalObjectVar} === "object" && !Array.isArray(${originalObjectVar}) && ${originalObjectVar} !== null) === false`,
-            ~content=`raiseUnexpectedTypeError(${originalObjectVar}, struct)`,
+            ~content=`${ctxVar}.raiseUnexpectedTypeError(${originalObjectVar},${ctxVar}.struct)`,
           )
 
           let initialNewObject = {
@@ -1456,22 +1469,26 @@ module Object2 = {
               stringRef.contents =
                 stringRef.contents ++ `${fieldName}:${originalObjectVar}.${originalFieldName},`
             }
-            stringRef.contents ++ `};`
+            stringRef.contents ++ `}`
           }
 
           let newObjectConstruction = {
             let tryContent = {
               let stringRef = ref("")
               for idx in 0 to syncOps->Js.Array2.length - 1 {
-                let (originalFieldName, fieldName, fn, isInlined) =
+                let (originalFieldName, fieldName, fn, fieldStruct) =
                   syncOps->Js.Array2.unsafe_get(idx)
                 stringRef.contents = stringRef.contents ++ `${fieldNameVar}="${originalFieldName}";`
-                if isInlined {
+                if fieldStruct.isParseInlinable {
                   let inlinedFn =
                     fn
                     ->Obj.magic
                     ->Js.Int.toString
                     ->Js.String2.replace("function (input) ", "")
+                    ->Js.String2.replace(
+                      "raiseUnexpectedTypeError(input, struct)",
+                      `${ctxVar}.raiseUnexpectedTypeError(input,${ctxVar}.syncOps[${idx->Js.Int.toString}][3])`,
+                    )
                     ->Js.String2.replaceByRe(%re(`/return/g`), "")
 
                   stringRef.contents =
@@ -1480,7 +1497,7 @@ module Object2 = {
                 } else {
                   stringRef.contents =
                     stringRef.contents ++
-                    `${newObjectVar}.${fieldName}=syncOps[${idx->Js.Int.toString}][2](${originalObjectVar}.${originalFieldName});`
+                    `${newObjectVar}.${fieldName}=${ctxVar}.syncOps[${idx->Js.Int.toString}][2](${originalObjectVar}.${originalFieldName});`
                 }
               }
               stringRef.contents
@@ -1489,7 +1506,7 @@ module Object2 = {
             `var ${fieldNameVar};` ++
             Inline.TryCatch.make(
               ~tryContent,
-              ~catchContent=`catchFieldError(${Inline.Constant.errorVar},"${fieldNameVar}")`,
+              ~catchContent=`${ctxVar}.catchFieldError(${Inline.Constant.errorVar},${fieldNameVar})`,
             )
           }
 
@@ -1499,34 +1516,38 @@ module Object2 = {
               let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
               stringRef.contents = stringRef.contents ++ `case"${originalFieldName}":continue;`
             }
-            stringRef.contents ++ `default:raiseOnExcessField(key);}}`
+            stringRef.contents ++ `default:${ctxVar}.raiseOnExcessField(key);}}`
           }
 
-          let syncTransformation = Inline.Fn.make(
+          Inline.Fn.make(
             ~arguments=originalObjectVar,
-            ~content=`${refinement}${initialNewObject}${newObjectConstruction}${withUnknownKeysRefinement
+            ~content=`${refinement};${initialNewObject};${newObjectConstruction};${withUnknownKeysRefinement
                 ? unknownKeysRefinement
                 : ""}return ${newObjectVar}`,
           )
+        }
 
-          %raw(`new Function('syncOps','originalFields','raiseUnexpectedTypeError','raiseOnExcessField','catchFieldError','return ' + syncTransformation)`)(.
-            ~syncOps,
-            ~originalFields,
-            ~raiseUnexpectedTypeError,
-            ~raiseOnExcessField=exccessFieldName =>
-              Error.Internal.raise(ExcessField(exccessFieldName)),
-            ~catchFieldError=(~exn, ~fieldName) => {
-              switch exn {
-              | Error.Internal.Exception(internalError) =>
-                Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName))
-              | _ => exn
-              }->raise
-            },
-            // Use the syncTransformation two times, so rescript compiler doesn't inline the variable
-            ~syncTransformation,
-            ~syncTransformation,
-          )
+        let syncTransformation = %raw(`new Function('$_c','return '+inlinedParseFunction)`)(. {
+          "struct": struct,
+          "syncOps": syncOps,
+          "originalFields": originalFields,
+          "raiseUnexpectedTypeError": raiseUnexpectedTypeError,
+          "raiseOnExcessField": exccessFieldName =>
+            Error.Internal.raise(ExcessField(exccessFieldName)),
+          "catchFieldError": (~exn, ~fieldName) => {
+            switch exn {
+            | Error.Internal.Exception(internalError) =>
+              Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName))
+            | _ => exn
+            }->raise
+          },
+          // FIXME: Find some better way to do it
+          // Use the inlinedParseFunction two times, so rescript compiler doesn't inline the variable
+          "a": inlinedParseFunction,
+          "b": inlinedParseFunction,
         })
+
+        ctx->TransformationFactory.Ctx.planSyncTransformation(syncTransformation)
       }),
       ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
         let fieldNames = %raw("undefined")
@@ -1604,8 +1625,9 @@ module String = {
 
   let factory = () => {
     make(
-      ~name=`String`,
+      ~name="String",
       ~tagged=String,
+      ~isParseInlinable=true,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           if input->Js.typeof === "string" {
@@ -1750,8 +1772,9 @@ module Json = {
 module Bool = {
   let factory = () => {
     make(
-      ~name=`Bool`,
+      ~name="Bool",
       ~tagged=Bool,
+      ~isParseInlinable=true,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           if input->Js.typeof === "boolean" {
@@ -1770,8 +1793,9 @@ module Bool = {
 module Int = {
   let factory = () => {
     make(
-      ~name=`Int`,
+      ~name="Int",
       ~tagged=Int,
+      ~isParseInlinable=true,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           if Stdlib.Int.test(input) {
@@ -1825,8 +1849,9 @@ module Int = {
 module Float = {
   let factory = () => {
     make(
-      ~name=`Float`,
+      ~name="Float",
       ~tagged=Float,
+      ~isParseInlinable=true,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           switch input->Js.typeof === "number" {
