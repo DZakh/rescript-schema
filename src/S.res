@@ -1413,19 +1413,21 @@ module Object2 = {
         }
 
         ctx->TransformationFactory.Ctx.planSyncTransformation({
-          let syncMigration = {
-            let syncMigrationRef = ref(`function (input) {
-              if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
-                raiseUnexpectedTypeError(input, struct);
+          let syncTransformation = {
+            let syncTransformationRef = ref(`function (__originalObject) {
+              if ((typeof __originalObject === "object" && !Array.isArray(__originalObject) && __originalObject !== null) === false) {
+                // TODO: Pass struct (?)
+                raiseUnexpectedTypeError(__originalObject, struct);
               }
             `)
-            syncMigrationRef.contents = syncMigrationRef.contents ++ `var newObject = {`
+            syncTransformationRef.contents = syncTransformationRef.contents ++ `var __newObject = {`
             for idx in 0 to noopOps->Js.Array2.length - 1 {
               let (originalFieldName, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
-              syncMigrationRef.contents =
-                syncMigrationRef.contents ++ `${fieldName}: input.${originalFieldName},`
+              syncTransformationRef.contents =
+                syncTransformationRef.contents ++
+                `${fieldName}: __originalObject.${originalFieldName},`
             }
-            syncMigrationRef.contents = syncMigrationRef.contents ++ `};`
+            syncTransformationRef.contents = syncTransformationRef.contents ++ `};`
 
             for idx in 0 to syncOps->Js.Array2.length - 1 {
               let (originalFieldName, fieldName, fn, isInlined) = syncOps->Js.Array2.unsafe_get(idx)
@@ -1436,24 +1438,26 @@ module Object2 = {
                   ->Obj.magic
                   ->Js.Int.toString
                   ->Js.String2.replace("function (input) ", "")
-                  ->Js.String2.replaceByRe(%re(`/input/g`), "rescriptStruct_inlinedData")
-                  ->Js.String2.replaceByRe(%re(`/return (.+);/g`), `newObject.${fieldName} = ($1)`)
+                  ->Js.String2.replaceByRe(
+                    %re(`/return (.+);/g`),
+                    `__newObject.${fieldName} = ($1)`,
+                  )
 
-                syncMigrationRef.contents =
-                  syncMigrationRef.contents ++
+                syncTransformationRef.contents =
+                  syncTransformationRef.contents ++
                   `
-                  var rescriptStruct_inlinedData = input.${originalFieldName};
+                  var input = __originalObject.${originalFieldName};
                   try ${inlinedFn}
                   catch (exn){
                     catchFieldError(exn, "${originalFieldName}");
                   }
                 `
               } else {
-                syncMigrationRef.contents =
-                  syncMigrationRef.contents ++
+                syncTransformationRef.contents =
+                  syncTransformationRef.contents ++
                   `
                   try {
-                    newObject.${fieldName} = syncOps[${idx->Js.Int.toString}][2](input.${originalFieldName});
+                    __newObject.${fieldName} = syncOps[${idx->Js.Int.toString}][2](__originalObject.${originalFieldName});
                   } catch (exn){
                     catchFieldError(exn, "${originalFieldName}");
                   }
@@ -1461,24 +1465,24 @@ module Object2 = {
               }
             }
             if withStrictUnknownKeys {
-              syncMigrationRef.contents =
-                syncMigrationRef.contents ++ `
-                  for (var key in input) {
+              syncTransformationRef.contents =
+                syncTransformationRef.contents ++ `
+                  for (var key in __originalObject) {
                     switch (key) {`
               for idx in 0 to originalFieldNames->Js.Array2.length - 1 {
                 let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
-                syncMigrationRef.contents =
-                  syncMigrationRef.contents ++ `case "${originalFieldName}": break;`
+                syncTransformationRef.contents =
+                  syncTransformationRef.contents ++ `case "${originalFieldName}": break;`
               }
-              syncMigrationRef.contents =
-                syncMigrationRef.contents ++ `default: raiseOnExcessField(key);
+              syncTransformationRef.contents =
+                syncTransformationRef.contents ++ `default: raiseOnExcessField(key);
                   }
                 }`
             }
-            syncMigrationRef.contents ++ `return newObject;}`
+            syncTransformationRef.contents ++ `return __newObject;}`
           }
 
-          %raw(`new Function('syncOps', 'originalFields', 'raiseUnexpectedTypeError','raiseOnExcessField', 'catchFieldError', 'return ' + syncMigration)`)(.
+          %raw(`new Function('syncOps', 'originalFields', 'raiseUnexpectedTypeError','raiseOnExcessField', 'catchFieldError', 'return ' + syncTransformation)`)(.
             ~syncOps,
             ~originalFields,
             ~raiseUnexpectedTypeError,
@@ -1491,9 +1495,9 @@ module Object2 = {
               | _ => exn
               }->raise
             },
-            // Use the syncMigration two times, so rescript compiler doesn't inline the variable
-            ~syncMigration,
-            ~syncMigration,
+            // Use the syncTransformation two times, so rescript compiler doesn't inline the variable
+            ~syncTransformation,
+            ~syncTransformation,
           )
         })
       }),
