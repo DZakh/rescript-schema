@@ -12,6 +12,26 @@ test("Successfully parses object with excess keys", t => {
   t->Assert.deepEqual(%raw(`{field:"bar"}`)->S.parseWith(struct), Ok(), ())
 })
 
+test("Successfully parses empty object when UnknownKeys are strict", t => {
+  let struct = S.object(_ => ())->S.Object.strict
+
+  t->Assert.deepEqual(%raw(`{}`)->S.parseWith(struct), Ok(), ())
+})
+
+test("Fails to parse object with excess keys when UnknownKeys are strict", t => {
+  let struct = S.object(_ => ())->S.Object.strict
+
+  t->Assert.deepEqual(
+    %raw(`{field:"bar"}`)->S.parseWith(struct),
+    Error({
+      code: ExcessField("field"),
+      operation: Parsing,
+      path: [],
+    }),
+    (),
+  )
+})
+
 test("Successfully parses object with excess keys and returns transformed value", t => {
   let transformedValue = {"bas": true}
   let struct = S.object(_ => transformedValue)

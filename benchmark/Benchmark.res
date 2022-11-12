@@ -240,6 +240,22 @@ Suite.make()
     data->S.parseWith(struct)
   }
 })
+->Suite.add("Create struct and parse object without fields", (. ()) => {
+  let struct = S.object0(.)
+  %raw("{}")->S.parseOrRaiseWith(struct)
+})
+->Suite.add("Create struct and parse object without fields V3", (. ()) => {
+  let struct = S.object(_ => ())
+  %raw("{}")->S.parseOrRaiseWith(struct)
+})
+->Suite.add("Create struct and parse strict object without fields", (. ()) => {
+  let struct = S.object0(.)->S.Object.strict
+  %raw("{}")->S.parseOrRaiseWith(struct)
+})
+->Suite.add("Create struct and parse strict object without fields V3", (. ()) => {
+  let struct = S.object(_ => ())->S.Object.strict
+  %raw("{}")->S.parseOrRaiseWith(struct)
+})
 ->Suite.addWithPrepare("Serialize advanced object", () => {
   let struct = makeAdvancedObjectStruct(.)
   let data = makeTestObject(.)

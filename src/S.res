@@ -1412,9 +1412,17 @@ module Object2 = {
         ~name="Object",
         ~tagged=Object({fields: originalFields, fieldNames: originalFieldNames}),
         ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
+          let withUnknownKeysRefinement =
+            struct->Object.UnknownKeys.classify === Object.UnknownKeys.Strict
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
             if input->Stdlib.Object.test === false {
               raiseUnexpectedTypeError(~input, ~struct)
+            }
+            if withUnknownKeysRefinement {
+              let originalKeys = input->Js.Dict.keys
+              if originalKeys->Js.Array2.length > 0 {
+                Error.Internal.raise(ExcessField(originalKeys->Js.Array2.unsafe_get(0)))
+              }
             }
             transformed
           })

@@ -1034,9 +1034,20 @@ function factory$3(builder) {
                 fields: instruction.originalFields,
                 fieldNames: instruction.originalFieldNames
               }, (function (ctx, struct) {
+                  var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
                   planSyncTransformation(ctx, (function (input) {
                           if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
                             raiseUnexpectedTypeError(input, struct);
+                          }
+                          if (withUnknownKeysRefinement) {
+                            var originalKeys = Object.keys(input);
+                            if (originalKeys.length > 0) {
+                              raise({
+                                    TAG: /* ExcessField */4,
+                                    _0: originalKeys[0]
+                                  });
+                            }
+                            
                           }
                           return transformed;
                         }));
