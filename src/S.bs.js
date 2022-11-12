@@ -4,7 +4,6 @@
 var Js_exn = require("rescript/lib/js/js_exn.js");
 var Js_dict = require("rescript/lib/js/js_dict.js");
 var Js_types = require("rescript/lib/js/js_types.js");
-var Belt_Option = require("rescript/lib/js/belt_Option.js");
 var Caml_option = require("rescript/lib/js/caml_option.js");
 var Caml_exceptions = require("rescript/lib/js/caml_exceptions.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
@@ -982,121 +981,136 @@ var errorVar = "$_e";
 
 var value = (Symbol("rescript-struct:Object.FieldPlaceholder"));
 
-function field(builderCtx, maybeNameOverride, struct) {
-  if (maybeNameOverride !== undefined) {
-    builderCtx.nameOverrides[builderCtx.structs.length.toString()] = maybeNameOverride;
-  }
-  builderCtx.structs.push(struct);
-  return value;
-}
-
 function factory$3(builder) {
   var builderCtx_structs = [];
-  var builderCtx_nameOverrides = {};
+  var builderCtx_explicitFieldNames = {};
   var builderCtx = {
     structs: builderCtx_structs,
-    nameOverrides: builderCtx_nameOverrides
+    explicitFieldNames: builderCtx_explicitFieldNames
   };
   var builderResult = builder(builderCtx);
-  if (!(typeof builderResult === "object" && !Array.isArray(builderResult) && builderResult !== null)) {
-    throw new Error("[rescript-struct] The object builder result should be an object.");
-  }
-  var originalFieldNames = Object.keys(builderResult);
   var fieldStructs = builderCtx_structs;
-  var fieldNamesNumber = originalFieldNames.length;
-  var fieldStructsNumber = fieldStructs.length;
-  if (fieldNamesNumber > fieldStructsNumber) {
-    throw new Error("[rescript-struct] The object builder result missing field defenitions.");
+  var metadata;
+  if (fieldStructs.length !== 0) {
+    if (!(typeof builderResult === "object" && !Array.isArray(builderResult) && builderResult !== null)) {
+      throw new Error("[rescript-struct] The object builder result should be an object.");
+    }
+    var builderFieldNames = Object.keys(builderResult);
+    var builderFieldNamesNumber = builderFieldNames.length;
+    var fieldStructsNumber = fieldStructs.length;
+    if (builderFieldNamesNumber > fieldStructsNumber) {
+      throw new Error("[rescript-struct] The object builder result missing field defenitions.");
+    }
+    if (builderFieldNamesNumber < fieldStructsNumber) {
+      throw new Error("[rescript-struct] The object builder result has unused field defenitions.");
+    }
+    var originalFields = {};
+    var builderFieldNamesByOriginal = {};
+    var originalFieldNamesByBuilder = {};
+    for(var idx = 0 ,idx_finish = builderFieldNames.length; idx < idx_finish; ++idx){
+      var builderFieldName = builderFieldNames[idx];
+      var explicitOriginalFieldName = Js_dict.get(builderCtx_explicitFieldNames, idx.toString());
+      var originalFieldName = explicitOriginalFieldName !== undefined ? (builderFieldNames[idx] = explicitOriginalFieldName, explicitOriginalFieldName) : builderFieldName;
+      var fieldStruct = fieldStructs[idx];
+      originalFields[originalFieldName] = fieldStruct;
+      originalFieldNamesByBuilder[builderFieldName] = originalFieldName;
+      builderFieldNamesByOriginal[originalFieldName] = builderFieldName;
+    }
+    metadata = {
+      TAG: /* WithFields */1,
+      builderFieldNamesByOriginal: builderFieldNamesByOriginal,
+      originalFieldNamesByBuilder: originalFieldNamesByBuilder,
+      originalFields: originalFields,
+      originalFieldNames: builderFieldNames
+    };
+  } else {
+    metadata = {
+      TAG: /* NoFields */0,
+      transformed: builderResult
+    };
   }
-  if (fieldNamesNumber < fieldStructsNumber) {
-    throw new Error("[rescript-struct] The object builder result has unused field defenitions.");
+  if (metadata.TAG === /* NoFields */0) {
+    var transformed = metadata.transformed;
+    return make("Object", {
+                TAG: /* Object */4,
+                fields: {},
+                fieldNames: []
+              }, (function (ctx, struct) {
+                  planSyncTransformation(ctx, (function (input) {
+                          if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
+                            raiseUnexpectedTypeError(input, struct);
+                          }
+                          return transformed;
+                        }));
+                }), (function (ctx, param) {
+                  planSyncTransformation(ctx, (function (param) {
+                          return {};
+                        }));
+                }), undefined, undefined, undefined);
   }
-  var originalFields = {};
-  var fieldNameParseOverrides = {};
-  originalFieldNames.forEach(function (fieldName, idx) {
-        var fieldNameOverride = Js_dict.get(builderCtx_nameOverrides, idx.toString());
-        var actualFieldName = fieldNameOverride !== undefined ? (originalFieldNames[idx] = fieldNameOverride, fieldNameParseOverrides[fieldNameOverride] = fieldName, fieldNameOverride) : fieldName;
-        var fieldStruct = fieldStructs[idx];
-        originalFields[actualFieldName] = fieldStruct;
-      });
+  var originalFieldNames = metadata.originalFieldNames;
+  var originalFields$1 = metadata.originalFields;
+  var builderFieldNamesByOriginal$1 = metadata.builderFieldNamesByOriginal;
   return make("Object", {
               TAG: /* Object */4,
-              fields: originalFields,
+              fields: originalFields$1,
               fieldNames: originalFieldNames
             }, (function (ctx, struct) {
                 var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
-                var noopOps = [];
-                var syncOps = [];
+                var parseFnsByOriginalFieldName = {};
                 var asyncOps = [];
-                for(var idx = 0 ,idx_finish = originalFieldNames.length; idx < idx_finish; ++idx){
-                  var originalFieldName = originalFieldNames[idx];
-                  var fieldStruct = originalFields[originalFieldName];
-                  var fieldName = Belt_Option.getWithDefault(Js_dict.get(fieldNameParseOverrides, originalFieldName), originalFieldName);
-                  var fn = fieldStruct.p;
-                  if (typeof fn === "number") {
-                    noopOps.push([
-                          originalFieldName,
-                          fieldName
-                        ]);
-                  } else if (fn.TAG === /* SyncOperation */0) {
-                    syncOps.push([
-                          originalFieldName,
-                          fieldName,
-                          fn._0,
-                          fieldStruct
-                        ]);
-                  } else {
-                    syncOps.push([
-                          originalFieldName,
-                          fieldName,
-                          fn._0,
-                          fieldStruct
-                        ]);
-                    asyncOps.push([
-                          originalFieldName,
-                          fieldName
-                        ]);
-                  }
-                }
                 var originalObjectVar = "$_oo";
                 var newObjectVar = "$_no";
                 var fieldNameVar = "$_fn";
                 var ctxVar = "$_c";
                 var refinement = "if(" + ("(typeof " + originalObjectVar + " === \"object\" && !Array.isArray(" + originalObjectVar + ") && " + originalObjectVar + " !== null) === false") + "){" + ("" + ctxVar + ".raiseUnexpectedTypeError(" + originalObjectVar + "," + ctxVar + ".struct)") + "}";
-                var stringRef = "var " + newObjectVar + "={";
-                for(var idx$1 = 0 ,idx_finish$1 = noopOps.length; idx$1 < idx_finish$1; ++idx$1){
-                  var match = noopOps[idx$1];
-                  stringRef = stringRef + ("" + match[1] + ":" + originalObjectVar + "." + match[0] + ",");
-                }
-                var initialNewObject = stringRef + "}";
-                var stringRef$1 = "";
-                for(var idx$2 = 0 ,idx_finish$2 = syncOps.length; idx$2 < idx_finish$2; ++idx$2){
-                  var match$1 = syncOps[idx$2];
-                  var fieldName$1 = match$1[1];
-                  var originalFieldName$1 = match$1[0];
-                  stringRef$1 = stringRef$1 + ("" + fieldNameVar + "=\"" + originalFieldName$1 + "\";");
-                  if (match$1[3].ip) {
-                    var inlinedFn = match$1[2].toString().replace("function (input) ", "").replace("raiseUnexpectedTypeError(input, struct)", "" + ctxVar + ".raiseUnexpectedTypeError(input," + ctxVar + ".syncOps[" + idx$2.toString() + "][3])").replace(/return/g, "");
-                    stringRef$1 = stringRef$1 + ("var input=" + originalObjectVar + "." + originalFieldName$1 + ";" + inlinedFn + ";" + newObjectVar + "." + fieldName$1 + "=input;");
+                var createNewObject = "var " + newObjectVar + "={}";
+                var stringRef = "";
+                for(var idx = 0 ,idx_finish = originalFieldNames.length; idx < idx_finish; ++idx){
+                  var originalFieldName = originalFieldNames[idx];
+                  var fieldName = builderFieldNamesByOriginal$1[originalFieldName];
+                  var fieldStruct = originalFields$1[originalFieldName];
+                  var fn = fieldStruct.p;
+                  var maybeParseFn;
+                  if (typeof fn === "number") {
+                    maybeParseFn = undefined;
+                  } else if (fn.TAG === /* SyncOperation */0) {
+                    maybeParseFn = fn._0;
                   } else {
-                    stringRef$1 = stringRef$1 + ("" + newObjectVar + "." + fieldName$1 + "=" + ctxVar + ".syncOps[" + idx$2.toString() + "][2](" + originalObjectVar + "." + originalFieldName$1 + ");");
+                    asyncOps.push([
+                          originalFieldName,
+                          "TODO: original field name"
+                        ]);
+                    maybeParseFn = fn._0;
+                  }
+                  var match = fieldStruct.ip;
+                  if (maybeParseFn !== undefined) {
+                    parseFnsByOriginalFieldName[originalFieldName] = maybeParseFn;
+                    if (match) {
+                      var inlinedFn = maybeParseFn.toString().replace("function (input) ", "").replace("raiseUnexpectedTypeError(input, struct)", "" + fieldNameVar + "=\"" + originalFieldName + "\"," + ctxVar + ".raiseUnexpectedTypeError(input," + ctxVar + ".fields." + originalFieldName + ")").replace(/return/g, "");
+                      stringRef = stringRef + ("var input=" + originalObjectVar + "." + originalFieldName + ";" + inlinedFn + ";" + newObjectVar + "." + fieldName + "=input;");
+                    } else {
+                      stringRef = stringRef + ("" + fieldNameVar + "=\"" + originalFieldName + "\"," + newObjectVar + "." + fieldName + "=" + ctxVar + ".fns." + originalFieldName + "(" + originalObjectVar + "." + originalFieldName + ");");
+                    }
+                  } else {
+                    stringRef = stringRef + ("" + newObjectVar + "." + fieldName + ":" + originalObjectVar + "." + originalFieldName + ";");
                   }
                 }
-                var tryContent = stringRef$1;
+                var tryContent = stringRef;
                 var newObjectConstruction = "var " + fieldNameVar + ";" + ("try{" + tryContent + "}catch(" + errorVar + "){" + ("" + ctxVar + ".catchFieldError(" + errorVar + "," + fieldNameVar + ")") + "}");
-                var stringRef$2 = "for(var key in " + originalObjectVar + "){switch(key){";
-                for(var idx$3 = 0 ,idx_finish$3 = originalFieldNames.length; idx$3 < idx_finish$3; ++idx$3){
-                  var originalFieldName$2 = originalFieldNames[idx$3];
-                  stringRef$2 = stringRef$2 + ("case\"" + originalFieldName$2 + "\":continue;");
+                var stringRef$1 = "for(var key in " + originalObjectVar + "){switch(key){";
+                for(var idx$1 = 0 ,idx_finish$1 = originalFieldNames.length; idx$1 < idx_finish$1; ++idx$1){
+                  var originalFieldName$1 = originalFieldNames[idx$1];
+                  stringRef$1 = stringRef$1 + ("case\"" + originalFieldName$1 + "\":continue;");
                 }
-                var unknownKeysRefinement = stringRef$2 + ("default:" + ctxVar + ".raiseOnExcessField(key);}}");
-                var inlinedParseFunction = "function(" + originalObjectVar + "){" + ("" + refinement + ";" + initialNewObject + ";" + newObjectConstruction + ";" + (
+                var unknownKeysRefinement = stringRef$1 + ("default:" + ctxVar + ".raiseOnExcessField(key);}}");
+                var inlinedParseFunction = "function(" + originalObjectVar + "){" + ("" + refinement + ";" + createNewObject + ";" + newObjectConstruction + ";" + (
                     withUnknownKeysRefinement ? unknownKeysRefinement : ""
                   ) + "return " + newObjectVar + "") + "}";
                 var syncTransformation = (new Function('$_c','return '+inlinedParseFunction))({
                       struct: struct,
-                      syncOps: syncOps,
-                      originalFields: originalFields,
+                      fns: parseFnsByOriginalFieldName,
+                      fields: originalFields$1,
                       raiseUnexpectedTypeError: raiseUnexpectedTypeError,
                       raiseOnExcessField: (function (exccessFieldName) {
                           return raise({
@@ -1150,6 +1164,14 @@ function factory$3(builder) {
                         return unknown;
                       }));
               }), undefined, undefined, undefined);
+}
+
+function field(builderCtx, maybeExplicitFieldName, struct) {
+  if (maybeExplicitFieldName !== undefined) {
+    builderCtx.explicitFieldNames[builderCtx.structs.length.toString()] = maybeExplicitFieldName;
+  }
+  builderCtx.structs.push(struct);
+  return value;
 }
 
 function factory$4(param) {

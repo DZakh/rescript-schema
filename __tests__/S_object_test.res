@@ -1,18 +1,51 @@
 open Ava
 
 type user = {name: string, email: string, age: int}
-type options = {fast?: bool, mode: int}
+@live
+type options = {fast?: bool, mode?: int}
 
-test("Successfully parses object without fields", t => {
-  let value = ()
-  let any = %raw(`{}`)
+test("Successfully parses empty object without declared fields", t => {
+  let struct = S.object(_ => ())
 
-  let struct = S.object0(.)
-
-  t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+  t->Assert.deepEqual(%raw(`{}`)->S.parseWith(struct), Ok(), ())
 })
 
-test("Successfully parses object with single field", t => {
+test("Successfully parses filled object without declared fields", t => {
+  let struct = S.object(_ => ())
+
+  t->Assert.deepEqual(%raw(`{foo:"bar"}`)->S.parseWith(struct), Ok(), ())
+})
+
+test("Successfully parses object without declared fields and returns transformed value", t => {
+  let transformedValue = {"bas": true}
+  let struct = S.object(_ => transformedValue)
+
+  t->Assert.deepEqual(%raw(`{foo:"bar"}`)->S.parseWith(struct), Ok(transformedValue), ())
+})
+
+test("Successfully serializes object without declared fields, but with transformed value", t => {
+  let transformedValue = {"bas": true}
+  let struct = S.object(_ => transformedValue)
+
+  t->Assert.deepEqual(transformedValue->S.serializeWith(struct), Ok(%raw("{}")), ())
+})
+
+test("Fails to parse object without declared fields when provided an array", t => {
+  let struct = S.object(_ => ())
+
+  t->Assert.deepEqual(
+    %raw(`[]`)->S.parseWith(struct),
+    Error({
+      // FIXME: Proper type for arrays
+      code: UnexpectedType({expected: "Object", received: "Object"}),
+      operation: Parsing,
+      path: [],
+    }),
+    (),
+  )
+})
+
+test("Successfully parses object with inlinable string field", t => {
   let struct = S.object(o =>
     {
       "foo": o->S.field(S.string()),
@@ -22,7 +55,7 @@ test("Successfully parses object with single field", t => {
   t->Assert.deepEqual(%raw(`{foo: "bar"}`)->S.parseWith(struct), Ok({"foo": "bar"}), ())
 })
 
-test("Fails to parse invalid object", t => {
+test("Fails to parse object with inlinable string field", t => {
   let struct = S.object(o =>
     {
       "foo": o->S.field(S.string()),
@@ -30,17 +63,130 @@ test("Fails to parse invalid object", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(` 12`)->S.parseWith(struct),
+    %raw(`{foo: 123}`)->S.parseWith(struct),
     Error({
-      code: UnexpectedType({expected: "Object", received: "Float"}),
+      code: UnexpectedType({expected: "String", received: "Float"}),
       operation: Parsing,
-      path: [],
+      path: ["foo"],
     }),
     (),
   )
 })
 
-test("Fails to parse object with invalid string field", t => {
+test("Successfully parses object with inlinable bool field", t => {
+  let struct = S.object(o =>
+    {
+      "foo": o->S.field(S.bool()),
+    }
+  )
+
+  t->Assert.deepEqual(%raw(`{foo: true}`)->S.parseWith(struct), Ok({"foo": true}), ())
+})
+
+test("Fails to parse object with inlinable bool field", t => {
+  let struct = S.object(o =>
+    {
+      "foo": o->S.field(S.bool()),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{foo: 123}`)->S.parseWith(struct),
+    Error({
+      code: UnexpectedType({expected: "Bool", received: "Float"}),
+      operation: Parsing,
+      path: ["foo"],
+    }),
+    (),
+  )
+})
+
+test("Successfully parses object with inlinable float field", t => {
+  let struct = S.object(o =>
+    {
+      "foo": o->S.field(S.float()),
+    }
+  )
+
+  t->Assert.deepEqual(%raw(`{foo: 123}`)->S.parseWith(struct), Ok({"foo": 123.}), ())
+})
+
+test("Fails to parse object with inlinable float field", t => {
+  let struct = S.object(o =>
+    {
+      "foo": o->S.field(S.float()),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{foo: true}`)->S.parseWith(struct),
+    Error({
+      code: UnexpectedType({expected: "Float", received: "Bool"}),
+      operation: Parsing,
+      path: ["foo"],
+    }),
+    (),
+  )
+})
+
+test("Successfully parses object with inlinable int field", t => {
+  let struct = S.object(o =>
+    {
+      "foo": o->S.field(S.int()),
+    }
+  )
+
+  t->Assert.deepEqual(%raw(`{foo: 123}`)->S.parseWith(struct), Ok({"foo": 123}), ())
+})
+
+test("Fails to parse object with inlinable int field", t => {
+  let struct = S.object(o =>
+    {
+      "foo": o->S.field(S.int()),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{foo: true}`)->S.parseWith(struct),
+    Error({
+      code: UnexpectedType({expected: "Int", received: "Bool"}),
+      operation: Parsing,
+      path: ["foo"],
+    }),
+    (),
+  )
+})
+
+// TODO: Add strict support
+test("Successfully parses object with not inlinable empty object field", t => {
+  let struct = S.object(o =>
+    {
+      "foo": o->S.field(S.object(_ => ())),
+    }
+  )
+
+  t->Assert.deepEqual(%raw(`{foo: {}}`)->S.parseWith(struct), Ok({"foo": ()}), ())
+})
+
+test("Fails to parse object with not inlinable empty object field", t => {
+  let struct = S.object(o =>
+    {
+      "foo": o->S.field(S.object(_ => ())),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{foo: true}`)->S.parseWith(struct),
+    Error({
+      code: UnexpectedType({expected: "Object", received: "Bool"}),
+      operation: Parsing,
+      path: ["foo"],
+    }),
+    (),
+  )
+})
+
+test("Fails to parse object when provided invalid data", t => {
   let struct = S.object(o =>
     {
       "foo": o->S.field(S.string()),
@@ -48,11 +194,11 @@ test("Fails to parse object with invalid string field", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{foo: 12}`)->S.parseWith(struct),
+    %raw(`12`)->S.parseWith(struct),
     Error({
-      code: UnexpectedType({expected: "String", received: "Float"}),
+      code: UnexpectedType({expected: "Object", received: "Float"}),
       operation: Parsing,
-      path: ["foo"],
+      path: [],
     }),
     (),
   )
