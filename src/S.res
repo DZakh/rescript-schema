@@ -1336,7 +1336,7 @@ module Object2 = {
     }
   }
 
-  module Metadata = {
+  module Instruction = {
     type struct = t<unknown>
 
     type t =
@@ -1397,17 +1397,17 @@ module Object2 = {
   }
 
   let factory = builder => {
-    let metadata = {
+    let instruction = {
       let builderCtx = BuilderCtx.make()
       builder
       ->Stdlib.Fn.call1(builderCtx)
       ->castAnyToUnknown
-      ->Metadata.fromBuilderResult(
+      ->Instruction.fromBuilderResult(
         ~originalFieldNames=builderCtx.originalFieldNames,
         ~originalFields=builderCtx.originalFields,
       )
     }
-    switch metadata {
+    switch instruction {
     | NoFields({transformed, originalFieldNames, originalFields}) =>
       make(
         ~name="Object",

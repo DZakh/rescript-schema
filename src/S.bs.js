@@ -991,7 +991,7 @@ function factory$3(builder) {
   var originalFields = builderCtx_originalFields;
   var originalFieldNames = builderCtx_originalFieldNames;
   var builderResult = builder(builderCtx);
-  var metadata;
+  var instruction;
   if (originalFieldNames.length !== 0) {
     if (!(typeof builderResult === "object" && !Array.isArray(builderResult) && builderResult !== null)) {
       throw new Error("[rescript-struct] The object builder result should be an object.");
@@ -1013,7 +1013,7 @@ function factory$3(builder) {
       originalFieldNamesByBuilder[builderFieldName] = originalFieldName;
       builderFieldNamesByOriginal[originalFieldName] = builderFieldName;
     }
-    metadata = {
+    instruction = {
       TAG: /* WithFields */1,
       builderFieldNamesByOriginal: builderFieldNamesByOriginal,
       originalFieldNamesByBuilder: originalFieldNamesByBuilder,
@@ -1021,19 +1021,19 @@ function factory$3(builder) {
       originalFieldNames: originalFieldNames
     };
   } else {
-    metadata = {
+    instruction = {
       TAG: /* NoFields */0,
       transformed: builderResult,
       originalFields: originalFields,
       originalFieldNames: originalFieldNames
     };
   }
-  if (metadata.TAG === /* NoFields */0) {
-    var transformed = metadata.transformed;
+  if (instruction.TAG === /* NoFields */0) {
+    var transformed = instruction.transformed;
     return make("Object", {
                 TAG: /* Object */4,
-                fields: metadata.originalFields,
-                fieldNames: metadata.originalFieldNames
+                fields: instruction.originalFields,
+                fieldNames: instruction.originalFieldNames
               }, (function (ctx, struct) {
                   planSyncTransformation(ctx, (function (input) {
                           if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
@@ -1047,9 +1047,9 @@ function factory$3(builder) {
                         }));
                 }), undefined, undefined, undefined);
   }
-  var originalFieldNames$1 = metadata.originalFieldNames;
-  var originalFields$1 = metadata.originalFields;
-  var builderFieldNamesByOriginal$1 = metadata.builderFieldNamesByOriginal;
+  var originalFieldNames$1 = instruction.originalFieldNames;
+  var originalFields$1 = instruction.originalFields;
+  var builderFieldNamesByOriginal$1 = instruction.builderFieldNamesByOriginal;
   return make("Object", {
               TAG: /* Object */4,
               fields: originalFields$1,
