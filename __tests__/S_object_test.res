@@ -13,14 +13,14 @@ test("Successfully parses empty object without declared fields", t => {
 test("Successfully parses filled object without declared fields", t => {
   let struct = S.object(_ => ())
 
-  t->Assert.deepEqual(%raw(`{foo:"bar"}`)->S.parseWith(struct), Ok(), ())
+  t->Assert.deepEqual(%raw(`{field:"bar"}`)->S.parseWith(struct), Ok(), ())
 })
 
 test("Successfully parses object without declared fields and returns transformed value", t => {
   let transformedValue = {"bas": true}
   let struct = S.object(_ => transformedValue)
 
-  t->Assert.deepEqual(%raw(`{foo:"bar"}`)->S.parseWith(struct), Ok(transformedValue), ())
+  t->Assert.deepEqual(%raw(`{field:"bar"}`)->S.parseWith(struct), Ok(transformedValue), ())
 })
 
 test("Successfully serializes object without declared fields, but with transformed value", t => {
@@ -48,26 +48,26 @@ test("Fails to parse object without declared fields when provided an array", t =
 test("Successfully parses object with inlinable string field", t => {
   let struct = S.object(o =>
     {
-      "foo": o->S.field(S.string()),
+      "field": o->S.field("field", S.string()),
     }
   )
 
-  t->Assert.deepEqual(%raw(`{foo: "bar"}`)->S.parseWith(struct), Ok({"foo": "bar"}), ())
+  t->Assert.deepEqual(%raw(`{field: "bar"}`)->S.parseWith(struct), Ok({"field": "bar"}), ())
 })
 
 test("Fails to parse object with inlinable string field", t => {
   let struct = S.object(o =>
     {
-      "foo": o->S.field(S.string()),
+      "field": o->S.field("field", S.string()),
     }
   )
 
   t->Assert.deepEqual(
-    %raw(`{foo: 123}`)->S.parseWith(struct),
+    %raw(`{field: 123}`)->S.parseWith(struct),
     Error({
       code: UnexpectedType({expected: "String", received: "Float"}),
       operation: Parsing,
-      path: ["foo"],
+      path: ["field"],
     }),
     (),
   )
@@ -76,26 +76,26 @@ test("Fails to parse object with inlinable string field", t => {
 test("Successfully parses object with inlinable bool field", t => {
   let struct = S.object(o =>
     {
-      "foo": o->S.field(S.bool()),
+      "field": o->S.field("field", S.bool()),
     }
   )
 
-  t->Assert.deepEqual(%raw(`{foo: true}`)->S.parseWith(struct), Ok({"foo": true}), ())
+  t->Assert.deepEqual(%raw(`{field: true}`)->S.parseWith(struct), Ok({"field": true}), ())
 })
 
 test("Fails to parse object with inlinable bool field", t => {
   let struct = S.object(o =>
     {
-      "foo": o->S.field(S.bool()),
+      "field": o->S.field("field", S.bool()),
     }
   )
 
   t->Assert.deepEqual(
-    %raw(`{foo: 123}`)->S.parseWith(struct),
+    %raw(`{field: 123}`)->S.parseWith(struct),
     Error({
       code: UnexpectedType({expected: "Bool", received: "Float"}),
       operation: Parsing,
-      path: ["foo"],
+      path: ["field"],
     }),
     (),
   )
@@ -104,26 +104,26 @@ test("Fails to parse object with inlinable bool field", t => {
 test("Successfully parses object with inlinable float field", t => {
   let struct = S.object(o =>
     {
-      "foo": o->S.field(S.float()),
+      "field": o->S.field("field", S.float()),
     }
   )
 
-  t->Assert.deepEqual(%raw(`{foo: 123}`)->S.parseWith(struct), Ok({"foo": 123.}), ())
+  t->Assert.deepEqual(%raw(`{field: 123}`)->S.parseWith(struct), Ok({"field": 123.}), ())
 })
 
 test("Fails to parse object with inlinable float field", t => {
   let struct = S.object(o =>
     {
-      "foo": o->S.field(S.float()),
+      "field": o->S.field("field", S.float()),
     }
   )
 
   t->Assert.deepEqual(
-    %raw(`{foo: true}`)->S.parseWith(struct),
+    %raw(`{field: true}`)->S.parseWith(struct),
     Error({
       code: UnexpectedType({expected: "Float", received: "Bool"}),
       operation: Parsing,
-      path: ["foo"],
+      path: ["field"],
     }),
     (),
   )
@@ -132,26 +132,26 @@ test("Fails to parse object with inlinable float field", t => {
 test("Successfully parses object with inlinable int field", t => {
   let struct = S.object(o =>
     {
-      "foo": o->S.field(S.int()),
+      "field": o->S.field("field", S.int()),
     }
   )
 
-  t->Assert.deepEqual(%raw(`{foo: 123}`)->S.parseWith(struct), Ok({"foo": 123}), ())
+  t->Assert.deepEqual(%raw(`{field: 123}`)->S.parseWith(struct), Ok({"field": 123}), ())
 })
 
 test("Fails to parse object with inlinable int field", t => {
   let struct = S.object(o =>
     {
-      "foo": o->S.field(S.int()),
+      "field": o->S.field("field", S.int()),
     }
   )
 
   t->Assert.deepEqual(
-    %raw(`{foo: true}`)->S.parseWith(struct),
+    %raw(`{field: true}`)->S.parseWith(struct),
     Error({
       code: UnexpectedType({expected: "Int", received: "Bool"}),
       operation: Parsing,
-      path: ["foo"],
+      path: ["field"],
     }),
     (),
   )
@@ -161,26 +161,26 @@ test("Fails to parse object with inlinable int field", t => {
 test("Successfully parses object with not inlinable empty object field", t => {
   let struct = S.object(o =>
     {
-      "foo": o->S.field(S.object(_ => ())),
+      "field": o->S.field("field", S.object(_ => ())),
     }
   )
 
-  t->Assert.deepEqual(%raw(`{foo: {}}`)->S.parseWith(struct), Ok({"foo": ()}), ())
+  t->Assert.deepEqual(%raw(`{field: {}}`)->S.parseWith(struct), Ok({"field": ()}), ())
 })
 
 test("Fails to parse object with not inlinable empty object field", t => {
   let struct = S.object(o =>
     {
-      "foo": o->S.field(S.object(_ => ())),
+      "field": o->S.field("field", S.object(_ => ())),
     }
   )
 
   t->Assert.deepEqual(
-    %raw(`{foo: true}`)->S.parseWith(struct),
+    %raw(`{field: true}`)->S.parseWith(struct),
     Error({
       code: UnexpectedType({expected: "Object", received: "Bool"}),
       operation: Parsing,
-      path: ["foo"],
+      path: ["field"],
     }),
     (),
   )
@@ -189,7 +189,7 @@ test("Fails to parse object with not inlinable empty object field", t => {
 test("Fails to parse object when provided invalid data", t => {
   let struct = S.object(o =>
     {
-      "foo": o->S.field(S.string()),
+      "field": o->S.field("field", S.string()),
     }
   )
 
@@ -207,8 +207,8 @@ test("Fails to parse object when provided invalid data", t => {
 test("Successfully parses object with multiple fields", t => {
   let struct = S.object(o =>
     {
-      "boo": o->S.field(S.string()),
-      "zoo": o->S.field(S.string()),
+      "boo": o->S.field("boo", S.string()),
+      "zoo": o->S.field("zoo", S.string()),
     }
   )
 
@@ -222,18 +222,21 @@ test("Successfully parses object with multiple fields", t => {
 test("Successfully parses object with transformed field", t => {
   let struct = S.object(o =>
     {
-      "string": o->S.field(S.string()->S.transform(~parser=string => string ++ "foo", ())),
+      "string": o->S.field(
+        "string",
+        S.string()->S.transform(~parser=string => string ++ "field", ()),
+      ),
     }
   )
 
-  t->Assert.deepEqual(%raw(`{string: "bar"}`)->S.parseWith(struct), Ok({"string": "barfoo"}), ())
+  t->Assert.deepEqual(%raw(`{string: "bar"}`)->S.parseWith(struct), Ok({"string": "barfield"}), ())
 })
 
 test("Successfully parses object with optional fields", t => {
   let struct = S.object(o =>
     {
-      "boo": o->S.field(S.option(S.string())),
-      "zoo": o->S.field(S.option(S.string())),
+      "boo": o->S.field("boo", S.option(S.string())),
+      "zoo": o->S.field("zoo", S.option(S.string())),
     }
   )
 
@@ -246,10 +249,10 @@ test("Successfully parses object with optional fields", t => {
 
 test("Successfully parses object with optional fields using (?)", t => {
   let optionsStruct = S.object(o => {
-    let fastField = o->S.field(S.option(S.bool()))
+    let fastField = o->S.field("fast", S.option(S.bool()))
     {
       fast: ?fastField,
-      mode: o->S.field(S.int()),
+      mode: o->S.field("mode", S.int()),
     }
   })
 
@@ -259,9 +262,9 @@ test("Successfully parses object with optional fields using (?)", t => {
 test("Successfully parses object with mapped field names", t => {
   let struct = S.object(o =>
     {
-      "name": o->S.field(~name="Name", S.string()),
-      "email": o->S.field(~name="Email", S.string()),
-      "age": o->S.field(~name="Age", S.int()),
+      "name": o->S.field("Name", S.string()),
+      "email": o->S.field("Email", S.string()),
+      "age": o->S.field("Age", S.int()),
     }
   )
 
@@ -275,19 +278,20 @@ test("Successfully parses object with mapped field names", t => {
 test("Successfully parses object from benchmark", t => {
   let struct = S.object(o =>
     {
-      "number": o->S.field(S.float()),
-      "negNumber": o->S.field(S.float()),
-      "maxNumber": o->S.field(S.float()),
-      "string": o->S.field(S.string()),
-      "longString": o->S.field(S.string()),
-      "boolean": o->S.field(S.bool()),
+      "number": o->S.field("number", S.float()),
+      "negNumber": o->S.field("negNumber", S.float()),
+      "maxNumber": o->S.field("maxNumber", S.float()),
+      "string": o->S.field("string", S.string()),
+      "longString": o->S.field("longString", S.string()),
+      "boolean": o->S.field("boolean", S.bool()),
       "deeplyNested": o->S.field(
+        "deeplyNested",
         S.object(
           o =>
             {
-              "foo": o->S.field(S.string()),
-              "num": o->S.field(S.float()),
-              "bool": o->S.field(S.bool()),
+              "foo": o->S.field("foo", S.string()),
+              "num": o->S.field("num", S.float()),
+              "bool": o->S.field("bool", S.bool()),
             },
         ),
       ),
@@ -394,9 +398,9 @@ test("Successfully serializes object without fields", t => {
 
 test("Successfully serializes object with single field", t => {
   let value = "bar"
-  let any = %raw(`{foo: "bar"}`)
+  let any = %raw(`{field: "bar"}`)
 
-  let struct = S.object1(. ("foo", S.string()))
+  let struct = S.object1(. ("field", S.string()))
 
   t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
 })

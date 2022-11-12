@@ -151,18 +151,19 @@ let makeAdvancedStrictObjectStruct = () => {
 let makeAdvancedObjectStructV3 = (. ()) => {
   S.object(o =>
     {
-      "number": o->S.field(S.float()),
-      "negNumber": o->S.field(S.float()),
-      "maxNumber": o->S.field(S.float()),
-      "string": o->S.field(S.string()),
-      "longString": o->S.field(S.string()),
-      "boolean": o->S.field(S.bool()),
+      "number": o->S.field("number", S.float()),
+      "negNumber": o->S.field("negNumber", S.float()),
+      "maxNumber": o->S.field("maxNumber", S.float()),
+      "string": o->S.field("string", S.string()),
+      "longString": o->S.field("longString", S.string()),
+      "boolean": o->S.field("boolean", S.bool()),
       "deeplyNested": o->S.field(
+        "deeplyNested",
         S.object(o =>
           {
-            "foo": o->S.field(S.string()),
-            "num": o->S.field(S.float()),
-            "bool": o->S.field(S.bool()),
+            "foo": o->S.field("foo", S.string()),
+            "num": o->S.field("num", S.float()),
+            "bool": o->S.field("bool", S.bool()),
           }
         ),
       ),
@@ -173,18 +174,19 @@ let makeAdvancedObjectStructV3 = (. ()) => {
 let makeAdvancedStrictObjectStructV3 = (. ()) => {
   S.object(o =>
     {
-      "number": o->S.field(S.float()),
-      "negNumber": o->S.field(S.float()),
-      "maxNumber": o->S.field(S.float()),
-      "string": o->S.field(S.string()),
-      "longString": o->S.field(S.string()),
-      "boolean": o->S.field(S.bool()),
+      "number": o->S.field("number", S.float()),
+      "negNumber": o->S.field("negNumber", S.float()),
+      "maxNumber": o->S.field("maxNumber", S.float()),
+      "string": o->S.field("string", S.string()),
+      "longString": o->S.field("longString", S.string()),
+      "boolean": o->S.field("boolean", S.bool()),
       "deeplyNested": o->S.field(
+        "deeplyNested",
         S.object(o =>
           {
-            "foo": o->S.field(S.string()),
-            "num": o->S.field(S.float()),
-            "bool": o->S.field(S.bool()),
+            "foo": o->S.field("foo", S.string()),
+            "num": o->S.field("num", S.float()),
+            "bool": o->S.field("bool", S.bool()),
           }
         )->S.Object.strict,
       ),

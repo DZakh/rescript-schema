@@ -13,7 +13,7 @@ test("Successfully parses Object with unknown keys by default", t => {
 test("Fails fast and shows only one excees key in the error message", t => {
   let struct = S.object(o =>
     {
-      "key": o->S.field(S.string()),
+      "key": o->S.field("key", S.string()),
     }
   )->S.Object.strict
 

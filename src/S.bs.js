@@ -982,37 +982,34 @@ var errorVar = "$_e";
 var value = (Symbol("rescript-struct:Object.FieldPlaceholder"));
 
 function factory$3(builder) {
-  var builderCtx_structs = [];
-  var builderCtx_explicitFieldNames = {};
+  var builderCtx_originalFieldNames = [];
+  var builderCtx_originalFields = {};
   var builderCtx = {
-    structs: builderCtx_structs,
-    explicitFieldNames: builderCtx_explicitFieldNames
+    originalFieldNames: builderCtx_originalFieldNames,
+    originalFields: builderCtx_originalFields
   };
+  var originalFields = builderCtx_originalFields;
+  var originalFieldNames = builderCtx_originalFieldNames;
   var builderResult = builder(builderCtx);
-  var fieldStructs = builderCtx_structs;
   var metadata;
-  if (fieldStructs.length !== 0) {
+  if (originalFieldNames.length !== 0) {
     if (!(typeof builderResult === "object" && !Array.isArray(builderResult) && builderResult !== null)) {
       throw new Error("[rescript-struct] The object builder result should be an object.");
     }
     var builderFieldNames = Object.keys(builderResult);
     var builderFieldNamesNumber = builderFieldNames.length;
-    var fieldStructsNumber = fieldStructs.length;
-    if (builderFieldNamesNumber > fieldStructsNumber) {
+    var originalFieldNamesNumber = originalFieldNames.length;
+    if (builderFieldNamesNumber > originalFieldNamesNumber) {
       throw new Error("[rescript-struct] The object builder result missing field defenitions.");
     }
-    if (builderFieldNamesNumber < fieldStructsNumber) {
+    if (builderFieldNamesNumber < originalFieldNamesNumber) {
       throw new Error("[rescript-struct] The object builder result has unused field defenitions.");
     }
-    var originalFields = {};
     var builderFieldNamesByOriginal = {};
     var originalFieldNamesByBuilder = {};
     for(var idx = 0 ,idx_finish = builderFieldNames.length; idx < idx_finish; ++idx){
       var builderFieldName = builderFieldNames[idx];
-      var explicitOriginalFieldName = Js_dict.get(builderCtx_explicitFieldNames, idx.toString());
-      var originalFieldName = explicitOriginalFieldName !== undefined ? (builderFieldNames[idx] = explicitOriginalFieldName, explicitOriginalFieldName) : builderFieldName;
-      var fieldStruct = fieldStructs[idx];
-      originalFields[originalFieldName] = fieldStruct;
+      var originalFieldName = originalFieldNames[idx];
       originalFieldNamesByBuilder[builderFieldName] = originalFieldName;
       builderFieldNamesByOriginal[originalFieldName] = builderFieldName;
     }
@@ -1021,20 +1018,22 @@ function factory$3(builder) {
       builderFieldNamesByOriginal: builderFieldNamesByOriginal,
       originalFieldNamesByBuilder: originalFieldNamesByBuilder,
       originalFields: originalFields,
-      originalFieldNames: builderFieldNames
+      originalFieldNames: originalFieldNames
     };
   } else {
     metadata = {
       TAG: /* NoFields */0,
-      transformed: builderResult
+      transformed: builderResult,
+      originalFields: originalFields,
+      originalFieldNames: originalFieldNames
     };
   }
   if (metadata.TAG === /* NoFields */0) {
     var transformed = metadata.transformed;
     return make("Object", {
                 TAG: /* Object */4,
-                fields: {},
-                fieldNames: []
+                fields: metadata.originalFields,
+                fieldNames: metadata.originalFieldNames
               }, (function (ctx, struct) {
                   planSyncTransformation(ctx, (function (input) {
                           if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
@@ -1048,13 +1047,13 @@ function factory$3(builder) {
                         }));
                 }), undefined, undefined, undefined);
   }
-  var originalFieldNames = metadata.originalFieldNames;
+  var originalFieldNames$1 = metadata.originalFieldNames;
   var originalFields$1 = metadata.originalFields;
   var builderFieldNamesByOriginal$1 = metadata.builderFieldNamesByOriginal;
   return make("Object", {
               TAG: /* Object */4,
               fields: originalFields$1,
-              fieldNames: originalFieldNames
+              fieldNames: originalFieldNames$1
             }, (function (ctx, struct) {
                 var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
                 var parseFnsByOriginalFieldName = {};
@@ -1066,8 +1065,8 @@ function factory$3(builder) {
                 var refinement = "if(" + ("(typeof " + originalObjectVar + " === \"object\" && !Array.isArray(" + originalObjectVar + ") && " + originalObjectVar + " !== null) === false") + "){" + ("" + ctxVar + ".raiseUnexpectedTypeError(" + originalObjectVar + "," + ctxVar + ".struct)") + "}";
                 var createNewObject = "var " + newObjectVar + "={}";
                 var stringRef = "";
-                for(var idx = 0 ,idx_finish = originalFieldNames.length; idx < idx_finish; ++idx){
-                  var originalFieldName = originalFieldNames[idx];
+                for(var idx = 0 ,idx_finish = originalFieldNames$1.length; idx < idx_finish; ++idx){
+                  var originalFieldName = originalFieldNames$1[idx];
                   var fieldName = builderFieldNamesByOriginal$1[originalFieldName];
                   var fieldStruct = originalFields$1[originalFieldName];
                   var fn = fieldStruct.p;
@@ -1099,8 +1098,8 @@ function factory$3(builder) {
                 var tryContent = stringRef;
                 var newObjectConstruction = "var " + fieldNameVar + ";" + ("try{" + tryContent + "}catch(" + errorVar + "){" + ("" + ctxVar + ".catchFieldError(" + errorVar + "," + fieldNameVar + ")") + "}");
                 var stringRef$1 = "for(var key in " + originalObjectVar + "){switch(key){";
-                for(var idx$1 = 0 ,idx_finish$1 = originalFieldNames.length; idx$1 < idx_finish$1; ++idx$1){
-                  var originalFieldName$1 = originalFieldNames[idx$1];
+                for(var idx$1 = 0 ,idx_finish$1 = originalFieldNames$1.length; idx$1 < idx_finish$1; ++idx$1){
+                  var originalFieldName$1 = originalFieldNames$1[idx$1];
                   stringRef$1 = stringRef$1 + ("case\"" + originalFieldName$1 + "\":continue;");
                 }
                 var unknownKeysRefinement = stringRef$1 + ("default:" + ctxVar + ".raiseOnExcessField(key);}}");
@@ -1166,11 +1165,9 @@ function factory$3(builder) {
               }), undefined, undefined, undefined);
 }
 
-function field(builderCtx, maybeExplicitFieldName, struct) {
-  if (maybeExplicitFieldName !== undefined) {
-    builderCtx.explicitFieldNames[builderCtx.structs.length.toString()] = maybeExplicitFieldName;
-  }
-  builderCtx.structs.push(struct);
+function field(builderCtx, originalFieldName, struct) {
+  builderCtx.originalFieldNames.push(originalFieldName);
+  builderCtx.originalFields[originalFieldName] = struct;
   return value;
 }
 

@@ -1321,33 +1321,18 @@ module Object2 = {
 
   module BuilderCtx = {
     type struct = t<unknown>
-    type t = {structs: array<struct>, explicitFieldNames: Js.Dict.t<string>}
+    type t = {originalFieldNames: array<string>, originalFields: Js.Dict.t<struct>}
 
     @inline
     let make = () => {
-      structs: [],
-      explicitFieldNames: Js.Dict.empty(),
+      originalFieldNames: [],
+      originalFields: Js.Dict.empty(),
     }
 
     @inline
-    let addFieldUsage = (builderCtx, ~struct, ~maybeExplicitFieldName) => {
-      switch maybeExplicitFieldName {
-      | Some(explicitFieldName) =>
-        builderCtx.explicitFieldNames->Js.Dict.set(
-          builderCtx.structs->Js.Array2.length->Js.Int.toString,
-          explicitFieldName,
-        )
-      | None => ()
-      }
-      builderCtx.structs->Js.Array2.push(struct)->ignore
-    }
-
-    @inline
-    let getFieldStructs = builderCtx => builderCtx.structs
-
-    @inline
-    let getMaybeExplicitOriginalFieldName = (builderCtx, ~idx) => {
-      builderCtx.explicitFieldNames->Js.Dict.get(idx->Js.Int.toString)
+    let addFieldUsage = (builderCtx, ~struct, ~originalFieldName) => {
+      builderCtx.originalFieldNames->Js.Array2.push(originalFieldName)->ignore
+      builderCtx.originalFields->Js.Dict.set(originalFieldName, struct)
     }
   }
 
@@ -1355,7 +1340,11 @@ module Object2 = {
     type struct = t<unknown>
 
     type t =
-      | NoFields({transformed: unknown})
+      | NoFields({
+          transformed: unknown,
+          originalFields: Js.Dict.t<struct>,
+          originalFieldNames: array<string>,
+        })
       | WithFields({
           builderFieldNamesByOriginal: Js.Dict.t<string>,
           originalFieldNamesByBuilder: Js.Dict.t<string>,
@@ -1364,11 +1353,9 @@ module Object2 = {
         })
 
     @inline
-    let fromBuilderResult = (builderResult, ~builderCtx) => {
-      let fieldStructs = builderCtx->BuilderCtx.getFieldStructs
-
-      switch fieldStructs {
-      | [] => NoFields({transformed: builderResult})
+    let fromBuilderResult = (builderResult, ~originalFieldNames, ~originalFields) => {
+      switch originalFieldNames {
+      | [] => NoFields({transformed: builderResult, originalFieldNames, originalFields})
       | _ => {
           if builderResult->Stdlib.Object.test->not {
             Error.panic("The object builder result should be an object.")
@@ -1379,33 +1366,21 @@ module Object2 = {
 
           {
             let builderFieldNamesNumber = builderFieldNames->Js.Array2.length
-            let fieldStructsNumber = fieldStructs->Js.Array2.length
-            if builderFieldNamesNumber > fieldStructsNumber {
+            let originalFieldNamesNumber = originalFieldNames->Js.Array2.length
+            if builderFieldNamesNumber > originalFieldNamesNumber {
               Error.panic("The object builder result missing field defenitions.")
             }
-            if builderFieldNamesNumber < fieldStructsNumber {
+            if builderFieldNamesNumber < originalFieldNamesNumber {
               Error.panic("The object builder result has unused field defenitions.")
             }
           }
 
-          let originalFields = Js.Dict.empty()
           let builderFieldNamesByOriginal = Js.Dict.empty()
           let originalFieldNamesByBuilder = Js.Dict.empty()
 
           for idx in 0 to builderFieldNames->Js.Array2.length - 1 {
             let builderFieldName = builderFieldNames->Js.Array2.unsafe_get(idx)
-            let originalFieldName = switch builderCtx->BuilderCtx.getMaybeExplicitOriginalFieldName(
-              ~idx,
-            ) {
-            | Some(explicitOriginalFieldName) => {
-                builderFieldNames->Stdlib.Array.set(idx, explicitOriginalFieldName)
-                explicitOriginalFieldName
-              }
-
-            | None => builderFieldName
-            }
-            let fieldStruct = fieldStructs->Js.Array2.unsafe_get(idx)
-            originalFields->Js.Dict.set(originalFieldName, fieldStruct)
+            let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
             originalFieldNamesByBuilder->Js.Dict.set(builderFieldName, originalFieldName)
             builderFieldNamesByOriginal->Js.Dict.set(originalFieldName, builderFieldName)
           }
@@ -1413,7 +1388,7 @@ module Object2 = {
           WithFields({
             builderFieldNamesByOriginal,
             originalFieldNamesByBuilder,
-            originalFieldNames: builderFieldNames,
+            originalFieldNames,
             originalFields,
           })
         }
@@ -1427,13 +1402,16 @@ module Object2 = {
       builder
       ->Stdlib.Fn.call1(builderCtx)
       ->castAnyToUnknown
-      ->Metadata.fromBuilderResult(~builderCtx)
+      ->Metadata.fromBuilderResult(
+        ~originalFieldNames=builderCtx.originalFieldNames,
+        ~originalFields=builderCtx.originalFields,
+      )
     }
     switch metadata {
-    | NoFields({transformed}) =>
+    | NoFields({transformed, originalFieldNames, originalFields}) =>
       make(
         ~name="Object",
-        ~tagged=Object({fields: Js.Dict.empty(), fieldNames: []}),
+        ~tagged=Object({fields: originalFields, fieldNames: originalFieldNames}),
         ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
             if input->Stdlib.Object.test === false {
@@ -1614,9 +1592,9 @@ module Object2 = {
     }
   }
 
-  let field = (builderCtx, ~name as maybeExplicitFieldName=?, struct) => {
+  let field = (builderCtx, originalFieldName, struct) => {
     let struct = struct->castAnyStructToUnknownStruct
-    builderCtx->BuilderCtx.addFieldUsage(~struct, ~maybeExplicitFieldName)
+    builderCtx->BuilderCtx.addFieldUsage(~struct, ~originalFieldName)
     FieldPlaceholder.value->FieldPlaceholder.castToAny
   }
 

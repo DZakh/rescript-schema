@@ -165,17 +165,17 @@ function makeAdvancedStrictObjectStruct(param) {
 function makeAdvancedObjectStructV3() {
   return S.object(function (o) {
               return {
-                      number: S.field(o, undefined, S.$$float(undefined)),
-                      negNumber: S.field(o, undefined, S.$$float(undefined)),
-                      maxNumber: S.field(o, undefined, S.$$float(undefined)),
-                      string: S.field(o, undefined, S.string(undefined)),
-                      longString: S.field(o, undefined, S.string(undefined)),
-                      boolean: S.field(o, undefined, S.bool(undefined)),
-                      deeplyNested: S.field(o, undefined, S.object(function (o) {
+                      number: S.field(o, "number", S.$$float(undefined)),
+                      negNumber: S.field(o, "negNumber", S.$$float(undefined)),
+                      maxNumber: S.field(o, "maxNumber", S.$$float(undefined)),
+                      string: S.field(o, "string", S.string(undefined)),
+                      longString: S.field(o, "longString", S.string(undefined)),
+                      boolean: S.field(o, "boolean", S.bool(undefined)),
+                      deeplyNested: S.field(o, "deeplyNested", S.object(function (o) {
                                 return {
-                                        foo: S.field(o, undefined, S.string(undefined)),
-                                        num: S.field(o, undefined, S.$$float(undefined)),
-                                        bool: S.field(o, undefined, S.bool(undefined))
+                                        foo: S.field(o, "foo", S.string(undefined)),
+                                        num: S.field(o, "num", S.$$float(undefined)),
+                                        bool: S.field(o, "bool", S.bool(undefined))
                                       };
                               }))
                     };
@@ -185,17 +185,17 @@ function makeAdvancedObjectStructV3() {
 function makeAdvancedStrictObjectStructV3() {
   return S.$$Object.strict(S.object(function (o) {
                   return {
-                          number: S.field(o, undefined, S.$$float(undefined)),
-                          negNumber: S.field(o, undefined, S.$$float(undefined)),
-                          maxNumber: S.field(o, undefined, S.$$float(undefined)),
-                          string: S.field(o, undefined, S.string(undefined)),
-                          longString: S.field(o, undefined, S.string(undefined)),
-                          boolean: S.field(o, undefined, S.bool(undefined)),
-                          deeplyNested: S.field(o, undefined, S.$$Object.strict(S.object(function (o) {
+                          number: S.field(o, "number", S.$$float(undefined)),
+                          negNumber: S.field(o, "negNumber", S.$$float(undefined)),
+                          maxNumber: S.field(o, "maxNumber", S.$$float(undefined)),
+                          string: S.field(o, "string", S.string(undefined)),
+                          longString: S.field(o, "longString", S.string(undefined)),
+                          boolean: S.field(o, "boolean", S.bool(undefined)),
+                          deeplyNested: S.field(o, "deeplyNested", S.$$Object.strict(S.object(function (o) {
                                         return {
-                                                foo: S.field(o, undefined, S.string(undefined)),
-                                                num: S.field(o, undefined, S.$$float(undefined)),
-                                                bool: S.field(o, undefined, S.bool(undefined))
+                                                foo: S.field(o, "foo", S.string(undefined)),
+                                                num: S.field(o, "num", S.$$float(undefined)),
+                                                bool: S.field(o, "bool", S.bool(undefined))
                                               };
                                       })))
                         };

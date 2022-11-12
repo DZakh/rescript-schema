@@ -154,7 +154,7 @@ module Object2: {
   type builderCtx
 }
 
-let field: (Object2.builderCtx, ~name: string=?, t<'value>) => 'value
+let field: (Object2.builderCtx, string, t<'value>) => 'value
 let object: (Object2.builderCtx => 'value) => t<'value>
 
 let object0: (. unit) => t<unit>
