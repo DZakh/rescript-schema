@@ -976,8 +976,6 @@ function strict(struct) {
   return set(struct, metadataId, /* Strict */0);
 }
 
-var errorVar = "$_e";
-
 var value = (Symbol("rescript-struct:Object.FieldPlaceholder"));
 
 function factory$3(builder) {
@@ -992,9 +990,11 @@ function factory$3(builder) {
   var builderResult = builder(builderCtx);
   var instruction;
   if (originalFieldNames.length !== 0) {
-    if (!(typeof builderResult === "object" && !Array.isArray(builderResult) && builderResult !== null)) {
-      throw new Error("[rescript-struct] The object builder result should be an object.");
-    }
+    var preparationInlinedValue = typeof builderResult === "object" && builderResult !== null ? (
+        Array.isArray(builderResult) ? "[]" : "{}"
+      ) : panic$1(undefined);
+    var preparationPathes = [""];
+    var preparationInlinedValues = [preparationInlinedValue];
     var builderFieldNames = Object.keys(builderResult);
     var builderFieldNamesNumber = builderFieldNames.length;
     var originalFieldNamesNumber = originalFieldNames.length;
@@ -1005,19 +1005,18 @@ function factory$3(builder) {
       throw new Error("[rescript-struct] The object builder result has unused field defenitions.");
     }
     var builderFieldNamesByOriginal = {};
-    var originalFieldNamesByBuilder = {};
     for(var idx = 0 ,idx_finish = builderFieldNames.length; idx < idx_finish; ++idx){
       var builderFieldName = builderFieldNames[idx];
       var originalFieldName = originalFieldNames[idx];
-      originalFieldNamesByBuilder[builderFieldName] = originalFieldName;
       builderFieldNamesByOriginal[originalFieldName] = builderFieldName;
     }
     instruction = {
       TAG: /* WithFields */1,
       builderFieldNamesByOriginal: builderFieldNamesByOriginal,
-      originalFieldNamesByBuilder: originalFieldNamesByBuilder,
       originalFields: originalFields,
-      originalFieldNames: originalFieldNames
+      originalFieldNames: originalFieldNames,
+      preparationInlinedValues: preparationInlinedValues,
+      preparationPathes: preparationPathes
     };
   } else {
     instruction = {
@@ -1057,6 +1056,8 @@ function factory$3(builder) {
                         }));
                 }), undefined, undefined, undefined);
   }
+  var preparationPathes$1 = instruction.preparationPathes;
+  var preparationInlinedValues$1 = instruction.preparationInlinedValues;
   var originalFieldNames$1 = instruction.originalFieldNames;
   var originalFields$1 = instruction.originalFields;
   var builderFieldNamesByOriginal$1 = instruction.builderFieldNamesByOriginal;
@@ -1068,15 +1069,21 @@ function factory$3(builder) {
                 var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
                 var parseFnsByOriginalFieldName = {};
                 var asyncOps = [];
-                var originalObjectVar = "$_oo";
-                var newObjectVar = "$_no";
-                var fieldNameVar = "$_fn";
-                var ctxVar = "$_c";
-                var refinement = "if(" + ("(typeof " + originalObjectVar + " === \"object\" && !Array.isArray(" + originalObjectVar + ") && " + originalObjectVar + " !== null) === false") + "){" + ("" + ctxVar + ".raiseUnexpectedTypeError(" + originalObjectVar + "," + ctxVar + ".struct)") + "}";
-                var createNewObject = "var " + newObjectVar + "={}";
-                var stringRef = "";
-                for(var idx = 0 ,idx_finish = originalFieldNames$1.length; idx < idx_finish; ++idx){
-                  var originalFieldName = originalFieldNames$1[idx];
+                var originalObjectVar = "o";
+                var newObjectVar = "n";
+                var fieldNameVar = "f";
+                var ctxVar = "c";
+                var refinement = "if(" + ("(typeof " + originalObjectVar + "===\"object\"&&!Array.isArray(" + originalObjectVar + ")&&" + originalObjectVar + "!==null)===false") + "){" + ("" + ctxVar + ".raiseUnexpectedTypeError(" + originalObjectVar + "," + ctxVar + ".struct)") + "}";
+                var stringRef = "var " + newObjectVar + ";";
+                for(var idx = 0 ,idx_finish = preparationPathes$1.length; idx < idx_finish; ++idx){
+                  var preparationPath = preparationPathes$1[idx];
+                  var preparationInlinedValue = preparationInlinedValues$1[idx];
+                  stringRef = stringRef + ("" + newObjectVar + "" + preparationPath + "=" + preparationInlinedValue + ";");
+                }
+                var preparation = stringRef;
+                var stringRef$1 = "";
+                for(var idx$1 = 0 ,idx_finish$1 = originalFieldNames$1.length; idx$1 < idx_finish$1; ++idx$1){
+                  var originalFieldName = originalFieldNames$1[idx$1];
                   var fieldName = builderFieldNamesByOriginal$1[originalFieldName];
                   var fieldStruct = originalFields$1[originalFieldName];
                   var fn = fieldStruct.p;
@@ -1095,23 +1102,23 @@ function factory$3(builder) {
                   var match = fieldStruct.i;
                   if (maybeParseFn !== undefined) {
                     parseFnsByOriginalFieldName[originalFieldName] = maybeParseFn;
-                    stringRef = match !== undefined ? stringRef + ("var v=" + originalObjectVar + "." + originalFieldName + ";if(" + match + "){" + newObjectVar + "." + fieldName + "=v}else{" + fieldNameVar + "=\"" + originalFieldName + "\";" + ctxVar + ".raiseUnexpectedTypeError(v," + ctxVar + ".fields." + originalFieldName + ")}") : stringRef + ("" + fieldNameVar + "=\"" + originalFieldName + "\"," + newObjectVar + "." + fieldName + "=" + ctxVar + ".fns." + originalFieldName + "(" + originalObjectVar + "." + originalFieldName + ");");
+                    stringRef$1 = match !== undefined ? stringRef$1 + ("var v=" + originalObjectVar + "[\"" + originalFieldName + "\"];if(" + match + "){" + newObjectVar + "[\"" + fieldName + "\"]=v}else{" + fieldNameVar + "=\"" + originalFieldName + "\";" + ctxVar + ".raiseUnexpectedTypeError(v," + ctxVar + ".fields[\"" + originalFieldName + "\"])}") : stringRef$1 + ("" + fieldNameVar + "=\"" + originalFieldName + "\"," + newObjectVar + "[\"" + fieldName + "\"]=" + ctxVar + ".fns[\"" + originalFieldName + "\"](" + originalObjectVar + "[\"" + originalFieldName + "\"]);");
                   } else {
-                    stringRef = stringRef + ("" + newObjectVar + "." + fieldName + ":" + originalObjectVar + "." + originalFieldName + ";");
+                    stringRef$1 = stringRef$1 + ("" + newObjectVar + "[\"" + fieldName + "\"]:" + originalObjectVar + "[\"" + originalFieldName + "\"];");
                   }
                 }
-                var tryContent = stringRef;
-                var newObjectConstruction = "var " + fieldNameVar + ";" + ("try{" + tryContent + "}catch(" + errorVar + "){" + ("" + ctxVar + ".catchFieldError(" + errorVar + "," + fieldNameVar + ")") + "}");
-                var stringRef$1 = "for(var key in " + originalObjectVar + "){switch(key){";
-                for(var idx$1 = 0 ,idx_finish$1 = originalFieldNames$1.length; idx$1 < idx_finish$1; ++idx$1){
-                  var originalFieldName$1 = originalFieldNames$1[idx$1];
-                  stringRef$1 = stringRef$1 + ("case\"" + originalFieldName$1 + "\":continue;");
+                var tryContent = stringRef$1;
+                var newObjectConstruction = "var " + fieldNameVar + ";" + ("try{" + tryContent + "}catch(e){" + ("" + ctxVar + ".catchFieldError(e," + fieldNameVar + ")") + "}");
+                var stringRef$2 = "for(var key in " + originalObjectVar + "){switch(key){";
+                for(var idx$2 = 0 ,idx_finish$2 = originalFieldNames$1.length; idx$2 < idx_finish$2; ++idx$2){
+                  var originalFieldName$1 = originalFieldNames$1[idx$2];
+                  stringRef$2 = stringRef$2 + ("case\"" + originalFieldName$1 + "\":continue;");
                 }
-                var unknownKeysRefinement = stringRef$1 + ("default:" + ctxVar + ".raiseOnExcessField(key);}}");
-                var inlinedParseFunction = "function(" + originalObjectVar + "){" + ("" + refinement + ";" + createNewObject + ";" + newObjectConstruction + ";" + (
+                var unknownKeysRefinement = stringRef$2 + ("default:" + ctxVar + ".raiseOnExcessField(key);}}");
+                var inlinedParseFunction = "function(" + originalObjectVar + "){" + ("" + refinement + "" + preparation + "" + newObjectConstruction + "" + (
                     withUnknownKeysRefinement ? unknownKeysRefinement : ""
                   ) + "return " + newObjectVar + "") + "}";
-                var syncTransformation = (new Function('$_c','return '+inlinedParseFunction))({
+                var syncTransformation = (new Function('c','return '+inlinedParseFunction))({
                       struct: struct,
                       fns: parseFnsByOriginalFieldName,
                       fields: originalFields$1,

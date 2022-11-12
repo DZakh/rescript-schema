@@ -142,6 +142,36 @@ module Stdlib = {
       Js.Dict.t<'a>,
     ) => Js.Dict.t<'a> = "Object.assign"
   }
+
+  module Inline = {
+    module Constant = {
+      @inline
+      let errorVar = "e"
+      @inline
+      let inputVar = "v"
+    }
+
+    module Fn = {
+      @inline
+      let make = (~arguments, ~content) => {
+        `function(${arguments}){${content}}`
+      }
+    }
+
+    module If = {
+      @inline
+      let make = (~condition, ~content) => {
+        `if(${condition}){${content}}`
+      }
+    }
+
+    module TryCatch = {
+      @inline
+      let make = (~tryContent, ~catchContent) => {
+        `try{${tryContent}}catch(${Constant.errorVar}){${catchContent}}`
+      }
+    }
+  }
 }
 
 module Error = {
@@ -314,7 +344,7 @@ type taggedLiteral =
 type operation =
   | NoOperation
   | SyncOperation((. unknown) => unknown)
-  | AsyncOperation((. unknown, . unit) => Js.Promise.t<unknown>)
+  | AsyncOperation((. unknown) => (. unit) => Js.Promise.t<unknown>)
 type rec t<'value> = {
   @as("n")
   name: string,
@@ -465,7 +495,7 @@ module TransformationFactory = {
     switch ctx.phase {
     | NoTransformation => NoOperation
     | OnlySync => SyncOperation(ctx.syncTransformation)
-    | OnlyAsync => AsyncOperation((. input, . ()) => ctx.asyncTransformation(. input))
+    | OnlyAsync => AsyncOperation((. input) => (. ()) => ctx.asyncTransformation(. input))
     | SyncAndAsync =>
       AsyncOperation(
         (. input) => {
@@ -1283,33 +1313,6 @@ module Object = {
 }
 
 module Object2 = {
-  module Inline = {
-    module Constant = {
-      let errorVar = "$_e"
-    }
-
-    module Fn = {
-      @inline
-      let make = (~arguments, ~content) => {
-        `function(${arguments}){${content}}`
-      }
-    }
-
-    module If = {
-      @inline
-      let make = (~condition, ~content) => {
-        `if(${condition}){${content}}`
-      }
-    }
-
-    module TryCatch = {
-      @inline
-      let make = (~tryContent, ~catchContent) => {
-        `try{${tryContent}}catch(${Constant.errorVar}){${catchContent}}`
-      }
-    }
-  }
-
   module FieldPlaceholder = {
     type t
 
@@ -1346,9 +1349,10 @@ module Object2 = {
         })
       | WithFields({
           builderFieldNamesByOriginal: Js.Dict.t<string>,
-          originalFieldNamesByBuilder: Js.Dict.t<string>,
           originalFields: Js.Dict.t<struct>,
           originalFieldNames: array<string>,
+          preparationInlinedValues: array<string>,
+          preparationPathes: array<string>,
         })
 
     @inline
@@ -1356,9 +1360,21 @@ module Object2 = {
       switch originalFieldNames {
       | [] => NoFields({transformed: builderResult, originalFieldNames, originalFields})
       | _ => {
-          if builderResult->Stdlib.Object.test->not {
-            Error.panic("The object builder result should be an object.")
+          let preparationInlinedValue = if (
+            builderResult->Js.typeof === "object" && builderResult !== %raw(`null`)
+          ) {
+            if Js.Array2.isArray(builderResult) {
+              "[]"
+            } else {
+              "{}"
+            }
+          } else {
+            // TODO:
+            Error.Unreachable.panic()
           }
+
+          let preparationPathes = [""]
+          let preparationInlinedValues = [preparationInlinedValue]
           let builderResult: Js.Dict.t<unknown> = builderResult->Obj.magic
 
           let builderFieldNames = builderResult->Js.Dict.keys
@@ -1375,20 +1391,19 @@ module Object2 = {
           }
 
           let builderFieldNamesByOriginal = Js.Dict.empty()
-          let originalFieldNamesByBuilder = Js.Dict.empty()
 
           for idx in 0 to builderFieldNames->Js.Array2.length - 1 {
             let builderFieldName = builderFieldNames->Js.Array2.unsafe_get(idx)
             let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
-            originalFieldNamesByBuilder->Js.Dict.set(builderFieldName, originalFieldName)
             builderFieldNamesByOriginal->Js.Dict.set(originalFieldName, builderFieldName)
           }
 
           WithFields({
             builderFieldNamesByOriginal,
-            originalFieldNamesByBuilder,
             originalFieldNames,
             originalFields,
+            preparationPathes,
+            preparationInlinedValues,
           })
         }
       }
@@ -1434,9 +1449,10 @@ module Object2 = {
       )
     | WithFields({
         builderFieldNamesByOriginal,
-        // originalFieldNamesByBuilder,
         originalFieldNames,
         originalFields,
+        preparationInlinedValues,
+        preparationPathes,
       }) =>
       make(
         ~name="Object",
@@ -1450,18 +1466,28 @@ module Object2 = {
           let asyncOps = []
 
           let inlinedParseFunction = {
-            let originalObjectVar = "$_oo"
-            let newObjectVar = "$_no"
-            let fieldNameVar = "$_fn"
-            let ctxVar = "$_c"
+            let originalObjectVar = "o"
+            let newObjectVar = "n"
+            let fieldNameVar = "f"
+            let ctxVar = "c"
 
-            let refinement = Inline.If.make(
+            let refinement = Stdlib.Inline.If.make(
               // TODO: Measure the fastest condition
-              ~condition=`(typeof ${originalObjectVar} === "object" && !Array.isArray(${originalObjectVar}) && ${originalObjectVar} !== null) === false`,
+              ~condition=`(typeof ${originalObjectVar}==="object"&&!Array.isArray(${originalObjectVar})&&${originalObjectVar}!==null)===false`,
               ~content=`${ctxVar}.raiseUnexpectedTypeError(${originalObjectVar},${ctxVar}.struct)`,
             )
 
-            let createNewObject = `var ${newObjectVar}={}`
+            let preparation = {
+              let stringRef = ref(`var ${newObjectVar};`)
+              for idx in 0 to preparationPathes->Js.Array2.length - 1 {
+                let preparationPath = preparationPathes->Js.Array2.unsafe_get(idx)
+                let preparationInlinedValue = preparationInlinedValues->Js.Array2.unsafe_get(idx)
+                stringRef.contents =
+                  stringRef.contents ++
+                  `${newObjectVar}${preparationPath}=${preparationInlinedValue};`
+              }
+              stringRef.contents
+            }
 
             let newObjectConstruction = {
               let tryContent = {
@@ -1484,14 +1510,14 @@ module Object2 = {
                   | (None, _) =>
                     stringRef.contents =
                       stringRef.contents ++
-                      `${newObjectVar}.${fieldName}:${originalObjectVar}.${originalFieldName};`
+                      `${newObjectVar}["${fieldName}"]:${originalObjectVar}["${originalFieldName}"];`
 
                   | (Some(fn), Some(inlinedRefinement)) => {
                       parseFnsByOriginalFieldName->Js.Dict.set(originalFieldName, fn)
 
                       stringRef.contents =
                         stringRef.contents ++
-                        `var v=${originalObjectVar}.${originalFieldName};if(${inlinedRefinement}){${newObjectVar}.${fieldName}=v}else{${fieldNameVar}="${originalFieldName}";${ctxVar}.raiseUnexpectedTypeError(v,${ctxVar}.fields.${originalFieldName})}`
+                        `var ${Stdlib.Inline.Constant.inputVar}=${originalObjectVar}["${originalFieldName}"];if(${inlinedRefinement}){${newObjectVar}["${fieldName}"]=${Stdlib.Inline.Constant.inputVar}}else{${fieldNameVar}="${originalFieldName}";${ctxVar}.raiseUnexpectedTypeError(${Stdlib.Inline.Constant.inputVar},${ctxVar}.fields["${originalFieldName}"])}`
                     }
 
                   | (Some(fn), None) => {
@@ -1499,7 +1525,7 @@ module Object2 = {
 
                       stringRef.contents =
                         stringRef.contents ++
-                        `${fieldNameVar}="${originalFieldName}",${newObjectVar}.${fieldName}=${ctxVar}.fns.${originalFieldName}(${originalObjectVar}.${originalFieldName});`
+                        `${fieldNameVar}="${originalFieldName}",${newObjectVar}["${fieldName}"]=${ctxVar}.fns["${originalFieldName}"](${originalObjectVar}["${originalFieldName}"]);`
                     }
                   }
                 }
@@ -1507,9 +1533,9 @@ module Object2 = {
               }
 
               `var ${fieldNameVar};` ++
-              Inline.TryCatch.make(
+              Stdlib.Inline.TryCatch.make(
                 ~tryContent,
-                ~catchContent=`${ctxVar}.catchFieldError(${Inline.Constant.errorVar},${fieldNameVar})`,
+                ~catchContent=`${ctxVar}.catchFieldError(${Stdlib.Inline.Constant.errorVar},${fieldNameVar})`,
               )
             }
 
@@ -1522,15 +1548,15 @@ module Object2 = {
               stringRef.contents ++ `default:${ctxVar}.raiseOnExcessField(key);}}`
             }
 
-            Inline.Fn.make(
+            Stdlib.Inline.Fn.make(
               ~arguments=originalObjectVar,
-              ~content=`${refinement};${createNewObject};${newObjectConstruction};${withUnknownKeysRefinement
+              ~content=`${refinement}${preparation}${newObjectConstruction}${withUnknownKeysRefinement
                   ? unknownKeysRefinement
                   : ""}return ${newObjectVar}`,
             )
           }
 
-          let syncTransformation = %raw(`new Function('$_c','return '+inlinedParseFunction)`)(. {
+          let syncTransformation = %raw(`new Function('c','return '+inlinedParseFunction)`)(. {
             "struct": struct,
             "fns": parseFnsByOriginalFieldName,
             "fields": originalFields,
@@ -1633,7 +1659,7 @@ module String = {
     make(
       ~name="String",
       ~tagged=String,
-      ~inlinedRefinement=`typeof v==="string"`,
+      ~inlinedRefinement=`typeof ${Stdlib.Inline.Constant.inputVar}==="string"`,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           if input->Js.typeof === "string" {
@@ -1780,7 +1806,7 @@ module Bool = {
     make(
       ~name="Bool",
       ~tagged=Bool,
-      ~inlinedRefinement=`typeof v==="boolean"`,
+      ~inlinedRefinement=`typeof ${Stdlib.Inline.Constant.inputVar}==="boolean"`,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           if input->Js.typeof === "boolean" {
@@ -1801,7 +1827,7 @@ module Int = {
     make(
       ~name="Int",
       ~tagged=Int,
-      ~inlinedRefinement=`typeof v==="number"&&v<2147483648&&v>-2147483649&&v%1===0`,
+      ~inlinedRefinement=`typeof ${Stdlib.Inline.Constant.inputVar}==="number"&&${Stdlib.Inline.Constant.inputVar}<2147483648&&${Stdlib.Inline.Constant.inputVar}>-2147483649&&${Stdlib.Inline.Constant.inputVar}%1===0`,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           if Stdlib.Int.test(input) {
@@ -1857,7 +1883,7 @@ module Float = {
     make(
       ~name="Float",
       ~tagged=Float,
-      ~inlinedRefinement=`typeof v==="number"&&!Number.isNaN(v)`,
+      ~inlinedRefinement=`typeof ${Stdlib.Inline.Constant.inputVar}==="number"&&!Number.isNaN(${Stdlib.Inline.Constant.inputVar})`,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           switch input->Js.typeof === "number" {

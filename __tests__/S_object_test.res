@@ -321,6 +321,18 @@ test("Successfully serializes object with mapped field", t => {
   )
 })
 
+test("Successfully parses object transformed to tuple", t => {
+  let struct = S.object(o => (o->S.field("boo", S.int()), o->S.field("zoo", S.int())))
+
+  t->Assert.deepEqual(%raw(`{boo: 1, zoo: 2}`)->S.parseWith(struct), Ok(1, 2), ())
+})
+
+test("Successfully serializes object transformed to tuple", t => {
+  let struct = S.object(o => (o->S.field("boo", S.int()), o->S.field("zoo", S.int())))
+
+  t->Assert.deepEqual((1, 2)->S.serializeWith(struct), Ok(%raw(`{boo: 1, zoo: 2}`)), ())
+})
+
 test("Successfully parses object from benchmark", t => {
   let struct = S.object(o =>
     {

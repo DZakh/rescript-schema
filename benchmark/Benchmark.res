@@ -195,21 +195,21 @@ let makeAdvancedStrictObjectStructV3 = (. ()) => {
 }
 
 Suite.make()
-->Suite.add("String struct factory", makeStringStruct)
-->Suite.addWithPrepare("Parse string", () => {
-  let struct = makeStringStruct(.)
-  let data = "Hello world!"
-  (. ()) => {
-    data->S.parseWith(struct)
-  }
-})
-->Suite.addWithPrepare("Serialize string", () => {
-  let struct = makeStringStruct(.)
-  let data = "Hello world!"
-  (. ()) => {
-    data->S.serializeWith(struct)
-  }
-})
+// ->Suite.add("String struct factory", makeStringStruct)
+// ->Suite.addWithPrepare("Parse string", () => {
+//   let struct = makeStringStruct(.)
+//   let data = "Hello world!"
+//   (. ()) => {
+//     data->S.parseWith(struct)
+//   }
+// })
+// ->Suite.addWithPrepare("Serialize string", () => {
+//   let struct = makeStringStruct(.)
+//   let data = "Hello world!"
+//   (. ()) => {
+//     data->S.serializeWith(struct)
+//   }
+// })
 ->Suite.add("Advanced object struct factory", makeAdvancedObjectStruct)
 ->Suite.add("Advanced object struct factory V3", makeAdvancedObjectStructV3)
 ->Suite.addWithPrepare("Parse advanced object", () => {
@@ -240,34 +240,34 @@ Suite.make()
     data->S.parseWith(struct)
   }
 })
-->Suite.add("Create struct and parse object without fields", (. ()) => {
-  let struct = S.object0(.)
-  %raw("{}")->S.parseOrRaiseWith(struct)
-})
-->Suite.add("Create struct and parse object without fields V3", (. ()) => {
-  let struct = S.object(_ => ())
-  %raw("{}")->S.parseOrRaiseWith(struct)
-})
-->Suite.add("Create struct and parse strict object without fields", (. ()) => {
-  let struct = S.object0(.)->S.Object.strict
-  %raw("{}")->S.parseOrRaiseWith(struct)
-})
-->Suite.add("Create struct and parse strict object without fields V3", (. ()) => {
-  let struct = S.object(_ => ())->S.Object.strict
-  %raw("{}")->S.parseOrRaiseWith(struct)
-})
-->Suite.addWithPrepare("Serialize advanced object", () => {
-  let struct = makeAdvancedObjectStruct(.)
-  let data = makeTestObject(.)
-  (. ()) => {
-    data->S.serializeWith(struct)
-  }
-})
-->Suite.addWithPrepare("Serialize advanced object V3", () => {
-  let struct = makeAdvancedStrictObjectStructV3(.)
-  let data = makeTestObject(.)
-  (. ()) => {
-    data->S.serializeWith(struct)
-  }
-})
+// ->Suite.add("Create struct and parse object without fields", (. ()) => {
+//   let struct = S.object0(.)
+//   %raw("{}")->S.parseOrRaiseWith(struct)
+// })
+// ->Suite.add("Create struct and parse object without fields V3", (. ()) => {
+//   let struct = S.object(_ => ())
+//   %raw("{}")->S.parseOrRaiseWith(struct)
+// })
+// ->Suite.add("Create struct and parse strict object without fields", (. ()) => {
+//   let struct = S.object0(.)->S.Object.strict
+//   %raw("{}")->S.parseOrRaiseWith(struct)
+// })
+// ->Suite.add("Create struct and parse strict object without fields V3", (. ()) => {
+//   let struct = S.object(_ => ())->S.Object.strict
+//   %raw("{}")->S.parseOrRaiseWith(struct)
+// })
+// ->Suite.addWithPrepare("Serialize advanced object", () => {
+//   let struct = makeAdvancedObjectStruct(.)
+//   let data = makeTestObject(.)
+//   (. ()) => {
+//     data->S.serializeWith(struct)
+//   }
+// })
+// ->Suite.addWithPrepare("Serialize advanced object V3", () => {
+//   let struct = makeAdvancedStrictObjectStructV3(.)
+//   let data = makeTestObject(.)
+//   (. ()) => {
+//     data->S.serializeWith(struct)
+//   }
+// })
 ->Suite.run

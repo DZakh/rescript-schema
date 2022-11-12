@@ -15,10 +15,6 @@ function run(suite) {
           })).run();
 }
 
-function makeStringStruct() {
-  return S.string(undefined);
-}
-
 function makeTestObject() {
   return (Object.freeze({
     number: 1,
@@ -202,67 +198,29 @@ function makeAdvancedStrictObjectStructV3() {
                 }));
 }
 
-run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new Benchmark.Suite().add("String struct factory", makeStringStruct), "Parse string", (function (param) {
-                                                    var struct = makeStringStruct();
-                                                    return function () {
-                                                      return S.parseWith("Hello world!", struct);
-                                                    };
-                                                  })), "Serialize string", (function (param) {
-                                                var struct = makeStringStruct();
-                                                return function () {
-                                                  return S.serializeWith("Hello world!", struct);
-                                                };
-                                              })).add("Advanced object struct factory", makeAdvancedObjectStruct).add("Advanced object struct factory V3", makeAdvancedObjectStructV3), "Parse advanced object", (function (param) {
-                                        var struct = makeAdvancedObjectStruct();
-                                        var data = makeTestObject();
-                                        return function () {
-                                          return S.parseWith(data, struct);
-                                        };
-                                      })), "Parse advanced object V3", (function (param) {
-                                    var struct = makeAdvancedObjectStructV3();
-                                    var data = makeTestObject();
-                                    return function () {
-                                      return S.parseWith(data, struct);
-                                    };
-                                  })), "Parse advanced strict object", (function (param) {
-                                var struct = makeAdvancedStrictObjectStruct(undefined);
-                                var data = makeTestObject();
-                                return function () {
-                                  return S.parseWith(data, struct);
-                                };
-                              })), "Parse advanced strict object V3", (function (param) {
-                            var struct = makeAdvancedStrictObjectStructV3();
-                            var data = makeTestObject();
-                            return function () {
-                              return S.parseWith(data, struct);
-                            };
-                          })).add("Create struct and parse object without fields", (function () {
-                          var struct = S.object0();
-                          return S.parseOrRaiseWith({}, struct);
-                        })).add("Create struct and parse object without fields V3", (function () {
-                        var struct = S.object(function (param) {
-                              
-                            });
-                        return S.parseOrRaiseWith({}, struct);
-                      })).add("Create struct and parse strict object without fields", (function () {
-                      var struct = S.$$Object.strict(S.object0());
-                      return S.parseOrRaiseWith({}, struct);
-                    })).add("Create struct and parse strict object without fields V3", (function () {
-                    var struct = S.$$Object.strict(S.object(function (param) {
-                              
-                            }));
-                    return S.parseOrRaiseWith({}, struct);
-                  })), "Serialize advanced object", (function (param) {
-                var struct = makeAdvancedObjectStruct();
+run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new Benchmark.Suite().add("Advanced object struct factory", makeAdvancedObjectStruct).add("Advanced object struct factory V3", makeAdvancedObjectStructV3), "Parse advanced object", (function (param) {
+                        var struct = makeAdvancedObjectStruct();
+                        var data = makeTestObject();
+                        return function () {
+                          return S.parseWith(data, struct);
+                        };
+                      })), "Parse advanced object V3", (function (param) {
+                    var struct = makeAdvancedObjectStructV3();
+                    var data = makeTestObject();
+                    return function () {
+                      return S.parseWith(data, struct);
+                    };
+                  })), "Parse advanced strict object", (function (param) {
+                var struct = makeAdvancedStrictObjectStruct(undefined);
                 var data = makeTestObject();
                 return function () {
-                  return S.serializeWith(data, struct);
+                  return S.parseWith(data, struct);
                 };
-              })), "Serialize advanced object V3", (function (param) {
+              })), "Parse advanced strict object V3", (function (param) {
             var struct = makeAdvancedStrictObjectStructV3();
             var data = makeTestObject();
             return function () {
-              return S.serializeWith(data, struct);
+              return S.parseWith(data, struct);
             };
           })));
 
