@@ -4,47 +4,6 @@ type user = {name: string, email: string, age: int}
 @live
 type options = {fast?: bool, mode?: int}
 
-test("Successfully parses empty object without declared fields", t => {
-  let struct = S.object(_ => ())
-
-  t->Assert.deepEqual(%raw(`{}`)->S.parseWith(struct), Ok(), ())
-})
-
-test("Successfully parses filled object without declared fields", t => {
-  let struct = S.object(_ => ())
-
-  t->Assert.deepEqual(%raw(`{field:"bar"}`)->S.parseWith(struct), Ok(), ())
-})
-
-test("Successfully parses object without declared fields and returns transformed value", t => {
-  let transformedValue = {"bas": true}
-  let struct = S.object(_ => transformedValue)
-
-  t->Assert.deepEqual(%raw(`{field:"bar"}`)->S.parseWith(struct), Ok(transformedValue), ())
-})
-
-test("Successfully serializes object without declared fields, but with transformed value", t => {
-  let transformedValue = {"bas": true}
-  let struct = S.object(_ => transformedValue)
-
-  t->Assert.deepEqual(transformedValue->S.serializeWith(struct), Ok(%raw("{}")), ())
-})
-
-test("Fails to parse object without declared fields when provided an array", t => {
-  let struct = S.object(_ => ())
-
-  t->Assert.deepEqual(
-    %raw(`[]`)->S.parseWith(struct),
-    Error({
-      // FIXME: Proper type for arrays
-      code: UnexpectedType({expected: "Object", received: "Object"}),
-      operation: Parsing,
-      path: [],
-    }),
-    (),
-  )
-})
-
 test("Successfully parses object with inlinable string field", t => {
   let struct = S.object(o =>
     {
