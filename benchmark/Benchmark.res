@@ -263,4 +263,11 @@ Suite.make()
     data->S.serializeWith(struct)
   }
 })
+->Suite.addWithPrepare("Serialize advanced object V3", () => {
+  let struct = makeAdvancedStrictObjectStructV3(.)
+  let data = makeTestObject(.)
+  (. ()) => {
+    data->S.serializeWith(struct)
+  }
+})
 ->Suite.run

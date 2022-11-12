@@ -1133,22 +1133,20 @@ function factory$3(builder) {
                     });
                 planSyncTransformation(ctx, syncTransformation);
               }), (function (ctx, param) {
-                var fieldNames = undefined;
-                var fields = undefined;
                 planSyncTransformation(ctx, (function (input) {
-                        var unknown = {};
-                        var fieldValues = fieldNames.length <= 1 ? [input] : input;
-                        for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-                          var fieldName = fieldNames[idx];
-                          var fieldStruct = fields[fieldName];
-                          var fieldValue = fieldValues[idx];
+                        var newObject = {};
+                        for(var idx = 0 ,idx_finish = originalFieldNames$1.length; idx < idx_finish; ++idx){
+                          var originalFieldName = originalFieldNames$1[idx];
+                          var fieldStruct = originalFields$1[originalFieldName];
+                          var fieldName = builderFieldNamesByOriginal$1[originalFieldName];
+                          var fieldValue = input[fieldName];
                           var fn = fieldStruct.s;
                           if (typeof fn === "number") {
-                            unknown[fieldName] = fieldValue;
+                            newObject[originalFieldName] = fieldValue;
                           } else if (fn.TAG === /* SyncOperation */0) {
                             try {
                               var fieldData = fn._0(fieldValue);
-                              unknown[fieldName] = fieldData;
+                              newObject[originalFieldName] = fieldData;
                             }
                             catch (raw_internalError){
                               var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
@@ -1165,7 +1163,7 @@ function factory$3(builder) {
                             panic$1(undefined);
                           }
                         }
-                        return unknown;
+                        return newObject;
                       }));
               }), undefined, undefined, undefined);
 }

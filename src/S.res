@@ -1553,23 +1553,19 @@ module Object2 = {
           ctx->TransformationFactory.Ctx.planSyncTransformation(syncTransformation)
         }),
         ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
-          let fieldNames = %raw("undefined")
-          let fields = %raw("undefined")
-
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            let unknown = Js.Dict.empty()
-            let fieldValues =
-              fieldNames->Js.Array2.length <= 1 ? [input]->Obj.magic : input->Obj.magic
-            for idx in 0 to fieldNames->Js.Array2.length - 1 {
-              let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-              let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-              let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
+            let newObject = Js.Dict.empty()
+            for idx in 0 to originalFieldNames->Js.Array2.length - 1 {
+              let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
+              let fieldStruct = originalFields->Js.Dict.unsafeGet(originalFieldName)
+              let fieldName = builderFieldNamesByOriginal->Js.Dict.unsafeGet(originalFieldName)
+              let fieldValue = input->Js.Dict.unsafeGet(fieldName)
               switch fieldStruct.serialize {
-              | NoOperation => unknown->Js.Dict.set(fieldName, fieldValue)
+              | NoOperation => newObject->Js.Dict.set(originalFieldName, fieldValue)
               | SyncOperation(fn) =>
                 try {
                   let fieldData = fn(. fieldValue)
-                  unknown->Js.Dict.set(fieldName, fieldData)
+                  newObject->Js.Dict.set(originalFieldName, fieldData)
                 } catch {
                 | Error.Internal.Exception(internalError) =>
                   raise(
@@ -1581,7 +1577,7 @@ module Object2 = {
               | AsyncOperation(_) => Error.Unreachable.panic()
               }
             }
-            unknown
+            newObject
           })
         }),
         (),
