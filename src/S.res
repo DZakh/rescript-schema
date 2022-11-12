@@ -328,8 +328,8 @@ type rec t<'value> = {
   mutable serialize: operation,
   @as("p")
   mutable parse: operation,
-  @as("ip")
-  isParseInlinable: bool,
+  @as("i")
+  maybeInlinedRefinement: option<string>,
   @as("m")
   maybeMetadataDict: option<Js.Dict.t<unknown>>,
 }
@@ -516,7 +516,7 @@ let make = (
   ~tagged,
   ~parseTransformationFactory,
   ~serializeTransformationFactory,
-  ~isParseInlinable=false,
+  ~inlinedRefinement as maybeInlinedRefinement=?,
   ~metadataDict as maybeMetadataDict=?,
   (),
 ) => {
@@ -527,7 +527,7 @@ let make = (
     serializeTransformationFactory,
     serialize: %raw("undefined"),
     parse: %raw("undefined"),
-    isParseInlinable,
+    maybeInlinedRefinement,
     maybeMetadataDict,
   }
   struct.parse = struct.parseTransformationFactory->TransformationFactory.compile(~struct)
@@ -726,9 +726,9 @@ let refine: (
     | None => struct.serializeTransformationFactory
     },
     ~metadataDict=?struct.maybeMetadataDict,
-    ~isParseInlinable=nextParseTransformationFactory === struct.parseTransformationFactory
-      ? struct.isParseInlinable
-      : false,
+    ~inlinedRefinement=?nextParseTransformationFactory === struct.parseTransformationFactory
+      ? struct.maybeInlinedRefinement
+      : None,
     (),
   )
 }
@@ -793,7 +793,6 @@ let transform: (
       struct.serializeTransformationFactory(. ~ctx, ~struct=compilingStruct)
     }),
     ~metadataDict=?struct.maybeMetadataDict,
-    ~isParseInlinable=false,
     (),
   )
 }
@@ -1473,31 +1472,21 @@ module Object2 = {
                       Some(fn->Obj.magic)
                     }
                   }
-                  switch (maybeParseFn, fieldStruct.isParseInlinable) {
+                  switch (maybeParseFn, fieldStruct.maybeInlinedRefinement) {
                   | (None, _) =>
                     stringRef.contents =
                       stringRef.contents ++
                       `${newObjectVar}.${fieldName}:${originalObjectVar}.${originalFieldName};`
-                  | (Some(fn), true) => {
-                      parseFnsByOriginalFieldName->Js.Dict.set(originalFieldName, fn)
 
-                      let inlinedFn =
-                        fn
-                        ->Obj.magic
-                        ->Js.Int.toString
-                        ->Js.String2.replace("function (input) ", "")
-                        ->Js.String2.replace(
-                          "raiseUnexpectedTypeError(input, struct)",
-                          `${fieldNameVar}="${originalFieldName}",${ctxVar}.raiseUnexpectedTypeError(input,${ctxVar}.fields.${originalFieldName})`,
-                        )
-                        ->Js.String2.replaceByRe(%re(`/return/g`), "")
+                  | (Some(fn), Some(inlinedRefinement)) => {
+                      parseFnsByOriginalFieldName->Js.Dict.set(originalFieldName, fn)
 
                       stringRef.contents =
                         stringRef.contents ++
-                        `var input=${originalObjectVar}.${originalFieldName};${inlinedFn};${newObjectVar}.${fieldName}=input;`
+                        `var v=${originalObjectVar}.${originalFieldName};if(${inlinedRefinement}){${newObjectVar}.${fieldName}=v}else{${fieldNameVar}="${originalFieldName}";${ctxVar}.raiseUnexpectedTypeError(v,${ctxVar}.fields.${originalFieldName})}`
                     }
 
-                  | (Some(fn), false) => {
+                  | (Some(fn), None) => {
                       parseFnsByOriginalFieldName->Js.Dict.set(originalFieldName, fn)
 
                       stringRef.contents =
@@ -1640,7 +1629,7 @@ module String = {
     make(
       ~name="String",
       ~tagged=String,
-      ~isParseInlinable=true,
+      ~inlinedRefinement=`typeof v==="string"`,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           if input->Js.typeof === "string" {
@@ -1787,7 +1776,7 @@ module Bool = {
     make(
       ~name="Bool",
       ~tagged=Bool,
-      ~isParseInlinable=true,
+      ~inlinedRefinement=`typeof v==="boolean"`,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           if input->Js.typeof === "boolean" {
@@ -1808,7 +1797,7 @@ module Int = {
     make(
       ~name="Int",
       ~tagged=Int,
-      ~isParseInlinable=true,
+      ~inlinedRefinement=`typeof v==="number"&&v<2147483648&&v>-2147483649&&v%1===0`,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           if Stdlib.Int.test(input) {
@@ -1864,7 +1853,7 @@ module Float = {
     make(
       ~name="Float",
       ~tagged=Float,
-      ~isParseInlinable=true,
+      ~inlinedRefinement=`typeof v==="number"&&!Number.isNaN(v)`,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           switch input->Js.typeof === "number" {

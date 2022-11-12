@@ -311,8 +311,7 @@ function raiseUnexpectedTypeError(input, struct) {
             });
 }
 
-function make(name, tagged, parseTransformationFactory, serializeTransformationFactory, isParseInlinableOpt, maybeMetadataDict, param) {
-  var isParseInlinable = isParseInlinableOpt !== undefined ? isParseInlinableOpt : false;
+function make(name, tagged, parseTransformationFactory, serializeTransformationFactory, maybeInlinedRefinement, maybeMetadataDict, param) {
   var struct = {
     n: name,
     t: tagged,
@@ -320,7 +319,7 @@ function make(name, tagged, parseTransformationFactory, serializeTransformationF
     sf: serializeTransformationFactory,
     s: undefined,
     p: undefined,
-    ip: isParseInlinable,
+    i: maybeInlinedRefinement,
     m: maybeMetadataDict
   };
   struct.p = compile(struct.pf, struct);
@@ -564,7 +563,7 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
                           return input;
                         }));
                   struct.sf(ctx, compilingStruct);
-                }) : struct.sf, nextParseTransformationFactory === struct.pf ? struct.ip : false, struct.m, undefined);
+                }) : struct.sf, nextParseTransformationFactory === struct.pf ? struct.i : undefined, struct.m, undefined);
 }
 
 function asyncRefine(struct, parser, param) {
@@ -600,7 +599,7 @@ function transform(struct, maybeTransformParser, maybeTransformSerializer, param
                         }));
                 }
                 struct.sf(ctx, compilingStruct);
-              }), false, struct.m, undefined);
+              }), undefined, struct.m, undefined);
 }
 
 function advancedTransform(struct, maybeTransformParser, maybeTransformSerializer, param) {
@@ -1082,15 +1081,10 @@ function factory$3(builder) {
                         ]);
                     maybeParseFn = fn._0;
                   }
-                  var match = fieldStruct.ip;
+                  var match = fieldStruct.i;
                   if (maybeParseFn !== undefined) {
                     parseFnsByOriginalFieldName[originalFieldName] = maybeParseFn;
-                    if (match) {
-                      var inlinedFn = maybeParseFn.toString().replace("function (input) ", "").replace("raiseUnexpectedTypeError(input, struct)", "" + fieldNameVar + "=\"" + originalFieldName + "\"," + ctxVar + ".raiseUnexpectedTypeError(input," + ctxVar + ".fields." + originalFieldName + ")").replace(/return/g, "");
-                      stringRef = stringRef + ("var input=" + originalObjectVar + "." + originalFieldName + ";" + inlinedFn + ";" + newObjectVar + "." + fieldName + "=input;");
-                    } else {
-                      stringRef = stringRef + ("" + fieldNameVar + "=\"" + originalFieldName + "\"," + newObjectVar + "." + fieldName + "=" + ctxVar + ".fns." + originalFieldName + "(" + originalObjectVar + "." + originalFieldName + ");");
-                    }
+                    stringRef = match !== undefined ? stringRef + ("var v=" + originalObjectVar + "." + originalFieldName + ";if(" + match + "){" + newObjectVar + "." + fieldName + "=v}else{" + fieldNameVar + "=\"" + originalFieldName + "\";" + ctxVar + ".raiseUnexpectedTypeError(v," + ctxVar + ".fields." + originalFieldName + ")}") : stringRef + ("" + fieldNameVar + "=\"" + originalFieldName + "\"," + newObjectVar + "." + fieldName + "=" + ctxVar + ".fns." + originalFieldName + "(" + originalObjectVar + "." + originalFieldName + ");");
                   } else {
                     stringRef = stringRef + ("" + newObjectVar + "." + fieldName + ":" + originalObjectVar + "." + originalFieldName + ";");
                   }
@@ -1199,7 +1193,7 @@ function factory$6(param) {
                           return raiseUnexpectedTypeError(input, struct);
                         }
                       }));
-              }), empty, true, undefined, undefined);
+              }), empty, "typeof v===\"string\"", undefined, undefined);
 }
 
 function min(struct, maybeMessage, length) {
@@ -1360,7 +1354,7 @@ function factory$8(param) {
                           return raiseUnexpectedTypeError(input, struct);
                         }
                       }));
-              }), empty, true, undefined, undefined);
+              }), empty, "typeof v===\"boolean\"", undefined, undefined);
 }
 
 function factory$9(param) {
@@ -1372,7 +1366,7 @@ function factory$9(param) {
                           return raiseUnexpectedTypeError(input, struct);
                         }
                       }));
-              }), empty, true, undefined, undefined);
+              }), empty, "typeof v===\"number\"&&v<2147483648&&v>-2147483649&&v%1===0", undefined, undefined);
 }
 
 function min$1(struct, maybeMessage, thanValue) {
@@ -1417,7 +1411,7 @@ function factory$10(param) {
                           return raiseUnexpectedTypeError(input, struct);
                         }
                       }));
-              }), empty, true, undefined, undefined);
+              }), empty, "typeof v===\"number\"&&!Number.isNaN(v)", undefined, undefined);
 }
 
 function factory$11(param) {
