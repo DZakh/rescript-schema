@@ -1313,6 +1313,17 @@ module Object = {
 }
 
 module Object2 = {
+  @inline
+  let originalObjectVar = "o"
+  @inline
+  let newObjectVar = "n"
+  @inline
+  let fieldNameVar = "f"
+  @inline
+  let ctxVar = "c"
+  @inline
+  let hardcodedValuesVar = "h"
+
   module FieldPlaceholder = {
     type t
 
@@ -1353,6 +1364,7 @@ module Object2 = {
           pathesByOriginalFieldNames: Js.Dict.t<string>,
           preparationInlinedValues: array<string>,
           preparationPathes: array<string>,
+          hardcodedValues: array<unknown>,
         })
 
     type traverseCtx = {
@@ -1361,6 +1373,7 @@ module Object2 = {
       preparationInlinedValues: array<string>,
       pathesByOriginalFieldNames: Js.Dict.t<string>,
       originalFieldNames: array<string>,
+      hardcodedValues: array<unknown>,
     }
 
     let rec traverse = (~builderSlice, ~path, ~ctx) => {
@@ -1386,8 +1399,13 @@ module Object2 = {
           )
         }
       } else {
-        // TODO:
-        Error.Unreachable.panic()
+        ctx.preparationPathes->Js.Array2.push(path)->ignore
+        ctx.preparationInlinedValues
+        ->Js.Array2.push(
+          `${hardcodedValuesVar}["${ctx.hardcodedValues->Js.Array2.length->Js.Int.toString}"]`,
+        )
+        ->ignore
+        ctx.hardcodedValues->Js.Array2.push(builderSlice)->ignore
       }
     }
 
@@ -1402,6 +1420,7 @@ module Object2 = {
             preparationInlinedValues: [],
             pathesByOriginalFieldNames: Js.Dict.empty(),
             originalFieldNames,
+            hardcodedValues: [],
           }
           traverse(~builderSlice=builderResult, ~path="", ~ctx=traverseCtx)
 
@@ -1422,20 +1441,12 @@ module Object2 = {
             originalFields,
             preparationPathes: traverseCtx.preparationPathes,
             preparationInlinedValues: traverseCtx.preparationInlinedValues,
+            hardcodedValues: traverseCtx.hardcodedValues,
           })
         }
       }
     }
   }
-
-  @inline
-  let originalObjectVar = "o"
-  @inline
-  let newObjectVar = "n"
-  @inline
-  let fieldNameVar = "f"
-  @inline
-  let ctxVar = "c"
 
   let factory = builder => {
     let instruction = {
@@ -1480,6 +1491,7 @@ module Object2 = {
         originalFields,
         preparationInlinedValues,
         preparationPathes,
+        hardcodedValues,
       }) =>
       make(
         ~name="Object",
@@ -1578,25 +1590,28 @@ module Object2 = {
             )
           }
 
-          let syncTransformation = %raw(`new Function('c','return '+inlinedParseFunction)`)(. {
-            "struct": struct,
-            "fns": parseFnsByOriginalFieldName,
-            "fields": originalFields,
-            "raiseUnexpectedTypeError": raiseUnexpectedTypeError,
-            "raiseOnExcessField": exccessFieldName =>
-              Error.Internal.raise(ExcessField(exccessFieldName)),
-            "catchFieldError": (~exn, ~fieldName) => {
-              switch exn {
-              | Error.Internal.Exception(internalError) =>
-                Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName))
-              | _ => exn
-              }->raise
+          let syncTransformation = %raw(`new Function('c','h','return '+inlinedParseFunction)`)(.
+            {
+              "struct": struct,
+              "fns": parseFnsByOriginalFieldName,
+              "fields": originalFields,
+              "raiseUnexpectedTypeError": raiseUnexpectedTypeError,
+              "raiseOnExcessField": exccessFieldName =>
+                Error.Internal.raise(ExcessField(exccessFieldName)),
+              "catchFieldError": (~exn, ~fieldName) => {
+                switch exn {
+                | Error.Internal.Exception(internalError) =>
+                  Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName))
+                | _ => exn
+                }->raise
+              },
+              // FIXME: Find some better way to do it
+              // Use the inlinedParseFunction two times, so rescript compiler doesn't inline the variable
+              "l": inlinedParseFunction,
+              "l": inlinedParseFunction,
             },
-            // FIXME: Find some better way to do it
-            // Use the inlinedParseFunction two times, so rescript compiler doesn't inline the variable
-            "l": inlinedParseFunction,
-            "l": inlinedParseFunction,
-          })
+            ~hardcodedValues,
+          )
 
           ctx->TransformationFactory.Ctx.planSyncTransformation(syncTransformation)
         }),

@@ -408,16 +408,64 @@ test("Successfully serializes object transformed to nested tuple", t => {
   t->Assert.deepEqual({"v1": (1, 2)}->S.serializeWith(struct), Ok(%raw(`{boo: 1, zoo: 2}`)), ())
 })
 
-test("Successfully parses object with one field returned from transformer", t => {
+test("Successfully parses object with only one field returned from transformer", t => {
   let struct = S.object(o => o->S.field("field", S.bool()))
 
   t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseWith(struct), Ok(true), ())
 })
 
-test("Successfully serializes object with one field returned from transformer", t => {
+test("Successfully serializes object with only one field returned from transformer", t => {
   let struct = S.object(o => o->S.field("field", S.bool()))
 
   t->Assert.deepEqual(true->S.serializeWith(struct), Ok(%raw(`{"field": true}`)), ())
+})
+
+test("Successfully parses object transformed to the one with hardcoded fields", t => {
+  let struct = S.object(o =>
+    {
+      "hardcoded": false,
+      "field": o->S.field("field", S.bool()),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{"field": true}`)->S.parseWith(struct),
+    Ok({
+      "hardcoded": false,
+      "field": true,
+    }),
+    (),
+  )
+})
+
+test("Successfully serializes object transformed to the one with hardcoded fields", t => {
+  let struct = S.object(o =>
+    {
+      "hardcoded": false,
+      "field": o->S.field("field", S.bool()),
+    }
+  )
+
+  t->Assert.deepEqual(
+    {
+      "hardcoded": false,
+      "field": true,
+    }->S.serializeWith(struct),
+    Ok(%raw(`{"field": true}`)),
+    (),
+  )
+})
+
+test("Successfully parses object transformed to variant", t => {
+  let struct = S.object(o => #VARIANT(o->S.field("field", S.bool())))
+
+  t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseWith(struct), Ok(#VARIANT(true)), ())
+})
+
+test("Successfully serializes object transformed to variant", t => {
+  let struct = S.object(o => #VARIANT(o->S.field("field", S.bool())))
+
+  t->Assert.deepEqual(#VARIANT(true)->S.serializeWith(struct), Ok(%raw(`{"field": true}`)), ())
 })
 
 test("Successfully parses object from benchmark", t => {

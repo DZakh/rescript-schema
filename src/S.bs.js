@@ -985,17 +985,20 @@ function traverse(builderSlice, path, ctx) {
     ctx.pathesByOriginalFieldNames[originalFieldName] = path;
     return ;
   }
-  if (!(typeof builderSlice === "object" && builderSlice !== null)) {
-    return panic$1(undefined);
+  if (typeof builderSlice === "object" && builderSlice !== null) {
+    ctx.preparationPathes.push(path);
+    ctx.preparationInlinedValues.push(Array.isArray(builderSlice) ? "[]" : "{}");
+    var builderSliceFieldNames = Object.keys(builderSlice);
+    for(var idx = 0 ,idx_finish = builderSliceFieldNames.length; idx < idx_finish; ++idx){
+      var builderSliceFieldName = builderSliceFieldNames[idx];
+      var nextBuilderSlice = builderSlice[builderSliceFieldName];
+      traverse(nextBuilderSlice, "" + path + "[\"" + builderSliceFieldName + "\"]", ctx);
+    }
+    return ;
   }
   ctx.preparationPathes.push(path);
-  ctx.preparationInlinedValues.push(Array.isArray(builderSlice) ? "[]" : "{}");
-  var builderSliceFieldNames = Object.keys(builderSlice);
-  for(var idx = 0 ,idx_finish = builderSliceFieldNames.length; idx < idx_finish; ++idx){
-    var builderSliceFieldName = builderSliceFieldNames[idx];
-    var nextBuilderSlice = builderSlice[builderSliceFieldName];
-    traverse(nextBuilderSlice, "" + path + "[\"" + builderSliceFieldName + "\"]", ctx);
-  }
+  ctx.preparationInlinedValues.push("h[\"" + ctx.hardcodedValues.length.toString() + "\"]");
+  ctx.hardcodedValues.push(builderSlice);
 }
 
 function factory$3(builder) {
@@ -1015,7 +1018,8 @@ function factory$3(builder) {
       preparationPathes: [],
       preparationInlinedValues: [],
       pathesByOriginalFieldNames: {},
-      originalFieldNames: originalFieldNames
+      originalFieldNames: originalFieldNames,
+      hardcodedValues: []
     };
     traverse(builderResult, "", traverseCtx);
     var originalFieldNamesCount = originalFieldNames.length;
@@ -1031,7 +1035,8 @@ function factory$3(builder) {
       originalFieldNames: originalFieldNames,
       pathesByOriginalFieldNames: traverseCtx.pathesByOriginalFieldNames,
       preparationInlinedValues: traverseCtx.preparationInlinedValues,
-      preparationPathes: traverseCtx.preparationPathes
+      preparationPathes: traverseCtx.preparationPathes,
+      hardcodedValues: traverseCtx.hardcodedValues
     };
   } else {
     instruction = {
@@ -1071,6 +1076,7 @@ function factory$3(builder) {
                         }));
                 }), undefined, undefined, undefined);
   }
+  var hardcodedValues = instruction.hardcodedValues;
   var preparationPathes = instruction.preparationPathes;
   var preparationInlinedValues = instruction.preparationInlinedValues;
   var pathesByOriginalFieldNames = instruction.pathesByOriginalFieldNames;
@@ -1129,7 +1135,7 @@ function factory$3(builder) {
                 var inlinedParseFunction = "function(o){" + ("" + refinement + "" + preparation + "" + newObjectConstruction + "" + (
                     withUnknownKeysRefinement ? unknownKeysRefinement : ""
                   ) + "return n") + "}";
-                var syncTransformation = (new Function('c','return '+inlinedParseFunction))({
+                var syncTransformation = (new Function('c','h','return '+inlinedParseFunction))({
                       struct: struct,
                       fns: parseFnsByOriginalFieldName,
                       fields: originalFields$1,
@@ -1148,7 +1154,7 @@ function factory$3(builder) {
                         }),
                       l: inlinedParseFunction,
                       l: inlinedParseFunction
-                    });
+                    }, hardcodedValues);
                 planSyncTransformation(ctx, syncTransformation);
               }), (function (ctx, param) {
                 var serializeFnsByOriginalFieldName = {};
