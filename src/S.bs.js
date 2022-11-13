@@ -978,6 +978,26 @@ function strict(struct) {
 
 var value = (Symbol("rescript-struct:Object.FieldPlaceholder"));
 
+function traverse(builderSlice, path, ctx) {
+  if (builderSlice === value) {
+    var originalFieldName = ctx.originalFieldNames[ctx.registeredFieldsCount];
+    ctx.registeredFieldsCount = ctx.registeredFieldsCount + 1;
+    ctx.pathesByOriginalFieldNames[originalFieldName] = path;
+    return ;
+  }
+  if (!(typeof builderSlice === "object" && builderSlice !== null)) {
+    return panic$1(undefined);
+  }
+  ctx.preparationPathes.push(path);
+  ctx.preparationInlinedValues.push(Array.isArray(builderSlice) ? "[]" : "{}");
+  var builderSliceFieldNames = Object.keys(builderSlice);
+  for(var idx = 0 ,idx_finish = builderSliceFieldNames.length; idx < idx_finish; ++idx){
+    var builderSliceFieldName = builderSliceFieldNames[idx];
+    var nextBuilderSlice = builderSlice[builderSliceFieldName];
+    traverse(nextBuilderSlice, "" + path + "[\"" + builderSliceFieldName + "\"]", ctx);
+  }
+}
+
 function factory$3(builder) {
   var builderCtx_originalFieldNames = [];
   var builderCtx_originalFields = {};
@@ -990,33 +1010,28 @@ function factory$3(builder) {
   var builderResult = builder(builderCtx);
   var instruction;
   if (originalFieldNames.length !== 0) {
-    var preparationInlinedValue = typeof builderResult === "object" && builderResult !== null ? (
-        Array.isArray(builderResult) ? "[]" : "{}"
-      ) : panic$1(undefined);
-    var preparationPathes = [""];
-    var preparationInlinedValues = [preparationInlinedValue];
-    var builderFieldNames = Object.keys(builderResult);
-    var builderFieldNamesNumber = builderFieldNames.length;
-    var originalFieldNamesNumber = originalFieldNames.length;
-    if (builderFieldNamesNumber > originalFieldNamesNumber) {
+    var traverseCtx = {
+      registeredFieldsCount: 0,
+      preparationPathes: [],
+      preparationInlinedValues: [],
+      pathesByOriginalFieldNames: {},
+      originalFieldNames: originalFieldNames
+    };
+    traverse(builderResult, "", traverseCtx);
+    var originalFieldNamesCount = originalFieldNames.length;
+    if (traverseCtx.registeredFieldsCount > originalFieldNamesCount) {
       throw new Error("[rescript-struct] The object builder result missing field defenitions.");
     }
-    if (builderFieldNamesNumber < originalFieldNamesNumber) {
+    if (traverseCtx.registeredFieldsCount < originalFieldNamesCount) {
       throw new Error("[rescript-struct] The object builder result has unused field defenitions.");
-    }
-    var builderFieldNamesByOriginal = {};
-    for(var idx = 0 ,idx_finish = builderFieldNames.length; idx < idx_finish; ++idx){
-      var builderFieldName = builderFieldNames[idx];
-      var originalFieldName = originalFieldNames[idx];
-      builderFieldNamesByOriginal[originalFieldName] = builderFieldName;
     }
     instruction = {
       TAG: /* WithFields */1,
-      builderFieldNamesByOriginal: builderFieldNamesByOriginal,
       originalFields: originalFields,
       originalFieldNames: originalFieldNames,
-      preparationInlinedValues: preparationInlinedValues,
-      preparationPathes: preparationPathes
+      pathesByOriginalFieldNames: traverseCtx.pathesByOriginalFieldNames,
+      preparationInlinedValues: traverseCtx.preparationInlinedValues,
+      preparationPathes: traverseCtx.preparationPathes
     };
   } else {
     instruction = {
@@ -1056,11 +1071,11 @@ function factory$3(builder) {
                         }));
                 }), undefined, undefined, undefined);
   }
-  var preparationPathes$1 = instruction.preparationPathes;
-  var preparationInlinedValues$1 = instruction.preparationInlinedValues;
+  var preparationPathes = instruction.preparationPathes;
+  var preparationInlinedValues = instruction.preparationInlinedValues;
+  var pathesByOriginalFieldNames = instruction.pathesByOriginalFieldNames;
   var originalFieldNames$1 = instruction.originalFieldNames;
   var originalFields$1 = instruction.originalFields;
-  var builderFieldNamesByOriginal$1 = instruction.builderFieldNamesByOriginal;
   return make("Object", {
               TAG: /* Object */4,
               fields: originalFields$1,
@@ -1071,16 +1086,16 @@ function factory$3(builder) {
                 var asyncOps = [];
                 var refinement = "if((typeof o===\"object\"&&!Array.isArray(o)&&o!==null)===false){c.raiseUnexpectedTypeError(o,c.struct)}";
                 var stringRef = "var n;";
-                for(var idx = 0 ,idx_finish = preparationPathes$1.length; idx < idx_finish; ++idx){
-                  var preparationPath = preparationPathes$1[idx];
-                  var preparationInlinedValue = preparationInlinedValues$1[idx];
+                for(var idx = 0 ,idx_finish = preparationPathes.length; idx < idx_finish; ++idx){
+                  var preparationPath = preparationPathes[idx];
+                  var preparationInlinedValue = preparationInlinedValues[idx];
                   stringRef = stringRef + ("n" + preparationPath + "=" + preparationInlinedValue + ";");
                 }
                 var preparation = stringRef;
                 var stringRef$1 = "";
                 for(var idx$1 = 0 ,idx_finish$1 = originalFieldNames$1.length; idx$1 < idx_finish$1; ++idx$1){
                   var originalFieldName = originalFieldNames$1[idx$1];
-                  var fieldName = builderFieldNamesByOriginal$1[originalFieldName];
+                  var path = pathesByOriginalFieldNames[originalFieldName];
                   var fieldStruct = originalFields$1[originalFieldName];
                   var fn = fieldStruct.p;
                   var maybeParseFn;
@@ -1098,9 +1113,9 @@ function factory$3(builder) {
                   var match = fieldStruct.i;
                   if (maybeParseFn !== undefined) {
                     parseFnsByOriginalFieldName[originalFieldName] = maybeParseFn;
-                    stringRef$1 = match !== undefined ? stringRef$1 + ("var v=o[\"" + originalFieldName + "\"];if(" + match + "){n[\"" + fieldName + "\"]=v}else{f=\"" + originalFieldName + "\";c.raiseUnexpectedTypeError(v,c.fields[\"" + originalFieldName + "\"])}") : stringRef$1 + ("f=\"" + originalFieldName + "\",n[\"" + fieldName + "\"]=c.fns[\"" + originalFieldName + "\"](o[\"" + originalFieldName + "\"]);");
+                    stringRef$1 = match !== undefined ? stringRef$1 + ("var v=o[\"" + originalFieldName + "\"];if(" + match + "){n" + path + "=v}else{f=\"" + originalFieldName + "\";c.raiseUnexpectedTypeError(v,c.fields[\"" + originalFieldName + "\"])}") : stringRef$1 + ("f=\"" + originalFieldName + "\",n" + path + "=c.fns[\"" + originalFieldName + "\"](o[\"" + originalFieldName + "\"]);");
                   } else {
-                    stringRef$1 = stringRef$1 + ("n[\"" + fieldName + "\"]:o[\"" + originalFieldName + "\"];");
+                    stringRef$1 = stringRef$1 + ("n" + path + ":o[\"" + originalFieldName + "\"];");
                   }
                 }
                 var tryContent = stringRef$1;
@@ -1141,13 +1156,13 @@ function factory$3(builder) {
                 for(var idx = 0 ,idx_finish = originalFieldNames$1.length; idx < idx_finish; ++idx){
                   var originalFieldName = originalFieldNames$1[idx];
                   var fieldStruct = originalFields$1[originalFieldName];
-                  var fieldName = builderFieldNamesByOriginal$1[originalFieldName];
+                  var path = pathesByOriginalFieldNames[originalFieldName];
                   var fn = fieldStruct.s;
                   if (typeof fn === "number") {
-                    contentRef = contentRef + ("\"" + originalFieldName + "\":n[\"" + fieldName + "\"],");
+                    contentRef = contentRef + ("\"" + originalFieldName + "\":n" + path + ",");
                   } else if (fn.TAG === /* SyncOperation */0) {
                     serializeFnsByOriginalFieldName[originalFieldName] = fn._0;
-                    contentRef = contentRef + ("\"" + originalFieldName + "\":(f=\"" + originalFieldName + "\",c.fns[\"" + originalFieldName + "\"](n[\"" + fieldName + "\"])),");
+                    contentRef = contentRef + ("\"" + originalFieldName + "\":(f=\"" + originalFieldName + "\",c.fns[\"" + originalFieldName + "\"](n" + path + ")),");
                   } else {
                     panic$1(undefined);
                   }

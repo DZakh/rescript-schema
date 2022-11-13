@@ -354,6 +354,72 @@ test("Successfully serializes object transformed to tuple", t => {
   t->Assert.deepEqual((1, 2)->S.serializeWith(struct), Ok(%raw(`{boo: 1, zoo: 2}`)), ())
 })
 
+test("Successfully parses object transformed to nested object", t => {
+  let struct = S.object(o =>
+    {
+      "v1": {
+        "boo": o->S.field("boo", S.int()),
+        "zoo": o->S.field("zoo", S.int()),
+      },
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{boo: 1, zoo: 2}`)->S.parseWith(struct),
+    Ok({"v1": {"boo": 1, "zoo": 2}}),
+    (),
+  )
+})
+
+test("Successfully serializes object transformed to nested object", t => {
+  let struct = S.object(o =>
+    {
+      "v1": {
+        "boo": o->S.field("boo", S.int()),
+        "zoo": o->S.field("zoo", S.int()),
+      },
+    }
+  )
+
+  t->Assert.deepEqual(
+    {"v1": {"boo": 1, "zoo": 2}}->S.serializeWith(struct),
+    Ok(%raw(`{boo: 1, zoo: 2}`)),
+    (),
+  )
+})
+
+test("Successfully parses object transformed to nested tuple", t => {
+  let struct = S.object(o =>
+    {
+      "v1": (o->S.field("boo", S.int()), o->S.field("zoo", S.int())),
+    }
+  )
+
+  t->Assert.deepEqual(%raw(`{boo: 1, zoo: 2}`)->S.parseWith(struct), Ok({"v1": (1, 2)}), ())
+})
+
+test("Successfully serializes object transformed to nested tuple", t => {
+  let struct = S.object(o =>
+    {
+      "v1": (o->S.field("boo", S.int()), o->S.field("zoo", S.int())),
+    }
+  )
+
+  t->Assert.deepEqual({"v1": (1, 2)}->S.serializeWith(struct), Ok(%raw(`{boo: 1, zoo: 2}`)), ())
+})
+
+test("Successfully parses object with one field returned from transformer", t => {
+  let struct = S.object(o => o->S.field("field", S.bool()))
+
+  t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseWith(struct), Ok(true), ())
+})
+
+test("Successfully serializes object with one field returned from transformer", t => {
+  let struct = S.object(o => o->S.field("field", S.bool()))
+
+  t->Assert.deepEqual(true->S.serializeWith(struct), Ok(%raw(`{"field": true}`)), ())
+})
+
 test("Successfully parses object from benchmark", t => {
   let struct = S.object(o =>
     {
@@ -482,4 +548,37 @@ test("Successfully parses object and serializes it back to the initial data", t 
     Ok(Ok(any)),
     (),
   )
+})
+
+test("Fails to create object struct with unused fields", t => {
+  t->Assert.throws(() => {
+    S.object(
+      o => {
+        let _ = o->S.field("unused", S.string())
+        {
+          "field": o->S.field("field", S.string()),
+        }
+      },
+    )->ignore
+  }, ~expectations=ThrowsException.make(
+    ~message=String("[rescript-struct] The object builder result has unused field defenitions."),
+    (),
+  ), ())
+})
+
+test("Fails to create object struct with overused fields", t => {
+  t->Assert.throws(() => {
+    S.object(
+      o => {
+        let field = o->S.field("field", S.string())
+        {
+          "field1": field,
+          "field2": field,
+        }
+      },
+    )->ignore
+  }, ~expectations=ThrowsException.make(
+    ~message=String("[rescript-struct] The object builder result missing field defenitions."),
+    (),
+  ), ())
 })

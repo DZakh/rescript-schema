@@ -1348,62 +1348,80 @@ module Object2 = {
           originalFieldNames: array<string>,
         })
       | WithFields({
-          builderFieldNamesByOriginal: Js.Dict.t<string>,
           originalFields: Js.Dict.t<struct>,
           originalFieldNames: array<string>,
+          pathesByOriginalFieldNames: Js.Dict.t<string>,
           preparationInlinedValues: array<string>,
           preparationPathes: array<string>,
         })
+
+    type traverseCtx = {
+      mutable registeredFieldsCount: int,
+      preparationPathes: array<string>,
+      preparationInlinedValues: array<string>,
+      pathesByOriginalFieldNames: Js.Dict.t<string>,
+      originalFieldNames: array<string>,
+    }
+
+    let rec traverse = (~builderSlice, ~path, ~ctx) => {
+      let builderSlice = builderSlice->castUnknownToAny
+      if builderSlice->Obj.magic === FieldPlaceholder.value {
+        let originalFieldName =
+          ctx.originalFieldNames->Js.Array2.unsafe_get(ctx.registeredFieldsCount)
+        ctx.registeredFieldsCount = Stdlib.Int.plus(ctx.registeredFieldsCount, 1)
+        ctx.pathesByOriginalFieldNames->Js.Dict.set(originalFieldName, path)
+      } else if builderSlice->Js.typeof === "object" && builderSlice !== %raw(`null`) {
+        ctx.preparationPathes->Js.Array2.push(path)->ignore
+        ctx.preparationInlinedValues
+        ->Js.Array2.push(Js.Array2.isArray(builderSlice) ? "[]" : "{}")
+        ->ignore
+        let builderSliceFieldNames = builderSlice->Js.Dict.keys
+        for idx in 0 to builderSliceFieldNames->Js.Array2.length - 1 {
+          let builderSliceFieldName = builderSliceFieldNames->Js.Array2.unsafe_get(idx)
+          let nextBuilderSlice = builderSlice->Js.Dict.unsafeGet(builderSliceFieldName)
+          traverse(
+            ~builderSlice=nextBuilderSlice->castAnyToUnknown,
+            ~path=`${path}["${builderSliceFieldName}"]`,
+            ~ctx,
+          )
+        }
+      } else {
+        // TODO:
+        Error.Unreachable.panic()
+      }
+    }
 
     @inline
     let fromBuilderResult = (builderResult, ~originalFieldNames, ~originalFields) => {
       switch originalFieldNames {
       | [] => NoFields({transformed: builderResult, originalFieldNames, originalFields})
       | _ => {
-          let preparationInlinedValue = if (
-            builderResult->Js.typeof === "object" && builderResult !== %raw(`null`)
-          ) {
-            if Js.Array2.isArray(builderResult) {
-              "[]"
-            } else {
-              "{}"
-            }
-          } else {
-            // TODO:
-            Error.Unreachable.panic()
+          let traverseCtx = {
+            registeredFieldsCount: 0,
+            preparationPathes: [],
+            preparationInlinedValues: [],
+            pathesByOriginalFieldNames: Js.Dict.empty(),
+            originalFieldNames,
           }
-
-          let preparationPathes = [""]
-          let preparationInlinedValues = [preparationInlinedValue]
-          let builderResult: Js.Dict.t<unknown> = builderResult->Obj.magic
-
-          let builderFieldNames = builderResult->Js.Dict.keys
+          traverse(~builderSlice=builderResult, ~path="", ~ctx=traverseCtx)
 
           {
-            let builderFieldNamesNumber = builderFieldNames->Js.Array2.length
-            let originalFieldNamesNumber = originalFieldNames->Js.Array2.length
-            if builderFieldNamesNumber > originalFieldNamesNumber {
+            // TODO: Better error messages
+            let originalFieldNamesCount = originalFieldNames->Js.Array2.length
+            if traverseCtx.registeredFieldsCount > originalFieldNamesCount {
               Error.panic("The object builder result missing field defenitions.")
             }
-            if builderFieldNamesNumber < originalFieldNamesNumber {
+            if traverseCtx.registeredFieldsCount < originalFieldNamesCount {
               Error.panic("The object builder result has unused field defenitions.")
             }
           }
 
-          let builderFieldNamesByOriginal = Js.Dict.empty()
-
-          for idx in 0 to builderFieldNames->Js.Array2.length - 1 {
-            let builderFieldName = builderFieldNames->Js.Array2.unsafe_get(idx)
-            let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
-            builderFieldNamesByOriginal->Js.Dict.set(originalFieldName, builderFieldName)
-          }
-
           WithFields({
-            builderFieldNamesByOriginal,
+            pathesByOriginalFieldNames: traverseCtx.pathesByOriginalFieldNames,
             originalFieldNames,
             originalFields,
-            preparationPathes,
-            preparationInlinedValues,
+            preparationPathes: traverseCtx.preparationPathes,
+            preparationInlinedValues: traverseCtx.preparationInlinedValues,
           })
         }
       }
@@ -1457,7 +1475,7 @@ module Object2 = {
         (),
       )
     | WithFields({
-        builderFieldNamesByOriginal,
+        pathesByOriginalFieldNames,
         originalFieldNames,
         originalFields,
         preparationInlinedValues,
@@ -1498,7 +1516,7 @@ module Object2 = {
                 let stringRef = ref("")
                 for idx in 0 to originalFieldNames->Js.Array2.length - 1 {
                   let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
-                  let fieldName = builderFieldNamesByOriginal->Js.Dict.unsafeGet(originalFieldName)
+                  let path = pathesByOriginalFieldNames->Js.Dict.unsafeGet(originalFieldName)
                   let fieldStruct = originalFields->Js.Dict.unsafeGet(originalFieldName)
                   let maybeParseFn = switch fieldStruct.parse {
                   | NoOperation => None
@@ -1514,14 +1532,14 @@ module Object2 = {
                   | (None, _) =>
                     stringRef.contents =
                       stringRef.contents ++
-                      `${newObjectVar}["${fieldName}"]:${originalObjectVar}["${originalFieldName}"];`
+                      `${newObjectVar}${path}:${originalObjectVar}["${originalFieldName}"];`
 
                   | (Some(fn), Some(inlinedRefinement)) => {
                       parseFnsByOriginalFieldName->Js.Dict.set(originalFieldName, fn)
 
                       stringRef.contents =
                         stringRef.contents ++
-                        `var ${Stdlib.Inline.Constant.inputVar}=${originalObjectVar}["${originalFieldName}"];if(${inlinedRefinement}){${newObjectVar}["${fieldName}"]=${Stdlib.Inline.Constant.inputVar}}else{${fieldNameVar}="${originalFieldName}";${ctxVar}.raiseUnexpectedTypeError(${Stdlib.Inline.Constant.inputVar},${ctxVar}.fields["${originalFieldName}"])}`
+                        `var ${Stdlib.Inline.Constant.inputVar}=${originalObjectVar}["${originalFieldName}"];if(${inlinedRefinement}){${newObjectVar}${path}=${Stdlib.Inline.Constant.inputVar}}else{${fieldNameVar}="${originalFieldName}";${ctxVar}.raiseUnexpectedTypeError(${Stdlib.Inline.Constant.inputVar},${ctxVar}.fields["${originalFieldName}"])}`
                     }
 
                   | (Some(fn), None) => {
@@ -1529,7 +1547,7 @@ module Object2 = {
 
                       stringRef.contents =
                         stringRef.contents ++
-                        `${fieldNameVar}="${originalFieldName}",${newObjectVar}["${fieldName}"]=${ctxVar}.fns["${originalFieldName}"](${originalObjectVar}["${originalFieldName}"]);`
+                        `${fieldNameVar}="${originalFieldName}",${newObjectVar}${path}=${ctxVar}.fns["${originalFieldName}"](${originalObjectVar}["${originalFieldName}"]);`
                     }
                   }
                 }
@@ -1591,16 +1609,16 @@ module Object2 = {
               for idx in 0 to originalFieldNames->Js.Array2.length - 1 {
                 let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
                 let fieldStruct = originalFields->Js.Dict.unsafeGet(originalFieldName)
-                let fieldName = builderFieldNamesByOriginal->Js.Dict.unsafeGet(originalFieldName)
+                let path = pathesByOriginalFieldNames->Js.Dict.unsafeGet(originalFieldName)
                 switch fieldStruct.serialize {
                 | NoOperation =>
                   contentRef.contents =
-                    contentRef.contents ++ `"${originalFieldName}":${newObjectVar}["${fieldName}"],`
+                    contentRef.contents ++ `"${originalFieldName}":${newObjectVar}${path},`
                 | SyncOperation(fn) =>
                   serializeFnsByOriginalFieldName->Js.Dict.set(originalFieldName, fn)
                   contentRef.contents =
                     contentRef.contents ++
-                    `"${originalFieldName}":(${fieldNameVar}="${originalFieldName}",${ctxVar}.fns["${originalFieldName}"](${newObjectVar}["${fieldName}"])),`
+                    `"${originalFieldName}":(${fieldNameVar}="${originalFieldName}",${ctxVar}.fns["${originalFieldName}"](${newObjectVar}${path})),`
                 | AsyncOperation(_) => Error.Unreachable.panic()
                 }
               }
