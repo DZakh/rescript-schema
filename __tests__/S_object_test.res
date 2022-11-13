@@ -231,6 +231,27 @@ test("Successfully serializes object with transformed field", t => {
   )
 })
 
+test("Fails to serializes object when transformed field has raises error", t => {
+  let struct = S.object(o =>
+    {
+      "string": o->S.field(
+        "string",
+        S.string()->S.transform(~serializer=_ => S.Error.raise("User error"), ()),
+      ),
+    }
+  )
+
+  t->Assert.deepEqual(
+    {"string": "bar"}->S.serializeWith(struct),
+    Error({
+      code: OperationFailed("User error"),
+      operation: Serializing,
+      path: ["string"],
+    }),
+    (),
+  )
+})
+
 test("Successfully parses object with optional fields", t => {
   let struct = S.object(o =>
     {

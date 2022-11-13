@@ -1069,16 +1069,12 @@ function factory$3(builder) {
                 var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
                 var parseFnsByOriginalFieldName = {};
                 var asyncOps = [];
-                var originalObjectVar = "o";
-                var newObjectVar = "n";
-                var fieldNameVar = "f";
-                var ctxVar = "c";
-                var refinement = "if(" + ("(typeof " + originalObjectVar + "===\"object\"&&!Array.isArray(" + originalObjectVar + ")&&" + originalObjectVar + "!==null)===false") + "){" + ("" + ctxVar + ".raiseUnexpectedTypeError(" + originalObjectVar + "," + ctxVar + ".struct)") + "}";
-                var stringRef = "var " + newObjectVar + ";";
+                var refinement = "if((typeof o===\"object\"&&!Array.isArray(o)&&o!==null)===false){c.raiseUnexpectedTypeError(o,c.struct)}";
+                var stringRef = "var n;";
                 for(var idx = 0 ,idx_finish = preparationPathes$1.length; idx < idx_finish; ++idx){
                   var preparationPath = preparationPathes$1[idx];
                   var preparationInlinedValue = preparationInlinedValues$1[idx];
-                  stringRef = stringRef + ("" + newObjectVar + "" + preparationPath + "=" + preparationInlinedValue + ";");
+                  stringRef = stringRef + ("n" + preparationPath + "=" + preparationInlinedValue + ";");
                 }
                 var preparation = stringRef;
                 var stringRef$1 = "";
@@ -1102,22 +1098,22 @@ function factory$3(builder) {
                   var match = fieldStruct.i;
                   if (maybeParseFn !== undefined) {
                     parseFnsByOriginalFieldName[originalFieldName] = maybeParseFn;
-                    stringRef$1 = match !== undefined ? stringRef$1 + ("var v=" + originalObjectVar + "[\"" + originalFieldName + "\"];if(" + match + "){" + newObjectVar + "[\"" + fieldName + "\"]=v}else{" + fieldNameVar + "=\"" + originalFieldName + "\";" + ctxVar + ".raiseUnexpectedTypeError(v," + ctxVar + ".fields[\"" + originalFieldName + "\"])}") : stringRef$1 + ("" + fieldNameVar + "=\"" + originalFieldName + "\"," + newObjectVar + "[\"" + fieldName + "\"]=" + ctxVar + ".fns[\"" + originalFieldName + "\"](" + originalObjectVar + "[\"" + originalFieldName + "\"]);");
+                    stringRef$1 = match !== undefined ? stringRef$1 + ("var v=o[\"" + originalFieldName + "\"];if(" + match + "){n[\"" + fieldName + "\"]=v}else{f=\"" + originalFieldName + "\";c.raiseUnexpectedTypeError(v,c.fields[\"" + originalFieldName + "\"])}") : stringRef$1 + ("f=\"" + originalFieldName + "\",n[\"" + fieldName + "\"]=c.fns[\"" + originalFieldName + "\"](o[\"" + originalFieldName + "\"]);");
                   } else {
-                    stringRef$1 = stringRef$1 + ("" + newObjectVar + "[\"" + fieldName + "\"]:" + originalObjectVar + "[\"" + originalFieldName + "\"];");
+                    stringRef$1 = stringRef$1 + ("n[\"" + fieldName + "\"]:o[\"" + originalFieldName + "\"];");
                   }
                 }
                 var tryContent = stringRef$1;
-                var newObjectConstruction = "var " + fieldNameVar + ";" + ("try{" + tryContent + "}catch(e){" + ("" + ctxVar + ".catchFieldError(e," + fieldNameVar + ")") + "}");
-                var stringRef$2 = "for(var key in " + originalObjectVar + "){switch(key){";
+                var newObjectConstruction = "var f;" + ("try{" + tryContent + "}catch(e){c.catchFieldError(e,f)}");
+                var stringRef$2 = "for(var key in o){switch(key){";
                 for(var idx$2 = 0 ,idx_finish$2 = originalFieldNames$1.length; idx$2 < idx_finish$2; ++idx$2){
                   var originalFieldName$1 = originalFieldNames$1[idx$2];
                   stringRef$2 = stringRef$2 + ("case\"" + originalFieldName$1 + "\":continue;");
                 }
-                var unknownKeysRefinement = stringRef$2 + ("default:" + ctxVar + ".raiseOnExcessField(key);}}");
-                var inlinedParseFunction = "function(" + originalObjectVar + "){" + ("" + refinement + "" + preparation + "" + newObjectConstruction + "" + (
+                var unknownKeysRefinement = stringRef$2 + "default:c.raiseOnExcessField(key);}}";
+                var inlinedParseFunction = "function(o){" + ("" + refinement + "" + preparation + "" + newObjectConstruction + "" + (
                     withUnknownKeysRefinement ? unknownKeysRefinement : ""
-                  ) + "return " + newObjectVar + "") + "}";
+                  ) + "return n") + "}";
                 var syncTransformation = (new Function('c','return '+inlinedParseFunction))({
                       struct: struct,
                       fns: parseFnsByOriginalFieldName,
@@ -1135,43 +1131,42 @@ function factory$3(builder) {
                                     _1: prependLocation(exn._1, fieldName)
                                   }) : exn;
                         }),
-                      a: inlinedParseFunction,
-                      b: inlinedParseFunction
+                      l: inlinedParseFunction,
+                      l: inlinedParseFunction
                     });
                 planSyncTransformation(ctx, syncTransformation);
               }), (function (ctx, param) {
-                planSyncTransformation(ctx, (function (input) {
-                        var newObject = {};
-                        for(var idx = 0 ,idx_finish = originalFieldNames$1.length; idx < idx_finish; ++idx){
-                          var originalFieldName = originalFieldNames$1[idx];
-                          var fieldStruct = originalFields$1[originalFieldName];
-                          var fieldName = builderFieldNamesByOriginal$1[originalFieldName];
-                          var fieldValue = input[fieldName];
-                          var fn = fieldStruct.s;
-                          if (typeof fn === "number") {
-                            newObject[originalFieldName] = fieldValue;
-                          } else if (fn.TAG === /* SyncOperation */0) {
-                            try {
-                              var fieldData = fn._0(fieldValue);
-                              newObject[originalFieldName] = fieldData;
-                            }
-                            catch (raw_internalError){
-                              var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                              if (internalError.RE_EXN_ID === Exception) {
-                                throw {
-                                      RE_EXN_ID: Exception,
-                                      _1: prependLocation(internalError._1, fieldName),
-                                      Error: new Error()
-                                    };
-                              }
-                              throw internalError;
-                            }
-                          } else {
-                            panic$1(undefined);
-                          }
-                        }
-                        return newObject;
-                      }));
+                var serializeFnsByOriginalFieldName = {};
+                var contentRef = "return {";
+                for(var idx = 0 ,idx_finish = originalFieldNames$1.length; idx < idx_finish; ++idx){
+                  var originalFieldName = originalFieldNames$1[idx];
+                  var fieldStruct = originalFields$1[originalFieldName];
+                  var fieldName = builderFieldNamesByOriginal$1[originalFieldName];
+                  var fn = fieldStruct.s;
+                  if (typeof fn === "number") {
+                    contentRef = contentRef + ("\"" + originalFieldName + "\":n[\"" + fieldName + "\"],");
+                  } else if (fn.TAG === /* SyncOperation */0) {
+                    serializeFnsByOriginalFieldName[originalFieldName] = fn._0;
+                    contentRef = contentRef + ("\"" + originalFieldName + "\":(f=\"" + originalFieldName + "\",c.fns[\"" + originalFieldName + "\"](n[\"" + fieldName + "\"])),");
+                  } else {
+                    panic$1(undefined);
+                  }
+                }
+                var tryContent = contentRef + "}";
+                var content = "try{" + tryContent + "}catch(e){c.catchFieldError(e,f)}";
+                var inlinedSerializeFunction = "function(n){" + content + "}";
+                var syncTransformation = (new Function('c','return '+inlinedSerializeFunction))({
+                      fns: serializeFnsByOriginalFieldName,
+                      catchFieldError: (function (exn, fieldName) {
+                          throw exn.RE_EXN_ID === Exception ? ({
+                                    RE_EXN_ID: Exception,
+                                    _1: prependLocation(exn._1, fieldName)
+                                  }) : exn;
+                        }),
+                      l: inlinedSerializeFunction,
+                      l: inlinedSerializeFunction
+                    });
+                planSyncTransformation(ctx, syncTransformation);
               }), undefined, undefined, undefined);
 }
 

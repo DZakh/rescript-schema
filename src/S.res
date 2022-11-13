@@ -1410,6 +1410,15 @@ module Object2 = {
     }
   }
 
+  @inline
+  let originalObjectVar = "o"
+  @inline
+  let newObjectVar = "n"
+  @inline
+  let fieldNameVar = "f"
+  @inline
+  let ctxVar = "c"
+
   let factory = builder => {
     let instruction = {
       let builderCtx = BuilderCtx.make()
@@ -1466,11 +1475,6 @@ module Object2 = {
           let asyncOps = []
 
           let inlinedParseFunction = {
-            let originalObjectVar = "o"
-            let newObjectVar = "n"
-            let fieldNameVar = "f"
-            let ctxVar = "c"
-
             let refinement = Stdlib.Inline.If.make(
               // TODO: Measure the fastest condition
               ~condition=`(typeof ${originalObjectVar}==="object"&&!Array.isArray(${originalObjectVar})&&${originalObjectVar}!==null)===false`,
@@ -1572,39 +1576,61 @@ module Object2 = {
             },
             // FIXME: Find some better way to do it
             // Use the inlinedParseFunction two times, so rescript compiler doesn't inline the variable
-            "a": inlinedParseFunction,
-            "b": inlinedParseFunction,
+            "l": inlinedParseFunction,
+            "l": inlinedParseFunction,
           })
 
           ctx->TransformationFactory.Ctx.planSyncTransformation(syncTransformation)
         }),
         ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            let newObject = Js.Dict.empty()
-            for idx in 0 to originalFieldNames->Js.Array2.length - 1 {
-              let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
-              let fieldStruct = originalFields->Js.Dict.unsafeGet(originalFieldName)
-              let fieldName = builderFieldNamesByOriginal->Js.Dict.unsafeGet(originalFieldName)
-              let fieldValue = input->Js.Dict.unsafeGet(fieldName)
-              switch fieldStruct.serialize {
-              | NoOperation => newObject->Js.Dict.set(originalFieldName, fieldValue)
-              | SyncOperation(fn) =>
-                try {
-                  let fieldData = fn(. fieldValue)
-                  newObject->Js.Dict.set(originalFieldName, fieldData)
-                } catch {
-                | Error.Internal.Exception(internalError) =>
-                  raise(
-                    Error.Internal.Exception(
-                      internalError->Error.Internal.prependLocation(fieldName),
-                    ),
-                  )
+          let serializeFnsByOriginalFieldName = Js.Dict.empty()
+
+          let inlinedSerializeFunction = {
+            let tryContent = {
+              let contentRef = ref("return {")
+              for idx in 0 to originalFieldNames->Js.Array2.length - 1 {
+                let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
+                let fieldStruct = originalFields->Js.Dict.unsafeGet(originalFieldName)
+                let fieldName = builderFieldNamesByOriginal->Js.Dict.unsafeGet(originalFieldName)
+                switch fieldStruct.serialize {
+                | NoOperation =>
+                  contentRef.contents =
+                    contentRef.contents ++ `"${originalFieldName}":${newObjectVar}["${fieldName}"],`
+                | SyncOperation(fn) =>
+                  serializeFnsByOriginalFieldName->Js.Dict.set(originalFieldName, fn)
+                  contentRef.contents =
+                    contentRef.contents ++
+                    `"${originalFieldName}":(${fieldNameVar}="${originalFieldName}",${ctxVar}.fns["${originalFieldName}"](${newObjectVar}["${fieldName}"])),`
+                | AsyncOperation(_) => Error.Unreachable.panic()
                 }
-              | AsyncOperation(_) => Error.Unreachable.panic()
               }
+              contentRef.contents ++ "}"
             }
-            newObject
+
+            let content = Stdlib.Inline.TryCatch.make(
+              ~tryContent,
+              ~catchContent=`${ctxVar}.catchFieldError(${Stdlib.Inline.Constant.errorVar},${fieldNameVar})`,
+            )
+
+            Stdlib.Inline.Fn.make(~arguments=newObjectVar, ~content)
+          }
+
+          let syncTransformation = %raw(`new Function('c','return '+inlinedSerializeFunction)`)(. {
+            "fns": serializeFnsByOriginalFieldName,
+            "catchFieldError": (~exn, ~fieldName) => {
+              switch exn {
+              | Error.Internal.Exception(internalError) =>
+                Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName))
+              | _ => exn
+              }->raise
+            },
+            // FIXME: Find some better way to do it
+            // Use the inlinedSerializeFunction two times, so rescript compiler doesn't inline the variable
+            "l": inlinedSerializeFunction,
+            "l": inlinedSerializeFunction,
           })
+
+          ctx->TransformationFactory.Ctx.planSyncTransformation(syncTransformation)
         }),
         (),
       )
