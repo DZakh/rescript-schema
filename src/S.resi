@@ -151,11 +151,11 @@ module Object: {
 }
 
 module Object2: {
-  type builderCtx
+  type defenitionCtx
 }
 
-let field: (Object2.builderCtx, string, t<'value>) => 'value
-let object: (Object2.builderCtx => 'value) => t<'value>
+let field: (Object2.defenitionCtx, string, t<'value>) => 'value
+let object: (Object2.defenitionCtx => 'value) => t<'value>
 
 let object0: (. unit) => t<unit>
 let object1: (. field<'v1>) => t<'v1>

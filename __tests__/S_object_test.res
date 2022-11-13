@@ -609,7 +609,9 @@ test("Fails to create object struct with unused fields", t => {
       },
     )->ignore
   }, ~expectations=ThrowsException.make(
-    ~message=String("[rescript-struct] The object builder result has unused field defenitions."),
+    ~message=String(
+      "[rescript-struct] The object defention contains fields that weren\'t registered.",
+    ),
     (),
   ), ())
 })
@@ -626,7 +628,9 @@ test("Fails to create object struct with overused fields", t => {
       },
     )->ignore
   }, ~expectations=ThrowsException.make(
-    ~message=String("[rescript-struct] The object builder result missing field defenitions."),
+    ~message=String(
+      "[rescript-struct] The object defention has more registered fields than expected.",
+    ),
     (),
   ), ())
 })

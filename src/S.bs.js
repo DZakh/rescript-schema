@@ -976,116 +976,72 @@ function strict(struct) {
   return set(struct, metadataId, /* Strict */0);
 }
 
-var value = (Symbol("rescript-struct:Object.FieldPlaceholder"));
+var value = (Symbol("rescript-struct:Object.FieldDefenition"));
 
-function traverse(builderSlice, path, ctx) {
-  if (builderSlice === value) {
-    var originalFieldName = ctx.originalFieldNames[ctx.registeredFieldsCount];
-    ctx.registeredFieldsCount = ctx.registeredFieldsCount + 1;
-    ctx.pathesByOriginalFieldNames[originalFieldName] = path;
+function analyzeDefenitionSlice(defenitionCtx, defenitionSlice, path) {
+  if (defenitionSlice === value) {
+    var originalFieldName = defenitionCtx.originalFieldNames[defenitionCtx.registeredFieldsCount];
+    defenitionCtx.registeredFieldsCount = defenitionCtx.registeredFieldsCount + 1;
+    defenitionCtx.pathesByOriginalFieldNames[originalFieldName] = path;
     return ;
   }
-  if (typeof builderSlice === "object" && builderSlice !== null) {
-    ctx.preparationPathes.push(path);
-    ctx.preparationInlinedValues.push(Array.isArray(builderSlice) ? "[]" : "{}");
-    var builderSliceFieldNames = Object.keys(builderSlice);
-    for(var idx = 0 ,idx_finish = builderSliceFieldNames.length; idx < idx_finish; ++idx){
-      var builderSliceFieldName = builderSliceFieldNames[idx];
-      var nextBuilderSlice = builderSlice[builderSliceFieldName];
-      traverse(nextBuilderSlice, "" + path + "[\"" + builderSliceFieldName + "\"]", ctx);
+  if (typeof defenitionSlice === "object" && defenitionSlice !== null) {
+    defenitionCtx.preparationPathes.push(path);
+    defenitionCtx.preparationInlinedValues.push(Array.isArray(defenitionSlice) ? "[]" : "{}");
+    var defenitionSliceFieldNames = Object.keys(defenitionSlice);
+    for(var idx = 0 ,idx_finish = defenitionSliceFieldNames.length; idx < idx_finish; ++idx){
+      var defenitionSliceFieldName = defenitionSliceFieldNames[idx];
+      var nextDefenitionSlice = defenitionSlice[defenitionSliceFieldName];
+      analyzeDefenitionSlice(defenitionCtx, nextDefenitionSlice, "" + path + "[\"" + defenitionSliceFieldName + "\"]");
     }
     return ;
   }
-  ctx.preparationPathes.push(path);
-  ctx.preparationInlinedValues.push("h[\"" + ctx.hardcodedValues.length.toString() + "\"]");
-  ctx.hardcodedValues.push(builderSlice);
+  defenitionCtx.preparationPathes.push(path);
+  defenitionCtx.preparationInlinedValues.push("h[\"" + defenitionCtx.hardcodedValues.length.toString() + "\"]");
+  defenitionCtx.hardcodedValues.push(defenitionSlice);
 }
 
-function factory$3(builder) {
-  var builderCtx_originalFieldNames = [];
-  var builderCtx_originalFields = {};
-  var builderCtx = {
-    originalFieldNames: builderCtx_originalFieldNames,
-    originalFields: builderCtx_originalFields
+function fromReadyDefenitionCtx(defenitionCtx) {
+  var originalFieldNamesCount = defenitionCtx.originalFieldNames.length;
+  if (defenitionCtx.registeredFieldsCount > originalFieldNamesCount) {
+    throw new Error("[rescript-struct] The object defention has more registered fields than expected.");
+  }
+  if (defenitionCtx.registeredFieldsCount < originalFieldNamesCount) {
+    throw new Error("[rescript-struct] The object defention contains fields that weren't registered.");
+  }
+  return {
+          originalFields: defenitionCtx.originalFields,
+          originalFieldNames: defenitionCtx.originalFieldNames,
+          pathesByOriginalFieldNames: defenitionCtx.pathesByOriginalFieldNames,
+          preparationInlinedValues: defenitionCtx.preparationInlinedValues,
+          preparationPathes: defenitionCtx.preparationPathes,
+          hardcodedValues: defenitionCtx.hardcodedValues
+        };
+}
+
+function factory$3(defenition) {
+  var defenitionCtx = {
+    originalFieldNames: [],
+    originalFields: {},
+    registeredFieldsCount: 0,
+    preparationPathes: [],
+    preparationInlinedValues: [],
+    pathesByOriginalFieldNames: {},
+    hardcodedValues: []
   };
-  var originalFields = builderCtx_originalFields;
-  var originalFieldNames = builderCtx_originalFieldNames;
-  var builderResult = builder(builderCtx);
-  var instruction;
-  if (originalFieldNames.length !== 0) {
-    var traverseCtx = {
-      registeredFieldsCount: 0,
-      preparationPathes: [],
-      preparationInlinedValues: [],
-      pathesByOriginalFieldNames: {},
-      originalFieldNames: originalFieldNames,
-      hardcodedValues: []
-    };
-    traverse(builderResult, "", traverseCtx);
-    var originalFieldNamesCount = originalFieldNames.length;
-    if (traverseCtx.registeredFieldsCount > originalFieldNamesCount) {
-      throw new Error("[rescript-struct] The object builder result missing field defenitions.");
-    }
-    if (traverseCtx.registeredFieldsCount < originalFieldNamesCount) {
-      throw new Error("[rescript-struct] The object builder result has unused field defenitions.");
-    }
-    instruction = {
-      TAG: /* WithFields */1,
-      originalFields: originalFields,
-      originalFieldNames: originalFieldNames,
-      pathesByOriginalFieldNames: traverseCtx.pathesByOriginalFieldNames,
-      preparationInlinedValues: traverseCtx.preparationInlinedValues,
-      preparationPathes: traverseCtx.preparationPathes,
-      hardcodedValues: traverseCtx.hardcodedValues
-    };
-  } else {
-    instruction = {
-      TAG: /* NoFields */0,
-      transformed: builderResult,
-      originalFields: originalFields,
-      originalFieldNames: originalFieldNames
-    };
-  }
-  if (instruction.TAG === /* NoFields */0) {
-    var transformed = instruction.transformed;
-    return make("Object", {
-                TAG: /* Object */4,
-                fields: instruction.originalFields,
-                fieldNames: instruction.originalFieldNames
-              }, (function (ctx, struct) {
-                  var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
-                  planSyncTransformation(ctx, (function (input) {
-                          if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
-                            raiseUnexpectedTypeError(input, struct);
-                          }
-                          if (withUnknownKeysRefinement) {
-                            var originalKeys = Object.keys(input);
-                            if (originalKeys.length > 0) {
-                              raise({
-                                    TAG: /* ExcessField */4,
-                                    _0: originalKeys[0]
-                                  });
-                            }
-                            
-                          }
-                          return transformed;
-                        }));
-                }), (function (ctx, param) {
-                  planSyncTransformation(ctx, (function (param) {
-                          return {};
-                        }));
-                }), undefined, undefined, undefined);
-  }
-  var hardcodedValues = instruction.hardcodedValues;
-  var preparationPathes = instruction.preparationPathes;
-  var preparationInlinedValues = instruction.preparationInlinedValues;
-  var pathesByOriginalFieldNames = instruction.pathesByOriginalFieldNames;
-  var originalFieldNames$1 = instruction.originalFieldNames;
-  var originalFields$1 = instruction.originalFields;
+  var defenitionSlice = defenition(defenitionCtx);
+  analyzeDefenitionSlice(defenitionCtx, defenitionSlice, "");
+  var match = fromReadyDefenitionCtx(defenitionCtx);
+  var hardcodedValues = match.hardcodedValues;
+  var preparationPathes = match.preparationPathes;
+  var preparationInlinedValues = match.preparationInlinedValues;
+  var pathesByOriginalFieldNames = match.pathesByOriginalFieldNames;
+  var originalFieldNames = match.originalFieldNames;
+  var originalFields = match.originalFields;
   return make("Object", {
               TAG: /* Object */4,
-              fields: originalFields$1,
-              fieldNames: originalFieldNames$1
+              fields: originalFields,
+              fieldNames: originalFieldNames
             }, (function (ctx, struct) {
                 var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
                 var parseFnsByOriginalFieldName = {};
@@ -1099,10 +1055,10 @@ function factory$3(builder) {
                 }
                 var preparation = stringRef;
                 var stringRef$1 = "";
-                for(var idx$1 = 0 ,idx_finish$1 = originalFieldNames$1.length; idx$1 < idx_finish$1; ++idx$1){
-                  var originalFieldName = originalFieldNames$1[idx$1];
+                for(var idx$1 = 0 ,idx_finish$1 = originalFieldNames.length; idx$1 < idx_finish$1; ++idx$1){
+                  var originalFieldName = originalFieldNames[idx$1];
                   var path = pathesByOriginalFieldNames[originalFieldName];
-                  var fieldStruct = originalFields$1[originalFieldName];
+                  var fieldStruct = originalFields[originalFieldName];
                   var fn = fieldStruct.p;
                   var maybeParseFn;
                   if (typeof fn === "number") {
@@ -1127,8 +1083,8 @@ function factory$3(builder) {
                 var tryContent = stringRef$1;
                 var newObjectConstruction = "var f;" + ("try{" + tryContent + "}catch(e){c.catchFieldError(e,f)}");
                 var stringRef$2 = "for(var key in o){switch(key){";
-                for(var idx$2 = 0 ,idx_finish$2 = originalFieldNames$1.length; idx$2 < idx_finish$2; ++idx$2){
-                  var originalFieldName$1 = originalFieldNames$1[idx$2];
+                for(var idx$2 = 0 ,idx_finish$2 = originalFieldNames.length; idx$2 < idx_finish$2; ++idx$2){
+                  var originalFieldName$1 = originalFieldNames[idx$2];
                   stringRef$2 = stringRef$2 + ("case\"" + originalFieldName$1 + "\":continue;");
                 }
                 var unknownKeysRefinement = stringRef$2 + "default:c.raiseOnExcessField(key);}}";
@@ -1138,7 +1094,7 @@ function factory$3(builder) {
                 var syncTransformation = (new Function('c','h','return '+inlinedParseFunction))({
                       struct: struct,
                       fns: parseFnsByOriginalFieldName,
-                      fields: originalFields$1,
+                      fields: originalFields,
                       raiseUnexpectedTypeError: raiseUnexpectedTypeError,
                       raiseOnExcessField: (function (exccessFieldName) {
                           return raise({
@@ -1159,9 +1115,9 @@ function factory$3(builder) {
               }), (function (ctx, param) {
                 var serializeFnsByOriginalFieldName = {};
                 var contentRef = "return {";
-                for(var idx = 0 ,idx_finish = originalFieldNames$1.length; idx < idx_finish; ++idx){
-                  var originalFieldName = originalFieldNames$1[idx];
-                  var fieldStruct = originalFields$1[originalFieldName];
+                for(var idx = 0 ,idx_finish = originalFieldNames.length; idx < idx_finish; ++idx){
+                  var originalFieldName = originalFieldNames[idx];
+                  var fieldStruct = originalFields[originalFieldName];
                   var path = pathesByOriginalFieldNames[originalFieldName];
                   var fn = fieldStruct.s;
                   if (typeof fn === "number") {
@@ -1191,9 +1147,9 @@ function factory$3(builder) {
               }), undefined, undefined, undefined);
 }
 
-function field(builderCtx, originalFieldName, struct) {
-  builderCtx.originalFieldNames.push(originalFieldName);
-  builderCtx.originalFields[originalFieldName] = struct;
+function field(defenitionCtx, originalFieldName, struct) {
+  defenitionCtx.originalFieldNames.push(originalFieldName);
+  defenitionCtx.originalFields[originalFieldName] = struct;
   return value;
 }
 
