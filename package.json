@@ -59,6 +59,6 @@
     "rescript": "10.1.0-rc.5"
   },
   "peerDependencies": {
-    "rescript": "10.0.x"
+    "rescript": "10.1.x"
   }
 }
