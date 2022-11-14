@@ -51,35 +51,30 @@ type author = {
   deprecatedAge: option<int>,
 }
 
-let authorStruct =
-  S.object4(.
-    ("Id", S.float()),
-    ("Tags", S.option(S.array(S.string()))->S.defaulted([])),
-    (
-      "IsApproved",
-      S.union([
-        S.literalVariant(String("Yes"), true),
-        S.literalVariant(String("No"), false),
-      ]),
-    ),
-    ("Age", S.int()->S.deprecated(~message="Will be removed in APIv2", ())),
-  )->S.transform(~parser=((id, tags, isAproved, deprecatedAge)) => {
-    id,
-    tags,
-    isAproved,
-    deprecatedAge,
-  }, ())
+let authorStruct = S.object(o => {
+  id: o->S.field("Id", S.float()),
+  tags: o->S.field("Tags", S.option(S.array(S.string()))->S.defaulted([])),
+  isAproved: o->S.field(
+    "IsApproved",
+    S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),
+  ),
+  deprecatedAge: o->S.field(
+    "Age",
+    S.int()->S.deprecated(~message="Will be removed in APIv2", ()),
+  ),
+})
 
 {
   "Id": 1,
   "IsApproved": "Yes",
-  "Age": 12,
+  "Age": 22,
 }->S.parseWith(authorStruct)
 {
-  "Id": 2,
-  "IsApproved": "No",
-  "Tags": ["Loved"],
-}->S.parseWith(authorStruct)
+  id: 2.,
+  tags: ["Loved"],
+  isAproved: false,
+  deprecatedAge: None,
+}->S.serializeWith(authorStruct)
 ```
 
 ```rescript
@@ -89,12 +84,12 @@ Ok({
   isAproved: true,
   deprecatedAge: Some(12),
 })
-Ok({
-  id: 2.,
-  tags: ["Loved"],
-  isAproved: false,
-  deprecatedAge: None,
-})
+Ok(%raw(`{
+  "Id": 2,
+  "IsApproved": "No",
+  "Tags": ["Loved"],
+  "Age": undefined,
+}`))
 ```
 
 ### Examples
