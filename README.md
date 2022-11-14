@@ -63,27 +63,31 @@ let authorStruct = S.object(o => {
     S.int()->S.deprecated(~message="Will be removed in APIv2", ()),
   ),
 })
+```
 
+```rescript
 {
   "Id": 1,
   "IsApproved": "Yes",
   "Age": 22,
 }->S.parseWith(authorStruct)
-{
-  id: 2.,
-  tags: ["Loved"],
-  isAproved: false,
-  deprecatedAge: None,
-}->S.serializeWith(authorStruct)
-```
 
-```rescript
 Ok({
   id: 1.,
   tags: [],
   isAproved: true,
   deprecatedAge: Some(12),
 })
+```
+
+```rescript
+{
+  id: 2.,
+  tags: ["Loved"],
+  isAproved: false,
+  deprecatedAge: None,
+}->S.serializeWith(authorStruct)
+
 Ok(%raw(`{
   "Id": 2,
   "IsApproved": "No",
