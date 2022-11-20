@@ -1202,8 +1202,7 @@ function field(defenitionCtx, originalFieldName, struct) {
   return value;
 }
 
-function discriminant(defenitionCtx, originalFieldName, literal) {
-  var struct = factory$1(literal);
+function discriminant(defenitionCtx, originalFieldName, struct) {
   defenitionCtx.originalFieldNames.push(originalFieldName);
   defenitionCtx.originalFields[originalFieldName] = struct;
   defenitionCtx.registeredFieldsCount = defenitionCtx.registeredFieldsCount + 1;

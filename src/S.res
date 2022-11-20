@@ -1125,8 +1125,6 @@ module Literal = {
   module Variant = {
     let factory:
       type literalValue variant. (literal<literalValue>, variant) => t<variant> =
-
-      // FIXME: NaN === NaN is false
       (innerLiteral, variant) => {
         let tagged = Literal(innerLiteral->castToTaggedLiteral)
 
@@ -1533,7 +1531,6 @@ module Object2 = {
 
     let fromReadyDefenitionCtx = (defenitionCtx: DefenitionCtx.t) => {
       {
-        // TODO: Better error messages
         let originalFieldNamesCount = defenitionCtx.originalFieldNames->Js.Array2.length
         if defenitionCtx.registeredFieldsCount > originalFieldNamesCount {
           Error.panic("The object defention has more registered fields than expected.")
@@ -1886,10 +1883,12 @@ module Object2 = {
     FieldDefenition.value->FieldDefenition.castToAny
   }
 
-  let discriminant = (defenitionCtx: DefenitionCtx.t, originalFieldName, literal) => {
-    let struct = Literal.factory(literal)->castAnyStructToUnknownStruct
+  let discriminant = (defenitionCtx: DefenitionCtx.t, originalFieldName, struct) => {
     defenitionCtx.originalFieldNames->Js.Array2.push(originalFieldName)->ignore
-    defenitionCtx.originalFields->Js.Dict.set(originalFieldName, struct)
+    defenitionCtx.originalFields->Js.Dict.set(
+      originalFieldName,
+      struct->castAnyStructToUnknownStruct,
+    )
     defenitionCtx.registeredFieldsCount = Stdlib.Int.plus(defenitionCtx.registeredFieldsCount, 1)
     ()
   }

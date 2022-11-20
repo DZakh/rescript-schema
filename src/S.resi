@@ -156,7 +156,7 @@ module Object2: {
 
 let object: (Object2.defenitionCtx => 'value) => t<'value>
 let field: (Object2.defenitionCtx, string, t<'value>) => 'value
-let discriminant: (Object2.defenitionCtx, string, literal<'value>) => unit
+let discriminant: (Object2.defenitionCtx, string, t<'value>) => unit
 
 let object0: (. unit) => t<unit>
 let object1: (. field<'v1>) => t<'v1>
