@@ -873,7 +873,7 @@ function factory$2(param) {
                 }
                 var withAsyncOps = asyncOps.length > 0;
                 planSyncTransformation(ctx, (function (input) {
-                        if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
+                        if ((typeof input === "object" && input !== null && !Array.isArray(input)) === false) {
                           raiseUnexpectedTypeError(input, struct);
                         }
                         var newArray = [];
@@ -1057,7 +1057,7 @@ function factory$3(defenition) {
                 var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
                 var parseFnsByOriginalFieldName = {};
                 var asyncOps = [];
-                var refinement = "if((typeof i===\"object\"&&!Array.isArray(i)&&i!==null)===false){u(i)}";
+                var refinement = "if(typeof i!==\"object\"||i===null||Array.isArray(i)){u(i)}";
                 var stringRef = "var t;";
                 for(var idx = 0 ,idx_finish = inlinedPreparationPathes.length; idx < idx_finish; ++idx){
                   var preparationPath = inlinedPreparationPathes[idx];
@@ -1729,7 +1729,7 @@ function factory$16(innerStruct) {
                         }));
                 };
                 planSyncTransformation(ctx, (function (input) {
-                        if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
+                        if ((typeof input === "object" && input !== null && !Array.isArray(input)) === false) {
                           return raiseUnexpectedTypeError(input, struct);
                         } else {
                           return input;

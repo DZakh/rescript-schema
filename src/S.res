@@ -59,7 +59,7 @@ module Stdlib = {
   module Object = {
     @inline
     let test = data => {
-      data->Js.typeof === "object" && !Js.Array2.isArray(data) && data !== %raw(`null`)
+      data->Js.typeof === "object" && data !== %raw(`null`) && !Js.Array2.isArray(data)
     }
   }
 
@@ -1598,8 +1598,7 @@ module Object2 = {
 
         let inlinedParseFunction = {
           let refinement = Stdlib.Inlined.If.make(
-            // TODO: Measure the fastest condition
-            ~condition=`(typeof ${Var.originalObject}==="object"&&!Array.isArray(${Var.originalObject})&&${Var.originalObject}!==null)===false`,
+            ~condition=`typeof ${Var.originalObject}!=="object"||${Var.originalObject}===null||Array.isArray(${Var.originalObject})`,
             ~content=`${Var.raiseUnexpectedOriginalObjectTypeError}(${Var.originalObject})`,
           )
 
