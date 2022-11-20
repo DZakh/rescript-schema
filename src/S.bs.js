@@ -22,7 +22,23 @@ function stringify(any) {
 
 var Exception = /* @__PURE__ */Caml_exceptions.create("S.Error.Internal.Exception");
 
-function raise(code) {
+function raise(expected, received, initialPathOpt, param) {
+  var initialPath = initialPathOpt !== undefined ? initialPathOpt : "";
+  throw {
+        RE_EXN_ID: Exception,
+        _1: {
+          c: {
+            TAG: /* UnexpectedValue */2,
+            expected: stringify(expected),
+            received: stringify(received)
+          },
+          p: initialPath
+        },
+        Error: new Error()
+      };
+}
+
+function raise$1(code) {
   throw {
         RE_EXN_ID: Exception,
         _1: {
@@ -60,14 +76,6 @@ function prependLocation(error, $$location) {
           c: error.c,
           p: tmp
         };
-}
-
-function raise$1(expected, received) {
-  return raise({
-              TAG: /* UnexpectedValue */2,
-              expected: stringify(expected),
-              received: stringify(received)
-            });
 }
 
 function panic($$location) {
@@ -310,7 +318,7 @@ function raiseUnexpectedTypeError(input, struct) {
       
     }
   }
-  return raise({
+  return raise$1({
               TAG: /* UnexpectedType */1,
               expected: struct.n,
               received: tmp
@@ -347,7 +355,7 @@ function parseWith(any, struct) {
               _0: fn._0(any)
             };
     } else {
-      return raise(/* UnexpectedAsync */2);
+      return raise$1(/* UnexpectedAsync */2);
     }
   }
   catch (raw_internalError){
@@ -370,7 +378,7 @@ function parseOrRaiseWith(any, struct) {
     } else if (fn.TAG === /* SyncOperation */0) {
       return fn._0(any);
     } else {
-      return raise(/* UnexpectedAsync */2);
+      return raise$1(/* UnexpectedAsync */2);
     }
   }
   catch (raw_internalError){
@@ -593,7 +601,7 @@ function transform(struct, maybeTransformParser, maybeTransformSerializer, param
                   return planSyncTransformation(ctx, maybeTransformParser);
                 } else {
                   return planSyncTransformation(ctx, (function (param) {
-                                return raise(/* MissingParser */0);
+                                return raise$1(/* MissingParser */0);
                               }));
                 }
               }), (function (ctx, compilingStruct) {
@@ -601,7 +609,7 @@ function transform(struct, maybeTransformParser, maybeTransformSerializer, param
                   planSyncTransformation(ctx, maybeTransformSerializer);
                 } else {
                   planSyncTransformation(ctx, (function (param) {
-                          return raise(/* MissingSerializer */1);
+                          return raise$1(/* MissingSerializer */1);
                         }));
                 }
                 struct.sf(ctx, compilingStruct);
@@ -616,7 +624,7 @@ function advancedTransform(struct, maybeTransformParser, maybeTransformSerialize
                 struct.pf(ctx, compilingStruct);
                 if (maybeTransformParser === undefined) {
                   return planSyncTransformation(ctx, (function (param) {
-                                return raise(/* MissingParser */0);
+                                return raise$1(/* MissingParser */0);
                               }));
                 }
                 var syncTransformation = maybeTransformParser(compilingStruct);
@@ -635,7 +643,7 @@ function advancedTransform(struct, maybeTransformParser, maybeTransformSerialize
                   }
                 } else {
                   planSyncTransformation(ctx, (function (param) {
-                          return raise(/* MissingSerializer */1);
+                          return raise$1(/* MissingSerializer */1);
                         }));
                 }
                 struct.sf(ctx, compilingStruct);
@@ -665,7 +673,7 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
                   }
                 } else {
                   planSyncTransformation(ctx, (function (param) {
-                          return raise(/* MissingParser */0);
+                          return raise$1(/* MissingParser */0);
                         }));
                 }
                 struct.pf(ctx, compilingStruct);
@@ -673,7 +681,7 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
                 struct.sf(ctx, compilingStruct);
                 if (maybePreprocessSerializer === undefined) {
                   return planSyncTransformation(ctx, (function (param) {
-                                return raise(/* MissingSerializer */1);
+                                return raise$1(/* MissingSerializer */1);
                               }));
                 }
                 var syncTransformation = maybePreprocessSerializer(compilingStruct);
@@ -694,7 +702,7 @@ function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
                   return planSyncTransformation(ctx, Caml_option.valFromOption(maybeCustomParser));
                 } else {
                   return planSyncTransformation(ctx, (function (param) {
-                                return raise(/* MissingParser */0);
+                                return raise$1(/* MissingParser */0);
                               }));
                 }
               }), (function (ctx, param) {
@@ -702,7 +710,7 @@ function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
                   return planSyncTransformation(ctx, Caml_option.valFromOption(maybeCustomSerializer));
                 } else {
                   return planSyncTransformation(ctx, (function (param) {
-                                return raise(/* MissingSerializer */1);
+                                return raise$1(/* MissingSerializer */1);
                               }));
                 }
               }), undefined, undefined, undefined);
@@ -720,7 +728,7 @@ function factory(innerLiteral, variant) {
                 if (literalValue === input) {
                   return variant;
                 } else {
-                  return raise$1(literalValue, input);
+                  return raise(literalValue, input, undefined, undefined);
                 }
               } else {
                 return raiseUnexpectedTypeError(input, struct);
@@ -734,7 +742,7 @@ function factory(innerLiteral, variant) {
               if (input === variant) {
                 return output;
               } else {
-                return raise$1(variant, input);
+                return raise(variant, input, undefined, undefined);
               }
             }));
     };
@@ -905,7 +913,7 @@ function factory$2(param) {
                         if (unknownKeys === /* Strict */0) {
                           var excessKey = getMaybeExcessKey(input, fields);
                           if (excessKey !== undefined) {
-                            raise({
+                            raise$1({
                                   TAG: /* ExcessField */4,
                                   _0: excessKey
                                 });
@@ -989,7 +997,7 @@ function analyzeDefenitionSlice(defenitionCtx, defenitionSlice, path, inlinedPat
     var originalFieldName = defenitionCtx.originalFieldNames[defenitionCtx.registeredFieldsCount];
     defenitionCtx.registeredFieldsCount = defenitionCtx.registeredFieldsCount + 1;
     defenitionCtx.inlinedPathesByOriginalFieldNames[originalFieldName] = inlinedPath;
-    defenitionCtx.pathesByOriginalFieldNames[originalFieldName] = path;
+    defenitionCtx.pathesByInlinedPath[inlinedPath] = path;
     return ;
   }
   if (typeof defenitionSlice === "object" && defenitionSlice !== null) {
@@ -1006,6 +1014,7 @@ function analyzeDefenitionSlice(defenitionCtx, defenitionSlice, path, inlinedPat
   }
   defenitionCtx.serializeDiscriminantValuesByInlinedPath[inlinedPath] = defenitionSlice;
   defenitionCtx.serializeDiscriminantInlinedPathes.push(inlinedPath);
+  defenitionCtx.pathesByInlinedPath[inlinedPath] = path;
 }
 
 function fromReadyDefenitionCtx(defenitionCtx) {
@@ -1020,7 +1029,7 @@ function fromReadyDefenitionCtx(defenitionCtx) {
           originalFields: defenitionCtx.originalFields,
           originalFieldNames: defenitionCtx.originalFieldNames,
           inlinedPathesByOriginalFieldNames: defenitionCtx.inlinedPathesByOriginalFieldNames,
-          pathesByOriginalFieldNames: defenitionCtx.pathesByOriginalFieldNames,
+          pathesByInlinedPath: defenitionCtx.pathesByInlinedPath,
           inlinedPreparationValues: defenitionCtx.inlinedPreparationValues,
           inlinedPreparationPathes: defenitionCtx.inlinedPreparationPathes,
           serializeDiscriminantValuesByInlinedPath: defenitionCtx.serializeDiscriminantValuesByInlinedPath,
@@ -1036,7 +1045,7 @@ function factory$3(defenition) {
     inlinedPreparationPathes: [],
     inlinedPreparationValues: [],
     inlinedPathesByOriginalFieldNames: {},
-    pathesByOriginalFieldNames: {},
+    pathesByInlinedPath: {},
     serializeDiscriminantValuesByInlinedPath: {},
     serializeDiscriminantInlinedPathes: []
   };
@@ -1116,7 +1125,7 @@ function factory$3(defenition) {
                           }), parseFnsByOriginalFieldName, originalFields, instructions.serializeDiscriminantValuesByInlinedPath, (function (input) {
                             return raiseUnexpectedTypeError(input, struct);
                           }), raiseUnexpectedTypeError, (function (exccessFieldName) {
-                            return raise({
+                            return raise$1({
                                         TAG: /* ExcessField */4,
                                         _0: exccessFieldName
                                       });
@@ -1124,7 +1133,7 @@ function factory$3(defenition) {
               }), (function (ctx, param) {
                 var serializeDiscriminantInlinedPathes = instructions.serializeDiscriminantInlinedPathes;
                 var serializeDiscriminantValuesByInlinedPath = instructions.serializeDiscriminantValuesByInlinedPath;
-                var pathesByOriginalFieldNames = instructions.pathesByOriginalFieldNames;
+                var pathesByInlinedPath = instructions.pathesByInlinedPath;
                 var inlinedPathesByOriginalFieldNames = instructions.inlinedPathesByOriginalFieldNames;
                 var originalFieldNames = instructions.originalFieldNames;
                 var originalFields = instructions.originalFields;
@@ -1146,7 +1155,7 @@ function factory$3(defenition) {
                       contentRef = contentRef + ("\"" + originalFieldName + "\":t" + inlinedPath$1 + ",");
                     } else if (fn.TAG === /* SyncOperation */0) {
                       serializeFnsByOriginalFieldName[originalFieldName] = fn._0;
-                      contentRef = contentRef + ("\"" + originalFieldName + "\":(f=\"" + originalFieldName + "\",s[\"" + originalFieldName + "\"](t" + inlinedPath$1 + ")),");
+                      contentRef = contentRef + ("\"" + originalFieldName + "\":(f=\`" + inlinedPath$1 + "\`,s[\"" + originalFieldName + "\"](t" + inlinedPath$1 + ")),");
                     } else {
                       panic$1(undefined);
                     }
@@ -1176,10 +1185,9 @@ function factory$3(defenition) {
                 var originalObjectConstructionAndReturn = "try{" + tryContent + "}catch(e){c(e,f)}";
                 var inlinedSerializeFunction = "function(t){" + ("" + serializeDiscriminants + "" + originalObjectConstructionAndReturn + "") + "}";
                 planSyncTransformation(ctx, new Function("s", "d", "r", "c", "return " + inlinedSerializeFunction + "")(serializeFnsByOriginalFieldName, serializeDiscriminantValuesByInlinedPath, (function (inlinedPath, received) {
-                            var serializeDiscriminantValue = serializeDiscriminantValuesByInlinedPath[inlinedPath];
-                            return raise$1(serializeDiscriminantValue, received);
-                          }), (function (exn, originalFieldName) {
-                            var path = pathesByOriginalFieldNames[originalFieldName];
+                            return raise(serializeDiscriminantValuesByInlinedPath[inlinedPath], received, pathesByInlinedPath[inlinedPath], undefined);
+                          }), (function (exn, inlinedPath) {
+                            var path = pathesByInlinedPath[inlinedPath];
                             throw exn.RE_EXN_ID === Exception ? ({
                                       RE_EXN_ID: Exception,
                                       _1: prependLocation(exn._1, path)
@@ -1900,7 +1908,7 @@ function factory$18(param) {
                         if (Array.isArray(input)) {
                           var numberOfInputItems = input.length;
                           if (numberOfStructs !== numberOfInputItems) {
-                            raise({
+                            raise$1({
                                   TAG: /* TupleSize */3,
                                   expected: numberOfStructs,
                                   received: numberOfInputItems
@@ -2082,7 +2090,7 @@ function factory$19(structs) {
                                     originalInput: input
                                   };
                           } else {
-                            return raise({
+                            return raise$1({
                                         TAG: /* InvalidUnion */5,
                                         _0: errorsRef.map(toParseError)
                                       });
@@ -2121,7 +2129,7 @@ function factory$19(structs) {
                                                         throw internalError;
                                                       }
                                                     })).then((function (param) {
-                                                  return raise({
+                                                  return raise$1({
                                                               TAG: /* InvalidUnion */5,
                                                               _0: input.tempErrors.map(toParseError)
                                                             });

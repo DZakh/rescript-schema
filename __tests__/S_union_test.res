@@ -177,10 +177,9 @@ module Advanced = {
     t->Assert.deepEqual(
       Triangle({x: 2., y: 3.})->S.serializeWith(incompleteStruct),
       Error({
-        code: UnexpectedValue({expected: `1`, received: `2`}),
+        code: UnexpectedValue({expected: "1", received: "2"}),
         operation: Serializing,
-        // FIXME: Add path
-        path: [],
+        path: ["TAG"],
       }),
       (),
     )
