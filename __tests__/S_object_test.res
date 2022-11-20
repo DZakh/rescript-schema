@@ -214,6 +214,48 @@ test("Successfully parses object with transformed field", t => {
   t->Assert.deepEqual(%raw(`{string: "bar"}`)->S.parseWith(struct), Ok({"string": "barfield"}), ())
 })
 
+test("Fails to parse object when transformed field has raises error", t => {
+  let struct = S.object(o =>
+    {
+      "string": o->S.field(
+        "string",
+        S.string()->S.transform(~parser=_ => S.Error.raise("User error"), ()),
+      ),
+    }
+  )
+
+  t->Assert.deepEqual(
+    {"string": "bar"}->S.parseWith(struct),
+    Error({
+      code: OperationFailed("User error"),
+      operation: Parsing,
+      path: ["string"],
+    }),
+    (),
+  )
+})
+
+test("Shows transformed object field name in error path when fails to parse", t => {
+  let struct = S.object(o =>
+    {
+      "transformedFieldName": o->S.field(
+        "originalFieldName",
+        S.string()->S.transform(~parser=_ => S.Error.raise("User error"), ()),
+      ),
+    }
+  )
+
+  t->Assert.deepEqual(
+    {"originalFieldName": "bar"}->S.parseWith(struct),
+    Error({
+      code: OperationFailed("User error"),
+      operation: Parsing,
+      path: ["originalFieldName"],
+    }),
+    (),
+  )
+})
+
 test("Successfully serializes object with transformed field", t => {
   let struct = S.object(o =>
     {
@@ -247,6 +289,54 @@ test("Fails to serializes object when transformed field has raises error", t => 
       code: OperationFailed("User error"),
       operation: Serializing,
       path: ["string"],
+    }),
+    (),
+  )
+})
+
+test("Shows transformed object field name in error path when fails to serializes", t => {
+  let struct = S.object(o =>
+    {
+      "transformedFieldName": o->S.field(
+        "originalFieldName",
+        S.string()->S.transform(~serializer=_ => S.Error.raise("User error"), ()),
+      ),
+    }
+  )
+
+  t->Assert.deepEqual(
+    {"transformedFieldName": "bar"}->S.serializeWith(struct),
+    Error({
+      code: OperationFailed("User error"),
+      operation: Serializing,
+      path: ["transformedFieldName"],
+    }),
+    (),
+  )
+})
+
+test("Shows transformed to nested object field name in error path when fails to serializes", t => {
+  let struct = S.object(o =>
+    {
+      "v1": {
+        "transformedFieldName": o->S.field(
+          "originalFieldName",
+          S.string()->S.transform(~serializer=_ => S.Error.raise("User error"), ()),
+        ),
+      },
+    }
+  )
+
+  t->Assert.deepEqual(
+    {
+      "v1": {
+        "transformedFieldName": "bar",
+      },
+    }->S.serializeWith(struct),
+    Error({
+      code: OperationFailed("User error"),
+      operation: Serializing,
+      path: ["v1", "transformedFieldName"],
     }),
     (),
   )

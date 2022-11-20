@@ -42,46 +42,27 @@ module Advanced = {
 
   type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, y: float})
 
-  let shapeStruct = {
-    let circleStruct = S.object2(.
-      ("kind", S.literalVariant(String("circle"), ())),
-      ("radius", S.float()),
-    )->S.transform(
-      ~parser=(((), radius)) => Circle({radius: radius}),
-      ~serializer=shape =>
-        switch shape {
-        | Circle({radius}) => ((), radius)
-        | _ => S.Error.raise("Wrong shape")
-        },
-      (),
-    )
-    let squareStruct = S.object2(.
-      ("kind", S.literalVariant(String("square"), ())),
-      ("x", S.float()),
-    )->S.transform(
-      ~parser=(((), x)) => Square({x: x}),
-      ~serializer=shape =>
-        switch shape {
-        | Square({x}) => ((), x)
-        | _ => S.Error.raise("Wrong shape")
-        },
-      (),
-    )
-    let triangleStruct = S.object3(.
-      ("kind", S.literalVariant(String("triangle"), ())),
-      ("x", S.float()),
-      ("y", S.float()),
-    )->S.transform(
-      ~parser=(((), x, y)) => Triangle({x, y}),
-      ~serializer=shape =>
-        switch shape {
-        | Triangle({x, y}) => ((), x, y)
-        | _ => S.Error.raise("Wrong shape")
-        },
-      (),
-    )
-    S.union([circleStruct, squareStruct, triangleStruct])
-  }
+  let shapeStruct = S.union([
+    S.object(o => {
+      o->S.discriminant("kind", String("circle"))
+      Circle({
+        radius: o->S.field("radius", S.float()),
+      })
+    }),
+    S.object(o => {
+      o->S.discriminant("kind", String("square"))
+      Square({
+        x: o->S.field("x", S.float()),
+      })
+    }),
+    S.object(o => {
+      o->S.discriminant("kind", String("triangle"))
+      Triangle({
+        x: o->S.field("x", S.float()),
+        y: o->S.field("y", S.float()),
+      })
+    }),
+  ])
 
   test("Successfully parses Circle shape", t => {
     t->Assert.deepEqual(
@@ -120,10 +101,10 @@ module Advanced = {
   test("Fails to parse with unknown kind", t => {
     t->Assert.deepEqual(
       %raw(`{
-      "kind": "oval",
-      "x": 2,
-      "y": 3,
-    }`)->S.parseWith(shapeStruct),
+        "kind": "oval",
+        "x": 2,
+        "y": 3,
+      }`)->S.parseWith(shapeStruct),
       Error({
         code: InvalidUnion([
           {
@@ -177,14 +158,42 @@ module Advanced = {
     )
   })
 
+  test("Fails to serialize incomplete struct", t => {
+    let incompleteStruct = S.union([
+      S.object(o => {
+        o->S.discriminant("kind", String("circle"))
+        Circle({
+          radius: o->S.field("radius", S.float()),
+        })
+      }),
+      S.object(o => {
+        o->S.discriminant("kind", String("square"))
+        Square({
+          x: o->S.field("x", S.float()),
+        })
+      }),
+    ])
+
+    t->Assert.deepEqual(
+      Triangle({x: 2., y: 3.})->S.serializeWith(incompleteStruct),
+      Error({
+        code: UnexpectedValue({expected: `1`, received: `2`}),
+        operation: Serializing,
+        // FIXME: Add path
+        path: [],
+      }),
+      (),
+    )
+  })
+
   test("Successfully serializes Circle shape", t => {
     t->Assert.deepEqual(
       Circle({radius: 1.})->S.serializeWith(shapeStruct),
       Ok(
         %raw(`{
-        "kind": "circle",
-        "radius": 1,
-      }`),
+          "kind": "circle",
+          "radius": 1,
+        }`),
       ),
       (),
     )
