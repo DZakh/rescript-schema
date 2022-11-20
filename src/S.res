@@ -147,6 +147,69 @@ module Stdlib = {
     @send external toString: bool => string = "toString"
   }
 
+  module Function = {
+    @variadic @new
+    external _make: array<string> => 'function = "Function"
+
+    @inline
+    let make4 = (
+      ~ctxVarName1,
+      ~ctxVarValue1,
+      ~ctxVarName2,
+      ~ctxVarValue2,
+      ~ctxVarName3,
+      ~ctxVarValue3,
+      ~ctxVarName4,
+      ~ctxVarValue4,
+      ~inlinedFunction,
+    ) => {
+      _make([ctxVarName1, ctxVarName2, ctxVarName3, ctxVarName4, `return ${inlinedFunction}`])(.
+        ctxVarValue1,
+        ctxVarValue2,
+        ctxVarValue3,
+        ctxVarValue4,
+      )
+    }
+
+    @inline
+    let make7 = (
+      ~ctxVarName1,
+      ~ctxVarValue1,
+      ~ctxVarName2,
+      ~ctxVarValue2,
+      ~ctxVarName3,
+      ~ctxVarValue3,
+      ~ctxVarName4,
+      ~ctxVarValue4,
+      ~ctxVarName5,
+      ~ctxVarValue5,
+      ~ctxVarName6,
+      ~ctxVarValue6,
+      ~ctxVarName7,
+      ~ctxVarValue7,
+      ~inlinedFunction,
+    ) => {
+      _make([
+        ctxVarName1,
+        ctxVarName2,
+        ctxVarName3,
+        ctxVarName4,
+        ctxVarName5,
+        ctxVarName6,
+        ctxVarName7,
+        `return ${inlinedFunction}`,
+      ])(.
+        ctxVarValue1,
+        ctxVarValue2,
+        ctxVarValue3,
+        ctxVarValue4,
+        ctxVarValue5,
+        ctxVarValue6,
+        ctxVarValue7,
+      )
+    }
+  }
+
   module Inlined = {
     module Constant = {
       @inline
@@ -1377,15 +1440,6 @@ module Object = {
 }
 
 module Object2 = {
-  @inline
-  let originalObjectVar = "o"
-  @inline
-  let transformedObjectVar = "t"
-  @inline
-  let fieldNameVar = "f"
-  @inline
-  let ctxVar = "c"
-
   module FieldDefenition = {
     type t
 
@@ -1498,31 +1552,43 @@ module Object2 = {
     }
   }
 
-  let factory = defenition => {
-    let {
-      inlinedPathesByOriginalFieldNames,
-      originalFieldNames,
-      originalFields,
-      inlinedPreparationValues,
-      inlinedPreparationPathes,
-      serializeDiscriminantValuesByInlinedPath,
-      serializeDiscriminantInlinedPathes,
-      pathesByOriginalFieldNames,
-    } = {
-      let defenitionCtx = DefenitionCtx.make()
-      let defenitionSlice = defenition->Stdlib.Fn.call1(defenitionCtx)->castAnyToUnknown
-      defenitionCtx->DefenitionCtx.analyzeDefenitionSlice(
-        ~defenitionSlice,
-        ~path=Path.empty(),
-        ~inlinedPath=Path.Inlined.empty(),
-      )
-      defenitionCtx->Instructions.fromReadyDefenitionCtx
+  module ParseTransformationFactory = {
+    module Var = {
+      @inline
+      let originalObject = "i"
+      @inline
+      let originalFields = "o"
+      @inline
+      let transformedObject = "t"
+      @inline
+      let fieldName = "f"
+      @inline
+      let catchFieldError = "c"
+      @inline
+      let parseFnsByOriginalFieldName = "p"
+      @inline
+      let serializeDiscriminantValuesByInlinedPath = "d"
+      @inline
+      let raiseUnexpectedOriginalObjectTypeError = "u"
+      @inline
+      let raiseUnexpectedTypeError = "s"
+      @inline
+      let raiseExcessFieldError = "x"
     }
 
-    make(
-      ~name="Object",
-      ~tagged=Object({fields: originalFields, fieldNames: originalFieldNames}),
-      ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
+    @inline
+    let make = (~instructions: Instructions.t) => {
+      TransformationFactory.make((. ~ctx, ~struct) => {
+        let {
+          inlinedPathesByOriginalFieldNames,
+          originalFieldNames,
+          originalFields,
+          inlinedPreparationValues,
+          inlinedPreparationPathes,
+          serializeDiscriminantValuesByInlinedPath,
+          serializeDiscriminantInlinedPathes,
+        } = instructions
+
         let withUnknownKeysRefinement =
           struct->Object.UnknownKeys.classify === Object.UnknownKeys.Strict
 
@@ -1533,18 +1599,18 @@ module Object2 = {
         let inlinedParseFunction = {
           let refinement = Stdlib.Inlined.If.make(
             // TODO: Measure the fastest condition
-            ~condition=`(typeof ${originalObjectVar}==="object"&&!Array.isArray(${originalObjectVar})&&${originalObjectVar}!==null)===false`,
-            ~content=`${ctxVar}.raiseUnexpectedTypeError(${originalObjectVar},${ctxVar}.struct)`,
+            ~condition=`(typeof ${Var.originalObject}==="object"&&!Array.isArray(${Var.originalObject})&&${Var.originalObject}!==null)===false`,
+            ~content=`${Var.raiseUnexpectedOriginalObjectTypeError}(${Var.originalObject})`,
           )
 
           let preparation = {
-            let stringRef = ref(`var ${transformedObjectVar};`)
+            let stringRef = ref(`var ${Var.transformedObject};`)
             for idx in 0 to inlinedPreparationPathes->Js.Array2.length - 1 {
               let preparationPath = inlinedPreparationPathes->Js.Array2.unsafe_get(idx)
               let preparationInlinedValue = inlinedPreparationValues->Js.Array2.unsafe_get(idx)
               stringRef.contents =
                 stringRef.contents ++
-                `${transformedObjectVar}${preparationPath}=${preparationInlinedValue};`
+                `${Var.transformedObject}${preparationPath}=${preparationInlinedValue};`
             }
             stringRef.contents
           }
@@ -1571,14 +1637,14 @@ module Object2 = {
                 | (None, _) =>
                   stringRef.contents =
                     stringRef.contents ++
-                    `${transformedObjectVar}${inlinedPath}:${originalObjectVar}["${originalFieldName}"];`
+                    `${Var.transformedObject}${inlinedPath}:${Var.originalObject}["${originalFieldName}"];`
 
                 | (Some(fn), Some(inlinedRefinement)) => {
                     parseFnsByOriginalFieldName->Js.Dict.set(originalFieldName, fn)
 
                     stringRef.contents =
                       stringRef.contents ++
-                      `var ${Stdlib.Inlined.Constant.inputVar}=${originalObjectVar}["${originalFieldName}"];if(${inlinedRefinement}){${transformedObjectVar}${inlinedPath}=${Stdlib.Inlined.Constant.inputVar}}else{${fieldNameVar}="${originalFieldName}";${ctxVar}.raiseUnexpectedTypeError(${Stdlib.Inlined.Constant.inputVar},${ctxVar}.fields["${originalFieldName}"])}`
+                      `var ${Stdlib.Inlined.Constant.inputVar}=${Var.originalObject}["${originalFieldName}"];if(${inlinedRefinement}){${Var.transformedObject}${inlinedPath}=${Stdlib.Inlined.Constant.inputVar}}else{${Var.fieldName}="${originalFieldName}";${Var.raiseUnexpectedTypeError}(${Stdlib.Inlined.Constant.inputVar},${Var.originalFields}["${originalFieldName}"])}`
                   }
 
                 | (Some(fn), None) => {
@@ -1586,27 +1652,27 @@ module Object2 = {
 
                     stringRef.contents =
                       stringRef.contents ++
-                      `${fieldNameVar}="${originalFieldName}",${transformedObjectVar}${inlinedPath}=${ctxVar}.fns["${originalFieldName}"](${originalObjectVar}["${originalFieldName}"]);`
+                      `${Var.fieldName}="${originalFieldName}",${Var.transformedObject}${inlinedPath}=${Var.parseFnsByOriginalFieldName}["${originalFieldName}"](${Var.originalObject}["${originalFieldName}"]);`
                   }
                 }
               }
               stringRef.contents
             }
 
-            `var ${fieldNameVar};` ++
+            `var ${Var.fieldName};` ++
             Stdlib.Inlined.TryCatch.make(
               ~tryContent,
-              ~catchContent=`${ctxVar}.catchFieldError(${Stdlib.Inlined.Constant.errorVar},${fieldNameVar})`,
+              ~catchContent=`${Var.catchFieldError}(${Stdlib.Inlined.Constant.errorVar},${Var.fieldName})`,
             )
           }
 
           let unknownKeysRefinement = {
-            let stringRef = ref(`for(var key in ${originalObjectVar}){switch(key){`)
+            let stringRef = ref(`for(var key in ${Var.originalObject}){switch(key){`)
             for idx in 0 to originalFieldNames->Js.Array2.length - 1 {
               let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
               stringRef.contents = stringRef.contents ++ `case"${originalFieldName}":continue;`
             }
-            stringRef.contents ++ `default:${ctxVar}.raiseOnExcessField(key)}}`
+            stringRef.contents ++ `default:${Var.raiseExcessFieldError}(key)}}`
           }
 
           let serializeDiscriminants = {
@@ -1615,44 +1681,78 @@ module Object2 = {
               let inlinedPath = serializeDiscriminantInlinedPathes->Js.Array2.unsafe_get(idx)
               stringRef.contents =
                 stringRef.contents ++
-                `${transformedObjectVar}${inlinedPath}=${ctxVar}.serializeDiscriminantValuesByInlinedPath[\`${inlinedPath}\`];`
+                `${Var.transformedObject}${inlinedPath}=${Var.serializeDiscriminantValuesByInlinedPath}[\`${inlinedPath}\`];`
             }
             stringRef.contents
           }
 
           Stdlib.Inlined.Fn.make(
-            ~arguments=originalObjectVar,
+            ~arguments=Var.originalObject,
             ~content=`${refinement}${preparation}${transformedObjectConstruction}${withUnknownKeysRefinement
                 ? unknownKeysRefinement
-                : ""}${serializeDiscriminants}return ${transformedObjectVar}`,
+                : ""}${serializeDiscriminants}return ${Var.transformedObject}`,
           )
         }
 
-        // FIXME: There's no reason to use %raw
-        let syncTransformation = %raw(`new Function('c','return '+inlinedParseFunction)`)(. {
-          "struct": struct,
-          "fns": parseFnsByOriginalFieldName,
-          "fields": originalFields,
-          "raiseUnexpectedTypeError": raiseUnexpectedTypeError,
-          "raiseOnExcessField": exccessFieldName =>
-            Error.Internal.raise(ExcessField(exccessFieldName)),
-          "catchFieldError": (~exn, ~fieldName) => {
-            switch exn {
-            | Error.Internal.Exception(internalError) =>
-              Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName))
-            | _ => exn
-            }->raise
-          },
-          "serializeDiscriminantValuesByInlinedPath": serializeDiscriminantValuesByInlinedPath,
-          // FIXME: Find some better way to do it
-          // Use the inlinedParseFunction two times, so rescript compiler doesn't inline the variable
-          "l": inlinedParseFunction,
-          "l": inlinedParseFunction,
-        })
+        ctx->TransformationFactory.Ctx.planSyncTransformation(
+          Stdlib.Function.make7(
+            ~ctxVarName1=Var.catchFieldError,
+            ~ctxVarValue1=(~exn, ~fieldName) => {
+              switch exn {
+              | Error.Internal.Exception(internalError) =>
+                Error.Internal.Exception(internalError->Error.Internal.prependLocation(fieldName))
+              | _ => exn
+              }->raise
+            },
+            ~ctxVarName2=Var.parseFnsByOriginalFieldName,
+            ~ctxVarValue2=parseFnsByOriginalFieldName,
+            ~ctxVarName3=Var.originalFields,
+            ~ctxVarValue3=originalFields,
+            ~ctxVarName4=Var.serializeDiscriminantValuesByInlinedPath,
+            ~ctxVarValue4=serializeDiscriminantValuesByInlinedPath,
+            ~ctxVarName5=Var.raiseUnexpectedOriginalObjectTypeError,
+            ~ctxVarValue5=(~input) => {
+              raiseUnexpectedTypeError(~input, ~struct)
+            },
+            ~ctxVarName6=Var.raiseUnexpectedTypeError,
+            ~ctxVarValue6=raiseUnexpectedTypeError,
+            ~ctxVarName7=Var.raiseExcessFieldError,
+            ~ctxVarValue7=exccessFieldName => Error.Internal.raise(ExcessField(exccessFieldName)),
+            ~inlinedFunction=inlinedParseFunction,
+          ),
+        )
+      })
+    }
+  }
 
-        ctx->TransformationFactory.Ctx.planSyncTransformation(syncTransformation)
-      }),
-      ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
+  module SerializeTransformationFactory = {
+    module Var = {
+      @inline
+      let serializeFnsByOriginalFieldName = "s"
+      @inline
+      let serializeDiscriminantValuesByInlinedPath = "d"
+      @inline
+      let raiseDiscriminantError = "r"
+      @inline
+      let transformedObject = "t"
+      @inline
+      let fieldName = "f"
+      @inline
+      let catchFieldError = "c"
+    }
+
+    @inline
+    let make = (~instructions: Instructions.t) => {
+      TransformationFactory.make((. ~ctx, ~struct as _) => {
+        let {
+          inlinedPathesByOriginalFieldNames,
+          originalFieldNames,
+          originalFields,
+          serializeDiscriminantValuesByInlinedPath,
+          serializeDiscriminantInlinedPathes,
+          pathesByOriginalFieldNames,
+        } = instructions
+
         let serializeFnsByOriginalFieldName = Js.Dict.empty()
 
         let inlinedSerializeFunction = {
@@ -1663,8 +1763,8 @@ module Object2 = {
               stringRef.contents =
                 stringRef.contents ++
                 Stdlib.Inlined.If.make(
-                  ~condition=`${transformedObjectVar}${inlinedPath}!==${ctxVar}.serializeDiscriminantValuesByInlinedPath[\`${inlinedPath}\`]`,
-                  ~content=`${ctxVar}.raiseDiscriminantError(\`${inlinedPath}\`,${transformedObjectVar}${inlinedPath})`,
+                  ~condition=`${Var.transformedObject}${inlinedPath}!==${Var.serializeDiscriminantValuesByInlinedPath}[\`${inlinedPath}\`]`,
+                  ~content=`${Var.raiseDiscriminantError}(\`${inlinedPath}\`,${Var.transformedObject}${inlinedPath})`,
                 )
             }
             stringRef.contents
@@ -1682,12 +1782,12 @@ module Object2 = {
                   | NoOperation =>
                     contentRef.contents =
                       contentRef.contents ++
-                      `"${originalFieldName}":${transformedObjectVar}${inlinedPath},`
+                      `"${originalFieldName}":${Var.transformedObject}${inlinedPath},`
                   | SyncOperation(fn) =>
                     serializeFnsByOriginalFieldName->Js.Dict.set(originalFieldName, fn)
                     contentRef.contents =
                       contentRef.contents ++
-                      `"${originalFieldName}":(${fieldNameVar}="${originalFieldName}",${ctxVar}.fns["${originalFieldName}"](${transformedObjectVar}${inlinedPath})),`
+                      `"${originalFieldName}":(${Var.fieldName}="${originalFieldName}",${Var.serializeFnsByOriginalFieldName}["${originalFieldName}"](${Var.transformedObject}${inlinedPath})),`
                   | AsyncOperation(_) => Error.Unreachable.panic()
                   }
                 | None => {
@@ -1712,41 +1812,64 @@ module Object2 = {
 
             Stdlib.Inlined.TryCatch.make(
               ~tryContent,
-              ~catchContent=`${ctxVar}.catchFieldError(${Stdlib.Inlined.Constant.errorVar},${fieldNameVar})`,
+              ~catchContent=`${Var.catchFieldError}(${Stdlib.Inlined.Constant.errorVar},${Var.fieldName})`,
             )
           }
 
           Stdlib.Inlined.Fn.make(
-            ~arguments=transformedObjectVar,
+            ~arguments=Var.transformedObject,
             ~content=`${serializeDiscriminants}${originalObjectConstructionAndReturn}`,
           )
         }
 
-        let syncTransformation = %raw(`new Function('c','return '+inlinedSerializeFunction)`)(. {
-          "fns": serializeFnsByOriginalFieldName,
-          "serializeDiscriminantValuesByInlinedPath": serializeDiscriminantValuesByInlinedPath,
-          "raiseDiscriminantError": (~inlinedPath, ~received) => {
-            // FIXME: Append path (?)
-            let serializeDiscriminantValue =
-              serializeDiscriminantValuesByInlinedPath->Js.Dict.unsafeGet(inlinedPath)
-            Error.Internal.UnexpectedValue.raise(~expected=serializeDiscriminantValue, ~received)
-          },
-          "catchFieldError": (~exn, ~originalFieldName) => {
-            let path = pathesByOriginalFieldNames->Js.Dict.unsafeGet(originalFieldName)
-            switch exn {
-            | Error.Internal.Exception(internalError) =>
-              Error.Internal.Exception(internalError->Error.Internal.prependPath(path))
-            | _ => exn
-            }->raise
-          },
-          // FIXME: Find some better way to do it
-          // Use the inlinedSerializeFunction two times, so rescript compiler doesn't inline the variable
-          "l": inlinedSerializeFunction,
-          "l": inlinedSerializeFunction,
-        })
+        ctx->TransformationFactory.Ctx.planSyncTransformation(
+          Stdlib.Function.make4(
+            ~ctxVarName1=Var.serializeFnsByOriginalFieldName,
+            ~ctxVarValue1=serializeFnsByOriginalFieldName,
+            ~ctxVarName2=Var.serializeDiscriminantValuesByInlinedPath,
+            ~ctxVarValue2=serializeDiscriminantValuesByInlinedPath,
+            ~ctxVarName3=Var.raiseDiscriminantError,
+            ~ctxVarValue3=(~inlinedPath, ~received) => {
+              // FIXME: Append path (?)
+              let serializeDiscriminantValue =
+                serializeDiscriminantValuesByInlinedPath->Js.Dict.unsafeGet(inlinedPath)
+              Error.Internal.UnexpectedValue.raise(~expected=serializeDiscriminantValue, ~received)
+            },
+            ~ctxVarName4=Var.catchFieldError,
+            ~ctxVarValue4=(~exn, ~originalFieldName) => {
+              let path = pathesByOriginalFieldNames->Js.Dict.unsafeGet(originalFieldName)
+              switch exn {
+              | Error.Internal.Exception(internalError) =>
+                Error.Internal.Exception(internalError->Error.Internal.prependPath(path))
+              | _ => exn
+              }->raise
+            },
+            ~inlinedFunction=inlinedSerializeFunction,
+          ),
+        )
+      })
+    }
+  }
 
-        ctx->TransformationFactory.Ctx.planSyncTransformation(syncTransformation)
+  let factory = defenition => {
+    let instructions = {
+      let defenitionCtx = DefenitionCtx.make()
+      let defenitionSlice = defenition->Stdlib.Fn.call1(defenitionCtx)->castAnyToUnknown
+      defenitionCtx->DefenitionCtx.analyzeDefenitionSlice(
+        ~defenitionSlice,
+        ~path=Path.empty(),
+        ~inlinedPath=Path.Inlined.empty(),
+      )
+      defenitionCtx->Instructions.fromReadyDefenitionCtx
+    }
+    make(
+      ~name="Object",
+      ~tagged=Object({
+        fields: instructions.originalFields,
+        fieldNames: instructions.originalFieldNames,
       }),
+      ~parseTransformationFactory=ParseTransformationFactory.make(~instructions),
+      ~serializeTransformationFactory=SerializeTransformationFactory.make(~instructions),
       (),
     )
   }
