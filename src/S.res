@@ -1453,13 +1453,29 @@ module Object2 = {
 
   module DefinedFieldInstruction = {
     type struct = t<unknown>
-    type kind =
-      | Discriminant
-      | Registered({inlinedPath: Path.Inlined.t, path: Path.t})
-    type t = {
-      fieldStruct: struct,
-      originalFieldName: string,
-      kind: kind,
+    type t =
+      | Discriminant({fieldStruct: struct, originalFieldName: string})
+      | Registered({
+          fieldStruct: struct,
+          originalFieldName: string,
+          inlinedPath: Path.Inlined.t,
+          path: Path.t,
+        })
+
+    @inline
+    let getFieldStruct = (definedFieldInstruction: t) => {
+      switch definedFieldInstruction {
+      | Discriminant({fieldStruct}) => fieldStruct
+      | Registered({fieldStruct}) => fieldStruct
+      }
+    }
+
+    @inline
+    let getOriginalFieldName = (definedFieldInstruction: t) => {
+      switch definedFieldInstruction {
+      | Discriminant({originalFieldName}) => originalFieldName
+      | Registered({originalFieldName}) => originalFieldName
+      }
     }
   }
 
@@ -1509,14 +1525,14 @@ module Object2 = {
 
         let fieldStruct = defenitionCtx.originalFields->Js.Dict.unsafeGet(originalFieldName)
         defenitionCtx.definedFieldInstructions
-        ->Js.Array2.push({
-          fieldStruct,
-          originalFieldName,
-          kind: Registered({
+        ->Js.Array2.push(
+          Registered({
             path,
             inlinedPath,
+            fieldStruct,
+            originalFieldName,
           }),
-        })
+        )
         ->ignore
       } else if defenitionSlice->Js.typeof === "object" && defenitionSlice !== %raw(`null`) {
         defenitionCtx.inlinedPreparationPathes->Js.Array2.push(inlinedPath)->ignore
@@ -1661,8 +1677,10 @@ module Object2 = {
             let tryContent = {
               let stringRef = ref("")
               for idx in 0 to definedFieldInstructions->Js.Array2.length - 1 {
-                let {originalFieldName, kind, fieldStruct} =
-                  definedFieldInstructions->Js.Array2.unsafe_get(idx)
+                let definedFieldInstruction = definedFieldInstructions->Js.Array2.unsafe_get(idx)
+                let fieldStruct = definedFieldInstruction->DefinedFieldInstruction.getFieldStruct
+                let originalFieldName =
+                  definedFieldInstruction->DefinedFieldInstruction.getOriginalFieldName
                 let inlinedInstructionIdx = idx->Js.Int.toString
                 let maybeParseFn = switch fieldStruct.parse {
                 | NoOperation => None
@@ -1674,8 +1692,8 @@ module Object2 = {
                     Some(fn->Obj.magic)
                   }
                 }
-                let maybeInlinedDestination = switch kind {
-                | Discriminant => None
+                let maybeInlinedDestination = switch definedFieldInstruction {
+                | Discriminant(_) => None
                 | Registered({inlinedPath}) => Some(`${Var.transformedObject}${inlinedPath}`)
                 }
                 let inlinedInputData = `${Var.originalObject}["${originalFieldName}"]`
@@ -1746,13 +1764,14 @@ module Object2 = {
             ~ctxVarName1=Var.catchFieldError,
             ~ctxVarValue1=(~exn, ~instructionIdx) => {
               switch exn {
-              | Error.Internal.Exception(internalError) => {
-                  let {originalFieldName} =
-                    definedFieldInstructions->Js.Array2.unsafe_get(instructionIdx)
-                  Error.Internal.Exception(
-                    internalError->Error.Internal.prependLocation(originalFieldName),
-                  )
-                }
+              | Error.Internal.Exception(internalError) =>
+                Error.Internal.Exception(
+                  internalError->Error.Internal.prependLocation(
+                    definedFieldInstructions
+                    ->Js.Array2.unsafe_get(instructionIdx)
+                    ->DefinedFieldInstruction.getOriginalFieldName,
+                  ),
+                )
 
               | _ => exn
               }->raise
@@ -1825,12 +1844,14 @@ module Object2 = {
             let tryContent = {
               let contentRef = ref(`var ${Var.instructionIdx};return{`)
               for idx in 0 to definedFieldInstructions->Js.Array2.length - 1 {
-                let {kind, originalFieldName, fieldStruct} =
-                  definedFieldInstructions->Js.Array2.unsafe_get(idx)
+                let definedFieldInstruction = definedFieldInstructions->Js.Array2.unsafe_get(idx)
+                let fieldStruct = definedFieldInstruction->DefinedFieldInstruction.getFieldStruct
+                let originalFieldName =
+                  definedFieldInstruction->DefinedFieldInstruction.getOriginalFieldName
                 let inlinedInstructionIdx = idx->Js.Int.toString
                 contentRef.contents =
                   contentRef.contents ++
-                  switch kind {
+                  switch definedFieldInstruction {
                   | Registered({inlinedPath}) =>
                     switch fieldStruct.serialize {
                     | NoOperation =>
@@ -1844,7 +1865,7 @@ module Object2 = {
                     | AsyncOperation(_) => Error.Unreachable.panic()
                     }
 
-                  | Discriminant => {
+                  | Discriminant(_) => {
                       let taggedLiteral: taggedLiteral =
                         fieldStruct->classify->unsafeGetVariantPayload
                       let inlinedValue = switch taggedLiteral {
@@ -1897,8 +1918,9 @@ module Object2 = {
             ~ctxVarValue4=(~exn, ~instructionIdx) => {
               switch exn {
               | Error.Internal.Exception(internalError) => {
-                  let {kind} = definedFieldInstructions->Js.Array2.unsafe_get(instructionIdx)
-                  switch kind {
+                  let definedFieldInstruction =
+                    definedFieldInstructions->Js.Array2.unsafe_get(instructionIdx)
+                  switch definedFieldInstruction {
                   | Registered({path}) =>
                     Error.Internal.Exception(internalError->Error.Internal.prependPath(path))
                   | _ => Error.Unreachable.panic()
@@ -1951,11 +1973,12 @@ module Object2 = {
     defenitionCtx.originalFields->Js.Dict.set(originalFieldName, fieldStruct)
     defenitionCtx.registeredFieldsCount = Stdlib.Int.plus(defenitionCtx.registeredFieldsCount, 1)
     defenitionCtx.definedFieldInstructions
-    ->Js.Array2.unshift({
-      fieldStruct,
-      originalFieldName,
-      kind: Discriminant,
-    })
+    ->Js.Array2.unshift(
+      Discriminant({
+        fieldStruct,
+        originalFieldName,
+      }),
+    )
     ->ignore
     ()
   }
