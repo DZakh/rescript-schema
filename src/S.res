@@ -44,7 +44,7 @@ module Stdlib = {
   module Fn = {
     @inline
     let getArguments = (): array<'a> => {
-      %raw(`arguments`)
+      %raw(`Array.from(arguments)`)
     }
 
     @inline
@@ -391,10 +391,6 @@ module Error = {
 
   module Unreachable = {
     let panic = () => panic("Unreachable")
-  }
-
-  module UnionLackingStructs = {
-    let panic = () => panic("A Union struct factory require at least two structs")
   }
 
   let prependLocation = (error, location) => {
@@ -1813,6 +1809,48 @@ module Object2 = {
       let catchFieldError = "c"
     }
 
+    let rec structToInlinedValue = (struct, ~originalFieldName) => {
+      switch struct->classify {
+      | Literal(String(string)) => string->Stdlib.Inlined.Value.fromString
+      | Literal(Int(int)) => int->Js.Int.toString
+      | Literal(Float(float)) => float->Js.Float.toString
+      | Literal(Bool(bool)) => bool->Stdlib.Bool.toString
+      | Literal(EmptyOption) => "undefined"
+      | Literal(EmptyNull) => "null"
+      | Literal(NaN) => "NaN"
+      | Union(unionStructs) =>
+        unionStructs->Js.Array2.unsafe_get(0)->structToInlinedValue(~originalFieldName)
+      | Tuple(tupleStructs) =>
+        `[${tupleStructs
+          ->Js.Array2.map(s => s->structToInlinedValue(~originalFieldName))
+          ->Js.Array2.joinWith(",")}]`
+      | Object({fieldNames, fields}) =>
+        `{${fieldNames
+          ->Js.Array2.map(fieldName => {
+            `${fieldName->Stdlib.Inlined.Value.fromString}:${fields
+              ->Js.Dict.unsafeGet(fieldName)
+              ->structToInlinedValue(~originalFieldName)}`
+          })
+          ->Js.Array2.joinWith(",")}}`
+
+      | String
+      | Int
+      | Float
+      | Bool
+      | Option(_)
+      | Null(_)
+      | Never
+      | Unknown
+      | Array(_)
+      | Dict(_)
+      | Date =>
+        // FIXME: Should only happen when start serializing
+        Error.panic(
+          `Can't create serializer for the discriminant field with the name "${originalFieldName}"`,
+        )
+      }
+    }
+
     @inline
     let make = (~instructions: Instructions.t) => {
       TransformationFactory.make((. ~ctx, ~struct as _) => {
@@ -1865,21 +1903,10 @@ module Object2 = {
                     | AsyncOperation(_) => Error.Unreachable.panic()
                     }
 
-                  | Discriminant(_) => {
-                      let taggedLiteral: taggedLiteral =
-                        fieldStruct->classify->unsafeGetVariantPayload
-                      let inlinedValue = switch taggedLiteral {
-                      | String(string) => string->Stdlib.Inlined.Value.fromString
-                      | Int(int) => int->Js.Int.toString
-                      | Float(float) => float->Js.Float.toString
-                      | Bool(bool) => bool->Stdlib.Bool.toString
-                      | EmptyNull => "null"
-                      | EmptyOption => "undefined"
-                      | NaN => "NaN"
-                      }
-
-                      `"${originalFieldName}":${inlinedValue},`
-                    }
+                  | Discriminant(_) =>
+                    `"${originalFieldName}":${fieldStruct->structToInlinedValue(
+                        ~originalFieldName,
+                      )},`
                   }
               }
               contentRef.contents ++ "}"
@@ -2823,7 +2850,7 @@ module Union = {
 
   let factory = structs => {
     if structs->Js.Array2.length < 2 {
-      Error.UnionLackingStructs.panic()
+      Error.panic("A Union struct factory require at least two structs")
     }
 
     make(

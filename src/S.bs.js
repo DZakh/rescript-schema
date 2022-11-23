@@ -74,10 +74,6 @@ function panic$1(param) {
   throw new Error("[rescript-struct] Unreachable");
 }
 
-function panic$2(param) {
-  throw new Error("[rescript-struct] A Union struct factory require at least two structs");
-}
-
 function prependLocation$1(error, $$location) {
   return {
           operation: error.operation,
@@ -828,7 +824,7 @@ var getMaybeExcessKey = (function(object, innerStructsDict) {
   });
 
 function factory$2(param) {
-  var fieldsArray = arguments;
+  var fieldsArray = (Array.from(arguments));
   var fields = Js_dict.fromArray(fieldsArray);
   var fieldNames = Object.keys(fields);
   return make("Object", {
@@ -1033,6 +1029,52 @@ function fromReadyDefenitionCtx(defenitionCtx) {
         };
 }
 
+function structToInlinedValue(_struct, originalFieldName) {
+  while(true) {
+    var struct = _struct;
+    var unionStructs = struct.t;
+    if (typeof unionStructs === "number") {
+      throw new Error("[rescript-struct] " + ("Can't create serializer for the discriminant field with the name \"" + originalFieldName + "\"") + "");
+    }
+    switch (unionStructs.TAG | 0) {
+      case /* Literal */0 :
+          var string = unionStructs._0;
+          if (typeof string !== "number") {
+            if (string.TAG === /* String */0) {
+              return JSON.stringify(string._0);
+            } else {
+              return string._0.toString();
+            }
+          }
+          switch (string) {
+            case /* EmptyNull */0 :
+                return "null";
+            case /* EmptyOption */1 :
+                return "undefined";
+            case /* NaN */2 :
+                return "NaN";
+            
+          }
+      case /* Object */4 :
+          var fields = unionStructs.fields;
+          return "{" + unionStructs.fieldNames.map((function(fields){
+                      return function (fieldName) {
+                        return "" + JSON.stringify(fieldName) + ":" + structToInlinedValue(fields[fieldName], originalFieldName) + "";
+                      }
+                      }(fields))).join(",") + "}";
+      case /* Tuple */5 :
+          return "[" + unionStructs._0.map(function (s) {
+                        return structToInlinedValue(s, originalFieldName);
+                      }).join(",") + "]";
+      case /* Union */6 :
+          _struct = unionStructs._0[0];
+          continue ;
+      default:
+        throw new Error("[rescript-struct] " + ("Can't create serializer for the discriminant field with the name \"" + originalFieldName + "\"") + "");
+    }
+  };
+}
+
 function factory$3(defenition) {
   var defenitionCtx = {
     originalFieldNames: [],
@@ -1159,25 +1201,7 @@ function factory$3(defenition) {
                   var inlinedInstructionIdx = idx$1.toString();
                   var tmp;
                   if (definedFieldInstruction.TAG === /* Discriminant */0) {
-                    var taggedLiteral = fieldStruct.t._0;
-                    var inlinedValue;
-                    if (typeof taggedLiteral === "number") {
-                      switch (taggedLiteral) {
-                        case /* EmptyNull */0 :
-                            inlinedValue = "null";
-                            break;
-                        case /* EmptyOption */1 :
-                            inlinedValue = "undefined";
-                            break;
-                        case /* NaN */2 :
-                            inlinedValue = "NaN";
-                            break;
-                        
-                      }
-                    } else {
-                      inlinedValue = taggedLiteral.TAG === /* String */0 ? JSON.stringify(taggedLiteral._0) : taggedLiteral._0.toString();
-                    }
-                    tmp = "\"" + originalFieldName + "\":" + inlinedValue + ",";
+                    tmp = "\"" + originalFieldName + "\":" + structToInlinedValue(fieldStruct, originalFieldName) + ",";
                   } else {
                     var inlinedPath$1 = definedFieldInstruction.inlinedPath;
                     var fn = fieldStruct.s;
@@ -1897,7 +1921,7 @@ function classify$3(struct) {
 }
 
 function factory$18(param) {
-  var structs = arguments;
+  var structs = (Array.from(arguments));
   var numberOfStructs = structs.length;
   return make("Tuple", {
               TAG: /* Tuple */5,
@@ -2043,7 +2067,7 @@ var HackyValidValue = /* @__PURE__ */Caml_exceptions.create("S.Union.HackyValidV
 
 function factory$19(structs) {
   if (structs.length < 2) {
-    panic$2(undefined);
+    throw new Error("[rescript-struct] A Union struct factory require at least two structs");
   }
   return make("Union", {
               TAG: /* Union */6,
