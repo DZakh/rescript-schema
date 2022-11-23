@@ -8,18 +8,6 @@ var Caml_option = require("rescript/lib/js/caml_option.js");
 var Caml_exceptions = require("rescript/lib/js/caml_exceptions.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
-function stringify(any) {
-  if (any === undefined) {
-    return "undefined";
-  }
-  var string = JSON.stringify(Caml_option.valFromOption(any));
-  if (string !== undefined) {
-    return string;
-  } else {
-    return "\"???\"";
-  }
-}
-
 var Exception = /* @__PURE__ */Caml_exceptions.create("S.Error.Internal.Exception");
 
 function raise(expected, received, initialPathOpt, param) {
@@ -29,8 +17,8 @@ function raise(expected, received, initialPathOpt, param) {
         _1: {
           c: {
             TAG: /* UnexpectedValue */2,
-            expected: stringify(expected),
-            received: stringify(received)
+            expected: expected === undefined ? "undefined" : JSON.stringify(expected),
+            received: received === undefined ? "undefined" : JSON.stringify(received)
           },
           p: initialPath
         },
@@ -996,8 +984,16 @@ function analyzeDefenitionSlice(defenitionCtx, defenitionSlice, path, inlinedPat
   if (defenitionSlice === value) {
     var originalFieldName = defenitionCtx.originalFieldNames[defenitionCtx.registeredFieldsCount];
     defenitionCtx.registeredFieldsCount = defenitionCtx.registeredFieldsCount + 1;
-    defenitionCtx.inlinedPathesByOriginalFieldNames[originalFieldName] = inlinedPath;
-    defenitionCtx.pathesByInlinedPath[inlinedPath] = path;
+    defenitionCtx.pathesByInlinedPathIdx[defenitionCtx.serializeDiscriminantInlinedPathes.length.toString()] = path;
+    var fieldStruct = defenitionCtx.originalFields[originalFieldName];
+    defenitionCtx.definedFieldInstructions.push({
+          fieldStruct: fieldStruct,
+          originalFieldName: originalFieldName,
+          kind: /* Registered */{
+            inlinedPath: inlinedPath,
+            path: path
+          }
+        });
     return ;
   }
   if (typeof defenitionSlice === "object" && defenitionSlice !== null) {
@@ -1008,13 +1004,14 @@ function analyzeDefenitionSlice(defenitionCtx, defenitionSlice, path, inlinedPat
       var defenitionSliceFieldName = defenitionSliceFieldNames[idx];
       var nextDefenitionSlice = defenitionSlice[defenitionSliceFieldName];
       var tmp = path === "" ? defenitionSliceFieldName : "" + path + "," + defenitionSliceFieldName + "";
-      analyzeDefenitionSlice(defenitionCtx, nextDefenitionSlice, tmp, "" + inlinedPath + "[\"" + defenitionSliceFieldName + "\"]");
+      analyzeDefenitionSlice(defenitionCtx, nextDefenitionSlice, tmp, "" + inlinedPath + "[" + JSON.stringify(defenitionSliceFieldName) + "]");
     }
     return ;
   }
-  defenitionCtx.serializeDiscriminantValuesByInlinedPath[inlinedPath] = defenitionSlice;
+  var serializeDiscriminantInlinedPathIdx = defenitionCtx.serializeDiscriminantInlinedPathes.length.toString();
+  defenitionCtx.serializeDiscriminantValuesByInlinedPathIdx[serializeDiscriminantInlinedPathIdx] = defenitionSlice;
   defenitionCtx.serializeDiscriminantInlinedPathes.push(inlinedPath);
-  defenitionCtx.pathesByInlinedPath[inlinedPath] = path;
+  defenitionCtx.pathesByInlinedPathIdx[serializeDiscriminantInlinedPathIdx] = path;
 }
 
 function fromReadyDefenitionCtx(defenitionCtx) {
@@ -1028,12 +1025,12 @@ function fromReadyDefenitionCtx(defenitionCtx) {
   return {
           originalFields: defenitionCtx.originalFields,
           originalFieldNames: defenitionCtx.originalFieldNames,
-          inlinedPathesByOriginalFieldNames: defenitionCtx.inlinedPathesByOriginalFieldNames,
-          pathesByInlinedPath: defenitionCtx.pathesByInlinedPath,
+          pathesByInlinedPathIdx: defenitionCtx.pathesByInlinedPathIdx,
           inlinedPreparationValues: defenitionCtx.inlinedPreparationValues,
           inlinedPreparationPathes: defenitionCtx.inlinedPreparationPathes,
-          serializeDiscriminantValuesByInlinedPath: defenitionCtx.serializeDiscriminantValuesByInlinedPath,
-          serializeDiscriminantInlinedPathes: defenitionCtx.serializeDiscriminantInlinedPathes
+          serializeDiscriminantValuesByInlinedPathIdx: defenitionCtx.serializeDiscriminantValuesByInlinedPathIdx,
+          serializeDiscriminantInlinedPathes: defenitionCtx.serializeDiscriminantInlinedPathes,
+          definedFieldInstructions: defenitionCtx.definedFieldInstructions
         };
 }
 
@@ -1044,10 +1041,10 @@ function factory$3(defenition) {
     registeredFieldsCount: 0,
     inlinedPreparationPathes: [],
     inlinedPreparationValues: [],
-    inlinedPathesByOriginalFieldNames: {},
-    pathesByInlinedPath: {},
-    serializeDiscriminantValuesByInlinedPath: {},
-    serializeDiscriminantInlinedPathes: []
+    pathesByInlinedPathIdx: {},
+    serializeDiscriminantValuesByInlinedPathIdx: {},
+    serializeDiscriminantInlinedPathes: [],
+    definedFieldInstructions: []
   };
   var defenitionSlice = defenition(defenitionCtx);
   analyzeDefenitionSlice(defenitionCtx, defenitionSlice, "", "");
@@ -1057,16 +1054,15 @@ function factory$3(defenition) {
               fields: instructions.originalFields,
               fieldNames: instructions.originalFieldNames
             }, (function (ctx, struct) {
+                var definedFieldInstructions = instructions.definedFieldInstructions;
                 var serializeDiscriminantInlinedPathes = instructions.serializeDiscriminantInlinedPathes;
                 var inlinedPreparationPathes = instructions.inlinedPreparationPathes;
                 var inlinedPreparationValues = instructions.inlinedPreparationValues;
-                var inlinedPathesByOriginalFieldNames = instructions.inlinedPathesByOriginalFieldNames;
                 var originalFieldNames = instructions.originalFieldNames;
-                var originalFields = instructions.originalFields;
                 var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
-                var parseFnsByOriginalFieldName = {};
                 var asyncOps = [];
-                var refinement = "if(typeof i!==\"object\"||i===null||Array.isArray(i)){u(i)}";
+                var parseFnsByInstructionIdx = {};
+                var refinement = "if(typeof o!==\"object\"||o===null||Array.isArray(o)){u(o)}";
                 var stringRef = "var t;";
                 for(var idx = 0 ,idx_finish = inlinedPreparationPathes.length; idx < idx_finish; ++idx){
                   var preparationPath = inlinedPreparationPathes[idx];
@@ -1075,10 +1071,12 @@ function factory$3(defenition) {
                 }
                 var preparation = stringRef;
                 var stringRef$1 = "";
-                for(var idx$1 = 0 ,idx_finish$1 = originalFieldNames.length; idx$1 < idx_finish$1; ++idx$1){
-                  var originalFieldName = originalFieldNames[idx$1];
-                  var inlinedPath = inlinedPathesByOriginalFieldNames[originalFieldName];
-                  var fieldStruct = originalFields[originalFieldName];
+                for(var idx$1 = 0 ,idx_finish$1 = definedFieldInstructions.length; idx$1 < idx_finish$1; ++idx$1){
+                  var match = definedFieldInstructions[idx$1];
+                  var kind = match.kind;
+                  var originalFieldName = match.originalFieldName;
+                  var fieldStruct = match.fieldStruct;
+                  var inlinedInstructionIdx = idx$1.toString();
                   var fn = fieldStruct.p;
                   var maybeParseFn;
                   if (typeof fn === "number") {
@@ -1092,37 +1090,54 @@ function factory$3(defenition) {
                         ]);
                     maybeParseFn = fn._0;
                   }
-                  var match = fieldStruct.i;
-                  if (maybeParseFn !== undefined) {
-                    parseFnsByOriginalFieldName[originalFieldName] = maybeParseFn;
-                    stringRef$1 = match !== undefined ? stringRef$1 + ("var v=i[\"" + originalFieldName + "\"];if(" + match + "){t" + inlinedPath + "=v}else{f=\"" + originalFieldName + "\";s(v,o[\"" + originalFieldName + "\"])}") : stringRef$1 + ("f=\"" + originalFieldName + "\",t" + inlinedPath + "=p[\"" + originalFieldName + "\"](i[\"" + originalFieldName + "\"]);");
-                  } else {
-                    stringRef$1 = stringRef$1 + ("t" + inlinedPath + ":i[\"" + originalFieldName + "\"];");
-                  }
+                  var maybeInlinedDestination = kind ? "t" + kind.inlinedPath + "" : undefined;
+                  var inlinedInputData = "o[\"" + originalFieldName + "\"]";
+                  var match$1 = fieldStruct.i;
+                  stringRef$1 = stringRef$1 + (
+                    maybeParseFn !== undefined ? (
+                        match$1 !== undefined ? "var v=" + inlinedInputData + ";if(" + match$1 + "){" + (
+                            maybeInlinedDestination !== undefined ? "" + maybeInlinedDestination + "=v" : ""
+                          ) + "}else{i=" + inlinedInstructionIdx + ";s(v,f[\"" + originalFieldName + "\"])}" : (parseFnsByInstructionIdx[inlinedInstructionIdx] = maybeParseFn, "i=" + inlinedInstructionIdx + ";" + (
+                              maybeInlinedDestination !== undefined ? "" + maybeInlinedDestination + "=" : ""
+                            ) + "p[" + inlinedInstructionIdx + "](" + inlinedInputData + ");")
+                      ) : (
+                        maybeInlinedDestination !== undefined ? "" + maybeInlinedDestination + "=" + inlinedInputData + ";" : ""
+                      )
+                  );
                 }
                 var tryContent = stringRef$1;
-                var transformedObjectConstruction = "var f;" + ("try{" + tryContent + "}catch(e){c(e,f)}");
-                var stringRef$2 = "for(var key in i){switch(key){";
-                for(var idx$2 = 0 ,idx_finish$2 = originalFieldNames.length; idx$2 < idx_finish$2; ++idx$2){
-                  var originalFieldName$1 = originalFieldNames[idx$2];
-                  stringRef$2 = stringRef$2 + ("case\"" + originalFieldName$1 + "\":continue;");
+                var transformedObjectConstruction = "var i;" + ("try{" + tryContent + "}catch(e){c(e,i)}");
+                var unknownKeysRefinement;
+                if (withUnknownKeysRefinement) {
+                  var stringRef$2 = "for(var key in o){switch(key){";
+                  for(var idx$2 = 0 ,idx_finish$2 = originalFieldNames.length; idx$2 < idx_finish$2; ++idx$2){
+                    var originalFieldName$1 = originalFieldNames[idx$2];
+                    stringRef$2 = stringRef$2 + ("case\"" + originalFieldName$1 + "\":continue;");
+                  }
+                  unknownKeysRefinement = stringRef$2 + "default:x(key)}}";
+                } else {
+                  unknownKeysRefinement = "";
                 }
-                var unknownKeysRefinement = stringRef$2 + "default:x(key)}}";
                 var stringRef$3 = "";
                 for(var idx$3 = 0 ,idx_finish$3 = serializeDiscriminantInlinedPathes.length; idx$3 < idx_finish$3; ++idx$3){
-                  var inlinedPath$1 = serializeDiscriminantInlinedPathes[idx$3];
-                  stringRef$3 = stringRef$3 + ("t" + inlinedPath$1 + "=d[\`" + inlinedPath$1 + "\`];");
+                  var inlinedPath = serializeDiscriminantInlinedPathes[idx$3];
+                  stringRef$3 = stringRef$3 + ("t" + inlinedPath + "=d[" + idx$3.toString() + "];");
                 }
                 var serializeDiscriminants = stringRef$3;
-                var inlinedParseFunction = "function(i){" + ("" + refinement + "" + preparation + "" + transformedObjectConstruction + "" + (
-                    withUnknownKeysRefinement ? unknownKeysRefinement : ""
-                  ) + "" + serializeDiscriminants + "return t") + "}";
-                planSyncTransformation(ctx, new Function("c", "p", "o", "d", "u", "s", "x", "return " + inlinedParseFunction + "")((function (exn, fieldName) {
-                            throw exn.RE_EXN_ID === Exception ? ({
-                                      RE_EXN_ID: Exception,
-                                      _1: prependLocation(exn._1, fieldName)
-                                    }) : exn;
-                          }), parseFnsByOriginalFieldName, originalFields, instructions.serializeDiscriminantValuesByInlinedPath, (function (input) {
+                var inlinedParseFunction = "function(o){" + ("" + refinement + "" + preparation + "" + transformedObjectConstruction + "" + unknownKeysRefinement + "" + serializeDiscriminants + "return t") + "}";
+                planSyncTransformation(ctx, new Function("c", "p", "f", "d", "u", "s", "x", "return " + inlinedParseFunction + "")((function (exn, instructionIdx) {
+                            var tmp;
+                            if (exn.RE_EXN_ID === Exception) {
+                              var match = definedFieldInstructions[instructionIdx];
+                              tmp = {
+                                RE_EXN_ID: Exception,
+                                _1: prependLocation(exn._1, match.originalFieldName)
+                              };
+                            } else {
+                              tmp = exn;
+                            }
+                            throw tmp;
+                          }), parseFnsByInstructionIdx, instructions.originalFields, instructions.serializeDiscriminantValuesByInlinedPathIdx, (function (input) {
                             return raiseUnexpectedTypeError(input, struct);
                           }), raiseUnexpectedTypeError, (function (exccessFieldName) {
                             return raise$1({
@@ -1131,33 +1146,37 @@ function factory$3(defenition) {
                                       });
                           })));
               }), (function (ctx, param) {
+                var definedFieldInstructions = instructions.definedFieldInstructions;
                 var serializeDiscriminantInlinedPathes = instructions.serializeDiscriminantInlinedPathes;
-                var serializeDiscriminantValuesByInlinedPath = instructions.serializeDiscriminantValuesByInlinedPath;
-                var pathesByInlinedPath = instructions.pathesByInlinedPath;
-                var inlinedPathesByOriginalFieldNames = instructions.inlinedPathesByOriginalFieldNames;
-                var originalFieldNames = instructions.originalFieldNames;
-                var originalFields = instructions.originalFields;
-                var serializeFnsByOriginalFieldName = {};
+                var serializeDiscriminantValuesByInlinedPathIdx = instructions.serializeDiscriminantValuesByInlinedPathIdx;
+                var pathesByInlinedPathIdx = instructions.pathesByInlinedPathIdx;
+                var serializeFnsByInstructionIdx = {};
                 var stringRef = "";
                 for(var idx = 0 ,idx_finish = serializeDiscriminantInlinedPathes.length; idx < idx_finish; ++idx){
                   var inlinedPath = serializeDiscriminantInlinedPathes[idx];
-                  stringRef = stringRef + ("if(" + ("t" + inlinedPath + "!==d[\`" + inlinedPath + "\`]") + "){" + ("r(\`" + inlinedPath + "\`,t" + inlinedPath + ")") + "}");
+                  var content = "r(" + idx.toString() + ",t" + inlinedPath + ")";
+                  var condition = "t" + inlinedPath + "!==d[" + idx.toString() + "]";
+                  stringRef = stringRef + ("if(" + condition + "){" + content + "}");
                 }
                 var serializeDiscriminants = stringRef;
-                var contentRef = "return{";
-                for(var idx$1 = 0 ,idx_finish$1 = originalFieldNames.length; idx$1 < idx_finish$1; ++idx$1){
-                  var originalFieldName = originalFieldNames[idx$1];
-                  var fieldStruct = originalFields[originalFieldName];
-                  var inlinedPath$1 = Js_dict.get(inlinedPathesByOriginalFieldNames, originalFieldName);
-                  if (inlinedPath$1 !== undefined) {
+                var contentRef = "var i;return{";
+                for(var idx$1 = 0 ,idx_finish$1 = definedFieldInstructions.length; idx$1 < idx_finish$1; ++idx$1){
+                  var match = definedFieldInstructions[idx$1];
+                  var kind = match.kind;
+                  var originalFieldName = match.originalFieldName;
+                  var fieldStruct = match.fieldStruct;
+                  var inlinedInstructionIdx = idx$1.toString();
+                  var tmp;
+                  if (kind) {
+                    var inlinedPath$1 = kind.inlinedPath;
                     var fn = fieldStruct.s;
                     if (typeof fn === "number") {
-                      contentRef = contentRef + ("\"" + originalFieldName + "\":t" + inlinedPath$1 + ",");
+                      tmp = "\"" + originalFieldName + "\":t" + inlinedPath$1 + ",";
                     } else if (fn.TAG === /* SyncOperation */0) {
-                      serializeFnsByOriginalFieldName[originalFieldName] = fn._0;
-                      contentRef = contentRef + ("\"" + originalFieldName + "\":(f=\`" + inlinedPath$1 + "\`,s[\"" + originalFieldName + "\"](t" + inlinedPath$1 + ")),");
+                      serializeFnsByInstructionIdx[inlinedInstructionIdx] = fn._0;
+                      tmp = "\"" + originalFieldName + "\":(i=" + inlinedInstructionIdx + ",s[" + inlinedInstructionIdx + "](t" + inlinedPath$1 + ")),";
                     } else {
-                      panic$1(undefined);
+                      tmp = panic$1(undefined);
                     }
                   } else {
                     var taggedLiteral = fieldStruct.t._0;
@@ -1176,22 +1195,30 @@ function factory$3(defenition) {
                         
                       }
                     } else {
-                      inlinedValue = taggedLiteral.TAG === /* String */0 ? "\"" + taggedLiteral._0 + "\"" : taggedLiteral._0.toString();
+                      inlinedValue = taggedLiteral.TAG === /* String */0 ? JSON.stringify(taggedLiteral._0) : taggedLiteral._0.toString();
                     }
-                    contentRef = contentRef + ("\"" + originalFieldName + "\":" + inlinedValue + ",");
+                    tmp = "\"" + originalFieldName + "\":" + inlinedValue + ",";
                   }
+                  contentRef = contentRef + tmp;
                 }
                 var tryContent = contentRef + "}";
-                var originalObjectConstructionAndReturn = "try{" + tryContent + "}catch(e){c(e,f)}";
+                var originalObjectConstructionAndReturn = "try{" + tryContent + "}catch(e){c(e,i)}";
                 var inlinedSerializeFunction = "function(t){" + ("" + serializeDiscriminants + "" + originalObjectConstructionAndReturn + "") + "}";
-                planSyncTransformation(ctx, new Function("s", "d", "r", "c", "return " + inlinedSerializeFunction + "")(serializeFnsByOriginalFieldName, serializeDiscriminantValuesByInlinedPath, (function (inlinedPath, received) {
-                            return raise(serializeDiscriminantValuesByInlinedPath[inlinedPath], received, pathesByInlinedPath[inlinedPath], undefined);
-                          }), (function (exn, inlinedPath) {
-                            var path = pathesByInlinedPath[inlinedPath];
-                            throw exn.RE_EXN_ID === Exception ? ({
-                                      RE_EXN_ID: Exception,
-                                      _1: prependLocation(exn._1, path)
-                                    }) : exn;
+                planSyncTransformation(ctx, new Function("s", "d", "r", "c", "return " + inlinedSerializeFunction + "")(serializeFnsByInstructionIdx, serializeDiscriminantValuesByInlinedPathIdx, (function (inlinedPathIdx, received) {
+                            return raise(serializeDiscriminantValuesByInlinedPathIdx[inlinedPathIdx], received, pathesByInlinedPathIdx[inlinedPathIdx], undefined);
+                          }), (function (exn, instructionIdx) {
+                            var tmp;
+                            if (exn.RE_EXN_ID === Exception) {
+                              var match = definedFieldInstructions[instructionIdx];
+                              var kind = match.kind;
+                              tmp = kind ? ({
+                                    RE_EXN_ID: Exception,
+                                    _1: prependLocation(exn._1, kind.path)
+                                  }) : panic$1(undefined);
+                            } else {
+                              tmp = exn;
+                            }
+                            throw tmp;
                           })));
               }), undefined, undefined, undefined);
 }
@@ -1206,6 +1233,11 @@ function discriminant(defenitionCtx, originalFieldName, struct) {
   defenitionCtx.originalFieldNames.push(originalFieldName);
   defenitionCtx.originalFields[originalFieldName] = struct;
   defenitionCtx.registeredFieldsCount = defenitionCtx.registeredFieldsCount + 1;
+  defenitionCtx.definedFieldInstructions.unshift({
+        fieldStruct: struct,
+        originalFieldName: originalFieldName,
+        kind: /* Discriminant */0
+      });
 }
 
 function factory$4(param) {

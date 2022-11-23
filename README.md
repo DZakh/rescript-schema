@@ -76,7 +76,7 @@ Ok({
   id: 1.,
   tags: [],
   isAproved: true,
-  deprecatedAge: Some(12),
+  deprecatedAge: Some(22),
 })
 ```
 
