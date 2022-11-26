@@ -1999,7 +1999,6 @@ module Unknown = {
     make(
       ~name=`Unknown`,
       ~tagged=Unknown,
-      ~inlinedRefinement="true",
       ~parseTransformationFactory=TransformationFactory.empty,
       ~serializeTransformationFactory=TransformationFactory.empty,
       (),

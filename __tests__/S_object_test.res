@@ -91,7 +91,7 @@ test("Fails to parse object with inlinable date field", t => {
   )
 })
 
-test("Successfully parses object with inlinable unknown field", t => {
+test("Successfully parses object with unknown field (Noop operation)", t => {
   let struct = S.object(o =>
     {
       "field": o->S.field("field", S.unknown()),
@@ -100,6 +100,20 @@ test("Successfully parses object with inlinable unknown field", t => {
 
   t->Assert.deepEqual(
     %raw(`{field: new Date("2015-12-12")}`)->S.parseWith(struct),
+    Ok(%raw(`{field: new Date("2015-12-12")}`)),
+    (),
+  )
+})
+
+test("Successfully serializes object with unknown field (Noop operation)", t => {
+  let struct = S.object(o =>
+    {
+      "field": o->S.field("field", S.unknown()),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{field: new Date("2015-12-12")}`)->S.serializeWith(struct),
     Ok(%raw(`{field: new Date("2015-12-12")}`)),
     (),
   )
