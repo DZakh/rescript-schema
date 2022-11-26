@@ -152,6 +152,11 @@ module Stdlib = {
     external _make: array<string> => 'function = "Function"
 
     @inline
+    let make1 = (~ctxVarName1, ~ctxVarValue1, ~inlinedFunction) => {
+      _make([ctxVarName1, `return ${inlinedFunction}`])(. ctxVarValue1)
+    }
+
+    @inline
     let make4 = (
       ~ctxVarName1,
       ~ctxVarValue1,
@@ -216,6 +221,13 @@ module Stdlib = {
       let errorVar = "e"
       @inline
       let inputVar = "v"
+    }
+
+    module NewPromise = {
+      @inline
+      let make = (~resolveVar, ~rejectVar, ~content) => {
+        `new Promise(function(${resolveVar},${rejectVar}){${content}})`
+      }
     }
 
     module Value = {
@@ -1574,6 +1586,10 @@ module Object2 = {
       @inline
       let transformedObject = "t"
       @inline
+      let asyncTransformedObject = "a"
+      @inline
+      let asyncFieldsCounter = "y"
+      @inline
       let instructionIdx = "i"
       @inline
       let catchFieldError = "c"
@@ -1587,6 +1603,8 @@ module Object2 = {
       let raiseUnexpectedTypeError = "s"
       @inline
       let raiseExcessFieldError = "x"
+      @inline
+      let prepareAsyncFieldError = "j"
     }
 
     @inline
@@ -1603,9 +1621,7 @@ module Object2 = {
         let withUnknownKeysRefinement =
           struct->Object.UnknownKeys.classify === Object.UnknownKeys.Strict
 
-        // FIXME:
-        let asyncOps = []
-
+        let definedAsyncFieldInstructions = []
         let parseFnsByInstructionIdx = Js.Dict.empty()
 
         let inlinedParseFunction = {
@@ -1626,61 +1642,85 @@ module Object2 = {
             stringRef.contents
           }
 
-          let transformedObjectConstruction = {
-            let tryContent = {
-              let stringRef = ref("")
-              for idx in 0 to definedFieldInstructions->Js.Array2.length - 1 {
-                let definedFieldInstruction = definedFieldInstructions->Js.Array2.unsafe_get(idx)
-                let fieldStruct = definedFieldInstruction->DefinedFieldInstruction.getFieldStruct
-                let inlinedOriginalFieldName =
-                  definedFieldInstruction->DefinedFieldInstruction.getInlinedOriginalFieldName
-                let inlinedInstructionIdx = idx->Js.Int.toString
-                let maybeParseFn = switch fieldStruct.parse {
-                | NoOperation => None
-                | SyncOperation(fn) => Some(fn)
-                | AsyncOperation(fn) => {
-                    asyncOps->Js.Array2.push("TODO: original field name")->ignore
-                    Some(fn->Obj.magic)
-                  }
-                }
-                let maybeInlinedDestination = switch definedFieldInstruction {
-                | Discriminant(_) => None
-                | Registered({inlinedPath}) => Some(`${Var.transformedObject}${inlinedPath}`)
-                }
-                let inlinedInputData = `${Var.originalObject}[${inlinedOriginalFieldName}]`
-                stringRef.contents =
-                  stringRef.contents ++
-                  switch (maybeParseFn, fieldStruct.maybeInlinedRefinement) {
-                  | (None, _) =>
-                    switch maybeInlinedDestination {
-                    | Some(inlinedDestination) => `${inlinedDestination}=${inlinedInputData};`
-                    | None => ""
-                    }
-                  | (Some(_), Some(inlinedRefinement)) =>
-                    `var ${Stdlib.Inlined.Constant.inputVar}=${inlinedInputData};if(${inlinedRefinement}){${switch maybeInlinedDestination {
-                      | Some(inlinedDestination) =>
-                        `${inlinedDestination}=${Stdlib.Inlined.Constant.inputVar}`
-                      | None => ""
-                      }}}else{${Var.instructionIdx}=${inlinedInstructionIdx};${Var.raiseUnexpectedTypeError}(${Stdlib.Inlined.Constant.inputVar},${Var.originalFields}[${inlinedOriginalFieldName}])}`
-                  | (Some(fn), None) => {
-                      parseFnsByInstructionIdx->Js.Dict.set(inlinedInstructionIdx, fn)
-                      `${Var.instructionIdx}=${inlinedInstructionIdx};${switch maybeInlinedDestination {
-                        | Some(inlinedDestination) => `${inlinedDestination}=`
-                        | None => ""
-                        }}${Var.parseFnsByInstructionIdx}[${inlinedInstructionIdx}](${inlinedInputData});`
-                    }
-                  }
-              }
-              stringRef.contents
-            }
+          let transformedObjectConstruction =
+            definedFieldInstructions->Js.Array2.length === 0
+              ? ""
+              : {
+                  let tryContent = {
+                    let stringRef = ref("")
+                    for idx in 0 to definedFieldInstructions->Js.Array2.length - 1 {
+                      let definedFieldInstruction =
+                        definedFieldInstructions->Js.Array2.unsafe_get(idx)
+                      let fieldStruct =
+                        definedFieldInstruction->DefinedFieldInstruction.getFieldStruct
+                      let inlinedOriginalFieldName =
+                        definedFieldInstruction->DefinedFieldInstruction.getInlinedOriginalFieldName
+                      let inlinedInstructionIdx = idx->Js.Int.toString
+                      let maybeParseFn = switch fieldStruct.parse {
+                      | NoOperation => None
+                      | SyncOperation(fn) => Some(fn)
+                      | AsyncOperation(fn) => Some(fn->Obj.magic)
+                      }
+                      let isAsync = switch fieldStruct.parse {
+                      | AsyncOperation(_) => true
+                      | _ => false
+                      }
 
-            // FIXME: Generate empty string when no instructions
-            `var ${Var.instructionIdx};` ++
-            Stdlib.Inlined.TryCatch.make(
-              ~tryContent,
-              ~catchContent=`${Var.catchFieldError}(${Stdlib.Inlined.Constant.errorVar},${Var.instructionIdx})`,
-            )
-          }
+                      let maybeInlinedDestination = switch (definedFieldInstruction, isAsync) {
+                      | (_, true) =>
+                        Some(
+                          `${Var.asyncTransformedObject}[${definedAsyncFieldInstructions
+                            ->Js.Array2.length
+                            ->Js.Int.toString}]`,
+                        )
+                      | (Discriminant(_), false) => None
+                      | (Registered({inlinedPath}), false) =>
+                        Some(`${Var.transformedObject}${inlinedPath}`)
+                      }
+                      let inlinedInputData = `${Var.originalObject}[${inlinedOriginalFieldName}]`
+
+                      if isAsync {
+                        if definedAsyncFieldInstructions->Js.Array2.length === 0 {
+                          stringRef.contents =
+                            stringRef.contents ++ `var ${Var.asyncTransformedObject}={};`
+                        }
+                        definedAsyncFieldInstructions
+                        ->Js.Array2.push(definedFieldInstruction)
+                        ->ignore
+                      }
+
+                      stringRef.contents =
+                        stringRef.contents ++
+                        switch (maybeParseFn, fieldStruct.maybeInlinedRefinement) {
+                        | (None, _) =>
+                          switch maybeInlinedDestination {
+                          | Some(inlinedDestination) => `${inlinedDestination}=${inlinedInputData};`
+                          | None => ""
+                          }
+                        | (Some(_), Some(inlinedRefinement)) =>
+                          `var ${Stdlib.Inlined.Constant.inputVar}=${inlinedInputData};if(${inlinedRefinement}){${switch maybeInlinedDestination {
+                            | Some(inlinedDestination) =>
+                              `${inlinedDestination}=${Stdlib.Inlined.Constant.inputVar}`
+                            | None => ""
+                            }}}else{${Var.instructionIdx}=${inlinedInstructionIdx};${Var.raiseUnexpectedTypeError}(${Stdlib.Inlined.Constant.inputVar},${Var.originalFields}[${inlinedOriginalFieldName}])}`
+                        | (Some(fn), None) => {
+                            parseFnsByInstructionIdx->Js.Dict.set(inlinedInstructionIdx, fn)
+                            `${Var.instructionIdx}=${inlinedInstructionIdx};${switch maybeInlinedDestination {
+                              | Some(inlinedDestination) => `${inlinedDestination}=`
+                              | None => ""
+                              }}${Var.parseFnsByInstructionIdx}[${inlinedInstructionIdx}](${inlinedInputData});`
+                          }
+                        }
+                    }
+                    stringRef.contents
+                  }
+
+                  `var ${Var.instructionIdx};` ++
+                  Stdlib.Inlined.TryCatch.make(
+                    ~tryContent,
+                    ~catchContent=`${Var.catchFieldError}(${Stdlib.Inlined.Constant.errorVar},${Var.instructionIdx})`,
+                  )
+                }
 
           let unknownKeysRefinement = withUnknownKeysRefinement
             ? {
@@ -1707,9 +1747,14 @@ module Object2 = {
             stringRef.contents
           }
 
+          let returnValue =
+            definedAsyncFieldInstructions->Js.Array2.length === 0
+              ? Var.transformedObject
+              : `${Var.asyncTransformedObject}.${Var.transformedObject}=${Var.transformedObject},${Var.asyncTransformedObject}`
+
           Stdlib.Inlined.Fn.make(
             ~arguments=Var.originalObject,
-            ~content=`${refinement}${preparation}${transformedObjectConstruction}${unknownKeysRefinement}${constants}return ${Var.transformedObject}`,
+            ~content=`${refinement}${preparation}${transformedObjectConstruction}${unknownKeysRefinement}${constants}return ${returnValue}`,
           )
         }
 
@@ -1747,6 +1792,87 @@ module Object2 = {
             ~inlinedFunction=inlinedParseFunction,
           ),
         )
+
+        if definedAsyncFieldInstructions->Js.Array2.length > 0 {
+          let inlinedAsyncParseFunction = {
+            let resolveVar = "rs"
+            let rejectVar = "rj"
+
+            let content = {
+              let contentRef = ref(
+                `var ${Var.asyncFieldsCounter}=${definedAsyncFieldInstructions
+                  ->Js.Array2.length
+                  ->Js.Int.toString},${Var.transformedObject}=${Var.asyncTransformedObject}.${Var.transformedObject};`,
+              )
+              for idx in 0 to definedAsyncFieldInstructions->Js.Array2.length - 1 {
+                let definedAsyncFieldInstruction =
+                  definedAsyncFieldInstructions->Js.Array2.unsafe_get(idx)
+                let inlinedIdx = idx->Js.Int.toString
+
+                let onFieldSuccessInlinedFn = {
+                  let fieldValueVar = "z"
+                  let inlinedFieldValueAssignment = switch definedAsyncFieldInstruction {
+                  | Discriminant(_) => ""
+                  | Registered({inlinedPath}) =>
+                    `${Var.transformedObject}${inlinedPath}=${fieldValueVar}`
+                  }
+                  let inlinedIteration = Stdlib.Inlined.If.make(
+                    ~condition=`${Var.asyncFieldsCounter}--===1`,
+                    ~content=`${resolveVar}(${Var.transformedObject})`,
+                  )
+                  let onFieldSuccessInlinedFnContent = `${inlinedFieldValueAssignment};${inlinedIteration}`
+                  Stdlib.Inlined.Fn.make(
+                    ~arguments=fieldValueVar,
+                    ~content=onFieldSuccessInlinedFnContent,
+                  )
+                }
+
+                let onFieldErrorInlinedFn = {
+                  let errorVar = "z"
+                  Stdlib.Inlined.Fn.make(
+                    ~arguments=errorVar,
+                    ~content=`${rejectVar}(${Var.prepareAsyncFieldError}(${errorVar},${inlinedIdx}))`,
+                  )
+                }
+
+                contentRef.contents =
+                  contentRef.contents ++
+                  `${Var.asyncTransformedObject}[${inlinedIdx}]().then(${onFieldSuccessInlinedFn},${onFieldErrorInlinedFn});`
+              }
+              contentRef.contents
+            }
+
+            Stdlib.Inlined.Fn.make(
+              ~arguments=Var.asyncTransformedObject,
+              ~content=`return ${Stdlib.Inlined.NewPromise.make(
+                  ~resolveVar,
+                  ~rejectVar,
+                  ~content,
+                )}`,
+            )
+          }
+
+          ctx->TransformationFactory.Ctx.planAsyncTransformation(
+            Stdlib.Function.make1(
+              ~ctxVarName1=Var.prepareAsyncFieldError,
+              ~ctxVarValue1=(exn, asyncInstructionIdx) => {
+                switch exn {
+                | Error.Internal.Exception(internalError) =>
+                  Error.Internal.Exception(
+                    internalError->Error.Internal.prependLocation(
+                      definedAsyncFieldInstructions
+                      ->Js.Array2.unsafe_get(asyncInstructionIdx)
+                      ->DefinedFieldInstruction.getOriginalFieldName,
+                    ),
+                  )
+
+                | _ => exn
+                }
+              },
+              ~inlinedFunction=inlinedAsyncParseFunction,
+            ),
+          )
+        }
       })
     }
   }

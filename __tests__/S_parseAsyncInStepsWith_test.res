@@ -68,7 +68,13 @@ asyncTest("Fails to parse with invalidAsyncRefine", t => {
 
 module Object = {
   asyncTest("[Object] Successfully parses", t => {
-    let struct = S.object3(. ("k1", S.int()), ("k2", S.int()->validAsyncRefine), ("k3", S.int()))
+    let struct = S.object(o =>
+      {
+        "k1": o->S.field("k1", S.int()),
+        "k2": o->S.field("k2", S.int()->validAsyncRefine),
+        "k3": o->S.field("k3", S.int()),
+      }
+    )
 
     (
       {
@@ -79,12 +85,26 @@ module Object = {
       ->S.parseAsyncInStepsWith(struct)
       ->Belt.Result.getExn
     )()->Promise.thenResolve(result => {
-      t->Assert.deepEqual(result, Ok(1, 2, 3), ())
+      t->Assert.deepEqual(
+        result,
+        Ok({
+          "k1": 1,
+          "k2": 2,
+          "k3": 3,
+        }),
+        (),
+      )
     })
   })
 
   test("[Object] Returns sync error when fails to parse sync part of async item", t => {
-    let struct = S.object3(. ("k1", S.int()), ("k2", S.int()->validAsyncRefine), ("k3", S.int()))
+    let struct = S.object(o =>
+      {
+        "k1": o->S.field("k1", S.int()),
+        "k2": o->S.field("k2", S.int()->validAsyncRefine),
+        "k3": o->S.field("k3", S.int()),
+      }
+    )
 
     t->Assert.deepEqual(
       {
@@ -102,10 +122,12 @@ module Object = {
   })
 
   test("[Object] Parses sync items first, and then starts parsing async ones", t => {
-    let struct = S.object3(.
-      ("k1", S.int()),
-      ("k2", S.int()->invalidAsyncRefine),
-      ("k3", S.int()->invalidSyncRefine),
+    let struct = S.object(o =>
+      {
+        "k1": o->S.field("k1", S.int()),
+        "k2": o->S.field("k2", S.int()->invalidAsyncRefine),
+        "k3": o->S.field("k3", S.int()->invalidSyncRefine),
+      }
     )
 
     t->Assert.deepEqual(
@@ -126,21 +148,38 @@ module Object = {
   asyncTest("[Object] Parses async items in parallel", t => {
     let actionCounter = ref(0)
 
-    let struct = S.object2(. ("k1", S.int()->S.advancedTransform(~parser=(~struct as _) => {
-          Async(
-            _ => {
-              actionCounter.contents = actionCounter.contents + 1
-              unresolvedPromise
+    let struct = S.object(o =>
+      {
+        "k1": o->S.field(
+          "k1",
+          S.int()->S.advancedTransform(
+            ~parser=(~struct as _) => {
+              Async(
+                _ => {
+                  actionCounter.contents = actionCounter.contents + 1
+                  unresolvedPromise
+                },
+              )
             },
-          )
-        }, ())), ("k2", S.int()->S.advancedTransform(~parser=(~struct as _) => {
-          Async(
-            _ => {
-              actionCounter.contents = actionCounter.contents + 1
-              unresolvedPromise
+            (),
+          ),
+        ),
+        "k2": o->S.field(
+          "k2",
+          S.int()->S.advancedTransform(
+            ~parser=(~struct as _) => {
+              Async(
+                _ => {
+                  actionCounter.contents = actionCounter.contents + 1
+                  unresolvedPromise
+                },
+              )
             },
-          )
-        }, ())))
+            (),
+          ),
+        ),
+      }
+    )
 
     (
       {
@@ -159,9 +198,20 @@ module Object = {
   })
 
   asyncTest("[Object] Doesn't wait for pending async items when fails to parse", t => {
-    let struct = S.object2(. ("k1", S.int()->S.advancedTransform(~parser=(~struct as _) => {
-          Async(_ => unresolvedPromise)
-        }, ())), ("k2", S.int()->invalidAsyncRefine))
+    let struct = S.object(o =>
+      {
+        "k1": o->S.field(
+          "k1",
+          S.int()->S.advancedTransform(
+            ~parser=(~struct as _) => {
+              Async(_ => unresolvedPromise)
+            },
+            (),
+          ),
+        ),
+        "k2": o->S.field("k2", S.int()->invalidAsyncRefine),
+      }
+    )
 
     (
       {

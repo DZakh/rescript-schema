@@ -1086,7 +1086,7 @@ function factory$3(defenition) {
                 var inlinedPreparationValues = defenitionCtx.inlinedPreparationValues;
                 var inlinedPreparationPathes = defenitionCtx.inlinedPreparationPathes;
                 var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
-                var asyncOps = [];
+                var definedAsyncFieldInstructions = [];
                 var parseFnsByInstructionIdx = {};
                 var refinement = "if(typeof o!==\"object\"||o===null||Array.isArray(o)){u(o)}";
                 var stringRef = "var t;";
@@ -1096,41 +1096,49 @@ function factory$3(defenition) {
                   stringRef = stringRef + ("t" + preparationPath + "=" + preparationInlinedValue + ";");
                 }
                 var preparation = stringRef;
-                var stringRef$1 = "";
-                for(var idx$1 = 0 ,idx_finish$1 = definedFieldInstructions.length; idx$1 < idx_finish$1; ++idx$1){
-                  var definedFieldInstruction = definedFieldInstructions[idx$1];
-                  var fieldStruct = definedFieldInstruction.fieldStruct;
-                  var inlinedOriginalFieldName;
-                  inlinedOriginalFieldName = definedFieldInstruction.TAG === /* Discriminant */0 ? definedFieldInstruction.inlinedOriginalFieldName : definedFieldInstruction.inlinedOriginalFieldName;
-                  var inlinedInstructionIdx = idx$1.toString();
-                  var fn = fieldStruct.p;
-                  var maybeParseFn;
-                  if (typeof fn === "number") {
-                    maybeParseFn = undefined;
-                  } else if (fn.TAG === /* SyncOperation */0) {
-                    maybeParseFn = fn._0;
-                  } else {
-                    asyncOps.push("TODO: original field name");
-                    maybeParseFn = fn._0;
+                var transformedObjectConstruction;
+                if (definedFieldInstructions.length === 0) {
+                  transformedObjectConstruction = "";
+                } else {
+                  var stringRef$1 = "";
+                  for(var idx$1 = 0 ,idx_finish$1 = definedFieldInstructions.length; idx$1 < idx_finish$1; ++idx$1){
+                    var definedFieldInstruction = definedFieldInstructions[idx$1];
+                    var fieldStruct = definedFieldInstruction.fieldStruct;
+                    var inlinedOriginalFieldName;
+                    inlinedOriginalFieldName = definedFieldInstruction.TAG === /* Discriminant */0 ? definedFieldInstruction.inlinedOriginalFieldName : definedFieldInstruction.inlinedOriginalFieldName;
+                    var inlinedInstructionIdx = idx$1.toString();
+                    var fn = fieldStruct.p;
+                    var maybeParseFn;
+                    maybeParseFn = typeof fn === "number" ? undefined : fn._0;
+                    var match = fieldStruct.p;
+                    var isAsync;
+                    isAsync = typeof match === "number" || match.TAG === /* SyncOperation */0 ? false : true;
+                    var maybeInlinedDestination = isAsync ? "a[" + definedAsyncFieldInstructions.length.toString() + "]" : (
+                        definedFieldInstruction.TAG === /* Discriminant */0 ? undefined : "t" + definedFieldInstruction.inlinedPath + ""
+                      );
+                    var inlinedInputData = "o[" + inlinedOriginalFieldName + "]";
+                    if (isAsync) {
+                      if (definedAsyncFieldInstructions.length === 0) {
+                        stringRef$1 = stringRef$1 + "var a={};";
+                      }
+                      definedAsyncFieldInstructions.push(definedFieldInstruction);
+                    }
+                    var match$1 = fieldStruct.i;
+                    stringRef$1 = stringRef$1 + (
+                      maybeParseFn !== undefined ? (
+                          match$1 !== undefined ? "var v=" + inlinedInputData + ";if(" + match$1 + "){" + (
+                              maybeInlinedDestination !== undefined ? "" + maybeInlinedDestination + "=v" : ""
+                            ) + "}else{i=" + inlinedInstructionIdx + ";s(v,f[" + inlinedOriginalFieldName + "])}" : (parseFnsByInstructionIdx[inlinedInstructionIdx] = maybeParseFn, "i=" + inlinedInstructionIdx + ";" + (
+                                maybeInlinedDestination !== undefined ? "" + maybeInlinedDestination + "=" : ""
+                              ) + "p[" + inlinedInstructionIdx + "](" + inlinedInputData + ");")
+                        ) : (
+                          maybeInlinedDestination !== undefined ? "" + maybeInlinedDestination + "=" + inlinedInputData + ";" : ""
+                        )
+                    );
                   }
-                  var maybeInlinedDestination;
-                  maybeInlinedDestination = definedFieldInstruction.TAG === /* Discriminant */0 ? undefined : "t" + definedFieldInstruction.inlinedPath + "";
-                  var inlinedInputData = "o[" + inlinedOriginalFieldName + "]";
-                  var match = fieldStruct.i;
-                  stringRef$1 = stringRef$1 + (
-                    maybeParseFn !== undefined ? (
-                        match !== undefined ? "var v=" + inlinedInputData + ";if(" + match + "){" + (
-                            maybeInlinedDestination !== undefined ? "" + maybeInlinedDestination + "=v" : ""
-                          ) + "}else{i=" + inlinedInstructionIdx + ";s(v,f[" + inlinedOriginalFieldName + "])}" : (parseFnsByInstructionIdx[inlinedInstructionIdx] = maybeParseFn, "i=" + inlinedInstructionIdx + ";" + (
-                              maybeInlinedDestination !== undefined ? "" + maybeInlinedDestination + "=" : ""
-                            ) + "p[" + inlinedInstructionIdx + "](" + inlinedInputData + ");")
-                      ) : (
-                        maybeInlinedDestination !== undefined ? "" + maybeInlinedDestination + "=" + inlinedInputData + ";" : ""
-                      )
-                  );
+                  var tryContent = stringRef$1;
+                  transformedObjectConstruction = "var i;" + ("try{" + tryContent + "}catch(e){c(e,i)}");
                 }
-                var tryContent = stringRef$1;
-                var transformedObjectConstruction = "var i;" + ("try{" + tryContent + "}catch(e){c(e,i)}");
                 var unknownKeysRefinement;
                 if (withUnknownKeysRefinement) {
                   var stringRef$2 = "for(var k in o){switch(k){";
@@ -1146,11 +1154,12 @@ function factory$3(defenition) {
                 }
                 var stringRef$3 = "";
                 for(var idx$3 = 0 ,idx_finish$3 = constantInstructions.length; idx$3 < idx_finish$3; ++idx$3){
-                  var match$1 = constantInstructions[idx$3];
-                  stringRef$3 = stringRef$3 + ("t" + match$1.inlinedPath + "=d[" + idx$3.toString() + "].v;");
+                  var match$2 = constantInstructions[idx$3];
+                  stringRef$3 = stringRef$3 + ("t" + match$2.inlinedPath + "=d[" + idx$3.toString() + "].v;");
                 }
                 var constants = stringRef$3;
-                var inlinedParseFunction = "function(o){" + ("" + refinement + "" + preparation + "" + transformedObjectConstruction + "" + unknownKeysRefinement + "" + constants + "return t") + "}";
+                var returnValue = definedAsyncFieldInstructions.length === 0 ? "t" : "a.t=t,a";
+                var inlinedParseFunction = "function(o){" + ("" + refinement + "" + preparation + "" + transformedObjectConstruction + "" + unknownKeysRefinement + "" + constants + "return " + returnValue + "") + "}";
                 planSyncTransformation(ctx, new Function("c", "p", "f", "d", "u", "s", "x", "return " + inlinedParseFunction + "")((function (exn, instructionIdx) {
                             var tmp;
                             if (exn.RE_EXN_ID === Exception) {
@@ -1173,6 +1182,39 @@ function factory$3(defenition) {
                                         _0: exccessFieldName
                                       });
                           })));
+                if (definedAsyncFieldInstructions.length <= 0) {
+                  return ;
+                }
+                var resolveVar = "rs";
+                var rejectVar = "rj";
+                var contentRef = "var y=" + definedAsyncFieldInstructions.length.toString() + ",t=a.t;";
+                for(var idx$4 = 0 ,idx_finish$4 = definedAsyncFieldInstructions.length; idx$4 < idx_finish$4; ++idx$4){
+                  var definedAsyncFieldInstruction = definedAsyncFieldInstructions[idx$4];
+                  var inlinedIdx = idx$4.toString();
+                  var fieldValueVar = "z";
+                  var inlinedFieldValueAssignment;
+                  inlinedFieldValueAssignment = definedAsyncFieldInstruction.TAG === /* Discriminant */0 ? "" : "t" + definedAsyncFieldInstruction.inlinedPath + "=" + fieldValueVar + "";
+                  var inlinedIteration = "if(y--===1){" + ("" + resolveVar + "(t)") + "}";
+                  var onFieldSuccessInlinedFnContent = "" + inlinedFieldValueAssignment + ";" + inlinedIteration + "";
+                  var onFieldSuccessInlinedFn = "function(" + fieldValueVar + "){" + onFieldSuccessInlinedFnContent + "}";
+                  var errorVar = "z";
+                  var onFieldErrorInlinedFn = "function(" + errorVar + "){" + ("" + rejectVar + "(j(" + errorVar + "," + inlinedIdx + "))") + "}";
+                  contentRef = contentRef + ("a[" + inlinedIdx + "]().then(" + onFieldSuccessInlinedFn + "," + onFieldErrorInlinedFn + ");");
+                }
+                var content = contentRef;
+                var inlinedAsyncParseFunction = "function(a){" + ("return " + ("new Promise(function(" + resolveVar + "," + rejectVar + "){" + content + "})") + "") + "}";
+                planAsyncTransformation(ctx, new Function("j", "return " + inlinedAsyncParseFunction + "")(function (exn, asyncInstructionIdx) {
+                          if (exn.RE_EXN_ID !== Exception) {
+                            return exn;
+                          }
+                          var definedFieldInstruction = definedAsyncFieldInstructions[asyncInstructionIdx];
+                          var tmp;
+                          tmp = definedFieldInstruction.TAG === /* Discriminant */0 ? definedFieldInstruction.originalFieldName : definedFieldInstruction.originalFieldName;
+                          return {
+                                  RE_EXN_ID: Exception,
+                                  _1: prependLocation(exn._1, tmp)
+                                };
+                        }));
               }), (function (ctx, param) {
                 var constantInstructions = defenitionCtx.constantInstructions;
                 var definedFieldInstructions = defenitionCtx.definedFieldInstructions;
