@@ -4,18 +4,18 @@ module Positive = {
   module TestData = {
     type t = {
       discriminantStruct: S.t<S.unknown>,
-      discriminantValue: S.unknown,
+      discriminantData: S.unknown,
       testNamePostfix: string,
     }
 
     let make = (
       ~discriminantStruct: S.t<'value>,
-      ~discriminantValue: 'any,
+      ~discriminantData: 'any,
       ~description as maybeDescription=?,
       (),
     ) => {
       discriminantStruct: discriminantStruct->Obj.magic,
-      discriminantValue: discriminantValue->Obj.magic,
+      discriminantData: discriminantData->Obj.magic,
       testNamePostfix: switch maybeDescription {
       | Some(description) => ` ${description}`
       | None => ""
@@ -26,32 +26,32 @@ module Positive = {
   [
     TestData.make(
       ~discriminantStruct=S.literal(String("asdf")),
-      ~discriminantValue=%raw(`"asdf"`),
+      ~discriminantData=%raw(`"asdf"`),
       (),
     ),
     TestData.make(
       ~discriminantStruct=S.literal(String("\"\'\`")),
-      ~discriminantValue=%raw(`"\"\'\`"`),
+      ~discriminantData=%raw(`"\"\'\`"`),
       (),
     ),
-    TestData.make(~discriminantStruct=S.literal(Int(123)), ~discriminantValue=%raw("123"), ()),
-    TestData.make(~discriminantStruct=S.literal(Float(1.3)), ~discriminantValue=%raw("1.3"), ()),
-    TestData.make(~discriminantStruct=S.literal(Bool(true)), ~discriminantValue=%raw("true"), ()),
+    TestData.make(~discriminantStruct=S.literal(Int(123)), ~discriminantData=%raw("123"), ()),
+    TestData.make(~discriminantStruct=S.literal(Float(1.3)), ~discriminantData=%raw("1.3"), ()),
+    TestData.make(~discriminantStruct=S.literal(Bool(true)), ~discriminantData=%raw("true"), ()),
     TestData.make(
       ~discriminantStruct=S.literal(EmptyOption),
-      ~discriminantValue=%raw("undefined"),
+      ~discriminantData=%raw("undefined"),
       (),
     ),
-    TestData.make(~discriminantStruct=S.literal(EmptyNull), ~discriminantValue=%raw("null"), ()),
-    TestData.make(~discriminantStruct=S.literal(NaN), ~discriminantValue=%raw("NaN"), ()),
+    TestData.make(~discriminantStruct=S.literal(EmptyNull), ~discriminantData=%raw("null"), ()),
+    TestData.make(~discriminantStruct=S.literal(NaN), ~discriminantData=%raw("NaN"), ()),
     TestData.make(
       ~discriminantStruct=S.union([S.literal(Bool(false)), S.bool()]),
-      ~discriminantValue=%raw("false"),
+      ~discriminantData=%raw("false"),
       (),
     ),
     TestData.make(
       ~discriminantStruct=S.tuple2(. S.literal(Bool(false)), S.literal(String("bar"))),
-      ~discriminantValue=%raw(`[false, "bar"]`),
+      ~discriminantData=%raw(`[false, "bar"]`),
       (),
     ),
     TestData.make(
@@ -61,7 +61,7 @@ module Positive = {
           "field": o->S.field("nestedField", S.literal(Bool(false))),
         }
       }),
-      ~discriminantValue=%raw(`{
+      ~discriminantData=%raw(`{
         "nestedDiscriminant": "abc",
         "nestedField": false
       }`),
@@ -75,7 +75,7 @@ module Positive = {
           "field": o->S.field("nestedField", S.literal(Bool(false))),
         }
       }),
-      ~discriminantValue=%raw(`{
+      ~discriminantData=%raw(`{
         "\"\'\`": "\"\'\`",
         "nestedField": false
       }`),
@@ -96,7 +96,7 @@ module Positive = {
 
         t->Assert.deepEqual(
           {
-            "discriminant": testData.discriminantValue,
+            "discriminant": testData.discriminantData,
             "field": "bar",
           }->S.parseWith(struct),
           Ok({"field": "bar"}),
@@ -121,7 +121,7 @@ module Positive = {
           {"field": "bar"}->S.serializeWith(struct),
           Ok(
             {
-              "discriminant": testData.discriminantValue,
+              "discriminant": testData.discriminantData,
               "field": "bar",
             }->Obj.magic,
           ),
@@ -136,11 +136,18 @@ module Negative = {
   module TestData = {
     type t = {
       discriminantStruct: S.t<S.unknown>,
+      discriminantData: S.unknown,
       testNamePostfix: string,
     }
 
-    let make = (~discriminantStruct: S.t<'value>, ~description as maybeDescription=?, ()) => {
+    let make = (
+      ~discriminantStruct: S.t<'value>,
+      ~discriminantData: 'any,
+      ~description as maybeDescription=?,
+      (),
+    ) => {
       discriminantStruct: discriminantStruct->Obj.magic,
+      discriminantData: discriminantData->Obj.magic,
       testNamePostfix: switch maybeDescription {
       | Some(description) => ` ${description}`
       | None => ""
@@ -149,44 +156,122 @@ module Negative = {
   }
 
   [
-    TestData.make(~discriminantStruct=S.string(), ()),
-    TestData.make(~discriminantStruct=S.int(), ()),
-    TestData.make(~discriminantStruct=S.float(), ()),
-    TestData.make(~discriminantStruct=S.bool(), ()),
-    TestData.make(~discriminantStruct=S.option(S.literal(Bool(true))), ()),
-    TestData.make(~discriminantStruct=S.null(S.literal(Bool(true))), ()),
-    TestData.make(~discriminantStruct=S.never(), ()),
-    TestData.make(~discriminantStruct=S.unknown(), ()),
-    TestData.make(~discriminantStruct=S.array(S.literal(Bool(true))), ()),
-    TestData.make(~discriminantStruct=S.dict(S.literal(Bool(true))), ()),
-    TestData.make(~discriminantStruct=S.date(), ()),
-    TestData.make(~discriminantStruct=S.tuple2(. S.literal(Bool(true)), S.bool()), ()),
-    TestData.make(~discriminantStruct=S.object(o => o->S.field("field", S.bool())), ()),
-    TestData.make(~discriminantStruct=S.union([S.bool(), S.literal(Bool(false))]), ()),
+    TestData.make(~discriminantStruct=S.string(), ~discriminantData="foo", ()),
+    TestData.make(~discriminantStruct=S.int(), ~discriminantData=123, ()),
+    TestData.make(~discriminantStruct=S.float(), ~discriminantData=123., ()),
+    TestData.make(~discriminantStruct=S.bool(), ~discriminantData=true, ()),
+    TestData.make(~discriminantStruct=S.option(S.literal(Bool(true))), ~discriminantData=None, ()),
+    TestData.make(
+      ~discriminantStruct=S.null(S.literal(Bool(true))),
+      ~discriminantData=%raw("null"),
+      (),
+    ),
+    TestData.make(~discriminantStruct=S.unknown(), ~discriminantData="anything", ()),
+    TestData.make(
+      ~discriminantStruct=S.array(S.literal(Bool(true))),
+      ~discriminantData=[true, true],
+      (),
+    ),
+    TestData.make(
+      ~discriminantStruct=S.dict(S.literal(Bool(true))),
+      ~discriminantData=Js.Dict.fromArray([("foo", true), ("bar", true)]),
+      (),
+    ),
+    TestData.make(~discriminantStruct=S.date(), ~discriminantData=Js.Date.make(), ()),
+    TestData.make(
+      ~discriminantStruct=S.tuple2(. S.literal(Bool(true)), S.bool()),
+      ~discriminantData=(true, false),
+      (),
+    ),
+    TestData.make(
+      ~discriminantStruct=S.object(o => o->S.field("field", S.bool())),
+      ~discriminantData={"field": true},
+      (),
+    ),
+    TestData.make(
+      ~discriminantStruct=S.union([S.bool(), S.literal(Bool(false))]),
+      ~discriminantData=true,
+      (),
+    ),
   ]->Js.Array2.forEach(testData => {
     test(
-      `Fails to create an object struct with discriminant "${testData.discriminantStruct->S.name}"${testData.testNamePostfix}`,
+      `Successfully parses object with discriminant that we don't know how to serialize "${testData.discriminantStruct->S.name}"${testData.testNamePostfix}`,
       t => {
-        t->Assert.throws(
-          () => {
-            S.object(
-              o => {
-                o->S.discriminant("discriminant", testData.discriminantStruct)
-                {
-                  "field": o->S.field("field", S.string()),
-                }
-              },
-            )->ignore
+        let struct = S.object(
+          o => {
+            o->S.discriminant("discriminant", testData.discriminantStruct)
+            {
+              "field": o->S.field("field", S.string()),
+            }
           },
-          ~expectations=ThrowsException.make(
-            ~message=String(
-              "[rescript-struct] Can\'t create serializer for the discriminant field with the name \"discriminant\"",
-            ),
-            (),
-          ),
+        )
+
+        t->Assert.deepEqual(
+          {
+            "discriminant": testData.discriminantData,
+            "field": "bar",
+          }->S.parseWith(struct),
+          Ok({"field": "bar"}),
+          (),
+        )
+      },
+    )
+
+    test(
+      `Fails to serialize object with discriminant that we don't know how to serialize "${testData.discriminantStruct->S.name}"${testData.testNamePostfix}`,
+      t => {
+        let struct = S.object(
+          o => {
+            o->S.discriminant("discriminant", testData.discriminantStruct)
+            {
+              "field": o->S.field("field", S.string()),
+            }
+          },
+        )
+
+        t->Assert.deepEqual(
+          {"field": "bar"}->S.serializeWith(struct),
+          Error({code: MissingSerializer, operation: Serializing, path: ["discriminant"]}),
           (),
         )
       },
     )
   })
 }
+
+test(`Fails to parse object with invalid data passed to discriminant field`, t => {
+  let struct = S.object(o => {
+    o->S.discriminant("discriminant", S.string())
+    {
+      "field": o->S.field("field", S.string()),
+    }
+  })
+
+  t->Assert.deepEqual(
+    {
+      "discriminant": false,
+      "field": "bar",
+    }->S.parseWith(struct),
+    Error({
+      code: UnexpectedType({expected: "String", received: "Bool"}),
+      operation: Parsing,
+      path: ["discriminant"],
+    }),
+    (),
+  )
+})
+
+test(`Fails to serialize object with discriminant "Never"`, t => {
+  let struct = S.object(o => {
+    o->S.discriminant("discriminant", S.never())
+    {
+      "field": o->S.field("field", S.string()),
+    }
+  })
+
+  t->Assert.deepEqual(
+    {"field": "bar"}->S.serializeWith(struct),
+    Error({code: MissingSerializer, operation: Serializing, path: ["discriminant"]}),
+    (),
+  )
+})

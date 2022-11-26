@@ -850,12 +850,12 @@ function analyzeDefenitionSlice(defenitionCtx, defenitionSlice, path, inlinedPat
       });
 }
 
-function structToInlinedValue(_struct, inlinedOriginalFieldName) {
+function structToInlinedValue(_struct) {
   while(true) {
     var struct = _struct;
     var unionStructs = struct.t;
     if (typeof unionStructs === "number") {
-      throw new Error("[rescript-struct] " + ("Can't create serializer for the discriminant field with the name " + inlinedOriginalFieldName + "") + "");
+      throw undefined;
     }
     switch (unionStructs.TAG | 0) {
       case /* Literal */0 :
@@ -880,18 +880,16 @@ function structToInlinedValue(_struct, inlinedOriginalFieldName) {
           var fields = unionStructs.fields;
           return "{" + unionStructs.fieldNames.map((function(fields){
                       return function (fieldName) {
-                        return "" + JSON.stringify(fieldName) + ":" + structToInlinedValue(fields[fieldName], inlinedOriginalFieldName) + "";
+                        return "" + JSON.stringify(fieldName) + ":" + structToInlinedValue(fields[fieldName]) + "";
                       }
                       }(fields))).join(",") + "}";
       case /* Tuple */5 :
-          return "[" + unionStructs._0.map(function (s) {
-                        return structToInlinedValue(s, inlinedOriginalFieldName);
-                      }).join(",") + "]";
+          return "[" + unionStructs._0.map(structToInlinedValue).join(",") + "]";
       case /* Union */6 :
           _struct = unionStructs._0[0];
           continue ;
       default:
-        throw new Error("[rescript-struct] " + ("Can't create serializer for the discriminant field with the name " + inlinedOriginalFieldName + "") + "");
+        throw undefined;
     }
   };
 }
@@ -1062,61 +1060,80 @@ function factory$2(defenition) {
                                 };
                         }));
               }), (function (ctx, param) {
-                var constantInstructions = defenitionCtx.constantInstructions;
-                var definedFieldInstructions = defenitionCtx.definedFieldInstructions;
-                var serializeFnsByInstructionIdx = {};
-                var stringRef = "";
-                for(var idx = 0 ,idx_finish = constantInstructions.length; idx < idx_finish; ++idx){
-                  var match = constantInstructions[idx];
-                  var inlinedPath = match.inlinedPath;
-                  var content = "r(" + idx.toString() + ",t" + inlinedPath + ")";
-                  var condition = "t" + inlinedPath + "!==d[" + idx.toString() + "].v";
-                  stringRef = stringRef + ("if(" + condition + "){" + content + "}");
-                }
-                var constants = stringRef;
-                var contentRef = "var i;return{";
-                for(var idx$1 = 0 ,idx_finish$1 = definedFieldInstructions.length; idx$1 < idx_finish$1; ++idx$1){
-                  var definedFieldInstruction = definedFieldInstructions[idx$1];
-                  var fieldStruct = definedFieldInstruction.fieldStruct;
-                  var inlinedOriginalFieldName;
-                  inlinedOriginalFieldName = definedFieldInstruction.TAG === /* Discriminant */0 ? definedFieldInstruction.inlinedOriginalFieldName : definedFieldInstruction.inlinedOriginalFieldName;
-                  var inlinedInstructionIdx = idx$1.toString();
-                  var tmp;
-                  if (definedFieldInstruction.TAG === /* Discriminant */0) {
-                    tmp = "" + inlinedOriginalFieldName + ":" + structToInlinedValue(fieldStruct, inlinedOriginalFieldName) + ",";
-                  } else {
-                    var inlinedPath$1 = definedFieldInstruction.inlinedPath;
-                    var fn = fieldStruct.s;
-                    if (typeof fn === "number") {
-                      tmp = "" + inlinedOriginalFieldName + ":t" + inlinedPath$1 + ",";
-                    } else if (fn.TAG === /* SyncOperation */0) {
-                      serializeFnsByInstructionIdx[inlinedInstructionIdx] = fn._0;
-                      tmp = "" + inlinedOriginalFieldName + ":(i=" + inlinedInstructionIdx + ",s[" + inlinedInstructionIdx + "](t" + inlinedPath$1 + ")),";
-                    } else {
-                      tmp = panic$1(undefined);
-                    }
+                var inliningOriginalFieldNameRef = undefined;
+                try {
+                  var constantInstructions = defenitionCtx.constantInstructions;
+                  var definedFieldInstructions = defenitionCtx.definedFieldInstructions;
+                  var serializeFnsByInstructionIdx = {};
+                  var stringRef = "";
+                  for(var idx = 0 ,idx_finish = constantInstructions.length; idx < idx_finish; ++idx){
+                    var match = constantInstructions[idx];
+                    var inlinedPath = match.inlinedPath;
+                    var content = "r(" + idx.toString() + ",t" + inlinedPath + ")";
+                    var condition = "t" + inlinedPath + "!==d[" + idx.toString() + "].v";
+                    stringRef = stringRef + ("if(" + condition + "){" + content + "}");
                   }
-                  contentRef = contentRef + tmp;
+                  var constants = stringRef;
+                  var contentRef = "var i;return{";
+                  for(var idx$1 = 0 ,idx_finish$1 = definedFieldInstructions.length; idx$1 < idx_finish$1; ++idx$1){
+                    var definedFieldInstruction = definedFieldInstructions[idx$1];
+                    var fieldStruct = definedFieldInstruction.fieldStruct;
+                    var inlinedOriginalFieldName;
+                    inlinedOriginalFieldName = definedFieldInstruction.TAG === /* Discriminant */0 ? definedFieldInstruction.inlinedOriginalFieldName : definedFieldInstruction.inlinedOriginalFieldName;
+                    var inlinedInstructionIdx = idx$1.toString();
+                    var tmp;
+                    if (definedFieldInstruction.TAG === /* Discriminant */0) {
+                      var tmp$1;
+                      tmp$1 = definedFieldInstruction.TAG === /* Discriminant */0 ? definedFieldInstruction.originalFieldName : definedFieldInstruction.originalFieldName;
+                      inliningOriginalFieldNameRef = tmp$1;
+                      tmp = "" + inlinedOriginalFieldName + ":" + structToInlinedValue(fieldStruct) + ",";
+                    } else {
+                      var inlinedPath$1 = definedFieldInstruction.inlinedPath;
+                      var fn = fieldStruct.s;
+                      if (typeof fn === "number") {
+                        tmp = "" + inlinedOriginalFieldName + ":t" + inlinedPath$1 + ",";
+                      } else if (fn.TAG === /* SyncOperation */0) {
+                        serializeFnsByInstructionIdx[inlinedInstructionIdx] = fn._0;
+                        tmp = "" + inlinedOriginalFieldName + ":(i=" + inlinedInstructionIdx + ",s[" + inlinedInstructionIdx + "](t" + inlinedPath$1 + ")),";
+                      } else {
+                        tmp = panic$1(undefined);
+                      }
+                    }
+                    contentRef = contentRef + tmp;
+                  }
+                  var tryContent = contentRef + "}";
+                  var originalObjectConstructionAndReturn = "try{" + tryContent + "}catch(e){c(e,i)}";
+                  var inlinedSerializeFunction = "function(t){" + ("" + constants + "" + originalObjectConstructionAndReturn + "") + "}";
+                  planSyncTransformation(ctx, new Function("s", "d", "r", "c", "return " + inlinedSerializeFunction + "")(serializeFnsByInstructionIdx, constantInstructions, (function (instructionIdx, received) {
+                              var match = constantInstructions[instructionIdx];
+                              return raise(match.v, received, match.path, undefined);
+                            }), (function (exn, instructionIdx) {
+                              var tmp;
+                              if (exn.RE_EXN_ID === Exception) {
+                                var definedFieldInstruction = definedFieldInstructions[instructionIdx];
+                                tmp = definedFieldInstruction.TAG === /* Discriminant */0 ? panic$1(undefined) : ({
+                                      RE_EXN_ID: Exception,
+                                      _1: prependLocation(exn._1, definedFieldInstruction.path)
+                                    });
+                              } else {
+                                tmp = exn;
+                              }
+                              throw tmp;
+                            })));
                 }
-                var tryContent = contentRef + "}";
-                var originalObjectConstructionAndReturn = "try{" + tryContent + "}catch(e){c(e,i)}";
-                var inlinedSerializeFunction = "function(t){" + ("" + constants + "" + originalObjectConstructionAndReturn + "") + "}";
-                planSyncTransformation(ctx, new Function("s", "d", "r", "c", "return " + inlinedSerializeFunction + "")(serializeFnsByInstructionIdx, constantInstructions, (function (instructionIdx, received) {
-                            var match = constantInstructions[instructionIdx];
-                            return raise(match.v, received, match.path, undefined);
-                          }), (function (exn, instructionIdx) {
-                            var tmp;
-                            if (exn.RE_EXN_ID === Exception) {
-                              var definedFieldInstruction = definedFieldInstructions[instructionIdx];
-                              tmp = definedFieldInstruction.TAG === /* Discriminant */0 ? panic$1(undefined) : ({
-                                    RE_EXN_ID: Exception,
-                                    _1: prependLocation(exn._1, definedFieldInstruction.path)
-                                  });
-                            } else {
-                              tmp = exn;
-                            }
-                            throw tmp;
-                          })));
+                catch (exn){
+                  var inliningOriginalFieldName = inliningOriginalFieldNameRef;
+                  planSyncTransformation(ctx, (function (param) {
+                          throw {
+                                RE_EXN_ID: Exception,
+                                _1: {
+                                  c: /* MissingSerializer */1,
+                                  p: inliningOriginalFieldName
+                                },
+                                Error: new Error()
+                              };
+                        }));
+                }
               }), undefined, undefined, undefined);
 }
 
