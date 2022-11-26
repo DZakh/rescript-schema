@@ -1666,27 +1666,37 @@ module Object2 = {
                       | _ => false
                       }
 
-                      let maybeInlinedDestination = switch (definedFieldInstruction, isAsync) {
-                      | (_, true) =>
-                        Some(
-                          `${Var.asyncTransformedObject}[${definedAsyncFieldInstructions
-                            ->Js.Array2.length
-                            ->Js.Int.toString}]`,
-                        )
-                      | (Discriminant(_), false) => None
-                      | (Registered({inlinedPath}), false) =>
-                        Some(`${Var.transformedObject}${inlinedPath}`)
-                      }
                       let inlinedInputData = `${Var.originalObject}[${inlinedOriginalFieldName}]`
 
-                      if isAsync {
+                      let maybeInlinedDestination = if isAsync {
+                        let inlinedDestination = `${Var.asyncTransformedObject}[${definedAsyncFieldInstructions
+                          ->Js.Array2.length
+                          ->Js.Int.toString}]`
+
                         if definedAsyncFieldInstructions->Js.Array2.length === 0 {
                           stringRef.contents =
                             stringRef.contents ++ `var ${Var.asyncTransformedObject}={};`
                         }
+
+                        switch definedFieldInstruction {
+                        | Registered({inlinedPath}) =>
+                          stringRef.contents =
+                            stringRef.contents ++
+                            `${Var.transformedObject}${inlinedPath}=undefined;`
+                        | _ => ()
+                        }
+
                         definedAsyncFieldInstructions
                         ->Js.Array2.push(definedFieldInstruction)
                         ->ignore
+
+                        Some(inlinedDestination)
+                      } else {
+                        switch definedFieldInstruction {
+                        | Discriminant(_) => None
+                        | Registered({inlinedPath}) =>
+                          Some(`${Var.transformedObject}${inlinedPath}`)
+                        }
                       }
 
                       stringRef.contents =

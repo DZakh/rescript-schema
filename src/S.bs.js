@@ -1113,15 +1113,20 @@ function factory$3(defenition) {
                     var match = fieldStruct.p;
                     var isAsync;
                     isAsync = typeof match === "number" || match.TAG === /* SyncOperation */0 ? false : true;
-                    var maybeInlinedDestination = isAsync ? "a[" + definedAsyncFieldInstructions.length.toString() + "]" : (
-                        definedFieldInstruction.TAG === /* Discriminant */0 ? undefined : "t" + definedFieldInstruction.inlinedPath + ""
-                      );
                     var inlinedInputData = "o[" + inlinedOriginalFieldName + "]";
+                    var maybeInlinedDestination;
                     if (isAsync) {
+                      var inlinedDestination = "a[" + definedAsyncFieldInstructions.length.toString() + "]";
                       if (definedAsyncFieldInstructions.length === 0) {
                         stringRef$1 = stringRef$1 + "var a={};";
                       }
+                      if (definedFieldInstruction.TAG !== /* Discriminant */0) {
+                        stringRef$1 = stringRef$1 + ("t" + definedFieldInstruction.inlinedPath + "=undefined;");
+                      }
                       definedAsyncFieldInstructions.push(definedFieldInstruction);
+                      maybeInlinedDestination = inlinedDestination;
+                    } else {
+                      maybeInlinedDestination = definedFieldInstruction.TAG === /* Discriminant */0 ? undefined : "t" + definedFieldInstruction.inlinedPath + "";
                     }
                     var match$1 = fieldStruct.i;
                     stringRef$1 = stringRef$1 + (

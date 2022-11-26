@@ -97,6 +97,96 @@ module Object = {
     })
   })
 
+  asyncTest("[Object] Keeps fields in the correct order", t => {
+    let struct = S.object(o =>
+      {
+        "k1": o->S.field("k1", S.int()),
+        "k2": o->S.field("k2", S.int()->validAsyncRefine),
+        "k3": o->S.field("k3", S.int()),
+      }
+    )
+
+    (
+      {
+        "k1": 1,
+        "k2": 2,
+        "k3": 3,
+      }
+      ->S.parseAsyncInStepsWith(struct)
+      ->Belt.Result.getExn
+    )()->Promise.thenResolve(result => {
+      t->Assert.deepEqual(
+        result->Belt.Result.map(Obj.magic)->Belt.Result.map(Js.Dict.keys),
+        Ok(["k1", "k2", "k3"]),
+        (),
+      )
+    })
+  })
+
+  asyncTest("[Object] Successfully parses with valid async discriminant", t => {
+    let struct = S.object(o => {
+      o->S.discriminant("discriminant", S.literal(Bool(true))->validAsyncRefine)
+      {
+        "k1": o->S.field("k1", S.int()),
+        "k2": o->S.field("k2", S.int()),
+        "k3": o->S.field("k3", S.int()),
+      }
+    })
+
+    (
+      {
+        "discriminant": true,
+        "k1": 1,
+        "k2": 2,
+        "k3": 3,
+      }
+      ->S.parseAsyncInStepsWith(struct)
+      ->Belt.Result.getExn
+    )()->Promise.thenResolve(result => {
+      t->Assert.deepEqual(
+        result,
+        Ok({
+          "k1": 1,
+          "k2": 2,
+          "k3": 3,
+        }),
+        (),
+      )
+    })
+  })
+
+  asyncTest("[Object] Fails to parse with invalid async discriminant", t => {
+    let struct = S.object(o => {
+      o->S.discriminant("discriminant", S.literal(Bool(true))->invalidAsyncRefine)
+      {
+        "k1": o->S.field("k1", S.int()),
+        "k2": o->S.field("k2", S.int()),
+        "k3": o->S.field("k3", S.int()),
+      }
+    })
+
+    (
+      {
+        "discriminant": true,
+        "k1": 1,
+        "k2": 2,
+        "k3": 3,
+      }
+      ->S.parseAsyncInStepsWith(struct)
+      ->Belt.Result.getExn
+    )()->Promise.thenResolve(result => {
+      t->Assert.deepEqual(
+        result,
+        Error({
+          code: OperationFailed("Async user error"),
+          operation: Parsing,
+          path: ["discriminant"],
+        }),
+        (),
+      )
+    })
+  })
+
   test("[Object] Returns sync error when fails to parse sync part of async item", t => {
     let struct = S.object(o =>
       {
