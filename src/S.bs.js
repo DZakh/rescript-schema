@@ -1057,7 +1057,7 @@ function structToInlinedValue(_struct, inlinedOriginalFieldName) {
 
 function factory$3(defenition) {
   var defenitionCtx = {
-    originalFieldNames: [],
+    originalFieldNames: undefined,
     originalFields: {},
     registeredFieldsCount: 0,
     inlinedPreparationPathes: [],
@@ -1066,8 +1066,10 @@ function factory$3(defenition) {
     constantInstructions: []
   };
   var defenitionSlice = defenition(defenitionCtx);
+  var originalFieldNames = Object.keys(defenitionCtx.originalFields);
+  defenitionCtx.originalFieldNames = originalFieldNames;
   analyzeDefenitionSlice(defenitionCtx, defenitionSlice, "", "");
-  var originalFieldNamesCount = defenitionCtx.originalFieldNames.length;
+  var originalFieldNamesCount = originalFieldNames.length;
   if (defenitionCtx.registeredFieldsCount > originalFieldNamesCount) {
     throw new Error("[rescript-struct] The object defention has more registered fields than expected.");
   }
@@ -1231,13 +1233,11 @@ function factory$3(defenition) {
 }
 
 function field(defenitionCtx, originalFieldName, struct) {
-  defenitionCtx.originalFieldNames.push(originalFieldName);
   defenitionCtx.originalFields[originalFieldName] = struct;
   return value;
 }
 
 function discriminant(defenitionCtx, originalFieldName, struct) {
-  defenitionCtx.originalFieldNames.push(originalFieldName);
   defenitionCtx.originalFields[originalFieldName] = struct;
   defenitionCtx.registeredFieldsCount = defenitionCtx.registeredFieldsCount + 1;
   defenitionCtx.definedFieldInstructions.unshift({

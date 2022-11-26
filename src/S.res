@@ -1495,7 +1495,7 @@ module Object2 = {
   module DefenitionCtx = {
     type struct = t<unknown>
     type t = {
-      originalFieldNames: array<string>,
+      mutable originalFieldNames: array<string>,
       originalFields: Js.Dict.t<struct>,
       mutable registeredFieldsCount: int,
       inlinedPreparationPathes: array<string>,
@@ -1506,7 +1506,7 @@ module Object2 = {
 
     @inline
     let make = () => {
-      originalFieldNames: [],
+      originalFieldNames: %raw("undefined"),
       originalFields: Js.Dict.empty(),
       registeredFieldsCount: 0,
       inlinedPreparationPathes: [],
@@ -1920,18 +1920,22 @@ module Object2 = {
     let instructions = {
       let defenitionCtx = DefenitionCtx.make()
       let defenitionSlice = defenition->Stdlib.Fn.call1(defenitionCtx)->castAnyToUnknown
+      let originalFieldNames = defenitionCtx.originalFields->Js.Dict.keys
+      defenitionCtx.originalFieldNames = originalFieldNames
       defenitionCtx->DefenitionCtx.analyzeDefenitionSlice(
         ~defenitionSlice,
         ~path=Path.empty(),
         ~inlinedPath=Path.Inlined.empty(),
       )
 
-      let originalFieldNamesCount = defenitionCtx.originalFieldNames->Js.Array2.length
-      if defenitionCtx.registeredFieldsCount > originalFieldNamesCount {
-        Error.panic("The object defention has more registered fields than expected.")
-      }
-      if defenitionCtx.registeredFieldsCount < originalFieldNamesCount {
-        Error.panic("The object defention contains fields that weren't registered.")
+      {
+        let originalFieldNamesCount = originalFieldNames->Js.Array2.length
+        if defenitionCtx.registeredFieldsCount > originalFieldNamesCount {
+          Error.panic("The object defention has more registered fields than expected.")
+        }
+        if defenitionCtx.registeredFieldsCount < originalFieldNamesCount {
+          Error.panic("The object defention contains fields that weren't registered.")
+        }
       }
 
       defenitionCtx
@@ -1950,14 +1954,12 @@ module Object2 = {
 
   let field = (defenitionCtx: DefenitionCtx.t, originalFieldName, struct) => {
     let struct = struct->castAnyStructToUnknownStruct
-    defenitionCtx.originalFieldNames->Js.Array2.push(originalFieldName)->ignore
     defenitionCtx.originalFields->Js.Dict.set(originalFieldName, struct)
     FieldDefenition.value->FieldDefenition.castToAny
   }
 
   let discriminant = (defenitionCtx: DefenitionCtx.t, originalFieldName, struct) => {
     let fieldStruct = struct->castAnyStructToUnknownStruct
-    defenitionCtx.originalFieldNames->Js.Array2.push(originalFieldName)->ignore
     defenitionCtx.originalFields->Js.Dict.set(originalFieldName, fieldStruct)
     defenitionCtx.registeredFieldsCount = Stdlib.Int.plus(defenitionCtx.registeredFieldsCount, 1)
     defenitionCtx.definedFieldInstructions

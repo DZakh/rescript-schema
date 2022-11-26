@@ -279,6 +279,23 @@ test("Successfully serializes object with multiple fields", t => {
   )
 })
 
+test("Fails to create object struct when defined fields with the same name", t => {
+  t->Assert.throws(() => {
+    S.object(
+      o =>
+        {
+          "boo": o->S.field("field", S.string()),
+          "zoo": o->S.field("field", S.int()),
+        },
+    )->ignore
+  }, ~expectations=ThrowsException.make(
+    ~message=String(
+      "[rescript-struct] The object defention has more registered fields than expected.",
+    ),
+    (),
+  ), ())
+})
+
 test("Successfully parses object with transformed field", t => {
   let struct = S.object(o =>
     {
