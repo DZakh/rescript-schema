@@ -70,14 +70,13 @@ module Positive = {
     TestData.make(
       ~description="and values needed to be escaped",
       ~discriminantStruct=S.object(o => {
-        // TODO: Apply escaping for field name too
-        o->S.discriminant("foo", S.literal(String("\"\'\`")))
+        o->S.discriminant("\"\'\`", S.literal(String("\"\'\`")))
         {
           "field": o->S.field("nestedField", S.literal(Bool(false))),
         }
       }),
       ~discriminantValue=%raw(`{
-        "foo": "\"\'\`",
+        "\"\'\`": "\"\'\`",
         "nestedField": false
       }`),
       (),

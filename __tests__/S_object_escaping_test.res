@@ -203,4 +203,44 @@ test(
   },
 )
 
-// TODO: Test path in error
+test("Has proper error path when fails to parse object with quotes in a field name", t => {
+  let struct = S.object(o =>
+    {
+      "field": o->S.field(
+        "\"\'\`",
+        S.string()->S.refine(~parser=_ => S.Error.raise("User error"), ()),
+      ),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{"\"\'\`": "bar"}`)->S.parseWith(struct),
+    Error({
+      code: OperationFailed("User error"),
+      operation: Parsing,
+      path: ["\"\'\`"],
+    }),
+    (),
+  )
+})
+
+test("Has proper error path when fails to serialize object with quotes in a field name", t => {
+  let struct = S.object(o =>
+    Js.Dict.fromArray([
+      (
+        "\"\'\`",
+        o->S.field("field", S.string()->S.refine(~serializer=_ => S.Error.raise("User error"), ())),
+      ),
+    ])
+  )
+
+  t->Assert.deepEqual(
+    Js.Dict.fromArray([("\"\'\`", "bar")])->S.serializeWith(struct),
+    Error({
+      code: OperationFailed("User error"),
+      operation: Serializing,
+      path: ["\"\'\`"],
+    }),
+    (),
+  )
+})

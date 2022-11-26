@@ -1450,10 +1450,15 @@ module Object2 = {
   module DefinedFieldInstruction = {
     type struct = t<unknown>
     type t =
-      | Discriminant({fieldStruct: struct, originalFieldName: string})
+      | Discriminant({
+          fieldStruct: struct,
+          inlinedOriginalFieldName: string,
+          originalFieldName: string,
+        })
       | Registered({
           fieldStruct: struct,
           originalFieldName: string,
+          inlinedOriginalFieldName: string,
           inlinedPath: Path.Inlined.t,
           path: Path.t,
         })
@@ -1473,6 +1478,18 @@ module Object2 = {
       | Registered({originalFieldName}) => originalFieldName
       }
     }
+
+    @inline
+    let getInlinedOriginalFieldName = (definedFieldInstruction: t) => {
+      switch definedFieldInstruction {
+      | Discriminant({inlinedOriginalFieldName}) => inlinedOriginalFieldName
+      | Registered({inlinedOriginalFieldName}) => inlinedOriginalFieldName
+      }
+    }
+  }
+
+  module ConstantInstruction = {
+    type t = {inlinedPath: string, @as("v") value: unknown, path: string}
   }
 
   module DefenitionCtx = {
@@ -1483,10 +1500,8 @@ module Object2 = {
       mutable registeredFieldsCount: int,
       inlinedPreparationPathes: array<string>,
       inlinedPreparationValues: array<string>,
-      pathesByInlinedPathIdx: Js.Dict.t<string>,
-      serializeDiscriminantValuesByInlinedPathIdx: Js.Dict.t<unknown>,
-      serializeDiscriminantInlinedPathes: array<string>,
       definedFieldInstructions: array<DefinedFieldInstruction.t>,
+      constantInstructions: array<ConstantInstruction.t>,
     }
 
     @inline
@@ -1496,10 +1511,8 @@ module Object2 = {
       registeredFieldsCount: 0,
       inlinedPreparationPathes: [],
       inlinedPreparationValues: [],
-      pathesByInlinedPathIdx: Js.Dict.empty(),
-      serializeDiscriminantValuesByInlinedPathIdx: Js.Dict.empty(),
-      serializeDiscriminantInlinedPathes: [],
       definedFieldInstructions: [],
+      constantInstructions: [],
     }
 
     @inline
@@ -1514,19 +1527,14 @@ module Object2 = {
           defenitionCtx.registeredFieldsCount,
           1,
         )
-        defenitionCtx.pathesByInlinedPathIdx->Js.Dict.set(
-          defenitionCtx.serializeDiscriminantInlinedPathes->Js.Array2.length->Js.Int.toString,
-          path,
-        )
-
-        let fieldStruct = defenitionCtx.originalFields->Js.Dict.unsafeGet(originalFieldName)
         defenitionCtx.definedFieldInstructions
         ->Js.Array2.push(
           Registered({
             path,
             inlinedPath,
-            fieldStruct,
+            fieldStruct: defenitionCtx.originalFields->Js.Dict.unsafeGet(originalFieldName),
             originalFieldName,
+            inlinedOriginalFieldName: originalFieldName->Stdlib.Inlined.Value.fromString,
           }),
         )
         ->ignore
@@ -1546,62 +1554,13 @@ module Object2 = {
           )
         }
       } else {
-        let serializeDiscriminantInlinedPathIdx =
-          defenitionCtx.serializeDiscriminantInlinedPathes->Js.Array2.length->Js.Int.toString
-        defenitionCtx.serializeDiscriminantValuesByInlinedPathIdx->Js.Dict.set(
-          serializeDiscriminantInlinedPathIdx,
-          defenitionSlice,
-        )
-        defenitionCtx.serializeDiscriminantInlinedPathes->Js.Array2.push(inlinedPath)->ignore
-        defenitionCtx.pathesByInlinedPathIdx->Js.Dict.set(serializeDiscriminantInlinedPathIdx, path)
-      }
-    }
-  }
-
-  module Instructions = {
-    type struct = t<unknown>
-    type t = {
-      originalFields: Js.Dict.t<struct>,
-      originalFieldNames: array<string>,
-      pathesByInlinedPathIdx: Js.Dict.t<string>,
-      inlinedPreparationValues: array<string>,
-      inlinedPreparationPathes: array<string>,
-      serializeDiscriminantValuesByInlinedPathIdx: Js.Dict.t<unknown>,
-      serializeDiscriminantInlinedPathes: array<Path.Inlined.t>,
-      definedFieldInstructions: array<DefinedFieldInstruction.t>,
-    }
-
-    let fromReadyDefenitionCtx = (defenitionCtx: DefenitionCtx.t) => {
-      {
-        let originalFieldNamesCount = defenitionCtx.originalFieldNames->Js.Array2.length
-        if defenitionCtx.registeredFieldsCount > originalFieldNamesCount {
-          Error.panic("The object defention has more registered fields than expected.")
-        }
-        if defenitionCtx.registeredFieldsCount < originalFieldNamesCount {
-          Error.panic("The object defention contains fields that weren't registered.")
-        }
-      }
-
-      let {
-        originalFieldNames,
-        originalFields,
-        pathesByInlinedPathIdx,
-        inlinedPreparationPathes,
-        inlinedPreparationValues,
-        serializeDiscriminantValuesByInlinedPathIdx,
-        serializeDiscriminantInlinedPathes,
-        definedFieldInstructions,
-      } = defenitionCtx
-
-      {
-        pathesByInlinedPathIdx,
-        originalFieldNames,
-        originalFields,
-        inlinedPreparationPathes,
-        inlinedPreparationValues,
-        serializeDiscriminantValuesByInlinedPathIdx,
-        serializeDiscriminantInlinedPathes,
-        definedFieldInstructions,
+        defenitionCtx.constantInstructions
+        ->Js.Array2.push({
+          inlinedPath,
+          path,
+          value: defenitionSlice,
+        })
+        ->ignore
       }
     }
   }
@@ -1621,7 +1580,7 @@ module Object2 = {
       @inline
       let parseFnsByInstructionIdx = "p"
       @inline
-      let serializeDiscriminantValuesByInlinedPathIdx = "d"
+      let constantInstructions = "d"
       @inline
       let raiseUnexpectedOriginalObjectTypeError = "u"
       @inline
@@ -1631,16 +1590,14 @@ module Object2 = {
     }
 
     @inline
-    let make = (~instructions: Instructions.t) => {
+    let make = (~instructions: DefenitionCtx.t) => {
       TransformationFactory.make((. ~ctx, ~struct) => {
         let {
-          originalFieldNames,
           originalFields,
           inlinedPreparationValues,
           inlinedPreparationPathes,
-          serializeDiscriminantValuesByInlinedPathIdx,
-          serializeDiscriminantInlinedPathes,
           definedFieldInstructions,
+          constantInstructions,
         } = instructions
 
         let withUnknownKeysRefinement =
@@ -1675,16 +1632,14 @@ module Object2 = {
               for idx in 0 to definedFieldInstructions->Js.Array2.length - 1 {
                 let definedFieldInstruction = definedFieldInstructions->Js.Array2.unsafe_get(idx)
                 let fieldStruct = definedFieldInstruction->DefinedFieldInstruction.getFieldStruct
-                let originalFieldName =
-                  definedFieldInstruction->DefinedFieldInstruction.getOriginalFieldName
+                let inlinedOriginalFieldName =
+                  definedFieldInstruction->DefinedFieldInstruction.getInlinedOriginalFieldName
                 let inlinedInstructionIdx = idx->Js.Int.toString
                 let maybeParseFn = switch fieldStruct.parse {
                 | NoOperation => None
                 | SyncOperation(fn) => Some(fn)
                 | AsyncOperation(fn) => {
-                    asyncOps
-                    ->Js.Array2.push((originalFieldName, "TODO: original field name"))
-                    ->ignore
+                    asyncOps->Js.Array2.push("TODO: original field name")->ignore
                     Some(fn->Obj.magic)
                   }
                 }
@@ -1692,7 +1647,7 @@ module Object2 = {
                 | Discriminant(_) => None
                 | Registered({inlinedPath}) => Some(`${Var.transformedObject}${inlinedPath}`)
                 }
-                let inlinedInputData = `${Var.originalObject}["${originalFieldName}"]`
+                let inlinedInputData = `${Var.originalObject}[${inlinedOriginalFieldName}]`
                 stringRef.contents =
                   stringRef.contents ++
                   switch (maybeParseFn, fieldStruct.maybeInlinedRefinement) {
@@ -1706,7 +1661,7 @@ module Object2 = {
                       | Some(inlinedDestination) =>
                         `${inlinedDestination}=${Stdlib.Inlined.Constant.inputVar}`
                       | None => ""
-                      }}}else{${Var.instructionIdx}=${inlinedInstructionIdx};${Var.raiseUnexpectedTypeError}(${Stdlib.Inlined.Constant.inputVar},${Var.originalFields}["${originalFieldName}"])}`
+                      }}}else{${Var.instructionIdx}=${inlinedInstructionIdx};${Var.raiseUnexpectedTypeError}(${Stdlib.Inlined.Constant.inputVar},${Var.originalFields}[${inlinedOriginalFieldName}])}`
                   | (Some(fn), None) => {
                       parseFnsByInstructionIdx->Js.Dict.set(inlinedInstructionIdx, fn)
                       `${Var.instructionIdx}=${inlinedInstructionIdx};${switch maybeInlinedDestination {
@@ -1729,29 +1684,32 @@ module Object2 = {
 
           let unknownKeysRefinement = withUnknownKeysRefinement
             ? {
-                let stringRef = ref(`for(var key in ${Var.originalObject}){switch(key){`)
-                for idx in 0 to originalFieldNames->Js.Array2.length - 1 {
-                  let originalFieldName = originalFieldNames->Js.Array2.unsafe_get(idx)
-                  stringRef.contents = stringRef.contents ++ `case"${originalFieldName}":continue;`
+                let stringRef = ref(`for(var k in ${Var.originalObject}){switch(k){`)
+                for idx in 0 to definedFieldInstructions->Js.Array2.length - 1 {
+                  let definedFieldInstruction = definedFieldInstructions->Js.Array2.unsafe_get(idx)
+                  let inlinedOriginalFieldName =
+                    definedFieldInstruction->DefinedFieldInstruction.getInlinedOriginalFieldName
+                  stringRef.contents =
+                    stringRef.contents ++ `case${inlinedOriginalFieldName}:continue;`
                 }
-                stringRef.contents ++ `default:${Var.raiseExcessFieldError}(key)}}`
+                stringRef.contents ++ `default:${Var.raiseExcessFieldError}(k)}}`
               }
             : ""
 
-          let serializeDiscriminants = {
+          let constants = {
             let stringRef = ref("")
-            for idx in 0 to serializeDiscriminantInlinedPathes->Js.Array2.length - 1 {
-              let inlinedPath = serializeDiscriminantInlinedPathes->Js.Array2.unsafe_get(idx)
+            for idx in 0 to constantInstructions->Js.Array2.length - 1 {
+              let {inlinedPath} = constantInstructions->Js.Array2.unsafe_get(idx)
               stringRef.contents =
                 stringRef.contents ++
-                `${Var.transformedObject}${inlinedPath}=${Var.serializeDiscriminantValuesByInlinedPathIdx}[${idx->Js.Int.toString}];`
+                `${Var.transformedObject}${inlinedPath}=${Var.constantInstructions}[${idx->Js.Int.toString}].v;`
             }
             stringRef.contents
           }
 
           Stdlib.Inlined.Fn.make(
             ~arguments=Var.originalObject,
-            ~content=`${refinement}${preparation}${transformedObjectConstruction}${unknownKeysRefinement}${serializeDiscriminants}return ${Var.transformedObject}`,
+            ~content=`${refinement}${preparation}${transformedObjectConstruction}${unknownKeysRefinement}${constants}return ${Var.transformedObject}`,
           )
         }
 
@@ -1776,8 +1734,8 @@ module Object2 = {
             ~ctxVarValue2=parseFnsByInstructionIdx,
             ~ctxVarName3=Var.originalFields,
             ~ctxVarValue3=originalFields,
-            ~ctxVarName4=Var.serializeDiscriminantValuesByInlinedPathIdx,
-            ~ctxVarValue4=serializeDiscriminantValuesByInlinedPathIdx,
+            ~ctxVarName4=Var.constantInstructions,
+            ~ctxVarValue4=constantInstructions,
             ~ctxVarName5=Var.raiseUnexpectedOriginalObjectTypeError,
             ~ctxVarValue5=(~input) => {
               raiseUnexpectedTypeError(~input, ~struct)
@@ -1798,7 +1756,7 @@ module Object2 = {
       @inline
       let serializeFnsByInstructionIdx = "s"
       @inline
-      let serializeDiscriminantValuesByInlinedPathIdx = "d"
+      let constantInstructions = "d"
       @inline
       let raiseDiscriminantError = "r"
       @inline
@@ -1809,7 +1767,7 @@ module Object2 = {
       let catchFieldError = "c"
     }
 
-    let rec structToInlinedValue = (struct, ~originalFieldName) => {
+    let rec structToInlinedValue = (struct, ~inlinedOriginalFieldName) => {
       switch struct->classify {
       | Literal(String(string)) => string->Stdlib.Inlined.Value.fromString
       | Literal(Int(int)) => int->Js.Int.toString
@@ -1819,17 +1777,17 @@ module Object2 = {
       | Literal(EmptyNull) => "null"
       | Literal(NaN) => "NaN"
       | Union(unionStructs) =>
-        unionStructs->Js.Array2.unsafe_get(0)->structToInlinedValue(~originalFieldName)
+        unionStructs->Js.Array2.unsafe_get(0)->structToInlinedValue(~inlinedOriginalFieldName)
       | Tuple(tupleStructs) =>
         `[${tupleStructs
-          ->Js.Array2.map(s => s->structToInlinedValue(~originalFieldName))
+          ->Js.Array2.map(s => s->structToInlinedValue(~inlinedOriginalFieldName))
           ->Js.Array2.joinWith(",")}]`
       | Object({fieldNames, fields}) =>
         `{${fieldNames
           ->Js.Array2.map(fieldName => {
             `${fieldName->Stdlib.Inlined.Value.fromString}:${fields
               ->Js.Dict.unsafeGet(fieldName)
-              ->structToInlinedValue(~originalFieldName)}`
+              ->structToInlinedValue(~inlinedOriginalFieldName)}`
           })
           ->Js.Array2.joinWith(",")}}`
 
@@ -1846,32 +1804,27 @@ module Object2 = {
       | Date =>
         // FIXME: Should only happen when start serializing
         Error.panic(
-          `Can't create serializer for the discriminant field with the name "${originalFieldName}"`,
+          `Can't create serializer for the discriminant field with the name ${inlinedOriginalFieldName}`,
         )
       }
     }
 
     @inline
-    let make = (~instructions: Instructions.t) => {
+    let make = (~instructions: DefenitionCtx.t) => {
       TransformationFactory.make((. ~ctx, ~struct as _) => {
-        let {
-          serializeDiscriminantValuesByInlinedPathIdx,
-          serializeDiscriminantInlinedPathes,
-          pathesByInlinedPathIdx,
-          definedFieldInstructions,
-        } = instructions
+        let {definedFieldInstructions, constantInstructions} = instructions
 
         let serializeFnsByInstructionIdx = Js.Dict.empty()
 
         let inlinedSerializeFunction = {
-          let serializeDiscriminants = {
+          let constants = {
             let stringRef = ref("")
-            for idx in 0 to serializeDiscriminantInlinedPathes->Js.Array2.length - 1 {
-              let inlinedPath = serializeDiscriminantInlinedPathes->Js.Array2.unsafe_get(idx)
+            for idx in 0 to constantInstructions->Js.Array2.length - 1 {
+              let {inlinedPath} = constantInstructions->Js.Array2.unsafe_get(idx)
               stringRef.contents =
                 stringRef.contents ++
                 Stdlib.Inlined.If.make(
-                  ~condition=`${Var.transformedObject}${inlinedPath}!==${Var.serializeDiscriminantValuesByInlinedPathIdx}[${idx->Js.Int.toString}]`,
+                  ~condition=`${Var.transformedObject}${inlinedPath}!==${Var.constantInstructions}[${idx->Js.Int.toString}].v`,
                   ~content=`${Var.raiseDiscriminantError}(${idx->Js.Int.toString},${Var.transformedObject}${inlinedPath})`,
                 )
             }
@@ -1884,8 +1837,8 @@ module Object2 = {
               for idx in 0 to definedFieldInstructions->Js.Array2.length - 1 {
                 let definedFieldInstruction = definedFieldInstructions->Js.Array2.unsafe_get(idx)
                 let fieldStruct = definedFieldInstruction->DefinedFieldInstruction.getFieldStruct
-                let originalFieldName =
-                  definedFieldInstruction->DefinedFieldInstruction.getOriginalFieldName
+                let inlinedOriginalFieldName =
+                  definedFieldInstruction->DefinedFieldInstruction.getInlinedOriginalFieldName
                 let inlinedInstructionIdx = idx->Js.Int.toString
                 contentRef.contents =
                   contentRef.contents ++
@@ -1893,19 +1846,19 @@ module Object2 = {
                   | Registered({inlinedPath}) =>
                     switch fieldStruct.serialize {
                     | NoOperation =>
-                      `"${originalFieldName}":${Var.transformedObject}${inlinedPath},`
+                      `${inlinedOriginalFieldName}:${Var.transformedObject}${inlinedPath},`
                     | SyncOperation(fn) => {
                         serializeFnsByInstructionIdx->Js.Dict.set(inlinedInstructionIdx, fn)
 
-                        `"${originalFieldName}":(${Var.instructionIdx}=${inlinedInstructionIdx},${Var.serializeFnsByInstructionIdx}[${inlinedInstructionIdx}](${Var.transformedObject}${inlinedPath})),`
+                        `${inlinedOriginalFieldName}:(${Var.instructionIdx}=${inlinedInstructionIdx},${Var.serializeFnsByInstructionIdx}[${inlinedInstructionIdx}](${Var.transformedObject}${inlinedPath})),`
                       }
 
                     | AsyncOperation(_) => Error.Unreachable.panic()
                     }
 
                   | Discriminant(_) =>
-                    `"${originalFieldName}":${fieldStruct->structToInlinedValue(
-                        ~originalFieldName,
+                    `${inlinedOriginalFieldName}:${fieldStruct->structToInlinedValue(
+                        ~inlinedOriginalFieldName,
                       )},`
                   }
               }
@@ -1920,7 +1873,7 @@ module Object2 = {
 
           Stdlib.Inlined.Fn.make(
             ~arguments=Var.transformedObject,
-            ~content=`${serializeDiscriminants}${originalObjectConstructionAndReturn}`,
+            ~content=`${constants}${originalObjectConstructionAndReturn}`,
           )
         }
 
@@ -1928,16 +1881,15 @@ module Object2 = {
           Stdlib.Function.make4(
             ~ctxVarName1=Var.serializeFnsByInstructionIdx,
             ~ctxVarValue1=serializeFnsByInstructionIdx,
-            ~ctxVarName2=Var.serializeDiscriminantValuesByInlinedPathIdx,
-            ~ctxVarValue2=serializeDiscriminantValuesByInlinedPathIdx,
+            ~ctxVarName2=Var.constantInstructions,
+            ~ctxVarValue2=constantInstructions,
             ~ctxVarName3=Var.raiseDiscriminantError,
-            ~ctxVarValue3=(~inlinedPathIdx, ~received) => {
+            ~ctxVarValue3=(~instructionIdx, ~received) => {
+              let {value, path} = constantInstructions->Js.Array2.unsafe_get(instructionIdx)
               Error.Internal.UnexpectedValue.raise(
-                ~expected=serializeDiscriminantValuesByInlinedPathIdx->Js.Dict.unsafeGet(
-                  inlinedPathIdx,
-                ),
+                ~expected=value,
                 ~received,
-                ~initialPath=pathesByInlinedPathIdx->Js.Dict.unsafeGet(inlinedPathIdx),
+                ~initialPath=path,
                 (),
               )
             },
@@ -1973,7 +1925,16 @@ module Object2 = {
         ~path=Path.empty(),
         ~inlinedPath=Path.Inlined.empty(),
       )
-      defenitionCtx->Instructions.fromReadyDefenitionCtx
+
+      let originalFieldNamesCount = defenitionCtx.originalFieldNames->Js.Array2.length
+      if defenitionCtx.registeredFieldsCount > originalFieldNamesCount {
+        Error.panic("The object defention has more registered fields than expected.")
+      }
+      if defenitionCtx.registeredFieldsCount < originalFieldNamesCount {
+        Error.panic("The object defention contains fields that weren't registered.")
+      }
+
+      defenitionCtx
     }
     make(
       ~name="Object",
@@ -2004,6 +1965,7 @@ module Object2 = {
       Discriminant({
         fieldStruct,
         originalFieldName,
+        inlinedOriginalFieldName: originalFieldName->Stdlib.Inlined.Value.fromString,
       }),
     )
     ->ignore

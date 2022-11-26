@@ -372,23 +372,31 @@ test("Successfully serializes object with optional fields", t => {
   )
 })
 
-test("Successfully parses object with optional fields using (?)", t => {
-  let optionsStruct = S.object(o => {
-    let fastField = o->S.field("fast", S.option(S.bool()))
-    {
-      fast: ?fastField,
-      mode: o->S.field("mode", S.int()),
-    }
-  })
+test(
+  "Successfully parses object with optional fields using (?). The optinal field becomes undefined instead of beeing missing",
+  t => {
+    let optionsStruct = S.object(o => {
+      {
+        fast: ?o->S.field("fast", S.option(S.bool())),
+        mode: o->S.field("mode", S.int()),
+      }
+    })
 
-  t->Assert.deepEqual(%raw(`{mode: 1}`)->S.parseWith(optionsStruct), Ok({mode: 1}), ())
-})
+    t->Assert.deepEqual(
+      %raw(`{mode: 1}`)->S.parseWith(optionsStruct),
+      Ok({
+        fast: %raw("undefined"),
+        mode: 1,
+      }),
+      (),
+    )
+  },
+)
 
 test("Successfully serializes object with optional fields using (?)", t => {
   let optionsStruct = S.object(o => {
-    let fastField = o->S.field("fast", S.option(S.bool()))
     {
-      fast: ?fastField,
+      fast: ?o->S.field("fast", S.option(S.bool())),
       mode: o->S.field("mode", S.int()),
     }
   })
