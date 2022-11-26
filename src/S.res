@@ -1293,164 +1293,6 @@ module Object = {
       struct->Metadata.get(~id=metadataId)->Stdlib.Option.getWithDefault(Strip)
   }
 
-  let getMaybeExcessKey: (
-    . unknown,
-    Js.Dict.t<t<unknown>>,
-  ) => option<string> = %raw(`function(object, innerStructsDict) {
-    for (var key in object) {
-      if (!Object.prototype.hasOwnProperty.call(innerStructsDict, key)) {
-        return key
-      }
-    }
-  }`)
-
-  let factory = (
-    () => {
-      let fieldsArray = Stdlib.Fn.getArguments()
-      let fields = fieldsArray->Js.Dict.fromArray
-      let fieldNames = fields->Js.Dict.keys
-
-      make(
-        ~name="Object",
-        ~tagged=Object({fields, fieldNames}),
-        ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
-          let unknownKeys = struct->UnknownKeys.classify
-
-          let noopOps = []
-          let syncOps = []
-          let asyncOps = []
-          for idx in 0 to fieldNames->Js.Array2.length - 1 {
-            let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-            let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-            switch fieldStruct.parse {
-            | NoOperation => noopOps->Js.Array2.push((idx, fieldName))->ignore
-            | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fieldName, fn))->ignore
-            | AsyncOperation(fn) => {
-                syncOps->Js.Array2.push((idx, fieldName, fn->Obj.magic))->ignore
-                asyncOps->Js.Array2.push((idx, fieldName))->ignore
-              }
-            }
-          }
-          let withAsyncOps = asyncOps->Js.Array2.length > 0
-
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            if input->Stdlib.Object.test === false {
-              raiseUnexpectedTypeError(~input, ~struct)
-            }
-
-            let newArray = []
-
-            for idx in 0 to syncOps->Js.Array2.length - 1 {
-              let (originalIdx, fieldName, fn) = syncOps->Js.Array2.unsafe_get(idx)
-              let fieldData = input->Js.Dict.unsafeGet(fieldName)
-              try {
-                let value = fn(. fieldData)
-                newArray->Stdlib.Array.set(originalIdx, value)
-              } catch {
-              | Error.Internal.Exception(internalError) =>
-                raise(
-                  Error.Internal.Exception(
-                    internalError->Error.Internal.prependLocation(fieldName),
-                  ),
-                )
-              }
-            }
-
-            for idx in 0 to noopOps->Js.Array2.length - 1 {
-              let (originalIdx, fieldName) = noopOps->Js.Array2.unsafe_get(idx)
-              let fieldData = input->Js.Dict.unsafeGet(fieldName)
-              newArray->Stdlib.Array.set(originalIdx, fieldData)
-            }
-
-            if unknownKeys === UnknownKeys.Strict {
-              switch getMaybeExcessKey(. input->castAnyToUnknown, fields) {
-              | Some(excessKey) => Error.Internal.raise(ExcessField(excessKey))
-              | None => ()
-              }
-            }
-
-            withAsyncOps ? newArray->castAnyToUnknown : newArray->Stdlib.Array.toTuple
-          })
-
-          if withAsyncOps {
-            ctx->TransformationFactory.Ctx.planAsyncTransformation(tempArray => {
-              asyncOps
-              ->Js.Array2.map(
-                ((originalIdx, fieldName)) => {
-                  (
-                    tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
-                  )(.)->Stdlib.Promise.catch(
-                    exn => {
-                      switch exn {
-                      | Error.Internal.Exception(internalError) =>
-                        Error.Internal.Exception(
-                          internalError->Error.Internal.prependLocation(fieldName),
-                        )
-                      | _ => exn
-                      }->raise
-                    },
-                  )
-                },
-              )
-              ->Stdlib.Promise.all
-              ->Stdlib.Promise.thenResolve(
-                asyncFieldValues => {
-                  asyncFieldValues->Js.Array2.forEachi(
-                    (fieldValue, idx) => {
-                      let (originalIdx, _) = asyncOps->Js.Array2.unsafe_get(idx)
-                      tempArray->castUnknownToAny->Stdlib.Array.set(originalIdx, fieldValue)
-                    },
-                  )
-                  tempArray
-                },
-              )
-            })
-          }
-        }),
-        ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            let unknown = Js.Dict.empty()
-            let fieldValues =
-              fieldNames->Js.Array2.length <= 1 ? [input]->Obj.magic : input->Obj.magic
-            for idx in 0 to fieldNames->Js.Array2.length - 1 {
-              let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-              let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-              let fieldValue = fieldValues->Js.Array2.unsafe_get(idx)
-              switch fieldStruct.serialize {
-              | NoOperation => unknown->Js.Dict.set(fieldName, fieldValue)
-              | SyncOperation(fn) =>
-                try {
-                  let fieldData = fn(. fieldValue)
-                  unknown->Js.Dict.set(fieldName, fieldData)
-                } catch {
-                | Error.Internal.Exception(internalError) =>
-                  raise(
-                    Error.Internal.Exception(
-                      internalError->Error.Internal.prependLocation(fieldName),
-                    ),
-                  )
-                }
-              | AsyncOperation(_) => Error.Unreachable.panic()
-              }
-            }
-            unknown
-          })
-        ),
-        (),
-      )
-    }
-  )->Obj.magic
-
-  let strip = struct => {
-    struct->Metadata.set(~id=UnknownKeys.metadataId, ~metadata=UnknownKeys.Strip)
-  }
-
-  let strict = struct => {
-    struct->Metadata.set(~id=UnknownKeys.metadataId, ~metadata=UnknownKeys.Strict)
-  }
-}
-
-module Object2 = {
   module FieldDefenition = {
     type t
 
@@ -1618,8 +1460,7 @@ module Object2 = {
           constantInstructions,
         } = instructions
 
-        let withUnknownKeysRefinement =
-          struct->Object.UnknownKeys.classify === Object.UnknownKeys.Strict
+        let withUnknownKeysRefinement = struct->UnknownKeys.classify === UnknownKeys.Strict
 
         let definedAsyncFieldInstructions = []
         let parseFnsByInstructionIdx = Js.Dict.empty()
@@ -2108,6 +1949,14 @@ module Object2 = {
     )
     ->ignore
     ()
+  }
+
+  let strip = struct => {
+    struct->Metadata.set(~id=UnknownKeys.metadataId, ~metadata=UnknownKeys.Strip)
+  }
+
+  let strict = struct => {
+    struct->Metadata.set(~id=UnknownKeys.metadataId, ~metadata=UnknownKeys.Strict)
   }
 
   type defenitionCtx = DefenitionCtx.t
@@ -3103,20 +2952,9 @@ module Result = {
   }
 }
 
-let object = Object2.factory
-let field = Object2.field
-let discriminant = Object2.discriminant
-let object0 = Object.factory
-let object1 = Object.factory
-let object2 = Object.factory
-let object3 = Object.factory
-let object4 = Object.factory
-let object5 = Object.factory
-let object6 = Object.factory
-let object7 = Object.factory
-let object8 = Object.factory
-let object9 = Object.factory
-let object10 = Object.factory
+let object = Object.factory
+let field = Object.field
+let discriminant = Object.discriminant
 let never = Never.factory
 let unknown = Unknown.factory
 let string = String.factory

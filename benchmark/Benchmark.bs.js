@@ -37,132 +37,6 @@ function makeTestObject() {
 }
 
 function makeAdvancedObjectStruct() {
-  return S.transform(S.object7([
-                  "number",
-                  S.$$float(undefined)
-                ], [
-                  "negNumber",
-                  S.$$float(undefined)
-                ], [
-                  "maxNumber",
-                  S.$$float(undefined)
-                ], [
-                  "string",
-                  S.string(undefined)
-                ], [
-                  "longString",
-                  S.string(undefined)
-                ], [
-                  "boolean",
-                  S.bool(undefined)
-                ], [
-                  "deeplyNested",
-                  S.object3([
-                        "foo",
-                        S.string(undefined)
-                      ], [
-                        "num",
-                        S.$$float(undefined)
-                      ], [
-                        "bool",
-                        S.bool(undefined)
-                      ])
-                ]), (function (param) {
-                var match = param[6];
-                return {
-                        number: param[0],
-                        negNumber: param[1],
-                        maxNumber: param[2],
-                        string: param[3],
-                        longString: param[4],
-                        boolean: param[5],
-                        deeplyNested: {
-                          foo: match[0],
-                          num: match[1],
-                          bool: match[2]
-                        }
-                      };
-              }), (function (object) {
-                return [
-                        object.number,
-                        object.negNumber,
-                        object.maxNumber,
-                        object.string,
-                        object.longString,
-                        object.boolean,
-                        [
-                          object.deeplyNested.foo,
-                          object.deeplyNested.num,
-                          object.deeplyNested.bool
-                        ]
-                      ];
-              }), undefined);
-}
-
-function makeAdvancedStrictObjectStruct(param) {
-  return S.$$Object.strict(S.transform(S.object7([
-                      "number",
-                      S.$$float(undefined)
-                    ], [
-                      "negNumber",
-                      S.$$float(undefined)
-                    ], [
-                      "maxNumber",
-                      S.$$float(undefined)
-                    ], [
-                      "string",
-                      S.string(undefined)
-                    ], [
-                      "longString",
-                      S.string(undefined)
-                    ], [
-                      "boolean",
-                      S.bool(undefined)
-                    ], [
-                      "deeplyNested",
-                      S.$$Object.strict(S.object3([
-                                "foo",
-                                S.string(undefined)
-                              ], [
-                                "num",
-                                S.$$float(undefined)
-                              ], [
-                                "bool",
-                                S.bool(undefined)
-                              ]))
-                    ]), (function (param) {
-                    var match = param[6];
-                    return {
-                            number: param[0],
-                            negNumber: param[1],
-                            maxNumber: param[2],
-                            string: param[3],
-                            longString: param[4],
-                            boolean: param[5],
-                            deeplyNested: {
-                              foo: match[0],
-                              num: match[1],
-                              bool: match[2]
-                            }
-                          };
-                  }), (function (object) {
-                    return [
-                            object.number,
-                            object.negNumber,
-                            object.maxNumber,
-                            object.string,
-                            object.longString,
-                            object.boolean,
-                            [
-                              object.deeplyNested.foo,
-                              object.deeplyNested.num,
-                              object.deeplyNested.bool
-                            ]
-                          ];
-                  }), undefined));
-}
-
-function makeAdvancedObjectStructV3() {
   return S.object(function (o) {
               return {
                       number: S.field(o, "number", S.$$float(undefined)),
@@ -182,7 +56,7 @@ function makeAdvancedObjectStructV3() {
             });
 }
 
-function makeAdvancedStrictObjectStructV3() {
+function makeAdvancedStrictObjectStruct() {
   return S.$$Object.strict(S.object(function (o) {
                   return {
                           number: S.field(o, "number", S.$$float(undefined)),
@@ -202,51 +76,33 @@ function makeAdvancedStrictObjectStructV3() {
                 }));
 }
 
-run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new Benchmark.Suite().add("String struct factory", makeStringStruct), "Parse string", (function (param) {
-                                            var struct = makeStringStruct();
-                                            return function () {
-                                              return S.parseWith("Hello world!", struct);
-                                            };
-                                          })), "Serialize string", (function (param) {
-                                        var struct = makeStringStruct();
-                                        return function () {
-                                          return S.serializeWith("Hello world!", struct);
-                                        };
-                                      })).add("Advanced object struct factory", makeAdvancedObjectStruct).add("Advanced object struct factory V3", makeAdvancedObjectStructV3), "Parse advanced object", (function (param) {
-                                var struct = makeAdvancedObjectStruct();
-                                var data = makeTestObject();
-                                return function () {
-                                  return S.parseWith(data, struct);
-                                };
-                              })), "Parse advanced object V3", (function (param) {
-                            var struct = makeAdvancedObjectStructV3();
-                            var data = makeTestObject();
-                            return function () {
-                              return S.parseWith(data, struct);
-                            };
-                          })), "Parse advanced strict object", (function (param) {
-                        var struct = makeAdvancedStrictObjectStruct(undefined);
-                        var data = makeTestObject();
-                        return function () {
-                          return S.parseWith(data, struct);
-                        };
-                      })), "Parse advanced strict object V3", (function (param) {
-                    var struct = makeAdvancedStrictObjectStructV3();
+run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new Benchmark.Suite().add("String struct factory", makeStringStruct), "Parse string", (function (param) {
+                              var struct = makeStringStruct();
+                              return function () {
+                                return S.parseOrRaiseWith("Hello world!", struct);
+                              };
+                            })), "Serialize string", (function (param) {
+                          var struct = makeStringStruct();
+                          return function () {
+                            return S.serializeOrRaiseWith("Hello world!", struct);
+                          };
+                        })).add("Advanced object struct factory", makeAdvancedObjectStruct), "Parse advanced object", (function (param) {
+                    var struct = makeAdvancedObjectStruct();
                     var data = makeTestObject();
                     return function () {
-                      return S.parseWith(data, struct);
+                      return S.parseOrRaiseWith(data, struct);
                     };
-                  })), "Serialize advanced object", (function (param) {
-                var struct = makeAdvancedObjectStruct();
+                  })), "Parse advanced strict object", (function (param) {
+                var struct = makeAdvancedStrictObjectStruct();
                 var data = makeTestObject();
                 return function () {
-                  return S.serializeWith(data, struct);
+                  return S.parseOrRaiseWith(data, struct);
                 };
-              })), "Serialize advanced object V3", (function (param) {
-            var struct = makeAdvancedStrictObjectStructV3();
+              })), "Serialize advanced object", (function (param) {
+            var struct = makeAdvancedObjectStruct();
             var data = makeTestObject();
             return function () {
-              return S.serializeWith(data, struct);
+              return S.serializeOrRaiseWith(data, struct);
             };
           })));
 

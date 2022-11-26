@@ -56,99 +56,6 @@ let makeTestObject = (. ()) => {
 }
 
 let makeAdvancedObjectStruct = (. ()) => {
-  S.object7(.
-    ("number", S.float()),
-    ("negNumber", S.float()),
-    ("maxNumber", S.float()),
-    ("string", S.string()),
-    ("longString", S.string()),
-    ("boolean", S.bool()),
-    ("deeplyNested", S.object3(. ("foo", S.string()), ("num", S.float()), ("bool", S.bool()))),
-  )->S.transform(
-    ~parser=((number, negNumber, maxNumber, string, longString, boolean, (foo, num, bool))) => {
-      {
-        "number": number,
-        "negNumber": negNumber,
-        "maxNumber": maxNumber,
-        "string": string,
-        "longString": longString,
-        "boolean": boolean,
-        "deeplyNested": {
-          "foo": foo,
-          "num": num,
-          "bool": bool,
-        },
-      }
-    },
-    ~serializer=object => {
-      (
-        object["number"],
-        object["negNumber"],
-        object["maxNumber"],
-        object["string"],
-        object["longString"],
-        object["boolean"],
-        (
-          object["deeplyNested"]["foo"],
-          object["deeplyNested"]["num"],
-          object["deeplyNested"]["bool"],
-        ),
-      )
-    },
-    (),
-  )
-}
-
-let makeAdvancedStrictObjectStruct = () => {
-  S.object7(.
-    ("number", S.float()),
-    ("negNumber", S.float()),
-    ("maxNumber", S.float()),
-    ("string", S.string()),
-    ("longString", S.string()),
-    ("boolean", S.bool()),
-    (
-      "deeplyNested",
-      S.object3(. ("foo", S.string()), ("num", S.float()), ("bool", S.bool()))->S.Object.strict,
-    ),
-  )
-  ->S.transform(
-    ~parser=((number, negNumber, maxNumber, string, longString, boolean, (foo, num, bool))) => {
-      {
-        "number": number,
-        "negNumber": negNumber,
-        "maxNumber": maxNumber,
-        "string": string,
-        "longString": longString,
-        "boolean": boolean,
-        "deeplyNested": {
-          "foo": foo,
-          "num": num,
-          "bool": bool,
-        },
-      }
-    },
-    ~serializer=object => {
-      (
-        object["number"],
-        object["negNumber"],
-        object["maxNumber"],
-        object["string"],
-        object["longString"],
-        object["boolean"],
-        (
-          object["deeplyNested"]["foo"],
-          object["deeplyNested"]["num"],
-          object["deeplyNested"]["bool"],
-        ),
-      )
-    },
-    (),
-  )
-  ->S.Object.strict
-}
-
-let makeAdvancedObjectStructV3 = (. ()) => {
   S.object(o =>
     {
       "number": o->S.field("number", S.float()),
@@ -171,7 +78,7 @@ let makeAdvancedObjectStructV3 = (. ()) => {
   )
 }
 
-let makeAdvancedStrictObjectStructV3 = (. ()) => {
+let makeAdvancedStrictObjectStruct = (. ()) => {
   S.object(o =>
     {
       "number": o->S.field("number", S.float()),
@@ -200,58 +107,36 @@ Suite.make()
   let struct = makeStringStruct(.)
   let data = "Hello world!"
   (. ()) => {
-    data->S.parseWith(struct)
+    data->S.parseOrRaiseWith(struct)
   }
 })
 ->Suite.addWithPrepare("Serialize string", () => {
   let struct = makeStringStruct(.)
   let data = "Hello world!"
   (. ()) => {
-    data->S.serializeWith(struct)
+    data->S.serializeOrRaiseWith(struct)
   }
 })
 ->Suite.add("Advanced object struct factory", makeAdvancedObjectStruct)
-->Suite.add("Advanced object struct factory V3", makeAdvancedObjectStructV3)
 ->Suite.addWithPrepare("Parse advanced object", () => {
   let struct = makeAdvancedObjectStruct(.)
   let data = makeTestObject(.)
   (. ()) => {
-    data->S.parseWith(struct)
-  }
-})
-->Suite.addWithPrepare("Parse advanced object V3", () => {
-  let struct = makeAdvancedObjectStructV3(.)
-  let data = makeTestObject(.)
-  (. ()) => {
-    data->S.parseWith(struct)
+    data->S.parseOrRaiseWith(struct)
   }
 })
 ->Suite.addWithPrepare("Parse advanced strict object", () => {
-  let struct = makeAdvancedStrictObjectStruct()
+  let struct = makeAdvancedStrictObjectStruct(.)
   let data = makeTestObject(.)
   (. ()) => {
-    data->S.parseWith(struct)
-  }
-})
-->Suite.addWithPrepare("Parse advanced strict object V3", () => {
-  let struct = makeAdvancedStrictObjectStructV3(.)
-  let data = makeTestObject(.)
-  (. ()) => {
-    data->S.parseWith(struct)
+    data->S.parseOrRaiseWith(struct)
   }
 })
 ->Suite.addWithPrepare("Serialize advanced object", () => {
   let struct = makeAdvancedObjectStruct(.)
   let data = makeTestObject(.)
   (. ()) => {
-    data->S.serializeWith(struct)
-  }
-})
-->Suite.addWithPrepare("Serialize advanced object V3", () => {
-  let struct = makeAdvancedStrictObjectStructV3(.)
-  let data = makeTestObject(.)
-  (. ()) => {
-    data->S.serializeWith(struct)
+    data->S.serializeOrRaiseWith(struct)
   }
 })
 ->Suite.run

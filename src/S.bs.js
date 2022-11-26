@@ -815,165 +815,6 @@ function classify$1(struct) {
   }
 }
 
-var getMaybeExcessKey = (function(object, innerStructsDict) {
-    for (var key in object) {
-      if (!Object.prototype.hasOwnProperty.call(innerStructsDict, key)) {
-        return key
-      }
-    }
-  });
-
-function factory$2(param) {
-  var fieldsArray = (Array.from(arguments));
-  var fields = Js_dict.fromArray(fieldsArray);
-  var fieldNames = Object.keys(fields);
-  return make("Object", {
-              TAG: /* Object */4,
-              fields: fields,
-              fieldNames: fieldNames
-            }, (function (ctx, struct) {
-                var unknownKeys = classify$1(struct);
-                var noopOps = [];
-                var syncOps = [];
-                var asyncOps = [];
-                for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-                  var fieldName = fieldNames[idx];
-                  var fieldStruct = fields[fieldName];
-                  var fn = fieldStruct.p;
-                  if (typeof fn === "number") {
-                    noopOps.push([
-                          idx,
-                          fieldName
-                        ]);
-                  } else if (fn.TAG === /* SyncOperation */0) {
-                    syncOps.push([
-                          idx,
-                          fieldName,
-                          fn._0
-                        ]);
-                  } else {
-                    syncOps.push([
-                          idx,
-                          fieldName,
-                          fn._0
-                        ]);
-                    asyncOps.push([
-                          idx,
-                          fieldName
-                        ]);
-                  }
-                }
-                var withAsyncOps = asyncOps.length > 0;
-                planSyncTransformation(ctx, (function (input) {
-                        if ((typeof input === "object" && input !== null && !Array.isArray(input)) === false) {
-                          raiseUnexpectedTypeError(input, struct);
-                        }
-                        var newArray = [];
-                        for(var idx = 0 ,idx_finish = syncOps.length; idx < idx_finish; ++idx){
-                          var match = syncOps[idx];
-                          var fieldName = match[1];
-                          var fieldData = input[fieldName];
-                          try {
-                            var value = match[2](fieldData);
-                            newArray[match[0]] = value;
-                          }
-                          catch (raw_internalError){
-                            var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                            if (internalError.RE_EXN_ID === Exception) {
-                              throw {
-                                    RE_EXN_ID: Exception,
-                                    _1: prependLocation(internalError._1, fieldName),
-                                    Error: new Error()
-                                  };
-                            }
-                            throw internalError;
-                          }
-                        }
-                        for(var idx$1 = 0 ,idx_finish$1 = noopOps.length; idx$1 < idx_finish$1; ++idx$1){
-                          var match$1 = noopOps[idx$1];
-                          var fieldData$1 = input[match$1[1]];
-                          newArray[match$1[0]] = fieldData$1;
-                        }
-                        if (unknownKeys === /* Strict */0) {
-                          var excessKey = getMaybeExcessKey(input, fields);
-                          if (excessKey !== undefined) {
-                            raise$1({
-                                  TAG: /* ExcessField */4,
-                                  _0: excessKey
-                                });
-                          }
-                          
-                        }
-                        if (withAsyncOps || newArray.length > 1) {
-                          return newArray;
-                        } else {
-                          return newArray[0];
-                        }
-                      }));
-                if (withAsyncOps) {
-                  return planAsyncTransformation(ctx, (function (tempArray) {
-                                return Promise.all(asyncOps.map(function (param) {
-                                                  var fieldName = param[1];
-                                                  return tempArray[param[0]]().catch(function (exn) {
-                                                              throw exn.RE_EXN_ID === Exception ? ({
-                                                                        RE_EXN_ID: Exception,
-                                                                        _1: prependLocation(exn._1, fieldName)
-                                                                      }) : exn;
-                                                            });
-                                                })).then(function (asyncFieldValues) {
-                                            asyncFieldValues.forEach(function (fieldValue, idx) {
-                                                  var match = asyncOps[idx];
-                                                  tempArray[match[0]] = fieldValue;
-                                                });
-                                            return tempArray;
-                                          });
-                              }));
-                }
-                
-              }), (function (ctx, param) {
-                planSyncTransformation(ctx, (function (input) {
-                        var unknown = {};
-                        var fieldValues = fieldNames.length <= 1 ? [input] : input;
-                        for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-                          var fieldName = fieldNames[idx];
-                          var fieldStruct = fields[fieldName];
-                          var fieldValue = fieldValues[idx];
-                          var fn = fieldStruct.s;
-                          if (typeof fn === "number") {
-                            unknown[fieldName] = fieldValue;
-                          } else if (fn.TAG === /* SyncOperation */0) {
-                            try {
-                              var fieldData = fn._0(fieldValue);
-                              unknown[fieldName] = fieldData;
-                            }
-                            catch (raw_internalError){
-                              var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                              if (internalError.RE_EXN_ID === Exception) {
-                                throw {
-                                      RE_EXN_ID: Exception,
-                                      _1: prependLocation(internalError._1, fieldName),
-                                      Error: new Error()
-                                    };
-                              }
-                              throw internalError;
-                            }
-                          } else {
-                            panic$1(undefined);
-                          }
-                        }
-                        return unknown;
-                      }));
-              }), undefined, undefined, undefined);
-}
-
-function strip(struct) {
-  return set(struct, metadataId, /* Strip */1);
-}
-
-function strict(struct) {
-  return set(struct, metadataId, /* Strict */0);
-}
-
 var value = (Symbol("rescript-struct:Object.FieldDefenition"));
 
 function analyzeDefenitionSlice(defenitionCtx, defenitionSlice, path, inlinedPath) {
@@ -1055,7 +896,7 @@ function structToInlinedValue(_struct, inlinedOriginalFieldName) {
   };
 }
 
-function factory$3(defenition) {
+function factory$2(defenition) {
   var defenitionCtx = {
     originalFieldNames: undefined,
     originalFields: {},
@@ -1295,7 +1136,15 @@ function discriminant(defenitionCtx, originalFieldName, struct) {
       });
 }
 
-function factory$4(param) {
+function strip(struct) {
+  return set(struct, metadataId, /* Strip */1);
+}
+
+function strict(struct) {
+  return set(struct, metadataId, /* Strict */0);
+}
+
+function factory$3(param) {
   var transformationFactory = function (ctx, struct) {
     planSyncTransformation(ctx, (function (input) {
             return raiseUnexpectedTypeError(input, struct);
@@ -1304,7 +1153,7 @@ function factory$4(param) {
   return make("Never", /* Never */0, transformationFactory, transformationFactory, "false", undefined, undefined);
 }
 
-function factory$5(param) {
+function factory$4(param) {
   return make("Unknown", /* Unknown */1, empty, empty, undefined, undefined, undefined);
 }
 
@@ -1314,7 +1163,7 @@ var uuidRegex = /^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]
 
 var emailRegex = /^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i;
 
-function factory$6(param) {
+function factory$5(param) {
   return make("String", /* String */2, (function (ctx, struct) {
                 planSyncTransformation(ctx, (function (input) {
                         if (typeof input === "string") {
@@ -1430,7 +1279,7 @@ function trimmed(struct, param) {
   return transform(struct, transformer, transformer, undefined);
 }
 
-function factory$7(innerStruct) {
+function factory$6(innerStruct) {
   return make("Json", /* String */2, (function (ctx, struct) {
                 var fn = innerStruct.p;
                 var $$process = typeof fn === "number" ? (function (prim) {
@@ -1475,7 +1324,7 @@ function factory$7(innerStruct) {
               }), undefined, undefined, undefined);
 }
 
-function factory$8(param) {
+function factory$7(param) {
   return make("Bool", /* Bool */5, (function (ctx, struct) {
                 planSyncTransformation(ctx, (function (input) {
                         if (typeof input === "boolean") {
@@ -1487,7 +1336,7 @@ function factory$8(param) {
               }), empty, "typeof v===\"boolean\"", undefined, undefined);
 }
 
-function factory$9(param) {
+function factory$8(param) {
   return make("Int", /* Int */3, (function (ctx, struct) {
                 planSyncTransformation(ctx, (function (input) {
                         if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input % 1 === 0) {
@@ -1532,7 +1381,7 @@ function port(struct, messageOpt, param) {
   return refine(struct, refiner, refiner, undefined);
 }
 
-function factory$10(param) {
+function factory$9(param) {
   return make("Float", /* Float */4, (function (ctx, struct) {
                 planSyncTransformation(ctx, (function (input) {
                         if (typeof input === "number" && !Number.isNaN(input)) {
@@ -1544,7 +1393,7 @@ function factory$10(param) {
               }), empty, "typeof v===\"number\"&&!Number.isNaN(v)", undefined, undefined);
 }
 
-function factory$11(param) {
+function factory$10(param) {
   return make("Date", /* Date */6, (function (ctx, struct) {
                 planSyncTransformation(ctx, (function (input) {
                         if ((input instanceof Date) && !Number.isNaN(input.getTime())) {
@@ -1556,7 +1405,7 @@ function factory$11(param) {
               }), empty, "v instanceof Date&&!Number.isNaN(v.getTime())", undefined, undefined);
 }
 
-function factory$12(innerStruct) {
+function factory$11(innerStruct) {
   return make("Null", {
               TAG: /* Null */2,
               _0: innerStruct
@@ -1610,7 +1459,7 @@ function factory$12(innerStruct) {
               }), undefined, undefined, undefined);
 }
 
-function factory$13(innerStruct) {
+function factory$12(innerStruct) {
   return make("Option", {
               TAG: /* Option */1,
               _0: innerStruct
@@ -1660,8 +1509,8 @@ function factory$13(innerStruct) {
 
 var metadataId$1 = "rescript-struct:Deprecated";
 
-function factory$14(innerStruct, maybeMessage, param) {
-  return set(factory$13(innerStruct), metadataId$1, maybeMessage !== undefined ? /* WithMessage */({
+function factory$13(innerStruct, maybeMessage, param) {
+  return set(factory$12(innerStruct), metadataId$1, maybeMessage !== undefined ? /* WithMessage */({
                   _0: maybeMessage
                 }) : /* WithoutMessage */0);
 }
@@ -1670,7 +1519,7 @@ function classify$2(struct) {
   return get(struct, metadataId$1);
 }
 
-function factory$15(innerStruct) {
+function factory$14(innerStruct) {
   return make("Array", {
               TAG: /* Array */3,
               _0: innerStruct
@@ -1791,7 +1640,7 @@ function length$1(struct, maybeMessage, length$2) {
   return refine(struct, refiner, refiner, undefined);
 }
 
-function factory$16(innerStruct) {
+function factory$15(innerStruct) {
   return make("Dict", {
               TAG: /* Dict */7,
               _0: innerStruct
@@ -1907,7 +1756,7 @@ function factory$16(innerStruct) {
 
 var metadataId$2 = "rescript-struct:Defaulted";
 
-function factory$17(innerStruct, defaultValue) {
+function factory$16(innerStruct, defaultValue) {
   return set(make(innerStruct.n, innerStruct.t, (function (ctx, param) {
                     var fn = innerStruct.p;
                     if (typeof fn === "number") {
@@ -1961,7 +1810,7 @@ function classify$3(struct) {
   return get(struct, metadataId$2);
 }
 
-function factory$18(param) {
+function factory$17(param) {
   var structs = (Array.from(arguments));
   var numberOfStructs = structs.length;
   return make("Tuple", {
@@ -2101,12 +1950,12 @@ function factory$18(param) {
 }
 
 var Tuple = {
-  factory: factory$18
+  factory: factory$17
 };
 
 var HackyValidValue = /* @__PURE__ */Caml_exceptions.create("S.Union.HackyValidValue");
 
-function factory$19(structs) {
+function factory$18(structs) {
   if (structs.length < 2) {
     throw new Error("[rescript-struct] A Union struct factory require at least two structs");
   }
@@ -2306,39 +2155,39 @@ var $$Error$1 = {
   toString: toString
 };
 
-var never = factory$4;
+var never = factory$3;
 
-var unknown = factory$5;
+var unknown = factory$4;
 
-var string = factory$6;
+var string = factory$5;
 
-var bool = factory$8;
+var bool = factory$7;
 
-var $$int = factory$9;
+var $$int = factory$8;
 
-var $$float = factory$10;
+var $$float = factory$9;
 
-var date = factory$11;
+var date = factory$10;
 
 var literal = factory$1;
 
 var literalVariant = factory;
 
-var array = factory$15;
+var array = factory$14;
 
-var dict = factory$16;
+var dict = factory$15;
 
-var option = factory$13;
+var option = factory$12;
 
-var $$null = factory$12;
+var $$null = factory$11;
 
-var json = factory$7;
+var json = factory$6;
 
-var union = factory$19;
+var union = factory$18;
 
-var deprecated = factory$14;
+var deprecated = factory$13;
 
-var defaulted = factory$17;
+var defaulted = factory$16;
 
 var Object_UnknownKeys = {
   classify: classify$1
@@ -2346,58 +2195,33 @@ var Object_UnknownKeys = {
 
 var $$Object = {
   UnknownKeys: Object_UnknownKeys,
-  factory: factory$2,
   strip: strip,
   strict: strict
 };
 
-var Object2 = {};
+var object = factory$2;
 
-var object = factory$3;
+var tuple0 = factory$17;
 
-var object0 = factory$2;
+var tuple1 = factory$17;
 
-var object1 = factory$2;
+var tuple2 = factory$17;
 
-var object2 = factory$2;
+var tuple3 = factory$17;
 
-var object3 = factory$2;
+var tuple4 = factory$17;
 
-var object4 = factory$2;
+var tuple5 = factory$17;
 
-var object5 = factory$2;
+var tuple6 = factory$17;
 
-var object6 = factory$2;
+var tuple7 = factory$17;
 
-var object7 = factory$2;
+var tuple8 = factory$17;
 
-var object8 = factory$2;
+var tuple9 = factory$17;
 
-var object9 = factory$2;
-
-var object10 = factory$2;
-
-var tuple0 = factory$18;
-
-var tuple1 = factory$18;
-
-var tuple2 = factory$18;
-
-var tuple3 = factory$18;
-
-var tuple4 = factory$18;
-
-var tuple5 = factory$18;
-
-var tuple6 = factory$18;
-
-var tuple7 = factory$18;
-
-var tuple8 = factory$18;
-
-var tuple9 = factory$18;
-
-var tuple10 = factory$18;
+var tuple10 = factory$17;
 
 var $$String = {
   min: min,
@@ -2475,21 +2299,9 @@ exports.serializeWith = serializeWith;
 exports.serializeOrRaiseWith = serializeOrRaiseWith;
 exports.isAsyncParse = isAsyncParse;
 exports.$$Object = $$Object;
-exports.Object2 = Object2;
 exports.object = object;
 exports.field = field;
 exports.discriminant = discriminant;
-exports.object0 = object0;
-exports.object1 = object1;
-exports.object2 = object2;
-exports.object3 = object3;
-exports.object4 = object4;
-exports.object5 = object5;
-exports.object6 = object6;
-exports.object7 = object7;
-exports.object8 = object8;
-exports.object9 = object9;
-exports.object10 = object10;
 exports.Tuple = Tuple;
 exports.tuple0 = tuple0;
 exports.tuple1 = tuple1;
