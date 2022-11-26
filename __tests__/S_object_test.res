@@ -59,6 +59,70 @@ test("Fails to parse object with inlinable bool field", t => {
   )
 })
 
+test("Successfully parses object with inlinable date field", t => {
+  let struct = S.object(o =>
+    {
+      "field": o->S.field("field", S.date()),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{field: new Date("2015-12-12")}`)->S.parseWith(struct),
+    Ok({"field": Js.Date.fromString("2015-12-12")}),
+    (),
+  )
+})
+
+test("Fails to parse object with inlinable date field", t => {
+  let struct = S.object(o =>
+    {
+      "field": o->S.field("field", S.date()),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{field: 123}`)->S.parseWith(struct),
+    Error({
+      code: UnexpectedType({expected: "Date", received: "Float"}),
+      operation: Parsing,
+      path: ["field"],
+    }),
+    (),
+  )
+})
+
+test("Successfully parses object with inlinable unknown field", t => {
+  let struct = S.object(o =>
+    {
+      "field": o->S.field("field", S.unknown()),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{field: new Date("2015-12-12")}`)->S.parseWith(struct),
+    Ok(%raw(`{field: new Date("2015-12-12")}`)),
+    (),
+  )
+})
+
+test("Fails to parse object with inlinable never field", t => {
+  let struct = S.object(o =>
+    {
+      "field": o->S.field("field", S.never()),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{field: true}`)->S.parseWith(struct),
+    Error({
+      code: UnexpectedType({expected: "Never", received: "Bool"}),
+      operation: Parsing,
+      path: ["field"],
+    }),
+    (),
+  )
+})
+
 test("Successfully parses object with inlinable float field", t => {
   let struct = S.object(o =>
     {

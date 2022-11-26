@@ -1254,11 +1254,11 @@ function factory$4(param) {
             return raiseUnexpectedTypeError(input, struct);
           }));
   };
-  return make("Never", /* Never */0, transformationFactory, transformationFactory, undefined, undefined, undefined);
+  return make("Never", /* Never */0, transformationFactory, transformationFactory, "false", undefined, undefined);
 }
 
 function factory$5(param) {
-  return make("Unknown", /* Unknown */1, empty, empty, undefined, undefined, undefined);
+  return make("Unknown", /* Unknown */1, empty, empty, "true", undefined, undefined);
 }
 
 var cuidRegex = /^c[^\s-]{8,}$/i;
@@ -1506,7 +1506,7 @@ function factory$11(param) {
                           return raiseUnexpectedTypeError(input, struct);
                         }
                       }));
-              }), empty, undefined, undefined, undefined);
+              }), empty, "v instanceof Date&&!Number.isNaN(v.getTime())", undefined, undefined);
 }
 
 function factory$12(innerStruct) {

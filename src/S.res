@@ -1986,6 +1986,7 @@ module Never = {
     make(
       ~name=`Never`,
       ~tagged=Never,
+      ~inlinedRefinement="false",
       ~parseTransformationFactory=transformationFactory,
       ~serializeTransformationFactory=transformationFactory,
       (),
@@ -1998,6 +1999,7 @@ module Unknown = {
     make(
       ~name=`Unknown`,
       ~tagged=Unknown,
+      ~inlinedRefinement="true",
       ~parseTransformationFactory=TransformationFactory.empty,
       ~serializeTransformationFactory=TransformationFactory.empty,
       (),
@@ -2266,6 +2268,7 @@ module Date = {
     make(
       ~name="Date",
       ~tagged=Date,
+      ~inlinedRefinement=`${Stdlib.Inlined.Constant.inputVar} instanceof Date&&!Number.isNaN(${Stdlib.Inlined.Constant.inputVar}.getTime())`,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           if %raw(`input instanceof Date`) && input->Js.Date.getTime->Js.Float.isNaN->not {
