@@ -139,7 +139,7 @@ The exception-based version of `parseWith`.
 
 #### **`S.parseAsyncWith`**
 
-`('any, S.t<'value>) => Js.Promise.t<result<'value, S.Error.t>>`
+`('any, S.t<'value>) => promise<result<'value, S.Error.t>>`
 
 ```rescript
 data->S.parseAsyncWith(userStruct)
@@ -149,7 +149,7 @@ If you use asynchronous refinements or transforms (more on those later), you'll 
 
 #### **`S.parseAsyncInStepsWith`** _Advanced_
 
-`('any, S.t<'value>) => result<unit => Js.Promise.t<result<'value, S.Error.t>>, S.Error.t>`
+`('any, S.t<'value>) => result<(. unit) => promise<result<'value, S.Error.t>>, S.Error.t>`
 
 ```rescript
 data->S.parseAsyncInStepsWith(userStruct)
@@ -803,7 +803,7 @@ let shortStringStruct = S.string()->S.refine(~parser=value =>
 
 #### **`S.asyncRefine`**
 
-`(S.t<'value>, ~parser: 'value => Js.Promise.t<unit>, unit) => S.t<'value>`
+`(S.t<'value>, ~parser: 'value => promise<unit>, unit) => S.t<'value>`
 
 ```rescript
 let userIdStruct = S.string()->S.asyncRefine(~parser=string =>
@@ -842,7 +842,7 @@ let intToString = struct =>
 
 #### **`S.advancedTransform`** _Advanced_
 
-`type transformation<'input, 'output> = Sync('input => 'output) | Async('input => Js.Promise.t<'output>)`
+`type transformation<'input, 'output> = Sync('input => 'output) | Async('input => promise<'output>)`
 
 `(S.t<'value>, ~parser: (~struct: S.t<'value>) => S.transformation<'value, 'transformed>=?, ~serializer: (~struct: S.t<'value>) => S.transformation<'transformed, 'value>=?, unit) => S.t<'transformed>`
 

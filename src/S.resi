@@ -48,7 +48,7 @@ type taggedLiteral =
 
 type transformation<'input, 'output> =
   | Sync('input => 'output)
-  | Async('input => Js.Promise.t<'output>)
+  | Async('input => promise<'output>)
 
 type rec t<'value>
 and tagged =
@@ -116,18 +116,18 @@ let custom: (
 
 let refine: (t<'value>, ~parser: 'value => unit=?, ~serializer: 'value => unit=?, unit) => t<'value>
 
-let asyncRefine: (t<'value>, ~parser: 'value => Js.Promise.t<unit>, unit) => t<'value>
+let asyncRefine: (t<'value>, ~parser: 'value => promise<unit>, unit) => t<'value>
 
 let parseWith: ('any, t<'value>) => result<'value, Error.t>
 
 let parseOrRaiseWith: ('any, t<'value>) => 'value
 
-let parseAsyncWith: ('any, t<'value>) => Js.Promise.t<result<'value, Error.t>>
+let parseAsyncWith: ('any, t<'value>) => promise<result<'value, Error.t>>
 
 let parseAsyncInStepsWith: (
   'any,
   t<'value>,
-) => result<unit => Js.Promise.t<result<'value, Error.t>>, Error.t>
+) => result<(. unit) => promise<result<'value, Error.t>>, Error.t>
 
 let serializeWith: ('value, t<'value>) => result<unknown, Error.t>
 

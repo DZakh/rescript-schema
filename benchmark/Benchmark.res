@@ -125,6 +125,13 @@ Suite.make()
     data->S.parseOrRaiseWith(struct)
   }
 })
+->Suite.addWithPrepare("Create and parse advanced object", () => {
+  let data = makeTestObject(.)
+  (. ()) => {
+    let struct = makeAdvancedObjectStruct(.)
+    data->S.parseOrRaiseWith(struct)
+  }
+})
 ->Suite.addWithPrepare("Parse advanced strict object", () => {
   let struct = makeAdvancedStrictObjectStruct(.)
   let data = makeTestObject(.)
