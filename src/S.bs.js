@@ -815,15 +815,15 @@ function classify$1(struct) {
   }
 }
 
-var value = (Symbol("rescript-struct:Object.FieldDefenition"));
+var value = (Symbol("rescript-struct:Object.FieldDefinition"));
 
-function analyzeDefenitionSlice(defenitionCtx, defenitionSlice, path, inlinedPath) {
-  if (defenitionSlice === value) {
-    var originalFieldName = defenitionCtx.originalFieldNames[defenitionCtx.registeredFieldsCount];
-    defenitionCtx.registeredFieldsCount = defenitionCtx.registeredFieldsCount + 1;
-    defenitionCtx.definedFieldInstructions.push({
+function analyzeDefinition(definition, definerCtx, path, inlinedPath) {
+  if (definition === value) {
+    var originalFieldName = definerCtx.originalFieldNames[definerCtx.registeredFieldsCount];
+    definerCtx.registeredFieldsCount = definerCtx.registeredFieldsCount + 1;
+    definerCtx.definedFieldInstructions.push({
           TAG: /* Registered */1,
-          fieldStruct: defenitionCtx.originalFields[originalFieldName],
+          fieldStruct: definerCtx.originalFields[originalFieldName],
           originalFieldName: originalFieldName,
           inlinedOriginalFieldName: JSON.stringify(originalFieldName),
           inlinedPath: inlinedPath,
@@ -831,21 +831,21 @@ function analyzeDefenitionSlice(defenitionCtx, defenitionSlice, path, inlinedPat
         });
     return ;
   }
-  if (typeof defenitionSlice === "object" && defenitionSlice !== null) {
-    defenitionCtx.inlinedPreparationPathes.push(inlinedPath);
-    defenitionCtx.inlinedPreparationValues.push(Array.isArray(defenitionSlice) ? "[]" : "{}");
-    var defenitionSliceFieldNames = Object.keys(defenitionSlice);
-    for(var idx = 0 ,idx_finish = defenitionSliceFieldNames.length; idx < idx_finish; ++idx){
-      var defenitionSliceFieldName = defenitionSliceFieldNames[idx];
-      var nextDefenitionSlice = defenitionSlice[defenitionSliceFieldName];
-      var tmp = path === "" ? defenitionSliceFieldName : "" + path + "," + defenitionSliceFieldName + "";
-      analyzeDefenitionSlice(defenitionCtx, nextDefenitionSlice, tmp, "" + inlinedPath + "[" + JSON.stringify(defenitionSliceFieldName) + "]");
+  if (typeof definition === "object" && definition !== null) {
+    definerCtx.inlinedPreparationPathes.push(inlinedPath);
+    definerCtx.inlinedPreparationValues.push(Array.isArray(definition) ? "[]" : "{}");
+    var definitionFieldNames = Object.keys(definition);
+    for(var idx = 0 ,idx_finish = definitionFieldNames.length; idx < idx_finish; ++idx){
+      var definitionFieldName = definitionFieldNames[idx];
+      var fieldDefinition = definition[definitionFieldName];
+      var tmp = path === "" ? definitionFieldName : "" + path + "," + definitionFieldName + "";
+      analyzeDefinition(fieldDefinition, definerCtx, tmp, "" + inlinedPath + "[" + JSON.stringify(definitionFieldName) + "]");
     }
     return ;
   }
-  defenitionCtx.constantInstructions.push({
+  definerCtx.constantInstructions.push({
         inlinedPath: inlinedPath,
-        v: defenitionSlice,
+        v: definition,
         path: path
       });
 }
@@ -894,8 +894,8 @@ function structToInlinedValue(_struct) {
   };
 }
 
-function factory$2(defenition) {
-  var defenitionCtx = {
+function factory$2(definer) {
+  var definerCtx = {
     originalFieldNames: undefined,
     originalFields: {},
     registeredFieldsCount: 0,
@@ -904,26 +904,26 @@ function factory$2(defenition) {
     definedFieldInstructions: [],
     constantInstructions: []
   };
-  var defenitionSlice = defenition(defenitionCtx);
-  var originalFieldNames = Object.keys(defenitionCtx.originalFields);
-  defenitionCtx.originalFieldNames = originalFieldNames;
-  analyzeDefenitionSlice(defenitionCtx, defenitionSlice, "", "");
+  var definition = definer(definerCtx);
+  var originalFieldNames = Object.keys(definerCtx.originalFields);
+  definerCtx.originalFieldNames = originalFieldNames;
+  analyzeDefinition(definition, definerCtx, "", "");
   var originalFieldNamesCount = originalFieldNames.length;
-  if (defenitionCtx.registeredFieldsCount > originalFieldNamesCount) {
+  if (definerCtx.registeredFieldsCount > originalFieldNamesCount) {
     throw new Error("[rescript-struct] The object defention has more registered fields than expected.");
   }
-  if (defenitionCtx.registeredFieldsCount < originalFieldNamesCount) {
+  if (definerCtx.registeredFieldsCount < originalFieldNamesCount) {
     throw new Error("[rescript-struct] The object defention contains fields that weren't registered.");
   }
   return make("Object", {
               TAG: /* Object */4,
-              fields: defenitionCtx.originalFields,
-              fieldNames: defenitionCtx.originalFieldNames
+              fields: definerCtx.originalFields,
+              fieldNames: definerCtx.originalFieldNames
             }, (function (ctx, struct) {
-                var constantInstructions = defenitionCtx.constantInstructions;
-                var definedFieldInstructions = defenitionCtx.definedFieldInstructions;
-                var inlinedPreparationValues = defenitionCtx.inlinedPreparationValues;
-                var inlinedPreparationPathes = defenitionCtx.inlinedPreparationPathes;
+                var constantInstructions = definerCtx.constantInstructions;
+                var definedFieldInstructions = definerCtx.definedFieldInstructions;
+                var inlinedPreparationValues = definerCtx.inlinedPreparationValues;
+                var inlinedPreparationPathes = definerCtx.inlinedPreparationPathes;
                 var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
                 var definedAsyncFieldInstructions = [];
                 var parseFnsByInstructionIdx = {};
@@ -1018,7 +1018,7 @@ function factory$2(defenition) {
                               tmp = exn;
                             }
                             throw tmp;
-                          }), parseFnsByInstructionIdx, defenitionCtx.originalFields, constantInstructions, (function (input) {
+                          }), parseFnsByInstructionIdx, definerCtx.originalFields, constantInstructions, (function (input) {
                             return raiseUnexpectedTypeError(input, struct);
                           }), raiseUnexpectedTypeError, (function (exccessFieldName) {
                             return raise$1({
@@ -1062,8 +1062,8 @@ function factory$2(defenition) {
               }), (function (ctx, param) {
                 var inliningOriginalFieldNameRef = undefined;
                 try {
-                  var constantInstructions = defenitionCtx.constantInstructions;
-                  var definedFieldInstructions = defenitionCtx.definedFieldInstructions;
+                  var constantInstructions = definerCtx.constantInstructions;
+                  var definedFieldInstructions = definerCtx.definedFieldInstructions;
                   var serializeFnsByInstructionIdx = {};
                   var stringRef = "";
                   for(var idx = 0 ,idx_finish = constantInstructions.length; idx < idx_finish; ++idx){
@@ -1137,15 +1137,15 @@ function factory$2(defenition) {
               }), undefined, undefined, undefined);
 }
 
-function field(defenitionCtx, originalFieldName, struct) {
-  defenitionCtx.originalFields[originalFieldName] = struct;
+function field(definerCtx, originalFieldName, struct) {
+  definerCtx.originalFields[originalFieldName] = struct;
   return value;
 }
 
-function discriminant(defenitionCtx, originalFieldName, struct) {
-  defenitionCtx.originalFields[originalFieldName] = struct;
-  defenitionCtx.registeredFieldsCount = defenitionCtx.registeredFieldsCount + 1;
-  defenitionCtx.definedFieldInstructions.unshift({
+function discriminant(definerCtx, originalFieldName, struct) {
+  definerCtx.originalFields[originalFieldName] = struct;
+  definerCtx.registeredFieldsCount = definerCtx.registeredFieldsCount + 1;
+  definerCtx.definedFieldInstructions.unshift({
         TAG: /* Discriminant */0,
         fieldStruct: struct,
         inlinedOriginalFieldName: JSON.stringify(originalFieldName),

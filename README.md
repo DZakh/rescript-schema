@@ -357,7 +357,7 @@ The same as `literal` struct factory, but with a convenient way to transform dat
 
 #### **`S.object`**
 
-`(S.Object.defenitionCtx => 'value) => S.t<'value>`
+`(S.Object.definerCtx => 'value) => S.t<'value>`
 
 ```rescript
 type point = {

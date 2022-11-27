@@ -1298,10 +1298,10 @@ module Object = {
       struct->Metadata.get(~id=metadataId)->Stdlib.Option.getWithDefault(Strip)
   }
 
-  module FieldDefenition = {
+  module FieldDefinition = {
     type t
 
-    let value: t = %raw(`Symbol("rescript-struct:Object.FieldDefenition")`)
+    let value: t = %raw(`Symbol("rescript-struct:Object.FieldDefinition")`)
 
     let castToAny: t => 'a = Obj.magic
   }
@@ -1351,7 +1351,7 @@ module Object = {
     type t = {inlinedPath: string, @as("v") value: unknown, path: string}
   }
 
-  module DefenitionCtx = {
+  module DefinerCtx = {
     type struct = t<unknown>
     type t = {
       mutable originalFieldNames: array<string>,
@@ -1373,54 +1373,48 @@ module Object = {
       definedFieldInstructions: [],
       constantInstructions: [],
     }
+  }
 
-    @inline
-    let rec analyzeDefenitionSlice = (defenitionCtx, ~defenitionSlice, ~path, ~inlinedPath) => {
-      let defenitionSlice = defenitionSlice->castUnknownToAny
-      if defenitionSlice->Obj.magic === FieldDefenition.value {
-        let originalFieldName =
-          defenitionCtx.originalFieldNames->Js.Array2.unsafe_get(
-            defenitionCtx.registeredFieldsCount,
-          )
-        defenitionCtx.registeredFieldsCount = Stdlib.Int.plus(
-          defenitionCtx.registeredFieldsCount,
-          1,
-        )
-        defenitionCtx.definedFieldInstructions
-        ->Js.Array2.push(
-          Registered({
-            path,
-            inlinedPath,
-            fieldStruct: defenitionCtx.originalFields->Js.Dict.unsafeGet(originalFieldName),
-            originalFieldName,
-            inlinedOriginalFieldName: originalFieldName->Stdlib.Inlined.Value.fromString,
-          }),
-        )
-        ->ignore
-      } else if defenitionSlice->Js.typeof === "object" && defenitionSlice !== %raw(`null`) {
-        defenitionCtx.inlinedPreparationPathes->Js.Array2.push(inlinedPath)->ignore
-        defenitionCtx.inlinedPreparationValues
-        ->Js.Array2.push(Js.Array2.isArray(defenitionSlice) ? "[]" : "{}")
-        ->ignore
-        let defenitionSliceFieldNames = defenitionSlice->Js.Dict.keys
-        for idx in 0 to defenitionSliceFieldNames->Js.Array2.length - 1 {
-          let defenitionSliceFieldName = defenitionSliceFieldNames->Js.Array2.unsafe_get(idx)
-          let nextDefenitionSlice = defenitionSlice->Js.Dict.unsafeGet(defenitionSliceFieldName)
-          defenitionCtx->analyzeDefenitionSlice(
-            ~defenitionSlice=nextDefenitionSlice->castAnyToUnknown,
-            ~path=path->Path.appendLocation(defenitionSliceFieldName),
-            ~inlinedPath=inlinedPath->Path.Inlined.appendLocation(defenitionSliceFieldName),
-          )
-        }
-      } else {
-        defenitionCtx.constantInstructions
-        ->Js.Array2.push({
-          inlinedPath,
+  let rec analyzeDefinition = (definition, ~definerCtx: DefinerCtx.t, ~path, ~inlinedPath) => {
+    if definition->Obj.magic === FieldDefinition.value {
+      let originalFieldName =
+        definerCtx.originalFieldNames->Js.Array2.unsafe_get(definerCtx.registeredFieldsCount)
+      definerCtx.registeredFieldsCount = Stdlib.Int.plus(definerCtx.registeredFieldsCount, 1)
+      definerCtx.definedFieldInstructions
+      ->Js.Array2.push(
+        Registered({
           path,
-          value: defenitionSlice,
-        })
-        ->ignore
+          inlinedPath,
+          fieldStruct: definerCtx.originalFields->Js.Dict.unsafeGet(originalFieldName),
+          originalFieldName,
+          inlinedOriginalFieldName: originalFieldName->Stdlib.Inlined.Value.fromString,
+        }),
+      )
+      ->ignore
+    } else if definition->Js.typeof === "object" && definition !== %raw(`null`) {
+      let definition: Js.Dict.t<unknown> = definition->Obj.magic
+      definerCtx.inlinedPreparationPathes->Js.Array2.push(inlinedPath)->ignore
+      definerCtx.inlinedPreparationValues
+      ->Js.Array2.push(Js.Array2.isArray(definition) ? "[]" : "{}")
+      ->ignore
+      let definitionFieldNames = definition->Js.Dict.keys
+      for idx in 0 to definitionFieldNames->Js.Array2.length - 1 {
+        let definitionFieldName = definitionFieldNames->Js.Array2.unsafe_get(idx)
+        let fieldDefinition = definition->Js.Dict.unsafeGet(definitionFieldName)
+        fieldDefinition->analyzeDefinition(
+          ~definerCtx,
+          ~path=path->Path.appendLocation(definitionFieldName),
+          ~inlinedPath=inlinedPath->Path.Inlined.appendLocation(definitionFieldName),
+        )
       }
+    } else {
+      definerCtx.constantInstructions
+      ->Js.Array2.push({
+        inlinedPath,
+        path,
+        value: definition,
+      })
+      ->ignore
     }
   }
 
@@ -1455,7 +1449,7 @@ module Object = {
     }
 
     @inline
-    let make = (~instructions: DefenitionCtx.t) => {
+    let make = (~instructions: DefinerCtx.t) => {
       TransformationFactory.make((. ~ctx, ~struct) => {
         let {
           originalFields,
@@ -1786,7 +1780,7 @@ module Object = {
     }
 
     @inline
-    let make = (~instructions: DefenitionCtx.t) => {
+    let make = (~instructions: DefinerCtx.t) => {
       TransformationFactory.make((. ~ctx, ~struct as _) => {
         let inliningOriginalFieldNameRef = ref(%raw("undefined"))
         try {
@@ -1908,29 +1902,30 @@ module Object = {
     }
   }
 
-  let factory = defenition => {
+  let factory = definer => {
     let instructions = {
-      let defenitionCtx = DefenitionCtx.make()
-      let defenitionSlice = defenition->Stdlib.Fn.call1(defenitionCtx)->castAnyToUnknown
-      let originalFieldNames = defenitionCtx.originalFields->Js.Dict.keys
-      defenitionCtx.originalFieldNames = originalFieldNames
-      defenitionCtx->DefenitionCtx.analyzeDefenitionSlice(
-        ~defenitionSlice,
+      let definerCtx = DefinerCtx.make()
+      let definition = definer->Stdlib.Fn.call1(definerCtx)->castAnyToUnknown
+      let originalFieldNames = definerCtx.originalFields->Js.Dict.keys
+      definerCtx.originalFieldNames = originalFieldNames
+
+      definition->analyzeDefinition(
+        ~definerCtx,
         ~path=Path.empty(),
         ~inlinedPath=Path.Inlined.empty(),
       )
 
       {
         let originalFieldNamesCount = originalFieldNames->Js.Array2.length
-        if defenitionCtx.registeredFieldsCount > originalFieldNamesCount {
+        if definerCtx.registeredFieldsCount > originalFieldNamesCount {
           Error.panic("The object defention has more registered fields than expected.")
         }
-        if defenitionCtx.registeredFieldsCount < originalFieldNamesCount {
+        if definerCtx.registeredFieldsCount < originalFieldNamesCount {
           Error.panic("The object defention contains fields that weren't registered.")
         }
       }
 
-      defenitionCtx
+      definerCtx
     }
 
     make(
@@ -1945,17 +1940,17 @@ module Object = {
     )
   }
 
-  let field = (defenitionCtx: DefenitionCtx.t, originalFieldName, struct) => {
+  let field = (definerCtx: DefinerCtx.t, originalFieldName, struct) => {
     let struct = struct->castAnyStructToUnknownStruct
-    defenitionCtx.originalFields->Js.Dict.set(originalFieldName, struct)
-    FieldDefenition.value->FieldDefenition.castToAny
+    definerCtx.originalFields->Js.Dict.set(originalFieldName, struct)
+    FieldDefinition.value->FieldDefinition.castToAny
   }
 
-  let discriminant = (defenitionCtx: DefenitionCtx.t, originalFieldName, struct) => {
+  let discriminant = (definerCtx: DefinerCtx.t, originalFieldName, struct) => {
     let fieldStruct = struct->castAnyStructToUnknownStruct
-    defenitionCtx.originalFields->Js.Dict.set(originalFieldName, fieldStruct)
-    defenitionCtx.registeredFieldsCount = Stdlib.Int.plus(defenitionCtx.registeredFieldsCount, 1)
-    defenitionCtx.definedFieldInstructions
+    definerCtx.originalFields->Js.Dict.set(originalFieldName, fieldStruct)
+    definerCtx.registeredFieldsCount = Stdlib.Int.plus(definerCtx.registeredFieldsCount, 1)
+    definerCtx.definedFieldInstructions
     ->Js.Array2.unshift(
       Discriminant({
         fieldStruct,
@@ -1975,7 +1970,7 @@ module Object = {
     struct->Metadata.set(~id=UnknownKeys.metadataId, ~metadata=UnknownKeys.Strict)
   }
 
-  type defenitionCtx = DefenitionCtx.t
+  type definerCtx = DefinerCtx.t
 }
 
 module Never = {

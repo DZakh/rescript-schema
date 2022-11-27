@@ -138,7 +138,7 @@ let serializeOrRaiseWith: ('value, t<'value>) => unknown
 let isAsyncParse: t<'value> => bool
 
 module Object: {
-  type defenitionCtx
+  type definerCtx
 
   module UnknownKeys: {
     type tagged = Strict | Strip
@@ -150,9 +150,9 @@ module Object: {
   let strict: t<'value> => t<'value>
 }
 
-let object: (Object.defenitionCtx => 'value) => t<'value>
-let field: (Object.defenitionCtx, string, t<'value>) => 'value
-let discriminant: (Object.defenitionCtx, string, t<'value>) => unit
+let object: (Object.definerCtx => 'value) => t<'value>
+let field: (Object.definerCtx, string, t<'value>) => 'value
+let discriminant: (Object.definerCtx, string, t<'value>) => unit
 
 module Tuple: {
   let factory: 'factory
