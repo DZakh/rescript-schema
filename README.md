@@ -644,24 +644,6 @@ Ok(Js.Dict.fromArray([("foo", "bar"), ("baz", "qux")]))
 
 The `dict` struct represents a dictionary of data of a specific type.
 
-#### **`S.date`**
-
-`() => S.t<Js.Date.t>`
-
-```rescript
-let struct = S.date()
-
-%raw(`new Date(1656245105821.)`)->S.parseWith(struct)
-```
-
-```rescript
-Ok(Js.Date.fromFloat(1656245105821.))
-```
-
-The `date` struct represents JavaScript Date instances.
-
-> 🧠 To avoid unexpected runtime errors, `date` struct does **not** accept invalid `Date` objects, even though they are technically an instance of a `Date`. This meshes with the 99% use case where invalid dates create inconsistencies.
-
 #### **`S.unknown`**
 
 `() => S.t<S.unknown>`

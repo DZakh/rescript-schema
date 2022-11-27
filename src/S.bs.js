@@ -1410,19 +1410,7 @@ function factory$9(param) {
               }), empty, "typeof v===\"number\"&&!Number.isNaN(v)", undefined, undefined);
 }
 
-function factory$10(param) {
-  return make("Date", /* Date */6, (function (ctx, struct) {
-                planSyncTransformation(ctx, (function (input) {
-                        if ((input instanceof Date) && !Number.isNaN(input.getTime())) {
-                          return input;
-                        } else {
-                          return raiseUnexpectedTypeError(input, struct);
-                        }
-                      }));
-              }), empty, "v instanceof Date&&!Number.isNaN(v.getTime())", undefined, undefined);
-}
-
-function factory$11(innerStruct) {
+function factory$10(innerStruct) {
   return make("Null", {
               TAG: /* Null */2,
               _0: innerStruct
@@ -1476,7 +1464,7 @@ function factory$11(innerStruct) {
               }), undefined, undefined, undefined);
 }
 
-function factory$12(innerStruct) {
+function factory$11(innerStruct) {
   return make("Option", {
               TAG: /* Option */1,
               _0: innerStruct
@@ -1526,8 +1514,8 @@ function factory$12(innerStruct) {
 
 var metadataId$1 = "rescript-struct:Deprecated";
 
-function factory$13(innerStruct, maybeMessage, param) {
-  return set(factory$12(innerStruct), metadataId$1, maybeMessage !== undefined ? /* WithMessage */({
+function factory$12(innerStruct, maybeMessage, param) {
+  return set(factory$11(innerStruct), metadataId$1, maybeMessage !== undefined ? /* WithMessage */({
                   _0: maybeMessage
                 }) : /* WithoutMessage */0);
 }
@@ -1536,7 +1524,7 @@ function classify$2(struct) {
   return get(struct, metadataId$1);
 }
 
-function factory$14(innerStruct) {
+function factory$13(innerStruct) {
   return make("Array", {
               TAG: /* Array */3,
               _0: innerStruct
@@ -1657,7 +1645,7 @@ function length$1(struct, maybeMessage, length$2) {
   return refine(struct, refiner, refiner, undefined);
 }
 
-function factory$15(innerStruct) {
+function factory$14(innerStruct) {
   return make("Dict", {
               TAG: /* Dict */7,
               _0: innerStruct
@@ -1773,7 +1761,7 @@ function factory$15(innerStruct) {
 
 var metadataId$2 = "rescript-struct:Defaulted";
 
-function factory$16(innerStruct, defaultValue) {
+function factory$15(innerStruct, defaultValue) {
   return set(make(innerStruct.n, innerStruct.t, (function (ctx, param) {
                     var fn = innerStruct.p;
                     if (typeof fn === "number") {
@@ -1827,7 +1815,7 @@ function classify$3(struct) {
   return get(struct, metadataId$2);
 }
 
-function factory$17(param) {
+function factory$16(param) {
   var structs = (Array.from(arguments));
   var numberOfStructs = structs.length;
   return make("Tuple", {
@@ -1967,12 +1955,12 @@ function factory$17(param) {
 }
 
 var Tuple = {
-  factory: factory$17
+  factory: factory$16
 };
 
 var HackyValidValue = /* @__PURE__ */Caml_exceptions.create("S.Union.HackyValidValue");
 
-function factory$18(structs) {
+function factory$17(structs) {
   if (structs.length < 2) {
     throw new Error("[rescript-struct] A Union struct factory require at least two structs");
   }
@@ -2184,27 +2172,25 @@ var $$int = factory$8;
 
 var $$float = factory$9;
 
-var date = factory$10;
-
 var literal = factory$1;
 
 var literalVariant = factory;
 
-var array = factory$14;
+var array = factory$13;
 
-var dict = factory$15;
+var dict = factory$14;
 
-var option = factory$12;
+var option = factory$11;
 
-var $$null = factory$11;
+var $$null = factory$10;
 
 var json = factory$6;
 
-var union = factory$18;
+var union = factory$17;
 
-var deprecated = factory$13;
+var deprecated = factory$12;
 
-var defaulted = factory$16;
+var defaulted = factory$15;
 
 var Object_UnknownKeys = {
   classify: classify$1
@@ -2218,27 +2204,27 @@ var $$Object = {
 
 var object = factory$2;
 
-var tuple0 = factory$17;
+var tuple0 = factory$16;
 
-var tuple1 = factory$17;
+var tuple1 = factory$16;
 
-var tuple2 = factory$17;
+var tuple2 = factory$16;
 
-var tuple3 = factory$17;
+var tuple3 = factory$16;
 
-var tuple4 = factory$17;
+var tuple4 = factory$16;
 
-var tuple5 = factory$17;
+var tuple5 = factory$16;
 
-var tuple6 = factory$17;
+var tuple6 = factory$16;
 
-var tuple7 = factory$17;
+var tuple7 = factory$16;
 
-var tuple8 = factory$17;
+var tuple8 = factory$16;
 
-var tuple9 = factory$17;
+var tuple9 = factory$16;
 
-var tuple10 = factory$17;
+var tuple10 = factory$16;
 
 var $$String = {
   min: min,
@@ -2291,7 +2277,6 @@ exports.string = string;
 exports.bool = bool;
 exports.$$int = $$int;
 exports.$$float = $$float;
-exports.date = date;
 exports.literal = literal;
 exports.literalVariant = literalVariant;
 exports.array = array;

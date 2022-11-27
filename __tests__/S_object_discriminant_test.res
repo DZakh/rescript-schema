@@ -177,7 +177,6 @@ module Negative = {
       ~discriminantData=Js.Dict.fromArray([("foo", true), ("bar", true)]),
       (),
     ),
-    TestData.make(~discriminantStruct=S.date(), ~discriminantData=Js.Date.make(), ()),
     TestData.make(
       ~discriminantStruct=S.tuple2(. S.literal(Bool(true)), S.bool()),
       ~discriminantData=(true, false),

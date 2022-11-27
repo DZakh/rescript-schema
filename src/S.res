@@ -522,7 +522,6 @@ and tagged =
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
-  | Date
 and field<'value> = (string, t<'value>)
 and transformation<'input, 'output> =
   | Sync('input => 'output)
@@ -1774,8 +1773,7 @@ module Object = {
       | Never
       | Unknown
       | Array(_)
-      | Dict(_)
-      | Date =>
+      | Dict(_) =>
         Stdlib.Exn.raiseEmpty()
       }
     }
@@ -2259,27 +2257,6 @@ module Float = {
 
   let min = Int.min->Obj.magic
   let max = Int.max->Obj.magic
-}
-
-module Date = {
-  let factory = () => {
-    make(
-      ~name="Date",
-      ~tagged=Date,
-      ~inlinedRefinement=`${Stdlib.Inlined.Constant.inputVar} instanceof Date&&!Number.isNaN(${Stdlib.Inlined.Constant.inputVar}.getTime())`,
-      ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          if %raw(`input instanceof Date`) && input->Js.Date.getTime->Js.Float.isNaN->not {
-            input
-          } else {
-            raiseUnexpectedTypeError(~input, ~struct)
-          }
-        })
-      ),
-      ~serializeTransformationFactory=TransformationFactory.empty,
-      (),
-    )
-  }
 }
 
 module Null = {
@@ -2981,7 +2958,6 @@ let dict = Dict.factory
 let defaulted = Defaulted.factory
 let literal = Literal.factory
 let literalVariant = Literal.Variant.factory
-let date = Date.factory
 let tuple0 = Tuple.factory
 let tuple1 = Tuple.factory
 let tuple2 = Tuple.factory
