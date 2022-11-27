@@ -498,10 +498,10 @@ type rec t<'value> = {
   parseTransformationFactory: internalTransformationFactory,
   @as("sf")
   serializeTransformationFactory: internalTransformationFactory,
-  @as("s")
-  mutable serialize: operation,
   @as("p")
-  mutable parse: operation,
+  mutable cachedParseOperation: operation,
+  @as("s")
+  mutable cachedSerializeOperation: option<(. unknown) => unknown>,
   @as("i")
   maybeInlinedRefinement: option<string>,
   @as("m")
@@ -657,13 +657,44 @@ let classify = struct => struct.tagged
 @inline
 let name = struct => struct.name
 
+let getParseOperation = struct => {
+  let cachedParseOperation = struct.cachedParseOperation
+  if cachedParseOperation === %raw("undefined") {
+    let compiledParseOperation =
+      struct.parseTransformationFactory->TransformationFactory.compile(~struct)
+    struct.cachedParseOperation = compiledParseOperation
+    compiledParseOperation
+  } else {
+    cachedParseOperation
+  }
+}
+
+let getSerializeOperation = struct => {
+  let cachedSerializeOperation = struct.cachedSerializeOperation
+  if cachedSerializeOperation === %raw("undefined") {
+    let compiledSerializeOperation = switch struct.serializeTransformationFactory->TransformationFactory.compile(
+      ~struct,
+    ) {
+    | NoOperation => None
+    | SyncOperation(fn) => Some(fn)
+    | AsyncOperation(_) => Error.Unreachable.panic()
+    }
+    struct.cachedSerializeOperation = compiledSerializeOperation
+    compiledSerializeOperation
+  } else {
+    cachedSerializeOperation
+  }
+}
+
 @inline
-let isAsyncParse = struct =>
-  switch struct.parse {
+let isAsyncParse = struct => {
+  let struct = struct->castAnyStructToUnknownStruct
+  switch struct->getParseOperation {
   | AsyncOperation(_) => true
   | NoOperation
   | SyncOperation(_) => false
   }
+}
 
 let raiseUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   Error.Internal.raise(
@@ -686,6 +717,7 @@ let raiseUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   )
 }
 
+@inline
 let make = (
   ~name,
   ~tagged,
@@ -695,24 +727,20 @@ let make = (
   ~metadataDict as maybeMetadataDict=?,
   (),
 ) => {
-  let struct = {
-    name,
-    tagged,
-    parseTransformationFactory,
-    serializeTransformationFactory,
-    serialize: %raw("undefined"),
-    parse: %raw("undefined"),
-    maybeInlinedRefinement,
-    maybeMetadataDict,
-  }
-  struct.parse = struct.parseTransformationFactory->TransformationFactory.compile(~struct)
-  struct.serialize = struct.serializeTransformationFactory->TransformationFactory.compile(~struct)
-  struct
+  name,
+  tagged,
+  parseTransformationFactory,
+  serializeTransformationFactory,
+  cachedParseOperation: %raw("undefined"),
+  cachedSerializeOperation: %raw("undefined"),
+  maybeInlinedRefinement,
+  maybeMetadataDict,
 }
 
 let parseWith = (any, struct) => {
+  let struct = struct->castAnyStructToUnknownStruct
   try {
-    switch struct.parse {
+    switch struct->getParseOperation {
     | NoOperation => any->Obj.magic->Ok
     | SyncOperation(fn) => fn(. any->Obj.magic)->Obj.magic->Ok
     | AsyncOperation(_) => Error.Internal.raise(UnexpectedAsync)
@@ -723,8 +751,9 @@ let parseWith = (any, struct) => {
 }
 
 let parseOrRaiseWith = (any, struct) => {
+  let struct = struct->castAnyStructToUnknownStruct
   try {
-    switch struct.parse {
+    switch struct->getParseOperation {
     | NoOperation => any->Obj.magic
     | SyncOperation(fn) => fn(. any->Obj.magic)->Obj.magic
     | AsyncOperation(_) => Error.Internal.raise(UnexpectedAsync)
@@ -736,8 +765,9 @@ let parseOrRaiseWith = (any, struct) => {
 }
 
 let parseAsyncWith = (any, struct) => {
+  let struct = struct->castAnyStructToUnknownStruct
   try {
-    switch struct.parse {
+    switch struct->getParseOperation {
     | NoOperation => any->Obj.magic->Ok->Stdlib.Promise.resolve
     | SyncOperation(fn) => fn(. any->Obj.magic)->Ok->Obj.magic->Stdlib.Promise.resolve
     | AsyncOperation(fn) =>
@@ -758,8 +788,9 @@ let parseAsyncWith = (any, struct) => {
 }
 
 let parseAsyncInStepsWith = (any, struct) => {
+  let struct = struct->castAnyStructToUnknownStruct
   try {
-    switch struct.parse {
+    switch struct->getParseOperation {
     | NoOperation => () => any->Obj.magic->Ok->Stdlib.Promise.resolve
     | SyncOperation(fn) => {
         let syncValue = fn(. any->castAnyToUnknown)->castUnknownToAny
@@ -787,14 +818,15 @@ let parseAsyncInStepsWith = (any, struct) => {
 
 @inline
 let serializeInner: (~struct: t<'value>, ~value: 'value) => unknown = (~struct, ~value) => {
-  switch struct.serialize {
-  | NoOperation => value->castAnyToUnknown
-  | SyncOperation(fn) => fn(. value->castAnyToUnknown)
-  | AsyncOperation(_) => Error.Unreachable.panic()
+  switch struct->getSerializeOperation {
+  | None => value->castAnyToUnknown
+  | Some(fn) => fn(. value->castAnyToUnknown)
   }
 }
 
 let serializeWith = (value, struct) => {
+  let struct = struct->castAnyStructToUnknownStruct
+  let value = value->castAnyToUnknown
   try {
     serializeInner(~struct, ~value)->Ok
   } catch {
@@ -803,6 +835,8 @@ let serializeWith = (value, struct) => {
 }
 
 let serializeOrRaiseWith = (value, struct) => {
+  let struct = struct->castAnyStructToUnknownStruct
+  let value = value->castAnyToUnknown
   try {
     serializeInner(~struct, ~value)
   } catch {
@@ -1496,12 +1530,13 @@ module Object = {
                       let inlinedOriginalFieldName =
                         definedFieldInstruction->DefinedFieldInstruction.getInlinedOriginalFieldName
                       let inlinedInstructionIdx = idx->Js.Int.toString
-                      let maybeParseFn = switch fieldStruct.parse {
+                      let parseOperation = fieldStruct->getParseOperation
+                      let maybeParseFn = switch parseOperation {
                       | NoOperation => None
                       | SyncOperation(fn) => Some(fn)
                       | AsyncOperation(fn) => Some(fn->Obj.magic)
                       }
-                      let isAsync = switch fieldStruct.parse {
+                      let isAsync = switch parseOperation {
                       | AsyncOperation(_) => true
                       | _ => false
                       }
@@ -1815,16 +1850,14 @@ module Object = {
                     contentRef.contents ++
                     switch definedFieldInstruction {
                     | Registered({inlinedPath}) =>
-                      switch fieldStruct.serialize {
-                      | NoOperation =>
+                      switch fieldStruct->getSerializeOperation {
+                      | None =>
                         `${inlinedOriginalFieldName}:${Var.transformedObject}${inlinedPath},`
-                      | SyncOperation(fn) => {
+                      | Some(fn) => {
                           serializeFnsByInstructionIdx->Js.Dict.set(inlinedInstructionIdx, fn)
 
                           `${inlinedOriginalFieldName}:(${Var.instructionIdx}=${inlinedInstructionIdx},${Var.serializeFnsByInstructionIdx}[${inlinedInstructionIdx}](${Var.transformedObject}${inlinedPath})),`
                         }
-
-                      | AsyncOperation(_) => Error.Unreachable.panic()
                       }
 
                     | Discriminant(_) => {
@@ -2117,11 +2150,12 @@ module String = {
 
 module Json = {
   let factory = innerStruct => {
+    let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=`Json`,
       ~tagged=String,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
-        let process = switch innerStruct.parse {
+        let process = switch innerStruct->getParseOperation {
         | NoOperation => Obj.magic
         | SyncOperation(fn) => fn->Obj.magic
         | AsyncOperation(fn) => fn->Obj.magic
@@ -2136,7 +2170,7 @@ module Json = {
             raiseUnexpectedTypeError(~input, ~struct)
           }
         })
-        switch innerStruct.parse {
+        switch innerStruct->getParseOperation {
         | AsyncOperation(_) =>
           ctx->TransformationFactory.Ctx.planAsyncTransformation(asyncFn => {
             asyncFn(.)
@@ -2261,9 +2295,10 @@ module Float = {
 
 module Null = {
   let factory = innerStruct => {
+    let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=`Null`,
-      ~tagged=Null(innerStruct->Obj.magic),
+      ~tagged=Null(innerStruct),
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
         let planSyncTransformation = fn => {
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -2273,7 +2308,7 @@ module Null = {
             }
           })
         }
-        switch innerStruct.parse {
+        switch innerStruct->getParseOperation {
         | NoOperation => ctx->TransformationFactory.Ctx.planSyncTransformation(Js.Null.toOption)
         | SyncOperation(fn) => planSyncTransformation(fn)
         | AsyncOperation(fn) => {
@@ -2302,9 +2337,10 @@ module Null = {
 
 module Option = {
   let factory = innerStruct => {
+    let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=`Option`,
-      ~tagged=Option(innerStruct->Obj.magic),
+      ~tagged=Option(innerStruct),
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
         let planSyncTransformation = fn => {
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -2314,7 +2350,7 @@ module Option = {
             }
           })
         }
-        switch innerStruct.parse {
+        switch innerStruct->getParseOperation {
         | NoOperation => ()
         | SyncOperation(fn) => planSyncTransformation(fn)
         | AsyncOperation(fn) => {
@@ -2361,6 +2397,7 @@ module Deprecated = {
 
 module Array = {
   let factory = innerStruct => {
+    let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=`Array`,
       ~tagged=Array(innerStruct->Obj.magic),
@@ -2394,7 +2431,7 @@ module Array = {
           })
         }
 
-        switch innerStruct.parse {
+        switch innerStruct->getParseOperation {
         | NoOperation => ()
         | SyncOperation(fn) => planSyncTransformation(fn)
         | AsyncOperation(fn) =>
@@ -2422,9 +2459,9 @@ module Array = {
         }
       }),
       ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
-        switch innerStruct.serialize {
-        | NoOperation => ()
-        | SyncOperation(fn) =>
+        switch innerStruct->getSerializeOperation {
+        | None => ()
+        | Some(fn) =>
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
             let newArray = []
             for idx in 0 to input->Js.Array2.length - 1 {
@@ -2443,7 +2480,6 @@ module Array = {
             }
             newArray
           })
-        | AsyncOperation(_) => Error.Unreachable.panic()
         }
       }),
       (),
@@ -2492,9 +2528,10 @@ module Array = {
 
 module Dict = {
   let factory = innerStruct => {
+    let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=`Dict`,
-      ~tagged=Dict(innerStruct->Obj.magic),
+      ~tagged=Dict(innerStruct),
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
         let planSyncTransformation = fn => {
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -2523,7 +2560,7 @@ module Dict = {
           }
         })
 
-        switch innerStruct.parse {
+        switch innerStruct->getParseOperation {
         | NoOperation => ()
         | SyncOperation(fn) => planSyncTransformation(fn)
         | AsyncOperation(fn) =>
@@ -2569,9 +2606,9 @@ module Dict = {
         }
       }),
       ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
-        switch innerStruct.serialize {
-        | NoOperation => ()
-        | SyncOperation(fn) =>
+        switch innerStruct->getSerializeOperation {
+        | None => ()
+        | Some(fn) =>
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
             let newDict = Js.Dict.empty()
             let keys = input->Js.Dict.keys
@@ -2588,7 +2625,6 @@ module Dict = {
             }
             newDict
           })
-        | AsyncOperation(_) => Error.Unreachable.panic()
         }
       }),
       (),
@@ -2602,11 +2638,12 @@ module Defaulted = {
   let metadataId = Metadata.Id.make(~namespace="rescript-struct", ~name="Defaulted")
 
   let factory = (innerStruct, defaultValue) => {
+    let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=innerStruct.name,
       ~tagged=innerStruct.tagged,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
-        switch innerStruct.parse {
+        switch innerStruct->getParseOperation {
         | NoOperation =>
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
             input->castUnknownToAny->Stdlib.Option.getWithDefault(defaultValue)
@@ -2628,7 +2665,7 @@ module Defaulted = {
       }),
       ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          serializeInner(~struct=innerStruct, ~value=Some(input))
+          serializeInner(~struct=innerStruct, ~value=Some(input)->castAnyToUnknown)
         })
       }),
       (),
@@ -2653,7 +2690,7 @@ module Tuple = {
           let asyncOps = []
           for idx in 0 to structs->Js.Array2.length - 1 {
             let innerStruct = structs->Js.Array2.unsafe_get(idx)
-            switch innerStruct.parse {
+            switch innerStruct->getParseOperation {
             | NoOperation => noopOps->Js.Array2.push(idx)->ignore
             | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fn))->ignore
             | AsyncOperation(fn) => {
@@ -2759,9 +2796,9 @@ module Tuple = {
             for idx in 0 to numberOfStructs - 1 {
               let innerData = inputArray->Js.Array2.unsafe_get(idx)
               let innerStruct = structs->Js.Array.unsafe_get(idx)
-              switch innerStruct.serialize {
-              | NoOperation => newArray->Js.Array2.push(innerData)->ignore
-              | SyncOperation(fn) =>
+              switch innerStruct->getSerializeOperation {
+              | None => newArray->Js.Array2.push(innerData)->ignore
+              | Some(fn) =>
                 try {
                   let value = fn(. innerData)
                   newArray->Js.Array2.push(value)->ignore
@@ -2773,7 +2810,6 @@ module Tuple = {
                     ),
                   )
                 }
-              | AsyncOperation(_) => Error.Unreachable.panic()
               }
             }
             newArray
@@ -2807,7 +2843,7 @@ module Union = {
         let asyncOps = []
         for idx in 0 to structs->Js.Array2.length - 1 {
           let innerStruct = structs->Js.Array2.unsafe_get(idx)
-          switch innerStruct.parse {
+          switch innerStruct->getParseOperation {
           | NoOperation => noopOps->Js.Array2.push()->ignore
           | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fn))->ignore
           | AsyncOperation(fn) => asyncOps->Js.Array2.push((idx, fn))->ignore
