@@ -52,7 +52,7 @@ test("Fails to parse array data", t => {
   t->Assert.deepEqual(
     %raw(`[]`)->S.parseWith(struct),
     Error({
-      code: UnexpectedType({expected: "Object", received: "Object"}),
+      code: UnexpectedType({expected: "Object", received: "Array"}),
       operation: Parsing,
       path: [],
     }),

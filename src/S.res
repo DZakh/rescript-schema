@@ -676,6 +676,7 @@ let raiseUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
       | JSNull => "Null"
       | JSNumber(number) if Js.Float.isNaN(number) => "NaN Literal (NaN)"
       | JSNumber(_) => "Float"
+      | JSObject(object) if Js.Array2.isArray(object) => "Array"
       | JSObject(_) => "Object"
       | JSFunction(_) => "Function"
       | JSUndefined => "Option"

@@ -291,7 +291,7 @@ function raiseUnexpectedTypeError(input, struct) {
           tmp = "Function";
           break;
       case /* JSObject */3 :
-          tmp = "Object";
+          tmp = Array.isArray(number._0) ? "Array" : "Object";
           break;
       case /* JSSymbol */4 :
           tmp = "Symbol";
