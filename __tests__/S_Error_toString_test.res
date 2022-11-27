@@ -72,6 +72,18 @@ test("UnexpectedType error", t => {
   )
 })
 
+test("UnexpectedAsync error", t => {
+  t->Assert.is(
+    {
+      code: UnexpectedAsync,
+      operation: Parsing,
+      path: [],
+    }->S.Error.toString,
+    "Failed parsing at root. Reason: Encountered unexpected asynchronous transform or refine. Use parseAsyncWith instead of parseWith",
+    (),
+  )
+})
+
 test("UnexpectedValue error", t => {
   t->Assert.is(
     {

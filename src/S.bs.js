@@ -1003,7 +1003,7 @@ function classify$1(struct) {
   }
 }
 
-var value = (Symbol("rescript-struct:Object.FieldDefinition"));
+var value = Symbol("rescript-struct:Object.FieldDefinition");
 
 function analyzeDefinition(definition, definerCtx, path, inlinedPath) {
   if (definition === value) {
