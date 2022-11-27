@@ -3,7 +3,7 @@ type unknown
 
 module Stdlib = {
   module Promise = {
-    type t<+'a> = Js.Promise.t<'a>
+    type t<+'a> = promise<'a>
 
     @send
     external thenResolve: (t<'a>, 'a => 'b) => t<'b> = "then"
@@ -488,7 +488,7 @@ type taggedLiteral =
 type operation =
   | NoOperation
   | SyncOperation((. unknown) => unknown)
-  | AsyncOperation((. unknown) => (. unit) => Js.Promise.t<unknown>)
+  | AsyncOperation((. unknown) => (. unit) => promise<unknown>)
 type rec t<'value> = {
   @as("n")
   name: string,
@@ -498,10 +498,16 @@ type rec t<'value> = {
   parseTransformationFactory: internalTransformationFactory,
   @as("sf")
   serializeTransformationFactory: internalTransformationFactory,
-  @as("p")
+  @as("r")
   mutable cachedParseOperation: operation,
-  @as("s")
+  @as("e")
   mutable cachedSerializeOperation: option<(. unknown) => unknown>,
+  @as("s")
+  mutable serialize: (. unknown) => unknown,
+  @as("p")
+  mutable parse: (. unknown) => unknown,
+  @as("a")
+  mutable parseAsync: (. unknown) => (. unit) => promise<result<'value, Error.t>>,
   @as("i")
   maybeInlinedRefinement: option<string>,
   @as("m")
@@ -525,7 +531,7 @@ and tagged =
 and field<'value> = (string, t<'value>)
 and transformation<'input, 'output> =
   | Sync('input => 'output)
-  | Async('input => Js.Promise.t<'output>)
+  | Async('input => promise<'output>)
 and internalTransformationFactoryCtxPhase = NoTransformation | OnlySync | OnlyAsync | SyncAndAsync
 and internalTransformationFactoryCtx = {
   @as("p")
@@ -533,7 +539,7 @@ and internalTransformationFactoryCtx = {
   @as("s")
   mutable syncTransformation: (. unknown) => unknown,
   @as("a")
-  mutable asyncTransformation: (. unknown) => Js.Promise.t<unknown>,
+  mutable asyncTransformation: (. unknown) => promise<unknown>,
 }
 and internalTransformationFactory = (
   . ~ctx: internalTransformationFactoryCtx,
@@ -568,9 +574,8 @@ module TransformationFactory = {
     let makeSyncTransformation = (fn: 'a => 'b): ((. unknown) => unknown) => fn->Obj.magic
 
     @inline
-    let makeAsyncTransformation = (fn: 'a => Js.Promise.t<'b>): (
-      (. unknown) => Js.Promise.t<unknown>
-    ) => fn->Obj.magic
+    let makeAsyncTransformation = (fn: 'a => promise<'b>): ((. unknown) => promise<unknown>) =>
+      fn->Obj.magic
 
     let planSyncTransformation = (ctx, transformation) => {
       let prevSyncTransformation = ctx.syncTransformation
@@ -717,6 +722,60 @@ let raiseUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
   )
 }
 
+let noOperation = (. input) => input
+
+let initialSerialize = (. input) => {
+  let struct = %raw("this")
+  let compiledSerialize = switch struct->getSerializeOperation {
+  | None => noOperation
+  | Some(fn) => fn
+  }
+  struct.serialize = compiledSerialize
+  compiledSerialize(. input)
+}
+
+let intitialParse = (. input) => {
+  let struct = %raw("this")
+  let compiledParse = switch struct->getParseOperation {
+  | NoOperation => noOperation
+  | SyncOperation(fn) => fn
+  | AsyncOperation(_) => Error.Internal.raise(UnexpectedAsync)
+  }
+  struct.parse = compiledParse
+  compiledParse(. input)
+}
+
+let asyncNoopOperation = (. input) => (. ()) => input->castUnknownToAny->Ok->Stdlib.Promise.resolve
+
+let intitialParseAsync = (. input) => {
+  let struct = %raw("this")
+  let compiledParseAsync = switch struct->getParseOperation {
+  | NoOperation => asyncNoopOperation
+  | SyncOperation(fn) =>
+    (. input) => {
+      let syncValue = fn(. input)
+      (. ()) => syncValue->castUnknownToAny->Ok->Stdlib.Promise.resolve
+    }
+  | AsyncOperation(fn) =>
+    (. input) => {
+      let asyncFn = fn(. input)
+      (. ()) =>
+        asyncFn(.)->Stdlib.Promise.thenResolveWithCatch(
+          value => Ok(value->castUnknownToAny),
+          exn => {
+            switch exn {
+            | Error.Internal.Exception(internalError) =>
+              internalError->Error.Internal.toParseError->Error
+            | _ => raise(exn)
+            }
+          },
+        )
+    }
+  }
+  struct.parseAsync = compiledParseAsync
+  compiledParseAsync(. input)
+}
+
 @inline
 let make = (
   ~name,
@@ -733,31 +792,24 @@ let make = (
   serializeTransformationFactory,
   cachedParseOperation: %raw("undefined"),
   cachedSerializeOperation: %raw("undefined"),
+  serialize: initialSerialize,
+  parse: intitialParse,
+  parseAsync: intitialParseAsync,
   maybeInlinedRefinement,
   maybeMetadataDict,
 }
 
 let parseWith = (any, struct) => {
-  let struct = struct->castAnyStructToUnknownStruct
   try {
-    switch struct->getParseOperation {
-    | NoOperation => any->Obj.magic->Ok
-    | SyncOperation(fn) => fn(. any->Obj.magic)->Obj.magic->Ok
-    | AsyncOperation(_) => Error.Internal.raise(UnexpectedAsync)
-    }
+    struct.parse(. any->castAnyToUnknown)->castUnknownToAny->Ok
   } catch {
   | Error.Internal.Exception(internalError) => internalError->Error.Internal.toParseError->Error
   }
 }
 
 let parseOrRaiseWith = (any, struct) => {
-  let struct = struct->castAnyStructToUnknownStruct
   try {
-    switch struct->getParseOperation {
-    | NoOperation => any->Obj.magic
-    | SyncOperation(fn) => fn(. any->Obj.magic)->Obj.magic
-    | AsyncOperation(_) => Error.Internal.raise(UnexpectedAsync)
-    }
+    struct.parse(. any->castAnyToUnknown)->castUnknownToAny
   } catch {
   | Error.Internal.Exception(internalError) =>
     raise(Raised(internalError->Error.Internal.toParseError))
@@ -765,22 +817,8 @@ let parseOrRaiseWith = (any, struct) => {
 }
 
 let parseAsyncWith = (any, struct) => {
-  let struct = struct->castAnyStructToUnknownStruct
   try {
-    switch struct->getParseOperation {
-    | NoOperation => any->Obj.magic->Ok->Stdlib.Promise.resolve
-    | SyncOperation(fn) => fn(. any->Obj.magic)->Ok->Obj.magic->Stdlib.Promise.resolve
-    | AsyncOperation(fn) =>
-      fn(. any->Obj.magic)(.)
-      ->Stdlib.Promise.thenResolve(value => Ok(value->Obj.magic))
-      ->Stdlib.Promise.catch(exn => {
-        switch exn {
-        | Error.Internal.Exception(internalError) =>
-          internalError->Error.Internal.toParseError->Error
-        | _ => raise(exn)
-        }
-      })
-    }
+    struct.parseAsync(. any->castAnyToUnknown)(.)
   } catch {
   | Error.Internal.Exception(internalError) =>
     internalError->Error.Internal.toParseError->Error->Stdlib.Promise.resolve
@@ -788,55 +826,24 @@ let parseAsyncWith = (any, struct) => {
 }
 
 let parseAsyncInStepsWith = (any, struct) => {
-  let struct = struct->castAnyStructToUnknownStruct
   try {
-    switch struct->getParseOperation {
-    | NoOperation => () => any->Obj.magic->Ok->Stdlib.Promise.resolve
-    | SyncOperation(fn) => {
-        let syncValue = fn(. any->castAnyToUnknown)->castUnknownToAny
-        () => syncValue->Ok->Stdlib.Promise.resolve
-      }
-
-    | AsyncOperation(fn) => {
-        let asyncFn = fn(. any->castAnyToUnknown)
-        () =>
-          asyncFn(.)
-          ->Stdlib.Promise.thenResolve(value => Ok(value->Obj.magic))
-          ->Stdlib.Promise.catch(exn => {
-            switch exn {
-            | Error.Internal.Exception(internalError) =>
-              internalError->Error.Internal.toParseError->Error
-            | _ => raise(exn)
-            }
-          })
-      }
-    }->Ok
+    struct.parseAsync(. any->castAnyToUnknown)->Ok
   } catch {
   | Error.Internal.Exception(internalError) => internalError->Error.Internal.toParseError->Error
   }
 }
 
 let serializeWith = (value, struct) => {
-  let struct = struct->castAnyStructToUnknownStruct
-  let value = value->castAnyToUnknown
   try {
-    switch struct->getSerializeOperation {
-    | None => value
-    | Some(fn) => fn(. value)
-    }->Ok
+    struct.serialize(. value->castAnyToUnknown)->Ok
   } catch {
   | Error.Internal.Exception(internalError) => internalError->Error.Internal.toSerializeError->Error
   }
 }
 
 let serializeOrRaiseWith = (value, struct) => {
-  let struct = struct->castAnyStructToUnknownStruct
-  let value = value->castAnyToUnknown
   try {
-    switch struct->getSerializeOperation {
-    | None => value
-    | Some(fn) => fn(. value)
-    }
+    struct.serialize(. value->castAnyToUnknown)
   } catch {
   | Error.Internal.Exception(internalError) =>
     raise(Raised(internalError->Error.Internal.toSerializeError))
