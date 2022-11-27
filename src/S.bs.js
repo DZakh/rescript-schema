@@ -254,20 +254,35 @@ function name(struct) {
 }
 
 function getParseOperation(struct) {
-  var cachedParseOperation = struct.r;
-  if (cachedParseOperation !== undefined) {
-    return cachedParseOperation;
+  var parseOperationState = struct.r;
+  if (typeof parseOperationState === "function") {
+    return parseOperationState;
   }
+  if (parseOperationState === 1) {
+    return {
+            TAG: /* SyncOperation */0,
+            _0: (function (input) {
+                return struct.p(input);
+              })
+          };
+  }
+  struct.r = 1;
   var compiledParseOperation = compile(struct.pf, struct);
   struct.r = compiledParseOperation;
   return compiledParseOperation;
 }
 
 function getSerializeOperation(struct) {
-  var cachedSerializeOperation = struct.e;
-  if (cachedSerializeOperation !== undefined) {
-    return cachedSerializeOperation;
+  var serializeOperationState = struct.e;
+  if (typeof serializeOperationState === "function") {
+    return serializeOperationState;
   }
+  if (serializeOperationState === 1) {
+    return (function (input) {
+              return struct.s(input);
+            });
+  }
+  struct.e = 1;
   var fn = compile(struct.sf, struct);
   var compiledSerializeOperation;
   compiledSerializeOperation = typeof fn === "number" ? undefined : (
@@ -515,6 +530,12 @@ function serializeOrRaiseWith(value, struct) {
   }
 }
 
+function recursive(fn) {
+  var placeholder = {};
+  var struct = fn(placeholder);
+  return Object.assign(placeholder, struct);
+}
+
 function make(namespace, name) {
   return "" + namespace + ":" + name + "";
 }
@@ -539,8 +560,8 @@ function set(struct, id, metadata) {
           t: struct.t,
           pf: struct.pf,
           sf: struct.sf,
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -571,8 +592,8 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
                       }));
                 struct.sf(ctx, compilingStruct);
               }) : struct.sf,
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -594,8 +615,8 @@ function asyncRefine(struct, parser, param) {
                     }));
             }),
           sf: struct.sf,
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -631,8 +652,8 @@ function transform(struct, maybeTransformParser, maybeTransformSerializer, param
               }
               struct.sf(ctx, compilingStruct);
             }),
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -677,8 +698,8 @@ function advancedTransform(struct, maybeTransformParser, maybeTransformSerialize
               }
               struct.sf(ctx, compilingStruct);
             }),
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -704,8 +725,8 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
             t: tagged,
             pf: struct.pf,
             sf: struct.sf,
-            r: undefined,
-            e: undefined,
+            r: 0,
+            e: 0,
             s: initialSerialize,
             p: intitialParse,
             a: intitialParseAsync,
@@ -745,8 +766,8 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
                 return planAsyncTransformation(ctx, syncTransformation._0);
               }
             }),
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -780,8 +801,8 @@ function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
                             }));
               }
             }),
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -838,8 +859,8 @@ function factory(innerLiteral, variant) {
                             }));
                     }),
                   sf: serializeTransformationFactory,
-                  r: undefined,
-                  e: undefined,
+                  r: 0,
+                  e: 0,
                   s: initialSerialize,
                   p: intitialParse,
                   a: intitialParseAsync,
@@ -861,8 +882,8 @@ function factory(innerLiteral, variant) {
                             }));
                     }),
                   sf: serializeTransformationFactory$1,
-                  r: undefined,
-                  e: undefined,
+                  r: 0,
+                  e: 0,
                   s: initialSerialize,
                   p: intitialParse,
                   a: intitialParseAsync,
@@ -884,8 +905,8 @@ function factory(innerLiteral, variant) {
                             }));
                     }),
                   sf: serializeTransformationFactory$2,
-                  r: undefined,
-                  e: undefined,
+                  r: 0,
+                  e: 0,
                   s: initialSerialize,
                   p: intitialParse,
                   a: intitialParseAsync,
@@ -907,8 +928,8 @@ function factory(innerLiteral, variant) {
                   t: tagged,
                   pf: parseTransformationFactory,
                   sf: serializeTransformationFactory$3,
-                  r: undefined,
-                  e: undefined,
+                  r: 0,
+                  e: 0,
                   s: initialSerialize,
                   p: intitialParse,
                   a: intitialParseAsync,
@@ -931,8 +952,8 @@ function factory(innerLiteral, variant) {
                   t: tagged,
                   pf: parseTransformationFactory$1,
                   sf: serializeTransformationFactory$4,
-                  r: undefined,
-                  e: undefined,
+                  r: 0,
+                  e: 0,
                   s: initialSerialize,
                   p: intitialParse,
                   a: intitialParseAsync,
@@ -951,8 +972,8 @@ function factory(innerLiteral, variant) {
                   t: tagged,
                   pf: parseTransformationFactory$2,
                   sf: serializeTransformationFactory$5,
-                  r: undefined,
-                  e: undefined,
+                  r: 0,
+                  e: 0,
                   s: initialSerialize,
                   p: intitialParse,
                   a: intitialParseAsync,
@@ -971,8 +992,8 @@ function factory(innerLiteral, variant) {
                   t: tagged,
                   pf: parseTransformationFactory$3,
                   sf: serializeTransformationFactory$6,
-                  r: undefined,
-                  e: undefined,
+                  r: 0,
+                  e: 0,
                   s: initialSerialize,
                   p: intitialParse,
                   a: intitialParseAsync,
@@ -1326,8 +1347,8 @@ function factory$2(definer) {
           },
           pf: parseTransformationFactory,
           sf: serializeTransformationFactory,
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -1371,8 +1392,8 @@ function factory$3(param) {
           t: /* Never */0,
           pf: transformationFactory,
           sf: transformationFactory,
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -1387,8 +1408,8 @@ function factory$4(param) {
           t: /* Unknown */1,
           pf: empty,
           sf: empty,
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -1417,8 +1438,8 @@ function factory$5(param) {
                     }));
             }),
           sf: empty,
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -1569,13 +1590,19 @@ function factory$6(innerStruct) {
               }
             }),
           sf: (function (ctx, param) {
-              planSyncTransformation(ctx, (function (input) {
-                      var fn = getSerializeOperation(innerStruct);
-                      return JSON.stringify(fn !== undefined ? fn(input) : input);
-                    }));
+              var fn = getSerializeOperation(innerStruct);
+              if (fn !== undefined) {
+                return planSyncTransformation(ctx, (function (input) {
+                              return JSON.stringify(fn(input));
+                            }));
+              } else {
+                return planSyncTransformation(ctx, (function (input) {
+                              return JSON.stringify(input);
+                            }));
+              }
             }),
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -1598,8 +1625,8 @@ function factory$7(param) {
                     }));
             }),
           sf: empty,
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -1622,8 +1649,8 @@ function factory$8(param) {
                     }));
             }),
           sf: empty,
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -1679,8 +1706,8 @@ function factory$9(param) {
                     }));
             }),
           sf: empty,
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -1730,21 +1757,27 @@ function factory$10(innerStruct) {
                     }));
             }),
           sf: (function (ctx, param) {
-              planSyncTransformation(ctx, (function (input) {
-                      if (input === undefined) {
-                        return null;
-                      }
-                      var value = Caml_option.valFromOption(input);
-                      var fn = getSerializeOperation(innerStruct);
-                      if (fn !== undefined) {
-                        return fn(value);
-                      } else {
-                        return value;
-                      }
-                    }));
+              var fn = getSerializeOperation(innerStruct);
+              if (fn !== undefined) {
+                return planSyncTransformation(ctx, (function (input) {
+                              if (input !== undefined) {
+                                return fn(Caml_option.valFromOption(input));
+                              } else {
+                                return null;
+                              }
+                            }));
+              } else {
+                return planSyncTransformation(ctx, (function (input) {
+                              if (input !== undefined) {
+                                return Caml_option.valFromOption(input);
+                              } else {
+                                return null;
+                              }
+                            }));
+              }
             }),
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -1788,21 +1821,25 @@ function factory$11(innerStruct) {
                     }));
             }),
           sf: (function (ctx, param) {
-              planSyncTransformation(ctx, (function (input) {
-                      if (input === undefined) {
-                        return ;
-                      }
-                      var value = Caml_option.valFromOption(input);
-                      var fn = getSerializeOperation(innerStruct);
-                      if (fn !== undefined) {
-                        return fn(value);
-                      } else {
-                        return value;
-                      }
-                    }));
+              var fn = getSerializeOperation(innerStruct);
+              if (fn !== undefined) {
+                return planSyncTransformation(ctx, (function (input) {
+                              if (input !== undefined) {
+                                return fn(Caml_option.valFromOption(input));
+                              }
+                              
+                            }));
+              } else {
+                return planSyncTransformation(ctx, (function (input) {
+                              if (input !== undefined) {
+                                return Caml_option.valFromOption(input);
+                              }
+                              
+                            }));
+              }
             }),
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -1909,8 +1946,8 @@ function factory$13(innerStruct) {
               }
               
             }),
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -2064,8 +2101,8 @@ function factory$14(innerStruct) {
               }
               
             }),
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -2114,18 +2151,20 @@ function factory$15(innerStruct, defaultValue) {
                         }));
                 }),
               sf: (function (ctx, param) {
-                  planSyncTransformation(ctx, (function (input) {
-                          var value = Caml_option.some(input);
-                          var fn = getSerializeOperation(innerStruct);
-                          if (fn !== undefined) {
-                            return fn(value);
-                          } else {
-                            return value;
-                          }
-                        }));
+                  var fn = getSerializeOperation(innerStruct);
+                  if (fn !== undefined) {
+                    return planSyncTransformation(ctx, (function (input) {
+                                  var value = Caml_option.some(input);
+                                  return fn(value);
+                                }));
+                  } else {
+                    return planSyncTransformation(ctx, (function (input) {
+                                  return Caml_option.some(input);
+                                }));
+                  }
                 }),
-              r: undefined,
-              e: undefined,
+              r: 0,
+              e: 0,
               s: initialSerialize,
               p: intitialParse,
               a: intitialParseAsync,
@@ -2249,16 +2288,19 @@ function factory$16(param) {
               
             }),
           sf: (function (ctx, param) {
+              var serializeOperations = [];
+              for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
+                serializeOperations.push(getSerializeOperation(structs[idx]));
+              }
               planSyncTransformation(ctx, (function (input) {
                       var inputArray = numberOfStructs === 1 ? [input] : input;
                       var newArray = [];
-                      for(var idx = 0; idx < numberOfStructs; ++idx){
+                      for(var idx = 0 ,idx_finish = serializeOperations.length; idx < idx_finish; ++idx){
                         var innerData = inputArray[idx];
-                        var innerStruct = structs[idx];
-                        var fn = getSerializeOperation(innerStruct);
-                        if (fn !== undefined) {
+                        var serializeOperation = serializeOperations[idx];
+                        if (serializeOperation !== undefined) {
                           try {
-                            var value = fn(innerData);
+                            var value = serializeOperation(innerData);
                             newArray.push(value);
                           }
                           catch (raw_internalError){
@@ -2279,8 +2321,8 @@ function factory$16(param) {
                       return newArray;
                     }));
             }),
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -2426,16 +2468,19 @@ function factory$17(structs) {
               
             }),
           sf: (function (ctx, param) {
+              var serializeOperations = [];
+              for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
+                serializeOperations.push(getSerializeOperation(structs[idx]));
+              }
               planSyncTransformation(ctx, (function (input) {
                       var idxRef = 0;
                       var maybeLastErrorRef;
                       var maybeNewValueRef;
-                      while(idxRef < structs.length && maybeNewValueRef === undefined) {
+                      while(idxRef < serializeOperations.length && maybeNewValueRef === undefined) {
                         var idx = idxRef;
-                        var innerStruct = structs[idx];
+                        var serializeOperation = serializeOperations[idx];
                         try {
-                          var fn = getSerializeOperation(innerStruct);
-                          var newValue = fn !== undefined ? fn(input) : input;
+                          var newValue = serializeOperation !== undefined ? serializeOperation(input) : input;
                           maybeNewValueRef = Caml_option.some(newValue);
                         }
                         catch (raw_internalError){
@@ -2463,8 +2508,8 @@ function factory$17(structs) {
                       return undefined;
                     }));
             }),
-          r: undefined,
-          e: undefined,
+          r: 0,
+          e: 0,
           s: initialSerialize,
           p: intitialParse,
           a: intitialParseAsync,
@@ -2644,6 +2689,7 @@ exports.parseAsyncInStepsWith = parseAsyncInStepsWith;
 exports.serializeWith = serializeWith;
 exports.serializeOrRaiseWith = serializeOrRaiseWith;
 exports.isAsyncParse = isAsyncParse;
+exports.recursive = recursive;
 exports.$$Object = $$Object;
 exports.object = object;
 exports.field = field;
