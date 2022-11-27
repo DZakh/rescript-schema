@@ -2,6 +2,12 @@ type never
 type unknown
 
 module Stdlib = {
+  module Symbol = {
+    type t
+    @val
+    external make: string => t = "Symbol"
+  }
+
   module Promise = {
     type t<+'a> = promise<'a>
 
@@ -1340,7 +1346,10 @@ module Object = {
   module FieldDefinition = {
     type t
 
-    let value: t = %raw(`Symbol("rescript-struct:Object.FieldDefinition")`)
+    let value: t = {
+      let castSymbolToT: Stdlib.Symbol.t => t = Obj.magic
+      Stdlib.Symbol.make("rescript-struct:Object.FieldDefinition")->castSymbolToT
+    }
 
     let castToAny: t => 'a = Obj.magic
   }
