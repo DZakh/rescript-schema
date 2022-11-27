@@ -816,19 +816,14 @@ let parseAsyncInStepsWith = (any, struct) => {
   }
 }
 
-@inline
-let serializeInner: (~struct: t<'value>, ~value: 'value) => unknown = (~struct, ~value) => {
-  switch struct->getSerializeOperation {
-  | None => value->castAnyToUnknown
-  | Some(fn) => fn(. value->castAnyToUnknown)
-  }
-}
-
 let serializeWith = (value, struct) => {
   let struct = struct->castAnyStructToUnknownStruct
   let value = value->castAnyToUnknown
   try {
-    serializeInner(~struct, ~value)->Ok
+    switch struct->getSerializeOperation {
+    | None => value
+    | Some(fn) => fn(. value)
+    }->Ok
   } catch {
   | Error.Internal.Exception(internalError) => internalError->Error.Internal.toSerializeError->Error
   }
@@ -838,7 +833,10 @@ let serializeOrRaiseWith = (value, struct) => {
   let struct = struct->castAnyStructToUnknownStruct
   let value = value->castAnyToUnknown
   try {
-    serializeInner(~struct, ~value)
+    switch struct->getSerializeOperation {
+    | None => value
+    | Some(fn) => fn(. value)
+    }
   } catch {
   | Error.Internal.Exception(internalError) =>
     raise(Raised(internalError->Error.Internal.toSerializeError))
@@ -2180,7 +2178,12 @@ module Json = {
       }),
       ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          serializeInner(~struct=innerStruct, ~value=input)->Obj.magic->Js.Json.stringify
+          switch innerStruct->getSerializeOperation {
+          | None => input
+          | Some(fn) => fn(. input)
+          }
+          ->Obj.magic
+          ->Js.Json.stringify
         })
       }),
       (),
@@ -2325,7 +2328,11 @@ module Null = {
       ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           switch input {
-          | Some(value) => serializeInner(~struct=innerStruct, ~value)
+          | Some(value) =>
+            switch innerStruct->getSerializeOperation {
+            | None => value
+            | Some(fn) => fn(. value)
+            }
           | None => Js.Null.empty->castAnyToUnknown
           }
         })
@@ -2367,7 +2374,11 @@ module Option = {
       ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           switch input {
-          | Some(value) => serializeInner(~struct=innerStruct, ~value)
+          | Some(value) =>
+            switch innerStruct->getSerializeOperation {
+            | None => value
+            | Some(fn) => fn(. value)
+            }
           | None => Js.Undefined.empty->castAnyToUnknown
           }
         })
@@ -2665,7 +2676,11 @@ module Defaulted = {
       }),
       ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          serializeInner(~struct=innerStruct, ~value=Some(input)->castAnyToUnknown)
+          let value = Some(input)->castAnyToUnknown
+          switch innerStruct->getSerializeOperation {
+          | None => value
+          | Some(fn) => fn(. value)
+          }
         })
       }),
       (),
@@ -2940,7 +2955,10 @@ module Union = {
             let idx = idxRef.contents
             let innerStruct = structs->Js.Array2.unsafe_get(idx)->Obj.magic
             try {
-              let newValue = serializeInner(~struct=innerStruct, ~value=input)
+              let newValue = switch innerStruct->getSerializeOperation {
+              | None => input
+              | Some(fn) => fn(. input)
+              }
               maybeNewValueRef.contents = Some(newValue)
             } catch {
             | Error.Internal.Exception(internalError) => {
