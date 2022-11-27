@@ -517,7 +517,7 @@ module ParseOperationState = {
 
   @inline
   let isReady = operationState => {
-    Js.typeof(operationState) === "function"
+    Js.typeof(operationState) !== "number"
   }
 
   let unsafeToOperation: t => operation = Obj.magic
@@ -542,7 +542,7 @@ module SerializeOperationState = {
 
   @inline
   let isReady = operationState => {
-    Js.typeof(operationState) === "function"
+    Js.typeof(operationState) !== "number"
   }
 
   let unsafeToOperation: t => operation = Obj.magic

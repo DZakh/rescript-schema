@@ -255,7 +255,7 @@ function name(struct) {
 
 function getParseOperation(struct) {
   var parseOperationState = struct.r;
-  if (typeof parseOperationState === "function") {
+  if (typeof parseOperationState !== "number") {
     return parseOperationState;
   }
   if (parseOperationState === 1) {
@@ -274,7 +274,7 @@ function getParseOperation(struct) {
 
 function getSerializeOperation(struct) {
   var serializeOperationState = struct.e;
-  if (typeof serializeOperationState === "function") {
+  if (typeof serializeOperationState !== "number") {
     return serializeOperationState;
   }
   if (serializeOperationState === 1) {
