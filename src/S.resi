@@ -138,80 +138,21 @@ let serializeOrRaiseWith: ('value, t<'value>) => unknown
 let isAsyncParse: t<'value> => bool
 
 module Object: {
+  type definerCtx
+
   module UnknownKeys: {
     type tagged = Strict | Strip
 
     let classify: t<'value> => tagged
   }
 
-  let factory: 'factory
-
   let strip: t<'value> => t<'value>
   let strict: t<'value> => t<'value>
 }
 
-let object0: (. unit) => t<unit>
-let object1: (. field<'v1>) => t<'v1>
-let object2: (. field<'v1>, field<'v2>) => t<('v1, 'v2)>
-let object3: (. field<'v1>, field<'v2>, field<'v3>) => t<('v1, 'v2, 'v3)>
-let object4: (. field<'v1>, field<'v2>, field<'v3>, field<'v4>) => t<('v1, 'v2, 'v3, 'v4)>
-let object5: (
-  . field<'v1>,
-  field<'v2>,
-  field<'v3>,
-  field<'v4>,
-  field<'v5>,
-) => t<('v1, 'v2, 'v3, 'v4, 'v5)>
-let object6: (
-  . field<'v1>,
-  field<'v2>,
-  field<'v3>,
-  field<'v4>,
-  field<'v5>,
-  field<'v6>,
-) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6)>
-let object7: (
-  . field<'v1>,
-  field<'v2>,
-  field<'v3>,
-  field<'v4>,
-  field<'v5>,
-  field<'v6>,
-  field<'v7>,
-) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7)>
-let object8: (
-  . field<'v1>,
-  field<'v2>,
-  field<'v3>,
-  field<'v4>,
-  field<'v5>,
-  field<'v6>,
-  field<'v7>,
-  field<'v8>,
-) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8)>
-let object9: (
-  . field<'v1>,
-  field<'v2>,
-  field<'v3>,
-  field<'v4>,
-  field<'v5>,
-  field<'v6>,
-  field<'v7>,
-  field<'v8>,
-  field<'v9>,
-) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9)>
-let object10: (
-  . field<'v1>,
-  field<'v2>,
-  field<'v3>,
-  field<'v4>,
-  field<'v5>,
-  field<'v6>,
-  field<'v7>,
-  field<'v8>,
-  field<'v9>,
-  field<'v10>,
-) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9, 'v10)>
+let object: (Object.definerCtx => 'value) => t<'value>
+let field: (Object.definerCtx, string, t<'value>) => 'value
+let discriminant: (Object.definerCtx, string, t<'value>) => unit
 
 module Tuple: {
   let factory: 'factory

@@ -35,7 +35,12 @@ module Common = {
 
 module ObjectField = {
   test("Fails to parse a object with Never field", t => {
-    let struct = S.object2(. ("key", S.string()), ("oldKey", S.never()))
+    let struct = S.object(o =>
+      {
+        "key": o->S.field("key", S.string()),
+        "oldKey": o->S.field("oldKey", S.never()),
+      }
+    )
 
     t->Assert.deepEqual(
       %raw(`{"key":"value"}`)->S.parseWith(struct),
@@ -49,14 +54,26 @@ module ObjectField = {
   })
 
   test("Successfully parses a object with Never field when it's optional and not present", t => {
-    let struct = S.object2(.
-      ("key", S.string()),
-      (
-        "oldKey",
-        S.never()->S.deprecated(~message="We stopped using the field from the v0.9.0 release", ()),
-      ),
+    let struct = S.object(o =>
+      {
+        "key": o->S.field("key", S.string()),
+        "oldKey": o->S.field(
+          "oldKey",
+          S.never()->S.deprecated(
+            ~message="We stopped using the field from the v0.9.0 release",
+            (),
+          ),
+        ),
+      }
     )
 
-    t->Assert.deepEqual(%raw(`{"key":"value"}`)->S.parseWith(struct), Ok(("value", None)), ())
+    t->Assert.deepEqual(
+      %raw(`{"key":"value"}`)->S.parseWith(struct),
+      Ok({
+        "key": "value",
+        "oldKey": None,
+      }),
+      (),
+    )
   })
 }

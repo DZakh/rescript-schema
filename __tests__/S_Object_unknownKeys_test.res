@@ -5,18 +5,20 @@ type objectWithOneField = {key: string}
 test("Successfully parses Object with unknown keys by default", t => {
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
-  let struct = S.object1(. ("key", S.string()))
+  let struct = S.object(o => o->S.field("key", S.string()))
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok("value"), ())
 })
 
 test("Fails fast and shows only one excees key in the error message", t => {
-  let any = %raw(`{key: "value", unknownKey: "value2", unknownKey2: "value2"}`)
-
-  let struct = S.object1(. ("key", S.string()))->S.Object.strict
+  let struct = S.object(o =>
+    {
+      "key": o->S.field("key", S.string()),
+    }
+  )->S.Object.strict
 
   t->Assert.deepEqual(
-    any->S.parseWith(struct),
+    %raw(`{key: "value", unknownKey: "value2", unknownKey2: "value2"}`)->S.parseWith(struct),
     Error({
       code: ExcessField("unknownKey"),
       operation: Parsing,
@@ -30,7 +32,7 @@ test("Successfully parses Object with unknown keys when Strip strategy applyed",
   let value = "value"
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
-  let struct = S.object1(. ("key", S.string()))->S.Object.strip
+  let struct = S.object(o => o->S.field("key", S.string()))->S.Object.strip
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
@@ -39,7 +41,8 @@ test("Works correctly when the same unknown keys strategy applyed multiple times
   let value = "value"
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
-  let struct = S.object1(. ("key", S.string()))->S.Object.strip->S.Object.strip->S.Object.strip
+  let struct =
+    S.object(o => o->S.field("key", S.string()))->S.Object.strip->S.Object.strip->S.Object.strip
 
   t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
 })
@@ -56,7 +59,7 @@ test("Doesn't raise an error when unknown keys strategy applyed to a non Object 
 test("Can reset unknown keys strategy applying Strict strategy", t => {
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
-  let struct = S.object1(. ("key", S.string()))->S.Object.strip->S.Object.strict
+  let struct = S.object(o => o->S.field("key", S.string()))->S.Object.strip->S.Object.strict
 
   t->Assert.deepEqual(
     any->S.parseWith(struct),

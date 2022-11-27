@@ -10,58 +10,60 @@ var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
 var Exception = /* @__PURE__ */Caml_exceptions.create("S.Error.Internal.Exception");
 
-function raise(code) {
+function raise(expected, received, initialPathOpt, param) {
+  var initialPath = initialPathOpt !== undefined ? initialPathOpt : "";
   throw {
         RE_EXN_ID: Exception,
         _1: {
-          code: code,
-          path: []
+          c: {
+            TAG: /* UnexpectedValue */2,
+            expected: expected === undefined ? "undefined" : JSON.stringify(expected),
+            received: received === undefined ? "undefined" : JSON.stringify(received)
+          },
+          p: initialPath
+        },
+        Error: new Error()
+      };
+}
+
+function raise$1(code) {
+  throw {
+        RE_EXN_ID: Exception,
+        _1: {
+          c: code,
+          p: ""
         },
         Error: new Error()
       };
 }
 
 function toParseError(internalError) {
+  var path = internalError.p;
+  var tmp = path === "" ? [] : path.split(",");
   return {
           operation: /* Parsing */1,
-          code: internalError.code,
-          path: internalError.path
+          code: internalError.c,
+          path: tmp
         };
 }
 
 function toSerializeError(internalError) {
+  var path = internalError.p;
+  var tmp = path === "" ? [] : path.split(",");
   return {
           operation: /* Serializing */0,
-          code: internalError.code,
-          path: internalError.path
+          code: internalError.c,
+          path: tmp
         };
 }
 
 function prependLocation(error, $$location) {
+  var path = error.p;
+  var tmp = path === "" ? $$location : "" + $$location + "," + path + "";
   return {
-          code: error.code,
-          path: [$$location].concat(error.path)
+          c: error.c,
+          p: tmp
         };
-}
-
-function stringify(any) {
-  if (any === undefined) {
-    return "undefined";
-  }
-  var string = JSON.stringify(Caml_option.valFromOption(any));
-  if (string !== undefined) {
-    return string;
-  } else {
-    return "???";
-  }
-}
-
-function raise$1(expected, received) {
-  return raise({
-              TAG: /* UnexpectedValue */2,
-              expected: stringify(expected),
-              received: stringify(received)
-            });
 }
 
 function panic($$location) {
@@ -70,20 +72,6 @@ function panic($$location) {
 
 function panic$1(param) {
   throw new Error("[rescript-struct] Unreachable");
-}
-
-function panic$2(param) {
-  throw new Error("[rescript-struct] A Union struct factory require at least two structs");
-}
-
-function formatPath(path) {
-  if (path.length === 0) {
-    return "root";
-  } else {
-    return path.map(function (pathItem) {
-                  return "[" + pathItem + "]";
-                }).join("");
-  }
 }
 
 function prependLocation$1(error, $$location) {
@@ -97,7 +85,10 @@ function prependLocation$1(error, $$location) {
 function raiseCustom(error) {
   throw {
         RE_EXN_ID: Exception,
-        _1: error,
+        _1: {
+          c: error.code,
+          p: error.path.toString()
+        },
         Error: new Error()
       };
 }
@@ -106,11 +97,11 @@ function raise$2(message) {
   throw {
         RE_EXN_ID: Exception,
         _1: {
-          code: {
+          c: {
             TAG: /* OperationFailed */0,
             _0: message
           },
-          path: []
+          p: ""
         },
         Error: new Error()
       };
@@ -145,7 +136,11 @@ function toReason(nestedLevelOpt, error) {
           var array = reason._0.map(function (error) {
                 var reason = toReason(nestedLevel + 1, error);
                 var nonEmptyPath = error.path;
-                var $$location = nonEmptyPath.length !== 0 ? "Failed at " + formatPath(nonEmptyPath) + ". " : "";
+                var $$location = nonEmptyPath.length !== 0 ? "Failed at " + (
+                    nonEmptyPath.length !== 0 ? nonEmptyPath.map(function (pathItem) {
+                              return "[" + pathItem + "]";
+                            }).join("") : "root"
+                  ) + ". " : "";
                 return "- " + $$location + "" + reason + "";
               });
           var reasons = Array.from(new Set(array));
@@ -160,7 +155,10 @@ function toString(error) {
   var match = error.operation;
   var operation = match ? "parsing" : "serializing";
   var reason = toReason(undefined, error);
-  var pathText = formatPath(error.path);
+  var path = error.path;
+  var pathText = path.length !== 0 ? path.map(function (pathItem) {
+            return "[" + pathItem + "]";
+          }).join("") : "root";
   return "Failed " + operation + " at " + pathText + ". Reason: " + reason + "";
 }
 
@@ -304,14 +302,14 @@ function raiseUnexpectedTypeError(input, struct) {
       
     }
   }
-  return raise({
+  return raise$1({
               TAG: /* UnexpectedType */1,
               expected: struct.n,
               received: tmp
             });
 }
 
-function make(name, tagged, parseTransformationFactory, serializeTransformationFactory, maybeMetadataDict, param) {
+function make(name, tagged, parseTransformationFactory, serializeTransformationFactory, maybeInlinedRefinement, maybeMetadataDict, param) {
   var struct = {
     n: name,
     t: tagged,
@@ -319,6 +317,7 @@ function make(name, tagged, parseTransformationFactory, serializeTransformationF
     sf: serializeTransformationFactory,
     s: undefined,
     p: undefined,
+    i: maybeInlinedRefinement,
     m: maybeMetadataDict
   };
   struct.p = compile(struct.pf, struct);
@@ -340,7 +339,7 @@ function parseWith(any, struct) {
               _0: fn._0(any)
             };
     } else {
-      return raise(/* UnexpectedAsync */2);
+      return raise$1(/* UnexpectedAsync */2);
     }
   }
   catch (raw_internalError){
@@ -363,7 +362,7 @@ function parseOrRaiseWith(any, struct) {
     } else if (fn.TAG === /* SyncOperation */0) {
       return fn._0(any);
     } else {
-      return raise(/* UnexpectedAsync */2);
+      return raise$1(/* UnexpectedAsync */2);
     }
   }
   catch (raw_internalError){
@@ -542,26 +541,27 @@ function get(struct, id) {
 
 function set(struct, id, metadata) {
   var metadataChange = {};
-  return make(struct.n, struct.t, struct.pf, struct.sf, Caml_option.some(Object.assign({}, struct.m, (metadataChange[id] = metadata, metadataChange))), undefined);
+  return make(struct.n, struct.t, struct.pf, struct.sf, undefined, Caml_option.some(Object.assign({}, struct.m, (metadataChange[id] = metadata, metadataChange))), undefined);
 }
 
 function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
   if (maybeRefineParser === undefined && maybeRefineSerializer === undefined) {
     panic("struct factory Refine");
   }
-  return make(struct.n, struct.t, maybeRefineParser !== undefined ? (function (ctx, compilingStruct) {
-                  struct.pf(ctx, compilingStruct);
-                  planSyncTransformation(ctx, (function (input) {
-                          maybeRefineParser(input);
-                          return input;
-                        }));
-                }) : struct.pf, maybeRefineSerializer !== undefined ? (function (ctx, compilingStruct) {
+  var nextParseTransformationFactory = maybeRefineParser !== undefined ? (function (ctx, compilingStruct) {
+        struct.pf(ctx, compilingStruct);
+        planSyncTransformation(ctx, (function (input) {
+                maybeRefineParser(input);
+                return input;
+              }));
+      }) : struct.pf;
+  return make(struct.n, struct.t, nextParseTransformationFactory, maybeRefineSerializer !== undefined ? (function (ctx, compilingStruct) {
                   planSyncTransformation(ctx, (function (input) {
                           maybeRefineSerializer(input);
                           return input;
                         }));
                   struct.sf(ctx, compilingStruct);
-                }) : struct.sf, struct.m, undefined);
+                }) : struct.sf, nextParseTransformationFactory === struct.pf ? struct.i : undefined, struct.m, undefined);
 }
 
 function asyncRefine(struct, parser, param) {
@@ -572,7 +572,7 @@ function asyncRefine(struct, parser, param) {
                                     return input;
                                   });
                       }));
-              }), struct.sf, struct.m, undefined);
+              }), struct.sf, undefined, struct.m, undefined);
 }
 
 function transform(struct, maybeTransformParser, maybeTransformSerializer, param) {
@@ -585,7 +585,7 @@ function transform(struct, maybeTransformParser, maybeTransformSerializer, param
                   return planSyncTransformation(ctx, maybeTransformParser);
                 } else {
                   return planSyncTransformation(ctx, (function (param) {
-                                return raise(/* MissingParser */0);
+                                return raise$1(/* MissingParser */0);
                               }));
                 }
               }), (function (ctx, compilingStruct) {
@@ -593,11 +593,11 @@ function transform(struct, maybeTransformParser, maybeTransformSerializer, param
                   planSyncTransformation(ctx, maybeTransformSerializer);
                 } else {
                   planSyncTransformation(ctx, (function (param) {
-                          return raise(/* MissingSerializer */1);
+                          return raise$1(/* MissingSerializer */1);
                         }));
                 }
                 struct.sf(ctx, compilingStruct);
-              }), struct.m, undefined);
+              }), undefined, struct.m, undefined);
 }
 
 function advancedTransform(struct, maybeTransformParser, maybeTransformSerializer, param) {
@@ -608,7 +608,7 @@ function advancedTransform(struct, maybeTransformParser, maybeTransformSerialize
                 struct.pf(ctx, compilingStruct);
                 if (maybeTransformParser === undefined) {
                   return planSyncTransformation(ctx, (function (param) {
-                                return raise(/* MissingParser */0);
+                                return raise$1(/* MissingParser */0);
                               }));
                 }
                 var syncTransformation = maybeTransformParser(compilingStruct);
@@ -627,11 +627,11 @@ function advancedTransform(struct, maybeTransformParser, maybeTransformSerialize
                   }
                 } else {
                   planSyncTransformation(ctx, (function (param) {
-                          return raise(/* MissingSerializer */1);
+                          return raise$1(/* MissingSerializer */1);
                         }));
                 }
                 struct.sf(ctx, compilingStruct);
-              }), struct.m, undefined);
+              }), undefined, struct.m, undefined);
 }
 
 function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerializer, param) {
@@ -645,7 +645,7 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
                 _0: unionStructs._0.map(function (unionStruct) {
                       return advancedPreprocess(unionStruct, maybePreprocessParser, maybePreprocessSerializer, undefined);
                     })
-              }, struct.pf, struct.sf, struct.m, undefined);
+              }, struct.pf, struct.sf, undefined, struct.m, undefined);
   }
   return make(struct.n, struct.t, (function (ctx, compilingStruct) {
                 if (maybePreprocessParser !== undefined) {
@@ -657,7 +657,7 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
                   }
                 } else {
                   planSyncTransformation(ctx, (function (param) {
-                          return raise(/* MissingParser */0);
+                          return raise$1(/* MissingParser */0);
                         }));
                 }
                 struct.pf(ctx, compilingStruct);
@@ -665,7 +665,7 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
                 struct.sf(ctx, compilingStruct);
                 if (maybePreprocessSerializer === undefined) {
                   return planSyncTransformation(ctx, (function (param) {
-                                return raise(/* MissingSerializer */1);
+                                return raise$1(/* MissingSerializer */1);
                               }));
                 }
                 var syncTransformation = maybePreprocessSerializer(compilingStruct);
@@ -674,7 +674,7 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
                 } else {
                   return planAsyncTransformation(ctx, syncTransformation._0);
                 }
-              }), struct.m, undefined);
+              }), undefined, struct.m, undefined);
 }
 
 function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
@@ -686,7 +686,7 @@ function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
                   return planSyncTransformation(ctx, Caml_option.valFromOption(maybeCustomParser));
                 } else {
                   return planSyncTransformation(ctx, (function (param) {
-                                return raise(/* MissingParser */0);
+                                return raise$1(/* MissingParser */0);
                               }));
                 }
               }), (function (ctx, param) {
@@ -694,10 +694,10 @@ function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
                   return planSyncTransformation(ctx, Caml_option.valFromOption(maybeCustomSerializer));
                 } else {
                   return planSyncTransformation(ctx, (function (param) {
-                                return raise(/* MissingSerializer */1);
+                                return raise$1(/* MissingSerializer */1);
                               }));
                 }
-              }), undefined, undefined);
+              }), undefined, undefined, undefined);
 }
 
 function factory(innerLiteral, variant) {
@@ -712,7 +712,7 @@ function factory(innerLiteral, variant) {
                 if (literalValue === input) {
                   return variant;
                 } else {
-                  return raise$1(literalValue, input);
+                  return raise(literalValue, input, undefined, undefined);
                 }
               } else {
                 return raiseUnexpectedTypeError(input, struct);
@@ -726,7 +726,7 @@ function factory(innerLiteral, variant) {
               if (input === variant) {
                 return output;
               } else {
-                return raise$1(variant, input);
+                return raise(variant, input, undefined, undefined);
               }
             }));
     };
@@ -742,7 +742,7 @@ function factory(innerLiteral, variant) {
                                   return raiseUnexpectedTypeError(input, struct);
                                 }
                               }));
-                      }), makeSerializeTransformationFactory(null), undefined, undefined);
+                      }), makeSerializeTransformationFactory(null), undefined, undefined, undefined);
       case /* EmptyOption */1 :
           return make("EmptyOption Literal (undefined)", tagged, (function (ctx, struct) {
                         planSyncTransformation(ctx, (function (input) {
@@ -752,7 +752,7 @@ function factory(innerLiteral, variant) {
                                   return raiseUnexpectedTypeError(input, struct);
                                 }
                               }));
-                      }), makeSerializeTransformationFactory(undefined), undefined, undefined);
+                      }), makeSerializeTransformationFactory(undefined), undefined, undefined, undefined);
       case /* NaN */2 :
           return make("NaN Literal (NaN)", tagged, (function (ctx, struct) {
                         planSyncTransformation(ctx, (function (input) {
@@ -762,7 +762,7 @@ function factory(innerLiteral, variant) {
                                   return raiseUnexpectedTypeError(input, struct);
                                 }
                               }));
-                      }), makeSerializeTransformationFactory(NaN), undefined, undefined);
+                      }), makeSerializeTransformationFactory(NaN), undefined, undefined, undefined);
       
     }
   } else {
@@ -771,7 +771,7 @@ function factory(innerLiteral, variant) {
           var string = innerLiteral._0;
           return make("String Literal (\"" + string + "\")", tagged, makeParseTransformationFactory(string, (function (input) {
                             return typeof input === "string";
-                          })), makeSerializeTransformationFactory(string), undefined, undefined);
+                          })), makeSerializeTransformationFactory(string), undefined, undefined, undefined);
       case /* Int */1 :
           var $$int = innerLiteral._0;
           return make("Int Literal (" + $$int.toString() + ")", tagged, makeParseTransformationFactory($$int, (function (input) {
@@ -780,17 +780,17 @@ function factory(innerLiteral, variant) {
                             } else {
                               return false;
                             }
-                          })), makeSerializeTransformationFactory($$int), undefined, undefined);
+                          })), makeSerializeTransformationFactory($$int), undefined, undefined, undefined);
       case /* Float */2 :
           var $$float = innerLiteral._0;
           return make("Float Literal (" + $$float.toString() + ")", tagged, makeParseTransformationFactory($$float, (function (input) {
                             return typeof input === "number";
-                          })), makeSerializeTransformationFactory($$float), undefined, undefined);
+                          })), makeSerializeTransformationFactory($$float), undefined, undefined, undefined);
       case /* Bool */3 :
           var bool = innerLiteral._0;
-          return make("Bool Literal (" + bool + ")", tagged, makeParseTransformationFactory(bool, (function (input) {
+          return make("Bool Literal (" + bool.toString() + ")", tagged, makeParseTransformationFactory(bool, (function (input) {
                             return typeof input === "boolean";
-                          })), makeSerializeTransformationFactory(bool), undefined, undefined);
+                          })), makeSerializeTransformationFactory(bool), undefined, undefined, undefined);
       
     }
   }
@@ -815,155 +815,342 @@ function classify$1(struct) {
   }
 }
 
-var getMaybeExcessKey = (function(object, innerStructsDict) {
-    for (var key in object) {
-      if (!Object.prototype.hasOwnProperty.call(innerStructsDict, key)) {
-        return key
-      }
-    }
-  });
+var value = (Symbol("rescript-struct:Object.FieldDefinition"));
 
-function factory$2(param) {
-  var fieldsArray = arguments;
-  var fields = Js_dict.fromArray(fieldsArray);
-  var fieldNames = Object.keys(fields);
+function analyzeDefinition(definition, definerCtx, path, inlinedPath) {
+  if (definition === value) {
+    var originalFieldName = definerCtx.originalFieldNames[definerCtx.registeredFieldsCount];
+    definerCtx.registeredFieldsCount = definerCtx.registeredFieldsCount + 1;
+    definerCtx.definedFieldInstructions.push({
+          TAG: /* Registered */1,
+          fieldStruct: definerCtx.originalFields[originalFieldName],
+          originalFieldName: originalFieldName,
+          inlinedOriginalFieldName: JSON.stringify(originalFieldName),
+          inlinedPath: inlinedPath,
+          path: path
+        });
+    return ;
+  }
+  if (typeof definition === "object" && definition !== null) {
+    definerCtx.inlinedPreparationPathes.push(inlinedPath);
+    definerCtx.inlinedPreparationValues.push(Array.isArray(definition) ? "[]" : "{}");
+    var definitionFieldNames = Object.keys(definition);
+    for(var idx = 0 ,idx_finish = definitionFieldNames.length; idx < idx_finish; ++idx){
+      var definitionFieldName = definitionFieldNames[idx];
+      var fieldDefinition = definition[definitionFieldName];
+      var tmp = path === "" ? definitionFieldName : "" + path + "," + definitionFieldName + "";
+      analyzeDefinition(fieldDefinition, definerCtx, tmp, "" + inlinedPath + "[" + JSON.stringify(definitionFieldName) + "]");
+    }
+    return ;
+  }
+  definerCtx.constantInstructions.push({
+        inlinedPath: inlinedPath,
+        v: definition,
+        path: path
+      });
+}
+
+function structToInlinedValue(_struct) {
+  while(true) {
+    var struct = _struct;
+    var unionStructs = struct.t;
+    if (typeof unionStructs === "number") {
+      throw undefined;
+    }
+    switch (unionStructs.TAG | 0) {
+      case /* Literal */0 :
+          var string = unionStructs._0;
+          if (typeof string !== "number") {
+            if (string.TAG === /* String */0) {
+              return JSON.stringify(string._0);
+            } else {
+              return string._0.toString();
+            }
+          }
+          switch (string) {
+            case /* EmptyNull */0 :
+                return "null";
+            case /* EmptyOption */1 :
+                return "undefined";
+            case /* NaN */2 :
+                return "NaN";
+            
+          }
+      case /* Object */4 :
+          var fields = unionStructs.fields;
+          return "{" + unionStructs.fieldNames.map((function(fields){
+                      return function (fieldName) {
+                        return "" + JSON.stringify(fieldName) + ":" + structToInlinedValue(fields[fieldName]) + "";
+                      }
+                      }(fields))).join(",") + "}";
+      case /* Tuple */5 :
+          return "[" + unionStructs._0.map(structToInlinedValue).join(",") + "]";
+      case /* Union */6 :
+          _struct = unionStructs._0[0];
+          continue ;
+      default:
+        throw undefined;
+    }
+  };
+}
+
+function factory$2(definer) {
+  var definerCtx = {
+    originalFieldNames: undefined,
+    originalFields: {},
+    registeredFieldsCount: 0,
+    inlinedPreparationPathes: [],
+    inlinedPreparationValues: [],
+    definedFieldInstructions: [],
+    constantInstructions: []
+  };
+  var definition = definer(definerCtx);
+  var originalFieldNames = Object.keys(definerCtx.originalFields);
+  definerCtx.originalFieldNames = originalFieldNames;
+  analyzeDefinition(definition, definerCtx, "", "");
+  var originalFieldNamesCount = originalFieldNames.length;
+  if (definerCtx.registeredFieldsCount > originalFieldNamesCount) {
+    throw new Error("[rescript-struct] The object defention has more registered fields than expected.");
+  }
+  if (definerCtx.registeredFieldsCount < originalFieldNamesCount) {
+    throw new Error("[rescript-struct] The object defention contains fields that weren't registered.");
+  }
   return make("Object", {
               TAG: /* Object */4,
-              fields: fields,
-              fieldNames: fieldNames
+              fields: definerCtx.originalFields,
+              fieldNames: definerCtx.originalFieldNames
             }, (function (ctx, struct) {
-                var unknownKeys = classify$1(struct);
-                var noopOps = [];
-                var syncOps = [];
-                var asyncOps = [];
-                for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-                  var fieldName = fieldNames[idx];
-                  var fieldStruct = fields[fieldName];
-                  var fn = fieldStruct.p;
-                  if (typeof fn === "number") {
-                    noopOps.push([
-                          idx,
-                          fieldName
-                        ]);
-                  } else if (fn.TAG === /* SyncOperation */0) {
-                    syncOps.push([
-                          idx,
-                          fieldName,
-                          fn._0
-                        ]);
-                  } else {
-                    syncOps.push([
-                          idx,
-                          fieldName,
-                          fn._0
-                        ]);
-                    asyncOps.push([
-                          idx,
-                          fieldName
-                        ]);
+                var constantInstructions = definerCtx.constantInstructions;
+                var definedFieldInstructions = definerCtx.definedFieldInstructions;
+                var inlinedPreparationValues = definerCtx.inlinedPreparationValues;
+                var inlinedPreparationPathes = definerCtx.inlinedPreparationPathes;
+                var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
+                var definedAsyncFieldInstructions = [];
+                var parseFnsByInstructionIdx = {};
+                var refinement = "if(typeof o!==\"object\"||o===null||Array.isArray(o)){u(o)}";
+                var stringRef = "var t;";
+                for(var idx = 0 ,idx_finish = inlinedPreparationPathes.length; idx < idx_finish; ++idx){
+                  var preparationPath = inlinedPreparationPathes[idx];
+                  var preparationInlinedValue = inlinedPreparationValues[idx];
+                  stringRef = stringRef + ("t" + preparationPath + "=" + preparationInlinedValue + ";");
+                }
+                var preparation = stringRef;
+                var transformedObjectConstruction;
+                if (definedFieldInstructions.length === 0) {
+                  transformedObjectConstruction = "";
+                } else {
+                  var stringRef$1 = "";
+                  for(var idx$1 = 0 ,idx_finish$1 = definedFieldInstructions.length; idx$1 < idx_finish$1; ++idx$1){
+                    var definedFieldInstruction = definedFieldInstructions[idx$1];
+                    var fieldStruct = definedFieldInstruction.fieldStruct;
+                    var inlinedOriginalFieldName;
+                    inlinedOriginalFieldName = definedFieldInstruction.TAG === /* Discriminant */0 ? definedFieldInstruction.inlinedOriginalFieldName : definedFieldInstruction.inlinedOriginalFieldName;
+                    var inlinedInstructionIdx = idx$1.toString();
+                    var fn = fieldStruct.p;
+                    var maybeParseFn;
+                    maybeParseFn = typeof fn === "number" ? undefined : fn._0;
+                    var match = fieldStruct.p;
+                    var isAsync;
+                    isAsync = typeof match === "number" || match.TAG === /* SyncOperation */0 ? false : true;
+                    var inlinedInputData = "o[" + inlinedOriginalFieldName + "]";
+                    var maybeInlinedDestination;
+                    if (isAsync) {
+                      var inlinedDestination = "a[" + definedAsyncFieldInstructions.length.toString() + "]";
+                      if (definedAsyncFieldInstructions.length === 0) {
+                        stringRef$1 = stringRef$1 + "var a={};";
+                      }
+                      if (definedFieldInstruction.TAG !== /* Discriminant */0) {
+                        stringRef$1 = stringRef$1 + ("t" + definedFieldInstruction.inlinedPath + "=undefined;");
+                      }
+                      definedAsyncFieldInstructions.push(definedFieldInstruction);
+                      maybeInlinedDestination = inlinedDestination;
+                    } else {
+                      maybeInlinedDestination = definedFieldInstruction.TAG === /* Discriminant */0 ? undefined : "t" + definedFieldInstruction.inlinedPath + "";
+                    }
+                    var match$1 = fieldStruct.i;
+                    stringRef$1 = stringRef$1 + (
+                      maybeParseFn !== undefined ? (
+                          match$1 !== undefined ? "var v=" + inlinedInputData + ";if(" + match$1 + "){" + (
+                              maybeInlinedDestination !== undefined ? "" + maybeInlinedDestination + "=v" : ""
+                            ) + "}else{i=" + inlinedInstructionIdx + ";s(v,f[" + inlinedOriginalFieldName + "])}" : (parseFnsByInstructionIdx[inlinedInstructionIdx] = maybeParseFn, "i=" + inlinedInstructionIdx + ";" + (
+                                maybeInlinedDestination !== undefined ? "" + maybeInlinedDestination + "=" : ""
+                              ) + "p[" + inlinedInstructionIdx + "](" + inlinedInputData + ");")
+                        ) : (
+                          maybeInlinedDestination !== undefined ? "" + maybeInlinedDestination + "=" + inlinedInputData + ";" : ""
+                        )
+                    );
                   }
+                  var tryContent = stringRef$1;
+                  transformedObjectConstruction = "var i;" + ("try{" + tryContent + "}catch(e){c(e,i)}");
                 }
-                var withAsyncOps = asyncOps.length > 0;
-                planSyncTransformation(ctx, (function (input) {
-                        if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
-                          raiseUnexpectedTypeError(input, struct);
-                        }
-                        var newArray = [];
-                        for(var idx = 0 ,idx_finish = syncOps.length; idx < idx_finish; ++idx){
-                          var match = syncOps[idx];
-                          var fieldName = match[1];
-                          var fieldData = input[fieldName];
-                          try {
-                            var value = match[2](fieldData);
-                            newArray[match[0]] = value;
-                          }
-                          catch (raw_internalError){
-                            var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                            if (internalError.RE_EXN_ID === Exception) {
-                              throw {
-                                    RE_EXN_ID: Exception,
-                                    _1: prependLocation(internalError._1, fieldName),
-                                    Error: new Error()
-                                  };
+                var unknownKeysRefinement;
+                if (withUnknownKeysRefinement) {
+                  var stringRef$2 = "for(var k in o){switch(k){";
+                  for(var idx$2 = 0 ,idx_finish$2 = definedFieldInstructions.length; idx$2 < idx_finish$2; ++idx$2){
+                    var definedFieldInstruction$1 = definedFieldInstructions[idx$2];
+                    var inlinedOriginalFieldName$1;
+                    inlinedOriginalFieldName$1 = definedFieldInstruction$1.TAG === /* Discriminant */0 ? definedFieldInstruction$1.inlinedOriginalFieldName : definedFieldInstruction$1.inlinedOriginalFieldName;
+                    stringRef$2 = stringRef$2 + ("case" + inlinedOriginalFieldName$1 + ":continue;");
+                  }
+                  unknownKeysRefinement = stringRef$2 + "default:x(k)}}";
+                } else {
+                  unknownKeysRefinement = "";
+                }
+                var stringRef$3 = "";
+                for(var idx$3 = 0 ,idx_finish$3 = constantInstructions.length; idx$3 < idx_finish$3; ++idx$3){
+                  var match$2 = constantInstructions[idx$3];
+                  stringRef$3 = stringRef$3 + ("t" + match$2.inlinedPath + "=d[" + idx$3.toString() + "].v;");
+                }
+                var constants = stringRef$3;
+                var returnValue = definedAsyncFieldInstructions.length === 0 ? "t" : "a.t=t,a";
+                var inlinedParseFunction = "function(o){" + ("" + refinement + "" + preparation + "" + transformedObjectConstruction + "" + unknownKeysRefinement + "" + constants + "return " + returnValue + "") + "}";
+                planSyncTransformation(ctx, new Function("c", "p", "f", "d", "u", "s", "x", "return " + inlinedParseFunction + "")((function (exn, instructionIdx) {
+                            var tmp;
+                            if (exn.RE_EXN_ID === Exception) {
+                              var definedFieldInstruction = definedFieldInstructions[instructionIdx];
+                              var tmp$1;
+                              tmp$1 = definedFieldInstruction.TAG === /* Discriminant */0 ? definedFieldInstruction.originalFieldName : definedFieldInstruction.originalFieldName;
+                              tmp = {
+                                RE_EXN_ID: Exception,
+                                _1: prependLocation(exn._1, tmp$1)
+                              };
+                            } else {
+                              tmp = exn;
                             }
-                            throw internalError;
-                          }
-                        }
-                        for(var idx$1 = 0 ,idx_finish$1 = noopOps.length; idx$1 < idx_finish$1; ++idx$1){
-                          var match$1 = noopOps[idx$1];
-                          var fieldData$1 = input[match$1[1]];
-                          newArray[match$1[0]] = fieldData$1;
-                        }
-                        if (unknownKeys === /* Strict */0) {
-                          var excessKey = getMaybeExcessKey(input, fields);
-                          if (excessKey !== undefined) {
-                            raise({
-                                  TAG: /* ExcessField */4,
-                                  _0: excessKey
-                                });
-                          }
-                          
-                        }
-                        if (withAsyncOps || newArray.length > 1) {
-                          return newArray;
-                        } else {
-                          return newArray[0];
-                        }
-                      }));
-                if (withAsyncOps) {
-                  return planAsyncTransformation(ctx, (function (tempArray) {
-                                return Promise.all(asyncOps.map(function (param) {
-                                                  var fieldName = param[1];
-                                                  return tempArray[param[0]]().catch(function (exn) {
-                                                              throw exn.RE_EXN_ID === Exception ? ({
-                                                                        RE_EXN_ID: Exception,
-                                                                        _1: prependLocation(exn._1, fieldName)
-                                                                      }) : exn;
-                                                            });
-                                                })).then(function (asyncFieldValues) {
-                                            asyncFieldValues.forEach(function (fieldValue, idx) {
-                                                  var match = asyncOps[idx];
-                                                  tempArray[match[0]] = fieldValue;
-                                                });
-                                            return tempArray;
-                                          });
-                              }));
+                            throw tmp;
+                          }), parseFnsByInstructionIdx, definerCtx.originalFields, constantInstructions, (function (input) {
+                            return raiseUnexpectedTypeError(input, struct);
+                          }), raiseUnexpectedTypeError, (function (exccessFieldName) {
+                            return raise$1({
+                                        TAG: /* ExcessField */4,
+                                        _0: exccessFieldName
+                                      });
+                          })));
+                if (definedAsyncFieldInstructions.length <= 0) {
+                  return ;
                 }
-                
+                var resolveVar = "rs";
+                var rejectVar = "rj";
+                var contentRef = "var y=" + definedAsyncFieldInstructions.length.toString() + ",t=a.t;";
+                for(var idx$4 = 0 ,idx_finish$4 = definedAsyncFieldInstructions.length; idx$4 < idx_finish$4; ++idx$4){
+                  var definedAsyncFieldInstruction = definedAsyncFieldInstructions[idx$4];
+                  var inlinedIdx = idx$4.toString();
+                  var fieldValueVar = "z";
+                  var inlinedFieldValueAssignment;
+                  inlinedFieldValueAssignment = definedAsyncFieldInstruction.TAG === /* Discriminant */0 ? "" : "t" + definedAsyncFieldInstruction.inlinedPath + "=" + fieldValueVar + "";
+                  var inlinedIteration = "if(y--===1){" + ("" + resolveVar + "(t)") + "}";
+                  var onFieldSuccessInlinedFnContent = "" + inlinedFieldValueAssignment + ";" + inlinedIteration + "";
+                  var onFieldSuccessInlinedFn = "function(" + fieldValueVar + "){" + onFieldSuccessInlinedFnContent + "}";
+                  var errorVar = "z";
+                  var onFieldErrorInlinedFn = "function(" + errorVar + "){" + ("" + rejectVar + "(j(" + errorVar + "," + inlinedIdx + "))") + "}";
+                  contentRef = contentRef + ("a[" + inlinedIdx + "]().then(" + onFieldSuccessInlinedFn + "," + onFieldErrorInlinedFn + ");");
+                }
+                var content = contentRef;
+                var inlinedAsyncParseFunction = "function(a){" + ("return " + ("new Promise(function(" + resolveVar + "," + rejectVar + "){" + content + "})") + "") + "}";
+                planAsyncTransformation(ctx, new Function("j", "return " + inlinedAsyncParseFunction + "")(function (exn, asyncInstructionIdx) {
+                          if (exn.RE_EXN_ID !== Exception) {
+                            return exn;
+                          }
+                          var definedFieldInstruction = definedAsyncFieldInstructions[asyncInstructionIdx];
+                          var tmp;
+                          tmp = definedFieldInstruction.TAG === /* Discriminant */0 ? definedFieldInstruction.originalFieldName : definedFieldInstruction.originalFieldName;
+                          return {
+                                  RE_EXN_ID: Exception,
+                                  _1: prependLocation(exn._1, tmp)
+                                };
+                        }));
               }), (function (ctx, param) {
-                planSyncTransformation(ctx, (function (input) {
-                        var unknown = {};
-                        var fieldValues = fieldNames.length <= 1 ? [input] : input;
-                        for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-                          var fieldName = fieldNames[idx];
-                          var fieldStruct = fields[fieldName];
-                          var fieldValue = fieldValues[idx];
-                          var fn = fieldStruct.s;
-                          if (typeof fn === "number") {
-                            unknown[fieldName] = fieldValue;
-                          } else if (fn.TAG === /* SyncOperation */0) {
-                            try {
-                              var fieldData = fn._0(fieldValue);
-                              unknown[fieldName] = fieldData;
-                            }
-                            catch (raw_internalError){
-                              var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-                              if (internalError.RE_EXN_ID === Exception) {
-                                throw {
+                var inliningOriginalFieldNameRef = undefined;
+                try {
+                  var constantInstructions = definerCtx.constantInstructions;
+                  var definedFieldInstructions = definerCtx.definedFieldInstructions;
+                  var serializeFnsByInstructionIdx = {};
+                  var stringRef = "";
+                  for(var idx = 0 ,idx_finish = constantInstructions.length; idx < idx_finish; ++idx){
+                    var match = constantInstructions[idx];
+                    var inlinedPath = match.inlinedPath;
+                    var content = "r(" + idx.toString() + ",t" + inlinedPath + ")";
+                    var condition = "t" + inlinedPath + "!==d[" + idx.toString() + "].v";
+                    stringRef = stringRef + ("if(" + condition + "){" + content + "}");
+                  }
+                  var constants = stringRef;
+                  var contentRef = "var i;return{";
+                  for(var idx$1 = 0 ,idx_finish$1 = definedFieldInstructions.length; idx$1 < idx_finish$1; ++idx$1){
+                    var definedFieldInstruction = definedFieldInstructions[idx$1];
+                    var fieldStruct = definedFieldInstruction.fieldStruct;
+                    var inlinedOriginalFieldName;
+                    inlinedOriginalFieldName = definedFieldInstruction.TAG === /* Discriminant */0 ? definedFieldInstruction.inlinedOriginalFieldName : definedFieldInstruction.inlinedOriginalFieldName;
+                    var inlinedInstructionIdx = idx$1.toString();
+                    var tmp;
+                    if (definedFieldInstruction.TAG === /* Discriminant */0) {
+                      var tmp$1;
+                      tmp$1 = definedFieldInstruction.TAG === /* Discriminant */0 ? definedFieldInstruction.originalFieldName : definedFieldInstruction.originalFieldName;
+                      inliningOriginalFieldNameRef = tmp$1;
+                      tmp = "" + inlinedOriginalFieldName + ":" + structToInlinedValue(fieldStruct) + ",";
+                    } else {
+                      var inlinedPath$1 = definedFieldInstruction.inlinedPath;
+                      var fn = fieldStruct.s;
+                      if (typeof fn === "number") {
+                        tmp = "" + inlinedOriginalFieldName + ":t" + inlinedPath$1 + ",";
+                      } else if (fn.TAG === /* SyncOperation */0) {
+                        serializeFnsByInstructionIdx[inlinedInstructionIdx] = fn._0;
+                        tmp = "" + inlinedOriginalFieldName + ":(i=" + inlinedInstructionIdx + ",s[" + inlinedInstructionIdx + "](t" + inlinedPath$1 + ")),";
+                      } else {
+                        tmp = panic$1(undefined);
+                      }
+                    }
+                    contentRef = contentRef + tmp;
+                  }
+                  var tryContent = contentRef + "}";
+                  var originalObjectConstructionAndReturn = "try{" + tryContent + "}catch(e){c(e,i)}";
+                  var inlinedSerializeFunction = "function(t){" + ("" + constants + "" + originalObjectConstructionAndReturn + "") + "}";
+                  planSyncTransformation(ctx, new Function("s", "d", "r", "c", "return " + inlinedSerializeFunction + "")(serializeFnsByInstructionIdx, constantInstructions, (function (instructionIdx, received) {
+                              var match = constantInstructions[instructionIdx];
+                              return raise(match.v, received, match.path, undefined);
+                            }), (function (exn, instructionIdx) {
+                              var tmp;
+                              if (exn.RE_EXN_ID === Exception) {
+                                var definedFieldInstruction = definedFieldInstructions[instructionIdx];
+                                tmp = definedFieldInstruction.TAG === /* Discriminant */0 ? panic$1(undefined) : ({
                                       RE_EXN_ID: Exception,
-                                      _1: prependLocation(internalError._1, fieldName),
-                                      Error: new Error()
-                                    };
+                                      _1: prependLocation(exn._1, definedFieldInstruction.path)
+                                    });
+                              } else {
+                                tmp = exn;
                               }
-                              throw internalError;
-                            }
-                          } else {
-                            panic$1(undefined);
-                          }
-                        }
-                        return unknown;
-                      }));
-              }), undefined, undefined);
+                              throw tmp;
+                            })));
+                }
+                catch (exn){
+                  var inliningOriginalFieldName = inliningOriginalFieldNameRef;
+                  planSyncTransformation(ctx, (function (param) {
+                          throw {
+                                RE_EXN_ID: Exception,
+                                _1: {
+                                  c: /* MissingSerializer */1,
+                                  p: inliningOriginalFieldName
+                                },
+                                Error: new Error()
+                              };
+                        }));
+                }
+              }), undefined, undefined, undefined);
+}
+
+function field(definerCtx, originalFieldName, struct) {
+  definerCtx.originalFields[originalFieldName] = struct;
+  return value;
+}
+
+function discriminant(definerCtx, originalFieldName, struct) {
+  definerCtx.originalFields[originalFieldName] = struct;
+  definerCtx.registeredFieldsCount = definerCtx.registeredFieldsCount + 1;
+  definerCtx.definedFieldInstructions.unshift({
+        TAG: /* Discriminant */0,
+        fieldStruct: struct,
+        inlinedOriginalFieldName: JSON.stringify(originalFieldName),
+        originalFieldName: originalFieldName
+      });
 }
 
 function strip(struct) {
@@ -980,11 +1167,11 @@ function factory$3(param) {
             return raiseUnexpectedTypeError(input, struct);
           }));
   };
-  return make("Never", /* Never */0, transformationFactory, transformationFactory, undefined, undefined);
+  return make("Never", /* Never */0, transformationFactory, transformationFactory, "false", undefined, undefined);
 }
 
 function factory$4(param) {
-  return make("Unknown", /* Unknown */1, empty, empty, undefined, undefined);
+  return make("Unknown", /* Unknown */1, empty, empty, undefined, undefined, undefined);
 }
 
 var cuidRegex = /^c[^\s-]{8,}$/i;
@@ -1002,7 +1189,7 @@ function factory$5(param) {
                           return raiseUnexpectedTypeError(input, struct);
                         }
                       }));
-              }), empty, undefined, undefined);
+              }), empty, "typeof v===\"string\"", undefined, undefined);
 }
 
 function min(struct, maybeMessage, length) {
@@ -1151,7 +1338,7 @@ function factory$6(innerStruct) {
                           );
                         return JSON.stringify(tmp);
                       }));
-              }), undefined, undefined);
+              }), undefined, undefined, undefined);
 }
 
 function factory$7(param) {
@@ -1163,7 +1350,7 @@ function factory$7(param) {
                           return raiseUnexpectedTypeError(input, struct);
                         }
                       }));
-              }), empty, undefined, undefined);
+              }), empty, "typeof v===\"boolean\"", undefined, undefined);
 }
 
 function factory$8(param) {
@@ -1175,7 +1362,7 @@ function factory$8(param) {
                           return raiseUnexpectedTypeError(input, struct);
                         }
                       }));
-              }), empty, undefined, undefined);
+              }), empty, "typeof v===\"number\"&&v<2147483648&&v>-2147483649&&v%1===0", undefined, undefined);
 }
 
 function min$1(struct, maybeMessage, thanValue) {
@@ -1220,7 +1407,7 @@ function factory$9(param) {
                           return raiseUnexpectedTypeError(input, struct);
                         }
                       }));
-              }), empty, undefined, undefined);
+              }), empty, "typeof v===\"number\"&&!Number.isNaN(v)", undefined, undefined);
 }
 
 function factory$10(param) {
@@ -1232,7 +1419,7 @@ function factory$10(param) {
                           return raiseUnexpectedTypeError(input, struct);
                         }
                       }));
-              }), empty, undefined, undefined);
+              }), empty, "v instanceof Date&&!Number.isNaN(v.getTime())", undefined, undefined);
 }
 
 function factory$11(innerStruct) {
@@ -1286,7 +1473,7 @@ function factory$11(innerStruct) {
                           return panic$1(undefined);
                         }
                       }));
-              }), undefined, undefined);
+              }), undefined, undefined, undefined);
 }
 
 function factory$12(innerStruct) {
@@ -1334,7 +1521,7 @@ function factory$12(innerStruct) {
                           return panic$1(undefined);
                         }
                       }));
-              }), undefined, undefined);
+              }), undefined, undefined, undefined);
 }
 
 var metadataId$1 = "rescript-struct:Deprecated";
@@ -1434,7 +1621,7 @@ function factory$14(innerStruct) {
                         }
                         return newArray;
                       }));
-              }), undefined, undefined);
+              }), undefined, undefined, undefined);
 }
 
 function min$2(struct, maybeMessage, length) {
@@ -1502,7 +1689,7 @@ function factory$15(innerStruct) {
                         }));
                 };
                 planSyncTransformation(ctx, (function (input) {
-                        if ((typeof input === "object" && !Array.isArray(input) && input !== null) === false) {
+                        if ((typeof input === "object" && input !== null && !Array.isArray(input)) === false) {
                           return raiseUnexpectedTypeError(input, struct);
                         } else {
                           return input;
@@ -1581,7 +1768,7 @@ function factory$15(innerStruct) {
                         }
                         return newDict;
                       }));
-              }), undefined, undefined);
+              }), undefined, undefined, undefined);
 }
 
 var metadataId$2 = "rescript-struct:Defaulted";
@@ -1631,7 +1818,7 @@ function factory$16(innerStruct, defaultValue) {
                               return panic$1(undefined);
                             }
                           }));
-                  }), undefined, undefined), metadataId$2, /* WithDefaultValue */{
+                  }), undefined, undefined, undefined), metadataId$2, /* WithDefaultValue */{
               _0: defaultValue
             });
 }
@@ -1641,7 +1828,7 @@ function classify$3(struct) {
 }
 
 function factory$17(param) {
-  var structs = arguments;
+  var structs = (Array.from(arguments));
   var numberOfStructs = structs.length;
   return make("Tuple", {
               TAG: /* Tuple */5,
@@ -1673,7 +1860,7 @@ function factory$17(param) {
                         if (Array.isArray(input)) {
                           var numberOfInputItems = input.length;
                           if (numberOfStructs !== numberOfInputItems) {
-                            raise({
+                            raise$1({
                                   TAG: /* TupleSize */3,
                                   expected: numberOfStructs,
                                   received: numberOfInputItems
@@ -1776,7 +1963,7 @@ function factory$17(param) {
                         }
                         return newArray;
                       }));
-              }), undefined, undefined);
+              }), undefined, undefined, undefined);
 }
 
 var Tuple = {
@@ -1787,7 +1974,7 @@ var HackyValidValue = /* @__PURE__ */Caml_exceptions.create("S.Union.HackyValidV
 
 function factory$18(structs) {
   if (structs.length < 2) {
-    panic$2(undefined);
+    throw new Error("[rescript-struct] A Union struct factory require at least two structs");
   }
   return make("Union", {
               TAG: /* Union */6,
@@ -1855,7 +2042,7 @@ function factory$18(structs) {
                                     originalInput: input
                                   };
                           } else {
-                            return raise({
+                            return raise$1({
                                         TAG: /* InvalidUnion */5,
                                         _0: errorsRef.map(toParseError)
                                       });
@@ -1894,7 +2081,7 @@ function factory$18(structs) {
                                                         throw internalError;
                                                       }
                                                     })).then((function (param) {
-                                                  return raise({
+                                                  return raise$1({
                                                               TAG: /* InvalidUnion */5,
                                                               _0: input.tempErrors.map(toParseError)
                                                             });
@@ -1951,7 +2138,7 @@ function factory$18(structs) {
                         }
                         return undefined;
                       }));
-              }), undefined, undefined);
+              }), undefined, undefined, undefined);
 }
 
 function getExn(result) {
@@ -2025,32 +2212,11 @@ var Object_UnknownKeys = {
 
 var $$Object = {
   UnknownKeys: Object_UnknownKeys,
-  factory: factory$2,
   strip: strip,
   strict: strict
 };
 
-var object0 = factory$2;
-
-var object1 = factory$2;
-
-var object2 = factory$2;
-
-var object3 = factory$2;
-
-var object4 = factory$2;
-
-var object5 = factory$2;
-
-var object6 = factory$2;
-
-var object7 = factory$2;
-
-var object8 = factory$2;
-
-var object9 = factory$2;
-
-var object10 = factory$2;
+var object = factory$2;
 
 var tuple0 = factory$17;
 
@@ -2150,17 +2316,9 @@ exports.serializeWith = serializeWith;
 exports.serializeOrRaiseWith = serializeOrRaiseWith;
 exports.isAsyncParse = isAsyncParse;
 exports.$$Object = $$Object;
-exports.object0 = object0;
-exports.object1 = object1;
-exports.object2 = object2;
-exports.object3 = object3;
-exports.object4 = object4;
-exports.object5 = object5;
-exports.object6 = object6;
-exports.object7 = object7;
-exports.object8 = object8;
-exports.object9 = object9;
-exports.object10 = object10;
+exports.object = object;
+exports.field = field;
+exports.discriminant = discriminant;
 exports.Tuple = Tuple;
 exports.tuple0 = tuple0;
 exports.tuple1 = tuple1;
@@ -2183,4 +2341,4 @@ exports.Defaulted = Defaulted;
 exports.Deprecated = Deprecated;
 exports.Result = Result;
 exports.Metadata = Metadata;
-/* No side effect */
+/* value Not a pure module */

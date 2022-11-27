@@ -56,96 +56,49 @@ let makeTestObject = (. ()) => {
 }
 
 let makeAdvancedObjectStruct = (. ()) => {
-  S.object7(.
-    ("number", S.float()),
-    ("negNumber", S.float()),
-    ("maxNumber", S.float()),
-    ("string", S.string()),
-    ("longString", S.string()),
-    ("boolean", S.bool()),
-    ("deeplyNested", S.object3(. ("foo", S.string()), ("num", S.float()), ("bool", S.bool()))),
-  )->S.transform(
-    ~parser=((number, negNumber, maxNumber, string, longString, boolean, (foo, num, bool))) => {
-      {
-        "number": number,
-        "negNumber": negNumber,
-        "maxNumber": maxNumber,
-        "string": string,
-        "longString": longString,
-        "boolean": boolean,
-        "deeplyNested": {
-          "foo": foo,
-          "num": num,
-          "bool": bool,
-        },
-      }
-    },
-    ~serializer=object => {
-      (
-        object["number"],
-        object["negNumber"],
-        object["maxNumber"],
-        object["string"],
-        object["longString"],
-        object["boolean"],
-        (
-          object["deeplyNested"]["foo"],
-          object["deeplyNested"]["num"],
-          object["deeplyNested"]["bool"],
+  S.object(o =>
+    {
+      "number": o->S.field("number", S.float()),
+      "negNumber": o->S.field("negNumber", S.float()),
+      "maxNumber": o->S.field("maxNumber", S.float()),
+      "string": o->S.field("string", S.string()),
+      "longString": o->S.field("longString", S.string()),
+      "boolean": o->S.field("boolean", S.bool()),
+      "deeplyNested": o->S.field(
+        "deeplyNested",
+        S.object(o =>
+          {
+            "foo": o->S.field("foo", S.string()),
+            "num": o->S.field("num", S.float()),
+            "bool": o->S.field("bool", S.bool()),
+          }
         ),
-      )
-    },
-    (),
+      ),
+    }
   )
 }
 
-let makeAdvancedStrictObjectStruct = () => {
-  S.object7(.
-    ("number", S.float()),
-    ("negNumber", S.float()),
-    ("maxNumber", S.float()),
-    ("string", S.string()),
-    ("longString", S.string()),
-    ("boolean", S.bool()),
-    (
-      "deeplyNested",
-      S.object3(. ("foo", S.string()), ("num", S.float()), ("bool", S.bool()))->S.Object.strict,
-    ),
-  )
-  ->S.transform(
-    ~parser=((number, negNumber, maxNumber, string, longString, boolean, (foo, num, bool))) => {
-      {
-        "number": number,
-        "negNumber": negNumber,
-        "maxNumber": maxNumber,
-        "string": string,
-        "longString": longString,
-        "boolean": boolean,
-        "deeplyNested": {
-          "foo": foo,
-          "num": num,
-          "bool": bool,
-        },
-      }
-    },
-    ~serializer=object => {
-      (
-        object["number"],
-        object["negNumber"],
-        object["maxNumber"],
-        object["string"],
-        object["longString"],
-        object["boolean"],
-        (
-          object["deeplyNested"]["foo"],
-          object["deeplyNested"]["num"],
-          object["deeplyNested"]["bool"],
-        ),
-      )
-    },
-    (),
-  )
-  ->S.Object.strict
+let makeAdvancedStrictObjectStruct = (. ()) => {
+  S.object(o =>
+    {
+      "number": o->S.field("number", S.float()),
+      "negNumber": o->S.field("negNumber", S.float()),
+      "maxNumber": o->S.field("maxNumber", S.float()),
+      "string": o->S.field("string", S.string()),
+      "longString": o->S.field("longString", S.string()),
+      "boolean": o->S.field("boolean", S.bool()),
+      "deeplyNested": o->S.field(
+        "deeplyNested",
+        S.object(o =>
+          {
+            "foo": o->S.field("foo", S.string()),
+            "num": o->S.field("num", S.float()),
+            "bool": o->S.field("bool", S.bool()),
+          }
+        )->S.Object.strict,
+      ),
+    }
+  )->S.Object.strict
 }
 
 Suite.make()
@@ -154,14 +107,14 @@ Suite.make()
   let struct = makeStringStruct(.)
   let data = "Hello world!"
   (. ()) => {
-    data->S.parseWith(struct)
+    data->S.parseOrRaiseWith(struct)
   }
 })
 ->Suite.addWithPrepare("Serialize string", () => {
   let struct = makeStringStruct(.)
   let data = "Hello world!"
   (. ()) => {
-    data->S.serializeWith(struct)
+    data->S.serializeOrRaiseWith(struct)
   }
 })
 ->Suite.add("Advanced object struct factory", makeAdvancedObjectStruct)
@@ -169,21 +122,21 @@ Suite.make()
   let struct = makeAdvancedObjectStruct(.)
   let data = makeTestObject(.)
   (. ()) => {
-    data->S.parseWith(struct)
+    data->S.parseOrRaiseWith(struct)
   }
 })
 ->Suite.addWithPrepare("Parse advanced strict object", () => {
-  let struct = makeAdvancedStrictObjectStruct()
+  let struct = makeAdvancedStrictObjectStruct(.)
   let data = makeTestObject(.)
   (. ()) => {
-    data->S.parseWith(struct)
+    data->S.parseOrRaiseWith(struct)
   }
 })
 ->Suite.addWithPrepare("Serialize advanced object", () => {
   let struct = makeAdvancedObjectStruct(.)
   let data = makeTestObject(.)
   (. ()) => {
-    data->S.serializeWith(struct)
+    data->S.serializeOrRaiseWith(struct)
   }
 })
 ->Suite.run

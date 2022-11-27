@@ -56,9 +56,9 @@
     "ava": "5.0.1",
     "benchmark": "2.1.4",
     "c8": "7.12.0",
-    "rescript": "10.0.1"
+    "rescript": "10.1.0-rc.5"
   },
   "peerDependencies": {
-    "rescript": "10.0.x"
+    "rescript": "10.1.x"
   }
 }
