@@ -902,9 +902,9 @@ let shortStringStruct = S.string()->S.refine(~parser=value =>
 `(S.t<'value>, ~parser: 'value => promise<unit>, unit) => S.t<'value>`
 
 ```rescript
-let userIdStruct = S.string()->S.asyncRefine(~parser=string =>
-  verfiyUserExistsInDb(~userId=string)->Promise.thenResolve(isExistingUser =>
-    if not(isExistingUser) {
+let userIdStruct = S.string()->S.asyncRefine(~parser=userId =>
+  verfiyUserExistsInDb(~userId)->Promise.thenResolve(isExistingUser =>
+    if !isExistingUser {
       S.Error.raise("User doesn't exist")
     }
   )
@@ -945,56 +945,35 @@ let intToString = struct =>
 The `transform`, `refine`, `asyncRefine`, and `custom` functions are actually syntactic sugar atop a more versatile (and verbose) function called `advancedTransform`.
 
 ```rescript
-let json = innerStruct => {
-  S.string()
-  ->S.transform(~parser=jsonString => {
-    try jsonString->Js.Json.parseExn catch {
-    | Js.Exn.Error(obj) =>
-      S.Error.raise(obj->Js.Exn.message->Belt.Option.getWithDefault("Failed to parse JSON"))
-    }
-  }, ~serializer=Js.Json.stringify, ())
-  ->S.advancedTransform(
-    ~parser=(~struct as _) => {
-      switch innerStruct->S.isAsyncParse {
-      | true =>
-        Async(
-          parsedJson => {
-            switch parsedJson->S.parseAsyncWith(innerStruct) {
-            | Ok(promise) =>
-              promise->Promise.thenResolve(result => {
-                switch result {
-                | Ok(value) => value
-                | Error(error) => S.Error.raiseCustom(error)
-                }
-              })
-            | Error(error) => S.Error.raiseCustom(error)
-            }
-          },
-        )
-      | false =>
-        Sync(
-          parsedJson => {
-            switch parsedJson->S.parseWith(innerStruct) {
-            | Ok(value) => value
-            | Error(error) => S.Error.raiseCustom(error)
-            }
-          },
-        )
-      }
-    },
-    ~serializer=(~struct as _) => {
-      Sync(
-        value => {
-          switch value->S.serializeWith(innerStruct) {
-          | Ok(unknown) => unknown->Obj.magic
-          | Error(error) => S.Error.raiseCustom(error)
-          }
-        },
-      )
-    },
+type user = {
+  id: string,
+  name: string,
+}
+
+let userStruct =
+  userIdStruct->S.advancedTransform(
+    ~parser=(~struct as _) => Async(userId => loadUser(~userId)),
+    ~serializer=user => user.id,
     (),
   )
-}
+```
+
+```rescript
+await "1"->S.parseAsyncWith(userStruct)
+
+Ok({
+  id: "1",
+  name: "John",
+})
+```
+
+```rescript
+{
+  id: "1",
+  name: "John",
+}->S.serializeWith(userStruct)
+
+Ok("1")
 ```
 
 ### Preprocess _Advanced_
