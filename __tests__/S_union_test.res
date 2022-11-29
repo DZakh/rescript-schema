@@ -4,7 +4,7 @@ test("Throws for a Union struct factory without structs", t => {
   t->Assert.throws(() => {
     S.union([])->ignore
   }, ~expectations=ThrowsException.make(
-    ~message=String("[rescript-struct] A Union struct factory require at least two structs"),
+    ~message=String("[rescript-struct] A Union struct factory require at least two structs."),
     (),
   ), ())
 })
@@ -13,7 +13,7 @@ test("Throws for a Union struct factory with single struct", t => {
   t->Assert.throws(() => {
     S.union([S.string()])->ignore
   }, ~expectations=ThrowsException.make(
-    ~message=String("[rescript-struct] A Union struct factory require at least two structs"),
+    ~message=String("[rescript-struct] A Union struct factory require at least two structs."),
     (),
   ), ())
 })

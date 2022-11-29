@@ -67,6 +67,9 @@ module Stdlib = {
     let test = data => {
       data->Js.typeof === "object" && data !== %raw(`null`) && !Js.Array2.isArray(data)
     }
+
+    @val
+    external overrideWith: ('object, 'object) => unit = "Object.assign"
   }
 
   module Set = {
@@ -495,6 +498,75 @@ type operation =
   | NoOperation
   | SyncOperation((. unknown) => unknown)
   | AsyncOperation((. unknown) => (. unit) => promise<unknown>)
+
+module ParseOperationState = {
+  type t
+
+  @inline
+  let empty = (): t => 0->Obj.magic
+
+  @inline
+  let asyncEmpty = (): t => 1->Obj.magic
+
+  @inline
+  let syncCompiling = (): t => 2->Obj.magic
+
+  @inline
+  let asyncCompiling = (): t => 3->Obj.magic
+
+  @inline
+  let toCompiling = (operationState): t => {
+    if operationState === asyncEmpty() {
+      asyncCompiling()
+    } else {
+      syncCompiling()
+    }
+  }
+  let operation: operation => t = Obj.magic
+
+  @inline
+  let isSyncCompiling = operationState => {
+    operationState === syncCompiling()
+  }
+
+  @inline
+  let isAsyncCompiling = operationState => {
+    operationState === asyncCompiling()
+  }
+
+  @inline
+  let isReady = operationState => {
+    Js.typeof(operationState) !== "number"
+  }
+
+  let unsafeToOperation: t => operation = Obj.magic
+}
+
+module SerializeOperationState = {
+  type t
+  type operation = option<(. unknown) => unknown>
+
+  @inline
+  let empty = (): t => 0->Obj.magic
+
+  @inline
+  let compiling = (): t => 1->Obj.magic
+
+  let operation: operation => t = Obj.magic
+
+  @inline
+  let isCompiling = operationState => {
+    operationState === compiling()
+  }
+
+  @inline
+  let isReady = operationState => {
+    Js.typeof(operationState) !== "number"
+  }
+
+  let unsafeToOperation: t => operation = Obj.magic
+}
+
 type rec t<'value> = {
   @as("n")
   name: string,
@@ -505,15 +577,15 @@ type rec t<'value> = {
   @as("sf")
   serializeTransformationFactory: internalTransformationFactory,
   @as("r")
-  mutable cachedParseOperation: operation,
+  mutable parseOperationState: ParseOperationState.t,
   @as("e")
-  mutable cachedSerializeOperation: option<(. unknown) => unknown>,
+  mutable serializeOperationState: SerializeOperationState.t,
   @as("s")
   mutable serialize: (. unknown) => unknown,
   @as("p")
   mutable parse: (. unknown) => unknown,
   @as("a")
-  mutable parseAsync: (. unknown) => (. unit) => promise<result<'value, Error.t>>,
+  mutable parseAsync: (. unknown) => (. unit) => promise<unknown>,
   @as("i")
   maybeInlinedRefinement: option<string>,
   @as("m")
@@ -669,20 +741,30 @@ let classify = struct => struct.tagged
 let name = struct => struct.name
 
 let getParseOperation = struct => {
-  let cachedParseOperation = struct.cachedParseOperation
-  if cachedParseOperation === %raw("undefined") {
+  let parseOperationState = struct.parseOperationState
+  if parseOperationState->ParseOperationState.isReady {
+    parseOperationState->ParseOperationState.unsafeToOperation
+  } else if parseOperationState->ParseOperationState.isSyncCompiling {
+    SyncOperation((. input) => struct.parse(. input))
+  } else if parseOperationState->ParseOperationState.isAsyncCompiling {
+    AsyncOperation((. input) => struct.parseAsync(. input))
+  } else {
+    struct.parseOperationState = parseOperationState->ParseOperationState.toCompiling
     let compiledParseOperation =
       struct.parseTransformationFactory->TransformationFactory.compile(~struct)
-    struct.cachedParseOperation = compiledParseOperation
+    struct.parseOperationState = ParseOperationState.operation(compiledParseOperation)
     compiledParseOperation
-  } else {
-    cachedParseOperation
   }
 }
 
 let getSerializeOperation = struct => {
-  let cachedSerializeOperation = struct.cachedSerializeOperation
-  if cachedSerializeOperation === %raw("undefined") {
+  let serializeOperationState = struct.serializeOperationState
+  if serializeOperationState->SerializeOperationState.isReady {
+    serializeOperationState->SerializeOperationState.unsafeToOperation
+  } else if serializeOperationState->SerializeOperationState.isCompiling {
+    Some((. input) => struct.serialize(. input))
+  } else {
+    struct.serializeOperationState = SerializeOperationState.compiling()
     let compiledSerializeOperation = switch struct.serializeTransformationFactory->TransformationFactory.compile(
       ~struct,
     ) {
@@ -690,10 +772,8 @@ let getSerializeOperation = struct => {
     | SyncOperation(fn) => Some(fn)
     | AsyncOperation(_) => Error.Unreachable.panic()
     }
-    struct.cachedSerializeOperation = compiledSerializeOperation
+    struct.serializeOperationState = SerializeOperationState.operation(compiledSerializeOperation)
     compiledSerializeOperation
-  } else {
-    cachedSerializeOperation
   }
 }
 
@@ -751,7 +831,7 @@ let intitialParse = (. input) => {
   compiledParse(. input)
 }
 
-let asyncNoopOperation = (. input) => (. ()) => input->castUnknownToAny->Ok->Stdlib.Promise.resolve
+let asyncNoopOperation = (. input) => (. ()) => input->Stdlib.Promise.resolve
 
 let intitialParseAsync = (. input) => {
   let struct = %raw("this")
@@ -760,23 +840,9 @@ let intitialParseAsync = (. input) => {
   | SyncOperation(fn) =>
     (. input) => {
       let syncValue = fn(. input)
-      (. ()) => syncValue->castUnknownToAny->Ok->Stdlib.Promise.resolve
+      (. ()) => syncValue->Stdlib.Promise.resolve
     }
-  | AsyncOperation(fn) =>
-    (. input) => {
-      let asyncFn = fn(. input)
-      (. ()) =>
-        asyncFn(.)->Stdlib.Promise.thenResolveWithCatch(
-          value => Ok(value->castUnknownToAny),
-          exn => {
-            switch exn {
-            | Error.Internal.Exception(internalError) =>
-              internalError->Error.Internal.toParseError->Error
-            | _ => raise(exn)
-            }
-          },
-        )
-    }
+  | AsyncOperation(fn) => fn
   }
   struct.parseAsync = compiledParseAsync
   compiledParseAsync(. input)
@@ -796,8 +862,8 @@ let make = (
   tagged,
   parseTransformationFactory,
   serializeTransformationFactory,
-  cachedParseOperation: %raw("undefined"),
-  cachedSerializeOperation: %raw("undefined"),
+  parseOperationState: ParseOperationState.empty(),
+  serializeOperationState: SerializeOperationState.empty(),
   serialize: initialSerialize,
   parse: intitialParse,
   parseAsync: intitialParseAsync,
@@ -822,9 +888,21 @@ let parseOrRaiseWith = (any, struct) => {
   }
 }
 
+let asyncPrepareOk = value => Ok(value->castUnknownToAny)
+
+let asyncPrepareError = exn => {
+  switch exn {
+  | Error.Internal.Exception(internalError) => internalError->Error.Internal.toParseError->Error
+  | _ => raise(exn)
+  }
+}
+
 let parseAsyncWith = (any, struct) => {
   try {
-    struct.parseAsync(. any->castAnyToUnknown)(.)
+    struct.parseAsync(. any->castAnyToUnknown)(.)->Stdlib.Promise.thenResolveWithCatch(
+      asyncPrepareOk,
+      asyncPrepareError,
+    )
   } catch {
   | Error.Internal.Exception(internalError) =>
     internalError->Error.Internal.toParseError->Error->Stdlib.Promise.resolve
@@ -833,7 +911,10 @@ let parseAsyncWith = (any, struct) => {
 
 let parseAsyncInStepsWith = (any, struct) => {
   try {
-    struct.parseAsync(. any->castAnyToUnknown)->Ok
+    let asyncFn = struct.parseAsync(. any->castAnyToUnknown)
+    (
+      (. ()) => asyncFn(.)->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, asyncPrepareError)
+    )->Ok
   } catch {
   | Error.Internal.Exception(internalError) => internalError->Error.Internal.toParseError->Error
   }
@@ -854,6 +935,26 @@ let serializeOrRaiseWith = (value, struct) => {
   | Error.Internal.Exception(internalError) =>
     raise(Raised(internalError->Error.Internal.toSerializeError))
   }
+}
+
+let recursive = fn => {
+  let placeholder: t<'value> = %raw(`{}`)
+  let struct = fn->Stdlib.Fn.call1(placeholder)
+  placeholder->Stdlib.Object.overrideWith(struct)
+  if placeholder->isAsyncParse {
+    Error.panic(
+      `The "${struct->name}" struct in the S.recursive has an async parser. To make it work, use S.asyncRecursive instead.`,
+    )
+  }
+  placeholder
+}
+
+let asyncRecursive = fn => {
+  let placeholder: t<'value> = %raw(`{}`)
+  let struct = fn->Stdlib.Fn.call1(placeholder)
+  placeholder->Stdlib.Object.overrideWith(struct)
+  placeholder.parseOperationState = ParseOperationState.asyncEmpty()
+  placeholder
 }
 
 module Metadata = {
@@ -2193,14 +2294,16 @@ module Json = {
         }
       }),
       ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          switch innerStruct->getSerializeOperation {
-          | None => input
-          | Some(fn) => fn(. input)
-          }
-          ->Obj.magic
-          ->Js.Json.stringify
-        })
+        switch innerStruct->getSerializeOperation {
+        | None =>
+          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+            input->Obj.magic->Js.Json.stringify
+          })
+        | Some(fn) =>
+          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+            fn(. input)->Obj.magic->Js.Json.stringify
+          })
+        }
       }),
       (),
     )
@@ -2342,16 +2445,22 @@ module Null = {
         }
       }),
       ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) =>
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          switch input {
-          | Some(value) =>
-            switch innerStruct->getSerializeOperation {
-            | None => value
-            | Some(fn) => fn(. value)
+        switch innerStruct->getSerializeOperation {
+        | Some(fn) =>
+          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+            switch input {
+            | Some(value) => fn(. value)
+            | None => Js.Null.empty->castAnyToUnknown
             }
-          | None => Js.Null.empty->castAnyToUnknown
-          }
-        })
+          })
+        | None =>
+          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+            switch input {
+            | Some(value) => value
+            | None => Js.Null.empty->castAnyToUnknown
+            }
+          })
+        }
       ),
       (),
     )
@@ -2388,16 +2497,22 @@ module Option = {
         }
       }),
       ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) =>
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          switch input {
-          | Some(value) =>
-            switch innerStruct->getSerializeOperation {
-            | None => value
-            | Some(fn) => fn(. value)
+        switch innerStruct->getSerializeOperation {
+        | Some(fn) =>
+          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+            switch input {
+            | Some(value) => fn(. value)
+            | None => Js.Undefined.empty->castAnyToUnknown
             }
-          | None => Js.Undefined.empty->castAnyToUnknown
-          }
-        })
+          })
+        | None =>
+          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+            switch input {
+            | Some(value) => value
+            | None => Js.Undefined.empty->castAnyToUnknown
+            }
+          })
+        }
       ),
       (),
     )
@@ -2691,13 +2806,17 @@ module Defaulted = {
         }
       }),
       ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          let value = Some(input)->castAnyToUnknown
-          switch innerStruct->getSerializeOperation {
-          | None => value
-          | Some(fn) => fn(. value)
-          }
-        })
+        switch innerStruct->getSerializeOperation {
+        | Some(fn) =>
+          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+            let value = Some(input)->castAnyToUnknown
+            fn(. value)
+          })
+        | None =>
+          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+            Some(input)->castAnyToUnknown
+          })
+        }
       }),
       (),
     )->Metadata.set(~id=metadataId, ~metadata=WithDefaultValue(defaultValue->castAnyToUnknown))
@@ -2819,15 +2938,22 @@ module Tuple = {
             })
           }
         }),
-        ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) =>
+        ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
+          let serializeOperations = []
+          for idx in 0 to structs->Js.Array2.length - 1 {
+            serializeOperations
+            ->Js.Array2.push(structs->Js.Array2.unsafe_get(idx)->getSerializeOperation)
+            ->ignore
+          }
+
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
             let inputArray = numberOfStructs === 1 ? [input] : input->Obj.magic
 
             let newArray = []
-            for idx in 0 to numberOfStructs - 1 {
+            for idx in 0 to serializeOperations->Js.Array2.length - 1 {
               let innerData = inputArray->Js.Array2.unsafe_get(idx)
-              let innerStruct = structs->Js.Array.unsafe_get(idx)
-              switch innerStruct->getSerializeOperation {
+              let serializeOperation = serializeOperations->Js.Array.unsafe_get(idx)
+              switch serializeOperation {
               | None => newArray->Js.Array2.push(innerData)->ignore
               | Some(fn) =>
                 try {
@@ -2845,7 +2971,7 @@ module Tuple = {
             }
             newArray
           })
-        ),
+        }),
         (),
       )
     }
@@ -2856,13 +2982,15 @@ module Union = {
   exception HackyValidValue(unknown)
 
   let factory = structs => {
+    let structs: array<t<unknown>> = structs->Obj.magic
+
     if structs->Js.Array2.length < 2 {
-      Error.panic("A Union struct factory require at least two structs")
+      Error.panic("A Union struct factory require at least two structs.")
     }
 
     make(
       ~name=`Union`,
-      ~tagged=Union(structs->Obj.magic),
+      ~tagged=Union(structs),
       ~parseTransformationFactory=TransformationFactory.make((
         . ~ctx,
         ~struct as compilingStruct,
@@ -2962,16 +3090,26 @@ module Union = {
           }
         }
       }),
-      ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) =>
+      ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
+        let serializeOperations = []
+        for idx in 0 to structs->Js.Array2.length - 1 {
+          serializeOperations
+          ->Js.Array2.push(structs->Js.Array2.unsafe_get(idx)->getSerializeOperation)
+          ->ignore
+        }
+
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           let idxRef = ref(0)
           let maybeLastErrorRef = ref(None)
           let maybeNewValueRef = ref(None)
-          while idxRef.contents < structs->Js.Array2.length && maybeNewValueRef.contents === None {
+          while (
+            idxRef.contents < serializeOperations->Js.Array2.length &&
+              maybeNewValueRef.contents === None
+          ) {
             let idx = idxRef.contents
-            let innerStruct = structs->Js.Array2.unsafe_get(idx)->Obj.magic
+            let serializeOperation = serializeOperations->Js.Array2.unsafe_get(idx)
             try {
-              let newValue = switch innerStruct->getSerializeOperation {
+              let newValue = switch serializeOperation {
               | None => input
               | Some(fn) => fn(. input)
               }
@@ -2992,7 +3130,7 @@ module Union = {
             }
           }
         })
-      ),
+      }),
       (),
     )
   }

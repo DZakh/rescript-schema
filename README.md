@@ -14,6 +14,7 @@ Highlights:
 - Uses the same struct for parsing and serializing
 - Asynchronous refinements and transforms
 - Support for both result and exception based API
+- Easy to create _recursive_ structs
 - Ability to disallow excessive object fields
 - Built-in `union`, `literal` and many other structs
 - The **fastest** parsing library in the entire JavaScript ecosystem ([benchmark](https://dzakh.github.io/rescript-runtime-type-benchmarks/))
@@ -71,11 +72,11 @@ let authorStruct = S.object(o => {
 After creating a struct you can use it for parsing data:
 
 ```rescript
-{
+%raw(`{
   "Id": 1,
   "IsApproved": "Yes",
   "Age": 22,
-}->S.parseWith(authorStruct)
+}`)->S.parseWith(authorStruct)
 
 Ok({
   id: 1.,
@@ -780,6 +781,101 @@ Ok(None)
 ```
 
 The `deprecated` struct represents a data of a specific type and makes it optional. The message may be used by an integration library.
+
+#### **`S.recursive`**
+
+`(t<'value> => t<'value>) => t<'value>`
+
+You can define a recursive struct in **rescript-struct**.
+
+```rescript
+type rec node = {
+  id: string,
+  children: array<node>,
+}
+
+let nodeStruct = S.recursive(nodeStruct => {
+  S.object(
+    o => {
+      id: o->S.field("Id", S.string()),
+      children: o->S.field("Children", S.array(nodeStruct)),
+    },
+  )
+})
+```
+
+```rescript
+%raw(`{
+  "Id": "1",
+  "Children": [
+    {"Id": "2", "Children": []},
+    {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
+  ],
+}`)->S.parseWith(nodeStruct)
+
+Ok({
+  id: "1",
+  children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
+})
+```
+
+The same struct also works for serializing:
+
+```rescript
+{
+  id: "1",
+  children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
+}->S.serializeWith(nodeStruct)
+
+Ok(%raw(`{
+  "Id": "1",
+  "Children": [
+    {"Id": "2", "Children": []},
+    {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
+  ],
+}`))
+```
+
+> 🧠 Despite supporting recursive structs, passing cyclical data into rescript-struct will cause an infinite loop.
+
+#### **`S.asyncRecursive`**
+
+`(t<'value> => t<'value>) => t<'value>`
+
+If the recursive struct has an asynchronous parser, you must use `S.asyncRecursive` instead of `S.recursive`.
+
+```rescript
+type rec node = {
+  id: string,
+  children: array<node>,
+}
+
+let nodeStruct = S.asyncRecursive(nodeStruct => {
+  S.object(
+    o => {
+      id: o->S.field("Id", S.string())->S.asyncRefine(~parser=checkIsExistingNode, ()),
+      children: o->S.field("Children", S.array(nodeStruct)),
+    },
+  )
+})
+```
+
+```rescript
+await %raw(`{
+  "Id": "1",
+  "Children": [
+    {"Id": "2", "Children": []},
+    {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
+  ],
+}`)->S.parseAsyncWith(nodeStruct)
+
+Ok({
+  id: "1",
+  children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
+})
+```
+
+What's great in the example above is that it'll make 4 requests in parallel to check that the nodes exist.
 
 ### Refinements
 

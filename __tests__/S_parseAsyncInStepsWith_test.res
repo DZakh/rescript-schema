@@ -235,7 +235,7 @@ module Object = {
     )
   })
 
-  asyncTest("[Object] Parses async items in parallel", t => {
+  test("[Object] Parses async items in parallel", t => {
     let actionCounter = ref(0)
 
     let struct = S.object(o =>
@@ -271,20 +271,14 @@ module Object = {
       }
     )
 
-    (
-      {
-        "k1": 1,
-        "k2": 2,
-      }
-      ->S.parseAsyncInStepsWith(struct)
-      ->Belt.Result.getExn
-    )(.)->ignore
+    {
+      "k1": 1,
+      "k2": 2,
+    }
+    ->S.parseAsyncWith(struct)
+    ->ignore
 
-    Promise.resolve()
-    ->Promise.then(Promise.resolve)
-    ->Promise.thenResolve(() => {
-      t->Assert.deepEqual(actionCounter.contents, 2, ())
-    })
+    t->Assert.deepEqual(actionCounter.contents, 2, ())
   })
 
   asyncTest("[Object] Doesn't wait for pending async items when fails to parse", t => {
@@ -367,7 +361,7 @@ module Tuple = {
     )
   })
 
-  asyncTest("[Tuple] Parses async items in parallel", t => {
+  test("[Tuple] Parses async items in parallel", t => {
     let actionCounter = ref(0)
 
     let struct = S.tuple2(. S.int()->S.advancedTransform(~parser=(~struct as _) => {
@@ -386,13 +380,9 @@ module Tuple = {
         )
       }, ()))
 
-    ([1, 2]->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->ignore
+    [1, 2]->S.parseAsyncWith(struct)->ignore
 
-    Promise.resolve()
-    ->Promise.then(Promise.resolve)
-    ->Promise.thenResolve(() => {
-      t->Assert.deepEqual(actionCounter.contents, 2, ())
-    })
+    t->Assert.deepEqual(actionCounter.contents, 2, ())
   })
 
   asyncTest("[Tuple] Doesn't wait for pending async items when fails to parse", t => {
@@ -473,7 +463,7 @@ module Union = {
     })
   })
 
-  asyncTest("[Union] Parses async items in parallel", t => {
+  test("[Union] Parses async items in parallel", t => {
     let actionCounter = ref(0)
 
     let struct = S.union([S.literal(Int(2))->S.advancedTransform(~parser=(~struct as _) => {
@@ -492,13 +482,9 @@ module Union = {
         )
       }, ())])
 
-    (2->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->ignore
+    2->S.parseAsyncWith(struct)->ignore
 
-    Promise.resolve()
-    ->Promise.then(Promise.resolve)
-    ->Promise.thenResolve(() => {
-      t->Assert.deepEqual(actionCounter.contents, 2, ())
-    })
+    t->Assert.deepEqual(actionCounter.contents, 2, ())
   })
 }
 
@@ -527,7 +513,7 @@ module Array = {
     )
   })
 
-  asyncTest("[Array] Parses async items in parallel", t => {
+  test("[Array] Parses async items in parallel", t => {
     let actionCounter = ref(0)
 
     let struct = S.array(S.int()->S.advancedTransform(~parser=(~struct as _) => {
@@ -539,13 +525,9 @@ module Array = {
         )
       }, ()))
 
-    ([1, 2]->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->ignore
+    [1, 2]->S.parseAsyncWith(struct)->ignore
 
-    Promise.resolve()
-    ->Promise.then(Promise.resolve)
-    ->Promise.thenResolve(() => {
-      t->Assert.deepEqual(actionCounter.contents, 2, ())
-    })
+    t->Assert.deepEqual(actionCounter.contents, 2, ())
   })
 
   asyncTest("[Array] Doesn't wait for pending async items when fails to parse", t => {
@@ -605,7 +587,7 @@ module Dict = {
     )
   })
 
-  asyncTest("[Dict] Parses async items in parallel", t => {
+  test("[Dict] Parses async items in parallel", t => {
     let actionCounter = ref(0)
 
     let struct = S.dict(S.int()->S.advancedTransform(~parser=(~struct as _) => {
@@ -617,13 +599,9 @@ module Dict = {
         )
       }, ()))
 
-    ({"k1": 1, "k2": 2}->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->ignore
+    {"k1": 1, "k2": 2}->S.parseAsyncWith(struct)->ignore
 
-    Promise.resolve()
-    ->Promise.then(Promise.resolve)
-    ->Promise.thenResolve(() => {
-      t->Assert.deepEqual(actionCounter.contents, 2, ())
-    })
+    t->Assert.deepEqual(actionCounter.contents, 2, ())
   })
 
   asyncTest("[Dict] Doesn't wait for pending async items when fails to parse", t => {
