@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: 18
           cache: npm
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
       - run: npm run res:build
 
       - run: npm run coverage
@@ -35,7 +35,7 @@ jobs:
         with:
           node-version: 18
           cache: npm
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
       - run: npm run res:build
 
       - name: Run benchmark

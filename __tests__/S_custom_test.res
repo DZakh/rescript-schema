@@ -72,12 +72,13 @@ test("Fails to serialize with user error", t => {
 })
 
 test("Throws for a Custom factory without either a parser, or a serializer", t => {
-  t->Assert.throws(() => {
-    S.custom(~name="Test", ())->ignore
-  }, ~expectations=ThrowsException.make(
-    ~message=String(
-      "[rescript-struct] For a Custom struct factory either a parser, or a serializer is required",
-    ),
+  t->Assert.throws(
+    () => {
+      S.custom(~name="Test", ())
+    },
+    ~expectations={
+      message: "[rescript-struct] For a Custom struct factory either a parser, or a serializer is required",
+    },
     (),
-  ), ())
+  )
 })

@@ -248,20 +248,21 @@ test("Successfully serializes object with multiple fields", t => {
 })
 
 test("Fails to create object struct when defined fields with the same name", t => {
-  t->Assert.throws(() => {
-    S.object(
-      o =>
-        {
-          "boo": o->S.field("field", S.string()),
-          "zoo": o->S.field("field", S.int()),
-        },
-    )->ignore
-  }, ~expectations=ThrowsException.make(
-    ~message=String(
-      "[rescript-struct] The object defention has more registered fields than expected.",
-    ),
+  t->Assert.throws(
+    () => {
+      S.object(
+        o =>
+          {
+            "boo": o->S.field("field", S.string()),
+            "zoo": o->S.field("field", S.int()),
+          },
+      )
+    },
+    ~expectations={
+      message: "[rescript-struct] The object defention has more registered fields than expected.",
+    },
     (),
-  ), ())
+  )
 })
 
 test("Successfully parses object with transformed field", t => {
@@ -760,38 +761,40 @@ test("Successfully parses object and serializes it back to the initial data", t 
 })
 
 test("Fails to create object struct with unused fields", t => {
-  t->Assert.throws(() => {
-    S.object(
-      o => {
-        let _ = o->S.field("unused", S.string())
-        {
-          "field": o->S.field("field", S.string()),
-        }
-      },
-    )->ignore
-  }, ~expectations=ThrowsException.make(
-    ~message=String(
-      "[rescript-struct] The object defention contains fields that weren\'t registered.",
-    ),
+  t->Assert.throws(
+    () => {
+      S.object(
+        o => {
+          let _ = o->S.field("unused", S.string())
+          {
+            "field": o->S.field("field", S.string()),
+          }
+        },
+      )
+    },
+    ~expectations={
+      message: "[rescript-struct] The object defention contains fields that weren\'t registered.",
+    },
     (),
-  ), ())
+  )
 })
 
 test("Fails to create object struct with overused fields", t => {
-  t->Assert.throws(() => {
-    S.object(
-      o => {
-        let field = o->S.field("field", S.string())
-        {
-          "field1": field,
-          "field2": field,
-        }
-      },
-    )->ignore
-  }, ~expectations=ThrowsException.make(
-    ~message=String(
-      "[rescript-struct] The object defention has more registered fields than expected.",
-    ),
+  t->Assert.throws(
+    () => {
+      S.object(
+        o => {
+          let field = o->S.field("field", S.string())
+          {
+            "field1": field,
+            "field2": field,
+          }
+        },
+      )
+    },
+    ~expectations={
+      message: "[rescript-struct] The object defention has more registered fields than expected.",
+    },
     (),
-  ), ())
+  )
 })

@@ -47,13 +47,14 @@ Failing.test(
   t => {
     let struct = S.option(S.literal(Int(123)))->S.defaulted(444)
 
-    t->Assert.throws(() => {
-      %raw(`undefined`)->S.parseWith(struct)->ignore
-    }, ~expectations=ThrowsException.make(
-      ~message=String(
-        "[rescript-struct] Provided default value (444) is different from optional Int Literal (123)",
-      ),
+    t->Assert.throws(
+      () => {
+        %raw(`undefined`)->S.parseWith(struct)
+      },
+      ~expectations={
+        message: "[rescript-struct] Provided default value (444) is different from optional Int Literal (123)",
+      },
       (),
-    ), ())
+    )
   },
 )

@@ -35,14 +35,15 @@ test("Successfully parses", t => {
 })
 
 test("Throws for factory without either a parser, or a serializer", t => {
-  t->Assert.throws(() => {
-    S.string()->S.advancedPreprocess()->ignore
-  }, ~expectations=ThrowsException.make(
-    ~message=String(
-      "[rescript-struct] For a struct factory Preprocess either a parser, or a serializer is required",
-    ),
+  t->Assert.throws(
+    () => {
+      S.string()->S.advancedPreprocess()
+    },
+    ~expectations={
+      message: "[rescript-struct] For a struct factory Preprocess either a parser, or a serializer is required",
+    },
     (),
-  ), ())
+  )
 })
 
 test("Fails to parse when user raises error in parser", t => {
