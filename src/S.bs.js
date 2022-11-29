@@ -258,7 +258,7 @@ function getParseOperation(struct) {
   if (typeof parseOperationState !== "number") {
     return parseOperationState;
   }
-  if (parseOperationState === 1) {
+  if (parseOperationState === 2) {
     return {
             TAG: /* SyncOperation */0,
             _0: (function (input) {
@@ -266,7 +266,15 @@ function getParseOperation(struct) {
               })
           };
   }
-  struct.r = 1;
+  if (parseOperationState === 3) {
+    return {
+            TAG: /* AsyncOperation */1,
+            _0: (function (input) {
+                return struct.a(input);
+              })
+          };
+  }
+  struct.r = parseOperationState === 1 ? 3 : 2;
   var compiledParseOperation = compile(struct.pf, struct);
   struct.r = compiledParseOperation;
   return compiledParseOperation;
@@ -373,10 +381,7 @@ function intitialParse(input) {
 
 function asyncNoopOperation(input) {
   return function () {
-    return Promise.resolve({
-                TAG: /* Ok */0,
-                _0: input
-              });
+    return Promise.resolve(input);
   };
 }
 
@@ -391,33 +396,11 @@ function intitialParseAsync(input) {
     compiledParseAsync = (function (input) {
         var syncValue = fn$1(input);
         return function () {
-          return Promise.resolve({
-                      TAG: /* Ok */0,
-                      _0: syncValue
-                    });
+          return Promise.resolve(syncValue);
         };
       });
   } else {
-    var fn$2 = fn._0;
-    compiledParseAsync = (function (input) {
-        var asyncFn = fn$2(input);
-        return function () {
-          return asyncFn().then((function (value) {
-                        return {
-                                TAG: /* Ok */0,
-                                _0: value
-                              };
-                      }), (function (exn) {
-                        if (exn.RE_EXN_ID === Exception) {
-                          return {
-                                  TAG: /* Error */1,
-                                  _0: toParseError(exn._1)
-                                };
-                        }
-                        throw exn;
-                      }));
-        };
-      });
+    compiledParseAsync = fn._0;
   }
   struct.a = compiledParseAsync;
   return compiledParseAsync(input);
@@ -459,9 +442,26 @@ function parseOrRaiseWith(any, struct) {
   }
 }
 
+function asyncPrepareOk(value) {
+  return {
+          TAG: /* Ok */0,
+          _0: value
+        };
+}
+
+function asyncPrepareError(exn) {
+  if (exn.RE_EXN_ID === Exception) {
+    return {
+            TAG: /* Error */1,
+            _0: toParseError(exn._1)
+          };
+  }
+  throw exn;
+}
+
 function parseAsyncWith(any, struct) {
   try {
-    return struct.a(any)();
+    return struct.a(any)().then(asyncPrepareOk, asyncPrepareError);
   }
   catch (raw_internalError){
     var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
@@ -477,9 +477,12 @@ function parseAsyncWith(any, struct) {
 
 function parseAsyncInStepsWith(any, struct) {
   try {
+    var asyncFn = struct.a(any);
     return {
             TAG: /* Ok */0,
-            _0: struct.a(any)
+            _0: (function () {
+                return asyncFn().then(asyncPrepareOk, asyncPrepareError);
+              })
           };
   }
   catch (raw_internalError){
@@ -533,7 +536,19 @@ function serializeOrRaiseWith(value, struct) {
 function recursive(fn) {
   var placeholder = {};
   var struct = fn(placeholder);
-  return Object.assign(placeholder, struct);
+  Object.assign(placeholder, struct);
+  if (isAsyncParse(placeholder)) {
+    throw new Error("[rescript-struct] " + ("The \"" + struct.n + "\" struct in the S.recursive has an async parser. To make it work, use S.asyncRecursive instead.") + "");
+  }
+  return placeholder;
+}
+
+function asyncRecursive(fn) {
+  var placeholder = {};
+  var struct = fn(placeholder);
+  Object.assign(placeholder, struct);
+  placeholder.r = 1;
+  return placeholder;
 }
 
 function make(namespace, name) {
@@ -2339,7 +2354,7 @@ var HackyValidValue = /* @__PURE__ */Caml_exceptions.create("S.Union.HackyValidV
 
 function factory$17(structs) {
   if (structs.length < 2) {
-    throw new Error("[rescript-struct] A Union struct factory require at least two structs");
+    throw new Error("[rescript-struct] A Union struct factory require at least two structs.");
   }
   return {
           n: "Union",
@@ -2690,6 +2705,7 @@ exports.serializeWith = serializeWith;
 exports.serializeOrRaiseWith = serializeOrRaiseWith;
 exports.isAsyncParse = isAsyncParse;
 exports.recursive = recursive;
+exports.asyncRecursive = asyncRecursive;
 exports.$$Object = $$Object;
 exports.object = object;
 exports.field = field;

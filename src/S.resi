@@ -136,6 +136,7 @@ let serializeOrRaiseWith: ('value, t<'value>) => unknown
 let isAsyncParse: t<'value> => bool
 
 let recursive: (t<'value> => t<'value>) => t<'value>
+let asyncRecursive: (t<'value> => t<'value>) => t<'value>
 
 module Object: {
   type definerCtx

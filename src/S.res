@@ -69,7 +69,7 @@ module Stdlib = {
     }
 
     @val
-    external overrideWith: ('object, 'object) => 'object = "Object.assign"
+    external overrideWith: ('object, 'object) => unit = "Object.assign"
   }
 
   module Set = {
@@ -506,13 +506,32 @@ module ParseOperationState = {
   let empty = (): t => 0->Obj.magic
 
   @inline
-  let compiling = (): t => 1->Obj.magic
+  let asyncEmpty = (): t => 1->Obj.magic
 
+  @inline
+  let syncCompiling = (): t => 2->Obj.magic
+
+  @inline
+  let asyncCompiling = (): t => 3->Obj.magic
+
+  @inline
+  let toCompiling = (operationState): t => {
+    if operationState === asyncEmpty() {
+      asyncCompiling()
+    } else {
+      syncCompiling()
+    }
+  }
   let operation: operation => t = Obj.magic
 
   @inline
-  let isCompiling = operationState => {
-    operationState === compiling()
+  let isSyncCompiling = operationState => {
+    operationState === syncCompiling()
+  }
+
+  @inline
+  let isAsyncCompiling = operationState => {
+    operationState === asyncCompiling()
   }
 
   @inline
@@ -566,7 +585,7 @@ type rec t<'value> = {
   @as("p")
   mutable parse: (. unknown) => unknown,
   @as("a")
-  mutable parseAsync: (. unknown) => (. unit) => promise<result<'value, Error.t>>,
+  mutable parseAsync: (. unknown) => (. unit) => promise<unknown>,
   @as("i")
   maybeInlinedRefinement: option<string>,
   @as("m")
@@ -725,10 +744,12 @@ let getParseOperation = struct => {
   let parseOperationState = struct.parseOperationState
   if parseOperationState->ParseOperationState.isReady {
     parseOperationState->ParseOperationState.unsafeToOperation
-  } else if parseOperationState->ParseOperationState.isCompiling {
+  } else if parseOperationState->ParseOperationState.isSyncCompiling {
     SyncOperation((. input) => struct.parse(. input))
+  } else if parseOperationState->ParseOperationState.isAsyncCompiling {
+    AsyncOperation((. input) => struct.parseAsync(. input))
   } else {
-    struct.parseOperationState = ParseOperationState.compiling()
+    struct.parseOperationState = parseOperationState->ParseOperationState.toCompiling
     let compiledParseOperation =
       struct.parseTransformationFactory->TransformationFactory.compile(~struct)
     struct.parseOperationState = ParseOperationState.operation(compiledParseOperation)
@@ -810,7 +831,7 @@ let intitialParse = (. input) => {
   compiledParse(. input)
 }
 
-let asyncNoopOperation = (. input) => (. ()) => input->castUnknownToAny->Ok->Stdlib.Promise.resolve
+let asyncNoopOperation = (. input) => (. ()) => input->Stdlib.Promise.resolve
 
 let intitialParseAsync = (. input) => {
   let struct = %raw("this")
@@ -819,23 +840,9 @@ let intitialParseAsync = (. input) => {
   | SyncOperation(fn) =>
     (. input) => {
       let syncValue = fn(. input)
-      (. ()) => syncValue->castUnknownToAny->Ok->Stdlib.Promise.resolve
+      (. ()) => syncValue->Stdlib.Promise.resolve
     }
-  | AsyncOperation(fn) =>
-    (. input) => {
-      let asyncFn = fn(. input)
-      (. ()) =>
-        asyncFn(.)->Stdlib.Promise.thenResolveWithCatch(
-          value => Ok(value->castUnknownToAny),
-          exn => {
-            switch exn {
-            | Error.Internal.Exception(internalError) =>
-              internalError->Error.Internal.toParseError->Error
-            | _ => raise(exn)
-            }
-          },
-        )
-    }
+  | AsyncOperation(fn) => fn
   }
   struct.parseAsync = compiledParseAsync
   compiledParseAsync(. input)
@@ -881,9 +888,21 @@ let parseOrRaiseWith = (any, struct) => {
   }
 }
 
+let asyncPrepareOk = value => Ok(value->castUnknownToAny)
+
+let asyncPrepareError = exn => {
+  switch exn {
+  | Error.Internal.Exception(internalError) => internalError->Error.Internal.toParseError->Error
+  | _ => raise(exn)
+  }
+}
+
 let parseAsyncWith = (any, struct) => {
   try {
-    struct.parseAsync(. any->castAnyToUnknown)(.)
+    struct.parseAsync(. any->castAnyToUnknown)(.)->Stdlib.Promise.thenResolveWithCatch(
+      asyncPrepareOk,
+      asyncPrepareError,
+    )
   } catch {
   | Error.Internal.Exception(internalError) =>
     internalError->Error.Internal.toParseError->Error->Stdlib.Promise.resolve
@@ -892,7 +911,10 @@ let parseAsyncWith = (any, struct) => {
 
 let parseAsyncInStepsWith = (any, struct) => {
   try {
-    struct.parseAsync(. any->castAnyToUnknown)->Ok
+    let asyncFn = struct.parseAsync(. any->castAnyToUnknown)
+    (
+      (. ()) => asyncFn(.)->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, asyncPrepareError)
+    )->Ok
   } catch {
   | Error.Internal.Exception(internalError) => internalError->Error.Internal.toParseError->Error
   }
@@ -919,6 +941,20 @@ let recursive = fn => {
   let placeholder: t<'value> = %raw(`{}`)
   let struct = fn->Stdlib.Fn.call1(placeholder)
   placeholder->Stdlib.Object.overrideWith(struct)
+  if placeholder->isAsyncParse {
+    Error.panic(
+      `The "${struct->name}" struct in the S.recursive has an async parser. To make it work, use S.asyncRecursive instead.`,
+    )
+  }
+  placeholder
+}
+
+let asyncRecursive = fn => {
+  let placeholder: t<'value> = %raw(`{}`)
+  let struct = fn->Stdlib.Fn.call1(placeholder)
+  placeholder->Stdlib.Object.overrideWith(struct)
+  placeholder.parseOperationState = ParseOperationState.asyncEmpty()
+  placeholder
 }
 
 module Metadata = {
@@ -2949,7 +2985,7 @@ module Union = {
     let structs: array<t<unknown>> = structs->Obj.magic
 
     if structs->Js.Array2.length < 2 {
-      Error.panic("A Union struct factory require at least two structs")
+      Error.panic("A Union struct factory require at least two structs.")
     }
 
     make(
