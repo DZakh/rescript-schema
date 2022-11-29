@@ -13,14 +13,15 @@ test("Parses unknown primitive with transformation to another type", t => {
 })
 
 test("Throws for a Transformed Primitive factory without either a parser, or a serializer", t => {
-  t->Assert.throws(() => {
-    S.string()->S.transform()->ignore
-  }, ~expectations=ThrowsException.make(
-    ~message=String(
-      "[rescript-struct] For a struct factory Transform either a parser, or a serializer is required",
-    ),
+  t->Assert.throws(
+    () => {
+      S.string()->S.transform()
+    },
+    ~expectations={
+      message: "[rescript-struct] For a struct factory Transform either a parser, or a serializer is required",
+    },
     (),
-  ), ())
+  )
 })
 
 test("Fails to parse primitive with transform when parser isn't provided", t => {

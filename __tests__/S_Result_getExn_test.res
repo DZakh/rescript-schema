@@ -5,15 +5,18 @@ test("Gets value with Ok", t => {
 })
 
 test("Throws an Error with Error", t => {
-  t->Assert.throws(() => {
-    Error({
-      code: OperationFailed("Should be positive"),
-      operation: Parsing,
-      path: [],
-    })->S.Result.getExn
-  }, ~expectations=ThrowsException.make(
-    ~name="Error",
-    ~message=String("[rescript-struct] Failed parsing at root. Reason: Should be positive"),
+  t->Assert.throws(
+    () => {
+      Error({
+        code: OperationFailed("Should be positive"),
+        operation: Parsing,
+        path: [],
+      })->S.Result.getExn
+    },
+    ~expectations={
+      name: "Error",
+      message: "[rescript-struct] Failed parsing at root. Reason: Should be positive",
+    },
     (),
-  ), ())
+  )
 })

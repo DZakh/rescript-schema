@@ -319,23 +319,24 @@ test("Shallowly transforms object when added transform to the S.recursive result
 })
 
 test("Fails to create struct with async parse function using S.recursive", t => {
-  t->Assert.throws(() => {
-    S.recursive(
-      nodeStruct => {
-        S.object(
-          o => {
-            id: o->S.field("Id", S.string()->S.asyncRefine(~parser=_ => Promise.resolve(), ())),
-            children: o->S.field("Children", S.array(nodeStruct)),
-          },
-        )
-      },
-    )->ignore
-  }, ~expectations=ThrowsException.make(
-    ~message=String(
-      "[rescript-struct] The \"Object\" struct in the S.recursive has an async parser. To make it work, use S.asyncRecursive instead.",
-    ),
+  t->Assert.throws(
+    () => {
+      S.recursive(
+        nodeStruct => {
+          S.object(
+            o => {
+              id: o->S.field("Id", S.string()->S.asyncRefine(~parser=_ => Promise.resolve(), ())),
+              children: o->S.field("Children", S.array(nodeStruct)),
+            },
+          )
+        },
+      )->ignore
+    },
+    ~expectations={
+      message: "[rescript-struct] The \"Object\" struct in the S.recursive has an async parser. To make it work, use S.asyncRecursive instead.",
+    },
     (),
-  ), ())
+  )
 })
 
 test("Creates struct without async parse function using S.asyncRecursive", t => {
