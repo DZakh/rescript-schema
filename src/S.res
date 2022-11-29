@@ -912,6 +912,7 @@ let parseAsyncWith = (any, struct) => {
 let parseAsyncInStepsWith = (any, struct) => {
   try {
     let asyncFn = struct.parseAsync(. any->castAnyToUnknown)
+
     (
       (. ()) => asyncFn(.)->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, asyncPrepareError)
     )->Ok
@@ -3100,7 +3101,7 @@ module Union = {
 
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           let idxRef = ref(0)
-          let maybeLastErrorRef = ref(None)
+          let errors = []
           let maybeNewValueRef = ref(None)
           while (
             idxRef.contents < serializeOperations->Js.Array2.length &&
@@ -3116,7 +3117,7 @@ module Union = {
               maybeNewValueRef.contents = Some(newValue)
             } catch {
             | Error.Internal.Exception(internalError) => {
-                maybeLastErrorRef.contents = Some(internalError)
+                errors->Js.Array2.push(internalError)->ignore
                 idxRef.contents = idxRef.contents->Stdlib.Int.plus(1)
               }
             }
@@ -3124,10 +3125,9 @@ module Union = {
           switch maybeNewValueRef.contents {
           | Some(ok) => ok
           | None =>
-            switch maybeLastErrorRef.contents {
-            | Some(error) => raise(Error.Internal.Exception(error))
-            | None => %raw(`undefined`)
-            }
+            Error.Internal.raise(
+              InvalidUnion(errors->Js.Array2.map(Error.Internal.toSerializeError)),
+            )
           }
         })
       }),

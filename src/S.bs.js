@@ -2489,7 +2489,7 @@ function factory$17(structs) {
               }
               planSyncTransformation(ctx, (function (input) {
                       var idxRef = 0;
-                      var maybeLastErrorRef;
+                      var errors = [];
                       var maybeNewValueRef;
                       while(idxRef < serializeOperations.length && maybeNewValueRef === undefined) {
                         var idx = idxRef;
@@ -2501,7 +2501,7 @@ function factory$17(structs) {
                         catch (raw_internalError){
                           var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
                           if (internalError.RE_EXN_ID === Exception) {
-                            maybeLastErrorRef = internalError._1;
+                            errors.push(internalError._1);
                             idxRef = idxRef + 1;
                           } else {
                             throw internalError;
@@ -2511,16 +2511,12 @@ function factory$17(structs) {
                       var ok = maybeNewValueRef;
                       if (ok !== undefined) {
                         return Caml_option.valFromOption(ok);
+                      } else {
+                        return raise$1({
+                                    TAG: /* InvalidUnion */5,
+                                    _0: errors.map(toSerializeError)
+                                  });
                       }
-                      var error = maybeLastErrorRef;
-                      if (error !== undefined) {
-                        throw {
-                              RE_EXN_ID: Exception,
-                              _1: error,
-                              Error: new Error()
-                            };
-                      }
-                      return undefined;
                     }));
             }),
           r: 0,
