@@ -4,7 +4,7 @@ import * as S_Js from "./S_Js.bs.js";
 export interface Struct<Value> {
   parse(data: any): Value;
   parseAsync(data: any): Promise<Value>;
-  serialize(data: Value): Promise<unknown>;
+  serialize(data: Value): unknown;
   transform<Transformed>(
     parser: (value: Value) => Transformed
   ): Struct<Transformed>;
@@ -22,9 +22,11 @@ export interface Struct<Value> {
 }
 
 export const string: () => Struct<string> = S_Js.string as any;
-export const bool: () => Struct<boolean> = S_Js.bool as any;
-export const int: () => Struct<number> = S_Js.$$int as any;
-export const float: () => Struct<number> = S_Js.$$float as any;
+export const boolean: () => Struct<boolean> = S_Js.$$boolean as any;
+export const integer: () => Struct<number> = S_Js.integer as any;
+export const number: () => Struct<number> = S_Js.number as any;
+export const never: () => Struct<never> = S_Js.never as any;
+export const unknown: () => Struct<unknown> = S_Js.unknown as any;
 
 export const optional: <Value>(
   struct: Struct<Value>

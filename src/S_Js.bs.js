@@ -69,18 +69,28 @@ function string(param) {
   return Object.assign(struct, structOperations);
 }
 
-function bool(param) {
+function $$boolean(param) {
   var struct = S.bool(undefined);
   return Object.assign(struct, structOperations);
 }
 
-function $$int(param) {
+function integer(param) {
   var struct = S.$$int(undefined);
   return Object.assign(struct, structOperations);
 }
 
-function $$float(param) {
+function number(param) {
   var struct = S.$$float(undefined);
+  return Object.assign(struct, structOperations);
+}
+
+function never(param) {
+  var struct = S.never(undefined);
+  return Object.assign(struct, structOperations);
+}
+
+function unknown(param) {
+  var struct = S.unknown(undefined);
   return Object.assign(struct, structOperations);
 }
 
@@ -124,9 +134,11 @@ Object.assign(structOperations, {
     });
 
 exports.string = string;
-exports.bool = bool;
-exports.$$int = $$int;
-exports.$$float = $$float;
+exports.$$boolean = $$boolean;
+exports.integer = integer;
+exports.number = number;
+exports.never = never;
+exports.unknown = unknown;
 exports.optional = optional;
 exports.nullable = nullable;
 exports.object = object;

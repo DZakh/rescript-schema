@@ -15,9 +15,11 @@ type rec struct<'value> = {
 }
 
 let string: unit => struct<string>
-let bool: unit => struct<bool>
-let int: unit => struct<int>
-let float: unit => struct<float>
+let boolean: unit => struct<bool>
+let integer: unit => struct<int>
+let number: unit => struct<float>
+let never: unit => struct<S.never>
+let unknown: unit => struct<S.unknown>
 
 let optional: struct<'value> => struct<option<'value>>
 let nullable: struct<'value> => struct<option<'value>>

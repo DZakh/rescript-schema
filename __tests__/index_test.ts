@@ -14,7 +14,7 @@ test("Successfully parses string", (t) => {
 });
 
 test("Successfully parses int", (t) => {
-  const struct = S.int();
+  const struct = S.integer();
   const value = struct.parse(123);
 
   t.deepEqual(value, 123);
@@ -24,7 +24,7 @@ test("Successfully parses int", (t) => {
 });
 
 test("Successfully parses float", (t) => {
-  const struct = S.float();
+  const struct = S.number();
   const value = struct.parse(123.4);
 
   t.deepEqual(value, 123.4);
@@ -34,13 +34,39 @@ test("Successfully parses float", (t) => {
 });
 
 test("Successfully parses bool", (t) => {
-  const struct = S.bool();
+  const struct = S.boolean();
   const value = struct.parse(true);
 
   t.deepEqual(value, true);
 
   expectType<TypeEqual<typeof struct, S.Struct<boolean>>>(true);
   expectType<TypeEqual<typeof value, boolean>>(true);
+});
+
+test("Successfully parses unknown", (t) => {
+  const struct = S.unknown();
+  const value = struct.parse(true);
+
+  t.deepEqual(value, true);
+
+  expectType<TypeEqual<typeof struct, S.Struct<unknown>>>(true);
+  expectType<TypeEqual<typeof value, unknown>>(true);
+});
+
+test("Fails to parse never", (t) => {
+  const struct = S.never();
+
+  t.throws(
+    () => {
+      const value = struct.parse(true);
+
+      expectType<TypeEqual<typeof struct, S.Struct<never>>>(true);
+      expectType<TypeEqual<typeof value, never>>(true);
+    },
+    {
+      message: "Failed parsing at root. Reason: Expected Never, received Bool",
+    }
+  );
 });
 
 test("Successfully parses optional string when optional applied as a function", (t) => {
@@ -124,7 +150,7 @@ test("Successfully parses struct wrapped in nullable multiple times", (t) => {
 test("Successfully parses object with shape", (t) => {
   const struct = S.object({
     foo: S.string(),
-    bar: S.bool(),
+    bar: S.boolean(),
   });
   const value = struct.parse({
     foo: "bar",
@@ -154,4 +180,42 @@ test("Successfully parses object with shape", (t) => {
       }
     >
   >(true);
+});
+
+test("Fails to parse with invalid data", (t) => {
+  const struct = S.string();
+
+  t.throws(
+    () => {
+      struct.parse(123);
+    },
+    {
+      message:
+        "Failed parsing at root. Reason: Expected String, received Float",
+    }
+  );
+});
+
+test("Successfully serializes with valid value", (t) => {
+  const struct = S.string();
+  const result = struct.serialize("123");
+
+  t.deepEqual(result, "123");
+
+  expectType<TypeEqual<typeof result, unknown>>(true);
+});
+
+test("Fails to serialize never", (t) => {
+  const struct = S.never();
+
+  t.throws(
+    () => {
+      // @ts-ignore
+      struct.serialize("123");
+    },
+    {
+      message:
+        "Failed serializing at root. Reason: Expected Never, received String",
+    }
+  );
 });

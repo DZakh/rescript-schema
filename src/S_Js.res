@@ -89,9 +89,11 @@ let asyncRefine = (~parser) => {
 }
 
 let string = S.string->toJsStructFactory
-let bool = S.bool->toJsStructFactory
-let int = S.int->toJsStructFactory
-let float = S.float->toJsStructFactory
+let boolean = S.bool->toJsStructFactory
+let integer = S.int->toJsStructFactory
+let number = S.float->toJsStructFactory
+let never = S.never->toJsStructFactory
+let unknown = S.unknown->toJsStructFactory
 
 let optional = struct => S.option(struct->fromJsStruct)->toJsStruct
 let nullable = struct => S.null(struct->fromJsStruct)->toJsStruct
@@ -108,6 +110,9 @@ let object = definer => {
     definition
   })->toJsStruct
 }
+
+// TODO:
+// let fromReScriptStruct = toJsStructFactory
 
 structOperations->Stdlib.Object.extendWith({
   parse,
