@@ -54,8 +54,4 @@ export const object: <Value>(shape: {
   [k in keyof Value]: Value[k];
 }> = S_Js.object;
 
-const raiseError: (reason: string) => void = S.$$Error.raise;
-
-export const Error = {
-  raise: raiseError,
-};
+export const raiseError: (reason: string) => void = S.$$Error.raise;

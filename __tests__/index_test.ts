@@ -298,7 +298,7 @@ test("Successfully serializes with refine", (t) => {
 
 test("Fails to parses with refine raising an error", (t) => {
   const struct = S.string().refine((_) => {
-    S.Error.raise("User error");
+    S.raiseError("User error");
   });
 
   t.throws(
@@ -325,7 +325,7 @@ test("Successfully parses async struct", async (t) => {
 test("Fails to parses async struct", async (t) => {
   const struct = S.string().asyncRefine(async (_) => {
     return Promise.resolve().then(() => {
-      S.Error.raise("User error");
+      S.raiseError("User error");
     });
   });
 
