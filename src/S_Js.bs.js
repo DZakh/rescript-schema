@@ -119,20 +119,6 @@ function json(struct) {
   return Object.assign(struct$1, structOperations);
 }
 
-function object(definer) {
-  var struct = S.object(function (o) {
-        var definition = {};
-        var fieldNames = Object.keys(definer);
-        for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-          var fieldName = fieldNames[idx];
-          var struct = definer[fieldName];
-          definition[fieldName] = S.field(o, fieldName, struct);
-        }
-        return definition;
-      });
-  return Object.assign(struct, structOperations);
-}
-
 function custom(name, parser, serializer) {
   var struct = S.custom(name, parser, serializer, undefined);
   return Object.assign(struct, structOperations);
@@ -153,6 +139,45 @@ Object.assign(structOperations, {
         })
     });
 
+var objectStructOperations = {};
+
+function strict(param) {
+  var struct = this;
+  var struct$1 = S.$$Object.strict(struct);
+  return Object.assign(struct$1, objectStructOperations);
+}
+
+function strip(param) {
+  var struct = this;
+  var struct$1 = S.$$Object.strip(struct);
+  return Object.assign(struct$1, objectStructOperations);
+}
+
+function factory(definer) {
+  var struct = S.object(function (o) {
+        var definition = {};
+        var fieldNames = Object.keys(definer);
+        for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+          var fieldName = fieldNames[idx];
+          var struct = definer[fieldName];
+          definition[fieldName] = S.field(o, fieldName, struct);
+        }
+        return definition;
+      });
+  return Object.assign(struct, objectStructOperations);
+}
+
+Object.assign(objectStructOperations, structOperations);
+
+Object.assign(objectStructOperations, {
+      strict: strict,
+      strip: strip
+    });
+
+var $$Object = {
+  factory: factory
+};
+
 exports.string = string;
 exports.$$boolean = $$boolean;
 exports.integer = integer;
@@ -164,6 +189,6 @@ exports.nullable = nullable;
 exports.array = array;
 exports.record = record;
 exports.json = json;
-exports.object = object;
 exports.custom = custom;
+exports.$$Object = $$Object;
 /*  Not a pure module */

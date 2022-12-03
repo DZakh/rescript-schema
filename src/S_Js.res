@@ -101,19 +101,6 @@ let array = struct => S.array(struct->fromJsStruct)->toJsStruct
 let record = struct => S.dict(struct->fromJsStruct)->toJsStruct
 let json = struct => S.json(struct->fromJsStruct)->toJsStruct
 
-let object = definer => {
-  S.object(o => {
-    let definition = Js.Dict.empty()
-    let fieldNames = definer->Js.Dict.keys
-    for idx in 0 to fieldNames->Js.Array2.length - 1 {
-      let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-      let struct = definer->Js.Dict.unsafeGet(fieldName)->fromJsStruct
-      definition->Js.Dict.set(fieldName, o->S.field(fieldName, struct))
-    }
-    definition
-  })->toJsStruct
-}
-
 let custom = (~name, ~parser, ~serializer) => {
   S.custom(~name, ~parser, ~serializer, ())->toJsStruct
 }
@@ -132,3 +119,44 @@ structOperations->Stdlib.Object.extendWith({
     %raw("this")->nullable
   },
 })
+
+module Object = {
+  type rec t = {strict: unit => t, strip: unit => t}
+
+  let objectStructOperations = %raw("{}")
+
+  @inline
+  let toJsStruct = struct => {
+    let castToJsStruct: S.t<'value> => t = Obj.magic
+    struct->Stdlib.Object.extendWith(objectStructOperations)->castToJsStruct
+  }
+
+  let strict = () => {
+    let struct = %raw("this")
+    struct->fromJsStruct->S.Object.strict->toJsStruct
+  }
+
+  let strip = () => {
+    let struct = %raw("this")
+    struct->fromJsStruct->S.Object.strip->toJsStruct
+  }
+
+  let factory = definer => {
+    S.object(o => {
+      let definition = Js.Dict.empty()
+      let fieldNames = definer->Js.Dict.keys
+      for idx in 0 to fieldNames->Js.Array2.length - 1 {
+        let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+        let struct = definer->Js.Dict.unsafeGet(fieldName)->fromJsStruct
+        definition->Js.Dict.set(fieldName, o->S.field(fieldName, struct))
+      }
+      definition
+    })->toJsStruct
+  }
+
+  objectStructOperations->Stdlib.Object.extendWith(structOperations)
+  objectStructOperations->Stdlib.Object.extendWith({
+    strict,
+    strip,
+  })
+}

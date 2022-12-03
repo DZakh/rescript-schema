@@ -177,41 +177,6 @@ test("Successfully parses struct wrapped in nullable multiple times", (t) => {
   expectType<TypeEqual<typeof value2, string | undefined>>(true);
 });
 
-test("Successfully parses object with shape", (t) => {
-  const struct = S.object({
-    foo: S.string(),
-    bar: S.boolean(),
-  });
-  const value = struct.parse({
-    foo: "bar",
-    bar: true,
-  });
-
-  t.deepEqual(value, {
-    foo: "bar",
-    bar: true,
-  });
-
-  expectType<
-    TypeEqual<
-      typeof struct,
-      S.Struct<{
-        foo: string;
-        bar: boolean;
-      }>
-    >
-  >(true);
-  expectType<
-    TypeEqual<
-      typeof value,
-      {
-        foo: string;
-        bar: boolean;
-      }
-    >
-  >(true);
-});
-
 test("Fails to parse with invalid data", (t) => {
   const struct = S.string();
 
@@ -378,4 +343,105 @@ test("Custom string struct", (t) => {
   );
 
   expectType<TypeEqual<typeof struct, S.Struct<string>>>(true);
+});
+
+test("Successfully parses object by provided shape", (t) => {
+  const struct = S.object({
+    foo: S.string(),
+    bar: S.boolean(),
+  });
+  const value = struct.parse({
+    foo: "bar",
+    bar: true,
+  });
+
+  t.deepEqual(value, {
+    foo: "bar",
+    bar: true,
+  });
+
+  expectType<
+    TypeEqual<
+      typeof struct,
+      S.ObjectStruct<{
+        foo: string;
+        bar: boolean;
+      }>
+    >
+  >(true);
+  expectType<
+    TypeEqual<
+      typeof value,
+      {
+        foo: string;
+        bar: boolean;
+      }
+    >
+  >(true);
+});
+
+test("Fails to parse strict object with exccess fields", (t) => {
+  const struct = S.object({
+    foo: S.string(),
+  }).strict();
+
+  t.throws(
+    () => {
+      const value = struct.parse({
+        foo: "bar",
+        bar: true,
+      });
+      expectType<
+        TypeEqual<
+          typeof struct,
+          S.ObjectStruct<{
+            foo: string;
+          }>
+        >
+      >(true);
+      expectType<
+        TypeEqual<
+          typeof value,
+          {
+            foo: string;
+          }
+        >
+      >(true);
+    },
+    {
+      message: `Failed parsing at root. Reason: Encountered disallowed excess key "bar" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`,
+    }
+  );
+});
+
+test("Resets object strict mode with strip method", (t) => {
+  const struct = S.object({
+    foo: S.string(),
+  })
+    .strict()
+    .strip();
+
+  const value = struct.parse({
+    foo: "bar",
+    bar: true,
+  });
+
+  t.deepEqual(value, { foo: "bar" });
+
+  expectType<
+    TypeEqual<
+      typeof struct,
+      S.ObjectStruct<{
+        foo: string;
+      }>
+    >
+  >(true);
+  expectType<
+    TypeEqual<
+      typeof value,
+      {
+        foo: string;
+      }
+    >
+  >(true);
 });

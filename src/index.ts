@@ -23,6 +23,10 @@ export interface Struct<Value> {
   optional(): Struct<Value | undefined>;
   nullable(): Struct<Value | undefined>;
 }
+export interface ObjectStruct<Value> extends Struct<Value> {
+  strip(): ObjectStruct<Value>;
+  strict(): ObjectStruct<Value>;
+}
 
 export const string: () => Struct<string> = S_Js.string;
 export const boolean: () => Struct<boolean> = S_Js.$$boolean;
@@ -50,9 +54,9 @@ export const json: <Value>(struct: Struct<Value>) => Struct<Value> = S_Js.json;
 
 export const object: <Value>(shape: {
   [k in keyof Value]: Struct<Value[k]>;
-}) => Struct<{
+}) => ObjectStruct<{
   [k in keyof Value]: Value[k];
-}> = S_Js.object;
+}> = S_Js.$$Object.factory;
 
 export const custom: <Value>(
   name: string,

@@ -27,10 +27,14 @@ let array: struct<'value> => struct<array<'value>>
 let record: struct<'value> => struct<Js.Dict.t<'value>>
 let json: struct<'value> => struct<'value>
 
-let object: Js.Dict.t<struct<'value>> => struct<Js.Dict.t<'value>>
-
 let custom: (
   ~name: string,
   ~parser: (. ~unknown: S.unknown) => 'value,
   ~serializer: (. ~value: 'value) => 'any,
 ) => struct<'value>
+
+module Object: {
+  type rec t = {strict: unit => t, strip: unit => t}
+
+  let factory: Js.Dict.t<struct<'value>> => t
+}
