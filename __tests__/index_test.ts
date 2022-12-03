@@ -219,3 +219,92 @@ test("Fails to serialize never", (t) => {
     }
   );
 });
+
+test("Successfully parses with transform to another type", (t) => {
+  const struct = S.string().transform((string) => Number(string));
+  const value = struct.parse("123");
+
+  t.deepEqual(value, 123);
+
+  expectType<TypeEqual<typeof value, number>>(true);
+});
+
+test("Successfully serializes with transform to another type", (t) => {
+  const struct = S.string().transform(
+    (string) => Number(string),
+    (number) => {
+      expectType<TypeEqual<typeof number, number>>(true);
+      return number.toString();
+    }
+  );
+  const result = struct.serialize(123);
+
+  t.deepEqual(result, "123");
+
+  expectType<TypeEqual<typeof result, unknown>>(true);
+});
+
+test("Successfully parses with refine", (t) => {
+  const struct = S.string().refine((string) => {
+    expectType<TypeEqual<typeof string, string>>(true);
+  });
+  const value = struct.parse("123");
+
+  t.deepEqual(value, "123");
+
+  expectType<TypeEqual<typeof value, string>>(true);
+});
+
+test("Successfully serializes with refine", (t) => {
+  const struct = S.string().refine(undefined, (string) => {
+    expectType<TypeEqual<typeof string, string>>(true);
+  });
+  const result = struct.serialize("123");
+
+  t.deepEqual(result, "123");
+
+  expectType<TypeEqual<typeof result, unknown>>(true);
+});
+
+test("Fails to parses with refine raising an error", (t) => {
+  const struct = S.string().refine((_) => {
+    S.Error.raise("User error");
+  });
+
+  t.throws(
+    () => {
+      struct.parse("123");
+    },
+    {
+      message: "Failed parsing at root. Reason: User error",
+    }
+  );
+});
+
+test("Successfully parses async struct", async (t) => {
+  const struct = S.string().asyncRefine(async (string) => {
+    expectType<TypeEqual<typeof string, string>>(true);
+  });
+  const value = await struct.parseAsync("123");
+
+  t.deepEqual(value, "123");
+
+  expectType<TypeEqual<typeof value, string>>(true);
+});
+
+test("Fails to parses async struct", async (t) => {
+  const struct = S.string().asyncRefine(async (_) => {
+    return Promise.resolve().then(() => {
+      S.Error.raise("User error");
+    });
+  });
+
+  await t.throwsAsync(
+    () => {
+      return struct.parseAsync("123");
+    },
+    {
+      message: "Failed parsing at root. Reason: User error",
+    }
+  );
+});
