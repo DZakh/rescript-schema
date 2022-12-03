@@ -338,3 +338,44 @@ test("Fails to parses async struct", async (t) => {
     }
   );
 });
+
+test("Custom string struct", (t) => {
+  const struct = S.custom(
+    "Postcode",
+    (unknown) => {
+      if (typeof unknown !== "string") {
+        throw S.raiseError("Postcode should be a string");
+      }
+      if (unknown.length !== 5) {
+        throw S.raiseError("Postcode should be 5 characters");
+      }
+      return unknown;
+    },
+    (value) => {
+      expectType<TypeEqual<typeof value, string>>(true);
+      return value;
+    }
+  );
+
+  t.deepEqual(struct.parse("12345"), "12345");
+  t.deepEqual(struct.serialize("12345"), "12345");
+  t.throws(
+    () => {
+      struct.parse(123);
+    },
+    {
+      message: "Failed parsing at root. Reason: Postcode should be a string",
+    }
+  );
+  t.throws(
+    () => {
+      struct.parse("123");
+    },
+    {
+      message:
+        "Failed parsing at root. Reason: Postcode should be 5 characters",
+    }
+  );
+
+  expectType<TypeEqual<typeof struct, S.Struct<string>>>(true);
+});

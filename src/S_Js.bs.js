@@ -133,6 +133,11 @@ function object(definer) {
   return Object.assign(struct, structOperations);
 }
 
+function custom(name, parser, serializer) {
+  var struct = S.custom(name, parser, serializer, undefined);
+  return Object.assign(struct, structOperations);
+}
+
 Object.assign(structOperations, {
       parse: parse,
       parseAsync: parseAsync,
@@ -160,4 +165,5 @@ exports.array = array;
 exports.record = record;
 exports.json = json;
 exports.object = object;
+exports.custom = custom;
 /*  Not a pure module */

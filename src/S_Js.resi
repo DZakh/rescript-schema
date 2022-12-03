@@ -28,3 +28,9 @@ let record: struct<'value> => struct<Js.Dict.t<'value>>
 let json: struct<'value> => struct<'value>
 
 let object: Js.Dict.t<struct<'value>> => struct<Js.Dict.t<'value>>
+
+let custom: (
+  ~name: string,
+  ~parser: (. ~unknown: S.unknown) => 'value,
+  ~serializer: (. ~value: 'value) => 'any,
+) => struct<'value>

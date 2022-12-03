@@ -54,4 +54,10 @@ export const object: <Value>(shape: {
   [k in keyof Value]: Value[k];
 }> = S_Js.object;
 
+export const custom: <Value>(
+  name: string,
+  parser?: (data: unknown) => Value,
+  serializer?: (value: Value) => any
+) => Struct<Value> = S_Js.custom;
+
 export const raiseError: (reason: string) => void = S.$$Error.raise;

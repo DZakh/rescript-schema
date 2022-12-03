@@ -114,6 +114,10 @@ let object = definer => {
   })->toJsStruct
 }
 
+let custom = (~name, ~parser, ~serializer) => {
+  S.custom(~name, ~parser, ~serializer, ())->toJsStruct
+}
+
 structOperations->Stdlib.Object.extendWith({
   parse,
   parseAsync,
