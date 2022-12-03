@@ -69,6 +69,36 @@ test("Fails to parse never", (t) => {
   );
 });
 
+test("Successfully parses array", (t) => {
+  const struct = S.array(S.string());
+  const value = struct.parse(["foo"]);
+
+  t.deepEqual(value, ["foo"]);
+
+  expectType<TypeEqual<typeof struct, S.Struct<[string]>>>(true);
+  expectType<TypeEqual<typeof value, [string]>>(true);
+});
+
+test("Successfully parses record", (t) => {
+  const struct = S.record(S.string());
+  const value = struct.parse({ foo: "bar" });
+
+  t.deepEqual(value, { foo: "bar" });
+
+  expectType<TypeEqual<typeof struct, S.Struct<Record<string, string>>>>(true);
+  expectType<TypeEqual<typeof value, Record<string, string>>>(true);
+});
+
+test("Successfully parses json", (t) => {
+  const struct = S.json(S.string());
+  const value = struct.parse(`"foo"`);
+
+  t.deepEqual(value, "foo");
+
+  expectType<TypeEqual<typeof struct, S.Struct<string>>>(true);
+  expectType<TypeEqual<typeof value, string>>(true);
+});
+
 test("Successfully parses optional string when optional applied as a function", (t) => {
   const struct = S.optional(S.string());
   const value1 = struct.parse("foo");

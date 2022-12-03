@@ -104,6 +104,21 @@ function nullable(struct) {
   return Object.assign(struct$1, structOperations);
 }
 
+function array(struct) {
+  var struct$1 = S.array(struct);
+  return Object.assign(struct$1, structOperations);
+}
+
+function record(struct) {
+  var struct$1 = S.dict(struct);
+  return Object.assign(struct$1, structOperations);
+}
+
+function json(struct) {
+  var struct$1 = S.json(struct);
+  return Object.assign(struct$1, structOperations);
+}
+
 function object(definer) {
   var struct = S.object(function (o) {
         var definition = {};
@@ -141,5 +156,8 @@ exports.never = never;
 exports.unknown = unknown;
 exports.optional = optional;
 exports.nullable = nullable;
+exports.array = array;
+exports.record = record;
+exports.json = json;
 exports.object = object;
 /*  Not a pure module */

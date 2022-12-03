@@ -97,6 +97,9 @@ let unknown = S.unknown->toJsStructFactory
 
 let optional = struct => S.option(struct->fromJsStruct)->toJsStruct
 let nullable = struct => S.null(struct->fromJsStruct)->toJsStruct
+let array = struct => S.array(struct->fromJsStruct)->toJsStruct
+let record = struct => S.dict(struct->fromJsStruct)->toJsStruct
+let json = struct => S.json(struct->fromJsStruct)->toJsStruct
 
 let object = definer => {
   S.object(o => {
@@ -110,9 +113,6 @@ let object = definer => {
     definition
   })->toJsStruct
 }
-
-// TODO:
-// let fromReScriptStruct = toJsStructFactory
 
 structOperations->Stdlib.Object.extendWith({
   parse,

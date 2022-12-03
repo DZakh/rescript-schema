@@ -39,6 +39,15 @@ export const nullable: <Value>(
   struct: Struct<Value>
 ) => Struct<Value | undefined> = S_Js.nullable;
 
+export const array: <Value>(struct: Struct<Value>) => Struct<[Value]> =
+  S_Js.array;
+
+export const record: <Value>(
+  struct: Struct<Value>
+) => Struct<Record<string, Value>> = S_Js.record;
+
+export const json: <Value>(struct: Struct<Value>) => Struct<Value> = S_Js.json;
+
 export const object: <Value>(shape: {
   [k in keyof Value]: Struct<Value[k]>;
 }) => Struct<{
