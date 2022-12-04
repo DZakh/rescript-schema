@@ -37,6 +37,8 @@ let array: struct<'value> => struct<array<'value>>
 let record: struct<'value> => struct<Js.Dict.t<'value>>
 let json: struct<'value> => struct<'value>
 let union: array<struct<'value>> => struct<'value>
+let literal: 'value => struct<'value>
+let nan: unit => struct<unit>
 
 let custom: (
   ~name: string,

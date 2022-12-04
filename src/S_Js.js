@@ -16,4 +16,6 @@ exports.json = S_Js.json;
 exports.union = S_Js.union;
 exports.object = S_Js.$$Object.factory;
 exports.custom = S_Js.custom;
+exports.literal = S_Js.literal;
+exports.nan = S_Js.nan;
 exports.raiseError = S.$$Error.raise;

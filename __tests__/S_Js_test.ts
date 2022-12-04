@@ -519,6 +519,81 @@ test("Successfully parses union", (t) => {
   expectType<TypeEqual<typeof struct, S.Struct<string | number>>>(true);
 });
 
+test("String literal", (t) => {
+  const struct = S.literal("tuna");
+
+  t.deepEqual(struct.parseOrThrow("tuna"), "tuna");
+
+  expectType<TypeEqual<typeof struct, S.Struct<"tuna">>>(true);
+});
+
+test("Boolean literal", (t) => {
+  const struct = S.literal(true);
+
+  t.deepEqual(struct.parseOrThrow(true), true);
+
+  expectType<TypeEqual<typeof struct, S.Struct<true>>>(true);
+});
+
+test("Number literal", (t) => {
+  const struct = S.literal(123);
+
+  t.deepEqual(struct.parseOrThrow(123), 123);
+
+  expectType<TypeEqual<typeof struct, S.Struct<123>>>(true);
+});
+
+test("Undefined literal", (t) => {
+  const struct = S.literal(undefined);
+
+  t.deepEqual(struct.parseOrThrow(undefined), undefined);
+
+  expectType<TypeEqual<typeof struct, S.Struct<undefined>>>(true);
+});
+
+test("Null literal", (t) => {
+  const struct = S.literal(null);
+
+  t.deepEqual(struct.parseOrThrow(null), undefined);
+
+  expectType<TypeEqual<typeof struct, S.Struct<undefined>>>(true);
+});
+
+test("NaN struct", (t) => {
+  const struct = S.nan();
+
+  t.deepEqual(struct.parseOrThrow(NaN), undefined);
+
+  expectType<TypeEqual<typeof struct, S.Struct<undefined>>>(true);
+});
+
+test("Fails to create NaN literal. Use S.nan instead", (t) => {
+  t.throws(
+    () => {
+      S.literal(NaN);
+    },
+    {
+      name: "Error",
+      message:
+        "[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.",
+    }
+  );
+});
+
+test("Fails to create Symbol literal. It's not supported", (t) => {
+  t.throws(
+    () => {
+      const terrificSymbol: any = Symbol("terrific");
+      S.literal(terrificSymbol);
+    },
+    {
+      name: "Error",
+      message:
+        "[rescript-struct] The value provided to literal struct factory is not supported.",
+    }
+  );
+});
+
 test("Correctly infers type", (t) => {
   const struct = S.string();
   expectType<TypeEqual<typeof struct, S.Struct<string>>>(true);

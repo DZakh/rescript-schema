@@ -29,25 +29,8 @@ export interface Struct<Value> {
   optional(): Struct<Value | undefined>;
   nullable(): Struct<Value | undefined>;
 }
-type AnyStruct = Struct<any>;
 
 export type Infer<T> = T extends Struct<infer Value> ? Value : never;
-type InferStructTuple<
-  Tuple extends AnyStruct[],
-  Length extends number = Tuple["length"]
-> = Length extends Length
-  ? number extends Length
-    ? Tuple
-    : _InferTuple<Tuple, Length, []>
-  : never;
-type _InferTuple<
-  Tuple extends AnyStruct[],
-  Length extends number,
-  Accumulated extends unknown[],
-  Index extends number = Accumulated["length"]
-> = Index extends Length
-  ? Accumulated
-  : _InferTuple<Tuple, Length, [...Accumulated, Infer<Tuple[Index]>]>;
 
 export interface ObjectStruct<Value> extends Struct<Value> {
   strip(): ObjectStruct<Value>;
@@ -60,6 +43,12 @@ export const integer: () => Struct<number>;
 export const number: () => Struct<number>;
 export const never: () => Struct<never>;
 export const unknown: () => Struct<unknown>;
+export function literal<Value extends string>(value: Value): Struct<Value>;
+export function literal<Value extends number>(value: Value): Struct<Value>;
+export function literal<Value extends boolean>(value: Value): Struct<Value>;
+export function literal(value: undefined): Struct<undefined>;
+export function literal(value: null): Struct<undefined>;
+export const nan: () => Struct<undefined>;
 
 export const optional: <Value>(
   struct: Struct<Value>
@@ -77,6 +66,23 @@ export const record: <Value>(
 
 export const json: <Value>(struct: Struct<Value>) => Struct<Value>;
 
+type AnyStruct = Struct<any>;
+type InferStructTuple<
+  Tuple extends AnyStruct[],
+  Length extends number = Tuple["length"]
+> = Length extends Length
+  ? number extends Length
+    ? Tuple
+    : _InferTuple<Tuple, Length, []>
+  : never;
+type _InferTuple<
+  Tuple extends AnyStruct[],
+  Length extends number,
+  Accumulated extends unknown[],
+  Index extends number = Accumulated["length"]
+> = Index extends Length
+  ? Accumulated
+  : _InferTuple<Tuple, Length, [...Accumulated, Infer<Tuple[Index]>]>;
 export const union: <A extends AnyStruct, B extends AnyStruct[]>(
   structs: [A, ...B]
 ) => Struct<Infer<A> | InferStructTuple<B>[number]>;

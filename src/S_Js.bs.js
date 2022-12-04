@@ -2,6 +2,7 @@
 'use strict';
 
 var S = require("./S.bs.js");
+var Js_exn = require("rescript/lib/js/js_exn.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
 class ReScriptStructError extends Error {
@@ -174,6 +175,36 @@ function union(structs) {
   return Object.assign(struct, structOperations);
 }
 
+function literal(value) {
+  var taggedLiteral = typeof value === "string" ? ({
+        TAG: /* String */0,
+        _0: value
+      }) : (
+      typeof value === "boolean" ? ({
+            TAG: /* Bool */3,
+            _0: value
+          }) : (
+          typeof value === "number" ? (
+              Number.isNaN(value) ? Js_exn.raiseError("[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.") : ({
+                    TAG: /* Float */2,
+                    _0: value
+                  })
+            ) : (
+              value === null ? /* EmptyNull */0 : (
+                  value === undefined ? /* EmptyOption */1 : Js_exn.raiseError("[rescript-struct] The value provided to literal struct factory is not supported.")
+                )
+            )
+        )
+    );
+  var struct = S.literal(taggedLiteral);
+  return Object.assign(struct, structOperations);
+}
+
+function nan(param) {
+  var struct = S.literal(/* NaN */2);
+  return Object.assign(struct, structOperations);
+}
+
 function custom(name, parser, serializer) {
   var struct = S.custom(name, parser, serializer, undefined);
   return Object.assign(struct, structOperations);
@@ -253,6 +284,8 @@ exports.array = array;
 exports.record = record;
 exports.json = json;
 exports.union = union;
+exports.literal = literal;
+exports.nan = nan;
 exports.custom = custom;
 exports.$$Object = $$Object;
 /*  Not a pure module */
