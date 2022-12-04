@@ -610,3 +610,27 @@ test("Successfully parses undefined using the default value", (t) => {
 
   expectType<TypeEqual<typeof struct, S.Struct<string>>>(true);
 });
+
+test("Empty tuple", (t) => {
+  const struct = S.tuple([]);
+
+  t.deepEqual(struct.parseOrThrow([]), undefined);
+
+  expectType<TypeEqual<typeof struct, S.Struct<undefined>>>(true);
+});
+
+test("Tuple with single element", (t) => {
+  const struct = S.tuple([S.string()]);
+
+  t.deepEqual(struct.parseOrThrow(["foo"]), "foo");
+
+  expectType<TypeEqual<typeof struct, S.Struct<string>>>(true);
+});
+
+test("Tuple with multiple elements", (t) => {
+  const struct = S.tuple([S.string(), S.number()]);
+
+  t.deepEqual(struct.parseOrThrow(["foo", 123]), ["foo", 123]);
+
+  expectType<TypeEqual<typeof struct, S.Struct<[string, number]>>>(true);
+});

@@ -180,6 +180,11 @@ function defaulted(struct, value) {
   return Object.assign(struct$1, structOperations);
 }
 
+function tuple(structs) {
+  var struct = S.Tuple.factory(...structs);
+  return Object.assign(struct, structOperations);
+}
+
 function literal(value) {
   var taggedLiteral = typeof value === "string" ? ({
         TAG: /* String */0,
@@ -292,6 +297,7 @@ exports.union = union;
 exports.literal = literal;
 exports.nan = nan;
 exports.defaulted = defaulted;
+exports.tuple = tuple;
 exports.custom = custom;
 exports.$$Object = $$Object;
 /*  Not a pure module */

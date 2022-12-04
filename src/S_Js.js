@@ -19,4 +19,5 @@ exports.custom = S_Js.custom;
 exports.literal = S_Js.literal;
 exports.nan = S_Js.nan;
 exports.defaulted = S_Js.defaulted;
+exports.tuple = S_Js.tuple;
 exports.raiseError = S.$$Error.raise;

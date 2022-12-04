@@ -40,6 +40,7 @@ let union: array<struct<unknown>> => struct<unknown>
 let literal: 'value => struct<'value>
 let nan: unit => struct<unit>
 let defaulted: (struct<option<'value>>, 'value) => struct<'value>
+let tuple: array<struct<unknown>> => struct<unknown>
 
 let custom: (
   ~name: string,
