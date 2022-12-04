@@ -3,10 +3,14 @@ import * as S_Js from "./S_Js.bs.js";
 // @ts-ignore
 import * as S from "./S.bs.js";
 
+export class Error extends S_Js.ReScriptStructError {}
+
 export interface Struct<Value> {
-  parse(data: any): Value;
-  parseAsync(data: any): Promise<Value>;
-  serialize(data: Value): unknown;
+  parse(data: any): Value | Error;
+  parseOrThrow(data: any): Value;
+  parseAsync(data: any): Promise<Value | Error>;
+  serialize(data: Value): unknown | Error;
+  serializeOrThrow(data: Value): unknown;
   transform<Transformed>(
     parser: (value: Value) => Transformed
   ): Struct<Transformed>;

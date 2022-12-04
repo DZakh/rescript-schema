@@ -12,12 +12,39 @@ module Stdlib = {
   }
 }
 
+module Error = {
+  type t = exn
+
+  %%raw(`class ReScriptStructError extends Error {
+    constructor(message) {
+      super(message);
+      this.name = "ReScriptStructError";
+    }
+  }`)
+
+  @new
+  external _make: string => t = "ReScriptStructError"
+
+  let make = error => {
+    error->S.Error.toString->_make
+  }
+}
+
+module Result = {
+  type t<'value>
+
+  let fromOk: 'value => t<'value> = Obj.magic
+  let fromError: Error.t => t<'value> = Obj.magic
+}
+
 type any
 type transformed
 type rec struct<'value> = {
-  parse: any => 'value,
-  parseAsync: any => promise<'value>,
-  serialize: 'value => S.unknown,
+  parse: any => Result.t<'value>,
+  parseOrThrow: any => 'value,
+  parseAsync: any => promise<Result.t<'value>>,
+  serialize: 'value => Result.t<S.unknown>,
+  serializeOrThrow: 'value => S.unknown,
   transform: (
     ~parser: 'value => transformed,
     ~serializer: transformed => 'value,
@@ -46,9 +73,18 @@ let toJsStructFactory = factory => {
 let parse = data => {
   let struct = %raw("this")
   try {
+    data->S.parseOrRaiseWith(struct)->Result.fromOk
+  } catch {
+  | S.Raised(error) => error->Error.make->Result.fromError
+  }
+}
+
+let parseOrThrow = data => {
+  let struct = %raw("this")
+  try {
     data->S.parseOrRaiseWith(struct)
   } catch {
-  | S.Raised(error) => error->S.Error.toString->Js.Exn.raiseError
+  | S.Raised(error) => error->Error.make->raise
   }
 }
 
@@ -58,8 +94,8 @@ let parseAsync = data => {
   ->S.parseAsyncWith(struct)
   ->Stdlib.Promise.thenResolve(result => {
     switch result {
-    | Ok(value) => value
-    | Error(error) => error->S.Error.toString->Js.Exn.raiseError
+    | Ok(value) => value->Result.fromOk
+    | Error(error) => error->Error.make->Result.fromError
     }
   })
 }
@@ -67,9 +103,18 @@ let parseAsync = data => {
 let serialize = value => {
   let struct = %raw("this")
   try {
+    value->S.serializeOrRaiseWith(struct)->Result.fromOk
+  } catch {
+  | S.Raised(error) => error->Error.make->Result.fromError
+  }
+}
+
+let serializeOrThrow = value => {
+  let struct = %raw("this")
+  try {
     value->S.serializeOrRaiseWith(struct)
   } catch {
-  | S.Raised(error) => error->S.Error.toString->Js.Exn.raiseError
+  | S.Raised(error) => error->Error.make->raise
   }
 }
 
@@ -107,8 +152,10 @@ let custom = (~name, ~parser, ~serializer) => {
 
 structOperations->Stdlib.Object.extendWith({
   parse,
+  parseOrThrow,
   parseAsync,
   serialize,
+  serializeOrThrow,
   transform,
   refine,
   asyncRefine,

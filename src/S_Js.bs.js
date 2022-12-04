@@ -2,8 +2,15 @@
 'use strict';
 
 var S = require("./S.bs.js");
-var Js_exn = require("rescript/lib/js/js_exn.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
+
+class ReScriptStructError extends Error {
+    constructor(message) {
+      super(message);
+      this.name = "ReScriptStructError";
+    }
+  }
+;
 
 var structOperations = {};
 
@@ -15,7 +22,21 @@ function parse(data) {
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
     if (error.RE_EXN_ID === S.Raised) {
-      return Js_exn.raiseError(S.$$Error.toString(error._1));
+      return new ReScriptStructError(S.$$Error.toString(error._1));
+    }
+    throw error;
+  }
+}
+
+function parseOrThrow(data) {
+  var struct = this;
+  try {
+    return S.parseOrRaiseWith(data, struct);
+  }
+  catch (raw_error){
+    var error = Caml_js_exceptions.internalToOCamlException(raw_error);
+    if (error.RE_EXN_ID === S.Raised) {
+      throw new ReScriptStructError(S.$$Error.toString(error._1));
     }
     throw error;
   }
@@ -27,7 +48,7 @@ function parseAsync(data) {
               if (result.TAG === /* Ok */0) {
                 return result._0;
               } else {
-                return Js_exn.raiseError(S.$$Error.toString(result._0));
+                return new ReScriptStructError(S.$$Error.toString(result._0));
               }
             });
 }
@@ -40,7 +61,21 @@ function serialize(value) {
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
     if (error.RE_EXN_ID === S.Raised) {
-      return Js_exn.raiseError(S.$$Error.toString(error._1));
+      return new ReScriptStructError(S.$$Error.toString(error._1));
+    }
+    throw error;
+  }
+}
+
+function serializeOrThrow(value) {
+  var struct = this;
+  try {
+    return S.serializeOrRaiseWith(value, struct);
+  }
+  catch (raw_error){
+    var error = Caml_js_exceptions.internalToOCamlException(raw_error);
+    if (error.RE_EXN_ID === S.Raised) {
+      throw new ReScriptStructError(S.$$Error.toString(error._1));
     }
     throw error;
   }
@@ -126,8 +161,10 @@ function custom(name, parser, serializer) {
 
 Object.assign(structOperations, {
       parse: parse,
+      parseOrThrow: parseOrThrow,
       parseAsync: parseAsync,
       serialize: serialize,
+      serializeOrThrow: serializeOrThrow,
       transform: transform,
       refine: refine,
       asyncRefine: asyncRefine,
@@ -174,10 +211,16 @@ Object.assign(objectStructOperations, {
       strip: strip
     });
 
+var $$Error = {};
+
+var Result = {};
+
 var $$Object = {
   factory: factory
 };
 
+exports.$$Error = $$Error;
+exports.Result = Result;
 exports.string = string;
 exports.$$boolean = $$boolean;
 exports.integer = integer;

@@ -1,9 +1,19 @@
+module Error: {
+  type t
+}
+
+module Result: {
+  type t<'value>
+}
+
 type any
 type transformed
 type rec struct<'value> = {
-  parse: any => 'value,
-  parseAsync: any => promise<'value>,
-  serialize: 'value => S.unknown,
+  parse: any => Result.t<'value>,
+  parseOrThrow: any => 'value,
+  parseAsync: any => promise<Result.t<'value>>,
+  serialize: 'value => Result.t<S.unknown>,
+  serializeOrThrow: 'value => S.unknown,
   transform: (
     ~parser: 'value => transformed,
     ~serializer: transformed => 'value,
