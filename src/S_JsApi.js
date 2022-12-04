@@ -1,4 +1,4 @@
-const S_Js = require("./S_Js.bs.js");
+const S_Js = require("./S_JsApi.bs.js");
 const S = require("./S.bs.js");
 
 exports.StructError = S_Js.ReScriptStructError;

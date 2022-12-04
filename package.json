@@ -42,7 +42,7 @@
   ],
   "main": "./dist/S.js",
   "module": "./dist/S.mjs",
-  "types": "./src/S_Js.d.ts",
+  "types": "./src/S_JsApi.d.ts",
   "scripts": {
     "bundle": "rollup --config",
     "build": "npm run res:build && npm run bundle",
