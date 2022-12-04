@@ -34,8 +34,10 @@
   "license": "MIT",
   "author": "Dmitry Zakharov <dzakh.dev@gmail.com>",
   "files": [
+    "dist",
     "src/**/*.res",
     "src/**/*.resi",
+    "src/**/*.d.ts",
     "bsconfig.json"
   ],
   "main": "./dist/S.js",
