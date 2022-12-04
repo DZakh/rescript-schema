@@ -1,7 +1,7 @@
 import test from "ava";
 import { expectType, TypeEqual } from "ts-expect";
 
-import * as S from "../src/index";
+import * as S from "../src/S_Js";
 
 test("Successfully parses string", (t) => {
   const struct = S.string();
@@ -286,9 +286,9 @@ test("Successfully parses async struct", async (t) => {
   });
   const value = await struct.parseAsync("123");
 
-  t.deepEqual(value, "123");
+  t.deepEqual(value, { success: true, value: "123" });
 
-  expectType<TypeEqual<typeof value, string | S.Error>>(true);
+  expectType<TypeEqual<typeof value, S.Result<string>>>(true);
 });
 
 test("Fails to parses async struct", async (t) => {
@@ -298,15 +298,12 @@ test("Fails to parses async struct", async (t) => {
     });
   });
 
-  await t.throwsAsync(
-    () => {
-      return struct.parseAsync("123");
-    },
-    {
-      name: "ReScriptStructError",
-      message: "Failed parsing at root. Reason: User error",
-    }
-  );
+  const result = await struct.parseAsync("123");
+
+  t.deepEqual(result, {
+    success: false,
+    error: new S.StructError("Failed parsing at root. Reason: User error"),
+  });
 });
 
 test("Custom string struct", (t) => {
@@ -457,32 +454,74 @@ test("Resets object strict mode with strip method", (t) => {
 test("Successfully parses and returns result", (t) => {
   const struct = S.string();
   const value = struct.parse("123");
-  expectType<TypeEqual<typeof value, string | S.Error>>(true);
-  t.deepEqual(value, "123");
 
-  if (value instanceof S.Error) {
-    expectType<TypeEqual<typeof value, S.Error>>(true);
+  t.deepEqual(value, { success: true, value: "123" });
+
+  expectType<TypeEqual<typeof value, S.Result<string>>>(true);
+  if (value.success) {
+    expectType<
+      TypeEqual<
+        typeof value,
+        {
+          success: true;
+          value: string;
+        }
+      >
+    >(true);
   } else {
-    expectType<TypeEqual<typeof value, string>>(true);
+    expectType<
+      TypeEqual<
+        typeof value,
+        {
+          success: false;
+          error: S.StructError;
+        }
+      >
+    >(true);
   }
 });
 
 test("Successfully serializes and returns result", (t) => {
   const struct = S.string();
   const value = struct.serialize("123");
-  expectType<TypeEqual<typeof value, unknown | S.Error>>(true);
-  t.deepEqual(value, "123");
 
-  if (value instanceof S.Error) {
-    expectType<TypeEqual<typeof value, S.Error>>(true);
+  t.deepEqual(value, { success: true, value: "123" });
+
+  if (value.success) {
+    expectType<
+      TypeEqual<
+        typeof value,
+        {
+          success: true;
+          value: unknown;
+        }
+      >
+    >(true);
   } else {
-    expectType<TypeEqual<typeof value, unknown>>(true);
+    expectType<
+      TypeEqual<
+        typeof value,
+        {
+          success: false;
+          error: S.StructError;
+        }
+      >
+    >(true);
   }
+});
+
+test("Successfully parses union", (t) => {
+  const struct = S.union([S.string(), S.number()]);
+  const value = struct.parse("123");
+
+  t.deepEqual(value, { success: true, value: "123" });
+
+  expectType<TypeEqual<typeof struct, S.Struct<string | number>>>(true);
 });
 
 test("Correctly infers type", (t) => {
   const struct = S.string();
-
   expectType<TypeEqual<typeof struct, S.Struct<string>>>(true);
   expectType<TypeEqual<S.Infer<typeof struct>, string>>(true);
+  t.pass();
 });

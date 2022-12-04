@@ -5,24 +5,39 @@ var S = require("./S.bs.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
 class ReScriptStructError extends Error {
-    constructor(message) {
-      super(message);
-      this.name = "ReScriptStructError";
+      constructor(message) {
+        super(message);
+        this.name = "ReScriptStructError";
+      }
     }
-  }
+    exports.ReScriptStructError = ReScriptStructError
 ;
+
+function fromOk(value) {
+  return {
+          success: true,
+          value: value
+        };
+}
+
+function fromError(error) {
+  return {
+          success: false,
+          error: error
+        };
+}
 
 var structOperations = {};
 
 function parse(data) {
   var struct = this;
   try {
-    return S.parseOrRaiseWith(data, struct);
+    return fromOk(S.parseOrRaiseWith(data, struct));
   }
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
     if (error.RE_EXN_ID === S.Raised) {
-      return new ReScriptStructError(S.$$Error.toString(error._1));
+      return fromError(new ReScriptStructError(S.$$Error.toString(error._1)));
     }
     throw error;
   }
@@ -46,9 +61,9 @@ function parseAsync(data) {
   var struct = this;
   return S.parseAsyncWith(data, struct).then(function (result) {
               if (result.TAG === /* Ok */0) {
-                return result._0;
+                return fromOk(result._0);
               } else {
-                return new ReScriptStructError(S.$$Error.toString(result._0));
+                return fromError(new ReScriptStructError(S.$$Error.toString(result._0)));
               }
             });
 }
@@ -56,12 +71,12 @@ function parseAsync(data) {
 function serialize(value) {
   var struct = this;
   try {
-    return S.serializeOrRaiseWith(value, struct);
+    return fromOk(S.serializeOrRaiseWith(value, struct));
   }
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
     if (error.RE_EXN_ID === S.Raised) {
-      return new ReScriptStructError(S.$$Error.toString(error._1));
+      return fromError(new ReScriptStructError(S.$$Error.toString(error._1)));
     }
     throw error;
   }
@@ -154,6 +169,11 @@ function json(struct) {
   return Object.assign(struct$1, structOperations);
 }
 
+function union(structs) {
+  var struct = S.union(structs);
+  return Object.assign(struct, structOperations);
+}
+
 function custom(name, parser, serializer) {
   var struct = S.custom(name, parser, serializer, undefined);
   return Object.assign(struct, structOperations);
@@ -232,6 +252,7 @@ exports.nullable = nullable;
 exports.array = array;
 exports.record = record;
 exports.json = json;
+exports.union = union;
 exports.custom = custom;
 exports.$$Object = $$Object;
 /*  Not a pure module */

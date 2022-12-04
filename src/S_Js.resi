@@ -36,6 +36,7 @@ let nullable: struct<'value> => struct<option<'value>>
 let array: struct<'value> => struct<array<'value>>
 let record: struct<'value> => struct<Js.Dict.t<'value>>
 let json: struct<'value> => struct<'value>
+let union: array<struct<'value>> => struct<'value>
 
 let custom: (
   ~name: string,

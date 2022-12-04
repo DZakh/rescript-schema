@@ -1,7 +1,7 @@
 const packageJson = require("./package.json");
 
 module.exports = () => ({
-  files: ["src/**/*.ts", "src/**/*.bs.js"],
+  files: ["src/**/*.js"],
   tests: packageJson.ava.files,
   env: {
     type: "node",
