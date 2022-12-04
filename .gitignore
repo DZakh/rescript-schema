@@ -4,3 +4,4 @@ node_modules
 **/*_test.bs.js
 lib
 coverage
+dist
