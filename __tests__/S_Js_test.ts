@@ -600,3 +600,13 @@ test("Correctly infers type", (t) => {
   expectType<TypeEqual<S.Infer<typeof struct>, string>>(true);
   t.pass();
 });
+
+test("Successfully parses undefined using the default value", (t) => {
+  const struct = S.defaulted(S.literal(undefined), "foo");
+
+  const value = struct.parseOrThrow(undefined);
+
+  t.deepEqual(value, "foo");
+
+  expectType<TypeEqual<typeof struct, S.Struct<string>>>(true);
+});

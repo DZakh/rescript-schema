@@ -159,6 +159,7 @@ let array = struct => S.array(struct->castToReScriptStruct)->toJsStruct
 let record = struct => S.dict(struct->castToReScriptStruct)->toJsStruct
 let json = struct => S.json(struct->castToReScriptStruct)->toJsStruct
 let union = structs => S.union(structs->castMultipleToReScriptStruct)->toJsStruct
+let defaulted = (struct, value) => S.defaulted(struct->castToReScriptStruct, value)->toJsStruct
 
 let literal = {
   let castTaggedToLiteral: S.taggedLiteral => S.literal<'value> = Obj.magic

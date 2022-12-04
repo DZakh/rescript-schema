@@ -49,6 +49,10 @@ export function literal<Value extends boolean>(value: Value): Struct<Value>;
 export function literal(value: undefined): Struct<undefined>;
 export function literal(value: null): Struct<undefined>;
 export const nan: () => Struct<undefined>;
+export const defaulted: <Value>(
+  struct: Struct<Value | undefined>,
+  defaultValue: Value
+) => Struct<Value>;
 
 export const optional: <Value>(
   struct: Struct<Value>

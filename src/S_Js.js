@@ -18,4 +18,5 @@ exports.object = S_Js.$$Object.factory;
 exports.custom = S_Js.custom;
 exports.literal = S_Js.literal;
 exports.nan = S_Js.nan;
+exports.defaulted = S_Js.defaulted;
 exports.raiseError = S.$$Error.raise;

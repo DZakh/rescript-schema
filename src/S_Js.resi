@@ -39,6 +39,7 @@ let json: struct<'value> => struct<'value>
 let union: array<struct<'value>> => struct<'value>
 let literal: 'value => struct<'value>
 let nan: unit => struct<unit>
+let defaulted: (struct<option<'value>>, 'value) => struct<'value>
 
 let custom: (
   ~name: string,

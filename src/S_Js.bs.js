@@ -175,6 +175,11 @@ function union(structs) {
   return Object.assign(struct, structOperations);
 }
 
+function defaulted(struct, value) {
+  var struct$1 = S.defaulted(struct, value);
+  return Object.assign(struct$1, structOperations);
+}
+
 function literal(value) {
   var taggedLiteral = typeof value === "string" ? ({
         TAG: /* String */0,
@@ -286,6 +291,7 @@ exports.json = json;
 exports.union = union;
 exports.literal = literal;
 exports.nan = nan;
+exports.defaulted = defaulted;
 exports.custom = custom;
 exports.$$Object = $$Object;
 /*  Not a pure module */
