@@ -8,16 +8,16 @@ export type Result<Value> =
   | { success: false; error: StructError };
 
 export interface Struct<Value> {
-  parse(data: any): Result<Value>;
-  parseOrThrow(data: any): Value;
-  parseAsync(data: any): Promise<Result<Value>>;
+  parse(data: unknown): Result<Value>;
+  parseOrThrow(data: unknown): Value;
+  parseAsync(data: unknown): Promise<Result<Value>>;
   serialize(data: Value): Result<unknown>;
   serializeOrThrow(data: Value): unknown;
   transform<Transformed>(
     parser: (value: Value) => Transformed
   ): Struct<Transformed>;
   transform<Transformed>(
-    parser: (value: Value) => Transformed,
+    parser: ((value: Value) => Transformed) | undefined,
     serializer: (transformed: Transformed) => Value
   ): Struct<Transformed>;
   refine(parser: (value: Value) => void): Struct<Value>;
@@ -32,7 +32,7 @@ export interface Struct<Value> {
 
 export type Infer<T> = T extends Struct<infer Value> ? Value : never;
 
-type AnyStruct = Struct<any>;
+type AnyStruct = Struct<unknown>;
 type InferStructTuple<
   Tuple extends AnyStruct[],
   Length extends number = Tuple["length"]
@@ -106,7 +106,7 @@ export const object: <Value>(shape: {
 export const custom: <Value>(
   name: string,
   parser?: (data: unknown) => Value,
-  serializer?: (value: Value) => any
+  serializer?: (value: Value) => unknown
 ) => Struct<Value>;
 
 export const raiseError: (reason: string) => void;
