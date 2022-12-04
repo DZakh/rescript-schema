@@ -34,11 +34,18 @@
   "license": "MIT",
   "author": "Dmitry Zakharov <dzakh.dev@gmail.com>",
   "files": [
+    "dist",
     "src/**/*.res",
     "src/**/*.resi",
+    "src/**/*.d.ts",
     "bsconfig.json"
   ],
+  "main": "./dist/S.js",
+  "module": "./dist/S.mjs",
+  "types": "./src/S_Js.d.ts",
   "scripts": {
+    "bundle": "rollup --config",
+    "build": "npm run res:build && npm run bundle",
     "res:build": "rescript build -with-deps",
     "res:dev": "rescript build -with-deps -w",
     "test": "ava",
@@ -47,16 +54,29 @@
   },
   "ava": {
     "files": [
-      "__tests__/**/*_test.bs.js"
+      "__tests__/**/*_test.bs.js",
+      "__tests__/**/*_test.ts"
+    ],
+    "extensions": [
+      "ts",
+      "js"
+    ],
+    "require": [
+      "ts-node/register"
     ]
   },
   "devDependencies": {
     "@dzakh/rescript-ava": "2.1.0",
+    "@rollup/plugin-commonjs": "23.0.3",
     "@ryyppy/rescript-promise": "2.1.0",
     "ava": "5.1.0",
     "benchmark": "2.1.4",
     "c8": "7.12.0",
-    "rescript": "10.1.0"
+    "rescript": "10.1.0",
+    "rollup": "3.5.1",
+    "ts-expect": "1.3.0",
+    "ts-node": "10.9.1",
+    "typescript": "4.9.3"
   },
   "peerDependencies": {
     "rescript": "10.1.x"

@@ -17,6 +17,7 @@ Highlights:
 - Easy to create _recursive_ structs
 - Ability to disallow excessive object fields
 - Built-in `union`, `literal` and many other structs
+- Js API with TypeScript support for mixed codebases ([.d.ts](./src/S_Js.d.ts))
 - The **fastest** parsing library in the entire JavaScript ecosystem ([benchmark](https://dzakh.github.io/rescript-runtime-type-benchmarks/))
 - Tiny: [7kb minified + zipped](https://bundle.js.org/?q=github%3ADZakh%2Frescript-struct%2Fmain%2Fsrc%2FS.bs.js&treeshake=%5B*+as+S%5D&config=%7B%22esbuild%22%3A%7B%22external%22%3A%5B%22rescript%22%5D%7D%7D)
 
@@ -44,6 +45,8 @@ Then add `rescript-struct` to `bs-dependencies` in your `bsconfig.json`:
 + "bs-dependencies": ["rescript-struct"]
 }
 ```
+
+> 🧠 Since rescript-struct V3, you need to have rescript > 10.1.0
 
 ### Basic usage
 
@@ -160,7 +163,7 @@ After parsing synchronous branches will return a function to run asynchronous re
 
 #### **`S.serializeWith`**
 
-`('value, S.t<'value>) => result<S.unknown, S.Error.t>`
+`('value, S.t<'value>) => result<unknown, S.Error.t>`
 
 ```rescript
 user->S.serializeWith(userStruct)
@@ -170,7 +173,7 @@ Serializes value using the transformation logic that is built-in to the struct. 
 
 #### **`S.serializeOrRaiseWith`**
 
-`('value, S.t<'value>) => S.unknown`
+`('value, S.t<'value>) => unknown`
 
 ```rescript
 try {
@@ -647,7 +650,7 @@ The `dict` struct represents a dictionary of data of a specific type.
 
 #### **`S.unknown`**
 
-`() => S.t<S.unknown>`
+`() => S.t<unknown>`
 
 ```rescript
 let struct = S.unknown()
@@ -697,7 +700,7 @@ The `json` struct represents a data that is a JSON string containing a value of 
 
 #### **`S.custom`**
 
-`(~name: string, ~parser: (. ~unknown: S.unknown) => 'value=?, ~serializer: (. ~value: 'value) => 'any=?, unit) => S.t<'value>`
+`(~name: string, ~parser: (. ~unknown: unknown) => 'value=?, ~serializer: (. ~value: 'value) => 'any=?, unit) => S.t<'value>`
 
 You can also define your own custom struct factories that are specific to your application's requirements:
 
