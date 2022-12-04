@@ -1,5 +1,4 @@
 type never
-type unknown
 
 module Stdlib = {
   module Symbol = {

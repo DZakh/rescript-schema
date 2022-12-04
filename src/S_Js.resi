@@ -12,8 +12,8 @@ type rec struct<'value> = {
   parse: any => Result.t<'value>,
   parseOrThrow: any => 'value,
   parseAsync: any => promise<Result.t<'value>>,
-  serialize: 'value => Result.t<S.unknown>,
-  serializeOrThrow: 'value => S.unknown,
+  serialize: 'value => Result.t<unknown>,
+  serializeOrThrow: 'value => unknown,
   transform: (
     ~parser: 'value => transformed,
     ~serializer: transformed => 'value,
@@ -29,21 +29,21 @@ let boolean: unit => struct<bool>
 let integer: unit => struct<int>
 let number: unit => struct<float>
 let never: unit => struct<S.never>
-let unknown: unit => struct<S.unknown>
+let unknown: unit => struct<unknown>
 
 let optional: struct<'value> => struct<option<'value>>
 let nullable: struct<'value> => struct<option<'value>>
 let array: struct<'value> => struct<array<'value>>
 let record: struct<'value> => struct<Js.Dict.t<'value>>
 let json: struct<'value> => struct<'value>
-let union: array<struct<'value>> => struct<'value>
+let union: array<struct<unknown>> => struct<unknown>
 let literal: 'value => struct<'value>
 let nan: unit => struct<unit>
 let defaulted: (struct<option<'value>>, 'value) => struct<'value>
 
 let custom: (
   ~name: string,
-  ~parser: (. ~unknown: S.unknown) => 'value,
+  ~parser: (. ~unknown: unknown) => 'value,
   ~serializer: (. ~value: 'value) => 'any,
 ) => struct<'value>
 

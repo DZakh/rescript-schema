@@ -3,8 +3,8 @@ open Ava
 module Positive = {
   module TestData = {
     type t = {
-      discriminantStruct: S.t<S.unknown>,
-      discriminantData: S.unknown,
+      discriminantStruct: S.t<unknown>,
+      discriminantData: unknown,
       testNamePostfix: string,
     }
 
@@ -135,8 +135,8 @@ module Positive = {
 module Negative = {
   module TestData = {
     type t = {
-      discriminantStruct: S.t<S.unknown>,
-      discriminantData: S.unknown,
+      discriminantStruct: S.t<unknown>,
+      discriminantData: unknown,
       testNamePostfix: string,
     }
 

@@ -55,8 +55,8 @@ type rec struct<'value> = {
   parse: any => Result.t<'value>,
   parseOrThrow: any => 'value,
   parseAsync: any => promise<Result.t<'value>>,
-  serialize: 'value => Result.t<S.unknown>,
-  serializeOrThrow: 'value => S.unknown,
+  serialize: 'value => Result.t<unknown>,
+  serializeOrThrow: 'value => unknown,
   transform: (
     ~parser: 'value => transformed,
     ~serializer: transformed => 'value,

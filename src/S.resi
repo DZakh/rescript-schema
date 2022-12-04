@@ -26,7 +26,6 @@ module Error: {
 exception Raised(Error.t)
 
 type never
-type unknown
 
 type rec literal<'value> =
   | String(string): literal<string>

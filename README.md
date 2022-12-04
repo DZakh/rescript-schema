@@ -160,7 +160,7 @@ After parsing synchronous branches will return a function to run asynchronous re
 
 #### **`S.serializeWith`**
 
-`('value, S.t<'value>) => result<S.unknown, S.Error.t>`
+`('value, S.t<'value>) => result<unknown, S.Error.t>`
 
 ```rescript
 user->S.serializeWith(userStruct)
@@ -170,7 +170,7 @@ Serializes value using the transformation logic that is built-in to the struct. 
 
 #### **`S.serializeOrRaiseWith`**
 
-`('value, S.t<'value>) => S.unknown`
+`('value, S.t<'value>) => unknown`
 
 ```rescript
 try {
@@ -647,7 +647,7 @@ The `dict` struct represents a dictionary of data of a specific type.
 
 #### **`S.unknown`**
 
-`() => S.t<S.unknown>`
+`() => S.t<unknown>`
 
 ```rescript
 let struct = S.unknown()
@@ -697,7 +697,7 @@ The `json` struct represents a data that is a JSON string containing a value of 
 
 #### **`S.custom`**
 
-`(~name: string, ~parser: (. ~unknown: S.unknown) => 'value=?, ~serializer: (. ~value: 'value) => 'any=?, unit) => S.t<'value>`
+`(~name: string, ~parser: (. ~unknown: unknown) => 'value=?, ~serializer: (. ~value: 'value) => 'any=?, unit) => S.t<'value>`
 
 You can also define your own custom struct factories that are specific to your application's requirements:
 
