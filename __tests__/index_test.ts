@@ -479,3 +479,10 @@ test("Successfully serializes and returns result", (t) => {
     expectType<TypeEqual<typeof value, unknown>>(true);
   }
 });
+
+test("Correctly infers type", (t) => {
+  const struct = S.string();
+
+  expectType<TypeEqual<typeof struct, S.Struct<string>>>(true);
+  expectType<TypeEqual<S.Infer<typeof struct>, string>>(true);
+});

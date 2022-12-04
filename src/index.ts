@@ -27,6 +27,9 @@ export interface Struct<Value> {
   optional(): Struct<Value | undefined>;
   nullable(): Struct<Value | undefined>;
 }
+
+export type Infer<T> = T extends Struct<infer Value> ? Value : never;
+
 export interface ObjectStruct<Value> extends Struct<Value> {
   strip(): ObjectStruct<Value>;
   strict(): ObjectStruct<Value>;
