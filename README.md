@@ -17,7 +17,7 @@ Highlights:
 - Built-in `union`, `literal` and many other structs
 - Js API with TypeScript support for mixed codebases ([.d.ts](./src/S_JsApi.d.ts))
 - The **fastest** parsing library in the entire JavaScript ecosystem ([benchmark](https://dzakh.github.io/rescript-runtime-type-benchmarks/))
-- Tiny: [7kb minified + zipped](https://bundle.js.org/?q=github%3ADZakh%2Frescript-struct%2Fmain%2Fsrc%2FS.bs.js&treeshake=%5B*+as+S%5D&config=%7B%22esbuild%22%3A%7B%22external%22%3A%5B%22rescript%22%5D%7D%7D)
+- Tiny: [9kb minified + zipped](https://bundlejs.com/?q=rescript-struct&config=%7B%22esbuild%22%3A%7B%22external%22%3A%5B%22rescript%22%5D%7D%7D)
 
 Also, it has declarative API allowing you to use **rescript-struct** as a building block for other tools, such as:
 
