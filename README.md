@@ -2,8 +2,6 @@
 [![codecov](https://codecov.io/gh/DZakh/rescript-struct/branch/main/graph/badge.svg?token=40G6YKKD6J)](https://codecov.io/gh/DZakh/rescript-struct)
 [![npm](https://img.shields.io/npm/dm/rescript-struct)](https://www.npmjs.com/package/rescript-struct)
 
-> You're reading the documentation for the upcoming V3 release. You can find the documentation for the latest published version [here](https://github.com/DZakh/rescript-struct/tree/v2.0.0]).
-
 # ReScript Struct
 
 Safely parse and serialize with transformation to convenient ReScript data structures.
