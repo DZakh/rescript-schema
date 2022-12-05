@@ -1,5 +1,5 @@
 module.exports = {
-  input: "src/S_Js.js",
+  input: "src/S_JsApi.js",
   output: [
     {
       file: "dist/S.js",
