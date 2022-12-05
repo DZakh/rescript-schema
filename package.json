@@ -1,6 +1,6 @@
 {
   "name": "rescript-struct",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Safely parse and serialize with transformation to convenient ReScript data structures",
   "keywords": [
     "ReScript",
