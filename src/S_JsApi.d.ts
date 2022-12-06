@@ -85,7 +85,7 @@ export const nullable: <Value>(
   struct: Struct<Value>
 ) => Struct<Value | undefined>;
 
-export const array: <Value>(struct: Struct<Value>) => Struct<[Value]>;
+export const array: <Value>(struct: Struct<Value>) => Struct<Value[]>;
 
 export const record: <Value>(
   struct: Struct<Value>
