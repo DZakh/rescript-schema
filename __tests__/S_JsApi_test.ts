@@ -76,8 +76,8 @@ test("Successfully parses array", (t) => {
 
   t.deepEqual(value, ["foo"]);
 
-  expectType<TypeEqual<typeof struct, S.Struct<[string]>>>(true);
-  expectType<TypeEqual<typeof value, [string]>>(true);
+  expectType<TypeEqual<typeof struct, S.Struct<string[]>>>(true);
+  expectType<TypeEqual<typeof value, string[]>>(true);
 });
 
 test("Successfully parses record", (t) => {
@@ -633,4 +633,33 @@ test("Tuple with multiple elements", (t) => {
   t.deepEqual(struct.parseOrThrow(["foo", 123]), ["foo", 123]);
 
   expectType<TypeEqual<typeof struct, S.Struct<[string, number]>>>(true);
+});
+
+test("Example", (t) => {
+  const User = S.object({
+    username: S.string(),
+  });
+
+  t.deepEqual(User.parseOrThrow({ username: "Ludwig" }), {
+    username: "Ludwig",
+  });
+
+  type User = S.Infer<typeof User>;
+
+  expectType<
+    TypeEqual<
+      typeof User,
+      S.ObjectStruct<{
+        username: string;
+      }>
+    >
+  >(true);
+  expectType<
+    TypeEqual<
+      User,
+      {
+        username: string;
+      }
+    >
+  >(true);
 });
