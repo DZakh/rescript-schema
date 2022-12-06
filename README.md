@@ -879,7 +879,7 @@ Ok({
 })
 ```
 
-What's great in the example above is that it'll make 4 requests in parallel to check that the nodes exist.
+One great aspect of the example above is that it uses parallelism to make four requests to check for the existence of nodes.
 
 ### Refinements
 
