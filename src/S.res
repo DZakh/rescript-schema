@@ -1615,7 +1615,7 @@ module Object = {
 
         let inlinedParseFunction = {
           let refinement = Stdlib.Inlined.If.make(
-            ~condition=`typeof ${Var.originalObject}!=="object"||${Var.originalObject}===null||Array.isArray(${Var.originalObject})`,
+            ~condition=`!(typeof ${Var.originalObject}==="object"&&${Var.originalObject}!==null&&!Array.isArray(${Var.originalObject}))`,
             ~content=`${Var.raiseUnexpectedOriginalObjectTypeError}(${Var.originalObject})`,
           )
 

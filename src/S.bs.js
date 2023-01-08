@@ -1221,7 +1221,7 @@ function factory$2(definer) {
     var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
     var definedAsyncFieldInstructions = [];
     var parseFnsByInstructionIdx = {};
-    var refinement = "if(typeof o!==\"object\"||o===null||Array.isArray(o)){u(o)}";
+    var refinement = "if(!(typeof o===\"object\"&&o!==null&&!Array.isArray(o))){u(o)}";
     var stringRef = "var t;";
     for(var idx = 0 ,idx_finish = inlinedPreparationPathes.length; idx < idx_finish; ++idx){
       var preparationPath = inlinedPreparationPathes[idx];
