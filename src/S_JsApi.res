@@ -10,6 +10,13 @@ module Stdlib = {
     @val
     external extendWith: ('target, 'extend) => 'target = "Object.assign"
   }
+
+  module Fn = {
+    type fn<'arg, 'return> = 'arg => 'return
+
+    @send
+    external apply: (fn<'arg, 'return>, @as(json`null`) _, array<'arg>) => 'return = "apply"
+  }
 }
 
 module Error = {
@@ -162,36 +169,31 @@ let union = structs => S.union(structs->castMultipleToReScriptStruct)->toJsStruc
 let defaulted = (struct, value) => S.defaulted(struct->castToReScriptStruct, value)->toJsStruct
 let tuple = structs => {
   let structs = structs->castMultipleToReScriptStruct
-  structs->ignore
-  S.Tuple.factory(%raw("...structs"))->toJsStruct
+  S.Tuple.factory->Stdlib.Fn.apply(structs)->toJsStruct
 }
 
-let literal = {
-  let castTaggedToLiteral: S.taggedLiteral => S.literal<'value> = Obj.magic
-
-  (value: 'value): struct<'value> => {
-    let taggedLiteral: S.taggedLiteral = {
-      if Js.typeof(value) === "string" {
-        String(value->Obj.magic)
-      } else if Js.typeof(value) === "boolean" {
-        Bool(value->Obj.magic)
-      } else if Js.typeof(value) === "number" {
-        let value = value->Obj.magic
-        if value->Js.Float.isNaN {
-          Js.Exn.raiseError(`[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.`)
-        } else {
-          Float(value)
-        }
-      } else if value === %raw("null") {
-        EmptyNull
-      } else if value === %raw("undefined") {
-        EmptyOption
+let literal = (value: 'value): struct<'value> => {
+  let taggedLiteral: S.taggedLiteral = {
+    if Js.typeof(value) === "string" {
+      String(value->Obj.magic)
+    } else if Js.typeof(value) === "boolean" {
+      Bool(value->Obj.magic)
+    } else if Js.typeof(value) === "number" {
+      let value = value->Obj.magic
+      if value->Js.Float.isNaN {
+        Js.Exn.raiseError(`[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.`)
       } else {
-        Js.Exn.raiseError(`[rescript-struct] The value provided to literal struct factory is not supported.`)
+        Float(value)
       }
+    } else if value === %raw("null") {
+      EmptyNull
+    } else if value === %raw("undefined") {
+      EmptyOption
+    } else {
+      Js.Exn.raiseError(`[rescript-struct] The value provided to literal struct factory is not supported.`)
     }
-    S.literal(taggedLiteral->castTaggedToLiteral)->toJsStruct
   }
+  S.literal(taggedLiteral->(Obj.magic: S.taggedLiteral => S.literal<'value>))->toJsStruct
 }
 
 let nan = () => S.literal(NaN)->toJsStruct
@@ -224,8 +226,7 @@ module Object = {
 
   @inline
   let toJsStruct = struct => {
-    let castToJsStruct: S.t<'value> => t = Obj.magic
-    struct->Stdlib.Object.extendWith(objectStructOperations)->castToJsStruct
+    struct->Stdlib.Object.extendWith(objectStructOperations)->(Obj.magic: S.t<'value> => t)
   }
 
   let strict = () => {

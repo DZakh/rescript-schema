@@ -181,7 +181,7 @@ function defaulted(struct, value) {
 }
 
 function tuple(structs) {
-  var struct = S$ReScriptStruct.Tuple.factory(...structs);
+  var struct = S$ReScriptStruct.Tuple.factory.apply(null, structs);
   return Object.assign(struct, structOperations);
 }
 
@@ -241,28 +241,25 @@ var objectStructOperations = {};
 
 function strict(param) {
   var struct = this;
-  var struct$1 = S$ReScriptStruct.$$Object.strict(struct);
-  return Object.assign(struct$1, objectStructOperations);
+  return Object.assign(S$ReScriptStruct.$$Object.strict(struct), objectStructOperations);
 }
 
 function strip(param) {
   var struct = this;
-  var struct$1 = S$ReScriptStruct.$$Object.strip(struct);
-  return Object.assign(struct$1, objectStructOperations);
+  return Object.assign(S$ReScriptStruct.$$Object.strip(struct), objectStructOperations);
 }
 
 function factory(definer) {
-  var struct = S$ReScriptStruct.object(function (o) {
-        var definition = {};
-        var fieldNames = Object.keys(definer);
-        for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-          var fieldName = fieldNames[idx];
-          var struct = definer[fieldName];
-          definition[fieldName] = S$ReScriptStruct.field(o, fieldName, struct);
-        }
-        return definition;
-      });
-  return Object.assign(struct, objectStructOperations);
+  return Object.assign(S$ReScriptStruct.object(function (o) {
+                  var definition = {};
+                  var fieldNames = Object.keys(definer);
+                  for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+                    var fieldName = fieldNames[idx];
+                    var struct = definer[fieldName];
+                    definition[fieldName] = S$ReScriptStruct.field(o, fieldName, struct);
+                  }
+                  return definition;
+                }), objectStructOperations);
 }
 
 Object.assign(objectStructOperations, structOperations);
