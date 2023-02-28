@@ -65,7 +65,6 @@ and tagged =
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
-and field<'value> = (string, t<'value>)
 
 let never: unit => t<never>
 let unknown: unit => t<unknown>

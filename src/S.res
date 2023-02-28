@@ -605,7 +605,6 @@ and tagged =
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
-and field<'value> = (string, t<'value>)
 and transformation<'input, 'output> =
   | Sync('input => 'output)
   | Async('input => promise<'output>)
@@ -1102,8 +1101,8 @@ let transform: (
       | None => ctx->TransformationFactory.Ctx.planMissingParserTransformation
       }
     }),
-    ~serializeTransformationFactory=TransformationFactory.make((
-      . ~ctx,
+    ~serializeTransformationFactory=TransformationFactory.make((.
+      ~ctx,
       ~struct as compilingStruct,
     ) => {
       switch maybeTransformSerializer {
@@ -1151,8 +1150,8 @@ let advancedTransform: (
       | None => ctx->TransformationFactory.Ctx.planMissingParserTransformation
       }
     }),
-    ~serializeTransformationFactory=TransformationFactory.make((
-      . ~ctx,
+    ~serializeTransformationFactory=TransformationFactory.make((.
+      ~ctx,
       ~struct as compilingStruct,
     ) => {
       switch maybeTransformSerializer {
@@ -1209,8 +1208,8 @@ let rec advancedPreprocess = (
     make(
       ~name=struct.name,
       ~tagged=struct.tagged,
-      ~parseTransformationFactory=TransformationFactory.make((
-        . ~ctx,
+      ~parseTransformationFactory=TransformationFactory.make((.
+        ~ctx,
         ~struct as compilingStruct,
       ) => {
         switch maybePreprocessParser {
@@ -1227,8 +1226,8 @@ let rec advancedPreprocess = (
         }
         struct.parseTransformationFactory(. ~ctx, ~struct=compilingStruct)
       }),
-      ~serializeTransformationFactory=TransformationFactory.make((
-        . ~ctx,
+      ~serializeTransformationFactory=TransformationFactory.make((.
+        ~ctx,
         ~struct as compilingStruct,
       ) => {
         struct.serializeTransformationFactory(. ~ctx, ~struct=compilingStruct)
@@ -2991,8 +2990,8 @@ module Union = {
     make(
       ~name=`Union`,
       ~tagged=Union(structs),
-      ~parseTransformationFactory=TransformationFactory.make((
-        . ~ctx,
+      ~parseTransformationFactory=TransformationFactory.make((.
+        ~ctx,
         ~struct as compilingStruct,
       ) => {
         let structs = compilingStruct->classify->unsafeGetVariantPayload
