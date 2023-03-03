@@ -118,77 +118,7 @@ Ok(%raw(`{
 
 ## API Reference
 
-### Core
-
-#### **`S.parseWith`**
-
-`('any, S.t<'value>) => result<'value, S.Error.t>`
-
-```rescript
-data->S.parseWith(userStruct)
-```
-
-Given any struct, you can call `parseWith` to check data is valid. It returns a result with valid data transformed to expected type or a **rescript-struct** error.
-
-#### **`S.parseOrRaiseWith`**
-
-`('any, S.t<'value>) => 'value`
-
-```rescript
-try {
-  data->S.parseOrRaiseWith(userStruct)
-} catch {
-| S.Raised(error) => Js.Exn.raise(error->S.Error.toString)
-}
-```
-
-The exception-based version of `parseWith`.
-
-#### **`S.parseAsyncWith`**
-
-`('any, S.t<'value>) => promise<result<'value, S.Error.t>>`
-
-```rescript
-data->S.parseAsyncWith(userStruct)
-```
-
-If you use asynchronous refinements or transforms (more on those later), you'll need to use `parseAsyncWith`. It will parse all synchronous branches first and then continue with asynchronous refinements and transforms in parallel.
-
-#### **`S.parseAsyncInStepsWith`** _Advanced_
-
-`('any, S.t<'value>) => result<(. unit) => promise<result<'value, S.Error.t>>, S.Error.t>`
-
-```rescript
-data->S.parseAsyncInStepsWith(userStruct)
-```
-
-After parsing synchronous branches will return a function to run asynchronous refinements and transforms.
-
-#### **`S.serializeWith`**
-
-`('value, S.t<'value>) => result<unknown, S.Error.t>`
-
-```rescript
-user->S.serializeWith(userStruct)
-```
-
-Serializes value using the transformation logic that is built-in to the struct. It returns a result with a transformed data or a **rescript-struct** error.
-
-#### **`S.serializeOrRaiseWith`**
-
-`('value, S.t<'value>) => unknown`
-
-```rescript
-try {
-  user->S.serializeOrRaiseWith(userStruct)
-} catch {
-| S.Raised(error) => Js.Exn.raise(error->S.Error.toString)
-}
-```
-
-The exception-based version of `serializeWith`.
-
-### Types
+### Struct factories
 
 **rescript-struct** exposes factory functions for a variety of common JavaScript types. You can also define your own custom struct factories.
 
@@ -1025,6 +955,116 @@ let prepareEnvStruct = S.advancedPreprocess(
 ```
 
 > 🧠 When using preprocess on Union it will be applied to nested structs separately instead.
+
+### Functions on struct
+
+#### **`S.parseWith`**
+
+`('any, S.t<'value>) => result<'value, S.Error.t>`
+
+```rescript
+data->S.parseWith(userStruct)
+```
+
+Given any struct, you can call `parseWith` to check data is valid. It returns a result with valid data transformed to expected type or a **rescript-struct** error.
+
+#### **`S.parseOrRaiseWith`**
+
+`('any, S.t<'value>) => 'value`
+
+```rescript
+try {
+  data->S.parseOrRaiseWith(userStruct)
+} catch {
+| S.Raised(error) => Js.Exn.raise(error->S.Error.toString)
+}
+```
+
+The exception-based version of `parseWith`.
+
+#### **`S.parseJsonWith`**
+
+`(Js.Json.t, S.t<'value>) => result<'value, S.Error.t>`
+
+```rescript
+json->S.parseJsonWith(userStruct)
+```
+
+The same as `parseWith` but the data is narrowed to the `Js.Json.t` type.
+
+#### **`S.parseJsonStringWith`**
+
+`(string, S.t<'value>) => result<'value, S.Error.t>`
+
+```rescript
+jsonString->S.parseJsonWith(userStruct)
+```
+
+The same as `parseWith` but applies `JSON.parse` before parsing.
+
+#### **`S.parseAsyncWith`**
+
+`('any, S.t<'value>) => promise<result<'value, S.Error.t>>`
+
+```rescript
+data->S.parseAsyncWith(userStruct)
+```
+
+If you use asynchronous refinements or transforms (more on those later), you'll need to use `parseAsyncWith`. It will parse all synchronous branches first and then continue with asynchronous refinements and transforms in parallel.
+
+#### **`S.parseAsyncInStepsWith`** _Advanced_
+
+`('any, S.t<'value>) => result<(. unit) => promise<result<'value, S.Error.t>>, S.Error.t>`
+
+```rescript
+data->S.parseAsyncInStepsWith(userStruct)
+```
+
+After parsing synchronous branches will return a function to run asynchronous refinements and transforms.
+
+#### **`S.serializeWith`**
+
+`('value, S.t<'value>) => result<unknown, S.Error.t>`
+
+```rescript
+user->S.serializeWith(userStruct)
+```
+
+Serializes value using the transformation logic that is built-in to the struct. It returns a result with a transformed data or a **rescript-struct** error.
+
+#### **`S.serializeOrRaiseWith`**
+
+`('value, S.t<'value>) => unknown`
+
+```rescript
+try {
+  user->S.serializeOrRaiseWith(userStruct)
+} catch {
+| S.Raised(error) => Js.Exn.raise(error->S.Error.toString)
+}
+```
+
+The exception-based version of `serializeWith`.
+
+#### **`S.serializeToJsonWith`**
+
+`('value, S.t<'value>) => result<Js.Json.t, S.Error.t>`
+
+```rescript
+user->S.serializeToJsonWith(userStruct)
+```
+
+Similar to the `serializeWith` but returns `Js.Json.t` instead of `unknown`. Fails with JSON incompatible struct.
+
+#### **`S.serializeToJsonStringWith`**
+
+`('value, ~space: int=?, S.t<'value>) => result<string, S.Error.t>`
+
+```rescript
+user->S.serializeToJsonStringWith(userStruct)
+```
+
+The same as `serializeToJsonWith` but applies `JSON.serialize` after serializing.
 
 ### Error handling
 

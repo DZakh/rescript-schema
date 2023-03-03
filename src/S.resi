@@ -10,6 +10,7 @@ module Error: {
     | ExcessField(string)
     | InvalidUnion(array<t>)
     | UnexpectedAsync
+    | InvalidJsonStruct({received: string})
   and operation =
     | Serializing
     | Parsing
@@ -127,9 +128,17 @@ let parseAsyncInStepsWith: (
   t<'value>,
 ) => result<(. unit) => promise<result<'value, Error.t>>, Error.t>
 
+let parseJsonWith: (Js.Json.t, t<'value>) => result<'value, Error.t>
+
+let parseJsonStringWith: (string, t<'value>) => result<'value, Error.t>
+
 let serializeWith: ('value, t<'value>) => result<unknown, Error.t>
 
 let serializeOrRaiseWith: ('value, t<'value>) => unknown
+
+let serializeToJsonWith: ('value, t<'value>) => result<Js.Json.t, Error.t>
+
+let serializeToJsonStringWith: ('value, ~space: int=?, t<'value>) => result<string, Error.t>
 
 let isAsyncParse: t<'value> => bool
 
