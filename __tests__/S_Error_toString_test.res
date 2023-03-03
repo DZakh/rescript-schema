@@ -215,3 +215,15 @@ test("Nested InvalidUnion error", t => {
     (),
   )
 })
+
+test("InvalidJsonStruct error", t => {
+  t->Assert.is(
+    {
+      code: InvalidJsonStruct({received: "Option"}),
+      operation: Serializing,
+      path: [],
+    }->S.Error.toString,
+    `Failed serializing at root. Reason: The struct Option is not compatible with JSON`,
+    (),
+  )
+})

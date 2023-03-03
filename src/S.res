@@ -348,6 +348,7 @@ module Error = {
     | ExcessField(string)
     | InvalidUnion(array<t>)
     | UnexpectedAsync
+    | InvalidJsonStruct({received: string})
   and operation =
     | Serializing
     | Parsing
@@ -444,6 +445,7 @@ module Error = {
     | UnexpectedType({expected, received})
     | UnexpectedValue({expected, received}) =>
       `Expected ${expected}, received ${received}`
+    | InvalidJsonStruct({received}) => `The struct ${received} is not compatible with JSON`
     | TupleSize({expected, received}) =>
       `Expected Tuple with ${expected->Js.Int.toString} items, received ${received->Js.Int.toString}`
     | InvalidUnion(errors) => {
@@ -581,6 +583,8 @@ type rec t<'value> = {
   mutable serializeOperationState: SerializeOperationState.t,
   @as("s")
   mutable serialize: (. unknown) => unknown,
+  @as("j")
+  mutable serializeToJson: (. unknown) => Js.Json.t,
   @as("p")
   mutable parse: (. unknown) => unknown,
   @as("a")
@@ -818,12 +822,77 @@ let initialSerialize = (. input) => {
   compiledSerialize(. input)
 }
 
+let rec validateJsonStruct = struct => {
+  switch struct->classify {
+  | String
+  | Int
+  | Float
+  | Bool
+  | Never
+  | Literal(String(_))
+  | Literal(Int(_))
+  | Literal(Float(_))
+  | Literal(Bool(_))
+  | Literal(EmptyNull) => ()
+  | Dict(childStruct)
+  | Null(childStruct)
+  | Array(childStruct) =>
+    childStruct->validateJsonStruct
+  | Object({fieldNames, fields}) =>
+    for idx in 0 to fieldNames->Js.Array2.length - 1 {
+      let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+      let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+      try {
+        fieldStruct->validateJsonStruct
+      } catch {
+      | Error.Internal.Exception(e) =>
+        raise(Error.Internal.Exception(e->Error.Internal.prependLocation(fieldName)))
+      }
+    }
+
+  | Tuple(childrenStructs) =>
+    childrenStructs->Js.Array2.forEachi((childStruct, i) => {
+      try {
+        childStruct->validateJsonStruct
+      } catch {
+      | Error.Internal.Exception(e) =>
+        raise(Error.Internal.Exception(e->Error.Internal.prependLocation(i->Js.Int.toString)))
+      }
+    })
+  | Union(childrenStructs) => childrenStructs->Js.Array2.forEach(validateJsonStruct)
+  | Option(_)
+  | Unknown
+  | Literal(EmptyOption)
+  | Literal(NaN) =>
+    Error.Internal.raise(InvalidJsonStruct({received: struct->name}))
+  }
+}
+
+let initialSerializeToJson = (. input) => {
+  let struct = %raw("this")
+  try {
+    validateJsonStruct(struct)
+    if struct.serialize === initialSerialize {
+      let compiledSerialize = switch struct->getSerializeOperation {
+      | None => noOperation
+      | Some(fn) => fn
+      }
+      struct.serialize = compiledSerialize
+    }
+    struct.serializeToJson =
+      struct.serialize->(Obj.magic: ((. unknown) => unknown) => (. unknown) => Js.Json.t)
+  } catch {
+  | Error.Internal.Exception(_) as exn => struct.serializeToJson = (. _) => raise(exn)
+  }
+  struct.serializeToJson(. input)
+}
+
 let intitialParse = (. input) => {
   let struct = %raw("this")
   let compiledParse = switch struct->getParseOperation {
   | NoOperation => noOperation
   | SyncOperation(fn) => fn
-  | AsyncOperation(_) => Error.Internal.raise(UnexpectedAsync)
+  | AsyncOperation(_) => (. _) => Error.Internal.raise(UnexpectedAsync)
   }
   struct.parse = compiledParse
   compiledParse(. input)
@@ -863,6 +932,7 @@ let make = (
   parseOperationState: ParseOperationState.empty(),
   serializeOperationState: SerializeOperationState.empty(),
   serialize: initialSerialize,
+  serializeToJson: initialSerializeToJson,
   parse: intitialParse,
   parseAsync: intitialParseAsync,
   maybeInlinedRefinement,
@@ -933,6 +1003,42 @@ let serializeOrRaiseWith = (value, struct) => {
   } catch {
   | Error.Internal.Exception(internalError) =>
     raise(Raised(internalError->Error.Internal.toSerializeError))
+  }
+}
+
+let serializeToJsonWith = (value, struct) => {
+  try {
+    struct.serializeToJson(. value->castAnyToUnknown)->Ok
+  } catch {
+  | Error.Internal.Exception(internalError) => internalError->Error.Internal.toSerializeError->Error
+  }
+}
+
+let serializeToJsonStringWith = (value: 'value, ~space=0, struct: t<'value>): result<
+  string,
+  Error.t,
+> => {
+  switch value->serializeToJsonWith(struct) {
+  | Ok(json) => Ok(json->Js.Json.stringifyWithSpace(space))
+  | Error(_) as e => e
+  }
+}
+
+let parseJsonWith: (Js.Json.t, t<'value>) => result<'value, Error.t> = parseWith
+
+let parseJsonStringWith = (jsonString: string, struct: t<'value>): result<'value, Error.t> => {
+  switch try {
+    jsonString->Js.Json.parseExn->Ok
+  } catch {
+  | Js.Exn.Error(error) =>
+    Error({
+      Error.code: OperationFailed(error->Js.Exn.message->(Obj.magic: option<string> => string)),
+      operation: Parsing,
+      path: [],
+    })
+  } {
+  | Ok(json) => json->parseJsonWith(struct)
+  | Error(_) as e => e
   }
 }
 

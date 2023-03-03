@@ -145,6 +145,8 @@ function toReason(nestedLevelOpt, error) {
               });
           var reasons = Array.from(new Set(array));
           return "Invalid union with following errors" + lineBreak + "" + reasons.join(lineBreak) + "";
+      case /* InvalidJsonStruct */6 :
+          return "The struct " + reason.received + " is not compatible with JSON";
       
     }
   }
@@ -368,12 +370,121 @@ function initialSerialize(input) {
   return compiledSerialize(input);
 }
 
+function validateJsonStruct(_struct) {
+  while(true) {
+    var struct = _struct;
+    var childrenStructs = struct.t;
+    if (typeof childrenStructs === "number") {
+      if (childrenStructs === /* Unknown */1) {
+        return raise$1({
+                    TAG: /* InvalidJsonStruct */6,
+                    received: struct.n
+                  });
+      } else {
+        return ;
+      }
+    }
+    switch (childrenStructs.TAG | 0) {
+      case /* Literal */0 :
+          var match = childrenStructs._0;
+          if (typeof match === "number" && match !== 0) {
+            return raise$1({
+                        TAG: /* InvalidJsonStruct */6,
+                        received: struct.n
+                      });
+          } else {
+            return ;
+          }
+      case /* Option */1 :
+          return raise$1({
+                      TAG: /* InvalidJsonStruct */6,
+                      received: struct.n
+                    });
+      case /* Object */4 :
+          var fieldNames = childrenStructs.fieldNames;
+          var fields = childrenStructs.fields;
+          for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+            var fieldName = fieldNames[idx];
+            var fieldStruct = fields[fieldName];
+            try {
+              validateJsonStruct(fieldStruct);
+            }
+            catch (raw_e){
+              var e = Caml_js_exceptions.internalToOCamlException(raw_e);
+              if (e.RE_EXN_ID === Exception) {
+                throw {
+                      RE_EXN_ID: Exception,
+                      _1: prependLocation(e._1, fieldName),
+                      Error: new Error()
+                    };
+              }
+              throw e;
+            }
+          }
+          return ;
+      case /* Tuple */5 :
+          childrenStructs._0.forEach(function (childStruct, i) {
+                try {
+                  return validateJsonStruct(childStruct);
+                }
+                catch (raw_e){
+                  var e = Caml_js_exceptions.internalToOCamlException(raw_e);
+                  if (e.RE_EXN_ID === Exception) {
+                    throw {
+                          RE_EXN_ID: Exception,
+                          _1: prependLocation(e._1, i.toString()),
+                          Error: new Error()
+                        };
+                  }
+                  throw e;
+                }
+              });
+          return ;
+      case /* Union */6 :
+          childrenStructs._0.forEach(validateJsonStruct);
+          return ;
+      case /* Null */2 :
+      case /* Array */3 :
+      case /* Dict */7 :
+          _struct = childrenStructs._0;
+          continue ;
+      
+    }
+  };
+}
+
+function initialSerializeToJson(input) {
+  var struct = this;
+  try {
+    validateJsonStruct(struct);
+    if (struct.s === initialSerialize) {
+      var fn = getSerializeOperation(struct);
+      var compiledSerialize = fn !== undefined ? fn : noOperation;
+      struct.s = compiledSerialize;
+    }
+    struct.j = struct.s;
+  }
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    if (exn.RE_EXN_ID === Exception) {
+      struct.j = (function (param) {
+          throw exn;
+        });
+    } else {
+      throw exn;
+    }
+  }
+  return struct.j(input);
+}
+
 function intitialParse(input) {
   var struct = this;
   var fn = getParseOperation(struct);
   var compiledParse;
   compiledParse = typeof fn === "number" ? noOperation : (
-      fn.TAG === /* SyncOperation */0 ? fn._0 : raise$1(/* UnexpectedAsync */2)
+      fn.TAG === /* SyncOperation */0 ? fn._0 : (function (param) {
+            return raise$1(/* UnexpectedAsync */2);
+          })
     );
   struct.p = compiledParse;
   return compiledParse(input);
@@ -533,6 +644,71 @@ function serializeOrRaiseWith(value, struct) {
   }
 }
 
+function serializeToJsonWith(value, struct) {
+  try {
+    return {
+            TAG: /* Ok */0,
+            _0: struct.j(value)
+          };
+  }
+  catch (raw_internalError){
+    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+    if (internalError.RE_EXN_ID === Exception) {
+      return {
+              TAG: /* Error */1,
+              _0: toSerializeError(internalError._1)
+            };
+    }
+    throw internalError;
+  }
+}
+
+function serializeToJsonStringWith(value, spaceOpt, struct) {
+  var space = spaceOpt !== undefined ? spaceOpt : 0;
+  var json = serializeToJsonWith(value, struct);
+  if (json.TAG === /* Ok */0) {
+    return {
+            TAG: /* Ok */0,
+            _0: JSON.stringify(json._0, null, space)
+          };
+  } else {
+    return json;
+  }
+}
+
+function parseJsonStringWith(jsonString, struct) {
+  var json;
+  try {
+    json = {
+      TAG: /* Ok */0,
+      _0: JSON.parse(jsonString)
+    };
+  }
+  catch (raw_error){
+    var error = Caml_js_exceptions.internalToOCamlException(raw_error);
+    if (error.RE_EXN_ID === Js_exn.$$Error) {
+      json = {
+        TAG: /* Error */1,
+        _0: {
+          operation: /* Parsing */1,
+          code: {
+            TAG: /* OperationFailed */0,
+            _0: error._1.message
+          },
+          path: []
+        }
+      };
+    } else {
+      throw error;
+    }
+  }
+  if (json.TAG === /* Ok */0) {
+    return parseWith(json._0, struct);
+  } else {
+    return json;
+  }
+}
+
 function recursive(fn) {
   var placeholder = {};
   var struct = fn(placeholder);
@@ -578,6 +754,7 @@ function set(struct, id, metadata) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
@@ -610,6 +787,7 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: nextParseTransformationFactory === struct.pf ? struct.i : undefined,
@@ -633,6 +811,7 @@ function asyncRefine(struct, parser, param) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
@@ -670,6 +849,7 @@ function transform(struct, maybeTransformParser, maybeTransformSerializer, param
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
@@ -716,6 +896,7 @@ function advancedTransform(struct, maybeTransformParser, maybeTransformSerialize
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
@@ -743,6 +924,7 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
             r: 0,
             e: 0,
             s: initialSerialize,
+            j: initialSerializeToJson,
             p: intitialParse,
             a: intitialParseAsync,
             i: undefined,
@@ -784,6 +966,7 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
@@ -819,6 +1002,7 @@ function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
@@ -877,6 +1061,7 @@ function factory(innerLiteral, variant) {
                   r: 0,
                   e: 0,
                   s: initialSerialize,
+                  j: initialSerializeToJson,
                   p: intitialParse,
                   a: intitialParseAsync,
                   i: undefined,
@@ -900,6 +1085,7 @@ function factory(innerLiteral, variant) {
                   r: 0,
                   e: 0,
                   s: initialSerialize,
+                  j: initialSerializeToJson,
                   p: intitialParse,
                   a: intitialParseAsync,
                   i: undefined,
@@ -923,6 +1109,7 @@ function factory(innerLiteral, variant) {
                   r: 0,
                   e: 0,
                   s: initialSerialize,
+                  j: initialSerializeToJson,
                   p: intitialParse,
                   a: intitialParseAsync,
                   i: undefined,
@@ -946,6 +1133,7 @@ function factory(innerLiteral, variant) {
                   r: 0,
                   e: 0,
                   s: initialSerialize,
+                  j: initialSerializeToJson,
                   p: intitialParse,
                   a: intitialParseAsync,
                   i: undefined,
@@ -970,6 +1158,7 @@ function factory(innerLiteral, variant) {
                   r: 0,
                   e: 0,
                   s: initialSerialize,
+                  j: initialSerializeToJson,
                   p: intitialParse,
                   a: intitialParseAsync,
                   i: undefined,
@@ -990,6 +1179,7 @@ function factory(innerLiteral, variant) {
                   r: 0,
                   e: 0,
                   s: initialSerialize,
+                  j: initialSerializeToJson,
                   p: intitialParse,
                   a: intitialParseAsync,
                   i: undefined,
@@ -1010,6 +1200,7 @@ function factory(innerLiteral, variant) {
                   r: 0,
                   e: 0,
                   s: initialSerialize,
+                  j: initialSerializeToJson,
                   p: intitialParse,
                   a: intitialParseAsync,
                   i: undefined,
@@ -1365,6 +1556,7 @@ function factory$2(definer) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
@@ -1410,6 +1602,7 @@ function factory$3(param) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: "false",
@@ -1426,6 +1619,7 @@ function factory$4(param) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
@@ -1456,6 +1650,7 @@ function factory$5(param) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: "typeof v===\"string\"",
@@ -1619,6 +1814,7 @@ function factory$6(innerStruct) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
@@ -1643,6 +1839,7 @@ function factory$7(param) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: "typeof v===\"boolean\"",
@@ -1667,6 +1864,7 @@ function factory$8(param) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: "typeof v===\"number\"&&v<2147483648&&v>-2147483649&&v%1===0",
@@ -1724,6 +1922,7 @@ function factory$9(param) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: "typeof v===\"number\"&&!Number.isNaN(v)",
@@ -1794,6 +1993,7 @@ function factory$10(innerStruct) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
@@ -1856,6 +2056,7 @@ function factory$11(innerStruct) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
@@ -1964,6 +2165,7 @@ function factory$13(innerStruct) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
@@ -2119,6 +2321,7 @@ function factory$14(innerStruct) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
@@ -2181,6 +2384,7 @@ function factory$15(innerStruct, defaultValue) {
               r: 0,
               e: 0,
               s: initialSerialize,
+              j: initialSerializeToJson,
               p: intitialParse,
               a: intitialParseAsync,
               i: undefined,
@@ -2339,6 +2543,7 @@ function factory$16(param) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
@@ -2522,6 +2727,7 @@ function factory$17(structs) {
           r: 0,
           e: 0,
           s: initialSerialize,
+          j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
@@ -2591,6 +2797,8 @@ var union = factory$17;
 var deprecated = factory$12;
 
 var defaulted = factory$15;
+
+var parseJsonWith = parseWith;
 
 var Object_UnknownKeys = {
   classify: classify$1
@@ -2697,8 +2905,12 @@ exports.parseWith = parseWith;
 exports.parseOrRaiseWith = parseOrRaiseWith;
 exports.parseAsyncWith = parseAsyncWith;
 exports.parseAsyncInStepsWith = parseAsyncInStepsWith;
+exports.parseJsonWith = parseJsonWith;
+exports.parseJsonStringWith = parseJsonStringWith;
 exports.serializeWith = serializeWith;
 exports.serializeOrRaiseWith = serializeOrRaiseWith;
+exports.serializeToJsonWith = serializeToJsonWith;
+exports.serializeToJsonStringWith = serializeToJsonStringWith;
 exports.isAsyncParse = isAsyncParse;
 exports.recursive = recursive;
 exports.asyncRecursive = asyncRecursive;
