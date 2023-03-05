@@ -247,24 +247,6 @@ test("Successfully serializes object with multiple fields", t => {
   )
 })
 
-test("Fails to create object struct when defined fields with the same name", t => {
-  t->Assert.throws(
-    () => {
-      S.object(
-        o =>
-          {
-            "boo": o->S.field("field", S.string()),
-            "zoo": o->S.field("field", S.int()),
-          },
-      )
-    },
-    ~expectations={
-      message: "[rescript-struct] The object defention has more registered fields than expected.",
-    },
-    (),
-  )
-})
-
 test("Successfully parses object with transformed field", t => {
   let struct = S.object(o =>
     {
@@ -685,6 +667,61 @@ test("Successfully parses object from benchmark", t => {
   )
 })
 
+test("Successfully parses strict object from benchmark", t => {
+  let struct = S.object(o =>
+    {
+      "number": o->S.field("number", S.float()),
+      "negNumber": o->S.field("negNumber", S.float()),
+      "maxNumber": o->S.field("maxNumber", S.float()),
+      "string": o->S.field("string", S.string()),
+      "longString": o->S.field("longString", S.string()),
+      "boolean": o->S.field("boolean", S.bool()),
+      "deeplyNested": o->S.field(
+        "deeplyNested",
+        S.object(
+          o =>
+            {
+              "foo": o->S.field("foo", S.string()),
+              "num": o->S.field("num", S.float()),
+              "bool": o->S.field("bool", S.bool()),
+            },
+        )->S.Object.strict,
+      ),
+    }
+  )->S.Object.strict
+
+  t->Assert.deepEqual(
+    %raw(`Object.freeze({
+      number: 1,
+      negNumber: -1,
+      maxNumber: Number.MAX_VALUE,
+      string: 'string',
+      longString:
+        'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
+      boolean: true,
+      deeplyNested: {
+        foo: 'bar',
+        num: 1,
+        bool: false,
+      },
+    })`)->S.parseWith(struct),
+    Ok({
+      "number": 1.,
+      "negNumber": -1.,
+      "maxNumber": %raw("Number.MAX_VALUE"),
+      "string": "string",
+      "longString": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+      "boolean": true,
+      "deeplyNested": {
+        "foo": "bar",
+        "num": 1.,
+        "bool": false,
+      },
+    }),
+    (),
+  )
+})
+
 test("Successfully serializes object from benchmark", t => {
   let struct = S.object(o =>
     {
@@ -760,26 +797,40 @@ test("Successfully parses object and serializes it back to the initial data", t 
   )
 })
 
-test("Fails to create object struct with unused fields", t => {
+test("Allows to create object struct with unused fields", t => {
+  let struct = S.object(o => {
+    let _ = o->S.field("unused", S.string())
+    {
+      "field": o->S.field("field", S.string()),
+    }
+  })
+
+  t->Assert.deepEqual(
+    %raw(`{"field": "foo", "unused": "bar"}`)->S.parseWith(struct),
+    Ok({"field": "foo"}),
+    (),
+  )
+})
+
+test("Fails to create object struct with single field defined multiple times", t => {
   t->Assert.throws(
     () => {
       S.object(
-        o => {
-          let _ = o->S.field("unused", S.string())
+        o =>
           {
-            "field": o->S.field("field", S.string()),
-          }
-        },
+            "boo": o->S.field("field", S.string()),
+            "zoo": o->S.field("field", S.int()),
+          },
       )
     },
     ~expectations={
-      message: "[rescript-struct] The object defention contains fields that weren\'t registered.",
+      message: `[rescript-struct] The field "field" is defined multiple times. If you want to duplicate a field, use S.transform instead.`,
     },
     (),
   )
 })
 
-test("Fails to create object struct with overused fields", t => {
+test("Fails to create object struct with single field registered multiple times", t => {
   t->Assert.throws(
     () => {
       S.object(
@@ -793,7 +844,7 @@ test("Fails to create object struct with overused fields", t => {
       )
     },
     ~expectations={
-      message: "[rescript-struct] The object defention has more registered fields than expected.",
+      message: `[rescript-struct] The field "field" is registered multiple times. If you want to duplicate a field, use S.transform instead.`,
     },
     (),
   )
