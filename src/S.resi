@@ -160,7 +160,6 @@ module Object: {
 
 let object: (Object.definerCtx => 'value) => t<'value>
 let field: (Object.definerCtx, string, t<'value>) => 'value
-let discriminant: (Object.definerCtx, string, t<'value>) => unit
 
 module Tuple: {
   let factory: 'factory

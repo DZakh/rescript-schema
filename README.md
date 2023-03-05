@@ -369,8 +369,7 @@ type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, 
 
 // It will have the S.t<shape> type
 let struct = S.object(o => {
-  // Since the `kind` field is not used in the transformed object, it should use `S.discriminant` instead of `S.field`.
-  o->S.discriminant("kind", S.literal(String("circle")))
+  let _ = o->S.field("kind", S.literal(String("circle")))
   Circle({
     radius: o->S.field("radius", S.float()),
   })
@@ -451,19 +450,19 @@ type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, 
 
 let shapeStruct = S.union([
   S.object(o => {
-    o->S.discriminant("kind", S.literal(String("circle")))
+    let _ = o->S.field("kind", S.literal(String("circle")))
     Circle({
       radius: o->S.field("radius", S.float()),
     })
   }),
   S.object(o => {
-    o->S.discriminant("kind", S.literal(String("square")))
+    let _ = o->S.field("kind", S.literal(String("square")))
     Square({
       x: o->S.field("x", S.float()),
     })
   }),
   S.object(o => {
-    o->S.discriminant("kind", S.literal(String("triangle")))
+    let _ = o->S.field("kind", S.literal(String("triangle")))
     Triangle({
       x: o->S.field("x", S.float()),
       y: o->S.field("y", S.float()),

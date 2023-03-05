@@ -42,7 +42,7 @@ test("Successfully serializes object transformed to object with quotes in a fiel
 
 test("Successfully parses object with discriminant which has quotes as the field name", t => {
   let struct = S.object(o => {
-    o->S.discriminant("\"\'\`", S.literal(EmptyNull))
+    let _ = o->S.field("\"\'\`", S.literal(EmptyNull))
     {
       "field": o->S.field("field", S.string()),
     }
@@ -60,7 +60,7 @@ test("Successfully parses object with discriminant which has quotes as the field
 
 test("Successfully serializes object with discriminant which has quotes as the field name", t => {
   let struct = S.object(o => {
-    o->S.discriminant("\"\'\`", S.literal(EmptyNull))
+    let _ = o->S.field("\"\'\`", S.literal(EmptyNull))
     {
       "field": o->S.field("field", S.string()),
     }
@@ -80,7 +80,7 @@ test("Successfully serializes object with discriminant which has quotes as the f
 
 test("Successfully parses object with discriminant which has quotes as the literal value", t => {
   let struct = S.object(o => {
-    o->S.discriminant("kind", S.literal(String("\"\'\`")))
+    let _ = o->S.field("kind", S.literal(String("\"\'\`")))
     {
       "field": o->S.field("field", S.string()),
     }
@@ -100,7 +100,7 @@ test(
   "Successfully serializes object with discriminant which has quotes as the literal value",
   t => {
     let struct = S.object(o => {
-      o->S.discriminant("kind", S.literal(String("\"\'\`")))
+      let _ = o->S.field("kind", S.literal(String("\"\'\`")))
       {
         "field": o->S.field("field", S.string()),
       }
