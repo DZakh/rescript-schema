@@ -1571,10 +1571,6 @@ function field(definerCtx, fieldName, struct) {
   return fieldDefinition;
 }
 
-function discriminant(definerCtx, fieldName, struct) {
-  field(definerCtx, fieldName, struct);
-}
-
 function strip(struct) {
   return set(struct, metadataId, /* Strip */1);
 }
@@ -2912,7 +2908,6 @@ exports.asyncRecursive = asyncRecursive;
 exports.$$Object = $$Object;
 exports.object = object;
 exports.field = field;
-exports.discriminant = discriminant;
 exports.Tuple = Tuple;
 exports.tuple0 = tuple0;
 exports.tuple1 = tuple1;

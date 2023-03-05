@@ -2170,10 +2170,6 @@ module Object = {
     }
   }
 
-  let discriminant = (definerCtx: DefinerCtx.t, fieldName, struct) => {
-    let _ = definerCtx->field(fieldName, struct)
-  }
-
   let strip = struct => {
     struct->Metadata.set(~id=UnknownKeys.metadataId, ~metadata=UnknownKeys.Strip)
   }
@@ -3215,7 +3211,6 @@ module Result = {
 
 let object = Object.factory
 let field = Object.field
-let discriminant = Object.discriminant
 let never = Never.factory
 let unknown = Unknown.factory
 let string = String.factory
