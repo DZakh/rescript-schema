@@ -799,7 +799,7 @@ test("Successfully parses object and serializes it back to the initial data", t 
 
 test("Allows to create object struct with unused fields", t => {
   let struct = S.object(o => {
-    let _ = o->S.field("unused", S.string())
+    ignore(o->S.field("unused", S.string()))
     {
       "field": o->S.field("field", S.string()),
     }

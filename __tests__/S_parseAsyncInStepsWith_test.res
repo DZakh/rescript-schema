@@ -125,7 +125,7 @@ module Object = {
 
   asyncTest("[Object] Successfully parses with valid async discriminant", t => {
     let struct = S.object(o => {
-      let _ = o->S.field("discriminant", S.literal(Bool(true))->validAsyncRefine)
+      ignore(o->S.field("discriminant", S.literal(Bool(true))->validAsyncRefine))
       {
         "k1": o->S.field("k1", S.int()),
         "k2": o->S.field("k2", S.int()),
@@ -157,7 +157,7 @@ module Object = {
 
   asyncTest("[Object] Fails to parse with invalid async discriminant", t => {
     let struct = S.object(o => {
-      let _ = o->S.field("discriminant", S.literal(Bool(true))->invalidAsyncRefine)
+      ignore(o->S.field("discriminant", S.literal(Bool(true))->invalidAsyncRefine))
       {
         "k1": o->S.field("k1", S.int()),
         "k2": o->S.field("k2", S.int()),

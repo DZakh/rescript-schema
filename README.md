@@ -1,8 +1,6 @@
 [![CI](https://github.com/DZakh/rescript-struct/actions/workflows/ci.yml/badge.svg)](https://github.com/DZakh/rescript-struct/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/DZakh/rescript-struct/branch/main/graph/badge.svg?token=40G6YKKD6J)](https://codecov.io/gh/DZakh/rescript-struct)
 [![npm](https://img.shields.io/npm/dm/rescript-struct)](https://www.npmjs.com/package/rescript-struct)
-[![minzip](https://badgen.net/bundlephobia/minzip/rescript-struct)](https://bundlephobia.com/package/rescript-struct)
-[![tree-shaking](https://badgen.net/bundlephobia/tree-shaking/rescript-struct)](https://bundlephobia.com/package/rescript-struct)
 
 # ReScript Struct
 
@@ -48,8 +46,6 @@ Then add `rescript-struct` to `bs-dependencies` in your `bsconfig.json`:
 + "bsc-flags": ["-open ReScriptStruct"],
 }
 ```
-
-> 🧠 Since rescript-struct V3, you need to have rescript > 10.1.0
 
 ### Basic usage
 
@@ -369,7 +365,7 @@ type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, 
 
 // It will have the S.t<shape> type
 let struct = S.object(o => {
-  let _ = o->S.field("kind", S.literal(String("circle")))
+  ignore(o->S.field("kind", S.literal(String("circle"))))
   Circle({
     radius: o->S.field("radius", S.float()),
   })
@@ -450,19 +446,19 @@ type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, 
 
 let shapeStruct = S.union([
   S.object(o => {
-    let _ = o->S.field("kind", S.literal(String("circle")))
+    ignore(o->S.field("kind", S.literal(String("circle"))))
     Circle({
       radius: o->S.field("radius", S.float()),
     })
   }),
   S.object(o => {
-    let _ = o->S.field("kind", S.literal(String("square")))
+    ignore(o->S.field("kind", S.literal(String("square"))))
     Square({
       x: o->S.field("x", S.float()),
     })
   }),
   S.object(o => {
-    let _ = o->S.field("kind", S.literal(String("triangle")))
+    ignore(o->S.field("kind", S.literal(String("triangle"))))
     Triangle({
       x: o->S.field("x", S.float()),
       y: o->S.field("y", S.float()),
@@ -627,8 +623,6 @@ Ok(123)
 ```
 
 The `json` struct represents a data that is a JSON string containing a value of a specific type.
-
-> 🧠 If you came from Jzon and looking for `decodeStringWith`/`encodeStringWith` alternative, you can use `S.json` struct factory. Example: `data->S.parseWith(S.json(struct))`
 
 #### **`S.custom`**
 

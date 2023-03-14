@@ -50,19 +50,19 @@ module Advanced = {
 
   let shapeStruct = S.union([
     S.object(o => {
-      let _ = o->S.field("kind", S.literal(String("circle")))
+      ignore(o->S.field("kind", S.literal(String("circle"))))
       Circle({
         radius: o->S.field("radius", S.float()),
       })
     }),
     S.object(o => {
-      let _ = o->S.field("kind", S.literal(String("square")))
+      ignore(o->S.field("kind", S.literal(String("square"))))
       Square({
         x: o->S.field("x", S.float()),
       })
     }),
     S.object(o => {
-      let _ = o->S.field("kind", S.literal(String("triangle")))
+      ignore(o->S.field("kind", S.literal(String("triangle"))))
       Triangle({
         x: o->S.field("x", S.float()),
         y: o->S.field("y", S.float()),
@@ -167,13 +167,13 @@ module Advanced = {
   test("Fails to serialize incomplete struct", t => {
     let incompleteStruct = S.union([
       S.object(o => {
-        let _ = o->S.field("kind", S.literal(String("circle")))
+        ignore(o->S.field("kind", S.literal(String("circle"))))
         Circle({
           radius: o->S.field("radius", S.float()),
         })
       }),
       S.object(o => {
-        let _ = o->S.field("kind", S.literal(String("square")))
+        ignore(o->S.field("kind", S.literal(String("square"))))
         Square({
           x: o->S.field("x", S.float()),
         })
