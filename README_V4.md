@@ -43,7 +43,7 @@ Then add `rescript-struct` to `bs-dependencies` in your `bsconfig.json`:
 {
   ...
 + "bs-dependencies": ["rescript-struct"]
-+ "bsc-flags": ["-open ReScriptStruct"],
++ "bsc-flags": ["-open RescriptStruct"],
 }
 ```
 

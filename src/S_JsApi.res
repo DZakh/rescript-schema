@@ -23,17 +23,17 @@ module Error = {
   type t = exn
 
   %%raw(`
-    class ReScriptStructError extends Error {
+    class RescriptStructError extends Error {
       constructor(message) {
         super(message);
-        this.name = "ReScriptStructError";
+        this.name = "RescriptStructError";
       }
     }
-    exports.ReScriptStructError = ReScriptStructError 
+    exports.RescriptStructError = RescriptStructError 
   `)
 
   @new
-  external _make: string => t = "ReScriptStructError"
+  external _make: string => t = "RescriptStructError"
 
   let make = error => {
     error->S.Error.toString->_make
@@ -76,8 +76,8 @@ type rec struct<'value> = {
 
 let structOperations = %raw("{}")
 
-let castToReScriptStruct: struct<'value> => S.t<'value> = Obj.magic
-let castMultipleToReScriptStruct: array<struct<'value>> => array<S.t<'value>> = Obj.magic
+let castToRescriptStruct: struct<'value> => S.t<'value> = Obj.magic
+let castMultipleToRescriptStruct: array<struct<'value>> => array<S.t<'value>> = Obj.magic
 
 @inline
 let toJsStruct = struct => {
@@ -160,15 +160,15 @@ let number = S.float->toJsStructFactory
 let never = S.never->toJsStructFactory
 let unknown = S.unknown->toJsStructFactory
 
-let optional = struct => S.option(struct->castToReScriptStruct)->toJsStruct
-let nullable = struct => S.null(struct->castToReScriptStruct)->toJsStruct
-let array = struct => S.array(struct->castToReScriptStruct)->toJsStruct
-let record = struct => S.dict(struct->castToReScriptStruct)->toJsStruct
-let json = struct => S.json(struct->castToReScriptStruct)->toJsStruct
-let union = structs => S.union(structs->castMultipleToReScriptStruct)->toJsStruct
-let defaulted = (struct, value) => S.defaulted(struct->castToReScriptStruct, value)->toJsStruct
+let optional = struct => S.option(struct->castToRescriptStruct)->toJsStruct
+let nullable = struct => S.null(struct->castToRescriptStruct)->toJsStruct
+let array = struct => S.array(struct->castToRescriptStruct)->toJsStruct
+let record = struct => S.dict(struct->castToRescriptStruct)->toJsStruct
+let json = struct => S.json(struct->castToRescriptStruct)->toJsStruct
+let union = structs => S.union(structs->castMultipleToRescriptStruct)->toJsStruct
+let defaulted = (struct, value) => S.defaulted(struct->castToRescriptStruct, value)->toJsStruct
 let tuple = structs => {
-  let structs = structs->castMultipleToReScriptStruct
+  let structs = structs->castMultipleToRescriptStruct
   S.Tuple.factory->Stdlib.Fn.apply(structs)->toJsStruct
 }
 
@@ -231,12 +231,12 @@ module Object = {
 
   let strict = () => {
     let struct = %raw("this")
-    struct->castToReScriptStruct->S.Object.strict->toJsStruct
+    struct->castToRescriptStruct->S.Object.strict->toJsStruct
   }
 
   let strip = () => {
     let struct = %raw("this")
-    struct->castToReScriptStruct->S.Object.strip->toJsStruct
+    struct->castToRescriptStruct->S.Object.strip->toJsStruct
   }
 
   let factory = definer => {
@@ -245,7 +245,7 @@ module Object = {
       let fieldNames = definer->Js.Dict.keys
       for idx in 0 to fieldNames->Js.Array2.length - 1 {
         let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-        let struct = definer->Js.Dict.unsafeGet(fieldName)->castToReScriptStruct
+        let struct = definer->Js.Dict.unsafeGet(fieldName)->castToRescriptStruct
         definition->Js.Dict.set(fieldName, o->S.field(fieldName, struct))
       }
       definition

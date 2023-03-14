@@ -2,16 +2,16 @@
 'use strict';
 
 var Js_exn = require("rescript/lib/js/js_exn.js");
-var S$ReScriptStruct = require("./S.bs.js");
+var S$RescriptStruct = require("./S.bs.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
-class ReScriptStructError extends Error {
+class RescriptStructError extends Error {
       constructor(message) {
         super(message);
-        this.name = "ReScriptStructError";
+        this.name = "RescriptStructError";
       }
     }
-    exports.ReScriptStructError = ReScriptStructError
+    exports.RescriptStructError = RescriptStructError
 ;
 
 function fromOk(value) {
@@ -33,12 +33,12 @@ var structOperations = {};
 function parse(data) {
   var struct = this;
   try {
-    return fromOk(S$ReScriptStruct.parseOrRaiseWith(data, struct));
+    return fromOk(S$RescriptStruct.parseOrRaiseWith(data, struct));
   }
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
-    if (error.RE_EXN_ID === S$ReScriptStruct.Raised) {
-      return fromError(new ReScriptStructError(S$ReScriptStruct.$$Error.toString(error._1)));
+    if (error.RE_EXN_ID === S$RescriptStruct.Raised) {
+      return fromError(new RescriptStructError(S$RescriptStruct.$$Error.toString(error._1)));
     }
     throw error;
   }
@@ -47,12 +47,12 @@ function parse(data) {
 function parseOrThrow(data) {
   var struct = this;
   try {
-    return S$ReScriptStruct.parseOrRaiseWith(data, struct);
+    return S$RescriptStruct.parseOrRaiseWith(data, struct);
   }
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
-    if (error.RE_EXN_ID === S$ReScriptStruct.Raised) {
-      throw new ReScriptStructError(S$ReScriptStruct.$$Error.toString(error._1));
+    if (error.RE_EXN_ID === S$RescriptStruct.Raised) {
+      throw new RescriptStructError(S$RescriptStruct.$$Error.toString(error._1));
     }
     throw error;
   }
@@ -60,11 +60,11 @@ function parseOrThrow(data) {
 
 function parseAsync(data) {
   var struct = this;
-  return S$ReScriptStruct.parseAsyncWith(data, struct).then(function (result) {
+  return S$RescriptStruct.parseAsyncWith(data, struct).then(function (result) {
               if (result.TAG === /* Ok */0) {
                 return fromOk(result._0);
               } else {
-                return fromError(new ReScriptStructError(S$ReScriptStruct.$$Error.toString(result._0)));
+                return fromError(new RescriptStructError(S$RescriptStruct.$$Error.toString(result._0)));
               }
             });
 }
@@ -72,12 +72,12 @@ function parseAsync(data) {
 function serialize(value) {
   var struct = this;
   try {
-    return fromOk(S$ReScriptStruct.serializeOrRaiseWith(value, struct));
+    return fromOk(S$RescriptStruct.serializeOrRaiseWith(value, struct));
   }
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
-    if (error.RE_EXN_ID === S$ReScriptStruct.Raised) {
-      return fromError(new ReScriptStructError(S$ReScriptStruct.$$Error.toString(error._1)));
+    if (error.RE_EXN_ID === S$RescriptStruct.Raised) {
+      return fromError(new RescriptStructError(S$RescriptStruct.$$Error.toString(error._1)));
     }
     throw error;
   }
@@ -86,12 +86,12 @@ function serialize(value) {
 function serializeOrThrow(value) {
   var struct = this;
   try {
-    return S$ReScriptStruct.serializeOrRaiseWith(value, struct);
+    return S$RescriptStruct.serializeOrRaiseWith(value, struct);
   }
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
-    if (error.RE_EXN_ID === S$ReScriptStruct.Raised) {
-      throw new ReScriptStructError(S$ReScriptStruct.$$Error.toString(error._1));
+    if (error.RE_EXN_ID === S$RescriptStruct.Raised) {
+      throw new RescriptStructError(S$RescriptStruct.$$Error.toString(error._1));
     }
     throw error;
   }
@@ -99,89 +99,89 @@ function serializeOrThrow(value) {
 
 function transform(parser, serializer) {
   var struct = this;
-  var struct$1 = S$ReScriptStruct.transform(struct, parser, serializer, undefined);
+  var struct$1 = S$RescriptStruct.transform(struct, parser, serializer, undefined);
   return Object.assign(struct$1, structOperations);
 }
 
 function refine(parser, serializer) {
   var struct = this;
-  var struct$1 = S$ReScriptStruct.refine(struct, parser, serializer, undefined);
+  var struct$1 = S$RescriptStruct.refine(struct, parser, serializer, undefined);
   return Object.assign(struct$1, structOperations);
 }
 
 function asyncRefine(parser) {
   var struct = this;
-  var struct$1 = S$ReScriptStruct.asyncRefine(struct, parser, undefined);
+  var struct$1 = S$RescriptStruct.asyncRefine(struct, parser, undefined);
   return Object.assign(struct$1, structOperations);
 }
 
 function string(param) {
-  var struct = S$ReScriptStruct.string(undefined);
+  var struct = S$RescriptStruct.string(undefined);
   return Object.assign(struct, structOperations);
 }
 
 function $$boolean(param) {
-  var struct = S$ReScriptStruct.bool(undefined);
+  var struct = S$RescriptStruct.bool(undefined);
   return Object.assign(struct, structOperations);
 }
 
 function integer(param) {
-  var struct = S$ReScriptStruct.$$int(undefined);
+  var struct = S$RescriptStruct.$$int(undefined);
   return Object.assign(struct, structOperations);
 }
 
 function number(param) {
-  var struct = S$ReScriptStruct.$$float(undefined);
+  var struct = S$RescriptStruct.$$float(undefined);
   return Object.assign(struct, structOperations);
 }
 
 function never(param) {
-  var struct = S$ReScriptStruct.never(undefined);
+  var struct = S$RescriptStruct.never(undefined);
   return Object.assign(struct, structOperations);
 }
 
 function unknown(param) {
-  var struct = S$ReScriptStruct.unknown(undefined);
+  var struct = S$RescriptStruct.unknown(undefined);
   return Object.assign(struct, structOperations);
 }
 
 function optional(struct) {
-  var struct$1 = S$ReScriptStruct.option(struct);
+  var struct$1 = S$RescriptStruct.option(struct);
   return Object.assign(struct$1, structOperations);
 }
 
 function nullable(struct) {
-  var struct$1 = S$ReScriptStruct.$$null(struct);
+  var struct$1 = S$RescriptStruct.$$null(struct);
   return Object.assign(struct$1, structOperations);
 }
 
 function array(struct) {
-  var struct$1 = S$ReScriptStruct.array(struct);
+  var struct$1 = S$RescriptStruct.array(struct);
   return Object.assign(struct$1, structOperations);
 }
 
 function record(struct) {
-  var struct$1 = S$ReScriptStruct.dict(struct);
+  var struct$1 = S$RescriptStruct.dict(struct);
   return Object.assign(struct$1, structOperations);
 }
 
 function json(struct) {
-  var struct$1 = S$ReScriptStruct.json(struct);
+  var struct$1 = S$RescriptStruct.json(struct);
   return Object.assign(struct$1, structOperations);
 }
 
 function union(structs) {
-  var struct = S$ReScriptStruct.union(structs);
+  var struct = S$RescriptStruct.union(structs);
   return Object.assign(struct, structOperations);
 }
 
 function defaulted(struct, value) {
-  var struct$1 = S$ReScriptStruct.defaulted(struct, value);
+  var struct$1 = S$RescriptStruct.defaulted(struct, value);
   return Object.assign(struct$1, structOperations);
 }
 
 function tuple(structs) {
-  var struct = S$ReScriptStruct.Tuple.factory.apply(null, structs);
+  var struct = S$RescriptStruct.Tuple.factory.apply(null, structs);
   return Object.assign(struct, structOperations);
 }
 
@@ -206,17 +206,17 @@ function literal(value) {
             )
         )
     );
-  var struct = S$ReScriptStruct.literal(taggedLiteral);
+  var struct = S$RescriptStruct.literal(taggedLiteral);
   return Object.assign(struct, structOperations);
 }
 
 function nan(param) {
-  var struct = S$ReScriptStruct.literal(/* NaN */2);
+  var struct = S$RescriptStruct.literal(/* NaN */2);
   return Object.assign(struct, structOperations);
 }
 
 function custom(name, parser, serializer) {
-  var struct = S$ReScriptStruct.custom(name, parser, serializer, undefined);
+  var struct = S$RescriptStruct.custom(name, parser, serializer, undefined);
   return Object.assign(struct, structOperations);
 }
 
@@ -241,22 +241,22 @@ var objectStructOperations = {};
 
 function strict(param) {
   var struct = this;
-  return Object.assign(S$ReScriptStruct.$$Object.strict(struct), objectStructOperations);
+  return Object.assign(S$RescriptStruct.$$Object.strict(struct), objectStructOperations);
 }
 
 function strip(param) {
   var struct = this;
-  return Object.assign(S$ReScriptStruct.$$Object.strip(struct), objectStructOperations);
+  return Object.assign(S$RescriptStruct.$$Object.strip(struct), objectStructOperations);
 }
 
 function factory(definer) {
-  return Object.assign(S$ReScriptStruct.object(function (o) {
+  return Object.assign(S$RescriptStruct.object(function (o) {
                   var definition = {};
                   var fieldNames = Object.keys(definer);
                   for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
                     var fieldName = fieldNames[idx];
                     var struct = definer[fieldName];
-                    definition[fieldName] = S$ReScriptStruct.field(o, fieldName, struct);
+                    definition[fieldName] = S$RescriptStruct.field(o, fieldName, struct);
                   }
                   return definition;
                 }), objectStructOperations);
