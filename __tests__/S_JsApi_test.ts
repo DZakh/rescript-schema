@@ -291,7 +291,7 @@ test("Successfully parses async struct", async (t) => {
   expectType<TypeEqual<typeof value, S.Result<string>>>(true);
 });
 
-test.only("Fails to parses async struct", async (t) => {
+test("Fails to parses async struct", async (t) => {
   const struct = S.string().asyncRefine(async (_) => {
     return Promise.resolve().then(() => {
       S.raiseError("User error");
