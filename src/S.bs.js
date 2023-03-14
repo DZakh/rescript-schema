@@ -8,7 +8,7 @@ var Caml_option = require("rescript/lib/js/caml_option.js");
 var Caml_exceptions = require("rescript/lib/js/caml_exceptions.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
-var Exception = /* @__PURE__ */Caml_exceptions.create("S-ReScriptStruct.Error.Internal.Exception");
+var Exception = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Error.Internal.Exception");
 
 function raise(expected, received, initialPathOpt, param) {
   var initialPath = initialPathOpt !== undefined ? initialPathOpt : "";
@@ -164,7 +164,7 @@ function toString(error) {
   return "Failed " + operation + " at " + pathText + ". Reason: " + reason + "";
 }
 
-var Raised = /* @__PURE__ */Caml_exceptions.create("S-ReScriptStruct.Raised");
+var Raised = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Raised");
 
 function planSyncTransformation(ctx, transformation) {
   var prevSyncTransformation = ctx.s;
@@ -2546,7 +2546,7 @@ var Tuple = {
   factory: factory$16
 };
 
-var HackyValidValue = /* @__PURE__ */Caml_exceptions.create("S-ReScriptStruct.Union.HackyValidValue");
+var HackyValidValue = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Union.HackyValidValue");
 
 function factory$17(structs) {
   if (structs.length < 2) {

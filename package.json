@@ -38,7 +38,7 @@
     "src/S.res",
     "src/S.resi",
     "src/S_JsApi.d.ts",
-    "ReScriptStruct.gen.ts",
+    "RescriptStruct.gen.ts",
     "bsconfig.json"
   ],
   "main": "./dist/S.js",

@@ -1,6 +1,6 @@
 {
   "name": "rescript-struct",
-  "namespace": "ReScriptStruct",
+  "namespace": "RescriptStruct",
   "bs-dev-dependencies": ["@dzakh/rescript-ava", "@ryyppy/rescript-promise"],
   "suffix": ".bs.js",
   "package-specs": {

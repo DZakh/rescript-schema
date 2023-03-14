@@ -1,7 +1,7 @@
 const S_Js = require("./S_JsApi.bs.js");
 const S = require("./S.bs.js");
 
-exports.StructError = S_Js.ReScriptStructError;
+exports.StructError = S_Js.RescriptStructError;
 exports.string = S_Js.string;
 exports.boolean = S_Js.$$boolean;
 exports.integer = S_Js.integer;

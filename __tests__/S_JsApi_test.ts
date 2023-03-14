@@ -64,7 +64,7 @@ test("Fails to parse never", (t) => {
       expectType<TypeEqual<typeof value, never>>(true);
     },
     {
-      name: "ReScriptStructError",
+      name: "RescriptStructError",
       message: "Failed parsing at root. Reason: Expected Never, received Bool",
     }
   );
@@ -186,7 +186,7 @@ test("Fails to parse with invalid data", (t) => {
       struct.parseOrThrow(123);
     },
     {
-      name: "ReScriptStructError",
+      name: "RescriptStructError",
       message:
         "Failed parsing at root. Reason: Expected String, received Float",
     }
@@ -211,7 +211,7 @@ test("Fails to serialize never", (t) => {
       struct.serializeOrThrow("123");
     },
     {
-      name: "ReScriptStructError",
+      name: "RescriptStructError",
       message:
         "Failed serializing at root. Reason: Expected Never, received String",
     }
@@ -274,7 +274,7 @@ test("Fails to parses with refine raising an error", (t) => {
       struct.parseOrThrow("123");
     },
     {
-      name: "ReScriptStructError",
+      name: "RescriptStructError",
       message: "Failed parsing at root. Reason: User error",
     }
   );
@@ -331,7 +331,7 @@ test("Custom string struct", (t) => {
       struct.parseOrThrow(123);
     },
     {
-      name: "ReScriptStructError",
+      name: "RescriptStructError",
       message: "Failed parsing at root. Reason: Postcode should be a string",
     }
   );
@@ -340,7 +340,7 @@ test("Custom string struct", (t) => {
       struct.parseOrThrow("123");
     },
     {
-      name: "ReScriptStructError",
+      name: "RescriptStructError",
       message:
         "Failed parsing at root. Reason: Postcode should be 5 characters",
     }
@@ -413,7 +413,7 @@ test("Fails to parse strict object with exccess fields", (t) => {
       >(true);
     },
     {
-      name: "ReScriptStructError",
+      name: "RescriptStructError",
       message: `Failed parsing at root. Reason: Encountered disallowed excess key "bar" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`,
     }
   );
