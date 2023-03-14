@@ -11,26 +11,14 @@ export type S_Error_t = {
   readonly path: string[];
 };
 
-// tslint:disable-next-line:interface-over-type-literal
-export type S_Error_code =
-  | "MissingParser"
-  | "MissingSerializer"
-  | "UnexpectedAsync"
-  | { tag: "OperationFailed"; value: string }
-  | {
-      tag: "UnexpectedType";
-      value: { readonly expected: string; readonly received: string };
-    }
-  | {
-      tag: "UnexpectedValue";
-      value: { readonly expected: string; readonly received: string };
-    }
-  | {
-      tag: "TupleSize";
-      value: { readonly expected: number; readonly received: number };
-    }
-  | { tag: "ExcessField"; value: string }
-  | { tag: "InvalidUnion"; value: S_Error_t[] };
+// tslint:disable-next-line:max-classes-per-file
+// tslint:disable-next-line:class-name
+export abstract class S_Error_code {
+  protected opaque!: any;
+} /* simulate opaque types */
 
-// tslint:disable-next-line:interface-over-type-literal
-export type S_Error_operation = "Serializing" | "Parsing";
+// tslint:disable-next-line:max-classes-per-file
+// tslint:disable-next-line:class-name
+export abstract class S_Error_operation {
+  protected opaque!: any;
+} /* simulate opaque types */
