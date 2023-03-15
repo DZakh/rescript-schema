@@ -55,3 +55,13 @@ test("Returns custom error message", t => {
     (),
   )
 })
+
+test("Returns refinement", t => {
+  let struct = S.array(S.int())->S.Array.max(1)
+
+  t->Assert.deepEqual(
+    struct->S.Array.refinements,
+    [{kind: Max({length: 1}), message: "Array must be 1 or fewer items long"}],
+    (),
+  )
+})

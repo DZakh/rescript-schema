@@ -16,3 +16,11 @@ module Common = {
     t->Assert.deepEqual(any->S.serializeWith(struct), Ok(any), ())
   })
 }
+
+test("Doesn't return refinements", t => {
+  let struct = S.unknown()
+  t->Assert.deepEqual(struct->S.String.refinements, [], ())
+  t->Assert.deepEqual(struct->S.Array.refinements, [], ())
+  t->Assert.deepEqual(struct->S.Int.refinements, [], ())
+  t->Assert.deepEqual(struct->S.Float.refinements, [], ())
+})

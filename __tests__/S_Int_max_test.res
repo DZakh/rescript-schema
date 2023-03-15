@@ -55,3 +55,13 @@ test("Returns custom error message", t => {
     (),
   )
 })
+
+test("Returns refinement", t => {
+  let struct = S.int()->S.Int.max(1)
+
+  t->Assert.deepEqual(
+    struct->S.Int.refinements,
+    [{kind: Max({value: 1}), message: "Number must be lower than or equal to 1"}],
+    (),
+  )
+})

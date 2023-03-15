@@ -96,6 +96,9 @@ module Stdlib = {
     let set = (array: array<'value>, idx: int, value: 'value) => {
       array->Obj.magic->Js.Dict.set(idx->Obj.magic, value)
     }
+
+    @send
+    external append: (array<'a>, 'a) => array<'a> = "concat"
   }
 
   module Result = {
@@ -108,13 +111,6 @@ module Stdlib = {
   }
 
   module Option = {
-    @inline
-    let getWithDefault = (option, default) =>
-      switch option {
-      | Some(value) => value
-      | None => default
-      }
-
     @inline
     let flatMap = (option, fn) =>
       switch option {
@@ -1165,6 +1161,20 @@ let refine: (
   )
 }
 
+let addRefinement = (struct, ~metadataId, ~refinement, ~refiner) => {
+  struct
+  ->Metadata.set(
+    ~id=metadataId,
+    ~metadata={
+      switch struct->Metadata.get(~id=metadataId) {
+      | Some(refinements) => refinements->Stdlib.Array.append(refinement)
+      | None => [refinement]
+      }
+    },
+  )
+  ->refine(~parser=refiner, ~serializer=refiner, ())
+}
+
 let asyncRefine = (struct, ~parser, ()) => {
   make(
     ~name=struct.name,
@@ -1551,8 +1561,12 @@ module Object = {
       ~name="Object_UnknownKeys",
     )
 
-    let classify = struct =>
-      struct->Metadata.get(~id=metadataId)->Stdlib.Option.getWithDefault(Strip)
+    let classify = struct => {
+      switch struct->Metadata.get(~id=metadataId) {
+      | Some(t) => t
+      | None => Strip
+      }
+    }
   }
 
   module FieldDefinition = {
@@ -2213,6 +2227,34 @@ module Unknown = {
 }
 
 module String = {
+  module Refinement = {
+    type kind =
+      | Min({length: int})
+      | Max({length: int})
+      | Length({length: int})
+      | Email
+      | Uuid
+      | Cuid
+      | Url
+      | Pattern({re: Js.Re.t})
+    type t = {
+      kind: kind,
+      message: string,
+    }
+
+    let metadataId: Metadata.Id.t<array<t>> = Metadata.Id.make(
+      ~namespace="rescript-struct",
+      ~name="String.refinements",
+    )
+  }
+
+  let refinements = struct => {
+    switch struct->Metadata.get(~id=Refinement.metadataId) {
+    | Some(m) => m
+    | None => []
+    }
+  }
+
   let cuidRegex = %re(`/^c[^\s-]{8,}$/i`)
   let uuidRegex = %re(`/^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]{12}|00000000-0000-0000-0000-000000000000)$/i`)
   let emailRegex = %re(`/^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i`)
@@ -2237,39 +2279,60 @@ module String = {
   }
 
   let min = (struct, ~message as maybeMessage=?, length) => {
+    let message = switch maybeMessage {
+    | Some(m) => m
+    | None => `String must be ${length->Js.Int.toString} or more characters long`
+    }
     let refiner = value =>
       if value->Js.String2.length < length {
-        Error.raise(
-          maybeMessage->Stdlib.Option.getWithDefault(
-            `String must be ${length->Js.Int.toString} or more characters long`,
-          ),
-        )
+        Error.raise(message)
       }
-    struct->refine(~parser=refiner, ~serializer=refiner, ())
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Min({length: length}),
+        message,
+      },
+    )
   }
 
   let max = (struct, ~message as maybeMessage=?, length) => {
+    let message = switch maybeMessage {
+    | Some(m) => m
+    | None => `String must be ${length->Js.Int.toString} or fewer characters long`
+    }
     let refiner = value =>
       if value->Js.String2.length > length {
-        Error.raise(
-          maybeMessage->Stdlib.Option.getWithDefault(
-            `String must be ${length->Js.Int.toString} or fewer characters long`,
-          ),
-        )
+        Error.raise(message)
       }
-    struct->refine(~parser=refiner, ~serializer=refiner, ())
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Max({length: length}),
+        message,
+      },
+    )
   }
 
   let length = (struct, ~message as maybeMessage=?, length) => {
+    let message = switch maybeMessage {
+    | Some(m) => m
+    | None => `String must be exactly ${length->Js.Int.toString} characters long`
+    }
     let refiner = value =>
       if value->Js.String2.length !== length {
-        Error.raise(
-          maybeMessage->Stdlib.Option.getWithDefault(
-            `String must be exactly ${length->Js.Int.toString} characters long`,
-          ),
-        )
+        Error.raise(message)
       }
-    struct->refine(~parser=refiner, ~serializer=refiner, ())
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Length({length: length}),
+        message,
+      },
+    )
   }
 
   let email = (struct, ~message=`Invalid email address`, ()) => {
@@ -2278,7 +2341,14 @@ module String = {
         Error.raise(message)
       }
     }
-    struct->refine(~parser=refiner, ~serializer=refiner, ())
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Email,
+        message,
+      },
+    )
   }
 
   let uuid = (struct, ~message=`Invalid UUID`, ()) => {
@@ -2287,7 +2357,14 @@ module String = {
         Error.raise(message)
       }
     }
-    struct->refine(~parser=refiner, ~serializer=refiner, ())
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Uuid,
+        message,
+      },
+    )
   }
 
   let cuid = (struct, ~message=`Invalid CUID`, ()) => {
@@ -2296,7 +2373,14 @@ module String = {
         Error.raise(message)
       }
     }
-    struct->refine(~parser=refiner, ~serializer=refiner, ())
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Cuid,
+        message,
+      },
+    )
   }
 
   let url = (struct, ~message=`Invalid url`, ()) => {
@@ -2305,7 +2389,14 @@ module String = {
         Error.raise(message)
       }
     }
-    struct->refine(~parser=refiner, ~serializer=refiner, ())
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Url,
+        message,
+      },
+    )
   }
 
   let pattern = (struct, ~message=`Invalid`, re) => {
@@ -2315,7 +2406,14 @@ module String = {
         Error.raise(message)
       }
     }
-    struct->refine(~parser=refiner, ~serializer=refiner, ())
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Pattern({re: re}),
+        message,
+      },
+    )
   }
 
   let trimmed = (struct, ()) => {
@@ -2340,7 +2438,12 @@ module Json = {
           if input->Js.typeof === "string" {
             try input->Js.Json.parseExn catch {
             | Js.Exn.Error(obj) =>
-              Error.raise(obj->Js.Exn.message->Stdlib.Option.getWithDefault("Failed to parse JSON"))
+              Error.raise(
+                switch obj->Js.Exn.message {
+                | Some(m) => m
+                | None => "Failed to parse JSON"
+                },
+              )
             }->Stdlib.Fn.call1(process, _)
           } else {
             raiseUnexpectedTypeError(~input, ~struct)
@@ -2393,6 +2496,29 @@ module Bool = {
 }
 
 module Int = {
+  module Refinement = {
+    type kind =
+      | Min({value: int})
+      | Max({value: int})
+      | Port
+    type t = {
+      kind: kind,
+      message: string,
+    }
+
+    let metadataId: Metadata.Id.t<array<t>> = Metadata.Id.make(
+      ~namespace="rescript-struct",
+      ~name="Int.refinements",
+    )
+  }
+
+  let refinements = struct => {
+    switch struct->Metadata.get(~id=Refinement.metadataId) {
+    | Some(m) => m
+    | None => []
+    }
+  }
+
   let factory = () => {
     make(
       ~name="Int",
@@ -2412,30 +2538,44 @@ module Int = {
     )
   }
 
-  let min = (struct, ~message as maybeMessage=?, thanValue) => {
+  let min = (struct, ~message as maybeMessage=?, minValue) => {
+    let message = switch maybeMessage {
+    | Some(m) => m
+    | None => `Number must be greater than or equal to ${minValue->Js.Int.toString}`
+    }
     let refiner = value => {
-      if value < thanValue {
-        Error.raise(
-          maybeMessage->Stdlib.Option.getWithDefault(
-            `Number must be greater than or equal to ${thanValue->Js.Int.toString}`,
-          ),
-        )
+      if value < minValue {
+        Error.raise(message)
       }
     }
-    struct->refine(~parser=refiner, ~serializer=refiner, ())
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Min({value: minValue}),
+        message,
+      },
+    )
   }
 
-  let max = (struct, ~message as maybeMessage=?, thanValue) => {
+  let max = (struct, ~message as maybeMessage=?, maxValue) => {
+    let message = switch maybeMessage {
+    | Some(m) => m
+    | None => `Number must be lower than or equal to ${maxValue->Js.Int.toString}`
+    }
     let refiner = value => {
-      if value > thanValue {
-        Error.raise(
-          maybeMessage->Stdlib.Option.getWithDefault(
-            `Number must be lower than or equal to ${thanValue->Js.Int.toString}`,
-          ),
-        )
+      if value > maxValue {
+        Error.raise(message)
       }
     }
-    struct->refine(~parser=refiner, ~serializer=refiner, ())
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Max({value: maxValue}),
+        message,
+      },
+    )
   }
 
   let port = (struct, ~message="Invalid port", ()) => {
@@ -2444,11 +2584,40 @@ module Int = {
         Error.raise(message)
       }
     }
-    struct->refine(~parser=refiner, ~serializer=refiner, ())
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Port,
+        message,
+      },
+    )
   }
 }
 
 module Float = {
+  module Refinement = {
+    type kind =
+      | Min({value: float})
+      | Max({value: float})
+    type t = {
+      kind: kind,
+      message: string,
+    }
+
+    let metadataId: Metadata.Id.t<array<t>> = Metadata.Id.make(
+      ~namespace="rescript-struct",
+      ~name="Float.refinements",
+    )
+  }
+
+  let refinements = struct => {
+    switch struct->Metadata.get(~id=Refinement.metadataId) {
+    | Some(m) => m
+    | None => []
+    }
+  }
+
   let factory = () => {
     make(
       ~name="Float",
@@ -2472,8 +2641,45 @@ module Float = {
     )
   }
 
-  let min = Int.min->Obj.magic
-  let max = Int.max->Obj.magic
+  let min = (struct, ~message as maybeMessage=?, minValue) => {
+    let message = switch maybeMessage {
+    | Some(m) => m
+    | None => `Number must be greater than or equal to ${minValue->Js.Float.toString}`
+    }
+    let refiner = value => {
+      if value < minValue {
+        Error.raise(message)
+      }
+    }
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Min({value: minValue}),
+        message,
+      },
+    )
+  }
+
+  let max = (struct, ~message as maybeMessage=?, maxValue) => {
+    let message = switch maybeMessage {
+    | Some(m) => m
+    | None => `Number must be lower than or equal to ${maxValue->Js.Float.toString}`
+    }
+    let refiner = value => {
+      if value > maxValue {
+        Error.raise(message)
+      }
+    }
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Max({value: maxValue}),
+        message,
+      },
+    )
+  }
 }
 
 module Null = {
@@ -2599,6 +2805,29 @@ module Deprecated = {
 }
 
 module Array = {
+  module Refinement = {
+    type kind =
+      | Min({length: int})
+      | Max({length: int})
+      | Length({length: int})
+    type t = {
+      kind: kind,
+      message: string,
+    }
+
+    let metadataId: Metadata.Id.t<array<t>> = Metadata.Id.make(
+      ~namespace="rescript-struct",
+      ~name="Array.refinements",
+    )
+  }
+
+  let refinements = struct => {
+    switch struct->Metadata.get(~id=Refinement.metadataId) {
+    | Some(m) => m
+    | None => []
+    }
+  }
+
   let factory = innerStruct => {
     let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
@@ -2690,42 +2919,63 @@ module Array = {
   }
 
   let min = (struct, ~message as maybeMessage=?, length) => {
+    let message = switch maybeMessage {
+    | Some(m) => m
+    | None => `Array must be ${length->Js.Int.toString} or more items long`
+    }
     let refiner = value => {
       if value->Js.Array2.length < length {
-        Error.raise(
-          maybeMessage->Stdlib.Option.getWithDefault(
-            `Array must be ${length->Js.Int.toString} or more items long`,
-          ),
-        )
+        Error.raise(message)
       }
     }
-    struct->refine(~parser=refiner, ~serializer=refiner, ())
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Min({length: length}),
+        message,
+      },
+    )
   }
 
   let max = (struct, ~message as maybeMessage=?, length) => {
+    let message = switch maybeMessage {
+    | Some(m) => m
+    | None => `Array must be ${length->Js.Int.toString} or fewer items long`
+    }
     let refiner = value => {
       if value->Js.Array2.length > length {
-        Error.raise(
-          maybeMessage->Stdlib.Option.getWithDefault(
-            `Array must be ${length->Js.Int.toString} or fewer items long`,
-          ),
-        )
+        Error.raise(message)
       }
     }
-    struct->refine(~parser=refiner, ~serializer=refiner, ())
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Max({length: length}),
+        message,
+      },
+    )
   }
 
   let length = (struct, ~message as maybeMessage=?, length) => {
+    let message = switch maybeMessage {
+    | Some(m) => m
+    | None => `Array must be exactly ${length->Js.Int.toString} items long`
+    }
     let refiner = value => {
       if value->Js.Array2.length !== length {
-        Error.raise(
-          maybeMessage->Stdlib.Option.getWithDefault(
-            `Array must be exactly ${length->Js.Int.toString} items long`,
-          ),
-        )
+        Error.raise(message)
       }
     }
-    struct->refine(~parser=refiner, ~serializer=refiner, ())
+    struct->addRefinement(
+      ~metadataId=Refinement.metadataId,
+      ~refiner,
+      ~refinement={
+        kind: Length({length: length}),
+        message,
+      },
+    )
   }
 }
 
@@ -2849,18 +3099,27 @@ module Defaulted = {
         switch innerStruct->getParseOperation {
         | NoOperation =>
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            input->castUnknownToAny->Stdlib.Option.getWithDefault(defaultValue)
+            switch input->castUnknownToAny {
+            | Some(v) => v
+            | None => defaultValue
+            }
           })
         | SyncOperation(fn) =>
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            fn(. input)->castUnknownToAny->Stdlib.Option.getWithDefault(defaultValue)
+            switch fn(. input)->castUnknownToAny {
+            | Some(v) => v
+            | None => defaultValue
+            }
           })
         | AsyncOperation(fn) =>
           ctx->TransformationFactory.Ctx.planSyncTransformation(fn->Stdlib.Fn.castToCurried)
           ctx->TransformationFactory.Ctx.planAsyncTransformation(asyncFn => {
             asyncFn(.)->Stdlib.Promise.thenResolve(
               value => {
-                value->castUnknownToAny->Stdlib.Option.getWithDefault(defaultValue)
+                switch value->castUnknownToAny {
+                | Some(v) => v
+                | None => defaultValue
+                }
               },
             )
           })

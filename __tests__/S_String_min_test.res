@@ -55,3 +55,13 @@ test("Returns custom error message", t => {
     (),
   )
 })
+
+test("Returns refinement", t => {
+  let struct = S.string()->S.String.min(1)
+
+  t->Assert.deepEqual(
+    struct->S.String.refinements,
+    [{kind: Min({length: 1}), message: "String must be 1 or more characters long"}],
+    (),
+  )
+})

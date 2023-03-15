@@ -61,3 +61,9 @@ test("Returns custom error message", t => {
     (),
   )
 })
+
+test("Returns refinement", t => {
+  let struct = S.string()->S.String.cuid()
+
+  t->Assert.deepEqual(struct->S.String.refinements, [{kind: Cuid, message: "Invalid CUID"}], ())
+})

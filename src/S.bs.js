@@ -795,6 +795,11 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
         };
 }
 
+function addRefinement(struct, metadataId, refinement, refiner) {
+  var refinements = get(struct, metadataId);
+  return refine(set(struct, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), refiner, refiner, undefined);
+}
+
 function asyncRefine(struct, parser, param) {
   return {
           n: struct.n,
@@ -1222,9 +1227,9 @@ function factory$1(innerLiteral) {
 var metadataId = "rescript-struct:Object_UnknownKeys";
 
 function classify$1(struct) {
-  var option = get(struct, metadataId);
-  if (option !== undefined) {
-    return Caml_option.valFromOption(option);
+  var t = get(struct, metadataId);
+  if (t !== undefined) {
+    return t;
   } else {
     return /* Strip */1;
   }
@@ -1618,6 +1623,17 @@ function factory$4(param) {
         };
 }
 
+var metadataId$1 = "rescript-struct:String.refinements";
+
+function refinements(struct) {
+  var m = get(struct, metadataId$1);
+  if (m !== undefined) {
+    return m;
+  } else {
+    return [];
+  }
+}
+
 var cuidRegex = /^c[^\s-]{8,}$/i;
 
 var uuidRegex = /^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]{12}|00000000-0000-0000-0000-000000000000)$/i;
@@ -1650,36 +1666,54 @@ function factory$5(param) {
 }
 
 function min(struct, maybeMessage, length) {
+  var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length.toString() + " or more characters long";
   var refiner = function (value) {
-    if (value.length >= length) {
-      return ;
+    if (value.length < length) {
+      return raise$2(message);
     }
-    var $$default = "String must be " + length.toString() + " or more characters long";
-    raise$2(maybeMessage !== undefined ? Caml_option.valFromOption(maybeMessage) : $$default);
+    
   };
-  return refine(struct, refiner, refiner, undefined);
+  return addRefinement(struct, metadataId$1, {
+              kind: {
+                TAG: /* Min */0,
+                length: length
+              },
+              message: message
+            }, refiner);
 }
 
 function max(struct, maybeMessage, length) {
+  var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length.toString() + " or fewer characters long";
   var refiner = function (value) {
-    if (value.length <= length) {
-      return ;
+    if (value.length > length) {
+      return raise$2(message);
     }
-    var $$default = "String must be " + length.toString() + " or fewer characters long";
-    raise$2(maybeMessage !== undefined ? Caml_option.valFromOption(maybeMessage) : $$default);
+    
   };
-  return refine(struct, refiner, refiner, undefined);
+  return addRefinement(struct, metadataId$1, {
+              kind: {
+                TAG: /* Max */1,
+                length: length
+              },
+              message: message
+            }, refiner);
 }
 
 function length(struct, maybeMessage, length$1) {
+  var message = maybeMessage !== undefined ? maybeMessage : "String must be exactly " + length$1.toString() + " characters long";
   var refiner = function (value) {
-    if (value.length === length$1) {
-      return ;
+    if (value.length !== length$1) {
+      return raise$2(message);
     }
-    var $$default = "String must be exactly " + length$1.toString() + " characters long";
-    raise$2(maybeMessage !== undefined ? Caml_option.valFromOption(maybeMessage) : $$default);
+    
   };
-  return refine(struct, refiner, refiner, undefined);
+  return addRefinement(struct, metadataId$1, {
+              kind: {
+                TAG: /* Length */2,
+                length: length$1
+              },
+              message: message
+            }, refiner);
 }
 
 function email(struct, messageOpt, param) {
@@ -1690,7 +1724,10 @@ function email(struct, messageOpt, param) {
     }
     
   };
-  return refine(struct, refiner, refiner, undefined);
+  return addRefinement(struct, metadataId$1, {
+              kind: /* Email */0,
+              message: message
+            }, refiner);
 }
 
 function uuid(struct, messageOpt, param) {
@@ -1701,7 +1738,10 @@ function uuid(struct, messageOpt, param) {
     }
     
   };
-  return refine(struct, refiner, refiner, undefined);
+  return addRefinement(struct, metadataId$1, {
+              kind: /* Uuid */1,
+              message: message
+            }, refiner);
 }
 
 function cuid(struct, messageOpt, param) {
@@ -1712,7 +1752,10 @@ function cuid(struct, messageOpt, param) {
     }
     
   };
-  return refine(struct, refiner, refiner, undefined);
+  return addRefinement(struct, metadataId$1, {
+              kind: /* Cuid */2,
+              message: message
+            }, refiner);
 }
 
 function url(struct, messageOpt, param) {
@@ -1731,7 +1774,10 @@ function url(struct, messageOpt, param) {
     }
     
   };
-  return refine(struct, refiner, refiner, undefined);
+  return addRefinement(struct, metadataId$1, {
+              kind: /* Url */3,
+              message: message
+            }, refiner);
 }
 
 function pattern(struct, messageOpt, re) {
@@ -1743,7 +1789,13 @@ function pattern(struct, messageOpt, re) {
     }
     
   };
-  return refine(struct, refiner, refiner, undefined);
+  return addRefinement(struct, metadataId$1, {
+              kind: {
+                TAG: /* Pattern */3,
+                re: re
+              },
+              message: message
+            }, refiner);
 }
 
 function trimmed(struct, param) {
@@ -1773,8 +1825,8 @@ function factory$6(innerStruct) {
                       catch (raw_obj){
                         var obj = Caml_js_exceptions.internalToOCamlException(raw_obj);
                         if (obj.RE_EXN_ID === Js_exn.$$Error) {
-                          var option = obj._1.message;
-                          __x = raise$2(option !== undefined ? Caml_option.valFromOption(option) : "Failed to parse JSON");
+                          var m = obj._1.message;
+                          __x = raise$2(m !== undefined ? m : "Failed to parse JSON");
                         } else {
                           throw obj;
                         }
@@ -1838,6 +1890,17 @@ function factory$7(param) {
         };
 }
 
+var metadataId$2 = "rescript-struct:Int.refinements";
+
+function refinements$1(struct) {
+  var m = get(struct, metadataId$2);
+  if (m !== undefined) {
+    return m;
+  } else {
+    return [];
+  }
+}
+
 function factory$8(param) {
   return {
           n: "Int",
@@ -1863,26 +1926,38 @@ function factory$8(param) {
         };
 }
 
-function min$1(struct, maybeMessage, thanValue) {
+function min$1(struct, maybeMessage, minValue) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue.toString() + "";
   var refiner = function (value) {
-    if (value >= thanValue) {
-      return ;
+    if (value < minValue) {
+      return raise$2(message);
     }
-    var $$default = "Number must be greater than or equal to " + thanValue.toString() + "";
-    raise$2(maybeMessage !== undefined ? Caml_option.valFromOption(maybeMessage) : $$default);
+    
   };
-  return refine(struct, refiner, refiner, undefined);
+  return addRefinement(struct, metadataId$2, {
+              kind: {
+                TAG: /* Min */0,
+                value: minValue
+              },
+              message: message
+            }, refiner);
 }
 
-function max$1(struct, maybeMessage, thanValue) {
+function max$1(struct, maybeMessage, maxValue) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue.toString() + "";
   var refiner = function (value) {
-    if (value <= thanValue) {
-      return ;
+    if (value > maxValue) {
+      return raise$2(message);
     }
-    var $$default = "Number must be lower than or equal to " + thanValue.toString() + "";
-    raise$2(maybeMessage !== undefined ? Caml_option.valFromOption(maybeMessage) : $$default);
+    
   };
-  return refine(struct, refiner, refiner, undefined);
+  return addRefinement(struct, metadataId$2, {
+              kind: {
+                TAG: /* Max */1,
+                value: maxValue
+              },
+              message: message
+            }, refiner);
 }
 
 function port(struct, messageOpt, param) {
@@ -1893,7 +1968,21 @@ function port(struct, messageOpt, param) {
     }
     
   };
-  return refine(struct, refiner, refiner, undefined);
+  return addRefinement(struct, metadataId$2, {
+              kind: /* Port */0,
+              message: message
+            }, refiner);
+}
+
+var metadataId$3 = "rescript-struct:Float.refinements";
+
+function refinements$2(struct) {
+  var m = get(struct, metadataId$3);
+  if (m !== undefined) {
+    return m;
+  } else {
+    return [];
+  }
 }
 
 function factory$9(param) {
@@ -1919,6 +2008,40 @@ function factory$9(param) {
           i: "typeof v===\"number\"&&!Number.isNaN(v)",
           m: undefined
         };
+}
+
+function min$2(struct, maybeMessage, minValue) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue.toString() + "";
+  var refiner = function (value) {
+    if (value < minValue) {
+      return raise$2(message);
+    }
+    
+  };
+  return addRefinement(struct, metadataId$3, {
+              kind: {
+                TAG: /* Min */0,
+                value: minValue
+              },
+              message: message
+            }, refiner);
+}
+
+function max$2(struct, maybeMessage, maxValue) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue.toString() + "";
+  var refiner = function (value) {
+    if (value > maxValue) {
+      return raise$2(message);
+    }
+    
+  };
+  return addRefinement(struct, metadataId$3, {
+              kind: {
+                TAG: /* Max */1,
+                value: maxValue
+              },
+              message: message
+            }, refiner);
 }
 
 function factory$10(innerStruct) {
@@ -2055,16 +2178,27 @@ function factory$11(innerStruct) {
         };
 }
 
-var metadataId$1 = "rescript-struct:Deprecated";
+var metadataId$4 = "rescript-struct:Deprecated";
 
 function factory$12(innerStruct, maybeMessage, param) {
-  return set(factory$11(innerStruct), metadataId$1, maybeMessage !== undefined ? /* WithMessage */({
+  return set(factory$11(innerStruct), metadataId$4, maybeMessage !== undefined ? /* WithMessage */({
                   _0: maybeMessage
                 }) : /* WithoutMessage */0);
 }
 
 function classify$2(struct) {
-  return get(struct, metadataId$1);
+  return get(struct, metadataId$4);
+}
+
+var metadataId$5 = "rescript-struct:Array.refinements";
+
+function refinements$3(struct) {
+  var m = get(struct, metadataId$5);
+  if (m !== undefined) {
+    return m;
+  } else {
+    return [];
+  }
 }
 
 function factory$13(innerStruct) {
@@ -2164,37 +2298,55 @@ function factory$13(innerStruct) {
         };
 }
 
-function min$2(struct, maybeMessage, length) {
+function min$3(struct, maybeMessage, length) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length.toString() + " or more items long";
   var refiner = function (value) {
-    if (value.length >= length) {
-      return ;
+    if (value.length < length) {
+      return raise$2(message);
     }
-    var $$default = "Array must be " + length.toString() + " or more items long";
-    raise$2(maybeMessage !== undefined ? Caml_option.valFromOption(maybeMessage) : $$default);
+    
   };
-  return refine(struct, refiner, refiner, undefined);
+  return addRefinement(struct, metadataId$5, {
+              kind: {
+                TAG: /* Min */0,
+                length: length
+              },
+              message: message
+            }, refiner);
 }
 
-function max$2(struct, maybeMessage, length) {
+function max$3(struct, maybeMessage, length) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length.toString() + " or fewer items long";
   var refiner = function (value) {
-    if (value.length <= length) {
-      return ;
+    if (value.length > length) {
+      return raise$2(message);
     }
-    var $$default = "Array must be " + length.toString() + " or fewer items long";
-    raise$2(maybeMessage !== undefined ? Caml_option.valFromOption(maybeMessage) : $$default);
+    
   };
-  return refine(struct, refiner, refiner, undefined);
+  return addRefinement(struct, metadataId$5, {
+              kind: {
+                TAG: /* Max */1,
+                length: length
+              },
+              message: message
+            }, refiner);
 }
 
 function length$1(struct, maybeMessage, length$2) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Array must be exactly " + length$2.toString() + " items long";
   var refiner = function (value) {
-    if (value.length === length$2) {
-      return ;
+    if (value.length !== length$2) {
+      return raise$2(message);
     }
-    var $$default = "Array must be exactly " + length$2.toString() + " items long";
-    raise$2(maybeMessage !== undefined ? Caml_option.valFromOption(maybeMessage) : $$default);
+    
   };
-  return refine(struct, refiner, refiner, undefined);
+  return addRefinement(struct, metadataId$5, {
+              kind: {
+                TAG: /* Length */2,
+                length: length$2
+              },
+              message: message
+            }, refiner);
 }
 
 function factory$14(innerStruct) {
@@ -2320,7 +2472,7 @@ function factory$14(innerStruct) {
         };
 }
 
-var metadataId$2 = "rescript-struct:Defaulted";
+var metadataId$6 = "rescript-struct:Defaulted";
 
 function factory$15(innerStruct, defaultValue) {
   return set({
@@ -2340,9 +2492,9 @@ function factory$15(innerStruct, defaultValue) {
                   if (fn.TAG === /* SyncOperation */0) {
                     var fn$1 = fn._0;
                     return planSyncTransformation(ctx, (function (input) {
-                                  var option = fn$1(input);
-                                  if (option !== undefined) {
-                                    return Caml_option.valFromOption(option);
+                                  var v = fn$1(input);
+                                  if (v !== undefined) {
+                                    return Caml_option.valFromOption(v);
                                   } else {
                                     return defaultValue;
                                   }
@@ -2380,13 +2532,13 @@ function factory$15(innerStruct, defaultValue) {
               a: intitialParseAsync,
               i: undefined,
               m: undefined
-            }, metadataId$2, /* WithDefaultValue */{
+            }, metadataId$6, /* WithDefaultValue */{
               _0: defaultValue
             });
 }
 
 function classify$3(struct) {
-  return get(struct, metadataId$2);
+  return get(struct, metadataId$6);
 }
 
 function factory$16(param) {
@@ -2825,7 +2977,11 @@ var tuple9 = factory$16;
 
 var tuple10 = factory$16;
 
+var String_Refinement = {};
+
 var $$String = {
+  Refinement: String_Refinement,
+  refinements: refinements,
   min: min,
   max: max,
   length: length,
@@ -2837,20 +2993,32 @@ var $$String = {
   trimmed: trimmed
 };
 
+var Int_Refinement = {};
+
 var Int = {
+  Refinement: Int_Refinement,
+  refinements: refinements$1,
   min: min$1,
   max: max$1,
   port: port
 };
 
+var Float_Refinement = {};
+
 var Float = {
-  min: min$1,
-  max: max$1
+  Refinement: Float_Refinement,
+  refinements: refinements$2,
+  min: min$2,
+  max: max$2
 };
 
+var Array_Refinement = {};
+
 var $$Array = {
-  min: min$2,
-  max: max$2,
+  Refinement: Array_Refinement,
+  refinements: refinements$3,
+  min: min$3,
+  max: max$3,
   length: length$1
 };
 
