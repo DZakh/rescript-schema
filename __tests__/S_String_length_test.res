@@ -71,3 +71,13 @@ test("Returns custom error message", t => {
     (),
   )
 })
+
+test("Returns refinement", t => {
+  let struct = S.string()->S.String.length(4)
+
+  t->Assert.deepEqual(
+    struct->S.String.refinements,
+    [{kind: Length({length: 4}), message: "String must be exactly 4 characters long"}],
+    (),
+  )
+})

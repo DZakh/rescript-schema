@@ -41,10 +41,10 @@ test("Fails to serialize invalid value", t => {
 })
 
 test("Returns custom error message", t => {
-  let struct = S.string()->S.String.uuid(~message="Custom", ())
+  let struct = S.int()->S.Int.port(~message="Custom", ())
 
   t->Assert.deepEqual(
-    "4000"->S.parseWith(struct),
+    400000->S.parseWith(struct),
     Error({
       code: OperationFailed("Custom"),
       operation: Parsing,
@@ -52,4 +52,10 @@ test("Returns custom error message", t => {
     }),
     (),
   )
+})
+
+test("Returns refinement", t => {
+  let struct = S.int()->S.Int.port()
+
+  t->Assert.deepEqual(struct->S.Int.refinements, [{kind: Port, message: "Invalid port"}], ())
 })

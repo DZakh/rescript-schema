@@ -71,3 +71,13 @@ test("Returns custom error message", t => {
     (),
   )
 })
+
+test("Returns refinement", t => {
+  let struct = S.array(S.int())->S.Array.length(1)
+
+  t->Assert.deepEqual(
+    struct->S.Array.refinements,
+    [{kind: Length({length: 1}), message: "Array must be exactly 1 items long"}],
+    (),
+  )
+})

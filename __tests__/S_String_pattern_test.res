@@ -53,3 +53,34 @@ test("Returns custom error message", t => {
     (),
   )
 })
+
+test("Returns refinement", t => {
+  let struct = S.string()->S.String.pattern(%re(`/[0-9]/`))
+
+  t->Assert.deepEqual(
+    struct->S.String.refinements,
+    [{kind: Pattern({re: %re(`/[0-9]/`)}), message: "Invalid"}],
+    (),
+  )
+})
+
+test("Returns multiple refinement", t => {
+  let struct1 = S.string()
+  let struct2 = struct1->S.String.pattern(~message="Should have digit", %re(`/[0-9]+/`))
+  let struct3 = struct2->S.String.pattern(~message="Should have text", %re(`/\w+/`))
+
+  t->Assert.deepEqual(struct1->S.String.refinements, [], ())
+  t->Assert.deepEqual(
+    struct2->S.String.refinements,
+    [{kind: Pattern({re: %re(`/[0-9]+/`)}), message: "Should have digit"}],
+    (),
+  )
+  t->Assert.deepEqual(
+    struct3->S.String.refinements,
+    [
+      {kind: Pattern({re: %re(`/[0-9]+/`)}), message: "Should have digit"},
+      {kind: Pattern({re: %re(`/\w+/`)}), message: "Should have text"},
+    ],
+    (),
+  )
+})

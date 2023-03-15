@@ -57,3 +57,13 @@ test("Returns custom error message", t => {
     (),
   )
 })
+
+test("Returns refinement", t => {
+  let struct = S.string()->S.String.email()
+
+  t->Assert.deepEqual(
+    struct->S.String.refinements,
+    [{kind: Email, message: "Invalid email address"}],
+    (),
+  )
+})

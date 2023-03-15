@@ -232,6 +232,24 @@ let classify: t<'value> => tagged
 let name: t<'value> => string
 
 module String: {
+  module Refinement: {
+    type kind =
+      | Min({length: int})
+      | Max({length: int})
+      | Length({length: int})
+      | Email
+      | Uuid
+      | Cuid
+      | Url
+      | Pattern({re: Js.Re.t})
+    type t = {
+      kind: kind,
+      message: string,
+    }
+  }
+
+  let refinements: t<'value> => array<Refinement.t>
+
   let min: (t<string>, ~message: string=?, int) => t<string>
   let max: (t<string>, ~message: string=?, int) => t<string>
   let length: (t<string>, ~message: string=?, int) => t<string>
@@ -245,17 +263,55 @@ module String: {
 }
 
 module Int: {
+  module Refinement: {
+    type kind =
+      | Min({value: int})
+      | Max({value: int})
+      | Port
+    type t = {
+      kind: kind,
+      message: string,
+    }
+  }
+
+  let refinements: t<'value> => array<Refinement.t>
+
   let min: (t<int>, ~message: string=?, int) => t<int>
   let max: (t<int>, ~message: string=?, int) => t<int>
   let port: (t<int>, ~message: string=?, unit) => t<int>
 }
 
 module Float: {
+  module Refinement: {
+    type kind =
+      | Min({value: float})
+      | Max({value: float})
+    type t = {
+      kind: kind,
+      message: string,
+    }
+  }
+
+  let refinements: t<'value> => array<Refinement.t>
+
   let min: (t<float>, ~message: string=?, float) => t<float>
   let max: (t<float>, ~message: string=?, float) => t<float>
 }
 
 module Array: {
+  module Refinement: {
+    type kind =
+      | Min({length: int})
+      | Max({length: int})
+      | Length({length: int})
+    type t = {
+      kind: kind,
+      message: string,
+    }
+  }
+
+  let refinements: t<'value> => array<Refinement.t>
+
   let min: (t<array<'a>>, ~message: string=?, int) => t<array<'a>>
   let max: (t<array<'a>>, ~message: string=?, int) => t<array<'a>>
   let length: (t<array<'a>>, ~message: string=?, int) => t<array<'a>>
