@@ -22,7 +22,7 @@ module Common = {
       Error({
         code: UnexpectedValue({expected: "123", received: "444"}),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -36,7 +36,7 @@ module Common = {
       Error({
         code: UnexpectedType({expected: "Float Literal (123)", received: "String"}),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -56,7 +56,7 @@ module Common = {
       Error({
         code: UnexpectedValue({expected: "123", received: "444"}),
         operation: Serializing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -71,7 +71,7 @@ test("Formatting of negative number with a decimal point in an error message", t
     Error({
       code: UnexpectedType({expected: "Float Literal (-123.567)", received: "String"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

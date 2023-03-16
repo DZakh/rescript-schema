@@ -8,6 +8,39 @@ var Caml_option = require("rescript/lib/js/caml_option.js");
 var Caml_exceptions = require("rescript/lib/js/caml_exceptions.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
+function fromString(string) {
+  return JSON.stringify(string);
+}
+
+function toArray(path) {
+  if (path === "") {
+    return [];
+  } else {
+    return JSON.parse(path.split("\"][\"").join("\",\""));
+  }
+}
+
+function fromLocation($$location) {
+  return "[" + JSON.stringify($$location) + "]";
+}
+
+function fromArray(array) {
+  var len = array.length;
+  if (len !== 1) {
+    if (len !== 0) {
+      return "[" + array.map(fromString).join("][") + "]";
+    } else {
+      return "";
+    }
+  } else {
+    return "[" + JSON.stringify(array[0]) + "]";
+  }
+}
+
+function concat(path, concatedPath) {
+  return path + concatedPath;
+}
+
 var Exception = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Error.Internal.Exception");
 
 function raise(expected, received, initialPathOpt, param) {
@@ -38,31 +71,25 @@ function raise$1(code) {
 }
 
 function toParseError(internalError) {
-  var path = internalError.p;
-  var tmp = path === "" ? [] : path.split(",");
   return {
           operation: /* Parsing */1,
           code: internalError.c,
-          path: tmp
+          path: internalError.p
         };
 }
 
 function toSerializeError(internalError) {
-  var path = internalError.p;
-  var tmp = path === "" ? [] : path.split(",");
   return {
           operation: /* Serializing */0,
           code: internalError.c,
-          path: tmp
+          path: internalError.p
         };
 }
 
-function prependLocation(error, $$location) {
-  var path = error.p;
-  var tmp = path === "" ? $$location : "" + $$location + "," + path + "";
+function prependPath(error, path) {
   return {
           c: error.c,
-          p: tmp
+          p: path + error.p
         };
 }
 
@@ -74,20 +101,12 @@ function panic$1(param) {
   throw new Error("[rescript-struct] Unreachable");
 }
 
-function prependLocation$1(error, $$location) {
-  return {
-          operation: error.operation,
-          code: error.code,
-          path: [$$location].concat(error.path)
-        };
-}
-
 function raiseCustom(error) {
   throw {
         RE_EXN_ID: Exception,
         _1: {
           c: error.code,
-          p: error.path.toString()
+          p: error.path
         },
         Error: new Error()
       };
@@ -136,11 +155,7 @@ function toReason(nestedLevelOpt, error) {
           var array = reason._0.map(function (error) {
                 var reason = toReason(nestedLevel + 1, error);
                 var nonEmptyPath = error.path;
-                var $$location = nonEmptyPath.length !== 0 ? "Failed at " + (
-                    nonEmptyPath.length !== 0 ? nonEmptyPath.map(function (pathItem) {
-                              return "[" + pathItem + "]";
-                            }).join("") : "root"
-                  ) + ". " : "";
+                var $$location = nonEmptyPath === "" ? "" : "Failed at " + nonEmptyPath + ". ";
                 return "- " + $$location + "" + reason + "";
               });
           var reasons = Array.from(new Set(array));
@@ -157,10 +172,8 @@ function toString(error) {
   var match = error.operation;
   var operation = match ? "parsing" : "serializing";
   var reason = toReason(undefined, error);
-  var path = error.path;
-  var pathText = path.length !== 0 ? path.map(function (pathItem) {
-            return "[" + pathItem + "]";
-          }).join("") : "root";
+  var nonEmptyPath = error.path;
+  var pathText = nonEmptyPath === "" ? "root" : nonEmptyPath;
   return "Failed " + operation + " at " + pathText + ". Reason: " + reason + "";
 }
 
@@ -414,7 +427,7 @@ function validateJsonStruct(_struct) {
               if (e.RE_EXN_ID === Exception) {
                 throw {
                       RE_EXN_ID: Exception,
-                      _1: prependLocation(e._1, fieldName),
+                      _1: prependPath(e._1, "[" + JSON.stringify(fieldName) + "]"),
                       Error: new Error()
                     };
               }
@@ -430,9 +443,10 @@ function validateJsonStruct(_struct) {
                 catch (raw_e){
                   var e = Caml_js_exceptions.internalToOCamlException(raw_e);
                   if (e.RE_EXN_ID === Exception) {
+                    var $$location = i.toString();
                     throw {
                           RE_EXN_ID: Exception,
-                          _1: prependLocation(e._1, i.toString()),
+                          _1: prependPath(e._1, "[" + JSON.stringify($$location) + "]"),
                           Error: new Error()
                         };
                   }
@@ -695,7 +709,7 @@ function parseJsonStringWith(jsonString, struct) {
             TAG: /* OperationFailed */0,
             _0: error._1.message
           },
-          path: []
+          path: ""
         }
       };
     } else {
@@ -1235,30 +1249,27 @@ function classify$1(struct) {
   }
 }
 
-function analyzeDefinition(definition, definerCtx, path, inlinedPath) {
+function analyzeDefinition(definition, definerCtx, path) {
   if (definerCtx.s.has(definition)) {
     if (definition.r) {
       throw new Error("[rescript-struct] " + ("The field \"" + definition.n + "\" is registered multiple times. If you want to duplicate a field, use S.transform instead.") + "");
     }
     definition.p = path;
-    definition.j = inlinedPath;
     definition.r = true;
     return ;
   }
   if (typeof definition === "object" && definition !== null) {
-    definerCtx.p.push(inlinedPath);
+    definerCtx.p.push(path);
     definerCtx.v.push(Array.isArray(definition) ? "[]" : "{}");
     var definitionFieldNames = Object.keys(definition);
     for(var idx = 0 ,idx_finish = definitionFieldNames.length; idx < idx_finish; ++idx){
       var definitionFieldName = definitionFieldNames[idx];
       var fieldDefinition = definition[definitionFieldName];
-      var tmp = path === "" ? definitionFieldName : "" + path + "," + definitionFieldName + "";
-      analyzeDefinition(fieldDefinition, definerCtx, tmp, "" + inlinedPath + "[" + JSON.stringify(definitionFieldName) + "]");
+      analyzeDefinition(fieldDefinition, definerCtx, path + ("[" + JSON.stringify(definitionFieldName) + "]"));
     }
     return ;
   }
   definerCtx.c.push({
-        i: inlinedPath,
         v: definition,
         p: path
       });
@@ -1326,7 +1337,7 @@ function factory$2(definer) {
     s: definerCtx_s
   };
   var definition = definer(definerCtx);
-  analyzeDefinition(definition, definerCtx, "", "");
+  analyzeDefinition(definition, definerCtx, "");
   var serializeTransformationFactory = function (ctx, param) {
     var inliningFieldNameRef = undefined;
     try {
@@ -1336,9 +1347,9 @@ function factory$2(definer) {
       var stringRef = "";
       for(var idx = 0 ,idx_finish = constantDefinitions.length; idx < idx_finish; ++idx){
         var match = constantDefinitions[idx];
-        var inlinedPath = match.i;
-        var content = "r(" + idx.toString() + ",t" + inlinedPath + ")";
-        var condition = "t" + inlinedPath + "!==d[" + idx.toString() + "].v";
+        var path = match.p;
+        var content = "r(" + idx.toString() + ",t" + path + ")";
+        var condition = "t" + path + "!==d[" + idx.toString() + "].v";
         stringRef = stringRef + ("if(" + condition + "){" + content + "}");
       }
       var constants = stringRef;
@@ -1347,7 +1358,7 @@ function factory$2(definer) {
         var fieldDefinition = fieldDefinitions[idx$1];
         var inlinedFieldName = fieldDefinition.i;
         var fieldStruct = fieldDefinition.s;
-        var inlinedPath$1 = fieldDefinition.j;
+        var path$1 = fieldDefinition.p;
         var isRegistered = fieldDefinition.r;
         var inlinedIdx = idx$1.toString();
         var tmp;
@@ -1355,9 +1366,9 @@ function factory$2(definer) {
           var fn = getSerializeOperation(fieldStruct);
           if (fn !== undefined) {
             serializeFnsByFieldDefinitionIdx[inlinedIdx] = fn;
-            tmp = "" + inlinedFieldName + ":(i=" + inlinedIdx + ",s[" + inlinedIdx + "](t" + inlinedPath$1 + ")),";
+            tmp = "" + inlinedFieldName + ":(i=" + inlinedIdx + ",s[" + inlinedIdx + "](t" + path$1 + ")),";
           } else {
-            tmp = "" + inlinedFieldName + ":t" + inlinedPath$1 + ",";
+            tmp = "" + inlinedFieldName + ":t" + path$1 + ",";
           }
         } else {
           inliningFieldNameRef = fieldDefinition.n;
@@ -1378,7 +1389,7 @@ function factory$2(definer) {
                     var path = match.p;
                     tmp = {
                       RE_EXN_ID: Exception,
-                      _1: prependLocation(exn._1, path)
+                      _1: prependPath(exn._1, path)
                     };
                   } else {
                     tmp = exn;
@@ -1393,7 +1404,7 @@ function factory$2(definer) {
                     RE_EXN_ID: Exception,
                     _1: {
                       c: /* MissingSerializer */1,
-                      p: inliningOriginalFieldName
+                      p: "[" + JSON.stringify(inliningOriginalFieldName) + "]"
                     },
                     Error: new Error()
                   };
@@ -1403,7 +1414,7 @@ function factory$2(definer) {
   var parseTransformationFactory = function (ctx, struct) {
     var constantDefinitions = definerCtx_c;
     var inlinedPreparationValues = definerCtx_v;
-    var inlinedPreparationPathes = definerCtx_p;
+    var preparationPathes = definerCtx_p;
     var fieldDefinitions = definerCtx_d;
     var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
     var asyncFieldDefinitions = [];
@@ -1411,8 +1422,8 @@ function factory$2(definer) {
     var withFieldDefinitions = fieldDefinitions.length !== 0;
     var refinement = "if(!(typeof o===\"object\"&&o!==null&&!Array.isArray(o))){u(o)}";
     var stringRef = "var t;";
-    for(var idx = 0 ,idx_finish = inlinedPreparationPathes.length; idx < idx_finish; ++idx){
-      var preparationPath = inlinedPreparationPathes[idx];
+    for(var idx = 0 ,idx_finish = preparationPathes.length; idx < idx_finish; ++idx){
+      var preparationPath = preparationPathes[idx];
       var preparationInlinedValue = inlinedPreparationValues[idx];
       stringRef = stringRef + ("t" + preparationPath + "=" + preparationInlinedValue + ";");
     }
@@ -1424,7 +1435,7 @@ function factory$2(definer) {
         var fieldDefinition = fieldDefinitions[idx$1];
         var inlinedFieldName = fieldDefinition.i;
         var fieldStruct = fieldDefinition.s;
-        var inlinedPath = fieldDefinition.j;
+        var path = fieldDefinition.p;
         var isRegistered = fieldDefinition.r;
         var inlinedIdx = idx$1.toString();
         var parseOperation = getParseOperation(fieldStruct);
@@ -1439,13 +1450,13 @@ function factory$2(definer) {
             stringRef$1 = stringRef$1 + "var a={};";
           }
           if (isRegistered) {
-            stringRef$1 = stringRef$1 + ("t" + inlinedPath + "=undefined;");
+            stringRef$1 = stringRef$1 + ("t" + path + "=undefined;");
           }
           var inlinedDestination = "a[" + asyncFieldDefinitions.length.toString() + "]";
           asyncFieldDefinitions.push(fieldDefinition);
           maybeInlinedDestination = inlinedDestination;
         } else {
-          maybeInlinedDestination = isRegistered ? "t" + inlinedPath + "" : undefined;
+          maybeInlinedDestination = isRegistered ? "t" + path + "" : undefined;
         }
         var match = fieldStruct.i;
         stringRef$1 = stringRef$1 + (
@@ -1486,7 +1497,7 @@ function factory$2(definer) {
     var stringRef$3 = "";
     for(var idx$3 = 0 ,idx_finish$3 = constantDefinitions.length; idx$3 < idx_finish$3; ++idx$3){
       var constantDefinition = constantDefinitions[idx$3];
-      stringRef$3 = stringRef$3 + ("t" + constantDefinition.i + "=d[" + idx$3.toString() + "].v;");
+      stringRef$3 = stringRef$3 + ("t" + constantDefinition.p + "=d[" + idx$3.toString() + "].v;");
     }
     var constants = stringRef$3;
     var returnValue = asyncFieldDefinitions.length === 0 ? "t" : "a.t=t,a";
@@ -1494,7 +1505,7 @@ function factory$2(definer) {
     planSyncTransformation(ctx, new Function("c", "p", "f", "d", "u", "s", "x", "return " + inlinedParseFunction + "")((function (exn, fieldDefinitionIdx) {
                 throw exn.RE_EXN_ID === Exception ? ({
                           RE_EXN_ID: Exception,
-                          _1: prependLocation(exn._1, fieldDefinitions[fieldDefinitionIdx].n)
+                          _1: prependPath(exn._1, "[" + JSON.stringify(fieldDefinitions[fieldDefinitionIdx].n) + "]")
                         }) : exn;
               }), parseFnsByInstructionIdx, definerCtx_f, constantDefinitions, (function (input) {
                 return raiseUnexpectedTypeError(input, struct);
@@ -1512,11 +1523,11 @@ function factory$2(definer) {
     var contentRef = "var y=" + asyncFieldDefinitions.length.toString() + ",t=a.t;";
     for(var idx$4 = 0 ,idx_finish$4 = asyncFieldDefinitions.length; idx$4 < idx_finish$4; ++idx$4){
       var fieldDefinition$2 = asyncFieldDefinitions[idx$4];
-      var inlinedPath$1 = fieldDefinition$2.j;
+      var path$1 = fieldDefinition$2.p;
       var isRegistered$1 = fieldDefinition$2.r;
       var inlinedIdx$1 = idx$4.toString();
       var fieldValueVar = "z";
-      var inlinedFieldValueAssignment = isRegistered$1 ? "t" + inlinedPath$1 + "=" + fieldValueVar + "" : "";
+      var inlinedFieldValueAssignment = isRegistered$1 ? "t" + path$1 + "=" + fieldValueVar + "" : "";
       var inlinedIteration = "if(y--===1){" + ("" + resolveVar + "(t)") + "}";
       var onFieldSuccessInlinedFnContent = "" + inlinedFieldValueAssignment + ";" + inlinedIteration + "";
       var onFieldSuccessInlinedFn = "function(" + fieldValueVar + "){" + onFieldSuccessInlinedFnContent + "}";
@@ -1530,7 +1541,7 @@ function factory$2(definer) {
               if (exn.RE_EXN_ID === Exception) {
                 return {
                         RE_EXN_ID: Exception,
-                        _1: prependLocation(exn._1, asyncFieldDefinitions[asyncFieldDefinitionIdx].n)
+                        _1: prependPath(exn._1, "[" + JSON.stringify(asyncFieldDefinitions[asyncFieldDefinitionIdx].n) + "]")
                       };
               } else {
                 return exn;
@@ -1565,7 +1576,6 @@ function field(definerCtx, fieldName, struct) {
     s: struct,
     i: JSON.stringify(fieldName),
     n: fieldName,
-    j: "",
     p: "",
     r: false
   };
@@ -2228,9 +2238,10 @@ function factory$13(innerStruct) {
                           catch (raw_internalError){
                             var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
                             if (internalError.RE_EXN_ID === Exception) {
+                              var $$location = idx.toString();
                               throw {
                                     RE_EXN_ID: Exception,
-                                    _1: prependLocation(internalError._1, idx.toString()),
+                                    _1: prependPath(internalError._1, "[" + JSON.stringify($$location) + "]"),
                                     Error: new Error()
                                   };
                             }
@@ -2251,10 +2262,17 @@ function factory$13(innerStruct) {
               planAsyncTransformation(ctx, (function (input) {
                       return Promise.all(input.map(function (asyncFn, idx) {
                                       return asyncFn().catch(function (exn) {
-                                                  throw exn.RE_EXN_ID === Exception ? ({
-                                                            RE_EXN_ID: Exception,
-                                                            _1: prependLocation(exn._1, idx.toString())
-                                                          }) : exn;
+                                                  var tmp;
+                                                  if (exn.RE_EXN_ID === Exception) {
+                                                    var $$location = idx.toString();
+                                                    tmp = {
+                                                      RE_EXN_ID: Exception,
+                                                      _1: prependPath(exn._1, "[" + JSON.stringify($$location) + "]")
+                                                    };
+                                                  } else {
+                                                    tmp = exn;
+                                                  }
+                                                  throw tmp;
                                                 });
                                     }));
                     }));
@@ -2273,9 +2291,10 @@ function factory$13(innerStruct) {
                                 catch (raw_internalError){
                                   var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
                                   if (internalError.RE_EXN_ID === Exception) {
+                                    var $$location = idx.toString();
                                     throw {
                                           RE_EXN_ID: Exception,
-                                          _1: prependLocation(internalError._1, idx.toString()),
+                                          _1: prependPath(internalError._1, "[" + JSON.stringify($$location) + "]"),
                                           Error: new Error()
                                         };
                                   }
@@ -2373,7 +2392,7 @@ function factory$14(innerStruct) {
                             if (internalError.RE_EXN_ID === Exception) {
                               throw {
                                     RE_EXN_ID: Exception,
-                                    _1: prependLocation(internalError._1, key),
+                                    _1: prependPath(internalError._1, "[" + JSON.stringify(key) + "]"),
                                     Error: new Error()
                                   };
                             }
@@ -2406,7 +2425,7 @@ function factory$14(innerStruct) {
                                           return asyncFn().catch(function (exn) {
                                                       throw exn.RE_EXN_ID === Exception ? ({
                                                                 RE_EXN_ID: Exception,
-                                                                _1: prependLocation(exn._1, key)
+                                                                _1: prependPath(exn._1, "[" + JSON.stringify(key) + "]")
                                                               }) : exn;
                                                     });
                                         }
@@ -2415,7 +2434,7 @@ function factory$14(innerStruct) {
                                           if (internalError.RE_EXN_ID === Exception) {
                                             throw {
                                                   RE_EXN_ID: Exception,
-                                                  _1: prependLocation(internalError._1, key),
+                                                  _1: prependPath(internalError._1, "[" + JSON.stringify(key) + "]"),
                                                   Error: new Error()
                                                 };
                                           }
@@ -2449,7 +2468,7 @@ function factory$14(innerStruct) {
                                   if (internalError.RE_EXN_ID === Exception) {
                                     throw {
                                           RE_EXN_ID: Exception,
-                                          _1: prependLocation(internalError._1, key),
+                                          _1: prependPath(internalError._1, "[" + JSON.stringify(key) + "]"),
                                           Error: new Error()
                                         };
                                   }
@@ -2599,9 +2618,10 @@ function factory$16(param) {
                         catch (raw_internalError){
                           var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
                           if (internalError.RE_EXN_ID === Exception) {
+                            var $$location = idx.toString();
                             throw {
                                   RE_EXN_ID: Exception,
-                                  _1: prependLocation(internalError._1, idx.toString()),
+                                  _1: prependPath(internalError._1, "[" + JSON.stringify($$location) + "]"),
                                   Error: new Error()
                                 };
                           }
@@ -2629,10 +2649,17 @@ function factory$16(param) {
                 return planAsyncTransformation(ctx, (function (tempArray) {
                               return Promise.all(asyncOps.map(function (originalIdx) {
                                                 return tempArray[originalIdx]().catch(function (exn) {
-                                                            throw exn.RE_EXN_ID === Exception ? ({
-                                                                      RE_EXN_ID: Exception,
-                                                                      _1: prependLocation(exn._1, originalIdx.toString())
-                                                                    }) : exn;
+                                                            var tmp;
+                                                            if (exn.RE_EXN_ID === Exception) {
+                                                              var $$location = originalIdx.toString();
+                                                              tmp = {
+                                                                RE_EXN_ID: Exception,
+                                                                _1: prependPath(exn._1, "[" + JSON.stringify($$location) + "]")
+                                                              };
+                                                            } else {
+                                                              tmp = exn;
+                                                            }
+                                                            throw tmp;
                                                           });
                                               })).then(function (values) {
                                           values.forEach(function (value, idx) {
@@ -2668,9 +2695,10 @@ function factory$16(param) {
                           catch (raw_internalError){
                             var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
                             if (internalError.RE_EXN_ID === Exception) {
+                              var $$location = idx.toString();
                               throw {
                                     RE_EXN_ID: Exception,
-                                    _1: prependLocation(internalError._1, idx.toString()),
+                                    _1: prependPath(internalError._1, "[" + JSON.stringify($$location) + "]"),
                                     Error: new Error()
                                   };
                             }
@@ -2902,8 +2930,15 @@ var Result = {
   mapErrorToString: mapErrorToString
 };
 
+var Path = {
+  empty: "",
+  toArray: toArray,
+  fromArray: fromArray,
+  fromLocation: fromLocation,
+  concat: concat
+};
+
 var $$Error$1 = {
-  prependLocation: prependLocation$1,
   raiseCustom: raiseCustom,
   raise: raise$2,
   toString: toString
@@ -3036,6 +3071,7 @@ var Metadata = {
   set: set
 };
 
+exports.Path = Path;
 exports.$$Error = $$Error$1;
 exports.Raised = Raised;
 exports.never = never;

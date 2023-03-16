@@ -12,7 +12,7 @@ module Common = {
       Error({
         code: UnexpectedType({expected: "Never", received: "Bool"}),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -26,7 +26,7 @@ module Common = {
       Error({
         code: UnexpectedType({expected: "Never", received: "Bool"}),
         operation: Serializing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -47,7 +47,7 @@ module ObjectField = {
       Error({
         code: UnexpectedType({expected: "Never", received: "Option"}),
         operation: Parsing,
-        path: ["oldKey"],
+        path: S.Path.fromArray(["oldKey"]),
       }),
       (),
     )

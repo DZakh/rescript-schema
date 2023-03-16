@@ -20,7 +20,7 @@ module Common = {
       Error({
         code: UnexpectedType({expected: "String", received: "Float"}),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -53,7 +53,7 @@ test("Fails to parse null", t => {
     Error({
       code: UnexpectedType({expected: "Bool", received: "Null"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

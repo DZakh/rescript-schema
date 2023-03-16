@@ -5,7 +5,7 @@ test("OperationFailed error", t => {
     {
       code: OperationFailed("Should be positive"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }->S.Error.toString,
     "Failed parsing at root. Reason: Should be positive",
     (),
@@ -17,7 +17,7 @@ test("Error with Serializing operation", t => {
     {
       code: OperationFailed("Should be positive"),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }->S.Error.toString,
     "Failed serializing at root. Reason: Should be positive",
     (),
@@ -29,9 +29,9 @@ test("Error with path", t => {
     {
       code: OperationFailed("Should be positive"),
       operation: Parsing,
-      path: ["0", "foo"],
+      path: S.Path.fromArray(["0", "foo"]),
     }->S.Error.toString,
-    "Failed parsing at [0][foo]. Reason: Should be positive",
+    `Failed parsing at ["0"]["foo"]. Reason: Should be positive`,
     (),
   )
 })
@@ -41,7 +41,7 @@ test("MissingParser error", t => {
     {
       code: MissingParser,
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }->S.Error.toString,
     "Failed parsing at root. Reason: Struct parser is missing",
     (),
@@ -53,7 +53,7 @@ test("MissingSerializer error", t => {
     {
       code: MissingSerializer,
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }->S.Error.toString,
     "Failed parsing at root. Reason: Struct serializer is missing",
     (),
@@ -65,7 +65,7 @@ test("UnexpectedType error", t => {
     {
       code: UnexpectedType({expected: "String", received: "Bool"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }->S.Error.toString,
     "Failed parsing at root. Reason: Expected String, received Bool",
     (),
@@ -77,7 +77,7 @@ test("UnexpectedAsync error", t => {
     {
       code: UnexpectedAsync,
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }->S.Error.toString,
     "Failed parsing at root. Reason: Encountered unexpected asynchronous transform or refine. Use parseAsyncWith instead of parseWith",
     (),
@@ -89,7 +89,7 @@ test("UnexpectedValue error", t => {
     {
       code: UnexpectedValue({expected: "false", received: "true"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }->S.Error.toString,
     "Failed parsing at root. Reason: Expected false, received true",
     (),
@@ -101,7 +101,7 @@ test("ExcessField error", t => {
     {
       code: ExcessField("unknownKey"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }->S.Error.toString,
     `Failed parsing at root. Reason: Encountered disallowed excess key "unknownKey" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`,
     (),
@@ -113,7 +113,7 @@ test("TupleSize error", t => {
     {
       code: TupleSize({expected: 1, received: 2}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }->S.Error.toString,
     `Failed parsing at root. Reason: Expected Tuple with 1 items, received 2`,
     (),
@@ -127,26 +127,26 @@ test("InvalidUnion error", t => {
         {
           code: UnexpectedValue({expected: `"circle"`, received: `"oval"`}),
           operation: Parsing,
-          path: ["kind"],
+          path: S.Path.fromArray(["kind"]),
         },
         {
           code: UnexpectedValue({expected: `"square"`, received: `"oval"`}),
           operation: Parsing,
-          path: ["kind"],
+          path: S.Path.fromArray(["kind"]),
         },
         {
           code: UnexpectedValue({expected: `"triangle"`, received: `"oval"`}),
           operation: Parsing,
-          path: ["kind"],
+          path: S.Path.fromArray(["kind"]),
         },
       ]),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }->S.Error.toString,
     `Failed parsing at root. Reason: Invalid union with following errors
-- Failed at [kind]. Expected "circle", received "oval"
-- Failed at [kind]. Expected "square", received "oval"
-- Failed at [kind]. Expected "triangle", received "oval"`,
+- Failed at ["kind"]. Expected "circle", received "oval"
+- Failed at ["kind"]. Expected "square", received "oval"
+- Failed at ["kind"]. Expected "triangle", received "oval"`,
     (),
   )
 })
@@ -158,21 +158,21 @@ test("InvalidUnion filters similar reasons", t => {
         {
           code: UnexpectedType({expected: "Object", received: "String"}),
           operation: Parsing,
-          path: [],
+          path: S.Path.empty,
         },
         {
           code: UnexpectedType({expected: "Object", received: "String"}),
           operation: Parsing,
-          path: [],
+          path: S.Path.empty,
         },
         {
           code: UnexpectedType({expected: "Object", received: "String"}),
           operation: Parsing,
-          path: [],
+          path: S.Path.empty,
         },
       ]),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }->S.Error.toString,
     `Failed parsing at root. Reason: Invalid union with following errors
 - Expected Object, received String`,
@@ -189,25 +189,25 @@ test("Nested InvalidUnion error", t => {
             {
               code: UnexpectedType({expected: "Object", received: "String"}),
               operation: Parsing,
-              path: [],
+              path: S.Path.empty,
             },
             {
               code: UnexpectedType({expected: "Object", received: "String"}),
               operation: Parsing,
-              path: [],
+              path: S.Path.empty,
             },
             {
               code: UnexpectedType({expected: "Object", received: "String"}),
               operation: Parsing,
-              path: [],
+              path: S.Path.empty,
             },
           ]),
           operation: Parsing,
-          path: [],
+          path: S.Path.empty,
         },
       ]),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }->S.Error.toString,
     `Failed parsing at root. Reason: Invalid union with following errors
 - Invalid union with following errors
@@ -221,7 +221,7 @@ test("InvalidJsonStruct error", t => {
     {
       code: InvalidJsonStruct({received: "Option"}),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }->S.Error.toString,
     `Failed serializing at root. Reason: The struct Option is not compatible with JSON`,
     (),

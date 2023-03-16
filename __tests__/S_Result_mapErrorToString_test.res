@@ -9,7 +9,7 @@ test("Maps the S.Error.t to text", t => {
     Error({
       code: OperationFailed("Should be positive"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     })->S.Result.mapErrorToString,
     Error("Failed parsing at root. Reason: Should be positive"),
     (),

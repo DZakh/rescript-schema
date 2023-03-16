@@ -20,7 +20,7 @@ module Common = {
       Error({
         code: UnexpectedType({expected: "Bool", received: "String"}),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )

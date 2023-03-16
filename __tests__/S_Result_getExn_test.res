@@ -10,7 +10,7 @@ test("Throws an Error with Error", t => {
       Error({
         code: OperationFailed("Should be positive"),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       })->S.Result.getExn
     },
     ~expectations={

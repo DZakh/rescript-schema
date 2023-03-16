@@ -54,7 +54,7 @@ test("Fails to serialize Option struct", t => {
     Error({
       code: InvalidJsonStruct({received: "Option"}),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -66,7 +66,7 @@ test("Fails to serialize EmptyOption Literal (undefined) struct", t => {
     Error({
       code: InvalidJsonStruct({received: "EmptyOption Literal (undefined)"}),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -78,7 +78,7 @@ test("Fails to serialize NaN Literal (NaN) struct", t => {
     Error({
       code: InvalidJsonStruct({received: "NaN Literal (NaN)"}),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -90,7 +90,7 @@ test("Fails to serialize Unknown struct", t => {
     Error({
       code: InvalidJsonStruct({received: "Unknown"}),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -102,7 +102,7 @@ test("Fails to serialize Never struct", t => {
     Error({
       code: UnexpectedType({expected: "Never", received: "Float"}),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -114,7 +114,7 @@ test("Fails to serialize object with invalid nested struct", t => {
     Error({
       code: InvalidJsonStruct({received: "Unknown"}),
       operation: Serializing,
-      path: ["foo"],
+      path: S.Path.fromArray(["foo"]),
     }),
     (),
   )
@@ -126,7 +126,7 @@ test("Fails to serialize tuple with invalid nested struct", t => {
     Error({
       code: InvalidJsonStruct({received: "Unknown"}),
       operation: Serializing,
-      path: ["0"],
+      path: S.Path.fromArray(["0"]),
     }),
     (),
   )
@@ -140,7 +140,7 @@ test("Fails to serialize union if one of the items is an invalid struct", t => {
     Error({
       code: InvalidJsonStruct({received: "Unknown"}),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

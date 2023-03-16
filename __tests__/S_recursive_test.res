@@ -120,7 +120,7 @@ test("Fails to parse nested recursive object", t => {
     Error({
       code: OperationFailed("Invalid id"),
       operation: Parsing,
-      path: ["Children", "1", "Children", "0", "Id"],
+      path: S.Path.fromArray(["Children", "1", "Children", "0", "Id"]),
     }),
     (),
   )
@@ -154,7 +154,7 @@ test("Fails to serialise nested recursive object", t => {
     Error({
       code: OperationFailed("Invalid id"),
       operation: Serializing,
-      path: ["children", "1", "children", "0", "id"],
+      path: S.Path.fromArray(["children", "1", "children", "0", "id"]),
     }),
     (),
   )

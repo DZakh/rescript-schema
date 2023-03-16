@@ -31,7 +31,7 @@ test("Fails to parse without asyncRefine", t => {
     %raw(`123`)->S.parseAsyncInStepsWith(struct),
     Error({
       S.Error.code: UnexpectedType({expected: "String", received: "Float"}),
-      path: [],
+      path: S.Path.empty,
       operation: Parsing,
     }),
     (),
@@ -58,7 +58,7 @@ asyncTest("Fails to parse with invalidAsyncRefine", t => {
       result,
       Error({
         S.Error.code: OperationFailed("Async user error"),
-        path: [],
+        path: S.Path.empty,
         operation: Parsing,
       }),
       (),
@@ -180,7 +180,7 @@ module Object = {
         Error({
           code: OperationFailed("Async user error"),
           operation: Parsing,
-          path: ["discriminant"],
+          path: S.Path.fromArray(["discriminant"]),
         }),
         (),
       )
@@ -204,7 +204,7 @@ module Object = {
       }->S.parseAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-        path: ["k2"],
+        path: S.Path.fromArray(["k2"]),
         operation: Parsing,
       }),
       (),
@@ -228,7 +228,7 @@ module Object = {
       }->S.parseAsyncInStepsWith(struct),
       Error({
         S.Error.code: OperationFailed("Sync user error"),
-        path: ["k3"],
+        path: S.Path.fromArray(["k3"]),
         operation: Parsing,
       }),
       (),
@@ -309,7 +309,7 @@ module Object = {
         result,
         Error({
           S.Error.code: OperationFailed("Async user error"),
-          path: ["k2"],
+          path: S.Path.fromArray(["k2"]),
           operation: Parsing,
         }),
         (),
@@ -336,7 +336,7 @@ module Tuple = {
       %raw(`[1, true, 3]`)->S.parseAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-        path: ["1"],
+        path: S.Path.fromArray(["1"]),
         operation: Parsing,
       }),
       (),
@@ -354,7 +354,7 @@ module Tuple = {
       [1, 2, 3]->S.parseAsyncInStepsWith(struct),
       Error({
         S.Error.code: OperationFailed("Sync user error"),
-        path: ["1"],
+        path: S.Path.fromArray(["1"]),
         operation: Parsing,
       }),
       (),
@@ -397,7 +397,7 @@ module Tuple = {
         result,
         Error({
           S.Error.code: OperationFailed("Async user error"),
-          path: ["1"],
+          path: S.Path.fromArray(["1"]),
           operation: Parsing,
         }),
         (),
@@ -441,21 +441,21 @@ module Union = {
           S.Error.code: InvalidUnion([
             {
               S.Error.code: UnexpectedType({expected: "Int Literal (1)", received: "Bool"}),
-              path: [],
+              path: S.Path.empty,
               operation: Parsing,
             },
             {
               S.Error.code: UnexpectedType({expected: "Int Literal (2)", received: "Bool"}),
-              path: [],
+              path: S.Path.empty,
               operation: Parsing,
             },
             {
               S.Error.code: UnexpectedType({expected: "Int Literal (3)", received: "Bool"}),
-              path: [],
+              path: S.Path.empty,
               operation: Parsing,
             },
           ]),
-          path: [],
+          path: S.Path.empty,
           operation: Parsing,
         }),
         (),
@@ -506,7 +506,7 @@ module Array = {
       %raw(`[1, 2, true]`)->S.parseAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-        path: ["2"],
+        path: S.Path.fromArray(["2"]),
         operation: Parsing,
       }),
       (),
@@ -553,7 +553,7 @@ module Array = {
         result,
         Error({
           S.Error.code: OperationFailed("Async user error"),
-          path: ["2"],
+          path: S.Path.fromArray(["2"]),
           operation: Parsing,
         }),
         (),
@@ -580,7 +580,7 @@ module Dict = {
       {"k1": 1, "k2": 2, "k3": true}->S.parseAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-        path: ["k3"],
+        path: S.Path.fromArray(["k3"]),
         operation: Parsing,
       }),
       (),
@@ -627,7 +627,7 @@ module Dict = {
         result,
         Error({
           S.Error.code: OperationFailed("Async user error"),
-          path: ["k3"],
+          path: S.Path.fromArray(["k3"]),
           operation: Parsing,
         }),
         (),
@@ -660,7 +660,7 @@ module Null = {
         result,
         Error({
           S.Error.code: OperationFailed("Async user error"),
-          path: [],
+          path: S.Path.empty,
           operation: Parsing,
         }),
         (),
@@ -675,7 +675,7 @@ module Null = {
       true->S.parseAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-        path: [],
+        path: S.Path.empty,
         operation: Parsing,
       }),
       (),
@@ -707,7 +707,7 @@ module Option = {
         result,
         Error({
           S.Error.code: OperationFailed("Async user error"),
-          path: [],
+          path: S.Path.empty,
           operation: Parsing,
         }),
         (),
@@ -722,7 +722,7 @@ module Option = {
       true->S.parseAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-        path: [],
+        path: S.Path.empty,
         operation: Parsing,
       }),
       (),
@@ -754,7 +754,7 @@ module Defaulted = {
         result,
         Error({
           S.Error.code: OperationFailed("Async user error"),
-          path: [],
+          path: S.Path.empty,
           operation: Parsing,
         }),
         (),
@@ -770,7 +770,7 @@ module Defaulted = {
       true->S.parseAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-        path: [],
+        path: S.Path.empty,
         operation: Parsing,
       }),
       (),
@@ -795,7 +795,7 @@ module Json = {
         result,
         Error({
           S.Error.code: OperationFailed("Async user error"),
-          path: [],
+          path: S.Path.empty,
           operation: Parsing,
         }),
         (),
@@ -811,7 +811,7 @@ module Json = {
       "true"->S.parseAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
-        path: [],
+        path: S.Path.empty,
         operation: Parsing,
       }),
       (),

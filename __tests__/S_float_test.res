@@ -20,7 +20,7 @@ module Common = {
       Error({
         code: UnexpectedType({expected: "Float", received: "String"}),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -47,7 +47,7 @@ test("Fails to parse NaN", t => {
     Error({
       code: UnexpectedType({expected: "Float", received: "NaN Literal (NaN)"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

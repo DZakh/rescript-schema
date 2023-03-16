@@ -24,7 +24,7 @@ module Common = {
           received: 1,
         }),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -38,7 +38,7 @@ module Common = {
       Error({
         code: UnexpectedType({expected: "Tuple", received: "String"}),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )

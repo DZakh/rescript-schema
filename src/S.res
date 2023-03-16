@@ -283,63 +283,43 @@ module Stdlib = {
 module Path = {
   type t = string
 
-  @inline
-  let empty = () => ""
-
-  let fromLocation = Obj.magic
+  external toString: t => string = "%identity"
 
   @inline
-  let toArray = (path: t) => {
+  let empty = ""
+
+  let toArray = path => {
     switch path {
     | "" => []
-    | _ => path->Js.String2.split(",")
+    | _ =>
+      path
+      ->Js.String2.split(`"]["`)
+      ->Js.Array2.joinWith(`","`)
+      ->Js.Json.parseExn
+      ->(Obj.magic: Js.Json.t => array<string>)
     }
   }
 
   @inline
-  let fromArray = (array): t => {
-    array->Js.Array2.toString
-  }
+  let fromLocation = location => `[${location->Stdlib.Inlined.Value.fromString}]`
 
-  @inline
-  let toText = path => {
-    switch path {
-    | [] => "root"
-    | _ => path->Js.Array2.map(pathItem => `[${pathItem}]`)->Js.Array2.joinWith("")
+  let fromArray = array => {
+    switch array {
+    | [] => ""
+    | [location] => fromLocation(location)
+    | _ =>
+      "[" ++ array->Js.Array2.map(Stdlib.Inlined.Value.fromString)->Js.Array2.joinWith("][") ++ "]"
     }
   }
 
-  @inline
-  let prependLocation = (path: t, location: string): t =>
-    switch path {
-    | "" => location
-    | _ => `${location},${path}`
-    }
-
-  @inline
-  let appendLocation = (path: t, location: string): t =>
-    switch path {
-    | "" => location
-    | _ => `${path},${location}`
-    }
-
-  module Inlined = {
-    type t = string
-
-    @inline
-    let empty = () => ""
-
-    @inline
-    let appendLocation = (inlinedPath: t, location: string): t =>
-      `${inlinedPath}[${location->Stdlib.Inlined.Value.fromString}]`
-  }
+  let concat = (path, concatedPath) => path ++ concatedPath
 }
 
 module Error = {
   @inline
   let panic = message => Stdlib.Exn.raiseError(Stdlib.Exn.makeError(`[rescript-struct] ${message}`))
 
-  type rec t = {operation: operation, code: code, path: array<string>}
+  type rec t = {operation: operation, code: code, path: Path.t}
   and code =
     | OperationFailed(string)
     | MissingParser
@@ -367,7 +347,7 @@ module Error = {
     exception Exception(t)
 
     module UnexpectedValue = {
-      let raise = (~expected, ~received, ~initialPath=Path.empty(), ()) => {
+      let raise = (~expected, ~received, ~initialPath=Path.empty, ()) => {
         raise(
           Exception({
             code: UnexpectedValue({
@@ -381,36 +361,38 @@ module Error = {
     }
 
     let raise = code => {
-      raise(Exception({code, path: Path.empty()}))
+      raise(Exception({code, path: Path.empty}))
     }
 
     let toParseError = (internalError: t): public => {
       {
         operation: Parsing,
         code: internalError.code,
-        path: internalError.path->Path.toArray,
+        path: internalError.path,
       }
     }
 
     let toSerializeError = (internalError: t): public => {
       operation: Serializing,
       code: internalError.code,
-      path: internalError.path->Path.toArray,
+      path: internalError.path,
     }
 
     @inline
     let fromPublic = (publicError: public): t => {
       code: publicError.code,
-      path: publicError.path->Path.fromArray,
+      path: publicError.path,
     }
 
-    let prependLocation = (error, location) => {
+    let prependPath = (error, path) => {
       {
         ...error,
-        path: error.path->Path.prependLocation(location),
+        path: Path.concat(path, error.path),
       }
     }
-    let prependPath = prependLocation
+    let prependLocation = (error, location) => {
+      error->prependPath(location->Path.fromLocation)
+    }
   }
 
   module MissingParserAndSerializer = {
@@ -421,19 +403,12 @@ module Error = {
     let panic = () => panic("Unreachable")
   }
 
-  let prependLocation = (error, location) => {
-    {
-      ...error,
-      path: [location]->Js.Array2.concat(error.path),
-    }
-  }
-
   let raiseCustom = error => {
     raise(Internal.Exception(error->Internal.fromPublic))
   }
 
   let raise = message => {
-    raise(Internal.Exception({code: OperationFailed(message), path: Path.empty()}))
+    raise(Internal.Exception({code: OperationFailed(message), path: Path.empty}))
   }
 
   let rec toReason = (~nestedLevel=0, error) => {
@@ -457,8 +432,8 @@ module Error = {
           ->Js.Array2.map(error => {
             let reason = error->toReason(~nestedLevel=nestedLevel->Stdlib.Int.plus(1))
             let location = switch error.path {
-            | [] => ""
-            | nonEmptyPath => `Failed at ${nonEmptyPath->Path.toText}. `
+            | "" => ""
+            | nonEmptyPath => `Failed at ${nonEmptyPath}. `
             }
             `- ${location}${reason}`
           })
@@ -474,7 +449,10 @@ module Error = {
     | Parsing => "parsing"
     }
     let reason = error->toReason
-    let pathText = error.path->Path.toText
+    let pathText = switch error.path {
+    | "" => "root"
+    | nonEmptyPath => nonEmptyPath
+    }
     `Failed ${operation} at ${pathText}. Reason: ${reason}`
   }
 }
@@ -1036,7 +1014,7 @@ let parseJsonStringWith = (jsonString: string, struct: t<'value>): result<'value
     Error({
       Error.code: OperationFailed(error->Js.Exn.message->(Obj.magic: option<string> => string)),
       operation: Parsing,
-      path: [],
+      path: Path.empty,
     })
   } {
   | Ok(json) => json->parseJsonWith(struct)
@@ -1578,8 +1556,6 @@ module Object = {
       inlinedFieldName: string,
       @as("n")
       fieldName: string,
-      @as("j")
-      mutable inlinedPath: Path.Inlined.t,
       @as("p")
       mutable path: Path.t,
       @as("r")
@@ -1588,7 +1564,7 @@ module Object = {
   }
 
   module ConstantDefinition = {
-    type t = {@as("i") inlinedPath: string, @as("v") value: unknown, @as("p") path: string}
+    type t = {@as("v") value: unknown, @as("p") path: Path.t}
   }
 
   module DefinerCtx = {
@@ -1601,7 +1577,7 @@ module Object = {
       @as("d")
       fieldDefinitions: array<FieldDefinition.t>,
       @as("p")
-      inlinedPreparationPathes: array<string>,
+      preparationPathes: array<Path.t>,
       @as("v")
       inlinedPreparationValues: array<string>,
       @as("c")
@@ -1615,14 +1591,14 @@ module Object = {
       fieldNames: [],
       fields: Js.Dict.empty(),
       fieldDefinitions: [],
-      inlinedPreparationPathes: [],
+      preparationPathes: [],
       inlinedPreparationValues: [],
       constantDefinitions: [],
       fieldDefinitionsSet: Stdlib.Set.empty(),
     }
   }
 
-  let rec analyzeDefinition = (definition, ~definerCtx: DefinerCtx.t, ~path, ~inlinedPath) => {
+  let rec analyzeDefinition = (definition, ~definerCtx: DefinerCtx.t, ~path) => {
     if (
       definerCtx.fieldDefinitionsSet->Stdlib.Set.has(
         definition->(Obj.magic: unknown => FieldDefinition.t),
@@ -1635,12 +1611,11 @@ module Object = {
         )
       } else {
         fieldDefinition.path = path
-        fieldDefinition.inlinedPath = inlinedPath
         fieldDefinition.isRegistered = true
       }
     } else if definition->Js.typeof === "object" && definition !== %raw(`null`) {
       let definition: Js.Dict.t<unknown> = definition->Obj.magic
-      definerCtx.inlinedPreparationPathes->Js.Array2.push(inlinedPath)->ignore
+      definerCtx.preparationPathes->Js.Array2.push(path)->ignore
       definerCtx.inlinedPreparationValues
       ->Js.Array2.push(Js.Array2.isArray(definition) ? "[]" : "{}")
       ->ignore
@@ -1650,14 +1625,12 @@ module Object = {
         let fieldDefinition = definition->Js.Dict.unsafeGet(definitionFieldName)
         fieldDefinition->analyzeDefinition(
           ~definerCtx,
-          ~path=path->Path.appendLocation(definitionFieldName),
-          ~inlinedPath=inlinedPath->Path.Inlined.appendLocation(definitionFieldName),
+          ~path=path->Path.concat(definitionFieldName->Path.fromLocation),
         )
       }
     } else {
       definerCtx.constantDefinitions
       ->Js.Array2.push({
-        inlinedPath,
         path,
         value: definition,
       })
@@ -1702,7 +1675,7 @@ module Object = {
           fieldDefinitions,
           fields,
           inlinedPreparationValues,
-          inlinedPreparationPathes,
+          preparationPathes,
           constantDefinitions,
         } = instructions
 
@@ -1720,8 +1693,8 @@ module Object = {
 
           let preparation = {
             let stringRef = ref(`var ${Var.transformedObject};`)
-            for idx in 0 to inlinedPreparationPathes->Js.Array2.length - 1 {
-              let preparationPath = inlinedPreparationPathes->Js.Array2.unsafe_get(idx)
+            for idx in 0 to preparationPathes->Js.Array2.length - 1 {
+              let preparationPath = preparationPathes->Js.Array2.unsafe_get(idx)
               let preparationInlinedValue = inlinedPreparationValues->Js.Array2.unsafe_get(idx)
               stringRef.contents =
                 stringRef.contents ++
@@ -1736,7 +1709,7 @@ module Object = {
                   let stringRef = ref("")
                   for idx in 0 to fieldDefinitions->Js.Array2.length - 1 {
                     let fieldDefinition = fieldDefinitions->Js.Array2.unsafe_get(idx)
-                    let {fieldStruct, inlinedFieldName, isRegistered, inlinedPath} = fieldDefinition
+                    let {fieldStruct, inlinedFieldName, isRegistered, path} = fieldDefinition
 
                     let inlinedIdx = idx->Js.Int.toString
                     let parseOperation = fieldStruct->getParseOperation
@@ -1760,7 +1733,7 @@ module Object = {
 
                       if isRegistered {
                         stringRef.contents =
-                          stringRef.contents ++ `${Var.transformedObject}${inlinedPath}=undefined;`
+                          stringRef.contents ++ `${Var.transformedObject}${path}=undefined;`
                       }
 
                       let inlinedDestination = `${Var.asyncTransformedObject}[${asyncFieldDefinitions
@@ -1771,7 +1744,7 @@ module Object = {
 
                       Some(inlinedDestination)
                     } else if isRegistered {
-                      Some(`${Var.transformedObject}${inlinedPath}`)
+                      Some(`${Var.transformedObject}${path}`)
                     } else {
                       None
                     }
@@ -1833,7 +1806,7 @@ module Object = {
               let constantDefinition = constantDefinitions->Js.Array2.unsafe_get(idx)
               stringRef.contents =
                 stringRef.contents ++
-                `${Var.transformedObject}${constantDefinition.inlinedPath}=${Var.constantDefinitions}[${idx->Js.Int.toString}].v;`
+                `${Var.transformedObject}${constantDefinition.path}=${Var.constantDefinitions}[${idx->Js.Int.toString}].v;`
             }
             stringRef.contents
           }
@@ -1895,7 +1868,7 @@ module Object = {
               )
               for idx in 0 to asyncFieldDefinitions->Js.Array2.length - 1 {
                 let fieldDefinition = asyncFieldDefinitions->Js.Array2.unsafe_get(idx)
-                let {isRegistered, inlinedPath} = fieldDefinition
+                let {isRegistered, path} = fieldDefinition
 
                 let inlinedIdx = idx->Js.Int.toString
 
@@ -1903,7 +1876,7 @@ module Object = {
                   let fieldValueVar = "z"
                   let inlinedFieldValueAssignment = switch isRegistered {
                   | false => ""
-                  | true => `${Var.transformedObject}${inlinedPath}=${fieldValueVar}`
+                  | true => `${Var.transformedObject}${path}=${fieldValueVar}`
                   }
                   let inlinedIteration = Stdlib.Inlined.If.make(
                     ~condition=`${Var.asyncFieldsCounter}--===1`,
@@ -2030,12 +2003,12 @@ module Object = {
             let constants = {
               let stringRef = ref("")
               for idx in 0 to constantDefinitions->Js.Array2.length - 1 {
-                let {inlinedPath} = constantDefinitions->Js.Array2.unsafe_get(idx)
+                let {path} = constantDefinitions->Js.Array2.unsafe_get(idx)
                 stringRef.contents =
                   stringRef.contents ++
                   Stdlib.Inlined.If.make(
-                    ~condition=`${Var.transformedObject}${inlinedPath}!==${Var.constantDefinitions}[${idx->Js.Int.toString}].v`,
-                    ~content=`${Var.raiseDiscriminantError}(${idx->Js.Int.toString},${Var.transformedObject}${inlinedPath})`,
+                    ~condition=`${Var.transformedObject}${path}!==${Var.constantDefinitions}[${idx->Js.Int.toString}].v`,
+                    ~content=`${Var.raiseDiscriminantError}(${idx->Js.Int.toString},${Var.transformedObject}${path})`,
                   )
               }
               stringRef.contents
@@ -2050,7 +2023,7 @@ module Object = {
                     fieldStruct,
                     inlinedFieldName,
                     isRegistered,
-                    inlinedPath,
+                    path,
                     fieldName,
                   } = fieldDefinition
                   let inlinedIdx = idx->Js.Int.toString
@@ -2059,11 +2032,11 @@ module Object = {
                     switch isRegistered {
                     | true =>
                       switch fieldStruct->getSerializeOperation {
-                      | None => `${inlinedFieldName}:${Var.transformedObject}${inlinedPath},`
+                      | None => `${inlinedFieldName}:${Var.transformedObject}${path},`
                       | Some(fn) => {
                           serializeFnsByFieldDefinitionIdx->Js.Dict.set(inlinedIdx, fn)
 
-                          `${inlinedFieldName}:(${Var.fieldDefinitionIdx}=${inlinedIdx},${Var.serializeFnsByFieldDefinitionIdx}[${inlinedIdx}](${Var.transformedObject}${inlinedPath})),`
+                          `${inlinedFieldName}:(${Var.fieldDefinitionIdx}=${inlinedIdx},${Var.serializeFnsByFieldDefinitionIdx}[${inlinedIdx}](${Var.transformedObject}${path})),`
                         }
                       }
 
@@ -2139,11 +2112,7 @@ module Object = {
     let instructions = {
       let definerCtx = DefinerCtx.make()
       let definition = definer->Stdlib.Fn.call1(definerCtx)->castAnyToUnknown
-      definition->analyzeDefinition(
-        ~definerCtx,
-        ~path=Path.empty(),
-        ~inlinedPath=Path.Inlined.empty(),
-      )
+      definition->analyzeDefinition(~definerCtx, ~path=Path.empty)
       definerCtx
     }
 
@@ -2171,8 +2140,7 @@ module Object = {
           fieldStruct: struct,
           fieldName,
           inlinedFieldName: fieldName->Stdlib.Inlined.Value.fromString,
-          inlinedPath: Path.Inlined.empty(),
-          path: Path.empty(),
+          path: Path.empty,
           isRegistered: false,
         }
         definerCtx.fields->Js.Dict.set(fieldName, struct)

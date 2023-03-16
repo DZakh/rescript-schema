@@ -1,5 +1,21 @@
+module Path: {
+  type t
+
+  let empty: t
+
+  external toString: t => string = "%identity"
+
+  let toArray: t => array<string>
+
+  let fromArray: array<string> => t
+
+  let fromLocation: string => t
+
+  let concat: (t, t) => t
+}
+
 module Error: {
-  type rec t = {operation: operation, code: code, path: array<string>}
+  type rec t = {operation: operation, code: code, path: Path.t}
   and code =
     | OperationFailed(string)
     | MissingParser
@@ -14,8 +30,6 @@ module Error: {
   and operation =
     | Serializing
     | Parsing
-
-  let prependLocation: (t, string) => t
 
   let raiseCustom: t => 'a
 

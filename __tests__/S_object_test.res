@@ -25,7 +25,7 @@ test("Fails to parse object with inlinable string field", t => {
     Error({
       code: UnexpectedType({expected: "String", received: "Float"}),
       operation: Parsing,
-      path: ["field"],
+      path: S.Path.fromArray(["field"]),
     }),
     (),
   )
@@ -53,7 +53,7 @@ test("Fails to parse object with inlinable bool field", t => {
     Error({
       code: UnexpectedType({expected: "Bool", received: "Float"}),
       operation: Parsing,
-      path: ["field"],
+      path: S.Path.fromArray(["field"]),
     }),
     (),
   )
@@ -99,7 +99,7 @@ test("Fails to parse object with inlinable never field", t => {
     Error({
       code: UnexpectedType({expected: "Never", received: "Bool"}),
       operation: Parsing,
-      path: ["field"],
+      path: S.Path.fromArray(["field"]),
     }),
     (),
   )
@@ -127,7 +127,7 @@ test("Fails to parse object with inlinable float field", t => {
     Error({
       code: UnexpectedType({expected: "Float", received: "Bool"}),
       operation: Parsing,
-      path: ["field"],
+      path: S.Path.fromArray(["field"]),
     }),
     (),
   )
@@ -155,7 +155,7 @@ test("Fails to parse object with inlinable int field", t => {
     Error({
       code: UnexpectedType({expected: "Int", received: "Bool"}),
       operation: Parsing,
-      path: ["field"],
+      path: S.Path.fromArray(["field"]),
     }),
     (),
   )
@@ -183,7 +183,7 @@ test("Fails to parse object with not inlinable empty object field", t => {
     Error({
       code: UnexpectedType({expected: "Object", received: "Bool"}),
       operation: Parsing,
-      path: ["field"],
+      path: S.Path.fromArray(["field"]),
     }),
     (),
   )
@@ -201,7 +201,7 @@ test("Fails to parse object when provided invalid data", t => {
     Error({
       code: UnexpectedType({expected: "Object", received: "Float"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -263,19 +263,19 @@ test("Successfully parses object with transformed field", t => {
 test("Fails to parse object when transformed field has raises error", t => {
   let struct = S.object(o =>
     {
-      "string": o->S.field(
-        "string",
+      "field": o->S.field(
+        "field",
         S.string()->S.transform(~parser=_ => S.Error.raise("User error"), ()),
       ),
     }
   )
 
   t->Assert.deepEqual(
-    {"string": "bar"}->S.parseWith(struct),
+    {"field": "bar"}->S.parseWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Parsing,
-      path: ["string"],
+      path: S.Path.fromArray(["field"]),
     }),
     (),
   )
@@ -296,7 +296,7 @@ test("Shows transformed object field name in error path when fails to parse", t 
     Error({
       code: OperationFailed("User error"),
       operation: Parsing,
-      path: ["originalFieldName"],
+      path: S.Path.fromArray(["originalFieldName"]),
     }),
     (),
   )
@@ -322,19 +322,19 @@ test("Successfully serializes object with transformed field", t => {
 test("Fails to serializes object when transformed field has raises error", t => {
   let struct = S.object(o =>
     {
-      "string": o->S.field(
-        "string",
+      "field": o->S.field(
+        "field",
         S.string()->S.transform(~serializer=_ => S.Error.raise("User error"), ()),
       ),
     }
   )
 
   t->Assert.deepEqual(
-    {"string": "bar"}->S.serializeWith(struct),
+    {"field": "bar"}->S.serializeWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
-      path: ["string"],
+      path: S.Path.fromArray(["field"]),
     }),
     (),
   )
@@ -355,7 +355,7 @@ test("Shows transformed object field name in error path when fails to serializes
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
-      path: ["transformedFieldName"],
+      path: S.Path.fromArray(["transformedFieldName"]),
     }),
     (),
   )
@@ -382,7 +382,7 @@ test("Shows transformed to nested object field name in error path when fails to 
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
-      path: ["v1", "transformedFieldName"],
+      path: S.Path.fromArray(["v1", "transformedFieldName"]),
     }),
     (),
   )

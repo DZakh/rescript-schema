@@ -8,7 +8,7 @@ test("Fails to parse using parseWith", t => {
     Error({
       code: UnexpectedAsync,
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -38,7 +38,7 @@ asyncTest("Fails to parse with user error", t => {
       result,
       Error({
         S.Error.code: OperationFailed("User error"),
-        path: [],
+        path: S.Path.empty,
         operation: Parsing,
       }),
       (),

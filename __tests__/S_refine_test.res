@@ -12,7 +12,7 @@ test("Refined primitive returns an error when parsed", t => {
     Error({
       code: OperationFailed("Should be positive"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

@@ -230,7 +230,11 @@ module Negative = {
 
         t->Assert.deepEqual(
           {"field": "bar"}->S.serializeWith(struct),
-          Error({code: MissingSerializer, operation: Serializing, path: ["discriminant"]}),
+          Error({
+            code: MissingSerializer,
+            operation: Serializing,
+            path: S.Path.fromArray(["discriminant"]),
+          }),
           (),
         )
       },
@@ -254,7 +258,7 @@ test(`Fails to parse object with invalid data passed to discriminant field`, t =
     Error({
       code: UnexpectedType({expected: "String", received: "Bool"}),
       operation: Parsing,
-      path: ["discriminant"],
+      path: S.Path.fromArray(["discriminant"]),
     }),
     (),
   )
@@ -270,7 +274,11 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
 
   t->Assert.deepEqual(
     {"field": "bar"}->S.serializeWith(struct),
-    Error({code: MissingSerializer, operation: Serializing, path: ["discriminant"]}),
+    Error({
+      code: MissingSerializer,
+      operation: Serializing,
+      path: S.Path.fromArray(["discriminant"]),
+    }),
     (),
   )
 })

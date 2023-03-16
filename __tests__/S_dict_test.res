@@ -27,7 +27,7 @@ module CommonWithNested = {
       Error({
         code: UnexpectedType({expected: "Dict", received: "Bool"}),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -41,7 +41,7 @@ module CommonWithNested = {
       Error({
         code: UnexpectedType({expected: "String", received: "Bool"}),
         operation: Parsing,
-        path: ["key2"],
+        path: S.Path.fromArray(["key2"]),
       }),
       (),
     )

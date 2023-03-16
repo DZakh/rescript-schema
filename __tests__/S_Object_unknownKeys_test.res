@@ -22,7 +22,7 @@ test("Fails fast and shows only one excees key in the error message", t => {
     Error({
       code: ExcessField("unknownKey"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -66,7 +66,7 @@ test("Can reset unknown keys strategy applying Strict strategy", t => {
     Error({
       code: ExcessField("unknownKey"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
