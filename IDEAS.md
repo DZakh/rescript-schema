@@ -1,16 +1,27 @@
 # Ideas draft
 
-- Document utility functions
+- Change:
 
-- Try using strings for object field definitions (check performance)
+  - S.parseWith -> S.parseAnyWith
+  - S.parseOrRaiseWith -> Make it accept Js.Json.t
+  - S.parseJsonWith -> S.parseWith
+  - S.parseJsonStringWith -> S.parseJsonWith
+  - S.serializeWith -> S.serializeAnyWith
+  - S.serializeOrRaiseWith -> Make it return Js.Json.t
+  - S.serializeToJsonWith -> S.serializeWith
+  - S.serializeToJsonStringWith -> S.serializeJsonWith
+
+- Document utility functions
 
 - Clean up Caml_option.some
 
 - Deprecate S.advancedTransform/S.asyncRefine in favor of S.transform/S.refine with updated API (???)
 
 - Error
+
   - Add quotes to the path (so it's more convenient to copy-paste to console)
   - Rename toString to toText (Is it needed?)
+
 - Add S.description
 
 - Add S.inline
