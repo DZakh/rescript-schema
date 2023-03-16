@@ -31,7 +31,7 @@ test("Error with path", t => {
       operation: Parsing,
       path: ["0", "foo"],
     }->S.Error.toString,
-    "Failed parsing at [0][foo]. Reason: Should be positive",
+    `Failed parsing at ["0"]["foo"]. Reason: Should be positive`,
     (),
   )
 })
@@ -144,9 +144,9 @@ test("InvalidUnion error", t => {
       path: [],
     }->S.Error.toString,
     `Failed parsing at root. Reason: Invalid union with following errors
-- Failed at [kind]. Expected "circle", received "oval"
-- Failed at [kind]. Expected "square", received "oval"
-- Failed at [kind]. Expected "triangle", received "oval"`,
+- Failed at ["kind"]. Expected "circle", received "oval"
+- Failed at ["kind"]. Expected "square", received "oval"
+- Failed at ["kind"]. Expected "triangle", received "oval"`,
     (),
   )
 })

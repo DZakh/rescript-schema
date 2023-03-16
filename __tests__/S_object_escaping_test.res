@@ -244,3 +244,24 @@ test("Has proper error path when fails to serialize object with quotes in a fiel
     (),
   )
 })
+
+test("Field names with commas are splitted in the error path", t => {
+  let struct = S.object(o =>
+    {
+      "field": o->S.field(
+        "abc,def",
+        S.string()->S.refine(~parser=_ => S.Error.raise("User error"), ()),
+      ),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{"abc,def": "foo"}`)->S.parseWith(struct),
+    Error({
+      code: OperationFailed("User error"),
+      operation: Parsing,
+      path: ["abc", "def"],
+    }),
+    (),
+  )
+})

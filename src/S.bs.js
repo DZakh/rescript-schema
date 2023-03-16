@@ -138,7 +138,7 @@ function toReason(nestedLevelOpt, error) {
                 var nonEmptyPath = error.path;
                 var $$location = nonEmptyPath.length !== 0 ? "Failed at " + (
                     nonEmptyPath.length !== 0 ? nonEmptyPath.map(function (pathItem) {
-                              return "[" + pathItem + "]";
+                              return "[\"" + pathItem + "\"]";
                             }).join("") : "root"
                   ) + ". " : "";
                 return "- " + $$location + "" + reason + "";
@@ -159,7 +159,7 @@ function toString(error) {
   var reason = toReason(undefined, error);
   var path = error.path;
   var pathText = path.length !== 0 ? path.map(function (pathItem) {
-            return "[" + pathItem + "]";
+            return "[\"" + pathItem + "\"]";
           }).join("") : "root";
   return "Failed " + operation + " at " + pathText + ". Reason: " + reason + "";
 }

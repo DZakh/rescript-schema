@@ -305,7 +305,7 @@ module Path = {
   let toText = path => {
     switch path {
     | [] => "root"
-    | _ => path->Js.Array2.map(pathItem => `[${pathItem}]`)->Js.Array2.joinWith("")
+    | _ => path->Js.Array2.map(pathItem => `["${pathItem}"]`)->Js.Array2.joinWith("")
     }
   }
 
