@@ -116,21 +116,21 @@ module Advanced = {
           {
             code: UnexpectedValue({expected: `"circle"`, received: `"oval"`}),
             operation: Parsing,
-            path: ["kind"],
+            path: S.Path.fromArray(["kind"]),
           },
           {
             code: UnexpectedValue({expected: `"square"`, received: `"oval"`}),
             operation: Parsing,
-            path: ["kind"],
+            path: S.Path.fromArray(["kind"]),
           },
           {
             code: UnexpectedValue({expected: `"triangle"`, received: `"oval"`}),
             operation: Parsing,
-            path: ["kind"],
+            path: S.Path.fromArray(["kind"]),
           },
         ]),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -144,21 +144,21 @@ module Advanced = {
           {
             code: UnexpectedType({expected: "Object", received: "String"}),
             operation: Parsing,
-            path: [],
+            path: S.Path.empty,
           },
           {
             code: UnexpectedType({expected: "Object", received: "String"}),
             operation: Parsing,
-            path: [],
+            path: S.Path.empty,
           },
           {
             code: UnexpectedType({expected: "Object", received: "String"}),
             operation: Parsing,
-            path: [],
+            path: S.Path.empty,
           },
         ]),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -187,16 +187,16 @@ module Advanced = {
           {
             code: UnexpectedValue({expected: "0", received: "2"}),
             operation: Serializing,
-            path: ["TAG"],
+            path: S.Path.fromArray(["TAG"]),
           },
           {
             code: UnexpectedValue({expected: "1", received: "2"}),
             operation: Serializing,
-            path: ["TAG"],
+            path: S.Path.fromArray(["TAG"]),
           },
         ]),
         operation: Serializing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )

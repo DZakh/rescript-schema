@@ -20,7 +20,7 @@ test("Fails to parse JSON", t => {
     Error({
       code: OperationFailed("Unexpected token , in JSON at position 3"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -34,7 +34,7 @@ test("Fails to parse", t => {
     Error({
       code: UnexpectedType({expected: "Bool", received: "Float"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

@@ -22,7 +22,7 @@ module Common = {
       Error({
         code: UnexpectedValue({expected: "false", received: "true"}),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -36,7 +36,7 @@ module Common = {
       Error({
         code: UnexpectedType({expected: "Bool Literal (false)", received: "String"}),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -56,7 +56,7 @@ module Common = {
       Error({
         code: UnexpectedValue({expected: "false", received: "true"}),
         operation: Serializing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )

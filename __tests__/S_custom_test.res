@@ -38,7 +38,7 @@ test("Correctly parses custom struct", t => {
     Error({
       code: UnexpectedType({expected: "String", received: "Float"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -65,7 +65,7 @@ test("Fails to serialize with user error", t => {
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

@@ -35,7 +35,7 @@ test("Fails to parse data with default", t => {
     Error({
       code: UnexpectedType({expected: "Bool", received: "String"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

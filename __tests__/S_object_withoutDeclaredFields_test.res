@@ -26,7 +26,7 @@ test("Fails to parse object with excess keys when UnknownKeys are strict", t => 
     Error({
       code: ExcessField("field"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -54,7 +54,7 @@ test("Fails to parse array data", t => {
     Error({
       code: UnexpectedType({expected: "Object", received: "Array"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

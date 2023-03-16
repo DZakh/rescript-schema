@@ -31,7 +31,7 @@ test("Fails to parse primitive with transform when parser isn't provided", t => 
     "Hello world!"->S.parseWith(struct),
     Error({
       code: MissingParser,
-      path: [],
+      path: S.Path.empty,
       operation: Parsing,
     }),
     (),
@@ -46,7 +46,7 @@ test("Fails to parse when user raises error in a Transformed Primitive parser", 
     Error({
       code: OperationFailed("User error"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -72,7 +72,7 @@ test("Transformed Primitive serializing fails when serializer isn't provided", t
     Error({
       code: MissingSerializer,
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -86,7 +86,7 @@ test("Fails to serialize when user raises error in a Transformed Primitive seria
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -103,7 +103,7 @@ test("Transform operations applyed in the right order when parsing", t => {
     Error({
       code: OperationFailed("First transform"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -120,7 +120,7 @@ test("Transform operations applyed in the right order when serializing", t => {
     Error({
       code: OperationFailed("Second transform"),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

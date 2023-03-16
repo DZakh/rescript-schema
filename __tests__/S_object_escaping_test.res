@@ -218,7 +218,7 @@ test("Has proper error path when fails to parse object with quotes in a field na
     Error({
       code: OperationFailed("User error"),
       operation: Parsing,
-      path: ["\"\'\`"],
+      path: S.Path.fromArray(["\"\'\`"]),
     }),
     (),
   )
@@ -239,28 +239,25 @@ test("Has proper error path when fails to serialize object with quotes in a fiel
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
-      path: ["\"\'\`"],
+      path: S.Path.fromArray(["\"\'\`"]),
     }),
     (),
   )
 })
 
-test("Field names with commas are splitted in the error path", t => {
+test("Field name in a format of a path is handled properly", t => {
   let struct = S.object(o =>
     {
-      "field": o->S.field(
-        "abc,def",
-        S.string()->S.refine(~parser=_ => S.Error.raise("User error"), ()),
-      ),
+      "field": o->S.field(`["abc"]["cde"]`, S.string()),
     }
   )
 
   t->Assert.deepEqual(
-    %raw(`{"abc,def": "foo"}`)->S.parseWith(struct),
+    %raw(`{"bar": "foo"}`)->S.parseWith(struct),
     Error({
-      code: OperationFailed("User error"),
+      code: UnexpectedType({expected: "String", received: "Option"}),
       operation: Parsing,
-      path: ["abc", "def"],
+      path: S.Path.fromArray([`["abc"]["cde"]`]),
     }),
     (),
   )

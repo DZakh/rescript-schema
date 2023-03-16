@@ -14,7 +14,7 @@ test("Fails to parse invalid JSON", t => {
     Error({
       code: OperationFailed("Unexpected token u in JSON at position 0"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

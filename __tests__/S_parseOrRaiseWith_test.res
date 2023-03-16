@@ -27,7 +27,7 @@ test("Fails to parse", t => {
     Some({
       code: UnexpectedType({expected: "Bool", received: "Float"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

@@ -20,7 +20,7 @@ module Common = {
       Error({
         code: UnexpectedType({expected: "Int", received: "Float"}),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -41,7 +41,7 @@ test("Fails to parse int when JSON is a number bigger than +2^31", t => {
     Error({
       code: UnexpectedType({expected: "Int", received: "Float"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -56,7 +56,7 @@ test("Fails to parse int when JSON is a number lower than -2^31", t => {
     Error({
       code: UnexpectedType({expected: "Int", received: "Float"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -71,7 +71,7 @@ test("Fails to parse NaN", t => {
     Error({
       code: UnexpectedType({expected: "Int", received: "NaN Literal (NaN)"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

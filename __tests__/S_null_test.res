@@ -20,7 +20,7 @@ module Common = {
       Error({
         code: UnexpectedType({expected: "String", received: "Float"}),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -47,7 +47,7 @@ test("Fails to parse JS undefined", t => {
     Error({
       code: UnexpectedType({expected: "Bool", received: "Option"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -61,7 +61,7 @@ test("Fails to parse object with missing field that marked as null", t => {
     Error({
       code: UnexpectedType({expected: "String", received: "Option"}),
       operation: Parsing,
-      path: ["nullableField"],
+      path: S.Path.fromArray(["nullableField"]),
     }),
     (),
   )
@@ -75,7 +75,7 @@ test("Fails to parse JS null when struct doesn't allow optional data", t => {
     Error({
       code: UnexpectedType({expected: "Bool", received: "Null"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

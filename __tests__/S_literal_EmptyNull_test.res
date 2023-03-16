@@ -21,7 +21,7 @@ module Common = {
       Error({
         code: UnexpectedType({expected: "EmptyNull Literal (null)", received: "String"}),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -41,7 +41,7 @@ module Common = {
       Error({
         code: UnexpectedValue({expected: "undefined", received: "123"}),
         operation: Serializing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )

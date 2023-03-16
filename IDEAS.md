@@ -17,8 +17,6 @@
 
 - Deprecate S.advancedTransform/S.asyncRefine in favor of S.transform/S.refine with updated API (???)
 
-- Rename Error.toString to Error.toText (Is it needed???)
-
 - Add S.description
 
 - Add S.inline

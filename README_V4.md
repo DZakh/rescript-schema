@@ -407,7 +407,7 @@ let struct = S.object(_ => ())->S.Object.strict
 Error({
   code: ExcessField("someField"),
   operation: Parsing,
-  path: [],
+  path: S.Path.empty,
 })
 ```
 
@@ -602,7 +602,7 @@ let struct = S.never()
 Error({
   code: UnexpectedType({expected: "Never", received: "Option"}),
   operation: Parsing,
-  path: [],
+  path: S.Path.empty,
 })
 ```
 
@@ -671,7 +671,7 @@ Ok(None)
 Error({
   code: UnexpectedType({expected: "String", received: "Float"}),
   operation: Parsing,
-  path: [],
+  path: S.Path.empty,
 })
 ```
 
@@ -1072,7 +1072,7 @@ true->S.parseWith(struct)
 Error({
   code: UnexpectedValue({expected: "false", received: "true"}),
   operation: Parsing,
-  path: [],
+  path: S.Path.empty,
 })
 ```
 
@@ -1084,7 +1084,7 @@ Error({
 {
   code: UnexpectedValue({expected: "false", received: "true"}),
   operation: Parsing,
-  path: [],
+  path: S.Path.empty,
 }->S.Error.toString
 ```
 
@@ -1103,12 +1103,6 @@ A function to exit with failure during refinements and transforms.
 `S.Error.t => 'a`
 
 A function to exit with failure during refinements and transforms.
-
-#### **`S.Error.prependLocation`** _Advanced_
-
-`(S.Error.t, string) => S.Error.t`
-
-A function to add location to the error path field.
 
 ### Result helpers
 

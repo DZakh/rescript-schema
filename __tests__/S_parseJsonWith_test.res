@@ -22,7 +22,7 @@ test("Fails to parse", t => {
     Error({
       code: UnexpectedType({expected: "Bool", received: "Float"}),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

@@ -22,7 +22,7 @@ module Common = {
       Error({
         code: UnexpectedValue({expected: `"ReScript is Great!"`, received: `"Hello world!"`}),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -36,7 +36,7 @@ module Common = {
       Error({
         code: UnexpectedType({expected: `String Literal ("ReScript is Great!")`, received: "Bool"}),
         operation: Parsing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )
@@ -56,7 +56,7 @@ module Common = {
       Error({
         code: UnexpectedValue({expected: `"ReScript is Great!"`, received: `"Hello world!"`}),
         operation: Serializing,
-        path: [],
+        path: S.Path.empty,
       }),
       (),
     )

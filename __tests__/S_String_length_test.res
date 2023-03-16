@@ -14,7 +14,7 @@ test("Fails to parse invalid data", t => {
     Error({
       code: OperationFailed("String must be exactly 1 characters long"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -23,7 +23,7 @@ test("Fails to parse invalid data", t => {
     Error({
       code: OperationFailed("String must be exactly 1 characters long"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -43,7 +43,7 @@ test("Fails to serialize invalid value", t => {
     Error({
       code: OperationFailed("String must be exactly 1 characters long"),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -52,7 +52,7 @@ test("Fails to serialize invalid value", t => {
     Error({
       code: OperationFailed("String must be exactly 1 characters long"),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -66,7 +66,7 @@ test("Returns custom error message", t => {
     Error({
       code: OperationFailed("Custom"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )

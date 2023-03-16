@@ -37,7 +37,7 @@ test("Fails to parse when user raises error in parser", t => {
     Error({
       code: OperationFailed("User error"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -61,7 +61,7 @@ test("Fails to serialize when user raises error in serializer", t => {
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -81,7 +81,7 @@ test("Transform operations applyed in the right order when parsing", t => {
     Error({
       code: OperationFailed("First transform"),
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -104,7 +104,7 @@ test("Transform operations applyed in the right order when serializing", t => {
     Error({
       code: OperationFailed("Second transform"),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -122,7 +122,7 @@ test("Fails to parse async using parseWith", t => {
     Error({
       code: UnexpectedAsync,
       operation: Parsing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
@@ -156,7 +156,7 @@ asyncTest("Fails to parse async with user error", t => {
       result,
       Error({
         S.Error.code: OperationFailed("User error"),
-        path: [],
+        path: S.Path.empty,
         operation: Parsing,
       }),
       (),

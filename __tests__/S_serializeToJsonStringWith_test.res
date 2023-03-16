@@ -51,7 +51,7 @@ test("Fails to serialize Unknown struct", t => {
     Error({
       code: InvalidJsonStruct({received: "Unknown"}),
       operation: Serializing,
-      path: [],
+      path: S.Path.empty,
     }),
     (),
   )
