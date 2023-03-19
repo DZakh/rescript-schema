@@ -20,5 +20,4 @@ exports.literal = S_Js.literal;
 exports.nan = S_Js.nan;
 exports.defaulted = S_Js.defaulted;
 exports.tuple = S_Js.tuple;
-exports.describe = S_Js.describe;
 exports.raiseError = S.$$Error.raise;
