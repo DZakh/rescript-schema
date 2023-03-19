@@ -115,6 +115,16 @@ function asyncRefine(parser) {
   return Object.assign(struct$1, structOperations);
 }
 
+function describe(description) {
+  var struct = this;
+  var struct$1 = S$RescriptStruct.describe(struct, description);
+  return Object.assign(struct$1, structOperations);
+}
+
+function description(param) {
+  return S$RescriptStruct.description(this);
+}
+
 function string(param) {
   var struct = S$RescriptStruct.string(undefined);
   return Object.assign(struct, structOperations);
@@ -234,7 +244,9 @@ Object.assign(structOperations, {
         }),
       nullable: (function (param) {
           return nullable(this);
-        })
+        }),
+      describe: describe,
+      description: description
     });
 
 var objectStructOperations = {};

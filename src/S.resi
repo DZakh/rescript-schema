@@ -99,6 +99,9 @@ let union: array<t<'value>> => t<'value>
 let deprecated: (t<'value>, ~message: string=?, unit) => t<option<'value>>
 let defaulted: (t<option<'value>>, 'value) => t<'value>
 
+let describe: (t<'value>, string) => t<'value>
+let description: t<'value> => option<string>
+
 let transform: (
   t<'value>,
   ~parser: 'value => 'transformed=?,
@@ -158,6 +161,10 @@ let isAsyncParse: t<'value> => bool
 
 let recursive: (t<'value> => t<'value>) => t<'value>
 let asyncRecursive: (t<'value> => t<'value>) => t<'value>
+
+let classify: t<'value> => tagged
+
+let name: t<'value> => string
 
 module Object: {
   type definerCtx
@@ -240,10 +247,6 @@ let tuple10: (
   t<'v9>,
   t<'v10>,
 ) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9, 'v10)>
-
-let classify: t<'value> => tagged
-
-let name: t<'value> => string
 
 module String: {
   module Refinement: {

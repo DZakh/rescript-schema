@@ -693,6 +693,21 @@ Ok("Goodbye World!")
 
 The `defaulted` augments a struct to add transformation logic for default values, which are applied when the input is undefined.
 
+#### **`S.describe`**
+
+`(S.t<'value>, string) => S.t<'value>`
+
+Use `S.describe` to add a `description` property to the resulting schema.
+
+```rescript
+let documentedString = S.string()
+  ->S.describe("A useful bit of text, if you know what to do with it.")
+
+documentedString->S.description // A useful bit of text…
+```
+
+This can be useful for documenting a field, for example in a JSON Schema using a library like [`rescript-json-schema`](https://github.com/DZakh/rescript-json-schema).
+
 #### **`S.deprecated`**
 
 `(~message: string=?, S.t<'value>) => S.t<option<'value>>`

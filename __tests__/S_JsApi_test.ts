@@ -611,6 +611,30 @@ test("Successfully parses undefined using the default value", (t) => {
   expectType<TypeEqual<typeof struct, S.Struct<string>>>(true);
 });
 
+test("Creates struct with description", (t) => {
+  const undocumentedStringStruct = S.string();
+
+  expectType<TypeEqual<typeof undocumentedStringStruct, S.Struct<string>>>(
+    true
+  );
+
+  const documentedStringStruct = undocumentedStringStruct.describe(
+    "A useful bit of text, if you know what to do with it."
+  );
+
+  expectType<TypeEqual<typeof documentedStringStruct, S.Struct<string>>>(true);
+
+  const descriptionResult = documentedStringStruct.description();
+
+  expectType<TypeEqual<typeof descriptionResult, string | undefined>>(true);
+
+  t.deepEqual(undocumentedStringStruct.description(), undefined);
+  t.deepEqual(
+    documentedStringStruct.description(),
+    "A useful bit of text, if you know what to do with it."
+  );
+});
+
 test("Empty tuple", (t) => {
   const struct = S.tuple([]);
 

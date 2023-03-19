@@ -2906,6 +2906,16 @@ function factory$17(structs) {
         };
 }
 
+var descriptionMetadataId = "rescript-struct:description";
+
+function describe(struct, description) {
+  return set(struct, descriptionMetadataId, description);
+}
+
+function description(struct) {
+  return get(struct, descriptionMetadataId);
+}
+
 function getExn(result) {
   if (result.TAG === /* Ok */0) {
     return result._0;
@@ -3090,6 +3100,8 @@ exports.json = json;
 exports.union = union;
 exports.deprecated = deprecated;
 exports.defaulted = defaulted;
+exports.describe = describe;
+exports.description = description;
 exports.transform = transform;
 exports.advancedTransform = advancedTransform;
 exports.advancedPreprocess = advancedPreprocess;
@@ -3109,6 +3121,8 @@ exports.serializeToJsonStringWith = serializeToJsonStringWith;
 exports.isAsyncParse = isAsyncParse;
 exports.recursive = recursive;
 exports.asyncRecursive = asyncRecursive;
+exports.classify = classify;
+exports.name = name;
 exports.$$Object = $$Object;
 exports.object = object;
 exports.field = field;
@@ -3124,8 +3138,6 @@ exports.tuple7 = tuple7;
 exports.tuple8 = tuple8;
 exports.tuple9 = tuple9;
 exports.tuple10 = tuple10;
-exports.classify = classify;
-exports.name = name;
 exports.$$String = $$String;
 exports.Int = Int;
 exports.Float = Float;

@@ -22,6 +22,8 @@ type rec struct<'value> = {
   asyncRefine: (~parser: 'value => promise<unit>) => struct<'value>,
   optional: unit => struct<option<'value>>,
   nullable: unit => struct<option<'value>>,
+  describe: string => struct<'value>,
+  description: unit => option<string>,
 }
 
 let string: unit => struct<string>

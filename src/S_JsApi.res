@@ -72,6 +72,8 @@ type rec struct<'value> = {
   asyncRefine: (~parser: 'value => promise<unit>) => struct<'value>,
   optional: unit => struct<option<'value>>,
   nullable: unit => struct<option<'value>>,
+  describe: string => struct<'value>,
+  description: unit => option<string>,
 }
 
 let structOperations = %raw("{}")
@@ -153,6 +155,15 @@ let asyncRefine = (~parser) => {
   struct->S.asyncRefine(~parser, ())->toJsStruct
 }
 
+let describe = description => {
+  let struct = %raw("this")
+  struct->castToRescriptStruct->S.describe(description)->toJsStruct
+}
+let description = () => {
+  let struct = %raw("this")
+  struct->castToRescriptStruct->S.description
+}
+
 let string = S.string->toJsStructFactory
 let boolean = S.bool->toJsStructFactory
 let integer = S.int->toJsStructFactory
@@ -217,6 +228,8 @@ structOperations->Stdlib.Object.extendWith({
   nullable: () => {
     %raw("this")->nullable
   },
+  describe,
+  description,
 })
 
 module Object = {
