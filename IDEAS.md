@@ -42,3 +42,11 @@
 - Add date refinement for string (copy zod) (?)
 
 - S.mutateWith/S.produceWith (aka immer) (???)
+
+- Remove S.depreacted
+
+- Rename S.trimmed -> S.trim / S.defaulted -> S.default
+
+- Add S.catch / S.fallback (?)
+
+- Make the TS code reuse rescript output instead of creating a separate bundle
