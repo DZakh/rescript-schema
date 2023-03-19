@@ -40,3 +40,5 @@
 - Support optional fields (can have problems with serializing) (???)
 
 - Add date refinement for string (copy zod) (?)
+
+- S.mutateWith/S.produceWith (aka immer) (???)

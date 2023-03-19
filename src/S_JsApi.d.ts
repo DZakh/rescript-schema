@@ -28,6 +28,8 @@ export interface Struct<Value> {
   asyncRefine(parser: (value: Value) => Promise<void>): Struct<Value>;
   optional(): Struct<Value | undefined>;
   nullable(): Struct<Value | undefined>;
+  describe(description: string): Struct<Value>;
+  description(): string | undefined;
 }
 
 export type Infer<T> = T extends Struct<infer Value> ? Value : never;

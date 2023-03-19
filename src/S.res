@@ -3423,6 +3423,14 @@ module Union = {
   }
 }
 
+let descriptionMetadataId = Metadata.Id.make(~namespace="rescript-struct", ~name="description")
+
+let describe = (struct, description) => {
+  struct->Metadata.set(~id=descriptionMetadataId, ~metadata=description)
+}
+
+let description = struct => struct->Metadata.get(~id=descriptionMetadataId)
+
 module Result = {
   let getExn = result => {
     switch result {
