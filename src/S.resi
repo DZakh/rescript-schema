@@ -362,3 +362,5 @@ module Metadata: {
 
   let set: (t<'value>, ~id: Id.t<'metadata>, ~metadata: 'metadata) => t<'value>
 }
+
+let inline: t<'value> => string

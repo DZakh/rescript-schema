@@ -50,3 +50,5 @@
 - Add S.catch / S.fallback (?)
 
 - Make the TS code reuse rescript output instead of creating a separate bundle
+
+- Inline literals check used in S.object

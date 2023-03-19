@@ -1594,12 +1594,13 @@ function strict(struct) {
   return set(struct, metadataId, /* Strict */0);
 }
 
+function transformationFactory(ctx, struct) {
+  planSyncTransformation(ctx, (function (input) {
+          return raiseUnexpectedTypeError(input, struct);
+        }));
+}
+
 function factory$3(param) {
-  var transformationFactory = function (ctx, struct) {
-    planSyncTransformation(ctx, (function (input) {
-            return raiseUnexpectedTypeError(input, struct);
-          }));
-  };
   return {
           n: "Never",
           t: /* Never */0,
@@ -1650,19 +1651,21 @@ var uuidRegex = /^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]
 
 var emailRegex = /^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i;
 
+function parseTransformationFactory(ctx, struct) {
+  planSyncTransformation(ctx, (function (input) {
+          if (typeof input === "string") {
+            return input;
+          } else {
+            return raiseUnexpectedTypeError(input, struct);
+          }
+        }));
+}
+
 function factory$5(param) {
   return {
           n: "String",
           t: /* String */2,
-          pf: (function (ctx, struct) {
-              planSyncTransformation(ctx, (function (input) {
-                      if (typeof input === "string") {
-                        return input;
-                      } else {
-                        return raiseUnexpectedTypeError(input, struct);
-                      }
-                    }));
-            }),
+          pf: parseTransformationFactory,
           sf: empty,
           r: 0,
           e: 0,
@@ -1875,19 +1878,21 @@ function factory$6(innerStruct) {
         };
 }
 
+function parseTransformationFactory$1(ctx, struct) {
+  planSyncTransformation(ctx, (function (input) {
+          if (typeof input === "boolean") {
+            return input;
+          } else {
+            return raiseUnexpectedTypeError(input, struct);
+          }
+        }));
+}
+
 function factory$7(param) {
   return {
           n: "Bool",
           t: /* Bool */5,
-          pf: (function (ctx, struct) {
-              planSyncTransformation(ctx, (function (input) {
-                      if (typeof input === "boolean") {
-                        return input;
-                      } else {
-                        return raiseUnexpectedTypeError(input, struct);
-                      }
-                    }));
-            }),
+          pf: parseTransformationFactory$1,
           sf: empty,
           r: 0,
           e: 0,
@@ -1911,19 +1916,21 @@ function refinements$1(struct) {
   }
 }
 
+function parseTransformationFactory$2(ctx, struct) {
+  planSyncTransformation(ctx, (function (input) {
+          if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input % 1 === 0) {
+            return input;
+          } else {
+            return raiseUnexpectedTypeError(input, struct);
+          }
+        }));
+}
+
 function factory$8(param) {
   return {
           n: "Int",
           t: /* Int */3,
-          pf: (function (ctx, struct) {
-              planSyncTransformation(ctx, (function (input) {
-                      if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input % 1 === 0) {
-                        return input;
-                      } else {
-                        return raiseUnexpectedTypeError(input, struct);
-                      }
-                    }));
-            }),
+          pf: parseTransformationFactory$2,
           sf: empty,
           r: 0,
           e: 0,
@@ -1995,19 +2002,21 @@ function refinements$2(struct) {
   }
 }
 
+function parseTransformationFactory$3(ctx, struct) {
+  planSyncTransformation(ctx, (function (input) {
+          if (typeof input === "number" && !Number.isNaN(input)) {
+            return input;
+          } else {
+            return raiseUnexpectedTypeError(input, struct);
+          }
+        }));
+}
+
 function factory$9(param) {
   return {
           n: "Float",
           t: /* Float */4,
-          pf: (function (ctx, struct) {
-              planSyncTransformation(ctx, (function (input) {
-                      if (typeof input === "number" && !Number.isNaN(input)) {
-                        return input;
-                      } else {
-                        return raiseUnexpectedTypeError(input, struct);
-                      }
-                    }));
-            }),
+          pf: parseTransformationFactory$3,
           sf: empty,
           r: 0,
           e: 0,
@@ -2940,6 +2949,106 @@ var Result = {
   mapErrorToString: mapErrorToString
 };
 
+function inline(struct) {
+  var unionStructs = struct.t;
+  var inlinedStruct;
+  if (typeof unionStructs === "number") {
+    switch (unionStructs) {
+      case /* Never */0 :
+          inlinedStruct = "S.never()";
+          break;
+      case /* Unknown */1 :
+          inlinedStruct = "S.unknown()";
+          break;
+      case /* String */2 :
+          inlinedStruct = "S.string()";
+          break;
+      case /* Int */3 :
+          inlinedStruct = "S.int()";
+          break;
+      case /* Float */4 :
+          inlinedStruct = "S.float()";
+          break;
+      case /* Bool */5 :
+          inlinedStruct = "S.bool()";
+          break;
+      
+    }
+  } else {
+    switch (unionStructs.TAG | 0) {
+      case /* Literal */0 :
+          var string = unionStructs._0;
+          if (typeof string === "number") {
+            switch (string) {
+              case /* EmptyNull */0 :
+                  inlinedStruct = "S.literal(EmptyNull)";
+                  break;
+              case /* EmptyOption */1 :
+                  inlinedStruct = "S.literal(EmptyOption)";
+                  break;
+              case /* NaN */2 :
+                  inlinedStruct = "S.literal(NaN)";
+                  break;
+              
+            }
+          } else {
+            switch (string.TAG | 0) {
+              case /* String */0 :
+                  inlinedStruct = "S.literal(String(" + JSON.stringify(string._0) + "))";
+                  break;
+              case /* Int */1 :
+                  inlinedStruct = "S.literal(Int(" + string._0.toString() + "))";
+                  break;
+              case /* Float */2 :
+                  inlinedStruct = "S.literal(Float(" + string._0.toString() + ".))";
+                  break;
+              case /* Bool */3 :
+                  inlinedStruct = "S.literal(Bool(" + string._0.toString() + "))";
+                  break;
+              
+            }
+          }
+          break;
+      case /* Option */1 :
+          inlinedStruct = "S.option(" + inline(unionStructs._0) + ")";
+          break;
+      case /* Null */2 :
+          inlinedStruct = "S.null(" + inline(unionStructs._0) + ")";
+          break;
+      case /* Array */3 :
+          inlinedStruct = "S.array(" + inline(unionStructs._0) + ")";
+          break;
+      case /* Object */4 :
+          var fields = unionStructs.fields;
+          inlinedStruct = "S.object(o =>\n  {\n    " + unionStructs.fieldNames.map(function (fieldName) {
+                  return "" + JSON.stringify(fieldName) + ": o->S.field(" + JSON.stringify(fieldName) + ", " + inline(fields[fieldName]) + ")";
+                }).join(",\n    ") + ",\n  }\n)";
+          break;
+      case /* Tuple */5 :
+          var tupleStructs = unionStructs._0;
+          inlinedStruct = tupleStructs.length !== 0 ? "(S.Tuple.factory: (. " + tupleStructs.map(function (param, idx) {
+                    return "S.t<'v" + idx.toString() + ">";
+                  }).join(", ") + ") => S.t<(" + tupleStructs.map(function (param, idx) {
+                    return "'v" + idx.toString() + "";
+                  }).join(", ") + ")>)(. " + tupleStructs.map(inline).join(", ") + ")" : "S.tuple0(.)";
+          break;
+      case /* Union */6 :
+          inlinedStruct = "S.union([" + unionStructs._0.map(inline).join(", ") + "])";
+          break;
+      case /* Dict */7 :
+          inlinedStruct = "S.dict(" + inline(unionStructs._0) + ")";
+          break;
+      
+    }
+  }
+  var metadataDict = struct.m;
+  if (metadataDict !== undefined) {
+    return "{\n  let s = " + inlinedStruct + "\n  let _ = %raw(\`s.m = " + JSON.stringify(Caml_option.valFromOption(metadataDict)) + "\`)\n  s\n}";
+  } else {
+    return inlinedStruct;
+  }
+}
+
 var Path = {
   empty: "",
   toArray: toArray,
@@ -3146,4 +3255,5 @@ exports.Defaulted = Defaulted;
 exports.Deprecated = Deprecated;
 exports.Result = Result;
 exports.Metadata = Metadata;
+exports.inline = inline;
 /* No side effect */
