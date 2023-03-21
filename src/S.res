@@ -3450,72 +3450,142 @@ module Result = {
   }
 }
 
-let rec inline = struct => {
-  let inlinedStruct = switch struct->classify {
-  | Literal(String(string)) => `S.literal(String(${string->Stdlib.Inlined.Value.fromString}))`
-  | Literal(Int(int)) => `S.literal(Int(${int->Js.Int.toString}))`
-  | Literal(Float(float)) => `S.literal(Float(${float->Js.Float.toString}.))`
-  | Literal(Bool(bool)) => `S.literal(Bool(${bool->Stdlib.Bool.toString}))`
-  | Literal(EmptyOption) => `S.literal(EmptyOption)`
-  | Literal(EmptyNull) => `S.literal(EmptyNull)`
-  | Literal(NaN) => `S.literal(NaN)`
-  | Union(unionStructs) =>
-    `S.union([${unionStructs
-      ->Js.Array2.map(s => s->castUnknownStructToAnyStruct->inline)
-      ->Js.Array2.joinWith(", ")}])`
-  | Tuple([]) => `S.tuple0(.)`
-  | Tuple(tupleStructs) =>
-    `(S.Tuple.factory: (. ${tupleStructs
-      ->Js.Array2.mapi((_, idx) => `S.t<'v${idx->Js.Int.toString}>`)
-      ->Js.Array2.joinWith(", ")}) => S.t<(${tupleStructs
-      ->Js.Array2.mapi((_, idx) => `'v${idx->Js.Int.toString}`)
-      ->Js.Array2.joinWith(", ")})>)(. ${tupleStructs
-      ->Js.Array2.map(s => s->castUnknownStructToAnyStruct->inline)
-      ->Js.Array2.joinWith(", ")})`
-  | Object({fieldNames, fields}) =>
-    `S.object(o =>
+let inline = {
+  let rec toVariantName = struct => {
+    switch struct->classify {
+    | Literal(String(string)) => string
+    | Literal(Int(int)) => int->Js.Int.toString
+    | Literal(Float(float)) => float->Js.Float.toString
+    | Literal(Bool(true)) => `True`
+    | Literal(Bool(false)) => `False`
+    | Literal(EmptyOption) => `EmptyOption`
+    | Literal(EmptyNull) => `EmptyNull`
+    | Literal(NaN) => `NaN`
+    | Union(_) => `Union`
+    | Tuple([]) => `EmptyTuple`
+    | Tuple(_) => `Tuple`
+    | Object({fieldNames: []}) => `EmptyObject`
+    | Object(_) => `Object`
+    | String => `String`
+    | Int => `Int`
+    | Float => `Float`
+    | Bool => `Bool`
+    | Never => `Never`
+    | Unknown => `Unknown`
+    | Option(s) => `OptionOf${s->toVariantName}`
+    | Null(s) => `NullOf${s->toVariantName}`
+    | Array(s) => `ArrayOf${s->toVariantName}`
+    | Dict(s) => `DictOf${s->toVariantName}`
+    }
+  }
+
+  let rec internalInline = (struct, ~variant as maybeVariant=?, ()) => {
+    let inlinedStruct = switch struct->classify {
+    | Literal(taggedLiteral) => {
+        let inlinedLiteral = switch taggedLiteral {
+        | String(string) => `String(${string->Stdlib.Inlined.Value.fromString})`
+        | Int(int) => `Int(${int->Js.Int.toString})`
+        | Float(float) =>
+          `Float(${float->Js.Float.toString}${mod_float(float, 1.) === 0. ? "." : ""})`
+        | Bool(bool) => `Bool(${bool->Stdlib.Bool.toString})`
+        | EmptyOption => `EmptyOption`
+        | EmptyNull => `EmptyNull`
+        | NaN => `NaN`
+        }
+        switch maybeVariant {
+        | Some(variant) => `S.literalVariant(${inlinedLiteral}, ${variant})`
+        | None => `S.literal(${inlinedLiteral})`
+        }
+      }
+
+    | Union(unionStructs) => {
+        let variantNamesCounter = Js.Dict.empty()
+        `S.union([${unionStructs
+          ->Js.Array2.map(s => {
+            let variantName = s->toVariantName
+            let numberOfVariantNames = switch variantNamesCounter->Js.Dict.get(variantName) {
+            | Some(n) => n
+            | None => 0
+            }
+            variantNamesCounter->Js.Dict.set(variantName, numberOfVariantNames->Stdlib.Int.plus(1))
+            let variantName = switch numberOfVariantNames {
+            | 0 => variantName
+            | _ => variantName ++ numberOfVariantNames->Stdlib.Int.plus(1)->Js.Int.toString
+            }
+            let inlinedVariant = `#${variantName->Stdlib.Inlined.Value.fromString}`
+            s->internalInline(~variant=inlinedVariant, ())
+          })
+          ->Js.Array2.joinWith(", ")}])`
+      }
+
+    | Tuple([]) => `S.tuple0(.)`
+    | Tuple(tupleStructs) => {
+        let numberOfItems = tupleStructs->Js.Array2.length
+        if numberOfItems > 10 {
+          Error.panic("The S.inline doesn't support tuples with more than 10 items.")
+        }
+        `S.tuple${numberOfItems->Js.Int.toString}(. ${tupleStructs
+          ->Js.Array2.map(s => s->internalInline())
+          ->Js.Array2.joinWith(", ")})`
+      }
+
+    | Object({fieldNames: []}) => `S.object(_ => ())`
+    | Object({fieldNames, fields}) =>
+      `S.object(o =>
   {
     ${fieldNames
-      ->Js.Array2.map(fieldName => {
-        `${fieldName->Stdlib.Inlined.Value.fromString}: o->S.field(${fieldName->Stdlib.Inlined.Value.fromString}, ${fields
-          ->Js.Dict.unsafeGet(fieldName)
-          ->castUnknownStructToAnyStruct
-          ->inline})`
-      })
-      ->Js.Array2.joinWith(",\n    ")},
+        ->Js.Array2.map(fieldName => {
+          `${fieldName->Stdlib.Inlined.Value.fromString}: o->S.field(${fieldName->Stdlib.Inlined.Value.fromString}, ${fields
+            ->Js.Dict.unsafeGet(fieldName)
+            ->internalInline()})`
+        })
+        ->Js.Array2.joinWith(",\n    ")},
   }
 )`
-  | String => `S.string()`
-  | Int => `S.int()`
-  | Float => `S.float()`
-  | Bool => `S.bool()`
-  | Option(innerStruct) => `S.option(${innerStruct->castUnknownStructToAnyStruct->inline})`
-  | Null(innerStruct) => `S.null(${innerStruct->castUnknownStructToAnyStruct->inline})`
-  | Never => `S.never()`
-  | Unknown => `S.unknown()`
-  | Array(innerStruct) => `S.array(${innerStruct->castUnknownStructToAnyStruct->inline})`
-  | Dict(innerStruct) => `S.dict(${innerStruct->castUnknownStructToAnyStruct->inline})`
-  }
+    | String => `S.string()`
+    | Int => `S.int()`
+    | Float => `S.float()`
+    | Bool => `S.bool()`
+    | Option(innerStruct) => `S.option(${innerStruct->internalInline()})`
+    | Null(innerStruct) => `S.null(${innerStruct->internalInline()})`
+    | Never => `S.never()`
+    | Unknown => `S.unknown()`
+    | Array(innerStruct) => `S.array(${innerStruct->internalInline()})`
+    | Dict(innerStruct) => `S.dict(${innerStruct->internalInline()})`
+    }
 
-  // TODO: Add metadata support
-  // TODO: Add literal variant support (NO, use polymorphic variants for unions)
+    // TODO: Add metadata support
 
-  switch struct.maybeMetadataDict {
-  | Some(metadataDict) =>
-    `{
+    let inlinedStruct = switch struct.maybeMetadataDict {
+    | Some(metadataDict) =>
+      `{
   let s = ${inlinedStruct}
-  let _ = %raw(\`s.m = ${metadataDict
-      ->Js.Json.stringifyAny
-      ->{
-        // FIXME: Make it more reliable
-        Belt.Option.getUnsafe
-      }}\`)
+  let _ = %raw(\`s.m = ${metadataDict->Stdlib.Inlined.Value.stringify}\`)
   s
 }`
-  | None => inlinedStruct
+    | None => inlinedStruct
+    }
+
+    let inlinedStruct = switch (struct->classify, maybeVariant) {
+    | (Literal(_), _) => inlinedStruct
+    | (_, Some(variant)) =>
+      inlinedStruct ++
+      `->S.transform(
+  ~parser=d => ${variant}(d),
+  ~serializer=v => switch v {
+| ${variant}(d) => d
+| _ => S.Error.raise(\`Value is not the ${variant} variant.\`)
+}, ())`
+    | _ => inlinedStruct
+    }
+
+    inlinedStruct
+  }
+
+  struct => {
+    struct->castAnyStructToUnknownStruct->internalInline()
   }
 }
-
 let object = Object.factory
 let field = Object.field
 let never = Never.factory

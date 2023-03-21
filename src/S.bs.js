@@ -2949,11 +2949,86 @@ var Result = {
   mapErrorToString: mapErrorToString
 };
 
-function inline(struct) {
-  var unionStructs = struct.t;
+function toVariantName(struct) {
+  var s = struct.t;
+  if (typeof s === "number") {
+    switch (s) {
+      case /* Never */0 :
+          return "Never";
+      case /* Unknown */1 :
+          return "Unknown";
+      case /* String */2 :
+          return "String";
+      case /* Int */3 :
+          return "Int";
+      case /* Float */4 :
+          return "Float";
+      case /* Bool */5 :
+          return "Bool";
+      
+    }
+  } else {
+    switch (s.TAG | 0) {
+      case /* Literal */0 :
+          var string = s._0;
+          if (typeof string === "number") {
+            switch (string) {
+              case /* EmptyNull */0 :
+                  return "EmptyNull";
+              case /* EmptyOption */1 :
+                  return "EmptyOption";
+              case /* NaN */2 :
+                  return "NaN";
+              
+            }
+          } else {
+            switch (string.TAG | 0) {
+              case /* String */0 :
+                  return string._0;
+              case /* Int */1 :
+              case /* Float */2 :
+                  return string._0.toString();
+              case /* Bool */3 :
+                  if (string._0) {
+                    return "True";
+                  } else {
+                    return "False";
+                  }
+              
+            }
+          }
+      case /* Option */1 :
+          return "OptionOf" + toVariantName(s._0) + "";
+      case /* Null */2 :
+          return "NullOf" + toVariantName(s._0) + "";
+      case /* Array */3 :
+          return "ArrayOf" + toVariantName(s._0) + "";
+      case /* Object */4 :
+          if (s.fieldNames.length !== 0) {
+            return "Object";
+          } else {
+            return "EmptyObject";
+          }
+      case /* Tuple */5 :
+          if (s._0.length !== 0) {
+            return "Tuple";
+          } else {
+            return "EmptyTuple";
+          }
+      case /* Union */6 :
+          return "Union";
+      case /* Dict */7 :
+          return "DictOf" + toVariantName(s._0) + "";
+      
+    }
+  }
+}
+
+function internalInline(struct, maybeVariant, param) {
+  var taggedLiteral = struct.t;
   var inlinedStruct;
-  if (typeof unionStructs === "number") {
-    switch (unionStructs) {
+  if (typeof taggedLiteral === "number") {
+    switch (taggedLiteral) {
       case /* Never */0 :
           inlinedStruct = "S.never()";
           break;
@@ -2975,78 +3050,116 @@ function inline(struct) {
       
     }
   } else {
-    switch (unionStructs.TAG | 0) {
+    switch (taggedLiteral.TAG | 0) {
       case /* Literal */0 :
-          var string = unionStructs._0;
-          if (typeof string === "number") {
-            switch (string) {
+          var taggedLiteral$1 = taggedLiteral._0;
+          var inlinedLiteral;
+          if (typeof taggedLiteral$1 === "number") {
+            switch (taggedLiteral$1) {
               case /* EmptyNull */0 :
-                  inlinedStruct = "S.literal(EmptyNull)";
+                  inlinedLiteral = "EmptyNull";
                   break;
               case /* EmptyOption */1 :
-                  inlinedStruct = "S.literal(EmptyOption)";
+                  inlinedLiteral = "EmptyOption";
                   break;
               case /* NaN */2 :
-                  inlinedStruct = "S.literal(NaN)";
+                  inlinedLiteral = "NaN";
                   break;
               
             }
           } else {
-            switch (string.TAG | 0) {
+            switch (taggedLiteral$1.TAG | 0) {
               case /* String */0 :
-                  inlinedStruct = "S.literal(String(" + JSON.stringify(string._0) + "))";
+                  inlinedLiteral = "String(" + JSON.stringify(taggedLiteral$1._0) + ")";
                   break;
               case /* Int */1 :
-                  inlinedStruct = "S.literal(Int(" + string._0.toString() + "))";
+                  inlinedLiteral = "Int(" + taggedLiteral$1._0.toString() + ")";
                   break;
               case /* Float */2 :
-                  inlinedStruct = "S.literal(Float(" + string._0.toString() + ".))";
+                  var $$float = taggedLiteral$1._0;
+                  inlinedLiteral = "Float(" + $$float.toString() + "" + (
+                    $$float % 1 === 0 ? "." : ""
+                  ) + ")";
                   break;
               case /* Bool */3 :
-                  inlinedStruct = "S.literal(Bool(" + string._0.toString() + "))";
+                  inlinedLiteral = "Bool(" + taggedLiteral$1._0.toString() + ")";
                   break;
               
             }
           }
+          inlinedStruct = maybeVariant !== undefined ? "S.literalVariant(" + inlinedLiteral + ", " + maybeVariant + ")" : "S.literal(" + inlinedLiteral + ")";
           break;
       case /* Option */1 :
-          inlinedStruct = "S.option(" + inline(unionStructs._0) + ")";
+          inlinedStruct = "S.option(" + internalInline(taggedLiteral._0, undefined, undefined) + ")";
           break;
       case /* Null */2 :
-          inlinedStruct = "S.null(" + inline(unionStructs._0) + ")";
+          inlinedStruct = "S.null(" + internalInline(taggedLiteral._0, undefined, undefined) + ")";
           break;
       case /* Array */3 :
-          inlinedStruct = "S.array(" + inline(unionStructs._0) + ")";
+          inlinedStruct = "S.array(" + internalInline(taggedLiteral._0, undefined, undefined) + ")";
           break;
       case /* Object */4 :
-          var fields = unionStructs.fields;
-          inlinedStruct = "S.object(o =>\n  {\n    " + unionStructs.fieldNames.map(function (fieldName) {
-                  return "" + JSON.stringify(fieldName) + ": o->S.field(" + JSON.stringify(fieldName) + ", " + inline(fields[fieldName]) + ")";
-                }).join(",\n    ") + ",\n  }\n)";
+          var fieldNames = taggedLiteral.fieldNames;
+          var fields = taggedLiteral.fields;
+          inlinedStruct = fieldNames.length !== 0 ? "S.object(o =>\n  {\n    " + fieldNames.map(function (fieldName) {
+                    return "" + JSON.stringify(fieldName) + ": o->S.field(" + JSON.stringify(fieldName) + ", " + internalInline(fields[fieldName], undefined, undefined) + ")";
+                  }).join(",\n    ") + ",\n  }\n)" : "S.object(_ => ())";
           break;
       case /* Tuple */5 :
-          var tupleStructs = unionStructs._0;
-          inlinedStruct = tupleStructs.length !== 0 ? "(S.Tuple.factory: (. " + tupleStructs.map(function (param, idx) {
-                    return "S.t<'v" + idx.toString() + ">";
-                  }).join(", ") + ") => S.t<(" + tupleStructs.map(function (param, idx) {
-                    return "'v" + idx.toString() + "";
-                  }).join(", ") + ")>)(. " + tupleStructs.map(inline).join(", ") + ")" : "S.tuple0(.)";
+          var tupleStructs = taggedLiteral._0;
+          if (tupleStructs.length !== 0) {
+            var numberOfItems = tupleStructs.length;
+            if (numberOfItems > 10) {
+              throw new Error("[rescript-struct] The S.inline doesn't support tuples with more than 10 items.");
+            }
+            inlinedStruct = "S.tuple" + numberOfItems.toString() + "(. " + tupleStructs.map(function (s) {
+                    return internalInline(s, undefined, undefined);
+                  }).join(", ") + ")";
+          } else {
+            inlinedStruct = "S.tuple0(.)";
+          }
           break;
       case /* Union */6 :
-          inlinedStruct = "S.union([" + unionStructs._0.map(inline).join(", ") + "])";
+          var variantNamesCounter = {};
+          inlinedStruct = "S.union([" + taggedLiteral._0.map(function (s) {
+                  var variantName = toVariantName(s);
+                  var n = Js_dict.get(variantNamesCounter, variantName);
+                  var numberOfVariantNames = n !== undefined ? n : 0;
+                  variantNamesCounter[variantName] = numberOfVariantNames + 1;
+                  var variantName$1 = numberOfVariantNames !== 0 ? variantName + (numberOfVariantNames + 1).toString() : variantName;
+                  var inlinedVariant = "#" + JSON.stringify(variantName$1) + "";
+                  return internalInline(s, inlinedVariant, undefined);
+                }).join(", ") + "])";
           break;
       case /* Dict */7 :
-          inlinedStruct = "S.dict(" + inline(unionStructs._0) + ")";
+          inlinedStruct = "S.dict(" + internalInline(taggedLiteral._0, undefined, undefined) + ")";
           break;
       
     }
   }
   var metadataDict = struct.m;
+  var inlinedStruct$1;
   if (metadataDict !== undefined) {
-    return "{\n  let s = " + inlinedStruct + "\n  let _ = %raw(\`s.m = " + JSON.stringify(Caml_option.valFromOption(metadataDict)) + "\`)\n  s\n}";
+    var metadataDict$1 = Caml_option.valFromOption(metadataDict);
+    inlinedStruct$1 = "{\n  let s = " + inlinedStruct + "\n  let _ = %raw(\`s.m = " + (
+      metadataDict$1 === undefined ? "undefined" : JSON.stringify(metadataDict$1)
+    ) + "\`)\n  s\n}";
   } else {
-    return inlinedStruct;
+    inlinedStruct$1 = inlinedStruct;
   }
+  var match = struct.t;
+  if (typeof match !== "number" && match.TAG === /* Literal */0) {
+    return inlinedStruct$1;
+  }
+  if (maybeVariant !== undefined) {
+    return inlinedStruct$1 + ("->S.transform(\n  ~parser=d => " + maybeVariant + "(d),\n  ~serializer=v => switch v {\n| " + maybeVariant + "(d) => d\n| _ => S.Error.raise(\`Value is not the " + maybeVariant + " variant.\`)\n}, ())");
+  } else {
+    return inlinedStruct$1;
+  }
+}
+
+function inline(struct) {
+  return internalInline(struct, undefined, undefined);
 }
 
 var Path = {
