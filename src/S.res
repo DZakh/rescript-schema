@@ -110,15 +110,6 @@ module Stdlib = {
       }
   }
 
-  module Option = {
-    @inline
-    let flatMap = (option, fn) =>
-      switch option {
-      | Some(value) => fn(value)
-      | None => None
-      }
-  }
-
   module Exn = {
     type error
 
@@ -146,11 +137,7 @@ module Stdlib = {
 
   module Dict = {
     @val
-    external immutableShallowMerge: (
-      @as(json`{}`) _,
-      Js.Dict.t<'a>,
-      Js.Dict.t<'a>,
-    ) => Js.Dict.t<'a> = "Object.assign"
+    external copy: (@as(json`{}`) _, Js.Dict.t<'a>) => Js.Dict.t<'a> = "Object.assign"
 
     @send
     external has: (Js.Dict.t<'a>, string) => bool = "hasOwnProperty"
@@ -572,7 +559,7 @@ type rec t<'value> = {
   @as("i")
   maybeInlinedRefinement: option<string>,
   @as("m")
-  maybeMetadataDict: option<Js.Dict.t<unknown>>,
+  metadataMap: Js.Dict.t<unknown>,
 }
 and tagged =
   | Never
@@ -608,6 +595,8 @@ and internalTransformationFactory = (
 
 type payloadedVariant<'payload> = {_0: 'payload}
 let unsafeGetVariantPayload = variant => (variant->Obj.magic)._0
+
+let emptyMetadataMap = Js.Dict.empty()
 
 external castAnyToUnknown: 'any => unknown = "%identity"
 external castUnknownToAny: unknown => 'any = "%identity"
@@ -901,8 +890,8 @@ let make = (
   ~tagged,
   ~parseTransformationFactory,
   ~serializeTransformationFactory,
+  ~metadataMap,
   ~inlinedRefinement as maybeInlinedRefinement=?,
-  ~metadataDict as maybeMetadataDict=?,
   (),
 ) => {
   name,
@@ -916,7 +905,7 @@ let make = (
   parse: intitialParse,
   parseAsync: intitialParseAsync,
   maybeInlinedRefinement,
-  maybeMetadataDict,
+  metadataMap,
 }
 
 let parseWith = (any, struct) => {
@@ -1023,7 +1012,7 @@ let parseJsonStringWith = (jsonString: string, struct: t<'value>): result<'value
 }
 
 let recursive = fn => {
-  let placeholder: t<'value> = %raw(`{}`)
+  let placeholder: t<'value> = %raw(`{m:emptyMetadataMap}`)
   let struct = fn->Stdlib.Fn.call1(placeholder)
   placeholder->Stdlib.Object.overrideWith(struct)
   if placeholder->isAsyncParse {
@@ -1035,7 +1024,7 @@ let recursive = fn => {
 }
 
 let asyncRecursive = fn => {
-  let placeholder: t<'value> = %raw(`{}`)
+  let placeholder: t<'value> = %raw(`{m:emptyMetadataMap}`)
   let struct = fn->Stdlib.Fn.call1(placeholder)
   placeholder->Stdlib.Object.overrideWith(struct)
   placeholder.parseOperationState = ParseOperationState.asyncEmpty()
@@ -1057,31 +1046,19 @@ module Metadata = {
     external toKey: t<'metadata> => string = "%identity"
   }
 
-  module Change = {
-    @inline
-    let make = (~id: Id.t<'metadata>, ~metadata: 'metadata) => {
-      let metadataChange = Js.Dict.empty()
-      metadataChange->Js.Dict.set(id->Id.toKey, metadata)
-      metadataChange->(Obj.magic: Js.Dict.t<'any> => Js.Dict.t<unknown>)
-    }
-  }
-
   let get = (struct, ~id: Id.t<'metadata>): option<'metadata> => {
-    struct.maybeMetadataDict->Stdlib.Option.flatMap(metadataDict => {
-      metadataDict->Js.Dict.get(id->Id.toKey)->Obj.magic
-    })
+    struct.metadataMap->Js.Dict.get(id->Id.toKey)->Obj.magic
   }
 
   let set = (struct, ~id: Id.t<'metadata>, ~metadata: 'metadata) => {
+    let metadataMap = struct.metadataMap->Stdlib.Dict.copy
+    metadataMap->Js.Dict.set(id->Id.toKey, metadata->castAnyToUnknown)
     make(
       ~name=struct.name,
       ~parseTransformationFactory=struct.parseTransformationFactory,
       ~serializeTransformationFactory=struct.serializeTransformationFactory,
       ~tagged=struct.tagged,
-      ~metadataDict=Stdlib.Dict.immutableShallowMerge(
-        struct.maybeMetadataDict->Obj.magic,
-        Change.make(~id, ~metadata),
-      ),
+      ~metadataMap,
       (),
     )
   }
@@ -1129,7 +1106,7 @@ let refine: (
       })
     | None => struct.serializeTransformationFactory
     },
-    ~metadataDict=?struct.maybeMetadataDict,
+    ~metadataMap=struct.metadataMap,
     ~inlinedRefinement=?nextParseTransformationFactory === struct.parseTransformationFactory
       ? struct.maybeInlinedRefinement
       : None,
@@ -1168,7 +1145,7 @@ let asyncRefine = (struct, ~parser, ()) => {
       })
     }),
     ~serializeTransformationFactory=struct.serializeTransformationFactory,
-    ~metadataDict=?struct.maybeMetadataDict,
+    ~metadataMap=struct.metadataMap,
     (),
   )
 }
@@ -1210,7 +1187,7 @@ let transform: (
       }
       struct.serializeTransformationFactory(. ~ctx, ~struct=compilingStruct)
     }),
-    ~metadataDict=?struct.maybeMetadataDict,
+    ~metadataMap=struct.metadataMap,
     (),
   )
 }
@@ -1266,7 +1243,7 @@ let advancedTransform: (
       }
       struct.serializeTransformationFactory(. ~ctx, ~struct=compilingStruct)
     }),
-    ~metadataDict=?struct.maybeMetadataDict,
+    ~metadataMap=struct.metadataMap,
     (),
   )
 }
@@ -1299,7 +1276,7 @@ let rec advancedPreprocess = (
       ),
       ~parseTransformationFactory=struct.parseTransformationFactory,
       ~serializeTransformationFactory=struct.serializeTransformationFactory,
-      ~metadataDict=?struct.maybeMetadataDict,
+      ~metadataMap=struct.metadataMap,
       (),
     )
   | _ =>
@@ -1342,7 +1319,7 @@ let rec advancedPreprocess = (
         | None => ctx->TransformationFactory.Ctx.planMissingSerializerTransformation
         }
       }),
-      ~metadataDict=?struct.maybeMetadataDict,
+      ~metadataMap=struct.metadataMap,
       (),
     )
   }
@@ -1360,6 +1337,7 @@ let custom = (
 
   make(
     ~name,
+    ~metadataMap=emptyMetadataMap,
     ~tagged=Unknown,
     ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
       switch maybeCustomParser {
@@ -1418,6 +1396,7 @@ module Literal = {
         | EmptyNull =>
           make(
             ~name="EmptyNull Literal (null)",
+            ~metadataMap=emptyMetadataMap,
             ~tagged,
             ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
               ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -1434,6 +1413,7 @@ module Literal = {
         | EmptyOption =>
           make(
             ~name="EmptyOption Literal (undefined)",
+            ~metadataMap=emptyMetadataMap,
             ~tagged,
             ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
               ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -1450,6 +1430,7 @@ module Literal = {
         | NaN =>
           make(
             ~name="NaN Literal (NaN)",
+            ~metadataMap=emptyMetadataMap,
             ~tagged,
             ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
               ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -1466,6 +1447,7 @@ module Literal = {
         | Bool(bool) =>
           make(
             ~name=`Bool Literal (${bool->Stdlib.Bool.toString})`,
+            ~metadataMap=emptyMetadataMap,
             ~tagged,
             ~parseTransformationFactory=makeParseTransformationFactory(
               ~literalValue=bool,
@@ -1477,6 +1459,7 @@ module Literal = {
         | String(string) =>
           make(
             ~name=`String Literal ("${string}")`,
+            ~metadataMap=emptyMetadataMap,
             ~tagged,
             ~parseTransformationFactory=makeParseTransformationFactory(
               ~literalValue=string,
@@ -1488,6 +1471,7 @@ module Literal = {
         | Float(float) =>
           make(
             ~name=`Float Literal (${float->Js.Float.toString})`,
+            ~metadataMap=emptyMetadataMap,
             ~tagged,
             ~parseTransformationFactory=makeParseTransformationFactory(
               ~literalValue=float,
@@ -1499,6 +1483,7 @@ module Literal = {
         | Int(int) =>
           make(
             ~name=`Int Literal (${int->Js.Int.toString})`,
+            ~metadataMap=emptyMetadataMap,
             ~tagged,
             ~parseTransformationFactory=makeParseTransformationFactory(
               ~literalValue=int,
@@ -2116,6 +2101,7 @@ module Object = {
 
     make(
       ~name="Object",
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Object({
         fields: instructions.fields,
         fieldNames: instructions.fieldNames,
@@ -2171,6 +2157,7 @@ module Never = {
   let factory = () => {
     make(
       ~name=`Never`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Never,
       ~inlinedRefinement="false",
       ~parseTransformationFactory=transformationFactory,
@@ -2184,6 +2171,7 @@ module Unknown = {
   let factory = () => {
     make(
       ~name=`Unknown`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Unknown,
       ~parseTransformationFactory=TransformationFactory.empty,
       ~serializeTransformationFactory=TransformationFactory.empty,
@@ -2238,6 +2226,7 @@ module String = {
   let factory = () => {
     make(
       ~name="String",
+      ~metadataMap=emptyMetadataMap,
       ~tagged=String,
       ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="string"`,
       ~parseTransformationFactory,
@@ -2395,6 +2384,7 @@ module Json = {
     let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=`Json`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=String,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
         let process = switch innerStruct->getParseOperation {
@@ -2456,6 +2446,7 @@ module Bool = {
   let factory = () => {
     make(
       ~name="Bool",
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Bool,
       ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="boolean"`,
       ~parseTransformationFactory,
@@ -2502,6 +2493,7 @@ module Int = {
   let factory = () => {
     make(
       ~name="Int",
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Int,
       ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="number"&&${Stdlib.Inlined.Constant.inputVar}<2147483648&&${Stdlib.Inlined.Constant.inputVar}>-2147483649&&${Stdlib.Inlined.Constant.inputVar}%1===0`,
       ~parseTransformationFactory,
@@ -2607,6 +2599,7 @@ module Float = {
   let factory = () => {
     make(
       ~name="Float",
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Float,
       ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="number"&&!Number.isNaN(${Stdlib.Inlined.Constant.inputVar})`,
       ~parseTransformationFactory,
@@ -2661,6 +2654,7 @@ module Null = {
     let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=`Null`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Null(innerStruct),
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
         let planSyncTransformation = fn => {
@@ -2713,6 +2707,7 @@ module Option = {
     let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=`Option`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Option(innerStruct),
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
         let planSyncTransformation = fn => {
@@ -2806,6 +2801,7 @@ module Array = {
     let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=`Array`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Array(innerStruct->Obj.magic),
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -2958,6 +2954,7 @@ module Dict = {
     let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=`Dict`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Dict(innerStruct),
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
         let planSyncTransformation = fn => {
@@ -3068,6 +3065,7 @@ module Defaulted = {
     let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=innerStruct.name,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=innerStruct.tagged,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
         switch innerStruct->getParseOperation {
@@ -3127,6 +3125,7 @@ module Tuple = {
 
       make(
         ~name="Tuple",
+        ~metadataMap=emptyMetadataMap,
         ~tagged=Tuple(structs),
         ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
           let noopOps = []
@@ -3284,6 +3283,7 @@ module Union = {
 
     make(
       ~name=`Union`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Union(structs),
       ~parseTransformationFactory=TransformationFactory.make((.
         ~ctx,
@@ -3556,14 +3556,14 @@ let inline = {
 
     // TODO: Add metadata support
 
-    let inlinedStruct = switch struct.maybeMetadataDict {
-    | Some(metadataDict) =>
+    let inlinedStruct = if struct.metadataMap === emptyMetadataMap {
+      inlinedStruct
+    } else {
       `{
   let s = ${inlinedStruct}
-  let _ = %raw(\`s.m = ${metadataDict->Stdlib.Inlined.Value.stringify}\`)
+  let _ = %raw(\`s.m = ${struct.metadataMap->Stdlib.Inlined.Value.stringify}\`)
   s
 }`
-    | None => inlinedStruct
     }
 
     let inlinedStruct = switch (struct->classify, maybeVariant) {

@@ -179,6 +179,8 @@ function toString(error) {
 
 var Raised = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Raised");
 
+var emptyMetadataMap = {};
+
 function planSyncTransformation(ctx, transformation) {
   var prevSyncTransformation = ctx.s;
   var prevAsyncTransformation = ctx.a;
@@ -724,7 +726,7 @@ function parseJsonStringWith(jsonString, struct) {
 }
 
 function recursive(fn) {
-  var placeholder = {};
+  var placeholder = ({m:emptyMetadataMap});
   var struct = fn(placeholder);
   Object.assign(placeholder, struct);
   if (isAsyncParse(placeholder)) {
@@ -734,7 +736,7 @@ function recursive(fn) {
 }
 
 function asyncRecursive(fn) {
-  var placeholder = {};
+  var placeholder = ({m:emptyMetadataMap});
   var struct = fn(placeholder);
   Object.assign(placeholder, struct);
   placeholder.r = 1;
@@ -750,16 +752,12 @@ var Id = {
 };
 
 function get(struct, id) {
-  var option = struct.m;
-  if (option !== undefined) {
-    return Js_dict.get(Caml_option.valFromOption(option), id);
-  }
-  
+  return Js_dict.get(struct.m, id);
 }
 
 function set(struct, id, metadata) {
-  var metadataChange = {};
-  var maybeMetadataDict = Caml_option.some(Object.assign({}, struct.m, (metadataChange[id] = metadata, metadataChange)));
+  var metadataMap = Object.assign({}, struct.m);
+  metadataMap[id] = metadata;
   return {
           n: struct.n,
           t: struct.t,
@@ -772,9 +770,15 @@ function set(struct, id, metadata) {
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
-          m: maybeMetadataDict
+          m: metadataMap
         };
 }
+
+var Metadata = {
+  Id: Id,
+  get: get,
+  set: set
+};
 
 function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
   if (maybeRefineParser === undefined && maybeRefineSerializer === undefined) {
@@ -810,7 +814,7 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
 }
 
 function addRefinement(struct, metadataId, refinement, refiner) {
-  var refinements = get(struct, metadataId);
+  var refinements = Js_dict.get(struct.m, metadataId);
   return refine(set(struct, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), refiner, refiner, undefined);
 }
 
@@ -1025,7 +1029,7 @@ function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
-          m: undefined
+          m: emptyMetadataMap
         };
 }
 
@@ -1084,7 +1088,7 @@ function factory(innerLiteral, variant) {
                   p: intitialParse,
                   a: intitialParseAsync,
                   i: undefined,
-                  m: undefined
+                  m: emptyMetadataMap
                 };
       case /* EmptyOption */1 :
           var serializeTransformationFactory$1 = makeSerializeTransformationFactory(undefined);
@@ -1108,7 +1112,7 @@ function factory(innerLiteral, variant) {
                   p: intitialParse,
                   a: intitialParseAsync,
                   i: undefined,
-                  m: undefined
+                  m: emptyMetadataMap
                 };
       case /* NaN */2 :
           var serializeTransformationFactory$2 = makeSerializeTransformationFactory(NaN);
@@ -1132,7 +1136,7 @@ function factory(innerLiteral, variant) {
                   p: intitialParse,
                   a: intitialParseAsync,
                   i: undefined,
-                  m: undefined
+                  m: emptyMetadataMap
                 };
       
     }
@@ -1156,7 +1160,7 @@ function factory(innerLiteral, variant) {
                   p: intitialParse,
                   a: intitialParseAsync,
                   i: undefined,
-                  m: undefined
+                  m: emptyMetadataMap
                 };
       case /* Int */1 :
           var $$int = innerLiteral._0;
@@ -1181,7 +1185,7 @@ function factory(innerLiteral, variant) {
                   p: intitialParse,
                   a: intitialParseAsync,
                   i: undefined,
-                  m: undefined
+                  m: emptyMetadataMap
                 };
       case /* Float */2 :
           var $$float = innerLiteral._0;
@@ -1202,7 +1206,7 @@ function factory(innerLiteral, variant) {
                   p: intitialParse,
                   a: intitialParseAsync,
                   i: undefined,
-                  m: undefined
+                  m: emptyMetadataMap
                 };
       case /* Bool */3 :
           var bool = innerLiteral._0;
@@ -1223,7 +1227,7 @@ function factory(innerLiteral, variant) {
                   p: intitialParse,
                   a: intitialParseAsync,
                   i: undefined,
-                  m: undefined
+                  m: emptyMetadataMap
                 };
       
     }
@@ -1241,7 +1245,7 @@ function factory$1(innerLiteral) {
 var metadataId = "rescript-struct:Object_UnknownKeys";
 
 function classify$1(struct) {
-  var t = get(struct, metadataId);
+  var t = Js_dict.get(struct.m, metadataId);
   if (t !== undefined) {
     return t;
   } else {
@@ -1564,7 +1568,7 @@ function factory$2(definer) {
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
-          m: undefined
+          m: emptyMetadataMap
         };
 }
 
@@ -1613,7 +1617,7 @@ function factory$3(param) {
           p: intitialParse,
           a: intitialParseAsync,
           i: "false",
-          m: undefined
+          m: emptyMetadataMap
         };
 }
 
@@ -1630,14 +1634,14 @@ function factory$4(param) {
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
-          m: undefined
+          m: emptyMetadataMap
         };
 }
 
 var metadataId$1 = "rescript-struct:String.refinements";
 
 function refinements(struct) {
-  var m = get(struct, metadataId$1);
+  var m = Js_dict.get(struct.m, metadataId$1);
   if (m !== undefined) {
     return m;
   } else {
@@ -1674,7 +1678,7 @@ function factory$5(param) {
           p: intitialParse,
           a: intitialParseAsync,
           i: "typeof v===\"string\"",
-          m: undefined
+          m: emptyMetadataMap
         };
 }
 
@@ -1874,7 +1878,7 @@ function factory$6(innerStruct) {
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
-          m: undefined
+          m: emptyMetadataMap
         };
 }
 
@@ -1901,14 +1905,14 @@ function factory$7(param) {
           p: intitialParse,
           a: intitialParseAsync,
           i: "typeof v===\"boolean\"",
-          m: undefined
+          m: emptyMetadataMap
         };
 }
 
 var metadataId$2 = "rescript-struct:Int.refinements";
 
 function refinements$1(struct) {
-  var m = get(struct, metadataId$2);
+  var m = Js_dict.get(struct.m, metadataId$2);
   if (m !== undefined) {
     return m;
   } else {
@@ -1939,7 +1943,7 @@ function factory$8(param) {
           p: intitialParse,
           a: intitialParseAsync,
           i: "typeof v===\"number\"&&v<2147483648&&v>-2147483649&&v%1===0",
-          m: undefined
+          m: emptyMetadataMap
         };
 }
 
@@ -1994,7 +1998,7 @@ function port(struct, messageOpt, param) {
 var metadataId$3 = "rescript-struct:Float.refinements";
 
 function refinements$2(struct) {
-  var m = get(struct, metadataId$3);
+  var m = Js_dict.get(struct.m, metadataId$3);
   if (m !== undefined) {
     return m;
   } else {
@@ -2025,7 +2029,7 @@ function factory$9(param) {
           p: intitialParse,
           a: intitialParseAsync,
           i: "typeof v===\"number\"&&!Number.isNaN(v)",
-          m: undefined
+          m: emptyMetadataMap
         };
 }
 
@@ -2130,7 +2134,7 @@ function factory$10(innerStruct) {
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
-          m: undefined
+          m: emptyMetadataMap
         };
 }
 
@@ -2193,7 +2197,7 @@ function factory$11(innerStruct) {
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
-          m: undefined
+          m: emptyMetadataMap
         };
 }
 
@@ -2206,13 +2210,13 @@ function factory$12(innerStruct, maybeMessage, param) {
 }
 
 function classify$2(struct) {
-  return get(struct, metadataId$4);
+  return Js_dict.get(struct.m, metadataId$4);
 }
 
 var metadataId$5 = "rescript-struct:Array.refinements";
 
 function refinements$3(struct) {
-  var m = get(struct, metadataId$5);
+  var m = Js_dict.get(struct.m, metadataId$5);
   if (m !== undefined) {
     return m;
   } else {
@@ -2322,7 +2326,7 @@ function factory$13(innerStruct) {
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
-          m: undefined
+          m: emptyMetadataMap
         };
 }
 
@@ -2496,7 +2500,7 @@ function factory$14(innerStruct) {
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
-          m: undefined
+          m: emptyMetadataMap
         };
 }
 
@@ -2559,14 +2563,14 @@ function factory$15(innerStruct, defaultValue) {
               p: intitialParse,
               a: intitialParseAsync,
               i: undefined,
-              m: undefined
+              m: emptyMetadataMap
             }, metadataId$6, /* WithDefaultValue */{
               _0: defaultValue
             });
 }
 
 function classify$3(struct) {
-  return get(struct, metadataId$6);
+  return Js_dict.get(struct.m, metadataId$6);
 }
 
 function factory$16(param) {
@@ -2727,7 +2731,7 @@ function factory$16(param) {
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
-          m: undefined
+          m: emptyMetadataMap
         };
 }
 
@@ -2911,7 +2915,7 @@ function factory$17(structs) {
           p: intitialParse,
           a: intitialParseAsync,
           i: undefined,
-          m: undefined
+          m: emptyMetadataMap
         };
 }
 
@@ -2922,7 +2926,7 @@ function describe(struct, description) {
 }
 
 function description(struct) {
-  return get(struct, descriptionMetadataId);
+  return Js_dict.get(struct.m, descriptionMetadataId);
 }
 
 function getExn(result) {
@@ -3137,15 +3141,14 @@ function internalInline(struct, maybeVariant, param) {
       
     }
   }
-  var metadataDict = struct.m;
   var inlinedStruct$1;
-  if (metadataDict !== undefined) {
-    var metadataDict$1 = Caml_option.valFromOption(metadataDict);
-    inlinedStruct$1 = "{\n  let s = " + inlinedStruct + "\n  let _ = %raw(\`s.m = " + (
-      metadataDict$1 === undefined ? "undefined" : JSON.stringify(metadataDict$1)
-    ) + "\`)\n  s\n}";
-  } else {
+  if (struct.m === emptyMetadataMap) {
     inlinedStruct$1 = inlinedStruct;
+  } else {
+    var any = struct.m;
+    inlinedStruct$1 = "{\n  let s = " + inlinedStruct + "\n  let _ = %raw(\`s.m = " + (
+      any === undefined ? "undefined" : JSON.stringify(any)
+    ) + "\`)\n  s\n}";
   }
   var match = struct.t;
   if (typeof match !== "number" && match.TAG === /* Literal */0) {
@@ -3295,12 +3298,6 @@ var Defaulted = {
 
 var Deprecated = {
   classify: classify$2
-};
-
-var Metadata = {
-  Id: Id,
-  get: get,
-  set: set
 };
 
 exports.Path = Path;
