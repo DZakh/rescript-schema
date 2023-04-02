@@ -191,21 +191,12 @@ let tuple1: (. t<'value>) => t<'value>
 let tuple2: (. t<'v1>, t<'v2>) => t<('v1, 'v2)>
 let tuple3: (. t<'v1>, t<'v2>, t<'v3>) => t<('v1, 'v2, 'v3)>
 let tuple4: (. t<'v1>, t<'v2>, t<'v3>, t<'v4>) => t<('v1, 'v2, 'v3, 'v4)>
-let tuple5: (. t<'v1>, t<'v2>, t<'v3>, t<'v4>, t<'v4>) => t<('v1, 'v2, 'v3, 'v4, 'v5)>
-let tuple6: (
-  . t<'v1>,
-  t<'v2>,
-  t<'v3>,
-  t<'v4>,
-  t<'v4>,
-  t<'v5>,
-  t<'v6>,
-) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6)>
+let tuple5: (. t<'v1>, t<'v2>, t<'v3>, t<'v4>, t<'v5>) => t<('v1, 'v2, 'v3, 'v4, 'v5)>
+let tuple6: (. t<'v1>, t<'v2>, t<'v3>, t<'v4>, t<'v5>, t<'v6>) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6)>
 let tuple7: (
   . t<'v1>,
   t<'v2>,
   t<'v3>,
-  t<'v4>,
   t<'v4>,
   t<'v5>,
   t<'v6>,
@@ -215,7 +206,6 @@ let tuple8: (
   . t<'v1>,
   t<'v2>,
   t<'v3>,
-  t<'v4>,
   t<'v4>,
   t<'v5>,
   t<'v6>,
@@ -227,7 +217,6 @@ let tuple9: (
   t<'v2>,
   t<'v3>,
   t<'v4>,
-  t<'v4>,
   t<'v5>,
   t<'v6>,
   t<'v7>,
@@ -238,7 +227,6 @@ let tuple10: (
   . t<'v1>,
   t<'v2>,
   t<'v3>,
-  t<'v4>,
   t<'v4>,
   t<'v5>,
   t<'v6>,
@@ -362,3 +350,5 @@ module Metadata: {
 
   let set: (t<'value>, ~id: Id.t<'metadata>, ~metadata: 'metadata) => t<'value>
 }
+
+let inline: t<'value> => string

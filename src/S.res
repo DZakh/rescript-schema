@@ -40,6 +40,11 @@ module Stdlib = {
     }
   }
 
+  module Re = {
+    @send
+    external toString: Js.Re.t => string = "toString"
+  }
+
   module Fn = {
     @inline
     let getArguments = (): array<'a> => {
@@ -110,15 +115,6 @@ module Stdlib = {
       }
   }
 
-  module Option = {
-    @inline
-    let flatMap = (option, fn) =>
-      switch option {
-      | Some(value) => fn(value)
-      | None => None
-      }
-  }
-
   module Exn = {
     type error
 
@@ -146,14 +142,15 @@ module Stdlib = {
 
   module Dict = {
     @val
-    external immutableShallowMerge: (
-      @as(json`{}`) _,
-      Js.Dict.t<'a>,
-      Js.Dict.t<'a>,
-    ) => Js.Dict.t<'a> = "Object.assign"
+    external copy: (@as(json`{}`) _, Js.Dict.t<'a>) => Js.Dict.t<'a> = "Object.assign"
 
     @send
     external has: (Js.Dict.t<'a>, string) => bool = "hasOwnProperty"
+
+    @inline
+    let deleteInPlace = (dict, key) => {
+      Js.Dict.unsafeDeleteKey(. dict->(Obj.magic: Js.Dict.t<'a> => Js.Dict.t<string>), key)
+    }
   }
 
   module Bool = {
@@ -255,6 +252,11 @@ module Stdlib = {
 
       @inline
       let fromString = (string: string): string => string->Js.Json.stringifyAny->Obj.magic
+    }
+
+    module Float = {
+      @inline
+      let toRescript = float => float->Js.Float.toString ++ (mod_float(float, 1.) === 0. ? "." : "")
     }
 
     module Fn = {
@@ -572,7 +574,7 @@ type rec t<'value> = {
   @as("i")
   maybeInlinedRefinement: option<string>,
   @as("m")
-  maybeMetadataDict: option<Js.Dict.t<unknown>>,
+  metadataMap: Js.Dict.t<unknown>,
 }
 and tagged =
   | Never
@@ -608,6 +610,8 @@ and internalTransformationFactory = (
 
 type payloadedVariant<'payload> = {_0: 'payload}
 let unsafeGetVariantPayload = variant => (variant->Obj.magic)._0
+
+let emptyMetadataMap = Js.Dict.empty()
 
 external castAnyToUnknown: 'any => unknown = "%identity"
 external castUnknownToAny: unknown => 'any = "%identity"
@@ -901,8 +905,8 @@ let make = (
   ~tagged,
   ~parseTransformationFactory,
   ~serializeTransformationFactory,
+  ~metadataMap,
   ~inlinedRefinement as maybeInlinedRefinement=?,
-  ~metadataDict as maybeMetadataDict=?,
   (),
 ) => {
   name,
@@ -916,7 +920,7 @@ let make = (
   parse: intitialParse,
   parseAsync: intitialParseAsync,
   maybeInlinedRefinement,
-  maybeMetadataDict,
+  metadataMap,
 }
 
 let parseWith = (any, struct) => {
@@ -1023,7 +1027,7 @@ let parseJsonStringWith = (jsonString: string, struct: t<'value>): result<'value
 }
 
 let recursive = fn => {
-  let placeholder: t<'value> = %raw(`{}`)
+  let placeholder: t<'value> = %raw(`{m:emptyMetadataMap}`)
   let struct = fn->Stdlib.Fn.call1(placeholder)
   placeholder->Stdlib.Object.overrideWith(struct)
   if placeholder->isAsyncParse {
@@ -1035,7 +1039,7 @@ let recursive = fn => {
 }
 
 let asyncRecursive = fn => {
-  let placeholder: t<'value> = %raw(`{}`)
+  let placeholder: t<'value> = %raw(`{m:emptyMetadataMap}`)
   let struct = fn->Stdlib.Fn.call1(placeholder)
   placeholder->Stdlib.Object.overrideWith(struct)
   placeholder.parseOperationState = ParseOperationState.asyncEmpty()
@@ -1043,8 +1047,6 @@ let asyncRecursive = fn => {
 }
 
 module Metadata = {
-  external castDictOfAnyToUnknown: Js.Dict.t<'any> => Js.Dict.t<unknown> = "%identity"
-
   module Id: {
     type t<'metadata>
     let make: (~namespace: string, ~name: string) => t<'metadata>
@@ -1059,31 +1061,19 @@ module Metadata = {
     external toKey: t<'metadata> => string = "%identity"
   }
 
-  module Change = {
-    @inline
-    let make = (~id: Id.t<'metadata>, ~metadata: 'metadata) => {
-      let metadataChange = Js.Dict.empty()
-      metadataChange->Js.Dict.set(id->Id.toKey, metadata)
-      metadataChange->castDictOfAnyToUnknown
-    }
-  }
-
   let get = (struct, ~id: Id.t<'metadata>): option<'metadata> => {
-    struct.maybeMetadataDict->Stdlib.Option.flatMap(metadataDict => {
-      metadataDict->Js.Dict.get(id->Id.toKey)->Obj.magic
-    })
+    struct.metadataMap->Js.Dict.get(id->Id.toKey)->Obj.magic
   }
 
   let set = (struct, ~id: Id.t<'metadata>, ~metadata: 'metadata) => {
+    let metadataMap = struct.metadataMap->Stdlib.Dict.copy
+    metadataMap->Js.Dict.set(id->Id.toKey, metadata->castAnyToUnknown)
     make(
       ~name=struct.name,
       ~parseTransformationFactory=struct.parseTransformationFactory,
       ~serializeTransformationFactory=struct.serializeTransformationFactory,
       ~tagged=struct.tagged,
-      ~metadataDict=Stdlib.Dict.immutableShallowMerge(
-        struct.maybeMetadataDict->Obj.magic,
-        Change.make(~id, ~metadata),
-      ),
+      ~metadataMap,
       (),
     )
   }
@@ -1131,7 +1121,7 @@ let refine: (
       })
     | None => struct.serializeTransformationFactory
     },
-    ~metadataDict=?struct.maybeMetadataDict,
+    ~metadataMap=struct.metadataMap,
     ~inlinedRefinement=?nextParseTransformationFactory === struct.parseTransformationFactory
       ? struct.maybeInlinedRefinement
       : None,
@@ -1170,7 +1160,7 @@ let asyncRefine = (struct, ~parser, ()) => {
       })
     }),
     ~serializeTransformationFactory=struct.serializeTransformationFactory,
-    ~metadataDict=?struct.maybeMetadataDict,
+    ~metadataMap=struct.metadataMap,
     (),
   )
 }
@@ -1212,7 +1202,7 @@ let transform: (
       }
       struct.serializeTransformationFactory(. ~ctx, ~struct=compilingStruct)
     }),
-    ~metadataDict=?struct.maybeMetadataDict,
+    ~metadataMap=struct.metadataMap,
     (),
   )
 }
@@ -1268,7 +1258,7 @@ let advancedTransform: (
       }
       struct.serializeTransformationFactory(. ~ctx, ~struct=compilingStruct)
     }),
-    ~metadataDict=?struct.maybeMetadataDict,
+    ~metadataMap=struct.metadataMap,
     (),
   )
 }
@@ -1301,7 +1291,7 @@ let rec advancedPreprocess = (
       ),
       ~parseTransformationFactory=struct.parseTransformationFactory,
       ~serializeTransformationFactory=struct.serializeTransformationFactory,
-      ~metadataDict=?struct.maybeMetadataDict,
+      ~metadataMap=struct.metadataMap,
       (),
     )
   | _ =>
@@ -1344,7 +1334,7 @@ let rec advancedPreprocess = (
         | None => ctx->TransformationFactory.Ctx.planMissingSerializerTransformation
         }
       }),
-      ~metadataDict=?struct.maybeMetadataDict,
+      ~metadataMap=struct.metadataMap,
       (),
     )
   }
@@ -1362,6 +1352,7 @@ let custom = (
 
   make(
     ~name,
+    ~metadataMap=emptyMetadataMap,
     ~tagged=Unknown,
     ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
       switch maybeCustomParser {
@@ -1420,6 +1411,7 @@ module Literal = {
         | EmptyNull =>
           make(
             ~name="EmptyNull Literal (null)",
+            ~metadataMap=emptyMetadataMap,
             ~tagged,
             ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
               ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -1436,6 +1428,7 @@ module Literal = {
         | EmptyOption =>
           make(
             ~name="EmptyOption Literal (undefined)",
+            ~metadataMap=emptyMetadataMap,
             ~tagged,
             ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
               ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -1452,6 +1445,7 @@ module Literal = {
         | NaN =>
           make(
             ~name="NaN Literal (NaN)",
+            ~metadataMap=emptyMetadataMap,
             ~tagged,
             ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
               ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -1468,6 +1462,7 @@ module Literal = {
         | Bool(bool) =>
           make(
             ~name=`Bool Literal (${bool->Stdlib.Bool.toString})`,
+            ~metadataMap=emptyMetadataMap,
             ~tagged,
             ~parseTransformationFactory=makeParseTransformationFactory(
               ~literalValue=bool,
@@ -1479,6 +1474,7 @@ module Literal = {
         | String(string) =>
           make(
             ~name=`String Literal ("${string}")`,
+            ~metadataMap=emptyMetadataMap,
             ~tagged,
             ~parseTransformationFactory=makeParseTransformationFactory(
               ~literalValue=string,
@@ -1490,6 +1486,7 @@ module Literal = {
         | Float(float) =>
           make(
             ~name=`Float Literal (${float->Js.Float.toString})`,
+            ~metadataMap=emptyMetadataMap,
             ~tagged,
             ~parseTransformationFactory=makeParseTransformationFactory(
               ~literalValue=float,
@@ -1501,6 +1498,7 @@ module Literal = {
         | Int(int) =>
           make(
             ~name=`Int Literal (${int->Js.Int.toString})`,
+            ~metadataMap=emptyMetadataMap,
             ~tagged,
             ~parseTransformationFactory=makeParseTransformationFactory(
               ~literalValue=int,
@@ -1536,7 +1534,7 @@ module Object = {
 
     let metadataId: Metadata.Id.t<tagged> = Metadata.Id.make(
       ~namespace="rescript-struct",
-      ~name="Object_UnknownKeys",
+      ~name="Object.UnknownKeys",
     )
 
     let classify = struct => {
@@ -2118,6 +2116,7 @@ module Object = {
 
     make(
       ~name="Object",
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Object({
         fields: instructions.fields,
         fieldNames: instructions.fieldNames,
@@ -2164,15 +2163,16 @@ module Object = {
 }
 
 module Never = {
-  let factory = () => {
-    let transformationFactory = TransformationFactory.make((. ~ctx, ~struct) =>
-      ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-        raiseUnexpectedTypeError(~input, ~struct)
-      })
-    )
+  let transformationFactory = TransformationFactory.make((. ~ctx, ~struct) =>
+    ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+      raiseUnexpectedTypeError(~input, ~struct)
+    })
+  )
 
+  let factory = () => {
     make(
       ~name=`Never`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Never,
       ~inlinedRefinement="false",
       ~parseTransformationFactory=transformationFactory,
@@ -2186,6 +2186,7 @@ module Unknown = {
   let factory = () => {
     make(
       ~name=`Unknown`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Unknown,
       ~parseTransformationFactory=TransformationFactory.empty,
       ~serializeTransformationFactory=TransformationFactory.empty,
@@ -2227,20 +2228,23 @@ module String = {
   let uuidRegex = %re(`/^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]{12}|00000000-0000-0000-0000-000000000000)$/i`)
   let emailRegex = %re(`/^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i`)
 
+  let parseTransformationFactory = TransformationFactory.make((. ~ctx, ~struct) =>
+    ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+      if input->Js.typeof === "string" {
+        input
+      } else {
+        raiseUnexpectedTypeError(~input, ~struct)
+      }
+    })
+  )
+
   let factory = () => {
     make(
       ~name="String",
+      ~metadataMap=emptyMetadataMap,
       ~tagged=String,
       ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="string"`,
-      ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          if input->Js.typeof === "string" {
-            input
-          } else {
-            raiseUnexpectedTypeError(~input, ~struct)
-          }
-        })
-      ),
+      ~parseTransformationFactory,
       ~serializeTransformationFactory=TransformationFactory.empty,
       (),
     )
@@ -2395,6 +2399,7 @@ module Json = {
     let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=`Json`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=String,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
         let process = switch innerStruct->getParseOperation {
@@ -2443,20 +2448,23 @@ module Json = {
 }
 
 module Bool = {
+  let parseTransformationFactory = TransformationFactory.make((. ~ctx, ~struct) =>
+    ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+      if input->Js.typeof === "boolean" {
+        input
+      } else {
+        raiseUnexpectedTypeError(~input, ~struct)
+      }
+    })
+  )
+
   let factory = () => {
     make(
       ~name="Bool",
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Bool,
       ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="boolean"`,
-      ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          if input->Js.typeof === "boolean" {
-            input
-          } else {
-            raiseUnexpectedTypeError(~input, ~struct)
-          }
-        })
-      ),
+      ~parseTransformationFactory,
       ~serializeTransformationFactory=TransformationFactory.empty,
       (),
     )
@@ -2487,20 +2495,23 @@ module Int = {
     }
   }
 
+  let parseTransformationFactory = TransformationFactory.make((. ~ctx, ~struct) =>
+    ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+      if Stdlib.Int.test(input) {
+        input
+      } else {
+        raiseUnexpectedTypeError(~input, ~struct)
+      }
+    })
+  )
+
   let factory = () => {
     make(
       ~name="Int",
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Int,
       ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="number"&&${Stdlib.Inlined.Constant.inputVar}<2147483648&&${Stdlib.Inlined.Constant.inputVar}>-2147483649&&${Stdlib.Inlined.Constant.inputVar}%1===0`,
-      ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          if Stdlib.Int.test(input) {
-            input
-          } else {
-            raiseUnexpectedTypeError(~input, ~struct)
-          }
-        })
-      ),
+      ~parseTransformationFactory,
       ~serializeTransformationFactory=TransformationFactory.empty,
       (),
     )
@@ -2586,24 +2597,27 @@ module Float = {
     }
   }
 
+  let parseTransformationFactory = TransformationFactory.make((. ~ctx, ~struct) =>
+    ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+      switch input->Js.typeof === "number" {
+      | true =>
+        if Js.Float.isNaN(input) {
+          raiseUnexpectedTypeError(~input, ~struct)
+        } else {
+          input
+        }
+      | false => raiseUnexpectedTypeError(~input, ~struct)
+      }
+    })
+  )
+
   let factory = () => {
     make(
       ~name="Float",
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Float,
       ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="number"&&!Number.isNaN(${Stdlib.Inlined.Constant.inputVar})`,
-      ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) =>
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          switch input->Js.typeof === "number" {
-          | true =>
-            if Js.Float.isNaN(input) {
-              raiseUnexpectedTypeError(~input, ~struct)
-            } else {
-              input
-            }
-          | false => raiseUnexpectedTypeError(~input, ~struct)
-          }
-        })
-      ),
+      ~parseTransformationFactory,
       ~serializeTransformationFactory=TransformationFactory.empty,
       (),
     )
@@ -2655,6 +2669,7 @@ module Null = {
     let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=`Null`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Null(innerStruct),
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
         let planSyncTransformation = fn => {
@@ -2707,6 +2722,7 @@ module Option = {
     let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=`Option`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Option(innerStruct),
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
         let planSyncTransformation = fn => {
@@ -2800,6 +2816,7 @@ module Array = {
     let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=`Array`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Array(innerStruct->Obj.magic),
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -2952,6 +2969,7 @@ module Dict = {
     let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=`Dict`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Dict(innerStruct),
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
         let planSyncTransformation = fn => {
@@ -3062,6 +3080,7 @@ module Defaulted = {
     let innerStruct = innerStruct->castAnyStructToUnknownStruct
     make(
       ~name=innerStruct.name,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=innerStruct.tagged,
       ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
         switch innerStruct->getParseOperation {
@@ -3121,6 +3140,7 @@ module Tuple = {
 
       make(
         ~name="Tuple",
+        ~metadataMap=emptyMetadataMap,
         ~tagged=Tuple(structs),
         ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct) => {
           let noopOps = []
@@ -3278,6 +3298,7 @@ module Union = {
 
     make(
       ~name=`Union`,
+      ~metadataMap=emptyMetadataMap,
       ~tagged=Union(structs),
       ~parseTransformationFactory=TransformationFactory.make((.
         ~ctx,
@@ -3441,6 +3462,262 @@ module Result = {
 
   let mapErrorToString = result => {
     result->Stdlib.Result.mapError(Error.toString)
+  }
+}
+
+let inline = {
+  let rec toVariantName = struct => {
+    switch struct->classify {
+    | Literal(String(string)) => string
+    | Literal(Int(int)) => int->Js.Int.toString
+    | Literal(Float(float)) => float->Js.Float.toString
+    | Literal(Bool(true)) => `True`
+    | Literal(Bool(false)) => `False`
+    | Literal(EmptyOption) => `EmptyOption`
+    | Literal(EmptyNull) => `EmptyNull`
+    | Literal(NaN) => `NaN`
+    | Union(_) => `Union`
+    | Tuple([]) => `EmptyTuple`
+    | Tuple(_) => `Tuple`
+    | Object({fieldNames: []}) => `EmptyObject`
+    | Object(_) => `Object`
+    | String => `String`
+    | Int => `Int`
+    | Float => `Float`
+    | Bool => `Bool`
+    | Never => `Never`
+    | Unknown => `Unknown`
+    | Option(s) => `OptionOf${s->toVariantName}`
+    | Null(s) => `NullOf${s->toVariantName}`
+    | Array(s) => `ArrayOf${s->toVariantName}`
+    | Dict(s) => `DictOf${s->toVariantName}`
+    }
+  }
+
+  let rec internalInline = (struct, ~variant as maybeVariant=?, ()) => {
+    let metadataMap = struct.metadataMap->Stdlib.Dict.copy
+
+    let inlinedStruct = switch struct->classify {
+    | Literal(taggedLiteral) => {
+        let inlinedLiteral = switch taggedLiteral {
+        | String(string) => `String(${string->Stdlib.Inlined.Value.fromString})`
+        | Int(int) => `Int(${int->Js.Int.toString})`
+        | Float(float) => `Float(${float->Stdlib.Inlined.Float.toRescript})`
+        | Bool(bool) => `Bool(${bool->Stdlib.Bool.toString})`
+        | EmptyOption => `EmptyOption`
+        | EmptyNull => `EmptyNull`
+        | NaN => `NaN`
+        }
+        switch maybeVariant {
+        | Some(variant) => `S.literalVariant(${inlinedLiteral}, ${variant})`
+        | None => `S.literal(${inlinedLiteral})`
+        }
+      }
+
+    | Union(unionStructs) => {
+        let variantNamesCounter = Js.Dict.empty()
+        `S.union([${unionStructs
+          ->Js.Array2.map(s => {
+            let variantName = s->toVariantName
+            let numberOfVariantNames = switch variantNamesCounter->Js.Dict.get(variantName) {
+            | Some(n) => n
+            | None => 0
+            }
+            variantNamesCounter->Js.Dict.set(variantName, numberOfVariantNames->Stdlib.Int.plus(1))
+            let variantName = switch numberOfVariantNames {
+            | 0 => variantName
+            | _ => variantName ++ numberOfVariantNames->Stdlib.Int.plus(1)->Js.Int.toString
+            }
+            let inlinedVariant = `#${variantName->Stdlib.Inlined.Value.fromString}`
+            s->internalInline(~variant=inlinedVariant, ())
+          })
+          ->Js.Array2.joinWith(", ")}])`
+      }
+
+    | Tuple([]) => `S.tuple0(.)`
+    | Tuple(tupleStructs) => {
+        let numberOfItems = tupleStructs->Js.Array2.length
+        if numberOfItems > 10 {
+          Error.panic("The S.inline doesn't support tuples with more than 10 items.")
+        }
+        `S.tuple${numberOfItems->Js.Int.toString}(. ${tupleStructs
+          ->Js.Array2.map(s => s->internalInline())
+          ->Js.Array2.joinWith(", ")})`
+      }
+
+    | Object({fieldNames: []}) => `S.object(_ => ())`
+    | Object({fieldNames, fields}) =>
+      `S.object(o =>
+  {
+    ${fieldNames
+        ->Js.Array2.map(fieldName => {
+          `${fieldName->Stdlib.Inlined.Value.fromString}: o->S.field(${fieldName->Stdlib.Inlined.Value.fromString}, ${fields
+            ->Js.Dict.unsafeGet(fieldName)
+            ->internalInline()})`
+        })
+        ->Js.Array2.joinWith(",\n    ")},
+  }
+)`
+    | String => `S.string()`
+    | Int => `S.int()`
+    | Float => `S.float()`
+    | Bool => `S.bool()`
+    | Option(innerStruct) => {
+        let inlinedInnerStruct = innerStruct->internalInline()
+        switch struct->Deprecated.classify {
+        | Some(deprecatedTagged) => {
+            metadataMap->Stdlib.Dict.deleteInPlace(Deprecated.metadataId->Metadata.Id.toKey)
+            switch deprecatedTagged {
+            | WithMessage(m) =>
+              inlinedInnerStruct ++
+              `->S.deprecated(~message=${m->Stdlib.Inlined.Value.fromString}, ())`
+            | WithoutMessage => inlinedInnerStruct ++ `->S.deprecated()`
+            }
+          }
+
+        | None => `S.option(${inlinedInnerStruct})`
+        }
+      }
+
+    | Null(innerStruct) => `S.null(${innerStruct->internalInline()})`
+    | Never => `S.never()`
+    | Unknown => `S.unknown()`
+    | Array(innerStruct) => `S.array(${innerStruct->internalInline()})`
+    | Dict(innerStruct) => `S.dict(${innerStruct->internalInline()})`
+    }
+
+    let inlinedStruct = switch struct->Defaulted.classify {
+    | Some(WithDefaultValue(v)) => {
+        metadataMap->Stdlib.Dict.deleteInPlace(Defaulted.metadataId->Metadata.Id.toKey)
+        inlinedStruct ++ `->S.defaulted(%raw(\`${v->Stdlib.Inlined.Value.stringify}\`))`
+      }
+
+    | None => inlinedStruct
+    }
+
+    let inlinedStruct = switch struct->classify {
+    | String
+    | Literal(String(_)) =>
+      switch struct->String.refinements {
+      | [] => inlinedStruct
+      | refinements =>
+        metadataMap->Stdlib.Dict.deleteInPlace(String.Refinement.metadataId->Metadata.Id.toKey)
+        inlinedStruct ++
+        refinements
+        ->Js.Array2.map(refinement => {
+          switch refinement {
+          | {kind: Email, message} =>
+            `->S.String.email(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+          | {kind: Url, message} =>
+            `->S.String.url(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+          | {kind: Uuid, message} =>
+            `->S.String.uuid(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+          | {kind: Cuid, message} =>
+            `->S.String.cuid(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+          | {kind: Min({length}), message} =>
+            `->S.String.min(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Js.Int.toString})`
+          | {kind: Max({length}), message} =>
+            `->S.String.max(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Js.Int.toString})`
+          | {kind: Length({length}), message} =>
+            `->S.String.length(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Js.Int.toString})`
+          | {kind: Pattern({re}), message} =>
+            `->S.String.pattern(~message=${message->Stdlib.Inlined.Value.fromString}, %re(${re
+              ->Stdlib.Re.toString
+              ->Stdlib.Inlined.Value.fromString}))`
+          }
+        })
+        ->Js.Array2.joinWith("")
+      }
+    | Int
+    | Literal(Int(_)) =>
+      switch struct->Int.refinements {
+      | [] => inlinedStruct
+      | refinements =>
+        metadataMap->Stdlib.Dict.deleteInPlace(Int.Refinement.metadataId->Metadata.Id.toKey)
+        inlinedStruct ++
+        refinements
+        ->Js.Array2.map(refinement => {
+          switch refinement {
+          | {kind: Max({value}), message} =>
+            `->S.Int.max(~message=${message->Stdlib.Inlined.Value.fromString}, ${value->Js.Int.toString})`
+          | {kind: Min({value}), message} =>
+            `->S.Int.min(~message=${message->Stdlib.Inlined.Value.fromString}, ${value->Js.Int.toString})`
+          | {kind: Port, message} =>
+            `->S.Int.port(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+          }
+        })
+        ->Js.Array2.joinWith("")
+      }
+    | Float
+    | Literal(Float(_)) =>
+      switch struct->Float.refinements {
+      | [] => inlinedStruct
+      | refinements =>
+        metadataMap->Stdlib.Dict.deleteInPlace(Float.Refinement.metadataId->Metadata.Id.toKey)
+        inlinedStruct ++
+        refinements
+        ->Js.Array2.map(refinement => {
+          switch refinement {
+          | {kind: Max({value}), message} =>
+            `->S.Float.max(~message=${message->Stdlib.Inlined.Value.fromString}, ${value->Stdlib.Inlined.Float.toRescript})`
+          | {kind: Min({value}), message} =>
+            `->S.Float.min(~message=${message->Stdlib.Inlined.Value.fromString}, ${value->Stdlib.Inlined.Float.toRescript})`
+          }
+        })
+        ->Js.Array2.joinWith("")
+      }
+
+    | Array(_) =>
+      switch struct->Array.refinements {
+      | [] => inlinedStruct
+      | refinements =>
+        metadataMap->Stdlib.Dict.deleteInPlace(Array.Refinement.metadataId->Metadata.Id.toKey)
+        inlinedStruct ++
+        refinements
+        ->Js.Array2.map(refinement => {
+          switch refinement {
+          | {kind: Max({length}), message} =>
+            `->S.Array.max(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Js.Int.toString})`
+          | {kind: Min({length}), message} =>
+            `->S.Array.min(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Js.Int.toString})`
+          | {kind: Length({length}), message} =>
+            `->S.Array.length(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Js.Int.toString})`
+          }
+        })
+        ->Js.Array2.joinWith("")
+      }
+
+    | _ => inlinedStruct
+    }
+
+    let inlinedStruct = if metadataMap->Js.Dict.keys->Js.Array2.length !== 0 {
+      `{
+  let s = ${inlinedStruct}
+  let _ = %raw(\`s.m = ${metadataMap->Js.Json.stringifyAny->Belt.Option.getUnsafe}\`)
+  s
+}`
+    } else {
+      inlinedStruct
+    }
+
+    let inlinedStruct = switch (struct->classify, maybeVariant) {
+    | (Literal(_), _) => inlinedStruct
+    | (_, Some(variant)) =>
+      inlinedStruct ++
+      `->S.transform(
+  ~parser=d => ${variant}(d),
+  ~serializer=v => switch v {
+| ${variant}(d) => d
+| _ => S.Error.raise(\`Value is not the ${variant} variant.\`)
+}, ())`
+    | _ => inlinedStruct
+    }
+
+    inlinedStruct
+  }
+
+  struct => {
+    struct->castAnyStructToUnknownStruct->internalInline()
   }
 }
 
