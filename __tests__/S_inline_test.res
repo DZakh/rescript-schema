@@ -39,22 +39,97 @@ test("Doesn't support transforms and refinements", t => {
   t->Assert.deepEqual(struct->S.inline, `S.string()`, ())
 })
 
-// FIXME:
-Failing.test("Support built-in refinements with String", t => {
+test("Supports built-in String.email refinement", t => {
   let struct = S.string()->S.String.email()
-  let structInlineResult = {
-    let s = S.string()
-    let _ = %raw(`s.m = {"rescript-struct:String.refinements":[{"kind":0,"message":"Invalid email address"}]}`)
-    s
-  }
-  t->Assert.deepEqual(struct, structInlineResult, ())
+  let structInlineResult = S.string()->S.String.email(~message="Invalid email address", ())
+
+  t->assertEqualStructs(struct, structInlineResult, ())
   t->Assert.deepEqual(
     struct->S.inline,
-    `{
-  let s = S.string()
-  let _ = %raw(\`s.m = {"rescript-struct:String.refinements":[{"kind":0,"message":"Invalid email address"}]}\`)
-  s
-}`,
+    `S.string()->S.String.email(~message="Invalid email address", ())`,
+    (),
+  )
+})
+
+test("Supports built-in String.url refinement", t => {
+  let struct = S.string()->S.String.url()
+  let structInlineResult = S.string()->S.String.url(~message="Invalid url", ())
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(struct->S.inline, `S.string()->S.String.url(~message="Invalid url", ())`, ())
+})
+
+test("Supports built-in String.uuid refinement", t => {
+  let struct = S.string()->S.String.uuid()
+  let structInlineResult = S.string()->S.String.uuid(~message="Invalid UUID", ())
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.string()->S.String.uuid(~message="Invalid UUID", ())`,
+    (),
+  )
+})
+
+test("Supports built-in String.cuid refinement", t => {
+  let struct = S.string()->S.String.cuid()
+  let structInlineResult = S.string()->S.String.cuid(~message="Invalid CUID", ())
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.string()->S.String.cuid(~message="Invalid CUID", ())`,
+    (),
+  )
+})
+
+test("Supports built-in String.min refinement", t => {
+  let struct = S.string()->S.String.min(5)
+  let structInlineResult =
+    S.string()->S.String.min(~message="String must be 5 or more characters long", 5)
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.string()->S.String.min(~message="String must be 5 or more characters long", 5)`,
+    (),
+  )
+})
+
+test("Supports built-in String.max refinement", t => {
+  let struct = S.string()->S.String.max(5)
+  let structInlineResult =
+    S.string()->S.String.max(~message="String must be 5 or fewer characters long", 5)
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.string()->S.String.max(~message="String must be 5 or fewer characters long", 5)`,
+    (),
+  )
+})
+
+test("Supports built-in String.length refinement", t => {
+  let struct = S.string()->S.String.length(5)
+  let structInlineResult =
+    S.string()->S.String.length(~message="String must be exactly 5 characters long", 5)
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.string()->S.String.length(~message="String must be exactly 5 characters long", 5)`,
+    (),
+  )
+})
+
+test("Supports built-in String.pattern refinement", t => {
+  let struct = S.string()->S.String.pattern(%re("/0-9/"))
+  let structInlineResult = S.string()->S.String.pattern(~message="Invalid", %re("/0-9/"))
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.string()->S.String.pattern(~message="Invalid", %re("/0-9/"))`,
     (),
   )
 })
@@ -64,9 +139,109 @@ test("Supports Int", t => {
   t->Assert.deepEqual(struct->S.inline, `S.int()`, ())
 })
 
+test("Supports built-in Int.max refinement", t => {
+  let struct = S.int()->S.Int.max(4)
+  let structInlineResult = S.int()->S.Int.max(~message="Number must be lower than or equal to 4", 4)
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.int()->S.Int.max(~message="Number must be lower than or equal to 4", 4)`,
+    (),
+  )
+})
+
+test("Supports built-in Int.min refinement", t => {
+  let struct = S.int()->S.Int.min(4)
+  let structInlineResult =
+    S.int()->S.Int.min(~message="Number must be greater than or equal to 4", 4)
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.int()->S.Int.min(~message="Number must be greater than or equal to 4", 4)`,
+    (),
+  )
+})
+
+test("Supports built-in Int.port refinement", t => {
+  let struct = S.int()->S.Int.port()
+  let structInlineResult = S.int()->S.Int.port(~message="Invalid port", ())
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(struct->S.inline, `S.int()->S.Int.port(~message="Invalid port", ())`, ())
+})
+
 test("Supports Float", t => {
   let struct = S.float()
   t->Assert.deepEqual(struct->S.inline, `S.float()`, ())
+})
+
+test("Supports built-in Float.max refinement", t => {
+  let struct = S.float()->S.Float.max(4.)
+  let structInlineResult =
+    S.float()->S.Float.max(~message="Number must be lower than or equal to 4", 4.)
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.float()->S.Float.max(~message="Number must be lower than or equal to 4", 4.)`,
+    (),
+  )
+})
+
+test("Supports built-in Float.max refinement with digits after decimal point", t => {
+  let struct = S.float()->S.Float.max(4.4)
+  let structInlineResult =
+    S.float()->S.Float.max(~message="Number must be lower than or equal to 4.4", 4.4)
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.float()->S.Float.max(~message="Number must be lower than or equal to 4.4", 4.4)`,
+    (),
+  )
+})
+
+test("Supports built-in Float.min refinement", t => {
+  let struct = S.float()->S.Float.min(4.)
+  let structInlineResult =
+    S.float()->S.Float.min(~message="Number must be greater than or equal to 4", 4.)
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.float()->S.Float.min(~message="Number must be greater than or equal to 4", 4.)`,
+    (),
+  )
+})
+
+test("Supports built-in Float.min refinement with digits after decimal point", t => {
+  let struct = S.float()->S.Float.min(4.4)
+  let structInlineResult =
+    S.float()->S.Float.min(~message="Number must be greater than or equal to 4.4", 4.4)
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.float()->S.Float.min(~message="Number must be greater than or equal to 4.4", 4.4)`,
+    (),
+  )
+})
+
+test("Supports multiple built-in refinements", t => {
+  let struct = S.string()->S.String.min(5)->S.String.max(10)
+  let structInlineResult =
+    S.string()
+    ->S.String.min(~message="String must be 5 or more characters long", 5)
+    ->S.String.max(~message="String must be 10 or fewer characters long", 10)
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.string()->S.String.min(~message="String must be 5 or more characters long", 5)->S.String.max(~message="String must be 10 or fewer characters long", 10)`,
+    (),
+  )
 })
 
 test("Supports Bool", t => {
@@ -145,6 +320,39 @@ test("Supports Option", t => {
   t->Assert.deepEqual(struct->S.inline, `S.option(S.string())`, ())
 })
 
+test("Supports Defaulted", t => {
+  let struct = S.option(S.float())->S.defaulted(4.)
+  let structInlineResult = S.option(S.float())->S.defaulted(%raw(`4`))
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(struct->S.inline, `S.option(S.float())->S.defaulted(%raw(\`4\`))`, ())
+})
+
+test("Supports undefined as Defaulted value", t => {
+  let struct = S.option(S.option(S.float()))->S.defaulted(None)
+  let _ = S.option(S.option(S.float()))->S.defaulted(%raw(`undefined`))
+
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.option(S.option(S.float()))->S.defaulted(%raw(\`undefined\`))`,
+    (),
+  )
+})
+
+test("Supports Deprecated without message", t => {
+  let struct = S.string()->S.deprecated()
+  t->Assert.deepEqual(struct->S.inline, `S.string()->S.deprecated()`, ())
+})
+
+test("Supports Deprecated with message", t => {
+  let struct = S.string()->S.deprecated(~message="Will be removed in API v2.", ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.string()->S.deprecated(~message="Will be removed in API v2.", ())`,
+    (),
+  )
+})
+
 test("Supports Null", t => {
   let struct = S.null(S.string())
   t->Assert.deepEqual(struct->S.inline, `S.null(S.string())`, ())
@@ -153,6 +361,45 @@ test("Supports Null", t => {
 test("Supports Array", t => {
   let struct = S.array(S.string())
   t->Assert.deepEqual(struct->S.inline, `S.array(S.string())`, ())
+})
+
+test("Supports built-in Array.max refinement", t => {
+  let struct = S.array(S.string())->S.Array.max(4)
+  let structInlineResult =
+    S.array(S.string())->S.Array.max(~message="Array must be 4 or fewer items long", 4)
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.array(S.string())->S.Array.max(~message="Array must be 4 or fewer items long", 4)`,
+    (),
+  )
+})
+
+test("Supports built-in Array.min refinement", t => {
+  let struct = S.array(S.string())->S.Array.min(4)
+  let structInlineResult =
+    S.array(S.string())->S.Array.min(~message="Array must be 4 or more items long", 4)
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.array(S.string())->S.Array.min(~message="Array must be 4 or more items long", 4)`,
+    (),
+  )
+})
+
+test("Supports built-in Array.length refinement", t => {
+  let struct = S.array(S.string())->S.Array.length(4)
+  let structInlineResult =
+    S.array(S.string())->S.Array.length(~message="Array must be exactly 4 items long", 4)
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.array(S.string())->S.Array.length(~message="Array must be exactly 4 items long", 4)`,
+    (),
+  )
 })
 
 test("Supports Dict", t => {
@@ -478,6 +725,32 @@ test("Supports Object (ignores transformations)", t => {
     "Age": o->S.field("Age", S.int()),
   }
 )`,
+    (),
+  )
+})
+
+test("Supports Object.strip", t => {
+  let struct = S.object(_ => ())->S.Object.strip
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `{
+  let s = S.object(_ => ())
+  let _ = %raw(\`s.m = {"rescript-struct:Object.UnknownKeys":1}\`)
+  s
+}`,
+    (),
+  )
+})
+
+test("Supports Object.strict", t => {
+  let struct = S.object(_ => ())->S.Object.strict
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `{
+  let s = S.object(_ => ())
+  let _ = %raw(\`s.m = {"rescript-struct:Object.UnknownKeys":0}\`)
+  s
+}`,
     (),
   )
 })

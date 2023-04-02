@@ -40,6 +40,11 @@ module Stdlib = {
     }
   }
 
+  module Re = {
+    @send
+    external toString: Js.Re.t => string = "toString"
+  }
+
   module Fn = {
     @inline
     let getArguments = (): array<'a> => {
@@ -141,6 +146,11 @@ module Stdlib = {
 
     @send
     external has: (Js.Dict.t<'a>, string) => bool = "hasOwnProperty"
+
+    @inline
+    let deleteInPlace = (dict, key) => {
+      Js.Dict.unsafeDeleteKey(. dict->(Obj.magic: Js.Dict.t<'a> => Js.Dict.t<string>), key)
+    }
   }
 
   module Bool = {
@@ -242,6 +252,11 @@ module Stdlib = {
 
       @inline
       let fromString = (string: string): string => string->Js.Json.stringifyAny->Obj.magic
+    }
+
+    module Float = {
+      @inline
+      let toRescript = float => float->Js.Float.toString ++ (mod_float(float, 1.) === 0. ? "." : "")
     }
 
     module Fn = {
@@ -1519,7 +1534,7 @@ module Object = {
 
     let metadataId: Metadata.Id.t<tagged> = Metadata.Id.make(
       ~namespace="rescript-struct",
-      ~name="Object_UnknownKeys",
+      ~name="Object.UnknownKeys",
     )
 
     let classify = struct => {
@@ -3480,13 +3495,14 @@ let inline = {
   }
 
   let rec internalInline = (struct, ~variant as maybeVariant=?, ()) => {
+    let metadataMap = struct.metadataMap->Stdlib.Dict.copy
+
     let inlinedStruct = switch struct->classify {
     | Literal(taggedLiteral) => {
         let inlinedLiteral = switch taggedLiteral {
         | String(string) => `String(${string->Stdlib.Inlined.Value.fromString})`
         | Int(int) => `Int(${int->Js.Int.toString})`
-        | Float(float) =>
-          `Float(${float->Js.Float.toString}${mod_float(float, 1.) === 0. ? "." : ""})`
+        | Float(float) => `Float(${float->Stdlib.Inlined.Float.toRescript})`
         | Bool(bool) => `Bool(${bool->Stdlib.Bool.toString})`
         | EmptyOption => `EmptyOption`
         | EmptyNull => `EmptyNull`
@@ -3546,7 +3562,23 @@ let inline = {
     | Int => `S.int()`
     | Float => `S.float()`
     | Bool => `S.bool()`
-    | Option(innerStruct) => `S.option(${innerStruct->internalInline()})`
+    | Option(innerStruct) => {
+        let inlinedInnerStruct = innerStruct->internalInline()
+        switch struct->Deprecated.classify {
+        | Some(deprecatedTagged) => {
+            metadataMap->Stdlib.Dict.deleteInPlace(Deprecated.metadataId->Metadata.Id.toKey)
+            switch deprecatedTagged {
+            | WithMessage(m) =>
+              inlinedInnerStruct ++
+              `->S.deprecated(~message=${m->Stdlib.Inlined.Value.fromString}, ())`
+            | WithoutMessage => inlinedInnerStruct ++ `->S.deprecated()`
+            }
+          }
+
+        | None => `S.option(${inlinedInnerStruct})`
+        }
+      }
+
     | Null(innerStruct) => `S.null(${innerStruct->internalInline()})`
     | Never => `S.never()`
     | Unknown => `S.unknown()`
@@ -3554,16 +3586,118 @@ let inline = {
     | Dict(innerStruct) => `S.dict(${innerStruct->internalInline()})`
     }
 
-    // TODO: Add metadata support
+    let inlinedStruct = switch struct->Defaulted.classify {
+    | Some(WithDefaultValue(v)) => {
+        metadataMap->Stdlib.Dict.deleteInPlace(Defaulted.metadataId->Metadata.Id.toKey)
+        inlinedStruct ++ `->S.defaulted(%raw(\`${v->Stdlib.Inlined.Value.stringify}\`))`
+      }
 
-    let inlinedStruct = if struct.metadataMap === emptyMetadataMap {
-      inlinedStruct
-    } else {
+    | None => inlinedStruct
+    }
+
+    let inlinedStruct = switch struct->classify {
+    | String
+    | Literal(String(_)) =>
+      switch struct->String.refinements {
+      | [] => inlinedStruct
+      | refinements =>
+        metadataMap->Stdlib.Dict.deleteInPlace(String.Refinement.metadataId->Metadata.Id.toKey)
+        inlinedStruct ++
+        refinements
+        ->Js.Array2.map(refinement => {
+          switch refinement {
+          | {kind: Email, message} =>
+            `->S.String.email(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+          | {kind: Url, message} =>
+            `->S.String.url(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+          | {kind: Uuid, message} =>
+            `->S.String.uuid(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+          | {kind: Cuid, message} =>
+            `->S.String.cuid(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+          | {kind: Min({length}), message} =>
+            `->S.String.min(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Js.Int.toString})`
+          | {kind: Max({length}), message} =>
+            `->S.String.max(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Js.Int.toString})`
+          | {kind: Length({length}), message} =>
+            `->S.String.length(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Js.Int.toString})`
+          | {kind: Pattern({re}), message} =>
+            `->S.String.pattern(~message=${message->Stdlib.Inlined.Value.fromString}, %re(${re
+              ->Stdlib.Re.toString
+              ->Stdlib.Inlined.Value.fromString}))`
+          }
+        })
+        ->Js.Array2.joinWith("")
+      }
+    | Int
+    | Literal(Int(_)) =>
+      switch struct->Int.refinements {
+      | [] => inlinedStruct
+      | refinements =>
+        metadataMap->Stdlib.Dict.deleteInPlace(Int.Refinement.metadataId->Metadata.Id.toKey)
+        inlinedStruct ++
+        refinements
+        ->Js.Array2.map(refinement => {
+          switch refinement {
+          | {kind: Max({value}), message} =>
+            `->S.Int.max(~message=${message->Stdlib.Inlined.Value.fromString}, ${value->Js.Int.toString})`
+          | {kind: Min({value}), message} =>
+            `->S.Int.min(~message=${message->Stdlib.Inlined.Value.fromString}, ${value->Js.Int.toString})`
+          | {kind: Port, message} =>
+            `->S.Int.port(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+          }
+        })
+        ->Js.Array2.joinWith("")
+      }
+    | Float
+    | Literal(Float(_)) =>
+      switch struct->Float.refinements {
+      | [] => inlinedStruct
+      | refinements =>
+        metadataMap->Stdlib.Dict.deleteInPlace(Float.Refinement.metadataId->Metadata.Id.toKey)
+        inlinedStruct ++
+        refinements
+        ->Js.Array2.map(refinement => {
+          switch refinement {
+          | {kind: Max({value}), message} =>
+            `->S.Float.max(~message=${message->Stdlib.Inlined.Value.fromString}, ${value->Stdlib.Inlined.Float.toRescript})`
+          | {kind: Min({value}), message} =>
+            `->S.Float.min(~message=${message->Stdlib.Inlined.Value.fromString}, ${value->Stdlib.Inlined.Float.toRescript})`
+          }
+        })
+        ->Js.Array2.joinWith("")
+      }
+
+    | Array(_) =>
+      switch struct->Array.refinements {
+      | [] => inlinedStruct
+      | refinements =>
+        metadataMap->Stdlib.Dict.deleteInPlace(Array.Refinement.metadataId->Metadata.Id.toKey)
+        inlinedStruct ++
+        refinements
+        ->Js.Array2.map(refinement => {
+          switch refinement {
+          | {kind: Max({length}), message} =>
+            `->S.Array.max(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Js.Int.toString})`
+          | {kind: Min({length}), message} =>
+            `->S.Array.min(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Js.Int.toString})`
+          | {kind: Length({length}), message} =>
+            `->S.Array.length(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Js.Int.toString})`
+          }
+        })
+        ->Js.Array2.joinWith("")
+      }
+
+    | _ => inlinedStruct
+    }
+
+    let inlinedStruct = if metadataMap->Js.Dict.keys->Js.Array2.length !== 0 {
       `{
   let s = ${inlinedStruct}
-  let _ = %raw(\`s.m = ${struct.metadataMap->Stdlib.Inlined.Value.stringify}\`)
+  let _ = %raw(\`s.m = ${metadataMap->Js.Json.stringifyAny->Belt.Option.getUnsafe}\`)
   s
 }`
+    } else {
+      inlinedStruct
     }
 
     let inlinedStruct = switch (struct->classify, maybeVariant) {
@@ -3586,6 +3720,7 @@ let inline = {
     struct->castAnyStructToUnknownStruct->internalInline()
   }
 }
+
 let object = Object.factory
 let field = Object.field
 let never = Never.factory

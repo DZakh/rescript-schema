@@ -1242,7 +1242,7 @@ function factory$1(innerLiteral) {
   }
 }
 
-var metadataId = "rescript-struct:Object_UnknownKeys";
+var metadataId = "rescript-struct:Object.UnknownKeys";
 
 function classify$1(struct) {
   var t = Js_dict.get(struct.m, metadataId);
@@ -3029,6 +3029,7 @@ function toVariantName(struct) {
 }
 
 function internalInline(struct, maybeVariant, param) {
+  var metadataMap = Object.assign({}, struct.m);
   var taggedLiteral = struct.t;
   var inlinedStruct;
   if (typeof taggedLiteral === "number") {
@@ -3081,9 +3082,9 @@ function internalInline(struct, maybeVariant, param) {
                   break;
               case /* Float */2 :
                   var $$float = taggedLiteral$1._0;
-                  inlinedLiteral = "Float(" + $$float.toString() + "" + (
-                    $$float % 1 === 0 ? "." : ""
-                  ) + ")";
+                  inlinedLiteral = "Float(" + ($$float.toString() + (
+                      $$float % 1 === 0 ? "." : ""
+                    )) + ")";
                   break;
               case /* Bool */3 :
                   inlinedLiteral = "Bool(" + taggedLiteral$1._0.toString() + ")";
@@ -3094,7 +3095,14 @@ function internalInline(struct, maybeVariant, param) {
           inlinedStruct = maybeVariant !== undefined ? "S.literalVariant(" + inlinedLiteral + ", " + maybeVariant + ")" : "S.literal(" + inlinedLiteral + ")";
           break;
       case /* Option */1 :
-          inlinedStruct = "S.option(" + internalInline(taggedLiteral._0, undefined, undefined) + ")";
+          var inlinedInnerStruct = internalInline(taggedLiteral._0, undefined, undefined);
+          var deprecatedTagged = Js_dict.get(struct.m, metadataId$4);
+          if (deprecatedTagged !== undefined) {
+            Js_dict.unsafeDeleteKey(metadataMap, metadataId$4);
+            inlinedStruct = deprecatedTagged ? inlinedInnerStruct + ("->S.deprecated(~message=" + JSON.stringify(deprecatedTagged._0) + ", ())") : inlinedInnerStruct + "->S.deprecated()";
+          } else {
+            inlinedStruct = "S.option(" + inlinedInnerStruct + ")";
+          }
           break;
       case /* Null */2 :
           inlinedStruct = "S.null(" + internalInline(taggedLiteral._0, undefined, undefined) + ")";
@@ -3141,23 +3149,167 @@ function internalInline(struct, maybeVariant, param) {
       
     }
   }
+  var match = Js_dict.get(struct.m, metadataId$6);
   var inlinedStruct$1;
-  if (struct.m === emptyMetadataMap) {
-    inlinedStruct$1 = inlinedStruct;
+  if (match !== undefined) {
+    var v = match._0;
+    Js_dict.unsafeDeleteKey(metadataMap, metadataId$6);
+    inlinedStruct$1 = inlinedStruct + ("->S.defaulted(%raw(\`" + (
+        v === undefined ? "undefined" : JSON.stringify(v)
+      ) + "\`))");
   } else {
-    var any = struct.m;
-    inlinedStruct$1 = "{\n  let s = " + inlinedStruct + "\n  let _ = %raw(\`s.m = " + (
-      any === undefined ? "undefined" : JSON.stringify(any)
-    ) + "\`)\n  s\n}";
+    inlinedStruct$1 = inlinedStruct;
   }
-  var match = struct.t;
-  if (typeof match !== "number" && match.TAG === /* Literal */0) {
-    return inlinedStruct$1;
+  var match$1 = struct.t;
+  var inlinedStruct$2;
+  var exit = 0;
+  if (typeof match$1 === "number") {
+    switch (match$1) {
+      case /* String */2 :
+          exit = 1;
+          break;
+      case /* Int */3 :
+          exit = 2;
+          break;
+      case /* Float */4 :
+          exit = 3;
+          break;
+      default:
+        inlinedStruct$2 = inlinedStruct$1;
+    }
+  } else {
+    switch (match$1.TAG | 0) {
+      case /* Literal */0 :
+          var tmp = match$1._0;
+          if (typeof tmp === "number") {
+            inlinedStruct$2 = inlinedStruct$1;
+          } else {
+            switch (tmp.TAG | 0) {
+              case /* String */0 :
+                  exit = 1;
+                  break;
+              case /* Int */1 :
+                  exit = 2;
+                  break;
+              case /* Float */2 :
+                  exit = 3;
+                  break;
+              default:
+                inlinedStruct$2 = inlinedStruct$1;
+            }
+          }
+          break;
+      case /* Array */3 :
+          var refinements$4 = refinements$3(struct);
+          if (refinements$4.length !== 0) {
+            Js_dict.unsafeDeleteKey(metadataMap, metadataId$5);
+            inlinedStruct$2 = inlinedStruct$1 + refinements$4.map(function (refinement) {
+                    var match = refinement.kind;
+                    switch (match.TAG | 0) {
+                      case /* Min */0 :
+                          return "->S.Array.min(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
+                      case /* Max */1 :
+                          return "->S.Array.max(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
+                      case /* Length */2 :
+                          return "->S.Array.length(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
+                      
+                    }
+                  }).join("");
+          } else {
+            inlinedStruct$2 = inlinedStruct$1;
+          }
+          break;
+      default:
+        inlinedStruct$2 = inlinedStruct$1;
+    }
+  }
+  switch (exit) {
+    case 1 :
+        var refinements$5 = refinements(struct);
+        if (refinements$5.length !== 0) {
+          Js_dict.unsafeDeleteKey(metadataMap, metadataId$1);
+          inlinedStruct$2 = inlinedStruct$1 + refinements$5.map(function (refinement) {
+                  var match = refinement.kind;
+                  if (typeof match === "number") {
+                    switch (match) {
+                      case /* Email */0 :
+                          return "->S.String.email(~message=" + JSON.stringify(refinement.message) + ", ())";
+                      case /* Uuid */1 :
+                          return "->S.String.uuid(~message=" + JSON.stringify(refinement.message) + ", ())";
+                      case /* Cuid */2 :
+                          return "->S.String.cuid(~message=" + JSON.stringify(refinement.message) + ", ())";
+                      case /* Url */3 :
+                          return "->S.String.url(~message=" + JSON.stringify(refinement.message) + ", ())";
+                      
+                    }
+                  } else {
+                    switch (match.TAG | 0) {
+                      case /* Min */0 :
+                          return "->S.String.min(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
+                      case /* Max */1 :
+                          return "->S.String.max(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
+                      case /* Length */2 :
+                          return "->S.String.length(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
+                      case /* Pattern */3 :
+                          return "->S.String.pattern(~message=" + JSON.stringify(refinement.message) + ", %re(" + JSON.stringify(match.re.toString()) + "))";
+                      
+                    }
+                  }
+                }).join("");
+        } else {
+          inlinedStruct$2 = inlinedStruct$1;
+        }
+        break;
+    case 2 :
+        var refinements$6 = refinements$1(struct);
+        if (refinements$6.length !== 0) {
+          Js_dict.unsafeDeleteKey(metadataMap, metadataId$2);
+          inlinedStruct$2 = inlinedStruct$1 + refinements$6.map(function (refinement) {
+                  var match = refinement.kind;
+                  if (typeof match === "number") {
+                    return "->S.Int.port(~message=" + JSON.stringify(refinement.message) + ", ())";
+                  } else if (match.TAG === /* Min */0) {
+                    return "->S.Int.min(~message=" + JSON.stringify(refinement.message) + ", " + match.value.toString() + ")";
+                  } else {
+                    return "->S.Int.max(~message=" + JSON.stringify(refinement.message) + ", " + match.value.toString() + ")";
+                  }
+                }).join("");
+        } else {
+          inlinedStruct$2 = inlinedStruct$1;
+        }
+        break;
+    case 3 :
+        var refinements$7 = refinements$2(struct);
+        if (refinements$7.length !== 0) {
+          Js_dict.unsafeDeleteKey(metadataMap, metadataId$3);
+          inlinedStruct$2 = inlinedStruct$1 + refinements$7.map(function (refinement) {
+                  var match = refinement.kind;
+                  if (match.TAG === /* Min */0) {
+                    var value = match.value;
+                    return "->S.Float.min(~message=" + JSON.stringify(refinement.message) + ", " + (value.toString() + (
+                              value % 1 === 0 ? "." : ""
+                            )) + ")";
+                  }
+                  var value$1 = match.value;
+                  return "->S.Float.max(~message=" + JSON.stringify(refinement.message) + ", " + (value$1.toString() + (
+                            value$1 % 1 === 0 ? "." : ""
+                          )) + ")";
+                }).join("");
+        } else {
+          inlinedStruct$2 = inlinedStruct$1;
+        }
+        break;
+    
+  }
+  var inlinedStruct$3 = Object.keys(metadataMap).length !== 0 ? "{\n  let s = " + inlinedStruct$2 + "\n  let _ = %raw(\`s.m = " + JSON.stringify(metadataMap) + "\`)\n  s\n}" : inlinedStruct$2;
+  var match$2 = struct.t;
+  if (typeof match$2 !== "number" && match$2.TAG === /* Literal */0) {
+    return inlinedStruct$3;
   }
   if (maybeVariant !== undefined) {
-    return inlinedStruct$1 + ("->S.transform(\n  ~parser=d => " + maybeVariant + "(d),\n  ~serializer=v => switch v {\n| " + maybeVariant + "(d) => d\n| _ => S.Error.raise(\`Value is not the " + maybeVariant + " variant.\`)\n}, ())");
+    return inlinedStruct$3 + ("->S.transform(\n  ~parser=d => " + maybeVariant + "(d),\n  ~serializer=v => switch v {\n| " + maybeVariant + "(d) => d\n| _ => S.Error.raise(\`Value is not the " + maybeVariant + " variant.\`)\n}, ())");
   } else {
-    return inlinedStruct$1;
+    return inlinedStruct$3;
   }
 }
 
