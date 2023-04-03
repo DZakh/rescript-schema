@@ -83,6 +83,7 @@ and tagged =
 
 let never: unit => t<never>
 let unknown: unit => t<unknown>
+let unit: unit => t<unit>
 let string: unit => t<string>
 let bool: unit => t<bool>
 let int: unit => t<int>

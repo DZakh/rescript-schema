@@ -3725,6 +3725,7 @@ let object = Object.factory
 let field = Object.field
 let never = Never.factory
 let unknown = Unknown.factory
+let unit = () => Literal.factory(EmptyOption)
 let string = String.factory
 let bool = Bool.factory
 let int = Int.factory

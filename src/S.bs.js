@@ -3317,6 +3317,10 @@ function inline(struct) {
   return internalInline(struct, undefined, undefined);
 }
 
+function unit(param) {
+  return factory$1(/* EmptyOption */1);
+}
+
 var Path = {
   empty: "",
   toArray: toArray,
@@ -3457,6 +3461,7 @@ exports.$$Error = $$Error$1;
 exports.Raised = Raised;
 exports.never = never;
 exports.unknown = unknown;
+exports.unit = unit;
 exports.string = string;
 exports.bool = bool;
 exports.$$int = $$int;

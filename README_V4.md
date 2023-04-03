@@ -49,7 +49,23 @@ Then add `rescript-struct` to `bs-dependencies` in your `bsconfig.json`:
 
 ### Basic usage
 
+Creating a simple string struct
+
 ```rescript
+// Creating a struct for strings
+let myStruct = S.string()
+
+// Parsing
+%raw(`"tuna"`)->S.parseWith(myStruct) // => Ok("tuna")
+%raw(`12`)->S.parseWith(myStruct) // => Error(S.Error.t)
+
+// Serializing
+Ok("tuna")->S.serializeWith(myStruct) // => Ok(%raw(`"tuna"`))
+```
+
+Creating an object struct
+
+```
 type author = {
   id: float,
   tags: array<string>,
@@ -111,8 +127,6 @@ Ok(%raw(`{
 - [Reliable API layer](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Api.res)
 - [Creating CLI utility](https://github.com/DZakh/rescript-stdlib-cli/blob/main/src/interactors/RunCli.res)
 - [Safely accessing environment variables variables](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Env.res)
-
-## API Reference
 
 ### Struct factories
 
@@ -254,6 +268,22 @@ Ok(None)
 ```
 
 The `null` struct represents a data of a specific type that might be null.
+
+#### **`S.unit`**
+
+`unit => S.t<unit>`
+
+```rescript
+let struct = S.unit()
+
+%raw(`undefined`)->S.parseWith(struct)
+```
+
+```rescript
+Ok()
+```
+
+The `unit` struct factory is an alias for `S.literal(EmptyOption)`.
 
 #### **`S.literal`**
 
