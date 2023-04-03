@@ -50,7 +50,7 @@ asyncTest("Can apply other actions after asyncRefine", t => {
   let struct =
     S.string()
     ->S.asyncRefine(~parser=_ => Promise.resolve(), ())
-    ->S.String.trimmed()
+    ->S.String.trim()
     ->S.asyncRefine(~parser=_ => Promise.resolve(), ())
 
   %raw(`"    Hello world!"`)

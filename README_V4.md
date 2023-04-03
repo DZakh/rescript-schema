@@ -158,7 +158,7 @@ S.string()->S.String.uuid() // Invalid UUID
 S.string()->S.String.cuid() // Invalid CUID
 S.string()->S.String.pattern(%re(`/[0-9]/`)) // Invalid
 
-S.string()->S.String.trimmed() // trim whitespaces
+S.string()->S.String.trim() // trim whitespaces
 ```
 
 When using built-in refinements, you can provide a custom error message.

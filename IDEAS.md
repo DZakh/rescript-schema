@@ -34,7 +34,7 @@
 
 - Make the TS code reuse rescript output instead of creating a separate bundle
 
-- Inline literals check used in S.object
+- Inline literals check used in S.object (Optimize S.literalVariant without transform)
 
 - Add S.function (?) (An alternative for external ???)
 

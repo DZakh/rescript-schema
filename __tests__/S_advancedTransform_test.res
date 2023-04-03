@@ -172,7 +172,7 @@ asyncTest("Can apply other actions after async transform", t => {
   let struct =
     S.string()
     ->S.advancedTransform(~parser=(~struct as _) => Async(value => Promise.resolve(value)), ())
-    ->S.String.trimmed()
+    ->S.String.trim()
     ->S.advancedTransform(~parser=(~struct as _) => Async(value => Promise.resolve(value)), ())
 
   %raw(`"    Hello world!"`)

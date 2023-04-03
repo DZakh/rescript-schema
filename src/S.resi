@@ -276,7 +276,7 @@ module String: {
   let url: (t<string>, ~message: string=?, unit) => t<string>
   let pattern: (t<string>, ~message: string=?, Js.Re.t) => t<string>
 
-  let trimmed: (t<string>, unit) => t<string>
+  let trim: (t<string>, unit) => t<string>
 }
 
 module Int: {

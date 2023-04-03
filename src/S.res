@@ -2404,7 +2404,7 @@ module String = {
     )
   }
 
-  let trimmed = (struct, ()) => {
+  let trim = (struct, ()) => {
     let transformer = Js.String2.trim
     struct->transform(~parser=transformer, ~serializer=transformer, ())
   }

@@ -1835,7 +1835,7 @@ function pattern(struct, messageOpt, re) {
             }, refiner);
 }
 
-function trimmed(struct, param) {
+function trim(struct, param) {
   var transformer = function (prim) {
     return prim.trim();
   };
@@ -3442,7 +3442,7 @@ var $$String = {
   cuid: cuid,
   url: url,
   pattern: pattern,
-  trimmed: trimmed
+  trim: trim
 };
 
 var Int_Refinement = {};
