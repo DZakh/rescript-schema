@@ -95,7 +95,7 @@ let toJsStructFactory = factory => {
 let parse = data => {
   let struct = %raw("this")
   try {
-    data->S.parseOrRaiseWith(struct)->Result.fromOk
+    data->S.parseAnyOrRaiseWith(struct)->Result.fromOk
   } catch {
   | S.Raised(error) => error->Error.make->Result.fromError
   }
@@ -104,7 +104,7 @@ let parse = data => {
 let parseOrThrow = data => {
   let struct = %raw("this")
   try {
-    data->S.parseOrRaiseWith(struct)
+    data->S.parseAnyOrRaiseWith(struct)
   } catch {
   | S.Raised(error) => error->Error.make->raise
   }
@@ -113,7 +113,7 @@ let parseOrThrow = data => {
 let parseAsync = data => {
   let struct = %raw("this")
   data
-  ->S.parseAsyncWith(struct)
+  ->S.parseAnyAsyncWith(struct)
   ->Stdlib.Promise.thenResolve(result => {
     switch result {
     | Ok(value) => value->Result.fromOk
@@ -125,7 +125,7 @@ let parseAsync = data => {
 let serialize = value => {
   let struct = %raw("this")
   try {
-    value->S.serializeOrRaiseWith(struct)->Result.fromOk
+    value->S.serializeToUnknownOrRaiseWith(struct)->Result.fromOk
   } catch {
   | S.Raised(error) => error->Error.make->Result.fromError
   }
@@ -134,7 +134,7 @@ let serialize = value => {
 let serializeOrThrow = value => {
   let struct = %raw("this")
   try {
-    value->S.serializeOrRaiseWith(struct)
+    value->S.serializeToUnknownOrRaiseWith(struct)
   } catch {
   | S.Raised(error) => error->Error.make->raise
   }

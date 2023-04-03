@@ -6,32 +6,32 @@ test("Uses default value when parsing optional unknown primitive ", t => {
 
   let struct = S.option(S.float())->S.defaulted(value)
 
-  t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+  t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
 })
 
 test("Successfully parses with default when provided JS undefined", t => {
   let struct = S.option(S.bool())->S.defaulted(false)
 
-  t->Assert.deepEqual(%raw(`undefined`)->S.parseWith(struct), Ok(false), ())
+  t->Assert.deepEqual(%raw(`undefined`)->S.parseAnyWith(struct), Ok(false), ())
 })
 
 test("Successfully parses with default when provided primitive", t => {
   let struct = S.option(S.bool())->S.defaulted(false)
 
-  t->Assert.deepEqual(%raw(`true`)->S.parseWith(struct), Ok(true), ())
+  t->Assert.deepEqual(%raw(`true`)->S.parseAnyWith(struct), Ok(true), ())
 })
 
 test("Successfully parses nested option with default value", t => {
   let struct = S.option(S.option(S.bool()))->S.defaulted(Some(true))
 
-  t->Assert.deepEqual(%raw(`undefined`)->S.parseWith(struct), Ok(Some(true)), ())
+  t->Assert.deepEqual(%raw(`undefined`)->S.parseAnyWith(struct), Ok(Some(true)), ())
 })
 
 test("Fails to parse data with default", t => {
   let struct = S.option(S.bool())->S.defaulted(false)
 
   t->Assert.deepEqual(
-    %raw(`"string"`)->S.parseWith(struct),
+    %raw(`"string"`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "Bool", received: "String"}),
       operation: Parsing,
@@ -49,7 +49,7 @@ Failing.test(
 
     t->Assert.throws(
       () => {
-        %raw(`undefined`)->S.parseWith(struct)
+        %raw(`undefined`)->S.parseAnyWith(struct)
       },
       ~expectations={
         message: "[rescript-struct] Provided default value (444) is different from optional Int Literal (123)",

@@ -3,14 +3,14 @@ open Ava
 test("Successfully parses valid data", t => {
   let struct = S.string()->S.String.url()
 
-  t->Assert.deepEqual("http://dzakh.dev"->S.parseWith(struct), Ok("http://dzakh.dev"), ())
+  t->Assert.deepEqual("http://dzakh.dev"->S.parseAnyWith(struct), Ok("http://dzakh.dev"), ())
 })
 
 test("Fails to parse invalid data", t => {
   let struct = S.string()->S.String.url()
 
   t->Assert.deepEqual(
-    "cifjhdsfhsd"->S.parseWith(struct),
+    "cifjhdsfhsd"->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("Invalid url"),
       operation: Parsing,
@@ -24,7 +24,7 @@ test("Successfully serializes valid value", t => {
   let struct = S.string()->S.String.url()
 
   t->Assert.deepEqual(
-    "http://dzakh.dev"->S.serializeWith(struct),
+    "http://dzakh.dev"->S.serializeToUnknownWith(struct),
     Ok(%raw(`"http://dzakh.dev"`)),
     (),
   )
@@ -34,7 +34,7 @@ test("Fails to serialize invalid value", t => {
   let struct = S.string()->S.String.url()
 
   t->Assert.deepEqual(
-    "cifjhdsfhsd"->S.serializeWith(struct),
+    "cifjhdsfhsd"->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("Invalid url"),
       operation: Serializing,
@@ -48,7 +48,7 @@ test("Returns custom error message", t => {
   let struct = S.string()->S.String.url(~message="Custom", ())
 
   t->Assert.deepEqual(
-    "abc"->S.parseWith(struct),
+    "abc"->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("Custom"),
       operation: Parsing,

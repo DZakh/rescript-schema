@@ -10,7 +10,7 @@ test("Successfully parses object with inlinable string field", t => {
     }
   )
 
-  t->Assert.deepEqual(%raw(`{field: "bar"}`)->S.parseWith(struct), Ok({"field": "bar"}), ())
+  t->Assert.deepEqual(%raw(`{field: "bar"}`)->S.parseAnyWith(struct), Ok({"field": "bar"}), ())
 })
 
 test("Fails to parse object with inlinable string field", t => {
@@ -21,7 +21,7 @@ test("Fails to parse object with inlinable string field", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: 123}`)->S.parseWith(struct),
+    %raw(`{field: 123}`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "String", received: "Float"}),
       operation: Parsing,
@@ -38,7 +38,7 @@ test("Successfully parses object with inlinable bool field", t => {
     }
   )
 
-  t->Assert.deepEqual(%raw(`{field: true}`)->S.parseWith(struct), Ok({"field": true}), ())
+  t->Assert.deepEqual(%raw(`{field: true}`)->S.parseAnyWith(struct), Ok({"field": true}), ())
 })
 
 test("Fails to parse object with inlinable bool field", t => {
@@ -49,7 +49,7 @@ test("Fails to parse object with inlinable bool field", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: 123}`)->S.parseWith(struct),
+    %raw(`{field: 123}`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "Bool", received: "Float"}),
       operation: Parsing,
@@ -67,7 +67,7 @@ test("Successfully parses object with unknown field (Noop operation)", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: new Date("2015-12-12")}`)->S.parseWith(struct),
+    %raw(`{field: new Date("2015-12-12")}`)->S.parseAnyWith(struct),
     Ok(%raw(`{field: new Date("2015-12-12")}`)),
     (),
   )
@@ -81,7 +81,7 @@ test("Successfully serializes object with unknown field (Noop operation)", t => 
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: new Date("2015-12-12")}`)->S.serializeWith(struct),
+    %raw(`{field: new Date("2015-12-12")}`)->S.serializeToUnknownWith(struct),
     Ok(%raw(`{field: new Date("2015-12-12")}`)),
     (),
   )
@@ -95,7 +95,7 @@ test("Fails to parse object with inlinable never field", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: true}`)->S.parseWith(struct),
+    %raw(`{field: true}`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "Never", received: "Bool"}),
       operation: Parsing,
@@ -112,7 +112,7 @@ test("Successfully parses object with inlinable float field", t => {
     }
   )
 
-  t->Assert.deepEqual(%raw(`{field: 123}`)->S.parseWith(struct), Ok({"field": 123.}), ())
+  t->Assert.deepEqual(%raw(`{field: 123}`)->S.parseAnyWith(struct), Ok({"field": 123.}), ())
 })
 
 test("Fails to parse object with inlinable float field", t => {
@@ -123,7 +123,7 @@ test("Fails to parse object with inlinable float field", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: true}`)->S.parseWith(struct),
+    %raw(`{field: true}`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "Float", received: "Bool"}),
       operation: Parsing,
@@ -140,7 +140,7 @@ test("Successfully parses object with inlinable int field", t => {
     }
   )
 
-  t->Assert.deepEqual(%raw(`{field: 123}`)->S.parseWith(struct), Ok({"field": 123}), ())
+  t->Assert.deepEqual(%raw(`{field: 123}`)->S.parseAnyWith(struct), Ok({"field": 123}), ())
 })
 
 test("Fails to parse object with inlinable int field", t => {
@@ -151,7 +151,7 @@ test("Fails to parse object with inlinable int field", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: true}`)->S.parseWith(struct),
+    %raw(`{field: true}`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "Int", received: "Bool"}),
       operation: Parsing,
@@ -168,7 +168,7 @@ test("Successfully parses object with not inlinable empty object field", t => {
     }
   )
 
-  t->Assert.deepEqual(%raw(`{field: {}}`)->S.parseWith(struct), Ok({"field": ()}), ())
+  t->Assert.deepEqual(%raw(`{field: {}}`)->S.parseAnyWith(struct), Ok({"field": ()}), ())
 })
 
 test("Fails to parse object with not inlinable empty object field", t => {
@@ -179,7 +179,7 @@ test("Fails to parse object with not inlinable empty object field", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: true}`)->S.parseWith(struct),
+    %raw(`{field: true}`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "Object", received: "Bool"}),
       operation: Parsing,
@@ -197,7 +197,7 @@ test("Fails to parse object when provided invalid data", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`12`)->S.parseWith(struct),
+    %raw(`12`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "Object", received: "Float"}),
       operation: Parsing,
@@ -214,7 +214,11 @@ test("Successfully serializes object with single field", t => {
     }
   )
 
-  t->Assert.deepEqual({"field": "bar"}->S.serializeWith(struct), Ok(%raw(`{field: "bar"}`)), ())
+  t->Assert.deepEqual(
+    {"field": "bar"}->S.serializeToUnknownWith(struct),
+    Ok(%raw(`{field: "bar"}`)),
+    (),
+  )
 })
 
 test("Successfully parses object with multiple fields", t => {
@@ -226,7 +230,7 @@ test("Successfully parses object with multiple fields", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{boo: "bar", zoo: "jee"}`)->S.parseWith(struct),
+    %raw(`{boo: "bar", zoo: "jee"}`)->S.parseAnyWith(struct),
     Ok({"boo": "bar", "zoo": "jee"}),
     (),
   )
@@ -241,7 +245,7 @@ test("Successfully serializes object with multiple fields", t => {
   )
 
   t->Assert.deepEqual(
-    {"boo": "bar", "zoo": "jee"}->S.serializeWith(struct),
+    {"boo": "bar", "zoo": "jee"}->S.serializeToUnknownWith(struct),
     Ok(%raw(`{boo: "bar", zoo: "jee"}`)),
     (),
   )
@@ -257,7 +261,11 @@ test("Successfully parses object with transformed field", t => {
     }
   )
 
-  t->Assert.deepEqual(%raw(`{string: "bar"}`)->S.parseWith(struct), Ok({"string": "barfield"}), ())
+  t->Assert.deepEqual(
+    %raw(`{string: "bar"}`)->S.parseAnyWith(struct),
+    Ok({"string": "barfield"}),
+    (),
+  )
 })
 
 test("Fails to parse object when transformed field has raises error", t => {
@@ -271,7 +279,7 @@ test("Fails to parse object when transformed field has raises error", t => {
   )
 
   t->Assert.deepEqual(
-    {"field": "bar"}->S.parseWith(struct),
+    {"field": "bar"}->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Parsing,
@@ -292,7 +300,7 @@ test("Shows transformed object field name in error path when fails to parse", t 
   )
 
   t->Assert.deepEqual(
-    {"originalFieldName": "bar"}->S.parseWith(struct),
+    {"originalFieldName": "bar"}->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Parsing,
@@ -313,7 +321,7 @@ test("Successfully serializes object with transformed field", t => {
   )
 
   t->Assert.deepEqual(
-    {"string": "bar"}->S.serializeWith(struct),
+    {"string": "bar"}->S.serializeToUnknownWith(struct),
     Ok(%raw(`{"string": "barfield"}`)),
     (),
   )
@@ -330,7 +338,7 @@ test("Fails to serializes object when transformed field has raises error", t => 
   )
 
   t->Assert.deepEqual(
-    {"field": "bar"}->S.serializeWith(struct),
+    {"field": "bar"}->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
@@ -351,7 +359,7 @@ test("Shows transformed object field name in error path when fails to serializes
   )
 
   t->Assert.deepEqual(
-    {"transformedFieldName": "bar"}->S.serializeWith(struct),
+    {"transformedFieldName": "bar"}->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
@@ -378,7 +386,7 @@ test("Shows transformed to nested object field name in error path when fails to 
       "v1": {
         "transformedFieldName": "bar",
       },
-    }->S.serializeWith(struct),
+    }->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
@@ -397,7 +405,7 @@ test("Successfully parses object with optional fields", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{boo: "bar"}`)->S.parseWith(struct),
+    %raw(`{boo: "bar"}`)->S.parseAnyWith(struct),
     Ok({"boo": Some("bar"), "zoo": None}),
     (),
   )
@@ -412,7 +420,7 @@ test("Successfully serializes object with optional fields", t => {
   )
 
   t->Assert.deepEqual(
-    {"boo": Some("bar"), "zoo": None}->S.serializeWith(struct),
+    {"boo": Some("bar"), "zoo": None}->S.serializeToUnknownWith(struct),
     Ok(%raw(`{boo: "bar", zoo: undefined}`)),
     (),
   )
@@ -429,7 +437,7 @@ test(
     })
 
     t->Assert.deepEqual(
-      %raw(`{mode: 1}`)->S.parseWith(optionsStruct),
+      %raw(`{mode: 1}`)->S.parseAnyWith(optionsStruct),
       Ok({
         fast: %raw("undefined"),
         mode: 1,
@@ -448,7 +456,7 @@ test("Successfully serializes object with optional fields using (?)", t => {
   })
 
   t->Assert.deepEqual(
-    {mode: 1}->S.serializeWith(optionsStruct),
+    {mode: 1}->S.serializeToUnknownWith(optionsStruct),
     Ok(%raw(`{mode: 1, fast: undefined}`)),
     (),
   )
@@ -464,7 +472,7 @@ test("Successfully parses object with mapped field names", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)->S.parseWith(struct),
+    %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)->S.parseAnyWith(struct),
     Ok({"name": "Dmitry", "email": "dzakh.dev@gmail.com", "age": 21}),
     (),
   )
@@ -480,7 +488,7 @@ test("Successfully serializes object with mapped field", t => {
   )
 
   t->Assert.deepEqual(
-    {"name": "Dmitry", "email": "dzakh.dev@gmail.com", "age": 21}->S.serializeWith(struct),
+    {"name": "Dmitry", "email": "dzakh.dev@gmail.com", "age": 21}->S.serializeToUnknownWith(struct),
     Ok(%raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)),
     (),
   )
@@ -489,13 +497,13 @@ test("Successfully serializes object with mapped field", t => {
 test("Successfully parses object transformed to tuple", t => {
   let struct = S.object(o => (o->S.field("boo", S.int()), o->S.field("zoo", S.int())))
 
-  t->Assert.deepEqual(%raw(`{boo: 1, zoo: 2}`)->S.parseWith(struct), Ok(1, 2), ())
+  t->Assert.deepEqual(%raw(`{boo: 1, zoo: 2}`)->S.parseAnyWith(struct), Ok(1, 2), ())
 })
 
 test("Successfully serializes object transformed to tuple", t => {
   let struct = S.object(o => (o->S.field("boo", S.int()), o->S.field("zoo", S.int())))
 
-  t->Assert.deepEqual((1, 2)->S.serializeWith(struct), Ok(%raw(`{boo: 1, zoo: 2}`)), ())
+  t->Assert.deepEqual((1, 2)->S.serializeToUnknownWith(struct), Ok(%raw(`{boo: 1, zoo: 2}`)), ())
 })
 
 test("Successfully parses object transformed to nested object", t => {
@@ -509,7 +517,7 @@ test("Successfully parses object transformed to nested object", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{boo: 1, zoo: 2}`)->S.parseWith(struct),
+    %raw(`{boo: 1, zoo: 2}`)->S.parseAnyWith(struct),
     Ok({"v1": {"boo": 1, "zoo": 2}}),
     (),
   )
@@ -526,7 +534,7 @@ test("Successfully serializes object transformed to nested object", t => {
   )
 
   t->Assert.deepEqual(
-    {"v1": {"boo": 1, "zoo": 2}}->S.serializeWith(struct),
+    {"v1": {"boo": 1, "zoo": 2}}->S.serializeToUnknownWith(struct),
     Ok(%raw(`{boo: 1, zoo: 2}`)),
     (),
   )
@@ -539,7 +547,7 @@ test("Successfully parses object transformed to nested tuple", t => {
     }
   )
 
-  t->Assert.deepEqual(%raw(`{boo: 1, zoo: 2}`)->S.parseWith(struct), Ok({"v1": (1, 2)}), ())
+  t->Assert.deepEqual(%raw(`{boo: 1, zoo: 2}`)->S.parseAnyWith(struct), Ok({"v1": (1, 2)}), ())
 })
 
 test("Successfully serializes object transformed to nested tuple", t => {
@@ -549,19 +557,23 @@ test("Successfully serializes object transformed to nested tuple", t => {
     }
   )
 
-  t->Assert.deepEqual({"v1": (1, 2)}->S.serializeWith(struct), Ok(%raw(`{boo: 1, zoo: 2}`)), ())
+  t->Assert.deepEqual(
+    {"v1": (1, 2)}->S.serializeToUnknownWith(struct),
+    Ok(%raw(`{boo: 1, zoo: 2}`)),
+    (),
+  )
 })
 
 test("Successfully parses object with only one field returned from transformer", t => {
   let struct = S.object(o => o->S.field("field", S.bool()))
 
-  t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseWith(struct), Ok(true), ())
+  t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseAnyWith(struct), Ok(true), ())
 })
 
 test("Successfully serializes object with only one field returned from transformer", t => {
   let struct = S.object(o => o->S.field("field", S.bool()))
 
-  t->Assert.deepEqual(true->S.serializeWith(struct), Ok(%raw(`{"field": true}`)), ())
+  t->Assert.deepEqual(true->S.serializeToUnknownWith(struct), Ok(%raw(`{"field": true}`)), ())
 })
 
 test("Successfully parses object transformed to the one with hardcoded fields", t => {
@@ -573,7 +585,7 @@ test("Successfully parses object transformed to the one with hardcoded fields", 
   )
 
   t->Assert.deepEqual(
-    %raw(`{"field": true}`)->S.parseWith(struct),
+    %raw(`{"field": true}`)->S.parseAnyWith(struct),
     Ok({
       "hardcoded": false,
       "field": true,
@@ -594,7 +606,7 @@ test("Successfully serializes object transformed to the one with hardcoded field
     {
       "hardcoded": false,
       "field": true,
-    }->S.serializeWith(struct),
+    }->S.serializeToUnknownWith(struct),
     Ok(%raw(`{"field": true}`)),
     (),
   )
@@ -603,13 +615,17 @@ test("Successfully serializes object transformed to the one with hardcoded field
 test("Successfully parses object transformed to variant", t => {
   let struct = S.object(o => #VARIANT(o->S.field("field", S.bool())))
 
-  t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseWith(struct), Ok(#VARIANT(true)), ())
+  t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseAnyWith(struct), Ok(#VARIANT(true)), ())
 })
 
 test("Successfully serializes object transformed to variant", t => {
   let struct = S.object(o => #VARIANT(o->S.field("field", S.bool())))
 
-  t->Assert.deepEqual(#VARIANT(true)->S.serializeWith(struct), Ok(%raw(`{"field": true}`)), ())
+  t->Assert.deepEqual(
+    #VARIANT(true)->S.serializeToUnknownWith(struct),
+    Ok(%raw(`{"field": true}`)),
+    (),
+  )
 })
 
 test("Successfully parses object from benchmark", t => {
@@ -649,7 +665,7 @@ test("Successfully parses object from benchmark", t => {
         num: 1,
         bool: false,
       },
-    })`)->S.parseWith(struct),
+    })`)->S.parseAnyWith(struct),
     Ok({
       "number": 1.,
       "negNumber": -1.,
@@ -704,7 +720,7 @@ test("Successfully parses strict object from benchmark", t => {
         num: 1,
         bool: false,
       },
-    })`)->S.parseWith(struct),
+    })`)->S.parseAnyWith(struct),
     Ok({
       "number": 1.,
       "negNumber": -1.,
@@ -758,7 +774,7 @@ test("Successfully serializes object from benchmark", t => {
         "num": 1.,
         "bool": false,
       },
-    }->S.serializeWith(struct),
+    }->S.serializeToUnknownWith(struct),
     Ok(
       %raw(`{
         number: 1,
@@ -791,7 +807,9 @@ test("Successfully parses object and serializes it back to the initial data", t 
   )
 
   t->Assert.deepEqual(
-    any->S.parseWith(struct)->Belt.Result.map(object => object->S.serializeWith(struct)),
+    any
+    ->S.parseAnyWith(struct)
+    ->Belt.Result.map(object => object->S.serializeToUnknownWith(struct)),
     Ok(Ok(any)),
     (),
   )
@@ -806,7 +824,7 @@ test("Allows to create object struct with unused fields", t => {
   })
 
   t->Assert.deepEqual(
-    %raw(`{"field": "foo", "unused": "bar"}`)->S.parseWith(struct),
+    %raw(`{"field": "foo", "unused": "bar"}`)->S.parseAnyWith(struct),
     Ok({"field": "foo"}),
     (),
   )

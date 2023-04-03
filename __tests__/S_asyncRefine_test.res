@@ -1,10 +1,10 @@
 open Ava
 
-test("Fails to parse using parseWith", t => {
+test("Fails to parse using parseAnyWith", t => {
   let struct = S.string()->S.asyncRefine(~parser=_ => Promise.resolve(), ())
 
   t->Assert.deepEqual(
-    %raw(`"Hello world!"`)->S.parseWith(struct),
+    %raw(`"Hello world!"`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedAsync,
       operation: Parsing,

@@ -11,5 +11,5 @@ test("Works", t => {
 
   let struct = tuple3(. S.string(), S.int(), S.bool())
 
-  t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+  t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
 })

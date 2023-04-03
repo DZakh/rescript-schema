@@ -9,14 +9,14 @@ module Common = {
   test("Successfully parses", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
   })
 
   test("Fails to parse", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseWith(struct),
+      wrongAny->S.parseAnyWith(struct),
       Error({
         code: UnexpectedType({expected: "Int", received: "Float"}),
         operation: Parsing,
@@ -29,7 +29,7 @@ module Common = {
   test("Successfully serializes", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
   })
 }
 
@@ -37,7 +37,7 @@ test("Fails to parse int when JSON is a number bigger than +2^31", t => {
   let struct = S.int()
 
   t->Assert.deepEqual(
-    %raw(`2147483648`)->S.parseWith(struct),
+    %raw(`2147483648`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "Int", received: "Float"}),
       operation: Parsing,
@@ -45,14 +45,14 @@ test("Fails to parse int when JSON is a number bigger than +2^31", t => {
     }),
     (),
   )
-  t->Assert.deepEqual(%raw(`2147483647`)->S.parseWith(struct), Ok(2147483647), ())
+  t->Assert.deepEqual(%raw(`2147483647`)->S.parseAnyWith(struct), Ok(2147483647), ())
 })
 
 test("Fails to parse int when JSON is a number lower than -2^31", t => {
   let struct = S.int()
 
   t->Assert.deepEqual(
-    %raw(`-2147483649`)->S.parseWith(struct),
+    %raw(`-2147483649`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "Int", received: "Float"}),
       operation: Parsing,
@@ -60,14 +60,14 @@ test("Fails to parse int when JSON is a number lower than -2^31", t => {
     }),
     (),
   )
-  t->Assert.deepEqual(%raw(`-2147483648`)->S.parseWith(struct), Ok(-2147483648), ())
+  t->Assert.deepEqual(%raw(`-2147483648`)->S.parseAnyWith(struct), Ok(-2147483648), ())
 })
 
 test("Fails to parse NaN", t => {
   let struct = S.int()
 
   t->Assert.deepEqual(
-    %raw(`NaN`)->S.parseWith(struct),
+    %raw(`NaN`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "Int", received: "NaN Literal (NaN)"}),
       operation: Parsing,

@@ -10,7 +10,7 @@ let trimmed = S.advancedTransform(
 test("Successfully parses", t => {
   let struct = S.string()->trimmed
 
-  t->Assert.deepEqual("  Hello world!"->S.parseWith(struct), Ok("Hello world!"), ())
+  t->Assert.deepEqual("  Hello world!"->S.parseAnyWith(struct), Ok("Hello world!"), ())
 })
 
 test("Throws for factory without either a parser, or a serializer", t => {
@@ -33,7 +33,7 @@ test("Fails to parse when user raises error in parser", t => {
     )
 
   t->Assert.deepEqual(
-    "Hello world!"->S.parseWith(struct),
+    "Hello world!"->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Parsing,
@@ -46,7 +46,11 @@ test("Fails to parse when user raises error in parser", t => {
 test("Successfully serializes", t => {
   let struct = S.string()->trimmed
 
-  t->Assert.deepEqual("  Hello world!"->S.serializeWith(struct), Ok(%raw(`"Hello world!"`)), ())
+  t->Assert.deepEqual(
+    "  Hello world!"->S.serializeToUnknownWith(struct),
+    Ok(%raw(`"Hello world!"`)),
+    (),
+  )
 })
 
 test("Fails to serialize when user raises error in serializer", t => {
@@ -57,7 +61,7 @@ test("Fails to serialize when user raises error in serializer", t => {
     )
 
   t->Assert.deepEqual(
-    "Hello world!"->S.serializeWith(struct),
+    "Hello world!"->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
@@ -77,7 +81,7 @@ test("Transform operations applyed in the right order when parsing", t => {
     )
 
   t->Assert.deepEqual(
-    123->S.parseWith(struct),
+    123->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("First transform"),
       operation: Parsing,
@@ -100,7 +104,7 @@ test("Transform operations applyed in the right order when serializing", t => {
     )
 
   t->Assert.deepEqual(
-    123->S.serializeWith(struct),
+    123->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("Second transform"),
       operation: Serializing,
@@ -110,7 +114,7 @@ test("Transform operations applyed in the right order when serializing", t => {
   )
 })
 
-test("Fails to parse async using parseWith", t => {
+test("Fails to parse async using parseAnyWith", t => {
   let struct =
     S.string()->S.advancedTransform(
       ~parser=(~struct as _) => Async(value => Promise.resolve(value)),
@@ -118,7 +122,7 @@ test("Fails to parse async using parseWith", t => {
     )
 
   t->Assert.deepEqual(
-    %raw(`"Hello world!"`)->S.parseWith(struct),
+    %raw(`"Hello world!"`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedAsync,
       operation: Parsing,

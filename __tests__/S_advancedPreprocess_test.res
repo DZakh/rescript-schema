@@ -30,8 +30,8 @@ let preprocessNumberToString = S.advancedPreprocess(
 test("Successfully parses", t => {
   let struct = S.string()->preprocessNumberToString
 
-  t->Assert.deepEqual(123->S.parseWith(struct), Ok("123"), ())
-  t->Assert.deepEqual("Hello world!"->S.parseWith(struct), Ok("Hello world!"), ())
+  t->Assert.deepEqual(123->S.parseAnyWith(struct), Ok("123"), ())
+  t->Assert.deepEqual("Hello world!"->S.parseAnyWith(struct), Ok("Hello world!"), ())
 })
 
 test("Throws for factory without either a parser, or a serializer", t => {
@@ -54,7 +54,7 @@ test("Fails to parse when user raises error in parser", t => {
     )
 
   t->Assert.deepEqual(
-    "Hello world!"->S.parseWith(struct),
+    "Hello world!"->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Parsing,
@@ -67,8 +67,12 @@ test("Fails to parse when user raises error in parser", t => {
 test("Successfully serializes", t => {
   let struct = S.string()->preprocessNumberToString
 
-  t->Assert.deepEqual("Hello world!"->S.serializeWith(struct), Ok(%raw(`"Hello world!"`)), ())
-  t->Assert.deepEqual("123"->S.serializeWith(struct), Ok(%raw(`123`)), ())
+  t->Assert.deepEqual(
+    "Hello world!"->S.serializeToUnknownWith(struct),
+    Ok(%raw(`"Hello world!"`)),
+    (),
+  )
+  t->Assert.deepEqual("123"->S.serializeToUnknownWith(struct), Ok(%raw(`123`)), ())
 })
 
 test("Fails to serialize when user raises error in serializer", t => {
@@ -79,7 +83,7 @@ test("Fails to serialize when user raises error in serializer", t => {
     )
 
   t->Assert.deepEqual(
-    "Hello world!"->S.serializeWith(struct),
+    "Hello world!"->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
@@ -102,7 +106,7 @@ test("Preprocess operations applyed in the right order when parsing", t => {
     )
 
   t->Assert.deepEqual(
-    123->S.parseWith(struct),
+    123->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("Second preprocess"),
       operation: Parsing,
@@ -125,7 +129,7 @@ test("Preprocess operations applyed in the right order when serializing", t => {
     )
 
   t->Assert.deepEqual(
-    123->S.serializeWith(struct),
+    123->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("First preprocess"),
       operation: Serializing,
@@ -135,7 +139,7 @@ test("Preprocess operations applyed in the right order when serializing", t => {
   )
 })
 
-test("Fails to parse async using parseWith", t => {
+test("Fails to parse async using parseAnyWith", t => {
   let struct =
     S.string()->S.advancedPreprocess(
       ~parser=(~struct as _) => Async(value => Promise.resolve(value)),
@@ -143,7 +147,7 @@ test("Fails to parse async using parseWith", t => {
     )
 
   t->Assert.deepEqual(
-    %raw(`"Hello world!"`)->S.parseWith(struct),
+    %raw(`"Hello world!"`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedAsync,
       operation: Parsing,
@@ -244,7 +248,7 @@ test("Applies preproces for union structs separately", t => {
       S.int()->S.transform(~parser=int => #Int(int), ()),
     ])->prepareEnvStruct
 
-  t->Assert.deepEqual("f"->S.parseWith(struct), Ok(#Bool(false)), ())
-  t->Assert.deepEqual("1"->S.parseWith(struct), Ok(#Bool(true)), ())
-  t->Assert.deepEqual("2"->S.parseWith(struct), Ok(#Int(2)), ())
+  t->Assert.deepEqual("f"->S.parseAnyWith(struct), Ok(#Bool(false)), ())
+  t->Assert.deepEqual("1"->S.parseAnyWith(struct), Ok(#Bool(true)), ())
+  t->Assert.deepEqual("2"->S.parseAnyWith(struct), Ok(#Int(2)), ())
 })

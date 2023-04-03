@@ -22,7 +22,7 @@ test("Successfully parses recursive object", t => {
         {"Id": "2", "Children": []},
         {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
       ],
-    }->S.parseWith(nodeStruct),
+    }->S.parseAnyWith(nodeStruct),
     Ok({
       id: "1",
       children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
@@ -41,13 +41,13 @@ asyncTest("Successfully parses recursive object using S.parseAsyncWith", t => {
     )
   })
 
-  {
+  %raw(`{
     "Id": "1",
     "Children": [
       {"Id": "2", "Children": []},
       {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
     ],
-  }
+  }`)
   ->S.parseAsyncWith(nodeStruct)
   ->Promise.thenResolve(result => {
     t->Assert.deepEqual(
@@ -75,7 +75,7 @@ test("Successfully serializes recursive object", t => {
     {
       id: "1",
       children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-    }->S.serializeWith(nodeStruct),
+    }->S.serializeToUnknownWith(nodeStruct),
     Ok(
       %raw(`{
         "Id": "1",
@@ -116,7 +116,7 @@ test("Fails to parse nested recursive object", t => {
         {"Id": "2", "Children": []},
         {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
       ],
-    }->S.parseWith(nodeStruct),
+    }->S.parseAnyWith(nodeStruct),
     Error({
       code: OperationFailed("Invalid id"),
       operation: Parsing,
@@ -150,7 +150,7 @@ test("Fails to serialise nested recursive object", t => {
     {
       id: "1",
       children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-    }->S.serializeWith(nodeStruct),
+    }->S.serializeToUnknownWith(nodeStruct),
     Error({
       code: OperationFailed("Invalid id"),
       operation: Serializing,
@@ -183,7 +183,7 @@ test(
           {"Id": "2", "Children": []},
           {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
         ],
-      }->S.parseWith(nodeStruct),
+      }->S.parseAnyWith(nodeStruct),
       Ok({
         id: "node_1",
         children: [
@@ -200,7 +200,7 @@ test(
           {id: "node_2", children: []},
           {id: "node_3", children: [{id: "node_4", children: []}]},
         ],
-      }->S.serializeWith(nodeStruct),
+      }->S.serializeToUnknownWith(nodeStruct),
       Ok(
         {
           "Id": "1",
@@ -241,7 +241,7 @@ test("Recursively transforms nested objects when added transform to the placehol
         {"Id": "2", "Children": []},
         {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
       ],
-    }->S.parseWith(nodeStruct),
+    }->S.parseAnyWith(nodeStruct),
     Ok({
       id: "1",
       children: [
@@ -258,7 +258,7 @@ test("Recursively transforms nested objects when added transform to the placehol
         {id: "child_2", children: []},
         {id: "child_3", children: [{id: "child_4", children: []}]},
       ],
-    }->S.serializeWith(nodeStruct),
+    }->S.serializeToUnknownWith(nodeStruct),
     Ok(
       {
         "Id": "1",
@@ -293,7 +293,7 @@ test("Shallowly transforms object when added transform to the S.recursive result
         {"Id": "2", "Children": []},
         {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
       ],
-    }->S.parseWith(nodeStruct),
+    }->S.parseAnyWith(nodeStruct),
     Ok({
       id: "parent_1",
       children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
@@ -304,7 +304,7 @@ test("Shallowly transforms object when added transform to the S.recursive result
     {
       id: "parent_1",
       children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-    }->S.serializeWith(nodeStruct),
+    }->S.serializeToUnknownWith(nodeStruct),
     Ok(
       {
         "Id": "1",
@@ -379,13 +379,13 @@ asyncTest("Successfully parses recursive object with async parse function", t =>
     )
   })
 
-  {
+  %raw(`{
     "Id": "1",
     "Children": [
       {"Id": "2", "Children": []},
       {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
     ],
-  }
+  }`)
   ->S.parseAsyncWith(nodeStruct)
   ->Promise.thenResolve(result => {
     t->Assert.deepEqual(
@@ -421,13 +421,13 @@ test("Parses recursive object with async fields in parallel", t => {
     )
   })
 
-  {
+  %raw(`{
     "Id": "1",
     "Children": [
       {"Id": "2", "Children": []},
       {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
     ],
-  }
+  }`)
   ->S.parseAsyncWith(nodeStruct)
   ->ignore
 

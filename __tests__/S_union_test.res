@@ -36,7 +36,7 @@ test("Successfully parses literalVariants", t => {
     S.literalVariant(String("orange"), #orange),
   ])
 
-  t->Assert.deepEqual(%raw(`"apple"`)->S.parseWith(struct), Ok(#apple), ())
+  t->Assert.deepEqual(%raw(`"apple"`)->S.parseAnyWith(struct), Ok(#apple), ())
 })
 
 module Advanced = {
@@ -75,7 +75,7 @@ module Advanced = {
       %raw(`{
       "kind": "circle",
       "radius": 1,
-    }`)->S.parseWith(shapeStruct),
+    }`)->S.parseAnyWith(shapeStruct),
       Ok(Circle({radius: 1.})),
       (),
     )
@@ -86,7 +86,7 @@ module Advanced = {
       %raw(`{
       "kind": "square",
       "x": 2,
-    }`)->S.parseWith(shapeStruct),
+    }`)->S.parseAnyWith(shapeStruct),
       Ok(Square({x: 2.})),
       (),
     )
@@ -98,7 +98,7 @@ module Advanced = {
       "kind": "triangle",
       "x": 2,
       "y": 3,
-    }`)->S.parseWith(shapeStruct),
+    }`)->S.parseAnyWith(shapeStruct),
       Ok(Triangle({x: 2., y: 3.})),
       (),
     )
@@ -110,7 +110,7 @@ module Advanced = {
         "kind": "oval",
         "x": 2,
         "y": 3,
-      }`)->S.parseWith(shapeStruct),
+      }`)->S.parseAnyWith(shapeStruct),
       Error({
         code: InvalidUnion([
           {
@@ -138,7 +138,7 @@ module Advanced = {
 
   test("Fails to parse with wrong data type", t => {
     t->Assert.deepEqual(
-      %raw(`"Hello world!"`)->S.parseWith(shapeStruct),
+      %raw(`"Hello world!"`)->S.parseAnyWith(shapeStruct),
       Error({
         code: InvalidUnion([
           {
@@ -181,7 +181,7 @@ module Advanced = {
     ])
 
     t->Assert.deepEqual(
-      Triangle({x: 2., y: 3.})->S.serializeWith(incompleteStruct),
+      Triangle({x: 2., y: 3.})->S.serializeToUnknownWith(incompleteStruct),
       Error({
         code: InvalidUnion([
           {
@@ -204,7 +204,7 @@ module Advanced = {
 
   test("Successfully serializes Circle shape", t => {
     t->Assert.deepEqual(
-      Circle({radius: 1.})->S.serializeWith(shapeStruct),
+      Circle({radius: 1.})->S.serializeToUnknownWith(shapeStruct),
       Ok(
         %raw(`{
           "kind": "circle",
@@ -217,7 +217,7 @@ module Advanced = {
 
   test("Successfully serializes Square shape", t => {
     t->Assert.deepEqual(
-      Square({x: 2.})->S.serializeWith(shapeStruct),
+      Square({x: 2.})->S.serializeToUnknownWith(shapeStruct),
       Ok(
         %raw(`{
         "kind": "square",
@@ -230,7 +230,7 @@ module Advanced = {
 
   test("Successfully serializes Triangle shape", t => {
     t->Assert.deepEqual(
-      Triangle({x: 2., y: 3.})->S.serializeWith(shapeStruct),
+      Triangle({x: 2., y: 3.})->S.serializeToUnknownWith(shapeStruct),
       Ok(
         %raw(`{
         "kind": "triangle",

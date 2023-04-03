@@ -10,20 +10,20 @@ module CommonWithNested = {
   test("Successfully parses", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
   })
 
   test("Successfully serializes", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
   })
 
   test("Fails to parse", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseWith(struct),
+      wrongAny->S.parseAnyWith(struct),
       Error({
         code: UnexpectedType({expected: "Dict", received: "Bool"}),
         operation: Parsing,
@@ -37,7 +37,7 @@ module CommonWithNested = {
     let struct = factory()
 
     t->Assert.deepEqual(
-      nestedWrongAny->S.parseWith(struct),
+      nestedWrongAny->S.parseAnyWith(struct),
       Error({
         code: UnexpectedType({expected: "String", received: "Bool"}),
         operation: Parsing,
@@ -52,7 +52,7 @@ test("Successfully parses dict with int keys", t => {
   let struct = S.dict(S.string())
 
   t->Assert.deepEqual(
-    %raw(`{1:"b",2:"d"}`)->S.parseWith(struct),
+    %raw(`{1:"b",2:"d"}`)->S.parseAnyWith(struct),
     Ok(Js.Dict.fromArray([("1", "b"), ("2", "d")])),
     (),
   )
@@ -62,7 +62,7 @@ test("Successfully parses dict with optional items", t => {
   let struct = S.dict(S.option(S.string()))
 
   t->Assert.deepEqual(
-    %raw(`{"key1":"value1","key2":undefined}`)->S.parseWith(struct),
+    %raw(`{"key1":"value1","key2":undefined}`)->S.parseAnyWith(struct),
     Ok(Js.Dict.fromArray([("key1", Some("value1")), ("key2", None)])),
     (),
   )

@@ -18,7 +18,7 @@ asyncTest("Successfully parses without asyncRefine", t => {
   let struct = S.string()
 
   (
-    %raw(`"Hello world!"`)->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn
+    %raw(`"Hello world!"`)->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
   )(.)->Promise.thenResolve(result => {
     t->Assert.deepEqual(result, Ok("Hello world!"), ())
   })
@@ -28,7 +28,7 @@ test("Fails to parse without asyncRefine", t => {
   let struct = S.string()
 
   t->Assert.deepEqual(
-    %raw(`123`)->S.parseAsyncInStepsWith(struct),
+    %raw(`123`)->S.parseAnyAsyncInStepsWith(struct),
     Error({
       S.Error.code: UnexpectedType({expected: "String", received: "Float"}),
       path: S.Path.empty,
@@ -42,7 +42,7 @@ asyncTest("Successfully parses with validAsyncRefine", t => {
   let struct = S.string()->validAsyncRefine
 
   (
-    %raw(`"Hello world!"`)->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn
+    %raw(`"Hello world!"`)->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
   )(.)->Promise.thenResolve(result => {
     t->Assert.deepEqual(result, Ok("Hello world!"), ())
   })
@@ -52,7 +52,7 @@ asyncTest("Fails to parse with invalidAsyncRefine", t => {
   let struct = S.string()->invalidAsyncRefine
 
   (
-    %raw(`"Hello world!"`)->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn
+    %raw(`"Hello world!"`)->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
   )(.)->Promise.thenResolve(result => {
     t->Assert.deepEqual(
       result,
@@ -82,7 +82,7 @@ module Object = {
         "k2": 2,
         "k3": 3,
       }
-      ->S.parseAsyncInStepsWith(struct)
+      ->S.parseAnyAsyncInStepsWith(struct)
       ->Belt.Result.getExn
     )(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(
@@ -112,7 +112,7 @@ module Object = {
         "k2": 2,
         "k3": 3,
       }
-      ->S.parseAsyncInStepsWith(struct)
+      ->S.parseAnyAsyncInStepsWith(struct)
       ->Belt.Result.getExn
     )(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(
@@ -140,7 +140,7 @@ module Object = {
         "k2": 2,
         "k3": 3,
       }
-      ->S.parseAsyncInStepsWith(struct)
+      ->S.parseAnyAsyncInStepsWith(struct)
       ->Belt.Result.getExn
     )(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(
@@ -172,7 +172,7 @@ module Object = {
         "k2": 2,
         "k3": 3,
       }
-      ->S.parseAsyncInStepsWith(struct)
+      ->S.parseAnyAsyncInStepsWith(struct)
       ->Belt.Result.getExn
     )(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(
@@ -201,7 +201,7 @@ module Object = {
         "k1": 1,
         "k2": true,
         "k3": 3,
-      }->S.parseAsyncInStepsWith(struct),
+      }->S.parseAnyAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
         path: S.Path.fromArray(["k2"]),
@@ -225,7 +225,7 @@ module Object = {
         "k1": 1,
         "k2": 2,
         "k3": 3,
-      }->S.parseAsyncInStepsWith(struct),
+      }->S.parseAnyAsyncInStepsWith(struct),
       Error({
         S.Error.code: OperationFailed("Sync user error"),
         path: S.Path.fromArray(["k3"]),
@@ -275,7 +275,7 @@ module Object = {
       "k1": 1,
       "k2": 2,
     }
-    ->S.parseAsyncWith(struct)
+    ->S.parseAnyAsyncWith(struct)
     ->ignore
 
     t->Assert.deepEqual(actionCounter.contents, 2, ())
@@ -302,7 +302,7 @@ module Object = {
         "k1": 1,
         "k2": 2,
       }
-      ->S.parseAsyncInStepsWith(struct)
+      ->S.parseAnyAsyncInStepsWith(struct)
       ->Belt.Result.getExn
     )(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(
@@ -323,7 +323,7 @@ module Tuple = {
     let struct = S.tuple3(. S.int(), S.int()->validAsyncRefine, S.int())
 
     (
-      [1, 2, 3]->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn
+      [1, 2, 3]->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
     )(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(result, Ok(1, 2, 3), ())
     })
@@ -333,7 +333,7 @@ module Tuple = {
     let struct = S.tuple3(. S.int(), S.int()->validAsyncRefine, S.int())
 
     t->Assert.deepEqual(
-      %raw(`[1, true, 3]`)->S.parseAsyncInStepsWith(struct),
+      %raw(`[1, true, 3]`)->S.parseAnyAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
         path: S.Path.fromArray(["1"]),
@@ -351,7 +351,7 @@ module Tuple = {
     )
 
     t->Assert.deepEqual(
-      [1, 2, 3]->S.parseAsyncInStepsWith(struct),
+      [1, 2, 3]->S.parseAnyAsyncInStepsWith(struct),
       Error({
         S.Error.code: OperationFailed("Sync user error"),
         path: S.Path.fromArray(["1"]),
@@ -380,7 +380,7 @@ module Tuple = {
         )
       }, ()))
 
-    [1, 2]->S.parseAsyncWith(struct)->ignore
+    [1, 2]->S.parseAnyAsyncWith(struct)->ignore
 
     t->Assert.deepEqual(actionCounter.contents, 2, ())
   })
@@ -391,7 +391,7 @@ module Tuple = {
       }, ()), S.int()->invalidAsyncRefine)
 
     (
-      [1, 2]->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn
+      [1, 2]->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
     )(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
@@ -415,13 +415,19 @@ module Union = {
     ])
 
     Promise.all([
-      (1->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
+      (
+        1->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
+      )(.)->Promise.thenResolve(result => {
         t->Assert.deepEqual(result, Ok(1), ())
       }),
-      (2->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
+      (
+        2->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
+      )(.)->Promise.thenResolve(result => {
         t->Assert.deepEqual(result, Ok(2), ())
       }),
-      (3->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
+      (
+        3->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
+      )(.)->Promise.thenResolve(result => {
         t->Assert.deepEqual(result, Ok(3), ())
       }),
     ])->Promise.thenResolve(_ => ())
@@ -434,7 +440,9 @@ module Union = {
       S.literal(Int(3)),
     ])
 
-    (true->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
+    (
+      true->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
+    )(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
         Error({
@@ -482,7 +490,7 @@ module Union = {
         )
       }, ())])
 
-    2->S.parseAsyncWith(struct)->ignore
+    2->S.parseAnyAsyncWith(struct)->ignore
 
     t->Assert.deepEqual(actionCounter.contents, 2, ())
   })
@@ -493,7 +501,7 @@ module Array = {
     let struct = S.array(S.int()->validAsyncRefine)
 
     (
-      [1, 2, 3]->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn
+      [1, 2, 3]->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
     )(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(result, Ok([1, 2, 3]), ())
     })
@@ -503,7 +511,7 @@ module Array = {
     let struct = S.array(S.int()->validAsyncRefine)
 
     t->Assert.deepEqual(
-      %raw(`[1, 2, true]`)->S.parseAsyncInStepsWith(struct),
+      %raw(`[1, 2, true]`)->S.parseAnyAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
         path: S.Path.fromArray(["2"]),
@@ -525,7 +533,7 @@ module Array = {
         )
       }, ()))
 
-    [1, 2]->S.parseAsyncWith(struct)->ignore
+    [1, 2]->S.parseAnyAsyncWith(struct)->ignore
 
     t->Assert.deepEqual(actionCounter.contents, 2, ())
   })
@@ -547,7 +555,7 @@ module Array = {
       }, ()))
 
     (
-      [1, 2, 3]->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn
+      [1, 2, 3]->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
     )(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
@@ -567,7 +575,7 @@ module Dict = {
     let struct = S.dict(S.int()->validAsyncRefine)
 
     (
-      {"k1": 1, "k2": 2, "k3": 3}->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn
+      {"k1": 1, "k2": 2, "k3": 3}->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
     )(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(result, Ok(Js.Dict.fromArray([("k1", 1), ("k2", 2), ("k3", 3)])), ())
     })
@@ -577,7 +585,7 @@ module Dict = {
     let struct = S.dict(S.int()->validAsyncRefine)
 
     t->Assert.deepEqual(
-      {"k1": 1, "k2": 2, "k3": true}->S.parseAsyncInStepsWith(struct),
+      {"k1": 1, "k2": 2, "k3": true}->S.parseAnyAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
         path: S.Path.fromArray(["k3"]),
@@ -599,7 +607,7 @@ module Dict = {
         )
       }, ()))
 
-    {"k1": 1, "k2": 2}->S.parseAsyncWith(struct)->ignore
+    {"k1": 1, "k2": 2}->S.parseAnyAsyncWith(struct)->ignore
 
     t->Assert.deepEqual(actionCounter.contents, 2, ())
   })
@@ -621,7 +629,7 @@ module Dict = {
       }, ()))
 
     (
-      {"k1": 1, "k2": 2, "k3": 3}->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn
+      {"k1": 1, "k2": 2, "k3": 3}->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
     )(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
@@ -641,11 +649,13 @@ module Null = {
     let struct = S.null(S.int()->validAsyncRefine)
 
     Promise.all([
-      (1->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
+      (
+        1->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
+      )(.)->Promise.thenResolve(result => {
         t->Assert.deepEqual(result, Ok(Some(1)), ())
       }),
       (
-        %raw(`null`)->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn
+        %raw(`null`)->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
       )(.)->Promise.thenResolve(result => {
         t->Assert.deepEqual(result, Ok(None), ())
       }),
@@ -655,7 +665,7 @@ module Null = {
   asyncTest("[Null] Fails to parse with invalid async refine", t => {
     let struct = S.null(S.int()->invalidAsyncRefine)
 
-    (1->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
+    (1->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
         Error({
@@ -672,7 +682,7 @@ module Null = {
     let struct = S.null(S.int()->validAsyncRefine)
 
     t->Assert.deepEqual(
-      true->S.parseAsyncInStepsWith(struct),
+      true->S.parseAnyAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
         path: S.Path.empty,
@@ -688,11 +698,13 @@ module Option = {
     let struct = S.option(S.int()->validAsyncRefine)
 
     Promise.all([
-      (1->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
+      (
+        1->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
+      )(.)->Promise.thenResolve(result => {
         t->Assert.deepEqual(result, Ok(Some(1)), ())
       }),
       (
-        %raw(`undefined`)->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn
+        %raw(`undefined`)->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
       )(.)->Promise.thenResolve(result => {
         t->Assert.deepEqual(result, Ok(None), ())
       }),
@@ -702,7 +714,7 @@ module Option = {
   asyncTest("[Option] Fails to parse with invalid async refine", t => {
     let struct = S.option(S.int()->invalidAsyncRefine)
 
-    (1->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
+    (1->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
         Error({
@@ -719,7 +731,7 @@ module Option = {
     let struct = S.option(S.int()->validAsyncRefine)
 
     t->Assert.deepEqual(
-      true->S.parseAsyncInStepsWith(struct),
+      true->S.parseAnyAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
         path: S.Path.empty,
@@ -735,11 +747,13 @@ module Defaulted = {
     let struct = S.option(S.int()->validAsyncRefine)->validAsyncRefine->S.defaulted(10)
 
     Promise.all([
-      (1->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
+      (
+        1->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
+      )(.)->Promise.thenResolve(result => {
         t->Assert.deepEqual(result, Ok(1), ())
       }),
       (
-        %raw(`undefined`)->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn
+        %raw(`undefined`)->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
       )(.)->Promise.thenResolve(result => {
         t->Assert.deepEqual(result, Ok(10), ())
       }),
@@ -749,7 +763,7 @@ module Defaulted = {
   asyncTest("[Defaulted] Fails to parse with invalid async refine", t => {
     let struct = S.option(S.int()->invalidAsyncRefine)->S.defaulted(10)
 
-    (1->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
+    (1->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
         Error({
@@ -767,7 +781,7 @@ module Defaulted = {
     let struct = S.option(S.int()->validAsyncRefine)->S.defaulted(10)
 
     t->Assert.deepEqual(
-      true->S.parseAsyncInStepsWith(struct),
+      true->S.parseAnyAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
         path: S.Path.empty,
@@ -782,7 +796,9 @@ module Json = {
   asyncTest("[Json] Successfully parses", t => {
     let struct = S.json(S.int()->validAsyncRefine)
 
-    ("1"->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
+    (
+      "1"->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
+    )(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(result, Ok(1), ())
     })
   })
@@ -790,7 +806,9 @@ module Json = {
   asyncTest("[Json] Fails to parse with invalid async refine", t => {
     let struct = S.json(S.int()->invalidAsyncRefine)
 
-    ("1"->S.parseAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
+    (
+      "1"->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
+    )(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
         Error({
@@ -808,7 +826,7 @@ module Json = {
     let struct = S.json(S.int()->validAsyncRefine)
 
     t->Assert.deepEqual(
-      "true"->S.parseAsyncInStepsWith(struct),
+      "true"->S.parseAnyAsyncInStepsWith(struct),
       Error({
         S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
         path: S.Path.empty,

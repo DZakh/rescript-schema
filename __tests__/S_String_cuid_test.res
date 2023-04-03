@@ -4,7 +4,7 @@ test("Successfully parses valid data", t => {
   let struct = S.string()->S.String.cuid()
 
   t->Assert.deepEqual(
-    "ckopqwooh000001la8mbi2im9"->S.parseWith(struct),
+    "ckopqwooh000001la8mbi2im9"->S.parseAnyWith(struct),
     Ok("ckopqwooh000001la8mbi2im9"),
     (),
   )
@@ -14,7 +14,7 @@ test("Fails to parse invalid data", t => {
   let struct = S.string()->S.String.cuid()
 
   t->Assert.deepEqual(
-    "cifjhdsfhsd-invalid-cuid"->S.parseWith(struct),
+    "cifjhdsfhsd-invalid-cuid"->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("Invalid CUID"),
       operation: Parsing,
@@ -28,7 +28,7 @@ test("Successfully serializes valid value", t => {
   let struct = S.string()->S.String.cuid()
 
   t->Assert.deepEqual(
-    "ckopqwooh000001la8mbi2im9"->S.serializeWith(struct),
+    "ckopqwooh000001la8mbi2im9"->S.serializeToUnknownWith(struct),
     Ok(%raw(`"ckopqwooh000001la8mbi2im9"`)),
     (),
   )
@@ -38,7 +38,7 @@ test("Fails to serialize invalid value", t => {
   let struct = S.string()->S.String.cuid()
 
   t->Assert.deepEqual(
-    "cifjhdsfhsd-invalid-cuid"->S.serializeWith(struct),
+    "cifjhdsfhsd-invalid-cuid"->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("Invalid CUID"),
       operation: Serializing,
@@ -52,7 +52,7 @@ test("Returns custom error message", t => {
   let struct = S.string()->S.String.cuid(~message="Custom", ())
 
   t->Assert.deepEqual(
-    "cifjhdsfhsd-invalid-cuid"->S.parseWith(struct),
+    "cifjhdsfhsd-invalid-cuid"->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("Custom"),
       operation: Parsing,

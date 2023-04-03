@@ -136,7 +136,7 @@ function toReason(nestedLevelOpt, error) {
       case /* MissingSerializer */1 :
           return "Struct serializer is missing";
       case /* UnexpectedAsync */2 :
-          return "Encountered unexpected asynchronous transform or refine. Use parseAsyncWith instead of parseWith";
+          return "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith";
       
     }
   } else {
@@ -422,7 +422,10 @@ function validateJsonStruct(_struct) {
             var fieldName = fieldNames[idx];
             var fieldStruct = fields[fieldName];
             try {
-              validateJsonStruct(fieldStruct);
+              var s = fieldStruct.t;
+              var tmp;
+              tmp = typeof s === "number" || s.TAG !== /* Option */1 ? fieldStruct : s._0;
+              validateJsonStruct(tmp);
             }
             catch (raw_e){
               var e = Caml_js_exceptions.internalToOCamlException(raw_e);
@@ -533,7 +536,7 @@ function intitialParseAsync(input) {
   return compiledParseAsync(input);
 }
 
-function parseWith(any, struct) {
+function parseAnyWith(any, struct) {
   try {
     return {
             TAG: /* Ok */0,
@@ -552,7 +555,7 @@ function parseWith(any, struct) {
   }
 }
 
-function parseOrRaiseWith(any, struct) {
+function parseAnyOrRaiseWith(any, struct) {
   try {
     return struct.p(any);
   }
@@ -586,7 +589,7 @@ function asyncPrepareError(exn) {
   throw exn;
 }
 
-function parseAsyncWith(any, struct) {
+function parseAnyAsyncWith(any, struct) {
   try {
     return struct.a(any)().then(asyncPrepareOk, asyncPrepareError);
   }
@@ -602,7 +605,7 @@ function parseAsyncWith(any, struct) {
   }
 }
 
-function parseAsyncInStepsWith(any, struct) {
+function parseAnyAsyncInStepsWith(any, struct) {
   try {
     var asyncFn = struct.a(any);
     return {
@@ -624,7 +627,7 @@ function parseAsyncInStepsWith(any, struct) {
   }
 }
 
-function serializeWith(value, struct) {
+function serializeToUnknownWith(value, struct) {
   try {
     return {
             TAG: /* Ok */0,
@@ -645,6 +648,23 @@ function serializeWith(value, struct) {
 
 function serializeOrRaiseWith(value, struct) {
   try {
+    return struct.j(value);
+  }
+  catch (raw_internalError){
+    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
+    if (internalError.RE_EXN_ID === Exception) {
+      throw {
+            RE_EXN_ID: Raised,
+            _1: toSerializeError(internalError._1),
+            Error: new Error()
+          };
+    }
+    throw internalError;
+  }
+}
+
+function serializeToUnknownOrRaiseWith(value, struct) {
+  try {
     return struct.s(value);
   }
   catch (raw_internalError){
@@ -660,7 +680,7 @@ function serializeOrRaiseWith(value, struct) {
   }
 }
 
-function serializeToJsonWith(value, struct) {
+function serializeWith(value, struct) {
   try {
     return {
             TAG: /* Ok */0,
@@ -679,9 +699,9 @@ function serializeToJsonWith(value, struct) {
   }
 }
 
-function serializeToJsonStringWith(value, spaceOpt, struct) {
+function serializeToJsonWith(value, spaceOpt, struct) {
   var space = spaceOpt !== undefined ? spaceOpt : 0;
-  var json = serializeToJsonWith(value, struct);
+  var json = serializeWith(value, struct);
   if (json.TAG === /* Ok */0) {
     return {
             TAG: /* Ok */0,
@@ -692,18 +712,18 @@ function serializeToJsonStringWith(value, spaceOpt, struct) {
   }
 }
 
-function parseJsonStringWith(jsonString, struct) {
-  var json;
+function parseJsonWith(json, struct) {
+  var json$1;
   try {
-    json = {
+    json$1 = {
       TAG: /* Ok */0,
-      _0: JSON.parse(jsonString)
+      _0: JSON.parse(json)
     };
   }
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
     if (error.RE_EXN_ID === Js_exn.$$Error) {
-      json = {
+      json$1 = {
         TAG: /* Error */1,
         _0: {
           operation: /* Parsing */1,
@@ -718,10 +738,10 @@ function parseJsonStringWith(jsonString, struct) {
       throw error;
     }
   }
-  if (json.TAG === /* Ok */0) {
-    return parseWith(json._0, struct);
+  if (json$1.TAG === /* Ok */0) {
+    return parseAnyWith(json$1._0, struct);
   } else {
-    return json;
+    return json$1;
   }
 }
 
@@ -3367,7 +3387,13 @@ var deprecated = factory$12;
 
 var defaulted = factory$15;
 
-var parseJsonWith = parseWith;
+var parseWith = parseAnyWith;
+
+var parseOrRaiseWith = parseAnyOrRaiseWith;
+
+var parseAsyncWith = parseAnyAsyncWith;
+
+var parseAsyncInStepsWith = parseAnyAsyncInStepsWith;
 
 var Object_UnknownKeys = {
   classify: classify$1
@@ -3485,15 +3511,19 @@ exports.custom = custom;
 exports.refine = refine;
 exports.asyncRefine = asyncRefine;
 exports.parseWith = parseWith;
-exports.parseOrRaiseWith = parseOrRaiseWith;
-exports.parseAsyncWith = parseAsyncWith;
-exports.parseAsyncInStepsWith = parseAsyncInStepsWith;
+exports.parseAnyWith = parseAnyWith;
 exports.parseJsonWith = parseJsonWith;
-exports.parseJsonStringWith = parseJsonStringWith;
+exports.parseOrRaiseWith = parseOrRaiseWith;
+exports.parseAnyOrRaiseWith = parseAnyOrRaiseWith;
+exports.parseAsyncWith = parseAsyncWith;
+exports.parseAnyAsyncWith = parseAnyAsyncWith;
+exports.parseAsyncInStepsWith = parseAsyncInStepsWith;
+exports.parseAnyAsyncInStepsWith = parseAnyAsyncInStepsWith;
 exports.serializeWith = serializeWith;
-exports.serializeOrRaiseWith = serializeOrRaiseWith;
+exports.serializeToUnknownWith = serializeToUnknownWith;
 exports.serializeToJsonWith = serializeToJsonWith;
-exports.serializeToJsonStringWith = serializeToJsonStringWith;
+exports.serializeOrRaiseWith = serializeOrRaiseWith;
+exports.serializeToUnknownOrRaiseWith = serializeToUnknownOrRaiseWith;
 exports.isAsyncParse = isAsyncParse;
 exports.recursive = recursive;
 exports.asyncRecursive = asyncRecursive;

@@ -107,7 +107,7 @@ Suite.make()
   let struct = makeStringStruct(.)
   let data = "Hello world!"
   (. ()) => {
-    data->S.parseOrRaiseWith(struct)
+    data->S.parseAnyOrRaiseWith(struct)
   }
 })
 ->Suite.addWithPrepare("Serialize string", () => {
@@ -122,21 +122,21 @@ Suite.make()
   let struct = makeAdvancedObjectStruct(.)
   let data = makeTestObject(.)
   (. ()) => {
-    data->S.parseOrRaiseWith(struct)
+    data->S.parseAnyOrRaiseWith(struct)
   }
 })
 ->Suite.addWithPrepare("Create and parse advanced object", () => {
   let data = makeTestObject(.)
   (. ()) => {
     let struct = makeAdvancedObjectStruct(.)
-    data->S.parseOrRaiseWith(struct)
+    data->S.parseAnyOrRaiseWith(struct)
   }
 })
 ->Suite.addWithPrepare("Parse advanced strict object", () => {
   let struct = makeAdvancedStrictObjectStruct(.)
   let data = makeTestObject(.)
   (. ()) => {
-    data->S.parseOrRaiseWith(struct)
+    data->S.parseAnyOrRaiseWith(struct)
   }
 })
 ->Suite.addWithPrepare("Serialize advanced object", () => {

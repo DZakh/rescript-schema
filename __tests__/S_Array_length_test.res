@@ -3,14 +3,14 @@ open Ava
 test("Successfully parses valid data", t => {
   let struct = S.array(S.int())->S.Array.length(1)
 
-  t->Assert.deepEqual([1]->S.parseWith(struct), Ok([1]), ())
+  t->Assert.deepEqual([1]->S.parseAnyWith(struct), Ok([1]), ())
 })
 
 test("Fails to parse invalid data", t => {
   let struct = S.array(S.int())->S.Array.length(1)
 
   t->Assert.deepEqual(
-    []->S.parseWith(struct),
+    []->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("Array must be exactly 1 items long"),
       operation: Parsing,
@@ -19,7 +19,7 @@ test("Fails to parse invalid data", t => {
     (),
   )
   t->Assert.deepEqual(
-    [1, 2, 3, 4]->S.parseWith(struct),
+    [1, 2, 3, 4]->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("Array must be exactly 1 items long"),
       operation: Parsing,
@@ -32,14 +32,14 @@ test("Fails to parse invalid data", t => {
 test("Successfully serializes valid value", t => {
   let struct = S.array(S.int())->S.Array.length(1)
 
-  t->Assert.deepEqual([1]->S.serializeWith(struct), Ok(%raw(`[1]`)), ())
+  t->Assert.deepEqual([1]->S.serializeToUnknownWith(struct), Ok(%raw(`[1]`)), ())
 })
 
 test("Fails to serialize invalid value", t => {
   let struct = S.array(S.int())->S.Array.length(1)
 
   t->Assert.deepEqual(
-    []->S.serializeWith(struct),
+    []->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("Array must be exactly 1 items long"),
       operation: Serializing,
@@ -48,7 +48,7 @@ test("Fails to serialize invalid value", t => {
     (),
   )
   t->Assert.deepEqual(
-    [1, 2, 3, 4]->S.serializeWith(struct),
+    [1, 2, 3, 4]->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("Array must be exactly 1 items long"),
       operation: Serializing,
@@ -62,7 +62,7 @@ test("Returns custom error message", t => {
   let struct = S.array(S.int())->S.Array.length(~message="Custom", 1)
 
   t->Assert.deepEqual(
-    []->S.parseWith(struct),
+    []->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("Custom"),
       operation: Parsing,

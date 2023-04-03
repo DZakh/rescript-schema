@@ -9,14 +9,14 @@ module Common = {
   test("Successfully parses", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
   })
 
   test("Fails to parse", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseWith(struct),
+      wrongAny->S.parseAnyWith(struct),
       Error({
         code: UnexpectedType({expected: "String", received: "Float"}),
         operation: Parsing,
@@ -29,21 +29,21 @@ module Common = {
   test("Successfully serializes", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
   })
 }
 
 test("Successfully parses primitive", t => {
   let struct = S.null(S.bool())
 
-  t->Assert.deepEqual(Js.Json.boolean(true)->S.parseWith(struct), Ok(Some(true)), ())
+  t->Assert.deepEqual(Js.Json.boolean(true)->S.parseAnyWith(struct), Ok(Some(true)), ())
 })
 
 test("Fails to parse JS undefined", t => {
   let struct = S.null(S.bool())
 
   t->Assert.deepEqual(
-    %raw(`undefined`)->S.parseWith(struct),
+    %raw(`undefined`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "Bool", received: "Option"}),
       operation: Parsing,
@@ -57,7 +57,7 @@ test("Fails to parse object with missing field that marked as null", t => {
   let struct = S.object(o => o->S.field("nullableField", S.null(S.string())))
 
   t->Assert.deepEqual(
-    %raw(`{}`)->S.parseWith(struct),
+    %raw(`{}`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "String", received: "Option"}),
       operation: Parsing,
@@ -71,7 +71,7 @@ test("Fails to parse JS null when struct doesn't allow optional data", t => {
   let struct = S.bool()
 
   t->Assert.deepEqual(
-    %raw(`null`)->S.parseWith(struct),
+    %raw(`null`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "Bool", received: "Null"}),
       operation: Parsing,
@@ -85,7 +85,7 @@ test("Successfully parses null and serializes it back for deprecated nullable st
   let struct = S.null(S.bool())->S.deprecated()
 
   t->Assert.deepEqual(
-    %raw(`null`)->S.parseWith(struct)->Belt.Result.map(S.serializeWith(_, struct)),
+    %raw(`null`)->S.parseAnyWith(struct)->Belt.Result.map(S.serializeToUnknownWith(_, struct)),
     Ok(Ok(%raw(`null`))),
     (),
   )
@@ -95,7 +95,7 @@ test("Successfully parses null and serializes it back for optional nullable stru
   let struct = S.option(S.null(S.bool()))
 
   t->Assert.deepEqual(
-    %raw(`null`)->S.parseWith(struct)->Belt.Result.map(S.serializeWith(_, struct)),
+    %raw(`null`)->S.parseAnyWith(struct)->Belt.Result.map(S.serializeToUnknownWith(_, struct)),
     Ok(Ok(%raw(`null`))),
     (),
   )

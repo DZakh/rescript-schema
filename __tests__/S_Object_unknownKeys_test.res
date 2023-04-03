@@ -7,7 +7,7 @@ test("Successfully parses Object with unknown keys by default", t => {
 
   let struct = S.object(o => o->S.field("key", S.string()))
 
-  t->Assert.deepEqual(any->S.parseWith(struct), Ok("value"), ())
+  t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok("value"), ())
 })
 
 test("Fails fast and shows only one excees key in the error message", t => {
@@ -18,7 +18,7 @@ test("Fails fast and shows only one excees key in the error message", t => {
   )->S.Object.strict
 
   t->Assert.deepEqual(
-    %raw(`{key: "value", unknownKey: "value2", unknownKey2: "value2"}`)->S.parseWith(struct),
+    %raw(`{key: "value", unknownKey: "value2", unknownKey2: "value2"}`)->S.parseAnyWith(struct),
     Error({
       code: ExcessField("unknownKey"),
       operation: Parsing,
@@ -34,7 +34,7 @@ test("Successfully parses Object with unknown keys when Strip strategy applyed",
 
   let struct = S.object(o => o->S.field("key", S.string()))->S.Object.strip
 
-  t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+  t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
 })
 
 test("Works correctly when the same unknown keys strategy applyed multiple times", t => {
@@ -44,7 +44,7 @@ test("Works correctly when the same unknown keys strategy applyed multiple times
   let struct =
     S.object(o => o->S.field("key", S.string()))->S.Object.strip->S.Object.strip->S.Object.strip
 
-  t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+  t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
 })
 
 test("Doesn't raise an error when unknown keys strategy applyed to a non Object struct", t => {
@@ -62,7 +62,7 @@ test("Can reset unknown keys strategy applying Strict strategy", t => {
   let struct = S.object(o => o->S.field("key", S.string()))->S.Object.strip->S.Object.strict
 
   t->Assert.deepEqual(
-    any->S.parseWith(struct),
+    any->S.parseAnyWith(struct),
     Error({
       code: ExcessField("unknownKey"),
       operation: Parsing,

@@ -418,7 +418,7 @@ module Error = {
     | OperationFailed(reason) => reason
     | MissingParser => "Struct parser is missing"
     | MissingSerializer => "Struct serializer is missing"
-    | UnexpectedAsync => "Encountered unexpected asynchronous transform or refine. Use parseAsyncWith instead of parseWith"
+    | UnexpectedAsync => "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith"
     | ExcessField(fieldName) =>
       `Encountered disallowed excess key "${fieldName}" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`
     | UnexpectedType({expected, received})
@@ -827,7 +827,11 @@ let rec validateJsonStruct = struct => {
       let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
       let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
       try {
-        fieldStruct->validateJsonStruct
+        switch fieldStruct->classify {
+        // Allow optional fields
+        | Option(s) => s
+        | _ => fieldStruct
+        }->validateJsonStruct
       } catch {
       | Error.Internal.Exception(e) =>
         raise(Error.Internal.Exception(e->Error.Internal.prependLocation(fieldName)))
@@ -923,7 +927,7 @@ let make = (
   metadataMap,
 }
 
-let parseWith = (any, struct) => {
+let parseAnyWith = (any, struct) => {
   try {
     struct.parse(. any->castAnyToUnknown)->castUnknownToAny->Ok
   } catch {
@@ -931,7 +935,9 @@ let parseWith = (any, struct) => {
   }
 }
 
-let parseOrRaiseWith = (any, struct) => {
+let parseWith: (Js.Json.t, t<'value>) => result<'value, Error.t> = parseAnyWith
+
+let parseAnyOrRaiseWith = (any, struct) => {
   try {
     struct.parse(. any->castAnyToUnknown)->castUnknownToAny
   } catch {
@@ -939,6 +945,8 @@ let parseOrRaiseWith = (any, struct) => {
     raise(Raised(internalError->Error.Internal.toParseError))
   }
 }
+
+let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value = parseAnyOrRaiseWith
 
 let asyncPrepareOk = value => Ok(value->castUnknownToAny)
 
@@ -949,7 +957,7 @@ let asyncPrepareError = exn => {
   }
 }
 
-let parseAsyncWith = (any, struct) => {
+let parseAnyAsyncWith = (any, struct) => {
   try {
     struct.parseAsync(. any->castAnyToUnknown)(.)->Stdlib.Promise.thenResolveWithCatch(
       asyncPrepareOk,
@@ -961,7 +969,9 @@ let parseAsyncWith = (any, struct) => {
   }
 }
 
-let parseAsyncInStepsWith = (any, struct) => {
+let parseAsyncWith = parseAnyAsyncWith
+
+let parseAnyAsyncInStepsWith = (any, struct) => {
   try {
     let asyncFn = struct.parseAsync(. any->castAnyToUnknown)
 
@@ -973,7 +983,9 @@ let parseAsyncInStepsWith = (any, struct) => {
   }
 }
 
-let serializeWith = (value, struct) => {
+let parseAsyncInStepsWith = parseAnyAsyncInStepsWith
+
+let serializeToUnknownWith = (value, struct) => {
   try {
     struct.serialize(. value->castAnyToUnknown)->Ok
   } catch {
@@ -983,6 +995,15 @@ let serializeWith = (value, struct) => {
 
 let serializeOrRaiseWith = (value, struct) => {
   try {
+    struct.serializeToJson(. value->castAnyToUnknown)
+  } catch {
+  | Error.Internal.Exception(internalError) =>
+    raise(Raised(internalError->Error.Internal.toSerializeError))
+  }
+}
+
+let serializeToUnknownOrRaiseWith = (value, struct) => {
+  try {
     struct.serialize(. value->castAnyToUnknown)
   } catch {
   | Error.Internal.Exception(internalError) =>
@@ -990,7 +1011,7 @@ let serializeOrRaiseWith = (value, struct) => {
   }
 }
 
-let serializeToJsonWith = (value, struct) => {
+let serializeWith = (value, struct) => {
   try {
     struct.serializeToJson(. value->castAnyToUnknown)->Ok
   } catch {
@@ -998,21 +1019,16 @@ let serializeToJsonWith = (value, struct) => {
   }
 }
 
-let serializeToJsonStringWith = (value: 'value, ~space=0, struct: t<'value>): result<
-  string,
-  Error.t,
-> => {
-  switch value->serializeToJsonWith(struct) {
+let serializeToJsonWith = (value: 'value, ~space=0, struct: t<'value>): result<string, Error.t> => {
+  switch value->serializeWith(struct) {
   | Ok(json) => Ok(json->Js.Json.stringifyWithSpace(space))
   | Error(_) as e => e
   }
 }
 
-let parseJsonWith: (Js.Json.t, t<'value>) => result<'value, Error.t> = parseWith
-
-let parseJsonStringWith = (jsonString: string, struct: t<'value>): result<'value, Error.t> => {
+let parseJsonWith = (json: string, struct: t<'value>): result<'value, Error.t> => {
   switch try {
-    jsonString->Js.Json.parseExn->Ok
+    json->Js.Json.parseExn->Ok
   } catch {
   | Js.Exn.Error(error) =>
     Error({
@@ -1021,7 +1037,7 @@ let parseJsonStringWith = (jsonString: string, struct: t<'value>): result<'value
       path: Path.empty,
     })
   } {
-  | Ok(json) => json->parseJsonWith(struct)
+  | Ok(json) => json->parseWith(struct)
   | Error(_) as e => e
   }
 }

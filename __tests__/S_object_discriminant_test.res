@@ -98,7 +98,7 @@ module Positive = {
           {
             "discriminant": testData.discriminantData,
             "field": "bar",
-          }->S.parseWith(struct),
+          }->S.parseAnyWith(struct),
           Ok({"field": "bar"}),
           (),
         )
@@ -118,7 +118,7 @@ module Positive = {
         )
 
         t->Assert.deepEqual(
-          {"field": "bar"}->S.serializeWith(struct),
+          {"field": "bar"}->S.serializeToUnknownWith(struct),
           Ok(
             {
               "discriminant": testData.discriminantData,
@@ -209,7 +209,7 @@ module Negative = {
           {
             "discriminant": testData.discriminantData,
             "field": "bar",
-          }->S.parseWith(struct),
+          }->S.parseAnyWith(struct),
           Ok({"field": "bar"}),
           (),
         )
@@ -229,7 +229,7 @@ module Negative = {
         )
 
         t->Assert.deepEqual(
-          {"field": "bar"}->S.serializeWith(struct),
+          {"field": "bar"}->S.serializeToUnknownWith(struct),
           Error({
             code: MissingSerializer,
             operation: Serializing,
@@ -254,7 +254,7 @@ test(`Fails to parse object with invalid data passed to discriminant field`, t =
     {
       "discriminant": false,
       "field": "bar",
-    }->S.parseWith(struct),
+    }->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "String", received: "Bool"}),
       operation: Parsing,
@@ -273,7 +273,7 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
   })
 
   t->Assert.deepEqual(
-    {"field": "bar"}->S.serializeWith(struct),
+    {"field": "bar"}->S.serializeToUnknownWith(struct),
     Error({
       code: MissingSerializer,
       operation: Serializing,

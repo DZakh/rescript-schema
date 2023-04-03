@@ -33,7 +33,7 @@ var structOperations = {};
 function parse(data) {
   var struct = this;
   try {
-    return fromOk(S$RescriptStruct.parseOrRaiseWith(data, struct));
+    return fromOk(S$RescriptStruct.parseAnyOrRaiseWith(data, struct));
   }
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
@@ -47,7 +47,7 @@ function parse(data) {
 function parseOrThrow(data) {
   var struct = this;
   try {
-    return S$RescriptStruct.parseOrRaiseWith(data, struct);
+    return S$RescriptStruct.parseAnyOrRaiseWith(data, struct);
   }
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
@@ -60,7 +60,7 @@ function parseOrThrow(data) {
 
 function parseAsync(data) {
   var struct = this;
-  return S$RescriptStruct.parseAsyncWith(data, struct).then(function (result) {
+  return S$RescriptStruct.parseAnyAsyncWith(data, struct).then(function (result) {
               if (result.TAG === /* Ok */0) {
                 return fromOk(result._0);
               } else {
@@ -72,7 +72,7 @@ function parseAsync(data) {
 function serialize(value) {
   var struct = this;
   try {
-    return fromOk(S$RescriptStruct.serializeOrRaiseWith(value, struct));
+    return fromOk(S$RescriptStruct.serializeToUnknownOrRaiseWith(value, struct));
   }
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
@@ -86,7 +86,7 @@ function serialize(value) {
 function serializeOrThrow(value) {
   var struct = this;
   try {
-    return S$RescriptStruct.serializeOrRaiseWith(value, struct);
+    return S$RescriptStruct.serializeToUnknownOrRaiseWith(value, struct);
   }
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);

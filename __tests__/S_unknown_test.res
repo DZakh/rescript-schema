@@ -7,13 +7,13 @@ module Common = {
   test("Successfully parses", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.parseWith(struct), Ok(any), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(any), ())
   })
 
   test("Successfully serializes", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.serializeWith(struct), Ok(any), ())
+    t->Assert.deepEqual(any->S.serializeToUnknownWith(struct), Ok(any), ())
   })
 }
 

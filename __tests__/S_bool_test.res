@@ -9,14 +9,14 @@ module Common = {
   test("Successfully parses", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
   })
 
   test("Fails to parse ", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseWith(struct),
+      wrongAny->S.parseAnyWith(struct),
       Error({
         code: UnexpectedType({expected: "Bool", received: "String"}),
         operation: Parsing,
@@ -29,18 +29,18 @@ module Common = {
   test("Successfully serializes", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
   })
 }
 
 test("Parses bool when JSON is true", t => {
   let struct = S.bool()
 
-  t->Assert.deepEqual(Js.Json.boolean(true)->S.parseWith(struct), Ok(true), ())
+  t->Assert.deepEqual(Js.Json.boolean(true)->S.parseAnyWith(struct), Ok(true), ())
 })
 
 test("Parses bool when JSON is false", t => {
   let struct = S.bool()
 
-  t->Assert.deepEqual(Js.Json.boolean(false)->S.parseWith(struct), Ok(false), ())
+  t->Assert.deepEqual(Js.Json.boolean(false)->S.parseAnyWith(struct), Ok(false), ())
 })

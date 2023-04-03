@@ -3,13 +3,13 @@ open Ava
 test("Parses unknown primitive with transformation to the same type", t => {
   let struct = S.string()->S.transform(~parser=value => value->Js.String2.trim, ())
 
-  t->Assert.deepEqual("  Hello world!"->S.parseWith(struct), Ok("Hello world!"), ())
+  t->Assert.deepEqual("  Hello world!"->S.parseAnyWith(struct), Ok("Hello world!"), ())
 })
 
 test("Parses unknown primitive with transformation to another type", t => {
   let struct = S.int()->S.transform(~parser=value => value->Js.Int.toFloat, ())
 
-  t->Assert.deepEqual(123->S.parseWith(struct), Ok(123.), ())
+  t->Assert.deepEqual(123->S.parseAnyWith(struct), Ok(123.), ())
 })
 
 test("Throws for a Transformed Primitive factory without either a parser, or a serializer", t => {
@@ -28,7 +28,7 @@ test("Fails to parse primitive with transform when parser isn't provided", t => 
   let struct = S.string()->S.transform(~serializer=value => value, ())
 
   t->Assert.deepEqual(
-    "Hello world!"->S.parseWith(struct),
+    "Hello world!"->S.parseAnyWith(struct),
     Error({
       code: MissingParser,
       path: S.Path.empty,
@@ -42,7 +42,7 @@ test("Fails to parse when user raises error in a Transformed Primitive parser", 
   let struct = S.string()->S.transform(~parser=_ => S.Error.raise("User error"), ())
 
   t->Assert.deepEqual(
-    "Hello world!"->S.parseWith(struct),
+    "Hello world!"->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Parsing,
@@ -55,20 +55,24 @@ test("Fails to parse when user raises error in a Transformed Primitive parser", 
 test("Successfully serializes primitive with transformation to the same type", t => {
   let struct = S.string()->S.transform(~serializer=value => value->Js.String2.trim, ())
 
-  t->Assert.deepEqual("  Hello world!"->S.serializeWith(struct), Ok(%raw(`"Hello world!"`)), ())
+  t->Assert.deepEqual(
+    "  Hello world!"->S.serializeToUnknownWith(struct),
+    Ok(%raw(`"Hello world!"`)),
+    (),
+  )
 })
 
 test("Successfully serializes primitive with transformation to another type", t => {
   let struct = S.float()->S.transform(~serializer=value => value->Js.Int.toFloat, ())
 
-  t->Assert.deepEqual(123->S.serializeWith(struct), Ok(%raw(`123`)), ())
+  t->Assert.deepEqual(123->S.serializeToUnknownWith(struct), Ok(%raw(`123`)), ())
 })
 
 test("Transformed Primitive serializing fails when serializer isn't provided", t => {
   let struct = S.string()->S.transform(~parser=value => value, ())
 
   t->Assert.deepEqual(
-    "Hello world!"->S.serializeWith(struct),
+    "Hello world!"->S.serializeToUnknownWith(struct),
     Error({
       code: MissingSerializer,
       operation: Serializing,
@@ -82,7 +86,7 @@ test("Fails to serialize when user raises error in a Transformed Primitive seria
   let struct = S.string()->S.transform(~serializer=_ => S.Error.raise("User error"), ())
 
   t->Assert.deepEqual(
-    "Hello world!"->S.serializeWith(struct),
+    "Hello world!"->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
@@ -99,7 +103,7 @@ test("Transform operations applyed in the right order when parsing", t => {
     ->S.transform(~parser=_ => S.Error.raise("Second transform"), ())
 
   t->Assert.deepEqual(
-    123->S.parseWith(struct),
+    123->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("First transform"),
       operation: Parsing,
@@ -116,7 +120,7 @@ test("Transform operations applyed in the right order when serializing", t => {
     ->S.transform(~serializer=_ => S.Error.raise("Second transform"), ())
 
   t->Assert.deepEqual(
-    123->S.serializeWith(struct),
+    123->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("Second transform"),
       operation: Serializing,
@@ -139,7 +143,9 @@ test(
       )
 
     t->Assert.deepEqual(
-      any->S.parseWith(struct)->Belt.Result.map(object => object->S.serializeWith(struct)),
+      any
+      ->S.parseAnyWith(struct)
+      ->Belt.Result.map(object => object->S.serializeToUnknownWith(struct)),
       Ok(Ok(any)),
       (),
     )

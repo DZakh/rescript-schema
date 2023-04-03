@@ -79,7 +79,7 @@ test("UnexpectedAsync error", t => {
       operation: Parsing,
       path: S.Path.empty,
     }->S.Error.toString,
-    "Failed parsing at root. Reason: Encountered unexpected asynchronous transform or refine. Use parseAsyncWith instead of parseWith",
+    "Failed parsing at root. Reason: Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith",
     (),
   )
 })

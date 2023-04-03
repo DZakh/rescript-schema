@@ -8,7 +8,7 @@ test("Refined primitive returns an error when parsed", t => {
   , ())
 
   t->Assert.deepEqual(
-    %raw(`-12`)->S.parseWith(struct),
+    %raw(`-12`)->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("Should be positive"),
       operation: Parsing,

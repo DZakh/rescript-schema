@@ -11,14 +11,14 @@ module Common = {
   test("Successfully parses", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
   })
 
   test("Fails to parse wrong value", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseWith(struct),
+      wrongAny->S.parseAnyWith(struct),
       Error({
         code: UnexpectedValue({expected: "123", received: "444"}),
         operation: Parsing,
@@ -32,7 +32,7 @@ module Common = {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongTypeAny->S.parseWith(struct),
+      wrongTypeAny->S.parseAnyWith(struct),
       Error({
         code: UnexpectedType({expected: "Float Literal (123)", received: "String"}),
         operation: Parsing,
@@ -45,14 +45,14 @@ module Common = {
   test("Successfully serializes", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
   })
 
   test("Fails to serialize wrong value", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongValue->S.serializeWith(struct),
+      wrongValue->S.serializeToUnknownWith(struct),
       Error({
         code: UnexpectedValue({expected: "123", received: "444"}),
         operation: Serializing,
@@ -67,7 +67,7 @@ test("Formatting of negative number with a decimal point in an error message", t
   let struct = S.literal(Float(-123.567))
 
   t->Assert.deepEqual(
-    %raw(`"foo"`)->S.parseWith(struct),
+    %raw(`"foo"`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "Float Literal (-123.567)", received: "String"}),
       operation: Parsing,

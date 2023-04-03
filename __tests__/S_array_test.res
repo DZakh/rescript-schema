@@ -10,14 +10,14 @@ module CommonWithNested = {
   test("Successfully parses", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(any->S.parseWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
   })
 
   test("Fails to parse", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseWith(struct),
+      wrongAny->S.parseAnyWith(struct),
       Error({
         code: UnexpectedType({expected: "Array", received: "Bool"}),
         operation: Parsing,
@@ -31,7 +31,7 @@ module CommonWithNested = {
     let struct = factory()
 
     t->Assert.deepEqual(
-      nestedWrongAny->S.parseWith(struct),
+      nestedWrongAny->S.parseAnyWith(struct),
       Error({
         code: UnexpectedType({expected: "String", received: "Float"}),
         operation: Parsing,
@@ -44,7 +44,7 @@ module CommonWithNested = {
   test("Successfully serializes", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(value->S.serializeWith(struct), Ok(any), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
   })
 }
 
@@ -52,7 +52,7 @@ test("Successfully parses array of optional items", t => {
   let struct = S.array(S.option(S.string()))
 
   t->Assert.deepEqual(
-    %raw(`["a", undefined, undefined, "b"]`)->S.parseWith(struct),
+    %raw(`["a", undefined, undefined, "b"]`)->S.parseAnyWith(struct),
     Ok([Some("a"), None, None, Some("b")]),
     (),
   )

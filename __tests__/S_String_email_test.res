@@ -3,14 +3,14 @@ open Ava
 test("Successfully parses valid data", t => {
   let struct = S.string()->S.String.email()
 
-  t->Assert.deepEqual("dzakh.dev@gmail.com"->S.parseWith(struct), Ok("dzakh.dev@gmail.com"), ())
+  t->Assert.deepEqual("dzakh.dev@gmail.com"->S.parseAnyWith(struct), Ok("dzakh.dev@gmail.com"), ())
 })
 
 test("Fails to parse invalid data", t => {
   let struct = S.string()->S.String.email()
 
   t->Assert.deepEqual(
-    "dzakh.dev"->S.parseWith(struct),
+    "dzakh.dev"->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("Invalid email address"),
       operation: Parsing,
@@ -24,7 +24,7 @@ test("Successfully serializes valid value", t => {
   let struct = S.string()->S.String.email()
 
   t->Assert.deepEqual(
-    "dzakh.dev@gmail.com"->S.serializeWith(struct),
+    "dzakh.dev@gmail.com"->S.serializeToUnknownWith(struct),
     Ok(%raw(`"dzakh.dev@gmail.com"`)),
     (),
   )
@@ -34,7 +34,7 @@ test("Fails to serialize invalid value", t => {
   let struct = S.string()->S.String.email()
 
   t->Assert.deepEqual(
-    "dzakh.dev"->S.serializeWith(struct),
+    "dzakh.dev"->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("Invalid email address"),
       operation: Serializing,
@@ -48,7 +48,7 @@ test("Returns custom error message", t => {
   let struct = S.string()->S.String.email(~message="Custom", ())
 
   t->Assert.deepEqual(
-    "dzakh.dev"->S.parseWith(struct),
+    "dzakh.dev"->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("Custom"),
       operation: Parsing,

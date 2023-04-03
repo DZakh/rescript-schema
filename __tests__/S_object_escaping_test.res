@@ -7,7 +7,7 @@ test("Successfully parses object with quotes in a field name", t => {
     }
   )
 
-  t->Assert.deepEqual(%raw(`{"\"\'\`": "bar"}`)->S.parseWith(struct), Ok({"field": "bar"}), ())
+  t->Assert.deepEqual(%raw(`{"\"\'\`": "bar"}`)->S.parseAnyWith(struct), Ok({"field": "bar"}), ())
 })
 
 test("Successfully serializing object with quotes in a field name", t => {
@@ -17,7 +17,11 @@ test("Successfully serializing object with quotes in a field name", t => {
     }
   )
 
-  t->Assert.deepEqual({"field": "bar"}->S.serializeWith(struct), Ok(%raw(`{"\"\'\`": "bar"}`)), ())
+  t->Assert.deepEqual(
+    {"field": "bar"}->S.serializeToUnknownWith(struct),
+    Ok(%raw(`{"\"\'\`": "bar"}`)),
+    (),
+  )
 })
 
 test("Successfully parses object transformed to object with quotes in a field name", t => {
@@ -27,7 +31,7 @@ test("Successfully parses object transformed to object with quotes in a field na
     }
   )
 
-  t->Assert.deepEqual(%raw(`{"field": "bar"}`)->S.parseWith(struct), Ok({"\"\'\`": "bar"}), ())
+  t->Assert.deepEqual(%raw(`{"field": "bar"}`)->S.parseAnyWith(struct), Ok({"\"\'\`": "bar"}), ())
 })
 
 test("Successfully serializes object transformed to object with quotes in a field name", t => {
@@ -37,7 +41,11 @@ test("Successfully serializes object transformed to object with quotes in a fiel
     }
   )
 
-  t->Assert.deepEqual({"\"\'\`": "bar"}->S.serializeWith(struct), Ok(%raw(`{"field": "bar"}`)), ())
+  t->Assert.deepEqual(
+    {"\"\'\`": "bar"}->S.serializeToUnknownWith(struct),
+    Ok(%raw(`{"field": "bar"}`)),
+    (),
+  )
 })
 
 test("Successfully parses object with discriminant which has quotes as the field name", t => {
@@ -52,7 +60,7 @@ test("Successfully parses object with discriminant which has quotes as the field
     %raw(`{
       "\"\'\`": null,
       "field": "bar",
-    }`)->S.parseWith(struct),
+    }`)->S.parseAnyWith(struct),
     Ok({"field": "bar"}),
     (),
   )
@@ -67,7 +75,7 @@ test("Successfully serializes object with discriminant which has quotes as the f
   })
 
   t->Assert.deepEqual(
-    {"field": "bar"}->S.serializeWith(struct),
+    {"field": "bar"}->S.serializeToUnknownWith(struct),
     Ok(
       %raw(`{
         "\"\'\`": null,
@@ -90,7 +98,7 @@ test("Successfully parses object with discriminant which has quotes as the liter
     %raw(`{
       "kind": "\"\'\`",
       "field": "bar",
-    }`)->S.parseWith(struct),
+    }`)->S.parseAnyWith(struct),
     Ok({"field": "bar"}),
     (),
   )
@@ -107,7 +115,7 @@ test(
     })
 
     t->Assert.deepEqual(
-      {"field": "bar"}->S.serializeWith(struct),
+      {"field": "bar"}->S.serializeToUnknownWith(struct),
       Ok(
         %raw(`{
           "kind": "\"\'\`",
@@ -130,7 +138,7 @@ test(
     )
 
     t->Assert.deepEqual(
-      %raw(`{"field": "bar"}`)->S.parseWith(struct),
+      %raw(`{"field": "bar"}`)->S.parseAnyWith(struct),
       Ok({
         "\"\'\`": "hardcoded",
         "field": "bar",
@@ -154,7 +162,7 @@ test(
       {
         "\"\'\`": "hardcoded",
         "field": "bar",
-      }->S.serializeWith(struct),
+      }->S.serializeToUnknownWith(struct),
       Ok(%raw(`{"field": "bar"}`)),
       (),
     )
@@ -172,7 +180,7 @@ test(
     )
 
     t->Assert.deepEqual(
-      %raw(`{"field": "bar"}`)->S.parseWith(struct),
+      %raw(`{"field": "bar"}`)->S.parseAnyWith(struct),
       Ok({
         "hardcoded": "\"\'\`",
         "field": "bar",
@@ -196,7 +204,7 @@ test(
       {
         "hardcoded": "\"\'\`",
         "field": "bar",
-      }->S.serializeWith(struct),
+      }->S.serializeToUnknownWith(struct),
       Ok(%raw(`{"field": "bar"}`)),
       (),
     )
@@ -214,7 +222,7 @@ test("Has proper error path when fails to parse object with quotes in a field na
   )
 
   t->Assert.deepEqual(
-    %raw(`{"\"\'\`": "bar"}`)->S.parseWith(struct),
+    %raw(`{"\"\'\`": "bar"}`)->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Parsing,
@@ -235,7 +243,7 @@ test("Has proper error path when fails to serialize object with quotes in a fiel
   )
 
   t->Assert.deepEqual(
-    Js.Dict.fromArray([("\"\'\`", "bar")])->S.serializeWith(struct),
+    Js.Dict.fromArray([("\"\'\`", "bar")])->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
@@ -253,7 +261,7 @@ test("Field name in a format of a path is handled properly", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{"bar": "foo"}`)->S.parseWith(struct),
+    %raw(`{"bar": "foo"}`)->S.parseAnyWith(struct),
     Error({
       code: UnexpectedType({expected: "String", received: "Option"}),
       operation: Parsing,

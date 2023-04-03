@@ -3,15 +3,15 @@ open Ava
 test("Successfully parses valid data", t => {
   let struct = S.string()->S.String.min(1)
 
-  t->Assert.deepEqual("1"->S.parseWith(struct), Ok("1"), ())
-  t->Assert.deepEqual("1234"->S.parseWith(struct), Ok("1234"), ())
+  t->Assert.deepEqual("1"->S.parseAnyWith(struct), Ok("1"), ())
+  t->Assert.deepEqual("1234"->S.parseAnyWith(struct), Ok("1234"), ())
 })
 
 test("Fails to parse invalid data", t => {
   let struct = S.string()->S.String.min(1)
 
   t->Assert.deepEqual(
-    ""->S.parseWith(struct),
+    ""->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("String must be 1 or more characters long"),
       operation: Parsing,
@@ -24,15 +24,15 @@ test("Fails to parse invalid data", t => {
 test("Successfully serializes valid value", t => {
   let struct = S.string()->S.String.min(1)
 
-  t->Assert.deepEqual("1"->S.serializeWith(struct), Ok(%raw(`"1"`)), ())
-  t->Assert.deepEqual("1234"->S.serializeWith(struct), Ok(%raw(`"1234"`)), ())
+  t->Assert.deepEqual("1"->S.serializeToUnknownWith(struct), Ok(%raw(`"1"`)), ())
+  t->Assert.deepEqual("1234"->S.serializeToUnknownWith(struct), Ok(%raw(`"1234"`)), ())
 })
 
 test("Fails to serialize invalid value", t => {
   let struct = S.string()->S.String.min(1)
 
   t->Assert.deepEqual(
-    ""->S.serializeWith(struct),
+    ""->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("String must be 1 or more characters long"),
       operation: Serializing,
@@ -46,7 +46,7 @@ test("Returns custom error message", t => {
   let struct = S.string()->S.String.min(~message="Custom", 1)
 
   t->Assert.deepEqual(
-    ""->S.parseWith(struct),
+    ""->S.parseAnyWith(struct),
     Error({
       code: OperationFailed("Custom"),
       operation: Parsing,

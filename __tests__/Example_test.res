@@ -18,7 +18,7 @@ test("Example", t => {
   })
 
   t->Assert.deepEqual(
-    {"Id": 1, "IsApproved": "Yes", "Age": 22}->S.parseWith(authorStruct),
+    %raw(`{"Id": 1, "IsApproved": "Yes", "Age": 22}`)->S.parseWith(authorStruct),
     Ok({
       id: 1.,
       tags: [],

@@ -135,28 +135,39 @@ let refine: (t<'value>, ~parser: 'value => unit=?, ~serializer: 'value => unit=?
 
 let asyncRefine: (t<'value>, ~parser: 'value => promise<unit>, unit) => t<'value>
 
-let parseWith: ('any, t<'value>) => result<'value, Error.t>
+let parseWith: (Js.Json.t, t<'value>) => result<'value, Error.t>
 
-let parseOrRaiseWith: ('any, t<'value>) => 'value
+let parseAnyWith: ('any, t<'value>) => result<'value, Error.t>
 
-let parseAsyncWith: ('any, t<'value>) => promise<result<'value, Error.t>>
+let parseJsonWith: (string, t<'value>) => result<'value, Error.t>
+
+let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value
+
+let parseAnyOrRaiseWith: ('any, t<'value>) => 'value
+
+let parseAsyncWith: (Js.Json.t, t<'value>) => promise<result<'value, Error.t>>
+
+let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, Error.t>>
 
 let parseAsyncInStepsWith: (
+  Js.Json.t,
+  t<'value>,
+) => result<(. unit) => promise<result<'value, Error.t>>, Error.t>
+
+let parseAnyAsyncInStepsWith: (
   'any,
   t<'value>,
 ) => result<(. unit) => promise<result<'value, Error.t>>, Error.t>
 
-let parseJsonWith: (Js.Json.t, t<'value>) => result<'value, Error.t>
+let serializeWith: ('value, t<'value>) => result<Js.Json.t, Error.t>
 
-let parseJsonStringWith: (string, t<'value>) => result<'value, Error.t>
+let serializeToUnknownWith: ('value, t<'value>) => result<unknown, Error.t>
 
-let serializeWith: ('value, t<'value>) => result<unknown, Error.t>
+let serializeToJsonWith: ('value, ~space: int=?, t<'value>) => result<string, Error.t>
 
-let serializeOrRaiseWith: ('value, t<'value>) => unknown
+let serializeOrRaiseWith: ('value, t<'value>) => Js.Json.t
 
-let serializeToJsonWith: ('value, t<'value>) => result<Js.Json.t, Error.t>
-
-let serializeToJsonStringWith: ('value, ~space: int=?, t<'value>) => result<string, Error.t>
+let serializeToUnknownOrRaiseWith: ('value, t<'value>) => unknown
 
 let isAsyncParse: t<'value> => bool
 

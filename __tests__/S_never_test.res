@@ -8,7 +8,7 @@ module Common = {
     let struct = factory()
 
     t->Assert.deepEqual(
-      any->S.parseWith(struct),
+      any->S.parseAnyWith(struct),
       Error({
         code: UnexpectedType({expected: "Never", received: "Bool"}),
         operation: Parsing,
@@ -22,7 +22,7 @@ module Common = {
     let struct = factory()
 
     t->Assert.deepEqual(
-      any->S.serializeWith(struct),
+      any->S.serializeToUnknownWith(struct),
       Error({
         code: UnexpectedType({expected: "Never", received: "Bool"}),
         operation: Serializing,
@@ -43,7 +43,7 @@ module ObjectField = {
     )
 
     t->Assert.deepEqual(
-      %raw(`{"key":"value"}`)->S.parseWith(struct),
+      %raw(`{"key":"value"}`)->S.parseAnyWith(struct),
       Error({
         code: UnexpectedType({expected: "Never", received: "Option"}),
         operation: Parsing,
@@ -68,7 +68,7 @@ module ObjectField = {
     )
 
     t->Assert.deepEqual(
-      %raw(`{"key":"value"}`)->S.parseWith(struct),
+      %raw(`{"key":"value"}`)->S.parseAnyWith(struct),
       Ok({
         "key": "value",
         "oldKey": None,

@@ -79,7 +79,7 @@ function makeAdvancedStrictObjectStruct() {
 run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new Benchmark.Suite().add("String struct factory", makeStringStruct), "Parse string", (function (param) {
                                   var struct = makeStringStruct();
                                   return function () {
-                                    return S$RescriptStruct.parseOrRaiseWith("Hello world!", struct);
+                                    return S$RescriptStruct.parseAnyOrRaiseWith("Hello world!", struct);
                                   };
                                 })), "Serialize string", (function (param) {
                               var struct = makeStringStruct();
@@ -90,19 +90,19 @@ run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(a
                         var struct = makeAdvancedObjectStruct();
                         var data = makeTestObject();
                         return function () {
-                          return S$RescriptStruct.parseOrRaiseWith(data, struct);
+                          return S$RescriptStruct.parseAnyOrRaiseWith(data, struct);
                         };
                       })), "Create and parse advanced object", (function (param) {
                     var data = makeTestObject();
                     return function () {
                       var struct = makeAdvancedObjectStruct();
-                      return S$RescriptStruct.parseOrRaiseWith(data, struct);
+                      return S$RescriptStruct.parseAnyOrRaiseWith(data, struct);
                     };
                   })), "Parse advanced strict object", (function (param) {
                 var struct = makeAdvancedStrictObjectStruct();
                 var data = makeTestObject();
                 return function () {
-                  return S$RescriptStruct.parseOrRaiseWith(data, struct);
+                  return S$RescriptStruct.parseAnyOrRaiseWith(data, struct);
                 };
               })), "Serialize advanced object", (function (param) {
             var struct = makeAdvancedObjectStruct();
