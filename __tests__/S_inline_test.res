@@ -338,18 +338,9 @@ test("Supports undefined as Defaulted value", t => {
   )
 })
 
-test("Supports Deprecated without message", t => {
-  let struct = S.string()->S.deprecated()
-  t->Assert.deepEqual(struct->S.inline, `S.string()->S.deprecated()`, ())
-})
-
 test("Supports Deprecated with message", t => {
-  let struct = S.string()->S.deprecated(~message="Will be removed in API v2.", ())
-  t->Assert.deepEqual(
-    struct->S.inline,
-    `S.string()->S.deprecated(~message="Will be removed in API v2.", ())`,
-    (),
-  )
+  let struct = S.string()->S.deprecate("Will be removed in API v2.")
+  t->Assert.deepEqual(struct->S.inline, `S.string()->S.deprecate("Will be removed in API v2.")`, ())
 })
 
 test("Supports Null", t => {

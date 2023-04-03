@@ -2786,24 +2786,6 @@ module Option = {
   }
 }
 
-module Deprecated = {
-  type tagged = WithoutMessage | WithMessage(string)
-
-  let metadataId = Metadata.Id.make(~namespace="rescript-struct", ~name="Deprecated")
-
-  let factory = (innerStruct, ~message as maybeMessage=?, ()) => {
-    Option.factory(innerStruct)->Metadata.set(
-      ~id=metadataId,
-      ~metadata=switch maybeMessage {
-      | Some(message) => WithMessage(message)
-      | None => WithoutMessage
-      },
-    )
-  }
-
-  let classify = struct => struct->Metadata.get(~id=metadataId)
-}
-
 module Array = {
   module Refinement = {
     type kind =
@@ -3463,6 +3445,17 @@ module Union = {
   }
 }
 
+let deprecationMetadataId: Metadata.Id.t<string> = Metadata.Id.make(
+  ~namespace="rescript-struct",
+  ~name="deprecation",
+)
+
+let deprecate = (struct, message) => {
+  struct->Option.factory->Metadata.set(~id=deprecationMetadataId, ~metadata=message)
+}
+
+let deprecation = struct => struct->Metadata.get(~id=deprecationMetadataId)
+
 let descriptionMetadataId = Metadata.Id.make(~namespace="rescript-struct", ~name="description")
 
 let describe = (struct, description) => {
@@ -3583,15 +3576,10 @@ let inline = {
     | Bool => `S.bool()`
     | Option(innerStruct) => {
         let inlinedInnerStruct = innerStruct->internalInline()
-        switch struct->Deprecated.classify {
-        | Some(deprecatedTagged) => {
-            metadataMap->Stdlib.Dict.deleteInPlace(Deprecated.metadataId->Metadata.Id.toKey)
-            switch deprecatedTagged {
-            | WithMessage(m) =>
-              inlinedInnerStruct ++
-              `->S.deprecated(~message=${m->Stdlib.Inlined.Value.fromString}, ())`
-            | WithoutMessage => inlinedInnerStruct ++ `->S.deprecated()`
-            }
+        switch struct->deprecation {
+        | Some(message) => {
+            metadataMap->Stdlib.Dict.deleteInPlace(deprecationMetadataId->Metadata.Id.toKey)
+            inlinedInnerStruct ++ `->S.deprecate(${message->Stdlib.Inlined.Value.fromString})`
           }
 
         | None => `S.option(${inlinedInnerStruct})`
@@ -3752,7 +3740,6 @@ let int = Int.factory
 let float = Float.factory
 let null = Null.factory
 let option = Option.factory
-let deprecated = Deprecated.factory
 let array = Array.factory
 let dict = Dict.factory
 let default = Default.factory

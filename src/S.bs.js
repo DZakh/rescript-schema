@@ -2221,22 +2221,10 @@ function factory$11(innerStruct) {
         };
 }
 
-var metadataId$4 = "rescript-struct:Deprecated";
-
-function factory$12(innerStruct, maybeMessage, param) {
-  return set(factory$11(innerStruct), metadataId$4, maybeMessage !== undefined ? /* WithMessage */({
-                  _0: maybeMessage
-                }) : /* WithoutMessage */0);
-}
-
-function classify$2(struct) {
-  return Js_dict.get(struct.m, metadataId$4);
-}
-
-var metadataId$5 = "rescript-struct:Array.refinements";
+var metadataId$4 = "rescript-struct:Array.refinements";
 
 function refinements$3(struct) {
-  var m = Js_dict.get(struct.m, metadataId$5);
+  var m = Js_dict.get(struct.m, metadataId$4);
   if (m !== undefined) {
     return m;
   } else {
@@ -2244,7 +2232,7 @@ function refinements$3(struct) {
   }
 }
 
-function factory$13(innerStruct) {
+function factory$12(innerStruct) {
   return {
           n: "Array",
           t: {
@@ -2358,7 +2346,7 @@ function min$3(struct, maybeMessage, length) {
     }
     
   };
-  return addRefinement(struct, metadataId$5, {
+  return addRefinement(struct, metadataId$4, {
               kind: {
                 TAG: /* Min */0,
                 length: length
@@ -2375,7 +2363,7 @@ function max$3(struct, maybeMessage, length) {
     }
     
   };
-  return addRefinement(struct, metadataId$5, {
+  return addRefinement(struct, metadataId$4, {
               kind: {
                 TAG: /* Max */1,
                 length: length
@@ -2392,7 +2380,7 @@ function length$1(struct, maybeMessage, length$2) {
     }
     
   };
-  return addRefinement(struct, metadataId$5, {
+  return addRefinement(struct, metadataId$4, {
               kind: {
                 TAG: /* Length */2,
                 length: length$2
@@ -2401,7 +2389,7 @@ function length$1(struct, maybeMessage, length$2) {
             }, refiner);
 }
 
-function factory$14(innerStruct) {
+function factory$13(innerStruct) {
   return {
           n: "Dict",
           t: {
@@ -2524,9 +2512,9 @@ function factory$14(innerStruct) {
         };
 }
 
-var metadataId$6 = "rescript-struct:Default";
+var metadataId$5 = "rescript-struct:Default";
 
-function factory$15(innerStruct, getDefaultValue) {
+function factory$14(innerStruct, getDefaultValue) {
   return set({
               n: innerStruct.n,
               t: innerStruct.t,
@@ -2584,18 +2572,18 @@ function factory$15(innerStruct, getDefaultValue) {
               a: intitialParseAsync,
               i: undefined,
               m: emptyMetadataMap
-            }, metadataId$6, getDefaultValue);
+            }, metadataId$5, getDefaultValue);
 }
 
-function classify$3(struct) {
-  var getDefaultValue = Js_dict.get(struct.m, metadataId$6);
+function classify$2(struct) {
+  var getDefaultValue = Js_dict.get(struct.m, metadataId$5);
   if (getDefaultValue !== undefined) {
     return Caml_option.some(getDefaultValue(undefined));
   }
   
 }
 
-function factory$16(param) {
+function factory$15(param) {
   var structs = (Array.from(arguments));
   var numberOfStructs = structs.length;
   return {
@@ -2758,12 +2746,12 @@ function factory$16(param) {
 }
 
 var Tuple = {
-  factory: factory$16
+  factory: factory$15
 };
 
 var HackyValidValue = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Union.HackyValidValue");
 
-function factory$17(structs) {
+function factory$16(structs) {
   if (structs.length < 2) {
     throw new Error("[rescript-struct] A Union struct factory require at least two structs.");
   }
@@ -2939,6 +2927,16 @@ function factory$17(structs) {
           i: undefined,
           m: emptyMetadataMap
         };
+}
+
+var deprecationMetadataId = "rescript-struct:deprecation";
+
+function deprecate(struct, message) {
+  return set(factory$11(struct), deprecationMetadataId, message);
+}
+
+function deprecation(struct) {
+  return Js_dict.get(struct.m, deprecationMetadataId);
 }
 
 var descriptionMetadataId = "rescript-struct:description";
@@ -3118,10 +3116,10 @@ function internalInline(struct, maybeVariant, param) {
           break;
       case /* Option */1 :
           var inlinedInnerStruct = internalInline(taggedLiteral._0, undefined, undefined);
-          var deprecatedTagged = Js_dict.get(struct.m, metadataId$4);
-          if (deprecatedTagged !== undefined) {
-            Js_dict.unsafeDeleteKey(metadataMap, metadataId$4);
-            inlinedStruct = deprecatedTagged ? inlinedInnerStruct + ("->S.deprecated(~message=" + JSON.stringify(deprecatedTagged._0) + ", ())") : inlinedInnerStruct + "->S.deprecated()";
+          var message = deprecation(struct);
+          if (message !== undefined) {
+            Js_dict.unsafeDeleteKey(metadataMap, deprecationMetadataId);
+            inlinedStruct = inlinedInnerStruct + ("->S.deprecate(" + JSON.stringify(message) + ")");
           } else {
             inlinedStruct = "S.option(" + inlinedInnerStruct + ")";
           }
@@ -3171,11 +3169,11 @@ function internalInline(struct, maybeVariant, param) {
       
     }
   }
-  var defaultValue = classify$3(struct);
+  var defaultValue = classify$2(struct);
   var inlinedStruct$1;
   if (defaultValue !== undefined) {
     var defaultValue$1 = Caml_option.valFromOption(defaultValue);
-    Js_dict.unsafeDeleteKey(metadataMap, metadataId$6);
+    Js_dict.unsafeDeleteKey(metadataMap, metadataId$5);
     inlinedStruct$1 = inlinedStruct + ("->S.default(() => %raw(\`" + (
         defaultValue$1 === undefined ? "undefined" : JSON.stringify(defaultValue$1)
       ) + "\`))");
@@ -3224,7 +3222,7 @@ function internalInline(struct, maybeVariant, param) {
       case /* Array */3 :
           var refinements$4 = refinements$3(struct);
           if (refinements$4.length !== 0) {
-            Js_dict.unsafeDeleteKey(metadataMap, metadataId$5);
+            Js_dict.unsafeDeleteKey(metadataMap, metadataId$4);
             inlinedStruct$2 = inlinedStruct$1 + refinements$4.map(function (refinement) {
                     var match = refinement.kind;
                     switch (match.TAG | 0) {
@@ -3373,9 +3371,9 @@ var literal = factory$1;
 
 var literalVariant = factory;
 
-var array = factory$13;
+var array = factory$12;
 
-var dict = factory$14;
+var dict = factory$13;
 
 var option = factory$11;
 
@@ -3383,11 +3381,9 @@ var $$null = factory$10;
 
 var json = factory$6;
 
-var union = factory$17;
+var union = factory$16;
 
-var deprecated = factory$12;
-
-var $$default = factory$15;
+var $$default = factory$14;
 
 var parseWith = parseAnyWith;
 
@@ -3409,27 +3405,27 @@ var $$Object = {
 
 var object = factory$2;
 
-var tuple0 = factory$16;
+var tuple0 = factory$15;
 
-var tuple1 = factory$16;
+var tuple1 = factory$15;
 
-var tuple2 = factory$16;
+var tuple2 = factory$15;
 
-var tuple3 = factory$16;
+var tuple3 = factory$15;
 
-var tuple4 = factory$16;
+var tuple4 = factory$15;
 
-var tuple5 = factory$16;
+var tuple5 = factory$15;
 
-var tuple6 = factory$16;
+var tuple6 = factory$15;
 
-var tuple7 = factory$16;
+var tuple7 = factory$15;
 
-var tuple8 = factory$16;
+var tuple8 = factory$15;
 
-var tuple9 = factory$16;
+var tuple9 = factory$15;
 
-var tuple10 = factory$16;
+var tuple10 = factory$15;
 
 var String_Refinement = {};
 
@@ -3477,10 +3473,6 @@ var $$Array = {
 };
 
 var Default = {
-  classify: classify$3
-};
-
-var Deprecated = {
   classify: classify$2
 };
 
@@ -3502,12 +3494,13 @@ exports.option = option;
 exports.$$null = $$null;
 exports.json = json;
 exports.union = union;
-exports.deprecated = deprecated;
 exports.$$default = $$default;
 exports.default = $$default;
 exports.__esModule = true;
 exports.describe = describe;
 exports.description = description;
+exports.deprecate = deprecate;
+exports.deprecation = deprecation;
 exports.transform = transform;
 exports.advancedTransform = advancedTransform;
 exports.advancedPreprocess = advancedPreprocess;
@@ -3553,7 +3546,6 @@ exports.Int = Int;
 exports.Float = Float;
 exports.$$Array = $$Array;
 exports.Default = Default;
-exports.Deprecated = Deprecated;
 exports.Result = Result;
 exports.Metadata = Metadata;
 exports.inline = inline;

@@ -97,11 +97,13 @@ let null: t<'value> => t<option<'value>>
 let json: t<'value> => t<'value>
 let union: array<t<'value>> => t<'value>
 
-let deprecated: (t<'value>, ~message: string=?, unit) => t<option<'value>>
 let default: (t<option<'value>>, unit => 'value) => t<'value>
 
 let describe: (t<'value>, string) => t<'value>
 let description: t<'value> => option<string>
+
+let deprecate: (t<'value>, string) => t<option<'value>>
+let deprecation: t<'value> => option<string>
 
 let transform: (
   t<'value>,
@@ -336,12 +338,6 @@ module Array: {
 
 module Default: {
   let classify: t<'value> => option<unknown>
-}
-
-module Deprecated: {
-  type tagged = WithoutMessage | WithMessage(string)
-
-  let classify: t<'value> => option<tagged>
 }
 
 module Result: {

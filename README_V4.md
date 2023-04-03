@@ -83,10 +83,7 @@ let authorStruct = S.object(o => {
     "IsApproved",
     S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),
   ),
-  deprecatedAge: o->S.field(
-    "Age",
-    S.int()->S.deprecated(~message="Will be removed in APIv2", ()),
-  ),
+  deprecatedAge: o->S.field("Age", S.int()->S.deprecate("Will be removed in APIv2")),
 })
 ```
 
@@ -667,7 +664,7 @@ The `default` augments a struct to add transformation logic for default values, 
 
 `(S.t<'value>, string) => S.t<'value>`
 
-Use `S.describe` to add a `description` property to the resulting schema.
+Use `S.describe` to add a `description` property to the resulting struct.
 
 ```rescript
 let documentedString = S.string()
@@ -678,20 +675,20 @@ documentedString->S.description // A useful bit of text…
 
 This can be useful for documenting a field, for example in a JSON Schema using a library like [`rescript-json-schema`](https://github.com/DZakh/rescript-json-schema).
 
-#### **`S.deprecated`**
+#### **`S.deprecate`**
 
-`(~message: string=?, S.t<'value>) => S.t<option<'value>>`
+`(S.t<'value>, string) => S.t<option<'value>>`
+
+Use `S.deprecate` to add a `deprecation` message property to the resulting struct.
 
 ```rescript
-let struct = S.string()->S.deprecated(~message="The struct is deprecated", ())
+let deprecatedString = S.string()
+  ->S.deprecate("Will be removed in APIv2")
 
-%raw(`"Hello World!"`)->S.parseWith(struct)
-// Ok(Some("Hello World!"))
-%raw(`undefined`)->S.parseWith(struct)
-// Ok(None)
+deprecatedString->S.deprecation // Will be removed in APIv2…
 ```
 
-The `deprecated` struct represents a data of a specific type and makes it optional. The message may be used by an integration library.
+This can be useful for documenting a field, for example in a JSON Schema using a library like [`rescript-json-schema`](https://github.com/DZakh/rescript-json-schema).
 
 #### **`S.recursive`**
 
