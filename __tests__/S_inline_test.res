@@ -320,21 +320,20 @@ test("Supports Option", t => {
   t->Assert.deepEqual(struct->S.inline, `S.option(S.string())`, ())
 })
 
-test("Supports Defaulted", t => {
-  let struct = S.option(S.float())->S.defaulted(4.)
-  let structInlineResult = S.option(S.float())->S.defaulted(%raw(`4`))
+test("Supports Default", t => {
+  let struct = S.option(S.float())->S.default(() => 4.)
+  let _ = S.option(S.float())->S.default(() => %raw(`4`))
 
-  t->assertEqualStructs(struct, structInlineResult, ())
-  t->Assert.deepEqual(struct->S.inline, `S.option(S.float())->S.defaulted(%raw(\`4\`))`, ())
+  t->Assert.deepEqual(struct->S.inline, `S.option(S.float())->S.default(() => %raw(\`4\`))`, ())
 })
 
 test("Supports undefined as Defaulted value", t => {
-  let struct = S.option(S.option(S.float()))->S.defaulted(None)
-  let _ = S.option(S.option(S.float()))->S.defaulted(%raw(`undefined`))
+  let struct = S.option(S.option(S.float()))->S.default(() => None)
+  let _ = S.option(S.option(S.float()))->S.default(() => %raw(`undefined`))
 
   t->Assert.deepEqual(
     struct->S.inline,
-    `S.option(S.option(S.float()))->S.defaulted(%raw(\`undefined\`))`,
+    `S.option(S.option(S.float()))->S.default(() => %raw(\`undefined\`))`,
     (),
   )
 })

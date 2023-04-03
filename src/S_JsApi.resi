@@ -24,6 +24,7 @@ type rec struct<'value> = {
   nullable: unit => struct<option<'value>>,
   describe: string => struct<'value>,
   description: unit => option<string>,
+  default: (unit => unknown) => struct<unknown>,
 }
 
 let string: unit => struct<string>
@@ -41,7 +42,6 @@ let json: struct<'value> => struct<'value>
 let union: array<struct<unknown>> => struct<unknown>
 let literal: 'value => struct<'value>
 let nan: unit => struct<unit>
-let defaulted: (struct<option<'value>>, 'value) => struct<'value>
 let tuple: array<struct<unknown>> => struct<unknown>
 
 let custom: (

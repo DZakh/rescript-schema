@@ -125,6 +125,12 @@ function description(param) {
   return S$RescriptStruct.description(this);
 }
 
+function $$default(def) {
+  var struct = this;
+  var struct$1 = S$RescriptStruct.$$default(struct, def);
+  return Object.assign(struct$1, structOperations);
+}
+
 function string(param) {
   var struct = S$RescriptStruct.string(undefined);
   return Object.assign(struct, structOperations);
@@ -185,11 +191,6 @@ function union(structs) {
   return Object.assign(struct, structOperations);
 }
 
-function defaulted(struct, value) {
-  var struct$1 = S$RescriptStruct.defaulted(struct, value);
-  return Object.assign(struct$1, structOperations);
-}
-
 function tuple(structs) {
   var struct = S$RescriptStruct.Tuple.factory.apply(null, structs);
   return Object.assign(struct, structOperations);
@@ -246,7 +247,8 @@ Object.assign(structOperations, {
           return nullable(this);
         }),
       describe: describe,
-      description: description
+      description: description,
+      default: $$default
     });
 
 var objectStructOperations = {};
@@ -305,7 +307,6 @@ exports.json = json;
 exports.union = union;
 exports.literal = literal;
 exports.nan = nan;
-exports.defaulted = defaulted;
 exports.tuple = tuple;
 exports.custom = custom;
 exports.$$Object = $$Object;

@@ -30,10 +30,12 @@ export interface Struct<Value> {
   nullable(): Struct<Value | undefined>;
   describe(description: string): Struct<Value>;
   description(): string | undefined;
+  default(def: () => NoUndefined<Value>): Struct<NoUndefined<Value>>;
 }
 
 export type Infer<T> = T extends Struct<infer Value> ? Value : never;
 
+type NoUndefined<T> = T extends undefined ? never : T;
 type AnyStruct = Struct<unknown>;
 type InferStructTuple<
   Tuple extends AnyStruct[],
@@ -69,10 +71,6 @@ export function literal<Value extends boolean>(value: Value): Struct<Value>;
 export function literal(value: undefined): Struct<undefined>;
 export function literal(value: null): Struct<undefined>;
 export const nan: () => Struct<undefined>;
-export const defaulted: <Value>(
-  struct: Struct<Value | undefined>,
-  defaultValue: Value
-) => Struct<Value>;
 export function tuple(structs: []): Struct<undefined>;
 export function tuple<Value>(structs: [Struct<Value>]): Struct<Value>;
 export function tuple<A extends AnyStruct, B extends AnyStruct[]>(

@@ -2524,9 +2524,9 @@ function factory$14(innerStruct) {
         };
 }
 
-var metadataId$6 = "rescript-struct:Defaulted";
+var metadataId$6 = "rescript-struct:Default";
 
-function factory$15(innerStruct, defaultValue) {
+function factory$15(innerStruct, getDefaultValue) {
   return set({
               n: innerStruct.n,
               t: innerStruct.t,
@@ -2537,7 +2537,7 @@ function factory$15(innerStruct, defaultValue) {
                                   if (input !== undefined) {
                                     return Caml_option.valFromOption(input);
                                   } else {
-                                    return defaultValue;
+                                    return getDefaultValue(undefined);
                                   }
                                 }));
                   }
@@ -2548,7 +2548,7 @@ function factory$15(innerStruct, defaultValue) {
                                   if (v !== undefined) {
                                     return Caml_option.valFromOption(v);
                                   } else {
-                                    return defaultValue;
+                                    return getDefaultValue(undefined);
                                   }
                                 }));
                   }
@@ -2558,7 +2558,7 @@ function factory$15(innerStruct, defaultValue) {
                                       if (value !== undefined) {
                                         return Caml_option.valFromOption(value);
                                       } else {
-                                        return defaultValue;
+                                        return getDefaultValue(undefined);
                                       }
                                     });
                         }));
@@ -2584,13 +2584,15 @@ function factory$15(innerStruct, defaultValue) {
               a: intitialParseAsync,
               i: undefined,
               m: emptyMetadataMap
-            }, metadataId$6, /* WithDefaultValue */{
-              _0: defaultValue
-            });
+            }, metadataId$6, getDefaultValue);
 }
 
 function classify$3(struct) {
-  return Js_dict.get(struct.m, metadataId$6);
+  var getDefaultValue = Js_dict.get(struct.m, metadataId$6);
+  if (getDefaultValue !== undefined) {
+    return Caml_option.some(getDefaultValue(undefined));
+  }
+  
 }
 
 function factory$16(param) {
@@ -3169,22 +3171,22 @@ function internalInline(struct, maybeVariant, param) {
       
     }
   }
-  var match = Js_dict.get(struct.m, metadataId$6);
+  var defaultValue = classify$3(struct);
   var inlinedStruct$1;
-  if (match !== undefined) {
-    var v = match._0;
+  if (defaultValue !== undefined) {
+    var defaultValue$1 = Caml_option.valFromOption(defaultValue);
     Js_dict.unsafeDeleteKey(metadataMap, metadataId$6);
-    inlinedStruct$1 = inlinedStruct + ("->S.defaulted(%raw(\`" + (
-        v === undefined ? "undefined" : JSON.stringify(v)
+    inlinedStruct$1 = inlinedStruct + ("->S.default(() => %raw(\`" + (
+        defaultValue$1 === undefined ? "undefined" : JSON.stringify(defaultValue$1)
       ) + "\`))");
   } else {
     inlinedStruct$1 = inlinedStruct;
   }
-  var match$1 = struct.t;
+  var match = struct.t;
   var inlinedStruct$2;
   var exit = 0;
-  if (typeof match$1 === "number") {
-    switch (match$1) {
+  if (typeof match === "number") {
+    switch (match) {
       case /* String */2 :
           exit = 1;
           break;
@@ -3198,9 +3200,9 @@ function internalInline(struct, maybeVariant, param) {
         inlinedStruct$2 = inlinedStruct$1;
     }
   } else {
-    switch (match$1.TAG | 0) {
+    switch (match.TAG | 0) {
       case /* Literal */0 :
-          var tmp = match$1._0;
+          var tmp = match._0;
           if (typeof tmp === "number") {
             inlinedStruct$2 = inlinedStruct$1;
           } else {
@@ -3322,8 +3324,8 @@ function internalInline(struct, maybeVariant, param) {
     
   }
   var inlinedStruct$3 = Object.keys(metadataMap).length !== 0 ? "{\n  let s = " + inlinedStruct$2 + "\n  let _ = %raw(\`s.m = " + JSON.stringify(metadataMap) + "\`)\n  s\n}" : inlinedStruct$2;
-  var match$2 = struct.t;
-  if (typeof match$2 !== "number" && match$2.TAG === /* Literal */0) {
+  var match$1 = struct.t;
+  if (typeof match$1 !== "number" && match$1.TAG === /* Literal */0) {
     return inlinedStruct$3;
   }
   if (maybeVariant !== undefined) {
@@ -3385,7 +3387,7 @@ var union = factory$17;
 
 var deprecated = factory$12;
 
-var defaulted = factory$15;
+var $$default = factory$15;
 
 var parseWith = parseAnyWith;
 
@@ -3474,7 +3476,7 @@ var $$Array = {
   length: length$1
 };
 
-var Defaulted = {
+var Default = {
   classify: classify$3
 };
 
@@ -3501,7 +3503,9 @@ exports.$$null = $$null;
 exports.json = json;
 exports.union = union;
 exports.deprecated = deprecated;
-exports.defaulted = defaulted;
+exports.$$default = $$default;
+exports.default = $$default;
+exports.__esModule = true;
 exports.describe = describe;
 exports.description = description;
 exports.transform = transform;
@@ -3548,7 +3552,7 @@ exports.$$String = $$String;
 exports.Int = Int;
 exports.Float = Float;
 exports.$$Array = $$Array;
-exports.Defaulted = Defaulted;
+exports.Default = Default;
 exports.Deprecated = Deprecated;
 exports.Result = Result;
 exports.Metadata = Metadata;

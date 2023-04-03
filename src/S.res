@@ -3087,13 +3087,12 @@ module Dict = {
   }
 }
 
-module Defaulted = {
-  type tagged = WithDefaultValue(unknown)
+module Default = {
+  let metadataId = Metadata.Id.make(~namespace="rescript-struct", ~name="Default")
 
-  let metadataId = Metadata.Id.make(~namespace="rescript-struct", ~name="Defaulted")
-
-  let factory = (innerStruct, defaultValue) => {
-    let innerStruct = innerStruct->castAnyStructToUnknownStruct
+  let factory = (innerStruct, getDefaultValue) => {
+    let innerStruct = innerStruct->(Obj.magic: t<option<'value>> => t<unknown>)
+    let getDefaultValue = getDefaultValue->(Obj.magic: (unit => 'value, unit) => unknown)
     make(
       ~name=innerStruct.name,
       ~metadataMap=emptyMetadataMap,
@@ -3104,14 +3103,14 @@ module Defaulted = {
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
             switch input->castUnknownToAny {
             | Some(v) => v
-            | None => defaultValue
+            | None => getDefaultValue->Stdlib.Fn.call1()
             }
           })
         | SyncOperation(fn) =>
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
             switch fn(. input)->castUnknownToAny {
             | Some(v) => v
-            | None => defaultValue
+            | None => getDefaultValue->Stdlib.Fn.call1()
             }
           })
         | AsyncOperation(fn) =>
@@ -3121,7 +3120,7 @@ module Defaulted = {
               value => {
                 switch value->castUnknownToAny {
                 | Some(v) => v
-                | None => defaultValue
+                | None => getDefaultValue->Stdlib.Fn.call1()
                 }
               },
             )
@@ -3142,10 +3141,14 @@ module Defaulted = {
         }
       }),
       (),
-    )->Metadata.set(~id=metadataId, ~metadata=WithDefaultValue(defaultValue->castAnyToUnknown))
+    )->Metadata.set(~id=metadataId, ~metadata=getDefaultValue)
   }
 
-  let classify = struct => struct->Metadata.get(~id=metadataId)
+  let classify = struct =>
+    switch struct->Metadata.get(~id=metadataId) {
+    | Some(getDefaultValue) => Some(getDefaultValue->Stdlib.Fn.call1())
+    | None => None
+    }
 }
 
 module Tuple = {
@@ -3602,10 +3605,11 @@ let inline = {
     | Dict(innerStruct) => `S.dict(${innerStruct->internalInline()})`
     }
 
-    let inlinedStruct = switch struct->Defaulted.classify {
-    | Some(WithDefaultValue(v)) => {
-        metadataMap->Stdlib.Dict.deleteInPlace(Defaulted.metadataId->Metadata.Id.toKey)
-        inlinedStruct ++ `->S.defaulted(%raw(\`${v->Stdlib.Inlined.Value.stringify}\`))`
+    let inlinedStruct = switch struct->Default.classify {
+    | Some(defaultValue) => {
+        metadataMap->Stdlib.Dict.deleteInPlace(Default.metadataId->Metadata.Id.toKey)
+        inlinedStruct ++
+        `->S.default(() => %raw(\`${defaultValue->Stdlib.Inlined.Value.stringify}\`))`
       }
 
     | None => inlinedStruct
@@ -3751,7 +3755,7 @@ let option = Option.factory
 let deprecated = Deprecated.factory
 let array = Array.factory
 let dict = Dict.factory
-let defaulted = Defaulted.factory
+let default = Default.factory
 let literal = Literal.factory
 let literalVariant = Literal.Variant.factory
 let tuple0 = Tuple.factory

@@ -28,8 +28,6 @@
 
 - S.mutateWith/S.produceWith (aka immer) (???)
 
-- Rename S.trimmed -> S.trim / S.defaulted -> S.default
-
 - Add S.catch / S.fallback (?)
 
 - Make the TS code reuse rescript output instead of creating a separate bundle

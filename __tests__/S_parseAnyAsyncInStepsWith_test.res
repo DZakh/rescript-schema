@@ -744,7 +744,7 @@ module Option = {
 
 module Defaulted = {
   asyncTest("[Defaulted] Successfully parses", t => {
-    let struct = S.option(S.int()->validAsyncRefine)->validAsyncRefine->S.defaulted(10)
+    let struct = S.option(S.int()->validAsyncRefine)->validAsyncRefine->S.default(() => 10)
 
     Promise.all([
       (
@@ -761,7 +761,7 @@ module Defaulted = {
   })
 
   asyncTest("[Defaulted] Fails to parse with invalid async refine", t => {
-    let struct = S.option(S.int()->invalidAsyncRefine)->S.defaulted(10)
+    let struct = S.option(S.int()->invalidAsyncRefine)->S.default(() => 10)
 
     (1->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn)(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(
@@ -778,7 +778,7 @@ module Defaulted = {
   })
 
   test("[Defaulted] Returns sync error when fails to parse sync part of async item", t => {
-    let struct = S.option(S.int()->validAsyncRefine)->S.defaulted(10)
+    let struct = S.option(S.int()->validAsyncRefine)->S.default(() => 10)
 
     t->Assert.deepEqual(
       true->S.parseAnyAsyncInStepsWith(struct),

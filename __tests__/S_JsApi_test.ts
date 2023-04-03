@@ -602,7 +602,9 @@ test("Correctly infers type", (t) => {
 });
 
 test("Successfully parses undefined using the default value", (t) => {
-  const struct = S.defaulted(S.literal(undefined), "foo");
+  const struct = S.string()
+    .optional()
+    .default(() => "foo");
 
   const value = struct.parseOrThrow(undefined);
 

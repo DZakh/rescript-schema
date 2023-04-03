@@ -74,6 +74,7 @@ type rec struct<'value> = {
   nullable: unit => struct<option<'value>>,
   describe: string => struct<'value>,
   description: unit => option<string>,
+  default: (unit => unknown) => struct<unknown>,
 }
 
 let structOperations = %raw("{}")
@@ -164,6 +165,11 @@ let description = () => {
   struct->castToRescriptStruct->S.description
 }
 
+let default = def => {
+  let struct = %raw("this")
+  struct->castToRescriptStruct->S.default(def)->toJsStruct
+}
+
 let string = S.string->toJsStructFactory
 let boolean = S.bool->toJsStructFactory
 let integer = S.int->toJsStructFactory
@@ -177,7 +183,6 @@ let array = struct => S.array(struct->castToRescriptStruct)->toJsStruct
 let record = struct => S.dict(struct->castToRescriptStruct)->toJsStruct
 let json = struct => S.json(struct->castToRescriptStruct)->toJsStruct
 let union = structs => S.union(structs->castMultipleToRescriptStruct)->toJsStruct
-let defaulted = (struct, value) => S.defaulted(struct->castToRescriptStruct, value)->toJsStruct
 let tuple = structs => {
   let structs = structs->castMultipleToRescriptStruct
   S.Tuple.factory->Stdlib.Fn.apply(structs)->toJsStruct
@@ -230,6 +235,7 @@ structOperations->Stdlib.Object.extendWith({
   },
   describe,
   description,
+  default,
 })
 
 module Object = {

@@ -98,7 +98,7 @@ let json: t<'value> => t<'value>
 let union: array<t<'value>> => t<'value>
 
 let deprecated: (t<'value>, ~message: string=?, unit) => t<option<'value>>
-let defaulted: (t<option<'value>>, 'value) => t<'value>
+let default: (t<option<'value>>, unit => 'value) => t<'value>
 
 let describe: (t<'value>, string) => t<'value>
 let description: t<'value> => option<string>
@@ -334,10 +334,8 @@ module Array: {
   let length: (t<array<'a>>, ~message: string=?, int) => t<array<'a>>
 }
 
-module Defaulted: {
-  type tagged = WithDefaultValue(unknown)
-
-  let classify: t<'value> => option<tagged>
+module Default: {
+  let classify: t<'value> => option<unknown>
 }
 
 module Deprecated: {

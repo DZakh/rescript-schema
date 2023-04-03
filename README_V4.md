@@ -78,7 +78,7 @@ type author = {
 
 let authorStruct = S.object(o => {
   id: o->S.field("Id", S.float()),
-  tags: o->S.field("Tags", S.option(S.array(S.string()))->S.defaulted([])),
+  tags: o->S.field("Tags", S.option(S.array(S.string()))->S.default(() => [])),
   isAproved: o->S.field(
     "IsApproved",
     S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),
@@ -648,12 +648,12 @@ let nullableStruct = innerStruct =>
 // })
 ```
 
-#### **`S.defaulted`**
+#### **`S.default`**
 
-`(S.t<option<'value>>, 'value) => S.t<'value>`
+`(S.t<option<'value>>, unit => 'value) => S.t<'value>`
 
 ```rescript
-let struct = S.option(S.string())->S.defaulted("Hello World!")
+let struct = S.option(S.string())->S.default(() => "Hello World!")
 
 %raw(`undefined`)->S.parseWith(struct)
 // Ok("Hello World!")
@@ -661,7 +661,7 @@ let struct = S.option(S.string())->S.defaulted("Hello World!")
 // Ok("Goodbye World!")
 ```
 
-The `defaulted` augments a struct to add transformation logic for default values, which are applied when the input is undefined.
+The `default` augments a struct to add transformation logic for default values, which are applied when the input is undefined.
 
 #### **`S.describe`**
 
