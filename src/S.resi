@@ -108,6 +108,7 @@ let deprecation: t<'value> => option<string>
 let transform: (
   t<'value>,
   ~parser: 'value => 'transformed=?,
+  ~asyncParser: 'value => promise<'transformed>=?,
   ~serializer: 'transformed => 'value=?,
   unit,
 ) => t<'transformed>
@@ -128,14 +129,19 @@ let advancedPreprocess: (
 
 let custom: (
   ~name: string,
-  ~parser: (. ~unknown: unknown) => 'value=?,
-  ~serializer: (. ~value: 'value) => 'any=?,
+  ~parser: unknown => 'value=?,
+  ~asyncParser: unknown => promise<'value>=?,
+  ~serializer: 'value => 'any=?,
   unit,
 ) => t<'value>
 
-let refine: (t<'value>, ~parser: 'value => unit=?, ~serializer: 'value => unit=?, unit) => t<'value>
-
-let asyncRefine: (t<'value>, ~parser: 'value => promise<unit>, unit) => t<'value>
+let refine: (
+  t<'value>,
+  ~parser: 'value => unit=?,
+  ~asyncParser: 'value => promise<unit>=?,
+  ~serializer: 'value => unit=?,
+  unit,
+) => t<'value>
 
 let parseWith: (Js.Json.t, t<'value>) => result<'value, Error.t>
 

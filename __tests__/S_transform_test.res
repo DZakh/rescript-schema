@@ -12,6 +12,19 @@ test("Parses unknown primitive with transformation to another type", t => {
   t->Assert.deepEqual(123->S.parseAnyWith(struct), Ok(123.), ())
 })
 
+asyncTest(
+  "Asynchronously parses unknown primitive with transformation to another type",
+  async t => {
+    let struct =
+      S.int()->S.transform(
+        ~asyncParser=value => Promise.resolve()->Promise.thenResolve(() => value->Js.Int.toFloat),
+        (),
+      )
+
+    t->Assert.deepEqual(await 123->S.parseAnyAsyncWith(struct), Ok(123.), ())
+  },
+)
+
 test("Throws for a Transformed Primitive factory without either a parser, or a serializer", t => {
   t->Assert.throws(
     () => {
@@ -151,3 +164,15 @@ test(
     )
   },
 )
+
+test("Throws for transform with both parser and asyncParser provided", t => {
+  t->Assert.throws(
+    () => {
+      S.unknown()->S.transform(~parser=_ => (), ~asyncParser=_ => Promise.resolve(), ())
+    },
+    ~expectations={
+      message: "[rescript-struct] The S.transform doesn\'t support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.",
+    },
+    (),
+  )
+})
