@@ -257,7 +257,7 @@ test("Supports Unknown", t => {
 test("Treats custom struct factory as Unknown", t => {
   let struct = S.custom(
     ~name="Test",
-    ~parser=(. ~unknown as _) => {
+    ~parser=_ => {
       S.Error.raise("User error")
     },
     (),

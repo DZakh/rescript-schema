@@ -1098,35 +1098,67 @@ module Metadata = {
 let refine: (
   t<'value>,
   ~parser: 'value => unit=?,
+  ~asyncParser: 'value => promise<unit>=?,
   ~serializer: 'value => unit=?,
   unit,
 ) => t<'value> = (
   struct,
-  ~parser as maybeRefineParser=?,
-  ~serializer as maybeRefineSerializer=?,
+  ~parser as maybeParser=?,
+  ~asyncParser as maybeAsyncParser=?,
+  ~serializer as maybeSerializer=?,
   (),
 ) => {
-  if maybeRefineParser === None && maybeRefineSerializer === None {
+  if maybeParser === None && maybeAsyncParser === None && maybeSerializer === None {
     Error.MissingParserAndSerializer.panic(`struct factory Refine`)
   }
 
-  let nextParseTransformationFactory = switch maybeRefineParser {
-  | Some(refineParser) =>
+  let nextParseTransformationFactory = switch (maybeParser, maybeAsyncParser) {
+  | (Some(parser), Some(asyncParser)) =>
     TransformationFactory.make((. ~ctx, ~struct as compilingStruct) => {
       struct.parseTransformationFactory(. ~ctx, ~struct=compilingStruct)
       ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-        let () = refineParser->Stdlib.Fn.call1(input)
+        let () = parser->Stdlib.Fn.call1(input)
+        input
+      })
+      ctx->TransformationFactory.Ctx.planAsyncTransformation(input => {
+        asyncParser
+        ->Stdlib.Fn.call1(input)
+        ->Stdlib.Promise.thenResolve(
+          () => {
+            input
+          },
+        )
+      })
+    })
+  | (Some(parser), None) =>
+    TransformationFactory.make((. ~ctx, ~struct as compilingStruct) => {
+      struct.parseTransformationFactory(. ~ctx, ~struct=compilingStruct)
+      ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+        let () = parser->Stdlib.Fn.call1(input)
         input
       })
     })
-  | None => struct.parseTransformationFactory
+  | (None, Some(asyncParser)) =>
+    TransformationFactory.make((. ~ctx, ~struct as compilingStruct) => {
+      struct.parseTransformationFactory(. ~ctx, ~struct=compilingStruct)
+      ctx->TransformationFactory.Ctx.planAsyncTransformation(input => {
+        asyncParser
+        ->Stdlib.Fn.call1(input)
+        ->Stdlib.Promise.thenResolve(
+          () => {
+            input
+          },
+        )
+      })
+    })
+  | (None, None) => struct.parseTransformationFactory
   }
 
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
     ~parseTransformationFactory=nextParseTransformationFactory,
-    ~serializeTransformationFactory=switch maybeRefineSerializer {
+    ~serializeTransformationFactory=switch maybeSerializer {
     | Some(refineSerializer) =>
       TransformationFactory.make((. ~ctx, ~struct as compilingStruct) => {
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -1159,41 +1191,32 @@ let addRefinement = (struct, ~metadataId, ~refinement, ~refiner) => {
   ->refine(~parser=refiner, ~serializer=refiner, ())
 }
 
-let asyncRefine = (struct, ~parser, ()) => {
-  make(
-    ~name=struct.name,
-    ~tagged=struct.tagged,
-    ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as compilingStruct) => {
-      struct.parseTransformationFactory(. ~ctx, ~struct=compilingStruct)
-      ctx->TransformationFactory.Ctx.planAsyncTransformation(input => {
-        parser
-        ->Stdlib.Fn.call1(input)
-        ->Stdlib.Promise.thenResolve(
-          () => {
-            input
-          },
-        )
-      })
-    }),
-    ~serializeTransformationFactory=struct.serializeTransformationFactory,
-    ~metadataMap=struct.metadataMap,
-    (),
-  )
-}
-
 let transform: (
   t<'value>,
   ~parser: 'value => 'transformed=?,
+  ~asyncParser: 'value => promise<'trnsformed>=?,
   ~serializer: 'transformed => 'value=?,
   unit,
 ) => t<'transformed> = (
   struct,
-  ~parser as maybeTransformParser=?,
-  ~serializer as maybeTransformSerializer=?,
+  ~parser as maybeParser=?,
+  ~asyncParser as maybeAsyncParser=?,
+  ~serializer as maybeSerializer=?,
   (),
 ) => {
-  if maybeTransformParser === None && maybeTransformSerializer === None {
+  if maybeParser === None && maybeAsyncParser === None && maybeSerializer === None {
     Error.MissingParserAndSerializer.panic(`struct factory Transform`)
+  }
+
+  let planParser = switch (maybeParser, maybeAsyncParser) {
+  | (Some(_), Some(_)) =>
+    Error.panic(
+      "The S.transform doesn't support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.",
+    )
+  | (Some(parser), None) => ctx => ctx->TransformationFactory.Ctx.planSyncTransformation(parser)
+  | (None, Some(asyncParser)) =>
+    ctx => ctx->TransformationFactory.Ctx.planAsyncTransformation(asyncParser)
+  | (None, None) => TransformationFactory.Ctx.planMissingParserTransformation
   }
 
   make(
@@ -1201,17 +1224,13 @@ let transform: (
     ~tagged=struct.tagged,
     ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as compilingStruct) => {
       struct.parseTransformationFactory(. ~ctx, ~struct=compilingStruct)
-      switch maybeTransformParser {
-      | Some(transformParser) =>
-        ctx->TransformationFactory.Ctx.planSyncTransformation(transformParser)
-      | None => ctx->TransformationFactory.Ctx.planMissingParserTransformation
-      }
+      planParser->Stdlib.Fn.call1(ctx)
     }),
     ~serializeTransformationFactory=TransformationFactory.make((.
       ~ctx,
       ~struct as compilingStruct,
     ) => {
-      switch maybeTransformSerializer {
+      switch maybeSerializer {
       | Some(transformSerializer) =>
         ctx->TransformationFactory.Ctx.planSyncTransformation(transformSerializer)
       | None => ctx->TransformationFactory.Ctx.planMissingSerializerTransformation
@@ -1228,13 +1247,8 @@ let advancedTransform: (
   ~parser: (~struct: t<'value>) => transformation<'value, 'transformed>=?,
   ~serializer: (~struct: t<'value>) => transformation<'transformed, 'value>=?,
   unit,
-) => t<'transformed> = (
-  struct,
-  ~parser as maybeTransformParser=?,
-  ~serializer as maybeTransformSerializer=?,
-  (),
-) => {
-  if maybeTransformParser === None && maybeTransformSerializer === None {
+) => t<'transformed> = (struct, ~parser as maybeParser=?, ~serializer as maybeSerializer=?, ()) => {
+  if maybeParser === None && maybeSerializer === None {
     Error.MissingParserAndSerializer.panic(`struct factory Transform`)
   }
 
@@ -1243,7 +1257,7 @@ let advancedTransform: (
     ~tagged=struct.tagged,
     ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as compilingStruct) => {
       struct.parseTransformationFactory(. ~ctx, ~struct=compilingStruct)
-      switch maybeTransformParser {
+      switch maybeParser {
       | Some(transformParser) =>
         switch (transformParser->castPublicTransformationFactoryToUncurried)(.
           ~struct=compilingStruct->castUnknownStructToAnyStruct,
@@ -1260,7 +1274,7 @@ let advancedTransform: (
       ~ctx,
       ~struct as compilingStruct,
     ) => {
-      switch maybeTransformSerializer {
+      switch maybeSerializer {
       | Some(transformSerializer) =>
         switch (transformSerializer->castPublicTransformationFactoryToUncurried)(.
           ~struct=compilingStruct->castUnknownStructToAnyStruct,
@@ -1358,12 +1372,24 @@ let rec advancedPreprocess = (
 
 let custom = (
   ~name,
-  ~parser as maybeCustomParser=?,
-  ~serializer as maybeCustomSerializer=?,
+  ~parser as maybeParser=?,
+  ~asyncParser as maybeAsyncParser=?,
+  ~serializer as maybeSerializer=?,
   (),
 ) => {
-  if maybeCustomParser === None && maybeCustomSerializer === None {
+  if maybeParser === None && maybeAsyncParser === None && maybeSerializer === None {
     Error.MissingParserAndSerializer.panic(`Custom struct factory`)
+  }
+
+  let planParser = switch (maybeParser, maybeAsyncParser) {
+  | (Some(_), Some(_)) =>
+    Error.panic(
+      "The S.custom doesn't support the `parser` and `asyncParser` arguments simultaneously. Keep only `asyncParser`.",
+    )
+  | (Some(parser), None) => ctx => ctx->TransformationFactory.Ctx.planSyncTransformation(parser)
+  | (None, Some(asyncParser)) =>
+    ctx => ctx->TransformationFactory.Ctx.planAsyncTransformation(asyncParser)
+  | (None, None) => TransformationFactory.Ctx.planMissingParserTransformation
   }
 
   make(
@@ -1371,16 +1397,12 @@ let custom = (
     ~metadataMap=emptyMetadataMap,
     ~tagged=Unknown,
     ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
-      switch maybeCustomParser {
-      | Some(customParser) =>
-        ctx->TransformationFactory.Ctx.planSyncTransformation(customParser->Obj.magic)
-      | None => ctx->TransformationFactory.Ctx.planMissingParserTransformation
-      }
+      planParser->Stdlib.Fn.call1(ctx)
     }),
     ~serializeTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
-      switch maybeCustomSerializer {
-      | Some(customSerializer) =>
-        ctx->TransformationFactory.Ctx.planSyncTransformation(customSerializer->Obj.magic)
+      switch maybeSerializer {
+      | Some(transformSerializer) =>
+        ctx->TransformationFactory.Ctx.planSyncTransformation(transformSerializer)
       | None => ctx->TransformationFactory.Ctx.planMissingSerializerTransformation
       }
     }),

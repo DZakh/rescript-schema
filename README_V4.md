@@ -550,7 +550,7 @@ let struct = S.dict(S.string())
   "foo": "bar",
   "baz": "qux",
 }`)->S.parseWith(struct)
-// Ok(Js.Dict.fromArray([("foo", "bar"), ("baz", "qux")]))
+// Ok(Dict.fromArray([("foo", "bar"), ("baz", "qux")]))
 ```
 
 The `dict` struct represents a dictionary of data of a specific type.
@@ -599,7 +599,7 @@ The `json` struct represents a data that is a JSON string containing a value of 
 
 #### **`S.custom`**
 
-`(~name: string, ~parser: (. ~unknown: unknown) => 'value=?, ~serializer: (. ~value: 'value) => 'any=?, unit) => S.t<'value>`
+`(~name: string, ~parser: (unknown) => 'value=?, ~asyncParser: (unknown) => promise<'value>=?, ~serializer: ('value) => 'any=?, unit) => S.t<'value>`
 
 You can also define your own custom struct factories that are specific to your application's requirements:
 
@@ -607,18 +607,17 @@ You can also define your own custom struct factories that are specific to your a
 let nullableStruct = innerStruct =>
   S.custom(
     ~name="Nullable",
-    ~parser=(. ~unknown) => {
-      unknown
-      ->Obj.magic
-      ->Js.Nullable.toOption
-      ->Belt.Option.map(innerValue =>
-        switch innerValue->S.parseAnyWith(innerStruct) {
-        | Ok(value) => value
+    ~parser=unknown => {
+      if unknown === %raw("undefined") || unknown === %raw("null") {
+        None
+      } else {
+        switch unknown->S.parseAnyWith(innerStruct) {
+        | Ok(value) => Some(value)
         | Error(error) => S.Error.raiseCustom(error)
         }
-      )
+      }
     },
-    ~serializer=(. ~value) => {
+    ~serializer=value => {
       switch value {
       | Some(innerValue) =>
         switch innerValue->S.serializeToUnknownWith(innerStruct) {
@@ -759,7 +758,7 @@ type rec node = {
 let nodeStruct = S.asyncRecursive(nodeStruct => {
   S.object(
     o => {
-      id: o->S.field("Id", S.string())->S.asyncRefine(~parser=checkIsExistingNode, ()),
+      id: o->S.field("Id", S.string())->S.refine(~asyncParser=checkIsExistingNode, ()),
       children: o->S.field("Children", S.array(nodeStruct)),
     },
   )
@@ -790,11 +789,11 @@ There are many so-called "refinement types" you may wish to check for that can't
 
 #### **`S.refine`**
 
-`(S.t<'value>, ~parser: 'value => unit=?, ~serializer: 'value => unit=?, unit) => S.t<'value>`
+`(S.t<'value>, ~parser: 'value => unit=?, ~asyncParser: 'value => promise<unit>=?, ~serializer: 'value => unit=?, unit) => S.t<'value>`
 
 ```rescript
 let shortStringStruct = S.string()->S.refine(~parser=value =>
-  if value->Js.String2.length > 255 {
+  if value->String.length > 255 {
     S.Error.raise("String can't be more than 255 characters")
   }
 , ())
@@ -802,12 +801,10 @@ let shortStringStruct = S.string()->S.refine(~parser=value =>
 
 > 🧠 Refinement functions should not throw. Use `S.Error.raise` or `S.Error.raiseCustom` to exit with failure.
 
-#### **`S.asyncRefine`**
-
-`(S.t<'value>, ~parser: 'value => promise<unit>, unit) => S.t<'value>`
+Also, you can have an asynchronous refinement:
 
 ```rescript
-let userIdStruct = S.string()->S.asyncRefine(~parser=userId =>
+let userIdStruct = S.string()->S.refine(~asyncParser=userId =>
   verfiyUserExistsInDb(~userId)->Promise.thenResolve(isExistingUser =>
     if !isExistingUser {
       S.Error.raise("User doesn't exist")
@@ -824,14 +821,14 @@ let userIdStruct = S.string()->S.asyncRefine(~parser=userId =>
 
 #### **`S.transform`**
 
-`(S.t<'value>, ~parser: 'value => 'transformed=?, ~serializer: 'transformed => 'value=?, unit) => S.t<'transformed>`
+`(S.t<'value>, ~parser: 'value => 'transformed=?, ~asyncParser: 'value => promise<'transformed>=?, ~serializer: 'transformed => 'value=?, unit) => S.t<'transformed>`
 
 ```rescript
 let intToString = struct =>
   struct->S.transform(
-    ~parser=int => int->Js.Int.toString,
+    ~parser=int => int->Int.toString,
     ~serializer=string =>
-      switch string->Belt.Int.fromString {
+      switch string->Int.fromString {
       | Some(int) => int
       | None => S.Error.raise("Can't convert string to int")
       },
@@ -841,13 +838,7 @@ let intToString = struct =>
 
 > 🧠 Transform functions should not throw. Use `S.Error.raise` or `S.Error.raiseCustom` to exit with failure.
 
-#### **`S.advancedTransform`** _Advanced_
-
-`type transformation<'input, 'output> = Sync('input => 'output) | Async('input => promise<'output>)`
-
-`(S.t<'value>, ~parser: (~struct: S.t<'value>) => S.transformation<'value, 'transformed>=?, ~serializer: (~struct: S.t<'value>) => S.transformation<'transformed, 'value>=?, unit) => S.t<'transformed>`
-
-The `transform`, `refine`, `asyncRefine`, and `custom` functions are actually syntactic sugar atop a more versatile (and verbose) function called `advancedTransform`.
+Also, you can have an asynchronous transform:
 
 ```rescript
 type user = {
@@ -855,23 +846,14 @@ type user = {
   name: string,
 }
 
-let userStruct =
-  userIdStruct->S.advancedTransform(
-    ~parser=(~struct as _) => Async(userId => loadUser(~userId)),
-    ~serializer=user => user.id,
-    (),
-  )
-```
+let userStruct = userIdStruct->S.transform(~asyncParser=userId => loadUser(~userId), ~serializer=user => user.id, ())
 
-```rescript
 await %raw(`"1"`)->S.parseAsyncWith(userStruct)
 // Ok({
 //   id: "1",
 //   name: "John",
 // })
-```
 
-```rescript
 {
   id: "1",
   name: "John",
@@ -907,7 +889,7 @@ let prepareEnvStruct = S.advancedPreprocess(
     | Int =>
       Sync(
         unknown => {
-          if unknown->Js.typeof === "string" {
+          if unknown->typeof === "string" {
             %raw(`+unknown`)
           } else {
             unknown
@@ -963,7 +945,7 @@ The same as `parseWith`, but applies `JSON.parse` before parsing.
 try {
   data->S.parseOrRaiseWith(userStruct)
 } catch {
-| S.Raised(error) => Js.Exn.raise(error->S.Error.toString)
+| S.Raised(error) => Exn.raise(error->S.Error.toString)
 }
 ```
 
@@ -977,7 +959,7 @@ The exception-based version of `parseWith`.
 try {
   data->S.parseAnyOrRaiseWith(userStruct)
 } catch {
-| S.Raised(error) => Js.Exn.raise(error->S.Error.toString)
+| S.Raised(error) => Exn.raise(error->S.Error.toString)
 }
 ```
 
@@ -1043,7 +1025,7 @@ The same as `serializeToUnknownWith`, but applies `JSON.serialize` at the end.
 try {
   user->S.serializeOrRaiseWith(userStruct)
 } catch {
-| S.Raised(error) => Js.Exn.raise(error->S.Error.toString)
+| S.Raised(error) => Exn.raise(error->S.Error.toString)
 }
 ```
 
@@ -1057,7 +1039,7 @@ The exception-based version of `serializeWith`.
 try {
   user->S.serializeToUnknownOrRaiseWith(userStruct)
 } catch {
-| S.Raised(error) => Js.Exn.raise(error->S.Error.toString)
+| S.Raised(error) => Exn.raise(error->S.Error.toString)
 }
 ```
 

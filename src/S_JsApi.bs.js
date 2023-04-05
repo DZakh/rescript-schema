@@ -99,19 +99,19 @@ function serializeOrThrow(value) {
 
 function transform(parser, serializer) {
   var struct = this;
-  var struct$1 = S$RescriptStruct.transform(struct, parser, serializer, undefined);
+  var struct$1 = S$RescriptStruct.transform(struct, parser, undefined, serializer, undefined);
   return Object.assign(struct$1, structOperations);
 }
 
 function refine(parser, serializer) {
   var struct = this;
-  var struct$1 = S$RescriptStruct.refine(struct, parser, serializer, undefined);
+  var struct$1 = S$RescriptStruct.refine(struct, parser, undefined, serializer, undefined);
   return Object.assign(struct$1, structOperations);
 }
 
 function asyncRefine(parser) {
   var struct = this;
-  var struct$1 = S$RescriptStruct.asyncRefine(struct, parser, undefined);
+  var struct$1 = S$RescriptStruct.refine(struct, undefined, parser, undefined, undefined);
   return Object.assign(struct$1, structOperations);
 }
 
@@ -227,7 +227,7 @@ function nan(param) {
 }
 
 function custom(name, parser, serializer) {
-  var struct = S$RescriptStruct.custom(name, parser, serializer, undefined);
+  var struct = S$RescriptStruct.custom(name, parser, undefined, serializer, undefined);
   return Object.assign(struct, structOperations);
 }
 

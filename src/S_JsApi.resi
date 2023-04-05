@@ -46,8 +46,8 @@ let tuple: array<struct<unknown>> => struct<unknown>
 
 let custom: (
   ~name: string,
-  ~parser: (. ~unknown: unknown) => 'value,
-  ~serializer: (. ~value: 'value) => 'any,
+  ~parser: unknown => 'value,
+  ~serializer: 'value => 'any,
 ) => struct<'value>
 
 module Object: {

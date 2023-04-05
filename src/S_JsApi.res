@@ -153,7 +153,7 @@ let refine = (~parser, ~serializer) => {
 
 let asyncRefine = (~parser) => {
   let struct = %raw("this")
-  struct->S.asyncRefine(~parser, ())->toJsStruct
+  struct->S.refine(~asyncParser=parser, ())->toJsStruct
 }
 
 let describe = description => {

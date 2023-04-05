@@ -219,6 +219,12 @@ function planAsyncTransformation(ctx, transformation) {
   }
 }
 
+function planMissingParserTransformation(ctx) {
+  planSyncTransformation(ctx, (function (param) {
+          return raise$1(/* MissingParser */0);
+        }));
+}
+
 function empty(param, param$1) {
   
 }
@@ -800,24 +806,46 @@ var Metadata = {
   set: set
 };
 
-function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
-  if (maybeRefineParser === undefined && maybeRefineSerializer === undefined) {
+function refine(struct, maybeParser, maybeAsyncParser, maybeSerializer, param) {
+  if (maybeParser === undefined && maybeAsyncParser === undefined && maybeSerializer === undefined) {
     panic("struct factory Refine");
   }
-  var nextParseTransformationFactory = maybeRefineParser !== undefined ? (function (ctx, compilingStruct) {
-        struct.pf(ctx, compilingStruct);
-        planSyncTransformation(ctx, (function (input) {
-                maybeRefineParser(input);
-                return input;
-              }));
-      }) : struct.pf;
+  var nextParseTransformationFactory = maybeParser !== undefined ? (
+      maybeAsyncParser !== undefined ? (function (ctx, compilingStruct) {
+            struct.pf(ctx, compilingStruct);
+            planSyncTransformation(ctx, (function (input) {
+                    maybeParser(input);
+                    return input;
+                  }));
+            planAsyncTransformation(ctx, (function (input) {
+                    return maybeAsyncParser(input).then(function (param) {
+                                return input;
+                              });
+                  }));
+          }) : (function (ctx, compilingStruct) {
+            struct.pf(ctx, compilingStruct);
+            planSyncTransformation(ctx, (function (input) {
+                    maybeParser(input);
+                    return input;
+                  }));
+          })
+    ) : (
+      maybeAsyncParser !== undefined ? (function (ctx, compilingStruct) {
+            struct.pf(ctx, compilingStruct);
+            planAsyncTransformation(ctx, (function (input) {
+                    return maybeAsyncParser(input).then(function (param) {
+                                return input;
+                              });
+                  }));
+          }) : struct.pf
+    );
   return {
           n: struct.n,
           t: struct.t,
           pf: nextParseTransformationFactory,
-          sf: maybeRefineSerializer !== undefined ? (function (ctx, compilingStruct) {
+          sf: maybeSerializer !== undefined ? (function (ctx, compilingStruct) {
                 planSyncTransformation(ctx, (function (input) {
-                        maybeRefineSerializer(input);
+                        maybeSerializer(input);
                         return input;
                       }));
                 struct.sf(ctx, compilingStruct);
@@ -835,53 +863,36 @@ function refine(struct, maybeRefineParser, maybeRefineSerializer, param) {
 
 function addRefinement(struct, metadataId, refinement, refiner) {
   var refinements = Js_dict.get(struct.m, metadataId);
-  return refine(set(struct, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), refiner, refiner, undefined);
+  return refine(set(struct, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), refiner, undefined, refiner, undefined);
 }
 
-function asyncRefine(struct, parser, param) {
-  return {
-          n: struct.n,
-          t: struct.t,
-          pf: (function (ctx, compilingStruct) {
-              struct.pf(ctx, compilingStruct);
-              planAsyncTransformation(ctx, (function (input) {
-                      return parser(input).then(function (param) {
-                                  return input;
-                                });
-                    }));
-            }),
-          sf: struct.sf,
-          r: 0,
-          e: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
-          i: undefined,
-          m: struct.m
-        };
-}
-
-function transform(struct, maybeTransformParser, maybeTransformSerializer, param) {
-  if (maybeTransformParser === undefined && maybeTransformSerializer === undefined) {
+function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param) {
+  if (maybeParser === undefined && maybeAsyncParser === undefined && maybeSerializer === undefined) {
     panic("struct factory Transform");
+  }
+  var planParser;
+  if (maybeParser !== undefined) {
+    if (maybeAsyncParser !== undefined) {
+      throw new Error("[rescript-struct] The S.transform doesn't support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.");
+    }
+    planParser = (function (ctx) {
+        planSyncTransformation(ctx, maybeParser);
+      });
+  } else {
+    planParser = maybeAsyncParser !== undefined ? (function (ctx) {
+          planAsyncTransformation(ctx, maybeAsyncParser);
+        }) : planMissingParserTransformation;
   }
   return {
           n: struct.n,
           t: struct.t,
           pf: (function (ctx, compilingStruct) {
               struct.pf(ctx, compilingStruct);
-              if (maybeTransformParser !== undefined) {
-                return planSyncTransformation(ctx, maybeTransformParser);
-              } else {
-                return planSyncTransformation(ctx, (function (param) {
-                              return raise$1(/* MissingParser */0);
-                            }));
-              }
+              planParser(ctx);
             }),
           sf: (function (ctx, compilingStruct) {
-              if (maybeTransformSerializer !== undefined) {
-                planSyncTransformation(ctx, maybeTransformSerializer);
+              if (maybeSerializer !== undefined) {
+                planSyncTransformation(ctx, maybeSerializer);
               } else {
                 planSyncTransformation(ctx, (function (param) {
                         return raise$1(/* MissingSerializer */1);
@@ -900,8 +911,8 @@ function transform(struct, maybeTransformParser, maybeTransformSerializer, param
         };
 }
 
-function advancedTransform(struct, maybeTransformParser, maybeTransformSerializer, param) {
-  if (maybeTransformParser === undefined && maybeTransformSerializer === undefined) {
+function advancedTransform(struct, maybeParser, maybeSerializer, param) {
+  if (maybeParser === undefined && maybeSerializer === undefined) {
     panic("struct factory Transform");
   }
   return {
@@ -909,12 +920,12 @@ function advancedTransform(struct, maybeTransformParser, maybeTransformSerialize
           t: struct.t,
           pf: (function (ctx, compilingStruct) {
               struct.pf(ctx, compilingStruct);
-              if (maybeTransformParser === undefined) {
+              if (maybeParser === undefined) {
                 return planSyncTransformation(ctx, (function (param) {
                               return raise$1(/* MissingParser */0);
                             }));
               }
-              var syncTransformation = maybeTransformParser(compilingStruct);
+              var syncTransformation = maybeParser(compilingStruct);
               if (syncTransformation.TAG === /* Sync */0) {
                 return planSyncTransformation(ctx, syncTransformation._0);
               } else {
@@ -922,8 +933,8 @@ function advancedTransform(struct, maybeTransformParser, maybeTransformSerialize
               }
             }),
           sf: (function (ctx, compilingStruct) {
-              if (maybeTransformSerializer !== undefined) {
-                var syncTransformation = maybeTransformSerializer(compilingStruct);
+              if (maybeSerializer !== undefined) {
+                var syncTransformation = maybeSerializer(compilingStruct);
                 if (syncTransformation.TAG === /* Sync */0) {
                   planSyncTransformation(ctx, syncTransformation._0);
                 } else {
@@ -1017,25 +1028,32 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
         };
 }
 
-function custom(name, maybeCustomParser, maybeCustomSerializer, param) {
-  if (maybeCustomParser === undefined && maybeCustomSerializer === undefined) {
+function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
+  if (maybeParser === undefined && maybeAsyncParser === undefined && maybeSerializer === undefined) {
     panic("Custom struct factory");
+  }
+  var planParser;
+  if (maybeParser !== undefined) {
+    if (maybeAsyncParser !== undefined) {
+      throw new Error("[rescript-struct] The S.custom doesn't support the `parser` and `asyncParser` arguments simultaneously. Keep only `asyncParser`.");
+    }
+    planParser = (function (ctx) {
+        planSyncTransformation(ctx, maybeParser);
+      });
+  } else {
+    planParser = maybeAsyncParser !== undefined ? (function (ctx) {
+          planAsyncTransformation(ctx, maybeAsyncParser);
+        }) : planMissingParserTransformation;
   }
   return {
           n: name,
           t: /* Unknown */1,
           pf: (function (ctx, param) {
-              if (maybeCustomParser !== undefined) {
-                return planSyncTransformation(ctx, Caml_option.valFromOption(maybeCustomParser));
-              } else {
-                return planSyncTransformation(ctx, (function (param) {
-                              return raise$1(/* MissingParser */0);
-                            }));
-              }
+              planParser(ctx);
             }),
           sf: (function (ctx, param) {
-              if (maybeCustomSerializer !== undefined) {
-                return planSyncTransformation(ctx, Caml_option.valFromOption(maybeCustomSerializer));
+              if (maybeSerializer !== undefined) {
+                return planSyncTransformation(ctx, maybeSerializer);
               } else {
                 return planSyncTransformation(ctx, (function (param) {
                               return raise$1(/* MissingSerializer */1);
@@ -1839,7 +1857,7 @@ function trim(struct, param) {
   var transformer = function (prim) {
     return prim.trim();
   };
-  return transform(struct, transformer, transformer, undefined);
+  return transform(struct, transformer, undefined, transformer, undefined);
 }
 
 function factory$6(innerStruct) {
@@ -3506,7 +3524,6 @@ exports.advancedTransform = advancedTransform;
 exports.advancedPreprocess = advancedPreprocess;
 exports.custom = custom;
 exports.refine = refine;
-exports.asyncRefine = asyncRefine;
 exports.parseWith = parseWith;
 exports.parseAnyWith = parseAnyWith;
 exports.parseJsonWith = parseJsonWith;

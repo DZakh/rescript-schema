@@ -4,8 +4,6 @@
 
 - Clean up Caml_option.some, Js_dict.get
 
-- Deprecate S.advancedTransform/S.asyncRefine in favor of S.transform/S.refine with updated API (???)
-
 - PPX to create structs (v5 ???)
 
 - Add S.nullable (?)
@@ -49,3 +47,7 @@ let trimContract: S.contract<string => string> = S.contract(o => {
 ```
 let struct = S.tuple(o => (o->S.item(0, S.string()), o->S.item(1, S.int())))
 ```
+
+- Run struct factory validation checks only in dev mode
+
+- Update RescriptStruct.gen.ts
