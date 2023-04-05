@@ -3,7 +3,7 @@ open Ava
 test("Successfully refines on parsing", t => {
   let struct = S.int()->S.refine(~parser=value =>
     if value < 0 {
-      S.Error.raise("Should be positive")
+      S.fail("Should be positive")
     }
   , ())
 
@@ -19,10 +19,28 @@ test("Successfully refines on parsing", t => {
   )
 })
 
+test("Fails with custom path", t => {
+  let struct = S.int()->S.refine(~parser=value =>
+    if value < 0 {
+      S.fail(~path=S.Path.fromArray(["data", "myInt"]), "Should be positive")
+    }
+  , ())
+
+  t->Assert.deepEqual(
+    %raw(`-12`)->S.parseAnyWith(struct),
+    Error({
+      code: OperationFailed("Should be positive"),
+      operation: Parsing,
+      path: S.Path.fromArray(["data", "myInt"]),
+    }),
+    (),
+  )
+})
+
 test("Successfully refines on serializing", t => {
   let struct = S.int()->S.refine(~serializer=value =>
     if value < 0 {
-      S.Error.raise("Should be positive")
+      S.fail("Should be positive")
     }
   , ())
 
@@ -43,7 +61,7 @@ asyncTest("Successfully refines on async parsing", async t => {
     Promise.resolve()->Promise.thenResolve(
       () => {
         if value < 0 {
-          S.Error.raise("Should be positive")
+          S.fail("Should be positive")
         }
       },
     )
@@ -65,13 +83,13 @@ asyncTest("Successfully runs both async and sync parser refinements", async t =>
   let struct = S.int()->S.refine(
     ~parser=value => {
       if value->mod(2) === 0 {
-        S.Error.raise("Should be odd")
+        S.fail("Should be odd")
       }
     },
     ~asyncParser=value =>
       Promise.resolve()->Promise.thenResolve(() => {
         if value < 0 {
-          S.Error.raise("Should be positive")
+          S.fail("Should be positive")
         }
       }),
     (),
@@ -146,7 +164,7 @@ asyncTest("Successfully parses async refinement using parseAsyncWith", t => {
 asyncTest("Fails to parse async refinement with user error", t => {
   let struct =
     S.string()->S.refine(
-      ~asyncParser=_ => Promise.resolve()->Promise.then(() => S.Error.raise("User error")),
+      ~asyncParser=_ => Promise.resolve()->Promise.then(() => S.fail("User error")),
       (),
     )
 

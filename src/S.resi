@@ -31,10 +31,6 @@ module Error: {
     | Serializing
     | Parsing
 
-  let raiseCustom: t => 'a
-
-  let raise: string => 'a
-
   let toString: t => string
 }
 
@@ -185,6 +181,10 @@ let asyncRecursive: (t<'value> => t<'value>) => t<'value>
 let classify: t<'value> => tagged
 
 let name: t<'value> => string
+
+let fail: (~path: Path.t=?, string) => 'a
+
+let advancedFail: Error.t => 'a
 
 module Object: {
   type definerCtx

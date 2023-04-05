@@ -50,4 +50,4 @@ let struct = S.tuple(o => (o->S.item(0, S.string()), o->S.item(1, S.int())))
 
 - Run struct factory validation checks only in dev mode
 
-- Update RescriptStruct.gen.ts
+- Use instanceof Error for internal error (???)

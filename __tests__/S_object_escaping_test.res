@@ -214,10 +214,7 @@ test(
 test("Has proper error path when fails to parse object with quotes in a field name", t => {
   let struct = S.object(o =>
     {
-      "field": o->S.field(
-        "\"\'\`",
-        S.string()->S.refine(~parser=_ => S.Error.raise("User error"), ()),
-      ),
+      "field": o->S.field("\"\'\`", S.string()->S.refine(~parser=_ => S.fail("User error"), ())),
     }
   )
 
@@ -237,7 +234,7 @@ test("Has proper error path when fails to serialize object with quotes in a fiel
     Js.Dict.fromArray([
       (
         "\"\'\`",
-        o->S.field("field", S.string()->S.refine(~serializer=_ => S.Error.raise("User error"), ())),
+        o->S.field("field", S.string()->S.refine(~serializer=_ => S.fail("User error"), ())),
       ),
     ])
   )

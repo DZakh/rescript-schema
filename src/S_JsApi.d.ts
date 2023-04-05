@@ -109,4 +109,4 @@ export const custom: <Value>(
   serializer?: (value: Value) => unknown
 ) => Struct<Value>;
 
-export const raiseError: (reason: string) => void;
+export const fail: (reason: string) => void;
