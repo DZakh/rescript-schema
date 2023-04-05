@@ -9,7 +9,7 @@ let nullableStruct = innerStruct =>
       } else {
         switch unknown->S.parseAnyWith(innerStruct) {
         | Ok(value) => Some(value)
-        | Error(error) => S.Error.raiseCustom(error)
+        | Error(error) => S.advancedFail(error)
         }
       }
     },
@@ -18,7 +18,7 @@ let nullableStruct = innerStruct =>
       | Some(innerValue) =>
         switch innerValue->S.serializeToUnknownWith(innerStruct) {
         | Ok(value) => value
-        | Error(error) => S.Error.raiseCustom(error)
+        | Error(error) => S.advancedFail(error)
         }
       | None => %raw("null")
       }
@@ -58,7 +58,7 @@ test("Fails to serialize with user error", t => {
   let struct = S.custom(
     ~name="Test",
     ~serializer=_ => {
-      S.Error.raise("User error")
+      S.fail("User error")
     },
     (),
   )

@@ -405,14 +405,6 @@ module Error = {
     let panic = () => panic("Unreachable")
   }
 
-  let raiseCustom = error => {
-    raise(Internal.Exception(error->Internal.fromPublic))
-  }
-
-  let raise = message => {
-    raise(Internal.Exception({code: OperationFailed(message), path: Path.empty}))
-  }
-
   let rec toReason = (~nestedLevel=0, error) => {
     switch error.code {
     | OperationFailed(reason) => reason
@@ -457,6 +449,14 @@ module Error = {
     }
     `Failed ${operation} at ${pathText}. Reason: ${reason}`
   }
+}
+
+let advancedFail = error => {
+  raise(Error.Internal.Exception(error->Error.Internal.fromPublic))
+}
+
+let fail = (~path=Path.empty, message) => {
+  raise(Error.Internal.Exception({code: OperationFailed(message), path}))
 }
 
 exception Raised(Error.t)
@@ -2295,7 +2295,7 @@ module String = {
     }
     let refiner = value =>
       if value->Js.String2.length < length {
-        Error.raise(message)
+        fail(message)
       }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
@@ -2314,7 +2314,7 @@ module String = {
     }
     let refiner = value =>
       if value->Js.String2.length > length {
-        Error.raise(message)
+        fail(message)
       }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
@@ -2333,7 +2333,7 @@ module String = {
     }
     let refiner = value =>
       if value->Js.String2.length !== length {
-        Error.raise(message)
+        fail(message)
       }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
@@ -2348,7 +2348,7 @@ module String = {
   let email = (struct, ~message=`Invalid email address`, ()) => {
     let refiner = value => {
       if !(emailRegex->Js.Re.test_(value)) {
-        Error.raise(message)
+        fail(message)
       }
     }
     struct->addRefinement(
@@ -2364,7 +2364,7 @@ module String = {
   let uuid = (struct, ~message=`Invalid UUID`, ()) => {
     let refiner = value => {
       if !(uuidRegex->Js.Re.test_(value)) {
-        Error.raise(message)
+        fail(message)
       }
     }
     struct->addRefinement(
@@ -2380,7 +2380,7 @@ module String = {
   let cuid = (struct, ~message=`Invalid CUID`, ()) => {
     let refiner = value => {
       if !(cuidRegex->Js.Re.test_(value)) {
-        Error.raise(message)
+        fail(message)
       }
     }
     struct->addRefinement(
@@ -2396,7 +2396,7 @@ module String = {
   let url = (struct, ~message=`Invalid url`, ()) => {
     let refiner = value => {
       if !(value->Stdlib.Url.test) {
-        Error.raise(message)
+        fail(message)
       }
     }
     struct->addRefinement(
@@ -2413,7 +2413,7 @@ module String = {
     let refiner = value => {
       re->Js.Re.setLastIndex(0)
       if !(re->Js.Re.test_(value)) {
-        Error.raise(message)
+        fail(message)
       }
     }
     struct->addRefinement(
@@ -2449,7 +2449,7 @@ module Json = {
           if input->Js.typeof === "string" {
             try input->Js.Json.parseExn catch {
             | Js.Exn.Error(obj) =>
-              Error.raise(
+              fail(
                 switch obj->Js.Exn.message {
                 | Some(m) => m
                 | None => "Failed to parse JSON"
@@ -2562,7 +2562,7 @@ module Int = {
     }
     let refiner = value => {
       if value < minValue {
-        Error.raise(message)
+        fail(message)
       }
     }
     struct->addRefinement(
@@ -2582,7 +2582,7 @@ module Int = {
     }
     let refiner = value => {
       if value > maxValue {
-        Error.raise(message)
+        fail(message)
       }
     }
     struct->addRefinement(
@@ -2598,7 +2598,7 @@ module Int = {
   let port = (struct, ~message="Invalid port", ()) => {
     let refiner = value => {
       if value < 1 || value > 65535 {
-        Error.raise(message)
+        fail(message)
       }
     }
     struct->addRefinement(
@@ -2668,7 +2668,7 @@ module Float = {
     }
     let refiner = value => {
       if value < minValue {
-        Error.raise(message)
+        fail(message)
       }
     }
     struct->addRefinement(
@@ -2688,7 +2688,7 @@ module Float = {
     }
     let refiner = value => {
       if value > maxValue {
-        Error.raise(message)
+        fail(message)
       }
     }
     struct->addRefinement(
@@ -2930,7 +2930,7 @@ module Array = {
     }
     let refiner = value => {
       if value->Js.Array2.length < length {
-        Error.raise(message)
+        fail(message)
       }
     }
     struct->addRefinement(
@@ -2950,7 +2950,7 @@ module Array = {
     }
     let refiner = value => {
       if value->Js.Array2.length > length {
-        Error.raise(message)
+        fail(message)
       }
     }
     struct->addRefinement(
@@ -2970,7 +2970,7 @@ module Array = {
     }
     let refiner = value => {
       if value->Js.Array2.length !== length {
-        Error.raise(message)
+        fail(message)
       }
     }
     struct->addRefinement(
@@ -3738,7 +3738,7 @@ let inline = {
   ~parser=d => ${variant}(d),
   ~serializer=v => switch v {
 | ${variant}(d) => d
-| _ => S.Error.raise(\`Value is not the ${variant} variant.\`)
+| _ => S.fail(\`Value is not the ${variant} variant.\`)
 }, ())`
     | _ => inlinedStruct
     }

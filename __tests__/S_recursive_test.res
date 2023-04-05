@@ -98,7 +98,7 @@ test("Fails to parse nested recursive object", t => {
           S.string()->S.refine(
             ~parser=id => {
               if id === "4" {
-                S.Error.raise("Invalid id")
+                S.fail("Invalid id")
               }
             },
             (),
@@ -135,7 +135,7 @@ test("Fails to serialise nested recursive object", t => {
           S.string()->S.refine(
             ~serializer=id => {
               if id === "4" {
-                S.Error.raise("Invalid id")
+                S.fail("Invalid id")
               }
             },
             (),

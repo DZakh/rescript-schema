@@ -52,7 +52,7 @@ test("Fails to parse primitive with transform when parser isn't provided", t => 
 })
 
 test("Fails to parse when user raises error in a Transformed Primitive parser", t => {
-  let struct = S.string()->S.transform(~parser=_ => S.Error.raise("User error"), ())
+  let struct = S.string()->S.transform(~parser=_ => S.fail("User error"), ())
 
   t->Assert.deepEqual(
     "Hello world!"->S.parseAnyWith(struct),
@@ -96,7 +96,7 @@ test("Transformed Primitive serializing fails when serializer isn't provided", t
 })
 
 test("Fails to serialize when user raises error in a Transformed Primitive serializer", t => {
-  let struct = S.string()->S.transform(~serializer=_ => S.Error.raise("User error"), ())
+  let struct = S.string()->S.transform(~serializer=_ => S.fail("User error"), ())
 
   t->Assert.deepEqual(
     "Hello world!"->S.serializeToUnknownWith(struct),
@@ -112,8 +112,8 @@ test("Fails to serialize when user raises error in a Transformed Primitive seria
 test("Transform operations applyed in the right order when parsing", t => {
   let struct =
     S.int()
-    ->S.transform(~parser=_ => S.Error.raise("First transform"), ())
-    ->S.transform(~parser=_ => S.Error.raise("Second transform"), ())
+    ->S.transform(~parser=_ => S.fail("First transform"), ())
+    ->S.transform(~parser=_ => S.fail("Second transform"), ())
 
   t->Assert.deepEqual(
     123->S.parseAnyWith(struct),
@@ -129,8 +129,8 @@ test("Transform operations applyed in the right order when parsing", t => {
 test("Transform operations applyed in the right order when serializing", t => {
   let struct =
     S.int()
-    ->S.transform(~serializer=_ => S.Error.raise("First transform"), ())
-    ->S.transform(~serializer=_ => S.Error.raise("Second transform"), ())
+    ->S.transform(~serializer=_ => S.fail("First transform"), ())
+    ->S.transform(~serializer=_ => S.fail("Second transform"), ())
 
   t->Assert.deepEqual(
     123->S.serializeToUnknownWith(struct),

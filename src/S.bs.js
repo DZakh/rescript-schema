@@ -101,31 +101,6 @@ function panic$1(param) {
   throw new Error("[rescript-struct] Unreachable");
 }
 
-function raiseCustom(error) {
-  throw {
-        RE_EXN_ID: Exception,
-        _1: {
-          c: error.code,
-          p: error.path
-        },
-        Error: new Error()
-      };
-}
-
-function raise$2(message) {
-  throw {
-        RE_EXN_ID: Exception,
-        _1: {
-          c: {
-            TAG: /* OperationFailed */0,
-            _0: message
-          },
-          p: ""
-        },
-        Error: new Error()
-      };
-}
-
 function toReason(nestedLevelOpt, error) {
   var nestedLevel = nestedLevelOpt !== undefined ? nestedLevelOpt : 0;
   var reason = error.code;
@@ -175,6 +150,32 @@ function toString(error) {
   var nonEmptyPath = error.path;
   var pathText = nonEmptyPath === "" ? "root" : nonEmptyPath;
   return "Failed " + operation + " at " + pathText + ". Reason: " + reason + "";
+}
+
+function advancedFail(error) {
+  throw {
+        RE_EXN_ID: Exception,
+        _1: {
+          c: error.code,
+          p: error.path
+        },
+        Error: new Error()
+      };
+}
+
+function fail(pathOpt, message) {
+  var path = pathOpt !== undefined ? pathOpt : "";
+  throw {
+        RE_EXN_ID: Exception,
+        _1: {
+          c: {
+            TAG: /* OperationFailed */0,
+            _0: message
+          },
+          p: path
+        },
+        Error: new Error()
+      };
 }
 
 var Raised = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Raised");
@@ -1724,7 +1725,7 @@ function min(struct, maybeMessage, length) {
   var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length.toString() + " or more characters long";
   var refiner = function (value) {
     if (value.length < length) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -1741,7 +1742,7 @@ function max(struct, maybeMessage, length) {
   var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length.toString() + " or fewer characters long";
   var refiner = function (value) {
     if (value.length > length) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -1758,7 +1759,7 @@ function length(struct, maybeMessage, length$1) {
   var message = maybeMessage !== undefined ? maybeMessage : "String must be exactly " + length$1.toString() + " characters long";
   var refiner = function (value) {
     if (value.length !== length$1) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -1775,7 +1776,7 @@ function email(struct, messageOpt, param) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid email address";
   var refiner = function (value) {
     if (!emailRegex.test(value)) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -1789,7 +1790,7 @@ function uuid(struct, messageOpt, param) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid UUID";
   var refiner = function (value) {
     if (!uuidRegex.test(value)) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -1803,7 +1804,7 @@ function cuid(struct, messageOpt, param) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid CUID";
   var refiner = function (value) {
     if (!cuidRegex.test(value)) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -1825,7 +1826,7 @@ function url(struct, messageOpt, param) {
       tmp = false;
     }
     if (!tmp) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -1840,7 +1841,7 @@ function pattern(struct, messageOpt, re) {
   var refiner = function (value) {
     re.lastIndex = 0;
     if (!re.test(value)) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -1881,7 +1882,7 @@ function factory$6(innerStruct) {
                         var obj = Caml_js_exceptions.internalToOCamlException(raw_obj);
                         if (obj.RE_EXN_ID === Js_exn.$$Error) {
                           var m = obj._1.message;
-                          __x = raise$2(m !== undefined ? m : "Failed to parse JSON");
+                          __x = fail(undefined, m !== undefined ? m : "Failed to parse JSON");
                         } else {
                           throw obj;
                         }
@@ -1989,7 +1990,7 @@ function min$1(struct, maybeMessage, minValue) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue.toString() + "";
   var refiner = function (value) {
     if (value < minValue) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -2006,7 +2007,7 @@ function max$1(struct, maybeMessage, maxValue) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue.toString() + "";
   var refiner = function (value) {
     if (value > maxValue) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -2023,7 +2024,7 @@ function port(struct, messageOpt, param) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid port";
   var refiner = function (value) {
     if (value < 1 || value > 65535) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -2075,7 +2076,7 @@ function min$2(struct, maybeMessage, minValue) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue.toString() + "";
   var refiner = function (value) {
     if (value < minValue) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -2092,7 +2093,7 @@ function max$2(struct, maybeMessage, maxValue) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue.toString() + "";
   var refiner = function (value) {
     if (value > maxValue) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -2360,7 +2361,7 @@ function min$3(struct, maybeMessage, length) {
   var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length.toString() + " or more items long";
   var refiner = function (value) {
     if (value.length < length) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -2377,7 +2378,7 @@ function max$3(struct, maybeMessage, length) {
   var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length.toString() + " or fewer items long";
   var refiner = function (value) {
     if (value.length > length) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -2394,7 +2395,7 @@ function length$1(struct, maybeMessage, length$2) {
   var message = maybeMessage !== undefined ? maybeMessage : "Array must be exactly " + length$2.toString() + " items long";
   var refiner = function (value) {
     if (value.length !== length$2) {
-      return raise$2(message);
+      return fail(undefined, message);
     }
     
   };
@@ -3345,7 +3346,7 @@ function internalInline(struct, maybeVariant, param) {
     return inlinedStruct$3;
   }
   if (maybeVariant !== undefined) {
-    return inlinedStruct$3 + ("->S.transform(\n  ~parser=d => " + maybeVariant + "(d),\n  ~serializer=v => switch v {\n| " + maybeVariant + "(d) => d\n| _ => S.Error.raise(\`Value is not the " + maybeVariant + " variant.\`)\n}, ())");
+    return inlinedStruct$3 + ("->S.transform(\n  ~parser=d => " + maybeVariant + "(d),\n  ~serializer=v => switch v {\n| " + maybeVariant + "(d) => d\n| _ => S.fail(\`Value is not the " + maybeVariant + " variant.\`)\n}, ())");
   } else {
     return inlinedStruct$3;
   }
@@ -3368,8 +3369,6 @@ var Path = {
 };
 
 var $$Error$1 = {
-  raiseCustom: raiseCustom,
-  raise: raise$2,
   toString: toString
 };
 
@@ -3543,6 +3542,8 @@ exports.recursive = recursive;
 exports.asyncRecursive = asyncRecursive;
 exports.classify = classify;
 exports.name = name;
+exports.fail = fail;
+exports.advancedFail = advancedFail;
 exports.$$Object = $$Object;
 exports.object = object;
 exports.field = field;

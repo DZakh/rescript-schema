@@ -1,5 +1,4 @@
 const S_Js = require("./S_JsApi.bs.js");
-const S = require("./S.bs.js");
 
 exports.StructError = S_Js.RescriptStructError;
 exports.string = S_Js.string;
@@ -20,4 +19,4 @@ exports.literal = S_Js.literal;
 exports.nan = S_Js.nan;
 exports.defaulted = S_Js.defaulted;
 exports.tuple = S_Js.tuple;
-exports.raiseError = S.$$Error.raise;
+exports.fail = S_Js.fail;

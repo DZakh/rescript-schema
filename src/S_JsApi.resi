@@ -27,6 +27,8 @@ type rec struct<'value> = {
   default: (unit => unknown) => struct<unknown>,
 }
 
+let fail: string => 'a
+
 let string: unit => struct<string>
 let boolean: unit => struct<bool>
 let integer: unit => struct<int>

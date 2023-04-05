@@ -271,10 +271,7 @@ test("Successfully parses object with transformed field", t => {
 test("Fails to parse object when transformed field has raises error", t => {
   let struct = S.object(o =>
     {
-      "field": o->S.field(
-        "field",
-        S.string()->S.transform(~parser=_ => S.Error.raise("User error"), ()),
-      ),
+      "field": o->S.field("field", S.string()->S.transform(~parser=_ => S.fail("User error"), ())),
     }
   )
 
@@ -294,7 +291,7 @@ test("Shows transformed object field name in error path when fails to parse", t 
     {
       "transformedFieldName": o->S.field(
         "originalFieldName",
-        S.string()->S.transform(~parser=_ => S.Error.raise("User error"), ()),
+        S.string()->S.transform(~parser=_ => S.fail("User error"), ()),
       ),
     }
   )
@@ -332,7 +329,7 @@ test("Fails to serializes object when transformed field has raises error", t => 
     {
       "field": o->S.field(
         "field",
-        S.string()->S.transform(~serializer=_ => S.Error.raise("User error"), ()),
+        S.string()->S.transform(~serializer=_ => S.fail("User error"), ()),
       ),
     }
   )
@@ -353,7 +350,7 @@ test("Shows transformed object field name in error path when fails to serializes
     {
       "transformedFieldName": o->S.field(
         "originalFieldName",
-        S.string()->S.transform(~serializer=_ => S.Error.raise("User error"), ()),
+        S.string()->S.transform(~serializer=_ => S.fail("User error"), ()),
       ),
     }
   )
@@ -375,7 +372,7 @@ test("Shows transformed to nested object field name in error path when fails to 
       "v1": {
         "transformedFieldName": o->S.field(
           "originalFieldName",
-          S.string()->S.transform(~serializer=_ => S.Error.raise("User error"), ()),
+          S.string()->S.transform(~serializer=_ => S.fail("User error"), ()),
         ),
       },
     }

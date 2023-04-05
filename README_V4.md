@@ -613,7 +613,7 @@ let nullableStruct = innerStruct =>
       } else {
         switch unknown->S.parseAnyWith(innerStruct) {
         | Ok(value) => Some(value)
-        | Error(error) => S.Error.raiseCustom(error)
+        | Error(error) => S.advancedFail(error)
         }
       }
     },
@@ -622,7 +622,7 @@ let nullableStruct = innerStruct =>
       | Some(innerValue) =>
         switch innerValue->S.serializeToUnknownWith(innerStruct) {
         | Ok(value) => value
-        | Error(error) => S.Error.raiseCustom(error)
+        | Error(error) => S.advancedFail(error)
         }
       | None => %raw("null")
       }
@@ -794,12 +794,12 @@ There are many so-called "refinement types" you may wish to check for that can't
 ```rescript
 let shortStringStruct = S.string()->S.refine(~parser=value =>
   if value->String.length > 255 {
-    S.Error.raise("String can't be more than 255 characters")
+    S.fail("String can't be more than 255 characters")
   }
 , ())
 ```
 
-> 🧠 Refinement functions should not throw. Use `S.Error.raise` or `S.Error.raiseCustom` to exit with failure.
+> 🧠 Refinement functions should not throw. Use `S.fail` or `S.advancedFail` to exit with failure.
 
 Also, you can have an asynchronous refinement:
 
@@ -807,7 +807,7 @@ Also, you can have an asynchronous refinement:
 let userIdStruct = S.string()->S.refine(~asyncParser=userId =>
   verfiyUserExistsInDb(~userId)->Promise.thenResolve(isExistingUser =>
     if !isExistingUser {
-      S.Error.raise("User doesn't exist")
+      S.fail("User doesn't exist")
     }
   )
 , ())
@@ -830,13 +830,13 @@ let intToString = struct =>
     ~serializer=string =>
       switch string->Int.fromString {
       | Some(int) => int
-      | None => S.Error.raise("Can't convert string to int")
+      | None => S.fail("Can't convert string to int")
       },
     (),
   )
 ```
 
-> 🧠 Transform functions should not throw. Use `S.Error.raise` or `S.Error.raiseCustom` to exit with failure.
+> 🧠 Transform functions should not throw. Use `S.fail` or `S.advancedFail` to exit with failure.
 
 Also, you can have an asynchronous transform:
 
@@ -1060,6 +1060,18 @@ let struct = S.literal(Bool(false))
 // })
 ```
 
+#### **`S.fail`**
+
+`(~path: S.Path.t=?, string) => 'a`
+
+A function to exit with failure during refinements and transforms.
+
+#### **`S.advancedFail`** _Advanced_
+
+`S.Error.t => 'a`
+
+A function to exit with failure during refinements and transforms.
+
 #### **`S.Error.toString`**
 
 `S.Error.t => string`
@@ -1075,18 +1087,6 @@ let struct = S.literal(Bool(false))
 ```rescript
 "Failed parsing at root. Reason: Expected false, received true"
 ```
-
-#### **`S.Error.raise`**
-
-`string => 'a`
-
-A function to exit with failure during refinements and transforms.
-
-#### **`S.Error.raiseCustom`** _Advanced_
-
-`S.Error.t => 'a`
-
-A function to exit with failure during refinements and transforms.
 
 ### Result helpers
 

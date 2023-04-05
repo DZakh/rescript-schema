@@ -258,7 +258,7 @@ test("Treats custom struct factory as Unknown", t => {
   let struct = S.custom(
     ~name="Test",
     ~parser=_ => {
-      S.Error.raise("User error")
+      S.fail("User error")
     },
     (),
   )
@@ -548,7 +548,7 @@ test("Uses S.transform for primitive structs inside of union", t => {
       ~serializer=v =>
         switch v {
         | #String(d) => d
-        | _ => S.Error.raise(`Value is not the #"String" variant.`)
+        | _ => S.fail(`Value is not the #"String" variant.`)
         },
       (),
     ),
@@ -557,7 +557,7 @@ test("Uses S.transform for primitive structs inside of union", t => {
       ~serializer=v =>
         switch v {
         | #Bool(d) => d
-        | _ => S.Error.raise(`Value is not the #"Bool" variant.`)
+        | _ => S.fail(`Value is not the #"Bool" variant.`)
         },
       (),
     ),
@@ -566,7 +566,7 @@ test("Uses S.transform for primitive structs inside of union", t => {
       ~serializer=v =>
         switch v {
         | #Float(d) => d
-        | _ => S.Error.raise(`Value is not the #"Float" variant.`)
+        | _ => S.fail(`Value is not the #"Float" variant.`)
         },
       (),
     ),
@@ -575,7 +575,7 @@ test("Uses S.transform for primitive structs inside of union", t => {
       ~serializer=v =>
         switch v {
         | #Int(d) => d
-        | _ => S.Error.raise(`Value is not the #"Int" variant.`)
+        | _ => S.fail(`Value is not the #"Int" variant.`)
         },
       (),
     ),
@@ -584,7 +584,7 @@ test("Uses S.transform for primitive structs inside of union", t => {
       ~serializer=v =>
         switch v {
         | #Unknown(d) => d
-        | _ => S.Error.raise(`Value is not the #"Unknown" variant.`)
+        | _ => S.fail(`Value is not the #"Unknown" variant.`)
         },
       (),
     ),
@@ -593,7 +593,7 @@ test("Uses S.transform for primitive structs inside of union", t => {
       ~serializer=v =>
         switch v {
         | #Never(d) => d
-        | _ => S.Error.raise(`Value is not the #"Never" variant.`)
+        | _ => S.fail(`Value is not the #"Never" variant.`)
         },
       (),
     ),
@@ -618,32 +618,32 @@ test("Uses S.transform for primitive structs inside of union", t => {
   ~parser=d => #"String"(d),
   ~serializer=v => switch v {
 | #"String"(d) => d
-| _ => S.Error.raise(\`Value is not the #"String" variant.\`)
+| _ => S.fail(\`Value is not the #"String" variant.\`)
 }, ()), S.bool()->S.transform(
   ~parser=d => #"Bool"(d),
   ~serializer=v => switch v {
 | #"Bool"(d) => d
-| _ => S.Error.raise(\`Value is not the #"Bool" variant.\`)
+| _ => S.fail(\`Value is not the #"Bool" variant.\`)
 }, ()), S.float()->S.transform(
   ~parser=d => #"Float"(d),
   ~serializer=v => switch v {
 | #"Float"(d) => d
-| _ => S.Error.raise(\`Value is not the #"Float" variant.\`)
+| _ => S.fail(\`Value is not the #"Float" variant.\`)
 }, ()), S.int()->S.transform(
   ~parser=d => #"Int"(d),
   ~serializer=v => switch v {
 | #"Int"(d) => d
-| _ => S.Error.raise(\`Value is not the #"Int" variant.\`)
+| _ => S.fail(\`Value is not the #"Int" variant.\`)
 }, ()), S.unknown()->S.transform(
   ~parser=d => #"Unknown"(d),
   ~serializer=v => switch v {
 | #"Unknown"(d) => d
-| _ => S.Error.raise(\`Value is not the #"Unknown" variant.\`)
+| _ => S.fail(\`Value is not the #"Unknown" variant.\`)
 }, ()), S.never()->S.transform(
   ~parser=d => #"Never"(d),
   ~serializer=v => switch v {
 | #"Never"(d) => d
-| _ => S.Error.raise(\`Value is not the #"Never" variant.\`)
+| _ => S.fail(\`Value is not the #"Never" variant.\`)
 }, ())])`,
     (),
   )
@@ -657,7 +657,7 @@ test("Adds index for the same structs inside of the union", t => {
       ~serializer=v =>
         switch v {
         | #String(d) => d
-        | _ => S.Error.raise(`Value is not the #"String" variant.`)
+        | _ => S.fail(`Value is not the #"String" variant.`)
         },
       (),
     ),
@@ -666,7 +666,7 @@ test("Adds index for the same structs inside of the union", t => {
       ~serializer=v =>
         switch v {
         | #String2(d) => d
-        | _ => S.Error.raise(`Value is not the #"String2" variant.`)
+        | _ => S.fail(`Value is not the #"String2" variant.`)
         },
       (),
     ),
@@ -687,12 +687,12 @@ test("Adds index for the same structs inside of the union", t => {
   ~parser=d => #"String"(d),
   ~serializer=v => switch v {
 | #"String"(d) => d
-| _ => S.Error.raise(\`Value is not the #"String" variant.\`)
+| _ => S.fail(\`Value is not the #"String" variant.\`)
 }, ()), S.string()->S.transform(
   ~parser=d => #"String2"(d),
   ~serializer=v => switch v {
 | #"String2"(d) => d
-| _ => S.Error.raise(\`Value is not the #"String2" variant.\`)
+| _ => S.fail(\`Value is not the #"String2" variant.\`)
 }, ())])`,
     (),
   )
@@ -761,7 +761,7 @@ test("Supports empty Object in union", t => {
       ~serializer=v =>
         switch v {
         | #EmptyObject(d) => d
-        | _ => S.Error.raise(`Value is not the #"EmptyObject" variant.`)
+        | _ => S.fail(`Value is not the #"EmptyObject" variant.`)
         },
       (),
     ),
@@ -770,7 +770,7 @@ test("Supports empty Object in union", t => {
       ~serializer=v =>
         switch v {
         | #EmptyObject2(d) => d
-        | _ => S.Error.raise(`Value is not the #"EmptyObject2" variant.`)
+        | _ => S.fail(`Value is not the #"EmptyObject2" variant.`)
         },
       (),
     ),
@@ -784,12 +784,12 @@ test("Supports empty Object in union", t => {
   ~parser=d => #"EmptyObject"(d),
   ~serializer=v => switch v {
 | #"EmptyObject"(d) => d
-| _ => S.Error.raise(\`Value is not the #"EmptyObject" variant.\`)
+| _ => S.fail(\`Value is not the #"EmptyObject" variant.\`)
 }, ()), S.object(_ => ())->S.transform(
   ~parser=d => #"EmptyObject2"(d),
   ~serializer=v => switch v {
 | #"EmptyObject2"(d) => d
-| _ => S.Error.raise(\`Value is not the #"EmptyObject2" variant.\`)
+| _ => S.fail(\`Value is not the #"EmptyObject2" variant.\`)
 }, ())])`,
     (),
   )
@@ -803,7 +803,7 @@ test("Supports empty Tuple in union", t => {
       ~serializer=v =>
         switch v {
         | #EmptyTuple(d) => d
-        | _ => S.Error.raise(`Value is not the #"EmptyTuple" variant.`)
+        | _ => S.fail(`Value is not the #"EmptyTuple" variant.`)
         },
       (),
     ),
@@ -812,7 +812,7 @@ test("Supports empty Tuple in union", t => {
       ~serializer=v =>
         switch v {
         | #EmptyTuple2(d) => d
-        | _ => S.Error.raise(`Value is not the #"EmptyTuple2" variant.`)
+        | _ => S.fail(`Value is not the #"EmptyTuple2" variant.`)
         },
       (),
     ),
@@ -826,12 +826,12 @@ test("Supports empty Tuple in union", t => {
   ~parser=d => #"EmptyTuple"(d),
   ~serializer=v => switch v {
 | #"EmptyTuple"(d) => d
-| _ => S.Error.raise(\`Value is not the #"EmptyTuple" variant.\`)
+| _ => S.fail(\`Value is not the #"EmptyTuple" variant.\`)
 }, ()), S.tuple0(.)->S.transform(
   ~parser=d => #"EmptyTuple2"(d),
   ~serializer=v => switch v {
 | #"EmptyTuple2"(d) => d
-| _ => S.Error.raise(\`Value is not the #"EmptyTuple2" variant.\`)
+| _ => S.fail(\`Value is not the #"EmptyTuple2" variant.\`)
 }, ())])`,
     (),
   )
@@ -845,7 +845,7 @@ test("Supports Option structs in union", t => {
       ~serializer=v =>
         switch v {
         | #OptionOf123(d) => d
-        | _ => S.Error.raise(`Value is not the #"OptionOf123" variant.`)
+        | _ => S.fail(`Value is not the #"OptionOf123" variant.`)
         },
       (),
     ),
@@ -854,7 +854,7 @@ test("Supports Option structs in union", t => {
       ~serializer=v =>
         switch v {
         | #OptionOfFloat(d) => d
-        | _ => S.Error.raise(`Value is not the #"OptionOfFloat" variant.`)
+        | _ => S.fail(`Value is not the #"OptionOfFloat" variant.`)
         },
       (),
     ),
@@ -875,12 +875,12 @@ test("Supports Option structs in union", t => {
   ~parser=d => #"OptionOf123"(d),
   ~serializer=v => switch v {
 | #"OptionOf123"(d) => d
-| _ => S.Error.raise(\`Value is not the #"OptionOf123" variant.\`)
+| _ => S.fail(\`Value is not the #"OptionOf123" variant.\`)
 }, ()), S.option(S.float())->S.transform(
   ~parser=d => #"OptionOfFloat"(d),
   ~serializer=v => switch v {
 | #"OptionOfFloat"(d) => d
-| _ => S.Error.raise(\`Value is not the #"OptionOfFloat" variant.\`)
+| _ => S.fail(\`Value is not the #"OptionOfFloat" variant.\`)
 }, ())])`,
     (),
   )
@@ -894,7 +894,7 @@ test("Supports Null structs in union", t => {
       ~serializer=v =>
         switch v {
         | #NullOf123(d) => d
-        | _ => S.Error.raise(`Value is not the #"NullOf123" variant.`)
+        | _ => S.fail(`Value is not the #"NullOf123" variant.`)
         },
       (),
     ),
@@ -903,7 +903,7 @@ test("Supports Null structs in union", t => {
       ~serializer=v =>
         switch v {
         | #NullOfFloat(d) => d
-        | _ => S.Error.raise(`Value is not the #"NullOfFloat" variant.`)
+        | _ => S.fail(`Value is not the #"NullOfFloat" variant.`)
         },
       (),
     ),
@@ -924,12 +924,12 @@ test("Supports Null structs in union", t => {
   ~parser=d => #"NullOf123"(d),
   ~serializer=v => switch v {
 | #"NullOf123"(d) => d
-| _ => S.Error.raise(\`Value is not the #"NullOf123" variant.\`)
+| _ => S.fail(\`Value is not the #"NullOf123" variant.\`)
 }, ()), S.null(S.float())->S.transform(
   ~parser=d => #"NullOfFloat"(d),
   ~serializer=v => switch v {
 | #"NullOfFloat"(d) => d
-| _ => S.Error.raise(\`Value is not the #"NullOfFloat" variant.\`)
+| _ => S.fail(\`Value is not the #"NullOfFloat" variant.\`)
 }, ())])`,
     (),
   )
@@ -943,7 +943,7 @@ test("Supports Array structs in union", t => {
       ~serializer=v =>
         switch v {
         | #ArrayOf123(d) => d
-        | _ => S.Error.raise(`Value is not the #"ArrayOf123" variant.`)
+        | _ => S.fail(`Value is not the #"ArrayOf123" variant.`)
         },
       (),
     ),
@@ -952,7 +952,7 @@ test("Supports Array structs in union", t => {
       ~serializer=v =>
         switch v {
         | #ArrayOfFloat(d) => d
-        | _ => S.Error.raise(`Value is not the #"ArrayOfFloat" variant.`)
+        | _ => S.fail(`Value is not the #"ArrayOfFloat" variant.`)
         },
       (),
     ),
@@ -973,12 +973,12 @@ test("Supports Array structs in union", t => {
   ~parser=d => #"ArrayOf123"(d),
   ~serializer=v => switch v {
 | #"ArrayOf123"(d) => d
-| _ => S.Error.raise(\`Value is not the #"ArrayOf123" variant.\`)
+| _ => S.fail(\`Value is not the #"ArrayOf123" variant.\`)
 }, ()), S.array(S.float())->S.transform(
   ~parser=d => #"ArrayOfFloat"(d),
   ~serializer=v => switch v {
 | #"ArrayOfFloat"(d) => d
-| _ => S.Error.raise(\`Value is not the #"ArrayOfFloat" variant.\`)
+| _ => S.fail(\`Value is not the #"ArrayOfFloat" variant.\`)
 }, ())])`,
     (),
   )
@@ -992,7 +992,7 @@ test("Supports Dict structs in union", t => {
       ~serializer=v =>
         switch v {
         | #DictOf123(d) => d
-        | _ => S.Error.raise(`Value is not the #"DictOf123" variant.`)
+        | _ => S.fail(`Value is not the #"DictOf123" variant.`)
         },
       (),
     ),
@@ -1001,7 +1001,7 @@ test("Supports Dict structs in union", t => {
       ~serializer=v =>
         switch v {
         | #DictOfFloat(d) => d
-        | _ => S.Error.raise(`Value is not the #"DictOfFloat" variant.`)
+        | _ => S.fail(`Value is not the #"DictOfFloat" variant.`)
         },
       (),
     ),
@@ -1022,12 +1022,12 @@ test("Supports Dict structs in union", t => {
   ~parser=d => #"DictOf123"(d),
   ~serializer=v => switch v {
 | #"DictOf123"(d) => d
-| _ => S.Error.raise(\`Value is not the #"DictOf123" variant.\`)
+| _ => S.fail(\`Value is not the #"DictOf123" variant.\`)
 }, ()), S.dict(S.float())->S.transform(
   ~parser=d => #"DictOfFloat"(d),
   ~serializer=v => switch v {
 | #"DictOfFloat"(d) => d
-| _ => S.Error.raise(\`Value is not the #"DictOfFloat" variant.\`)
+| _ => S.fail(\`Value is not the #"DictOfFloat" variant.\`)
 }, ())])`,
     (),
   )
@@ -1048,7 +1048,7 @@ test("Supports Object structs in union", t => {
       ~serializer=v =>
         switch v {
         | #Object(d) => d
-        | _ => S.Error.raise(`Value is not the #"Object" variant.`)
+        | _ => S.fail(`Value is not the #"Object" variant.`)
         },
       (),
     ),
@@ -1061,7 +1061,7 @@ test("Supports Object structs in union", t => {
       ~serializer=v =>
         switch v {
         | #Object2(d) => d
-        | _ => S.Error.raise(`Value is not the #"Object2" variant.`)
+        | _ => S.fail(`Value is not the #"Object2" variant.`)
         },
       (),
     ),
@@ -1086,7 +1086,7 @@ test("Supports Object structs in union", t => {
   ~parser=d => #"Object"(d),
   ~serializer=v => switch v {
 | #"Object"(d) => d
-| _ => S.Error.raise(\`Value is not the #"Object" variant.\`)
+| _ => S.fail(\`Value is not the #"Object" variant.\`)
 }, ()), S.object(o =>
   {
     "field": o->S.field("field", S.float()),
@@ -1095,7 +1095,7 @@ test("Supports Object structs in union", t => {
   ~parser=d => #"Object2"(d),
   ~serializer=v => switch v {
 | #"Object2"(d) => d
-| _ => S.Error.raise(\`Value is not the #"Object2" variant.\`)
+| _ => S.fail(\`Value is not the #"Object2" variant.\`)
 }, ())])`,
     (),
   )
@@ -1109,7 +1109,7 @@ test("Supports Tuple structs in union", t => {
       ~serializer=v =>
         switch v {
         | #Tuple(d) => d
-        | _ => S.Error.raise(`Value is not the #"Tuple" variant.`)
+        | _ => S.fail(`Value is not the #"Tuple" variant.`)
         },
       (),
     ),
@@ -1118,7 +1118,7 @@ test("Supports Tuple structs in union", t => {
       ~serializer=v =>
         switch v {
         | #Tuple2(d) => d
-        | _ => S.Error.raise(`Value is not the #"Tuple2" variant.`)
+        | _ => S.fail(`Value is not the #"Tuple2" variant.`)
         },
       (),
     ),
@@ -1139,12 +1139,12 @@ test("Supports Tuple structs in union", t => {
   ~parser=d => #"Tuple"(d),
   ~serializer=v => switch v {
 | #"Tuple"(d) => d
-| _ => S.Error.raise(\`Value is not the #"Tuple" variant.\`)
+| _ => S.fail(\`Value is not the #"Tuple" variant.\`)
 }, ()), S.tuple1(. S.float())->S.transform(
   ~parser=d => #"Tuple2"(d),
   ~serializer=v => switch v {
 | #"Tuple2"(d) => d
-| _ => S.Error.raise(\`Value is not the #"Tuple2" variant.\`)
+| _ => S.fail(\`Value is not the #"Tuple2" variant.\`)
 }, ())])`,
     (),
   )
@@ -1164,7 +1164,7 @@ test("Supports Union structs in union", t => {
       ~serializer=v =>
         switch v {
         | #Union(d) => d
-        | _ => S.Error.raise(`Value is not the #"Union" variant.`)
+        | _ => S.fail(`Value is not the #"Union" variant.`)
         },
       (),
     ),
@@ -1173,7 +1173,7 @@ test("Supports Union structs in union", t => {
       ~serializer=v =>
         switch v {
         | #Union2(d) => d
-        | _ => S.Error.raise(`Value is not the #"Union2" variant.`)
+        | _ => S.fail(`Value is not the #"Union2" variant.`)
         },
       (),
     ),
@@ -1187,12 +1187,12 @@ test("Supports Union structs in union", t => {
   ~parser=d => #"Union"(d),
   ~serializer=v => switch v {
 | #"Union"(d) => d
-| _ => S.Error.raise(\`Value is not the #"Union" variant.\`)
+| _ => S.fail(\`Value is not the #"Union" variant.\`)
 }, ()), S.union([S.literalVariant(Int(0), #"0"), S.literalVariant(Int(1), #"1")])->S.transform(
   ~parser=d => #"Union2"(d),
   ~serializer=v => switch v {
 | #"Union2"(d) => d
-| _ => S.Error.raise(\`Value is not the #"Union2" variant.\`)
+| _ => S.fail(\`Value is not the #"Union2" variant.\`)
 }, ())])`,
     (),
   )

@@ -27,10 +27,7 @@ test("Throws for factory without either a parser, or a serializer", t => {
 
 test("Fails to parse when user raises error in parser", t => {
   let struct =
-    S.string()->S.advancedTransform(
-      ~parser=(~struct as _) => Sync(_ => S.Error.raise("User error")),
-      (),
-    )
+    S.string()->S.advancedTransform(~parser=(~struct as _) => Sync(_ => S.fail("User error")), ())
 
   t->Assert.deepEqual(
     "Hello world!"->S.parseAnyWith(struct),
@@ -56,7 +53,7 @@ test("Successfully serializes", t => {
 test("Fails to serialize when user raises error in serializer", t => {
   let struct =
     S.string()->S.advancedTransform(
-      ~serializer=(~struct as _) => Sync(_ => S.Error.raise("User error")),
+      ~serializer=(~struct as _) => Sync(_ => S.fail("User error")),
       (),
     )
 
@@ -74,11 +71,8 @@ test("Fails to serialize when user raises error in serializer", t => {
 test("Transform operations applyed in the right order when parsing", t => {
   let struct =
     S.int()
-    ->S.advancedTransform(~parser=(~struct as _) => Sync(_ => S.Error.raise("First transform")), ())
-    ->S.advancedTransform(
-      ~parser=(~struct as _) => Sync(_ => S.Error.raise("Second transform")),
-      (),
-    )
+    ->S.advancedTransform(~parser=(~struct as _) => Sync(_ => S.fail("First transform")), ())
+    ->S.advancedTransform(~parser=(~struct as _) => Sync(_ => S.fail("Second transform")), ())
 
   t->Assert.deepEqual(
     123->S.parseAnyWith(struct),
@@ -94,14 +88,8 @@ test("Transform operations applyed in the right order when parsing", t => {
 test("Transform operations applyed in the right order when serializing", t => {
   let struct =
     S.int()
-    ->S.advancedTransform(
-      ~serializer=(~struct as _) => Sync(_ => S.Error.raise("First transform")),
-      (),
-    )
-    ->S.advancedTransform(
-      ~serializer=(~struct as _) => Sync(_ => S.Error.raise("Second transform")),
-      (),
-    )
+    ->S.advancedTransform(~serializer=(~struct as _) => Sync(_ => S.fail("First transform")), ())
+    ->S.advancedTransform(~serializer=(~struct as _) => Sync(_ => S.fail("Second transform")), ())
 
   t->Assert.deepEqual(
     123->S.serializeToUnknownWith(struct),
@@ -148,10 +136,7 @@ asyncTest("Successfully parses async using parseAsyncWith", t => {
 
 asyncTest("Fails to parse async with user error", t => {
   let struct =
-    S.string()->S.advancedTransform(
-      ~parser=(~struct as _) => Async(_ => S.Error.raise("User error")),
-      (),
-    )
+    S.string()->S.advancedTransform(~parser=(~struct as _) => Async(_ => S.fail("User error")), ())
 
   %raw(`"Hello world!"`)
   ->S.parseAsyncWith(struct)

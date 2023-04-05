@@ -48,10 +48,7 @@ test("Throws for factory without either a parser, or a serializer", t => {
 
 test("Fails to parse when user raises error in parser", t => {
   let struct =
-    S.string()->S.advancedPreprocess(
-      ~parser=(~struct as _) => Sync(_ => S.Error.raise("User error")),
-      (),
-    )
+    S.string()->S.advancedPreprocess(~parser=(~struct as _) => Sync(_ => S.fail("User error")), ())
 
   t->Assert.deepEqual(
     "Hello world!"->S.parseAnyWith(struct),
@@ -78,7 +75,7 @@ test("Successfully serializes", t => {
 test("Fails to serialize when user raises error in serializer", t => {
   let struct =
     S.string()->S.advancedPreprocess(
-      ~serializer=(~struct as _) => Sync(_ => S.Error.raise("User error")),
+      ~serializer=(~struct as _) => Sync(_ => S.fail("User error")),
       (),
     )
 
@@ -96,14 +93,8 @@ test("Fails to serialize when user raises error in serializer", t => {
 test("Preprocess operations applyed in the right order when parsing", t => {
   let struct =
     S.int()
-    ->S.advancedPreprocess(
-      ~parser=(~struct as _) => Sync(_ => S.Error.raise("First preprocess")),
-      (),
-    )
-    ->S.advancedPreprocess(
-      ~parser=(~struct as _) => Sync(_ => S.Error.raise("Second preprocess")),
-      (),
-    )
+    ->S.advancedPreprocess(~parser=(~struct as _) => Sync(_ => S.fail("First preprocess")), ())
+    ->S.advancedPreprocess(~parser=(~struct as _) => Sync(_ => S.fail("Second preprocess")), ())
 
   t->Assert.deepEqual(
     123->S.parseAnyWith(struct),
@@ -119,14 +110,8 @@ test("Preprocess operations applyed in the right order when parsing", t => {
 test("Preprocess operations applyed in the right order when serializing", t => {
   let struct =
     S.int()
-    ->S.advancedPreprocess(
-      ~serializer=(~struct as _) => Sync(_ => S.Error.raise("First preprocess")),
-      (),
-    )
-    ->S.advancedPreprocess(
-      ~serializer=(~struct as _) => Sync(_ => S.Error.raise("Second preprocess")),
-      (),
-    )
+    ->S.advancedPreprocess(~serializer=(~struct as _) => Sync(_ => S.fail("First preprocess")), ())
+    ->S.advancedPreprocess(~serializer=(~struct as _) => Sync(_ => S.fail("Second preprocess")), ())
 
   t->Assert.deepEqual(
     123->S.serializeToUnknownWith(struct),
@@ -173,10 +158,7 @@ asyncTest("Successfully parses async using parseAsyncWith", t => {
 
 asyncTest("Fails to parse async with user error", t => {
   let struct =
-    S.string()->S.advancedPreprocess(
-      ~parser=(~struct as _) => Async(_ => S.Error.raise("User error")),
-      (),
-    )
+    S.string()->S.advancedPreprocess(~parser=(~struct as _) => Async(_ => S.fail("User error")), ())
 
   %raw(`"Hello world!"`)
   ->S.parseAsyncWith(struct)

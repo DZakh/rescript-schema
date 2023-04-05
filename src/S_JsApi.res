@@ -93,6 +93,8 @@ let toJsStructFactory = factory => {
   () => factory()->toJsStruct
 }
 
+let fail = reason => S.fail(reason)
+
 let parse = data => {
   let struct = %raw("this")
   try {

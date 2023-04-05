@@ -266,7 +266,7 @@ test("Successfully serializes with refine", (t) => {
 
 test("Fails to parses with refine raising an error", (t) => {
   const struct = S.string().refine((_) => {
-    S.raiseError("User error");
+    S.fail("User error");
   });
 
   t.throws(
@@ -294,7 +294,7 @@ test("Successfully parses async struct", async (t) => {
 test("Fails to parses async struct", async (t) => {
   const struct = S.string().asyncRefine(async (_) => {
     return Promise.resolve().then(() => {
-      S.raiseError("User error");
+      S.fail("User error");
     });
   });
 
@@ -311,10 +311,10 @@ test("Custom string struct", (t) => {
     "Postcode",
     (unknown) => {
       if (typeof unknown !== "string") {
-        throw S.raiseError("Postcode should be a string");
+        throw S.fail("Postcode should be a string");
       }
       if (unknown.length !== 5) {
-        throw S.raiseError("Postcode should be 5 characters");
+        throw S.fail("Postcode should be 5 characters");
       }
       return unknown;
     },

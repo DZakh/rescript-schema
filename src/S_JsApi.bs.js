@@ -30,6 +30,10 @@ function fromError(error) {
 
 var structOperations = {};
 
+function fail(reason) {
+  return S$RescriptStruct.fail(undefined, reason);
+}
+
 function parse(data) {
   var struct = this;
   try {
@@ -293,6 +297,7 @@ var $$Object = {
 
 exports.$$Error = $$Error;
 exports.Result = Result;
+exports.fail = fail;
 exports.string = string;
 exports.$$boolean = $$boolean;
 exports.integer = integer;
