@@ -356,63 +356,6 @@ function dictFromJson(decoder, json) {
   }
 }
 
-var string = [
-  stringToJson,
-  stringFromJson
-];
-
-var $$int = [
-  intToJson,
-  intFromJson
-];
-
-var int64Unsafe = [
-  int64ToJsonUnsafe,
-  int64FromJsonUnsafe
-];
-
-var $$float = [
-  floatToJson,
-  floatFromJson
-];
-
-var bool = [
-  boolToJson,
-  boolFromJson
-];
-
-var array = [
-  arrayToJson,
-  arrayFromJson
-];
-
-var list = [
-  listToJson,
-  listFromJson
-];
-
-var option = [
-  optionToJson,
-  optionFromJson
-];
-
-var unit = [
-  unitToJson,
-  unitFromJson
-];
-
-var Codecs = {
-  string: string,
-  $$int: $$int,
-  int64Unsafe: int64Unsafe,
-  $$float: $$float,
-  bool: bool,
-  array: array,
-  list: list,
-  option: option,
-  unit: unit
-};
-
 exports.error = error;
 exports.stringToJson = stringToJson;
 exports.stringFromJson = stringFromJson;
@@ -439,5 +382,4 @@ exports.resultToJson = resultToJson;
 exports.resultFromJson = resultFromJson;
 exports.dictToJson = dictToJson;
 exports.dictFromJson = dictFromJson;
-exports.Codecs = Codecs;
 /* No side effect */

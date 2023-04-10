@@ -153,15 +153,3 @@ let dictFromJson = (decoder, json) =>
     )
   | None => Error({path: "", message: "Not a dict", value: json})
   }
-
-module Codecs = {
-  let string = (stringToJson, stringFromJson)
-  let int = (intToJson, intFromJson)
-  let int64Unsafe = (int64ToJsonUnsafe, int64FromJsonUnsafe)
-  let float = (floatToJson, floatFromJson)
-  let bool = (boolToJson, boolFromJson)
-  let array = (arrayToJson, arrayFromJson)
-  let list = (listToJson, listFromJson)
-  let option = (optionToJson, optionFromJson)
-  let unit = (unitToJson, unitFromJson)
-}
