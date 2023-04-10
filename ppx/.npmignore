@@ -1,0 +1,11 @@
+.github
+.vscode
+examples
+test
+src/bin
+src/ppx
+src/.ocamlformat
+src/dune
+src/dune-project
+src/dune-workspace
+src/ppx_struct.opam

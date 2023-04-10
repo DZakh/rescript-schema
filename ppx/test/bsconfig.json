@@ -1,0 +1,24 @@
+{
+  "name": "rescript-struct-ppx-test",
+  "sources": [
+    {
+      "dir": "__tests__",
+      "type": "dev"
+    },
+    {
+      "dir": "src"
+    }
+  ],
+  "package-specs": {
+    "module": "commonjs",
+    "in-source": true
+  },
+  "bs-dependencies": ["@rescript/core"],
+  "bs-dev-dependencies": ["@glennsl/bs-jest"],
+  "ppx-flags": ["../ppx"],
+  "warnings": {
+    "error": true,
+    "number": "-48-44"
+  },
+  "bsc-flags": ["-bs-super-errors", "-open RescriptCore"]
+}
