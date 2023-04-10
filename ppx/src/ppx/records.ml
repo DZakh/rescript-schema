@@ -50,7 +50,7 @@ let generate_dict_get { key; codecs = _, decoder; default } =
       [%expr
         Belt.Option.getWithDefault
           (Belt.Option.map (Js.Dict.get dict [%e key]) [%e decoder])
-          (Belt.Result.Ok [%e default])]
+          (Ok [%e default])]
   | None ->
       [%expr
         Belt.Option.getWithDefault (Js.Dict.get dict [%e key]) Js.Json.null
@@ -61,9 +61,9 @@ let generate_dict_gets decls =
 
 let generate_error_case { key } =
   {
-    pc_lhs = [%pat? Belt.Result.Error (e : Spice.decodeError)];
+    pc_lhs = [%pat? Error (e : Spice.decodeError)];
     pc_guard = None;
-    pc_rhs = [%expr Belt.Result.Error { e with path = "." ^ [%e key] ^ e.path }];
+    pc_rhs = [%expr Error { e with path = "." ^ [%e key] ^ e.path }];
   }
 
 let generate_final_record_expr decls =
@@ -71,11 +71,11 @@ let generate_final_record_expr decls =
   |> List.map (fun { name; is_optional } ->
          let attrs = if is_optional then [ optional_attr ] else [] in
          (lid name, make_ident_expr ~attrs name))
-  |> fun l -> [%expr Belt.Result.Ok [%e Exp.record l None]]
+  |> fun l -> [%expr Ok [%e Exp.record l None]]
 
 let generate_success_case { name } success_expr =
   {
-    pc_lhs = (mknoloc name |> Pat.var |> fun p -> [%pat? Belt.Result.Ok [%p p]]);
+    pc_lhs = (mknoloc name |> Pat.var |> fun p -> [%pat? Ok [%p p]]);
     pc_guard = None;
     pc_rhs = success_expr;
   }
@@ -108,7 +108,7 @@ let generate_decoder decls unboxed =
 
       [%expr
         fun v ->
-          Belt.Result.map ([%e Option.get d] v) (fun v -> [%e record_expr])]
+          map ([%e Option.get d] v) (fun v -> [%e record_expr])]
   | false ->
       [%expr
         fun v ->

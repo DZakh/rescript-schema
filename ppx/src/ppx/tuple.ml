@@ -23,14 +23,14 @@ let generate_decode_success_case num_args =
     pc_lhs =
       Array.init num_args (fun i ->
           mknoloc ("v" ^ string_of_int i) |> Pat.var |> fun p ->
-          [%pat? Belt.Result.Ok [%p p]])
+          [%pat? Ok [%p p]])
       |> Array.to_list
       |> tuple_or_singleton Pat.tuple;
     pc_guard = None;
     pc_rhs =
       ( Array.init num_args (fun i -> make_ident_expr ("v" ^ string_of_int i))
       |> Array.to_list |> Exp.tuple
-      |> fun e -> [%expr Belt.Result.Ok [%e e]] );
+      |> fun e -> [%expr Ok [%e e]] );
   }
 
 let generate_decode_switch composite_decoders =

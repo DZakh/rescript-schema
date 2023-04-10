@@ -62,7 +62,7 @@ and generate_constr_codecs { do_encode; do_decode }
         if do_decode then Some [%expr Spice.dictFromJson] else None )
   | Ldot (Ldot (Lident "Js", "Json"), "t") ->
       ( (if do_encode then Some [%expr fun v -> v] else None),
-        if do_decode then Some [%expr fun v -> Belt.Result.Ok v] else None )
+        if do_decode then Some [%expr fun v -> Ok v] else None )
   | Lident s ->
       ( (if do_encode then Some (make_ident_expr (s ^ Utils.encoder_func_suffix))
         else None),

@@ -76,7 +76,7 @@ let generate_decode_success_case num_args constructor_name =
     pc_lhs =
       Array.init num_args (fun i ->
           mknoloc ("v" ^ string_of_int i) |> Pat.var |> fun p ->
-          [%pat? Belt.Result.Ok [%p p]])
+          [%pat? Ok [%p p]])
       |> Array.to_list
       |> tuple_or_singleton Pat.tuple;
     pc_guard = None;
@@ -86,7 +86,7 @@ let generate_decode_success_case num_args constructor_name =
       |> tuple_or_singleton Exp.tuple
       |> fun v ->
         Some v |> Exp.variant constructor_name |> fun e ->
-        [%expr Belt.Result.Ok [%e e]] );
+        [%expr Ok [%e e]] );
   }
 
 let generate_arg_decoder generator_settings args constructor_name =
@@ -122,7 +122,7 @@ let generate_decoder_case generator_settings { prf_desc } =
         match args with
         | [] ->
             let resultant_exp = Exp.variant txt None in
-            [%expr Belt.Result.Ok [%e resultant_exp]]
+            [%expr Ok [%e resultant_exp]]
         | _ -> generate_arg_decoder generator_settings args txt
       in
 
@@ -151,7 +151,7 @@ let generate_decoder_case_attr generator_settings row =
         match args with
         | [] ->
             let resultant_exp = Exp.variant txt None in
-            [%expr Belt.Result.Ok [%e resultant_exp]]
+            [%expr Ok [%e resultant_exp]]
         | _ -> generate_arg_decoder generator_settings args txt
       in
 
@@ -183,7 +183,7 @@ let generate_unboxed_decode generator_settings { prf_desc } =
               Some
                 [%expr
                   fun v ->
-                    Belt.Result.map ([%e d] v) (fun v -> [%e constructor])]
+                    map ([%e d] v) (fun v -> [%e constructor])]
           | None -> None)
       | _ -> fail loc "Expected exactly one type argument")
   | Rinherit coreType ->

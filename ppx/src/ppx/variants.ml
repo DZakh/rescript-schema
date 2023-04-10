@@ -54,7 +54,7 @@ let generate_decode_success_case num_args constructor_name =
     pc_lhs =
       Array.init num_args (fun i ->
           mknoloc ("v" ^ string_of_int i) |> Pat.var |> fun p ->
-          [%pat? Belt.Result.Ok [%p p]])
+          [%pat? Ok [%p p]])
       |> Array.to_list
       |> tuple_or_singleton Pat.tuple;
     pc_guard = None;
@@ -64,7 +64,7 @@ let generate_decode_success_case num_args constructor_name =
       |> tuple_or_singleton Exp.tuple
       |> fun v ->
         Some v |> Exp.construct (lid constructor_name) |> fun e ->
-        [%expr Belt.Result.Ok [%e e]] );
+        [%expr Ok [%e e]] );
   }
 
 let generate_arg_decoder generator_settings args constructor_name =
@@ -100,7 +100,7 @@ let generate_decoder_case generator_settings
         match args with
         | [] ->
             let ident = lid name in
-            [%expr Belt.Result.Ok [%e Exp.construct ident None]]
+            [%expr Ok [%e Exp.construct ident None]]
         | _ -> generate_arg_decoder generator_settings args name
       in
 
@@ -126,7 +126,7 @@ let generate_decoder_case_attr generator_settings
         match args with
         | [] ->
             let ident = lid name in
-            [%expr Belt.Result.Ok [%e Exp.construct ident None]]
+            [%expr Ok [%e Exp.construct ident None]]
         | _ -> generate_arg_decoder generator_settings args name
       in
 

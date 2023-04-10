@@ -10,7 +10,7 @@ let rec add_encoder_params param_names result_type =
       |> add_encoder_params tl
 
 let make_result_type value_type =
-  [%type: ([%t value_type], Spice.decodeError) Belt.Result.t]
+  [%type: ([%t value_type], Spice.decodeError) result]
 
 let rec add_decoder_params param_names result_type =
   match param_names with

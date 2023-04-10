@@ -8,11 +8,11 @@ let generate_error_case numArgs i _ =
     pc_lhs =
       Array.init numArgs (fun which ->
           match which == i with
-          | true -> [%pat? Belt.Result.Error (e : Spice.decodeError)]
+          | true -> [%pat? Error (e : Spice.decodeError)]
           | false -> [%pat? _])
       |> Array.to_list
       |> tuple_or_singleton Pat.tuple;
     pc_guard = None;
     pc_rhs =
-      [%expr Belt.Result.Error { e with path = [%e index_const i] ^ e.path }];
+      [%expr Error { e with path = [%e index_const i] ^ e.path }];
   }
