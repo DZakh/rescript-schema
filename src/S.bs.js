@@ -8,6 +8,14 @@ var Caml_option = require("rescript/lib/js/caml_option.js");
 var Caml_exceptions = require("rescript/lib/js/caml_exceptions.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
+function test(data) {
+  if (typeof data === "number" && data < 2147483648 && data > -2147483649) {
+    return data % 1 === 0;
+  } else {
+    return false;
+  }
+}
+
 function fromString(string) {
   return JSON.stringify(string);
 }
@@ -1204,13 +1212,7 @@ function factory(innerLiteral, variant) {
       case /* Int */1 :
           var $$int = innerLiteral._0;
           var serializeTransformationFactory$4 = makeSerializeTransformationFactory($$int);
-          var parseTransformationFactory$1 = makeParseTransformationFactory($$int, (function (input) {
-                  if (typeof input === "number" && input < 2147483648 && input > -2147483649) {
-                    return input % 1 === 0;
-                  } else {
-                    return false;
-                  }
-                }));
+          var parseTransformationFactory$1 = makeParseTransformationFactory($$int, test);
           var name = "Int Literal (" + $$int.toString() + ")";
           return {
                   n: name,

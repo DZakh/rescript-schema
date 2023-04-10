@@ -22,15 +22,9 @@
 
 - Support optional fields (can have problems with serializing) (???)
 
-- Add date refinement for string (copy zod) (?)
-
 - S.mutateWith/S.produceWith (aka immer) (???)
 
-- Add S.catch / S.fallback (?)
-
 - Make the TS code reuse rescript output instead of creating a separate bundle
-
-- Inline literals check used in S.object (Optimize S.literalVariant without transform)
 
 - Add S.function (?) (An alternative for external ???)
 
@@ -53,3 +47,12 @@ let struct = S.tuple(o => (o->S.item(0, S.string()), o->S.item(1, S.int())))
 - Use instanceof Error for internal error (???)
 
 - Think of the S.advancedTransform and S.advancedPreprocess destiny
+
+v4.1
+
+- S.variant
+- Inline literals check used in S.object (Optimize S.literalVariant without transform)
+- S.Int.multipleOf
+- S.Float.multipleOf
+- Add S.catch / S.fallback (?)
+- Add date refinement for string (copy zod) (?)

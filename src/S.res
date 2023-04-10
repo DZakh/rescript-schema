@@ -1540,7 +1540,7 @@ module Literal = {
             ~tagged,
             ~parseTransformationFactory=makeParseTransformationFactory(
               ~literalValue=int,
-              ~test=input => input->Stdlib.Int.test,
+              ~test=Stdlib.Int.test,
             ),
             ~serializeTransformationFactory=makeSerializeTransformationFactory(int),
             (),
