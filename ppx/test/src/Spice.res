@@ -155,7 +155,6 @@ let dictFromJson = (decoder, json) =>
   }
 
 module Codecs = {
-  include Spice_Codecs
   let string = (stringToJson, stringFromJson)
   let int = (intToJson, intFromJson)
   let int64Unsafe = (int64ToJsonUnsafe, int64FromJsonUnsafe)

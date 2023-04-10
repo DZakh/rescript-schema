@@ -13,7 +13,6 @@ var Belt_Result = require("rescript/lib/js/belt_Result.js");
 var Caml_option = require("rescript/lib/js/caml_option.js");
 var Core__Array = require("@rescript/core/src/Core__Array.js");
 var Core__Result = require("@rescript/core/src/Core__Result.js");
-var Spice_Codecs = require("./Spice_Codecs.js");
 
 function error(path, message, value) {
   var path$1 = path !== undefined ? path : "";
@@ -403,11 +402,6 @@ var unit = [
 ];
 
 var Codecs = {
-  falseableEncode: Spice_Codecs.falseableEncode,
-  falseableDecode: Spice_Codecs.falseableDecode,
-  falseable: Spice_Codecs.falseable,
-  magicDecode: Spice_Codecs.magicDecode,
-  magic: Spice_Codecs.magic,
   string: string,
   $$int: $$int,
   int64Unsafe: int64Unsafe,
