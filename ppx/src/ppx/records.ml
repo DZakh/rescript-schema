@@ -106,9 +106,7 @@ let generate_decoder decls unboxed =
 
       let record_expr = Exp.record [ (lid name, make_ident_expr "v") ] None in
 
-      [%expr
-        fun v ->
-          map ([%e Option.get d] v) (fun v -> [%e record_expr])]
+      [%expr fun v -> map ([%e Option.get d] v) (fun v -> [%e record_expr])]
   | false ->
       [%expr
         fun v ->
@@ -116,8 +114,7 @@ let generate_decoder decls unboxed =
           | Js.Json.JSONObject dict -> [%e generate_nested_switches decls]
           | _ -> Spice.error "Not an object" v]
 
-let parse_decl generator_settings
-    { pld_name = { txt }; pld_loc; pld_type; pld_attributes } =
+let parse_decl { pld_name = { txt }; pld_loc; pld_type; pld_attributes } =
   let default =
     match get_attribute_by_name pld_attributes "struct.default" with
     | Ok (Some attribute) -> Some (get_expression_from_payload attribute)
@@ -136,7 +133,7 @@ let parse_decl generator_settings
     |> List.map (fun attr -> get_attribute_by_name pld_attributes attr)
     |> List.exists (function Ok (Some _) -> true | _ -> false)
   in
-  let codecs = Codecs.generate_codecs generator_settings pld_type in
+  let codecs = Codecs.generate_codecs pld_type in
   let codecs =
     if is_optional then
       match codecs with
@@ -158,8 +155,7 @@ let parse_decl generator_settings
     is_optional;
   }
 
-let generate_codecs ({ do_encode; do_decode } as generator_settings) decls
-    unboxed =
-  let parsed_decls = List.map (parse_decl generator_settings) decls in
-  ( (if do_encode then Some (generate_encoder parsed_decls unboxed) else None),
-    if do_decode then Some (generate_decoder parsed_decls unboxed) else None )
+let generate_codecs decls unboxed =
+  let parsed_decls = List.map parse_decl decls in
+  ( (if true then Some (generate_encoder parsed_decls unboxed) else None),
+    if true then Some (generate_decoder parsed_decls unboxed) else None )

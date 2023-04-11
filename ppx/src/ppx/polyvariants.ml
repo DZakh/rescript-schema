@@ -27,7 +27,7 @@ let get_args_from_polyvars ~loc coreTypes =
         "This error shoudn't happen, means that the AST of your polyvariant is \
          wrong"
 
-let generate_encoder_case generator_settings unboxed has_attr_as row =
+let generate_encoder_case unboxed has_attr_as row =
   let { name; alias; row_field = { prf_desc } } = row in
   match prf_desc with
   | Rtag (_, _attributes, core_types) ->
@@ -51,7 +51,7 @@ let generate_encoder_case generator_settings unboxed has_attr_as row =
 
       let rhs_list =
         args
-        |> List.map (Codecs.generate_codecs generator_settings)
+        |> List.map Codecs.generate_codecs
         |> List.map (fun (encoder, _) -> Option.get encoder)
         |> List.mapi (fun i e ->
                Exp.apply ~loc e
@@ -85,18 +85,17 @@ let generate_decode_success_case num_args constructor_name =
       |> Array.to_list
       |> tuple_or_singleton Exp.tuple
       |> fun v ->
-        Some v |> Exp.variant constructor_name |> fun e ->
-        [%expr Ok [%e e]] );
+        Some v |> Exp.variant constructor_name |> fun e -> [%expr Ok [%e e]] );
   }
 
-let generate_arg_decoder generator_settings args constructor_name =
+let generate_arg_decoder args constructor_name =
   let num_args = List.length args in
   args
   |> List.mapi (Decode_cases.generate_error_case num_args)
   |> List.append [ generate_decode_success_case num_args constructor_name ]
   |> Exp.match_
        (args
-       |> List.map (Codecs.generate_codecs generator_settings)
+       |> List.map Codecs.generate_codecs
        |> List.mapi (fun i (_, decoder) ->
               Exp.apply (Option.get decoder)
                 [
@@ -110,7 +109,7 @@ let generate_arg_decoder generator_settings args constructor_name =
                 ])
        |> tuple_or_singleton Exp.tuple)
 
-let generate_decoder_case generator_settings { prf_desc } =
+let generate_decoder_case { prf_desc } =
   match prf_desc with
   | Rtag ({ txt }, _, core_types) ->
       let args = get_args_from_polyvars ~loc core_types in
@@ -123,7 +122,7 @@ let generate_decoder_case generator_settings { prf_desc } =
         | [] ->
             let resultant_exp = Exp.variant txt None in
             [%expr Ok [%e resultant_exp]]
-        | _ -> generate_arg_decoder generator_settings args txt
+        | _ -> generate_arg_decoder args txt
       in
 
       {
@@ -139,9 +138,10 @@ let generate_decoder_case generator_settings { prf_desc } =
             else [%e decoded]];
       }
   | Rinherit core_type ->
-      fail core_type.ptyp_loc "This syntax is not yet implemented by rescript-struct"
+      fail core_type.ptyp_loc
+        "This syntax is not yet implemented by rescript-struct"
 
-let generate_decoder_case_attr generator_settings row =
+let generate_decoder_case_attr row =
   let { alias; row_field = { prf_desc } } = row in
   match prf_desc with
   | Rtag ({ txt }, _, core_types) ->
@@ -152,7 +152,7 @@ let generate_decoder_case_attr generator_settings row =
         | [] ->
             let resultant_exp = Exp.variant txt None in
             [%expr Ok [%e resultant_exp]]
-        | _ -> generate_arg_decoder generator_settings args txt
+        | _ -> generate_arg_decoder args txt
       in
 
       let if' =
@@ -168,26 +168,25 @@ let generate_decoder_case_attr generator_settings row =
 
       (if', then')
   | Rinherit core_type ->
-      fail core_type.ptyp_loc "This syntax is not yet implemented by rescript-struct"
+      fail core_type.ptyp_loc
+        "This syntax is not yet implemented by rescript-struct"
 
-let generate_unboxed_decode generator_settings { prf_desc } =
+let generate_unboxed_decode { prf_desc } =
   match prf_desc with
   | Rtag ({ txt; loc }, _, args) -> (
       match args with
       | [ a ] -> (
-          let _, d = Codecs.generate_codecs generator_settings a in
+          let _, d = Codecs.generate_codecs a in
           match d with
           | Some d ->
               let constructor = Exp.construct (lid txt) (Some [%expr v]) in
 
-              Some
-                [%expr
-                  fun v ->
-                    map ([%e d] v) (fun v -> [%e constructor])]
+              Some [%expr fun v -> map ([%e d] v) (fun v -> [%e constructor])]
           | None -> None)
       | _ -> fail loc "Expected exactly one type argument")
   | Rinherit coreType ->
-      fail coreType.ptyp_loc "This syntax is not yet implemented by rescript-struct"
+      fail coreType.ptyp_loc
+        "This syntax is not yet implemented by rescript-struct"
 
 let parse_decl ({ prf_desc; prf_loc; prf_attributes } as row_field) =
   let txt =
@@ -205,8 +204,7 @@ let parse_decl ({ prf_desc; prf_loc; prf_attributes } as row_field) =
 
   { name = txt; alias; has_attr_as; row_field }
 
-let generate_codecs ({ do_encode; do_decode } as generator_settings) row_fields
-    unboxed =
+let generate_codecs row_fields unboxed =
   let parsed_fields = List.map parse_decl row_fields in
   let count_has_attr =
     parsed_fields |> List.filter (fun v -> v.has_attr_as) |> List.length
@@ -219,22 +217,19 @@ let generate_codecs ({ do_encode; do_decode } as generator_settings) row_fields
   in
 
   let encoder =
-    if do_encode then
+    if true then
       Some
-        (List.map
-           (generate_encoder_case generator_settings unboxed has_attr_as)
-           parsed_fields
+        (List.map (generate_encoder_case unboxed has_attr_as) parsed_fields
         |> Exp.match_ [%expr v]
         |> Exp.fun_ Asttypes.Nolabel None [%pat? v])
     else None
   in
 
   let decoder =
-    match not do_decode with
+    match not true with
     | true -> None
     | false ->
-        if unboxed then
-          generate_unboxed_decode generator_settings (List.hd row_fields)
+        if unboxed then generate_unboxed_decode (List.hd row_fields)
         else if has_attr_as then
           let rec make_ifthenelse cases =
             match cases with
@@ -246,7 +241,7 @@ let generate_codecs ({ do_encode; do_decode } as generator_settings) row_fields
 
           let decoder_switch =
             parsed_fields
-            |> List.map (generate_decoder_case_attr generator_settings)
+            |> List.map generate_decoder_case_attr
             |> make_ifthenelse
           in
 
@@ -269,8 +264,7 @@ let generate_codecs ({ do_encode; do_decode } as generator_settings) row_fields
           in
 
           let decoder_switch =
-            row_fields |> List.map (generate_decoder_case generator_settings)
-            |> fun l ->
+            row_fields |> List.map generate_decoder_case |> fun l ->
             l @ [ decoder_default_case ]
             |> Exp.match_ [%expr Belt.Array.getExn tagged 0]
           in

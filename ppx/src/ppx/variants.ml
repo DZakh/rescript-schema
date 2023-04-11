@@ -10,7 +10,7 @@ type parsed_decl = {
   constr_decl : Parsetree.constructor_declaration;
 }
 
-let generate_encoder_case generator_settings unboxed has_attr_as
+let generate_encoder_case unboxed has_attr_as
     { name; alias; constr_decl = { pcd_args; pcd_loc } } =
   match pcd_args with
   | Pcstr_tuple args ->
@@ -31,7 +31,7 @@ let generate_encoder_case generator_settings unboxed has_attr_as
       in
       let rhs_list =
         args
-        |> List.map (Codecs.generate_codecs generator_settings)
+        |> List.map Codecs.generate_codecs
         |> List.map (fun (encoder, _) -> Option.get encoder)
         |> List.mapi (fun i e ->
                Exp.apply ~loc:pcd_loc e
@@ -47,7 +47,8 @@ let generate_encoder_case generator_settings unboxed has_attr_as
           else if has_attr_as then [%expr Js.Json.string [%e constructor_expr]]
           else [%expr Js.Json.array [%e rhs_list |> Exp.array]]);
       }
-  | Pcstr_record _ -> fail pcd_loc "This syntax is not yet implemented by rescript-struct"
+  | Pcstr_record _ ->
+      fail pcd_loc "This syntax is not yet implemented by rescript-struct"
 
 let generate_decode_success_case num_args constructor_name =
   {
@@ -67,14 +68,14 @@ let generate_decode_success_case num_args constructor_name =
         [%expr Ok [%e e]] );
   }
 
-let generate_arg_decoder generator_settings args constructor_name =
+let generate_arg_decoder args constructor_name =
   let num_args = List.length args in
   args
   |> List.mapi (Decode_cases.generate_error_case num_args)
   |> List.append [ generate_decode_success_case num_args constructor_name ]
   |> Exp.match_
        (args
-       |> List.map (Codecs.generate_codecs generator_settings)
+       |> List.map Codecs.generate_codecs
        |> List.mapi (fun i (_, decoder) ->
               Exp.apply (Option.get decoder)
                 [
@@ -88,8 +89,7 @@ let generate_arg_decoder generator_settings args constructor_name =
                 ])
        |> tuple_or_singleton Exp.tuple)
 
-let generate_decoder_case generator_settings
-    { pcd_name = { txt = name }; pcd_args; pcd_loc } =
+let generate_decoder_case { pcd_name = { txt = name }; pcd_args; pcd_loc } =
   match pcd_args with
   | Pcstr_tuple args ->
       let arg_len =
@@ -101,7 +101,7 @@ let generate_decoder_case generator_settings
         | [] ->
             let ident = lid name in
             [%expr Ok [%e Exp.construct ident None]]
-        | _ -> generate_arg_decoder generator_settings args name
+        | _ -> generate_arg_decoder args name
       in
 
       {
@@ -115,9 +115,10 @@ let generate_decoder_case generator_settings
               Spice.error "Invalid number of arguments to variant constructor" v
             else [%e decoded]];
       }
-  | Pcstr_record _ -> fail pcd_loc "This syntax is not yet implemented by rescript-struct"
+  | Pcstr_record _ ->
+      fail pcd_loc "This syntax is not yet implemented by rescript-struct"
 
-let generate_decoder_case_attr generator_settings
+let generate_decoder_case_attr
     { name; alias; constr_decl = { pcd_args; pcd_loc } } =
   match pcd_args with
   | Pcstr_tuple args ->
@@ -127,7 +128,7 @@ let generate_decoder_case_attr generator_settings
         | [] ->
             let ident = lid name in
             [%expr Ok [%e Exp.construct ident None]]
-        | _ -> generate_arg_decoder generator_settings args name
+        | _ -> generate_arg_decoder args name
       in
 
       let if' =
@@ -142,15 +143,15 @@ let generate_decoder_case_attr generator_settings
       let then' = [%expr [%e decoded]] in
 
       (if', then')
-  | Pcstr_record _ -> fail pcd_loc "This syntax is not yet implemented by rescript-struct"
+  | Pcstr_record _ ->
+      fail pcd_loc "This syntax is not yet implemented by rescript-struct"
 
-let generate_unboxed_decode generator_settings
-    { pcd_name = { txt = name }; pcd_args; pcd_loc } =
+let generate_unboxed_decode { pcd_name = { txt = name }; pcd_args; pcd_loc } =
   match pcd_args with
   | Pcstr_tuple args -> (
       match args with
       | [ a ] -> (
-          let _, d = Codecs.generate_codecs generator_settings a in
+          let _, d = Codecs.generate_codecs a in
           match d with
           | Some d ->
               let constructor = Exp.construct (lid name) (Some [%expr v]) in
@@ -161,10 +162,11 @@ let generate_unboxed_decode generator_settings
                     Belt.Result.map ([%e d] v) (fun v -> [%e constructor])]
           | None -> None)
       | _ -> fail pcd_loc "Expected exactly one type argument")
-  | Pcstr_record _ -> fail pcd_loc "This syntax is not yet implemented by rescript-struct"
+  | Pcstr_record _ ->
+      fail pcd_loc "This syntax is not yet implemented by rescript-struct"
 
-let parse_decl _generator_settings
-    ({ pcd_name = { txt }; pcd_loc; pcd_attributes } as constr_decl) =
+let parse_decl ({ pcd_name = { txt }; pcd_loc; pcd_attributes } as constr_decl)
+    =
   let alias, has_attr_as =
     match get_attribute_by_name pcd_attributes "struct.as" with
     | Ok (Some attribute) -> (get_expression_from_payload attribute, true)
@@ -174,9 +176,8 @@ let parse_decl _generator_settings
 
   { name = txt; alias; has_attr_as; constr_decl }
 
-let generate_codecs ({ do_encode; do_decode } as generator_settings)
-    constr_decls unboxed =
-  let parsed_decls = List.map (parse_decl generator_settings) constr_decls in
+let generate_codecs constr_decls unboxed =
+  let parsed_decls = List.map parse_decl constr_decls in
   let count_has_attr =
     parsed_decls |> List.filter (fun v -> v.has_attr_as) |> List.length
   in
@@ -188,22 +189,20 @@ let generate_codecs ({ do_encode; do_decode } as generator_settings)
   in
 
   let encoder =
-    if do_encode then
+    if true then
       Some
         (parsed_decls
-        |> List.map
-             (generate_encoder_case generator_settings unboxed has_attr_as)
+        |> List.map (generate_encoder_case unboxed has_attr_as)
         |> Exp.match_ [%expr v]
         |> Exp.fun_ Asttypes.Nolabel None [%pat? v])
     else None
   in
 
   let decoder =
-    match not do_decode with
+    match not true with
     | true -> None
     | false ->
-        if unboxed then
-          generate_unboxed_decode generator_settings (List.hd constr_decls)
+        if unboxed then generate_unboxed_decode (List.hd constr_decls)
         else if has_attr_as then
           let rec make_ifthenelse cases =
             match cases with
@@ -214,10 +213,7 @@ let generate_codecs ({ do_encode; do_decode } as generator_settings)
           in
 
           let decoder_switch =
-            List.map
-              (generate_decoder_case_attr generator_settings)
-              parsed_decls
-            |> make_ifthenelse
+            List.map generate_decoder_case_attr parsed_decls |> make_ifthenelse
           in
 
           Some
@@ -239,8 +235,7 @@ let generate_codecs ({ do_encode; do_decode } as generator_settings)
           in
 
           let decoder_switch =
-            constr_decls |> List.map (generate_decoder_case generator_settings)
-            |> fun l ->
+            constr_decls |> List.map generate_decoder_case |> fun l ->
             l @ [ decoder_default_case ]
             |> Exp.match_ [%expr Belt.Array.getExn tagged 0]
           in

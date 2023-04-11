@@ -28,27 +28,6 @@ let get_attribute_by_name attributes name =
   | [ attribute ] -> Ok (Some attribute)
   | _ -> Error ("Too many occurrences of \"" ^ name ^ "\" attribute")
 
-type generator_settings = { do_encode : bool; do_decode : bool }
-
-let get_generator_settings_from_attributes attributes =
-  match get_attribute_by_name attributes annotation_name with
-  | Ok None -> (
-      match
-        ( get_attribute_by_name attributes (annotation_name ^ ".decode"),
-          get_attribute_by_name attributes (annotation_name ^ ".encode") )
-      with
-      | Ok (Some _), Ok (Some _) ->
-          Ok (Some { do_encode = true; do_decode = true })
-      | Ok (Some _), Ok None ->
-          Ok (Some { do_encode = false; do_decode = true })
-      | Ok None, Ok (Some _) ->
-          Ok (Some { do_encode = true; do_decode = false })
-      | Ok None, Ok None -> Ok None
-      | (Error _ as e), _ -> e
-      | _, (Error _ as e) -> e)
-  | Ok (Some _) -> Ok (Some { do_encode = true; do_decode = true })
-  | Error _ as e -> e
-
 let get_expression_from_payload { attr_name = { loc }; attr_payload = payload }
     =
   match payload with
@@ -102,3 +81,6 @@ let attr_warning expr =
     attr_payload = PStr [ { pstr_desc = Pstr_eval (expr, []); pstr_loc = loc } ];
     attr_loc = loc;
   }
+
+let get_generated_struct_name type_name =
+  match type_name with "t" -> "struct" | _ -> type_name ^ "Struct"
