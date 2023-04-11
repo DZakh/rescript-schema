@@ -15,5 +15,5 @@ let signature_mapper = (new mapper)#signature
 
 let structure_mapper = (new mapper)#structure;;
 
-Ppxlib.Driver.register_transformation ~preprocess_impl:structure_mapper
-  ~preprocess_intf:signature_mapper "struct"
+Ppxlib.Driver.register_transformation ~impl:structure_mapper
+  ~intf:signature_mapper "struct"
