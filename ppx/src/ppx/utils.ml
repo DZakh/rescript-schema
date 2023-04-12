@@ -3,9 +3,7 @@ open Parsetree
 open Ast_helper
 
 let annotation_name = "struct"
-let encoder_func_suffix = "_encode"
 let decoder_func_suffix = "_decode"
-let encoder_var_prefix = "encoder_"
 let decoder_var_prefix = "decoder_"
 let loc = !default_loc
 let fail loc message = Location.raise_errorf ~loc "%s" message

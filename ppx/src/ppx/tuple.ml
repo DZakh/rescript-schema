@@ -3,21 +3,6 @@ open Parsetree
 open Ast_helper
 open Utils
 
-let generate_encoder composite_encoders =
-  let arrExp =
-    composite_encoders
-    |> List.mapi (fun i e ->
-           let vExp = Exp.ident (lid ("v" ^ string_of_int i)) in
-           [%expr [%e e] [%e vExp]])
-    |> Exp.array
-  in
-  let deconstructor_pattern =
-    composite_encoders
-    |> List.mapi (fun i _ -> Pat.var (mknoloc ("v" ^ string_of_int i)))
-    |> Pat.tuple
-  in
-  [%expr fun [%p deconstructor_pattern] -> [%e arrExp] |> Js.Json.array]
-
 let generate_decode_success_case num_args =
   {
     pc_lhs =

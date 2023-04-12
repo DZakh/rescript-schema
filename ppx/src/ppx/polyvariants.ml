@@ -27,50 +27,6 @@ let get_args_from_polyvars ~loc coreTypes =
         "This error shoudn't happen, means that the AST of your polyvariant is \
          wrong"
 
-let generate_encoder_case unboxed has_attr_as row =
-  let { name; alias; row_field = { prf_desc } } = row in
-  match prf_desc with
-  | Rtag (_, _attributes, core_types) ->
-      let alias_name, _, delimit = get_string_from_expression alias in
-      let constructor_expr =
-        Exp.constant (Pconst_string (alias_name, Location.none, delimit))
-      in
-      let args = get_args_from_polyvars ~loc core_types in
-
-      let lhs_vars =
-        match args with
-        | [] -> None
-        | [ _ ] -> Some (Pat.var (mknoloc "v0"))
-        | _ ->
-            args
-            |> List.mapi (fun i _ ->
-                   mkloc ("v" ^ string_of_int i) loc |> Pat.var)
-            |> Pat.tuple
-            |> fun v -> Some v
-      in
-
-      let rhs_list =
-        args
-        |> List.map Codecs.generate_codecs
-        |> List.map (fun (encoder, _) -> Option.get encoder)
-        |> List.mapi (fun i e ->
-               Exp.apply ~loc e
-                 [ (Asttypes.Nolabel, make_ident_expr ("v" ^ string_of_int i)) ])
-        |> List.append [ [%expr Js.Json.string [%e constructor_expr]] ]
-      in
-
-      {
-        pc_lhs = Pat.variant name lhs_vars;
-        pc_guard = None;
-        pc_rhs =
-          (if unboxed then List.tl rhs_list |> List.hd (* diff *)
-          else if has_attr_as then [%expr Js.Json.string [%e constructor_expr]]
-          else [%expr Js.Json.array [%e rhs_list |> Exp.array]]);
-      }
-  (* We don't have enough information to generate a encoder *)
-  | Rinherit arg ->
-      fail arg.ptyp_loc "This syntax is not yet implemented by rescript-struct"
-
 let generate_decode_success_case num_args constructor_name =
   {
     pc_lhs =
@@ -95,9 +51,9 @@ let generate_arg_decoder args constructor_name =
   |> List.append [ generate_decode_success_case num_args constructor_name ]
   |> Exp.match_
        (args
-       |> List.map Codecs.generate_codecs
-       |> List.mapi (fun i (_, decoder) ->
-              Exp.apply (Option.get decoder)
+       |> List.map Codecs.generate_struct_expr
+       |> List.mapi (fun i struct_expr ->
+              Exp.apply struct_expr
                 [
                   ( Asttypes.Nolabel,
                     (* +1 because index 0 is the constructor *)
@@ -175,14 +131,12 @@ let generate_unboxed_decode { prf_desc } =
   match prf_desc with
   | Rtag ({ txt; loc }, _, args) -> (
       match args with
-      | [ a ] -> (
-          let _, d = Codecs.generate_codecs a in
-          match d with
-          | Some d ->
-              let constructor = Exp.construct (lid txt) (Some [%expr v]) in
+      | [ a ] ->
+          let d = Codecs.generate_struct_expr a in
 
-              Some [%expr fun v -> map ([%e d] v) (fun v -> [%e constructor])]
-          | None -> None)
+          let constructor = Exp.construct (lid txt) (Some [%expr v]) in
+
+          [%expr fun v -> map ([%e d] v) (fun v -> [%e constructor])]
       | _ -> fail loc "Expected exactly one type argument")
   | Rinherit coreType ->
       fail coreType.ptyp_loc
@@ -204,7 +158,7 @@ let parse_decl ({ prf_desc; prf_loc; prf_attributes } as row_field) =
 
   { name = txt; alias; has_attr_as; row_field }
 
-let generate_codecs row_fields unboxed =
+let generate_struct_expr row_fields unboxed =
   let parsed_fields = List.map parse_decl row_fields in
   let count_has_attr =
     parsed_fields |> List.filter (fun v -> v.has_attr_as) |> List.length
@@ -216,69 +170,49 @@ let generate_codecs row_fields unboxed =
     else false
   in
 
-  let encoder =
-    if true then
-      Some
-        (List.map (generate_encoder_case unboxed has_attr_as) parsed_fields
-        |> Exp.match_ [%expr v]
-        |> Exp.fun_ Asttypes.Nolabel None [%pat? v])
-    else None
-  in
+  if unboxed then generate_unboxed_decode (List.hd row_fields)
+  else if has_attr_as then
+    let rec make_ifthenelse cases =
+      match cases with
+      | [] -> [%expr Spice.error "Not matched" v]
+      | hd :: tl ->
+          let if_, then_ = hd in
+          Exp.ifthenelse if_ then_ (Some (make_ifthenelse tl))
+    in
 
-  let decoder =
-    match not true with
-    | true -> None
-    | false ->
-        if unboxed then generate_unboxed_decode (List.hd row_fields)
-        else if has_attr_as then
-          let rec make_ifthenelse cases =
-            match cases with
-            | [] -> [%expr Spice.error "Not matched" v]
-            | hd :: tl ->
-                let if_, then_ = hd in
-                Exp.ifthenelse if_ then_ (Some (make_ifthenelse tl))
-          in
+    let decoder_switch =
+      parsed_fields |> List.map generate_decoder_case_attr |> make_ifthenelse
+    in
 
-          let decoder_switch =
-            parsed_fields
-            |> List.map generate_decoder_case_attr
-            |> make_ifthenelse
-          in
+    [%expr
+      fun v ->
+        match Js.Json.classify v with
+        | Js.Json.JSONString str -> [%e decoder_switch]
+        | _ -> Spice.error "Not a JSONString" v]
+  else
+    let decoder_default_case =
+      {
+        pc_lhs = [%pat? _];
+        pc_guard = None;
+        pc_rhs =
+          [%expr
+            Spice.error "Invalid polymorphic constructor"
+              (Belt.Array.getExn json_arr 0)];
+      }
+    in
 
-          Some
-            [%expr
-              fun v ->
-                match Js.Json.classify v with
-                | Js.Json.JSONString str -> [%e decoder_switch]
-                | _ -> Spice.error "Not a JSONString" v]
-        else
-          let decoder_default_case =
-            {
-              pc_lhs = [%pat? _];
-              pc_guard = None;
-              pc_rhs =
-                [%expr
-                  Spice.error "Invalid polymorphic constructor"
-                    (Belt.Array.getExn json_arr 0)];
-            }
-          in
+    let decoder_switch =
+      row_fields |> List.map generate_decoder_case |> fun l ->
+      l @ [ decoder_default_case ]
+      |> Exp.match_ [%expr Belt.Array.getExn tagged 0]
+    in
 
-          let decoder_switch =
-            row_fields |> List.map generate_decoder_case |> fun l ->
-            l @ [ decoder_default_case ]
-            |> Exp.match_ [%expr Belt.Array.getExn tagged 0]
-          in
-
-          Some
-            [%expr
-              fun v ->
-                match Js.Json.classify v with
-                | Js.Json.JSONArray [||] ->
-                    Spice.error "Expected polyvariant, found empty array" v
-                | Js.Json.JSONArray json_arr ->
-                    let tagged = Js.Array.map Js.Json.classify json_arr in
-                    [%e decoder_switch]
-                | _ -> Spice.error "Not a polyvariant" v]
-  in
-
-  (encoder, decoder)
+    [%expr
+      fun v ->
+        match Js.Json.classify v with
+        | Js.Json.JSONArray [||] ->
+            Spice.error "Expected polyvariant, found empty array" v
+        | Js.Json.JSONArray json_arr ->
+            let tagged = Js.Array.map Js.Json.classify json_arr in
+            [%e decoder_switch]
+        | _ -> Spice.error "Not a polyvariant" v]

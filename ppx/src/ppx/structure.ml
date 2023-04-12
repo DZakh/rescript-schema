@@ -4,14 +4,9 @@ open Ast_helper
 open Codecs
 open Utils
 
-let generate_decls type_name (maybe_encoder_expr, maybe_decoder_expr) =
+let generate_decls type_name struct_expr =
   let struct_name_pat =
     Pat.var (mknoloc (get_generated_struct_name type_name))
-  in
-
-  let struct_expr =
-    match (maybe_encoder_expr, maybe_decoder_expr) with
-    | _, _ -> [%expr S.unknown ()]
   in
 
   [ Vb.mk struct_name_pat struct_expr ]
@@ -38,12 +33,12 @@ let map_type_decl decl =
       fail ptype_loc "Can't generate codecs for unspecified type"
   | Some { ptyp_desc = Ptyp_variant (row_fields, _, _) }, Ptype_abstract ->
       generate_decls type_name
-        (Polyvariants.generate_codecs row_fields is_unboxed)
-  | Some manifest, _ -> generate_decls type_name (generate_codecs manifest)
+        (Polyvariants.generate_struct_expr row_fields is_unboxed)
+  | Some manifest, _ -> generate_decls type_name (generate_struct_expr manifest)
   | None, Ptype_variant decls ->
-      generate_decls type_name (Variants.generate_codecs decls is_unboxed)
+      generate_decls type_name (Variants.generate_struct_expr decls is_unboxed)
   | None, Ptype_record decls ->
-      generate_decls type_name (Records.generate_codecs decls is_unboxed)
+      generate_decls type_name (Records.generate_struct_expr decls is_unboxed)
   | _ -> fail ptype_loc "This type is not handled by rescript-struct"
 
 let map_structure_item mapper ({ pstr_desc } as structure_item) =
