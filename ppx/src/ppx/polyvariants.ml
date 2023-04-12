@@ -151,7 +151,7 @@ let parse_decl ({ prf_desc; prf_loc; prf_attributes } as row_field) =
 
   let alias, has_attr_as =
     match get_attribute_by_name prf_attributes "struct.as" with
-    | Ok (Some attribute) -> (get_expression_from_payload attribute, true)
+    | Ok (Some attribute) -> (get_expr_from_payload attribute, true)
     | Ok None -> (Exp.constant (Pconst_string (txt, Location.none, None)), false)
     | Error s -> (fail prf_loc s, false)
   in

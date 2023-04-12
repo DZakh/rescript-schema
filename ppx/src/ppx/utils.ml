@@ -26,8 +26,7 @@ let get_attribute_by_name attributes name =
   | [ attribute ] -> Ok (Some attribute)
   | _ -> Error ("Too many occurrences of \"" ^ name ^ "\" attribute")
 
-let get_expression_from_payload { attr_name = { loc }; attr_payload = payload }
-    =
+let get_expr_from_payload { attr_name = { loc }; attr_payload = payload } =
   match payload with
   | PStr [ { pstr_desc } ] -> (
       match pstr_desc with

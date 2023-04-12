@@ -93,13 +93,13 @@ let generate_decoder decls unboxed =
 let parse_decl { pld_name = { txt }; pld_loc; pld_type; pld_attributes } =
   let default =
     match get_attribute_by_name pld_attributes "struct.default" with
-    | Ok (Some attribute) -> Some (get_expression_from_payload attribute)
+    | Ok (Some attribute) -> Some (get_expr_from_payload attribute)
     | Ok None -> None
     | Error s -> fail pld_loc s
   in
   let key =
     match get_attribute_by_name pld_attributes "struct.key" with
-    | Ok (Some attribute) -> get_expression_from_payload attribute
+    | Ok (Some attribute) -> get_expr_from_payload attribute
     | Ok None -> Exp.constant (Pconst_string (txt, Location.none, None))
     | Error s -> fail pld_loc s
   in

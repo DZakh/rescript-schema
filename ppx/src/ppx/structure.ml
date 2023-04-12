@@ -8,8 +8,11 @@ let generate_decls type_name struct_expr =
   let struct_name_pat =
     Pat.var (mknoloc (get_generated_struct_name type_name))
   in
-
-  [ Vb.mk struct_name_pat struct_expr ]
+  [
+    Vb.mk struct_name_pat
+      (Exp.constraint_ struct_expr
+         [%type: [%t Typ.constr (lid type_name) []] S.t]);
+  ]
 
 let map_type_decl decl =
   let {
@@ -30,7 +33,7 @@ let map_type_decl decl =
 
   match (ptype_manifest, ptype_kind) with
   | None, Ptype_abstract ->
-      fail ptype_loc "Can't generate codecs for unspecified type"
+      fail ptype_loc "Can't generate struct for unspecified type"
   | Some { ptyp_desc = Ptyp_variant (row_fields, _, _) }, Ptype_abstract ->
       generate_decls type_name
         (Polyvariants.generate_struct_expr row_fields is_unboxed)
