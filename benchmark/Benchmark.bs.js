@@ -77,36 +77,36 @@ function makeAdvancedStrictObjectStruct() {
 }
 
 run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new Benchmark.Suite().add("String struct factory", makeStringStruct), "Parse string", (function (param) {
-                                  var struct = makeStringStruct();
+                                  var struct = S$RescriptStruct.string(undefined);
                                   return function () {
                                     return S$RescriptStruct.parseAnyOrRaiseWith("Hello world!", struct);
                                   };
                                 })), "Serialize string", (function (param) {
-                              var struct = makeStringStruct();
+                              var struct = S$RescriptStruct.string(undefined);
                               return function () {
                                 return S$RescriptStruct.serializeOrRaiseWith("Hello world!", struct);
                               };
                             })).add("Advanced object struct factory", makeAdvancedObjectStruct), "Parse advanced object", (function (param) {
-                        var struct = makeAdvancedObjectStruct();
-                        var data = makeTestObject();
+                        var struct = makeAdvancedObjectStruct(undefined);
+                        var data = makeTestObject(undefined);
                         return function () {
                           return S$RescriptStruct.parseAnyOrRaiseWith(data, struct);
                         };
                       })), "Create and parse advanced object", (function (param) {
-                    var data = makeTestObject();
+                    var data = makeTestObject(undefined);
                     return function () {
-                      var struct = makeAdvancedObjectStruct();
+                      var struct = makeAdvancedObjectStruct(undefined);
                       return S$RescriptStruct.parseAnyOrRaiseWith(data, struct);
                     };
                   })), "Parse advanced strict object", (function (param) {
-                var struct = makeAdvancedStrictObjectStruct();
-                var data = makeTestObject();
+                var struct = makeAdvancedStrictObjectStruct(undefined);
+                var data = makeTestObject(undefined);
                 return function () {
                   return S$RescriptStruct.parseAnyOrRaiseWith(data, struct);
                 };
               })), "Serialize advanced object", (function (param) {
-            var struct = makeAdvancedObjectStruct();
-            var data = makeTestObject();
+            var struct = makeAdvancedObjectStruct(undefined);
+            var data = makeTestObject(undefined);
             return function () {
               return S$RescriptStruct.serializeOrRaiseWith(data, struct);
             };

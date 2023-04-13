@@ -57,7 +57,7 @@ function raise(expected, received, initialPathOpt, param) {
         RE_EXN_ID: Exception,
         _1: {
           c: {
-            TAG: /* UnexpectedValue */2,
+            TAG: "UnexpectedValue",
             expected: expected === undefined ? "undefined" : JSON.stringify(expected),
             received: received === undefined ? "undefined" : JSON.stringify(received)
           },
@@ -80,7 +80,7 @@ function raise$1(code) {
 
 function toParseError(internalError) {
   return {
-          operation: /* Parsing */1,
+          operation: "Parsing",
           code: internalError.c,
           path: internalError.p
         };
@@ -88,7 +88,7 @@ function toParseError(internalError) {
 
 function toSerializeError(internalError) {
   return {
-          operation: /* Serializing */0,
+          operation: "Serializing",
           code: internalError.c,
           path: internalError.p
         };
@@ -102,7 +102,7 @@ function prependPath(error, path) {
 }
 
 function panic($$location) {
-  throw new Error("[rescript-struct] " + ("For a " + $$location + " either a parser, or a serializer is required") + "");
+  throw new Error("[rescript-struct] " + ("For a " + $$location + " either a parser, or a serializer is required"));
 }
 
 function panic$1(param) {
@@ -112,52 +112,53 @@ function panic$1(param) {
 function toReason(nestedLevelOpt, error) {
   var nestedLevel = nestedLevelOpt !== undefined ? nestedLevelOpt : 0;
   var reason = error.code;
-  if (typeof reason === "number") {
+  if (typeof reason !== "object") {
     switch (reason) {
-      case /* MissingParser */0 :
+      case "MissingParser" :
           return "Struct parser is missing";
-      case /* MissingSerializer */1 :
+      case "MissingSerializer" :
           return "Struct serializer is missing";
-      case /* UnexpectedAsync */2 :
+      case "UnexpectedAsync" :
           return "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith";
       
     }
   } else {
-    switch (reason.TAG | 0) {
-      case /* OperationFailed */0 :
+    switch (reason.TAG) {
+      case "OperationFailed" :
           return reason._0;
-      case /* UnexpectedType */1 :
-      case /* UnexpectedValue */2 :
+      case "UnexpectedType" :
+      case "UnexpectedValue" :
           break;
-      case /* TupleSize */3 :
-          return "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString() + "";
-      case /* ExcessField */4 :
+      case "TupleSize" :
+          return "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString();
+      case "ExcessField" :
           return "Encountered disallowed excess key \"" + reason._0 + "\" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely";
-      case /* InvalidUnion */5 :
-          var lineBreak = "\n" + " ".repeat((nestedLevel << 1)) + "";
+      case "InvalidUnion" :
+          var lineBreak = "\n" + " ".repeat((nestedLevel << 1));
           var array = reason._0.map(function (error) {
                 var reason = toReason(nestedLevel + 1, error);
                 var nonEmptyPath = error.path;
                 var $$location = nonEmptyPath === "" ? "" : "Failed at " + nonEmptyPath + ". ";
-                return "- " + $$location + "" + reason + "";
+                return "- " + $$location + reason;
               });
           var reasons = Array.from(new Set(array));
-          return "Invalid union with following errors" + lineBreak + "" + reasons.join(lineBreak) + "";
-      case /* InvalidJsonStruct */6 :
+          return "Invalid union with following errors" + lineBreak + reasons.join(lineBreak);
+      case "InvalidJsonStruct" :
           return "The struct " + reason.received + " is not compatible with JSON";
       
     }
   }
-  return "Expected " + reason.expected + ", received " + reason.received + "";
+  return "Expected " + reason.expected + ", received " + reason.received;
 }
 
 function toString(error) {
   var match = error.operation;
-  var operation = match ? "parsing" : "serializing";
+  var operation;
+  operation = match === "Serializing" ? "serializing" : "parsing";
   var reason = toReason(undefined, error);
   var nonEmptyPath = error.path;
   var pathText = nonEmptyPath === "" ? "root" : nonEmptyPath;
-  return "Failed " + operation + " at " + pathText + ". Reason: " + reason + "";
+  return "Failed " + operation + " at " + pathText + ". Reason: " + reason;
 }
 
 function advancedFail(error) {
@@ -177,7 +178,7 @@ function fail(pathOpt, message) {
         RE_EXN_ID: Exception,
         _1: {
           c: {
-            TAG: /* OperationFailed */0,
+            TAG: "OperationFailed",
             _0: message
           },
           p: path
@@ -194,43 +195,51 @@ function planSyncTransformation(ctx, transformation) {
   var prevSyncTransformation = ctx.s;
   var prevAsyncTransformation = ctx.a;
   var match = ctx.p;
-  if (match !== 1) {
-    if (match !== 0) {
-      ctx.a = (function (input) {
-          return prevAsyncTransformation(input).then(transformation);
-        });
-    } else {
-      ctx.p = /* OnlySync */1;
-      ctx.s = transformation;
-    }
-  } else {
-    ctx.s = (function (input) {
-        return transformation(prevSyncTransformation(input));
-      });
+  switch (match) {
+    case "NoTransformation" :
+        ctx.p = "OnlySync";
+        ctx.s = transformation;
+        return ;
+    case "OnlySync" :
+        ctx.s = (function (input) {
+            return transformation(prevSyncTransformation(input));
+          });
+        return ;
+    case "OnlyAsync" :
+    case "SyncAndAsync" :
+        break;
+    
   }
+  ctx.a = (function (input) {
+      return prevAsyncTransformation(input).then(transformation);
+    });
 }
 
 function planAsyncTransformation(ctx, transformation) {
   var prevAsyncTransformation = ctx.a;
   var match = ctx.p;
-  if (match !== 1) {
-    if (match !== 0) {
-      ctx.a = (function (input) {
-          return prevAsyncTransformation(input).then(transformation);
-        });
-    } else {
-      ctx.p = /* OnlyAsync */2;
-      ctx.a = transformation;
-    }
-  } else {
-    ctx.p = /* SyncAndAsync */3;
-    ctx.a = transformation;
+  switch (match) {
+    case "NoTransformation" :
+        ctx.p = "OnlyAsync";
+        ctx.a = transformation;
+        return ;
+    case "OnlySync" :
+        ctx.p = "SyncAndAsync";
+        ctx.a = transformation;
+        return ;
+    case "OnlyAsync" :
+    case "SyncAndAsync" :
+        break;
+    
   }
+  ctx.a = (function (input) {
+      return prevAsyncTransformation(input).then(transformation);
+    });
 }
 
 function planMissingParserTransformation(ctx) {
   planSyncTransformation(ctx, (function (param) {
-          return raise$1(/* MissingParser */0);
+          return raise$1("MissingParser");
         }));
 }
 
@@ -240,32 +249,32 @@ function empty(param, param$1) {
 
 function compile(transformationFactory, struct) {
   var ctx = {
-    p: /* NoTransformation */0,
+    p: "NoTransformation",
     s: undefined,
     a: undefined
   };
   transformationFactory(ctx, struct);
   var match = ctx.p;
   switch (match) {
-    case /* NoTransformation */0 :
-        return /* NoOperation */0;
-    case /* OnlySync */1 :
+    case "NoTransformation" :
+        return "NoOperation";
+    case "OnlySync" :
         return {
-                TAG: /* SyncOperation */0,
+                TAG: "SyncOperation",
                 _0: ctx.s
               };
-    case /* OnlyAsync */2 :
+    case "OnlyAsync" :
         return {
-                TAG: /* AsyncOperation */1,
+                TAG: "AsyncOperation",
                 _0: (function (input) {
                     return function () {
                       return ctx.a(input);
                     };
                   })
               };
-    case /* SyncAndAsync */3 :
+    case "SyncAndAsync" :
         return {
-                TAG: /* AsyncOperation */1,
+                TAG: "AsyncOperation",
                 _0: (function (input) {
                     var syncOutput = ctx.s(input);
                     return function () {
@@ -292,7 +301,7 @@ function getParseOperation(struct) {
   }
   if (parseOperationState === 2) {
     return {
-            TAG: /* SyncOperation */0,
+            TAG: "SyncOperation",
             _0: (function (input) {
                 return struct.p(input);
               })
@@ -300,7 +309,7 @@ function getParseOperation(struct) {
   }
   if (parseOperationState === 3) {
     return {
-            TAG: /* AsyncOperation */1,
+            TAG: "AsyncOperation",
             _0: (function (input) {
                 return struct.a(input);
               })
@@ -325,8 +334,8 @@ function getSerializeOperation(struct) {
   struct.e = 1;
   var fn = compile(struct.sf, struct);
   var compiledSerializeOperation;
-  compiledSerializeOperation = typeof fn === "number" ? undefined : (
-      fn.TAG === /* SyncOperation */0 ? fn._0 : panic$1(undefined)
+  compiledSerializeOperation = typeof fn !== "object" ? undefined : (
+      fn.TAG === "SyncOperation" ? fn._0 : panic$1(undefined)
     );
   struct.e = compiledSerializeOperation;
   return compiledSerializeOperation;
@@ -334,7 +343,7 @@ function getSerializeOperation(struct) {
 
 function isAsyncParse(struct) {
   var match = getParseOperation(struct);
-  if (typeof match === "number" || match.TAG === /* SyncOperation */0) {
+  if (typeof match !== "object" || match.TAG === "SyncOperation") {
     return false;
   } else {
     return true;
@@ -344,45 +353,45 @@ function isAsyncParse(struct) {
 function raiseUnexpectedTypeError(input, struct) {
   var number = Js_types.classify(input);
   var tmp;
-  if (typeof number === "number") {
+  if (typeof number !== "object") {
     switch (number) {
-      case /* JSFalse */0 :
-      case /* JSTrue */1 :
+      case "JSFalse" :
+      case "JSTrue" :
           tmp = "Bool";
           break;
-      case /* JSNull */2 :
+      case "JSNull" :
           tmp = "Null";
           break;
-      case /* JSUndefined */3 :
+      case "JSUndefined" :
           tmp = "Option";
           break;
       
     }
   } else {
-    switch (number.TAG | 0) {
-      case /* JSNumber */0 :
+    switch (number.TAG) {
+      case "JSNumber" :
           tmp = Number.isNaN(number._0) ? "NaN Literal (NaN)" : "Float";
           break;
-      case /* JSString */1 :
+      case "JSString" :
           tmp = "String";
           break;
-      case /* JSFunction */2 :
+      case "JSFunction" :
           tmp = "Function";
           break;
-      case /* JSObject */3 :
+      case "JSObject" :
           tmp = Array.isArray(number._0) ? "Array" : "Object";
           break;
-      case /* JSSymbol */4 :
+      case "JSSymbol" :
           tmp = "Symbol";
           break;
-      case /* JSBigInt */5 :
+      case "JSBigInt" :
           tmp = "BigInt";
           break;
       
     }
   }
   return raise$1({
-              TAG: /* UnexpectedType */1,
+              TAG: "UnexpectedType",
               expected: struct.n,
               received: tmp
             });
@@ -404,33 +413,38 @@ function validateJsonStruct(_struct) {
   while(true) {
     var struct = _struct;
     var childrenStructs = struct.t;
-    if (typeof childrenStructs === "number") {
-      if (childrenStructs === /* Unknown */1) {
+    if (typeof childrenStructs !== "object") {
+      if (childrenStructs === "Unknown") {
         return raise$1({
-                    TAG: /* InvalidJsonStruct */6,
+                    TAG: "InvalidJsonStruct",
                     received: struct.n
                   });
       } else {
         return ;
       }
     }
-    switch (childrenStructs.TAG | 0) {
-      case /* Literal */0 :
-          var match = childrenStructs._0;
-          if (typeof match === "number" && match !== 0) {
-            return raise$1({
-                        TAG: /* InvalidJsonStruct */6,
-                        received: struct.n
-                      });
-          } else {
+    switch (childrenStructs.TAG) {
+      case "Literal" :
+          var tmp = childrenStructs._0;
+          if (typeof tmp === "object") {
             return ;
           }
-      case /* Option */1 :
+          switch (tmp) {
+            case "EmptyOption" :
+            case "NaN" :
+                return raise$1({
+                            TAG: "InvalidJsonStruct",
+                            received: struct.n
+                          });
+            default:
+              return ;
+          }
+      case "Option" :
           return raise$1({
-                      TAG: /* InvalidJsonStruct */6,
+                      TAG: "InvalidJsonStruct",
                       received: struct.n
                     });
-      case /* Object */4 :
+      case "Object" :
           var fieldNames = childrenStructs.fieldNames;
           var fields = childrenStructs.fields;
           for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
@@ -438,9 +452,9 @@ function validateJsonStruct(_struct) {
             var fieldStruct = fields[fieldName];
             try {
               var s = fieldStruct.t;
-              var tmp;
-              tmp = typeof s === "number" || s.TAG !== /* Option */1 ? fieldStruct : s._0;
-              validateJsonStruct(tmp);
+              var tmp$1;
+              tmp$1 = typeof s !== "object" || s.TAG !== "Option" ? fieldStruct : s._0;
+              validateJsonStruct(tmp$1);
             }
             catch (raw_e){
               var e = Caml_js_exceptions.internalToOCamlException(raw_e);
@@ -455,7 +469,7 @@ function validateJsonStruct(_struct) {
             }
           }
           return ;
-      case /* Tuple */5 :
+      case "Tuple" :
           childrenStructs._0.forEach(function (childStruct, i) {
                 try {
                   return validateJsonStruct(childStruct);
@@ -474,12 +488,12 @@ function validateJsonStruct(_struct) {
                 }
               });
           return ;
-      case /* Union */6 :
+      case "Union" :
           childrenStructs._0.forEach(validateJsonStruct);
           return ;
-      case /* Null */2 :
-      case /* Array */3 :
-      case /* Dict */7 :
+      case "Null" :
+      case "Array" :
+      case "Dict" :
           _struct = childrenStructs._0;
           continue ;
       
@@ -515,9 +529,9 @@ function intitialParse(input) {
   var struct = this;
   var fn = getParseOperation(struct);
   var compiledParse;
-  compiledParse = typeof fn === "number" ? noOperation : (
-      fn.TAG === /* SyncOperation */0 ? fn._0 : (function (param) {
-            return raise$1(/* UnexpectedAsync */2);
+  compiledParse = typeof fn !== "object" ? noOperation : (
+      fn.TAG === "SyncOperation" ? fn._0 : (function (param) {
+            return raise$1("UnexpectedAsync");
           })
     );
   struct.p = compiledParse;
@@ -534,9 +548,9 @@ function intitialParseAsync(input) {
   var struct = this;
   var fn = getParseOperation(struct);
   var compiledParseAsync;
-  if (typeof fn === "number") {
+  if (typeof fn !== "object") {
     compiledParseAsync = asyncNoopOperation;
-  } else if (fn.TAG === /* SyncOperation */0) {
+  } else if (fn.TAG === "SyncOperation") {
     var fn$1 = fn._0;
     compiledParseAsync = (function (input) {
         var syncValue = fn$1(input);
@@ -554,7 +568,7 @@ function intitialParseAsync(input) {
 function parseAnyWith(any, struct) {
   try {
     return {
-            TAG: /* Ok */0,
+            TAG: "Ok",
             _0: struct.p(any)
           };
   }
@@ -562,7 +576,7 @@ function parseAnyWith(any, struct) {
     var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
     if (internalError.RE_EXN_ID === Exception) {
       return {
-              TAG: /* Error */1,
+              TAG: "Error",
               _0: toParseError(internalError._1)
             };
     }
@@ -589,7 +603,7 @@ function parseAnyOrRaiseWith(any, struct) {
 
 function asyncPrepareOk(value) {
   return {
-          TAG: /* Ok */0,
+          TAG: "Ok",
           _0: value
         };
 }
@@ -597,7 +611,7 @@ function asyncPrepareOk(value) {
 function asyncPrepareError(exn) {
   if (exn.RE_EXN_ID === Exception) {
     return {
-            TAG: /* Error */1,
+            TAG: "Error",
             _0: toParseError(exn._1)
           };
   }
@@ -606,13 +620,13 @@ function asyncPrepareError(exn) {
 
 function parseAnyAsyncWith(any, struct) {
   try {
-    return struct.a(any)().then(asyncPrepareOk, asyncPrepareError);
+    return struct.a(any)(undefined).then(asyncPrepareOk, asyncPrepareError);
   }
   catch (raw_internalError){
     var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
     if (internalError.RE_EXN_ID === Exception) {
       return Promise.resolve({
-                  TAG: /* Error */1,
+                  TAG: "Error",
                   _0: toParseError(internalError._1)
                 });
     }
@@ -624,9 +638,9 @@ function parseAnyAsyncInStepsWith(any, struct) {
   try {
     var asyncFn = struct.a(any);
     return {
-            TAG: /* Ok */0,
+            TAG: "Ok",
             _0: (function () {
-                return asyncFn().then(asyncPrepareOk, asyncPrepareError);
+                return asyncFn(undefined).then(asyncPrepareOk, asyncPrepareError);
               })
           };
   }
@@ -634,7 +648,7 @@ function parseAnyAsyncInStepsWith(any, struct) {
     var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
     if (internalError.RE_EXN_ID === Exception) {
       return {
-              TAG: /* Error */1,
+              TAG: "Error",
               _0: toParseError(internalError._1)
             };
     }
@@ -645,7 +659,7 @@ function parseAnyAsyncInStepsWith(any, struct) {
 function serializeToUnknownWith(value, struct) {
   try {
     return {
-            TAG: /* Ok */0,
+            TAG: "Ok",
             _0: struct.s(value)
           };
   }
@@ -653,7 +667,7 @@ function serializeToUnknownWith(value, struct) {
     var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
     if (internalError.RE_EXN_ID === Exception) {
       return {
-              TAG: /* Error */1,
+              TAG: "Error",
               _0: toSerializeError(internalError._1)
             };
     }
@@ -698,7 +712,7 @@ function serializeToUnknownOrRaiseWith(value, struct) {
 function serializeWith(value, struct) {
   try {
     return {
-            TAG: /* Ok */0,
+            TAG: "Ok",
             _0: struct.j(value)
           };
   }
@@ -706,7 +720,7 @@ function serializeWith(value, struct) {
     var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
     if (internalError.RE_EXN_ID === Exception) {
       return {
-              TAG: /* Error */1,
+              TAG: "Error",
               _0: toSerializeError(internalError._1)
             };
     }
@@ -717,9 +731,9 @@ function serializeWith(value, struct) {
 function serializeToJsonWith(value, spaceOpt, struct) {
   var space = spaceOpt !== undefined ? spaceOpt : 0;
   var json = serializeWith(value, struct);
-  if (json.TAG === /* Ok */0) {
+  if (json.TAG === "Ok") {
     return {
-            TAG: /* Ok */0,
+            TAG: "Ok",
             _0: JSON.stringify(json._0, null, space)
           };
   } else {
@@ -731,7 +745,7 @@ function parseJsonWith(json, struct) {
   var json$1;
   try {
     json$1 = {
-      TAG: /* Ok */0,
+      TAG: "Ok",
       _0: JSON.parse(json)
     };
   }
@@ -739,11 +753,11 @@ function parseJsonWith(json, struct) {
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
     if (error.RE_EXN_ID === Js_exn.$$Error) {
       json$1 = {
-        TAG: /* Error */1,
+        TAG: "Error",
         _0: {
-          operation: /* Parsing */1,
+          operation: "Parsing",
           code: {
-            TAG: /* OperationFailed */0,
+            TAG: "OperationFailed",
             _0: error._1.message
           },
           path: ""
@@ -753,7 +767,7 @@ function parseJsonWith(json, struct) {
       throw error;
     }
   }
-  if (json$1.TAG === /* Ok */0) {
+  if (json$1.TAG === "Ok") {
     return parseAnyWith(json$1._0, struct);
   } else {
     return json$1;
@@ -765,7 +779,7 @@ function recursive(fn) {
   var struct = fn(placeholder);
   Object.assign(placeholder, struct);
   if (isAsyncParse(placeholder)) {
-    throw new Error("[rescript-struct] " + ("The \"" + struct.n + "\" struct in the S.recursive has an async parser. To make it work, use S.asyncRecursive instead.") + "");
+    throw new Error("[rescript-struct] " + ("The \"" + struct.n + "\" struct in the S.recursive has an async parser. To make it work, use S.asyncRecursive instead."));
   }
   return placeholder;
 }
@@ -779,7 +793,7 @@ function asyncRecursive(fn) {
 }
 
 function make(namespace, name) {
-  return "" + namespace + ":" + name + "";
+  return namespace + ":" + name;
 }
 
 var Id = {
@@ -904,7 +918,7 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
                 planSyncTransformation(ctx, maybeSerializer);
               } else {
                 planSyncTransformation(ctx, (function (param) {
-                        return raise$1(/* MissingSerializer */1);
+                        return raise$1("MissingSerializer");
                       }));
               }
               struct.sf(ctx, compilingStruct);
@@ -931,11 +945,11 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
               struct.pf(ctx, compilingStruct);
               if (maybeParser === undefined) {
                 return planSyncTransformation(ctx, (function (param) {
-                              return raise$1(/* MissingParser */0);
+                              return raise$1("MissingParser");
                             }));
               }
               var syncTransformation = maybeParser(compilingStruct);
-              if (syncTransformation.TAG === /* Sync */0) {
+              if (syncTransformation.TAG === "Sync") {
                 return planSyncTransformation(ctx, syncTransformation._0);
               } else {
                 return planAsyncTransformation(ctx, syncTransformation._0);
@@ -944,14 +958,14 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
           sf: (function (ctx, compilingStruct) {
               if (maybeSerializer !== undefined) {
                 var syncTransformation = maybeSerializer(compilingStruct);
-                if (syncTransformation.TAG === /* Sync */0) {
+                if (syncTransformation.TAG === "Sync") {
                   planSyncTransformation(ctx, syncTransformation._0);
                 } else {
                   planAsyncTransformation(ctx, syncTransformation._0);
                 }
               } else {
                 planSyncTransformation(ctx, (function (param) {
-                        return raise$1(/* MissingSerializer */1);
+                        return raise$1("MissingSerializer");
                       }));
               }
               struct.sf(ctx, compilingStruct);
@@ -972,9 +986,9 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
     panic("struct factory Preprocess");
   }
   var unionStructs = struct.t;
-  if (typeof unionStructs !== "number" && unionStructs.TAG === /* Union */6) {
+  if (typeof unionStructs === "object" && unionStructs.TAG === "Union") {
     var tagged = {
-      TAG: /* Union */6,
+      TAG: "Union",
       _0: unionStructs._0.map(function (unionStruct) {
             return advancedPreprocess(unionStruct, maybePreprocessParser, maybePreprocessSerializer, undefined);
           })
@@ -1000,14 +1014,14 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
           pf: (function (ctx, compilingStruct) {
               if (maybePreprocessParser !== undefined) {
                 var syncTransformation = maybePreprocessParser(compilingStruct);
-                if (syncTransformation.TAG === /* Sync */0) {
+                if (syncTransformation.TAG === "Sync") {
                   planSyncTransformation(ctx, syncTransformation._0);
                 } else {
                   planAsyncTransformation(ctx, syncTransformation._0);
                 }
               } else {
                 planSyncTransformation(ctx, (function (param) {
-                        return raise$1(/* MissingParser */0);
+                        return raise$1("MissingParser");
                       }));
               }
               struct.pf(ctx, compilingStruct);
@@ -1016,11 +1030,11 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
               struct.sf(ctx, compilingStruct);
               if (maybePreprocessSerializer === undefined) {
                 return planSyncTransformation(ctx, (function (param) {
-                              return raise$1(/* MissingSerializer */1);
+                              return raise$1("MissingSerializer");
                             }));
               }
               var syncTransformation = maybePreprocessSerializer(compilingStruct);
-              if (syncTransformation.TAG === /* Sync */0) {
+              if (syncTransformation.TAG === "Sync") {
                 return planSyncTransformation(ctx, syncTransformation._0);
               } else {
                 return planAsyncTransformation(ctx, syncTransformation._0);
@@ -1056,7 +1070,7 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
   }
   return {
           n: name,
-          t: /* Unknown */1,
+          t: "Unknown",
           pf: (function (ctx, param) {
               planParser(ctx);
             }),
@@ -1065,7 +1079,7 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
                 return planSyncTransformation(ctx, maybeSerializer);
               } else {
                 return planSyncTransformation(ctx, (function (param) {
-                              return raise$1(/* MissingSerializer */1);
+                              return raise$1("MissingSerializer");
                             }));
               }
             }),
@@ -1082,7 +1096,7 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
 
 function factory(innerLiteral, variant) {
   var tagged = {
-    TAG: /* Literal */0,
+    TAG: "Literal",
     _0: innerLiteral
   };
   var makeParseTransformationFactory = function (literalValue, test) {
@@ -1111,9 +1125,9 @@ function factory(innerLiteral, variant) {
             }));
     };
   };
-  if (typeof innerLiteral === "number") {
+  if (typeof innerLiteral !== "object") {
     switch (innerLiteral) {
-      case /* EmptyNull */0 :
+      case "EmptyNull" :
           var serializeTransformationFactory = makeSerializeTransformationFactory(null);
           return {
                   n: "EmptyNull Literal (null)",
@@ -1137,7 +1151,7 @@ function factory(innerLiteral, variant) {
                   i: undefined,
                   m: emptyMetadataMap
                 };
-      case /* EmptyOption */1 :
+      case "EmptyOption" :
           var serializeTransformationFactory$1 = makeSerializeTransformationFactory(undefined);
           return {
                   n: "EmptyOption Literal (undefined)",
@@ -1161,7 +1175,7 @@ function factory(innerLiteral, variant) {
                   i: undefined,
                   m: emptyMetadataMap
                 };
-      case /* NaN */2 :
+      case "NaN" :
           var serializeTransformationFactory$2 = makeSerializeTransformationFactory(NaN);
           return {
                   n: "NaN Literal (NaN)",
@@ -1188,8 +1202,8 @@ function factory(innerLiteral, variant) {
       
     }
   } else {
-    switch (innerLiteral.TAG | 0) {
-      case /* String */0 :
+    switch (innerLiteral.TAG) {
+      case "String" :
           var string = innerLiteral._0;
           var serializeTransformationFactory$3 = makeSerializeTransformationFactory(string);
           var parseTransformationFactory = makeParseTransformationFactory(string, (function (input) {
@@ -1209,7 +1223,7 @@ function factory(innerLiteral, variant) {
                   i: undefined,
                   m: emptyMetadataMap
                 };
-      case /* Int */1 :
+      case "Int" :
           var $$int = innerLiteral._0;
           var serializeTransformationFactory$4 = makeSerializeTransformationFactory($$int);
           var parseTransformationFactory$1 = makeParseTransformationFactory($$int, test);
@@ -1228,7 +1242,7 @@ function factory(innerLiteral, variant) {
                   i: undefined,
                   m: emptyMetadataMap
                 };
-      case /* Float */2 :
+      case "Float" :
           var $$float = innerLiteral._0;
           var serializeTransformationFactory$5 = makeSerializeTransformationFactory($$float);
           var parseTransformationFactory$2 = makeParseTransformationFactory($$float, (function (input) {
@@ -1249,7 +1263,7 @@ function factory(innerLiteral, variant) {
                   i: undefined,
                   m: emptyMetadataMap
                 };
-      case /* Bool */3 :
+      case "Bool" :
           var bool = innerLiteral._0;
           var serializeTransformationFactory$6 = makeSerializeTransformationFactory(bool);
           var parseTransformationFactory$3 = makeParseTransformationFactory(bool, (function (input) {
@@ -1276,10 +1290,15 @@ function factory(innerLiteral, variant) {
 }
 
 function factory$1(innerLiteral) {
-  if (typeof innerLiteral === "number") {
-    return factory(innerLiteral, undefined);
-  } else {
+  if (typeof innerLiteral === "object") {
     return factory(innerLiteral, innerLiteral._0);
+  }
+  switch (innerLiteral) {
+    case "EmptyNull" :
+    case "EmptyOption" :
+    case "NaN" :
+        return factory(innerLiteral, undefined);
+    
   }
 }
 
@@ -1290,14 +1309,14 @@ function classify$1(struct) {
   if (t !== undefined) {
     return t;
   } else {
-    return /* Strip */1;
+    return "Strip";
   }
 }
 
 function analyzeDefinition(definition, definerCtx, path) {
   if (definerCtx.s.has(definition)) {
     if (definition.r) {
-      throw new Error("[rescript-struct] " + ("The field \"" + definition.n + "\" is registered multiple times. If you want to duplicate a field, use S.transform instead.") + "");
+      throw new Error("[rescript-struct] " + ("The field \"" + definition.n + "\" is registered multiple times. If you want to duplicate a field, use S.transform instead."));
     }
     definition.p = path;
     definition.r = true;
@@ -1324,38 +1343,38 @@ function structToInlinedValue(_struct) {
   while(true) {
     var struct = _struct;
     var unionStructs = struct.t;
-    if (typeof unionStructs === "number") {
+    if (typeof unionStructs !== "object") {
       throw undefined;
     }
-    switch (unionStructs.TAG | 0) {
-      case /* Literal */0 :
+    switch (unionStructs.TAG) {
+      case "Literal" :
           var string = unionStructs._0;
-          if (typeof string !== "number") {
-            if (string.TAG === /* String */0) {
+          if (typeof string === "object") {
+            if (string.TAG === "String") {
               return JSON.stringify(string._0);
             } else {
               return string._0.toString();
             }
           }
           switch (string) {
-            case /* EmptyNull */0 :
+            case "EmptyNull" :
                 return "null";
-            case /* EmptyOption */1 :
+            case "EmptyOption" :
                 return "undefined";
-            case /* NaN */2 :
+            case "NaN" :
                 return "NaN";
             
           }
-      case /* Object */4 :
+      case "Object" :
           var fields = unionStructs.fields;
           return "{" + unionStructs.fieldNames.map((function(fields){
                       return function (fieldName) {
-                        return "" + JSON.stringify(fieldName) + ":" + structToInlinedValue(fields[fieldName]) + "";
+                        return JSON.stringify(fieldName) + ":" + structToInlinedValue(fields[fieldName]);
                       }
                       }(fields))).join(",") + "}";
-      case /* Tuple */5 :
+      case "Tuple" :
           return "[" + unionStructs._0.map(structToInlinedValue).join(",") + "]";
-      case /* Union */6 :
+      case "Union" :
           _struct = unionStructs._0[0];
           continue ;
       default:
@@ -1411,20 +1430,20 @@ function factory$2(definer) {
           var fn = getSerializeOperation(fieldStruct);
           if (fn !== undefined) {
             serializeFnsByFieldDefinitionIdx[inlinedIdx] = fn;
-            tmp = "" + inlinedFieldName + ":(i=" + inlinedIdx + ",s[" + inlinedIdx + "](t" + path$1 + ")),";
+            tmp = inlinedFieldName + ":(i=" + inlinedIdx + ",s[" + inlinedIdx + "](t" + path$1 + ")),";
           } else {
-            tmp = "" + inlinedFieldName + ":t" + path$1 + ",";
+            tmp = inlinedFieldName + ":t" + path$1 + ",";
           }
         } else {
           inliningFieldNameRef = fieldDefinition.n;
-          tmp = "" + inlinedFieldName + ":" + structToInlinedValue(fieldStruct) + ",";
+          tmp = inlinedFieldName + ":" + structToInlinedValue(fieldStruct) + ",";
         }
         contentRef = contentRef + tmp;
       }
       var tryContent = contentRef + "}";
       var originalObjectConstructionAndReturn = "try{" + tryContent + "}catch(e){c(e,i)}";
-      var inlinedSerializeFunction = "function(t){" + ("" + constants + "" + originalObjectConstructionAndReturn + "") + "}";
-      planSyncTransformation(ctx, new Function("s", "d", "r", "c", "return " + inlinedSerializeFunction + "")(serializeFnsByFieldDefinitionIdx, constantDefinitions, (function (fieldDefinitionIdx, received) {
+      var inlinedSerializeFunction = "function(t){" + (constants + originalObjectConstructionAndReturn) + "}";
+      planSyncTransformation(ctx, new Function("s", "d", "r", "c", "return " + inlinedSerializeFunction)(serializeFnsByFieldDefinitionIdx, constantDefinitions, (function (fieldDefinitionIdx, received) {
                   var match = constantDefinitions[fieldDefinitionIdx];
                   return raise(match.v, received, match.p, undefined);
                 }), (function (exn, fieldDefinitionIdx) {
@@ -1448,7 +1467,7 @@ function factory$2(definer) {
               throw {
                     RE_EXN_ID: Exception,
                     _1: {
-                      c: /* MissingSerializer */1,
+                      c: "MissingSerializer",
                       p: "[" + JSON.stringify(inliningOriginalFieldName) + "]"
                     },
                     Error: new Error()
@@ -1461,7 +1480,7 @@ function factory$2(definer) {
     var inlinedPreparationValues = definerCtx_v;
     var preparationPathes = definerCtx_p;
     var fieldDefinitions = definerCtx_d;
-    var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
+    var withUnknownKeysRefinement = classify$1(struct) === "Strict";
     var asyncFieldDefinitions = [];
     var parseFnsByInstructionIdx = {};
     var withFieldDefinitions = fieldDefinitions.length !== 0;
@@ -1485,9 +1504,9 @@ function factory$2(definer) {
         var inlinedIdx = idx$1.toString();
         var parseOperation = getParseOperation(fieldStruct);
         var maybeParseFn;
-        maybeParseFn = typeof parseOperation === "number" ? undefined : parseOperation._0;
+        maybeParseFn = typeof parseOperation !== "object" ? undefined : parseOperation._0;
         var isAsync;
-        isAsync = typeof parseOperation === "number" || parseOperation.TAG === /* SyncOperation */0 ? false : true;
+        isAsync = typeof parseOperation !== "object" || parseOperation.TAG === "SyncOperation" ? false : true;
         var inlinedInputData = "o[" + inlinedFieldName + "]";
         var maybeInlinedDestination;
         if (isAsync) {
@@ -1501,18 +1520,18 @@ function factory$2(definer) {
           asyncFieldDefinitions.push(fieldDefinition);
           maybeInlinedDestination = inlinedDestination;
         } else {
-          maybeInlinedDestination = isRegistered ? "t" + path + "" : undefined;
+          maybeInlinedDestination = isRegistered ? "t" + path : undefined;
         }
         var match = fieldStruct.i;
         stringRef$1 = stringRef$1 + (
           maybeParseFn !== undefined ? (
               match !== undefined ? "var v=" + inlinedInputData + ";if(" + match + "){" + (
-                  maybeInlinedDestination !== undefined ? "" + maybeInlinedDestination + "=v" : ""
+                  maybeInlinedDestination !== undefined ? maybeInlinedDestination + "=v" : ""
                 ) + "}else{i=" + inlinedIdx + ";s(v,f[" + inlinedFieldName + "])}" : (parseFnsByInstructionIdx[inlinedIdx] = maybeParseFn, "i=" + inlinedIdx + ";" + (
-                    maybeInlinedDestination !== undefined ? "" + maybeInlinedDestination + "=" : ""
+                    maybeInlinedDestination !== undefined ? maybeInlinedDestination + "=" : ""
                   ) + "p[" + inlinedIdx + "](" + inlinedInputData + ");")
             ) : (
-              maybeInlinedDestination !== undefined ? "" + maybeInlinedDestination + "=" + inlinedInputData + ";" : ""
+              maybeInlinedDestination !== undefined ? maybeInlinedDestination + "=" + inlinedInputData + ";" : ""
             )
         );
       }
@@ -1530,7 +1549,7 @@ function factory$2(definer) {
           if (idx$2 !== 0) {
             stringRef$2 = stringRef$2 + "||";
           }
-          stringRef$2 = stringRef$2 + ("k===" + fieldDefinition$1.i + "");
+          stringRef$2 = stringRef$2 + ("k===" + fieldDefinition$1.i);
         }
         unknownKeysRefinement = stringRef$2 + ")){x(k)}}";
       } else {
@@ -1546,8 +1565,8 @@ function factory$2(definer) {
     }
     var constants = stringRef$3;
     var returnValue = asyncFieldDefinitions.length === 0 ? "t" : "a.t=t,a";
-    var inlinedParseFunction = "function(o){" + ("" + refinement + "" + preparation + "" + transformedObjectConstruction + "" + unknownKeysRefinement + "" + constants + "return " + returnValue + "") + "}";
-    planSyncTransformation(ctx, new Function("c", "p", "f", "d", "u", "s", "x", "return " + inlinedParseFunction + "")((function (exn, fieldDefinitionIdx) {
+    var inlinedParseFunction = "function(o){" + (refinement + preparation + transformedObjectConstruction + unknownKeysRefinement + constants + "return " + returnValue) + "}";
+    planSyncTransformation(ctx, new Function("c", "p", "f", "d", "u", "s", "x", "return " + inlinedParseFunction)((function (exn, fieldDefinitionIdx) {
                 throw exn.RE_EXN_ID === Exception ? ({
                           RE_EXN_ID: Exception,
                           _1: prependPath(exn._1, "[" + JSON.stringify(fieldDefinitions[fieldDefinitionIdx].n) + "]")
@@ -1556,7 +1575,7 @@ function factory$2(definer) {
                 return raiseUnexpectedTypeError(input, struct);
               }), raiseUnexpectedTypeError, (function (exccessFieldName) {
                 return raise$1({
-                            TAG: /* ExcessField */4,
+                            TAG: "ExcessField",
                             _0: exccessFieldName
                           });
               })));
@@ -1572,17 +1591,17 @@ function factory$2(definer) {
       var isRegistered$1 = fieldDefinition$2.r;
       var inlinedIdx$1 = idx$4.toString();
       var fieldValueVar = "z";
-      var inlinedFieldValueAssignment = isRegistered$1 ? "t" + path$1 + "=" + fieldValueVar + "" : "";
-      var inlinedIteration = "if(y--===1){" + ("" + resolveVar + "(t)") + "}";
-      var onFieldSuccessInlinedFnContent = "" + inlinedFieldValueAssignment + ";" + inlinedIteration + "";
+      var inlinedFieldValueAssignment = isRegistered$1 ? "t" + path$1 + "=" + fieldValueVar : "";
+      var inlinedIteration = "if(y--===1){" + (resolveVar + "(t)") + "}";
+      var onFieldSuccessInlinedFnContent = inlinedFieldValueAssignment + ";" + inlinedIteration;
       var onFieldSuccessInlinedFn = "function(" + fieldValueVar + "){" + onFieldSuccessInlinedFnContent + "}";
       var errorVar = "z";
-      var onFieldErrorInlinedFn = "function(" + errorVar + "){" + ("" + rejectVar + "(j(" + errorVar + "," + inlinedIdx$1 + "))") + "}";
+      var onFieldErrorInlinedFn = "function(" + errorVar + "){" + (rejectVar + "(j(" + errorVar + "," + inlinedIdx$1 + "))") + "}";
       contentRef = contentRef + ("a[" + inlinedIdx$1 + "]().then(" + onFieldSuccessInlinedFn + "," + onFieldErrorInlinedFn + ");");
     }
     var content = contentRef;
-    var inlinedAsyncParseFunction = "function(a){" + ("return " + ("new Promise(function(" + resolveVar + "," + rejectVar + "){" + content + "})") + "") + "}";
-    planAsyncTransformation(ctx, new Function("j", "return " + inlinedAsyncParseFunction + "")(function (exn, asyncFieldDefinitionIdx) {
+    var inlinedAsyncParseFunction = "function(a){return " + ("new Promise(function(" + resolveVar + "," + rejectVar + "){" + content + "})") + "}";
+    planAsyncTransformation(ctx, new Function("j", "return " + inlinedAsyncParseFunction)(function (exn, asyncFieldDefinitionIdx) {
               if (exn.RE_EXN_ID === Exception) {
                 return {
                         RE_EXN_ID: Exception,
@@ -1596,7 +1615,7 @@ function factory$2(definer) {
   return {
           n: "Object",
           t: {
-            TAG: /* Object */4,
+            TAG: "Object",
             fields: definerCtx_f,
             fieldNames: definerCtx_n
           },
@@ -1615,7 +1634,7 @@ function factory$2(definer) {
 
 function field(definerCtx, fieldName, struct) {
   if (definerCtx.f.hasOwnProperty(fieldName)) {
-    throw new Error("[rescript-struct] " + ("The field \"" + fieldName + "\" is defined multiple times. If you want to duplicate a field, use S.transform instead.") + "");
+    throw new Error("[rescript-struct] " + ("The field \"" + fieldName + "\" is defined multiple times. If you want to duplicate a field, use S.transform instead."));
   }
   var fieldDefinition = {
     s: struct,
@@ -1632,11 +1651,11 @@ function field(definerCtx, fieldName, struct) {
 }
 
 function strip(struct) {
-  return set(struct, metadataId, /* Strip */1);
+  return set(struct, metadataId, "Strip");
 }
 
 function strict(struct) {
-  return set(struct, metadataId, /* Strict */0);
+  return set(struct, metadataId, "Strict");
 }
 
 function transformationFactory(ctx, struct) {
@@ -1648,7 +1667,7 @@ function transformationFactory(ctx, struct) {
 function factory$3(param) {
   return {
           n: "Never",
-          t: /* Never */0,
+          t: "Never",
           pf: transformationFactory,
           sf: transformationFactory,
           r: 0,
@@ -1665,7 +1684,7 @@ function factory$3(param) {
 function factory$4(param) {
   return {
           n: "Unknown",
-          t: /* Unknown */1,
+          t: "Unknown",
           pf: empty,
           sf: empty,
           r: 0,
@@ -1709,7 +1728,7 @@ function parseTransformationFactory(ctx, struct) {
 function factory$5(param) {
   return {
           n: "String",
-          t: /* String */2,
+          t: "String",
           pf: parseTransformationFactory,
           sf: empty,
           r: 0,
@@ -1733,7 +1752,7 @@ function min(struct, maybeMessage, length) {
   };
   return addRefinement(struct, metadataId$1, {
               kind: {
-                TAG: /* Min */0,
+                TAG: "Min",
                 length: length
               },
               message: message
@@ -1750,7 +1769,7 @@ function max(struct, maybeMessage, length) {
   };
   return addRefinement(struct, metadataId$1, {
               kind: {
-                TAG: /* Max */1,
+                TAG: "Max",
                 length: length
               },
               message: message
@@ -1767,7 +1786,7 @@ function length(struct, maybeMessage, length$1) {
   };
   return addRefinement(struct, metadataId$1, {
               kind: {
-                TAG: /* Length */2,
+                TAG: "Length",
                 length: length$1
               },
               message: message
@@ -1783,7 +1802,7 @@ function email(struct, messageOpt, param) {
     
   };
   return addRefinement(struct, metadataId$1, {
-              kind: /* Email */0,
+              kind: "Email",
               message: message
             }, refiner);
 }
@@ -1797,7 +1816,7 @@ function uuid(struct, messageOpt, param) {
     
   };
   return addRefinement(struct, metadataId$1, {
-              kind: /* Uuid */1,
+              kind: "Uuid",
               message: message
             }, refiner);
 }
@@ -1811,7 +1830,7 @@ function cuid(struct, messageOpt, param) {
     
   };
   return addRefinement(struct, metadataId$1, {
-              kind: /* Cuid */2,
+              kind: "Cuid",
               message: message
             }, refiner);
 }
@@ -1833,7 +1852,7 @@ function url(struct, messageOpt, param) {
     
   };
   return addRefinement(struct, metadataId$1, {
-              kind: /* Url */3,
+              kind: "Url",
               message: message
             }, refiner);
 }
@@ -1849,7 +1868,7 @@ function pattern(struct, messageOpt, re) {
   };
   return addRefinement(struct, metadataId$1, {
               kind: {
-                TAG: /* Pattern */3,
+                TAG: "Pattern",
                 re: re
               },
               message: message
@@ -1866,10 +1885,11 @@ function trim(struct, param) {
 function factory$6(innerStruct) {
   return {
           n: "Json",
-          t: /* String */2,
+          t: "String",
           pf: (function (ctx, struct) {
               var fn = getParseOperation(innerStruct);
-              var $$process = typeof fn === "number" ? (function (prim) {
+              var $$process;
+              $$process = typeof fn !== "object" ? (function (prim) {
                     return prim;
                   }) : fn._0;
               planSyncTransformation(ctx, (function (input) {
@@ -1892,11 +1912,11 @@ function factory$6(innerStruct) {
                       return $$process(__x);
                     }));
               var match = getParseOperation(innerStruct);
-              if (typeof match === "number" || match.TAG === /* SyncOperation */0) {
+              if (typeof match !== "object" || match.TAG === "SyncOperation") {
                 return ;
               } else {
                 return planAsyncTransformation(ctx, (function (asyncFn) {
-                              return asyncFn();
+                              return asyncFn(undefined);
                             }));
               }
             }),
@@ -1936,7 +1956,7 @@ function parseTransformationFactory$1(ctx, struct) {
 function factory$7(param) {
   return {
           n: "Bool",
-          t: /* Bool */5,
+          t: "Bool",
           pf: parseTransformationFactory$1,
           sf: empty,
           r: 0,
@@ -1974,7 +1994,7 @@ function parseTransformationFactory$2(ctx, struct) {
 function factory$8(param) {
   return {
           n: "Int",
-          t: /* Int */3,
+          t: "Int",
           pf: parseTransformationFactory$2,
           sf: empty,
           r: 0,
@@ -1989,7 +2009,7 @@ function factory$8(param) {
 }
 
 function min$1(struct, maybeMessage, minValue) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue.toString() + "";
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue.toString();
   var refiner = function (value) {
     if (value < minValue) {
       return fail(undefined, message);
@@ -1998,7 +2018,7 @@ function min$1(struct, maybeMessage, minValue) {
   };
   return addRefinement(struct, metadataId$2, {
               kind: {
-                TAG: /* Min */0,
+                TAG: "Min",
                 value: minValue
               },
               message: message
@@ -2006,7 +2026,7 @@ function min$1(struct, maybeMessage, minValue) {
 }
 
 function max$1(struct, maybeMessage, maxValue) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue.toString() + "";
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue.toString();
   var refiner = function (value) {
     if (value > maxValue) {
       return fail(undefined, message);
@@ -2015,7 +2035,7 @@ function max$1(struct, maybeMessage, maxValue) {
   };
   return addRefinement(struct, metadataId$2, {
               kind: {
-                TAG: /* Max */1,
+                TAG: "Max",
                 value: maxValue
               },
               message: message
@@ -2031,7 +2051,7 @@ function port(struct, messageOpt, param) {
     
   };
   return addRefinement(struct, metadataId$2, {
-              kind: /* Port */0,
+              kind: "Port",
               message: message
             }, refiner);
 }
@@ -2060,7 +2080,7 @@ function parseTransformationFactory$3(ctx, struct) {
 function factory$9(param) {
   return {
           n: "Float",
-          t: /* Float */4,
+          t: "Float",
           pf: parseTransformationFactory$3,
           sf: empty,
           r: 0,
@@ -2075,7 +2095,7 @@ function factory$9(param) {
 }
 
 function min$2(struct, maybeMessage, minValue) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue.toString() + "";
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue.toString();
   var refiner = function (value) {
     if (value < minValue) {
       return fail(undefined, message);
@@ -2084,7 +2104,7 @@ function min$2(struct, maybeMessage, minValue) {
   };
   return addRefinement(struct, metadataId$3, {
               kind: {
-                TAG: /* Min */0,
+                TAG: "Min",
                 value: minValue
               },
               message: message
@@ -2092,7 +2112,7 @@ function min$2(struct, maybeMessage, minValue) {
 }
 
 function max$2(struct, maybeMessage, maxValue) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue.toString() + "";
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue.toString();
   var refiner = function (value) {
     if (value > maxValue) {
       return fail(undefined, message);
@@ -2101,7 +2121,7 @@ function max$2(struct, maybeMessage, maxValue) {
   };
   return addRefinement(struct, metadataId$3, {
               kind: {
-                TAG: /* Max */1,
+                TAG: "Max",
                 value: maxValue
               },
               message: message
@@ -2112,7 +2132,7 @@ function factory$10(innerStruct) {
   return {
           n: "Null",
           t: {
-            TAG: /* Null */2,
+            TAG: "Null",
             _0: innerStruct
           },
           pf: (function (ctx, param) {
@@ -2125,7 +2145,7 @@ function factory$10(innerStruct) {
                       }));
               };
               var fn = getParseOperation(innerStruct);
-              if (typeof fn === "number") {
+              if (typeof fn !== "object") {
                 return planSyncTransformation(ctx, (function (prim) {
                               if (prim === null) {
                                 return ;
@@ -2134,13 +2154,13 @@ function factory$10(innerStruct) {
                               }
                             }));
               }
-              if (fn.TAG === /* SyncOperation */0) {
+              if (fn.TAG === "SyncOperation") {
                 return planSyncTransformation$1(fn._0);
               }
               planSyncTransformation$1(fn._0);
               planAsyncTransformation(ctx, (function (input) {
                       if (input !== undefined) {
-                        return input().then(function (value) {
+                        return input(undefined).then(function (value) {
                                     return Caml_option.some(value);
                                   });
                       } else {
@@ -2183,7 +2203,7 @@ function factory$11(innerStruct) {
   return {
           n: "Option",
           t: {
-            TAG: /* Option */1,
+            TAG: "Option",
             _0: innerStruct
           },
           pf: (function (ctx, param) {
@@ -2196,16 +2216,16 @@ function factory$11(innerStruct) {
                       }));
               };
               var fn = getParseOperation(innerStruct);
-              if (typeof fn === "number") {
+              if (typeof fn !== "object") {
                 return ;
               }
-              if (fn.TAG === /* SyncOperation */0) {
+              if (fn.TAG === "SyncOperation") {
                 return planSyncTransformation$1(fn._0);
               }
               planSyncTransformation$1(fn._0);
               planAsyncTransformation(ctx, (function (input) {
                       if (input !== undefined) {
-                        return input().then(function (value) {
+                        return input(undefined).then(function (value) {
                                     return Caml_option.some(value);
                                   });
                       } else {
@@ -2257,7 +2277,7 @@ function factory$12(innerStruct) {
   return {
           n: "Array",
           t: {
-            TAG: /* Array */3,
+            TAG: "Array",
             _0: innerStruct
           },
           pf: (function (ctx, struct) {
@@ -2294,16 +2314,16 @@ function factory$12(innerStruct) {
                       }));
               };
               var fn = getParseOperation(innerStruct);
-              if (typeof fn === "number") {
+              if (typeof fn !== "object") {
                 return ;
               }
-              if (fn.TAG === /* SyncOperation */0) {
+              if (fn.TAG === "SyncOperation") {
                 return planSyncTransformation$1(fn._0);
               }
               planSyncTransformation$1(fn._0);
               planAsyncTransformation(ctx, (function (input) {
                       return Promise.all(input.map(function (asyncFn, idx) {
-                                      return asyncFn().catch(function (exn) {
+                                      return asyncFn(undefined).catch(function (exn) {
                                                   var tmp;
                                                   if (exn.RE_EXN_ID === Exception) {
                                                     var $$location = idx.toString();
@@ -2369,7 +2389,7 @@ function min$3(struct, maybeMessage, length) {
   };
   return addRefinement(struct, metadataId$4, {
               kind: {
-                TAG: /* Min */0,
+                TAG: "Min",
                 length: length
               },
               message: message
@@ -2386,7 +2406,7 @@ function max$3(struct, maybeMessage, length) {
   };
   return addRefinement(struct, metadataId$4, {
               kind: {
-                TAG: /* Max */1,
+                TAG: "Max",
                 length: length
               },
               message: message
@@ -2403,7 +2423,7 @@ function length$1(struct, maybeMessage, length$2) {
   };
   return addRefinement(struct, metadataId$4, {
               kind: {
-                TAG: /* Length */2,
+                TAG: "Length",
                 length: length$2
               },
               message: message
@@ -2414,7 +2434,7 @@ function factory$13(innerStruct) {
   return {
           n: "Dict",
           t: {
-            TAG: /* Dict */7,
+            TAG: "Dict",
             _0: innerStruct
           },
           pf: (function (ctx, struct) {
@@ -2452,10 +2472,10 @@ function factory$13(innerStruct) {
                       }
                     }));
               var fn = getParseOperation(innerStruct);
-              if (typeof fn === "number") {
+              if (typeof fn !== "object") {
                 return ;
               }
-              if (fn.TAG === /* SyncOperation */0) {
+              if (fn.TAG === "SyncOperation") {
                 return planSyncTransformation$1(fn._0);
               }
               planSyncTransformation$1(fn._0);
@@ -2464,7 +2484,7 @@ function factory$13(innerStruct) {
                       return Promise.all(keys.map(function (key) {
                                         var asyncFn = input[key];
                                         try {
-                                          return asyncFn().catch(function (exn) {
+                                          return asyncFn(undefined).catch(function (exn) {
                                                       throw exn.RE_EXN_ID === Exception ? ({
                                                                 RE_EXN_ID: Exception,
                                                                 _1: prependPath(exn._1, "[" + JSON.stringify(key) + "]")
@@ -2541,7 +2561,7 @@ function factory$14(innerStruct, getDefaultValue) {
               t: innerStruct.t,
               pf: (function (ctx, param) {
                   var fn = getParseOperation(innerStruct);
-                  if (typeof fn === "number") {
+                  if (typeof fn !== "object") {
                     return planSyncTransformation(ctx, (function (input) {
                                   if (input !== undefined) {
                                     return Caml_option.valFromOption(input);
@@ -2550,7 +2570,7 @@ function factory$14(innerStruct, getDefaultValue) {
                                   }
                                 }));
                   }
-                  if (fn.TAG === /* SyncOperation */0) {
+                  if (fn.TAG === "SyncOperation") {
                     var fn$1 = fn._0;
                     return planSyncTransformation(ctx, (function (input) {
                                   var v = fn$1(input);
@@ -2563,7 +2583,7 @@ function factory$14(innerStruct, getDefaultValue) {
                   }
                   planSyncTransformation(ctx, fn._0);
                   planAsyncTransformation(ctx, (function (asyncFn) {
-                          return asyncFn().then(function (value) {
+                          return asyncFn(undefined).then(function (value) {
                                       if (value !== undefined) {
                                         return Caml_option.valFromOption(value);
                                       } else {
@@ -2607,22 +2627,23 @@ function classify$2(struct) {
 function factory$15(param) {
   var structs = (Array.from(arguments));
   var numberOfStructs = structs.length;
+  var structs$1 = numberOfStructs === 1 && structs[0] === undefined ? [] : structs;
   return {
           n: "Tuple",
           t: {
-            TAG: /* Tuple */5,
-            _0: structs
+            TAG: "Tuple",
+            _0: structs$1
           },
           pf: (function (ctx, struct) {
               var noopOps = [];
               var syncOps = [];
               var asyncOps = [];
-              for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
-                var innerStruct = structs[idx];
+              for(var idx = 0 ,idx_finish = structs$1.length; idx < idx_finish; ++idx){
+                var innerStruct = structs$1[idx];
                 var fn = getParseOperation(innerStruct);
-                if (typeof fn === "number") {
+                if (typeof fn !== "object") {
                   noopOps.push(idx);
-                } else if (fn.TAG === /* SyncOperation */0) {
+                } else if (fn.TAG === "SyncOperation") {
                   syncOps.push([
                         idx,
                         fn._0
@@ -2641,7 +2662,7 @@ function factory$15(param) {
                         var numberOfInputItems = input.length;
                         if (numberOfStructs !== numberOfInputItems) {
                           raise$1({
-                                TAG: /* TupleSize */3,
+                                TAG: "TupleSize",
                                 expected: numberOfStructs,
                                 received: numberOfInputItems
                               });
@@ -2692,7 +2713,7 @@ function factory$15(param) {
               if (withAsyncOps) {
                 return planAsyncTransformation(ctx, (function (tempArray) {
                               return Promise.all(asyncOps.map(function (originalIdx) {
-                                                return tempArray[originalIdx]().catch(function (exn) {
+                                                return tempArray[originalIdx](undefined).catch(function (exn) {
                                                             var tmp;
                                                             if (exn.RE_EXN_ID === Exception) {
                                                               var $$location = originalIdx.toString();
@@ -2722,8 +2743,8 @@ function factory$15(param) {
             }),
           sf: (function (ctx, param) {
               var serializeOperations = [];
-              for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
-                serializeOperations.push(getSerializeOperation(structs[idx]));
+              for(var idx = 0 ,idx_finish = structs$1.length; idx < idx_finish; ++idx){
+                serializeOperations.push(getSerializeOperation(structs$1[idx]));
               }
               planSyncTransformation(ctx, (function (input) {
                       var inputArray = numberOfStructs === 1 ? [input] : input;
@@ -2779,7 +2800,7 @@ function factory$16(structs) {
   return {
           n: "Union",
           t: {
-            TAG: /* Union */6,
+            TAG: "Union",
             _0: structs
           },
           pf: (function (ctx, compilingStruct) {
@@ -2790,9 +2811,9 @@ function factory$16(structs) {
               for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
                 var innerStruct = structs[idx];
                 var fn = getParseOperation(innerStruct);
-                if (typeof fn === "number") {
+                if (typeof fn !== "object") {
                   noopOps.push(undefined);
-                } else if (fn.TAG === /* SyncOperation */0) {
+                } else if (fn.TAG === "SyncOperation") {
                   syncOps.push([
                         idx,
                         fn._0
@@ -2846,7 +2867,7 @@ function factory$16(structs) {
                                 };
                         } else {
                           return raise$1({
-                                      TAG: /* InvalidUnion */5,
+                                      TAG: "InvalidUnion",
                                       _0: errorsRef.map(toParseError)
                                     });
                         }
@@ -2860,7 +2881,7 @@ function factory$16(structs) {
                                   return Promise.all(asyncOps.map(function (param) {
                                                     var originalIdx = param[0];
                                                     try {
-                                                      return param[1](input.originalInput)().then((function (value) {
+                                                      return param[1](input.originalInput)(undefined).then((function (value) {
                                                                     throw {
                                                                           RE_EXN_ID: HackyValidValue,
                                                                           _1: value,
@@ -2885,7 +2906,7 @@ function factory$16(structs) {
                                                     }
                                                   })).then((function (param) {
                                                 return raise$1({
-                                                            TAG: /* InvalidUnion */5,
+                                                            TAG: "InvalidUnion",
                                                             _0: input.tempErrors.map(toParseError)
                                                           });
                                               }), (function (exn) {
@@ -2933,7 +2954,7 @@ function factory$16(structs) {
                         return Caml_option.valFromOption(ok);
                       } else {
                         return raise$1({
-                                    TAG: /* InvalidUnion */5,
+                                    TAG: "InvalidUnion",
                                     _0: errors.map(toSerializeError)
                                   });
                       }
@@ -2971,19 +2992,19 @@ function description(struct) {
 }
 
 function getExn(result) {
-  if (result.TAG === /* Ok */0) {
+  if (result.TAG === "Ok") {
     return result._0;
   }
   var message = toString(result._0);
-  throw new Error("[rescript-struct] " + message + "");
+  throw new Error("[rescript-struct] " + message);
 }
 
 function mapErrorToString(result) {
-  if (result.TAG === /* Ok */0) {
+  if (result.TAG === "Ok") {
     return result;
   } else {
     return {
-            TAG: /* Error */1,
+            TAG: "Error",
             _0: toString(result._0)
           };
   }
@@ -2996,44 +3017,44 @@ var Result = {
 
 function toVariantName(struct) {
   var s = struct.t;
-  if (typeof s === "number") {
+  if (typeof s !== "object") {
     switch (s) {
-      case /* Never */0 :
+      case "Never" :
           return "Never";
-      case /* Unknown */1 :
+      case "Unknown" :
           return "Unknown";
-      case /* String */2 :
+      case "String" :
           return "String";
-      case /* Int */3 :
+      case "Int" :
           return "Int";
-      case /* Float */4 :
+      case "Float" :
           return "Float";
-      case /* Bool */5 :
+      case "Bool" :
           return "Bool";
       
     }
   } else {
-    switch (s.TAG | 0) {
-      case /* Literal */0 :
+    switch (s.TAG) {
+      case "Literal" :
           var string = s._0;
-          if (typeof string === "number") {
+          if (typeof string !== "object") {
             switch (string) {
-              case /* EmptyNull */0 :
+              case "EmptyNull" :
                   return "EmptyNull";
-              case /* EmptyOption */1 :
+              case "EmptyOption" :
                   return "EmptyOption";
-              case /* NaN */2 :
+              case "NaN" :
                   return "NaN";
               
             }
           } else {
-            switch (string.TAG | 0) {
-              case /* String */0 :
+            switch (string.TAG) {
+              case "String" :
                   return string._0;
-              case /* Int */1 :
-              case /* Float */2 :
+              case "Int" :
+              case "Float" :
                   return string._0.toString();
-              case /* Bool */3 :
+              case "Bool" :
                   if (string._0) {
                     return "True";
                   } else {
@@ -3042,28 +3063,28 @@ function toVariantName(struct) {
               
             }
           }
-      case /* Option */1 :
-          return "OptionOf" + toVariantName(s._0) + "";
-      case /* Null */2 :
-          return "NullOf" + toVariantName(s._0) + "";
-      case /* Array */3 :
-          return "ArrayOf" + toVariantName(s._0) + "";
-      case /* Object */4 :
+      case "Option" :
+          return "OptionOf" + toVariantName(s._0);
+      case "Null" :
+          return "NullOf" + toVariantName(s._0);
+      case "Array" :
+          return "ArrayOf" + toVariantName(s._0);
+      case "Object" :
           if (s.fieldNames.length !== 0) {
             return "Object";
           } else {
             return "EmptyObject";
           }
-      case /* Tuple */5 :
+      case "Tuple" :
           if (s._0.length !== 0) {
             return "Tuple";
           } else {
             return "EmptyTuple";
           }
-      case /* Union */6 :
+      case "Union" :
           return "Union";
-      case /* Dict */7 :
-          return "DictOf" + toVariantName(s._0) + "";
+      case "Dict" :
+          return "DictOf" + toVariantName(s._0);
       
     }
   }
@@ -3073,61 +3094,61 @@ function internalInline(struct, maybeVariant, param) {
   var metadataMap = Object.assign({}, struct.m);
   var taggedLiteral = struct.t;
   var inlinedStruct;
-  if (typeof taggedLiteral === "number") {
+  if (typeof taggedLiteral !== "object") {
     switch (taggedLiteral) {
-      case /* Never */0 :
+      case "Never" :
           inlinedStruct = "S.never()";
           break;
-      case /* Unknown */1 :
+      case "Unknown" :
           inlinedStruct = "S.unknown()";
           break;
-      case /* String */2 :
+      case "String" :
           inlinedStruct = "S.string()";
           break;
-      case /* Int */3 :
+      case "Int" :
           inlinedStruct = "S.int()";
           break;
-      case /* Float */4 :
+      case "Float" :
           inlinedStruct = "S.float()";
           break;
-      case /* Bool */5 :
+      case "Bool" :
           inlinedStruct = "S.bool()";
           break;
       
     }
   } else {
-    switch (taggedLiteral.TAG | 0) {
-      case /* Literal */0 :
+    switch (taggedLiteral.TAG) {
+      case "Literal" :
           var taggedLiteral$1 = taggedLiteral._0;
           var inlinedLiteral;
-          if (typeof taggedLiteral$1 === "number") {
+          if (typeof taggedLiteral$1 !== "object") {
             switch (taggedLiteral$1) {
-              case /* EmptyNull */0 :
+              case "EmptyNull" :
                   inlinedLiteral = "EmptyNull";
                   break;
-              case /* EmptyOption */1 :
+              case "EmptyOption" :
                   inlinedLiteral = "EmptyOption";
                   break;
-              case /* NaN */2 :
+              case "NaN" :
                   inlinedLiteral = "NaN";
                   break;
               
             }
           } else {
-            switch (taggedLiteral$1.TAG | 0) {
-              case /* String */0 :
+            switch (taggedLiteral$1.TAG) {
+              case "String" :
                   inlinedLiteral = "String(" + JSON.stringify(taggedLiteral$1._0) + ")";
                   break;
-              case /* Int */1 :
+              case "Int" :
                   inlinedLiteral = "Int(" + taggedLiteral$1._0.toString() + ")";
                   break;
-              case /* Float */2 :
+              case "Float" :
                   var $$float = taggedLiteral$1._0;
                   inlinedLiteral = "Float(" + ($$float.toString() + (
                       $$float % 1 === 0 ? "." : ""
                     )) + ")";
                   break;
-              case /* Bool */3 :
+              case "Bool" :
                   inlinedLiteral = "Bool(" + taggedLiteral$1._0.toString() + ")";
                   break;
               
@@ -3135,7 +3156,7 @@ function internalInline(struct, maybeVariant, param) {
           }
           inlinedStruct = maybeVariant !== undefined ? "S.literalVariant(" + inlinedLiteral + ", " + maybeVariant + ")" : "S.literal(" + inlinedLiteral + ")";
           break;
-      case /* Option */1 :
+      case "Option" :
           var inlinedInnerStruct = internalInline(taggedLiteral._0, undefined, undefined);
           var message = deprecation(struct);
           if (message !== undefined) {
@@ -3145,20 +3166,20 @@ function internalInline(struct, maybeVariant, param) {
             inlinedStruct = "S.option(" + inlinedInnerStruct + ")";
           }
           break;
-      case /* Null */2 :
+      case "Null" :
           inlinedStruct = "S.null(" + internalInline(taggedLiteral._0, undefined, undefined) + ")";
           break;
-      case /* Array */3 :
+      case "Array" :
           inlinedStruct = "S.array(" + internalInline(taggedLiteral._0, undefined, undefined) + ")";
           break;
-      case /* Object */4 :
+      case "Object" :
           var fieldNames = taggedLiteral.fieldNames;
           var fields = taggedLiteral.fields;
           inlinedStruct = fieldNames.length !== 0 ? "S.object(o =>\n  {\n    " + fieldNames.map(function (fieldName) {
-                    return "" + JSON.stringify(fieldName) + ": o->S.field(" + JSON.stringify(fieldName) + ", " + internalInline(fields[fieldName], undefined, undefined) + ")";
+                    return JSON.stringify(fieldName) + ": o->S.field(" + JSON.stringify(fieldName) + ", " + internalInline(fields[fieldName], undefined, undefined) + ")";
                   }).join(",\n    ") + ",\n  }\n)" : "S.object(_ => ())";
           break;
-      case /* Tuple */5 :
+      case "Tuple" :
           var tupleStructs = taggedLiteral._0;
           if (tupleStructs.length !== 0) {
             var numberOfItems = tupleStructs.length;
@@ -3172,7 +3193,7 @@ function internalInline(struct, maybeVariant, param) {
             inlinedStruct = "S.tuple0(.)";
           }
           break;
-      case /* Union */6 :
+      case "Union" :
           var variantNamesCounter = {};
           inlinedStruct = "S.union([" + taggedLiteral._0.map(function (s) {
                   var variantName = toVariantName(s);
@@ -3180,11 +3201,11 @@ function internalInline(struct, maybeVariant, param) {
                   var numberOfVariantNames = n !== undefined ? n : 0;
                   variantNamesCounter[variantName] = numberOfVariantNames + 1;
                   var variantName$1 = numberOfVariantNames !== 0 ? variantName + (numberOfVariantNames + 1).toString() : variantName;
-                  var inlinedVariant = "#" + JSON.stringify(variantName$1) + "";
+                  var inlinedVariant = "#" + JSON.stringify(variantName$1);
                   return internalInline(s, inlinedVariant, undefined);
                 }).join(", ") + "])";
           break;
-      case /* Dict */7 :
+      case "Dict" :
           inlinedStruct = "S.dict(" + internalInline(taggedLiteral._0, undefined, undefined) + ")";
           break;
       
@@ -3204,35 +3225,35 @@ function internalInline(struct, maybeVariant, param) {
   var match = struct.t;
   var inlinedStruct$2;
   var exit = 0;
-  if (typeof match === "number") {
+  if (typeof match !== "object") {
     switch (match) {
-      case /* String */2 :
+      case "String" :
           exit = 1;
           break;
-      case /* Int */3 :
+      case "Int" :
           exit = 2;
           break;
-      case /* Float */4 :
+      case "Float" :
           exit = 3;
           break;
       default:
         inlinedStruct$2 = inlinedStruct$1;
     }
   } else {
-    switch (match.TAG | 0) {
-      case /* Literal */0 :
+    switch (match.TAG) {
+      case "Literal" :
           var tmp = match._0;
-          if (typeof tmp === "number") {
+          if (typeof tmp !== "object") {
             inlinedStruct$2 = inlinedStruct$1;
           } else {
-            switch (tmp.TAG | 0) {
-              case /* String */0 :
+            switch (tmp.TAG) {
+              case "String" :
                   exit = 1;
                   break;
-              case /* Int */1 :
+              case "Int" :
                   exit = 2;
                   break;
-              case /* Float */2 :
+              case "Float" :
                   exit = 3;
                   break;
               default:
@@ -3240,18 +3261,18 @@ function internalInline(struct, maybeVariant, param) {
             }
           }
           break;
-      case /* Array */3 :
+      case "Array" :
           var refinements$4 = refinements$3(struct);
           if (refinements$4.length !== 0) {
             Js_dict.unsafeDeleteKey(metadataMap, metadataId$4);
             inlinedStruct$2 = inlinedStruct$1 + refinements$4.map(function (refinement) {
                     var match = refinement.kind;
-                    switch (match.TAG | 0) {
-                      case /* Min */0 :
+                    switch (match.TAG) {
+                      case "Min" :
                           return "->S.Array.min(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
-                      case /* Max */1 :
+                      case "Max" :
                           return "->S.Array.max(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
-                      case /* Length */2 :
+                      case "Length" :
                           return "->S.Array.length(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
                       
                     }
@@ -3271,27 +3292,27 @@ function internalInline(struct, maybeVariant, param) {
           Js_dict.unsafeDeleteKey(metadataMap, metadataId$1);
           inlinedStruct$2 = inlinedStruct$1 + refinements$5.map(function (refinement) {
                   var match = refinement.kind;
-                  if (typeof match === "number") {
+                  if (typeof match !== "object") {
                     switch (match) {
-                      case /* Email */0 :
+                      case "Email" :
                           return "->S.String.email(~message=" + JSON.stringify(refinement.message) + ", ())";
-                      case /* Uuid */1 :
+                      case "Uuid" :
                           return "->S.String.uuid(~message=" + JSON.stringify(refinement.message) + ", ())";
-                      case /* Cuid */2 :
+                      case "Cuid" :
                           return "->S.String.cuid(~message=" + JSON.stringify(refinement.message) + ", ())";
-                      case /* Url */3 :
+                      case "Url" :
                           return "->S.String.url(~message=" + JSON.stringify(refinement.message) + ", ())";
                       
                     }
                   } else {
-                    switch (match.TAG | 0) {
-                      case /* Min */0 :
+                    switch (match.TAG) {
+                      case "Min" :
                           return "->S.String.min(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
-                      case /* Max */1 :
+                      case "Max" :
                           return "->S.String.max(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
-                      case /* Length */2 :
+                      case "Length" :
                           return "->S.String.length(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
-                      case /* Pattern */3 :
+                      case "Pattern" :
                           return "->S.String.pattern(~message=" + JSON.stringify(refinement.message) + ", %re(" + JSON.stringify(match.re.toString()) + "))";
                       
                     }
@@ -3307,9 +3328,9 @@ function internalInline(struct, maybeVariant, param) {
           Js_dict.unsafeDeleteKey(metadataMap, metadataId$2);
           inlinedStruct$2 = inlinedStruct$1 + refinements$6.map(function (refinement) {
                   var match = refinement.kind;
-                  if (typeof match === "number") {
+                  if (typeof match !== "object") {
                     return "->S.Int.port(~message=" + JSON.stringify(refinement.message) + ", ())";
-                  } else if (match.TAG === /* Min */0) {
+                  } else if (match.TAG === "Min") {
                     return "->S.Int.min(~message=" + JSON.stringify(refinement.message) + ", " + match.value.toString() + ")";
                   } else {
                     return "->S.Int.max(~message=" + JSON.stringify(refinement.message) + ", " + match.value.toString() + ")";
@@ -3325,7 +3346,7 @@ function internalInline(struct, maybeVariant, param) {
           Js_dict.unsafeDeleteKey(metadataMap, metadataId$3);
           inlinedStruct$2 = inlinedStruct$1 + refinements$7.map(function (refinement) {
                   var match = refinement.kind;
-                  if (match.TAG === /* Min */0) {
+                  if (match.TAG === "Min") {
                     var value = match.value;
                     return "->S.Float.min(~message=" + JSON.stringify(refinement.message) + ", " + (value.toString() + (
                               value % 1 === 0 ? "." : ""
@@ -3344,7 +3365,7 @@ function internalInline(struct, maybeVariant, param) {
   }
   var inlinedStruct$3 = Object.keys(metadataMap).length !== 0 ? "{\n  let s = " + inlinedStruct$2 + "\n  let _ = %raw(\`s.m = " + JSON.stringify(metadataMap) + "\`)\n  s\n}" : inlinedStruct$2;
   var match$1 = struct.t;
-  if (typeof match$1 !== "number" && match$1.TAG === /* Literal */0) {
+  if (typeof match$1 === "object" && match$1.TAG === "Literal") {
     return inlinedStruct$3;
   }
   if (maybeVariant !== undefined) {
@@ -3359,7 +3380,7 @@ function inline(struct) {
 }
 
 function unit(param) {
-  return factory$1(/* EmptyOption */1);
+  return factory("EmptyOption", undefined);
 }
 
 var Path = {
