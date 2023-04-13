@@ -8,7 +8,7 @@ let generate_struct_signature_item ~type_declaration =
 
   let struct_name = get_generated_struct_name type_name in
 
-  [%type: [%t Typ.var type_name] S.t]
+  [%type: [%t Typ.constr (lid type_name) []] S.t]
   |> Val.mk (mknoloc struct_name)
   |> Sig.value
 

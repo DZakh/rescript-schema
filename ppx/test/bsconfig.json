@@ -13,12 +13,16 @@
     "module": "commonjs",
     "in-source": true
   },
-  "bs-dependencies": ["@rescript/core"],
+  "bs-dependencies": ["@rescript/core", "rescript-struct"],
   "bs-dev-dependencies": ["@glennsl/bs-jest"],
   "ppx-flags": ["../ppx"],
   "warnings": {
     "error": true,
     "number": "-48-44"
   },
-  "bsc-flags": ["-bs-super-errors", "-open RescriptCore"]
+  "bsc-flags": [
+    "-bs-super-errors",
+    "-open RescriptCore",
+    "-open RescriptStruct"
+  ]
 }

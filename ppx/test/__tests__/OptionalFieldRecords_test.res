@@ -1,6 +1,5 @@
 open Jest
 open Expect
-// open Belt
 
 describe("optional field record", _ => {
   open OptionalFieldRecords

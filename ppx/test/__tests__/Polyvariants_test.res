@@ -1,6 +1,5 @@
 open Jest
 open Expect
-// open Belt
 
 describe("polymorphic variants with attribute", _ => {
   test("encode 하나", _ => {

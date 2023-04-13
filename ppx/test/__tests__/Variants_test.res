@@ -1,6 +1,5 @@
 open Jest
 open Expect
-// open Belt
 
 describe("variants with @struct.as", _ => {
   test(`encode 하나`, _ => {
