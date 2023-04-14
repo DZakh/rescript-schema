@@ -13,7 +13,7 @@ module Suite = {
   external make: unit => t = "Suite"
 
   @send
-  external add: (t, string, (. unit) => 'a) => t = "add"
+  external add: (t, string, unit => 'a) => t = "add"
 
   let addWithPrepare = (suite, name, fn) => {
     suite->add(name, fn())
@@ -34,11 +34,11 @@ module Suite = {
   }
 }
 
-let makeStringStruct = (. ()) => {
+let makeStringStruct = () => {
   S.string()
 }
 
-let makeTestObject = (. ()) => {
+let makeTestObject = () => {
   %raw(`Object.freeze({
     number: 1,
     negNumber: -1,
@@ -55,7 +55,7 @@ let makeTestObject = (. ()) => {
   })`)
 }
 
-let makeAdvancedObjectStruct = (. ()) => {
+let makeAdvancedObjectStruct = () => {
   S.object(o =>
     {
       "number": o->S.field("number", S.float()),
@@ -78,7 +78,7 @@ let makeAdvancedObjectStruct = (. ()) => {
   )
 }
 
-let makeAdvancedStrictObjectStruct = (. ()) => {
+let makeAdvancedStrictObjectStruct = () => {
   S.object(o =>
     {
       "number": o->S.field("number", S.float()),
@@ -104,45 +104,45 @@ let makeAdvancedStrictObjectStruct = (. ()) => {
 Suite.make()
 ->Suite.add("String struct factory", makeStringStruct)
 ->Suite.addWithPrepare("Parse string", () => {
-  let struct = makeStringStruct(.)
+  let struct = makeStringStruct()
   let data = "Hello world!"
-  (. ()) => {
+  () => {
     data->S.parseAnyOrRaiseWith(struct)
   }
 })
 ->Suite.addWithPrepare("Serialize string", () => {
-  let struct = makeStringStruct(.)
+  let struct = makeStringStruct()
   let data = "Hello world!"
-  (. ()) => {
+  () => {
     data->S.serializeOrRaiseWith(struct)
   }
 })
 ->Suite.add("Advanced object struct factory", makeAdvancedObjectStruct)
 ->Suite.addWithPrepare("Parse advanced object", () => {
-  let struct = makeAdvancedObjectStruct(.)
-  let data = makeTestObject(.)
-  (. ()) => {
+  let struct = makeAdvancedObjectStruct()
+  let data = makeTestObject()
+  () => {
     data->S.parseAnyOrRaiseWith(struct)
   }
 })
 ->Suite.addWithPrepare("Create and parse advanced object", () => {
-  let data = makeTestObject(.)
-  (. ()) => {
-    let struct = makeAdvancedObjectStruct(.)
+  let data = makeTestObject()
+  () => {
+    let struct = makeAdvancedObjectStruct()
     data->S.parseAnyOrRaiseWith(struct)
   }
 })
 ->Suite.addWithPrepare("Parse advanced strict object", () => {
-  let struct = makeAdvancedStrictObjectStruct(.)
-  let data = makeTestObject(.)
-  (. ()) => {
+  let struct = makeAdvancedStrictObjectStruct()
+  let data = makeTestObject()
+  () => {
     data->S.parseAnyOrRaiseWith(struct)
   }
 })
 ->Suite.addWithPrepare("Serialize advanced object", () => {
-  let struct = makeAdvancedObjectStruct(.)
-  let data = makeTestObject(.)
-  (. ()) => {
+  let struct = makeAdvancedObjectStruct()
+  let data = makeTestObject()
+  () => {
     data->S.serializeOrRaiseWith(struct)
   }
 })

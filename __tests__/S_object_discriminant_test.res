@@ -50,7 +50,7 @@ module Positive = {
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.tuple2(. S.literal(Bool(false)), S.literal(String("bar"))),
+      ~discriminantStruct=S.tuple2(S.literal(Bool(false)), S.literal(String("bar"))),
       ~discriminantData=%raw(`[false, "bar"]`),
       (),
     ),
@@ -178,7 +178,7 @@ module Negative = {
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.tuple2(. S.literal(Bool(true)), S.bool()),
+      ~discriminantStruct=S.tuple2(S.literal(Bool(true)), S.bool()),
       ~discriminantData=(true, false),
       (),
     ),

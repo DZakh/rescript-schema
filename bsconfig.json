@@ -19,5 +19,6 @@
       "dir": "benchmark",
       "type": "dev"
     }
-  ]
+  ],
+  "uncurried": true
 }
