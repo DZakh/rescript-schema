@@ -634,10 +634,10 @@ module TransformationFactory = {
     }
 
     @inline
-    let makeSyncTransformation = (fn: 'a => 'b): (. unknown) => unknown => fn->Obj.magic
+    let makeSyncTransformation = (fn: 'a => 'b): ((. unknown) => unknown) => fn->Obj.magic
 
     @inline
-    let makeAsyncTransformation = (fn: 'a => promise<'b>): (. unknown) => promise<unknown> =>
+    let makeAsyncTransformation = (fn: 'a => promise<'b>): ((. unknown) => promise<unknown>) =>
       fn->Obj.magic
 
     let planSyncTransformation = (ctx, transformation) => {
@@ -974,7 +974,9 @@ let parseAnyAsyncInStepsWith = (any, struct) => {
   try {
     let asyncFn = struct.parseAsync(. any->castAnyToUnknown)
 
-    (. ()) => asyncFn(.)->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, asyncPrepareError)->Ok
+    (
+      (. ()) => asyncFn(.)->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, asyncPrepareError)
+    )->Ok
   } catch {
   | Error.Internal.Exception(internalError) => internalError->Error.Internal.toParseError->Error
   }

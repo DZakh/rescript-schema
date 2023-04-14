@@ -2627,19 +2627,18 @@ function classify$2(struct) {
 function factory$15(param) {
   var structs = (Array.from(arguments));
   var numberOfStructs = structs.length;
-  var structs$1 = numberOfStructs === 1 && structs[0] === undefined ? [] : structs;
   return {
           n: "Tuple",
           t: {
             TAG: "Tuple",
-            _0: structs$1
+            _0: structs
           },
           pf: (function (ctx, struct) {
               var noopOps = [];
               var syncOps = [];
               var asyncOps = [];
-              for(var idx = 0 ,idx_finish = structs$1.length; idx < idx_finish; ++idx){
-                var innerStruct = structs$1[idx];
+              for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
+                var innerStruct = structs[idx];
                 var fn = getParseOperation(innerStruct);
                 if (typeof fn !== "object") {
                   noopOps.push(idx);
@@ -2743,8 +2742,8 @@ function factory$15(param) {
             }),
           sf: (function (ctx, param) {
               var serializeOperations = [];
-              for(var idx = 0 ,idx_finish = structs$1.length; idx < idx_finish; ++idx){
-                serializeOperations.push(getSerializeOperation(structs$1[idx]));
+              for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
+                serializeOperations.push(getSerializeOperation(structs[idx]));
               }
               planSyncTransformation(ctx, (function (input) {
                       var inputArray = numberOfStructs === 1 ? [input] : input;
