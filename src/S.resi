@@ -1,3 +1,5 @@
+@@uncurried
+
 module Path: {
   type t
 
