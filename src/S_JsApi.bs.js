@@ -14,6 +14,10 @@ class RescriptStructError extends Error {
     exports.RescriptStructError = RescriptStructError
 ;
 
+function make(error) {
+  return new RescriptStructError(S$RescriptStruct.$$Error.toString(error));
+}
+
 function fromOk(value) {
   return {
           success: true,
@@ -42,7 +46,7 @@ function parse(data) {
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
     if (error.RE_EXN_ID === S$RescriptStruct.Raised) {
-      return fromError(new RescriptStructError(S$RescriptStruct.$$Error.toString(error._1)));
+      return fromError(make(error._1));
     }
     throw error;
   }
@@ -56,7 +60,7 @@ function parseOrThrow(data) {
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
     if (error.RE_EXN_ID === S$RescriptStruct.Raised) {
-      throw new RescriptStructError(S$RescriptStruct.$$Error.toString(error._1));
+      throw make(error._1);
     }
     throw error;
   }
@@ -68,7 +72,7 @@ function parseAsync(data) {
               if (result.TAG === "Ok") {
                 return fromOk(result._0);
               } else {
-                return fromError(new RescriptStructError(S$RescriptStruct.$$Error.toString(result._0)));
+                return fromError(make(result._0));
               }
             });
 }
@@ -81,7 +85,7 @@ function serialize(value) {
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
     if (error.RE_EXN_ID === S$RescriptStruct.Raised) {
-      return fromError(new RescriptStructError(S$RescriptStruct.$$Error.toString(error._1)));
+      return fromError(make(error._1));
     }
     throw error;
   }
@@ -95,7 +99,7 @@ function serializeOrThrow(value) {
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
     if (error.RE_EXN_ID === S$RescriptStruct.Raised) {
-      throw new RescriptStructError(S$RescriptStruct.$$Error.toString(error._1));
+      throw make(error._1);
     }
     throw error;
   }
@@ -125,8 +129,9 @@ function describe(description) {
   return Object.assign(struct$1, structOperations);
 }
 
-function description(param) {
-  return S$RescriptStruct.description(this);
+function description() {
+  var struct = this;
+  return S$RescriptStruct.description(struct);
 }
 
 function $$default(def) {
@@ -135,32 +140,32 @@ function $$default(def) {
   return Object.assign(struct$1, structOperations);
 }
 
-function string(param) {
+function string() {
   var struct = S$RescriptStruct.string(undefined);
   return Object.assign(struct, structOperations);
 }
 
-function $$boolean(param) {
+function $$boolean() {
   var struct = S$RescriptStruct.bool(undefined);
   return Object.assign(struct, structOperations);
 }
 
-function integer(param) {
+function integer() {
   var struct = S$RescriptStruct.$$int(undefined);
   return Object.assign(struct, structOperations);
 }
 
-function number(param) {
+function number() {
   var struct = S$RescriptStruct.$$float(undefined);
   return Object.assign(struct, structOperations);
 }
 
-function never(param) {
+function never() {
   var struct = S$RescriptStruct.never(undefined);
   return Object.assign(struct, structOperations);
 }
 
-function unknown(param) {
+function unknown() {
   var struct = S$RescriptStruct.unknown(undefined);
   return Object.assign(struct, structOperations);
 }
@@ -225,7 +230,7 @@ function literal(value) {
   return Object.assign(struct, structOperations);
 }
 
-function nan(param) {
+function nan() {
   var struct = S$RescriptStruct.literal("NaN");
   return Object.assign(struct, structOperations);
 }
@@ -244,10 +249,10 @@ Object.assign(structOperations, {
       transform: transform,
       refine: refine,
       asyncRefine: asyncRefine,
-      optional: (function (param) {
+      optional: (function () {
           return optional(this);
         }),
-      nullable: (function (param) {
+      nullable: (function () {
           return nullable(this);
         }),
       describe: describe,
@@ -257,12 +262,12 @@ Object.assign(structOperations, {
 
 var objectStructOperations = {};
 
-function strict(param) {
+function strict() {
   var struct = this;
   return Object.assign(S$RescriptStruct.$$Object.strict(struct), objectStructOperations);
 }
 
-function strip(param) {
+function strip() {
   var struct = this;
   return Object.assign(S$RescriptStruct.$$Object.strip(struct), objectStructOperations);
 }

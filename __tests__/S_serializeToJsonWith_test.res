@@ -1,6 +1,9 @@
 open Ava
 
 module Json = Js.Json
+module Obj = {
+  external magic: 'a => 'b = "%identity"
+}
 
 test("Successfully serializes jsonable structs", t => {
   t->Assert.deepEqual(true->S.serializeWith(S.bool()), true->Json.boolean->Ok, ())

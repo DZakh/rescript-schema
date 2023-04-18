@@ -1,3 +1,7 @@
+module Obj = {
+  external magic: 'a => 'b = "%identity"
+}
+
 module Stdlib = {
   module Promise = {
     type t<+'a> = promise<'a>

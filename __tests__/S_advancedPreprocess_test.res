@@ -1,32 +1,31 @@
 open Ava
 
-let preprocessNumberToString = () =>
-  S.advancedPreprocess(
-    _,
-    ~parser=(~struct as _) => Sync(
-      unknown => {
-        if unknown->Js.typeof === "number" {
-          unknown->Obj.magic->Js.Float.toString
-        } else {
-          unknown->Obj.magic
+let preprocessNumberToString = S.advancedPreprocess(
+  _,
+  ~parser=(~struct as _) => Sync(
+    unknown => {
+      if unknown->Js.typeof === "number" {
+        unknown->Obj.magic->Js.Float.toString
+      } else {
+        unknown->Obj.magic
+      }
+    },
+  ),
+  ~serializer=(~struct as _) => Sync(
+    unknown => {
+      if unknown->Js.typeof === "string" {
+        let string: string = unknown->Obj.magic
+        switch string->Belt.Float.fromString {
+        | Some(float) => float->Obj.magic
+        | None => string
         }
-      },
-    ),
-    ~serializer=(~struct as _) => Sync(
-      unknown => {
-        if unknown->Js.typeof === "string" {
-          let string: string = unknown->Obj.magic
-          switch string->Belt.Float.fromString {
-          | Some(float) => float->Obj.magic
-          | None => string
-          }
-        } else {
-          unknown->Obj.magic
-        }
-      },
-    ),
-    (),
-  )
+      } else {
+        unknown->Obj.magic
+      }
+    },
+  ),
+  (),
+)
 
 test("Successfully parses", t => {
   let struct = S.string()->preprocessNumberToString
@@ -191,40 +190,39 @@ asyncTest("Can apply other actions after async preprocess", t => {
 })
 
 test("Applies preproces for union structs separately", t => {
-  let prepareEnvStruct = () =>
-    S.advancedPreprocess(
-      _,
-      ~parser=(~struct) => {
-        switch struct->S.classify {
-        | Bool =>
-          Sync(
-            unknown => {
-              switch unknown->Obj.magic {
-              | "true"
-              | "t"
-              | "1" => true
-              | "false"
-              | "f"
-              | "0" => false
-              | _ => unknown->Obj.magic
-              }->Obj.magic
-            },
-          )
-        | Int =>
-          Sync(
-            unknown => {
-              if unknown->Js.typeof === "string" {
-                %raw(`+unknown`)
-              } else {
-                unknown
-              }
-            },
-          )
-        | _ => Sync(Obj.magic)
-        }
-      },
-      (),
-    )
+  let prepareEnvStruct = S.advancedPreprocess(
+    _,
+    ~parser=(~struct) => {
+      switch struct->S.classify {
+      | Bool =>
+        Sync(
+          unknown => {
+            switch unknown->Obj.magic {
+            | "true"
+            | "t"
+            | "1" => true
+            | "false"
+            | "f"
+            | "0" => false
+            | _ => unknown->Obj.magic
+            }->Obj.magic
+          },
+        )
+      | Int =>
+        Sync(
+          unknown => {
+            if unknown->Js.typeof === "string" {
+              %raw(`+unknown`)
+            } else {
+              unknown
+            }
+          },
+        )
+      | _ => Sync(a => a)
+      }
+    },
+    (),
+  )
 
   let struct =
     S.union([

@@ -5,14 +5,20 @@ module Stdlib = {
     @val
     external copy: (@as(json`{}`) _, Js.Dict.t<'a>) => Js.Dict.t<'a> = "Object.assign"
 
+    let deleteInPlace: (Js.Dict.t<'a>, string) => unit = %raw("function (dict,key){
+      delete dict[key]
+    }")
+
     let omit = (dict: Js.Dict.t<'a>, fields: array<string>): Js.Dict.t<'a> => {
       let dict = dict->copy
-      fields->Js.Array2.forEach(field => {
-        Js.Dict.unsafeDeleteKey(dict, field)
-      })
+      fields->Js.Array2.forEach(field => dict->deleteInPlace(field))
       dict
     }
   }
+}
+
+module Obj = {
+  external magic: 'a => 'b = "%identity"
 }
 
 let assertEqualStructs = {
@@ -725,7 +731,7 @@ test("Supports Object.strip", t => {
     struct->S.inline,
     `{
   let s = S.object(_ => ())
-  let _ = %raw(\`s.m = {"rescript-struct:Object.UnknownKeys":1}\`)
+  let _ = %raw(\`s.m = {"rescript-struct:Object.UnknownKeys":"Strip"}\`)
   s
 }`,
     (),
@@ -738,7 +744,7 @@ test("Supports Object.strict", t => {
     struct->S.inline,
     `{
   let s = S.object(_ => ())
-  let _ = %raw(\`s.m = {"rescript-struct:Object.UnknownKeys":0}\`)
+  let _ = %raw(\`s.m = {"rescript-struct:Object.UnknownKeys":"Strict"}\`)
   s
 }`,
     (),

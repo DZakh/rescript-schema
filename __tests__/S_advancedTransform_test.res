@@ -1,12 +1,11 @@
 open Ava
 
-let trimmed = () =>
-  S.advancedTransform(
-    _,
-    ~parser=(~struct as _) => Sync(value => value->Js.String2.trim),
-    ~serializer=(~struct as _) => Sync(transformed => transformed->Js.String2.trim),
-    (),
-  )
+let trimmed = S.advancedTransform(
+  _,
+  ~parser=(~struct as _) => Sync(value => value->Js.String2.trim),
+  ~serializer=(~struct as _) => Sync(transformed => transformed->Js.String2.trim),
+  (),
+)
 
 test("Successfully parses", t => {
   let struct = S.string()->trimmed

@@ -1,12 +1,18 @@
 open Ava
 
-let validAsyncRefine = () =>
-  S.advancedTransform(_, ~parser=(~struct as _) => Async(value => Promise.resolve(value)), ())
-let invalidSyncRefine = () => S.refine(_, ~parser=_ => S.fail("Sync user error"), ())
+let validAsyncRefine = S.advancedTransform(
+  _,
+  ~parser=(~struct as _) => Async(value => Promise.resolve(value)),
+  (),
+)
+let invalidSyncRefine = S.refine(_, ~parser=_ => S.fail("Sync user error"), ())
 let unresolvedPromise = Promise.make((_, _) => ())
 let invalidPromise = Promise.resolve()->Promise.then(() => S.fail("Async user error"))
-let invalidAsyncRefine = () =>
-  S.advancedTransform(_, ~parser=(~struct as _) => Async(_ => invalidPromise), ())
+let invalidAsyncRefine = S.advancedTransform(
+  _,
+  ~parser=(~struct as _) => Async(_ => invalidPromise),
+  (),
+)
 
 asyncTest("Successfully parses without asyncRefine", t => {
   let struct = S.string()
