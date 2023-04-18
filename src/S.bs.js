@@ -4,6 +4,7 @@
 var Js_exn = require("rescript/lib/js/js_exn.js");
 var Js_dict = require("rescript/lib/js/js_dict.js");
 var Js_types = require("rescript/lib/js/js_types.js");
+var Belt_List = require("rescript/lib/js/belt_List.js");
 var Caml_option = require("rescript/lib/js/caml_option.js");
 var Caml_exceptions = require("rescript/lib/js/caml_exceptions.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
@@ -2950,6 +2951,10 @@ function factory$16(structs) {
         };
 }
 
+function list(innerStruct) {
+  return transform(factory$12(innerStruct), Belt_List.fromArray, undefined, Belt_List.toArray, undefined);
+}
+
 var deprecationMetadataId = "rescript-struct:deprecation";
 
 function deprecate(struct, message) {
@@ -3508,6 +3513,7 @@ exports.$$float = $$float;
 exports.literal = literal;
 exports.literalVariant = literalVariant;
 exports.array = array;
+exports.list = list;
 exports.dict = dict;
 exports.option = option;
 exports.$$null = $$null;
