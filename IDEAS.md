@@ -56,3 +56,23 @@ v4.1
 - S.Float.multipleOf
 - Add S.catch / S.fallback (?)
 - Add date refinement for string (copy zod) (?)
+
+#### **`S.default`**
+
+`(S.t<'value>, ~wrapper=S.t<'value> => S.t<option<'value>>=?, unit => 'value) => S.t<'value>`
+
+```rescript
+let struct = S.string()->S.default(() => "Hello World!")
+
+%raw(`undefined`)->S.parseWith(struct)
+// Ok("Hello World!")
+%raw(`"Goodbye World!"`)->S.parseWith(struct)
+// Ok("Goodbye World!")
+
+let struct = S.string()->S.default(~wrapper=S.null, () => "Hello World!")
+
+%raw(`null`)->S.parseWith(struct)
+// Ok("Hello World!")
+%raw(`"Goodbye World!"`)->S.parseWith(struct)
+// Ok("Goodbye World!")
+```
