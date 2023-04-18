@@ -48,6 +48,8 @@ let struct = S.tuple(o => (o->S.item(0, S.string()), o->S.item(1, S.int())))
 
 - Think of the S.advancedTransform and S.advancedPreprocess destiny
 
+- Make S.deprecated not wrap in option
+
 v4.1
 
 - S.variant

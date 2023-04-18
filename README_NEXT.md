@@ -516,6 +516,19 @@ S.array()->S.Array.min(5) // Array must be 5 or more items long
 S.array()->S.Array.length(5) // Array must be exactly 5 items long
 ```
 
+#### **`S.list`**
+
+`S.t<'value> => S.t<list<'value>>`
+
+```rescript
+let struct = S.list(S.string())
+
+%raw(`["Hello", "World"]`)->S.parseWith(struct)
+// Ok(list{"Hello", "World"})
+```
+
+The `list` struct represents an array of data of a specific type which is transformed to ReScript's list data structure.
+
 #### **`S.tuple0` - `S.tuple10`**
 
 `(. S.t<'v1>, S.t<'v2>, S.t<'v3>) => S.t<('v1, 'v2, 'v3)>`

@@ -3467,6 +3467,12 @@ module Union = {
   }
 }
 
+let list = innerStruct => {
+  innerStruct
+  ->Array.factory
+  ->transform(~parser=Belt.List.fromArray, ~serializer=Belt.List.toArray, ())
+}
+
 let deprecationMetadataId: Metadata.Id.t<string> = Metadata.Id.make(
   ~namespace="rescript-struct",
   ~name="deprecation",
