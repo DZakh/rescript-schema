@@ -3229,11 +3229,18 @@ function internalInline(struct, maybeVariant, param) {
   } else {
     inlinedStruct$1 = inlinedStruct;
   }
-  var match = struct.t;
-  var inlinedStruct$2;
+  var message$1 = description(struct);
+  var inlinedStruct$2 = message$1 !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, descriptionMetadataId), inlinedStruct$1 + ("->S.describe(" + (
+          message$1 === undefined ? "undefined" : JSON.stringify(message$1)
+        ) + ")")) : inlinedStruct$1;
+  var match = classify$1(struct);
+  var inlinedStruct$3 = match ? inlinedStruct$2 : inlinedStruct$2 + "->S.Object.strict";
+  Js_dict.unsafeDeleteKey(metadataMap, metadataId);
+  var match$1 = struct.t;
+  var inlinedStruct$4;
   var exit = 0;
-  if (typeof match === "number") {
-    switch (match) {
+  if (typeof match$1 === "number") {
+    switch (match$1) {
       case /* String */2 :
           exit = 1;
           break;
@@ -3244,14 +3251,14 @@ function internalInline(struct, maybeVariant, param) {
           exit = 3;
           break;
       default:
-        inlinedStruct$2 = inlinedStruct$1;
+        inlinedStruct$4 = inlinedStruct$3;
     }
   } else {
-    switch (match.TAG | 0) {
+    switch (match$1.TAG | 0) {
       case /* Literal */0 :
-          var tmp = match._0;
+          var tmp = match$1._0;
           if (typeof tmp === "number") {
-            inlinedStruct$2 = inlinedStruct$1;
+            inlinedStruct$4 = inlinedStruct$3;
           } else {
             switch (tmp.TAG | 0) {
               case /* String */0 :
@@ -3264,7 +3271,7 @@ function internalInline(struct, maybeVariant, param) {
                   exit = 3;
                   break;
               default:
-                inlinedStruct$2 = inlinedStruct$1;
+                inlinedStruct$4 = inlinedStruct$3;
             }
           }
           break;
@@ -3272,7 +3279,7 @@ function internalInline(struct, maybeVariant, param) {
           var refinements$4 = refinements$3(struct);
           if (refinements$4.length !== 0) {
             Js_dict.unsafeDeleteKey(metadataMap, metadataId$4);
-            inlinedStruct$2 = inlinedStruct$1 + refinements$4.map(function (refinement) {
+            inlinedStruct$4 = inlinedStruct$3 + refinements$4.map(function (refinement) {
                     var match = refinement.kind;
                     switch (match.TAG | 0) {
                       case /* Min */0 :
@@ -3285,11 +3292,11 @@ function internalInline(struct, maybeVariant, param) {
                     }
                   }).join("");
           } else {
-            inlinedStruct$2 = inlinedStruct$1;
+            inlinedStruct$4 = inlinedStruct$3;
           }
           break;
       default:
-        inlinedStruct$2 = inlinedStruct$1;
+        inlinedStruct$4 = inlinedStruct$3;
     }
   }
   switch (exit) {
@@ -3297,7 +3304,7 @@ function internalInline(struct, maybeVariant, param) {
         var refinements$5 = refinements(struct);
         if (refinements$5.length !== 0) {
           Js_dict.unsafeDeleteKey(metadataMap, metadataId$1);
-          inlinedStruct$2 = inlinedStruct$1 + refinements$5.map(function (refinement) {
+          inlinedStruct$4 = inlinedStruct$3 + refinements$5.map(function (refinement) {
                   var match = refinement.kind;
                   if (typeof match === "number") {
                     switch (match) {
@@ -3326,14 +3333,14 @@ function internalInline(struct, maybeVariant, param) {
                   }
                 }).join("");
         } else {
-          inlinedStruct$2 = inlinedStruct$1;
+          inlinedStruct$4 = inlinedStruct$3;
         }
         break;
     case 2 :
         var refinements$6 = refinements$1(struct);
         if (refinements$6.length !== 0) {
           Js_dict.unsafeDeleteKey(metadataMap, metadataId$2);
-          inlinedStruct$2 = inlinedStruct$1 + refinements$6.map(function (refinement) {
+          inlinedStruct$4 = inlinedStruct$3 + refinements$6.map(function (refinement) {
                   var match = refinement.kind;
                   if (typeof match === "number") {
                     return "->S.Int.port(~message=" + JSON.stringify(refinement.message) + ", ())";
@@ -3344,14 +3351,14 @@ function internalInline(struct, maybeVariant, param) {
                   }
                 }).join("");
         } else {
-          inlinedStruct$2 = inlinedStruct$1;
+          inlinedStruct$4 = inlinedStruct$3;
         }
         break;
     case 3 :
         var refinements$7 = refinements$2(struct);
         if (refinements$7.length !== 0) {
           Js_dict.unsafeDeleteKey(metadataMap, metadataId$3);
-          inlinedStruct$2 = inlinedStruct$1 + refinements$7.map(function (refinement) {
+          inlinedStruct$4 = inlinedStruct$3 + refinements$7.map(function (refinement) {
                   var match = refinement.kind;
                   if (match.TAG === /* Min */0) {
                     var value = match.value;
@@ -3365,20 +3372,20 @@ function internalInline(struct, maybeVariant, param) {
                           )) + ")";
                 }).join("");
         } else {
-          inlinedStruct$2 = inlinedStruct$1;
+          inlinedStruct$4 = inlinedStruct$3;
         }
         break;
     
   }
-  var inlinedStruct$3 = Object.keys(metadataMap).length !== 0 ? "{\n  let s = " + inlinedStruct$2 + "\n  let _ = %raw(\`s.m = " + JSON.stringify(metadataMap) + "\`)\n  s\n}" : inlinedStruct$2;
-  var match$1 = struct.t;
-  if (typeof match$1 !== "number" && match$1.TAG === /* Literal */0) {
-    return inlinedStruct$3;
+  var inlinedStruct$5 = Object.keys(metadataMap).length !== 0 ? "{\n  let s = " + inlinedStruct$4 + "\n  let _ = %raw(\`s.m = " + JSON.stringify(metadataMap) + "\`)\n  s\n}" : inlinedStruct$4;
+  var match$2 = struct.t;
+  if (typeof match$2 !== "number" && match$2.TAG === /* Literal */0) {
+    return inlinedStruct$5;
   }
   if (maybeVariant !== undefined) {
-    return inlinedStruct$3 + ("->S.transform(\n  ~parser=d => " + maybeVariant + "(d),\n  ~serializer=v => switch v {\n| " + maybeVariant + "(d) => d\n| _ => S.fail(\`Value is not the " + maybeVariant + " variant.\`)\n}, ())");
+    return inlinedStruct$5 + ("->S.transform(\n  ~parser=d => " + maybeVariant + "(d),\n  ~serializer=v => switch v {\n| " + maybeVariant + "(d) => d\n| _ => S.fail(\`Value is not the " + maybeVariant + " variant.\`)\n}, ())");
   } else {
-    return inlinedStruct$3;
+    return inlinedStruct$5;
   }
 }
 

@@ -3648,6 +3648,22 @@ let inline = {
     | None => inlinedStruct
     }
 
+    let inlinedStruct = switch struct->description {
+    | Some(message) => {
+        metadataMap->Stdlib.Dict.deleteInPlace(descriptionMetadataId->Metadata.Id.toKey)
+        inlinedStruct ++ `->S.describe(${message->Stdlib.Inlined.Value.stringify})`
+      }
+
+    | None => inlinedStruct
+    }
+
+    let inlinedStruct = switch struct->Object.UnknownKeys.classify {
+    | Strict => inlinedStruct ++ `->S.Object.strict`
+
+    | Strip => inlinedStruct
+    }
+    metadataMap->Stdlib.Dict.deleteInPlace(Object.UnknownKeys.metadataId->Metadata.Id.toKey)
+
     let inlinedStruct = switch struct->classify {
     | String
     | Literal(String(_)) =>

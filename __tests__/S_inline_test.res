@@ -533,6 +533,11 @@ test("Uses S.literalVariant for all literals inside of union", t => {
   )
 })
 
+test("Supports description", t => {
+  let struct = S.string()->S.describe("It's a string")
+  t->Assert.deepEqual(struct->S.inline, `S.string()->S.describe("It's a string")`, ())
+})
+
 test("Uses S.transform for primitive structs inside of union", t => {
   let struct = S.union([
     S.string()->S.transform(~parser=d => #String(d), ()),
@@ -721,28 +726,12 @@ test("Supports Object (ignores transformations)", t => {
 
 test("Supports Object.strip", t => {
   let struct = S.object(_ => ())->S.Object.strip
-  t->Assert.deepEqual(
-    struct->S.inline,
-    `{
-  let s = S.object(_ => ())
-  let _ = %raw(\`s.m = {"rescript-struct:Object.UnknownKeys":1}\`)
-  s
-}`,
-    (),
-  )
+  t->Assert.deepEqual(struct->S.inline, `S.object(_ => ())`, ())
 })
 
 test("Supports Object.strict", t => {
   let struct = S.object(_ => ())->S.Object.strict
-  t->Assert.deepEqual(
-    struct->S.inline,
-    `{
-  let s = S.object(_ => ())
-  let _ = %raw(\`s.m = {"rescript-struct:Object.UnknownKeys":0}\`)
-  s
-}`,
-    (),
-  )
+  t->Assert.deepEqual(struct->S.inline, `S.object(_ => ())->S.Object.strict`, ())
 })
 
 test("Supports empty Object (ignores transformations)", t => {
@@ -1197,3 +1186,6 @@ test("Supports Union structs in union", t => {
     (),
   )
 })
+
+// TODO: Add support for recursive struct. Aka jsonable
+// TODO: Add support for list.
