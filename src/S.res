@@ -806,60 +806,65 @@ let initialSerialize = (. input) => {
   compiledSerialize(. input)
 }
 
-let rec validateJsonStruct = struct => {
-  switch struct->classify {
-  | String
-  | Int
-  | Float
-  | Bool
-  | Never
-  | Literal(String(_))
-  | Literal(Int(_))
-  | Literal(Float(_))
-  | Literal(Bool(_))
-  | Literal(EmptyNull) => ()
-  | Dict(childStruct)
-  | Null(childStruct)
-  | Array(childStruct) =>
-    childStruct->validateJsonStruct
-  | Object({fieldNames, fields}) =>
-    for idx in 0 to fieldNames->Js.Array2.length - 1 {
-      let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-      let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-      try {
-        switch fieldStruct->classify {
-        // Allow optional fields
-        | Option(s) => s
-        | _ => fieldStruct
-        }->validateJsonStruct
-      } catch {
-      | Error.Internal.Exception(e) =>
-        raise(Error.Internal.Exception(e->Error.Internal.prependLocation(fieldName)))
+let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
+  if isRoot || rootStruct !== struct {
+    switch struct->classify {
+    | String
+    | Int
+    | Float
+    | Bool
+    | Never
+    | Literal(String(_))
+    | Literal(Int(_))
+    | Literal(Float(_))
+    | Literal(Bool(_))
+    | Literal(EmptyNull) => ()
+    | Dict(childStruct)
+    | Null(childStruct)
+    | Array(childStruct) =>
+      childStruct->validateJsonableStruct(~rootStruct, ())
+    | Object({fieldNames, fields}) =>
+      for idx in 0 to fieldNames->Js.Array2.length - 1 {
+        let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+        let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+        try {
+          switch fieldStruct->classify {
+          // Allow optional fields
+          | Option(s) => s
+          | _ => fieldStruct
+          }->validateJsonableStruct(~rootStruct, ())
+        } catch {
+        | Error.Internal.Exception(e) =>
+          raise(Error.Internal.Exception(e->Error.Internal.prependLocation(fieldName)))
+        }
       }
-    }
 
-  | Tuple(childrenStructs) =>
-    childrenStructs->Js.Array2.forEachi((childStruct, i) => {
-      try {
-        childStruct->validateJsonStruct
-      } catch {
-      | Error.Internal.Exception(e) =>
-        raise(Error.Internal.Exception(e->Error.Internal.prependLocation(i->Js.Int.toString)))
-      }
-    })
-  | Union(childrenStructs) => childrenStructs->Js.Array2.forEach(validateJsonStruct)
-  | Option(_)
-  | Unknown
-  | Literal(EmptyOption)
-  | Literal(NaN) =>
-    Error.Internal.raise(InvalidJsonStruct({received: struct->name}))
+    | Tuple(childrenStructs) =>
+      childrenStructs->Js.Array2.forEachi((childStruct, i) => {
+        try {
+          childStruct->validateJsonableStruct(~rootStruct, ())
+        } catch {
+        | Error.Internal.Exception(e) =>
+          raise(Error.Internal.Exception(e->Error.Internal.prependLocation(i->Js.Int.toString)))
+        }
+      })
+    | Union(childrenStructs) =>
+      childrenStructs->Js.Array2.forEach(childStruct =>
+        childStruct->validateJsonableStruct(~rootStruct, ())
+      )
+    | Option(_)
+    | Unknown
+    | Literal(EmptyOption)
+    | Literal(NaN) =>
+      Error.Internal.raise(InvalidJsonStruct({received: struct->name}))
+    }
   }
 }
 
 let initialSerializeToJson = (. input) => {
   let struct = %raw("this")
   try {
-    validateJsonStruct(struct)
+    struct->validateJsonableStruct(~rootStruct=struct, ~isRoot=true, ())
     if struct.serialize === initialSerialize {
       let compiledSerialize = switch struct->getSerializeOperation {
       | None => noOperation
@@ -3472,6 +3477,18 @@ let list = innerStruct => {
   ->Array.factory
   ->transform(~parser=Belt.List.fromArray, ~serializer=Belt.List.toArray, ())
 }
+
+let jsonable = () =>
+  recursive(jsonableStruct =>
+    Union.factory([
+      String.factory(),
+      Float.factory(),
+      Bool.factory(),
+      Literal.Variant.factory(EmptyNull, %raw("null")),
+      Array.factory(jsonableStruct),
+      Dict.factory(jsonableStruct),
+    ])
+  )
 
 let deprecationMetadataId: Metadata.Id.t<string> = Metadata.Id.make(
   ~namespace="rescript-struct",

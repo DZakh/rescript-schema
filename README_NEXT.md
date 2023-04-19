@@ -610,6 +610,19 @@ let struct = S.json(S.int())
 
 The `json` struct represents a data that is a JSON string containing a value of a specific type.
 
+#### **`S.jsonable`**
+
+`() => S.t<Js.Json.t>`
+
+```rescript
+let struct = S.jsonable()
+
+%raw(`"123"`)->S.parseWith(struct)
+// Ok(Js.Json.string("123"))
+```
+
+The `jsonable` struct represents a data that is compatible with JSON.
+
 #### **`S.custom`**
 
 `(~name: string, ~parser: (unknown) => 'value=?, ~asyncParser: (unknown) => promise<'value>=?, ~serializer: ('value) => 'any=?, unit) => S.t<'value>`
