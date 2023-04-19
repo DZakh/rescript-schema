@@ -401,9 +401,14 @@ function initialSerialize(input) {
   return compiledSerialize(input);
 }
 
-function validateJsonStruct(_struct) {
+function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
   while(true) {
+    var isRootOpt = _isRootOpt;
     var struct = _struct;
+    var isRoot = isRootOpt !== undefined ? isRootOpt : false;
+    if (!(isRoot || rootStruct !== struct)) {
+      return ;
+    }
     var childrenStructs = struct.t;
     if (typeof childrenStructs === "number") {
       if (childrenStructs === /* Unknown */1) {
@@ -441,7 +446,7 @@ function validateJsonStruct(_struct) {
               var s = fieldStruct.t;
               var tmp;
               tmp = typeof s === "number" || s.TAG !== /* Option */1 ? fieldStruct : s._0;
-              validateJsonStruct(tmp);
+              validateJsonableStruct(tmp, rootStruct, undefined, undefined);
             }
             catch (raw_e){
               var e = Caml_js_exceptions.internalToOCamlException(raw_e);
@@ -459,7 +464,7 @@ function validateJsonStruct(_struct) {
       case /* Tuple */5 :
           childrenStructs._0.forEach(function (childStruct, i) {
                 try {
-                  return validateJsonStruct(childStruct);
+                  return validateJsonableStruct(childStruct, rootStruct, undefined, undefined);
                 }
                 catch (raw_e){
                   var e = Caml_js_exceptions.internalToOCamlException(raw_e);
@@ -476,22 +481,27 @@ function validateJsonStruct(_struct) {
               });
           return ;
       case /* Union */6 :
-          childrenStructs._0.forEach(validateJsonStruct);
+          childrenStructs._0.forEach(function (childStruct) {
+                validateJsonableStruct(childStruct, rootStruct, undefined, undefined);
+              });
           return ;
       case /* Null */2 :
       case /* Array */3 :
       case /* Dict */7 :
-          _struct = childrenStructs._0;
-          continue ;
+          break;
       
     }
+    _param = undefined;
+    _isRootOpt = undefined;
+    _struct = childrenStructs._0;
+    continue ;
   };
 }
 
 function initialSerializeToJson(input) {
   var struct = this;
   try {
-    validateJsonStruct(struct);
+    validateJsonableStruct(struct, struct, true, undefined);
     if (struct.s === initialSerialize) {
       var fn = getSerializeOperation(struct);
       var compiledSerialize = fn !== undefined ? fn : noOperation;
@@ -2955,6 +2965,19 @@ function list(innerStruct) {
   return transform(factory$12(innerStruct), Belt_List.fromArray, undefined, Belt_List.toArray, undefined);
 }
 
+function jsonable(param) {
+  return recursive(function (jsonableStruct) {
+              return factory$16([
+                          factory$5(undefined),
+                          factory$9(undefined),
+                          factory$7(undefined),
+                          factory(/* EmptyNull */0, null),
+                          factory$12(jsonableStruct),
+                          factory$13(jsonableStruct)
+                        ]);
+            });
+}
+
 var deprecationMetadataId = "rescript-struct:deprecation";
 
 function deprecate(struct, message) {
@@ -3518,6 +3541,7 @@ exports.dict = dict;
 exports.option = option;
 exports.$$null = $$null;
 exports.json = json;
+exports.jsonable = jsonable;
 exports.union = union;
 exports.$$default = $$default;
 exports.default = $$default;
