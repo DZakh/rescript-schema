@@ -51,6 +51,19 @@ test("Supports built-in String.email refinement", t => {
   )
 })
 
+test("Supports built-in String.datetime refinement", t => {
+  let struct = S.string()->S.String.datetime()
+  let structInlineResult =
+    S.string()->S.String.datetime(~message="Invalid datetime string! Must be UTC", ())
+
+  t->assertEqualStructs(struct, structInlineResult, ())
+  t->Assert.deepEqual(
+    struct->S.inline,
+    `S.string()->S.String.datetime(~message="Invalid datetime string! Must be UTC", ())`,
+    (),
+  )
+})
+
 test("Supports built-in String.url refinement", t => {
   let struct = S.string()->S.String.url()
   let structInlineResult = S.string()->S.String.url(~message="Invalid url", ())

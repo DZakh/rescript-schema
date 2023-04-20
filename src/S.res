@@ -2249,6 +2249,7 @@ module String = {
       | Cuid
       | Url
       | Pattern({re: Js.Re.t})
+      | Datetime
     type t = {
       kind: kind,
       message: string,
@@ -2269,7 +2270,10 @@ module String = {
 
   let cuidRegex = %re(`/^c[^\s-]{8,}$/i`)
   let uuidRegex = %re(`/^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]{12}|00000000-0000-0000-0000-000000000000)$/i`)
-  let emailRegex = %re(`/^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i`)
+  // Adapted from https://stackoverflow.com/a/46181/1550155
+  let emailRegex = %re(`/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\])|(\[IPv6:(([a-f0-9]{1,4}:){7}|::([a-f0-9]{1,4}:){0,6}|([a-f0-9]{1,4}:){1}:([a-f0-9]{1,4}:){0,5}|([a-f0-9]{1,4}:){2}:([a-f0-9]{1,4}:){0,4}|([a-f0-9]{1,4}:){3}:([a-f0-9]{1,4}:){0,3}|([a-f0-9]{1,4}:){4}:([a-f0-9]{1,4}:){0,2}|([a-f0-9]{1,4}:){5}:([a-f0-9]{1,4}:){0,1})([a-f0-9]{1,4}|(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2})))\])|([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])*(\.[A-Za-z]{2,})+))$/`)
+  // Adapted from https://stackoverflow.com/a/3143231
+  let datetimeRe = Js.Re.fromString(`^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$`)
 
   let parseTransformationFactory = TransformationFactory.make((. ~ctx, ~struct) =>
     ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -2429,6 +2433,29 @@ module String = {
         message,
       },
     )
+  }
+
+  let datetime = (struct, ~message=`Invalid datetime string! Must be UTC`, ()) => {
+    let refinement = {
+      Refinement.kind: Datetime,
+      message,
+    }
+    struct
+    ->Metadata.set(
+      ~id=Refinement.metadataId,
+      ~metadata={
+        switch struct->Metadata.get(~id=Refinement.metadataId) {
+        | Some(refinements) => refinements->Stdlib.Array.append(refinement)
+        | None => [refinement]
+        }
+      },
+    )
+    ->transform(~parser=string => {
+      if datetimeRe->Js.Re.test_(string)->not {
+        fail(message)
+      }
+      Js.Date.fromString(string)
+    }, ~serializer=Js.Date.toISOString, ())
   }
 
   let trim = (struct, ()) => {
@@ -3693,6 +3720,8 @@ let inline = {
             `->S.String.pattern(~message=${message->Stdlib.Inlined.Value.fromString}, %re(${re
               ->Stdlib.Re.toString
               ->Stdlib.Inlined.Value.fromString}))`
+          | {kind: Datetime, message} =>
+            `->S.String.datetime(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
           }
         })
         ->Js.Array2.joinWith("")

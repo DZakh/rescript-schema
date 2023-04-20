@@ -54,10 +54,7 @@ v4.1
 
 - S.variant
 - Inline literals check used in S.object (Optimize S.literalVariant without transform)
-- S.Int.multipleOf
-- S.Float.multipleOf
 - Add S.catch / S.fallback (?)
-- Add date refinement for string (copy zod) (?)
 
 #### **`S.default`**
 

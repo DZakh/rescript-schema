@@ -1705,7 +1705,9 @@ var cuidRegex = /^c[^\s-]{8,}$/i;
 
 var uuidRegex = /^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]{12}|00000000-0000-0000-0000-000000000000)$/i;
 
-var emailRegex = /^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i;
+var emailRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\])|(\[IPv6:(([a-f0-9]{1,4}:){7}|::([a-f0-9]{1,4}:){0,6}|([a-f0-9]{1,4}:){1}:([a-f0-9]{1,4}:){0,5}|([a-f0-9]{1,4}:){2}:([a-f0-9]{1,4}:){0,4}|([a-f0-9]{1,4}:){3}:([a-f0-9]{1,4}:){0,3}|([a-f0-9]{1,4}:){4}:([a-f0-9]{1,4}:){0,2}|([a-f0-9]{1,4}:){5}:([a-f0-9]{1,4}:){0,1})([a-f0-9]{1,4}|(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2})))\])|([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])*(\.[A-Za-z]{2,})+))$/;
+
+var datetimeRe = new RegExp("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$");
 
 function parseTransformationFactory(ctx, struct) {
   planSyncTransformation(ctx, (function (input) {
@@ -1865,6 +1867,23 @@ function pattern(struct, messageOpt, re) {
               },
               message: message
             }, refiner);
+}
+
+function datetime(struct, messageOpt, param) {
+  var message = messageOpt !== undefined ? messageOpt : "Invalid datetime string! Must be UTC";
+  var refinement = {
+    kind: /* Datetime */4,
+    message: message
+  };
+  var refinements = Js_dict.get(struct.m, metadataId$1);
+  return transform(set(struct, metadataId$1, refinements !== undefined ? refinements.concat(refinement) : [refinement]), (function (string) {
+                if (!datetimeRe.test(string)) {
+                  fail(undefined, message);
+                }
+                return new Date(string);
+              }), undefined, (function (prim) {
+                return prim.toISOString();
+              }), undefined);
 }
 
 function trim(struct, param) {
@@ -3316,6 +3335,8 @@ function internalInline(struct, maybeVariant, param) {
                           return "->S.String.cuid(~message=" + JSON.stringify(refinement.message) + ", ())";
                       case /* Url */3 :
                           return "->S.String.url(~message=" + JSON.stringify(refinement.message) + ", ())";
+                      case /* Datetime */4 :
+                          return "->S.String.datetime(~message=" + JSON.stringify(refinement.message) + ", ())";
                       
                     }
                   } else {
@@ -3494,6 +3515,7 @@ var $$String = {
   cuid: cuid,
   url: url,
   pattern: pattern,
+  datetime: datetime,
   trim: trim
 };
 
@@ -3606,4 +3628,4 @@ exports.Default = Default;
 exports.Result = Result;
 exports.Metadata = Metadata;
 exports.inline = inline;
-/* No side effect */
+/* datetimeRe Not a pure module */
