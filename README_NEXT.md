@@ -31,7 +31,7 @@ Works the same in the browser and in node. See the [examples](#examples) section
 
 > 🧠 Note that **rescript-struct** uses the `Function` constructor, which may cause issues when included as a third-party script on a site with a [script-src](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src) header. But it is completely safe to use as part of your application bundle.
 
-### Install
+## Install
 
 ```sh
 npm install rescript-struct
@@ -47,7 +47,7 @@ Then add `rescript-struct` to `bs-dependencies` in your `bsconfig.json`:
 }
 ```
 
-### Basic usage
+## Basic usage
 
 Creating a simple string struct
 
@@ -120,17 +120,17 @@ The same struct also works for serializing:
 // }`))
 ```
 
-### Examples
+## Examples
 
 - [Reliable API layer](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Api.res)
 - [Creating CLI utility](https://github.com/DZakh/rescript-stdlib-cli/blob/main/src/interactors/RunCli.res)
 - [Safely accessing environment variables variables](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Env.res)
 
-### Struct factories
+## Struct factories
 
 **rescript-struct** exposes factory functions for a variety of common JavaScript types. You can also define your own custom struct factories.
 
-#### **`S.string`**
+### **`S.string`**
 
 `unit => S.t<string>`
 
@@ -154,6 +154,7 @@ S.string()->S.String.url() // Invalid url
 S.string()->S.String.uuid() // Invalid UUID
 S.string()->S.String.cuid() // Invalid CUID
 S.string()->S.String.pattern(%re(`/[0-9]/`)) // Invalid
+S.string()->S.String.datetime() // Invalid datetime string! Must be UTC
 
 S.string()->S.String.trim() // trim whitespaces
 ```
@@ -165,7 +166,22 @@ S.string()->S.String.min(~message="String can't be empty", 1)
 S.string()->S.String.length(~message="SMS code should be 5 digits long", 5)
 ```
 
-#### **`S.bool`**
+#### ISO datetimes
+
+The `S.string()->S.String.datetime()` function has following UTC validation: no timezone offsets with arbitrary sub-second decimal precision.
+
+```rescript
+let datetimeStruct = S.string()->S.String.datetime()
+// The datetimeStruct has the type S.t<Date.t>
+// String is transformed to the Date.t instance
+
+%raw(`"2020-01-01T00:00:00Z"`)->S.parseWith(datetimeStruct) // pass
+%raw(`"2020-01-01T00:00:00.123Z"`)->S.parseWith(datetimeStruct) // pass
+%raw(`"2020-01-01T00:00:00.123456Z"`)->S.parseWith(datetimeStruct) // pass (arbitrary precision)
+%raw(`"2020-01-01T00:00:00+02:00"`)->S.parseWith(datetimeStruct) // fail (no offsets allowed)
+```
+
+### **`S.bool`**
 
 `unit => S.t<bool>`
 
@@ -178,7 +194,7 @@ let struct = S.bool()
 
 The `bool` struct represents a data that is a boolean.
 
-#### **`S.int`**
+### **`S.int`**
 
 `unit => S.t<int>`
 
@@ -199,7 +215,7 @@ S.int()->S.Int.min(5) // Number must be greater than or equal to 5
 S.int()->S.Int.port() // Invalid port
 ```
 
-#### **`S.float`**
+### **`S.float`**
 
 `unit => S.t<float>`
 
@@ -219,7 +235,7 @@ S.float()->S.Float.max(5) // Number must be lower than or equal to 5
 S.float()->S.Float.min(5) // Number must be greater than or equal to 5
 ```
 
-#### **`S.option`**
+### **`S.option`**
 
 `S.t<'value> => S.t<option<'value>>`
 
@@ -234,7 +250,7 @@ let struct = S.option(S.string())
 
 The `option` struct represents a data of a specific type that might be undefined.
 
-#### **`S.null`**
+### **`S.null`**
 
 `S.t<'value> => S.t<option<'value>>`
 
@@ -249,7 +265,7 @@ let struct = S.null(S.string())
 
 The `null` struct represents a data of a specific type that might be null.
 
-#### **`S.unit`**
+### **`S.unit`**
 
 `unit => S.t<unit>`
 
@@ -262,7 +278,7 @@ let struct = S.unit()
 
 The `unit` struct factory is an alias for `S.literal(EmptyOption)`.
 
-#### **`S.literal`**
+### **`S.literal`**
 
 `S.literal<'value> => S.t<'value>`
 
@@ -278,7 +294,7 @@ let nanStruct = S.literal(NaN)
 
 The `literal` struct enforces that a data matches an exact value using the === operator.
 
-#### **`S.literalVariant`**
+### **`S.literalVariant`**
 
 `(S.literal<'value>, 'variant) => S.t<'variant>`
 
@@ -292,7 +308,7 @@ let appleStruct = S.literalVariant(String("apple"), Apple)
 
 The same as `literal` struct factory, but with a convenient way to transform data to ReScript value.
 
-#### **`S.object`**
+### **`S.object`**
 
 `(S.Object.definerCtx => 'value) => S.t<'value>`
 
@@ -315,7 +331,7 @@ let pointStruct = S.object(o => {
 
 The `object` struct represents an object value, that can be transformed into any ReScript value. Here are some examples:
 
-##### Transform object field names
+#### Transform object field names
 
 ```rescript
 type user = {
@@ -332,7 +348,7 @@ let struct = S.object(o => {
 // Ok({ id: 1, name: "John" })
 ```
 
-##### Transform to a structurally typed object
+#### Transform to a structurally typed object
 
 ```rescript
 // It will have the S.t<{"key1":string,"key2":string}> type
@@ -342,7 +358,7 @@ let struct = S.object(o => {
 })
 ```
 
-##### Transform to a tuple
+#### Transform to a tuple
 
 ```rescript
 // It will have the S.t<(int, string)> type
@@ -359,7 +375,7 @@ The same struct also works for serializing:
 // Ok(%raw(`{"USER_ID":1,"USER_NAME":"John"}`))
 ```
 
-##### Transform to a variant
+#### Transform to a variant
 
 ```rescript
 type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, y: float})
@@ -389,7 +405,7 @@ Circle({radius: 1})->S.serializeWith(struct)
 // }`))
 ```
 
-#### **`S.Object.strict`**
+### **`S.Object.strict`**
 
 `S.t<'value> => S.t<'value>`
 
@@ -409,7 +425,7 @@ let struct = S.object(_ => ())->S.Object.strict
 
 By default **rescript-struct** silently strips unrecognized keys when parsing objects. You can change the behaviour to disallow unrecognized keys with the `S.Object.strict` function.
 
-#### **`S.Object.strip`**
+### **`S.Object.strip`**
 
 `S.t<'value> => S.t<'value>`
 
@@ -425,7 +441,7 @@ let struct = S.object(_ => ())->S.Object.strip
 
 You can use the `S.Object.strip` function to reset a object struct to the default behavior (stripping unrecognized keys).
 
-#### **`S.union`**
+### **`S.union`**
 
 `array<S.t<'value>> => S.t<'value>`
 
@@ -478,7 +494,7 @@ Square({x: 2.})->S.serializeWith(shapeStruct)
 
 The `union` will test the input against each of the structs in order and return the first value that validates successfully.
 
-##### Enums
+#### Enums
 
 Also, you can describe enums using `S.union` together with `S.literalVariant`.
 
@@ -495,7 +511,7 @@ let struct = S.union([
 // Ok(Draw)
 ```
 
-#### **`S.array`**
+### **`S.array`**
 
 `S.t<'value> => S.t<array<'value>>`
 
@@ -516,7 +532,7 @@ S.array()->S.Array.min(5) // Array must be 5 or more items long
 S.array()->S.Array.length(5) // Array must be exactly 5 items long
 ```
 
-#### **`S.list`**
+### **`S.list`**
 
 `S.t<'value> => S.t<list<'value>>`
 
@@ -529,7 +545,7 @@ let struct = S.list(S.string())
 
 The `list` struct represents an array of data of a specific type which is transformed to ReScript's list data structure.
 
-#### **`S.tuple0` - `S.tuple10`**
+### **`S.tuple0` - `S.tuple10`**
 
 `(. S.t<'v1>, S.t<'v2>, S.t<'v3>) => S.t<('v1, 'v2, 'v3)>`
 
@@ -544,7 +560,7 @@ The `tuple` struct represents that a data is an array of a specific length with 
 
 The tuple struct factories are available up to 10 fields. If you have an array with more values, you can create a tuple struct factory for any number of fields using `S.Tuple.factory`.
 
-#### **`S.Tuple.factory`**
+### **`S.Tuple.factory`**
 
 ```rescript
 let tuple3: (. S.t<'v1>, S.t<'v2>, S.t<'v3>) => S.t<('v1, 'v2, 'v3)> = S.Tuple.factory
@@ -552,7 +568,7 @@ let tuple3: (. S.t<'v1>, S.t<'v2>, S.t<'v3>) => S.t<('v1, 'v2, 'v3)> = S.Tuple.f
 
 > 🧠 The `S.Tuple.factory` internal code isn't typesafe, so you should properly annotate the struct factory interface.
 
-#### **`S.dict`**
+### **`S.dict`**
 
 `S.t<'value> => S.t<Js.Dict.t<'value>>`
 
@@ -568,7 +584,7 @@ let struct = S.dict(S.string())
 
 The `dict` struct represents a dictionary of data of a specific type.
 
-#### **`S.unknown`**
+### **`S.unknown`**
 
 `() => S.t<unknown>`
 
@@ -580,7 +596,7 @@ let struct = S.unknown()
 
 The `unknown` struct represents any data.
 
-#### **`S.never`**
+### **`S.never`**
 
 `() => S.t<S.never>`
 
@@ -597,7 +613,7 @@ let struct = S.never()
 
 The `never` struct will fail parsing for every value.
 
-#### **`S.json`**
+### **`S.json`**
 
 `S.t<'value> => S.t<'value>`
 
@@ -610,7 +626,7 @@ let struct = S.json(S.int())
 
 The `json` struct represents a data that is a JSON string containing a value of a specific type.
 
-#### **`S.jsonable`**
+### **`S.jsonable`**
 
 `() => S.t<Js.Json.t>`
 
@@ -623,7 +639,7 @@ let struct = S.jsonable()
 
 The `jsonable` struct represents a data that is compatible with JSON.
 
-#### **`S.custom`**
+### **`S.custom`**
 
 `(~name: string, ~parser: (unknown) => 'value=?, ~asyncParser: (unknown) => promise<'value>=?, ~serializer: ('value) => 'any=?, unit) => S.t<'value>`
 
@@ -670,7 +686,7 @@ let nullableStruct = innerStruct =>
 // })
 ```
 
-#### **`S.default`**
+### **`S.default`**
 
 `(S.t<option<'value>>, unit => 'value) => S.t<'value>`
 
@@ -685,7 +701,7 @@ let struct = S.option(S.string())->S.default(() => "Hello World!")
 
 The `default` augments a struct to add transformation logic for default values, which are applied when the input is undefined.
 
-#### **`S.describe`**
+### **`S.describe`**
 
 `(S.t<'value>, string) => S.t<'value>`
 
@@ -700,7 +716,7 @@ documentedString->S.description // A useful bit of text…
 
 This can be useful for documenting a field, for example in a JSON Schema using a library like [`rescript-json-schema`](https://github.com/DZakh/rescript-json-schema).
 
-#### **`S.deprecate`**
+### **`S.deprecate`**
 
 `(S.t<'value>, string) => S.t<option<'value>>`
 
@@ -715,7 +731,7 @@ deprecatedString->S.deprecation // Will be removed in APIv2…
 
 This can be useful for documenting a field, for example in a JSON Schema using a library like [`rescript-json-schema`](https://github.com/DZakh/rescript-json-schema).
 
-#### **`S.recursive`**
+### **`S.recursive`**
 
 `(t<'value> => t<'value>) => t<'value>`
 
@@ -769,7 +785,7 @@ The same struct also works for serializing:
 
 > 🧠 Despite supporting recursive structs, passing cyclical data into rescript-struct will cause an infinite loop.
 
-#### **`S.asyncRecursive`**
+### **`S.asyncRecursive`**
 
 `(t<'value> => t<'value>) => t<'value>`
 
@@ -807,13 +823,13 @@ await %raw(`{
 
 One great aspect of the example above is that it uses parallelism to make four requests to check for the existence of nodes.
 
-### Refinements
+## Refinements
 
 **rescript-struct** lets you provide custom validation logic via refinements.
 
 There are many so-called "refinement types" you may wish to check for that can't be represented in ReScript's type system. For instance: checking that a number is an integer or that a string is a valid email address.
 
-#### **`S.refine`**
+### **`S.refine`**
 
 `(S.t<'value>, ~parser: 'value => unit=?, ~asyncParser: 'value => promise<unit>=?, ~serializer: 'value => unit=?, unit) => S.t<'value>`
 
@@ -841,11 +857,11 @@ let userIdStruct = S.string()->S.refine(~asyncParser=userId =>
 
 > 🧠 If you use async refinements, you must use the `parseAsyncWith` to parse data! Otherwise **rescript-struct** will return an `UnexpectedAsync` error.
 
-### Transforms
+## Transforms
 
 **rescript-struct** allows structs to be augmented with transformation logic, letting you transform value during parsing and serializing. This is most commonly used for mapping value to a more convenient ReScript data structure.
 
-#### **`S.transform`**
+### **`S.transform`**
 
 `(S.t<'value>, ~parser: 'value => 'transformed=?, ~asyncParser: 'value => promise<'transformed>=?, ~serializer: 'transformed => 'value=?, unit) => S.t<'transformed>`
 
@@ -887,7 +903,7 @@ await %raw(`"1"`)->S.parseAsyncWith(userStruct)
 // Ok("1")
 ```
 
-### Preprocess _Advanced_
+## Preprocess _Advanced_
 
 Typically **rescript-struct** operates under a "parse then transform" paradigm. **rescript-struct** validates the input first, then passes it through a chain of transformation functions.
 
@@ -931,9 +947,9 @@ let prepareEnvStruct = S.advancedPreprocess(
 
 > 🧠 When using preprocess on Union it will be applied to nested structs separately instead.
 
-### Functions on struct
+## Functions on struct
 
-#### **`S.parseWith`**
+### **`S.parseWith`**
 
 `(Js.Json.t, S.t<'value>) => result<'value, S.Error.t>`
 
@@ -943,7 +959,7 @@ data->S.parseWith(userStruct)
 
 Given any struct, you can call `parseWith` to check `data` is valid. It returns a result with valid data transformed to expected type or a **rescript-struct** error.
 
-#### **`S.parseAnyWith`**
+### **`S.parseAnyWith`**
 
 `('any, S.t<'value>) => result<'value, S.Error.t>`
 
@@ -953,7 +969,7 @@ data->S.parseAnyWith(userStruct)
 
 The same as `parseWith`, but the `data` is loosened to the abstract type.
 
-#### **`S.parseJsonWith`**
+### **`S.parseJsonWith`**
 
 `(string, S.t<'value>) => result<'value, S.Error.t>`
 
@@ -963,7 +979,7 @@ json->S.parseJsonWith(userStruct)
 
 The same as `parseWith`, but applies `JSON.parse` before parsing.
 
-#### **`S.parseOrRaiseWith`**
+### **`S.parseOrRaiseWith`**
 
 `(Js.Json.t, S.t<'value>) => 'value`
 
@@ -977,7 +993,7 @@ try {
 
 The exception-based version of `parseWith`.
 
-#### **`S.parseAnyOrRaiseWith`**
+### **`S.parseAnyOrRaiseWith`**
 
 `('any', S.t<'value>) => 'value`
 
@@ -991,7 +1007,7 @@ try {
 
 The exception-based version of `parseAnyWith`.
 
-#### **`S.parseAsyncWith`**
+### **`S.parseAsyncWith`**
 
 `(Js.Json.t, S.t<'value>) => promise<result<'value, S.Error.t>>`
 
@@ -1001,7 +1017,7 @@ data->S.parseAsyncWith(userStruct)
 
 If you use asynchronous refinements or transforms (more on those later), you'll need to use `parseAsyncWith`. It will parse all synchronous branches first and then continue with asynchronous refinements and transforms in parallel.
 
-#### **`S.parseAsyncInStepsWith`** _Advanced_
+### **`S.parseAsyncInStepsWith`** _Advanced_
 
 `(Js.Json.t, S.t<'value>) => result<(. unit) => promise<result<'value, S.Error.t>>, S.Error.t>`
 
@@ -1011,7 +1027,7 @@ data->S.parseAsyncInStepsWith(userStruct)
 
 After parsing synchronous branches will return a function to run asynchronous refinements and transforms.
 
-#### **`S.serializeWith`**
+### **`S.serializeWith`**
 
 `('value, S.t<'value>) => result<Js.Json.t, S.Error.t>`
 
@@ -1023,7 +1039,7 @@ Serializes value using the transformation logic that is built-in to the struct. 
 
 > 🧠 It fails with JSON incompatible structs. Use S.serializeToUnknownWith if you use structs that don't serialize to JSON.
 
-#### **`S.serializeToUnknownWith`**
+### **`S.serializeToUnknownWith`**
 
 `('value, S.t<'value>) => result<unknown, S.Error.t>`
 
@@ -1033,7 +1049,7 @@ user->S.serializeToUnknownWith(userStruct)
 
 Similar to the `serializeWith` but returns `unknown` instead of `Js.Json.t`. Also, it doesn't check the struct on JSON compatibility.
 
-#### **`S.serializeToJsonWith`**
+### **`S.serializeToJsonWith`**
 
 `('value, ~space: int=?, S.t<'value>) => result<string, S.Error.t>`
 
@@ -1043,7 +1059,7 @@ user->S.serializeToJsonWith(userStruct)
 
 The same as `serializeToUnknownWith`, but applies `JSON.serialize` at the end.
 
-#### **`S.serializeOrRaiseWith`**
+### **`S.serializeOrRaiseWith`**
 
 `('value, S.t<'value>) => Js.Json.t`
 
@@ -1057,7 +1073,7 @@ try {
 
 The exception-based version of `serializeWith`.
 
-#### **`S.serializeToUnknownOrRaiseWith`**
+### **`S.serializeToUnknownOrRaiseWith`**
 
 `('value, S.t<'value>) => Js.Json.t`
 
@@ -1071,7 +1087,7 @@ try {
 
 The exception-based version of `serializeToUnknownWith`.
 
-### Error handling
+## Error handling
 
 **rescript-struct** returns a result type with error `S.Error.t` containing detailed information about the validation problems.
 
@@ -1086,19 +1102,19 @@ let struct = S.literal(Bool(false))
 // })
 ```
 
-#### **`S.fail`**
+### **`S.fail`**
 
 `(~path: S.Path.t=?, string) => 'a`
 
 A function to exit with failure during refinements and transforms.
 
-#### **`S.advancedFail`** _Advanced_
+### **`S.advancedFail`** _Advanced_
 
 `S.Error.t => 'a`
 
 A function to exit with failure during refinements and transforms.
 
-#### **`S.Error.toString`**
+### **`S.Error.toString`**
 
 `S.Error.t => string`
 
@@ -1114,9 +1130,9 @@ A function to exit with failure during refinements and transforms.
 "Failed parsing at root. Reason: Expected false, received true"
 ```
 
-### Result helpers
+## Result helpers
 
-#### **`S.Result.getExn`**
+### **`S.Result.getExn`**
 
 `result<'a, S.Error.t> => 'a`
 
@@ -1131,7 +1147,7 @@ let struct = S.literal(Bool(false))
 
 > 🧠 It's not intended to be caught. Useful to panic with a readable error message.
 
-#### **`S.Result.mapErrorToString`**
+### **`S.Result.mapErrorToString`**
 
 `result<'a, S.Error.t> => result<'a, string>`
 
@@ -1142,7 +1158,7 @@ let struct = S.literal(Bool(false))
 // Error("Failed parsing at root. Reason: Expected false, received true")
 ```
 
-### Integration
+## Integration
 
 If you're a library maintainer, you can use **rescript-struct** to get information about described structures. The most common use case is building type-safe schemas e.g for REST APIs, databases, and forms.
 

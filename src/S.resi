@@ -269,6 +269,7 @@ module String: {
       | Cuid
       | Url
       | Pattern({re: Js.Re.t})
+      | Datetime
     type t = {
       kind: kind,
       message: string,
@@ -285,7 +286,7 @@ module String: {
   let cuid: (t<string>, ~message: string=?, unit) => t<string>
   let url: (t<string>, ~message: string=?, unit) => t<string>
   let pattern: (t<string>, ~message: string=?, Js.Re.t) => t<string>
-
+  let datetime: (t<string>, ~message: string=?, unit) => t<Js.Date.t>
   let trim: (t<string>, unit) => t<string>
 }
 
