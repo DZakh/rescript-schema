@@ -1707,7 +1707,7 @@ var uuidRegex = /^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]
 
 var emailRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\])|(\[IPv6:(([a-f0-9]{1,4}:){7}|::([a-f0-9]{1,4}:){0,6}|([a-f0-9]{1,4}:){1}:([a-f0-9]{1,4}:){0,5}|([a-f0-9]{1,4}:){2}:([a-f0-9]{1,4}:){0,4}|([a-f0-9]{1,4}:){3}:([a-f0-9]{1,4}:){0,3}|([a-f0-9]{1,4}:){4}:([a-f0-9]{1,4}:){0,2}|([a-f0-9]{1,4}:){5}:([a-f0-9]{1,4}:){0,1})([a-f0-9]{1,4}|(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2})))\])|([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])*(\.[A-Za-z]{2,})+))$/;
 
-var datetimeRe = new RegExp("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$");
+var datetimeRe = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
 function parseTransformationFactory(ctx, struct) {
   planSyncTransformation(ctx, (function (input) {
@@ -2997,6 +2997,96 @@ function jsonable(param) {
             });
 }
 
+function $$catch(struct, getFallbackValue) {
+  return {
+          n: struct.n,
+          t: struct.t,
+          pf: (function (ctx, param) {
+              var fn = getParseOperation(struct);
+              if (typeof fn === "number") {
+                return ;
+              }
+              if (fn.TAG === /* SyncOperation */0) {
+                var fn$1 = fn._0;
+                return planSyncTransformation(ctx, (function (input) {
+                              try {
+                                return fn$1(input);
+                              }
+                              catch (raw_e){
+                                var e = Caml_js_exceptions.internalToOCamlException(raw_e);
+                                if (e.RE_EXN_ID === Exception) {
+                                  return getFallbackValue({
+                                              error: toParseError(e._1),
+                                              input: input
+                                            });
+                                }
+                                throw e;
+                              }
+                            }));
+              }
+              var fn$2 = fn._0;
+              planSyncTransformation(ctx, (function (input) {
+                      try {
+                        return {
+                                TAG: /* Parsed */0,
+                                input: input,
+                                asyncFn: fn$2(input)
+                              };
+                      }
+                      catch (raw_e){
+                        var e = Caml_js_exceptions.internalToOCamlException(raw_e);
+                        if (e.RE_EXN_ID === Exception) {
+                          return {
+                                  TAG: /* Fallback */1,
+                                  _0: getFallbackValue({
+                                        error: toParseError(e._1),
+                                        input: input
+                                      })
+                                };
+                        }
+                        throw e;
+                      }
+                    }));
+              planAsyncTransformation(ctx, (function (syncResult) {
+                      if (syncResult.TAG !== /* Parsed */0) {
+                        return Promise.resolve(syncResult._0);
+                      }
+                      var input = syncResult.input;
+                      try {
+                        return syncResult.asyncFn().catch(function (exn) {
+                                    if (exn.RE_EXN_ID === Exception) {
+                                      return getFallbackValue({
+                                                  error: toParseError(exn._1),
+                                                  input: input
+                                                });
+                                    }
+                                    throw exn;
+                                  });
+                      }
+                      catch (raw_e){
+                        var e = Caml_js_exceptions.internalToOCamlException(raw_e);
+                        if (e.RE_EXN_ID === Exception) {
+                          return Promise.resolve(getFallbackValue({
+                                          error: toParseError(e._1),
+                                          input: input
+                                        }));
+                        }
+                        throw e;
+                      }
+                    }));
+            }),
+          sf: struct.sf,
+          r: 0,
+          e: 0,
+          s: initialSerialize,
+          j: initialSerializeToJson,
+          p: intitialParse,
+          a: intitialParseAsync,
+          i: undefined,
+          m: struct.m
+        };
+}
+
 var deprecationMetadataId = "rescript-struct:deprecation";
 
 function deprecate(struct, message) {
@@ -3575,6 +3665,7 @@ exports.union = union;
 exports.$$default = $$default;
 exports.default = $$default;
 exports.__esModule = true;
+exports.$$catch = $$catch;
 exports.describe = describe;
 exports.description = description;
 exports.deprecate = deprecate;
@@ -3628,4 +3719,4 @@ exports.Default = Default;
 exports.Result = Result;
 exports.Metadata = Metadata;
 exports.inline = inline;
-/* datetimeRe Not a pure module */
+/* No side effect */

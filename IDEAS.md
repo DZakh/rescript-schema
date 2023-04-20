@@ -24,8 +24,6 @@
 
 - S.mutateWith/S.produceWith (aka immer) (???)
 
-- Make the TS code reuse rescript output instead of creating a separate bundle
-
 - Add S.function (?) (An alternative for external ???)
 
 ```
@@ -46,17 +44,17 @@ let struct = S.tuple(o => (o->S.item(0, S.string()), o->S.item(1, S.int())))
 
 - Use instanceof Error for internal error (???)
 
-- Think of the S.advancedTransform and S.advancedPreprocess destiny
-
-- Make S.deprecated not wrap in option
-
 v4.1
 
 - S.variant
 - Inline literals check used in S.object (Optimize S.literalVariant without transform)
-- Add S.catch / S.fallback (?)
+- Think of the S.advancedTransform and S.advancedPreprocess destiny (Add Noop transformation)
+- Make the TS code reuse rescript output instead of creating a separate bundle
 
-#### **`S.default`**
+Next breaking release
+
+- S.default rework
+- Make S.deprecated not wrap in option
 
 `(S.t<'value>, ~wrapper=S.t<'value> => S.t<option<'value>>=?, unit => 'value) => S.t<'value>`
 
