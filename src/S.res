@@ -2273,7 +2273,7 @@ module String = {
   // Adapted from https://stackoverflow.com/a/46181/1550155
   let emailRegex = %re(`/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\])|(\[IPv6:(([a-f0-9]{1,4}:){7}|::([a-f0-9]{1,4}:){0,6}|([a-f0-9]{1,4}:){1}:([a-f0-9]{1,4}:){0,5}|([a-f0-9]{1,4}:){2}:([a-f0-9]{1,4}:){0,4}|([a-f0-9]{1,4}:){3}:([a-f0-9]{1,4}:){0,3}|([a-f0-9]{1,4}:){4}:([a-f0-9]{1,4}:){0,2}|([a-f0-9]{1,4}:){5}:([a-f0-9]{1,4}:){0,1})([a-f0-9]{1,4}|(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2})))\])|([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])*(\.[A-Za-z]{2,})+))$/`)
   // Adapted from https://stackoverflow.com/a/3143231
-  let datetimeRe = Js.Re.fromString(`^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$`)
+  let datetimeRe = %re(`/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/`)
 
   let parseTransformationFactory = TransformationFactory.make((. ~ctx, ~struct) =>
     ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -3516,6 +3516,91 @@ let jsonable = () =>
       Dict.factory(jsonableStruct),
     ])
   )
+
+type catchCtx = {
+  error: Error.t,
+  input: unknown,
+}
+type catchAsyncTransformationSyncResult =
+  Parsed({input: unknown, asyncFn: (. unit) => promise<unknown>}) | Fallback(unknown)
+let catch = (struct, getFallbackValue) => {
+  let struct = struct->castAnyStructToUnknownStruct
+  make(
+    ~name=struct.name,
+    ~parseTransformationFactory=TransformationFactory.make((. ~ctx, ~struct as _) => {
+      switch struct->getParseOperation {
+      | NoOperation => ()
+      | SyncOperation(fn) =>
+        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+          try {
+            fn(. input)
+          } catch {
+          | Error.Internal.Exception(e) =>
+            getFallbackValue
+            ->Stdlib.Fn.call1({
+              error: e->Error.Internal.toParseError,
+              input,
+            })
+            ->castAnyToUnknown
+          }
+        })
+      | AsyncOperation(fn) =>
+        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+          try {
+            Parsed({input, asyncFn: fn(. input)})
+          } catch {
+          | Error.Internal.Exception(e) =>
+            Fallback(
+              getFallbackValue
+              ->Stdlib.Fn.call1({
+                error: e->Error.Internal.toParseError,
+                input,
+              })
+              ->castAnyToUnknown,
+            )
+          }
+        })
+        ctx->TransformationFactory.Ctx.planAsyncTransformation(syncResult => {
+          switch syncResult {
+          | Parsed({input, asyncFn}) =>
+            try {
+              asyncFn(.)->Stdlib.Promise.catch(
+                exn => {
+                  switch exn {
+                  | Error.Internal.Exception(e) =>
+                    getFallbackValue
+                    ->Stdlib.Fn.call1({
+                      error: e->Error.Internal.toParseError,
+                      input,
+                    })
+                    ->castAnyToUnknown
+                  | _ => exn->raise
+                  }
+                },
+              )
+            } catch {
+            | Error.Internal.Exception(e) =>
+              Stdlib.Promise.resolve(
+                getFallbackValue
+                ->Stdlib.Fn.call1({
+                  error: e->Error.Internal.toParseError,
+                  input,
+                })
+                ->castAnyToUnknown,
+              )
+            }
+
+          | Fallback(f) => Stdlib.Promise.resolve(f)
+          }
+        })
+      }
+    }),
+    ~serializeTransformationFactory=struct.serializeTransformationFactory,
+    ~tagged=struct.tagged,
+    ~metadataMap=struct.metadataMap,
+    (),
+  )
+}
 
 let deprecationMetadataId: Metadata.Id.t<string> = Metadata.Id.make(
   ~namespace="rescript-struct",

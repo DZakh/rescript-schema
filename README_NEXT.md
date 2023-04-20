@@ -731,6 +731,36 @@ deprecatedString->S.deprecation // Will be removed in APIv2…
 
 This can be useful for documenting a field, for example in a JSON Schema using a library like [`rescript-json-schema`](https://github.com/DZakh/rescript-json-schema).
 
+### **`S.catch`**
+
+`(S.t<'value>, S.catchCtx => 'value) => S.t<'value>`
+
+Use `S.catch` to provide a "catch value" to be returned instead of a parsing error.
+
+```rescript
+let struct = S.float()->S.catch(_ => 42.)
+
+%raw(`5`)->S.parseWith(struct)
+// Ok(5.)
+%raw(`"tuna"`)->S.parseWith(struct)
+// Ok(42.)
+```
+
+Also, the callback `S.catch` receives a catch context as a first argument. It contains the caught error and the initial data provided to the parse function.
+
+```rescript
+let struct = S.float()->S.catch(ctx => {
+  Console.log(ctx.error) // The caught error
+  Console.log(ctx.input) // The data provided to the parse function
+  42.
+})
+```
+
+Conceptually, this is how **rescript-struct** processes "catch values":
+
+1. The data is parsed using the base struct
+2. If the parsing fails, the "catch value" is returned
+
 ### **`S.recursive`**
 
 `(t<'value> => t<'value>) => t<'value>`

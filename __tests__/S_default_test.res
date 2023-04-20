@@ -1,6 +1,6 @@
 open Ava
 
-test("Uses default value when parsing optional unknown primitive ", t => {
+test("Uses default value when parsing optional unknown primitive", t => {
   let value = 123.
   let any = %raw(`undefined`)
 
@@ -40,21 +40,3 @@ test("Fails to parse data with default", t => {
     (),
   )
 })
-
-// FIXME: Add value checks for Literal
-Failing.test(
-  "Raises error when providing default value different from optional literal struct value",
-  t => {
-    let struct = S.option(S.literal(Int(123)))->S.default(() => 444)
-
-    t->Assert.throws(
-      () => {
-        %raw(`undefined`)->S.parseAnyWith(struct)
-      },
-      ~expectations={
-        message: "[rescript-struct] Provided default value (444) is different from optional Int Literal (123)",
-      },
-      (),
-    )
-  },
-)

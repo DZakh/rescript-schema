@@ -97,6 +97,12 @@ let union: array<t<'value>> => t<'value>
 
 let default: (t<option<'value>>, unit => 'value) => t<'value>
 
+type catchCtx = {
+  error: Error.t,
+  input: unknown,
+}
+let catch: (t<'value>, catchCtx => 'value) => t<'value>
+
 let describe: (t<'value>, string) => t<'value>
 let description: t<'value> => option<string>
 
