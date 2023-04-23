@@ -175,6 +175,22 @@ asyncTest("Fails to parse async with user error", t => {
   })
 })
 
+test("Successfully parses with Noop transformation", t => {
+  let struct = S.string()->S.advancedPreprocess(~parser=(~struct as _) => Noop, ())
+
+  t->Assert.deepEqual(%raw(`"Hello world!"`)->S.parseAnyWith(struct), Ok("Hello world!"), ())
+})
+
+test("Successfully serializes with Noop transformation", t => {
+  let struct = S.string()->S.advancedPreprocess(~serializer=(~struct as _) => Noop, ())
+
+  t->Assert.deepEqual(
+    "Hello world!"->S.serializeToUnknownWith(struct),
+    Ok(%raw(`"Hello world!"`)),
+    (),
+  )
+})
+
 asyncTest("Can apply other actions after async preprocess", t => {
   let struct =
     S.string()
@@ -218,7 +234,7 @@ test("Applies preproces for union structs separately", t => {
             }
           },
         )
-      | _ => Sync(Obj.magic)
+      | _ => Noop
       }
     },
     (),

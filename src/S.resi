@@ -56,7 +56,8 @@ type taggedLiteral =
   | EmptyOption
   | NaN
 
-type transformation<'input, 'output> =
+type rec transformation<'input, 'output> =
+  | Noop: transformation<'input, 'input>
   | Sync('input => 'output)
   | Async('input => promise<'output>)
 

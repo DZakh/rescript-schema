@@ -946,7 +946,9 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
                             }));
               }
               var syncTransformation = maybeParser(compilingStruct);
-              if (syncTransformation.TAG === /* Sync */0) {
+              if (typeof syncTransformation === "number") {
+                return ;
+              } else if (syncTransformation.TAG === /* Sync */0) {
                 return planSyncTransformation(ctx, syncTransformation._0);
               } else {
                 return planAsyncTransformation(ctx, syncTransformation._0);
@@ -955,11 +957,14 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
           sf: (function (ctx, compilingStruct) {
               if (maybeSerializer !== undefined) {
                 var syncTransformation = maybeSerializer(compilingStruct);
-                if (syncTransformation.TAG === /* Sync */0) {
-                  planSyncTransformation(ctx, syncTransformation._0);
-                } else {
-                  planAsyncTransformation(ctx, syncTransformation._0);
+                if (typeof syncTransformation !== "number") {
+                  if (syncTransformation.TAG === /* Sync */0) {
+                    planSyncTransformation(ctx, syncTransformation._0);
+                  } else {
+                    planAsyncTransformation(ctx, syncTransformation._0);
+                  }
                 }
+                
               } else {
                 planSyncTransformation(ctx, (function (param) {
                         return raise$1(/* MissingSerializer */1);
@@ -1011,11 +1016,14 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
           pf: (function (ctx, compilingStruct) {
               if (maybePreprocessParser !== undefined) {
                 var syncTransformation = maybePreprocessParser(compilingStruct);
-                if (syncTransformation.TAG === /* Sync */0) {
-                  planSyncTransformation(ctx, syncTransformation._0);
-                } else {
-                  planAsyncTransformation(ctx, syncTransformation._0);
+                if (typeof syncTransformation !== "number") {
+                  if (syncTransformation.TAG === /* Sync */0) {
+                    planSyncTransformation(ctx, syncTransformation._0);
+                  } else {
+                    planAsyncTransformation(ctx, syncTransformation._0);
+                  }
                 }
+                
               } else {
                 planSyncTransformation(ctx, (function (param) {
                         return raise$1(/* MissingParser */0);
@@ -1031,7 +1039,9 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
                             }));
               }
               var syncTransformation = maybePreprocessSerializer(compilingStruct);
-              if (syncTransformation.TAG === /* Sync */0) {
+              if (typeof syncTransformation === "number") {
+                return ;
+              } else if (syncTransformation.TAG === /* Sync */0) {
                 return planSyncTransformation(ctx, syncTransformation._0);
               } else {
                 return planAsyncTransformation(ctx, syncTransformation._0);

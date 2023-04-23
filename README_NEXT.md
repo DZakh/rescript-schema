@@ -968,7 +968,7 @@ let prepareEnvStruct = S.advancedPreprocess(
           }
         },
       )
-    | _ => Sync(Obj.magic)
+    | _ => Noop
     }
   },
   (),

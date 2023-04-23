@@ -120,6 +120,22 @@ test("Fails to parse async using parseAnyWith", t => {
   )
 })
 
+test("Successfully parses with Noop transformation", t => {
+  let struct = S.string()->S.advancedTransform(~parser=(~struct as _) => Noop, ())
+
+  t->Assert.deepEqual(%raw(`"Hello world!"`)->S.parseAnyWith(struct), Ok("Hello world!"), ())
+})
+
+test("Successfully serializes with Noop transformation", t => {
+  let struct = S.string()->S.advancedTransform(~serializer=(~struct as _) => Noop, ())
+
+  t->Assert.deepEqual(
+    "Hello world!"->S.serializeToUnknownWith(struct),
+    Ok(%raw(`"Hello world!"`)),
+    (),
+  )
+})
+
 asyncTest("Successfully parses async using parseAsyncWith", t => {
   let struct =
     S.string()->S.advancedTransform(

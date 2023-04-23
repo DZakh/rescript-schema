@@ -592,6 +592,7 @@ and tagged =
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
 and transformation<'input, 'output> =
+  | Noop: transformation<'input, 'input>
   | Sync('input => 'output)
   | Async('input => promise<'output>)
 and internalTransformationFactoryCtxPhase = NoTransformation | OnlySync | OnlyAsync | SyncAndAsync
@@ -1267,6 +1268,7 @@ let advancedTransform: (
         switch (transformParser->castPublicTransformationFactoryToUncurried)(.
           ~struct=compilingStruct->castUnknownStructToAnyStruct,
         ) {
+        | Noop => ()
         | Sync(syncTransformation) =>
           ctx->TransformationFactory.Ctx.planSyncTransformation(syncTransformation)
         | Async(asyncTransformation) =>
@@ -1284,6 +1286,7 @@ let advancedTransform: (
         switch (transformSerializer->castPublicTransformationFactoryToUncurried)(.
           ~struct=compilingStruct->castUnknownStructToAnyStruct,
         ) {
+        | Noop => ()
         | Sync(syncTransformation) =>
           ctx->TransformationFactory.Ctx.planSyncTransformation(syncTransformation)
         | Async(asyncTransformation) =>
@@ -1342,6 +1345,7 @@ let rec advancedPreprocess = (
           switch (preprocessParser->castPublicTransformationFactoryToUncurried)(.
             ~struct=compilingStruct->castUnknownStructToAnyStruct,
           ) {
+          | Noop => ()
           | Sync(syncTransformation) =>
             ctx->TransformationFactory.Ctx.planSyncTransformation(syncTransformation)
           | Async(asyncTransformation) =>
@@ -1361,6 +1365,7 @@ let rec advancedPreprocess = (
           switch (preprocessSerializer->castPublicTransformationFactoryToUncurried)(.
             ~struct=compilingStruct->castUnknownStructToAnyStruct,
           ) {
+          | Noop => ()
           | Sync(syncTransformation) =>
             ctx->TransformationFactory.Ctx.planSyncTransformation(syncTransformation)
           | Async(asyncTransformation) =>
