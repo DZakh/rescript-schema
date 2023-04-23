@@ -192,7 +192,7 @@ var Raised = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Raised");
 var emptyMetadataMap = {};
 
 function planSyncTransformation(ctx, transformation) {
-  var prevSyncTransformation = ctx.s;
+  var prevSyncTransformation = ctx.t;
   var prevAsyncTransformation = ctx.a;
   var match = ctx.p;
   if (match !== 1) {
@@ -202,10 +202,10 @@ function planSyncTransformation(ctx, transformation) {
         });
     } else {
       ctx.p = /* OnlySync */1;
-      ctx.s = transformation;
+      ctx.t = transformation;
     }
   } else {
-    ctx.s = (function (input) {
+    ctx.t = (function (input) {
         return transformation(prevSyncTransformation(input));
       });
   }
@@ -235,17 +235,18 @@ function planMissingParserTransformation(ctx) {
         }));
 }
 
-function empty(param, param$1) {
+function empty(param) {
   
 }
 
 function compile(transformationFactory, struct) {
   var ctx = {
+    s: struct,
     p: /* NoTransformation */0,
-    s: undefined,
+    t: undefined,
     a: undefined
   };
-  transformationFactory(ctx, struct);
+  transformationFactory(ctx);
   var match = ctx.p;
   switch (match) {
     case /* NoTransformation */0 :
@@ -253,7 +254,7 @@ function compile(transformationFactory, struct) {
     case /* OnlySync */1 :
         return {
                 TAG: /* SyncOperation */0,
-                _0: ctx.s
+                _0: ctx.t
               };
     case /* OnlyAsync */2 :
         return {
@@ -268,7 +269,7 @@ function compile(transformationFactory, struct) {
         return {
                 TAG: /* AsyncOperation */1,
                 _0: (function (input) {
-                    var syncOutput = ctx.s(input);
+                    var syncOutput = ctx.t(input);
                     return function () {
                       return ctx.a(syncOutput);
                     };
@@ -831,8 +832,8 @@ function refine(struct, maybeParser, maybeAsyncParser, maybeSerializer, param) {
     panic("struct factory Refine");
   }
   var nextParseTransformationFactory = maybeParser !== undefined ? (
-      maybeAsyncParser !== undefined ? (function (ctx, compilingStruct) {
-            struct.pf(ctx, compilingStruct);
+      maybeAsyncParser !== undefined ? (function (ctx) {
+            struct.pf(ctx);
             planSyncTransformation(ctx, (function (input) {
                     maybeParser(input);
                     return input;
@@ -842,16 +843,16 @@ function refine(struct, maybeParser, maybeAsyncParser, maybeSerializer, param) {
                                 return input;
                               });
                   }));
-          }) : (function (ctx, compilingStruct) {
-            struct.pf(ctx, compilingStruct);
+          }) : (function (ctx) {
+            struct.pf(ctx);
             planSyncTransformation(ctx, (function (input) {
                     maybeParser(input);
                     return input;
                   }));
           })
     ) : (
-      maybeAsyncParser !== undefined ? (function (ctx, compilingStruct) {
-            struct.pf(ctx, compilingStruct);
+      maybeAsyncParser !== undefined ? (function (ctx) {
+            struct.pf(ctx);
             planAsyncTransformation(ctx, (function (input) {
                     return maybeAsyncParser(input).then(function (param) {
                                 return input;
@@ -863,12 +864,12 @@ function refine(struct, maybeParser, maybeAsyncParser, maybeSerializer, param) {
           n: struct.n,
           t: struct.t,
           pf: nextParseTransformationFactory,
-          sf: maybeSerializer !== undefined ? (function (ctx, compilingStruct) {
+          sf: maybeSerializer !== undefined ? (function (ctx) {
                 planSyncTransformation(ctx, (function (input) {
                         maybeSerializer(input);
                         return input;
                       }));
-                struct.sf(ctx, compilingStruct);
+                struct.sf(ctx);
               }) : struct.sf,
           r: 0,
           e: 0,
@@ -906,11 +907,11 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
   return {
           n: struct.n,
           t: struct.t,
-          pf: (function (ctx, compilingStruct) {
-              struct.pf(ctx, compilingStruct);
+          pf: (function (ctx) {
+              struct.pf(ctx);
               planParser(ctx);
             }),
-          sf: (function (ctx, compilingStruct) {
+          sf: (function (ctx) {
               if (maybeSerializer !== undefined) {
                 planSyncTransformation(ctx, maybeSerializer);
               } else {
@@ -918,7 +919,7 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
                         return raise$1(/* MissingSerializer */1);
                       }));
               }
-              struct.sf(ctx, compilingStruct);
+              struct.sf(ctx);
             }),
           r: 0,
           e: 0,
@@ -938,14 +939,14 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
   return {
           n: struct.n,
           t: struct.t,
-          pf: (function (ctx, compilingStruct) {
-              struct.pf(ctx, compilingStruct);
+          pf: (function (ctx) {
+              struct.pf(ctx);
               if (maybeParser === undefined) {
                 return planSyncTransformation(ctx, (function (param) {
                               return raise$1(/* MissingParser */0);
                             }));
               }
-              var syncTransformation = maybeParser(compilingStruct);
+              var syncTransformation = maybeParser(ctx.s);
               if (typeof syncTransformation === "number") {
                 return ;
               } else if (syncTransformation.TAG === /* Sync */0) {
@@ -954,9 +955,9 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
                 return planAsyncTransformation(ctx, syncTransformation._0);
               }
             }),
-          sf: (function (ctx, compilingStruct) {
+          sf: (function (ctx) {
               if (maybeSerializer !== undefined) {
-                var syncTransformation = maybeSerializer(compilingStruct);
+                var syncTransformation = maybeSerializer(ctx.s);
                 if (typeof syncTransformation !== "number") {
                   if (syncTransformation.TAG === /* Sync */0) {
                     planSyncTransformation(ctx, syncTransformation._0);
@@ -970,7 +971,7 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
                         return raise$1(/* MissingSerializer */1);
                       }));
               }
-              struct.sf(ctx, compilingStruct);
+              struct.sf(ctx);
             }),
           r: 0,
           e: 0,
@@ -1013,9 +1014,9 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
   return {
           n: struct.n,
           t: struct.t,
-          pf: (function (ctx, compilingStruct) {
+          pf: (function (ctx) {
               if (maybePreprocessParser !== undefined) {
-                var syncTransformation = maybePreprocessParser(compilingStruct);
+                var syncTransformation = maybePreprocessParser(ctx.s);
                 if (typeof syncTransformation !== "number") {
                   if (syncTransformation.TAG === /* Sync */0) {
                     planSyncTransformation(ctx, syncTransformation._0);
@@ -1029,16 +1030,16 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
                         return raise$1(/* MissingParser */0);
                       }));
               }
-              struct.pf(ctx, compilingStruct);
+              struct.pf(ctx);
             }),
-          sf: (function (ctx, compilingStruct) {
-              struct.sf(ctx, compilingStruct);
+          sf: (function (ctx) {
+              struct.sf(ctx);
               if (maybePreprocessSerializer === undefined) {
                 return planSyncTransformation(ctx, (function (param) {
                               return raise$1(/* MissingSerializer */1);
                             }));
               }
-              var syncTransformation = maybePreprocessSerializer(compilingStruct);
+              var syncTransformation = maybePreprocessSerializer(ctx.s);
               if (typeof syncTransformation === "number") {
                 return ;
               } else if (syncTransformation.TAG === /* Sync */0) {
@@ -1078,10 +1079,10 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
   return {
           n: name,
           t: /* Unknown */1,
-          pf: (function (ctx, param) {
+          pf: (function (ctx) {
               planParser(ctx);
             }),
-          sf: (function (ctx, param) {
+          sf: (function (ctx) {
               if (maybeSerializer !== undefined) {
                 return planSyncTransformation(ctx, maybeSerializer);
               } else {
@@ -1107,7 +1108,7 @@ function factory(innerLiteral, variant) {
     _0: innerLiteral
   };
   var makeParseTransformationFactory = function (literalValue, test) {
-    return function (ctx, struct) {
+    return function (ctx) {
       planSyncTransformation(ctx, (function (input) {
               if (test(input)) {
                 if (literalValue === input) {
@@ -1116,13 +1117,13 @@ function factory(innerLiteral, variant) {
                   return raise(literalValue, input, undefined, undefined);
                 }
               } else {
-                return raiseUnexpectedTypeError(input, struct);
+                return raiseUnexpectedTypeError(input, ctx.s);
               }
             }));
     };
   };
   var makeSerializeTransformationFactory = function (output) {
-    return function (ctx, param) {
+    return function (ctx) {
       planSyncTransformation(ctx, (function (input) {
               if (input === variant) {
                 return output;
@@ -1139,12 +1140,12 @@ function factory(innerLiteral, variant) {
           return {
                   n: "EmptyNull Literal (null)",
                   t: tagged,
-                  pf: (function (ctx, struct) {
+                  pf: (function (ctx) {
                       planSyncTransformation(ctx, (function (input) {
                               if (input === null) {
                                 return variant;
                               } else {
-                                return raiseUnexpectedTypeError(input, struct);
+                                return raiseUnexpectedTypeError(input, ctx.s);
                               }
                             }));
                     }),
@@ -1163,12 +1164,12 @@ function factory(innerLiteral, variant) {
           return {
                   n: "EmptyOption Literal (undefined)",
                   t: tagged,
-                  pf: (function (ctx, struct) {
+                  pf: (function (ctx) {
                       planSyncTransformation(ctx, (function (input) {
                               if (input === undefined) {
                                 return variant;
                               } else {
-                                return raiseUnexpectedTypeError(input, struct);
+                                return raiseUnexpectedTypeError(input, ctx.s);
                               }
                             }));
                     }),
@@ -1187,12 +1188,12 @@ function factory(innerLiteral, variant) {
           return {
                   n: "NaN Literal (NaN)",
                   t: tagged,
-                  pf: (function (ctx, struct) {
+                  pf: (function (ctx) {
                       planSyncTransformation(ctx, (function (input) {
                               if (Number.isNaN(input)) {
                                 return variant;
                               } else {
-                                return raiseUnexpectedTypeError(input, struct);
+                                return raiseUnexpectedTypeError(input, ctx.s);
                               }
                             }));
                     }),
@@ -1404,7 +1405,7 @@ function factory$2(definer) {
   };
   var definition = definer(definerCtx);
   analyzeDefinition(definition, definerCtx, "");
-  var serializeTransformationFactory = function (ctx, param) {
+  var serializeTransformationFactory = function (ctx) {
     var inliningFieldNameRef = undefined;
     try {
       var constantDefinitions = definerCtx_c;
@@ -1477,12 +1478,12 @@ function factory$2(definer) {
             }));
     }
   };
-  var parseTransformationFactory = function (ctx, struct) {
+  var parseTransformationFactory = function (ctx) {
     var constantDefinitions = definerCtx_c;
     var inlinedPreparationValues = definerCtx_v;
     var preparationPathes = definerCtx_p;
     var fieldDefinitions = definerCtx_d;
-    var withUnknownKeysRefinement = classify$1(struct) === /* Strict */0;
+    var withUnknownKeysRefinement = classify$1(ctx.s) === /* Strict */0;
     var asyncFieldDefinitions = [];
     var parseFnsByInstructionIdx = {};
     var withFieldDefinitions = fieldDefinitions.length !== 0;
@@ -1574,7 +1575,7 @@ function factory$2(definer) {
                           _1: prependPath(exn._1, "[" + JSON.stringify(fieldDefinitions[fieldDefinitionIdx].n) + "]")
                         }) : exn;
               }), parseFnsByInstructionIdx, definerCtx_f, constantDefinitions, (function (input) {
-                return raiseUnexpectedTypeError(input, struct);
+                return raiseUnexpectedTypeError(input, ctx.s);
               }), raiseUnexpectedTypeError, (function (exccessFieldName) {
                 return raise$1({
                             TAG: /* ExcessField */4,
@@ -1660,9 +1661,9 @@ function strict(struct) {
   return set(struct, metadataId, /* Strict */0);
 }
 
-function transformationFactory(ctx, struct) {
+function transformationFactory(ctx) {
   planSyncTransformation(ctx, (function (input) {
-          return raiseUnexpectedTypeError(input, struct);
+          return raiseUnexpectedTypeError(input, ctx.s);
         }));
 }
 
@@ -1719,12 +1720,12 @@ var emailRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\")
 
 var datetimeRe = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
-function parseTransformationFactory(ctx, struct) {
+function parseTransformationFactory(ctx) {
   planSyncTransformation(ctx, (function (input) {
           if (typeof input === "string") {
             return input;
           } else {
-            return raiseUnexpectedTypeError(input, struct);
+            return raiseUnexpectedTypeError(input, ctx.s);
           }
         }));
 }
@@ -1907,14 +1908,14 @@ function factory$6(innerStruct) {
   return {
           n: "Json",
           t: /* String */2,
-          pf: (function (ctx, struct) {
+          pf: (function (ctx) {
               var fn = getParseOperation(innerStruct);
               var $$process = typeof fn === "number" ? (function (prim) {
                     return prim;
                   }) : fn._0;
               planSyncTransformation(ctx, (function (input) {
                       if (typeof input !== "string") {
-                        return raiseUnexpectedTypeError(input, struct);
+                        return raiseUnexpectedTypeError(input, ctx.s);
                       }
                       var __x;
                       try {
@@ -1940,7 +1941,7 @@ function factory$6(innerStruct) {
                             }));
               }
             }),
-          sf: (function (ctx, param) {
+          sf: (function (ctx) {
               var fn = getSerializeOperation(innerStruct);
               if (fn !== undefined) {
                 return planSyncTransformation(ctx, (function (input) {
@@ -1963,12 +1964,12 @@ function factory$6(innerStruct) {
         };
 }
 
-function parseTransformationFactory$1(ctx, struct) {
+function parseTransformationFactory$1(ctx) {
   planSyncTransformation(ctx, (function (input) {
           if (typeof input === "boolean") {
             return input;
           } else {
-            return raiseUnexpectedTypeError(input, struct);
+            return raiseUnexpectedTypeError(input, ctx.s);
           }
         }));
 }
@@ -2001,12 +2002,12 @@ function refinements$1(struct) {
   }
 }
 
-function parseTransformationFactory$2(ctx, struct) {
+function parseTransformationFactory$2(ctx) {
   planSyncTransformation(ctx, (function (input) {
           if (typeof input === "number" && input < 2147483648 && input > -2147483649 && input % 1 === 0) {
             return input;
           } else {
-            return raiseUnexpectedTypeError(input, struct);
+            return raiseUnexpectedTypeError(input, ctx.s);
           }
         }));
 }
@@ -2087,12 +2088,12 @@ function refinements$2(struct) {
   }
 }
 
-function parseTransformationFactory$3(ctx, struct) {
+function parseTransformationFactory$3(ctx) {
   planSyncTransformation(ctx, (function (input) {
           if (typeof input === "number" && !Number.isNaN(input)) {
             return input;
           } else {
-            return raiseUnexpectedTypeError(input, struct);
+            return raiseUnexpectedTypeError(input, ctx.s);
           }
         }));
 }
@@ -2155,7 +2156,7 @@ function factory$10(innerStruct) {
             TAG: /* Null */2,
             _0: innerStruct
           },
-          pf: (function (ctx, param) {
+          pf: (function (ctx) {
               var planSyncTransformation$1 = function (fn) {
                 planSyncTransformation(ctx, (function (input) {
                         if (input !== null) {
@@ -2188,7 +2189,7 @@ function factory$10(innerStruct) {
                       }
                     }));
             }),
-          sf: (function (ctx, param) {
+          sf: (function (ctx) {
               var fn = getSerializeOperation(innerStruct);
               if (fn !== undefined) {
                 return planSyncTransformation(ctx, (function (input) {
@@ -2226,7 +2227,7 @@ function factory$11(innerStruct) {
             TAG: /* Option */1,
             _0: innerStruct
           },
-          pf: (function (ctx, param) {
+          pf: (function (ctx) {
               var planSyncTransformation$1 = function (fn) {
                 planSyncTransformation(ctx, (function (input) {
                         if (input !== undefined) {
@@ -2253,7 +2254,7 @@ function factory$11(innerStruct) {
                       }
                     }));
             }),
-          sf: (function (ctx, param) {
+          sf: (function (ctx) {
               var fn = getSerializeOperation(innerStruct);
               if (fn !== undefined) {
                 return planSyncTransformation(ctx, (function (input) {
@@ -2300,10 +2301,10 @@ function factory$12(innerStruct) {
             TAG: /* Array */3,
             _0: innerStruct
           },
-          pf: (function (ctx, struct) {
+          pf: (function (ctx) {
               planSyncTransformation(ctx, (function (input) {
                       if (Array.isArray(input) === false) {
-                        return raiseUnexpectedTypeError(input, struct);
+                        return raiseUnexpectedTypeError(input, ctx.s);
                       } else {
                         return input;
                       }
@@ -2359,7 +2360,7 @@ function factory$12(innerStruct) {
                                     }));
                     }));
             }),
-          sf: (function (ctx, param) {
+          sf: (function (ctx) {
               var fn = getSerializeOperation(innerStruct);
               if (fn !== undefined) {
                 return planSyncTransformation(ctx, (function (input) {
@@ -2457,7 +2458,7 @@ function factory$13(innerStruct) {
             TAG: /* Dict */7,
             _0: innerStruct
           },
-          pf: (function (ctx, struct) {
+          pf: (function (ctx) {
               var planSyncTransformation$1 = function (fn) {
                 planSyncTransformation(ctx, (function (input) {
                         var newDict = {};
@@ -2486,7 +2487,7 @@ function factory$13(innerStruct) {
               };
               planSyncTransformation(ctx, (function (input) {
                       if ((typeof input === "object" && input !== null && !Array.isArray(input)) === false) {
-                        return raiseUnexpectedTypeError(input, struct);
+                        return raiseUnexpectedTypeError(input, ctx.s);
                       } else {
                         return input;
                       }
@@ -2532,7 +2533,7 @@ function factory$13(innerStruct) {
                                 });
                     }));
             }),
-          sf: (function (ctx, param) {
+          sf: (function (ctx) {
               var fn = getSerializeOperation(innerStruct);
               if (fn !== undefined) {
                 return planSyncTransformation(ctx, (function (input) {
@@ -2579,7 +2580,7 @@ function factory$14(innerStruct, getDefaultValue) {
   return set({
               n: innerStruct.n,
               t: innerStruct.t,
-              pf: (function (ctx, param) {
+              pf: (function (ctx) {
                   var fn = getParseOperation(innerStruct);
                   if (typeof fn === "number") {
                     return planSyncTransformation(ctx, (function (input) {
@@ -2612,7 +2613,7 @@ function factory$14(innerStruct, getDefaultValue) {
                                     });
                         }));
                 }),
-              sf: (function (ctx, param) {
+              sf: (function (ctx) {
                   var fn = getSerializeOperation(innerStruct);
                   if (fn !== undefined) {
                     return planSyncTransformation(ctx, (function (input) {
@@ -2653,7 +2654,7 @@ function factory$15(param) {
             TAG: /* Tuple */5,
             _0: structs
           },
-          pf: (function (ctx, struct) {
+          pf: (function (ctx) {
               var noopOps = [];
               var syncOps = [];
               var asyncOps = [];
@@ -2688,7 +2689,7 @@ function factory$15(param) {
                         }
                         
                       } else {
-                        raiseUnexpectedTypeError(input, struct);
+                        raiseUnexpectedTypeError(input, ctx.s);
                       }
                       var newArray = [];
                       for(var idx = 0 ,idx_finish = syncOps.length; idx < idx_finish; ++idx){
@@ -2760,7 +2761,7 @@ function factory$15(param) {
               }
               
             }),
-          sf: (function (ctx, param) {
+          sf: (function (ctx) {
               var serializeOperations = [];
               for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
                 serializeOperations.push(getSerializeOperation(structs[idx]));
@@ -2822,8 +2823,8 @@ function factory$16(structs) {
             TAG: /* Union */6,
             _0: structs
           },
-          pf: (function (ctx, compilingStruct) {
-              var structs = compilingStruct.t._0;
+          pf: (function (ctx) {
+              var structs = ctx.s.t._0;
               var noopOps = [];
               var syncOps = [];
               var asyncOps = [];
@@ -2942,7 +2943,7 @@ function factory$16(structs) {
               }
               
             }),
-          sf: (function (ctx, param) {
+          sf: (function (ctx) {
               var serializeOperations = [];
               for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
                 serializeOperations.push(getSerializeOperation(structs[idx]));
@@ -3011,7 +3012,7 @@ function $$catch(struct, getFallbackValue) {
   return {
           n: struct.n,
           t: struct.t,
-          pf: (function (ctx, param) {
+          pf: (function (ctx) {
               var fn = getParseOperation(struct);
               if (typeof fn === "number") {
                 return ;
