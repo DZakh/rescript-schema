@@ -33,6 +33,9 @@
   },
   "license": "MIT",
   "author": "Dmitry Zakharov <dzakh.dev@gmail.com>",
+  "main": "./dist/S.js",
+  "module": "./dist/S.mjs",
+  "types": "./src/S_JsApi.d.ts",
   "files": [
     "dist",
     "src/S.res",
@@ -41,26 +44,23 @@
     "RescriptStruct.gen.ts",
     "bsconfig.json"
   ],
-  "main": "./dist/S.js",
-  "module": "./dist/S.mjs",
-  "types": "./src/S_JsApi.d.ts",
   "scripts": {
-    "bundle": "rollup --config",
+    "benchmark": "node ./benchmark/Benchmark.bs.js",
     "build": "npm run res:build && npm run bundle",
+    "bundle": "rollup --config",
+    "coverage": "c8 --reporter=lcov npm test",
     "res:build": "rescript build -with-deps",
     "res:dev": "rescript build -with-deps -w",
-    "test": "ava",
-    "coverage": "c8 --reporter=lcov npm test",
-    "benchmark": "node ./benchmark/Benchmark.bs.js"
+    "test": "ava"
   },
   "ava": {
-    "files": [
-      "__tests__/**/*_test.bs.js",
-      "__tests__/**/*_test.ts"
-    ],
     "extensions": [
       "ts",
       "js"
+    ],
+    "files": [
+      "__tests__/**/*_test.bs.js",
+      "__tests__/**/*_test.ts"
     ],
     "require": [
       "ts-node/register"
@@ -81,5 +81,6 @@
   },
   "peerDependencies": {
     "rescript": "10.1.x"
-  }
+  },
+  "packageManager": "pnpm@8.3.1"
 }
