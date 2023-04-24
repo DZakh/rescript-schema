@@ -1102,7 +1102,133 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
         };
 }
 
-function factory(innerLiteral, variant) {
+function internalToInlinedValue(_struct) {
+  while(true) {
+    var struct = _struct;
+    var unionStructs = struct.t;
+    if (typeof unionStructs === "number") {
+      throw undefined;
+    }
+    switch (unionStructs.TAG | 0) {
+      case /* Literal */0 :
+          var string = unionStructs._0;
+          if (typeof string !== "number") {
+            if (string.TAG === /* String */0) {
+              return JSON.stringify(string._0);
+            } else {
+              return string._0.toString();
+            }
+          }
+          switch (string) {
+            case /* EmptyNull */0 :
+                return "null";
+            case /* EmptyOption */1 :
+                return "undefined";
+            case /* NaN */2 :
+                return "NaN";
+            
+          }
+      case /* Object */4 :
+          var fields = unionStructs.fields;
+          return "{" + unionStructs.fieldNames.map((function(fields){
+                      return function (fieldName) {
+                        return "" + JSON.stringify(fieldName) + ":" + internalToInlinedValue(fields[fieldName]) + "";
+                      }
+                      }(fields))).join(",") + "}";
+      case /* Tuple */5 :
+          return "[" + unionStructs._0.map(internalToInlinedValue).join(",") + "]";
+      case /* Union */6 :
+          _struct = unionStructs._0[0];
+          continue ;
+      default:
+        throw undefined;
+    }
+  };
+}
+
+function analyzeDefinition(definition, definerCtx, path) {
+  if (definition === definerCtx) {
+    if (definerCtx.r) {
+      throw new Error("[rescript-struct] The variant's value is registered multiple times. If you want to duplicate it, use S.transform instead.");
+    }
+    definerCtx.a = path;
+    definerCtx.r = true;
+    return ;
+  }
+  if (typeof definition === "object" && definition !== null) {
+    var definitionFieldNames = Object.keys(definition);
+    for(var idx = 0 ,idx_finish = definitionFieldNames.length; idx < idx_finish; ++idx){
+      var definitionFieldName = definitionFieldNames[idx];
+      var fieldDefinition = definition[definitionFieldName];
+      analyzeDefinition(fieldDefinition, definerCtx, path + ("[" + JSON.stringify(definitionFieldName) + "]"));
+    }
+    return ;
+  }
+  definerCtx.c.push({
+        v: definition,
+        p: path
+      });
+}
+
+function factory(struct, definer) {
+  var definerCtx = {
+    a: "",
+    r: false,
+    c: []
+  };
+  var definition = definer(definerCtx);
+  analyzeDefinition(definition, definerCtx, "");
+  return {
+          n: struct.n,
+          t: struct.t,
+          pf: (function (ctx) {
+              struct.pf(ctx);
+              planSyncTransformation(ctx, definer);
+            }),
+          sf: (function (ctx) {
+              ((function (ctx) {
+                      try {
+                        var valuePath = definerCtx.a;
+                        var isValueRegistered = definerCtx.r;
+                        var constantDefinitions = definerCtx.c;
+                        var stringRef = "";
+                        for(var idx = 0 ,idx_finish = constantDefinitions.length; idx < idx_finish; ++idx){
+                          var match = constantDefinitions[idx];
+                          var path = match.p;
+                          var content = "r(" + idx.toString() + ",t" + path + ")";
+                          var condition = "t" + path + "!==d[" + idx.toString() + "].v";
+                          stringRef = stringRef + ("if(" + condition + "){" + content + "}");
+                        }
+                        var constants = stringRef;
+                        var content$1 = "" + constants + "return " + (
+                          isValueRegistered ? "t" + valuePath + "" : internalToInlinedValue(ctx.s)
+                        ) + "";
+                        var inlinedSerializeFunction = "function(t){" + content$1 + "}";
+                        planSyncTransformation(ctx, new Function("d", "r", "return " + inlinedSerializeFunction + "")(constantDefinitions, (function (fieldDefinitionIdx, received) {
+                                    var match = constantDefinitions[fieldDefinitionIdx];
+                                    return raise(match.v, received, match.p, undefined);
+                                  })));
+                      }
+                      catch (exn){
+                        planSyncTransformation(ctx, (function (param) {
+                                return raise$1(/* MissingSerializer */1);
+                              }));
+                      }
+                    })(ctx));
+              struct.sf(ctx);
+            }),
+          r: 0,
+          e: 0,
+          s: initialSerialize,
+          j: initialSerializeToJson,
+          p: intitialParse,
+          a: intitialParseAsync,
+          i: undefined,
+          m: struct.m
+        };
+}
+
+function factory$1(innerLiteral, variant) {
   var tagged = {
     TAG: /* Literal */0,
     _0: innerLiteral
@@ -1297,11 +1423,11 @@ function factory(innerLiteral, variant) {
   }
 }
 
-function factory$1(innerLiteral) {
+function factory$2(innerLiteral) {
   if (typeof innerLiteral === "number") {
-    return factory(innerLiteral, undefined);
+    return factory$1(innerLiteral, undefined);
   } else {
-    return factory(innerLiteral, innerLiteral._0);
+    return factory$1(innerLiteral, innerLiteral._0);
   }
 }
 
@@ -1316,7 +1442,7 @@ function classify$1(struct) {
   }
 }
 
-function analyzeDefinition(definition, definerCtx, path) {
+function analyzeDefinition$1(definition, definerCtx, path) {
   if (definerCtx.s.has(definition)) {
     if (definition.r) {
       throw new Error("[rescript-struct] " + ("The field \"" + definition.n + "\" is registered multiple times. If you want to duplicate a field, use S.transform instead.") + "");
@@ -1332,7 +1458,7 @@ function analyzeDefinition(definition, definerCtx, path) {
     for(var idx = 0 ,idx_finish = definitionFieldNames.length; idx < idx_finish; ++idx){
       var definitionFieldName = definitionFieldNames[idx];
       var fieldDefinition = definition[definitionFieldName];
-      analyzeDefinition(fieldDefinition, definerCtx, path + ("[" + JSON.stringify(definitionFieldName) + "]"));
+      analyzeDefinition$1(fieldDefinition, definerCtx, path + ("[" + JSON.stringify(definitionFieldName) + "]"));
     }
     return ;
   }
@@ -1342,51 +1468,7 @@ function analyzeDefinition(definition, definerCtx, path) {
       });
 }
 
-function structToInlinedValue(_struct) {
-  while(true) {
-    var struct = _struct;
-    var unionStructs = struct.t;
-    if (typeof unionStructs === "number") {
-      throw undefined;
-    }
-    switch (unionStructs.TAG | 0) {
-      case /* Literal */0 :
-          var string = unionStructs._0;
-          if (typeof string !== "number") {
-            if (string.TAG === /* String */0) {
-              return JSON.stringify(string._0);
-            } else {
-              return string._0.toString();
-            }
-          }
-          switch (string) {
-            case /* EmptyNull */0 :
-                return "null";
-            case /* EmptyOption */1 :
-                return "undefined";
-            case /* NaN */2 :
-                return "NaN";
-            
-          }
-      case /* Object */4 :
-          var fields = unionStructs.fields;
-          return "{" + unionStructs.fieldNames.map((function(fields){
-                      return function (fieldName) {
-                        return "" + JSON.stringify(fieldName) + ":" + structToInlinedValue(fields[fieldName]) + "";
-                      }
-                      }(fields))).join(",") + "}";
-      case /* Tuple */5 :
-          return "[" + unionStructs._0.map(structToInlinedValue).join(",") + "]";
-      case /* Union */6 :
-          _struct = unionStructs._0[0];
-          continue ;
-      default:
-        throw undefined;
-    }
-  };
-}
-
-function factory$2(definer) {
+function factory$3(definer) {
   var definerCtx_n = [];
   var definerCtx_f = {};
   var definerCtx_d = [];
@@ -1404,7 +1486,7 @@ function factory$2(definer) {
     s: definerCtx_s
   };
   var definition = definer(definerCtx);
-  analyzeDefinition(definition, definerCtx, "");
+  analyzeDefinition$1(definition, definerCtx, "");
   var serializeTransformationFactory = function (ctx) {
     var inliningFieldNameRef = undefined;
     try {
@@ -1439,7 +1521,7 @@ function factory$2(definer) {
           }
         } else {
           inliningFieldNameRef = fieldDefinition.n;
-          tmp = "" + inlinedFieldName + ":" + structToInlinedValue(fieldStruct) + ",";
+          tmp = "" + inlinedFieldName + ":" + internalToInlinedValue(fieldStruct) + ",";
         }
         contentRef = contentRef + tmp;
       }
@@ -1667,7 +1749,7 @@ function transformationFactory(ctx) {
         }));
 }
 
-function factory$3(param) {
+function factory$4(param) {
   return {
           n: "Never",
           t: /* Never */0,
@@ -1684,7 +1766,7 @@ function factory$3(param) {
         };
 }
 
-function factory$4(param) {
+function factory$5(param) {
   return {
           n: "Unknown",
           t: /* Unknown */1,
@@ -1730,7 +1812,7 @@ function parseTransformationFactory(ctx) {
         }));
 }
 
-function factory$5(param) {
+function factory$6(param) {
   return {
           n: "String",
           t: /* String */2,
@@ -1904,7 +1986,7 @@ function trim(struct, param) {
   return transform(struct, transformer, undefined, transformer, undefined);
 }
 
-function factory$6(innerStruct) {
+function factory$7(innerStruct) {
   return {
           n: "Json",
           t: /* String */2,
@@ -1974,7 +2056,7 @@ function parseTransformationFactory$1(ctx) {
         }));
 }
 
-function factory$7(param) {
+function factory$8(param) {
   return {
           n: "Bool",
           t: /* Bool */5,
@@ -2012,7 +2094,7 @@ function parseTransformationFactory$2(ctx) {
         }));
 }
 
-function factory$8(param) {
+function factory$9(param) {
   return {
           n: "Int",
           t: /* Int */3,
@@ -2098,7 +2180,7 @@ function parseTransformationFactory$3(ctx) {
         }));
 }
 
-function factory$9(param) {
+function factory$10(param) {
   return {
           n: "Float",
           t: /* Float */4,
@@ -2149,7 +2231,7 @@ function max$2(struct, maybeMessage, maxValue) {
             }, refiner);
 }
 
-function factory$10(innerStruct) {
+function factory$11(innerStruct) {
   return {
           n: "Null",
           t: {
@@ -2220,7 +2302,7 @@ function factory$10(innerStruct) {
         };
 }
 
-function factory$11(innerStruct) {
+function factory$12(innerStruct) {
   return {
           n: "Option",
           t: {
@@ -2294,7 +2376,7 @@ function refinements$3(struct) {
   }
 }
 
-function factory$12(innerStruct) {
+function factory$13(innerStruct) {
   return {
           n: "Array",
           t: {
@@ -2451,7 +2533,7 @@ function length$1(struct, maybeMessage, length$2) {
             }, refiner);
 }
 
-function factory$13(innerStruct) {
+function factory$14(innerStruct) {
   return {
           n: "Dict",
           t: {
@@ -2576,7 +2658,7 @@ function factory$13(innerStruct) {
 
 var metadataId$5 = "rescript-struct:Default";
 
-function factory$14(innerStruct, getDefaultValue) {
+function factory$15(innerStruct, getDefaultValue) {
   return set({
               n: innerStruct.n,
               t: innerStruct.t,
@@ -2645,7 +2727,7 @@ function classify$2(struct) {
   
 }
 
-function factory$15(param) {
+function factory$16(param) {
   var structs = (Array.from(arguments));
   var numberOfStructs = structs.length;
   return {
@@ -2808,12 +2890,12 @@ function factory$15(param) {
 }
 
 var Tuple = {
-  factory: factory$15
+  factory: factory$16
 };
 
 var HackyValidValue = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Union.HackyValidValue");
 
-function factory$16(structs) {
+function factory$17(structs) {
   if (structs.length < 2) {
     throw new Error("[rescript-struct] A Union struct factory require at least two structs.");
   }
@@ -2992,18 +3074,18 @@ function factory$16(structs) {
 }
 
 function list(innerStruct) {
-  return transform(factory$12(innerStruct), Belt_List.fromArray, undefined, Belt_List.toArray, undefined);
+  return transform(factory$13(innerStruct), Belt_List.fromArray, undefined, Belt_List.toArray, undefined);
 }
 
 function jsonable(param) {
   return recursive(function (jsonableStruct) {
-              return factory$16([
-                          factory$5(undefined),
-                          factory$9(undefined),
-                          factory$7(undefined),
-                          factory(/* EmptyNull */0, null),
-                          factory$12(jsonableStruct),
-                          factory$13(jsonableStruct)
+              return factory$17([
+                          factory$6(undefined),
+                          factory$10(undefined),
+                          factory$8(undefined),
+                          factory$1(/* EmptyNull */0, null),
+                          factory$13(jsonableStruct),
+                          factory$14(jsonableStruct)
                         ]);
             });
 }
@@ -3101,7 +3183,7 @@ function $$catch(struct, getFallbackValue) {
 var deprecationMetadataId = "rescript-struct:deprecation";
 
 function deprecate(struct, message) {
-  return set(factory$11(struct), deprecationMetadataId, message);
+  return set(factory$12(struct), deprecationMetadataId, message);
 }
 
 function deprecation(struct) {
@@ -3505,7 +3587,7 @@ function internalInline(struct, maybeVariant, param) {
     return inlinedStruct$5;
   }
   if (maybeVariant !== undefined) {
-    return inlinedStruct$5 + ("->S.transform(\n  ~parser=d => " + maybeVariant + "(d),\n  ~serializer=v => switch v {\n| " + maybeVariant + "(d) => d\n| _ => S.fail(\`Value is not the " + maybeVariant + " variant.\`)\n}, ())");
+    return inlinedStruct$5 + ("->S.variant(v => " + maybeVariant + "(v))");
   } else {
     return inlinedStruct$5;
   }
@@ -3516,7 +3598,7 @@ function inline(struct) {
 }
 
 function unit(param) {
-  return factory$1(/* EmptyOption */1);
+  return factory$2(/* EmptyOption */1);
 }
 
 var Path = {
@@ -3531,35 +3613,37 @@ var $$Error$1 = {
   toString: toString
 };
 
-var never = factory$3;
+var never = factory$4;
 
-var unknown = factory$4;
+var unknown = factory$5;
 
-var string = factory$5;
+var string = factory$6;
 
-var bool = factory$7;
+var bool = factory$8;
 
-var $$int = factory$8;
+var $$int = factory$9;
 
-var $$float = factory$9;
+var $$float = factory$10;
 
-var literal = factory$1;
+var literal = factory$2;
 
-var literalVariant = factory;
+var literalVariant = factory$1;
 
-var array = factory$12;
+var array = factory$13;
 
-var dict = factory$13;
+var dict = factory$14;
 
-var option = factory$11;
+var option = factory$12;
 
-var $$null = factory$10;
+var $$null = factory$11;
 
-var json = factory$6;
+var json = factory$7;
 
-var union = factory$16;
+var union = factory$17;
 
-var $$default = factory$14;
+var $$default = factory$15;
+
+var variant = factory;
 
 var parseWith = parseAnyWith;
 
@@ -3579,29 +3663,29 @@ var $$Object = {
   strict: strict
 };
 
-var object = factory$2;
+var object = factory$3;
 
-var tuple0 = factory$15;
+var tuple0 = factory$16;
 
-var tuple1 = factory$15;
+var tuple1 = factory$16;
 
-var tuple2 = factory$15;
+var tuple2 = factory$16;
 
-var tuple3 = factory$15;
+var tuple3 = factory$16;
 
-var tuple4 = factory$15;
+var tuple4 = factory$16;
 
-var tuple5 = factory$15;
+var tuple5 = factory$16;
 
-var tuple6 = factory$15;
+var tuple6 = factory$16;
 
-var tuple7 = factory$15;
+var tuple7 = factory$16;
 
-var tuple8 = factory$15;
+var tuple8 = factory$16;
 
-var tuple9 = factory$15;
+var tuple9 = factory$16;
 
-var tuple10 = factory$15;
+var tuple10 = factory$16;
 
 var String_Refinement = {};
 
@@ -3686,6 +3770,7 @@ exports.advancedTransform = advancedTransform;
 exports.advancedPreprocess = advancedPreprocess;
 exports.custom = custom;
 exports.refine = refine;
+exports.variant = variant;
 exports.parseWith = parseWith;
 exports.parseAnyWith = parseAnyWith;
 exports.parseJsonWith = parseJsonWith;

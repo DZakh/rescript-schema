@@ -340,8 +340,8 @@ type user = {
 }
 // It will have the S.t<user> type
 let struct = S.object(o => {
-  id: o->S.field("USER_ID", S.int())
-  name: o->S.field("USER_NAME", S.string())
+  id: o->S.field("USER_ID", S.int()),
+  name: o->S.field("USER_NAME", S.string()),
 })
 
 %raw(`{"USER_ID":1,"USER_NAME":"John"}`)->S.parseWith(struct)
@@ -353,8 +353,8 @@ let struct = S.object(o => {
 ```rescript
 // It will have the S.t<{"key1":string,"key2":string}> type
 let struct = S.object(o => {
-  "key1": o->S.field("key1", S.string())
-  "key2": o->S.field("key2", S.string())
+  "key1": o->S.field("key1", S.string()),
+  "key2": o->S.field("key2", S.string()),
 })
 ```
 
@@ -440,6 +440,27 @@ let struct = S.object(_ => ())->S.Object.strip
 ```
 
 You can use the `S.Object.strip` function to reset a object struct to the default behavior (stripping unrecognized keys).
+
+### **`S.variant`**
+
+`(S.t<'value>, 'value => 'variant) => S.t<'variant>`
+
+```rescript
+type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, y: float})
+
+// It will have the S.t<shape> type
+let struct = S.float()->S.variant(radius => Circle({radius: radius}))
+
+%raw(`1`)->S.parseWith(struct)
+// Ok(Circle({radius: 1.}))
+```
+
+The same struct also works for serializing:
+
+```rescript
+Circle({radius: 1})->S.serializeWith(struct)
+// Ok(%raw(`1`))
+```
 
 ### **`S.union`**
 
@@ -774,12 +795,10 @@ type rec node = {
 }
 
 let nodeStruct = S.recursive(nodeStruct => {
-  S.object(
-    o => {
-      id: o->S.field("Id", S.string()),
-      children: o->S.field("Children", S.array(nodeStruct)),
-    },
-  )
+  S.object(o => {
+    id: o->S.field("Id", S.string()),
+    children: o->S.field("Children", S.array(nodeStruct)),
+  })
 })
 ```
 
@@ -828,12 +847,10 @@ type rec node = {
 }
 
 let nodeStruct = S.asyncRecursive(nodeStruct => {
-  S.object(
-    o => {
-      id: o->S.field("Id", S.string())->S.refine(~asyncParser=checkIsExistingNode, ()),
-      children: o->S.field("Children", S.array(nodeStruct)),
-    },
-  )
+  S.object(o => {
+    id: o->S.field("Id", S.string())->S.refine(~asyncParser=checkIsExistingNode, ()),
+    children: o->S.field("Children", S.array(nodeStruct)),
+  })
 })
 ```
 

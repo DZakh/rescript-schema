@@ -324,8 +324,8 @@ type user = {
 }
 // It will have the S.t<user> type
 let struct = S.object(o => {
-  id: o->S.field("USER_ID", S.int())
-  name: o->S.field("USER_NAME", S.string())
+  id: o->S.field("USER_ID", S.int()),
+  name: o->S.field("USER_NAME", S.string()),
 })
 
 %raw(`{"USER_ID":1,"USER_NAME":"John"}`)->S.parseWith(struct)
@@ -337,8 +337,8 @@ let struct = S.object(o => {
 ```rescript
 // It will have the S.t<{"key1":string,"key2":string}> type
 let struct = S.object(o => {
-  "key1": o->S.field("key1", S.string())
-  "key2": o->S.field("key2", S.string())
+  "key1": o->S.field("key1", S.string()),
+  "key2": o->S.field("key2", S.string()),
 })
 ```
 
@@ -702,12 +702,10 @@ type rec node = {
 }
 
 let nodeStruct = S.recursive(nodeStruct => {
-  S.object(
-    o => {
-      id: o->S.field("Id", S.string()),
-      children: o->S.field("Children", S.array(nodeStruct)),
-    },
-  )
+  S.object(o => {
+    id: o->S.field("Id", S.string()),
+    children: o->S.field("Children", S.array(nodeStruct)),
+  })
 })
 ```
 
@@ -756,12 +754,10 @@ type rec node = {
 }
 
 let nodeStruct = S.asyncRecursive(nodeStruct => {
-  S.object(
-    o => {
-      id: o->S.field("Id", S.string())->S.refine(~asyncParser=checkIsExistingNode, ()),
-      children: o->S.field("Children", S.array(nodeStruct)),
-    },
-  )
+  S.object(o => {
+    id: o->S.field("Id", S.string())->S.refine(~asyncParser=checkIsExistingNode, ()),
+    children: o->S.field("Children", S.array(nodeStruct)),
+  })
 })
 ```
 

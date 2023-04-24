@@ -148,6 +148,8 @@ let refine: (
   unit,
 ) => t<'value>
 
+let variant: (t<'value>, 'value => 'variant) => t<'variant>
+
 let parseWith: (Js.Json.t, t<'value>) => result<'value, Error.t>
 
 let parseAnyWith: ('any, t<'value>) => result<'value, Error.t>

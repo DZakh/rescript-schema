@@ -187,6 +187,11 @@ module Stdlib = {
     }
 
     @inline
+    let make2 = (~ctxVarName1, ~ctxVarValue1, ~ctxVarName2, ~ctxVarValue2, ~inlinedFunction) => {
+      _make([ctxVarName1, ctxVarName2, `return ${inlinedFunction}`])(. ctxVarValue1, ctxVarValue2)
+    }
+
+    @inline
     let make7 = (
       ~ctxVarName1,
       ~ctxVarValue1,
@@ -1400,6 +1405,191 @@ let custom = (
   )
 }
 
+let rec internalToInlinedValue = struct => {
+  switch struct->classify {
+  | Literal(String(string)) => string->Stdlib.Inlined.Value.fromString
+  | Literal(Int(int)) => int->Js.Int.toString
+  | Literal(Float(float)) => float->Js.Float.toString
+  | Literal(Bool(bool)) => bool->Stdlib.Bool.toString
+  | Literal(EmptyOption) => "undefined"
+  | Literal(EmptyNull) => "null"
+  | Literal(NaN) => "NaN"
+  | Union(unionStructs) => unionStructs->Js.Array2.unsafe_get(0)->internalToInlinedValue
+  | Tuple(tupleStructs) =>
+    `[${tupleStructs->Js.Array2.map(internalToInlinedValue)->Js.Array2.joinWith(",")}]`
+  | Object({fieldNames, fields}) =>
+    `{${fieldNames
+      ->Js.Array2.map(fieldName => {
+        `${fieldName->Stdlib.Inlined.Value.fromString}:${fields
+          ->Js.Dict.unsafeGet(fieldName)
+          ->internalToInlinedValue}`
+      })
+      ->Js.Array2.joinWith(",")}}`
+
+  | String
+  | Int
+  | Float
+  | Bool
+  | Option(_)
+  | Null(_)
+  | Never
+  | Unknown
+  | Array(_)
+  | Dict(_) =>
+    Stdlib.Exn.raiseEmpty()
+  }
+}
+
+module Variant = {
+  module ConstantDefinition = {
+    type t = {@as("v") value: unknown, @as("p") path: Path.t}
+  }
+
+  module DefinerCtx = {
+    type t = {
+      @as("a")
+      mutable valuePath: Path.t,
+      @as("r")
+      mutable isValueRegistered: bool,
+      @as("c")
+      constantDefinitions: array<ConstantDefinition.t>,
+    }
+
+    @inline
+    let make = () => {
+      valuePath: Path.empty,
+      isValueRegistered: false,
+      constantDefinitions: [],
+    }
+  }
+
+  let rec analyzeDefinition = (definition, ~definerCtx: DefinerCtx.t, ~path) => {
+    if (
+      // Use the definerCtx as a value placeholder
+      definition->(Obj.magic: unknown => DefinerCtx.t) === definerCtx
+    ) {
+      if definerCtx.isValueRegistered {
+        Error.panic(`The variant's value is registered multiple times. If you want to duplicate it, use S.transform instead.`)
+      } else {
+        definerCtx.valuePath = path
+        definerCtx.isValueRegistered = true
+      }
+    } else if definition->Js.typeof === "object" && definition !== %raw(`null`) {
+      let definition: Js.Dict.t<unknown> = definition->Obj.magic
+      let definitionFieldNames = definition->Js.Dict.keys
+      for idx in 0 to definitionFieldNames->Js.Array2.length - 1 {
+        let definitionFieldName = definitionFieldNames->Js.Array2.unsafe_get(idx)
+        let fieldDefinition = definition->Js.Dict.unsafeGet(definitionFieldName)
+        fieldDefinition->analyzeDefinition(
+          ~definerCtx,
+          ~path=path->Path.concat(definitionFieldName->Path.fromLocation),
+        )
+      }
+    } else {
+      definerCtx.constantDefinitions
+      ->Js.Array2.push({
+        path,
+        value: definition,
+      })
+      ->ignore
+    }
+  }
+
+  module SerializeTransformationFactory = {
+    module Var = {
+      @inline
+      let constantDefinitions = "d"
+      @inline
+      let raiseDiscriminantError = "r"
+      @inline
+      let transformedObject = "t"
+    }
+
+    @inline
+    let make = (~instructions: DefinerCtx.t) => {
+      (. ~ctx) => {
+        try {
+          let {valuePath, isValueRegistered, constantDefinitions} = instructions
+
+          let inlinedSerializeFunction = {
+            let constants = {
+              let stringRef = ref("")
+              for idx in 0 to constantDefinitions->Js.Array2.length - 1 {
+                let {path} = constantDefinitions->Js.Array2.unsafe_get(idx)
+                stringRef.contents =
+                  stringRef.contents ++
+                  Stdlib.Inlined.If.make(
+                    ~condition=`${Var.transformedObject}${path}!==${Var.constantDefinitions}[${idx->Js.Int.toString}].v`,
+                    ~content=`${Var.raiseDiscriminantError}(${idx->Js.Int.toString},${Var.transformedObject}${path})`,
+                  )
+              }
+              stringRef.contents
+            }
+
+            Stdlib.Inlined.Fn.make(
+              ~arguments=Var.transformedObject,
+              ~content=`${constants}return ${switch isValueRegistered {
+                | true => `${Var.transformedObject}${valuePath}`
+                | false => ctx.struct->internalToInlinedValue
+                }}`,
+            )
+          }
+
+          ctx->TransformationFactory.Ctx.planSyncTransformation(
+            Stdlib.Function.make2(
+              ~ctxVarName1=Var.constantDefinitions,
+              ~ctxVarValue1=constantDefinitions,
+              ~ctxVarName2=Var.raiseDiscriminantError,
+              ~ctxVarValue2=(~fieldDefinitionIdx, ~received) => {
+                let {value, path} = constantDefinitions->Js.Array2.unsafe_get(fieldDefinitionIdx)
+                Error.Internal.UnexpectedValue.raise(
+                  ~expected=value,
+                  ~received,
+                  ~initialPath=path,
+                  (),
+                )
+              },
+              ~inlinedFunction=inlinedSerializeFunction,
+            ),
+          )
+        } catch {
+        | _ =>
+          ctx->TransformationFactory.Ctx.planSyncTransformation(_ =>
+            Error.Internal.raise(MissingSerializer)
+          )
+        }
+        ()
+      }
+    }
+  }
+
+  let factory = {
+    (struct, definer) => {
+      let instructions = {
+        let definerCtx = DefinerCtx.make()
+        let definition = definer->Stdlib.Fn.call1(definerCtx->Obj.magic)->castAnyToUnknown
+        definition->analyzeDefinition(~definerCtx, ~path=Path.empty)
+        definerCtx
+      }
+
+      make(
+        ~name=struct.name,
+        ~tagged=struct.tagged,
+        ~parseTransformationFactory=(. ~ctx) => {
+          struct.parseTransformationFactory(. ~ctx)
+          ctx->TransformationFactory.Ctx.planSyncTransformation(definer)
+        },
+        ~serializeTransformationFactory=(. ~ctx) => {
+          SerializeTransformationFactory.make(~instructions)(. ~ctx)
+          struct.serializeTransformationFactory(. ~ctx)
+        },
+        ~metadataMap=struct.metadataMap,
+        (),
+      )
+    }
+  }
+}
+
 module Literal = {
   module Variant = {
     let factory:
@@ -1976,41 +2166,6 @@ module Object = {
       let catchFieldError = "c"
     }
 
-    let rec structToInlinedValue = struct => {
-      switch struct->classify {
-      | Literal(String(string)) => string->Stdlib.Inlined.Value.fromString
-      | Literal(Int(int)) => int->Js.Int.toString
-      | Literal(Float(float)) => float->Js.Float.toString
-      | Literal(Bool(bool)) => bool->Stdlib.Bool.toString
-      | Literal(EmptyOption) => "undefined"
-      | Literal(EmptyNull) => "null"
-      | Literal(NaN) => "NaN"
-      | Union(unionStructs) => unionStructs->Js.Array2.unsafe_get(0)->structToInlinedValue
-      | Tuple(tupleStructs) =>
-        `[${tupleStructs->Js.Array2.map(structToInlinedValue)->Js.Array2.joinWith(",")}]`
-      | Object({fieldNames, fields}) =>
-        `{${fieldNames
-          ->Js.Array2.map(fieldName => {
-            `${fieldName->Stdlib.Inlined.Value.fromString}:${fields
-              ->Js.Dict.unsafeGet(fieldName)
-              ->structToInlinedValue}`
-          })
-          ->Js.Array2.joinWith(",")}}`
-
-      | String
-      | Int
-      | Float
-      | Bool
-      | Option(_)
-      | Null(_)
-      | Never
-      | Unknown
-      | Array(_)
-      | Dict(_) =>
-        Stdlib.Exn.raiseEmpty()
-      }
-    }
-
     @inline
     let make = (~instructions: DefinerCtx.t) => {
       (. ~ctx) => {
@@ -2063,7 +2218,7 @@ module Object = {
 
                     | false => {
                         inliningFieldNameRef.contents = fieldName
-                        `${inlinedFieldName}:${fieldStruct->structToInlinedValue},`
+                        `${inlinedFieldName}:${fieldStruct->internalToInlinedValue},`
                       }
                     }
                 }
@@ -3835,14 +3990,7 @@ let inline = {
 
     let inlinedStruct = switch (struct->classify, maybeVariant) {
     | (Literal(_), _) => inlinedStruct
-    | (_, Some(variant)) =>
-      inlinedStruct ++
-      `->S.transform(
-  ~parser=d => ${variant}(d),
-  ~serializer=v => switch v {
-| ${variant}(d) => d
-| _ => S.fail(\`Value is not the ${variant} variant.\`)
-}, ())`
+    | (_, Some(variant)) => inlinedStruct ++ `->S.variant(v => ${variant}(v))`
     | _ => inlinedStruct
     }
 
@@ -3868,6 +4016,7 @@ let option = Option.factory
 let array = Array.factory
 let dict = Dict.factory
 let default = Default.factory
+let variant = Variant.factory
 let literal = Literal.factory
 let literalVariant = Literal.Variant.factory
 let tuple0 = Tuple.factory

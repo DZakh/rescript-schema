@@ -48,7 +48,6 @@ let struct = S.tuple(o => (o->S.item(0, S.string()), o->S.item(1, S.int())))
 
 v4.1
 
-- S.variant
 - Inline literals check used in S.object (Optimize S.literalVariant without transform)
 - Make the TS code reuse rescript output instead of creating a separate bundle
 - Don't forget to mention a fix of serializing of recursive structs with S.serializeWith
