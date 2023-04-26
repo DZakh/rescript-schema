@@ -14,11 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-          cache: npm
-      - run: npm ci
+          cache: "pnpm"
+      - run: pnpm install
+
       - run: npm run res:build
 
       - run: npm run coverage
@@ -26,28 +28,38 @@ jobs:
         with:
           files: coverage/lcov.info
 
-  build:
-    name: Build
+  prepack:
+    name: Prepack
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-          cache: npm
-      - run: npm ci
-      - run: npm run build
+          cache: "pnpm"
+      - run: pnpm install
+
+      - run: npm run res:build
+        working-directory: packages/prepack
+
+      - run: npm run lint:stdlib
+        working-directory: packages/prepack
+
+      - run: npm run prepack
 
   benchmark:
     name: Benchmark
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-          cache: npm
-      - run: npm ci
+          cache: "pnpm"
+      - run: pnpm install
+
       - run: npm run res:build
 
       - name: Run benchmark

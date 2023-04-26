@@ -23,13 +23,12 @@ module Error = {
   type t = exn
 
   %%raw(`
-    class RescriptStructError extends Error {
+    export class RescriptStructError extends Error {
       constructor(message) {
         super(message);
         this.name = "RescriptStructError";
       }
     }
-    exports.RescriptStructError = RescriptStructError 
   `)
 
   @new

@@ -9,7 +9,7 @@ module Suite = {
   type t
   type event = {target: BenchmarkResult.t}
 
-  @module("benchmark") @new
+  @module("benchmark") @scope("default") @new
   external make: unit => t = "Suite"
 
   @send

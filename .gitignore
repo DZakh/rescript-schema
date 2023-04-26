@@ -1,7 +1,8 @@
 node_modules
 .merlin
 .bsb.lock
-**/*_test.bs.js
+**/*_test.bs.mjs
 lib
 coverage
 dist
+packages/artifacts

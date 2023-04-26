@@ -2,8 +2,7 @@
   "compilerOptions": {
     "moduleResolution": "node",
     "target": "esnext",
-    "module": "commonjs",
-    "declaration": true,
+    "module": "ES2020",
     "strict": true,
     "esModuleInterop": true,
     "noUncheckedIndexedAccess": true
