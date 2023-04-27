@@ -91,7 +91,7 @@ var output = [
             values: Object.fromEntries([
                   [
                     "S.bs.mjs",
-                    "S.bs.js"
+                    "../src/S.bs.js"
                   ],
                   [
                     "rescript/lib/es6",
@@ -103,7 +103,13 @@ var output = [
   {
     file: Path.join(artifactsPath, "dist/S.mjs"),
     format: "es",
-    exports: "named"
+    exports: "named",
+    plugins: [PluginReplace({
+            values: Object.fromEntries([[
+                    "S.bs.mjs",
+                    "../src/S.bs.mjs"
+                  ]])
+          })]
   }
 ];
 

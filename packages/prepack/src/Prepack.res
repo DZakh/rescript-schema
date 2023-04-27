@@ -150,7 +150,10 @@ let output: array<Rollup.OutputOptions.t> = [
     exports: #named,
     plugins: [
       Rollup.ReplacePlugin.make({
-        values: Dict.fromArray([(`S.bs.mjs`, `S.bs.js`), (`rescript/lib/es6`, `rescript/lib/js`)]),
+        values: Dict.fromArray([
+          (`S.bs.mjs`, `../src/S.bs.js`),
+          (`rescript/lib/es6`, `rescript/lib/js`),
+        ]),
       }),
     ],
   },
@@ -158,6 +161,11 @@ let output: array<Rollup.OutputOptions.t> = [
     file: NodeJs.Path.join2(artifactsPath, "dist/S.mjs"),
     format: #es,
     exports: #named,
+    plugins: [
+      Rollup.ReplacePlugin.make({
+        values: Dict.fromArray([(`S.bs.mjs`, `../src/S.bs.mjs`)]),
+      }),
+    ],
   },
 ]
 for idx in 0 to output->Array.length - 1 {
