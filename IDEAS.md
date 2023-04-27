@@ -52,6 +52,7 @@ Next breaking release
 - Make S.deprecated not wrap in option
 - Rename S.json -> S.jsonString
 - Rename S.jsonable -> S.json
+- Rename S.parseJsonWith -> S.parseJsonStringWith (the same for serialize)
 - Remove NaN from literals (or completely)
 
 `(S.t<'value>, ~wrapper=S.t<'value> => S.t<option<'value>>=?, unit => 'value) => S.t<'value>`
