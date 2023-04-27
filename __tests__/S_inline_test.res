@@ -283,6 +283,11 @@ test("Supports Never", t => {
   t->Assert.deepEqual(struct->S.inline, `S.never()`, ())
 })
 
+test("Supports JSON", t => {
+  let struct = S.jsonable()
+  t->Assert.deepEqual(struct->S.inline, `S.jsonable()`, ())
+})
+
 test("Supports String Literal", t => {
   let struct = S.literal(String("foo"))
   t->Assert.deepEqual(struct->S.inline, `S.literal(String("foo"))`, ())
@@ -559,11 +564,12 @@ test("Uses S.transform for primitive structs inside of union", t => {
     S.int()->S.variant(v => #Int(v)),
     S.unknown()->S.variant(v => #Unknown(v)),
     S.never()->S.variant(v => #Never(v)),
+    S.jsonable()->S.variant(v => #JSON(v)),
   ])
 
   t->Assert.deepEqual(
     struct->S.inline,
-    `S.union([S.string()->S.variant(v => #"String"(v)), S.bool()->S.variant(v => #"Bool"(v)), S.float()->S.variant(v => #"Float"(v)), S.int()->S.variant(v => #"Int"(v)), S.unknown()->S.variant(v => #"Unknown"(v)), S.never()->S.variant(v => #"Never"(v))])`,
+    `S.union([S.string()->S.variant(v => #"String"(v)), S.bool()->S.variant(v => #"Bool"(v)), S.float()->S.variant(v => #"Float"(v)), S.int()->S.variant(v => #"Int"(v)), S.unknown()->S.variant(v => #"Unknown"(v)), S.never()->S.variant(v => #"Never"(v)), S.jsonable()->S.variant(v => #"JSON"(v))])`,
     (),
   )
 })
@@ -843,5 +849,5 @@ test("Supports Union structs in union", t => {
   )
 })
 
-// TODO: Add support for recursive struct. Aka jsonable
+// TODO: Add support for recursive struct.
 // TODO: Add support for list.

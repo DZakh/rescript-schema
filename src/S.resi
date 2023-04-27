@@ -77,6 +77,7 @@ and tagged =
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
+  | JSON
 
 let never: unit => t<never>
 let unknown: unit => t<unknown>

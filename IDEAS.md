@@ -46,16 +46,13 @@ let struct = S.tuple(o => (o->S.item(0, S.string()), o->S.item(1, S.int())))
 
 - Think of the S.advancedTransform and S.advancedPreprocess destiny
 
-v4.1
-
-- Inline literals check used in S.object (Optimize S.literalVariant without transform)
-- Don't forget to mention a fix of serializing of recursive structs with S.serializeWith
-- Mention email regex improvement
-
 Next breaking release
 
 - S.default rework
 - Make S.deprecated not wrap in option
+- Rename S.json -> S.jsonString
+- Rename S.jsonable -> S.json
+- Remove NaN from literals (or completely)
 
 `(S.t<'value>, ~wrapper=S.t<'value> => S.t<option<'value>>=?, unit => 'value) => S.t<'value>`
 

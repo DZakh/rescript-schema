@@ -49,3 +49,29 @@ test("Supports Object", t => {
   t->Assert.deepEqual(data->S.parseWith(struct), Ok(data), ())
   t->Assert.deepEqual(data->S.serializeWith(struct), Ok(data), ())
 })
+
+test("Fails to parse NaN", t => {
+  let struct = S.jsonable()
+  t->Assert.deepEqual(
+    %raw("NaN")->S.parseAnyWith(struct),
+    Error({
+      code: UnexpectedType({received: "NaN Literal (NaN)", expected: "JSON"}),
+      operation: Parsing,
+      path: S.Path.empty,
+    }),
+    (),
+  )
+})
+
+test("Fails to parse undefined", t => {
+  let struct = S.jsonable()
+  t->Assert.deepEqual(
+    %raw("undefined")->S.parseAnyWith(struct),
+    Error({
+      code: UnexpectedType({received: "Option", expected: "JSON"}),
+      operation: Parsing,
+      path: S.Path.empty,
+    }),
+    (),
+  )
+})

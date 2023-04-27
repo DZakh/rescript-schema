@@ -596,6 +596,7 @@ and tagged =
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
+  | JSON
 and transformation<'input, 'output> =
   | Noop: transformation<'input, 'input>
   | Sync('input => 'output)
@@ -816,6 +817,7 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
     | Float
     | Bool
     | Never
+    | JSON
     | Literal(String(_))
     | Literal(Int(_))
     | Literal(Float(_))
@@ -1434,6 +1436,7 @@ let rec internalToInlinedValue = struct => {
   | Null(_)
   | Never
   | Unknown
+  | JSON
   | Array(_)
   | Dict(_) =>
     Stdlib.Exn.raiseEmpty()
@@ -3612,17 +3615,56 @@ let list = innerStruct => {
   ->transform(~parser=Belt.List.fromArray, ~serializer=Belt.List.toArray, ())
 }
 
-let jsonable = () =>
-  recursive(jsonableStruct =>
-    Union.factory([
-      String.factory(),
-      Float.factory(),
-      Bool.factory(),
-      Literal.Variant.factory(EmptyNull, %raw("null")),
-      Array.factory(jsonableStruct),
-      Dict.factory(jsonableStruct),
-    ])
-  )
+let jsonable = {
+  let rec parse = (input, ~ctx) => {
+    switch input->Js.typeof {
+    | "number" if Js.Float.isNaN(input->(Obj.magic: unknown => float))->not =>
+      input->(Obj.magic: unknown => Js.Json.t)
+
+    | "object" =>
+      if input === %raw("null") {
+        input->(Obj.magic: unknown => Js.Json.t)
+      } else if input->Js.Array2.isArray {
+        let input = input->(Obj.magic: unknown => array<unknown>)
+        let output = []
+        for idx in 0 to input->Js.Array2.length - 1 {
+          let inputItem = input->Js.Array2.unsafe_get(idx)
+          output->Js.Array2.push(inputItem->parse(~ctx))->ignore
+        }
+        output->Js.Json.array
+      } else {
+        let input = input->(Obj.magic: unknown => Js.Dict.t<unknown>)
+        let keys = input->Js.Dict.keys
+        let output = Js.Dict.empty()
+        for idx in 0 to keys->Js.Array2.length - 1 {
+          let key = keys->Js.Array2.unsafe_get(idx)
+          let field = input->Js.Dict.unsafeGet(key)
+          output->Js.Dict.set(key, field->parse(~ctx))
+        }
+        output->Js.Json.object_
+      }
+
+    | "string"
+    | "boolean" =>
+      input->(Obj.magic: unknown => Js.Json.t)
+
+    | _ => raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
+    }
+  }
+
+  let parseTransformationFactory = (. ~ctx) =>
+    ctx->TransformationFactory.Ctx.planSyncTransformation(input => input->parse(~ctx))
+
+  () =>
+    make(
+      ~name="JSON",
+      ~tagged=JSON,
+      ~metadataMap=emptyMetadataMap,
+      ~parseTransformationFactory,
+      ~serializeTransformationFactory=TransformationFactory.empty,
+      (),
+    )
+}
 
 type catchCtx = {
   error: Error.t,
@@ -3765,6 +3807,7 @@ let inline = {
     | Null(s) => `NullOf${s->toVariantName}`
     | Array(s) => `ArrayOf${s->toVariantName}`
     | Dict(s) => `DictOf${s->toVariantName}`
+    | JSON => `JSON`
     }
   }
 
@@ -3807,6 +3850,7 @@ let inline = {
           })
           ->Js.Array2.joinWith(", ")}])`
       }
+    | JSON => `S.jsonable()`
 
     | Tuple([]) => `S.tuple0(.)`
     | Tuple(tupleStructs) => {
@@ -3818,7 +3862,6 @@ let inline = {
           ->Js.Array2.map(s => s->internalInline())
           ->Js.Array2.joinWith(", ")})`
       }
-
     | Object({fieldNames: []}) => `S.object(_ => ())`
     | Object({fieldNames, fields}) =>
       `S.object(o =>

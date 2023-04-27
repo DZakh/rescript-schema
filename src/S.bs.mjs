@@ -3076,17 +3076,64 @@ function list(innerStruct) {
   return transform(factory$13(innerStruct), Belt_List.fromArray, undefined, Belt_List.toArray, undefined);
 }
 
+function parse(input, ctx) {
+  var match = typeof input;
+  switch (match) {
+    case "number" :
+        if (Number.isNaN(input)) {
+          return raiseUnexpectedTypeError(input, ctx.s);
+        } else {
+          return input;
+        }
+    case "object" :
+        if (input === null) {
+          return input;
+        }
+        if (Array.isArray(input)) {
+          var output = [];
+          for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
+            var inputItem = input[idx];
+            output.push(parse(inputItem, ctx));
+          }
+          return output;
+        }
+        var keys = Object.keys(input);
+        var output$1 = {};
+        for(var idx$1 = 0 ,idx_finish$1 = keys.length; idx$1 < idx_finish$1; ++idx$1){
+          var key = keys[idx$1];
+          var field = input[key];
+          output$1[key] = parse(field, ctx);
+        }
+        return output$1;
+    case "boolean" :
+    case "string" :
+        return input;
+    default:
+      return raiseUnexpectedTypeError(input, ctx.s);
+  }
+}
+
+function parseTransformationFactory$4(ctx) {
+  planSyncTransformation(ctx, (function (input) {
+          return parse(input, ctx);
+        }));
+}
+
 function jsonable(param) {
-  return recursive(function (jsonableStruct) {
-              return factory$17([
-                          factory$6(undefined),
-                          factory$10(undefined),
-                          factory$8(undefined),
-                          factory$1(/* EmptyNull */0, null),
-                          factory$13(jsonableStruct),
-                          factory$14(jsonableStruct)
-                        ]);
-            });
+  return {
+          n: "JSON",
+          t: /* JSON */6,
+          pf: parseTransformationFactory$4,
+          sf: empty,
+          r: 0,
+          e: 0,
+          s: initialSerialize,
+          j: initialSerializeToJson,
+          p: intitialParse,
+          a: intitialParseAsync,
+          i: undefined,
+          m: emptyMetadataMap
+        };
 }
 
 function $$catch(struct, getFallbackValue) {
@@ -3239,6 +3286,8 @@ function toVariantName(struct) {
           return "Float";
       case /* Bool */5 :
           return "Bool";
+      case /* JSON */6 :
+          return "JSON";
       
     }
   } else {
@@ -3321,6 +3370,9 @@ function internalInline(struct, maybeVariant, param) {
           break;
       case /* Bool */5 :
           inlinedStruct = "S.bool()";
+          break;
+      case /* JSON */6 :
+          inlinedStruct = "S.jsonable()";
           break;
       
     }
