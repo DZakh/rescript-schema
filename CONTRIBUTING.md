@@ -20,7 +20,7 @@ The following steps will get you setup to contribute changes to this repo:
 
 ### With Dune
 
-Make sure running the below commands in `/src`.
+Make sure running the below commands in `packages/ppx/src`.
 
 1. Create a sandbox with opam
 
