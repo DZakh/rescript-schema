@@ -30,10 +30,8 @@ type myJsonable1 = Js.Json.t
 @struct
 type myJsonable2 = JSON.t
 @struct
-type myResult = result<int, string>
-@struct
 type myTuple = (string, int)
 @struct
 type myBigTuple = (string, string, string, int, int, int, float, float, float, bool, bool, bool)
 @struct
-type myCustomString = @struct.custom(S.string()->S.String.email()) string
+type myCustomString = @struct(S.string()->S.String.email()) string

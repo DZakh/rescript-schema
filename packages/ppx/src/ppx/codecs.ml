@@ -34,9 +34,7 @@ let rec generate_constr_struct_expr { Location.txt = identifier; loc } type_args
   | Lapply (_, _), _ -> fail loc "Lapply syntax not handled by rescript-struct"
 
 and generate_struct_expr { ptyp_desc; ptyp_loc; ptyp_attributes } =
-  let custom_struct_expr =
-    get_attribute_by_name ptyp_attributes "struct.custom"
-  in
+  let custom_struct_expr = get_attribute_by_name ptyp_attributes "struct" in
   match custom_struct_expr with
   | Ok None -> (
       match ptyp_desc with
