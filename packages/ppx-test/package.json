@@ -1,22 +1,21 @@
 {
-  "name": "rescript-struct-ppx-test",
+  "name": "ppx-test",
   "version": "1.0.0",
-  "description": "Test rescript-struct ppx",
-  "license": "MIT",
+  "private": true,
+  "type": "module",
   "scripts": {
     "res:build": "rescript build -with-deps",
     "res:clean": "rescript clean",
     "res:dev": "rescript build -w -with-deps",
     "test": "jest",
-    "test:dev": "jest --watchAll",
     "lint:stdlib": "rescript-stdlib-vendorer lint"
   },
-  "devDependencies": {
+  "dependencies": {
     "@glennsl/bs-jest": "0.7.0",
-    "@rescript/core": "0.2.0",
+    "@rescript/core": "0.3.0",
     "jest": "27.3.1",
-    "rescript": "10.1.2",
+    "rescript": "10.1.4",
     "rescript-stdlib-vendorer": "1.0.0",
-    "rescript-struct": "../../"
+    "rescript-struct": "workspace:*"
   }
 }

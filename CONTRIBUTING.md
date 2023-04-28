@@ -37,21 +37,20 @@ opam install . --deps-only
 3. Build
 
 ```
-dune build
+dune build --watch
 ```
 
 4. Test
 
-Make sure running tests in `/test`
+Make sure running tests in `packages/ppx-test`
 
 ```
-cd test
+cd packages/ppx-test
 (install dependencies)
-npm ci
 (build --watch)
 npm run res:dev
 (run test --watch)
-npm run test:dev
+npm run test -- --watchAll
 ```
 
 ## License

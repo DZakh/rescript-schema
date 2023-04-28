@@ -1,5 +1,5 @@
 {
-  "name": "rescript-struct-ppx-test",
+  "name": "ppx-test",
   "sources": [
     {
       "dir": "__tests__",
@@ -10,12 +10,13 @@
     }
   ],
   "package-specs": {
-    "module": "commonjs",
+    "module": "es6",
     "in-source": true
   },
+  "suffix": ".bs.mjs",
   "bs-dependencies": ["@rescript/core", "rescript-struct"],
   "bs-dev-dependencies": ["@glennsl/bs-jest"],
-  "ppx-flags": ["../ppx"],
+  "ppx-flags": ["../../ppx/ppx"],
   "warnings": {
     "error": true,
     "number": "-48-44"

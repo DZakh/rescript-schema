@@ -23,11 +23,6 @@ let rec generate_constr_struct_expr { Location.txt = identifier; loc } type_args
       [%expr S.option [%e generate_struct_expr item_type]]
   | Lident "null", [ item_type ] ->
       [%expr S.null [%e generate_struct_expr item_type]]
-  | Lident "result", [ ok_type; error_type ] ->
-      [%expr
-        S.result
-          [%e generate_struct_expr ok_type]
-          [%e generate_struct_expr error_type]]
   | Ldot (Ldot (Lident "Js", "Dict"), "t"), [ item_type ]
   | Ldot (Lident "Dict", "t"), [ item_type ] ->
       [%expr S.dict [%e generate_struct_expr item_type]]
