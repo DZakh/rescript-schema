@@ -1,6 +1,6 @@
 {
   "name": "rescript-struct",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "description": "Safely parse and serialize with transformation to convenient ReScript data structures",
   "type": "module",
   "keywords": [
