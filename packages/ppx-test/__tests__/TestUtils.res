@@ -8,12 +8,14 @@ module Stdlib = {
     let omit = (dict: Js.Dict.t<'a>, fields: array<string>): Js.Dict.t<'a> => {
       let dict = dict->copy
       fields->Js.Array2.forEach(field => {
-        Js.Dict.unsafeDeleteKey(. dict, field)
+        Js.Dict.unsafeDeleteKey(dict, field)
       })
       dict
     }
   }
 }
+
+external magic: 'a => 'b = "%identity"
 
 let assertEqualStructs = {
   let cleanUpTransformationFactories = (struct: S.t<'v>): S.t<'v> => {

@@ -88,7 +88,7 @@ test("Json struct from Core", t => {
 @struct
 type myTuple = (string, int)
 test("Tuple struct", t => {
-  t->assertEqualStructs(myTupleStruct, S.tuple2(. S.string(), S.int()), ())
+  t->assertEqualStructs(myTupleStruct, S.tuple2(S.string(), S.int()), ())
 })
 
 @struct
@@ -111,7 +111,7 @@ test("Big tuple struct", t => {
         S.bool()->S.toUnknown,
         S.bool()->S.toUnknown,
       ])->(
-        Obj.magic: S.t<array<unknown>> => S.t<(
+        magic: S.t<array<unknown>> => S.t<(
           string,
           string,
           string,

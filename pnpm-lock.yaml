@@ -72,16 +72,16 @@ importers:
     dependencies:
       '@dzakh/rescript-ava':
         specifier: 2.1.0
-        version: 2.1.0(ava@5.1.1)(rescript@10.1.4)
+        version: 2.1.0(ava@5.1.1)(rescript@11.0.0-alpha.5)
       '@glennsl/bs-jest':
         specifier: 0.7.0
         version: 0.7.0(ts-node@10.9.1)
       '@rescript/core':
         specifier: 0.3.0
-        version: 0.3.0(rescript@10.1.4)
+        version: 0.3.0(rescript@11.0.0-alpha.5)
       rescript:
-        specifier: 10.1.4
-        version: 10.1.4
+        specifier: 11.0.0-alpha.5
+        version: 11.0.0-alpha.5
       rescript-stdlib-vendorer:
         specifier: 1.0.0
         version: 1.0.0
@@ -450,14 +450,14 @@ packages:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  /@dzakh/rescript-ava@2.1.0(ava@5.1.1)(rescript@10.1.4):
+  /@dzakh/rescript-ava@2.1.0(ava@5.1.1)(rescript@11.0.0-alpha.5):
     resolution: {integrity: sha512-w8aGnAh7YGPfClilXE0y+Jd+yKEEWqqbilCHjax7Q0nakwxx67Pnt8e4yuzeAdwNM7wRhA3LHfvSiZ/JuhkKyg==}
     peerDependencies:
       ava: 5.1.x
       rescript: 10.1.x
     dependencies:
       ava: 5.1.1
-      rescript: 10.1.4
+      rescript: 11.0.0-alpha.5
     dev: false
 
   /@dzakh/rescript-ava@2.3.0(ava@5.2.0)(rescript@11.0.0-alpha.5):
@@ -741,14 +741,6 @@ packages:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.15.0
-
-  /@rescript/core@0.3.0(rescript@10.1.4):
-    resolution: {integrity: sha512-/m6bx01K40FO4lIHiZX9DB+R28qQfWCPCCbkDXFIMEUek2myiNAcf4iHwzlDLD3MVoionQvqln32Tu1ASPk51A==}
-    peerDependencies:
-      rescript: '>= 10.1.0'
-    dependencies:
-      rescript: 10.1.4
-    dev: false
 
   /@rescript/core@0.3.0(rescript@11.0.0-alpha.5):
     resolution: {integrity: sha512-/m6bx01K40FO4lIHiZX9DB+R28qQfWCPCCbkDXFIMEUek2myiNAcf4iHwzlDLD3MVoionQvqln32Tu1ASPk51A==}

@@ -136,13 +136,13 @@ Ava("Custom string struct", (function (t) {
       }));
 
 var myCustomLiteralStringStruct = S$RescriptStruct.$$String.email(S$RescriptStruct.literal({
-          TAG: /* String */0,
+          TAG: "String",
           _0: "123"
         }), undefined, undefined);
 
 Ava("Custom litaral string struct", (function (t) {
         TestUtils.assertEqualStructs(t, myCustomLiteralStringStruct, S$RescriptStruct.$$String.email(S$RescriptStruct.literal({
-                      TAG: /* String */0,
+                      TAG: "String",
                       _0: "123"
                     }), undefined, undefined), undefined, undefined);
       }));
