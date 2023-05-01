@@ -1,5 +1,9 @@
 type never
 
+module Obj = {
+  external magic: 'a => 'b = "%identity"
+}
+
 module Stdlib = {
   module Promise = {
     type t<+'a> = promise<'a>
@@ -624,12 +628,16 @@ external castUnknownToAny: unknown => 'any = "%identity"
 external castUnknownStructToAnyStruct: t<unknown> => t<'any> = "%identity"
 external castAnyStructToUnknownStruct: t<'any> => t<unknown> = "%identity"
 external castToTaggedLiteral: literal<'a> => taggedLiteral = "%identity"
-external castPublicTransformationFactoryToUncurried: (
-  (~struct: t<'value>) => transformation<'input, 'output>,
-  . ~struct: t<unknown>,
-) => transformation<unknown, unknown> = "%identity"
 
 module TransformationFactory = {
+  module Public = {
+    type struct<'value> = t<'value>
+    type t<'value, 'input, 'output> = (~struct: struct<'value>) => transformation<'input, 'output>
+    type internal = (. ~struct: struct<unknown>) => transformation<unknown, unknown>
+    let call = (public, ~struct) =>
+      (public->(Obj.magic: t<'value, 'input, 'output> => internal))(. ~struct)
+  }
+
   module Ctx = {
     @inline
     let make = (~struct) => {
@@ -1261,7 +1269,7 @@ let advancedTransform: (
       struct.parseTransformationFactory(. ~ctx)
       switch maybeParser {
       | Some(transformParser) =>
-        switch (transformParser->castPublicTransformationFactoryToUncurried)(.
+        switch transformParser->TransformationFactory.Public.call(
           ~struct=ctx.struct->castUnknownStructToAnyStruct,
         ) {
         | Noop => ()
@@ -1276,7 +1284,7 @@ let advancedTransform: (
     ~serializeTransformationFactory=(. ~ctx) => {
       switch maybeSerializer {
       | Some(transformSerializer) =>
-        switch (transformSerializer->castPublicTransformationFactoryToUncurried)(.
+        switch transformSerializer->TransformationFactory.Public.call(
           ~struct=ctx.struct->castUnknownStructToAnyStruct,
         ) {
         | Noop => ()
@@ -1332,7 +1340,7 @@ let rec advancedPreprocess = (
       ~parseTransformationFactory=(. ~ctx) => {
         switch maybePreprocessParser {
         | Some(preprocessParser) =>
-          switch (preprocessParser->castPublicTransformationFactoryToUncurried)(.
+          switch preprocessParser->TransformationFactory.Public.call(
             ~struct=ctx.struct->castUnknownStructToAnyStruct,
           ) {
           | Noop => ()
@@ -1349,7 +1357,7 @@ let rec advancedPreprocess = (
         struct.serializeTransformationFactory(. ~ctx)
         switch maybePreprocessSerializer {
         | Some(preprocessSerializer) =>
-          switch (preprocessSerializer->castPublicTransformationFactoryToUncurried)(.
+          switch preprocessSerializer->TransformationFactory.Public.call(
             ~struct=ctx.struct->castUnknownStructToAnyStruct,
           ) {
           | Noop => ()
@@ -2586,16 +2594,20 @@ module String = {
         }
       },
     )
-    ->transform(~parser=string => {
-      if datetimeRe->Js.Re.test_(string)->not {
-        fail(message)
-      }
-      Js.Date.fromString(string)
-    }, ~serializer=Js.Date.toISOString, ())
+    ->transform(
+      ~parser=string => {
+        if datetimeRe->Js.Re.test_(string)->not {
+          fail(message)
+        }
+        Js.Date.fromString(string)
+      },
+      ~serializer=date => date->Js.Date.toISOString,
+      (),
+    )
   }
 
   let trim = (struct, ()) => {
-    let transformer = Js.String2.trim
+    let transformer = string => string->Js.String2.trim
     struct->transform(~parser=transformer, ~serializer=transformer, ())
   }
 }
@@ -2884,7 +2896,8 @@ module Null = {
           })
         }
         switch innerStruct->getParseOperation {
-        | NoOperation => ctx->TransformationFactory.Ctx.planSyncTransformation(Js.Null.toOption)
+        | NoOperation =>
+          ctx->TransformationFactory.Ctx.planSyncTransformation(null => null->Js.Null.toOption)
         | SyncOperation(fn) => planSyncTransformation(fn)
         | AsyncOperation(fn) => {
             planSyncTransformation(fn)
@@ -3251,7 +3264,7 @@ module Default = {
 
   let factory = (innerStruct, getDefaultValue) => {
     let innerStruct = innerStruct->(Obj.magic: t<option<'value>> => t<unknown>)
-    let getDefaultValue = getDefaultValue->(Obj.magic: (unit => 'value, unit) => unknown)
+    let getDefaultValue = getDefaultValue->(Obj.magic: (unit => 'value) => (. unit) => unknown)
     make(
       ~name=innerStruct.name,
       ~metadataMap=emptyMetadataMap,
@@ -3262,14 +3275,14 @@ module Default = {
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
             switch input->castUnknownToAny {
             | Some(v) => v
-            | None => getDefaultValue->Stdlib.Fn.call1()
+            | None => getDefaultValue(.)
             }
           })
         | SyncOperation(fn) =>
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
             switch fn(. input)->castUnknownToAny {
             | Some(v) => v
-            | None => getDefaultValue->Stdlib.Fn.call1()
+            | None => getDefaultValue(.)
             }
           })
         | AsyncOperation(fn) =>
@@ -3278,7 +3291,7 @@ module Default = {
             asyncFn(.)->Stdlib.Promise.thenResolve(value => {
               switch value->castUnknownToAny {
               | Some(v) => v
-              | None => getDefaultValue->Stdlib.Fn.call1()
+              | None => getDefaultValue(.)
               }
             })
           })
@@ -3303,7 +3316,7 @@ module Default = {
 
   let classify = struct =>
     switch struct->Metadata.get(~id=metadataId) {
-    | Some(getDefaultValue) => Some(getDefaultValue->Stdlib.Fn.call1())
+    | Some(getDefaultValue) => Some(getDefaultValue(.))
     | None => None
     }
 }
@@ -3612,7 +3625,11 @@ module Union = {
 let list = innerStruct => {
   innerStruct
   ->Array.factory
-  ->transform(~parser=Belt.List.fromArray, ~serializer=Belt.List.toArray, ())
+  ->transform(
+    ~parser=array => array->Belt.List.fromArray,
+    ~serializer=list => list->Belt.List.toArray,
+    (),
+  )
 }
 
 let jsonable = {

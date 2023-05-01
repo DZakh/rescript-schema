@@ -1973,14 +1973,14 @@ function datetime(struct, messageOpt, param) {
                   fail(undefined, message);
                 }
                 return new Date(string);
-              }), undefined, (function (prim) {
-                return prim.toISOString();
+              }), undefined, (function (date) {
+                return date.toISOString();
               }), undefined);
 }
 
 function trim(struct, param) {
-  var transformer = function (prim) {
-    return prim.trim();
+  var transformer = function (string) {
+    return string.trim();
   };
   return transform(struct, transformer, undefined, transformer, undefined);
 }
@@ -2248,11 +2248,11 @@ function factory$11(innerStruct) {
               };
               var fn = getParseOperation(innerStruct);
               if (typeof fn === "number") {
-                return planSyncTransformation(ctx, (function (prim) {
-                              if (prim === null) {
+                return planSyncTransformation(ctx, (function ($$null) {
+                              if ($$null === null) {
                                 return ;
                               } else {
-                                return Caml_option.some(prim);
+                                return Caml_option.some($$null);
                               }
                             }));
               }
@@ -2668,7 +2668,7 @@ function factory$15(innerStruct, getDefaultValue) {
                                   if (input !== undefined) {
                                     return Caml_option.valFromOption(input);
                                   } else {
-                                    return getDefaultValue(undefined);
+                                    return getDefaultValue();
                                   }
                                 }));
                   }
@@ -2679,7 +2679,7 @@ function factory$15(innerStruct, getDefaultValue) {
                                   if (v !== undefined) {
                                     return Caml_option.valFromOption(v);
                                   } else {
-                                    return getDefaultValue(undefined);
+                                    return getDefaultValue();
                                   }
                                 }));
                   }
@@ -2689,7 +2689,7 @@ function factory$15(innerStruct, getDefaultValue) {
                                       if (value !== undefined) {
                                         return Caml_option.valFromOption(value);
                                       } else {
-                                        return getDefaultValue(undefined);
+                                        return getDefaultValue();
                                       }
                                     });
                         }));
@@ -2721,7 +2721,7 @@ function factory$15(innerStruct, getDefaultValue) {
 function classify$2(struct) {
   var getDefaultValue = Js_dict.get(struct.m, metadataId$5);
   if (getDefaultValue !== undefined) {
-    return Caml_option.some(getDefaultValue(undefined));
+    return Caml_option.some(getDefaultValue());
   }
   
 }
