@@ -2,11 +2,7 @@
   "name": "ppx-test",
   "sources": [
     {
-      "dir": "__tests__",
-      "type": "dev"
-    },
-    {
-      "dir": "src"
+      "dir": "__tests__"
     }
   ],
   "package-specs": {
@@ -14,8 +10,11 @@
     "in-source": true
   },
   "suffix": ".bs.mjs",
-  "bs-dependencies": ["@rescript/core", "rescript-struct"],
-  "bs-dev-dependencies": ["@glennsl/bs-jest"],
+  "bs-dependencies": [
+    "@rescript/core",
+    "rescript-struct",
+    "@dzakh/rescript-ava"
+  ],
   "ppx-flags": ["../ppx/ppx"],
   "warnings": {
     "error": true,

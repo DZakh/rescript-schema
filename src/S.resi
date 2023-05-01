@@ -194,6 +194,8 @@ let classify: t<'value> => tagged
 
 let name: t<'value> => string
 
+external toUnknown: t<'any> => t<unknown> = "%identity"
+
 let fail: (~path: Path.t=?, string) => 'a
 
 let advancedFail: Error.t => 'a
@@ -218,7 +220,7 @@ let object: (Object.definerCtx => 'value) => t<'value>
 let field: (Object.definerCtx, string, t<'value>) => 'value
 
 module Tuple: {
-  let factory: 'factory
+  let factory: array<t<unknown>> => t<array<unknown>>
 }
 
 let tuple0: (. unit) => t<unit>

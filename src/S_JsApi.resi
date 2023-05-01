@@ -44,7 +44,7 @@ let json: struct<'value> => struct<'value>
 let union: array<struct<unknown>> => struct<unknown>
 let literal: 'value => struct<'value>
 let nan: unit => struct<unit>
-let tuple: array<struct<unknown>> => struct<unknown>
+let tuple: array<struct<unknown>> => struct<array<unknown>>
 
 let custom: (
   ~name: string,

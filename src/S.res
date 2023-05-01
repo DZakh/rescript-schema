@@ -626,7 +626,7 @@ let emptyMetadataMap = Js.Dict.empty()
 external castAnyToUnknown: 'any => unknown = "%identity"
 external castUnknownToAny: unknown => 'any = "%identity"
 external castUnknownStructToAnyStruct: t<unknown> => t<'any> = "%identity"
-external castAnyStructToUnknownStruct: t<'any> => t<unknown> = "%identity"
+external toUnknown: t<'any> => t<unknown> = "%identity"
 external castToTaggedLiteral: literal<'a> => taggedLiteral = "%identity"
 
 module TransformationFactory = {
@@ -776,7 +776,7 @@ let getSerializeOperation = struct => {
 
 @inline
 let isAsyncParse = struct => {
-  let struct = struct->castAnyStructToUnknownStruct
+  let struct = struct->toUnknown
   switch struct->getParseOperation {
   | AsyncOperation(_) => true
   | NoOperation
@@ -1325,7 +1325,7 @@ let rec advancedPreprocess = (
             ~serializer=?maybePreprocessSerializer,
             (),
           )
-          ->castAnyStructToUnknownStruct
+          ->toUnknown
         ),
       ),
       ~parseTransformationFactory=struct.parseTransformationFactory,
@@ -2317,7 +2317,7 @@ module Object = {
   }
 
   let field = (definerCtx: DefinerCtx.t, fieldName, struct) => {
-    let struct = struct->castAnyStructToUnknownStruct
+    let struct = struct->toUnknown
     switch definerCtx.fields->Stdlib.Dict.has(fieldName) {
     | true =>
       Error.panic(
@@ -2614,7 +2614,7 @@ module String = {
 
 module Json = {
   let factory = innerStruct => {
-    let innerStruct = innerStruct->castAnyStructToUnknownStruct
+    let innerStruct = innerStruct->toUnknown
     make(
       ~name=`Json`,
       ~metadataMap=emptyMetadataMap,
@@ -2881,7 +2881,7 @@ module Float = {
 
 module Null = {
   let factory = innerStruct => {
-    let innerStruct = innerStruct->castAnyStructToUnknownStruct
+    let innerStruct = innerStruct->toUnknown
     make(
       ~name=`Null`,
       ~metadataMap=emptyMetadataMap,
@@ -2934,7 +2934,7 @@ module Null = {
 
 module Option = {
   let factory = innerStruct => {
-    let innerStruct = innerStruct->castAnyStructToUnknownStruct
+    let innerStruct = innerStruct->toUnknown
     make(
       ~name=`Option`,
       ~metadataMap=emptyMetadataMap,
@@ -3009,7 +3009,7 @@ module Array = {
   }
 
   let factory = innerStruct => {
-    let innerStruct = innerStruct->castAnyStructToUnknownStruct
+    let innerStruct = innerStruct->toUnknown
     make(
       ~name=`Array`,
       ~metadataMap=emptyMetadataMap,
@@ -3160,7 +3160,7 @@ module Array = {
 
 module Dict = {
   let factory = innerStruct => {
-    let innerStruct = innerStruct->castAnyStructToUnknownStruct
+    let innerStruct = innerStruct->toUnknown
     make(
       ~name=`Dict`,
       ~metadataMap=emptyMetadataMap,
@@ -3322,62 +3322,131 @@ module Default = {
 }
 
 module Tuple = {
-  let factory = (
-    () => {
-      let structs = Stdlib.Fn.getArguments()
-      let structs = if (
-        structs->Js.Array2.length === 1 && structs->Js.Array2.unsafe_get(0) === %raw("undefined")
-      ) {
-        []
-      } else {
-        structs
-      }
-      let numberOfStructs = structs->Js.Array2.length
-
-      make(
-        ~name="Tuple",
-        ~metadataMap=emptyMetadataMap,
-        ~tagged=Tuple(structs),
-        ~parseTransformationFactory=(. ~ctx) => {
-          let noopOps = []
-          let syncOps = []
-          let asyncOps = []
-          for idx in 0 to structs->Js.Array2.length - 1 {
-            let innerStruct = structs->Js.Array2.unsafe_get(idx)
-            switch innerStruct->getParseOperation {
-            | NoOperation => noopOps->Js.Array2.push(idx)->ignore
-            | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fn))->ignore
-            | AsyncOperation(fn) => {
-                syncOps->Js.Array2.push((idx, fn->Obj.magic))->ignore
-                asyncOps->Js.Array2.push(idx)->ignore
-              }
+  let factory = structs => {
+    let numberOfStructs = structs->Js.Array2.length
+    make(
+      ~name="Tuple",
+      ~metadataMap=emptyMetadataMap,
+      ~tagged=Tuple(structs),
+      ~parseTransformationFactory=(. ~ctx) => {
+        let noopOps = []
+        let syncOps = []
+        let asyncOps = []
+        for idx in 0 to structs->Js.Array2.length - 1 {
+          let innerStruct = structs->Js.Array2.unsafe_get(idx)
+          switch innerStruct->getParseOperation {
+          | NoOperation => noopOps->Js.Array2.push(idx)->ignore
+          | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fn))->ignore
+          | AsyncOperation(fn) => {
+              syncOps->Js.Array2.push((idx, fn->Obj.magic))->ignore
+              asyncOps->Js.Array2.push(idx)->ignore
             }
           }
-          let withAsyncOps = asyncOps->Js.Array2.length > 0
+        }
+        let withAsyncOps = asyncOps->Js.Array2.length > 0
 
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            switch Js.Array2.isArray(input) {
-            | true =>
-              let numberOfInputItems = input->Js.Array2.length
-              if numberOfStructs !== numberOfInputItems {
-                Error.Internal.raise(
-                  TupleSize({
-                    expected: numberOfStructs,
-                    received: numberOfInputItems,
-                  }),
-                )
-              }
-            | false => raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
+        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+          switch Js.Array2.isArray(input) {
+          | true =>
+            let numberOfInputItems = input->Js.Array2.length
+            if numberOfStructs !== numberOfInputItems {
+              Error.Internal.raise(
+                TupleSize({
+                  expected: numberOfStructs,
+                  received: numberOfInputItems,
+                }),
+              )
             }
+          | false => raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
+          }
 
-            let newArray = []
+          let newArray = []
 
-            for idx in 0 to syncOps->Js.Array2.length - 1 {
-              let (originalIdx, fn) = syncOps->Js.Array2.unsafe_get(idx)
-              let innerData = input->Js.Array2.unsafe_get(originalIdx)
+          for idx in 0 to syncOps->Js.Array2.length - 1 {
+            let (originalIdx, fn) = syncOps->Js.Array2.unsafe_get(idx)
+            let innerData = input->Js.Array2.unsafe_get(originalIdx)
+            try {
+              let value = fn(. innerData)
+              newArray->Stdlib.Array.set(originalIdx, value)
+            } catch {
+            | Error.Internal.Exception(internalError) =>
+              raise(
+                Error.Internal.Exception(
+                  internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
+                ),
+              )
+            }
+          }
+
+          for idx in 0 to noopOps->Js.Array2.length - 1 {
+            let originalIdx = noopOps->Js.Array2.unsafe_get(idx)
+            let innerData = input->Js.Array2.unsafe_get(originalIdx)
+            newArray->Stdlib.Array.set(originalIdx, innerData)
+          }
+
+          switch withAsyncOps {
+          | true => newArray->castAnyToUnknown
+          | false =>
+            switch numberOfStructs {
+            | 0 => ()->castAnyToUnknown
+            | 1 => newArray->Js.Array2.unsafe_get(0)->castAnyToUnknown
+            | _ => newArray->castAnyToUnknown
+            }
+          }
+        })
+
+        if withAsyncOps {
+          ctx->TransformationFactory.Ctx.planAsyncTransformation(tempArray => {
+            asyncOps
+            ->Js.Array2.map(originalIdx => {
+              (
+                tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
+              )(.)->Stdlib.Promise.catch(
+                exn => {
+                  switch exn {
+                  | Error.Internal.Exception(internalError) =>
+                    Error.Internal.Exception(
+                      internalError->Error.Internal.prependLocation(originalIdx->Js.Int.toString),
+                    )
+                  | _ => exn
+                  }->raise
+                },
+              )
+            })
+            ->Stdlib.Promise.all
+            ->Stdlib.Promise.thenResolve(values => {
+              values->Js.Array2.forEachi(
+                (value, idx) => {
+                  let originalIdx = asyncOps->Js.Array2.unsafe_get(idx)
+                  tempArray->castUnknownToAny->Stdlib.Array.set(originalIdx, value)
+                },
+              )
+              tempArray->castUnknownToAny->Stdlib.Array.toTuple
+            })
+          })
+        }
+      },
+      ~serializeTransformationFactory=(. ~ctx) => {
+        let serializeOperations = []
+        for idx in 0 to structs->Js.Array2.length - 1 {
+          serializeOperations
+          ->Js.Array2.push(structs->Js.Array2.unsafe_get(idx)->getSerializeOperation)
+          ->ignore
+        }
+
+        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
+          let inputArray = numberOfStructs === 1 ? [input] : input->Obj.magic
+
+          let newArray = []
+          for idx in 0 to serializeOperations->Js.Array2.length - 1 {
+            let innerData = inputArray->Js.Array2.unsafe_get(idx)
+            let serializeOperation = serializeOperations->Js.Array.unsafe_get(idx)
+            switch serializeOperation {
+            | None => newArray->Js.Array2.push(innerData)->ignore
+            | Some(fn) =>
               try {
                 let value = fn(. innerData)
-                newArray->Stdlib.Array.set(originalIdx, value)
+                newArray->Js.Array2.push(value)->ignore
               } catch {
               | Error.Internal.Exception(internalError) =>
                 raise(
@@ -3387,91 +3456,18 @@ module Tuple = {
                 )
               }
             }
-
-            for idx in 0 to noopOps->Js.Array2.length - 1 {
-              let originalIdx = noopOps->Js.Array2.unsafe_get(idx)
-              let innerData = input->Js.Array2.unsafe_get(originalIdx)
-              newArray->Stdlib.Array.set(originalIdx, innerData)
-            }
-
-            switch withAsyncOps {
-            | true => newArray->castAnyToUnknown
-            | false =>
-              switch numberOfStructs {
-              | 0 => ()->castAnyToUnknown
-              | 1 => newArray->Js.Array2.unsafe_get(0)->castAnyToUnknown
-              | _ => newArray->castAnyToUnknown
-              }
-            }
-          })
-
-          if withAsyncOps {
-            ctx->TransformationFactory.Ctx.planAsyncTransformation(tempArray => {
-              asyncOps
-              ->Js.Array2.map(originalIdx => {
-                (
-                  tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
-                )(.)->Stdlib.Promise.catch(
-                  exn => {
-                    switch exn {
-                    | Error.Internal.Exception(internalError) =>
-                      Error.Internal.Exception(
-                        internalError->Error.Internal.prependLocation(originalIdx->Js.Int.toString),
-                      )
-                    | _ => exn
-                    }->raise
-                  },
-                )
-              })
-              ->Stdlib.Promise.all
-              ->Stdlib.Promise.thenResolve(values => {
-                values->Js.Array2.forEachi(
-                  (value, idx) => {
-                    let originalIdx = asyncOps->Js.Array2.unsafe_get(idx)
-                    tempArray->castUnknownToAny->Stdlib.Array.set(originalIdx, value)
-                  },
-                )
-                tempArray->castUnknownToAny->Stdlib.Array.toTuple
-              })
-            })
           }
-        },
-        ~serializeTransformationFactory=(. ~ctx) => {
-          let serializeOperations = []
-          for idx in 0 to structs->Js.Array2.length - 1 {
-            serializeOperations
-            ->Js.Array2.push(structs->Js.Array2.unsafe_get(idx)->getSerializeOperation)
-            ->ignore
-          }
+          newArray
+        })
+      },
+      (),
+    )
+  }
 
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            let inputArray = numberOfStructs === 1 ? [input] : input->Obj.magic
-
-            let newArray = []
-            for idx in 0 to serializeOperations->Js.Array2.length - 1 {
-              let innerData = inputArray->Js.Array2.unsafe_get(idx)
-              let serializeOperation = serializeOperations->Js.Array.unsafe_get(idx)
-              switch serializeOperation {
-              | None => newArray->Js.Array2.push(innerData)->ignore
-              | Some(fn) =>
-                try {
-                  let value = fn(. innerData)
-                  newArray->Js.Array2.push(value)->ignore
-                } catch {
-                | Error.Internal.Exception(internalError) =>
-                  raise(
-                    Error.Internal.Exception(
-                      internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                    ),
-                  )
-                }
-              }
-            }
-            newArray
-          })
-        },
-        (),
-      )
+  let factoryFromArgs = (
+    () => {
+      let structs = Stdlib.Fn.getArguments()
+      factory(structs)
     }
   )->Obj.magic
 }
@@ -3697,7 +3693,7 @@ type catchCtx = {
 type catchAsyncTransformationSyncResult =
   Parsed({input: unknown, asyncFn: (. unit) => promise<unknown>}) | Fallback(unknown)
 let catch = (struct, getFallbackValue) => {
-  let struct = struct->castAnyStructToUnknownStruct
+  let struct = struct->toUnknown
   make(
     ~name=struct.name,
     ~parseTransformationFactory=(. ~ctx) => {
@@ -4065,7 +4061,7 @@ let inline = {
   }
 
   struct => {
-    struct->castAnyStructToUnknownStruct->internalInline()
+    struct->toUnknown->internalInline()
   }
 }
 
@@ -4086,16 +4082,16 @@ let default = Default.factory
 let variant = Variant.factory
 let literal = Literal.factory
 let literalVariant = Literal.Variant.factory
-let tuple0 = Tuple.factory
-let tuple1 = Tuple.factory
-let tuple2 = Tuple.factory
-let tuple3 = Tuple.factory
-let tuple4 = Tuple.factory
-let tuple5 = Tuple.factory
-let tuple6 = Tuple.factory
-let tuple7 = Tuple.factory
-let tuple8 = Tuple.factory
-let tuple9 = Tuple.factory
-let tuple10 = Tuple.factory
+let tuple0 = (. ()) => Tuple.factory([])
+let tuple1 = (. v0) => Tuple.factory([v0->toUnknown])
+let tuple2 = (. v0, v1) => Tuple.factory([v0->toUnknown, v1->toUnknown])
+let tuple3 = (. v0, v1, v2) => Tuple.factory([v0->toUnknown, v1->toUnknown, v2->toUnknown])
+let tuple4 = Tuple.factoryFromArgs
+let tuple5 = Tuple.factoryFromArgs
+let tuple6 = Tuple.factoryFromArgs
+let tuple7 = Tuple.factoryFromArgs
+let tuple8 = Tuple.factoryFromArgs
+let tuple9 = Tuple.factoryFromArgs
+let tuple10 = Tuple.factoryFromArgs
 let union = Union.factory
 let json = Json.factory

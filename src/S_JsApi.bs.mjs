@@ -194,7 +194,7 @@ function union(structs) {
 }
 
 function tuple(structs) {
-  var struct = S$RescriptStruct.Tuple.factory.apply(null, structs);
+  var struct = S$RescriptStruct.Tuple.factory(structs);
   return Object.assign(struct, structOperations);
 }
 

@@ -43,8 +43,14 @@ and generate_struct_expr { ptyp_desc; ptyp_loc; ptyp_attributes } =
           fail ptyp_loc "Can't generate struct for function type"
       | Ptyp_package _ -> fail ptyp_loc "Can't generate struct for module type"
       | Ptyp_tuple tuple_types ->
-          let tuple_struct_exprs = List.map generate_struct_expr tuple_types in
-          [%expr S.Tuple.factory [%e Exp.tuple tuple_struct_exprs]]
+          [%expr
+            Obj.magic S.Tuple.factory
+              [%e
+                Exp.tuple
+                  (tuple_types
+                  |> List.map (fun tuple_type ->
+                         [%expr
+                           S.toUnknown [%e generate_struct_expr tuple_type]]))]]
       | Ptyp_var s -> make_ident_expr (get_generated_struct_name s)
       | Ptyp_constr (constr, typeArgs) ->
           generate_constr_struct_expr constr typeArgs

@@ -7,15 +7,14 @@
     "res:build": "rescript build -with-deps",
     "res:clean": "rescript clean",
     "res:dev": "rescript build -w -with-deps",
-    "test": "jest",
     "lint:stdlib": "rescript-stdlib-vendorer lint"
   },
   "dependencies": {
     "@glennsl/bs-jest": "0.7.0",
     "@rescript/core": "0.3.0",
-    "jest": "27.3.1",
     "rescript": "10.1.4",
     "rescript-stdlib-vendorer": "1.0.0",
-    "rescript-struct": "workspace:*"
+    "rescript-struct": "workspace:*",
+    "@dzakh/rescript-ava": "2.1.0"
   }
 }
