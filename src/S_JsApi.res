@@ -14,6 +14,13 @@ module Stdlib = {
     @val
     external extendWith: ('target, 'extend) => 'target = "Object.assign"
   }
+
+  module Fn = {
+    type fn<'arg, 'return> = 'arg => 'return
+
+    @send
+    external apply: (fn<'arg, 'return>, @as(json`null`) _, array<'arg>) => 'return = "apply"
+  }
 }
 
 module Error = {

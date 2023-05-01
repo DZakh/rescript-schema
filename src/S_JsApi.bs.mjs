@@ -63,7 +63,7 @@ function parseOrThrow(data) {
 function parseAsync(data) {
   var struct = this;
   return S$RescriptStruct.parseAnyAsyncWith(data, struct).then(function (result) {
-              if (result.TAG === /* Ok */0) {
+              if (result.TAG === "Ok") {
                 return fromOk(result._0);
               } else {
                 return fromError(new RescriptStructError(S$RescriptStruct.$$Error.toString(result._0)));
@@ -200,21 +200,21 @@ function tuple(structs) {
 
 function literal(value) {
   var taggedLiteral = typeof value === "string" ? ({
-        TAG: /* String */0,
+        TAG: "String",
         _0: value
       }) : (
       typeof value === "boolean" ? ({
-            TAG: /* Bool */3,
+            TAG: "Bool",
             _0: value
           }) : (
           typeof value === "number" ? (
               Number.isNaN(value) ? Js_exn.raiseError("[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.") : ({
-                    TAG: /* Float */2,
+                    TAG: "Float",
                     _0: value
                   })
             ) : (
-              value === null ? /* EmptyNull */0 : (
-                  value === undefined ? /* EmptyOption */1 : Js_exn.raiseError("[rescript-struct] The value provided to literal struct factory is not supported.")
+              value === null ? "EmptyNull" : (
+                  value === undefined ? "EmptyOption" : Js_exn.raiseError("[rescript-struct] The value provided to literal struct factory is not supported.")
                 )
             )
         )
@@ -224,7 +224,7 @@ function literal(value) {
 }
 
 function nan(param) {
-  var struct = S$RescriptStruct.literal(/* NaN */2);
+  var struct = S$RescriptStruct.literal("NaN");
   return Object.assign(struct, structOperations);
 }
 

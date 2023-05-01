@@ -22,7 +22,7 @@ test("Fails to serialize when can't unwrap the value from variant", t => {
   t->Assert.deepEqual(
     Error("Hello world!")->S.serializeToUnknownWith(struct),
     Error({
-      code: UnexpectedValue({expected: "0", received: "1"}),
+      code: UnexpectedValue({expected: `"Ok"`, received: `"Error"`}),
       path: S.Path.fromLocation("TAG"),
       operation: Serializing,
     }),

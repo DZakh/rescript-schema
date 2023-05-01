@@ -185,12 +185,12 @@ module Advanced = {
       Error({
         code: InvalidUnion([
           {
-            code: UnexpectedValue({expected: "0", received: "2"}),
+            code: UnexpectedValue({expected: `"Circle"`, received: `"Triangle"`}),
             operation: Serializing,
             path: S.Path.fromArray(["TAG"]),
           },
           {
-            code: UnexpectedValue({expected: "1", received: "2"}),
+            code: UnexpectedValue({expected: `"Square"`, received: `"Triangle"`}),
             operation: Serializing,
             path: S.Path.fromArray(["TAG"]),
           },

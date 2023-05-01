@@ -3325,6 +3325,13 @@ module Tuple = {
   let factory = (
     () => {
       let structs = Stdlib.Fn.getArguments()
+      let structs = if (
+        structs->Js.Array2.length === 1 && structs->Js.Array2.unsafe_get(0) === %raw("undefined")
+      ) {
+        []
+      } else {
+        structs
+      }
       let numberOfStructs = structs->Js.Array2.length
 
       make(
