@@ -207,6 +207,9 @@ module Object: {
     let classify: t<'value> => tagged
   }
 
+  /* The same as S.object. Expose only for PPX since the object is a reserved name in OCaml */
+  let factory: (definerCtx => 'value) => t<'value>
+
   let strip: t<'value> => t<'value>
   let strict: t<'value> => t<'value>
 }

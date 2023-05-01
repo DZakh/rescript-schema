@@ -1,7 +1,6 @@
 open Ppxlib
 open Parsetree
 open Ast_helper
-open Codecs
 open Utils
 
 let generate_decls type_name struct_expr =
@@ -16,7 +15,6 @@ let generate_decls type_name struct_expr =
 
 let map_type_decl decl =
   let {
-    ptype_attributes;
     ptype_name = { txt = type_name };
     ptype_manifest;
     ptype_loc;
@@ -25,23 +23,17 @@ let map_type_decl decl =
     decl
   in
 
-  let is_unboxed =
-    match Utils.get_attribute_by_name ptype_attributes "unboxed" with
-    | Ok (Some _) -> true
-    | _ -> false
-  in
-
   match (ptype_manifest, ptype_kind) with
   | None, Ptype_abstract ->
       fail ptype_loc "Can't generate struct for unspecified type"
   | Some { ptyp_desc = Ptyp_variant (row_fields, _, _) }, Ptype_abstract ->
-      generate_decls type_name
-        (Polyvariants.generate_struct_expr row_fields is_unboxed)
-  | Some manifest, _ -> generate_decls type_name (generate_struct_expr manifest)
+      generate_decls type_name (Polyvariants.generate_struct_expr row_fields)
+  | Some manifest, _ ->
+      generate_decls type_name (Codecs.generate_struct_expr manifest)
   | None, Ptype_variant decls ->
-      generate_decls type_name (Variants.generate_struct_expr decls is_unboxed)
+      generate_decls type_name (Variants.generate_struct_expr decls)
   | None, Ptype_record decls ->
-      generate_decls type_name (Records.generate_struct_expr decls is_unboxed)
+      generate_decls type_name (Records.generate_struct_expr decls)
   | _ -> fail ptype_loc "This type is not handled by rescript-struct"
 
 let map_structure_item mapper ({ pstr_desc } as structure_item) =

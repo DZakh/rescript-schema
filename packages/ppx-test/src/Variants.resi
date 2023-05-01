@@ -1,11 +1,11 @@
 @struct
-type t = One | Two
+type t1 = One | Two
 
 @struct
-type t1 = One1 | Two1
+type t2 = One1 | Two1
 
 @struct @unboxed
-type t2 = One2(int)
+type t3 = One2(int)
 
 @struct @unboxed
-type t3 = One3(int)
+type t4 = One3(int)

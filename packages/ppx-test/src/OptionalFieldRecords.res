@@ -12,9 +12,9 @@ type t1 = {
 
 @struct
 type b =
-  | @struct.as("B0") B0
-  | @struct.as("B1") B1
-  | @struct.as("B2") B2
+  | @as("B0") B0
+  | @as("B1") B1
+  | @as("B2") B2
 
 @struct
 type t2 = {

@@ -3732,6 +3732,7 @@ var Object_UnknownKeys = {
 
 var $$Object = {
   UnknownKeys: Object_UnknownKeys,
+  factory: factory$3,
   strip: strip,
   strict: strict
 };

@@ -1,5 +1,8 @@
 @struct
-type t = [#one | #two]
+type t1 = [#one | #two]
 
 @struct
-type t1 = [#one | #two]
+type t2 = [#one | #two]
+
+@struct
+type t3 = [#single]
