@@ -54,6 +54,8 @@ Next breaking release
 - Rename S.jsonable -> S.json
 - Rename S.parseJsonWith -> S.parseJsonStringWith (the same for serialize)
 - Remove NaN from literals (or completely)
+- Allow to pass anything to S.literal (maybe remove S.literalVariant)
+- Allow passing Path string to the S.field first arg (o.nestedField)
 
 `(S.t<'value>, ~wrapper=S.t<'value> => S.t<option<'value>>=?, unit => 'value) => S.t<'value>`
 
@@ -72,3 +74,16 @@ let struct = S.string()->S.default(~wrapper=S.null, () => "Hello World!")
 %raw(`"Goodbye World!"`)->S.parseWith(struct)
 // Ok("Goodbye World!")
 ```
+
+// TODO: Example with status without S.variant
+let authorStruct = S.object(o => {
+id: o.field("Id", S.float),
+tags: o.field("Tags", S.array(S.string)->S.default(() => [])),
+isAproved: o.field(
+"IsApproved",
+S.union([S.literal("Yes")->S.variant(_ => true), S.literal("No")->S.variant(_ => false)]),
+),
+deprecatedAge: o.field("Age", S.int->S.option->S.deprecate("Will be removed in APIv2")),
+})
+
+o.discriminant(fieldName, literal)

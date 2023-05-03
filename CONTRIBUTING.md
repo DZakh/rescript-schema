@@ -42,15 +42,13 @@ dune build --watch
 
 4. Test
 
-Make sure running tests in `packages/ppx-test`
+Make sure running tests
 
 ```
-cd packages/ppx-test
-(install dependencies)
-(build --watch)
-npm run res:dev
-(run test --watch)
-npm run test -- --watchAll
+(run compiler)
+cd packages/ppx-test && npm run res:dev
+(run tests in watch mode)
+npm run test -- --watch
 ```
 
 ## License
