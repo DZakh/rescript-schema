@@ -15,6 +15,7 @@ let generate_decls type_name struct_expr =
 
 let map_type_decl decl =
   let {
+    ptype_attributes;
     ptype_name = { txt = type_name };
     ptype_manifest;
     ptype_loc;
@@ -23,16 +24,21 @@ let map_type_decl decl =
     decl
   in
 
-  match (ptype_manifest, ptype_kind) with
-  | None, Ptype_abstract ->
+  match
+    (get_attribute_by_name ptype_attributes "struct", ptype_manifest, ptype_kind)
+  with
+  | Ok None, _, _ -> []
+  | Error err, _, _ -> fail ptype_loc err
+  | Ok _, None, Ptype_abstract ->
       fail ptype_loc "Can't generate struct for unspecified type"
-  | Some { ptyp_desc = Ptyp_variant (row_fields, _, _) }, Ptype_abstract ->
+  | Ok _, Some { ptyp_desc = Ptyp_variant (row_fields, _, _) }, Ptype_abstract
+    ->
       generate_decls type_name (Polyvariants.generate_struct_expr row_fields)
-  | Some manifest, _ ->
+  | Ok _, Some manifest, _ ->
       generate_decls type_name (Codecs.generate_struct_expr manifest)
-  | None, Ptype_variant decls ->
+  | Ok _, None, Ptype_variant decls ->
       generate_decls type_name (Variants.generate_struct_expr decls)
-  | None, Ptype_record decls ->
+  | Ok _, None, Ptype_record decls ->
       generate_decls type_name (Records.generate_struct_expr decls)
   | _ -> fail ptype_loc "This type is not handled by rescript-struct"
 

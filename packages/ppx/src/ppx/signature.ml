@@ -18,7 +18,15 @@ let map_signature_item mapper ({ psig_desc } as signature_item) =
       let generated_sig_items =
         decls
         |> List.map (fun type_declaration ->
-               generate_struct_signature_item ~type_declaration)
+               match
+                 Utils.get_attribute_by_name type_declaration.ptype_attributes
+                   "struct"
+               with
+               | Error err -> fail type_declaration.ptype_loc err
+               | Ok None -> []
+               | Ok (Some _) ->
+                   [ generate_struct_signature_item ~type_declaration ])
+        |> List.concat
       in
       mapper#signature_item signature_item :: generated_sig_items
   | _ -> [ mapper#signature_item signature_item ]

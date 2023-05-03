@@ -1,6 +1,24 @@
 // open Jest
 // open Expect
 
+open Ava
+open TestUtils
+
+@struct
+type polyWithSingleItem = [#single]
+test("Polymorphic variant with single item becomes a literal struct of the item", t => {
+  t->assertEqualStructs(polyWithSingleItemStruct, S.literalVariant(String("single"), #single), ())
+})
+
+// type basicBlueTone<'a> = [> #Blue | #DeepBlue | #LightBlue] as 'a
+// test("Opened polymorphic variant with single item becomes a literal struct of the item", t => {
+//   t->assertEqualStructs(
+//     openedPolyWithSingleItemStruct,
+//     S.literalVariant(String("single"), #single),
+//     (),
+//   )
+// })
+
 // describe("polymorphic variants with attribute", _ => {
 //   test("encode 하나", _ => {
 //     let polyvariantEncoded = #one->Polyvariants.t_encode
@@ -38,4 +56,3 @@
 //     expect(polyvariantDecoded) |> toEqual(Ok(#two))
 //   })
 // })
-
