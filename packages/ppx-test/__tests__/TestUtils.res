@@ -1,32 +1,30 @@
 open Ava
 
-module Stdlib = {
-  module Dict = {
-    @val
-    external copy: (@as(json`{}`) _, Js.Dict.t<'a>) => Js.Dict.t<'a> = "Object.assign"
-
-    let omit = (dict: Js.Dict.t<'a>, fields: array<string>): Js.Dict.t<'a> => {
-      let dict = dict->copy
-      fields->Js.Array2.forEach(field => {
-        Js.Dict.unsafeDeleteKey(dict, field)
-      })
-      dict
-    }
-  }
-}
-
 external magic: 'a => 'b = "%identity"
 
 let assertEqualStructs = {
-  let cleanUpTransformationFactories = (struct: S.t<'v>): S.t<'v> => {
-    struct->Obj.magic->Stdlib.Dict.omit(["pf", "sf"])->Obj.magic
+  let rec cleanUpStruct = (struct: S.t<'v>): S.t<'v> => {
+    let new = Dict.make()
+    struct
+    ->(magic: S.t<'a> => Dict.t<unknown>)
+    ->Dict.toArray
+    ->Array.forEach(((key, value)) => {
+      switch key {
+      | "pf" | "sf" => ()
+      | _ =>
+        if typeof(value) === #object && value !== %raw("null") {
+          new->Dict.set(
+            key,
+            cleanUpStruct(value->(magic: unknown => S.t<'a>))->(magic: S.t<'a> => unknown),
+          )
+        } else {
+          new->Dict.set(key, value)
+        }
+      }
+    })
+    new->(magic: Dict.t<unknown> => S.t<'a>)
   }
   (t, s1, s2, ~message=?, ()) => {
-    t->Assert.deepEqual(
-      s1->cleanUpTransformationFactories,
-      s2->cleanUpTransformationFactories,
-      ~message?,
-      (),
-    )
+    t->Assert.deepEqual(s1->cleanUpStruct, s2->cleanUpStruct, ~message?, ())
   }
 }

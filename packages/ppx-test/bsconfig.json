@@ -24,5 +24,6 @@
     "-bs-super-errors",
     "-open RescriptCore",
     "-open RescriptStruct"
-  ]
+  ],
+  "uncurried": true
 }

@@ -143,6 +143,12 @@ test("Custom litaral string struct", t => {
   t->assertEqualStructs(myCustomLiteralStringStruct, S.literal(String("123"))->S.String.email(), ())
 })
 
+@struct
+type myCustomOptionalString = option<@struct(S.string()->S.String.email()) string>
+test("Custom optional string struct", t => {
+  t->assertEqualStructs(myCustomOptionalStringStruct, S.string()->S.String.email()->S.option, ())
+})
+
 // @struct
 // type myNullOfString = null<string>
 // This will result with error:

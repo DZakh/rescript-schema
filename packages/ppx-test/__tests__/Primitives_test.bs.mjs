@@ -147,6 +147,12 @@ Ava("Custom litaral string struct", (function (t) {
                     }), undefined, undefined), undefined, undefined);
       }));
 
+var myCustomOptionalStringStruct = S$RescriptStruct.option(S$RescriptStruct.$$String.email(S$RescriptStruct.string(undefined), undefined, undefined));
+
+Ava("Custom optional string struct", (function (t) {
+        TestUtils.assertEqualStructs(t, myCustomOptionalStringStruct, S$RescriptStruct.option(S$RescriptStruct.$$String.email(S$RescriptStruct.string(undefined), undefined, undefined)), undefined, undefined);
+      }));
+
 var myNullOfStringStruct = S$RescriptStruct.$$null(S$RescriptStruct.string(undefined));
 
 Ava("Null of string struct", (function (t) {
@@ -172,6 +178,7 @@ export {
   myBigTupleStruct ,
   myCustomStringStruct ,
   myCustomLiteralStringStruct ,
+  myCustomOptionalStringStruct ,
   myNullOfStringStruct ,
 }
 /* myStringStruct Not a pure module */
