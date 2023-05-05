@@ -1,0 +1,10 @@
+(env
+ (static
+  (flags
+   (:standard -ccopt -static))))
+
+(executable
+ (package ppx_struct)
+ (name bin)
+ (public_name ppx_struct)
+ (libraries ppx_struct))

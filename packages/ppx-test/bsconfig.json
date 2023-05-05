@@ -1,0 +1,25 @@
+{
+  "name": "ppx-test",
+  "sources": [
+    {
+      "dir": "__tests__"
+    }
+  ],
+  "package-specs": {
+    "module": "es6",
+    "in-source": true
+  },
+  "suffix": ".bs.mjs",
+  "bs-dependencies": [
+    "@rescript/core",
+    "rescript-struct",
+    "@dzakh/rescript-ava"
+  ],
+  "ppx-flags": ["../ppx/ppx"],
+  "warnings": {
+    "error": true,
+    "number": "-48-44"
+  },
+  "bsc-flags": ["-open RescriptCore", "-open RescriptStruct"],
+  "uncurried": true
+}

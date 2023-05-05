@@ -14,13 +14,6 @@ module Stdlib = {
     @val
     external extendWith: ('target, 'extend) => 'target = "Object.assign"
   }
-
-  module Fn = {
-    type fn<'arg, 'return> = 'arg => 'return
-
-    @send
-    external apply: (fn<'arg, 'return>, @as(json`null`) _, array<'arg>) => 'return = "apply"
-  }
 }
 
 module Error = {
@@ -189,8 +182,8 @@ let record = struct => S.dict(struct->castToRescriptStruct)->toJsStruct
 let json = struct => S.json(struct->castToRescriptStruct)->toJsStruct
 let union = structs => S.union(structs->castMultipleToRescriptStruct)->toJsStruct
 let tuple = structs => {
-  let structs = structs->castMultipleToRescriptStruct
-  S.Tuple.factory->Stdlib.Fn.apply(structs)->toJsStruct
+  let structs = structs->(Obj.magic: array<struct<'value>> => array<S.t<unknown>>)
+  S.Tuple.factory(structs)->toJsStruct
 }
 
 let literal = (value: 'value): struct<'value> => {

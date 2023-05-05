@@ -16,6 +16,41 @@ The following steps will get you setup to contribute changes to this repo:
 4. Run `pnpm i` to install dependencies.
 5. Start playing with the code!
 
+## PPX
+
+### With Dune
+
+Make sure running the below commands in `packages/ppx/src`.
+
+1. Create a sandbox with opam
+
+```
+opam switch create struct 4.12.1
+```
+
+2. Install dependencies
+
+```
+opam install . --deps-only
+```
+
+3. Build
+
+```
+dune build --watch
+```
+
+4. Test
+
+Make sure running tests
+
+```
+(run compiler)
+cd packages/ppx-test && npm run res:dev
+(run tests in watch mode)
+npm run test -- --watch
+```
+
 ## License
 
 By contributing your code to the rescript-struct GitHub repository, you agree to license your contribution under the MIT license.

@@ -194,6 +194,8 @@ let classify: t<'value> => tagged
 
 let name: t<'value> => string
 
+external toUnknown: t<'any> => t<unknown> = "%identity"
+
 let fail: (~path: Path.t=?, string) => 'a
 
 let advancedFail: Error.t => 'a
@@ -207,6 +209,9 @@ module Object: {
     let classify: t<'value> => tagged
   }
 
+  /* The same as S.object. Expose only for PPX since the object is a reserved name in OCaml */
+  let factory: (definerCtx => 'value) => t<'value>
+
   let strip: t<'value> => t<'value>
   let strict: t<'value> => t<'value>
 }
@@ -215,7 +220,7 @@ let object: (Object.definerCtx => 'value) => t<'value>
 let field: (Object.definerCtx, string, t<'value>) => 'value
 
 module Tuple: {
-  let factory: 'factory
+  let factory: array<t<unknown>> => t<array<unknown>>
 }
 
 let tuple0: (. unit) => t<unit>

@@ -463,19 +463,19 @@ test("Supports Tuple with 10 items", t => {
 })
 
 test("Fails to inline Tuple with 11 items", t => {
-  let struct = S.Tuple.factory(.
-    S.string(),
-    S.int(),
-    S.bool(),
-    S.string(),
-    S.int(),
-    S.bool(),
-    S.string(),
-    S.int(),
-    S.bool(),
-    S.string(),
-    S.string(),
-  )
+  let struct = S.Tuple.factory([
+    S.string()->S.toUnknown,
+    S.int()->S.toUnknown,
+    S.bool()->S.toUnknown,
+    S.string()->S.toUnknown,
+    S.int()->S.toUnknown,
+    S.bool()->S.toUnknown,
+    S.string()->S.toUnknown,
+    S.int()->S.toUnknown,
+    S.bool()->S.toUnknown,
+    S.string()->S.toUnknown,
+    S.string()->S.toUnknown,
+  ])
 
   t->Assert.throws(
     () => {

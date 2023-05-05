@@ -2746,22 +2746,20 @@ function classify$2(struct) {
   
 }
 
-function factory$16(param) {
-  var structs = (Array.from(arguments));
-  var structs$1 = structs.length === 1 && structs[0] === undefined ? [] : structs;
-  var numberOfStructs = structs$1.length;
+function factory$16(structs) {
+  var numberOfStructs = structs.length;
   return {
           n: "Tuple",
           t: {
             TAG: "Tuple",
-            _0: structs$1
+            _0: structs
           },
           pf: (function (ctx) {
               var noopOps = [];
               var syncOps = [];
               var asyncOps = [];
-              for(var idx = 0 ,idx_finish = structs$1.length; idx < idx_finish; ++idx){
-                var innerStruct = structs$1[idx];
+              for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
+                var innerStruct = structs[idx];
                 var fn = getParseOperation(innerStruct);
                 if (typeof fn !== "object") {
                   noopOps.push(idx);
@@ -2865,8 +2863,8 @@ function factory$16(param) {
             }),
           sf: (function (ctx) {
               var serializeOperations = [];
-              for(var idx = 0 ,idx_finish = structs$1.length; idx < idx_finish; ++idx){
-                serializeOperations.push(getSerializeOperation(structs$1[idx]));
+              for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
+                serializeOperations.push(getSerializeOperation(structs[idx]));
               }
               planSyncTransformation(ctx, (function (input) {
                       var inputArray = numberOfStructs === 1 ? [input] : input;
@@ -2909,8 +2907,13 @@ function factory$16(param) {
         };
 }
 
+function factoryFromArgs(param) {
+  return factory$16((Array.from(arguments)));
+}
+
 var Tuple = {
-  factory: factory$16
+  factory: factory$16,
+  factoryFromArgs: factoryFromArgs
 };
 
 var HackyValidValue = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Union.HackyValidValue");
@@ -3674,6 +3677,29 @@ function unit(param) {
   return factory$1("EmptyOption", undefined);
 }
 
+function tuple0() {
+  return factory$16([]);
+}
+
+function tuple1(v0) {
+  return factory$16([v0]);
+}
+
+function tuple2(v0, v1) {
+  return factory$16([
+              v0,
+              v1
+            ]);
+}
+
+function tuple3(v0, v1, v2) {
+  return factory$16([
+              v0,
+              v1,
+              v2
+            ]);
+}
+
 var Path = {
   empty: "",
   toArray: toArray,
@@ -3732,33 +3758,26 @@ var Object_UnknownKeys = {
 
 var $$Object = {
   UnknownKeys: Object_UnknownKeys,
+  factory: factory$3,
   strip: strip,
   strict: strict
 };
 
 var object = factory$3;
 
-var tuple0 = factory$16;
+var tuple4 = factoryFromArgs;
 
-var tuple1 = factory$16;
+var tuple5 = factoryFromArgs;
 
-var tuple2 = factory$16;
+var tuple6 = factoryFromArgs;
 
-var tuple3 = factory$16;
+var tuple7 = factoryFromArgs;
 
-var tuple4 = factory$16;
+var tuple8 = factoryFromArgs;
 
-var tuple5 = factory$16;
+var tuple9 = factoryFromArgs;
 
-var tuple6 = factory$16;
-
-var tuple7 = factory$16;
-
-var tuple8 = factory$16;
-
-var tuple9 = factory$16;
-
-var tuple10 = factory$16;
+var tuple10 = factoryFromArgs;
 
 var String_Refinement = {};
 
