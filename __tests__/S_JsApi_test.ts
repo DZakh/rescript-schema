@@ -90,8 +90,8 @@ test("Successfully parses record", (t) => {
   expectType<TypeEqual<typeof value, Record<string, string>>>(true);
 });
 
-test("Successfully parses json", (t) => {
-  const struct = S.json(S.string());
+test("Successfully parses JSON string", (t) => {
+  const struct = S.jsonString(S.string());
   const value = struct.parseOrThrow(`"foo"`);
 
   t.deepEqual(value, "foo");

@@ -2612,11 +2612,11 @@ module String = {
   }
 }
 
-module Json = {
+module JsonString = {
   let factory = innerStruct => {
     let innerStruct = innerStruct->toUnknown
     make(
-      ~name=`Json`,
+      ~name=`JsonString`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=String,
       ~parseTransformationFactory=(. ~ctx) => {
@@ -4094,4 +4094,4 @@ let tuple8 = Tuple.factoryFromArgs
 let tuple9 = Tuple.factoryFromArgs
 let tuple10 = Tuple.factoryFromArgs
 let union = Union.factory
-let json = Json.factory
+let jsonString = JsonString.factory

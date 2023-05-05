@@ -179,7 +179,7 @@ let optional = struct => S.option(struct->castToRescriptStruct)->toJsStruct
 let nullable = struct => S.null(struct->castToRescriptStruct)->toJsStruct
 let array = struct => S.array(struct->castToRescriptStruct)->toJsStruct
 let record = struct => S.dict(struct->castToRescriptStruct)->toJsStruct
-let json = struct => S.json(struct->castToRescriptStruct)->toJsStruct
+let jsonString = struct => S.jsonString(struct->castToRescriptStruct)->toJsStruct
 let union = structs => S.union(structs->castMultipleToRescriptStruct)->toJsStruct
 let tuple = structs => {
   let structs = structs->(Obj.magic: array<struct<'value>> => array<S.t<unknown>>)

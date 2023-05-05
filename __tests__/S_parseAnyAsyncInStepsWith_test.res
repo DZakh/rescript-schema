@@ -793,8 +793,8 @@ module Defaulted = {
 }
 
 module Json = {
-  asyncTest("[Json] Successfully parses", t => {
-    let struct = S.json(S.int()->validAsyncRefine)
+  asyncTest("[JsonString] Successfully parses", t => {
+    let struct = S.jsonString(S.int()->validAsyncRefine)
 
     (
       "1"->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
@@ -803,8 +803,8 @@ module Json = {
     })
   })
 
-  asyncTest("[Json] Fails to parse with invalid async refine", t => {
-    let struct = S.json(S.int()->invalidAsyncRefine)
+  asyncTest("[JsonString] Fails to parse with invalid async refine", t => {
+    let struct = S.jsonString(S.int()->invalidAsyncRefine)
 
     (
       "1"->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
@@ -822,8 +822,8 @@ module Json = {
     })
   })
 
-  test("[Json] Returns sync error when fails to parse sync part of async item", t => {
-    let struct = S.json(S.int()->validAsyncRefine)
+  test("[JsonString] Returns sync error when fails to parse sync part of async item", t => {
+    let struct = S.jsonString(S.int()->validAsyncRefine)
 
     t->Assert.deepEqual(
       "true"->S.parseAnyAsyncInStepsWith(struct),

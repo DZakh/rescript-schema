@@ -91,7 +91,7 @@ export const record: <Value>(
   struct: Struct<Value>
 ) => Struct<Record<string, Value>>;
 
-export const json: <Value>(struct: Struct<Value>) => Struct<Value>;
+export const jsonString: <Value>(struct: Struct<Value>) => Struct<Value>;
 
 export const union: <A extends AnyStruct, B extends AnyStruct[]>(
   structs: [A, ...B]

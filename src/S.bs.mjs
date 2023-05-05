@@ -2006,7 +2006,7 @@ function trim(struct, param) {
 
 function factory$7(innerStruct) {
   return {
-          n: "Json",
+          n: "JsonString",
           t: "String",
           pf: (function (ctx) {
               var fn = getParseOperation(innerStruct);
@@ -3736,7 +3736,7 @@ var option = factory$12;
 
 var $$null = factory$11;
 
-var json = factory$7;
+var jsonString = factory$7;
 
 var union = factory$17;
 
@@ -3847,7 +3847,7 @@ export {
   dict ,
   option ,
   $$null ,
-  json ,
+  jsonString ,
   jsonable ,
   union ,
   $$default ,

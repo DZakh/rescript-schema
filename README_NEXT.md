@@ -645,19 +645,6 @@ let struct = S.never()
 
 The `never` struct will fail parsing for every value.
 
-### **`S.json`**
-
-`S.t<'value> => S.t<'value>`
-
-```rescript
-let struct = S.json(S.int())
-
-%raw(`"123"`)->S.parseWith(struct)
-// Ok(123)
-```
-
-The `json` struct represents a data that is a JSON string containing a value of a specific type.
-
 ### **`S.jsonable`**
 
 `() => S.t<Js.Json.t>`
@@ -671,52 +658,18 @@ let struct = S.jsonable()
 
 The `jsonable` struct represents a data that is compatible with JSON.
 
-### **`S.custom`**
+### **`S.jsonString`**
 
-`(~name: string, ~parser: (unknown) => 'value=?, ~asyncParser: (unknown) => promise<'value>=?, ~serializer: ('value) => 'any=?, unit) => S.t<'value>`
-
-You can also define your own custom struct factories that are specific to your application's requirements:
+`S.t<'value> => S.t<'value>`
 
 ```rescript
-let nullableStruct = innerStruct =>
-  S.custom(
-    ~name="Nullable",
-    ~parser=unknown => {
-      if unknown === %raw("undefined") || unknown === %raw("null") {
-        None
-      } else {
-        switch unknown->S.parseAnyWith(innerStruct) {
-        | Ok(value) => Some(value)
-        | Error(error) => S.advancedFail(error)
-        }
-      }
-    },
-    ~serializer=value => {
-      switch value {
-      | Some(innerValue) =>
-        switch innerValue->S.serializeToUnknownWith(innerStruct) {
-        | Ok(value) => value
-        | Error(error) => S.advancedFail(error)
-        }
-      | None => %raw("null")
-      }
-    },
-    (),
-  )
+let struct = S.jsonString(S.int())
 
-%raw(`"Hello world!"`)->S.parseWith(struct)
-// Ok(Some("Hello World!"))
-%raw(`null`)->S.parseWith(struct)
-// Ok(None)
-%raw(`undefined`)->S.parseWith(struct)
-// Ok(None)
-%raw(`123`)->S.parseWith(struct)
-// Error({
-//   code: UnexpectedType({expected: "String", received: "Float"}),
-//   operation: Parsing,
-//   path: S.Path.empty,
-// })
+%raw(`"123"`)->S.parseWith(struct)
+// Ok(123)
 ```
+
+The `jsonString` struct represents a data that is a JSON string containing a value of a specific type.
 
 ### **`S.default`**
 
@@ -792,6 +745,53 @@ Conceptually, this is how **rescript-struct** processes "catch values":
 
 1. The data is parsed using the base struct
 2. If the parsing fails, the "catch value" is returned
+
+### **`S.custom`**
+
+`(~name: string, ~parser: (unknown) => 'value=?, ~asyncParser: (unknown) => promise<'value>=?, ~serializer: ('value) => 'any=?, unit) => S.t<'value>`
+
+You can also define your own custom struct factories that are specific to your application's requirements:
+
+```rescript
+let nullableStruct = innerStruct =>
+  S.custom(
+    ~name="Nullable",
+    ~parser=unknown => {
+      if unknown === %raw("undefined") || unknown === %raw("null") {
+        None
+      } else {
+        switch unknown->S.parseAnyWith(innerStruct) {
+        | Ok(value) => Some(value)
+        | Error(error) => S.advancedFail(error)
+        }
+      }
+    },
+    ~serializer=value => {
+      switch value {
+      | Some(innerValue) =>
+        switch innerValue->S.serializeToUnknownWith(innerStruct) {
+        | Ok(value) => value
+        | Error(error) => S.advancedFail(error)
+        }
+      | None => %raw("null")
+      }
+    },
+    (),
+  )
+
+%raw(`"Hello world!"`)->S.parseWith(struct)
+// Ok(Some("Hello World!"))
+%raw(`null`)->S.parseWith(struct)
+// Ok(None)
+%raw(`undefined`)->S.parseWith(struct)
+// Ok(None)
+%raw(`123`)->S.parseWith(struct)
+// Error({
+//   code: UnexpectedType({expected: "String", received: "Float"}),
+//   operation: Parsing,
+//   path: S.Path.empty,
+// })
+```
 
 ### **`S.recursive`**
 

@@ -183,8 +183,8 @@ function record(struct) {
   return Object.assign(struct$1, structOperations);
 }
 
-function json(struct) {
-  var struct$1 = S$RescriptStruct.json(struct);
+function jsonString(struct) {
+  var struct$1 = S$RescriptStruct.jsonString(struct);
   return Object.assign(struct$1, structOperations);
 }
 
@@ -307,7 +307,7 @@ export {
   nullable ,
   array ,
   record ,
-  json ,
+  jsonString ,
   union ,
   literal ,
   nan ,
