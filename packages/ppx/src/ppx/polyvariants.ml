@@ -31,7 +31,7 @@ let parse_decl { prf_desc; prf_loc; prf_attributes } =
   in
 
   let alias =
-    match get_attribute_by_name prf_attributes "as" with
+    match get_attribute_by_name prf_attributes "struct.as" with
     | Ok (Some attribute) -> get_expr_from_payload attribute
     | Ok None -> Exp.constant (Pconst_string (name, Location.none, None))
     | Error s -> fail prf_loc s

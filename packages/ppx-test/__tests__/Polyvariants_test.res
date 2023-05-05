@@ -1,8 +1,15 @@
-// open Jest
-// open Expect
-
 open Ava
 open TestUtils
+
+@struct
+type poly = [#one | #two]
+test("Polymorphic variant", t => {
+  t->assertEqualStructs(
+    polyStruct,
+    S.union([S.literalVariant(String("one"), #one), S.literalVariant(String("two"), #two)]),
+    (),
+  )
+})
 
 @struct
 type polyWithSingleItem = [#single]
@@ -10,49 +17,20 @@ test("Polymorphic variant with single item becomes a literal struct of the item"
   t->assertEqualStructs(polyWithSingleItemStruct, S.literalVariant(String("single"), #single), ())
 })
 
+@struct
+type polyWithAlias = [@struct.as(`하나`) #one | #two]
+test("Polymorphic variant with partial @as usage", t => {
+  t->assertEqualStructs(
+    polyWithAliasStruct,
+    S.union([S.literalVariant(String("하나"), #one), S.literalVariant(String("two"), #two)]),
+    (),
+  )
+})
+
+// TODO: Support
+// type polyWithPayloads = [#one | #two(int) | #three(bool)]
+// TODO: Support
 // type basicBlueTone<'a> = [> #Blue | #DeepBlue | #LightBlue] as 'a
-// test("Opened polymorphic variant with single item becomes a literal struct of the item", t => {
-//   t->assertEqualStructs(
-//     openedPolyWithSingleItemStruct,
-//     S.literalVariant(String("single"), #single),
-//     (),
-//   )
-// })
-
-// describe("polymorphic variants with attribute", _ => {
-//   test("encode 하나", _ => {
-//     let polyvariantEncoded = #one->Polyvariants.t_encode
-//     expect(polyvariantEncoded) |> toEqual(JSON.Encode.string(`하나`))
-//   })
-//   test("encode 둘", _ => {
-//     let polyvariantEncoded = #two->Polyvariants.t_encode
-//     expect(polyvariantEncoded) |> toEqual(JSON.Encode.string(`둘`))
-//   })
-//   test("decode 하나", _ => {
-//     let polyvariantDecoded = JSON.Encode.string(`하나`)->Polyvariants.t_decode
-//     expect(polyvariantDecoded) |> toEqual(Ok(#one))
-//   })
-//   test("decode 둘", _ => {
-//     let polyvariantDecoded = JSON.Encode.string(`둘`)->Polyvariants.t_decode
-//     expect(polyvariantDecoded) |> toEqual(Ok(#two))
-//   })
-// })
-
-// describe("polymorphic variants", _ => {
-//   test(`encode #one`, _ => {
-//     let polyvariantEncoded = #one->Polyvariants.t1_encode
-//     expect(polyvariantEncoded) |> toEqual(JSON.Encode.array([JSON.Encode.string(`one`)]))
-//   })
-//   test(`encode #two`, _ => {
-//     let polyvariantEncoded = #two->Polyvariants.t1_encode
-//     expect(polyvariantEncoded) |> toEqual(JSON.Encode.array([JSON.Encode.string(`two`)]))
-//   })
-//   test(`decode one`, _ => {
-//     let polyvariantDecoded = JSON.Encode.array([JSON.Encode.string(`one`)])->Polyvariants.t1_decode
-//     expect(polyvariantDecoded) |> toEqual(Ok(#one))
-//   })
-//   test(`decode two`, _ => {
-//     let polyvariantDecoded = JSON.Encode.array([JSON.Encode.string(`two`)])->Polyvariants.t1_decode
-//     expect(polyvariantDecoded) |> toEqual(Ok(#two))
-//   })
-// })
+// TODO: Support
+// type polyWithInheritance = [poly | #three]
+// TODO: Support poly as record/object fields

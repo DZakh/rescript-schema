@@ -1,17 +1,16 @@
 @struct
-type t = {
+type simpleRecord = {
   label: string,
   value: int,
 }
 
 @struct
-type t1 = {
+type recordWithAlias = {
   label: string,
   value: int,
 }
-
 @struct
-type tOp = {
+type recordWithOptional = {
   label: option<string>,
   value?: int,
 }

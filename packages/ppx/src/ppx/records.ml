@@ -19,15 +19,16 @@ type parsed_decl = {
 }
 
 let generate_decoder decls =
+  (* Use Obj.magic to cast to uncurried function in case of uncurried mode *)
   [%expr
-    S.Object.factory (fun o ->
+    S.Object.factory (Obj.magic (fun o ->
         [%e
           Exp.record
             (decls
             |> List.map (fun decl ->
                    ( lid decl.name,
                      [%expr S.field o [%e decl.key] [%e decl.struct_expr]] )))
-            None])]
+            None]))]
 
 let parse_decl { pld_name = { txt }; pld_loc; pld_type; pld_attributes } =
   let default =
@@ -37,7 +38,7 @@ let parse_decl { pld_name = { txt }; pld_loc; pld_type; pld_attributes } =
     | Error s -> fail pld_loc s
   in
   let key =
-    match get_attribute_by_name pld_attributes "as" with
+    match get_attribute_by_name pld_attributes "struct.field" with
     | Ok (Some attribute) -> get_expr_from_payload attribute
     | Ok None -> Exp.constant (Pconst_string (txt, Location.none, None))
     | Error s -> fail pld_loc s

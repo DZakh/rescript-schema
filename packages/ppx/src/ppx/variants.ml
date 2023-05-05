@@ -5,7 +5,7 @@ open Utils
 
 let parse_decl { pcd_name = { txt = name }; pcd_loc; pcd_attributes } =
   let alias =
-    match get_attribute_by_name pcd_attributes "as" with
+    match get_attribute_by_name pcd_attributes "struct.as" with
     | Ok (Some attribute) -> get_expr_from_payload attribute
     | Ok None -> Exp.constant (Pconst_string (name, Location.none, None))
     | Error s -> fail pcd_loc s

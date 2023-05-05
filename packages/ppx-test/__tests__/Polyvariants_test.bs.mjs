@@ -4,6 +4,30 @@ import Ava from "ava";
 import * as TestUtils from "./TestUtils.bs.mjs";
 import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
 
+var polyStruct = S$RescriptStruct.union([
+      S$RescriptStruct.literalVariant({
+            TAG: "String",
+            _0: "one"
+          }, "one"),
+      S$RescriptStruct.literalVariant({
+            TAG: "String",
+            _0: "two"
+          }, "two")
+    ]);
+
+Ava("Polymorphic variant", (function (t) {
+        TestUtils.assertEqualStructs(t, polyStruct, S$RescriptStruct.union([
+                  S$RescriptStruct.literalVariant({
+                        TAG: "String",
+                        _0: "one"
+                      }, "one"),
+                  S$RescriptStruct.literalVariant({
+                        TAG: "String",
+                        _0: "two"
+                      }, "two")
+                ]), undefined, undefined);
+      }));
+
 var polyWithSingleItemStruct = S$RescriptStruct.literalVariant({
       TAG: "String",
       _0: "single"
@@ -16,7 +40,33 @@ Ava("Polymorphic variant with single item becomes a literal struct of the item",
                 }, "single"), undefined, undefined);
       }));
 
+var polyWithAliasStruct = S$RescriptStruct.union([
+      S$RescriptStruct.literalVariant({
+            TAG: "String",
+            _0: "하나"
+          }, "one"),
+      S$RescriptStruct.literalVariant({
+            TAG: "String",
+            _0: "two"
+          }, "two")
+    ]);
+
+Ava("Polymorphic variant with partial @as usage", (function (t) {
+        TestUtils.assertEqualStructs(t, polyWithAliasStruct, S$RescriptStruct.union([
+                  S$RescriptStruct.literalVariant({
+                        TAG: "String",
+                        _0: "하나"
+                      }, "one"),
+                  S$RescriptStruct.literalVariant({
+                        TAG: "String",
+                        _0: "two"
+                      }, "two")
+                ]), undefined, undefined);
+      }));
+
 export {
+  polyStruct ,
   polyWithSingleItemStruct ,
+  polyWithAliasStruct ,
 }
-/* polyWithSingleItemStruct Not a pure module */
+/* polyStruct Not a pure module */
