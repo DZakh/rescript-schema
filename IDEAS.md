@@ -50,7 +50,6 @@ Next breaking release
 
 - S.default rework
 - Make S.deprecated not wrap in option
-- Rename S.jsonable -> S.json
 - Rename S.parseJsonWith -> S.parseJsonStringWith (the same for serialize)
 - Remove NaN from literals (or completely)
 - Allow to pass anything to S.literal (maybe remove S.literalVariant)

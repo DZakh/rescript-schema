@@ -645,18 +645,18 @@ let struct = S.never()
 
 The `never` struct will fail parsing for every value.
 
-### **`S.jsonable`**
+### **`S.json`**
 
 `() => S.t<Js.Json.t>`
 
 ```rescript
-let struct = S.jsonable()
+let struct = S.json()
 
 %raw(`"123"`)->S.parseWith(struct)
 // Ok(Js.Json.string("123"))
 ```
 
-The `jsonable` struct represents a data that is compatible with JSON.
+The `json` struct represents a data that is compatible with JSON.
 
 ### **`S.jsonString`**
 

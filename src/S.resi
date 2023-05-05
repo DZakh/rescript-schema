@@ -94,7 +94,7 @@ let dict: t<'value> => t<Js.Dict.t<'value>>
 let option: t<'value> => t<option<'value>>
 let null: t<'value> => t<option<'value>>
 let jsonString: t<'value> => t<'value>
-let jsonable: unit => t<Js.Json.t>
+let json: unit => t<Js.Json.t>
 let union: array<t<'value>> => t<'value>
 
 let default: (t<option<'value>>, unit => 'value) => t<'value>

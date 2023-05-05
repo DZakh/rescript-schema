@@ -35,6 +35,7 @@ let integer: unit => struct<int>
 let number: unit => struct<float>
 let never: unit => struct<S.never>
 let unknown: unit => struct<unknown>
+let json: unit => struct<Js.Json.t>
 
 let optional: struct<'value> => struct<option<'value>>
 let nullable: struct<'value> => struct<option<'value>>

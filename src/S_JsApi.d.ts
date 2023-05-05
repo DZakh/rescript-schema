@@ -35,6 +35,14 @@ export interface Struct<Value> {
 
 export type Infer<T> = T extends Struct<infer Value> ? Value : never;
 
+export type Json =
+  | string
+  | boolean
+  | number
+  | null
+  | { [key: string]: Json }
+  | Json[];
+
 type NoUndefined<T> = T extends undefined ? never : T;
 type AnyStruct = Struct<unknown>;
 type InferStructTuple<
@@ -65,6 +73,7 @@ export const integer: () => Struct<number>;
 export const number: () => Struct<number>;
 export const never: () => Struct<never>;
 export const unknown: () => Struct<unknown>;
+export const json: () => Struct<Json>;
 export function literal<Value extends string>(value: Value): Struct<Value>;
 export function literal<Value extends number>(value: Value): Struct<Value>;
 export function literal<Value extends boolean>(value: Value): Struct<Value>;

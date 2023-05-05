@@ -3143,7 +3143,7 @@ function parseTransformationFactory$4(ctx) {
         }));
 }
 
-function jsonable(param) {
+function json(param) {
   return {
           n: "JSON",
           t: "JSON",
@@ -3396,7 +3396,7 @@ function internalInline(struct, maybeVariant, param) {
           inlinedStruct = "S.bool()";
           break;
       case "JSON" :
-          inlinedStruct = "S.jsonable()";
+          inlinedStruct = "S.json()";
           break;
       
     }
@@ -3848,7 +3848,7 @@ export {
   option ,
   $$null ,
   jsonString ,
-  jsonable ,
+  json ,
   union ,
   $$default ,
   $$default as default,

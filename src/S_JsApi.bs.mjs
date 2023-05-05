@@ -163,6 +163,11 @@ function unknown(param) {
   return Object.assign(struct, structOperations);
 }
 
+function json(param) {
+  var struct = S$RescriptStruct.json(undefined);
+  return Object.assign(struct, structOperations);
+}
+
 function optional(struct) {
   var struct$1 = S$RescriptStruct.option(struct);
   return Object.assign(struct$1, structOperations);
@@ -303,6 +308,7 @@ export {
   number ,
   never ,
   unknown ,
+  json ,
   optional ,
   nullable ,
   array ,

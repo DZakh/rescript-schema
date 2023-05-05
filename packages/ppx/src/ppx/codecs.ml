@@ -27,7 +27,7 @@ let rec generate_constr_struct_expr { Location.txt = identifier; loc } type_args
   | Ldot (Lident "Dict", "t"), [ item_type ] ->
       [%expr S.dict [%e generate_struct_expr item_type]]
   | Ldot (Ldot (Lident "Js", "Json"), "t"), _ | Ldot (Lident "JSON", "t"), _ ->
-      [%expr S.jsonable ()]
+      [%expr S.json ()]
   | Lident s, _ -> make_ident_expr (get_generated_struct_name s)
   | Ldot (left, right), _ ->
       Exp.ident (mknoloc (Ldot (left, get_generated_struct_name right)))

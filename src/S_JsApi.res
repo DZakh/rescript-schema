@@ -174,6 +174,7 @@ let integer = S.int->toJsStructFactory
 let number = S.float->toJsStructFactory
 let never = S.never->toJsStructFactory
 let unknown = S.unknown->toJsStructFactory
+let json = S.json->toJsStructFactory
 
 let optional = struct => S.option(struct->castToRescriptStruct)->toJsStruct
 let nullable = struct => S.null(struct->castToRescriptStruct)->toJsStruct

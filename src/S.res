@@ -3635,7 +3635,7 @@ let list = innerStruct => {
   )
 }
 
-let jsonable = {
+let json = {
   let rec parse = (input, ~ctx) => {
     switch input->Js.typeof {
     | "number" if Js.Float.isNaN(input->(Obj.magic: unknown => float))->not =>
@@ -3870,7 +3870,7 @@ let inline = {
           })
           ->Js.Array2.joinWith(", ")}])`
       }
-    | JSON => `S.jsonable()`
+    | JSON => `S.json()`
 
     | Tuple([]) => `S.tuple0(.)`
     | Tuple(tupleStructs) => {

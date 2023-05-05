@@ -284,8 +284,8 @@ test("Supports Never", t => {
 })
 
 test("Supports JSON", t => {
-  let struct = S.jsonable()
-  t->Assert.deepEqual(struct->S.inline, `S.jsonable()`, ())
+  let struct = S.json()
+  t->Assert.deepEqual(struct->S.inline, `S.json()`, ())
 })
 
 test("Supports String Literal", t => {
@@ -564,12 +564,12 @@ test("Uses S.transform for primitive structs inside of union", t => {
     S.int()->S.variant(v => #Int(v)),
     S.unknown()->S.variant(v => #Unknown(v)),
     S.never()->S.variant(v => #Never(v)),
-    S.jsonable()->S.variant(v => #JSON(v)),
+    S.json()->S.variant(v => #JSON(v)),
   ])
 
   t->Assert.deepEqual(
     struct->S.inline,
-    `S.union([S.string()->S.variant(v => #"String"(v)), S.bool()->S.variant(v => #"Bool"(v)), S.float()->S.variant(v => #"Float"(v)), S.int()->S.variant(v => #"Int"(v)), S.unknown()->S.variant(v => #"Unknown"(v)), S.never()->S.variant(v => #"Never"(v)), S.jsonable()->S.variant(v => #"JSON"(v))])`,
+    `S.union([S.string()->S.variant(v => #"String"(v)), S.bool()->S.variant(v => #"Bool"(v)), S.float()->S.variant(v => #"Float"(v)), S.int()->S.variant(v => #"Int"(v)), S.unknown()->S.variant(v => #"Unknown"(v)), S.never()->S.variant(v => #"Never"(v)), S.json()->S.variant(v => #"JSON"(v))])`,
     (),
   )
 })

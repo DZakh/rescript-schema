@@ -5,6 +5,7 @@ export const string = S_Js.string;
 export const boolean = S_Js.$$boolean;
 export const integer = S_Js.integer;
 export const number = S_Js.number;
+export const json = S_Js.json;
 export const never = S_Js.never;
 export const unknown = S_Js.unknown;
 export const optional = S_Js.optional;

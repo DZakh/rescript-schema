@@ -53,6 +53,16 @@ test("Successfully parses unknown", (t) => {
   expectType<TypeEqual<typeof value, unknown>>(true);
 });
 
+test("Successfully parses json", (t) => {
+  const struct = S.json();
+  const value = struct.parseOrThrow(true);
+
+  t.deepEqual(value, true);
+
+  expectType<TypeEqual<typeof struct, S.Struct<S.Json>>>(true);
+  expectType<TypeEqual<typeof value, S.Json>>(true);
+});
+
 test("Fails to parse never", (t) => {
   const struct = S.never();
 

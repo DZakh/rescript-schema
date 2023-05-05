@@ -76,16 +76,16 @@ Ava("Dict of string struct from Core", (function (t) {
         TestUtils.assertEqualStructs(t, myDictOfStringFromCoreStruct, S$RescriptStruct.dict(S$RescriptStruct.string(undefined)), undefined, undefined);
       }));
 
-var myJsonStruct = S$RescriptStruct.jsonable(undefined);
+var myJsonStruct = S$RescriptStruct.json(undefined);
 
 Ava("Json struct", (function (t) {
-        TestUtils.assertEqualStructs(t, myJsonStruct, S$RescriptStruct.jsonable(undefined), undefined, undefined);
+        TestUtils.assertEqualStructs(t, myJsonStruct, S$RescriptStruct.json(undefined), undefined, undefined);
       }));
 
-var myJsonFromCoreStruct = S$RescriptStruct.jsonable(undefined);
+var myJsonFromCoreStruct = S$RescriptStruct.json(undefined);
 
 Ava("Json struct from Core", (function (t) {
-        TestUtils.assertEqualStructs(t, myJsonFromCoreStruct, S$RescriptStruct.jsonable(undefined), undefined, undefined);
+        TestUtils.assertEqualStructs(t, myJsonFromCoreStruct, S$RescriptStruct.json(undefined), undefined, undefined);
       }));
 
 var myTupleStruct = S$RescriptStruct.Tuple.factory([

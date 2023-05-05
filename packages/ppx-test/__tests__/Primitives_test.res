@@ -76,13 +76,13 @@ test("Dict of string struct from Core", t => {
 @struct
 type myJson = Js.Json.t
 test("Json struct", t => {
-  t->assertEqualStructs(myJsonStruct, S.jsonable(), ())
+  t->assertEqualStructs(myJsonStruct, S.json(), ())
 })
 
 @struct
 type myJsonFromCore = JSON.t
 test("Json struct from Core", t => {
-  t->assertEqualStructs(myJsonFromCoreStruct, S.jsonable(), ())
+  t->assertEqualStructs(myJsonFromCoreStruct, S.json(), ())
 })
 
 @struct
