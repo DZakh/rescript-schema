@@ -22,7 +22,9 @@
     "Zod",
     "Superstruct",
     "Runtypes",
-    "Ajv"
+    "Ajv",
+    "Ppx",
+    "Decco"
   ],
   "homepage": "https://github.com/DZakh/rescript-struct#readme",
   "bugs": {
