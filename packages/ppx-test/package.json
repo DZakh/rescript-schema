@@ -10,11 +10,10 @@
     "lint:stdlib": "rescript-stdlib-vendorer lint"
   },
   "dependencies": {
-    "@glennsl/bs-jest": "0.7.0",
     "@rescript/core": "0.3.0",
-    "rescript": "11.0.0-alpha.5",
+    "rescript": "11.0.0-alpha.6",
     "rescript-stdlib-vendorer": "1.0.0",
     "rescript-struct": "../../",
-    "@dzakh/rescript-ava": "2.1.0"
+    "@dzakh/rescript-ava": "2.3.0"
   }
 }

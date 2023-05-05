@@ -20,10 +20,6 @@
     "error": true,
     "number": "-48-44"
   },
-  "bsc-flags": [
-    "-bs-super-errors",
-    "-open RescriptCore",
-    "-open RescriptStruct"
-  ],
+  "bsc-flags": ["-open RescriptCore", "-open RescriptStruct"],
   "uncurried": true
 }
