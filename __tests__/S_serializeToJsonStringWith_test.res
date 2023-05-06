@@ -3,7 +3,7 @@ open Ava
 test("Successfully parses", t => {
   let struct = S.bool()
 
-  t->Assert.deepEqual(true->S.serializeToJsonWith(struct), Ok("true"), ())
+  t->Assert.deepEqual(true->S.serializeToJsonStringWith(struct), Ok("true"), ())
 })
 
 test("Successfully parses object", t => {
@@ -18,7 +18,7 @@ test("Successfully parses object", t => {
     {
       "id": "0",
       "isDeleted": true,
-    }->S.serializeToJsonWith(struct),
+    }->S.serializeToJsonStringWith(struct),
     Ok(`{"id":"0","isDeleted":true}`),
     (),
   )
@@ -36,7 +36,7 @@ test("Successfully parses object with space", t => {
     {
       "id": "0",
       "isDeleted": true,
-    }->S.serializeToJsonWith(~space=2, struct),
+    }->S.serializeToJsonStringWith(~space=2, struct),
     Ok(`{
   "id": "0",
   "isDeleted": true
@@ -47,7 +47,7 @@ test("Successfully parses object with space", t => {
 
 test("Fails to serialize Unknown struct", t => {
   t->Assert.deepEqual(
-    Obj.magic(123)->S.serializeToJsonWith(S.unknown()),
+    Obj.magic(123)->S.serializeToJsonStringWith(S.unknown()),
     Error({
       code: InvalidJsonStruct({received: "Unknown"}),
       operation: Serializing,

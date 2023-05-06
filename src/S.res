@@ -1036,14 +1036,17 @@ let serializeWith = (value, struct) => {
   }
 }
 
-let serializeToJsonWith = (value: 'value, ~space=0, struct: t<'value>): result<string, Error.t> => {
+let serializeToJsonStringWith = (value: 'value, ~space=0, struct: t<'value>): result<
+  string,
+  Error.t,
+> => {
   switch value->serializeWith(struct) {
   | Ok(json) => Ok(json->Js.Json.stringifyWithSpace(space))
   | Error(_) as e => e
   }
 }
 
-let parseJsonWith = (json: string, struct: t<'value>): result<'value, Error.t> => {
+let parseJsonStringWith = (json: string, struct: t<'value>): result<'value, Error.t> => {
   switch try {
     json->Js.Json.parseExn->Ok
   } catch {

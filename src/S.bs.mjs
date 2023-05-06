@@ -739,7 +739,7 @@ function serializeWith(value, struct) {
   }
 }
 
-function serializeToJsonWith(value, spaceOpt, struct) {
+function serializeToJsonStringWith(value, spaceOpt, struct) {
   var space = spaceOpt !== undefined ? spaceOpt : 0;
   var json = serializeWith(value, struct);
   if (json.TAG === "Ok") {
@@ -752,7 +752,7 @@ function serializeToJsonWith(value, spaceOpt, struct) {
   }
 }
 
-function parseJsonWith(json, struct) {
+function parseJsonStringWith(json, struct) {
   var json$1;
   try {
     json$1 = {
@@ -3865,7 +3865,7 @@ export {
   variant ,
   parseWith ,
   parseAnyWith ,
-  parseJsonWith ,
+  parseJsonStringWith ,
   parseOrRaiseWith ,
   parseAnyOrRaiseWith ,
   parseAsyncWith ,
@@ -3874,7 +3874,7 @@ export {
   parseAnyAsyncInStepsWith ,
   serializeWith ,
   serializeToUnknownWith ,
-  serializeToJsonWith ,
+  serializeToJsonStringWith ,
   serializeOrRaiseWith ,
   serializeToUnknownOrRaiseWith ,
   isAsyncParse ,

@@ -1027,12 +1027,12 @@ data->S.parseAnyWith(userStruct)
 
 The same as `parseWith`, but the `data` is loosened to the abstract type.
 
-### **`S.parseJsonWith`**
+### **`S.parseJsonStringWith`**
 
 `(string, S.t<'value>) => result<'value, S.Error.t>`
 
 ```rescript
-json->S.parseJsonWith(userStruct)
+json->S.parseJsonStringWith(userStruct)
 ```
 
 The same as `parseWith`, but applies `JSON.parse` before parsing.
@@ -1107,12 +1107,12 @@ user->S.serializeToUnknownWith(userStruct)
 
 Similar to the `serializeWith` but returns `unknown` instead of `Js.Json.t`. Also, it doesn't check the struct on JSON compatibility.
 
-### **`S.serializeToJsonWith`**
+### **`S.serializeToJsonStringWith`**
 
 `('value, ~space: int=?, S.t<'value>) => result<string, S.Error.t>`
 
 ```rescript
-user->S.serializeToJsonWith(userStruct)
+user->S.serializeToJsonStringWith(userStruct)
 ```
 
 The same as `serializeToUnknownWith`, but applies `JSON.serialize` at the end.

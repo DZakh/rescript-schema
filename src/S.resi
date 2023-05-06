@@ -155,7 +155,7 @@ let parseWith: (Js.Json.t, t<'value>) => result<'value, Error.t>
 
 let parseAnyWith: ('any, t<'value>) => result<'value, Error.t>
 
-let parseJsonWith: (string, t<'value>) => result<'value, Error.t>
+let parseJsonStringWith: (string, t<'value>) => result<'value, Error.t>
 
 let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value
 
@@ -179,7 +179,7 @@ let serializeWith: ('value, t<'value>) => result<Js.Json.t, Error.t>
 
 let serializeToUnknownWith: ('value, t<'value>) => result<unknown, Error.t>
 
-let serializeToJsonWith: ('value, ~space: int=?, t<'value>) => result<string, Error.t>
+let serializeToJsonStringWith: ('value, ~space: int=?, t<'value>) => result<string, Error.t>
 
 let serializeOrRaiseWith: ('value, t<'value>) => Js.Json.t
 
