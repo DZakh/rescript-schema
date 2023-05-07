@@ -5,7 +5,7 @@ module CommonWithNested = {
   let any = %raw(`["Hello world!", ""]`)
   let wrongAny = %raw(`true`)
   let nestedWrongAny = %raw(`["Hello world!", 1]`)
-  let factory = () => S.list(S.string())
+  let factory = () => S.list(S.string)
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -49,7 +49,7 @@ module CommonWithNested = {
 }
 
 test("Successfully parses list of optional items", t => {
-  let struct = S.list(S.option(S.string()))
+  let struct = S.list(S.option(S.string))
 
   t->Assert.deepEqual(
     %raw(`["a", undefined, undefined, "b"]`)->S.parseAnyWith(struct),

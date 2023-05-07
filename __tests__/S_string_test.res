@@ -4,7 +4,7 @@ module Common = {
   let value = "ReScript is Great!"
   let any = %raw(`"ReScript is Great!"`)
   let wrongAny = %raw(`true`)
-  let factory = () => S.string()
+  let factory = () => S.string
 
   test("Successfully parses", t => {
     let struct = factory()

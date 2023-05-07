@@ -1767,39 +1767,35 @@ function transformationFactory(ctx) {
         }));
 }
 
-function factory$4(param) {
-  return {
-          n: "Never",
-          t: "Never",
-          pf: transformationFactory,
-          sf: transformationFactory,
-          r: 0,
-          e: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
-          i: "false",
-          m: emptyMetadataMap
-        };
-}
+var struct = {
+  n: "Never",
+  t: "Never",
+  pf: transformationFactory,
+  sf: transformationFactory,
+  r: 0,
+  e: 0,
+  s: initialSerialize,
+  j: initialSerializeToJson,
+  p: intitialParse,
+  a: intitialParseAsync,
+  i: "false",
+  m: emptyMetadataMap
+};
 
-function factory$5(param) {
-  return {
-          n: "Unknown",
-          t: "Unknown",
-          pf: empty,
-          sf: empty,
-          r: 0,
-          e: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
-          i: undefined,
-          m: emptyMetadataMap
-        };
-}
+var struct$1 = {
+  n: "Unknown",
+  t: "Unknown",
+  pf: empty,
+  sf: empty,
+  r: 0,
+  e: 0,
+  s: initialSerialize,
+  j: initialSerializeToJson,
+  p: intitialParse,
+  a: intitialParseAsync,
+  i: undefined,
+  m: emptyMetadataMap
+};
 
 var metadataId$1 = "rescript-struct:String.refinements";
 
@@ -1830,22 +1826,20 @@ function parseTransformationFactory(ctx) {
         }));
 }
 
-function factory$6(param) {
-  return {
-          n: "String",
-          t: "String",
-          pf: parseTransformationFactory,
-          sf: empty,
-          r: 0,
-          e: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
-          i: "typeof v===\"string\"",
-          m: emptyMetadataMap
-        };
-}
+var struct$2 = {
+  n: "String",
+  t: "String",
+  pf: parseTransformationFactory,
+  sf: empty,
+  r: 0,
+  e: 0,
+  s: initialSerialize,
+  j: initialSerializeToJson,
+  p: intitialParse,
+  a: intitialParseAsync,
+  i: "typeof v===\"string\"",
+  m: emptyMetadataMap
+};
 
 function min(struct, maybeMessage, length) {
   var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length.toString() + " or more characters long";
@@ -2004,7 +1998,7 @@ function trim(struct, param) {
   return transform(struct, transformer, undefined, transformer, undefined);
 }
 
-function factory$7(innerStruct) {
+function factory$4(innerStruct) {
   return {
           n: "JsonString",
           t: "String",
@@ -2075,22 +2069,20 @@ function parseTransformationFactory$1(ctx) {
         }));
 }
 
-function factory$8(param) {
-  return {
-          n: "Bool",
-          t: "Bool",
-          pf: parseTransformationFactory$1,
-          sf: empty,
-          r: 0,
-          e: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
-          i: "typeof v===\"boolean\"",
-          m: emptyMetadataMap
-        };
-}
+var struct$3 = {
+  n: "Bool",
+  t: "Bool",
+  pf: parseTransformationFactory$1,
+  sf: empty,
+  r: 0,
+  e: 0,
+  s: initialSerialize,
+  j: initialSerializeToJson,
+  p: intitialParse,
+  a: intitialParseAsync,
+  i: "typeof v===\"boolean\"",
+  m: emptyMetadataMap
+};
 
 var metadataId$2 = "rescript-struct:Int.refinements";
 
@@ -2113,22 +2105,20 @@ function parseTransformationFactory$2(ctx) {
         }));
 }
 
-function factory$9(param) {
-  return {
-          n: "Int",
-          t: "Int",
-          pf: parseTransformationFactory$2,
-          sf: empty,
-          r: 0,
-          e: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
-          i: "typeof v===\"number\"&&v<2147483648&&v>-2147483649&&v%1===0",
-          m: emptyMetadataMap
-        };
-}
+var struct$4 = {
+  n: "Int",
+  t: "Int",
+  pf: parseTransformationFactory$2,
+  sf: empty,
+  r: 0,
+  e: 0,
+  s: initialSerialize,
+  j: initialSerializeToJson,
+  p: intitialParse,
+  a: intitialParseAsync,
+  i: "typeof v===\"number\"&&v<2147483648&&v>-2147483649&&v%1===0",
+  m: emptyMetadataMap
+};
 
 function min$1(struct, maybeMessage, minValue) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue.toString();
@@ -2199,22 +2189,20 @@ function parseTransformationFactory$3(ctx) {
         }));
 }
 
-function factory$10(param) {
-  return {
-          n: "Float",
-          t: "Float",
-          pf: parseTransformationFactory$3,
-          sf: empty,
-          r: 0,
-          e: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
-          i: "typeof v===\"number\"&&!Number.isNaN(v)",
-          m: emptyMetadataMap
-        };
-}
+var struct$5 = {
+  n: "Float",
+  t: "Float",
+  pf: parseTransformationFactory$3,
+  sf: empty,
+  r: 0,
+  e: 0,
+  s: initialSerialize,
+  j: initialSerializeToJson,
+  p: intitialParse,
+  a: intitialParseAsync,
+  i: "typeof v===\"number\"&&!Number.isNaN(v)",
+  m: emptyMetadataMap
+};
 
 function min$2(struct, maybeMessage, minValue) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue.toString();
@@ -2250,7 +2238,7 @@ function max$2(struct, maybeMessage, maxValue) {
             }, refiner);
 }
 
-function factory$11(innerStruct) {
+function factory$5(innerStruct) {
   return {
           n: "Null",
           t: {
@@ -2321,7 +2309,7 @@ function factory$11(innerStruct) {
         };
 }
 
-function factory$12(innerStruct) {
+function factory$6(innerStruct) {
   return {
           n: "Option",
           t: {
@@ -2395,7 +2383,7 @@ function refinements$3(struct) {
   }
 }
 
-function factory$13(innerStruct) {
+function factory$7(innerStruct) {
   return {
           n: "Array",
           t: {
@@ -2552,7 +2540,7 @@ function length$1(struct, maybeMessage, length$2) {
             }, refiner);
 }
 
-function factory$14(innerStruct) {
+function factory$8(innerStruct) {
   return {
           n: "Dict",
           t: {
@@ -2677,7 +2665,7 @@ function factory$14(innerStruct) {
 
 var metadataId$5 = "rescript-struct:Default";
 
-function factory$15(innerStruct, getDefaultValue) {
+function factory$9(innerStruct, getDefaultValue) {
   return set({
               n: innerStruct.n,
               t: innerStruct.t,
@@ -2746,7 +2734,7 @@ function classify$2(struct) {
   
 }
 
-function factory$16(structs) {
+function factory$10(structs) {
   var numberOfStructs = structs.length;
   return {
           n: "Tuple",
@@ -2908,17 +2896,17 @@ function factory$16(structs) {
 }
 
 function factoryFromArgs(param) {
-  return factory$16((Array.from(arguments)));
+  return factory$10((Array.from(arguments)));
 }
 
 var Tuple = {
-  factory: factory$16,
+  factory: factory$10,
   factoryFromArgs: factoryFromArgs
 };
 
 var HackyValidValue = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Union.HackyValidValue");
 
-function factory$17(structs) {
+function factory$11(structs) {
   if (structs.length < 2) {
     throw new Error("[rescript-struct] A Union struct factory require at least two structs.");
   }
@@ -3097,7 +3085,7 @@ function factory$17(structs) {
 }
 
 function list(innerStruct) {
-  return transform(factory$13(innerStruct), Belt_List.fromArray, undefined, Belt_List.toArray, undefined);
+  return transform(factory$7(innerStruct), Belt_List.fromArray, undefined, Belt_List.toArray, undefined);
 }
 
 function parse(input, ctx) {
@@ -3143,22 +3131,20 @@ function parseTransformationFactory$4(ctx) {
         }));
 }
 
-function json(param) {
-  return {
-          n: "JSON",
-          t: "JSON",
-          pf: parseTransformationFactory$4,
-          sf: empty,
-          r: 0,
-          e: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
-          i: undefined,
-          m: emptyMetadataMap
-        };
-}
+var json = {
+  n: "JSON",
+  t: "JSON",
+  pf: parseTransformationFactory$4,
+  sf: empty,
+  r: 0,
+  e: 0,
+  s: initialSerialize,
+  j: initialSerializeToJson,
+  p: intitialParse,
+  a: intitialParseAsync,
+  i: undefined,
+  m: emptyMetadataMap
+};
 
 function $$catch(struct, getFallbackValue) {
   return {
@@ -3253,7 +3239,7 @@ function $$catch(struct, getFallbackValue) {
 var deprecationMetadataId = "rescript-struct:deprecation";
 
 function deprecate(struct, message) {
-  return set(factory$12(struct), deprecationMetadataId, message);
+  return set(factory$6(struct), deprecationMetadataId, message);
 }
 
 function deprecation(struct) {
@@ -3378,25 +3364,25 @@ function internalInline(struct, maybeVariant, param) {
   if (typeof taggedLiteral !== "object") {
     switch (taggedLiteral) {
       case "Never" :
-          inlinedStruct = "S.never()";
+          inlinedStruct = "S.never";
           break;
       case "Unknown" :
-          inlinedStruct = "S.unknown()";
+          inlinedStruct = "S.unknown";
           break;
       case "String" :
-          inlinedStruct = "S.string()";
+          inlinedStruct = "S.string";
           break;
       case "Int" :
-          inlinedStruct = "S.int()";
+          inlinedStruct = "S.int";
           break;
       case "Float" :
-          inlinedStruct = "S.float()";
+          inlinedStruct = "S.float";
           break;
       case "Bool" :
-          inlinedStruct = "S.bool()";
+          inlinedStruct = "S.bool";
           break;
       case "JSON" :
-          inlinedStruct = "S.json()";
+          inlinedStruct = "S.json";
           break;
       
     }
@@ -3673,27 +3659,25 @@ function inline(struct) {
   return internalInline(struct, undefined, undefined);
 }
 
-function unit(param) {
-  return factory$1("EmptyOption", undefined);
-}
+var unit = factory$1("EmptyOption", undefined);
 
 function tuple0() {
-  return factory$16([]);
+  return factory$10([]);
 }
 
 function tuple1(v0) {
-  return factory$16([v0]);
+  return factory$10([v0]);
 }
 
 function tuple2(v0, v1) {
-  return factory$16([
+  return factory$10([
               v0,
               v1
             ]);
 }
 
 function tuple3(v0, v1, v2) {
-  return factory$16([
+  return factory$10([
               v0,
               v1,
               v2
@@ -3712,35 +3696,35 @@ var $$Error$1 = {
   toString: toString
 };
 
-var never = factory$4;
+var never = struct;
 
-var unknown = factory$5;
+var unknown = struct$1;
 
-var string = factory$6;
+var string = struct$2;
 
-var bool = factory$8;
+var bool = struct$3;
 
-var $$int = factory$9;
+var $$int = struct$4;
 
-var $$float = factory$10;
+var $$float = struct$5;
 
 var literal = factory$2;
 
 var literalVariant = factory$1;
 
-var array = factory$13;
+var array = factory$7;
 
-var dict = factory$14;
+var dict = factory$8;
 
-var option = factory$12;
+var option = factory$6;
 
-var $$null = factory$11;
+var $$null = factory$5;
 
-var jsonString = factory$7;
+var jsonString = factory$4;
 
-var union = factory$17;
+var union = factory$11;
 
-var $$default = factory$15;
+var $$default = factory$9;
 
 var variant = factory;
 
@@ -3840,6 +3824,7 @@ export {
   bool ,
   $$int ,
   $$float ,
+  json ,
   literal ,
   literalVariant ,
   array ,
@@ -3848,7 +3833,6 @@ export {
   option ,
   $$null ,
   jsonString ,
-  json ,
   union ,
   $$default ,
   $$default as default,
@@ -3908,4 +3892,4 @@ export {
   Metadata ,
   inline ,
 }
-/* No side effect */
+/* unit Not a pure module */

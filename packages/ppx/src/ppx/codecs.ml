@@ -7,14 +7,16 @@ let rec generate_constr_struct_expr { Location.txt = identifier; loc } type_args
     =
   let open Longident in
   match (identifier, type_args) with
-  | Lident "string", _ -> [%expr S.string ()]
-  | Lident "int", _ -> [%expr S.int ()]
+  | Lident "string", _ -> [%expr S.string]
+  | Lident "int", _ -> [%expr S.int]
   | Lident "int64", _ -> fail loc "Can't generate struct for `int64` type"
-  | Lident "float", _ -> [%expr S.float ()]
-  | Lident "bool", _ -> [%expr S.bool ()]
-  | Lident "unit", _ -> [%expr S.unit ()]
-  | Lident "unknown", _ -> [%expr S.unknown ()]
-  | Ldot (Lident "S", "never"), _ -> [%expr S.never ()]
+  | Lident "float", _ -> [%expr S.float]
+  | Lident "bool", _ -> [%expr S.bool]
+  | Lident "unit", _ -> [%expr S.unit]
+  | Lident "unknown", _ -> [%expr S.unknown]
+  | Ldot (Lident "S", "never"), _ -> [%expr S.never]
+  | Ldot (Ldot (Lident "Js", "Json"), "t"), _ | Ldot (Lident "JSON", "t"), _ ->
+    [%expr S.json ]
   | Lident "array", [ item_type ] ->
       [%expr S.array [%e generate_struct_expr item_type]]
   | Lident "list", [ item_type ] ->
@@ -26,8 +28,6 @@ let rec generate_constr_struct_expr { Location.txt = identifier; loc } type_args
   | Ldot (Ldot (Lident "Js", "Dict"), "t"), [ item_type ]
   | Ldot (Lident "Dict", "t"), [ item_type ] ->
       [%expr S.dict [%e generate_struct_expr item_type]]
-  | Ldot (Ldot (Lident "Js", "Json"), "t"), _ | Ldot (Lident "JSON", "t"), _ ->
-      [%expr S.json ()]
   | Lident s, _ -> make_ident_expr (get_generated_struct_name s)
   | Ldot (left, right), _ ->
       Exp.ident (mknoloc (Ldot (left, get_generated_struct_name right)))

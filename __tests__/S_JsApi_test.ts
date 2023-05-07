@@ -4,7 +4,7 @@ import { expectType, TypeEqual } from "ts-expect";
 import * as S from "../src/S_JsApi.js";
 
 test("Successfully parses string", (t) => {
-  const struct = S.string();
+  const struct = S.string;
   const value = struct.parseOrThrow("123");
 
   t.deepEqual(value, "123");
@@ -14,7 +14,7 @@ test("Successfully parses string", (t) => {
 });
 
 test("Successfully parses int", (t) => {
-  const struct = S.integer();
+  const struct = S.integer;
   const value = struct.parseOrThrow(123);
 
   t.deepEqual(value, 123);
@@ -24,7 +24,7 @@ test("Successfully parses int", (t) => {
 });
 
 test("Successfully parses float", (t) => {
-  const struct = S.number();
+  const struct = S.number;
   const value = struct.parseOrThrow(123.4);
 
   t.deepEqual(value, 123.4);
@@ -34,7 +34,7 @@ test("Successfully parses float", (t) => {
 });
 
 test("Successfully parses bool", (t) => {
-  const struct = S.boolean();
+  const struct = S.boolean;
   const value = struct.parseOrThrow(true);
 
   t.deepEqual(value, true);
@@ -44,7 +44,7 @@ test("Successfully parses bool", (t) => {
 });
 
 test("Successfully parses unknown", (t) => {
-  const struct = S.unknown();
+  const struct = S.unknown;
   const value = struct.parseOrThrow(true);
 
   t.deepEqual(value, true);
@@ -54,7 +54,7 @@ test("Successfully parses unknown", (t) => {
 });
 
 test("Successfully parses json", (t) => {
-  const struct = S.json();
+  const struct = S.json;
   const value = struct.parseOrThrow(true);
 
   t.deepEqual(value, true);
@@ -64,7 +64,7 @@ test("Successfully parses json", (t) => {
 });
 
 test("Fails to parse never", (t) => {
-  const struct = S.never();
+  const struct = S.never;
 
   t.throws(
     () => {
@@ -81,7 +81,7 @@ test("Fails to parse never", (t) => {
 });
 
 test("Successfully parses array", (t) => {
-  const struct = S.array(S.string());
+  const struct = S.array(S.string);
   const value = struct.parseOrThrow(["foo"]);
 
   t.deepEqual(value, ["foo"]);
@@ -91,7 +91,7 @@ test("Successfully parses array", (t) => {
 });
 
 test("Successfully parses record", (t) => {
-  const struct = S.record(S.string());
+  const struct = S.record(S.string);
   const value = struct.parseOrThrow({ foo: "bar" });
 
   t.deepEqual(value, { foo: "bar" });
@@ -101,7 +101,7 @@ test("Successfully parses record", (t) => {
 });
 
 test("Successfully parses JSON string", (t) => {
-  const struct = S.jsonString(S.string());
+  const struct = S.jsonString(S.string);
   const value = struct.parseOrThrow(`"foo"`);
 
   t.deepEqual(value, "foo");
@@ -111,7 +111,7 @@ test("Successfully parses JSON string", (t) => {
 });
 
 test("Successfully parses optional string when optional applied as a function", (t) => {
-  const struct = S.optional(S.string());
+  const struct = S.optional(S.string);
   const value1 = struct.parseOrThrow("foo");
   const value2 = struct.parseOrThrow(undefined);
 
@@ -124,7 +124,7 @@ test("Successfully parses optional string when optional applied as a function", 
 });
 
 test("Successfully parses optional string when optional applied as a method", (t) => {
-  const struct = S.string().optional();
+  const struct = S.string.optional();
   const value1 = struct.parseOrThrow("foo");
   const value2 = struct.parseOrThrow(undefined);
 
@@ -137,7 +137,7 @@ test("Successfully parses optional string when optional applied as a method", (t
 });
 
 test("Successfully parses struct wrapped in optional multiple times", (t) => {
-  const struct = S.string().optional().optional().optional();
+  const struct = S.string.optional().optional().optional();
   const value1 = struct.parseOrThrow("foo");
   const value2 = struct.parseOrThrow(undefined);
 
@@ -150,7 +150,7 @@ test("Successfully parses struct wrapped in optional multiple times", (t) => {
 });
 
 test("Successfully parses nullable string when nullable applied as a function", (t) => {
-  const struct = S.nullable(S.string());
+  const struct = S.nullable(S.string);
   const value1 = struct.parseOrThrow("foo");
   const value2 = struct.parseOrThrow(null);
 
@@ -163,7 +163,7 @@ test("Successfully parses nullable string when nullable applied as a function", 
 });
 
 test("Successfully parses nullable string when nullable applied as a method", (t) => {
-  const struct = S.string().nullable();
+  const struct = S.string.nullable();
   const value1 = struct.parseOrThrow("foo");
   const value2 = struct.parseOrThrow(null);
 
@@ -176,7 +176,7 @@ test("Successfully parses nullable string when nullable applied as a method", (t
 });
 
 test("Successfully parses struct wrapped in nullable multiple times", (t) => {
-  const struct = S.string().nullable().nullable().nullable();
+  const struct = S.string.nullable().nullable().nullable();
   const value1 = struct.parseOrThrow("foo");
   const value2 = struct.parseOrThrow(null);
 
@@ -189,7 +189,7 @@ test("Successfully parses struct wrapped in nullable multiple times", (t) => {
 });
 
 test("Fails to parse with invalid data", (t) => {
-  const struct = S.string();
+  const struct = S.string;
 
   t.throws(
     () => {
@@ -204,7 +204,7 @@ test("Fails to parse with invalid data", (t) => {
 });
 
 test("Successfully serializes with valid value", (t) => {
-  const struct = S.string();
+  const struct = S.string;
   const result = struct.serializeOrThrow("123");
 
   t.deepEqual(result, "123");
@@ -213,7 +213,7 @@ test("Successfully serializes with valid value", (t) => {
 });
 
 test("Fails to serialize never", (t) => {
-  const struct = S.never();
+  const struct = S.never;
 
   t.throws(
     () => {
@@ -229,7 +229,7 @@ test("Fails to serialize never", (t) => {
 });
 
 test("Successfully parses with transform to another type", (t) => {
-  const struct = S.string().transform((string) => Number(string));
+  const struct = S.string.transform((string) => Number(string));
   const value = struct.parseOrThrow("123");
 
   t.deepEqual(value, 123);
@@ -238,7 +238,7 @@ test("Successfully parses with transform to another type", (t) => {
 });
 
 test("Successfully serializes with transform to another type", (t) => {
-  const struct = S.string().transform(
+  const struct = S.string.transform(
     (string) => Number(string),
     (number) => {
       expectType<TypeEqual<typeof number, number>>(true);
@@ -253,7 +253,7 @@ test("Successfully serializes with transform to another type", (t) => {
 });
 
 test("Successfully parses with refine", (t) => {
-  const struct = S.string().refine((string) => {
+  const struct = S.string.refine((string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
   const value = struct.parseOrThrow("123");
@@ -264,7 +264,7 @@ test("Successfully parses with refine", (t) => {
 });
 
 test("Successfully serializes with refine", (t) => {
-  const struct = S.string().refine(undefined, (string) => {
+  const struct = S.string.refine(undefined, (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
   const result = struct.serializeOrThrow("123");
@@ -275,7 +275,7 @@ test("Successfully serializes with refine", (t) => {
 });
 
 test("Fails to parses with refine raising an error", (t) => {
-  const struct = S.string().refine((_) => {
+  const struct = S.string.refine((_) => {
     S.fail("User error");
   });
 
@@ -291,7 +291,7 @@ test("Fails to parses with refine raising an error", (t) => {
 });
 
 test("Successfully parses async struct", async (t) => {
-  const struct = S.string().asyncRefine(async (string) => {
+  const struct = S.string.asyncRefine(async (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
   const value = await struct.parseAsync("123");
@@ -302,7 +302,7 @@ test("Successfully parses async struct", async (t) => {
 });
 
 test("Fails to parses async struct", async (t) => {
-  const struct = S.string().asyncRefine(async (_) => {
+  const struct = S.string.asyncRefine(async (_) => {
     return Promise.resolve().then(() => {
       S.fail("User error");
     });
@@ -361,8 +361,8 @@ test("Custom string struct", (t) => {
 
 test("Successfully parses object by provided shape", (t) => {
   const struct = S.object({
-    foo: S.string(),
-    bar: S.boolean(),
+    foo: S.string,
+    bar: S.boolean,
   });
   const value = struct.parseOrThrow({
     foo: "bar",
@@ -396,7 +396,7 @@ test("Successfully parses object by provided shape", (t) => {
 
 test("Fails to parse strict object with exccess fields", (t) => {
   const struct = S.object({
-    foo: S.string(),
+    foo: S.string,
   }).strict();
 
   t.throws(
@@ -431,7 +431,7 @@ test("Fails to parse strict object with exccess fields", (t) => {
 
 test("Resets object strict mode with strip method", (t) => {
   const struct = S.object({
-    foo: S.string(),
+    foo: S.string,
   })
     .strict()
     .strip();
@@ -462,7 +462,7 @@ test("Resets object strict mode with strip method", (t) => {
 });
 
 test("Successfully parses and returns result", (t) => {
-  const struct = S.string();
+  const struct = S.string;
   const value = struct.parse("123");
 
   t.deepEqual(value, { success: true, value: "123" });
@@ -492,7 +492,7 @@ test("Successfully parses and returns result", (t) => {
 });
 
 test("Successfully serializes and returns result", (t) => {
-  const struct = S.string();
+  const struct = S.string;
   const value = struct.serialize("123");
 
   t.deepEqual(value, { success: true, value: "123" });
@@ -521,7 +521,7 @@ test("Successfully serializes and returns result", (t) => {
 });
 
 test("Successfully parses union", (t) => {
-  const struct = S.union([S.string(), S.number()]);
+  const struct = S.union([S.string, S.number]);
   const value = struct.parse("123");
 
   t.deepEqual(value, { success: true, value: "123" });
@@ -570,7 +570,7 @@ test("Null literal", (t) => {
 });
 
 test("NaN struct", (t) => {
-  const struct = S.nan();
+  const struct = S.nan;
 
   t.deepEqual(struct.parseOrThrow(NaN), undefined);
 
@@ -605,16 +605,14 @@ test("Fails to create Symbol literal. It's not supported", (t) => {
 });
 
 test("Correctly infers type", (t) => {
-  const struct = S.string();
+  const struct = S.string;
   expectType<TypeEqual<typeof struct, S.Struct<string>>>(true);
   expectType<TypeEqual<S.Infer<typeof struct>, string>>(true);
   t.pass();
 });
 
 test("Successfully parses undefined using the default value", (t) => {
-  const struct = S.string()
-    .optional()
-    .default(() => "foo");
+  const struct = S.string.optional().default(() => "foo");
 
   const value = struct.parseOrThrow(undefined);
 
@@ -624,7 +622,7 @@ test("Successfully parses undefined using the default value", (t) => {
 });
 
 test("Creates struct with description", (t) => {
-  const undocumentedStringStruct = S.string();
+  const undocumentedStringStruct = S.string;
 
   expectType<TypeEqual<typeof undocumentedStringStruct, S.Struct<string>>>(
     true
@@ -656,7 +654,7 @@ test("Empty tuple", (t) => {
 });
 
 test("Tuple with single element", (t) => {
-  const struct = S.tuple([S.string()]);
+  const struct = S.tuple([S.string]);
 
   t.deepEqual(struct.parseOrThrow(["foo"]), "foo");
 
@@ -664,7 +662,7 @@ test("Tuple with single element", (t) => {
 });
 
 test("Tuple with multiple elements", (t) => {
-  const struct = S.tuple([S.string(), S.number()]);
+  const struct = S.tuple([S.string, S.number]);
 
   t.deepEqual(struct.parseOrThrow(["foo", 123]), ["foo", 123]);
 
@@ -673,7 +671,7 @@ test("Tuple with multiple elements", (t) => {
 
 test("Example", (t) => {
   const User = S.object({
-    username: S.string(),
+    username: S.string,
   });
 
   t.deepEqual(User.parseOrThrow({ username: "Ludwig" }), {

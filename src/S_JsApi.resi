@@ -29,13 +29,14 @@ type rec struct<'value> = {
 
 let fail: string => 'a
 
-let string: unit => struct<string>
-let boolean: unit => struct<bool>
-let integer: unit => struct<int>
-let number: unit => struct<float>
-let never: unit => struct<S.never>
-let unknown: unit => struct<unknown>
-let json: unit => struct<Js.Json.t>
+let string: struct<string>
+let boolean: struct<bool>
+let integer: struct<int>
+let number: struct<float>
+let never: struct<S.never>
+let unknown: struct<unknown>
+let json: struct<Js.Json.t>
+let nan: struct<unit>
 
 let optional: struct<'value> => struct<option<'value>>
 let nullable: struct<'value> => struct<option<'value>>
@@ -44,7 +45,6 @@ let record: struct<'value> => struct<Js.Dict.t<'value>>
 let jsonString: struct<'value> => struct<'value>
 let union: array<struct<unknown>> => struct<unknown>
 let literal: 'value => struct<'value>
-let nan: unit => struct<unit>
 let tuple: array<struct<unknown>> => struct<array<unknown>>
 
 let custom: (

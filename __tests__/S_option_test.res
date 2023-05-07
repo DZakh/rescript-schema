@@ -4,7 +4,7 @@ module Common = {
   let value = None
   let any = %raw(`undefined`)
   let wrongAny = %raw(`123.45`)
-  let factory = () => S.option(S.string())
+  let factory = () => S.option(S.string)
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -34,13 +34,13 @@ module Common = {
 }
 
 test("Successfully parses primitive", t => {
-  let struct = S.option(S.bool())
+  let struct = S.option(S.bool)
 
   t->Assert.deepEqual(Js.Json.boolean(true)->S.parseAnyWith(struct), Ok(Some(true)), ())
 })
 
 test("Fails to parse JS null", t => {
-  let struct = S.option(S.bool())
+  let struct = S.option(S.bool)
 
   t->Assert.deepEqual(
     %raw(`null`)->S.parseAnyWith(struct),
@@ -54,7 +54,7 @@ test("Fails to parse JS null", t => {
 })
 
 test("Fails to parse JS undefined when struct doesn't allow optional data", t => {
-  let struct = S.bool()
+  let struct = S.bool
 
   t->Assert.deepEqual(
     %raw(`undefined`)->S.parseAnyWith(struct),

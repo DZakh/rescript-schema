@@ -15,7 +15,7 @@ test("Throws for a Union struct factory without structs", t => {
 test("Throws for a Union struct factory with single struct", t => {
   t->Assert.throws(
     () => {
-      S.union([S.string()])
+      S.union([S.string])
     },
     ~expectations={
       message: "[rescript-struct] A Union struct factory require at least two structs.",
@@ -26,7 +26,7 @@ test("Throws for a Union struct factory with single struct", t => {
 
 test("Successfully creates a Union struct factory with two structs", t => {
   t->Assert.notThrows(() => {
-    S.union([S.string(), S.string()])->ignore
+    S.union([S.string, S.string])->ignore
   }, ())
 })
 
@@ -52,20 +52,20 @@ module Advanced = {
     S.object(o => {
       ignore(o->S.field("kind", S.literal(String("circle"))))
       Circle({
-        radius: o->S.field("radius", S.float()),
+        radius: o->S.field("radius", S.float),
       })
     }),
     S.object(o => {
       ignore(o->S.field("kind", S.literal(String("square"))))
       Square({
-        x: o->S.field("x", S.float()),
+        x: o->S.field("x", S.float),
       })
     }),
     S.object(o => {
       ignore(o->S.field("kind", S.literal(String("triangle"))))
       Triangle({
-        x: o->S.field("x", S.float()),
-        y: o->S.field("y", S.float()),
+        x: o->S.field("x", S.float),
+        y: o->S.field("y", S.float),
       })
     }),
   ])
@@ -169,13 +169,13 @@ module Advanced = {
       S.object(o => {
         ignore(o->S.field("kind", S.literal(String("circle"))))
         Circle({
-          radius: o->S.field("radius", S.float()),
+          radius: o->S.field("radius", S.float),
         })
       }),
       S.object(o => {
         ignore(o->S.field("kind", S.literal(String("square"))))
         Square({
-          x: o->S.field("x", S.float()),
+          x: o->S.field("x", S.float),
         })
       }),
     ])

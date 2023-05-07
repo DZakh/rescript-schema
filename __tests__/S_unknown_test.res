@@ -2,7 +2,7 @@ open Ava
 
 module Common = {
   let any = %raw(`"Hello world!"`)
-  let factory = () => S.unknown()
+  let factory = () => S.unknown
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -18,7 +18,7 @@ module Common = {
 }
 
 test("Doesn't return refinements", t => {
-  let struct = S.unknown()
+  let struct = S.unknown
   t->Assert.deepEqual(struct->S.String.refinements, [], ())
   t->Assert.deepEqual(struct->S.Array.refinements, [], ())
   t->Assert.deepEqual(struct->S.Int.refinements, [], ())

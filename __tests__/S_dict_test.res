@@ -5,7 +5,7 @@ module CommonWithNested = {
   let any = %raw(`{"key1":"value1","key2":"value2"}`)
   let wrongAny = %raw(`true`)
   let nestedWrongAny = %raw(`{"key1":"value1","key2":true}`)
-  let factory = () => S.dict(S.string())
+  let factory = () => S.dict(S.string)
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -49,7 +49,7 @@ module CommonWithNested = {
 }
 
 test("Successfully parses dict with int keys", t => {
-  let struct = S.dict(S.string())
+  let struct = S.dict(S.string)
 
   t->Assert.deepEqual(
     %raw(`{1:"b",2:"d"}`)->S.parseAnyWith(struct),
@@ -59,7 +59,7 @@ test("Successfully parses dict with int keys", t => {
 })
 
 test("Successfully parses dict with optional items", t => {
-  let struct = S.dict(S.option(S.string()))
+  let struct = S.dict(S.option(S.string))
 
   t->Assert.deepEqual(
     %raw(`{"key1":"value1","key2":undefined}`)->S.parseAnyWith(struct),

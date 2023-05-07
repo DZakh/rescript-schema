@@ -133,41 +133,6 @@ function $$default(def) {
   return Object.assign(struct$1, structOperations);
 }
 
-function string(param) {
-  var struct = S$RescriptStruct.string(undefined);
-  return Object.assign(struct, structOperations);
-}
-
-function $$boolean(param) {
-  var struct = S$RescriptStruct.bool(undefined);
-  return Object.assign(struct, structOperations);
-}
-
-function integer(param) {
-  var struct = S$RescriptStruct.$$int(undefined);
-  return Object.assign(struct, structOperations);
-}
-
-function number(param) {
-  var struct = S$RescriptStruct.$$float(undefined);
-  return Object.assign(struct, structOperations);
-}
-
-function never(param) {
-  var struct = S$RescriptStruct.never(undefined);
-  return Object.assign(struct, structOperations);
-}
-
-function unknown(param) {
-  var struct = S$RescriptStruct.unknown(undefined);
-  return Object.assign(struct, structOperations);
-}
-
-function json(param) {
-  var struct = S$RescriptStruct.json(undefined);
-  return Object.assign(struct, structOperations);
-}
-
 function optional(struct) {
   var struct$1 = S$RescriptStruct.option(struct);
   return Object.assign(struct$1, structOperations);
@@ -228,11 +193,6 @@ function literal(value) {
   return Object.assign(struct, structOperations);
 }
 
-function nan(param) {
-  var struct = S$RescriptStruct.literal("NaN");
-  return Object.assign(struct, structOperations);
-}
-
 function custom(name, parser, serializer) {
   var struct = S$RescriptStruct.custom(name, parser, undefined, serializer, undefined);
   return Object.assign(struct, structOperations);
@@ -257,6 +217,24 @@ Object.assign(structOperations, {
       description: description,
       default: $$default
     });
+
+var string = Object.assign(S$RescriptStruct.string, structOperations);
+
+var $$boolean = Object.assign(S$RescriptStruct.bool, structOperations);
+
+var integer = Object.assign(S$RescriptStruct.$$int, structOperations);
+
+var number = Object.assign(S$RescriptStruct.$$float, structOperations);
+
+var never = Object.assign(S$RescriptStruct.never, structOperations);
+
+var unknown = Object.assign(S$RescriptStruct.unknown, structOperations);
+
+var json = Object.assign(S$RescriptStruct.json, structOperations);
+
+var struct = S$RescriptStruct.literal("NaN");
+
+var nan = Object.assign(struct, structOperations);
 
 var objectStructOperations = {};
 
@@ -309,6 +287,7 @@ export {
   never ,
   unknown ,
   json ,
+  nan ,
   optional ,
   nullable ,
   array ,
@@ -316,7 +295,6 @@ export {
   jsonString ,
   union ,
   literal ,
-  nan ,
   tuple ,
   custom ,
   $$Object ,

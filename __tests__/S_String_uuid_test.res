@@ -1,7 +1,7 @@
 open Ava
 
 test("Successfully parses valid data", t => {
-  let struct = S.string()->S.String.uuid()
+  let struct = S.string->S.String.uuid()
 
   t->Assert.deepEqual(
     "123e4567-e89b-12d3-a456-426614174000"->S.parseAnyWith(struct),
@@ -11,7 +11,7 @@ test("Successfully parses valid data", t => {
 })
 
 test("Fails to parse invalid data", t => {
-  let struct = S.string()->S.String.uuid()
+  let struct = S.string->S.String.uuid()
 
   t->Assert.deepEqual(
     "123e4567"->S.parseAnyWith(struct),
@@ -25,7 +25,7 @@ test("Fails to parse invalid data", t => {
 })
 
 test("Successfully serializes valid value", t => {
-  let struct = S.string()->S.String.uuid()
+  let struct = S.string->S.String.uuid()
 
   t->Assert.deepEqual(
     "123e4567-e89b-12d3-a456-426614174000"->S.serializeToUnknownWith(struct),
@@ -35,7 +35,7 @@ test("Successfully serializes valid value", t => {
 })
 
 test("Fails to serialize invalid value", t => {
-  let struct = S.string()->S.String.uuid()
+  let struct = S.string->S.String.uuid()
 
   t->Assert.deepEqual(
     "123e4567"->S.serializeToUnknownWith(struct),
@@ -49,7 +49,7 @@ test("Fails to serialize invalid value", t => {
 })
 
 test("Returns custom error message", t => {
-  let struct = S.string()->S.String.uuid(~message="Custom", ())
+  let struct = S.string->S.String.uuid(~message="Custom", ())
 
   t->Assert.deepEqual(
     "abc"->S.parseAnyWith(struct),

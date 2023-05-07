@@ -14,10 +14,6 @@ function run(suite) {
           })).run();
 }
 
-function makeStringStruct() {
-  return S$RescriptStruct.string(undefined);
-}
-
 function makeTestObject() {
   return (Object.freeze({
     number: 1,
@@ -38,17 +34,17 @@ function makeTestObject() {
 function makeAdvancedObjectStruct() {
   return S$RescriptStruct.object(function (o) {
               return {
-                      number: S$RescriptStruct.field(o, "number", S$RescriptStruct.$$float(undefined)),
-                      negNumber: S$RescriptStruct.field(o, "negNumber", S$RescriptStruct.$$float(undefined)),
-                      maxNumber: S$RescriptStruct.field(o, "maxNumber", S$RescriptStruct.$$float(undefined)),
-                      string: S$RescriptStruct.field(o, "string", S$RescriptStruct.string(undefined)),
-                      longString: S$RescriptStruct.field(o, "longString", S$RescriptStruct.string(undefined)),
-                      boolean: S$RescriptStruct.field(o, "boolean", S$RescriptStruct.bool(undefined)),
+                      number: S$RescriptStruct.field(o, "number", S$RescriptStruct.$$float),
+                      negNumber: S$RescriptStruct.field(o, "negNumber", S$RescriptStruct.$$float),
+                      maxNumber: S$RescriptStruct.field(o, "maxNumber", S$RescriptStruct.$$float),
+                      string: S$RescriptStruct.field(o, "string", S$RescriptStruct.string),
+                      longString: S$RescriptStruct.field(o, "longString", S$RescriptStruct.string),
+                      boolean: S$RescriptStruct.field(o, "boolean", S$RescriptStruct.bool),
                       deeplyNested: S$RescriptStruct.field(o, "deeplyNested", S$RescriptStruct.object(function (o) {
                                 return {
-                                        foo: S$RescriptStruct.field(o, "foo", S$RescriptStruct.string(undefined)),
-                                        num: S$RescriptStruct.field(o, "num", S$RescriptStruct.$$float(undefined)),
-                                        bool: S$RescriptStruct.field(o, "bool", S$RescriptStruct.bool(undefined))
+                                        foo: S$RescriptStruct.field(o, "foo", S$RescriptStruct.string),
+                                        num: S$RescriptStruct.field(o, "num", S$RescriptStruct.$$float),
+                                        bool: S$RescriptStruct.field(o, "bool", S$RescriptStruct.bool)
                                       };
                               }))
                     };
@@ -58,32 +54,30 @@ function makeAdvancedObjectStruct() {
 function makeAdvancedStrictObjectStruct() {
   return S$RescriptStruct.$$Object.strict(S$RescriptStruct.object(function (o) {
                   return {
-                          number: S$RescriptStruct.field(o, "number", S$RescriptStruct.$$float(undefined)),
-                          negNumber: S$RescriptStruct.field(o, "negNumber", S$RescriptStruct.$$float(undefined)),
-                          maxNumber: S$RescriptStruct.field(o, "maxNumber", S$RescriptStruct.$$float(undefined)),
-                          string: S$RescriptStruct.field(o, "string", S$RescriptStruct.string(undefined)),
-                          longString: S$RescriptStruct.field(o, "longString", S$RescriptStruct.string(undefined)),
-                          boolean: S$RescriptStruct.field(o, "boolean", S$RescriptStruct.bool(undefined)),
+                          number: S$RescriptStruct.field(o, "number", S$RescriptStruct.$$float),
+                          negNumber: S$RescriptStruct.field(o, "negNumber", S$RescriptStruct.$$float),
+                          maxNumber: S$RescriptStruct.field(o, "maxNumber", S$RescriptStruct.$$float),
+                          string: S$RescriptStruct.field(o, "string", S$RescriptStruct.string),
+                          longString: S$RescriptStruct.field(o, "longString", S$RescriptStruct.string),
+                          boolean: S$RescriptStruct.field(o, "boolean", S$RescriptStruct.bool),
                           deeplyNested: S$RescriptStruct.field(o, "deeplyNested", S$RescriptStruct.$$Object.strict(S$RescriptStruct.object(function (o) {
                                         return {
-                                                foo: S$RescriptStruct.field(o, "foo", S$RescriptStruct.string(undefined)),
-                                                num: S$RescriptStruct.field(o, "num", S$RescriptStruct.$$float(undefined)),
-                                                bool: S$RescriptStruct.field(o, "bool", S$RescriptStruct.bool(undefined))
+                                                foo: S$RescriptStruct.field(o, "foo", S$RescriptStruct.string),
+                                                num: S$RescriptStruct.field(o, "num", S$RescriptStruct.$$float),
+                                                bool: S$RescriptStruct.field(o, "bool", S$RescriptStruct.bool)
                                               };
                                       })))
                         };
                 }));
 }
 
-run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new (Benchmark.default.Suite)().add("String struct factory", makeStringStruct), "Parse string", (function (param) {
-                                  var struct = S$RescriptStruct.string(undefined);
+run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new (Benchmark.default.Suite)(), "Parse string", (function (param) {
                                   return function () {
-                                    return S$RescriptStruct.parseAnyOrRaiseWith("Hello world!", struct);
+                                    return S$RescriptStruct.parseAnyOrRaiseWith("Hello world!", S$RescriptStruct.string);
                                   };
                                 })), "Serialize string", (function (param) {
-                              var struct = S$RescriptStruct.string(undefined);
                               return function () {
-                                return S$RescriptStruct.serializeOrRaiseWith("Hello world!", struct);
+                                return S$RescriptStruct.serializeOrRaiseWith("Hello world!", S$RescriptStruct.string);
                               };
                             })).add("Advanced object struct factory", makeAdvancedObjectStruct), "Parse advanced object", (function (param) {
                         var struct = makeAdvancedObjectStruct(undefined);

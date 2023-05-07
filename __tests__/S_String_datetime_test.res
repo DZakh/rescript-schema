@@ -1,7 +1,7 @@
 open Ava
 
 test("Successfully parses valid data", t => {
-  let struct = S.string()->S.String.datetime()
+  let struct = S.string->S.String.datetime()
 
   t->Assert.deepEqual(
     "2020-01-01T00:00:00Z"->S.parseAnyWith(struct),
@@ -21,7 +21,7 @@ test("Successfully parses valid data", t => {
 })
 
 test("Fails to parse non UTC date string", t => {
-  let struct = S.string()->S.String.datetime()
+  let struct = S.string->S.String.datetime()
 
   t->Assert.deepEqual(
     "Thu Apr 20 2023 10:45:48 GMT+0400"->S.parseAnyWith(struct),
@@ -35,7 +35,7 @@ test("Fails to parse non UTC date string", t => {
 })
 
 test("Fails to parse UTC date with timezone offset", t => {
-  let struct = S.string()->S.String.datetime()
+  let struct = S.string->S.String.datetime()
 
   t->Assert.deepEqual(
     "2020-01-01T00:00:00+02:00"->S.parseAnyWith(struct),
@@ -49,7 +49,7 @@ test("Fails to parse UTC date with timezone offset", t => {
 })
 
 test("Uses custom message on failure", t => {
-  let struct = S.string()->S.String.datetime(~message="Invalid date", ())
+  let struct = S.string->S.String.datetime(~message="Invalid date", ())
 
   t->Assert.deepEqual(
     "Thu Apr 20 2023 10:45:48 GMT+0400"->S.parseAnyWith(struct),
@@ -63,7 +63,7 @@ test("Uses custom message on failure", t => {
 })
 
 test("Successfully serializes valid value", t => {
-  let struct = S.string()->S.String.datetime()
+  let struct = S.string->S.String.datetime()
 
   t->Assert.deepEqual(
     Js.Date.fromString("2020-01-01T00:00:00.123Z")->S.serializeToUnknownWith(struct),
@@ -73,7 +73,7 @@ test("Successfully serializes valid value", t => {
 })
 
 test("Trims precision to 3 digits when serializing", t => {
-  let struct = S.string()->S.String.datetime()
+  let struct = S.string->S.String.datetime()
 
   t->Assert.deepEqual(
     Js.Date.fromString("2020-01-01T00:00:00.123456Z")->S.serializeToUnknownWith(struct),
@@ -83,7 +83,7 @@ test("Trims precision to 3 digits when serializing", t => {
 })
 
 test("Returns refinement", t => {
-  let struct = S.string()->S.String.datetime()
+  let struct = S.string->S.String.datetime()
 
   t->Assert.deepEqual(
     struct->S.String.refinements,

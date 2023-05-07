@@ -4,7 +4,7 @@ module Common = {
   let value = 123.
   let any = %raw(`123`)
   let wrongAny = %raw(`"Hello world!"`)
-  let factory = () => S.float()
+  let factory = () => S.float
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -34,13 +34,13 @@ module Common = {
 }
 
 test("Successfully parses number with a fractional part", t => {
-  let struct = S.float()
+  let struct = S.float
 
   t->Assert.deepEqual(%raw(`123.123`)->S.parseAnyWith(struct), Ok(123.123), ())
 })
 
 test("Fails to parse NaN", t => {
-  let struct = S.float()
+  let struct = S.float
 
   t->Assert.deepEqual(
     %raw(`NaN`)->S.parseAnyWith(struct),

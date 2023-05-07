@@ -4,7 +4,7 @@ module Common = {
   let value = 123
   let any = %raw(`123`)
   let wrongAny = %raw(`123.45`)
-  let factory = () => S.int()
+  let factory = () => S.int
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -34,7 +34,7 @@ module Common = {
 }
 
 test("Fails to parse int when JSON is a number bigger than +2^31", t => {
-  let struct = S.int()
+  let struct = S.int
 
   t->Assert.deepEqual(
     %raw(`2147483648`)->S.parseAnyWith(struct),
@@ -49,7 +49,7 @@ test("Fails to parse int when JSON is a number bigger than +2^31", t => {
 })
 
 test("Fails to parse int when JSON is a number lower than -2^31", t => {
-  let struct = S.int()
+  let struct = S.int
 
   t->Assert.deepEqual(
     %raw(`-2147483649`)->S.parseAnyWith(struct),
@@ -64,7 +64,7 @@ test("Fails to parse int when JSON is a number lower than -2^31", t => {
 })
 
 test("Fails to parse NaN", t => {
-  let struct = S.int()
+  let struct = S.int
 
   t->Assert.deepEqual(
     %raw(`NaN`)->S.parseAnyWith(struct),

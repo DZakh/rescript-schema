@@ -1,13 +1,13 @@
 open Ava
 
 test("Successfully parses valid data", t => {
-  let struct = S.string()->S.String.pattern(%re(`/[0-9]/`))
+  let struct = S.string->S.String.pattern(%re(`/[0-9]/`))
 
   t->Assert.deepEqual("123"->S.parseAnyWith(struct), Ok("123"), ())
 })
 
 test("Fails to parse invalid data", t => {
-  let struct = S.string()->S.String.pattern(%re(`/[0-9]/`))
+  let struct = S.string->S.String.pattern(%re(`/[0-9]/`))
 
   t->Assert.deepEqual(
     "abc"->S.parseAnyWith(struct),
@@ -21,13 +21,13 @@ test("Fails to parse invalid data", t => {
 })
 
 test("Successfully serializes valid value", t => {
-  let struct = S.string()->S.String.pattern(%re(`/[0-9]/`))
+  let struct = S.string->S.String.pattern(%re(`/[0-9]/`))
 
   t->Assert.deepEqual("123"->S.serializeToUnknownWith(struct), Ok(%raw(`"123"`)), ())
 })
 
 test("Fails to serialize invalid value", t => {
-  let struct = S.string()->S.String.pattern(%re(`/[0-9]/`))
+  let struct = S.string->S.String.pattern(%re(`/[0-9]/`))
 
   t->Assert.deepEqual(
     "abc"->S.serializeToUnknownWith(struct),
@@ -41,7 +41,7 @@ test("Fails to serialize invalid value", t => {
 })
 
 test("Returns custom error message", t => {
-  let struct = S.string()->S.String.pattern(~message="Custom", %re(`/[0-9]/`))
+  let struct = S.string->S.String.pattern(~message="Custom", %re(`/[0-9]/`))
 
   t->Assert.deepEqual(
     "abc"->S.parseAnyWith(struct),
@@ -55,7 +55,7 @@ test("Returns custom error message", t => {
 })
 
 test("Returns refinement", t => {
-  let struct = S.string()->S.String.pattern(%re(`/[0-9]/`))
+  let struct = S.string->S.String.pattern(%re(`/[0-9]/`))
 
   t->Assert.deepEqual(
     struct->S.String.refinements,
@@ -65,7 +65,7 @@ test("Returns refinement", t => {
 })
 
 test("Returns multiple refinement", t => {
-  let struct1 = S.string()
+  let struct1 = S.string
   let struct2 = struct1->S.String.pattern(~message="Should have digit", %re(`/[0-9]+/`))
   let struct3 = struct2->S.String.pattern(~message="Should have text", %re(`/\w+/`))
 

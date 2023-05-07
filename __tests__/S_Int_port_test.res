@@ -1,13 +1,13 @@
 open Ava
 
 test("Successfully parses valid data", t => {
-  let struct = S.int()->S.Int.port()
+  let struct = S.int->S.Int.port()
 
   t->Assert.deepEqual(8080->S.parseAnyWith(struct), Ok(8080), ())
 })
 
 test("Fails to parse invalid data", t => {
-  let struct = S.int()->S.Int.port()
+  let struct = S.int->S.Int.port()
 
   t->Assert.deepEqual(
     65536->S.parseAnyWith(struct),
@@ -21,13 +21,13 @@ test("Fails to parse invalid data", t => {
 })
 
 test("Successfully serializes valid value", t => {
-  let struct = S.int()->S.Int.port()
+  let struct = S.int->S.Int.port()
 
   t->Assert.deepEqual(8080->S.serializeToUnknownWith(struct), Ok(%raw(`8080`)), ())
 })
 
 test("Fails to serialize invalid value", t => {
-  let struct = S.int()->S.Int.port()
+  let struct = S.int->S.Int.port()
 
   t->Assert.deepEqual(
     -80->S.serializeToUnknownWith(struct),
@@ -41,7 +41,7 @@ test("Fails to serialize invalid value", t => {
 })
 
 test("Returns custom error message", t => {
-  let struct = S.int()->S.Int.port(~message="Custom", ())
+  let struct = S.int->S.Int.port(~message="Custom", ())
 
   t->Assert.deepEqual(
     400000->S.parseAnyWith(struct),
@@ -55,7 +55,7 @@ test("Returns custom error message", t => {
 })
 
 test("Returns refinement", t => {
-  let struct = S.int()->S.Int.port()
+  let struct = S.int->S.Int.port()
 
   t->Assert.deepEqual(struct->S.Int.refinements, [{kind: Port, message: "Invalid port"}], ())
 })

@@ -28,8 +28,8 @@
 
 ```
 let trimContract: S.contract<string => string> = S.contract(o => {
-  o.fn(o->S.arg(0, S.string()))
-}, ~return=S.string())
+  o.fn(o->S.arg(0, S.string))
+}, ~return=S.string)
 ```
 
 - Add docstrings
@@ -37,7 +37,7 @@ let trimContract: S.contract<string => string> = S.contract(o => {
 - Update tuple (???)
 
 ```
-let struct = S.tuple(o => (o->S.item(0, S.string()), o->S.item(1, S.int())))
+let struct = S.tuple(o => (o->S.item(0, S.string), o->S.item(1, S.int)))
 ```
 
 - Run struct factory validation checks only in dev mode
@@ -57,14 +57,14 @@ Next breaking release
 `(S.t<'value>, ~wrapper=S.t<'value> => S.t<option<'value>>=?, unit => 'value) => S.t<'value>`
 
 ```rescript
-let struct = S.string()->S.default(() => "Hello World!")
+let struct = S.string->S.default(() => "Hello World!")
 
 %raw(`undefined`)->S.parseWith(struct)
 // Ok("Hello World!")
 %raw(`"Goodbye World!"`)->S.parseWith(struct)
 // Ok("Goodbye World!")
 
-let struct = S.string()->S.default(~wrapper=S.null, () => "Hello World!")
+let struct = S.string->S.default(~wrapper=S.null, () => "Hello World!")
 
 %raw(`null`)->S.parseWith(struct)
 // Ok("Hello World!")

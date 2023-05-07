@@ -3,7 +3,7 @@ open Ava
 test("Successfully parses object with quotes in a field name", t => {
   let struct = S.object(o =>
     {
-      "field": o->S.field("\"\'\`", S.string()),
+      "field": o->S.field("\"\'\`", S.string),
     }
   )
 
@@ -13,7 +13,7 @@ test("Successfully parses object with quotes in a field name", t => {
 test("Successfully serializing object with quotes in a field name", t => {
   let struct = S.object(o =>
     {
-      "field": o->S.field("\"\'\`", S.string()),
+      "field": o->S.field("\"\'\`", S.string),
     }
   )
 
@@ -27,7 +27,7 @@ test("Successfully serializing object with quotes in a field name", t => {
 test("Successfully parses object transformed to object with quotes in a field name", t => {
   let struct = S.object(o =>
     {
-      "\"\'\`": o->S.field("field", S.string()),
+      "\"\'\`": o->S.field("field", S.string),
     }
   )
 
@@ -37,7 +37,7 @@ test("Successfully parses object transformed to object with quotes in a field na
 test("Successfully serializes object transformed to object with quotes in a field name", t => {
   let struct = S.object(o =>
     {
-      "\"\'\`": o->S.field("field", S.string()),
+      "\"\'\`": o->S.field("field", S.string),
     }
   )
 
@@ -52,7 +52,7 @@ test("Successfully parses object with discriminant which has quotes as the field
   let struct = S.object(o => {
     ignore(o->S.field("\"\'\`", S.literal(EmptyNull)))
     {
-      "field": o->S.field("field", S.string()),
+      "field": o->S.field("field", S.string),
     }
   })
 
@@ -70,7 +70,7 @@ test("Successfully serializes object with discriminant which has quotes as the f
   let struct = S.object(o => {
     ignore(o->S.field("\"\'\`", S.literal(EmptyNull)))
     {
-      "field": o->S.field("field", S.string()),
+      "field": o->S.field("field", S.string),
     }
   })
 
@@ -90,7 +90,7 @@ test("Successfully parses object with discriminant which has quotes as the liter
   let struct = S.object(o => {
     ignore(o->S.field("kind", S.literal(String("\"\'\`"))))
     {
-      "field": o->S.field("field", S.string()),
+      "field": o->S.field("field", S.string),
     }
   })
 
@@ -110,7 +110,7 @@ test(
     let struct = S.object(o => {
       ignore(o->S.field("kind", S.literal(String("\"\'\`"))))
       {
-        "field": o->S.field("field", S.string()),
+        "field": o->S.field("field", S.string),
       }
     })
 
@@ -133,7 +133,7 @@ test(
     let struct = S.object(o =>
       {
         "\"\'\`": "hardcoded",
-        "field": o->S.field("field", S.string()),
+        "field": o->S.field("field", S.string),
       }
     )
 
@@ -154,7 +154,7 @@ test(
     let struct = S.object(o =>
       {
         "\"\'\`": "hardcoded",
-        "field": o->S.field("field", S.string()),
+        "field": o->S.field("field", S.string),
       }
     )
 
@@ -175,7 +175,7 @@ test(
     let struct = S.object(o =>
       {
         "hardcoded": "\"\'\`",
-        "field": o->S.field("field", S.string()),
+        "field": o->S.field("field", S.string),
       }
     )
 
@@ -196,7 +196,7 @@ test(
     let struct = S.object(o =>
       {
         "hardcoded": "\"\'\`",
-        "field": o->S.field("field", S.string()),
+        "field": o->S.field("field", S.string),
       }
     )
 
@@ -214,7 +214,7 @@ test(
 test("Has proper error path when fails to parse object with quotes in a field name", t => {
   let struct = S.object(o =>
     {
-      "field": o->S.field("\"\'\`", S.string()->S.refine(~parser=_ => S.fail("User error"), ())),
+      "field": o->S.field("\"\'\`", S.string->S.refine(~parser=_ => S.fail("User error"), ())),
     }
   )
 
@@ -234,7 +234,7 @@ test("Has proper error path when fails to serialize object with quotes in a fiel
     Js.Dict.fromArray([
       (
         "\"\'\`",
-        o->S.field("field", S.string()->S.refine(~serializer=_ => S.fail("User error"), ())),
+        o->S.field("field", S.string->S.refine(~serializer=_ => S.fail("User error"), ())),
       ),
     ])
   )
@@ -253,7 +253,7 @@ test("Has proper error path when fails to serialize object with quotes in a fiel
 test("Field name in a format of a path is handled properly", t => {
   let struct = S.object(o =>
     {
-      "field": o->S.field(`["abc"]["cde"]`, S.string()),
+      "field": o->S.field(`["abc"]["cde"]`, S.string),
     }
   )
 

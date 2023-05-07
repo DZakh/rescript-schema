@@ -7,7 +7,7 @@ test("Works", t => {
   let value = ("a", 1, true)
   let any = %raw(`['a', 1, true]`)
 
-  let struct = tuple3(. S.string(), S.int(), S.bool())
+  let struct = tuple3(. S.string, S.int, S.bool)
 
   t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
 })

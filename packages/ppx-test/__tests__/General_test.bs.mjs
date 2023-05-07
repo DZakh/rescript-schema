@@ -4,32 +4,32 @@ import Ava from "ava";
 import * as TestUtils from "./TestUtils.bs.mjs";
 import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
 
-var struct = S$RescriptStruct.string(undefined);
-
 Ava("Creates struct with the name struct from t type", (function (t) {
-        TestUtils.assertEqualStructs(t, struct, S$RescriptStruct.string(undefined), undefined, undefined);
+        TestUtils.assertEqualStructs(t, S$RescriptStruct.string, S$RescriptStruct.string, undefined, undefined);
       }));
 
-var fooStruct = S$RescriptStruct.$$int(undefined);
-
 Ava("Creates struct with the type name and struct at the for non t types", (function (t) {
-        TestUtils.assertEqualStructs(t, fooStruct, S$RescriptStruct.$$int(undefined), undefined, undefined);
+        TestUtils.assertEqualStructs(t, S$RescriptStruct.$$int, S$RescriptStruct.$$int, undefined, undefined);
       }));
 
 var reusedTypesStruct = S$RescriptStruct.Tuple.factory([
-      struct,
-      fooStruct,
-      S$RescriptStruct.bool(undefined),
-      S$RescriptStruct.$$float(undefined)
+      S$RescriptStruct.string,
+      S$RescriptStruct.$$int,
+      S$RescriptStruct.bool,
+      S$RescriptStruct.$$float
     ]);
 
 Ava("Can reuse structs from other types", (function (t) {
-        TestUtils.assertEqualStructs(t, reusedTypesStruct, S$RescriptStruct.tuple4(struct, fooStruct, S$RescriptStruct.bool(undefined), S$RescriptStruct.$$float(undefined)), undefined, undefined);
+        TestUtils.assertEqualStructs(t, reusedTypesStruct, S$RescriptStruct.tuple4(S$RescriptStruct.string, S$RescriptStruct.$$int, S$RescriptStruct.bool, S$RescriptStruct.$$float), undefined, undefined);
       }));
+
+var struct = S$RescriptStruct.string;
+
+var fooStruct = S$RescriptStruct.$$int;
 
 export {
   struct ,
   fooStruct ,
   reusedTypesStruct ,
 }
-/* struct Not a pure module */
+/*  Not a pure module */

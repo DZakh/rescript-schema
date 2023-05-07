@@ -67,19 +67,20 @@ export interface ObjectStruct<Value> extends Struct<Value> {
   strict(): ObjectStruct<Value>;
 }
 
-export const string: () => Struct<string>;
-export const boolean: () => Struct<boolean>;
-export const integer: () => Struct<number>;
-export const number: () => Struct<number>;
-export const never: () => Struct<never>;
-export const unknown: () => Struct<unknown>;
-export const json: () => Struct<Json>;
+export const string: Struct<string>;
+export const boolean: Struct<boolean>;
+export const integer: Struct<number>;
+export const number: Struct<number>;
+export const never: Struct<never>;
+export const unknown: Struct<unknown>;
+export const json: Struct<Json>;
+export const nan: Struct<undefined>;
+
 export function literal<Value extends string>(value: Value): Struct<Value>;
 export function literal<Value extends number>(value: Value): Struct<Value>;
 export function literal<Value extends boolean>(value: Value): Struct<Value>;
 export function literal(value: undefined): Struct<undefined>;
 export function literal(value: null): Struct<undefined>;
-export const nan: () => Struct<undefined>;
 export function tuple(structs: []): Struct<undefined>;
 export function tuple<Value>(structs: [Struct<Value>]): Struct<Value>;
 export function tuple<A extends AnyStruct, B extends AnyStruct[]>(

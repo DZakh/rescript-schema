@@ -1,7 +1,7 @@
 open Ava
 
 test("Successfully refines on parsing", t => {
-  let struct = S.int()->S.refine(~parser=value =>
+  let struct = S.int->S.refine(~parser=value =>
     if value < 0 {
       S.fail("Should be positive")
     }
@@ -20,7 +20,7 @@ test("Successfully refines on parsing", t => {
 })
 
 test("Fails with custom path", t => {
-  let struct = S.int()->S.refine(~parser=value =>
+  let struct = S.int->S.refine(~parser=value =>
     if value < 0 {
       S.fail(~path=S.Path.fromArray(["data", "myInt"]), "Should be positive")
     }
@@ -38,7 +38,7 @@ test("Fails with custom path", t => {
 })
 
 test("Successfully refines on serializing", t => {
-  let struct = S.int()->S.refine(~serializer=value =>
+  let struct = S.int->S.refine(~serializer=value =>
     if value < 0 {
       S.fail("Should be positive")
     }
@@ -57,7 +57,7 @@ test("Successfully refines on serializing", t => {
 })
 
 asyncTest("Successfully refines on async parsing", async t => {
-  let struct = S.int()->S.refine(~asyncParser=value =>
+  let struct = S.int->S.refine(~asyncParser=value =>
     Promise.resolve()->Promise.thenResolve(
       () => {
         if value < 0 {
@@ -80,7 +80,7 @@ asyncTest("Successfully refines on async parsing", async t => {
 })
 
 asyncTest("Successfully runs both async and sync parser refinements", async t => {
-  let struct = S.int()->S.refine(
+  let struct = S.int->S.refine(
     ~parser=value => {
       if value->mod(2) === 0 {
         S.fail("Should be odd")
@@ -128,7 +128,7 @@ asyncTest("Successfully runs both async and sync parser refinements", async t =>
 test("Throws for a refine without either a parser, or a serializer", t => {
   t->Assert.throws(
     () => {
-      S.unknown()->S.refine()
+      S.unknown->S.refine()
     },
     ~expectations={
       message: "[rescript-struct] For a struct factory Refine either a parser, or a serializer is required",
@@ -138,7 +138,7 @@ test("Throws for a refine without either a parser, or a serializer", t => {
 })
 
 test("Fails to parse async refinement using parseAnyWith", t => {
-  let struct = S.string()->S.refine(~asyncParser=_ => Promise.resolve(), ())
+  let struct = S.string->S.refine(~asyncParser=_ => Promise.resolve(), ())
 
   t->Assert.deepEqual(
     %raw(`"Hello world!"`)->S.parseAnyWith(struct),
@@ -152,7 +152,7 @@ test("Fails to parse async refinement using parseAnyWith", t => {
 })
 
 asyncTest("Successfully parses async refinement using parseAsyncWith", t => {
-  let struct = S.string()->S.refine(~asyncParser=_ => Promise.resolve(), ())
+  let struct = S.string->S.refine(~asyncParser=_ => Promise.resolve(), ())
 
   %raw(`"Hello world!"`)
   ->S.parseAsyncWith(struct)
@@ -163,7 +163,7 @@ asyncTest("Successfully parses async refinement using parseAsyncWith", t => {
 
 asyncTest("Fails to parse async refinement with user error", t => {
   let struct =
-    S.string()->S.refine(
+    S.string->S.refine(
       ~asyncParser=_ => Promise.resolve()->Promise.then(() => S.fail("User error")),
       (),
     )
@@ -185,7 +185,7 @@ asyncTest("Fails to parse async refinement with user error", t => {
 
 asyncTest("Can apply other actions after async refinement", t => {
   let struct =
-    S.string()
+    S.string
     ->S.refine(~asyncParser=_ => Promise.resolve(), ())
     ->S.String.trim()
     ->S.refine(~asyncParser=_ => Promise.resolve(), ())

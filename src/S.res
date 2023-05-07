@@ -2360,30 +2360,26 @@ module Never = {
       raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
     })
 
-  let factory = () => {
-    make(
-      ~name=`Never`,
-      ~metadataMap=emptyMetadataMap,
-      ~tagged=Never,
-      ~inlinedRefinement="false",
-      ~parseTransformationFactory=transformationFactory,
-      ~serializeTransformationFactory=transformationFactory,
-      (),
-    )
-  }
+  let struct = make(
+    ~name=`Never`,
+    ~metadataMap=emptyMetadataMap,
+    ~tagged=Never,
+    ~inlinedRefinement="false",
+    ~parseTransformationFactory=transformationFactory,
+    ~serializeTransformationFactory=transformationFactory,
+    (),
+  )
 }
 
 module Unknown = {
-  let factory = () => {
-    make(
-      ~name=`Unknown`,
-      ~metadataMap=emptyMetadataMap,
-      ~tagged=Unknown,
-      ~parseTransformationFactory=TransformationFactory.empty,
-      ~serializeTransformationFactory=TransformationFactory.empty,
-      (),
-    )
-  }
+  let struct = make(
+    ~name=`Unknown`,
+    ~metadataMap=emptyMetadataMap,
+    ~tagged=Unknown,
+    ~parseTransformationFactory=TransformationFactory.empty,
+    ~serializeTransformationFactory=TransformationFactory.empty,
+    (),
+  )
 }
 
 module String = {
@@ -2432,17 +2428,15 @@ module String = {
       }
     })
 
-  let factory = () => {
-    make(
-      ~name="String",
-      ~metadataMap=emptyMetadataMap,
-      ~tagged=String,
-      ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="string"`,
-      ~parseTransformationFactory,
-      ~serializeTransformationFactory=TransformationFactory.empty,
-      (),
-    )
-  }
+  let struct = make(
+    ~name="String",
+    ~metadataMap=emptyMetadataMap,
+    ~tagged=String,
+    ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="string"`,
+    ~parseTransformationFactory,
+    ~serializeTransformationFactory=TransformationFactory.empty,
+    (),
+  )
 
   let min = (struct, ~message as maybeMessage=?, length) => {
     let message = switch maybeMessage {
@@ -2678,17 +2672,15 @@ module Bool = {
       }
     })
 
-  let factory = () => {
-    make(
-      ~name="Bool",
-      ~metadataMap=emptyMetadataMap,
-      ~tagged=Bool,
-      ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="boolean"`,
-      ~parseTransformationFactory,
-      ~serializeTransformationFactory=TransformationFactory.empty,
-      (),
-    )
-  }
+  let struct = make(
+    ~name="Bool",
+    ~metadataMap=emptyMetadataMap,
+    ~tagged=Bool,
+    ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="boolean"`,
+    ~parseTransformationFactory,
+    ~serializeTransformationFactory=TransformationFactory.empty,
+    (),
+  )
 }
 
 module Int = {
@@ -2724,17 +2716,15 @@ module Int = {
       }
     })
 
-  let factory = () => {
-    make(
-      ~name="Int",
-      ~metadataMap=emptyMetadataMap,
-      ~tagged=Int,
-      ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="number"&&${Stdlib.Inlined.Constant.inputVar}<2147483648&&${Stdlib.Inlined.Constant.inputVar}>-2147483649&&${Stdlib.Inlined.Constant.inputVar}%1===0`,
-      ~parseTransformationFactory,
-      ~serializeTransformationFactory=TransformationFactory.empty,
-      (),
-    )
-  }
+  let struct = make(
+    ~name="Int",
+    ~metadataMap=emptyMetadataMap,
+    ~tagged=Int,
+    ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="number"&&${Stdlib.Inlined.Constant.inputVar}<2147483648&&${Stdlib.Inlined.Constant.inputVar}>-2147483649&&${Stdlib.Inlined.Constant.inputVar}%1===0`,
+    ~parseTransformationFactory,
+    ~serializeTransformationFactory=TransformationFactory.empty,
+    (),
+  )
 
   let min = (struct, ~message as maybeMessage=?, minValue) => {
     let message = switch maybeMessage {
@@ -2829,17 +2819,15 @@ module Float = {
       }
     })
 
-  let factory = () => {
-    make(
-      ~name="Float",
-      ~metadataMap=emptyMetadataMap,
-      ~tagged=Float,
-      ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="number"&&!Number.isNaN(${Stdlib.Inlined.Constant.inputVar})`,
-      ~parseTransformationFactory,
-      ~serializeTransformationFactory=TransformationFactory.empty,
-      (),
-    )
-  }
+  let struct = make(
+    ~name="Float",
+    ~metadataMap=emptyMetadataMap,
+    ~tagged=Float,
+    ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="number"&&!Number.isNaN(${Stdlib.Inlined.Constant.inputVar})`,
+    ~parseTransformationFactory,
+    ~serializeTransformationFactory=TransformationFactory.empty,
+    (),
+  )
 
   let min = (struct, ~message as maybeMessage=?, minValue) => {
     let message = switch maybeMessage {
@@ -3678,15 +3666,14 @@ let json = {
   let parseTransformationFactory = (. ~ctx) =>
     ctx->TransformationFactory.Ctx.planSyncTransformation(input => input->parse(~ctx))
 
-  () =>
-    make(
-      ~name="JSON",
-      ~tagged=JSON,
-      ~metadataMap=emptyMetadataMap,
-      ~parseTransformationFactory,
-      ~serializeTransformationFactory=TransformationFactory.empty,
-      (),
-    )
+  make(
+    ~name="JSON",
+    ~tagged=JSON,
+    ~metadataMap=emptyMetadataMap,
+    ~parseTransformationFactory,
+    ~serializeTransformationFactory=TransformationFactory.empty,
+    (),
+  )
 }
 
 type catchCtx = {
@@ -3873,7 +3860,7 @@ let inline = {
           })
           ->Js.Array2.joinWith(", ")}])`
       }
-    | JSON => `S.json()`
+    | JSON => `S.json`
 
     | Tuple([]) => `S.tuple0(.)`
     | Tuple(tupleStructs) => {
@@ -3898,10 +3885,10 @@ let inline = {
         ->Js.Array2.joinWith(",\n    ")},
   }
 )`
-    | String => `S.string()`
-    | Int => `S.int()`
-    | Float => `S.float()`
-    | Bool => `S.bool()`
+    | String => `S.string`
+    | Int => `S.int`
+    | Float => `S.float`
+    | Bool => `S.bool`
     | Option(innerStruct) => {
         let inlinedInnerStruct = innerStruct->internalInline()
         switch struct->deprecation {
@@ -3915,8 +3902,8 @@ let inline = {
       }
 
     | Null(innerStruct) => `S.null(${innerStruct->internalInline()})`
-    | Never => `S.never()`
-    | Unknown => `S.unknown()`
+    | Never => `S.never`
+    | Unknown => `S.unknown`
     | Array(innerStruct) => `S.array(${innerStruct->internalInline()})`
     | Dict(innerStruct) => `S.dict(${innerStruct->internalInline()})`
     }
@@ -4070,13 +4057,13 @@ let inline = {
 
 let object = Object.factory
 let field = Object.field
-let never = Never.factory
-let unknown = Unknown.factory
-let unit = () => Literal.factory(EmptyOption)
-let string = String.factory
-let bool = Bool.factory
-let int = Int.factory
-let float = Float.factory
+let never = Never.struct
+let unknown = Unknown.struct
+let unit = Literal.factory(EmptyOption)
+let string = String.struct
+let bool = Bool.struct
+let int = Int.struct
+let float = Float.struct
 let null = Null.factory
 let option = Option.factory
 let array = Array.factory

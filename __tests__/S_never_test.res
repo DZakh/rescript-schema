@@ -2,7 +2,7 @@ open Ava
 
 module Common = {
   let any = %raw(`true`)
-  let factory = () => S.never()
+  let factory = () => S.never
 
   test("Fails to ", t => {
     let struct = factory()
@@ -37,8 +37,8 @@ module ObjectField = {
   test("Fails to parse a object with Never field", t => {
     let struct = S.object(o =>
       {
-        "key": o->S.field("key", S.string()),
-        "oldKey": o->S.field("oldKey", S.never()),
+        "key": o->S.field("key", S.string),
+        "oldKey": o->S.field("oldKey", S.never),
       }
     )
 
@@ -56,10 +56,10 @@ module ObjectField = {
   test("Successfully parses a object with Never field when it's optional and not present", t => {
     let struct = S.object(o =>
       {
-        "key": o->S.field("key", S.string()),
+        "key": o->S.field("key", S.string),
         "oldKey": o->S.field(
           "oldKey",
-          S.never()->S.deprecate("We stopped using the field from the v0.9.0 release"),
+          S.never->S.deprecate("We stopped using the field from the v0.9.0 release"),
         ),
       }
     )

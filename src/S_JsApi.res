@@ -84,11 +84,6 @@ let toJsStruct = struct => {
   struct->Stdlib.Object.extendWith(structOperations)->castToJsStruct
 }
 
-@inline
-let toJsStructFactory = factory => {
-  () => factory()->toJsStruct
-}
-
 let fail = reason => S.fail(reason)
 
 let parse = data => {
@@ -168,14 +163,6 @@ let default = def => {
   struct->castToRescriptStruct->S.default(def)->toJsStruct
 }
 
-let string = S.string->toJsStructFactory
-let boolean = S.bool->toJsStructFactory
-let integer = S.int->toJsStructFactory
-let number = S.float->toJsStructFactory
-let never = S.never->toJsStructFactory
-let unknown = S.unknown->toJsStructFactory
-let json = S.json->toJsStructFactory
-
 let optional = struct => S.option(struct->castToRescriptStruct)->toJsStruct
 let nullable = struct => S.null(struct->castToRescriptStruct)->toJsStruct
 let array = struct => S.array(struct->castToRescriptStruct)->toJsStruct
@@ -211,8 +198,6 @@ let literal = (value: 'value): struct<'value> => {
   S.literal(taggedLiteral->(Obj.magic: S.taggedLiteral => S.literal<'value>))->toJsStruct
 }
 
-let nan = () => S.literal(NaN)->toJsStruct
-
 let custom = (~name, ~parser, ~serializer) => {
   S.custom(~name, ~parser, ~serializer, ())->toJsStruct
 }
@@ -236,6 +221,15 @@ structOperations->Stdlib.Object.extendWith({
   description,
   default,
 })
+
+let string = S.string->toJsStruct
+let boolean = S.bool->toJsStruct
+let integer = S.int->toJsStruct
+let number = S.float->toJsStruct
+let never = S.never->toJsStruct
+let unknown = S.unknown->toJsStruct
+let json = S.json->toJsStruct
+let nan = S.literal(NaN)->toJsStruct
 
 module Object = {
   type rec t = {strict: unit => t, strip: unit => t}

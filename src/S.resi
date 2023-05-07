@@ -79,13 +79,15 @@ and tagged =
   | Dict(t<unknown>)
   | JSON
 
-let never: unit => t<never>
-let unknown: unit => t<unknown>
-let unit: unit => t<unit>
-let string: unit => t<string>
-let bool: unit => t<bool>
-let int: unit => t<int>
-let float: unit => t<float>
+let never: t<never>
+let unknown: t<unknown>
+let unit: t<unit>
+let string: t<string>
+let bool: t<bool>
+let int: t<int>
+let float: t<float>
+let json: t<Js.Json.t>
+
 let literal: literal<'value> => t<'value>
 let literalVariant: (literal<'value>, 'variant) => t<'variant>
 let array: t<'value> => t<array<'value>>
@@ -94,7 +96,6 @@ let dict: t<'value> => t<Js.Dict.t<'value>>
 let option: t<'value> => t<option<'value>>
 let null: t<'value> => t<option<'value>>
 let jsonString: t<'value> => t<'value>
-let json: unit => t<Js.Json.t>
 let union: array<t<'value>> => t<'value>
 
 let default: (t<option<'value>>, unit => 'value) => t<'value>

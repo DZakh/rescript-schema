@@ -27,7 +27,7 @@ let nullableStruct = innerStruct =>
   )
 
 test("Correctly parses custom struct", t => {
-  let struct = nullableStruct(S.string())
+  let struct = nullableStruct(S.string)
 
   t->Assert.deepEqual("Hello world!"->S.parseAnyWith(struct), Ok(Some("Hello world!")), ())
   t->Assert.deepEqual(%raw("null")->S.parseAnyWith(struct), Ok(None), ())
@@ -44,7 +44,7 @@ test("Correctly parses custom struct", t => {
 })
 
 test("Correctly serializes custom struct", t => {
-  let struct = nullableStruct(S.string())
+  let struct = nullableStruct(S.string)
 
   t->Assert.deepEqual(
     Some("Hello world!")->S.serializeToUnknownWith(struct),

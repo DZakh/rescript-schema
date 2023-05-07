@@ -4,7 +4,7 @@ module Common = {
   let value = None
   let any = %raw(`null`)
   let wrongAny = %raw(`123.45`)
-  let factory = () => S.null(S.string())
+  let factory = () => S.null(S.string)
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -34,13 +34,13 @@ module Common = {
 }
 
 test("Successfully parses primitive", t => {
-  let struct = S.null(S.bool())
+  let struct = S.null(S.bool)
 
   t->Assert.deepEqual(Js.Json.boolean(true)->S.parseAnyWith(struct), Ok(Some(true)), ())
 })
 
 test("Fails to parse JS undefined", t => {
-  let struct = S.null(S.bool())
+  let struct = S.null(S.bool)
 
   t->Assert.deepEqual(
     %raw(`undefined`)->S.parseAnyWith(struct),
@@ -54,7 +54,7 @@ test("Fails to parse JS undefined", t => {
 })
 
 test("Fails to parse object with missing field that marked as null", t => {
-  let struct = S.object(o => o->S.field("nullableField", S.null(S.string())))
+  let struct = S.object(o => o->S.field("nullableField", S.null(S.string)))
 
   t->Assert.deepEqual(
     %raw(`{}`)->S.parseAnyWith(struct),
@@ -68,7 +68,7 @@ test("Fails to parse object with missing field that marked as null", t => {
 })
 
 test("Fails to parse JS null when struct doesn't allow optional data", t => {
-  let struct = S.bool()
+  let struct = S.bool
 
   t->Assert.deepEqual(
     %raw(`null`)->S.parseAnyWith(struct),
@@ -82,7 +82,7 @@ test("Fails to parse JS null when struct doesn't allow optional data", t => {
 })
 
 test("Successfully parses null and serializes it back for deprecated nullable struct", t => {
-  let struct = S.null(S.bool())->S.deprecate("Deprecated")
+  let struct = S.null(S.bool)->S.deprecate("Deprecated")
 
   t->Assert.deepEqual(
     %raw(`null`)->S.parseAnyWith(struct)->Belt.Result.map(S.serializeToUnknownWith(_, struct)),
@@ -92,7 +92,7 @@ test("Successfully parses null and serializes it back for deprecated nullable st
 })
 
 test("Successfully parses null and serializes it back for optional nullable struct", t => {
-  let struct = S.option(S.null(S.bool()))
+  let struct = S.option(S.null(S.bool))
 
   t->Assert.deepEqual(
     %raw(`null`)->S.parseAnyWith(struct)->Belt.Result.map(S.serializeToUnknownWith(_, struct)),

@@ -34,10 +34,6 @@ module Suite = {
   }
 }
 
-let makeStringStruct = (. ()) => {
-  S.string()
-}
-
 let makeTestObject = (. ()) => {
   %raw(`Object.freeze({
     number: 1,
@@ -58,19 +54,19 @@ let makeTestObject = (. ()) => {
 let makeAdvancedObjectStruct = (. ()) => {
   S.object(o =>
     {
-      "number": o->S.field("number", S.float()),
-      "negNumber": o->S.field("negNumber", S.float()),
-      "maxNumber": o->S.field("maxNumber", S.float()),
-      "string": o->S.field("string", S.string()),
-      "longString": o->S.field("longString", S.string()),
-      "boolean": o->S.field("boolean", S.bool()),
+      "number": o->S.field("number", S.float),
+      "negNumber": o->S.field("negNumber", S.float),
+      "maxNumber": o->S.field("maxNumber", S.float),
+      "string": o->S.field("string", S.string),
+      "longString": o->S.field("longString", S.string),
+      "boolean": o->S.field("boolean", S.bool),
       "deeplyNested": o->S.field(
         "deeplyNested",
         S.object(o =>
           {
-            "foo": o->S.field("foo", S.string()),
-            "num": o->S.field("num", S.float()),
-            "bool": o->S.field("bool", S.bool()),
+            "foo": o->S.field("foo", S.string),
+            "num": o->S.field("num", S.float),
+            "bool": o->S.field("bool", S.bool),
           }
         ),
       ),
@@ -81,19 +77,19 @@ let makeAdvancedObjectStruct = (. ()) => {
 let makeAdvancedStrictObjectStruct = (. ()) => {
   S.object(o =>
     {
-      "number": o->S.field("number", S.float()),
-      "negNumber": o->S.field("negNumber", S.float()),
-      "maxNumber": o->S.field("maxNumber", S.float()),
-      "string": o->S.field("string", S.string()),
-      "longString": o->S.field("longString", S.string()),
-      "boolean": o->S.field("boolean", S.bool()),
+      "number": o->S.field("number", S.float),
+      "negNumber": o->S.field("negNumber", S.float),
+      "maxNumber": o->S.field("maxNumber", S.float),
+      "string": o->S.field("string", S.string),
+      "longString": o->S.field("longString", S.string),
+      "boolean": o->S.field("boolean", S.bool),
       "deeplyNested": o->S.field(
         "deeplyNested",
         S.object(o =>
           {
-            "foo": o->S.field("foo", S.string()),
-            "num": o->S.field("num", S.float()),
-            "bool": o->S.field("bool", S.bool()),
+            "foo": o->S.field("foo", S.string),
+            "num": o->S.field("num", S.float),
+            "bool": o->S.field("bool", S.bool),
           }
         )->S.Object.strict,
       ),
@@ -102,16 +98,15 @@ let makeAdvancedStrictObjectStruct = (. ()) => {
 }
 
 Suite.make()
-->Suite.add("String struct factory", makeStringStruct)
 ->Suite.addWithPrepare("Parse string", () => {
-  let struct = makeStringStruct(.)
+  let struct = S.string
   let data = "Hello world!"
   (. ()) => {
     data->S.parseAnyOrRaiseWith(struct)
   }
 })
 ->Suite.addWithPrepare("Serialize string", () => {
-  let struct = makeStringStruct(.)
+  let struct = S.string
   let data = "Hello world!"
   (. ()) => {
     data->S.serializeOrRaiseWith(struct)

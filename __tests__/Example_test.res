@@ -5,13 +5,13 @@ type author = {id: float, tags: array<string>, isAproved: bool, deprecatedAge: o
 
 test("Example", t => {
   let authorStruct = S.object(o => {
-    id: o->S.field("Id", S.float()),
-    tags: o->S.field("Tags", S.option(S.array(S.string()))->S.default(() => [])),
+    id: o->S.field("Id", S.float),
+    tags: o->S.field("Tags", S.option(S.array(S.string))->S.default(() => [])),
     isAproved: o->S.field(
       "IsApproved",
       S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),
     ),
-    deprecatedAge: o->S.field("Age", S.int()->S.deprecate("Will be removed in APIv2")),
+    deprecatedAge: o->S.field("Age", S.int->S.deprecate("Will be removed in APIv2")),
   })
 
   t->Assert.deepEqual(

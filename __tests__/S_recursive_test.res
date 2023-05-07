@@ -9,7 +9,7 @@ test("Successfully parses recursive object", t => {
   let nodeStruct = S.recursive(nodeStruct => {
     S.object(
       o => {
-        id: o->S.field("Id", S.string()),
+        id: o->S.field("Id", S.string),
         children: o->S.field("Children", S.array(nodeStruct)),
       },
     )
@@ -35,7 +35,7 @@ asyncTest("Successfully parses recursive object using S.parseAsyncWith", t => {
   let nodeStruct = S.recursive(nodeStruct => {
     S.object(
       o => {
-        id: o->S.field("Id", S.string()),
+        id: o->S.field("Id", S.string),
         children: o->S.field("Children", S.array(nodeStruct)),
       },
     )
@@ -65,7 +65,7 @@ test("Successfully serializes recursive object", t => {
   let nodeStruct = S.recursive(nodeStruct => {
     S.object(
       o => {
-        id: o->S.field("Id", S.string()),
+        id: o->S.field("Id", S.string),
         children: o->S.field("Children", S.array(nodeStruct)),
       },
     )
@@ -95,7 +95,7 @@ test("Fails to parse nested recursive object", t => {
       o => {
         id: o->S.field(
           "Id",
-          S.string()->S.refine(
+          S.string->S.refine(
             ~parser=id => {
               if id === "4" {
                 S.fail("Invalid id")
@@ -132,7 +132,7 @@ test("Fails to serialise nested recursive object", t => {
       o => {
         id: o->S.field(
           "Id",
-          S.string()->S.refine(
+          S.string->S.refine(
             ~serializer=id => {
               if id === "4" {
                 S.fail("Invalid id")
@@ -166,7 +166,7 @@ test(
     let nodeStruct = S.recursive(nodeStruct => {
       S.object(
         o => {
-          id: o->S.field("Id", S.string()),
+          id: o->S.field("Id", S.string),
           children: o->S.field("Children", S.array(nodeStruct)),
         },
       )->S.transform(
@@ -219,7 +219,7 @@ test("Recursively transforms nested objects when added transform to the placehol
   let nodeStruct = S.recursive(nodeStruct => {
     S.object(
       o => {
-        id: o->S.field("Id", S.string()),
+        id: o->S.field("Id", S.string),
         children: o->S.field(
           "Children",
           S.array(
@@ -276,7 +276,7 @@ test("Shallowly transforms object when added transform to the S.recursive result
   let nodeStruct = S.recursive(nodeStruct => {
     S.object(
       o => {
-        id: o->S.field("Id", S.string()),
+        id: o->S.field("Id", S.string),
         children: o->S.field("Children", S.array(nodeStruct)),
       },
     )
@@ -325,7 +325,7 @@ test("Fails to create struct with async parse function using S.recursive", t => 
         nodeStruct => {
           S.object(
             o => {
-              id: o->S.field("Id", S.string()->S.refine(~asyncParser=_ => Promise.resolve(), ())),
+              id: o->S.field("Id", S.string->S.refine(~asyncParser=_ => Promise.resolve(), ())),
               children: o->S.field("Children", S.array(nodeStruct)),
             },
           )
@@ -345,7 +345,7 @@ test("Creates struct without async parse function using S.asyncRecursive", t => 
       nodeStruct => {
         S.object(
           o => {
-            id: o->S.field("Id", S.string()),
+            id: o->S.field("Id", S.string),
             children: o->S.field("Children", S.array(nodeStruct)),
           },
         )
@@ -360,7 +360,7 @@ test("Creates struct with async parse function using S.asyncRecursive", t => {
       nodeStruct => {
         S.object(
           o => {
-            id: o->S.field("Id", S.string()->S.refine(~asyncParser=_ => Promise.resolve(), ())),
+            id: o->S.field("Id", S.string->S.refine(~asyncParser=_ => Promise.resolve(), ())),
             children: o->S.field("Children", S.array(nodeStruct)),
           },
         )
@@ -373,7 +373,7 @@ asyncTest("Successfully parses recursive object with async parse function", t =>
   let nodeStruct = S.asyncRecursive(nodeStruct => {
     S.object(
       o => {
-        id: o->S.field("Id", S.string()->S.refine(~asyncParser=_ => Promise.resolve(), ())),
+        id: o->S.field("Id", S.string->S.refine(~asyncParser=_ => Promise.resolve(), ())),
         children: o->S.field("Children", S.array(nodeStruct)),
       },
     )
@@ -408,7 +408,7 @@ test("Parses recursive object with async fields in parallel", t => {
       o => {
         id: o->S.field(
           "Id",
-          S.string()->S.refine(
+          S.string->S.refine(
             ~asyncParser=_ => {
               actionCounter.contents = actionCounter.contents + 1
               unresolvedPromise
