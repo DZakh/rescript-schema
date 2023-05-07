@@ -78,7 +78,7 @@ export function literal<Value extends string>(value: Value): Struct<Value>;
 export function literal<Value extends number>(value: Value): Struct<Value>;
 export function literal<Value extends boolean>(value: Value): Struct<Value>;
 export function literal(value: undefined): Struct<undefined>;
-export function literal(value: null): Struct<undefined>;
+export function literal(value: null): Struct<null>;
 export const nan: () => Struct<undefined>;
 export function tuple(structs: []): Struct<undefined>;
 export function tuple<Value>(structs: [Struct<Value>]): Struct<Value>;

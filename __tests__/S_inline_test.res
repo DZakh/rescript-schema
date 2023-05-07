@@ -289,48 +289,43 @@ test("Supports JSON", t => {
 })
 
 test("Supports String Literal", t => {
-  let struct = S.literal(String("foo"))
-  t->Assert.deepEqual(struct->S.inline, `S.literal(String("foo"))`, ())
+  let struct = S.literal("foo")
+  t->Assert.deepEqual(struct->S.inline, `S.literal(("foo"))`, ())
 })
 
 test("Escapes the String Literal value", t => {
-  let struct = S.literal(String(`"foo"`))
-  t->Assert.deepEqual(struct->S.inline, `S.literal(String("\\"foo\\""))`, ())
+  let struct = S.literal(`"foo"`)
+  t->Assert.deepEqual(struct->S.inline, `S.literal("\\"foo\\"")`, ())
 })
 
 test("Supports Int Literal", t => {
-  let struct = S.literal(Int(3))
-  t->Assert.deepEqual(struct->S.inline, `S.literal(Int(3))`, ())
+  let struct = S.literal(3)
+  t->Assert.deepEqual(struct->S.inline, `S.literal(3)`, ())
 })
 
 test("Supports Float Literal", t => {
-  let struct = S.literal(Float(3.))
-  t->Assert.deepEqual(struct->S.inline, `S.literal(Float(3.))`, ())
+  let struct = S.literal(3.)
+  t->Assert.deepEqual(struct->S.inline, `S.literal(3.)`, ())
 })
 
 test("Supports decimal Float Literal", t => {
-  let struct = S.literal(Float(3.3))
-  t->Assert.deepEqual(struct->S.inline, `S.literal(Float(3.3))`, ())
+  let struct = S.literal(3.3)
+  t->Assert.deepEqual(struct->S.inline, `S.literal(3.3)`, ())
 })
 
 test("Supports Bool Literal", t => {
-  let struct = S.literal(Bool(true))
-  t->Assert.deepEqual(struct->S.inline, `S.literal(Bool(true))`, ())
+  let struct = S.literal(true)
+  t->Assert.deepEqual(struct->S.inline, `S.literal(true)`, ())
 })
 
 test("Supports EmptyOption Literal", t => {
-  let struct = S.literal(EmptyOption)
-  t->Assert.deepEqual(struct->S.inline, `S.literal(EmptyOption)`, ())
+  let struct = S.unit()
+  t->Assert.deepEqual(struct->S.inline, `S.unit()`, ())
 })
 
 test("Supports EmptyNull Literal", t => {
-  let struct = S.literal(EmptyNull)
-  t->Assert.deepEqual(struct->S.inline, `S.literal(EmptyNull)`, ())
-})
-
-test("Supports NaN Literal", t => {
-  let struct = S.literal(NaN)
-  t->Assert.deepEqual(struct->S.inline, `S.literal(NaN)`, ())
+  let struct = S.Null.empty()
+  t->Assert.deepEqual(struct->S.inline, `S.Null.empty()`, ())
 })
 
 test("Supports Option", t => {
@@ -489,43 +484,38 @@ test("Fails to inline Tuple with 11 items", t => {
 })
 
 test("Supports Union", t => {
-  let struct = S.union([S.literal(String("yes")), S.literal(String("no"))])
-  let structInlineResult = S.union([
-    S.literalVariant(String("yes"), #yes),
-    S.literalVariant(String("no"), #no),
-  ])
+  let struct = S.union([S.literal("yes"), S.literal("no")])
+  let structInlineResult = S.union([S.literalVariant("yes", #yes), S.literalVariant("no", #no)])
 
   structInlineResult->(Obj.magic: S.t<[#yes | #no]> => unit)
 
   t->Assert.deepEqual(
     struct->S.inline,
-    `S.union([S.literalVariant(String("yes"), #"yes"), S.literalVariant(String("no"), #"no")])`,
+    `S.union([S.literalVariant("yes", #"yes"), S.literalVariant("no", #"no")])`,
     (),
   )
 })
 
 test("Uses S.literalVariant for all literals inside of union", t => {
   let struct = S.union([
-    S.literalVariant(String("yes"), ()),
-    S.literalVariant(Bool(true), ()),
-    S.literalVariant(Bool(false), ()),
-    S.literalVariant(Int(123), ()),
-    S.literalVariant(Float(123.), ()),
-    S.literalVariant(Float(123.456), ()),
-    S.literalVariant(EmptyNull, ()),
-    S.literalVariant(EmptyOption, ()),
-    S.literalVariant(NaN, ()),
+    S.literalVariant("yes", ()),
+    S.literalVariant(true, ()),
+    S.literalVariant(false, ()),
+    S.literalVariant(123, ()),
+    S.literalVariant(123., ()),
+    S.literalVariant(123.456, ()),
+    S.literalVariant(%raw("null"), ()),
+    S.literalVariant(%raw("undefined"), ()),
   ])
   let structInlineResult = S.union([
-    S.literalVariant(String("yes"), #yes),
-    S.literalVariant(Bool(true), #True),
-    S.literalVariant(Bool(false), #False),
-    S.literalVariant(Int(123), #123),
-    S.literalVariant(Float(123.), #1232),
-    S.literalVariant(Float(123.456), #"123.456"),
-    S.literalVariant(EmptyNull, #EmptyNull),
-    S.literalVariant(EmptyOption, #EmptyOption),
-    S.literalVariant(NaN, #NaN),
+    S.literalVariant("yes", #yes),
+    S.literalVariant(true, #True),
+    S.literalVariant(false, #False),
+    S.literalVariant(123, #123),
+    S.literalVariant(123., #1232),
+    S.literalVariant(123.456, #"123.456"),
+    S.literalVariant(%raw("null"), #EmptyNull),
+    S.literalVariant(%raw("undefined"), #EmptyOption),
   ])
 
   structInlineResult->(
@@ -539,14 +529,13 @@ test("Uses S.literalVariant for all literals inside of union", t => {
         | #"123.456"
         | #EmptyNull
         | #EmptyOption
-        | #NaN
       ],
     > => unit
   )
 
   t->Assert.deepEqual(
     struct->S.inline,
-    `S.union([S.literalVariant(String("yes"), #"yes"), S.literalVariant(Bool(true), #"True"), S.literalVariant(Bool(false), #"False"), S.literalVariant(Int(123), #"123"), S.literalVariant(Float(123.), #"1232"), S.literalVariant(Float(123.456), #"123.456"), S.literalVariant(EmptyNull, #"EmptyNull"), S.literalVariant(EmptyOption, #"EmptyOption"), S.literalVariant(NaN, #"NaN")])`,
+    `S.union([S.literalVariant(String("yes"), #"yes"), S.literalVariant(Bool(true), #"True"), S.literalVariant(Bool(false), #"False"), S.literalVariant(Int(123), #"123"), S.literalVariant(Float(123.), #"1232"), S.literalVariant(Float(123.456), #"123.456"), S.literalVariant(EmptyNull, #"EmptyNull"), S.literalVariant(EmptyOption, #"EmptyOption")])`,
     (),
   )
 })
@@ -669,9 +658,9 @@ test("Supports empty Tuple in union", t => {
 })
 
 test("Supports Option structs in union", t => {
-  let struct = S.union([S.option(S.literalVariant(String("123"), 123.)), S.option(S.float())])
+  let struct = S.union([S.option(S.literalVariant("123", 123.)), S.option(S.float())])
   let structInlineResult = S.union([
-    S.option(S.literal(String("123")))->S.variant(v => #OptionOf123(v)),
+    S.option(S.literal("123"))->S.variant(v => #OptionOf123(v)),
     S.option(S.float())->S.variant(v => #OptionOfFloat(v)),
   ])
 
@@ -686,15 +675,15 @@ test("Supports Option structs in union", t => {
 
   t->Assert.deepEqual(
     struct->S.inline,
-    `S.union([S.option(S.literal(String("123")))->S.variant(v => #"OptionOf123"(v)), S.option(S.float())->S.variant(v => #"OptionOfFloat"(v))])`,
+    `S.union([S.option(S.literal(("123")))->S.variant(v => #"OptionOf123"(v)), S.option(S.float())->S.variant(v => #"OptionOfFloat"(v))])`,
     (),
   )
 })
 
 test("Supports Null structs in union", t => {
-  let struct = S.union([S.null(S.literalVariant(String("123"), 123.)), S.null(S.float())])
+  let struct = S.union([S.null(S.literalVariant("123", 123.)), S.null(S.float())])
   let structInlineResult = S.union([
-    S.null(S.literal(String("123")))->S.variant(v => #NullOf123(v)),
+    S.null(S.literal("123"))->S.variant(v => #NullOf123(v)),
     S.null(S.float())->S.variant(v => #NullOfFloat(v)),
   ])
 
@@ -709,15 +698,15 @@ test("Supports Null structs in union", t => {
 
   t->Assert.deepEqual(
     struct->S.inline,
-    `S.union([S.null(S.literal(String("123")))->S.variant(v => #"NullOf123"(v)), S.null(S.float())->S.variant(v => #"NullOfFloat"(v))])`,
+    `S.union([S.null(S.literal(("123")))->S.variant(v => #"NullOf123"(v)), S.null(S.float())->S.variant(v => #"NullOfFloat"(v))])`,
     (),
   )
 })
 
 test("Supports Array structs in union", t => {
-  let struct = S.union([S.array(S.literalVariant(String("123"), 123.)), S.array(S.float())])
+  let struct = S.union([S.array(S.literalVariant("123", 123.)), S.array(S.float())])
   let structInlineResult = S.union([
-    S.array(S.literal(String("123")))->S.variant(v => #ArrayOf123(v)),
+    S.array(S.literal("123"))->S.variant(v => #ArrayOf123(v)),
     S.array(S.float())->S.variant(v => #ArrayOfFloat(v)),
   ])
 
@@ -732,15 +721,15 @@ test("Supports Array structs in union", t => {
 
   t->Assert.deepEqual(
     struct->S.inline,
-    `S.union([S.array(S.literal(String("123")))->S.variant(v => #"ArrayOf123"(v)), S.array(S.float())->S.variant(v => #"ArrayOfFloat"(v))])`,
+    `S.union([S.array(S.literal(("123")))->S.variant(v => #"ArrayOf123"(v)), S.array(S.float())->S.variant(v => #"ArrayOfFloat"(v))])`,
     (),
   )
 })
 
 test("Supports Dict structs in union", t => {
-  let struct = S.union([S.dict(S.literalVariant(String("123"), 123.)), S.dict(S.float())])
+  let struct = S.union([S.dict(S.literalVariant("123", 123.)), S.dict(S.float())])
   let structInlineResult = S.union([
-    S.dict(S.literal(String("123")))->S.variant(v => #DictOf123(v)),
+    S.dict(S.literal("123"))->S.variant(v => #DictOf123(v)),
     S.dict(S.float())->S.variant(v => #DictOfFloat(v)),
   ])
 
@@ -755,20 +744,20 @@ test("Supports Dict structs in union", t => {
 
   t->Assert.deepEqual(
     struct->S.inline,
-    `S.union([S.dict(S.literal(String("123")))->S.variant(v => #"DictOf123"(v)), S.dict(S.float())->S.variant(v => #"DictOfFloat"(v))])`,
+    `S.union([S.dict(S.literal(("123")))->S.variant(v => #"DictOf123"(v)), S.dict(S.float())->S.variant(v => #"DictOfFloat"(v))])`,
     (),
   )
 })
 
 test("Supports Object structs in union", t => {
   let struct = S.union([
-    S.object(o => o->S.field("field", S.literalVariant(String("123"), 123.))),
+    S.object(o => o->S.field("field", S.literalVariant("123", 123.))),
     S.object(o => o->S.field("field", S.float())),
   ])
   let structInlineResult = S.union([
     S.object(o =>
       {
-        "field": o->S.field("field", S.literal(String("123"))),
+        "field": o->S.field("field", S.literal("123")),
       }
     )->S.variant(v => #Object(v)),
     S.object(o =>
@@ -791,7 +780,7 @@ test("Supports Object structs in union", t => {
     struct->S.inline,
     `S.union([S.object(o =>
   {
-    "field": o->S.field("field", S.literal(String("123"))),
+    "field": o->S.field("field", S.literal(("123"))),
   }
 )->S.variant(v => #"Object"(v)), S.object(o =>
   {
@@ -803,9 +792,9 @@ test("Supports Object structs in union", t => {
 })
 
 test("Supports Tuple structs in union", t => {
-  let struct = S.union([S.tuple1(. S.literalVariant(String("123"), 123.)), S.tuple1(. S.float())])
+  let struct = S.union([S.tuple1(. S.literalVariant("123", 123.)), S.tuple1(. S.float())])
   let structInlineResult = S.union([
-    S.tuple1(. S.literal(String("123")))->S.variant(v => #Tuple(v)),
+    S.tuple1(. S.literal("123"))->S.variant(v => #Tuple(v)),
     S.tuple1(. S.float())->S.variant(v => #Tuple2(v)),
   ])
 
@@ -820,24 +809,21 @@ test("Supports Tuple structs in union", t => {
 
   t->Assert.deepEqual(
     struct->S.inline,
-    `S.union([S.tuple1(. S.literal(String("123")))->S.variant(v => #"Tuple"(v)), S.tuple1(. S.float())->S.variant(v => #"Tuple2"(v))])`,
+    `S.union([S.tuple1(. S.literal(("123")))->S.variant(v => #"Tuple"(v)), S.tuple1(. S.float())->S.variant(v => #"Tuple2"(v))])`,
     (),
   )
 })
 
 test("Supports Union structs in union", t => {
   let struct = S.union([
-    S.union([S.literal(String("red")), S.literal(String("blue"))]),
-    S.union([S.literalVariant(Int(0), "black"), S.literalVariant(Int(1), "white")]),
+    S.union([S.literal("red"), S.literal("blue")]),
+    S.union([S.literalVariant(0, "black"), S.literalVariant(1, "white")]),
   ])
   let structInlineResult = S.union([
-    S.union([
-      S.literalVariant(String("red"), #red),
-      S.literalVariant(String("blue"), #blue),
-    ])->S.variant(v => #Union(v)),
-    S.union([S.literalVariant(Int(0), #0), S.literalVariant(Int(1), #1)])->S.variant(v =>
-      #Union2(v)
+    S.union([S.literalVariant("red", #red), S.literalVariant("blue", #blue)])->S.variant(v =>
+      #Union(v)
     ),
+    S.union([S.literalVariant(0, #0), S.literalVariant(1, #1)])->S.variant(v => #Union2(v)),
   ])
 
   structInlineResult->(Obj.magic: S.t<[#Union([#red | #blue]) | #Union2([#0 | #1])]> => unit)

@@ -55,7 +55,7 @@ test("Fails to parse NaN", t => {
   t->Assert.deepEqual(
     %raw("NaN")->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({received: "NaN Literal (NaN)", expected: "JSON"}),
+      code: UnexpectedType({received: "NaN", expected: "JSON"}),
       operation: Parsing,
       path: S.Path.empty,
     }),

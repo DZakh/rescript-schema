@@ -3,17 +3,20 @@ open Ava
 module Positive = {
   module TestData = {
     type t = {
+      name: string,
       discriminantStruct: S.t<unknown>,
       discriminantData: unknown,
       testNamePostfix: string,
     }
 
     let make = (
+      ~name,
       ~discriminantStruct: S.t<'value>,
       ~discriminantData: 'any,
       ~description as maybeDescription=?,
       (),
     ) => {
+      name,
       discriminantStruct: discriminantStruct->Obj.magic,
       discriminantData: discriminantData->Obj.magic,
       testNamePostfix: switch maybeDescription {
@@ -25,40 +28,77 @@ module Positive = {
 
   [
     TestData.make(
-      ~discriminantStruct=S.literal(String("asdf")),
+      ~name="String literal",
+      ~discriminantStruct=S.literal("asdf"),
       ~discriminantData=%raw(`"asdf"`),
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.literal(String("\"\'\`")),
+      ~name="Escaped string literal",
+      ~discriminantStruct=S.literal("\"\'\`"),
       ~discriminantData=%raw(`"\"\'\`"`),
       (),
     ),
-    TestData.make(~discriminantStruct=S.literal(Int(123)), ~discriminantData=%raw("123"), ()),
-    TestData.make(~discriminantStruct=S.literal(Float(1.3)), ~discriminantData=%raw("1.3"), ()),
-    TestData.make(~discriminantStruct=S.literal(Bool(true)), ~discriminantData=%raw("true"), ()),
     TestData.make(
-      ~discriminantStruct=S.literal(EmptyOption),
+      ~name="Int literal",
+      ~discriminantStruct=S.literal(123),
+      ~discriminantData=%raw("123"),
+      (),
+    ),
+    TestData.make(
+      ~name="Float literal",
+      ~discriminantStruct=S.literal(1.3),
+      ~discriminantData=%raw("1.3"),
+      (),
+    ),
+    TestData.make(
+      ~name="Bool literal",
+      ~discriminantStruct=S.literal(true),
+      ~discriminantData=%raw("true"),
+      (),
+    ),
+    TestData.make(
+      ~name="Unit literal",
+      ~discriminantStruct=S.unit(),
       ~discriminantData=%raw("undefined"),
       (),
     ),
-    TestData.make(~discriminantStruct=S.literal(EmptyNull), ~discriminantData=%raw("null"), ()),
-    TestData.make(~discriminantStruct=S.literal(NaN), ~discriminantData=%raw("NaN"), ()),
     TestData.make(
-      ~discriminantStruct=S.union([S.literal(Bool(false)), S.bool()]),
+      ~name="S.Null.empty",
+      ~discriminantStruct=S.Null.empty(),
+      ~discriminantData=%raw("null"),
+      (),
+    ),
+    TestData.make(
+      ~name="NaN literal",
+      ~discriminantStruct=S.literal(%raw("NaN")),
+      ~discriminantData=%raw("NaN"),
+      (),
+    ),
+    TestData.make(
+      ~name="Union of bools",
+      ~discriminantStruct=S.union([S.literal(false), S.bool()]),
       ~discriminantData=%raw("false"),
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.tuple2(. S.literal(Bool(false)), S.literal(String("bar"))),
+      ~name="Tuple of literals",
+      ~discriminantStruct=S.tuple2(. S.literal(false), S.literal("bar")),
       ~discriminantData=%raw(`[false, "bar"]`),
       (),
     ),
     TestData.make(
+      ~name="Literal with tuple",
+      ~discriminantStruct=S.literal((false, "bar")),
+      ~discriminantData=%raw(`[false, "bar"]`),
+      (),
+    ),
+    TestData.make(
+      ~name="Object with literals",
       ~discriminantStruct=S.object(o => {
-        ignore(o->S.field("nestedDiscriminant", S.literal(String("abc"))))
+        ignore(o->S.field("nestedDiscriminant", S.literal("abc")))
         {
-          "field": o->S.field("nestedField", S.literal(Bool(false))),
+          "field": o->S.field("nestedField", S.literal(false)),
         }
       }),
       ~discriminantData=%raw(`{
@@ -68,11 +108,21 @@ module Positive = {
       (),
     ),
     TestData.make(
+      ~name="Literal with object",
+      ~discriminantStruct=S.literalVariant({"nestedDiscriminant": "abc", "nestedField": false}, ()),
+      ~discriminantData=%raw(`{
+        "nestedDiscriminant": "abc",
+        "nestedField": false
+      }`),
+      (),
+    ),
+    TestData.make(
+      ~name="Object with literals",
       ~description="and values needed to be escaped",
       ~discriminantStruct=S.object(o => {
-        ignore(o->S.field("\"\'\`", S.literal(String("\"\'\`"))))
+        ignore(o->S.field("\"\'\`", S.literal("\"\'\`")))
         {
-          "field": o->S.field("nestedField", S.literal(Bool(false))),
+          "field": o->S.field("nestedField", S.literal(false)),
         }
       }),
       ~discriminantData=%raw(`{
@@ -83,7 +133,7 @@ module Positive = {
     ),
   ]->Js.Array2.forEach(testData => {
     test(
-      `Successfully parses object with discriminant "${testData.discriminantStruct->S.name}"${testData.testNamePostfix}`,
+      `Successfully parses object with discriminant "${testData.name}"${testData.testNamePostfix}`,
       t => {
         let struct = S.object(
           o => {
@@ -106,7 +156,7 @@ module Positive = {
     )
 
     test(
-      `Successfully serializes object with discriminant "${testData.discriminantStruct->S.name}"${testData.testNamePostfix}`,
+      `Successfully serializes object with discriminant "${testData.name}"${testData.testNamePostfix}`,
       t => {
         let struct = S.object(
           o => {
@@ -160,25 +210,17 @@ module Negative = {
     TestData.make(~discriminantStruct=S.int(), ~discriminantData=123, ()),
     TestData.make(~discriminantStruct=S.float(), ~discriminantData=123., ()),
     TestData.make(~discriminantStruct=S.bool(), ~discriminantData=true, ()),
-    TestData.make(~discriminantStruct=S.option(S.literal(Bool(true))), ~discriminantData=None, ()),
-    TestData.make(
-      ~discriminantStruct=S.null(S.literal(Bool(true))),
-      ~discriminantData=%raw("null"),
-      (),
-    ),
+    TestData.make(~discriminantStruct=S.option(S.literal(true)), ~discriminantData=None, ()),
+    TestData.make(~discriminantStruct=S.null(S.literal(true)), ~discriminantData=%raw("null"), ()),
     TestData.make(~discriminantStruct=S.unknown(), ~discriminantData="anything", ()),
+    TestData.make(~discriminantStruct=S.array(S.literal(true)), ~discriminantData=[true, true], ()),
     TestData.make(
-      ~discriminantStruct=S.array(S.literal(Bool(true))),
-      ~discriminantData=[true, true],
-      (),
-    ),
-    TestData.make(
-      ~discriminantStruct=S.dict(S.literal(Bool(true))),
+      ~discriminantStruct=S.dict(S.literal(true)),
       ~discriminantData=Js.Dict.fromArray([("foo", true), ("bar", true)]),
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.tuple2(. S.literal(Bool(true)), S.bool()),
+      ~discriminantStruct=S.tuple2(. S.literal(true), S.bool()),
       ~discriminantData=(true, false),
       (),
     ),
@@ -188,7 +230,7 @@ module Negative = {
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.union([S.bool(), S.literal(Bool(false))]),
+      ~discriminantStruct=S.union([S.bool(), S.literal(false)]),
       ~discriminantData=true,
       (),
     ),

@@ -412,7 +412,7 @@ var S = require("../src/S_JsApi.js");
 });
 (0, ava_1["default"])("Fails to create NaN literal. Use S.nan instead", function (t) {
     t.throws(function () {
-        S.literal(NaN);
+        S.literal(%raw("NaN"));
     }, {
         name: "Error",
         message: "[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead."

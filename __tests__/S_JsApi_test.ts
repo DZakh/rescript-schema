@@ -564,30 +564,9 @@ test("Undefined literal", (t) => {
 test("Null literal", (t) => {
   const struct = S.literal(null);
 
-  t.deepEqual(struct.parseOrThrow(null), undefined);
+  t.deepEqual(struct.parseOrThrow(null), null);
 
-  expectType<TypeEqual<typeof struct, S.Struct<undefined>>>(true);
-});
-
-test("NaN struct", (t) => {
-  const struct = S.nan();
-
-  t.deepEqual(struct.parseOrThrow(NaN), undefined);
-
-  expectType<TypeEqual<typeof struct, S.Struct<undefined>>>(true);
-});
-
-test("Fails to create NaN literal. Use S.nan instead", (t) => {
-  t.throws(
-    () => {
-      S.literal(NaN);
-    },
-    {
-      name: "Error",
-      message:
-        "[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.",
-    }
-  );
+  expectType<TypeEqual<typeof struct, S.Struct<null>>>(true);
 });
 
 test("Fails to create Symbol literal. It's not supported", (t) => {

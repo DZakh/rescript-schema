@@ -81,7 +81,7 @@ let authorStruct = S.object(o => {
   tags: o->S.field("Tags", S.option(S.array(S.string()))->S.default(() => [])),
   isAproved: o->S.field(
     "IsApproved",
-    S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),
+    S.union([S.literalVariant("Yes", true), S.literalVariant("No", false)]),
   ),
   deprecatedAge: o->S.field("Age", S.int()->S.deprecate("Will be removed in APIv2")),
 })
@@ -276,31 +276,31 @@ let struct = S.unit()
 // Ok()
 ```
 
-The `unit` struct factory is an alias for `S.literal(EmptyOption)`.
+The `unit` struct factory is an alias for `S.literal(%raw("undefined"))`.
 
 ### **`S.literal`**
 
-`S.literal<'value> => S.t<'value>`
+`'value => S.t<'value>`
 
 ```rescript
-let tunaStruct = S.literal(String("Tuna"))
-let twelveStruct = S.literal(Int(12))
-let importantTimestampStruct = S.literal(Float(1652628345865.))
-let truStruct = S.literal(Bool(true))
-let nullStruct = S.literal(EmptyNull)
-let undefinedStruct = S.literal(EmptyOption)
-let nanStruct = S.literal(NaN)
+let tunaStruct = S.literal("Tuna")
+let twelveStruct = S.literal(12)
+let importantTimestampStruct = S.literal(1652628345865.)
+let truStruct = S.literal(true)
+let nullStruct = S.Null.empty()
+let emptyArrayStruct = S.literal([])
+let lintHelpCommandStruct = S.literal(("lint", "help"))
 ```
 
-The `literal` struct enforces that a data matches an exact value using the === operator.
+The `literal` struct enforces that a data matches an exact value using the == operator.
 
 ### **`S.literalVariant`**
 
-`(S.literal<'value>, 'variant) => S.t<'variant>`
+`('value, 'variant) => S.t<'variant>`
 
 ```rescript
 type fruit = Apple | Orange
-let appleStruct = S.literalVariant(String("apple"), Apple)
+let appleStruct = S.literalVariant("apple", Apple)
 
 %raw(`"apple"`)->S.parseWith(appleStruct)
 // Ok(Apple)
@@ -382,7 +382,7 @@ type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, 
 
 // It will have the S.t<shape> type
 let struct = S.object(o => {
-  ignore(o->S.field("kind", S.literal(String("circle"))))
+  ignore(o->S.field("kind", S.literal("circle")))
   Circle({
     radius: o->S.field("radius", S.float()),
   })
@@ -476,19 +476,19 @@ type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, 
 
 let shapeStruct = S.union([
   S.object(o => {
-    ignore(o->S.field("kind", S.literal(String("circle"))))
+    ignore(o->S.field("kind", S.literal("circle")))
     Circle({
       radius: o->S.field("radius", S.float()),
     })
   }),
   S.object(o => {
-    ignore(o->S.field("kind", S.literal(String("square"))))
+    ignore(o->S.field("kind", S.literal("square")))
     Square({
       x: o->S.field("x", S.float()),
     })
   }),
   S.object(o => {
-    ignore(o->S.field("kind", S.literal(String("triangle"))))
+    ignore(o->S.field("kind", S.literal("triangle")))
     Triangle({
       x: o->S.field("x", S.float()),
       y: o->S.field("y", S.float()),
@@ -517,15 +517,15 @@ The `union` will test the input against each of the structs in order and return 
 
 #### Enums
 
-Also, you can describe enums using `S.union` together with `S.literalVariant`.
+Also, you can describe enums using `S.union` together with `S.literal`.
 
 ```rescript
-type outcome = Win | Draw | Loss
+type outcome = @as("win") Win | @as("draw") Draw | @as("loss") Loss
 
 let struct = S.union([
-  S.literalVariant(String("win"), Win),
-  S.literalVariant(String("draw"), Draw),
-  S.literalVariant(String("loss"), Loss),
+  S.literal(Win),
+  S.literal(Draw),
+  S.literal(Loss),
 ])
 
 %raw(`"draw"`)->S.parseWith(struct)
@@ -1150,7 +1150,7 @@ The exception-based version of `serializeToUnknownWith`.
 **rescript-struct** returns a result type with error `S.Error.t` containing detailed information about the validation problems.
 
 ```rescript
-let struct = S.literal(Bool(false))
+let struct = S.literal(false)
 
 %raw(`true`)->S.parseWith(struct)
 // Error({
@@ -1195,7 +1195,7 @@ A function to exit with failure during refinements and transforms.
 `result<'a, S.Error.t> => 'a`
 
 ```rescript
-let struct = S.literal(Bool(false))
+let struct = S.literal(false)
 
 %raw(`false`)->S.parseWith(struct)->S.Result.getExn
 // false
@@ -1210,7 +1210,7 @@ let struct = S.literal(Bool(false))
 `result<'a, S.Error.t> => result<'a, string>`
 
 ```rescript
-let struct = S.literal(Bool(false))
+let struct = S.literal(false)
 
 %raw(`true`)->S.parseWith(struct)->S.Result.mapErrorToString
 // Error("Failed parsing at root. Reason: Expected false, received true")

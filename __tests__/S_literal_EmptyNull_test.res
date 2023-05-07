@@ -5,7 +5,7 @@ module Common = {
   let wrongValue = %raw(`123`)
   let any = %raw(`null`)
   let wrongTypeAny = %raw(`"Hello world!"`)
-  let factory = () => S.literal(EmptyNull)
+  let factory = () => S.Null.empty()
 
   test("Successfully parses", t => {
     let struct = factory()

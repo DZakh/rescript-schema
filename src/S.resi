@@ -37,25 +37,7 @@ module Error: {
 exception Raised(Error.t)
 
 type never
-
-type rec literal<'value> =
-  | String(string): literal<string>
-  | Int(int): literal<int>
-  | Float(float): literal<float>
-  | Bool(bool): literal<bool>
-  | EmptyNull: literal<unit>
-  | EmptyOption: literal<unit>
-  | NaN: literal<unit>
-
-type taggedLiteral =
-  | String(string)
-  | Int(int)
-  | Float(float)
-  | Bool(bool)
-  | EmptyNull
-  | EmptyOption
-  | NaN
-
+p
 type rec transformation<'input, 'output> =
   | Noop: transformation<'input, 'input>
   | Sync('input => 'output)
@@ -69,7 +51,7 @@ and tagged =
   | Int
   | Float
   | Bool
-  | Literal(taggedLiteral)
+  | Literal(unknown)
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
@@ -86,8 +68,8 @@ let string: unit => t<string>
 let bool: unit => t<bool>
 let int: unit => t<int>
 let float: unit => t<float>
-let literal: literal<'value> => t<'value>
-let literalVariant: (literal<'value>, 'variant) => t<'variant>
+let literal: 'value => t<'value>
+let literalVariant: ('value, 'variant) => t<'variant>
 let array: t<'value> => t<array<'value>>
 let list: t<'value> => t<list<'value>>
 let dict: t<'value> => t<Js.Dict.t<'value>>
@@ -214,6 +196,10 @@ module Object: {
 
   let strip: t<'value> => t<'value>
   let strict: t<'value> => t<'value>
+}
+
+module Null: {
+  let empty: unit => t<unit>
 }
 
 let object: (Object.definerCtx => 'value) => t<'value>

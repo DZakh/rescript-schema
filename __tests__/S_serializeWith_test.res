@@ -4,15 +4,15 @@ module Json = Js.Json
 
 test("Successfully serializes jsonable structs", t => {
   t->Assert.deepEqual(true->S.serializeWith(S.bool()), true->Json.boolean->Ok, ())
-  t->Assert.deepEqual(true->S.serializeWith(S.literal(Bool(true))), true->Json.boolean->Ok, ())
+  t->Assert.deepEqual(true->S.serializeWith(S.literal(true)), true->Json.boolean->Ok, ())
   t->Assert.deepEqual("abc"->S.serializeWith(S.string()), "abc"->Json.string->Ok, ())
-  t->Assert.deepEqual("abc"->S.serializeWith(S.literal(String("abc"))), "abc"->Json.string->Ok, ())
+  t->Assert.deepEqual("abc"->S.serializeWith(S.literal("abc")), "abc"->Json.string->Ok, ())
   t->Assert.deepEqual(123->S.serializeWith(S.int()), 123.->Json.number->Ok, ())
-  t->Assert.deepEqual(123->S.serializeWith(S.literal(Int(123))), 123.->Json.number->Ok, ())
+  t->Assert.deepEqual(123->S.serializeWith(S.literal(123)), 123.->Json.number->Ok, ())
   t->Assert.deepEqual(123.->S.serializeWith(S.float()), 123.->Json.number->Ok, ())
-  t->Assert.deepEqual(123.->S.serializeWith(S.literal(Float(123.))), 123.->Json.number->Ok, ())
+  t->Assert.deepEqual(123.->S.serializeWith(S.literal(123.)), 123.->Json.number->Ok, ())
   t->Assert.deepEqual(None->S.serializeWith(S.null(S.bool())), Json.null->Ok, ())
-  t->Assert.deepEqual(()->S.serializeWith(S.literal(EmptyNull)), Json.null->Ok, ())
+  t->Assert.deepEqual(()->S.serializeWith(S.Null.empty()), Json.null->Ok, ())
   t->Assert.deepEqual([]->S.serializeWith(S.array(S.bool())), Json.array([])->Ok, ())
   t->Assert.deepEqual(
     Js.Dict.empty()->S.serializeWith(S.dict(S.bool())),
@@ -30,7 +30,7 @@ test("Successfully serializes jsonable structs", t => {
     (),
   )
   t->Assert.deepEqual(
-    "foo"->S.serializeWith(S.union([S.literal(String("foo")), S.literal(String("bar"))])),
+    "foo"->S.serializeWith(S.union([S.literal("foo"), S.literal("bar")])),
     Json.string("foo")->Ok,
     (),
   )
@@ -50,21 +50,9 @@ test("Fails to serialize Option struct", t => {
 
 test("Fails to serialize EmptyOption Literal (undefined) struct", t => {
   t->Assert.deepEqual(
-    ()->S.serializeWith(S.literal(EmptyOption)),
+    ()->S.serializeWith(S.unit()),
     Error({
       code: InvalidJsonStruct({received: "EmptyOption Literal (undefined)"}),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
-    (),
-  )
-})
-
-test("Fails to serialize NaN Literal (NaN) struct", t => {
-  t->Assert.deepEqual(
-    ()->S.serializeWith(S.literal(NaN)),
-    Error({
-      code: InvalidJsonStruct({received: "NaN Literal (NaN)"}),
       operation: Serializing,
       path: S.Path.empty,
     }),

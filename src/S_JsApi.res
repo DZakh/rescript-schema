@@ -188,30 +188,8 @@ let tuple = structs => {
 }
 
 let literal = (value: 'value): struct<'value> => {
-  let taggedLiteral: S.taggedLiteral = {
-    if Js.typeof(value) === "string" {
-      String(value->Obj.magic)
-    } else if Js.typeof(value) === "boolean" {
-      Bool(value->Obj.magic)
-    } else if Js.typeof(value) === "number" {
-      let value = value->Obj.magic
-      if value->Js.Float.isNaN {
-        Js.Exn.raiseError(`[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.`)
-      } else {
-        Float(value)
-      }
-    } else if value === %raw("null") {
-      EmptyNull
-    } else if value === %raw("undefined") {
-      EmptyOption
-    } else {
-      Js.Exn.raiseError(`[rescript-struct] The value provided to literal struct factory is not supported.`)
-    }
-  }
-  S.literal(taggedLiteral->(Obj.magic: S.taggedLiteral => S.literal<'value>))->toJsStruct
+  S.literal(value)->toJsStruct
 }
-
-let nan = () => S.literal(NaN)->toJsStruct
 
 let custom = (~name, ~parser, ~serializer) => {
   S.custom(~name, ~parser, ~serializer, ())->toJsStruct

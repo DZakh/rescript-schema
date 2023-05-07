@@ -6,7 +6,7 @@ module Common = {
   let any = %raw(`123`)
   let wrongAny = %raw(`444`)
   let wrongTypeAny = %raw(`"Hello world!"`)
-  let factory = () => S.literal(Float(123.))
+  let factory = () => S.literal(123.)
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -64,7 +64,7 @@ module Common = {
 }
 
 test("Formatting of negative number with a decimal point in an error message", t => {
-  let struct = S.literal(Float(-123.567))
+  let struct = S.literal(-123.567)
 
   t->Assert.deepEqual(
     %raw(`"foo"`)->S.parseAnyWith(struct),

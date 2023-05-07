@@ -9,7 +9,7 @@ test("Example", t => {
     tags: o->S.field("Tags", S.option(S.array(S.string()))->S.default(() => [])),
     isAproved: o->S.field(
       "IsApproved",
-      S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),
+      S.union([S.literalVariant("Yes", true), S.literalVariant("No", false)]),
     ),
     deprecatedAge: o->S.field("Age", S.int()->S.deprecate("Will be removed in APIv2")),
   })

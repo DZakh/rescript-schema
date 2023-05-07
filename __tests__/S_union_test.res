@@ -31,10 +31,7 @@ test("Successfully creates a Union struct factory with two structs", t => {
 })
 
 test("Successfully parses literalVariants", t => {
-  let struct = S.union([
-    S.literalVariant(String("apple"), #apple),
-    S.literalVariant(String("orange"), #orange),
-  ])
+  let struct = S.union([S.literal(#apple), S.literal(#orange)])
 
   t->Assert.deepEqual(%raw(`"apple"`)->S.parseAnyWith(struct), Ok(#apple), ())
 })
@@ -50,19 +47,19 @@ module Advanced = {
 
   let shapeStruct = S.union([
     S.object(o => {
-      ignore(o->S.field("kind", S.literal(String("circle"))))
+      ignore(o->S.field("kind", S.literal("circle")))
       Circle({
         radius: o->S.field("radius", S.float()),
       })
     }),
     S.object(o => {
-      ignore(o->S.field("kind", S.literal(String("square"))))
+      ignore(o->S.field("kind", S.literal("square")))
       Square({
         x: o->S.field("x", S.float()),
       })
     }),
     S.object(o => {
-      ignore(o->S.field("kind", S.literal(String("triangle"))))
+      ignore(o->S.field("kind", S.literal("triangle")))
       Triangle({
         x: o->S.field("x", S.float()),
         y: o->S.field("y", S.float()),
@@ -167,13 +164,13 @@ module Advanced = {
   test("Fails to serialize incomplete struct", t => {
     let incompleteStruct = S.union([
       S.object(o => {
-        ignore(o->S.field("kind", S.literal(String("circle"))))
+        ignore(o->S.field("kind", S.literal("circle")))
         Circle({
           radius: o->S.field("radius", S.float()),
         })
       }),
       S.object(o => {
-        ignore(o->S.field("kind", S.literal(String("square"))))
+        ignore(o->S.field("kind", S.literal("square")))
         Square({
           x: o->S.field("x", S.float()),
         })

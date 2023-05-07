@@ -6,7 +6,7 @@ module Common = {
   let any = %raw(`"ReScript is Great!"`)
   let wrongAny = %raw(`"Hello world!"`)
   let wrongTypeAny = %raw(`true`)
-  let factory = () => S.literal(String("ReScript is Great!"))
+  let factory = () => S.literal("ReScript is Great!")
 
   test("Successfully parses", t => {
     let struct = factory()

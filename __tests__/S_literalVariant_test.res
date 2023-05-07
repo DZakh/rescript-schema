@@ -7,7 +7,7 @@ module Common = {
   let any = %raw(`"ReScript is Great!"`)
   let wrongAny = %raw(`"Hello world!"`)
   let wrongTypeAny = %raw(`true`)
-  let factory = () => S.literalVariant(String("Ugly string"), "ReScript is Great!")
+  let factory = () => S.literalVariant("Ugly string", "ReScript is Great!")
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -67,25 +67,25 @@ module Common = {
 type variant = Apple
 
 test("Successfully parses null to provided variant", t => {
-  let struct = S.literalVariant(EmptyNull, Apple)
+  let struct = S.literalVariant(%raw("null"), Apple)
 
   t->Assert.deepEqual(%raw(`null`)->S.parseAnyWith(struct), Ok(Apple), ())
 })
 
 test("Successfully parses undefined to provided variant", t => {
-  let struct = S.literalVariant(EmptyOption, Apple)
+  let struct = S.literalVariant(%raw("undefined"), Apple)
 
   t->Assert.deepEqual(%raw(`undefined`)->S.parseAnyWith(struct), Ok(Apple), ())
 })
 
 test("Successfully serializes variant to null", t => {
-  let struct = S.literalVariant(EmptyNull, Apple)
+  let struct = S.literalVariant(%raw("null"), Apple)
 
   t->Assert.deepEqual(Apple->S.serializeToUnknownWith(struct), Ok(%raw(`null`)), ())
 })
 
 test("Successfully serializes variant to undefined", t => {
-  let struct = S.literalVariant(EmptyOption, Apple)
+  let struct = S.literalVariant(%raw("undefined"), Apple)
 
   t->Assert.deepEqual(Apple->S.serializeToUnknownWith(struct), Ok(%raw(`undefined`)), ())
 })

@@ -44,7 +44,6 @@ let record: struct<'value> => struct<Js.Dict.t<'value>>
 let jsonString: struct<'value> => struct<'value>
 let union: array<struct<unknown>> => struct<unknown>
 let literal: 'value => struct<'value>
-let nan: unit => struct<unit>
 let tuple: array<struct<unknown>> => struct<array<unknown>>
 
 let custom: (

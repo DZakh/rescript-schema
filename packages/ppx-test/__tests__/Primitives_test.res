@@ -138,9 +138,9 @@ test("Custom string struct", t => {
 })
 
 @struct
-type myCustomLiteralString = @struct(S.literal(String("123"))->S.String.email()) string
+type myCustomLiteralString = @struct(S.literal("123")->S.String.email()) string
 test("Custom litaral string struct", t => {
-  t->assertEqualStructs(myCustomLiteralStringStruct, S.literal(String("123"))->S.String.email(), ())
+  t->assertEqualStructs(myCustomLiteralStringStruct, S.literal("123")->S.String.email(), ())
 })
 
 @struct
