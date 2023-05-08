@@ -56,9 +56,9 @@ module Positive = {
     ),
     TestData.make(
       ~discriminantStruct=S.object(o => {
-        ignore(o->S.field("nestedDiscriminant", S.literal(String("abc"))))
+        ignore(o.field("nestedDiscriminant", S.literal(String("abc"))))
         {
-          "field": o->S.field("nestedField", S.literal(Bool(false))),
+          "field": o.field("nestedField", S.literal(Bool(false))),
         }
       }),
       ~discriminantData=%raw(`{
@@ -70,9 +70,9 @@ module Positive = {
     TestData.make(
       ~description="and values needed to be escaped",
       ~discriminantStruct=S.object(o => {
-        ignore(o->S.field("\"\'\`", S.literal(String("\"\'\`"))))
+        ignore(o.field("\"\'\`", S.literal(String("\"\'\`"))))
         {
-          "field": o->S.field("nestedField", S.literal(Bool(false))),
+          "field": o.field("nestedField", S.literal(Bool(false))),
         }
       }),
       ~discriminantData=%raw(`{
@@ -87,9 +87,9 @@ module Positive = {
       t => {
         let struct = S.object(
           o => {
-            ignore(o->S.field("discriminant", testData.discriminantStruct))
+            ignore(o.field("discriminant", testData.discriminantStruct))
             {
-              "field": o->S.field("field", S.string),
+              "field": o.field("field", S.string),
             }
           },
         )
@@ -110,9 +110,9 @@ module Positive = {
       t => {
         let struct = S.object(
           o => {
-            ignore(o->S.field("discriminant", testData.discriminantStruct))
+            ignore(o.field("discriminant", testData.discriminantStruct))
             {
-              "field": o->S.field("field", S.string),
+              "field": o.field("field", S.string),
             }
           },
         )
@@ -183,7 +183,7 @@ module Negative = {
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.object(o => o->S.field("field", S.bool)),
+      ~discriminantStruct=S.object(o => o.field("field", S.bool)),
       ~discriminantData={"field": true},
       (),
     ),
@@ -198,9 +198,9 @@ module Negative = {
       t => {
         let struct = S.object(
           o => {
-            ignore(o->S.field("discriminant", testData.discriminantStruct))
+            ignore(o.field("discriminant", testData.discriminantStruct))
             {
-              "field": o->S.field("field", S.string),
+              "field": o.field("field", S.string),
             }
           },
         )
@@ -221,9 +221,9 @@ module Negative = {
       t => {
         let struct = S.object(
           o => {
-            ignore(o->S.field("discriminant", testData.discriminantStruct))
+            ignore(o.field("discriminant", testData.discriminantStruct))
             {
-              "field": o->S.field("field", S.string),
+              "field": o.field("field", S.string),
             }
           },
         )
@@ -244,9 +244,9 @@ module Negative = {
 
 test(`Fails to parse object with invalid data passed to discriminant field`, t => {
   let struct = S.object(o => {
-    ignore(o->S.field("discriminant", S.string))
+    ignore(o.field("discriminant", S.string))
     {
-      "field": o->S.field("field", S.string),
+      "field": o.field("field", S.string),
     }
   })
 
@@ -266,9 +266,9 @@ test(`Fails to parse object with invalid data passed to discriminant field`, t =
 
 test(`Fails to serialize object with discriminant "Never"`, t => {
   let struct = S.object(o => {
-    ignore(o->S.field("discriminant", S.never))
+    ignore(o.field("discriminant", S.never))
     {
-      "field": o->S.field("field", S.string),
+      "field": o.field("field", S.string),
     }
   })
 

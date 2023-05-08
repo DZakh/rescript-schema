@@ -1754,6 +1754,8 @@ module Literal = {
 }
 
 module Object = {
+  type ctx = {@as("f") field: 'value. (. string, t<'value>) => 'value}
+
   module UnknownKeys = {
     type tagged =
       | Strict
@@ -1793,12 +1795,12 @@ module Object = {
   }
 
   module DefinerCtx = {
-    type struct = t<unknown>
+    type struct<'a> = t<'a>
     type t = {
       @as("n")
       fieldNames: array<string>,
-      @as("f")
-      fields: Js.Dict.t<struct>,
+      @as("h")
+      fields: Js.Dict.t<struct<unknown>>,
       @as("d")
       fieldDefinitions: array<FieldDefinition.t>,
       @as("p")
@@ -1809,17 +1811,55 @@ module Object = {
       constantDefinitions: array<ConstantDefinition.t>,
       @as("s")
       fieldDefinitionsSet: Stdlib.Set.t<FieldDefinition.t>,
+      @as("f")
+      field: 'value. (. string, t<'value>) => 'value,
     }
+
+    external toPublic: t => ctx = "%identity"
 
     @inline
     let make = () => {
-      fieldNames: [],
-      fields: Js.Dict.empty(),
-      fieldDefinitions: [],
-      preparationPathes: [],
-      inlinedPreparationValues: [],
-      constantDefinitions: [],
-      fieldDefinitionsSet: Stdlib.Set.empty(),
+      let fields = Js.Dict.empty()
+      let fieldNames = []
+      let fieldDefinitions = []
+      let fieldDefinitionsSet = Stdlib.Set.empty()
+
+      let field:
+        type value. (. string, struct<value>) => value =
+        (. fieldName, struct) => {
+          let struct = struct->toUnknown
+          switch fields->Stdlib.Dict.has(fieldName) {
+          | true =>
+            Error.panic(
+              `The field "${fieldName}" is defined multiple times. If you want to duplicate a field, use S.transform instead.`,
+            )
+          | false => {
+              let fieldDefinition: FieldDefinition.t = {
+                fieldStruct: struct,
+                fieldName,
+                inlinedFieldName: fieldName->Stdlib.Inlined.Value.fromString,
+                path: Path.empty,
+                isRegistered: false,
+              }
+              fields->Js.Dict.set(fieldName, struct)
+              fieldNames->Js.Array2.push(fieldName)->ignore
+              fieldDefinitions->Js.Array2.push(fieldDefinition)->ignore
+              fieldDefinitionsSet->Stdlib.Set.add(fieldDefinition)->ignore
+              fieldDefinition->(Obj.magic: FieldDefinition.t => value)
+            }
+          }
+        }
+
+      {
+        fieldNames,
+        fields,
+        field,
+        fieldDefinitions,
+        preparationPathes: [],
+        inlinedPreparationValues: [],
+        constantDefinitions: [],
+        fieldDefinitionsSet,
+      }
     }
   }
 
@@ -2301,7 +2341,7 @@ module Object = {
   let factory = definer => {
     let instructions = {
       let definerCtx = DefinerCtx.make()
-      let definition = definer->Stdlib.Fn.call1(definerCtx)->castAnyToUnknown
+      let definition = definer->Stdlib.Fn.call1(definerCtx->DefinerCtx.toPublic)->castAnyToUnknown
       definition->analyzeDefinition(~definerCtx, ~path=Path.empty)
       definerCtx
     }
@@ -2319,30 +2359,6 @@ module Object = {
     )
   }
 
-  let field = (definerCtx: DefinerCtx.t, fieldName, struct) => {
-    let struct = struct->toUnknown
-    switch definerCtx.fields->Stdlib.Dict.has(fieldName) {
-    | true =>
-      Error.panic(
-        `The field "${fieldName}" is defined multiple times. If you want to duplicate a field, use S.transform instead.`,
-      )
-    | false => {
-        let fieldDefinition: FieldDefinition.t = {
-          fieldStruct: struct,
-          fieldName,
-          inlinedFieldName: fieldName->Stdlib.Inlined.Value.fromString,
-          path: Path.empty,
-          isRegistered: false,
-        }
-        definerCtx.fields->Js.Dict.set(fieldName, struct)
-        definerCtx.fieldNames->Js.Array2.push(fieldName)->ignore
-        definerCtx.fieldDefinitions->Js.Array2.push(fieldDefinition)->ignore
-        definerCtx.fieldDefinitionsSet->Stdlib.Set.add(fieldDefinition)->ignore
-        fieldDefinition->(Obj.magic: FieldDefinition.t => 'a)
-      }
-    }
-  }
-
   let strip = struct => {
     struct->Metadata.set(~id=UnknownKeys.metadataId, ~metadata=UnknownKeys.Strip)
   }
@@ -2350,8 +2366,6 @@ module Object = {
   let strict = struct => {
     struct->Metadata.set(~id=UnknownKeys.metadataId, ~metadata=UnknownKeys.Strict)
   }
-
-  type definerCtx = DefinerCtx.t
 }
 
 module Never = {
@@ -3878,7 +3892,7 @@ let inline = {
   {
     ${fieldNames
         ->Js.Array2.map(fieldName => {
-          `${fieldName->Stdlib.Inlined.Value.fromString}: o->S.field(${fieldName->Stdlib.Inlined.Value.fromString}, ${fields
+          `${fieldName->Stdlib.Inlined.Value.fromString}: o.field(${fieldName->Stdlib.Inlined.Value.fromString}, ${fields
             ->Js.Dict.unsafeGet(fieldName)
             ->internalInline()})`
         })
@@ -4056,7 +4070,6 @@ let inline = {
 }
 
 let object = Object.factory
-let field = Object.field
 let never = Never.struct
 let unknown = Unknown.struct
 let unit = Literal.factory(EmptyOption)

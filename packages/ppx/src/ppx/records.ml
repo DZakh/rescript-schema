@@ -21,13 +21,13 @@ type parsed_decl = {
 let generate_decoder decls =
   (* Use Obj.magic to cast to uncurried function in case of uncurried mode *)
   [%expr
-    S.Object.factory (Obj.magic (fun o ->
+    S.Object.factory (Obj.magic (fun (o: S.Object.ctx) ->
         [%e
           Exp.record
             (decls
             |> List.map (fun decl ->
                    ( lid decl.name,
-                     [%expr S.field o [%e decl.key] [%e decl.struct_expr]] )))
+                     [%expr o.field [%e decl.key] [%e decl.struct_expr]] )))
             None]))]
 
 let parse_decl { pld_name = { txt }; pld_loc; pld_type; pld_attributes } =

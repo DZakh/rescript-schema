@@ -591,18 +591,18 @@ test("Adds index for the same structs inside of the union", t => {
 test("Supports Object (ignores transformations)", t => {
   let struct = S.object(o =>
     {
-      "name": o->S.field("Name", S.string),
-      "email": o->S.field("Email", S.string),
-      "age": o->S.field("Age", S.int),
+      "name": o.field("Name", S.string),
+      "email": o.field("Email", S.string),
+      "age": o.field("Age", S.int),
     }
   )
   t->Assert.deepEqual(
     struct->S.inline,
     `S.object(o =>
   {
-    "Name": o->S.field("Name", S.string),
-    "Email": o->S.field("Email", S.string),
-    "Age": o->S.field("Age", S.int),
+    "Name": o.field("Name", S.string),
+    "Email": o.field("Email", S.string),
+    "Age": o.field("Age", S.int),
   }
 )`,
     (),
@@ -753,18 +753,18 @@ test("Supports Dict structs in union", t => {
 
 test("Supports Object structs in union", t => {
   let struct = S.union([
-    S.object(o => o->S.field("field", S.literalVariant(String("123"), 123.))),
-    S.object(o => o->S.field("field", S.float)),
+    S.object(o => o.field("field", S.literalVariant(String("123"), 123.))),
+    S.object(o => o.field("field", S.float)),
   ])
   let structInlineResult = S.union([
     S.object(o =>
       {
-        "field": o->S.field("field", S.literal(String("123"))),
+        "field": o.field("field", S.literal(String("123"))),
       }
     )->S.variant(v => #Object(v)),
     S.object(o =>
       {
-        "field": o->S.field("field", S.float),
+        "field": o.field("field", S.float),
       }
     )->S.variant(v => #Object2(v)),
   ])
@@ -782,11 +782,11 @@ test("Supports Object structs in union", t => {
     struct->S.inline,
     `S.union([S.object(o =>
   {
-    "field": o->S.field("field", S.literal(String("123"))),
+    "field": o.field("field", S.literal(String("123"))),
   }
 )->S.variant(v => #"Object"(v)), S.object(o =>
   {
-    "field": o->S.field("field", S.float),
+    "field": o.field("field", S.float),
   }
 )->S.variant(v => #"Object2"(v))])`,
     (),

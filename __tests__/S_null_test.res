@@ -54,7 +54,7 @@ test("Fails to parse JS undefined", t => {
 })
 
 test("Fails to parse object with missing field that marked as null", t => {
-  let struct = S.object(o => o->S.field("nullableField", S.null(S.string)))
+  let struct = S.object(o => o.field("nullableField", S.null(S.string)))
 
   t->Assert.deepEqual(
     %raw(`{}`)->S.parseAnyWith(struct),

@@ -258,7 +258,7 @@ module Object = {
       for idx in 0 to fieldNames->Js.Array2.length - 1 {
         let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
         let struct = definer->Js.Dict.unsafeGet(fieldName)->castToRescriptStruct
-        definition->Js.Dict.set(fieldName, o->S.field(fieldName, struct))
+        definition->Js.Dict.set(fieldName, o.field(fieldName, struct))
       }
       definition
     })->toJsStruct

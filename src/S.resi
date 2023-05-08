@@ -202,7 +202,7 @@ let fail: (~path: Path.t=?, string) => 'a
 let advancedFail: Error.t => 'a
 
 module Object: {
-  type definerCtx
+  type ctx = {@as("f") field: 'value. (. string, t<'value>) => 'value}
 
   module UnknownKeys: {
     type tagged = Strict | Strip
@@ -211,14 +211,13 @@ module Object: {
   }
 
   /* The same as S.object. Expose only for PPX since the object is a reserved name in OCaml */
-  let factory: (definerCtx => 'value) => t<'value>
+  let factory: (ctx => 'value) => t<'value>
 
   let strip: t<'value> => t<'value>
   let strict: t<'value> => t<'value>
 }
 
-let object: (Object.definerCtx => 'value) => t<'value>
-let field: (Object.definerCtx, string, t<'value>) => 'value
+let object: (Object.ctx => 'value) => t<'value>
 
 module Tuple: {
   let factory: array<t<unknown>> => t<array<unknown>>

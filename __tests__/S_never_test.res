@@ -37,8 +37,8 @@ module ObjectField = {
   test("Fails to parse a object with Never field", t => {
     let struct = S.object(o =>
       {
-        "key": o->S.field("key", S.string),
-        "oldKey": o->S.field("oldKey", S.never),
+        "key": o.field("key", S.string),
+        "oldKey": o.field("oldKey", S.never),
       }
     )
 
@@ -56,8 +56,8 @@ module ObjectField = {
   test("Successfully parses a object with Never field when it's optional and not present", t => {
     let struct = S.object(o =>
       {
-        "key": o->S.field("key", S.string),
-        "oldKey": o->S.field(
+        "key": o.field("key", S.string),
+        "oldKey": o.field(
           "oldKey",
           S.never->S.deprecate("We stopped using the field from the v0.9.0 release"),
         ),

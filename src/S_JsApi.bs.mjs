@@ -255,7 +255,7 @@ function factory(definer) {
                   for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
                     var fieldName = fieldNames[idx];
                     var struct = definer[fieldName];
-                    definition[fieldName] = S$RescriptStruct.field(o, fieldName, struct);
+                    definition[fieldName] = o.f(fieldName, struct);
                   }
                   return definition;
                 }), objectStructOperations);

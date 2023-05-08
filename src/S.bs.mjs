@@ -1487,21 +1487,39 @@ function analyzeDefinition$1(definition, definerCtx, path) {
 }
 
 function factory$3(definer) {
-  var definerCtx_n = [];
-  var definerCtx_f = {};
-  var definerCtx_d = [];
+  var fields = {};
+  var fieldNames = [];
+  var fieldDefinitions = [];
+  var fieldDefinitionsSet = new Set();
+  var field = function (fieldName, struct) {
+    if (fields.hasOwnProperty(fieldName)) {
+      throw new Error("[rescript-struct] " + ("The field \"" + fieldName + "\" is defined multiple times. If you want to duplicate a field, use S.transform instead."));
+    }
+    var fieldDefinition = {
+      s: struct,
+      i: JSON.stringify(fieldName),
+      n: fieldName,
+      p: "",
+      r: false
+    };
+    fields[fieldName] = struct;
+    fieldNames.push(fieldName);
+    fieldDefinitions.push(fieldDefinition);
+    fieldDefinitionsSet.add(fieldDefinition);
+    return fieldDefinition;
+  };
   var definerCtx_p = [];
   var definerCtx_v = [];
   var definerCtx_c = [];
-  var definerCtx_s = new Set();
   var definerCtx = {
-    n: definerCtx_n,
-    f: definerCtx_f,
-    d: definerCtx_d,
+    n: fieldNames,
+    h: fields,
+    d: fieldDefinitions,
     p: definerCtx_p,
     v: definerCtx_v,
     c: definerCtx_c,
-    s: definerCtx_s
+    s: fieldDefinitionsSet,
+    f: field
   };
   var definition = definer(definerCtx);
   analyzeDefinition$1(definition, definerCtx, "");
@@ -1509,7 +1527,6 @@ function factory$3(definer) {
     var inliningFieldNameRef = undefined;
     try {
       var constantDefinitions = definerCtx_c;
-      var fieldDefinitions = definerCtx_d;
       var serializeFnsByFieldDefinitionIdx = {};
       var stringRef = "";
       for(var idx = 0 ,idx_finish = constantDefinitions.length; idx < idx_finish; ++idx){
@@ -1582,7 +1599,6 @@ function factory$3(definer) {
     var constantDefinitions = definerCtx_c;
     var inlinedPreparationValues = definerCtx_v;
     var preparationPathes = definerCtx_p;
-    var fieldDefinitions = definerCtx_d;
     var withUnknownKeysRefinement = classify$1(ctx.s) === "Strict";
     var asyncFieldDefinitions = [];
     var parseFnsByInstructionIdx = {};
@@ -1674,7 +1690,7 @@ function factory$3(definer) {
                           RE_EXN_ID: Exception,
                           _1: prependPath(exn._1, "[" + JSON.stringify(fieldDefinitions[fieldDefinitionIdx].n) + "]")
                         }) : exn;
-              }), parseFnsByInstructionIdx, definerCtx_f, constantDefinitions, (function (input) {
+              }), parseFnsByInstructionIdx, fields, constantDefinitions, (function (input) {
                 return raiseUnexpectedTypeError(input, ctx.s);
               }), raiseUnexpectedTypeError, (function (exccessFieldName) {
                 return raise$1({
@@ -1719,8 +1735,8 @@ function factory$3(definer) {
           n: "Object",
           t: {
             TAG: "Object",
-            fields: definerCtx_f,
-            fieldNames: definerCtx_n
+            fields: fields,
+            fieldNames: fieldNames
           },
           pf: parseTransformationFactory,
           sf: serializeTransformationFactory,
@@ -1733,24 +1749,6 @@ function factory$3(definer) {
           i: undefined,
           m: emptyMetadataMap
         };
-}
-
-function field(definerCtx, fieldName, struct) {
-  if (definerCtx.f.hasOwnProperty(fieldName)) {
-    throw new Error("[rescript-struct] " + ("The field \"" + fieldName + "\" is defined multiple times. If you want to duplicate a field, use S.transform instead."));
-  }
-  var fieldDefinition = {
-    s: struct,
-    i: JSON.stringify(fieldName),
-    n: fieldName,
-    p: "",
-    r: false
-  };
-  definerCtx.f[fieldName] = struct;
-  definerCtx.n.push(fieldName);
-  definerCtx.d.push(fieldDefinition);
-  definerCtx.s.add(fieldDefinition);
-  return fieldDefinition;
 }
 
 function strip(struct) {
@@ -3446,7 +3444,7 @@ function internalInline(struct, maybeVariant, param) {
           var fieldNames = taggedLiteral.fieldNames;
           var fields = taggedLiteral.fields;
           inlinedStruct = fieldNames.length !== 0 ? "S.object(o =>\n  {\n    " + fieldNames.map(function (fieldName) {
-                    return JSON.stringify(fieldName) + ": o->S.field(" + JSON.stringify(fieldName) + ", " + internalInline(fields[fieldName], undefined, undefined) + ")";
+                    return JSON.stringify(fieldName) + ": o.field(" + JSON.stringify(fieldName) + ", " + internalInline(fields[fieldName], undefined, undefined) + ")";
                   }).join(",\n    ") + ",\n  }\n)" : "S.object(_ => ())";
           break;
       case "Tuple" :
@@ -3870,7 +3868,6 @@ export {
   advancedFail ,
   $$Object ,
   object ,
-  field ,
   Tuple ,
   tuple0 ,
   tuple1 ,

@@ -6,16 +6,16 @@ import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
 
 var simpleRecordStruct = S$RescriptStruct.$$Object.factory(function (o) {
       return {
-              label: S$RescriptStruct.field(o, "label", S$RescriptStruct.string),
-              value: S$RescriptStruct.field(o, "value", S$RescriptStruct.$$int)
+              label: o.f("label", S$RescriptStruct.string),
+              value: o.f("value", S$RescriptStruct.$$int)
             };
     });
 
 Ava("Simple record struct", (function (t) {
         TestUtils.assertEqualStructs(t, simpleRecordStruct, S$RescriptStruct.object(function (o) {
                   return {
-                          label: S$RescriptStruct.field(o, "label", S$RescriptStruct.string),
-                          value: S$RescriptStruct.field(o, "value", S$RescriptStruct.$$int)
+                          label: o.f("label", S$RescriptStruct.string),
+                          value: o.f("value", S$RescriptStruct.$$int)
                         };
                 }), undefined, undefined);
         t.deepEqual(S$RescriptStruct.parseWith({label:"foo",value:1}, simpleRecordStruct), {
@@ -29,16 +29,16 @@ Ava("Simple record struct", (function (t) {
 
 var recordWithAliasStruct = S$RescriptStruct.$$Object.factory(function (o) {
       return {
-              label: S$RescriptStruct.field(o, "aliased-label", S$RescriptStruct.string),
-              value: S$RescriptStruct.field(o, "value", S$RescriptStruct.$$int)
+              label: o.f("aliased-label", S$RescriptStruct.string),
+              value: o.f("value", S$RescriptStruct.$$int)
             };
     });
 
 Ava("Record struct with alias for field name", (function (t) {
         TestUtils.assertEqualStructs(t, recordWithAliasStruct, S$RescriptStruct.object(function (o) {
                   return {
-                          label: S$RescriptStruct.field(o, "aliased-label", S$RescriptStruct.string),
-                          value: S$RescriptStruct.field(o, "value", S$RescriptStruct.$$int)
+                          label: o.f("aliased-label", S$RescriptStruct.string),
+                          value: o.f("value", S$RescriptStruct.$$int)
                         };
                 }), undefined, undefined);
         t.deepEqual(S$RescriptStruct.parseWith({"aliased-label":"foo",value:1}, recordWithAliasStruct), {
@@ -52,16 +52,16 @@ Ava("Record struct with alias for field name", (function (t) {
 
 var recordWithOptionalStruct = S$RescriptStruct.$$Object.factory(function (o) {
       return {
-              label: S$RescriptStruct.field(o, "label", S$RescriptStruct.option(S$RescriptStruct.string)),
-              value: S$RescriptStruct.field(o, "value", S$RescriptStruct.option(S$RescriptStruct.$$int))
+              label: o.f("label", S$RescriptStruct.option(S$RescriptStruct.string)),
+              value: o.f("value", S$RescriptStruct.option(S$RescriptStruct.$$int))
             };
     });
 
 Ava("Record struct with optional fields", (function (t) {
         TestUtils.assertEqualStructs(t, recordWithOptionalStruct, S$RescriptStruct.object(function (o) {
                   return {
-                          label: S$RescriptStruct.field(o, "label", S$RescriptStruct.option(S$RescriptStruct.string)),
-                          value: S$RescriptStruct.field(o, "value", S$RescriptStruct.option(S$RescriptStruct.$$int))
+                          label: o.f("label", S$RescriptStruct.option(S$RescriptStruct.string)),
+                          value: o.f("value", S$RescriptStruct.option(S$RescriptStruct.$$int))
                         };
                 }), undefined, undefined);
         t.deepEqual(S$RescriptStruct.parseWith({"label":"foo",value:1}, recordWithOptionalStruct), {
