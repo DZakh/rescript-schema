@@ -3779,7 +3779,7 @@ let deprecationMetadataId: Metadata.Id.t<string> = Metadata.Id.make(
 )
 
 let deprecate = (struct, message) => {
-  struct->Option.factory->Metadata.set(~id=deprecationMetadataId, ~metadata=message)
+  struct->Metadata.set(~id=deprecationMetadataId, ~metadata=message)
 }
 
 let deprecation = struct => struct->Metadata.get(~id=deprecationMetadataId)
@@ -3903,17 +3903,7 @@ let inline = {
     | Int => `S.int`
     | Float => `S.float`
     | Bool => `S.bool`
-    | Option(innerStruct) => {
-        let inlinedInnerStruct = innerStruct->internalInline()
-        switch struct->deprecation {
-        | Some(message) => {
-            metadataMap->Stdlib.Dict.deleteInPlace(deprecationMetadataId->Metadata.Id.toKey)
-            inlinedInnerStruct ++ `->S.deprecate(${message->Stdlib.Inlined.Value.fromString})`
-          }
-
-        | None => `S.option(${inlinedInnerStruct})`
-        }
-      }
+    | Option(innerStruct) => `S.option(${innerStruct->internalInline()})`
 
     | Null(innerStruct) => `S.null(${innerStruct->internalInline()})`
     | Never => `S.never`
@@ -3927,6 +3917,15 @@ let inline = {
         metadataMap->Stdlib.Dict.deleteInPlace(Default.metadataId->Metadata.Id.toKey)
         inlinedStruct ++
         `->S.default(() => %raw(\`${defaultValue->Stdlib.Inlined.Value.stringify}\`))`
+      }
+
+    | None => inlinedStruct
+    }
+
+    let inlinedStruct = switch struct->deprecation {
+    | Some(message) => {
+        metadataMap->Stdlib.Dict.deleteInPlace(deprecationMetadataId->Metadata.Id.toKey)
+        inlinedStruct ++ `->S.deprecate(${message->Stdlib.Inlined.Value.fromString})`
       }
 
     | None => inlinedStruct

@@ -83,7 +83,7 @@ let authorStruct = S.object(o => {
     "IsApproved",
     S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),
   ),
-  deprecatedAge: o.field("Age", S.int->S.deprecate("Will be removed in APIv2")),
+  deprecatedAge: o.field("Age", S.option(S.int)->S.deprecate("Will be removed in APIv2")),
 })
 ```
 
@@ -703,7 +703,7 @@ This can be useful for documenting a field, for example in a JSON Schema using a
 
 ### **`deprecate`**
 
-`(S.t<'value>, string) => S.t<option<'value>>`
+`(S.t<'value>, string) => S.t<'value>`
 
 Use `S.deprecate` to add a `deprecation` message property to the resulting struct.
 

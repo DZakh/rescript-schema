@@ -109,7 +109,7 @@ let catch: (t<'value>, catchCtx => 'value) => t<'value>
 let describe: (t<'value>, string) => t<'value>
 let description: t<'value> => option<string>
 
-let deprecate: (t<'value>, string) => t<option<'value>>
+let deprecate: (t<'value>, string) => t<'value>
 let deprecation: t<'value> => option<string>
 
 let transform: (

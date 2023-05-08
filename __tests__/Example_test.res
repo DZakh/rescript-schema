@@ -11,7 +11,7 @@ test("Example", t => {
       "IsApproved",
       S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),
     ),
-    deprecatedAge: o.field("Age", S.int->S.deprecate("Will be removed in APIv2")),
+    deprecatedAge: o.field("Age", S.int->S.option->S.deprecate("Will be removed in APIv2")),
   })
 
   t->Assert.deepEqual(

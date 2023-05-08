@@ -3237,7 +3237,7 @@ function $$catch(struct, getFallbackValue) {
 var deprecationMetadataId = "rescript-struct:deprecation";
 
 function deprecate(struct, message) {
-  return set(factory$6(struct), deprecationMetadataId, message);
+  return set(struct, deprecationMetadataId, message);
 }
 
 function deprecation(struct) {
@@ -3425,14 +3425,7 @@ function internalInline(struct, maybeVariant, param) {
           inlinedStruct = maybeVariant !== undefined ? "S.literalVariant(" + inlinedLiteral + ", " + maybeVariant + ")" : "S.literal(" + inlinedLiteral + ")";
           break;
       case "Option" :
-          var inlinedInnerStruct = internalInline(taggedLiteral._0, undefined, undefined);
-          var message = deprecation(struct);
-          if (message !== undefined) {
-            Js_dict.unsafeDeleteKey(metadataMap, deprecationMetadataId);
-            inlinedStruct = inlinedInnerStruct + ("->S.deprecate(" + JSON.stringify(message) + ")");
-          } else {
-            inlinedStruct = "S.option(" + inlinedInnerStruct + ")";
-          }
+          inlinedStruct = "S.option(" + internalInline(taggedLiteral._0, undefined, undefined) + ")";
           break;
       case "Null" :
           inlinedStruct = "S.null(" + internalInline(taggedLiteral._0, undefined, undefined) + ")";
@@ -3490,16 +3483,18 @@ function internalInline(struct, maybeVariant, param) {
   } else {
     inlinedStruct$1 = inlinedStruct;
   }
+  var message = deprecation(struct);
+  var inlinedStruct$2 = message !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, deprecationMetadataId), inlinedStruct$1 + ("->S.deprecate(" + JSON.stringify(message) + ")")) : inlinedStruct$1;
   var message$1 = description(struct);
-  var inlinedStruct$2 = message$1 !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, descriptionMetadataId), inlinedStruct$1 + ("->S.describe(" + (
+  var inlinedStruct$3 = message$1 !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, descriptionMetadataId), inlinedStruct$2 + ("->S.describe(" + (
           message$1 === undefined ? "undefined" : JSON.stringify(message$1)
-        ) + ")")) : inlinedStruct$1;
+        ) + ")")) : inlinedStruct$2;
   var match = classify$1(struct);
-  var inlinedStruct$3;
-  inlinedStruct$3 = match === "Strict" ? inlinedStruct$2 + "->S.Object.strict" : inlinedStruct$2;
+  var inlinedStruct$4;
+  inlinedStruct$4 = match === "Strict" ? inlinedStruct$3 + "->S.Object.strict" : inlinedStruct$3;
   Js_dict.unsafeDeleteKey(metadataMap, metadataId);
   var match$1 = struct.t;
-  var inlinedStruct$4;
+  var inlinedStruct$5;
   var exit = 0;
   if (typeof match$1 !== "object") {
     switch (match$1) {
@@ -3513,14 +3508,14 @@ function internalInline(struct, maybeVariant, param) {
           exit = 3;
           break;
       default:
-        inlinedStruct$4 = inlinedStruct$3;
+        inlinedStruct$5 = inlinedStruct$4;
     }
   } else {
     switch (match$1.TAG) {
       case "Literal" :
           var tmp = match$1._0;
           if (typeof tmp !== "object") {
-            inlinedStruct$4 = inlinedStruct$3;
+            inlinedStruct$5 = inlinedStruct$4;
           } else {
             switch (tmp.TAG) {
               case "String" :
@@ -3533,7 +3528,7 @@ function internalInline(struct, maybeVariant, param) {
                   exit = 3;
                   break;
               default:
-                inlinedStruct$4 = inlinedStruct$3;
+                inlinedStruct$5 = inlinedStruct$4;
             }
           }
           break;
@@ -3541,7 +3536,7 @@ function internalInline(struct, maybeVariant, param) {
           var refinements$4 = refinements$3(struct);
           if (refinements$4.length !== 0) {
             Js_dict.unsafeDeleteKey(metadataMap, metadataId$4);
-            inlinedStruct$4 = inlinedStruct$3 + refinements$4.map(function (refinement) {
+            inlinedStruct$5 = inlinedStruct$4 + refinements$4.map(function (refinement) {
                     var match = refinement.kind;
                     switch (match.TAG) {
                       case "Min" :
@@ -3554,11 +3549,11 @@ function internalInline(struct, maybeVariant, param) {
                     }
                   }).join("");
           } else {
-            inlinedStruct$4 = inlinedStruct$3;
+            inlinedStruct$5 = inlinedStruct$4;
           }
           break;
       default:
-        inlinedStruct$4 = inlinedStruct$3;
+        inlinedStruct$5 = inlinedStruct$4;
     }
   }
   switch (exit) {
@@ -3566,7 +3561,7 @@ function internalInline(struct, maybeVariant, param) {
         var refinements$5 = refinements(struct);
         if (refinements$5.length !== 0) {
           Js_dict.unsafeDeleteKey(metadataMap, metadataId$1);
-          inlinedStruct$4 = inlinedStruct$3 + refinements$5.map(function (refinement) {
+          inlinedStruct$5 = inlinedStruct$4 + refinements$5.map(function (refinement) {
                   var match = refinement.kind;
                   if (typeof match !== "object") {
                     switch (match) {
@@ -3597,14 +3592,14 @@ function internalInline(struct, maybeVariant, param) {
                   }
                 }).join("");
         } else {
-          inlinedStruct$4 = inlinedStruct$3;
+          inlinedStruct$5 = inlinedStruct$4;
         }
         break;
     case 2 :
         var refinements$6 = refinements$1(struct);
         if (refinements$6.length !== 0) {
           Js_dict.unsafeDeleteKey(metadataMap, metadataId$2);
-          inlinedStruct$4 = inlinedStruct$3 + refinements$6.map(function (refinement) {
+          inlinedStruct$5 = inlinedStruct$4 + refinements$6.map(function (refinement) {
                   var match = refinement.kind;
                   if (typeof match !== "object") {
                     return "->S.Int.port(~message=" + JSON.stringify(refinement.message) + ", ())";
@@ -3615,14 +3610,14 @@ function internalInline(struct, maybeVariant, param) {
                   }
                 }).join("");
         } else {
-          inlinedStruct$4 = inlinedStruct$3;
+          inlinedStruct$5 = inlinedStruct$4;
         }
         break;
     case 3 :
         var refinements$7 = refinements$2(struct);
         if (refinements$7.length !== 0) {
           Js_dict.unsafeDeleteKey(metadataMap, metadataId$3);
-          inlinedStruct$4 = inlinedStruct$3 + refinements$7.map(function (refinement) {
+          inlinedStruct$5 = inlinedStruct$4 + refinements$7.map(function (refinement) {
                   var match = refinement.kind;
                   if (match.TAG === "Min") {
                     var value = match.value;
@@ -3636,20 +3631,20 @@ function internalInline(struct, maybeVariant, param) {
                           )) + ")";
                 }).join("");
         } else {
-          inlinedStruct$4 = inlinedStruct$3;
+          inlinedStruct$5 = inlinedStruct$4;
         }
         break;
     
   }
-  var inlinedStruct$5 = Object.keys(metadataMap).length !== 0 ? "{\n  let s = " + inlinedStruct$4 + "\n  let _ = %raw(\`s.m = " + JSON.stringify(metadataMap) + "\`)\n  s\n}" : inlinedStruct$4;
+  var inlinedStruct$6 = Object.keys(metadataMap).length !== 0 ? "{\n  let s = " + inlinedStruct$5 + "\n  let _ = %raw(\`s.m = " + JSON.stringify(metadataMap) + "\`)\n  s\n}" : inlinedStruct$5;
   var match$2 = struct.t;
   if (typeof match$2 === "object" && match$2.TAG === "Literal") {
-    return inlinedStruct$5;
+    return inlinedStruct$6;
   }
   if (maybeVariant !== undefined) {
-    return inlinedStruct$5 + ("->S.variant(v => " + maybeVariant + "(v))");
+    return inlinedStruct$6 + ("->S.variant(v => " + maybeVariant + "(v))");
   } else {
-    return inlinedStruct$5;
+    return inlinedStruct$6;
   }
 }
 
