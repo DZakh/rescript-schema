@@ -6,7 +6,7 @@ type author = {id: float, tags: array<string>, isAproved: bool, deprecatedAge: o
 test("Example", t => {
   let authorStruct = S.object(o => {
     id: o.field("Id", S.float),
-    tags: o.field("Tags", S.option(S.array(S.string))->S.default(() => [])),
+    tags: o.field("Tags", S.array(S.string)->S.default(() => [])),
     isAproved: o.field(
       "IsApproved",
       S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),

@@ -78,7 +78,7 @@ type author = {
 
 let authorStruct = S.object(o => {
   id: o.field("Id", S.float),
-  tags: o.field("Tags", S.option(S.array(S.string))->S.default(() => [])),
+  tags: o.field("Tags", S.array(S.string)->S.default(() => [])),
   isAproved: o.field(
     "IsApproved",
     S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),
@@ -673,10 +673,10 @@ The `jsonString` struct represents a data that is a JSON string containing a val
 
 ### **`default`**
 
-`(S.t<option<'value>>, unit => 'value) => S.t<'value>`
+`(S.t<'value>, unit => 'value) => S.t<'value>`
 
 ```rescript
-let struct = S.option(S.string)->S.default(() => "Hello World!")
+let struct = S.string->S.default(() => "Hello World!")
 
 %raw(`undefined`)->S.parseWith(struct)
 // Ok("Hello World!")

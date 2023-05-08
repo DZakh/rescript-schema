@@ -330,19 +330,19 @@ test("Supports Option", t => {
 })
 
 test("Supports Default", t => {
-  let struct = S.option(S.float)->S.default(() => 4.)
-  let _ = S.option(S.float)->S.default(() => %raw(`4`))
+  let struct = S.float->S.default(() => 4.)
+  let _ = S.float->S.default(() => %raw(`4`))
 
-  t->Assert.deepEqual(struct->S.inline, `S.option(S.float)->S.default(() => %raw(\`4\`))`, ())
+  t->Assert.deepEqual(struct->S.inline, `S.float->S.default(() => %raw(\`4\`))`, ())
 })
 
-test("Supports undefined as Defaulted value", t => {
-  let struct = S.option(S.option(S.float))->S.default(() => None)
-  let _ = S.option(S.option(S.float))->S.default(() => %raw(`undefined`))
+test("Supports undefined as Default value", t => {
+  let struct = S.option(S.float)->S.default(() => None)
+  let _ = S.option(S.float)->S.default(() => %raw(`undefined`))
 
   t->Assert.deepEqual(
     struct->S.inline,
-    `S.option(S.option(S.float))->S.default(() => %raw(\`undefined\`))`,
+    `S.option(S.float)->S.default(() => %raw(\`undefined\`))`,
     (),
   )
 })

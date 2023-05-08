@@ -98,7 +98,7 @@ let null: t<'value> => t<option<'value>>
 let jsonString: t<'value> => t<'value>
 let union: array<t<'value>> => t<'value>
 
-let default: (t<option<'value>>, unit => 'value) => t<'value>
+let default: (t<'value>, unit => 'value) => t<'value>
 
 type catchCtx = {
   error: Error.t,

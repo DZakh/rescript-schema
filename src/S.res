@@ -3268,7 +3268,7 @@ module Default = {
   let metadataId = Metadata.Id.make(~namespace="rescript-struct", ~name="Default")
 
   let factory = (innerStruct, getDefaultValue) => {
-    let innerStruct = innerStruct->(Obj.magic: t<option<'value>> => t<unknown>)
+    let innerStruct = innerStruct->Option.factory->(Obj.magic: t<'value> => t<unknown>)
     let getDefaultValue = getDefaultValue->(Obj.magic: (unit => 'value) => (. unit) => unknown)
     make(
       ~name=innerStruct.name,
@@ -3903,23 +3903,23 @@ let inline = {
     | Int => `S.int`
     | Float => `S.float`
     | Bool => `S.bool`
-    | Option(innerStruct) => `S.option(${innerStruct->internalInline()})`
+    | Option(innerStruct) => {
+        let internalInlinedStruct = innerStruct->internalInline()
+        switch struct->Default.classify {
+        | Some(defaultValue) => {
+            metadataMap->Stdlib.Dict.deleteInPlace(Default.metadataId->Metadata.Id.toKey)
+            internalInlinedStruct ++
+            `->S.default(() => %raw(\`${defaultValue->Stdlib.Inlined.Value.stringify}\`))`
+          }
 
+        | None => `S.option(${internalInlinedStruct})`
+        }
+      }
     | Null(innerStruct) => `S.null(${innerStruct->internalInline()})`
     | Never => `S.never`
     | Unknown => `S.unknown`
     | Array(innerStruct) => `S.array(${innerStruct->internalInline()})`
     | Dict(innerStruct) => `S.dict(${innerStruct->internalInline()})`
-    }
-
-    let inlinedStruct = switch struct->Default.classify {
-    | Some(defaultValue) => {
-        metadataMap->Stdlib.Dict.deleteInPlace(Default.metadataId->Metadata.Id.toKey)
-        inlinedStruct ++
-        `->S.default(() => %raw(\`${defaultValue->Stdlib.Inlined.Value.stringify}\`))`
-      }
-
-    | None => inlinedStruct
     }
 
     let inlinedStruct = switch struct->deprecation {

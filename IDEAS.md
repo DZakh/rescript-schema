@@ -48,29 +48,9 @@ let struct = S.tuple(o => (o->S.item(0, S.string), o->S.item(1, S.int)))
 
 Next breaking release
 
-- S.default rework
-- Make S.deprecated not wrap in option
 - Remove NaN from literals (or completely)
 - Allow to pass anything to S.literal (maybe remove S.literalVariant)
 - Allow passing Path string to the S.field first arg (o.nestedField)
-
-`(S.t<'value>, ~wrapper=S.t<'value> => S.t<option<'value>>=?, unit => 'value) => S.t<'value>`
-
-```rescript
-let struct = S.string->S.default(() => "Hello World!")
-
-%raw(`undefined`)->S.parseWith(struct)
-// Ok("Hello World!")
-%raw(`"Goodbye World!"`)->S.parseWith(struct)
-// Ok("Goodbye World!")
-
-let struct = S.string->S.default(~wrapper=S.null, () => "Hello World!")
-
-%raw(`null`)->S.parseWith(struct)
-// Ok("Hello World!")
-%raw(`"Goodbye World!"`)->S.parseWith(struct)
-// Ok("Goodbye World!")
-```
 
 // TODO: Example with status without S.variant
 let authorStruct = S.object(o => {
