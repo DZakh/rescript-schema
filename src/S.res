@@ -5,6 +5,23 @@ module Obj = {
 }
 
 module Stdlib = {
+  module Unknown = {
+    let toName = unknown =>
+      switch unknown->Js.Types.classify {
+      | JSFalse | JSTrue => "Bool"
+      | JSString(_) => "String"
+      | JSNull => "Null"
+      | JSNumber(number) if Js.Float.isNaN(number) => "NaN Literal (NaN)"
+      | JSNumber(_) => "Float"
+      | JSObject(object) if Js.Array2.isArray(object) => "Array"
+      | JSObject(_) => "Object"
+      | JSFunction(_) => "Function"
+      | JSUndefined => "Option"
+      | JSSymbol(_) => "Symbol"
+      | JSBigInt(_) => "BigInt"
+      }
+  }
+
   module Promise = {
     type t<+'a> = promise<'a>
 
@@ -134,7 +151,7 @@ module Stdlib = {
   module Int = {
     @inline
     let plus = (int1: int, int2: int): int => {
-      (int1->Js.Int.toFloat +. int2->Js.Int.toFloat)->Obj.magic
+      (int1->Js.Int.toFloat +. int2->Js.Int.toFloat)->(Obj.magic: float => int)
     }
 
     @inline
@@ -245,7 +262,7 @@ module Stdlib = {
     module NewPromise = {
       @inline
       let make = (~resolveVar, ~rejectVar, ~content) => {
-        `new Promise(function(${resolveVar},${rejectVar}){${content}})`
+        `new Promise((${resolveVar},${rejectVar})=>{${content}})`
       }
     }
 
@@ -271,7 +288,7 @@ module Stdlib = {
     module Fn = {
       @inline
       let make = (~arguments, ~content) => {
-        `function(${arguments}){${content}}`
+        `(${arguments})=>{${content}}`
       }
     }
 
@@ -564,6 +581,8 @@ type rec t<'value> = {
   name: string,
   @as("t")
   tagged: tagged,
+  parseOperationFactory: option<(. operationBuilder) => string>,
+  mutable isAsyncParseOperation: bool,
   @as("pf")
   parseTransformationFactory: internalTransformationFactory,
   @as("sf")
@@ -617,6 +636,17 @@ and internalTransformationFactoryCtx = {
   mutable asyncTransformation: (. unknown) => promise<unknown>,
 }
 and internalTransformationFactory = (. ~ctx: internalTransformationFactoryCtx) => unit
+and operationBuilder = {
+  struct_: t<unknown>,
+  embeded: array<unknown>,
+  mutable isAsync: bool,
+  mutable input: string,
+  mutable varCounter: int,
+  mutable tmp: string,
+  mutable tmpAsyncVars: option<array<string>>,
+  mutable inlinedVarNames: string,
+}
+and struct<'a> = t<'a>
 
 type payloadedVariant<'payload> = {_0: 'payload}
 let unsafeGetVariantPayload = variant => (variant->Obj.magic)._0
@@ -629,9 +659,17 @@ external castUnknownStructToAnyStruct: t<unknown> => t<'any> = "%identity"
 external toUnknown: t<'any> => t<unknown> = "%identity"
 external castToTaggedLiteral: literal<'a> => taggedLiteral = "%identity"
 
+let raiseUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
+  Error.Internal.raise(
+    UnexpectedType({
+      expected: struct.name,
+      received: input->Stdlib.Unknown.toName,
+    }),
+  )
+}
+
 module TransformationFactory = {
   module Public = {
-    type struct<'value> = t<'value>
     type t<'value, 'input, 'output> = (~struct: struct<'value>) => transformation<'input, 'output>
     type internal = (. ~struct: struct<unknown>) => transformation<unknown, unknown>
     let call = (public, ~struct) =>
@@ -774,6 +812,131 @@ let getSerializeOperation = struct => {
   }
 }
 
+module Operation = {
+  module Builder = {
+    type t = operationBuilder
+
+    @inline
+    let embed = (b: t, value) => {
+      `e[${(b.embeded->Js.Array2.push(value->castAnyToUnknown)->(Obj.magic: int => float) -. 1.)
+          ->(Obj.magic: float => string)}]`
+    }
+
+    @inline
+    let input = (b: t) => b.input
+
+    let var = (b: t) => {
+      b.varCounter = b.varCounter->Stdlib.Int.plus(1)
+      let v = `v${b.varCounter->Js.Int.toString}`
+      b.inlinedVarNames = b.inlinedVarNames === "" ? v : b.inlinedVarNames ++ "," ++ v
+      v
+    }
+
+    @inline
+    let next = (b: t) => {
+      let v = b->var
+      b.input = v
+      v
+    }
+
+    @inline
+    let asyncVar = (b: t) => {
+      let v = b->var
+      switch b.tmpAsyncVars {
+      | Some(a) => a->Js.Array2.push(v)->ignore
+      | None => {
+          b.isAsync = true
+          b.tmpAsyncVars = Some([v])
+        }
+      }
+      v
+    }
+
+    let if_ = (b: t, ~condition, ~body) => {
+      let initialCode = b.tmp
+      let initialInput = b.input
+      b.tmpAsyncVars = None
+      b.tmp = ""
+      let body = body(. b)
+      let bodyCode = b.tmp
+      let asyncVars = b.tmpAsyncVars
+      b.tmp = initialCode
+      b.tmpAsyncVars = None
+      switch asyncVars {
+      | Some([asyncVar]) =>
+        `if(${condition}){${bodyCode}${b.input}=()=>${asyncVar}().then(${asyncVar}=>{${body}return ${initialInput}})}`
+      | Some(asyncVars) =>
+        // FIXME:
+        `if(${condition}){${bodyCode}${b->input}=()=>Promise.all([${asyncVars
+          ->Js.Array2.map(v => v ++ "()")
+          ->Js.Array2.joinWith(
+            ",",
+          )}]).then((${asyncVars->Js.Array2.toString})=>{${body}return ${b->input}})}`
+      | None => `if(${condition}){${bodyCode}${body}}`
+      } ++
+      switch (initialInput === b.input, asyncVars) {
+      | (true, None) => ""
+      | (false, None) => `else{${b.input}=${initialInput}}`
+      // FIXME:
+      | (_, Some(_)) => `else{${b.input}=()=>Promise.resolve(${initialInput})}`
+      }
+    }
+
+    let parseWith = (b: t, struct) => {
+      switch struct.parseOperationFactory {
+      | Some(parseOperationFactory) => {
+          let parseOperation = parseOperationFactory(. b)
+
+          // FIXME: Support async
+          b.tmp = b.tmp ++ parseOperation
+          b.input
+        }
+      | None => {
+          let parseOperation = struct->getParseOperation
+          let resultVar = switch parseOperation {
+          | NoOperation
+          | SyncOperation(_) =>
+            b->var
+          | AsyncOperation(_) => b->asyncVar
+          }
+          let result = switch parseOperation {
+          | NoOperation => b->input
+          | SyncOperation(fn) => `${b->embed(fn)}(${b->input})`
+          | AsyncOperation(fn) => `${b->embed(fn)}(${b->input})`
+          }
+          b.tmp = b.tmp ++ `${resultVar}=${result};`
+          resultVar
+        }
+      }
+    }
+  }
+
+  let compile = (operationFactory, ~struct) => {
+    let intitialInput = "i"
+    let b = {
+      struct_: struct,
+      embeded: [],
+      isAsync: false,
+      varCounter: -1,
+      input: intitialInput,
+      tmp: "",
+      tmpAsyncVars: None,
+      inlinedVarNames: "",
+    }
+    let operationBody = operationFactory(. b)
+    struct.isAsyncParseOperation = b.isAsync
+    let body = b.tmp ++ operationBody
+    let varInitialization = switch b.inlinedVarNames {
+    | "" => ""
+    | v => "var " ++ v ++ ";"
+    }
+    let inlinedFunction = `${intitialInput}=>{${varInitialization}${body}return ${b->Builder.input}}`
+    Js.log(inlinedFunction)
+    Stdlib.Function.make1(~ctxVarName1="e", ~ctxVarValue1=b.embeded, ~inlinedFunction)
+  }
+}
+module B = Operation.Builder
+
 @inline
 let isAsyncParse = struct => {
   let struct = struct->toUnknown
@@ -782,27 +945,6 @@ let isAsyncParse = struct => {
   | NoOperation
   | SyncOperation(_) => false
   }
-}
-
-let raiseUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
-  Error.Internal.raise(
-    UnexpectedType({
-      expected: struct.name,
-      received: switch input->Js.Types.classify {
-      | JSFalse | JSTrue => "Bool"
-      | JSString(_) => "String"
-      | JSNull => "Null"
-      | JSNumber(number) if Js.Float.isNaN(number) => "NaN Literal (NaN)"
-      | JSNumber(_) => "Float"
-      | JSObject(object) if Js.Array2.isArray(object) => "Array"
-      | JSObject(_) => "Object"
-      | JSFunction(_) => "Function"
-      | JSUndefined => "Option"
-      | JSSymbol(_) => "Symbol"
-      | JSBigInt(_) => "BigInt"
-      },
-    }),
-  )
 }
 
 let noOperation = (. input) => input
@@ -894,10 +1036,14 @@ let initialSerializeToJson = (. input) => {
 
 let intitialParse = (. input) => {
   let struct = %raw("this")
-  let compiledParse = switch struct->getParseOperation {
-  | NoOperation => noOperation
-  | SyncOperation(fn) => fn
-  | AsyncOperation(_) => (. _) => Error.Internal.raise(UnexpectedAsync)
+  let compiledParse = switch struct.parseOperationFactory {
+  | Some(parseOperationFactory) => parseOperationFactory->Operation.compile(~struct)
+  | None =>
+    switch struct->getParseOperation {
+    | NoOperation => noOperation
+    | SyncOperation(fn) => fn
+    | AsyncOperation(_) => (. _) => Error.Internal.raise(UnexpectedAsync)
+    }
   }
   struct.parse = compiledParse
   compiledParse(. input)
@@ -907,14 +1053,28 @@ let asyncNoopOperation = (. input) => (. ()) => input->Stdlib.Promise.resolve
 
 let intitialParseAsync = (. input) => {
   let struct = %raw("this")
-  let compiledParseAsync = switch struct->getParseOperation {
-  | NoOperation => asyncNoopOperation
-  | SyncOperation(fn) =>
-    (. input) => {
-      let syncValue = fn(. input)
-      (. ()) => syncValue->Stdlib.Promise.resolve
+  let compiledParseAsync = switch struct.parseOperationFactory {
+  | Some(parseOperationFactory) => {
+      let parseOperation = parseOperationFactory->Operation.compile(~struct)
+      if struct.isAsyncParseOperation {
+        parseOperation
+      } else {
+        (. input) => {
+          let syncValue = parseOperation(. input)
+          (. ()) => syncValue->Stdlib.Promise.resolve
+        }
+      }
     }
-  | AsyncOperation(fn) => fn
+  | None =>
+    switch struct->getParseOperation {
+    | NoOperation => asyncNoopOperation
+    | SyncOperation(fn) =>
+      (. input) => {
+        let syncValue = fn(. input)
+        (. ()) => syncValue->Stdlib.Promise.resolve
+      }
+    | AsyncOperation(fn) => fn
+    }
   }
   struct.parseAsync = compiledParseAsync
   compiledParseAsync(. input)
@@ -927,6 +1087,7 @@ let make = (
   ~parseTransformationFactory,
   ~serializeTransformationFactory,
   ~metadataMap,
+  ~parseOperationFactory as maybeParseOperationFactory=?,
   ~inlinedRefinement as maybeInlinedRefinement=?,
   (),
 ) => {
@@ -934,6 +1095,8 @@ let make = (
   tagged,
   parseTransformationFactory,
   serializeTransformationFactory,
+  parseOperationFactory: maybeParseOperationFactory,
+  isAsyncParseOperation: %raw("undefined"),
   parseOperationState: ParseOperationState.empty(),
   serializeOperationState: SerializeOperationState.empty(),
   serialize: initialSerialize,
@@ -1775,10 +1938,9 @@ module Object = {
   }
 
   module FieldDefinition = {
-    type struct = t<unknown>
     type t = {
       @as("s")
-      fieldStruct: struct,
+      fieldStruct: struct<unknown>,
       @as("i")
       inlinedFieldName: string,
       @as("n")
@@ -1795,7 +1957,6 @@ module Object = {
   }
 
   module DefinerCtx = {
-    type struct<'a> = t<'a>
     type t = {
       @as("n")
       fieldNames: array<string>,
@@ -2446,6 +2607,16 @@ module String = {
     ~name="String",
     ~metadataMap=emptyMetadataMap,
     ~tagged=String,
+    ~parseOperationFactory=(. b) => {
+      `typeof ${b->B.input}!=="string"&&${b->B.embed(input =>
+          Error.Internal.raise(
+            UnexpectedType({
+              expected: "String",
+              received: input->Stdlib.Unknown.toName,
+            }),
+          )
+        )}(${b->B.input});`
+    },
     ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="string"`,
     ~parseTransformationFactory,
     ~serializeTransformationFactory=TransformationFactory.empty,
@@ -2944,6 +3115,12 @@ module Option = {
       ~name=`Option`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Option(innerStruct),
+      ~parseOperationFactory=(. b) => {
+        b->B.if_(~condition=`${b->B.input}!==undefined`, ~body=(. b) => {
+          let ouput = `${b->B.embed(%raw("Caml_option.some"))}(${b->B.parseWith(innerStruct)})`
+          `${b->B.next}=${ouput};`
+        })
+      },
       ~parseTransformationFactory=(. ~ctx) => {
         let planSyncTransformation = fn => {
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
