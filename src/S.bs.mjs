@@ -4,6 +4,7 @@ import * as Js_exn from "rescript/lib/es6/js_exn.js";
 import * as Js_dict from "rescript/lib/es6/js_dict.js";
 import * as Js_types from "rescript/lib/es6/js_types.js";
 import * as Belt_List from "rescript/lib/es6/belt_List.js";
+import * as Belt_Option from "rescript/lib/es6/belt_Option.js";
 import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as Caml_exceptions from "rescript/lib/es6/caml_exceptions.js";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
@@ -397,54 +398,19 @@ function $$var(b) {
   return v;
 }
 
-function parseWith(b, struct) {
-  var parseOperationFactory = struct.parseOperationFactory;
-  if (parseOperationFactory !== undefined) {
-    var parseOperation = parseOperationFactory(b);
-    b.tmp = b.tmp + parseOperation;
-    return b.input;
-  }
-  var parseOperation$1 = getParseOperation(struct);
-  var resultVar;
-  if (typeof parseOperation$1 !== "object" || parseOperation$1.TAG === "SyncOperation") {
-    resultVar = $$var(b);
-  } else {
-    var v = $$var(b);
-    var a = b.tmpAsyncVars;
-    if (a !== undefined) {
-      a.push(v);
-    } else {
-      b.isAsync = true;
-      b.tmpAsyncVars = [v];
-    }
-    resultVar = v;
-  }
-  var result;
-  result = typeof parseOperation$1 !== "object" ? b.input : (
-      parseOperation$1.TAG === "SyncOperation" ? "e[" + (b.embeded.push(parseOperation$1._0) - 1) + "](" + b.input + ")" : "e[" + (b.embeded.push(parseOperation$1._0) - 1) + "](" + b.input + ")"
-    );
-  b.tmp = b.tmp + (resultVar + "=" + result + ";");
-  return resultVar;
-}
-
 function compile$1(operationFactory, struct) {
   var intitialInput = "i";
   var b = {
     struct_: struct,
     embeded: [],
-    isAsync: false,
     input: intitialInput,
     varCounter: -1,
-    tmp: "",
-    tmpAsyncVars: undefined,
     inlinedVarNames: ""
   };
   var operationBody = operationFactory(b);
-  struct.isAsyncParseOperation = b.isAsync;
-  var body = b.tmp + operationBody;
   var v = b.inlinedVarNames;
   var varInitialization = v === "" ? "" : "var " + v + ";";
-  var inlinedFunction = intitialInput + "=>{" + varInitialization + body + "return " + b.input + "}";
+  var inlinedFunction = intitialInput + "=>{" + varInitialization + operationBody + "return " + b.input + "}";
   console.log(inlinedFunction);
   return new Function("e", "return " + inlinedFunction)(b.embeded);
 }
@@ -2440,61 +2406,35 @@ function factory$5(innerStruct) {
 }
 
 function factory$6(innerStruct) {
+  var maybeParseOperationFactory = Belt_Option.map(innerStruct.parseOperationFactory, (function (innerParseOperationFactory) {
+          return function (b) {
+            var inputBeforeInnerStruct = b.input;
+            var innerStructCode = innerParseOperationFactory(b);
+            var isInnerStructAsync = innerStruct.isAsyncParseOperation;
+            b.struct_.isAsyncParseOperation = isInnerStructAsync;
+            var inputAfterInnerStruct = b.input;
+            var v = $$var(b);
+            b.input = v;
+            var tmp;
+            if (isInnerStructAsync) {
+              var value = Caml_option.some;
+              tmp = innerStructCode + v + "=()=>" + inputAfterInnerStruct + "().then(" + ("e[" + (b.embeded.push(value) - 1) + "]") + ")";
+            } else {
+              var value$1 = Caml_option.some;
+              tmp = innerStructCode + v + "=" + ("e[" + (b.embeded.push(value$1) - 1) + "]") + "(" + inputAfterInnerStruct + ")";
+            }
+            return "if(" + inputBeforeInnerStruct + "!==undefined){" + tmp + "}else{" + v + "=" + (
+                    isInnerStructAsync ? "()=>Promise.resolve(" + inputBeforeInnerStruct + ")" : inputBeforeInnerStruct
+                  ) + "}";
+          };
+        }));
   return {
           n: "Option",
           t: {
             TAG: "Option",
             _0: innerStruct
           },
-          parseOperationFactory: (function (b) {
-              var condition = b.input + "!==undefined";
-              var body = function (b) {
-                var value = Caml_option.some;
-                var ouput = "e[" + (b.embeded.push(value) - 1) + "](" + parseWith(b, innerStruct) + ")";
-                var v = $$var(b);
-                return (b.input = v, v) + "=" + ouput + ";";
-              };
-              var initialCode = b.tmp;
-              var initialInput = b.input;
-              b.tmpAsyncVars = undefined;
-              b.tmp = "";
-              var body$1 = body(b);
-              var bodyCode = b.tmp;
-              var asyncVars = b.tmpAsyncVars;
-              b.tmp = initialCode;
-              b.tmpAsyncVars = undefined;
-              var tmp;
-              if (asyncVars !== undefined) {
-                if (asyncVars.length !== 1) {
-                  tmp = "if(" + condition + "){" + bodyCode + b.input + "=()=>Promise.all([" + asyncVars.map(function (v) {
-                          return v + "()";
-                        }).join(",") + "]).then((" + asyncVars.toString() + ")=>{" + body$1 + "return " + b.input + "})}";
-                } else {
-                  var asyncVar = asyncVars[0];
-                  tmp = "if(" + condition + "){" + bodyCode + b.input + "=()=>" + asyncVar + "().then(" + asyncVar + "=>{" + body$1 + "return " + initialInput + "})}";
-                }
-              } else {
-                tmp = "if(" + condition + "){" + bodyCode + body$1 + "}";
-              }
-              var match = initialInput === b.input;
-              var tmp$1;
-              var exit = 0;
-              if (match) {
-                if (asyncVars !== undefined) {
-                  exit = 1;
-                } else {
-                  tmp$1 = "";
-                }
-              } else if (asyncVars !== undefined) {
-                exit = 1;
-              } else {
-                tmp$1 = "else{" + b.input + "=" + initialInput + "}";
-              }
-              if (exit === 1) {
-                tmp$1 = "else{" + b.input + "=()=>Promise.resolve(" + initialInput + ")}";
-              }
-              return tmp + tmp$1;
-            }),
+          parseOperationFactory: maybeParseOperationFactory,
           isAsyncParseOperation: undefined,
           pf: (function (ctx) {
               var planSyncTransformation$1 = function (fn) {
@@ -3917,7 +3857,7 @@ var $$default = factory$9;
 
 var variant = factory;
 
-var parseWith$1 = parseAnyWith;
+var parseWith = parseAnyWith;
 
 var parseOrRaiseWith = parseAnyOrRaiseWith;
 
@@ -4036,7 +3976,7 @@ export {
   custom ,
   refine ,
   variant ,
-  parseWith$1 as parseWith,
+  parseWith ,
   parseAnyWith ,
   parseJsonStringWith ,
   parseOrRaiseWith ,

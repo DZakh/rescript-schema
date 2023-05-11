@@ -639,11 +639,8 @@ and internalTransformationFactory = (. ~ctx: internalTransformationFactoryCtx) =
 and operationBuilder = {
   struct_: t<unknown>,
   embeded: array<unknown>,
-  mutable isAsync: bool,
   mutable input: string,
   mutable varCounter: int,
-  mutable tmp: string,
-  mutable tmpAsyncVars: option<array<string>>,
   mutable inlinedVarNames: string,
 }
 and struct<'a> = t<'a>
@@ -838,77 +835,6 @@ module Operation = {
       b.input = v
       v
     }
-
-    @inline
-    let asyncVar = (b: t) => {
-      let v = b->var
-      switch b.tmpAsyncVars {
-      | Some(a) => a->Js.Array2.push(v)->ignore
-      | None => {
-          b.isAsync = true
-          b.tmpAsyncVars = Some([v])
-        }
-      }
-      v
-    }
-
-    let if_ = (b: t, ~condition, ~body) => {
-      let initialCode = b.tmp
-      let initialInput = b.input
-      b.tmpAsyncVars = None
-      b.tmp = ""
-      let body = body(. b)
-      let bodyCode = b.tmp
-      let asyncVars = b.tmpAsyncVars
-      b.tmp = initialCode
-      b.tmpAsyncVars = None
-      switch asyncVars {
-      | Some([asyncVar]) =>
-        `if(${condition}){${bodyCode}${b.input}=()=>${asyncVar}().then(${asyncVar}=>{${body}return ${initialInput}})}`
-      | Some(asyncVars) =>
-        // FIXME:
-        `if(${condition}){${bodyCode}${b->input}=()=>Promise.all([${asyncVars
-          ->Js.Array2.map(v => v ++ "()")
-          ->Js.Array2.joinWith(
-            ",",
-          )}]).then((${asyncVars->Js.Array2.toString})=>{${body}return ${b->input}})}`
-      | None => `if(${condition}){${bodyCode}${body}}`
-      } ++
-      switch (initialInput === b.input, asyncVars) {
-      | (true, None) => ""
-      | (false, None) => `else{${b.input}=${initialInput}}`
-      // FIXME:
-      | (_, Some(_)) => `else{${b.input}=()=>Promise.resolve(${initialInput})}`
-      }
-    }
-
-    let parseWith = (b: t, struct) => {
-      switch struct.parseOperationFactory {
-      | Some(parseOperationFactory) => {
-          let parseOperation = parseOperationFactory(. b)
-
-          // FIXME: Support async
-          b.tmp = b.tmp ++ parseOperation
-          b.input
-        }
-      | None => {
-          let parseOperation = struct->getParseOperation
-          let resultVar = switch parseOperation {
-          | NoOperation
-          | SyncOperation(_) =>
-            b->var
-          | AsyncOperation(_) => b->asyncVar
-          }
-          let result = switch parseOperation {
-          | NoOperation => b->input
-          | SyncOperation(fn) => `${b->embed(fn)}(${b->input})`
-          | AsyncOperation(fn) => `${b->embed(fn)}(${b->input})`
-          }
-          b.tmp = b.tmp ++ `${resultVar}=${result};`
-          resultVar
-        }
-      }
-    }
   }
 
   let compile = (operationFactory, ~struct) => {
@@ -916,16 +842,12 @@ module Operation = {
     let b = {
       struct_: struct,
       embeded: [],
-      isAsync: false,
       varCounter: -1,
       input: intitialInput,
-      tmp: "",
-      tmpAsyncVars: None,
       inlinedVarNames: "",
     }
     let operationBody = operationFactory(. b)
-    struct.isAsyncParseOperation = b.isAsync
-    let body = b.tmp ++ operationBody
+    let body = operationBody
     let varInitialization = switch b.inlinedVarNames {
     | "" => ""
     | v => "var " ++ v ++ ";"
@@ -3115,12 +3037,32 @@ module Option = {
       ~name=`Option`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Option(innerStruct),
-      ~parseOperationFactory=(. b) => {
-        b->B.if_(~condition=`${b->B.input}!==undefined`, ~body=(. b) => {
-          let ouput = `${b->B.embed(%raw("Caml_option.some"))}(${b->B.parseWith(innerStruct)})`
-          `${b->B.next}=${ouput};`
-        })
-      },
+      ~parseOperationFactory=?innerStruct.parseOperationFactory->Belt.Option.map(
+        innerParseOperationFactory => {
+          (. b) => {
+            let inputBeforeInnerStruct = b->B.input
+            let innerStructCode = innerParseOperationFactory(. b)
+            let isInnerStructAsync = innerStruct.isAsyncParseOperation
+            b.struct_.isAsyncParseOperation = isInnerStructAsync
+            let inputAfterInnerStruct = b->B.input
+            let output = b->B.next
+
+            `if(${inputBeforeInnerStruct}!==undefined){${switch isInnerStructAsync {
+              | false =>
+                `${innerStructCode}${output}=${b->B.embed(
+                    %raw("Caml_option.some"),
+                  )}(${inputAfterInnerStruct})`
+              | true =>
+                `${innerStructCode}${output}=()=>${inputAfterInnerStruct}().then(${b->B.embed(
+                    %raw("Caml_option.some"),
+                  )})`
+              }}}else{${output}=${switch isInnerStructAsync {
+              | false => inputBeforeInnerStruct
+              | true => `()=>Promise.resolve(${inputBeforeInnerStruct})`
+              }}}`
+          }
+        },
+      ),
       ~parseTransformationFactory=(. ~ctx) => {
         let planSyncTransformation = fn => {
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -3195,7 +3137,7 @@ module Array = {
     make(
       ~name=`Array`,
       ~metadataMap=emptyMetadataMap,
-      ~tagged=Array(innerStruct->Obj.magic),
+      ~tagged=Array(innerStruct),
       ~parseTransformationFactory=(. ~ctx) => {
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           if Js.Array2.isArray(input) === false {
