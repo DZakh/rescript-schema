@@ -7,10 +7,10 @@ let validAsyncRefine = S.advancedTransform(
 )
 let invalidSyncRefine = S.refine(_, ~parser=_ => S.fail("Sync user error"), ())
 let unresolvedPromise = Promise.make((_, _) => ())
-let invalidPromise = Promise.resolve()->Promise.then(() => S.fail("Async user error"))
+let makeInvalidPromise = () => Promise.resolve()->Promise.then(() => S.fail("Async user error"))
 let invalidAsyncRefine = S.advancedTransform(
   _,
-  ~parser=(~struct as _) => Async(_ => invalidPromise),
+  ~parser=(~struct as _) => Async(_ => makeInvalidPromise()),
   (),
 )
 
@@ -548,7 +548,7 @@ module Array = {
             if actionCounter.contents <= 2 {
               unresolvedPromise
             } else {
-              invalidPromise
+              makeInvalidPromise()
             }
           },
         )
@@ -622,7 +622,7 @@ module Dict = {
             if actionCounter.contents <= 2 {
               unresolvedPromise
             } else {
-              invalidPromise
+              makeInvalidPromise()
             }
           },
         )

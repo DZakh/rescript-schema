@@ -391,26 +391,82 @@ function getSerializeOperation(struct) {
   return compiledSerializeOperation;
 }
 
+function internalTransformRethrow(pathVar) {
+  return "if(t&&t.RE_EXN_ID===\"S-RescriptStruct.Error.Internal.Exception/1\"){t._1.p=" + pathVar + "+t._1.p}throw t";
+}
+
+function syncTransform(b, inputVar, outputVar, isAsyncInput, fn, maybePrependPathVar, param) {
+  var tmp;
+  if (isAsyncInput) {
+    var code = outputVar + "=()=>" + inputVar + "().then(" + ("e[" + (b.embeded.push(fn) - 1) + "]") + ")";
+    tmp = maybePrependPathVar !== undefined && maybePrependPathVar !== "\"\"" ? code + ".catch(t=>{" + internalTransformRethrow(maybePrependPathVar) + "})" : code;
+  } else {
+    var code$1 = outputVar + "=" + ("e[" + (b.embeded.push(fn) - 1) + "]") + "(" + inputVar + ")";
+    tmp = maybePrependPathVar !== undefined && maybePrependPathVar !== "\"\"" ? "try{" + code$1 + "}catch(t){" + internalTransformRethrow(maybePrependPathVar) + "}" : code$1;
+  }
+  return tmp + ";";
+}
+
+function asyncTransform(b, inputVar, outputVar, isAsyncInput, fn, maybePrependPathVar, param) {
+  var tmp;
+  if (isAsyncInput) {
+    var code = inputVar + "().then(" + ("e[" + (b.embeded.push(fn) - 1) + "]") + ")";
+    tmp = maybePrependPathVar !== undefined && maybePrependPathVar !== "\"\"" ? code + ".catch(t=>{" + internalTransformRethrow(maybePrependPathVar) + "})" : code;
+  } else {
+    var code$1 = "e[" + (b.embeded.push(fn) - 1) + "](" + inputVar + ")";
+    tmp = maybePrependPathVar !== undefined && maybePrependPathVar !== "\"\"" ? "{try{return " + code$1 + ".catch(t=>{" + internalTransformRethrow(maybePrependPathVar) + "})}catch(t){" + internalTransformRethrow(maybePrependPathVar) + "}}" : code$1;
+  }
+  return outputVar + "=()=>" + tmp + ";";
+}
+
+function raiseWithArg(b, pathVar, fn, arg) {
+  return "e[" + (b.embeded.push(function (path, arg) {
+                throw {
+                      RE_EXN_ID: Exception,
+                      _1: {
+                        c: fn(arg),
+                        p: path
+                      },
+                      Error: new Error()
+                    };
+              }) - 1) + "](" + pathVar + "," + arg + ")";
+}
+
+function raise$2(b, pathVar, code) {
+  return "e[" + (b.embeded.push(function (path) {
+                throw {
+                      RE_EXN_ID: Exception,
+                      _1: {
+                        c: code,
+                        p: path
+                      },
+                      Error: new Error()
+                    };
+              }) - 1) + "](" + pathVar + ")";
+}
+
 function $$var(b) {
   b.varCounter = b.varCounter + 1;
   var v = "v" + b.varCounter.toString();
-  b.inlinedVarNames = b.inlinedVarNames === "" ? v : b.inlinedVarNames + "," + v;
+  b.varsAllocation = b.varsAllocation + "," + v;
   return v;
 }
 
+function varWithoutAllocation(b) {
+  b.varCounter = b.varCounter + 1;
+  return "v" + b.varCounter.toString();
+}
+
 function compile$1(operationFactory, struct) {
-  var intitialInput = "i";
+  var intitialInputVar = "i";
   var b = {
-    struct_: struct,
-    embeded: [],
-    input: intitialInput,
     varCounter: -1,
-    inlinedVarNames: ""
+    varsAllocation: "_",
+    embeded: []
   };
-  var operationBody = operationFactory(b);
-  var v = b.inlinedVarNames;
-  var varInitialization = v === "" ? "" : "var " + v + ";";
-  var inlinedFunction = intitialInput + "=>{" + varInitialization + operationBody + "return " + b.input + "}";
+  var match = operationFactory(b, struct, intitialInputVar, "\"\"");
+  struct.isAsyncParseOperation = match.isAsync;
+  var inlinedFunction = intitialInputVar + "=>{var " + b.varsAllocation + ";" + match.code + "return " + match.outputVar + "}";
   console.log(inlinedFunction);
   return new Function("e", "return " + inlinedFunction)(b.embeded);
 }
@@ -567,7 +623,11 @@ function intitialParse(input) {
   var parseOperationFactory = struct.parseOperationFactory;
   var compiledParse;
   if (parseOperationFactory !== undefined) {
-    compiledParse = compile$1(parseOperationFactory, struct);
+    var compiledParse$1 = compile$1(parseOperationFactory, struct);
+    if (struct.isAsyncParseOperation) {
+      raise$1("UnexpectedAsync");
+    }
+    compiledParse = compiledParse$1;
   } else {
     var fn = getParseOperation(struct);
     compiledParse = typeof fn !== "object" ? noOperation : (
@@ -625,15 +685,18 @@ function parseAnyWith(any, struct) {
             _0: struct.p(any)
           };
   }
-  catch (raw_internalError){
-    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-    if (internalError.RE_EXN_ID === Exception) {
+  catch (raw_jsError){
+    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
+    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
+      throw jsError._1;
+    }
+    if (jsError.RE_EXN_ID === Exception) {
       return {
               TAG: "Error",
-              _0: toParseError(internalError._1)
+              _0: toParseError(jsError._1)
             };
     }
-    throw internalError;
+    throw jsError;
   }
 }
 
@@ -641,16 +704,19 @@ function parseAnyOrRaiseWith(any, struct) {
   try {
     return struct.p(any);
   }
-  catch (raw_internalError){
-    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-    if (internalError.RE_EXN_ID === Exception) {
+  catch (raw_jsError){
+    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
+    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
+      throw jsError._1;
+    }
+    if (jsError.RE_EXN_ID === Exception) {
       throw {
             RE_EXN_ID: Raised,
-            _1: toParseError(internalError._1),
+            _1: toParseError(jsError._1),
             Error: new Error()
           };
     }
-    throw internalError;
+    throw jsError;
   }
 }
 
@@ -675,15 +741,18 @@ function parseAnyAsyncWith(any, struct) {
   try {
     return struct.a(any)(undefined).then(asyncPrepareOk, asyncPrepareError);
   }
-  catch (raw_internalError){
-    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-    if (internalError.RE_EXN_ID === Exception) {
+  catch (raw_jsError){
+    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
+    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
+      throw jsError._1;
+    }
+    if (jsError.RE_EXN_ID === Exception) {
       return Promise.resolve({
                   TAG: "Error",
-                  _0: toParseError(internalError._1)
+                  _0: toParseError(jsError._1)
                 });
     }
-    throw internalError;
+    throw jsError;
   }
 }
 
@@ -697,15 +766,18 @@ function parseAnyAsyncInStepsWith(any, struct) {
               })
           };
   }
-  catch (raw_internalError){
-    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-    if (internalError.RE_EXN_ID === Exception) {
+  catch (raw_jsError){
+    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
+    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
+      throw jsError._1;
+    }
+    if (jsError.RE_EXN_ID === Exception) {
       return {
               TAG: "Error",
-              _0: toParseError(internalError._1)
+              _0: toParseError(jsError._1)
             };
     }
-    throw internalError;
+    throw jsError;
   }
 }
 
@@ -716,15 +788,18 @@ function serializeToUnknownWith(value, struct) {
             _0: struct.s(value)
           };
   }
-  catch (raw_internalError){
-    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-    if (internalError.RE_EXN_ID === Exception) {
+  catch (raw_jsError){
+    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
+    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
+      throw jsError._1;
+    }
+    if (jsError.RE_EXN_ID === Exception) {
       return {
               TAG: "Error",
-              _0: toSerializeError(internalError._1)
+              _0: toSerializeError(jsError._1)
             };
     }
-    throw internalError;
+    throw jsError;
   }
 }
 
@@ -732,16 +807,19 @@ function serializeOrRaiseWith(value, struct) {
   try {
     return struct.j(value);
   }
-  catch (raw_internalError){
-    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-    if (internalError.RE_EXN_ID === Exception) {
+  catch (raw_jsError){
+    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
+    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
+      throw jsError._1;
+    }
+    if (jsError.RE_EXN_ID === Exception) {
       throw {
             RE_EXN_ID: Raised,
-            _1: toSerializeError(internalError._1),
+            _1: toSerializeError(jsError._1),
             Error: new Error()
           };
     }
-    throw internalError;
+    throw jsError;
   }
 }
 
@@ -749,16 +827,19 @@ function serializeToUnknownOrRaiseWith(value, struct) {
   try {
     return struct.s(value);
   }
-  catch (raw_internalError){
-    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-    if (internalError.RE_EXN_ID === Exception) {
+  catch (raw_jsError){
+    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
+    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
+      throw jsError._1;
+    }
+    if (jsError.RE_EXN_ID === Exception) {
       throw {
             RE_EXN_ID: Raised,
-            _1: toSerializeError(internalError._1),
+            _1: toSerializeError(jsError._1),
             Error: new Error()
           };
     }
-    throw internalError;
+    throw jsError;
   }
 }
 
@@ -769,15 +850,18 @@ function serializeWith(value, struct) {
             _0: struct.j(value)
           };
   }
-  catch (raw_internalError){
-    var internalError = Caml_js_exceptions.internalToOCamlException(raw_internalError);
-    if (internalError.RE_EXN_ID === Exception) {
+  catch (raw_jsError){
+    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
+    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
+      throw jsError._1;
+    }
+    if (jsError.RE_EXN_ID === Exception) {
       return {
               TAG: "Error",
-              _0: toSerializeError(internalError._1)
+              _0: toSerializeError(jsError._1)
             };
     }
-    throw internalError;
+    throw jsError;
   }
 }
 
@@ -946,61 +1030,46 @@ function addRefinement(struct, metadataId, refinement, refiner) {
   return refine(set(struct, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), refiner, undefined, refiner, undefined);
 }
 
-function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param) {
-  if (maybeParser === undefined && maybeAsyncParser === undefined && maybeSerializer === undefined) {
-    panic("struct factory Transform");
-  }
-  var planParser;
-  if (maybeParser !== undefined) {
-    if (maybeAsyncParser !== undefined) {
-      throw new Error("[rescript-struct] The S.transform doesn't support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.");
-    }
-    planParser = (function (ctx) {
-        planSyncTransformation(ctx, maybeParser);
-      });
-  } else {
-    planParser = maybeAsyncParser !== undefined ? (function (ctx) {
-          planAsyncTransformation(ctx, maybeAsyncParser);
-        }) : planMissingParserTransformation;
-  }
-  return {
-          n: struct.n,
-          t: struct.t,
-          parseOperationFactory: undefined,
-          isAsyncParseOperation: undefined,
-          pf: (function (ctx) {
-              struct.pf(ctx);
-              planParser(ctx);
-            }),
-          sf: (function (ctx) {
-              if (maybeSerializer !== undefined) {
-                planSyncTransformation(ctx, maybeSerializer);
-              } else {
-                planSyncTransformation(ctx, (function (param) {
-                        return raise$1("MissingSerializer");
-                      }));
-              }
-              struct.sf(ctx);
-            }),
-          r: 0,
-          e: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
-          i: undefined,
-          m: struct.m
-        };
-}
-
 function advancedTransform(struct, maybeParser, maybeSerializer, param) {
   if (maybeParser === undefined && maybeSerializer === undefined) {
     panic("struct factory Transform");
   }
+  var maybeParseOperationFactory = Belt_Option.map(struct.parseOperationFactory, (function (operationFactory) {
+          return function (b, struct, inputVar, pathVar) {
+            if (maybeParser === undefined) {
+              return {
+                      code: raise$2(b, pathVar, "MissingParser") + ";",
+                      outputVar: inputVar,
+                      isAsync: false
+                    };
+            }
+            var syncTransformation = maybeParser(struct);
+            if (typeof syncTransformation !== "object") {
+              return operationFactory(b, struct, inputVar, pathVar);
+            }
+            if (syncTransformation.TAG === "Sync") {
+              var match = operationFactory(b, struct, inputVar, pathVar);
+              var isAsync = match.isAsync;
+              var outputVar = $$var(b);
+              return {
+                      code: match.code + syncTransform(b, match.outputVar, outputVar, isAsync, syncTransformation._0, pathVar, undefined),
+                      outputVar: outputVar,
+                      isAsync: isAsync
+                    };
+            }
+            var match$1 = operationFactory(b, struct, inputVar, pathVar);
+            var outputVar$1 = $$var(b);
+            return {
+                    code: match$1.code + asyncTransform(b, match$1.outputVar, outputVar$1, match$1.isAsync, syncTransformation._0, pathVar, undefined),
+                    outputVar: outputVar$1,
+                    isAsync: true
+                  };
+          };
+        }));
   return {
           n: struct.n,
           t: struct.t,
-          parseOperationFactory: undefined,
+          parseOperationFactory: maybeParseOperationFactory,
           isAsyncParseOperation: undefined,
           pf: (function (ctx) {
               struct.pf(ctx);
@@ -1029,6 +1098,89 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
                   }
                 }
                 
+              } else {
+                planSyncTransformation(ctx, (function (param) {
+                        return raise$1("MissingSerializer");
+                      }));
+              }
+              struct.sf(ctx);
+            }),
+          r: 0,
+          e: 0,
+          s: initialSerialize,
+          j: initialSerializeToJson,
+          p: intitialParse,
+          a: intitialParseAsync,
+          i: undefined,
+          m: struct.m
+        };
+}
+
+function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param) {
+  if (maybeParser === undefined && maybeAsyncParser === undefined && maybeSerializer === undefined) {
+    panic("struct factory Transform");
+  }
+  var planParser;
+  if (maybeParser !== undefined) {
+    if (maybeAsyncParser !== undefined) {
+      throw new Error("[rescript-struct] The S.transform doesn't support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.");
+    }
+    planParser = (function (ctx) {
+        planSyncTransformation(ctx, maybeParser);
+      });
+  } else {
+    planParser = maybeAsyncParser !== undefined ? (function (ctx) {
+          planAsyncTransformation(ctx, maybeAsyncParser);
+        }) : planMissingParserTransformation;
+  }
+  var maybeParseOperationFactory = Belt_Option.map(struct.parseOperationFactory, (function (operationFactory) {
+          if (maybeParser === undefined) {
+            if (maybeAsyncParser !== undefined) {
+              return function (b, struct, inputVar, pathVar) {
+                var match = operationFactory(b, struct, inputVar, pathVar);
+                var outputVar = $$var(b);
+                return {
+                        code: match.code + asyncTransform(b, match.outputVar, outputVar, match.isAsync, maybeAsyncParser, pathVar, undefined),
+                        outputVar: outputVar,
+                        isAsync: true
+                      };
+              };
+            } else {
+              return function (b, param, inputVar, pathVar) {
+                return {
+                        code: raise$2(b, pathVar, "MissingParser") + ";",
+                        outputVar: inputVar,
+                        isAsync: false
+                      };
+              };
+            }
+          }
+          if (maybeAsyncParser !== undefined) {
+            throw new Error("[rescript-struct] The S.transform doesn't support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.");
+          }
+          return function (b, struct, inputVar, pathVar) {
+            var match = operationFactory(b, struct, inputVar, pathVar);
+            var isAsync = match.isAsync;
+            var outputVar = $$var(b);
+            return {
+                    code: match.code + syncTransform(b, match.outputVar, outputVar, isAsync, maybeParser, pathVar, undefined),
+                    outputVar: outputVar,
+                    isAsync: isAsync
+                  };
+          };
+        }));
+  return {
+          n: struct.n,
+          t: struct.t,
+          parseOperationFactory: maybeParseOperationFactory,
+          isAsyncParseOperation: undefined,
+          pf: (function (ctx) {
+              struct.pf(ctx);
+              planParser(ctx);
+            }),
+          sf: (function (ctx) {
+              if (maybeSerializer !== undefined) {
+                planSyncTransformation(ctx, maybeSerializer);
               } else {
                 planSyncTransformation(ctx, (function (param) {
                         return raise$1("MissingSerializer");
@@ -1905,14 +2057,18 @@ function parseTransformationFactory(ctx) {
 var struct$2 = {
   n: "String",
   t: "String",
-  parseOperationFactory: (function (b) {
-      return "typeof " + b.input + "!==\"string\"&&" + ("e[" + (b.embeded.push(function (input) {
-                      return raise$1({
-                                  TAG: "UnexpectedType",
-                                  expected: "String",
-                                  received: toName(input)
-                                });
-                    }) - 1) + "]") + "(" + b.input + ");";
+  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+      return {
+              code: "if(typeof " + inputVar + "!==\"string\"){" + raiseWithArg(b, pathVar, (function (input) {
+                      return {
+                              TAG: "UnexpectedType",
+                              expected: "String",
+                              received: toName(input)
+                            };
+                    }), inputVar) + "}",
+              outputVar: inputVar,
+              isAsync: false
+            };
     }),
   isAsyncParseOperation: undefined,
   pf: parseTransformationFactory,
@@ -2198,7 +2354,19 @@ function parseTransformationFactory$2(ctx) {
 var struct$4 = {
   n: "Int",
   t: "Int",
-  parseOperationFactory: undefined,
+  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+      return {
+              code: "if(!(typeof " + inputVar + "===\"number\"&&" + inputVar + "<2147483648&&" + inputVar + ">-2147483649&&" + inputVar + "%1===0)){" + raiseWithArg(b, pathVar, (function (input) {
+                      return {
+                              TAG: "UnexpectedType",
+                              expected: "Int",
+                              received: toName(input)
+                            };
+                    }), inputVar) + "}",
+              outputVar: inputVar,
+              isAsync: false
+            };
+    }),
   isAsyncParseOperation: undefined,
   pf: parseTransformationFactory$2,
   sf: empty,
@@ -2406,26 +2574,18 @@ function factory$5(innerStruct) {
 }
 
 function factory$6(innerStruct) {
-  var maybeParseOperationFactory = Belt_Option.map(innerStruct.parseOperationFactory, (function (innerParseOperationFactory) {
-          return function (b) {
-            var inputBeforeInnerStruct = b.input;
-            var innerStructCode = innerParseOperationFactory(b);
-            var isInnerStructAsync = innerStruct.isAsyncParseOperation;
-            b.struct_.isAsyncParseOperation = isInnerStructAsync;
-            var inputAfterInnerStruct = b.input;
-            var v = $$var(b);
-            b.input = v;
-            var tmp;
-            if (isInnerStructAsync) {
-              var value = Caml_option.some;
-              tmp = innerStructCode + v + "=()=>" + inputAfterInnerStruct + "().then(" + ("e[" + (b.embeded.push(value) - 1) + "]") + ")";
-            } else {
-              var value$1 = Caml_option.some;
-              tmp = innerStructCode + v + "=" + ("e[" + (b.embeded.push(value$1) - 1) + "]") + "(" + inputAfterInnerStruct + ")";
-            }
-            return "if(" + inputBeforeInnerStruct + "!==undefined){" + tmp + "}else{" + v + "=" + (
-                    isInnerStructAsync ? "()=>Promise.resolve(" + inputBeforeInnerStruct + ")" : inputBeforeInnerStruct
-                  ) + "}";
+  var maybeParseOperationFactory = Belt_Option.map(innerStruct.parseOperationFactory, (function (operationFactory) {
+          return function (b, param, inputVar, pathVar) {
+            var match = operationFactory(b, innerStruct, inputVar, pathVar);
+            var isInnerStructAsync = match.isAsync;
+            var outputVar = $$var(b);
+            return {
+                    code: "if(" + inputVar + "!==undefined){" + match.code + syncTransform(b, match.outputVar, outputVar, isInnerStructAsync, Caml_option.some, undefined, undefined) + "}else{" + outputVar + "=" + (
+                      isInnerStructAsync ? "()=>Promise.resolve(" + inputVar + ")" : inputVar
+                    ) + "}",
+                    outputVar: outputVar,
+                    isAsync: isInnerStructAsync
+                  };
           };
         }));
   return {
@@ -2504,13 +2664,41 @@ function refinements$3(struct) {
 }
 
 function factory$7(innerStruct) {
+  var maybeParseOperationFactory = Belt_Option.map(innerStruct.parseOperationFactory, (function (operationFactory) {
+          return function (b, param, inputVar, pathVar) {
+            var itemVar = varWithoutAllocation(b);
+            var iteratorVar = varWithoutAllocation(b);
+            var match = operationFactory(b, innerStruct, itemVar, pathVar + "+'[\"'+" + iteratorVar + "+'\"]'");
+            var syncOutputVar = $$var(b);
+            var syncCode = "if(!Array.isArray(" + inputVar + ")){" + raiseWithArg(b, pathVar, (function (input) {
+                    return {
+                            TAG: "UnexpectedType",
+                            expected: "Array",
+                            received: toName(input)
+                          };
+                  }), inputVar) + "}" + syncOutputVar + "=[];for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){let " + itemVar + "=" + inputVar + "[" + iteratorVar + "];" + match.code + syncOutputVar + ".push(" + match.outputVar + ")}";
+            if (!match.isAsync) {
+              return {
+                      code: syncCode,
+                      outputVar: syncOutputVar,
+                      isAsync: false
+                    };
+            }
+            var outputVar = $$var(b);
+            return {
+                    code: syncCode + (outputVar + "=()=>Promise.all(" + syncOutputVar + ".map(t=>t()));"),
+                    outputVar: outputVar,
+                    isAsync: true
+                  };
+          };
+        }));
   return {
           n: "Array",
           t: {
             TAG: "Array",
             _0: innerStruct
           },
-          parseOperationFactory: undefined,
+          parseOperationFactory: maybeParseOperationFactory,
           isAsyncParseOperation: undefined,
           pf: (function (ctx) {
               planSyncTransformation(ctx, (function (input) {

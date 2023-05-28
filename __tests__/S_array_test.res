@@ -48,6 +48,32 @@ module CommonWithNested = {
   })
 }
 
+test("Successfully parses matrix", t => {
+  let struct = S.array(S.array(S.string))
+
+  t->Assert.deepEqual(
+    %raw(`[["a", "b"], ["c", "d"]]`)->S.parseAnyWith(struct),
+    Ok([["a", "b"], ["c", "d"]]),
+    (),
+  )
+})
+
+test("Fails to parse matrix", t => {
+  let struct = S.array(S.array(S.string))
+
+  Js.log(%raw(`[["a", 1], ["c", "d"]]`)->S.parseAnyWith(struct))
+
+  t->Assert.deepEqual(
+    %raw(`[["a", 1], ["c", "d"]]`)->S.parseAnyWith(struct),
+    Error({
+      operation: Parsing,
+      code: UnexpectedType({expected: "String", received: "Float"}),
+      path: S.Path.fromArray(["0", "1"]),
+    }),
+    (),
+  )
+})
+
 test("Successfully parses array of optional items", t => {
   let struct = S.array(S.option(S.string))
 

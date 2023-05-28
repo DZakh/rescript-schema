@@ -65,6 +65,60 @@ test("Fails to parse when user raises error in a Transformed Primitive parser", 
   )
 })
 
+test("Uses the path from advancedFail called in the transform parser", t => {
+  let struct = S.array(S.string->S.transform(~parser=_ =>
+      S.advancedFail({
+        code: OperationFailed("User error"),
+        operation: Parsing,
+        path: S.Path.fromArray(["a", "b"]),
+      })
+    , ()))
+
+  t->Assert.deepEqual(
+    ["Hello world!"]->S.parseAnyWith(struct),
+    Error({
+      code: OperationFailed("User error"),
+      operation: Parsing,
+      path: S.Path.fromArray(["0", "a", "b"]),
+    }),
+    (),
+  )
+})
+
+test("Uses the path from advancedFail called in the transform serializer", t => {
+  let struct = S.array(S.string->S.transform(~serializer=_ =>
+      S.advancedFail({
+        code: OperationFailed("User error"),
+        operation: Parsing,
+        path: S.Path.fromArray(["a", "b"]),
+      })
+    , ()))
+
+  t->Assert.deepEqual(
+    ["Hello world!"]->S.serializeWith(struct),
+    Error({
+      code: OperationFailed("User error"),
+      operation: Serializing,
+      path: S.Path.fromArray(["0", "a", "b"]),
+    }),
+    (),
+  )
+})
+
+test("Transform doesn't ignore non rescript-struct errors", t => {
+  let struct = S.array(
+    S.string->S.transform(~parser=_ => Js.Exn.raiseError("Application crashed"), ()),
+  )
+
+  t->Assert.throws(
+    () => {["Hello world!"]->S.parseAnyWith(struct)},
+    ~expectations={
+      message: "Application crashed",
+    },
+    (),
+  )
+})
+
 test("Successfully serializes primitive with transformation to the same type", t => {
   let struct = S.string->S.transform(~serializer=value => value->Js.String2.trim, ())
 
