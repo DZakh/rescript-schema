@@ -827,7 +827,7 @@ let nodeStruct = S.recursive(nodeStruct => {
 // })
 ```
 
-The same struct also works for serializing:
+The same struct works for serializing:
 
 ```rescript
 {
@@ -843,21 +843,10 @@ The same struct also works for serializing:
 // }`))
 ```
 
-> 🧠 Despite supporting recursive structs, passing cyclical data into rescript-struct will cause an infinite loop.
-
-### **`asyncRecursive`**
-
-`(t<'value> => t<'value>) => t<'value>`
-
-If the recursive struct has an asynchronous parser, you must use `S.asyncRecursive` instead of `S.recursive`.
+You can also use asynchronous parser:
 
 ```rescript
-type rec node = {
-  id: string,
-  children: array<node>,
-}
-
-let nodeStruct = S.asyncRecursive(nodeStruct => {
+let nodeStruct = S.recursive(nodeStruct => {
   S.object(o => {
     id: o.field("Id", S.string)->S.refine(~asyncParser=checkIsExistingNode, ()),
     children: o.field("Children", S.array(nodeStruct)),
@@ -865,21 +854,9 @@ let nodeStruct = S.asyncRecursive(nodeStruct => {
 })
 ```
 
-```rescript
-await %raw(`{
-  "Id": "1",
-  "Children": [
-    {"Id": "2", "Children": []},
-    {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
-  ],
-}`)->S.parseAsyncWith(nodeStruct)
-// Ok({
-//   id: "1",
-//   children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-// })
-```
-
 One great aspect of the example above is that it uses parallelism to make four requests to check for the existence of nodes.
+
+> 🧠 Despite supporting recursive structs, passing cyclical data into rescript-struct will cause an infinite loop.
 
 ## Refinements
 
