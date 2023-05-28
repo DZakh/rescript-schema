@@ -2010,7 +2010,7 @@ function factory$3(definer) {
                 var inlinedFieldName = fieldDefinition.i;
                 var path = fieldDefinition.p;
                 var isRegistered = fieldDefinition.r;
-                var match = compileParser(b, fieldDefinition.s, inputVar + "[" + inlinedFieldName + "]", pathVar + "+'[\"'+" + inlinedFieldName + "+'\"]'");
+                var match = compileParser(b, fieldDefinition.s, inputVar + "[" + inlinedFieldName + "]", pathVar + "+'['+" + JSON.stringify(inlinedFieldName) + "+']'");
                 var fieldOuputVar = match.outputVar;
                 codeRef = codeRef + match.code + (
                   isRegistered ? syncOutputVar + path + "=" + fieldOuputVar + ";" : ""

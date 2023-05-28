@@ -2666,7 +2666,6 @@ module Object = {
         fields: instructions.fields,
         fieldNames: instructions.fieldNames,
       }),
-      // TODO: HERE
       ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
         let {
           preparationPathes,
@@ -2704,7 +2703,7 @@ module Object = {
             b->B.compileParser(
               ~struct=fieldStruct,
               ~inputVar=`${inputVar}[${inlinedFieldName}]`,
-              ~pathVar=`${pathVar}+'["'+${inlinedFieldName}+'"]'`,
+              ~pathVar=`${pathVar}+'['+${inlinedFieldName->Stdlib.Inlined.Value.fromString}+']'`,
             )
 
           codeRef.contents =
