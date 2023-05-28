@@ -590,7 +590,7 @@ type rec t<'value> = {
   parseOperationFactory: option<
     (
       . operationBuilder,
-      ~struct: t<unknown>,
+      ~selfStruct: t<unknown>,
       ~inputVar: string,
       ~pathVar: string,
     ) => operationFactoryResult,
@@ -915,6 +915,24 @@ module Operation = {
       b.varCounter = b.varCounter->Stdlib.Int.plus(1)
       `v${b.varCounter->Js.Int.toString}`
     }
+
+    let compileParser = (b: t, ~struct, ~inputVar, ~pathVar) => {
+      switch struct.parseOperationFactory {
+      | Some(operationFactory) => operationFactory(. b, ~selfStruct=struct, ~inputVar, ~pathVar)
+      | None =>
+        switch struct->getParseOperation {
+        | NoOperation => {isAsync: false, outputVar: inputVar, code: ""}
+        | SyncOperation(operation) => {
+            let outputVar = b->var
+            {isAsync: false, outputVar, code: `${outputVar}=${b->embed(operation)}(${inputVar});`}
+          }
+        | AsyncOperation(operation) => {
+            let outputVar = b->var
+            {isAsync: true, outputVar, code: `${outputVar}=${b->embed(operation)}(${inputVar});`}
+          }
+        }
+      }
+    }
   }
 
   let compile = (operationFactory, ~struct) => {
@@ -926,7 +944,7 @@ module Operation = {
     }
     let {code, outputVar, isAsync} = operationFactory(.
       b,
-      ~struct,
+      ~selfStruct=struct,
       ~inputVar=intitialInputVar,
       ~pathVar=`""`,
     )
@@ -1400,65 +1418,55 @@ let advancedTransform: (
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseOperationFactory=?struct.parseOperationFactory->Belt.Option.map(operationFactory => {
-      (. b, ~struct, ~inputVar, ~pathVar) => {
-        switch maybeParser {
-        | Some(parser) =>
-          switch parser->TransformationFactory.Public.call(
-            ~struct=struct->castUnknownStructToAnyStruct,
-          ) {
-          | Noop => operationFactory(. b, ~struct, ~inputVar, ~pathVar)
-          | Sync(syncTransformation) => {
-              let {code, outputVar: parsedItemVar, isAsync} = operationFactory(.
-                b,
-                ~struct,
-                ~inputVar,
-                ~pathVar,
-              )
-              let outputVar = b->B.var
-              {
-                code: `${code}${b->B.syncTransform(
-                    ~inputVar=parsedItemVar,
-                    ~outputVar,
-                    ~isAsyncInput=isAsync,
-                    ~fn=syncTransformation,
-                    ~prependPathVar=pathVar,
-                    (),
-                  )}`,
-                outputVar,
-                isAsync,
-              }
-            }
-          | Async(asyncTransformation) => {
-              let {code, outputVar: parsedItemVar, isAsync} = operationFactory(.
-                b,
-                ~struct,
-                ~inputVar,
-                ~pathVar,
-              )
-              let outputVar = b->B.var
-              {
-                code: `${code}${b->B.asyncTransform(
-                    ~inputVar=parsedItemVar,
-                    ~outputVar,
-                    ~isAsyncInput=isAsync,
-                    ~fn=asyncTransformation,
-                    ~prependPathVar=pathVar,
-                    (),
-                  )}`,
-                outputVar,
-                isAsync: true,
-              }
+    ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+      switch maybeParser {
+      | Some(parser) =>
+        switch parser->TransformationFactory.Public.call(
+          ~struct=selfStruct->castUnknownStructToAnyStruct,
+        ) {
+        | Noop => b->B.compileParser(~struct, ~inputVar, ~pathVar)
+        | Sync(syncTransformation) => {
+            let {code, outputVar: parsedItemVar, isAsync} =
+              b->B.compileParser(~struct, ~inputVar, ~pathVar)
+            let outputVar = b->B.var
+            {
+              code: `${code}${b->B.syncTransform(
+                  ~inputVar=parsedItemVar,
+                  ~outputVar,
+                  ~isAsyncInput=isAsync,
+                  ~fn=syncTransformation,
+                  ~prependPathVar=pathVar,
+                  (),
+                )}`,
+              outputVar,
+              isAsync,
             }
           }
-        | None => {
-            code: b->B.raise(~pathVar, MissingParser) ++ ";",
-            outputVar: inputVar,
-            isAsync: false,
+        | Async(asyncTransformation) => {
+            let {code, outputVar: parsedItemVar, isAsync} =
+              b->B.compileParser(~struct, ~inputVar, ~pathVar)
+            let outputVar = b->B.var
+            {
+              code: `${code}${b->B.asyncTransform(
+                  ~inputVar=parsedItemVar,
+                  ~outputVar,
+                  ~isAsyncInput=isAsync,
+                  ~fn=asyncTransformation,
+                  ~prependPathVar=pathVar,
+                  (),
+                )}`,
+              outputVar,
+              isAsync: true,
+            }
           }
         }
+      | None => {
+          code: b->B.raise(~pathVar, MissingParser) ++ ";",
+          outputVar: inputVar,
+          isAsync: false,
+        }
       }
-    }),
+    },
     ~parseTransformationFactory=(. ~ctx) => {
       struct.parseTransformationFactory(. ~ctx)
       switch maybeParser {
@@ -1509,6 +1517,7 @@ let transform: (
   ~serializer as maybeSerializer=?,
   (),
 ) => {
+  let struct = struct->toUnknown
   if maybeParser === None && maybeAsyncParser === None && maybeSerializer === None {
     Error.MissingParserAndSerializer.panic(`struct factory Transform`)
   }
@@ -1527,64 +1536,54 @@ let transform: (
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseOperationFactory=?struct.parseOperationFactory->Belt.Option.map(operationFactory => {
-      switch (maybeParser, maybeAsyncParser) {
-      | (Some(_), Some(_)) =>
-        Error.panic(
-          "The S.transform doesn't support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.",
-        )
-      | (Some(parser), None) =>
-        (. b, ~struct, ~inputVar, ~pathVar) => {
-          let {code, outputVar: parsedItemVar, isAsync} = operationFactory(.
-            b,
-            ~struct,
-            ~inputVar,
-            ~pathVar,
-          )
-          let outputVar = b->B.var
-          {
-            code: `${code}${b->B.syncTransform(
-                ~inputVar=parsedItemVar,
-                ~outputVar,
-                ~isAsyncInput=isAsync,
-                ~fn=parser,
-                ~prependPathVar=pathVar,
-                (),
-              )}`,
-            outputVar,
-            isAsync,
-          }
-        }
-      | (None, Some(asyncParser)) =>
-        (. b, ~struct, ~inputVar, ~pathVar) => {
-          let {code, outputVar: parsedItemVar, isAsync} = operationFactory(.
-            b,
-            ~struct,
-            ~inputVar,
-            ~pathVar,
-          )
-          let outputVar = b->B.var
-          {
-            code: `${code}${b->B.asyncTransform(
-                ~inputVar=parsedItemVar,
-                ~outputVar,
-                ~isAsyncInput=isAsync,
-                ~fn=asyncParser,
-                ~prependPathVar=pathVar,
-                (),
-              )}`,
-            outputVar,
-            isAsync: true,
-          }
-        }
-      | (None, None) =>
-        (. b, ~struct as _, ~inputVar, ~pathVar) => {
-          code: b->B.raise(~pathVar, MissingParser) ++ ";",
-          outputVar: inputVar,
-          isAsync: false,
+    ~parseOperationFactory=switch (maybeParser, maybeAsyncParser) {
+    | (Some(_), Some(_)) =>
+      Error.panic(
+        "The S.transform doesn't support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.",
+      )
+    | (Some(parser), None) =>
+      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let {code, outputVar: parsedItemVar, isAsync} =
+          b->B.compileParser(~struct, ~inputVar, ~pathVar)
+        let outputVar = b->B.var
+        {
+          code: `${code}${b->B.syncTransform(
+              ~inputVar=parsedItemVar,
+              ~outputVar,
+              ~isAsyncInput=isAsync,
+              ~fn=parser,
+              ~prependPathVar=pathVar,
+              (),
+            )}`,
+          outputVar,
+          isAsync,
         }
       }
-    }),
+    | (None, Some(asyncParser)) =>
+      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let {code, outputVar: parsedItemVar, isAsync} =
+          b->B.compileParser(~struct, ~inputVar, ~pathVar)
+        let outputVar = b->B.var
+        {
+          code: `${code}${b->B.asyncTransform(
+              ~inputVar=parsedItemVar,
+              ~outputVar,
+              ~isAsyncInput=isAsync,
+              ~fn=asyncParser,
+              ~prependPathVar=pathVar,
+              (),
+            )}`,
+          outputVar,
+          isAsync: true,
+        }
+      }
+    | (None, None) =>
+      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        code: b->B.raise(~pathVar, MissingParser) ++ ";",
+        outputVar: inputVar,
+        isAsync: false,
+      }
+    },
     ~parseTransformationFactory=(. ~ctx) => {
       struct.parseTransformationFactory(. ~ctx)
       planParser->Stdlib.Fn.call1(ctx)
@@ -2741,7 +2740,7 @@ module String = {
     ~name="String",
     ~metadataMap=emptyMetadataMap,
     ~tagged=String,
-    ~parseOperationFactory=(. b, ~struct as _, ~inputVar, ~pathVar) => {
+    ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
       {
         code: `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
             ~pathVar,
@@ -3043,7 +3042,7 @@ module Int = {
     ~name="Int",
     ~metadataMap=emptyMetadataMap,
     ~tagged=Int,
-    ~parseOperationFactory=(. b, ~struct as _, ~inputVar, ~pathVar) => {
+    ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
       {
         code: `if(!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)){${b->B.raiseWithArg(
             ~pathVar,
@@ -3267,33 +3266,26 @@ module Option = {
       ~name=`Option`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Option(innerStruct),
-      ~parseOperationFactory=?innerStruct.parseOperationFactory->Belt.Option.map(
-        operationFactory => {
-          (. b, ~struct as _, ~inputVar, ~pathVar) => {
-            let {
-              code: innerStructCode,
-              isAsync: isInnerStructAsync,
-              outputVar: parsedItemVar,
-            } = operationFactory(. b, ~struct=innerStruct, ~inputVar, ~pathVar)
-            let outputVar = b->B.var
+      ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let {code: innerStructCode, isAsync: isInnerStructAsync, outputVar: parsedItemVar} =
+          b->B.compileParser(~struct=innerStruct, ~inputVar, ~pathVar)
+        let outputVar = b->B.var
 
-            {
-              code: `if(${inputVar}!==undefined){${innerStructCode}${b->B.syncTransform(
-                  ~inputVar=parsedItemVar,
-                  ~outputVar,
-                  ~isAsyncInput=isInnerStructAsync,
-                  ~fn=%raw("Caml_option.some"),
-                  (),
-                )}}else{${outputVar}=${switch isInnerStructAsync {
-                | false => inputVar
-                | true => `()=>Promise.resolve(${inputVar})`
-                }}}`,
-              isAsync: isInnerStructAsync,
-              outputVar,
-            }
-          }
-        },
-      ),
+        {
+          code: `if(${inputVar}!==undefined){${innerStructCode}${b->B.syncTransform(
+              ~inputVar=parsedItemVar,
+              ~outputVar,
+              ~isAsyncInput=isInnerStructAsync,
+              ~fn=%raw("Caml_option.some"),
+              (),
+            )}}else{${outputVar}=${switch isInnerStructAsync {
+            | false => inputVar
+            | true => `()=>Promise.resolve(${inputVar})`
+            }}}`,
+          isAsync: isInnerStructAsync,
+          outputVar,
+        }
+      },
       ~parseTransformationFactory=(. ~ctx) => {
         let planSyncTransformation = fn => {
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -3369,45 +3361,37 @@ module Array = {
       ~name=`Array`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Array(innerStruct),
-      ~parseOperationFactory=?innerStruct.parseOperationFactory->Belt.Option.map(
-        operationFactory => {
-          (. b, ~struct as _, ~inputVar, ~pathVar) => {
-            let itemVar = b->B.varWithoutAllocation
-            let iteratorVar = b->B.varWithoutAllocation
-            let {
-              code: innerStructCode,
-              isAsync: isInnerStructAsync,
-              outputVar: parsedItemVar,
-            } = operationFactory(.
-              b,
-              ~struct=innerStruct,
-              ~inputVar=itemVar,
-              ~pathVar=`${pathVar}+'["'+${iteratorVar}+'"]'`,
-            )
+      ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let itemVar = b->B.varWithoutAllocation
+        let iteratorVar = b->B.varWithoutAllocation
+        let {code: innerStructCode, isAsync: isInnerStructAsync, outputVar: parsedItemVar} =
+          b->B.compileParser(
+            ~struct=innerStruct,
+            ~inputVar=itemVar,
+            ~pathVar=`${pathVar}+'["'+${iteratorVar}+'"]'`,
+          )
 
-            let syncOutputVar = b->B.var
-            let syncCode = `if(!Array.isArray(${inputVar})){${b->B.raiseWithArg(
-                ~pathVar,
-                (. input) => UnexpectedType({
-                  expected: "Array",
-                  received: input->Stdlib.Unknown.toName,
-                }),
-                inputVar,
-              )}}${syncOutputVar}=[];for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){let ${itemVar}=${inputVar}[${iteratorVar}];${innerStructCode}${syncOutputVar}.push(${parsedItemVar})}`
+        let syncOutputVar = b->B.var
+        let syncCode = `if(!Array.isArray(${inputVar})){${b->B.raiseWithArg(
+            ~pathVar,
+            (. input) => UnexpectedType({
+              expected: "Array",
+              received: input->Stdlib.Unknown.toName,
+            }),
+            inputVar,
+          )}}${syncOutputVar}=[];for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){let ${itemVar}=${inputVar}[${iteratorVar}];${innerStructCode}${syncOutputVar}.push(${parsedItemVar})}`
 
-            if isInnerStructAsync {
-              let outputVar = b->B.var
-              {
-                code: syncCode ++ `${outputVar}=()=>Promise.all(${syncOutputVar}.map(t=>t()));`,
-                isAsync: true,
-                outputVar,
-              }
-            } else {
-              {code: syncCode, isAsync: false, outputVar: syncOutputVar}
-            }
+        if isInnerStructAsync {
+          let outputVar = b->B.var
+          {
+            code: syncCode ++ `${outputVar}=()=>Promise.all(${syncOutputVar}.map(t=>t()));`,
+            isAsync: true,
+            outputVar,
           }
-        },
-      ),
+        } else {
+          {code: syncCode, isAsync: false, outputVar: syncOutputVar}
+        }
+      },
       ~parseTransformationFactory=(. ~ctx) => {
         ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
           if Js.Array2.isArray(input) === false {
