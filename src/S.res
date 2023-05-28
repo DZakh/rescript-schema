@@ -924,11 +924,30 @@ module Operation = {
         | NoOperation => {isAsync: false, outputVar: inputVar, code: ""}
         | SyncOperation(operation) => {
             let outputVar = b->var
-            {isAsync: false, outputVar, code: `${outputVar}=${b->embed(operation)}(${inputVar});`}
+            let code = `${outputVar}=${b->embed(operation)}(${inputVar});`
+            {
+              isAsync: false,
+              outputVar,
+              code: switch pathVar {
+              | `""` => code
+              | pathVar => `try{${code}}catch(t){${internalTransformRethrow(~pathVar)}}`
+              },
+            }
           }
         | AsyncOperation(operation) => {
             let outputVar = b->var
-            {isAsync: true, outputVar, code: `${outputVar}=${b->embed(operation)}(${inputVar});`}
+            let code = `${outputVar}=${b->embed(operation)}(${inputVar})`
+            {
+              isAsync: true,
+              outputVar,
+              code: switch pathVar {
+              | `""` => code ++ ";"
+              | pathVar =>
+                `try{${code}.catch(t=>{${internalTransformRethrow(
+                    ~pathVar,
+                  )}})}catch(t){${internalTransformRethrow(~pathVar)}}`
+              },
+            }
           }
         }
       }
@@ -950,7 +969,7 @@ module Operation = {
     )
     struct.isAsyncParseOperation = isAsync
     let inlinedFunction = `${intitialInputVar}=>{var ${b.varsAllocation};${code}return ${outputVar}}`
-    Js.log(inlinedFunction)
+    // Js.log(inlinedFunction)
     Stdlib.Function.make1(~ctxVarName1="e", ~ctxVarValue1=b.embeded, ~inlinedFunction)
   }
 }
@@ -2647,6 +2666,125 @@ module Object = {
         fields: instructions.fields,
         fieldNames: instructions.fieldNames,
       }),
+      // TODO: HERE
+      ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+        let {
+          preparationPathes,
+          inlinedPreparationValues,
+          fieldDefinitions,
+          constantDefinitions,
+        } = instructions
+
+        let asyncFieldVars = []
+
+        let syncOutputVar = b->B.var
+        let codeRef = ref(
+          `if(!(typeof ${inputVar}==="object"&&${inputVar}!==null&&!Array.isArray(${inputVar}))){${b->B.raiseWithArg(
+              ~pathVar,
+              (. input) => UnexpectedType({
+                expected: "Object",
+                received: input->Stdlib.Unknown.toName,
+              }),
+              inputVar,
+            )}}${syncOutputVar}={};`,
+        )
+
+        for idx in 0 to preparationPathes->Js.Array2.length - 1 {
+          let preparationPath = preparationPathes->Js.Array2.unsafe_get(idx)
+          let preparationInlinedValue = inlinedPreparationValues->Js.Array2.unsafe_get(idx)
+          codeRef.contents =
+            codeRef.contents ++ `${syncOutputVar}${preparationPath}=${preparationInlinedValue};`
+        }
+
+        for idx in 0 to fieldDefinitions->Js.Array2.length - 1 {
+          let fieldDefinition = fieldDefinitions->Js.Array2.unsafe_get(idx)
+          let {fieldStruct, inlinedFieldName, isRegistered, path} = fieldDefinition
+
+          let {code: fieldCode, outputVar: fieldOuputVar, isAsync: isAsyncField} =
+            b->B.compileParser(
+              ~struct=fieldStruct,
+              ~inputVar=`${inputVar}[${inlinedFieldName}]`,
+              ~pathVar=`${pathVar}+'["'+${inlinedFieldName}+'"]'`,
+            )
+
+          codeRef.contents =
+            codeRef.contents ++
+            fieldCode ++ (isRegistered ? `${syncOutputVar}${path}=${fieldOuputVar};` : "")
+          if isAsyncField {
+            asyncFieldVars
+            ->Js.Array2.push(isRegistered ? `${syncOutputVar}${path}` : fieldOuputVar)
+            ->ignore
+          }
+        }
+
+        let withUnknownKeysRefinement = selfStruct->UnknownKeys.classify === UnknownKeys.Strict
+        switch (withUnknownKeysRefinement, fieldDefinitions) {
+        | (true, []) => {
+            let keyVar = b->B.var
+            codeRef.contents =
+              codeRef.contents ++
+              `for(${keyVar} in ${inputVar}){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. exccessFieldName) => ExcessField(exccessFieldName),
+                  keyVar,
+                )}}`
+          }
+        | (true, _) => {
+            let keyVar = b->B.var
+            codeRef.contents = codeRef.contents ++ `for(${keyVar} in ${inputVar}){if(!(`
+            for idx in 0 to fieldDefinitions->Js.Array2.length - 1 {
+              let fieldDefinition = fieldDefinitions->Js.Array2.unsafe_get(idx)
+              if idx !== 0 {
+                codeRef.contents = codeRef.contents ++ "||"
+              }
+              codeRef.contents =
+                codeRef.contents ++ `${keyVar}===${fieldDefinition.inlinedFieldName}`
+            }
+            codeRef.contents =
+              codeRef.contents ++
+              `)){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. exccessFieldName) => ExcessField(exccessFieldName),
+                  keyVar,
+                )}}}`
+          }
+
+        | _ => ()
+        }
+
+        for idx in 0 to constantDefinitions->Js.Array2.length - 1 {
+          let {path, value} = constantDefinitions->Js.Array2.unsafe_get(idx)
+          codeRef.contents = codeRef.contents ++ `${syncOutputVar}${path}=${b->B.embed(value)};`
+        }
+
+        if asyncFieldVars->Js.Array2.length === 0 {
+          {
+            code: codeRef.contents,
+            outputVar: syncOutputVar,
+            isAsync: false,
+          }
+        } else {
+          let outputVar = b->B.var
+          let resolveVar = b->B.varWithoutAllocation
+          let rejectVar = b->B.varWithoutAllocation
+          let asyncParseResultVar = b->B.varWithoutAllocation
+          let counterVar = b->B.var
+
+          codeRef.contents = `${codeRef.contents}${outputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{${counterVar}=${asyncFieldVars
+            ->Js.Array2.length
+            ->Js.Int.toString};${asyncFieldVars
+            ->Js.Array2.map(asyncFieldVar => {
+              `${asyncFieldVar}().then(${asyncParseResultVar}=>{${asyncFieldVar}=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${syncOutputVar})}},${rejectVar})`
+            })
+            ->Js.Array2.joinWith(";")}});`
+
+          {
+            code: codeRef.contents,
+            outputVar,
+            isAsync: true,
+          }
+        }
+      },
       ~parseTransformationFactory=ParseTransformationFactory.make(~instructions),
       ~serializeTransformationFactory=SerializeTransformationFactory.make(~instructions),
       (),

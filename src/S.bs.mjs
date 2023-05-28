@@ -471,15 +471,19 @@ function compileParser(b, struct, inputVar, pathVar) {
   }
   if (operation.TAG === "SyncOperation") {
     var outputVar = $$var(b);
+    var code = outputVar + "=" + ("e[" + (b.embeded.push(operation._0) - 1) + "]") + "(" + inputVar + ");";
+    var tmp = pathVar === "\"\"" ? code : "try{" + code + "}catch(t){" + internalTransformRethrow(pathVar) + "}";
     return {
-            code: outputVar + "=" + ("e[" + (b.embeded.push(operation._0) - 1) + "]") + "(" + inputVar + ");",
+            code: tmp,
             outputVar: outputVar,
             isAsync: false
           };
   }
   var outputVar$1 = $$var(b);
+  var code$1 = outputVar$1 + "=" + ("e[" + (b.embeded.push(operation._0) - 1) + "]") + "(" + inputVar + ")";
+  var tmp$1 = pathVar === "\"\"" ? code$1 + ";" : "try{" + code$1 + ".catch(t=>{" + internalTransformRethrow(pathVar) + "})}catch(t){" + internalTransformRethrow(pathVar) + "}";
   return {
-          code: outputVar$1 + "=" + ("e[" + (b.embeded.push(operation._0) - 1) + "]") + "(" + inputVar + ");",
+          code: tmp$1,
           outputVar: outputVar$1,
           isAsync: true
         };
@@ -495,7 +499,6 @@ function compile$1(operationFactory, struct) {
   var match = operationFactory(b, struct, intitialInputVar, "\"\"");
   struct.isAsyncParseOperation = match.isAsync;
   var inlinedFunction = intitialInputVar + "=>{var " + b.varsAllocation + ";" + match.code + "return " + match.outputVar + "}";
-  console.log(inlinedFunction);
   return new Function("e", "return " + inlinedFunction)(b.embeded);
 }
 
@@ -1984,7 +1987,92 @@ function factory$3(definer) {
             fields: fields,
             fieldNames: fieldNames
           },
-          parseOperationFactory: undefined,
+          parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+              var constantDefinitions = definerCtx_c;
+              var inlinedPreparationValues = definerCtx_v;
+              var preparationPathes = definerCtx_p;
+              var asyncFieldVars = [];
+              var syncOutputVar = $$var(b);
+              var codeRef = "if(!(typeof " + inputVar + "===\"object\"&&" + inputVar + "!==null&&!Array.isArray(" + inputVar + "))){" + raiseWithArg(b, pathVar, (function (input) {
+                      return {
+                              TAG: "UnexpectedType",
+                              expected: "Object",
+                              received: toName(input)
+                            };
+                    }), inputVar) + "}" + syncOutputVar + "={};";
+              for(var idx = 0 ,idx_finish = preparationPathes.length; idx < idx_finish; ++idx){
+                var preparationPath = preparationPathes[idx];
+                var preparationInlinedValue = inlinedPreparationValues[idx];
+                codeRef = codeRef + (syncOutputVar + preparationPath + "=" + preparationInlinedValue + ";");
+              }
+              for(var idx$1 = 0 ,idx_finish$1 = fieldDefinitions.length; idx$1 < idx_finish$1; ++idx$1){
+                var fieldDefinition = fieldDefinitions[idx$1];
+                var inlinedFieldName = fieldDefinition.i;
+                var path = fieldDefinition.p;
+                var isRegistered = fieldDefinition.r;
+                var match = compileParser(b, fieldDefinition.s, inputVar + "[" + inlinedFieldName + "]", pathVar + "+'[\"'+" + inlinedFieldName + "+'\"]'");
+                var fieldOuputVar = match.outputVar;
+                codeRef = codeRef + match.code + (
+                  isRegistered ? syncOutputVar + path + "=" + fieldOuputVar + ";" : ""
+                );
+                if (match.isAsync) {
+                  asyncFieldVars.push(isRegistered ? syncOutputVar + path : fieldOuputVar);
+                }
+                
+              }
+              var withUnknownKeysRefinement = classify$1(selfStruct) === "Strict";
+              if (withUnknownKeysRefinement) {
+                if (fieldDefinitions.length !== 0) {
+                  var keyVar = $$var(b);
+                  codeRef = codeRef + ("for(" + keyVar + " in " + inputVar + "){if(!(");
+                  for(var idx$2 = 0 ,idx_finish$2 = fieldDefinitions.length; idx$2 < idx_finish$2; ++idx$2){
+                    var fieldDefinition$1 = fieldDefinitions[idx$2];
+                    if (idx$2 !== 0) {
+                      codeRef = codeRef + "||";
+                    }
+                    codeRef = codeRef + (keyVar + "===" + fieldDefinition$1.i);
+                  }
+                  codeRef = codeRef + (")){" + raiseWithArg(b, pathVar, (function (exccessFieldName) {
+                            return {
+                                    TAG: "ExcessField",
+                                    _0: exccessFieldName
+                                  };
+                          }), keyVar) + "}}");
+                } else {
+                  var keyVar$1 = $$var(b);
+                  codeRef = codeRef + ("for(" + keyVar$1 + " in " + inputVar + "){" + raiseWithArg(b, pathVar, (function (exccessFieldName) {
+                            return {
+                                    TAG: "ExcessField",
+                                    _0: exccessFieldName
+                                  };
+                          }), keyVar$1) + "}");
+                }
+              }
+              for(var idx$3 = 0 ,idx_finish$3 = constantDefinitions.length; idx$3 < idx_finish$3; ++idx$3){
+                var match$1 = constantDefinitions[idx$3];
+                codeRef = codeRef + (syncOutputVar + match$1.p + "=" + ("e[" + (b.embeded.push(match$1.v) - 1) + "]") + ";");
+              }
+              if (asyncFieldVars.length === 0) {
+                return {
+                        code: codeRef,
+                        outputVar: syncOutputVar,
+                        isAsync: false
+                      };
+              }
+              var outputVar = $$var(b);
+              var resolveVar = varWithoutAllocation(b);
+              var rejectVar = varWithoutAllocation(b);
+              var asyncParseResultVar = varWithoutAllocation(b);
+              var counterVar = $$var(b);
+              codeRef = codeRef + outputVar + "=()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{" + counterVar + "=" + asyncFieldVars.length.toString() + ";" + asyncFieldVars.map(function (asyncFieldVar) {
+                      return asyncFieldVar + "().then(" + asyncParseResultVar + "=>{" + asyncFieldVar + "=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + syncOutputVar + ")}}," + rejectVar + ")";
+                    }).join(";") + "});";
+              return {
+                      code: codeRef,
+                      outputVar: outputVar,
+                      isAsync: true
+                    };
+            }),
           isAsyncParseOperation: undefined,
           pf: parseTransformationFactory,
           sf: serializeTransformationFactory,
