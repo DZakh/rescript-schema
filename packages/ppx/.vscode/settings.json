@@ -1,6 +1,6 @@
 {
   "ocaml.sandbox": {
     "kind": "opam",
-    "switch": "struct"
+    "switch": "4.12.1"
   }
 }
