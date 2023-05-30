@@ -392,14 +392,14 @@ function getSerializeOperation(struct) {
 
 function $$var(b) {
   b.varCounter = b.varCounter + 1;
-  var v = "v" + b.varCounter.toString();
+  var v = "v" + b.varCounter;
   b.varsAllocation = b.varsAllocation + "," + v;
   return v;
 }
 
 function varWithoutAllocation(b) {
   b.varCounter = b.varCounter + 1;
-  return "v" + b.varCounter.toString();
+  return "v" + b.varCounter;
 }
 
 function internalTransformRethrow(pathVar) {
@@ -1534,15 +1534,13 @@ function factory(struct, definer) {
                         for(var idx = 0 ,idx_finish = constantDefinitions.length; idx < idx_finish; ++idx){
                           var match = constantDefinitions[idx];
                           var path = match.p;
-                          var content = "r(" + idx.toString() + ",t" + path + ")";
-                          var condition = "t" + path + "!==d[" + idx.toString() + "].v";
-                          stringRef = stringRef + ("if(" + condition + "){" + content + "}");
+                          stringRef = stringRef + ("if(" + ("t" + path + "!==d[" + idx + "].v") + "){" + ("r(" + idx + ",t" + path + ")") + "}");
                         }
                         var constants = stringRef;
-                        var content$1 = constants + "return " + (
+                        var content = constants + "return " + (
                           isValueRegistered ? "t" + valuePath : internalToInlinedValue(ctx.s)
                         );
-                        var inlinedSerializeFunction = "(t)=>{" + content$1 + "}";
+                        var inlinedSerializeFunction = "(t)=>{" + content + "}";
                         planSyncTransformation(ctx, new Function("d", "r", "return " + inlinedSerializeFunction)(constantDefinitions, (function (fieldDefinitionIdx, received) {
                                     var match = constantDefinitions[fieldDefinitionIdx];
                                     return raise(match.v, received, match.p, undefined);
@@ -1703,9 +1701,8 @@ function factory$1(innerLiteral, variant) {
           var $$int = innerLiteral._0;
           var serializeTransformationFactory$4 = makeSerializeTransformationFactory($$int);
           var parseTransformationFactory$1 = makeParseTransformationFactory($$int, test);
-          var name = "Int Literal (" + $$int.toString() + ")";
           return {
-                  n: name,
+                  n: "Int Literal (" + $$int + ")",
                   t: tagged,
                   parseOperationFactory: undefined,
                   isAsyncParseOperation: undefined,
@@ -1725,9 +1722,9 @@ function factory$1(innerLiteral, variant) {
           var parseTransformationFactory$2 = makeParseTransformationFactory($$float, (function (input) {
                   return typeof input === "number";
                 }));
-          var name$1 = "Float Literal (" + $$float.toString() + ")";
+          var name = "Float Literal (" + $$float.toString() + ")";
           return {
-                  n: name$1,
+                  n: name,
                   t: tagged,
                   parseOperationFactory: undefined,
                   isAsyncParseOperation: undefined,
@@ -1747,9 +1744,9 @@ function factory$1(innerLiteral, variant) {
           var parseTransformationFactory$3 = makeParseTransformationFactory(bool, (function (input) {
                   return typeof input === "boolean";
                 }));
-          var name$2 = "Bool Literal (" + bool.toString() + ")";
+          var name$1 = "Bool Literal (" + bool.toString() + ")";
           return {
-                  n: name$2,
+                  n: name$1,
                   t: tagged,
                   parseOperationFactory: undefined,
                   isAsyncParseOperation: undefined,
@@ -2005,7 +2002,7 @@ function factory$3(definer) {
     var stringRef$3 = "";
     for(var idx$3 = 0 ,idx_finish$3 = constantDefinitions.length; idx$3 < idx_finish$3; ++idx$3){
       var constantDefinition = constantDefinitions[idx$3];
-      stringRef$3 = stringRef$3 + ("t" + constantDefinition.p + "=d[" + idx$3.toString() + "].v;");
+      stringRef$3 = stringRef$3 + ("t" + constantDefinition.p + "=d[" + idx$3 + "].v;");
     }
     var constants = stringRef$3;
     var returnValue = asyncFieldDefinitions.length === 0 ? "t" : "a.t=t,a";
@@ -2028,7 +2025,7 @@ function factory$3(definer) {
     }
     var resolveVar = "rs";
     var rejectVar = "rj";
-    var contentRef = "var y=" + asyncFieldDefinitions.length.toString() + ",t=a.t;";
+    var contentRef = "var y=" + asyncFieldDefinitions.length + ",t=a.t;";
     for(var idx$4 = 0 ,idx_finish$4 = asyncFieldDefinitions.length; idx$4 < idx_finish$4; ++idx$4){
       var fieldDefinition$2 = asyncFieldDefinitions[idx$4];
       var path$1 = fieldDefinition$2.p;
@@ -3333,7 +3330,70 @@ function factory$10(structs) {
             TAG: "Tuple",
             _0: structs
           },
-          parseOperationFactory: undefined,
+          parseOperationFactory: (function (b, param, inputVar, pathVar) {
+              var codeRef = "if(!Array.isArray(" + inputVar + ")){" + raiseWithArg(b, pathVar, (function (input) {
+                      return {
+                              TAG: "UnexpectedType",
+                              expected: "Tuple",
+                              received: toName(input)
+                            };
+                    }), inputVar) + "}if(" + inputVar + ".length!==" + numberOfStructs + "){" + raiseWithArg(b, pathVar, (function (numberOfInputItems) {
+                      return {
+                              TAG: "TupleSize",
+                              expected: numberOfStructs,
+                              received: numberOfInputItems
+                            };
+                    }), inputVar + ".length") + "}";
+              var len = structs.length;
+              if (len !== 1) {
+                if (len === 0) {
+                  return {
+                          code: codeRef,
+                          outputVar: "void 0",
+                          isAsync: false
+                        };
+                }
+                var asyncItemVars = [];
+                var syncOutputVar = varWithoutAllocation(b);
+                codeRef = codeRef + ("let " + syncOutputVar + "=[];");
+                for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
+                  var itemStruct = structs[idx];
+                  var match = compileParser(b, itemStruct, inputVar + "[" + idx + "]", pathVar + "+'[\"" + idx + "\"]'");
+                  var destVar = syncOutputVar + "[" + idx + "]";
+                  codeRef = codeRef + (match.code + destVar + "=" + match.outputVar + ";");
+                  if (match.isAsync) {
+                    asyncItemVars.push(destVar);
+                  }
+                  
+                }
+                if (asyncItemVars.length === 0) {
+                  return {
+                          code: codeRef,
+                          outputVar: syncOutputVar,
+                          isAsync: false
+                        };
+                }
+                var outputVar = $$var(b);
+                var resolveVar = varWithoutAllocation(b);
+                var rejectVar = varWithoutAllocation(b);
+                var asyncParseResultVar = varWithoutAllocation(b);
+                var counterVar = varWithoutAllocation(b);
+                return {
+                        code: codeRef + outputVar + "=()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=" + asyncItemVars.length.toString() + ";" + asyncItemVars.map(function (asyncItemVar) {
+                                return asyncItemVar + "().then(" + asyncParseResultVar + "=>{" + asyncItemVar + "=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + syncOutputVar + ")}}," + rejectVar + ")";
+                              }).join(";") + "});",
+                        outputVar: outputVar,
+                        isAsync: true
+                      };
+              }
+              var itemStruct$1 = structs[0];
+              var match$1 = compileParser(b, itemStruct$1, inputVar + "[0]", pathVar + "+'[\"0\"]'");
+              return {
+                      code: codeRef + match$1.code,
+                      outputVar: match$1.outputVar,
+                      isAsync: match$1.isAsync
+                    };
+            }),
           isAsyncParseOperation: undefined,
           pf: (function (ctx) {
               var noopOps = [];

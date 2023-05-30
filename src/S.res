@@ -159,6 +159,9 @@ module Stdlib = {
       let x = data->Obj.magic
       data->Js.typeof === "number" && x < 2147483648. && x > -2147483649. && mod(x, 1) === 0
     }
+
+    // TODO: Use in more places
+    external unsafeToString: int => string = "%identity"
   }
 
   module Dict = {
@@ -828,14 +831,14 @@ module Operation = {
 
     let var = (b: t) => {
       b.varCounter = b.varCounter->Stdlib.Int.plus(1)
-      let v = `v${b.varCounter->Js.Int.toString}`
+      let v = `v${b.varCounter->Stdlib.Int.unsafeToString}`
       b.varsAllocation = b.varsAllocation ++ "," ++ v
       v
     }
 
     let varWithoutAllocation = (b: t) => {
       b.varCounter = b.varCounter->Stdlib.Int.plus(1)
-      `v${b.varCounter->Js.Int.toString}`
+      `v${b.varCounter->Stdlib.Int.unsafeToString}`
     }
 
     let internalTransformRethrow = (~pathVar) => {
@@ -1983,8 +1986,8 @@ module Variant = {
                 stringRef.contents =
                   stringRef.contents ++
                   Stdlib.Inlined.If.make(
-                    ~condition=`${Var.transformedObject}${path}!==${Var.constantDefinitions}[${idx->Js.Int.toString}].v`,
-                    ~content=`${Var.raiseDiscriminantError}(${idx->Js.Int.toString},${Var.transformedObject}${path})`,
+                    ~condition=`${Var.transformedObject}${path}!==${Var.constantDefinitions}[${idx->Stdlib.Int.unsafeToString}].v`,
+                    ~content=`${Var.raiseDiscriminantError}(${idx->Stdlib.Int.unsafeToString},${Var.transformedObject}${path})`,
                   )
               }
               stringRef.contents
@@ -2193,7 +2196,7 @@ module Literal = {
           )
         | Int(int) =>
           make(
-            ~name=`Int Literal (${int->Js.Int.toString})`,
+            ~name=`Int Literal (${int->Stdlib.Int.unsafeToString})`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
             ~parseTransformationFactory=makeParseTransformationFactory(
@@ -2533,7 +2536,7 @@ module Object = {
               let constantDefinition = constantDefinitions->Js.Array2.unsafe_get(idx)
               stringRef.contents =
                 stringRef.contents ++
-                `${Var.transformedObject}${constantDefinition.path}=${Var.constantDefinitions}[${idx->Js.Int.toString}].v;`
+                `${Var.transformedObject}${constantDefinition.path}=${Var.constantDefinitions}[${idx->Stdlib.Int.unsafeToString}].v;`
             }
             stringRef.contents
           }
@@ -2591,7 +2594,7 @@ module Object = {
               let contentRef = ref(
                 `var ${Var.asyncFieldsCounter}=${asyncFieldDefinitions
                   ->Js.Array2.length
-                  ->Js.Int.toString},${Var.transformedObject}=${Var.asyncTransformedObject}.${Var.transformedObject};`,
+                  ->Stdlib.Int.unsafeToString},${Var.transformedObject}=${Var.asyncTransformedObject}.${Var.transformedObject};`,
               )
               for idx in 0 to asyncFieldDefinitions->Js.Array2.length - 1 {
                 let fieldDefinition = asyncFieldDefinitions->Js.Array2.unsafe_get(idx)
@@ -4121,7 +4124,6 @@ module Default = {
     }
 }
 
-// TODO:
 module Tuple = {
   let factory = structs => {
     let numberOfStructs = structs->Js.Array2.length
@@ -4129,6 +4131,90 @@ module Tuple = {
       ~name="Tuple",
       ~metadataMap=emptyMetadataMap,
       ~tagged=Tuple(structs),
+      ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let codeRef = ref(
+          `if(!Array.isArray(${inputVar})){${b->B.raiseWithArg(
+              ~pathVar,
+              (. input) => UnexpectedType({
+                expected: "Tuple",
+                received: input->Stdlib.Unknown.toName,
+              }),
+              inputVar,
+            )}}if(${inputVar}.length!==${numberOfStructs->Stdlib.Int.unsafeToString}){${b->B.raiseWithArg(
+              ~pathVar,
+              (. numberOfInputItems) => TupleSize({
+                expected: numberOfStructs,
+                received: numberOfInputItems,
+              }),
+              `${inputVar}.length`,
+            )}}`,
+        )
+        switch structs {
+        | [] => {
+            code: codeRef.contents,
+            outputVar: "void 0",
+            isAsync: false,
+          }
+        | [itemStruct] => {
+            let {code: itemCode, isAsync: isAsyncItem, outputVar: itemOutputVar} =
+              b->B.compileParser(
+                ~struct=itemStruct,
+                ~inputVar=`${inputVar}[0]`,
+                ~pathVar=`${pathVar}+'["0"]'`,
+              )
+            {
+              code: codeRef.contents ++ itemCode,
+              outputVar: itemOutputVar,
+              isAsync: isAsyncItem,
+            }
+          }
+        | _ => {
+            let asyncItemVars = []
+            let syncOutputVar = b->B.varWithoutAllocation
+            codeRef.contents = codeRef.contents ++ `let ${syncOutputVar}=[];`
+            for idx in 0 to structs->Js.Array2.length - 1 {
+              let itemStruct = structs->Js.Array2.unsafe_get(idx)
+              let {code: itemCode, isAsync: isAsyncItem, outputVar: itemOutputVar} =
+                b->B.compileParser(
+                  ~struct=itemStruct,
+                  ~inputVar=`${inputVar}[${idx->Stdlib.Int.unsafeToString}]`,
+                  ~pathVar=`${pathVar}+'["${idx->Stdlib.Int.unsafeToString}"]'`,
+                )
+              let destVar = `${syncOutputVar}[${idx->Stdlib.Int.unsafeToString}]`
+              codeRef.contents = codeRef.contents ++ `${itemCode}${destVar}=${itemOutputVar};`
+              if isAsyncItem {
+                asyncItemVars->Js.Array2.push(destVar)->ignore
+              }
+            }
+
+            if asyncItemVars->Js.Array2.length === 0 {
+              {
+                code: codeRef.contents,
+                outputVar: syncOutputVar,
+                isAsync: false,
+              }
+            } else {
+              let outputVar = b->B.var
+              let resolveVar = b->B.varWithoutAllocation
+              let rejectVar = b->B.varWithoutAllocation
+              let asyncParseResultVar = b->B.varWithoutAllocation
+              let counterVar = b->B.varWithoutAllocation
+
+              {
+                code: `${codeRef.contents}${outputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=${asyncItemVars
+                  ->Js.Array2.length
+                  ->Js.Int.toString};${asyncItemVars
+                  ->Js.Array2.map(asyncItemVar => {
+                    `${asyncItemVar}().then(${asyncParseResultVar}=>{${asyncItemVar}=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${syncOutputVar})}},${rejectVar})`
+                  })
+                  ->Js.Array2.joinWith(";")}});`,
+                outputVar,
+                isAsync: true,
+              }
+            }
+          }
+        }
+      },
       ~parseTransformationFactory=(. ~ctx) => {
         let noopOps = []
         let syncOps = []
