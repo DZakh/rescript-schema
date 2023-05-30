@@ -1036,7 +1036,7 @@ function set(struct, id, metadata) {
   return {
           n: struct.n,
           t: struct.t,
-          parseOperationFactory: undefined,
+          parseOperationFactory: struct.parseOperationFactory,
           isAsyncParseOperation: undefined,
           pf: struct.pf,
           sf: struct.sf,
@@ -2246,22 +2246,24 @@ function parseTransformationFactory(ctx) {
         }));
 }
 
+function parseOperationFactory(b, param, inputVar, pathVar) {
+  return {
+          code: "if(typeof " + inputVar + "!==\"string\"){" + raiseWithArg(b, pathVar, (function (input) {
+                  return {
+                          TAG: "UnexpectedType",
+                          expected: "String",
+                          received: toName(input)
+                        };
+                }), inputVar) + "}",
+          outputVar: inputVar,
+          isAsync: false
+        };
+}
+
 var struct$2 = {
   n: "String",
   t: "String",
-  parseOperationFactory: (function (b, param, inputVar, pathVar) {
-      return {
-              code: "if(typeof " + inputVar + "!==\"string\"){" + raiseWithArg(b, pathVar, (function (input) {
-                      return {
-                              TAG: "UnexpectedType",
-                              expected: "String",
-                              received: toName(input)
-                            };
-                    }), inputVar) + "}",
-              outputVar: inputVar,
-              isAsync: false
-            };
-    }),
+  parseOperationFactory: parseOperationFactory,
   isAsyncParseOperation: undefined,
   pf: parseTransformationFactory,
   sf: empty,
@@ -2435,7 +2437,21 @@ function factory$4(innerStruct) {
   return {
           n: "JsonString",
           t: "String",
-          parseOperationFactory: undefined,
+          parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+              var match = parseOperationFactory(b, selfStruct, inputVar, pathVar);
+              var jsonVar = $$var(b);
+              var match$1 = compileParser(b, innerStruct, jsonVar, pathVar);
+              return {
+                      code: match.code + "try{" + jsonVar + "=JSON.parse(" + match.outputVar + ")}catch(t){" + raiseWithArg(b, pathVar, (function (message) {
+                              return {
+                                      TAG: "OperationFailed",
+                                      _0: message
+                                    };
+                            }), "t.message") + "}" + match$1.code,
+                      outputVar: match$1.outputVar,
+                      isAsync: match$1.isAsync
+                    };
+            }),
           isAsyncParseOperation: undefined,
           pf: (function (ctx) {
               var fn = getParseOperation(innerStruct);
@@ -2718,7 +2734,18 @@ function factory$5(innerStruct) {
             TAG: "Null",
             _0: innerStruct
           },
-          parseOperationFactory: undefined,
+          parseOperationFactory: (function (b, param, inputVar, pathVar) {
+              var match = compileParser(b, innerStruct, inputVar, pathVar);
+              var isInnerStructAsync = match.isAsync;
+              var outputVar = $$var(b);
+              return {
+                      code: "if(" + inputVar + "!==null){" + match.code + syncTransform(b, match.outputVar, outputVar, isInnerStructAsync, Caml_option.some, undefined, undefined, undefined) + "}else{" + outputVar + "=" + (
+                        isInnerStructAsync ? "()=>Promise.resolve(undefined)" : "undefined"
+                      ) + "}",
+                      outputVar: outputVar,
+                      isAsync: isInnerStructAsync
+                    };
+            }),
           isAsyncParseOperation: undefined,
           pf: (function (ctx) {
               var planSyncTransformation$1 = function (fn) {
@@ -3183,7 +3210,19 @@ function factory$9(innerStruct, getDefaultValue) {
   return set({
               n: innerStruct$1.n,
               t: innerStruct$1.t,
-              parseOperationFactory: undefined,
+              parseOperationFactory: (function (b, param, inputVar, pathVar) {
+                  var match = compileParser(b, innerStruct$1, inputVar, pathVar);
+                  var isInnerStructAsync = match.isAsync;
+                  var outputVar = $$var(b);
+                  var defaultValVar = "e[" + (b.embeded.push(getDefaultValue) - 1) + "]()";
+                  return {
+                          code: "if(" + inputVar + "!==undefined){" + match.code + syncTransform(b, match.outputVar, outputVar, isInnerStructAsync, Caml_option.some, undefined, undefined, undefined) + "}else{" + outputVar + "=" + (
+                            isInnerStructAsync ? "()=>Promise.resolve(" + defaultValVar + ")" : defaultValVar
+                          ) + "}",
+                          outputVar: outputVar,
+                          isAsync: isInnerStructAsync
+                        };
+                }),
               isAsyncParseOperation: undefined,
               pf: (function (ctx) {
                   var fn = getParseOperation(innerStruct$1);

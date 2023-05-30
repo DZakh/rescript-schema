@@ -1383,6 +1383,7 @@ module Metadata = {
       ~name=struct.name,
       ~parseTransformationFactory=struct.parseTransformationFactory,
       ~serializeTransformationFactory=struct.serializeTransformationFactory,
+      ~parseOperationFactory=?struct.parseOperationFactory,
       ~tagged=struct.tagged,
       ~metadataMap,
       (),
@@ -1752,6 +1753,7 @@ let transform: (
   )
 }
 
+// TODO:
 let rec advancedPreprocess = (
   struct,
   ~parser as maybePreprocessParser=?,
@@ -1825,6 +1827,7 @@ let rec advancedPreprocess = (
   }
 }
 
+// TODO:
 let custom = (
   ~name,
   ~parser as maybeParser=?,
@@ -1901,6 +1904,7 @@ let rec internalToInlinedValue = struct => {
   }
 }
 
+// TODO:
 module Variant = {
   module ConstantDefinition = {
     type t = {@as("v") value: unknown, @as("p") path: Path.t}
@@ -2051,6 +2055,7 @@ module Variant = {
   }
 }
 
+// TODO:
 module Literal = {
   module Variant = {
     let factory:
@@ -3020,24 +3025,26 @@ module String = {
       }
     })
 
+  let parseOperationFactory = (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+    {
+      code: `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
+          ~pathVar,
+          (. input) => UnexpectedType({
+            expected: "String",
+            received: input->Stdlib.Unknown.toName,
+          }),
+          inputVar,
+        )}}`,
+      isAsync: false,
+      outputVar: inputVar,
+    }
+  }
+
   let struct = make(
     ~name="String",
     ~metadataMap=emptyMetadataMap,
     ~tagged=String,
-    ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
-      {
-        code: `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
-            ~pathVar,
-            (. input) => UnexpectedType({
-              expected: "String",
-              received: input->Stdlib.Unknown.toName,
-            }),
-            inputVar,
-          )}}`,
-        isAsync: false,
-        outputVar: inputVar,
-      }
-    },
+    ~parseOperationFactory,
     ~parseTransformationFactory,
     ~serializeTransformationFactory=TransformationFactory.empty,
     (),
@@ -3221,6 +3228,23 @@ module JsonString = {
       ~name=`JsonString`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=String,
+      ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+        let {code: stringParserCode, outputVar: jsonStringVar} =
+          b->String.parseOperationFactory(~selfStruct, ~inputVar, ~pathVar)
+        let jsonVar = b->B.var
+        let {code: innerStructCode, isAsync, outputVar} =
+          b->B.compileParser(~struct=innerStruct, ~inputVar=jsonVar, ~pathVar)
+
+        {
+          code: `${stringParserCode}try{${jsonVar}=JSON.parse(${jsonStringVar})}catch(t){${b->B.raiseWithArg(
+              ~pathVar,
+              (. message) => OperationFailed(message),
+              "t.message",
+            )}}${innerStructCode}`,
+          isAsync,
+          outputVar,
+        }
+      },
       ~parseTransformationFactory=(. ~ctx) => {
         let process = switch innerStruct->getParseOperation {
         | NoOperation => Obj.magic
@@ -3521,6 +3545,26 @@ module Null = {
       ~name=`Null`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Null(innerStruct),
+      ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let {code: innerStructCode, isAsync: isInnerStructAsync, outputVar: parsedItemVar} =
+          b->B.compileParser(~struct=innerStruct, ~inputVar, ~pathVar)
+        let outputVar = b->B.var
+
+        {
+          code: `if(${inputVar}!==null){${innerStructCode}${b->B.syncTransform(
+              ~inputVar=parsedItemVar,
+              ~outputVar,
+              ~isAsyncInput=isInnerStructAsync,
+              ~fn=%raw("Caml_option.some"),
+              (),
+            )}}else{${outputVar}=${switch isInnerStructAsync {
+            | false => `undefined`
+            | true => `()=>Promise.resolve(undefined)`
+            }}}`,
+          isAsync: isInnerStructAsync,
+          outputVar,
+        }
+      },
       ~parseTransformationFactory=(. ~ctx) => {
         let planSyncTransformation = fn => {
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
@@ -3844,6 +3888,7 @@ module Array = {
   }
 }
 
+// TODO:
 module Dict = {
   let factory = innerStruct => {
     let innerStruct = innerStruct->toUnknown
@@ -3955,6 +4000,27 @@ module Default = {
       ~name=innerStruct.name,
       ~metadataMap=emptyMetadataMap,
       ~tagged=innerStruct.tagged,
+      ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let {code: innerStructCode, isAsync: isInnerStructAsync, outputVar: parsedItemVar} =
+          b->B.compileParser(~struct=innerStruct, ~inputVar, ~pathVar)
+        let outputVar = b->B.var
+        let defaultValVar = `${b->B.embed(getDefaultValue)}()`
+
+        {
+          code: `if(${inputVar}!==undefined){${innerStructCode}${b->B.syncTransform(
+              ~inputVar=parsedItemVar,
+              ~outputVar,
+              ~isAsyncInput=isInnerStructAsync,
+              ~fn=%raw("Caml_option.some"),
+              (),
+            )}}else{${outputVar}=${switch isInnerStructAsync {
+            | false => defaultValVar
+            | true => `()=>Promise.resolve(${defaultValVar})`
+            }}}`,
+          isAsync: isInnerStructAsync,
+          outputVar,
+        }
+      },
       ~parseTransformationFactory=(. ~ctx) => {
         switch innerStruct->getParseOperation {
         | NoOperation =>
@@ -4007,6 +4073,7 @@ module Default = {
     }
 }
 
+// TODO:
 module Tuple = {
   let factory = structs => {
     let numberOfStructs = structs->Js.Array2.length
@@ -4158,6 +4225,7 @@ module Tuple = {
   )->Obj.magic
 }
 
+// TODO:
 module Union = {
   exception HackyValidValue(unknown)
 
@@ -4321,6 +4389,7 @@ let list = innerStruct => {
   )
 }
 
+// TODO:
 let json = {
   let rec parse = (input, ~ctx) => {
     switch input->Js.typeof {
@@ -4371,6 +4440,7 @@ let json = {
   )
 }
 
+// TODO:
 type catchCtx = {
   error: Error.t,
   input: unknown,
