@@ -1904,7 +1904,6 @@ let rec internalToInlinedValue = struct => {
   }
 }
 
-// TODO:
 module Variant = {
   module ConstantDefinition = {
     type t = {@as("v") value: unknown, @as("p") path: Path.t}
@@ -2030,6 +2029,7 @@ module Variant = {
 
   let factory = {
     (struct, definer) => {
+      let struct = struct->toUnknown
       let instructions = {
         let definerCtx = DefinerCtx.make()
         let definition = definer->Stdlib.Fn.call1(definerCtx->Obj.magic)->castAnyToUnknown
@@ -2040,6 +2040,23 @@ module Variant = {
       make(
         ~name=struct.name,
         ~tagged=struct.tagged,
+        ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+          let {isAsync, code, outputVar: structOutputVar} =
+            b->B.compileParser(~struct, ~inputVar, ~pathVar)
+          let outputVar = b->B.var
+          {
+            code: code ++
+            b->B.syncTransform(
+              ~inputVar=structOutputVar,
+              ~outputVar,
+              ~isAsyncInput=isAsync,
+              ~fn=definer,
+              (),
+            ),
+            outputVar,
+            isAsync,
+          }
+        },
         ~parseTransformationFactory=(. ~ctx) => {
           struct.parseTransformationFactory(. ~ctx)
           ctx->TransformationFactory.Ctx.planSyncTransformation(definer)

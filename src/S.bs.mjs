@@ -1509,7 +1509,16 @@ function factory(struct, definer) {
   return {
           n: struct.n,
           t: struct.t,
-          parseOperationFactory: undefined,
+          parseOperationFactory: (function (b, param, inputVar, pathVar) {
+              var match = compileParser(b, struct, inputVar, pathVar);
+              var isAsync = match.isAsync;
+              var outputVar = $$var(b);
+              return {
+                      code: match.code + syncTransform(b, match.outputVar, outputVar, isAsync, definer, undefined, undefined, undefined),
+                      outputVar: outputVar,
+                      isAsync: isAsync
+                    };
+            }),
           isAsyncParseOperation: undefined,
           pf: (function (ctx) {
               struct.pf(ctx);
