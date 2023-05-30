@@ -2130,12 +2130,11 @@ function factory$3(definer) {
               var resolveVar = varWithoutAllocation(b);
               var rejectVar = varWithoutAllocation(b);
               var asyncParseResultVar = varWithoutAllocation(b);
-              var counterVar = $$var(b);
-              codeRef = codeRef + outputVar + "=()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{" + counterVar + "=" + asyncFieldVars.length.toString() + ";" + asyncFieldVars.map(function (asyncFieldVar) {
-                      return asyncFieldVar + "().then(" + asyncParseResultVar + "=>{" + asyncFieldVar + "=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + syncOutputVar + ")}}," + rejectVar + ")";
-                    }).join(";") + "});";
+              var counterVar = varWithoutAllocation(b);
               return {
-                      code: codeRef,
+                      code: codeRef + outputVar + "=()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=" + asyncFieldVars.length.toString() + ";" + asyncFieldVars.map(function (asyncFieldVar) {
+                              return asyncFieldVar + "().then(" + asyncParseResultVar + "=>{" + asyncFieldVar + "=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + syncOutputVar + ")}}," + rejectVar + ")";
+                            }).join(";") + "});",
                       outputVar: outputVar,
                       isAsync: true
                     };
@@ -2907,14 +2906,14 @@ function factory$7(innerStruct) {
               var itemVar = varWithoutAllocation(b);
               var iteratorVar = varWithoutAllocation(b);
               var match = compileParser(b, innerStruct, itemVar, pathVar + "+'[\"'+" + iteratorVar + "+'\"]'");
-              var syncOutputVar = $$var(b);
+              var syncOutputVar = varWithoutAllocation(b);
               var syncCode = "if(!Array.isArray(" + inputVar + ")){" + raiseWithArg(b, pathVar, (function (input) {
                       return {
                               TAG: "UnexpectedType",
                               expected: "Array",
                               received: toName(input)
                             };
-                    }), inputVar) + "}" + syncOutputVar + "=[];for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){let " + itemVar + "=" + inputVar + "[" + iteratorVar + "];" + match.code + syncOutputVar + ".push(" + match.outputVar + ")}";
+                    }), inputVar) + "}let " + syncOutputVar + "=[];for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){let " + itemVar + "=" + inputVar + "[" + iteratorVar + "];" + match.code + syncOutputVar + ".push(" + match.outputVar + ")}";
               if (!match.isAsync) {
                 return {
                         code: syncCode,
@@ -3086,7 +3085,36 @@ function factory$8(innerStruct) {
             TAG: "Dict",
             _0: innerStruct
           },
-          parseOperationFactory: undefined,
+          parseOperationFactory: (function (b, param, inputVar, pathVar) {
+              var itemVar = varWithoutAllocation(b);
+              var keyVar = varWithoutAllocation(b);
+              var match = compileParser(b, innerStruct, itemVar, pathVar + "+'[\"'+" + keyVar + "+'\"]'");
+              var syncOutputVar = varWithoutAllocation(b);
+              var syncCode = "if(!(typeof " + inputVar + "===\"object\"&&" + inputVar + "!==null&&!Array.isArray(" + inputVar + "))){" + raiseWithArg(b, pathVar, (function (input) {
+                      return {
+                              TAG: "UnexpectedType",
+                              expected: "Dict",
+                              received: toName(input)
+                            };
+                    }), inputVar) + "}let " + syncOutputVar + "={};for(let " + keyVar + " in " + inputVar + "){let " + itemVar + "=" + inputVar + "[" + keyVar + "];" + match.code + syncOutputVar + "[" + keyVar + "]=" + match.outputVar + "}";
+              if (!match.isAsync) {
+                return {
+                        code: syncCode,
+                        outputVar: syncOutputVar,
+                        isAsync: false
+                      };
+              }
+              var outputVar = $$var(b);
+              var resolveVar = varWithoutAllocation(b);
+              var rejectVar = varWithoutAllocation(b);
+              var asyncParseResultVar = varWithoutAllocation(b);
+              var counterVar = varWithoutAllocation(b);
+              return {
+                      code: syncCode + outputVar + "=()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=Object.keys(" + syncOutputVar + ").length;for(let " + keyVar + " in " + syncOutputVar + "){" + syncOutputVar + "[" + keyVar + "]().then(" + asyncParseResultVar + "=>{" + syncOutputVar + "[" + keyVar + "]=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + syncOutputVar + ")}}," + rejectVar + ")}});",
+                      outputVar: outputVar,
+                      isAsync: true
+                    };
+            }),
           isAsyncParseOperation: undefined,
           pf: (function (ctx) {
               var planSyncTransformation$1 = function (fn) {

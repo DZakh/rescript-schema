@@ -2808,6 +2808,7 @@ module Object = {
 
         let asyncFieldVars = []
 
+        // TODO: Test that it's fine with having it as a var instead of let
         let syncOutputVar = b->B.var
         let codeRef = ref(
           `if(!(typeof ${inputVar}==="object"&&${inputVar}!==null&&!Array.isArray(${inputVar}))){${b->B.raiseWithArg(
@@ -2899,18 +2900,16 @@ module Object = {
           let resolveVar = b->B.varWithoutAllocation
           let rejectVar = b->B.varWithoutAllocation
           let asyncParseResultVar = b->B.varWithoutAllocation
-          let counterVar = b->B.var
-
-          codeRef.contents = `${codeRef.contents}${outputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{${counterVar}=${asyncFieldVars
-            ->Js.Array2.length
-            ->Js.Int.toString};${asyncFieldVars
-            ->Js.Array2.map(asyncFieldVar => {
-              `${asyncFieldVar}().then(${asyncParseResultVar}=>{${asyncFieldVar}=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${syncOutputVar})}},${rejectVar})`
-            })
-            ->Js.Array2.joinWith(";")}});`
+          let counterVar = b->B.varWithoutAllocation
 
           {
-            code: codeRef.contents,
+            code: `${codeRef.contents}${outputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=${asyncFieldVars
+              ->Js.Array2.length
+              ->Js.Int.toString};${asyncFieldVars
+              ->Js.Array2.map(asyncFieldVar => {
+                `${asyncFieldVar}().then(${asyncParseResultVar}=>{${asyncFieldVar}=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${syncOutputVar})}},${rejectVar})`
+              })
+              ->Js.Array2.joinWith(";")}});`,
             outputVar,
             isAsync: true,
           }
@@ -3722,8 +3721,7 @@ module Array = {
             ~inputVar=itemVar,
             ~pathVar=`${pathVar}+'["'+${iteratorVar}+'"]'`,
           )
-
-        let syncOutputVar = b->B.var
+        let syncOutputVar = b->B.varWithoutAllocation
         let syncCode = `if(!Array.isArray(${inputVar})){${b->B.raiseWithArg(
             ~pathVar,
             (. input) => UnexpectedType({
@@ -3731,7 +3729,7 @@ module Array = {
               received: input->Stdlib.Unknown.toName,
             }),
             inputVar,
-          )}}${syncOutputVar}=[];for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){let ${itemVar}=${inputVar}[${iteratorVar}];${innerStructCode}${syncOutputVar}.push(${parsedItemVar})}`
+          )}}let ${syncOutputVar}=[];for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){let ${itemVar}=${inputVar}[${iteratorVar}];${innerStructCode}${syncOutputVar}.push(${parsedItemVar})}`
 
         if isInnerStructAsync {
           let outputVar = b->B.var
@@ -3888,7 +3886,6 @@ module Array = {
   }
 }
 
-// TODO:
 module Dict = {
   let factory = innerStruct => {
     let innerStruct = innerStruct->toUnknown
@@ -3896,6 +3893,40 @@ module Dict = {
       ~name=`Dict`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Dict(innerStruct),
+      ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let itemVar = b->B.varWithoutAllocation
+        let keyVar = b->B.varWithoutAllocation
+        let {code: innerStructCode, isAsync: isInnerStructAsync, outputVar: parsedItemVar} =
+          b->B.compileParser(
+            ~struct=innerStruct,
+            ~inputVar=itemVar,
+            ~pathVar=`${pathVar}+'["'+${keyVar}+'"]'`,
+          )
+        let syncOutputVar = b->B.varWithoutAllocation
+        let syncCode = `if(!(typeof ${inputVar}==="object"&&${inputVar}!==null&&!Array.isArray(${inputVar}))){${b->B.raiseWithArg(
+            ~pathVar,
+            (. input) => UnexpectedType({
+              expected: "Dict",
+              received: input->Stdlib.Unknown.toName,
+            }),
+            inputVar,
+          )}}let ${syncOutputVar}={};for(let ${keyVar} in ${inputVar}){let ${itemVar}=${inputVar}[${keyVar}];${innerStructCode}${syncOutputVar}[${keyVar}]=${parsedItemVar}}`
+
+        if isInnerStructAsync {
+          let outputVar = b->B.var
+          let resolveVar = b->B.varWithoutAllocation
+          let rejectVar = b->B.varWithoutAllocation
+          let asyncParseResultVar = b->B.varWithoutAllocation
+          let counterVar = b->B.varWithoutAllocation
+          {
+            code: `${syncCode}${outputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=Object.keys(${syncOutputVar}).length;for(let ${keyVar} in ${syncOutputVar}){${syncOutputVar}[${keyVar}]().then(${asyncParseResultVar}=>{${syncOutputVar}[${keyVar}]=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${syncOutputVar})}},${rejectVar})}});`,
+            outputVar,
+            isAsync: true,
+          }
+        } else {
+          {code: syncCode, isAsync: false, outputVar: syncOutputVar}
+        }
+      },
       ~parseTransformationFactory=(. ~ctx) => {
         let planSyncTransformation = fn => {
           ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
