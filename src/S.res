@@ -255,8 +255,6 @@ module Stdlib = {
     module Constant = {
       @inline
       let errorVar = "e"
-      @inline
-      let inputVar = "v"
     }
 
     module NewPromise = {
@@ -612,8 +610,6 @@ type rec t<'value> = {
   mutable parse: (. unknown) => unknown,
   @as("a")
   mutable parseAsync: (. unknown) => (. unit) => promise<unknown>,
-  @as("i")
-  maybeInlinedRefinement: option<string>,
   @as("m")
   metadataMap: Js.Dict.t<unknown>,
 }
@@ -1155,7 +1151,6 @@ let make = (
   ~serializeTransformationFactory,
   ~metadataMap,
   ~parseOperationFactory as maybeParseOperationFactory=?,
-  ~inlinedRefinement as maybeInlinedRefinement=?,
   (),
 ) => {
   name,
@@ -1170,7 +1165,6 @@ let make = (
   serializeToJson: initialSerializeToJson,
   parse: intitialParse,
   parseAsync: intitialParseAsync,
-  maybeInlinedRefinement,
   metadataMap,
 }
 
@@ -1543,9 +1537,6 @@ let refine: (
     | None => struct.serializeTransformationFactory
     },
     ~metadataMap=struct.metadataMap,
-    ~inlinedRefinement=?nextParseTransformationFactory === struct.parseTransformationFactory
-      ? struct.maybeInlinedRefinement
-      : None,
     (),
   )
 }
@@ -2470,19 +2461,14 @@ module Object = {
 
                     stringRef.contents =
                       stringRef.contents ++
-                      switch (maybeParseFn, fieldStruct.maybeInlinedRefinement) {
-                      | (None, _) =>
+                      switch maybeParseFn {
+                      | None =>
                         switch maybeInlinedDestination {
                         | Some(inlinedDestination) => `${inlinedDestination}=${inlinedInputData};`
                         | None => ""
                         }
-                      | (Some(_), Some(inlinedRefinement)) =>
-                        `var ${Stdlib.Inlined.Constant.inputVar}=${inlinedInputData};if(${inlinedRefinement}){${switch maybeInlinedDestination {
-                          | Some(inlinedDestination) =>
-                            `${inlinedDestination}=${Stdlib.Inlined.Constant.inputVar}`
-                          | None => ""
-                          }}}else{${Var.fieldDefinitionIdx}=${inlinedIdx};${Var.raiseUnexpectedTypeError}(${Stdlib.Inlined.Constant.inputVar},${Var.fields}[${inlinedFieldName}])}`
-                      | (Some(fn), None) => {
+
+                      | Some(fn) => {
                           parseFnsByInstructionIdx->Js.Dict.set(inlinedIdx, fn)
                           `${Var.fieldDefinitionIdx}=${inlinedIdx};${switch maybeInlinedDestination {
                             | Some(inlinedDestination) => `${inlinedDestination}=`
@@ -2950,7 +2936,20 @@ module Never = {
     ~name=`Never`,
     ~metadataMap=emptyMetadataMap,
     ~tagged=Never,
-    ~inlinedRefinement="false",
+    ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      {
+        code: b->B.raiseWithArg(
+          ~pathVar,
+          (. input) => UnexpectedType({
+            expected: "Never",
+            received: input->Stdlib.Unknown.toName,
+          }),
+          inputVar,
+        ) ++ ";",
+        isAsync: false,
+        outputVar: inputVar,
+      }
+    },
     ~parseTransformationFactory=transformationFactory,
     ~serializeTransformationFactory=transformationFactory,
     (),
@@ -2962,6 +2961,13 @@ module Unknown = {
     ~name=`Unknown`,
     ~metadataMap=emptyMetadataMap,
     ~tagged=Unknown,
+    ~parseOperationFactory=(. _b, ~selfStruct as _, ~inputVar, ~pathVar as _) => {
+      {
+        code: "",
+        isAsync: false,
+        outputVar: inputVar,
+      }
+    },
     ~parseTransformationFactory=TransformationFactory.empty,
     ~serializeTransformationFactory=TransformationFactory.empty,
     (),
@@ -3032,7 +3038,6 @@ module String = {
         outputVar: inputVar,
       }
     },
-    ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="string"`,
     ~parseTransformationFactory,
     ~serializeTransformationFactory=TransformationFactory.empty,
     (),
@@ -3276,7 +3281,20 @@ module Bool = {
     ~name="Bool",
     ~metadataMap=emptyMetadataMap,
     ~tagged=Bool,
-    ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="boolean"`,
+    ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      {
+        code: `if(typeof ${inputVar}!=="boolean"){${b->B.raiseWithArg(
+            ~pathVar,
+            (. input) => UnexpectedType({
+              expected: "Bool",
+              received: input->Stdlib.Unknown.toName,
+            }),
+            inputVar,
+          )}}`,
+        isAsync: false,
+        outputVar: inputVar,
+      }
+    },
     ~parseTransformationFactory,
     ~serializeTransformationFactory=TransformationFactory.empty,
     (),
@@ -3334,7 +3352,6 @@ module Int = {
         outputVar: inputVar,
       }
     },
-    ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="number"&&${Stdlib.Inlined.Constant.inputVar}<2147483648&&${Stdlib.Inlined.Constant.inputVar}>-2147483649&&${Stdlib.Inlined.Constant.inputVar}%1===0`,
     ~parseTransformationFactory,
     ~serializeTransformationFactory=TransformationFactory.empty,
     (),
@@ -3437,7 +3454,20 @@ module Float = {
     ~name="Float",
     ~metadataMap=emptyMetadataMap,
     ~tagged=Float,
-    ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="number"&&!Number.isNaN(${Stdlib.Inlined.Constant.inputVar})`,
+    ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      {
+        code: `if(!(typeof ${inputVar}==="number"&&!Number.isNaN(${inputVar}))){${b->B.raiseWithArg(
+            ~pathVar,
+            (. input) => UnexpectedType({
+              expected: "Float",
+              received: input->Stdlib.Unknown.toName,
+            }),
+            inputVar,
+          )}}`,
+        isAsync: false,
+        outputVar: inputVar,
+      }
+    },
     ~parseTransformationFactory,
     ~serializeTransformationFactory=TransformationFactory.empty,
     (),

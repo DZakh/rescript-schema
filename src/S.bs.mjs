@@ -1046,7 +1046,6 @@ function set(struct, id, metadata) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: undefined,
           m: metadataMap
         };
 }
@@ -1140,7 +1139,6 @@ function refine(struct, maybeParser, maybeAsyncParser, maybeSerializer, param) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: nextParseTransformationFactory === struct.pf ? struct.i : undefined,
           m: struct.m
         };
 }
@@ -1228,7 +1226,6 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: undefined,
           m: struct.m
         };
 }
@@ -1308,7 +1305,6 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: undefined,
           m: struct.m
         };
 }
@@ -1338,7 +1334,6 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
             j: initialSerializeToJson,
             p: intitialParse,
             a: intitialParseAsync,
-            i: undefined,
             m: struct.m
           };
   }
@@ -1387,7 +1382,6 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: undefined,
           m: struct.m
         };
 }
@@ -1432,7 +1426,6 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: undefined,
           m: emptyMetadataMap
         };
 }
@@ -1560,7 +1553,6 @@ function factory(struct, definer) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: undefined,
           m: struct.m
         };
 }
@@ -1621,7 +1613,6 @@ function factory$1(innerLiteral, variant) {
                   j: initialSerializeToJson,
                   p: intitialParse,
                   a: intitialParseAsync,
-                  i: undefined,
                   m: emptyMetadataMap
                 };
       case "EmptyOption" :
@@ -1647,7 +1638,6 @@ function factory$1(innerLiteral, variant) {
                   j: initialSerializeToJson,
                   p: intitialParse,
                   a: intitialParseAsync,
-                  i: undefined,
                   m: emptyMetadataMap
                 };
       case "NaN" :
@@ -1673,7 +1663,6 @@ function factory$1(innerLiteral, variant) {
                   j: initialSerializeToJson,
                   p: intitialParse,
                   a: intitialParseAsync,
-                  i: undefined,
                   m: emptyMetadataMap
                 };
       
@@ -1699,7 +1688,6 @@ function factory$1(innerLiteral, variant) {
                   j: initialSerializeToJson,
                   p: intitialParse,
                   a: intitialParseAsync,
-                  i: undefined,
                   m: emptyMetadataMap
                 };
       case "Int" :
@@ -1720,7 +1708,6 @@ function factory$1(innerLiteral, variant) {
                   j: initialSerializeToJson,
                   p: intitialParse,
                   a: intitialParseAsync,
-                  i: undefined,
                   m: emptyMetadataMap
                 };
       case "Float" :
@@ -1743,7 +1730,6 @@ function factory$1(innerLiteral, variant) {
                   j: initialSerializeToJson,
                   p: intitialParse,
                   a: intitialParseAsync,
-                  i: undefined,
                   m: emptyMetadataMap
                 };
       case "Bool" :
@@ -1766,7 +1752,6 @@ function factory$1(innerLiteral, variant) {
                   j: initialSerializeToJson,
                   p: intitialParse,
                   a: intitialParseAsync,
-                  i: undefined,
                   m: emptyMetadataMap
                 };
       
@@ -1954,17 +1939,15 @@ function factory$3(definer) {
       var stringRef$1 = "";
       for(var idx$1 = 0 ,idx_finish$1 = fieldDefinitions.length; idx$1 < idx_finish$1; ++idx$1){
         var fieldDefinition = fieldDefinitions[idx$1];
-        var inlinedFieldName = fieldDefinition.i;
-        var fieldStruct = fieldDefinition.s;
         var path = fieldDefinition.p;
         var isRegistered = fieldDefinition.r;
         var inlinedIdx = idx$1.toString();
-        var parseOperation = getParseOperation(fieldStruct);
+        var parseOperation = getParseOperation(fieldDefinition.s);
         var maybeParseFn;
         maybeParseFn = typeof parseOperation !== "object" ? undefined : parseOperation._0;
         var isAsync;
         isAsync = typeof parseOperation !== "object" || parseOperation.TAG === "SyncOperation" ? false : true;
-        var inlinedInputData = "o[" + inlinedFieldName + "]";
+        var inlinedInputData = "o[" + fieldDefinition.i + "]";
         var maybeInlinedDestination;
         if (isAsync) {
           if (asyncFieldDefinitions.length === 0) {
@@ -1979,15 +1962,10 @@ function factory$3(definer) {
         } else {
           maybeInlinedDestination = isRegistered ? "t" + path : undefined;
         }
-        var match = fieldStruct.i;
         stringRef$1 = stringRef$1 + (
-          maybeParseFn !== undefined ? (
-              match !== undefined ? "var v=" + inlinedInputData + ";if(" + match + "){" + (
-                  maybeInlinedDestination !== undefined ? maybeInlinedDestination + "=v" : ""
-                ) + "}else{i=" + inlinedIdx + ";s(v,f[" + inlinedFieldName + "])}" : (parseFnsByInstructionIdx[inlinedIdx] = maybeParseFn, "i=" + inlinedIdx + ";" + (
-                    maybeInlinedDestination !== undefined ? maybeInlinedDestination + "=" : ""
-                  ) + "p[" + inlinedIdx + "](" + inlinedInputData + ");")
-            ) : (
+          maybeParseFn !== undefined ? (parseFnsByInstructionIdx[inlinedIdx] = maybeParseFn, "i=" + inlinedIdx + ";" + (
+                maybeInlinedDestination !== undefined ? maybeInlinedDestination + "=" : ""
+              ) + "p[" + inlinedIdx + "](" + inlinedInputData + ");") : (
               maybeInlinedDestination !== undefined ? maybeInlinedDestination + "=" + inlinedInputData + ";" : ""
             )
         );
@@ -2171,7 +2149,6 @@ function factory$3(definer) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: undefined,
           m: emptyMetadataMap
         };
 }
@@ -2193,7 +2170,19 @@ function transformationFactory(ctx) {
 var struct = {
   n: "Never",
   t: "Never",
-  parseOperationFactory: undefined,
+  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+      return {
+              code: raiseWithArg(b, pathVar, (function (input) {
+                      return {
+                              TAG: "UnexpectedType",
+                              expected: "Never",
+                              received: toName(input)
+                            };
+                    }), inputVar) + ";",
+              outputVar: inputVar,
+              isAsync: false
+            };
+    }),
   isAsyncParseOperation: undefined,
   pf: transformationFactory,
   sf: transformationFactory,
@@ -2203,14 +2192,19 @@ var struct = {
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
-  i: "false",
   m: emptyMetadataMap
 };
 
 var struct$1 = {
   n: "Unknown",
   t: "Unknown",
-  parseOperationFactory: undefined,
+  parseOperationFactory: (function (_b, param, inputVar, param$1) {
+      return {
+              code: "",
+              outputVar: inputVar,
+              isAsync: false
+            };
+    }),
   isAsyncParseOperation: undefined,
   pf: empty,
   sf: empty,
@@ -2220,7 +2214,6 @@ var struct$1 = {
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
-  i: undefined,
   m: emptyMetadataMap
 };
 
@@ -2278,7 +2271,6 @@ var struct$2 = {
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
-  i: "typeof v===\"string\"",
   m: emptyMetadataMap
 };
 
@@ -2497,7 +2489,6 @@ function factory$4(innerStruct) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: undefined,
           m: emptyMetadataMap
         };
 }
@@ -2515,7 +2506,19 @@ function parseTransformationFactory$1(ctx) {
 var struct$3 = {
   n: "Bool",
   t: "Bool",
-  parseOperationFactory: undefined,
+  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+      return {
+              code: "if(typeof " + inputVar + "!==\"boolean\"){" + raiseWithArg(b, pathVar, (function (input) {
+                      return {
+                              TAG: "UnexpectedType",
+                              expected: "Bool",
+                              received: toName(input)
+                            };
+                    }), inputVar) + "}",
+              outputVar: inputVar,
+              isAsync: false
+            };
+    }),
   isAsyncParseOperation: undefined,
   pf: parseTransformationFactory$1,
   sf: empty,
@@ -2525,7 +2528,6 @@ var struct$3 = {
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
-  i: "typeof v===\"boolean\"",
   m: emptyMetadataMap
 };
 
@@ -2575,7 +2577,6 @@ var struct$4 = {
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
-  i: "typeof v===\"number\"&&v<2147483648&&v>-2147483649&&v%1===0",
   m: emptyMetadataMap
 };
 
@@ -2651,7 +2652,19 @@ function parseTransformationFactory$3(ctx) {
 var struct$5 = {
   n: "Float",
   t: "Float",
-  parseOperationFactory: undefined,
+  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+      return {
+              code: "if(!(typeof " + inputVar + "===\"number\"&&!Number.isNaN(" + inputVar + "))){" + raiseWithArg(b, pathVar, (function (input) {
+                      return {
+                              TAG: "UnexpectedType",
+                              expected: "Float",
+                              received: toName(input)
+                            };
+                    }), inputVar) + "}",
+              outputVar: inputVar,
+              isAsync: false
+            };
+    }),
   isAsyncParseOperation: undefined,
   pf: parseTransformationFactory$3,
   sf: empty,
@@ -2661,7 +2674,6 @@ var struct$5 = {
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
-  i: "typeof v===\"number\"&&!Number.isNaN(v)",
   m: emptyMetadataMap
 };
 
@@ -2767,7 +2779,6 @@ function factory$5(innerStruct) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: undefined,
           m: emptyMetadataMap
         };
 }
@@ -2843,7 +2854,6 @@ function factory$6(innerStruct) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: undefined,
           m: emptyMetadataMap
         };
 }
@@ -2987,7 +2997,6 @@ function factory$7(innerStruct) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: undefined,
           m: emptyMetadataMap
         };
 }
@@ -3163,7 +3172,6 @@ function factory$8(innerStruct) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: undefined,
           m: emptyMetadataMap
         };
 }
@@ -3229,7 +3237,6 @@ function factory$9(innerStruct, getDefaultValue) {
               j: initialSerializeToJson,
               p: intitialParse,
               a: intitialParseAsync,
-              i: undefined,
               m: emptyMetadataMap
             }, metadataId$5, getDefaultValue);
 }
@@ -3400,7 +3407,6 @@ function factory$10(structs) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: undefined,
           m: emptyMetadataMap
         };
 }
@@ -3591,7 +3597,6 @@ function factory$11(structs) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: undefined,
           m: emptyMetadataMap
         };
 }
@@ -3656,7 +3661,6 @@ var json = {
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
-  i: undefined,
   m: emptyMetadataMap
 };
 
@@ -3747,7 +3751,6 @@ function $$catch(struct, getFallbackValue) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          i: undefined,
           m: struct.m
         };
 }
