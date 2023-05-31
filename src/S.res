@@ -4359,7 +4359,6 @@ module Tuple = {
   )->Obj.magic
 }
 
-// TODO:
 module Union = {
   exception HackyValidValue(unknown)
 
@@ -4374,6 +4373,88 @@ module Union = {
       ~name=`Union`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Union(structs),
+      ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let errorVars = []
+        let asyncItems = Js.Dict.empty()
+        let withAsyncItemRef = ref(false)
+        let outputVar = b->B.var
+        let codeRef = ref("")
+        let codeEndRef = ref("")
+
+        for idx in 0 to structs->Js.Array2.length - 1 {
+          let itemStruct = structs->Js.Array2.unsafe_get(idx)
+          let {code: itemCode, isAsync: isAsyncItem, outputVar: itemOutputVar} =
+            b->B.compileParser(~struct=itemStruct, ~inputVar, ~pathVar)
+
+          let errorVar = b->B.varWithoutAllocation
+          errorVars->Js.Array2.push(errorVar)->ignore
+
+          if isAsyncItem {
+            withAsyncItemRef := true
+            asyncItems->Js.Dict.set(idx->Stdlib.Int.unsafeToString, itemOutputVar)
+          }
+
+          codeRef.contents =
+            codeRef.contents ++
+            `try{${itemCode}${isAsyncItem
+                ? `throw `
+                : `${outputVar}=`}${itemOutputVar}}catch(${errorVar}){if(${errorVar}&&${errorVar}.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"${isAsyncItem
+                ? `||${errorVar}===${itemOutputVar}`
+                : ""}){`
+          codeEndRef.contents = `}else{throw ${errorVar}}}` ++ codeEndRef.contents
+        }
+
+        if withAsyncItemRef.contents {
+          let asyncOutputVar = b->B.var
+          codeRef.contents = codeRef.contents ++ `${asyncOutputVar}=()=>Promise.any([`
+          for idx in 0 to errorVars->Js.Array2.length - 1 {
+            let errorVar = errorVars->Js.Array2.unsafe_get(idx)
+            let maybeAsyncVar = asyncItems->Js.Dict.get(idx->Stdlib.Int.unsafeToString)
+            if idx !== 0 {
+              codeRef.contents = codeRef.contents ++ ","
+            }
+            switch maybeAsyncVar {
+            | Some(asyncVar) =>
+              codeRef.contents = codeRef.contents ++ `${errorVar}===${asyncVar}?${errorVar}():`
+            | None => ()
+            }
+            codeRef.contents = codeRef.contents ++ `Promise.reject(${errorVar})`
+          }
+          codeRef.contents =
+            codeRef.contents ++
+            `]).catch(t=>{t=t.errors;${b->B.raiseWithArg(
+                ~pathVar,
+                (. internalErrors) => {
+                  Js.log(internalErrors)
+                  InvalidUnion(internalErrors->Js.Array2.map(Error.Internal.toParseError))
+                },
+                `[${errorVars
+                  ->Js.Array2.mapi((_, idx) => `t[${idx->Stdlib.Int.unsafeToString}]._1`)
+                  ->Js.Array2.joinWith(",")}]`,
+              )}})`
+          {
+            outputVar: asyncOutputVar,
+            isAsync: true,
+            code: codeRef.contents ++
+            codeEndRef.contents ++
+            `if(!${asyncOutputVar}){${asyncOutputVar}=()=>Promise.resolve(${outputVar})}`,
+          }
+        } else {
+          {
+            outputVar,
+            isAsync: false,
+            code: codeRef.contents ++
+            b->B.raiseWithArg(
+              ~pathVar,
+              (. internalErrors) => InvalidUnion(
+                internalErrors->Js.Array2.map(Error.Internal.toParseError),
+              ),
+              `[${errorVars->Js.Array2.map(v => `${v}._1`)->Js.Array2.joinWith(",")}]`,
+            ) ++
+            codeEndRef.contents,
+          }
+        }
+      },
       ~parseTransformationFactory=(. ~ctx) => {
         let structs = ctx.struct->classify->unsafeGetVariantPayload
 

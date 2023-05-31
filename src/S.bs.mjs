@@ -3568,7 +3568,73 @@ function factory$11(structs) {
             TAG: "Union",
             _0: structs
           },
-          parseOperationFactory: undefined,
+          parseOperationFactory: (function (b, param, inputVar, pathVar) {
+              var errorVars = [];
+              var asyncItems = {};
+              var withAsyncItemRef = false;
+              var outputVar = $$var(b);
+              var codeRef = "";
+              var codeEndRef = "";
+              for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
+                var itemStruct = structs[idx];
+                var match = compileParser(b, itemStruct, inputVar, pathVar);
+                var isAsyncItem = match.isAsync;
+                var itemOutputVar = match.outputVar;
+                var errorVar = varWithoutAllocation(b);
+                errorVars.push(errorVar);
+                if (isAsyncItem) {
+                  withAsyncItemRef = true;
+                  asyncItems[idx] = itemOutputVar;
+                }
+                codeRef = codeRef + ("try{" + match.code + (
+                    isAsyncItem ? "throw " : outputVar + "="
+                  ) + itemOutputVar + "}catch(" + errorVar + "){if(" + errorVar + "&&" + errorVar + ".RE_EXN_ID===\"S-RescriptStruct.Error.Internal.Exception/1\"" + (
+                    isAsyncItem ? "||" + errorVar + "===" + itemOutputVar : ""
+                  ) + "){");
+                codeEndRef = "}else{throw " + errorVar + "}}" + codeEndRef;
+              }
+              if (!withAsyncItemRef) {
+                return {
+                        code: codeRef + raiseWithArg(b, pathVar, (function (internalErrors) {
+                                return {
+                                        TAG: "InvalidUnion",
+                                        _0: internalErrors.map(toParseError)
+                                      };
+                              }), "[" + errorVars.map(function (v) {
+                                    return v + "._1";
+                                  }).join(",") + "]") + codeEndRef,
+                        outputVar: outputVar,
+                        isAsync: false
+                      };
+              }
+              var asyncOutputVar = $$var(b);
+              codeRef = codeRef + (asyncOutputVar + "=()=>Promise.any([");
+              for(var idx$1 = 0 ,idx_finish$1 = errorVars.length; idx$1 < idx_finish$1; ++idx$1){
+                var errorVar$1 = errorVars[idx$1];
+                var maybeAsyncVar = Js_dict.get(asyncItems, idx$1);
+                if (idx$1 !== 0) {
+                  codeRef = codeRef + ",";
+                }
+                if (maybeAsyncVar !== undefined) {
+                  codeRef = codeRef + (errorVar$1 + "===" + maybeAsyncVar + "?" + errorVar$1 + "():");
+                }
+                codeRef = codeRef + ("Promise.reject(" + errorVar$1 + ")");
+              }
+              codeRef = codeRef + ("]).catch(t=>{t=t.errors;" + raiseWithArg(b, pathVar, (function (internalErrors) {
+                        console.log(internalErrors);
+                        return {
+                                TAG: "InvalidUnion",
+                                _0: internalErrors.map(toParseError)
+                              };
+                      }), "[" + errorVars.map(function (param, idx) {
+                            return "t[" + idx + "]._1";
+                          }).join(",") + "]") + "})");
+              return {
+                      code: codeRef + codeEndRef + ("if(!" + asyncOutputVar + "){" + asyncOutputVar + "=()=>Promise.resolve(" + outputVar + ")}"),
+                      outputVar: asyncOutputVar,
+                      isAsync: true
+                    };
+            }),
           isAsyncParseOperation: undefined,
           pf: (function (ctx) {
               var structs = ctx.s.t._0;
