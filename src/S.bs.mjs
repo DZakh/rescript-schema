@@ -1324,7 +1324,7 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
     return {
             n: struct.n,
             t: tagged,
-            parseOperationFactory: undefined,
+            parseOperationFactory: struct.parseOperationFactory,
             isAsyncParseOperation: undefined,
             pf: struct.pf,
             sf: struct.sf,
@@ -1340,7 +1340,39 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
   return {
           n: struct.n,
           t: struct.t,
-          parseOperationFactory: undefined,
+          parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+              if (maybePreprocessParser === undefined) {
+                return {
+                        code: raise$2(b, pathVar, "MissingParser") + ";",
+                        outputVar: inputVar,
+                        isAsync: false
+                      };
+              }
+              var syncTransformation = maybePreprocessParser(selfStruct);
+              if (typeof syncTransformation !== "object") {
+                return compileParser(b, struct, inputVar, pathVar);
+              }
+              if (syncTransformation.TAG === "Sync") {
+                var parseResultVar = $$var(b);
+                var match = compileParser(b, struct, parseResultVar, pathVar);
+                return {
+                        code: syncTransform(b, inputVar, parseResultVar, false, syncTransformation._0, undefined, pathVar, undefined) + match.code,
+                        outputVar: match.outputVar,
+                        isAsync: match.isAsync
+                      };
+              }
+              var parseResultVar$1 = $$var(b);
+              var match$1 = compileParser(b, struct, "t", pathVar);
+              var structOuputVar = match$1.outputVar;
+              var outputVar = $$var(b);
+              return {
+                      code: asyncTransform(b, inputVar, parseResultVar$1, false, syncTransformation._0, undefined, pathVar, undefined) + outputVar + "=()=>" + parseResultVar$1 + "().then(t=>{" + match$1.code + "return " + (
+                        match$1.isAsync ? structOuputVar + "()" : structOuputVar
+                      ) + "});",
+                      outputVar: outputVar,
+                      isAsync: true
+                    };
+            }),
           isAsyncParseOperation: undefined,
           pf: (function (ctx) {
               if (maybePreprocessParser !== undefined) {
@@ -3568,7 +3600,8 @@ function factory$11(structs) {
             TAG: "Union",
             _0: structs
           },
-          parseOperationFactory: (function (b, param, inputVar, pathVar) {
+          parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+              var structs = selfStruct.t._0;
               var errorVars = [];
               var asyncItems = {};
               var withAsyncItemRef = false;
@@ -3577,7 +3610,7 @@ function factory$11(structs) {
               var codeEndRef = "";
               for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
                 var itemStruct = structs[idx];
-                var match = compileParser(b, itemStruct, inputVar, pathVar);
+                var match = compileParser(b, itemStruct, inputVar, "\"\"");
                 var isAsyncItem = match.isAsync;
                 var itemOutputVar = match.outputVar;
                 var errorVar = varWithoutAllocation(b);

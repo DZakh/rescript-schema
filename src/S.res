@@ -1756,13 +1756,14 @@ let transform: (
   )
 }
 
-// TODO:
 let rec advancedPreprocess = (
   struct,
   ~parser as maybePreprocessParser=?,
   ~serializer as maybePreprocessSerializer=?,
   (),
 ) => {
+  let struct = struct->toUnknown
+
   if maybePreprocessParser === None && maybePreprocessSerializer === None {
     Error.MissingParserAndSerializer.panic(`struct factory Preprocess`)
   }
@@ -1784,6 +1785,7 @@ let rec advancedPreprocess = (
         ),
       ),
       ~parseTransformationFactory=struct.parseTransformationFactory,
+      ~parseOperationFactory=?struct.parseOperationFactory,
       ~serializeTransformationFactory=struct.serializeTransformationFactory,
       ~metadataMap=struct.metadataMap,
       (),
@@ -1792,6 +1794,58 @@ let rec advancedPreprocess = (
     make(
       ~name=struct.name,
       ~tagged=struct.tagged,
+      ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+        switch maybePreprocessParser {
+        | Some(parser) =>
+          switch parser->TransformationFactory.Public.call(
+            ~struct=selfStruct->castUnknownStructToAnyStruct,
+          ) {
+          | Noop => b->B.compileParser(~struct, ~inputVar, ~pathVar)
+          | Sync(syncTransformation) => {
+              let parseResultVar = b->B.var
+              let {code, outputVar, isAsync} =
+                b->B.compileParser(~struct, ~inputVar=parseResultVar, ~pathVar)
+              {
+                code: `${b->B.syncTransform(
+                    ~inputVar,
+                    ~outputVar=parseResultVar,
+                    ~isAsyncInput=false,
+                    ~fn=syncTransformation,
+                    ~prependPathVar=pathVar,
+                    (),
+                  )}${code}`,
+                outputVar,
+                isAsync,
+              }
+            }
+          | Async(asyncTransformation) => {
+              let parseResultVar = b->B.var
+              let {code, outputVar: structOuputVar, isAsync: isAsyncStruct} =
+                b->B.compileParser(~struct, ~inputVar="t", ~pathVar)
+              let outputVar = b->B.var
+              {
+                code: `${b->B.asyncTransform(
+                    ~inputVar,
+                    ~outputVar=parseResultVar,
+                    ~isAsyncInput=false,
+                    ~fn=asyncTransformation,
+                    ~prependPathVar=pathVar,
+                    (),
+                  )}${outputVar}=()=>${parseResultVar}().then(t=>{${code}return ${isAsyncStruct
+                    ? `${structOuputVar}()`
+                    : structOuputVar}});`,
+                outputVar,
+                isAsync: true,
+              }
+            }
+          }
+        | None => {
+            code: b->B.raise(~pathVar, MissingParser) ++ ";",
+            outputVar: inputVar,
+            isAsync: false,
+          }
+        }
+      },
       ~parseTransformationFactory=(. ~ctx) => {
         switch maybePreprocessParser {
         | Some(preprocessParser) =>
@@ -4373,7 +4427,9 @@ module Union = {
       ~name=`Union`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Union(structs),
-      ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+        let structs = selfStruct->classify->unsafeGetVariantPayload
+
         let errorVars = []
         let asyncItems = Js.Dict.empty()
         let withAsyncItemRef = ref(false)
@@ -4384,7 +4440,7 @@ module Union = {
         for idx in 0 to structs->Js.Array2.length - 1 {
           let itemStruct = structs->Js.Array2.unsafe_get(idx)
           let {code: itemCode, isAsync: isAsyncItem, outputVar: itemOutputVar} =
-            b->B.compileParser(~struct=itemStruct, ~inputVar, ~pathVar)
+            b->B.compileParser(~struct=itemStruct, ~inputVar, ~pathVar=`""`)
 
           let errorVar = b->B.varWithoutAllocation
           errorVars->Js.Array2.push(errorVar)->ignore
