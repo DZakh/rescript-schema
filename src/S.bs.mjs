@@ -448,34 +448,41 @@ function compileParser(b, struct, inputVar, pathVar) {
   return struct.pb(b, struct, inputVar, pathVar);
 }
 
-function compile$1(operationFactory, struct) {
+function run(operationBuilder, struct) {
   var intitialInputVar = "i";
   var b = {
     varCounter: -1,
     varsAllocation: "_",
     embeded: []
   };
-  var match = operationFactory(b, struct, intitialInputVar, "\"\"");
+  var match = operationBuilder(b, struct, intitialInputVar, "\"\"");
   struct.i = match.isAsync;
   var inlinedFunction = intitialInputVar + "=>{var " + b.varsAllocation + ";" + match.code + "return " + match.outputVar + "}";
   console.log(inlinedFunction);
   return new Function("e", "return " + inlinedFunction)(b.embeded);
 }
 
+function compileParser$1(struct, operationBuilderOpt, param) {
+  var operationBuilder = operationBuilderOpt !== undefined ? operationBuilderOpt : struct.pb;
+  var operation = run(operationBuilder, struct);
+  var isAsync = struct.i;
+  struct.p = isAsync ? (function (param) {
+        return raise$1("UnexpectedAsync");
+      }) : operation;
+  struct.a = isAsync ? operation : (function (input) {
+        var syncValue = operation(input);
+        return function () {
+          return Promise.resolve(syncValue);
+        };
+      });
+}
+
 function isAsyncParse(struct) {
-  if (struct.i === undefined) {
-    var operation = compile$1(struct.pb, struct);
-    var isAsync = struct.i;
-    struct.p = isAsync ? (function (param) {
-          return raise$1("UnexpectedAsync");
-        }) : operation;
-    struct.a = isAsync ? operation : (function (input) {
-          var syncValue = operation(input);
-          return function () {
-            return Promise.resolve(syncValue);
-          };
-        });
+  var v = struct.i;
+  if (v !== 0) {
+    return v;
   }
+  compileParser$1(struct, undefined, undefined);
   return struct.i;
 }
 
@@ -619,25 +626,14 @@ function initialSerializeToJson(input) {
 
 function intitialParse(input) {
   var struct = this;
-  var compiledParse = compile$1(struct.pb, struct);
-  if (struct.i) {
-    raise$1("UnexpectedAsync");
-  }
-  struct.p = compiledParse;
-  return compiledParse(input);
+  compileParser$1(struct, undefined, undefined);
+  return struct.p(input);
 }
 
 function intitialParseAsync(input) {
   var struct = this;
-  var parseOperation = compile$1(struct.pb, struct);
-  var compiledParseAsync = struct.i ? parseOperation : (function (input) {
-        var syncValue = parseOperation(input);
-        return function () {
-          return Promise.resolve(syncValue);
-        };
-      });
-  struct.a = compiledParseAsync;
-  return compiledParseAsync(input);
+  compileParser$1(struct, undefined, undefined);
+  return struct.a(input);
 }
 
 function parseAnyWith(any, struct) {
@@ -877,7 +873,7 @@ function recursive(fn) {
   var placeholder = ({m:emptyMetadataMap});
   var struct = fn(placeholder);
   Object.assign(placeholder, struct);
-  var operationFactory = placeholder.pb;
+  var operationBuilder = placeholder.pb;
   placeholder.pb = (function (b, selfStruct, inputVar, pathVar) {
       selfStruct.pb = (function (_b, param, inputVar, param$1) {
           return {
@@ -886,7 +882,7 @@ function recursive(fn) {
                   isAsync: false
                 };
         });
-      var match = operationFactory(b, selfStruct, inputVar, pathVar);
+      var match = operationBuilder(b, selfStruct, inputVar, pathVar);
       var isAsync = match.isAsync;
       b.varCounter = -1;
       b.varsAllocation = "_";
@@ -901,21 +897,12 @@ function recursive(fn) {
                         }), pathVar);
           }
         });
-      var operation = compile$1(operationFactory, selfStruct);
-      selfStruct.p = isAsync ? (function (param) {
-            return raise$1("UnexpectedAsync");
-          }) : operation;
-      selfStruct.a = isAsync ? operation : (function (input) {
-            var syncValue = operation(input);
-            return function () {
-              return Promise.resolve(syncValue);
-            };
-          });
-      selfStruct.pb = operationFactory;
+      compileParser$1(selfStruct, operationBuilder, undefined);
+      selfStruct.pb = operationBuilder;
       if (isAsync) {
-        return asyncOperation(b, inputVar, operation, pathVar);
+        return asyncOperation(b, inputVar, selfStruct.a, pathVar);
       } else {
-        return syncOperation(b, inputVar, operation, pathVar);
+        return syncOperation(b, inputVar, selfStruct.p, pathVar);
       }
     });
   return placeholder;
@@ -940,7 +927,7 @@ function set(struct, id, metadata) {
           n: struct.n,
           t: struct.t,
           pb: struct.pb,
-          i: undefined,
+          i: 0,
           sf: struct.sf,
           e: 0,
           s: initialSerialize,
@@ -996,7 +983,7 @@ function refine(struct, maybeParser, maybeAsyncParser, maybeSerializer, param) {
                           };
                   }) : struct.pb
             ),
-          i: undefined,
+          i: 0,
           sf: maybeSerializer !== undefined ? (function (ctx) {
                 planSyncTransformation(ctx, (function (input) {
                         maybeSerializer(input);
@@ -1055,7 +1042,7 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
                       isAsync: true
                     };
             }),
-          i: undefined,
+          i: 0,
           sf: (function (ctx) {
               if (maybeSerializer !== undefined) {
                 var syncTransformation = maybeSerializer(ctx.s);
@@ -1123,7 +1110,7 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
           n: struct.n,
           t: struct.t,
           pb: parseOperationBuilder,
-          i: undefined,
+          i: 0,
           sf: (function (ctx) {
               if (maybeSerializer !== undefined) {
                 planSyncTransformation(ctx, maybeSerializer);
@@ -1159,7 +1146,7 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
             n: struct.n,
             t: tagged,
             pb: struct.pb,
-            i: undefined,
+            i: 0,
             sf: struct.sf,
             e: 0,
             s: initialSerialize,
@@ -1205,7 +1192,7 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
                       isAsync: true
                     };
             }),
-          i: undefined,
+          i: 0,
           sf: (function (ctx) {
               struct.sf(ctx);
               if (maybePreprocessSerializer === undefined) {
@@ -1262,7 +1249,7 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
           n: name,
           t: "Unknown",
           pb: parseOperationBuilder,
-          i: undefined,
+          i: 0,
           sf: (function (ctx) {
               if (maybeSerializer !== undefined) {
                 return planSyncTransformation(ctx, maybeSerializer);
@@ -1370,7 +1357,7 @@ function factory(struct, definer) {
                       isAsync: isAsync
                     };
             }),
-          i: undefined,
+          i: 0,
           sf: (function (ctx) {
               ((function (ctx) {
                       try {
@@ -1447,7 +1434,7 @@ function factory$1(innerLiteral, variant) {
                               isAsync: false
                             };
                     }),
-                  i: undefined,
+                  i: 0,
                   sf: serializeTransformationFactory,
                   e: 0,
                   s: initialSerialize,
@@ -1475,7 +1462,7 @@ function factory$1(innerLiteral, variant) {
                               isAsync: false
                             };
                     }),
-                  i: undefined,
+                  i: 0,
                   sf: serializeTransformationFactory$1,
                   e: 0,
                   s: initialSerialize,
@@ -1503,7 +1490,7 @@ function factory$1(innerLiteral, variant) {
                               isAsync: false
                             };
                     }),
-                  i: undefined,
+                  i: 0,
                   sf: serializeTransformationFactory$2,
                   e: 0,
                   s: initialSerialize,
@@ -1542,7 +1529,7 @@ function factory$1(innerLiteral, variant) {
                               isAsync: false
                             };
                     }),
-                  i: undefined,
+                  i: 0,
                   sf: serializeTransformationFactory$3,
                   e: 0,
                   s: initialSerialize,
@@ -1577,7 +1564,7 @@ function factory$1(innerLiteral, variant) {
                               isAsync: false
                             };
                     }),
-                  i: undefined,
+                  i: 0,
                   sf: serializeTransformationFactory$4,
                   e: 0,
                   s: initialSerialize,
@@ -1613,7 +1600,7 @@ function factory$1(innerLiteral, variant) {
                               isAsync: false
                             };
                     }),
-                  i: undefined,
+                  i: 0,
                   sf: serializeTransformationFactory$5,
                   e: 0,
                   s: initialSerialize,
@@ -1649,7 +1636,7 @@ function factory$1(innerLiteral, variant) {
                               isAsync: false
                             };
                     }),
-                  i: undefined,
+                  i: 0,
                   sf: serializeTransformationFactory$6,
                   e: 0,
                   s: initialSerialize,
@@ -1914,7 +1901,7 @@ function factory$3(definer) {
                       isAsync: true
                     };
             }),
-          i: undefined,
+          i: 0,
           sf: serializeTransformationFactory,
           e: 0,
           s: initialSerialize,
@@ -1960,7 +1947,7 @@ var struct = {
               isAsync: false
             };
     }),
-  i: undefined,
+  i: 0,
   sf: transformationFactory,
   e: 0,
   s: initialSerialize,
@@ -1980,7 +1967,7 @@ var struct$1 = {
               isAsync: false
             };
     }),
-  i: undefined,
+  i: 0,
   sf: empty,
   e: 0,
   s: initialSerialize,
@@ -2027,7 +2014,7 @@ var struct$2 = {
   n: "String",
   t: "String",
   pb: parseOperationBuilder,
-  i: undefined,
+  i: 0,
   sf: empty,
   e: 0,
   s: initialSerialize,
@@ -2213,7 +2200,7 @@ function factory$4(innerStruct) {
                       isAsync: match$1.isAsync
                     };
             }),
-          i: undefined,
+          i: 0,
           sf: (function (ctx) {
               var fn = getSerializeOperation(innerStruct);
               if (fn !== undefined) {
@@ -2251,7 +2238,7 @@ var struct$3 = {
               isAsync: false
             };
     }),
-  i: undefined,
+  i: 0,
   sf: empty,
   e: 0,
   s: initialSerialize,
@@ -2288,7 +2275,7 @@ var struct$4 = {
               isAsync: false
             };
     }),
-  i: undefined,
+  i: 0,
   sf: empty,
   e: 0,
   s: initialSerialize,
@@ -2373,7 +2360,7 @@ var struct$5 = {
               isAsync: false
             };
     }),
-  i: undefined,
+  i: 0,
   sf: empty,
   e: 0,
   s: initialSerialize,
@@ -2436,7 +2423,7 @@ function factory$5(innerStruct) {
                       isAsync: isInnerStructAsync
                     };
             }),
-          i: undefined,
+          i: 0,
           sf: (function (ctx) {
               var fn = getSerializeOperation(innerStruct);
               if (fn !== undefined) {
@@ -2485,7 +2472,7 @@ function factory$6(innerStruct) {
                       isAsync: isInnerStructAsync
                     };
             }),
-          i: undefined,
+          i: 0,
           sf: (function (ctx) {
               var fn = getSerializeOperation(innerStruct);
               if (fn !== undefined) {
@@ -2557,7 +2544,7 @@ function factory$7(innerStruct) {
                       isAsync: true
                     };
             }),
-          i: undefined,
+          i: 0,
           sf: (function (ctx) {
               var fn = getSerializeOperation(innerStruct);
               if (fn !== undefined) {
@@ -2684,7 +2671,7 @@ function factory$8(innerStruct) {
                       isAsync: true
                     };
             }),
-          i: undefined,
+          i: 0,
           sf: (function (ctx) {
               var fn = getSerializeOperation(innerStruct);
               if (fn !== undefined) {
@@ -2744,7 +2731,7 @@ function factory$9(innerStruct, getDefaultValue) {
                           isAsync: isInnerStructAsync
                         };
                 }),
-              i: undefined,
+              i: 0,
               sf: (function (ctx) {
                   var fn = getSerializeOperation(innerStruct$1);
                   if (fn !== undefined) {
@@ -2847,7 +2834,7 @@ function factory$10(structs) {
                       isAsync: match$1.isAsync
                     };
             }),
-          i: undefined,
+          i: 0,
           sf: (function (ctx) {
               var serializeOperations = [];
               for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
@@ -2978,7 +2965,7 @@ function factory$11(structs) {
                       isAsync: true
                     };
             }),
-          i: undefined,
+          i: 0,
           sf: (function (ctx) {
               var serializeOperations = [];
               for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
@@ -3088,7 +3075,7 @@ var json = {
               isAsync: false
             };
     }),
-  i: undefined,
+  i: 0,
   sf: empty,
   e: 0,
   s: initialSerialize,
@@ -3126,7 +3113,7 @@ function $$catch(struct, getFallbackValue) {
                       isAsync: true
                     };
             }),
-          i: undefined,
+          i: 0,
           sf: struct.sf,
           e: 0,
           s: initialSerialize,

@@ -463,11 +463,13 @@ module SerializeOperationState = {
   let unsafeToOperation: t => operation = Obj.magic
 }
 
-type operationFactoryResult = {
+type operationBuilderResult = {
   code: string,
   outputVar: string,
   isAsync: bool,
 }
+@unboxed
+type isAsyncParse = | @as(0) Unknown | Value(bool)
 
 type rec t<'value> = {
   @as("n")
@@ -480,9 +482,9 @@ type rec t<'value> = {
     ~selfStruct: t<unknown>,
     ~inputVar: string,
     ~pathVar: string,
-  ) => operationFactoryResult,
+  ) => operationBuilderResult,
   @as("i")
-  mutable isAsyncParseOperation: bool,
+  mutable isAsyncParse: isAsyncParse,
   @as("sf")
   serializeTransformationFactory: internalTransformationFactory,
   @as("e")
@@ -831,32 +833,28 @@ module Builder = {
     }
   }
 
-  let compile = (operationFactory, ~struct) => {
+  let run = (operationBuilder, ~struct) => {
     let intitialInputVar = "i"
     let b = {
       embeded: [],
       varCounter: -1,
       varsAllocation: "_",
     }
-    let {code, outputVar, isAsync} = operationFactory(.
+    let {code, outputVar, isAsync} = operationBuilder(.
       b,
       ~selfStruct=struct,
       ~inputVar=intitialInputVar,
       ~pathVar=`""`,
     )
-    struct.isAsyncParseOperation = isAsync
+    struct.isAsyncParse = Value(isAsync)
     let inlinedFunction = `${intitialInputVar}=>{var ${b.varsAllocation};${code}return ${outputVar}}`
     Js.log(inlinedFunction)
     Stdlib.Function.make1(~ctxVarName1="e", ~ctxVarValue1=b.embeded, ~inlinedFunction)
   }
-}
-module B = Builder.Ctx
 
-let isAsyncParse = struct => {
-  let struct = struct->toUnknown
-  if struct.isAsyncParseOperation === %raw(`undefined`) {
-    let operation = struct.parseOperationBuilder->Builder.compile(~struct)
-    let isAsync = struct.isAsyncParseOperation
+  let compileParser = (struct, ~operationBuilder=struct.parseOperationBuilder, ()) => {
+    let operation = operationBuilder->run(~struct)
+    let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
     struct.parse = isAsync ? (. _) => Error.Internal.raise(UnexpectedAsync) : operation
     struct.parseAsync = isAsync
       ? operation
@@ -865,7 +863,18 @@ let isAsyncParse = struct => {
           (. ()) => syncValue->Stdlib.Promise.resolve
         }
   }
-  struct.isAsyncParseOperation
+}
+module B = Builder.Ctx
+
+let isAsyncParse = struct => {
+  let struct = struct->toUnknown
+  switch struct.isAsyncParse {
+  | Unknown => {
+      struct->Builder.compileParser()
+      struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+    }
+  | Value(v) => v
+  }
 }
 
 let noOperation = (. input) => input
@@ -957,33 +966,14 @@ let initialSerializeToJson = (. input) => {
 
 let intitialParse = (. input) => {
   let struct = %raw("this")
-  let compiledParse = struct.parseOperationBuilder->Builder.compile(~struct)
-  if struct.isAsyncParseOperation {
-    Error.Internal.raise(UnexpectedAsync)
-  }
-
-  // TODO: Set struct.parseAsync
-  struct.parse = compiledParse
-  compiledParse(. input)
+  struct->Builder.compileParser()
+  struct.parse(. input)
 }
 
 let intitialParseAsync = (. input) => {
   let struct = %raw("this")
-  let compiledParseAsync = {
-    let parseOperation = struct.parseOperationBuilder->Builder.compile(~struct)
-    if struct.isAsyncParseOperation {
-      parseOperation
-    } else {
-      (. input) => {
-        let syncValue = parseOperation(. input)
-        (. ()) => syncValue->Stdlib.Promise.resolve
-      }
-    }
-  }
-
-  // TODO: Set struct.parse
-  struct.parseAsync = compiledParseAsync
-  compiledParseAsync(. input)
+  struct->Builder.compileParser()
+  struct.parseAsync(. input)
 }
 
 @inline
@@ -999,7 +989,7 @@ let make = (
   tagged,
   serializeTransformationFactory,
   parseOperationBuilder,
-  isAsyncParseOperation: %raw("undefined"),
+  isAsyncParse: Unknown,
   serializeOperationState: SerializeOperationState.empty(),
   serialize: initialSerialize,
   serializeToJson: initialSerializeToJson,
@@ -1138,7 +1128,7 @@ let recursive = fn => {
   let placeholder: t<'value> = %raw(`{m:emptyMetadataMap}`)
   let struct = fn->Stdlib.Fn.call1(placeholder)
   placeholder->Stdlib.Object.overrideWith(struct)
-  let operationFactory = placeholder.parseOperationBuilder
+  let operationBuilder = placeholder.parseOperationBuilder
   placeholder.parseOperationBuilder = (. b, ~selfStruct, ~inputVar, ~pathVar) => {
     selfStruct.parseOperationBuilder = (. _b, ~selfStruct as _, ~inputVar, ~pathVar as _) => {
       {
@@ -1147,7 +1137,7 @@ let recursive = fn => {
         code: "",
       }
     }
-    let {isAsync} = operationFactory(. b, ~selfStruct, ~inputVar, ~pathVar)
+    let {isAsync} = operationBuilder(. b, ~selfStruct, ~inputVar, ~pathVar)
     b.varCounter = -1
     b.varsAllocation = "_"
     selfStruct.parseOperationBuilder = (. b, ~selfStruct, ~inputVar, ~pathVar) => {
@@ -1166,19 +1156,12 @@ let recursive = fn => {
       }
     }
 
-    let operation = operationFactory->Builder.compile(~struct=selfStruct)
-    selfStruct.parse = isAsync ? (. _) => Error.Internal.raise(UnexpectedAsync) : operation
-    selfStruct.parseAsync = isAsync
-      ? operation
-      : (. input) => {
-          let syncValue = operation(. input)
-          (. ()) => syncValue->Stdlib.Promise.resolve
-        }
-    selfStruct.parseOperationBuilder = operationFactory
+    selfStruct->Builder.compileParser(~operationBuilder, ())
+    selfStruct.parseOperationBuilder = operationBuilder
     if isAsync {
-      b->B.asyncOperation(~inputVar, ~fn=operation, ~prependPathVar=pathVar)
+      b->B.asyncOperation(~inputVar, ~fn=selfStruct.parseAsync, ~prependPathVar=pathVar)
     } else {
-      b->B.syncOperation(~inputVar, ~fn=operation, ~prependPathVar=pathVar)
+      b->B.syncOperation(~inputVar, ~fn=selfStruct.parse, ~prependPathVar=pathVar)
     }
   }
   placeholder
