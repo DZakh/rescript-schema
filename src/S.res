@@ -4518,7 +4518,6 @@ module Union = {
             `]).catch(t=>{t=t.errors;${b->B.raiseWithArg(
                 ~pathVar,
                 (. internalErrors) => {
-                  Js.log(internalErrors)
                   InvalidUnion(internalErrors->Js.Array2.map(Error.Internal.toParseError))
                 },
                 `[${errorVars
@@ -4697,9 +4696,11 @@ let list = innerStruct => {
   )
 }
 
-// TODO:
 let json = {
-  let rec parse = (input, ~ctx) => {
+  let parseTransformationFactory = (. ~ctx) =>
+    ctx->TransformationFactory.Ctx.planSyncTransformation(input => input)
+
+  let rec parse = (input, ~path) => {
     switch input->Js.typeof {
     | "number" if Js.Float.isNaN(input->(Obj.magic: unknown => float))->not =>
       input->(Obj.magic: unknown => Js.Json.t)
@@ -4712,7 +4713,11 @@ let json = {
         let output = []
         for idx in 0 to input->Js.Array2.length - 1 {
           let inputItem = input->Js.Array2.unsafe_get(idx)
-          output->Js.Array2.push(inputItem->parse(~ctx))->ignore
+          output
+          ->Js.Array2.push(
+            inputItem->parse(~path=path->Path.concat(Path.fromLocation(idx->Js.Int.toString))),
+          )
+          ->ignore
         }
         output->Js.Json.array
       } else {
@@ -4722,7 +4727,7 @@ let json = {
         for idx in 0 to keys->Js.Array2.length - 1 {
           let key = keys->Js.Array2.unsafe_get(idx)
           let field = input->Js.Dict.unsafeGet(key)
-          output->Js.Dict.set(key, field->parse(~ctx))
+          output->Js.Dict.set(key, field->parse(~path=path->Path.concat(Path.fromLocation(key))))
         }
         output->Js.Json.object_
       }
@@ -4731,17 +4736,30 @@ let json = {
     | "boolean" =>
       input->(Obj.magic: unknown => Js.Json.t)
 
-    | _ => raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
+    | _ =>
+      raise(
+        Error.Internal.Exception({
+          code: UnexpectedType({
+            expected: "JSON",
+            received: input->Stdlib.Unknown.toName,
+          }),
+          path,
+        }),
+      )
     }
   }
-
-  let parseTransformationFactory = (. ~ctx) =>
-    ctx->TransformationFactory.Ctx.planSyncTransformation(input => input->parse(~ctx))
 
   make(
     ~name="JSON",
     ~tagged=JSON,
     ~metadataMap=emptyMetadataMap,
+    ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      {
+        code: `${b->B.embed(parse)}(${inputVar},${pathVar});`,
+        isAsync: false,
+        outputVar: inputVar,
+      }
+    },
     ~parseTransformationFactory,
     ~serializeTransformationFactory=TransformationFactory.empty,
     (),

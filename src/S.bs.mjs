@@ -3678,7 +3678,6 @@ function factory$11(structs) {
                 codeRef = codeRef + ("Promise.reject(" + errorVar$1 + ")");
               }
               codeRef = codeRef + ("]).catch(t=>{t=t.errors;" + raiseWithArg(b, pathVar, (function (internalErrors) {
-                        console.log(internalErrors);
                         return {
                                 TAG: "InvalidUnion",
                                 _0: internalErrors.map(toParseError)
@@ -3864,15 +3863,20 @@ function list(innerStruct) {
   return transform(factory$7(innerStruct), Belt_List.fromArray, undefined, Belt_List.toArray, undefined);
 }
 
-function parse(input, ctx) {
+function parseTransformationFactory$4(ctx) {
+  planSyncTransformation(ctx, (function (input) {
+          return input;
+        }));
+}
+
+function parse(input, path) {
   var match = typeof input;
   switch (match) {
     case "number" :
-        if (Number.isNaN(input)) {
-          return raiseUnexpectedTypeError(input, ctx.s);
-        } else {
+        if (!Number.isNaN(input)) {
           return input;
         }
+        break;
     case "object" :
         if (input === null) {
           return input;
@@ -3881,7 +3885,8 @@ function parse(input, ctx) {
           var output = [];
           for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
             var inputItem = input[idx];
-            output.push(parse(inputItem, ctx));
+            var $$location = idx.toString();
+            output.push(parse(inputItem, path + ("[" + JSON.stringify($$location) + "]")));
           }
           return output;
         }
@@ -3890,27 +3895,39 @@ function parse(input, ctx) {
         for(var idx$1 = 0 ,idx_finish$1 = keys.length; idx$1 < idx_finish$1; ++idx$1){
           var key = keys[idx$1];
           var field = input[key];
-          output$1[key] = parse(field, ctx);
+          output$1[key] = parse(field, path + ("[" + JSON.stringify(key) + "]"));
         }
         return output$1;
     case "boolean" :
     case "string" :
         return input;
     default:
-      return raiseUnexpectedTypeError(input, ctx.s);
+      
   }
-}
-
-function parseTransformationFactory$4(ctx) {
-  planSyncTransformation(ctx, (function (input) {
-          return parse(input, ctx);
-        }));
+  throw {
+        RE_EXN_ID: Exception,
+        _1: {
+          c: {
+            TAG: "UnexpectedType",
+            expected: "JSON",
+            received: toName(input)
+          },
+          p: path
+        },
+        Error: new Error()
+      };
 }
 
 var json = {
   n: "JSON",
   t: "JSON",
-  parseOperationFactory: undefined,
+  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+      return {
+              code: "e[" + (b.embeded.push(parse) - 1) + "](" + inputVar + "," + pathVar + ");",
+              outputVar: inputVar,
+              isAsync: false
+            };
+    }),
   isAsyncParseOperation: undefined,
   pf: parseTransformationFactory$4,
   sf: empty,
