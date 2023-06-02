@@ -845,7 +845,7 @@ module Operation = {
       `if(t&&t.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"){t._1.p=${pathVar}+t._1.p}throw t`
     }
 
-    let syncOperation = (b: t, ~inputVar, ~fn, ~prependPathVar) => {
+    let syncOperation = (b: t, ~inputVar, ~fn: (. unknown) => unknown, ~prependPathVar) => {
       let outputVar = b->var
       let code = `${outputVar}=${b->embed(fn)}(${inputVar});`
       {
@@ -858,7 +858,12 @@ module Operation = {
       }
     }
 
-    let asyncOperation = (b: t, ~inputVar, ~fn, ~prependPathVar) => {
+    let asyncOperation = (
+      b: t,
+      ~inputVar,
+      ~fn: (. unknown) => (. unit) => promise<unknown>,
+      ~prependPathVar,
+    ) => {
       let outputVar = b->var
       switch prependPathVar {
       | `""` => {
@@ -1322,13 +1327,13 @@ let recursive = fn => {
             if isAsync {
               b->B.asyncOperation(
                 ~inputVar,
-                ~fn=input => selfStruct.parseAsync(input),
+                ~fn=(. input) => selfStruct.parseAsync(input),
                 ~prependPathVar=pathVar,
               )
             } else {
               b->B.syncOperation(
                 ~inputVar,
-                ~fn=input => selfStruct.parse(input),
+                ~fn=(. input) => selfStruct.parse(input),
                 ~prependPathVar=pathVar,
               )
             }
@@ -1884,7 +1889,6 @@ let rec advancedPreprocess = (
   }
 }
 
-// TODO:
 let custom = (
   ~name,
   ~parser as maybeParser=?,
@@ -1911,6 +1915,39 @@ let custom = (
     ~name,
     ~metadataMap=emptyMetadataMap,
     ~tagged=Unknown,
+    ~parseOperationFactory=switch (maybeParser, maybeAsyncParser) {
+    | (Some(_), Some(_)) =>
+      Error.panic(
+        "The S.custom doesn't support the `parser` and `asyncParser` arguments simultaneously. Keep only `asyncParser`.",
+      )
+    | (Some(parser), None) =>
+      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        b->B.syncOperation(
+          ~inputVar,
+          ~fn=parser->(Obj.magic: (unknown => 'value) => (. unknown) => unknown),
+          ~prependPathVar=pathVar,
+        )
+      }
+    | (None, Some(asyncParser)) =>
+      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        b->B.asyncOperation(
+          ~inputVar,
+          ~fn=(. unknown) => (. ()) =>
+            (
+              asyncParser->(
+                Obj.magic: (unknown => promise<'value>) => (. unknown) => promise<unknown>
+              )
+            )(. unknown),
+          ~prependPathVar=pathVar,
+        )
+      }
+    | (None, None) =>
+      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        code: b->B.raise(~pathVar, MissingParser) ++ ";",
+        outputVar: inputVar,
+        isAsync: false,
+      }
+    },
     ~parseTransformationFactory=(. ~ctx) => {
       planParser->Stdlib.Fn.call1(ctx)
     },

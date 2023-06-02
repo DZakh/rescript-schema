@@ -1435,10 +1435,34 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
           planAsyncTransformation(ctx, maybeAsyncParser);
         }) : planMissingParserTransformation;
   }
+  var tmp;
+  if (maybeParser !== undefined) {
+    if (maybeAsyncParser !== undefined) {
+      throw new Error("[rescript-struct] The S.custom doesn't support the `parser` and `asyncParser` arguments simultaneously. Keep only `asyncParser`.");
+    }
+    tmp = (function (b, param, inputVar, pathVar) {
+        return syncOperation(b, inputVar, maybeParser, pathVar);
+      });
+  } else {
+    tmp = maybeAsyncParser !== undefined ? (function (b, param, inputVar, pathVar) {
+          return asyncOperation(b, inputVar, (function (unknown) {
+                        return function () {
+                          return maybeAsyncParser(unknown);
+                        };
+                      }), pathVar);
+        }) : (function (b, param, inputVar, pathVar) {
+          return {
+                  code: raise$2(b, pathVar, "MissingParser") + ";",
+                  outputVar: inputVar,
+                  isAsync: false
+                };
+        });
+  }
+  var maybeParseOperationFactory = tmp;
   return {
           n: name,
           t: "Unknown",
-          parseOperationFactory: undefined,
+          parseOperationFactory: maybeParseOperationFactory,
           isAsyncParseOperation: undefined,
           pf: (function (ctx) {
               planParser(ctx);
