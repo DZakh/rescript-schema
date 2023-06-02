@@ -4766,7 +4766,6 @@ let json = {
   )
 }
 
-// TODO:
 type catchCtx = {
   error: Error.t,
   input: unknown,
@@ -4777,6 +4776,31 @@ let catch = (struct, getFallbackValue) => {
   let struct = struct->toUnknown
   make(
     ~name=struct.name,
+    ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      let {code: structCode, isAsync, outputVar: structOutputVar} =
+        b->B.compileParser(~struct, ~inputVar, ~pathVar)
+      let fallbackValVar = `${b->B.embed((input, internalError) =>
+          getFallbackValue->Stdlib.Fn.call1({
+            input,
+            error: internalError->Error.Internal.toParseError,
+          })
+        )}(${inputVar},t._1)`
+
+      if isAsync {
+        let outputVar = b->B.var
+        {
+          code: `try{${structCode}${outputVar}=()=>{try{return ${structOutputVar}().catch(t=>{if(t&&t.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"){return ${fallbackValVar}}else{throw t}})}catch(t){if(t&&t.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"){return Promise.resolve(${fallbackValVar})}else{throw t}}}}catch(t){if(t&&t.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"){${outputVar}=()=>Promise.resolve(${fallbackValVar})}else{throw t}}`,
+          isAsync: true,
+          outputVar,
+        }
+      } else {
+        {
+          code: `try{${structCode}}catch(t){if(t&&t.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"){${structOutputVar}=${fallbackValVar}}else{throw t}}`,
+          isAsync: false,
+          outputVar: structOutputVar,
+        }
+      }
+    },
     ~parseTransformationFactory=(. ~ctx) => {
       switch struct->getParseOperation {
       | NoOperation => ()

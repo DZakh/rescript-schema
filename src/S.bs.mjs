@@ -3944,7 +3944,30 @@ function $$catch(struct, getFallbackValue) {
   return {
           n: struct.n,
           t: struct.t,
-          parseOperationFactory: undefined,
+          parseOperationFactory: (function (b, param, inputVar, pathVar) {
+              var match = compileParser(b, struct, inputVar, pathVar);
+              var structOutputVar = match.outputVar;
+              var structCode = match.code;
+              var fallbackValVar = "e[" + (b.embeded.push(function (input, internalError) {
+                      return getFallbackValue({
+                                  error: toParseError(internalError),
+                                  input: input
+                                });
+                    }) - 1) + "](" + inputVar + ",t._1)";
+              if (!match.isAsync) {
+                return {
+                        code: "try{" + structCode + "}catch(t){if(t&&t.RE_EXN_ID===\"S-RescriptStruct.Error.Internal.Exception/1\"){" + structOutputVar + "=" + fallbackValVar + "}else{throw t}}",
+                        outputVar: structOutputVar,
+                        isAsync: false
+                      };
+              }
+              var outputVar = $$var(b);
+              return {
+                      code: "try{" + structCode + outputVar + "=()=>{try{return " + structOutputVar + "().catch(t=>{if(t&&t.RE_EXN_ID===\"S-RescriptStruct.Error.Internal.Exception/1\"){return " + fallbackValVar + "}else{throw t}})}catch(t){if(t&&t.RE_EXN_ID===\"S-RescriptStruct.Error.Internal.Exception/1\"){return Promise.resolve(" + fallbackValVar + ")}else{throw t}}}}catch(t){if(t&&t.RE_EXN_ID===\"S-RescriptStruct.Error.Internal.Exception/1\"){" + outputVar + "=()=>Promise.resolve(" + fallbackValVar + ")}else{throw t}}",
+                      outputVar: outputVar,
+                      isAsync: true
+                    };
+            }),
           isAsyncParseOperation: undefined,
           pf: (function (ctx) {
               var fn = getParseOperation(struct);
