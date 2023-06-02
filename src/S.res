@@ -588,14 +588,12 @@ type rec t<'value> = {
   name: string,
   @as("t")
   tagged: tagged,
-  mutable parseOperationFactory: option<
-    (
-      . operationBuilder,
-      ~selfStruct: t<unknown>,
-      ~inputVar: string,
-      ~pathVar: string,
-    ) => operationFactoryResult,
-  >,
+  mutable parseOperationFactory: (
+    . operationBuilder,
+    ~selfStruct: t<unknown>,
+    ~inputVar: string,
+    ~pathVar: string,
+  ) => operationFactoryResult,
   mutable isAsyncParseOperation: bool,
   @as("pf")
   parseTransformationFactory: internalTransformationFactory,
@@ -966,17 +964,7 @@ module Operation = {
     }
 
     let compileParser = (b: t, ~struct, ~inputVar, ~pathVar) => {
-      switch struct.parseOperationFactory {
-      | Some(operationFactory) => operationFactory(. b, ~selfStruct=struct, ~inputVar, ~pathVar)
-      | None =>
-        switch struct->getParseOperation {
-        | NoOperation => {isAsync: false, outputVar: inputVar, code: ""}
-        | SyncOperation(operation) =>
-          b->syncOperation(~inputVar, ~fn=operation, ~prependPathVar=pathVar)
-        | AsyncOperation(operation) =>
-          b->asyncOperation(~inputVar, ~fn=operation, ~prependPathVar=pathVar)
-        }
-      }
+      struct.parseOperationFactory(. b, ~selfStruct=struct, ~inputVar, ~pathVar)
     }
   }
 
@@ -1100,53 +1088,31 @@ let initialSerializeToJson = (. input) => {
 
 let intitialParse = (. input) => {
   let struct = %raw("this")
-  let compiledParse = switch struct.parseOperationFactory {
-  | Some(parseOperationFactory) => {
-      let compiledParse = parseOperationFactory->Operation.compile(~struct)
-      if struct.isAsyncParseOperation {
-        Error.Internal.raise(UnexpectedAsync)
-      }
-      compiledParse
-    }
-
-  | None =>
-    switch struct->getParseOperation {
-    | NoOperation => noOperation
-    | SyncOperation(fn) => fn
-    | AsyncOperation(_) => (. _) => Error.Internal.raise(UnexpectedAsync)
-    }
+  let compiledParse = struct.parseOperationFactory->Operation.compile(~struct)
+  if struct.isAsyncParseOperation {
+    Error.Internal.raise(UnexpectedAsync)
   }
+
+  // TODO: Set struct.parseAsync
   struct.parse = compiledParse
   compiledParse(. input)
 }
 
-let asyncNoopOperation = (. input) => (. ()) => input->Stdlib.Promise.resolve
-
 let intitialParseAsync = (. input) => {
   let struct = %raw("this")
-  let compiledParseAsync = switch struct.parseOperationFactory {
-  | Some(parseOperationFactory) => {
-      let parseOperation = parseOperationFactory->Operation.compile(~struct)
-      if struct.isAsyncParseOperation {
-        parseOperation
-      } else {
-        (. input) => {
-          let syncValue = parseOperation(. input)
-          (. ()) => syncValue->Stdlib.Promise.resolve
-        }
-      }
-    }
-  | None =>
-    switch struct->getParseOperation {
-    | NoOperation => asyncNoopOperation
-    | SyncOperation(fn) =>
+  let compiledParseAsync = {
+    let parseOperation = struct.parseOperationFactory->Operation.compile(~struct)
+    if struct.isAsyncParseOperation {
+      parseOperation
+    } else {
       (. input) => {
-        let syncValue = fn(. input)
+        let syncValue = parseOperation(. input)
         (. ()) => syncValue->Stdlib.Promise.resolve
       }
-    | AsyncOperation(fn) => fn
     }
   }
+
+  // TODO: Set struct.parse
   struct.parseAsync = compiledParseAsync
   compiledParseAsync(. input)
 }
@@ -1158,14 +1124,14 @@ let make = (
   ~parseTransformationFactory,
   ~serializeTransformationFactory,
   ~metadataMap,
-  ~parseOperationFactory as maybeParseOperationFactory=?,
+  ~parseOperationFactory,
   (),
 ) => {
   name,
   tagged,
   parseTransformationFactory,
   serializeTransformationFactory,
-  parseOperationFactory: maybeParseOperationFactory,
+  parseOperationFactory,
   isAsyncParseOperation: %raw("undefined"),
   parseOperationState: ParseOperationState.empty(),
   serializeOperationState: SerializeOperationState.empty(),
@@ -1306,60 +1272,47 @@ let recursive = fn => {
   let placeholder: t<'value> = %raw(`{m:emptyMetadataMap}`)
   let struct = fn->Stdlib.Fn.call1(placeholder)
   placeholder->Stdlib.Object.overrideWith(struct)
-  switch placeholder.parseOperationFactory {
-  | Some(operationFactory) =>
-    placeholder.parseOperationFactory = Some(
-      (. b, ~selfStruct, ~inputVar, ~pathVar) => {
-        selfStruct.parseOperationFactory = Some(
-          (. _b, ~selfStruct as _, ~inputVar, ~pathVar as _) => {
-            {
-              isAsync: false,
-              outputVar: inputVar,
-              code: "",
-            }
-          },
+  let operationFactory = placeholder.parseOperationFactory
+  placeholder.parseOperationFactory = (. b, ~selfStruct, ~inputVar, ~pathVar) => {
+    selfStruct.parseOperationFactory = (. _b, ~selfStruct as _, ~inputVar, ~pathVar as _) => {
+      {
+        isAsync: false,
+        outputVar: inputVar,
+        code: "",
+      }
+    }
+    let {isAsync} = operationFactory(. b, ~selfStruct, ~inputVar, ~pathVar)
+    b.varCounter = -1
+    b.varsAllocation = "_"
+    selfStruct.parseOperationFactory = (. b, ~selfStruct, ~inputVar, ~pathVar) => {
+      if isAsync {
+        b->B.asyncOperation(
+          ~inputVar,
+          ~fn=(. input) => selfStruct.parseAsync(input),
+          ~prependPathVar=pathVar,
         )
-        let {isAsync} = operationFactory(. b, ~selfStruct, ~inputVar, ~pathVar)
-        b.varCounter = -1
-        b.varsAllocation = "_"
-        selfStruct.parseOperationFactory = Some(
-          (. b, ~selfStruct, ~inputVar, ~pathVar) => {
-            if isAsync {
-              b->B.asyncOperation(
-                ~inputVar,
-                ~fn=(. input) => selfStruct.parseAsync(input),
-                ~prependPathVar=pathVar,
-              )
-            } else {
-              b->B.syncOperation(
-                ~inputVar,
-                ~fn=(. input) => selfStruct.parse(input),
-                ~prependPathVar=pathVar,
-              )
-            }
-          },
+      } else {
+        b->B.syncOperation(
+          ~inputVar,
+          ~fn=(. input) => selfStruct.parse(input),
+          ~prependPathVar=pathVar,
         )
-        let operation = operationFactory->Operation.compile(~struct=selfStruct)
-        selfStruct.parse = isAsync ? (. _) => Error.Internal.raise(UnexpectedAsync) : operation
-        selfStruct.parseAsync = isAsync
-          ? operation
-          : (. input) => {
-              let syncValue = operation(. input)
-              (. ()) => syncValue->Stdlib.Promise.resolve
-            }
-        selfStruct.parseOperationFactory = Some(operationFactory)
-        if isAsync {
-          b->B.asyncOperation(~inputVar, ~fn=operation, ~prependPathVar=pathVar)
-        } else {
-          b->B.syncOperation(~inputVar, ~fn=operation, ~prependPathVar=pathVar)
+      }
+    }
+
+    let operation = operationFactory->Operation.compile(~struct=selfStruct)
+    selfStruct.parse = isAsync ? (. _) => Error.Internal.raise(UnexpectedAsync) : operation
+    selfStruct.parseAsync = isAsync
+      ? operation
+      : (. input) => {
+          let syncValue = operation(. input)
+          (. ()) => syncValue->Stdlib.Promise.resolve
         }
-      },
-    )
-  | None =>
-    if placeholder->isAsyncParse {
-      Error.panic(
-        `The "${struct->name}" struct in the S.recursive has an async parser. To make it work, use S.asyncRecursive instead.`,
-      )
+    selfStruct.parseOperationFactory = operationFactory
+    if isAsync {
+      b->B.asyncOperation(~inputVar, ~fn=operation, ~prependPathVar=pathVar)
+    } else {
+      b->B.syncOperation(~inputVar, ~fn=operation, ~prependPathVar=pathVar)
     }
   }
   placeholder
@@ -1391,7 +1344,7 @@ module Metadata = {
       ~name=struct.name,
       ~parseTransformationFactory=struct.parseTransformationFactory,
       ~serializeTransformationFactory=struct.serializeTransformationFactory,
-      ~parseOperationFactory=?struct.parseOperationFactory,
+      ~parseOperationFactory=struct.parseOperationFactory,
       ~tagged=struct.tagged,
       ~metadataMap,
       (),
@@ -1459,78 +1412,72 @@ let refine: (
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseOperationFactory=?switch (maybeParser, maybeAsyncParser) {
+    ~parseOperationFactory=switch (maybeParser, maybeAsyncParser) {
     | (Some(parser), Some(asyncParser)) =>
-      Some(
-        (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
-          let {code, outputVar: parsedItemVar, isAsync} =
-            b->B.compileParser(~struct, ~inputVar, ~pathVar)
-          let outputVar = b->B.var
-          {
-            code: `${code}${b->B.syncTransform(
-                ~inputVar=parsedItemVar,
-                ~outputVar,
-                ~isAsyncInput=isAsync,
-                ~fn=parser,
-                ~prependPathVar=pathVar,
-                ~isRefine=true,
-                (),
-              )}${b->B.asyncTransform(
-                ~inputVar=parsedItemVar,
-                ~outputVar,
-                ~isAsyncInput=isAsync,
-                ~fn=asyncParser,
-                ~prependPathVar=pathVar,
-                ~isRefine=true,
-                (),
-              )}`,
-            outputVar,
-            isAsync: true,
-          }
-        },
-      )
+      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let {code, outputVar: parsedItemVar, isAsync} =
+          b->B.compileParser(~struct, ~inputVar, ~pathVar)
+        let outputVar = b->B.var
+        {
+          code: `${code}${b->B.syncTransform(
+              ~inputVar=parsedItemVar,
+              ~outputVar,
+              ~isAsyncInput=isAsync,
+              ~fn=parser,
+              ~prependPathVar=pathVar,
+              ~isRefine=true,
+              (),
+            )}${b->B.asyncTransform(
+              ~inputVar=parsedItemVar,
+              ~outputVar,
+              ~isAsyncInput=isAsync,
+              ~fn=asyncParser,
+              ~prependPathVar=pathVar,
+              ~isRefine=true,
+              (),
+            )}`,
+          outputVar,
+          isAsync: true,
+        }
+      }
     | (Some(parser), None) =>
-      Some(
-        (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
-          let {code, outputVar: parsedItemVar, isAsync} =
-            b->B.compileParser(~struct, ~inputVar, ~pathVar)
-          let outputVar = b->B.var
-          {
-            code: `${code}${b->B.syncTransform(
-                ~inputVar=parsedItemVar,
-                ~outputVar,
-                ~isAsyncInput=isAsync,
-                ~fn=parser,
-                ~prependPathVar=pathVar,
-                ~isRefine=true,
-                (),
-              )}`,
-            outputVar,
-            isAsync,
-          }
-        },
-      )
+      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let {code, outputVar: parsedItemVar, isAsync} =
+          b->B.compileParser(~struct, ~inputVar, ~pathVar)
+        let outputVar = b->B.var
+        {
+          code: `${code}${b->B.syncTransform(
+              ~inputVar=parsedItemVar,
+              ~outputVar,
+              ~isAsyncInput=isAsync,
+              ~fn=parser,
+              ~prependPathVar=pathVar,
+              ~isRefine=true,
+              (),
+            )}`,
+          outputVar,
+          isAsync,
+        }
+      }
     | (None, Some(asyncParser)) =>
-      Some(
-        (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
-          let {code, outputVar: parsedItemVar, isAsync} =
-            b->B.compileParser(~struct, ~inputVar, ~pathVar)
-          let outputVar = b->B.var
-          {
-            code: `${code}${b->B.asyncTransform(
-                ~inputVar=parsedItemVar,
-                ~outputVar,
-                ~isAsyncInput=isAsync,
-                ~fn=asyncParser,
-                ~prependPathVar=pathVar,
-                ~isRefine=true,
-                (),
-              )}`,
-            outputVar,
-            isAsync: true,
-          }
-        },
-      )
+      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let {code, outputVar: parsedItemVar, isAsync} =
+          b->B.compileParser(~struct, ~inputVar, ~pathVar)
+        let outputVar = b->B.var
+        {
+          code: `${code}${b->B.asyncTransform(
+              ~inputVar=parsedItemVar,
+              ~outputVar,
+              ~isAsyncInput=isAsync,
+              ~fn=asyncParser,
+              ~prependPathVar=pathVar,
+              ~isRefine=true,
+              (),
+            )}`,
+          outputVar,
+          isAsync: true,
+        }
+      }
     | (None, None) => struct.parseOperationFactory
     },
     ~parseTransformationFactory=nextParseTransformationFactory,
@@ -1790,7 +1737,7 @@ let rec advancedPreprocess = (
         ),
       ),
       ~parseTransformationFactory=struct.parseTransformationFactory,
-      ~parseOperationFactory=?struct.parseOperationFactory,
+      ~parseOperationFactory=struct.parseOperationFactory,
       ~serializeTransformationFactory=struct.serializeTransformationFactory,
       ~metadataMap=struct.metadataMap,
       (),

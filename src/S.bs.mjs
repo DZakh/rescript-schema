@@ -494,22 +494,7 @@ function raise$2(b, pathVar, code) {
 }
 
 function compileParser(b, struct, inputVar, pathVar) {
-  var operationFactory = struct.parseOperationFactory;
-  if (operationFactory !== undefined) {
-    return operationFactory(b, struct, inputVar, pathVar);
-  }
-  var operation = getParseOperation(struct);
-  if (typeof operation !== "object") {
-    return {
-            code: "",
-            outputVar: inputVar,
-            isAsync: false
-          };
-  } else if (operation.TAG === "SyncOperation") {
-    return syncOperation(b, inputVar, operation._0, pathVar);
-  } else {
-    return asyncOperation(b, inputVar, operation._0, pathVar);
-  }
+  return struct.parseOperationFactory(b, struct, inputVar, pathVar);
 }
 
 function compile$1(operationFactory, struct) {
@@ -675,60 +660,23 @@ function initialSerializeToJson(input) {
 
 function intitialParse(input) {
   var struct = this;
-  var parseOperationFactory = struct.parseOperationFactory;
-  var compiledParse;
-  if (parseOperationFactory !== undefined) {
-    var compiledParse$1 = compile$1(parseOperationFactory, struct);
-    if (struct.isAsyncParseOperation) {
-      raise$1("UnexpectedAsync");
-    }
-    compiledParse = compiledParse$1;
-  } else {
-    var fn = getParseOperation(struct);
-    compiledParse = typeof fn !== "object" ? noOperation : (
-        fn.TAG === "SyncOperation" ? fn._0 : (function (param) {
-              return raise$1("UnexpectedAsync");
-            })
-      );
+  var compiledParse = compile$1(struct.parseOperationFactory, struct);
+  if (struct.isAsyncParseOperation) {
+    raise$1("UnexpectedAsync");
   }
   struct.p = compiledParse;
   return compiledParse(input);
 }
 
-function asyncNoopOperation(input) {
-  return function () {
-    return Promise.resolve(input);
-  };
-}
-
 function intitialParseAsync(input) {
   var struct = this;
-  var parseOperationFactory = struct.parseOperationFactory;
-  var compiledParseAsync;
-  if (parseOperationFactory !== undefined) {
-    var parseOperation = compile$1(parseOperationFactory, struct);
-    compiledParseAsync = struct.isAsyncParseOperation ? parseOperation : (function (input) {
-          var syncValue = parseOperation(input);
-          return function () {
-            return Promise.resolve(syncValue);
-          };
-        });
-  } else {
-    var fn = getParseOperation(struct);
-    if (typeof fn !== "object") {
-      compiledParseAsync = asyncNoopOperation;
-    } else if (fn.TAG === "SyncOperation") {
-      var fn$1 = fn._0;
-      compiledParseAsync = (function (input) {
-          var syncValue = fn$1(input);
-          return function () {
-            return Promise.resolve(syncValue);
-          };
-        });
-    } else {
-      compiledParseAsync = fn._0;
-    }
-  }
+  var parseOperation = compile$1(struct.parseOperationFactory, struct);
+  var compiledParseAsync = struct.isAsyncParseOperation ? parseOperation : (function (input) {
+        var syncValue = parseOperation(input);
+        return function () {
+          return Promise.resolve(syncValue);
+        };
+      });
   struct.a = compiledParseAsync;
   return compiledParseAsync(input);
 }
@@ -971,50 +919,46 @@ function recursive(fn) {
   var struct = fn(placeholder);
   Object.assign(placeholder, struct);
   var operationFactory = placeholder.parseOperationFactory;
-  if (operationFactory !== undefined) {
-    placeholder.parseOperationFactory = (function (b, selfStruct, inputVar, pathVar) {
-        selfStruct.parseOperationFactory = (function (_b, param, inputVar, param$1) {
-            return {
-                    code: "",
-                    outputVar: inputVar,
-                    isAsync: false
-                  };
+  placeholder.parseOperationFactory = (function (b, selfStruct, inputVar, pathVar) {
+      selfStruct.parseOperationFactory = (function (_b, param, inputVar, param$1) {
+          return {
+                  code: "",
+                  outputVar: inputVar,
+                  isAsync: false
+                };
+        });
+      var match = operationFactory(b, selfStruct, inputVar, pathVar);
+      var isAsync = match.isAsync;
+      b.varCounter = -1;
+      b.varsAllocation = "_";
+      selfStruct.parseOperationFactory = (function (b, selfStruct, inputVar, pathVar) {
+          if (isAsync) {
+            return asyncOperation(b, inputVar, (function (input) {
+                          return selfStruct.a(input);
+                        }), pathVar);
+          } else {
+            return syncOperation(b, inputVar, (function (input) {
+                          return selfStruct.p(input);
+                        }), pathVar);
+          }
+        });
+      var operation = compile$1(operationFactory, selfStruct);
+      selfStruct.p = isAsync ? (function (param) {
+            return raise$1("UnexpectedAsync");
+          }) : operation;
+      selfStruct.a = isAsync ? operation : (function (input) {
+            var syncValue = operation(input);
+            return function () {
+              return Promise.resolve(syncValue);
+            };
           });
-        var match = operationFactory(b, selfStruct, inputVar, pathVar);
-        var isAsync = match.isAsync;
-        b.varCounter = -1;
-        b.varsAllocation = "_";
-        selfStruct.parseOperationFactory = (function (b, selfStruct, inputVar, pathVar) {
-            if (isAsync) {
-              return asyncOperation(b, inputVar, (function (input) {
-                            return selfStruct.a(input);
-                          }), pathVar);
-            } else {
-              return syncOperation(b, inputVar, (function (input) {
-                            return selfStruct.p(input);
-                          }), pathVar);
-            }
-          });
-        var operation = compile$1(operationFactory, selfStruct);
-        selfStruct.p = isAsync ? (function (param) {
-              return raise$1("UnexpectedAsync");
-            }) : operation;
-        selfStruct.a = isAsync ? operation : (function (input) {
-              var syncValue = operation(input);
-              return function () {
-                return Promise.resolve(syncValue);
-              };
-            });
-        selfStruct.parseOperationFactory = operationFactory;
-        if (isAsync) {
-          return asyncOperation(b, inputVar, operation, pathVar);
-        } else {
-          return syncOperation(b, inputVar, operation, pathVar);
-        }
-      });
-  } else if (isAsyncParse(placeholder)) {
-    throw new Error("[rescript-struct] " + ("The \"" + struct.n + "\" struct in the S.recursive has an async parser. To make it work, use S.asyncRecursive instead."));
-  }
+      selfStruct.parseOperationFactory = operationFactory;
+      if (isAsync) {
+        return asyncOperation(b, inputVar, operation, pathVar);
+      } else {
+        return syncOperation(b, inputVar, operation, pathVar);
+      }
+    });
   return placeholder;
 }
 
@@ -1247,12 +1191,12 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
           planAsyncTransformation(ctx, maybeAsyncParser);
         }) : planMissingParserTransformation;
   }
-  var tmp;
+  var parseOperationFactory;
   if (maybeParser !== undefined) {
     if (maybeAsyncParser !== undefined) {
       throw new Error("[rescript-struct] The S.transform doesn't support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.");
     }
-    tmp = (function (b, param, inputVar, pathVar) {
+    parseOperationFactory = (function (b, param, inputVar, pathVar) {
         var match = compileParser(b, struct, inputVar, pathVar);
         var isAsync = match.isAsync;
         var outputVar = $$var(b);
@@ -1263,7 +1207,7 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
               };
       });
   } else {
-    tmp = maybeAsyncParser !== undefined ? (function (b, param, inputVar, pathVar) {
+    parseOperationFactory = maybeAsyncParser !== undefined ? (function (b, param, inputVar, pathVar) {
           var match = compileParser(b, struct, inputVar, pathVar);
           var outputVar = $$var(b);
           return {
@@ -1279,11 +1223,10 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
                 };
         });
   }
-  var maybeParseOperationFactory = tmp;
   return {
           n: struct.n,
           t: struct.t,
-          parseOperationFactory: maybeParseOperationFactory,
+          parseOperationFactory: parseOperationFactory,
           isAsyncParseOperation: undefined,
           pf: (function (ctx) {
               struct.pf(ctx);
@@ -1435,16 +1378,16 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
           planAsyncTransformation(ctx, maybeAsyncParser);
         }) : planMissingParserTransformation;
   }
-  var tmp;
+  var parseOperationFactory;
   if (maybeParser !== undefined) {
     if (maybeAsyncParser !== undefined) {
       throw new Error("[rescript-struct] The S.custom doesn't support the `parser` and `asyncParser` arguments simultaneously. Keep only `asyncParser`.");
     }
-    tmp = (function (b, param, inputVar, pathVar) {
+    parseOperationFactory = (function (b, param, inputVar, pathVar) {
         return syncOperation(b, inputVar, maybeParser, pathVar);
       });
   } else {
-    tmp = maybeAsyncParser !== undefined ? (function (b, param, inputVar, pathVar) {
+    parseOperationFactory = maybeAsyncParser !== undefined ? (function (b, param, inputVar, pathVar) {
           return asyncOperation(b, inputVar, (function (unknown) {
                         return function () {
                           return maybeAsyncParser(unknown);
@@ -1458,11 +1401,10 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
                 };
         });
   }
-  var maybeParseOperationFactory = tmp;
   return {
           n: name,
           t: "Unknown",
-          parseOperationFactory: maybeParseOperationFactory,
+          parseOperationFactory: parseOperationFactory,
           isAsyncParseOperation: undefined,
           pf: (function (ctx) {
               planParser(ctx);
