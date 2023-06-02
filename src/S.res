@@ -474,12 +474,14 @@ type rec t<'value> = {
   name: string,
   @as("t")
   tagged: tagged,
-  mutable parseOperationFactory: (
-    . operationBuilder,
+  @as("pb")
+  mutable parseOperationBuilder: (
+    . builderCtx,
     ~selfStruct: t<unknown>,
     ~inputVar: string,
     ~pathVar: string,
   ) => operationFactoryResult,
+  @as("i")
   mutable isAsyncParseOperation: bool,
   @as("sf")
   serializeTransformationFactory: internalTransformationFactory,
@@ -528,7 +530,7 @@ and internalTransformationFactoryCtx = {
   mutable asyncTransformation: (. unknown) => promise<unknown>,
 }
 and internalTransformationFactory = (. ~ctx: internalTransformationFactoryCtx) => unit
-and operationBuilder = {
+and builderCtx = {
   mutable varCounter: int,
   mutable varsAllocation: string,
   embeded: array<unknown>,
@@ -678,9 +680,9 @@ let getSerializeOperation = struct => {
   }
 }
 
-module Operation = {
-  module Builder = {
-    type t = operationBuilder
+module Builder = {
+  module Ctx = {
+    type t = builderCtx
 
     @inline
     let embed = (b: t, value) => {
@@ -825,7 +827,7 @@ module Operation = {
     }
 
     let compileParser = (b: t, ~struct, ~inputVar, ~pathVar) => {
-      struct.parseOperationFactory(. b, ~selfStruct=struct, ~inputVar, ~pathVar)
+      struct.parseOperationBuilder(. b, ~selfStruct=struct, ~inputVar, ~pathVar)
     }
   }
 
@@ -848,12 +850,12 @@ module Operation = {
     Stdlib.Function.make1(~ctxVarName1="e", ~ctxVarValue1=b.embeded, ~inlinedFunction)
   }
 }
-module B = Operation.Builder
+module B = Builder.Ctx
 
 let isAsyncParse = struct => {
   let struct = struct->toUnknown
   if struct.isAsyncParseOperation === %raw(`undefined`) {
-    let operation = struct.parseOperationFactory->Operation.compile(~struct)
+    let operation = struct.parseOperationBuilder->Builder.compile(~struct)
     let isAsync = struct.isAsyncParseOperation
     struct.parse = isAsync ? (. _) => Error.Internal.raise(UnexpectedAsync) : operation
     struct.parseAsync = isAsync
@@ -955,7 +957,7 @@ let initialSerializeToJson = (. input) => {
 
 let intitialParse = (. input) => {
   let struct = %raw("this")
-  let compiledParse = struct.parseOperationFactory->Operation.compile(~struct)
+  let compiledParse = struct.parseOperationBuilder->Builder.compile(~struct)
   if struct.isAsyncParseOperation {
     Error.Internal.raise(UnexpectedAsync)
   }
@@ -968,7 +970,7 @@ let intitialParse = (. input) => {
 let intitialParseAsync = (. input) => {
   let struct = %raw("this")
   let compiledParseAsync = {
-    let parseOperation = struct.parseOperationFactory->Operation.compile(~struct)
+    let parseOperation = struct.parseOperationBuilder->Builder.compile(~struct)
     if struct.isAsyncParseOperation {
       parseOperation
     } else {
@@ -990,13 +992,13 @@ let make = (
   ~tagged,
   ~serializeTransformationFactory,
   ~metadataMap,
-  ~parseOperationFactory,
+  ~parseOperationBuilder,
   (),
 ) => {
   name,
   tagged,
   serializeTransformationFactory,
-  parseOperationFactory,
+  parseOperationBuilder,
   isAsyncParseOperation: %raw("undefined"),
   serializeOperationState: SerializeOperationState.empty(),
   serialize: initialSerialize,
@@ -1136,9 +1138,9 @@ let recursive = fn => {
   let placeholder: t<'value> = %raw(`{m:emptyMetadataMap}`)
   let struct = fn->Stdlib.Fn.call1(placeholder)
   placeholder->Stdlib.Object.overrideWith(struct)
-  let operationFactory = placeholder.parseOperationFactory
-  placeholder.parseOperationFactory = (. b, ~selfStruct, ~inputVar, ~pathVar) => {
-    selfStruct.parseOperationFactory = (. _b, ~selfStruct as _, ~inputVar, ~pathVar as _) => {
+  let operationFactory = placeholder.parseOperationBuilder
+  placeholder.parseOperationBuilder = (. b, ~selfStruct, ~inputVar, ~pathVar) => {
+    selfStruct.parseOperationBuilder = (. _b, ~selfStruct as _, ~inputVar, ~pathVar as _) => {
       {
         isAsync: false,
         outputVar: inputVar,
@@ -1148,7 +1150,7 @@ let recursive = fn => {
     let {isAsync} = operationFactory(. b, ~selfStruct, ~inputVar, ~pathVar)
     b.varCounter = -1
     b.varsAllocation = "_"
-    selfStruct.parseOperationFactory = (. b, ~selfStruct, ~inputVar, ~pathVar) => {
+    selfStruct.parseOperationBuilder = (. b, ~selfStruct, ~inputVar, ~pathVar) => {
       if isAsync {
         b->B.asyncOperation(
           ~inputVar,
@@ -1164,7 +1166,7 @@ let recursive = fn => {
       }
     }
 
-    let operation = operationFactory->Operation.compile(~struct=selfStruct)
+    let operation = operationFactory->Builder.compile(~struct=selfStruct)
     selfStruct.parse = isAsync ? (. _) => Error.Internal.raise(UnexpectedAsync) : operation
     selfStruct.parseAsync = isAsync
       ? operation
@@ -1172,7 +1174,7 @@ let recursive = fn => {
           let syncValue = operation(. input)
           (. ()) => syncValue->Stdlib.Promise.resolve
         }
-    selfStruct.parseOperationFactory = operationFactory
+    selfStruct.parseOperationBuilder = operationFactory
     if isAsync {
       b->B.asyncOperation(~inputVar, ~fn=operation, ~prependPathVar=pathVar)
     } else {
@@ -1207,7 +1209,7 @@ module Metadata = {
     make(
       ~name=struct.name,
       ~serializeTransformationFactory=struct.serializeTransformationFactory,
-      ~parseOperationFactory=struct.parseOperationFactory,
+      ~parseOperationBuilder=struct.parseOperationBuilder,
       ~tagged=struct.tagged,
       ~metadataMap,
       (),
@@ -1237,7 +1239,7 @@ let refine: (
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseOperationFactory=switch (maybeParser, maybeAsyncParser) {
+    ~parseOperationBuilder=switch (maybeParser, maybeAsyncParser) {
     | (Some(parser), Some(asyncParser)) =>
       (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let {code, outputVar: parsedItemVar, isAsync} =
@@ -1303,7 +1305,7 @@ let refine: (
           isAsync: true,
         }
       }
-    | (None, None) => struct.parseOperationFactory
+    | (None, None) => struct.parseOperationBuilder
     },
     ~serializeTransformationFactory=switch maybeSerializer {
     | Some(refineSerializer) =>
@@ -1349,7 +1351,7 @@ let advancedTransform: (
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+    ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
       switch maybeParser {
       | Some(parser) =>
         switch parser->TransformationFactory.Public.call(
@@ -1440,7 +1442,7 @@ let transform: (
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseOperationFactory=switch (maybeParser, maybeAsyncParser) {
+    ~parseOperationBuilder=switch (maybeParser, maybeAsyncParser) {
     | (Some(_), Some(_)) =>
       Error.panic(
         "The S.transform doesn't support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.",
@@ -1529,7 +1531,7 @@ let rec advancedPreprocess = (
           ->toUnknown
         ),
       ),
-      ~parseOperationFactory=struct.parseOperationFactory,
+      ~parseOperationBuilder=struct.parseOperationBuilder,
       ~serializeTransformationFactory=struct.serializeTransformationFactory,
       ~metadataMap=struct.metadataMap,
       (),
@@ -1538,7 +1540,7 @@ let rec advancedPreprocess = (
     make(
       ~name=struct.name,
       ~tagged=struct.tagged,
-      ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
         switch maybePreprocessParser {
         | Some(parser) =>
           switch parser->TransformationFactory.Public.call(
@@ -1627,7 +1629,7 @@ let custom = (
     ~name,
     ~metadataMap=emptyMetadataMap,
     ~tagged=Unknown,
-    ~parseOperationFactory=switch (maybeParser, maybeAsyncParser) {
+    ~parseOperationBuilder=switch (maybeParser, maybeAsyncParser) {
     | (Some(_), Some(_)) =>
       Error.panic(
         "The S.custom doesn't support the `parser` and `asyncParser` arguments simultaneously. Keep only `asyncParser`.",
@@ -1843,7 +1845,7 @@ module Variant = {
       make(
         ~name=struct.name,
         ~tagged=struct.tagged,
-        ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
           let {isAsync, code, outputVar: structOutputVar} =
             b->B.compileParser(~struct, ~inputVar, ~pathVar)
           let outputVar = b->B.var
@@ -1895,7 +1897,7 @@ module Literal = {
             ~name="EmptyNull Literal (null)",
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+            ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
               let outputVar = b->B.var
               {
                 code: `if(${inputVar}!==null){${b->B.raiseWithArg(
@@ -1918,7 +1920,7 @@ module Literal = {
             ~name="EmptyOption Literal (undefined)",
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+            ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
               let outputVar = b->B.var
               {
                 code: `if(${inputVar}!==undefined){${b->B.raiseWithArg(
@@ -1941,7 +1943,7 @@ module Literal = {
             ~name="NaN Literal (NaN)",
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+            ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
               let outputVar = b->B.var
               {
                 code: `if(!Number.isNaN(${inputVar})){${b->B.raiseWithArg(
@@ -1964,7 +1966,7 @@ module Literal = {
             ~name=`Bool Literal (${bool->Stdlib.Bool.toString})`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+            ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
               let outputVar = b->B.var
               {
                 code: `if(typeof ${inputVar}!=="boolean"){${b->B.raiseWithArg(
@@ -1994,7 +1996,7 @@ module Literal = {
             ~name=`String Literal ("${string}")`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+            ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
               let outputVar = b->B.var
               {
                 code: `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
@@ -2024,7 +2026,7 @@ module Literal = {
             ~name=`Float Literal (${float->Js.Float.toString})`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+            ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
               let outputVar = b->B.var
               {
                 code: `if(typeof ${inputVar}!=="number"){${b->B.raiseWithArg(
@@ -2054,7 +2056,7 @@ module Literal = {
             ~name=`Int Literal (${int->Stdlib.Int.unsafeToString})`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+            ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
               let outputVar = b->B.var
               {
                 code: `if(!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)){${b->B.raiseWithArg(
@@ -2395,7 +2397,7 @@ module Object = {
         fields: instructions.fields,
         fieldNames: instructions.fieldNames,
       }),
-      ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
         let {
           preparationPathes,
           inlinedPreparationValues,
@@ -2536,7 +2538,7 @@ module Never = {
     ~name=`Never`,
     ~metadataMap=emptyMetadataMap,
     ~tagged=Never,
-    ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+    ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
       {
         code: b->B.raiseWithArg(
           ~pathVar,
@@ -2560,7 +2562,7 @@ module Unknown = {
     ~name=`Unknown`,
     ~metadataMap=emptyMetadataMap,
     ~tagged=Unknown,
-    ~parseOperationFactory=(. _b, ~selfStruct as _, ~inputVar, ~pathVar as _) => {
+    ~parseOperationBuilder=(. _b, ~selfStruct as _, ~inputVar, ~pathVar as _) => {
       {
         code: "",
         isAsync: false,
@@ -2609,7 +2611,7 @@ module String = {
   // Adapted from https://stackoverflow.com/a/3143231
   let datetimeRe = %re(`/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/`)
 
-  let parseOperationFactory = (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+  let parseOperationBuilder = (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
     {
       code: `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
           ~pathVar,
@@ -2628,7 +2630,7 @@ module String = {
     ~name="String",
     ~metadataMap=emptyMetadataMap,
     ~tagged=String,
-    ~parseOperationFactory,
+    ~parseOperationBuilder,
     ~serializeTransformationFactory=TransformationFactory.empty,
     (),
   )
@@ -2811,9 +2813,9 @@ module JsonString = {
       ~name=`JsonString`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=String,
-      ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
         let {code: stringParserCode, outputVar: jsonStringVar} =
-          b->String.parseOperationFactory(~selfStruct, ~inputVar, ~pathVar)
+          b->String.parseOperationBuilder(~selfStruct, ~inputVar, ~pathVar)
         let jsonVar = b->B.var
         let {code: innerStructCode, isAsync, outputVar} =
           b->B.compileParser(~struct=innerStruct, ~inputVar=jsonVar, ~pathVar)
@@ -2850,7 +2852,7 @@ module Bool = {
     ~name="Bool",
     ~metadataMap=emptyMetadataMap,
     ~tagged=Bool,
-    ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+    ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
       {
         code: `if(typeof ${inputVar}!=="boolean"){${b->B.raiseWithArg(
             ~pathVar,
@@ -2897,7 +2899,7 @@ module Int = {
     ~name="Int",
     ~metadataMap=emptyMetadataMap,
     ~tagged=Int,
-    ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+    ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
       {
         code: `if(!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)){${b->B.raiseWithArg(
             ~pathVar,
@@ -2999,7 +3001,7 @@ module Float = {
     ~name="Float",
     ~metadataMap=emptyMetadataMap,
     ~tagged=Float,
-    ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+    ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
       {
         code: `if(!(typeof ${inputVar}==="number"&&!Number.isNaN(${inputVar}))){${b->B.raiseWithArg(
             ~pathVar,
@@ -3065,7 +3067,7 @@ module Null = {
       ~name=`Null`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Null(innerStruct),
-      ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let {code: innerStructCode, isAsync: isInnerStructAsync, outputVar: parsedItemVar} =
           b->B.compileParser(~struct=innerStruct, ~inputVar, ~pathVar)
         let outputVar = b->B.var
@@ -3114,7 +3116,7 @@ module Option = {
       ~name=`Option`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Option(innerStruct),
-      ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let {code: innerStructCode, isAsync: isInnerStructAsync, outputVar: parsedItemVar} =
           b->B.compileParser(~struct=innerStruct, ~inputVar, ~pathVar)
         let outputVar = b->B.var
@@ -3186,7 +3188,7 @@ module Array = {
       ~name=`Array`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Array(innerStruct),
-      ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let itemVar = b->B.varWithoutAllocation
         let iteratorVar = b->B.varWithoutAllocation
         let {code: innerStructCode, isAsync: isInnerStructAsync, outputVar: parsedItemVar} =
@@ -3312,7 +3314,7 @@ module Dict = {
       ~name=`Dict`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Dict(innerStruct),
-      ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let itemVar = b->B.varWithoutAllocation
         let keyVar = b->B.varWithoutAllocation
         let {code: innerStructCode, isAsync: isInnerStructAsync, outputVar: parsedItemVar} =
@@ -3383,7 +3385,7 @@ module Default = {
       ~name=innerStruct.name,
       ~metadataMap=emptyMetadataMap,
       ~tagged=innerStruct.tagged,
-      ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let {code: innerStructCode, isAsync: isInnerStructAsync, outputVar: parsedItemVar} =
           b->B.compileParser(~struct=innerStruct, ~inputVar, ~pathVar)
         let outputVar = b->B.var
@@ -3435,7 +3437,7 @@ module Tuple = {
       ~name="Tuple",
       ~metadataMap=emptyMetadataMap,
       ~tagged=Tuple(structs),
-      ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let codeRef = ref(
           `if(!Array.isArray(${inputVar})){${b->B.raiseWithArg(
               ~pathVar,
@@ -3577,7 +3579,7 @@ module Union = {
       ~name=`Union`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Union(structs),
-      ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
         let structs = selfStruct->classify->unsafeGetVariantPayload
 
         let errorVars = []
@@ -3769,7 +3771,7 @@ let json = {
     ~name="JSON",
     ~tagged=JSON,
     ~metadataMap=emptyMetadataMap,
-    ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+    ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
       {
         code: `${b->B.embed(parse)}(${inputVar},${pathVar});`,
         isAsync: false,
@@ -3789,7 +3791,7 @@ let catch = (struct, getFallbackValue) => {
   let struct = struct->toUnknown
   make(
     ~name=struct.name,
-    ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+    ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
       let {code: structCode, isAsync, outputVar: structOutputVar} =
         b->B.compileParser(~struct, ~inputVar, ~pathVar)
       let fallbackValVar = `${b->B.embed((input, internalError) =>

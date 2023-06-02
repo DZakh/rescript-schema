@@ -445,7 +445,7 @@ function raise$2(b, pathVar, code) {
 }
 
 function compileParser(b, struct, inputVar, pathVar) {
-  return struct.parseOperationFactory(b, struct, inputVar, pathVar);
+  return struct.pb(b, struct, inputVar, pathVar);
 }
 
 function compile$1(operationFactory, struct) {
@@ -456,16 +456,16 @@ function compile$1(operationFactory, struct) {
     embeded: []
   };
   var match = operationFactory(b, struct, intitialInputVar, "\"\"");
-  struct.isAsyncParseOperation = match.isAsync;
+  struct.i = match.isAsync;
   var inlinedFunction = intitialInputVar + "=>{var " + b.varsAllocation + ";" + match.code + "return " + match.outputVar + "}";
   console.log(inlinedFunction);
   return new Function("e", "return " + inlinedFunction)(b.embeded);
 }
 
 function isAsyncParse(struct) {
-  if (struct.isAsyncParseOperation === undefined) {
-    var operation = compile$1(struct.parseOperationFactory, struct);
-    var isAsync = struct.isAsyncParseOperation;
+  if (struct.i === undefined) {
+    var operation = compile$1(struct.pb, struct);
+    var isAsync = struct.i;
     struct.p = isAsync ? (function (param) {
           return raise$1("UnexpectedAsync");
         }) : operation;
@@ -476,7 +476,7 @@ function isAsyncParse(struct) {
           };
         });
   }
-  return struct.isAsyncParseOperation;
+  return struct.i;
 }
 
 function noOperation(input) {
@@ -619,8 +619,8 @@ function initialSerializeToJson(input) {
 
 function intitialParse(input) {
   var struct = this;
-  var compiledParse = compile$1(struct.parseOperationFactory, struct);
-  if (struct.isAsyncParseOperation) {
+  var compiledParse = compile$1(struct.pb, struct);
+  if (struct.i) {
     raise$1("UnexpectedAsync");
   }
   struct.p = compiledParse;
@@ -629,8 +629,8 @@ function intitialParse(input) {
 
 function intitialParseAsync(input) {
   var struct = this;
-  var parseOperation = compile$1(struct.parseOperationFactory, struct);
-  var compiledParseAsync = struct.isAsyncParseOperation ? parseOperation : (function (input) {
+  var parseOperation = compile$1(struct.pb, struct);
+  var compiledParseAsync = struct.i ? parseOperation : (function (input) {
         var syncValue = parseOperation(input);
         return function () {
           return Promise.resolve(syncValue);
@@ -877,9 +877,9 @@ function recursive(fn) {
   var placeholder = ({m:emptyMetadataMap});
   var struct = fn(placeholder);
   Object.assign(placeholder, struct);
-  var operationFactory = placeholder.parseOperationFactory;
-  placeholder.parseOperationFactory = (function (b, selfStruct, inputVar, pathVar) {
-      selfStruct.parseOperationFactory = (function (_b, param, inputVar, param$1) {
+  var operationFactory = placeholder.pb;
+  placeholder.pb = (function (b, selfStruct, inputVar, pathVar) {
+      selfStruct.pb = (function (_b, param, inputVar, param$1) {
           return {
                   code: "",
                   outputVar: inputVar,
@@ -890,7 +890,7 @@ function recursive(fn) {
       var isAsync = match.isAsync;
       b.varCounter = -1;
       b.varsAllocation = "_";
-      selfStruct.parseOperationFactory = (function (b, selfStruct, inputVar, pathVar) {
+      selfStruct.pb = (function (b, selfStruct, inputVar, pathVar) {
           if (isAsync) {
             return asyncOperation(b, inputVar, (function (input) {
                           return selfStruct.a(input);
@@ -911,7 +911,7 @@ function recursive(fn) {
               return Promise.resolve(syncValue);
             };
           });
-      selfStruct.parseOperationFactory = operationFactory;
+      selfStruct.pb = operationFactory;
       if (isAsync) {
         return asyncOperation(b, inputVar, operation, pathVar);
       } else {
@@ -939,8 +939,8 @@ function set(struct, id, metadata) {
   return {
           n: struct.n,
           t: struct.t,
-          parseOperationFactory: struct.parseOperationFactory,
-          isAsyncParseOperation: undefined,
+          pb: struct.pb,
+          i: undefined,
           sf: struct.sf,
           e: 0,
           s: initialSerialize,
@@ -964,7 +964,7 @@ function refine(struct, maybeParser, maybeAsyncParser, maybeSerializer, param) {
   return {
           n: struct.n,
           t: struct.t,
-          parseOperationFactory: maybeParser !== undefined ? (
+          pb: maybeParser !== undefined ? (
               maybeAsyncParser !== undefined ? (function (b, param, inputVar, pathVar) {
                     var match = compileParser(b, struct, inputVar, pathVar);
                     var isAsync = match.isAsync;
@@ -994,9 +994,9 @@ function refine(struct, maybeParser, maybeAsyncParser, maybeSerializer, param) {
                             outputVar: outputVar,
                             isAsync: true
                           };
-                  }) : struct.parseOperationFactory
+                  }) : struct.pb
             ),
-          isAsyncParseOperation: undefined,
+          i: undefined,
           sf: maybeSerializer !== undefined ? (function (ctx) {
                 planSyncTransformation(ctx, (function (input) {
                         maybeSerializer(input);
@@ -1025,7 +1025,7 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
   return {
           n: struct.n,
           t: struct.t,
-          parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+          pb: (function (b, selfStruct, inputVar, pathVar) {
               if (maybeParser === undefined) {
                 return {
                         code: raise$2(b, pathVar, "MissingParser") + ";",
@@ -1055,7 +1055,7 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
                       isAsync: true
                     };
             }),
-          isAsyncParseOperation: undefined,
+          i: undefined,
           sf: (function (ctx) {
               if (maybeSerializer !== undefined) {
                 var syncTransformation = maybeSerializer(ctx.s);
@@ -1087,12 +1087,12 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
   if (maybeParser === undefined && maybeAsyncParser === undefined && maybeSerializer === undefined) {
     panic("struct factory Transform");
   }
-  var parseOperationFactory;
+  var parseOperationBuilder;
   if (maybeParser !== undefined) {
     if (maybeAsyncParser !== undefined) {
       throw new Error("[rescript-struct] The S.transform doesn't support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.");
     }
-    parseOperationFactory = (function (b, param, inputVar, pathVar) {
+    parseOperationBuilder = (function (b, param, inputVar, pathVar) {
         var match = compileParser(b, struct, inputVar, pathVar);
         var isAsync = match.isAsync;
         var outputVar = $$var(b);
@@ -1103,7 +1103,7 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
               };
       });
   } else {
-    parseOperationFactory = maybeAsyncParser !== undefined ? (function (b, param, inputVar, pathVar) {
+    parseOperationBuilder = maybeAsyncParser !== undefined ? (function (b, param, inputVar, pathVar) {
           var match = compileParser(b, struct, inputVar, pathVar);
           var outputVar = $$var(b);
           return {
@@ -1122,8 +1122,8 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
   return {
           n: struct.n,
           t: struct.t,
-          parseOperationFactory: parseOperationFactory,
-          isAsyncParseOperation: undefined,
+          pb: parseOperationBuilder,
+          i: undefined,
           sf: (function (ctx) {
               if (maybeSerializer !== undefined) {
                 planSyncTransformation(ctx, maybeSerializer);
@@ -1158,8 +1158,8 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
     return {
             n: struct.n,
             t: tagged,
-            parseOperationFactory: struct.parseOperationFactory,
-            isAsyncParseOperation: undefined,
+            pb: struct.pb,
+            i: undefined,
             sf: struct.sf,
             e: 0,
             s: initialSerialize,
@@ -1172,7 +1172,7 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
   return {
           n: struct.n,
           t: struct.t,
-          parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+          pb: (function (b, selfStruct, inputVar, pathVar) {
               if (maybePreprocessParser === undefined) {
                 return {
                         code: raise$2(b, pathVar, "MissingParser") + ";",
@@ -1205,7 +1205,7 @@ function advancedPreprocess(struct, maybePreprocessParser, maybePreprocessSerial
                       isAsync: true
                     };
             }),
-          isAsyncParseOperation: undefined,
+          i: undefined,
           sf: (function (ctx) {
               struct.sf(ctx);
               if (maybePreprocessSerializer === undefined) {
@@ -1235,16 +1235,16 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
   if (maybeParser === undefined && maybeAsyncParser === undefined && maybeSerializer === undefined) {
     panic("Custom struct factory");
   }
-  var parseOperationFactory;
+  var parseOperationBuilder;
   if (maybeParser !== undefined) {
     if (maybeAsyncParser !== undefined) {
       throw new Error("[rescript-struct] The S.custom doesn't support the `parser` and `asyncParser` arguments simultaneously. Keep only `asyncParser`.");
     }
-    parseOperationFactory = (function (b, param, inputVar, pathVar) {
+    parseOperationBuilder = (function (b, param, inputVar, pathVar) {
         return syncOperation(b, inputVar, maybeParser, pathVar);
       });
   } else {
-    parseOperationFactory = maybeAsyncParser !== undefined ? (function (b, param, inputVar, pathVar) {
+    parseOperationBuilder = maybeAsyncParser !== undefined ? (function (b, param, inputVar, pathVar) {
           return asyncOperation(b, inputVar, (function (unknown) {
                         return function () {
                           return maybeAsyncParser(unknown);
@@ -1261,8 +1261,8 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
   return {
           n: name,
           t: "Unknown",
-          parseOperationFactory: parseOperationFactory,
-          isAsyncParseOperation: undefined,
+          pb: parseOperationBuilder,
+          i: undefined,
           sf: (function (ctx) {
               if (maybeSerializer !== undefined) {
                 return planSyncTransformation(ctx, maybeSerializer);
@@ -1360,7 +1360,7 @@ function factory(struct, definer) {
   return {
           n: struct.n,
           t: struct.t,
-          parseOperationFactory: (function (b, param, inputVar, pathVar) {
+          pb: (function (b, param, inputVar, pathVar) {
               var match = compileParser(b, struct, inputVar, pathVar);
               var isAsync = match.isAsync;
               var outputVar = $$var(b);
@@ -1370,7 +1370,7 @@ function factory(struct, definer) {
                       isAsync: isAsync
                     };
             }),
-          isAsyncParseOperation: undefined,
+          i: undefined,
           sf: (function (ctx) {
               ((function (ctx) {
                       try {
@@ -1433,7 +1433,7 @@ function factory$1(innerLiteral, variant) {
           return {
                   n: "EmptyNull Literal (null)",
                   t: tagged,
-                  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+                  pb: (function (b, param, inputVar, pathVar) {
                       var outputVar = $$var(b);
                       return {
                               code: "if(" + inputVar + "!==null){" + raiseWithArg(b, pathVar, (function (input) {
@@ -1447,7 +1447,7 @@ function factory$1(innerLiteral, variant) {
                               isAsync: false
                             };
                     }),
-                  isAsyncParseOperation: undefined,
+                  i: undefined,
                   sf: serializeTransformationFactory,
                   e: 0,
                   s: initialSerialize,
@@ -1461,7 +1461,7 @@ function factory$1(innerLiteral, variant) {
           return {
                   n: "EmptyOption Literal (undefined)",
                   t: tagged,
-                  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+                  pb: (function (b, param, inputVar, pathVar) {
                       var outputVar = $$var(b);
                       return {
                               code: "if(" + inputVar + "!==undefined){" + raiseWithArg(b, pathVar, (function (input) {
@@ -1475,7 +1475,7 @@ function factory$1(innerLiteral, variant) {
                               isAsync: false
                             };
                     }),
-                  isAsyncParseOperation: undefined,
+                  i: undefined,
                   sf: serializeTransformationFactory$1,
                   e: 0,
                   s: initialSerialize,
@@ -1489,7 +1489,7 @@ function factory$1(innerLiteral, variant) {
           return {
                   n: "NaN Literal (NaN)",
                   t: tagged,
-                  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+                  pb: (function (b, param, inputVar, pathVar) {
                       var outputVar = $$var(b);
                       return {
                               code: "if(!Number.isNaN(" + inputVar + ")){" + raiseWithArg(b, pathVar, (function (input) {
@@ -1503,7 +1503,7 @@ function factory$1(innerLiteral, variant) {
                               isAsync: false
                             };
                     }),
-                  isAsyncParseOperation: undefined,
+                  i: undefined,
                   sf: serializeTransformationFactory$2,
                   e: 0,
                   s: initialSerialize,
@@ -1522,7 +1522,7 @@ function factory$1(innerLiteral, variant) {
           return {
                   n: "String Literal (\"" + string + "\")",
                   t: tagged,
-                  parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+                  pb: (function (b, selfStruct, inputVar, pathVar) {
                       var outputVar = $$var(b);
                       return {
                               code: "if(typeof " + inputVar + "!==\"string\"){" + raiseWithArg(b, pathVar, (function (input) {
@@ -1542,7 +1542,7 @@ function factory$1(innerLiteral, variant) {
                               isAsync: false
                             };
                     }),
-                  isAsyncParseOperation: undefined,
+                  i: undefined,
                   sf: serializeTransformationFactory$3,
                   e: 0,
                   s: initialSerialize,
@@ -1557,7 +1557,7 @@ function factory$1(innerLiteral, variant) {
           return {
                   n: "Int Literal (" + $$int + ")",
                   t: tagged,
-                  parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+                  pb: (function (b, selfStruct, inputVar, pathVar) {
                       var outputVar = $$var(b);
                       return {
                               code: "if(!(typeof " + inputVar + "===\"number\"&&" + inputVar + "<2147483648&&" + inputVar + ">-2147483649&&" + inputVar + "%1===0)){" + raiseWithArg(b, pathVar, (function (input) {
@@ -1577,7 +1577,7 @@ function factory$1(innerLiteral, variant) {
                               isAsync: false
                             };
                     }),
-                  isAsyncParseOperation: undefined,
+                  i: undefined,
                   sf: serializeTransformationFactory$4,
                   e: 0,
                   s: initialSerialize,
@@ -1593,7 +1593,7 @@ function factory$1(innerLiteral, variant) {
           return {
                   n: name,
                   t: tagged,
-                  parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+                  pb: (function (b, selfStruct, inputVar, pathVar) {
                       var outputVar = $$var(b);
                       return {
                               code: "if(typeof " + inputVar + "!==\"number\"){" + raiseWithArg(b, pathVar, (function (input) {
@@ -1613,7 +1613,7 @@ function factory$1(innerLiteral, variant) {
                               isAsync: false
                             };
                     }),
-                  isAsyncParseOperation: undefined,
+                  i: undefined,
                   sf: serializeTransformationFactory$5,
                   e: 0,
                   s: initialSerialize,
@@ -1629,7 +1629,7 @@ function factory$1(innerLiteral, variant) {
           return {
                   n: name$1,
                   t: tagged,
-                  parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+                  pb: (function (b, selfStruct, inputVar, pathVar) {
                       var outputVar = $$var(b);
                       return {
                               code: "if(typeof " + inputVar + "!==\"boolean\"){" + raiseWithArg(b, pathVar, (function (input) {
@@ -1649,7 +1649,7 @@ function factory$1(innerLiteral, variant) {
                               isAsync: false
                             };
                     }),
-                  isAsyncParseOperation: undefined,
+                  i: undefined,
                   sf: serializeTransformationFactory$6,
                   e: 0,
                   s: initialSerialize,
@@ -1829,7 +1829,7 @@ function factory$3(definer) {
             fields: fields,
             fieldNames: fieldNames
           },
-          parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+          pb: (function (b, selfStruct, inputVar, pathVar) {
               var constantDefinitions = definerCtx_c;
               var inlinedPreparationValues = definerCtx_v;
               var preparationPathes = definerCtx_p;
@@ -1914,7 +1914,7 @@ function factory$3(definer) {
                       isAsync: true
                     };
             }),
-          isAsyncParseOperation: undefined,
+          i: undefined,
           sf: serializeTransformationFactory,
           e: 0,
           s: initialSerialize,
@@ -1947,7 +1947,7 @@ function transformationFactory(ctx) {
 var struct = {
   n: "Never",
   t: "Never",
-  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+  pb: (function (b, param, inputVar, pathVar) {
       return {
               code: raiseWithArg(b, pathVar, (function (input) {
                       return {
@@ -1960,7 +1960,7 @@ var struct = {
               isAsync: false
             };
     }),
-  isAsyncParseOperation: undefined,
+  i: undefined,
   sf: transformationFactory,
   e: 0,
   s: initialSerialize,
@@ -1973,14 +1973,14 @@ var struct = {
 var struct$1 = {
   n: "Unknown",
   t: "Unknown",
-  parseOperationFactory: (function (_b, param, inputVar, param$1) {
+  pb: (function (_b, param, inputVar, param$1) {
       return {
               code: "",
               outputVar: inputVar,
               isAsync: false
             };
     }),
-  isAsyncParseOperation: undefined,
+  i: undefined,
   sf: empty,
   e: 0,
   s: initialSerialize,
@@ -2009,7 +2009,7 @@ var emailRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\")
 
 var datetimeRe = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
-function parseOperationFactory(b, param, inputVar, pathVar) {
+function parseOperationBuilder(b, param, inputVar, pathVar) {
   return {
           code: "if(typeof " + inputVar + "!==\"string\"){" + raiseWithArg(b, pathVar, (function (input) {
                   return {
@@ -2026,8 +2026,8 @@ function parseOperationFactory(b, param, inputVar, pathVar) {
 var struct$2 = {
   n: "String",
   t: "String",
-  parseOperationFactory: parseOperationFactory,
-  isAsyncParseOperation: undefined,
+  pb: parseOperationBuilder,
+  i: undefined,
   sf: empty,
   e: 0,
   s: initialSerialize,
@@ -2198,8 +2198,8 @@ function factory$4(innerStruct) {
   return {
           n: "JsonString",
           t: "String",
-          parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
-              var match = parseOperationFactory(b, selfStruct, inputVar, pathVar);
+          pb: (function (b, selfStruct, inputVar, pathVar) {
+              var match = parseOperationBuilder(b, selfStruct, inputVar, pathVar);
               var jsonVar = $$var(b);
               var match$1 = compileParser(b, innerStruct, jsonVar, pathVar);
               return {
@@ -2213,7 +2213,7 @@ function factory$4(innerStruct) {
                       isAsync: match$1.isAsync
                     };
             }),
-          isAsyncParseOperation: undefined,
+          i: undefined,
           sf: (function (ctx) {
               var fn = getSerializeOperation(innerStruct);
               if (fn !== undefined) {
@@ -2238,7 +2238,7 @@ function factory$4(innerStruct) {
 var struct$3 = {
   n: "Bool",
   t: "Bool",
-  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+  pb: (function (b, param, inputVar, pathVar) {
       return {
               code: "if(typeof " + inputVar + "!==\"boolean\"){" + raiseWithArg(b, pathVar, (function (input) {
                       return {
@@ -2251,7 +2251,7 @@ var struct$3 = {
               isAsync: false
             };
     }),
-  isAsyncParseOperation: undefined,
+  i: undefined,
   sf: empty,
   e: 0,
   s: initialSerialize,
@@ -2275,7 +2275,7 @@ function refinements$1(struct) {
 var struct$4 = {
   n: "Int",
   t: "Int",
-  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+  pb: (function (b, param, inputVar, pathVar) {
       return {
               code: "if(!(typeof " + inputVar + "===\"number\"&&" + inputVar + "<2147483648&&" + inputVar + ">-2147483649&&" + inputVar + "%1===0)){" + raiseWithArg(b, pathVar, (function (input) {
                       return {
@@ -2288,7 +2288,7 @@ var struct$4 = {
               isAsync: false
             };
     }),
-  isAsyncParseOperation: undefined,
+  i: undefined,
   sf: empty,
   e: 0,
   s: initialSerialize,
@@ -2360,7 +2360,7 @@ function refinements$2(struct) {
 var struct$5 = {
   n: "Float",
   t: "Float",
-  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+  pb: (function (b, param, inputVar, pathVar) {
       return {
               code: "if(!(typeof " + inputVar + "===\"number\"&&!Number.isNaN(" + inputVar + "))){" + raiseWithArg(b, pathVar, (function (input) {
                       return {
@@ -2373,7 +2373,7 @@ var struct$5 = {
               isAsync: false
             };
     }),
-  isAsyncParseOperation: undefined,
+  i: undefined,
   sf: empty,
   e: 0,
   s: initialSerialize,
@@ -2424,7 +2424,7 @@ function factory$5(innerStruct) {
             TAG: "Null",
             _0: innerStruct
           },
-          parseOperationFactory: (function (b, param, inputVar, pathVar) {
+          pb: (function (b, param, inputVar, pathVar) {
               var match = compileParser(b, innerStruct, inputVar, pathVar);
               var isInnerStructAsync = match.isAsync;
               var outputVar = $$var(b);
@@ -2436,7 +2436,7 @@ function factory$5(innerStruct) {
                       isAsync: isInnerStructAsync
                     };
             }),
-          isAsyncParseOperation: undefined,
+          i: undefined,
           sf: (function (ctx) {
               var fn = getSerializeOperation(innerStruct);
               if (fn !== undefined) {
@@ -2473,7 +2473,7 @@ function factory$6(innerStruct) {
             TAG: "Option",
             _0: innerStruct
           },
-          parseOperationFactory: (function (b, param, inputVar, pathVar) {
+          pb: (function (b, param, inputVar, pathVar) {
               var match = compileParser(b, innerStruct, inputVar, pathVar);
               var isInnerStructAsync = match.isAsync;
               var outputVar = $$var(b);
@@ -2485,7 +2485,7 @@ function factory$6(innerStruct) {
                       isAsync: isInnerStructAsync
                     };
             }),
-          isAsyncParseOperation: undefined,
+          i: undefined,
           sf: (function (ctx) {
               var fn = getSerializeOperation(innerStruct);
               if (fn !== undefined) {
@@ -2531,7 +2531,7 @@ function factory$7(innerStruct) {
             TAG: "Array",
             _0: innerStruct
           },
-          parseOperationFactory: (function (b, param, inputVar, pathVar) {
+          pb: (function (b, param, inputVar, pathVar) {
               var itemVar = varWithoutAllocation(b);
               var iteratorVar = varWithoutAllocation(b);
               var match = compileParser(b, innerStruct, itemVar, pathVar + "+'[\"'+" + iteratorVar + "+'\"]'");
@@ -2557,7 +2557,7 @@ function factory$7(innerStruct) {
                       isAsync: true
                     };
             }),
-          isAsyncParseOperation: undefined,
+          i: undefined,
           sf: (function (ctx) {
               var fn = getSerializeOperation(innerStruct);
               if (fn !== undefined) {
@@ -2654,7 +2654,7 @@ function factory$8(innerStruct) {
             TAG: "Dict",
             _0: innerStruct
           },
-          parseOperationFactory: (function (b, param, inputVar, pathVar) {
+          pb: (function (b, param, inputVar, pathVar) {
               var itemVar = varWithoutAllocation(b);
               var keyVar = varWithoutAllocation(b);
               var match = compileParser(b, innerStruct, itemVar, pathVar + "+'[\"'+" + keyVar + "+'\"]'");
@@ -2684,7 +2684,7 @@ function factory$8(innerStruct) {
                       isAsync: true
                     };
             }),
-          isAsyncParseOperation: undefined,
+          i: undefined,
           sf: (function (ctx) {
               var fn = getSerializeOperation(innerStruct);
               if (fn !== undefined) {
@@ -2731,7 +2731,7 @@ function factory$9(innerStruct, getDefaultValue) {
   return set({
               n: innerStruct$1.n,
               t: innerStruct$1.t,
-              parseOperationFactory: (function (b, param, inputVar, pathVar) {
+              pb: (function (b, param, inputVar, pathVar) {
                   var match = compileParser(b, innerStruct$1, inputVar, pathVar);
                   var isInnerStructAsync = match.isAsync;
                   var outputVar = $$var(b);
@@ -2744,7 +2744,7 @@ function factory$9(innerStruct, getDefaultValue) {
                           isAsync: isInnerStructAsync
                         };
                 }),
-              isAsyncParseOperation: undefined,
+              i: undefined,
               sf: (function (ctx) {
                   var fn = getSerializeOperation(innerStruct$1);
                   if (fn !== undefined) {
@@ -2783,7 +2783,7 @@ function factory$10(structs) {
             TAG: "Tuple",
             _0: structs
           },
-          parseOperationFactory: (function (b, param, inputVar, pathVar) {
+          pb: (function (b, param, inputVar, pathVar) {
               var codeRef = "if(!Array.isArray(" + inputVar + ")){" + raiseWithArg(b, pathVar, (function (input) {
                       return {
                               TAG: "UnexpectedType",
@@ -2847,7 +2847,7 @@ function factory$10(structs) {
                       isAsync: match$1.isAsync
                     };
             }),
-          isAsyncParseOperation: undefined,
+          i: undefined,
           sf: (function (ctx) {
               var serializeOperations = [];
               for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
@@ -2911,7 +2911,7 @@ function factory$11(structs) {
             TAG: "Union",
             _0: structs
           },
-          parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+          pb: (function (b, selfStruct, inputVar, pathVar) {
               var structs = selfStruct.t._0;
               var errorVars = [];
               var asyncItems = {};
@@ -2978,7 +2978,7 @@ function factory$11(structs) {
                       isAsync: true
                     };
             }),
-          isAsyncParseOperation: undefined,
+          i: undefined,
           sf: (function (ctx) {
               var serializeOperations = [];
               for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
@@ -3081,14 +3081,14 @@ function parse(input, path) {
 var json = {
   n: "JSON",
   t: "JSON",
-  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+  pb: (function (b, param, inputVar, pathVar) {
       return {
               code: "e[" + (b.embeded.push(parse) - 1) + "](" + inputVar + "," + pathVar + ");",
               outputVar: inputVar,
               isAsync: false
             };
     }),
-  isAsyncParseOperation: undefined,
+  i: undefined,
   sf: empty,
   e: 0,
   s: initialSerialize,
@@ -3102,7 +3102,7 @@ function $$catch(struct, getFallbackValue) {
   return {
           n: struct.n,
           t: struct.t,
-          parseOperationFactory: (function (b, param, inputVar, pathVar) {
+          pb: (function (b, param, inputVar, pathVar) {
               var match = compileParser(b, struct, inputVar, pathVar);
               var structOutputVar = match.outputVar;
               var structCode = match.code;
@@ -3126,7 +3126,7 @@ function $$catch(struct, getFallbackValue) {
                       isAsync: true
                     };
             }),
-          isAsyncParseOperation: undefined,
+          i: undefined,
           sf: struct.sf,
           e: 0,
           s: initialSerialize,

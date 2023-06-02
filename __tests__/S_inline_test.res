@@ -17,7 +17,7 @@ module Stdlib = {
 
 let assertEqualStructs = {
   let cleanUpTransformationFactories = (struct: S.t<'v>): S.t<'v> => {
-    struct->Obj.magic->Stdlib.Dict.omit(["sf", "parseOperationFactory"])->Obj.magic
+    struct->Obj.magic->Stdlib.Dict.omit(["sf", "pb"])->Obj.magic
   }
   (t, s1, s2, ~message=?, ()) => {
     t->Assert.deepEqual(
