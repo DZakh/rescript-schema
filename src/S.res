@@ -2166,7 +2166,6 @@ module Variant = {
   }
 }
 
-// TODO:
 module Literal = {
   module Variant = {
     let factory:
@@ -2206,6 +2205,21 @@ module Literal = {
             ~name="EmptyNull Literal (null)",
             ~metadataMap=emptyMetadataMap,
             ~tagged,
+            ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+              let outputVar = b->B.var
+              {
+                code: `if(${inputVar}!==null){${b->B.raiseWithArg(
+                    ~pathVar,
+                    (. input) => UnexpectedType({
+                      expected: "EmptyNull Literal (null)",
+                      received: input->Stdlib.Unknown.toName,
+                    }),
+                    inputVar,
+                  )}}${outputVar}=${b->B.embed(variant)};`,
+                isAsync: false,
+                outputVar,
+              }
+            },
             ~parseTransformationFactory=(. ~ctx) =>
               ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
                 if input === Js.Null.empty {
@@ -2222,6 +2236,21 @@ module Literal = {
             ~name="EmptyOption Literal (undefined)",
             ~metadataMap=emptyMetadataMap,
             ~tagged,
+            ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+              let outputVar = b->B.var
+              {
+                code: `if(${inputVar}!==undefined){${b->B.raiseWithArg(
+                    ~pathVar,
+                    (. input) => UnexpectedType({
+                      expected: "EmptyOption Literal (undefined)",
+                      received: input->Stdlib.Unknown.toName,
+                    }),
+                    inputVar,
+                  )}}${outputVar}=${b->B.embed(variant)};`,
+                isAsync: false,
+                outputVar,
+              }
+            },
             ~parseTransformationFactory=(. ~ctx) =>
               ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
                 if input === Js.Undefined.empty {
@@ -2238,6 +2267,21 @@ module Literal = {
             ~name="NaN Literal (NaN)",
             ~metadataMap=emptyMetadataMap,
             ~tagged,
+            ~parseOperationFactory=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+              let outputVar = b->B.var
+              {
+                code: `if(!Number.isNaN(${inputVar})){${b->B.raiseWithArg(
+                    ~pathVar,
+                    (. input) => UnexpectedType({
+                      expected: "NaN Literal (NaN)",
+                      received: input->Stdlib.Unknown.toName,
+                    }),
+                    inputVar,
+                  )}}${outputVar}=${b->B.embed(variant)};`,
+                isAsync: false,
+                outputVar,
+              }
+            },
             ~parseTransformationFactory=(. ~ctx) =>
               ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
                 if Js.Float.isNaN(input) {
@@ -2254,6 +2298,28 @@ module Literal = {
             ~name=`Bool Literal (${bool->Stdlib.Bool.toString})`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
+            ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+              let outputVar = b->B.var
+              {
+                code: `if(typeof ${inputVar}!=="boolean"){${b->B.raiseWithArg(
+                    ~pathVar,
+                    (. input) => UnexpectedType({
+                      expected: selfStruct.name,
+                      received: input->Stdlib.Unknown.toName,
+                    }),
+                    inputVar,
+                  )}}if(${inputVar}!==${bool->Stdlib.Bool.toString}){${b->B.raiseWithArg(
+                    ~pathVar,
+                    (. input) => UnexpectedValue({
+                      expected: bool->Stdlib.Bool.toString,
+                      received: input->Stdlib.Inlined.Value.stringify,
+                    }),
+                    inputVar,
+                  )}}${outputVar}=${b->B.embed(variant)};`,
+                isAsync: false,
+                outputVar,
+              }
+            },
             ~parseTransformationFactory=makeParseTransformationFactory(
               ~literalValue=bool,
               ~test=input => input->Js.typeof === "boolean",
@@ -2266,6 +2332,28 @@ module Literal = {
             ~name=`String Literal ("${string}")`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
+            ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+              let outputVar = b->B.var
+              {
+                code: `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
+                    ~pathVar,
+                    (. input) => UnexpectedType({
+                      expected: selfStruct.name,
+                      received: input->Stdlib.Unknown.toName,
+                    }),
+                    inputVar,
+                  )}}if(${inputVar}!==${string->Stdlib.Inlined.Value.fromString}){${b->B.raiseWithArg(
+                    ~pathVar,
+                    (. input) => UnexpectedValue({
+                      expected: string->Stdlib.Inlined.Value.fromString,
+                      received: input->Stdlib.Inlined.Value.stringify,
+                    }),
+                    inputVar,
+                  )}}${outputVar}=${b->B.embed(variant)};`,
+                isAsync: false,
+                outputVar,
+              }
+            },
             ~parseTransformationFactory=makeParseTransformationFactory(
               ~literalValue=string,
               ~test=input => input->Js.typeof === "string",
@@ -2278,6 +2366,28 @@ module Literal = {
             ~name=`Float Literal (${float->Js.Float.toString})`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
+            ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+              let outputVar = b->B.var
+              {
+                code: `if(typeof ${inputVar}!=="number"){${b->B.raiseWithArg(
+                    ~pathVar,
+                    (. input) => UnexpectedType({
+                      expected: selfStruct.name,
+                      received: input->Stdlib.Unknown.toName,
+                    }),
+                    inputVar,
+                  )}}if(${inputVar}!==${float->Js.Float.toString}){${b->B.raiseWithArg(
+                    ~pathVar,
+                    (. input) => UnexpectedValue({
+                      expected: float->Js.Float.toString,
+                      received: input->Stdlib.Inlined.Value.stringify,
+                    }),
+                    inputVar,
+                  )}}${outputVar}=${b->B.embed(variant)};`,
+                isAsync: false,
+                outputVar,
+              }
+            },
             ~parseTransformationFactory=makeParseTransformationFactory(
               ~literalValue=float,
               ~test=input => input->Js.typeof === "number",
@@ -2290,6 +2400,28 @@ module Literal = {
             ~name=`Int Literal (${int->Stdlib.Int.unsafeToString})`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
+            ~parseOperationFactory=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+              let outputVar = b->B.var
+              {
+                code: `if(!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)){${b->B.raiseWithArg(
+                    ~pathVar,
+                    (. input) => UnexpectedType({
+                      expected: selfStruct.name,
+                      received: input->Stdlib.Unknown.toName,
+                    }),
+                    inputVar,
+                  )}}if(${inputVar}!==${int->Stdlib.Int.unsafeToString}){${b->B.raiseWithArg(
+                    ~pathVar,
+                    (. input) => UnexpectedValue({
+                      expected: int->Js.Int.toString,
+                      received: input->Stdlib.Inlined.Value.stringify,
+                    }),
+                    inputVar,
+                  )}}${outputVar}=${b->B.embed(variant)};`,
+                isAsync: false,
+                outputVar,
+              }
+            },
             ~parseTransformationFactory=makeParseTransformationFactory(
               ~literalValue=int,
               ~test=Stdlib.Int.test,

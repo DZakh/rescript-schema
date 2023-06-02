@@ -1658,7 +1658,20 @@ function factory$1(innerLiteral, variant) {
           return {
                   n: "EmptyNull Literal (null)",
                   t: tagged,
-                  parseOperationFactory: undefined,
+                  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+                      var outputVar = $$var(b);
+                      return {
+                              code: "if(" + inputVar + "!==null){" + raiseWithArg(b, pathVar, (function (input) {
+                                      return {
+                                              TAG: "UnexpectedType",
+                                              expected: "EmptyNull Literal (null)",
+                                              received: toName(input)
+                                            };
+                                    }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.embeded.push(variant) - 1) + "]") + ";",
+                              outputVar: outputVar,
+                              isAsync: false
+                            };
+                    }),
                   isAsyncParseOperation: undefined,
                   pf: (function (ctx) {
                       planSyncTransformation(ctx, (function (input) {
@@ -1683,7 +1696,20 @@ function factory$1(innerLiteral, variant) {
           return {
                   n: "EmptyOption Literal (undefined)",
                   t: tagged,
-                  parseOperationFactory: undefined,
+                  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+                      var outputVar = $$var(b);
+                      return {
+                              code: "if(" + inputVar + "!==undefined){" + raiseWithArg(b, pathVar, (function (input) {
+                                      return {
+                                              TAG: "UnexpectedType",
+                                              expected: "EmptyOption Literal (undefined)",
+                                              received: toName(input)
+                                            };
+                                    }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.embeded.push(variant) - 1) + "]") + ";",
+                              outputVar: outputVar,
+                              isAsync: false
+                            };
+                    }),
                   isAsyncParseOperation: undefined,
                   pf: (function (ctx) {
                       planSyncTransformation(ctx, (function (input) {
@@ -1708,7 +1734,20 @@ function factory$1(innerLiteral, variant) {
           return {
                   n: "NaN Literal (NaN)",
                   t: tagged,
-                  parseOperationFactory: undefined,
+                  parseOperationFactory: (function (b, param, inputVar, pathVar) {
+                      var outputVar = $$var(b);
+                      return {
+                              code: "if(!Number.isNaN(" + inputVar + ")){" + raiseWithArg(b, pathVar, (function (input) {
+                                      return {
+                                              TAG: "UnexpectedType",
+                                              expected: "NaN Literal (NaN)",
+                                              received: toName(input)
+                                            };
+                                    }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.embeded.push(variant) - 1) + "]") + ";",
+                              outputVar: outputVar,
+                              isAsync: false
+                            };
+                    }),
                   isAsyncParseOperation: undefined,
                   pf: (function (ctx) {
                       planSyncTransformation(ctx, (function (input) {
@@ -1741,7 +1780,26 @@ function factory$1(innerLiteral, variant) {
           return {
                   n: "String Literal (\"" + string + "\")",
                   t: tagged,
-                  parseOperationFactory: undefined,
+                  parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+                      var outputVar = $$var(b);
+                      return {
+                              code: "if(typeof " + inputVar + "!==\"string\"){" + raiseWithArg(b, pathVar, (function (input) {
+                                      return {
+                                              TAG: "UnexpectedType",
+                                              expected: selfStruct.n,
+                                              received: toName(input)
+                                            };
+                                    }), inputVar) + "}if(" + inputVar + "!==" + JSON.stringify(string) + "){" + raiseWithArg(b, pathVar, (function (input) {
+                                      return {
+                                              TAG: "UnexpectedValue",
+                                              expected: JSON.stringify(string),
+                                              received: input === undefined ? "undefined" : JSON.stringify(input)
+                                            };
+                                    }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.embeded.push(variant) - 1) + "]") + ";",
+                              outputVar: outputVar,
+                              isAsync: false
+                            };
+                    }),
                   isAsyncParseOperation: undefined,
                   pf: parseTransformationFactory,
                   sf: serializeTransformationFactory$3,
@@ -1760,7 +1818,26 @@ function factory$1(innerLiteral, variant) {
           return {
                   n: "Int Literal (" + $$int + ")",
                   t: tagged,
-                  parseOperationFactory: undefined,
+                  parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+                      var outputVar = $$var(b);
+                      return {
+                              code: "if(!(typeof " + inputVar + "===\"number\"&&" + inputVar + "<2147483648&&" + inputVar + ">-2147483649&&" + inputVar + "%1===0)){" + raiseWithArg(b, pathVar, (function (input) {
+                                      return {
+                                              TAG: "UnexpectedType",
+                                              expected: selfStruct.n,
+                                              received: toName(input)
+                                            };
+                                    }), inputVar) + "}if(" + inputVar + "!==" + $$int + "){" + raiseWithArg(b, pathVar, (function (input) {
+                                      return {
+                                              TAG: "UnexpectedValue",
+                                              expected: $$int.toString(),
+                                              received: input === undefined ? "undefined" : JSON.stringify(input)
+                                            };
+                                    }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.embeded.push(variant) - 1) + "]") + ";",
+                              outputVar: outputVar,
+                              isAsync: false
+                            };
+                    }),
                   isAsyncParseOperation: undefined,
                   pf: parseTransformationFactory$1,
                   sf: serializeTransformationFactory$4,
@@ -1782,7 +1859,26 @@ function factory$1(innerLiteral, variant) {
           return {
                   n: name,
                   t: tagged,
-                  parseOperationFactory: undefined,
+                  parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+                      var outputVar = $$var(b);
+                      return {
+                              code: "if(typeof " + inputVar + "!==\"number\"){" + raiseWithArg(b, pathVar, (function (input) {
+                                      return {
+                                              TAG: "UnexpectedType",
+                                              expected: selfStruct.n,
+                                              received: toName(input)
+                                            };
+                                    }), inputVar) + "}if(" + inputVar + "!==" + $$float.toString() + "){" + raiseWithArg(b, pathVar, (function (input) {
+                                      return {
+                                              TAG: "UnexpectedValue",
+                                              expected: $$float.toString(),
+                                              received: input === undefined ? "undefined" : JSON.stringify(input)
+                                            };
+                                    }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.embeded.push(variant) - 1) + "]") + ";",
+                              outputVar: outputVar,
+                              isAsync: false
+                            };
+                    }),
                   isAsyncParseOperation: undefined,
                   pf: parseTransformationFactory$2,
                   sf: serializeTransformationFactory$5,
@@ -1804,7 +1900,26 @@ function factory$1(innerLiteral, variant) {
           return {
                   n: name$1,
                   t: tagged,
-                  parseOperationFactory: undefined,
+                  parseOperationFactory: (function (b, selfStruct, inputVar, pathVar) {
+                      var outputVar = $$var(b);
+                      return {
+                              code: "if(typeof " + inputVar + "!==\"boolean\"){" + raiseWithArg(b, pathVar, (function (input) {
+                                      return {
+                                              TAG: "UnexpectedType",
+                                              expected: selfStruct.n,
+                                              received: toName(input)
+                                            };
+                                    }), inputVar) + "}if(" + inputVar + "!==" + bool.toString() + "){" + raiseWithArg(b, pathVar, (function (input) {
+                                      return {
+                                              TAG: "UnexpectedValue",
+                                              expected: bool.toString(),
+                                              received: input === undefined ? "undefined" : JSON.stringify(input)
+                                            };
+                                    }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.embeded.push(variant) - 1) + "]") + ";",
+                              outputVar: outputVar,
+                              isAsync: false
+                            };
+                    }),
                   isAsyncParseOperation: undefined,
                   pf: parseTransformationFactory$3,
                   sf: serializeTransformationFactory$6,
