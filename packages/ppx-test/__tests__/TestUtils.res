@@ -10,7 +10,7 @@ let assertEqualStructs = {
     ->Dict.toArray
     ->Array.forEach(((key, value)) => {
       switch key {
-      | "sf" | "pb" => ()
+      | "sb" | "pb" => ()
       | _ =>
         if typeof(value) === #object && value !== %raw("null") {
           new->Dict.set(
