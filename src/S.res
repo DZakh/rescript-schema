@@ -357,11 +357,6 @@ type taggedLiteral =
   | EmptyOption
   | NaN
 
-type operationBuilderResult = {
-  code: string,
-  outputVar: string,
-  isAsync: bool,
-}
 @unboxed
 type isAsyncParse = | @as(0) Unknown | Value(bool)
 
@@ -371,19 +366,9 @@ type rec t<'value> = {
   @as("t")
   tagged: tagged,
   @as("pb")
-  mutable parseOperationBuilder: (
-    . builderCtx,
-    ~selfStruct: t<unknown>,
-    ~inputVar: string,
-    ~pathVar: string,
-  ) => operationBuilderResult,
+  mutable parseOperationBuilder: builder,
   @as("sb")
-  mutable serializeOperationBuilder: (
-    . builderCtx,
-    ~selfStruct: t<unknown>,
-    ~inputVar: string,
-    ~pathVar: string,
-  ) => operationBuilderResult,
+  mutable serializeOperationBuilder: builder,
   @as("i")
   mutable isAsyncParse: isAsyncParse,
   @as("s")
@@ -417,11 +402,7 @@ and transformation<'input, 'output> =
   | Noop: transformation<'input, 'input>
   | Sync('input => 'output)
   | Async('input => promise<'output>)
-and builderCtx = {
-  mutable varCounter: int,
-  mutable varsAllocation: string,
-  embeded: array<unknown>,
-}
+and builder
 and struct<'a> = t<'a>
 
 type payloadedVariant<'payload> = {_0: 'payload}
@@ -454,8 +435,36 @@ let classify = struct => struct.tagged
 let name = struct => struct.name
 
 module Builder = {
+  type t = builder
+  type params = {
+    code: string,
+    outputVar: string,
+    isAsync: bool,
+  }
+  type ctx = {
+    mutable varCounter: int,
+    mutable varsAllocation: string,
+    embeded: array<unknown>,
+  }
+  type implementation = (
+    . ctx,
+    ~selfStruct: struct<unknown>,
+    ~inputVar: string,
+    ~pathVar: string,
+  ) => params
+
+  let make = (Obj.magic: implementation => t)
+
+  let noop = make((. _b, ~selfStruct as _, ~inputVar, ~pathVar as _) => {
+    {
+      isAsync: false,
+      outputVar: inputVar,
+      code: "",
+    }
+  })
+
   module Ctx = {
-    type t = builderCtx
+    type t = ctx
 
     @inline
     let embed = (b: t, value) => {
@@ -599,42 +608,36 @@ module Builder = {
         })}(${pathVar})`
     }
 
-    let compileParser = (b: t, ~struct, ~inputVar, ~pathVar) => {
-      struct.parseOperationBuilder(. b, ~selfStruct=struct, ~inputVar, ~pathVar)
+    let run = (b: t, ~builder, ~struct, ~inputVar, ~pathVar) => {
+      let params = (builder->(Obj.magic: builder => implementation))(.
+        b,
+        ~selfStruct=struct,
+        ~inputVar,
+        ~pathVar,
+      )
+      if struct.parseOperationBuilder === builder {
+        struct.isAsyncParse = Value(params.isAsync)
+      }
+      params
     }
   }
 
-  let noop = (. _b, ~selfStruct as _, ~inputVar, ~pathVar as _) => {
-    {
-      isAsync: false,
-      outputVar: inputVar,
-      code: "",
-    }
-  }
-
-  let run = (operationBuilder, ~struct) => {
+  let build = (builder, ~struct) => {
     let intitialInputVar = "i"
     let b = {
       embeded: [],
       varCounter: -1,
       varsAllocation: "_",
     }
-    let {code, outputVar, isAsync} = operationBuilder(.
-      b,
-      ~selfStruct=struct,
-      ~inputVar=intitialInputVar,
-      ~pathVar=`""`,
-    )
-    struct.isAsyncParse = Value(isAsync)
-    // TODO:Shouldn't run for serializers
-    // TODO:Optimize Builder.noop i=>{var _;return i}
+    let {code, outputVar} = b->Ctx.run(~builder, ~struct, ~inputVar=intitialInputVar, ~pathVar=`""`)
+    // TODO: Optimize Builder.noop i=>{var _;return i}
     let inlinedFunction = `${intitialInputVar}=>{var ${b.varsAllocation};${code}return ${outputVar}}`
     Js.log(inlinedFunction)
     Stdlib.Function.make1(~ctxVarName1="e", ~ctxVarValue1=b.embeded, ~inlinedFunction)
   }
 
-  let compileParser = (struct, ~operationBuilder=struct.parseOperationBuilder, ()) => {
-    let operation = operationBuilder->run(~struct)
+  let compileParser = (struct, ~builder) => {
+    let operation = builder->build(~struct)
     let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
     struct.parse = isAsync ? (. _) => Error.Internal.raise(UnexpectedAsync) : operation
     struct.parseAsync = isAsync
@@ -645,8 +648,8 @@ module Builder = {
         }
   }
 
-  let compileSerializer = (struct, ~operationBuilder=struct.serializeOperationBuilder, ()) => {
-    let operation = operationBuilder->run(~struct)
+  let compileSerializer = (struct, ~builder) => {
+    let operation = builder->build(~struct)
     struct.serialize = operation
   }
 }
@@ -656,7 +659,7 @@ let isAsyncParse = struct => {
   let struct = struct->toUnknown
   switch struct.isAsyncParse {
   | Unknown => {
-      struct->Builder.compileParser()
+      struct->Builder.compileParser(~builder=struct.parseOperationBuilder)
       struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
     }
   | Value(v) => v
@@ -665,7 +668,7 @@ let isAsyncParse = struct => {
 
 let initialSerialize = (. input) => {
   let struct = %raw("this")
-  struct->Builder.compileSerializer()
+  struct->Builder.compileSerializer(~builder=struct.serializeOperationBuilder)
   struct.serialize(. input)
 }
 
@@ -730,7 +733,7 @@ let initialSerializeToJson = (. input) => {
   try {
     struct->validateJsonableStruct(~rootStruct=struct, ~isRoot=true, ())
     if struct.serialize === initialSerialize {
-      struct->Builder.compileSerializer()
+      struct->Builder.compileSerializer(~builder=struct.serializeOperationBuilder)
     }
     struct.serializeToJson =
       struct.serialize->(Obj.magic: ((. unknown) => unknown) => (. unknown) => Js.Json.t)
@@ -742,13 +745,13 @@ let initialSerializeToJson = (. input) => {
 
 let intitialParse = (. input) => {
   let struct = %raw("this")
-  struct->Builder.compileParser()
+  struct->Builder.compileParser(~builder=struct.parseOperationBuilder)
   struct.parse(. input)
 }
 
 let intitialParseAsync = (. input) => {
   let struct = %raw("this")
-  struct->Builder.compileParser()
+  struct->Builder.compileParser(~builder=struct.parseOperationBuilder)
   struct.parseAsync(. input)
 }
 
@@ -905,13 +908,13 @@ let recursive = fn => {
   placeholder->Stdlib.Object.overrideWith(struct)
 
   {
-    let operationBuilder = placeholder.parseOperationBuilder
-    placeholder.parseOperationBuilder = (. b, ~selfStruct, ~inputVar, ~pathVar) => {
+    let builder = placeholder.parseOperationBuilder
+    placeholder.parseOperationBuilder = Builder.make((. b, ~selfStruct, ~inputVar, ~pathVar) => {
       selfStruct.parseOperationBuilder = Builder.noop
-      let {isAsync} = operationBuilder(. b, ~selfStruct, ~inputVar, ~pathVar)
+      let {isAsync} = b->B.run(~builder, ~struct=selfStruct, ~inputVar, ~pathVar)
       b.varCounter = -1
       b.varsAllocation = "_"
-      selfStruct.parseOperationBuilder = (. b, ~selfStruct, ~inputVar, ~pathVar) => {
+      selfStruct.parseOperationBuilder = Builder.make((. b, ~selfStruct, ~inputVar, ~pathVar) => {
         if isAsync {
           b->B.asyncOperation(
             ~inputVar,
@@ -925,32 +928,42 @@ let recursive = fn => {
             ~prependPathVar=pathVar,
           )
         }
-      }
+      })
 
-      selfStruct->Builder.compileParser(~operationBuilder, ())
-      selfStruct.parseOperationBuilder = operationBuilder
+      selfStruct->Builder.compileParser(~builder)
+      selfStruct.parseOperationBuilder = builder
       if isAsync {
         b->B.asyncOperation(~inputVar, ~fn=selfStruct.parseAsync, ~prependPathVar=pathVar)
       } else {
         b->B.syncOperation(~inputVar, ~fn=selfStruct.parse, ~prependPathVar=pathVar)
       }
-    }
+    })
   }
 
   {
-    let operationBuilder = placeholder.serializeOperationBuilder
-    placeholder.serializeOperationBuilder = (. b, ~selfStruct, ~inputVar, ~pathVar) => {
-      selfStruct.serializeOperationBuilder = (. b, ~selfStruct, ~inputVar, ~pathVar) => {
+    let builder = placeholder.serializeOperationBuilder
+    placeholder.serializeOperationBuilder = Builder.make((.
+      b,
+      ~selfStruct,
+      ~inputVar,
+      ~pathVar,
+    ) => {
+      selfStruct.serializeOperationBuilder = Builder.make((.
+        b,
+        ~selfStruct,
+        ~inputVar,
+        ~pathVar,
+      ) => {
         b->B.syncOperation(
           ~inputVar,
           ~fn=(. input) => selfStruct.serialize(input),
           ~prependPathVar=pathVar,
         )
-      }
-      selfStruct->Builder.compileSerializer(~operationBuilder, ())
-      selfStruct.serializeOperationBuilder = operationBuilder
+      })
+      selfStruct->Builder.compileSerializer(~builder)
+      selfStruct.serializeOperationBuilder = builder
       b->B.syncOperation(~inputVar, ~fn=selfStruct.serialize, ~prependPathVar=pathVar)
-    }
+    })
   }
 
   placeholder
@@ -1013,9 +1026,9 @@ let refine: (
     ~tagged=struct.tagged,
     ~parseOperationBuilder=switch (maybeParser, maybeAsyncParser) {
     | (Some(parser), Some(asyncParser)) =>
-      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let {code, outputVar: childOutputVar, isAsync} =
-          b->B.compileParser(~struct, ~inputVar, ~pathVar)
+          b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar)
         let outputVar = b->B.var
         {
           code: `${code}${b->B.syncTransform(
@@ -1038,11 +1051,11 @@ let refine: (
           outputVar,
           isAsync: true,
         }
-      }
+      })
     | (Some(parser), None) =>
-      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let {code, outputVar: childOutputVar, isAsync} =
-          b->B.compileParser(~struct, ~inputVar, ~pathVar)
+          b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar)
         let outputVar = b->B.var
         {
           code: `${code}${b->B.syncTransform(
@@ -1057,11 +1070,11 @@ let refine: (
           outputVar,
           isAsync,
         }
-      }
+      })
     | (None, Some(asyncParser)) =>
-      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let {code, outputVar: childOutputVar, isAsync} =
-          b->B.compileParser(~struct, ~inputVar, ~pathVar)
+          b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar)
         let outputVar = b->B.var
         {
           code: `${code}${b->B.asyncTransform(
@@ -1076,13 +1089,14 @@ let refine: (
           outputVar,
           isAsync: true,
         }
-      }
+      })
     | (None, None) => struct.parseOperationBuilder
     },
     ~serializeOperationBuilder=switch maybeSerializer {
     | Some(serializer) =>
-      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
-        let {code, outputVar} = b->B.compileParser(~struct, ~inputVar, ~pathVar)
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let {code, outputVar} =
+          b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar)
 
         {
           code: b->B.syncTransform(
@@ -1097,7 +1111,7 @@ let refine: (
           outputVar,
           isAsync: false,
         }
-      }
+      })
 
     | None => struct.serializeOperationBuilder
     },
@@ -1134,16 +1148,16 @@ let advancedTransform: (
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+    ~parseOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~pathVar) => {
       switch maybeParser {
       | Some(parser) =>
         switch parser->TransformationFactory.call(
           ~struct=selfStruct->castUnknownStructToAnyStruct,
         ) {
-        | Noop => b->B.compileParser(~struct, ~inputVar, ~pathVar)
+        | Noop => b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar)
         | Sync(syncTransformation) => {
             let {code, outputVar: childOutputVar, isAsync} =
-              b->B.compileParser(~struct, ~inputVar, ~pathVar)
+              b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar)
             let outputVar = b->B.var
             {
               code: `${code}${b->B.syncTransform(
@@ -1160,7 +1174,7 @@ let advancedTransform: (
           }
         | Async(asyncTransformation) => {
             let {code, outputVar: childOutputVar, isAsync} =
-              b->B.compileParser(~struct, ~inputVar, ~pathVar)
+              b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar)
             let outputVar = b->B.var
             {
               code: `${code}${b->B.asyncTransform(
@@ -1182,22 +1196,23 @@ let advancedTransform: (
           isAsync: false,
         }
       }
-    },
-    ~serializeOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+    }),
+    ~serializeOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~pathVar) => {
       switch maybeSerializer {
       | Some(serializer) =>
         switch serializer->TransformationFactory.call(
           ~struct=selfStruct->castUnknownStructToAnyStruct,
         ) {
-        | Noop => struct.serializeOperationBuilder(. b, ~selfStruct=struct, ~inputVar, ~pathVar)
+        | Noop => b->B.run(~builder=struct.serializeOperationBuilder, ~struct, ~inputVar, ~pathVar)
         | Sync(fn) => {
             let transformOutputVar = b->B.var
-            let {code, outputVar} = struct.serializeOperationBuilder(.
-              b,
-              ~selfStruct=struct,
-              ~inputVar=transformOutputVar,
-              ~pathVar,
-            )
+            let {code, outputVar} =
+              b->B.run(
+                ~builder=struct.serializeOperationBuilder,
+                ~struct,
+                ~inputVar=transformOutputVar,
+                ~pathVar,
+              )
             {
               code: `${b->B.syncTransform(
                   ~inputVar,
@@ -1223,7 +1238,7 @@ let advancedTransform: (
           isAsync: false,
         }
       }
-    },
+    }),
     ~metadataMap=struct.metadataMap,
     (),
   )
@@ -1256,9 +1271,9 @@ let transform: (
         "The S.transform doesn't support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.",
       )
     | (Some(parser), None) =>
-      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let {code, outputVar: childOutputVar, isAsync} =
-          b->B.compileParser(~struct, ~inputVar, ~pathVar)
+          b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar)
         let outputVar = b->B.var
         {
           code: `${code}${b->B.syncTransform(
@@ -1272,11 +1287,11 @@ let transform: (
           outputVar,
           isAsync,
         }
-      }
+      })
     | (None, Some(asyncParser)) =>
-      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let {code, outputVar: childOutputVar, isAsync} =
-          b->B.compileParser(~struct, ~inputVar, ~pathVar)
+          b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar)
         let outputVar = b->B.var
         {
           code: `${code}${b->B.asyncTransform(
@@ -1290,24 +1305,25 @@ let transform: (
           outputVar,
           isAsync: true,
         }
-      }
+      })
     | (None, None) =>
-      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         code: b->B.raise(~pathVar, MissingParser) ++ ";",
         outputVar: inputVar,
         isAsync: false,
-      }
+      })
     },
     ~serializeOperationBuilder=switch maybeSerializer {
     | Some(serializer) =>
-      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let transformOutputVar = b->B.var
-        let {code, outputVar} = struct.serializeOperationBuilder(.
-          b,
-          ~selfStruct=struct,
-          ~inputVar=transformOutputVar,
-          ~pathVar,
-        )
+        let {code, outputVar} =
+          b->B.run(
+            ~builder=struct.serializeOperationBuilder,
+            ~struct,
+            ~inputVar=transformOutputVar,
+            ~pathVar,
+          )
         {
           code: `${b->B.syncTransform(
               ~inputVar,
@@ -1320,13 +1336,13 @@ let transform: (
           outputVar,
           isAsync: false,
         }
-      }
+      })
     | None =>
-      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         code: b->B.raise(~pathVar, MissingSerializer) ++ ";",
         outputVar: inputVar,
         isAsync: false,
-      }
+      })
     },
     ~metadataMap=struct.metadataMap,
     (),
@@ -1366,17 +1382,22 @@ let rec advancedPreprocess = (
     make(
       ~name=struct.name,
       ~tagged=struct.tagged,
-      ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~pathVar) => {
         switch maybeParser {
         | Some(parser) =>
           switch parser->TransformationFactory.call(
             ~struct=selfStruct->castUnknownStructToAnyStruct,
           ) {
-          | Noop => b->B.compileParser(~struct, ~inputVar, ~pathVar)
+          | Noop => b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar)
           | Sync(syncTransformation) => {
               let parseResultVar = b->B.var
               let {code, outputVar, isAsync} =
-                b->B.compileParser(~struct, ~inputVar=parseResultVar, ~pathVar)
+                b->B.run(
+                  ~builder=struct.parseOperationBuilder,
+                  ~struct,
+                  ~inputVar=parseResultVar,
+                  ~pathVar,
+                )
               {
                 code: `${b->B.syncTransform(
                     ~inputVar,
@@ -1393,7 +1414,7 @@ let rec advancedPreprocess = (
           | Async(asyncTransformation) => {
               let parseResultVar = b->B.var
               let {code, outputVar: structOuputVar, isAsync: isAsyncStruct} =
-                b->B.compileParser(~struct, ~inputVar="t", ~pathVar)
+                b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar="t", ~pathVar)
               let outputVar = b->B.var
               {
                 code: `${b->B.asyncTransform(
@@ -1417,21 +1438,18 @@ let rec advancedPreprocess = (
             isAsync: false,
           }
         }
-      },
-      ~serializeOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+      }),
+      ~serializeOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~pathVar) => {
         switch maybeSerializer {
         | Some(serializer) =>
           switch serializer->TransformationFactory.call(
             ~struct=selfStruct->castUnknownStructToAnyStruct,
           ) {
-          | Noop => struct.serializeOperationBuilder(. b, ~selfStruct=struct, ~inputVar, ~pathVar)
+          | Noop =>
+            b->B.run(~builder=struct.serializeOperationBuilder, ~struct, ~inputVar, ~pathVar)
           | Sync(fn) => {
-              let {code, outputVar: structOuputVar} = struct.serializeOperationBuilder(.
-                b,
-                ~selfStruct=struct,
-                ~inputVar,
-                ~pathVar,
-              )
+              let {code, outputVar: structOuputVar} =
+                b->B.run(~builder=struct.serializeOperationBuilder, ~struct, ~inputVar, ~pathVar)
               let outputVar = b->B.var
               {
                 code: `${code}${b->B.syncTransform(
@@ -1458,7 +1476,7 @@ let rec advancedPreprocess = (
             isAsync: false,
           }
         }
-      },
+      }),
       ~metadataMap=struct.metadataMap,
       (),
     )
@@ -1486,15 +1504,15 @@ let custom = (
         "The S.custom doesn't support the `parser` and `asyncParser` arguments simultaneously. Keep only `asyncParser`.",
       )
     | (Some(parser), None) =>
-      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         b->B.syncOperation(
           ~inputVar,
           ~fn=parser->(Obj.magic: (unknown => 'value) => (. unknown) => unknown),
           ~prependPathVar=pathVar,
         )
-      }
+      })
     | (None, Some(asyncParser)) =>
-      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         b->B.asyncOperation(
           ~inputVar,
           ~fn=(. unknown) => (. ()) =>
@@ -1505,29 +1523,29 @@ let custom = (
             )(. unknown),
           ~prependPathVar=pathVar,
         )
-      }
+      })
     | (None, None) =>
-      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         code: b->B.raise(~pathVar, MissingParser) ++ ";",
         outputVar: inputVar,
         isAsync: false,
-      }
+      })
     },
     ~serializeOperationBuilder=switch maybeSerializer {
     | Some(serializer) =>
-      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         b->B.syncOperation(
           ~inputVar,
           ~fn=serializer->(Obj.magic: ('value => 'any) => (. unknown) => unknown),
           ~prependPathVar=pathVar,
         )
-      }
+      })
     | None =>
-      (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         code: b->B.raise(~pathVar, MissingSerializer) ++ ";",
         outputVar: inputVar,
         isAsync: false,
-      }
+      })
     },
     (),
   )
@@ -1637,9 +1655,9 @@ module Variant = {
       make(
         ~name=struct.name,
         ~tagged=struct.tagged,
-        ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        ~parseOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
           let {isAsync, code, outputVar: structOutputVar} =
-            b->B.compileParser(~struct, ~inputVar, ~pathVar)
+            b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar)
           let outputVar = b->B.var
           {
             code: code ++
@@ -1653,16 +1671,17 @@ module Variant = {
             outputVar,
             isAsync,
           }
-        },
-        ~serializeOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+        }),
+        ~serializeOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~pathVar) => {
           let {constantDefinitions, isValueRegistered, valuePath} = instructions
           let childStructInputVar = b->B.var
-          let {code: childCode, outputVar} = struct.serializeOperationBuilder(.
-            b,
-            ~selfStruct=struct,
-            ~inputVar=childStructInputVar,
-            ~pathVar,
-          )
+          let {code: childCode, outputVar} =
+            b->B.run(
+              ~builder=struct.serializeOperationBuilder,
+              ~struct,
+              ~inputVar=childStructInputVar,
+              ~pathVar,
+            )
 
           let codeRef = ref("")
           for idx in 0 to constantDefinitions->Js.Array2.length - 1 {
@@ -1696,7 +1715,7 @@ module Variant = {
             outputVar,
             isAsync: false,
           }
-        },
+        }),
         ~metadataMap=struct.metadataMap,
         (),
       )
@@ -1711,26 +1730,22 @@ module Literal = {
       (innerLiteral, variant) => {
         let tagged = Literal(innerLiteral->castToTaggedLiteral)
 
-        let makeSerializeOperationBuilder = output => (.
-          b,
-          ~selfStruct as _,
-          ~inputVar,
-          ~pathVar,
-        ) => {
-          let outputVar = b->B.var
-          {
-            code: `if(${inputVar}!==${b->B.embed(variant)}){${b->B.raiseWithArg(
-                ~pathVar,
-                (. input) => UnexpectedValue({
-                  expected: variant->Stdlib.Inlined.Value.stringify,
-                  received: input->Stdlib.Inlined.Value.stringify,
-                }),
-                inputVar,
-              )}}${outputVar}=${b->B.embed(output)};`,
-            isAsync: false,
-            outputVar,
-          }
-        }
+        let makeSerializeOperationBuilder = output =>
+          Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+            let outputVar = b->B.var
+            {
+              code: `if(${inputVar}!==${b->B.embed(variant)}){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedValue({
+                    expected: variant->Stdlib.Inlined.Value.stringify,
+                    received: input->Stdlib.Inlined.Value.stringify,
+                  }),
+                  inputVar,
+                )}}${outputVar}=${b->B.embed(output)};`,
+              isAsync: false,
+              outputVar,
+            }
+          })
 
         switch innerLiteral {
         | EmptyNull =>
@@ -1738,7 +1753,7 @@ module Literal = {
             ~name="EmptyNull Literal (null)",
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+            ~parseOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
               let outputVar = b->B.var
               {
                 code: `if(${inputVar}!==null){${b->B.raiseWithArg(
@@ -1752,7 +1767,7 @@ module Literal = {
                 isAsync: false,
                 outputVar,
               }
-            },
+            }),
             ~serializeOperationBuilder=makeSerializeOperationBuilder(Js.Null.empty),
             (),
           )
@@ -1761,7 +1776,7 @@ module Literal = {
             ~name="EmptyOption Literal (undefined)",
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+            ~parseOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
               let outputVar = b->B.var
               {
                 code: `if(${inputVar}!==undefined){${b->B.raiseWithArg(
@@ -1775,7 +1790,7 @@ module Literal = {
                 isAsync: false,
                 outputVar,
               }
-            },
+            }),
             ~serializeOperationBuilder=makeSerializeOperationBuilder(Js.Undefined.empty),
             (),
           )
@@ -1784,7 +1799,7 @@ module Literal = {
             ~name="NaN Literal (NaN)",
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+            ~parseOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
               let outputVar = b->B.var
               {
                 code: `if(!Number.isNaN(${inputVar})){${b->B.raiseWithArg(
@@ -1798,7 +1813,7 @@ module Literal = {
                 isAsync: false,
                 outputVar,
               }
-            },
+            }),
             ~serializeOperationBuilder=makeSerializeOperationBuilder(Js.Float._NaN),
             (),
           )
@@ -1807,7 +1822,7 @@ module Literal = {
             ~name=`Bool Literal (${bool->Stdlib.Bool.toString})`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+            ~parseOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~pathVar) => {
               let outputVar = b->B.var
               {
                 code: `if(typeof ${inputVar}!=="boolean"){${b->B.raiseWithArg(
@@ -1828,7 +1843,7 @@ module Literal = {
                 isAsync: false,
                 outputVar,
               }
-            },
+            }),
             ~serializeOperationBuilder=makeSerializeOperationBuilder(bool),
             (),
           )
@@ -1837,7 +1852,7 @@ module Literal = {
             ~name=`String Literal ("${string}")`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+            ~parseOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~pathVar) => {
               let outputVar = b->B.var
               {
                 code: `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
@@ -1858,7 +1873,7 @@ module Literal = {
                 isAsync: false,
                 outputVar,
               }
-            },
+            }),
             ~serializeOperationBuilder=makeSerializeOperationBuilder(string),
             (),
           )
@@ -1867,7 +1882,7 @@ module Literal = {
             ~name=`Float Literal (${float->Js.Float.toString})`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+            ~parseOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~pathVar) => {
               let outputVar = b->B.var
               {
                 code: `if(typeof ${inputVar}!=="number"){${b->B.raiseWithArg(
@@ -1888,7 +1903,7 @@ module Literal = {
                 isAsync: false,
                 outputVar,
               }
-            },
+            }),
             ~serializeOperationBuilder=makeSerializeOperationBuilder(float),
             (),
           )
@@ -1897,7 +1912,7 @@ module Literal = {
             ~name=`Int Literal (${int->Stdlib.Int.unsafeToString})`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+            ~parseOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~pathVar) => {
               let outputVar = b->B.var
               {
                 code: `if(!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)){${b->B.raiseWithArg(
@@ -1918,7 +1933,7 @@ module Literal = {
                 isAsync: false,
                 outputVar,
               }
-            },
+            }),
             ~serializeOperationBuilder=makeSerializeOperationBuilder(int),
             (),
           )
@@ -2101,7 +2116,7 @@ module Object = {
         fields: instructions.fields,
         fieldNames: instructions.fieldNames,
       }),
-      ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~pathVar) => {
         let {
           preparationPathes,
           inlinedPreparationValues,
@@ -2136,7 +2151,8 @@ module Object = {
           let {fieldStruct, inlinedFieldName, isRegistered, path} = fieldDefinition
 
           let {code: fieldCode, outputVar: fieldOuputVar, isAsync: isAsyncField} =
-            b->B.compileParser(
+            b->B.run(
+              ~builder=fieldStruct.parseOperationBuilder,
               ~struct=fieldStruct,
               ~inputVar=`${inputVar}[${inlinedFieldName}]`,
               ~pathVar=`${pathVar}+'['+${inlinedFieldName->Stdlib.Inlined.Value.fromString}+']'`,
@@ -2217,8 +2233,8 @@ module Object = {
             isAsync: true,
           }
         }
-      },
-      ~serializeOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      }),
+      ~serializeOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let {fieldDefinitions, constantDefinitions} = instructions
 
         let outputVar = b->B.var
@@ -2250,15 +2266,13 @@ module Object = {
             codeRef.contents ++
             switch isRegistered {
             | true => {
-                let {
-                  outputVar: fieldOuputVar,
-                  code: fieldCode,
-                } = fieldStruct.serializeOperationBuilder(.
-                  b,
-                  ~selfStruct=fieldStruct,
-                  ~inputVar=destinationVar,
-                  ~pathVar=fieldPathVar,
-                )
+                let {outputVar: fieldOuputVar, code: fieldCode} =
+                  b->B.run(
+                    ~builder=fieldStruct.serializeOperationBuilder,
+                    ~struct=fieldStruct,
+                    ~inputVar=destinationVar,
+                    ~pathVar=fieldPathVar,
+                  )
                 `${destinationVar}=${inputVar}${path};` ++
                 fieldCode ++ (
                   destinationVar === fieldOuputVar ? "" : `${destinationVar}=${fieldOuputVar};`
@@ -2276,7 +2290,7 @@ module Object = {
         }
 
         {code: codeRef.contents, isAsync: false, outputVar}
-      },
+      }),
       (),
     )
   }
@@ -2291,7 +2305,7 @@ module Object = {
 }
 
 module Never = {
-  let operationBuilder = (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+  let builder = Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
     {
       code: b->B.raiseWithArg(
         ~pathVar,
@@ -2304,14 +2318,14 @@ module Never = {
       isAsync: false,
       outputVar: inputVar,
     }
-  }
+  })
 
   let struct = make(
     ~name=`Never`,
     ~metadataMap=emptyMetadataMap,
     ~tagged=Never,
-    ~parseOperationBuilder=operationBuilder,
-    ~serializeOperationBuilder=operationBuilder,
+    ~parseOperationBuilder=builder,
+    ~serializeOperationBuilder=builder,
     (),
   )
 }
@@ -2364,7 +2378,7 @@ module String = {
   // Adapted from https://stackoverflow.com/a/3143231
   let datetimeRe = %re(`/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/`)
 
-  let parseOperationBuilder = (. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+  let parseOperationBuilder = Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
     {
       code: `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
           ~pathVar,
@@ -2377,7 +2391,7 @@ module String = {
       isAsync: false,
       outputVar: inputVar,
     }
-  }
+  })
 
   let struct = make(
     ~name="String",
@@ -2566,12 +2580,17 @@ module JsonString = {
       ~name=`JsonString`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=String,
-      ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~pathVar) => {
         let {code: stringParserCode, outputVar: jsonStringVar} =
-          b->String.parseOperationBuilder(~selfStruct, ~inputVar, ~pathVar)
+          b->B.run(~builder=String.parseOperationBuilder, ~struct=selfStruct, ~inputVar, ~pathVar)
         let jsonVar = b->B.var
         let {code: childCode, isAsync, outputVar} =
-          b->B.compileParser(~struct=childStruct, ~inputVar=jsonVar, ~pathVar)
+          b->B.run(
+            ~builder=childStruct.parseOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar=jsonVar,
+            ~pathVar,
+          )
 
         {
           code: `${stringParserCode}try{${jsonVar}=JSON.parse(${jsonStringVar})}catch(t){${b->B.raiseWithArg(
@@ -2582,18 +2601,23 @@ module JsonString = {
           isAsync,
           outputVar,
         }
-      },
-      ~serializeOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      }),
+      ~serializeOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let outputVar = b->B.var
         let {code: childCode, outputVar: childOutputVar} =
-          b->B.compileParser(~struct=childStruct, ~inputVar, ~pathVar)
+          b->B.run(
+            ~builder=childStruct.parseOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar,
+            ~pathVar,
+          )
 
         {
           code: `${childCode}${outputVar}=JSON.stringify(${childOutputVar});`,
           isAsync: false,
           outputVar,
         }
-      },
+      }),
       (),
     )
   }
@@ -2604,7 +2628,7 @@ module Bool = {
     ~name="Bool",
     ~metadataMap=emptyMetadataMap,
     ~tagged=Bool,
-    ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+    ~parseOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
       {
         code: `if(typeof ${inputVar}!=="boolean"){${b->B.raiseWithArg(
             ~pathVar,
@@ -2617,7 +2641,7 @@ module Bool = {
         isAsync: false,
         outputVar: inputVar,
       }
-    },
+    }),
     ~serializeOperationBuilder=Builder.noop,
     (),
   )
@@ -2651,7 +2675,7 @@ module Int = {
     ~name="Int",
     ~metadataMap=emptyMetadataMap,
     ~tagged=Int,
-    ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+    ~parseOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
       {
         code: `if(!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)){${b->B.raiseWithArg(
             ~pathVar,
@@ -2664,7 +2688,7 @@ module Int = {
         isAsync: false,
         outputVar: inputVar,
       }
-    },
+    }),
     ~serializeOperationBuilder=Builder.noop,
     (),
   )
@@ -2753,7 +2777,7 @@ module Float = {
     ~name="Float",
     ~metadataMap=emptyMetadataMap,
     ~tagged=Float,
-    ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+    ~parseOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
       {
         code: `if(!(typeof ${inputVar}==="number"&&!Number.isNaN(${inputVar}))){${b->B.raiseWithArg(
             ~pathVar,
@@ -2766,7 +2790,7 @@ module Float = {
         isAsync: false,
         outputVar: inputVar,
       }
-    },
+    }),
     ~serializeOperationBuilder=Builder.noop,
     (),
   )
@@ -2819,9 +2843,14 @@ module Null = {
       ~name=`Null`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Null(childStruct),
-      ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let {code: childCode, isAsync: isChildAsync, outputVar: childOutputVar} =
-          b->B.compileParser(~struct=childStruct, ~inputVar, ~pathVar)
+          b->B.run(
+            ~builder=childStruct.parseOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar,
+            ~pathVar,
+          )
         let outputVar = b->B.var
 
         {
@@ -2838,13 +2867,15 @@ module Null = {
           isAsync: isChildAsync,
           outputVar,
         }
-      },
-      ~serializeOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
-        let {
-          code: childCode,
-          isAsync: isChildAsync,
-          outputVar: childOutputVar,
-        } = childStruct.serializeOperationBuilder(. b, ~selfStruct=childStruct, ~inputVar, ~pathVar)
+      }),
+      ~serializeOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let {code: childCode, isAsync: isChildAsync, outputVar: childOutputVar} =
+          b->B.run(
+            ~builder=childStruct.serializeOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar,
+            ~pathVar,
+          )
         let outputVar = b->B.var
 
         {
@@ -2854,7 +2885,7 @@ module Null = {
           isAsync: isChildAsync,
           outputVar,
         }
-      },
+      }),
       (),
     )
   }
@@ -2867,9 +2898,14 @@ module Option = {
       ~name=`Option`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Option(childStruct),
-      ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let {code: childCode, isAsync: isChildAsync, outputVar: childOutputVar} =
-          b->B.compileParser(~struct=childStruct, ~inputVar, ~pathVar)
+          b->B.run(
+            ~builder=childStruct.parseOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar,
+            ~pathVar,
+          )
         let outputVar = b->B.var
 
         {
@@ -2886,13 +2922,15 @@ module Option = {
           isAsync: isChildAsync,
           outputVar,
         }
-      },
-      ~serializeOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
-        let {
-          code: childCode,
-          isAsync: isChildAsync,
-          outputVar: childOutputVar,
-        } = childStruct.serializeOperationBuilder(. b, ~selfStruct=childStruct, ~inputVar, ~pathVar)
+      }),
+      ~serializeOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let {code: childCode, isAsync: isChildAsync, outputVar: childOutputVar} =
+          b->B.run(
+            ~builder=childStruct.serializeOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar,
+            ~pathVar,
+          )
         let outputVar = b->B.var
 
         {
@@ -2902,7 +2940,7 @@ module Option = {
           isAsync: isChildAsync,
           outputVar,
         }
-      },
+      }),
       (),
     )
   }
@@ -2938,11 +2976,12 @@ module Array = {
       ~name=`Array`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Array(childStruct),
-      ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let itemVar = b->B.varWithoutAllocation
         let iteratorVar = b->B.varWithoutAllocation
         let {code: childCode, isAsync: isChildAsync, outputVar: childOutputVar} =
-          b->B.compileParser(
+          b->B.run(
+            ~builder=childStruct.parseOperationBuilder,
             ~struct=childStruct,
             ~inputVar=itemVar,
             ~pathVar=`${pathVar}+'["'+${iteratorVar}+'"]'`,
@@ -2967,16 +3006,17 @@ module Array = {
         } else {
           {code: syncCode, isAsync: false, outputVar: syncOutputVar}
         }
-      },
-      ~serializeOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      }),
+      ~serializeOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let itemVar = b->B.varWithoutAllocation
         let iteratorVar = b->B.varWithoutAllocation
-        let {code: childCode, outputVar: childOutputVar} = childStruct.serializeOperationBuilder(.
-          b,
-          ~selfStruct=childStruct,
-          ~inputVar=itemVar,
-          ~pathVar=`${pathVar}+'["'+${iteratorVar}+'"]'`,
-        )
+        let {code: childCode, outputVar: childOutputVar} =
+          b->B.run(
+            ~builder=childStruct.serializeOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar=itemVar,
+            ~pathVar=`${pathVar}+'["'+${iteratorVar}+'"]'`,
+          )
         if childCode === "" {
           {code: "", outputVar: inputVar, isAsync: false}
         } else {
@@ -2987,7 +3027,7 @@ module Array = {
             isAsync: false,
           }
         }
-      },
+      }),
       (),
     )
   }
@@ -3060,11 +3100,12 @@ module Dict = {
       ~name=`Dict`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Dict(childStruct),
-      ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let itemVar = b->B.varWithoutAllocation
         let keyVar = b->B.varWithoutAllocation
         let {code: childCode, isAsync: isChildAsync, outputVar: childOutputVar} =
-          b->B.compileParser(
+          b->B.run(
+            ~builder=childStruct.parseOperationBuilder,
             ~struct=childStruct,
             ~inputVar=itemVar,
             ~pathVar=`${pathVar}+'["'+${keyVar}+'"]'`,
@@ -3093,16 +3134,17 @@ module Dict = {
         } else {
           {code: syncCode, isAsync: false, outputVar: syncOutputVar}
         }
-      },
-      ~serializeOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      }),
+      ~serializeOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let itemVar = b->B.varWithoutAllocation
         let keyVar = b->B.varWithoutAllocation
-        let {code: childCode, outputVar: childOutputVar} = childStruct.serializeOperationBuilder(.
-          b,
-          ~selfStruct=childStruct,
-          ~inputVar=itemVar,
-          ~pathVar=`${pathVar}+'["'+${keyVar}+'"]'`,
-        )
+        let {code: childCode, outputVar: childOutputVar} =
+          b->B.run(
+            ~builder=childStruct.serializeOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar=itemVar,
+            ~pathVar=`${pathVar}+'["'+${keyVar}+'"]'`,
+          )
         if childCode === "" {
           {code: "", outputVar: inputVar, isAsync: false}
         } else {
@@ -3113,7 +3155,7 @@ module Dict = {
             isAsync: false,
           }
         }
-      },
+      }),
       (),
     )
   }
@@ -3129,9 +3171,14 @@ module Default = {
       ~name=childStruct.name,
       ~metadataMap=emptyMetadataMap,
       ~tagged=childStruct.tagged,
-      ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let {code: childCode, isAsync: isChildAsync, outputVar: childOutputVar} =
-          b->B.compileParser(~struct=childStruct, ~inputVar, ~pathVar)
+          b->B.run(
+            ~builder=childStruct.parseOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar,
+            ~pathVar,
+          )
         let outputVar = b->B.var
         let defaultValVar = `${b->B.embed(getDefaultValue)}()`
 
@@ -3149,7 +3196,7 @@ module Default = {
           isAsync: isChildAsync,
           outputVar,
         }
-      },
+      }),
       ~serializeOperationBuilder=childStruct.serializeOperationBuilder,
       (),
     )->Metadata.set(~id=metadataId, ~metadata=getDefaultValue)
@@ -3169,7 +3216,7 @@ module Tuple = {
       ~name="Tuple",
       ~metadataMap=emptyMetadataMap,
       ~tagged=Tuple(structs),
-      ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let codeRef = ref(
           `if(!Array.isArray(${inputVar})){${b->B.raiseWithArg(
               ~pathVar,
@@ -3195,7 +3242,8 @@ module Tuple = {
           }
         | [itemStruct] => {
             let {code: childCode, isAsync: isAsyncItem, outputVar: childOutputVar} =
-              b->B.compileParser(
+              b->B.run(
+                ~builder=itemStruct.parseOperationBuilder,
                 ~struct=itemStruct,
                 ~inputVar=`${inputVar}[0]`,
                 ~pathVar=`${pathVar}+'["0"]'`,
@@ -3213,7 +3261,8 @@ module Tuple = {
             for idx in 0 to structs->Js.Array2.length - 1 {
               let itemStruct = structs->Js.Array2.unsafe_get(idx)
               let {code: childCode, isAsync: isAsyncItem, outputVar: childOutputVar} =
-                b->B.compileParser(
+                b->B.run(
+                  ~builder=itemStruct.parseOperationBuilder,
                   ~struct=itemStruct,
                   ~inputVar=`${inputVar}[${idx->Stdlib.Int.unsafeToString}]`,
                   ~pathVar=`${pathVar}+'["${idx->Stdlib.Int.unsafeToString}"]'`,
@@ -3252,26 +3301,26 @@ module Tuple = {
             }
           }
         }
-      },
+      }),
       ~serializeOperationBuilder=switch structs {
       | [] =>
-        (. b, ~selfStruct as _, ~inputVar as _, ~pathVar as _) => {
+        Builder.make((. b, ~selfStruct as _, ~inputVar as _, ~pathVar as _) => {
           let outputVar = b->B.var
           {
             code: `${outputVar}=[];`,
             isAsync: false,
             outputVar,
           }
-        }
+        })
       | [_] =>
-        (. b, ~selfStruct as _, ~inputVar, ~pathVar as _) => {
+        Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar as _) => {
           let outputVar = b->B.var
           {
             code: `${outputVar}=[${inputVar}];`,
             isAsync: false,
             outputVar,
           }
-        }
+        })
       | _ => Builder.noop
       },
       (),
@@ -3298,7 +3347,7 @@ module Union = {
       ~name=`Union`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Union(structs),
-      ~parseOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+      ~parseOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~pathVar) => {
         let structs = selfStruct->classify->unsafeGetVariantPayload
 
         let errorVars = []
@@ -3311,7 +3360,12 @@ module Union = {
         for idx in 0 to structs->Js.Array2.length - 1 {
           let itemStruct = structs->Js.Array2.unsafe_get(idx)
           let {code: childCode, isAsync: isAsyncItem, outputVar: childOutputVar} =
-            b->B.compileParser(~struct=itemStruct, ~inputVar, ~pathVar=`""`)
+            b->B.run(
+              ~builder=itemStruct.parseOperationBuilder,
+              ~struct=itemStruct,
+              ~inputVar,
+              ~pathVar=`""`,
+            )
 
           let errorVar = b->B.varWithoutAllocation
           errorVars->Js.Array2.push(errorVar)->ignore
@@ -3380,8 +3434,8 @@ module Union = {
             codeEndRef.contents,
           }
         }
-      },
-      ~serializeOperationBuilder=(. b, ~selfStruct, ~inputVar, ~pathVar) => {
+      }),
+      ~serializeOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~pathVar) => {
         let structs = selfStruct->classify->unsafeGetVariantPayload
 
         let errorVars = []
@@ -3391,12 +3445,13 @@ module Union = {
 
         for idx in 0 to structs->Js.Array2.length - 1 {
           let itemStruct = structs->Js.Array2.unsafe_get(idx)
-          let {code: childCode, outputVar: childOutputVar} = itemStruct.serializeOperationBuilder(.
-            b,
-            ~selfStruct=itemStruct,
-            ~inputVar,
-            ~pathVar=`""`,
-          )
+          let {code: childCode, outputVar: childOutputVar} =
+            b->B.run(
+              ~builder=itemStruct.serializeOperationBuilder,
+              ~struct=itemStruct,
+              ~inputVar,
+              ~pathVar=`""`,
+            )
           let errorVar = b->B.varWithoutAllocation
           errorVars->Js.Array2.push(errorVar)->ignore
 
@@ -3419,7 +3474,7 @@ module Union = {
           ) ++
           codeEndRef.contents,
         }
-      },
+      }),
       (),
     )
   }
@@ -3489,13 +3544,13 @@ let json = {
     ~name="JSON",
     ~tagged=JSON,
     ~metadataMap=emptyMetadataMap,
-    ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+    ~parseOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
       {
         code: `${b->B.embed(parse)}(${inputVar},${pathVar});`,
         isAsync: false,
         outputVar: inputVar,
       }
-    },
+    }),
     ~serializeOperationBuilder=Builder.noop,
     (),
   )
@@ -3509,9 +3564,9 @@ let catch = (struct, getFallbackValue) => {
   let struct = struct->toUnknown
   make(
     ~name=struct.name,
-    ~parseOperationBuilder=(. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+    ~parseOperationBuilder=Builder.make((. b, ~selfStruct as _, ~inputVar, ~pathVar) => {
       let {code: structCode, isAsync, outputVar: structOutputVar} =
-        b->B.compileParser(~struct, ~inputVar, ~pathVar)
+        b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar)
       let fallbackValVar = `${b->B.embed((input, internalError) =>
           getFallbackValue->Stdlib.Fn.call1({
             input,
@@ -3533,7 +3588,7 @@ let catch = (struct, getFallbackValue) => {
           outputVar: structOutputVar,
         }
       }
-    },
+    }),
     ~serializeOperationBuilder=struct.serializeOperationBuilder,
     ~tagged=struct.tagged,
     ~metadataMap=struct.metadataMap,
