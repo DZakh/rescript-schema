@@ -81,6 +81,8 @@ module Stdlib = {
     @send
     external has: (t<'value>, 'value) => bool = "has"
 
+    @get external size: t<'value> => int = "size"
+
     @send
     external add: (t<'value>, 'value) => t<'value> = "add"
 
@@ -436,13 +438,10 @@ let name = struct => struct.name
 
 module Builder = {
   type t = builder
-  type params = {
-    code: string,
-    isAsync: bool,
-  }
   type ctx = {
     mutable varCounter: int,
     mutable varsAllocation: string,
+    asyncVars: Stdlib.Set.t<string>,
     embeded: array<unknown>,
   }
   type implementation = (
@@ -451,16 +450,13 @@ module Builder = {
     ~inputVar: string,
     ~outputVar: string,
     ~pathVar: string,
-  ) => params
+  ) => string
 
   let make = (Obj.magic: implementation => t)
 
   // TODO: Noop checks stopped working
   let noop = make((. _b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar as _) => {
-    {
-      isAsync: false,
-      code: `${outputVar}=${inputVar};`,
-    }
+    `${outputVar}=${inputVar};`
   })
 
   module Ctx = {
@@ -501,73 +497,33 @@ module Builder = {
       `if(t&&t.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"){t._1.p=${pathVar}+t._1.p}throw t`
     }
 
-    let syncOperation = (
+    let embedSyncOperation = (
       b: t,
       ~inputVar,
       ~outputVar,
-      ~fn: (. unknown) => unknown,
-      ~prependPathVar,
-    ) => {
-      let code = `${outputVar}=${b->embed(fn)}(${inputVar});`
-      {
-        isAsync: false,
-        code: switch prependPathVar {
-        | `""` => code
-        | pathVar => `try{${code}}catch(t){${internalTransformRethrow(~pathVar)}}`
-        },
-      }
-    }
-
-    let asyncOperation = (
-      b: t,
-      ~inputVar,
-      ~outputVar,
-      ~fn: (. unknown) => (. unit) => promise<unknown>,
-      ~prependPathVar,
-    ) => {
-      switch prependPathVar {
-      | `""` => {
-          isAsync: true,
-          code: `${outputVar}=${b->embed(fn)}(${inputVar});`,
-        }
-      | pathVar =>
-        let syncResultVar = b->var
-        let code = `${syncResultVar}=${b->embed(fn)}(${inputVar});`
-        {
-          isAsync: true,
-          code: `try{${code}${outputVar}=()=>{try{return ${syncResultVar}().catch(t=>{${internalTransformRethrow(
-              ~pathVar,
-            )}})}catch(t){${internalTransformRethrow(
-              ~pathVar,
-            )}}}}catch(t){${internalTransformRethrow(~pathVar)}};`,
-        }
-      }
-    }
-
-    let syncTransform = (
-      b: t,
-      ~inputVar,
-      ~outputVar,
-      ~isAsyncInput,
       ~fn: 'input => 'output,
       ~isRefine=false,
       ~prependPathVar as maybePrependPathVar=?,
       (),
     ) => {
-      switch isAsyncInput {
+      switch b.asyncVars->Stdlib.Set.has(inputVar) {
       | false =>
         let code = isRefine
           ? `${b->embed(fn)}(${inputVar});${outputVar}=${inputVar};`
           : `${outputVar}=${b->embed(fn)}(${inputVar})`
+
         switch maybePrependPathVar {
         | None
         | Some(`""`) => code
         | Some(pathVar) => `try{${code}}catch(t){${internalTransformRethrow(~pathVar)}}`
         }
+
       | true =>
+        b.asyncVars->Stdlib.Set.add(outputVar)->ignore
         let code = `${outputVar}=()=>${inputVar}().then(${isRefine
             ? `t=>{${b->embed(fn)}(t);return ${inputVar}}`
             : b->embed(fn)})`
+
         switch maybePrependPathVar {
         | None
         | Some(`""`) => code
@@ -576,38 +532,52 @@ module Builder = {
       } ++ ";"
     }
 
-    let asyncTransform = (
+    let embedAsyncOperation = (
       b: t,
       ~inputVar,
       ~outputVar,
-      ~isAsyncInput,
-      ~fn: 'input => 'output,
+      ~fn: (. 'input) => (. unit) => promise<'output>,
       ~isRefine=false,
       ~prependPathVar as maybePrependPathVar=?,
       (),
     ) => {
-      `${outputVar}=()=>` ++
+      let {asyncVars} = b
+      let isAsyncInput = asyncVars->Stdlib.Set.has(inputVar)
+      asyncVars->Stdlib.Set.add(outputVar)->ignore
       switch isAsyncInput {
       | false =>
-        let code = `${b->embed(fn)}(${inputVar})` ++ (isRefine ? `.then(_=>${inputVar})` : "")
         switch maybePrependPathVar {
         | None
-        | Some(`""`) => code
+        | Some(`""`) =>
+          let code = `${b->embed(fn)}(${inputVar})`
+          if isRefine {
+            let syncResultVar = b->var
+            `${syncResultVar}=${code};${outputVar}=()=>${syncResultVar}().then(_=>${inputVar});`
+          } else {
+            `${outputVar}=${code};`
+          }
         | Some(pathVar) =>
-          `{try{return ${code}.catch(t=>{${internalTransformRethrow(
+          let syncResultVar = b->var
+          let code = `${syncResultVar}=${b->embed(fn)}(${inputVar});`
+          `try{${code}${outputVar}=()=>{try{return ${syncResultVar}()${isRefine
+              ? `.then(_=>${inputVar})`
+              : ""}.catch(t=>{${internalTransformRethrow(
               ~pathVar,
-            )}})}catch(t){${internalTransformRethrow(~pathVar)}}}`
+            )}})}catch(t){${internalTransformRethrow(
+              ~pathVar,
+            )}}}}catch(t){${internalTransformRethrow(~pathVar)}};`
         }
-      | true =>
-        let code = `${inputVar}().then(${isRefine
-            ? `t=>${b->embed(fn)}(t).then(_=>t)`
-            : b->embed(fn)})`
-        switch maybePrependPathVar {
-        | None
-        | Some(`""`) => code
-        | Some(pathVar) => `${code}.catch(t=>{${internalTransformRethrow(~pathVar)}})`
+      | true => {
+          let code = `${outputVar}=()=>${inputVar}().then(t=>${b->embed(fn)}(t)()${isRefine
+              ? ".then(_=>t)"
+              : ""})`
+          switch maybePrependPathVar {
+          | None
+          | Some(`""`) => code
+          | Some(pathVar) => `${code}.catch(t=>{${internalTransformRethrow(~pathVar)}})`
+          } ++ ";"
         }
-      } ++ ";"
+      }
     }
 
     let raiseWithArg = (b: t, ~pathVar, fn: (. 'arg) => Error.code, arg) => {
@@ -623,13 +593,18 @@ module Builder = {
     }
 
     let run = (b: t, ~builder, ~struct, ~inputVar, ~outputVar, ~pathVar) => {
-      let {isAsync, code} = (builder->(Obj.magic: builder => implementation))(.
+      let asyncVarsCountBefore = b.asyncVars->Stdlib.Set.size
+      let code = (builder->(Obj.magic: builder => implementation))(.
         b,
         ~selfStruct=struct,
         ~inputVar,
         ~outputVar,
         ~pathVar,
       )
+      let isAsync = b.asyncVars->Stdlib.Set.size > asyncVarsCountBefore
+      if isAsync {
+        b.asyncVars->Stdlib.Set.add(outputVar)->ignore
+      }
       if struct.parseOperationBuilder === builder {
         struct.isAsyncParse = Value(isAsync)
       }
@@ -643,6 +618,7 @@ module Builder = {
     let b = {
       embeded: [],
       varCounter: -1,
+      asyncVars: Stdlib.Set.empty(),
       varsAllocation: intitialOutputVar,
     }
     let code =
@@ -939,18 +915,23 @@ let recursive = fn => {
       ~outputVar,
       ~pathVar,
     ) => {
-      selfStruct.parseOperationBuilder = Builder.noop
-      let {isAsync} = (builder->(Obj.magic: builder => Builder.implementation))(.
-        {
-          Builder.embeded: [],
-          varsAllocation: "",
-          varCounter: -1,
-        },
-        ~selfStruct,
-        ~inputVar,
-        ~outputVar,
-        ~pathVar,
-      )
+      let isAsync = {
+        selfStruct.parseOperationBuilder = Builder.noop
+        let asyncVars = Stdlib.Set.empty()
+        let _ = (builder->(Obj.magic: builder => Builder.implementation))(.
+          {
+            Builder.embeded: [],
+            varsAllocation: "",
+            asyncVars,
+            varCounter: -1,
+          },
+          ~selfStruct,
+          ~inputVar,
+          ~outputVar,
+          ~pathVar,
+        )
+        asyncVars->Stdlib.Set.size > 0
+      }
 
       selfStruct.parseOperationBuilder = Builder.make((.
         b,
@@ -960,18 +941,20 @@ let recursive = fn => {
         ~pathVar,
       ) => {
         if isAsync {
-          b->B.asyncOperation(
+          b->B.embedAsyncOperation(
             ~inputVar,
             ~outputVar,
             ~fn=(. input) => selfStruct.parseAsync(input),
             ~prependPathVar=pathVar,
+            (),
           )
         } else {
-          b->B.syncOperation(
+          b->B.embedSyncOperation(
             ~inputVar,
             ~outputVar,
-            ~fn=(. input) => selfStruct.parse(input),
+            ~fn=input => selfStruct.parse(input),
             ~prependPathVar=pathVar,
+            (),
           )
         }
       })
@@ -979,14 +962,21 @@ let recursive = fn => {
       selfStruct->Builder.compileParser(~builder)
       selfStruct.parseOperationBuilder = builder
       if isAsync {
-        b->B.asyncOperation(
+        b->B.embedAsyncOperation(
           ~inputVar,
           ~outputVar,
           ~fn=selfStruct.parseAsync,
           ~prependPathVar=pathVar,
+          (),
         )
       } else {
-        b->B.syncOperation(~inputVar, ~outputVar, ~fn=selfStruct.parse, ~prependPathVar=pathVar)
+        b->B.embedSyncOperation(
+          ~inputVar,
+          ~outputVar,
+          ~fn=selfStruct.parse->(Obj.magic: ((. unknown) => unknown, unknown) => unknown),
+          ~prependPathVar=pathVar,
+          (),
+        )
       }
     })
   }
@@ -1007,16 +997,23 @@ let recursive = fn => {
         ~outputVar,
         ~pathVar,
       ) => {
-        b->B.syncOperation(
+        b->B.embedSyncOperation(
           ~inputVar,
           ~outputVar,
-          ~fn=(. input) => selfStruct.serialize(input),
+          ~fn=input => selfStruct.serialize(input),
           ~prependPathVar=pathVar,
+          (),
         )
       })
       selfStruct->Builder.compileSerializer(~builder)
       selfStruct.serializeOperationBuilder = builder
-      b->B.syncOperation(~inputVar, ~outputVar, ~fn=selfStruct.serialize, ~prependPathVar=pathVar)
+      b->B.embedSyncOperation(
+        ~inputVar,
+        ~outputVar,
+        ~fn=selfStruct.serialize->(Obj.magic: ((. unknown) => unknown, unknown) => unknown),
+        ~prependPathVar=pathVar,
+        (),
+      )
     })
   }
 
@@ -1090,30 +1087,22 @@ let refine: (
             ~outputVar=childOutputVar,
             ~pathVar,
           )
-        let isAsync = switch struct.isAsyncParse {
-        | Value(true) => true
-        | _ => false
-        }
-        {
-          code: `${code}${b->B.syncTransform(
-              ~inputVar=childOutputVar,
-              ~outputVar,
-              ~isAsyncInput=isAsync,
-              ~fn=parser,
-              ~prependPathVar=pathVar,
-              ~isRefine=true,
-              (),
-            )}${b->B.asyncTransform(
-              ~inputVar=childOutputVar,
-              ~outputVar,
-              ~isAsyncInput=isAsync,
-              ~fn=asyncParser,
-              ~prependPathVar=pathVar,
-              ~isRefine=true,
-              (),
-            )}`,
-          isAsync: true,
-        }
+
+        `${code}${b->B.embedSyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~fn=parser,
+            ~prependPathVar=pathVar,
+            ~isRefine=true,
+            (),
+          )}${b->B.embedAsyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~fn=(. i) => (. ()) => asyncParser->Stdlib.Fn.call1(i),
+            ~prependPathVar=pathVar,
+            ~isRefine=true,
+            (),
+          )}`
       })
     | (Some(parser), None) =>
       Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
@@ -1126,22 +1115,15 @@ let refine: (
             ~outputVar=childOutputVar,
             ~pathVar,
           )
-        let isAsync = switch struct.isAsyncParse {
-        | Value(true) => true
-        | _ => false
-        }
-        {
-          code: `${code}${b->B.syncTransform(
-              ~inputVar=childOutputVar,
-              ~outputVar,
-              ~isAsyncInput=isAsync,
-              ~fn=parser,
-              ~prependPathVar=pathVar,
-              ~isRefine=true,
-              (),
-            )}`,
-          isAsync,
-        }
+
+        `${code}${b->B.embedSyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~fn=parser,
+            ~prependPathVar=pathVar,
+            ~isRefine=true,
+            (),
+          )}`
       })
     | (None, Some(asyncParser)) =>
       Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
@@ -1154,22 +1136,14 @@ let refine: (
             ~outputVar=childOutputVar,
             ~pathVar,
           )
-        let isAsync = switch struct.isAsyncParse {
-        | Value(true) => true
-        | _ => false
-        }
-        {
-          code: `${code}${b->B.asyncTransform(
-              ~inputVar=childOutputVar,
-              ~outputVar,
-              ~isAsyncInput=isAsync,
-              ~fn=asyncParser,
-              ~prependPathVar=pathVar,
-              ~isRefine=true,
-              (),
-            )}`,
-          isAsync: true,
-        }
+        `${code}${b->B.embedAsyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~fn=(. i) => (. ()) => asyncParser->Stdlib.Fn.call1(i),
+            ~prependPathVar=pathVar,
+            ~isRefine=true,
+            (),
+          )}`
       })
     | (None, None) => struct.parseOperationBuilder
     },
@@ -1186,18 +1160,14 @@ let refine: (
             ~pathVar,
           )
 
-        {
-          code: b->B.syncTransform(
-            ~inputVar,
-            ~outputVar=transformResultVar,
-            ~isAsyncInput=false,
-            ~fn=serializer,
-            ~prependPathVar=pathVar,
-            ~isRefine=true,
-            (),
-          ) ++ code,
-          isAsync: false,
-        }
+        b->B.embedSyncOperation(
+          ~inputVar,
+          ~outputVar=transformResultVar,
+          ~fn=serializer,
+          ~prependPathVar=pathVar,
+          ~isRefine=true,
+          (),
+        ) ++ code
       })
 
     | None => struct.serializeOperationBuilder
@@ -1242,19 +1212,8 @@ let advancedTransform: (
           ~struct=selfStruct->castUnknownStructToAnyStruct,
         ) {
         | Noop =>
-          let code =
-            b->B.run(
-              ~builder=struct.parseOperationBuilder,
-              ~struct,
-              ~inputVar,
-              ~outputVar,
-              ~pathVar,
-            )
-          let isAsync = switch struct.isAsyncParse {
-          | Value(true) => true
-          | _ => false
-          }
-          {code, isAsync}
+          b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~outputVar, ~pathVar)
+
         | Sync(syncTransformation) => {
             let childOutputVar = b->B.var
             let code =
@@ -1265,23 +1224,15 @@ let advancedTransform: (
                 ~outputVar=childOutputVar,
                 ~pathVar,
               )
-            let isAsync = switch struct.isAsyncParse {
-            | Value(true) => true
-            | _ => false
-            }
-            {
-              code: `${code}${b->B.syncTransform(
-                  ~inputVar=childOutputVar,
-                  ~outputVar,
-                  ~isAsyncInput=isAsync,
-                  ~fn=syncTransformation,
-                  ~prependPathVar=pathVar,
-                  (),
-                )}`,
-              isAsync,
-            }
+            `${code}${b->B.embedSyncOperation(
+                ~inputVar=childOutputVar,
+                ~outputVar,
+                ~fn=syncTransformation,
+                ~prependPathVar=pathVar,
+                (),
+              )}`
           }
-        | Async(asyncTransformation) => {
+        | Async(asyncParser) => {
             let childOutputVar = b->B.var
             let code =
               b->B.run(
@@ -1291,27 +1242,16 @@ let advancedTransform: (
                 ~outputVar=childOutputVar,
                 ~pathVar,
               )
-            let isAsync = switch struct.isAsyncParse {
-            | Value(true) => true
-            | _ => false
-            }
-            {
-              code: `${code}${b->B.asyncTransform(
-                  ~inputVar=childOutputVar,
-                  ~outputVar,
-                  ~isAsyncInput=isAsync,
-                  ~fn=asyncTransformation,
-                  ~prependPathVar=pathVar,
-                  (),
-                )}`,
-              isAsync: true,
-            }
+            `${code}${b->B.embedAsyncOperation(
+                ~inputVar=childOutputVar,
+                ~outputVar,
+                ~fn=(. i) => (. ()) => asyncParser->Stdlib.Fn.call1(i),
+                ~prependPathVar=pathVar,
+                (),
+              )}`
           }
         }
-      | None => {
-          code: b->B.raise(~pathVar, MissingParser) ++ ";",
-          isAsync: false,
-        }
+      | None => b->B.raise(~pathVar, MissingParser) ++ ";"
       }
     }),
     ~serializeOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
@@ -1320,16 +1260,14 @@ let advancedTransform: (
         switch serializer->TransformationFactory.call(
           ~struct=selfStruct->castUnknownStructToAnyStruct,
         ) {
-        | Noop => {
-            code: b->B.run(
-              ~builder=struct.serializeOperationBuilder,
-              ~struct,
-              ~inputVar,
-              ~outputVar,
-              ~pathVar,
-            ),
-            isAsync: false,
-          }
+        | Noop =>
+          b->B.run(
+            ~builder=struct.serializeOperationBuilder,
+            ~struct,
+            ~inputVar,
+            ~outputVar,
+            ~pathVar,
+          )
         | Sync(fn) => {
             let transformOutputVar = b->B.var
             let code =
@@ -1340,27 +1278,17 @@ let advancedTransform: (
                 ~outputVar,
                 ~pathVar,
               )
-            {
-              code: `${b->B.syncTransform(
-                  ~inputVar,
-                  ~outputVar=transformOutputVar,
-                  ~isAsyncInput=false,
-                  ~fn,
-                  ~prependPathVar=pathVar,
-                  (),
-                )}${code}`,
-              isAsync: false,
-            }
+            `${b->B.embedSyncOperation(
+                ~inputVar,
+                ~outputVar=transformOutputVar,
+                ~fn,
+                ~prependPathVar=pathVar,
+                (),
+              )}${code}`
           }
-        | Async(_) => {
-            code: b->B.raise(~pathVar, MissingSerializer) ++ ";",
-            isAsync: false,
-          }
+        | Async(_) => b->B.raise(~pathVar, MissingSerializer) ++ ";"
         }
-      | None => {
-          code: b->B.raise(~pathVar, MissingSerializer) ++ ";",
-          isAsync: false,
-        }
+      | None => b->B.raise(~pathVar, MissingSerializer) ++ ";"
       }
     }),
     ~metadataMap=struct.metadataMap,
@@ -1405,21 +1333,13 @@ let transform: (
             ~outputVar=childOutputVar,
             ~pathVar,
           )
-        let isAsync = switch struct.isAsyncParse {
-        | Value(true) => true
-        | _ => false
-        }
-        {
-          code: `${code}${b->B.syncTransform(
-              ~inputVar=childOutputVar,
-              ~outputVar,
-              ~isAsyncInput=isAsync,
-              ~fn=parser,
-              ~prependPathVar=pathVar,
-              (),
-            )}`,
-          isAsync,
-        }
+        `${code}${b->B.embedSyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~fn=parser,
+            ~prependPathVar=pathVar,
+            (),
+          )}`
       })
     | (None, Some(asyncParser)) =>
       Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
@@ -1432,26 +1352,17 @@ let transform: (
             ~outputVar=childOutputVar,
             ~pathVar,
           )
-        let isAsync = switch struct.isAsyncParse {
-        | Value(true) => true
-        | _ => false
-        }
-        {
-          code: `${code}${b->B.asyncTransform(
-              ~inputVar=childOutputVar,
-              ~outputVar,
-              ~isAsyncInput=isAsync,
-              ~fn=asyncParser,
-              ~prependPathVar=pathVar,
-              (),
-            )}`,
-          isAsync: true,
-        }
+        `${code}${b->B.embedAsyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~fn=(. i) => (. ()) => asyncParser->Stdlib.Fn.call1(i),
+            ~prependPathVar=pathVar,
+            (),
+          )}`
       })
     | (None, None) =>
       Builder.make((. b, ~selfStruct as _, ~inputVar as _, ~outputVar as _, ~pathVar) => {
-        code: b->B.raise(~pathVar, MissingParser) ++ ";",
-        isAsync: false,
+        b->B.raise(~pathVar, MissingParser) ++ ";"
       })
     },
     ~serializeOperationBuilder=switch maybeSerializer {
@@ -1466,22 +1377,17 @@ let transform: (
             ~outputVar,
             ~pathVar,
           )
-        {
-          code: `${b->B.syncTransform(
-              ~inputVar,
-              ~outputVar=transformOutputVar,
-              ~isAsyncInput=false,
-              ~fn=serializer,
-              ~prependPathVar=pathVar,
-              (),
-            )}${code}`,
-          isAsync: false,
-        }
+        `${b->B.embedSyncOperation(
+            ~inputVar,
+            ~outputVar=transformOutputVar,
+            ~fn=serializer,
+            ~prependPathVar=pathVar,
+            (),
+          )}${code}`
       })
     | None =>
       Builder.make((. b, ~selfStruct as _, ~inputVar as _, ~outputVar as _, ~pathVar) => {
-        code: b->B.raise(~pathVar, MissingSerializer) ++ ";",
-        isAsync: false,
+        b->B.raise(~pathVar, MissingSerializer) ++ ";"
       })
     },
     ~metadataMap=struct.metadataMap,
@@ -1529,19 +1435,13 @@ let rec advancedPreprocess = (
             ~struct=selfStruct->castUnknownStructToAnyStruct,
           ) {
           | Noop =>
-            let code =
-              b->B.run(
-                ~builder=struct.parseOperationBuilder,
-                ~struct,
-                ~inputVar,
-                ~outputVar,
-                ~pathVar,
-              )
-            let isAsync = switch struct.isAsyncParse {
-            | Value(true) => true
-            | _ => false
-            }
-            {code, isAsync}
+            b->B.run(
+              ~builder=struct.parseOperationBuilder,
+              ~struct,
+              ~inputVar,
+              ~outputVar,
+              ~pathVar,
+            )
           | Sync(syncTransformation) => {
               let parseResultVar = b->B.var
               let code =
@@ -1552,23 +1452,15 @@ let rec advancedPreprocess = (
                   ~outputVar,
                   ~pathVar,
                 )
-              let isAsync = switch struct.isAsyncParse {
-              | Value(true) => true
-              | _ => false
-              }
-              {
-                code: `${b->B.syncTransform(
-                    ~inputVar,
-                    ~outputVar=parseResultVar,
-                    ~isAsyncInput=false,
-                    ~fn=syncTransformation,
-                    ~prependPathVar=pathVar,
-                    (),
-                  )}${code}`,
-                isAsync,
-              }
+              `${b->B.embedSyncOperation(
+                  ~inputVar,
+                  ~outputVar=parseResultVar,
+                  ~fn=syncTransformation,
+                  ~prependPathVar=pathVar,
+                  (),
+                )}${code}`
             }
-          | Async(asyncTransformation) => {
+          | Async(asyncParser) => {
               let parseResultVar = b->B.var
               let childOutputVar = b->B.var
               let code =
@@ -1579,29 +1471,20 @@ let rec advancedPreprocess = (
                   ~outputVar=childOutputVar,
                   ~pathVar,
                 )
-              let isAsync = switch struct.isAsyncParse {
-              | Value(true) => true
-              | _ => false
-              }
-              {
-                code: `${b->B.asyncTransform(
-                    ~inputVar,
-                    ~outputVar=parseResultVar,
-                    ~isAsyncInput=false,
-                    ~fn=asyncTransformation,
-                    ~prependPathVar=pathVar,
-                    (),
-                  )}${outputVar}=()=>${parseResultVar}().then(t=>{${code}return ${isAsync
-                    ? `${childOutputVar}()`
-                    : childOutputVar}});`,
-                isAsync: true,
-              }
+              let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+
+              `${b->B.embedAsyncOperation(
+                  ~inputVar,
+                  ~outputVar=parseResultVar,
+                  ~fn=(. i) => (. ()) => asyncParser->Stdlib.Fn.call1(i),
+                  ~prependPathVar=pathVar,
+                  (),
+                )}${outputVar}=()=>${parseResultVar}().then(t=>{${code}return ${isAsync
+                  ? `${childOutputVar}()`
+                  : childOutputVar}});`
             }
           }
-        | None => {
-            code: b->B.raise(~pathVar, MissingParser) ++ ";",
-            isAsync: false,
-          }
+        | None => b->B.raise(~pathVar, MissingParser) ++ ";"
         }
       }),
       ~serializeOperationBuilder=Builder.make((.
@@ -1616,16 +1499,14 @@ let rec advancedPreprocess = (
           switch serializer->TransformationFactory.call(
             ~struct=selfStruct->castUnknownStructToAnyStruct,
           ) {
-          | Noop => {
-              code: b->B.run(
-                ~builder=struct.serializeOperationBuilder,
-                ~struct,
-                ~inputVar,
-                ~outputVar,
-                ~pathVar,
-              ),
-              isAsync: false,
-            }
+          | Noop =>
+            b->B.run(
+              ~builder=struct.serializeOperationBuilder,
+              ~struct,
+              ~inputVar,
+              ~outputVar,
+              ~pathVar,
+            )
           | Sync(fn) => {
               let structOuputVar = b->B.var
               let code =
@@ -1636,27 +1517,17 @@ let rec advancedPreprocess = (
                   ~outputVar=structOuputVar,
                   ~pathVar,
                 )
-              {
-                code: `${code}${b->B.syncTransform(
-                    ~inputVar=structOuputVar,
-                    ~outputVar,
-                    ~isAsyncInput=false,
-                    ~fn,
-                    ~prependPathVar=pathVar,
-                    (),
-                  )}`,
-                isAsync: false,
-              }
+              `${code}${b->B.embedSyncOperation(
+                  ~inputVar=structOuputVar,
+                  ~outputVar,
+                  ~fn,
+                  ~prependPathVar=pathVar,
+                  (),
+                )}`
             }
-          | Async(_) => {
-              code: b->B.raise(~pathVar, MissingSerializer) ++ ";",
-              isAsync: false,
-            }
+          | Async(_) => b->B.raise(~pathVar, MissingSerializer) ++ ";"
           }
-        | None => {
-            code: b->B.raise(~pathVar, MissingSerializer) ++ ";",
-            isAsync: false,
-          }
+        | None => b->B.raise(~pathVar, MissingSerializer) ++ ";"
         }
       }),
       ~metadataMap=struct.metadataMap,
@@ -1687,47 +1558,31 @@ let custom = (
       )
     | (Some(parser), None) =>
       Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
-        b->B.syncOperation(
-          ~inputVar,
-          ~outputVar,
-          ~fn=parser->(Obj.magic: (unknown => 'value) => (. unknown) => unknown),
-          ~prependPathVar=pathVar,
-        )
+        b->B.embedSyncOperation(~inputVar, ~outputVar, ~fn=parser, ~prependPathVar=pathVar, ())
       })
     | (None, Some(asyncParser)) =>
       Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
-        b->B.asyncOperation(
+        b->B.embedAsyncOperation(
           ~inputVar,
           ~outputVar,
-          ~fn=(. unknown) => (. ()) =>
-            (
-              asyncParser->(
-                Obj.magic: (unknown => promise<'value>) => (. unknown) => promise<unknown>
-              )
-            )(. unknown),
+          ~fn=(. input) => (. ()) => asyncParser->Stdlib.Fn.call1(input),
           ~prependPathVar=pathVar,
+          (),
         )
       })
     | (None, None) =>
       Builder.make((. b, ~selfStruct as _, ~inputVar as _, ~outputVar as _, ~pathVar) => {
-        code: b->B.raise(~pathVar, MissingParser) ++ ";",
-        isAsync: false,
+        b->B.raise(~pathVar, MissingParser) ++ ";"
       })
     },
     ~serializeOperationBuilder=switch maybeSerializer {
     | Some(serializer) =>
       Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
-        b->B.syncOperation(
-          ~inputVar,
-          ~outputVar,
-          ~fn=serializer->(Obj.magic: ('value => 'any) => (. unknown) => unknown),
-          ~prependPathVar=pathVar,
-        )
+        b->B.embedSyncOperation(~inputVar, ~outputVar, ~fn=serializer, ~prependPathVar=pathVar, ())
       })
     | None =>
       Builder.make((. b, ~selfStruct as _, ~inputVar as _, ~outputVar as _, ~pathVar) => {
-        code: b->B.raise(~pathVar, MissingSerializer) ++ ";",
-        isAsync: false,
+        b->B.raise(~pathVar, MissingSerializer) ++ ";"
       })
     },
     (),
@@ -1854,21 +1709,7 @@ module Variant = {
               ~outputVar=childOutputVar,
               ~pathVar,
             )
-          let isAsync = switch struct.isAsyncParse {
-          | Value(true) => true
-          | _ => false
-          }
-          {
-            code: code ++
-            b->B.syncTransform(
-              ~inputVar=childOutputVar,
-              ~outputVar,
-              ~isAsyncInput=isAsync,
-              ~fn=definer,
-              (),
-            ),
-            isAsync,
-          }
+          code ++ b->B.embedSyncOperation(~inputVar=childOutputVar, ~outputVar, ~fn=definer, ())
         }),
         ~serializeOperationBuilder=Builder.make((.
           b,
@@ -1903,22 +1744,19 @@ module Variant = {
                 )}}`
           }
 
-          {
-            code: codeRef.contents ++
-            switch isValueRegistered {
-            | true => `${childInputVar}=${inputVar}${valuePath}`
-            | false =>
-              try {
-                let inlinedValue = selfStruct->internalToInlinedValue
-                `${childInputVar}=${inlinedValue}`
-              } catch {
-              | _ => b->B.raise(~pathVar, MissingSerializer)
-              }
-            } ++
-            ";" ++
-            childCode,
-            isAsync: false,
-          }
+          codeRef.contents ++
+          switch isValueRegistered {
+          | true => `${childInputVar}=${inputVar}${valuePath}`
+          | false =>
+            try {
+              let inlinedValue = selfStruct->internalToInlinedValue
+              `${childInputVar}=${inlinedValue}`
+            } catch {
+            | _ => b->B.raise(~pathVar, MissingSerializer)
+            }
+          } ++
+          ";" ++
+          childCode
         }),
         ~metadataMap=struct.metadataMap,
         (),
@@ -1936,17 +1774,14 @@ module Literal = {
 
         let makeSerializeOperationBuilder = output =>
           Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
-            {
-              code: `if(${inputVar}!==${b->B.embed(variant)}){${b->B.raiseWithArg(
-                  ~pathVar,
-                  (. input) => UnexpectedValue({
-                    expected: variant->Stdlib.Inlined.Value.stringify,
-                    received: input->Stdlib.Inlined.Value.stringify,
-                  }),
-                  inputVar,
-                )}}${outputVar}=${b->B.embed(output)};`,
-              isAsync: false,
-            }
+            `if(${inputVar}!==${b->B.embed(variant)}){${b->B.raiseWithArg(
+                ~pathVar,
+                (. input) => UnexpectedValue({
+                  expected: variant->Stdlib.Inlined.Value.stringify,
+                  received: input->Stdlib.Inlined.Value.stringify,
+                }),
+                inputVar,
+              )}}${outputVar}=${b->B.embed(output)};`
           })
 
         switch innerLiteral {
@@ -1962,17 +1797,14 @@ module Literal = {
               ~outputVar,
               ~pathVar,
             ) => {
-              {
-                code: `if(${inputVar}!==null){${b->B.raiseWithArg(
-                    ~pathVar,
-                    (. input) => UnexpectedType({
-                      expected: "EmptyNull Literal (null)",
-                      received: input->Stdlib.Unknown.toName,
-                    }),
-                    inputVar,
-                  )}}${outputVar}=${b->B.embed(variant)};`,
-                isAsync: false,
-              }
+              `if(${inputVar}!==null){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedType({
+                    expected: "EmptyNull Literal (null)",
+                    received: input->Stdlib.Unknown.toName,
+                  }),
+                  inputVar,
+                )}}${outputVar}=${b->B.embed(variant)};`
             }),
             ~serializeOperationBuilder=makeSerializeOperationBuilder(Js.Null.empty),
             (),
@@ -1989,17 +1821,14 @@ module Literal = {
               ~outputVar,
               ~pathVar,
             ) => {
-              {
-                code: `if(${inputVar}!==undefined){${b->B.raiseWithArg(
-                    ~pathVar,
-                    (. input) => UnexpectedType({
-                      expected: "EmptyOption Literal (undefined)",
-                      received: input->Stdlib.Unknown.toName,
-                    }),
-                    inputVar,
-                  )}}${outputVar}=${b->B.embed(variant)};`,
-                isAsync: false,
-              }
+              `if(${inputVar}!==undefined){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedType({
+                    expected: "EmptyOption Literal (undefined)",
+                    received: input->Stdlib.Unknown.toName,
+                  }),
+                  inputVar,
+                )}}${outputVar}=${b->B.embed(variant)};`
             }),
             ~serializeOperationBuilder=makeSerializeOperationBuilder(Js.Undefined.empty),
             (),
@@ -2016,17 +1845,14 @@ module Literal = {
               ~outputVar,
               ~pathVar,
             ) => {
-              {
-                code: `if(!Number.isNaN(${inputVar})){${b->B.raiseWithArg(
-                    ~pathVar,
-                    (. input) => UnexpectedType({
-                      expected: "NaN Literal (NaN)",
-                      received: input->Stdlib.Unknown.toName,
-                    }),
-                    inputVar,
-                  )}}${outputVar}=${b->B.embed(variant)};`,
-                isAsync: false,
-              }
+              `if(!Number.isNaN(${inputVar})){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedType({
+                    expected: "NaN Literal (NaN)",
+                    received: input->Stdlib.Unknown.toName,
+                  }),
+                  inputVar,
+                )}}${outputVar}=${b->B.embed(variant)};`
             }),
             ~serializeOperationBuilder=makeSerializeOperationBuilder(Js.Float._NaN),
             (),
@@ -2043,24 +1869,21 @@ module Literal = {
               ~outputVar,
               ~pathVar,
             ) => {
-              {
-                code: `if(typeof ${inputVar}!=="boolean"){${b->B.raiseWithArg(
-                    ~pathVar,
-                    (. input) => UnexpectedType({
-                      expected: selfStruct.name,
-                      received: input->Stdlib.Unknown.toName,
-                    }),
-                    inputVar,
-                  )}}if(${inputVar}!==${bool->Stdlib.Bool.toString}){${b->B.raiseWithArg(
-                    ~pathVar,
-                    (. input) => UnexpectedValue({
-                      expected: bool->Stdlib.Bool.toString,
-                      received: input->Stdlib.Inlined.Value.stringify,
-                    }),
-                    inputVar,
-                  )}}${outputVar}=${b->B.embed(variant)};`,
-                isAsync: false,
-              }
+              `if(typeof ${inputVar}!=="boolean"){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedType({
+                    expected: selfStruct.name,
+                    received: input->Stdlib.Unknown.toName,
+                  }),
+                  inputVar,
+                )}}if(${inputVar}!==${bool->Stdlib.Bool.toString}){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedValue({
+                    expected: bool->Stdlib.Bool.toString,
+                    received: input->Stdlib.Inlined.Value.stringify,
+                  }),
+                  inputVar,
+                )}}${outputVar}=${b->B.embed(variant)};`
             }),
             ~serializeOperationBuilder=makeSerializeOperationBuilder(bool),
             (),
@@ -2077,24 +1900,21 @@ module Literal = {
               ~outputVar,
               ~pathVar,
             ) => {
-              {
-                code: `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
-                    ~pathVar,
-                    (. input) => UnexpectedType({
-                      expected: selfStruct.name,
-                      received: input->Stdlib.Unknown.toName,
-                    }),
-                    inputVar,
-                  )}}if(${inputVar}!==${string->Stdlib.Inlined.Value.fromString}){${b->B.raiseWithArg(
-                    ~pathVar,
-                    (. input) => UnexpectedValue({
-                      expected: string->Stdlib.Inlined.Value.fromString,
-                      received: input->Stdlib.Inlined.Value.stringify,
-                    }),
-                    inputVar,
-                  )}}${outputVar}=${b->B.embed(variant)};`,
-                isAsync: false,
-              }
+              `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedType({
+                    expected: selfStruct.name,
+                    received: input->Stdlib.Unknown.toName,
+                  }),
+                  inputVar,
+                )}}if(${inputVar}!==${string->Stdlib.Inlined.Value.fromString}){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedValue({
+                    expected: string->Stdlib.Inlined.Value.fromString,
+                    received: input->Stdlib.Inlined.Value.stringify,
+                  }),
+                  inputVar,
+                )}}${outputVar}=${b->B.embed(variant)};`
             }),
             ~serializeOperationBuilder=makeSerializeOperationBuilder(string),
             (),
@@ -2111,24 +1931,21 @@ module Literal = {
               ~outputVar,
               ~pathVar,
             ) => {
-              {
-                code: `if(typeof ${inputVar}!=="number"){${b->B.raiseWithArg(
-                    ~pathVar,
-                    (. input) => UnexpectedType({
-                      expected: selfStruct.name,
-                      received: input->Stdlib.Unknown.toName,
-                    }),
-                    inputVar,
-                  )}}if(${inputVar}!==${float->Js.Float.toString}){${b->B.raiseWithArg(
-                    ~pathVar,
-                    (. input) => UnexpectedValue({
-                      expected: float->Js.Float.toString,
-                      received: input->Stdlib.Inlined.Value.stringify,
-                    }),
-                    inputVar,
-                  )}}${outputVar}=${b->B.embed(variant)};`,
-                isAsync: false,
-              }
+              `if(typeof ${inputVar}!=="number"){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedType({
+                    expected: selfStruct.name,
+                    received: input->Stdlib.Unknown.toName,
+                  }),
+                  inputVar,
+                )}}if(${inputVar}!==${float->Js.Float.toString}){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedValue({
+                    expected: float->Js.Float.toString,
+                    received: input->Stdlib.Inlined.Value.stringify,
+                  }),
+                  inputVar,
+                )}}${outputVar}=${b->B.embed(variant)};`
             }),
             ~serializeOperationBuilder=makeSerializeOperationBuilder(float),
             (),
@@ -2145,24 +1962,21 @@ module Literal = {
               ~outputVar,
               ~pathVar,
             ) => {
-              {
-                code: `if(!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)){${b->B.raiseWithArg(
-                    ~pathVar,
-                    (. input) => UnexpectedType({
-                      expected: selfStruct.name,
-                      received: input->Stdlib.Unknown.toName,
-                    }),
-                    inputVar,
-                  )}}if(${inputVar}!==${int->Stdlib.Int.unsafeToString}){${b->B.raiseWithArg(
-                    ~pathVar,
-                    (. input) => UnexpectedValue({
-                      expected: int->Js.Int.toString,
-                      received: input->Stdlib.Inlined.Value.stringify,
-                    }),
-                    inputVar,
-                  )}}${outputVar}=${b->B.embed(variant)};`,
-                isAsync: false,
-              }
+              `if(!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedType({
+                    expected: selfStruct.name,
+                    received: input->Stdlib.Unknown.toName,
+                  }),
+                  inputVar,
+                )}}if(${inputVar}!==${int->Stdlib.Int.unsafeToString}){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedValue({
+                    expected: int->Js.Int.toString,
+                    received: input->Stdlib.Inlined.Value.stringify,
+                  }),
+                  inputVar,
+                )}}${outputVar}=${b->B.embed(variant)};`
             }),
             ~serializeOperationBuilder=makeSerializeOperationBuilder(int),
             (),
@@ -2387,10 +2201,7 @@ module Object = {
               ~outputVar=fieldOuputVar,
               ~pathVar=`${pathVar}+'['+${inlinedFieldName->Stdlib.Inlined.Value.fromString}+']'`,
             )
-          let isAsyncField = switch fieldStruct.isAsyncParse {
-          | Value(true) => true
-          | _ => false
-          }
+          let isAsyncField = fieldStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
 
           codeRef.contents =
             codeRef.contents ++
@@ -2443,26 +2254,20 @@ module Object = {
         }
 
         if asyncFieldVars->Js.Array2.length === 0 {
-          {
-            code: `${codeRef.contents}${outputVar}=${syncOutputVar};`,
-            isAsync: false,
-          }
+          `${codeRef.contents}${outputVar}=${syncOutputVar};`
         } else {
           let resolveVar = b->B.varWithoutAllocation
           let rejectVar = b->B.varWithoutAllocation
           let asyncParseResultVar = b->B.varWithoutAllocation
           let counterVar = b->B.varWithoutAllocation
 
-          {
-            code: `${codeRef.contents}${outputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=${asyncFieldVars
-              ->Js.Array2.length
-              ->Js.Int.toString};${asyncFieldVars
-              ->Js.Array2.map(asyncFieldVar => {
-                `${asyncFieldVar}().then(${asyncParseResultVar}=>{${asyncFieldVar}=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${syncOutputVar})}},${rejectVar})`
-              })
-              ->Js.Array2.joinWith(";")}});`,
-            isAsync: true,
-          }
+          `${codeRef.contents}${outputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=${asyncFieldVars
+            ->Js.Array2.length
+            ->Js.Int.toString};${asyncFieldVars
+            ->Js.Array2.map(asyncFieldVar => {
+              `${asyncFieldVar}().then(${asyncParseResultVar}=>{${asyncFieldVar}=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${syncOutputVar})}},${rejectVar})`
+            })
+            ->Js.Array2.joinWith(";")}});`
         }
       }),
       ~serializeOperationBuilder=Builder.make((.
@@ -2527,7 +2332,7 @@ module Object = {
             }
         }
 
-        {code: codeRef.contents, isAsync: false}
+        codeRef.contents
       }),
       (),
     )
@@ -2544,17 +2349,14 @@ module Object = {
 
 module Never = {
   let builder = Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar as _, ~pathVar) => {
-    {
-      code: b->B.raiseWithArg(
-        ~pathVar,
-        (. input) => UnexpectedType({
-          expected: "Never",
-          received: input->Stdlib.Unknown.toName,
-        }),
-        inputVar,
-      ) ++ ";",
-      isAsync: false,
-    }
+    b->B.raiseWithArg(
+      ~pathVar,
+      (. input) => UnexpectedType({
+        expected: "Never",
+        received: input->Stdlib.Unknown.toName,
+      }),
+      inputVar,
+    ) ++ ";"
   })
 
   let struct = make(
@@ -2622,17 +2424,14 @@ module String = {
     ~outputVar,
     ~pathVar,
   ) => {
-    {
-      code: `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
-          ~pathVar,
-          (. input) => UnexpectedType({
-            expected: "String",
-            received: input->Stdlib.Unknown.toName,
-          }),
-          inputVar,
-        )}}${outputVar}=${inputVar};`,
-      isAsync: false,
-    }
+    `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
+        ~pathVar,
+        (. input) => UnexpectedType({
+          expected: "String",
+          received: input->Stdlib.Unknown.toName,
+        }),
+        inputVar,
+      )}}${outputVar}=${inputVar};`
   })
 
   let struct = make(
@@ -2841,19 +2640,12 @@ module JsonString = {
             ~outputVar,
             ~pathVar,
           )
-        let isAsync = switch childStruct.isAsyncParse {
-        | Value(true) => true
-        | _ => false
-        }
 
-        {
-          code: `${stringParserCode}try{${jsonVar}=JSON.parse(${jsonStringVar})}catch(t){${b->B.raiseWithArg(
-              ~pathVar,
-              (. message) => OperationFailed(message),
-              "t.message",
-            )}}${childCode}`,
-          isAsync,
-        }
+        `${stringParserCode}try{${jsonVar}=JSON.parse(${jsonStringVar})}catch(t){${b->B.raiseWithArg(
+            ~pathVar,
+            (. message) => OperationFailed(message),
+            "t.message",
+          )}}${childCode}`
       }),
       ~serializeOperationBuilder=Builder.make((.
         b,
@@ -2872,10 +2664,7 @@ module JsonString = {
             ~pathVar,
           )
 
-        {
-          code: `${childCode}${outputVar}=JSON.stringify(${childOutputVar});`,
-          isAsync: false,
-        }
+        `${childCode}${outputVar}=JSON.stringify(${childOutputVar});`
       }),
       (),
     )
@@ -2894,17 +2683,14 @@ module Bool = {
       ~outputVar,
       ~pathVar,
     ) => {
-      {
-        code: `if(typeof ${inputVar}!=="boolean"){${b->B.raiseWithArg(
-            ~pathVar,
-            (. input) => UnexpectedType({
-              expected: "Bool",
-              received: input->Stdlib.Unknown.toName,
-            }),
-            inputVar,
-          )}}${outputVar}=${inputVar};`,
-        isAsync: false,
-      }
+      `if(typeof ${inputVar}!=="boolean"){${b->B.raiseWithArg(
+          ~pathVar,
+          (. input) => UnexpectedType({
+            expected: "Bool",
+            received: input->Stdlib.Unknown.toName,
+          }),
+          inputVar,
+        )}}${outputVar}=${inputVar};`
     }),
     ~serializeOperationBuilder=Builder.noop,
     (),
@@ -2946,17 +2732,14 @@ module Int = {
       ~outputVar,
       ~pathVar,
     ) => {
-      {
-        code: `if(!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)){${b->B.raiseWithArg(
-            ~pathVar,
-            (. input) => UnexpectedType({
-              expected: "Int",
-              received: input->Stdlib.Unknown.toName,
-            }),
-            inputVar,
-          )}}${outputVar}=${inputVar};`,
-        isAsync: false,
-      }
+      `if(!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)){${b->B.raiseWithArg(
+          ~pathVar,
+          (. input) => UnexpectedType({
+            expected: "Int",
+            received: input->Stdlib.Unknown.toName,
+          }),
+          inputVar,
+        )}}${outputVar}=${inputVar};`
     }),
     ~serializeOperationBuilder=Builder.noop,
     (),
@@ -3053,17 +2836,14 @@ module Float = {
       ~outputVar,
       ~pathVar,
     ) => {
-      {
-        code: `if(!(typeof ${inputVar}==="number"&&!Number.isNaN(${inputVar}))){${b->B.raiseWithArg(
-            ~pathVar,
-            (. input) => UnexpectedType({
-              expected: "Float",
-              received: input->Stdlib.Unknown.toName,
-            }),
-            inputVar,
-          )}}${outputVar}=${inputVar};`,
-        isAsync: false,
-      }
+      `if(!(typeof ${inputVar}==="number"&&!Number.isNaN(${inputVar}))){${b->B.raiseWithArg(
+          ~pathVar,
+          (. input) => UnexpectedType({
+            expected: "Float",
+            received: input->Stdlib.Unknown.toName,
+          }),
+          inputVar,
+        )}}${outputVar}=${inputVar};`
     }),
     ~serializeOperationBuilder=Builder.noop,
     (),
@@ -3133,24 +2913,14 @@ module Null = {
             ~outputVar=childOutputVar,
             ~pathVar,
           )
-        let isChildAsync = switch childStruct.isAsyncParse {
-        | Value(true) => true
-        | _ => false
-        }
+        let isAsyncChild = childStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
 
-        {
-          code: `if(${inputVar}!==null){${childCode}${b->B.syncTransform(
-              ~inputVar=childOutputVar,
-              ~outputVar,
-              ~isAsyncInput=isChildAsync,
-              ~fn=%raw("Caml_option.some"),
-              (),
-            )}}else{${outputVar}=${switch isChildAsync {
-            | false => `undefined`
-            | true => `()=>Promise.resolve(undefined)`
-            }}}`,
-          isAsync: isChildAsync,
-        }
+        `if(${inputVar}!==null){${childCode}${b->B.embedSyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~fn=%raw("Caml_option.some"),
+            (),
+          )}}else{${outputVar}=${isAsyncChild ? `()=>Promise.resolve(void 0)` : `void 0`}}`
       }),
       ~serializeOperationBuilder=Builder.make((.
         b,
@@ -3168,17 +2938,10 @@ module Null = {
             ~outputVar=childOutputVar,
             ~pathVar,
           )
-        let isChildAsync = switch childStruct.isAsyncParse {
-        | Value(true) => true
-        | _ => false
-        }
 
-        {
-          code: `if(${inputVar}!==undefined){${inputVar}=${b->B.embed(
-              %raw("Caml_option.valFromOption"),
-            )}(${inputVar});${childCode}${outputVar}=${childOutputVar}}else{${outputVar}=null}`,
-          isAsync: isChildAsync,
-        }
+        `if(${inputVar}!==undefined){${inputVar}=${b->B.embed(
+            %raw("Caml_option.valFromOption"),
+          )}(${inputVar});${childCode}${outputVar}=${childOutputVar}}else{${outputVar}=null}`
       }),
       (),
     )
@@ -3208,24 +2971,18 @@ module Option = {
             ~outputVar=childOutputVar,
             ~pathVar,
           )
-        let isChildAsync = switch childStruct.isAsyncParse {
-        | Value(true) => true
-        | _ => false
-        }
 
-        {
-          code: `if(${inputVar}!==undefined){${childCode}${b->B.syncTransform(
-              ~inputVar=childOutputVar,
-              ~outputVar,
-              ~isAsyncInput=isChildAsync,
-              ~fn=%raw("Caml_option.some"),
-              (),
-            )}}else{${outputVar}=${switch isChildAsync {
-            | false => inputVar
-            | true => `()=>Promise.resolve(${inputVar})`
-            }}}`,
-          isAsync: isChildAsync,
-        }
+        let isChildAsync = childStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+
+        `if(${inputVar}!==undefined){${childCode}${b->B.embedSyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~fn=%raw("Caml_option.some"),
+            (),
+          )}}else{${outputVar}=${switch isChildAsync {
+          | false => inputVar
+          | true => `()=>Promise.resolve(${inputVar})`
+          }}}`
       }),
       ~serializeOperationBuilder=Builder.make((.
         b,
@@ -3243,17 +3000,10 @@ module Option = {
             ~outputVar=childOutputVar,
             ~pathVar,
           )
-        let isChildAsync = switch childStruct.isAsyncParse {
-        | Value(true) => true
-        | _ => false
-        }
 
-        {
-          code: `if(${inputVar}!==undefined){${inputVar}=${b->B.embed(
-              %raw("Caml_option.valFromOption"),
-            )}(${inputVar});${childCode}${outputVar}=${childOutputVar}}else{${outputVar}=undefined}`,
-          isAsync: isChildAsync,
-        }
+        `if(${inputVar}!==undefined){${inputVar}=${b->B.embed(
+            %raw("Caml_option.valFromOption"),
+          )}(${inputVar});${childCode}${outputVar}=${childOutputVar}}else{${outputVar}=undefined}`
       }),
       (),
     )
@@ -3323,16 +3073,13 @@ module Array = {
             },
           )}}`
 
-        switch childStruct.isAsyncParse {
-        | Value(true) => {
-            let syncOutputVar = b->B.var
-            {
-              code: code ++
-              `${syncOutputVar}=${outputVar};${outputVar}=()=>Promise.all(${syncOutputVar}.map(t=>t()));`,
-              isAsync: true,
-            }
-          }
-        | _ => {code, isAsync: false}
+        let isAsync = childStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+        if isAsync {
+          let syncOutputVar = b->B.var
+          code ++
+          `${syncOutputVar}=${outputVar};${outputVar}=()=>Promise.all(${syncOutputVar}.map(t=>t()));`
+        } else {
+          code
         }
       }),
       ~serializeOperationBuilder=Builder.make((.
@@ -3345,25 +3092,22 @@ module Array = {
         let iteratorVar = b->B.varWithoutAllocation
 
         // TODO: Optimize when childStruct.serializeOperationBuilder is noop
-        {
-          code: `${outputVar}=[];for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.varsScope(
-              (. b) => {
-                let itemVar = b->B.var
-                let childOutputVar = b->B.var
+        `${outputVar}=[];for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.varsScope(
+            (. b) => {
+              let itemVar = b->B.var
+              let childOutputVar = b->B.var
 
-                let code =
-                  b->B.run(
-                    ~builder=childStruct.serializeOperationBuilder,
-                    ~struct=childStruct,
-                    ~inputVar=itemVar,
-                    ~outputVar=childOutputVar,
-                    ~pathVar=`${pathVar}+'["'+${iteratorVar}+'"]'`,
-                  )
-                `${itemVar}=${inputVar}[${iteratorVar}];${code}${outputVar}.push(${childOutputVar})`
-              },
-            )}}`,
-          isAsync: false,
-        }
+              let code =
+                b->B.run(
+                  ~builder=childStruct.serializeOperationBuilder,
+                  ~struct=childStruct,
+                  ~inputVar=itemVar,
+                  ~outputVar=childOutputVar,
+                  ~pathVar=`${pathVar}+'["'+${iteratorVar}+'"]'`,
+                )
+              `${itemVar}=${inputVar}[${iteratorVar}];${code}${outputVar}.push(${childOutputVar})`
+            },
+          )}}`
       }),
       (),
     )
@@ -3467,19 +3211,16 @@ module Dict = {
             `${itemVar}=${inputVar}[${keyVar}];${childCode}${outputVar}[${keyVar}]=${childOutputVar}`
           })}}`
 
-        switch childStruct.isAsyncParse {
-        | Value(true) => {
-            let resolveVar = b->B.varWithoutAllocation
-            let rejectVar = b->B.varWithoutAllocation
-            let asyncParseResultVar = b->B.varWithoutAllocation
-            let counterVar = b->B.varWithoutAllocation
-            let syncOutputVar = b->B.var
-            {
-              code: `${code}${syncOutputVar}=${outputVar};${outputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=Object.keys(${syncOutputVar}).length;for(let ${keyVar} in ${syncOutputVar}){${syncOutputVar}[${keyVar}]().then(${asyncParseResultVar}=>{${syncOutputVar}[${keyVar}]=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${syncOutputVar})}},${rejectVar})}});`,
-              isAsync: true,
-            }
-          }
-        | _ => {code, isAsync: false}
+        let isAsync = childStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+        if isAsync {
+          let resolveVar = b->B.varWithoutAllocation
+          let rejectVar = b->B.varWithoutAllocation
+          let asyncParseResultVar = b->B.varWithoutAllocation
+          let counterVar = b->B.varWithoutAllocation
+          let syncOutputVar = b->B.var
+          `${code}${syncOutputVar}=${outputVar};${outputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=Object.keys(${syncOutputVar}).length;for(let ${keyVar} in ${syncOutputVar}){${syncOutputVar}[${keyVar}]().then(${asyncParseResultVar}=>{${syncOutputVar}[${keyVar}]=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${syncOutputVar})}},${rejectVar})}});`
+        } else {
+          code
         }
       }),
       ~serializeOperationBuilder=Builder.make((.
@@ -3492,23 +3233,20 @@ module Dict = {
         let keyVar = b->B.varWithoutAllocation
 
         // TODO: Optimize when childStruct.serializeOperationBuilder is noop
-        {
-          code: `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.varsScope((. b) => {
-              let itemVar = b->B.var
-              let childOutputVar = b->B.var
-              let childCode =
-                b->B.run(
-                  ~builder=childStruct.serializeOperationBuilder,
-                  ~struct=childStruct,
-                  ~inputVar=itemVar,
-                  ~outputVar=childOutputVar,
-                  ~pathVar=`${pathVar}+'["'+${keyVar}+'"]'`,
-                )
+        `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.varsScope((. b) => {
+            let itemVar = b->B.var
+            let childOutputVar = b->B.var
+            let childCode =
+              b->B.run(
+                ~builder=childStruct.serializeOperationBuilder,
+                ~struct=childStruct,
+                ~inputVar=itemVar,
+                ~outputVar=childOutputVar,
+                ~pathVar=`${pathVar}+'["'+${keyVar}+'"]'`,
+              )
 
-              `${itemVar}=${inputVar}[${keyVar}];${childCode}${outputVar}[${keyVar}]=${childOutputVar}`
-            })}}`,
-          isAsync: false,
-        }
+            `${itemVar}=${inputVar}[${keyVar}];${childCode}${outputVar}[${keyVar}]=${childOutputVar}`
+          })}}`
       }),
       (),
     )
@@ -3541,26 +3279,19 @@ module Default = {
             ~outputVar=childOutputVar,
             ~pathVar,
           )
-        let isChildAsync = switch childStruct.isAsyncParse {
-        | Value(true) => true
-        | _ => false
-        }
+        let isChildAsync = childStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
 
         let defaultValVar = `${b->B.embed(getDefaultValue)}()`
 
-        {
-          code: `if(${inputVar}!==undefined){${childCode}${b->B.syncTransform(
-              ~inputVar=childOutputVar,
-              ~outputVar,
-              ~isAsyncInput=isChildAsync,
-              ~fn=%raw("Caml_option.some"),
-              (),
-            )}}else{${outputVar}=${switch isChildAsync {
-            | false => defaultValVar
-            | true => `()=>Promise.resolve(${defaultValVar})`
-            }}}`,
-          isAsync: isChildAsync,
-        }
+        `if(${inputVar}!==undefined){${childCode}${b->B.embedSyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~fn=%raw("Caml_option.some"),
+            (),
+          )}}else{${outputVar}=${switch isChildAsync {
+          | false => defaultValVar
+          | true => `()=>Promise.resolve(${defaultValVar})`
+          }}}`
       }),
       ~serializeOperationBuilder=childStruct.serializeOperationBuilder,
       (),
@@ -3606,10 +3337,7 @@ module Tuple = {
             )}}`,
         )
         switch structs {
-        | [] => {
-            code: codeRef.contents ++ `${outputVar}=void 0;`,
-            isAsync: false,
-          }
+        | [] => codeRef.contents ++ `${outputVar}=void 0;`
         | [itemStruct] => {
             let childCode =
               b->B.run(
@@ -3619,14 +3347,7 @@ module Tuple = {
                 ~outputVar,
                 ~pathVar=`${pathVar}+'["0"]'`,
               )
-            let isAsync = switch itemStruct.isAsyncParse {
-            | Value(true) => true
-            | _ => false
-            }
-            {
-              code: codeRef.contents ++ childCode,
-              isAsync,
-            }
+            codeRef.contents ++ childCode
           }
         | _ => {
             let asyncItemVars = []
@@ -3644,10 +3365,8 @@ module Tuple = {
                   ~outputVar=childOutputVar,
                   ~pathVar=`${pathVar}+'["${idx->Stdlib.Int.unsafeToString}"]'`,
                 )
-              let isAsyncItem = switch itemStruct.isAsyncParse {
-              | Value(true) => true
-              | _ => false
-              }
+              let isAsyncItem = itemStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+
               let destVar = `${syncOutputVar}[${idx->Stdlib.Int.unsafeToString}]`
               codeRef.contents = codeRef.contents ++ `${childCode}${destVar}=${childOutputVar};`
               if isAsyncItem {
@@ -3656,26 +3375,20 @@ module Tuple = {
             }
 
             if asyncItemVars->Js.Array2.length === 0 {
-              {
-                code: codeRef.contents ++ `${outputVar}=${syncOutputVar};`,
-                isAsync: false,
-              }
+              codeRef.contents ++ `${outputVar}=${syncOutputVar};`
             } else {
               let resolveVar = b->B.varWithoutAllocation
               let rejectVar = b->B.varWithoutAllocation
               let asyncParseResultVar = b->B.varWithoutAllocation
               let counterVar = b->B.varWithoutAllocation
 
-              {
-                code: `${codeRef.contents}${outputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=${asyncItemVars
-                  ->Js.Array2.length
-                  ->Js.Int.toString};${asyncItemVars
-                  ->Js.Array2.map(asyncItemVar => {
-                    `${asyncItemVar}().then(${asyncParseResultVar}=>{${asyncItemVar}=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${syncOutputVar})}},${rejectVar})`
-                  })
-                  ->Js.Array2.joinWith(";")}});`,
-                isAsync: true,
-              }
+              `${codeRef.contents}${outputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=${asyncItemVars
+                ->Js.Array2.length
+                ->Js.Int.toString};${asyncItemVars
+                ->Js.Array2.map(asyncItemVar => {
+                  `${asyncItemVar}().then(${asyncParseResultVar}=>{${asyncItemVar}=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${syncOutputVar})}},${rejectVar})`
+                })
+                ->Js.Array2.joinWith(";")}});`
             }
           }
         }
@@ -3683,17 +3396,11 @@ module Tuple = {
       ~serializeOperationBuilder=switch structs {
       | [] =>
         Builder.make((. _b, ~selfStruct as _, ~inputVar as _, ~outputVar, ~pathVar as _) => {
-          {
-            code: `${outputVar}=[];`,
-            isAsync: false,
-          }
+          `${outputVar}=[];`
         })
       | [_] =>
         Builder.make((. _b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar as _) => {
-          {
-            code: `${outputVar}=[${inputVar}];`,
-            isAsync: false,
-          }
+          `${outputVar}=[${inputVar}];`
         })
       | _ => Builder.noop
       },
@@ -3743,10 +3450,8 @@ module Union = {
               ~outputVar=childOutputVar,
               ~pathVar=`""`,
             )
-          let isAsyncItem = switch itemStruct.isAsyncParse {
-          | Value(true) => true
-          | _ => false
-          }
+          let isAsyncItem = itemStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+
           let errorVar = b->B.varWithoutAllocation
           errorVars->Js.Array2.push(errorVar)->ignore
 
@@ -3791,26 +3496,21 @@ module Union = {
                   ->Js.Array2.mapi((_, idx) => `t[${idx->Stdlib.Int.unsafeToString}]._1`)
                   ->Js.Array2.joinWith(",")}]`,
               )}})`
-          {
-            isAsync: true,
-            code: codeRef.contents ++
-            codeEndRef.contents ++
-            `if(!${outputVar}){${outputVar}=()=>Promise.resolve(${syncOutputVar})}`,
-          }
+
+          codeRef.contents ++
+          codeEndRef.contents ++
+          `if(!${outputVar}){${outputVar}=()=>Promise.resolve(${syncOutputVar})}`
         } else {
-          {
-            isAsync: false,
-            code: codeRef.contents ++
-            b->B.raiseWithArg(
-              ~pathVar,
-              (. internalErrors) => InvalidUnion(
-                internalErrors->Js.Array2.map(Error.Internal.toParseError),
-              ),
-              `[${errorVars->Js.Array2.map(v => `${v}._1`)->Js.Array2.joinWith(",")}]`,
-            ) ++
-            codeEndRef.contents ++
-            `${outputVar}=${syncOutputVar};`,
-          }
+          codeRef.contents ++
+          b->B.raiseWithArg(
+            ~pathVar,
+            (. internalErrors) => InvalidUnion(
+              internalErrors->Js.Array2.map(Error.Internal.toParseError),
+            ),
+            `[${errorVars->Js.Array2.map(v => `${v}._1`)->Js.Array2.joinWith(",")}]`,
+          ) ++
+          codeEndRef.contents ++
+          `${outputVar}=${syncOutputVar};`
         }
       }),
       ~serializeOperationBuilder=Builder.make((.
@@ -3847,18 +3547,15 @@ module Union = {
           codeEndRef.contents = `}else{throw ${errorVar}}}` ++ codeEndRef.contents
         }
 
-        {
-          isAsync: false,
-          code: codeRef.contents ++
-          b->B.raiseWithArg(
-            ~pathVar,
-            (. internalErrors) => InvalidUnion(
-              internalErrors->Js.Array2.map(Error.Internal.toSerializeError),
-            ),
-            `[${errorVars->Js.Array2.map(v => `${v}._1`)->Js.Array2.joinWith(",")}]`,
-          ) ++
-          codeEndRef.contents,
-        }
+        codeRef.contents ++
+        b->B.raiseWithArg(
+          ~pathVar,
+          (. internalErrors) => InvalidUnion(
+            internalErrors->Js.Array2.map(Error.Internal.toSerializeError),
+          ),
+          `[${errorVars->Js.Array2.map(v => `${v}._1`)->Js.Array2.joinWith(",")}]`,
+        ) ++
+        codeEndRef.contents
       }),
       (),
     )
@@ -3936,10 +3633,7 @@ let json = {
       ~outputVar,
       ~pathVar,
     ) => {
-      {
-        code: `${outputVar}=${b->B.embed(parse)}(${inputVar},${pathVar});`,
-        isAsync: false,
-      }
+      `${outputVar}=${b->B.embed(parse)}(${inputVar},${pathVar});`
     }),
     ~serializeOperationBuilder=Builder.noop,
     (),
@@ -3970,10 +3664,8 @@ let catch = (struct, getFallbackValue) => {
           ~outputVar=childOutputVar,
           ~pathVar,
         )
-      let isAsync = switch struct.isAsyncParse {
-      | Value(true) => true
-      | _ => false
-      }
+      let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+
       let fallbackValVar = `${b->B.embed((input, internalError) =>
           getFallbackValue->Stdlib.Fn.call1({
             input,
@@ -3982,15 +3674,9 @@ let catch = (struct, getFallbackValue) => {
         )}(${inputVar},t._1)`
 
       if isAsync {
-        {
-          code: `try{${childCode}${outputVar}=()=>{try{return ${childOutputVar}().catch(t=>{if(t&&t.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"){return ${fallbackValVar}}else{throw t}})}catch(t){if(t&&t.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"){return Promise.resolve(${fallbackValVar})}else{throw t}}}}catch(t){if(t&&t.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"){${outputVar}=()=>Promise.resolve(${fallbackValVar})}else{throw t}}`,
-          isAsync: true,
-        }
+        `try{${childCode}${outputVar}=()=>{try{return ${childOutputVar}().catch(t=>{if(t&&t.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"){return ${fallbackValVar}}else{throw t}})}catch(t){if(t&&t.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"){return Promise.resolve(${fallbackValVar})}else{throw t}}}}catch(t){if(t&&t.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"){${outputVar}=()=>Promise.resolve(${fallbackValVar})}else{throw t}}`
       } else {
-        {
-          code: `try{${childCode}}catch(t){if(t&&t.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"){${childOutputVar}=${fallbackValVar}}else{throw t}}${outputVar}=${childOutputVar};`,
-          isAsync: false,
-        }
+        `try{${childCode}}catch(t){if(t&&t.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"){${childOutputVar}=${fallbackValVar}}else{throw t}}${outputVar}=${childOutputVar};`
       }
     }),
     ~serializeOperationBuilder=struct.serializeOperationBuilder,
