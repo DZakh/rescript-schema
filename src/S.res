@@ -493,6 +493,7 @@ module Builder = {
       `v${newCounter->Stdlib.Int.unsafeToString}`
     }
 
+    // TODO: Figure out how to make it better
     let internalTransformRethrow = (~pathVar) => {
       `if(t&&t.RE_EXN_ID==="S-RescriptStruct.Error.Internal.Exception/1"){t._1.p=${pathVar}+t._1.p}throw t`
     }
@@ -501,9 +502,10 @@ module Builder = {
       b: t,
       ~inputVar,
       ~outputVar,
+      ~pathVar,
       ~fn: 'input => 'output,
+      ~isSafe=false,
       ~isRefine=false,
-      ~prependPathVar as maybePrependPathVar=?,
       (),
     ) => {
       switch b.asyncVars->Stdlib.Set.has(inputVar) {
@@ -512,10 +514,10 @@ module Builder = {
           ? `${b->embed(fn)}(${inputVar});${outputVar}=${inputVar};`
           : `${outputVar}=${b->embed(fn)}(${inputVar})`
 
-        switch maybePrependPathVar {
-        | None
-        | Some(`""`) => code
-        | Some(pathVar) => `try{${code}}catch(t){${internalTransformRethrow(~pathVar)}}`
+        switch (isSafe, pathVar) {
+        | (true, _)
+        | (_, `""`) => code
+        | _ => `try{${code}}catch(t){${internalTransformRethrow(~pathVar)}}`
         }
 
       | true =>
@@ -524,10 +526,10 @@ module Builder = {
             ? `t=>{${b->embed(fn)}(t);return ${inputVar}}`
             : b->embed(fn)})`
 
-        switch maybePrependPathVar {
-        | None
-        | Some(`""`) => code
-        | Some(pathVar) => `${code}.catch(t=>{${internalTransformRethrow(~pathVar)}})`
+        switch (isSafe, pathVar) {
+        | (true, _)
+        | (_, `""`) => code
+        | _ => `${code}.catch(t=>{${internalTransformRethrow(~pathVar)}})`
         }
       } ++ ";"
     }
@@ -536,9 +538,9 @@ module Builder = {
       b: t,
       ~inputVar,
       ~outputVar,
+      ~pathVar,
       ~fn: (. 'input) => (. unit) => promise<'output>,
       ~isRefine=false,
-      ~prependPathVar as maybePrependPathVar=?,
       (),
     ) => {
       let {asyncVars} = b
@@ -546,35 +548,36 @@ module Builder = {
       asyncVars->Stdlib.Set.add(outputVar)->ignore
       switch isAsyncInput {
       | false =>
-        switch maybePrependPathVar {
-        | None
-        | Some(`""`) =>
-          let code = `${b->embed(fn)}(${inputVar})`
-          if isRefine {
-            let syncResultVar = b->var
-            `${syncResultVar}=${code};${outputVar}=()=>${syncResultVar}().then(_=>${inputVar});`
-          } else {
-            `${outputVar}=${code};`
+        switch pathVar {
+        | `""` => {
+            let code = `${b->embed(fn)}(${inputVar})`
+            if isRefine {
+              let syncResultVar = b->var
+              `${syncResultVar}=${code};${outputVar}=()=>${syncResultVar}().then(_=>${inputVar});`
+            } else {
+              `${outputVar}=${code};`
+            }
           }
-        | Some(pathVar) =>
-          let syncResultVar = b->var
-          let code = `${syncResultVar}=${b->embed(fn)}(${inputVar});`
-          `try{${code}${outputVar}=()=>{try{return ${syncResultVar}()${isRefine
-              ? `.then(_=>${inputVar})`
-              : ""}.catch(t=>{${internalTransformRethrow(
-              ~pathVar,
-            )}})}catch(t){${internalTransformRethrow(
-              ~pathVar,
-            )}}}}catch(t){${internalTransformRethrow(~pathVar)}};`
+        | _ => {
+            let syncResultVar = b->var
+            let code = `${syncResultVar}=${b->embed(fn)}(${inputVar});`
+            `try{${code}${outputVar}=()=>{try{return ${syncResultVar}()${isRefine
+                ? `.then(_=>${inputVar})`
+                : ""}.catch(t=>{${internalTransformRethrow(
+                ~pathVar,
+              )}})}catch(t){${internalTransformRethrow(
+                ~pathVar,
+              )}}}}catch(t){${internalTransformRethrow(~pathVar)}};`
+          }
         }
+
       | true => {
           let code = `${outputVar}=()=>${inputVar}().then(t=>${b->embed(fn)}(t)()${isRefine
               ? ".then(_=>t)"
               : ""})`
-          switch maybePrependPathVar {
-          | None
-          | Some(`""`) => code
-          | Some(pathVar) => `${code}.catch(t=>{${internalTransformRethrow(~pathVar)}})`
+          switch pathVar {
+          | `""` => code
+          | _ => `${code}.catch(t=>{${internalTransformRethrow(~pathVar)}})`
           } ++ ";"
         }
       }
@@ -944,16 +947,16 @@ let recursive = fn => {
           b->B.embedAsyncOperation(
             ~inputVar,
             ~outputVar,
+            ~pathVar,
             ~fn=(. input) => selfStruct.parseAsync(input),
-            ~prependPathVar=pathVar,
             (),
           )
         } else {
           b->B.embedSyncOperation(
             ~inputVar,
             ~outputVar,
+            ~pathVar,
             ~fn=input => selfStruct.parse(input),
-            ~prependPathVar=pathVar,
             (),
           )
         }
@@ -962,19 +965,13 @@ let recursive = fn => {
       selfStruct->Builder.compileParser(~builder)
       selfStruct.parseOperationBuilder = builder
       if isAsync {
-        b->B.embedAsyncOperation(
-          ~inputVar,
-          ~outputVar,
-          ~fn=selfStruct.parseAsync,
-          ~prependPathVar=pathVar,
-          (),
-        )
+        b->B.embedAsyncOperation(~inputVar, ~outputVar, ~pathVar, ~fn=selfStruct.parseAsync, ())
       } else {
         b->B.embedSyncOperation(
           ~inputVar,
           ~outputVar,
+          ~pathVar,
           ~fn=selfStruct.parse->(Obj.magic: ((. unknown) => unknown, unknown) => unknown),
-          ~prependPathVar=pathVar,
           (),
         )
       }
@@ -1000,8 +997,8 @@ let recursive = fn => {
         b->B.embedSyncOperation(
           ~inputVar,
           ~outputVar,
+          ~pathVar,
           ~fn=input => selfStruct.serialize(input),
-          ~prependPathVar=pathVar,
           (),
         )
       })
@@ -1010,8 +1007,8 @@ let recursive = fn => {
       b->B.embedSyncOperation(
         ~inputVar,
         ~outputVar,
+        ~pathVar,
         ~fn=selfStruct.serialize->(Obj.magic: ((. unknown) => unknown, unknown) => unknown),
-        ~prependPathVar=pathVar,
         (),
       )
     })
@@ -1091,15 +1088,15 @@ let refine: (
         `${code}${b->B.embedSyncOperation(
             ~inputVar=childOutputVar,
             ~outputVar,
+            ~pathVar,
             ~fn=parser,
-            ~prependPathVar=pathVar,
             ~isRefine=true,
             (),
           )}${b->B.embedAsyncOperation(
             ~inputVar=childOutputVar,
             ~outputVar,
+            ~pathVar,
             ~fn=(. i) => (. ()) => asyncParser->Stdlib.Fn.call1(i),
-            ~prependPathVar=pathVar,
             ~isRefine=true,
             (),
           )}`
@@ -1119,8 +1116,8 @@ let refine: (
         `${code}${b->B.embedSyncOperation(
             ~inputVar=childOutputVar,
             ~outputVar,
+            ~pathVar,
             ~fn=parser,
-            ~prependPathVar=pathVar,
             ~isRefine=true,
             (),
           )}`
@@ -1139,8 +1136,8 @@ let refine: (
         `${code}${b->B.embedAsyncOperation(
             ~inputVar=childOutputVar,
             ~outputVar,
+            ~pathVar,
             ~fn=(. i) => (. ()) => asyncParser->Stdlib.Fn.call1(i),
-            ~prependPathVar=pathVar,
             ~isRefine=true,
             (),
           )}`
@@ -1163,8 +1160,8 @@ let refine: (
         b->B.embedSyncOperation(
           ~inputVar,
           ~outputVar=transformResultVar,
+          ~pathVar,
           ~fn=serializer,
-          ~prependPathVar=pathVar,
           ~isRefine=true,
           (),
         ) ++ code
@@ -1227,8 +1224,8 @@ let advancedTransform: (
             `${code}${b->B.embedSyncOperation(
                 ~inputVar=childOutputVar,
                 ~outputVar,
+                ~pathVar,
                 ~fn=syncTransformation,
-                ~prependPathVar=pathVar,
                 (),
               )}`
           }
@@ -1245,8 +1242,8 @@ let advancedTransform: (
             `${code}${b->B.embedAsyncOperation(
                 ~inputVar=childOutputVar,
                 ~outputVar,
+                ~pathVar,
                 ~fn=(. i) => (. ()) => asyncParser->Stdlib.Fn.call1(i),
-                ~prependPathVar=pathVar,
                 (),
               )}`
           }
@@ -1281,8 +1278,8 @@ let advancedTransform: (
             `${b->B.embedSyncOperation(
                 ~inputVar,
                 ~outputVar=transformOutputVar,
+                ~pathVar,
                 ~fn,
-                ~prependPathVar=pathVar,
                 (),
               )}${code}`
           }
@@ -1336,8 +1333,8 @@ let transform: (
         `${code}${b->B.embedSyncOperation(
             ~inputVar=childOutputVar,
             ~outputVar,
+            ~pathVar,
             ~fn=parser,
-            ~prependPathVar=pathVar,
             (),
           )}`
       })
@@ -1355,8 +1352,8 @@ let transform: (
         `${code}${b->B.embedAsyncOperation(
             ~inputVar=childOutputVar,
             ~outputVar,
+            ~pathVar,
             ~fn=(. i) => (. ()) => asyncParser->Stdlib.Fn.call1(i),
-            ~prependPathVar=pathVar,
             (),
           )}`
       })
@@ -1380,8 +1377,8 @@ let transform: (
         `${b->B.embedSyncOperation(
             ~inputVar,
             ~outputVar=transformOutputVar,
+            ~pathVar,
             ~fn=serializer,
-            ~prependPathVar=pathVar,
             (),
           )}${code}`
       })
@@ -1455,8 +1452,8 @@ let rec advancedPreprocess = (
               `${b->B.embedSyncOperation(
                   ~inputVar,
                   ~outputVar=parseResultVar,
+                  ~pathVar,
                   ~fn=syncTransformation,
-                  ~prependPathVar=pathVar,
                   (),
                 )}${code}`
             }
@@ -1476,8 +1473,8 @@ let rec advancedPreprocess = (
               `${b->B.embedAsyncOperation(
                   ~inputVar,
                   ~outputVar=parseResultVar,
+                  ~pathVar,
                   ~fn=(. i) => (. ()) => asyncParser->Stdlib.Fn.call1(i),
-                  ~prependPathVar=pathVar,
                   (),
                 )}${outputVar}=()=>${parseResultVar}().then(t=>{${code}return ${isAsync
                   ? `${childOutputVar}()`
@@ -1520,8 +1517,8 @@ let rec advancedPreprocess = (
               `${code}${b->B.embedSyncOperation(
                   ~inputVar=structOuputVar,
                   ~outputVar,
+                  ~pathVar,
                   ~fn,
-                  ~prependPathVar=pathVar,
                   (),
                 )}`
             }
@@ -1558,15 +1555,15 @@ let custom = (
       )
     | (Some(parser), None) =>
       Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
-        b->B.embedSyncOperation(~inputVar, ~outputVar, ~fn=parser, ~prependPathVar=pathVar, ())
+        b->B.embedSyncOperation(~inputVar, ~outputVar, ~fn=parser, ~pathVar, ())
       })
     | (None, Some(asyncParser)) =>
       Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
         b->B.embedAsyncOperation(
           ~inputVar,
           ~outputVar,
+          ~pathVar,
           ~fn=(. input) => (. ()) => asyncParser->Stdlib.Fn.call1(input),
-          ~prependPathVar=pathVar,
           (),
         )
       })
@@ -1578,7 +1575,7 @@ let custom = (
     ~serializeOperationBuilder=switch maybeSerializer {
     | Some(serializer) =>
       Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
-        b->B.embedSyncOperation(~inputVar, ~outputVar, ~fn=serializer, ~prependPathVar=pathVar, ())
+        b->B.embedSyncOperation(~inputVar, ~outputVar, ~fn=serializer, ~pathVar, ())
       })
     | None =>
       Builder.make((. b, ~selfStruct as _, ~inputVar as _, ~outputVar as _, ~pathVar) => {
@@ -1709,7 +1706,15 @@ module Variant = {
               ~outputVar=childOutputVar,
               ~pathVar,
             )
-          code ++ b->B.embedSyncOperation(~inputVar=childOutputVar, ~outputVar, ~fn=definer, ())
+          code ++
+          b->B.embedSyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~pathVar,
+            ~fn=definer,
+            ~isSafe=true,
+            (),
+          )
         }),
         ~serializeOperationBuilder=Builder.make((.
           b,
@@ -2918,6 +2923,8 @@ module Null = {
         `if(${inputVar}!==null){${childCode}${b->B.embedSyncOperation(
             ~inputVar=childOutputVar,
             ~outputVar,
+            ~pathVar,
+            ~isSafe=true,
             ~fn=%raw("Caml_option.some"),
             (),
           )}}else{${outputVar}=${isAsyncChild ? `()=>Promise.resolve(void 0)` : `void 0`}}`
@@ -2977,6 +2984,8 @@ module Option = {
         `if(${inputVar}!==undefined){${childCode}${b->B.embedSyncOperation(
             ~inputVar=childOutputVar,
             ~outputVar,
+            ~pathVar,
+            ~isSafe=true,
             ~fn=%raw("Caml_option.some"),
             (),
           )}}else{${outputVar}=${switch isChildAsync {
@@ -3286,6 +3295,8 @@ module Default = {
         `if(${inputVar}!==undefined){${childCode}${b->B.embedSyncOperation(
             ~inputVar=childOutputVar,
             ~outputVar,
+            ~pathVar,
+            ~isSafe=true,
             ~fn=%raw("Caml_option.some"),
             (),
           )}}else{${outputVar}=${switch isChildAsync {
