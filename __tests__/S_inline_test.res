@@ -8,7 +8,7 @@ module Stdlib = {
     let omit = (dict: Js.Dict.t<'a>, fields: array<string>): Js.Dict.t<'a> => {
       let dict = dict->copy
       fields->Js.Array2.forEach(field => {
-        Js.Dict.unsafeDeleteKey(. dict, field)
+        Js.Dict.unsafeDeleteKey(dict, field)
       })
       dict
     }
@@ -407,20 +407,20 @@ test("Supports Dict", t => {
 })
 
 test("Supports empty Tuple", t => {
-  let struct = S.tuple0(.)
+  let struct = S.tuple0()
   t->Assert.deepEqual(struct->S.inline, `S.tuple0(.)`, ())
 })
 
 test("Supports Tuple", t => {
-  let struct = S.tuple3(. S.string, S.int, S.bool)
-  let structInlineResult = S.tuple3(. S.string, S.int, S.bool)
+  let struct = S.tuple3(S.string, S.int, S.bool)
+  let structInlineResult = S.tuple3(S.string, S.int, S.bool)
 
   t->assertEqualStructs(struct, structInlineResult, ())
   t->Assert.deepEqual(struct->S.inline, `S.tuple3(. S.string, S.int, S.bool)`, ())
 })
 
 test("Supports Tuple with 10 items", t => {
-  let struct = S.tuple10(.
+  let struct = S.tuple10(
     S.string,
     S.int,
     S.bool,
@@ -432,7 +432,7 @@ test("Supports Tuple with 10 items", t => {
     S.bool,
     S.string,
   )
-  let structInlineResult = S.tuple10(.
+  let structInlineResult = S.tuple10(
     S.string,
     S.int,
     S.bool,
@@ -644,10 +644,10 @@ test("Supports empty Object in union", t => {
 })
 
 test("Supports empty Tuple in union", t => {
-  let struct = S.union([S.tuple0(.), S.tuple0(.)])
+  let struct = S.union([S.tuple0(), S.tuple0()])
   let structInlineResult = S.union([
-    S.tuple0(.)->S.variant(v => #EmptyTuple(v)),
-    S.tuple0(.)->S.variant(v => #EmptyTuple2(v)),
+    S.tuple0()->S.variant(v => #EmptyTuple(v)),
+    S.tuple0()->S.variant(v => #EmptyTuple2(v)),
   ])
 
   structInlineResult->(Obj.magic: S.t<[#EmptyTuple(unit) | #EmptyTuple2(unit)]> => unit)
@@ -794,10 +794,10 @@ test("Supports Object structs in union", t => {
 })
 
 test("Supports Tuple structs in union", t => {
-  let struct = S.union([S.tuple1(. S.literalVariant(String("123"), 123.)), S.tuple1(. S.float)])
+  let struct = S.union([S.tuple1(S.literalVariant(String("123"), 123.)), S.tuple1(S.float)])
   let structInlineResult = S.union([
-    S.tuple1(. S.literal(String("123")))->S.variant(v => #Tuple(v)),
-    S.tuple1(. S.float)->S.variant(v => #Tuple2(v)),
+    S.tuple1(S.literal(String("123")))->S.variant(v => #Tuple(v)),
+    S.tuple1(S.float)->S.variant(v => #Tuple2(v)),
   ])
 
   structInlineResult->(

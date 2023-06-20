@@ -25,7 +25,7 @@ test("Successfully serializes jsonable structs", t => {
     (),
   )
   t->Assert.deepEqual(
-    true->S.serializeWith(S.tuple1(. S.bool)),
+    true->S.serializeWith(S.tuple1(S.bool)),
     Json.array([Json.boolean(true)])->Ok,
     (),
   )
@@ -110,7 +110,7 @@ test("Fails to serialize object with invalid nested struct", t => {
 
 test("Fails to serialize tuple with invalid nested struct", t => {
   t->Assert.deepEqual(
-    Obj.magic(true)->S.serializeWith(S.tuple1(. S.unknown)),
+    Obj.magic(true)->S.serializeWith(S.tuple1(S.unknown)),
     Error({
       code: InvalidJsonStruct({received: "Unknown"}),
       operation: Serializing,
