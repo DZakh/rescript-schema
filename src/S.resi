@@ -169,12 +169,12 @@ let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, Error.t>>
 let parseAsyncInStepsWith: (
   Js.Json.t,
   t<'value>,
-) => result<(. unit) => promise<result<'value, Error.t>>, Error.t>
+) => result<unit => promise<result<'value, Error.t>>, Error.t>
 
 let parseAnyAsyncInStepsWith: (
   'any,
   t<'value>,
-) => result<(. unit) => promise<result<'value, Error.t>>, Error.t>
+) => result<unit => promise<result<'value, Error.t>>, Error.t>
 
 let serializeWith: ('value, t<'value>) => result<Js.Json.t, Error.t>
 
@@ -202,7 +202,7 @@ let fail: (~path: Path.t=?, string) => 'a
 let advancedFail: Error.t => 'a
 
 module Object: {
-  type ctx = {@as("f") field: 'value. (. string, t<'value>) => 'value}
+  type ctx = {@as("f") field: 'value. (string, t<'value>) => 'value}
 
   module UnknownKeys: {
     type tagged = Strict | Strip
@@ -223,15 +223,15 @@ module Tuple: {
   let factory: array<t<unknown>> => t<array<unknown>>
 }
 
-let tuple0: (. unit) => t<unit>
-let tuple1: (. t<'value>) => t<'value>
-let tuple2: (. t<'v1>, t<'v2>) => t<('v1, 'v2)>
-let tuple3: (. t<'v1>, t<'v2>, t<'v3>) => t<('v1, 'v2, 'v3)>
-let tuple4: (. t<'v1>, t<'v2>, t<'v3>, t<'v4>) => t<('v1, 'v2, 'v3, 'v4)>
-let tuple5: (. t<'v1>, t<'v2>, t<'v3>, t<'v4>, t<'v5>) => t<('v1, 'v2, 'v3, 'v4, 'v5)>
-let tuple6: (. t<'v1>, t<'v2>, t<'v3>, t<'v4>, t<'v5>, t<'v6>) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6)>
+let tuple0: unit => t<unit>
+let tuple1: t<'value> => t<'value>
+let tuple2: (t<'v1>, t<'v2>) => t<('v1, 'v2)>
+let tuple3: (t<'v1>, t<'v2>, t<'v3>) => t<('v1, 'v2, 'v3)>
+let tuple4: (t<'v1>, t<'v2>, t<'v3>, t<'v4>) => t<('v1, 'v2, 'v3, 'v4)>
+let tuple5: (t<'v1>, t<'v2>, t<'v3>, t<'v4>, t<'v5>) => t<('v1, 'v2, 'v3, 'v4, 'v5)>
+let tuple6: (t<'v1>, t<'v2>, t<'v3>, t<'v4>, t<'v5>, t<'v6>) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6)>
 let tuple7: (
-  . t<'v1>,
+  t<'v1>,
   t<'v2>,
   t<'v3>,
   t<'v4>,
@@ -240,7 +240,7 @@ let tuple7: (
   t<'v7>,
 ) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7)>
 let tuple8: (
-  . t<'v1>,
+  t<'v1>,
   t<'v2>,
   t<'v3>,
   t<'v4>,
@@ -250,7 +250,7 @@ let tuple8: (
   t<'v8>,
 ) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8)>
 let tuple9: (
-  . t<'v1>,
+  t<'v1>,
   t<'v2>,
   t<'v3>,
   t<'v4>,
@@ -261,7 +261,7 @@ let tuple9: (
   t<'v9>,
 ) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9)>
 let tuple10: (
-  . t<'v1>,
+  t<'v1>,
   t<'v2>,
   t<'v3>,
   t<'v4>,

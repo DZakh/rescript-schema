@@ -6,7 +6,7 @@ importers:
     devDependencies:
       '@dzakh/rescript-ava':
         specifier: 2.3.0
-        version: 2.3.0(ava@5.2.0)(rescript@11.0.0-alpha.6)
+        version: 2.3.0(ava@5.2.0)(rescript@11.0.0-beta.2)
       '@ryyppy/rescript-promise':
         specifier: 2.1.0
         version: 2.1.0
@@ -20,8 +20,8 @@ importers:
         specifier: 7.12.0
         version: 7.12.0
       rescript:
-        specifier: 11.0.0-alpha.6
-        version: 11.0.0-alpha.6
+        specifier: 11.0.0-beta.2
+        version: 11.0.0-beta.2
       rescript-struct:
         specifier: .
         version: 'link:'
@@ -98,6 +98,17 @@ packages:
     dependencies:
       ava: 5.2.0
       rescript: 11.0.0-alpha.6
+    dev: false
+
+  /@dzakh/rescript-ava@2.3.0(ava@5.2.0)(rescript@11.0.0-beta.2):
+    resolution: {integrity: sha512-str7Fh+lYxWNf+wDAHykw84bqKodrwU5swLcYNjc8BJc3N4ECyNBA3o5vFNsq0zZw+1eExARs8mUnB2ZQSmRGg==}
+    peerDependencies:
+      ava: 5.2.x
+      rescript: 10.1.x || ~11.0.0-alpha
+    dependencies:
+      ava: 5.2.0
+      rescript: 11.0.0-beta.2
+    dev: true
 
   /@istanbuljs/schema@0.1.3:
     resolution: {integrity: sha512-ZXRY4jNvVgSVQ8DL3LTcakaAtXwTVUxE81hslsyD2AtoXW/wVob10HkOJ1X/pAlcI7D+2YoZKg5do8G/w6RYgA==}
@@ -1125,6 +1136,14 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
     requiresBuild: true
+    dev: false
+
+  /rescript@11.0.0-beta.2:
+    resolution: {integrity: sha512-Tcf72sR4EQ+eVMAwMWDSW5VPfg8YOS6bRJQ1Sf4u6jMy7Ui18mZyy0rusQmeq8vf2spgNulMcOw+HzQ9bEiz7g==}
+    engines: {node: '>=10'}
+    hasBin: true
+    requiresBuild: true
+    dev: true
 
   /resolve-cwd@3.0.0:
     resolution: {integrity: sha512-OrZaX2Mb+rJCpH/6CpSqt9xFVpN++x01XnN2ie9g6P5/3xelLAkXWVADpdz1IHD/KFfEXyE6V0U01OQ3UO2rEg==}

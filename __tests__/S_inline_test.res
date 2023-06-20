@@ -8,7 +8,7 @@ module Stdlib = {
     let omit = (dict: Js.Dict.t<'a>, fields: array<string>): Js.Dict.t<'a> => {
       let dict = dict->copy
       fields->Js.Array2.forEach(field => {
-        Js.Dict.unsafeDeleteKey(. dict, field)
+        Js.Dict.unsafeDeleteKey(dict, field)
       })
       dict
     }
@@ -407,20 +407,20 @@ test("Supports Dict", t => {
 })
 
 test("Supports empty Tuple", t => {
-  let struct = S.tuple0(.)
+  let struct = S.tuple0()
   t->Assert.deepEqual(struct->S.inline, `S.tuple0(.)`, ())
 })
 
 test("Supports Tuple", t => {
-  let struct = S.tuple3(. S.string, S.int, S.bool)
-  let structInlineResult = S.tuple3(. S.string, S.int, S.bool)
+  let struct = S.tuple3(S.string, S.int, S.bool)
+  let structInlineResult = S.tuple3(S.string, S.int, S.bool)
 
   t->assertEqualStructs(struct, structInlineResult, ())
   t->Assert.deepEqual(struct->S.inline, `S.tuple3(. S.string, S.int, S.bool)`, ())
 })
 
 test("Supports Tuple with 10 items", t => {
-  let struct = S.tuple10(.
+  let struct = S.tuple10(
     S.string,
     S.int,
     S.bool,
@@ -432,7 +432,7 @@ test("Supports Tuple with 10 items", t => {
     S.bool,
     S.string,
   )
-  let structInlineResult = S.tuple10(.
+  let structInlineResult = S.tuple10(
     S.string,
     S.int,
     S.bool,
@@ -486,7 +486,7 @@ test("Supports Union", t => {
     S.literalVariant(String("no"), #no),
   ])
 
-  structInlineResult->(Obj.magic: S.t<[#yes | #no]> => unit)
+  let _: S.t<[#yes | #no]> = structInlineResult
 
   t->Assert.deepEqual(
     struct->S.inline,
@@ -519,21 +519,19 @@ test("Uses S.literalVariant for all literals inside of union", t => {
     S.literalVariant(NaN, #NaN),
   ])
 
-  structInlineResult->(
-    Obj.magic: S.t<
-      [
-        | #yes
-        | #True
-        | #False
-        | #123
-        | #1232
-        | #"123.456"
-        | #EmptyNull
-        | #EmptyOption
-        | #NaN
-      ],
-    > => unit
-  )
+  let _: S.t<
+    [
+      | #yes
+      | #True
+      | #False
+      | #123
+      | #1232
+      | #"123.456"
+      | #EmptyNull
+      | #EmptyOption
+      | #NaN
+    ],
+  > = structInlineResult
 
   t->Assert.deepEqual(
     struct->S.inline,
@@ -572,14 +570,12 @@ test("Adds index for the same structs inside of the union", t => {
     S.string->S.variant(v => #String2(v)),
   ])
 
-  structInlineResult->(
-    Obj.magic: S.t<
-      [
-        | #String(string)
-        | #String2(string)
-      ],
-    > => unit
-  )
+  let _: S.t<
+    [
+      | #String(string)
+      | #String2(string)
+    ],
+  > = structInlineResult
 
   t->Assert.deepEqual(
     struct->S.inline,
@@ -623,7 +619,7 @@ test("Supports empty Object (ignores transformations)", t => {
   let struct = S.object(_ => 123)
   let structInlineResult = S.object(_ => ())
 
-  t->assertEqualStructs(struct, structInlineResult->(Obj.magic: S.t<unit> => S.t<int>), ())
+  t->assertEqualStructs(struct, (structInlineResult: S.t<unit>)->Obj.magic, ())
   t->Assert.deepEqual(struct->S.inline, `S.object(_ => ())`, ())
 })
 
@@ -634,7 +630,7 @@ test("Supports empty Object in union", t => {
     S.object(_ => ())->S.variant(v => #EmptyObject2(v)),
   ])
 
-  structInlineResult->(Obj.magic: S.t<[#EmptyObject(unit) | #EmptyObject2(unit)]> => unit)
+  let _: S.t<[#EmptyObject(unit) | #EmptyObject2(unit)]> = structInlineResult
 
   t->Assert.deepEqual(
     struct->S.inline,
@@ -644,13 +640,13 @@ test("Supports empty Object in union", t => {
 })
 
 test("Supports empty Tuple in union", t => {
-  let struct = S.union([S.tuple0(.), S.tuple0(.)])
+  let struct = S.union([S.tuple0(), S.tuple0()])
   let structInlineResult = S.union([
-    S.tuple0(.)->S.variant(v => #EmptyTuple(v)),
-    S.tuple0(.)->S.variant(v => #EmptyTuple2(v)),
+    S.tuple0()->S.variant(v => #EmptyTuple(v)),
+    S.tuple0()->S.variant(v => #EmptyTuple2(v)),
   ])
 
-  structInlineResult->(Obj.magic: S.t<[#EmptyTuple(unit) | #EmptyTuple2(unit)]> => unit)
+  let _: S.t<[#EmptyTuple(unit) | #EmptyTuple2(unit)]> = structInlineResult
 
   t->Assert.deepEqual(
     struct->S.inline,
@@ -666,14 +662,12 @@ test("Supports Option structs in union", t => {
     S.option(S.float)->S.variant(v => #OptionOfFloat(v)),
   ])
 
-  structInlineResult->(
-    Obj.magic: S.t<
-      [
-        | #OptionOf123(option<string>)
-        | #OptionOfFloat(option<float>)
-      ],
-    > => unit
-  )
+  let _: S.t<
+    [
+      | #OptionOf123(option<string>)
+      | #OptionOfFloat(option<float>)
+    ],
+  > = structInlineResult
 
   t->Assert.deepEqual(
     struct->S.inline,
@@ -689,14 +683,12 @@ test("Supports Null structs in union", t => {
     S.null(S.float)->S.variant(v => #NullOfFloat(v)),
   ])
 
-  structInlineResult->(
-    Obj.magic: S.t<
-      [
-        | #NullOf123(option<string>)
-        | #NullOfFloat(option<float>)
-      ],
-    > => unit
-  )
+  let _: S.t<
+    [
+      | #NullOf123(option<string>)
+      | #NullOfFloat(option<float>)
+    ],
+  > = structInlineResult
 
   t->Assert.deepEqual(
     struct->S.inline,
@@ -712,14 +704,12 @@ test("Supports Array structs in union", t => {
     S.array(S.float)->S.variant(v => #ArrayOfFloat(v)),
   ])
 
-  structInlineResult->(
-    Obj.magic: S.t<
-      [
-        | #ArrayOf123(array<string>)
-        | #ArrayOfFloat(array<float>)
-      ],
-    > => unit
-  )
+  let _: S.t<
+    [
+      | #ArrayOf123(array<string>)
+      | #ArrayOfFloat(array<float>)
+    ],
+  > = structInlineResult
 
   t->Assert.deepEqual(
     struct->S.inline,
@@ -735,14 +725,12 @@ test("Supports Dict structs in union", t => {
     S.dict(S.float)->S.variant(v => #DictOfFloat(v)),
   ])
 
-  structInlineResult->(
-    Obj.magic: S.t<
-      [
-        | #DictOf123(Js.Dict.t<string>)
-        | #DictOfFloat(Js.Dict.t<float>)
-      ],
-    > => unit
-  )
+  let _: S.t<
+    [
+      | #DictOf123(Js.Dict.t<string>)
+      | #DictOfFloat(Js.Dict.t<float>)
+    ],
+  > = structInlineResult
 
   t->Assert.deepEqual(
     struct->S.inline,
@@ -769,14 +757,12 @@ test("Supports Object structs in union", t => {
     )->S.variant(v => #Object2(v)),
   ])
 
-  structInlineResult->(
-    Obj.magic: S.t<
-      [
-        | #Object({"field": string})
-        | #Object2({"field": float})
-      ],
-    > => unit
-  )
+  let _: S.t<
+    [
+      | #Object({"field": string})
+      | #Object2({"field": float})
+    ],
+  > = structInlineResult
 
   t->Assert.deepEqual(
     struct->S.inline,
@@ -794,20 +780,18 @@ test("Supports Object structs in union", t => {
 })
 
 test("Supports Tuple structs in union", t => {
-  let struct = S.union([S.tuple1(. S.literalVariant(String("123"), 123.)), S.tuple1(. S.float)])
+  let struct = S.union([S.tuple1(S.literalVariant(String("123"), 123.)), S.tuple1(S.float)])
   let structInlineResult = S.union([
-    S.tuple1(. S.literal(String("123")))->S.variant(v => #Tuple(v)),
-    S.tuple1(. S.float)->S.variant(v => #Tuple2(v)),
+    S.tuple1(S.literal(String("123")))->S.variant(v => #Tuple(v)),
+    S.tuple1(S.float)->S.variant(v => #Tuple2(v)),
   ])
 
-  structInlineResult->(
-    Obj.magic: S.t<
-      [
-        | #Tuple(string)
-        | #Tuple2(float)
-      ],
-    > => unit
-  )
+  let _: S.t<
+    [
+      | #Tuple(string)
+      | #Tuple2(float)
+    ],
+  > = structInlineResult
 
   t->Assert.deepEqual(
     struct->S.inline,
@@ -831,7 +815,7 @@ test("Supports Union structs in union", t => {
     ),
   ])
 
-  structInlineResult->(Obj.magic: S.t<[#Union([#red | #blue]) | #Union2([#0 | #1])]> => unit)
+  let _: S.t<[#Union([#red | #blue]) | #Union2([#0 | #1])]> = structInlineResult
 
   t->Assert.deepEqual(
     struct->S.inline,

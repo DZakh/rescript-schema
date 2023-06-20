@@ -53,7 +53,7 @@ test("Fails to serialize when the value is not used as the variant payload", t =
 test(
   "Successfully serializes when the value is not used as the variant payload for literal structs",
   t => {
-    let struct = S.tuple2(. S.literal(Bool(true)), S.literal(Int(12)))->S.variant(_ => #foo)
+    let struct = S.tuple2(S.literal(Bool(true)), S.literal(Int(12)))->S.variant(_ => #foo)
 
     t->Assert.deepEqual(#foo->S.serializeToUnknownWith(struct), Ok(%raw(`[true, 12]`)), ())
   },
