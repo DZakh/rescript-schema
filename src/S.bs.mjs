@@ -81,18 +81,7 @@ function concat(path, concatedPath) {
   return path + concatedPath;
 }
 
-var Exception = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Error.Internal.Exception");
-
-function raise(code) {
-  throw {
-        RE_EXN_ID: Exception,
-        _1: {
-          c: code,
-          p: ""
-        },
-        Error: new Error()
-      };
-}
+var symbol = Symbol("rescript-struct");
 
 function toParseError(internalError) {
   return {
@@ -110,11 +99,21 @@ function toSerializeError(internalError) {
         };
 }
 
-function prependPath(error, path) {
-  return {
-          c: error.c,
-          p: path + error.p
-        };
+function getOrRethrow(jsExn) {
+  if ((jsExn&&jsExn.s===symbol)) {
+    return jsExn;
+  }
+  throw jsExn;
+}
+
+function prependLocationOrRethrow(jsExn, $$location) {
+  var error = getOrRethrow(jsExn);
+  var path = "[" + JSON.stringify($$location) + "]" + error.p;
+  throw {
+        c: error.c,
+        p: path,
+        s: symbol
+      };
 }
 
 function panic($$location) {
@@ -175,27 +174,21 @@ function toString(error) {
 
 function advancedFail(error) {
   throw {
-        RE_EXN_ID: Exception,
-        _1: {
-          c: error.code,
-          p: error.path
-        },
-        Error: new Error()
+        c: error.code,
+        p: error.path,
+        s: symbol
       };
 }
 
 function fail(pathOpt, message) {
   var path = pathOpt !== undefined ? pathOpt : "";
   throw {
-        RE_EXN_ID: Exception,
-        _1: {
-          c: {
-            TAG: "OperationFailed",
-            _0: message
-          },
-          p: path
+        c: {
+          TAG: "OperationFailed",
+          _0: message
         },
-        Error: new Error()
+        p: path,
+        s: symbol
       };
 }
 
@@ -216,65 +209,65 @@ function noop(_b, param, inputVar, outputVar, param$1) {
 }
 
 function varsScope(b, fn) {
-  var prevVarsAllocation = b.varsAllocation;
-  b.varsAllocation = "";
+  var prevVarsAllocation = b.v;
+  b.v = "";
   var code = fn(b);
-  var varsAllocation = b.varsAllocation;
+  var varsAllocation = b.v;
   var code$1 = varsAllocation === "" ? code : "let " + varsAllocation + ";" + code;
-  b.varsAllocation = prevVarsAllocation;
+  b.v = prevVarsAllocation;
   return code$1;
 }
 
 function $$var(b) {
-  var newCounter = b.varCounter + 1;
-  b.varCounter = newCounter;
+  var newCounter = b.c + 1;
+  b.c = newCounter;
   var v = "v" + newCounter;
-  var varsAllocation = b.varsAllocation;
-  b.varsAllocation = varsAllocation === "" ? v : varsAllocation + "," + v;
+  var varsAllocation = b.v;
+  b.v = varsAllocation === "" ? v : varsAllocation + "," + v;
   return v;
 }
 
 function varWithoutAllocation(b) {
-  var newCounter = b.varCounter + 1;
-  b.varCounter = newCounter;
+  var newCounter = b.c + 1;
+  b.c = newCounter;
   return "v" + newCounter;
 }
 
-function internalTransformRethrow(pathVar) {
-  return "if(t&&t.RE_EXN_ID===\"S-RescriptStruct.Error.Internal.Exception/1\"){t._1.p=" + pathVar + "+t._1.p}throw t";
+function internalTransformRethrow(b, pathVar) {
+  return "if(t&&t.s===s){t.p=" + pathVar + "+t.p}throw t";
 }
 
 function embedSyncOperation(b, inputVar, outputVar, pathVar, fn, isSafeOpt, isRefineOpt, param) {
   var isSafe = isSafeOpt !== undefined ? isSafeOpt : false;
   var isRefine = isRefineOpt !== undefined ? isRefineOpt : false;
   var tmp;
-  if (b.asyncVars.has(inputVar)) {
-    b.asyncVars.add(outputVar);
+  if (b.a.has(inputVar)) {
+    b.a.add(outputVar);
     var code = outputVar + "=()=>" + inputVar + "().then(" + (
-      isRefine ? "t=>{" + ("e[" + (b.embeded.push(fn) - 1) + "]") + "(t);return " + inputVar + "}" : "e[" + (b.embeded.push(fn) - 1) + "]"
+      isRefine ? "t=>{" + ("e[" + (b.e.push(fn) - 1) + "]") + "(t);return " + inputVar + "}" : "e[" + (b.e.push(fn) - 1) + "]"
     ) + ")";
-    tmp = isSafe || pathVar === "\"\"" ? code : code + ".catch(t=>{" + internalTransformRethrow(pathVar) + "})";
+    tmp = isSafe || pathVar === "\"\"" ? code : code + ".catch(t=>{" + internalTransformRethrow(b, pathVar) + "})";
   } else {
-    var code$1 = isRefine ? "e[" + (b.embeded.push(fn) - 1) + "](" + inputVar + ");" + outputVar + "=" + inputVar + ";" : outputVar + "=" + ("e[" + (b.embeded.push(fn) - 1) + "]") + "(" + inputVar + ")";
-    tmp = isSafe || pathVar === "\"\"" ? code$1 : "try{" + code$1 + "}catch(t){" + internalTransformRethrow(pathVar) + "}";
+    var code$1 = isRefine ? "e[" + (b.e.push(fn) - 1) + "](" + inputVar + ");" + outputVar + "=" + inputVar + ";" : outputVar + "=" + ("e[" + (b.e.push(fn) - 1) + "]") + "(" + inputVar + ")";
+    tmp = isSafe || pathVar === "\"\"" ? code$1 : "try{" + code$1 + "}catch(t){" + internalTransformRethrow(b, pathVar) + "}";
   }
   return tmp + ";";
 }
 
 function embedAsyncOperation(b, inputVar, outputVar, pathVar, fn, isRefineOpt, param) {
   var isRefine = isRefineOpt !== undefined ? isRefineOpt : false;
-  var asyncVars = b.asyncVars;
+  var asyncVars = b.a;
   var isAsyncInput = asyncVars.has(inputVar);
   asyncVars.add(outputVar);
   if (isAsyncInput) {
-    var code = outputVar + "=()=>" + inputVar + "().then(t=>" + ("e[" + (b.embeded.push(fn) - 1) + "]") + "(t)()" + (
+    var code = outputVar + "=()=>" + inputVar + "().then(t=>" + ("e[" + (b.e.push(fn) - 1) + "]") + "(t)()" + (
       isRefine ? ".then(_=>t)" : ""
     ) + ")";
-    var tmp = pathVar === "\"\"" ? code : code + ".catch(t=>{" + internalTransformRethrow(pathVar) + "})";
+    var tmp = pathVar === "\"\"" ? code : code + ".catch(t=>{" + internalTransformRethrow(b, pathVar) + "})";
     return tmp + ";";
   }
   if (pathVar === "\"\"") {
-    var code$1 = "e[" + (b.embeded.push(fn) - 1) + "](" + inputVar + ")";
+    var code$1 = "e[" + (b.e.push(fn) - 1) + "](" + inputVar + ")";
     if (!isRefine) {
       return outputVar + "=" + code$1 + ";";
     }
@@ -282,44 +275,39 @@ function embedAsyncOperation(b, inputVar, outputVar, pathVar, fn, isRefineOpt, p
     return syncResultVar + "=" + code$1 + ";" + outputVar + "=()=>" + syncResultVar + "().then(_=>" + inputVar + ");";
   }
   var syncResultVar$1 = $$var(b);
-  var code$2 = syncResultVar$1 + "=" + ("e[" + (b.embeded.push(fn) - 1) + "]") + "(" + inputVar + ");";
+  var code$2 = syncResultVar$1 + "=" + ("e[" + (b.e.push(fn) - 1) + "]") + "(" + inputVar + ");";
   return "try{" + code$2 + outputVar + "=()=>{try{return " + syncResultVar$1 + "()" + (
           isRefine ? ".then(_=>" + inputVar + ")" : ""
-        ) + ".catch(t=>{" + internalTransformRethrow(pathVar) + "})}catch(t){" + internalTransformRethrow(pathVar) + "}}}catch(t){" + internalTransformRethrow(pathVar) + "};";
+        ) + ".catch(t=>{" + internalTransformRethrow(b, pathVar) + "})}catch(t){" + internalTransformRethrow(b, pathVar) + "}}}catch(t){" + internalTransformRethrow(b, pathVar) + "};";
 }
 
 function raiseWithArg(b, pathVar, fn, arg) {
-  return "e[" + (b.embeded.push(function (path, arg) {
+  return "e[" + (b.e.push(function (path, arg) {
+                var code = fn(arg);
                 throw {
-                      RE_EXN_ID: Exception,
-                      _1: {
-                        c: fn(arg),
-                        p: path
-                      },
-                      Error: new Error()
+                      c: code,
+                      p: path,
+                      s: symbol
                     };
               }) - 1) + "](" + pathVar + "," + arg + ")";
 }
 
-function raise$1(b, pathVar, code) {
-  return "e[" + (b.embeded.push(function (path) {
+function raise(b, pathVar, code) {
+  return "e[" + (b.e.push(function (path) {
                 throw {
-                      RE_EXN_ID: Exception,
-                      _1: {
-                        c: code,
-                        p: path
-                      },
-                      Error: new Error()
+                      c: code,
+                      p: path,
+                      s: symbol
                     };
               }) - 1) + "](" + pathVar + ")";
 }
 
 function run(b, builder, struct, inputVar, outputVar, pathVar) {
-  var asyncVarsCountBefore = b.asyncVars.size;
+  var asyncVarsCountBefore = b.a.size;
   var code = builder(b, struct, inputVar, outputVar, pathVar);
-  var isAsync = b.asyncVars.size > asyncVarsCountBefore;
+  var isAsync = b.a.size > asyncVarsCountBefore;
   if (isAsync) {
-    b.asyncVars.add(outputVar);
+    b.a.add(outputVar);
   }
   if (struct.pb === builder) {
     struct.i = isAsync;
@@ -331,22 +319,26 @@ function build(builder, struct) {
   var intitialInputVar = "i";
   var intitialOutputVar = "o";
   var b = {
-    varCounter: -1,
-    varsAllocation: intitialOutputVar,
-    asyncVars: new Set(),
-    embeded: []
+    c: -1,
+    v: intitialOutputVar,
+    a: new Set(),
+    e: []
   };
   var code = run(b, builder, struct, intitialInputVar, intitialOutputVar, "\"\"");
-  var inlinedFunction = intitialInputVar + "=>{var " + b.varsAllocation + ";" + code + "return " + intitialOutputVar + "}";
+  var inlinedFunction = intitialInputVar + "=>{var " + b.v + ";" + code + "return " + intitialOutputVar + "}";
   console.log(inlinedFunction);
-  return new Function("e", "return " + inlinedFunction)(b.embeded);
+  return new Function("e", "s", "return " + inlinedFunction)(b.e, symbol);
 }
 
 function compileParser(struct, builder) {
   var operation = build(builder, struct);
   var isAsync = struct.i;
   struct.p = isAsync ? (function (param) {
-        return raise("UnexpectedAsync");
+        throw {
+              c: "UnexpectedAsync",
+              p: "",
+              s: symbol
+            };
       }) : operation;
   struct.a = isAsync ? operation : (function (input) {
         var syncValue = operation(input);
@@ -385,96 +377,97 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
       return ;
     }
     var childrenStructs = struct.t;
+    var exit = 0;
     if (typeof childrenStructs !== "object") {
-      if (childrenStructs === "Unknown") {
-        return raise({
-                    TAG: "InvalidJsonStruct",
-                    received: struct.n
-                  });
-      } else {
+      if (childrenStructs !== "Unknown") {
         return ;
       }
-    }
-    switch (childrenStructs.TAG) {
-      case "Literal" :
-          var tmp = childrenStructs._0;
-          if (typeof tmp === "object") {
-            return ;
-          }
-          switch (tmp) {
-            case "EmptyOption" :
-            case "NaN" :
-                return raise({
-                            TAG: "InvalidJsonStruct",
-                            received: struct.n
-                          });
-            default:
+      exit = 2;
+    } else {
+      switch (childrenStructs.TAG) {
+        case "Literal" :
+            var tmp = childrenStructs._0;
+            if (typeof tmp === "object") {
               return ;
-          }
-      case "Option" :
-          return raise({
-                      TAG: "InvalidJsonStruct",
-                      received: struct.n
-                    });
-      case "Object" :
-          var fieldNames = childrenStructs.fieldNames;
-          var fields = childrenStructs.fields;
-          for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-            var fieldName = fieldNames[idx];
-            var fieldStruct = fields[fieldName];
-            try {
-              var s = fieldStruct.t;
-              var tmp$1;
-              tmp$1 = typeof s !== "object" || s.TAG !== "Option" ? fieldStruct : s._0;
-              validateJsonableStruct(tmp$1, rootStruct, undefined, undefined);
             }
-            catch (raw_e){
-              var e = Caml_js_exceptions.internalToOCamlException(raw_e);
-              if (e.RE_EXN_ID === Exception) {
-                throw {
-                      RE_EXN_ID: Exception,
-                      _1: prependPath(e._1, "[" + JSON.stringify(fieldName) + "]"),
-                      Error: new Error()
-                    };
+            switch (tmp) {
+              case "EmptyOption" :
+              case "NaN" :
+                  exit = 2;
+                  break;
+              default:
+                return ;
+            }
+            break;
+        case "Option" :
+            exit = 2;
+            break;
+        case "Object" :
+            var fieldNames = childrenStructs.fieldNames;
+            var fields = childrenStructs.fields;
+            for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+              var fieldName = fieldNames[idx];
+              var fieldStruct = fields[fieldName];
+              try {
+                var s = fieldStruct.t;
+                var tmp$1;
+                tmp$1 = typeof s !== "object" || s.TAG !== "Option" ? fieldStruct : s._0;
+                validateJsonableStruct(tmp$1, rootStruct, undefined, undefined);
               }
-              throw e;
+              catch (raw_jsExn){
+                var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
+                if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
+                  prependLocationOrRethrow(jsExn._1, fieldName);
+                } else {
+                  throw jsExn;
+                }
+              }
             }
-          }
-          return ;
-      case "Tuple" :
-          childrenStructs._0.forEach(function (childStruct, i) {
-                try {
-                  return validateJsonableStruct(childStruct, rootStruct, undefined, undefined);
-                }
-                catch (raw_e){
-                  var e = Caml_js_exceptions.internalToOCamlException(raw_e);
-                  if (e.RE_EXN_ID === Exception) {
-                    var $$location = i.toString();
-                    throw {
-                          RE_EXN_ID: Exception,
-                          _1: prependPath(e._1, "[" + JSON.stringify($$location) + "]"),
-                          Error: new Error()
-                        };
+            return ;
+        case "Tuple" :
+            childrenStructs._0.forEach(function (childStruct, i) {
+                  try {
+                    return validateJsonableStruct(childStruct, rootStruct, undefined, undefined);
                   }
-                  throw e;
-                }
-              });
-          return ;
-      case "Union" :
-          childrenStructs._0.forEach(function (childStruct) {
-                validateJsonableStruct(childStruct, rootStruct, undefined, undefined);
-              });
-          return ;
-      case "Null" :
-      case "Array" :
-      case "Dict" :
-          break;
+                  catch (raw_jsExn){
+                    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
+                    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
+                      return prependLocationOrRethrow(jsExn._1, i.toString());
+                    }
+                    throw jsExn;
+                  }
+                });
+            return ;
+        case "Union" :
+            childrenStructs._0.forEach(function (childStruct) {
+                  validateJsonableStruct(childStruct, rootStruct, undefined, undefined);
+                });
+            return ;
+        case "Null" :
+        case "Array" :
+        case "Dict" :
+            exit = 1;
+            break;
+        
+      }
+    }
+    switch (exit) {
+      case 1 :
+          _param = undefined;
+          _isRootOpt = undefined;
+          _struct = childrenStructs._0;
+          continue ;
+      case 2 :
+          throw {
+                c: {
+                  TAG: "InvalidJsonStruct",
+                  received: struct.n
+                },
+                p: "",
+                s: symbol
+              };
       
     }
-    _param = undefined;
-    _isRootOpt = undefined;
-    _struct = childrenStructs._0;
-    continue ;
   };
 }
 
@@ -487,14 +480,15 @@ function initialSerializeToJson(input) {
     }
     struct.j = struct.s;
   }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    if (exn.RE_EXN_ID === Exception) {
+  catch (raw_jsExn){
+    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
+    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
+      var error = getOrRethrow(jsExn._1);
       struct.j = (function (param) {
-          throw exn;
+          throw error;
         });
     } else {
-      throw exn;
+      throw jsExn;
     }
   }
   return struct.j(input);
@@ -519,18 +513,15 @@ function parseAnyWith(any, struct) {
             _0: struct.p(any)
           };
   }
-  catch (raw_jsError){
-    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
-    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
-      throw jsError._1;
-    }
-    if (jsError.RE_EXN_ID === Exception) {
+  catch (raw_jsExn){
+    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
+    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       return {
               TAG: "Error",
-              _0: toParseError(jsError._1)
+              _0: toParseError(getOrRethrow(jsExn._1))
             };
     }
-    throw jsError;
+    throw jsExn;
   }
 }
 
@@ -538,19 +529,16 @@ function parseAnyOrRaiseWith(any, struct) {
   try {
     return struct.p(any);
   }
-  catch (raw_jsError){
-    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
-    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
-      throw jsError._1;
-    }
-    if (jsError.RE_EXN_ID === Exception) {
+  catch (raw_jsExn){
+    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
+    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       throw {
             RE_EXN_ID: Raised,
-            _1: toParseError(jsError._1),
+            _1: toParseError(getOrRethrow(jsExn._1)),
             Error: new Error()
           };
     }
-    throw jsError;
+    throw jsExn;
   }
 }
 
@@ -561,32 +549,26 @@ function asyncPrepareOk(value) {
         };
 }
 
-function asyncPrepareError(exn) {
-  if (exn.RE_EXN_ID === Exception) {
-    return {
-            TAG: "Error",
-            _0: toParseError(exn._1)
-          };
-  }
-  throw exn;
+function asyncPrepareError(jsExn) {
+  return {
+          TAG: "Error",
+          _0: toParseError(getOrRethrow(jsExn))
+        };
 }
 
 function parseAnyAsyncWith(any, struct) {
   try {
     return struct.a(any)(undefined).then(asyncPrepareOk, asyncPrepareError);
   }
-  catch (raw_jsError){
-    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
-    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
-      throw jsError._1;
-    }
-    if (jsError.RE_EXN_ID === Exception) {
+  catch (raw_jsExn){
+    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
+    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       return Promise.resolve({
                   TAG: "Error",
-                  _0: toParseError(jsError._1)
+                  _0: toParseError(getOrRethrow(jsExn._1))
                 });
     }
-    throw jsError;
+    throw jsExn;
   }
 }
 
@@ -600,18 +582,15 @@ function parseAnyAsyncInStepsWith(any, struct) {
               })
           };
   }
-  catch (raw_jsError){
-    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
-    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
-      throw jsError._1;
-    }
-    if (jsError.RE_EXN_ID === Exception) {
+  catch (raw_jsExn){
+    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
+    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       return {
               TAG: "Error",
-              _0: toParseError(jsError._1)
+              _0: toParseError(getOrRethrow(jsExn._1))
             };
     }
-    throw jsError;
+    throw jsExn;
   }
 }
 
@@ -622,18 +601,15 @@ function serializeToUnknownWith(value, struct) {
             _0: struct.s(value)
           };
   }
-  catch (raw_jsError){
-    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
-    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
-      throw jsError._1;
-    }
-    if (jsError.RE_EXN_ID === Exception) {
+  catch (raw_jsExn){
+    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
+    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       return {
               TAG: "Error",
-              _0: toSerializeError(jsError._1)
+              _0: toSerializeError(getOrRethrow(jsExn._1))
             };
     }
-    throw jsError;
+    throw jsExn;
   }
 }
 
@@ -641,19 +617,16 @@ function serializeOrRaiseWith(value, struct) {
   try {
     return struct.j(value);
   }
-  catch (raw_jsError){
-    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
-    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
-      throw jsError._1;
-    }
-    if (jsError.RE_EXN_ID === Exception) {
+  catch (raw_jsExn){
+    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
+    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       throw {
             RE_EXN_ID: Raised,
-            _1: toSerializeError(jsError._1),
+            _1: toSerializeError(getOrRethrow(jsExn._1)),
             Error: new Error()
           };
     }
-    throw jsError;
+    throw jsExn;
   }
 }
 
@@ -661,19 +634,16 @@ function serializeToUnknownOrRaiseWith(value, struct) {
   try {
     return struct.s(value);
   }
-  catch (raw_jsError){
-    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
-    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
-      throw jsError._1;
-    }
-    if (jsError.RE_EXN_ID === Exception) {
+  catch (raw_jsExn){
+    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
+    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       throw {
             RE_EXN_ID: Raised,
-            _1: toSerializeError(jsError._1),
+            _1: toSerializeError(getOrRethrow(jsExn._1)),
             Error: new Error()
           };
     }
-    throw jsError;
+    throw jsExn;
   }
 }
 
@@ -684,18 +654,15 @@ function serializeWith(value, struct) {
             _0: struct.j(value)
           };
   }
-  catch (raw_jsError){
-    var jsError = Caml_js_exceptions.internalToOCamlException(raw_jsError);
-    if (jsError.RE_EXN_ID === Js_exn.$$Error) {
-      throw jsError._1;
-    }
-    if (jsError.RE_EXN_ID === Exception) {
+  catch (raw_jsExn){
+    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
+    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       return {
               TAG: "Error",
-              _0: toSerializeError(jsError._1)
+              _0: toSerializeError(getOrRethrow(jsExn._1))
             };
     }
-    throw jsError;
+    throw jsExn;
   }
 }
 
@@ -754,10 +721,10 @@ function recursive(fn) {
       selfStruct.pb = noop;
       var asyncVars = new Set();
       builder({
-            varCounter: -1,
-            varsAllocation: "",
-            asyncVars: asyncVars,
-            embeded: []
+            c: -1,
+            v: "",
+            a: asyncVars,
+            e: []
           }, selfStruct, inputVar, outputVar, pathVar);
       var isAsync = asyncVars.size > 0;
       selfStruct.pb = (function (b, selfStruct, inputVar, outputVar, pathVar) {
@@ -888,7 +855,7 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
               if (maybeParser === undefined) {
-                return raise$1(b, pathVar, "MissingParser") + ";";
+                return raise(b, pathVar, "MissingParser") + ";";
               }
               var syncTransformation = maybeParser(selfStruct);
               if (typeof syncTransformation !== "object") {
@@ -910,14 +877,14 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
             }),
           sb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
               if (maybeSerializer === undefined) {
-                return raise$1(b, pathVar, "MissingSerializer") + ";";
+                return raise(b, pathVar, "MissingSerializer") + ";";
               }
               var fn = maybeSerializer(selfStruct);
               if (typeof fn !== "object") {
                 return run(b, struct.sb, struct, inputVar, outputVar, pathVar);
               }
               if (fn.TAG !== "Sync") {
-                return raise$1(b, pathVar, "MissingSerializer") + ";";
+                return raise(b, pathVar, "MissingSerializer") + ";";
               }
               var transformOutputVar = $$var(b);
               var code = run(b, struct.sb, struct, transformOutputVar, outputVar, pathVar);
@@ -956,7 +923,7 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
                         };
                       }), undefined, undefined);
         }) : (function (b, param, param$1, param$2, pathVar) {
-          return raise$1(b, pathVar, "MissingParser") + ";";
+          return raise(b, pathVar, "MissingParser") + ";";
         });
   }
   return {
@@ -968,7 +935,7 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
                 var code = run(b, struct.sb, struct, transformOutputVar, outputVar, pathVar);
                 return embedSyncOperation(b, inputVar, transformOutputVar, pathVar, maybeSerializer, undefined, undefined, undefined) + code;
               }) : (function (b, param, param$1, param$2, pathVar) {
-                return raise$1(b, pathVar, "MissingSerializer") + ";";
+                return raise(b, pathVar, "MissingSerializer") + ";";
               }),
           i: 0,
           s: initialSerialize,
@@ -1008,7 +975,7 @@ function advancedPreprocess(struct, maybeParser, maybeSerializer, param) {
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
               if (maybeParser === undefined) {
-                return raise$1(b, pathVar, "MissingParser") + ";";
+                return raise(b, pathVar, "MissingParser") + ";";
               }
               var syncTransformation = maybeParser(selfStruct);
               if (typeof syncTransformation !== "object") {
@@ -1034,14 +1001,14 @@ function advancedPreprocess(struct, maybeParser, maybeSerializer, param) {
             }),
           sb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
               if (maybeSerializer === undefined) {
-                return raise$1(b, pathVar, "MissingSerializer") + ";";
+                return raise(b, pathVar, "MissingSerializer") + ";";
               }
               var fn = maybeSerializer(selfStruct);
               if (typeof fn !== "object") {
                 return run(b, struct.sb, struct, inputVar, outputVar, pathVar);
               }
               if (fn.TAG !== "Sync") {
-                return raise$1(b, pathVar, "MissingSerializer") + ";";
+                return raise(b, pathVar, "MissingSerializer") + ";";
               }
               var structOuputVar = $$var(b);
               var code = run(b, struct.sb, struct, inputVar, structOuputVar, pathVar);
@@ -1076,7 +1043,7 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
                         };
                       }), undefined, undefined);
         }) : (function (b, param, param$1, param$2, pathVar) {
-          return raise$1(b, pathVar, "MissingParser") + ";";
+          return raise(b, pathVar, "MissingParser") + ";";
         });
   }
   return {
@@ -1086,7 +1053,7 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
           sb: maybeSerializer !== undefined ? (function (b, param, inputVar, outputVar, pathVar) {
                 return embedSyncOperation(b, inputVar, outputVar, pathVar, maybeSerializer, undefined, undefined, undefined);
               }) : (function (b, param, param$1, param$2, pathVar) {
-                return raise$1(b, pathVar, "MissingSerializer") + ";";
+                return raise(b, pathVar, "MissingSerializer") + ";";
               }),
           i: 0,
           s: initialSerialize,
@@ -1192,12 +1159,12 @@ function factory(struct, definer) {
                 var match = constantDefinitions[idx];
                 var path = match.p;
                 var value = match.v;
-                codeRef = codeRef + ("if(" + inputVar + path + "!==" + ("e[" + (b.embeded.push(value) - 1) + "]") + "){" + raiseWithArg(b, pathVar + "+" + JSON.stringify(path), (function(value){
+                codeRef = codeRef + ("if(" + inputVar + path + "!==" + ("e[" + (b.e.push(value) - 1) + "]") + "){" + raiseWithArg(b, pathVar + "+" + JSON.stringify(path), (function(value){
                       return function (input) {
                         return {
                                 TAG: "UnexpectedValue",
-                                expected: value === undefined ? "undefined" : JSON.stringify(value),
-                                received: input === undefined ? "undefined" : JSON.stringify(input)
+                                expected: value === (void 0) ? "undefined" : JSON.stringify(value),
+                                received: input === (void 0) ? "undefined" : JSON.stringify(input)
                               };
                       }
                       }(value)), inputVar + path) + "}");
@@ -1211,7 +1178,7 @@ function factory(struct, definer) {
                   tmp = childInputVar + "=" + inlinedValue;
                 }
                 catch (exn){
-                  tmp = raise$1(b, pathVar, "MissingSerializer");
+                  tmp = raise(b, pathVar, "MissingSerializer");
                 }
               }
               return codeRef + tmp + ";" + childCode;
@@ -1232,13 +1199,13 @@ function factory$1(innerLiteral, variant) {
   };
   var makeSerializeOperationBuilder = function (output) {
     return function (b, param, inputVar, outputVar, pathVar) {
-      return "if(" + inputVar + "!==" + ("e[" + (b.embeded.push(variant) - 1) + "]") + "){" + raiseWithArg(b, pathVar, (function (input) {
+      return "if(" + inputVar + "!==" + ("e[" + (b.e.push(variant) - 1) + "]") + "){" + raiseWithArg(b, pathVar, (function (input) {
                     return {
                             TAG: "UnexpectedValue",
-                            expected: variant === undefined ? "undefined" : JSON.stringify(variant),
-                            received: input === undefined ? "undefined" : JSON.stringify(input)
+                            expected: variant === (void 0) ? "undefined" : JSON.stringify(variant),
+                            received: input === (void 0) ? "undefined" : JSON.stringify(input)
                           };
-                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.embeded.push(output) - 1) + "]") + ";";
+                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(output) - 1) + "]") + ";";
     };
   };
   if (typeof innerLiteral !== "object") {
@@ -1254,7 +1221,7 @@ function factory$1(innerLiteral, variant) {
                                             expected: "EmptyNull Literal (null)",
                                             received: toName(input)
                                           };
-                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.embeded.push(variant) - 1) + "]") + ";";
+                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(variant) - 1) + "]") + ";";
                     }),
                   sb: makeSerializeOperationBuilder(null),
                   i: 0,
@@ -1269,13 +1236,13 @@ function factory$1(innerLiteral, variant) {
                   n: "EmptyOption Literal (undefined)",
                   t: tagged,
                   pb: (function (b, param, inputVar, outputVar, pathVar) {
-                      return "if(" + inputVar + "!==undefined){" + raiseWithArg(b, pathVar, (function (input) {
+                      return "if(" + inputVar + "!==void 0){" + raiseWithArg(b, pathVar, (function (input) {
                                     return {
                                             TAG: "UnexpectedType",
                                             expected: "EmptyOption Literal (undefined)",
                                             received: toName(input)
                                           };
-                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.embeded.push(variant) - 1) + "]") + ";";
+                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(variant) - 1) + "]") + ";";
                     }),
                   sb: makeSerializeOperationBuilder(undefined),
                   i: 0,
@@ -1296,7 +1263,7 @@ function factory$1(innerLiteral, variant) {
                                             expected: "NaN Literal (NaN)",
                                             received: toName(input)
                                           };
-                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.embeded.push(variant) - 1) + "]") + ";";
+                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(variant) - 1) + "]") + ";";
                     }),
                   sb: makeSerializeOperationBuilder(NaN),
                   i: 0,
@@ -1326,9 +1293,9 @@ function factory$1(innerLiteral, variant) {
                                     return {
                                             TAG: "UnexpectedValue",
                                             expected: JSON.stringify(string),
-                                            received: input === undefined ? "undefined" : JSON.stringify(input)
+                                            received: input === (void 0) ? "undefined" : JSON.stringify(input)
                                           };
-                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.embeded.push(variant) - 1) + "]") + ";";
+                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(variant) - 1) + "]") + ";";
                     }),
                   sb: makeSerializeOperationBuilder(string),
                   i: 0,
@@ -1354,9 +1321,9 @@ function factory$1(innerLiteral, variant) {
                                     return {
                                             TAG: "UnexpectedValue",
                                             expected: $$int.toString(),
-                                            received: input === undefined ? "undefined" : JSON.stringify(input)
+                                            received: input === (void 0) ? "undefined" : JSON.stringify(input)
                                           };
-                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.embeded.push(variant) - 1) + "]") + ";";
+                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(variant) - 1) + "]") + ";";
                     }),
                   sb: makeSerializeOperationBuilder($$int),
                   i: 0,
@@ -1382,9 +1349,9 @@ function factory$1(innerLiteral, variant) {
                                     return {
                                             TAG: "UnexpectedValue",
                                             expected: $$float.toString(),
-                                            received: input === undefined ? "undefined" : JSON.stringify(input)
+                                            received: input === (void 0) ? "undefined" : JSON.stringify(input)
                                           };
-                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.embeded.push(variant) - 1) + "]") + ";";
+                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(variant) - 1) + "]") + ";";
                     }),
                   sb: makeSerializeOperationBuilder($$float),
                   i: 0,
@@ -1410,9 +1377,9 @@ function factory$1(innerLiteral, variant) {
                                     return {
                                             TAG: "UnexpectedValue",
                                             expected: bool.toString(),
-                                            received: input === undefined ? "undefined" : JSON.stringify(input)
+                                            received: input === (void 0) ? "undefined" : JSON.stringify(input)
                                           };
-                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.embeded.push(variant) - 1) + "]") + ";";
+                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(variant) - 1) + "]") + ";";
                     }),
                   sb: makeSerializeOperationBuilder(bool),
                   i: 0,
@@ -1585,7 +1552,7 @@ function factory$3(definer) {
               }
               for(var idx$3 = 0 ,idx_finish$3 = constantDefinitions.length; idx$3 < idx_finish$3; ++idx$3){
                 var match = constantDefinitions[idx$3];
-                codeRef = codeRef + (syncOutputVar + match.p + "=" + ("e[" + (b.embeded.push(match.v) - 1) + "]") + ";");
+                codeRef = codeRef + (syncOutputVar + match.p + "=" + ("e[" + (b.e.push(match.v) - 1) + "]") + ";");
               }
               if (asyncFieldVars.length === 0) {
                 return codeRef + outputVar + "=" + syncOutputVar + ";";
@@ -1605,12 +1572,12 @@ function factory$3(definer) {
                 var match = constantDefinitions[idx];
                 var path = match.p;
                 var value = match.v;
-                codeRef = codeRef + ("if(" + inputVar + path + "!==" + ("e[" + (b.embeded.push(value) - 1) + "]") + "){" + raiseWithArg(b, pathVar + "+" + JSON.stringify(path), (function(value){
+                codeRef = codeRef + ("if(" + inputVar + path + "!==" + ("e[" + (b.e.push(value) - 1) + "]") + "){" + raiseWithArg(b, pathVar + "+" + JSON.stringify(path), (function(value){
                       return function (input) {
                         return {
                                 TAG: "UnexpectedValue",
-                                expected: value === undefined ? "undefined" : JSON.stringify(value),
-                                received: input === undefined ? "undefined" : JSON.stringify(input)
+                                expected: value === (void 0) ? "undefined" : JSON.stringify(value),
+                                received: input === (void 0) ? "undefined" : JSON.stringify(input)
                               };
                       }
                       }(value)), inputVar + path) + "}");
@@ -1636,7 +1603,7 @@ function factory$3(definer) {
                     tmp = destinationVar + "=" + inlinedValue + ";";
                   }
                   catch (exn){
-                    tmp = raise$1(b, fieldPathVar, "MissingSerializer") + ";";
+                    tmp = raise(b, fieldPathVar, "MissingSerializer") + ";";
                   }
                 }
                 codeRef = codeRef + tmp;
@@ -2111,7 +2078,7 @@ function factory$5(childStruct) {
               var childOutputVar = $$var(b);
               var childCode = run(b, childStruct.sb, childStruct, inputVar, childOutputVar, pathVar);
               var value = Caml_option.valFromOption;
-              return "if(" + inputVar + "!==undefined){" + inputVar + "=" + ("e[" + (b.embeded.push(value) - 1) + "]") + "(" + inputVar + ");" + childCode + outputVar + "=" + childOutputVar + "}else{" + outputVar + "=null}";
+              return "if(" + inputVar + "!==void 0){" + inputVar + "=" + ("e[" + (b.e.push(value) - 1) + "]") + "(" + inputVar + ");" + childCode + outputVar + "=" + childOutputVar + "}else{" + outputVar + "=null}";
             }),
           i: 0,
           s: initialSerialize,
@@ -2133,7 +2100,7 @@ function factory$6(childStruct) {
               var childOutputVar = $$var(b);
               var childCode = run(b, childStruct.pb, childStruct, inputVar, childOutputVar, pathVar);
               var isChildAsync = childStruct.i;
-              return "if(" + inputVar + "!==undefined){" + childCode + embedSyncOperation(b, childOutputVar, outputVar, pathVar, Caml_option.some, true, undefined, undefined) + "}else{" + outputVar + "=" + (
+              return "if(" + inputVar + "!==void 0){" + childCode + embedSyncOperation(b, childOutputVar, outputVar, pathVar, Caml_option.some, true, undefined, undefined) + "}else{" + outputVar + "=" + (
                       isChildAsync ? "()=>Promise.resolve(" + inputVar + ")" : inputVar
                     ) + "}";
             }),
@@ -2141,7 +2108,7 @@ function factory$6(childStruct) {
               var childOutputVar = $$var(b);
               var childCode = run(b, childStruct.sb, childStruct, inputVar, childOutputVar, pathVar);
               var value = Caml_option.valFromOption;
-              return "if(" + inputVar + "!==undefined){" + inputVar + "=" + ("e[" + (b.embeded.push(value) - 1) + "]") + "(" + inputVar + ");" + childCode + outputVar + "=" + childOutputVar + "}else{" + outputVar + "=undefined}";
+              return "if(" + inputVar + "!==void 0){" + inputVar + "=" + ("e[" + (b.e.push(value) - 1) + "]") + "(" + inputVar + ");" + childCode + outputVar + "=" + childOutputVar + "}else{" + outputVar + "=void 0}";
             }),
           i: 0,
           s: initialSerialize,
@@ -2321,8 +2288,8 @@ function factory$9(childStruct, getDefaultValue) {
                   var childOutputVar = $$var(b);
                   var childCode = run(b, childStruct$1.pb, childStruct$1, inputVar, childOutputVar, pathVar);
                   var isChildAsync = childStruct$1.i;
-                  var defaultValVar = "e[" + (b.embeded.push(getDefaultValue) - 1) + "]()";
-                  return "if(" + inputVar + "!==undefined){" + childCode + embedSyncOperation(b, childOutputVar, outputVar, pathVar, Caml_option.some, true, undefined, undefined) + "}else{" + outputVar + "=" + (
+                  var defaultValVar = "e[" + (b.e.push(getDefaultValue) - 1) + "]()";
+                  return "if(" + inputVar + "!==void 0){" + childCode + embedSyncOperation(b, childOutputVar, outputVar, pathVar, Caml_option.some, true, undefined, undefined) + "}else{" + outputVar + "=" + (
                           isChildAsync ? "()=>Promise.resolve(" + defaultValVar + ")" : defaultValVar
                         ) + "}";
                 }),
@@ -2458,7 +2425,7 @@ function factory$11(structs) {
                 }
                 codeRef = codeRef + ("try{" + childCode + (
                     isAsyncItem ? "throw " : syncOutputVar + "="
-                  ) + childOutputVar + "}catch(" + errorVar + "){if(" + errorVar + "&&" + errorVar + ".RE_EXN_ID===\"S-RescriptStruct.Error.Internal.Exception/1\"" + (
+                  ) + childOutputVar + "}catch(" + errorVar + "){if(" + (errorVar + "&&" + errorVar + ".s===s") + (
                     isAsyncItem ? "||" + errorVar + "===" + childOutputVar : ""
                   ) + "){");
                 codeEndRef = "}else{throw " + errorVar + "}}" + codeEndRef;
@@ -2469,9 +2436,7 @@ function factory$11(structs) {
                                       TAG: "InvalidUnion",
                                       _0: internalErrors.map(toParseError)
                                     };
-                            }), "[" + errorVars.map(function (v) {
-                                  return v + "._1";
-                                }).join(",") + "]") + codeEndRef + (outputVar + "=" + syncOutputVar + ";");
+                            }), "[" + errorVars.toString() + "]") + codeEndRef + (outputVar + "=" + syncOutputVar + ";");
               }
               codeRef = codeRef + (outputVar + "=()=>Promise.any([");
               for(var idx$1 = 0 ,idx_finish$1 = errorVars.length; idx$1 < idx_finish$1; ++idx$1){
@@ -2485,14 +2450,12 @@ function factory$11(structs) {
                 }
                 codeRef = codeRef + ("Promise.reject(" + errorVar$1 + ")");
               }
-              codeRef = codeRef + ("]).catch(t=>{t=t.errors;" + raiseWithArg(b, pathVar, (function (internalErrors) {
+              codeRef = codeRef + ("]).catch(t=>{" + raiseWithArg(b, pathVar, (function (internalErrors) {
                         return {
                                 TAG: "InvalidUnion",
                                 _0: internalErrors.map(toParseError)
                               };
-                      }), "[" + errorVars.map(function (param, idx) {
-                            return "t[" + idx + "]._1";
-                          }).join(",") + "]") + "})");
+                      }), "t.errors") + "})");
               return codeRef + codeEndRef + ("if(!" + outputVar + "){" + outputVar + "=()=>Promise.resolve(" + syncOutputVar + ")}");
             }),
           sb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
@@ -2506,7 +2469,7 @@ function factory$11(structs) {
                 var childCode = run(b, itemStruct.sb, itemStruct, inputVar, childOutputVar, "\"\"");
                 var errorVar = varWithoutAllocation(b);
                 errorVars.push(errorVar);
-                codeRef = codeRef + ("try{" + childCode + outputVar + "=" + childOutputVar + "}catch(" + errorVar + "){if(" + errorVar + "&&" + errorVar + ".RE_EXN_ID===\"S-RescriptStruct.Error.Internal.Exception/1\"){");
+                codeRef = codeRef + ("try{" + childCode + outputVar + "=" + childOutputVar + "}catch(" + errorVar + "){if(" + (errorVar + "&&" + errorVar + ".s===s") + "){");
                 codeEndRef = "}else{throw " + errorVar + "}}" + codeEndRef;
               }
               return codeRef + raiseWithArg(b, pathVar, (function (internalErrors) {
@@ -2514,9 +2477,7 @@ function factory$11(structs) {
                                     TAG: "InvalidUnion",
                                     _0: internalErrors.map(toSerializeError)
                                   };
-                          }), "[" + errorVars.map(function (v) {
-                                return v + "._1";
-                              }).join(",") + "]") + codeEndRef;
+                          }), "[" + errorVars.toString() + "]") + codeEndRef;
             }),
           i: 0,
           s: initialSerialize,
@@ -2566,17 +2527,16 @@ function parse(input, path) {
     default:
       
   }
+  var code_1 = toName(input);
+  var code = {
+    TAG: "UnexpectedType",
+    expected: "JSON",
+    received: code_1
+  };
   throw {
-        RE_EXN_ID: Exception,
-        _1: {
-          c: {
-            TAG: "UnexpectedType",
-            expected: "JSON",
-            received: toName(input)
-          },
-          p: path
-        },
-        Error: new Error()
+        c: code,
+        p: path,
+        s: symbol
       };
 }
 
@@ -2584,7 +2544,7 @@ var json = {
   n: "JSON",
   t: "JSON",
   pb: (function (b, param, inputVar, outputVar, pathVar) {
-      return outputVar + "=" + ("e[" + (b.embeded.push(parse) - 1) + "]") + "(" + inputVar + "," + pathVar + ");";
+      return outputVar + "=" + ("e[" + (b.e.push(parse) - 1) + "]") + "(" + inputVar + "," + pathVar + ");";
     }),
   sb: noop,
   i: 0,
@@ -2603,16 +2563,16 @@ function $$catch(struct, getFallbackValue) {
               var childOutputVar = $$var(b);
               var childCode = run(b, struct.pb, struct, inputVar, childOutputVar, pathVar);
               var isAsync = struct.i;
-              var fallbackValVar = "e[" + (b.embeded.push(function (input, internalError) {
+              var fallbackValVar = "e[" + (b.e.push(function (input, internalError) {
                       return getFallbackValue({
                                   error: toParseError(internalError),
                                   input: input
                                 });
-                    }) - 1) + "](" + inputVar + ",t._1)";
+                    }) - 1) + "](" + inputVar + ",t)";
               if (isAsync) {
-                return "try{" + childCode + outputVar + "=()=>{try{return " + childOutputVar + "().catch(t=>{if(t&&t.RE_EXN_ID===\"S-RescriptStruct.Error.Internal.Exception/1\"){return " + fallbackValVar + "}else{throw t}})}catch(t){if(t&&t.RE_EXN_ID===\"S-RescriptStruct.Error.Internal.Exception/1\"){return Promise.resolve(" + fallbackValVar + ")}else{throw t}}}}catch(t){if(t&&t.RE_EXN_ID===\"S-RescriptStruct.Error.Internal.Exception/1\"){" + outputVar + "=()=>Promise.resolve(" + fallbackValVar + ")}else{throw t}}";
+                return "try{" + childCode + outputVar + "=()=>{try{return " + childOutputVar + "().catch(t=>{if(t&&t.s===s){return " + fallbackValVar + "}else{throw t}})}catch(t){if(t&&t.s===s){return Promise.resolve(" + fallbackValVar + ")}else{throw t}}}}catch(t){if(t&&t.s===s){" + outputVar + "=()=>Promise.resolve(" + fallbackValVar + ")}else{throw t}}";
               } else {
-                return "try{" + childCode + "}catch(t){if(t&&t.RE_EXN_ID===\"S-RescriptStruct.Error.Internal.Exception/1\"){" + childOutputVar + "=" + fallbackValVar + "}else{throw t}}" + outputVar + "=" + childOutputVar + ";";
+                return "try{" + childCode + "}catch(t){if(t&&t.s===s){" + childOutputVar + "=" + fallbackValVar + "}else{throw t}}" + outputVar + "=" + childOutputVar + ";";
               }
             }),
           sb: struct.sb,
@@ -2822,7 +2782,7 @@ function internalInline(struct, maybeVariant, param) {
             var defaultValue$1 = Caml_option.valFromOption(defaultValue);
             Js_dict.unsafeDeleteKey(metadataMap, metadataId$5);
             inlinedStruct = internalInlinedStruct + ("->S.default(() => %raw(\`" + (
-                defaultValue$1 === undefined ? "undefined" : JSON.stringify(defaultValue$1)
+                defaultValue$1 === (void 0) ? "undefined" : JSON.stringify(defaultValue$1)
               ) + "\`))");
           } else {
             inlinedStruct = "S.option(" + internalInlinedStruct + ")";
@@ -2877,7 +2837,7 @@ function internalInline(struct, maybeVariant, param) {
   var inlinedStruct$1 = message !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, deprecationMetadataId), inlinedStruct + ("->S.deprecate(" + JSON.stringify(message) + ")")) : inlinedStruct;
   var message$1 = description(struct);
   var inlinedStruct$2 = message$1 !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, descriptionMetadataId), inlinedStruct$1 + ("->S.describe(" + (
-          message$1 === undefined ? "undefined" : JSON.stringify(message$1)
+          message$1 === (void 0) ? "undefined" : JSON.stringify(message$1)
         ) + ")")) : inlinedStruct$1;
   var match = classify$1(struct);
   var inlinedStruct$3;
@@ -3273,4 +3233,4 @@ export {
   Metadata ,
   inline ,
 }
-/* unit Not a pure module */
+/* symbol Not a pure module */
