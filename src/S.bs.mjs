@@ -326,7 +326,6 @@ function build(builder, struct) {
   };
   var code = run(b, builder, struct, intitialInputVar, intitialOutputVar, "\"\"");
   var inlinedFunction = intitialInputVar + "=>{var " + b.v + ";" + code + "return " + intitialOutputVar + "}";
-  console.log(inlinedFunction);
   return new Function("e", "s", "return " + inlinedFunction)(b.e, symbol);
 }
 
@@ -1511,10 +1510,11 @@ function factory$3(definer) {
                 var fieldStruct = fieldDefinition.s;
                 var path = fieldDefinition.p;
                 var isRegistered = fieldDefinition.r;
+                var fieldInputVar = $$var(b);
                 var fieldOuputVar = $$var(b);
-                var fieldCode = run(b, fieldStruct.pb, fieldStruct, inputVar + "[" + inlinedFieldName + "]", fieldOuputVar, pathVar + "+'['+" + JSON.stringify(inlinedFieldName) + "+']'");
+                var fieldCode = run(b, fieldStruct.pb, fieldStruct, fieldInputVar, fieldOuputVar, pathVar + "+'['+" + JSON.stringify(inlinedFieldName) + "+']'");
                 var isAsyncField = fieldStruct.i;
-                codeRef = codeRef + fieldCode + (
+                codeRef = codeRef + (fieldInputVar + "=" + inputVar + "[" + inlinedFieldName + "];") + fieldCode + (
                   isRegistered ? syncOutputVar + path + "=" + fieldOuputVar + ";" : ""
                 );
                 if (isAsyncField) {

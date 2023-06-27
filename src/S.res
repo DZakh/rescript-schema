@@ -654,7 +654,7 @@ module Builder = {
       )
     // TODO: Optimize Builder.noop i=>{var _;return i}
     let inlinedFunction = `${intitialInputVar}=>{var ${b.varsAllocation};${code}return ${intitialOutputVar}}`
-    Js.log(inlinedFunction)
+    // Js.log(inlinedFunction)
     Stdlib.Function.make2(
       ~ctxVarName1="e",
       ~ctxVarValue1=b.embeded,
@@ -2219,12 +2219,13 @@ module Object = {
         for idx in 0 to fieldDefinitions->Js.Array2.length - 1 {
           let fieldDefinition = fieldDefinitions->Js.Array2.unsafe_get(idx)
           let {fieldStruct, inlinedFieldName, isRegistered, path} = fieldDefinition
+          let fieldInputVar = b->B.var
           let fieldOuputVar = b->B.var
           let fieldCode =
             b->B.run(
               ~builder=fieldStruct.parseOperationBuilder,
               ~struct=fieldStruct,
-              ~inputVar=`${inputVar}[${inlinedFieldName}]`,
+              ~inputVar=fieldInputVar,
               ~outputVar=fieldOuputVar,
               ~pathVar=`${pathVar}+'['+${inlinedFieldName->Stdlib.Inlined.Value.fromString}+']'`,
             )
@@ -2232,6 +2233,7 @@ module Object = {
 
           codeRef.contents =
             codeRef.contents ++
+            `${fieldInputVar}=${inputVar}[${inlinedFieldName}];` ++
             fieldCode ++ (isRegistered ? `${syncOutputVar}${path}=${fieldOuputVar};` : "")
           if isAsyncField {
             asyncFieldVars
