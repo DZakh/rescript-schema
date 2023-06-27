@@ -51,6 +51,7 @@ Next breaking release
 - Remove NaN from literals (or completely)
 - Allow to pass anything to S.literal (maybe remove S.literalVariant)
 - Allow passing Path string to the S.field first arg (o.nestedField)
+- rename advancedFail to failWithError
 
 // TODO: Example with status without S.variant
 let authorStruct = S.object(o => {

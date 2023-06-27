@@ -40,3 +40,9 @@ test("Fails to parse data with default", t => {
     (),
   )
 })
+
+test("Successfully serializes struct with transformation", t => {
+  let struct = S.string->S.String.trim()->S.default(() => "default")
+
+  t->Assert.deepEqual(" abc"->S.serializeToUnknownWith(struct), Ok(%raw(`"abc"`)), ())
+})

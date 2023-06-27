@@ -233,7 +233,7 @@ module Negative = {
           Error({
             code: MissingSerializer,
             operation: Serializing,
-            path: S.Path.fromArray(["discriminant"]),
+            path: S.Path.empty,
           }),
           (),
         )
@@ -277,7 +277,7 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
     Error({
       code: MissingSerializer,
       operation: Serializing,
-      path: S.Path.fromArray(["discriminant"]),
+      path: S.Path.empty,
     }),
     (),
   )

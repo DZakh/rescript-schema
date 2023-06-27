@@ -205,7 +205,7 @@ asyncTest("Can apply other actions after async preprocess", t => {
   })
 })
 
-test("Applies preproces for union structs separately", t => {
+test("Applies preproces parser for union structs separately", t => {
   let prepareEnvStruct = S.advancedPreprocess(
     _,
     ~parser=(~struct) => {
@@ -242,11 +242,49 @@ test("Applies preproces for union structs separately", t => {
 
   let struct =
     S.union([
-      S.bool->S.transform(~parser=bool => #Bool(bool), ()),
-      S.int->S.transform(~parser=int => #Int(int), ()),
+      S.bool->S.variant(bool => #Bool(bool)),
+      S.int->S.variant(int => #Int(int)),
     ])->prepareEnvStruct
 
   t->Assert.deepEqual("f"->S.parseAnyWith(struct), Ok(#Bool(false)), ())
   t->Assert.deepEqual("1"->S.parseAnyWith(struct), Ok(#Bool(true)), ())
   t->Assert.deepEqual("2"->S.parseAnyWith(struct), Ok(#Int(2)), ())
+})
+
+test("Applies preproces serializer for union structs separately", t => {
+  let struct =
+    S.union([
+      S.bool->S.variant(bool => #Bool(bool)),
+      S.int->S.variant(int => #Int(int)),
+    ])->S.advancedPreprocess(~serializer=(~struct) => {
+      switch struct->S.classify {
+      | Bool =>
+        Sync(
+          unknown => {
+            if unknown->Obj.magic === true {
+              "1"->Obj.magic
+            } else if unknown->Obj.magic === false {
+              "0"->Obj.magic
+            } else {
+              unknown->Obj.magic
+            }
+          },
+        )
+      | Int =>
+        Sync(
+          unknown => {
+            if unknown->Js.typeof === "number" {
+              unknown->Obj.magic->Js.Int.toString->Obj.magic
+            } else {
+              unknown->Obj.magic
+            }
+          },
+        )
+      | _ => Noop
+      }
+    }, ())
+
+  t->Assert.deepEqual(#Bool(false)->S.serializeToUnknownWith(struct), Ok(%raw(`"0"`)), ())
+  t->Assert.deepEqual(#Bool(true)->S.serializeToUnknownWith(struct), Ok(%raw(`"1"`)), ())
+  t->Assert.deepEqual(#Int(2)->S.serializeToUnknownWith(struct), Ok(%raw(`"2"`)), ())
 })

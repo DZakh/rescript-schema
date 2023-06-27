@@ -7,10 +7,10 @@ let validAsyncRefine = S.advancedTransform(
 )
 let invalidSyncRefine = S.refine(_, ~parser=_ => S.fail("Sync user error"), ())
 let unresolvedPromise = Promise.make((_, _) => ())
-let invalidPromise = Promise.resolve()->Promise.then(() => S.fail("Async user error"))
+let makeInvalidPromise = () => Promise.resolve()->Promise.then(() => S.fail("Async user error"))
 let invalidAsyncRefine = S.advancedTransform(
   _,
-  ~parser=(~struct as _) => Async(_ => invalidPromise),
+  ~parser=(~struct as _) => Async(_ => makeInvalidPromise()),
   (),
 )
 
@@ -92,6 +92,52 @@ module Object = {
           "k2": 2,
           "k3": 3,
         }),
+        (),
+      )
+    })
+  })
+
+  asyncTest("[Object] Successfully parses async object in array", t => {
+    let struct = S.array(
+      S.object(o =>
+        {
+          "k1": o.field("k1", S.int),
+          "k2": o.field("k2", S.int->validAsyncRefine),
+          "k3": o.field("k3", S.int),
+        }
+      ),
+    )
+
+    (
+      [
+        {
+          "k1": 1,
+          "k2": 2,
+          "k3": 3,
+        },
+        {
+          "k1": 4,
+          "k2": 5,
+          "k3": 6,
+        },
+      ]
+      ->S.parseAnyAsyncInStepsWith(struct)
+      ->Belt.Result.getExn
+    )(.)->Promise.thenResolve(result => {
+      t->Assert.deepEqual(
+        result,
+        Ok([
+          {
+            "k1": 1,
+            "k2": 2,
+            "k3": 3,
+          },
+          {
+            "k1": 4,
+            "k2": 5,
+            "k3": 6,
+          },
+        ]),
         (),
       )
     })
@@ -548,7 +594,7 @@ module Array = {
             if actionCounter.contents <= 2 {
               unresolvedPromise
             } else {
-              invalidPromise
+              makeInvalidPromise()
             }
           },
         )
@@ -622,7 +668,7 @@ module Dict = {
             if actionCounter.contents <= 2 {
               unresolvedPromise
             } else {
-              invalidPromise
+              makeInvalidPromise()
             }
           },
         )

@@ -6,6 +6,20 @@ test("Parses with wrapping the value in variant", t => {
   t->Assert.deepEqual("Hello world!"->S.parseAnyWith(struct), Ok(Ok("Hello world!")), ())
 })
 
+test("Fails to parse wrapped struct", t => {
+  let struct = S.string->S.variant(s => Ok(s))
+
+  t->Assert.deepEqual(
+    123->S.parseAnyWith(struct),
+    Error({
+      operation: Parsing,
+      code: UnexpectedType({received: "Float", expected: "String"}),
+      path: S.Path.empty,
+    }),
+    (),
+  )
+})
+
 test("Serializes with unwrapping the value from variant", t => {
   let struct = S.string->S.variant(s => Ok(s))
 

@@ -97,6 +97,20 @@ let makeAdvancedStrictObjectStruct = (. ()) => {
   )->S.Object.strict
 }
 
+let data = makeTestObject()
+Js.Console.timeStart("init")
+let struct = makeAdvancedObjectStruct()
+Js.Console.timeEnd("init")
+Js.Console.timeStart("1")
+data->S.parseAnyWith(struct)->ignore
+Js.Console.timeEnd("1")
+Js.Console.timeStart("2")
+data->S.parseAnyWith(struct)->ignore
+Js.Console.timeEnd("2")
+Js.Console.timeStart("3")
+data->S.parseAnyWith(struct)->ignore
+Js.Console.timeEnd("3")
+
 Suite.make()
 ->Suite.addWithPrepare("Parse string", (. ()) => {
   let struct = S.string

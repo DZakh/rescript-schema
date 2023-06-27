@@ -70,6 +70,32 @@ function makeAdvancedStrictObjectStruct() {
                 }));
 }
 
+var data = makeTestObject(undefined);
+
+console.time("init");
+
+var struct = makeAdvancedObjectStruct(undefined);
+
+console.timeEnd("init");
+
+console.time("1");
+
+S$RescriptStruct.parseAnyWith(data, struct);
+
+console.timeEnd("1");
+
+console.time("2");
+
+S$RescriptStruct.parseAnyWith(data, struct);
+
+console.timeEnd("2");
+
+console.time("3");
+
+S$RescriptStruct.parseAnyWith(data, struct);
+
+console.timeEnd("3");
+
 run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new (Benchmark.default.Suite)(), "Parse string", (function () {
                                   return function () {
                                     return S$RescriptStruct.parseAnyOrRaiseWith("Hello world!", S$RescriptStruct.string);
@@ -107,4 +133,4 @@ run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(a
 export {
   
 }
-/*  Not a pure module */
+/* data Not a pure module */

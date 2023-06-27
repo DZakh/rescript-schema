@@ -50,6 +50,36 @@ test("Supports Object", t => {
   t->Assert.deepEqual(data->S.serializeWith(struct), Ok(data), ())
 })
 
+test("Fails to parse Object field", t => {
+  let struct = S.json
+  let data = Js.Json.object_([("bar", %raw("undefined")), ("baz", Js.Json.null)]->Js.Dict.fromArray)
+
+  t->Assert.deepEqual(
+    data->S.parseWith(struct),
+    Error({
+      code: UnexpectedType({received: "Option", expected: "JSON"}),
+      operation: Parsing,
+      path: S.Path.fromLocation("bar"),
+    }),
+    (),
+  )
+})
+
+test("Fails to parse matrix field", t => {
+  let struct = S.json
+  let data = %raw(`[1,[undefined]]`)
+
+  t->Assert.deepEqual(
+    data->S.parseWith(struct),
+    Error({
+      code: UnexpectedType({received: "Option", expected: "JSON"}),
+      operation: Parsing,
+      path: S.Path.fromArray(["1", "0"]),
+    }),
+    (),
+  )
+})
+
 test("Fails to parse NaN", t => {
   let struct = S.json
   t->Assert.deepEqual(

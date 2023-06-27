@@ -14,6 +14,12 @@ test("Returns true for async struct", t => {
   t->Assert.is(struct->S.isAsyncParse, true, ())
 })
 
+test("Returns true for async struct after running a serializer", t => {
+  let struct = S.string->S.refine(~asyncParser=_ => Promise.resolve(), ())
+  t->Assert.deepEqual("abc"->S.serializeWith(struct), Ok(%raw(`"abc"`)), ())
+  t->Assert.is(struct->S.isAsyncParse, true, ())
+})
+
 test("Returns true for struct with nested async", t => {
   let struct = S.tuple1(. S.string->S.refine(~asyncParser=_ => Promise.resolve(), ()))
 

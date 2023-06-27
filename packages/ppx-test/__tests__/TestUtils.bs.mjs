@@ -5,29 +5,31 @@ import * as Caml_option from "rescript/lib/es6/caml_option.js";
 function cleanUpStruct(struct) {
   var $$new = {};
   Object.entries(struct).forEach(function (param) {
-        var value = param[1];
-        var key = param[0];
-        switch (key) {
-          case "pf" :
-          case "sf" :
-              return ;
-          default:
-            if (typeof value === "object" && value !== null) {
-              $$new[key] = cleanUpStruct(value);
-            } else {
-              $$new[key] = value;
-            }
-            return ;
+    var value = param[1];
+    var key = param[0];
+    switch (key) {
+      case "pb":
+      case "sb":
+        return;
+      default:
+        if (typeof value === "object" && value !== null) {
+          $$new[key] = cleanUpStruct(value);
+        } else {
+          $$new[key] = value;
         }
-      });
+        return;
+    }
+  });
   return $$new;
 }
 
 function assertEqualStructs(t, s1, s2, message, param) {
-  t.deepEqual(cleanUpStruct(s1), cleanUpStruct(s2), message !== undefined ? Caml_option.valFromOption(message) : undefined);
+  t.deepEqual(
+    cleanUpStruct(s1),
+    cleanUpStruct(s2),
+    message !== undefined ? Caml_option.valFromOption(message) : undefined
+  );
 }
 
-export {
-  assertEqualStructs ,
-}
+export { assertEqualStructs };
 /* No side effect */

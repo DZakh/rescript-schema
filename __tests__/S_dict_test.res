@@ -58,6 +58,35 @@ test("Successfully parses dict with int keys", t => {
   )
 })
 
+test("Applies operation for each item on serializing", t => {
+  let struct = S.dict(S.jsonString(S.int))
+
+  t->Assert.deepEqual(
+    Js.Dict.fromArray([("a", 1), ("b", 2)])->S.serializeToUnknownWith(struct),
+    Ok(
+      %raw(`{
+        "a": "1",
+        "b": "2",
+      }`),
+    ),
+    (),
+  )
+})
+
+test("Fails to serialize dict item", t => {
+  let struct = S.dict(S.string->S.refine(~serializer=_ => S.fail("User error"), ()))
+
+  t->Assert.deepEqual(
+    Js.Dict.fromArray([("a", "aa"), ("b", "bb")])->S.serializeToUnknownWith(struct),
+    Error({
+      code: OperationFailed("User error"),
+      operation: Serializing,
+      path: S.Path.fromLocation("a"),
+    }),
+    (),
+  )
+})
+
 test("Successfully parses dict with optional items", t => {
   let struct = S.dict(S.option(S.string))
 

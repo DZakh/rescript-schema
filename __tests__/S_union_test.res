@@ -136,6 +136,40 @@ module Advanced = {
     )
   })
 
+  test("Fails to parse with unknown kind when the union is an object field", t => {
+    t->Assert.deepEqual(
+      %raw(`{
+        "field": {
+          "kind": "oval",
+          "x": 2,
+          "y": 3,
+        }
+      }`)->S.parseAnyWith(S.object(o => o.field("field", shapeStruct))),
+      Error({
+        code: InvalidUnion([
+          {
+            code: UnexpectedValue({expected: `"circle"`, received: `"oval"`}),
+            operation: Parsing,
+            path: S.Path.fromArray(["kind"]),
+          },
+          {
+            code: UnexpectedValue({expected: `"square"`, received: `"oval"`}),
+            operation: Parsing,
+            path: S.Path.fromArray(["kind"]),
+          },
+          {
+            code: UnexpectedValue({expected: `"triangle"`, received: `"oval"`}),
+            operation: Parsing,
+            path: S.Path.fromArray(["kind"]),
+          },
+        ]),
+        operation: Parsing,
+        path: S.Path.fromArray(["field"]),
+      }),
+      (),
+    )
+  })
+
   test("Fails to parse with wrong data type", t => {
     t->Assert.deepEqual(
       %raw(`"Hello world!"`)->S.parseAnyWith(shapeStruct),

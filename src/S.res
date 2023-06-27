@@ -5,26 +5,35 @@ module Obj = {
 }
 
 module Stdlib = {
+  module Unknown = {
+    let toName = unknown =>
+      switch unknown->Js.Types.classify {
+      | JSFalse | JSTrue => "Bool"
+      | JSString(_) => "String"
+      | JSNull => "Null"
+      | JSNumber(number) if Js.Float.isNaN(number) => "NaN Literal (NaN)"
+      | JSNumber(_) => "Float"
+      | JSObject(object) if Js.Array2.isArray(object) => "Array"
+      | JSObject(_) => "Object"
+      | JSFunction(_) => "Function"
+      | JSUndefined => "Option"
+      | JSSymbol(_) => "Symbol"
+      | JSBigInt(_) => "BigInt"
+      }
+  }
+
   module Promise = {
     type t<+'a> = promise<'a>
 
     @send
-    external thenResolve: (t<'a>, 'a => 'b) => t<'b> = "then"
-
-    @send external then: (t<'a>, 'a => t<'b>) => t<'b> = "then"
-
-    @send
-    external thenResolveWithCatch: (t<'a>, @uncurry ('a => 'b), @uncurry (exn => 'b)) => t<'b> =
-      "then"
+    external thenResolveWithCatch: (
+      t<'a>,
+      @uncurry ('a => 'b),
+      @uncurry (Js.Exn.t => 'b),
+    ) => t<'b> = "then"
 
     @val @scope("Promise")
     external resolve: 'a => t<'a> = "resolve"
-
-    @send
-    external catch: (t<'a>, @uncurry (exn => 'a)) => t<'a> = "catch"
-
-    @scope("Promise") @val
-    external all: array<t<'a>> => t<array<'a>> = "all"
   }
 
   module Url = {
@@ -59,17 +68,9 @@ module Stdlib = {
     let call1 = (fn: 'arg1 => 'return, arg1: 'arg1): 'return => {
       Obj.magic(fn)(. arg1)
     }
-
-    @inline
-    let castToCurried = (fn: (. 'a) => 'b): ('a => 'b) => fn->Obj.magic
   }
 
   module Object = {
-    @inline
-    let test = data => {
-      data->Js.typeof === "object" && data !== %raw(`null`) && !Js.Array2.isArray(data)
-    }
-
     @val
     external overrideWith: ('object, 'object) => unit = "Object.assign"
   }
@@ -83,6 +84,8 @@ module Stdlib = {
     @send
     external has: (t<'value>, 'value) => bool = "has"
 
+    @get external size: t<'value> => int = "size"
+
     @send
     external add: (t<'value>, 'value) => t<'value> = "add"
 
@@ -95,16 +98,7 @@ module Stdlib = {
 
   module Array = {
     @inline
-    let toTuple = array =>
-      array->Js.Array2.length <= 1 ? array->Js.Array2.unsafe_get(0)->Obj.magic : array->Obj.magic
-
-    @inline
     let unique = array => array->Set.fromArray->Set.toArray
-
-    @inline
-    let set = (array: array<'value>, idx: int, value: 'value) => {
-      array->Obj.magic->Js.Dict.set(idx->Obj.magic, value)
-    }
 
     @send
     external append: (array<'a>, 'a) => array<'a> = "concat"
@@ -125,23 +119,22 @@ module Stdlib = {
     @new
     external makeError: string => error = "Error"
 
-    let raiseError = (error: error): 'a => error->Obj.magic->raise
+    let raiseAny = (any: 'any): 'a => any->Obj.magic->raise
+
+    let raiseError: error => 'a = raiseAny
 
     @inline
-    let raiseEmpty = (): 'a => ()->Obj.magic->raise
+    let raiseEmpty = (): 'a => raiseAny()
   }
 
   module Int = {
     @inline
     let plus = (int1: int, int2: int): int => {
-      (int1->Js.Int.toFloat +. int2->Js.Int.toFloat)->Obj.magic
+      (int1->Js.Int.toFloat +. int2->Js.Int.toFloat)->(Obj.magic: float => int)
     }
 
-    @inline
-    let test = data => {
-      let x = data->Obj.magic
-      data->Js.typeof === "number" && x < 2147483648. && x > -2147483649. && mod(x, 1) === 0
-    }
+    // TODO: Use in more places
+    external unsafeToString: int => string = "%identity"
   }
 
   module Dict = {
@@ -166,93 +159,22 @@ module Stdlib = {
     external _make: array<string> => 'function = "Function"
 
     @inline
-    let make1 = (~ctxVarName1, ~ctxVarValue1, ~inlinedFunction) => {
-      _make([ctxVarName1, `return ${inlinedFunction}`])(. ctxVarValue1)
-    }
-
-    @inline
-    let make4 = (
-      ~ctxVarName1,
-      ~ctxVarValue1,
-      ~ctxVarName2,
-      ~ctxVarValue2,
-      ~ctxVarName3,
-      ~ctxVarValue3,
-      ~ctxVarName4,
-      ~ctxVarValue4,
-      ~inlinedFunction,
-    ) => {
-      _make([ctxVarName1, ctxVarName2, ctxVarName3, ctxVarName4, `return ${inlinedFunction}`])(.
-        ctxVarValue1,
-        ctxVarValue2,
-        ctxVarValue3,
-        ctxVarValue4,
-      )
-    }
-
-    @inline
     let make2 = (~ctxVarName1, ~ctxVarValue1, ~ctxVarName2, ~ctxVarValue2, ~inlinedFunction) => {
       _make([ctxVarName1, ctxVarName2, `return ${inlinedFunction}`])(. ctxVarValue1, ctxVarValue2)
     }
+  }
 
-    @inline
-    let make7 = (
-      ~ctxVarName1,
-      ~ctxVarValue1,
-      ~ctxVarName2,
-      ~ctxVarValue2,
-      ~ctxVarName3,
-      ~ctxVarValue3,
-      ~ctxVarName4,
-      ~ctxVarValue4,
-      ~ctxVarName5,
-      ~ctxVarValue5,
-      ~ctxVarName6,
-      ~ctxVarValue6,
-      ~ctxVarName7,
-      ~ctxVarValue7,
-      ~inlinedFunction,
-    ) => {
-      _make([
-        ctxVarName1,
-        ctxVarName2,
-        ctxVarName3,
-        ctxVarName4,
-        ctxVarName5,
-        ctxVarName6,
-        ctxVarName7,
-        `return ${inlinedFunction}`,
-      ])(.
-        ctxVarValue1,
-        ctxVarValue2,
-        ctxVarValue3,
-        ctxVarValue4,
-        ctxVarValue5,
-        ctxVarValue6,
-        ctxVarValue7,
-      )
-    }
+  module Symbol = {
+    type t
+
+    @val external make: string => t = "Symbol"
   }
 
   module Inlined = {
-    module Constant = {
-      @inline
-      let errorVar = "e"
-      @inline
-      let inputVar = "v"
-    }
-
-    module NewPromise = {
-      @inline
-      let make = (~resolveVar, ~rejectVar, ~content) => {
-        `new Promise(function(${resolveVar},${rejectVar}){${content}})`
-      }
-    }
-
     module Value = {
       @inline
       let stringify = any => {
-        if any === %raw("undefined") {
+        if any === %raw("void 0") {
           "undefined"
         } else {
           any->Js.Json.stringifyAny->Obj.magic
@@ -266,27 +188,6 @@ module Stdlib = {
     module Float = {
       @inline
       let toRescript = float => float->Js.Float.toString ++ (mod_float(float, 1.) === 0. ? "." : "")
-    }
-
-    module Fn = {
-      @inline
-      let make = (~arguments, ~content) => {
-        `function(${arguments}){${content}}`
-      }
-    }
-
-    module If = {
-      @inline
-      let make = (~condition, ~content) => {
-        `if(${condition}){${content}}`
-      }
-    }
-
-    module TryCatch = {
-      @inline
-      let make = (~tryContent, ~catchContent) => {
-        `try{${tryContent}}catch(${Constant.errorVar}){${catchContent}}`
-      }
     }
   }
 }
@@ -326,6 +227,8 @@ module Path = {
   let concat = (path, concatedPath) => path ++ concatedPath
 }
 
+let symbol = Stdlib.Symbol.make("rescript-struct")
+
 module Error = {
   @inline
   let panic = message => Stdlib.Exn.raiseError(Stdlib.Exn.makeError(`[rescript-struct] ${message}`))
@@ -353,26 +256,13 @@ module Error = {
       code: code,
       @as("p")
       path: Path.t,
+      @as("s")
+      symbol: Stdlib.Symbol.t,
     }
 
-    exception Exception(t)
-
-    module UnexpectedValue = {
-      let raise = (~expected, ~received, ~initialPath=Path.empty, ()) => {
-        raise(
-          Exception({
-            code: UnexpectedValue({
-              expected: expected->Stdlib.Inlined.Value.stringify,
-              received: received->Stdlib.Inlined.Value.stringify,
-            }),
-            path: initialPath,
-          }),
-        )
-      }
-    }
-
-    let raise = code => {
-      raise(Exception({code, path: Path.empty}))
+    @inline
+    let raise = (~path, ~code) => {
+      Stdlib.Exn.raiseAny({code, path, symbol})
     }
 
     let toParseError = (internalError: t): public => {
@@ -389,29 +279,22 @@ module Error = {
       path: internalError.path,
     }
 
-    @inline
-    let fromPublic = (publicError: public): t => {
-      code: publicError.code,
-      path: publicError.path,
-    }
-
-    let prependPath = (error, path) => {
-      {
-        ...error,
-        path: Path.concat(path, error.path),
+    let getOrRethrow = (jsExn: Js.Exn.t) => {
+      if %raw("jsExn&&jsExn.s===symbol") {
+        jsExn->(Obj.magic: Js.Exn.t => t)
+      } else {
+        Stdlib.Exn.raiseAny(jsExn)
       }
     }
-    let prependLocation = (error, location) => {
-      error->prependPath(location->Path.fromLocation)
+
+    let prependLocationOrRethrow = (jsExn, location) => {
+      let error = jsExn->getOrRethrow
+      raise(~path=Path.concat(location->Path.fromLocation, error.path), ~code=error.code)
     }
   }
 
   module MissingParserAndSerializer = {
     let panic = location => panic(`For a ${location} either a parser, or a serializer is required`)
-  }
-
-  module Unreachable = {
-    let panic = () => panic("Unreachable")
   }
 
   let rec toReason = (~nestedLevel=0, error) => {
@@ -460,12 +343,12 @@ module Error = {
   }
 }
 
-let advancedFail = error => {
-  raise(Error.Internal.Exception(error->Error.Internal.fromPublic))
+let advancedFail = (error: Error.t) => {
+  Error.Internal.raise(~path=error.path, ~code=error.code)
 }
 
 let fail = (~path=Path.empty, message) => {
-  raise(Error.Internal.Exception({code: OperationFailed(message), path}))
+  Error.Internal.raise(~path, ~code=OperationFailed(message))
 }
 
 exception Raised(Error.t)
@@ -486,92 +369,21 @@ type taggedLiteral =
   | EmptyNull
   | EmptyOption
   | NaN
-type operation =
-  | NoOperation
-  | SyncOperation((. unknown) => unknown)
-  | AsyncOperation((. unknown) => (. unit) => promise<unknown>)
 
-module ParseOperationState = {
-  type t
-
-  @inline
-  let empty = (): t => 0->Obj.magic
-
-  @inline
-  let asyncEmpty = (): t => 1->Obj.magic
-
-  @inline
-  let syncCompiling = (): t => 2->Obj.magic
-
-  @inline
-  let asyncCompiling = (): t => 3->Obj.magic
-
-  @inline
-  let toCompiling = (operationState): t => {
-    if operationState === asyncEmpty() {
-      asyncCompiling()
-    } else {
-      syncCompiling()
-    }
-  }
-  let operation: operation => t = Obj.magic
-
-  @inline
-  let isSyncCompiling = operationState => {
-    operationState === syncCompiling()
-  }
-
-  @inline
-  let isAsyncCompiling = operationState => {
-    operationState === asyncCompiling()
-  }
-
-  @inline
-  let isReady = operationState => {
-    Js.typeof(operationState) !== "number"
-  }
-
-  let unsafeToOperation: t => operation = Obj.magic
-}
-
-module SerializeOperationState = {
-  type t
-  type operation = option<(. unknown) => unknown>
-
-  @inline
-  let empty = (): t => 0->Obj.magic
-
-  @inline
-  let compiling = (): t => 1->Obj.magic
-
-  let operation: operation => t = Obj.magic
-
-  @inline
-  let isCompiling = operationState => {
-    operationState === compiling()
-  }
-
-  @inline
-  let isReady = operationState => {
-    Js.typeof(operationState) !== "number"
-  }
-
-  let unsafeToOperation: t => operation = Obj.magic
-}
+@unboxed
+type isAsyncParse = | @as(0) Unknown | Value(bool)
 
 type rec t<'value> = {
   @as("n")
   name: string,
   @as("t")
   tagged: tagged,
-  @as("pf")
-  parseTransformationFactory: internalTransformationFactory,
-  @as("sf")
-  serializeTransformationFactory: internalTransformationFactory,
-  @as("r")
-  mutable parseOperationState: ParseOperationState.t,
-  @as("e")
-  mutable serializeOperationState: SerializeOperationState.t,
+  @as("pb")
+  mutable parseOperationBuilder: builder,
+  @as("sb")
+  mutable serializeOperationBuilder: builder,
+  @as("i")
+  mutable isAsyncParse: isAsyncParse,
   @as("s")
   mutable serialize: (. unknown) => unknown,
   @as("j")
@@ -580,8 +392,6 @@ type rec t<'value> = {
   mutable parse: (. unknown) => unknown,
   @as("a")
   mutable parseAsync: (. unknown) => (. unit) => promise<unknown>,
-  @as("i")
-  maybeInlinedRefinement: option<string>,
   @as("m")
   metadataMap: Js.Dict.t<unknown>,
 }
@@ -605,18 +415,8 @@ and transformation<'input, 'output> =
   | Noop: transformation<'input, 'input>
   | Sync('input => 'output)
   | Async('input => promise<'output>)
-and internalTransformationFactoryCtxPhase = NoTransformation | OnlySync | OnlyAsync | SyncAndAsync
-and internalTransformationFactoryCtx = {
-  @as("s")
-  mutable struct: t<unknown>,
-  @as("p")
-  mutable phase: internalTransformationFactoryCtxPhase,
-  @as("t")
-  mutable syncTransformation: (. unknown) => unknown,
-  @as("a")
-  mutable asyncTransformation: (. unknown) => promise<unknown>,
-}
-and internalTransformationFactory = (. ~ctx: internalTransformationFactoryCtx) => unit
+and builder
+and struct<'a> = t<'a>
 
 type payloadedVariant<'payload> = {_0: 'payload}
 let unsafeGetVariantPayload = variant => (variant->Obj.magic)._0
@@ -630,105 +430,15 @@ external toUnknown: t<'any> => t<unknown> = "%identity"
 external castToTaggedLiteral: literal<'a> => taggedLiteral = "%identity"
 
 module TransformationFactory = {
-  module Public = {
-    type struct<'value> = t<'value>
-    type t<'value, 'input, 'output> = (~struct: struct<'value>) => transformation<'input, 'output>
-    type internal = (. ~struct: struct<unknown>) => transformation<unknown, unknown>
-    let call = (public, ~struct) =>
-      (public->(Obj.magic: t<'value, 'input, 'output> => internal))(. ~struct)
-  }
-
-  module Ctx = {
-    @inline
-    let make = (~struct) => {
-      {
-        struct,
-        phase: NoTransformation,
-        syncTransformation: %raw("undefined"),
-        asyncTransformation: %raw("undefined"),
-      }
-    }
-
-    @inline
-    let makeSyncTransformation = (fn: 'a => 'b): ((. unknown) => unknown) => fn->Obj.magic
-
-    @inline
-    let makeAsyncTransformation = (fn: 'a => promise<'b>): ((. unknown) => promise<unknown>) =>
-      fn->Obj.magic
-
-    let planSyncTransformation = (ctx, transformation) => {
-      let prevSyncTransformation = ctx.syncTransformation
-      let prevAsyncTransformation = ctx.asyncTransformation
-      let nextSyncTransformation = makeSyncTransformation(transformation)
-      switch ctx.phase {
-      | NoTransformation => {
-          ctx.phase = OnlySync
-          ctx.syncTransformation = nextSyncTransformation
-        }
-
-      | OnlySync =>
-        ctx.syncTransformation = (. input) =>
-          nextSyncTransformation(. prevSyncTransformation(. input))
-
-      | OnlyAsync
-      | SyncAndAsync =>
-        ctx.asyncTransformation = (. input) =>
-          prevAsyncTransformation(. input)->Stdlib.Promise.thenResolve(
-            nextSyncTransformation->Stdlib.Fn.castToCurried,
-          )
-      }
-    }
-
-    let planAsyncTransformation = (ctx, transformation) => {
-      let prevAsyncTransformation = ctx.asyncTransformation
-      let nextAsyncTransformation = makeAsyncTransformation(transformation)
-      switch ctx.phase {
-      | NoTransformation => {
-          ctx.phase = OnlyAsync
-          ctx.asyncTransformation = nextAsyncTransformation
-        }
-
-      | OnlySync => {
-          ctx.phase = SyncAndAsync
-          ctx.asyncTransformation = nextAsyncTransformation
-        }
-
-      | OnlyAsync
-      | SyncAndAsync =>
-        ctx.asyncTransformation = (. input) =>
-          prevAsyncTransformation(. input)->Stdlib.Promise.then(
-            nextAsyncTransformation->Stdlib.Fn.castToCurried,
-          )
-      }
-    }
-
-    let planMissingParserTransformation = ctx => {
-      ctx->planSyncTransformation(_ => Error.Internal.raise(MissingParser))
-    }
-
-    let planMissingSerializerTransformation = ctx => {
-      ctx->planSyncTransformation(_ => Error.Internal.raise(MissingSerializer))
-    }
-  }
-
-  let empty = (. ~ctx as _) => ()
-
-  let compile = (transformationFactory, ~struct) => {
-    let ctx = Ctx.make(~struct)
-    transformationFactory(. ~ctx)
-    switch ctx.phase {
-    | NoTransformation => NoOperation
-    | OnlySync => SyncOperation(ctx.syncTransformation)
-    | OnlyAsync => AsyncOperation((. input) => (. ()) => ctx.asyncTransformation(. input))
-    | SyncAndAsync =>
-      AsyncOperation(
-        (. input) => {
-          let syncOutput = ctx.syncTransformation(. input)
-          (. ()) => ctx.asyncTransformation(. syncOutput)
-        },
+  type t<'value, 'input, 'output> = (~struct: struct<'value>) => transformation<'input, 'output>
+  let call = (public, ~struct) =>
+    (
+      public->(
+        Obj.magic: t<'value, 'input, 'output> => (
+          . ~struct: struct<unknown>,
+        ) => transformation<unknown, unknown>
       )
-    }
-  }
+    )(. ~struct)
 }
 
 @inline
@@ -737,84 +447,259 @@ let classify = struct => struct.tagged
 @inline
 let name = struct => struct.name
 
-let getParseOperation = struct => {
-  let parseOperationState = struct.parseOperationState
-  if parseOperationState->ParseOperationState.isReady {
-    parseOperationState->ParseOperationState.unsafeToOperation
-  } else if parseOperationState->ParseOperationState.isSyncCompiling {
-    SyncOperation((. input) => struct.parse(. input))
-  } else if parseOperationState->ParseOperationState.isAsyncCompiling {
-    AsyncOperation((. input) => struct.parseAsync(. input))
-  } else {
-    struct.parseOperationState = parseOperationState->ParseOperationState.toCompiling
-    let compiledParseOperation =
-      struct.parseTransformationFactory->TransformationFactory.compile(~struct)
-    struct.parseOperationState = ParseOperationState.operation(compiledParseOperation)
-    compiledParseOperation
+module Builder = {
+  type t = builder
+  type ctx = {
+    @as("c")
+    mutable varCounter: int,
+    @as("v")
+    mutable varsAllocation: string,
+    @as("a")
+    asyncVars: Stdlib.Set.t<string>,
+    @as("e")
+    embeded: array<unknown>,
   }
-}
+  type implementation = (
+    . ctx,
+    ~selfStruct: struct<unknown>,
+    ~inputVar: string,
+    ~outputVar: string,
+    ~pathVar: string,
+  ) => string
 
-let getSerializeOperation = struct => {
-  let serializeOperationState = struct.serializeOperationState
-  if serializeOperationState->SerializeOperationState.isReady {
-    serializeOperationState->SerializeOperationState.unsafeToOperation
-  } else if serializeOperationState->SerializeOperationState.isCompiling {
-    Some((. input) => struct.serialize(. input))
-  } else {
-    struct.serializeOperationState = SerializeOperationState.compiling()
-    let compiledSerializeOperation = switch struct.serializeTransformationFactory->TransformationFactory.compile(
-      ~struct,
-    ) {
-    | NoOperation => None
-    | SyncOperation(fn) => Some(fn)
-    | AsyncOperation(_) => Error.Unreachable.panic()
+  let make = (Obj.magic: implementation => t)
+
+  // TODO: Noop checks stopped working
+  let noop = make((. _b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar as _) => {
+    `${outputVar}=${inputVar};`
+  })
+
+  module Ctx = {
+    type t = ctx
+
+    @inline
+    let embed = (b: t, value) => {
+      `e[${(b.embeded->Js.Array2.push(value->castAnyToUnknown)->(Obj.magic: int => float) -. 1.)
+          ->(Obj.magic: float => string)}]`
     }
-    struct.serializeOperationState = SerializeOperationState.operation(compiledSerializeOperation)
-    compiledSerializeOperation
+
+    let varsScope = (b: t, fn) => {
+      let prevVarsAllocation = b.varsAllocation
+      b.varsAllocation = ""
+      let code = fn(. b)
+      let varsAllocation = b.varsAllocation
+      let code = varsAllocation === "" ? code : `let ${varsAllocation};${code}`
+      b.varsAllocation = prevVarsAllocation
+      code
+    }
+
+    let var = (b: t) => {
+      let newCounter = b.varCounter->Stdlib.Int.plus(1)
+      b.varCounter = newCounter
+      let v = `v${newCounter->Stdlib.Int.unsafeToString}`
+      let varsAllocation = b.varsAllocation
+      b.varsAllocation = varsAllocation === "" ? v : varsAllocation ++ "," ++ v
+      v
+    }
+
+    let varWithoutAllocation = (b: t) => {
+      let newCounter = b.varCounter->Stdlib.Int.plus(1)
+      b.varCounter = newCounter
+      `v${newCounter->Stdlib.Int.unsafeToString}`
+    }
+
+    @inline
+    let isInternalError = (_b: t, var) => {
+      `${var}&&${var}.s===s`
+    }
+
+    // TODO: Figure out how to make it better
+    let internalTransformRethrow = (b: t, ~pathVar) => {
+      `if(${b->isInternalError("t")}){t.p=${pathVar}+t.p}throw t`
+    }
+
+    let embedSyncOperation = (
+      b: t,
+      ~inputVar,
+      ~outputVar,
+      ~pathVar,
+      ~fn: 'input => 'output,
+      ~isSafe=false,
+      ~isRefine=false,
+      (),
+    ) => {
+      switch b.asyncVars->Stdlib.Set.has(inputVar) {
+      | false =>
+        let code = isRefine
+          ? `${b->embed(fn)}(${inputVar});${outputVar}=${inputVar};`
+          : `${outputVar}=${b->embed(fn)}(${inputVar})`
+
+        switch (isSafe, pathVar) {
+        | (true, _)
+        | (_, `""`) => code
+        | _ => `try{${code}}catch(t){${b->internalTransformRethrow(~pathVar)}}`
+        }
+
+      | true =>
+        b.asyncVars->Stdlib.Set.add(outputVar)->ignore
+        let code = `${outputVar}=()=>${inputVar}().then(${isRefine
+            ? `t=>{${b->embed(fn)}(t);return ${inputVar}}`
+            : b->embed(fn)})`
+
+        switch (isSafe, pathVar) {
+        | (true, _)
+        | (_, `""`) => code
+        | _ => `${code}.catch(t=>{${b->internalTransformRethrow(~pathVar)}})`
+        }
+      } ++ ";"
+    }
+
+    let embedAsyncOperation = (
+      b: t,
+      ~inputVar,
+      ~outputVar,
+      ~pathVar,
+      ~fn: (. 'input) => (. unit) => promise<'output>,
+      ~isRefine=false,
+      (),
+    ) => {
+      let {asyncVars} = b
+      let isAsyncInput = asyncVars->Stdlib.Set.has(inputVar)
+      asyncVars->Stdlib.Set.add(outputVar)->ignore
+      switch isAsyncInput {
+      | false =>
+        switch pathVar {
+        | `""` => {
+            let code = `${b->embed(fn)}(${inputVar})`
+            if isRefine {
+              let syncResultVar = b->var
+              `${syncResultVar}=${code};${outputVar}=()=>${syncResultVar}().then(_=>${inputVar});`
+            } else {
+              `${outputVar}=${code};`
+            }
+          }
+        | _ => {
+            let syncResultVar = b->var
+            let code = `${syncResultVar}=${b->embed(fn)}(${inputVar});`
+            `try{${code}${outputVar}=()=>{try{return ${syncResultVar}()${isRefine
+                ? `.then(_=>${inputVar})`
+                : ""}.catch(t=>{${b->internalTransformRethrow(
+                ~pathVar,
+              )}})}catch(t){${b->internalTransformRethrow(
+                ~pathVar,
+              )}}}}catch(t){${b->internalTransformRethrow(~pathVar)}};`
+          }
+        }
+
+      | true => {
+          let code = `${outputVar}=()=>${inputVar}().then(t=>${b->embed(fn)}(t)()${isRefine
+              ? ".then(_=>t)"
+              : ""})`
+          switch pathVar {
+          | `""` => code
+          | _ => `${code}.catch(t=>{${b->internalTransformRethrow(~pathVar)}})`
+          } ++ ";"
+        }
+      }
+    }
+
+    let raiseWithArg = (b: t, ~pathVar, fn: (. 'arg) => Error.code, arg) => {
+      `${b->embed((path, arg) => {
+          Error.Internal.raise(~path, ~code=fn(arg))
+        })}(${pathVar},${arg})`
+    }
+
+    let raise = (b: t, ~pathVar, code) => {
+      `${b->embed(path => {
+          Error.Internal.raise(~path, ~code)
+        })}(${pathVar})`
+    }
+
+    let run = (b: t, ~builder, ~struct, ~inputVar, ~outputVar, ~pathVar) => {
+      let asyncVarsCountBefore = b.asyncVars->Stdlib.Set.size
+      let code = (builder->(Obj.magic: builder => implementation))(.
+        b,
+        ~selfStruct=struct,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      )
+      let isAsync = b.asyncVars->Stdlib.Set.size > asyncVarsCountBefore
+      if isAsync {
+        b.asyncVars->Stdlib.Set.add(outputVar)->ignore
+      }
+      if struct.parseOperationBuilder === builder {
+        struct.isAsyncParse = Value(isAsync)
+      }
+      code
+    }
+  }
+
+  let build = (builder, ~struct) => {
+    let intitialInputVar = "i"
+    let intitialOutputVar = "o"
+    let b = {
+      embeded: [],
+      varCounter: -1,
+      asyncVars: Stdlib.Set.empty(),
+      varsAllocation: intitialOutputVar,
+    }
+    let code =
+      b->Ctx.run(
+        ~builder,
+        ~struct,
+        ~inputVar=intitialInputVar,
+        ~outputVar=intitialOutputVar,
+        ~pathVar=`""`,
+      )
+    // TODO: Optimize Builder.noop i=>{var _;return i}
+    let inlinedFunction = `${intitialInputVar}=>{var ${b.varsAllocation};${code}return ${intitialOutputVar}}`
+    // Js.log(inlinedFunction)
+    Stdlib.Function.make2(
+      ~ctxVarName1="e",
+      ~ctxVarValue1=b.embeded,
+      ~ctxVarName2="s",
+      ~ctxVarValue2=symbol,
+      ~inlinedFunction,
+    )
+  }
+
+  let compileParser = (struct, ~builder) => {
+    let operation = builder->build(~struct)
+    let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+    struct.parse = isAsync
+      ? (. _) => Error.Internal.raise(~path=Path.empty, ~code=UnexpectedAsync)
+      : operation
+    struct.parseAsync = isAsync
+      ? operation
+      : (. input) => {
+          let syncValue = operation(. input)
+          (. ()) => syncValue->Stdlib.Promise.resolve
+        }
+  }
+
+  let compileSerializer = (struct, ~builder) => {
+    let operation = builder->build(~struct)
+    struct.serialize = operation
   }
 }
+module B = Builder.Ctx
 
-@inline
 let isAsyncParse = struct => {
   let struct = struct->toUnknown
-  switch struct->getParseOperation {
-  | AsyncOperation(_) => true
-  | NoOperation
-  | SyncOperation(_) => false
+  switch struct.isAsyncParse {
+  | Unknown => {
+      struct->Builder.compileParser(~builder=struct.parseOperationBuilder)
+      struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+    }
+  | Value(v) => v
   }
 }
-
-let raiseUnexpectedTypeError = (~input: 'any, ~struct: t<'any2>) => {
-  Error.Internal.raise(
-    UnexpectedType({
-      expected: struct.name,
-      received: switch input->Js.Types.classify {
-      | JSFalse | JSTrue => "Bool"
-      | JSString(_) => "String"
-      | JSNull => "Null"
-      | JSNumber(number) if Js.Float.isNaN(number) => "NaN Literal (NaN)"
-      | JSNumber(_) => "Float"
-      | JSObject(object) if Js.Array2.isArray(object) => "Array"
-      | JSObject(_) => "Object"
-      | JSFunction(_) => "Function"
-      | JSUndefined => "Option"
-      | JSSymbol(_) => "Symbol"
-      | JSBigInt(_) => "BigInt"
-      },
-    }),
-  )
-}
-
-let noOperation = (. input) => input
 
 let initialSerialize = (. input) => {
   let struct = %raw("this")
-  let compiledSerialize = switch struct->getSerializeOperation {
-  | None => noOperation
-  | Some(fn) => fn
-  }
-  struct.serialize = compiledSerialize
-  compiledSerialize(. input)
+  struct->Builder.compileSerializer(~builder=struct.serializeOperationBuilder)
+  struct.serialize(. input)
 }
 
 let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
@@ -846,8 +731,7 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
           | _ => fieldStruct
           }->validateJsonableStruct(~rootStruct, ())
         } catch {
-        | Error.Internal.Exception(e) =>
-          raise(Error.Internal.Exception(e->Error.Internal.prependLocation(fieldName)))
+        | Js.Exn.Error(jsExn) => jsExn->Error.Internal.prependLocationOrRethrow(fieldName)
         }
       }
 
@@ -856,8 +740,7 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
         try {
           childStruct->validateJsonableStruct(~rootStruct, ())
         } catch {
-        | Error.Internal.Exception(e) =>
-          raise(Error.Internal.Exception(e->Error.Internal.prependLocation(i->Js.Int.toString)))
+        | Js.Exn.Error(jsExn) => jsExn->Error.Internal.prependLocationOrRethrow(i->Js.Int.toString)
         }
       })
     | Union(childrenStructs) =>
@@ -868,7 +751,7 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
     | Unknown
     | Literal(EmptyOption)
     | Literal(NaN) =>
-      Error.Internal.raise(InvalidJsonStruct({received: struct->name}))
+      Error.Internal.raise(~path=Path.empty, ~code=InvalidJsonStruct({received: struct->name}))
     }
   }
 }
@@ -878,69 +761,49 @@ let initialSerializeToJson = (. input) => {
   try {
     struct->validateJsonableStruct(~rootStruct=struct, ~isRoot=true, ())
     if struct.serialize === initialSerialize {
-      let compiledSerialize = switch struct->getSerializeOperation {
-      | None => noOperation
-      | Some(fn) => fn
-      }
-      struct.serialize = compiledSerialize
+      struct->Builder.compileSerializer(~builder=struct.serializeOperationBuilder)
     }
     struct.serializeToJson =
       struct.serialize->(Obj.magic: ((. unknown) => unknown) => (. unknown) => Js.Json.t)
   } catch {
-  | Error.Internal.Exception(_) as exn => struct.serializeToJson = (. _) => raise(exn)
+  | Js.Exn.Error(jsExn) => {
+      let error = jsExn->Error.Internal.getOrRethrow
+      struct.serializeToJson = (. _) => Stdlib.Exn.raiseAny(error)
+    }
   }
   struct.serializeToJson(. input)
 }
 
 let intitialParse = (. input) => {
   let struct = %raw("this")
-  let compiledParse = switch struct->getParseOperation {
-  | NoOperation => noOperation
-  | SyncOperation(fn) => fn
-  | AsyncOperation(_) => (. _) => Error.Internal.raise(UnexpectedAsync)
-  }
-  struct.parse = compiledParse
-  compiledParse(. input)
+  struct->Builder.compileParser(~builder=struct.parseOperationBuilder)
+  struct.parse(. input)
 }
-
-let asyncNoopOperation = (. input) => (. ()) => input->Stdlib.Promise.resolve
 
 let intitialParseAsync = (. input) => {
   let struct = %raw("this")
-  let compiledParseAsync = switch struct->getParseOperation {
-  | NoOperation => asyncNoopOperation
-  | SyncOperation(fn) =>
-    (. input) => {
-      let syncValue = fn(. input)
-      (. ()) => syncValue->Stdlib.Promise.resolve
-    }
-  | AsyncOperation(fn) => fn
-  }
-  struct.parseAsync = compiledParseAsync
-  compiledParseAsync(. input)
+  struct->Builder.compileParser(~builder=struct.parseOperationBuilder)
+  struct.parseAsync(. input)
 }
 
 @inline
 let make = (
   ~name,
   ~tagged,
-  ~parseTransformationFactory,
-  ~serializeTransformationFactory,
   ~metadataMap,
-  ~inlinedRefinement as maybeInlinedRefinement=?,
+  ~parseOperationBuilder,
+  ~serializeOperationBuilder,
   (),
 ) => {
   name,
   tagged,
-  parseTransformationFactory,
-  serializeTransformationFactory,
-  parseOperationState: ParseOperationState.empty(),
-  serializeOperationState: SerializeOperationState.empty(),
+  parseOperationBuilder,
+  serializeOperationBuilder,
+  isAsyncParse: Unknown,
   serialize: initialSerialize,
   serializeToJson: initialSerializeToJson,
   parse: intitialParse,
   parseAsync: intitialParseAsync,
-  maybeInlinedRefinement,
   metadataMap,
 }
 
@@ -948,7 +811,7 @@ let parseAnyWith = (any, struct) => {
   try {
     struct.parse(. any->castAnyToUnknown)->castUnknownToAny->Ok
   } catch {
-  | Error.Internal.Exception(internalError) => internalError->Error.Internal.toParseError->Error
+  | Js.Exn.Error(jsExn) => jsExn->Error.Internal.getOrRethrow->Error.Internal.toParseError->Error
   }
 }
 
@@ -958,8 +821,8 @@ let parseAnyOrRaiseWith = (any, struct) => {
   try {
     struct.parse(. any->castAnyToUnknown)->castUnknownToAny
   } catch {
-  | Error.Internal.Exception(internalError) =>
-    raise(Raised(internalError->Error.Internal.toParseError))
+  | Js.Exn.Error(jsExn) =>
+    raise(Raised(jsExn->Error.Internal.getOrRethrow->Error.Internal.toParseError))
   }
 }
 
@@ -967,11 +830,8 @@ let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value = parseAnyOrRaiseWith
 
 let asyncPrepareOk = value => Ok(value->castUnknownToAny)
 
-let asyncPrepareError = exn => {
-  switch exn {
-  | Error.Internal.Exception(internalError) => internalError->Error.Internal.toParseError->Error
-  | _ => raise(exn)
-  }
+let asyncPrepareError = jsExn => {
+  jsExn->Error.Internal.getOrRethrow->Error.Internal.toParseError->Error
 }
 
 let parseAnyAsyncWith = (any, struct) => {
@@ -981,8 +841,8 @@ let parseAnyAsyncWith = (any, struct) => {
       asyncPrepareError,
     )
   } catch {
-  | Error.Internal.Exception(internalError) =>
-    internalError->Error.Internal.toParseError->Error->Stdlib.Promise.resolve
+  | Js.Exn.Error(jsExn) =>
+    jsExn->Error.Internal.getOrRethrow->Error.Internal.toParseError->Error->Stdlib.Promise.resolve
   }
 }
 
@@ -996,7 +856,7 @@ let parseAnyAsyncInStepsWith = (any, struct) => {
       (. ()) => asyncFn(.)->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, asyncPrepareError)
     )->Ok
   } catch {
-  | Error.Internal.Exception(internalError) => internalError->Error.Internal.toParseError->Error
+  | Js.Exn.Error(jsExn) => jsExn->Error.Internal.getOrRethrow->Error.Internal.toParseError->Error
   }
 }
 
@@ -1006,7 +866,8 @@ let serializeToUnknownWith = (value, struct) => {
   try {
     struct.serialize(. value->castAnyToUnknown)->Ok
   } catch {
-  | Error.Internal.Exception(internalError) => internalError->Error.Internal.toSerializeError->Error
+  | Js.Exn.Error(jsExn) =>
+    jsExn->Error.Internal.getOrRethrow->Error.Internal.toSerializeError->Error
   }
 }
 
@@ -1014,8 +875,8 @@ let serializeOrRaiseWith = (value, struct) => {
   try {
     struct.serializeToJson(. value->castAnyToUnknown)
   } catch {
-  | Error.Internal.Exception(internalError) =>
-    raise(Raised(internalError->Error.Internal.toSerializeError))
+  | Js.Exn.Error(jsExn) =>
+    raise(Raised(jsExn->Error.Internal.getOrRethrow->Error.Internal.toSerializeError))
   }
 }
 
@@ -1023,8 +884,8 @@ let serializeToUnknownOrRaiseWith = (value, struct) => {
   try {
     struct.serialize(. value->castAnyToUnknown)
   } catch {
-  | Error.Internal.Exception(internalError) =>
-    raise(Raised(internalError->Error.Internal.toSerializeError))
+  | Js.Exn.Error(jsExn) =>
+    raise(Raised(jsExn->Error.Internal.getOrRethrow->Error.Internal.toSerializeError))
   }
 }
 
@@ -1032,7 +893,8 @@ let serializeWith = (value, struct) => {
   try {
     struct.serializeToJson(. value->castAnyToUnknown)->Ok
   } catch {
-  | Error.Internal.Exception(internalError) => internalError->Error.Internal.toSerializeError->Error
+  | Js.Exn.Error(jsExn) =>
+    jsExn->Error.Internal.getOrRethrow->Error.Internal.toSerializeError->Error
   }
 }
 
@@ -1066,19 +928,112 @@ let recursive = fn => {
   let placeholder: t<'value> = %raw(`{m:emptyMetadataMap}`)
   let struct = fn->Stdlib.Fn.call1(placeholder)
   placeholder->Stdlib.Object.overrideWith(struct)
-  if placeholder->isAsyncParse {
-    Error.panic(
-      `The "${struct->name}" struct in the S.recursive has an async parser. To make it work, use S.asyncRecursive instead.`,
-    )
-  }
-  placeholder
-}
 
-let asyncRecursive = fn => {
-  let placeholder: t<'value> = %raw(`{m:emptyMetadataMap}`)
-  let struct = fn->Stdlib.Fn.call1(placeholder)
-  placeholder->Stdlib.Object.overrideWith(struct)
-  placeholder.parseOperationState = ParseOperationState.asyncEmpty()
+  {
+    let builder = placeholder.parseOperationBuilder
+    placeholder.parseOperationBuilder = Builder.make((.
+      b,
+      ~selfStruct,
+      ~inputVar,
+      ~outputVar,
+      ~pathVar,
+    ) => {
+      let isAsync = {
+        selfStruct.parseOperationBuilder = Builder.noop
+        let asyncVars = Stdlib.Set.empty()
+        let _ = (builder->(Obj.magic: builder => Builder.implementation))(.
+          {
+            Builder.embeded: [],
+            varsAllocation: "",
+            asyncVars,
+            varCounter: -1,
+          },
+          ~selfStruct,
+          ~inputVar,
+          ~outputVar,
+          ~pathVar,
+        )
+        asyncVars->Stdlib.Set.size > 0
+      }
+
+      selfStruct.parseOperationBuilder = Builder.make((.
+        b,
+        ~selfStruct,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        if isAsync {
+          b->B.embedAsyncOperation(
+            ~inputVar,
+            ~outputVar,
+            ~pathVar,
+            ~fn=(. input) => selfStruct.parseAsync(input),
+            (),
+          )
+        } else {
+          b->B.embedSyncOperation(
+            ~inputVar,
+            ~outputVar,
+            ~pathVar,
+            ~fn=input => selfStruct.parse(input),
+            (),
+          )
+        }
+      })
+
+      selfStruct->Builder.compileParser(~builder)
+      selfStruct.parseOperationBuilder = builder
+      if isAsync {
+        b->B.embedAsyncOperation(~inputVar, ~outputVar, ~pathVar, ~fn=selfStruct.parseAsync, ())
+      } else {
+        b->B.embedSyncOperation(
+          ~inputVar,
+          ~outputVar,
+          ~pathVar,
+          ~fn=selfStruct.parse->(Obj.magic: ((. unknown) => unknown, unknown) => unknown),
+          (),
+        )
+      }
+    })
+  }
+
+  {
+    let builder = placeholder.serializeOperationBuilder
+    placeholder.serializeOperationBuilder = Builder.make((.
+      b,
+      ~selfStruct,
+      ~inputVar,
+      ~outputVar,
+      ~pathVar,
+    ) => {
+      selfStruct.serializeOperationBuilder = Builder.make((.
+        b,
+        ~selfStruct,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        b->B.embedSyncOperation(
+          ~inputVar,
+          ~outputVar,
+          ~pathVar,
+          ~fn=input => selfStruct.serialize(input),
+          (),
+        )
+      })
+      selfStruct->Builder.compileSerializer(~builder)
+      selfStruct.serializeOperationBuilder = builder
+      b->B.embedSyncOperation(
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+        ~fn=selfStruct.serialize->(Obj.magic: ((. unknown) => unknown, unknown) => unknown),
+        (),
+      )
+    })
+  }
+
   placeholder
 }
 
@@ -1106,8 +1061,8 @@ module Metadata = {
     metadataMap->Js.Dict.set(id->Id.toKey, metadata->castAnyToUnknown)
     make(
       ~name=struct.name,
-      ~parseTransformationFactory=struct.parseTransformationFactory,
-      ~serializeTransformationFactory=struct.serializeTransformationFactory,
+      ~parseOperationBuilder=struct.parseOperationBuilder,
+      ~serializeOperationBuilder=struct.serializeOperationBuilder,
       ~tagged=struct.tagged,
       ~metadataMap,
       (),
@@ -1128,67 +1083,113 @@ let refine: (
   ~serializer as maybeSerializer=?,
   (),
 ) => {
+  let struct = struct->toUnknown
+
   if maybeParser === None && maybeAsyncParser === None && maybeSerializer === None {
     Error.MissingParserAndSerializer.panic(`struct factory Refine`)
-  }
-
-  let nextParseTransformationFactory = switch (maybeParser, maybeAsyncParser) {
-  | (Some(parser), Some(asyncParser)) =>
-    (. ~ctx) => {
-      struct.parseTransformationFactory(. ~ctx)
-      ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-        let () = parser->Stdlib.Fn.call1(input)
-        input
-      })
-      ctx->TransformationFactory.Ctx.planAsyncTransformation(input => {
-        asyncParser
-        ->Stdlib.Fn.call1(input)
-        ->Stdlib.Promise.thenResolve(() => {
-          input
-        })
-      })
-    }
-  | (Some(parser), None) =>
-    (. ~ctx) => {
-      struct.parseTransformationFactory(. ~ctx)
-      ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-        let () = parser->Stdlib.Fn.call1(input)
-        input
-      })
-    }
-  | (None, Some(asyncParser)) =>
-    (. ~ctx) => {
-      struct.parseTransformationFactory(. ~ctx)
-      ctx->TransformationFactory.Ctx.planAsyncTransformation(input => {
-        asyncParser
-        ->Stdlib.Fn.call1(input)
-        ->Stdlib.Promise.thenResolve(() => {
-          input
-        })
-      })
-    }
-  | (None, None) => struct.parseTransformationFactory
   }
 
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseTransformationFactory=nextParseTransformationFactory,
-    ~serializeTransformationFactory=switch maybeSerializer {
-    | Some(refineSerializer) =>
-      (. ~ctx) => {
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          let () = refineSerializer->Stdlib.Fn.call1(input)
-          input
-        })
-        struct.serializeTransformationFactory(. ~ctx)
-      }
-    | None => struct.serializeTransformationFactory
+    ~parseOperationBuilder=switch (maybeParser, maybeAsyncParser) {
+    | (Some(parser), Some(asyncParser)) =>
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+        let childOutputVar = b->B.var
+        let code =
+          b->B.run(
+            ~builder=struct.parseOperationBuilder,
+            ~struct,
+            ~inputVar,
+            ~outputVar=childOutputVar,
+            ~pathVar,
+          )
+
+        `${code}${b->B.embedSyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~pathVar,
+            ~fn=parser,
+            ~isRefine=true,
+            (),
+          )}${b->B.embedAsyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~pathVar,
+            ~fn=(. i) => (. ()) => asyncParser->Stdlib.Fn.call1(i),
+            ~isRefine=true,
+            (),
+          )}`
+      })
+    | (Some(parser), None) =>
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+        let childOutputVar = b->B.var
+        let code =
+          b->B.run(
+            ~builder=struct.parseOperationBuilder,
+            ~struct,
+            ~inputVar,
+            ~outputVar=childOutputVar,
+            ~pathVar,
+          )
+
+        `${code}${b->B.embedSyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~pathVar,
+            ~fn=parser,
+            ~isRefine=true,
+            (),
+          )}`
+      })
+    | (None, Some(asyncParser)) =>
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+        let childOutputVar = b->B.var
+        let code =
+          b->B.run(
+            ~builder=struct.parseOperationBuilder,
+            ~struct,
+            ~inputVar,
+            ~outputVar=childOutputVar,
+            ~pathVar,
+          )
+        `${code}${b->B.embedAsyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~pathVar,
+            ~fn=(. i) => (. ()) => asyncParser->Stdlib.Fn.call1(i),
+            ~isRefine=true,
+            (),
+          )}`
+      })
+    | (None, None) => struct.parseOperationBuilder
+    },
+    ~serializeOperationBuilder=switch maybeSerializer {
+    | Some(serializer) =>
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+        let transformResultVar = b->B.var
+        let code =
+          b->B.run(
+            ~builder=struct.parseOperationBuilder,
+            ~struct,
+            ~inputVar=transformResultVar,
+            ~outputVar,
+            ~pathVar,
+          )
+
+        b->B.embedSyncOperation(
+          ~inputVar,
+          ~outputVar=transformResultVar,
+          ~pathVar,
+          ~fn=serializer,
+          ~isRefine=true,
+          (),
+        ) ++ code
+      })
+
+    | None => struct.serializeOperationBuilder
     },
     ~metadataMap=struct.metadataMap,
-    ~inlinedRefinement=?nextParseTransformationFactory === struct.parseTransformationFactory
-      ? struct.maybeInlinedRefinement
-      : None,
     (),
   )
 }
@@ -1207,6 +1208,112 @@ let addRefinement = (struct, ~metadataId, ~refinement, ~refiner) => {
   ->refine(~parser=refiner, ~serializer=refiner, ())
 }
 
+let advancedTransform: (
+  t<'value>,
+  ~parser: (~struct: t<'value>) => transformation<'value, 'transformed>=?,
+  ~serializer: (~struct: t<'value>) => transformation<'transformed, 'value>=?,
+  unit,
+) => t<'transformed> = (struct, ~parser as maybeParser=?, ~serializer as maybeSerializer=?, ()) => {
+  let struct = struct->toUnknown
+  if maybeParser === None && maybeSerializer === None {
+    Error.MissingParserAndSerializer.panic(`struct factory Transform`)
+  }
+
+  make(
+    ~name=struct.name,
+    ~tagged=struct.tagged,
+    ~parseOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
+      switch maybeParser {
+      | Some(parser) =>
+        switch parser->TransformationFactory.call(
+          ~struct=selfStruct->castUnknownStructToAnyStruct,
+        ) {
+        | Noop =>
+          b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~outputVar, ~pathVar)
+
+        | Sync(syncTransformation) => {
+            let childOutputVar = b->B.var
+            let code =
+              b->B.run(
+                ~builder=struct.parseOperationBuilder,
+                ~struct,
+                ~inputVar,
+                ~outputVar=childOutputVar,
+                ~pathVar,
+              )
+            `${code}${b->B.embedSyncOperation(
+                ~inputVar=childOutputVar,
+                ~outputVar,
+                ~pathVar,
+                ~fn=syncTransformation,
+                (),
+              )}`
+          }
+        | Async(asyncParser) => {
+            let childOutputVar = b->B.var
+            let code =
+              b->B.run(
+                ~builder=struct.parseOperationBuilder,
+                ~struct,
+                ~inputVar,
+                ~outputVar=childOutputVar,
+                ~pathVar,
+              )
+            `${code}${b->B.embedAsyncOperation(
+                ~inputVar=childOutputVar,
+                ~outputVar,
+                ~pathVar,
+                ~fn=(. i) => (. ()) => asyncParser->Stdlib.Fn.call1(i),
+                (),
+              )}`
+          }
+        }
+      | None => b->B.raise(~pathVar, MissingParser) ++ ";"
+      }
+    }),
+    ~serializeOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
+      switch maybeSerializer {
+      | Some(serializer) =>
+        switch serializer->TransformationFactory.call(
+          ~struct=selfStruct->castUnknownStructToAnyStruct,
+        ) {
+        | Noop =>
+          b->B.run(
+            ~builder=struct.serializeOperationBuilder,
+            ~struct,
+            ~inputVar,
+            ~outputVar,
+            ~pathVar,
+          )
+        | Sync(fn) => {
+            let transformOutputVar = b->B.var
+            let code =
+              b->B.run(
+                ~builder=struct.serializeOperationBuilder,
+                ~struct,
+                ~inputVar=transformOutputVar,
+                ~outputVar,
+                ~pathVar,
+              )
+            `${b->B.embedSyncOperation(
+                ~inputVar,
+                ~outputVar=transformOutputVar,
+                ~pathVar,
+                ~fn,
+                (),
+              )}${code}`
+          }
+        | Async(_) => b->B.raise(~pathVar, MissingSerializer) ++ ";"
+        }
+      | None => b->B.raise(~pathVar, MissingSerializer) ++ ";"
+      }
+    }),
+    ~metadataMap=struct.metadataMap,
+    (),
+  )
+}
+
+// TODO: Add internal transform so we can inline the built-in transforms (And use for S.transform/S.advancedTransform/S.refine/S.custom)
 let transform: (
   t<'value>,
   ~parser: 'value => 'transformed=?,
@@ -1220,85 +1327,86 @@ let transform: (
   ~serializer as maybeSerializer=?,
   (),
 ) => {
+  let struct = struct->toUnknown
   if maybeParser === None && maybeAsyncParser === None && maybeSerializer === None {
     Error.MissingParserAndSerializer.panic(`struct factory Transform`)
   }
 
-  let planParser = switch (maybeParser, maybeAsyncParser) {
-  | (Some(_), Some(_)) =>
-    Error.panic(
-      "The S.transform doesn't support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.",
-    )
-  | (Some(parser), None) => ctx => ctx->TransformationFactory.Ctx.planSyncTransformation(parser)
-  | (None, Some(asyncParser)) =>
-    ctx => ctx->TransformationFactory.Ctx.planAsyncTransformation(asyncParser)
-  | (None, None) => TransformationFactory.Ctx.planMissingParserTransformation
-  }
-
   make(
     ~name=struct.name,
     ~tagged=struct.tagged,
-    ~parseTransformationFactory=(. ~ctx) => {
-      struct.parseTransformationFactory(. ~ctx)
-      planParser->Stdlib.Fn.call1(ctx)
+    ~parseOperationBuilder=switch (maybeParser, maybeAsyncParser) {
+    | (Some(_), Some(_)) =>
+      Error.panic(
+        "The S.transform doesn't support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.",
+      )
+    | (Some(parser), None) =>
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+        let childOutputVar = b->B.var
+        let code =
+          b->B.run(
+            ~builder=struct.parseOperationBuilder,
+            ~struct,
+            ~inputVar,
+            ~outputVar=childOutputVar,
+            ~pathVar,
+          )
+        `${code}${b->B.embedSyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~pathVar,
+            ~fn=parser,
+            (),
+          )}`
+      })
+    | (None, Some(asyncParser)) =>
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+        let childOutputVar = b->B.var
+        let code =
+          b->B.run(
+            ~builder=struct.parseOperationBuilder,
+            ~struct,
+            ~inputVar,
+            ~outputVar=childOutputVar,
+            ~pathVar,
+          )
+        `${code}${b->B.embedAsyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~pathVar,
+            ~fn=(. i) => (. ()) => asyncParser->Stdlib.Fn.call1(i),
+            (),
+          )}`
+      })
+    | (None, None) =>
+      Builder.make((. b, ~selfStruct as _, ~inputVar as _, ~outputVar as _, ~pathVar) => {
+        b->B.raise(~pathVar, MissingParser) ++ ";"
+      })
     },
-    ~serializeTransformationFactory=(. ~ctx) => {
-      switch maybeSerializer {
-      | Some(transformSerializer) =>
-        ctx->TransformationFactory.Ctx.planSyncTransformation(transformSerializer)
-      | None => ctx->TransformationFactory.Ctx.planMissingSerializerTransformation
-      }
-      struct.serializeTransformationFactory(. ~ctx)
-    },
-    ~metadataMap=struct.metadataMap,
-    (),
-  )
-}
-
-let advancedTransform: (
-  t<'value>,
-  ~parser: (~struct: t<'value>) => transformation<'value, 'transformed>=?,
-  ~serializer: (~struct: t<'value>) => transformation<'transformed, 'value>=?,
-  unit,
-) => t<'transformed> = (struct, ~parser as maybeParser=?, ~serializer as maybeSerializer=?, ()) => {
-  if maybeParser === None && maybeSerializer === None {
-    Error.MissingParserAndSerializer.panic(`struct factory Transform`)
-  }
-
-  make(
-    ~name=struct.name,
-    ~tagged=struct.tagged,
-    ~parseTransformationFactory=(. ~ctx) => {
-      struct.parseTransformationFactory(. ~ctx)
-      switch maybeParser {
-      | Some(transformParser) =>
-        switch transformParser->TransformationFactory.Public.call(
-          ~struct=ctx.struct->castUnknownStructToAnyStruct,
-        ) {
-        | Noop => ()
-        | Sync(syncTransformation) =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(syncTransformation)
-        | Async(asyncTransformation) =>
-          ctx->TransformationFactory.Ctx.planAsyncTransformation(asyncTransformation)
-        }
-      | None => ctx->TransformationFactory.Ctx.planMissingParserTransformation
-      }
-    },
-    ~serializeTransformationFactory=(. ~ctx) => {
-      switch maybeSerializer {
-      | Some(transformSerializer) =>
-        switch transformSerializer->TransformationFactory.Public.call(
-          ~struct=ctx.struct->castUnknownStructToAnyStruct,
-        ) {
-        | Noop => ()
-        | Sync(syncTransformation) =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(syncTransformation)
-        | Async(asyncTransformation) =>
-          ctx->TransformationFactory.Ctx.planAsyncTransformation(asyncTransformation)
-        }
-      | None => ctx->TransformationFactory.Ctx.planMissingSerializerTransformation
-      }
-      struct.serializeTransformationFactory(. ~ctx)
+    ~serializeOperationBuilder=switch maybeSerializer {
+    | Some(serializer) =>
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+        let transformOutputVar = b->B.var
+        let code =
+          b->B.run(
+            ~builder=struct.serializeOperationBuilder,
+            ~struct,
+            ~inputVar=transformOutputVar,
+            ~outputVar,
+            ~pathVar,
+          )
+        `${b->B.embedSyncOperation(
+            ~inputVar,
+            ~outputVar=transformOutputVar,
+            ~pathVar,
+            ~fn=serializer,
+            (),
+          )}${code}`
+      })
+    | None =>
+      Builder.make((. b, ~selfStruct as _, ~inputVar as _, ~outputVar as _, ~pathVar) => {
+        b->B.raise(~pathVar, MissingSerializer) ++ ";"
+      })
     },
     ~metadataMap=struct.metadataMap,
     (),
@@ -1307,11 +1415,13 @@ let advancedTransform: (
 
 let rec advancedPreprocess = (
   struct,
-  ~parser as maybePreprocessParser=?,
-  ~serializer as maybePreprocessSerializer=?,
+  ~parser as maybeParser=?,
+  ~serializer as maybeSerializer=?,
   (),
 ) => {
-  if maybePreprocessParser === None && maybePreprocessSerializer === None {
+  let struct = struct->toUnknown
+
+  if maybeParser === None && maybeSerializer === None {
     Error.MissingParserAndSerializer.panic(`struct factory Preprocess`)
   }
 
@@ -1323,16 +1433,12 @@ let rec advancedPreprocess = (
         unionStructs->Js.Array2.map(unionStruct =>
           unionStruct
           ->castUnknownStructToAnyStruct
-          ->advancedPreprocess(
-            ~parser=?maybePreprocessParser,
-            ~serializer=?maybePreprocessSerializer,
-            (),
-          )
+          ->advancedPreprocess(~parser=?maybeParser, ~serializer=?maybeSerializer, ())
           ->toUnknown
         ),
       ),
-      ~parseTransformationFactory=struct.parseTransformationFactory,
-      ~serializeTransformationFactory=struct.serializeTransformationFactory,
+      ~parseOperationBuilder=struct.parseOperationBuilder,
+      ~serializeOperationBuilder=struct.serializeOperationBuilder,
       ~metadataMap=struct.metadataMap,
       (),
     )
@@ -1340,38 +1446,108 @@ let rec advancedPreprocess = (
     make(
       ~name=struct.name,
       ~tagged=struct.tagged,
-      ~parseTransformationFactory=(. ~ctx) => {
-        switch maybePreprocessParser {
-        | Some(preprocessParser) =>
-          switch preprocessParser->TransformationFactory.Public.call(
-            ~struct=ctx.struct->castUnknownStructToAnyStruct,
+      ~parseOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
+        switch maybeParser {
+        | Some(parser) =>
+          switch parser->TransformationFactory.call(
+            ~struct=selfStruct->castUnknownStructToAnyStruct,
           ) {
-          | Noop => ()
-          | Sync(syncTransformation) =>
-            ctx->TransformationFactory.Ctx.planSyncTransformation(syncTransformation)
-          | Async(asyncTransformation) =>
-            ctx->TransformationFactory.Ctx.planAsyncTransformation(asyncTransformation)
+          | Noop =>
+            b->B.run(
+              ~builder=struct.parseOperationBuilder,
+              ~struct,
+              ~inputVar,
+              ~outputVar,
+              ~pathVar,
+            )
+          | Sync(syncTransformation) => {
+              let parseResultVar = b->B.var
+              let code =
+                b->B.run(
+                  ~builder=struct.parseOperationBuilder,
+                  ~struct,
+                  ~inputVar=parseResultVar,
+                  ~outputVar,
+                  ~pathVar,
+                )
+              `${b->B.embedSyncOperation(
+                  ~inputVar,
+                  ~outputVar=parseResultVar,
+                  ~pathVar,
+                  ~fn=syncTransformation,
+                  (),
+                )}${code}`
+            }
+          | Async(asyncParser) => {
+              let parseResultVar = b->B.var
+              let childOutputVar = b->B.var
+              let code =
+                b->B.run(
+                  ~builder=struct.parseOperationBuilder,
+                  ~struct,
+                  ~inputVar="t",
+                  ~outputVar=childOutputVar,
+                  ~pathVar,
+                )
+              let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+
+              `${b->B.embedAsyncOperation(
+                  ~inputVar,
+                  ~outputVar=parseResultVar,
+                  ~pathVar,
+                  ~fn=(. i) => (. ()) => asyncParser->Stdlib.Fn.call1(i),
+                  (),
+                )}${outputVar}=()=>${parseResultVar}().then(t=>{${code}return ${isAsync
+                  ? `${childOutputVar}()`
+                  : childOutputVar}});`
+            }
           }
-        | None => ctx->TransformationFactory.Ctx.planMissingParserTransformation
+        | None => b->B.raise(~pathVar, MissingParser) ++ ";"
         }
-        struct.parseTransformationFactory(. ~ctx)
-      },
-      ~serializeTransformationFactory=(. ~ctx) => {
-        struct.serializeTransformationFactory(. ~ctx)
-        switch maybePreprocessSerializer {
-        | Some(preprocessSerializer) =>
-          switch preprocessSerializer->TransformationFactory.Public.call(
-            ~struct=ctx.struct->castUnknownStructToAnyStruct,
+      }),
+      ~serializeOperationBuilder=Builder.make((.
+        b,
+        ~selfStruct,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        switch maybeSerializer {
+        | Some(serializer) =>
+          switch serializer->TransformationFactory.call(
+            ~struct=selfStruct->castUnknownStructToAnyStruct,
           ) {
-          | Noop => ()
-          | Sync(syncTransformation) =>
-            ctx->TransformationFactory.Ctx.planSyncTransformation(syncTransformation)
-          | Async(asyncTransformation) =>
-            ctx->TransformationFactory.Ctx.planAsyncTransformation(asyncTransformation)
+          | Noop =>
+            b->B.run(
+              ~builder=struct.serializeOperationBuilder,
+              ~struct,
+              ~inputVar,
+              ~outputVar,
+              ~pathVar,
+            )
+          | Sync(fn) => {
+              let structOuputVar = b->B.var
+              let code =
+                b->B.run(
+                  ~builder=struct.serializeOperationBuilder,
+                  ~struct,
+                  ~inputVar,
+                  ~outputVar=structOuputVar,
+                  ~pathVar,
+                )
+              `${code}${b->B.embedSyncOperation(
+                  ~inputVar=structOuputVar,
+                  ~outputVar,
+                  ~pathVar,
+                  ~fn,
+                  (),
+                )}`
+            }
+          | Async(_) => b->B.raise(~pathVar, MissingSerializer) ++ ";"
           }
-        | None => ctx->TransformationFactory.Ctx.planMissingSerializerTransformation
+        | None => b->B.raise(~pathVar, MissingSerializer) ++ ";"
         }
-      },
+      }),
       ~metadataMap=struct.metadataMap,
       (),
     )
@@ -1389,30 +1565,43 @@ let custom = (
     Error.MissingParserAndSerializer.panic(`Custom struct factory`)
   }
 
-  let planParser = switch (maybeParser, maybeAsyncParser) {
-  | (Some(_), Some(_)) =>
-    Error.panic(
-      "The S.custom doesn't support the `parser` and `asyncParser` arguments simultaneously. Keep only `asyncParser`.",
-    )
-  | (Some(parser), None) => ctx => ctx->TransformationFactory.Ctx.planSyncTransformation(parser)
-  | (None, Some(asyncParser)) =>
-    ctx => ctx->TransformationFactory.Ctx.planAsyncTransformation(asyncParser)
-  | (None, None) => TransformationFactory.Ctx.planMissingParserTransformation
-  }
-
   make(
     ~name,
     ~metadataMap=emptyMetadataMap,
     ~tagged=Unknown,
-    ~parseTransformationFactory=(. ~ctx) => {
-      planParser->Stdlib.Fn.call1(ctx)
+    ~parseOperationBuilder=switch (maybeParser, maybeAsyncParser) {
+    | (Some(_), Some(_)) =>
+      Error.panic(
+        "The S.custom doesn't support the `parser` and `asyncParser` arguments simultaneously. Keep only `asyncParser`.",
+      )
+    | (Some(parser), None) =>
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+        b->B.embedSyncOperation(~inputVar, ~outputVar, ~fn=parser, ~pathVar, ())
+      })
+    | (None, Some(asyncParser)) =>
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+        b->B.embedAsyncOperation(
+          ~inputVar,
+          ~outputVar,
+          ~pathVar,
+          ~fn=(. input) => (. ()) => asyncParser->Stdlib.Fn.call1(input),
+          (),
+        )
+      })
+    | (None, None) =>
+      Builder.make((. b, ~selfStruct as _, ~inputVar as _, ~outputVar as _, ~pathVar) => {
+        b->B.raise(~pathVar, MissingParser) ++ ";"
+      })
     },
-    ~serializeTransformationFactory=(. ~ctx) => {
-      switch maybeSerializer {
-      | Some(transformSerializer) =>
-        ctx->TransformationFactory.Ctx.planSyncTransformation(transformSerializer)
-      | None => ctx->TransformationFactory.Ctx.planMissingSerializerTransformation
-      }
+    ~serializeOperationBuilder=switch maybeSerializer {
+    | Some(serializer) =>
+      Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+        b->B.embedSyncOperation(~inputVar, ~outputVar, ~fn=serializer, ~pathVar, ())
+      })
+    | None =>
+      Builder.make((. b, ~selfStruct as _, ~inputVar as _, ~outputVar as _, ~pathVar) => {
+        b->B.raise(~pathVar, MissingSerializer) ++ ";"
+      })
     },
     (),
   )
@@ -1509,76 +1698,9 @@ module Variant = {
     }
   }
 
-  module SerializeTransformationFactory = {
-    module Var = {
-      @inline
-      let constantDefinitions = "d"
-      @inline
-      let raiseDiscriminantError = "r"
-      @inline
-      let transformedObject = "t"
-    }
-
-    @inline
-    let make = (~instructions: DefinerCtx.t) => {
-      (. ~ctx) => {
-        try {
-          let {valuePath, isValueRegistered, constantDefinitions} = instructions
-
-          let inlinedSerializeFunction = {
-            let constants = {
-              let stringRef = ref("")
-              for idx in 0 to constantDefinitions->Js.Array2.length - 1 {
-                let {path} = constantDefinitions->Js.Array2.unsafe_get(idx)
-                stringRef.contents =
-                  stringRef.contents ++
-                  Stdlib.Inlined.If.make(
-                    ~condition=`${Var.transformedObject}${path}!==${Var.constantDefinitions}[${idx->Js.Int.toString}].v`,
-                    ~content=`${Var.raiseDiscriminantError}(${idx->Js.Int.toString},${Var.transformedObject}${path})`,
-                  )
-              }
-              stringRef.contents
-            }
-
-            Stdlib.Inlined.Fn.make(
-              ~arguments=Var.transformedObject,
-              ~content=`${constants}return ${switch isValueRegistered {
-                | true => `${Var.transformedObject}${valuePath}`
-                | false => ctx.struct->internalToInlinedValue
-                }}`,
-            )
-          }
-
-          ctx->TransformationFactory.Ctx.planSyncTransformation(
-            Stdlib.Function.make2(
-              ~ctxVarName1=Var.constantDefinitions,
-              ~ctxVarValue1=constantDefinitions,
-              ~ctxVarName2=Var.raiseDiscriminantError,
-              ~ctxVarValue2=(~fieldDefinitionIdx, ~received) => {
-                let {value, path} = constantDefinitions->Js.Array2.unsafe_get(fieldDefinitionIdx)
-                Error.Internal.UnexpectedValue.raise(
-                  ~expected=value,
-                  ~received,
-                  ~initialPath=path,
-                  (),
-                )
-              },
-              ~inlinedFunction=inlinedSerializeFunction,
-            ),
-          )
-        } catch {
-        | _ =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(_ =>
-            Error.Internal.raise(MissingSerializer)
-          )
-        }
-        ()
-      }
-    }
-  }
-
   let factory = {
     (struct, definer) => {
+      let struct = struct->toUnknown
       let instructions = {
         let definerCtx = DefinerCtx.make()
         let definition = definer->Stdlib.Fn.call1(definerCtx->Obj.magic)->castAnyToUnknown
@@ -1589,14 +1711,79 @@ module Variant = {
       make(
         ~name=struct.name,
         ~tagged=struct.tagged,
-        ~parseTransformationFactory=(. ~ctx) => {
-          struct.parseTransformationFactory(. ~ctx)
-          ctx->TransformationFactory.Ctx.planSyncTransformation(definer)
-        },
-        ~serializeTransformationFactory=(. ~ctx) => {
-          SerializeTransformationFactory.make(~instructions)(. ~ctx)
-          struct.serializeTransformationFactory(. ~ctx)
-        },
+        ~parseOperationBuilder=Builder.make((.
+          b,
+          ~selfStruct as _,
+          ~inputVar,
+          ~outputVar,
+          ~pathVar,
+        ) => {
+          let childOutputVar = b->B.var
+          let code =
+            b->B.run(
+              ~builder=struct.parseOperationBuilder,
+              ~struct,
+              ~inputVar,
+              ~outputVar=childOutputVar,
+              ~pathVar,
+            )
+          code ++
+          b->B.embedSyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~pathVar,
+            ~fn=definer,
+            ~isSafe=true,
+            (),
+          )
+        }),
+        ~serializeOperationBuilder=Builder.make((.
+          b,
+          ~selfStruct,
+          ~inputVar,
+          ~outputVar,
+          ~pathVar,
+        ) => {
+          let {constantDefinitions, isValueRegistered, valuePath} = instructions
+          let childInputVar = b->B.var
+          let childCode =
+            b->B.run(
+              ~builder=struct.serializeOperationBuilder,
+              ~struct,
+              ~outputVar,
+              ~inputVar=childInputVar,
+              ~pathVar,
+            )
+
+          let codeRef = ref("")
+          for idx in 0 to constantDefinitions->Js.Array2.length - 1 {
+            let {path, value} = constantDefinitions->Js.Array2.unsafe_get(idx)
+            codeRef.contents =
+              codeRef.contents ++
+              `if(${inputVar}${path}!==${b->B.embed(value)}){${b->B.raiseWithArg(
+                  ~pathVar=`${pathVar}+${path->Stdlib.Inlined.Value.fromString}`,
+                  (. input) => UnexpectedValue({
+                    expected: value->Stdlib.Inlined.Value.stringify,
+                    received: input->Stdlib.Inlined.Value.stringify,
+                  }),
+                  `${inputVar}${path}`,
+                )}}`
+          }
+
+          codeRef.contents ++
+          switch isValueRegistered {
+          | true => `${childInputVar}=${inputVar}${valuePath}`
+          | false =>
+            try {
+              let inlinedValue = selfStruct->internalToInlinedValue
+              `${childInputVar}=${inlinedValue}`
+            } catch {
+            | _ => b->B.raise(~pathVar, MissingSerializer)
+            }
+          } ++
+          ";" ++
+          childCode
+        }),
         ~metadataMap=struct.metadataMap,
         (),
       )
@@ -1611,31 +1798,17 @@ module Literal = {
       (innerLiteral, variant) => {
         let tagged = Literal(innerLiteral->castToTaggedLiteral)
 
-        let makeParseTransformationFactory = (~literalValue, ~test) => {
-          (. ~ctx) =>
-            ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-              if test->Stdlib.Fn.call1(input) {
-                if literalValue->castAnyToUnknown === input {
-                  variant
-                } else {
-                  Error.Internal.UnexpectedValue.raise(~expected=literalValue, ~received=input, ())
-                }
-              } else {
-                raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
-              }
-            })
-        }
-
-        let makeSerializeTransformationFactory = output => {
-          (. ~ctx) =>
-            ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-              if input === variant {
-                output
-              } else {
-                Error.Internal.UnexpectedValue.raise(~expected=variant, ~received=input, ())
-              }
-            })
-        }
+        let makeSerializeOperationBuilder = output =>
+          Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+            `if(${inputVar}!==${b->B.embed(variant)}){${b->B.raiseWithArg(
+                ~pathVar,
+                (. input) => UnexpectedValue({
+                  expected: variant->Stdlib.Inlined.Value.stringify,
+                  received: input->Stdlib.Inlined.Value.stringify,
+                }),
+                inputVar,
+              )}}${outputVar}=${b->B.embed(output)};`
+          })
 
         switch innerLiteral {
         | EmptyNull =>
@@ -1643,15 +1816,23 @@ module Literal = {
             ~name="EmptyNull Literal (null)",
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseTransformationFactory=(. ~ctx) =>
-              ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-                if input === Js.Null.empty {
-                  variant
-                } else {
-                  raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
-                }
-              }),
-            ~serializeTransformationFactory=makeSerializeTransformationFactory(Js.Null.empty),
+            ~parseOperationBuilder=Builder.make((.
+              b,
+              ~selfStruct as _,
+              ~inputVar,
+              ~outputVar,
+              ~pathVar,
+            ) => {
+              `if(${inputVar}!==null){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedType({
+                    expected: "EmptyNull Literal (null)",
+                    received: input->Stdlib.Unknown.toName,
+                  }),
+                  inputVar,
+                )}}${outputVar}=${b->B.embed(variant)};`
+            }),
+            ~serializeOperationBuilder=makeSerializeOperationBuilder(Js.Null.empty),
             (),
           )
         | EmptyOption =>
@@ -1659,15 +1840,23 @@ module Literal = {
             ~name="EmptyOption Literal (undefined)",
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseTransformationFactory=(. ~ctx) =>
-              ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-                if input === Js.Undefined.empty {
-                  variant
-                } else {
-                  raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
-                }
-              }),
-            ~serializeTransformationFactory=makeSerializeTransformationFactory(Js.Undefined.empty),
+            ~parseOperationBuilder=Builder.make((.
+              b,
+              ~selfStruct as _,
+              ~inputVar,
+              ~outputVar,
+              ~pathVar,
+            ) => {
+              `if(${inputVar}!==void 0){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedType({
+                    expected: "EmptyOption Literal (undefined)",
+                    received: input->Stdlib.Unknown.toName,
+                  }),
+                  inputVar,
+                )}}${outputVar}=${b->B.embed(variant)};`
+            }),
+            ~serializeOperationBuilder=makeSerializeOperationBuilder(Js.Undefined.empty),
             (),
           )
         | NaN =>
@@ -1675,15 +1864,23 @@ module Literal = {
             ~name="NaN Literal (NaN)",
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseTransformationFactory=(. ~ctx) =>
-              ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-                if Js.Float.isNaN(input) {
-                  variant
-                } else {
-                  raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
-                }
-              }),
-            ~serializeTransformationFactory=makeSerializeTransformationFactory(Js.Float._NaN),
+            ~parseOperationBuilder=Builder.make((.
+              b,
+              ~selfStruct as _,
+              ~inputVar,
+              ~outputVar,
+              ~pathVar,
+            ) => {
+              `if(!Number.isNaN(${inputVar})){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedType({
+                    expected: "NaN Literal (NaN)",
+                    received: input->Stdlib.Unknown.toName,
+                  }),
+                  inputVar,
+                )}}${outputVar}=${b->B.embed(variant)};`
+            }),
+            ~serializeOperationBuilder=makeSerializeOperationBuilder(Js.Float._NaN),
             (),
           )
         | Bool(bool) =>
@@ -1691,11 +1888,30 @@ module Literal = {
             ~name=`Bool Literal (${bool->Stdlib.Bool.toString})`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseTransformationFactory=makeParseTransformationFactory(
-              ~literalValue=bool,
-              ~test=input => input->Js.typeof === "boolean",
-            ),
-            ~serializeTransformationFactory=makeSerializeTransformationFactory(bool),
+            ~parseOperationBuilder=Builder.make((.
+              b,
+              ~selfStruct,
+              ~inputVar,
+              ~outputVar,
+              ~pathVar,
+            ) => {
+              `if(typeof ${inputVar}!=="boolean"){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedType({
+                    expected: selfStruct.name,
+                    received: input->Stdlib.Unknown.toName,
+                  }),
+                  inputVar,
+                )}}if(${inputVar}!==${bool->Stdlib.Bool.toString}){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedValue({
+                    expected: bool->Stdlib.Bool.toString,
+                    received: input->Stdlib.Inlined.Value.stringify,
+                  }),
+                  inputVar,
+                )}}${outputVar}=${b->B.embed(variant)};`
+            }),
+            ~serializeOperationBuilder=makeSerializeOperationBuilder(bool),
             (),
           )
         | String(string) =>
@@ -1703,11 +1919,30 @@ module Literal = {
             ~name=`String Literal ("${string}")`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseTransformationFactory=makeParseTransformationFactory(
-              ~literalValue=string,
-              ~test=input => input->Js.typeof === "string",
-            ),
-            ~serializeTransformationFactory=makeSerializeTransformationFactory(string),
+            ~parseOperationBuilder=Builder.make((.
+              b,
+              ~selfStruct,
+              ~inputVar,
+              ~outputVar,
+              ~pathVar,
+            ) => {
+              `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedType({
+                    expected: selfStruct.name,
+                    received: input->Stdlib.Unknown.toName,
+                  }),
+                  inputVar,
+                )}}if(${inputVar}!==${string->Stdlib.Inlined.Value.fromString}){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedValue({
+                    expected: string->Stdlib.Inlined.Value.fromString,
+                    received: input->Stdlib.Inlined.Value.stringify,
+                  }),
+                  inputVar,
+                )}}${outputVar}=${b->B.embed(variant)};`
+            }),
+            ~serializeOperationBuilder=makeSerializeOperationBuilder(string),
             (),
           )
         | Float(float) =>
@@ -1715,23 +1950,61 @@ module Literal = {
             ~name=`Float Literal (${float->Js.Float.toString})`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseTransformationFactory=makeParseTransformationFactory(
-              ~literalValue=float,
-              ~test=input => input->Js.typeof === "number",
-            ),
-            ~serializeTransformationFactory=makeSerializeTransformationFactory(float),
+            ~parseOperationBuilder=Builder.make((.
+              b,
+              ~selfStruct,
+              ~inputVar,
+              ~outputVar,
+              ~pathVar,
+            ) => {
+              `if(typeof ${inputVar}!=="number"){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedType({
+                    expected: selfStruct.name,
+                    received: input->Stdlib.Unknown.toName,
+                  }),
+                  inputVar,
+                )}}if(${inputVar}!==${float->Js.Float.toString}){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedValue({
+                    expected: float->Js.Float.toString,
+                    received: input->Stdlib.Inlined.Value.stringify,
+                  }),
+                  inputVar,
+                )}}${outputVar}=${b->B.embed(variant)};`
+            }),
+            ~serializeOperationBuilder=makeSerializeOperationBuilder(float),
             (),
           )
         | Int(int) =>
           make(
-            ~name=`Int Literal (${int->Js.Int.toString})`,
+            ~name=`Int Literal (${int->Stdlib.Int.unsafeToString})`,
             ~metadataMap=emptyMetadataMap,
             ~tagged,
-            ~parseTransformationFactory=makeParseTransformationFactory(
-              ~literalValue=int,
-              ~test=Stdlib.Int.test,
-            ),
-            ~serializeTransformationFactory=makeSerializeTransformationFactory(int),
+            ~parseOperationBuilder=Builder.make((.
+              b,
+              ~selfStruct,
+              ~inputVar,
+              ~outputVar,
+              ~pathVar,
+            ) => {
+              `if(!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedType({
+                    expected: selfStruct.name,
+                    received: input->Stdlib.Unknown.toName,
+                  }),
+                  inputVar,
+                )}}if(${inputVar}!==${int->Stdlib.Int.unsafeToString}){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. input) => UnexpectedValue({
+                    expected: int->Js.Int.toString,
+                    received: input->Stdlib.Inlined.Value.stringify,
+                  }),
+                  inputVar,
+                )}}${outputVar}=${b->B.embed(variant)};`
+            }),
+            ~serializeOperationBuilder=makeSerializeOperationBuilder(int),
             (),
           )
         }
@@ -1775,14 +2048,11 @@ module Object = {
   }
 
   module FieldDefinition = {
-    type struct = t<unknown>
     type t = {
       @as("s")
-      fieldStruct: struct,
+      fieldStruct: struct<unknown>,
       @as("i")
       inlinedFieldName: string,
-      @as("n")
-      fieldName: string,
       @as("p")
       mutable path: Path.t,
       @as("r")
@@ -1795,7 +2065,6 @@ module Object = {
   }
 
   module DefinerCtx = {
-    type struct<'a> = t<'a>
     type t = {
       @as("n")
       fieldNames: array<string>,
@@ -1836,7 +2105,6 @@ module Object = {
           | false => {
               let fieldDefinition: FieldDefinition.t = {
                 fieldStruct: struct,
-                fieldName,
                 inlinedFieldName: fieldName->Stdlib.Inlined.Value.fromString,
                 path: Path.empty,
                 isRegistered: false,
@@ -1872,7 +2140,7 @@ module Object = {
       let fieldDefinition = definition->(Obj.magic: unknown => FieldDefinition.t)
       if fieldDefinition.isRegistered {
         Error.panic(
-          `The field "${fieldDefinition.fieldName}" is registered multiple times. If you want to duplicate a field, use S.transform instead.`,
+          `The field ${fieldDefinition.inlinedFieldName} is registered multiple times. If you want to duplicate a field, use S.transform instead.`,
         )
       } else {
         fieldDefinition.path = path
@@ -1903,441 +2171,6 @@ module Object = {
     }
   }
 
-  module ParseTransformationFactory = {
-    module Var = {
-      @inline
-      let originalObject = "o"
-      @inline
-      let fields = "f"
-      @inline
-      let transformedObject = "t"
-      @inline
-      let asyncTransformedObject = "a"
-      @inline
-      let asyncFieldsCounter = "y"
-      @inline
-      let fieldDefinitionIdx = "i"
-      @inline
-      let catchFieldError = "c"
-      @inline
-      let parseFnsByInstructionIdx = "p"
-      @inline
-      let constantDefinitions = "d"
-      @inline
-      let raiseUnexpectedOriginalObjectTypeError = "u"
-      @inline
-      let raiseUnexpectedTypeError = "s"
-      @inline
-      let raiseExcessFieldError = "x"
-      @inline
-      let prepareAsyncFieldError = "j"
-    }
-
-    @inline
-    let make = (~instructions: DefinerCtx.t) => {
-      (. ~ctx) => {
-        let {
-          fieldDefinitions,
-          fields,
-          inlinedPreparationValues,
-          preparationPathes,
-          constantDefinitions,
-        } = instructions
-
-        let withUnknownKeysRefinement = ctx.struct->UnknownKeys.classify === UnknownKeys.Strict
-
-        let asyncFieldDefinitions = []
-        let parseFnsByInstructionIdx = Js.Dict.empty()
-        let withFieldDefinitions = fieldDefinitions->Js.Array2.length !== 0
-
-        let inlinedParseFunction = {
-          let refinement = Stdlib.Inlined.If.make(
-            ~condition=`!(typeof ${Var.originalObject}==="object"&&${Var.originalObject}!==null&&!Array.isArray(${Var.originalObject}))`,
-            ~content=`${Var.raiseUnexpectedOriginalObjectTypeError}(${Var.originalObject})`,
-          )
-
-          let preparation = {
-            let stringRef = ref(`var ${Var.transformedObject};`)
-            for idx in 0 to preparationPathes->Js.Array2.length - 1 {
-              let preparationPath = preparationPathes->Js.Array2.unsafe_get(idx)
-              let preparationInlinedValue = inlinedPreparationValues->Js.Array2.unsafe_get(idx)
-              stringRef.contents =
-                stringRef.contents ++
-                `${Var.transformedObject}${preparationPath}=${preparationInlinedValue};`
-            }
-            stringRef.contents
-          }
-
-          let transformedObjectConstruction = withFieldDefinitions
-            ? {
-                let tryContent = {
-                  let stringRef = ref("")
-                  for idx in 0 to fieldDefinitions->Js.Array2.length - 1 {
-                    let fieldDefinition = fieldDefinitions->Js.Array2.unsafe_get(idx)
-                    let {fieldStruct, inlinedFieldName, isRegistered, path} = fieldDefinition
-
-                    let inlinedIdx = idx->Js.Int.toString
-                    let parseOperation = fieldStruct->getParseOperation
-                    let maybeParseFn = switch parseOperation {
-                    | NoOperation => None
-                    | SyncOperation(fn) => Some(fn)
-                    | AsyncOperation(fn) => Some(fn->Obj.magic)
-                    }
-                    let isAsync = switch parseOperation {
-                    | AsyncOperation(_) => true
-                    | _ => false
-                    }
-
-                    let inlinedInputData = `${Var.originalObject}[${inlinedFieldName}]`
-
-                    let maybeInlinedDestination = if isAsync {
-                      if asyncFieldDefinitions->Js.Array2.length === 0 {
-                        stringRef.contents =
-                          stringRef.contents ++ `var ${Var.asyncTransformedObject}={};`
-                      }
-
-                      if isRegistered {
-                        stringRef.contents =
-                          stringRef.contents ++ `${Var.transformedObject}${path}=undefined;`
-                      }
-
-                      let inlinedDestination = `${Var.asyncTransformedObject}[${asyncFieldDefinitions
-                        ->Js.Array2.length
-                        ->Js.Int.toString}]`
-
-                      asyncFieldDefinitions->Js.Array2.push(fieldDefinition)->ignore
-
-                      Some(inlinedDestination)
-                    } else if isRegistered {
-                      Some(`${Var.transformedObject}${path}`)
-                    } else {
-                      None
-                    }
-
-                    stringRef.contents =
-                      stringRef.contents ++
-                      switch (maybeParseFn, fieldStruct.maybeInlinedRefinement) {
-                      | (None, _) =>
-                        switch maybeInlinedDestination {
-                        | Some(inlinedDestination) => `${inlinedDestination}=${inlinedInputData};`
-                        | None => ""
-                        }
-                      | (Some(_), Some(inlinedRefinement)) =>
-                        `var ${Stdlib.Inlined.Constant.inputVar}=${inlinedInputData};if(${inlinedRefinement}){${switch maybeInlinedDestination {
-                          | Some(inlinedDestination) =>
-                            `${inlinedDestination}=${Stdlib.Inlined.Constant.inputVar}`
-                          | None => ""
-                          }}}else{${Var.fieldDefinitionIdx}=${inlinedIdx};${Var.raiseUnexpectedTypeError}(${Stdlib.Inlined.Constant.inputVar},${Var.fields}[${inlinedFieldName}])}`
-                      | (Some(fn), None) => {
-                          parseFnsByInstructionIdx->Js.Dict.set(inlinedIdx, fn)
-                          `${Var.fieldDefinitionIdx}=${inlinedIdx};${switch maybeInlinedDestination {
-                            | Some(inlinedDestination) => `${inlinedDestination}=`
-                            | None => ""
-                            }}${Var.parseFnsByInstructionIdx}[${inlinedIdx}](${inlinedInputData});`
-                        }
-                      }
-                  }
-                  stringRef.contents
-                }
-
-                `var ${Var.fieldDefinitionIdx};` ++
-                Stdlib.Inlined.TryCatch.make(
-                  ~tryContent,
-                  ~catchContent=`${Var.catchFieldError}(${Stdlib.Inlined.Constant.errorVar},${Var.fieldDefinitionIdx})`,
-                )
-              }
-            : ""
-
-          let unknownKeysRefinement = switch (withUnknownKeysRefinement, withFieldDefinitions) {
-          | (true, true) => {
-              let stringRef = ref(`for(var k in ${Var.originalObject}){if(!(`)
-              for idx in 0 to fieldDefinitions->Js.Array2.length - 1 {
-                let fieldDefinition = fieldDefinitions->Js.Array2.unsafe_get(idx)
-                if idx !== 0 {
-                  stringRef.contents = stringRef.contents ++ "||"
-                }
-                stringRef.contents = stringRef.contents ++ `k===${fieldDefinition.inlinedFieldName}`
-              }
-              stringRef.contents ++ `)){${Var.raiseExcessFieldError}(k)}}`
-            }
-
-          | (true, false) => `for(var k in ${Var.originalObject}){${Var.raiseExcessFieldError}(k)}`
-          | _ => ""
-          }
-
-          let constants = {
-            let stringRef = ref("")
-            for idx in 0 to constantDefinitions->Js.Array2.length - 1 {
-              let constantDefinition = constantDefinitions->Js.Array2.unsafe_get(idx)
-              stringRef.contents =
-                stringRef.contents ++
-                `${Var.transformedObject}${constantDefinition.path}=${Var.constantDefinitions}[${idx->Js.Int.toString}].v;`
-            }
-            stringRef.contents
-          }
-
-          let returnValue =
-            asyncFieldDefinitions->Js.Array2.length === 0
-              ? Var.transformedObject
-              : `${Var.asyncTransformedObject}.${Var.transformedObject}=${Var.transformedObject},${Var.asyncTransformedObject}`
-
-          Stdlib.Inlined.Fn.make(
-            ~arguments=Var.originalObject,
-            ~content=`${refinement}${preparation}${transformedObjectConstruction}${unknownKeysRefinement}${constants}return ${returnValue}`,
-          )
-        }
-
-        ctx->TransformationFactory.Ctx.planSyncTransformation(
-          Stdlib.Function.make7(
-            ~ctxVarName1=Var.catchFieldError,
-            ~ctxVarValue1=(~exn, ~fieldDefinitionIdx) => {
-              switch exn {
-              | Error.Internal.Exception(internalError) =>
-                Error.Internal.Exception(
-                  internalError->Error.Internal.prependLocation(
-                    (fieldDefinitions->Js.Array2.unsafe_get(fieldDefinitionIdx)).fieldName,
-                  ),
-                )
-
-              | _ => exn
-              }->raise
-            },
-            ~ctxVarName2=Var.parseFnsByInstructionIdx,
-            ~ctxVarValue2=parseFnsByInstructionIdx,
-            ~ctxVarName3=Var.fields,
-            ~ctxVarValue3=fields,
-            ~ctxVarName4=Var.constantDefinitions,
-            ~ctxVarValue4=constantDefinitions,
-            ~ctxVarName5=Var.raiseUnexpectedOriginalObjectTypeError,
-            ~ctxVarValue5=(~input) => {
-              raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
-            },
-            ~ctxVarName6=Var.raiseUnexpectedTypeError,
-            ~ctxVarValue6=raiseUnexpectedTypeError,
-            ~ctxVarName7=Var.raiseExcessFieldError,
-            ~ctxVarValue7=exccessFieldName => Error.Internal.raise(ExcessField(exccessFieldName)),
-            ~inlinedFunction=inlinedParseFunction,
-          ),
-        )
-
-        if asyncFieldDefinitions->Js.Array2.length > 0 {
-          let inlinedAsyncParseFunction = {
-            let resolveVar = "rs"
-            let rejectVar = "rj"
-
-            let content = {
-              let contentRef = ref(
-                `var ${Var.asyncFieldsCounter}=${asyncFieldDefinitions
-                  ->Js.Array2.length
-                  ->Js.Int.toString},${Var.transformedObject}=${Var.asyncTransformedObject}.${Var.transformedObject};`,
-              )
-              for idx in 0 to asyncFieldDefinitions->Js.Array2.length - 1 {
-                let fieldDefinition = asyncFieldDefinitions->Js.Array2.unsafe_get(idx)
-                let {isRegistered, path} = fieldDefinition
-
-                let inlinedIdx = idx->Js.Int.toString
-
-                let onFieldSuccessInlinedFn = {
-                  let fieldValueVar = "z"
-                  let inlinedFieldValueAssignment = switch isRegistered {
-                  | false => ""
-                  | true => `${Var.transformedObject}${path}=${fieldValueVar}`
-                  }
-                  let inlinedIteration = Stdlib.Inlined.If.make(
-                    ~condition=`${Var.asyncFieldsCounter}--===1`,
-                    ~content=`${resolveVar}(${Var.transformedObject})`,
-                  )
-                  let onFieldSuccessInlinedFnContent = `${inlinedFieldValueAssignment};${inlinedIteration}`
-                  Stdlib.Inlined.Fn.make(
-                    ~arguments=fieldValueVar,
-                    ~content=onFieldSuccessInlinedFnContent,
-                  )
-                }
-
-                let onFieldErrorInlinedFn = {
-                  let errorVar = "z"
-                  Stdlib.Inlined.Fn.make(
-                    ~arguments=errorVar,
-                    ~content=`${rejectVar}(${Var.prepareAsyncFieldError}(${errorVar},${inlinedIdx}))`,
-                  )
-                }
-
-                contentRef.contents =
-                  contentRef.contents ++
-                  `${Var.asyncTransformedObject}[${inlinedIdx}]().then(${onFieldSuccessInlinedFn},${onFieldErrorInlinedFn});`
-              }
-              contentRef.contents
-            }
-
-            Stdlib.Inlined.Fn.make(
-              ~arguments=Var.asyncTransformedObject,
-              ~content=`return ${Stdlib.Inlined.NewPromise.make(
-                  ~resolveVar,
-                  ~rejectVar,
-                  ~content,
-                )}`,
-            )
-          }
-
-          ctx->TransformationFactory.Ctx.planAsyncTransformation(
-            Stdlib.Function.make1(
-              ~ctxVarName1=Var.prepareAsyncFieldError,
-              ~ctxVarValue1=(exn, asyncFieldDefinitionIdx) => {
-                switch exn {
-                | Error.Internal.Exception(internalError) =>
-                  Error.Internal.Exception(
-                    internalError->Error.Internal.prependLocation(
-                      (
-                        asyncFieldDefinitions->Js.Array2.unsafe_get(asyncFieldDefinitionIdx)
-                      ).fieldName,
-                    ),
-                  )
-
-                | _ => exn
-                }
-              },
-              ~inlinedFunction=inlinedAsyncParseFunction,
-            ),
-          )
-        }
-      }
-    }
-  }
-
-  module SerializeTransformationFactory = {
-    module Var = {
-      @inline
-      let serializeFnsByFieldDefinitionIdx = "s"
-      @inline
-      let constantDefinitions = "d"
-      @inline
-      let raiseDiscriminantError = "r"
-      @inline
-      let transformedObject = "t"
-      @inline
-      let fieldDefinitionIdx = "i"
-      @inline
-      let catchFieldError = "c"
-    }
-
-    @inline
-    let make = (~instructions: DefinerCtx.t) => {
-      (. ~ctx) => {
-        let inliningFieldNameRef = ref(%raw("undefined"))
-        try {
-          let {fieldDefinitions, constantDefinitions} = instructions
-
-          let serializeFnsByFieldDefinitionIdx = Js.Dict.empty()
-
-          let inlinedSerializeFunction = {
-            let constants = {
-              let stringRef = ref("")
-              for idx in 0 to constantDefinitions->Js.Array2.length - 1 {
-                let {path} = constantDefinitions->Js.Array2.unsafe_get(idx)
-                stringRef.contents =
-                  stringRef.contents ++
-                  Stdlib.Inlined.If.make(
-                    ~condition=`${Var.transformedObject}${path}!==${Var.constantDefinitions}[${idx->Js.Int.toString}].v`,
-                    ~content=`${Var.raiseDiscriminantError}(${idx->Js.Int.toString},${Var.transformedObject}${path})`,
-                  )
-              }
-              stringRef.contents
-            }
-
-            let originalObjectConstructionAndReturn = {
-              let tryContent = {
-                let contentRef = ref(`var ${Var.fieldDefinitionIdx};return{`)
-                for idx in 0 to fieldDefinitions->Js.Array2.length - 1 {
-                  let fieldDefinition = fieldDefinitions->Js.Array2.unsafe_get(idx)
-                  let {
-                    fieldStruct,
-                    inlinedFieldName,
-                    isRegistered,
-                    path,
-                    fieldName,
-                  } = fieldDefinition
-                  let inlinedIdx = idx->Js.Int.toString
-                  contentRef.contents =
-                    contentRef.contents ++
-                    switch isRegistered {
-                    | true =>
-                      switch fieldStruct->getSerializeOperation {
-                      | None => `${inlinedFieldName}:${Var.transformedObject}${path},`
-                      | Some(fn) => {
-                          serializeFnsByFieldDefinitionIdx->Js.Dict.set(inlinedIdx, fn)
-
-                          `${inlinedFieldName}:(${Var.fieldDefinitionIdx}=${inlinedIdx},${Var.serializeFnsByFieldDefinitionIdx}[${inlinedIdx}](${Var.transformedObject}${path})),`
-                        }
-                      }
-
-                    | false => {
-                        inliningFieldNameRef.contents = fieldName
-                        `${inlinedFieldName}:${fieldStruct->internalToInlinedValue},`
-                      }
-                    }
-                }
-                contentRef.contents ++ "}"
-              }
-
-              Stdlib.Inlined.TryCatch.make(
-                ~tryContent,
-                ~catchContent=`${Var.catchFieldError}(${Stdlib.Inlined.Constant.errorVar},${Var.fieldDefinitionIdx})`,
-              )
-            }
-
-            Stdlib.Inlined.Fn.make(
-              ~arguments=Var.transformedObject,
-              ~content=`${constants}${originalObjectConstructionAndReturn}`,
-            )
-          }
-
-          ctx->TransformationFactory.Ctx.planSyncTransformation(
-            Stdlib.Function.make4(
-              ~ctxVarName1=Var.serializeFnsByFieldDefinitionIdx,
-              ~ctxVarValue1=serializeFnsByFieldDefinitionIdx,
-              ~ctxVarName2=Var.constantDefinitions,
-              ~ctxVarValue2=constantDefinitions,
-              ~ctxVarName3=Var.raiseDiscriminantError,
-              ~ctxVarValue3=(~fieldDefinitionIdx, ~received) => {
-                let {value, path} = constantDefinitions->Js.Array2.unsafe_get(fieldDefinitionIdx)
-                Error.Internal.UnexpectedValue.raise(
-                  ~expected=value,
-                  ~received,
-                  ~initialPath=path,
-                  (),
-                )
-              },
-              ~ctxVarName4=Var.catchFieldError,
-              ~ctxVarValue4=(~exn, ~fieldDefinitionIdx) => {
-                switch exn {
-                | Error.Internal.Exception(internalError) => {
-                    let {path} = fieldDefinitions->Js.Array2.unsafe_get(fieldDefinitionIdx)
-                    Error.Internal.Exception(internalError->Error.Internal.prependPath(path))
-                  }
-
-                | _ => exn
-                }->raise
-              },
-              ~inlinedFunction=inlinedSerializeFunction,
-            ),
-          )
-        } catch {
-        | _ =>
-          let inliningOriginalFieldName = inliningFieldNameRef.contents
-          ctx->TransformationFactory.Ctx.planSyncTransformation(_ =>
-            raise(
-              Error.Internal.Exception({
-                code: MissingSerializer,
-                path: Path.fromLocation(inliningOriginalFieldName),
-              }),
-            )
-          )
-        }
-        ()
-      }
-    }
-  }
-
   let factory = definer => {
     let instructions = {
       let definerCtx = DefinerCtx.make()
@@ -2353,8 +2186,183 @@ module Object = {
         fields: instructions.fields,
         fieldNames: instructions.fieldNames,
       }),
-      ~parseTransformationFactory=ParseTransformationFactory.make(~instructions),
-      ~serializeTransformationFactory=SerializeTransformationFactory.make(~instructions),
+      // TODO: Improve
+      ~parseOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
+        let {
+          preparationPathes,
+          inlinedPreparationValues,
+          fieldDefinitions,
+          constantDefinitions,
+        } = instructions
+
+        let asyncFieldVars = []
+
+        let syncOutputVar = b->B.var
+        let codeRef = ref(
+          `if(!(typeof ${inputVar}==="object"&&${inputVar}!==null&&!Array.isArray(${inputVar}))){${b->B.raiseWithArg(
+              ~pathVar,
+              (. input) => UnexpectedType({
+                expected: "Object",
+                received: input->Stdlib.Unknown.toName,
+              }),
+              inputVar,
+            )}}`,
+        )
+
+        for idx in 0 to preparationPathes->Js.Array2.length - 1 {
+          let preparationPath = preparationPathes->Js.Array2.unsafe_get(idx)
+          let preparationInlinedValue = inlinedPreparationValues->Js.Array2.unsafe_get(idx)
+          codeRef.contents =
+            codeRef.contents ++ `${syncOutputVar}${preparationPath}=${preparationInlinedValue};`
+        }
+
+        for idx in 0 to fieldDefinitions->Js.Array2.length - 1 {
+          let fieldDefinition = fieldDefinitions->Js.Array2.unsafe_get(idx)
+          let {fieldStruct, inlinedFieldName, isRegistered, path} = fieldDefinition
+          let fieldInputVar = b->B.var
+          let fieldOuputVar = b->B.var
+          let fieldCode =
+            b->B.run(
+              ~builder=fieldStruct.parseOperationBuilder,
+              ~struct=fieldStruct,
+              ~inputVar=fieldInputVar,
+              ~outputVar=fieldOuputVar,
+              ~pathVar=`${pathVar}+'['+${inlinedFieldName->Stdlib.Inlined.Value.fromString}+']'`,
+            )
+          let isAsyncField = fieldStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+
+          codeRef.contents =
+            codeRef.contents ++
+            `${fieldInputVar}=${inputVar}[${inlinedFieldName}];` ++
+            fieldCode ++ (isRegistered ? `${syncOutputVar}${path}=${fieldOuputVar};` : "")
+          if isAsyncField {
+            asyncFieldVars
+            ->Js.Array2.push(isRegistered ? `${syncOutputVar}${path}` : fieldOuputVar)
+            ->ignore
+          }
+        }
+
+        let withUnknownKeysRefinement = selfStruct->UnknownKeys.classify === UnknownKeys.Strict
+        switch (withUnknownKeysRefinement, fieldDefinitions) {
+        | (true, []) => {
+            let keyVar = b->B.var
+            codeRef.contents =
+              codeRef.contents ++
+              `for(${keyVar} in ${inputVar}){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. exccessFieldName) => ExcessField(exccessFieldName),
+                  keyVar,
+                )}}`
+          }
+        | (true, _) => {
+            let keyVar = b->B.var
+            codeRef.contents = codeRef.contents ++ `for(${keyVar} in ${inputVar}){if(!(`
+            for idx in 0 to fieldDefinitions->Js.Array2.length - 1 {
+              let fieldDefinition = fieldDefinitions->Js.Array2.unsafe_get(idx)
+              if idx !== 0 {
+                codeRef.contents = codeRef.contents ++ "||"
+              }
+              codeRef.contents =
+                codeRef.contents ++ `${keyVar}===${fieldDefinition.inlinedFieldName}`
+            }
+            codeRef.contents =
+              codeRef.contents ++
+              `)){${b->B.raiseWithArg(
+                  ~pathVar,
+                  (. exccessFieldName) => ExcessField(exccessFieldName),
+                  keyVar,
+                )}}}`
+          }
+
+        | _ => ()
+        }
+
+        for idx in 0 to constantDefinitions->Js.Array2.length - 1 {
+          let {path, value} = constantDefinitions->Js.Array2.unsafe_get(idx)
+          codeRef.contents = codeRef.contents ++ `${syncOutputVar}${path}=${b->B.embed(value)};`
+        }
+
+        if asyncFieldVars->Js.Array2.length === 0 {
+          `${codeRef.contents}${outputVar}=${syncOutputVar};`
+        } else {
+          let resolveVar = b->B.varWithoutAllocation
+          let rejectVar = b->B.varWithoutAllocation
+          let asyncParseResultVar = b->B.varWithoutAllocation
+          let counterVar = b->B.varWithoutAllocation
+
+          `${codeRef.contents}${outputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=${asyncFieldVars
+            ->Js.Array2.length
+            ->Js.Int.toString};${asyncFieldVars
+            ->Js.Array2.map(asyncFieldVar => {
+              `${asyncFieldVar}().then(${asyncParseResultVar}=>{${asyncFieldVar}=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${syncOutputVar})}},${rejectVar})`
+            })
+            ->Js.Array2.joinWith(";")}});`
+        }
+      }),
+      ~serializeOperationBuilder=Builder.make((.
+        b,
+        ~selfStruct as _,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        let {fieldDefinitions, constantDefinitions} = instructions
+
+        let codeRef = ref("")
+
+        for idx in 0 to constantDefinitions->Js.Array2.length - 1 {
+          let {path, value} = constantDefinitions->Js.Array2.unsafe_get(idx)
+          codeRef.contents =
+            codeRef.contents ++
+            `if(${inputVar}${path}!==${b->B.embed(value)}){${b->B.raiseWithArg(
+                ~pathVar=`${pathVar}+${path->Stdlib.Inlined.Value.fromString}`,
+                (. input) => UnexpectedValue({
+                  expected: value->Stdlib.Inlined.Value.stringify,
+                  received: input->Stdlib.Inlined.Value.stringify,
+                }),
+                `${inputVar}${path}`,
+              )}}`
+        }
+
+        codeRef.contents = codeRef.contents ++ `${outputVar}={};`
+
+        for idx in 0 to fieldDefinitions->Js.Array2.length - 1 {
+          let fieldDefinition = fieldDefinitions->Js.Array2.unsafe_get(idx)
+          let {fieldStruct, inlinedFieldName, isRegistered, path} = fieldDefinition
+          let fieldPathVar = `${pathVar}+${path->Stdlib.Inlined.Value.fromString}`
+          let destinationVar = `${outputVar}[${inlinedFieldName}]`
+
+          codeRef.contents =
+            codeRef.contents ++
+            switch isRegistered {
+            | true => {
+                let fieldOuputVar = b->B.var
+                let fieldCode =
+                  b->B.run(
+                    ~builder=fieldStruct.serializeOperationBuilder,
+                    ~struct=fieldStruct,
+                    ~inputVar=destinationVar,
+                    ~outputVar=fieldOuputVar,
+                    ~pathVar=fieldPathVar,
+                  )
+                `${destinationVar}=${inputVar}${path};` ++
+                fieldCode ++ (
+                  destinationVar === fieldOuputVar ? "" : `${destinationVar}=${fieldOuputVar};`
+                )
+              }
+
+            | false =>
+              try {
+                let inlinedValue = fieldStruct->internalToInlinedValue
+                `${destinationVar}=${inlinedValue};`
+              } catch {
+              | _ => b->B.raise(~pathVar=fieldPathVar, MissingSerializer) ++ ";"
+              }
+            }
+        }
+
+        codeRef.contents
+      }),
       (),
     )
   }
@@ -2369,18 +2377,23 @@ module Object = {
 }
 
 module Never = {
-  let transformationFactory = (. ~ctx) =>
-    ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-      raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
-    })
+  let builder = Builder.make((. b, ~selfStruct as _, ~inputVar, ~outputVar as _, ~pathVar) => {
+    b->B.raiseWithArg(
+      ~pathVar,
+      (. input) => UnexpectedType({
+        expected: "Never",
+        received: input->Stdlib.Unknown.toName,
+      }),
+      inputVar,
+    ) ++ ";"
+  })
 
   let struct = make(
     ~name=`Never`,
     ~metadataMap=emptyMetadataMap,
     ~tagged=Never,
-    ~inlinedRefinement="false",
-    ~parseTransformationFactory=transformationFactory,
-    ~serializeTransformationFactory=transformationFactory,
+    ~parseOperationBuilder=builder,
+    ~serializeOperationBuilder=builder,
     (),
   )
 }
@@ -2390,8 +2403,8 @@ module Unknown = {
     ~name=`Unknown`,
     ~metadataMap=emptyMetadataMap,
     ~tagged=Unknown,
-    ~parseTransformationFactory=TransformationFactory.empty,
-    ~serializeTransformationFactory=TransformationFactory.empty,
+    ~parseOperationBuilder=Builder.noop,
+    ~serializeOperationBuilder=Builder.noop,
     (),
   )
 }
@@ -2433,22 +2446,29 @@ module String = {
   // Adapted from https://stackoverflow.com/a/3143231
   let datetimeRe = %re(`/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/`)
 
-  let parseTransformationFactory = (. ~ctx) =>
-    ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-      if input->Js.typeof === "string" {
-        input
-      } else {
-        raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
-      }
-    })
+  let parseOperationBuilder = Builder.make((.
+    b,
+    ~selfStruct as _,
+    ~inputVar,
+    ~outputVar,
+    ~pathVar,
+  ) => {
+    `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
+        ~pathVar,
+        (. input) => UnexpectedType({
+          expected: "String",
+          received: input->Stdlib.Unknown.toName,
+        }),
+        inputVar,
+      )}}${outputVar}=${inputVar};`
+  })
 
   let struct = make(
     ~name="String",
     ~metadataMap=emptyMetadataMap,
     ~tagged=String,
-    ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="string"`,
-    ~parseTransformationFactory,
-    ~serializeTransformationFactory=TransformationFactory.empty,
+    ~parseOperationBuilder,
+    ~serializeOperationBuilder=Builder.noop,
     (),
   )
 
@@ -2624,75 +2644,84 @@ module String = {
 }
 
 module JsonString = {
-  let factory = innerStruct => {
-    let innerStruct = innerStruct->toUnknown
+  let factory = childStruct => {
+    let childStruct = childStruct->toUnknown
     make(
       ~name=`JsonString`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=String,
-      ~parseTransformationFactory=(. ~ctx) => {
-        let process = switch innerStruct->getParseOperation {
-        | NoOperation => Obj.magic
-        | SyncOperation(fn) => fn->Obj.magic
-        | AsyncOperation(fn) => fn->Obj.magic
-        }
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          if input->Js.typeof === "string" {
-            try input->Js.Json.parseExn catch {
-            | Js.Exn.Error(obj) =>
-              fail(
-                switch obj->Js.Exn.message {
-                | Some(m) => m
-                | None => "Failed to parse JSON"
-                },
-              )
-            }->Stdlib.Fn.call1(process, _)
-          } else {
-            raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
-          }
-        })
-        switch innerStruct->getParseOperation {
-        | AsyncOperation(_) =>
-          ctx->TransformationFactory.Ctx.planAsyncTransformation(asyncFn => {
-            asyncFn(.)
-          })
-        | _ => ()
-        }
-      },
-      ~serializeTransformationFactory=(. ~ctx) => {
-        switch innerStruct->getSerializeOperation {
-        | None =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            input->Obj.magic->Js.Json.stringify
-          })
-        | Some(fn) =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            fn(. input)->Obj.magic->Js.Json.stringify
-          })
-        }
-      },
+      ~parseOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
+        let jsonStringVar = b->B.var
+        let stringParserCode =
+          b->B.run(
+            ~builder=String.parseOperationBuilder,
+            ~struct=selfStruct,
+            ~inputVar,
+            ~outputVar=jsonStringVar,
+            ~pathVar,
+          )
+        let jsonVar = b->B.var
+        let childCode =
+          b->B.run(
+            ~builder=childStruct.parseOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar=jsonVar,
+            ~outputVar,
+            ~pathVar,
+          )
+
+        `${stringParserCode}try{${jsonVar}=JSON.parse(${jsonStringVar})}catch(t){${b->B.raiseWithArg(
+            ~pathVar,
+            (. message) => OperationFailed(message),
+            "t.message",
+          )}}${childCode}`
+      }),
+      ~serializeOperationBuilder=Builder.make((.
+        b,
+        ~selfStruct as _,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        let childOutputVar = b->B.var
+        let childCode =
+          b->B.run(
+            ~builder=childStruct.parseOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar,
+            ~outputVar=childOutputVar,
+            ~pathVar,
+          )
+
+        `${childCode}${outputVar}=JSON.stringify(${childOutputVar});`
+      }),
       (),
     )
   }
 }
 
 module Bool = {
-  let parseTransformationFactory = (. ~ctx) =>
-    ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-      if input->Js.typeof === "boolean" {
-        input
-      } else {
-        raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
-      }
-    })
-
   let struct = make(
     ~name="Bool",
     ~metadataMap=emptyMetadataMap,
     ~tagged=Bool,
-    ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="boolean"`,
-    ~parseTransformationFactory,
-    ~serializeTransformationFactory=TransformationFactory.empty,
+    ~parseOperationBuilder=Builder.make((.
+      b,
+      ~selfStruct as _,
+      ~inputVar,
+      ~outputVar,
+      ~pathVar,
+    ) => {
+      `if(typeof ${inputVar}!=="boolean"){${b->B.raiseWithArg(
+          ~pathVar,
+          (. input) => UnexpectedType({
+            expected: "Bool",
+            received: input->Stdlib.Unknown.toName,
+          }),
+          inputVar,
+        )}}${outputVar}=${inputVar};`
+    }),
+    ~serializeOperationBuilder=Builder.noop,
     (),
   )
 }
@@ -2721,22 +2750,27 @@ module Int = {
     }
   }
 
-  let parseTransformationFactory = (. ~ctx) =>
-    ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-      if Stdlib.Int.test(input) {
-        input
-      } else {
-        raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
-      }
-    })
-
   let struct = make(
     ~name="Int",
     ~metadataMap=emptyMetadataMap,
     ~tagged=Int,
-    ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="number"&&${Stdlib.Inlined.Constant.inputVar}<2147483648&&${Stdlib.Inlined.Constant.inputVar}>-2147483649&&${Stdlib.Inlined.Constant.inputVar}%1===0`,
-    ~parseTransformationFactory,
-    ~serializeTransformationFactory=TransformationFactory.empty,
+    ~parseOperationBuilder=Builder.make((.
+      b,
+      ~selfStruct as _,
+      ~inputVar,
+      ~outputVar,
+      ~pathVar,
+    ) => {
+      `if(!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)){${b->B.raiseWithArg(
+          ~pathVar,
+          (. input) => UnexpectedType({
+            expected: "Int",
+            received: input->Stdlib.Unknown.toName,
+          }),
+          inputVar,
+        )}}${outputVar}=${inputVar};`
+    }),
+    ~serializeOperationBuilder=Builder.noop,
     (),
   )
 
@@ -2820,26 +2854,27 @@ module Float = {
     }
   }
 
-  let parseTransformationFactory = (. ~ctx) =>
-    ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-      switch input->Js.typeof === "number" {
-      | true =>
-        if Js.Float.isNaN(input) {
-          raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
-        } else {
-          input
-        }
-      | false => raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
-      }
-    })
-
   let struct = make(
     ~name="Float",
     ~metadataMap=emptyMetadataMap,
     ~tagged=Float,
-    ~inlinedRefinement=`typeof ${Stdlib.Inlined.Constant.inputVar}==="number"&&!Number.isNaN(${Stdlib.Inlined.Constant.inputVar})`,
-    ~parseTransformationFactory,
-    ~serializeTransformationFactory=TransformationFactory.empty,
+    ~parseOperationBuilder=Builder.make((.
+      b,
+      ~selfStruct as _,
+      ~inputVar,
+      ~outputVar,
+      ~pathVar,
+    ) => {
+      `if(!(typeof ${inputVar}==="number"&&!Number.isNaN(${inputVar}))){${b->B.raiseWithArg(
+          ~pathVar,
+          (. input) => UnexpectedType({
+            expected: "Float",
+            received: input->Stdlib.Unknown.toName,
+          }),
+          inputVar,
+        )}}${outputVar}=${inputVar};`
+    }),
+    ~serializeOperationBuilder=Builder.noop,
     (),
   )
 
@@ -2885,105 +2920,124 @@ module Float = {
 }
 
 module Null = {
-  let factory = innerStruct => {
-    let innerStruct = innerStruct->toUnknown
+  let factory = childStruct => {
+    let childStruct = childStruct->toUnknown
     make(
       ~name=`Null`,
       ~metadataMap=emptyMetadataMap,
-      ~tagged=Null(innerStruct),
-      ~parseTransformationFactory=(. ~ctx) => {
-        let planSyncTransformation = fn => {
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            switch input->Js.Null.toOption {
-            | Some(innerData) => Some(fn(. innerData))
-            | None => None
-            }
-          })
-        }
-        switch innerStruct->getParseOperation {
-        | NoOperation =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(null => null->Js.Null.toOption)
-        | SyncOperation(fn) => planSyncTransformation(fn)
-        | AsyncOperation(fn) => {
-            planSyncTransformation(fn)
-            ctx->TransformationFactory.Ctx.planAsyncTransformation(input => {
-              switch input {
-              | Some(asyncFn) => asyncFn(.)->Stdlib.Promise.thenResolve(value => Some(value))
-              | None => None->Stdlib.Promise.resolve
-              }
-            })
-          }
-        }
-      },
-      ~serializeTransformationFactory=(. ~ctx) =>
-        switch innerStruct->getSerializeOperation {
-        | Some(fn) =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            switch input {
-            | Some(value) => fn(. value)
-            | None => Js.Null.empty->castAnyToUnknown
-            }
-          })
-        | None =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            switch input {
-            | Some(value) => value
-            | None => Js.Null.empty->castAnyToUnknown
-            }
-          })
-        },
+      ~tagged=Null(childStruct),
+      ~parseOperationBuilder=Builder.make((.
+        b,
+        ~selfStruct as _,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        let childOutputVar = b->B.var
+        let childCode =
+          b->B.run(
+            ~builder=childStruct.parseOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar,
+            ~outputVar=childOutputVar,
+            ~pathVar,
+          )
+        let isAsyncChild = childStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+
+        `if(${inputVar}!==null){${childCode}${b->B.embedSyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~pathVar,
+            ~isSafe=true,
+            ~fn=%raw("Caml_option.some"),
+            (),
+          )}}else{${outputVar}=${isAsyncChild ? `()=>Promise.resolve(void 0)` : `void 0`}}`
+      }),
+      ~serializeOperationBuilder=Builder.make((.
+        b,
+        ~selfStruct as _,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        let childOutputVar = b->B.var
+        let childCode =
+          b->B.run(
+            ~builder=childStruct.serializeOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar,
+            ~outputVar=childOutputVar,
+            ~pathVar,
+          )
+
+        `if(${inputVar}!==void 0){${inputVar}=${b->B.embed(
+            %raw("Caml_option.valFromOption"),
+          )}(${inputVar});${childCode}${outputVar}=${childOutputVar}}else{${outputVar}=null}`
+      }),
       (),
     )
   }
 }
 
 module Option = {
-  let factory = innerStruct => {
-    let innerStruct = innerStruct->toUnknown
+  let factory = childStruct => {
+    let childStruct = childStruct->toUnknown
     make(
       ~name=`Option`,
       ~metadataMap=emptyMetadataMap,
-      ~tagged=Option(innerStruct),
-      ~parseTransformationFactory=(. ~ctx) => {
-        let planSyncTransformation = fn => {
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            switch input {
-            | Some(innerData) => Some(fn(. innerData))
-            | None => None
-            }
-          })
-        }
-        switch innerStruct->getParseOperation {
-        | NoOperation => ()
-        | SyncOperation(fn) => planSyncTransformation(fn)
-        | AsyncOperation(fn) => {
-            planSyncTransformation(fn)
-            ctx->TransformationFactory.Ctx.planAsyncTransformation(input => {
-              switch input {
-              | Some(asyncFn) => asyncFn(.)->Stdlib.Promise.thenResolve(value => Some(value))
-              | None => None->Stdlib.Promise.resolve
-              }
-            })
-          }
-        }
-      },
-      ~serializeTransformationFactory=(. ~ctx) =>
-        switch innerStruct->getSerializeOperation {
-        | Some(fn) =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            switch input {
-            | Some(value) => fn(. value)
-            | None => Js.Undefined.empty->castAnyToUnknown
-            }
-          })
-        | None =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            switch input {
-            | Some(value) => value
-            | None => Js.Undefined.empty->castAnyToUnknown
-            }
-          })
-        },
+      ~tagged=Option(childStruct),
+      ~parseOperationBuilder=Builder.make((.
+        b,
+        ~selfStruct as _,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        let childOutputVar = b->B.var
+        let childCode =
+          b->B.run(
+            ~builder=childStruct.parseOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar,
+            ~outputVar=childOutputVar,
+            ~pathVar,
+          )
+
+        let isChildAsync = childStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+
+        `if(${inputVar}!==void 0){${childCode}${b->B.embedSyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~pathVar,
+            ~isSafe=true,
+            ~fn=%raw("Caml_option.some"),
+            (),
+          )}}else{${outputVar}=${switch isChildAsync {
+          | false => inputVar
+          | true => `()=>Promise.resolve(${inputVar})`
+          }}}`
+      }),
+      ~serializeOperationBuilder=Builder.make((.
+        b,
+        ~selfStruct as _,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        let childOutputVar = b->B.var
+        let childCode =
+          b->B.run(
+            ~builder=childStruct.serializeOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar,
+            ~outputVar=childOutputVar,
+            ~pathVar,
+          )
+
+        `if(${inputVar}!==void 0){${inputVar}=${b->B.embed(
+            %raw("Caml_option.valFromOption"),
+          )}(${inputVar});${childCode}${outputVar}=${childOutputVar}}else{${outputVar}=void 0}`
+      }),
       (),
     )
   }
@@ -3013,91 +3067,81 @@ module Array = {
     }
   }
 
-  let factory = innerStruct => {
-    let innerStruct = innerStruct->toUnknown
+  let factory = childStruct => {
+    let childStruct = childStruct->toUnknown
     make(
       ~name=`Array`,
       ~metadataMap=emptyMetadataMap,
-      ~tagged=Array(innerStruct->Obj.magic),
-      ~parseTransformationFactory=(. ~ctx) => {
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          if Js.Array2.isArray(input) === false {
-            raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
-          } else {
-            input
-          }
-        })
+      ~tagged=Array(childStruct),
+      ~parseOperationBuilder=Builder.make((.
+        b,
+        ~selfStruct as _,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        let iteratorVar = b->B.varWithoutAllocation
 
-        let planSyncTransformation = fn => {
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            let newArray = []
-            for idx in 0 to input->Js.Array2.length - 1 {
-              let innerData = input->Js.Array2.unsafe_get(idx)
-              try {
-                let value = fn(. innerData)
-                newArray->Js.Array2.push(value)->ignore
-              } catch {
-              | Error.Internal.Exception(internalError) =>
-                raise(
-                  Error.Internal.Exception(
-                    internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                  ),
-                )
-              }
-            }
-            newArray
-          })
-        }
+        let code = `if(!Array.isArray(${inputVar})){${b->B.raiseWithArg(
+            ~pathVar,
+            (. input) => UnexpectedType({
+              expected: "Array",
+              received: input->Stdlib.Unknown.toName,
+            }),
+            inputVar,
+          )}}${outputVar}=[];for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.varsScope(
+            (. b) => {
+              let itemVar = b->B.var
+              let childOutputVar = b->B.var
 
-        switch innerStruct->getParseOperation {
-        | NoOperation => ()
-        | SyncOperation(fn) => planSyncTransformation(fn)
-        | AsyncOperation(fn) =>
-          planSyncTransformation(fn)
-          ctx->TransformationFactory.Ctx.planAsyncTransformation(input => {
-            input
-            ->Js.Array2.mapi((asyncFn, idx) => {
-              asyncFn(.)->Stdlib.Promise.catch(
-                exn => {
-                  switch exn {
-                  | Error.Internal.Exception(internalError) =>
-                    Error.Internal.Exception(
-                      internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                    )
-                  | _ => exn
-                  }->raise
-                },
-              )
-            })
-            ->Stdlib.Promise.all
-            ->Obj.magic
-          })
-        }
-      },
-      ~serializeTransformationFactory=(. ~ctx) => {
-        switch innerStruct->getSerializeOperation {
-        | None => ()
-        | Some(fn) =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            let newArray = []
-            for idx in 0 to input->Js.Array2.length - 1 {
-              let innerData = input->Js.Array2.unsafe_get(idx)
-              try {
-                let value = fn(. innerData)
-                newArray->Js.Array2.push(value)->ignore
-              } catch {
-              | Error.Internal.Exception(internalError) =>
-                raise(
-                  Error.Internal.Exception(
-                    internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                  ),
+              let childCode =
+                b->B.run(
+                  ~builder=childStruct.parseOperationBuilder,
+                  ~struct=childStruct,
+                  ~inputVar=itemVar,
+                  ~outputVar=childOutputVar,
+                  ~pathVar=`${pathVar}+'["'+${iteratorVar}+'"]'`,
                 )
-              }
-            }
-            newArray
-          })
+              `${itemVar}=${inputVar}[${iteratorVar}];${childCode}${outputVar}.push(${childOutputVar})`
+            },
+          )}}`
+
+        let isAsync = childStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+        if isAsync {
+          let syncOutputVar = b->B.var
+          code ++
+          `${syncOutputVar}=${outputVar};${outputVar}=()=>Promise.all(${syncOutputVar}.map(t=>t()));`
+        } else {
+          code
         }
-      },
+      }),
+      ~serializeOperationBuilder=Builder.make((.
+        b,
+        ~selfStruct as _,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        let iteratorVar = b->B.varWithoutAllocation
+
+        // TODO: Optimize when childStruct.serializeOperationBuilder is noop
+        `${outputVar}=[];for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.varsScope(
+            (. b) => {
+              let itemVar = b->B.var
+              let childOutputVar = b->B.var
+
+              let code =
+                b->B.run(
+                  ~builder=childStruct.serializeOperationBuilder,
+                  ~struct=childStruct,
+                  ~inputVar=itemVar,
+                  ~outputVar=childOutputVar,
+                  ~pathVar=`${pathVar}+'["'+${iteratorVar}+'"]'`,
+                )
+              `${itemVar}=${inputVar}[${iteratorVar}];${code}${outputVar}.push(${childOutputVar})`
+            },
+          )}}`
+      }),
       (),
     )
   }
@@ -3164,101 +3208,79 @@ module Array = {
 }
 
 module Dict = {
-  let factory = innerStruct => {
-    let innerStruct = innerStruct->toUnknown
+  let factory = childStruct => {
+    let childStruct = childStruct->toUnknown
     make(
       ~name=`Dict`,
       ~metadataMap=emptyMetadataMap,
-      ~tagged=Dict(innerStruct),
-      ~parseTransformationFactory=(. ~ctx) => {
-        let planSyncTransformation = fn => {
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            let newDict = Js.Dict.empty()
-            let keys = input->Js.Dict.keys
-            for idx in 0 to keys->Js.Array2.length - 1 {
-              let key = keys->Js.Array2.unsafe_get(idx)
-              let innerData = input->Js.Dict.unsafeGet(key)
-              try {
-                let value = fn(. innerData)
-                newDict->Js.Dict.set(key, value)->ignore
-              } catch {
-              | Error.Internal.Exception(internalError) =>
-                raise(Error.Internal.Exception(internalError->Error.Internal.prependLocation(key)))
-              }
-            }
-            newDict
-          })
-        }
+      ~tagged=Dict(childStruct),
+      ~parseOperationBuilder=Builder.make((.
+        b,
+        ~selfStruct as _,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        let keyVar = b->B.varWithoutAllocation
 
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          if input->Stdlib.Object.test === false {
-            raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
-          } else {
-            input
-          }
-        })
-
-        switch innerStruct->getParseOperation {
-        | NoOperation => ()
-        | SyncOperation(fn) => planSyncTransformation(fn)
-        | AsyncOperation(fn) =>
-          planSyncTransformation(fn)
-          ctx->TransformationFactory.Ctx.planAsyncTransformation(input => {
-            let keys = input->Js.Dict.keys
-            keys
-            ->Js.Array2.map(key => {
-              let asyncFn = input->Js.Dict.unsafeGet(key)
-              try {
-                asyncFn(.)->Stdlib.Promise.catch(
-                  exn => {
-                    switch exn {
-                    | Error.Internal.Exception(internalError) =>
-                      Error.Internal.Exception(internalError->Error.Internal.prependLocation(key))
-                    | _ => exn
-                    }->raise
-                  },
-                )
-              } catch {
-              | Error.Internal.Exception(internalError) =>
-                Error.Internal.Exception(internalError->Error.Internal.prependLocation(key))->raise
-              }
-            })
-            ->Stdlib.Promise.all
-            ->Stdlib.Promise.thenResolve(values => {
-              let tempDict = Js.Dict.empty()
-              values->Js.Array2.forEachi(
-                (value, idx) => {
-                  let key = keys->Js.Array2.unsafe_get(idx)
-                  tempDict->Js.Dict.set(key, value)
-                },
+        let code = `if(!(typeof ${inputVar}==="object"&&${inputVar}!==null&&!Array.isArray(${inputVar}))){${b->B.raiseWithArg(
+            ~pathVar,
+            (. input) => UnexpectedType({
+              expected: "Dict",
+              received: input->Stdlib.Unknown.toName,
+            }),
+            inputVar,
+          )}}${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.varsScope((. b) => {
+            let itemVar = b->B.var
+            let childOutputVar = b->B.var
+            let childCode =
+              b->B.run(
+                ~builder=childStruct.parseOperationBuilder,
+                ~struct=childStruct,
+                ~inputVar=itemVar,
+                ~outputVar=childOutputVar,
+                ~pathVar=`${pathVar}+'["'+${keyVar}+'"]'`,
               )
-              tempDict
-            })
-          })
+            `${itemVar}=${inputVar}[${keyVar}];${childCode}${outputVar}[${keyVar}]=${childOutputVar}`
+          })}}`
+
+        let isAsync = childStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+        if isAsync {
+          let resolveVar = b->B.varWithoutAllocation
+          let rejectVar = b->B.varWithoutAllocation
+          let asyncParseResultVar = b->B.varWithoutAllocation
+          let counterVar = b->B.varWithoutAllocation
+          let syncOutputVar = b->B.var
+          `${code}${syncOutputVar}=${outputVar};${outputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=Object.keys(${syncOutputVar}).length;for(let ${keyVar} in ${syncOutputVar}){${syncOutputVar}[${keyVar}]().then(${asyncParseResultVar}=>{${syncOutputVar}[${keyVar}]=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${syncOutputVar})}},${rejectVar})}});`
+        } else {
+          code
         }
-      },
-      ~serializeTransformationFactory=(. ~ctx) => {
-        switch innerStruct->getSerializeOperation {
-        | None => ()
-        | Some(fn) =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            let newDict = Js.Dict.empty()
-            let keys = input->Js.Dict.keys
-            for idx in 0 to keys->Js.Array2.length - 1 {
-              let key = keys->Js.Array2.unsafe_get(idx)
-              let innerData = input->Js.Dict.unsafeGet(key)
-              try {
-                let value = fn(. innerData)
-                newDict->Js.Dict.set(key, value)->ignore
-              } catch {
-              | Error.Internal.Exception(internalError) =>
-                raise(Error.Internal.Exception(internalError->Error.Internal.prependLocation(key)))
-              }
-            }
-            newDict
-          })
-        }
-      },
+      }),
+      ~serializeOperationBuilder=Builder.make((.
+        b,
+        ~selfStruct as _,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        let keyVar = b->B.varWithoutAllocation
+
+        // TODO: Optimize when childStruct.serializeOperationBuilder is noop
+        `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.varsScope((. b) => {
+            let itemVar = b->B.var
+            let childOutputVar = b->B.var
+            let childCode =
+              b->B.run(
+                ~builder=childStruct.serializeOperationBuilder,
+                ~struct=childStruct,
+                ~inputVar=itemVar,
+                ~outputVar=childOutputVar,
+                ~pathVar=`${pathVar}+'["'+${keyVar}+'"]'`,
+              )
+
+            `${itemVar}=${inputVar}[${keyVar}];${childCode}${outputVar}[${keyVar}]=${childOutputVar}`
+          })}}`
+      }),
       (),
     )
   }
@@ -3267,54 +3289,46 @@ module Dict = {
 module Default = {
   let metadataId = Metadata.Id.make(~namespace="rescript-struct", ~name="Default")
 
-  let factory = (innerStruct, getDefaultValue) => {
-    let innerStruct = innerStruct->Option.factory->(Obj.magic: t<'value> => t<unknown>)
+  let factory = (childStruct, getDefaultValue) => {
+    let childStruct = childStruct->Option.factory->(Obj.magic: t<'value> => t<unknown>)
     let getDefaultValue = getDefaultValue->(Obj.magic: (unit => 'value) => (. unit) => unknown)
     make(
-      ~name=innerStruct.name,
+      ~name=childStruct.name,
       ~metadataMap=emptyMetadataMap,
-      ~tagged=innerStruct.tagged,
-      ~parseTransformationFactory=(. ~ctx) => {
-        switch innerStruct->getParseOperation {
-        | NoOperation =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            switch input->castUnknownToAny {
-            | Some(v) => v
-            | None => getDefaultValue(.)
-            }
-          })
-        | SyncOperation(fn) =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            switch fn(. input)->castUnknownToAny {
-            | Some(v) => v
-            | None => getDefaultValue(.)
-            }
-          })
-        | AsyncOperation(fn) =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(fn->Stdlib.Fn.castToCurried)
-          ctx->TransformationFactory.Ctx.planAsyncTransformation(asyncFn => {
-            asyncFn(.)->Stdlib.Promise.thenResolve(value => {
-              switch value->castUnknownToAny {
-              | Some(v) => v
-              | None => getDefaultValue(.)
-              }
-            })
-          })
-        }
-      },
-      ~serializeTransformationFactory=(. ~ctx) => {
-        switch innerStruct->getSerializeOperation {
-        | Some(fn) =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            let value = Some(input)->castAnyToUnknown
-            fn(. value)
-          })
-        | None =>
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            Some(input)->castAnyToUnknown
-          })
-        }
-      },
+      ~tagged=childStruct.tagged,
+      ~parseOperationBuilder=Builder.make((.
+        b,
+        ~selfStruct as _,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        let childOutputVar = b->B.var
+        let childCode =
+          b->B.run(
+            ~builder=childStruct.parseOperationBuilder,
+            ~struct=childStruct,
+            ~inputVar,
+            ~outputVar=childOutputVar,
+            ~pathVar,
+          )
+        let isChildAsync = childStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+
+        let defaultValVar = `${b->B.embed(getDefaultValue)}()`
+
+        `if(${inputVar}!==void 0){${childCode}${b->B.embedSyncOperation(
+            ~inputVar=childOutputVar,
+            ~outputVar,
+            ~pathVar,
+            ~isSafe=true,
+            ~fn=%raw("Caml_option.some"),
+            (),
+          )}}else{${outputVar}=${switch isChildAsync {
+          | false => defaultValVar
+          | true => `()=>Promise.resolve(${defaultValVar})`
+          }}}`
+      }),
+      ~serializeOperationBuilder=childStruct.serializeOperationBuilder,
       (),
     )->Metadata.set(~id=metadataId, ~metadata=getDefaultValue)
   }
@@ -3333,137 +3347,97 @@ module Tuple = {
       ~name="Tuple",
       ~metadataMap=emptyMetadataMap,
       ~tagged=Tuple(structs),
-      ~parseTransformationFactory=(. ~ctx) => {
-        let noopOps = []
-        let syncOps = []
-        let asyncOps = []
-        for idx in 0 to structs->Js.Array2.length - 1 {
-          let innerStruct = structs->Js.Array2.unsafe_get(idx)
-          switch innerStruct->getParseOperation {
-          | NoOperation => noopOps->Js.Array2.push(idx)->ignore
-          | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fn))->ignore
-          | AsyncOperation(fn) => {
-              syncOps->Js.Array2.push((idx, fn->Obj.magic))->ignore
-              asyncOps->Js.Array2.push(idx)->ignore
-            }
-          }
-        }
-        let withAsyncOps = asyncOps->Js.Array2.length > 0
-
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          switch Js.Array2.isArray(input) {
-          | true =>
-            let numberOfInputItems = input->Js.Array2.length
-            if numberOfStructs !== numberOfInputItems {
-              Error.Internal.raise(
-                TupleSize({
-                  expected: numberOfStructs,
-                  received: numberOfInputItems,
-                }),
+      ~parseOperationBuilder=Builder.make((.
+        b,
+        ~selfStruct as _,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        let codeRef = ref(
+          `if(!Array.isArray(${inputVar})){${b->B.raiseWithArg(
+              ~pathVar,
+              (. input) => UnexpectedType({
+                expected: "Tuple",
+                received: input->Stdlib.Unknown.toName,
+              }),
+              inputVar,
+            )}}if(${inputVar}.length!==${numberOfStructs->Stdlib.Int.unsafeToString}){${b->B.raiseWithArg(
+              ~pathVar,
+              (. numberOfInputItems) => TupleSize({
+                expected: numberOfStructs,
+                received: numberOfInputItems,
+              }),
+              `${inputVar}.length`,
+            )}}`,
+        )
+        switch structs {
+        | [] => codeRef.contents ++ `${outputVar}=void 0;`
+        | [itemStruct] => {
+            let childCode =
+              b->B.run(
+                ~builder=itemStruct.parseOperationBuilder,
+                ~struct=itemStruct,
+                ~inputVar=`${inputVar}[0]`,
+                ~outputVar,
+                ~pathVar=`${pathVar}+'["0"]'`,
               )
-            }
-          | false => raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
+            codeRef.contents ++ childCode
           }
-
-          let newArray = []
-
-          for idx in 0 to syncOps->Js.Array2.length - 1 {
-            let (originalIdx, fn) = syncOps->Js.Array2.unsafe_get(idx)
-            let innerData = input->Js.Array2.unsafe_get(originalIdx)
-            try {
-              let value = fn(. innerData)
-              newArray->Stdlib.Array.set(originalIdx, value)
-            } catch {
-            | Error.Internal.Exception(internalError) =>
-              raise(
-                Error.Internal.Exception(
-                  internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                ),
-              )
-            }
-          }
-
-          for idx in 0 to noopOps->Js.Array2.length - 1 {
-            let originalIdx = noopOps->Js.Array2.unsafe_get(idx)
-            let innerData = input->Js.Array2.unsafe_get(originalIdx)
-            newArray->Stdlib.Array.set(originalIdx, innerData)
-          }
-
-          switch withAsyncOps {
-          | true => newArray->castAnyToUnknown
-          | false =>
-            switch numberOfStructs {
-            | 0 => ()->castAnyToUnknown
-            | 1 => newArray->Js.Array2.unsafe_get(0)->castAnyToUnknown
-            | _ => newArray->castAnyToUnknown
-            }
-          }
-        })
-
-        if withAsyncOps {
-          ctx->TransformationFactory.Ctx.planAsyncTransformation(tempArray => {
-            asyncOps
-            ->Js.Array2.map(originalIdx => {
-              (
-                tempArray->castUnknownToAny->Js.Array2.unsafe_get(originalIdx)->Obj.magic
-              )(.)->Stdlib.Promise.catch(
-                exn => {
-                  switch exn {
-                  | Error.Internal.Exception(internalError) =>
-                    Error.Internal.Exception(
-                      internalError->Error.Internal.prependLocation(originalIdx->Js.Int.toString),
-                    )
-                  | _ => exn
-                  }->raise
-                },
-              )
-            })
-            ->Stdlib.Promise.all
-            ->Stdlib.Promise.thenResolve(values => {
-              values->Js.Array2.forEachi(
-                (value, idx) => {
-                  let originalIdx = asyncOps->Js.Array2.unsafe_get(idx)
-                  tempArray->castUnknownToAny->Stdlib.Array.set(originalIdx, value)
-                },
-              )
-              tempArray->castUnknownToAny->Stdlib.Array.toTuple
-            })
-          })
-        }
-      },
-      ~serializeTransformationFactory=(. ~ctx) => {
-        let serializeOperations = []
-        for idx in 0 to structs->Js.Array2.length - 1 {
-          serializeOperations
-          ->Js.Array2.push(structs->Js.Array2.unsafe_get(idx)->getSerializeOperation)
-          ->ignore
-        }
-
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          let inputArray = numberOfStructs === 1 ? [input] : input->Obj.magic
-
-          let newArray = []
-          for idx in 0 to serializeOperations->Js.Array2.length - 1 {
-            let innerData = inputArray->Js.Array2.unsafe_get(idx)
-            let serializeOperation = serializeOperations->Js.Array.unsafe_get(idx)
-            switch serializeOperation {
-            | None => newArray->Js.Array2.push(innerData)->ignore
-            | Some(fn) =>
-              try {
-                let value = fn(. innerData)
-                newArray->Js.Array2.push(value)->ignore
-              } catch {
-              | Error.Internal.Exception(internalError) =>
-                raise(
-                  Error.Internal.Exception(
-                    internalError->Error.Internal.prependLocation(idx->Js.Int.toString),
-                  ),
+        | _ => {
+            let asyncItemVars = []
+            // TODO: Stop using syncOutputVar in favor on outputVar and move var reasignment to the async part
+            let syncOutputVar = b->B.var
+            codeRef.contents = codeRef.contents ++ `${syncOutputVar}=[];`
+            for idx in 0 to structs->Js.Array2.length - 1 {
+              let itemStruct = structs->Js.Array2.unsafe_get(idx)
+              let childOutputVar = b->B.var
+              let childCode =
+                b->B.run(
+                  ~builder=itemStruct.parseOperationBuilder,
+                  ~struct=itemStruct,
+                  ~inputVar=`${inputVar}[${idx->Stdlib.Int.unsafeToString}]`,
+                  ~outputVar=childOutputVar,
+                  ~pathVar=`${pathVar}+'["${idx->Stdlib.Int.unsafeToString}"]'`,
                 )
+              let isAsyncItem = itemStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+
+              let destVar = `${syncOutputVar}[${idx->Stdlib.Int.unsafeToString}]`
+              codeRef.contents = codeRef.contents ++ `${childCode}${destVar}=${childOutputVar};`
+              if isAsyncItem {
+                asyncItemVars->Js.Array2.push(destVar)->ignore
               }
             }
+
+            if asyncItemVars->Js.Array2.length === 0 {
+              codeRef.contents ++ `${outputVar}=${syncOutputVar};`
+            } else {
+              let resolveVar = b->B.varWithoutAllocation
+              let rejectVar = b->B.varWithoutAllocation
+              let asyncParseResultVar = b->B.varWithoutAllocation
+              let counterVar = b->B.varWithoutAllocation
+
+              `${codeRef.contents}${outputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=${asyncItemVars
+                ->Js.Array2.length
+                ->Js.Int.toString};${asyncItemVars
+                ->Js.Array2.map(asyncItemVar => {
+                  `${asyncItemVar}().then(${asyncParseResultVar}=>{${asyncItemVar}=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${syncOutputVar})}},${rejectVar})`
+                })
+                ->Js.Array2.joinWith(";")}});`
+            }
           }
-          newArray
+        }
+      }),
+      ~serializeOperationBuilder=switch structs {
+      | [] =>
+        Builder.make((. _b, ~selfStruct as _, ~inputVar as _, ~outputVar, ~pathVar as _) => {
+          `${outputVar}=[];`
         })
+      | [_] =>
+        Builder.make((. _b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar as _) => {
+          `${outputVar}=[${inputVar}];`
+        })
+      | _ => Builder.noop
       },
       (),
     )
@@ -3478,8 +3452,6 @@ module Tuple = {
 }
 
 module Union = {
-  exception HackyValidValue(unknown)
-
   let factory = structs => {
     let structs: array<t<unknown>> = structs->Obj.magic
 
@@ -3491,147 +3463,142 @@ module Union = {
       ~name=`Union`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Union(structs),
-      ~parseTransformationFactory=(. ~ctx) => {
-        let structs = ctx.struct->classify->unsafeGetVariantPayload
+      ~parseOperationBuilder=Builder.make((. b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
+        let structs = selfStruct->classify->unsafeGetVariantPayload
 
-        let noopOps = []
-        let syncOps = []
-        let asyncOps = []
+        let errorVars = []
+        let asyncItems = Js.Dict.empty()
+        let withAsyncItemRef = ref(false)
+        let syncOutputVar = b->B.var
+
+        let codeRef = ref("")
+        let codeEndRef = ref("")
+
         for idx in 0 to structs->Js.Array2.length - 1 {
-          let innerStruct = structs->Js.Array2.unsafe_get(idx)
-          switch innerStruct->getParseOperation {
-          | NoOperation => noopOps->Js.Array2.push()->ignore
-          | SyncOperation(fn) => syncOps->Js.Array2.push((idx, fn))->ignore
-          | AsyncOperation(fn) => asyncOps->Js.Array2.push((idx, fn))->ignore
-          }
-        }
-        let withAsyncOps = asyncOps->Js.Array2.length > 0
-
-        if noopOps->Js.Array2.length === 0 {
-          ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-            let idxRef = ref(0)
-            let errorsRef = ref([])
-            let maybeNewValueRef = ref(None)
-            while (
-              idxRef.contents < syncOps->Js.Array2.length && maybeNewValueRef.contents === None
-            ) {
-              let idx = idxRef.contents
-              let (originalIdx, fn) = syncOps->Js.Array2.unsafe_get(idx)
-              try {
-                let newValue = fn(. input)
-                maybeNewValueRef.contents = Some(newValue)
-              } catch {
-              | Error.Internal.Exception(internalError) => {
-                  errorsRef.contents->Stdlib.Array.set(originalIdx, internalError)
-                  idxRef.contents = idxRef.contents->Stdlib.Int.plus(1)
-                }
-              }
-            }
-            switch (maybeNewValueRef.contents, withAsyncOps) {
-            | (Some(newValue), false) => newValue
-            | (None, false) =>
-              Error.Internal.raise(
-                InvalidUnion(errorsRef.contents->Js.Array2.map(Error.Internal.toParseError)),
-              )
-            | (maybeSyncValue, true) =>
-              {
-                "maybeSyncValue": maybeSyncValue,
-                "tempErrors": errorsRef.contents,
-                "originalInput": input,
-              }->castAnyToUnknown
-            }
-          })
-
-          if withAsyncOps {
-            ctx->TransformationFactory.Ctx.planAsyncTransformation(input => {
-              switch input["maybeSyncValue"] {
-              | Some(syncValue) => syncValue->Stdlib.Promise.resolve
-              | None =>
-                asyncOps
-                ->Js.Array2.map(((originalIdx, fn)) => {
-                  try {
-                    fn(. input["originalInput"])(.)->Stdlib.Promise.thenResolveWithCatch(
-                      value => raise(HackyValidValue(value)),
-                      exn =>
-                        switch exn {
-                        | Error.Internal.Exception(internalError) =>
-                          input["tempErrors"]->Stdlib.Array.set(originalIdx, internalError)
-                        | _ => raise(exn)
-                        },
-                    )
-                  } catch {
-                  | Error.Internal.Exception(internalError) =>
-                    input["tempErrors"]
-                    ->Stdlib.Array.set(originalIdx, internalError)
-                    ->Stdlib.Promise.resolve
-                  }
-                })
-                ->Stdlib.Promise.all
-                ->Stdlib.Promise.thenResolveWithCatch(
-                  _ => {
-                    Error.Internal.raise(
-                      InvalidUnion(input["tempErrors"]->Js.Array2.map(Error.Internal.toParseError)),
-                    )
-                  },
-                  exn => {
-                    switch exn {
-                    | HackyValidValue(value) => value
-                    | _ => raise(exn)
-                    }
-                  },
-                )
-              }
-            })
-          }
-        }
-      },
-      ~serializeTransformationFactory=(. ~ctx) => {
-        let serializeOperations = []
-        for idx in 0 to structs->Js.Array2.length - 1 {
-          serializeOperations
-          ->Js.Array2.push(structs->Js.Array2.unsafe_get(idx)->getSerializeOperation)
-          ->ignore
-        }
-
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          let idxRef = ref(0)
-          let errors = []
-          let maybeNewValueRef = ref(None)
-          while (
-            idxRef.contents < serializeOperations->Js.Array2.length &&
-              maybeNewValueRef.contents === None
-          ) {
-            let idx = idxRef.contents
-            let serializeOperation = serializeOperations->Js.Array2.unsafe_get(idx)
-            try {
-              let newValue = switch serializeOperation {
-              | None => input
-              | Some(fn) => fn(. input)
-              }
-              maybeNewValueRef.contents = Some(newValue)
-            } catch {
-            | Error.Internal.Exception(internalError) => {
-                errors->Js.Array2.push(internalError)->ignore
-                idxRef.contents = idxRef.contents->Stdlib.Int.plus(1)
-              }
-            }
-          }
-          switch maybeNewValueRef.contents {
-          | Some(ok) => ok
-          | None =>
-            Error.Internal.raise(
-              InvalidUnion(errors->Js.Array2.map(Error.Internal.toSerializeError)),
+          let itemStruct = structs->Js.Array2.unsafe_get(idx)
+          let childOutputVar = b->B.var
+          let childCode =
+            b->B.run(
+              ~builder=itemStruct.parseOperationBuilder,
+              ~struct=itemStruct,
+              ~inputVar,
+              ~outputVar=childOutputVar,
+              ~pathVar=`""`,
             )
+          let isAsyncItem = itemStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+
+          let errorVar = b->B.varWithoutAllocation
+          errorVars->Js.Array2.push(errorVar)->ignore
+
+          if isAsyncItem {
+            withAsyncItemRef := true
+            asyncItems->Js.Dict.set(idx->Stdlib.Int.unsafeToString, childOutputVar)
           }
-        })
-      },
+
+          codeRef.contents =
+            codeRef.contents ++
+            `try{${childCode}${isAsyncItem
+                ? `throw `
+                : `${syncOutputVar}=`}${childOutputVar}}catch(${errorVar}){if(${b->B.isInternalError(
+                errorVar,
+              )}${isAsyncItem ? `||${errorVar}===${childOutputVar}` : ""}){`
+          codeEndRef.contents = `}else{throw ${errorVar}}}` ++ codeEndRef.contents
+        }
+
+        if withAsyncItemRef.contents {
+          codeRef.contents = codeRef.contents ++ `${outputVar}=()=>Promise.any([`
+          for idx in 0 to errorVars->Js.Array2.length - 1 {
+            let errorVar = errorVars->Js.Array2.unsafe_get(idx)
+            let maybeAsyncVar = asyncItems->Js.Dict.get(idx->Stdlib.Int.unsafeToString)
+            if idx !== 0 {
+              codeRef.contents = codeRef.contents ++ ","
+            }
+            switch maybeAsyncVar {
+            | Some(asyncVar) =>
+              codeRef.contents = codeRef.contents ++ `${errorVar}===${asyncVar}?${errorVar}():`
+            | None => ()
+            }
+            codeRef.contents = codeRef.contents ++ `Promise.reject(${errorVar})`
+          }
+          codeRef.contents =
+            codeRef.contents ++
+            `]).catch(t=>{${b->B.raiseWithArg(
+                ~pathVar,
+                (. internalErrors) => {
+                  InvalidUnion(internalErrors->Js.Array2.map(Error.Internal.toParseError))
+                },
+                `t.errors`,
+              )}})`
+
+          codeRef.contents ++
+          codeEndRef.contents ++
+          `if(!${outputVar}){${outputVar}=()=>Promise.resolve(${syncOutputVar})}`
+        } else {
+          codeRef.contents ++
+          b->B.raiseWithArg(
+            ~pathVar,
+            (. internalErrors) => InvalidUnion(
+              internalErrors->Js.Array2.map(Error.Internal.toParseError),
+            ),
+            `[${errorVars->Js.Array2.toString}]`,
+          ) ++
+          codeEndRef.contents ++
+          `${outputVar}=${syncOutputVar};`
+        }
+      }),
+      ~serializeOperationBuilder=Builder.make((.
+        b,
+        ~selfStruct,
+        ~inputVar,
+        ~outputVar,
+        ~pathVar,
+      ) => {
+        let structs = selfStruct->classify->unsafeGetVariantPayload
+
+        let errorVars = []
+
+        let codeRef = ref("")
+        let codeEndRef = ref("")
+
+        for idx in 0 to structs->Js.Array2.length - 1 {
+          let itemStruct = structs->Js.Array2.unsafe_get(idx)
+          let childOutputVar = b->B.var
+          let childCode =
+            b->B.run(
+              ~builder=itemStruct.serializeOperationBuilder,
+              ~struct=itemStruct,
+              ~inputVar,
+              ~outputVar=childOutputVar,
+              ~pathVar=`""`,
+            )
+          let errorVar = b->B.varWithoutAllocation
+          errorVars->Js.Array2.push(errorVar)->ignore
+
+          codeRef.contents =
+            codeRef.contents ++
+            `try{${childCode}${outputVar}=${childOutputVar}}catch(${errorVar}){if(${b->B.isInternalError(
+                errorVar,
+              )}){`
+          codeEndRef.contents = `}else{throw ${errorVar}}}` ++ codeEndRef.contents
+        }
+
+        codeRef.contents ++
+        b->B.raiseWithArg(
+          ~pathVar,
+          (. internalErrors) => InvalidUnion(
+            internalErrors->Js.Array2.map(Error.Internal.toSerializeError),
+          ),
+          `[${errorVars->Js.Array2.toString}]`,
+        ) ++
+        codeEndRef.contents
+      }),
       (),
     )
   }
 }
 
-let list = innerStruct => {
-  innerStruct
+let list = childStruct => {
+  childStruct
   ->Array.factory
   ->transform(
     ~parser=array => array->Belt.List.fromArray,
@@ -3641,7 +3608,7 @@ let list = innerStruct => {
 }
 
 let json = {
-  let rec parse = (input, ~ctx) => {
+  let rec parse = (input, ~path) => {
     switch input->Js.typeof {
     | "number" if Js.Float.isNaN(input->(Obj.magic: unknown => float))->not =>
       input->(Obj.magic: unknown => Js.Json.t)
@@ -3654,7 +3621,11 @@ let json = {
         let output = []
         for idx in 0 to input->Js.Array2.length - 1 {
           let inputItem = input->Js.Array2.unsafe_get(idx)
-          output->Js.Array2.push(inputItem->parse(~ctx))->ignore
+          output
+          ->Js.Array2.push(
+            inputItem->parse(~path=path->Path.concat(Path.fromLocation(idx->Js.Int.toString))),
+          )
+          ->ignore
         }
         output->Js.Json.array
       } else {
@@ -3664,7 +3635,7 @@ let json = {
         for idx in 0 to keys->Js.Array2.length - 1 {
           let key = keys->Js.Array2.unsafe_get(idx)
           let field = input->Js.Dict.unsafeGet(key)
-          output->Js.Dict.set(key, field->parse(~ctx))
+          output->Js.Dict.set(key, field->parse(~path=path->Path.concat(Path.fromLocation(key))))
         }
         output->Js.Json.object_
       }
@@ -3673,19 +3644,31 @@ let json = {
     | "boolean" =>
       input->(Obj.magic: unknown => Js.Json.t)
 
-    | _ => raiseUnexpectedTypeError(~input, ~struct=ctx.struct)
+    | _ =>
+      Error.Internal.raise(
+        ~path,
+        ~code=UnexpectedType({
+          expected: "JSON",
+          received: input->Stdlib.Unknown.toName,
+        }),
+      )
     }
   }
-
-  let parseTransformationFactory = (. ~ctx) =>
-    ctx->TransformationFactory.Ctx.planSyncTransformation(input => input->parse(~ctx))
 
   make(
     ~name="JSON",
     ~tagged=JSON,
     ~metadataMap=emptyMetadataMap,
-    ~parseTransformationFactory,
-    ~serializeTransformationFactory=TransformationFactory.empty,
+    ~parseOperationBuilder=Builder.make((.
+      b,
+      ~selfStruct as _,
+      ~inputVar,
+      ~outputVar,
+      ~pathVar,
+    ) => {
+      `${outputVar}=${b->B.embed(parse)}(${inputVar},${pathVar});`
+    }),
+    ~serializeOperationBuilder=Builder.noop,
     (),
   )
 }
@@ -3694,79 +3677,51 @@ type catchCtx = {
   error: Error.t,
   input: unknown,
 }
-type catchAsyncTransformationSyncResult =
-  Parsed({input: unknown, asyncFn: (. unit) => promise<unknown>}) | Fallback(unknown)
 let catch = (struct, getFallbackValue) => {
   let struct = struct->toUnknown
   make(
     ~name=struct.name,
-    ~parseTransformationFactory=(. ~ctx) => {
-      switch struct->getParseOperation {
-      | NoOperation => ()
-      | SyncOperation(fn) =>
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          try {
-            fn(. input)
-          } catch {
-          | Error.Internal.Exception(e) =>
-            getFallbackValue
-            ->Stdlib.Fn.call1({
-              error: e->Error.Internal.toParseError,
-              input,
-            })
-            ->castAnyToUnknown
-          }
-        })
-      | AsyncOperation(fn) =>
-        ctx->TransformationFactory.Ctx.planSyncTransformation(input => {
-          try {
-            Parsed({input, asyncFn: fn(. input)})
-          } catch {
-          | Error.Internal.Exception(e) =>
-            Fallback(
-              getFallbackValue
-              ->Stdlib.Fn.call1({
-                error: e->Error.Internal.toParseError,
-                input,
-              })
-              ->castAnyToUnknown,
-            )
-          }
-        })
-        ctx->TransformationFactory.Ctx.planAsyncTransformation(syncResult => {
-          switch syncResult {
-          | Parsed({input, asyncFn}) =>
-            try {
-              asyncFn(.)->Stdlib.Promise.catch(exn => {
-                switch exn {
-                | Error.Internal.Exception(e) =>
-                  getFallbackValue
-                  ->Stdlib.Fn.call1({
-                    error: e->Error.Internal.toParseError,
-                    input,
-                  })
-                  ->castAnyToUnknown
-                | _ => exn->raise
-                }
-              })
-            } catch {
-            | Error.Internal.Exception(e) =>
-              Stdlib.Promise.resolve(
-                getFallbackValue
-                ->Stdlib.Fn.call1({
-                  error: e->Error.Internal.toParseError,
-                  input,
-                })
-                ->castAnyToUnknown,
-              )
-            }
+    ~parseOperationBuilder=Builder.make((.
+      b,
+      ~selfStruct as _,
+      ~inputVar,
+      ~outputVar,
+      ~pathVar,
+    ) => {
+      let childOutputVar = b->B.var
+      let childCode =
+        b->B.run(
+          ~builder=struct.parseOperationBuilder,
+          ~struct,
+          ~inputVar,
+          ~outputVar=childOutputVar,
+          ~pathVar,
+        )
+      let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
 
-          | Fallback(f) => Stdlib.Promise.resolve(f)
-          }
-        })
+      let fallbackValVar = `${b->B.embed((input, internalError) =>
+          getFallbackValue->Stdlib.Fn.call1({
+            input,
+            error: internalError->Error.Internal.toParseError,
+          })
+        )}(${inputVar},t)`
+
+      // FIXME:
+      if isAsync {
+        `try{${childCode}${outputVar}=()=>{try{return ${childOutputVar}().catch(t=>{if(${b->B.isInternalError(
+            "t",
+          )}){return ${fallbackValVar}}else{throw t}})}catch(t){if(${b->B.isInternalError(
+            "t",
+          )}){return Promise.resolve(${fallbackValVar})}else{throw t}}}}catch(t){if(${b->B.isInternalError(
+            "t",
+          )}){${outputVar}=()=>Promise.resolve(${fallbackValVar})}else{throw t}}`
+      } else {
+        `try{${childCode}}catch(t){if(${b->B.isInternalError(
+            "t",
+          )}){${childOutputVar}=${fallbackValVar}}else{throw t}}${outputVar}=${childOutputVar};`
       }
-    },
-    ~serializeTransformationFactory=struct.serializeTransformationFactory,
+    }),
+    ~serializeOperationBuilder=struct.serializeOperationBuilder,
     ~tagged=struct.tagged,
     ~metadataMap=struct.metadataMap,
     (),
@@ -3903,8 +3858,8 @@ let inline = {
     | Int => `S.int`
     | Float => `S.float`
     | Bool => `S.bool`
-    | Option(innerStruct) => {
-        let internalInlinedStruct = innerStruct->internalInline()
+    | Option(childStruct) => {
+        let internalInlinedStruct = childStruct->internalInline()
         switch struct->Default.classify {
         | Some(defaultValue) => {
             metadataMap->Stdlib.Dict.deleteInPlace(Default.metadataId->Metadata.Id.toKey)
@@ -3915,11 +3870,11 @@ let inline = {
         | None => `S.option(${internalInlinedStruct})`
         }
       }
-    | Null(innerStruct) => `S.null(${innerStruct->internalInline()})`
+    | Null(childStruct) => `S.null(${childStruct->internalInline()})`
     | Never => `S.never`
     | Unknown => `S.unknown`
-    | Array(innerStruct) => `S.array(${innerStruct->internalInline()})`
-    | Dict(innerStruct) => `S.dict(${innerStruct->internalInline()})`
+    | Array(childStruct) => `S.array(${childStruct->internalInline()})`
+    | Dict(childStruct) => `S.dict(${childStruct->internalInline()})`
     }
 
     let inlinedStruct = switch struct->deprecation {
