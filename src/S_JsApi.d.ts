@@ -79,8 +79,11 @@ export const nan: Struct<undefined>;
 export function literal<Value extends string>(value: Value): Struct<Value>;
 export function literal<Value extends number>(value: Value): Struct<Value>;
 export function literal<Value extends boolean>(value: Value): Struct<Value>;
+export function literal<Value extends symbol>(value: Value): Struct<Value>;
+export function literal<Value extends BigInt>(value: Value): Struct<Value>;
+// TODO: add complete types
 export function literal(value: undefined): Struct<undefined>;
-export function literal(value: null): Struct<undefined>;
+export function literal(value: null): Struct<null>;
 export function tuple(structs: []): Struct<undefined>;
 export function tuple<Value>(structs: [Struct<Value>]): Struct<Value>;
 export function tuple<A extends AnyStruct, B extends AnyStruct[]>(

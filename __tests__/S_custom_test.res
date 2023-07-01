@@ -35,7 +35,7 @@ test("Correctly parses custom struct", t => {
   t->Assert.deepEqual(
     123->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "String", received: "Float"}),
+      code: InvalidType({expected: "String", received: "Float"}),
       operation: Parsing,
       path: S.Path.empty,
     }),

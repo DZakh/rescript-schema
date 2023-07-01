@@ -1,12 +1,12 @@
 open Ava
 
 module Common = {
-  let value = 123
-  let wrongValue = 444
-  let any = %raw(`123`)
-  let wrongAny = %raw(`444`)
+  let value = false
+  let wrongValue = %raw(`true`)
+  let any = %raw(`false`)
+  let wrongAny = %raw(`true`)
   let wrongTypeAny = %raw(`"Hello world!"`)
-  let factory = () => S.literal(Int(123))
+  let factory = () => S.literal(false)
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -20,7 +20,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedValue({expected: "123", received: "444"}),
+        code: InvalidLiteral({expected: Boolean(false), received: true->Obj.magic}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -34,7 +34,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongTypeAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "Int Literal (123)", received: "String"}),
+        code: InvalidLiteral({expected: Boolean(false), received: wrongTypeAny}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -54,7 +54,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongValue->S.serializeToUnknownWith(struct),
       Error({
-        code: UnexpectedValue({expected: "123", received: "444"}),
+        code: InvalidLiteral({expected: Boolean(false), received: wrongValue}),
         operation: Serializing,
         path: S.Path.empty,
       }),

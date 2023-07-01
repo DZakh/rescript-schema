@@ -19,7 +19,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongAny->S.parseAnyWith(struct),
       Error({
-        code: TupleSize({
+        code: InvalidTupleSize({
           expected: 0,
           received: 1,
         }),
@@ -36,7 +36,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongTypeAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "Tuple", received: "String"}),
+        code: InvalidType({expected: "Tuple", received: "String"}),
         operation: Parsing,
         path: S.Path.empty,
       }),

@@ -50,7 +50,7 @@ test("Successfully serializes object transformed to object with quotes in a fiel
 
 test("Successfully parses object with discriminant which has quotes as the field name", t => {
   let struct = S.object(o => {
-    ignore(o.field("\"\'\`", S.literal(EmptyNull)))
+    ignore(o.field("\"\'\`", S.literal(Js.Null.empty)))
     {
       "field": o.field("field", S.string),
     }
@@ -68,7 +68,7 @@ test("Successfully parses object with discriminant which has quotes as the field
 
 test("Successfully serializes object with discriminant which has quotes as the field name", t => {
   let struct = S.object(o => {
-    ignore(o.field("\"\'\`", S.literal(EmptyNull)))
+    ignore(o.field("\"\'\`", S.literal(Js.Null.empty)))
     {
       "field": o.field("field", S.string),
     }
@@ -88,7 +88,7 @@ test("Successfully serializes object with discriminant which has quotes as the f
 
 test("Successfully parses object with discriminant which has quotes as the literal value", t => {
   let struct = S.object(o => {
-    ignore(o.field("kind", S.literal(String("\"\'\`"))))
+    ignore(o.field("kind", S.literal("\"\'\`")))
     {
       "field": o.field("field", S.string),
     }
@@ -108,7 +108,7 @@ test(
   "Successfully serializes object with discriminant which has quotes as the literal value",
   t => {
     let struct = S.object(o => {
-      ignore(o.field("kind", S.literal(String("\"\'\`"))))
+      ignore(o.field("kind", S.literal("\"\'\`")))
       {
         "field": o.field("field", S.string),
       }
@@ -257,7 +257,7 @@ test("Field name in a format of a path is handled properly", t => {
   t->Assert.deepEqual(
     %raw(`{"bar": "foo"}`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "String", received: "Option"}),
+      code: InvalidType({expected: "String", received: "Option"}),
       operation: Parsing,
       path: S.Path.fromArray([`["abc"]["cde"]`]),
     }),

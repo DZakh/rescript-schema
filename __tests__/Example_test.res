@@ -1,26 +1,46 @@
 open Ava
 
-@live
-type author = {id: float, tags: array<string>, isAproved: bool, deprecatedAge: option<int>}
+@dead
+type rating =
+  | @as("G") GeneralAudiences
+  | @as("PG") ParentalGuidanceSuggested
+  | @as("PG13") ParentalStronglyCautioned
+  | @as("R") Restricted
+
+@dead
+type film = {
+  id: float,
+  title: string,
+  tags: array<string>,
+  rating: rating,
+  deprecatedAgeRestriction: option<int>,
+}
 
 test("Example", t => {
-  let authorStruct = S.object(o => {
+  let filmStruct = S.object(o => {
     id: o.field("Id", S.float),
+    title: o.field("Title", S.string),
     tags: o.field("Tags", S.array(S.string)->S.default(() => [])),
-    isAproved: o.field(
-      "IsApproved",
-      S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),
+    rating: o.field(
+      "Rating",
+      S.union([
+        S.literal(GeneralAudiences),
+        S.literal(ParentalGuidanceSuggested),
+        S.literal(ParentalStronglyCautioned),
+        S.literal(Restricted),
+      ]),
     ),
-    deprecatedAge: o.field("Age", S.int->S.option->S.deprecate("Will be removed in APIv2")),
+    deprecatedAgeRestriction: o.field("Age", S.int->S.option->S.deprecate("Use rating instead")),
   })
 
   t->Assert.deepEqual(
-    %raw(`{"Id": 1, "IsApproved": "Yes", "Age": 22}`)->S.parseWith(authorStruct),
+    %raw(`{"Id": 1, "Title": "My first film", "Rating": "R", "Age": 17}`)->S.parseWith(filmStruct),
     Ok({
       id: 1.,
+      title: "My first film",
       tags: [],
-      isAproved: true,
-      deprecatedAge: Some(22),
+      rating: Restricted,
+      deprecatedAgeRestriction: Some(17),
     }),
     (),
   )
@@ -28,13 +48,15 @@ test("Example", t => {
     {
       id: 2.,
       tags: ["Loved"],
-      isAproved: false,
-      deprecatedAge: None,
-    }->S.serializeWith(authorStruct),
+      title: "Sad & sed",
+      rating: ParentalStronglyCautioned,
+      deprecatedAgeRestriction: None,
+    }->S.serializeWith(filmStruct),
     Ok(
       %raw(`{
         "Id": 2,
-        "IsApproved": "No",
+        "Title": "Sad & sed",
+        "Rating": "PG13",
         "Tags": ["Loved"],
         "Age": undefined,
       }`),

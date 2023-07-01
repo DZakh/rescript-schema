@@ -6,7 +6,7 @@ module Common = {
   let any = %raw(`"ReScript is Great!"`)
   let wrongAny = %raw(`"Hello world!"`)
   let wrongTypeAny = %raw(`true`)
-  let factory = () => S.literal(String("ReScript is Great!"))
+  let factory = () => S.literal("ReScript is Great!")
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -20,7 +20,10 @@ module Common = {
     t->Assert.deepEqual(
       wrongAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedValue({expected: `"ReScript is Great!"`, received: `"Hello world!"`}),
+        code: InvalidLiteral({
+          expected: String("ReScript is Great!"),
+          received: "Hello world!"->Obj.magic,
+        }),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -34,7 +37,10 @@ module Common = {
     t->Assert.deepEqual(
       wrongTypeAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: `String Literal ("ReScript is Great!")`, received: "Bool"}),
+        code: InvalidLiteral({
+          expected: String("ReScript is Great!"),
+          received: wrongTypeAny,
+        }),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -54,7 +60,10 @@ module Common = {
     t->Assert.deepEqual(
       wrongValue->S.serializeToUnknownWith(struct),
       Error({
-        code: UnexpectedValue({expected: `"ReScript is Great!"`, received: `"Hello world!"`}),
+        code: InvalidLiteral({
+          expected: String("ReScript is Great!"),
+          received: "Hello world!"->Obj.magic,
+        }),
         operation: Serializing,
         path: S.Path.empty,
       }),

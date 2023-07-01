@@ -18,7 +18,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "Float", received: "String"}),
+        code: InvalidType({expected: "Float", received: "String"}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -45,7 +45,7 @@ test("Fails to parse NaN", t => {
   t->Assert.deepEqual(
     %raw(`NaN`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Float", received: "NaN Literal (NaN)"}),
+      code: InvalidType({expected: "Float", received: "NaN Literal (NaN)"}),
       operation: Parsing,
       path: S.Path.empty,
     }),

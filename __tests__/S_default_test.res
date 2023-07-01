@@ -33,7 +33,7 @@ test("Fails to parse data with default", t => {
   t->Assert.deepEqual(
     %raw(`"string"`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Bool", received: "String"}),
+      code: InvalidType({expected: "Bool", received: "String"}),
       operation: Parsing,
       path: S.Path.empty,
     }),

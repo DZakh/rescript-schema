@@ -19,7 +19,7 @@ module CommonWithNested = {
     t->Assert.deepEqual(
       wrongAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "Array", received: "Bool"}),
+        code: InvalidType({expected: "Array", received: "Bool"}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -33,7 +33,7 @@ module CommonWithNested = {
     t->Assert.deepEqual(
       nestedWrongAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "String", received: "Float"}),
+        code: InvalidType({expected: "String", received: "Float"}),
         operation: Parsing,
         path: S.Path.fromArray(["1"]),
       }),
@@ -67,7 +67,7 @@ test("Fails to parse matrix", t => {
     %raw(`[["a", 1], ["c", "d"]]`)->S.parseAnyWith(struct),
     Error({
       operation: Parsing,
-      code: UnexpectedType({expected: "String", received: "Float"}),
+      code: InvalidType({expected: "String", received: "Float"}),
       path: S.Path.fromArray(["0", "1"]),
     }),
     (),

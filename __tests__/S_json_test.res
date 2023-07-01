@@ -57,7 +57,7 @@ test("Fails to parse Object field", t => {
   t->Assert.deepEqual(
     data->S.parseWith(struct),
     Error({
-      code: UnexpectedType({received: "Option", expected: "JSON"}),
+      code: InvalidType({received: "Option", expected: "JSON"}),
       operation: Parsing,
       path: S.Path.fromLocation("bar"),
     }),
@@ -72,7 +72,7 @@ test("Fails to parse matrix field", t => {
   t->Assert.deepEqual(
     data->S.parseWith(struct),
     Error({
-      code: UnexpectedType({received: "Option", expected: "JSON"}),
+      code: InvalidType({received: "Option", expected: "JSON"}),
       operation: Parsing,
       path: S.Path.fromArray(["1", "0"]),
     }),
@@ -85,7 +85,7 @@ test("Fails to parse NaN", t => {
   t->Assert.deepEqual(
     %raw("NaN")->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({received: "NaN Literal (NaN)", expected: "JSON"}),
+      code: InvalidType({received: "NaN Literal (NaN)", expected: "JSON"}),
       operation: Parsing,
       path: S.Path.empty,
     }),
@@ -98,7 +98,7 @@ test("Fails to parse undefined", t => {
   t->Assert.deepEqual(
     %raw("undefined")->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({received: "Option", expected: "JSON"}),
+      code: InvalidType({received: "Option", expected: "JSON"}),
       operation: Parsing,
       path: S.Path.empty,
     }),

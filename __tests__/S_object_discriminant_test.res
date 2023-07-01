@@ -25,40 +25,74 @@ module Positive = {
 
   [
     TestData.make(
-      ~discriminantStruct=S.literal(String("asdf")),
+      ~discriminantStruct=S.literal("asdf"),
       ~discriminantData=%raw(`"asdf"`),
+      ~description="String",
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.literal(String("\"\'\`")),
+      ~discriminantStruct=S.literal("\"\'\`"),
       ~discriminantData=%raw(`"\"\'\`"`),
+      ~description="String which needs to be escaped",
       (),
     ),
-    TestData.make(~discriminantStruct=S.literal(Int(123)), ~discriminantData=%raw("123"), ()),
-    TestData.make(~discriminantStruct=S.literal(Float(1.3)), ~discriminantData=%raw("1.3"), ()),
-    TestData.make(~discriminantStruct=S.literal(Bool(true)), ~discriminantData=%raw("true"), ()),
     TestData.make(
-      ~discriminantStruct=S.literal(EmptyOption),
+      ~discriminantStruct=S.literal(123),
+      ~discriminantData=%raw("123"),
+      ~description="Int",
+      (),
+    ),
+    TestData.make(
+      ~discriminantStruct=S.literal(1.3),
+      ~discriminantData=%raw("1.3"),
+      ~description="Float",
+      (),
+    ),
+    TestData.make(
+      ~discriminantStruct=S.literal(true),
+      ~discriminantData=%raw("true"),
+      ~description="Bool",
+      (),
+    ),
+    TestData.make(
+      ~discriminantStruct=S.literal(),
       ~discriminantData=%raw("undefined"),
+      ~description="Unit",
       (),
     ),
-    TestData.make(~discriminantStruct=S.literal(EmptyNull), ~discriminantData=%raw("null"), ()),
-    TestData.make(~discriminantStruct=S.literal(NaN), ~discriminantData=%raw("NaN"), ()),
     TestData.make(
-      ~discriminantStruct=S.union([S.literal(Bool(false)), S.bool]),
+      ~discriminantStruct=S.literal(Js.Null.empty),
+      ~discriminantData=%raw("null"),
+      ~description="Null",
+      (),
+    ),
+    TestData.make(
+      ~discriminantStruct=S.literal(%raw("NaN")),
+      ~discriminantData=%raw("NaN"),
+      ~description="NaN",
+      (),
+    ),
+    TestData.make(
+      ~discriminantStruct=S.union([S.literal(false), S.bool]),
       ~discriminantData=%raw("false"),
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.tuple2(. S.literal(Bool(false)), S.literal(String("bar"))),
+      ~discriminantStruct=S.tuple2(. S.literal(false), S.literal("bar")),
       ~discriminantData=%raw(`[false, "bar"]`),
       (),
     ),
     TestData.make(
+      ~discriminantStruct=S.literal((false, "bar")),
+      ~discriminantData=%raw(`[false, "bar"]`),
+      ~description="Tuple",
+      (),
+    ),
+    TestData.make(
       ~discriminantStruct=S.object(o => {
-        ignore(o.field("nestedDiscriminant", S.literal(String("abc"))))
+        ignore(o.field("nestedDiscriminant", S.literal("abc")))
         {
-          "field": o.field("nestedField", S.literal(Bool(false))),
+          "field": o.field("nestedField", S.literal(false)),
         }
       }),
       ~discriminantData=%raw(`{
@@ -70,9 +104,9 @@ module Positive = {
     TestData.make(
       ~description="and values needed to be escaped",
       ~discriminantStruct=S.object(o => {
-        ignore(o.field("\"\'\`", S.literal(String("\"\'\`"))))
+        ignore(o.field("\"\'\`", S.literal("\"\'\`")))
         {
-          "field": o.field("nestedField", S.literal(Bool(false))),
+          "field": o.field("nestedField", S.literal(false)),
         }
       }),
       ~discriminantData=%raw(`{
@@ -160,25 +194,17 @@ module Negative = {
     TestData.make(~discriminantStruct=S.int, ~discriminantData=123, ()),
     TestData.make(~discriminantStruct=S.float, ~discriminantData=123., ()),
     TestData.make(~discriminantStruct=S.bool, ~discriminantData=true, ()),
-    TestData.make(~discriminantStruct=S.option(S.literal(Bool(true))), ~discriminantData=None, ()),
-    TestData.make(
-      ~discriminantStruct=S.null(S.literal(Bool(true))),
-      ~discriminantData=%raw("null"),
-      (),
-    ),
+    TestData.make(~discriminantStruct=S.option(S.literal(true)), ~discriminantData=None, ()),
+    TestData.make(~discriminantStruct=S.null(S.literal(true)), ~discriminantData=%raw("null"), ()),
     TestData.make(~discriminantStruct=S.unknown, ~discriminantData="anything", ()),
+    TestData.make(~discriminantStruct=S.array(S.literal(true)), ~discriminantData=[true, true], ()),
     TestData.make(
-      ~discriminantStruct=S.array(S.literal(Bool(true))),
-      ~discriminantData=[true, true],
-      (),
-    ),
-    TestData.make(
-      ~discriminantStruct=S.dict(S.literal(Bool(true))),
+      ~discriminantStruct=S.dict(S.literal(true)),
       ~discriminantData=Js.Dict.fromArray([("foo", true), ("bar", true)]),
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.tuple2(. S.literal(Bool(true)), S.bool),
+      ~discriminantStruct=S.tuple2(. S.literal(true), S.bool),
       ~discriminantData=(true, false),
       (),
     ),
@@ -188,7 +214,7 @@ module Negative = {
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.union([S.bool, S.literal(Bool(false))]),
+      ~discriminantStruct=S.union([S.bool, S.literal(false)]),
       ~discriminantData=true,
       (),
     ),
@@ -256,7 +282,7 @@ test(`Fails to parse object with invalid data passed to discriminant field`, t =
       "field": "bar",
     }->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "String", received: "Bool"}),
+      code: InvalidType({expected: "String", received: "Bool"}),
       operation: Parsing,
       path: S.Path.fromArray(["discriminant"]),
     }),

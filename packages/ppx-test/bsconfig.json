@@ -21,5 +21,5 @@
     "number": "-48-44"
   },
   "bsc-flags": ["-open RescriptCore", "-open RescriptStruct"],
-  "uncurried": true
+  "uncurried": false
 }

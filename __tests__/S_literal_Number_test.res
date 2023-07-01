@@ -2,11 +2,11 @@ open Ava
 
 module Common = {
   let value = 123.
-  let wrongValue = 444.
+  let wrongValue = %raw(`444.`)
   let any = %raw(`123`)
   let wrongAny = %raw(`444`)
   let wrongTypeAny = %raw(`"Hello world!"`)
-  let factory = () => S.literal(Float(123.))
+  let factory = () => S.literal(123.)
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -20,7 +20,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedValue({expected: "123", received: "444"}),
+        code: InvalidLiteral({expected: Number(123.), received: 444.->Obj.magic}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -34,7 +34,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongTypeAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "Float Literal (123)", received: "String"}),
+        code: InvalidLiteral({expected: Number(123.), received: wrongTypeAny}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -54,7 +54,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongValue->S.serializeToUnknownWith(struct),
       Error({
-        code: UnexpectedValue({expected: "123", received: "444"}),
+        code: InvalidLiteral({expected: Number(123.), received: wrongValue}),
         operation: Serializing,
         path: S.Path.empty,
       }),
@@ -64,12 +64,12 @@ module Common = {
 }
 
 test("Formatting of negative number with a decimal point in an error message", t => {
-  let struct = S.literal(Float(-123.567))
+  let struct = S.literal(-123.567)
 
   t->Assert.deepEqual(
     %raw(`"foo"`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Float Literal (-123.567)", received: "String"}),
+      code: InvalidLiteral({expected: Number(-123.567), received: "foo"->Obj.magic}),
       operation: Parsing,
       path: S.Path.empty,
     }),

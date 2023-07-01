@@ -117,16 +117,10 @@ Ava("Custom string struct", (function (t) {
         TestUtils.assertEqualStructs(t, myCustomStringStruct, S$RescriptStruct.$$String.email(S$RescriptStruct.string, undefined, undefined), undefined, undefined);
       }));
 
-var myCustomLiteralStringStruct = S$RescriptStruct.$$String.email(S$RescriptStruct.literal({
-          TAG: "String",
-          _0: "123"
-        }), undefined, undefined);
+var myCustomLiteralStringStruct = S$RescriptStruct.$$String.email(S$RescriptStruct.literal("123"), undefined, undefined);
 
 Ava("Custom litaral string struct", (function (t) {
-        TestUtils.assertEqualStructs(t, myCustomLiteralStringStruct, S$RescriptStruct.$$String.email(S$RescriptStruct.literal({
-                      TAG: "String",
-                      _0: "123"
-                    }), undefined, undefined), undefined, undefined);
+        TestUtils.assertEqualStructs(t, myCustomLiteralStringStruct, S$RescriptStruct.$$String.email(S$RescriptStruct.literal("123"), undefined, undefined), undefined, undefined);
       }));
 
 var myCustomOptionalStringStruct = S$RescriptStruct.option(S$RescriptStruct.$$String.email(S$RescriptStruct.string, undefined, undefined));

@@ -48,20 +48,12 @@ let struct = S.tuple(o => (o->S.item(0, S.string), o->S.item(1, S.int)))
 
 Next breaking release
 
-- Remove NaN from literals (or completely)
-- Allow to pass anything to S.literal (maybe remove S.literalVariant)
 - Allow passing Path string to the S.field first arg (o.nestedField)
 - rename advancedFail to failWithError
-
-// TODO: Example with status without S.variant
-let authorStruct = S.object(o => {
-id: o.field("Id", S.float),
-tags: o.field("Tags", S.array(S.string)->S.default(() => [])),
-isAproved: o.field(
-"IsApproved",
-S.union([S.literal("Yes")->S.variant(_ => true), S.literal("No")->S.variant(_ => false)]),
-),
-deprecatedAge: o.field("Age", S.int->S.option->S.deprecate("Will be removed in APIv2")),
-})
-
-o.discriminant(fieldName, literal)
+- Add S.validator
+- Fix serializing performance
+- Move S.inline to experimental
+- Remove name from the struct
+- Store input in the Error.t
+- Remove S.toUnknown (update tuple)
+- o.discriminant(fieldName, literal)

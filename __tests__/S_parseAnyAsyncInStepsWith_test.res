@@ -30,7 +30,7 @@ test("Fails to parse without asyncRefine", t => {
   t->Assert.deepEqual(
     %raw(`123`)->S.parseAnyAsyncInStepsWith(struct),
     Error({
-      S.Error.code: UnexpectedType({expected: "String", received: "Float"}),
+      S.Error.code: InvalidType({expected: "String", received: "Float"}),
       path: S.Path.empty,
       operation: Parsing,
     }),
@@ -171,7 +171,7 @@ module Object = {
 
   asyncTest("[Object] Successfully parses with valid async discriminant", t => {
     let struct = S.object(o => {
-      ignore(o.field("discriminant", S.literal(Bool(true))->validAsyncRefine))
+      ignore(o.field("discriminant", S.literal(true)->validAsyncRefine))
       {
         "k1": o.field("k1", S.int),
         "k2": o.field("k2", S.int),
@@ -203,7 +203,7 @@ module Object = {
 
   asyncTest("[Object] Fails to parse with invalid async discriminant", t => {
     let struct = S.object(o => {
-      ignore(o.field("discriminant", S.literal(Bool(true))->invalidAsyncRefine))
+      ignore(o.field("discriminant", S.literal(true)->invalidAsyncRefine))
       {
         "k1": o.field("k1", S.int),
         "k2": o.field("k2", S.int),
@@ -249,7 +249,7 @@ module Object = {
         "k3": 3,
       }->S.parseAnyAsyncInStepsWith(struct),
       Error({
-        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        S.Error.code: InvalidType({expected: "Int", received: "Bool"}),
         path: S.Path.fromArray(["k2"]),
         operation: Parsing,
       }),
@@ -381,7 +381,7 @@ module Tuple = {
     t->Assert.deepEqual(
       %raw(`[1, true, 3]`)->S.parseAnyAsyncInStepsWith(struct),
       Error({
-        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        S.Error.code: InvalidType({expected: "Int", received: "Bool"}),
         path: S.Path.fromArray(["1"]),
         operation: Parsing,
       }),
@@ -454,11 +454,7 @@ module Tuple = {
 
 module Union = {
   asyncTest("[Union] Successfully parses", t => {
-    let struct = S.union([
-      S.literal(Int(1)),
-      S.literal(Int(2))->validAsyncRefine,
-      S.literal(Int(3)),
-    ])
+    let struct = S.union([S.literal(1), S.literal(2)->validAsyncRefine, S.literal(3)])
 
     Promise.all([
       (
@@ -480,31 +476,28 @@ module Union = {
   })
 
   asyncTest("[Union] Doesn't return sync error when fails to parse sync part of async item", t => {
-    let struct = S.union([
-      S.literal(Int(1)),
-      S.literal(Int(2))->validAsyncRefine,
-      S.literal(Int(3)),
-    ])
+    let struct = S.union([S.literal(1), S.literal(2)->validAsyncRefine, S.literal(3)])
+    let input = %raw("true")
 
     (
-      true->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
+      input->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
     )(.)->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
         Error({
           S.Error.code: InvalidUnion([
             {
-              S.Error.code: UnexpectedType({expected: "Int Literal (1)", received: "Bool"}),
+              S.Error.code: InvalidLiteral({expected: Number(1.), received: input}),
               path: S.Path.empty,
               operation: Parsing,
             },
             {
-              S.Error.code: UnexpectedType({expected: "Int Literal (2)", received: "Bool"}),
+              S.Error.code: InvalidLiteral({expected: Number(2.), received: input}),
               path: S.Path.empty,
               operation: Parsing,
             },
             {
-              S.Error.code: UnexpectedType({expected: "Int Literal (3)", received: "Bool"}),
+              S.Error.code: InvalidLiteral({expected: Number(3.), received: input}),
               path: S.Path.empty,
               operation: Parsing,
             },
@@ -520,14 +513,14 @@ module Union = {
   test("[Union] Parses async items in parallel", t => {
     let actionCounter = ref(0)
 
-    let struct = S.union([S.literal(Int(2))->S.advancedTransform(~parser=(~struct as _) => {
+    let struct = S.union([S.literal(2)->S.advancedTransform(~parser=(~struct as _) => {
         Async(
           _ => {
             actionCounter.contents = actionCounter.contents + 1
             unresolvedPromise
           },
         )
-      }, ()), S.literal(Int(2))->S.advancedTransform(~parser=(~struct as _) => {
+      }, ()), S.literal(2)->S.advancedTransform(~parser=(~struct as _) => {
         Async(
           _ => {
             actionCounter.contents = actionCounter.contents + 1
@@ -559,7 +552,7 @@ module Array = {
     t->Assert.deepEqual(
       %raw(`[1, 2, true]`)->S.parseAnyAsyncInStepsWith(struct),
       Error({
-        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        S.Error.code: InvalidType({expected: "Int", received: "Bool"}),
         path: S.Path.fromArray(["2"]),
         operation: Parsing,
       }),
@@ -633,7 +626,7 @@ module Dict = {
     t->Assert.deepEqual(
       {"k1": 1, "k2": 2, "k3": true}->S.parseAnyAsyncInStepsWith(struct),
       Error({
-        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        S.Error.code: InvalidType({expected: "Int", received: "Bool"}),
         path: S.Path.fromArray(["k3"]),
         operation: Parsing,
       }),
@@ -730,7 +723,7 @@ module Null = {
     t->Assert.deepEqual(
       true->S.parseAnyAsyncInStepsWith(struct),
       Error({
-        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        S.Error.code: InvalidType({expected: "Int", received: "Bool"}),
         path: S.Path.empty,
         operation: Parsing,
       }),
@@ -779,7 +772,7 @@ module Option = {
     t->Assert.deepEqual(
       true->S.parseAnyAsyncInStepsWith(struct),
       Error({
-        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        S.Error.code: InvalidType({expected: "Int", received: "Bool"}),
         path: S.Path.empty,
         operation: Parsing,
       }),
@@ -829,7 +822,7 @@ module Defaulted = {
     t->Assert.deepEqual(
       true->S.parseAnyAsyncInStepsWith(struct),
       Error({
-        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        S.Error.code: InvalidType({expected: "Int", received: "Bool"}),
         path: S.Path.empty,
         operation: Parsing,
       }),
@@ -874,7 +867,7 @@ module Json = {
     t->Assert.deepEqual(
       "true"->S.parseAnyAsyncInStepsWith(struct),
       Error({
-        S.Error.code: UnexpectedType({expected: "Int", received: "Bool"}),
+        S.Error.code: InvalidType({expected: "Int", received: "Bool"}),
         path: S.Path.empty,
         operation: Parsing,
       }),

@@ -19,12 +19,12 @@ test("Uses fallback value when parsing failed", t => {
 })
 
 test("Doesn't affect serializing in any way", t => {
-  let struct = S.literal(String("123"))->S.catch(_ => "fallback")
+  let struct = S.literal("123")->S.catch(_ => "fallback")
 
   t->Assert.deepEqual(
     "abc"->S.serializeToUnknownWith(struct),
     Error({
-      code: UnexpectedValue({received: `"abc"`, expected: `"123"`}),
+      code: InvalidLiteral({received: "abc"->Obj.magic, expected: String("123")}),
       operation: Serializing,
       path: S.Path.empty,
     }),
@@ -40,7 +40,7 @@ test("Provides ctx to use in catch", t => {
       ctx,
       {
         error: {
-          code: UnexpectedType({received: `Float`, expected: `String`}),
+          code: InvalidType({received: `Float`, expected: `String`}),
           operation: Parsing,
           path: S.Path.empty,
         },
@@ -55,7 +55,7 @@ test("Provides ctx to use in catch", t => {
 })
 
 test("Can use S.fail inside of S.catch", t => {
-  let struct = S.literal(String("0"))->S.catch(ctx => {
+  let struct = S.literal("0")->S.catch(ctx => {
     switch ctx.input->S.parseAnyWith(S.string) {
     | Ok(_) => "1"
     | Error(_) => S.fail("Fallback value only supported for strings.")
@@ -77,7 +77,7 @@ test("Can use S.fail inside of S.catch", t => {
   t->Assert.deepEqual(
     "1"->S.serializeToUnknownWith(struct),
     Error({
-      code: UnexpectedValue({expected: `"0"`, received: `"1"`}),
+      code: InvalidLiteral({expected: String("0"), received: "1"->Obj.magic}),
       operation: Serializing,
       path: S.Path.empty,
     }),

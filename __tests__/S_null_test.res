@@ -18,7 +18,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "String", received: "Float"}),
+        code: InvalidType({expected: "String", received: "Float"}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -45,7 +45,7 @@ test("Fails to parse JS undefined", t => {
   t->Assert.deepEqual(
     %raw(`undefined`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Bool", received: "Option"}),
+      code: InvalidType({expected: "Bool", received: "Option"}),
       operation: Parsing,
       path: S.Path.empty,
     }),
@@ -59,7 +59,7 @@ test("Fails to parse object with missing field that marked as null", t => {
   t->Assert.deepEqual(
     %raw(`{}`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "String", received: "Option"}),
+      code: InvalidType({expected: "String", received: "Option"}),
       operation: Parsing,
       path: S.Path.fromArray(["nullableField"]),
     }),
@@ -73,7 +73,7 @@ test("Fails to parse JS null when struct doesn't allow optional data", t => {
   t->Assert.deepEqual(
     %raw(`null`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Bool", received: "Null"}),
+      code: InvalidType({expected: "Bool", received: "Null"}),
       operation: Parsing,
       path: S.Path.empty,
     }),

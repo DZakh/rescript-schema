@@ -169,27 +169,10 @@ function tuple(structs) {
 }
 
 function literal(value) {
-  var taggedLiteral = typeof value === "string" ? ({
-        TAG: "String",
-        _0: value
-      }) : (
-      typeof value === "boolean" ? ({
-            TAG: "Bool",
-            _0: value
-          }) : (
-          typeof value === "number" ? (
-              Number.isNaN(value) ? Js_exn.raiseError("[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.") : ({
-                    TAG: "Float",
-                    _0: value
-                  })
-            ) : (
-              value === null ? "EmptyNull" : (
-                  value === undefined ? "EmptyOption" : Js_exn.raiseError("[rescript-struct] The value provided to literal struct factory is not supported.")
-                )
-            )
-        )
-    );
-  var struct = S$RescriptStruct.literal(taggedLiteral);
+  if (Number.isNaN(value)) {
+    return Js_exn.raiseError("[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.");
+  }
+  var struct = S$RescriptStruct.literal(value);
   return Object.assign(struct, structOperations);
 }
 
@@ -232,7 +215,9 @@ var unknown = Object.assign(S$RescriptStruct.unknown, structOperations);
 
 var json = Object.assign(S$RescriptStruct.json, structOperations);
 
-var struct = S$RescriptStruct.literal("NaN");
+var struct = S$RescriptStruct.variant(S$RescriptStruct.literal(NaN), (function (param) {
+        
+      }));
 
 var nan = Object.assign(struct, structOperations);
 

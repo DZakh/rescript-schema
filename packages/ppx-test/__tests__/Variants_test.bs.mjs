@@ -5,62 +5,32 @@ import * as TestUtils from "./TestUtils.bs.mjs";
 import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
 
 var variantStruct = S$RescriptStruct.union([
-      S$RescriptStruct.literalVariant({
-            TAG: "String",
-            _0: "One"
-          }, "One"),
-      S$RescriptStruct.literalVariant({
-            TAG: "String",
-            _0: "Two"
-          }, "Two")
+      S$RescriptStruct.literal("One"),
+      S$RescriptStruct.literal("Two")
     ]);
 
 Ava("Variant", (function (t) {
         TestUtils.assertEqualStructs(t, variantStruct, S$RescriptStruct.union([
-                  S$RescriptStruct.literalVariant({
-                        TAG: "String",
-                        _0: "One"
-                      }, "One"),
-                  S$RescriptStruct.literalVariant({
-                        TAG: "String",
-                        _0: "Two"
-                      }, "Two")
+                  S$RescriptStruct.literal("One"),
+                  S$RescriptStruct.literal("Two")
                 ]), undefined, undefined);
       }));
 
-var variantWithSingleItemStruct = S$RescriptStruct.literalVariant({
-      TAG: "String",
-      _0: "Single"
-    }, "Single");
+var variantWithSingleItemStruct = S$RescriptStruct.literal("Single");
 
 Ava("Variant with single item becomes a literal struct of the item", (function (t) {
-        TestUtils.assertEqualStructs(t, variantWithSingleItemStruct, S$RescriptStruct.literalVariant({
-                  TAG: "String",
-                  _0: "Single"
-                }, "Single"), undefined, undefined);
+        TestUtils.assertEqualStructs(t, variantWithSingleItemStruct, S$RescriptStruct.literal("Single"), undefined, undefined);
       }));
 
 var variantWithAliasStruct = S$RescriptStruct.union([
-      S$RescriptStruct.literalVariant({
-            TAG: "String",
-            _0: "하나"
-          }, "One"),
-      S$RescriptStruct.literalVariant({
-            TAG: "String",
-            _0: "Two"
-          }, "Two")
+      S$RescriptStruct.literal("하나"),
+      S$RescriptStruct.literal("Two")
     ]);
 
 Ava("Variant with partial @as usage", (function (t) {
         TestUtils.assertEqualStructs(t, variantWithAliasStruct, S$RescriptStruct.union([
-                  S$RescriptStruct.literalVariant({
-                        TAG: "String",
-                        _0: "하나"
-                      }, "One"),
-                  S$RescriptStruct.literalVariant({
-                        TAG: "String",
-                        _0: "Two"
-                      }, "Two")
+                  S$RescriptStruct.literal("하나"),
+                  S$RescriptStruct.literal("Two")
                 ]), undefined, undefined);
       }));
 

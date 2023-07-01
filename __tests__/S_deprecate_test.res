@@ -18,7 +18,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "String", received: "Float"}),
+        code: InvalidType({expected: "String", received: "Float"}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -51,7 +51,7 @@ test("Fails to parse null", t => {
   t->Assert.deepEqual(
     %raw(`null`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Bool", received: "Null"}),
+      code: InvalidType({expected: "Bool", received: "Null"}),
       operation: Parsing,
       path: S.Path.empty,
     }),

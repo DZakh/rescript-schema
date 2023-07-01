@@ -18,7 +18,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "Int", received: "Float"}),
+        code: InvalidType({expected: "Int", received: "Float"}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -39,7 +39,7 @@ test("Fails to parse int when JSON is a number bigger than +2^31", t => {
   t->Assert.deepEqual(
     %raw(`2147483648`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Int", received: "Float"}),
+      code: InvalidType({expected: "Int", received: "Float"}),
       operation: Parsing,
       path: S.Path.empty,
     }),
@@ -54,7 +54,7 @@ test("Fails to parse int when JSON is a number lower than -2^31", t => {
   t->Assert.deepEqual(
     %raw(`-2147483649`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Int", received: "Float"}),
+      code: InvalidType({expected: "Int", received: "Float"}),
       operation: Parsing,
       path: S.Path.empty,
     }),
@@ -69,7 +69,7 @@ test("Fails to parse NaN", t => {
   t->Assert.deepEqual(
     %raw(`NaN`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Int", received: "NaN Literal (NaN)"}),
+      code: InvalidType({expected: "Int", received: "NaN Literal (NaN)"}),
       operation: Parsing,
       path: S.Path.empty,
     }),

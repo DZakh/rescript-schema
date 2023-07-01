@@ -32,7 +32,7 @@ test("Fails to parse", t => {
   t->Assert.deepEqual(
     "123"->S.parseJsonStringWith(struct),
     Error({
-      code: UnexpectedType({expected: "Bool", received: "Float"}),
+      code: InvalidType({expected: "Bool", received: "Float"}),
       operation: Parsing,
       path: S.Path.empty,
     }),

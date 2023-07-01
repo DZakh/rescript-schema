@@ -1,3 +1,24 @@
+type never
+
+type rec literal =
+  | String(string)
+  | Number(float)
+  | Boolean(bool)
+  | BigInt(Js.Types.bigint_val)
+  | Symbol(Js.Types.symbol)
+  | Array(array<literal>)
+  | Dict(Js.Dict.t<literal>)
+  | Function(Js.Types.function_val)
+  | Object(Js.Types.obj_val)
+  | Null
+  | Undefined
+  | NaN
+
+type rec transformation<'input, 'output> =
+  | Noop: transformation<'input, 'input>
+  | Sync('input => 'output)
+  | Async('input => promise<'output>)
+
 module Path: {
   type t
 
@@ -14,53 +35,6 @@ module Path: {
   let concat: (t, t) => t
 }
 
-module Error: {
-  type rec t = {operation: operation, code: code, path: Path.t}
-  and code =
-    | OperationFailed(string)
-    | MissingParser
-    | MissingSerializer
-    | UnexpectedType({expected: string, received: string})
-    | UnexpectedValue({expected: string, received: string})
-    | TupleSize({expected: int, received: int})
-    | ExcessField(string)
-    | InvalidUnion(array<t>)
-    | UnexpectedAsync
-    | InvalidJsonStruct({received: string})
-  and operation =
-    | Serializing
-    | Parsing
-
-  let toString: t => string
-}
-
-exception Raised(Error.t)
-
-type never
-
-type rec literal<'value> =
-  | String(string): literal<string>
-  | Int(int): literal<int>
-  | Float(float): literal<float>
-  | Bool(bool): literal<bool>
-  | EmptyNull: literal<unit>
-  | EmptyOption: literal<unit>
-  | NaN: literal<unit>
-
-type taggedLiteral =
-  | String(string)
-  | Int(int)
-  | Float(float)
-  | Bool(bool)
-  | EmptyNull
-  | EmptyOption
-  | NaN
-
-type rec transformation<'input, 'output> =
-  | Noop: transformation<'input, 'input>
-  | Sync('input => 'output)
-  | Async('input => promise<'output>)
-
 type rec t<'value>
 and tagged =
   | Never
@@ -69,7 +43,7 @@ and tagged =
   | Int
   | Float
   | Bool
-  | Literal(taggedLiteral)
+  | Literal(literal)
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
@@ -78,6 +52,29 @@ and tagged =
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
   | JSON
+and struct<'value> = t<'value>
+
+module Error: {
+  type rec t = {operation: operation, code: code, path: Path.t}
+  and code =
+    | OperationFailed(string)
+    | MissingParser
+    | MissingSerializer
+    | InvalidType({expected: string, received: string})
+    | InvalidLiteral({expected: literal, received: unknown})
+    | InvalidTupleSize({expected: int, received: int})
+    | ExcessField(string)
+    | InvalidUnion(array<t>)
+    | UnexpectedAsync
+    | InvalidJsonStruct(struct<unknown>)
+  and operation =
+    | Serializing
+    | Parsing
+
+  let toString: t => string
+}
+
+exception Raised(Error.t)
 
 let never: t<never>
 let unknown: t<unknown>
@@ -88,8 +85,7 @@ let int: t<int>
 let float: t<float>
 let json: t<Js.Json.t>
 
-let literal: literal<'value> => t<'value>
-let literalVariant: (literal<'value>, 'variant) => t<'variant>
+let literal: 'value => t<'value>
 let array: t<'value> => t<array<'value>>
 let list: t<'value> => t<list<'value>>
 let dict: t<'value> => t<Js.Dict.t<'value>>

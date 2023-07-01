@@ -1,11 +1,11 @@
 open Ava
 
 module Common = {
-  let value = ()
+  let value = %raw(`NaN`)
   let wrongValue = %raw(`123`)
   let any = %raw(`NaN`)
   let wrongTypeAny = %raw(`"Hello world!"`)
-  let factory = () => S.literal(NaN)
+  let factory = () => S.literal(%raw("NaN"))
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -19,7 +19,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongTypeAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "NaN Literal (NaN)", received: "String"}),
+        code: InvalidLiteral({expected: NaN, received: wrongTypeAny}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -39,7 +39,7 @@ module Common = {
     t->Assert.deepEqual(
       wrongValue->S.serializeToUnknownWith(struct),
       Error({
-        code: UnexpectedValue({expected: "undefined", received: "123"}),
+        code: InvalidLiteral({expected: NaN, received: wrongValue}),
         operation: Serializing,
         path: S.Path.empty,
       }),

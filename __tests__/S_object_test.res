@@ -23,7 +23,7 @@ test("Fails to parse object with inlinable string field", t => {
   t->Assert.deepEqual(
     %raw(`{field: 123}`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "String", received: "Float"}),
+      code: InvalidType({expected: "String", received: "Float"}),
       operation: Parsing,
       path: S.Path.fromArray(["field"]),
     }),
@@ -51,7 +51,7 @@ test("Fails to parse object with inlinable bool field", t => {
   t->Assert.deepEqual(
     %raw(`{field: 123}`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Bool", received: "Float"}),
+      code: InvalidType({expected: "Bool", received: "Float"}),
       operation: Parsing,
       path: S.Path.fromArray(["field"]),
     }),
@@ -97,7 +97,7 @@ test("Fails to parse object with inlinable never field", t => {
   t->Assert.deepEqual(
     %raw(`{field: true}`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Never", received: "Bool"}),
+      code: InvalidType({expected: "Never", received: "Bool"}),
       operation: Parsing,
       path: S.Path.fromArray(["field"]),
     }),
@@ -125,7 +125,7 @@ test("Fails to parse object with inlinable float field", t => {
   t->Assert.deepEqual(
     %raw(`{field: true}`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Float", received: "Bool"}),
+      code: InvalidType({expected: "Float", received: "Bool"}),
       operation: Parsing,
       path: S.Path.fromArray(["field"]),
     }),
@@ -153,7 +153,7 @@ test("Fails to parse object with inlinable int field", t => {
   t->Assert.deepEqual(
     %raw(`{field: true}`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Int", received: "Bool"}),
+      code: InvalidType({expected: "Int", received: "Bool"}),
       operation: Parsing,
       path: S.Path.fromArray(["field"]),
     }),
@@ -181,7 +181,7 @@ test("Fails to parse object with not inlinable empty object field", t => {
   t->Assert.deepEqual(
     %raw(`{field: true}`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Object", received: "Bool"}),
+      code: InvalidType({expected: "Object", received: "Bool"}),
       operation: Parsing,
       path: S.Path.fromArray(["field"]),
     }),
@@ -199,7 +199,7 @@ test("Fails to parse object when provided invalid data", t => {
   t->Assert.deepEqual(
     %raw(`12`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Object", received: "Float"}),
+      code: InvalidType({expected: "Object", received: "Float"}),
       operation: Parsing,
       path: S.Path.empty,
     }),

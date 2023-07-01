@@ -25,7 +25,7 @@ test("Fails to parse", t => {
   t->Assert.deepEqual(
     maybeError,
     Some({
-      code: UnexpectedType({expected: "Bool", received: "Float"}),
+      code: InvalidType({expected: "Bool", received: "Float"}),
       operation: Parsing,
       path: S.Path.empty,
     }),
