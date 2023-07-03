@@ -1,3 +1,5 @@
+@@uncurried
+
 module Obj = {
   external magic: 'a => 'b = "%identity"
 }
@@ -31,6 +33,7 @@ module Error = {
   @new
   external _make: string => t = "RescriptStructError"
 
+  @inline
   let make = error => {
     error->S.Error.toString->_make
   }

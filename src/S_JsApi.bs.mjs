@@ -123,8 +123,9 @@ function describe(description) {
   return Object.assign(struct$1, structOperations);
 }
 
-function description(param) {
-  return S$RescriptStruct.description(this);
+function description() {
+  var struct = this;
+  return S$RescriptStruct.description(struct);
 }
 
 function $$default(def) {
@@ -190,10 +191,10 @@ Object.assign(structOperations, {
       transform: transform,
       refine: refine,
       asyncRefine: asyncRefine,
-      optional: (function (param) {
+      optional: (function () {
           return optional(this);
         }),
-      nullable: (function (param) {
+      nullable: (function () {
           return nullable(this);
         }),
       describe: describe,
@@ -223,12 +224,12 @@ var nan = Object.assign(struct, structOperations);
 
 var objectStructOperations = {};
 
-function strict(param) {
+function strict() {
   var struct = this;
   return Object.assign(S$RescriptStruct.$$Object.strict(struct), objectStructOperations);
 }
 
-function strip(param) {
+function strip() {
   var struct = this;
   return Object.assign(S$RescriptStruct.$$Object.strip(struct), objectStructOperations);
 }

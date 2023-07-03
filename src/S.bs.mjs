@@ -180,9 +180,9 @@ function fromArray(array) {
     } else {
       return "";
     }
-  } else {
-    return "[" + JSON.stringify(array[0]) + "]";
   }
+  var $$location = array[0];
+  return "[" + JSON.stringify($$location) + "]";
 }
 
 function concat(path, concatedPath) {
@@ -1482,6 +1482,7 @@ function factory$2(definer) {
               var constantDefinitions = definerCtx_c;
               var inlinedPreparationValues = definerCtx_v;
               var preparationPathes = definerCtx_p;
+              var fieldDefinitions$1 = fieldDefinitions;
               var asyncFieldVars = [];
               var syncOutputVar = $$var(b);
               var codeRef = "if(!(typeof " + inputVar + "===\"object\"&&" + inputVar + "!==null&&!Array.isArray(" + inputVar + "))){" + raiseWithArg(b, pathVar, (function (input) {
@@ -1496,8 +1497,8 @@ function factory$2(definer) {
                 var preparationInlinedValue = inlinedPreparationValues[idx];
                 codeRef = codeRef + (syncOutputVar + preparationPath + "=" + preparationInlinedValue + ";");
               }
-              for(var idx$1 = 0 ,idx_finish$1 = fieldDefinitions.length; idx$1 < idx_finish$1; ++idx$1){
-                var fieldDefinition = fieldDefinitions[idx$1];
+              for(var idx$1 = 0 ,idx_finish$1 = fieldDefinitions$1.length; idx$1 < idx_finish$1; ++idx$1){
+                var fieldDefinition = fieldDefinitions$1[idx$1];
                 var inlinedFieldName = fieldDefinition.i;
                 var fieldStruct = fieldDefinition.s;
                 var path = fieldDefinition.p;
@@ -1516,11 +1517,11 @@ function factory$2(definer) {
               }
               var withUnknownKeysRefinement = classify$2(selfStruct) === "Strict";
               if (withUnknownKeysRefinement) {
-                if (fieldDefinitions.length !== 0) {
+                if (fieldDefinitions$1.length !== 0) {
                   var keyVar = $$var(b);
                   codeRef = codeRef + ("for(" + keyVar + " in " + inputVar + "){if(!(");
-                  for(var idx$2 = 0 ,idx_finish$2 = fieldDefinitions.length; idx$2 < idx_finish$2; ++idx$2){
-                    var fieldDefinition$1 = fieldDefinitions[idx$2];
+                  for(var idx$2 = 0 ,idx_finish$2 = fieldDefinitions$1.length; idx$2 < idx_finish$2; ++idx$2){
+                    var fieldDefinition$1 = fieldDefinitions$1[idx$2];
                     if (idx$2 !== 0) {
                       codeRef = codeRef + "||";
                     }
@@ -1559,6 +1560,7 @@ function factory$2(definer) {
             }),
           sb: (function (b, param, inputVar, outputVar, pathVar) {
               var constantDefinitions = definerCtx_c;
+              var fieldDefinitions$1 = fieldDefinitions;
               var codeRef = "";
               for(var idx = 0 ,idx_finish = constantDefinitions.length; idx < idx_finish; ++idx){
                 var match = constantDefinitions[idx];
@@ -1575,8 +1577,8 @@ function factory$2(definer) {
                       }(value)), inputVar + path) + "}");
               }
               codeRef = codeRef + (outputVar + "={};");
-              for(var idx$1 = 0 ,idx_finish$1 = fieldDefinitions.length; idx$1 < idx_finish$1; ++idx$1){
-                var fieldDefinition = fieldDefinitions[idx$1];
+              for(var idx$1 = 0 ,idx_finish$1 = fieldDefinitions$1.length; idx$1 < idx_finish$1; ++idx$1){
+                var fieldDefinition = fieldDefinitions$1[idx$1];
                 var fieldStruct = fieldDefinition.s;
                 var path$1 = fieldDefinition.p;
                 var isRegistered = fieldDefinition.r;
@@ -2374,8 +2376,9 @@ function factory$9(structs) {
         };
 }
 
-function factoryFromArgs(param) {
-  return factory$9((Array.from(arguments)));
+function factoryFromArgs() {
+  var structs = (Array.from(arguments));
+  return factory$9(structs);
 }
 
 var Tuple = {

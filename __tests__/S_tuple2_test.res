@@ -5,7 +5,7 @@ module Common = {
   let any = %raw(`[123, true]`)
   let wrongAny = %raw(`[123]`)
   let wrongTypeAny = %raw(`"Hello world!"`)
-  let factory = () => S.tuple2(. S.int, S.bool)
+  let factory = () => S.tuple2(S.int, S.bool)
 
   test("Successfully parses", t => {
     let struct = factory()

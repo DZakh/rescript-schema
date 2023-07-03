@@ -1,3 +1,5 @@
+@@uncurried
+
 module Error: {
   type t
 }
