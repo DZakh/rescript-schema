@@ -1456,6 +1456,9 @@ function factory$2(definer) {
     fieldDefinitionsSet.add(fieldDefinition);
     return fieldDefinition;
   };
+  var tag = function (tag$1, asValue) {
+    field(tag$1, factory(asValue));
+  };
   var definerCtx_p = [];
   var definerCtx_v = [];
   var definerCtx_c = [];
@@ -1467,7 +1470,8 @@ function factory$2(definer) {
     v: definerCtx_v,
     c: definerCtx_c,
     s: fieldDefinitionsSet,
-    f: field
+    f: field,
+    t: tag
   };
   var definition = definer(definerCtx);
   analyzeDefinition$1(definition, definerCtx, "");

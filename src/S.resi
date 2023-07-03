@@ -199,7 +199,10 @@ let fail: (~path: Path.t=?, string) => 'a
 let advancedFail: Error.t => 'a
 
 module Object: {
-  type ctx = {@as("f") field: 'value. (string, t<'value>) => 'value}
+  type ctx = {
+    @as("f") field: 'value. (string, t<'value>) => 'value,
+    @as("t") tag: 'value. (string, 'value) => unit,
+  }
 
   module UnknownKeys: {
     type tagged = Strict | Strip

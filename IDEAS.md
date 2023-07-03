@@ -46,6 +46,8 @@ let struct = S.tuple(o => (o->S.item(0, S.string), o->S.item(1, S.int)))
 
 - Think of the S.advancedTransform and S.advancedPreprocess destiny
 
+- Add input type for ts
+
 Next breaking release
 
 - Allow passing Path string to the S.field first arg (o.nestedField)
@@ -56,4 +58,3 @@ Next breaking release
 - Remove name from the struct
 - Store input in the Error.t
 - Remove S.toUnknown (update tuple)
-- o.discriminant(fieldName, literal)

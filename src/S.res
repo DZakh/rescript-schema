@@ -1928,7 +1928,10 @@ module Variant = {
 }
 
 module Object = {
-  type ctx = {@as("f") field: 'value. (string, t<'value>) => 'value}
+  type ctx = {
+    @as("f") field: 'value. (string, t<'value>) => 'value,
+    @as("t") tag: 'value. (string, 'value) => unit,
+  }
 
   module UnknownKeys = {
     type tagged =
@@ -1981,11 +1984,8 @@ module Object = {
       constantDefinitions: array<ConstantDefinition.t>,
       @as("s")
       fieldDefinitionsSet: Stdlib.Set.t<FieldDefinition.t>,
-      @as("f")
-      field: 'value. (string, t<'value>) => 'value,
+      ...ctx,
     }
-
-    external toPublic: t => ctx = "%identity"
 
     @inline
     let make = () => {
@@ -2019,10 +2019,15 @@ module Object = {
           }
         }
 
+      let tag = (tag, asValue) => {
+        let _ = field(tag, Literal.factory(asValue))
+      }
+
       {
         fieldNames,
         fields,
         field,
+        tag,
         fieldDefinitions,
         preparationPathes: [],
         inlinedPreparationValues: [],
@@ -2075,7 +2080,7 @@ module Object = {
   let factory = definer => {
     let instructions = {
       let definerCtx = DefinerCtx.make()
-      let definition = definer(definerCtx->DefinerCtx.toPublic)->castAnyToUnknown
+      let definition = definer((definerCtx :> ctx))->castAnyToUnknown
       definition->analyzeDefinition(~definerCtx, ~path=Path.empty)
       definerCtx
     }

@@ -385,7 +385,7 @@ type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, 
 
 // It will have the S.t<shape> type
 let struct = S.object(o => {
-  ignore(o.field("kind", S.literal("circle")))
+  o.tag("kind", "circle")
   Circle({
     radius: o.field("radius", S.float),
   })
@@ -479,19 +479,19 @@ type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, 
 
 let shapeStruct = S.union([
   S.object(o => {
-    ignore(o.field("kind", S.literal("circle")))
+    o.tag("kind", "circle")
     Circle({
       radius: o.field("radius", S.float),
     })
   }),
   S.object(o => {
-    ignore(o.field("kind", S.literal("square")))
+    o.tag("kind", "square")
     Square({
       x: o.field("x", S.float),
     })
   }),
   S.object(o => {
-    ignore(o.field("kind", S.literal("triangle")))
+    o.tag("kind", "triangle")
     Triangle({
       x: o.field("x", S.float),
       y: o.field("y", S.float),
