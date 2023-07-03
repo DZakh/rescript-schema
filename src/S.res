@@ -50,8 +50,7 @@ module Stdlib = {
     type t<+'a> = promise<'a>
 
     @send
-    external thenResolveWithCatch: (t<'a>, @uncurry 'a => 'b, @uncurry Js.Exn.t => 'b) => t<'b> =
-      "then"
+    external thenResolveWithCatch: (t<'a>, 'a => 'b, Js.Exn.t => 'b) => t<'b> = "then"
 
     @val @scope("Promise")
     external resolve: 'a => t<'a> = "resolve"
@@ -83,11 +82,6 @@ module Stdlib = {
     @inline
     let getArguments = (): array<'a> => {
       %raw(`Array.from(arguments)`)
-    }
-
-    @inline
-    let call1 = (fn: 'arg1 => 'return, arg1: 'arg1): 'return => {
-      Obj.magic(fn)(arg1)
     }
   }
 
@@ -1055,7 +1049,7 @@ let parseJsonStringWith = (json: string, struct: t<'value>): result<'value, Erro
 
 let recursive = fn => {
   let placeholder: t<'value> = %raw(`{m:emptyMetadataMap}`)
-  let struct = fn->Stdlib.Fn.call1(placeholder)
+  let struct = fn(placeholder)
   placeholder->Stdlib.Object.overrideWith(struct)
 
   {
@@ -1233,7 +1227,7 @@ let refine: (
             ~inputVar=childOutputVar,
             ~outputVar,
             ~pathVar,
-            ~fn=i => () => asyncParser->Stdlib.Fn.call1(i),
+            ~fn=i => () => asyncParser(i),
             ~isRefine=true,
             (),
           )}`
@@ -1274,7 +1268,7 @@ let refine: (
             ~inputVar=childOutputVar,
             ~outputVar,
             ~pathVar,
-            ~fn=i => () => asyncParser->Stdlib.Fn.call1(i),
+            ~fn=i => () => asyncParser(i),
             ~isRefine=true,
             (),
           )}`
@@ -1380,7 +1374,7 @@ let advancedTransform: (
                 ~inputVar=childOutputVar,
                 ~outputVar,
                 ~pathVar,
-                ~fn=i => () => asyncParser->Stdlib.Fn.call1(i),
+                ~fn=i => () => asyncParser(i),
                 (),
               )}`
           }
@@ -1491,7 +1485,7 @@ let transform: (
             ~inputVar=childOutputVar,
             ~outputVar,
             ~pathVar,
-            ~fn=i => () => asyncParser->Stdlib.Fn.call1(i),
+            ~fn=i => () => asyncParser(i),
             (),
           )}`
       })
@@ -1612,7 +1606,7 @@ let rec advancedPreprocess = (
                   ~inputVar,
                   ~outputVar=parseResultVar,
                   ~pathVar,
-                  ~fn=i => () => asyncParser->Stdlib.Fn.call1(i),
+                  ~fn=i => () => asyncParser(i),
                   (),
                 )}${outputVar}=()=>${parseResultVar}().then(t=>{${code}return ${isAsync
                   ? `${childOutputVar}()`
@@ -1695,7 +1689,7 @@ let custom = (
           ~inputVar,
           ~outputVar,
           ~pathVar,
-          ~fn=input => () => asyncParser->Stdlib.Fn.call1(input),
+          ~fn=input => () => asyncParser(input),
           (),
         )
       })
@@ -1847,7 +1841,7 @@ module Variant = {
       let struct = struct->toUnknown
       let instructions = {
         let definerCtx = DefinerCtx.make()
-        let definition = definer->Stdlib.Fn.call1(definerCtx->Obj.magic)->castAnyToUnknown
+        let definition = definer(definerCtx->Obj.magic)->castAnyToUnknown
         definition->analyzeDefinition(~definerCtx, ~path=Path.empty)
         definerCtx
       }
@@ -2081,7 +2075,7 @@ module Object = {
   let factory = definer => {
     let instructions = {
       let definerCtx = DefinerCtx.make()
-      let definition = definer->Stdlib.Fn.call1(definerCtx->DefinerCtx.toPublic)->castAnyToUnknown
+      let definition = definer(definerCtx->DefinerCtx.toPublic)->castAnyToUnknown
       definition->analyzeDefinition(~definerCtx, ~path=Path.empty)
       definerCtx
     }
@@ -3569,7 +3563,7 @@ let catch = (struct, getFallbackValue) => {
       let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
 
       let fallbackValVar = `${b->B.embed((input, internalError) =>
-          getFallbackValue->Stdlib.Fn.call1({
+          getFallbackValue({
             input,
             error: internalError->Error.Internal.toParseError,
           })
