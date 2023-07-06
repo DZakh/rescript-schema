@@ -640,7 +640,7 @@ let struct = S.never
 
 %raw(`undefined`)->S.parseWith(struct)
 // Error({
-//   code: InvalidType({expected: "Never", received: "Option"}),
+//   code: InvalidType({expected: S.never, received: undefined}),
 //   operation: Parsing,
 //   path: S.Path.empty,
 // })
@@ -760,7 +760,7 @@ let nullableStruct = innerStruct =>
   S.custom(
     ~name="Nullable",
     ~parser=unknown => {
-      if unknown === %raw("undefined") || unknown === %raw("null") {
+      if unknown === %raw(`undefined`) || unknown === %raw(`null`) {
         None
       } else {
         switch unknown->S.parseAnyWith(innerStruct) {
@@ -776,7 +776,7 @@ let nullableStruct = innerStruct =>
         | Ok(value) => value
         | Error(error) => S.advancedFail(error)
         }
-      | None => %raw("null")
+      | None => %raw(`null`)
       }
     },
     (),
@@ -790,7 +790,7 @@ let nullableStruct = innerStruct =>
 // Ok(None)
 %raw(`123`)->S.parseWith(struct)
 // Error({
-//   code: InvalidType({expected: "String", received: "Float"}),
+//   code: InvalidType({expected: S.string, received: 123}),
 //   operation: Parsing,
 //   path: S.Path.empty,
 // })

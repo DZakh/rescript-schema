@@ -64,7 +64,7 @@ test("Record struct with optional fields", t => {
   )
   t->Assert.deepEqual(
     %raw(`{}`)->S.parseWith(recordWithOptionalStruct),
-    Ok({label: %raw("undefined"), value: %raw("undefined")}),
+    Ok({label: %raw(`undefined`), value: %raw(`undefined`)}),
     (),
   )
 })

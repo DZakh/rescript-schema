@@ -63,11 +63,11 @@ test("MissingSerializer error", t => {
 test("InvalidType error", t => {
   t->Assert.is(
     {
-      code: InvalidType({expected: "String", received: "Bool"}),
+      code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(true)}),
       operation: Parsing,
       path: S.Path.empty,
     }->S.Error.toString,
-    "Failed parsing at root. Reason: Expected String, received Bool",
+    "Failed parsing at root. Reason: Expected String, received true",
     (),
   )
 })
@@ -156,17 +156,17 @@ test("InvalidUnion filters similar reasons", t => {
     {
       code: InvalidUnion([
         {
-          code: InvalidType({expected: "Object", received: "String"}),
+          code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`"Hello world!"`)}),
           operation: Parsing,
           path: S.Path.empty,
         },
         {
-          code: InvalidType({expected: "Object", received: "String"}),
+          code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`"Hello world!"`)}),
           operation: Parsing,
           path: S.Path.empty,
         },
         {
-          code: InvalidType({expected: "Object", received: "String"}),
+          code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`"Hello world!"`)}),
           operation: Parsing,
           path: S.Path.empty,
         },
@@ -175,7 +175,7 @@ test("InvalidUnion filters similar reasons", t => {
       path: S.Path.empty,
     }->S.Error.toString,
     `Failed parsing at root. Reason: Invalid union with following errors
-- Expected Object, received String`,
+- Expected Bool, received "Hello world!"`,
     (),
   )
 })
@@ -187,17 +187,17 @@ test("Nested InvalidUnion error", t => {
         {
           code: InvalidUnion([
             {
-              code: InvalidType({expected: "Object", received: "String"}),
+              code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`"Hello world!"`)}),
               operation: Parsing,
               path: S.Path.empty,
             },
             {
-              code: InvalidType({expected: "Object", received: "String"}),
+              code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`"Hello world!"`)}),
               operation: Parsing,
               path: S.Path.empty,
             },
             {
-              code: InvalidType({expected: "Object", received: "String"}),
+              code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`"Hello world!"`)}),
               operation: Parsing,
               path: S.Path.empty,
             },
@@ -211,7 +211,7 @@ test("Nested InvalidUnion error", t => {
     }->S.Error.toString,
     `Failed parsing at root. Reason: Invalid union with following errors
 - Invalid union with following errors
-  - Expected Object, received String`,
+  - Expected Bool, received "Hello world!"`,
     (),
   )
 })
@@ -223,7 +223,7 @@ test("InvalidJsonStruct error", t => {
       operation: Serializing,
       path: S.Path.empty,
     }->S.Error.toString,
-    `Failed serializing at root. Reason: The struct Option is not compatible with JSON`,
+    `Failed serializing at root. Reason: The struct Option(Literal(true)) is not compatible with JSON`,
     (),
   )
 })

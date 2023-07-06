@@ -52,12 +52,12 @@ test("Supports Object", t => {
 
 test("Fails to parse Object field", t => {
   let struct = S.json
-  let data = Js.Json.object_([("bar", %raw("undefined")), ("baz", Js.Json.null)]->Js.Dict.fromArray)
+  let data = Js.Json.object_([("bar", %raw(`undefined`)), ("baz", Js.Json.null)]->Js.Dict.fromArray)
 
   t->Assert.deepEqual(
     data->S.parseWith(struct),
     Error({
-      code: InvalidType({received: "Option", expected: "JSON"}),
+      code: InvalidType({received: %raw(`undefined`), expected: struct->S.toUnknown}),
       operation: Parsing,
       path: S.Path.fromLocation("bar"),
     }),
@@ -72,7 +72,7 @@ test("Fails to parse matrix field", t => {
   t->Assert.deepEqual(
     data->S.parseWith(struct),
     Error({
-      code: InvalidType({received: "Option", expected: "JSON"}),
+      code: InvalidType({received: %raw(`undefined`), expected: struct->S.toUnknown}),
       operation: Parsing,
       path: S.Path.fromArray(["1", "0"]),
     }),
@@ -83,9 +83,9 @@ test("Fails to parse matrix field", t => {
 test("Fails to parse NaN", t => {
   let struct = S.json
   t->Assert.deepEqual(
-    %raw("NaN")->S.parseAnyWith(struct),
+    %raw(`NaN`)->S.parseAnyWith(struct),
     Error({
-      code: InvalidType({received: "NaN Literal (NaN)", expected: "JSON"}),
+      code: InvalidType({received: %raw(`NaN`), expected: struct->S.toUnknown}),
       operation: Parsing,
       path: S.Path.empty,
     }),
@@ -96,9 +96,9 @@ test("Fails to parse NaN", t => {
 test("Fails to parse undefined", t => {
   let struct = S.json
   t->Assert.deepEqual(
-    %raw("undefined")->S.parseAnyWith(struct),
+    %raw(`undefined`)->S.parseAnyWith(struct),
     Error({
-      code: InvalidType({received: "Option", expected: "JSON"}),
+      code: InvalidType({received: %raw(`undefined`), expected: struct->S.toUnknown}),
       operation: Parsing,
       path: S.Path.empty,
     }),

@@ -18,9 +18,9 @@ test("Fails to parse", t => {
   let struct = S.bool
 
   t->Assert.deepEqual(
-    Json.number(123.)->S.parseWith(struct),
+    %raw("123")->S.parseWith(struct),
     Error({
-      code: InvalidType({expected: "Bool", received: "Float"}),
+      code: InvalidType({expected: struct->S.toUnknown, received: %raw("123")}),
       operation: Parsing,
       path: S.Path.empty,
     }),

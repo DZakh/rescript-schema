@@ -75,7 +75,7 @@ test("Fails to parse never", (t) => {
     },
     {
       name: "RescriptStructError",
-      message: "Failed parsing at root. Reason: Expected Never, received Bool",
+      message: "Failed parsing at root. Reason: Expected Never, received true",
     }
   );
 });
@@ -197,8 +197,7 @@ test("Fails to parse with invalid data", (t) => {
     },
     {
       name: "RescriptStructError",
-      message:
-        "Failed parsing at root. Reason: Expected String, received Float",
+      message: "Failed parsing at root. Reason: Expected String, received 123",
     }
   );
 });
@@ -222,8 +221,7 @@ test("Fails to serialize never", (t) => {
     },
     {
       name: "RescriptStructError",
-      message:
-        "Failed serializing at root. Reason: Expected Never, received String",
+      message: `Failed serializing at root. Reason: Expected Never, received "123"`,
     }
   );
 });

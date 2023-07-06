@@ -2,10 +2,10 @@ open Ava
 
 module Common = {
   let value = 123.
-  let wrongValue = %raw(`444.`)
+  let invalidValue = %raw(`444.`)
   let any = %raw(`123`)
-  let wrongAny = %raw(`444`)
-  let wrongTypeAny = %raw(`"Hello world!"`)
+  let invalidAny = %raw(`444`)
+  let invalidTypeAny = %raw(`"Hello world!"`)
   let factory = () => S.literal(123.)
 
   test("Successfully parses", t => {
@@ -14,11 +14,11 @@ module Common = {
     t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
   })
 
-  test("Fails to parse wrong value", t => {
+  test("Fails to parse invalid value", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(struct),
       Error({
         code: InvalidLiteral({expected: Number(123.), received: 444.->Obj.magic}),
         operation: Parsing,
@@ -28,13 +28,13 @@ module Common = {
     )
   })
 
-  test("Fails to parse wrong type", t => {
+  test("Fails to parse invalid type", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongTypeAny->S.parseAnyWith(struct),
+      invalidTypeAny->S.parseAnyWith(struct),
       Error({
-        code: InvalidLiteral({expected: Number(123.), received: wrongTypeAny}),
+        code: InvalidLiteral({expected: Number(123.), received: invalidTypeAny}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -48,13 +48,13 @@ module Common = {
     t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
   })
 
-  test("Fails to serialize wrong value", t => {
+  test("Fails to serialize invalid value", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongValue->S.serializeToUnknownWith(struct),
+      invalidValue->S.serializeToUnknownWith(struct),
       Error({
-        code: InvalidLiteral({expected: Number(123.), received: wrongValue}),
+        code: InvalidLiteral({expected: Number(123.), received: invalidValue}),
         operation: Serializing,
         path: S.Path.empty,
       }),

@@ -3,7 +3,7 @@ open Ava
 module Common = {
   let value = "ReScript is Great!"
   let any = %raw(`"ReScript is Great!"`)
-  let wrongAny = %raw(`true`)
+  let invalidAny = %raw(`true`)
   let factory = () => S.string
 
   test("Successfully parses", t => {
@@ -16,9 +16,9 @@ module Common = {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(struct),
       Error({
-        code: InvalidType({expected: "String", received: "Bool"}),
+        code: InvalidType({expected: struct->S.toUnknown, received: invalidAny}),
         operation: Parsing,
         path: S.Path.empty,
       }),

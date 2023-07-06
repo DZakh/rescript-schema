@@ -257,7 +257,7 @@ test("Field name in a format of a path is handled properly", t => {
   t->Assert.deepEqual(
     %raw(`{"bar": "foo"}`)->S.parseAnyWith(struct),
     Error({
-      code: InvalidType({expected: "String", received: "Option"}),
+      code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`undefined`)}),
       operation: Parsing,
       path: S.Path.fromArray([`["abc"]["cde"]`]),
     }),

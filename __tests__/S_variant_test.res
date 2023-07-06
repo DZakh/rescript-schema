@@ -13,7 +13,7 @@ test("Fails to parse wrapped struct", t => {
     123->S.parseAnyWith(struct),
     Error({
       operation: Parsing,
-      code: InvalidType({received: "Float", expected: "String"}),
+      code: InvalidType({received: 123->Obj.magic, expected: S.string->S.toUnknown}),
       path: S.Path.empty,
     }),
     (),

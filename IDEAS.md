@@ -1,6 +1,6 @@
 # Ideas draft
 
-- Document utility functions (S.name, S.classify, S.inline)
+- Document utility functions (S.name, S.setName, S.classify, S.inline)
 
 - Clean up Caml_option.some, Js_dict.get
 
@@ -13,8 +13,6 @@
 - Github Action: Add linter checking that the generated files are up to date (?)
 
 - Don't recreate the object, when nothing should be transformed (???)
-
-- Better error message for discriminated union (??) (Support the case when there are multiple items with the same discriminants)
 
 - Update String refinements like in zod
   z.string().startsWith("https://", { message: "Must provide secure URL" });
@@ -37,24 +35,27 @@ let trimContract: S.contract<string => string> = S.contract(o => {
 - Update tuple (???)
 
 ```
-let struct = S.tuple(o => (o->S.item(0, S.string), o->S.item(1, S.int)))
+let struct = S.tuple(o => (o.item(0, S.string), o.item(1, S.int)))
 ```
 
 - Run struct factory validation checks only in dev mode
-
-- Use instanceof Error for internal error (???)
 
 - Think of the S.advancedTransform and S.advancedPreprocess destiny
 
 - Add input type for ts
 
+- S.refine(~mode=[#InputAndOutput | #Input | #Output], fn) (???)
+
+- Use S.union for S.option/S.null/S.default? (For more correct errors)
+
 Next breaking release
 
 - Allow passing Path string to the S.field first arg (o.nestedField)
 - rename advancedFail to failWithError
-- Add S.validator
+- Add S.validator (use for test utils as well)
 - Fix serializing performance
 - Move S.inline to experimental
-- Remove name from the struct
 - Store input in the Error.t
 - Remove S.toUnknown (update tuple)
+- intersection / spread
+- Test obj literals

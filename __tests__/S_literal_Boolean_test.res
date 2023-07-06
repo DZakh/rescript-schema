@@ -2,10 +2,10 @@ open Ava
 
 module Common = {
   let value = false
-  let wrongValue = %raw(`true`)
+  let invalidValue = %raw(`true`)
   let any = %raw(`false`)
-  let wrongAny = %raw(`true`)
-  let wrongTypeAny = %raw(`"Hello world!"`)
+  let invalidAny = %raw(`true`)
+  let invalidTypeAny = %raw(`"Hello world!"`)
   let factory = () => S.literal(false)
 
   test("Successfully parses", t => {
@@ -14,11 +14,11 @@ module Common = {
     t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
   })
 
-  test("Fails to parse wrong value", t => {
+  test("Fails to parse invalid value", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(struct),
       Error({
         code: InvalidLiteral({expected: Boolean(false), received: true->Obj.magic}),
         operation: Parsing,
@@ -28,13 +28,13 @@ module Common = {
     )
   })
 
-  test("Fails to parse wrong type", t => {
+  test("Fails to parse invalid type", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongTypeAny->S.parseAnyWith(struct),
+      invalidTypeAny->S.parseAnyWith(struct),
       Error({
-        code: InvalidLiteral({expected: Boolean(false), received: wrongTypeAny}),
+        code: InvalidLiteral({expected: Boolean(false), received: invalidTypeAny}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -48,13 +48,13 @@ module Common = {
     t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
   })
 
-  test("Fails to serialize wrong value", t => {
+  test("Fails to serialize invalid value", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongValue->S.serializeToUnknownWith(struct),
+      invalidValue->S.serializeToUnknownWith(struct),
       Error({
-        code: InvalidLiteral({expected: Boolean(false), received: wrongValue}),
+        code: InvalidLiteral({expected: Boolean(false), received: invalidValue}),
         operation: Serializing,
         path: S.Path.empty,
       }),

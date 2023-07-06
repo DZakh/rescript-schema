@@ -315,13 +315,13 @@
 // })
 
 // test("Supports Null Literal", t => {
-//   let struct = S.literal(%raw("null"))
+//   let struct = S.literal(%raw(`null`))
 //   t->Assert.deepEqual(struct->S.inline, `S.literal(Js.Null.empty)`, ())
 // })
 
 // test("Supports NaN Literal", t => {
-//   let struct = S.literal(%raw("NaN"))
-//   t->Assert.deepEqual(struct->S.inline, `S.literal(%raw("NaN"))`, ())
+//   let struct = S.literal(%raw(`NaN`))
+//   t->Assert.deepEqual(struct->S.inline, `S.literal(%raw(`NaN`))`, ())
 // })
 
 // test("Supports Option", t => {

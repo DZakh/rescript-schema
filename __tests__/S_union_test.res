@@ -45,27 +45,27 @@ module Advanced = {
 
   type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, y: float})
 
-  let shapeStruct = S.union([
-    S.object(o => {
-      o.tag("kind", "circle")
-      Circle({
-        radius: o.field("radius", S.float),
-      })
-    }),
-    S.object(o => {
-      o.tag("kind", "square")
-      Square({
-        x: o.field("x", S.float),
-      })
-    }),
-    S.object(o => {
-      o.tag("kind", "triangle")
-      Triangle({
-        x: o.field("x", S.float),
-        y: o.field("y", S.float),
-      })
-    }),
-  ])
+  let circleStruct = S.object(o => {
+    o.tag("kind", "circle")
+    Circle({
+      radius: o.field("radius", S.float),
+    })
+  })
+  let squareStruct = S.object(o => {
+    o.tag("kind", "square")
+    Square({
+      x: o.field("x", S.float),
+    })
+  })
+  let triangleStruct = S.object(o => {
+    o.tag("kind", "triangle")
+    Triangle({
+      x: o.field("x", S.float),
+      y: o.field("y", S.float),
+    })
+  })
+
+  let shapeStruct = S.union([circleStruct, squareStruct, triangleStruct])
 
   test("Successfully parses Circle shape", t => {
     t->Assert.deepEqual(
@@ -167,23 +167,32 @@ module Advanced = {
     )
   })
 
-  test("Fails to parse with wrong data type", t => {
+  test("Fails to parse with invalid data type", t => {
     t->Assert.deepEqual(
       %raw(`"Hello world!"`)->S.parseAnyWith(shapeStruct),
       Error({
         code: InvalidUnion([
           {
-            code: InvalidType({expected: "Object", received: "String"}),
+            code: InvalidType({
+              expected: circleStruct->S.toUnknown,
+              received: %raw(`"Hello world!"`),
+            }),
             operation: Parsing,
             path: S.Path.empty,
           },
           {
-            code: InvalidType({expected: "Object", received: "String"}),
+            code: InvalidType({
+              expected: squareStruct->S.toUnknown,
+              received: %raw(`"Hello world!"`),
+            }),
             operation: Parsing,
             path: S.Path.empty,
           },
           {
-            code: InvalidType({expected: "Object", received: "String"}),
+            code: InvalidType({
+              expected: triangleStruct->S.toUnknown,
+              received: %raw(`"Hello world!"`),
+            }),
             operation: Parsing,
             path: S.Path.empty,
           },

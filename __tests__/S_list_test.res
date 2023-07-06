@@ -3,8 +3,8 @@ open Ava
 module CommonWithNested = {
   let value = list{"Hello world!", ""}
   let any = %raw(`["Hello world!", ""]`)
-  let wrongAny = %raw(`true`)
-  let nestedWrongAny = %raw(`["Hello world!", 1]`)
+  let invalidAny = %raw(`true`)
+  let nestedInvalidAny = %raw(`["Hello world!", 1]`)
   let factory = () => S.list(S.string)
 
   test("Successfully parses", t => {
@@ -16,24 +16,29 @@ module CommonWithNested = {
   test("Fails to parse", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(
-      wrongAny->S.parseAnyWith(struct),
-      Error({
-        code: InvalidType({expected: "Array", received: "Bool"}),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
-      (),
-    )
+    switch invalidAny->S.parseAnyWith(struct) {
+    | Ok(_) => t->Assert.fail("Unexpected result.")
+    | Error(e) => {
+        t->Assert.deepEqual(e.operation, Parsing, ())
+        t->Assert.deepEqual(e.path, S.Path.empty, ())
+        switch e.code {
+        | InvalidType({expected, received}) => {
+            t->Assert.deepEqual(received, invalidAny, ())
+            t->TestUtils.unsafeAssertEqualStructs(expected, S.array(S.string), ())
+          }
+        | _ => t->Assert.fail("Unexpected code.")
+        }
+      }
+    }
   })
 
   test("Fails to parse nested", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      nestedWrongAny->S.parseAnyWith(struct),
+      nestedInvalidAny->S.parseAnyWith(struct),
       Error({
-        code: InvalidType({expected: "String", received: "Float"}),
+        code: InvalidType({expected: S.string->S.toUnknown, received: 1->Obj.magic}),
         operation: Parsing,
         path: S.Path.fromArray(["1"]),
       }),

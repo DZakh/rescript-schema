@@ -40,11 +40,11 @@ test("Provides ctx to use in catch", t => {
       ctx,
       {
         error: {
-          code: InvalidType({received: `Float`, expected: `String`}),
+          code: InvalidType({received: %raw(`123`), expected: S.string->S.toUnknown}),
           operation: Parsing,
           path: S.Path.empty,
         },
-        input: %raw("123"),
+        input: %raw(`123`),
       },
       (),
     )

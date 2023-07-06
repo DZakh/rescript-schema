@@ -3,7 +3,6 @@
 @@uncurried
 
 type never
-
 type rec literal =
   | String(string)
   | Number(float)
@@ -18,6 +17,9 @@ type rec literal =
   | Undefined
   | NaN
 
+external castAnyToUnknown: 'any => unknown = "%identity"
+external castUnknownToAny: unknown => 'any = "%identity"
+
 module Obj = {
   external magic: 'a => 'b = "%identity"
 }
@@ -27,23 +29,6 @@ module Stdlib = {
     type t = [#undefined | #object | #boolean | #number | #bigint | #string | #symbol | #function]
 
     external typeof: 'a => t = "#typeof"
-  }
-
-  module Unknown = {
-    let toName = unknown =>
-      switch unknown->Js.Types.classify {
-      | JSFalse | JSTrue => "Bool"
-      | JSString(_) => "String"
-      | JSNull => "Null"
-      | JSNumber(number) if Js.Float.isNaN(number) => "NaN Literal (NaN)"
-      | JSNumber(_) => "Float"
-      | JSObject(object) if Js.Array2.isArray(object) => "Array"
-      | JSObject(_) => "Object"
-      | JSFunction(_) => "Function"
-      | JSUndefined => "Option"
-      | JSSymbol(_) => "Symbol"
-      | JSBigInt(_) => "BigInt"
-      }
   }
 
   module Promise = {
@@ -236,7 +221,7 @@ module Stdlib = {
       let typeOfValue = value->Type.typeof
       switch typeOfValue {
       | #undefined => Undefined
-      | #object if value === %raw("null") => Null
+      | #object if value === %raw(`null`) => Null
       | #object if value->Js.Array2.isArray =>
         Array(value->(Obj.magic: 'a => array<'b>)->Js.Array2.map(i => i->classify))
       | #object
@@ -253,6 +238,23 @@ module Stdlib = {
       }
     }
 
+    let rec value = literal => {
+      switch literal {
+      | NaN => %raw(`NaN`)
+      | Undefined => %raw(`undefined`)
+      | Null => %raw(`null`)
+      | Number(v) => v->castAnyToUnknown
+      | Boolean(v) => v->castAnyToUnknown
+      | BigInt(v) => v->castAnyToUnknown
+      | String(v) => v->castAnyToUnknown
+      | Object(v) => v->castAnyToUnknown
+      | Function(v) => v->castAnyToUnknown
+      | Symbol(v) => v->castAnyToUnknown
+      | Array(v) => v->Js.Array2.map(value)->castAnyToUnknown
+      | Dict(v) => v->Dict.mapValues(value)->castAnyToUnknown
+      }
+    }
+
     let rec toText = literal => {
       switch literal {
       | NaN => `NaN`
@@ -263,16 +265,16 @@ module Stdlib = {
       | BigInt(v) => v->BigInt.unsafeToString
       | String(v) => v->Inlined.Value.fromString
       | Object(v) => v->Object.internalClass
-      | Function(_) => "function"
+      | Function(_) => "[object Function]"
       | Symbol(v) => v->Symbol.toString
-      | Array(v) => `[${v->Js.Array2.map(toText)->Js.Array2.joinWith(",")}]`
+      | Array(v) => `[${v->Js.Array2.map(toText)->Js.Array2.joinWith(", ")}]`
       | Dict(v) =>
         `{${v
           ->Js.Dict.keys
           ->Js.Array2.map(key =>
-            `${key->Inlined.Value.fromString}:${toText(v->Js.Dict.unsafeGet(key))}`
+            `${key->Inlined.Value.fromString}: ${toText(v->Js.Dict.unsafeGet(key))}`
           )
-          ->Js.Array2.joinWith(",")}}`
+          ->Js.Array2.joinWith(", ")}}`
       }
     }
   }
@@ -319,8 +321,6 @@ let symbol = Stdlib.Symbol.make("rescript-struct")
 type isAsyncParse = | @as(0) Unknown | Value(bool)
 
 type rec t<'value> = {
-  @as("n")
-  name: string,
   @as("t")
   tagged: tagged,
   @as("pb")
@@ -362,144 +362,85 @@ and transformation<'input, 'output> =
   | Async('input => promise<'output>)
 and builder
 and struct<'a> = t<'a>
+type rec error = {operation: operation, code: errorCode, path: Path.t}
+and errorCode =
+  | OperationFailed(string)
+  // TODO: MissingTransformation/MissingOperation
+  | MissingParser
+  | MissingSerializer
+  | InvalidType({expected: struct<unknown>, received: unknown})
+  | InvalidLiteral({expected: literal, received: unknown})
+  | InvalidTupleSize({expected: int, received: int})
+  | ExcessField(string)
+  | InvalidUnion(array<error>)
+  | UnexpectedAsync
+  | InvalidJsonStruct(struct<unknown>)
+and operation =
+  | Serializing
+  | Parsing
 
-module Error = {
+external castUnknownStructToAnyStruct: t<unknown> => t<'any> = "%identity"
+external toUnknown: t<'any> => t<unknown> = "%identity"
+
+module InternalError = {
+  type t = {
+    @as("c")
+    code: errorCode,
+    @as("p")
+    path: Path.t,
+    @as("s")
+    symbol: Stdlib.Symbol.t,
+  }
+
   @inline
-  let panic = message => Stdlib.Exn.raiseError(Stdlib.Exn.makeError(`[rescript-struct] ${message}`))
+  let raise = (~path, ~code) => {
+    Stdlib.Exn.raiseAny({code, path, symbol})
+  }
 
-  type rec t = {operation: operation, code: code, path: Path.t}
-  and code =
-    | OperationFailed(string)
-    // TODO: MissingTransformation/MissingOperation
-    | MissingParser
-    | MissingSerializer
-    | InvalidType({expected: string, received: string})
-    | InvalidLiteral({expected: literal, received: unknown})
-    | InvalidTupleSize({expected: int, received: int})
-    | ExcessField(string)
-    | InvalidUnion(array<t>)
-    | UnexpectedAsync
-    | InvalidJsonStruct(struct<unknown>)
-  and operation =
-    | Serializing
-    | Parsing
-
-  module Internal = {
-    type public = t
-    type t = {
-      @as("c")
-      code: code,
-      @as("p")
-      path: Path.t,
-      @as("s")
-      symbol: Stdlib.Symbol.t,
-    }
-
-    @inline
-    let raise = (~path, ~code) => {
-      Stdlib.Exn.raiseAny({code, path, symbol})
-    }
-
-    let toParseError = (internalError: t): public => {
-      {
-        operation: Parsing,
-        code: internalError.code,
-        path: internalError.path,
-      }
-    }
-
-    let toSerializeError = (internalError: t): public => {
-      operation: Serializing,
+  let toParseError = (internalError: t) => {
+    {
+      operation: Parsing,
       code: internalError.code,
       path: internalError.path,
     }
+  }
 
-    let getOrRethrow = (jsExn: Js.Exn.t) => {
-      if %raw("jsExn&&jsExn.s===symbol") {
-        jsExn->(Obj.magic: Js.Exn.t => t)
-      } else {
-        Stdlib.Exn.raiseAny(jsExn)
-      }
-    }
+  let toSerializeError = (internalError: t) => {
+    operation: Serializing,
+    code: internalError.code,
+    path: internalError.path,
+  }
 
-    let prependLocationOrRethrow = (jsExn, location) => {
-      let error = jsExn->getOrRethrow
-      raise(~path=Path.concat(location->Path.fromLocation, error.path), ~code=error.code)
+  let getOrRethrow = (jsExn: Js.Exn.t) => {
+    if %raw("jsExn&&jsExn.s===symbol") {
+      jsExn->(Obj.magic: Js.Exn.t => t)
+    } else {
+      Stdlib.Exn.raiseAny(jsExn)
     }
   }
+
+  let prependLocationOrRethrow = (jsExn, location) => {
+    let error = jsExn->getOrRethrow
+    raise(~path=Path.concat(location->Path.fromLocation, error.path), ~code=error.code)
+  }
+
+  @inline
+  let panic = message => Stdlib.Exn.raiseError(Stdlib.Exn.makeError(`[rescript-struct] ${message}`))
 
   module MissingParserAndSerializer = {
     let panic = location => panic(`For a ${location} either a parser, or a serializer is required`)
   }
-
-  let rec toReason = (~nestedLevel=0, error) => {
-    switch error.code {
-    | OperationFailed(reason) => reason
-    | MissingParser => "Struct parser is missing"
-    | MissingSerializer => "Struct serializer is missing"
-    | UnexpectedAsync => "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith"
-    | ExcessField(fieldName) =>
-      `Encountered disallowed excess key "${fieldName}" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`
-    | InvalidType({expected, received}) => `Expected ${expected}, received ${received}`
-    | InvalidLiteral({expected, received}) =>
-      `Expected ${expected->Stdlib.Literal.toText}, received ${received
-        ->Stdlib.Literal.classify
-        ->Stdlib.Literal.toText}`
-    | InvalidJsonStruct(struct) => `The struct ${struct.name} is not compatible with JSON`
-    | InvalidTupleSize({expected, received}) =>
-      `Expected Tuple with ${expected->Js.Int.toString} items, received ${received->Js.Int.toString}`
-    | InvalidUnion(errors) => {
-        let lineBreak = `\n${" "->Js.String2.repeat(nestedLevel * 2)}`
-        let reasons =
-          errors
-          ->Js.Array2.map(error => {
-            let reason = error->toReason(~nestedLevel=nestedLevel->Stdlib.Int.plus(1))
-            let location = switch error.path {
-            | "" => ""
-            | nonEmptyPath => `Failed at ${nonEmptyPath}. `
-            }
-            `- ${location}${reason}`
-          })
-          ->Stdlib.Array.unique
-        `Invalid union with following errors${lineBreak}${reasons->Js.Array2.joinWith(lineBreak)}`
-      }
-    }
-  }
-
-  let toString = error => {
-    let operation = switch error.operation {
-    | Serializing => "serializing"
-    | Parsing => "parsing"
-    }
-    let reason = error->toReason
-    let pathText = switch error.path {
-    | "" => "root"
-    | nonEmptyPath => nonEmptyPath
-    }
-    `Failed ${operation} at ${pathText}. Reason: ${reason}`
-  }
 }
 
-let advancedFail = (error: Error.t) => {
-  Error.Internal.raise(~path=error.path, ~code=error.code)
-}
-
-let fail = (~path=Path.empty, message) => {
-  Error.Internal.raise(~path, ~code=OperationFailed(message))
-}
-
-exception Raised(Error.t)
+@inline
+let classify = struct => struct.tagged
 
 type payloadedVariant<'payload> = {_0: 'payload}
 let unsafeGetVariantPayload = variant => (variant->Obj.magic)._0
 
 let emptyMetadataMap = Js.Dict.empty()
 
-external castAnyToUnknown: 'any => unknown = "%identity"
-external castUnknownToAny: unknown => 'any = "%identity"
-external castUnknownStructToAnyStruct: t<unknown> => t<'any> = "%identity"
-external toUnknown: t<'any> => t<unknown> = "%identity"
-
+// TODO: Clean up
 module TransformationFactory = {
   type t<'value, 'input, 'output> = (~struct: struct<'value>) => transformation<'input, 'output>
   let call = (public, ~struct) =>
@@ -511,12 +452,6 @@ module TransformationFactory = {
       )
     )(~struct)
 }
-
-@inline
-let classify = struct => struct.tagged
-
-@inline
-let name = struct => struct.name
 
 module Builder = {
   type t = builder
@@ -577,29 +512,6 @@ module Builder = {
       let newCounter = b.varCounter->Stdlib.Int.plus(1)
       b.varCounter = newCounter
       `v${newCounter->Stdlib.Int.unsafeToString}`
-    }
-
-    let rec literal = (b: t, value: literal) => {
-      switch value {
-      | NaN => `NaN`
-      | Undefined => `void 0`
-      | Null => `null`
-      | Number(v) => v->Stdlib.Float.unsafeToString
-      | Boolean(v) => v->Stdlib.Bool.unsafeToString
-      | BigInt(v) => v->Stdlib.BigInt.unsafeToString
-      | String(v) => v->Stdlib.Inlined.Value.fromString
-      | Object(v) => b->embed(v)
-      | Function(v) => b->embed(v)
-      | Symbol(v) => b->embed(v)
-      | Array(v) => `[${v->Js.Array2.map(item => b->literal(item))->Js.Array2.joinWith(",")}]`
-      | Dict(v) =>
-        `{${v
-          ->Js.Dict.keys
-          ->Js.Array2.map(key =>
-            `${key->Stdlib.Inlined.Value.fromString}:${b->literal(v->Js.Dict.unsafeGet(key))}`
-          )
-          ->Js.Array2.joinWith(",")}}`
-      }
     }
 
     @inline
@@ -697,15 +609,15 @@ module Builder = {
       }
     }
 
-    let raiseWithArg = (b: t, ~pathVar, fn: 'arg => Error.code, arg) => {
+    let raiseWithArg = (b: t, ~pathVar, fn: 'arg => errorCode, arg) => {
       `${b->embed((path, arg) => {
-          Error.Internal.raise(~path, ~code=fn(arg))
+          InternalError.raise(~path, ~code=fn(arg))
         })}(${pathVar},${arg})`
     }
 
     let raise = (b: t, ~pathVar, code) => {
       `${b->embed(path => {
-          Error.Internal.raise(~path, ~code)
+          InternalError.raise(~path, ~code)
         })}(${pathVar})`
     }
 
@@ -762,7 +674,7 @@ module Builder = {
     let operation = builder->build(~struct)
     let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
     struct.parse = isAsync
-      ? _ => Error.Internal.raise(~path=Path.empty, ~code=UnexpectedAsync)
+      ? _ => InternalError.raise(~path=Path.empty, ~code=UnexpectedAsync)
       : operation
     struct.parseAsync = isAsync
       ? operation
@@ -857,7 +769,7 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
           | _ => fieldStruct
           }->validateJsonableStruct(~rootStruct, ())
         } catch {
-        | Js.Exn.Error(jsExn) => jsExn->Error.Internal.prependLocationOrRethrow(fieldName)
+        | Js.Exn.Error(jsExn) => jsExn->InternalError.prependLocationOrRethrow(fieldName)
         }
       }
 
@@ -866,7 +778,7 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
         try {
           childStruct->validateJsonableStruct(~rootStruct, ())
         } catch {
-        | Js.Exn.Error(jsExn) => jsExn->Error.Internal.prependLocationOrRethrow(i->Js.Int.toString)
+        | Js.Exn.Error(jsExn) => jsExn->InternalError.prependLocationOrRethrow(i->Js.Int.toString)
         }
       })
     | Union(childrenStructs) =>
@@ -876,7 +788,7 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
     | Option(_)
     | Unknown
     | Literal(_) =>
-      Error.Internal.raise(~path=Path.empty, ~code=InvalidJsonStruct(struct))
+      InternalError.raise(~path=Path.empty, ~code=InvalidJsonStruct(struct))
     }
   }
 }
@@ -892,7 +804,7 @@ let initialSerializeToJson = input => {
       struct.serialize->(Obj.magic: (unknown => unknown) => unknown => Js.Json.t)
   } catch {
   | Js.Exn.Error(jsExn) => {
-      let error = jsExn->Error.Internal.getOrRethrow
+      let error = jsExn->InternalError.getOrRethrow
       struct.serializeToJson = _ => Stdlib.Exn.raiseAny(error)
     }
   }
@@ -912,15 +824,7 @@ let intitialParseAsync = input => {
 }
 
 @inline
-let make = (
-  ~name,
-  ~tagged,
-  ~metadataMap,
-  ~parseOperationBuilder,
-  ~serializeOperationBuilder,
-  (),
-) => {
-  name,
+let make = (~tagged, ~metadataMap, ~parseOperationBuilder, ~serializeOperationBuilder, ()) => {
   tagged,
   parseOperationBuilder,
   serializeOperationBuilder,
@@ -932,22 +836,32 @@ let make = (
   metadataMap,
 }
 
+let advancedFail = (error: error) => {
+  InternalError.raise(~path=error.path, ~code=error.code)
+}
+
+let fail = (~path=Path.empty, message) => {
+  InternalError.raise(~path, ~code=OperationFailed(message))
+}
+
+exception Raised(error)
+
 let parseAnyWith = (any, struct) => {
   try {
     struct.parse(any->castAnyToUnknown)->castUnknownToAny->Ok
   } catch {
-  | Js.Exn.Error(jsExn) => jsExn->Error.Internal.getOrRethrow->Error.Internal.toParseError->Error
+  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toParseError->Error
   }
 }
 
-let parseWith: (Js.Json.t, t<'value>) => result<'value, Error.t> = parseAnyWith
+let parseWith: (Js.Json.t, t<'value>) => result<'value, error> = parseAnyWith
 
 let parseAnyOrRaiseWith = (any, struct) => {
   try {
     struct.parse(any->castAnyToUnknown)->castUnknownToAny
   } catch {
   | Js.Exn.Error(jsExn) =>
-    raise(Raised(jsExn->Error.Internal.getOrRethrow->Error.Internal.toParseError))
+    raise(Raised(jsExn->InternalError.getOrRethrow->InternalError.toParseError))
   }
 }
 
@@ -956,7 +870,7 @@ let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value = parseAnyOrRaiseWith
 let asyncPrepareOk = value => Ok(value->castUnknownToAny)
 
 let asyncPrepareError = jsExn => {
-  jsExn->Error.Internal.getOrRethrow->Error.Internal.toParseError->Error
+  jsExn->InternalError.getOrRethrow->InternalError.toParseError->Error
 }
 
 let parseAnyAsyncWith = (any, struct) => {
@@ -967,7 +881,7 @@ let parseAnyAsyncWith = (any, struct) => {
     )
   } catch {
   | Js.Exn.Error(jsExn) =>
-    jsExn->Error.Internal.getOrRethrow->Error.Internal.toParseError->Error->Stdlib.Promise.resolve
+    jsExn->InternalError.getOrRethrow->InternalError.toParseError->Error->Stdlib.Promise.resolve
   }
 }
 
@@ -979,7 +893,7 @@ let parseAnyAsyncInStepsWith = (any, struct) => {
 
     (() => asyncFn()->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, asyncPrepareError))->Ok
   } catch {
-  | Js.Exn.Error(jsExn) => jsExn->Error.Internal.getOrRethrow->Error.Internal.toParseError->Error
+  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toParseError->Error
   }
 }
 
@@ -989,8 +903,7 @@ let serializeToUnknownWith = (value, struct) => {
   try {
     struct.serialize(value->castAnyToUnknown)->Ok
   } catch {
-  | Js.Exn.Error(jsExn) =>
-    jsExn->Error.Internal.getOrRethrow->Error.Internal.toSerializeError->Error
+  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toSerializeError->Error
   }
 }
 
@@ -999,7 +912,7 @@ let serializeOrRaiseWith = (value, struct) => {
     struct.serializeToJson(value->castAnyToUnknown)
   } catch {
   | Js.Exn.Error(jsExn) =>
-    raise(Raised(jsExn->Error.Internal.getOrRethrow->Error.Internal.toSerializeError))
+    raise(Raised(jsExn->InternalError.getOrRethrow->InternalError.toSerializeError))
   }
 }
 
@@ -1008,7 +921,7 @@ let serializeToUnknownOrRaiseWith = (value, struct) => {
     struct.serialize(value->castAnyToUnknown)
   } catch {
   | Js.Exn.Error(jsExn) =>
-    raise(Raised(jsExn->Error.Internal.getOrRethrow->Error.Internal.toSerializeError))
+    raise(Raised(jsExn->InternalError.getOrRethrow->InternalError.toSerializeError))
   }
 }
 
@@ -1016,14 +929,13 @@ let serializeWith = (value, struct) => {
   try {
     struct.serializeToJson(value->castAnyToUnknown)->Ok
   } catch {
-  | Js.Exn.Error(jsExn) =>
-    jsExn->Error.Internal.getOrRethrow->Error.Internal.toSerializeError->Error
+  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toSerializeError->Error
   }
 }
 
 let serializeToJsonStringWith = (value: 'value, ~space=0, struct: t<'value>): result<
   string,
-  Error.t,
+  error,
 > => {
   switch value->serializeWith(struct) {
   | Ok(json) => Ok(json->Js.Json.stringifyWithSpace(space))
@@ -1031,13 +943,13 @@ let serializeToJsonStringWith = (value: 'value, ~space=0, struct: t<'value>): re
   }
 }
 
-let parseJsonStringWith = (json: string, struct: t<'value>): result<'value, Error.t> => {
+let parseJsonStringWith = (json: string, struct: t<'value>): result<'value, error> => {
   switch try {
     json->Js.Json.parseExn->Ok
   } catch {
   | Js.Exn.Error(error) =>
     Error({
-      Error.code: OperationFailed(error->Js.Exn.message->(Obj.magic: option<string> => string)),
+      code: OperationFailed(error->Js.Exn.message->(Obj.magic: option<string> => string)),
       operation: Parsing,
       path: Path.empty,
     })
@@ -1163,15 +1075,25 @@ module Metadata = {
     external toKey: t<'metadata> => string = "%identity"
   }
 
+  let make1: (
+    Id.t<'metadata>,
+    'metadata,
+  ) => Js.Dict.t<unknown> = %raw(`(id,metadata)=>({[id]:metadata})`)
+
   let get = (struct, ~id: Id.t<'metadata>): option<'metadata> => {
     struct.metadataMap->Js.Dict.get(id->Id.toKey)->Obj.magic
   }
 
-  let set = (struct, ~id: Id.t<'metadata>, ~metadata: 'metadata) => {
-    let metadataMap = struct.metadataMap->Stdlib.Dict.copy
-    metadataMap->Js.Dict.set(id->Id.toKey, metadata->castAnyToUnknown)
+  let set = (struct, ~id: Id.t<'metadata>, metadata: 'metadata) => {
+    let metadataMap =
+      struct.metadataMap === emptyMetadataMap
+        ? make1(id, metadata)
+        : {
+            let copy = struct.metadataMap->Stdlib.Dict.copy
+            copy->Js.Dict.set(id->Id.toKey, metadata->castAnyToUnknown)
+            copy
+          }
     make(
-      ~name=struct.name,
       ~parseOperationBuilder=struct.parseOperationBuilder,
       ~serializeOperationBuilder=struct.serializeOperationBuilder,
       ~tagged=struct.tagged,
@@ -1179,6 +1101,53 @@ module Metadata = {
       (),
     )
   }
+}
+
+let nameMetadataId = Metadata.Id.make(~namespace="rescript-struct", ~name="name")
+
+let rec name = struct => {
+  switch struct->Metadata.get(~id=nameMetadataId) {
+  | Some(n) => n
+  | None => {
+      let tagged = struct->classify
+      switch tagged {
+      | Literal(l) => `Literal(${l->Stdlib.Literal.toText})`
+      | Union(structs) =>
+        `Union(${structs
+          ->Js.Array2.map(s => s->castUnknownStructToAnyStruct->name)
+          ->Js.Array2.joinWith(", ")})`
+      | Tuple(structs) =>
+        `Tuple(${structs
+          ->Js.Array2.map(s => s->castUnknownStructToAnyStruct->name)
+          ->Js.Array2.joinWith(", ")})`
+      | Object({fieldNames, fields}) =>
+        `Object({${fieldNames
+          ->Js.Array2.map(fieldName => {
+            let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+            `${fieldName->Stdlib.Inlined.Value.fromString}: ${fieldStruct
+              ->castUnknownStructToAnyStruct
+              ->name}`
+          })
+          ->Js.Array2.joinWith(", ")}})`
+      | Option(s) => `Option(${s->castUnknownStructToAnyStruct->name})`
+      | Null(s) => `Null(${s->castUnknownStructToAnyStruct->name})`
+      | Array(s) => `Array(${s->castUnknownStructToAnyStruct->name})`
+      | Dict(s) => `Dict(${s->castUnknownStructToAnyStruct->name})`
+      | String
+      | Int
+      | Float
+      | Bool
+      | Never
+      | Unknown
+      | JSON =>
+        tagged->(Obj.magic: tagged => string)
+      }
+    }
+  }
+}
+
+let setName = (struct, name) => {
+  struct->Metadata.set(~id=nameMetadataId, name)
 }
 
 let refine: (
@@ -1197,11 +1166,10 @@ let refine: (
   let struct = struct->toUnknown
 
   if maybeParser === None && maybeAsyncParser === None && maybeSerializer === None {
-    Error.MissingParserAndSerializer.panic(`struct factory Refine`)
+    InternalError.MissingParserAndSerializer.panic(`struct factory Refine`)
   }
 
   make(
-    ~name=struct.name,
     ~tagged=struct.tagged,
     ~parseOperationBuilder=switch (maybeParser, maybeAsyncParser) {
     | (Some(parser), Some(asyncParser)) =>
@@ -1309,11 +1277,9 @@ let addRefinement = (struct, ~metadataId, ~refinement, ~refiner) => {
   struct
   ->Metadata.set(
     ~id=metadataId,
-    ~metadata={
-      switch struct->Metadata.get(~id=metadataId) {
-      | Some(refinements) => refinements->Stdlib.Array.append(refinement)
-      | None => [refinement]
-      }
+    switch struct->Metadata.get(~id=metadataId) {
+    | Some(refinements) => refinements->Stdlib.Array.append(refinement)
+    | None => [refinement]
     },
   )
   ->refine(~parser=refiner, ~serializer=refiner, ())
@@ -1327,11 +1293,10 @@ let advancedTransform: (
 ) => t<'transformed> = (struct, ~parser as maybeParser=?, ~serializer as maybeSerializer=?, ()) => {
   let struct = struct->toUnknown
   if maybeParser === None && maybeSerializer === None {
-    Error.MissingParserAndSerializer.panic(`struct factory Transform`)
+    InternalError.MissingParserAndSerializer.panic(`struct factory Transform`)
   }
 
   make(
-    ~name=struct.name,
     ~tagged=struct.tagged,
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
       switch maybeParser {
@@ -1440,15 +1405,14 @@ let transform: (
 ) => {
   let struct = struct->toUnknown
   if maybeParser === None && maybeAsyncParser === None && maybeSerializer === None {
-    Error.MissingParserAndSerializer.panic(`struct factory Transform`)
+    InternalError.MissingParserAndSerializer.panic(`struct factory Transform`)
   }
 
   make(
-    ~name=struct.name,
     ~tagged=struct.tagged,
     ~parseOperationBuilder=switch (maybeParser, maybeAsyncParser) {
     | (Some(_), Some(_)) =>
-      Error.panic(
+      InternalError.panic(
         "The S.transform doesn't support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.",
       )
     | (Some(parser), None) =>
@@ -1533,13 +1497,12 @@ let rec advancedPreprocess = (
   let struct = struct->toUnknown
 
   if maybeParser === None && maybeSerializer === None {
-    Error.MissingParserAndSerializer.panic(`struct factory Preprocess`)
+    InternalError.MissingParserAndSerializer.panic(`struct factory Preprocess`)
   }
 
   switch struct->classify {
   | Union(unionStructs) =>
     make(
-      ~name=struct.name,
       ~tagged=Union(
         unionStructs->Js.Array2.map(unionStruct =>
           unionStruct
@@ -1555,7 +1518,6 @@ let rec advancedPreprocess = (
     )
   | _ =>
     make(
-      ~name=struct.name,
       ~tagged=struct.tagged,
       ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
         switch maybeParser {
@@ -1667,16 +1629,15 @@ let custom = (
   (),
 ) => {
   if maybeParser === None && maybeAsyncParser === None && maybeSerializer === None {
-    Error.MissingParserAndSerializer.panic(`Custom struct factory`)
+    InternalError.MissingParserAndSerializer.panic(`Custom struct factory`)
   }
 
   make(
-    ~name,
-    ~metadataMap=emptyMetadataMap,
+    ~metadataMap=Metadata.make1(nameMetadataId, name),
     ~tagged=Unknown,
     ~parseOperationBuilder=switch (maybeParser, maybeAsyncParser) {
     | (Some(_), Some(_)) =>
-      Error.panic(
+      InternalError.panic(
         "The S.custom doesn't support the `parser` and `asyncParser` arguments simultaneously. Keep only `asyncParser`.",
       )
     | (Some(parser), None) =>
@@ -1713,54 +1674,60 @@ let custom = (
 }
 
 module Literal = {
-  let rec literalCheckBuilder = (b, ~literal: literal, ~inputVar) => {
-    // TODO: Test that all checks covered by tests
-    switch literal {
-    | NaN => `Number.isNaN(${inputVar})`
-    | Array(v) =>
-      `Array.isArray(${inputVar})&&${inputVar}.length===${v
-        ->Js.Array2.length
-        ->Stdlib.Int.unsafeToString}` ++ (
-        v->Js.Array2.length > 0
+  let rec literalCheckBuilder = (b, ~value, ~inputVar) => {
+    if value->castUnknownToAny->Js.Float.isNaN {
+      `Number.isNaN(${inputVar})`
+    } else {
+      let check = `${inputVar}===${b->B.embed(value)}`
+      if value->Js.Array2.isArray {
+        let value = value->(Obj.magic: unknown => array<unknown>)
+        `(${check}||Array.isArray(${inputVar})&&${inputVar}.length===${value
+          ->Js.Array2.length
+          ->Stdlib.Int.unsafeToString}` ++
+        (value->Js.Array2.length > 0
           ? "&&" ++
-            v
+            value
             ->Js.Array2.mapi((item, idx) =>
               b->literalCheckBuilder(
-                ~literal=item,
+                ~value=item,
                 ~inputVar=`${inputVar}[${idx->Stdlib.Int.unsafeToString}]`,
               )
             )
             ->Js.Array2.joinWith("&&")
-          : ""
-      )
-
-    | Dict(v) => {
-        let keys = v->Js.Dict.keys
+          : "") ++ ")"
+      } else if (
+        value !== %raw(`null`) &&
+        value->Stdlib.Type.typeof === #object &&
+        (value->(Obj.magic: 'a => {"constructor": unknown}))["constructor"] === %raw("Object")
+      ) {
+        let value = value->(Obj.magic: unknown => Js.Dict.t<unknown>)
+        let keys = value->Js.Dict.keys
         let numberOfKeys = keys->Js.Array2.length
-        // TODO: Check that it fails with null
-        `${inputVar}.constructor===Object&&Object.keys(${inputVar}).length===${numberOfKeys->Stdlib.Int.unsafeToString}` ++ (
-          numberOfKeys > 0
-            ? "&&" ++
-              keys
-              ->Js.Array2.map(key => {
-                let inputVar = b->B.var
-                `(${inputVar}=${inputVar}[${key->Stdlib.Inlined.Value.fromString}],${b->literalCheckBuilder(
-                    ~literal=v->Js.Dict.unsafeGet(key),
-                    ~inputVar,
-                  )})`
-              })
-              ->Js.Array2.joinWith("&&")
-            : ""
-        )
+        // TODO: Check that it fails with null and doesn't work for constructor!==Object
+        `(${check}||${inputVar}.constructor===Object&&Object.keys(${inputVar}).length===${numberOfKeys->Stdlib.Int.unsafeToString}` ++
+        (numberOfKeys > 0
+          ? "&&" ++
+            keys
+            ->Js.Array2.map(key => {
+              let inputVar = b->B.var
+              `(${inputVar}=${inputVar}[${key->Stdlib.Inlined.Value.fromString}],${b->literalCheckBuilder(
+                  ~value=value->Js.Dict.unsafeGet(key),
+                  ~inputVar,
+                )})`
+            })
+            ->Js.Array2.joinWith("&&")
+          : "") ++ ")"
+      } else {
+        check
       }
-    | _ => `${inputVar}===${b->B.literal(literal)}`
     }
   }
 
   let factory = value => {
+    let value = value->castAnyToUnknown
     let literal = value->Stdlib.Literal.classify
     let operationBuilder = Builder.make((b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
-      `${b->literalCheckBuilder(~literal, ~inputVar)}||${b->B.raiseWithArg(
+      `${b->literalCheckBuilder(~value, ~inputVar)}||${b->B.raiseWithArg(
           ~pathVar,
           input => InvalidLiteral({
             expected: literal,
@@ -1770,8 +1737,6 @@ module Literal = {
         )};${outputVar}=${inputVar};`
     })
     make(
-      // TODO: Get rid of names
-      ~name="Literal",
       ~metadataMap=emptyMetadataMap,
       ~tagged=Literal(literal),
       ~parseOperationBuilder=operationBuilder,
@@ -1810,12 +1775,12 @@ module Variant = {
       definition->(Obj.magic: unknown => DefinerCtx.t) === definerCtx
     ) {
       if definerCtx.isValueRegistered {
-        Error.panic(`The variant's value is registered multiple times. If you want to duplicate it, use S.transform instead.`)
+        InternalError.panic(`The variant's value is registered multiple times. If you want to duplicate it, use S.transform instead.`)
       } else {
         definerCtx.valuePath = path
         definerCtx.isValueRegistered = true
       }
-    } else if definition->Js.typeof === "object" && definition !== %raw(`null`) {
+    } else if definition->Stdlib.Type.typeof === #object && definition !== %raw(`null`) {
       let definition: Js.Dict.t<unknown> = definition->Obj.magic
       let definitionFieldNames = definition->Js.Dict.keys
       for idx in 0 to definitionFieldNames->Js.Array2.length - 1 {
@@ -1847,7 +1812,6 @@ module Variant = {
       }
 
       make(
-        ~name=struct.name,
         ~tagged=struct.tagged,
         ~parseOperationBuilder=Builder.make((
           b,
@@ -1913,7 +1877,7 @@ module Variant = {
           | true => `${childInputVar}=${inputVar}${valuePath}`
           | false =>
             switch selfStruct->toLiteral {
-            | Some(literal) => `${childInputVar}=${b->B.literal(literal)}`
+            | Some(literal) => `${childInputVar}=${b->B.embed(literal->Stdlib.Literal.value)}`
             | None => b->B.raise(~pathVar, MissingSerializer)
             }
           } ++
@@ -2000,7 +1964,7 @@ module Object = {
           let struct = struct->toUnknown
           switch fields->Stdlib.Dict.has(fieldName) {
           | true =>
-            Error.panic(
+            InternalError.panic(
               `The field "${fieldName}" is defined multiple times. If you want to duplicate a field, use S.transform instead.`,
             )
           | false => {
@@ -2045,14 +2009,14 @@ module Object = {
     ) {
       let fieldDefinition = definition->(Obj.magic: unknown => FieldDefinition.t)
       if fieldDefinition.isRegistered {
-        Error.panic(
+        InternalError.panic(
           `The field ${fieldDefinition.inlinedFieldName} is registered multiple times. If you want to duplicate a field, use S.transform instead.`,
         )
       } else {
         fieldDefinition.path = path
         fieldDefinition.isRegistered = true
       }
-    } else if definition->Js.typeof === "object" && definition !== %raw(`null`) {
+    } else if definition->Stdlib.Type.typeof === #object && definition !== %raw(`null`) {
       let definition: Js.Dict.t<unknown> = definition->Obj.magic
       definerCtx.preparationPathes->Js.Array2.push(path)->ignore
       definerCtx.inlinedPreparationValues
@@ -2086,7 +2050,6 @@ module Object = {
     }
 
     make(
-      ~name="Object",
       ~metadataMap=emptyMetadataMap,
       ~tagged=Object({
         fields: instructions.fields,
@@ -2108,8 +2071,8 @@ module Object = {
           `if(!(typeof ${inputVar}==="object"&&${inputVar}!==null&&!Array.isArray(${inputVar}))){${b->B.raiseWithArg(
               ~pathVar,
               input => InvalidType({
-                expected: "Object",
-                received: input->Stdlib.Unknown.toName,
+                expected: selfStruct,
+                received: input,
               }),
               inputVar,
             )}}`,
@@ -2259,7 +2222,7 @@ module Object = {
 
             | false =>
               switch fieldStruct->toLiteral {
-              | Some(literal) => `${destinationVar}=${b->B.literal(literal)}`
+              | Some(literal) => `${destinationVar}=${b->B.embed(literal->Stdlib.Literal.value)}`
               | None => b->B.raise(~pathVar, MissingSerializer)
               } ++ ";"
             }
@@ -2272,28 +2235,27 @@ module Object = {
   }
 
   let strip = struct => {
-    struct->Metadata.set(~id=UnknownKeys.metadataId, ~metadata=UnknownKeys.Strip)
+    struct->Metadata.set(~id=UnknownKeys.metadataId, UnknownKeys.Strip)
   }
 
   let strict = struct => {
-    struct->Metadata.set(~id=UnknownKeys.metadataId, ~metadata=UnknownKeys.Strict)
+    struct->Metadata.set(~id=UnknownKeys.metadataId, UnknownKeys.Strict)
   }
 }
 
 module Never = {
-  let builder = Builder.make((b, ~selfStruct as _, ~inputVar, ~outputVar as _, ~pathVar) => {
+  let builder = Builder.make((b, ~selfStruct, ~inputVar, ~outputVar as _, ~pathVar) => {
     b->B.raiseWithArg(
       ~pathVar,
       input => InvalidType({
-        expected: "Never",
-        received: input->Stdlib.Unknown.toName,
+        expected: selfStruct,
+        received: input,
       }),
       inputVar,
     ) ++ ";"
   })
 
   let struct = make(
-    ~name=`Never`,
     ~metadataMap=emptyMetadataMap,
     ~tagged=Never,
     ~parseOperationBuilder=builder,
@@ -2304,7 +2266,6 @@ module Never = {
 
 module Unknown = {
   let struct = make(
-    ~name=`Unknown`,
     ~metadataMap=emptyMetadataMap,
     ~tagged=Unknown,
     ~parseOperationBuilder=Builder.noop,
@@ -2350,25 +2311,18 @@ module String = {
   // Adapted from https://stackoverflow.com/a/3143231
   let datetimeRe = %re(`/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/`)
 
-  let parseOperationBuilder = Builder.make((
-    b,
-    ~selfStruct as _,
-    ~inputVar,
-    ~outputVar,
-    ~pathVar,
-  ) => {
+  let parseOperationBuilder = Builder.make((b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
     `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
         ~pathVar,
         input => InvalidType({
-          expected: "String",
-          received: input->Stdlib.Unknown.toName,
+          expected: selfStruct,
+          received: input,
         }),
         inputVar,
       )}}${outputVar}=${inputVar};`
   })
 
   let struct = make(
-    ~name="String",
     ~metadataMap=emptyMetadataMap,
     ~tagged=String,
     ~parseOperationBuilder,
@@ -2522,7 +2476,7 @@ module String = {
     struct
     ->Metadata.set(
       ~id=Refinement.metadataId,
-      ~metadata={
+      {
         switch struct->Metadata.get(~id=Refinement.metadataId) {
         | Some(refinements) => refinements->Stdlib.Array.append(refinement)
         | None => [refinement]
@@ -2551,7 +2505,6 @@ module JsonString = {
   let factory = childStruct => {
     let childStruct = childStruct->toUnknown
     make(
-      ~name=`JsonString`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=String,
       ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
@@ -2606,15 +2559,14 @@ module JsonString = {
 
 module Bool = {
   let struct = make(
-    ~name="Bool",
     ~metadataMap=emptyMetadataMap,
     ~tagged=Bool,
-    ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+    ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
       `if(typeof ${inputVar}!=="boolean"){${b->B.raiseWithArg(
           ~pathVar,
           input => InvalidType({
-            expected: "Bool",
-            received: input->Stdlib.Unknown.toName,
+            expected: selfStruct,
+            received: input,
           }),
           inputVar,
         )}}${outputVar}=${inputVar};`
@@ -2649,15 +2601,14 @@ module Int = {
   }
 
   let struct = make(
-    ~name="Int",
     ~metadataMap=emptyMetadataMap,
     ~tagged=Int,
-    ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+    ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
       `if(!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)){${b->B.raiseWithArg(
           ~pathVar,
           input => InvalidType({
-            expected: "Int",
-            received: input->Stdlib.Unknown.toName,
+            expected: selfStruct,
+            received: input,
           }),
           inputVar,
         )}}${outputVar}=${inputVar};`
@@ -2747,15 +2698,14 @@ module Float = {
   }
 
   let struct = make(
-    ~name="Float",
     ~metadataMap=emptyMetadataMap,
     ~tagged=Float,
-    ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+    ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
       `if(!(typeof ${inputVar}==="number"&&!Number.isNaN(${inputVar}))){${b->B.raiseWithArg(
           ~pathVar,
           input => InvalidType({
-            expected: "Float",
-            received: input->Stdlib.Unknown.toName,
+            expected: selfStruct,
+            received: input,
           }),
           inputVar,
         )}}${outputVar}=${inputVar};`
@@ -2809,7 +2759,6 @@ module Null = {
   let factory = childStruct => {
     let childStruct = childStruct->toUnknown
     make(
-      ~name=`Null`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Null(childStruct),
       ~parseOperationBuilder=Builder.make((
@@ -2869,7 +2818,6 @@ module Option = {
   let factory = childStruct => {
     let childStruct = childStruct->toUnknown
     make(
-      ~name=`Option`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Option(childStruct),
       ~parseOperationBuilder=Builder.make((
@@ -2956,23 +2904,16 @@ module Array = {
   let factory = childStruct => {
     let childStruct = childStruct->toUnknown
     make(
-      ~name=`Array`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Array(childStruct),
-      ~parseOperationBuilder=Builder.make((
-        b,
-        ~selfStruct as _,
-        ~inputVar,
-        ~outputVar,
-        ~pathVar,
-      ) => {
+      ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
         let iteratorVar = b->B.varWithoutAllocation
 
         let code = `if(!Array.isArray(${inputVar})){${b->B.raiseWithArg(
             ~pathVar,
             input => InvalidType({
-              expected: "Array",
-              received: input->Stdlib.Unknown.toName,
+              expected: selfStruct,
+              received: input,
             }),
             inputVar,
           )}}${outputVar}=[];for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.varsScope(
@@ -3097,23 +3038,16 @@ module Dict = {
   let factory = childStruct => {
     let childStruct = childStruct->toUnknown
     make(
-      ~name=`Dict`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Dict(childStruct),
-      ~parseOperationBuilder=Builder.make((
-        b,
-        ~selfStruct as _,
-        ~inputVar,
-        ~outputVar,
-        ~pathVar,
-      ) => {
+      ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
         let keyVar = b->B.varWithoutAllocation
 
         let code = `if(!(typeof ${inputVar}==="object"&&${inputVar}!==null&&!Array.isArray(${inputVar}))){${b->B.raiseWithArg(
             ~pathVar,
             input => InvalidType({
-              expected: "Dict",
-              received: input->Stdlib.Unknown.toName,
+              expected: selfStruct,
+              received: input,
             }),
             inputVar,
           )}}${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.varsScope(b => {
@@ -3179,7 +3113,6 @@ module Default = {
     let childStruct = childStruct->Option.factory->(Obj.magic: t<'value> => t<unknown>)
     let getDefaultValue = getDefaultValue->(Obj.magic: (unit => 'value) => unit => unknown)
     make(
-      ~name=childStruct.name,
       ~metadataMap=emptyMetadataMap,
       ~tagged=childStruct.tagged,
       ~parseOperationBuilder=Builder.make((
@@ -3216,7 +3149,7 @@ module Default = {
       }),
       ~serializeOperationBuilder=childStruct.serializeOperationBuilder,
       (),
-    )->Metadata.set(~id=metadataId, ~metadata=getDefaultValue)
+    )->Metadata.set(~id=metadataId, getDefaultValue)
   }
 
   let classify = struct =>
@@ -3230,22 +3163,15 @@ module Tuple = {
   let factory = structs => {
     let numberOfStructs = structs->Js.Array2.length
     make(
-      ~name="Tuple",
       ~metadataMap=emptyMetadataMap,
       ~tagged=Tuple(structs),
-      ~parseOperationBuilder=Builder.make((
-        b,
-        ~selfStruct as _,
-        ~inputVar,
-        ~outputVar,
-        ~pathVar,
-      ) => {
+      ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
         let codeRef = ref(
           `if(!Array.isArray(${inputVar})){${b->B.raiseWithArg(
               ~pathVar,
               input => InvalidType({
-                expected: "Tuple",
-                received: input->Stdlib.Unknown.toName,
+                expected: selfStruct,
+                received: input,
               }),
               inputVar,
             )}}if(${inputVar}.length!==${numberOfStructs->Stdlib.Int.unsafeToString}){${b->B.raiseWithArg(
@@ -3342,11 +3268,10 @@ module Union = {
     let structs: array<t<unknown>> = structs->Obj.magic
 
     if structs->Js.Array2.length < 2 {
-      Error.panic("A Union struct factory require at least two structs.")
+      InternalError.panic("A Union struct factory require at least two structs.")
     }
 
     make(
-      ~name=`Union`,
       ~metadataMap=emptyMetadataMap,
       ~tagged=Union(structs),
       ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
@@ -3411,7 +3336,7 @@ module Union = {
             `]).catch(t=>{${b->B.raiseWithArg(
                 ~pathVar,
                 internalErrors => {
-                  InvalidUnion(internalErrors->Js.Array2.map(Error.Internal.toParseError))
+                  InvalidUnion(internalErrors->Js.Array2.map(InternalError.toParseError))
                 },
                 `t.errors`,
               )}})`
@@ -3424,7 +3349,7 @@ module Union = {
           b->B.raiseWithArg(
             ~pathVar,
             internalErrors => InvalidUnion(
-              internalErrors->Js.Array2.map(Error.Internal.toParseError),
+              internalErrors->Js.Array2.map(InternalError.toParseError),
             ),
             `[${errorVars->Js.Array2.toString}]`,
           ) ++
@@ -3466,7 +3391,7 @@ module Union = {
         b->B.raiseWithArg(
           ~pathVar,
           internalErrors => InvalidUnion(
-            internalErrors->Js.Array2.map(Error.Internal.toSerializeError),
+            internalErrors->Js.Array2.map(InternalError.toSerializeError),
           ),
           `[${errorVars->Js.Array2.toString}]`,
         ) ++
@@ -3487,74 +3412,70 @@ let list = childStruct => {
   )
 }
 
-let json = {
-  let rec parse = (input, ~path) => {
-    switch input->Js.typeof {
-    | "number" if Js.Float.isNaN(input->(Obj.magic: unknown => float))->not =>
-      input->(Obj.magic: unknown => Js.Json.t)
-
-    | "object" =>
-      if input === %raw("null") {
+let json = make(
+  ~tagged=JSON,
+  ~metadataMap=emptyMetadataMap,
+  ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~outputVar, ~pathVar) => {
+    let rec parse = (input, ~path) => {
+      switch input->Stdlib.Type.typeof {
+      | #number if Js.Float.isNaN(input->(Obj.magic: unknown => float))->not =>
         input->(Obj.magic: unknown => Js.Json.t)
-      } else if input->Js.Array2.isArray {
-        let input = input->(Obj.magic: unknown => array<unknown>)
-        let output = []
-        for idx in 0 to input->Js.Array2.length - 1 {
-          let inputItem = input->Js.Array2.unsafe_get(idx)
-          output
-          ->Js.Array2.push(
-            inputItem->parse(~path=path->Path.concat(Path.fromLocation(idx->Js.Int.toString))),
-          )
-          ->ignore
+
+      | #object =>
+        if input === %raw(`null`) {
+          input->(Obj.magic: unknown => Js.Json.t)
+        } else if input->Js.Array2.isArray {
+          let input = input->(Obj.magic: unknown => array<unknown>)
+          let output = []
+          for idx in 0 to input->Js.Array2.length - 1 {
+            let inputItem = input->Js.Array2.unsafe_get(idx)
+            output
+            ->Js.Array2.push(
+              inputItem->parse(~path=path->Path.concat(Path.fromLocation(idx->Js.Int.toString))),
+            )
+            ->ignore
+          }
+          output->Js.Json.array
+        } else {
+          let input = input->(Obj.magic: unknown => Js.Dict.t<unknown>)
+          let keys = input->Js.Dict.keys
+          let output = Js.Dict.empty()
+          for idx in 0 to keys->Js.Array2.length - 1 {
+            let key = keys->Js.Array2.unsafe_get(idx)
+            let field = input->Js.Dict.unsafeGet(key)
+            output->Js.Dict.set(key, field->parse(~path=path->Path.concat(Path.fromLocation(key))))
+          }
+          output->Js.Json.object_
         }
-        output->Js.Json.array
-      } else {
-        let input = input->(Obj.magic: unknown => Js.Dict.t<unknown>)
-        let keys = input->Js.Dict.keys
-        let output = Js.Dict.empty()
-        for idx in 0 to keys->Js.Array2.length - 1 {
-          let key = keys->Js.Array2.unsafe_get(idx)
-          let field = input->Js.Dict.unsafeGet(key)
-          output->Js.Dict.set(key, field->parse(~path=path->Path.concat(Path.fromLocation(key))))
-        }
-        output->Js.Json.object_
+
+      | #string
+      | #boolean =>
+        input->(Obj.magic: unknown => Js.Json.t)
+
+      | _ =>
+        InternalError.raise(
+          ~path,
+          ~code=InvalidType({
+            expected: selfStruct,
+            received: input,
+          }),
+        )
       }
-
-    | "string"
-    | "boolean" =>
-      input->(Obj.magic: unknown => Js.Json.t)
-
-    | _ =>
-      Error.Internal.raise(
-        ~path,
-        ~code=InvalidType({
-          expected: "JSON",
-          received: input->Stdlib.Unknown.toName,
-        }),
-      )
     }
-  }
 
-  make(
-    ~name="JSON",
-    ~tagged=JSON,
-    ~metadataMap=emptyMetadataMap,
-    ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
-      `${outputVar}=${b->B.embed(parse)}(${inputVar},${pathVar});`
-    }),
-    ~serializeOperationBuilder=Builder.noop,
-    (),
-  )
-}
+    `${outputVar}=${b->B.embed(parse)}(${inputVar},${pathVar});`
+  }),
+  ~serializeOperationBuilder=Builder.noop,
+  (),
+)
 
 type catchCtx = {
-  error: Error.t,
+  error: error,
   input: unknown,
 }
 let catch = (struct, getFallbackValue) => {
   let struct = struct->toUnknown
   make(
-    ~name=struct.name,
     ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
       let childOutputVar = b->B.var
       let childCode =
@@ -3570,7 +3491,7 @@ let catch = (struct, getFallbackValue) => {
       let fallbackValVar = `${b->B.embed((input, internalError) =>
           getFallbackValue({
             input,
-            error: internalError->Error.Internal.toParseError,
+            error: internalError->InternalError.toParseError,
           })
         )}(${inputVar},t)`
 
@@ -3602,7 +3523,7 @@ let deprecationMetadataId: Metadata.Id.t<string> = Metadata.Id.make(
 )
 
 let deprecate = (struct, message) => {
-  struct->Metadata.set(~id=deprecationMetadataId, ~metadata=message)
+  struct->Metadata.set(~id=deprecationMetadataId, message)
 }
 
 let deprecation = struct => struct->Metadata.get(~id=deprecationMetadataId)
@@ -3610,16 +3531,68 @@ let deprecation = struct => struct->Metadata.get(~id=deprecationMetadataId)
 let descriptionMetadataId = Metadata.Id.make(~namespace="rescript-struct", ~name="description")
 
 let describe = (struct, description) => {
-  struct->Metadata.set(~id=descriptionMetadataId, ~metadata=description)
+  struct->Metadata.set(~id=descriptionMetadataId, description)
 }
 
 let description = struct => struct->Metadata.get(~id=descriptionMetadataId)
+
+module Error = {
+  let rec toReason = (~nestedLevel=0, error) => {
+    switch error.code {
+    | OperationFailed(reason) => reason
+    | MissingParser => "Struct parser is missing"
+    | MissingSerializer => "Struct serializer is missing"
+    | UnexpectedAsync => "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith"
+    | ExcessField(fieldName) =>
+      `Encountered disallowed excess key "${fieldName}" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`
+    | InvalidType({expected, received}) =>
+      `Expected ${expected->name}, received ${received
+        ->Stdlib.Literal.classify
+        ->Stdlib.Literal.toText}`
+    | InvalidLiteral({expected, received}) =>
+      `Expected ${expected->Stdlib.Literal.toText}, received ${received
+        ->Stdlib.Literal.classify
+        ->Stdlib.Literal.toText}`
+    | InvalidJsonStruct(struct) => `The struct ${struct->name} is not compatible with JSON`
+    | InvalidTupleSize({expected, received}) =>
+      `Expected Tuple with ${expected->Js.Int.toString} items, received ${received->Js.Int.toString}`
+    | InvalidUnion(errors) => {
+        let lineBreak = `\n${" "->Js.String2.repeat(nestedLevel * 2)}`
+        let reasons =
+          errors
+          ->Js.Array2.map(error => {
+            let reason = error->toReason(~nestedLevel=nestedLevel->Stdlib.Int.plus(1))
+            let location = switch error.path {
+            | "" => ""
+            | nonEmptyPath => `Failed at ${nonEmptyPath}. `
+            }
+            `- ${location}${reason}`
+          })
+          ->Stdlib.Array.unique
+        `Invalid union with following errors${lineBreak}${reasons->Js.Array2.joinWith(lineBreak)}`
+      }
+    }
+  }
+
+  let toString = error => {
+    let operation = switch error.operation {
+    | Serializing => "serializing"
+    | Parsing => "parsing"
+    }
+    let reason = error->toReason
+    let pathText = switch error.path {
+    | "" => "root"
+    | nonEmptyPath => nonEmptyPath
+    }
+    `Failed ${operation} at ${pathText}. Reason: ${reason}`
+  }
+}
 
 module Result = {
   let getExn = result => {
     switch result {
     | Ok(value) => value
-    | Error(error) => Error.panic(error->Error.toString)
+    | Error(error) => InternalError.panic(error->Error.toString)
     }
   }
 
@@ -3629,37 +3602,6 @@ module Result = {
 }
 
 let inline = {
-  // TODO: Do it another way
-  let rec toVariantName = struct => {
-    switch struct->classify {
-    | Literal(String(string)) => string
-    | Literal(Number(float)) => float->Js.Float.toString
-    | Literal(Boolean(true)) => `True`
-    | Literal(Boolean(false)) => `False`
-    | Literal(Undefined) => `Undefined`
-    | Literal(Null) => `Null`
-    | Literal(NaN) => `NaN`
-    // TODO: Support recursive literal
-    | Literal(_) => `Literal`
-    | Union(_) => `Union`
-    | Tuple([]) => `EmptyTuple`
-    | Tuple(_) => `Tuple`
-    | Object({fieldNames: []}) => `EmptyObject`
-    | Object(_) => `Object`
-    | String => `String`
-    | Int => `Int`
-    | Float => `Float`
-    | Bool => `Bool`
-    | Never => `Never`
-    | Unknown => `Unknown`
-    | Option(s) => `OptionOf${s->toVariantName}`
-    | Null(s) => `NullOf${s->toVariantName}`
-    | Array(s) => `ArrayOf${s->toVariantName}`
-    | Dict(s) => `DictOf${s->toVariantName}`
-    | JSON => `JSON`
-    }
-  }
-
   let rec internalInline = (struct, ~variant as maybeVariant=?, ()) => {
     let metadataMap = struct.metadataMap->Stdlib.Dict.copy
 
@@ -3685,7 +3627,7 @@ let inline = {
         let variantNamesCounter = Js.Dict.empty()
         `S.union([${unionStructs
           ->Js.Array2.map(s => {
-            let variantName = s->toVariantName
+            let variantName = s->name
             let numberOfVariantNames = switch variantNamesCounter->Js.Dict.get(variantName) {
             | Some(n) => n
             | None => 0
@@ -3706,7 +3648,7 @@ let inline = {
     | Tuple(tupleStructs) => {
         let numberOfItems = tupleStructs->Js.Array2.length
         if numberOfItems > 10 {
-          Error.panic("The S.inline doesn't support tuples with more than 10 items.")
+          InternalError.panic("The S.inline doesn't support tuples with more than 10 items.")
         }
         `S.tuple${numberOfItems->Js.Int.toString}(. ${tupleStructs
           ->Js.Array2.map(s => s->internalInline())

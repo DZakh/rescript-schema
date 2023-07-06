@@ -3,7 +3,7 @@ open Ava
 module Common = {
   let value = None
   let any = %raw(`null`)
-  let wrongAny = %raw(`123.45`)
+  let invalidAny = %raw(`123.45`)
   let factory = () => S.null(S.string)
 
   test("Successfully parses", t => {
@@ -16,9 +16,9 @@ module Common = {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(struct),
       Error({
-        code: InvalidType({expected: "String", received: "Float"}),
+        code: InvalidType({expected: S.string->S.toUnknown, received: invalidAny}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -45,7 +45,7 @@ test("Fails to parse JS undefined", t => {
   t->Assert.deepEqual(
     %raw(`undefined`)->S.parseAnyWith(struct),
     Error({
-      code: InvalidType({expected: "Bool", received: "Option"}),
+      code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`undefined`)}),
       operation: Parsing,
       path: S.Path.empty,
     }),
@@ -59,7 +59,8 @@ test("Fails to parse object with missing field that marked as null", t => {
   t->Assert.deepEqual(
     %raw(`{}`)->S.parseAnyWith(struct),
     Error({
-      code: InvalidType({expected: "String", received: "Option"}),
+      // FIXME: It should be S.null(S.string) here
+      code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`undefined`)}),
       operation: Parsing,
       path: S.Path.fromArray(["nullableField"]),
     }),
@@ -73,7 +74,7 @@ test("Fails to parse JS null when struct doesn't allow optional data", t => {
   t->Assert.deepEqual(
     %raw(`null`)->S.parseAnyWith(struct),
     Error({
-      code: InvalidType({expected: "Bool", received: "Null"}),
+      code: InvalidType({expected: struct->S.toUnknown, received: %raw(`null`)}),
       operation: Parsing,
       path: S.Path.empty,
     }),

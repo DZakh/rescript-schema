@@ -67,7 +67,7 @@ test("Fails to serialize Undefined literal", t => {
 })
 
 test("Fails to serialize NaN literal", t => {
-  let struct = S.literal(%raw("NaN"))
+  let struct = S.literal(%raw(`NaN`))
   t->Assert.deepEqual(
     ()->S.serializeWith(struct),
     Error({
@@ -95,7 +95,7 @@ test("Fails to serialize Never struct", t => {
   t->Assert.deepEqual(
     Obj.magic(123)->S.serializeWith(S.never),
     Error({
-      code: InvalidType({expected: "Never", received: "Float"}),
+      code: InvalidType({expected: S.never->S.toUnknown, received: Obj.magic(123)}),
       operation: Serializing,
       path: S.Path.empty,
     }),

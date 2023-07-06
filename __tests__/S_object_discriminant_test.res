@@ -56,19 +56,19 @@ module Positive = {
     ),
     TestData.make(
       ~discriminantStruct=S.literal(),
-      ~discriminantData=%raw("undefined"),
+      ~discriminantData=%raw(`undefined`),
       ~description="Unit",
       (),
     ),
     TestData.make(
       ~discriminantStruct=S.literal(Js.Null.empty),
-      ~discriminantData=%raw("null"),
+      ~discriminantData=%raw(`null`),
       ~description="Null",
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.literal(%raw("NaN")),
-      ~discriminantData=%raw("NaN"),
+      ~discriminantStruct=S.literal(%raw(`NaN`)),
+      ~discriminantData=%raw(`NaN`),
       ~description="NaN",
       (),
     ),
@@ -195,7 +195,7 @@ module Negative = {
     TestData.make(~discriminantStruct=S.float, ~discriminantData=123., ()),
     TestData.make(~discriminantStruct=S.bool, ~discriminantData=true, ()),
     TestData.make(~discriminantStruct=S.option(S.literal(true)), ~discriminantData=None, ()),
-    TestData.make(~discriminantStruct=S.null(S.literal(true)), ~discriminantData=%raw("null"), ()),
+    TestData.make(~discriminantStruct=S.null(S.literal(true)), ~discriminantData=%raw(`null`), ()),
     TestData.make(~discriminantStruct=S.unknown, ~discriminantData="anything", ()),
     TestData.make(~discriminantStruct=S.array(S.literal(true)), ~discriminantData=[true, true], ()),
     TestData.make(
@@ -282,7 +282,7 @@ test(`Fails to parse object with invalid data passed to discriminant field`, t =
       "field": "bar",
     }->S.parseAnyWith(struct),
     Error({
-      code: InvalidType({expected: "String", received: "Bool"}),
+      code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
       operation: Parsing,
       path: S.Path.fromArray(["discriminant"]),
     }),
