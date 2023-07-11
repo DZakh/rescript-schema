@@ -1,38 +1,9 @@
-// open Ava
+open Ava
 
-// module Stdlib = {
-//   module Dict = {
-//     @val
-//     external copy: (@as(json`{}`) _, Js.Dict.t<'a>) => Js.Dict.t<'a> = "Object.assign"
-
-//     let omit = (dict: Js.Dict.t<'a>, fields: array<string>): Js.Dict.t<'a> => {
-//       let dict = dict->copy
-//       fields->Js.Array2.forEach(field => {
-//         Js.Dict.unsafeDeleteKey(. dict, field)
-//       })
-//       dict
-//     }
-//   }
-// }
-
-// let assertEqualStructs = {
-//   let cleanUpTransformationFactories = (struct: S.t<'v>): S.t<'v> => {
-//     struct->Obj.magic->Stdlib.Dict.omit(["pb", "sb"])->Obj.magic
-//   }
-//   (t, s1, s2, ~message=?, ()) => {
-//     t->Assert.deepEqual(
-//       s1->cleanUpTransformationFactories,
-//       s2->cleanUpTransformationFactories,
-//       ~message?,
-//       (),
-//     )
-//   }
-// }
-
-// test("Supports String", t => {
-//   let struct = S.string
-//   t->Assert.deepEqual(struct->S.inline, `S.string`, ())
-// })
+test("Supports String", t => {
+  let struct = S.string
+  t->Assert.deepEqual(struct->S.inline, `S.string`, ())
+})
 
 // test("Doesn't support transforms and refinements", t => {
 //   let struct = S.string->S.transform(~parser=ignore, ())->S.refine(~parser=ignore, ())
@@ -835,4 +806,3 @@
 
 // // TODO: Add support for recursive struct.
 // // TODO: Add support for list.
-
