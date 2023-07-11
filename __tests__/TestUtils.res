@@ -1,6 +1,8 @@
 open Ava
 
 external magic: 'a => 'b = "%identity"
+external castAnyToUnknown: 'any => unknown = "%identity"
+external castUnknownToAny: unknown => 'any = "%identity"
 
 let rec cleanUpStruct = struct => {
   let new = Js.Dict.empty()

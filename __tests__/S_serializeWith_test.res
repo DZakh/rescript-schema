@@ -15,6 +15,25 @@ test("Successfully serializes jsonable structs", t => {
   t->Assert.deepEqual(123->S.serializeWith(S.literal(123)), 123.->Json.number->Ok, ())
   t->Assert.deepEqual(123.->S.serializeWith(S.float), 123.->Json.number->Ok, ())
   t->Assert.deepEqual(123.->S.serializeWith(S.literal(123.)), 123.->Json.number->Ok, ())
+  t->Assert.deepEqual(
+    (true, "foo", 123)->S.serializeWith(S.literal((true, "foo", 123))),
+    Json.array([Json.boolean(true), Json.string("foo"), Json.number(123.)])->Ok,
+    (),
+  )
+  t->Assert.deepEqual(
+    {"foo": true}->S.serializeWith(S.literal({"foo": true})),
+    Json.object_(Js.Dict.fromArray([("foo", Json.boolean(true))]))->Ok,
+    (),
+  )
+  t->Assert.deepEqual(
+    {"foo": (true, "foo", 123)}->S.serializeWith(S.literal({"foo": (true, "foo", 123)})),
+    Json.object_(
+      Js.Dict.fromArray([
+        ("foo", Json.array([Json.boolean(true), Json.string("foo"), Json.number(123.)])),
+      ]),
+    )->Ok,
+    (),
+  )
   t->Assert.deepEqual(None->S.serializeWith(S.null(S.bool)), Json.null->Ok, ())
   t->Assert.deepEqual(Json.null->S.serializeWith(S.literal(Json.null)), Json.null->Ok, ())
   t->Assert.deepEqual([]->S.serializeWith(S.array(S.bool)), Json.array([])->Ok, ())
@@ -57,6 +76,76 @@ test("Fails to serialize Undefined literal", t => {
   let struct = S.literal()
   t->Assert.deepEqual(
     ()->S.serializeWith(struct),
+    Error({
+      code: InvalidJsonStruct(struct->S.toUnknown),
+      operation: Serializing,
+      path: S.Path.empty,
+    }),
+    (),
+  )
+})
+
+test("Fails to serialize Function literal", t => {
+  let fn = () => ()
+  let struct = S.literal(fn)
+  t->Assert.deepEqual(
+    fn->S.serializeWith(struct),
+    Error({
+      code: InvalidJsonStruct(struct->S.toUnknown),
+      operation: Serializing,
+      path: S.Path.empty,
+    }),
+    (),
+  )
+})
+
+test("Fails to serialize Object literal", t => {
+  let error = %raw(`new Error("foo")`)
+  let struct = S.literal(error)
+  t->Assert.deepEqual(
+    error->S.serializeWith(struct),
+    Error({
+      code: InvalidJsonStruct(struct->S.toUnknown),
+      operation: Serializing,
+      path: S.Path.empty,
+    }),
+    (),
+  )
+})
+
+test("Fails to serialize Symbol literal", t => {
+  let symbol = %raw(`Symbol()`)
+  let struct = S.literal(symbol)
+  t->Assert.deepEqual(
+    symbol->S.serializeWith(struct),
+    Error({
+      code: InvalidJsonStruct(struct->S.toUnknown),
+      operation: Serializing,
+      path: S.Path.empty,
+    }),
+    (),
+  )
+})
+
+test("Fails to serialize BigInt literal", t => {
+  let bigint = %raw(`1234n`)
+  let struct = S.literal(bigint)
+  t->Assert.deepEqual(
+    bigint->S.serializeWith(struct),
+    Error({
+      code: InvalidJsonStruct(struct->S.toUnknown),
+      operation: Serializing,
+      path: S.Path.empty,
+    }),
+    (),
+  )
+})
+
+test("Fails to serialize Dict literal with invalid field", t => {
+  let dict = %raw(`{"foo": 123n}`)
+  let struct = S.literal(dict)
+  t->Assert.deepEqual(
+    dict->S.serializeWith(struct),
     Error({
       code: InvalidJsonStruct(struct->S.toUnknown),
       operation: Serializing,

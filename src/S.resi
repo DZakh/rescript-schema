@@ -2,24 +2,34 @@
 
 type never
 
-type rec literal =
-  | String(string)
-  | Number(float)
-  | Boolean(bool)
-  | BigInt(Js.Types.bigint_val)
-  | Symbol(Js.Types.symbol)
-  | Array(array<literal>)
-  | Dict(Js.Dict.t<literal>)
-  | Function(Js.Types.function_val)
-  | Object(Js.Types.obj_val)
-  | Null
-  | Undefined
-  | NaN
-
 type rec transformation<'input, 'output> =
   | Noop: transformation<'input, 'input>
   | Sync('input => 'output)
   | Async('input => promise<'output>)
+
+module Literal: {
+  type rec t =
+    | String(string)
+    | Number(float)
+    | Boolean(bool)
+    | BigInt(Js.Types.bigint_val)
+    | Symbol(Js.Types.symbol)
+    | Array(array<t>)
+    | Dict(Js.Dict.t<t>)
+    | Function(Js.Types.function_val)
+    | Object(Js.Types.obj_val)
+    | Null
+    | Undefined
+    | NaN
+
+  let classify: 'a => t
+
+  let value: t => unknown
+
+  let isJsonable: t => bool
+
+  let toText: t => string
+}
 
 module Path: {
   type t
@@ -45,7 +55,7 @@ and tagged =
   | Int
   | Float
   | Bool
-  | Literal(literal)
+  | Literal(Literal.t)
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
@@ -61,7 +71,7 @@ and errorCode =
   | MissingParser
   | MissingSerializer
   | InvalidType({expected: struct<unknown>, received: unknown})
-  | InvalidLiteral({expected: literal, received: unknown})
+  | InvalidLiteral({expected: Literal.t, received: unknown})
   | InvalidTupleSize({expected: int, received: int})
   | ExcessField(string)
   | InvalidUnion(array<error>)

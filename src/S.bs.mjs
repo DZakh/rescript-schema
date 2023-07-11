@@ -15,6 +15,15 @@ var mapValues = ((dict, fn)=>{
       return newDict
     });
 
+var every = ((dict, fn)=>{
+      for (var key in dict) {
+        if (!fn(dict[key])) {
+          return false
+        }
+      }
+      return true
+    });
+
 function fromString(string) {
   return JSON.stringify(string);
 }
@@ -104,6 +113,28 @@ function value(literal) {
   }
 }
 
+function isJsonable(literal) {
+  if (typeof literal !== "object") {
+    if (literal === "Null") {
+      return true;
+    } else {
+      return false;
+    }
+  }
+  switch (literal.TAG) {
+    case "String" :
+    case "Number" :
+    case "Boolean" :
+        return true;
+    case "Array" :
+        return literal._0.every(isJsonable);
+    case "Dict" :
+        return every(literal._0, isJsonable);
+    default:
+      return false;
+  }
+}
+
 function toText(literal) {
   if (typeof literal !== "object") {
     switch (literal) {
@@ -141,6 +172,13 @@ function toText(literal) {
     }
   }
 }
+
+var Literal = {
+  classify: classify,
+  value: value,
+  isJsonable: isJsonable,
+  toText: toText
+};
 
 function toArray(path) {
   if (path === "") {
@@ -218,6 +256,10 @@ var emptyMetadataMap = {};
 
 function noop(_b, param, inputVar, outputVar, param$1) {
   return outputVar + "=" + inputVar + ";";
+}
+
+function noopOperation(a) {
+  return a;
 }
 
 function varsScope(b, fn) {
@@ -328,6 +370,12 @@ function run(b, builder, struct, inputVar, outputVar, pathVar) {
 }
 
 function build(builder, struct) {
+  if (builder === noop) {
+    if (struct.pb === builder) {
+      struct.i = false;
+    }
+    return noopOperation;
+  }
   var intitialInputVar = "i";
   var intitialOutputVar = "o";
   var b = {
@@ -446,22 +494,10 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
     } else {
       switch (childrenStructs.TAG) {
         case "Literal" :
-            var tmp = childrenStructs._0;
-            if (typeof tmp !== "object") {
-              if (tmp === "Null") {
-                return ;
-              }
-              exit = 2;
-            } else {
-              switch (tmp.TAG) {
-                case "String" :
-                case "Number" :
-                case "Boolean" :
-                    return ;
-                default:
-                  exit = 2;
-              }
+            if (isJsonable(childrenStructs._0)) {
+              return ;
             }
+            exit = 2;
             break;
         case "Option" :
             exit = 2;
@@ -474,9 +510,9 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
               var fieldStruct = fields[fieldName];
               try {
                 var s = fieldStruct.t;
-                var tmp$1;
-                tmp$1 = typeof s !== "object" || s.TAG !== "Option" ? fieldStruct : s._0;
-                validateJsonableStruct(tmp$1, rootStruct, undefined, undefined);
+                var tmp;
+                tmp = typeof s !== "object" || s.TAG !== "Option" ? fieldStruct : s._0;
+                validateJsonableStruct(tmp, rootStruct, undefined, undefined);
               }
               catch (raw_jsExn){
                 var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
@@ -1206,21 +1242,20 @@ function literalCheckBuilder(b, value, inputVar) {
   }
   var keys = Object.keys(value);
   var numberOfKeys = keys.length;
-  return "(" + check + "||" + inputVar + ".constructor===Object&&Object.keys(" + inputVar + ").length===" + numberOfKeys + (
+  return "(" + check + "||" + inputVar + "!==null&&" + inputVar + ".constructor===Object&&Object.keys(" + inputVar + ").length===" + numberOfKeys + (
           numberOfKeys > 0 ? "&&" + keys.map(function (key) {
-                    var inputVar = $$var(b);
-                    return "(" + inputVar + "=" + inputVar + "[" + JSON.stringify(key) + "]," + literalCheckBuilder(b, value[key], inputVar) + ")";
+                    return literalCheckBuilder(b, value[key], inputVar + "[" + JSON.stringify(key) + "]");
                   }).join("&&") : ""
         ) + ")";
 }
 
-function factory(value) {
-  var literal = classify(value);
+function literal(value) {
+  var literal$1 = classify(value);
   var operationBuilder = function (b, param, inputVar, outputVar, pathVar) {
     return literalCheckBuilder(b, value, inputVar) + "||" + raiseWithArg(b, pathVar, (function (input) {
                   return {
                           TAG: "InvalidLiteral",
-                          expected: literal,
+                          expected: literal$1,
                           received: input
                         };
                 }), inputVar) + ";" + outputVar + "=" + inputVar + ";";
@@ -1228,7 +1263,7 @@ function factory(value) {
   return {
           t: {
             TAG: "Literal",
-            _0: literal
+            _0: literal$1
           },
           pb: operationBuilder,
           sb: operationBuilder,
@@ -1265,7 +1300,7 @@ function analyzeDefinition(definition, definerCtx, path) {
       });
 }
 
-function factory$1(struct, definer) {
+function factory(struct, definer) {
   var definerCtx = {
     a: "",
     r: false,
@@ -1361,7 +1396,7 @@ function analyzeDefinition$1(definition, definerCtx, path) {
       });
 }
 
-function factory$2(definer) {
+function factory$1(definer) {
   var fields = {};
   var fieldNames = [];
   var fieldDefinitions = [];
@@ -1383,7 +1418,7 @@ function factory$2(definer) {
     return fieldDefinition;
   };
   var tag = function (tag$1, asValue) {
-    field(tag$1, factory(asValue));
+    field(tag$1, literal(asValue));
   };
   var definerCtx_p = [];
   var definerCtx_v = [];
@@ -1784,7 +1819,7 @@ function trim(struct, param) {
   return transform(struct, transformer, undefined, transformer, undefined);
 }
 
-function factory$3(childStruct) {
+function factory$2(childStruct) {
   return {
           t: "String",
           pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
@@ -1977,7 +2012,7 @@ function max$2(struct, maybeMessage, maxValue) {
             }, refiner);
 }
 
-function factory$4(childStruct) {
+function factory$3(childStruct) {
   return {
           t: {
             TAG: "Null",
@@ -2006,7 +2041,7 @@ function factory$4(childStruct) {
         };
 }
 
-function factory$5(childStruct) {
+function factory$4(childStruct) {
   return {
           t: {
             TAG: "Option",
@@ -2046,7 +2081,7 @@ function refinements$3(struct) {
   }
 }
 
-function factory$6(childStruct) {
+function factory$5(childStruct) {
   return {
           t: {
             TAG: "Array",
@@ -2142,7 +2177,7 @@ function length$1(struct, maybeMessage, length$2) {
             }, refiner);
 }
 
-function factory$7(childStruct) {
+function factory$6(childStruct) {
   return {
           t: {
             TAG: "Dict",
@@ -2193,8 +2228,8 @@ function factory$7(childStruct) {
 
 var metadataId$5 = "rescript-struct:Default";
 
-function factory$8(childStruct, getDefaultValue) {
-  var childStruct$1 = factory$5(childStruct);
+function factory$7(childStruct, getDefaultValue) {
+  var childStruct$1 = factory$4(childStruct);
   return set({
               t: childStruct$1.t,
               pb: (function (b, param, inputVar, outputVar, pathVar) {
@@ -2224,7 +2259,7 @@ function classify$3(struct) {
   
 }
 
-function factory$9(structs) {
+function factory$8(structs) {
   var numberOfStructs = structs.length;
   var len = structs.length;
   return {
@@ -2299,15 +2334,15 @@ function factory$9(structs) {
 
 function factoryFromArgs() {
   var structs = (Array.from(arguments));
-  return factory$9(structs);
+  return factory$8(structs);
 }
 
 var Tuple = {
-  factory: factory$9,
+  factory: factory$8,
   factoryFromArgs: factoryFromArgs
 };
 
-function factory$10(structs) {
+function factory$9(structs) {
   if (structs.length < 2) {
     throw new Error("[rescript-struct] A Union struct factory require at least two structs.");
   }
@@ -2401,7 +2436,7 @@ function factory$10(structs) {
 }
 
 function list(childStruct) {
-  return transform(factory$6(childStruct), Belt_List.fromArray, undefined, Belt_List.toArray, undefined);
+  return transform(factory$5(childStruct), Belt_List.fromArray, undefined, Belt_List.toArray, undefined);
 }
 
 var json = {
@@ -2867,25 +2902,25 @@ function inline(struct) {
   return internalInline(struct, undefined, undefined);
 }
 
-var unit = factory((void 0));
+var unit = literal((void 0));
 
 function tuple0() {
-  return factory$9([]);
+  return factory$8([]);
 }
 
 function tuple1(v0) {
-  return factory$9([v0]);
+  return factory$8([v0]);
 }
 
 function tuple2(v0, v1) {
-  return factory$9([
+  return factory$8([
               v0,
               v1
             ]);
 }
 
 function tuple3(v0, v1, v2) {
-  return factory$9([
+  return factory$8([
               v0,
               v1,
               v2
@@ -2916,23 +2951,21 @@ var $$int = struct$4;
 
 var $$float = struct$5;
 
-var literal = factory;
+var array = factory$5;
 
-var array = factory$6;
+var dict = factory$6;
 
-var dict = factory$7;
+var option = factory$4;
 
-var option = factory$5;
+var $$null = factory$3;
 
-var $$null = factory$4;
+var jsonString = factory$2;
 
-var jsonString = factory$3;
+var union = factory$9;
 
-var union = factory$10;
+var $$default = factory$7;
 
-var $$default = factory$8;
-
-var variant = factory$1;
+var variant = factory;
 
 var parseWith = parseAnyWith;
 
@@ -2948,12 +2981,12 @@ var Object_UnknownKeys = {
 
 var $$Object = {
   UnknownKeys: Object_UnknownKeys,
-  factory: factory$2,
+  factory: factory$1,
   strip: strip,
   strict: strict
 };
 
-var object = factory$2;
+var object = factory$1;
 
 var tuple4 = factoryFromArgs;
 
@@ -3026,6 +3059,7 @@ var Metadata = {
 };
 
 export {
+  Literal ,
   Path ,
   $$Error$1 as $$Error,
   Raised ,
