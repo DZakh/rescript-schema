@@ -5,62 +5,32 @@ import * as TestUtils from "./TestUtils.bs.mjs";
 import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
 
 var polyStruct = S$RescriptStruct.union([
-      S$RescriptStruct.literalVariant({
-            TAG: "String",
-            _0: "one"
-          }, "one"),
-      S$RescriptStruct.literalVariant({
-            TAG: "String",
-            _0: "two"
-          }, "two")
+      S$RescriptStruct.literal("one"),
+      S$RescriptStruct.literal("two")
     ]);
 
 Ava("Polymorphic variant", (function (t) {
         TestUtils.assertEqualStructs(t, polyStruct, S$RescriptStruct.union([
-                  S$RescriptStruct.literalVariant({
-                        TAG: "String",
-                        _0: "one"
-                      }, "one"),
-                  S$RescriptStruct.literalVariant({
-                        TAG: "String",
-                        _0: "two"
-                      }, "two")
+                  S$RescriptStruct.literal("one"),
+                  S$RescriptStruct.literal("two")
                 ]), undefined, undefined);
       }));
 
-var polyWithSingleItemStruct = S$RescriptStruct.literalVariant({
-      TAG: "String",
-      _0: "single"
-    }, "single");
+var polyWithSingleItemStruct = S$RescriptStruct.literal("single");
 
 Ava("Polymorphic variant with single item becomes a literal struct of the item", (function (t) {
-        TestUtils.assertEqualStructs(t, polyWithSingleItemStruct, S$RescriptStruct.literalVariant({
-                  TAG: "String",
-                  _0: "single"
-                }, "single"), undefined, undefined);
+        TestUtils.assertEqualStructs(t, polyWithSingleItemStruct, S$RescriptStruct.literal("single"), undefined, undefined);
       }));
 
 var polyWithAliasStruct = S$RescriptStruct.union([
-      S$RescriptStruct.literalVariant({
-            TAG: "String",
-            _0: "하나"
-          }, "one"),
-      S$RescriptStruct.literalVariant({
-            TAG: "String",
-            _0: "two"
-          }, "two")
+      S$RescriptStruct.literal("one"),
+      S$RescriptStruct.literal("two")
     ]);
 
 Ava("Polymorphic variant with partial @as usage", (function (t) {
         TestUtils.assertEqualStructs(t, polyWithAliasStruct, S$RescriptStruct.union([
-                  S$RescriptStruct.literalVariant({
-                        TAG: "String",
-                        _0: "하나"
-                      }, "one"),
-                  S$RescriptStruct.literalVariant({
-                        TAG: "String",
-                        _0: "two"
-                      }, "two")
+                  S$RescriptStruct.literal("one"),
+                  S$RescriptStruct.literal("two")
                 ]), undefined, undefined);
       }));
 

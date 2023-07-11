@@ -4,7 +4,7 @@ let nullableStruct = innerStruct =>
   S.custom(
     ~name="Nullable",
     ~parser=unknown => {
-      if unknown === %raw("undefined") || unknown === %raw("null") {
+      if unknown === %raw(`undefined`) || unknown === %raw(`null`) {
         None
       } else {
         switch unknown->S.parseAnyWith(innerStruct) {
@@ -20,7 +20,7 @@ let nullableStruct = innerStruct =>
         | Ok(value) => value
         | Error(error) => S.advancedFail(error)
         }
-      | None => %raw("null")
+      | None => %raw(`null`)
       }
     },
     (),
@@ -30,12 +30,12 @@ test("Correctly parses custom struct", t => {
   let struct = nullableStruct(S.string)
 
   t->Assert.deepEqual("Hello world!"->S.parseAnyWith(struct), Ok(Some("Hello world!")), ())
-  t->Assert.deepEqual(%raw("null")->S.parseAnyWith(struct), Ok(None), ())
-  t->Assert.deepEqual(%raw("undefined")->S.parseAnyWith(struct), Ok(None), ())
+  t->Assert.deepEqual(%raw(`null`)->S.parseAnyWith(struct), Ok(None), ())
+  t->Assert.deepEqual(%raw(`undefined`)->S.parseAnyWith(struct), Ok(None), ())
   t->Assert.deepEqual(
     123->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "String", received: "Float"}),
+      code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
       operation: Parsing,
       path: S.Path.empty,
     }),
@@ -51,7 +51,7 @@ test("Correctly serializes custom struct", t => {
     Ok(%raw(`"Hello world!"`)),
     (),
   )
-  t->Assert.deepEqual(None->S.serializeToUnknownWith(struct), Ok(%raw("null")), ())
+  t->Assert.deepEqual(None->S.serializeToUnknownWith(struct), Ok(%raw(`null`)), ())
 })
 
 test("Fails to serialize with user error", t => {
@@ -91,7 +91,7 @@ test("Fails to serialize with missing serializer", t => {
 asyncTest("Parses with asyncParser", async t => {
   let struct = S.custom(~name="Test", ~asyncParser=_ => Promise.resolve(), ())
 
-  t->Assert.deepEqual(await %raw("undefined")->S.parseAnyAsyncWith(struct), Ok(), ())
+  t->Assert.deepEqual(await %raw(`undefined`)->S.parseAnyAsyncWith(struct), Ok(), ())
 })
 
 test("Throws for a Custom factory without either a parser, or a serializer", t => {

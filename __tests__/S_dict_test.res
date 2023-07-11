@@ -3,8 +3,8 @@ open Ava
 module CommonWithNested = {
   let value = Js.Dict.fromArray([("key1", "value1"), ("key2", "value2")])
   let any = %raw(`{"key1":"value1","key2":"value2"}`)
-  let wrongAny = %raw(`true`)
-  let nestedWrongAny = %raw(`{"key1":"value1","key2":true}`)
+  let invalidAny = %raw(`true`)
+  let nestedInvalidAny = %raw(`{"key1":"value1","key2":true}`)
   let factory = () => S.dict(S.string)
 
   test("Successfully parses", t => {
@@ -23,9 +23,9 @@ module CommonWithNested = {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "Dict", received: "Bool"}),
+        code: InvalidType({expected: struct->S.toUnknown, received: invalidAny}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -37,9 +37,9 @@ module CommonWithNested = {
     let struct = factory()
 
     t->Assert.deepEqual(
-      nestedWrongAny->S.parseAnyWith(struct),
+      nestedInvalidAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "String", received: "Bool"}),
+        code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`true`)}),
         operation: Parsing,
         path: S.Path.fromArray(["key2"]),
       }),

@@ -671,7 +671,7 @@ let nullableStruct = innerStruct =>
   S.custom(
     ~name="Nullable",
     ~parser=unknown => {
-      if unknown === %raw("undefined") || unknown === %raw("null") {
+      if unknown === %raw(`undefined`) || unknown === %raw(`null`) {
         None
       } else {
         switch unknown->S.parseAnyWith(innerStruct) {
@@ -687,7 +687,7 @@ let nullableStruct = innerStruct =>
         | Ok(value) => value
         | Error(error) => S.advancedFail(error)
         }
-      | None => %raw("null")
+      | None => %raw(`null`)
       }
     },
     (),

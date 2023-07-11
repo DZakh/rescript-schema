@@ -1,3 +1,5 @@
+@@uncurried
+
 module Obj = {
   external magic: 'a => 'b = "%identity"
 }
@@ -31,6 +33,7 @@ module Error = {
   @new
   external _make: string => t = "RescriptStructError"
 
+  @inline
   let make = error => {
     error->S.Error.toString->_make
   }
@@ -175,27 +178,11 @@ let tuple = structs => {
 }
 
 let literal = (value: 'value): struct<'value> => {
-  let taggedLiteral: S.taggedLiteral = {
-    if Js.typeof(value) === "string" {
-      String(value->Obj.magic)
-    } else if Js.typeof(value) === "boolean" {
-      Bool(value->Obj.magic)
-    } else if Js.typeof(value) === "number" {
-      let value = value->Obj.magic
-      if value->Js.Float.isNaN {
-        Js.Exn.raiseError(`[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.`)
-      } else {
-        Float(value)
-      }
-    } else if value === %raw("null") {
-      EmptyNull
-    } else if value === %raw("undefined") {
-      EmptyOption
-    } else {
-      Js.Exn.raiseError(`[rescript-struct] The value provided to literal struct factory is not supported.`)
-    }
+  if value->(Obj.magic: 'value => float)->Js.Float.isNaN {
+    Js.Exn.raiseError(`[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.`)
+  } else {
+    S.literal(value)->toJsStruct
   }
-  S.literal(taggedLiteral->(Obj.magic: S.taggedLiteral => S.literal<'value>))->toJsStruct
 }
 
 let custom = (~name, ~parser, ~serializer) => {
@@ -229,7 +216,7 @@ let number = S.float->toJsStruct
 let never = S.never->toJsStruct
 let unknown = S.unknown->toJsStruct
 let json = S.json->toJsStruct
-let nan = S.literal(NaN)->toJsStruct
+let nan = S.literal(Js.Float._NaN)->S.variant(_ => ())->toJsStruct
 
 module Object = {
   type rec t = {strict: unit => t, strip: unit => t}

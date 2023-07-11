@@ -13,7 +13,7 @@ test("Fails to parse wrapped struct", t => {
     123->S.parseAnyWith(struct),
     Error({
       operation: Parsing,
-      code: UnexpectedType({received: "Float", expected: "String"}),
+      code: InvalidType({received: 123->Obj.magic, expected: S.string->S.toUnknown}),
       path: S.Path.empty,
     }),
     (),
@@ -36,7 +36,7 @@ test("Fails to serialize when can't unwrap the value from variant", t => {
   t->Assert.deepEqual(
     Error("Hello world!")->S.serializeToUnknownWith(struct),
     Error({
-      code: UnexpectedValue({expected: `"Ok"`, received: `"Error"`}),
+      code: InvalidLiteral({expected: String("Ok"), received: "Error"->Obj.magic}),
       path: S.Path.fromLocation("TAG"),
       operation: Serializing,
     }),
@@ -67,7 +67,7 @@ test("Fails to serialize when the value is not used as the variant payload", t =
 test(
   "Successfully serializes when the value is not used as the variant payload for literal structs",
   t => {
-    let struct = S.tuple2(. S.literal(Bool(true)), S.literal(Int(12)))->S.variant(_ => #foo)
+    let struct = S.tuple2(S.literal(true), S.literal(12))->S.variant(_ => #foo)
 
     t->Assert.deepEqual(#foo->S.serializeToUnknownWith(struct), Ok(%raw(`[true, 12]`)), ())
   },

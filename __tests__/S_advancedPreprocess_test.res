@@ -166,7 +166,7 @@ asyncTest("Fails to parse async with user error", t => {
     t->Assert.deepEqual(
       result,
       Error({
-        S.Error.code: OperationFailed("User error"),
+        S.code: OperationFailed("User error"),
         path: S.Path.empty,
         operation: Parsing,
       }),

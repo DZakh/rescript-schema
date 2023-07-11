@@ -10,6 +10,7 @@ export default () => ({
     "src/**/*.mjs",
     "src/S_JsApi.js",
     "packages/ppx-test/__tests__/TestUtils.bs.mjs",
+    "__tests__/TestUtils.bs.mjs",
   ],
   tests,
   env: {

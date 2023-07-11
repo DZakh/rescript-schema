@@ -21,7 +21,7 @@ test("Returns true for async struct after running a serializer", t => {
 })
 
 test("Returns true for struct with nested async", t => {
-  let struct = S.tuple1(. S.string->S.refine(~asyncParser=_ => Promise.resolve(), ()))
+  let struct = S.tuple1(S.string->S.refine(~asyncParser=_ => Promise.resolve(), ()))
 
   t->Assert.is(struct->S.isAsyncParse, true, ())
 })

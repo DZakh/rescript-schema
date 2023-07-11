@@ -3,9 +3,9 @@ open Ava
 module Common = {
   let value = 123
   let any = %raw(`[123]`)
-  let wrongAny = %raw(`[123, true]`)
-  let wrongTypeAny = %raw(`"Hello world!"`)
-  let factory = () => S.tuple1(. S.int)
+  let invalidAny = %raw(`[123, true]`)
+  let invalidTypeAny = %raw(`"Hello world!"`)
+  let factory = () => S.tuple1(S.int)
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -13,13 +13,13 @@ module Common = {
     t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
   })
 
-  test("Fails to parse wrong value", t => {
+  test("Fails to parse invalid value", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(struct),
       Error({
-        code: TupleSize({
+        code: InvalidTupleSize({
           expected: 1,
           received: 2,
         }),
@@ -30,13 +30,13 @@ module Common = {
     )
   })
 
-  test("Fails to parse wrong type", t => {
+  test("Fails to parse invalid type", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongTypeAny->S.parseAnyWith(struct),
+      invalidTypeAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "Tuple", received: "String"}),
+        code: InvalidType({expected: struct->S.toUnknown, received: invalidTypeAny}),
         operation: Parsing,
         path: S.Path.empty,
       }),

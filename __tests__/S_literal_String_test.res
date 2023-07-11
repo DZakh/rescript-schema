@@ -2,11 +2,11 @@ open Ava
 
 module Common = {
   let value = "ReScript is Great!"
-  let wrongValue = "Hello world!"
+  let invalidValue = "Hello world!"
   let any = %raw(`"ReScript is Great!"`)
-  let wrongAny = %raw(`"Hello world!"`)
-  let wrongTypeAny = %raw(`true`)
-  let factory = () => S.literal(String("ReScript is Great!"))
+  let invalidAny = %raw(`"Hello world!"`)
+  let invalidTypeAny = %raw(`true`)
+  let factory = () => S.literal("ReScript is Great!")
 
   test("Successfully parses", t => {
     let struct = factory()
@@ -14,13 +14,16 @@ module Common = {
     t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
   })
 
-  test("Fails to parse wrong value", t => {
+  test("Fails to parse invalid value", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedValue({expected: `"ReScript is Great!"`, received: `"Hello world!"`}),
+        code: InvalidLiteral({
+          expected: String("ReScript is Great!"),
+          received: "Hello world!"->Obj.magic,
+        }),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -28,13 +31,16 @@ module Common = {
     )
   })
 
-  test("Fails to parse wrong type", t => {
+  test("Fails to parse invalid type", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongTypeAny->S.parseAnyWith(struct),
+      invalidTypeAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: `String Literal ("ReScript is Great!")`, received: "Bool"}),
+        code: InvalidLiteral({
+          expected: String("ReScript is Great!"),
+          received: invalidTypeAny,
+        }),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -48,13 +54,16 @@ module Common = {
     t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
   })
 
-  test("Fails to serialize wrong value", t => {
+  test("Fails to serialize invalid value", t => {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongValue->S.serializeToUnknownWith(struct),
+      invalidValue->S.serializeToUnknownWith(struct),
       Error({
-        code: UnexpectedValue({expected: `"ReScript is Great!"`, received: `"Hello world!"`}),
+        code: InvalidLiteral({
+          expected: String("ReScript is Great!"),
+          received: "Hello world!"->Obj.magic,
+        }),
         operation: Serializing,
         path: S.Path.empty,
       }),

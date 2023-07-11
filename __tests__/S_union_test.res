@@ -30,11 +30,8 @@ test("Successfully creates a Union struct factory with two structs", t => {
   }, ())
 })
 
-test("Successfully parses literalVariants", t => {
-  let struct = S.union([
-    S.literalVariant(String("apple"), #apple),
-    S.literalVariant(String("orange"), #orange),
-  ])
+test("Successfully parses polymorphic variants", t => {
+  let struct = S.union([S.literal(#apple), S.literal(#orange)])
 
   t->Assert.deepEqual(%raw(`"apple"`)->S.parseAnyWith(struct), Ok(#apple), ())
 })
@@ -48,27 +45,27 @@ module Advanced = {
 
   type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, y: float})
 
-  let shapeStruct = S.union([
-    S.object(o => {
-      ignore(o.field("kind", S.literal(String("circle"))))
-      Circle({
-        radius: o.field("radius", S.float),
-      })
-    }),
-    S.object(o => {
-      ignore(o.field("kind", S.literal(String("square"))))
-      Square({
-        x: o.field("x", S.float),
-      })
-    }),
-    S.object(o => {
-      ignore(o.field("kind", S.literal(String("triangle"))))
-      Triangle({
-        x: o.field("x", S.float),
-        y: o.field("y", S.float),
-      })
-    }),
-  ])
+  let circleStruct = S.object(o => {
+    o.tag("kind", "circle")
+    Circle({
+      radius: o.field("radius", S.float),
+    })
+  })
+  let squareStruct = S.object(o => {
+    o.tag("kind", "square")
+    Square({
+      x: o.field("x", S.float),
+    })
+  })
+  let triangleStruct = S.object(o => {
+    o.tag("kind", "triangle")
+    Triangle({
+      x: o.field("x", S.float),
+      y: o.field("y", S.float),
+    })
+  })
+
+  let shapeStruct = S.union([circleStruct, squareStruct, triangleStruct])
 
   test("Successfully parses Circle shape", t => {
     t->Assert.deepEqual(
@@ -114,17 +111,17 @@ module Advanced = {
       Error({
         code: InvalidUnion([
           {
-            code: UnexpectedValue({expected: `"circle"`, received: `"oval"`}),
+            code: InvalidLiteral({expected: String("circle"), received: "oval"->Obj.magic}),
             operation: Parsing,
             path: S.Path.fromArray(["kind"]),
           },
           {
-            code: UnexpectedValue({expected: `"square"`, received: `"oval"`}),
+            code: InvalidLiteral({expected: String("square"), received: "oval"->Obj.magic}),
             operation: Parsing,
             path: S.Path.fromArray(["kind"]),
           },
           {
-            code: UnexpectedValue({expected: `"triangle"`, received: `"oval"`}),
+            code: InvalidLiteral({expected: String("triangle"), received: "oval"->Obj.magic}),
             operation: Parsing,
             path: S.Path.fromArray(["kind"]),
           },
@@ -148,17 +145,17 @@ module Advanced = {
       Error({
         code: InvalidUnion([
           {
-            code: UnexpectedValue({expected: `"circle"`, received: `"oval"`}),
+            code: InvalidLiteral({expected: String("circle"), received: "oval"->Obj.magic}),
             operation: Parsing,
             path: S.Path.fromArray(["kind"]),
           },
           {
-            code: UnexpectedValue({expected: `"square"`, received: `"oval"`}),
+            code: InvalidLiteral({expected: String("square"), received: "oval"->Obj.magic}),
             operation: Parsing,
             path: S.Path.fromArray(["kind"]),
           },
           {
-            code: UnexpectedValue({expected: `"triangle"`, received: `"oval"`}),
+            code: InvalidLiteral({expected: String("triangle"), received: "oval"->Obj.magic}),
             operation: Parsing,
             path: S.Path.fromArray(["kind"]),
           },
@@ -170,23 +167,32 @@ module Advanced = {
     )
   })
 
-  test("Fails to parse with wrong data type", t => {
+  test("Fails to parse with invalid data type", t => {
     t->Assert.deepEqual(
       %raw(`"Hello world!"`)->S.parseAnyWith(shapeStruct),
       Error({
         code: InvalidUnion([
           {
-            code: UnexpectedType({expected: "Object", received: "String"}),
+            code: InvalidType({
+              expected: circleStruct->S.toUnknown,
+              received: %raw(`"Hello world!"`),
+            }),
             operation: Parsing,
             path: S.Path.empty,
           },
           {
-            code: UnexpectedType({expected: "Object", received: "String"}),
+            code: InvalidType({
+              expected: squareStruct->S.toUnknown,
+              received: %raw(`"Hello world!"`),
+            }),
             operation: Parsing,
             path: S.Path.empty,
           },
           {
-            code: UnexpectedType({expected: "Object", received: "String"}),
+            code: InvalidType({
+              expected: triangleStruct->S.toUnknown,
+              received: %raw(`"Hello world!"`),
+            }),
             operation: Parsing,
             path: S.Path.empty,
           },
@@ -201,13 +207,13 @@ module Advanced = {
   test("Fails to serialize incomplete struct", t => {
     let incompleteStruct = S.union([
       S.object(o => {
-        ignore(o.field("kind", S.literal(String("circle"))))
+        o.tag("kind", "circle")
         Circle({
           radius: o.field("radius", S.float),
         })
       }),
       S.object(o => {
-        ignore(o.field("kind", S.literal(String("square"))))
+        o.tag("kind", "square")
         Square({
           x: o.field("x", S.float),
         })
@@ -219,12 +225,12 @@ module Advanced = {
       Error({
         code: InvalidUnion([
           {
-            code: UnexpectedValue({expected: `"Circle"`, received: `"Triangle"`}),
+            code: InvalidLiteral({expected: String("Circle"), received: "Triangle"->Obj.magic}),
             operation: Serializing,
             path: S.Path.fromArray(["TAG"]),
           },
           {
-            code: UnexpectedValue({expected: `"Square"`, received: `"Triangle"`}),
+            code: InvalidLiteral({expected: String("Square"), received: "Triangle"->Obj.magic}),
             operation: Serializing,
             path: S.Path.fromArray(["TAG"]),
           },

@@ -3,7 +3,7 @@ open Ava
 module Common = {
   let value = 123
   let any = %raw(`123`)
-  let wrongAny = %raw(`123.45`)
+  let invalidAny = %raw(`123.45`)
   let factory = () => S.int
 
   test("Successfully parses", t => {
@@ -16,9 +16,9 @@ module Common = {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "Int", received: "Float"}),
+        code: InvalidType({expected: struct->S.toUnknown, received: invalidAny}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -39,7 +39,7 @@ test("Fails to parse int when JSON is a number bigger than +2^31", t => {
   t->Assert.deepEqual(
     %raw(`2147483648`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Int", received: "Float"}),
+      code: InvalidType({expected: struct->S.toUnknown, received: %raw(`2147483648`)}),
       operation: Parsing,
       path: S.Path.empty,
     }),
@@ -54,7 +54,7 @@ test("Fails to parse int when JSON is a number lower than -2^31", t => {
   t->Assert.deepEqual(
     %raw(`-2147483649`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Int", received: "Float"}),
+      code: InvalidType({expected: struct->S.toUnknown, received: %raw(`-2147483649`)}),
       operation: Parsing,
       path: S.Path.empty,
     }),
@@ -69,7 +69,7 @@ test("Fails to parse NaN", t => {
   t->Assert.deepEqual(
     %raw(`NaN`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Int", received: "NaN Literal (NaN)"}),
+      code: InvalidType({expected: struct->S.toUnknown, received: %raw(`NaN`)}),
       operation: Parsing,
       path: S.Path.empty,
     }),

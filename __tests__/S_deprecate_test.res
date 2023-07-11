@@ -3,7 +3,7 @@ open Ava
 module Common = {
   let value = None
   let any = %raw(`undefined`)
-  let wrongAny = %raw(`123.45`)
+  let invalidAny = %raw(`123.45`)
   let factory = () => S.string->S.option->S.deprecate("Some warning")
 
   test("Successfully parses", t => {
@@ -16,9 +16,9 @@ module Common = {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "String", received: "Float"}),
+        code: InvalidType({expected: S.string->S.toUnknown, received: invalidAny}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -51,7 +51,7 @@ test("Fails to parse null", t => {
   t->Assert.deepEqual(
     %raw(`null`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Bool", received: "Null"}),
+      code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`null`)}),
       operation: Parsing,
       path: S.Path.empty,
     }),

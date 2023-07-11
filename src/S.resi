@@ -1,3 +1,36 @@
+@@uncurried
+
+type never
+
+type rec transformation<'input, 'output> =
+  | Noop: transformation<'input, 'input>
+  | Sync('input => 'output)
+  | Async('input => promise<'output>)
+
+module Literal: {
+  type rec t =
+    | String(string)
+    | Number(float)
+    | Boolean(bool)
+    | BigInt(Js.Types.bigint_val)
+    | Symbol(Js.Types.symbol)
+    | Array(array<t>)
+    | Dict(Js.Dict.t<t>)
+    | Function(Js.Types.function_val)
+    | Object(Js.Types.obj_val)
+    | Null
+    | Undefined
+    | NaN
+
+  let classify: 'a => t
+
+  let value: t => unknown
+
+  let isJsonable: t => bool
+
+  let toText: t => string
+}
+
 module Path: {
   type t
 
@@ -14,53 +47,6 @@ module Path: {
   let concat: (t, t) => t
 }
 
-module Error: {
-  type rec t = {operation: operation, code: code, path: Path.t}
-  and code =
-    | OperationFailed(string)
-    | MissingParser
-    | MissingSerializer
-    | UnexpectedType({expected: string, received: string})
-    | UnexpectedValue({expected: string, received: string})
-    | TupleSize({expected: int, received: int})
-    | ExcessField(string)
-    | InvalidUnion(array<t>)
-    | UnexpectedAsync
-    | InvalidJsonStruct({received: string})
-  and operation =
-    | Serializing
-    | Parsing
-
-  let toString: t => string
-}
-
-exception Raised(Error.t)
-
-type never
-
-type rec literal<'value> =
-  | String(string): literal<string>
-  | Int(int): literal<int>
-  | Float(float): literal<float>
-  | Bool(bool): literal<bool>
-  | EmptyNull: literal<unit>
-  | EmptyOption: literal<unit>
-  | NaN: literal<unit>
-
-type taggedLiteral =
-  | String(string)
-  | Int(int)
-  | Float(float)
-  | Bool(bool)
-  | EmptyNull
-  | EmptyOption
-  | NaN
-
-type rec transformation<'input, 'output> =
-  | Noop: transformation<'input, 'input>
-  | Sync('input => 'output)
-  | Async('input => promise<'output>)
-
 type rec t<'value>
 and tagged =
   | Never
@@ -69,7 +55,7 @@ and tagged =
   | Int
   | Float
   | Bool
-  | Literal(taggedLiteral)
+  | Literal(Literal.t)
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
@@ -78,6 +64,28 @@ and tagged =
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
   | JSON
+and struct<'value> = t<'value>
+and error = {operation: operation, code: errorCode, path: Path.t}
+and errorCode =
+  | OperationFailed(string)
+  | MissingParser
+  | MissingSerializer
+  | InvalidType({expected: struct<unknown>, received: unknown})
+  | InvalidLiteral({expected: Literal.t, received: unknown})
+  | InvalidTupleSize({expected: int, received: int})
+  | ExcessField(string)
+  | InvalidUnion(array<error>)
+  | UnexpectedAsync
+  | InvalidJsonStruct(struct<unknown>)
+and operation =
+  | Serializing
+  | Parsing
+
+module Error: {
+  let toString: error => string
+}
+
+exception Raised(error)
 
 let never: t<never>
 let unknown: t<unknown>
@@ -88,8 +96,7 @@ let int: t<int>
 let float: t<float>
 let json: t<Js.Json.t>
 
-let literal: literal<'value> => t<'value>
-let literalVariant: (literal<'value>, 'variant) => t<'variant>
+let literal: 'value => t<'value>
 let array: t<'value> => t<array<'value>>
 let list: t<'value> => t<list<'value>>
 let dict: t<'value> => t<Js.Dict.t<'value>>
@@ -101,7 +108,7 @@ let union: array<t<'value>> => t<'value>
 let default: (t<'value>, unit => 'value) => t<'value>
 
 type catchCtx = {
-  error: Error.t,
+  error: error,
   input: unknown,
 }
 let catch: (t<'value>, catchCtx => 'value) => t<'value>
@@ -152,35 +159,35 @@ let refine: (
 
 let variant: (t<'value>, 'value => 'variant) => t<'variant>
 
-let parseWith: (Js.Json.t, t<'value>) => result<'value, Error.t>
+let parseWith: (Js.Json.t, t<'value>) => result<'value, error>
 
-let parseAnyWith: ('any, t<'value>) => result<'value, Error.t>
+let parseAnyWith: ('any, t<'value>) => result<'value, error>
 
-let parseJsonStringWith: (string, t<'value>) => result<'value, Error.t>
+let parseJsonStringWith: (string, t<'value>) => result<'value, error>
 
 let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value
 
 let parseAnyOrRaiseWith: ('any, t<'value>) => 'value
 
-let parseAsyncWith: (Js.Json.t, t<'value>) => promise<result<'value, Error.t>>
+let parseAsyncWith: (Js.Json.t, t<'value>) => promise<result<'value, error>>
 
-let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, Error.t>>
+let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
 
 let parseAsyncInStepsWith: (
   Js.Json.t,
   t<'value>,
-) => result<(. unit) => promise<result<'value, Error.t>>, Error.t>
+) => result<unit => promise<result<'value, error>>, error>
 
 let parseAnyAsyncInStepsWith: (
   'any,
   t<'value>,
-) => result<(. unit) => promise<result<'value, Error.t>>, Error.t>
+) => result<unit => promise<result<'value, error>>, error>
 
-let serializeWith: ('value, t<'value>) => result<Js.Json.t, Error.t>
+let serializeWith: ('value, t<'value>) => result<Js.Json.t, error>
 
-let serializeToUnknownWith: ('value, t<'value>) => result<unknown, Error.t>
+let serializeToUnknownWith: ('value, t<'value>) => result<unknown, error>
 
-let serializeToJsonStringWith: ('value, ~space: int=?, t<'value>) => result<string, Error.t>
+let serializeToJsonStringWith: ('value, ~space: int=?, t<'value>) => result<string, error>
 
 let serializeOrRaiseWith: ('value, t<'value>) => Js.Json.t
 
@@ -193,15 +200,19 @@ let recursive: (t<'value> => t<'value>) => t<'value>
 let classify: t<'value> => tagged
 
 let name: t<'value> => string
+let setName: (t<'value>, string) => t<'value>
 
 external toUnknown: t<'any> => t<unknown> = "%identity"
 
 let fail: (~path: Path.t=?, string) => 'a
 
-let advancedFail: Error.t => 'a
+let advancedFail: error => 'a
 
 module Object: {
-  type ctx = {@as("f") field: 'value. (. string, t<'value>) => 'value}
+  type ctx = {
+    @as("f") field: 'value. (string, t<'value>) => 'value,
+    @as("t") tag: 'value. (string, 'value) => unit,
+  }
 
   module UnknownKeys: {
     type tagged = Strict | Strip
@@ -222,15 +233,15 @@ module Tuple: {
   let factory: array<t<unknown>> => t<array<unknown>>
 }
 
-let tuple0: (. unit) => t<unit>
-let tuple1: (. t<'value>) => t<'value>
-let tuple2: (. t<'v1>, t<'v2>) => t<('v1, 'v2)>
-let tuple3: (. t<'v1>, t<'v2>, t<'v3>) => t<('v1, 'v2, 'v3)>
-let tuple4: (. t<'v1>, t<'v2>, t<'v3>, t<'v4>) => t<('v1, 'v2, 'v3, 'v4)>
-let tuple5: (. t<'v1>, t<'v2>, t<'v3>, t<'v4>, t<'v5>) => t<('v1, 'v2, 'v3, 'v4, 'v5)>
-let tuple6: (. t<'v1>, t<'v2>, t<'v3>, t<'v4>, t<'v5>, t<'v6>) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6)>
+let tuple0: unit => t<unit>
+let tuple1: t<'value> => t<'value>
+let tuple2: (t<'v1>, t<'v2>) => t<('v1, 'v2)>
+let tuple3: (t<'v1>, t<'v2>, t<'v3>) => t<('v1, 'v2, 'v3)>
+let tuple4: (t<'v1>, t<'v2>, t<'v3>, t<'v4>) => t<('v1, 'v2, 'v3, 'v4)>
+let tuple5: (t<'v1>, t<'v2>, t<'v3>, t<'v4>, t<'v5>) => t<('v1, 'v2, 'v3, 'v4, 'v5)>
+let tuple6: (t<'v1>, t<'v2>, t<'v3>, t<'v4>, t<'v5>, t<'v6>) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6)>
 let tuple7: (
-  . t<'v1>,
+  t<'v1>,
   t<'v2>,
   t<'v3>,
   t<'v4>,
@@ -239,7 +250,7 @@ let tuple7: (
   t<'v7>,
 ) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7)>
 let tuple8: (
-  . t<'v1>,
+  t<'v1>,
   t<'v2>,
   t<'v3>,
   t<'v4>,
@@ -249,7 +260,7 @@ let tuple8: (
   t<'v8>,
 ) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8)>
 let tuple9: (
-  . t<'v1>,
+  t<'v1>,
   t<'v2>,
   t<'v3>,
   t<'v4>,
@@ -260,7 +271,7 @@ let tuple9: (
   t<'v9>,
 ) => t<('v1, 'v2, 'v3, 'v4, 'v5, 'v6, 'v7, 'v8, 'v9)>
 let tuple10: (
-  . t<'v1>,
+  t<'v1>,
   t<'v2>,
   t<'v3>,
   t<'v4>,
@@ -364,9 +375,9 @@ module Default: {
 }
 
 module Result: {
-  let getExn: result<'a, Error.t> => 'a
+  let getExn: result<'a, error> => 'a
 
-  let mapErrorToString: result<'a, Error.t> => result<'a, string>
+  let mapErrorToString: result<'a, error> => result<'a, string>
 }
 
 module Metadata: {
@@ -377,7 +388,7 @@ module Metadata: {
 
   let get: (t<'value>, ~id: Id.t<'metadata>) => option<'metadata>
 
-  let set: (t<'value>, ~id: Id.t<'metadata>, ~metadata: 'metadata) => t<'value>
+  let set: (t<'value>, ~id: Id.t<'metadata>, 'metadata) => t<'value>
 }
 
 let inline: t<'value> => string

@@ -20,6 +20,5 @@
     "error": true,
     "number": "-48-44"
   },
-  "bsc-flags": ["-open RescriptCore", "-open RescriptStruct"],
-  "uncurried": true
+  "bsc-flags": ["-open RescriptCore", "-open RescriptStruct"]
 }

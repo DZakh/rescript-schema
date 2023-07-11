@@ -12,7 +12,7 @@ let assertEqualStructs = {
       switch key {
       | "sb" | "pb" => ()
       | _ =>
-        if typeof(value) === #object && value !== %raw("null") {
+        if typeof(value) === #object && value !== %raw(`null`) {
           new->Dict.set(
             key,
             cleanUpStruct(value->(magic: unknown => S.t<'a>))->(magic: S.t<'a> => unknown),

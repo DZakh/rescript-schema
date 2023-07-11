@@ -3,8 +3,8 @@ open Ava
 module CommonWithNested = {
   let value = ["Hello world!", ""]
   let any = %raw(`["Hello world!", ""]`)
-  let wrongAny = %raw(`true`)
-  let nestedWrongAny = %raw(`["Hello world!", 1]`)
+  let invalidAny = %raw(`true`)
+  let nestedInvalidAny = %raw(`["Hello world!", 1]`)
   let factory = () => S.array(S.string)
 
   test("Successfully parses", t => {
@@ -17,9 +17,9 @@ module CommonWithNested = {
     let struct = factory()
 
     t->Assert.deepEqual(
-      wrongAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "Array", received: "Bool"}),
+        code: InvalidType({expected: struct->S.toUnknown, received: invalidAny}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -31,9 +31,9 @@ module CommonWithNested = {
     let struct = factory()
 
     t->Assert.deepEqual(
-      nestedWrongAny->S.parseAnyWith(struct),
+      nestedInvalidAny->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "String", received: "Float"}),
+        code: InvalidType({expected: S.string->S.toUnknown, received: 1->Obj.magic}),
         operation: Parsing,
         path: S.Path.fromArray(["1"]),
       }),
@@ -61,13 +61,11 @@ test("Successfully parses matrix", t => {
 test("Fails to parse matrix", t => {
   let struct = S.array(S.array(S.string))
 
-  Js.log(%raw(`[["a", 1], ["c", "d"]]`)->S.parseAnyWith(struct))
-
   t->Assert.deepEqual(
     %raw(`[["a", 1], ["c", "d"]]`)->S.parseAnyWith(struct),
     Error({
       operation: Parsing,
-      code: UnexpectedType({expected: "String", received: "Float"}),
+      code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`1`)}),
       path: S.Path.fromArray(["0", "1"]),
     }),
     (),

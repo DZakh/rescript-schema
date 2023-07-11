@@ -2,55 +2,183 @@
 
 import * as Js_exn from "rescript/lib/es6/js_exn.js";
 import * as Js_dict from "rescript/lib/es6/js_dict.js";
-import * as Js_types from "rescript/lib/es6/js_types.js";
 import * as Belt_List from "rescript/lib/es6/belt_List.js";
 import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as Caml_exceptions from "rescript/lib/es6/caml_exceptions.js";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
-function toName(unknown) {
-  var number = Js_types.classify(unknown);
-  if (typeof number !== "object") {
-    switch (number) {
-      case "JSFalse" :
-      case "JSTrue" :
-          return "Bool";
-      case "JSNull" :
-          return "Null";
-      case "JSUndefined" :
-          return "Option";
+var mapValues = ((dict, fn)=>{
+      var key,newDict = {};
+      for (key in dict) {
+        newDict[key] = fn(dict[key])
+      }
+      return newDict
+    });
+
+var every = ((dict, fn)=>{
+      for (var key in dict) {
+        if (!fn(dict[key])) {
+          return false
+        }
+      }
+      return true
+    });
+
+function fromString(string) {
+  return JSON.stringify(string);
+}
+
+function classify(value) {
+  var typeOfValue = typeof value;
+  if (typeOfValue === "symbol") {
+    return {
+            TAG: "Symbol",
+            _0: value
+          };
+  } else if (typeOfValue === "boolean") {
+    return {
+            TAG: "Boolean",
+            _0: value
+          };
+  } else if (typeOfValue === "string") {
+    return {
+            TAG: "String",
+            _0: value
+          };
+  } else if (typeOfValue === "function") {
+    return {
+            TAG: "Function",
+            _0: value
+          };
+  } else if (typeOfValue === "object") {
+    if (value === null) {
+      return "Null";
+    } else if (Array.isArray(value)) {
+      return {
+              TAG: "Array",
+              _0: value.map(function (i) {
+                    return classify(i);
+                  })
+            };
+    } else if (value.constructor === Object) {
+      return {
+              TAG: "Dict",
+              _0: mapValues(value, classify)
+            };
+    } else {
+      return {
+              TAG: "Object",
+              _0: value
+            };
+    }
+  } else if (typeOfValue === "undefined") {
+    return "Undefined";
+  } else if (typeOfValue === "number") {
+    if (Number.isNaN(value)) {
+      return "NaN";
+    } else {
+      return {
+              TAG: "Number",
+              _0: value
+            };
+    }
+  } else {
+    return {
+            TAG: "BigInt",
+            _0: value
+          };
+  }
+}
+
+function value(literal) {
+  if (typeof literal !== "object") {
+    switch (literal) {
+      case "Null" :
+          return null;
+      case "Undefined" :
+          return undefined;
+      case "NaN" :
+          return NaN;
       
     }
   } else {
-    switch (number.TAG) {
-      case "JSNumber" :
-          if (Number.isNaN(number._0)) {
-            return "NaN Literal (NaN)";
-          } else {
-            return "Float";
-          }
-      case "JSString" :
-          return "String";
-      case "JSFunction" :
-          return "Function";
-      case "JSObject" :
-          if (Array.isArray(number._0)) {
-            return "Array";
-          } else {
-            return "Object";
-          }
-      case "JSSymbol" :
-          return "Symbol";
-      case "JSBigInt" :
-          return "BigInt";
+    switch (literal.TAG) {
+      case "Array" :
+          return literal._0.map(value);
+      case "Dict" :
+          return mapValues(literal._0, value);
+      default:
+        return literal._0;
+    }
+  }
+}
+
+function isJsonable(literal) {
+  if (typeof literal !== "object") {
+    if (literal === "Null") {
+      return true;
+    } else {
+      return false;
+    }
+  }
+  switch (literal.TAG) {
+    case "String" :
+    case "Number" :
+    case "Boolean" :
+        return true;
+    case "Array" :
+        return literal._0.every(isJsonable);
+    case "Dict" :
+        return every(literal._0, isJsonable);
+    default:
+      return false;
+  }
+}
+
+function toText(literal) {
+  if (typeof literal !== "object") {
+    switch (literal) {
+      case "Null" :
+          return "null";
+      case "Undefined" :
+          return "undefined";
+      case "NaN" :
+          return "NaN";
+      
+    }
+  } else {
+    switch (literal.TAG) {
+      case "String" :
+          return JSON.stringify(literal._0);
+      case "Number" :
+      case "Boolean" :
+          return literal._0;
+      case "BigInt" :
+          return literal._0 + "n";
+      case "Symbol" :
+          return literal._0.toString();
+      case "Array" :
+          return "[" + literal._0.map(toText).join(", ") + "]";
+      case "Dict" :
+          var v = literal._0;
+          return "{" + Object.keys(v).map(function (key) {
+                        return JSON.stringify(key) + ": " + toText(v[key]);
+                      }).join(", ") + "}";
+      case "Function" :
+          return "[object Function]";
+      case "Object" :
+          return Object.prototype.toString.call(literal._0);
       
     }
   }
 }
 
-function fromString(string) {
-  return JSON.stringify(string);
-}
+var Literal = {
+  classify: classify,
+  value: value,
+  isJsonable: isJsonable,
+  toText: toText
+};
 
 function toArray(path) {
   if (path === "") {
@@ -72,9 +200,9 @@ function fromArray(array) {
     } else {
       return "";
     }
-  } else {
-    return "[" + JSON.stringify(array[0]) + "]";
   }
+  var $$location = array[0];
+  return "[" + JSON.stringify($$location) + "]";
 }
 
 function concat(path, concatedPath) {
@@ -120,92 +248,18 @@ function panic($$location) {
   throw new Error("[rescript-struct] " + ("For a " + $$location + " either a parser, or a serializer is required"));
 }
 
-function toReason(nestedLevelOpt, error) {
-  var nestedLevel = nestedLevelOpt !== undefined ? nestedLevelOpt : 0;
-  var reason = error.code;
-  if (typeof reason !== "object") {
-    switch (reason) {
-      case "MissingParser" :
-          return "Struct parser is missing";
-      case "MissingSerializer" :
-          return "Struct serializer is missing";
-      case "UnexpectedAsync" :
-          return "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith";
-      
-    }
-  } else {
-    switch (reason.TAG) {
-      case "OperationFailed" :
-          return reason._0;
-      case "UnexpectedType" :
-      case "UnexpectedValue" :
-          break;
-      case "TupleSize" :
-          return "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString();
-      case "ExcessField" :
-          return "Encountered disallowed excess key \"" + reason._0 + "\" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely";
-      case "InvalidUnion" :
-          var lineBreak = "\n" + " ".repeat((nestedLevel << 1));
-          var array = reason._0.map(function (error) {
-                var reason = toReason(nestedLevel + 1, error);
-                var nonEmptyPath = error.path;
-                var $$location = nonEmptyPath === "" ? "" : "Failed at " + nonEmptyPath + ". ";
-                return "- " + $$location + reason;
-              });
-          var reasons = Array.from(new Set(array));
-          return "Invalid union with following errors" + lineBreak + reasons.join(lineBreak);
-      case "InvalidJsonStruct" :
-          return "The struct " + reason.received + " is not compatible with JSON";
-      
-    }
-  }
-  return "Expected " + reason.expected + ", received " + reason.received;
-}
-
-function toString(error) {
-  var match = error.operation;
-  var operation;
-  operation = match === "Serializing" ? "serializing" : "parsing";
-  var reason = toReason(undefined, error);
-  var nonEmptyPath = error.path;
-  var pathText = nonEmptyPath === "" ? "root" : nonEmptyPath;
-  return "Failed " + operation + " at " + pathText + ". Reason: " + reason;
-}
-
-function advancedFail(error) {
-  throw {
-        c: error.code,
-        p: error.path,
-        s: symbol
-      };
-}
-
-function fail(pathOpt, message) {
-  var path = pathOpt !== undefined ? pathOpt : "";
-  throw {
-        c: {
-          TAG: "OperationFailed",
-          _0: message
-        },
-        p: path,
-        s: symbol
-      };
-}
-
-var Raised = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Raised");
-
-var emptyMetadataMap = {};
-
-function classify(struct) {
+function classify$1(struct) {
   return struct.t;
 }
 
-function name(struct) {
-  return struct.n;
-}
+var emptyMetadataMap = {};
 
 function noop(_b, param, inputVar, outputVar, param$1) {
   return outputVar + "=" + inputVar + ";";
+}
+
+function noopOperation(a) {
+  return a;
 }
 
 function varsScope(b, fn) {
@@ -316,6 +370,12 @@ function run(b, builder, struct, inputVar, outputVar, pathVar) {
 }
 
 function build(builder, struct) {
+  if (builder === noop) {
+    if (struct.pb === builder) {
+      struct.i = false;
+    }
+    return noopOperation;
+  }
   var intitialInputVar = "i";
   var intitialOutputVar = "o";
   var b = {
@@ -352,6 +412,54 @@ function compileSerializer(struct, builder) {
   struct.s = operation;
 }
 
+function loop(_struct) {
+  while(true) {
+    var struct = _struct;
+    var literal = struct.t;
+    if (typeof literal !== "object") {
+      throw symbol;
+    }
+    switch (literal.TAG) {
+      case "Literal" :
+          return literal._0;
+      case "Object" :
+          return {
+                  TAG: "Dict",
+                  _0: mapValues(literal.fields, loop)
+                };
+      case "Tuple" :
+          return {
+                  TAG: "Array",
+                  _0: literal._0.map(function (a) {
+                        return loop(a);
+                      })
+                };
+      case "Union" :
+          _struct = literal._0[0];
+          continue ;
+      default:
+        throw symbol;
+    }
+  };
+}
+
+function toLiteral(struct) {
+  try {
+    return loop(struct);
+  }
+  catch (raw_jsExn){
+    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
+    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
+      var jsExn$1 = jsExn._1;
+      if (jsExn$1 === symbol) {
+        return ;
+      }
+      throw jsExn$1;
+    }
+    throw jsExn;
+  }
+}
+
 function isAsyncParse(struct) {
   var v = struct.i;
   if (v !== 0) {
@@ -385,18 +493,10 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
     } else {
       switch (childrenStructs.TAG) {
         case "Literal" :
-            var tmp = childrenStructs._0;
-            if (typeof tmp === "object") {
+            if (isJsonable(childrenStructs._0)) {
               return ;
             }
-            switch (tmp) {
-              case "EmptyOption" :
-              case "NaN" :
-                  exit = 2;
-                  break;
-              default:
-                return ;
-            }
+            exit = 2;
             break;
         case "Option" :
             exit = 2;
@@ -409,9 +509,9 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
               var fieldStruct = fields[fieldName];
               try {
                 var s = fieldStruct.t;
-                var tmp$1;
-                tmp$1 = typeof s !== "object" || s.TAG !== "Option" ? fieldStruct : s._0;
-                validateJsonableStruct(tmp$1, rootStruct, undefined, undefined);
+                var tmp;
+                tmp = typeof s !== "object" || s.TAG !== "Option" ? fieldStruct : s._0;
+                validateJsonableStruct(tmp, rootStruct, undefined, undefined);
               }
               catch (raw_jsExn){
                 var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
@@ -460,7 +560,7 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
           throw {
                 c: {
                   TAG: "InvalidJsonStruct",
-                  received: struct.n
+                  _0: struct
                 },
                 p: "",
                 s: symbol
@@ -504,6 +604,28 @@ function intitialParseAsync(input) {
   compileParser(struct, struct.pb);
   return struct.a(input);
 }
+
+function advancedFail(error) {
+  throw {
+        c: error.code,
+        p: error.path,
+        s: symbol
+      };
+}
+
+function fail(pathOpt, message) {
+  var path = pathOpt !== undefined ? pathOpt : "";
+  throw {
+        c: {
+          TAG: "OperationFailed",
+          _0: message
+        },
+        p: path,
+        s: symbol
+      };
+}
+
+var Raised = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Raised");
 
 function parseAnyWith(any, struct) {
   try {
@@ -767,15 +889,22 @@ var Id = {
   make: make
 };
 
+var make1 = ((id,metadata)=>({[id]:metadata}));
+
 function get(struct, id) {
   return Js_dict.get(struct.m, id);
 }
 
 function set(struct, id, metadata) {
-  var metadataMap = Object.assign({}, struct.m);
-  metadataMap[id] = metadata;
+  var metadataMap;
+  if (struct.m === emptyMetadataMap) {
+    metadataMap = make1(id, metadata);
+  } else {
+    var copy = Object.assign({}, struct.m);
+    copy[id] = metadata;
+    metadataMap = copy;
+  }
   return {
-          n: struct.n,
           t: struct.t,
           pb: struct.pb,
           sb: struct.sb,
@@ -788,18 +917,55 @@ function set(struct, id, metadata) {
         };
 }
 
-var Metadata = {
-  Id: Id,
-  get: get,
-  set: set
-};
+var nameMetadataId = "rescript-struct:name";
+
+function name(struct) {
+  var n = Js_dict.get(struct.m, nameMetadataId);
+  if (n !== undefined) {
+    return n;
+  }
+  var tagged = struct.t;
+  if (typeof tagged !== "object") {
+    return tagged;
+  }
+  switch (tagged.TAG) {
+    case "Literal" :
+        return "Literal(" + toText(tagged._0) + ")";
+    case "Option" :
+        return "Option(" + name(tagged._0) + ")";
+    case "Null" :
+        return "Null(" + name(tagged._0) + ")";
+    case "Array" :
+        return "Array(" + name(tagged._0) + ")";
+    case "Object" :
+        var fields = tagged.fields;
+        return "Object({" + tagged.fieldNames.map(function (fieldName) {
+                      var fieldStruct = fields[fieldName];
+                      return JSON.stringify(fieldName) + ": " + name(fieldStruct);
+                    }).join(", ") + "})";
+    case "Tuple" :
+        return "Tuple(" + tagged._0.map(function (s) {
+                      return name(s);
+                    }).join(", ") + ")";
+    case "Union" :
+        return "Union(" + tagged._0.map(function (s) {
+                      return name(s);
+                    }).join(", ") + ")";
+    case "Dict" :
+        return "Dict(" + name(tagged._0) + ")";
+    
+  }
+}
+
+function setName(struct, name) {
+  return set(struct, nameMetadataId, name);
+}
 
 function refine(struct, maybeParser, maybeAsyncParser, maybeSerializer, param) {
   if (maybeParser === undefined && maybeAsyncParser === undefined && maybeSerializer === undefined) {
     panic("struct factory Refine");
   }
   return {
-          n: struct.n,
           t: struct.t,
           pb: maybeParser !== undefined ? (
               maybeAsyncParser !== undefined ? (function (b, param, inputVar, outputVar, pathVar) {
@@ -850,7 +1016,6 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
     panic("struct factory Transform");
   }
   return {
-          n: struct.n,
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
               if (maybeParser === undefined) {
@@ -926,7 +1091,6 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
         });
   }
   return {
-          n: struct.n,
           t: struct.t,
           pb: tmp,
           sb: maybeSerializer !== undefined ? (function (b, param, inputVar, outputVar, pathVar) {
@@ -952,7 +1116,6 @@ function advancedPreprocess(struct, maybeParser, maybeSerializer, param) {
   var unionStructs = struct.t;
   if (typeof unionStructs === "object" && unionStructs.TAG === "Union") {
     return {
-            n: struct.n,
             t: {
               TAG: "Union",
               _0: unionStructs._0.map(function (unionStruct) {
@@ -970,7 +1133,6 @@ function advancedPreprocess(struct, maybeParser, maybeSerializer, param) {
           };
   }
   return {
-          n: struct.n,
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
               if (maybeParser === undefined) {
@@ -1046,7 +1208,6 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
         });
   }
   return {
-          n: name,
           t: "Unknown",
           pb: tmp,
           sb: maybeSerializer !== undefined ? (function (b, param, inputVar, outputVar, pathVar) {
@@ -1059,52 +1220,59 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          m: emptyMetadataMap
+          m: make1(nameMetadataId, name)
         };
 }
 
-function internalToInlinedValue(_struct) {
-  while(true) {
-    var struct = _struct;
-    var unionStructs = struct.t;
-    if (typeof unionStructs !== "object") {
-      throw undefined;
-    }
-    switch (unionStructs.TAG) {
-      case "Literal" :
-          var string = unionStructs._0;
-          if (typeof string === "object") {
-            if (string.TAG === "String") {
-              return JSON.stringify(string._0);
-            } else {
-              return string._0.toString();
-            }
-          }
-          switch (string) {
-            case "EmptyNull" :
-                return "null";
-            case "EmptyOption" :
-                return "undefined";
-            case "NaN" :
-                return "NaN";
-            
-          }
-      case "Object" :
-          var fields = unionStructs.fields;
-          return "{" + unionStructs.fieldNames.map((function(fields){
-                      return function (fieldName) {
-                        return JSON.stringify(fieldName) + ":" + internalToInlinedValue(fields[fieldName]);
-                      }
-                      }(fields))).join(",") + "}";
-      case "Tuple" :
-          return "[" + unionStructs._0.map(internalToInlinedValue).join(",") + "]";
-      case "Union" :
-          _struct = unionStructs._0[0];
-          continue ;
-      default:
-        throw undefined;
-    }
+function literalCheckBuilder(b, value, inputVar) {
+  if (Number.isNaN(value)) {
+    return "Number.isNaN(" + inputVar + ")";
+  }
+  var check = inputVar + "===" + ("e[" + (b.e.push(value) - 1) + "]");
+  if (Array.isArray(value)) {
+    return "(" + check + "||Array.isArray(" + inputVar + ")&&" + inputVar + ".length===" + value.length + (
+            value.length > 0 ? "&&" + value.map(function (item, idx) {
+                      return literalCheckBuilder(b, item, inputVar + "[" + idx + "]");
+                    }).join("&&") : ""
+          ) + ")";
+  }
+  if (!(value !== null && typeof value === "object" && value.constructor === Object)) {
+    return check;
+  }
+  var keys = Object.keys(value);
+  var numberOfKeys = keys.length;
+  return "(" + check + "||" + inputVar + "!==null&&" + inputVar + ".constructor===Object&&Object.keys(" + inputVar + ").length===" + numberOfKeys + (
+          numberOfKeys > 0 ? "&&" + keys.map(function (key) {
+                    return literalCheckBuilder(b, value[key], inputVar + "[" + JSON.stringify(key) + "]");
+                  }).join("&&") : ""
+        ) + ")";
+}
+
+function literal(value) {
+  var literal$1 = classify(value);
+  var operationBuilder = function (b, param, inputVar, outputVar, pathVar) {
+    return literalCheckBuilder(b, value, inputVar) + "||" + raiseWithArg(b, pathVar, (function (input) {
+                  return {
+                          TAG: "InvalidLiteral",
+                          expected: literal$1,
+                          received: input
+                        };
+                }), inputVar) + ";" + outputVar + "=" + inputVar + ";";
   };
+  return {
+          t: {
+            TAG: "Literal",
+            _0: literal$1
+          },
+          pb: operationBuilder,
+          sb: operationBuilder,
+          i: 0,
+          s: initialSerialize,
+          j: initialSerializeToJson,
+          p: intitialParse,
+          a: intitialParseAsync,
+          m: emptyMetadataMap
+        };
 }
 
 function analyzeDefinition(definition, definerCtx, path) {
@@ -1140,7 +1308,6 @@ function factory(struct, definer) {
   var definition = definer(definerCtx);
   analyzeDefinition(definition, definerCtx, "");
   return {
-          n: struct.n,
           t: struct.t,
           pb: (function (b, param, inputVar, outputVar, pathVar) {
               var childOutputVar = $$var(b);
@@ -1157,26 +1324,26 @@ function factory(struct, definer) {
               for(var idx = 0 ,idx_finish = constantDefinitions.length; idx < idx_finish; ++idx){
                 var match = constantDefinitions[idx];
                 var path = match.p;
-                var value = match.v;
-                codeRef = codeRef + ("if(" + inputVar + path + "!==" + ("e[" + (b.e.push(value) - 1) + "]") + "){" + raiseWithArg(b, pathVar + "+" + JSON.stringify(path), (function(value){
+                var value$1 = match.v;
+                codeRef = codeRef + ("if(" + inputVar + path + "!==" + ("e[" + (b.e.push(value$1) - 1) + "]") + "){" + raiseWithArg(b, pathVar + "+" + JSON.stringify(path), (function(value$1){
                       return function (input) {
                         return {
-                                TAG: "UnexpectedValue",
-                                expected: value === (void 0) ? "undefined" : JSON.stringify(value),
-                                received: input === (void 0) ? "undefined" : JSON.stringify(input)
+                                TAG: "InvalidLiteral",
+                                expected: classify(value$1),
+                                received: input
                               };
                       }
-                      }(value)), inputVar + path) + "}");
+                      }(value$1)), inputVar + path) + "}");
               }
               var tmp;
               if (isValueRegistered) {
                 tmp = childInputVar + "=" + inputVar + valuePath;
               } else {
-                try {
-                  var inlinedValue = internalToInlinedValue(selfStruct);
-                  tmp = childInputVar + "=" + inlinedValue;
-                }
-                catch (exn){
+                var literal = toLiteral(selfStruct);
+                if (literal !== undefined) {
+                  var value$2 = value(literal);
+                  tmp = childInputVar + "=" + ("e[" + (b.e.push(value$2) - 1) + "]");
+                } else {
                   tmp = raise(b, pathVar, "MissingSerializer");
                 }
               }
@@ -1191,224 +1358,9 @@ function factory(struct, definer) {
         };
 }
 
-function factory$1(innerLiteral, variant) {
-  var tagged = {
-    TAG: "Literal",
-    _0: innerLiteral
-  };
-  var makeSerializeOperationBuilder = function (output) {
-    return function (b, param, inputVar, outputVar, pathVar) {
-      return "if(" + inputVar + "!==" + ("e[" + (b.e.push(variant) - 1) + "]") + "){" + raiseWithArg(b, pathVar, (function (input) {
-                    return {
-                            TAG: "UnexpectedValue",
-                            expected: variant === (void 0) ? "undefined" : JSON.stringify(variant),
-                            received: input === (void 0) ? "undefined" : JSON.stringify(input)
-                          };
-                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(output) - 1) + "]") + ";";
-    };
-  };
-  if (typeof innerLiteral !== "object") {
-    switch (innerLiteral) {
-      case "EmptyNull" :
-          return {
-                  n: "EmptyNull Literal (null)",
-                  t: tagged,
-                  pb: (function (b, param, inputVar, outputVar, pathVar) {
-                      return "if(" + inputVar + "!==null){" + raiseWithArg(b, pathVar, (function (input) {
-                                    return {
-                                            TAG: "UnexpectedType",
-                                            expected: "EmptyNull Literal (null)",
-                                            received: toName(input)
-                                          };
-                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(variant) - 1) + "]") + ";";
-                    }),
-                  sb: makeSerializeOperationBuilder(null),
-                  i: 0,
-                  s: initialSerialize,
-                  j: initialSerializeToJson,
-                  p: intitialParse,
-                  a: intitialParseAsync,
-                  m: emptyMetadataMap
-                };
-      case "EmptyOption" :
-          return {
-                  n: "EmptyOption Literal (undefined)",
-                  t: tagged,
-                  pb: (function (b, param, inputVar, outputVar, pathVar) {
-                      return "if(" + inputVar + "!==void 0){" + raiseWithArg(b, pathVar, (function (input) {
-                                    return {
-                                            TAG: "UnexpectedType",
-                                            expected: "EmptyOption Literal (undefined)",
-                                            received: toName(input)
-                                          };
-                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(variant) - 1) + "]") + ";";
-                    }),
-                  sb: makeSerializeOperationBuilder(undefined),
-                  i: 0,
-                  s: initialSerialize,
-                  j: initialSerializeToJson,
-                  p: intitialParse,
-                  a: intitialParseAsync,
-                  m: emptyMetadataMap
-                };
-      case "NaN" :
-          return {
-                  n: "NaN Literal (NaN)",
-                  t: tagged,
-                  pb: (function (b, param, inputVar, outputVar, pathVar) {
-                      return "if(!Number.isNaN(" + inputVar + ")){" + raiseWithArg(b, pathVar, (function (input) {
-                                    return {
-                                            TAG: "UnexpectedType",
-                                            expected: "NaN Literal (NaN)",
-                                            received: toName(input)
-                                          };
-                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(variant) - 1) + "]") + ";";
-                    }),
-                  sb: makeSerializeOperationBuilder(NaN),
-                  i: 0,
-                  s: initialSerialize,
-                  j: initialSerializeToJson,
-                  p: intitialParse,
-                  a: intitialParseAsync,
-                  m: emptyMetadataMap
-                };
-      
-    }
-  } else {
-    switch (innerLiteral.TAG) {
-      case "String" :
-          var string = innerLiteral._0;
-          return {
-                  n: "String Literal (\"" + string + "\")",
-                  t: tagged,
-                  pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
-                      return "if(typeof " + inputVar + "!==\"string\"){" + raiseWithArg(b, pathVar, (function (input) {
-                                    return {
-                                            TAG: "UnexpectedType",
-                                            expected: selfStruct.n,
-                                            received: toName(input)
-                                          };
-                                  }), inputVar) + "}if(" + inputVar + "!==" + JSON.stringify(string) + "){" + raiseWithArg(b, pathVar, (function (input) {
-                                    return {
-                                            TAG: "UnexpectedValue",
-                                            expected: JSON.stringify(string),
-                                            received: input === (void 0) ? "undefined" : JSON.stringify(input)
-                                          };
-                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(variant) - 1) + "]") + ";";
-                    }),
-                  sb: makeSerializeOperationBuilder(string),
-                  i: 0,
-                  s: initialSerialize,
-                  j: initialSerializeToJson,
-                  p: intitialParse,
-                  a: intitialParseAsync,
-                  m: emptyMetadataMap
-                };
-      case "Int" :
-          var $$int = innerLiteral._0;
-          return {
-                  n: "Int Literal (" + $$int + ")",
-                  t: tagged,
-                  pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
-                      return "if(!(typeof " + inputVar + "===\"number\"&&" + inputVar + "<2147483648&&" + inputVar + ">-2147483649&&" + inputVar + "%1===0)){" + raiseWithArg(b, pathVar, (function (input) {
-                                    return {
-                                            TAG: "UnexpectedType",
-                                            expected: selfStruct.n,
-                                            received: toName(input)
-                                          };
-                                  }), inputVar) + "}if(" + inputVar + "!==" + $$int + "){" + raiseWithArg(b, pathVar, (function (input) {
-                                    return {
-                                            TAG: "UnexpectedValue",
-                                            expected: $$int.toString(),
-                                            received: input === (void 0) ? "undefined" : JSON.stringify(input)
-                                          };
-                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(variant) - 1) + "]") + ";";
-                    }),
-                  sb: makeSerializeOperationBuilder($$int),
-                  i: 0,
-                  s: initialSerialize,
-                  j: initialSerializeToJson,
-                  p: intitialParse,
-                  a: intitialParseAsync,
-                  m: emptyMetadataMap
-                };
-      case "Float" :
-          var $$float = innerLiteral._0;
-          return {
-                  n: "Float Literal (" + $$float.toString() + ")",
-                  t: tagged,
-                  pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
-                      return "if(typeof " + inputVar + "!==\"number\"){" + raiseWithArg(b, pathVar, (function (input) {
-                                    return {
-                                            TAG: "UnexpectedType",
-                                            expected: selfStruct.n,
-                                            received: toName(input)
-                                          };
-                                  }), inputVar) + "}if(" + inputVar + "!==" + $$float.toString() + "){" + raiseWithArg(b, pathVar, (function (input) {
-                                    return {
-                                            TAG: "UnexpectedValue",
-                                            expected: $$float.toString(),
-                                            received: input === (void 0) ? "undefined" : JSON.stringify(input)
-                                          };
-                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(variant) - 1) + "]") + ";";
-                    }),
-                  sb: makeSerializeOperationBuilder($$float),
-                  i: 0,
-                  s: initialSerialize,
-                  j: initialSerializeToJson,
-                  p: intitialParse,
-                  a: intitialParseAsync,
-                  m: emptyMetadataMap
-                };
-      case "Bool" :
-          var bool = innerLiteral._0;
-          return {
-                  n: "Bool Literal (" + bool.toString() + ")",
-                  t: tagged,
-                  pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
-                      return "if(typeof " + inputVar + "!==\"boolean\"){" + raiseWithArg(b, pathVar, (function (input) {
-                                    return {
-                                            TAG: "UnexpectedType",
-                                            expected: selfStruct.n,
-                                            received: toName(input)
-                                          };
-                                  }), inputVar) + "}if(" + inputVar + "!==" + bool.toString() + "){" + raiseWithArg(b, pathVar, (function (input) {
-                                    return {
-                                            TAG: "UnexpectedValue",
-                                            expected: bool.toString(),
-                                            received: input === (void 0) ? "undefined" : JSON.stringify(input)
-                                          };
-                                  }), inputVar) + "}" + outputVar + "=" + ("e[" + (b.e.push(variant) - 1) + "]") + ";";
-                    }),
-                  sb: makeSerializeOperationBuilder(bool),
-                  i: 0,
-                  s: initialSerialize,
-                  j: initialSerializeToJson,
-                  p: intitialParse,
-                  a: intitialParseAsync,
-                  m: emptyMetadataMap
-                };
-      
-    }
-  }
-}
-
-function factory$2(innerLiteral) {
-  if (typeof innerLiteral === "object") {
-    return factory$1(innerLiteral, innerLiteral._0);
-  }
-  switch (innerLiteral) {
-    case "EmptyNull" :
-    case "EmptyOption" :
-    case "NaN" :
-        return factory$1(innerLiteral, undefined);
-    
-  }
-}
-
 var metadataId = "rescript-struct:Object.UnknownKeys";
 
-function classify$1(struct) {
+function classify$2(struct) {
   var t = Js_dict.get(struct.m, metadataId);
   if (t !== undefined) {
     return t;
@@ -1443,7 +1395,7 @@ function analyzeDefinition$1(definition, definerCtx, path) {
       });
 }
 
-function factory$3(definer) {
+function factory$1(definer) {
   var fields = {};
   var fieldNames = [];
   var fieldDefinitions = [];
@@ -1464,6 +1416,9 @@ function factory$3(definer) {
     fieldDefinitionsSet.add(fieldDefinition);
     return fieldDefinition;
   };
+  var tag = function (tag$1, asValue) {
+    field(tag$1, literal(asValue));
+  };
   var definerCtx_p = [];
   var definerCtx_v = [];
   var definerCtx_c = [];
@@ -1475,12 +1430,12 @@ function factory$3(definer) {
     v: definerCtx_v,
     c: definerCtx_c,
     s: fieldDefinitionsSet,
-    f: field
+    f: field,
+    t: tag
   };
   var definition = definer(definerCtx);
   analyzeDefinition$1(definition, definerCtx, "");
   return {
-          n: "Object",
           t: {
             TAG: "Object",
             fields: fields,
@@ -1490,13 +1445,14 @@ function factory$3(definer) {
               var constantDefinitions = definerCtx_c;
               var inlinedPreparationValues = definerCtx_v;
               var preparationPathes = definerCtx_p;
+              var fieldDefinitions$1 = fieldDefinitions;
               var asyncFieldVars = [];
               var syncOutputVar = $$var(b);
               var codeRef = "if(!(typeof " + inputVar + "===\"object\"&&" + inputVar + "!==null&&!Array.isArray(" + inputVar + "))){" + raiseWithArg(b, pathVar, (function (input) {
                       return {
-                              TAG: "UnexpectedType",
-                              expected: "Object",
-                              received: toName(input)
+                              TAG: "InvalidType",
+                              expected: selfStruct,
+                              received: input
                             };
                     }), inputVar) + "}";
               for(var idx = 0 ,idx_finish = preparationPathes.length; idx < idx_finish; ++idx){
@@ -1504,8 +1460,8 @@ function factory$3(definer) {
                 var preparationInlinedValue = inlinedPreparationValues[idx];
                 codeRef = codeRef + (syncOutputVar + preparationPath + "=" + preparationInlinedValue + ";");
               }
-              for(var idx$1 = 0 ,idx_finish$1 = fieldDefinitions.length; idx$1 < idx_finish$1; ++idx$1){
-                var fieldDefinition = fieldDefinitions[idx$1];
+              for(var idx$1 = 0 ,idx_finish$1 = fieldDefinitions$1.length; idx$1 < idx_finish$1; ++idx$1){
+                var fieldDefinition = fieldDefinitions$1[idx$1];
                 var inlinedFieldName = fieldDefinition.i;
                 var fieldStruct = fieldDefinition.s;
                 var path = fieldDefinition.p;
@@ -1522,13 +1478,13 @@ function factory$3(definer) {
                 }
                 
               }
-              var withUnknownKeysRefinement = classify$1(selfStruct) === "Strict";
+              var withUnknownKeysRefinement = classify$2(selfStruct) === "Strict";
               if (withUnknownKeysRefinement) {
-                if (fieldDefinitions.length !== 0) {
+                if (fieldDefinitions$1.length !== 0) {
                   var keyVar = $$var(b);
                   codeRef = codeRef + ("for(" + keyVar + " in " + inputVar + "){if(!(");
-                  for(var idx$2 = 0 ,idx_finish$2 = fieldDefinitions.length; idx$2 < idx_finish$2; ++idx$2){
-                    var fieldDefinition$1 = fieldDefinitions[idx$2];
+                  for(var idx$2 = 0 ,idx_finish$2 = fieldDefinitions$1.length; idx$2 < idx_finish$2; ++idx$2){
+                    var fieldDefinition$1 = fieldDefinitions$1[idx$2];
                     if (idx$2 !== 0) {
                       codeRef = codeRef + "||";
                     }
@@ -1567,24 +1523,25 @@ function factory$3(definer) {
             }),
           sb: (function (b, param, inputVar, outputVar, pathVar) {
               var constantDefinitions = definerCtx_c;
+              var fieldDefinitions$1 = fieldDefinitions;
               var codeRef = "";
               for(var idx = 0 ,idx_finish = constantDefinitions.length; idx < idx_finish; ++idx){
                 var match = constantDefinitions[idx];
                 var path = match.p;
-                var value = match.v;
-                codeRef = codeRef + ("if(" + inputVar + path + "!==" + ("e[" + (b.e.push(value) - 1) + "]") + "){" + raiseWithArg(b, pathVar + "+" + JSON.stringify(path), (function(value){
+                var value$1 = match.v;
+                codeRef = codeRef + ("if(" + inputVar + path + "!==" + ("e[" + (b.e.push(value$1) - 1) + "]") + "){" + raiseWithArg(b, pathVar + "+" + JSON.stringify(path), (function(value$1){
                       return function (input) {
                         return {
-                                TAG: "UnexpectedValue",
-                                expected: value === (void 0) ? "undefined" : JSON.stringify(value),
-                                received: input === (void 0) ? "undefined" : JSON.stringify(input)
+                                TAG: "InvalidLiteral",
+                                expected: classify(value$1),
+                                received: input
                               };
                       }
-                      }(value)), inputVar + path) + "}");
+                      }(value$1)), inputVar + path) + "}");
               }
               codeRef = codeRef + (outputVar + "={};");
-              for(var idx$1 = 0 ,idx_finish$1 = fieldDefinitions.length; idx$1 < idx_finish$1; ++idx$1){
-                var fieldDefinition = fieldDefinitions[idx$1];
+              for(var idx$1 = 0 ,idx_finish$1 = fieldDefinitions$1.length; idx$1 < idx_finish$1; ++idx$1){
+                var fieldDefinition = fieldDefinitions$1[idx$1];
                 var fieldStruct = fieldDefinition.s;
                 var path$1 = fieldDefinition.p;
                 var isRegistered = fieldDefinition.r;
@@ -1598,13 +1555,15 @@ function factory$3(definer) {
                     destinationVar === fieldOuputVar ? "" : destinationVar + "=" + fieldOuputVar + ";"
                   );
                 } else {
-                  try {
-                    var inlinedValue = internalToInlinedValue(fieldStruct);
-                    tmp = destinationVar + "=" + inlinedValue + ";";
+                  var literal = toLiteral(fieldStruct);
+                  var tmp$1;
+                  if (literal !== undefined) {
+                    var value$2 = value(literal);
+                    tmp$1 = destinationVar + "=" + ("e[" + (b.e.push(value$2) - 1) + "]");
+                  } else {
+                    tmp$1 = raise(b, pathVar, "MissingSerializer");
                   }
-                  catch (exn){
-                    tmp = raise(b, fieldPathVar, "MissingSerializer") + ";";
-                  }
+                  tmp = tmp$1 + ";";
                 }
                 codeRef = codeRef + tmp;
               }
@@ -1627,18 +1586,17 @@ function strict(struct) {
   return set(struct, metadataId, "Strict");
 }
 
-function builder(b, param, inputVar, param$1, pathVar) {
+function builder(b, selfStruct, inputVar, param, pathVar) {
   return raiseWithArg(b, pathVar, (function (input) {
                 return {
-                        TAG: "UnexpectedType",
-                        expected: "Never",
-                        received: toName(input)
+                        TAG: "InvalidType",
+                        expected: selfStruct,
+                        received: input
                       };
               }), inputVar) + ";";
 }
 
 var struct = {
-  n: "Never",
   t: "Never",
   pb: builder,
   sb: builder,
@@ -1651,7 +1609,6 @@ var struct = {
 };
 
 var struct$1 = {
-  n: "Unknown",
   t: "Unknown",
   pb: noop,
   sb: noop,
@@ -1682,18 +1639,17 @@ var emailRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\")
 
 var datetimeRe = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
-function parseOperationBuilder(b, param, inputVar, outputVar, pathVar) {
+function parseOperationBuilder(b, selfStruct, inputVar, outputVar, pathVar) {
   return "if(typeof " + inputVar + "!==\"string\"){" + raiseWithArg(b, pathVar, (function (input) {
                 return {
-                        TAG: "UnexpectedType",
-                        expected: "String",
-                        received: toName(input)
+                        TAG: "InvalidType",
+                        expected: selfStruct,
+                        received: input
                       };
               }), inputVar) + "}" + outputVar + "=" + inputVar + ";";
 }
 
 var struct$2 = {
-  n: "String",
   t: "String",
   pb: parseOperationBuilder,
   sb: noop,
@@ -1862,9 +1818,8 @@ function trim(struct, param) {
   return transform(struct, transformer, undefined, transformer, undefined);
 }
 
-function factory$4(childStruct) {
+function factory$2(childStruct) {
   return {
-          n: "JsonString",
           t: "String",
           pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
               var jsonStringVar = $$var(b);
@@ -1893,14 +1848,13 @@ function factory$4(childStruct) {
 }
 
 var struct$3 = {
-  n: "Bool",
   t: "Bool",
-  pb: (function (b, param, inputVar, outputVar, pathVar) {
+  pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
       return "if(typeof " + inputVar + "!==\"boolean\"){" + raiseWithArg(b, pathVar, (function (input) {
                     return {
-                            TAG: "UnexpectedType",
-                            expected: "Bool",
-                            received: toName(input)
+                            TAG: "InvalidType",
+                            expected: selfStruct,
+                            received: input
                           };
                   }), inputVar) + "}" + outputVar + "=" + inputVar + ";";
     }),
@@ -1925,14 +1879,13 @@ function refinements$1(struct) {
 }
 
 var struct$4 = {
-  n: "Int",
   t: "Int",
-  pb: (function (b, param, inputVar, outputVar, pathVar) {
+  pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
       return "if(!(typeof " + inputVar + "===\"number\"&&" + inputVar + "<2147483648&&" + inputVar + ">-2147483649&&" + inputVar + "%1===0)){" + raiseWithArg(b, pathVar, (function (input) {
                     return {
-                            TAG: "UnexpectedType",
-                            expected: "Int",
-                            received: toName(input)
+                            TAG: "InvalidType",
+                            expected: selfStruct,
+                            received: input
                           };
                   }), inputVar) + "}" + outputVar + "=" + inputVar + ";";
     }),
@@ -2005,14 +1958,13 @@ function refinements$2(struct) {
 }
 
 var struct$5 = {
-  n: "Float",
   t: "Float",
-  pb: (function (b, param, inputVar, outputVar, pathVar) {
+  pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
       return "if(!(typeof " + inputVar + "===\"number\"&&!Number.isNaN(" + inputVar + "))){" + raiseWithArg(b, pathVar, (function (input) {
                     return {
-                            TAG: "UnexpectedType",
-                            expected: "Float",
-                            received: toName(input)
+                            TAG: "InvalidType",
+                            expected: selfStruct,
+                            received: input
                           };
                   }), inputVar) + "}" + outputVar + "=" + inputVar + ";";
     }),
@@ -2059,9 +2011,8 @@ function max$2(struct, maybeMessage, maxValue) {
             }, refiner);
 }
 
-function factory$5(childStruct) {
+function factory$3(childStruct) {
   return {
-          n: "Null",
           t: {
             TAG: "Null",
             _0: childStruct
@@ -2089,9 +2040,8 @@ function factory$5(childStruct) {
         };
 }
 
-function factory$6(childStruct) {
+function factory$4(childStruct) {
   return {
-          n: "Option",
           t: {
             TAG: "Option",
             _0: childStruct
@@ -2130,20 +2080,19 @@ function refinements$3(struct) {
   }
 }
 
-function factory$7(childStruct) {
+function factory$5(childStruct) {
   return {
-          n: "Array",
           t: {
             TAG: "Array",
             _0: childStruct
           },
-          pb: (function (b, param, inputVar, outputVar, pathVar) {
+          pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
               var iteratorVar = varWithoutAllocation(b);
               var code = "if(!Array.isArray(" + inputVar + ")){" + raiseWithArg(b, pathVar, (function (input) {
                       return {
-                              TAG: "UnexpectedType",
-                              expected: "Array",
-                              received: toName(input)
+                              TAG: "InvalidType",
+                              expected: selfStruct,
+                              received: input
                             };
                     }), inputVar) + "}" + outputVar + "=[];for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + varsScope(b, (function (b) {
                       var itemVar = $$var(b);
@@ -2227,20 +2176,19 @@ function length$1(struct, maybeMessage, length$2) {
             }, refiner);
 }
 
-function factory$8(childStruct) {
+function factory$6(childStruct) {
   return {
-          n: "Dict",
           t: {
             TAG: "Dict",
             _0: childStruct
           },
-          pb: (function (b, param, inputVar, outputVar, pathVar) {
+          pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
               var keyVar = varWithoutAllocation(b);
               var code = "if(!(typeof " + inputVar + "===\"object\"&&" + inputVar + "!==null&&!Array.isArray(" + inputVar + "))){" + raiseWithArg(b, pathVar, (function (input) {
                       return {
-                              TAG: "UnexpectedType",
-                              expected: "Dict",
-                              received: toName(input)
+                              TAG: "InvalidType",
+                              expected: selfStruct,
+                              received: input
                             };
                     }), inputVar) + "}" + outputVar + "={};for(let " + keyVar + " in " + inputVar + "){" + varsScope(b, (function (b) {
                       var itemVar = $$var(b);
@@ -2279,10 +2227,9 @@ function factory$8(childStruct) {
 
 var metadataId$5 = "rescript-struct:Default";
 
-function factory$9(childStruct, getDefaultValue) {
-  var childStruct$1 = factory$6(childStruct);
+function factory$7(childStruct, getDefaultValue) {
+  var childStruct$1 = factory$4(childStruct);
   return set({
-              n: childStruct$1.n,
               t: childStruct$1.t,
               pb: (function (b, param, inputVar, outputVar, pathVar) {
                   var childOutputVar = $$var(b);
@@ -2303,7 +2250,7 @@ function factory$9(childStruct, getDefaultValue) {
             }, metadataId$5, getDefaultValue);
 }
 
-function classify$2(struct) {
+function classify$3(struct) {
   var getDefaultValue = Js_dict.get(struct.m, metadataId$5);
   if (getDefaultValue !== undefined) {
     return Caml_option.some(getDefaultValue(undefined));
@@ -2311,25 +2258,24 @@ function classify$2(struct) {
   
 }
 
-function factory$10(structs) {
+function factory$8(structs) {
   var numberOfStructs = structs.length;
   var len = structs.length;
   return {
-          n: "Tuple",
           t: {
             TAG: "Tuple",
             _0: structs
           },
-          pb: (function (b, param, inputVar, outputVar, pathVar) {
+          pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
               var codeRef = "if(!Array.isArray(" + inputVar + ")){" + raiseWithArg(b, pathVar, (function (input) {
                       return {
-                              TAG: "UnexpectedType",
-                              expected: "Tuple",
-                              received: toName(input)
+                              TAG: "InvalidType",
+                              expected: selfStruct,
+                              received: input
                             };
                     }), inputVar) + "}if(" + inputVar + ".length!==" + numberOfStructs + "){" + raiseWithArg(b, pathVar, (function (numberOfInputItems) {
                       return {
-                              TAG: "TupleSize",
+                              TAG: "InvalidTupleSize",
                               expected: numberOfStructs,
                               received: numberOfInputItems
                             };
@@ -2385,21 +2331,21 @@ function factory$10(structs) {
         };
 }
 
-function factoryFromArgs(param) {
-  return factory$10((Array.from(arguments)));
+function factoryFromArgs() {
+  var structs = (Array.from(arguments));
+  return factory$8(structs);
 }
 
 var Tuple = {
-  factory: factory$10,
+  factory: factory$8,
   factoryFromArgs: factoryFromArgs
 };
 
-function factory$11(structs) {
+function factory$9(structs) {
   if (structs.length < 2) {
     throw new Error("[rescript-struct] A Union struct factory require at least two structs.");
   }
   return {
-          n: "Union",
           t: {
             TAG: "Union",
             _0: structs
@@ -2489,61 +2435,63 @@ function factory$11(structs) {
 }
 
 function list(childStruct) {
-  return transform(factory$7(childStruct), Belt_List.fromArray, undefined, Belt_List.toArray, undefined);
-}
-
-function parse(input, path) {
-  var match = typeof input;
-  switch (match) {
-    case "number" :
-        if (!Number.isNaN(input)) {
-          return input;
-        }
-        break;
-    case "object" :
-        if (input === null) {
-          return input;
-        }
-        if (Array.isArray(input)) {
-          var output = [];
-          for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
-            var inputItem = input[idx];
-            var $$location = idx.toString();
-            output.push(parse(inputItem, path + ("[" + JSON.stringify($$location) + "]")));
-          }
-          return output;
-        }
-        var keys = Object.keys(input);
-        var output$1 = {};
-        for(var idx$1 = 0 ,idx_finish$1 = keys.length; idx$1 < idx_finish$1; ++idx$1){
-          var key = keys[idx$1];
-          var field = input[key];
-          output$1[key] = parse(field, path + ("[" + JSON.stringify(key) + "]"));
-        }
-        return output$1;
-    case "boolean" :
-    case "string" :
-        return input;
-    default:
-      
-  }
-  var code_1 = toName(input);
-  var code = {
-    TAG: "UnexpectedType",
-    expected: "JSON",
-    received: code_1
-  };
-  throw {
-        c: code,
-        p: path,
-        s: symbol
-      };
+  return transform(factory$5(childStruct), Belt_List.fromArray, undefined, Belt_List.toArray, undefined);
 }
 
 var json = {
-  n: "JSON",
   t: "JSON",
-  pb: (function (b, param, inputVar, outputVar, pathVar) {
+  pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
+      var parse = function (input, path) {
+        var match = typeof input;
+        if (match === "string" || match === "boolean") {
+          return input;
+        }
+        if (match === "object") {
+          if (input === null) {
+            return input;
+          }
+          if (Array.isArray(input)) {
+            var output = [];
+            for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
+              var inputItem = input[idx];
+              var $$location = idx.toString();
+              output.push(parse(inputItem, path + ("[" + JSON.stringify($$location) + "]")));
+            }
+            return output;
+          }
+          var keys = Object.keys(input);
+          var output$1 = {};
+          for(var idx$1 = 0 ,idx_finish$1 = keys.length; idx$1 < idx_finish$1; ++idx$1){
+            var key = keys[idx$1];
+            var field = input[key];
+            output$1[key] = parse(field, path + ("[" + JSON.stringify(key) + "]"));
+          }
+          return output$1;
+        }
+        if (match === "number") {
+          if (!Number.isNaN(input)) {
+            return input;
+          }
+          throw {
+                c: {
+                  TAG: "InvalidType",
+                  expected: selfStruct,
+                  received: input
+                },
+                p: path,
+                s: symbol
+              };
+        }
+        throw {
+              c: {
+                TAG: "InvalidType",
+                expected: selfStruct,
+                received: input
+              },
+              p: path,
+              s: symbol
+            };
+      };
       return outputVar + "=" + ("e[" + (b.e.push(parse) - 1) + "]") + "(" + inputVar + "," + pathVar + ");";
     }),
   sb: noop,
@@ -2557,7 +2505,6 @@ var json = {
 
 function $$catch(struct, getFallbackValue) {
   return {
-          n: struct.n,
           t: struct.t,
           pb: (function (b, param, inputVar, outputVar, pathVar) {
               var childOutputVar = $$var(b);
@@ -2605,6 +2552,58 @@ function description(struct) {
   return Js_dict.get(struct.m, descriptionMetadataId);
 }
 
+function toReason(nestedLevelOpt, error) {
+  var nestedLevel = nestedLevelOpt !== undefined ? nestedLevelOpt : 0;
+  var reason = error.code;
+  if (typeof reason !== "object") {
+    switch (reason) {
+      case "MissingParser" :
+          return "Struct parser is missing";
+      case "MissingSerializer" :
+          return "Struct serializer is missing";
+      case "UnexpectedAsync" :
+          return "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith";
+      
+    }
+  } else {
+    switch (reason.TAG) {
+      case "OperationFailed" :
+          return reason._0;
+      case "InvalidType" :
+          return "Expected " + name(reason.expected) + ", received " + toText(classify(reason.received));
+      case "InvalidLiteral" :
+          return "Expected " + toText(reason.expected) + ", received " + toText(classify(reason.received));
+      case "InvalidTupleSize" :
+          return "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString();
+      case "ExcessField" :
+          return "Encountered disallowed excess key \"" + reason._0 + "\" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely";
+      case "InvalidUnion" :
+          var lineBreak = "\n" + " ".repeat((nestedLevel << 1));
+          var array = reason._0.map(function (error) {
+                var reason = toReason(nestedLevel + 1, error);
+                var nonEmptyPath = error.path;
+                var $$location = nonEmptyPath === "" ? "" : "Failed at " + nonEmptyPath + ". ";
+                return "- " + $$location + reason;
+              });
+          var reasons = Array.from(new Set(array));
+          return "Invalid union with following errors" + lineBreak + reasons.join(lineBreak);
+      case "InvalidJsonStruct" :
+          return "The struct " + name(reason._0) + " is not compatible with JSON";
+      
+    }
+  }
+}
+
+function toString(error) {
+  var match = error.operation;
+  var operation;
+  operation = match === "Serializing" ? "serializing" : "parsing";
+  var reason = toReason(undefined, error);
+  var nonEmptyPath = error.path;
+  var pathText = nonEmptyPath === "" ? "root" : nonEmptyPath;
+  return "Failed " + operation + " at " + pathText + ". Reason: " + reason;
+}
+
 function getExn(result) {
   if (result.TAG === "Ok") {
     return result._0;
@@ -2628,83 +2627,6 @@ var Result = {
   getExn: getExn,
   mapErrorToString: mapErrorToString
 };
-
-function toVariantName(struct) {
-  var s = struct.t;
-  if (typeof s !== "object") {
-    switch (s) {
-      case "Never" :
-          return "Never";
-      case "Unknown" :
-          return "Unknown";
-      case "String" :
-          return "String";
-      case "Int" :
-          return "Int";
-      case "Float" :
-          return "Float";
-      case "Bool" :
-          return "Bool";
-      case "JSON" :
-          return "JSON";
-      
-    }
-  } else {
-    switch (s.TAG) {
-      case "Literal" :
-          var string = s._0;
-          if (typeof string !== "object") {
-            switch (string) {
-              case "EmptyNull" :
-                  return "EmptyNull";
-              case "EmptyOption" :
-                  return "EmptyOption";
-              case "NaN" :
-                  return "NaN";
-              
-            }
-          } else {
-            switch (string.TAG) {
-              case "String" :
-                  return string._0;
-              case "Int" :
-              case "Float" :
-                  return string._0.toString();
-              case "Bool" :
-                  if (string._0) {
-                    return "True";
-                  } else {
-                    return "False";
-                  }
-              
-            }
-          }
-      case "Option" :
-          return "OptionOf" + toVariantName(s._0);
-      case "Null" :
-          return "NullOf" + toVariantName(s._0);
-      case "Array" :
-          return "ArrayOf" + toVariantName(s._0);
-      case "Object" :
-          if (s.fieldNames.length !== 0) {
-            return "Object";
-          } else {
-            return "EmptyObject";
-          }
-      case "Tuple" :
-          if (s._0.length !== 0) {
-            return "Tuple";
-          } else {
-            return "EmptyTuple";
-          }
-      case "Union" :
-          return "Union";
-      case "Dict" :
-          return "DictOf" + toVariantName(s._0);
-      
-    }
-  }
-}
 
 function internalInline(struct, maybeVariant, param) {
   var metadataMap = Object.assign({}, struct.m);
@@ -2742,11 +2664,11 @@ function internalInline(struct, maybeVariant, param) {
           var inlinedLiteral;
           if (typeof taggedLiteral$1 !== "object") {
             switch (taggedLiteral$1) {
-              case "EmptyNull" :
+              case "Null" :
                   inlinedLiteral = "EmptyNull";
                   break;
-              case "EmptyOption" :
-                  inlinedLiteral = "EmptyOption";
+              case "Undefined" :
+                  inlinedLiteral = "Undefined";
                   break;
               case "NaN" :
                   inlinedLiteral = "NaN";
@@ -2758,26 +2680,24 @@ function internalInline(struct, maybeVariant, param) {
               case "String" :
                   inlinedLiteral = "String(" + JSON.stringify(taggedLiteral$1._0) + ")";
                   break;
-              case "Int" :
-                  inlinedLiteral = "Int(" + taggedLiteral$1._0.toString() + ")";
-                  break;
-              case "Float" :
+              case "Number" :
                   var $$float = taggedLiteral$1._0;
-                  inlinedLiteral = "Float(" + ($$float.toString() + (
+                  inlinedLiteral = "Number(" + ($$float.toString() + (
                       $$float % 1 === 0 ? "." : ""
                     )) + ")";
                   break;
-              case "Bool" :
+              case "Boolean" :
                   inlinedLiteral = "Bool(" + taggedLiteral$1._0.toString() + ")";
                   break;
-              
+              default:
+                inlinedLiteral = "NaN";
             }
           }
           inlinedStruct = maybeVariant !== undefined ? "S.literalVariant(" + inlinedLiteral + ", " + maybeVariant + ")" : "S.literal(" + inlinedLiteral + ")";
           break;
       case "Option" :
           var internalInlinedStruct = internalInline(taggedLiteral._0, undefined, undefined);
-          var defaultValue = classify$2(struct);
+          var defaultValue = classify$3(struct);
           if (defaultValue !== undefined) {
             var defaultValue$1 = Caml_option.valFromOption(defaultValue);
             Js_dict.unsafeDeleteKey(metadataMap, metadataId$5);
@@ -2818,7 +2738,7 @@ function internalInline(struct, maybeVariant, param) {
       case "Union" :
           var variantNamesCounter = {};
           inlinedStruct = "S.union([" + taggedLiteral._0.map(function (s) {
-                  var variantName = toVariantName(s);
+                  var variantName = name(s);
                   var n = Js_dict.get(variantNamesCounter, variantName);
                   var numberOfVariantNames = n !== undefined ? n : 0;
                   variantNamesCounter[variantName] = numberOfVariantNames + 1;
@@ -2839,7 +2759,7 @@ function internalInline(struct, maybeVariant, param) {
   var inlinedStruct$2 = message$1 !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, descriptionMetadataId), inlinedStruct$1 + ("->S.describe(" + (
           message$1 === (void 0) ? "undefined" : JSON.stringify(message$1)
         ) + ")")) : inlinedStruct$1;
-  var match = classify$1(struct);
+  var match = classify$2(struct);
   var inlinedStruct$3;
   inlinedStruct$3 = match === "Strict" ? inlinedStruct$2 + "->S.Object.strict" : inlinedStruct$2;
   Js_dict.unsafeDeleteKey(metadataMap, metadataId);
@@ -2852,10 +2772,43 @@ function internalInline(struct, maybeVariant, param) {
           exit = 1;
           break;
       case "Int" :
-          exit = 2;
+          var refinements$4 = refinements$1(struct);
+          if (refinements$4.length !== 0) {
+            Js_dict.unsafeDeleteKey(metadataMap, metadataId$2);
+            inlinedStruct$4 = inlinedStruct$3 + refinements$4.map(function (refinement) {
+                    var match = refinement.kind;
+                    if (typeof match !== "object") {
+                      return "->S.Int.port(~message=" + JSON.stringify(refinement.message) + ", ())";
+                    } else if (match.TAG === "Min") {
+                      return "->S.Int.min(~message=" + JSON.stringify(refinement.message) + ", " + match.value.toString() + ")";
+                    } else {
+                      return "->S.Int.max(~message=" + JSON.stringify(refinement.message) + ", " + match.value.toString() + ")";
+                    }
+                  }).join("");
+          } else {
+            inlinedStruct$4 = inlinedStruct$3;
+          }
           break;
       case "Float" :
-          exit = 3;
+          var refinements$5 = refinements$2(struct);
+          if (refinements$5.length !== 0) {
+            Js_dict.unsafeDeleteKey(metadataMap, metadataId$3);
+            inlinedStruct$4 = inlinedStruct$3 + refinements$5.map(function (refinement) {
+                    var match = refinement.kind;
+                    if (match.TAG === "Min") {
+                      var value = match.value;
+                      return "->S.Float.min(~message=" + JSON.stringify(refinement.message) + ", " + (value.toString() + (
+                                value % 1 === 0 ? "." : ""
+                              )) + ")";
+                    }
+                    var value$1 = match.value;
+                    return "->S.Float.max(~message=" + JSON.stringify(refinement.message) + ", " + (value$1.toString() + (
+                              value$1 % 1 === 0 ? "." : ""
+                            )) + ")";
+                  }).join("");
+          } else {
+            inlinedStruct$4 = inlinedStruct$3;
+          }
           break;
       default:
         inlinedStruct$4 = inlinedStruct$3;
@@ -2864,29 +2817,17 @@ function internalInline(struct, maybeVariant, param) {
     switch (match$1.TAG) {
       case "Literal" :
           var tmp = match$1._0;
-          if (typeof tmp !== "object") {
+          if (typeof tmp !== "object" || tmp.TAG !== "String") {
             inlinedStruct$4 = inlinedStruct$3;
           } else {
-            switch (tmp.TAG) {
-              case "String" :
-                  exit = 1;
-                  break;
-              case "Int" :
-                  exit = 2;
-                  break;
-              case "Float" :
-                  exit = 3;
-                  break;
-              default:
-                inlinedStruct$4 = inlinedStruct$3;
-            }
+            exit = 1;
           }
           break;
       case "Array" :
-          var refinements$4 = refinements$3(struct);
-          if (refinements$4.length !== 0) {
+          var refinements$6 = refinements$3(struct);
+          if (refinements$6.length !== 0) {
             Js_dict.unsafeDeleteKey(metadataMap, metadataId$4);
-            inlinedStruct$4 = inlinedStruct$3 + refinements$4.map(function (refinement) {
+            inlinedStruct$4 = inlinedStruct$3 + refinements$6.map(function (refinement) {
                     var match = refinement.kind;
                     switch (match.TAG) {
                       case "Min" :
@@ -2906,85 +2847,43 @@ function internalInline(struct, maybeVariant, param) {
         inlinedStruct$4 = inlinedStruct$3;
     }
   }
-  switch (exit) {
-    case 1 :
-        var refinements$5 = refinements(struct);
-        if (refinements$5.length !== 0) {
-          Js_dict.unsafeDeleteKey(metadataMap, metadataId$1);
-          inlinedStruct$4 = inlinedStruct$3 + refinements$5.map(function (refinement) {
-                  var match = refinement.kind;
-                  if (typeof match !== "object") {
-                    switch (match) {
-                      case "Email" :
-                          return "->S.String.email(~message=" + JSON.stringify(refinement.message) + ", ())";
-                      case "Uuid" :
-                          return "->S.String.uuid(~message=" + JSON.stringify(refinement.message) + ", ())";
-                      case "Cuid" :
-                          return "->S.String.cuid(~message=" + JSON.stringify(refinement.message) + ", ())";
-                      case "Url" :
-                          return "->S.String.url(~message=" + JSON.stringify(refinement.message) + ", ())";
-                      case "Datetime" :
-                          return "->S.String.datetime(~message=" + JSON.stringify(refinement.message) + ", ())";
-                      
-                    }
-                  } else {
-                    switch (match.TAG) {
-                      case "Min" :
-                          return "->S.String.min(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
-                      case "Max" :
-                          return "->S.String.max(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
-                      case "Length" :
-                          return "->S.String.length(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
-                      case "Pattern" :
-                          return "->S.String.pattern(~message=" + JSON.stringify(refinement.message) + ", %re(" + JSON.stringify(match.re.toString()) + "))";
-                      
-                    }
-                  }
-                }).join("");
-        } else {
-          inlinedStruct$4 = inlinedStruct$3;
-        }
-        break;
-    case 2 :
-        var refinements$6 = refinements$1(struct);
-        if (refinements$6.length !== 0) {
-          Js_dict.unsafeDeleteKey(metadataMap, metadataId$2);
-          inlinedStruct$4 = inlinedStruct$3 + refinements$6.map(function (refinement) {
-                  var match = refinement.kind;
-                  if (typeof match !== "object") {
-                    return "->S.Int.port(~message=" + JSON.stringify(refinement.message) + ", ())";
-                  } else if (match.TAG === "Min") {
-                    return "->S.Int.min(~message=" + JSON.stringify(refinement.message) + ", " + match.value.toString() + ")";
-                  } else {
-                    return "->S.Int.max(~message=" + JSON.stringify(refinement.message) + ", " + match.value.toString() + ")";
-                  }
-                }).join("");
-        } else {
-          inlinedStruct$4 = inlinedStruct$3;
-        }
-        break;
-    case 3 :
-        var refinements$7 = refinements$2(struct);
-        if (refinements$7.length !== 0) {
-          Js_dict.unsafeDeleteKey(metadataMap, metadataId$3);
-          inlinedStruct$4 = inlinedStruct$3 + refinements$7.map(function (refinement) {
-                  var match = refinement.kind;
-                  if (match.TAG === "Min") {
-                    var value = match.value;
-                    return "->S.Float.min(~message=" + JSON.stringify(refinement.message) + ", " + (value.toString() + (
-                              value % 1 === 0 ? "." : ""
-                            )) + ")";
-                  }
-                  var value$1 = match.value;
-                  return "->S.Float.max(~message=" + JSON.stringify(refinement.message) + ", " + (value$1.toString() + (
-                            value$1 % 1 === 0 ? "." : ""
-                          )) + ")";
-                }).join("");
-        } else {
-          inlinedStruct$4 = inlinedStruct$3;
-        }
-        break;
-    
+  if (exit === 1) {
+    var refinements$7 = refinements(struct);
+    if (refinements$7.length !== 0) {
+      Js_dict.unsafeDeleteKey(metadataMap, metadataId$1);
+      inlinedStruct$4 = inlinedStruct$3 + refinements$7.map(function (refinement) {
+              var match = refinement.kind;
+              if (typeof match !== "object") {
+                switch (match) {
+                  case "Email" :
+                      return "->S.String.email(~message=" + JSON.stringify(refinement.message) + ", ())";
+                  case "Uuid" :
+                      return "->S.String.uuid(~message=" + JSON.stringify(refinement.message) + ", ())";
+                  case "Cuid" :
+                      return "->S.String.cuid(~message=" + JSON.stringify(refinement.message) + ", ())";
+                  case "Url" :
+                      return "->S.String.url(~message=" + JSON.stringify(refinement.message) + ", ())";
+                  case "Datetime" :
+                      return "->S.String.datetime(~message=" + JSON.stringify(refinement.message) + ", ())";
+                  
+                }
+              } else {
+                switch (match.TAG) {
+                  case "Min" :
+                      return "->S.String.min(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
+                  case "Max" :
+                      return "->S.String.max(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
+                  case "Length" :
+                      return "->S.String.length(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
+                  case "Pattern" :
+                      return "->S.String.pattern(~message=" + JSON.stringify(refinement.message) + ", %re(" + JSON.stringify(match.re.toString()) + "))";
+                  
+                }
+              }
+            }).join("");
+    } else {
+      inlinedStruct$4 = inlinedStruct$3;
+    }
   }
   var inlinedStruct$5 = Object.keys(metadataMap).length !== 0 ? "{\n  let s = " + inlinedStruct$4 + "\n  let _ = %raw(\`s.m = " + JSON.stringify(metadataMap) + "\`)\n  s\n}" : inlinedStruct$4;
   var match$2 = struct.t;
@@ -3002,25 +2901,25 @@ function inline(struct) {
   return internalInline(struct, undefined, undefined);
 }
 
-var unit = factory$1("EmptyOption", undefined);
+var unit = literal((void 0));
 
 function tuple0() {
-  return factory$10([]);
+  return factory$8([]);
 }
 
 function tuple1(v0) {
-  return factory$10([v0]);
+  return factory$8([v0]);
 }
 
 function tuple2(v0, v1) {
-  return factory$10([
+  return factory$8([
               v0,
               v1
             ]);
 }
 
 function tuple3(v0, v1, v2) {
-  return factory$10([
+  return factory$8([
               v0,
               v1,
               v2
@@ -3051,23 +2950,19 @@ var $$int = struct$4;
 
 var $$float = struct$5;
 
-var literal = factory$2;
+var array = factory$5;
 
-var literalVariant = factory$1;
+var dict = factory$6;
 
-var array = factory$7;
+var option = factory$4;
 
-var dict = factory$8;
+var $$null = factory$3;
 
-var option = factory$6;
+var jsonString = factory$2;
 
-var $$null = factory$5;
+var union = factory$9;
 
-var jsonString = factory$4;
-
-var union = factory$11;
-
-var $$default = factory$9;
+var $$default = factory$7;
 
 var variant = factory;
 
@@ -3080,17 +2975,17 @@ var parseAsyncWith = parseAnyAsyncWith;
 var parseAsyncInStepsWith = parseAnyAsyncInStepsWith;
 
 var Object_UnknownKeys = {
-  classify: classify$1
+  classify: classify$2
 };
 
 var $$Object = {
   UnknownKeys: Object_UnknownKeys,
-  factory: factory$3,
+  factory: factory$1,
   strip: strip,
   strict: strict
 };
 
-var object = factory$3;
+var object = factory$1;
 
 var tuple4 = factoryFromArgs;
 
@@ -3153,10 +3048,17 @@ var $$Array = {
 };
 
 var Default = {
-  classify: classify$2
+  classify: classify$3
+};
+
+var Metadata = {
+  Id: Id,
+  get: get,
+  set: set
 };
 
 export {
+  Literal ,
   Path ,
   $$Error$1 as $$Error,
   Raised ,
@@ -3169,7 +3071,6 @@ export {
   $$float ,
   json ,
   literal ,
-  literalVariant ,
   array ,
   list ,
   dict ,
@@ -3206,8 +3107,9 @@ export {
   serializeToUnknownOrRaiseWith ,
   isAsyncParse ,
   recursive ,
-  classify ,
+  classify$1 as classify,
   name ,
+  setName ,
   fail ,
   advancedFail ,
   $$Object ,

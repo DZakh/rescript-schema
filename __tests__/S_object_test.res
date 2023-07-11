@@ -23,7 +23,7 @@ test("Fails to parse object with inlinable string field", t => {
   t->Assert.deepEqual(
     %raw(`{field: 123}`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "String", received: "Float"}),
+      code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
       operation: Parsing,
       path: S.Path.fromArray(["field"]),
     }),
@@ -51,7 +51,7 @@ test("Fails to parse object with inlinable bool field", t => {
   t->Assert.deepEqual(
     %raw(`{field: 123}`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Bool", received: "Float"}),
+      code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`123`)}),
       operation: Parsing,
       path: S.Path.fromArray(["field"]),
     }),
@@ -97,7 +97,7 @@ test("Fails to parse object with inlinable never field", t => {
   t->Assert.deepEqual(
     %raw(`{field: true}`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Never", received: "Bool"}),
+      code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`true`)}),
       operation: Parsing,
       path: S.Path.fromArray(["field"]),
     }),
@@ -125,7 +125,7 @@ test("Fails to parse object with inlinable float field", t => {
   t->Assert.deepEqual(
     %raw(`{field: true}`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Float", received: "Bool"}),
+      code: InvalidType({expected: S.float->S.toUnknown, received: %raw(`true`)}),
       operation: Parsing,
       path: S.Path.fromArray(["field"]),
     }),
@@ -153,7 +153,7 @@ test("Fails to parse object with inlinable int field", t => {
   t->Assert.deepEqual(
     %raw(`{field: true}`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Int", received: "Bool"}),
+      code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
       operation: Parsing,
       path: S.Path.fromArray(["field"]),
     }),
@@ -172,16 +172,17 @@ test("Successfully parses object with not inlinable empty object field", t => {
 })
 
 test("Fails to parse object with not inlinable empty object field", t => {
+  let fieldStruct = S.object(_ => ())
   let struct = S.object(o =>
     {
-      "field": o.field("field", S.object(_ => ())),
+      "field": o.field("field", fieldStruct),
     }
   )
 
   t->Assert.deepEqual(
     %raw(`{field: true}`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Object", received: "Bool"}),
+      code: InvalidType({expected: fieldStruct->S.toUnknown, received: %raw(`true`)}),
       operation: Parsing,
       path: S.Path.fromArray(["field"]),
     }),
@@ -199,7 +200,7 @@ test("Fails to parse object when provided invalid data", t => {
   t->Assert.deepEqual(
     %raw(`12`)->S.parseAnyWith(struct),
     Error({
-      code: UnexpectedType({expected: "Object", received: "Float"}),
+      code: InvalidType({expected: struct->S.toUnknown, received: %raw(`12`)}),
       operation: Parsing,
       path: S.Path.empty,
     }),
@@ -430,7 +431,7 @@ test(
     t->Assert.deepEqual(
       %raw(`{mode: 1}`)->S.parseAnyWith(optionsStruct),
       Ok({
-        fast: %raw("undefined"),
+        fast: %raw(`undefined`),
         mode: 1,
       }),
       (),

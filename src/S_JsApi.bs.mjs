@@ -123,8 +123,9 @@ function describe(description) {
   return Object.assign(struct$1, structOperations);
 }
 
-function description(param) {
-  return S$RescriptStruct.description(this);
+function description() {
+  var struct = this;
+  return S$RescriptStruct.description(struct);
 }
 
 function $$default(def) {
@@ -169,27 +170,10 @@ function tuple(structs) {
 }
 
 function literal(value) {
-  var taggedLiteral = typeof value === "string" ? ({
-        TAG: "String",
-        _0: value
-      }) : (
-      typeof value === "boolean" ? ({
-            TAG: "Bool",
-            _0: value
-          }) : (
-          typeof value === "number" ? (
-              Number.isNaN(value) ? Js_exn.raiseError("[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.") : ({
-                    TAG: "Float",
-                    _0: value
-                  })
-            ) : (
-              value === null ? "EmptyNull" : (
-                  value === undefined ? "EmptyOption" : Js_exn.raiseError("[rescript-struct] The value provided to literal struct factory is not supported.")
-                )
-            )
-        )
-    );
-  var struct = S$RescriptStruct.literal(taggedLiteral);
+  if (Number.isNaN(value)) {
+    return Js_exn.raiseError("[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.");
+  }
+  var struct = S$RescriptStruct.literal(value);
   return Object.assign(struct, structOperations);
 }
 
@@ -207,10 +191,10 @@ Object.assign(structOperations, {
       transform: transform,
       refine: refine,
       asyncRefine: asyncRefine,
-      optional: (function (param) {
+      optional: (function () {
           return optional(this);
         }),
-      nullable: (function (param) {
+      nullable: (function () {
           return nullable(this);
         }),
       describe: describe,
@@ -232,18 +216,20 @@ var unknown = Object.assign(S$RescriptStruct.unknown, structOperations);
 
 var json = Object.assign(S$RescriptStruct.json, structOperations);
 
-var struct = S$RescriptStruct.literal("NaN");
+var struct = S$RescriptStruct.variant(S$RescriptStruct.literal(NaN), (function (param) {
+        
+      }));
 
 var nan = Object.assign(struct, structOperations);
 
 var objectStructOperations = {};
 
-function strict(param) {
+function strict() {
   var struct = this;
   return Object.assign(S$RescriptStruct.$$Object.strict(struct), objectStructOperations);
 }
 
-function strip(param) {
+function strip() {
   var struct = this;
   return Object.assign(S$RescriptStruct.$$Object.strip(struct), objectStructOperations);
 }

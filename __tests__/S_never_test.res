@@ -10,7 +10,7 @@ module Common = {
     t->Assert.deepEqual(
       any->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "Never", received: "Bool"}),
+        code: InvalidType({expected: S.never->S.toUnknown, received: any}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -24,7 +24,7 @@ module Common = {
     t->Assert.deepEqual(
       any->S.serializeToUnknownWith(struct),
       Error({
-        code: UnexpectedType({expected: "Never", received: "Bool"}),
+        code: InvalidType({expected: struct->S.toUnknown, received: any}),
         operation: Serializing,
         path: S.Path.empty,
       }),
@@ -45,7 +45,7 @@ module ObjectField = {
     t->Assert.deepEqual(
       %raw(`{"key":"value"}`)->S.parseAnyWith(struct),
       Error({
-        code: UnexpectedType({expected: "Never", received: "Option"}),
+        code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`undefined`)}),
         operation: Parsing,
         path: S.Path.fromArray(["oldKey"]),
       }),

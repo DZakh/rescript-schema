@@ -46,10 +46,11 @@ test("Successfully parses object with space", t => {
 })
 
 test("Fails to serialize Unknown struct", t => {
+  let struct = S.unknown
   t->Assert.deepEqual(
-    Obj.magic(123)->S.serializeToJsonStringWith(S.unknown),
+    Obj.magic(123)->S.serializeToJsonStringWith(struct),
     Error({
-      code: InvalidJsonStruct({received: "Unknown"}),
+      code: InvalidJsonStruct(struct),
       operation: Serializing,
       path: S.Path.empty,
     }),

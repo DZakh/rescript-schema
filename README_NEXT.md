@@ -49,75 +49,73 @@ Then add `rescript-struct` to `bs-dependencies` in your `bsconfig.json`:
 
 ## Basic usage
 
-Creating a simple string struct
-
 ```rescript
-// Creating a struct for strings
-let myStruct = S.string
-
-// Parsing
-%raw(`"tuna"`)->S.parseWith(myStruct)
-// Ok("tuna")
-%raw(`12`)->S.parseWith(myStruct)
-// Error(S.Error.t)
-
-// Serializing
-Ok("tuna")->S.serializeWith(myStruct)
-// Ok(%raw(`"tuna"`))
-```
-
-Creating an object struct
-
-```rescript
-type author = {
+// 1. Define a type
+type rating =
+  | @as("G") GeneralAudiences
+  | @as("PG") ParentalGuidanceSuggested
+  | @as("PG13") ParentalStronglyCautioned
+  | @as("R") Restricted
+type film = {
   id: float,
+  title: string,
   tags: array<string>,
-  isAproved: bool,
-  deprecatedAge: option<int>,
+  rating: rating,
+  deprecatedAgeRestriction: option<int>,
 }
 
-let authorStruct = S.object(o => {
+// 2. Create a struct
+let filmStruct = S.object(o => {
   id: o.field("Id", S.float),
+  title: o.field("Title", S.string),
   tags: o.field("Tags", S.array(S.string)->S.default(() => [])),
-  isAproved: o.field(
-    "IsApproved",
-    S.union([S.literalVariant(String("Yes"), true), S.literalVariant(String("No"), false)]),
+  rating: o.field(
+    "Rating",
+    S.union([
+      S.literal(GeneralAudiences),
+      S.literal(ParentalGuidanceSuggested),
+      S.literal(ParentalStronglyCautioned),
+      S.literal(Restricted),
+    ]),
   ),
-  deprecatedAge: o.field("Age", S.option(S.int)->S.deprecate("Will be removed in APIv2")),
+  deprecatedAgeRestriction: o.field("Age", S.int->S.option->S.deprecate("Use rating instead")),
 })
-```
 
-After creating a struct you can use it for parsing data:
-
-```rescript
+// 3. Parse data using the struct
+// The data is validated and transformed to a convenient format
 %raw(`{
   "Id": 1,
-  "IsApproved": "Yes",
-  "Age": 22,
-}`)->S.parseWith(authorStruct)
+  "Title": "My first film",
+  "Rating": "R",
+  "Age": 17
+}`)->S.parseWith(filmStruct)
 // Ok({
-//  id: 1.,
-//  tags: [],
-//  isAproved: true,
-//  deprecatedAge: Some(22),
+//   id: 1.,
+//   title: "My first film",
+//   tags: [],
+//   rating: Restricted,
+//   deprecatedAgeRestriction: Some(17),
 // })
-```
 
-The same struct also works for serializing:
-
-```rescript
+// 4. Transform data back using the same struct
 {
   id: 2.,
   tags: ["Loved"],
-  isAproved: false,
-  deprecatedAge: None,
-}->S.serializeWith(authorStruct)
+  title: "Sad & sed",
+  rating: ParentalStronglyCautioned,
+  deprecatedAgeRestriction: None,
+}->S.serializeWith(filmStruct)
 // Ok(%raw(`{
 //   "Id": 2,
-//   "IsApproved": "No",
+//   "Title": "Sad & sed",
+//   "Rating": "PG13",
 //   "Tags": ["Loved"],
 //   "Age": undefined,
 // }`))
+
+// 5. Use struct as a building block for other tools
+// For example, create a JSON-schema with rescript-json-schema and use it for OpenAPI generation
+let filmJsonSchema = JSONSchema.make(filmStruct)
 ```
 
 ## Examples
@@ -276,37 +274,42 @@ let struct = S.unit
 // Ok()
 ```
 
-The `unit` struct factory is an alias for `S.literal(EmptyOption)`.
+The `unit` struct factory is an alias for `S.literal()`.
 
 ### **`literal`**
 
-`S.literal<'value> => S.t<'value>`
+`'value => S.t<'value>`
 
 ```rescript
-let tunaStruct = S.literal(String("Tuna"))
-let twelveStruct = S.literal(Int(12))
-let importantTimestampStruct = S.literal(Float(1652628345865.))
-let truStruct = S.literal(Bool(true))
-let nullStruct = S.literal(EmptyNull)
-let undefinedStruct = S.literal(EmptyOption)
-let nanStruct = S.literal(NaN)
+let tunaStruct = S.literal("Tuna")
+let twelveStruct = S.literal(12)
+let importantTimestampStruct = S.literal(1652628345865.)
+let truStruct = S.literal(true)
+let nullStruct = S.literal(Null.null)
+let undefinedStruct = S.literal() // Building block for S.unit
+
+// Uses Number.isNaN to match NaN literals
+let nanStruct = S.literal(Float.Constants.nan)->S.variant(_ => ()) // For NaN literals I recomment adding S.variant to transform it to unit. It's better than having it as a float
+
+// Supports symbols and BigInt
+let symbolStruct = S.literal(Symbol.asyncIterator)
+let twobigStruct = S.literal(BigInt.fromInt(2))
+
+// Supports variants and polymorphic variants
+let appleStruct = S.literal(#apple)
+let noneStruct = S.literal(None)
+
+// Does a deep check for objects and arrays
+let cliArgsStruct = S.literal(("help", "lint"))
+
+// Supports functions and literally any Js values matching them with the === operator
+let fn = () => "foo"
+let fnStruct = S.literal(fn)
+let weakMap = WeakMap.make()
+let weakMapStruct = S.literal(weakMap)
 ```
 
-The `literal` struct enforces that a data matches an exact value using the === operator.
-
-### **`literalVariant`**
-
-`(S.literal<'value>, 'variant) => S.t<'variant>`
-
-```rescript
-type fruit = Apple | Orange
-let appleStruct = S.literalVariant(String("apple"), Apple)
-
-%raw(`"apple"`)->S.parseWith(appleStruct)
-// Ok(Apple)
-```
-
-The same as `literal` struct factory, but with a convenient way to transform data to ReScript value.
+The `literal` struct enforces that a data matches an exact value during parsing and serializing.
 
 ### **`object`**
 
@@ -382,7 +385,7 @@ type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, 
 
 // It will have the S.t<shape> type
 let struct = S.object(o => {
-  ignore(o.field("kind", S.literal(String("circle"))))
+  o.tag("kind", "circle")
   Circle({
     radius: o.field("radius", S.float),
   })
@@ -476,19 +479,19 @@ type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, 
 
 let shapeStruct = S.union([
   S.object(o => {
-    ignore(o.field("kind", S.literal(String("circle"))))
+    o.tag("kind", "circle")
     Circle({
       radius: o.field("radius", S.float),
     })
   }),
   S.object(o => {
-    ignore(o.field("kind", S.literal(String("square"))))
+    o.tag("kind", "square")
     Square({
       x: o.field("x", S.float),
     })
   }),
   S.object(o => {
-    ignore(o.field("kind", S.literal(String("triangle"))))
+    o.tag("kind", "triangle")
     Triangle({
       x: o.field("x", S.float),
       y: o.field("y", S.float),
@@ -517,15 +520,15 @@ The `union` will test the input against each of the structs in order and return 
 
 #### Enums
 
-Also, you can describe enums using `S.union` together with `S.literalVariant`.
+Also, you can describe enums using `S.union` together with `S.literal`.
 
 ```rescript
-type outcome = Win | Draw | Loss
+type outcome = | @as("win") Win | @as("draw") Draw | @as("loss") Loss
 
 let struct = S.union([
-  S.literalVariant(String("win"), Win),
-  S.literalVariant(String("draw"), Draw),
-  S.literalVariant(String("loss"), Loss),
+  S.literal(Win),
+  S.literal(Draw),
+  S.literal(Loss),
 ])
 
 %raw(`"draw"`)->S.parseWith(struct)
@@ -637,7 +640,7 @@ let struct = S.never
 
 %raw(`undefined`)->S.parseWith(struct)
 // Error({
-//   code: UnexpectedType({expected: "Never", received: "Option"}),
+//   code: InvalidType({expected: S.never, received: undefined}),
 //   operation: Parsing,
 //   path: S.Path.empty,
 // })
@@ -757,7 +760,7 @@ let nullableStruct = innerStruct =>
   S.custom(
     ~name="Nullable",
     ~parser=unknown => {
-      if unknown === %raw("undefined") || unknown === %raw("null") {
+      if unknown === %raw(`undefined`) || unknown === %raw(`null`) {
         None
       } else {
         switch unknown->S.parseAnyWith(innerStruct) {
@@ -773,7 +776,7 @@ let nullableStruct = innerStruct =>
         | Ok(value) => value
         | Error(error) => S.advancedFail(error)
         }
-      | None => %raw("null")
+      | None => %raw(`null`)
       }
     },
     (),
@@ -787,7 +790,7 @@ let nullableStruct = innerStruct =>
 // Ok(None)
 %raw(`123`)->S.parseWith(struct)
 // Error({
-//   code: UnexpectedType({expected: "String", received: "Float"}),
+//   code: InvalidType({expected: S.string, received: 123}),
 //   operation: Parsing,
 //   path: S.Path.empty,
 // })
@@ -1127,11 +1130,11 @@ The exception-based version of `serializeToUnknownWith`.
 **rescript-struct** returns a result type with error `S.Error.t` containing detailed information about the validation problems.
 
 ```rescript
-let struct = S.literal(Bool(false))
+let struct = S.literal(false)
 
 %raw(`true`)->S.parseWith(struct)
 // Error({
-//   code: UnexpectedValue({expected: "false", received: "true"}),
+//   code: InvalidLiteral({expected: Boolean(false), received: true}),
 //   operation: Parsing,
 //   path: S.Path.empty,
 // })
@@ -1155,7 +1158,7 @@ A function to exit with failure during refinements and transforms.
 
 ```rescript
 {
-  code: UnexpectedValue({expected: "false", received: "true"}),
+  code: InvalidLiteral({expected: Boolean(false), received: true}),
   operation: Parsing,
   path: S.Path.empty,
 }->S.Error.toString
@@ -1172,7 +1175,7 @@ A function to exit with failure during refinements and transforms.
 `result<'a, S.Error.t> => 'a`
 
 ```rescript
-let struct = S.literal(Bool(false))
+let struct = S.literal(false)
 
 %raw(`false`)->S.parseWith(struct)->S.Result.getExn
 // false
@@ -1187,7 +1190,7 @@ let struct = S.literal(Bool(false))
 `result<'a, S.Error.t> => result<'a, string>`
 
 ```rescript
-let struct = S.literal(Bool(false))
+let struct = S.literal(false)
 
 %raw(`true`)->S.parseWith(struct)->S.Result.mapErrorToString
 // Error("Failed parsing at root. Reason: Expected false, received true")
