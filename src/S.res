@@ -698,7 +698,7 @@ module Builder = {
           ~pathVar=`""`,
         )
       let inlinedFunction = `${intitialInputVar}=>{var ${b.varsAllocation};${code}return ${intitialOutputVar}}`
-      Js.log(inlinedFunction)
+      // Js.log(inlinedFunction)
       Stdlib.Function.make2(
         ~ctxVarName1="e",
         ~ctxVarValue1=b.embeded,

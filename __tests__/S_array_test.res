@@ -61,8 +61,6 @@ test("Successfully parses matrix", t => {
 test("Fails to parse matrix", t => {
   let struct = S.array(S.array(S.string))
 
-  Js.log(%raw(`[["a", 1], ["c", "d"]]`)->S.parseAnyWith(struct))
-
   t->Assert.deepEqual(
     %raw(`[["a", 1], ["c", "d"]]`)->S.parseAnyWith(struct),
     Error({

@@ -386,7 +386,6 @@ function build(builder, struct) {
   };
   var code = run(b, builder, struct, intitialInputVar, intitialOutputVar, "\"\"");
   var inlinedFunction = intitialInputVar + "=>{var " + b.v + ";" + code + "return " + intitialOutputVar + "}";
-  console.log(inlinedFunction);
   return new Function("e", "s", "return " + inlinedFunction)(b.e, symbol);
 }
 
