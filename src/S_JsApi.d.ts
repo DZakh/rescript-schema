@@ -7,33 +7,36 @@ export type Result<Value> =
     }
   | { success: false; error: StructError };
 
-export interface Struct<Value> {
-  parse(data: unknown): Result<Value>;
-  parseOrThrow(data: unknown): Value;
-  parseAsync(data: unknown): Promise<Result<Value>>;
-  serialize(data: Value): Result<unknown>;
-  serializeOrThrow(data: Value): unknown;
+export interface Struct<Input, Output> {
+  parse(data: unknown): Result<Output>;
+  parseOrThrow(data: unknown): Output;
+  parseAsync(data: unknown): Promise<Result<Output>>;
+  serialize(data: Output): Result<Input>;
+  serializeOrThrow(data: Output): Input;
   transform<Transformed>(
-    parser: (value: Value) => Transformed
-  ): Struct<Transformed>;
+    parser: (value: Output) => Transformed
+  ): Struct<Input, Transformed>;
   transform<Transformed>(
-    parser: ((value: Value) => Transformed) | undefined,
-    serializer: (transformed: Transformed) => Value
-  ): Struct<Transformed>;
-  refine(parser: (value: Value) => void): Struct<Value>;
+    parser: ((value: Output) => Transformed) | undefined,
+    serializer: (transformed: Transformed) => Output
+  ): Struct<Input, Transformed>;
+  refine(parser: (value: Output) => void): Struct<Input, Output>;
   refine(
-    parser: ((value: Value) => void) | undefined,
-    serializer: (value: Value) => void
-  ): Struct<Value>;
-  asyncRefine(parser: (value: Value) => Promise<void>): Struct<Value>;
-  optional(): Struct<Value | undefined>;
-  nullable(): Struct<Value | undefined>;
-  describe(description: string): Struct<Value>;
+    parser: ((value: Output) => void) | undefined,
+    serializer: (value: Output) => void
+  ): Struct<Input, Output>;
+  asyncRefine(parser: (value: Output) => Promise<void>): Struct<Input, Output>;
+  optional(): Struct<Input | undefined, Output | undefined>;
+  nullable(): Struct<Input | null, Output | undefined>;
+  describe(description: string): Struct<Input, Output>;
   description(): string | undefined;
-  default(def: () => NoUndefined<Value>): Struct<NoUndefined<Value>>;
+  default(def: () => Output): Struct<Input | undefined, Output>;
 }
 
-export type Infer<T> = T extends Struct<infer Value> ? Value : never;
+export type Output<T> = T extends Struct<unknown, infer Output>
+  ? Output
+  : never;
+export type Input<T> = T extends Struct<infer Input, unknown> ? Input : never;
 
 export type Json =
   | string
@@ -44,82 +47,129 @@ export type Json =
   | Json[];
 
 type NoUndefined<T> = T extends undefined ? never : T;
-type AnyStruct = Struct<unknown>;
-type InferStructTuple<
-  Tuple extends AnyStruct[],
+type UnknownStruct = Struct<unknown, unknown>;
+type StructTupleOutput<
+  Tuple extends UnknownStruct[],
   Length extends number = Tuple["length"]
 > = Length extends Length
   ? number extends Length
     ? Tuple
-    : _InferTuple<Tuple, Length, []>
+    : _TupleOutput<Tuple, Length, []>
   : never;
-type _InferTuple<
-  Tuple extends AnyStruct[],
+type _TupleOutput<
+  Tuple extends UnknownStruct[],
   Length extends number,
   Accumulated extends unknown[],
   Index extends number = Accumulated["length"]
 > = Index extends Length
   ? Accumulated
-  : _InferTuple<Tuple, Length, [...Accumulated, Infer<Tuple[Index]>]>;
+  : _TupleOutput<Tuple, Length, [...Accumulated, Output<Tuple[Index]>]>;
+type StructTupleInput<
+  Tuple extends UnknownStruct[],
+  Length extends number = Tuple["length"]
+> = Length extends Length
+  ? number extends Length
+    ? Tuple
+    : _TupleInput<Tuple, Length, []>
+  : never;
+type _TupleInput<
+  Tuple extends UnknownStruct[],
+  Length extends number,
+  Accumulated extends unknown[],
+  Index extends number = Accumulated["length"]
+> = Index extends Length
+  ? Accumulated
+  : _TupleInput<Tuple, Length, [...Accumulated, Input<Tuple[Index]>]>;
 
-export interface ObjectStruct<Value> extends Struct<Value> {
-  strip(): ObjectStruct<Value>;
-  strict(): ObjectStruct<Value>;
+export interface ObjectStruct<Input, Output> extends Struct<Input, Output> {
+  strip(): ObjectStruct<Input, Output>;
+  strict(): ObjectStruct<Input, Output>;
 }
 
-export const string: Struct<string>;
-export const boolean: Struct<boolean>;
-export const integer: Struct<number>;
-export const number: Struct<number>;
-export const never: Struct<never>;
-export const unknown: Struct<unknown>;
-export const json: Struct<Json>;
-export const nan: Struct<undefined>;
+export const string: Struct<string, string>;
+export const boolean: Struct<boolean, boolean>;
+export const integer: Struct<number, number>;
+export const number: Struct<number, number>;
+export const never: Struct<never, never>;
+export const unknown: Struct<unknown, unknown>;
+export const json: Struct<Json, Json>;
+export const nan: Struct<number, undefined>;
 
-export function literal<Value extends string>(value: Value): Struct<Value>;
-export function literal<Value extends number>(value: Value): Struct<Value>;
-export function literal<Value extends boolean>(value: Value): Struct<Value>;
-export function literal<Value extends symbol>(value: Value): Struct<Value>;
-export function literal<Value extends BigInt>(value: Value): Struct<Value>;
+export function literal<Literal extends string>(
+  value: Literal
+): Struct<Literal, Literal>;
+export function literal<Literal extends number>(
+  value: Literal
+): Struct<Literal, Literal>;
+export function literal<Literal extends boolean>(
+  value: Literal
+): Struct<Literal, Literal>;
+export function literal<Literal extends symbol>(
+  value: Literal
+): Struct<Literal, Literal>;
+export function literal<Literal extends BigInt>(
+  value: Literal
+): Struct<Literal, Literal>;
 // TODO: add complete types
-export function literal(value: undefined): Struct<undefined>;
-export function literal(value: null): Struct<null>;
-export function tuple(structs: []): Struct<undefined>;
-export function tuple<Value>(structs: [Struct<Value>]): Struct<Value>;
-export function tuple<A extends AnyStruct, B extends AnyStruct[]>(
+export function literal(value: undefined): Struct<undefined, undefined>;
+export function literal(value: null): Struct<null, null>;
+export function tuple(structs: []): Struct<[], undefined>;
+export function tuple<Input, Output>(
+  structs: [Struct<Input, Output>]
+): Struct<[Input], Output>;
+export function tuple<A extends UnknownStruct, B extends UnknownStruct[]>(
   structs: [A, ...B]
-): Struct<[Infer<A>, ...InferStructTuple<B>]>;
+): Struct<
+  [Input<A>, ...StructTupleInput<B>],
+  [Output<A>, ...StructTupleOutput<B>]
+>;
 
-export const optional: <Value>(
-  struct: Struct<Value>
-) => Struct<Value | undefined>;
+export const optional: <Input, Output>(
+  struct: Struct<Input, Output>
+) => Struct<Input | undefined, Output | undefined>;
 
-export const nullable: <Value>(
-  struct: Struct<Value>
-) => Struct<Value | undefined>;
+export const nullable: <Input, Output>(
+  struct: Struct<Input, Output>
+) => Struct<Input | null, Output | undefined>;
 
-export const array: <Value>(struct: Struct<Value>) => Struct<Value[]>;
+export const array: <Input, Output>(
+  struct: Struct<Input, Output>
+) => Struct<Input[], Output[]>;
 
-export const record: <Value>(
-  struct: Struct<Value>
-) => Struct<Record<string, Value>>;
+export const record: <Input, Output>(
+  struct: Struct<Input, Output>
+) => Struct<Record<string, Input>, Record<string, Output>>;
 
-export const jsonString: <Value>(struct: Struct<Value>) => Struct<Value>;
+export const jsonString: <Output>(
+  struct: Struct<unknown, Output>
+) => Struct<string, Output>;
 
-export const union: <A extends AnyStruct, B extends AnyStruct[]>(
+export const union: <A extends UnknownStruct, B extends UnknownStruct[]>(
   structs: [A, ...B]
-) => Struct<Infer<A> | InferStructTuple<B>[number]>;
+) => Struct<
+  Input<A> | StructTupleInput<B>[number],
+  Output<A> | StructTupleOutput<B>[number]
+>;
 
-export const object: <Value>(shape: {
-  [k in keyof Value]: Struct<Value[k]>;
-}) => ObjectStruct<{
-  [k in keyof Value]: Value[k];
-}>;
+export const object: <
+  Shape extends {
+    [k in keyof Shape]: Struct<unknown, unknown>;
+  }
+>(
+  shape: Shape
+) => ObjectStruct<
+  {
+    [k in keyof Shape]: Input<Shape[k]>;
+  },
+  {
+    [k in keyof Shape]: Output<Shape[k]>;
+  }
+>;
 
-export const custom: <Value>(
+export const custom: <Input, Output>(
   name: string,
-  parser?: (data: unknown) => Value,
-  serializer?: (value: Value) => unknown
-) => Struct<Value>;
+  parser?: (data: unknown) => Output,
+  serializer?: (value: Output) => Input
+) => Struct<Input, Output>;
 
 export const fail: (reason: string) => void;

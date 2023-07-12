@@ -38,11 +38,15 @@
 
 ## TS API changes
 
+- Updated `S.Struct` type to include both input and output types
+- You can get the struct input type by using `S.Input(struct)` and output type by using `S.Output(struct)` (previouse `S.Infer`)
+- The `serialize` and `serializeOrThrow` started returning the struct `Input` type instead of `unknown`
 - Changed primitive structs from functions to values. For example, `S.string()` -> `S.string`
 - Added support for `Symbol` and `BigInt` literals
 - Renamed `S.json(struct)` to `S.jsonString(struct)`
 - Added `Json` type and the `S.json` struct for it
-- `S.literal(null)` now returns `S.Struct<null>` instead of `S.Struct<undefined>`
+- `S.literal(null)` now returns `S.Struct<null, null>` instead of `S.Struct<undefined>`
+- The `default` method now uses `S.optional` internally, so you don't need to call it yourself
 
 ## Opt-in ppx support
 
@@ -63,10 +67,15 @@ type rating =
   | @as("R") Restricted
 @struct
 type film = {
+  @as("Id")
   id: float,
+  @as("Title")
   title: string,
+  @as("Tags")
   tags: @struct(S.array(S.string)->S.default(() => [])) array<string>,
+  @as("Rating")
   rating: rating,
+  @as("Age")
   deprecatedAgeRestriction: @struct(S.int->S.option->S.deprecate("Use rating instead")) option<int>,
 }
 ```
@@ -74,19 +83,17 @@ type film = {
 This will automatically create `filmStruct` of type `S.t<film>`:
 
 ```rescript
+let ratingStruct = S.union([
+  S.literal(GeneralAudiences),
+  S.literal(ParentalGuidanceSuggested),
+  S.literal(ParentalStronglyCautioned),
+  S.literal(Restricted),
+])
 let filmStruct = S.object(o => {
   id: o.field("Id", S.float),
   title: o.field("Title", S.string),
   tags: o.field("Tags", S.array(S.string)->S.default(() => [])),
-  rating: o.field(
-    "Rating",
-    S.union([
-      S.literal(GeneralAudiences),
-      S.literal(ParentalGuidanceSuggested),
-      S.literal(ParentalStronglyCautioned),
-      S.literal(Restricted),
-    ]),
-  ),
+  rating: o.field("Rating", ratingStruct),
   deprecatedAgeRestriction: o.field("Age", S.int->S.option->S.deprecate("Use rating instead")),
 })
 ```
