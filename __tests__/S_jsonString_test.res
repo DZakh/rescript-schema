@@ -30,12 +30,14 @@ test("Successfully serializes JSON", t => {
   )
 })
 
-Failing.test("Fails to serialize Option to JSON", t => {
-  let struct = S.option(S.unknown)
-
-  t->Assert.deepEqual(
-    None->S.serializeToUnknownWith(S.jsonString(struct))->Belt.Result.isError,
-    true,
+test("Fails to create struct when passing non-jsonable struct to S.jsonString", t => {
+  t->Assert.throws(
+    () => {
+      S.jsonString(S.object(o => o.field("foo", S.unknown)))
+    },
+    ~expectations={
+      message: `[rescript-struct] The struct Object({"foo": Unknown}) passed to S.jsonString is not compatible with JSON`,
+    },
     (),
   )
 })

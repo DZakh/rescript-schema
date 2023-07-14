@@ -811,6 +811,7 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
         try {
           childStruct->validateJsonableStruct(~rootStruct, ())
         } catch {
+        // TODO: Should throw with the nested struct instead of prepending path?
         | Js.Exn.Error(jsExn) => jsExn->InternalError.prependLocationOrRethrow(i->Js.Int.toString)
         }
       })
@@ -2534,6 +2535,16 @@ module String = {
 module JsonString = {
   let factory = childStruct => {
     let childStruct = childStruct->toUnknown
+    try {
+      childStruct->validateJsonableStruct(~rootStruct=childStruct, ~isRoot=true, ())
+    } catch {
+    | Js.Exn.Error(jsExn) => {
+        let _ = jsExn->InternalError.getOrRethrow
+        InternalError.panic(
+          `The struct ${childStruct->name} passed to S.jsonString is not compatible with JSON`,
+        )
+      }
+    }
     make(
       ~metadataMap=emptyMetadataMap,
       ~tagged=String,
@@ -3574,7 +3585,7 @@ module Error = {
     | MissingSerializer => "Struct serializer is missing"
     | UnexpectedAsync => "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith"
     | ExcessField(fieldName) =>
-      `Encountered disallowed excess key "${fieldName}" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`
+      `Encountered disallowed excess key ${fieldName->Stdlib.Inlined.Value.fromString} on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`
     | InvalidType({expected, received}) =>
       `Expected ${expected->name}, received ${received->Literal.classify->Literal.toText}`
     | InvalidLiteral({expected, received}) =>

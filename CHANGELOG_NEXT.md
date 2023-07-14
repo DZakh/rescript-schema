@@ -6,6 +6,7 @@
 - Changed primitive structs from functions to values. For example, `S.string()` -> `S.string`
 - `S.jsonable()` -> `S.json`
 - `S.json(struct)` -> `S.jsonString(struct)`
+- `S.jsonString` throws an error if you pass non-JSONable struct. It used to silently serialize to `undefined` instead of the expected `string` type
 - `S.parseJsonWith` -> `S.parseJsonStringWith`
 - `S.serializeToJsonWith` -> `S.serializeToJsonStringWith`
 - Removed `S.asyncRecursive`. Now you can use `S.recursive` for both sync and async structs
@@ -44,6 +45,7 @@
 - Changed primitive structs from functions to values. For example, `S.string()` -> `S.string`
 - Added support for `Symbol` and `BigInt` literals
 - Renamed `S.json(struct)` to `S.jsonString(struct)`
+- `S.jsonString` throws an error if you pass non-JSONable struct. It used to silently serialize to `undefined` instead of the expected `string` type
 - Added `Json` type and the `S.json` struct for it
 - `S.literal(null)` now returns `S.Struct<null, null>` instead of `S.Struct<undefined>`
 - The `default` method now uses `S.optional` internally, so you don't need to call it yourself

@@ -1819,6 +1819,18 @@ function trim(struct, param) {
 }
 
 function factory$2(childStruct) {
+  try {
+    validateJsonableStruct(childStruct, childStruct, true, undefined);
+  }
+  catch (raw_jsExn){
+    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
+    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
+      getOrRethrow(jsExn._1);
+      var message = "The struct " + name(childStruct) + " passed to S.jsonString is not compatible with JSON";
+      throw new Error("[rescript-struct] " + message);
+    }
+    throw jsExn;
+  }
   return {
           t: "String",
           pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
@@ -2576,7 +2588,7 @@ function toReason(nestedLevelOpt, error) {
       case "InvalidTupleSize" :
           return "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString();
       case "ExcessField" :
-          return "Encountered disallowed excess key \"" + reason._0 + "\" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely";
+          return "Encountered disallowed excess key " + JSON.stringify(reason._0) + " on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely";
       case "InvalidUnion" :
           var lineBreak = "\n" + " ".repeat((nestedLevel << 1));
           var array = reason._0.map(function (error) {
