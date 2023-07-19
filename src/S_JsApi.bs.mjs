@@ -105,15 +105,15 @@ function transform(parser, serializer) {
   return Object.assign(struct$1, structOperations);
 }
 
-function refine(parser, serializer) {
+function refine(refiner) {
   var struct = this;
-  var struct$1 = S$RescriptStruct.refine(struct, parser, undefined, serializer, undefined);
+  var struct$1 = S$RescriptStruct.refine(struct, refiner);
   return Object.assign(struct$1, structOperations);
 }
 
-function asyncRefine(parser) {
+function asyncParserRefine(refiner) {
   var struct = this;
-  var struct$1 = S$RescriptStruct.refine(struct, undefined, parser, undefined, undefined);
+  var struct$1 = S$RescriptStruct.asyncParserRefine(struct, refiner);
   return Object.assign(struct$1, structOperations);
 }
 
@@ -190,7 +190,7 @@ Object.assign(structOperations, {
       serializeOrThrow: serializeOrThrow,
       transform: transform,
       refine: refine,
-      asyncRefine: asyncRefine,
+      asyncParserRefine: asyncParserRefine,
       optional: (function () {
           return optional(this);
         }),

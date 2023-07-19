@@ -279,7 +279,7 @@ test("Successfully parses with refine", (t) => {
 });
 
 test("Successfully serializes with refine", (t) => {
-  const struct = S.string.refine(undefined, (string) => {
+  const struct = S.string.refine((string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
   const result = struct.serializeOrThrow("123");
@@ -306,7 +306,7 @@ test("Fails to parses with refine raising an error", (t) => {
 });
 
 test("Successfully parses async struct", async (t) => {
-  const struct = S.string.asyncRefine(async (string) => {
+  const struct = S.string.asyncParserRefine(async (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
   const value = await struct.parseAsync("123");
@@ -317,7 +317,7 @@ test("Successfully parses async struct", async (t) => {
 });
 
 test("Fails to parses async struct", async (t) => {
-  const struct = S.string.asyncRefine(async (_) => {
+  const struct = S.string.asyncParserRefine(async (_) => {
     return Promise.resolve().then(() => {
       S.fail("User error");
     });

@@ -961,42 +961,41 @@ function setName(struct, name) {
   return set(struct, nameMetadataId, name);
 }
 
-function refine(struct, maybeParser, maybeAsyncParser, maybeSerializer, param) {
-  if (maybeParser === undefined && maybeAsyncParser === undefined && maybeSerializer === undefined) {
-    panic("struct factory Refine");
-  }
+function asyncParserRefine(struct, refiner) {
   return {
           t: struct.t,
-          pb: maybeParser !== undefined ? (
-              maybeAsyncParser !== undefined ? (function (b, param, inputVar, outputVar, pathVar) {
-                    var childOutputVar = $$var(b);
-                    var code = run(b, struct.pb, struct, inputVar, childOutputVar, pathVar);
-                    return code + embedSyncOperation(b, childOutputVar, outputVar, pathVar, maybeParser, undefined, true, undefined) + embedAsyncOperation(b, childOutputVar, outputVar, pathVar, (function (i) {
-                                  return function () {
-                                    return maybeAsyncParser(i);
-                                  };
-                                }), true, undefined);
-                  }) : (function (b, param, inputVar, outputVar, pathVar) {
-                    var childOutputVar = $$var(b);
-                    var code = run(b, struct.pb, struct, inputVar, childOutputVar, pathVar);
-                    return code + embedSyncOperation(b, childOutputVar, outputVar, pathVar, maybeParser, undefined, true, undefined);
-                  })
-            ) : (
-              maybeAsyncParser !== undefined ? (function (b, param, inputVar, outputVar, pathVar) {
-                    var childOutputVar = $$var(b);
-                    var code = run(b, struct.pb, struct, inputVar, childOutputVar, pathVar);
-                    return code + embedAsyncOperation(b, childOutputVar, outputVar, pathVar, (function (i) {
-                                  return function () {
-                                    return maybeAsyncParser(i);
-                                  };
-                                }), true, undefined);
-                  }) : struct.pb
-            ),
-          sb: maybeSerializer !== undefined ? (function (b, param, inputVar, outputVar, pathVar) {
-                var transformResultVar = $$var(b);
-                var code = run(b, struct.pb, struct, transformResultVar, outputVar, pathVar);
-                return embedSyncOperation(b, inputVar, transformResultVar, pathVar, maybeSerializer, undefined, true, undefined) + code;
-              }) : struct.sb,
+          pb: (function (b, param, inputVar, outputVar, pathVar) {
+              var childOutputVar = $$var(b);
+              var code = run(b, struct.pb, struct, inputVar, childOutputVar, pathVar);
+              return code + embedAsyncOperation(b, childOutputVar, outputVar, pathVar, (function (i) {
+                            return function () {
+                              return refiner(i);
+                            };
+                          }), true, undefined);
+            }),
+          sb: struct.sb,
+          i: 0,
+          s: initialSerialize,
+          j: initialSerializeToJson,
+          p: intitialParse,
+          a: intitialParseAsync,
+          m: struct.m
+        };
+}
+
+function refine(struct, refiner) {
+  return {
+          t: struct.t,
+          pb: (function (b, param, inputVar, outputVar, pathVar) {
+              var childOutputVar = $$var(b);
+              var code = run(b, struct.pb, struct, inputVar, childOutputVar, pathVar);
+              return code + embedSyncOperation(b, childOutputVar, outputVar, pathVar, refiner, undefined, true, undefined);
+            }),
+          sb: (function (b, param, inputVar, outputVar, pathVar) {
+              var transformResultVar = $$var(b);
+              var code = run(b, struct.pb, struct, transformResultVar, outputVar, pathVar);
+              return embedSyncOperation(b, inputVar, transformResultVar, pathVar, refiner, undefined, true, undefined) + code;
+            }),
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -1008,7 +1007,7 @@ function refine(struct, maybeParser, maybeAsyncParser, maybeSerializer, param) {
 
 function addRefinement(struct, metadataId, refinement, refiner) {
   var refinements = Js_dict.get(struct.m, metadataId);
-  return refine(set(struct, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), refiner, undefined, refiner, undefined);
+  return refine(set(struct, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), refiner);
 }
 
 function advancedTransform(struct, maybeParser, maybeSerializer, param) {
@@ -3138,6 +3137,7 @@ export {
   advancedPreprocess ,
   custom ,
   refine ,
+  asyncParserRefine ,
   variant ,
   parseWith ,
   parseAnyWith ,

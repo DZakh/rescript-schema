@@ -214,7 +214,7 @@ test(
 test("Has proper error path when fails to parse object with quotes in a field name", t => {
   let struct = S.object(s =>
     {
-      "field": s.field("\"\'\`", S.string->S.refine(~parser=_ => S.fail("User error"), ())),
+      "field": s.field("\"\'\`", S.string->S.refine(_ => S.fail("User error"))),
     }
   )
 
@@ -231,9 +231,7 @@ test("Has proper error path when fails to parse object with quotes in a field na
 
 test("Has proper error path when fails to serialize object with quotes in a field name", t => {
   let struct = S.object(s =>
-    Js.Dict.fromArray([
-      ("\"\'\`", s.field("field", S.string->S.refine(~serializer=_ => S.fail("User error"), ()))),
-    ])
+    Js.Dict.fromArray([("\"\'\`", s.field("field", S.string->S.refine(_ => S.fail("User error"))))])
   )
 
   t->Assert.deepEqual(

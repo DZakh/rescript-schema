@@ -5,7 +5,7 @@ let validAsyncRefine = S.advancedTransform(
   ~parser=(~struct as _) => Async(value => Promise.resolve(value)),
   (),
 )
-let invalidSyncRefine = S.refine(_, ~parser=_ => S.fail("Sync user error"), ())
+let invalidSyncRefine = S.refine(_, _ => S.fail("Sync user error"))
 let unresolvedPromise = Promise.make((_, _) => ())
 let makeInvalidPromise = () => Promise.resolve()->Promise.then(() => S.fail("Async user error"))
 let invalidAsyncRefine = S.advancedTransform(

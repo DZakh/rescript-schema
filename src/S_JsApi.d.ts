@@ -20,12 +20,10 @@ export interface Struct<Input, Output> {
     parser: ((value: Output) => Transformed) | undefined,
     serializer: (transformed: Transformed) => Output
   ): Struct<Input, Transformed>;
-  refine(parser: (value: Output) => void): Struct<Input, Output>;
-  refine(
-    parser: ((value: Output) => void) | undefined,
-    serializer: (value: Output) => void
+  refine(refiner: (value: Output) => void): Struct<Input, Output>;
+  asyncParserRefine(
+    refiner: (value: Output) => Promise<void>
   ): Struct<Input, Output>;
-  asyncRefine(parser: (value: Output) => Promise<void>): Struct<Input, Output>;
   optional(): Struct<Input | undefined, Output | undefined>;
   nullable(): Struct<Input | null, Output | undefined>;
   describe(description: string): Struct<Input, Output>;

@@ -86,13 +86,13 @@ test("Can use S.fail inside of S.catch", t => {
 })
 
 asyncTest("Uses fallback value when async struct parsing failed during the sync part", async t => {
-  let struct = S.string->S.refine(~asyncParser=_ => Promise.resolve(), ())->S.catch(_ => "fallback")
+  let struct = S.string->S.asyncParserRefine(_ => Promise.resolve())->S.catch(_ => "fallback")
 
   t->Assert.deepEqual(await 123->S.parseAnyAsyncWith(struct), Ok("fallback"), ())
 })
 
 asyncTest("Uses fallback value when async struct parsing failed during the async part", async t => {
-  let struct = S.string->S.refine(~asyncParser=_ => S.fail("fail"), ())->S.catch(_ => "fallback")
+  let struct = S.string->S.asyncParserRefine(_ => S.fail("fail"))->S.catch(_ => "fallback")
 
   t->Assert.deepEqual(await "123"->S.parseAnyAsyncWith(struct), Ok("fallback"), ())
 })
@@ -102,7 +102,7 @@ asyncTest(
   async t => {
     let struct =
       S.string
-      ->S.refine(~asyncParser=_ => Promise.resolve()->Promise.thenResolve(() => S.fail("fail")), ())
+      ->S.asyncParserRefine(_ => Promise.resolve()->Promise.thenResolve(() => S.fail("fail")))
       ->S.catch(_ => "fallback")
 
     t->Assert.deepEqual(await "123"->S.parseAnyAsyncWith(struct), Ok("fallback"), ())

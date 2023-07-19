@@ -67,8 +67,8 @@ type rec struct<'value> = {
     ~parser: 'value => transformed,
     ~serializer: transformed => 'value,
   ) => struct<transformed>,
-  refine: (~parser: 'value => unit, ~serializer: 'value => unit) => struct<'value>,
-  asyncRefine: (~parser: 'value => promise<unit>) => struct<'value>,
+  refine: ('value => unit) => struct<'value>,
+  asyncParserRefine: ('value => promise<unit>) => struct<'value>,
   optional: unit => struct<option<'value>>,
   nullable: unit => struct<option<'value>>,
   describe: string => struct<'value>,
@@ -142,14 +142,14 @@ let transform = (~parser, ~serializer) => {
   struct->S.transform(~parser, ~serializer, ())->toJsStruct
 }
 
-let refine = (~parser, ~serializer) => {
+let refine = refiner => {
   let struct = %raw("this")
-  struct->S.refine(~parser, ~serializer, ())->toJsStruct
+  struct->S.refine(refiner)->toJsStruct
 }
 
-let asyncRefine = (~parser) => {
+let asyncParserRefine = refiner => {
   let struct = %raw("this")
-  struct->S.refine(~asyncParser=parser, ())->toJsStruct
+  struct->S.asyncParserRefine(refiner)->toJsStruct
 }
 
 let describe = description => {
@@ -197,7 +197,7 @@ structOperations->Stdlib.Object.extendWith({
   serializeOrThrow,
   transform,
   refine,
-  asyncRefine,
+  asyncParserRefine,
   optional: () => {
     %raw("this")->optional
   },

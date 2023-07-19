@@ -149,13 +149,8 @@ let custom: (
   unit,
 ) => t<'value>
 
-let refine: (
-  t<'value>,
-  ~parser: 'value => unit=?,
-  ~asyncParser: 'value => promise<unit>=?,
-  ~serializer: 'value => unit=?,
-  unit,
-) => t<'value>
+let refine: (t<'value>, 'value => unit) => t<'value>
+let asyncParserRefine: (t<'value>, 'value => promise<unit>) => t<'value>
 
 let variant: (t<'value>, 'value => 'variant) => t<'variant>
 

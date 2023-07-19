@@ -34,6 +34,7 @@
 - `S.deprecate` doesn't make a struct optional anymore (it used to use `S.option` internally)
 - `S.default` now uses `S.option` internally, so you don't need to call it yourself
 - Updated `S.name` logic and added `S.setName` to be able customize it. Name is used for errors, codegen and external tools
+- `S.refine` now accepts only one refining function which is applied both for parser and serializer. If you want to refine the parser and serializer separately as before, use `S.transform` instead. And to asynchronously refine a parser you should use the newly added `S.asyncParserRefine`
 - `S.inline` is temporary broken
 - Updated API for `S.Tuple.factory`. There are plans to change it once more before the actual release
 
@@ -49,6 +50,8 @@
 - Added `Json` type and the `S.json` struct for it
 - `S.literal(null)` now returns `S.Struct<null, null>` instead of `S.Struct<undefined>`
 - The `default` method now uses `S.optional` internally, so you don't need to call it yourself
+- The `refine` method now accepts only one refining function which is applied both for parser and serializer. If you want to refine the parser and serializer separately as before, use `S.transform` instead
+- The `asyncRefine` is renamed to `asyncParserRefine`
 
 ## Opt-in ppx support
 
@@ -99,3 +102,45 @@ let filmStruct = S.object(s => {
   deprecatedAgeRestriction: s.field("Age", S.int->S.option->S.deprecate("Use rating instead")),
 })
 ```
+
+## Semi-automated migration
+
+The release contains a lot of clean up with API breaking change, so I've prepared a script you can run with [comby.dev](https://comby.dev/) that will do parts of the migration for you automatically.
+
+1. Create `migration.toml` in your project root
+
+2. Copy the following content to the `migration.toml`:
+
+```toml
+[refine-parser]
+match="S.refine(~parser=:[x], ())"
+rewrite="S.refine(:[x])"
+
+[refine-parser-2]
+match="S.refine( ~parser=:[x], (), )"
+rewrite="S.refine(:[x])"
+
+[refine-serializer]
+match="S.refine( ~serializer=:[x], (), )"
+rewrite="S.refine(:[x])"
+
+[refine-serializer-2]
+match="S.refine(~serializer=:[x], ())"
+rewrite="S.refine(:[x])"
+
+[refine-async-parser]
+match="S.refine(~asyncParser=:[x], ())"
+rewrite="S.asyncParserRefine(:[x])"
+
+[refine-async-parser-2]
+match="S.refine( ~asyncParser=:[x], (), )"
+rewrite="S.asyncParserRefine(:[x])"
+```
+
+3. Run the script in your project root. Assumes `migration.toml` has been copied in place to your project root.
+
+```sh
+comby -config migration.toml -f .res -matcher .re -exclude-dir node_modules,__generated__ -i
+```
+
+The migration script is a set of instructions that Comby runs in sequence. You're encouraged to take migration.toml and tweak it so it fits your needs. [Comby](https://comby.dev/) is powerful. It can do interactive rewriting and numerous other useful stuff. Check it out, but please note it's not intended to cover all of the migration necessary. You'll still likely need to do a few manual fixes after running the migration scripts.

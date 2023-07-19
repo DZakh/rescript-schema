@@ -851,7 +851,7 @@ You can also use asynchronous parser:
 ```rescript
 let nodeStruct = S.recursive(nodeStruct => {
   S.object(s => {
-    id: s.field("Id", S.string)->S.refine(~asyncParser=checkIsExistingNode, ()),
+    id: s.field("Id", S.string)->S.asyncParserRefine(checkIsExistingNode),
     children: s.field("Children", S.array(nodeStruct)),
   })
 })
@@ -869,28 +869,34 @@ There are many so-called "refinement types" you may wish to check for that can't
 
 ### **`refine`**
 
-`(S.t<'value>, ~parser: 'value => unit=?, ~asyncParser: 'value => promise<unit>=?, ~serializer: 'value => unit=?, unit) => S.t<'value>`
+`(S.t<'value>, 'value => unit) => S.t<'value>`
 
 ```rescript
-let shortStringStruct = S.string->S.refine(~parser=value =>
+let shortStringStruct = S.string->S.refine(value =>
   if value->String.length > 255 {
     S.fail("String can't be more than 255 characters")
   }
-, ())
+)
 ```
+
+The refine function is applied for both parser and serializer.
 
 > 🧠 Refinement functions should not throw. Use `S.fail` or `S.advancedFail` to exit with failure.
 
-Also, you can have an asynchronous refinement:
+### **`asyncParserRefine`**
+
+`(S.t<'value>, 'value => promise<unit>) => S.t<'value>`
+
+Also, you can have an asynchronous refinement. It's applied only for parsing. Serializing is not affected.
 
 ```rescript
-let userIdStruct = S.string->S.refine(~asyncParser=userId =>
+let userIdStruct = S.string->S.asyncParserRefine(userId =>
   verfiyUserExistsInDb(~userId)->Promise.thenResolve(isExistingUser =>
     if !isExistingUser {
       S.fail("User doesn't exist")
     }
   )
-, ())
+)
 ```
 
 > 🧠 If you use async refinements, you must use the `parseAsyncWith` to parse data! Otherwise **rescript-struct** will return an `UnexpectedAsync` error.

@@ -1187,124 +1187,84 @@ let setName = (struct, name) => {
   struct->Metadata.set(~id=nameMetadataId, name)
 }
 
-let refine: (
-  t<'value>,
-  ~parser: 'value => unit=?,
-  ~asyncParser: 'value => promise<unit>=?,
-  ~serializer: 'value => unit=?,
-  unit,
-) => t<'value> = (
-  struct,
-  ~parser as maybeParser=?,
-  ~asyncParser as maybeAsyncParser=?,
-  ~serializer as maybeSerializer=?,
-  (),
-) => {
+let asyncParserRefine = (struct, refiner) => {
   let struct = struct->toUnknown
-
-  if maybeParser === None && maybeAsyncParser === None && maybeSerializer === None {
-    InternalError.MissingParserAndSerializer.panic(`struct factory Refine`)
-  }
-
   make(
     ~tagged=struct.tagged,
-    ~parseOperationBuilder=switch (maybeParser, maybeAsyncParser) {
-    | (Some(parser), Some(asyncParser)) =>
-      Builder.make((b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
-        let childOutputVar = b->B.var
-        let code =
-          b->B.run(
-            ~builder=struct.parseOperationBuilder,
-            ~struct,
-            ~inputVar,
-            ~outputVar=childOutputVar,
-            ~pathVar,
-          )
-
-        `${code}${b->B.embedSyncOperation(
-            ~inputVar=childOutputVar,
-            ~outputVar,
-            ~pathVar,
-            ~fn=parser,
-            ~isRefine=true,
-            (),
-          )}${b->B.embedAsyncOperation(
-            ~inputVar=childOutputVar,
-            ~outputVar,
-            ~pathVar,
-            ~fn=i => () => asyncParser(i),
-            ~isRefine=true,
-            (),
-          )}`
-      })
-    | (Some(parser), None) =>
-      Builder.make((b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
-        let childOutputVar = b->B.var
-        let code =
-          b->B.run(
-            ~builder=struct.parseOperationBuilder,
-            ~struct,
-            ~inputVar,
-            ~outputVar=childOutputVar,
-            ~pathVar,
-          )
-
-        `${code}${b->B.embedSyncOperation(
-            ~inputVar=childOutputVar,
-            ~outputVar,
-            ~pathVar,
-            ~fn=parser,
-            ~isRefine=true,
-            (),
-          )}`
-      })
-    | (None, Some(asyncParser)) =>
-      Builder.make((b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
-        let childOutputVar = b->B.var
-        let code =
-          b->B.run(
-            ~builder=struct.parseOperationBuilder,
-            ~struct,
-            ~inputVar,
-            ~outputVar=childOutputVar,
-            ~pathVar,
-          )
-        `${code}${b->B.embedAsyncOperation(
-            ~inputVar=childOutputVar,
-            ~outputVar,
-            ~pathVar,
-            ~fn=i => () => asyncParser(i),
-            ~isRefine=true,
-            (),
-          )}`
-      })
-    | (None, None) => struct.parseOperationBuilder
-    },
-    ~serializeOperationBuilder=switch maybeSerializer {
-    | Some(serializer) =>
-      Builder.make((b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
-        let transformResultVar = b->B.var
-        let code =
-          b->B.run(
-            ~builder=struct.parseOperationBuilder,
-            ~struct,
-            ~inputVar=transformResultVar,
-            ~outputVar,
-            ~pathVar,
-          )
-
-        b->B.embedSyncOperation(
+    ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+      let childOutputVar = b->B.var
+      let code =
+        b->B.run(
+          ~builder=struct.parseOperationBuilder,
+          ~struct,
           ~inputVar,
-          ~outputVar=transformResultVar,
+          ~outputVar=childOutputVar,
           ~pathVar,
-          ~fn=serializer,
+        )
+      `${code}${b->B.embedAsyncOperation(
+          ~inputVar=childOutputVar,
+          ~outputVar,
+          ~pathVar,
+          ~fn=i => () => refiner(i),
           ~isRefine=true,
           (),
-        ) ++ code
-      })
+        )}`
+    }),
+    ~serializeOperationBuilder=struct.serializeOperationBuilder,
+    ~metadataMap=struct.metadataMap,
+    (),
+  )
+}
 
-    | None => struct.serializeOperationBuilder
-    },
+let refine: (t<'value>, 'value => unit) => t<'value> = (struct, refiner) => {
+  let struct = struct->toUnknown
+  make(
+    ~tagged=struct.tagged,
+    ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~outputVar, ~pathVar) => {
+      let childOutputVar = b->B.var
+      let code =
+        b->B.run(
+          ~builder=struct.parseOperationBuilder,
+          ~struct,
+          ~inputVar,
+          ~outputVar=childOutputVar,
+          ~pathVar,
+        )
+
+      `${code}${b->B.embedSyncOperation(
+          ~inputVar=childOutputVar,
+          ~outputVar,
+          ~pathVar,
+          ~fn=refiner,
+          ~isRefine=true,
+          (),
+        )}`
+    }),
+    ~serializeOperationBuilder=Builder.make((
+      b,
+      ~selfStruct as _,
+      ~inputVar,
+      ~outputVar,
+      ~pathVar,
+    ) => {
+      let transformResultVar = b->B.var
+      let code =
+        b->B.run(
+          ~builder=struct.parseOperationBuilder,
+          ~struct,
+          ~inputVar=transformResultVar,
+          ~outputVar,
+          ~pathVar,
+        )
+      b->B.embedSyncOperation(
+        ~inputVar,
+        ~outputVar=transformResultVar,
+        ~pathVar,
+        ~fn=refiner,
+        ~isRefine=true,
+        (),
+      ) ++ code
+    }),
     ~metadataMap=struct.metadataMap,
     (),
   )
@@ -1319,7 +1279,7 @@ let addRefinement = (struct, ~metadataId, ~refinement, ~refiner) => {
     | None => [refinement]
     },
   )
-  ->refine(~parser=refiner, ~serializer=refiner, ())
+  ->refine(refiner)
 }
 
 let advancedTransform: (
