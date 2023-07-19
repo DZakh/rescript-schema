@@ -1275,7 +1275,7 @@ function literal(value) {
         };
 }
 
-function analyzeDefinition(definition, definerCtx, path) {
+function validateDefinition(definition, definerCtx, path) {
   if (definition === definerCtx) {
     if (definerCtx.r) {
       throw new Error("[rescript-struct] The variant's value is registered multiple times. If you want to duplicate it, use S.transform instead.");
@@ -1288,8 +1288,8 @@ function analyzeDefinition(definition, definerCtx, path) {
     var definitionFieldNames = Object.keys(definition);
     for(var idx = 0 ,idx_finish = definitionFieldNames.length; idx < idx_finish; ++idx){
       var definitionFieldName = definitionFieldNames[idx];
-      var fieldDefinition = definition[definitionFieldName];
-      analyzeDefinition(fieldDefinition, definerCtx, path + ("[" + JSON.stringify(definitionFieldName) + "]"));
+      var definition$1 = definition[definitionFieldName];
+      validateDefinition(definition$1, definerCtx, path + ("[" + JSON.stringify(definitionFieldName) + "]"));
     }
     return ;
   }
@@ -1306,7 +1306,7 @@ function factory(struct, definer) {
     c: []
   };
   var definition = definer(definerCtx);
-  analyzeDefinition(definition, definerCtx, "");
+  validateDefinition(definition, definerCtx, "");
   return {
           t: struct.t,
           pb: (function (b, param, inputVar, outputVar, pathVar) {
@@ -1358,6 +1358,16 @@ function factory(struct, definer) {
         };
 }
 
+function toKind(definition, embededSet) {
+  if (embededSet.has(definition)) {
+    return 2;
+  } else if (typeof definition === "object" && definition !== null) {
+    return 0;
+  } else {
+    return 1;
+  }
+}
+
 var metadataId = "rescript-struct:Object.UnknownKeys";
 
 function classify$2(struct) {
@@ -1369,72 +1379,62 @@ function classify$2(struct) {
   }
 }
 
-function analyzeDefinition$1(definition, definerCtx, path) {
-  if (definerCtx.s.has(definition)) {
-    if (definition.r) {
-      throw new Error("[rescript-struct] " + ("The field " + definition.i + " is registered multiple times. If you want to duplicate a field, use S.transform instead."));
-    }
-    definition.p = path;
-    definition.r = true;
-    return ;
+function validateDefinition$1(definition, definerCtx, path) {
+  var kind = toKind(definition, definerCtx.d);
+  switch (kind) {
+    case 0 :
+        var keys = Object.keys(definition);
+        for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+          var key = keys[idx];
+          var definition$1 = definition[key];
+          validateDefinition$1(definition$1, definerCtx, path + ("[" + JSON.stringify(key) + "]"));
+        }
+        return ;
+    case 1 :
+        return ;
+    case 2 :
+        if (definition.r) {
+          throw new Error("[rescript-struct] " + ("The field " + definition.i + " is registered multiple times. If you want to duplicate a field, use S.transform instead."));
+        }
+        definition.r = true;
+        return ;
+    
   }
-  if (typeof definition === "object" && definition !== null) {
-    definerCtx.p.push(path);
-    definerCtx.v.push(Array.isArray(definition) ? "[]" : "{}");
-    var definitionFieldNames = Object.keys(definition);
-    for(var idx = 0 ,idx_finish = definitionFieldNames.length; idx < idx_finish; ++idx){
-      var definitionFieldName = definitionFieldNames[idx];
-      var fieldDefinition = definition[definitionFieldName];
-      analyzeDefinition$1(fieldDefinition, definerCtx, path + ("[" + JSON.stringify(definitionFieldName) + "]"));
-    }
-    return ;
-  }
-  definerCtx.c.push({
-        v: definition,
-        p: path
-      });
 }
 
 function factory$1(definer) {
   var fields = {};
   var fieldNames = [];
-  var fieldDefinitions = [];
   var fieldDefinitionsSet = new Set();
   var field = function (fieldName, struct) {
     if (fields.hasOwnProperty(fieldName)) {
       throw new Error("[rescript-struct] " + ("The field \"" + fieldName + "\" is defined multiple times. If you want to duplicate a field, use S.transform instead."));
     }
+    var inlinedFieldName = JSON.stringify(fieldName);
     var fieldDefinition = {
       s: struct,
-      i: JSON.stringify(fieldName),
-      p: "",
+      i: inlinedFieldName,
       r: false
     };
     fields[fieldName] = struct;
     fieldNames.push(fieldName);
-    fieldDefinitions.push(fieldDefinition);
     fieldDefinitionsSet.add(fieldDefinition);
     return fieldDefinition;
   };
   var tag = function (tag$1, asValue) {
     field(tag$1, literal(asValue));
   };
-  var definerCtx_p = [];
-  var definerCtx_v = [];
-  var definerCtx_c = [];
   var definerCtx = {
     n: fieldNames,
     h: fields,
-    d: fieldDefinitions,
-    p: definerCtx_p,
-    v: definerCtx_v,
-    c: definerCtx_c,
-    s: fieldDefinitionsSet,
+    d: fieldDefinitionsSet,
     f: field,
     t: tag
   };
   var definition = definer(definerCtx);
-  analyzeDefinition$1(definition, definerCtx, "");
+  validateDefinition$1(definition, definerCtx, "");
+  var fieldDefinitionsSet$1 = fieldDefinitionsSet;
+  var fieldDefinitions = Array.from(fieldDefinitionsSet$1);
   return {
           t: {
             TAG: "Object",
@@ -1442,55 +1442,82 @@ function factory$1(definer) {
             fieldNames: fieldNames
           },
           pb: (function (b, selfStruct, inputVar, outputVar, pathVar) {
-              var constantDefinitions = definerCtx_c;
-              var inlinedPreparationValues = definerCtx_v;
-              var preparationPathes = definerCtx_p;
-              var fieldDefinitions$1 = fieldDefinitions;
-              var asyncFieldVars = [];
               var syncOutputVar = $$var(b);
-              var codeRef = "if(!(typeof " + inputVar + "===\"object\"&&" + inputVar + "!==null&&!Array.isArray(" + inputVar + "))){" + raiseWithArg(b, pathVar, (function (input) {
-                      return {
-                              TAG: "InvalidType",
-                              expected: selfStruct,
-                              received: input
-                            };
-                    }), inputVar) + "}";
-              for(var idx = 0 ,idx_finish = preparationPathes.length; idx < idx_finish; ++idx){
-                var preparationPath = preparationPathes[idx];
-                var preparationInlinedValue = inlinedPreparationValues[idx];
-                codeRef = codeRef + (syncOutputVar + preparationPath + "=" + preparationInlinedValue + ";");
-              }
-              for(var idx$1 = 0 ,idx_finish$1 = fieldDefinitions$1.length; idx$1 < idx_finish$1; ++idx$1){
-                var fieldDefinition = fieldDefinitions$1[idx$1];
-                var inlinedFieldName = fieldDefinition.i;
-                var fieldStruct = fieldDefinition.s;
-                var path = fieldDefinition.p;
-                var isRegistered = fieldDefinition.r;
-                var fieldInputVar = $$var(b);
-                var fieldOuputVar = $$var(b);
-                var fieldCode = run(b, fieldStruct.pb, fieldStruct, fieldInputVar, fieldOuputVar, pathVar + "+'['+" + JSON.stringify(inlinedFieldName) + "+']'");
-                var isAsyncField = fieldStruct.i;
-                codeRef = codeRef + (fieldInputVar + "=" + inputVar + "[" + inlinedFieldName + "];") + fieldCode + (
-                  isRegistered ? syncOutputVar + path + "=" + fieldOuputVar + ";" : ""
-                );
-                if (isAsyncField) {
-                  asyncFieldVars.push(isRegistered ? syncOutputVar + path : fieldOuputVar);
+              var asyncFieldVars = [];
+              var validationCodeRef = {
+                contents: "if(!(typeof " + inputVar + "===\"object\"&&" + inputVar + "!==null&&!Array.isArray(" + inputVar + "))){" + raiseWithArg(b, pathVar, (function (input) {
+                        return {
+                                TAG: "InvalidType",
+                                expected: selfStruct,
+                                received: input
+                              };
+                      }), inputVar) + "}"
+              };
+              var definitionToOutput = function (definition, outputPath) {
+                var kind = toKind(definition, fieldDefinitionsSet$1);
+                switch (kind) {
+                  case 0 :
+                      var isArray = Array.isArray(definition);
+                      var keys = Object.keys(definition);
+                      var codeRef = isArray ? "[" : "{";
+                      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+                        var key = keys[idx];
+                        var definition$1 = definition[key];
+                        var output = definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+                        codeRef = codeRef + (
+                          isArray ? output : JSON.stringify(key) + ":" + output
+                        ) + ",";
+                      }
+                      return codeRef + (
+                              isArray ? "]" : "}"
+                            );
+                  case 1 :
+                      return "e[" + (b.e.push(definition) - 1) + "]";
+                  case 2 :
+                      var inlinedFieldName = definition.i;
+                      var struct = definition.s;
+                      var fieldInputVar = $$var(b);
+                      var fieldOuputVar = $$var(b);
+                      var fieldCode = run(b, struct.pb, struct, fieldInputVar, fieldOuputVar, pathVar + "+'['+" + JSON.stringify(inlinedFieldName) + "+']'");
+                      var isAsyncField = struct.i;
+                      if (isAsyncField) {
+                        asyncFieldVars.push(syncOutputVar + outputPath);
+                      }
+                      validationCodeRef.contents = validationCodeRef.contents + (fieldInputVar + "=" + inputVar + "[" + inlinedFieldName + "];" + fieldCode);
+                      return fieldOuputVar;
+                  
+                }
+              };
+              for(var idx = 0 ,idx_finish = fieldDefinitions.length; idx < idx_finish; ++idx){
+                var match = fieldDefinitions[idx];
+                var inlinedFieldName = match.i;
+                var struct = match.s;
+                var isRegistered = match.r;
+                if (!isRegistered) {
+                  var fieldInputVar = $$var(b);
+                  var fieldOuputVar = $$var(b);
+                  var fieldCode = run(b, struct.pb, struct, fieldInputVar, fieldOuputVar, pathVar + "+'['+" + JSON.stringify(inlinedFieldName) + "+']'");
+                  var isAsyncField = struct.i;
+                  if (isAsyncField) {
+                    asyncFieldVars.push(fieldOuputVar);
+                  }
+                  validationCodeRef.contents = validationCodeRef.contents + (fieldInputVar + "=" + inputVar + "[" + inlinedFieldName + "];") + fieldCode;
                 }
                 
               }
               var withUnknownKeysRefinement = classify$2(selfStruct) === "Strict";
               if (withUnknownKeysRefinement) {
-                if (fieldDefinitions$1.length !== 0) {
+                if (fieldDefinitions.length !== 0) {
                   var keyVar = $$var(b);
-                  codeRef = codeRef + ("for(" + keyVar + " in " + inputVar + "){if(!(");
-                  for(var idx$2 = 0 ,idx_finish$2 = fieldDefinitions$1.length; idx$2 < idx_finish$2; ++idx$2){
-                    var fieldDefinition$1 = fieldDefinitions$1[idx$2];
-                    if (idx$2 !== 0) {
-                      codeRef = codeRef + "||";
+                  validationCodeRef.contents = validationCodeRef.contents + ("for(" + keyVar + " in " + inputVar + "){if(");
+                  for(var idx$1 = 0 ,idx_finish$1 = fieldDefinitions.length; idx$1 < idx_finish$1; ++idx$1){
+                    var fieldDefinition = fieldDefinitions[idx$1];
+                    if (idx$1 !== 0) {
+                      validationCodeRef.contents = validationCodeRef.contents + "&&";
                     }
-                    codeRef = codeRef + (keyVar + "===" + fieldDefinition$1.i);
+                    validationCodeRef.contents = validationCodeRef.contents + (keyVar + "!==" + fieldDefinition.i);
                   }
-                  codeRef = codeRef + (")){" + raiseWithArg(b, pathVar, (function (exccessFieldName) {
+                  validationCodeRef.contents = validationCodeRef.contents + ("){" + raiseWithArg(b, pathVar, (function (exccessFieldName) {
                             return {
                                     TAG: "ExcessField",
                                     _0: exccessFieldName
@@ -1498,7 +1525,7 @@ function factory$1(definer) {
                           }), keyVar) + "}}");
                 } else {
                   var keyVar$1 = $$var(b);
-                  codeRef = codeRef + ("for(" + keyVar$1 + " in " + inputVar + "){" + raiseWithArg(b, pathVar, (function (exccessFieldName) {
+                  validationCodeRef.contents = validationCodeRef.contents + ("for(" + keyVar$1 + " in " + inputVar + "){" + raiseWithArg(b, pathVar, (function (exccessFieldName) {
                             return {
                                     TAG: "ExcessField",
                                     _0: exccessFieldName
@@ -1506,68 +1533,77 @@ function factory$1(definer) {
                           }), keyVar$1) + "}");
                 }
               }
-              for(var idx$3 = 0 ,idx_finish$3 = constantDefinitions.length; idx$3 < idx_finish$3; ++idx$3){
-                var match = constantDefinitions[idx$3];
-                codeRef = codeRef + (syncOutputVar + match.p + "=" + ("e[" + (b.e.push(match.v) - 1) + "]") + ";");
-              }
+              var syncOutput = definitionToOutput(definition, "");
               if (asyncFieldVars.length === 0) {
-                return codeRef + outputVar + "=" + syncOutputVar + ";";
+                return validationCodeRef.contents + (outputVar + "=" + syncOutput + ";");
               }
               var resolveVar = varWithoutAllocation(b);
               var rejectVar = varWithoutAllocation(b);
               var asyncParseResultVar = varWithoutAllocation(b);
               var counterVar = varWithoutAllocation(b);
-              return codeRef + outputVar + "=()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=" + asyncFieldVars.length.toString() + ";" + asyncFieldVars.map(function (asyncFieldVar) {
+              return validationCodeRef.contents + syncOutputVar + "=" + syncOutput + ";" + outputVar + "=()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=" + asyncFieldVars.length.toString() + ";" + asyncFieldVars.map(function (asyncFieldVar) {
                             return asyncFieldVar + "().then(" + asyncParseResultVar + "=>{" + asyncFieldVar + "=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + syncOutputVar + ")}}," + rejectVar + ")";
                           }).join(";") + "});";
             }),
           sb: (function (b, param, inputVar, outputVar, pathVar) {
-              var constantDefinitions = definerCtx_c;
-              var fieldDefinitions$1 = fieldDefinitions;
-              var codeRef = "";
-              for(var idx = 0 ,idx_finish = constantDefinitions.length; idx < idx_finish; ++idx){
-                var match = constantDefinitions[idx];
-                var path = match.p;
-                var value$1 = match.v;
-                codeRef = codeRef + ("if(" + inputVar + path + "!==" + ("e[" + (b.e.push(value$1) - 1) + "]") + "){" + raiseWithArg(b, pathVar + "+" + JSON.stringify(path), (function(value$1){
-                      return function (input) {
-                        return {
-                                TAG: "InvalidLiteral",
-                                expected: classify(value$1),
-                                received: input
-                              };
+              var validationCodeRef = {
+                contents: ""
+              };
+              var fieldsCodeRef = {
+                contents: ""
+              };
+              var definitionToInput = function (definition, outputPath) {
+                var kind = toKind(definition, fieldDefinitionsSet$1);
+                switch (kind) {
+                  case 0 :
+                      var keys = Object.keys(definition);
+                      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+                        var key = keys[idx];
+                        var definition$1 = definition[key];
+                        definitionToInput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
                       }
-                      }(value$1)), inputVar + path) + "}");
-              }
-              codeRef = codeRef + (outputVar + "={};");
-              for(var idx$1 = 0 ,idx_finish$1 = fieldDefinitions$1.length; idx$1 < idx_finish$1; ++idx$1){
-                var fieldDefinition = fieldDefinitions$1[idx$1];
-                var fieldStruct = fieldDefinition.s;
-                var path$1 = fieldDefinition.p;
-                var isRegistered = fieldDefinition.r;
-                var fieldPathVar = pathVar + "+" + JSON.stringify(path$1);
-                var destinationVar = outputVar + "[" + fieldDefinition.i + "]";
-                var tmp;
-                if (isRegistered) {
-                  var fieldOuputVar = $$var(b);
-                  var fieldCode = run(b, fieldStruct.sb, fieldStruct, destinationVar, fieldOuputVar, fieldPathVar);
-                  tmp = destinationVar + "=" + inputVar + path$1 + ";" + fieldCode + (
-                    destinationVar === fieldOuputVar ? "" : destinationVar + "=" + fieldOuputVar + ";"
-                  );
-                } else {
-                  var literal = toLiteral(fieldStruct);
-                  var tmp$1;
-                  if (literal !== undefined) {
-                    var value$2 = value(literal);
-                    tmp$1 = destinationVar + "=" + ("e[" + (b.e.push(value$2) - 1) + "]");
-                  } else {
-                    tmp$1 = raise(b, pathVar, "MissingSerializer");
-                  }
-                  tmp = tmp$1 + ";";
+                      return ;
+                  case 1 :
+                      validationCodeRef.contents = validationCodeRef.contents + ("if(" + inputVar + outputPath + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, pathVar + "+" + JSON.stringify(outputPath), (function (input) {
+                                return {
+                                        TAG: "InvalidLiteral",
+                                        expected: classify(definition),
+                                        received: input
+                                      };
+                              }), inputVar + outputPath) + "}");
+                      return ;
+                  case 2 :
+                      var inlinedFieldName = definition.i;
+                      var struct = definition.s;
+                      if (struct.sb === noop) {
+                        fieldsCodeRef.contents = fieldsCodeRef.contents + (inlinedFieldName + ":" + inputVar + outputPath + ",");
+                        return ;
+                      }
+                      var fieldOuputVar = $$var(b);
+                      var fieldInputVar = $$var(b);
+                      var fieldCode = run(b, struct.sb, struct, fieldInputVar, fieldOuputVar, pathVar + "+" + JSON.stringify(outputPath));
+                      validationCodeRef.contents = fieldInputVar + "=" + inputVar + outputPath + ";" + validationCodeRef.contents + fieldCode;
+                      fieldsCodeRef.contents = fieldsCodeRef.contents + (inlinedFieldName + ":" + fieldOuputVar + ",");
+                      return ;
+                  
                 }
-                codeRef = codeRef + tmp;
+              };
+              definitionToInput(definition, "");
+              for(var idx = 0 ,idx_finish = fieldDefinitions.length; idx < idx_finish; ++idx){
+                var match = fieldDefinitions[idx];
+                var isRegistered = match.r;
+                if (!isRegistered) {
+                  var literal = toLiteral(match.s);
+                  if (literal !== undefined) {
+                    var value$1 = value(literal);
+                    fieldsCodeRef.contents = fieldsCodeRef.contents + (match.i + ":" + ("e[" + (b.e.push(value$1) - 1) + "]") + ",");
+                  } else {
+                    validationCodeRef.contents = raise(b, pathVar, "MissingSerializer") + ";";
+                  }
+                }
+                
               }
-              return codeRef;
+              return validationCodeRef.contents + (outputVar + "={" + fieldsCodeRef.contents + "};");
             }),
           i: 0,
           s: initialSerialize,
@@ -2729,8 +2765,8 @@ function internalInline(struct, maybeVariant, param) {
       case "Object" :
           var fieldNames = taggedLiteral.fieldNames;
           var fields = taggedLiteral.fields;
-          inlinedStruct = fieldNames.length !== 0 ? "S.object(o =>\n  {\n    " + fieldNames.map(function (fieldName) {
-                    return JSON.stringify(fieldName) + ": o.field(" + JSON.stringify(fieldName) + ", " + internalInline(fields[fieldName], undefined, undefined) + ")";
+          inlinedStruct = fieldNames.length !== 0 ? "S.object(s =>\n  {\n    " + fieldNames.map(function (fieldName) {
+                    return JSON.stringify(fieldName) + ": s.field(" + JSON.stringify(fieldName) + ", " + internalInline(fields[fieldName], undefined, undefined) + ")";
                   }).join(",\n    ") + ",\n  }\n)" : "S.object(_ => ())";
           break;
       case "Tuple" :

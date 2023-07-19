@@ -9,9 +9,9 @@ type simpleRecord = {
 test("Simple record struct", t => {
   t->assertEqualStructs(
     simpleRecordStruct,
-    S.object(o => {
-      label: o.field("label", S.string),
-      value: o.field("value", S.int),
+    S.object(s => {
+      label: s.field("label", S.string),
+      value: s.field("value", S.int),
     }),
     (),
   )
@@ -30,9 +30,9 @@ type recordWithAlias = {
 test("Record struct with alias for field name", t => {
   t->assertEqualStructs(
     recordWithAliasStruct,
-    S.object(o => {
-      label: o.field("aliased-label", S.string),
-      value: o.field("value", S.int),
+    S.object(s => {
+      label: s.field("aliased-label", S.string),
+      value: s.field("value", S.int),
     }),
     (),
   )
@@ -51,9 +51,9 @@ type recordWithOptional = {
 test("Record struct with optional fields", t => {
   t->assertEqualStructs(
     recordWithOptionalStruct,
-    S.object(o => {
-      label: o.field("label", S.option(S.string)),
-      value: ?o.field("value", S.option(S.int)),
+    S.object(s => {
+      label: s.field("label", S.option(S.string)),
+      value: ?s.field("value", S.option(S.int)),
     }),
     (),
   )

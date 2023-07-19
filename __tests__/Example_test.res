@@ -17,11 +17,11 @@ type film = {
 }
 
 test("Example", t => {
-  let filmStruct = S.object(o => {
-    id: o.field("Id", S.float),
-    title: o.field("Title", S.string),
-    tags: o.field("Tags", S.array(S.string)->S.default(() => [])),
-    rating: o.field(
+  let filmStruct = S.object(s => {
+    id: s.field("Id", S.float),
+    title: s.field("Title", S.string),
+    tags: s.field("Tags", S.array(S.string)->S.default(() => [])),
+    rating: s.field(
       "Rating",
       S.union([
         S.literal(GeneralAudiences),
@@ -30,7 +30,7 @@ test("Example", t => {
         S.literal(Restricted),
       ]),
     ),
-    deprecatedAgeRestriction: o.field("Age", S.int->S.option->S.deprecate("Use rating instead")),
+    deprecatedAgeRestriction: s.field("Age", S.int->S.option->S.deprecate("Use rating instead")),
   })
 
   t->Assert.deepEqual(

@@ -65,11 +65,11 @@ type film = {
 }
 
 // 2. Create a struct
-let filmStruct = S.object(o => {
-  id: o.field("Id", S.float),
-  title: o.field("Title", S.string),
-  tags: o.field("Tags", S.array(S.string)->S.default(() => [])),
-  rating: o.field(
+let filmStruct = S.object(s => {
+  id: s.field("Id", S.float),
+  title: s.field("Title", S.string),
+  tags: s.field("Tags", S.array(S.string)->S.default(() => [])),
+  rating: s.field(
     "Rating",
     S.union([
       S.literal(GeneralAudiences),
@@ -78,7 +78,7 @@ let filmStruct = S.object(o => {
       S.literal(Restricted),
     ]),
   ),
-  deprecatedAgeRestriction: o.field("Age", S.int->S.option->S.deprecate("Use rating instead")),
+  deprecatedAgeRestriction: s.field("Age", S.int->S.option->S.deprecate("Use rating instead")),
 })
 
 // 3. Parse data using the struct
@@ -322,9 +322,9 @@ type point = {
 }
 
 // The pointStruct will have the S.t<point> type
-let pointStruct = S.object(o => {
-  x: o.field("x", S.int),
-  y: o.field("y", S.int),
+let pointStruct = S.object(s => {
+  x: s.field("x", S.int),
+  y: s.field("y", S.int),
 })
 
 // It can be used both for parsing and serializing
@@ -342,9 +342,9 @@ type user = {
   name: string,
 }
 // It will have the S.t<user> type
-let struct = S.object(o => {
-  id: o.field("USER_ID", S.int),
-  name: o.field("USER_NAME", S.string),
+let struct = S.object(s => {
+  id: s.field("USER_ID", S.int),
+  name: s.field("USER_NAME", S.string),
 })
 
 %raw(`{"USER_ID":1,"USER_NAME":"John"}`)->S.parseWith(struct)
@@ -355,9 +355,9 @@ let struct = S.object(o => {
 
 ```rescript
 // It will have the S.t<{"key1":string,"key2":string}> type
-let struct = S.object(o => {
-  "key1": o.field("key1", S.string),
-  "key2": o.field("key2", S.string),
+let struct = S.object(s => {
+  "key1": s.field("key1", S.string),
+  "key2": s.field("key2", S.string),
 })
 ```
 
@@ -365,7 +365,7 @@ let struct = S.object(o => {
 
 ```rescript
 // It will have the S.t<(int, string)> type
-let struct = S.object(o => (o.field("USER_ID", S.int), o.field("USER_NAME", S.string)))
+let struct = S.object(s => (s.field("USER_ID", S.int), s.field("USER_NAME", S.string)))
 
 %raw(`{"USER_ID":1,"USER_NAME":"John"}`)->S.parseWith(struct)
 // Ok((1, "John"))
@@ -384,10 +384,10 @@ The same struct also works for serializing:
 type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, y: float})
 
 // It will have the S.t<shape> type
-let struct = S.object(o => {
-  o.tag("kind", "circle")
+let struct = S.object(s => {
+  s.tag("kind", "circle")
   Circle({
-    radius: o.field("radius", S.float),
+    radius: s.field("radius", S.float),
   })
 })
 
@@ -478,23 +478,23 @@ Circle({radius: 1})->S.serializeWith(struct)
 type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, y: float})
 
 let shapeStruct = S.union([
-  S.object(o => {
-    o.tag("kind", "circle")
+  S.object(s => {
+    s.tag("kind", "circle")
     Circle({
-      radius: o.field("radius", S.float),
+      radius: s.field("radius", S.float),
     })
   }),
-  S.object(o => {
-    o.tag("kind", "square")
+  S.object(s => {
+    s.tag("kind", "square")
     Square({
-      x: o.field("x", S.float),
+      x: s.field("x", S.float),
     })
   }),
-  S.object(o => {
-    o.tag("kind", "triangle")
+  S.object(s => {
+    s.tag("kind", "triangle")
     Triangle({
-      x: o.field("x", S.float),
-      y: o.field("y", S.float),
+      x: s.field("x", S.float),
+      y: s.field("y", S.float),
     })
   }),
 ])
@@ -809,9 +809,9 @@ type rec node = {
 }
 
 let nodeStruct = S.recursive(nodeStruct => {
-  S.object(o => {
-    id: o.field("Id", S.string),
-    children: o.field("Children", S.array(nodeStruct)),
+  S.object(s => {
+    id: s.field("Id", S.string),
+    children: s.field("Children", S.array(nodeStruct)),
   })
 })
 ```
@@ -850,9 +850,9 @@ You can also use asynchronous parser:
 
 ```rescript
 let nodeStruct = S.recursive(nodeStruct => {
-  S.object(o => {
-    id: o.field("Id", S.string)->S.refine(~asyncParser=checkIsExistingNode, ()),
-    children: o.field("Children", S.array(nodeStruct)),
+  S.object(s => {
+    id: s.field("Id", S.string)->S.refine(~asyncParser=checkIsExistingNode, ()),
+    children: s.field("Children", S.array(nodeStruct)),
   })
 })
 ```

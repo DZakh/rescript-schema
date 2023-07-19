@@ -43,7 +43,7 @@ test("Successfully serializes jsonable structs", t => {
     (),
   )
   t->Assert.deepEqual(
-    true->S.serializeWith(S.object(o => o.field("foo", S.bool))),
+    true->S.serializeWith(S.object(s => s.field("foo", S.bool))),
     Json.object_(Js.Dict.fromArray([("foo", Json.boolean(true))]))->Ok,
     (),
   )
@@ -194,7 +194,7 @@ test("Fails to serialize Never struct", t => {
 
 test("Fails to serialize object with invalid nested struct", t => {
   t->Assert.deepEqual(
-    Obj.magic(true)->S.serializeWith(S.object(o => o.field("foo", S.unknown))),
+    Obj.magic(true)->S.serializeWith(S.object(s => s.field("foo", S.unknown))),
     Error({
       code: InvalidJsonStruct(S.unknown),
       operation: Serializing,

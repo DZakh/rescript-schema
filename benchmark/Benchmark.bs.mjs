@@ -31,19 +31,19 @@ function makeTestObject() {
 }
 
 function makeAdvancedObjectStruct() {
-  return S$RescriptStruct.object(function (o) {
+  return S$RescriptStruct.object(function (s) {
               return {
-                      number: o.f("number", S$RescriptStruct.$$float),
-                      negNumber: o.f("negNumber", S$RescriptStruct.$$float),
-                      maxNumber: o.f("maxNumber", S$RescriptStruct.$$float),
-                      string: o.f("string", S$RescriptStruct.string),
-                      longString: o.f("longString", S$RescriptStruct.string),
-                      boolean: o.f("boolean", S$RescriptStruct.bool),
-                      deeplyNested: o.f("deeplyNested", S$RescriptStruct.object(function (o) {
+                      number: s.f("number", S$RescriptStruct.$$float),
+                      negNumber: s.f("negNumber", S$RescriptStruct.$$float),
+                      maxNumber: s.f("maxNumber", S$RescriptStruct.$$float),
+                      string: s.f("string", S$RescriptStruct.string),
+                      longString: s.f("longString", S$RescriptStruct.string),
+                      boolean: s.f("boolean", S$RescriptStruct.bool),
+                      deeplyNested: s.f("deeplyNested", S$RescriptStruct.object(function (s) {
                                 return {
-                                        foo: o.f("foo", S$RescriptStruct.string),
-                                        num: o.f("num", S$RescriptStruct.$$float),
-                                        bool: o.f("bool", S$RescriptStruct.bool)
+                                        foo: s.f("foo", S$RescriptStruct.string),
+                                        num: s.f("num", S$RescriptStruct.$$float),
+                                        bool: s.f("bool", S$RescriptStruct.bool)
                                       };
                               }))
                     };
@@ -51,19 +51,19 @@ function makeAdvancedObjectStruct() {
 }
 
 function makeAdvancedStrictObjectStruct() {
-  return S$RescriptStruct.$$Object.strict(S$RescriptStruct.object(function (o) {
+  return S$RescriptStruct.$$Object.strict(S$RescriptStruct.object(function (s) {
                   return {
-                          number: o.f("number", S$RescriptStruct.$$float),
-                          negNumber: o.f("negNumber", S$RescriptStruct.$$float),
-                          maxNumber: o.f("maxNumber", S$RescriptStruct.$$float),
-                          string: o.f("string", S$RescriptStruct.string),
-                          longString: o.f("longString", S$RescriptStruct.string),
-                          boolean: o.f("boolean", S$RescriptStruct.bool),
-                          deeplyNested: o.f("deeplyNested", S$RescriptStruct.$$Object.strict(S$RescriptStruct.object(function (o) {
+                          number: s.f("number", S$RescriptStruct.$$float),
+                          negNumber: s.f("negNumber", S$RescriptStruct.$$float),
+                          maxNumber: s.f("maxNumber", S$RescriptStruct.$$float),
+                          string: s.f("string", S$RescriptStruct.string),
+                          longString: s.f("longString", S$RescriptStruct.string),
+                          boolean: s.f("boolean", S$RescriptStruct.bool),
+                          deeplyNested: s.f("deeplyNested", S$RescriptStruct.$$Object.strict(S$RescriptStruct.object(function (s) {
                                         return {
-                                                foo: o.f("foo", S$RescriptStruct.string),
-                                                num: o.f("num", S$RescriptStruct.$$float),
-                                                bool: o.f("bool", S$RescriptStruct.bool)
+                                                foo: s.f("foo", S$RescriptStruct.string),
+                                                num: s.f("num", S$RescriptStruct.$$float),
+                                                bool: s.f("bool", S$RescriptStruct.bool)
                                               };
                                       })))
                         };
@@ -78,23 +78,41 @@ var struct = makeAdvancedObjectStruct(undefined);
 
 console.timeEnd("init");
 
-console.time("1");
+console.time("p: 1");
 
 S$RescriptStruct.parseAnyWith(data, struct);
 
-console.timeEnd("1");
+console.timeEnd("p: 1");
 
-console.time("2");
-
-S$RescriptStruct.parseAnyWith(data, struct);
-
-console.timeEnd("2");
-
-console.time("3");
+console.time("p: 2");
 
 S$RescriptStruct.parseAnyWith(data, struct);
 
-console.timeEnd("3");
+console.timeEnd("p: 2");
+
+console.time("p: 3");
+
+S$RescriptStruct.parseAnyWith(data, struct);
+
+console.timeEnd("p: 3");
+
+console.time("s: 1");
+
+S$RescriptStruct.serializeWith(data, struct);
+
+console.timeEnd("s: 1");
+
+console.time("s: 2");
+
+S$RescriptStruct.serializeWith(data, struct);
+
+console.timeEnd("s: 2");
+
+console.time("s: 3");
+
+S$RescriptStruct.serializeWith(data, struct);
+
+console.timeEnd("s: 3");
 
 run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new (Benchmark.default.Suite)(), "Parse string", (function () {
                                   return function () {

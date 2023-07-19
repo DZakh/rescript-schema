@@ -4,9 +4,9 @@ open Ava
 type options = {fast?: bool, mode?: int}
 
 test("Successfully parses object with inlinable string field", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.string),
+      "field": s.field("field", S.string),
     }
   )
 
@@ -14,9 +14,9 @@ test("Successfully parses object with inlinable string field", t => {
 })
 
 test("Fails to parse object with inlinable string field", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.string),
+      "field": s.field("field", S.string),
     }
   )
 
@@ -32,9 +32,9 @@ test("Fails to parse object with inlinable string field", t => {
 })
 
 test("Successfully parses object with inlinable bool field", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.bool),
+      "field": s.field("field", S.bool),
     }
   )
 
@@ -42,9 +42,9 @@ test("Successfully parses object with inlinable bool field", t => {
 })
 
 test("Fails to parse object with inlinable bool field", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.bool),
+      "field": s.field("field", S.bool),
     }
   )
 
@@ -60,9 +60,9 @@ test("Fails to parse object with inlinable bool field", t => {
 })
 
 test("Successfully parses object with unknown field (Noop operation)", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.unknown),
+      "field": s.field("field", S.unknown),
     }
   )
 
@@ -74,9 +74,9 @@ test("Successfully parses object with unknown field (Noop operation)", t => {
 })
 
 test("Successfully serializes object with unknown field (Noop operation)", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.unknown),
+      "field": s.field("field", S.unknown),
     }
   )
 
@@ -88,9 +88,9 @@ test("Successfully serializes object with unknown field (Noop operation)", t => 
 })
 
 test("Fails to parse object with inlinable never field", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.never),
+      "field": s.field("field", S.never),
     }
   )
 
@@ -106,9 +106,9 @@ test("Fails to parse object with inlinable never field", t => {
 })
 
 test("Successfully parses object with inlinable float field", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.float),
+      "field": s.field("field", S.float),
     }
   )
 
@@ -116,9 +116,9 @@ test("Successfully parses object with inlinable float field", t => {
 })
 
 test("Fails to parse object with inlinable float field", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.float),
+      "field": s.field("field", S.float),
     }
   )
 
@@ -134,9 +134,9 @@ test("Fails to parse object with inlinable float field", t => {
 })
 
 test("Successfully parses object with inlinable int field", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.int),
+      "field": s.field("field", S.int),
     }
   )
 
@@ -144,9 +144,9 @@ test("Successfully parses object with inlinable int field", t => {
 })
 
 test("Fails to parse object with inlinable int field", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.int),
+      "field": s.field("field", S.int),
     }
   )
 
@@ -162,9 +162,9 @@ test("Fails to parse object with inlinable int field", t => {
 })
 
 test("Successfully parses object with not inlinable empty object field", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.object(_ => ())),
+      "field": s.field("field", S.object(_ => ())),
     }
   )
 
@@ -173,9 +173,9 @@ test("Successfully parses object with not inlinable empty object field", t => {
 
 test("Fails to parse object with not inlinable empty object field", t => {
   let fieldStruct = S.object(_ => ())
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", fieldStruct),
+      "field": s.field("field", fieldStruct),
     }
   )
 
@@ -191,9 +191,9 @@ test("Fails to parse object with not inlinable empty object field", t => {
 })
 
 test("Fails to parse object when provided invalid data", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.string),
+      "field": s.field("field", S.string),
     }
   )
 
@@ -209,9 +209,9 @@ test("Fails to parse object when provided invalid data", t => {
 })
 
 test("Successfully serializes object with single field", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.string),
+      "field": s.field("field", S.string),
     }
   )
 
@@ -223,10 +223,10 @@ test("Successfully serializes object with single field", t => {
 })
 
 test("Successfully parses object with multiple fields", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "boo": o.field("boo", S.string),
-      "zoo": o.field("zoo", S.string),
+      "boo": s.field("boo", S.string),
+      "zoo": s.field("zoo", S.string),
     }
   )
 
@@ -238,10 +238,10 @@ test("Successfully parses object with multiple fields", t => {
 })
 
 test("Successfully serializes object with multiple fields", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "boo": o.field("boo", S.string),
-      "zoo": o.field("zoo", S.string),
+      "boo": s.field("boo", S.string),
+      "zoo": s.field("zoo", S.string),
     }
   )
 
@@ -253,9 +253,9 @@ test("Successfully serializes object with multiple fields", t => {
 })
 
 test("Successfully parses object with transformed field", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "string": o.field("string", S.string->S.transform(~parser=string => string ++ "field", ())),
+      "string": s.field("string", S.string->S.transform(~parser=string => string ++ "field", ())),
     }
   )
 
@@ -267,9 +267,9 @@ test("Successfully parses object with transformed field", t => {
 })
 
 test("Fails to parse object when transformed field has raises error", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.string->S.transform(~parser=_ => S.fail("User error"), ())),
+      "field": s.field("field", S.string->S.transform(~parser=_ => S.fail("User error"), ())),
     }
   )
 
@@ -285,9 +285,9 @@ test("Fails to parse object when transformed field has raises error", t => {
 })
 
 test("Shows transformed object field name in error path when fails to parse", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "transformedFieldName": o.field(
+      "transformedFieldName": s.field(
         "originalFieldName",
         S.string->S.transform(~parser=_ => S.fail("User error"), ()),
       ),
@@ -306,9 +306,9 @@ test("Shows transformed object field name in error path when fails to parse", t 
 })
 
 test("Successfully serializes object with transformed field", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "string": o.field(
+      "string": s.field(
         "string",
         S.string->S.transform(~serializer=string => string ++ "field", ()),
       ),
@@ -323,9 +323,9 @@ test("Successfully serializes object with transformed field", t => {
 })
 
 test("Fails to serializes object when transformed field has raises error", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "field": o.field("field", S.string->S.transform(~serializer=_ => S.fail("User error"), ())),
+      "field": s.field("field", S.string->S.transform(~serializer=_ => S.fail("User error"), ())),
     }
   )
 
@@ -341,9 +341,9 @@ test("Fails to serializes object when transformed field has raises error", t => 
 })
 
 test("Shows transformed object field name in error path when fails to serializes", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "transformedFieldName": o.field(
+      "transformedFieldName": s.field(
         "originalFieldName",
         S.string->S.transform(~serializer=_ => S.fail("User error"), ()),
       ),
@@ -362,10 +362,10 @@ test("Shows transformed object field name in error path when fails to serializes
 })
 
 test("Shows transformed to nested object field name in error path when fails to serializes", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
       "v1": {
-        "transformedFieldName": o.field(
+        "transformedFieldName": s.field(
           "originalFieldName",
           S.string->S.transform(~serializer=_ => S.fail("User error"), ()),
         ),
@@ -389,10 +389,10 @@ test("Shows transformed to nested object field name in error path when fails to 
 })
 
 test("Successfully parses object with optional fields", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "boo": o.field("boo", S.option(S.string)),
-      "zoo": o.field("zoo", S.option(S.string)),
+      "boo": s.field("boo", S.option(S.string)),
+      "zoo": s.field("zoo", S.option(S.string)),
     }
   )
 
@@ -404,10 +404,10 @@ test("Successfully parses object with optional fields", t => {
 })
 
 test("Successfully serializes object with optional fields", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "boo": o.field("boo", S.option(S.string)),
-      "zoo": o.field("zoo", S.option(S.string)),
+      "boo": s.field("boo", S.option(S.string)),
+      "zoo": s.field("zoo", S.option(S.string)),
     }
   )
 
@@ -421,10 +421,10 @@ test("Successfully serializes object with optional fields", t => {
 test(
   "Successfully parses object with optional fields using (?). The optinal field becomes undefined instead of beeing missing",
   t => {
-    let optionsStruct = S.object(o => {
+    let optionsStruct = S.object(s => {
       {
-        fast: ?o.field("fast", S.option(S.bool)),
-        mode: o.field("mode", S.int),
+        fast: ?s.field("fast", S.option(S.bool)),
+        mode: s.field("mode", S.int),
       }
     })
 
@@ -440,10 +440,10 @@ test(
 )
 
 test("Successfully serializes object with optional fields using (?)", t => {
-  let optionsStruct = S.object(o => {
+  let optionsStruct = S.object(s => {
     {
-      fast: ?o.field("fast", S.option(S.bool)),
-      mode: o.field("mode", S.int),
+      fast: ?s.field("fast", S.option(S.bool)),
+      mode: s.field("mode", S.int),
     }
   })
 
@@ -455,11 +455,11 @@ test("Successfully serializes object with optional fields using (?)", t => {
 })
 
 test("Successfully parses object with mapped field names", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "name": o.field("Name", S.string),
-      "email": o.field("Email", S.string),
-      "age": o.field("Age", S.int),
+      "name": s.field("Name", S.string),
+      "email": s.field("Email", S.string),
+      "age": s.field("Age", S.int),
     }
   )
 
@@ -471,11 +471,11 @@ test("Successfully parses object with mapped field names", t => {
 })
 
 test("Successfully serializes object with mapped field", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "name": o.field("Name", S.string),
-      "email": o.field("Email", S.string),
-      "age": o.field("Age", S.int),
+      "name": s.field("Name", S.string),
+      "email": s.field("Email", S.string),
+      "age": s.field("Age", S.int),
     }
   )
 
@@ -487,23 +487,23 @@ test("Successfully serializes object with mapped field", t => {
 })
 
 test("Successfully parses object transformed to tuple", t => {
-  let struct = S.object(o => (o.field("boo", S.int), o.field("zoo", S.int)))
+  let struct = S.object(s => (s.field("boo", S.int), s.field("zoo", S.int)))
 
   t->Assert.deepEqual(%raw(`{boo: 1, zoo: 2}`)->S.parseAnyWith(struct), Ok(1, 2), ())
 })
 
 test("Successfully serializes object transformed to tuple", t => {
-  let struct = S.object(o => (o.field("boo", S.int), o.field("zoo", S.int)))
+  let struct = S.object(s => (s.field("boo", S.int), s.field("zoo", S.int)))
 
   t->Assert.deepEqual((1, 2)->S.serializeToUnknownWith(struct), Ok(%raw(`{boo: 1, zoo: 2}`)), ())
 })
 
 test("Successfully parses object transformed to nested object", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
       "v1": {
-        "boo": o.field("boo", S.int),
-        "zoo": o.field("zoo", S.int),
+        "boo": s.field("boo", S.int),
+        "zoo": s.field("zoo", S.int),
       },
     }
   )
@@ -516,11 +516,11 @@ test("Successfully parses object transformed to nested object", t => {
 })
 
 test("Successfully serializes object transformed to nested object", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
       "v1": {
-        "boo": o.field("boo", S.int),
-        "zoo": o.field("zoo", S.int),
+        "boo": s.field("boo", S.int),
+        "zoo": s.field("zoo", S.int),
       },
     }
   )
@@ -533,9 +533,9 @@ test("Successfully serializes object transformed to nested object", t => {
 })
 
 test("Successfully parses object transformed to nested tuple", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "v1": (o.field("boo", S.int), o.field("zoo", S.int)),
+      "v1": (s.field("boo", S.int), s.field("zoo", S.int)),
     }
   )
 
@@ -543,9 +543,9 @@ test("Successfully parses object transformed to nested tuple", t => {
 })
 
 test("Successfully serializes object transformed to nested tuple", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "v1": (o.field("boo", S.int), o.field("zoo", S.int)),
+      "v1": (s.field("boo", S.int), s.field("zoo", S.int)),
     }
   )
 
@@ -557,22 +557,22 @@ test("Successfully serializes object transformed to nested tuple", t => {
 })
 
 test("Successfully parses object with only one field returned from transformer", t => {
-  let struct = S.object(o => o.field("field", S.bool))
+  let struct = S.object(s => s.field("field", S.bool))
 
   t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseAnyWith(struct), Ok(true), ())
 })
 
 test("Successfully serializes object with only one field returned from transformer", t => {
-  let struct = S.object(o => o.field("field", S.bool))
+  let struct = S.object(s => s.field("field", S.bool))
 
   t->Assert.deepEqual(true->S.serializeToUnknownWith(struct), Ok(%raw(`{"field": true}`)), ())
 })
 
 test("Successfully parses object transformed to the one with hardcoded fields", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
       "hardcoded": false,
-      "field": o.field("field", S.bool),
+      "field": s.field("field", S.bool),
     }
   )
 
@@ -587,10 +587,10 @@ test("Successfully parses object transformed to the one with hardcoded fields", 
 })
 
 test("Successfully serializes object transformed to the one with hardcoded fields", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
       "hardcoded": false,
-      "field": o.field("field", S.bool),
+      "field": s.field("field", S.bool),
     }
   )
 
@@ -605,13 +605,13 @@ test("Successfully serializes object transformed to the one with hardcoded field
 })
 
 test("Successfully parses object transformed to variant", t => {
-  let struct = S.object(o => #VARIANT(o.field("field", S.bool)))
+  let struct = S.object(s => #VARIANT(s.field("field", S.bool)))
 
   t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseAnyWith(struct), Ok(#VARIANT(true)), ())
 })
 
 test("Successfully serializes object transformed to variant", t => {
-  let struct = S.object(o => #VARIANT(o.field("field", S.bool)))
+  let struct = S.object(s => #VARIANT(s.field("field", S.bool)))
 
   t->Assert.deepEqual(
     #VARIANT(true)->S.serializeToUnknownWith(struct),
@@ -621,22 +621,22 @@ test("Successfully serializes object transformed to variant", t => {
 })
 
 test("Successfully parses object from benchmark", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "number": o.field("number", S.float),
-      "negNumber": o.field("negNumber", S.float),
-      "maxNumber": o.field("maxNumber", S.float),
-      "string": o.field("string", S.string),
-      "longString": o.field("longString", S.string),
-      "boolean": o.field("boolean", S.bool),
-      "deeplyNested": o.field(
+      "number": s.field("number", S.float),
+      "negNumber": s.field("negNumber", S.float),
+      "maxNumber": s.field("maxNumber", S.float),
+      "string": s.field("string", S.string),
+      "longString": s.field("longString", S.string),
+      "boolean": s.field("boolean", S.bool),
+      "deeplyNested": s.field(
         "deeplyNested",
         S.object(
-          o =>
+          s =>
             {
-              "foo": o.field("foo", S.string),
-              "num": o.field("num", S.float),
-              "bool": o.field("bool", S.bool),
+              "foo": s.field("foo", S.string),
+              "num": s.field("num", S.float),
+              "bool": s.field("bool", S.bool),
             },
         ),
       ),
@@ -676,22 +676,22 @@ test("Successfully parses object from benchmark", t => {
 })
 
 test("Successfully parses strict object from benchmark", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "number": o.field("number", S.float),
-      "negNumber": o.field("negNumber", S.float),
-      "maxNumber": o.field("maxNumber", S.float),
-      "string": o.field("string", S.string),
-      "longString": o.field("longString", S.string),
-      "boolean": o.field("boolean", S.bool),
-      "deeplyNested": o.field(
+      "number": s.field("number", S.float),
+      "negNumber": s.field("negNumber", S.float),
+      "maxNumber": s.field("maxNumber", S.float),
+      "string": s.field("string", S.string),
+      "longString": s.field("longString", S.string),
+      "boolean": s.field("boolean", S.bool),
+      "deeplyNested": s.field(
         "deeplyNested",
         S.object(
-          o =>
+          s =>
             {
-              "foo": o.field("foo", S.string),
-              "num": o.field("num", S.float),
-              "bool": o.field("bool", S.bool),
+              "foo": s.field("foo", S.string),
+              "num": s.field("num", S.float),
+              "bool": s.field("bool", S.bool),
             },
         )->S.Object.strict,
       ),
@@ -731,22 +731,22 @@ test("Successfully parses strict object from benchmark", t => {
 })
 
 test("Successfully serializes object from benchmark", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "number": o.field("number", S.float),
-      "negNumber": o.field("negNumber", S.float),
-      "maxNumber": o.field("maxNumber", S.float),
-      "string": o.field("string", S.string),
-      "longString": o.field("longString", S.string),
-      "boolean": o.field("boolean", S.bool),
-      "deeplyNested": o.field(
+      "number": s.field("number", S.float),
+      "negNumber": s.field("negNumber", S.float),
+      "maxNumber": s.field("maxNumber", S.float),
+      "string": s.field("string", S.string),
+      "longString": s.field("longString", S.string),
+      "boolean": s.field("boolean", S.bool),
+      "deeplyNested": s.field(
         "deeplyNested",
         S.object(
-          o =>
+          s =>
             {
-              "foo": o.field("foo", S.string),
-              "num": o.field("num", S.float),
-              "bool": o.field("bool", S.bool),
+              "foo": s.field("foo", S.string),
+              "num": s.field("num", S.float),
+              "bool": s.field("bool", S.bool),
             },
         ),
       ),
@@ -790,11 +790,11 @@ test("Successfully serializes object from benchmark", t => {
 test("Successfully parses object and serializes it back to the initial data", t => {
   let any = %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)
 
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "name": o.field("Name", S.string),
-      "email": o.field("Email", S.string),
-      "age": o.field("Age", S.int),
+      "name": s.field("Name", S.string),
+      "email": s.field("Email", S.string),
+      "age": s.field("Age", S.int),
     }
   )
 
@@ -808,10 +808,10 @@ test("Successfully parses object and serializes it back to the initial data", t 
 })
 
 test("Allows to create object struct with unused fields", t => {
-  let struct = S.object(o => {
-    ignore(o.field("unused", S.string))
+  let struct = S.object(s => {
+    ignore(s.field("unused", S.string))
     {
-      "field": o.field("field", S.string),
+      "field": s.field("field", S.string),
     }
   })
 
@@ -826,10 +826,10 @@ test("Fails to create object struct with single field defined multiple times", t
   t->Assert.throws(
     () => {
       S.object(
-        o =>
+        s =>
           {
-            "boo": o.field("field", S.string),
-            "zoo": o.field("field", S.int),
+            "boo": s.field("field", S.string),
+            "zoo": s.field("field", S.int),
           },
       )
     },
@@ -844,8 +844,8 @@ test("Fails to create object struct with single field registered multiple times"
   t->Assert.throws(
     () => {
       S.object(
-        o => {
-          let field = o.field("field", S.string)
+        s => {
+          let field = s.field("field", S.string)
           {
             "field1": field,
             "field2": field,

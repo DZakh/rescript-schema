@@ -12,8 +12,8 @@
 - Removed `S.asyncRecursive`. Now you can use `S.recursive` for both sync and async structs
 - Added `S.toUnknown` helper to cast the struct type from `S.t<'any>` to `S.t<unknown>`
 - `S.object` enhancements:
-  - It became easier to define a field (`o->S.field` -> `o.field`)
-  - Added helper for discriminant fields (`ignore(o.field("key", S.literal("value")))` -> `o.tag("key", "value")`)
+  - It became easier to define a field (`o->S.field` -> `s.field`)
+  - Added helper for discriminant fields (`ignore(s.field("key", S.literal("value")))` -> `s.tag("key", "value")`)
 - Exciting literals rework:
   - It became much easier to define a literal (`S.literal(String("foo"))` -> `S.literal("foo")`)
   - Literal structs now support any Js values, not only the primitive ones as before
@@ -91,11 +91,11 @@ let ratingStruct = S.union([
   S.literal(ParentalStronglyCautioned),
   S.literal(Restricted),
 ])
-let filmStruct = S.object(o => {
-  id: o.field("Id", S.float),
-  title: o.field("Title", S.string),
-  tags: o.field("Tags", S.array(S.string)->S.default(() => [])),
-  rating: o.field("Rating", ratingStruct),
-  deprecatedAgeRestriction: o.field("Age", S.int->S.option->S.deprecate("Use rating instead")),
+let filmStruct = S.object(s => {
+  id: s.field("Id", S.float),
+  title: s.field("Title", S.string),
+  tags: s.field("Tags", S.array(S.string)->S.default(() => [])),
+  rating: s.field("Rating", ratingStruct),
+  deprecatedAgeRestriction: s.field("Age", S.int->S.option->S.deprecate("Use rating instead")),
 })
 ```

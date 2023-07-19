@@ -45,23 +45,23 @@ module Advanced = {
 
   type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, y: float})
 
-  let circleStruct = S.object(o => {
-    o.tag("kind", "circle")
+  let circleStruct = S.object(s => {
+    s.tag("kind", "circle")
     Circle({
-      radius: o.field("radius", S.float),
+      radius: s.field("radius", S.float),
     })
   })
-  let squareStruct = S.object(o => {
-    o.tag("kind", "square")
+  let squareStruct = S.object(s => {
+    s.tag("kind", "square")
     Square({
-      x: o.field("x", S.float),
+      x: s.field("x", S.float),
     })
   })
-  let triangleStruct = S.object(o => {
-    o.tag("kind", "triangle")
+  let triangleStruct = S.object(s => {
+    s.tag("kind", "triangle")
     Triangle({
-      x: o.field("x", S.float),
-      y: o.field("y", S.float),
+      x: s.field("x", S.float),
+      y: s.field("y", S.float),
     })
   })
 
@@ -141,7 +141,7 @@ module Advanced = {
           "x": 2,
           "y": 3,
         }
-      }`)->S.parseAnyWith(S.object(o => o.field("field", shapeStruct))),
+      }`)->S.parseAnyWith(S.object(s => s.field("field", shapeStruct))),
       Error({
         code: InvalidUnion([
           {
@@ -206,16 +206,16 @@ module Advanced = {
 
   test("Fails to serialize incomplete struct", t => {
     let incompleteStruct = S.union([
-      S.object(o => {
-        o.tag("kind", "circle")
+      S.object(s => {
+        s.tag("kind", "circle")
         Circle({
-          radius: o.field("radius", S.float),
+          radius: s.field("radius", S.float),
         })
       }),
-      S.object(o => {
-        o.tag("kind", "square")
+      S.object(s => {
+        s.tag("kind", "square")
         Square({
-          x: o.field("x", S.float),
+          x: s.field("x", S.float),
         })
       }),
     ])

@@ -35,10 +35,10 @@ module Common = {
 
 module ObjectField = {
   test("Fails to parse a object with Never field", t => {
-    let struct = S.object(o =>
+    let struct = S.object(s =>
       {
-        "key": o.field("key", S.string),
-        "oldKey": o.field("oldKey", S.never),
+        "key": s.field("key", S.string),
+        "oldKey": s.field("oldKey", S.never),
       }
     )
 
@@ -54,10 +54,10 @@ module ObjectField = {
   })
 
   test("Successfully parses a object with Never field when it's optional and not present", t => {
-    let struct = S.object(o =>
+    let struct = S.object(s =>
       {
-        "key": o.field("key", S.string),
-        "oldKey": o.field(
+        "key": s.field("key", S.string),
+        "oldKey": s.field(
           "oldKey",
           S.never->S.option->S.deprecate("We stopped using the field from the v0.9.0 release"),
         ),

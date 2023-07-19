@@ -235,13 +235,13 @@ function strip() {
 }
 
 function factory(definer) {
-  return Object.assign(S$RescriptStruct.object(function (o) {
+  return Object.assign(S$RescriptStruct.object(function (s) {
                   var definition = {};
                   var fieldNames = Object.keys(definer);
                   for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
                     var fieldName = fieldNames[idx];
                     var struct = definer[fieldName];
-                    definition[fieldName] = o.f(fieldName, struct);
+                    definition[fieldName] = s.f(fieldName, struct);
                   }
                   return definition;
                 }), objectStructOperations);

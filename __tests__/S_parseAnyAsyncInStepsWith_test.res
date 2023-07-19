@@ -68,11 +68,11 @@ asyncTest("Fails to parse with invalidAsyncRefine", t => {
 
 module Object = {
   asyncTest("[Object] Successfully parses", t => {
-    let struct = S.object(o =>
+    let struct = S.object(s =>
       {
-        "k1": o.field("k1", S.int),
-        "k2": o.field("k2", S.int->validAsyncRefine),
-        "k3": o.field("k3", S.int),
+        "k1": s.field("k1", S.int),
+        "k2": s.field("k2", S.int->validAsyncRefine),
+        "k3": s.field("k3", S.int),
       }
     )
 
@@ -99,11 +99,11 @@ module Object = {
 
   asyncTest("[Object] Successfully parses async object in array", t => {
     let struct = S.array(
-      S.object(o =>
+      S.object(s =>
         {
-          "k1": o.field("k1", S.int),
-          "k2": o.field("k2", S.int->validAsyncRefine),
-          "k3": o.field("k3", S.int),
+          "k1": s.field("k1", S.int),
+          "k2": s.field("k2", S.int->validAsyncRefine),
+          "k3": s.field("k3", S.int),
         }
       ),
     )
@@ -144,11 +144,11 @@ module Object = {
   })
 
   asyncTest("[Object] Keeps fields in the correct order", t => {
-    let struct = S.object(o =>
+    let struct = S.object(s =>
       {
-        "k1": o.field("k1", S.int),
-        "k2": o.field("k2", S.int->validAsyncRefine),
-        "k3": o.field("k3", S.int),
+        "k1": s.field("k1", S.int),
+        "k2": s.field("k2", S.int->validAsyncRefine),
+        "k3": s.field("k3", S.int),
       }
     )
 
@@ -170,12 +170,12 @@ module Object = {
   })
 
   asyncTest("[Object] Successfully parses with valid async discriminant", t => {
-    let struct = S.object(o => {
-      ignore(o.field("discriminant", S.literal(true)->validAsyncRefine))
+    let struct = S.object(s => {
+      ignore(s.field("discriminant", S.literal(true)->validAsyncRefine))
       {
-        "k1": o.field("k1", S.int),
-        "k2": o.field("k2", S.int),
-        "k3": o.field("k3", S.int),
+        "k1": s.field("k1", S.int),
+        "k2": s.field("k2", S.int),
+        "k3": s.field("k3", S.int),
       }
     })
 
@@ -202,12 +202,12 @@ module Object = {
   })
 
   asyncTest("[Object] Fails to parse with invalid async discriminant", t => {
-    let struct = S.object(o => {
-      ignore(o.field("discriminant", S.literal(true)->invalidAsyncRefine))
+    let struct = S.object(s => {
+      ignore(s.field("discriminant", S.literal(true)->invalidAsyncRefine))
       {
-        "k1": o.field("k1", S.int),
-        "k2": o.field("k2", S.int),
-        "k3": o.field("k3", S.int),
+        "k1": s.field("k1", S.int),
+        "k2": s.field("k2", S.int),
+        "k3": s.field("k3", S.int),
       }
     })
 
@@ -234,11 +234,11 @@ module Object = {
   })
 
   test("[Object] Returns sync error when fails to parse sync part of async item", t => {
-    let struct = S.object(o =>
+    let struct = S.object(s =>
       {
-        "k1": o.field("k1", S.int),
-        "k2": o.field("k2", S.int->validAsyncRefine),
-        "k3": o.field("k3", S.int),
+        "k1": s.field("k1", S.int),
+        "k2": s.field("k2", S.int->validAsyncRefine),
+        "k3": s.field("k3", S.int),
       }
     )
 
@@ -258,11 +258,11 @@ module Object = {
   })
 
   test("[Object] Parses sync items first, and then starts parsing async ones", t => {
-    let struct = S.object(o =>
+    let struct = S.object(s =>
       {
-        "k1": o.field("k1", S.int),
-        "k2": o.field("k2", S.int->invalidAsyncRefine),
-        "k3": o.field("k3", S.int->invalidSyncRefine),
+        "k1": s.field("k1", S.int),
+        "k2": s.field("k2", S.int->invalidAsyncRefine),
+        "k3": s.field("k3", S.int->invalidSyncRefine),
       }
     )
 
@@ -284,9 +284,9 @@ module Object = {
   test("[Object] Parses async items in parallel", t => {
     let actionCounter = ref(0)
 
-    let struct = S.object(o =>
+    let struct = S.object(s =>
       {
-        "k1": o.field(
+        "k1": s.field(
           "k1",
           S.int->S.advancedTransform(
             ~parser=(~struct as _) => {
@@ -300,7 +300,7 @@ module Object = {
             (),
           ),
         ),
-        "k2": o.field(
+        "k2": s.field(
           "k2",
           S.int->S.advancedTransform(
             ~parser=(~struct as _) => {
@@ -328,9 +328,9 @@ module Object = {
   })
 
   asyncTest("[Object] Doesn't wait for pending async items when fails to parse", t => {
-    let struct = S.object(o =>
+    let struct = S.object(s =>
       {
-        "k1": o.field(
+        "k1": s.field(
           "k1",
           S.int->S.advancedTransform(
             ~parser=(~struct as _) => {
@@ -339,7 +339,7 @@ module Object = {
             (),
           ),
         ),
-        "k2": o.field("k2", S.int->invalidAsyncRefine),
+        "k2": s.field("k2", S.int->invalidAsyncRefine),
       }
     )
 

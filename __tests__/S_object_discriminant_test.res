@@ -89,10 +89,10 @@ module Positive = {
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.object(o => {
-        ignore(o.field("nestedDiscriminant", S.literal("abc")))
+      ~discriminantStruct=S.object(s => {
+        ignore(s.field("nestedDiscriminant", S.literal("abc")))
         {
-          "field": o.field("nestedField", S.literal(false)),
+          "field": s.field("nestedField", S.literal(false)),
         }
       }),
       ~discriminantData=%raw(`{
@@ -103,10 +103,10 @@ module Positive = {
     ),
     TestData.make(
       ~description="and values needed to be escaped",
-      ~discriminantStruct=S.object(o => {
-        ignore(o.field("\"\'\`", S.literal("\"\'\`")))
+      ~discriminantStruct=S.object(s => {
+        ignore(s.field("\"\'\`", S.literal("\"\'\`")))
         {
-          "field": o.field("nestedField", S.literal(false)),
+          "field": s.field("nestedField", S.literal(false)),
         }
       }),
       ~discriminantData=%raw(`{
@@ -120,10 +120,10 @@ module Positive = {
       `Successfully parses object with discriminant "${testData.discriminantStruct->S.name}"${testData.testNamePostfix}`,
       t => {
         let struct = S.object(
-          o => {
-            ignore(o.field("discriminant", testData.discriminantStruct))
+          s => {
+            ignore(s.field("discriminant", testData.discriminantStruct))
             {
-              "field": o.field("field", S.string),
+              "field": s.field("field", S.string),
             }
           },
         )
@@ -143,10 +143,10 @@ module Positive = {
       `Successfully serializes object with discriminant "${testData.discriminantStruct->S.name}"${testData.testNamePostfix}`,
       t => {
         let struct = S.object(
-          o => {
-            ignore(o.field("discriminant", testData.discriminantStruct))
+          s => {
+            ignore(s.field("discriminant", testData.discriminantStruct))
             {
-              "field": o.field("field", S.string),
+              "field": s.field("field", S.string),
             }
           },
         )
@@ -209,7 +209,7 @@ module Negative = {
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.object(o => o.field("field", S.bool)),
+      ~discriminantStruct=S.object(s => s.field("field", S.bool)),
       ~discriminantData={"field": true},
       (),
     ),
@@ -223,10 +223,10 @@ module Negative = {
       `Successfully parses object with discriminant that we don't know how to serialize "${testData.discriminantStruct->S.name}"${testData.testNamePostfix}`,
       t => {
         let struct = S.object(
-          o => {
-            ignore(o.field("discriminant", testData.discriminantStruct))
+          s => {
+            ignore(s.field("discriminant", testData.discriminantStruct))
             {
-              "field": o.field("field", S.string),
+              "field": s.field("field", S.string),
             }
           },
         )
@@ -246,10 +246,10 @@ module Negative = {
       `Fails to serialize object with discriminant that we don't know how to serialize "${testData.discriminantStruct->S.name}"${testData.testNamePostfix}`,
       t => {
         let struct = S.object(
-          o => {
-            ignore(o.field("discriminant", testData.discriminantStruct))
+          s => {
+            ignore(s.field("discriminant", testData.discriminantStruct))
             {
-              "field": o.field("field", S.string),
+              "field": s.field("field", S.string),
             }
           },
         )
@@ -269,10 +269,10 @@ module Negative = {
 }
 
 test(`Fails to parse object with invalid data passed to discriminant field`, t => {
-  let struct = S.object(o => {
-    ignore(o.field("discriminant", S.string))
+  let struct = S.object(s => {
+    ignore(s.field("discriminant", S.string))
     {
-      "field": o.field("field", S.string),
+      "field": s.field("field", S.string),
     }
   })
 
@@ -291,10 +291,10 @@ test(`Fails to parse object with invalid data passed to discriminant field`, t =
 })
 
 test(`Fails to serialize object with discriminant "Never"`, t => {
-  let struct = S.object(o => {
-    ignore(o.field("discriminant", S.never))
+  let struct = S.object(s => {
+    ignore(s.field("discriminant", S.never))
     {
-      "field": o.field("field", S.string),
+      "field": s.field("field", S.string),
     }
   })
 

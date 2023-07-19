@@ -25,8 +25,8 @@
 - Add S.function (?) (An alternative for external ???)
 
 ```
-let trimContract: S.contract<string => string> = S.contract(o => {
-  o.fn(o->S.arg(0, S.string))
+let trimContract: S.contract<string => string> = S.contract(s => {
+  s.fn(o->S.arg(0, S.string))
 }, ~return=S.string)
 ```
 
@@ -35,14 +35,12 @@ let trimContract: S.contract<string => string> = S.contract(o => {
 - Update tuple (???)
 
 ```
-let struct = S.tuple(o => (o.item(0, S.string), o.item(1, S.int)))
+let struct = S.tuple(s => (s.tag(0, "A"), s.item(1, S.int)))
 ```
 
 - Run struct factory validation checks only in dev mode
 
 - Think of the S.advancedTransform and S.advancedPreprocess destiny
-
-- Add input type for ts
 
 - S.refine(~mode=[#InputAndOutput | #Input | #Output], fn) (???)
 
@@ -53,9 +51,8 @@ Next breaking release
 - Allow passing Path string to the S.field first arg (o.nestedField)
 - rename advancedFail to failWithError
 - Add S.validator (use for test utils as well)
-- Fix serializing performance
 - Move S.inline to experimental
 - Store input in the Error.t
 - Remove S.toUnknown (update tuple)
 - intersection / spread
-- Test obj literals
+- Add built-in refinements to TS API

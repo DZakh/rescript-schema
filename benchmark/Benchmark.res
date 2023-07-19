@@ -52,21 +52,21 @@ let makeTestObject = () => {
 }
 
 let makeAdvancedObjectStruct = () => {
-  S.object(o =>
+  S.object(s =>
     {
-      "number": o.field("number", S.float),
-      "negNumber": o.field("negNumber", S.float),
-      "maxNumber": o.field("maxNumber", S.float),
-      "string": o.field("string", S.string),
-      "longString": o.field("longString", S.string),
-      "boolean": o.field("boolean", S.bool),
-      "deeplyNested": o.field(
+      "number": s.field("number", S.float),
+      "negNumber": s.field("negNumber", S.float),
+      "maxNumber": s.field("maxNumber", S.float),
+      "string": s.field("string", S.string),
+      "longString": s.field("longString", S.string),
+      "boolean": s.field("boolean", S.bool),
+      "deeplyNested": s.field(
         "deeplyNested",
-        S.object(o =>
+        S.object(s =>
           {
-            "foo": o.field("foo", S.string),
-            "num": o.field("num", S.float),
-            "bool": o.field("bool", S.bool),
+            "foo": s.field("foo", S.string),
+            "num": s.field("num", S.float),
+            "bool": s.field("bool", S.bool),
           }
         ),
       ),
@@ -75,21 +75,21 @@ let makeAdvancedObjectStruct = () => {
 }
 
 let makeAdvancedStrictObjectStruct = () => {
-  S.object(o =>
+  S.object(s =>
     {
-      "number": o.field("number", S.float),
-      "negNumber": o.field("negNumber", S.float),
-      "maxNumber": o.field("maxNumber", S.float),
-      "string": o.field("string", S.string),
-      "longString": o.field("longString", S.string),
-      "boolean": o.field("boolean", S.bool),
-      "deeplyNested": o.field(
+      "number": s.field("number", S.float),
+      "negNumber": s.field("negNumber", S.float),
+      "maxNumber": s.field("maxNumber", S.float),
+      "string": s.field("string", S.string),
+      "longString": s.field("longString", S.string),
+      "boolean": s.field("boolean", S.bool),
+      "deeplyNested": s.field(
         "deeplyNested",
-        S.object(o =>
+        S.object(s =>
           {
-            "foo": o.field("foo", S.string),
-            "num": o.field("num", S.float),
-            "bool": o.field("bool", S.bool),
+            "foo": s.field("foo", S.string),
+            "num": s.field("num", S.float),
+            "bool": s.field("bool", S.bool),
           }
         )->S.Object.strict,
       ),
@@ -101,15 +101,24 @@ let data = makeTestObject()
 Js.Console.timeStart("init")
 let struct = makeAdvancedObjectStruct()
 Js.Console.timeEnd("init")
-Js.Console.timeStart("1")
+Js.Console.timeStart("p: 1")
 data->S.parseAnyWith(struct)->ignore
-Js.Console.timeEnd("1")
-Js.Console.timeStart("2")
+Js.Console.timeEnd("p: 1")
+Js.Console.timeStart("p: 2")
 data->S.parseAnyWith(struct)->ignore
-Js.Console.timeEnd("2")
-Js.Console.timeStart("3")
+Js.Console.timeEnd("p: 2")
+Js.Console.timeStart("p: 3")
 data->S.parseAnyWith(struct)->ignore
-Js.Console.timeEnd("3")
+Js.Console.timeEnd("p: 3")
+Js.Console.timeStart("s: 1")
+data->S.serializeWith(struct)->ignore
+Js.Console.timeEnd("s: 1")
+Js.Console.timeStart("s: 2")
+data->S.serializeWith(struct)->ignore
+Js.Console.timeEnd("s: 2")
+Js.Console.timeStart("s: 3")
+data->S.serializeWith(struct)->ignore
+Js.Console.timeEnd("s: 3")
 
 Suite.make()
 ->Suite.addWithPrepare("Parse string", () => {

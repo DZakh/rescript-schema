@@ -553,20 +553,20 @@ test("Supports String", t => {
 // })
 
 // test("Supports Object (ignores transformations)", t => {
-//   let struct = S.object(o =>
+//   let struct = S.object(s =>
 //     {
-//       "name": o.field("Name", S.string),
-//       "email": o.field("Email", S.string),
-//       "age": o.field("Age", S.int),
+//       "name": s.field("Name", S.string),
+//       "email": s.field("Email", S.string),
+//       "age": s.field("Age", S.int),
 //     }
 //   )
 //   t->Assert.deepEqual(
 //     struct->S.inline,
-//     `S.object(o =>
+//     `S.object(s =>
 //   {
-//     "Name": o.field("Name", S.string),
-//     "Email": o.field("Email", S.string),
-//     "Age": o.field("Age", S.int),
+//     "Name": s.field("Name", S.string),
+//     "Email": s.field("Email", S.string),
+//     "Age": s.field("Age", S.int),
 //   }
 // )`,
 //     (),
@@ -717,18 +717,18 @@ test("Supports String", t => {
 
 // test("Supports Object structs in union", t => {
 //   let struct = S.union([
-//     S.object(o => o.field("field", S.literalVariant(String("123"), 123.))),
-//     S.object(o => o.field("field", S.float)),
+//     S.object(s => s.field("field", S.literalVariant(String("123"), 123.))),
+//     S.object(s => s.field("field", S.float)),
 //   ])
 //   let structInlineResult = S.union([
-//     S.object(o =>
+//     S.object(s =>
 //       {
-//         "field": o.field("field", S.literal(String("123"))),
+//         "field": s.field("field", S.literal(String("123"))),
 //       }
 //     )->S.variant(v => #Object(v)),
-//     S.object(o =>
+//     S.object(s =>
 //       {
-//         "field": o.field("field", S.float),
+//         "field": s.field("field", S.float),
 //       }
 //     )->S.variant(v => #Object2(v)),
 //   ])
@@ -744,13 +744,13 @@ test("Supports String", t => {
 
 //   t->Assert.deepEqual(
 //     struct->S.inline,
-//     `S.union([S.object(o =>
+//     `S.union([S.object(s =>
 //   {
-//     "field": o.field("field", S.literal(String("123"))),
+//     "field": s.field("field", S.literal(String("123"))),
 //   }
-// )->S.variant(v => #"Object"(v)), S.object(o =>
+// )->S.variant(v => #"Object"(v)), S.object(s =>
 //   {
-//     "field": o.field("field", S.float),
+//     "field": s.field("field", S.float),
 //   }
 // )->S.variant(v => #"Object2"(v))])`,
 //     (),

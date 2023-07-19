@@ -7,10 +7,10 @@ test("Successfully parses", t => {
 })
 
 test("Successfully parses object", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "id": o.field("id", S.string),
-      "isDeleted": o.field("isDeleted", S.bool),
+      "id": s.field("id", S.string),
+      "isDeleted": s.field("isDeleted", S.bool),
     }
   )
 
@@ -25,10 +25,10 @@ test("Successfully parses object", t => {
 })
 
 test("Successfully parses object with space", t => {
-  let struct = S.object(o =>
+  let struct = S.object(s =>
     {
-      "id": o.field("id", S.string),
-      "isDeleted": o.field("isDeleted", S.bool),
+      "id": s.field("id", S.string),
+      "isDeleted": s.field("isDeleted", S.bool),
     }
   )
 

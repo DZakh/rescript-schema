@@ -239,13 +239,13 @@ module Object = {
   }
 
   let factory = definer => {
-    S.object(o => {
+    S.object(s => {
       let definition = Js.Dict.empty()
       let fieldNames = definer->Js.Dict.keys
       for idx in 0 to fieldNames->Js.Array2.length - 1 {
         let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
         let struct = definer->Js.Dict.unsafeGet(fieldName)->castToRescriptStruct
-        definition->Js.Dict.set(fieldName, o.field(fieldName, struct))
+        definition->Js.Dict.set(fieldName, s.field(fieldName, struct))
       }
       definition
     })->toJsStruct
