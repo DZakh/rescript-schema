@@ -290,6 +290,28 @@ test(`Fails to parse object with invalid data passed to discriminant field`, t =
   )
 })
 
+test(`Parses discriminant fields before registered fields`, t => {
+  let struct = S.object(s => {
+    ignore(s.field("discriminant", S.string))
+    {
+      "field": s.field("field", S.string),
+    }
+  })
+
+  t->Assert.deepEqual(
+    {
+      "discriminant": false,
+      "field": false,
+    }->S.parseAnyWith(struct),
+    Error({
+      code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
+      operation: Parsing,
+      path: S.Path.fromArray(["discriminant"]),
+    }),
+    (),
+  )
+})
+
 test(`Fails to serialize object with discriminant "Never"`, t => {
   let struct = S.object(s => {
     ignore(s.field("discriminant", S.never))
@@ -304,6 +326,25 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
       code: MissingSerializer,
       operation: Serializing,
       path: S.Path.empty,
+    }),
+    (),
+  )
+})
+
+test(`Serializes constant fields before registered fields`, t => {
+  let struct = S.object(s => {
+    {
+      "field": s.field("field", S.literal(true)),
+      "constant": true,
+    }
+  })
+
+  t->Assert.deepEqual(
+    {"constant": false, "field": false}->S.serializeToUnknownWith(struct),
+    Error({
+      code: InvalidLiteral({expected: Boolean(true), received: Obj.magic(false)}),
+      operation: Serializing,
+      path: S.Path.fromArray(["constant"]),
     }),
     (),
   )

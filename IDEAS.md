@@ -51,8 +51,9 @@ Next breaking release
 - Allow passing Path string to the S.field first arg (o.nestedField)
 - rename advancedFail to failWithError
 - Add S.validator (use for test utils as well)
-- Move S.inline to experimental
+- Move S.inline to experimental or Codegen module
 - Store input in the Error.t
 - Remove S.toUnknown (update tuple)
 - intersection / spread
 - Add built-in refinements to TS API
+  // TODO: Update gen.ts
