@@ -42,18 +42,27 @@ let struct = S.tuple(s => (s.tag(0, "A"), s.item(1, S.int)))
 
 - Think of the S.advancedTransform and S.advancedPreprocess destiny
 
-- S.refine(~mode=[#InputAndOutput | #Input | #Output], fn) (???)
-
 - Use S.union for S.option/S.null/S.default? (For more correct errors)
 
-Next breaking release
+## Next breaking release
 
 - Allow passing Path string to the S.field first arg (o.nestedField)
 - rename advancedFail to failWithError
-- Add S.validator (use for test utils as well)
 - Move S.inline to experimental or Codegen module
 - Store input in the Error.t
 - Remove S.toUnknown (update tuple)
 - intersection / spread
 - Add built-in refinements to TS API
   // TODO: Update gen.ts
+- Update S_Js.res to create new structs instead of mixin in the methods
+- Use isObject check for S.object (???)
+
+## v5.1
+
+- S.matcher
+- S.validateWith
+- S.toJSON/S.castToJson
+- nestedField
+- S.produce
+- S.mutator
+- Make S.serializeToString super fast

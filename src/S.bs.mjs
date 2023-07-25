@@ -905,7 +905,7 @@ var Id = {
 var make1 = ((id,metadata)=>({[id]:metadata}));
 
 function get(struct, id) {
-  return Js_dict.get(struct.m, id);
+  return struct.m[id];
 }
 
 function set(struct, id, metadata) {
@@ -933,7 +933,7 @@ function set(struct, id, metadata) {
 var nameMetadataId = "rescript-struct:name";
 
 function name(struct) {
-  var n = Js_dict.get(struct.m, nameMetadataId);
+  var n = struct.m[nameMetadataId];
   if (n !== undefined) {
     return n;
   }
@@ -1013,7 +1013,7 @@ function refine(struct, refiner) {
 }
 
 function addRefinement(struct, metadataId, refinement, refiner) {
-  var refinements = Js_dict.get(struct.m, metadataId);
+  var refinements = struct.m[metadataId];
   return refine(set(struct, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), refiner);
 }
 
@@ -1362,7 +1362,7 @@ function toKind(definition, embededSet) {
 var metadataId = "rescript-struct:Object.UnknownKeys";
 
 function classify$2(struct) {
-  var t = Js_dict.get(struct.m, metadataId);
+  var t = struct.m[metadataId];
   if (t !== undefined) {
     return t;
   } else {
@@ -1644,7 +1644,7 @@ var struct$1 = {
 var metadataId$1 = "rescript-struct:String.refinements";
 
 function refinements(struct) {
-  var m = Js_dict.get(struct.m, metadataId$1);
+  var m = struct.m[metadataId$1];
   if (m !== undefined) {
     return m;
   } else {
@@ -1822,7 +1822,7 @@ function datetime(struct, messageOpt, param) {
     kind: "Datetime",
     message: message
   };
-  var refinements = Js_dict.get(struct.m, metadataId$1);
+  var refinements = struct.m[metadataId$1];
   return transform(set(struct, metadataId$1, refinements !== undefined ? refinements.concat(refinement) : [refinement]), (function (string) {
                 if (!datetimeRe.test(string)) {
                   fail(undefined, message);
@@ -1902,7 +1902,7 @@ var struct$3 = {
 var metadataId$2 = "rescript-struct:Int.refinements";
 
 function refinements$1(struct) {
-  var m = Js_dict.get(struct.m, metadataId$2);
+  var m = struct.m[metadataId$2];
   if (m !== undefined) {
     return m;
   } else {
@@ -1982,7 +1982,7 @@ function port(struct, messageOpt, param) {
 var metadataId$3 = "rescript-struct:Float.refinements";
 
 function refinements$2(struct) {
-  var m = Js_dict.get(struct.m, metadataId$3);
+  var m = struct.m[metadataId$3];
   if (m !== undefined) {
     return m;
   } else {
@@ -2117,7 +2117,7 @@ function factory$4(struct) {
 var metadataId$4 = "rescript-struct:Array.refinements";
 
 function refinements$3(struct) {
-  var m = Js_dict.get(struct.m, metadataId$4);
+  var m = struct.m[metadataId$4];
   if (m !== undefined) {
     return m;
   } else {
@@ -2307,7 +2307,7 @@ function factory$7(struct, getDefaultValue) {
 }
 
 function classify$3(struct) {
-  var getDefaultValue = Js_dict.get(struct.m, metadataId$5);
+  var getDefaultValue = struct.m[metadataId$5];
   if (getDefaultValue !== undefined) {
     return Caml_option.some(getDefaultValue(undefined));
   }
@@ -2608,7 +2608,7 @@ function deprecate(struct, message) {
 }
 
 function deprecation(struct) {
-  return Js_dict.get(struct.m, deprecationMetadataId);
+  return struct.m[deprecationMetadataId];
 }
 
 var descriptionMetadataId = "rescript-struct:description";
@@ -2618,7 +2618,7 @@ function describe(struct, description) {
 }
 
 function description(struct) {
-  return Js_dict.get(struct.m, descriptionMetadataId);
+  return struct.m[descriptionMetadataId];
 }
 
 function toReason(nestedLevelOpt, error) {

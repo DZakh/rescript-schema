@@ -1087,8 +1087,8 @@ module Metadata = {
     'metadata,
   ) => Js.Dict.t<unknown> = %raw(`(id,metadata)=>({[id]:metadata})`)
 
-  let get = (struct, ~id: Id.t<'metadata>): option<'metadata> => {
-    struct.metadataMap->Js.Dict.get(id->Id.toKey)->Obj.magic
+  let get = (struct, ~id: Id.t<'metadata>) => {
+    struct.metadataMap->Js.Dict.unsafeGet(id->Id.toKey)->(Obj.magic: unknown => option<'metadata>)
   }
 
   let set = (struct, ~id: Id.t<'metadata>, metadata: 'metadata) => {
@@ -2953,6 +2953,7 @@ module Default = {
 
   let classify = struct =>
     switch struct->Metadata.get(~id=metadataId) {
+    // TODO: Test with getDefaultValue returning None
     | Some(getDefaultValue) => Some(getDefaultValue())
     | None => None
     }
