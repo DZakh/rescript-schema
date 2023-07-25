@@ -31,13 +31,14 @@
     - `TupleSize` renamed to `InvalidTupleSize`
     - `UnexpectedType` renamed to `InvalidType` and contains the failed struct and provided input instead of their names. Also, it's not returned for literals anymore, literal structs always fail with `InvlidLiteral` error code now.
     - `UnexpectedValue` renamed to `InvlidLiteral` and contains the expected literal and provided input instead of their names.
-    - `MissingSerializer` and `MissingParser` renamed to single `MissingOperation`
+    - `MissingSerializer` and `MissingParser` renamed to single `MissingOperation({description: string})`
 - `S.deprecate` doesn't make a struct optional anymore (it used to use `S.option` internally)
 - `S.default` now uses `S.option` internally, so you don't need to call it yourself
 - Updated `S.name` logic and added `S.setName` to be able customize it. Name is used for errors, codegen and external tools
 - `S.refine` now accepts only one refining function which is applied both for parser and serializer. If you want to refine the parser and serializer separately as before, use `S.transform` instead. And to asynchronously refine a parser you should use the newly added `S.asyncParserRefine`
 - `S.inline` is temporary broken
 - Updated API for `S.Tuple.factory`. There are plans to change it once more before the actual release
+- `S.variant` used to fail when using value multiple times. Now it allows to create a struct and fails only on serializing with `MissingOperation` code.
 
 ## TS API changes
 

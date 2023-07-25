@@ -56,7 +56,9 @@ test("Fails to serialize when the value is not used as the variant payload", t =
   t->Assert.deepEqual(
     #foo->S.serializeToUnknownWith(struct),
     Error({
-      code: MissingOperation,
+      code: MissingOperation({
+        description: "Can\'t create serializer. The S.variant\'s value is not registered and not a literal. Use S.transform instead",
+      }),
       path: S.Path.empty,
       operation: Serializing,
     }),
@@ -73,14 +75,37 @@ test(
   },
 )
 
-test("Fails to create variant struct with payload defined multiple times", t => {
-  t->Assert.throws(
-    () => {
-      S.string->S.variant(s => #Foo(s, s))
-    },
-    ~expectations={
-      message: `[rescript-struct] The variant\'s value is registered multiple times. If you want to duplicate it, use S.transform instead.`,
-    },
+test("Successfully parses when tuple is destructured", t => {
+  let struct = S.tuple2(S.literal(true), S.literal(12))->S.variant(((_, twelve)) => twelve)
+
+  t->Assert.deepEqual(%raw(`[true, 12]`)->S.parseAnyWith(struct), Ok(12), ())
+})
+
+// TODO: Throw in proxy (???)
+// test("Fails to serialize when tuple is destructured", t => {
+//   let struct = S.tuple2(S.literal(true), S.literal(12))->S.variant(((_, twelve)) => twelve)
+
+//   t->Assert.deepEqual(12->S.serializeToUnknownWith(struct), Ok(%raw(`[true, 12]`)), ())
+// })
+
+test("Successfully parses when value registered multiple times", t => {
+  let struct = S.string->S.variant(s => #Foo(s, s))
+
+  t->Assert.deepEqual(%raw(`"abc"`)->S.parseAnyWith(struct), Ok(#Foo("abc", "abc")), ())
+})
+
+test("Fails to serialize when value registered multiple times", t => {
+  let struct = S.string->S.variant(s => #Foo(s, s))
+
+  t->Assert.deepEqual(
+    #Foo("abc", "abc")->S.serializeToUnknownWith(struct),
+    Error({
+      code: MissingOperation({
+        description: "Can\'t create serializer. The S.variant\'s value is registered multiple times. Use S.transform instead",
+      }),
+      path: S.Path.empty,
+      operation: Serializing,
+    }),
     (),
   )
 })

@@ -74,13 +74,13 @@ test("Fails to serialize with user error", t => {
   )
 })
 
-test("Fails to serialize with missing serializer", t => {
+test("Fails to serialize with serializer is missing", t => {
   let struct = S.custom(~name="Test", ~parser=_ => (), ())
 
   t->Assert.deepEqual(
     ()->S.serializeToUnknownWith(struct),
     Error({
-      code: MissingOperation,
+      code: MissingOperation({description: "The S.custom serializer is missing"}),
       operation: Serializing,
       path: S.Path.empty,
     }),

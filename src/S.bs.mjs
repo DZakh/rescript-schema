@@ -356,10 +356,13 @@ function raiseWithArg(b, pathVar, fn, arg) {
               }) - 1) + "](" + pathVar + "," + arg + ")";
 }
 
-function missingOperation(b, pathVar) {
+function missingOperation(b, pathVar, description) {
   return "e[" + (b.e.push(function (path) {
                 throw {
-                      c: "MissingOperation",
+                      c: {
+                        TAG: "MissingOperation",
+                        description: description
+                      },
                       p: path,
                       s: symbol
                     };
@@ -1025,7 +1028,7 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, pathVar) {
               if (maybeParser === undefined) {
-                return missingOperation(b, pathVar);
+                return missingOperation(b, pathVar, "The S.advancedTransform parser is missing");
               }
               var syncTransformation = maybeParser(selfStruct);
               if (typeof syncTransformation !== "object") {
@@ -1043,7 +1046,7 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
             }),
           sb: (function (b, selfStruct, inputVar, pathVar) {
               if (maybeSerializer === undefined) {
-                return missingOperation(b, pathVar);
+                return missingOperation(b, pathVar, "The S.advancedTransform serializer is missing");
               }
               var fn = maybeSerializer(selfStruct);
               if (typeof fn !== "object") {
@@ -1051,7 +1054,7 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
               } else if (fn.TAG === "Sync") {
                 return run(b, struct.sb, struct, embedSyncOperation(b, inputVar, pathVar, fn._0, undefined, undefined, undefined), pathVar);
               } else {
-                return missingOperation(b, pathVar);
+                return missingOperation(b, pathVar, "The S.advancedTransform serializer doesn't support async");
               }
             }),
           i: 0,
@@ -1083,7 +1086,7 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
                         };
                       }), undefined, undefined);
         }) : (function (b, param, param$1, pathVar) {
-          return missingOperation(b, pathVar);
+          return missingOperation(b, pathVar, "The S.transform parser is missing");
         });
   }
   return {
@@ -1092,7 +1095,7 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
           sb: maybeSerializer !== undefined ? (function (b, param, inputVar, pathVar) {
                 return run(b, struct.sb, struct, embedSyncOperation(b, inputVar, pathVar, maybeSerializer, undefined, undefined, undefined), pathVar);
               }) : (function (b, param, param$1, pathVar) {
-                return missingOperation(b, pathVar);
+                return missingOperation(b, pathVar, "The S.transform serializer is missing");
               }),
           i: 0,
           s: initialSerialize,
@@ -1130,7 +1133,7 @@ function advancedPreprocess(struct, maybeParser, maybeSerializer, param) {
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, pathVar) {
               if (maybeParser === undefined) {
-                return missingOperation(b, pathVar);
+                return missingOperation(b, pathVar, "The S.advancedPreprocess parser is missing");
               }
               var syncTransformation = maybeParser(selfStruct);
               if (typeof syncTransformation !== "object") {
@@ -1157,7 +1160,7 @@ function advancedPreprocess(struct, maybeParser, maybeSerializer, param) {
             }),
           sb: (function (b, selfStruct, inputVar, pathVar) {
               if (maybeSerializer === undefined) {
-                return missingOperation(b, pathVar);
+                return missingOperation(b, pathVar, "The S.advancedPreprocess serializer is missing");
               }
               var fn = maybeSerializer(selfStruct);
               if (typeof fn !== "object") {
@@ -1165,7 +1168,7 @@ function advancedPreprocess(struct, maybeParser, maybeSerializer, param) {
               } else if (fn.TAG === "Sync") {
                 return embedSyncOperation(b, run(b, struct.sb, struct, inputVar, pathVar), pathVar, fn._0, undefined, undefined, undefined);
               } else {
-                return missingOperation(b, pathVar);
+                return missingOperation(b, pathVar, "The S.advancedPreprocess serializer doesn't support async");
               }
             }),
           i: 0,
@@ -1197,7 +1200,7 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
                         };
                       }), undefined, undefined);
         }) : (function (b, param, param$1, pathVar) {
-          return missingOperation(b, pathVar);
+          return missingOperation(b, pathVar, "The S.custom parser is missing");
         });
   }
   return {
@@ -1206,7 +1209,7 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
           sb: maybeSerializer !== undefined ? (function (b, param, inputVar, pathVar) {
                 return embedSyncOperation(b, inputVar, pathVar, maybeSerializer, undefined, undefined, undefined);
               }) : (function (b, param, param$1, pathVar) {
-                return missingOperation(b, pathVar);
+                return missingOperation(b, pathVar, "The S.custom serializer is missing");
               }),
           i: 0,
           s: initialSerialize,
@@ -1269,74 +1272,78 @@ function literal(value) {
         };
 }
 
-function validateDefinition(definition, ctx, path) {
-  if (definition === ctx) {
-    if (ctx.r) {
-      throw new Error("[rescript-struct] The variant's value is registered multiple times. If you want to duplicate it, use S.transform instead.");
-    }
-    ctx.a = path;
-    ctx.r = true;
-    return ;
+function toKindWithSet(definition, embededSet) {
+  if (embededSet.has(definition)) {
+    return 2;
+  } else if (typeof definition === "object" && definition !== null) {
+    return 0;
+  } else {
+    return 1;
   }
-  if (typeof definition === "object" && definition !== null) {
-    var definitionFieldNames = Object.keys(definition);
-    for(var idx = 0 ,idx_finish = definitionFieldNames.length; idx < idx_finish; ++idx){
-      var definitionFieldName = definitionFieldNames[idx];
-      var definition$1 = definition[definitionFieldName];
-      validateDefinition(definition$1, ctx, path + ("[" + JSON.stringify(definitionFieldName) + "]"));
-    }
-    return ;
-  }
-  ctx.c.push({
-        v: definition,
-        p: path
-      });
 }
 
 function factory(struct, definer) {
-  var ctx = {
-    a: "",
-    r: false,
-    c: []
-  };
-  var definition = definer(ctx);
-  validateDefinition(definition, ctx, "");
   return {
           t: struct.t,
           pb: (function (b, param, inputVar, pathVar) {
               return embedSyncOperation(b, run(b, struct.pb, struct, inputVar, pathVar), pathVar, definer, true, undefined, undefined);
             }),
           sb: (function (b, selfStruct, inputVar, pathVar) {
-              var valuePath = ctx.a;
-              var isValueRegistered = ctx.r;
-              var constantDefinitions = ctx.c;
-              for(var idx = 0 ,idx_finish = constantDefinitions.length; idx < idx_finish; ++idx){
-                var match = constantDefinitions[idx];
-                var path = match.p;
-                var value$1 = match.v;
-                b.c = b.c + ("if(" + inputVar + path + "!==" + ("e[" + (b.e.push(value$1) - 1) + "]") + "){" + raiseWithArg(b, pathVar + "+" + JSON.stringify(path), (function(value$1){
-                      return function (input) {
-                        return {
-                                TAG: "InvalidLiteral",
-                                expected: classify(value$1),
-                                received: input
-                              };
+              var definition = definer(symbol);
+              var definitionToOutput = function (definition, outputPath) {
+                var kind = symbol === definition ? 2 : (
+                    typeof definition === "object" && definition !== null ? 0 : 1
+                  );
+                switch (kind) {
+                  case 0 :
+                      var keys = Object.keys(definition);
+                      var maybeOutputRef = 0;
+                      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+                        var key = keys[idx];
+                        var definition$1 = definition[key];
+                        var maybeOutput = definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+                        var match = maybeOutputRef;
+                        if (typeof match !== "string") {
+                          if (match === 0) {
+                            maybeOutputRef = maybeOutput;
+                          }
+                          
+                        } else if (!(typeof maybeOutput !== "string" && maybeOutput === 0)) {
+                          maybeOutputRef = 1;
+                        }
+                        
                       }
-                      }(value$1)), inputVar + path) + "}");
+                      return maybeOutputRef;
+                  case 1 :
+                      var constantVar = $$var(b);
+                      b.c = b.c + (constantVar + "=" + inputVar + outputPath + ";if(" + constantVar + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, pathVar + "+" + JSON.stringify(outputPath), (function (input) {
+                                return {
+                                        TAG: "InvalidLiteral",
+                                        expected: classify(definition),
+                                        received: input
+                                      };
+                              }), constantVar) + "}");
+                      return 0;
+                  case 2 :
+                      return inputVar + outputPath;
+                  
+                }
+              };
+              var output = definitionToOutput(definition, "");
+              if (typeof output === "string") {
+                return run(b, struct.sb, struct, output, pathVar);
               }
-              var valueVar = $$var(b);
-              if (isValueRegistered) {
-                b.c = b.c + (valueVar + "=" + inputVar + valuePath + ";");
-              } else {
+              if (output === 0) {
                 var literal = toLiteral(selfStruct);
                 if (literal !== undefined) {
-                  var value$2 = value(literal);
-                  b.c = b.c + (valueVar + "=" + ("e[" + (b.e.push(value$2) - 1) + "]") + ";");
-                } else {
-                  b.c = missingOperation(b, pathVar);
+                  var value$1 = value(literal);
+                  return run(b, struct.sb, struct, "e[" + (b.e.push(value$1) - 1) + "]", pathVar);
                 }
+                b.c = missingOperation(b, pathVar, "Can't create serializer. The S.variant's value is not registered and not a literal. Use S.transform instead");
+                return inputVar;
               }
-              return run(b, struct.sb, struct, valueVar, pathVar);
+              b.c = missingOperation(b, pathVar, "Can't create serializer. The S.variant's value is registered multiple times. Use S.transform instead");
+              return inputVar;
             }),
           i: 0,
           s: initialSerialize,
@@ -1345,16 +1352,6 @@ function factory(struct, definer) {
           a: intitialParseAsync,
           m: struct.m
         };
-}
-
-function toKind(definition, embededSet) {
-  if (embededSet.has(definition)) {
-    return 2;
-  } else if (typeof definition === "object" && definition !== null) {
-    return 0;
-  } else {
-    return 1;
-  }
 }
 
 var metadataId = "rescript-struct:Object.UnknownKeys";
@@ -1368,15 +1365,15 @@ function classify$2(struct) {
   }
 }
 
-function validateDefinition$1(definition, ctx, path) {
-  var kind = toKind(definition, ctx.d);
+function validateDefinition(definition, ctx, path) {
+  var kind = toKindWithSet(definition, ctx.d);
   switch (kind) {
     case 0 :
         var keys = Object.keys(definition);
         for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
           var key = keys[idx];
           var definition$1 = definition[key];
-          validateDefinition$1(definition$1, ctx, path + ("[" + JSON.stringify(key) + "]"));
+          validateDefinition(definition$1, ctx, path + ("[" + JSON.stringify(key) + "]"));
         }
         return ;
     case 1 :
@@ -1422,7 +1419,7 @@ function factory$1(definer) {
     t: tag
   };
   var definition = definer(ctx);
-  validateDefinition$1(definition, ctx, "");
+  validateDefinition(definition, ctx, "");
   var fieldDefinitionsSet$1 = fieldDefinitionsSet;
   var fieldDefinitions = Array.from(fieldDefinitionsSet$1);
   return {
@@ -1486,7 +1483,7 @@ function factory$1(definer) {
                 }
               }
               var definitionToOutput = function (definition, outputPath) {
-                var kind = toKind(definition, fieldDefinitionsSet$1);
+                var kind = toKindWithSet(definition, fieldDefinitionsSet$1);
                 switch (kind) {
                   case 0 :
                       var isArray = Array.isArray(definition);
@@ -1535,15 +1532,15 @@ function factory$1(definer) {
               };
               var prevCode = b.c;
               b.c = "";
-              var definitionToInput = function (definition, outputPath) {
-                var kind = toKind(definition, fieldDefinitionsSet$1);
+              var definitionToOutput = function (definition, outputPath) {
+                var kind = toKindWithSet(definition, fieldDefinitionsSet$1);
                 switch (kind) {
                   case 0 :
                       var keys = Object.keys(definition);
                       for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
                         var key = keys[idx];
                         var definition$1 = definition[key];
-                        definitionToInput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+                        definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
                       }
                       return ;
                   case 1 :
@@ -1570,18 +1567,19 @@ function factory$1(definer) {
                   
                 }
               };
-              definitionToInput(definition, "");
+              definitionToOutput(definition, "");
               b.c = prevCode + b.c;
               for(var idx = 0 ,idx_finish = fieldDefinitions.length; idx < idx_finish; ++idx){
                 var match = fieldDefinitions[idx];
+                var inlinedInputLocation = match.l;
                 var isRegistered = match.r;
                 if (!isRegistered) {
                   var literal = toLiteral(match.s);
                   if (literal !== undefined) {
                     var value$1 = value(literal);
-                    fieldsCodeRef.contents = fieldsCodeRef.contents + (match.l + ":" + ("e[" + (b.e.push(value$1) - 1) + "]") + ",");
+                    fieldsCodeRef.contents = fieldsCodeRef.contents + (inlinedInputLocation + ":" + ("e[" + (b.e.push(value$1) - 1) + "]") + ",");
                   } else {
-                    b.c = missingOperation(b, pathVar);
+                    b.c = missingOperation(b, pathVar, "Can't create serializer. The " + inlinedInputLocation + " field is not registered and not a literal. Use S.transform instead");
                   }
                 }
                 
@@ -2623,39 +2621,34 @@ function toReason(nestedLevelOpt, error) {
   var nestedLevel = nestedLevelOpt !== undefined ? nestedLevelOpt : 0;
   var reason = error.code;
   if (typeof reason !== "object") {
-    if (reason !== "MissingOperation") {
-      return "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith";
-    }
-    var match = error.operation;
-    var tmp;
-    tmp = match === "Serializing" ? "serializer" : "parser";
-    return "Struct " + tmp + " is missing";
-  } else {
-    switch (reason.TAG) {
-      case "OperationFailed" :
-          return reason._0;
-      case "InvalidType" :
-          return "Expected " + name(reason.expected) + ", received " + toText(classify(reason.received));
-      case "InvalidLiteral" :
-          return "Expected " + toText(reason.expected) + ", received " + toText(classify(reason.received));
-      case "InvalidTupleSize" :
-          return "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString();
-      case "ExcessField" :
-          return "Encountered disallowed excess key " + JSON.stringify(reason._0) + " on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely";
-      case "InvalidUnion" :
-          var lineBreak = "\n" + " ".repeat((nestedLevel << 1));
-          var array = reason._0.map(function (error) {
-                var reason = toReason(nestedLevel + 1, error);
-                var nonEmptyPath = error.path;
-                var $$location = nonEmptyPath === "" ? "" : "Failed at " + nonEmptyPath + ". ";
-                return "- " + $$location + reason;
-              });
-          var reasons = Array.from(new Set(array));
-          return "Invalid union with following errors" + lineBreak + reasons.join(lineBreak);
-      case "InvalidJsonStruct" :
-          return "The struct " + name(reason._0) + " is not compatible with JSON";
-      
-    }
+    return "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith";
+  }
+  switch (reason.TAG) {
+    case "OperationFailed" :
+        return reason._0;
+    case "MissingOperation" :
+        return reason.description;
+    case "InvalidType" :
+        return "Expected " + name(reason.expected) + ", received " + toText(classify(reason.received));
+    case "InvalidLiteral" :
+        return "Expected " + toText(reason.expected) + ", received " + toText(classify(reason.received));
+    case "InvalidTupleSize" :
+        return "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString();
+    case "ExcessField" :
+        return "Encountered disallowed excess key " + JSON.stringify(reason._0) + " on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely";
+    case "InvalidUnion" :
+        var lineBreak = "\n" + " ".repeat((nestedLevel << 1));
+        var array = reason._0.map(function (error) {
+              var reason = toReason(nestedLevel + 1, error);
+              var nonEmptyPath = error.path;
+              var $$location = nonEmptyPath === "" ? "" : "Failed at " + nonEmptyPath + ". ";
+              return "- " + $$location + reason;
+            });
+        var reasons = Array.from(new Set(array));
+        return "Invalid union with following errors" + lineBreak + reasons.join(lineBreak);
+    case "InvalidJsonStruct" :
+        return "The struct " + name(reason._0) + " is not compatible with JSON";
+    
   }
 }
 

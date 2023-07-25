@@ -399,7 +399,7 @@ and struct<'a> = t<'a>
 type rec error = {operation: operation, code: errorCode, path: Path.t}
 and errorCode =
   | OperationFailed(string)
-  | MissingOperation
+  | MissingOperation({description: string})
   | InvalidType({expected: struct<unknown>, received: unknown})
   | InvalidLiteral({expected: Literal.t, received: unknown})
   | InvalidTupleSize({expected: int, received: int})
@@ -659,9 +659,9 @@ module Builder = {
         })}(${pathVar},${arg})`
     }
 
-    let missingOperation = (b: t, ~pathVar) => {
+    let missingOperation = (b: t, ~pathVar, ~description) => {
       `${b->embed(path => {
-          InternalError.raise(~path, ~code=MissingOperation)
+          InternalError.raise(~path, ~code=MissingOperation({description: description}))
         })}(${pathVar});`
     }
 
@@ -1246,7 +1246,8 @@ let advancedTransform: (
             (),
           )
         }
-      | None => b->B.missingOperation(~pathVar)
+      | None =>
+        b->B.missingOperation(~pathVar, ~description=`The S.advancedTransform parser is missing`)
       }
     }),
     ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
@@ -1263,9 +1264,17 @@ let advancedTransform: (
             ~inputVar=b->B.embedSyncOperation(~inputVar, ~pathVar, ~fn, ()),
             ~pathVar,
           )
-        | Async(_) => b->B.missingOperation(~pathVar)
+        | Async(_) =>
+          b->B.missingOperation(
+            ~pathVar,
+            ~description=`The S.advancedTransform serializer doesn't support async`,
+          )
         }
-      | None => b->B.missingOperation(~pathVar)
+      | None =>
+        b->B.missingOperation(
+          ~pathVar,
+          ~description=`The S.advancedTransform serializer is missing`,
+        )
       }
     }),
     ~metadataMap=struct.metadataMap,
@@ -1319,7 +1328,7 @@ let transform: (
       })
     | (None, None) =>
       Builder.make((b, ~selfStruct as _, ~inputVar as _, ~pathVar) => {
-        b->B.missingOperation(~pathVar)
+        b->B.missingOperation(~pathVar, ~description=`The S.transform parser is missing`)
       })
     },
     ~serializeOperationBuilder=switch maybeSerializer {
@@ -1334,7 +1343,7 @@ let transform: (
       })
     | None =>
       Builder.make((b, ~selfStruct as _, ~inputVar as _, ~pathVar) => {
-        b->B.missingOperation(~pathVar)
+        b->B.missingOperation(~pathVar, ~description=`The S.transform serializer is missing`)
       })
     },
     ~metadataMap=struct.metadataMap,
@@ -1407,7 +1416,8 @@ let rec advancedPreprocess = (
               outputVar
             }
           }
-        | None => b->B.missingOperation(~pathVar)
+        | None =>
+          b->B.missingOperation(~pathVar, ~description=`The S.advancedPreprocess parser is missing`)
         }
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
@@ -1430,9 +1440,17 @@ let rec advancedPreprocess = (
               ~fn,
               (),
             )
-          | Async(_) => b->B.missingOperation(~pathVar)
+          | Async(_) =>
+            b->B.missingOperation(
+              ~pathVar,
+              ~description=`The S.advancedPreprocess serializer doesn't support async`,
+            )
           }
-        | None => b->B.missingOperation(~pathVar)
+        | None =>
+          b->B.missingOperation(
+            ~pathVar,
+            ~description=`The S.advancedPreprocess serializer is missing`,
+          )
         }
       }),
       ~metadataMap=struct.metadataMap,
@@ -1470,7 +1488,7 @@ let custom = (
       })
     | (None, None) =>
       Builder.make((b, ~selfStruct as _, ~inputVar as _, ~pathVar) => {
-        b->B.missingOperation(~pathVar)
+        b->B.missingOperation(~pathVar, ~description=`The S.custom parser is missing`)
       })
     },
     ~serializeOperationBuilder=switch maybeSerializer {
@@ -1480,7 +1498,7 @@ let custom = (
       })
     | None =>
       Builder.make((b, ~selfStruct as _, ~inputVar as _, ~pathVar) => {
-        b->B.missingOperation(~pathVar)
+        b->B.missingOperation(~pathVar, ~description=`The S.custom serializer is missing`)
       })
     },
     (),
@@ -1559,72 +1577,44 @@ let literal = value => {
   )
 }
 
-module Variant = {
-  module ConstantDefinition = {
-    type t = {@as("v") value: unknown, @as("p") path: Path.t}
-  }
+module Definition = {
+  type t<'embeded>
+  type node<'embeded> = Js.Dict.t<t<'embeded>>
+  type kind = | @as(0) Node | @as(1) Constant | @as(2) Embeded
 
-  module Ctx = {
-    type t = {
-      @as("a")
-      mutable valuePath: Path.t,
-      @as("r")
-      mutable isValueRegistered: bool,
-      @as("c")
-      constantDefinitions: array<ConstantDefinition.t>,
-    }
-
-    @inline
-    let make = () => {
-      valuePath: Path.empty,
-      isValueRegistered: false,
-      constantDefinitions: [],
-    }
-  }
-
-  let rec validateDefinition = (definition, ~ctx: Ctx.t, ~path) => {
-    if (
-      // Use the ctx as a value placeholder
-      definition->(Obj.magic: unknown => Ctx.t) === ctx
-    ) {
-      if ctx.isValueRegistered {
-        InternalError.panic(`The variant's value is registered multiple times. If you want to duplicate it, use S.transform instead.`)
-      } else {
-        ctx.valuePath = path
-        ctx.isValueRegistered = true
-      }
+  let toKindWithSet = (definition: t<'embeded>, ~embededSet: Stdlib.Set.t<'embeded>) => {
+    if embededSet->Stdlib.Set.has(definition->(Obj.magic: t<'embeded> => 'embeded)) {
+      Embeded
     } else if definition->Stdlib.Type.typeof === #object && definition !== %raw(`null`) {
-      let definition: Js.Dict.t<unknown> = definition->Obj.magic
-      let definitionFieldNames = definition->Js.Dict.keys
-      for idx in 0 to definitionFieldNames->Js.Array2.length - 1 {
-        let definitionFieldName = definitionFieldNames->Js.Array2.unsafe_get(idx)
-        let definition = definition->Js.Dict.unsafeGet(definitionFieldName)
-        definition->validateDefinition(
-          ~ctx,
-          ~path=path->Path.concat(definitionFieldName->Path.fromLocation),
-        )
-      }
+      Node
     } else {
-      ctx.constantDefinitions
-      ->Js.Array2.push({
-        path,
-        value: definition,
-      })
-      ->ignore
+      Constant
     }
   }
+
+  @inline
+  let toKindWithValue = (definition: t<'embeded>, ~embeded: 'embeded) => {
+    if embeded === definition->(Obj.magic: t<'embeded> => 'embeded) {
+      Embeded
+    } else if definition->Stdlib.Type.typeof === #object && definition !== %raw(`null`) {
+      Node
+    } else {
+      Constant
+    }
+  }
+
+  let toConstant = (Obj.magic: t<'embeded> => unknown)
+  let toEmbeded = (Obj.magic: t<'embeded> => 'embeded)
+  let toNode = (Obj.magic: t<'embeded> => node<'embeded>)
+}
+
+module Variant = {
+  @unboxed
+  type serializeOutput = Registered(string) | @as(0) Unregistered | @as(1) RegisteredMultipleTimes
 
   let factory = {
-    (struct, definer) => {
+    (struct: t<'value>, definer: 'value => 'variant): t<'variant> => {
       let struct = struct->toUnknown
-      let instructions = {
-        let ctx = Ctx.make()
-        // TODO: pass symbol, so it throws on trying to distructure
-        let definition = definer(ctx->Obj.magic)->castAnyToUnknown
-        definition->validateDefinition(~ctx, ~path=Path.empty)
-        ctx
-      }
-
       make(
         ~tagged=struct.tagged,
         ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~pathVar) => {
@@ -1637,61 +1627,100 @@ module Variant = {
           )
         }),
         ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
-          let {constantDefinitions, isValueRegistered, valuePath} = instructions
+          let definition =
+            definer(symbol->(Obj.magic: Stdlib.Symbol.t => 'value))->(
+              Obj.magic: 'variant => Definition.t<Stdlib.Symbol.t>
+            )
 
-          for idx in 0 to constantDefinitions->Js.Array2.length - 1 {
-            let {path, value} = constantDefinitions->Js.Array2.unsafe_get(idx)
-            b.code =
-              b.code ++
-              `if(${inputVar}${path}!==${b->B.embed(value)}){${b->B.raiseWithArg(
-                  ~pathVar=`${pathVar}+${path->Stdlib.Inlined.Value.fromString}`,
-                  input => InvalidLiteral({
-                    expected: value->Literal.classify,
-                    received: input,
-                  }),
-                  `${inputVar}${path}`,
-                )}}`
+          let output = {
+            // TODO: Check that it might be not an object in union
+            let rec definitionToOutput = (
+              definition: Definition.t<Stdlib.Symbol.t>,
+              ~outputPath,
+            ) => {
+              let kind = definition->Definition.toKindWithValue(~embeded=symbol)
+              switch kind {
+              | Embeded => Registered(`${inputVar}${outputPath}`)
+              | Constant => {
+                  let constant = definition->Definition.toConstant
+                  let constantVar = b->B.var
+                  b.code =
+                    b.code ++
+                    `${constantVar}=${inputVar}${outputPath};if(${constantVar}!==${b->B.embed(
+                        constant,
+                      )}){${b->B.raiseWithArg(
+                        ~pathVar=`${pathVar}+${outputPath->Stdlib.Inlined.Value.fromString}`,
+                        input => InvalidLiteral({
+                          expected: constant->Literal.classify,
+                          received: input,
+                        }),
+                        constantVar,
+                      )}}`
+                  Unregistered
+                }
+              | Node => {
+                  let node = definition->Definition.toNode
+                  let keys = node->Js.Dict.keys
+                  let maybeOutputRef = ref(Unregistered)
+                  for idx in 0 to keys->Js.Array2.length - 1 {
+                    let key = keys->Js.Array2.unsafe_get(idx)
+                    let definition = node->Js.Dict.unsafeGet(key)
+                    let maybeOutput = definitionToOutput(
+                      definition,
+                      ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
+                    )
+                    switch (maybeOutputRef.contents, maybeOutput) {
+                    | (Registered(_), Registered(_))
+                    | (Registered(_), RegisteredMultipleTimes) =>
+                      maybeOutputRef.contents = RegisteredMultipleTimes
+                    | (RegisteredMultipleTimes, _)
+                    | (Registered(_), Unregistered) => ()
+                    | (Unregistered, _) => maybeOutputRef.contents = maybeOutput
+                    }
+                  }
+                  maybeOutputRef.contents
+                }
+              }
+            }
+            definitionToOutput(definition, ~outputPath=Path.empty)
           }
 
-          let valueVar = b->B.var
-
-          switch isValueRegistered {
-          | true => b.code = b.code ++ `${valueVar}=${inputVar}${valuePath};`
-          | false =>
+          switch output {
+          | RegisteredMultipleTimes => {
+              b.code =
+                b->B.missingOperation(
+                  ~pathVar,
+                  ~description=`Can't create serializer. The S.variant's value is registered multiple times. Use S.transform instead`,
+                )
+              inputVar
+            }
+          | Registered(var) =>
+            b->B.run(~builder=struct.serializeOperationBuilder, ~struct, ~inputVar=var, ~pathVar)
+          | Unregistered =>
             switch selfStruct->toLiteral {
             | Some(literal) =>
-              b.code = b.code ++ `${valueVar}=${b->B.embed(literal->Literal.value)};`
-            | None => b.code = b->B.missingOperation(~pathVar)
+              b->B.run(
+                ~builder=struct.serializeOperationBuilder,
+                ~struct,
+                ~inputVar=b->B.embed(literal->Literal.value),
+                ~pathVar,
+              )
+            | None => {
+                b.code =
+                  b->B.missingOperation(
+                    ~pathVar,
+                    ~description=`Can't create serializer. The S.variant's value is not registered and not a literal. Use S.transform instead`,
+                  )
+                inputVar
+              }
             }
           }
-
-          b->B.run(~builder=struct.serializeOperationBuilder, ~struct, ~inputVar=valueVar, ~pathVar)
         }),
         ~metadataMap=struct.metadataMap,
         (),
       )
     }
   }
-}
-
-module Definition = {
-  type t<'embeded>
-  type node<'embeded> = Js.Dict.t<t<'embeded>>
-  type kind = | @as(0) Node | @as(1) Constant | @as(2) Embeded
-
-  let toKind = (definition: t<'embeded>, ~embededSet: Stdlib.Set.t<'embeded>) => {
-    if embededSet->Stdlib.Set.has(definition->(Obj.magic: t<'embeded> => 'embeded)) {
-      Embeded
-    } else if definition->Stdlib.Type.typeof === #object && definition !== %raw(`null`) {
-      Node
-    } else {
-      Constant
-    }
-  }
-
-  let toConstant = (Obj.magic: t<'embeded> => unknown)
-  let toEmbeded = (Obj.magic: t<'embeded> => 'embeded)
-  let toNode = (Obj.magic: t<'embeded> => node<'embeded>)
 }
 
 module Object = {
@@ -1788,12 +1817,13 @@ module Object = {
     }
   }
 
+  // TODO: get rid of
   let rec validateDefinition = (
     definition: Definition.t<FieldDefinition.t>,
     ~ctx: Ctx.t,
     ~path,
   ) => {
-    let kind = definition->Definition.toKind(~embededSet=ctx.fieldDefinitionsSet)
+    let kind = definition->Definition.toKindWithSet(~embededSet=ctx.fieldDefinitionsSet)
     switch kind {
     | Constant => ()
     | Embeded => {
@@ -1904,7 +1934,7 @@ module Object = {
             definition: Definition.t<FieldDefinition.t>,
             ~outputPath,
           ) => {
-            let kind = definition->Definition.toKind(~embededSet=fieldDefinitionsSet)
+            let kind = definition->Definition.toKindWithSet(~embededSet=fieldDefinitionsSet)
             switch kind {
             | Embeded => {
                 let {struct, inputPath} = definition->Definition.toEmbeded
@@ -1973,11 +2003,11 @@ module Object = {
         b.code = ""
 
         {
-          let rec definitionToInput = (
+          let rec definitionToOutput = (
             definition: Definition.t<FieldDefinition.t>,
             ~outputPath,
           ) => {
-            let kind = definition->Definition.toKind(~embededSet=fieldDefinitionsSet)
+            let kind = definition->Definition.toKindWithSet(~embededSet=fieldDefinitionsSet)
             switch kind {
             | Embeded => {
                 let {struct, inlinedInputLocation} = definition->Definition.toEmbeded
@@ -2017,7 +2047,7 @@ module Object = {
                 for idx in 0 to keys->Js.Array2.length - 1 {
                   let key = keys->Js.Array2.unsafe_get(idx)
                   let definition = node->Js.Dict.unsafeGet(key)
-                  definitionToInput(
+                  definitionToOutput(
                     definition,
                     ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
                   )
@@ -2025,7 +2055,7 @@ module Object = {
               }
             }
           }
-          definitionToInput(definition, ~outputPath=Path.empty)
+          definitionToOutput(definition, ~outputPath=Path.empty)
         }
 
         b.code = prevCode ++ b.code
@@ -2040,7 +2070,12 @@ module Object = {
               fieldsCodeRef.contents =
                 fieldsCodeRef.contents ++
                 `${inlinedInputLocation}:${b->B.embed(literal->Literal.value)},`
-            | None => b.code = b->B.missingOperation(~pathVar)
+            | None =>
+              b.code =
+                b->B.missingOperation(
+                  ~pathVar,
+                  ~description=`Can't create serializer. The ${inlinedInputLocation} field is not registered and not a literal. Use S.transform instead`,
+                )
             }
           }
         }
@@ -3352,11 +3387,7 @@ module Error = {
   let rec toReason = (~nestedLevel=0, error) => {
     switch error.code {
     | OperationFailed(reason) => reason
-    | MissingOperation =>
-      `Struct ${switch error.operation {
-        | Parsing => "parser"
-        | Serializing => "serializer"
-        }} is missing`
+    | MissingOperation({description}) => description
     | UnexpectedAsync => "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith"
     | ExcessField(fieldName) =>
       `Encountered disallowed excess key ${fieldName->Stdlib.Inlined.Value.fromString} on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`
