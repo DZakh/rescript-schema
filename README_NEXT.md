@@ -8,7 +8,7 @@ Safely parse and serialize with transformation to convenient ReScript data struc
 
 Highlights:
 
-- Parses any data, not only Js.Json.t
+- Parses any data, not only `JSON.t`
 - Uses the same struct for parsing and serializing
 - Asynchronous refinements and transforms
 - Support for both result and exception based API
@@ -605,7 +605,7 @@ let bigTupleStruct = S.Tuple.factory([
 
 ### **`dict`**
 
-`S.t<'value> => S.t<Js.Dict.t<'value>>`
+`S.t<'value> => S.t<Dict.t<'value>>`
 
 ```rescript
 let struct = S.dict(S.string)
@@ -650,13 +650,13 @@ The `never` struct will fail parsing for every value.
 
 ### **`json`**
 
-`S.t<Js.Json.t>`
+`S.t<JSON.t>`
 
 ```rescript
 let struct = S.json
 
 %raw(`"123"`)->S.parseWith(struct)
-// Ok(Js.Json.string("123"))
+// Ok(String("123"))
 ```
 
 The `json` struct represents a data that is compatible with JSON.
@@ -995,7 +995,7 @@ let prepareEnvStruct = S.advancedPreprocess(
 
 ### **`parseWith`**
 
-`(Js.Json.t, S.t<'value>) => result<'value, S.Error.t>`
+`(JSON.t, S.t<'value>) => result<'value, S.Error.t>`
 
 ```rescript
 data->S.parseWith(userStruct)
@@ -1025,7 +1025,7 @@ The same as `parseWith`, but applies `JSON.parse` before parsing.
 
 ### **`parseOrRaiseWith`**
 
-`(Js.Json.t, S.t<'value>) => 'value`
+`(JSON.t, S.t<'value>) => 'value`
 
 ```rescript
 try {
@@ -1053,7 +1053,7 @@ The exception-based version of `parseAnyWith`.
 
 ### **`parseAsyncWith`**
 
-`(Js.Json.t, S.t<'value>) => promise<result<'value, S.Error.t>>`
+`(JSON.t, S.t<'value>) => promise<result<'value, S.Error.t>>`
 
 ```rescript
 data->S.parseAsyncWith(userStruct)
@@ -1063,7 +1063,7 @@ If you use asynchronous refinements or transforms (more on those later), you'll 
 
 ### **`parseAsyncInStepsWith`** _Advanced_
 
-`(Js.Json.t, S.t<'value>) => result<(. unit) => promise<result<'value, S.Error.t>>, S.Error.t>`
+`(JSON.t, S.t<'value>) => result<(. unit) => promise<result<'value, S.Error.t>>, S.Error.t>`
 
 ```rescript
 data->S.parseAsyncInStepsWith(userStruct)
@@ -1073,7 +1073,7 @@ After parsing synchronous branches will return a function to run asynchronous re
 
 ### **`serializeWith`**
 
-`('value, S.t<'value>) => result<Js.Json.t, S.Error.t>`
+`('value, S.t<'value>) => result<JSON.t, S.Error.t>`
 
 ```rescript
 user->S.serializeWith(userStruct)
@@ -1091,7 +1091,7 @@ Serializes value using the transformation logic that is built-in to the struct. 
 user->S.serializeToUnknownWith(userStruct)
 ```
 
-Similar to the `serializeWith` but returns `unknown` instead of `Js.Json.t`. Also, it doesn't check the struct on JSON compatibility.
+Similar to the `serializeWith` but returns `unknown` instead of `JSON.t`. Also, it doesn't check the struct on JSON compatibility.
 
 ### **`serializeToJsonStringWith`**
 
@@ -1105,7 +1105,7 @@ The same as `serializeToUnknownWith`, but applies `JSON.serialize` at the end.
 
 ### **`serializeOrRaiseWith`**
 
-`('value, S.t<'value>) => Js.Json.t`
+`('value, S.t<'value>) => JSON.t`
 
 ```rescript
 try {
@@ -1119,7 +1119,7 @@ The exception-based version of `serializeWith`.
 
 ### **`serializeToUnknownOrRaiseWith`**
 
-`('value, S.t<'value>) => Js.Json.t`
+`('value, S.t<'value>) => JSON.t`
 
 ```rescript
 try {
