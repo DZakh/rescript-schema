@@ -56,7 +56,7 @@ test("Fails to serialize when the value is not used as the variant payload", t =
   t->Assert.deepEqual(
     #foo->S.serializeToUnknownWith(struct),
     Error({
-      code: MissingSerializer,
+      code: MissingOperation,
       path: S.Path.empty,
       operation: Serializing,
     }),

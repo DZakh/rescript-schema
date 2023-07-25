@@ -43,7 +43,7 @@ test("Fails to parse primitive with transform when parser isn't provided", t => 
   t->Assert.deepEqual(
     "Hello world!"->S.parseAnyWith(struct),
     Error({
-      code: MissingParser,
+      code: MissingOperation,
       path: S.Path.empty,
       operation: Parsing,
     }),
@@ -141,7 +141,7 @@ test("Transformed Primitive serializing fails when serializer isn't provided", t
   t->Assert.deepEqual(
     "Hello world!"->S.serializeToUnknownWith(struct),
     Error({
-      code: MissingSerializer,
+      code: MissingOperation,
       operation: Serializing,
       path: S.Path.empty,
     }),

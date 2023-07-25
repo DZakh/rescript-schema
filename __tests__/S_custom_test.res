@@ -80,7 +80,7 @@ test("Fails to serialize with missing serializer", t => {
   t->Assert.deepEqual(
     ()->S.serializeToUnknownWith(struct),
     Error({
-      code: MissingSerializer,
+      code: MissingOperation,
       operation: Serializing,
       path: S.Path.empty,
     }),

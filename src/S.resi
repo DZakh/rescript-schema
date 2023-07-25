@@ -68,8 +68,7 @@ and struct<'value> = t<'value>
 and error = {operation: operation, code: errorCode, path: Path.t}
 and errorCode =
   | OperationFailed(string)
-  | MissingParser
-  | MissingSerializer
+  | MissingOperation
   | InvalidType({expected: struct<unknown>, received: unknown})
   | InvalidLiteral({expected: Literal.t, received: unknown})
   | InvalidTupleSize({expected: int, received: int})

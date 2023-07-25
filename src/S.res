@@ -396,13 +396,10 @@ and transformation<'input, 'output> =
   | Async('input => promise<'output>)
 and builder
 and struct<'a> = t<'a>
-// TODO: Add input: unknown
 type rec error = {operation: operation, code: errorCode, path: Path.t}
 and errorCode =
   | OperationFailed(string)
-  // TODO: MissingTransformation/MissingOperation
-  | MissingParser
-  | MissingSerializer
+  | MissingOperation
   | InvalidType({expected: struct<unknown>, received: unknown})
   | InvalidLiteral({expected: Literal.t, received: unknown})
   | InvalidTupleSize({expected: int, received: int})
@@ -662,10 +659,10 @@ module Builder = {
         })}(${pathVar},${arg})`
     }
 
-    let raise = (b: t, ~pathVar, code) => {
+    let missingOperation = (b: t, ~pathVar) => {
       `${b->embed(path => {
-          InternalError.raise(~path, ~code)
-        })}(${pathVar})`
+          InternalError.raise(~path, ~code=MissingOperation)
+        })}(${pathVar});`
     }
 
     let run = (b: t, ~builder, ~struct, ~inputVar, ~pathVar) => {
@@ -1249,7 +1246,7 @@ let advancedTransform: (
             (),
           )
         }
-      | None => b->B.raise(~pathVar, MissingParser) ++ ";"
+      | None => b->B.missingOperation(~pathVar)
       }
     }),
     ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
@@ -1266,9 +1263,9 @@ let advancedTransform: (
             ~inputVar=b->B.embedSyncOperation(~inputVar, ~pathVar, ~fn, ()),
             ~pathVar,
           )
-        | Async(_) => b->B.raise(~pathVar, MissingSerializer) ++ ";"
+        | Async(_) => b->B.missingOperation(~pathVar)
         }
-      | None => b->B.raise(~pathVar, MissingSerializer) ++ ";"
+      | None => b->B.missingOperation(~pathVar)
       }
     }),
     ~metadataMap=struct.metadataMap,
@@ -1322,7 +1319,7 @@ let transform: (
       })
     | (None, None) =>
       Builder.make((b, ~selfStruct as _, ~inputVar as _, ~pathVar) => {
-        b->B.raise(~pathVar, MissingParser) ++ ";"
+        b->B.missingOperation(~pathVar)
       })
     },
     ~serializeOperationBuilder=switch maybeSerializer {
@@ -1337,7 +1334,7 @@ let transform: (
       })
     | None =>
       Builder.make((b, ~selfStruct as _, ~inputVar as _, ~pathVar) => {
-        b->B.raise(~pathVar, MissingSerializer) ++ ";"
+        b->B.missingOperation(~pathVar)
       })
     },
     ~metadataMap=struct.metadataMap,
@@ -1410,7 +1407,7 @@ let rec advancedPreprocess = (
               outputVar
             }
           }
-        | None => b->B.raise(~pathVar, MissingParser) ++ ";"
+        | None => b->B.missingOperation(~pathVar)
         }
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
@@ -1433,9 +1430,9 @@ let rec advancedPreprocess = (
               ~fn,
               (),
             )
-          | Async(_) => b->B.raise(~pathVar, MissingSerializer) ++ ";"
+          | Async(_) => b->B.missingOperation(~pathVar)
           }
-        | None => b->B.raise(~pathVar, MissingSerializer) ++ ";"
+        | None => b->B.missingOperation(~pathVar)
         }
       }),
       ~metadataMap=struct.metadataMap,
@@ -1473,7 +1470,7 @@ let custom = (
       })
     | (None, None) =>
       Builder.make((b, ~selfStruct as _, ~inputVar as _, ~pathVar) => {
-        b->B.raise(~pathVar, MissingParser) ++ ";"
+        b->B.missingOperation(~pathVar)
       })
     },
     ~serializeOperationBuilder=switch maybeSerializer {
@@ -1483,7 +1480,7 @@ let custom = (
       })
     | None =>
       Builder.make((b, ~selfStruct as _, ~inputVar as _, ~pathVar) => {
-        b->B.raise(~pathVar, MissingSerializer) ++ ";"
+        b->B.missingOperation(~pathVar)
       })
     },
     (),
@@ -1657,16 +1654,16 @@ module Variant = {
           }
 
           let valueVar = b->B.var
-          b.code =
-            b.code ++
-            switch isValueRegistered {
-            | true => `${valueVar}=${inputVar}${valuePath}`
-            | false =>
-              switch selfStruct->toLiteral {
-              | Some(literal) => `${valueVar}=${b->B.embed(literal->Literal.value)}`
-              | None => b->B.raise(~pathVar, MissingSerializer)
-              }
-            } ++ ";"
+
+          switch isValueRegistered {
+          | true => b.code = b.code ++ `${valueVar}=${inputVar}${valuePath};`
+          | false =>
+            switch selfStruct->toLiteral {
+            | Some(literal) =>
+              b.code = b.code ++ `${valueVar}=${b->B.embed(literal->Literal.value)};`
+            | None => b.code = b->B.missingOperation(~pathVar)
+            }
+          }
 
           b->B.run(~builder=struct.serializeOperationBuilder, ~struct, ~inputVar=valueVar, ~pathVar)
         }),
@@ -2043,7 +2040,7 @@ module Object = {
               fieldsCodeRef.contents =
                 fieldsCodeRef.contents ++
                 `${inlinedInputLocation}:${b->B.embed(literal->Literal.value)},`
-            | None => b.code = b->B.raise(~pathVar, MissingSerializer) ++ ";"
+            | None => b.code = b->B.missingOperation(~pathVar)
             }
           }
         }
@@ -3355,8 +3352,11 @@ module Error = {
   let rec toReason = (~nestedLevel=0, error) => {
     switch error.code {
     | OperationFailed(reason) => reason
-    | MissingParser => "Struct parser is missing"
-    | MissingSerializer => "Struct serializer is missing"
+    | MissingOperation =>
+      `Struct ${switch error.operation {
+        | Parsing => "parser"
+        | Serializing => "serializer"
+        }} is missing`
     | UnexpectedAsync => "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith"
     | ExcessField(fieldName) =>
       `Encountered disallowed excess key ${fieldName->Stdlib.Inlined.Value.fromString} on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`

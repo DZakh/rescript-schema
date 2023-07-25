@@ -356,14 +356,14 @@ function raiseWithArg(b, pathVar, fn, arg) {
               }) - 1) + "](" + pathVar + "," + arg + ")";
 }
 
-function raise(b, pathVar, code) {
+function missingOperation(b, pathVar) {
   return "e[" + (b.e.push(function (path) {
                 throw {
-                      c: code,
+                      c: "MissingOperation",
                       p: path,
                       s: symbol
                     };
-              }) - 1) + "](" + pathVar + ")";
+              }) - 1) + "](" + pathVar + ");";
 }
 
 function run(b, builder, struct, inputVar, pathVar) {
@@ -1025,7 +1025,7 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, pathVar) {
               if (maybeParser === undefined) {
-                return raise(b, pathVar, "MissingParser") + ";";
+                return missingOperation(b, pathVar);
               }
               var syncTransformation = maybeParser(selfStruct);
               if (typeof syncTransformation !== "object") {
@@ -1043,7 +1043,7 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
             }),
           sb: (function (b, selfStruct, inputVar, pathVar) {
               if (maybeSerializer === undefined) {
-                return raise(b, pathVar, "MissingSerializer") + ";";
+                return missingOperation(b, pathVar);
               }
               var fn = maybeSerializer(selfStruct);
               if (typeof fn !== "object") {
@@ -1051,7 +1051,7 @@ function advancedTransform(struct, maybeParser, maybeSerializer, param) {
               } else if (fn.TAG === "Sync") {
                 return run(b, struct.sb, struct, embedSyncOperation(b, inputVar, pathVar, fn._0, undefined, undefined, undefined), pathVar);
               } else {
-                return raise(b, pathVar, "MissingSerializer") + ";";
+                return missingOperation(b, pathVar);
               }
             }),
           i: 0,
@@ -1083,7 +1083,7 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
                         };
                       }), undefined, undefined);
         }) : (function (b, param, param$1, pathVar) {
-          return raise(b, pathVar, "MissingParser") + ";";
+          return missingOperation(b, pathVar);
         });
   }
   return {
@@ -1092,7 +1092,7 @@ function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param
           sb: maybeSerializer !== undefined ? (function (b, param, inputVar, pathVar) {
                 return run(b, struct.sb, struct, embedSyncOperation(b, inputVar, pathVar, maybeSerializer, undefined, undefined, undefined), pathVar);
               }) : (function (b, param, param$1, pathVar) {
-                return raise(b, pathVar, "MissingSerializer") + ";";
+                return missingOperation(b, pathVar);
               }),
           i: 0,
           s: initialSerialize,
@@ -1130,7 +1130,7 @@ function advancedPreprocess(struct, maybeParser, maybeSerializer, param) {
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, pathVar) {
               if (maybeParser === undefined) {
-                return raise(b, pathVar, "MissingParser") + ";";
+                return missingOperation(b, pathVar);
               }
               var syncTransformation = maybeParser(selfStruct);
               if (typeof syncTransformation !== "object") {
@@ -1157,7 +1157,7 @@ function advancedPreprocess(struct, maybeParser, maybeSerializer, param) {
             }),
           sb: (function (b, selfStruct, inputVar, pathVar) {
               if (maybeSerializer === undefined) {
-                return raise(b, pathVar, "MissingSerializer") + ";";
+                return missingOperation(b, pathVar);
               }
               var fn = maybeSerializer(selfStruct);
               if (typeof fn !== "object") {
@@ -1165,7 +1165,7 @@ function advancedPreprocess(struct, maybeParser, maybeSerializer, param) {
               } else if (fn.TAG === "Sync") {
                 return embedSyncOperation(b, run(b, struct.sb, struct, inputVar, pathVar), pathVar, fn._0, undefined, undefined, undefined);
               } else {
-                return raise(b, pathVar, "MissingSerializer") + ";";
+                return missingOperation(b, pathVar);
               }
             }),
           i: 0,
@@ -1197,7 +1197,7 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
                         };
                       }), undefined, undefined);
         }) : (function (b, param, param$1, pathVar) {
-          return raise(b, pathVar, "MissingParser") + ";";
+          return missingOperation(b, pathVar);
         });
   }
   return {
@@ -1206,7 +1206,7 @@ function custom(name, maybeParser, maybeAsyncParser, maybeSerializer, param) {
           sb: maybeSerializer !== undefined ? (function (b, param, inputVar, pathVar) {
                 return embedSyncOperation(b, inputVar, pathVar, maybeSerializer, undefined, undefined, undefined);
               }) : (function (b, param, param$1, pathVar) {
-                return raise(b, pathVar, "MissingSerializer") + ";";
+                return missingOperation(b, pathVar);
               }),
           i: 0,
           s: initialSerialize,
@@ -1325,19 +1325,17 @@ function factory(struct, definer) {
                       }(value$1)), inputVar + path) + "}");
               }
               var valueVar = $$var(b);
-              var tmp;
               if (isValueRegistered) {
-                tmp = valueVar + "=" + inputVar + valuePath;
+                b.c = b.c + (valueVar + "=" + inputVar + valuePath + ";");
               } else {
                 var literal = toLiteral(selfStruct);
                 if (literal !== undefined) {
                   var value$2 = value(literal);
-                  tmp = valueVar + "=" + ("e[" + (b.e.push(value$2) - 1) + "]");
+                  b.c = b.c + (valueVar + "=" + ("e[" + (b.e.push(value$2) - 1) + "]") + ";");
                 } else {
-                  tmp = raise(b, pathVar, "MissingSerializer");
+                  b.c = missingOperation(b, pathVar);
                 }
               }
-              b.c = b.c + tmp + ";";
               return run(b, struct.sb, struct, valueVar, pathVar);
             }),
           i: 0,
@@ -1583,7 +1581,7 @@ function factory$1(definer) {
                     var value$1 = value(literal);
                     fieldsCodeRef.contents = fieldsCodeRef.contents + (match.l + ":" + ("e[" + (b.e.push(value$1) - 1) + "]") + ",");
                   } else {
-                    b.c = raise(b, pathVar, "MissingSerializer") + ";";
+                    b.c = missingOperation(b, pathVar);
                   }
                 }
                 
@@ -2625,15 +2623,13 @@ function toReason(nestedLevelOpt, error) {
   var nestedLevel = nestedLevelOpt !== undefined ? nestedLevelOpt : 0;
   var reason = error.code;
   if (typeof reason !== "object") {
-    switch (reason) {
-      case "MissingParser" :
-          return "Struct parser is missing";
-      case "MissingSerializer" :
-          return "Struct serializer is missing";
-      case "UnexpectedAsync" :
-          return "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith";
-      
+    if (reason !== "MissingOperation") {
+      return "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith";
     }
+    var match = error.operation;
+    var tmp;
+    tmp = match === "Serializing" ? "serializer" : "parser";
+    return "Struct " + tmp + " is missing";
   } else {
     switch (reason.TAG) {
       case "OperationFailed" :

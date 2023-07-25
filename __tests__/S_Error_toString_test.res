@@ -36,10 +36,10 @@ test("Error with path", t => {
   )
 })
 
-test("MissingParser error", t => {
+test("MissingOperation Parsing error", t => {
   t->Assert.is(
     {
-      code: MissingParser,
+      code: MissingOperation,
       operation: Parsing,
       path: S.Path.empty,
     }->S.Error.toString,
@@ -48,14 +48,14 @@ test("MissingParser error", t => {
   )
 })
 
-test("MissingSerializer error", t => {
+test("MissingOperation Serializing error", t => {
   t->Assert.is(
     {
-      code: MissingSerializer,
-      operation: Parsing,
+      code: MissingOperation,
+      operation: Serializing,
       path: S.Path.empty,
     }->S.Error.toString,
-    "Failed parsing at root. Reason: Struct serializer is missing",
+    "Failed serializing at root. Reason: Struct serializer is missing",
     (),
   )
 })
