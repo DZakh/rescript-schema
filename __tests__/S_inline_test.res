@@ -6,7 +6,7 @@ test("Supports String", t => {
 })
 
 // test("Doesn't support transforms and refinements", t => {
-//   let struct = S.string->S.transform(~parser=ignore, ())->S.refine(ignore, ())
+//   let struct = S.string->S.transform(s => {parser: ignore})->S.refine(ignore, ())
 //   t->Assert.deepEqual(struct->S.inline, `S.string`, ())
 // })
 

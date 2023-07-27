@@ -124,19 +124,17 @@ let description: t<'value> => option<string>
 let deprecate: (t<'value>, string) => t<'value>
 let deprecation: t<'value> => option<string>
 
+type transformDefinition<'value, 'transformed> = {
+  @as("p")
+  parser?: 'value => 'transformed,
+  @as("a")
+  asyncParser?: 'value => unit => promise<'transformed>,
+  @as("s")
+  serializer?: 'transformed => 'value,
+}
 let transform: (
   t<'value>,
-  ~parser: 'value => 'transformed=?,
-  ~asyncParser: 'value => promise<'transformed>=?,
-  ~serializer: 'transformed => 'value=?,
-  unit,
-) => t<'transformed>
-
-let advancedTransform: (
-  t<'value>,
-  ~parser: (~struct: t<'value>) => transformation<'value, 'transformed>=?,
-  ~serializer: (~struct: t<'value>) => transformation<'transformed, 'value>=?,
-  unit,
+  effectCtx<'transformed> => transformDefinition<'value, 'transformed>,
 ) => t<'transformed>
 
 let advancedPreprocess: (

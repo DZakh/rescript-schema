@@ -36,6 +36,8 @@
 - `S.default` now uses `S.option` internally, so you don't need to call it yourself
 - Updated `S.name` logic and added `S.setName` to be able customize it. Name is used for errors, codegen and external tools
 - `S.refine` now accepts only one refining function which is applied both for parser and serializer. If you want to refine the parser and serializer separately as before, use `S.transform` instead. And to asynchronously refine a parser you should use the newly added `S.asyncParserRefine`.
+- `S.transform` now accepts only one argument which is a function that gets `effectCtx` and returns a record with parser and serializer.
+- `S.advancedTransform` is deprecated in favor of `S.transform`
 - Removed `S.fail` and `S.advancedFail` in favor of having `effectCtx` with `.fail` and `.failWithError` methods
 - `S.inline` is temporary broken
 - Updated API for `S.Tuple.factory`. There are plans to change it once more before the actual release
@@ -139,6 +141,50 @@ rewrite="S.asyncParserRefine(s => :[x])"
 [refine-async-parser-2]
 match="S.refine( ~asyncParser=:[x], (), )"
 rewrite="S.asyncParserRefine(s => :[x])"
+
+[transform-1-parser]
+match="S.transform(~parser, ())"
+rewrite="S.transform(s => {parser: parser})"
+
+[transform-1-serializer]
+match="S.transform(~serializer, ())"
+rewrite="S.transform(s => {serializer: serializer})"
+
+[transform-1-parser-serializer]
+match="S.transform(~parser, ~serializer, ())"
+rewrite="S.transform(s => {parser, serializer})"
+
+[transform-1-serializer-parser]
+match="S.transform(~serializer, ~parser, ())"
+rewrite="S.transform(s => {parser, serializer})"
+
+[transform-2]
+match="S.transform(~parser=:[parser], ~asyncParser=:[asyncParserArg] => :[asyncParserBody], ())"
+rewrite="S.transform(s => {parser: :[parser], asyncParser: :[asyncParserArg] => () => :[asyncParserBody]})"
+
+[transform-3]
+match="S.transform(~parser=:[parser], ~serializer=:[serializer], ())"
+rewrite="S.transform(s => {parser: :[parser], serializer: :[serializer]})"
+
+[transform-3-multiline]
+match="S.transform( ~parser=:[parser], ~serializer=:[serializer], (), )"
+rewrite="S.transform(s => {parser: :[parser], serializer: :[serializer]})"
+
+[transform-4-parser-only]
+match="S.transform(~parser=:[parser], ())"
+rewrite="S.transform(s => {parser: :[parser]})"
+
+[transform-4-serializer-only]
+match="S.transform(~serializer=:[serializer], ())"
+rewrite="S.transform(s => {serializer: :[serializer]})"
+
+[transform-4-async-parser-only]
+match="S.transform(~asyncParser=:[asyncParserArg] => :[asyncParserBody], ())"
+rewrite="S.transform(s => {asyncParser: :[asyncParserArg] => () => :[asyncParserBody]})"
+
+[transform-4-async-parser-only-multiline]
+match="S.transform( ~asyncParser=:[asyncParserArg] => :[asyncParserBody], (), )"
+rewrite="S.transform(s => {asyncParser: :[asyncParserArg] => () => :[asyncParserBody]})"
 ```
 
 3. Run the script in your project root. Assumes `migration.toml` has been copied in place to your project root.

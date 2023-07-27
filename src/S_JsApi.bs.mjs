@@ -101,7 +101,12 @@ function serializeOrThrow(value) {
 
 function transform(parser, serializer) {
   var struct = this;
-  var struct$1 = S$RescriptStruct.transform(struct, parser, undefined, serializer, undefined);
+  var struct$1 = S$RescriptStruct.transform(struct, (function (param) {
+          return {
+                  p: parser,
+                  s: serializer
+                };
+        }));
   return Object.assign(struct$1, structOperations);
 }
 

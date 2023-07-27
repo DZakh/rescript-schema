@@ -255,7 +255,10 @@ test("Successfully serializes object with multiple fields", t => {
 test("Successfully parses object with transformed field", t => {
   let struct = S.object(s =>
     {
-      "string": s.field("string", S.string->S.transform(~parser=string => string ++ "field", ())),
+      "string": s.field(
+        "string",
+        S.string->S.transform(_ => {parser: string => string ++ "field"}),
+      ),
     }
   )
 
@@ -269,7 +272,7 @@ test("Successfully parses object with transformed field", t => {
 test("Fails to parse object when transformed field has raises error", t => {
   let struct = S.object(s =>
     {
-      "field": s.field("field", S.string->S.transform(~parser=_ => S.fail("User error"), ())),
+      "field": s.field("field", S.string->S.transform(s => {parser: _ => s.fail("User error")})),
     }
   )
 
@@ -289,7 +292,7 @@ test("Shows transformed object field name in error path when fails to parse", t 
     {
       "transformedFieldName": s.field(
         "originalFieldName",
-        S.string->S.transform(~parser=_ => S.fail("User error"), ()),
+        S.string->S.transform(s => {parser: _ => s.fail("User error")}),
       ),
     }
   )
@@ -310,7 +313,7 @@ test("Successfully serializes object with transformed field", t => {
     {
       "string": s.field(
         "string",
-        S.string->S.transform(~serializer=string => string ++ "field", ()),
+        S.string->S.transform(_ => {serializer: string => string ++ "field"}),
       ),
     }
   )
@@ -325,7 +328,10 @@ test("Successfully serializes object with transformed field", t => {
 test("Fails to serializes object when transformed field has raises error", t => {
   let struct = S.object(s =>
     {
-      "field": s.field("field", S.string->S.transform(~serializer=_ => S.fail("User error"), ())),
+      "field": s.field(
+        "field",
+        S.string->S.transform(s => {serializer: _ => s.fail("User error")}),
+      ),
     }
   )
 
@@ -345,7 +351,7 @@ test("Shows transformed object field name in error path when fails to serializes
     {
       "transformedFieldName": s.field(
         "originalFieldName",
-        S.string->S.transform(~serializer=_ => S.fail("User error"), ()),
+        S.string->S.transform(s => {serializer: _ => s.fail("User error")}),
       ),
     }
   )
@@ -367,7 +373,7 @@ test("Shows transformed to nested object field name in error path when fails to 
       "v1": {
         "transformedFieldName": s.field(
           "originalFieldName",
-          S.string->S.transform(~serializer=_ => S.fail("User error"), ()),
+          S.string->S.transform(s => {serializer: _ => s.fail("User error")}),
         ),
       },
     }

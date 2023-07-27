@@ -1,19 +1,15 @@
 open Ava
 
-let validAsyncRefine = S.advancedTransform(
-  _,
-  ~parser=(~struct as _) => Async(value => Promise.resolve(value)),
-  (),
-)
+let validAsyncRefine = S.transform(_, _ => {
+  asyncParser: value => () => value->Promise.resolve,
+})
 // FIXME: Correct path when S.refine(_, s => s.fail("Sync user error"))
 let invalidSyncRefine = S.refine(_, s => _ => s.fail("Sync user error"))
 let unresolvedPromise = Promise.make((_, _) => ())
 let makeInvalidPromise = () => Promise.resolve()->Promise.then(() => S.fail("Async user error"))
-let invalidAsyncRefine = S.advancedTransform(
-  _,
-  ~parser=(~struct as _) => Async(_ => makeInvalidPromise()),
-  (),
-)
+let invalidAsyncRefine = S.transform(_, _ => {
+  asyncParser: _ => makeInvalidPromise,
+})
 
 asyncTest("Successfully parses without asyncRefine", t => {
   let struct = S.string
@@ -289,30 +285,24 @@ module Object = {
       {
         "k1": s.field(
           "k1",
-          S.int->S.advancedTransform(
-            ~parser=(~struct as _) => {
-              Async(
-                _ => {
-                  actionCounter.contents = actionCounter.contents + 1
-                  unresolvedPromise
-                },
-              )
+          S.int->S.transform(
+            _ => {
+              asyncParser: _ => () => {
+                actionCounter.contents = actionCounter.contents + 1
+                unresolvedPromise
+              },
             },
-            (),
           ),
         ),
         "k2": s.field(
           "k2",
-          S.int->S.advancedTransform(
-            ~parser=(~struct as _) => {
-              Async(
-                _ => {
-                  actionCounter.contents = actionCounter.contents + 1
-                  unresolvedPromise
-                },
-              )
+          S.int->S.transform(
+            _ => {
+              asyncParser: _ => () => {
+                actionCounter.contents = actionCounter.contents + 1
+                unresolvedPromise
+              },
             },
-            (),
           ),
         ),
       }
@@ -333,11 +323,10 @@ module Object = {
       {
         "k1": s.field(
           "k1",
-          S.int->S.advancedTransform(
-            ~parser=(~struct as _) => {
-              Async(_ => unresolvedPromise)
+          S.int->S.transform(
+            _ => {
+              asyncParser: _ => () => unresolvedPromise,
             },
-            (),
           ),
         ),
         "k2": s.field("k2", S.int->invalidAsyncRefine),
@@ -411,21 +400,20 @@ module Tuple = {
   test("[Tuple] Parses async items in parallel", t => {
     let actionCounter = ref(0)
 
-    let struct = S.tuple2(S.int->S.advancedTransform(~parser=(~struct as _) => {
-        Async(
-          _ => {
-            actionCounter.contents = actionCounter.contents + 1
-            unresolvedPromise
-          },
-        )
-      }, ()), S.int->S.advancedTransform(~parser=(~struct as _) => {
-        Async(
-          _ => {
-            actionCounter.contents = actionCounter.contents + 1
-            unresolvedPromise
-          },
-        )
-      }, ()))
+    let struct = S.tuple2(
+      S.int->S.transform(_ => {
+        asyncParser: _ => () => {
+          actionCounter.contents = actionCounter.contents + 1
+          unresolvedPromise
+        },
+      }),
+      S.int->S.transform(_ => {
+        asyncParser: _ => () => {
+          actionCounter.contents = actionCounter.contents + 1
+          unresolvedPromise
+        },
+      }),
+    )
 
     [1, 2]->S.parseAnyAsyncWith(struct)->ignore
 
@@ -433,9 +421,10 @@ module Tuple = {
   })
 
   asyncTest("[Tuple] Doesn't wait for pending async items when fails to parse", t => {
-    let struct = S.tuple2(S.int->S.advancedTransform(~parser=(~struct as _) => {
-        Async(_ => unresolvedPromise)
-      }, ()), S.int->invalidAsyncRefine)
+    let struct = S.tuple2(
+      S.int->S.transform(_ => {asyncParser: _ => () => unresolvedPromise}),
+      S.int->invalidAsyncRefine,
+    )
 
     (
       [1, 2]->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
@@ -508,21 +497,20 @@ module Union = {
   test("[Union] Parses async items in parallel", t => {
     let actionCounter = ref(0)
 
-    let struct = S.union([S.literal(2)->S.advancedTransform(~parser=(~struct as _) => {
-        Async(
-          _ => {
-            actionCounter.contents = actionCounter.contents + 1
-            unresolvedPromise
-          },
-        )
-      }, ()), S.literal(2)->S.advancedTransform(~parser=(~struct as _) => {
-        Async(
-          _ => {
-            actionCounter.contents = actionCounter.contents + 1
-            unresolvedPromise
-          },
-        )
-      }, ())])
+    let struct = S.union([
+      S.literal(2)->S.transform(_ => {
+        asyncParser: _ => () => {
+          actionCounter.contents = actionCounter.contents + 1
+          unresolvedPromise
+        },
+      }),
+      S.literal(2)->S.transform(_ => {
+        asyncParser: _ => () => {
+          actionCounter.contents = actionCounter.contents + 1
+          unresolvedPromise
+        },
+      }),
+    ])
 
     2->S.parseAnyAsyncWith(struct)->ignore
 
@@ -558,14 +546,14 @@ module Array = {
   test("[Array] Parses async items in parallel", t => {
     let actionCounter = ref(0)
 
-    let struct = S.array(S.int->S.advancedTransform(~parser=(~struct as _) => {
-        Async(
-          _ => {
-            actionCounter.contents = actionCounter.contents + 1
-            unresolvedPromise
-          },
-        )
-      }, ()))
+    let struct = S.array(
+      S.int->S.transform(_ => {
+        asyncParser: _ => () => {
+          actionCounter.contents = actionCounter.contents + 1
+          unresolvedPromise
+        },
+      }),
+    )
 
     [1, 2]->S.parseAnyAsyncWith(struct)->ignore
 
@@ -575,18 +563,18 @@ module Array = {
   asyncTest("[Array] Doesn't wait for pending async items when fails to parse", t => {
     let actionCounter = ref(0)
 
-    let struct = S.array(S.int->S.advancedTransform(~parser=(~struct as _) => {
-        Async(
-          _ => {
-            actionCounter.contents = actionCounter.contents + 1
-            if actionCounter.contents <= 2 {
-              unresolvedPromise
-            } else {
-              makeInvalidPromise()
-            }
-          },
-        )
-      }, ()))
+    let struct = S.array(
+      S.int->S.transform(_ => {
+        asyncParser: _ => () => {
+          actionCounter.contents = actionCounter.contents + 1
+          if actionCounter.contents <= 2 {
+            unresolvedPromise
+          } else {
+            makeInvalidPromise()
+          }
+        },
+      }),
+    )
 
     (
       [1, 2, 3]->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn
@@ -632,14 +620,14 @@ module Dict = {
   test("[Dict] Parses async items in parallel", t => {
     let actionCounter = ref(0)
 
-    let struct = S.dict(S.int->S.advancedTransform(~parser=(~struct as _) => {
-        Async(
-          _ => {
-            actionCounter.contents = actionCounter.contents + 1
-            unresolvedPromise
-          },
-        )
-      }, ()))
+    let struct = S.dict(
+      S.int->S.transform(_ => {
+        asyncParser: _ => () => {
+          actionCounter.contents = actionCounter.contents + 1
+          unresolvedPromise
+        },
+      }),
+    )
 
     {"k1": 1, "k2": 2}->S.parseAnyAsyncWith(struct)->ignore
 
@@ -649,18 +637,18 @@ module Dict = {
   asyncTest("[Dict] Doesn't wait for pending async items when fails to parse", t => {
     let actionCounter = ref(0)
 
-    let struct = S.dict(S.int->S.advancedTransform(~parser=(~struct as _) => {
-        Async(
-          _ => {
-            actionCounter.contents = actionCounter.contents + 1
-            if actionCounter.contents <= 2 {
-              unresolvedPromise
-            } else {
-              makeInvalidPromise()
-            }
-          },
-        )
-      }, ()))
+    let struct = S.dict(
+      S.int->S.transform(_ => {
+        asyncParser: _ => () => {
+          actionCounter.contents = actionCounter.contents + 1
+          if actionCounter.contents <= 2 {
+            unresolvedPromise
+          } else {
+            makeInvalidPromise()
+          }
+        },
+      }),
+    )
 
     (
       {"k1": 1, "k2": 2, "k3": 3}->S.parseAnyAsyncInStepsWith(struct)->Belt.Result.getExn

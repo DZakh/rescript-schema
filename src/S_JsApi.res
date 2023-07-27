@@ -143,7 +143,7 @@ let serializeOrThrow = value => {
 
 let transform = (~parser, ~serializer) => {
   let struct = %raw("this")
-  struct->S.transform(~parser, ~serializer, ())->toJsStruct
+  struct->S.transform(_ => {parser, serializer})->toJsStruct
 }
 
 let refine = refiner => {

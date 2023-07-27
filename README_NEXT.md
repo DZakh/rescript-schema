@@ -905,22 +905,19 @@ let userIdStruct = S.string->S.asyncParserRefine(s => userId =>
 
 ### **`transform`**
 
-`(S.t<'value>, ~parser: 'value => 'transformed=?, ~asyncParser: 'value => promise<'transformed>=?, ~serializer: 'transformed => 'value=?, unit) => S.t<'transformed>`
+`(S.t<'value>, S.effectCtx<'transformed> => S.transformDefinition<'value, 'transformed>) => S.t<'transformed>`
 
 ```rescript
 let intToString = struct =>
-  struct->S.transform(
-    ~parser=int => int->Int.toString,
-    ~serializer=string =>
+  struct->S.transform(s => {
+    parser: Int.toString,
+    serializer: string =>
       switch string->Int.fromString {
       | Some(int) => int
-      | None => S.fail("Can't convert string to int")
+      | None => s.fail("Can't convert string to int")
       },
-    (),
-  )
+  })
 ```
-
-> 🧠 Transform functions should not throw. Use `S.fail` or `S.advancedFail` to exit with failure.
 
 Also, you can have an asynchronous transform:
 
@@ -930,7 +927,13 @@ type user = {
   name: string,
 }
 
-let userStruct = userIdStruct->S.transform(~asyncParser=userId => loadUser(~userId), ~serializer=user => user.id, ())
+let userStruct =
+  S.string
+  ->S.String.uuid
+  ->S.transform(s => {
+    asyncParser: userId => () => loadUser(~userId),
+    serializer: user => user.id,
+  })
 
 await %raw(`"1"`)->S.parseAsyncWith(userStruct)
 // Ok({

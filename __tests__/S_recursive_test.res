@@ -213,9 +213,10 @@ test(
           children: s.field("Children", S.array(nodeStruct)),
         },
       )->S.transform(
-        ~parser=node => {...node, id: `node_${node.id}`},
-        ~serializer=node => {...node, id: node.id->Js.String2.sliceToEnd(~from=5)},
-        (),
+        _ => {
+          parser: node => {...node, id: `node_${node.id}`},
+          serializer: node => {...node, id: node.id->Js.String2.sliceToEnd(~from=5)},
+        },
       )
     })
 
@@ -267,9 +268,10 @@ test("Recursively transforms nested objects when added transform to the placehol
           "Children",
           S.array(
             nodeStruct->S.transform(
-              ~parser=node => {...node, id: `child_${node.id}`},
-              ~serializer=node => {...node, id: node.id->Js.String2.sliceToEnd(~from=6)},
-              (),
+              _ => {
+                parser: node => {...node, id: `child_${node.id}`},
+                serializer: node => {...node, id: node.id->Js.String2.sliceToEnd(~from=6)},
+              },
             ),
           ),
         ),
@@ -323,11 +325,10 @@ test("Shallowly transforms object when added transform to the S.recursive result
         children: s.field("Children", S.array(nodeStruct)),
       },
     )
-  })->S.transform(
-    ~parser=node => {...node, id: `parent_${node.id}`},
-    ~serializer=node => {...node, id: node.id->Js.String2.sliceToEnd(~from=7)},
-    (),
-  )
+  })->S.transform(_ => {
+    parser: node => {...node, id: `parent_${node.id}`},
+    serializer: node => {...node, id: node.id->Js.String2.sliceToEnd(~from=7)},
+  })
 
   t->Assert.deepEqual(
     {

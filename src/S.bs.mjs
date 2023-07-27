@@ -1033,83 +1033,48 @@ function addRefinement(struct, metadataId, refinement, refiner) {
   return refine(set(struct, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), refiner);
 }
 
-function advancedTransform(struct, maybeParser, maybeSerializer, param) {
-  if (maybeParser === undefined && maybeSerializer === undefined) {
-    panic("struct factory Transform");
-  }
+function transform(struct, transformer) {
   return {
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, pathVar) {
-              if (maybeParser === undefined) {
-                return missingOperation(b, pathVar, "The S.advancedTransform parser is missing");
+              var inputVar$1 = run(b, struct.pb, struct, inputVar, pathVar);
+              var match = transformer({
+                    s: selfStruct,
+                    f: fail,
+                    e: advancedFail
+                  });
+              var parser = match.p;
+              if (parser !== undefined) {
+                if (match.a !== undefined) {
+                  return missingOperation(b, pathVar, "The S.transform doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.");
+                } else {
+                  return embedSyncOperation(b, inputVar$1, pathVar, parser, undefined, undefined, undefined);
+                }
               }
-              var syncTransformation = maybeParser(selfStruct);
-              if (typeof syncTransformation !== "object") {
-                return run(b, struct.pb, struct, inputVar, pathVar);
+              var asyncParser = match.a;
+              if (asyncParser !== undefined) {
+                return embedAsyncOperation(b, inputVar$1, pathVar, asyncParser, undefined, undefined);
+              } else if (match.s !== undefined) {
+                return missingOperation(b, pathVar, "The S.transform parser is missing");
+              } else {
+                return inputVar$1;
               }
-              if (syncTransformation.TAG === "Sync") {
-                return embedSyncOperation(b, run(b, struct.pb, struct, inputVar, pathVar), pathVar, syncTransformation._0, undefined, undefined, undefined);
-              }
-              var asyncParser = syncTransformation._0;
-              return embedAsyncOperation(b, run(b, struct.pb, struct, inputVar, pathVar), pathVar, (function (i) {
-                            return function () {
-                              return asyncParser(i);
-                            };
-                          }), undefined, undefined);
             }),
           sb: (function (b, selfStruct, inputVar, pathVar) {
-              if (maybeSerializer === undefined) {
-                return missingOperation(b, pathVar, "The S.advancedTransform serializer is missing");
-              }
-              var fn = maybeSerializer(selfStruct);
-              if (typeof fn !== "object") {
-                return run(b, struct.sb, struct, inputVar, pathVar);
-              } else if (fn.TAG === "Sync") {
-                return run(b, struct.sb, struct, embedSyncOperation(b, inputVar, pathVar, fn._0, undefined, undefined, undefined), pathVar);
+              var match = transformer({
+                    s: selfStruct,
+                    f: fail,
+                    e: advancedFail
+                  });
+              var serializer = match.s;
+              if (serializer !== undefined) {
+                return run(b, struct.sb, struct, embedSyncOperation(b, inputVar, pathVar, serializer, undefined, undefined, undefined), pathVar);
+              } else if (match.a !== undefined || match.p !== undefined) {
+                return missingOperation(b, pathVar, "The S.transform serializer is missing");
               } else {
-                return missingOperation(b, pathVar, "The S.advancedTransform serializer doesn't support async");
+                return run(b, struct.sb, struct, inputVar, pathVar);
               }
             }),
-          i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
-          m: struct.m
-        };
-}
-
-function transform(struct, maybeParser, maybeAsyncParser, maybeSerializer, param) {
-  if (maybeParser === undefined && maybeAsyncParser === undefined && maybeSerializer === undefined) {
-    panic("struct factory Transform");
-  }
-  var tmp;
-  if (maybeParser !== undefined) {
-    if (maybeAsyncParser !== undefined) {
-      throw new Error("[rescript-struct] The S.transform doesn't support the `parser` and `asyncParser` arguments simultaneously. Move `asyncParser` to another S.transform.");
-    }
-    tmp = (function (b, param, inputVar, pathVar) {
-        return embedSyncOperation(b, run(b, struct.pb, struct, inputVar, pathVar), pathVar, maybeParser, undefined, undefined, undefined);
-      });
-  } else {
-    tmp = maybeAsyncParser !== undefined ? (function (b, param, inputVar, pathVar) {
-          return embedAsyncOperation(b, run(b, struct.pb, struct, inputVar, pathVar), pathVar, (function (i) {
-                        return function () {
-                          return maybeAsyncParser(i);
-                        };
-                      }), undefined, undefined);
-        }) : (function (b, param, param$1, pathVar) {
-          return missingOperation(b, pathVar, "The S.transform parser is missing");
-        });
-  }
-  return {
-          t: struct.t,
-          pb: tmp,
-          sb: maybeSerializer !== undefined ? (function (b, param, inputVar, pathVar) {
-                return run(b, struct.sb, struct, embedSyncOperation(b, inputVar, pathVar, maybeSerializer, undefined, undefined, undefined), pathVar);
-              }) : (function (b, param, param$1, pathVar) {
-                return missingOperation(b, pathVar, "The S.transform serializer is missing");
-              }),
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -1848,21 +1813,31 @@ function datetime(struct, messageOpt, param) {
     message: message
   };
   var refinements = struct.m[metadataId$1];
-  return transform(set(struct, metadataId$1, refinements !== undefined ? refinements.concat(refinement) : [refinement]), (function (string) {
-                if (!datetimeRe.test(string)) {
-                  fail(undefined, message);
-                }
-                return new Date(string);
-              }), undefined, (function (date) {
-                return date.toISOString();
-              }), undefined);
+  return transform(set(struct, metadataId$1, refinements !== undefined ? refinements.concat(refinement) : [refinement]), (function (s) {
+                return {
+                        p: (function (string) {
+                            if (!datetimeRe.test(string)) {
+                              s.f(undefined, message);
+                            }
+                            return new Date(string);
+                          }),
+                        s: (function (date) {
+                            return date.toISOString();
+                          })
+                      };
+              }));
 }
 
 function trim(struct, param) {
   var transformer = function (string) {
     return string.trim();
   };
-  return transform(struct, transformer, undefined, transformer, undefined);
+  return transform(struct, (function (param) {
+                return {
+                        p: transformer,
+                        s: transformer
+                      };
+              }));
 }
 
 function factory$2(struct) {
@@ -2541,7 +2516,12 @@ function factory$9(structs) {
 }
 
 function list(struct) {
-  return transform(factory$5(struct), Belt_List.fromArray, undefined, Belt_List.toArray, undefined);
+  return transform(factory$5(struct), (function (param) {
+                return {
+                        p: Belt_List.fromArray,
+                        s: Belt_List.toArray
+                      };
+              }));
 }
 
 var json = {
@@ -3190,7 +3170,6 @@ export {
   deprecate ,
   deprecation ,
   transform ,
-  advancedTransform ,
   advancedPreprocess ,
   custom ,
   refine ,
