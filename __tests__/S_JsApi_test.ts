@@ -268,7 +268,7 @@ test("Successfully serializes with transform to another type", (t) => {
 });
 
 test("Successfully parses with refine", (t) => {
-  const struct = S.string.refine((string) => {
+  const struct = S.string.refine((s) => (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
   const value = struct.parseOrThrow("123");
@@ -279,7 +279,7 @@ test("Successfully parses with refine", (t) => {
 });
 
 test("Successfully serializes with refine", (t) => {
-  const struct = S.string.refine((string) => {
+  const struct = S.string.refine((s) => (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
   const result = struct.serializeOrThrow("123");
@@ -290,8 +290,8 @@ test("Successfully serializes with refine", (t) => {
 });
 
 test("Fails to parses with refine raising an error", (t) => {
-  const struct = S.string.refine((_) => {
-    S.fail("User error");
+  const struct = S.string.refine((s) => (_) => {
+    s.fail("User error");
   });
 
   t.throws(
@@ -306,7 +306,7 @@ test("Fails to parses with refine raising an error", (t) => {
 });
 
 test("Successfully parses async struct", async (t) => {
-  const struct = S.string.asyncParserRefine(async (string) => {
+  const struct = S.string.asyncParserRefine((_) => async (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
   const value = await struct.parseAsync("123");
@@ -317,9 +317,9 @@ test("Successfully parses async struct", async (t) => {
 });
 
 test("Fails to parses async struct", async (t) => {
-  const struct = S.string.asyncParserRefine(async (_) => {
+  const struct = S.string.asyncParserRefine((s) => async (_) => {
     return Promise.resolve().then(() => {
-      S.fail("User error");
+      s.fail("User error");
     });
   });
 

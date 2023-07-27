@@ -80,6 +80,12 @@ and operation =
   | Serializing
   | Parsing
 
+type effectCtx<'value> = {
+  @as("s") struct: t<'value>,
+  @as("f") fail: 'a. (~path: Path.t=?, string) => 'a,
+  @as("e") failWithError: 'a. error => 'a,
+}
+
 module Error: {
   let toString: error => string
 }
@@ -148,8 +154,8 @@ let custom: (
   unit,
 ) => t<'value>
 
-let refine: (t<'value>, 'value => unit) => t<'value>
-let asyncParserRefine: (t<'value>, 'value => promise<unit>) => t<'value>
+let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value>
+let asyncParserRefine: (t<'value>, effectCtx<'value> => 'value => promise<unit>) => t<'value>
 
 let variant: (t<'value>, 'value => 'variant) => t<'variant>
 

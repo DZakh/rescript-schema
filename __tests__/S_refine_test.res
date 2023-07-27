@@ -1,11 +1,10 @@
 open Ava
 
 test("Successfully refines on parsing", t => {
-  let struct = S.int->S.refine(value =>
+  let struct = S.int->S.refine(s => value =>
     if value < 0 {
-      S.fail("Should be positive")
-    }
-  )
+      s.fail("Should be positive")
+    })
 
   t->Assert.deepEqual(%raw(`12`)->S.parseAnyWith(struct), Ok(12), ())
   t->Assert.deepEqual(
@@ -20,11 +19,10 @@ test("Successfully refines on parsing", t => {
 })
 
 test("Fails with custom path", t => {
-  let struct = S.int->S.refine(value =>
+  let struct = S.int->S.refine(s => value =>
     if value < 0 {
-      S.fail(~path=S.Path.fromArray(["data", "myInt"]), "Should be positive")
-    }
-  )
+      s.fail(~path=S.Path.fromArray(["data", "myInt"]), "Should be positive")
+    })
 
   t->Assert.deepEqual(
     %raw(`-12`)->S.parseAnyWith(struct),
@@ -38,11 +36,10 @@ test("Fails with custom path", t => {
 })
 
 test("Successfully refines on serializing", t => {
-  let struct = S.int->S.refine(value =>
+  let struct = S.int->S.refine(s => value =>
     if value < 0 {
-      S.fail("Should be positive")
-    }
-  )
+      s.fail("Should be positive")
+    })
 
   t->Assert.deepEqual(12->S.serializeToUnknownWith(struct), Ok(%raw("12")), ())
   t->Assert.deepEqual(
@@ -57,15 +54,14 @@ test("Successfully refines on serializing", t => {
 })
 
 asyncTest("Successfully refines on async parsing", async t => {
-  let struct = S.int->S.asyncParserRefine(value =>
+  let struct = S.int->S.asyncParserRefine(_ => value =>
     Promise.resolve()->Promise.thenResolve(
       () => {
         if value < 0 {
           S.fail("Should be positive")
         }
       },
-    )
-  )
+    ))
 
   t->Assert.deepEqual(await %raw(`12`)->S.parseAnyAsyncWith(struct), Ok(12), ())
   t->Assert.deepEqual(
@@ -80,7 +76,7 @@ asyncTest("Successfully refines on async parsing", async t => {
 })
 
 test("Fails to parse async refinement using parseAnyWith", t => {
-  let struct = S.string->S.asyncParserRefine(_ => Promise.resolve())
+  let struct = S.string->S.asyncParserRefine(_ => _ => Promise.resolve())
 
   t->Assert.deepEqual(
     %raw(`"Hello world!"`)->S.parseAnyWith(struct),
@@ -94,7 +90,7 @@ test("Fails to parse async refinement using parseAnyWith", t => {
 })
 
 asyncTest("Successfully parses async refinement using parseAsyncWith", t => {
-  let struct = S.string->S.asyncParserRefine(_ => Promise.resolve())
+  let struct = S.string->S.asyncParserRefine(_ => _ => Promise.resolve())
 
   %raw(`"Hello world!"`)
   ->S.parseAsyncWith(struct)
@@ -105,7 +101,8 @@ asyncTest("Successfully parses async refinement using parseAsyncWith", t => {
 
 asyncTest("Fails to parse async refinement with user error", t => {
   let struct =
-    S.string->S.asyncParserRefine(_ => Promise.resolve()->Promise.then(() => S.fail("User error")))
+    S.string->S.asyncParserRefine(s => _ =>
+      Promise.resolve()->Promise.then(() => s.fail("User error")))
 
   %raw(`"Hello world!"`)
   ->S.parseAsyncWith(struct)
@@ -125,9 +122,9 @@ asyncTest("Fails to parse async refinement with user error", t => {
 asyncTest("Can apply other actions after async refinement", t => {
   let struct =
     S.string
-    ->S.asyncParserRefine(_ => Promise.resolve())
+    ->S.asyncParserRefine(_ => _ => Promise.resolve())
     ->S.String.trim()
-    ->S.asyncParserRefine(_ => Promise.resolve())
+    ->S.asyncParserRefine(_ => _ => Promise.resolve())
 
   %raw(`"    Hello world!"`)
   ->S.parseAsyncWith(struct)

@@ -20,13 +20,17 @@ type rec struct<'value> = {
     ~parser: 'value => transformed,
     ~serializer: transformed => 'value,
   ) => struct<transformed>,
-  refine: ('value => unit) => struct<'value>,
-  asyncParserRefine: ('value => promise<unit>) => struct<'value>,
+  refine: (effectCtx<'value> => 'value => unit) => struct<'value>,
+  asyncParserRefine: (effectCtx<'value> => 'value => promise<unit>) => struct<'value>,
   optional: unit => struct<option<'value>>,
   nullable: unit => struct<option<'value>>,
   describe: string => struct<'value>,
   description: unit => option<string>,
   default: (unit => unknown) => struct<unknown>,
+}
+and effectCtx<'value> = {
+  struct: struct<'value>,
+  fail: 'a. string => 'a,
 }
 
 let fail: string => 'a

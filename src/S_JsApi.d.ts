@@ -7,6 +7,11 @@ export type Result<Value> =
     }
   | { success: false; error: StructError };
 
+export type EffectCtx<Input, Output> = {
+  struct: Struct<Input, Output>;
+  fail: (message: string) => void;
+};
+
 export interface Struct<Input, Output> {
   parse(data: unknown): Result<Output>;
   parseOrThrow(data: unknown): Output;
@@ -20,9 +25,11 @@ export interface Struct<Input, Output> {
     parser: ((value: Output) => Transformed) | undefined,
     serializer: (transformed: Transformed) => Output
   ): Struct<Input, Transformed>;
-  refine(refiner: (value: Output) => void): Struct<Input, Output>;
+  refine(
+    refiner: (ctx: EffectCtx<Input, Output>) => (value: Output) => void
+  ): Struct<Input, Output>;
   asyncParserRefine(
-    refiner: (value: Output) => Promise<void>
+    refiner: (ctx: EffectCtx<Input, Output>) => (value: Output) => Promise<void>
   ): Struct<Input, Output>;
   optional(): Struct<Input | undefined, Output | undefined>;
   nullable(): Struct<Input | null, Output | undefined>;

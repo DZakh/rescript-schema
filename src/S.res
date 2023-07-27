@@ -411,6 +411,12 @@ and operation =
   | Serializing
   | Parsing
 
+type effectCtx<'value> = {
+  @as("s") struct: t<'value>,
+  @as("f") fail: 'a. (~path: Path.t=?, string) => 'a,
+  @as("e") failWithError: 'a. error => 'a,
+}
+
 external castUnknownStructToAnyStruct: t<unknown> => t<'any> = "%identity"
 external toUnknown: t<'any> => t<unknown> = "%identity"
 
@@ -1154,46 +1160,65 @@ let setName = (struct, name) => {
   struct->Metadata.set(~id=nameMetadataId, name)
 }
 
-let asyncParserRefine = (struct, refiner) => {
+let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value> = (struct, refiner) => {
   let struct = struct->toUnknown
   make(
     ~tagged=struct.tagged,
-    ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~pathVar) => {
-      b->B.embedAsyncOperation(
+    ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
+      b->B.embedSyncOperation(
         ~inputVar=b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar),
         ~pathVar,
-        ~fn=i => () => refiner(i),
+        ~fn=refiner({
+          struct: selfStruct->castUnknownStructToAnyStruct,
+          fail,
+          failWithError: advancedFail,
+        }),
         ~isRefine=true,
         (),
       )
     }),
-    ~serializeOperationBuilder=struct.serializeOperationBuilder,
+    ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
+      b->B.run(
+        ~builder=struct.parseOperationBuilder,
+        ~struct,
+        ~inputVar=b->B.embedSyncOperation(
+          ~inputVar,
+          ~pathVar,
+          ~fn=refiner({
+            struct: selfStruct->castUnknownStructToAnyStruct,
+            fail,
+            failWithError: advancedFail,
+          }),
+          ~isRefine=true,
+          (),
+        ),
+        ~pathVar,
+      )
+    }),
     ~metadataMap=struct.metadataMap,
     (),
   )
 }
 
-let refine: (t<'value>, 'value => unit) => t<'value> = (struct, refiner) => {
+let asyncParserRefine = (struct, refiner) => {
   let struct = struct->toUnknown
   make(
     ~tagged=struct.tagged,
-    ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~pathVar) => {
-      b->B.embedSyncOperation(
+    ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
+      let asyncFn = refiner({
+        struct: selfStruct->castUnknownStructToAnyStruct,
+        fail,
+        failWithError: advancedFail,
+      })
+      b->B.embedAsyncOperation(
         ~inputVar=b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar),
         ~pathVar,
-        ~fn=refiner,
+        ~fn=i => () => asyncFn(i),
         ~isRefine=true,
         (),
       )
     }),
-    ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~pathVar) => {
-      b->B.run(
-        ~builder=struct.parseOperationBuilder,
-        ~struct,
-        ~inputVar=b->B.embedSyncOperation(~inputVar, ~pathVar, ~fn=refiner, ~isRefine=true, ()),
-        ~pathVar,
-      )
-    }),
+    ~serializeOperationBuilder=struct.serializeOperationBuilder,
     ~metadataMap=struct.metadataMap,
     (),
   )
@@ -2190,9 +2215,9 @@ module String = {
     | Some(m) => m
     | None => `String must be ${length->Js.Int.toString} or more characters long`
     }
-    let refiner = value =>
+    let refiner = s => value =>
       if value->Js.String2.length < length {
-        fail(message)
+        s.fail(message)
       }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
@@ -2209,9 +2234,9 @@ module String = {
     | Some(m) => m
     | None => `String must be ${length->Js.Int.toString} or fewer characters long`
     }
-    let refiner = value =>
+    let refiner = s => value =>
       if value->Js.String2.length > length {
-        fail(message)
+        s.fail(message)
       }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
@@ -2228,9 +2253,9 @@ module String = {
     | Some(m) => m
     | None => `String must be exactly ${length->Js.Int.toString} characters long`
     }
-    let refiner = value =>
+    let refiner = s => value =>
       if value->Js.String2.length !== length {
-        fail(message)
+        s.fail(message)
       }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
@@ -2243,9 +2268,9 @@ module String = {
   }
 
   let email = (struct, ~message=`Invalid email address`, ()) => {
-    let refiner = value => {
+    let refiner = s => value => {
       if !(emailRegex->Js.Re.test_(value)) {
-        fail(message)
+        s.fail(message)
       }
     }
     struct->addRefinement(
@@ -2259,9 +2284,9 @@ module String = {
   }
 
   let uuid = (struct, ~message=`Invalid UUID`, ()) => {
-    let refiner = value => {
+    let refiner = s => value => {
       if !(uuidRegex->Js.Re.test_(value)) {
-        fail(message)
+        s.fail(message)
       }
     }
     struct->addRefinement(
@@ -2275,9 +2300,9 @@ module String = {
   }
 
   let cuid = (struct, ~message=`Invalid CUID`, ()) => {
-    let refiner = value => {
+    let refiner = s => value => {
       if !(cuidRegex->Js.Re.test_(value)) {
-        fail(message)
+        s.fail(message)
       }
     }
     struct->addRefinement(
@@ -2291,9 +2316,9 @@ module String = {
   }
 
   let url = (struct, ~message=`Invalid url`, ()) => {
-    let refiner = value => {
+    let refiner = s => value => {
       if !(value->Stdlib.Url.test) {
-        fail(message)
+        s.fail(message)
       }
     }
     struct->addRefinement(
@@ -2307,10 +2332,10 @@ module String = {
   }
 
   let pattern = (struct, ~message=`Invalid`, re) => {
-    let refiner = value => {
+    let refiner = s => value => {
       re->Js.Re.setLastIndex(0)
       if !(re->Js.Re.test_(value)) {
-        fail(message)
+        s.fail(message)
       }
     }
     struct->addRefinement(
@@ -2470,9 +2495,9 @@ module Int = {
     | Some(m) => m
     | None => `Number must be greater than or equal to ${minValue->Js.Int.toString}`
     }
-    let refiner = value => {
+    let refiner = s => value => {
       if value < minValue {
-        fail(message)
+        s.fail(message)
       }
     }
     struct->addRefinement(
@@ -2490,9 +2515,9 @@ module Int = {
     | Some(m) => m
     | None => `Number must be lower than or equal to ${maxValue->Js.Int.toString}`
     }
-    let refiner = value => {
+    let refiner = s => value => {
       if value > maxValue {
-        fail(message)
+        s.fail(message)
       }
     }
     struct->addRefinement(
@@ -2506,9 +2531,9 @@ module Int = {
   }
 
   let port = (struct, ~message="Invalid port", ()) => {
-    let refiner = value => {
+    let refiner = s => value => {
       if value < 1 || value > 65535 {
-        fail(message)
+        s.fail(message)
       }
     }
     struct->addRefinement(
@@ -2570,9 +2595,9 @@ module Float = {
     | Some(m) => m
     | None => `Number must be greater than or equal to ${minValue->Js.Float.toString}`
     }
-    let refiner = value => {
+    let refiner = s => value => {
       if value < minValue {
-        fail(message)
+        s.fail(message)
       }
     }
     struct->addRefinement(
@@ -2590,9 +2615,9 @@ module Float = {
     | Some(m) => m
     | None => `Number must be lower than or equal to ${maxValue->Js.Float.toString}`
     }
-    let refiner = value => {
+    let refiner = s => value => {
       if value > maxValue {
-        fail(message)
+        s.fail(message)
       }
     }
     struct->addRefinement(
@@ -2809,9 +2834,9 @@ module Array = {
     | Some(m) => m
     | None => `Array must be ${length->Js.Int.toString} or more items long`
     }
-    let refiner = value => {
+    let refiner = s => value => {
       if value->Js.Array2.length < length {
-        fail(message)
+        s.fail(message)
       }
     }
     struct->addRefinement(
@@ -2829,9 +2854,9 @@ module Array = {
     | Some(m) => m
     | None => `Array must be ${length->Js.Int.toString} or fewer items long`
     }
-    let refiner = value => {
+    let refiner = s => value => {
       if value->Js.Array2.length > length {
-        fail(message)
+        s.fail(message)
       }
     }
     struct->addRefinement(
@@ -2849,9 +2874,9 @@ module Array = {
     | Some(m) => m
     | None => `Array must be exactly ${length->Js.Int.toString} items long`
     }
-    let refiner = value => {
+    let refiner = s => value => {
       if value->Js.Array2.length !== length {
-        fail(message)
+        s.fail(message)
       }
     }
     struct->addRefinement(

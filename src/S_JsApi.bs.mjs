@@ -107,13 +107,29 @@ function transform(parser, serializer) {
 
 function refine(refiner) {
   var struct = this;
-  var struct$1 = S$RescriptStruct.refine(struct, refiner);
+  var struct$1 = S$RescriptStruct.refine(struct, (function (s) {
+          var struct = s.s;
+          return refiner({
+                      struct: Object.assign(struct, structOperations),
+                      fail: (function (message) {
+                          return s.f(undefined, message);
+                        })
+                    });
+        }));
   return Object.assign(struct$1, structOperations);
 }
 
 function asyncParserRefine(refiner) {
   var struct = this;
-  var struct$1 = S$RescriptStruct.asyncParserRefine(struct, refiner);
+  var struct$1 = S$RescriptStruct.asyncParserRefine(struct, (function (s) {
+          var struct = s.s;
+          return refiner({
+                      struct: Object.assign(struct, structOperations),
+                      fail: (function (message) {
+                          return s.f(undefined, message);
+                        })
+                    });
+        }));
   return Object.assign(struct$1, structOperations);
 }
 

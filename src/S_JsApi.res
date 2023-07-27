@@ -67,13 +67,17 @@ type rec struct<'value> = {
     ~parser: 'value => transformed,
     ~serializer: transformed => 'value,
   ) => struct<transformed>,
-  refine: ('value => unit) => struct<'value>,
-  asyncParserRefine: ('value => promise<unit>) => struct<'value>,
+  refine: (effectCtx<'value> => 'value => unit) => struct<'value>,
+  asyncParserRefine: (effectCtx<'value> => 'value => promise<unit>) => struct<'value>,
   optional: unit => struct<option<'value>>,
   nullable: unit => struct<option<'value>>,
   describe: string => struct<'value>,
   description: unit => option<string>,
   default: (unit => unknown) => struct<unknown>,
+}
+and effectCtx<'value> = {
+  struct: struct<'value>,
+  fail: 'a. string => 'a,
 }
 
 let structOperations = %raw("{}")
@@ -144,12 +148,26 @@ let transform = (~parser, ~serializer) => {
 
 let refine = refiner => {
   let struct = %raw("this")
-  struct->S.refine(refiner)->toJsStruct
+  struct
+  ->S.refine(s =>
+    refiner({
+      struct: s.struct->toJsStruct,
+      fail: message => s.fail(message),
+    })
+  )
+  ->toJsStruct
 }
 
 let asyncParserRefine = refiner => {
   let struct = %raw("this")
-  struct->S.asyncParserRefine(refiner)->toJsStruct
+  struct
+  ->S.asyncParserRefine(s =>
+    refiner({
+      struct: s.struct->toJsStruct,
+      fail: message => s.fail(message),
+    })
+  )
+  ->toJsStruct
 }
 
 let describe = description => {

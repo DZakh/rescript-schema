@@ -977,17 +977,23 @@ function setName(struct, name) {
   return set(struct, nameMetadataId, name);
 }
 
-function asyncParserRefine(struct, refiner) {
+function refine(struct, refiner) {
   return {
           t: struct.t,
-          pb: (function (b, param, inputVar, pathVar) {
-              return embedAsyncOperation(b, run(b, struct.pb, struct, inputVar, pathVar), pathVar, (function (i) {
-                            return function () {
-                              return refiner(i);
-                            };
-                          }), true, undefined);
+          pb: (function (b, selfStruct, inputVar, pathVar) {
+              return embedSyncOperation(b, run(b, struct.pb, struct, inputVar, pathVar), pathVar, refiner({
+                              s: selfStruct,
+                              f: fail,
+                              e: advancedFail
+                            }), undefined, true, undefined);
             }),
-          sb: struct.sb,
+          sb: (function (b, selfStruct, inputVar, pathVar) {
+              return run(b, struct.pb, struct, embedSyncOperation(b, inputVar, pathVar, refiner({
+                                  s: selfStruct,
+                                  f: fail,
+                                  e: advancedFail
+                                }), undefined, true, undefined), pathVar);
+            }),
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -997,15 +1003,22 @@ function asyncParserRefine(struct, refiner) {
         };
 }
 
-function refine(struct, refiner) {
+function asyncParserRefine(struct, refiner) {
   return {
           t: struct.t,
-          pb: (function (b, param, inputVar, pathVar) {
-              return embedSyncOperation(b, run(b, struct.pb, struct, inputVar, pathVar), pathVar, refiner, undefined, true, undefined);
+          pb: (function (b, selfStruct, inputVar, pathVar) {
+              var asyncFn = refiner({
+                    s: selfStruct,
+                    f: fail,
+                    e: advancedFail
+                  });
+              return embedAsyncOperation(b, run(b, struct.pb, struct, inputVar, pathVar), pathVar, (function (i) {
+                            return function () {
+                              return asyncFn(i);
+                            };
+                          }), true, undefined);
             }),
-          sb: (function (b, param, inputVar, pathVar) {
-              return run(b, struct.pb, struct, embedSyncOperation(b, inputVar, pathVar, refiner, undefined, true, undefined), pathVar);
-            }),
+          sb: struct.sb,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -1681,11 +1694,13 @@ var struct$2 = {
 
 function min(struct, maybeMessage, length) {
   var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length.toString() + " or more characters long";
-  var refiner = function (value) {
-    if (value.length < length) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      if (value.length < length) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$1, {
               kind: {
@@ -1698,11 +1713,13 @@ function min(struct, maybeMessage, length) {
 
 function max(struct, maybeMessage, length) {
   var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length.toString() + " or fewer characters long";
-  var refiner = function (value) {
-    if (value.length > length) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      if (value.length > length) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$1, {
               kind: {
@@ -1715,11 +1732,13 @@ function max(struct, maybeMessage, length) {
 
 function length(struct, maybeMessage, length$1) {
   var message = maybeMessage !== undefined ? maybeMessage : "String must be exactly " + length$1.toString() + " characters long";
-  var refiner = function (value) {
-    if (value.length !== length$1) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      if (value.length !== length$1) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$1, {
               kind: {
@@ -1732,11 +1751,13 @@ function length(struct, maybeMessage, length$1) {
 
 function email(struct, messageOpt, param) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid email address";
-  var refiner = function (value) {
-    if (!emailRegex.test(value)) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      if (!emailRegex.test(value)) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$1, {
               kind: "Email",
@@ -1746,11 +1767,13 @@ function email(struct, messageOpt, param) {
 
 function uuid(struct, messageOpt, param) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid UUID";
-  var refiner = function (value) {
-    if (!uuidRegex.test(value)) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      if (!uuidRegex.test(value)) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$1, {
               kind: "Uuid",
@@ -1760,11 +1783,13 @@ function uuid(struct, messageOpt, param) {
 
 function cuid(struct, messageOpt, param) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid CUID";
-  var refiner = function (value) {
-    if (!cuidRegex.test(value)) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      if (!cuidRegex.test(value)) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$1, {
               kind: "Cuid",
@@ -1774,19 +1799,21 @@ function cuid(struct, messageOpt, param) {
 
 function url(struct, messageOpt, param) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid url";
-  var refiner = function (value) {
-    var tmp;
-    try {
-      new URL(value);
-      tmp = true;
-    }
-    catch (exn){
-      tmp = false;
-    }
-    if (!tmp) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      var tmp;
+      try {
+        new URL(value);
+        tmp = true;
+      }
+      catch (exn){
+        tmp = false;
+      }
+      if (!tmp) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$1, {
               kind: "Url",
@@ -1796,12 +1823,14 @@ function url(struct, messageOpt, param) {
 
 function pattern(struct, messageOpt, re) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid";
-  var refiner = function (value) {
-    re.lastIndex = 0;
-    if (!re.test(value)) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      re.lastIndex = 0;
+      if (!re.test(value)) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$1, {
               kind: {
@@ -1929,11 +1958,13 @@ var struct$4 = {
 
 function min$1(struct, maybeMessage, minValue) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue.toString();
-  var refiner = function (value) {
-    if (value < minValue) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      if (value < minValue) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$2, {
               kind: {
@@ -1946,11 +1977,13 @@ function min$1(struct, maybeMessage, minValue) {
 
 function max$1(struct, maybeMessage, maxValue) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue.toString();
-  var refiner = function (value) {
-    if (value > maxValue) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      if (value > maxValue) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$2, {
               kind: {
@@ -1963,11 +1996,13 @@ function max$1(struct, maybeMessage, maxValue) {
 
 function port(struct, messageOpt, param) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid port";
-  var refiner = function (value) {
-    if (value < 1 || value > 65535) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      if (value < 1 || value > 65535) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$2, {
               kind: "Port",
@@ -2009,11 +2044,13 @@ var struct$5 = {
 
 function min$2(struct, maybeMessage, minValue) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue.toString();
-  var refiner = function (value) {
-    if (value < minValue) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      if (value < minValue) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$3, {
               kind: {
@@ -2026,11 +2063,13 @@ function min$2(struct, maybeMessage, minValue) {
 
 function max$2(struct, maybeMessage, maxValue) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue.toString();
-  var refiner = function (value) {
-    if (value > maxValue) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      if (value > maxValue) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$3, {
               kind: {
@@ -2172,11 +2211,13 @@ function factory$5(struct) {
 
 function min$3(struct, maybeMessage, length) {
   var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length.toString() + " or more items long";
-  var refiner = function (value) {
-    if (value.length < length) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      if (value.length < length) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$4, {
               kind: {
@@ -2189,11 +2230,13 @@ function min$3(struct, maybeMessage, length) {
 
 function max$3(struct, maybeMessage, length) {
   var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length.toString() + " or fewer items long";
-  var refiner = function (value) {
-    if (value.length > length) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      if (value.length > length) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$4, {
               kind: {
@@ -2206,11 +2249,13 @@ function max$3(struct, maybeMessage, length) {
 
 function length$1(struct, maybeMessage, length$2) {
   var message = maybeMessage !== undefined ? maybeMessage : "Array must be exactly " + length$2.toString() + " items long";
-  var refiner = function (value) {
-    if (value.length !== length$2) {
-      return fail(undefined, message);
-    }
-    
+  var refiner = function (s) {
+    return function (value) {
+      if (value.length !== length$2) {
+        return s.f(undefined, message);
+      }
+      
+    };
   };
   return addRefinement(struct, metadataId$4, {
               kind: {

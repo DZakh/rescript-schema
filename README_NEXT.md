@@ -869,31 +869,29 @@ There are many so-called "refinement types" you may wish to check for that can't
 
 ### **`refine`**
 
-`(S.t<'value>, 'value => unit) => S.t<'value>`
+`(S.t<'value>, effectCtx<'value> => 'value => unit) => S.t<'value>`
 
 ```rescript
-let shortStringStruct = S.string->S.refine(value =>
+let shortStringStruct = S.string->S.refine(s => value =>
   if value->String.length > 255 {
-    S.fail("String can't be more than 255 characters")
+    s.fail("String can't be more than 255 characters")
   }
 )
 ```
 
 The refine function is applied for both parser and serializer.
 
-> 🧠 Refinement functions should not throw. Use `S.fail` or `S.advancedFail` to exit with failure.
-
 ### **`asyncParserRefine`**
 
-`(S.t<'value>, 'value => promise<unit>) => S.t<'value>`
+`(S.t<'value>, effectCtx<'value> => 'value => promise<unit>) => S.t<'value>`
 
 Also, you can have an asynchronous refinement. It's applied only for parsing. Serializing is not affected.
 
 ```rescript
-let userIdStruct = S.string->S.asyncParserRefine(userId =>
+let userIdStruct = S.string->S.asyncParserRefine(s => userId =>
   verfiyUserExistsInDb(~userId)->Promise.thenResolve(isExistingUser =>
     if !isExistingUser {
-      S.fail("User doesn't exist")
+      s.fail("User doesn't exist")
     }
   )
 )

@@ -74,7 +74,7 @@ test("Applies operation for each item on serializing", t => {
 })
 
 test("Fails to serialize dict item", t => {
-  let struct = S.dict(S.string->S.refine(_ => S.fail("User error")))
+  let struct = S.dict(S.string->S.refine(s => _ => s.fail("User error")))
 
   t->Assert.deepEqual(
     Js.Dict.fromArray([("a", "aa"), ("b", "bb")])->S.serializeToUnknownWith(struct),

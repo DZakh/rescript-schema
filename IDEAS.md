@@ -46,12 +46,9 @@ let struct = S.tuple(s => (s.tag(0, "A"), s.item(1, S.int)))
 
 ## Next breaking release
 
-- Allow passing Path string to the S.field first arg (o.nestedField)
 - rename advancedFail to failWithError
 - Move S.inline to experimental or Codegen module
-- Store input in the Error.t
 - Remove S.toUnknown (update tuple)
-- intersection / spread
 - Add built-in refinements to TS API
   // TODO: Update gen.ts
 - Update S_Js.res to create new structs instead of mixin in the methods
@@ -62,7 +59,8 @@ let struct = S.tuple(s => (s.tag(0, "A"), s.item(1, S.int)))
 - S.matcher
 - S.validateWith
 - S.toJSON/S.castToJson
-- nestedField
+- nestedField for object
+- spread for object (intersection)
 - S.produce
 - S.mutator
 - Make S.serializeToString super fast
