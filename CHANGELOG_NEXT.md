@@ -37,6 +37,7 @@
 - Updated `S.name` logic and added `S.setName` to be able customize it. Name is used for errors, codegen and external tools
 - `S.refine` now accepts only one refining function which is applied both for parser and serializer. If you want to refine the parser and serializer separately as before, use `S.transform` instead. And to asynchronously refine a parser you should use the newly added `S.asyncParserRefine`.
 - `S.transform` now accepts only one argument which is a function that gets `effectCtx` and returns a record with parser and serializer.
+- `S.custom` now accepts only one argument which is a function that gets `effectCtx` and returns a record with parser and serializer.
 - `S.advancedTransform` is deprecated in favor of `S.transform`
 - Removed `S.fail` and `S.advancedFail` in favor of having `effectCtx` with `.fail` and `.failWithError` methods
 - `S.inline` is temporary broken

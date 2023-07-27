@@ -199,7 +199,12 @@ function literal(value) {
 }
 
 function custom(name, parser, serializer) {
-  var struct = S$RescriptStruct.custom(name, parser, undefined, serializer, undefined);
+  var struct = S$RescriptStruct.custom(name, (function (param) {
+          return {
+                  p: parser,
+                  s: serializer
+                };
+        }));
   return Object.assign(struct, structOperations);
 }
 

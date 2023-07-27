@@ -1,30 +1,29 @@
 open Ava
 
-let nullableStruct = innerStruct =>
-  S.custom(
-    ~name="Nullable",
-    ~parser=unknown => {
+let nullableStruct = innerStruct => {
+  S.custom("Nullable", s => {
+    parser: unknown => {
       if unknown === %raw(`undefined`) || unknown === %raw(`null`) {
         None
       } else {
         switch unknown->S.parseAnyWith(innerStruct) {
         | Ok(value) => Some(value)
-        | Error(error) => S.advancedFail(error)
+        | Error(error) => s.failWithError(error)
         }
       }
     },
-    ~serializer=value => {
+    serializer: value => {
       switch value {
       | Some(innerValue) =>
         switch innerValue->S.serializeToUnknownWith(innerStruct) {
         | Ok(value) => value
-        | Error(error) => S.advancedFail(error)
+        | Error(error) => s.failWithError(error)
         }
       | None => %raw(`null`)
       }
     },
-    (),
-  )
+  })
+}
 
 test("Correctly parses custom struct", t => {
   let struct = nullableStruct(S.string)
@@ -55,13 +54,9 @@ test("Correctly serializes custom struct", t => {
 })
 
 test("Fails to serialize with user error", t => {
-  let struct = S.custom(
-    ~name="Test",
-    ~serializer=_ => {
-      S.fail("User error")
-    },
-    (),
-  )
+  let struct = S.custom("Test", _ => {
+    serializer: _ => S.fail("User error"),
+  })
 
   t->Assert.deepEqual(
     None->S.serializeToUnknownWith(struct),
@@ -75,7 +70,9 @@ test("Fails to serialize with user error", t => {
 })
 
 test("Fails to serialize with serializer is missing", t => {
-  let struct = S.custom(~name="Test", ~parser=_ => (), ())
+  let struct = S.custom("Test", _ => {
+    parser: _ => (),
+  })
 
   t->Assert.deepEqual(
     ()->S.serializeToUnknownWith(struct),
@@ -89,31 +86,9 @@ test("Fails to serialize with serializer is missing", t => {
 })
 
 asyncTest("Parses with asyncParser", async t => {
-  let struct = S.custom(~name="Test", ~asyncParser=_ => Promise.resolve(), ())
+  let struct = S.custom("Test", _ => {
+    asyncParser: _ => () => Promise.resolve(),
+  })
 
   t->Assert.deepEqual(await %raw(`undefined`)->S.parseAnyAsyncWith(struct), Ok(), ())
-})
-
-test("Throws for a Custom factory without either a parser, or a serializer", t => {
-  t->Assert.throws(
-    () => {
-      S.custom(~name="Test", ())
-    },
-    ~expectations={
-      message: "[rescript-struct] For a Custom struct factory either a parser, or a serializer is required",
-    },
-    (),
-  )
-})
-
-test("Throws for a Custom factory with both parser and asyncParser provided", t => {
-  t->Assert.throws(
-    () => {
-      S.custom(~name="Test", ~parser=_ => (), ~asyncParser=_ => Promise.resolve(), ())
-    },
-    ~expectations={
-      message: "[rescript-struct] The S.custom doesn\'t support the `parser` and `asyncParser` arguments simultaneously. Keep only `asyncParser`.",
-    },
-    (),
-  )
 })

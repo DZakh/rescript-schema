@@ -124,18 +124,15 @@ let description: t<'value> => option<string>
 let deprecate: (t<'value>, string) => t<'value>
 let deprecation: t<'value> => option<string>
 
-type transformDefinition<'value, 'transformed> = {
+type transformDefinition<'input, 'output> = {
   @as("p")
-  parser?: 'value => 'transformed,
+  parser?: 'input => 'output,
   @as("a")
-  asyncParser?: 'value => unit => promise<'transformed>,
+  asyncParser?: 'input => unit => promise<'output>,
   @as("s")
-  serializer?: 'transformed => 'value,
+  serializer?: 'output => 'input,
 }
-let transform: (
-  t<'value>,
-  effectCtx<'transformed> => transformDefinition<'value, 'transformed>,
-) => t<'transformed>
+let transform: (t<'input>, effectCtx<'output> => transformDefinition<'input, 'output>) => t<'output>
 
 let advancedPreprocess: (
   t<'value>,
@@ -144,13 +141,15 @@ let advancedPreprocess: (
   unit,
 ) => t<'value>
 
-let custom: (
-  ~name: string,
-  ~parser: unknown => 'value=?,
-  ~asyncParser: unknown => promise<'value>=?,
-  ~serializer: 'value => 'any=?,
-  unit,
-) => t<'value>
+type customDefinition<'input, 'output> = {
+  @as("p")
+  parser?: unknown => 'output,
+  @as("a")
+  asyncParser?: unknown => unit => promise<'output>,
+  @as("s")
+  serializer?: 'output => 'input,
+}
+let custom: (string, effectCtx<'output> => customDefinition<'input, 'output>) => t<'output>
 
 let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value>
 let asyncParserRefine: (t<'value>, effectCtx<'value> => 'value => promise<unit>) => t<'value>

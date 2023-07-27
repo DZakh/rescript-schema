@@ -751,36 +751,35 @@ Conceptually, this is how **rescript-struct** processes "catch values":
 
 ### **`custom`**
 
-`(~name: string, ~parser: (unknown) => 'value=?, ~asyncParser: (unknown) => promise<'value>=?, ~serializer: ('value) => 'any=?, unit) => S.t<'value>`
+`(string, effectCtx<'output> => customDefinition<'input, 'output>) => t<'output>`
 
 You can also define your own custom struct factories that are specific to your application's requirements:
 
 ```rescript
-let nullableStruct = innerStruct =>
-  S.custom(
-    ~name="Nullable",
-    ~parser=unknown => {
+let nullableStruct = innerStruct => {
+  S.custom("Nullable", s => {
+    parser: unknown => {
       if unknown === %raw(`undefined`) || unknown === %raw(`null`) {
         None
       } else {
         switch unknown->S.parseAnyWith(innerStruct) {
         | Ok(value) => Some(value)
-        | Error(error) => S.advancedFail(error)
+        | Error(error) => s.failWithError(error)
         }
       }
     },
-    ~serializer=value => {
+    serializer: value => {
       switch value {
       | Some(innerValue) =>
         switch innerValue->S.serializeToUnknownWith(innerStruct) {
         | Ok(value) => value
-        | Error(error) => S.advancedFail(error)
+        | Error(error) => s.failWithError(error)
         }
       | None => %raw(`null`)
       }
     },
-    (),
-  )
+  })
+}
 
 %raw(`"Hello world!"`)->S.parseWith(struct)
 // Ok(Some("Hello World!"))
@@ -905,7 +904,7 @@ let userIdStruct = S.string->S.asyncParserRefine(s => userId =>
 
 ### **`transform`**
 
-`(S.t<'value>, S.effectCtx<'transformed> => S.transformDefinition<'value, 'transformed>) => S.t<'transformed>`
+`(S.t<'input>, S.effectCtx<'output> => S.transformDefinition<'input, 'output>) => S.t<'output>`
 
 ```rescript
 let intToString = struct =>

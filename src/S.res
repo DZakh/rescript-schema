@@ -1404,48 +1404,50 @@ let rec advancedPreprocess = (
   }
 }
 
-let custom = (
-  ~name,
-  ~parser as maybeParser=?,
-  ~asyncParser as maybeAsyncParser=?,
-  ~serializer as maybeSerializer=?,
-  (),
-) => {
-  if maybeParser === None && maybeAsyncParser === None && maybeSerializer === None {
-    InternalError.MissingParserAndSerializer.panic(`Custom struct factory`)
-  }
-
+type customDefinition<'input, 'output> = {
+  @as("p")
+  parser?: unknown => 'output,
+  @as("a")
+  asyncParser?: unknown => unit => promise<'output>,
+  @as("s")
+  serializer?: 'output => 'input,
+}
+let custom = (name, definer) => {
   make(
     ~metadataMap=Metadata.make1(nameMetadataId, name),
     ~tagged=Unknown,
-    ~parseOperationBuilder=switch (maybeParser, maybeAsyncParser) {
-    | (Some(_), Some(_)) =>
-      InternalError.panic(
-        "The S.custom doesn't support the `parser` and `asyncParser` arguments simultaneously. Keep only `asyncParser`.",
-      )
-    | (Some(parser), None) =>
-      Builder.make((b, ~selfStruct as _, ~inputVar, ~pathVar) => {
-        b->B.embedSyncOperation(~inputVar, ~fn=parser, ~pathVar, ())
-      })
-    | (None, Some(asyncParser)) =>
-      Builder.make((b, ~selfStruct as _, ~inputVar, ~pathVar) => {
-        b->B.embedAsyncOperation(~inputVar, ~pathVar, ~fn=input => () => asyncParser(input), ())
-      })
-    | (None, None) =>
-      Builder.make((b, ~selfStruct as _, ~inputVar as _, ~pathVar) => {
+    ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
+      switch definer({
+        struct: selfStruct->castUnknownStructToAnyStruct,
+        fail,
+        failWithError: advancedFail,
+      }) {
+      | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~inputVar, ~pathVar, ~fn=parser, ())
+      | {parser: ?None, asyncParser} =>
+        b->B.embedAsyncOperation(~inputVar, ~pathVar, ~fn=asyncParser, ())
+      | {parser: ?None, asyncParser: ?None, serializer: ?None} => inputVar
+      | {parser: ?None, asyncParser: ?None, serializer: _} =>
         b->B.missingOperation(~pathVar, ~description=`The S.custom parser is missing`)
-      })
-    },
-    ~serializeOperationBuilder=switch maybeSerializer {
-    | Some(serializer) =>
-      Builder.make((b, ~selfStruct as _, ~inputVar, ~pathVar) => {
-        b->B.embedSyncOperation(~inputVar, ~fn=serializer, ~pathVar, ())
-      })
-    | None =>
-      Builder.make((b, ~selfStruct as _, ~inputVar as _, ~pathVar) => {
+      | {parser: _, asyncParser: _} =>
+        b->B.missingOperation(
+          ~pathVar,
+          ~description=`The S.custom doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.`,
+        )
+      }
+    }),
+    ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
+      switch definer({
+        struct: selfStruct->castUnknownStructToAnyStruct,
+        fail,
+        failWithError: advancedFail,
+      }) {
+      | {serializer} => b->B.embedSyncOperation(~inputVar, ~pathVar, ~fn=serializer, ())
+      | {parser: ?None, asyncParser: ?None, serializer: ?None} => inputVar
+      | {serializer: ?None, asyncParser: ?Some(_)}
+      | {serializer: ?None, parser: ?Some(_)} =>
         b->B.missingOperation(~pathVar, ~description=`The S.custom serializer is missing`)
-      })
-    },
+      }
+    }),
     (),
   )
 }

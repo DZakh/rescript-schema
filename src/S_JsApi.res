@@ -204,7 +204,7 @@ let literal = (value: 'value): struct<'value> => {
 }
 
 let custom = (~name, ~parser, ~serializer) => {
-  S.custom(~name, ~parser, ~serializer, ())->toJsStruct
+  S.custom(name, _ => {parser, serializer})->toJsStruct
 }
 
 structOperations->Stdlib.Object.extendWith({
