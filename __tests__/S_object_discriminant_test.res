@@ -257,7 +257,7 @@ module Negative = {
         t->Assert.deepEqual(
           {"field": "bar"}->S.serializeToUnknownWith(struct),
           Error({
-            code: MissingOperation({
+            code: InvalidOperation({
               description: `Can\'t create serializer. The "discriminant" field is not registered and not a literal. Use S.transform instead`,
             }),
             operation: Serializing,
@@ -325,7 +325,7 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
   t->Assert.deepEqual(
     {"field": "bar"}->S.serializeToUnknownWith(struct),
     Error({
-      code: MissingOperation({
+      code: InvalidOperation({
         description: `Can\'t create serializer. The "discriminant" field is not registered and not a literal. Use S.transform instead`,
       }),
       operation: Serializing,

@@ -56,7 +56,7 @@ test("Fails to serialize when the value is not used as the variant payload", t =
   t->Assert.deepEqual(
     #foo->S.serializeToUnknownWith(struct),
     Error({
-      code: MissingOperation({
+      code: InvalidOperation({
         description: "Can\'t create serializer. The S.variant\'s value is not registered and not a literal. Use S.transform instead",
       }),
       path: S.Path.empty,
@@ -100,7 +100,7 @@ test("Fails to serialize when value registered multiple times", t => {
   t->Assert.deepEqual(
     #Foo("abc", "abc")->S.serializeToUnknownWith(struct),
     Error({
-      code: MissingOperation({
+      code: InvalidOperation({
         description: "Can\'t create serializer. The S.variant\'s value is registered multiple times. Use S.transform instead",
       }),
       path: S.Path.empty,

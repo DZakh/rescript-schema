@@ -36,10 +36,10 @@ test("Error with path", t => {
   )
 })
 
-test("MissingOperation error", t => {
+test("InvalidOperation error", t => {
   t->Assert.is(
     {
-      code: MissingOperation({description: "The S.transform serializer is missing"}),
+      code: InvalidOperation({description: "The S.transform serializer is missing"}),
       operation: Parsing,
       path: S.Path.empty,
     }->S.Error.toString,

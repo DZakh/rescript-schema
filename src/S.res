@@ -399,7 +399,7 @@ and struct<'a> = t<'a>
 type rec error = {operation: operation, code: errorCode, path: Path.t}
 and errorCode =
   | OperationFailed(string)
-  | MissingOperation({description: string})
+  | InvalidOperation({description: string})
   | InvalidType({expected: struct<unknown>, received: unknown})
   | InvalidLiteral({expected: Literal.t, received: unknown})
   | InvalidTupleSize({expected: int, received: int})
@@ -667,7 +667,7 @@ module Builder = {
 
     let missingOperation = (b: t, ~pathVar, ~description) => {
       `${b->embed(path => {
-          InternalError.raise(~path, ~code=MissingOperation({description: description}))
+          InternalError.raise(~path, ~code=InvalidOperation({description: description}))
         })}(${pathVar});`
     }
 
@@ -3330,7 +3330,7 @@ module Error = {
   let rec toReason = (~nestedLevel=0, error) => {
     switch error.code {
     | OperationFailed(reason) => reason
-    | MissingOperation({description}) => description
+    | InvalidOperation({description}) => description
     | UnexpectedAsync => "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith"
     | ExcessField(fieldName) =>
       `Encountered disallowed excess key ${fieldName->Stdlib.Inlined.Value.fromString} on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`
