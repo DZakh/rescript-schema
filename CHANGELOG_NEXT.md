@@ -44,6 +44,7 @@
 - `S.inline` is temporary broken
 - Updated API for `S.Tuple.factory`. There are plans to change it once more before the actual release
 - `S.variant` used to fail when using value multiple times. Now it allows to create a struct and fails only on serializing with `InvalidOperation` code.
+- Added `fail` and `failWithError` methods to the `catchCtx`
 
 ## TS API changes
 
@@ -58,7 +59,7 @@
 - `S.literal(null)` now returns `S.Struct<null, null>` instead of `S.Struct<undefined>`
 - The `default` method now uses `S.optional` internally, so you don't need to call it yourself
 - The `refine` method now accepts only one refining function which is applied both for parser and serializer. If you want to refine the parser and serializer separately as before, use `S.transform` instead
-- Removed `S.fail` in favor of having `effectCtx` with `.fail` method
+- Removed `S.fail` in favor of having a `ctx` with `.fail` method
 - The `asyncRefine` is renamed to `asyncParserRefine`
 
 ## Opt-in ppx support

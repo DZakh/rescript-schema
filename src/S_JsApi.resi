@@ -8,59 +8,59 @@ module Result: {
   type t<'value>
 }
 
-type any
-type transformed
-type rec struct<'value> = {
-  parse: any => Result.t<'value>,
-  parseOrThrow: any => 'value,
-  parseAsync: any => promise<Result.t<'value>>,
-  serialize: 'value => Result.t<unknown>,
-  serializeOrThrow: 'value => unknown,
-  transform: (
-    ~parser: 'value => transformed,
-    ~serializer: transformed => 'value,
-  ) => struct<transformed>,
-  refine: (effectCtx<'value> => 'value => unit) => struct<'value>,
-  asyncParserRefine: (effectCtx<'value> => 'value => promise<unit>) => struct<'value>,
-  optional: unit => struct<option<'value>>,
-  nullable: unit => struct<option<'value>>,
-  describe: string => struct<'value>,
+type rec struct<'input, 'output> = {
+  parse: 'a. 'a => Result.t<'output>,
+  parseOrThrow: 'a. 'a => 'output,
+  parseAsync: 'a. 'a => promise<Result.t<'output>>,
+  serialize: 'output => Result.t<'input>,
+  serializeOrThrow: 'output => 'input,
+  transform: 'transformed. (
+    ~parser: ('output, effectCtx<'input, 'transformed>) => 'transformed=?,
+    ~serializer: ('transformed, effectCtx<'input, 'transformed>) => 'output=?,
+  ) => struct<'input, 'transformed>,
+  refine: (('output, effectCtx<'input, 'output>) => unit) => struct<'input, 'output>,
+  asyncParserRefine: (('output, effectCtx<'input, 'output>) => promise<unit>) => struct<
+    'input,
+    'output,
+  >,
+  optional: unit => struct<option<'input>, option<'output>>,
+  nullable: unit => struct<Js.null<'input>, option<'output>>,
+  describe: string => struct<'input, 'output>,
   description: unit => option<string>,
-  default: (unit => unknown) => struct<unknown>,
+  default: (unit => 'output) => struct<option<'input>, 'output>,
 }
-and effectCtx<'value> = {
-  struct: struct<'value>,
+and effectCtx<'input, 'output> = {
+  struct: struct<'input, 'output>,
   fail: 'a. string => 'a,
 }
 
-let fail: string => 'a
+let string: struct<string, string>
+let boolean: struct<bool, bool>
+let integer: struct<int, int>
+let number: struct<float, float>
+let never: struct<S.never, S.never>
+let unknown: struct<unknown, unknown>
+let json: struct<Js.Json.t, Js.Json.t>
+let nan: struct<float, unit>
 
-let string: struct<string>
-let boolean: struct<bool>
-let integer: struct<int>
-let number: struct<float>
-let never: struct<S.never>
-let unknown: struct<unknown>
-let json: struct<Js.Json.t>
-let nan: struct<unit>
-
-let optional: struct<'value> => struct<option<'value>>
-let nullable: struct<'value> => struct<option<'value>>
-let array: struct<'value> => struct<array<'value>>
-let record: struct<'value> => struct<Js.Dict.t<'value>>
-let jsonString: struct<'value> => struct<'value>
-let union: array<struct<unknown>> => struct<unknown>
-let literal: 'value => struct<'value>
-let tuple: array<struct<unknown>> => struct<array<unknown>>
+let optional: struct<'input, 'output> => struct<option<'input>, option<'output>>
+let nullable: struct<'input, 'output> => struct<Js.null<'input>, option<'output>>
+let array: struct<'input, 'output> => struct<array<'input>, array<'output>>
+let record: struct<'input, 'output> => struct<Js.Dict.t<'input>, Js.Dict.t<'output>>
+let jsonString: struct<'input, 'output> => struct<string, 'output>
+let union: array<struct<'input, 'output>> => struct<'input, 'output>
+let literal: 'literal => struct<'literal, 'literal>
+let tuple: array<struct<unknown, unknown>> => struct<array<unknown>, array<unknown>>
 
 let custom: (
   ~name: string,
-  ~parser: unknown => 'value,
-  ~serializer: 'value => 'any,
-) => struct<'value>
+  ~parser: (unknown, effectCtx<'input, 'output>) => 'output=?,
+  ~serializer: ('output, effectCtx<'input, 'output>) => 'input=?,
+  unit,
+) => struct<'input, 'output>
 
 module Object: {
   type rec t = {strict: unit => t, strip: unit => t}
 
-  let factory: Js.Dict.t<struct<'value>> => t
+  let factory: Js.Dict.t<struct<'input, 'output>> => t
 }

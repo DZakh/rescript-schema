@@ -54,11 +54,11 @@ test("Successfully refines on serializing", t => {
 })
 
 asyncTest("Successfully refines on async parsing", async t => {
-  let struct = S.int->S.asyncParserRefine(_ => value =>
+  let struct = S.int->S.asyncParserRefine(s => value =>
     Promise.resolve()->Promise.thenResolve(
       () => {
         if value < 0 {
-          S.fail("Should be positive")
+          s.fail("Should be positive")
         }
       },
     ))

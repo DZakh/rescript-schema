@@ -980,14 +980,14 @@ function refine(struct, refiner) {
               return embedSyncOperation(b, run(b, struct.pb, struct, inputVar, pathVar), pathVar, refiner({
                               s: selfStruct,
                               f: fail,
-                              e: failWithError
+                              w: failWithError
                             }), undefined, true, undefined);
             }),
           sb: (function (b, selfStruct, inputVar, pathVar) {
               return run(b, struct.pb, struct, embedSyncOperation(b, inputVar, pathVar, refiner({
                                   s: selfStruct,
                                   f: fail,
-                                  e: failWithError
+                                  w: failWithError
                                 }), undefined, true, undefined), pathVar);
             }),
           i: 0,
@@ -1006,7 +1006,7 @@ function asyncParserRefine(struct, refiner) {
               var asyncFn = refiner({
                     s: selfStruct,
                     f: fail,
-                    e: failWithError
+                    w: failWithError
                   });
               return embedAsyncOperation(b, run(b, struct.pb, struct, inputVar, pathVar), pathVar, (function (i) {
                             return function () {
@@ -1037,7 +1037,7 @@ function transform(struct, transformer) {
               var match = transformer({
                     s: selfStruct,
                     f: fail,
-                    e: failWithError
+                    w: failWithError
                   });
               var parser = match.p;
               if (parser !== undefined) {
@@ -1060,7 +1060,7 @@ function transform(struct, transformer) {
               var match = transformer({
                     s: selfStruct,
                     f: fail,
-                    e: failWithError
+                    w: failWithError
                   });
               var serializer = match.s;
               if (serializer !== undefined) {
@@ -1106,7 +1106,7 @@ function preprocess(struct, transformer) {
               var match = transformer({
                     s: selfStruct,
                     f: fail,
-                    e: failWithError
+                    w: failWithError
                   });
               var parser = match.p;
               if (parser !== undefined) {
@@ -1136,7 +1136,7 @@ function preprocess(struct, transformer) {
               var match = transformer({
                     s: selfStruct,
                     f: fail,
-                    e: failWithError
+                    w: failWithError
                   });
               var serializer = match.s;
               if (serializer !== undefined) {
@@ -1161,7 +1161,7 @@ function custom(name, definer) {
               var match = definer({
                     s: selfStruct,
                     f: fail,
-                    e: failWithError
+                    w: failWithError
                   });
               var parser = match.p;
               if (parser !== undefined) {
@@ -1184,7 +1184,7 @@ function custom(name, definer) {
               var match = definer({
                     s: selfStruct,
                     f: fail,
-                    e: failWithError
+                    w: failWithError
                   });
               var serializer = match.s;
               if (serializer !== undefined) {
@@ -2598,7 +2598,7 @@ var json = {
 function $$catch(struct, getFallbackValue) {
   return {
           t: struct.t,
-          pb: (function (b, param, inputVar, pathVar) {
+          pb: (function (b, selfStruct, inputVar, pathVar) {
               var outputVar = $$var(b);
               var syncTryCode = scope(b, (function (b) {
                       return outputVar + "=" + run(b, struct.pb, struct, inputVar, pathVar);
@@ -2606,8 +2606,11 @@ function $$catch(struct, getFallbackValue) {
               var isAsync = struct.i;
               var fallbackValVar = "e[" + (b.e.push(function (input, internalError) {
                       return getFallbackValue({
-                                  error: toParseError(internalError),
-                                  input: input
+                                  e: toParseError(internalError),
+                                  i: input,
+                                  s: selfStruct,
+                                  f: fail,
+                                  w: failWithError
                                 });
                     }) - 1) + "](" + inputVar + ",t)";
               if (isAsync) {
@@ -3200,7 +3203,6 @@ export {
   classify$1 as classify,
   name ,
   setName ,
-  fail ,
   $$Object ,
   object ,
   Tuple ,

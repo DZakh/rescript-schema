@@ -19,17 +19,20 @@ export interface Struct<Input, Output> {
   serialize(data: Output): Result<Input>;
   serializeOrThrow(data: Output): Input;
   transform<Transformed>(
-    parser: (value: Output) => Transformed
+    parser: (value: Output, s: EffectCtx<unknown, unknown>) => Transformed
   ): Struct<Input, Transformed>;
   transform<Transformed>(
-    parser: ((value: Output) => Transformed) | undefined,
-    serializer: (transformed: Transformed) => Output
+    parser: (
+      value: Output,
+      s: EffectCtx<unknown, unknown>
+    ) => Transformed | undefined,
+    serializer: (value: Transformed, s: EffectCtx<unknown, unknown>) => Input
   ): Struct<Input, Transformed>;
   refine(
-    refiner: (ctx: EffectCtx<Input, Output>) => (value: Output) => void
+    refiner: (value: Output, s: EffectCtx<Input, Output>) => void
   ): Struct<Input, Output>;
   asyncParserRefine(
-    refiner: (ctx: EffectCtx<Input, Output>) => (value: Output) => Promise<void>
+    refiner: (value: Output, s: EffectCtx<Input, Output>) => Promise<void>
   ): Struct<Input, Output>;
   optional(): Struct<Input | undefined, Output | undefined>;
   nullable(): Struct<Input | null, Output | undefined>;
@@ -171,10 +174,14 @@ export const object: <
   }
 >;
 
-export const custom: <Input, Output>(
+export function custom<Input, Output>(
   name: string,
-  parser?: (data: unknown) => Output,
-  serializer?: (value: Output) => Input
-) => Struct<Input, Output>;
+  parser: (data: unknown, s: EffectCtx<unknown, unknown>) => Output
+): Struct<Input, Output>;
+export function custom<Input, Output>(
+  name: string,
+  parser: (data: unknown, s: EffectCtx<unknown, unknown>) => Output | undefined,
+  serializer: (value: Output, s: EffectCtx<unknown, unknown>) => Input
+): Struct<Input, Output>;
 
 export const fail: (reason: string) => void;

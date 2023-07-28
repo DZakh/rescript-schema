@@ -33,32 +33,29 @@ test("Doesn't affect serializing in any way", t => {
 })
 
 test("Provides ctx to use in catch", t => {
-  t->ExecutionContext.plan(2)
-
-  let struct = S.string->S.catch(ctx => {
+  t->ExecutionContext.plan(3)
+  let struct = S.string->S.catch(s => {
     t->Assert.deepEqual(
-      ctx,
+      s.error,
       {
-        error: {
-          code: InvalidType({received: %raw(`123`), expected: S.string->S.toUnknown}),
-          operation: Parsing,
-          path: S.Path.empty,
-        },
-        input: %raw(`123`),
+        code: InvalidType({received: %raw(`123`), expected: S.string->S.toUnknown}),
+        operation: Parsing,
+        path: S.Path.empty,
       },
       (),
     )
+    t->Assert.deepEqual(s.input, %raw(`123`), ())
     "fallback"
   })
 
   t->Assert.deepEqual(123->S.parseAnyWith(struct), Ok("fallback"), ())
 })
 
-test("Can use S.fail inside of S.catch", t => {
-  let struct = S.literal("0")->S.catch(ctx => {
-    switch ctx.input->S.parseAnyWith(S.string) {
+test("Can use s.fail inside of S.catch", t => {
+  let struct = S.literal("0")->S.catch(s => {
+    switch s.input->S.parseAnyWith(S.string) {
     | Ok(_) => "1"
-    | Error(_) => S.fail("Fallback value only supported for strings.")
+    | Error(_) => s.fail("Fallback value only supported for strings.")
     }
   })
 

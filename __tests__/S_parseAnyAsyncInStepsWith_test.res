@@ -6,9 +6,10 @@ let validAsyncRefine = S.transform(_, _ => {
 // FIXME: Correct path when S.refine(_, s => s.fail("Sync user error"))
 let invalidSyncRefine = S.refine(_, s => _ => s.fail("Sync user error"))
 let unresolvedPromise = Promise.make((_, _) => ())
-let makeInvalidPromise = () => Promise.resolve()->Promise.then(() => S.fail("Async user error"))
-let invalidAsyncRefine = S.transform(_, _ => {
-  asyncParser: _ => makeInvalidPromise,
+let makeInvalidPromise = (s: S.effectCtx<'a>) =>
+  Promise.resolve()->Promise.then(() => s.fail("Async user error"))
+let invalidAsyncRefine = S.transform(_, s => {
+  asyncParser: _ => () => makeInvalidPromise(s),
 })
 
 asyncTest("Successfully parses without asyncRefine", t => {
@@ -564,13 +565,13 @@ module Array = {
     let actionCounter = ref(0)
 
     let struct = S.array(
-      S.int->S.transform(_ => {
+      S.int->S.transform(s => {
         asyncParser: _ => () => {
           actionCounter.contents = actionCounter.contents + 1
           if actionCounter.contents <= 2 {
             unresolvedPromise
           } else {
-            makeInvalidPromise()
+            makeInvalidPromise(s)
           }
         },
       }),
@@ -638,13 +639,13 @@ module Dict = {
     let actionCounter = ref(0)
 
     let struct = S.dict(
-      S.int->S.transform(_ => {
+      S.int->S.transform(s => {
         asyncParser: _ => () => {
           actionCounter.contents = actionCounter.contents + 1
           if actionCounter.contents <= 2 {
             unresolvedPromise
           } else {
-            makeInvalidPromise()
+            makeInvalidPromise(s)
           }
         },
       }),

@@ -54,8 +54,8 @@ test("Correctly serializes custom struct", t => {
 })
 
 test("Fails to serialize with user error", t => {
-  let struct = S.custom("Test", _ => {
-    serializer: _ => S.fail("User error"),
+  let struct = S.custom("Test", s => {
+    serializer: _ => s.fail("User error"),
   })
 
   t->Assert.deepEqual(

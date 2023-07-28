@@ -252,6 +252,29 @@ test("Successfully parses with transform to another type", (t) => {
   expectType<TypeEqual<typeof value, number>>(true);
 });
 
+test("Fails to parse with transform with user error", (t) => {
+  const struct = S.string.transform((string, s) => {
+    const number = Number(string);
+    if (Number.isNaN(number)) {
+      throw s.fail("Invalid number");
+    }
+    return number;
+  });
+  const value = struct.parseOrThrow("123");
+  t.deepEqual(value, 123);
+  expectType<TypeEqual<typeof value, number>>(true);
+
+  t.throws(
+    () => {
+      struct.parseOrThrow("asdf");
+    },
+    {
+      name: "RescriptStructError",
+      message: "Failed parsing at root. Reason: Invalid number",
+    }
+  );
+});
+
 test("Successfully serializes with transform to another type", (t) => {
   const struct = S.string.transform(
     (string) => Number(string),
@@ -268,7 +291,7 @@ test("Successfully serializes with transform to another type", (t) => {
 });
 
 test("Successfully parses with refine", (t) => {
-  const struct = S.string.refine((s) => (string) => {
+  const struct = S.string.refine((string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
   const value = struct.parseOrThrow("123");
@@ -279,7 +302,7 @@ test("Successfully parses with refine", (t) => {
 });
 
 test("Successfully serializes with refine", (t) => {
-  const struct = S.string.refine((s) => (string) => {
+  const struct = S.string.refine((string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
   const result = struct.serializeOrThrow("123");
@@ -290,7 +313,7 @@ test("Successfully serializes with refine", (t) => {
 });
 
 test("Fails to parses with refine raising an error", (t) => {
-  const struct = S.string.refine((s) => (_) => {
+  const struct = S.string.refine((_, s) => {
     s.fail("User error");
   });
 
@@ -306,7 +329,7 @@ test("Fails to parses with refine raising an error", (t) => {
 });
 
 test("Successfully parses async struct", async (t) => {
-  const struct = S.string.asyncParserRefine((_) => async (string) => {
+  const struct = S.string.asyncParserRefine(async (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
   const value = await struct.parseAsync("123");
@@ -317,7 +340,7 @@ test("Successfully parses async struct", async (t) => {
 });
 
 test("Fails to parses async struct", async (t) => {
-  const struct = S.string.asyncParserRefine((s) => async (_) => {
+  const struct = S.string.asyncParserRefine(async (_, s) => {
     return Promise.resolve().then(() => {
       s.fail("User error");
     });
@@ -334,12 +357,12 @@ test("Fails to parses async struct", async (t) => {
 test("Custom string struct", (t) => {
   const struct = S.custom(
     "Postcode",
-    (unknown) => {
+    (unknown, s) => {
       if (typeof unknown !== "string") {
-        throw S.fail("Postcode should be a string");
+        throw s.fail("Postcode should be a string");
       }
       if (unknown.length !== 5) {
-        throw S.fail("Postcode should be 5 characters");
+        throw s.fail("Postcode should be 5 characters");
       }
       return unknown;
     },
@@ -417,7 +440,7 @@ test("Successfully parses object by provided shape", (t) => {
 
 test("Successfully parses object with transformed field", (t) => {
   const struct = S.object({
-    foo: S.string.transform((s) => Number(s)),
+    foo: S.string.transform((string) => Number(string)),
     bar: S.boolean,
   });
   const value = struct.parseOrThrow({

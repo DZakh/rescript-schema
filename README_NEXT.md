@@ -313,7 +313,7 @@ The `literal` struct enforces that a data matches an exact value during parsing 
 
 ### **`object`**
 
-`(S.Object.definerCtx => 'value) => S.t<'value>`
+`(S.Object.ctx => 'value) => S.t<'value>`
 
 ```rescript
 type point = {
@@ -721,7 +721,7 @@ This can be useful for documenting a field, for example in a JSON Schema using a
 
 ### **`catch`**
 
-`(S.t<'value>, S.catchCtx => 'value) => S.t<'value>`
+`(S.t<'value>, S.catchCtx<'value> => 'value) => S.t<'value>`
 
 Use `S.catch` to provide a "catch value" to be returned instead of a parsing error.
 
@@ -737,9 +737,9 @@ let struct = S.float->S.catch(_ => 42.)
 Also, the callback `S.catch` receives a catch context as a first argument. It contains the caught error and the initial data provided to the parse function.
 
 ```rescript
-let struct = S.float->S.catch(ctx => {
-  Console.log(ctx.error) // The caught error
-  Console.log(ctx.input) // The data provided to the parse function
+let struct = S.float->S.catch(s => {
+  Console.log(s.error) // The caught error
+  Console.log(s.input) // The data provided to the parse function
   42.
 })
 ```

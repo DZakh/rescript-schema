@@ -28,10 +28,6 @@ function fromError(error) {
 
 var structOperations = {};
 
-function fail(reason) {
-  return S$RescriptStruct.fail(undefined, reason);
-}
-
 function parse(data) {
   var struct = this;
   try {
@@ -99,12 +95,25 @@ function serializeOrThrow(value) {
   }
 }
 
-function transform(parser, serializer) {
+function transform(maybeParser, maybeSerializer) {
   var struct = this;
-  var struct$1 = S$RescriptStruct.transform(struct, (function (param) {
+  var struct$1 = S$RescriptStruct.transform(struct, (function (s) {
+          var struct = s.s;
+          var effectCtx_struct = Object.assign(struct, structOperations);
+          var effectCtx_fail = function (message) {
+            return s.f(undefined, message);
+          };
+          var effectCtx = {
+            struct: effectCtx_struct,
+            fail: effectCtx_fail
+          };
           return {
-                  p: parser,
-                  s: serializer
+                  p: maybeParser !== undefined ? (function (v) {
+                        return maybeParser(v, effectCtx);
+                      }) : undefined,
+                  s: maybeSerializer !== undefined ? (function (v) {
+                        return maybeSerializer(v, effectCtx);
+                      }) : undefined
                 };
         }));
   return Object.assign(struct$1, structOperations);
@@ -114,12 +123,17 @@ function refine(refiner) {
   var struct = this;
   var struct$1 = S$RescriptStruct.refine(struct, (function (s) {
           var struct = s.s;
-          return refiner({
-                      struct: Object.assign(struct, structOperations),
-                      fail: (function (message) {
-                          return s.f(undefined, message);
-                        })
-                    });
+          var effectCtx_struct = Object.assign(struct, structOperations);
+          var effectCtx_fail = function (message) {
+            return s.f(undefined, message);
+          };
+          var effectCtx = {
+            struct: effectCtx_struct,
+            fail: effectCtx_fail
+          };
+          return function (v) {
+            refiner(v, effectCtx);
+          };
         }));
   return Object.assign(struct$1, structOperations);
 }
@@ -128,12 +142,17 @@ function asyncParserRefine(refiner) {
   var struct = this;
   var struct$1 = S$RescriptStruct.asyncParserRefine(struct, (function (s) {
           var struct = s.s;
-          return refiner({
-                      struct: Object.assign(struct, structOperations),
-                      fail: (function (message) {
-                          return s.f(undefined, message);
-                        })
-                    });
+          var effectCtx_struct = Object.assign(struct, structOperations);
+          var effectCtx_fail = function (message) {
+            return s.f(undefined, message);
+          };
+          var effectCtx = {
+            struct: effectCtx_struct,
+            fail: effectCtx_fail
+          };
+          return function (v) {
+            return refiner(v, effectCtx);
+          };
         }));
   return Object.assign(struct$1, structOperations);
 }
@@ -190,19 +209,32 @@ function tuple(structs) {
   return Object.assign(struct, structOperations);
 }
 
-function literal(value) {
-  if (Number.isNaN(value)) {
+function literal(literal$1) {
+  if (Number.isNaN(literal$1)) {
     return Js_exn.raiseError("[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.");
   }
-  var struct = S$RescriptStruct.literal(value);
+  var struct = S$RescriptStruct.literal(literal$1);
   return Object.assign(struct, structOperations);
 }
 
-function custom(name, parser, serializer) {
-  var struct = S$RescriptStruct.custom(name, (function (param) {
+function custom(name, maybeParser, maybeSerializer, param) {
+  var struct = S$RescriptStruct.custom(name, (function (s) {
+          var struct = s.s;
+          var effectCtx_struct = Object.assign(struct, structOperations);
+          var effectCtx_fail = function (message) {
+            return s.f(undefined, message);
+          };
+          var effectCtx = {
+            struct: effectCtx_struct,
+            fail: effectCtx_fail
+          };
           return {
-                  p: parser,
-                  s: serializer
+                  p: maybeParser !== undefined ? (function (v) {
+                        return maybeParser(v, effectCtx);
+                      }) : undefined,
+                  s: maybeSerializer !== undefined ? (function (v) {
+                        return maybeSerializer(v, effectCtx);
+                      }) : undefined
                 };
         }));
   return Object.assign(struct, structOperations);
@@ -291,7 +323,6 @@ var $$Object = {
 export {
   $$Error ,
   Result ,
-  fail ,
   string ,
   $$boolean ,
   integer ,

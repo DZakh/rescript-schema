@@ -7,7 +7,7 @@ test("Successfully serializes", t => {
 })
 
 test("Fails to serialize", t => {
-  let struct = S.bool->S.refine(_ => S.fail("User error"))
+  let struct = S.bool->S.refine(s => _ => s.fail("User error"))
 
   let maybeError = try {
     true->S.serializeOrRaiseWith(struct)->ignore

@@ -78,7 +78,7 @@ and operation =
 type effectCtx<'value> = {
   @as("s") struct: t<'value>,
   @as("f") fail: 'a. (~path: Path.t=?, string) => 'a,
-  @as("e") failWithError: 'a. error => 'a,
+  @as("w") failWithError: 'a. error => 'a,
 }
 
 module Error: {
@@ -107,11 +107,14 @@ let union: array<t<'value>> => t<'value>
 
 let default: (t<'value>, unit => 'value) => t<'value>
 
-type catchCtx = {
-  error: error,
-  input: unknown,
+type catchCtx<'value> = {
+  @as("e") error: error,
+  @as("i") input: unknown,
+  @as("s") struct: t<'value>,
+  @as("f") fail: 'a. (~path: Path.t=?, string) => 'a,
+  @as("w") failWithError: 'a. error => 'a,
 }
-let catch: (t<'value>, catchCtx => 'value) => t<'value>
+let catch: (t<'value>, catchCtx<'value> => 'value) => t<'value>
 
 let describe: (t<'value>, string) => t<'value>
 let description: t<'value> => option<string>
@@ -198,8 +201,6 @@ let name: t<'value> => string
 let setName: (t<'value>, string) => t<'value>
 
 external toUnknown: t<'any> => t<unknown> = "%identity"
-
-let fail: (~path: Path.t=?, string) => 'a
 
 module Object: {
   type ctx = {

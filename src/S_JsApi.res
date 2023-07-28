@@ -55,43 +55,42 @@ module Result = {
     }->Obj.magic
 }
 
-type any
-type transformed
-type rec struct<'value> = {
-  parse: any => Result.t<'value>,
-  parseOrThrow: any => 'value,
-  parseAsync: any => promise<Result.t<'value>>,
-  serialize: 'value => Result.t<unknown>,
-  serializeOrThrow: 'value => unknown,
-  transform: (
-    ~parser: 'value => transformed,
-    ~serializer: transformed => 'value,
-  ) => struct<transformed>,
-  refine: (effectCtx<'value> => 'value => unit) => struct<'value>,
-  asyncParserRefine: (effectCtx<'value> => 'value => promise<unit>) => struct<'value>,
-  optional: unit => struct<option<'value>>,
-  nullable: unit => struct<option<'value>>,
-  describe: string => struct<'value>,
+type rec struct<'input, 'output> = {
+  parse: 'a. 'a => Result.t<'output>,
+  parseOrThrow: 'a. 'a => 'output,
+  parseAsync: 'a. 'a => promise<Result.t<'output>>,
+  serialize: 'output => Result.t<'input>,
+  serializeOrThrow: 'output => 'input,
+  transform: 'transformed. (
+    ~parser: ('output, effectCtx<'input, 'transformed>) => 'transformed=?,
+    ~serializer: ('transformed, effectCtx<'input, 'transformed>) => 'output=?,
+  ) => struct<'input, 'transformed>,
+  refine: (('output, effectCtx<'input, 'output>) => unit) => struct<'input, 'output>,
+  asyncParserRefine: (('output, effectCtx<'input, 'output>) => promise<unit>) => struct<
+    'input,
+    'output,
+  >,
+  optional: unit => struct<option<'input>, option<'output>>,
+  nullable: unit => struct<Js.null<'input>, option<'output>>,
+  describe: string => struct<'input, 'output>,
   description: unit => option<string>,
-  default: (unit => unknown) => struct<unknown>,
+  default: (unit => 'output) => struct<option<'input>, 'output>,
 }
-and effectCtx<'value> = {
-  struct: struct<'value>,
+and effectCtx<'input, 'output> = {
+  struct: struct<'input, 'output>,
   fail: 'a. string => 'a,
 }
 
 let structOperations = %raw("{}")
 
-let castToRescriptStruct: struct<'value> => S.t<'value> = Obj.magic
-let castMultipleToRescriptStruct: array<struct<'value>> => array<S.t<'value>> = Obj.magic
+let castToRescriptStruct: struct<'input, 'output> => S.t<'output> = Obj.magic
+let castMultipleToRescriptStruct: array<struct<'input, 'output>> => array<S.t<'output>> = Obj.magic
 
 @inline
 let toJsStruct = struct => {
-  let castToJsStruct: S.t<'value> => struct<'value> = Obj.magic
+  let castToJsStruct: S.t<'output> => struct<'input, 'output> = Obj.magic
   struct->Stdlib.Object.extendWith(structOperations)->castToJsStruct
 }
-
-let fail = reason => S.fail(reason)
 
 let parse = data => {
   let struct = %raw("this")
@@ -141,32 +140,57 @@ let serializeOrThrow = value => {
   }
 }
 
-let transform = (~parser, ~serializer) => {
+let transform: (
+  ~parser: ('output, effectCtx<'input, 'transformed>) => 'transformed=?,
+  ~serializer: ('transformed, effectCtx<'input, 'transformed>) => 'output=?,
+) => struct<'input, 'transformed> = (
+  ~parser as maybeParser=?,
+  ~serializer as maybeSerializer=?,
+) => {
   let struct = %raw("this")
-  struct->S.transform(_ => {parser, serializer})->toJsStruct
+  struct
+  ->S.transform(s => {
+    let effectCtx = {
+      struct: s.struct->toJsStruct,
+      fail: message => s.fail(message),
+    }
+    {
+      parser: ?switch maybeParser {
+      | Some(parser) => Some(v => parser(v, effectCtx))
+      | None => None
+      },
+      serializer: ?switch maybeSerializer {
+      | Some(serializer) => Some(v => serializer(v, effectCtx))
+      | None => None
+      },
+    }
+  })
+  ->toJsStruct
 }
 
 let refine = refiner => {
   let struct = %raw("this")
   struct
-  ->S.refine(s =>
-    refiner({
+  ->S.refine(s => {
+    let effectCtx = {
       struct: s.struct->toJsStruct,
       fail: message => s.fail(message),
-    })
-  )
+    }
+    v => refiner(v, effectCtx)
+  })
   ->toJsStruct
 }
 
 let asyncParserRefine = refiner => {
   let struct = %raw("this")
   struct
-  ->S.asyncParserRefine(s =>
-    refiner({
+  ->S.asyncParserRefine(s => {
+    let effectCtx = {
       struct: s.struct->toJsStruct,
       fail: message => s.fail(message),
-    })
-  )
+    }
+    v => refiner(v, effectCtx)
+  })
   ->toJsStruct
 }
 
@@ -191,20 +215,35 @@ let record = struct => S.dict(struct->castToRescriptStruct)->toJsStruct
 let jsonString = struct => S.jsonString(struct->castToRescriptStruct)->toJsStruct
 let union = structs => S.union(structs->castMultipleToRescriptStruct)->toJsStruct
 let tuple = structs => {
-  let structs = structs->(Obj.magic: array<struct<'value>> => array<S.t<unknown>>)
+  let structs = structs->(Obj.magic: array<struct<'input, 'output>> => array<S.t<unknown>>)
   S.Tuple.factory(structs)->toJsStruct
 }
 
-let literal = (value: 'value): struct<'value> => {
-  if value->(Obj.magic: 'value => float)->Js.Float.isNaN {
+let literal = (literal: 'literal): struct<'literal, 'literal> => {
+  if literal->(Obj.magic: 'literal => float)->Js.Float.isNaN {
     Js.Exn.raiseError(`[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.`)
   } else {
-    S.literal(value)->toJsStruct
+    S.literal(literal)->toJsStruct
   }
 }
 
-let custom = (~name, ~parser, ~serializer) => {
-  S.custom(name, _ => {parser, serializer})->toJsStruct
+let custom = (~name, ~parser as maybeParser=?, ~serializer as maybeSerializer=?, ()) => {
+  S.custom(name, s => {
+    let effectCtx = {
+      struct: s.struct->toJsStruct,
+      fail: message => s.fail(message),
+    }
+    {
+      parser: ?switch maybeParser {
+      | Some(parser) => Some(v => parser(v, effectCtx))
+      | None => None
+      },
+      serializer: ?switch maybeSerializer {
+      | Some(serializer) => Some(v => serializer(v, effectCtx))
+      | None => None
+      },
+    }
+  })->toJsStruct
 }
 
 structOperations->Stdlib.Object.extendWith({

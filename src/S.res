@@ -410,7 +410,7 @@ and operation =
 type effectCtx<'value> = {
   @as("s") struct: t<'value>,
   @as("f") fail: 'a. (~path: Path.t=?, string) => 'a,
-  @as("e") failWithError: 'a. error => 'a,
+  @as("w") failWithError: 'a. error => 'a,
 }
 
 external castUnknownStructToAnyStruct: t<unknown> => t<'any> = "%identity"
@@ -3213,14 +3213,17 @@ let json = make(
   (),
 )
 
-type catchCtx = {
-  error: error,
-  input: unknown,
+type catchCtx<'value> = {
+  @as("e") error: error,
+  @as("i") input: unknown,
+  @as("s") struct: t<'value>,
+  @as("f") fail: 'a. (~path: Path.t=?, string) => 'a,
+  @as("w") failWithError: 'a. error => 'a,
 }
 let catch = (struct, getFallbackValue) => {
   let struct = struct->toUnknown
   make(
-    ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+    ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
       let outputVar = b->B.var
       let syncTryCode = b->B.scope(b => {
         `${outputVar}=${b->B.run(
@@ -3236,6 +3239,9 @@ let catch = (struct, getFallbackValue) => {
           getFallbackValue({
             input,
             error: internalError->InternalError.toParseError,
+            struct: selfStruct->castUnknownStructToAnyStruct,
+            fail,
+            failWithError,
           })
         )}(${inputVar},t)`
 
