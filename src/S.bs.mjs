@@ -616,7 +616,7 @@ function intitialParseAsync(input) {
   return struct.a(input);
 }
 
-function advancedFail(error) {
+function failWithError(error) {
   throw {
         c: error.code,
         p: error.path,
@@ -980,14 +980,14 @@ function refine(struct, refiner) {
               return embedSyncOperation(b, run(b, struct.pb, struct, inputVar, pathVar), pathVar, refiner({
                               s: selfStruct,
                               f: fail,
-                              e: advancedFail
+                              e: failWithError
                             }), undefined, true, undefined);
             }),
           sb: (function (b, selfStruct, inputVar, pathVar) {
               return run(b, struct.pb, struct, embedSyncOperation(b, inputVar, pathVar, refiner({
                                   s: selfStruct,
                                   f: fail,
-                                  e: advancedFail
+                                  e: failWithError
                                 }), undefined, true, undefined), pathVar);
             }),
           i: 0,
@@ -1006,7 +1006,7 @@ function asyncParserRefine(struct, refiner) {
               var asyncFn = refiner({
                     s: selfStruct,
                     f: fail,
-                    e: advancedFail
+                    e: failWithError
                   });
               return embedAsyncOperation(b, run(b, struct.pb, struct, inputVar, pathVar), pathVar, (function (i) {
                             return function () {
@@ -1037,7 +1037,7 @@ function transform(struct, transformer) {
               var match = transformer({
                     s: selfStruct,
                     f: fail,
-                    e: advancedFail
+                    e: failWithError
                   });
               var parser = match.p;
               if (parser !== undefined) {
@@ -1060,7 +1060,7 @@ function transform(struct, transformer) {
               var match = transformer({
                     s: selfStruct,
                     f: fail,
-                    e: advancedFail
+                    e: failWithError
                   });
               var serializer = match.s;
               if (serializer !== undefined) {
@@ -1106,7 +1106,7 @@ function preprocess(struct, transformer) {
               var match = transformer({
                     s: selfStruct,
                     f: fail,
-                    e: advancedFail
+                    e: failWithError
                   });
               var parser = match.p;
               if (parser !== undefined) {
@@ -1136,7 +1136,7 @@ function preprocess(struct, transformer) {
               var match = transformer({
                     s: selfStruct,
                     f: fail,
-                    e: advancedFail
+                    e: failWithError
                   });
               var serializer = match.s;
               if (serializer !== undefined) {
@@ -1161,7 +1161,7 @@ function custom(name, definer) {
               var match = definer({
                     s: selfStruct,
                     f: fail,
-                    e: advancedFail
+                    e: failWithError
                   });
               var parser = match.p;
               if (parser !== undefined) {
@@ -1184,7 +1184,7 @@ function custom(name, definer) {
               var match = definer({
                     s: selfStruct,
                     f: fail,
-                    e: advancedFail
+                    e: failWithError
                   });
               var serializer = match.s;
               if (serializer !== undefined) {
@@ -3201,7 +3201,6 @@ export {
   name ,
   setName ,
   fail ,
-  advancedFail ,
   $$Object ,
   object ,
   Tuple ,

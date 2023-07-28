@@ -52,7 +52,7 @@ test("Fails to parse when user raises error in a Transformed Primitive parser", 
   )
 })
 
-test("Uses the path from advancedFail called in the transform parser", t => {
+test("Uses the path from failWithError called in the transform parser", t => {
   let struct = S.array(
     S.string->S.transform(s => {
       parser: _ =>
@@ -75,7 +75,7 @@ test("Uses the path from advancedFail called in the transform parser", t => {
   )
 })
 
-test("Uses the path from advancedFail called in the transform serializer", t => {
+test("Uses the path from failWithError called in the transform serializer", t => {
   let struct = S.array(
     S.string->S.transform(s => {
       serializer: _ =>

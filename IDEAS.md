@@ -46,7 +46,6 @@ let struct = S.tuple(s => (s.tag(0, "A"), s.item(1, S.int)))
 
 ## Next breaking release
 
-- rename advancedFail to failWithError
 - Move S.inline to experimental or Codegen module
 - Remove S.toUnknown (update tuple)
 - Add built-in refinements to TS API

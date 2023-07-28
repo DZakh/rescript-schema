@@ -201,8 +201,6 @@ external toUnknown: t<'any> => t<unknown> = "%identity"
 
 let fail: (~path: Path.t=?, string) => 'a
 
-let advancedFail: error => 'a
-
 module Object: {
   type ctx = {
     @as("f") field: 'value. (string, t<'value>) => 'value,

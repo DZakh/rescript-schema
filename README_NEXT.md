@@ -1143,18 +1143,6 @@ let struct = S.literal(false)
 // })
 ```
 
-### **`fail`**
-
-`(~path: S.Path.t=?, string) => 'a`
-
-A function to exit with failure during refinements and transforms.
-
-### **`advancedFail`** _Advanced_
-
-`S.Error.t => 'a`
-
-A function to exit with failure during refinements and transforms.
-
 ### **`Error.toString`**
 
 `S.Error.t => string`

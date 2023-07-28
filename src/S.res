@@ -863,7 +863,7 @@ let make = (~tagged, ~metadataMap, ~parseOperationBuilder, ~serializeOperationBu
   metadataMap,
 }
 
-let advancedFail = (error: error) => {
+let failWithError = (error: error) => {
   InternalError.raise(~path=error.path, ~code=error.code)
 }
 
@@ -1151,7 +1151,7 @@ let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value> = (str
         ~fn=refiner({
           struct: selfStruct->castUnknownStructToAnyStruct,
           fail,
-          failWithError: advancedFail,
+          failWithError,
         }),
         ~isRefine=true,
         (),
@@ -1167,7 +1167,7 @@ let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value> = (str
           ~fn=refiner({
             struct: selfStruct->castUnknownStructToAnyStruct,
             fail,
-            failWithError: advancedFail,
+            failWithError,
           }),
           ~isRefine=true,
           (),
@@ -1188,7 +1188,7 @@ let asyncParserRefine = (struct, refiner) => {
       let asyncFn = refiner({
         struct: selfStruct->castUnknownStructToAnyStruct,
         fail,
-        failWithError: advancedFail,
+        failWithError,
       })
       b->B.embedAsyncOperation(
         ~inputVar=b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar),
@@ -1236,7 +1236,7 @@ let transform: (
       switch transformer({
         struct: selfStruct->castUnknownStructToAnyStruct,
         fail,
-        failWithError: advancedFail,
+        failWithError,
       }) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~inputVar, ~pathVar, ~fn=parser, ())
       | {parser: ?None, asyncParser} =>
@@ -1255,7 +1255,7 @@ let transform: (
       switch transformer({
         struct: selfStruct->castUnknownStructToAnyStruct,
         fail,
-        failWithError: advancedFail,
+        failWithError,
       }) {
       | {serializer} =>
         b->B.run(
@@ -1306,7 +1306,7 @@ let rec preprocess = (struct, transformer) => {
         switch transformer({
           struct: selfStruct->castUnknownStructToAnyStruct,
           fail,
-          failWithError: advancedFail,
+          failWithError,
         }) {
         | {parser, asyncParser: ?None} =>
           b->B.run(
@@ -1350,7 +1350,7 @@ let rec preprocess = (struct, transformer) => {
         switch transformer({
           struct: selfStruct->castUnknownStructToAnyStruct,
           fail,
-          failWithError: advancedFail,
+          failWithError,
         }) {
         | {serializer} => b->B.embedSyncOperation(~inputVar, ~pathVar, ~fn=serializer, ())
         // TODO: Test that it doesn't return InvalidOperation when parser is passed but not serializer
@@ -1379,7 +1379,7 @@ let custom = (name, definer) => {
       switch definer({
         struct: selfStruct->castUnknownStructToAnyStruct,
         fail,
-        failWithError: advancedFail,
+        failWithError,
       }) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~inputVar, ~pathVar, ~fn=parser, ())
       | {parser: ?None, asyncParser} =>
@@ -1398,7 +1398,7 @@ let custom = (name, definer) => {
       switch definer({
         struct: selfStruct->castUnknownStructToAnyStruct,
         fail,
-        failWithError: advancedFail,
+        failWithError,
       }) {
       | {serializer} => b->B.embedSyncOperation(~inputVar, ~pathVar, ~fn=serializer, ())
       | {parser: ?None, asyncParser: ?None, serializer: ?None} => inputVar
