@@ -846,22 +846,38 @@ test("Fails to create object struct with single field defined multiple times", t
   )
 })
 
-test("Fails to create object struct with single field registered multiple times", t => {
-  t->Assert.throws(
-    () => {
-      S.object(
-        s => {
-          let field = s.field("field", S.string)
-          {
-            "field1": field,
-            "field2": field,
-          }
-        },
-      )
-    },
-    ~expectations={
-      message: `[rescript-struct] The field "field" is registered multiple times. If you want to duplicate a field, use S.transform instead.`,
-    },
+test("Successfully parses object struct with single field registered multiple times", t => {
+  let struct = S.object(s => {
+    let field = s.field("field", S.string)
+    {
+      "field1": field,
+      "field2": field,
+    }
+  })
+  t->Assert.deepEqual(
+    %raw(`{"field": "foo"}`)->S.parseAnyWith(struct),
+    Ok({"field1": "foo", "field2": "foo"}),
+    (),
+  )
+})
+
+test("Fails to serialize object struct with single field registered multiple times", t => {
+  let struct = S.object(s => {
+    let field = s.field("field", S.string)
+    {
+      "field1": field,
+      "field2": field,
+    }
+  })
+  t->Assert.deepEqual(
+    {"field1": "foo", "field2": "foo"}->S.serializeToUnknownWith(struct),
+    Error({
+      code: InvalidOperation({
+        description: `The field "field" is registered multiple times. If you want to duplicate a field, use S.transform instead`,
+      }),
+      operation: Serializing,
+      path: S.Path.empty,
+    }),
     (),
   )
 })
