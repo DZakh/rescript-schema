@@ -390,10 +390,6 @@ and tagged =
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
   | JSON
-and transformation<'input, 'output> =
-  | Noop: transformation<'input, 'input>
-  | Sync('input => 'output)
-  | Async('input => promise<'output>)
 and builder
 and struct<'a> = t<'a>
 type rec error = {operation: operation, code: errorCode, path: Path.t}
@@ -464,10 +460,6 @@ module InternalError = {
 
   @inline
   let panic = message => Stdlib.Exn.raiseError(Stdlib.Exn.makeError(`[rescript-struct] ${message}`))
-
-  module MissingParserAndSerializer = {
-    let panic = location => panic(`For a ${location} either a parser, or a serializer is required`)
-  }
 }
 
 @inline
@@ -477,18 +469,6 @@ type payloadedVariant<'payload> = {_0: 'payload}
 let unsafeGetVariantPayload = variant => (variant->Obj.magic)._0
 
 let emptyMetadataMap = Js.Dict.empty()
-
-// TODO: Clean up
-module TransformationFactory = {
-  let call = (public, ~struct) =>
-    (
-      public->(
-        Obj.magic: ((~struct: struct<'value>) => transformation<'input, 'output>) => (
-          ~struct: struct<unknown>,
-        ) => transformation<unknown, unknown>
-      )
-    )(~struct)
-}
 
 module Builder = {
   type t = builder
@@ -1296,27 +1276,22 @@ let transform: (
   )
 }
 
-let rec advancedPreprocess = (
-  struct,
-  ~parser as maybeParser=?,
-  ~serializer as maybeSerializer=?,
-  (),
-) => {
+type preprocessDefinition<'input, 'output> = {
+  @as("p")
+  parser?: unknown => 'output,
+  @as("a")
+  asyncParser?: unknown => unit => promise<'output>,
+  @as("s")
+  serializer?: unknown => 'input,
+}
+let rec preprocess = (struct, transformer) => {
   let struct = struct->toUnknown
-
-  if maybeParser === None && maybeSerializer === None {
-    InternalError.MissingParserAndSerializer.panic(`struct factory Preprocess`)
-  }
-
   switch struct->classify {
   | Union(unionStructs) =>
     make(
       ~tagged=Union(
         unionStructs->Js.Array2.map(unionStruct =>
-          unionStruct
-          ->castUnknownStructToAnyStruct
-          ->advancedPreprocess(~parser=?maybeParser, ~serializer=?maybeSerializer, ())
-          ->toUnknown
+          unionStruct->castUnknownStructToAnyStruct->preprocess(transformer)->toUnknown
         ),
       ),
       ~parseOperationBuilder=struct.parseOperationBuilder,
@@ -1328,74 +1303,58 @@ let rec advancedPreprocess = (
     make(
       ~tagged=struct.tagged,
       ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
-        switch maybeParser {
-        | Some(parser) =>
-          switch parser->TransformationFactory.call(
-            ~struct=selfStruct->castUnknownStructToAnyStruct,
-          ) {
-          | Noop => b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar)
-          | Sync(syncTransformation) =>
-            b->B.run(
-              ~builder=struct.parseOperationBuilder,
-              ~struct,
-              ~inputVar=b->B.embedSyncOperation(~inputVar, ~pathVar, ~fn=syncTransformation, ()),
-              ~pathVar,
-            )
-          | Async(asyncParser) => {
-              let parseResultVar =
-                b->B.embedAsyncOperation(~inputVar, ~pathVar, ~fn=i => () => asyncParser(i), ())
-              let outputVar = b->B.var
-              b.code =
-                b.code ++
-                `${outputVar}=()=>${parseResultVar}().then(t=>{${b->B.scope(b => {
-                    let structOutputVar =
-                      b->B.run(
-                        ~builder=struct.parseOperationBuilder,
-                        ~struct,
-                        ~inputVar="t",
-                        ~pathVar,
-                      )
-                    let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-                    `return ${isAsync ? `${structOutputVar}()` : structOutputVar}`
-                  })}});`
-              outputVar
-            }
+        switch transformer({
+          struct: selfStruct->castUnknownStructToAnyStruct,
+          fail,
+          failWithError: advancedFail,
+        }) {
+        | {parser, asyncParser: ?None} =>
+          b->B.run(
+            ~builder=struct.parseOperationBuilder,
+            ~struct,
+            ~inputVar=b->B.embedSyncOperation(~inputVar, ~pathVar, ~fn=parser, ()),
+            ~pathVar,
+          )
+        | {parser: ?None, asyncParser} => {
+            let parseResultVar = b->B.embedAsyncOperation(~inputVar, ~pathVar, ~fn=asyncParser, ())
+            let outputVar = b->B.var
+
+            // TODO: Optimize async transformation to chain .then
+            b.code =
+              b.code ++
+              `${outputVar}=()=>${parseResultVar}().then(t=>{${b->B.scope(b => {
+                  let structOutputVar =
+                    b->B.run(
+                      ~builder=struct.parseOperationBuilder,
+                      ~struct,
+                      ~inputVar="t",
+                      ~pathVar,
+                    )
+                  let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+                  `return ${isAsync ? `${structOutputVar}()` : structOutputVar}`
+                })}});`
+            outputVar
           }
-        | None =>
-          b->B.missingOperation(~pathVar, ~description=`The S.advancedPreprocess parser is missing`)
+        | {parser: ?None, asyncParser: ?None} =>
+          b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~pathVar)
+        | {parser: _, asyncParser: _} =>
+          b->B.missingOperation(
+            ~pathVar,
+            ~description=`The S.preprocess doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.`,
+          )
         }
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
-        switch maybeSerializer {
-        | Some(serializer) =>
-          switch serializer->TransformationFactory.call(
-            ~struct=selfStruct->castUnknownStructToAnyStruct,
-          ) {
-          | Noop =>
-            b->B.run(~builder=struct.serializeOperationBuilder, ~struct, ~inputVar, ~pathVar)
-          | Sync(fn) =>
-            b->B.embedSyncOperation(
-              ~inputVar=b->B.run(
-                ~builder=struct.serializeOperationBuilder,
-                ~struct,
-                ~inputVar,
-                ~pathVar,
-              ),
-              ~pathVar,
-              ~fn,
-              (),
-            )
-          | Async(_) =>
-            b->B.missingOperation(
-              ~pathVar,
-              ~description=`The S.advancedPreprocess serializer doesn't support async`,
-            )
-          }
-        | None =>
-          b->B.missingOperation(
-            ~pathVar,
-            ~description=`The S.advancedPreprocess serializer is missing`,
-          )
+        let inputVar =
+          b->B.run(~builder=struct.serializeOperationBuilder, ~struct, ~inputVar, ~pathVar)
+        switch transformer({
+          struct: selfStruct->castUnknownStructToAnyStruct,
+          fail,
+          failWithError: advancedFail,
+        }) {
+        | {serializer} => b->B.embedSyncOperation(~inputVar, ~pathVar, ~fn=serializer, ())
+        // TODO: Test that it doesn't return InvalidOperation when parser is passed but not serializer
+        | {serializer: ?None} => inputVar
         }
       }),
       ~metadataMap=struct.metadataMap,

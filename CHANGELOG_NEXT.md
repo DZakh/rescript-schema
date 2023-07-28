@@ -39,6 +39,7 @@
 - `S.transform` now accepts only one argument which is a function that gets `effectCtx` and returns a record with parser and serializer.
 - `S.custom` now accepts only one argument which is a function that gets `effectCtx` and returns a record with parser and serializer.
 - `S.advancedTransform` is deprecated in favor of `S.transform`
+- `S.advancedPreprocess` is renamed to `S.preprocess`. It now accepts only one argument which is a function that gets `effectCtx` and returns a record with parser and serializer. Operation stoped failing with `InvalidOperation` error when a parser or serializer is not passed.
 - Removed `S.fail` and `S.advancedFail` in favor of having `effectCtx` with `.fail` and `.failWithError` methods
 - `S.inline` is temporary broken
 - Updated API for `S.Tuple.factory`. There are plans to change it once more before the actual release

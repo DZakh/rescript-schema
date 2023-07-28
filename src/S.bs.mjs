@@ -244,10 +244,6 @@ function prependLocationOrRethrow(jsExn, $$location) {
       };
 }
 
-function panic($$location) {
-  throw new Error("[rescript-struct] " + ("For a " + $$location + " either a parser, or a serializer is required"));
-}
-
 function classify$1(struct) {
   return struct.t;
 }
@@ -1084,17 +1080,14 @@ function transform(struct, transformer) {
         };
 }
 
-function advancedPreprocess(struct, maybeParser, maybeSerializer, param) {
-  if (maybeParser === undefined && maybeSerializer === undefined) {
-    panic("struct factory Preprocess");
-  }
+function preprocess(struct, transformer) {
   var unionStructs = struct.t;
   if (typeof unionStructs === "object" && unionStructs.TAG === "Union") {
     return {
             t: {
               TAG: "Union",
               _0: unionStructs._0.map(function (unionStruct) {
-                    return advancedPreprocess(unionStruct, maybeParser, maybeSerializer, undefined);
+                    return preprocess(unionStruct, transformer);
                   })
             },
             pb: struct.pb,
@@ -1110,22 +1103,24 @@ function advancedPreprocess(struct, maybeParser, maybeSerializer, param) {
   return {
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, pathVar) {
-              if (maybeParser === undefined) {
-                return missingOperation(b, pathVar, "The S.advancedPreprocess parser is missing");
+              var match = transformer({
+                    s: selfStruct,
+                    f: fail,
+                    e: advancedFail
+                  });
+              var parser = match.p;
+              if (parser !== undefined) {
+                if (match.a !== undefined) {
+                  return missingOperation(b, pathVar, "The S.preprocess doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.");
+                } else {
+                  return run(b, struct.pb, struct, embedSyncOperation(b, inputVar, pathVar, parser, undefined, undefined, undefined), pathVar);
+                }
               }
-              var syncTransformation = maybeParser(selfStruct);
-              if (typeof syncTransformation !== "object") {
+              var asyncParser = match.a;
+              if (asyncParser === undefined) {
                 return run(b, struct.pb, struct, inputVar, pathVar);
               }
-              if (syncTransformation.TAG === "Sync") {
-                return run(b, struct.pb, struct, embedSyncOperation(b, inputVar, pathVar, syncTransformation._0, undefined, undefined, undefined), pathVar);
-              }
-              var asyncParser = syncTransformation._0;
-              var parseResultVar = embedAsyncOperation(b, inputVar, pathVar, (function (i) {
-                      return function () {
-                        return asyncParser(i);
-                      };
-                    }), undefined, undefined);
+              var parseResultVar = embedAsyncOperation(b, inputVar, pathVar, asyncParser, undefined, undefined);
               var outputVar = $$var(b);
               b.c = b.c + (outputVar + "=()=>" + parseResultVar + "().then(t=>{" + scope(b, (function (b) {
                         var structOutputVar = run(b, struct.pb, struct, "t", pathVar);
@@ -1137,16 +1132,17 @@ function advancedPreprocess(struct, maybeParser, maybeSerializer, param) {
               return outputVar;
             }),
           sb: (function (b, selfStruct, inputVar, pathVar) {
-              if (maybeSerializer === undefined) {
-                return missingOperation(b, pathVar, "The S.advancedPreprocess serializer is missing");
-              }
-              var fn = maybeSerializer(selfStruct);
-              if (typeof fn !== "object") {
-                return run(b, struct.sb, struct, inputVar, pathVar);
-              } else if (fn.TAG === "Sync") {
-                return embedSyncOperation(b, run(b, struct.sb, struct, inputVar, pathVar), pathVar, fn._0, undefined, undefined, undefined);
+              var inputVar$1 = run(b, struct.sb, struct, inputVar, pathVar);
+              var match = transformer({
+                    s: selfStruct,
+                    f: fail,
+                    e: advancedFail
+                  });
+              var serializer = match.s;
+              if (serializer !== undefined) {
+                return embedSyncOperation(b, inputVar$1, pathVar, serializer, undefined, undefined, undefined);
               } else {
-                return missingOperation(b, pathVar, "The S.advancedPreprocess serializer doesn't support async");
+                return inputVar$1;
               }
             }),
           i: 0,
@@ -3180,7 +3176,7 @@ export {
   deprecate ,
   deprecation ,
   transform ,
-  advancedPreprocess ,
+  preprocess ,
   custom ,
   refine ,
   asyncParserRefine ,

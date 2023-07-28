@@ -954,13 +954,11 @@ Typically **rescript-struct** operates under a "parse then transform" paradigm. 
 But sometimes you want to apply some transform to the input before parsing happens. Mostly needed when you build sometimes on top of **rescript-struct**. A simplified example from [rescript-envsafe](https://github.com/DZakh/rescript-envsafe):
 
 ```rescript
-let prepareEnvStruct = S.advancedPreprocess(
-  _,
-  ~parser=(~struct) => {
-    switch struct->S.classify {
-    | Bool =>
-      Sync(
-        unknown => {
+let prepareEnvStruct = S.preprocess(_, s => {
+    switch s.struct->S.classify {
+    | Literal(Boolean(_))
+    | Bool => {
+        parser: unknown => {
           switch unknown->Obj.magic {
           | "true"
           | "t"
@@ -971,22 +969,21 @@ let prepareEnvStruct = S.advancedPreprocess(
           | _ => unknown->Obj.magic
           }->Obj.magic
         },
-      )
-    | Int =>
-      Sync(
-        unknown => {
-          if unknown->typeof === "string" {
+      }
+    | Int
+    | Float
+    | Literal(Number(_)) => {
+        parser: unknown => {
+          if unknown->Js.typeof === "string" {
             %raw(`+unknown`)
           } else {
             unknown
           }
         },
-      )
-    | _ => Noop
+      }
+    | _ => {}
     }
-  },
-  (),
-)
+  })
 ```
 
 > 🧠 When using preprocess on Union it will be applied to nested structs separately instead.

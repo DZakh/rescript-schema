@@ -2,11 +2,6 @@
 
 type never
 
-type rec transformation<'input, 'output> =
-  | Noop: transformation<'input, 'input>
-  | Sync('input => 'output)
-  | Async('input => promise<'output>)
-
 module Literal: {
   type rec t =
     | String(string)
@@ -134,12 +129,15 @@ type transformDefinition<'input, 'output> = {
 }
 let transform: (t<'input>, effectCtx<'output> => transformDefinition<'input, 'output>) => t<'output>
 
-let advancedPreprocess: (
-  t<'value>,
-  ~parser: (~struct: t<'value>) => transformation<unknown, 'parserPreprocess>=?,
-  ~serializer: (~struct: t<'value>) => transformation<unknown, 'serializerPreprocess>=?,
-  unit,
-) => t<'value>
+type preprocessDefinition<'input, 'output> = {
+  @as("p")
+  parser?: unknown => 'output,
+  @as("a")
+  asyncParser?: unknown => unit => promise<'output>,
+  @as("s")
+  serializer?: unknown => 'input,
+}
+let preprocess: (t<'value>, effectCtx<'value> => preprocessDefinition<'input, 'output>) => t<'value>
 
 type customDefinition<'input, 'output> = {
   @as("p")
