@@ -1221,7 +1221,7 @@ function literalCheckBuilder(b, value, inputVar) {
   }
   var keys = Object.keys(value);
   var numberOfKeys = keys.length;
-  return "(" + check + "||" + inputVar + "!==null&&" + inputVar + ".constructor===Object&&Object.keys(" + inputVar + ").length===" + numberOfKeys + (
+  return "(" + check + "||" + inputVar + "&&" + inputVar + ".constructor===Object&&Object.keys(" + inputVar + ").length===" + numberOfKeys + (
           numberOfKeys > 0 ? "&&" + keys.map(function (key) {
                     return literalCheckBuilder(b, value[key], inputVar + "[" + JSON.stringify(key) + "]");
                   }).join("&&") : ""
@@ -1414,7 +1414,7 @@ function factory$1(definer) {
           },
           pb: (function (b, selfStruct, inputVar, pathVar) {
               var asyncOutputVars = [];
-              b.c = b.c + ("if(!(typeof " + inputVar + "===\"object\"&&" + inputVar + "!==null&&!Array.isArray(" + inputVar + "))){" + raiseWithArg(b, pathVar, (function (input) {
+              b.c = b.c + ("if(!" + inputVar + "||" + inputVar + ".constructor!==Object){" + raiseWithArg(b, pathVar, (function (input) {
                         return {
                                 TAG: "InvalidType",
                                 expected: selfStruct,
@@ -2005,7 +2005,7 @@ function refinements$2(struct) {
 var struct$5 = {
   t: "Float",
   pb: (function (b, selfStruct, inputVar, pathVar) {
-      b.c = b.c + ("if(!(typeof " + inputVar + "===\"number\"&&!Number.isNaN(" + inputVar + "))){" + raiseWithArg(b, pathVar, (function (input) {
+      b.c = b.c + ("if(typeof " + inputVar + "!==\"number\"||Number.isNaN(" + inputVar + ")){" + raiseWithArg(b, pathVar, (function (input) {
                 return {
                         TAG: "InvalidType",
                         expected: selfStruct,

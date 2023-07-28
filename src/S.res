@@ -1440,7 +1440,7 @@ let rec literalCheckBuilder = (b, ~value, ~inputVar) => {
       let value = value->(Obj.magic: unknown => Js.Dict.t<unknown>)
       let keys = value->Js.Dict.keys
       let numberOfKeys = keys->Js.Array2.length
-      `(${check}||${inputVar}!==null&&${inputVar}.constructor===Object&&Object.keys(${inputVar}).length===${numberOfKeys->Stdlib.Int.unsafeToString}` ++
+      `(${check}||${inputVar}&&${inputVar}.constructor===Object&&Object.keys(${inputVar}).length===${numberOfKeys->Stdlib.Int.unsafeToString}` ++
       (numberOfKeys > 0
         ? "&&" ++
           keys
@@ -1772,7 +1772,7 @@ module Object = {
 
         b.code =
           b.code ++
-          `if(!(typeof ${inputVar}==="object"&&${inputVar}!==null&&!Array.isArray(${inputVar}))){${b->B.raiseWithArg(
+          `if(!${inputVar}||${inputVar}.constructor!==Object){${b->B.raiseWithArg(
               ~pathVar,
               input => InvalidType({
                 expected: selfStruct,
@@ -2456,7 +2456,7 @@ module Float = {
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
       b.code =
         b.code ++
-        `if(!(typeof ${inputVar}==="number"&&!Number.isNaN(${inputVar}))){${b->B.raiseWithArg(
+        `if(typeof ${inputVar}!=="number"||Number.isNaN(${inputVar})){${b->B.raiseWithArg(
             ~pathVar,
             input => InvalidType({
               expected: selfStruct,
