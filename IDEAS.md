@@ -26,17 +26,11 @@
 
 ```
 let trimContract: S.contract<string => string> = S.contract(s => {
-  s.fn(o->S.arg(0, S.string))
+  s.fn(s.arg(0, S.string))
 }, ~return=S.string)
 ```
 
 - Add docstrings
-
-- Update tuple (???)
-
-```
-let struct = S.tuple(s => (s.tag(0, "A"), s.item(1, S.int)))
-```
 
 - Run struct factory validation checks only in dev mode
 
@@ -47,7 +41,7 @@ let struct = S.tuple(s => (s.tag(0, "A"), s.item(1, S.int)))
 ## Next breaking release
 
 - Move S.inline to experimental or Codegen module
-- Remove S.toUnknown (update tuple)
+- Remove S.toUnknown
 - Add built-in refinements to TS API
   // TODO: Update gen.ts
 - Update S_Js.res to create new structs instead of mixin in the methods

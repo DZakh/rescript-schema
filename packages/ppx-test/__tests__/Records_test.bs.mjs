@@ -4,18 +4,18 @@ import Ava from "ava";
 import * as TestUtils from "./TestUtils.bs.mjs";
 import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
 
-var simpleRecordStruct = S$RescriptStruct.$$Object.factory(function (o) {
+var simpleRecordStruct = S$RescriptStruct.$$Object.factory(function (s) {
       return {
-              label: o.f("label", S$RescriptStruct.string),
-              value: o.f("value", S$RescriptStruct.$$int)
+              label: s.f("label", S$RescriptStruct.string),
+              value: s.f("value", S$RescriptStruct.$$int)
             };
     });
 
 Ava("Simple record struct", (function (t) {
-        TestUtils.assertEqualStructs(t, simpleRecordStruct, S$RescriptStruct.object(function (o) {
+        TestUtils.assertEqualStructs(t, simpleRecordStruct, S$RescriptStruct.object(function (s) {
                   return {
-                          label: o.f("label", S$RescriptStruct.string),
-                          value: o.f("value", S$RescriptStruct.$$int)
+                          label: s.f("label", S$RescriptStruct.string),
+                          value: s.f("value", S$RescriptStruct.$$int)
                         };
                 }), undefined, undefined);
         t.deepEqual(S$RescriptStruct.parseWith({label:"foo",value:1}, simpleRecordStruct), {
@@ -27,18 +27,18 @@ Ava("Simple record struct", (function (t) {
             }, undefined);
       }));
 
-var recordWithAliasStruct = S$RescriptStruct.$$Object.factory(function (o) {
+var recordWithAliasStruct = S$RescriptStruct.$$Object.factory(function (s) {
       return {
-              label: o.f("aliased-label", S$RescriptStruct.string),
-              value: o.f("value", S$RescriptStruct.$$int)
+              label: s.f("aliased-label", S$RescriptStruct.string),
+              value: s.f("value", S$RescriptStruct.$$int)
             };
     });
 
 Ava("Record struct with alias for field name", (function (t) {
-        TestUtils.assertEqualStructs(t, recordWithAliasStruct, S$RescriptStruct.object(function (o) {
+        TestUtils.assertEqualStructs(t, recordWithAliasStruct, S$RescriptStruct.object(function (s) {
                   return {
-                          label: o.f("aliased-label", S$RescriptStruct.string),
-                          value: o.f("value", S$RescriptStruct.$$int)
+                          label: s.f("aliased-label", S$RescriptStruct.string),
+                          value: s.f("value", S$RescriptStruct.$$int)
                         };
                 }), undefined, undefined);
         t.deepEqual(S$RescriptStruct.parseWith({"aliased-label":"foo",value:1}, recordWithAliasStruct), {
@@ -50,18 +50,18 @@ Ava("Record struct with alias for field name", (function (t) {
             }, undefined);
       }));
 
-var recordWithOptionalStruct = S$RescriptStruct.$$Object.factory(function (o) {
+var recordWithOptionalStruct = S$RescriptStruct.$$Object.factory(function (s) {
       return {
-              label: o.f("label", S$RescriptStruct.option(S$RescriptStruct.string)),
-              value: o.f("value", S$RescriptStruct.option(S$RescriptStruct.$$int))
+              label: s.f("label", S$RescriptStruct.option(S$RescriptStruct.string)),
+              value: s.f("value", S$RescriptStruct.option(S$RescriptStruct.$$int))
             };
     });
 
 Ava("Record struct with optional fields", (function (t) {
-        TestUtils.assertEqualStructs(t, recordWithOptionalStruct, S$RescriptStruct.object(function (o) {
+        TestUtils.assertEqualStructs(t, recordWithOptionalStruct, S$RescriptStruct.object(function (s) {
                   return {
-                          label: o.f("label", S$RescriptStruct.option(S$RescriptStruct.string)),
-                          value: o.f("value", S$RescriptStruct.option(S$RescriptStruct.$$int))
+                          label: s.f("label", S$RescriptStruct.option(S$RescriptStruct.string)),
+                          value: s.f("value", S$RescriptStruct.option(S$RescriptStruct.$$int))
                         };
                 }), undefined, undefined);
         t.deepEqual(S$RescriptStruct.parseWith({"label":"foo",value:1}, recordWithOptionalStruct), {

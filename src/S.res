@@ -50,13 +50,6 @@ module Stdlib = {
     external toString: Js.Re.t => string = "toString"
   }
 
-  module Fn = {
-    @inline
-    let getArguments = (): array<'a> => {
-      %raw(`Array.from(arguments)`)
-    }
-  }
-
   module Object = {
     @val
     external overrideWith: ('object, 'object) => unit = "Object.assign"
@@ -91,6 +84,11 @@ module Stdlib = {
 
     @send
     external append: (array<'a>, 'a) => array<'a> = "concat"
+
+    @inline
+    let has = (array, idx) => {
+      array->Js.Array2.unsafe_get(idx)->(Obj.magic: 'a => bool)
+    }
 
     let isArray = Js.Array2.isArray
   }
@@ -129,8 +127,10 @@ module Stdlib = {
     @val
     external copy: (@as(json`{}`) _, Js.Dict.t<'a>) => Js.Dict.t<'a> = "Object.assign"
 
-    @send
-    external has: (Js.Dict.t<'a>, string) => bool = "hasOwnProperty"
+    @inline
+    let has = (dict, key) => {
+      dict->Js.Dict.unsafeGet(key)->(Obj.magic: 'a => bool)
+    }
 
     @inline
     let deleteInPlace = (dict, key) => {
@@ -512,14 +512,14 @@ module Builder = {
 
     let scope = (b: t, fn) => {
       let prevVarsAllocation = b.varsAllocation
-      let parentCode = b.code
+      let prevCode = b.code
       b.varsAllocation = ""
       b.code = ""
       let resultCode = fn(b)
       let varsAllocation = b.varsAllocation
       let code = varsAllocation === "" ? b.code : `let ${varsAllocation};${b.code}`
       b.varsAllocation = prevVarsAllocation
-      b.code = parentCode
+      b.code = prevCode
       code ++ resultCode
     }
 
@@ -1471,6 +1471,7 @@ let literal = value => {
     ~serializeOperationBuilder=operationBuilder,
   )
 }
+let unit = literal(%raw("void 0"))
 
 module Definition = {
   type t<'embeded>
@@ -1623,7 +1624,7 @@ module Object = {
     @as("t") tag: 'value. (string, 'value) => unit,
   }
   type registered = | @as(0) Unregistered | @as(1) ByParsing | @as(2) BySerializing
-  type fieldDefinition = {
+  type itemDefinition = {
     @as("s")
     struct: struct<unknown>,
     @as("l")
@@ -1634,6 +1635,119 @@ module Object = {
     mutable registered: registered,
   }
 
+  let makeParseOperationBuilder = (
+    ~itemDefinitions,
+    ~itemDefinitionsSet,
+    ~definition,
+    ~typeRefinement,
+    ~unknownKeysRefinement,
+  ) => {
+    Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
+      let asyncOutputVars = []
+
+      typeRefinement(b, ~selfStruct, ~inputVar, ~pathVar)
+
+      let prevCode = b.code
+      b.code = ""
+      unknownKeysRefinement(b, ~selfStruct, ~inputVar, ~pathVar)
+      let unknownKeysRefinementCode = b.code
+      b.code = ""
+
+      let syncOutput = {
+        let rec definitionToOutput = (definition: Definition.t<itemDefinition>, ~outputPath) => {
+          let kind = definition->Definition.toKindWithSet(~embededSet=itemDefinitionsSet)
+          switch kind {
+          | Embeded => {
+              let itemDefinition = definition->Definition.toEmbeded
+              itemDefinition.registered = ByParsing
+              let {struct, inputPath} = itemDefinition
+              let fieldInputVar = b->B.var
+              b.code = b.code ++ `${fieldInputVar}=${inputVar}${inputPath};`
+              let fieldOuputVar =
+                b->B.run(
+                  ~builder=struct.parseOperationBuilder,
+                  ~struct,
+                  ~inputVar=fieldInputVar,
+                  ~pathVar=`${pathVar}+${inputPath->Stdlib.Inlined.Value.fromString}`,
+                )
+              let isAsyncField = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+              if isAsyncField {
+                // TODO: Ensure that it's not a var, but inlined
+                asyncOutputVars->Js.Array2.push(fieldOuputVar)->ignore
+              }
+
+              fieldOuputVar
+            }
+          | Constant => {
+              let constant = definition->Definition.toConstant
+              b->B.embed(constant)
+            }
+          | Node => {
+              let node = definition->Definition.toNode
+              let isArray = Stdlib.Array.isArray(node)
+              let keys = node->Js.Dict.keys
+              let codeRef = ref(isArray ? "[" : "{")
+              for idx in 0 to keys->Js.Array2.length - 1 {
+                let key = keys->Js.Array2.unsafe_get(idx)
+                let definition = node->Js.Dict.unsafeGet(key)
+                let output =
+                  definition->definitionToOutput(
+                    ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
+                  )
+                codeRef.contents =
+                  codeRef.contents ++
+                  (isArray ? output : `${key->Stdlib.Inlined.Value.fromString}:${output}`) ++ ","
+              }
+              codeRef.contents ++ (isArray ? "]" : "}")
+            }
+          }
+        }
+        definition->definitionToOutput(~outputPath=Path.empty)
+      }
+      let registeredFieldsCode = b.code
+      b.code = ""
+
+      for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
+        let {struct, inputPath, registered} = itemDefinitions->Js.Array2.unsafe_get(idx)
+        if registered === Unregistered {
+          let fieldInputVar = b->B.var
+          b.code = b.code ++ `${fieldInputVar}=${inputVar}${inputPath};`
+          let fieldOuputVar =
+            b->B.run(
+              ~builder=struct.parseOperationBuilder,
+              ~struct,
+              ~inputVar=fieldInputVar,
+              ~pathVar=`${pathVar}+${inputPath->Stdlib.Inlined.Value.fromString}`,
+            )
+          let isAsyncField = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+          if isAsyncField {
+            // TODO: Ensure that it's not a var, but inlined
+            asyncOutputVars->Js.Array2.push(fieldOuputVar)->ignore
+          }
+        }
+      }
+      let unregisteredFieldsCode = b.code
+
+      b.code =
+        prevCode ++ unregisteredFieldsCode ++ registeredFieldsCode ++ unknownKeysRefinementCode
+
+      if asyncOutputVars->Js.Array2.length === 0 {
+        // TODO: Solve S.refine (and other) allocating the object twice
+        syncOutput
+      } else {
+        let outputVar = b->B.var
+        b.code =
+          b.code ++
+          `${outputVar}=()=>Promise.all([${asyncOutputVars
+            ->Js.Array2.map(asyncOutputVar => `${asyncOutputVar}()`)
+            ->Js.Array2.joinWith(
+              ",",
+            )}]).then(([${asyncOutputVars->Js.Array2.toString}])=>(${syncOutput}));`
+        outputVar
+      }
+    })
+  }
+
   module Ctx = {
     type t = {
       @as("n")
@@ -1641,7 +1755,7 @@ module Object = {
       @as("h")
       fields: Js.Dict.t<struct<unknown>>,
       @as("d")
-      fieldDefinitionsSet: Stdlib.Set.t<fieldDefinition>,
+      itemDefinitionsSet: Stdlib.Set.t<itemDefinition>,
       ...ctx,
     }
 
@@ -1649,30 +1763,28 @@ module Object = {
     let make = () => {
       let fields = Js.Dict.empty()
       let fieldNames = []
-      let fieldDefinitionsSet = Stdlib.Set.empty()
+      let itemDefinitionsSet = Stdlib.Set.empty()
 
       let field:
         type value. (string, struct<value>) => value =
         (fieldName, struct) => {
           let struct = struct->toUnknown
-          switch fields->Stdlib.Dict.has(fieldName) {
-          | true =>
+          let inlinedInputLocation = fieldName->Stdlib.Inlined.Value.fromString
+          if fields->Stdlib.Dict.has(fieldName) {
             InternalError.panic(
-              `The field "${fieldName}" is defined multiple times. If you want to duplicate a field, use S.transform instead.`,
+              `The field ${inlinedInputLocation} is defined multiple times. If you want to duplicate the field, use S.transform instead.`,
             )
-          | false => {
-              let inlinedInputLocation = fieldName->Stdlib.Inlined.Value.fromString
-              let fieldDefinition: fieldDefinition = {
-                struct,
-                inlinedInputLocation,
-                inputPath: inlinedInputLocation->Path.fromInlinedLocation,
-                registered: Unregistered,
-              }
-              fields->Js.Dict.set(fieldName, struct)
-              fieldNames->Js.Array2.push(fieldName)->ignore
-              fieldDefinitionsSet->Stdlib.Set.add(fieldDefinition)->ignore
-              fieldDefinition->(Obj.magic: fieldDefinition => value)
+          } else {
+            let itemDefinition: itemDefinition = {
+              struct,
+              inlinedInputLocation,
+              inputPath: inlinedInputLocation->Path.fromInlinedLocation,
+              registered: Unregistered,
             }
+            fields->Js.Dict.set(fieldName, struct)
+            fieldNames->Js.Array2.push(fieldName)->ignore
+            itemDefinitionsSet->Stdlib.Set.add(itemDefinition)->ignore
+            itemDefinition->(Obj.magic: itemDefinition => value)
           }
         }
 
@@ -1683,7 +1795,7 @@ module Object = {
       {
         fieldNames,
         fields,
-        fieldDefinitionsSet,
+        itemDefinitionsSet,
         // methods
         field,
         tag,
@@ -1693,9 +1805,9 @@ module Object = {
 
   let factory = definer => {
     let ctx = Ctx.make()
-    let definition = definer((ctx :> ctx))->(Obj.magic: 'any => Definition.t<fieldDefinition>)
-    let {fieldDefinitionsSet, fields, fieldNames} = ctx
-    let fieldDefinitions = fieldDefinitionsSet->Stdlib.Set.toArray
+    let definition = definer((ctx :> ctx))->(Obj.magic: 'any => Definition.t<itemDefinition>)
+    let {itemDefinitionsSet, fields, fieldNames} = ctx
+    let itemDefinitions = itemDefinitionsSet->Stdlib.Set.toArray
 
     make(
       ~metadataMap=emptyMetadataMap,
@@ -1704,169 +1816,73 @@ module Object = {
         fieldNames,
         unknownKeys: Strip,
       }),
-      ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
-        let asyncOutputVars = []
-
-        let parentCode = b.code
-        b.code = ""
-
-        let refinementCode = `if(!${inputVar}||${inputVar}.constructor!==Object){${b->B.raiseWithArg(
-            ~pathVar,
-            input => InvalidType({
-              expected: selfStruct,
-              received: input,
-            }),
-            inputVar,
-          )}}`
-
-        let withUnknownKeysRefinement = (selfStruct->classify->Obj.magic)["unknownKeys"] === Strict
-        switch (withUnknownKeysRefinement, fieldDefinitions) {
-        | (true, []) => {
-            let keyVar = b->B.var
-            b.code =
-              b.code ++
-              `for(${keyVar} in ${inputVar}){${b->B.raiseWithArg(
-                  ~pathVar,
-                  exccessFieldName => ExcessField(exccessFieldName),
-                  keyVar,
-                )}}`
-          }
-        | (true, _) => {
-            let keyVar = b->B.var
-            b.code = b.code ++ `for(${keyVar} in ${inputVar}){if(`
-            for idx in 0 to fieldDefinitions->Js.Array2.length - 1 {
-              let fieldDefinition = fieldDefinitions->Js.Array2.unsafe_get(idx)
-              if idx !== 0 {
-                b.code = b.code ++ "&&"
-              }
-              b.code = b.code ++ `${keyVar}!==${fieldDefinition.inlinedInputLocation}`
-            }
-            b.code =
-              b.code ++
-              `){${b->B.raiseWithArg(
-                  ~pathVar,
-                  exccessFieldName => ExcessField(exccessFieldName),
-                  keyVar,
-                )}}}`
-          }
-        | _ => ()
-        }
-        let unknownKeysRefinementCode = b.code
-        b.code = ""
-
-        let syncOutput = {
-          let rec definitionToOutput = (definition: Definition.t<fieldDefinition>, ~outputPath) => {
-            let kind = definition->Definition.toKindWithSet(~embededSet=fieldDefinitionsSet)
-            switch kind {
-            | Embeded => {
-                let fieldDefinition = definition->Definition.toEmbeded
-                fieldDefinition.registered = ByParsing
-                let {struct, inputPath} = fieldDefinition
-                let fieldInputVar = b->B.var
-                b.code = b.code ++ `${fieldInputVar}=${inputVar}${inputPath};`
-                let fieldOuputVar =
-                  b->B.run(
-                    ~builder=struct.parseOperationBuilder,
-                    ~struct,
-                    ~inputVar=fieldInputVar,
-                    ~pathVar=`${pathVar}+${inputPath->Stdlib.Inlined.Value.fromString}`,
-                  )
-                let isAsyncField = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-                if isAsyncField {
-                  // TODO: Ensure that it's not a var, but inlined
-                  asyncOutputVars->Js.Array2.push(fieldOuputVar)->ignore
-                }
-
-                fieldOuputVar
-              }
-            | Constant => {
-                let constant = definition->Definition.toConstant
-                b->B.embed(constant)
-              }
-            | Node => {
-                let node = definition->Definition.toNode
-                let isArray = Stdlib.Array.isArray(node)
-                let keys = node->Js.Dict.keys
-                let codeRef = ref(isArray ? "[" : "{")
-                for idx in 0 to keys->Js.Array2.length - 1 {
-                  let key = keys->Js.Array2.unsafe_get(idx)
-                  let definition = node->Js.Dict.unsafeGet(key)
-                  let output =
-                    definition->definitionToOutput(
-                      ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
-                    )
-                  codeRef.contents =
-                    codeRef.contents ++
-                    (isArray ? output : `${key->Stdlib.Inlined.Value.fromString}:${output}`) ++ ","
-                }
-                codeRef.contents ++ (isArray ? "]" : "}")
-              }
-            }
-          }
-          definition->definitionToOutput(~outputPath=Path.empty)
-        }
-        let registeredFieldsCode = b.code
-        b.code = ""
-
-        for idx in 0 to fieldDefinitions->Js.Array2.length - 1 {
-          let {struct, inputPath, registered} = fieldDefinitions->Js.Array2.unsafe_get(idx)
-          if registered === Unregistered {
-            let fieldInputVar = b->B.var
-            b.code = b.code ++ `${fieldInputVar}=${inputVar}${inputPath};`
-            let fieldOuputVar =
-              b->B.run(
-                ~builder=struct.parseOperationBuilder,
-                ~struct,
-                ~inputVar=fieldInputVar,
-                ~pathVar=`${pathVar}+${inputPath->Stdlib.Inlined.Value.fromString}`,
-              )
-            let isAsyncField = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-            if isAsyncField {
-              // TODO: Ensure that it's not a var, but inlined
-              asyncOutputVars->Js.Array2.push(fieldOuputVar)->ignore
-            }
-          }
-        }
-        let unregisteredFieldsCode = b.code
-
-        b.code =
-          parentCode ++
-          refinementCode ++
-          unregisteredFieldsCode ++
-          registeredFieldsCode ++
-          // TODO: Test that unknown keys validated at the most end
-          unknownKeysRefinementCode
-
-        if asyncOutputVars->Js.Array2.length === 0 {
-          // TODO: Solve S.refine (and other) allocating the object twice
-          syncOutput
-        } else {
-          let outputVar = b->B.var
+      ~parseOperationBuilder=makeParseOperationBuilder(
+        ~itemDefinitions,
+        ~itemDefinitionsSet,
+        ~definition,
+        ~typeRefinement=(b, ~selfStruct, ~inputVar, ~pathVar) => {
           b.code =
             b.code ++
-            `${outputVar}=()=>Promise.all([${asyncOutputVars
-              ->Js.Array2.map(asyncOutputVar => `${asyncOutputVar}()`)
-              ->Js.Array2.joinWith(
-                ",",
-              )}]).then(([${asyncOutputVars->Js.Array2.toString}])=>(${syncOutput}));`
-          outputVar
-        }
-      }),
+            `if(!${inputVar}||${inputVar}.constructor!==Object){${b->B.raiseWithArg(
+                ~pathVar,
+                input => InvalidType({
+                  expected: selfStruct,
+                  received: input,
+                }),
+                inputVar,
+              )}}`
+        },
+        ~unknownKeysRefinement=(b, ~selfStruct, ~inputVar, ~pathVar) => {
+          let withUnknownKeysRefinement =
+            (selfStruct->classify->Obj.magic)["unknownKeys"] === Strict
+          switch (withUnknownKeysRefinement, itemDefinitions) {
+          | (true, []) => {
+              let keyVar = b->B.var
+              b.code =
+                b.code ++
+                `for(${keyVar} in ${inputVar}){${b->B.raiseWithArg(
+                    ~pathVar,
+                    exccessFieldName => ExcessField(exccessFieldName),
+                    keyVar,
+                  )}}`
+            }
+          | (true, _) => {
+              let keyVar = b->B.var
+              b.code = b.code ++ `for(${keyVar} in ${inputVar}){if(`
+              for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
+                let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
+                if idx !== 0 {
+                  b.code = b.code ++ "&&"
+                }
+                b.code = b.code ++ `${keyVar}!==${itemDefinition.inlinedInputLocation}`
+              }
+              b.code =
+                b.code ++
+                `){${b->B.raiseWithArg(
+                    ~pathVar,
+                    exccessFieldName => ExcessField(exccessFieldName),
+                    keyVar,
+                  )}}}`
+            }
+          | _ => ()
+          }
+        },
+      ),
       ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~pathVar) => {
         let fieldsCodeRef = ref("")
 
         {
-          let parentCode = b.code
+          let prevCode = b.code
           b.code = ""
-          let rec definitionToOutput = (definition: Definition.t<fieldDefinition>, ~outputPath) => {
-            let kind = definition->Definition.toKindWithSet(~embededSet=fieldDefinitionsSet)
+          let rec definitionToOutput = (definition: Definition.t<itemDefinition>, ~outputPath) => {
+            let kind = definition->Definition.toKindWithSet(~embededSet=itemDefinitionsSet)
             switch kind {
             | Embeded =>
-              let fieldDefinition = definition->Definition.toEmbeded
-              switch fieldDefinition {
+              let itemDefinition = definition->Definition.toEmbeded
+              switch itemDefinition {
               | {registered: ByParsing, struct, inlinedInputLocation}
               | {registered: Unregistered, struct, inlinedInputLocation} => {
-                  fieldDefinition.registered = BySerializing
+                  itemDefinition.registered = BySerializing
                   if struct.serializeOperationBuilder === Builder.noop {
                     fieldsCodeRef.contents =
                       fieldsCodeRef.contents ++ `${inlinedInputLocation}:${inputVar}${outputPath},`
@@ -1888,7 +1904,7 @@ module Object = {
                 b.code =
                   b->B.missingOperation(
                     ~pathVar,
-                    ~description=`The field ${fieldDefinition.inlinedInputLocation} is registered multiple times. If you want to duplicate a field, use S.transform instead`,
+                    ~description=`The field ${itemDefinition.inlinedInputLocation} is registered multiple times. If you want to duplicate the field, use S.transform instead`,
                   )
               }
             | Constant => {
@@ -1919,12 +1935,12 @@ module Object = {
             }
           }
           definitionToOutput(definition, ~outputPath=Path.empty)
-          b.code = parentCode ++ b.code
+          b.code = prevCode ++ b.code
         }
 
-        for idx in 0 to fieldDefinitions->Js.Array2.length - 1 {
+        for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
           let {struct, inlinedInputLocation, registered} =
-            fieldDefinitions->Js.Array2.unsafe_get(idx)
+            itemDefinitions->Js.Array2.unsafe_get(idx)
           if registered === Unregistered {
             switch struct->toLiteral {
             | Some(literal) =>
@@ -2857,111 +2873,205 @@ module Default = {
 }
 
 module Tuple = {
-  let factory = structs => {
-    let numberOfStructs = structs->Js.Array2.length
-    make(
-      ~metadataMap=emptyMetadataMap,
-      ~tagged=Tuple(structs),
-      ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
-        b.code =
-          b.code ++
-          `if(!Array.isArray(${inputVar})){${b->B.raiseWithArg(
-              ~pathVar,
-              input => InvalidType({
-                expected: selfStruct,
-                received: input,
-              }),
-              inputVar,
-            )}}if(${inputVar}.length!==${numberOfStructs->Stdlib.Int.unsafeToString}){${b->B.raiseWithArg(
-              ~pathVar,
-              numberOfInputItems => InvalidTupleSize({
-                expected: numberOfStructs,
-                received: numberOfInputItems,
-              }),
-              `${inputVar}.length`,
-            )}}`
+  type ctx = {
+    @as("i") item: 'value. (int, t<'value>) => 'value,
+    @as("t") tag: 'value. (int, 'value) => unit,
+  }
 
-        switch structs {
-        | [] => `void 0`
-        | [itemStruct] =>
-          b->B.run(
-            ~builder=itemStruct.parseOperationBuilder,
-            ~struct=itemStruct,
-            ~inputVar=`${inputVar}[0]`,
-            ~pathVar=`${pathVar}+'["0"]'`,
-          )
-        | _ => {
-            let outputVar = b->B.var
-            b.code = b.code ++ `${outputVar}=[];`
-            let asyncItemVars = []
-            for idx in 0 to structs->Js.Array2.length - 1 {
-              let itemStruct = structs->Js.Array2.unsafe_get(idx)
+  module Ctx = {
+    type t = {
+      @as("s")
+      structs: array<struct<unknown>>,
+      @as("d")
+      itemDefinitionsSet: Stdlib.Set.t<Object.itemDefinition>,
+      ...ctx,
+    }
 
-              let itemVar = b->B.var
-              b.code = b.code ++ `${itemVar}=${inputVar}[${idx->Stdlib.Int.unsafeToString}];`
-              let itemOutputVar =
-                b->B.run(
-                  ~builder=itemStruct.parseOperationBuilder,
-                  ~struct=itemStruct,
-                  ~inputVar=itemVar,
-                  ~pathVar=`${pathVar}+'["${idx->Stdlib.Int.unsafeToString}"]'`,
-                )
-              let isAsyncItem = itemStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-              let destVar = `${outputVar}[${idx->Stdlib.Int.unsafeToString}]`
+    @inline
+    let make = () => {
+      let structs = []
+      let itemDefinitionsSet = Stdlib.Set.empty()
 
-              if isAsyncItem {
-                // TODO: use strings and generate async code in a single place
-                asyncItemVars->Js.Array2.push(destVar)->ignore
-              }
-
-              // TODO: Create array without assigning
-              b.code = b.code ++ `${destVar}=${itemOutputVar};`
+      let item:
+        type value. (int, struct<value>) => value =
+        (idx, struct) => {
+          let struct = struct->toUnknown
+          let inlinedInputLocation = `"${idx->Stdlib.Int.unsafeToString}"`
+          if structs->Stdlib.Array.has(idx) {
+            InternalError.panic(
+              `The item ${inlinedInputLocation} is defined multiple times. If you want to duplicate the item, use S.transform instead.`,
+            )
+          } else {
+            let itemDefinition: Object.itemDefinition = {
+              struct,
+              inlinedInputLocation,
+              inputPath: inlinedInputLocation->Path.fromInlinedLocation,
+              registered: Unregistered,
             }
+            structs->Js.Array2.unsafe_set(idx, struct)
+            itemDefinitionsSet->Stdlib.Set.add(itemDefinition)->ignore
+            itemDefinition->(Obj.magic: Object.itemDefinition => value)
+          }
+        }
 
-            if asyncItemVars->Js.Array2.length === 0 {
-              outputVar
-            } else {
-              let resolveVar = b->B.varWithoutAllocation
-              let rejectVar = b->B.varWithoutAllocation
-              let asyncParseResultVar = b->B.varWithoutAllocation
-              let counterVar = b->B.varWithoutAllocation
-              let asyncOutputVar = b->B.var
+      let tag = (idx, asValue) => {
+        let _ = item(idx, literal(asValue))
+      }
 
+      {
+        structs,
+        itemDefinitionsSet,
+        // methods
+        item,
+        tag,
+      }
+    }
+  }
+
+  let factory = definer => {
+    let ctx = Ctx.make()
+    let definition = definer((ctx :> ctx))->(Obj.magic: 'any => Definition.t<Object.itemDefinition>)
+    let {itemDefinitionsSet, structs} = ctx
+    let length = structs->Js.Array2.length
+    for idx in 0 to length - 1 {
+      if structs->Js.Array2.unsafe_get(idx)->Obj.magic->not {
+        let struct = unit->toUnknown
+        let inlinedInputLocation = `"${idx->Stdlib.Int.unsafeToString}"`
+        let itemDefinition: Object.itemDefinition = {
+          struct,
+          inlinedInputLocation,
+          inputPath: inlinedInputLocation->Path.fromInlinedLocation,
+          registered: Unregistered,
+        }
+        structs->Js.Array2.unsafe_set(idx, struct)
+        itemDefinitionsSet->Stdlib.Set.add(itemDefinition)->ignore
+      }
+    }
+    let itemDefinitions = itemDefinitionsSet->Stdlib.Set.toArray
+
+    make(
+      ~tagged=Tuple(structs),
+      ~parseOperationBuilder=Object.makeParseOperationBuilder(
+        ~itemDefinitions,
+        ~itemDefinitionsSet,
+        ~definition,
+        ~typeRefinement=(b, ~selfStruct, ~inputVar, ~pathVar) => {
+          b.code =
+            b.code ++
+            `if(!Array.isArray(${inputVar})){${b->B.raiseWithArg(
+                ~pathVar,
+                input => InvalidType({
+                  expected: selfStruct,
+                  received: input,
+                }),
+                inputVar,
+              )}}if(${inputVar}.length!==${length->Stdlib.Int.unsafeToString}){${b->B.raiseWithArg(
+                ~pathVar,
+                numberOfInputItems => InvalidTupleSize({
+                  expected: length,
+                  received: numberOfInputItems,
+                }),
+                `${inputVar}.length`,
+              )}}`
+        },
+        ~unknownKeysRefinement=(_b, ~selfStruct as _, ~inputVar as _, ~pathVar as _) => (),
+      ),
+      ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~pathVar) => {
+        let outputVar = b->B.var
+        b.code = b.code ++ `${outputVar}=[];`
+
+        {
+          let prevCode = b.code
+          b.code = ""
+          let rec definitionToOutput = (
+            definition: Definition.t<Object.itemDefinition>,
+            ~outputPath,
+          ) => {
+            let kind = definition->Definition.toKindWithSet(~embededSet=itemDefinitionsSet)
+            switch kind {
+            | Embeded =>
+              let itemDefinition = definition->Definition.toEmbeded
+              switch itemDefinition {
+              | {registered: ByParsing, struct, inputPath}
+              | {registered: Unregistered, struct, inputPath} => {
+                  itemDefinition.registered = BySerializing
+
+                  // TODO: Instead of Builder.noop check, compare inputVar with ouputVar (also for parsing)
+                  if struct.serializeOperationBuilder === Builder.noop {
+                    b.code = b.code ++ `${outputVar}${inputPath}=${inputVar}${outputPath};`
+                  } else {
+                    let fieldInputVar = b->B.var
+                    b.code = b.code ++ `${fieldInputVar}=${inputVar}${outputPath};`
+                    let fieldOuputVar =
+                      b->B.run(
+                        ~builder=struct.serializeOperationBuilder,
+                        ~struct,
+                        ~inputVar=fieldInputVar,
+                        ~pathVar=`${pathVar}+${outputPath->Stdlib.Inlined.Value.fromString}`,
+                      )
+                    b.code = b.code ++ `${outputVar}${inputPath}=${fieldOuputVar};`
+                  }
+                }
+              | {registered: BySerializing} =>
+                b.code =
+                  b->B.missingOperation(
+                    ~pathVar,
+                    ~description=`The item ${itemDefinition.inlinedInputLocation} is registered multiple times. If you want to duplicate the item, use S.transform instead`,
+                  )
+              }
+            | Constant => {
+                let value = definition->Definition.toConstant
+                b.code =
+                  `if(${inputVar}${outputPath}!==${b->B.embed(value)}){${b->B.raiseWithArg(
+                      ~pathVar=`${pathVar}+${outputPath->Stdlib.Inlined.Value.fromString}`,
+                      input => InvalidLiteral({
+                        expected: value->Literal.classify,
+                        received: input,
+                      }),
+                      `${inputVar}${outputPath}`,
+                    )}}` ++
+                  b.code
+              }
+            | Node => {
+                let node = definition->Definition.toNode
+                let keys = node->Js.Dict.keys
+                for idx in 0 to keys->Js.Array2.length - 1 {
+                  let key = keys->Js.Array2.unsafe_get(idx)
+                  let definition = node->Js.Dict.unsafeGet(key)
+                  definitionToOutput(
+                    definition,
+                    ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
+                  )
+                }
+              }
+            }
+          }
+          definitionToOutput(definition, ~outputPath=Path.empty)
+          b.code = prevCode ++ b.code
+        }
+
+        for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
+          let {struct, inlinedInputLocation, inputPath, registered} =
+            itemDefinitions->Js.Array2.unsafe_get(idx)
+          if registered === Unregistered {
+            switch struct->toLiteral {
+            | Some(literal) =>
+              b.code = b.code ++ `${outputVar}${inputPath}=${b->B.embed(literal->Literal.value)};`
+            | None =>
               b.code =
-                b.code ++
-                `${asyncOutputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=${asyncItemVars
-                  ->Js.Array2.length
-                  ->Js.Int.toString};${asyncItemVars
-                  ->Js.Array2.map(asyncItemVar => {
-                    `${asyncItemVar}().then(${asyncParseResultVar}=>{${asyncItemVar}=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${outputVar})}},${rejectVar})`
-                  })
-                  ->Js.Array2.joinWith(";")}});`
-
-              asyncOutputVar
+                b->B.missingOperation(
+                  ~pathVar,
+                  ~description=`Can't create serializer. The ${inlinedInputLocation} item is not registered and not a literal. Use S.transform instead`,
+                )
             }
           }
         }
+
+        outputVar
       }),
-      ~serializeOperationBuilder=switch structs {
-      | [] =>
-        Builder.make((_b, ~selfStruct as _, ~inputVar as _, ~pathVar as _) => {
-          `[]`
-        })
-      | [_] =>
-        Builder.make((_b, ~selfStruct as _, ~inputVar, ~pathVar as _) => {
-          `[${inputVar}]`
-        })
-      | _ => Builder.noop
-      },
+      ~metadataMap=emptyMetadataMap,
     )
   }
-
-  let factoryFromArgs = (
-    () => {
-      let structs = Stdlib.Fn.getArguments()
-      factory(structs)
-    }
-  )->Obj.magic
 }
 
 module Union = {
@@ -2982,7 +3092,7 @@ module Union = {
         let itemsCode = []
         let itemsOutputVar = []
 
-        let parentCode = b.code
+        let prevCode = b.code
         for idx in 0 to structs->Js.Array2.length - 1 {
           let struct = structs->Js.Array2.unsafe_get(idx)
           b.code = ""
@@ -2995,7 +3105,7 @@ module Union = {
           itemsOutputVar->Js.Array2.push(itemOutputVar)->ignore
           itemsCode->Js.Array2.push(b.code)->ignore
         }
-        b.code = parentCode
+        b.code = prevCode
         let isAsync = isAsyncRef.contents
 
         let outputVar = b->B.var
@@ -3545,7 +3655,6 @@ let inline = {
 let object = Object.factory
 let never = Never.struct
 let unknown = Unknown.struct
-let unit = literal(%raw("void 0"))
 let string = String.struct
 let bool = Bool.struct
 let int = Int.struct
@@ -3556,16 +3665,9 @@ let array = Array.factory
 let dict = Dict.factory
 let default = Default.factory
 let variant = Variant.factory
-let tuple0 = () => Tuple.factory([])
-let tuple1 = v0 => Tuple.factory([v0->toUnknown])
-let tuple2 = (v0, v1) => Tuple.factory([v0->toUnknown, v1->toUnknown])
-let tuple3 = (v0, v1, v2) => Tuple.factory([v0->toUnknown, v1->toUnknown, v2->toUnknown])
-let tuple4 = Tuple.factoryFromArgs
-let tuple5 = Tuple.factoryFromArgs
-let tuple6 = Tuple.factoryFromArgs
-let tuple7 = Tuple.factoryFromArgs
-let tuple8 = Tuple.factoryFromArgs
-let tuple9 = Tuple.factoryFromArgs
-let tuple10 = Tuple.factoryFromArgs
+let tuple = Tuple.factory
+let tuple1 = v0 => tuple(s => s.item(0, v0))
+let tuple2 = (v0, v1) => tuple(s => (s.item(0, v0), s.item(1, v1)))
+let tuple3 = (v0, v1, v2) => tuple(s => (s.item(0, v0), s.item(1, v1), s.item(2, v2)))
 let union = Union.factory
 let jsonString = JsonString.factory

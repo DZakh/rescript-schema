@@ -326,7 +326,7 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
     {"field": "bar"}->S.serializeToUnknownWith(struct),
     Error({
       code: InvalidOperation({
-        description: `Can\'t create serializer. The "discriminant" field is not registered and not a literal. Use S.transform instead`,
+        description: `Can't create serializer. The "discriminant" field is not registered and not a literal. Use S.transform instead`,
       }),
       operation: Serializing,
       path: S.Path.empty,

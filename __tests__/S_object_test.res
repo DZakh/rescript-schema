@@ -840,7 +840,7 @@ test("Fails to create object struct with single field defined multiple times", t
       )
     },
     ~expectations={
-      message: `[rescript-struct] The field "field" is defined multiple times. If you want to duplicate a field, use S.transform instead.`,
+      message: `[rescript-struct] The field "field" is defined multiple times. If you want to duplicate the field, use S.transform instead.`,
     },
     (),
   )
@@ -873,10 +873,74 @@ test("Fails to serialize object struct with single field registered multiple tim
     {"field1": "foo", "field2": "foo"}->S.serializeToUnknownWith(struct),
     Error({
       code: InvalidOperation({
-        description: `The field "field" is registered multiple times. If you want to duplicate a field, use S.transform instead`,
+        description: `The field "field" is registered multiple times. If you want to duplicate the field, use S.transform instead`,
       }),
       operation: Serializing,
       path: S.Path.empty,
+    }),
+    (),
+  )
+})
+
+test("Object struct parsing checks order", t => {
+  let struct = S.object(s => {
+    s.tag("tag", "value")
+    {
+      "key": s.field("key", S.literal("value")),
+    }
+  })->S.Object.strict
+
+  // Type check should be the first
+  t->Assert.deepEqual(
+    %raw(`"foo"`)->S.parseAnyWith(struct),
+    Error({
+      code: InvalidType({expected: struct->S.toUnknown, received: %raw(`"foo"`)}),
+      operation: Parsing,
+      path: S.Path.empty,
+    }),
+    (),
+  )
+  // Tag check should be the second
+  t->Assert.deepEqual(
+    %raw(`{tag: "wrong", key: "wrong", unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
+      struct,
+    ),
+    Error({
+      code: InvalidLiteral({expected: String("value"), received: %raw(`"wrong"`)}),
+      operation: Parsing,
+      path: S.Path.fromLocation("tag"),
+    }),
+    (),
+  )
+  // Field check should be the third
+  t->Assert.deepEqual(
+    %raw(`{tag: "value", key: "wrong", unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
+      struct,
+    ),
+    Error({
+      code: InvalidLiteral({expected: String("value"), received: %raw(`"wrong"`)}),
+      operation: Parsing,
+      path: S.Path.fromLocation("key"),
+    }),
+    (),
+  )
+  // Unknown keys check should be the last
+  t->Assert.deepEqual(
+    %raw(`{tag: "value", key: "value", unknownKey: "value2", unknownKey2: "value2"}`)->S.parseAnyWith(
+      struct,
+    ),
+    Error({
+      code: ExcessField("unknownKey"),
+      operation: Parsing,
+      path: S.Path.empty,
+    }),
+    (),
+  )
+  // Parses valid
+  t->Assert.deepEqual(
+    %raw(`{tag: "value", key: "value"}`)->S.parseAnyWith(struct),
+    Ok({
+      "key": "value",
     }),
     (),
   )

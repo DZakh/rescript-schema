@@ -18,7 +18,11 @@ type bar = bool
 @struct
 type reusedTypes = (t, foo, @struct(S.bool) bar, float)
 test("Can reuse structs from other types", t => {
-  t->assertEqualStructs(reusedTypesStruct, S.tuple4(struct, fooStruct, S.bool, S.float), ())
+  t->assertEqualStructs(
+    reusedTypesStruct,
+    S.tuple(s => (s.item(0, struct), s.item(1, fooStruct), s.item(2, S.bool), s.item(3, S.float))),
+    (),
+  )
 })
 
 // TODO: Support recursive structs

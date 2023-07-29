@@ -205,7 +205,11 @@ function union(structs) {
 }
 
 function tuple(structs) {
-  var struct = S$RescriptStruct.Tuple.factory(structs);
+  var struct = S$RescriptStruct.tuple(function (s) {
+        return structs.map(function (struct, idx) {
+                    return s.i(idx, struct);
+                  });
+      });
   return Object.assign(struct, structOperations);
 }
 

@@ -260,14 +260,14 @@ function noopOperation(a) {
 
 function scope(b, fn) {
   var prevVarsAllocation = b.l;
-  var parentCode = b.c;
+  var prevCode = b.c;
   b.l = "";
   b.c = "";
   var resultCode = fn(b);
   var varsAllocation = b.l;
   var code = varsAllocation === "" ? b.c : "let " + varsAllocation + ";" + b.c;
   b.l = prevVarsAllocation;
-  b.c = parentCode;
+  b.c = prevCode;
   return code + resultCode;
 }
 
@@ -1256,6 +1256,8 @@ function literal(value) {
         };
 }
 
+var unit = literal((void 0));
+
 function toKindWithSet(definition, embededSet) {
   if (embededSet.has(definition)) {
     return 2;
@@ -1338,16 +1340,93 @@ function factory(struct, definer) {
         };
 }
 
+function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definition, typeRefinement, unknownKeysRefinement) {
+  return function (b, selfStruct, inputVar, pathVar) {
+    var asyncOutputVars = [];
+    typeRefinement(b, selfStruct, inputVar, pathVar);
+    var prevCode = b.c;
+    b.c = "";
+    unknownKeysRefinement(b, selfStruct, inputVar, pathVar);
+    var unknownKeysRefinementCode = b.c;
+    b.c = "";
+    var definitionToOutput = function (definition, outputPath) {
+      var kind = toKindWithSet(definition, itemDefinitionsSet);
+      switch (kind) {
+        case 0 :
+            var isArray = Array.isArray(definition);
+            var keys = Object.keys(definition);
+            var codeRef = isArray ? "[" : "{";
+            for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+              var key = keys[idx];
+              var definition$1 = definition[key];
+              var output = definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+              codeRef = codeRef + (
+                isArray ? output : JSON.stringify(key) + ":" + output
+              ) + ",";
+            }
+            return codeRef + (
+                    isArray ? "]" : "}"
+                  );
+        case 1 :
+            return "e[" + (b.e.push(definition) - 1) + "]";
+        case 2 :
+            definition.r = 1;
+            var inputPath = definition.p;
+            var struct = definition.s;
+            var fieldInputVar = $$var(b);
+            b.c = b.c + (fieldInputVar + "=" + inputVar + inputPath + ";");
+            var fieldOuputVar = run(b, struct.pb, struct, fieldInputVar, pathVar + "+" + JSON.stringify(inputPath));
+            var isAsyncField = struct.i;
+            if (isAsyncField) {
+              asyncOutputVars.push(fieldOuputVar);
+            }
+            return fieldOuputVar;
+        
+      }
+    };
+    var syncOutput = definitionToOutput(definition, "");
+    var registeredFieldsCode = b.c;
+    b.c = "";
+    for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
+      var match = itemDefinitions[idx];
+      var inputPath = match.p;
+      var struct = match.s;
+      var registered = match.r;
+      if (registered === 0) {
+        var fieldInputVar = $$var(b);
+        b.c = b.c + (fieldInputVar + "=" + inputVar + inputPath + ";");
+        var fieldOuputVar = run(b, struct.pb, struct, fieldInputVar, pathVar + "+" + JSON.stringify(inputPath));
+        var isAsyncField = struct.i;
+        if (isAsyncField) {
+          asyncOutputVars.push(fieldOuputVar);
+        }
+        
+      }
+      
+    }
+    var unregisteredFieldsCode = b.c;
+    b.c = prevCode + unregisteredFieldsCode + registeredFieldsCode + unknownKeysRefinementCode;
+    if (asyncOutputVars.length === 0) {
+      return syncOutput;
+    }
+    var outputVar = $$var(b);
+    b.c = b.c + (outputVar + "=()=>Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
+              return asyncOutputVar + "()";
+            }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "));");
+    return outputVar;
+  };
+}
+
 function factory$1(definer) {
   var fields = {};
   var fieldNames = [];
-  var fieldDefinitionsSet = new Set();
+  var itemDefinitionsSet = new Set();
   var field = function (fieldName, struct) {
-    if (fields.hasOwnProperty(fieldName)) {
-      throw new Error("[rescript-struct] " + ("The field \"" + fieldName + "\" is defined multiple times. If you want to duplicate a field, use S.transform instead."));
-    }
     var inlinedInputLocation = JSON.stringify(fieldName);
-    var fieldDefinition = {
+    if (fields[fieldName]) {
+      throw new Error("[rescript-struct] " + ("The field " + inlinedInputLocation + " is defined multiple times. If you want to duplicate the field, use S.transform instead."));
+    }
+    var itemDefinition = {
       s: struct,
       l: inlinedInputLocation,
       p: "[" + inlinedInputLocation + "]",
@@ -1355,8 +1434,8 @@ function factory$1(definer) {
     };
     fields[fieldName] = struct;
     fieldNames.push(fieldName);
-    fieldDefinitionsSet.add(fieldDefinition);
-    return fieldDefinition;
+    itemDefinitionsSet.add(itemDefinition);
+    return itemDefinition;
   };
   var tag = function (tag$1, asValue) {
     field(tag$1, literal(asValue));
@@ -1364,13 +1443,13 @@ function factory$1(definer) {
   var ctx = {
     n: fieldNames,
     h: fields,
-    d: fieldDefinitionsSet,
+    d: itemDefinitionsSet,
     f: field,
     t: tag
   };
   var definition = definer(ctx);
-  var fieldDefinitionsSet$1 = fieldDefinitionsSet;
-  var fieldDefinitions = Array.from(fieldDefinitionsSet$1);
+  var itemDefinitionsSet$1 = itemDefinitionsSet;
+  var itemDefinitions = Array.from(itemDefinitionsSet$1);
   return {
           t: {
             TAG: "Object",
@@ -1378,36 +1457,37 @@ function factory$1(definer) {
             fieldNames: fieldNames,
             unknownKeys: "Strip"
           },
-          pb: (function (b, selfStruct, inputVar, pathVar) {
-              var asyncOutputVars = [];
-              var parentCode = b.c;
-              b.c = "";
-              var refinementCode = "if(!" + inputVar + "||" + inputVar + ".constructor!==Object){" + raiseWithArg(b, pathVar, (function (input) {
-                      return {
-                              TAG: "InvalidType",
-                              expected: selfStruct,
-                              received: input
-                            };
-                    }), inputVar) + "}";
-              var withUnknownKeysRefinement = selfStruct.t.unknownKeys === "Strict";
-              if (withUnknownKeysRefinement) {
-                if (fieldDefinitions.length !== 0) {
-                  var keyVar = $$var(b);
-                  b.c = b.c + ("for(" + keyVar + " in " + inputVar + "){if(");
-                  for(var idx = 0 ,idx_finish = fieldDefinitions.length; idx < idx_finish; ++idx){
-                    var fieldDefinition = fieldDefinitions[idx];
-                    if (idx !== 0) {
-                      b.c = b.c + "&&";
-                    }
-                    b.c = b.c + (keyVar + "!==" + fieldDefinition.l);
-                  }
-                  b.c = b.c + ("){" + raiseWithArg(b, pathVar, (function (exccessFieldName) {
+          pb: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, (function (b, selfStruct, inputVar, pathVar) {
+                  b.c = b.c + ("if(!" + inputVar + "||" + inputVar + ".constructor!==Object){" + raiseWithArg(b, pathVar, (function (input) {
                             return {
-                                    TAG: "ExcessField",
-                                    _0: exccessFieldName
+                                    TAG: "InvalidType",
+                                    expected: selfStruct,
+                                    received: input
                                   };
-                          }), keyVar) + "}}");
-                } else {
+                          }), inputVar) + "}");
+                }), (function (b, selfStruct, inputVar, pathVar) {
+                  var withUnknownKeysRefinement = selfStruct.t.unknownKeys === "Strict";
+                  if (!withUnknownKeysRefinement) {
+                    return ;
+                  }
+                  if (itemDefinitions.length !== 0) {
+                    var keyVar = $$var(b);
+                    b.c = b.c + ("for(" + keyVar + " in " + inputVar + "){if(");
+                    for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
+                      var itemDefinition = itemDefinitions[idx];
+                      if (idx !== 0) {
+                        b.c = b.c + "&&";
+                      }
+                      b.c = b.c + (keyVar + "!==" + itemDefinition.l);
+                    }
+                    b.c = b.c + ("){" + raiseWithArg(b, pathVar, (function (exccessFieldName) {
+                              return {
+                                      TAG: "ExcessField",
+                                      _0: exccessFieldName
+                                    };
+                            }), keyVar) + "}}");
+                    return ;
+                  }
                   var keyVar$1 = $$var(b);
                   b.c = b.c + ("for(" + keyVar$1 + " in " + inputVar + "){" + raiseWithArg(b, pathVar, (function (exccessFieldName) {
                             return {
@@ -1415,84 +1495,15 @@ function factory$1(definer) {
                                     _0: exccessFieldName
                                   };
                           }), keyVar$1) + "}");
-                }
-              }
-              var unknownKeysRefinementCode = b.c;
-              b.c = "";
-              var definitionToOutput = function (definition, outputPath) {
-                var kind = toKindWithSet(definition, fieldDefinitionsSet$1);
-                switch (kind) {
-                  case 0 :
-                      var isArray = Array.isArray(definition);
-                      var keys = Object.keys(definition);
-                      var codeRef = isArray ? "[" : "{";
-                      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-                        var key = keys[idx];
-                        var definition$1 = definition[key];
-                        var output = definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
-                        codeRef = codeRef + (
-                          isArray ? output : JSON.stringify(key) + ":" + output
-                        ) + ",";
-                      }
-                      return codeRef + (
-                              isArray ? "]" : "}"
-                            );
-                  case 1 :
-                      return "e[" + (b.e.push(definition) - 1) + "]";
-                  case 2 :
-                      definition.r = 1;
-                      var inputPath = definition.p;
-                      var struct = definition.s;
-                      var fieldInputVar = $$var(b);
-                      b.c = b.c + (fieldInputVar + "=" + inputVar + inputPath + ";");
-                      var fieldOuputVar = run(b, struct.pb, struct, fieldInputVar, pathVar + "+" + JSON.stringify(inputPath));
-                      var isAsyncField = struct.i;
-                      if (isAsyncField) {
-                        asyncOutputVars.push(fieldOuputVar);
-                      }
-                      return fieldOuputVar;
-                  
-                }
-              };
-              var syncOutput = definitionToOutput(definition, "");
-              var registeredFieldsCode = b.c;
-              b.c = "";
-              for(var idx$1 = 0 ,idx_finish$1 = fieldDefinitions.length; idx$1 < idx_finish$1; ++idx$1){
-                var match = fieldDefinitions[idx$1];
-                var inputPath = match.p;
-                var struct = match.s;
-                var registered = match.r;
-                if (registered === 0) {
-                  var fieldInputVar = $$var(b);
-                  b.c = b.c + (fieldInputVar + "=" + inputVar + inputPath + ";");
-                  var fieldOuputVar = run(b, struct.pb, struct, fieldInputVar, pathVar + "+" + JSON.stringify(inputPath));
-                  var isAsyncField = struct.i;
-                  if (isAsyncField) {
-                    asyncOutputVars.push(fieldOuputVar);
-                  }
-                  
-                }
-                
-              }
-              var unregisteredFieldsCode = b.c;
-              b.c = parentCode + refinementCode + unregisteredFieldsCode + registeredFieldsCode + unknownKeysRefinementCode;
-              if (asyncOutputVars.length === 0) {
-                return syncOutput;
-              }
-              var outputVar = $$var(b);
-              b.c = b.c + (outputVar + "=()=>Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
-                        return asyncOutputVar + "()";
-                      }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "));");
-              return outputVar;
-            }),
+                })),
           sb: (function (b, param, inputVar, pathVar) {
               var fieldsCodeRef = {
                 contents: ""
               };
-              var parentCode = b.c;
+              var prevCode = b.c;
               b.c = "";
               var definitionToOutput = function (definition, outputPath) {
-                var kind = toKindWithSet(definition, fieldDefinitionsSet$1);
+                var kind = toKindWithSet(definition, itemDefinitionsSet$1);
                 switch (kind) {
                   case 0 :
                       var keys = Object.keys(definition);
@@ -1520,7 +1531,7 @@ function factory$1(definer) {
                         case 1 :
                             break;
                         case 2 :
-                            b.c = missingOperation(b, pathVar, "The field " + definition.l + " is registered multiple times. If you want to duplicate a field, use S.transform instead");
+                            b.c = missingOperation(b, pathVar, "The field " + definition.l + " is registered multiple times. If you want to duplicate the field, use S.transform instead");
                             return ;
                         
                       }
@@ -1539,9 +1550,9 @@ function factory$1(definer) {
                 }
               };
               definitionToOutput(definition, "");
-              b.c = parentCode + b.c;
-              for(var idx = 0 ,idx_finish = fieldDefinitions.length; idx < idx_finish; ++idx){
-                var match = fieldDefinitions[idx];
+              b.c = prevCode + b.c;
+              for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
+                var match = itemDefinitions[idx];
                 var inlinedInputLocation = match.l;
                 var registered = match.r;
                 if (registered === 0) {
@@ -2363,71 +2374,144 @@ function classify$2(struct) {
   
 }
 
-function factory$8(structs) {
-  var numberOfStructs = structs.length;
-  var len = structs.length;
+function factory$8(definer) {
+  var structs = [];
+  var itemDefinitionsSet = new Set();
+  var item = function (idx, struct) {
+    var inlinedInputLocation = "\"" + idx + "\"";
+    if (structs[idx]) {
+      throw new Error("[rescript-struct] " + ("The item " + inlinedInputLocation + " is defined multiple times. If you want to duplicate the item, use S.transform instead."));
+    }
+    var itemDefinition = {
+      s: struct,
+      l: inlinedInputLocation,
+      p: "[" + inlinedInputLocation + "]",
+      r: 0
+    };
+    structs[idx] = struct;
+    itemDefinitionsSet.add(itemDefinition);
+    return itemDefinition;
+  };
+  var tag = function (idx, asValue) {
+    item(idx, literal(asValue));
+  };
+  var ctx = {
+    s: structs,
+    d: itemDefinitionsSet,
+    i: item,
+    t: tag
+  };
+  var definition = definer(ctx);
+  var itemDefinitionsSet$1 = itemDefinitionsSet;
+  var structs$1 = structs;
+  var length = structs$1.length;
+  for(var idx = 0; idx < length; ++idx){
+    if (!structs$1[idx]) {
+      var inlinedInputLocation = "\"" + idx + "\"";
+      var itemDefinition = {
+        s: unit,
+        l: inlinedInputLocation,
+        p: "[" + inlinedInputLocation + "]",
+        r: 0
+      };
+      structs$1[idx] = unit;
+      itemDefinitionsSet$1.add(itemDefinition);
+    }
+    
+  }
+  var itemDefinitions = Array.from(itemDefinitionsSet$1);
   return {
           t: {
             TAG: "Tuple",
-            _0: structs
+            _0: structs$1
           },
-          pb: (function (b, selfStruct, inputVar, pathVar) {
-              b.c = b.c + ("if(!Array.isArray(" + inputVar + ")){" + raiseWithArg(b, pathVar, (function (input) {
-                        return {
-                                TAG: "InvalidType",
-                                expected: selfStruct,
-                                received: input
-                              };
-                      }), inputVar) + "}if(" + inputVar + ".length!==" + numberOfStructs + "){" + raiseWithArg(b, pathVar, (function (numberOfInputItems) {
-                        return {
-                                TAG: "InvalidTupleSize",
-                                expected: numberOfStructs,
-                                received: numberOfInputItems
-                              };
-                      }), inputVar + ".length") + "}");
-              var len = structs.length;
-              if (len !== 1) {
-                if (len === 0) {
-                  return "void 0";
+          pb: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, (function (b, selfStruct, inputVar, pathVar) {
+                  b.c = b.c + ("if(!Array.isArray(" + inputVar + ")){" + raiseWithArg(b, pathVar, (function (input) {
+                            return {
+                                    TAG: "InvalidType",
+                                    expected: selfStruct,
+                                    received: input
+                                  };
+                          }), inputVar) + "}if(" + inputVar + ".length!==" + length + "){" + raiseWithArg(b, pathVar, (function (numberOfInputItems) {
+                            return {
+                                    TAG: "InvalidTupleSize",
+                                    expected: length,
+                                    received: numberOfInputItems
+                                  };
+                          }), inputVar + ".length") + "}");
+                }), (function (_b, param, param$1, param$2) {
+                  
+                })),
+          sb: (function (b, param, inputVar, pathVar) {
+              var outputVar = $$var(b);
+              b.c = b.c + (outputVar + "=[];");
+              var prevCode = b.c;
+              b.c = "";
+              var definitionToOutput = function (definition, outputPath) {
+                var kind = toKindWithSet(definition, itemDefinitionsSet$1);
+                switch (kind) {
+                  case 0 :
+                      var keys = Object.keys(definition);
+                      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+                        var key = keys[idx];
+                        var definition$1 = definition[key];
+                        definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+                      }
+                      return ;
+                  case 1 :
+                      b.c = "if(" + inputVar + outputPath + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, pathVar + "+" + JSON.stringify(outputPath), (function (input) {
+                              return {
+                                      TAG: "InvalidLiteral",
+                                      expected: classify(definition),
+                                      received: input
+                                    };
+                            }), inputVar + outputPath) + "}" + b.c;
+                      return ;
+                  case 2 :
+                      var inputPath = definition.p;
+                      var struct = definition.s;
+                      var match = definition.r;
+                      switch (match) {
+                        case 0 :
+                        case 1 :
+                            break;
+                        case 2 :
+                            b.c = missingOperation(b, pathVar, "The item " + definition.l + " is registered multiple times. If you want to duplicate the item, use S.transform instead");
+                            return ;
+                        
+                      }
+                      definition.r = 2;
+                      if (struct.sb === noop) {
+                        b.c = b.c + (outputVar + inputPath + "=" + inputVar + outputPath + ";");
+                        return ;
+                      }
+                      var fieldInputVar = $$var(b);
+                      b.c = b.c + (fieldInputVar + "=" + inputVar + outputPath + ";");
+                      var fieldOuputVar = run(b, struct.sb, struct, fieldInputVar, pathVar + "+" + JSON.stringify(outputPath));
+                      b.c = b.c + (outputVar + inputPath + "=" + fieldOuputVar + ";");
+                      return ;
+                      break;
+                  
                 }
-                var outputVar = $$var(b);
-                b.c = b.c + (outputVar + "=[];");
-                var asyncItemVars = [];
-                for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
-                  var itemStruct = structs[idx];
-                  var itemVar = $$var(b);
-                  b.c = b.c + (itemVar + "=" + inputVar + "[" + idx + "];");
-                  var itemOutputVar = run(b, itemStruct.pb, itemStruct, itemVar, pathVar + "+'[\"" + idx + "\"]'");
-                  var isAsyncItem = itemStruct.i;
-                  var destVar = outputVar + "[" + idx + "]";
-                  if (isAsyncItem) {
-                    asyncItemVars.push(destVar);
+              };
+              definitionToOutput(definition, "");
+              b.c = prevCode + b.c;
+              for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
+                var match = itemDefinitions[idx];
+                var registered = match.r;
+                if (registered === 0) {
+                  var literal = toLiteral(match.s);
+                  if (literal !== undefined) {
+                    var value$1 = value(literal);
+                    b.c = b.c + (outputVar + match.p + "=" + ("e[" + (b.e.push(value$1) - 1) + "]") + ";");
+                  } else {
+                    b.c = missingOperation(b, pathVar, "Can't create serializer. The " + match.l + " item is not registered and not a literal. Use S.transform instead");
                   }
-                  b.c = b.c + (destVar + "=" + itemOutputVar + ";");
                 }
-                if (asyncItemVars.length === 0) {
-                  return outputVar;
-                }
-                var resolveVar = varWithoutAllocation(b);
-                var rejectVar = varWithoutAllocation(b);
-                var asyncParseResultVar = varWithoutAllocation(b);
-                var counterVar = varWithoutAllocation(b);
-                var asyncOutputVar = $$var(b);
-                b.c = b.c + (asyncOutputVar + "=()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=" + asyncItemVars.length.toString() + ";" + asyncItemVars.map(function (asyncItemVar) {
-                          return asyncItemVar + "().then(" + asyncParseResultVar + "=>{" + asyncItemVar + "=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + outputVar + ")}}," + rejectVar + ")";
-                        }).join(";") + "});");
-                return asyncOutputVar;
+                
               }
-              var itemStruct$1 = structs[0];
-              return run(b, itemStruct$1.pb, itemStruct$1, inputVar + "[0]", pathVar + "+'[\"0\"]'");
+              return outputVar;
             }),
-          sb: len !== 1 ? (
-              len !== 0 ? noop : (function (_b, param, param$1, param$2) {
-                    return "[]";
-                  })
-            ) : (function (_b, param, inputVar, param$1) {
-                return "[" + inputVar + "]";
-              }),
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -2436,16 +2520,6 @@ function factory$8(structs) {
           m: emptyMetadataMap
         };
 }
-
-function factoryFromArgs() {
-  var structs = (Array.from(arguments));
-  return factory$8(structs);
-}
-
-var Tuple = {
-  factory: factory$8,
-  factoryFromArgs: factoryFromArgs
-};
 
 function factory$9(structs) {
   if (structs.length < 2) {
@@ -2461,7 +2535,7 @@ function factory$9(structs) {
               var isAsyncRef = false;
               var itemsCode = [];
               var itemsOutputVar = [];
-              var parentCode = b.c;
+              var prevCode = b.c;
               for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
                 var struct = structs[idx];
                 b.c = "";
@@ -2473,7 +2547,7 @@ function factory$9(structs) {
                 itemsOutputVar.push(itemOutputVar);
                 itemsCode.push(b.c);
               }
-              b.c = parentCode;
+              b.c = prevCode;
               var isAsync = isAsyncRef;
               var outputVar = $$var(b);
               var codeEndRef = "";
@@ -3020,29 +3094,29 @@ function inline(struct) {
   return internalInline(struct, undefined, undefined);
 }
 
-var unit = literal((void 0));
-
-function tuple0() {
-  return factory$8([]);
-}
-
 function tuple1(v0) {
-  return factory$8([v0]);
+  return factory$8(function (s) {
+              return s.i(0, v0);
+            });
 }
 
 function tuple2(v0, v1) {
-  return factory$8([
-              v0,
-              v1
-            ]);
+  return factory$8(function (s) {
+              return [
+                      s.i(0, v0),
+                      s.i(1, v1)
+                    ];
+            });
 }
 
 function tuple3(v0, v1, v2) {
-  return factory$8([
-              v0,
-              v1,
-              v2
-            ]);
+  return factory$8(function (s) {
+              return [
+                      s.i(0, v0),
+                      s.i(1, v1),
+                      s.i(2, v2)
+                    ];
+            });
 }
 
 var Path = {
@@ -3101,19 +3175,9 @@ var $$Object = {
 
 var object = factory$1;
 
-var tuple4 = factoryFromArgs;
+var Tuple = {};
 
-var tuple5 = factoryFromArgs;
-
-var tuple6 = factoryFromArgs;
-
-var tuple7 = factoryFromArgs;
-
-var tuple8 = factoryFromArgs;
-
-var tuple9 = factoryFromArgs;
-
-var tuple10 = factoryFromArgs;
+var tuple = factory$8;
 
 var String_Refinement = {};
 
@@ -3227,17 +3291,10 @@ export {
   $$Object ,
   object ,
   Tuple ,
-  tuple0 ,
+  tuple ,
   tuple1 ,
   tuple2 ,
   tuple3 ,
-  tuple4 ,
-  tuple5 ,
-  tuple6 ,
-  tuple7 ,
-  tuple8 ,
-  tuple9 ,
-  tuple10 ,
   $$String ,
   Int ,
   Float ,

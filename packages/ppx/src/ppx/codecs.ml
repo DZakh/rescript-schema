@@ -16,7 +16,7 @@ let rec generate_constr_struct_expr { Location.txt = identifier; loc } type_args
   | Lident "unknown", _ -> [%expr S.unknown]
   | Ldot (Lident "S", "never"), _ -> [%expr S.never]
   | Ldot (Ldot (Lident "Js", "Json"), "t"), _ | Ldot (Lident "JSON", "t"), _ ->
-    [%expr S.json ]
+      [%expr S.json]
   | Lident "array", [ item_type ] ->
       [%expr S.array [%e generate_struct_expr item_type]]
   | Lident "list", [ item_type ] ->
@@ -44,13 +44,16 @@ and generate_struct_expr { ptyp_desc; ptyp_loc; ptyp_attributes } =
       | Ptyp_package _ -> fail ptyp_loc "Can't generate struct for module type"
       | Ptyp_tuple tuple_types ->
           [%expr
-            Obj.magic S.Tuple.factory
-              [%e
-                Exp.tuple
-                  (tuple_types
-                  |> List.map (fun tuple_type ->
-                         [%expr
-                           S.toUnknown [%e generate_struct_expr tuple_type]]))]]
+            S.tuple
+              (Obj.magic (fun (s : S.Tuple.ctx) ->
+                   [%e
+                     Exp.tuple
+                       (tuple_types
+                       |> List.mapi (fun idx tuple_type ->
+                              [%expr
+                                s.item
+                                  [%e Exp.constant (Const.int idx)]
+                                  [%e generate_struct_expr tuple_type]]))]))]
       | Ptyp_var s -> make_ident_expr (get_generated_struct_name s)
       | Ptyp_constr (constr, typeArgs) ->
           generate_constr_struct_expr constr typeArgs

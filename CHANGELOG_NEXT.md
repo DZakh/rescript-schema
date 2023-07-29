@@ -42,10 +42,11 @@
 - `S.advancedPreprocess` is renamed to `S.preprocess`. It now accepts only one argument which is a function that gets `effectCtx` and returns a record with parser and serializer. Operation stoped failing with `InvalidOperation` error when a parser or serializer is not passed.
 - Removed `S.fail` and `S.advancedFail` in favor of having `effectCtx` with `.fail` and `.failWithError` methods
 - `S.inline` is temporary broken
-- Updated API for `S.Tuple.factory`. There are plans to change it once more before the actual release
-- `S.variant` used to fail when using value multiple times. Now it allows to create a struct and fails only on serializing with `InvalidOperation` code.
+- Removed `S.Tuple.factory`, `S.tuple0`, `S.tuple4`-`S.tuple10` in favor of the new `S.tuple` which has similar API to `S.object`.
+- `S.variant` used to fail when using value multiple times. Now it allows to create a struct and fails only on serializing with `InvalidOperation` code
 - Added `fail` and `failWithError` methods to the `catchCtx`
 - `Object.UnknownKeys` moved from metadata to `tagged` type
+- `S.object` type check started using `input.constructor===Object` instead of `typeof input === "object"`. Use `S.custom` if it doesn't work for you
 
 ## TS API changes
 
@@ -62,6 +63,9 @@
 - The `refine` method now accepts only one refining function which is applied both for parser and serializer. If you want to refine the parser and serializer separately as before, use `S.transform` instead
 - Removed `S.fail` in favor of having a `ctx` with `.fail` method
 - The `asyncRefine` is renamed to `asyncParserRefine`
+- `S.object` type check started using `input.constructor===Object` instead of `typeof input === "object"`. Use `S.custom` if it doesn't work for you
+- Empty `S.tuple` now returns empty array during parsing instead of `undefined`
+- `S.tuple` with single item doesn't unwrap it from array during parsing
 
 ## Opt-in ppx support
 

@@ -215,8 +215,11 @@ let record = struct => S.dict(struct->castToRescriptStruct)->toJsStruct
 let jsonString = struct => S.jsonString(struct->castToRescriptStruct)->toJsStruct
 let union = structs => S.union(structs->castMultipleToRescriptStruct)->toJsStruct
 let tuple = structs => {
-  let structs = structs->(Obj.magic: array<struct<'input, 'output>> => array<S.t<unknown>>)
-  S.Tuple.factory(structs)->toJsStruct
+  S.tuple(s => {
+    structs->Js.Array2.mapi((struct, idx) => {
+      s.item(idx, struct->castToRescriptStruct)
+    })
+  })->toJsStruct
 }
 
 let literal = (literal: 'literal): struct<'literal, 'literal> => {

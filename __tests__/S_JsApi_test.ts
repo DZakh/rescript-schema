@@ -765,17 +765,17 @@ test("Creates struct with description", (t) => {
 test("Empty tuple", (t) => {
   const struct = S.tuple([]);
 
-  t.deepEqual(struct.parseOrThrow([]), undefined);
+  t.deepEqual(struct.parseOrThrow([]), []);
 
-  expectType<TypeEqual<typeof struct, S.Struct<[], undefined>>>(true);
+  expectType<TypeEqual<typeof struct, S.Struct<[], []>>>(true);
 });
 
 test("Tuple with single element", (t) => {
   const struct = S.tuple([S.string.transform((s) => Number(s))]);
 
-  t.deepEqual(struct.parseOrThrow(["123"]), 123);
+  t.deepEqual(struct.parseOrThrow(["123"]), [123]);
 
-  expectType<TypeEqual<typeof struct, S.Struct<[string], number>>>(true);
+  expectType<TypeEqual<typeof struct, S.Struct<[string], [number]>>>(true);
 });
 
 test("Tuple with multiple elements", (t) => {

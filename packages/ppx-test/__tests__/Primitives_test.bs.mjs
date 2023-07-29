@@ -70,45 +70,51 @@ Ava("Json struct from Core", (function (t) {
         TestUtils.assertEqualStructs(t, S$RescriptStruct.json, S$RescriptStruct.json, undefined, undefined);
       }));
 
-var myTupleStruct = S$RescriptStruct.Tuple.factory([
-      S$RescriptStruct.string,
-      S$RescriptStruct.$$int
-    ]);
+var myTupleStruct = S$RescriptStruct.tuple(function (s) {
+      return [
+              s.i(0, S$RescriptStruct.string),
+              s.i(1, S$RescriptStruct.$$int)
+            ];
+    });
 
 Ava("Tuple struct", (function (t) {
         TestUtils.assertEqualStructs(t, myTupleStruct, S$RescriptStruct.tuple2(S$RescriptStruct.string, S$RescriptStruct.$$int), undefined, undefined);
       }));
 
-var myBigTupleStruct = S$RescriptStruct.Tuple.factory([
-      S$RescriptStruct.string,
-      S$RescriptStruct.string,
-      S$RescriptStruct.string,
-      S$RescriptStruct.$$int,
-      S$RescriptStruct.$$int,
-      S$RescriptStruct.$$int,
-      S$RescriptStruct.$$float,
-      S$RescriptStruct.$$float,
-      S$RescriptStruct.$$float,
-      S$RescriptStruct.bool,
-      S$RescriptStruct.bool,
-      S$RescriptStruct.bool
-    ]);
+var myBigTupleStruct = S$RescriptStruct.tuple(function (s) {
+      return [
+              s.i(0, S$RescriptStruct.string),
+              s.i(1, S$RescriptStruct.string),
+              s.i(2, S$RescriptStruct.string),
+              s.i(3, S$RescriptStruct.$$int),
+              s.i(4, S$RescriptStruct.$$int),
+              s.i(5, S$RescriptStruct.$$int),
+              s.i(6, S$RescriptStruct.$$float),
+              s.i(7, S$RescriptStruct.$$float),
+              s.i(8, S$RescriptStruct.$$float),
+              s.i(9, S$RescriptStruct.bool),
+              s.i(10, S$RescriptStruct.bool),
+              s.i(11, S$RescriptStruct.bool)
+            ];
+    });
 
 Ava("Big tuple struct", (function (t) {
-        TestUtils.assertEqualStructs(t, myBigTupleStruct, S$RescriptStruct.Tuple.factory([
-                  S$RescriptStruct.string,
-                  S$RescriptStruct.string,
-                  S$RescriptStruct.string,
-                  S$RescriptStruct.$$int,
-                  S$RescriptStruct.$$int,
-                  S$RescriptStruct.$$int,
-                  S$RescriptStruct.$$float,
-                  S$RescriptStruct.$$float,
-                  S$RescriptStruct.$$float,
-                  S$RescriptStruct.bool,
-                  S$RescriptStruct.bool,
-                  S$RescriptStruct.bool
-                ]), undefined, undefined);
+        TestUtils.assertEqualStructs(t, myBigTupleStruct, S$RescriptStruct.tuple(function (s) {
+                  return [
+                          s.i(0, S$RescriptStruct.string),
+                          s.i(1, S$RescriptStruct.string),
+                          s.i(2, S$RescriptStruct.string),
+                          s.i(3, S$RescriptStruct.$$int),
+                          s.i(4, S$RescriptStruct.$$int),
+                          s.i(5, S$RescriptStruct.$$int),
+                          s.i(6, S$RescriptStruct.$$float),
+                          s.i(7, S$RescriptStruct.$$float),
+                          s.i(8, S$RescriptStruct.$$float),
+                          s.i(9, S$RescriptStruct.bool),
+                          s.i(10, S$RescriptStruct.bool),
+                          s.i(11, S$RescriptStruct.bool)
+                        ];
+                }), undefined, undefined);
       }));
 
 var myCustomStringStruct = S$RescriptStruct.$$String.email(S$RescriptStruct.string, undefined, undefined);

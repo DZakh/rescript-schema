@@ -569,39 +569,44 @@ let struct = S.list(S.string)
 
 The `list` struct represents an array of data of a specific type which is transformed to ReScript's list data structure.
 
-### **`tuple0` - `S.tuple10`**
+### **`tuple`**
 
-`(. S.t<'v1>, S.t<'v2>, S.t<'v3>) => S.t<('v1, 'v2, 'v3)>`
+`(S.Tuple.ctx => 'value) => S.t<'value>`
 
 ```rescript
-let struct = S.tuple3(. S.string, S.int, S.bool)
+type point = {
+  x: int,
+  y: int,
+}
 
-%raw(`["a", 1, true]`)->S.parseWith(struct)
-// Ok(("a", 1, true))
+// The pointStruct will have the S.t<point> type
+let pointStruct = S.tuple(s => {
+  s.tag(0, "point")
+  {
+    x: s.item(1, S.int),
+    y: s.item(2, S.int),
+  }
+})
+
+// It can be used both for parsing and serializing
+%raw(`["point", 1, -4]`)->S.parseWith(pointStruct)
+{ x: 1, y: -4 }->S.serializeWith(pointStruct)
 ```
 
 The `tuple` struct represents that a data is an array of a specific length with values each of a specific type.
 
-The tuple struct factories are available up to 10 fields. If you have an array with more values, you can create a tuple struct factory for any number of fields using `S.Tuple.factory`.
+For short tuples without the need for transformation, there are wrappers over `S.tuple`:
+
+### **`tuple1` - `S.tuple3`**
+
+`(S.t<'v0>, S.t<'v1>, S.t<'v2>) => S.t<('v0, 'v1, 'v2)>`
 
 ```rescript
-let bigTupleStruct = S.Tuple.factory([
-  S.string->S.toUnknown,
-  S.string->S.toUnknown,
-  S.string->S.toUnknown,
-  S.int->S.toUnknown,
-  S.int->S.toUnknown,
-  S.int->S.toUnknown,
-  S.float->S.toUnknown,
-  S.float->S.toUnknown,
-  S.float->S.toUnknown,
-  S.bool->S.toUnknown,
-  S.bool->S.toUnknown,
-  S.bool->S.toUnknown,
-])->(Obj.magic: S.t<array<unknown>> => S.t<(string, string, string, int, int, int, float, float, float, bool, bool, bool)>)
-```
+let struct = S.tuple3(S.string, S.int, S.bool)
 
-> 🧠 You need to cast the `S.Tuple.factory` return value to desired type by yourself.
+%raw(`["a", 1, true]`)->S.parseWith(struct)
+// Ok("a", 1, true)
+```
 
 ### **`dict`**
 

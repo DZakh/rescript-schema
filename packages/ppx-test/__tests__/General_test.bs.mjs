@@ -12,15 +12,24 @@ Ava("Creates struct with the type name and struct at the for non t types", (func
         TestUtils.assertEqualStructs(t, S$RescriptStruct.$$int, S$RescriptStruct.$$int, undefined, undefined);
       }));
 
-var reusedTypesStruct = S$RescriptStruct.Tuple.factory([
-      S$RescriptStruct.string,
-      S$RescriptStruct.$$int,
-      S$RescriptStruct.bool,
-      S$RescriptStruct.$$float
-    ]);
+var reusedTypesStruct = S$RescriptStruct.tuple(function (s) {
+      return [
+              s.i(0, S$RescriptStruct.string),
+              s.i(1, S$RescriptStruct.$$int),
+              s.i(2, S$RescriptStruct.bool),
+              s.i(3, S$RescriptStruct.$$float)
+            ];
+    });
 
 Ava("Can reuse structs from other types", (function (t) {
-        TestUtils.assertEqualStructs(t, reusedTypesStruct, S$RescriptStruct.tuple4(S$RescriptStruct.string, S$RescriptStruct.$$int, S$RescriptStruct.bool, S$RescriptStruct.$$float), undefined, undefined);
+        TestUtils.assertEqualStructs(t, reusedTypesStruct, S$RescriptStruct.tuple(function (s) {
+                  return [
+                          s.i(0, S$RescriptStruct.string),
+                          s.i(1, S$RescriptStruct.$$int),
+                          s.i(2, S$RescriptStruct.bool),
+                          s.i(3, S$RescriptStruct.$$float)
+                        ];
+                }), undefined, undefined);
       }));
 
 var struct = S$RescriptStruct.string;

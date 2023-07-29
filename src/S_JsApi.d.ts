@@ -121,10 +121,10 @@ export function literal<Literal extends BigInt>(
 // TODO: add complete types
 export function literal(value: undefined): Struct<undefined, undefined>;
 export function literal(value: null): Struct<null, null>;
-export function tuple(structs: []): Struct<[], undefined>;
+export function tuple(structs: []): Struct<[], []>;
 export function tuple<Input, Output>(
   structs: [Struct<Input, Output>]
-): Struct<[Input], Output>;
+): Struct<[Input], [Output]>;
 export function tuple<A extends UnknownStruct, B extends UnknownStruct[]>(
   structs: [A, ...B]
 ): Struct<
