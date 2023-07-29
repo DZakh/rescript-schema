@@ -2,6 +2,33 @@
 
 import * as Js_dict from "rescript/lib/es6/js_dict.js";
 import * as Caml_option from "rescript/lib/es6/caml_option.js";
+import * as Caml_exceptions from "rescript/lib/es6/caml_exceptions.js";
+import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
+
+var Test = /* @__PURE__ */Caml_exceptions.create("TestUtils-RescriptStruct.Test");
+
+function raiseTestException() {
+  throw {
+        RE_EXN_ID: Test,
+        Error: new Error()
+      };
+}
+
+function assertThrowsTestException(t, fn, message, param) {
+  try {
+    fn(undefined);
+    return t.fail("Didn't throw");
+  }
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    if (exn.RE_EXN_ID === Test) {
+      t.pass(message !== undefined ? Caml_option.valFromOption(message) : undefined);
+      return ;
+    } else {
+      return t.fail("Thrown another exception");
+    }
+  }
+}
 
 function cleanUpStruct(struct) {
   var $$new = {};
@@ -32,6 +59,9 @@ function unsafeAssertEqualStructs(t, s1, s2, message, param) {
 var assertEqualStructs = unsafeAssertEqualStructs;
 
 export {
+  Test ,
+  raiseTestException ,
+  assertThrowsTestException ,
   cleanUpStruct ,
   unsafeAssertEqualStructs ,
   assertEqualStructs ,

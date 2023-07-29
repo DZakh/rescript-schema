@@ -31,6 +31,27 @@ test("Fails to parse object with inlinable string field", t => {
   )
 })
 
+test(
+  "Fails to parse object with custom user error in array field (should have correct path)",
+  t => {
+    let struct = S.object(s =>
+      {
+        "field": s.field("field", S.array(S.string->S.refine(s => _ => s.fail("User error")))),
+      }
+    )
+
+    t->Assert.deepEqual(
+      %raw(`{field: ["foo"]}`)->S.parseAnyWith(struct),
+      Error({
+        code: OperationFailed("User error"),
+        operation: Parsing,
+        path: S.Path.fromArray(["field", "0"]),
+      }),
+      (),
+    )
+  },
+)
+
 test("Successfully parses object with inlinable bool field", t => {
   let struct = S.object(s =>
     {

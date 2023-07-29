@@ -4,6 +4,21 @@ external magic: 'a => 'b = "%identity"
 external castAnyToUnknown: 'any => unknown = "%identity"
 external castUnknownToAny: unknown => 'any = "%identity"
 
+exception Test
+let raiseTestException = () => raise(Test)
+
+let assertThrowsTestException = {
+  (t, fn, ~message=?, ()) => {
+    try {
+      let _ = fn()
+      t->Assert.fail("Didn't throw")
+    } catch {
+    | Test => t->Assert.pass(~message?, ())
+    | _ => t->Assert.fail("Thrown another exception")
+    }
+  }
+}
+
 let rec cleanUpStruct = struct => {
   let new = Js.Dict.empty()
   struct

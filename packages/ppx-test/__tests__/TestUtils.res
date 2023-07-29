@@ -2,6 +2,9 @@ open Ava
 
 external magic: 'a => 'b = "%identity"
 
+exception Test
+let raiseTestException = () => raise(Test)
+
 let assertEqualStructs = {
   let rec cleanUpStruct = (struct: S.t<'v>): S.t<'v> => {
     let new = Dict.make()

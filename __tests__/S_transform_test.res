@@ -98,7 +98,7 @@ test("Uses the path from failWithError called in the transform serializer", t =>
   )
 })
 
-test("Transform doesn't ignore non rescript-struct errors", t => {
+test("Transform parser passes through non rescript-struct errors", t => {
   let struct = S.array(
     S.string->S.transform(_ => {parser: _ => Js.Exn.raiseError("Application crashed")}),
   )
@@ -110,6 +110,30 @@ test("Transform doesn't ignore non rescript-struct errors", t => {
     },
     (),
   )
+})
+
+test("Transform parser passes through other rescript exceptions", t => {
+  let struct = S.array(S.string->S.transform(_ => {parser: _ => TestUtils.raiseTestException()}))
+
+  t->TestUtils.assertThrowsTestException(() => {["Hello world!"]->S.parseAnyWith(struct)}, ())
+})
+
+test("Transform definition passes through non rescript-struct errors", t => {
+  let struct = S.array(S.string->S.transform(_ => Js.Exn.raiseError("Application crashed")))
+
+  t->Assert.throws(
+    () => {["Hello world!"]->S.parseAnyWith(struct)},
+    ~expectations={
+      message: "Application crashed",
+    },
+    (),
+  )
+})
+
+test("Transform definition passes through other rescript exceptions", t => {
+  let struct = S.array(S.string->S.transform(_ => TestUtils.raiseTestException()))
+
+  t->TestUtils.assertThrowsTestException(() => {["Hello world!"]->S.parseAnyWith(struct)}, ())
 })
 
 test("Successfully serializes primitive with transformation to the same type", t => {

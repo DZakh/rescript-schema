@@ -30,6 +30,7 @@ module Path: {
   type t
 
   let empty: t
+  let dynamic: t
 
   external toString: t => string = "%identity"
 

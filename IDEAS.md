@@ -45,6 +45,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add built-in refinements to TS API
   // TODO: Update gen.ts
 - Update S_Js.res to create new structs instead of mixin in the methods
+- Write tests for generated functions
 
 ## v5.1
 
