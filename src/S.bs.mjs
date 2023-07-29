@@ -1338,17 +1338,6 @@ function factory(struct, definer) {
         };
 }
 
-var metadataId = "rescript-struct:Object.UnknownKeys";
-
-function classify$2(struct) {
-  var t = struct.m[metadataId];
-  if (t !== undefined) {
-    return t;
-  } else {
-    return "Strip";
-  }
-}
-
 function factory$1(definer) {
   var fields = {};
   var fieldNames = [];
@@ -1386,7 +1375,8 @@ function factory$1(definer) {
           t: {
             TAG: "Object",
             fields: fields,
-            fieldNames: fieldNames
+            fieldNames: fieldNames,
+            unknownKeys: "Strip"
           },
           pb: (function (b, selfStruct, inputVar, pathVar) {
               var asyncOutputVars = [];
@@ -1399,7 +1389,7 @@ function factory$1(definer) {
                               received: input
                             };
                     }), inputVar) + "}";
-              var withUnknownKeysRefinement = classify$2(selfStruct) === "Strict";
+              var withUnknownKeysRefinement = selfStruct.t.unknownKeys === "Strict";
               if (withUnknownKeysRefinement) {
                 if (fieldDefinitions.length !== 0) {
                   var keyVar = $$var(b);
@@ -1577,11 +1567,51 @@ function factory$1(definer) {
 }
 
 function strip(struct) {
-  return set(struct, metadataId, "Strip");
+  var match = struct.t;
+  if (typeof match !== "object" || !(match.TAG === "Object" && match.unknownKeys !== "Strip")) {
+    return struct;
+  } else {
+    return {
+            t: {
+              TAG: "Object",
+              fields: match.fields,
+              fieldNames: match.fieldNames,
+              unknownKeys: "Strip"
+            },
+            pb: struct.pb,
+            sb: struct.sb,
+            i: 0,
+            s: initialSerialize,
+            j: initialSerializeToJson,
+            p: intitialParse,
+            a: intitialParseAsync,
+            m: struct.m
+          };
+  }
 }
 
 function strict(struct) {
-  return set(struct, metadataId, "Strict");
+  var match = struct.t;
+  if (typeof match !== "object" || !(match.TAG === "Object" && match.unknownKeys === "Strip")) {
+    return struct;
+  } else {
+    return {
+            t: {
+              TAG: "Object",
+              fields: match.fields,
+              fieldNames: match.fieldNames,
+              unknownKeys: "Strict"
+            },
+            pb: struct.pb,
+            sb: struct.sb,
+            i: 0,
+            s: initialSerialize,
+            j: initialSerializeToJson,
+            p: intitialParse,
+            a: intitialParseAsync,
+            m: struct.m
+          };
+  }
 }
 
 function builder(b, selfStruct, inputVar, pathVar) {
@@ -1618,10 +1648,10 @@ var struct$1 = {
   m: emptyMetadataMap
 };
 
-var metadataId$1 = "rescript-struct:String.refinements";
+var metadataId = "rescript-struct:String.refinements";
 
 function refinements(struct) {
-  var m = struct.m[metadataId$1];
+  var m = struct.m[metadataId];
   if (m !== undefined) {
     return m;
   } else {
@@ -1670,7 +1700,7 @@ function min(struct, maybeMessage, length) {
       
     };
   };
-  return addRefinement(struct, metadataId$1, {
+  return addRefinement(struct, metadataId, {
               kind: {
                 TAG: "Min",
                 length: length
@@ -1689,7 +1719,7 @@ function max(struct, maybeMessage, length) {
       
     };
   };
-  return addRefinement(struct, metadataId$1, {
+  return addRefinement(struct, metadataId, {
               kind: {
                 TAG: "Max",
                 length: length
@@ -1708,7 +1738,7 @@ function length(struct, maybeMessage, length$1) {
       
     };
   };
-  return addRefinement(struct, metadataId$1, {
+  return addRefinement(struct, metadataId, {
               kind: {
                 TAG: "Length",
                 length: length$1
@@ -1727,7 +1757,7 @@ function email(struct, messageOpt, param) {
       
     };
   };
-  return addRefinement(struct, metadataId$1, {
+  return addRefinement(struct, metadataId, {
               kind: "Email",
               message: message
             }, refiner);
@@ -1743,7 +1773,7 @@ function uuid(struct, messageOpt, param) {
       
     };
   };
-  return addRefinement(struct, metadataId$1, {
+  return addRefinement(struct, metadataId, {
               kind: "Uuid",
               message: message
             }, refiner);
@@ -1759,7 +1789,7 @@ function cuid(struct, messageOpt, param) {
       
     };
   };
-  return addRefinement(struct, metadataId$1, {
+  return addRefinement(struct, metadataId, {
               kind: "Cuid",
               message: message
             }, refiner);
@@ -1783,7 +1813,7 @@ function url(struct, messageOpt, param) {
       
     };
   };
-  return addRefinement(struct, metadataId$1, {
+  return addRefinement(struct, metadataId, {
               kind: "Url",
               message: message
             }, refiner);
@@ -1800,7 +1830,7 @@ function pattern(struct, messageOpt, re) {
       
     };
   };
-  return addRefinement(struct, metadataId$1, {
+  return addRefinement(struct, metadataId, {
               kind: {
                 TAG: "Pattern",
                 re: re
@@ -1815,8 +1845,8 @@ function datetime(struct, messageOpt, param) {
     kind: "Datetime",
     message: message
   };
-  var refinements = struct.m[metadataId$1];
-  return transform(set(struct, metadataId$1, refinements !== undefined ? refinements.concat(refinement) : [refinement]), (function (s) {
+  var refinements = struct.m[metadataId];
+  return transform(set(struct, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), (function (s) {
                 return {
                         p: (function (string) {
                             if (!datetimeRe.test(string)) {
@@ -1902,10 +1932,10 @@ var struct$3 = {
   m: emptyMetadataMap
 };
 
-var metadataId$2 = "rescript-struct:Int.refinements";
+var metadataId$1 = "rescript-struct:Int.refinements";
 
 function refinements$1(struct) {
-  var m = struct.m[metadataId$2];
+  var m = struct.m[metadataId$1];
   if (m !== undefined) {
     return m;
   } else {
@@ -1944,7 +1974,7 @@ function min$1(struct, maybeMessage, minValue) {
       
     };
   };
-  return addRefinement(struct, metadataId$2, {
+  return addRefinement(struct, metadataId$1, {
               kind: {
                 TAG: "Min",
                 value: minValue
@@ -1963,7 +1993,7 @@ function max$1(struct, maybeMessage, maxValue) {
       
     };
   };
-  return addRefinement(struct, metadataId$2, {
+  return addRefinement(struct, metadataId$1, {
               kind: {
                 TAG: "Max",
                 value: maxValue
@@ -1982,16 +2012,16 @@ function port(struct, messageOpt, param) {
       
     };
   };
-  return addRefinement(struct, metadataId$2, {
+  return addRefinement(struct, metadataId$1, {
               kind: "Port",
               message: message
             }, refiner);
 }
 
-var metadataId$3 = "rescript-struct:Float.refinements";
+var metadataId$2 = "rescript-struct:Float.refinements";
 
 function refinements$2(struct) {
-  var m = struct.m[metadataId$3];
+  var m = struct.m[metadataId$2];
   if (m !== undefined) {
     return m;
   } else {
@@ -2030,7 +2060,7 @@ function min$2(struct, maybeMessage, minValue) {
       
     };
   };
-  return addRefinement(struct, metadataId$3, {
+  return addRefinement(struct, metadataId$2, {
               kind: {
                 TAG: "Min",
                 value: minValue
@@ -2049,7 +2079,7 @@ function max$2(struct, maybeMessage, maxValue) {
       
     };
   };
-  return addRefinement(struct, metadataId$3, {
+  return addRefinement(struct, metadataId$2, {
               kind: {
                 TAG: "Max",
                 value: maxValue
@@ -2127,10 +2157,10 @@ function factory$4(struct) {
         };
 }
 
-var metadataId$4 = "rescript-struct:Array.refinements";
+var metadataId$3 = "rescript-struct:Array.refinements";
 
 function refinements$3(struct) {
-  var m = struct.m[metadataId$4];
+  var m = struct.m[metadataId$3];
   if (m !== undefined) {
     return m;
   } else {
@@ -2197,7 +2227,7 @@ function min$3(struct, maybeMessage, length) {
       
     };
   };
-  return addRefinement(struct, metadataId$4, {
+  return addRefinement(struct, metadataId$3, {
               kind: {
                 TAG: "Min",
                 length: length
@@ -2216,7 +2246,7 @@ function max$3(struct, maybeMessage, length) {
       
     };
   };
-  return addRefinement(struct, metadataId$4, {
+  return addRefinement(struct, metadataId$3, {
               kind: {
                 TAG: "Max",
                 length: length
@@ -2235,7 +2265,7 @@ function length$1(struct, maybeMessage, length$2) {
       
     };
   };
-  return addRefinement(struct, metadataId$4, {
+  return addRefinement(struct, metadataId$3, {
               kind: {
                 TAG: "Length",
                 length: length$2
@@ -2297,7 +2327,7 @@ function factory$6(struct) {
         };
 }
 
-var metadataId$5 = "rescript-struct:Default";
+var metadataId$4 = "rescript-struct:Default";
 
 function factory$7(struct, getDefaultValue) {
   var struct$1 = factory$4(struct);
@@ -2322,11 +2352,11 @@ function factory$7(struct, getDefaultValue) {
               p: intitialParse,
               a: intitialParseAsync,
               m: emptyMetadataMap
-            }, metadataId$5, getDefaultValue);
+            }, metadataId$4, getDefaultValue);
 }
 
-function classify$3(struct) {
-  var getDefaultValue = struct.m[metadataId$5];
+function classify$2(struct) {
+  var getDefaultValue = struct.m[metadataId$4];
   if (getDefaultValue !== undefined) {
     return Caml_option.some(getDefaultValue(undefined));
   }
@@ -2787,10 +2817,10 @@ function internalInline(struct, maybeVariant, param) {
       case "Option" :
           var struct$1 = taggedLiteral._0;
           var internalInlinedStruct = internalInline(struct$1, undefined, undefined);
-          var defaultValue = classify$3(struct$1);
+          var defaultValue = classify$2(struct$1);
           if (defaultValue !== undefined) {
             var defaultValue$1 = Caml_option.valFromOption(defaultValue);
-            Js_dict.unsafeDeleteKey(metadataMap, metadataId$5);
+            Js_dict.unsafeDeleteKey(metadataMap, metadataId$4);
             inlinedStruct = internalInlinedStruct + ("->S.default(() => %raw(\`" + (
                 defaultValue$1 === (void 0) ? "undefined" : JSON.stringify(defaultValue$1)
               ) + "\`))");
@@ -2849,10 +2879,9 @@ function internalInline(struct, maybeVariant, param) {
   var inlinedStruct$2 = message$1 !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, descriptionMetadataId), inlinedStruct$1 + ("->S.describe(" + (
           message$1 === (void 0) ? "undefined" : JSON.stringify(message$1)
         ) + ")")) : inlinedStruct$1;
-  var match = classify$2(struct);
+  var match = struct.t;
   var inlinedStruct$3;
-  inlinedStruct$3 = match === "Strict" ? inlinedStruct$2 + "->S.Object.strict" : inlinedStruct$2;
-  Js_dict.unsafeDeleteKey(metadataMap, metadataId);
+  inlinedStruct$3 = typeof match !== "object" || !(match.TAG === "Object" && match.unknownKeys !== "Strip") ? inlinedStruct$2 : inlinedStruct$2 + "->S.Object.strict";
   var match$1 = struct.t;
   var inlinedStruct$4;
   var exit = 0;
@@ -2864,7 +2893,7 @@ function internalInline(struct, maybeVariant, param) {
       case "Int" :
           var refinements$4 = refinements$1(struct);
           if (refinements$4.length !== 0) {
-            Js_dict.unsafeDeleteKey(metadataMap, metadataId$2);
+            Js_dict.unsafeDeleteKey(metadataMap, metadataId$1);
             inlinedStruct$4 = inlinedStruct$3 + refinements$4.map(function (refinement) {
                     var match = refinement.kind;
                     if (typeof match !== "object") {
@@ -2882,7 +2911,7 @@ function internalInline(struct, maybeVariant, param) {
       case "Float" :
           var refinements$5 = refinements$2(struct);
           if (refinements$5.length !== 0) {
-            Js_dict.unsafeDeleteKey(metadataMap, metadataId$3);
+            Js_dict.unsafeDeleteKey(metadataMap, metadataId$2);
             inlinedStruct$4 = inlinedStruct$3 + refinements$5.map(function (refinement) {
                     var match = refinement.kind;
                     if (match.TAG === "Min") {
@@ -2916,7 +2945,7 @@ function internalInline(struct, maybeVariant, param) {
       case "Array" :
           var refinements$6 = refinements$3(struct);
           if (refinements$6.length !== 0) {
-            Js_dict.unsafeDeleteKey(metadataMap, metadataId$4);
+            Js_dict.unsafeDeleteKey(metadataMap, metadataId$3);
             inlinedStruct$4 = inlinedStruct$3 + refinements$6.map(function (refinement) {
                     var match = refinement.kind;
                     switch (match.TAG) {
@@ -2940,7 +2969,7 @@ function internalInline(struct, maybeVariant, param) {
   if (exit === 1) {
     var refinements$7 = refinements(struct);
     if (refinements$7.length !== 0) {
-      Js_dict.unsafeDeleteKey(metadataMap, metadataId$1);
+      Js_dict.unsafeDeleteKey(metadataMap, metadataId);
       inlinedStruct$4 = inlinedStruct$3 + refinements$7.map(function (refinement) {
               var match = refinement.kind;
               if (typeof match !== "object") {
@@ -3064,12 +3093,7 @@ var parseAsyncWith = parseAnyAsyncWith;
 
 var parseAsyncInStepsWith = parseAnyAsyncInStepsWith;
 
-var Object_UnknownKeys = {
-  classify: classify$2
-};
-
 var $$Object = {
-  UnknownKeys: Object_UnknownKeys,
   factory: factory$1,
   strip: strip,
   strict: strict
@@ -3138,7 +3162,7 @@ var $$Array = {
 };
 
 var Default = {
-  classify: classify$3
+  classify: classify$2
 };
 
 var Metadata = {

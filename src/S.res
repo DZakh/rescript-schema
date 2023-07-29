@@ -353,6 +353,7 @@ let symbol = Stdlib.Symbol.make("rescript-struct")
 
 @unboxed
 type isAsyncParse = | @as(0) Unknown | Value(bool)
+type unknownKeys = Strip | Strict
 
 type rec t<'value> = {
   @as("t")
@@ -385,7 +386,7 @@ and tagged =
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
-  | Object({fields: Js.Dict.t<t<unknown>>, fieldNames: array<string>})
+  | Object({fields: Js.Dict.t<t<unknown>>, fieldNames: array<string>, unknownKeys: unknownKeys})
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
@@ -851,7 +852,7 @@ let intitialParseAsync = input => {
 }
 
 @inline
-let make = (~tagged, ~metadataMap, ~parseOperationBuilder, ~serializeOperationBuilder, ()) => {
+let make = (~tagged, ~metadataMap, ~parseOperationBuilder, ~serializeOperationBuilder) => {
   tagged,
   parseOperationBuilder,
   serializeOperationBuilder,
@@ -1088,7 +1089,6 @@ module Metadata = {
       ~serializeOperationBuilder=struct.serializeOperationBuilder,
       ~tagged=struct.tagged,
       ~metadataMap,
-      (),
     )
   }
 }
@@ -1176,7 +1176,6 @@ let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value> = (str
       )
     }),
     ~metadataMap=struct.metadataMap,
-    (),
   )
 }
 
@@ -1200,7 +1199,6 @@ let asyncParserRefine = (struct, refiner) => {
     }),
     ~serializeOperationBuilder=struct.serializeOperationBuilder,
     ~metadataMap=struct.metadataMap,
-    (),
   )
 }
 
@@ -1272,7 +1270,6 @@ let transform: (
       }
     }),
     ~metadataMap=struct.metadataMap,
-    (),
   )
 }
 
@@ -1297,7 +1294,6 @@ let rec preprocess = (struct, transformer) => {
       ~parseOperationBuilder=struct.parseOperationBuilder,
       ~serializeOperationBuilder=struct.serializeOperationBuilder,
       ~metadataMap=struct.metadataMap,
-      (),
     )
   | _ =>
     make(
@@ -1358,7 +1354,6 @@ let rec preprocess = (struct, transformer) => {
         }
       }),
       ~metadataMap=struct.metadataMap,
-      (),
     )
   }
 }
@@ -1407,7 +1402,6 @@ let custom = (name, definer) => {
         b->B.missingOperation(~pathVar, ~description=`The S.custom serializer is missing`)
       }
     }),
-    (),
   )
 }
 
@@ -1475,7 +1469,6 @@ let literal = value => {
     ~tagged=Literal(literal),
     ~parseOperationBuilder=operationBuilder,
     ~serializeOperationBuilder=operationBuilder,
-    (),
   )
 }
 
@@ -1619,7 +1612,6 @@ module Variant = {
           }
         }),
         ~metadataMap=struct.metadataMap,
-        (),
       )
     }
   }
@@ -1631,36 +1623,15 @@ module Object = {
     @as("t") tag: 'value. (string, 'value) => unit,
   }
   type registered = | @as(0) Unregistered | @as(1) ByParsing | @as(2) BySerializing
-
-  module UnknownKeys = {
-    type tagged =
-      | Strict
-      | Strip
-
-    let metadataId: Metadata.Id.t<tagged> = Metadata.Id.make(
-      ~namespace="rescript-struct",
-      ~name="Object.UnknownKeys",
-    )
-
-    let classify = struct => {
-      switch struct->Metadata.get(~id=metadataId) {
-      | Some(t) => t
-      | None => Strip
-      }
-    }
-  }
-
-  module FieldDefinition = {
-    type t = {
-      @as("s")
-      struct: struct<unknown>,
-      @as("l")
-      inlinedInputLocation: string,
-      @as("p")
-      inputPath: Path.t,
-      @as("r")
-      mutable registered: registered,
-    }
+  type fieldDefinition = {
+    @as("s")
+    struct: struct<unknown>,
+    @as("l")
+    inlinedInputLocation: string,
+    @as("p")
+    inputPath: Path.t,
+    @as("r")
+    mutable registered: registered,
   }
 
   module Ctx = {
@@ -1670,7 +1641,7 @@ module Object = {
       @as("h")
       fields: Js.Dict.t<struct<unknown>>,
       @as("d")
-      fieldDefinitionsSet: Stdlib.Set.t<FieldDefinition.t>,
+      fieldDefinitionsSet: Stdlib.Set.t<fieldDefinition>,
       ...ctx,
     }
 
@@ -1691,7 +1662,7 @@ module Object = {
             )
           | false => {
               let inlinedInputLocation = fieldName->Stdlib.Inlined.Value.fromString
-              let fieldDefinition: FieldDefinition.t = {
+              let fieldDefinition: fieldDefinition = {
                 struct,
                 inlinedInputLocation,
                 inputPath: inlinedInputLocation->Path.fromInlinedLocation,
@@ -1700,7 +1671,7 @@ module Object = {
               fields->Js.Dict.set(fieldName, struct)
               fieldNames->Js.Array2.push(fieldName)->ignore
               fieldDefinitionsSet->Stdlib.Set.add(fieldDefinition)->ignore
-              fieldDefinition->(Obj.magic: FieldDefinition.t => value)
+              fieldDefinition->(Obj.magic: fieldDefinition => value)
             }
           }
         }
@@ -1722,7 +1693,7 @@ module Object = {
 
   let factory = definer => {
     let ctx = Ctx.make()
-    let definition = definer((ctx :> ctx))->(Obj.magic: 'any => Definition.t<FieldDefinition.t>)
+    let definition = definer((ctx :> ctx))->(Obj.magic: 'any => Definition.t<fieldDefinition>)
     let {fieldDefinitionsSet, fields, fieldNames} = ctx
     let fieldDefinitions = fieldDefinitionsSet->Stdlib.Set.toArray
 
@@ -1731,6 +1702,7 @@ module Object = {
       ~tagged=Object({
         fields,
         fieldNames,
+        unknownKeys: Strip,
       }),
       ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~pathVar) => {
         let asyncOutputVars = []
@@ -1747,7 +1719,7 @@ module Object = {
             inputVar,
           )}}`
 
-        let withUnknownKeysRefinement = selfStruct->UnknownKeys.classify === UnknownKeys.Strict
+        let withUnknownKeysRefinement = (selfStruct->classify->Obj.magic)["unknownKeys"] === Strict
         switch (withUnknownKeysRefinement, fieldDefinitions) {
         | (true, []) => {
             let keyVar = b->B.var
@@ -1783,10 +1755,7 @@ module Object = {
         b.code = ""
 
         let syncOutput = {
-          let rec definitionToOutput = (
-            definition: Definition.t<FieldDefinition.t>,
-            ~outputPath,
-          ) => {
+          let rec definitionToOutput = (definition: Definition.t<fieldDefinition>, ~outputPath) => {
             let kind = definition->Definition.toKindWithSet(~embededSet=fieldDefinitionsSet)
             switch kind {
             | Embeded => {
@@ -1889,10 +1858,7 @@ module Object = {
         {
           let parentCode = b.code
           b.code = ""
-          let rec definitionToOutput = (
-            definition: Definition.t<FieldDefinition.t>,
-            ~outputPath,
-          ) => {
+          let rec definitionToOutput = (definition: Definition.t<fieldDefinition>, ~outputPath) => {
             let kind = definition->Definition.toKindWithSet(~embededSet=fieldDefinitionsSet)
             switch kind {
             | Embeded =>
@@ -1977,16 +1943,33 @@ module Object = {
 
         `{${fieldsCodeRef.contents}}`
       }),
-      (),
     )
   }
 
   let strip = struct => {
-    struct->Metadata.set(~id=UnknownKeys.metadataId, UnknownKeys.Strip)
+    switch struct->classify {
+    | Object({unknownKeys: Strict, fieldNames, fields}) =>
+      make(
+        ~tagged=Object({unknownKeys: Strip, fieldNames, fields}),
+        ~parseOperationBuilder=struct.parseOperationBuilder,
+        ~serializeOperationBuilder=struct.serializeOperationBuilder,
+        ~metadataMap=struct.metadataMap,
+      )
+    | _ => struct
+    }
   }
 
   let strict = struct => {
-    struct->Metadata.set(~id=UnknownKeys.metadataId, UnknownKeys.Strict)
+    switch struct->classify {
+    | Object({unknownKeys: Strip, fieldNames, fields}) =>
+      make(
+        ~tagged=Object({unknownKeys: Strict, fieldNames, fields}),
+        ~parseOperationBuilder=struct.parseOperationBuilder,
+        ~serializeOperationBuilder=struct.serializeOperationBuilder,
+        ~metadataMap=struct.metadataMap,
+      )
+    | _ => struct
+    }
   }
 }
 
@@ -2007,7 +1990,6 @@ module Never = {
     ~tagged=Never,
     ~parseOperationBuilder=builder,
     ~serializeOperationBuilder=builder,
-    (),
   )
 }
 
@@ -2017,7 +1999,6 @@ module Unknown = {
     ~tagged=Unknown,
     ~parseOperationBuilder=Builder.noop,
     ~serializeOperationBuilder=Builder.noop,
-    (),
   )
 }
 
@@ -2077,7 +2058,6 @@ module String = {
     ~tagged=String,
     ~parseOperationBuilder,
     ~serializeOperationBuilder=Builder.noop,
-    (),
   )
 
   let min = (struct, ~message as maybeMessage=?, length) => {
@@ -2288,7 +2268,6 @@ module JsonString = {
             ~pathVar,
           )})`
       }),
-      (),
     )
   }
 }
@@ -2311,7 +2290,6 @@ module Bool = {
       inputVar
     }),
     ~serializeOperationBuilder=Builder.noop,
-    (),
   )
 }
 
@@ -2356,7 +2334,6 @@ module Int = {
       inputVar
     }),
     ~serializeOperationBuilder=Builder.noop,
-    (),
   )
 
   let min = (struct, ~message as maybeMessage=?, minValue) => {
@@ -2456,7 +2433,6 @@ module Float = {
       inputVar
     }),
     ~serializeOperationBuilder=Builder.noop,
-    (),
   )
 
   let min = (struct, ~message as maybeMessage=?, minValue) => {
@@ -2545,7 +2521,6 @@ module Null = {
             })}}else{${outputVar}=null}`
         outputVar
       }),
-      (),
     )
   }
 }
@@ -2598,7 +2573,6 @@ module Option = {
             })}}else{${outputVar}=void 0}`
         outputVar
       }),
-      (),
     )
   }
 }
@@ -2693,7 +2667,6 @@ module Array = {
 
         outputVar
       }),
-      (),
     )
   }
 
@@ -2828,7 +2801,6 @@ module Dict = {
 
         outputVar
       }),
-      (),
     )
   }
 }
@@ -2873,7 +2845,6 @@ module Default = {
         outputVar
       }),
       ~serializeOperationBuilder=struct.serializeOperationBuilder,
-      (),
     )->Metadata.set(~id=metadataId, getDefaultValue)
   }
 
@@ -2982,7 +2953,6 @@ module Tuple = {
         })
       | _ => Builder.noop
       },
-      (),
     )
   }
 
@@ -3131,7 +3101,6 @@ module Union = {
 
         outputVar
       }),
-      (),
     )
   }
 }
@@ -3199,7 +3168,6 @@ let json = make(
     `${b->B.embed(parse)}(${inputVar},${pathVar})`
   }),
   ~serializeOperationBuilder=Builder.noop,
-  (),
 )
 
 type catchCtx<'value> = {
@@ -3259,7 +3227,6 @@ let catch = (struct, getFallbackValue) => {
     ~serializeOperationBuilder=struct.serializeOperationBuilder,
     ~tagged=struct.tagged,
     ~metadataMap=struct.metadataMap,
-    (),
   )
 }
 
@@ -3449,12 +3416,10 @@ let inline = {
     | None => inlinedStruct
     }
 
-    let inlinedStruct = switch struct->Object.UnknownKeys.classify {
-    | Strict => inlinedStruct ++ `->S.Object.strict`
-
-    | Strip => inlinedStruct
+    let inlinedStruct = switch struct->classify {
+    | Object({unknownKeys: Strict}) => inlinedStruct ++ `->S.Object.strict`
+    | _ => inlinedStruct
     }
-    metadataMap->Stdlib.Dict.deleteInPlace(Object.UnknownKeys.metadataId->Metadata.Id.toKey)
 
     let inlinedStruct = switch struct->classify {
     | String

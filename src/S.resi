@@ -54,7 +54,7 @@ and tagged =
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
-  | Object({fields: Js.Dict.t<t<unknown>>, fieldNames: array<string>})
+  | Object({fields: Js.Dict.t<t<unknown>>, fieldNames: array<string>, unknownKeys: unknownKeys})
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
@@ -74,6 +74,7 @@ and errorCode =
 and operation =
   | Serializing
   | Parsing
+and unknownKeys = Strip | Strict
 
 type effectCtx<'value> = {
   @as("s") struct: t<'value>,
@@ -206,12 +207,6 @@ module Object: {
   type ctx = {
     @as("f") field: 'value. (string, t<'value>) => 'value,
     @as("t") tag: 'value. (string, 'value) => unit,
-  }
-
-  module UnknownKeys: {
-    type tagged = Strict | Strip
-
-    let classify: t<'value> => tagged
   }
 
   /* The same as S.object. Expose only for PPX since the object is a reserved name in OCaml */

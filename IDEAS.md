@@ -51,7 +51,6 @@ let struct = S.tuple(s => (s.tag(0, "A"), s.item(1, S.int)))
 - Add built-in refinements to TS API
   // TODO: Update gen.ts
 - Update S_Js.res to create new structs instead of mixin in the methods
-- Use isObject check for S.object (???)
 
 ## v5.1
 

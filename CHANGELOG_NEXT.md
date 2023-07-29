@@ -45,6 +45,7 @@
 - Updated API for `S.Tuple.factory`. There are plans to change it once more before the actual release
 - `S.variant` used to fail when using value multiple times. Now it allows to create a struct and fails only on serializing with `InvalidOperation` code.
 - Added `fail` and `failWithError` methods to the `catchCtx`
+- `Object.UnknownKeys` moved from metadata to `tagged` type
 
 ## TS API changes
 
