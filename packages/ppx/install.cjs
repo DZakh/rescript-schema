@@ -10,7 +10,7 @@ const installMacLinuxBinary = (binary) => {
     fs.renameSync(source, target);
 
     // The ppx should be executable in the bundle, but just in case
-    fs.chmodSync(target, 0777);
+    fs.chmodSync(target, 0o777);
   } else {
     // assume we're in dev mode - nothing will break if the script
     // isn't overwritten, it will just be slower

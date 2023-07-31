@@ -56,7 +56,8 @@
     "res": "rescript build -with-deps -w",
     "test:res": "pnpm --filter=tests res",
     "test": "ava",
-    "prepack": "node ./packages/prepack/src/Prepack.bs.mjs"
+    "prepack": "node ./packages/prepack/src/Prepack.bs.mjs",
+    "ppx:install": "node ./packages/ppx/install.cjs"
   },
   "ava": {
     "extensions": {

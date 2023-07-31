@@ -9,8 +9,41 @@ on:
       - main
 
 jobs:
+  ppx_build_linux:
+    name: ppx_build_linux
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/ppx/src
+    container:
+      image: ocaml/opam:alpine-3.16-ocaml-4.12
+      options: --user root
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Opam init
+        run: opam init -a --disable-sandboxing --compiler=4.12.1
+
+      - name: Install deps
+        run: opam install . --deps-only --with-test
+
+      - name: Build
+        run: opam exec -- dune build --profile static
+
+      - name: Copy built PPX file
+        run: |
+          mv ./_build/default/bin/bin.exe ppx.exe
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ppx_build_linux
+          path: packages/ppx/src/ppx.exe
+          if-no-files-found: error
+
   test:
     name: Test
+    needs: [ppx_build_linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -20,6 +53,19 @@ jobs:
           node-version: 18
           cache: "pnpm"
       - run: pnpm install
+
+      - name: Download ppx linux artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: ppx_build_linux
+          path: binaries/linux
+
+      - name: Move ppx artifacts
+        run: |
+          mv binaries/linux/ppx.exe packages/ppx/ppx-linux.exe
+
+      - name: Install ppx
+        run: npm run ppx:install
 
       - run: npm run res:build
         working-directory: packages/tests
@@ -51,6 +97,7 @@ jobs:
 
   benchmark:
     name: Benchmark
+    needs: [ppx_build_linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -60,6 +107,19 @@ jobs:
           node-version: 18
           cache: "pnpm"
       - run: pnpm install
+
+      - name: Download ppx linux artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: ppx_build_linux
+          path: binaries/linux
+
+      - name: Move ppx artifacts
+        run: |
+          mv binaries/linux/ppx.exe packages/ppx/ppx-linux.exe
+
+      - name: Install ppx
+        run: npm run ppx:install
 
       - run: npm run res:build
         working-directory: packages/prepack
