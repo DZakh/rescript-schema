@@ -35,7 +35,7 @@ jobs:
           mv ./_build/default/bin/bin.exe ppx.exe
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v3
         with:
           name: ppx_build_linux
           path: packages/ppx/src/ppx.exe
@@ -55,7 +55,7 @@ jobs:
       - run: pnpm install
 
       - name: Download ppx linux artifacts
-        uses: actions/download-artifact@master
+        uses: actions/download-artifact@v3
         with:
           name: ppx_build_linux
           path: binaries/linux
@@ -64,6 +64,9 @@ jobs:
         run: |
           mkdir -p bin
           mv binaries/linux/ppx.exe ppx-linux.exe
+
+      - name: Install ppx
+        run: npm run ppx:install
 
       - run: npm run res:build
         working-directory: packages/tests
@@ -107,7 +110,7 @@ jobs:
       - run: pnpm install
 
       - name: Download ppx linux artifacts
-        uses: actions/download-artifact@master
+        uses: actions/download-artifact@v3
         with:
           name: ppx_build_linux
           path: binaries/linux
@@ -116,6 +119,9 @@ jobs:
         run: |
           mkdir -p bin
           mv binaries/linux/ppx.exe ppx-linux.exe
+
+      - name: Install ppx
+        run: npm run ppx:install
 
       - run: npm run res:build
         working-directory: packages/prepack
