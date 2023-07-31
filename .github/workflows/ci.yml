@@ -62,8 +62,7 @@ jobs:
 
       - name: Move ppx artifacts
         run: |
-          mkdir -p bin
-          mv binaries/linux/ppx.exe ppx-linux.exe
+          mv binaries/linux/ppx.exe packages/ppx/ppx-linux.exe
 
       - name: Install ppx
         run: npm run ppx:install
@@ -117,8 +116,7 @@ jobs:
 
       - name: Move ppx artifacts
         run: |
-          mkdir -p bin
-          mv binaries/linux/ppx.exe ppx-linux.exe
+          mv binaries/linux/ppx.exe packages/ppx/ppx-linux.exe
 
       - name: Install ppx
         run: npm run ppx:install
