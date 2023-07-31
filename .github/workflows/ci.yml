@@ -60,6 +60,11 @@ jobs:
           name: ppx_build_linux
           path: binaries/linux
 
+      - name: Move ppx artifacts
+        run: |
+          mkdir -p bin
+          mv binaries/linux/ppx.exe ppx-linux.exe
+
       - run: npm run res:build
         working-directory: packages/tests
 
@@ -106,6 +111,11 @@ jobs:
         with:
           name: ppx_build_linux
           path: binaries/linux
+
+      - name: Move ppx artifacts
+        run: |
+          mkdir -p bin
+          mv binaries/linux/ppx.exe ppx-linux.exe
 
       - run: npm run res:build
         working-directory: packages/prepack
