@@ -1,8 +1,9 @@
 {
-  "name": "ppx-test",
+  "name": "tests",
   "sources": [
     {
-      "dir": "__tests__"
+      "dir": "src",
+      "subdirs": true
     }
   ],
   "package-specs": {
@@ -11,9 +12,9 @@
   },
   "suffix": ".bs.mjs",
   "bs-dependencies": [
-    "@rescript/core",
-    "rescript-struct",
-    "@dzakh/rescript-ava"
+    "@dzakh/rescript-core",
+    "@dzakh/rescript-ava",
+    "rescript-struct"
   ],
   "ppx-flags": ["../ppx/ppx"],
   "warnings": {

@@ -1,7 +1,7 @@
 node_modules
 .merlin
 .bsb.lock
-__tests__/**/*_test.bs.mjs
+packages/tests/src/core/**/*_test.bs.mjs
 lib
 coverage
 dist

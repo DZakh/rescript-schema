@@ -1,7 +1,6 @@
 {
   "name": "rescript-struct",
   "namespace": "RescriptStruct",
-  "bs-dev-dependencies": ["@dzakh/rescript-ava", "@ryyppy/rescript-promise"],
   "suffix": ".bs.mjs",
   "package-specs": {
     "module": "es6",
@@ -10,14 +9,6 @@
   "sources": [
     {
       "dir": "src"
-    },
-    {
-      "dir": "__tests__",
-      "type": "dev"
-    },
-    {
-      "dir": "benchmark",
-      "type": "dev"
     }
   ]
 }

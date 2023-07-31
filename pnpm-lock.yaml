@@ -5,58 +5,56 @@ importers:
   .:
     specifiers:
       '@dzakh/rescript-ava': 2.3.0
-      '@ryyppy/rescript-promise': 2.1.0
       ava: 5.2.0
-      benchmark: 2.1.4
       c8: 7.12.0
-      rescript: 11.0.0-beta.3
+      rescript: 11.0.0-beta.4
       rescript-struct: .
       ts-expect: 1.3.0
       ts-node: 10.9.1
       typescript: 4.9.3
     devDependencies:
-      '@dzakh/rescript-ava': 2.3.0_d6r3u2xzba76adwps56f5xjs6a
-      '@ryyppy/rescript-promise': 2.1.0
+      '@dzakh/rescript-ava': 2.3.0_grosdyzlvgszrxocq3pwoczemi
       ava: 5.2.0
-      benchmark: 2.1.4
       c8: 7.12.0
-      rescript: 11.0.0-beta.3
+      rescript: 11.0.0-beta.4
       rescript-struct: 'link:'
       ts-expect: 1.3.0
       ts-node: 10.9.1_typescript@4.9.3
       typescript: 4.9.3
 
-  packages/ppx-test:
-    specifiers:
-      '@dzakh/rescript-ava': 2.3.0
-      '@rescript/core': 0.3.1
-      rescript: 11.0.0-beta.3
-      rescript-stdlib-vendorer: 1.0.0
-      rescript-struct: ../../
-    dependencies:
-      '@dzakh/rescript-ava': 2.3.0_rescript@11.0.0-beta.3
-      '@rescript/core': 0.3.1_rescript@11.0.0-beta.3
-      rescript: 11.0.0-beta.3
-      rescript-stdlib-vendorer: 1.0.0
-      rescript-struct: link:../..
-
   packages/prepack:
     specifiers:
-      '@rescript/core': 0.3.1
+      '@dzakh/rescript-core': 0.2.0
       '@rollup/plugin-replace': 5.0.2
       execa: 7.1.1
-      rescript: 11.0.0-beta.3
+      rescript: 11.0.0-beta.4
       rescript-nodejs: github:DZakh/rescript-nodejs#3c29dcd
       rescript-stdlib-vendorer: 1.0.0
       rollup: 3.21.0
     dependencies:
-      '@rescript/core': 0.3.1_rescript@11.0.0-beta.3
+      '@dzakh/rescript-core': 0.2.0_rescript@11.0.0-beta.4
       '@rollup/plugin-replace': 5.0.2_rollup@3.21.0
       execa: 7.1.1
-      rescript: 11.0.0-beta.3
+      rescript: 11.0.0-beta.4
       rescript-nodejs: github.com/DZakh/rescript-nodejs/3c29dcd
       rescript-stdlib-vendorer: 1.0.0
       rollup: 3.21.0
+
+  packages/tests:
+    specifiers:
+      '@dzakh/rescript-ava': 2.3.0
+      '@dzakh/rescript-core': 0.2.0
+      benchmark: 2.1.4
+      rescript: 11.0.0-beta.4
+      rescript-stdlib-vendorer: 1.0.0
+      rescript-struct: ../../
+    dependencies:
+      '@dzakh/rescript-ava': 2.3.0_rescript@11.0.0-beta.4
+      '@dzakh/rescript-core': 0.2.0_rescript@11.0.0-beta.4
+      benchmark: 2.1.4
+      rescript: 11.0.0-beta.4
+      rescript-stdlib-vendorer: 1.0.0
+      rescript-struct: link:../..
 
 packages:
 
@@ -71,23 +69,31 @@ packages:
       '@jridgewell/trace-mapping': 0.3.9
     dev: true
 
-  /@dzakh/rescript-ava/2.3.0_d6r3u2xzba76adwps56f5xjs6a:
+  /@dzakh/rescript-ava/2.3.0_grosdyzlvgszrxocq3pwoczemi:
     resolution: {integrity: sha512-str7Fh+lYxWNf+wDAHykw84bqKodrwU5swLcYNjc8BJc3N4ECyNBA3o5vFNsq0zZw+1eExARs8mUnB2ZQSmRGg==}
     peerDependencies:
       ava: 5.2.x
       rescript: 10.1.x || ~11.0.0-alpha
     dependencies:
       ava: 5.2.0
-      rescript: 11.0.0-beta.3
+      rescript: 11.0.0-beta.4
     dev: true
 
-  /@dzakh/rescript-ava/2.3.0_rescript@11.0.0-beta.3:
+  /@dzakh/rescript-ava/2.3.0_rescript@11.0.0-beta.4:
     resolution: {integrity: sha512-str7Fh+lYxWNf+wDAHykw84bqKodrwU5swLcYNjc8BJc3N4ECyNBA3o5vFNsq0zZw+1eExARs8mUnB2ZQSmRGg==}
     peerDependencies:
       ava: 5.2.x
       rescript: 10.1.x || ~11.0.0-alpha
     dependencies:
-      rescript: 11.0.0-beta.3
+      rescript: 11.0.0-beta.4
+    dev: false
+
+  /@dzakh/rescript-core/0.2.0_rescript@11.0.0-beta.4:
+    resolution: {integrity: sha512-AeQmSc+LPrpvzb0npoo1189hY+cT/xyDihEMkOe0/FbVHgPP7BRMGqOsJMPCcj/GU8OoQ5ktEVerAFoBHGrdtg==}
+    peerDependencies:
+      rescript: ^10.1.0 || ^11.0.0-alpha.0 || next
+    dependencies:
+      rescript: 11.0.0-beta.4
     dev: false
 
   /@istanbuljs/schema/0.1.3:
@@ -147,14 +153,6 @@ packages:
       fastq: 1.15.0
     dev: true
 
-  /@rescript/core/0.3.1_rescript@11.0.0-beta.3:
-    resolution: {integrity: sha512-H6KgYKCpaWQEyhl/r3HuTxY0y1pvQziMXbZnwHVsykNkJvxpROMOrAX2CkIJ5lIar3zDH33cPpwTsIxANTFcvQ==}
-    peerDependencies:
-      rescript: ^10.1.0 || ^11.0.0-alpha.0 || next
-    dependencies:
-      rescript: 11.0.0-beta.3
-    dev: false
-
   /@rollup/plugin-replace/5.0.2_rollup@3.21.0:
     resolution: {integrity: sha512-M9YXNekv/C/iHHK+cvORzfRYfPbq0RDD8r0G+bMiTXjNGKulPnCT9O3Ss46WfhI6ZOCgApOP7xAdmCQJ+U2LAA==}
     engines: {node: '>=14.0.0'}
@@ -183,10 +181,6 @@ packages:
       picomatch: 2.3.1
       rollup: 3.21.0
     dev: false
-
-  /@ryyppy/rescript-promise/2.1.0:
-    resolution: {integrity: sha512-+dW6msBrj2Lr2hbEMX+HoWCvN89qVjl94RwbYWJgHQuj8jm/izdPC0YzxgpGoEFdeAEW2sOozoLcYHxT6o5WXQ==}
-    dev: true
 
   /@tsconfig/node10/1.0.9:
     resolution: {integrity: sha512-jNsYVVxU8v5g43Erja32laIDHXeoNvFEpX33OK4d6hljo3jDhCBDhx5dhCCTMWUojscpAagGiRkBKxpdl9fxqA==}
@@ -354,7 +348,7 @@ packages:
     dependencies:
       lodash: 4.17.21
       platform: 1.3.6
-    dev: true
+    dev: false
 
   /binary-extensions/2.2.0:
     resolution: {integrity: sha512-jDctJ/IVQbZoJykoeHbhXpOlNBqGNcwXJKJog42E5HDPUwQTSdjCHdihjj0DlnheQ7blbT6dHOafNAiS8ooQKA==}
@@ -949,7 +943,6 @@ packages:
 
   /lodash/4.17.21:
     resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
-    dev: true
 
   /lru-cache/6.0.0:
     resolution: {integrity: sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==}
@@ -1174,7 +1167,7 @@ packages:
 
   /platform/1.3.6:
     resolution: {integrity: sha512-fnWVljUchTro6RiCFvCXBbNhJc2NijN7oIQxbwsyL0buWJPG85v81ehlHI9fXrJsMNgTofEoWIQeClKpgxFLrg==}
-    dev: true
+    dev: false
 
   /plur/5.1.0:
     resolution: {integrity: sha512-VP/72JeXqak2KiOzjgKtQen5y3IZHn+9GOuLDafPv0eXa47xq0At93XahYBs26MsifCQ4enGKwbjBTKgb9QJXg==}
@@ -1221,8 +1214,8 @@ packages:
     requiresBuild: true
     dev: false
 
-  /rescript/11.0.0-beta.3:
-    resolution: {integrity: sha512-j3YT3VdWMoHgwL4RydKJm9O/VIpN3NTI6keP18rZVJ8ansRKgkHYGLaIwoG6iVqSYYwBjb6d8l8oZ1Jz0fmTeQ==}
+  /rescript/11.0.0-beta.4:
+    resolution: {integrity: sha512-MqTyh9LhDmA++2nemZF+amEO3kOg6a5tR43DuLVocILOAvR17UZcVcS6czGaW6+zOxvPOXVv2i/xiiWCJIDmvw==}
     engines: {node: '>=10'}
     hasBin: true
     requiresBuild: true

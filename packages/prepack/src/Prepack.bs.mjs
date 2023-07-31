@@ -4,10 +4,10 @@ import * as Fs from "fs";
 import * as Path from "path";
 import * as Execa from "execa";
 import * as Rollup from "rollup";
-import * as Core__JSON from "@rescript/core/src/Core__JSON.bs.mjs";
-import * as Core__List from "@rescript/core/src/Core__List.bs.mjs";
+import * as Core__JSON from "@dzakh/rescript-core/src/Core__JSON.bs.mjs";
+import * as Core__List from "@dzakh/rescript-core/src/Core__List.bs.mjs";
 import * as Caml_option from "rescript/lib/es6/caml_option.js";
-import * as Core__Option from "@rescript/core/src/Core__Option.bs.mjs";
+import * as Core__Option from "@dzakh/rescript-core/src/Core__Option.bs.mjs";
 import PluginReplace from "@rollup/plugin-replace";
 
 var projectPath = ".";
@@ -36,7 +36,7 @@ function update(json, path, value) {
   var path$1 = path.tl;
   var key = path.hd;
   if (path$1) {
-    dict$1[key] = update(Core__Option.getWithDefault(dict$1[key], {}), path$1, value);
+    dict$1[key] = update(Core__Option.getOr(dict$1[key], {}), path$1, value);
     return dict$1;
   } else {
     dict$1[key] = value;

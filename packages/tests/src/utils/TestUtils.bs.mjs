@@ -5,7 +5,7 @@ import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as Caml_exceptions from "rescript/lib/es6/caml_exceptions.js";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
-var Test = /* @__PURE__ */Caml_exceptions.create("TestUtils-RescriptStruct.Test");
+var Test = /* @__PURE__ */Caml_exceptions.create("TestUtils.Test");
 
 function raiseTestException() {
   throw {

@@ -12,7 +12,7 @@ The following steps will get you setup to contribute changes to this repo:
 
 1. Fork this repo.
 2. Clone your forked repo: `git clone git@github.com:{your_username}/rescript-struct.git`
-3. Install [pnpm](https://pnpm.io/) if not available `npm i -g pnpm@8`
+3. Install [pnpm](https://pnpm.io/) if not available `npm i -g pnpm@7.11.0`
 4. Run `pnpm i` to install dependencies.
 5. Start playing with the code!
 
@@ -45,8 +45,10 @@ dune build --watch
 Make sure running tests
 
 ```
-(run compiler)
-cd packages/ppx-test && npm run res:dev
+(run compiler for lib)
+npm run res
+(run compiler for tests)
+npm run test:res
 (run tests in watch mode)
 npm run test -- --watch
 ```

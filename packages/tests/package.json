@@ -1,18 +1,19 @@
 {
-  "name": "ppx-test",
+  "name": "tests",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "res:build": "rescript build -with-deps",
     "res:clean": "rescript clean",
-    "res:dev": "rescript build -w -with-deps",
+    "res": "rescript build -w -with-deps",
     "lint:stdlib": "rescript-stdlib-vendorer lint"
   },
   "dependencies": {
-    "@rescript/core": "0.3.1",
-    "rescript": "11.0.0-beta.3",
+    "@dzakh/rescript-core": "0.2.0",
+    "rescript": "11.0.0-beta.4",
     "rescript-stdlib-vendorer": "1.0.0",
+    "benchmark": "2.1.4",
     "rescript-struct": "../../",
     "@dzakh/rescript-ava": "2.3.0"
   }

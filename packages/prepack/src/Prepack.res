@@ -7,8 +7,6 @@ let sourePaths = [
   "bsconfig.json",
   "README.md",
   "RescriptStruct.gen.ts",
-  "__tests__",
-  "benchmark",
 ]
 let jsInputPath = NodeJs.Path.join2(artifactsPath, "src/S_JsApi.js")
 
@@ -35,7 +33,7 @@ module Stdlib = {
             key,
             dict
             ->RescriptCore.Dict.get(key)
-            ->Option.getWithDefault(RescriptCore.Dict.make()->JSON.Encode.object)
+            ->Option.getOr(RescriptCore.Dict.make()->JSON.Encode.object)
             ->update(path, value),
           )
           dict->JSON.Encode.object

@@ -6,7 +6,7 @@
     "in-source": true
   },
   "bsc-flags": ["-open RescriptCore"],
-  "bs-dependencies": ["@rescript/core", "rescript-nodejs"],
+  "bs-dependencies": ["@dzakh/rescript-core", "rescript-nodejs"],
   "sources": {
     "dir": "src"
   },
