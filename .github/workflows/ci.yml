@@ -38,7 +38,7 @@ jobs:
         uses: actions/upload-artifact@master
         with:
           name: ppx_build_linux
-          path: src/ppx.exe
+          path: packages/ppx/src/ppx.exe
           if-no-files-found: error
 
   test:
