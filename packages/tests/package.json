@@ -4,17 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "res:build": "rescript build -with-deps",
-    "res:clean": "rescript clean",
+    "lint:stdlib": "rescript-stdlib-vendorer lint --ignore-path=src/ppx/Ppx_Primitives_test.res",
     "res": "rescript build -w -with-deps",
-    "lint:stdlib": "rescript-stdlib-vendorer lint --ignore-path=src/ppx/Ppx_Primitives_test.res"
-  },
-  "dependencies": {
-    "@dzakh/rescript-core": "0.2.0",
-    "rescript": "11.0.0-beta.4",
-    "rescript-stdlib-vendorer": "1.0.0",
-    "benchmark": "2.1.4",
-    "rescript-struct": "../../",
-    "@dzakh/rescript-ava": "2.3.0"
+    "res:build": "rescript build -with-deps",
+    "res:clean": "rescript clean"
   }
 }
