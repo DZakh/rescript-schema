@@ -65,15 +65,14 @@ jobs:
           mv binaries/linux/ppx.exe packages/ppx/ppx-linux.exe
 
       - name: Install ppx
-        run: npm run ppx:install
+        run: pnpm ppx:install
 
-      - run: npm run res:build
+      - run: pnpm exec rescript build -with-deps
         working-directory: packages/tests
 
-      - run: npm run lint:stdlib
-        working-directory: packages/tests
+      - run: pnpm lint:stdlib
 
-      - run: npm run coverage
+      - run: pnpm coverage
       - uses: codecov/codecov-action@v3
         with:
           files: coverage/lcov.info
@@ -90,13 +89,13 @@ jobs:
           cache: "pnpm"
       - run: pnpm install
 
-      - run: npm run res:build
+      - run: pnpm res:build
         working-directory: packages/prepack
 
-      - run: npm run lint:stdlib
+      - run: pnpm lint:stdlib
         working-directory: packages/prepack
 
-      - run: npm run prepack
+      - run: pnpm prepack
 
   benchmark:
     name: Benchmark
@@ -122,13 +121,13 @@ jobs:
           mv binaries/linux/ppx.exe packages/ppx/ppx-linux.exe
 
       - name: Install ppx
-        run: npm run ppx:install
+        run: pnpm ppx:install
 
-      - run: npm run res:build
+      - run: pnpm res:build
         working-directory: packages/prepack
 
       - name: Run benchmark
-        run: npm run benchmark | tee output.txt
+        run: pnpm benchmark | tee output.txt
 
       - name: Download previous benchmark data
         uses: actions/cache@v3
