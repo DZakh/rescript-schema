@@ -57,9 +57,18 @@ function unsafeAssertEqualStructs(t, s1, s2, message, param) {
 }
 
 function assertCompiledCode(t, struct, op, code, message, param) {
-  var compiledCode = op === "parse" ? (
-      S.isAsyncParse(struct) ? (struct.a.toString()) : (struct.p.toString())
-    ) : (S.serializeToUnknownWith(undefined, struct), (struct.s.toString()));
+  var compiledCode;
+  if (op === "parse") {
+    compiledCode = S.isAsyncParse(struct) ? (struct.a.toString()) : (struct.p.toString());
+  } else {
+    try {
+      S.serializeToUnknownWith(undefined, struct);
+    }
+    catch (exn){
+      
+    }
+    compiledCode = (struct.s.toString());
+  }
   t.is(compiledCode, code, message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }
 

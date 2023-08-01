@@ -520,8 +520,18 @@ function isAsyncParse(struct) {
   if (v !== 0) {
     return v;
   }
-  compileParser(struct, struct.pb);
-  return struct.i;
+  try {
+    compileParser(struct, struct.pb);
+    return struct.i;
+  }
+  catch (raw_jsExn){
+    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
+    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
+      getOrRethrow(jsExn._1);
+      return false;
+    }
+    throw jsExn;
+  }
 }
 
 function initialSerialize(input) {

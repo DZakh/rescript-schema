@@ -764,9 +764,15 @@ let toLiteral = {
 let isAsyncParse = struct => {
   let struct = struct->toUnknown
   switch struct.isAsyncParse {
-  | Unknown => {
+  | Unknown =>
+    try {
       struct->Builder.compileParser(~builder=struct.parseOperationBuilder)
       struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+    } catch {
+    | Js.Exn.Error(jsExn) => {
+        let _ = jsExn->InternalError.getOrRethrow
+        false
+      }
     }
   | Value(v) => v
   }

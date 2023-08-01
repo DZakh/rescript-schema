@@ -3,7 +3,7 @@ node_modules
 .bsb.lock
 packages/tests/tests/core/**/*_test.bs.mjs
 packages/tests/src/**
-lib
+packages/*/lib
 coverage
 dist
 packages/artifacts

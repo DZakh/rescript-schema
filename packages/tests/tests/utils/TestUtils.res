@@ -55,7 +55,11 @@ let assertCompiledCode = (t, ~struct, ~op: [#parse | #serialize], code, ~message
       %raw(`struct.p.toString()`)
     }
   | #serialize => {
-      let _ = %raw(`undefined`)->S.serializeToUnknownWith(struct)
+      try {
+        let _ = %raw(`undefined`)->S.serializeToUnknownWith(struct)
+      } catch {
+      | _ => ()
+      }
       %raw(`struct.s.toString()`)
     }
   }

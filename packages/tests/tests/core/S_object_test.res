@@ -965,3 +965,128 @@ test("Object struct parsing checks order", t => {
     (),
   )
 })
+
+module Compiled = {
+  test("Compiled parse code snapshot for simple object", t => {
+    let struct = S.object(s =>
+      {
+        "foo": s.field("foo", S.string),
+        "bar": s.field("bar", S.bool),
+      }
+    )
+
+    t->TestUtils.assertCompiledCode(
+      ~struct,
+      ~op=#parse,
+      `i=>{let v0,v1;if(!i||i.constructor!==Object){e[0](i)}v0=i["foo"];if(typeof v0!=="string"){e[1](v0)}v1=i["bar"];if(typeof v1!=="boolean"){e[2](v1)}return {"foo":v0,"bar":v1,}}`,
+      (),
+    )
+  })
+
+  test("Compiled parse code snapshot for simple object with async", t => {
+    let struct = S.object(s =>
+      {
+        "foo": s.field("foo", S.unknown->S.asyncParserRefine(_ => _ => Promise.resolve())),
+        "bar": s.field("bar", S.bool),
+      }
+    )
+
+    t->TestUtils.assertCompiledCode(
+      ~struct,
+      ~op=#parse,
+      `i=>{let v0,v1,v2,v3,v4;if(!i||i.constructor!==Object){e[0](i)}v0=i["foo"];v2=e[1](v0);v1=()=>v2().then(_=>v0);v3=i["bar"];if(typeof v3!=="boolean"){e[2](v3)}v4=()=>Promise.all([v1()]).then(([v1])=>({"foo":v1,"bar":v3,}));return v4}`,
+      (),
+    )
+  })
+
+  test("Compiled serialize code snapshot for simple object", t => {
+    let struct = S.object(s =>
+      {
+        "foo": s.field("foo", S.string),
+        "bar": s.field("bar", S.bool),
+      }
+    )
+
+    t->TestUtils.assertCompiledCode(
+      ~struct,
+      ~op=#serialize,
+      `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`,
+      (),
+    )
+  })
+
+  test("Compiled parse code snapshot for simple object with strict unknown keys", t => {
+    let struct = S.object(s =>
+      {
+        "foo": s.field("foo", S.string),
+        "bar": s.field("bar", S.bool),
+      }
+    )->S.Object.strict
+
+    t->TestUtils.assertCompiledCode(
+      ~struct,
+      ~op=#parse,
+      `i=>{let v0,v1,v2;if(!i||i.constructor!==Object){e[0](i)}v1=i["foo"];if(typeof v1!=="string"){e[2](v1)}v2=i["bar"];if(typeof v2!=="boolean"){e[3](v2)}for(v0 in i){if(v0!=="foo"&&v0!=="bar"){e[1](v0)}}return {"foo":v1,"bar":v2,}}`,
+      (),
+    )
+  })
+
+  test("Compiled serialize code snapshot for simple object with strict unknown keys", t => {
+    let struct = S.object(s =>
+      {
+        "foo": s.field("foo", S.string),
+        "bar": s.field("bar", S.bool),
+      }
+    )->S.Object.strict
+
+    t->TestUtils.assertCompiledCode(
+      ~struct,
+      ~op=#serialize,
+      `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`,
+      (),
+    )
+  })
+
+  test(
+    "Compiled parse code snapshot for simple object with strict unknown keys, renamed fields, constants and discriminants",
+    t => {
+      let struct = S.object(s => {
+        s.tag("tag", 0)
+        {
+          "foo": s.field("FOO", S.string),
+          "bar": s.field("BAR", S.bool),
+          "zoo": 1,
+        }
+      })->S.Object.strict
+
+      t->TestUtils.assertCompiledCode(
+        ~struct,
+        ~op=#parse,
+        `i=>{let v0,v1,v2,v3;if(!i||i.constructor!==Object){e[0](i)}v3=i["tag"];v3===e[5]||e[6](v3);v1=i["FOO"];if(typeof v1!=="string"){e[2](v1)}v2=i["BAR"];if(typeof v2!=="boolean"){e[3](v2)}for(v0 in i){if(v0!=="tag"&&v0!=="FOO"&&v0!=="BAR"){e[1](v0)}}return {"foo":v1,"bar":v2,"zoo":e[4],}}`,
+        (),
+      )
+    },
+  )
+
+  test(
+    "Compiled serialize code snapshot for simple object with strict unknown keys, renamed fields, constants and discriminants",
+    t => {
+      let struct = S.object(s => {
+        s.tag("tag", 0)
+        {
+          "foo": s.field("FOO", S.string),
+          "bar": s.field("BAR", S.bool),
+          "zoo": 1,
+        }
+      })->S.Object.strict
+
+      t->TestUtils.assertCompiledCode(
+        ~struct,
+        ~op=#serialize,
+        // TODO: Create a new var for field input
+        `i=>{if(i["zoo"]!==e[0]){e[1](i["zoo"])}return {"FOO":i["foo"],"BAR":i["bar"],"tag":e[2],}}`,
+        (),
+      )
+    },
+  )
+}
