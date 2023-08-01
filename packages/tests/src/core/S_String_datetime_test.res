@@ -5,17 +5,17 @@ test("Successfully parses valid data", t => {
 
   t->Assert.deepEqual(
     "2020-01-01T00:00:00Z"->S.parseAnyWith(struct),
-    Ok(Js.Date.fromString("2020-01-01T00:00:00Z")),
+    Ok(Date.fromString("2020-01-01T00:00:00Z")),
     (),
   )
   t->Assert.deepEqual(
     "2020-01-01T00:00:00.123Z"->S.parseAnyWith(struct),
-    Ok(Js.Date.fromString("2020-01-01T00:00:00.123Z")),
+    Ok(Date.fromString("2020-01-01T00:00:00.123Z")),
     (),
   )
   t->Assert.deepEqual(
     "2020-01-01T00:00:00.123456Z"->S.parseAnyWith(struct),
-    Ok(Js.Date.fromString("2020-01-01T00:00:00.123456Z")),
+    Ok(Date.fromString("2020-01-01T00:00:00.123456Z")),
     (),
   )
 })
@@ -66,7 +66,7 @@ test("Successfully serializes valid value", t => {
   let struct = S.string->S.String.datetime()
 
   t->Assert.deepEqual(
-    Js.Date.fromString("2020-01-01T00:00:00.123Z")->S.serializeToUnknownWith(struct),
+    Date.fromString("2020-01-01T00:00:00.123Z")->S.serializeToUnknownWith(struct),
     Ok(%raw(`"2020-01-01T00:00:00.123Z"`)),
     (),
   )
@@ -76,7 +76,7 @@ test("Trims precision to 3 digits when serializing", t => {
   let struct = S.string->S.String.datetime()
 
   t->Assert.deepEqual(
-    Js.Date.fromString("2020-01-01T00:00:00.123456Z")->S.serializeToUnknownWith(struct),
+    Date.fromString("2020-01-01T00:00:00.123456Z")->S.serializeToUnknownWith(struct),
     Ok(%raw(`"2020-01-01T00:00:00.123Z"`)),
     (),
   )

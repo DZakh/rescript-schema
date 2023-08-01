@@ -287,7 +287,7 @@ test("Supports String", t => {
 
 // test("Supports Null Literal", t => {
 //   let struct = S.literal(%raw(`null`))
-//   t->Assert.deepEqual(struct->S.inline, `S.literal(Js.Null.empty)`, ())
+//   t->Assert.deepEqual(struct->S.inline, `S.literal(Null.null)`, ())
 // })
 
 // test("Supports NaN Literal", t => {
@@ -702,8 +702,8 @@ test("Supports String", t => {
 //   structInlineResult->(
 //     Obj.magic: S.t<
 //       [
-//         | #DictOf123(Js.Dict.t<string>)
-//         | #DictOfFloat(Js.Dict.t<float>)
+//         | #DictOf123(Dict.t<string>)
+//         | #DictOfFloat(Dict.t<float>)
 //       ],
 //     > => unit
 //   )

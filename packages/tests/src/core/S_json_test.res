@@ -2,7 +2,7 @@ open Ava
 
 test("Supports String", t => {
   let struct = S.json
-  let data = Js.Json.string("Foo")
+  let data = JSON.Encode.string("Foo")
 
   t->Assert.deepEqual(data->S.parseWith(struct), Ok(data), ())
   t->Assert.deepEqual(data->S.serializeWith(struct), Ok(data), ())
@@ -10,7 +10,7 @@ test("Supports String", t => {
 
 test("Supports Number", t => {
   let struct = S.json
-  let data = Js.Json.number(123.)
+  let data = JSON.Encode.float(123.)
 
   t->Assert.deepEqual(data->S.parseWith(struct), Ok(data), ())
   t->Assert.deepEqual(data->S.serializeWith(struct), Ok(data), ())
@@ -18,7 +18,7 @@ test("Supports Number", t => {
 
 test("Supports Bool", t => {
   let struct = S.json
-  let data = Js.Json.boolean(true)
+  let data = JSON.Encode.bool(true)
 
   t->Assert.deepEqual(data->S.parseWith(struct), Ok(data), ())
   t->Assert.deepEqual(data->S.serializeWith(struct), Ok(data), ())
@@ -26,7 +26,7 @@ test("Supports Bool", t => {
 
 test("Supports Null", t => {
   let struct = S.json
-  let data = Js.Json.null
+  let data = JSON.Encode.null
 
   t->Assert.deepEqual(data->S.parseWith(struct), Ok(data), ())
   t->Assert.deepEqual(data->S.serializeWith(struct), Ok(data), ())
@@ -34,7 +34,7 @@ test("Supports Null", t => {
 
 test("Supports Array", t => {
   let struct = S.json
-  let data = Js.Json.array([Js.Json.string("foo"), Js.Json.null])
+  let data = JSON.Encode.array([JSON.Encode.string("foo"), JSON.Encode.null])
 
   t->Assert.deepEqual(data->S.parseWith(struct), Ok(data), ())
   t->Assert.deepEqual(data->S.serializeWith(struct), Ok(data), ())
@@ -42,8 +42,8 @@ test("Supports Array", t => {
 
 test("Supports Object", t => {
   let struct = S.json
-  let data = Js.Json.object_(
-    [("bar", Js.Json.string("foo")), ("baz", Js.Json.null)]->Js.Dict.fromArray,
+  let data = JSON.Encode.object(
+    [("bar", JSON.Encode.string("foo")), ("baz", JSON.Encode.null)]->Dict.fromArray,
   )
 
   t->Assert.deepEqual(data->S.parseWith(struct), Ok(data), ())
@@ -52,7 +52,9 @@ test("Supports Object", t => {
 
 test("Fails to parse Object field", t => {
   let struct = S.json
-  let data = Js.Json.object_([("bar", %raw(`undefined`)), ("baz", Js.Json.null)]->Js.Dict.fromArray)
+  let data = JSON.Encode.object(
+    [("bar", %raw(`undefined`)), ("baz", JSON.Encode.null)]->Dict.fromArray,
+  )
 
   t->Assert.deepEqual(
     data->S.parseWith(struct),

@@ -36,7 +36,7 @@ module Common = {
 test("Successfully parses primitive", t => {
   let struct = S.bool->S.option->S.deprecate("Deprecated")
 
-  t->Assert.deepEqual(Js.Json.boolean(true)->S.parseAnyWith(struct), Ok(Some(true)), ())
+  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseAnyWith(struct), Ok(Some(true)), ())
 })
 
 test("Successfully parses undefined", t => {

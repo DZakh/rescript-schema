@@ -1,13 +1,13 @@
 open Ava
 
 test("Parses unknown primitive with transformation to the same type", t => {
-  let struct = S.string->S.transform(_ => {parser: value => value->Js.String2.trim})
+  let struct = S.string->S.transform(_ => {parser: value => value->String.trim})
 
   t->Assert.deepEqual("  Hello world!"->S.parseAnyWith(struct), Ok("Hello world!"), ())
 })
 
 test("Parses unknown primitive with transformation to another type", t => {
-  let struct = S.int->S.transform(_ => {parser: value => value->Js.Int.toFloat})
+  let struct = S.int->S.transform(_ => {parser: value => value->Int.toFloat})
 
   t->Assert.deepEqual(123->S.parseAnyWith(struct), Ok(123.), ())
 })
@@ -16,8 +16,7 @@ asyncTest(
   "Asynchronously parses unknown primitive with transformation to another type",
   async t => {
     let struct = S.int->S.transform(_ => {
-      asyncParser: value => () =>
-        Promise.resolve()->Promise.thenResolve(() => value->Js.Int.toFloat),
+      asyncParser: value => () => Promise.resolve()->Promise.thenResolve(() => value->Int.toFloat),
     })
 
     t->Assert.deepEqual(await 123->S.parseAnyAsyncWith(struct), Ok(123.), ())
@@ -100,7 +99,7 @@ test("Uses the path from failWithError called in the transform serializer", t =>
 
 test("Transform parser passes through non rescript-struct errors", t => {
   let struct = S.array(
-    S.string->S.transform(_ => {parser: _ => Js.Exn.raiseError("Application crashed")}),
+    S.string->S.transform(_ => {parser: _ => Exn.raiseError("Application crashed")}),
   )
 
   t->Assert.throws(
@@ -119,7 +118,7 @@ test("Transform parser passes through other rescript exceptions", t => {
 })
 
 test("Transform definition passes through non rescript-struct errors", t => {
-  let struct = S.array(S.string->S.transform(_ => Js.Exn.raiseError("Application crashed")))
+  let struct = S.array(S.string->S.transform(_ => Exn.raiseError("Application crashed")))
 
   t->Assert.throws(
     () => {["Hello world!"]->S.parseAnyWith(struct)},
@@ -137,7 +136,7 @@ test("Transform definition passes through other rescript exceptions", t => {
 })
 
 test("Successfully serializes primitive with transformation to the same type", t => {
-  let struct = S.string->S.transform(_ => {serializer: value => value->Js.String2.trim})
+  let struct = S.string->S.transform(_ => {serializer: value => value->String.trim})
 
   t->Assert.deepEqual(
     "  Hello world!"->S.serializeToUnknownWith(struct),
@@ -147,7 +146,7 @@ test("Successfully serializes primitive with transformation to the same type", t
 })
 
 test("Successfully serializes primitive with transformation to another type", t => {
-  let struct = S.float->S.transform(_ => {serializer: value => value->Js.Int.toFloat})
+  let struct = S.float->S.transform(_ => {serializer: value => value->Int.toFloat})
 
   t->Assert.deepEqual(123->S.serializeToUnknownWith(struct), Ok(%raw(`123`)), ())
 })
@@ -220,14 +219,12 @@ test(
     let any = %raw(`123`)
 
     let struct = S.int->S.transform(_ => {
-      parser: int => int->Js.Int.toFloat,
-      serializer: value => value->Belt.Int.fromFloat,
+      parser: int => int->Int.toFloat,
+      serializer: value => value->Int.fromFloat,
     })
 
     t->Assert.deepEqual(
-      any
-      ->S.parseAnyWith(struct)
-      ->Belt.Result.map(object => object->S.serializeToUnknownWith(struct)),
+      any->S.parseAnyWith(struct)->Result.map(object => object->S.serializeToUnknownWith(struct)),
       Ok(Ok(any)),
       (),
     )

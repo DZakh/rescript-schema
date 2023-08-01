@@ -70,6 +70,9 @@ jobs:
       - run: npm run res:build
         working-directory: packages/tests
 
+      - run: npm run lint:stdlib
+        working-directory: packages/tests
+
       - run: npm run coverage
       - uses: codecov/codecov-action@v3
         with:

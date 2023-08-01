@@ -36,7 +36,7 @@ module Common = {
 test("Successfully parses primitive", t => {
   let struct = S.null(S.bool)
 
-  t->Assert.deepEqual(Js.Json.boolean(true)->S.parseAnyWith(struct), Ok(Some(true)), ())
+  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseAnyWith(struct), Ok(Some(true)), ())
 })
 
 test("Fails to parse JS undefined", t => {
@@ -86,7 +86,7 @@ test("Successfully parses null and serializes it back for deprecated nullable st
   let struct = S.null(S.bool)->S.deprecate("Deprecated")
 
   t->Assert.deepEqual(
-    %raw(`null`)->S.parseAnyWith(struct)->Belt.Result.map(S.serializeToUnknownWith(_, struct)),
+    %raw(`null`)->S.parseAnyWith(struct)->Result.map(S.serializeToUnknownWith(_, struct)),
     Ok(Ok(%raw(`null`))),
     (),
   )
@@ -96,7 +96,7 @@ test("Successfully parses null and serializes it back for optional nullable stru
   let struct = S.option(S.null(S.bool))
 
   t->Assert.deepEqual(
-    %raw(`null`)->S.parseAnyWith(struct)->Belt.Result.map(S.serializeToUnknownWith(_, struct)),
+    %raw(`null`)->S.parseAnyWith(struct)->Result.map(S.serializeToUnknownWith(_, struct)),
     Ok(Ok(%raw(`null`))),
     (),
   )

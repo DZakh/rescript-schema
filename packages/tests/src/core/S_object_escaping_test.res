@@ -50,7 +50,7 @@ test("Successfully serializes object transformed to object with quotes in a fiel
 
 test("Successfully parses object with discriminant which has quotes as the field name", t => {
   let struct = S.object(s => {
-    ignore(s.field("\"\'\`", S.literal(Js.Null.empty)))
+    ignore(s.field("\"\'\`", S.literal(Null.null)))
     {
       "field": s.field("field", S.string),
     }
@@ -68,7 +68,7 @@ test("Successfully parses object with discriminant which has quotes as the field
 
 test("Successfully serializes object with discriminant which has quotes as the field name", t => {
   let struct = S.object(s => {
-    ignore(s.field("\"\'\`", S.literal(Js.Null.empty)))
+    ignore(s.field("\"\'\`", S.literal(Null.null)))
     {
       "field": s.field("field", S.string),
     }
@@ -231,13 +231,13 @@ test("Has proper error path when fails to parse object with quotes in a field na
 
 test("Has proper error path when fails to serialize object with quotes in a field name", t => {
   let struct = S.object(s =>
-    Js.Dict.fromArray([
+    Dict.fromArray([
       ("\"\'\`", s.field("field", S.string->S.refine(s => _ => s.fail("User error")))),
     ])
   )
 
   t->Assert.deepEqual(
-    Js.Dict.fromArray([("\"\'\`", "bar")])->S.serializeToUnknownWith(struct),
+    Dict.fromArray([("\"\'\`", "bar")])->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,

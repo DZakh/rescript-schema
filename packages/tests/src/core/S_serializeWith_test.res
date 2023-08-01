@@ -1,60 +1,69 @@
 open Ava
 
-module Json = Js.Json
-
-module Obj = {
-  external magic: 'a => 'b = "%identity"
-}
-
 test("Successfully serializes jsonable structs", t => {
-  t->Assert.deepEqual(true->S.serializeWith(S.bool), true->Json.boolean->Ok, ())
-  t->Assert.deepEqual(true->S.serializeWith(S.literal(true)), true->Json.boolean->Ok, ())
-  t->Assert.deepEqual("abc"->S.serializeWith(S.string), "abc"->Json.string->Ok, ())
-  t->Assert.deepEqual("abc"->S.serializeWith(S.literal("abc")), "abc"->Json.string->Ok, ())
-  t->Assert.deepEqual(123->S.serializeWith(S.int), 123.->Json.number->Ok, ())
-  t->Assert.deepEqual(123->S.serializeWith(S.literal(123)), 123.->Json.number->Ok, ())
-  t->Assert.deepEqual(123.->S.serializeWith(S.float), 123.->Json.number->Ok, ())
-  t->Assert.deepEqual(123.->S.serializeWith(S.literal(123.)), 123.->Json.number->Ok, ())
+  t->Assert.deepEqual(true->S.serializeWith(S.bool), true->JSON.Encode.bool->Ok, ())
+  t->Assert.deepEqual(true->S.serializeWith(S.literal(true)), true->JSON.Encode.bool->Ok, ())
+  t->Assert.deepEqual("abc"->S.serializeWith(S.string), "abc"->JSON.Encode.string->Ok, ())
+  t->Assert.deepEqual("abc"->S.serializeWith(S.literal("abc")), "abc"->JSON.Encode.string->Ok, ())
+  t->Assert.deepEqual(123->S.serializeWith(S.int), 123.->JSON.Encode.float->Ok, ())
+  t->Assert.deepEqual(123->S.serializeWith(S.literal(123)), 123.->JSON.Encode.float->Ok, ())
+  t->Assert.deepEqual(123.->S.serializeWith(S.float), 123.->JSON.Encode.float->Ok, ())
+  t->Assert.deepEqual(123.->S.serializeWith(S.literal(123.)), 123.->JSON.Encode.float->Ok, ())
   t->Assert.deepEqual(
     (true, "foo", 123)->S.serializeWith(S.literal((true, "foo", 123))),
-    Json.array([Json.boolean(true), Json.string("foo"), Json.number(123.)])->Ok,
+    JSON.Encode.array([
+      JSON.Encode.bool(true),
+      JSON.Encode.string("foo"),
+      JSON.Encode.float(123.),
+    ])->Ok,
     (),
   )
   t->Assert.deepEqual(
     {"foo": true}->S.serializeWith(S.literal({"foo": true})),
-    Json.object_(Js.Dict.fromArray([("foo", Json.boolean(true))]))->Ok,
+    JSON.Encode.object(Dict.fromArray([("foo", JSON.Encode.bool(true))]))->Ok,
     (),
   )
   t->Assert.deepEqual(
     {"foo": (true, "foo", 123)}->S.serializeWith(S.literal({"foo": (true, "foo", 123)})),
-    Json.object_(
-      Js.Dict.fromArray([
-        ("foo", Json.array([Json.boolean(true), Json.string("foo"), Json.number(123.)])),
+    JSON.Encode.object(
+      Dict.fromArray([
+        (
+          "foo",
+          JSON.Encode.array([
+            JSON.Encode.bool(true),
+            JSON.Encode.string("foo"),
+            JSON.Encode.float(123.),
+          ]),
+        ),
       ]),
     )->Ok,
     (),
   )
-  t->Assert.deepEqual(None->S.serializeWith(S.null(S.bool)), Json.null->Ok, ())
-  t->Assert.deepEqual(Json.null->S.serializeWith(S.literal(Json.null)), Json.null->Ok, ())
-  t->Assert.deepEqual([]->S.serializeWith(S.array(S.bool)), Json.array([])->Ok, ())
+  t->Assert.deepEqual(None->S.serializeWith(S.null(S.bool)), JSON.Encode.null->Ok, ())
   t->Assert.deepEqual(
-    Js.Dict.empty()->S.serializeWith(S.dict(S.bool)),
-    Json.object_(Js.Dict.empty())->Ok,
+    JSON.Encode.null->S.serializeWith(S.literal(JSON.Encode.null)),
+    JSON.Encode.null->Ok,
+    (),
+  )
+  t->Assert.deepEqual([]->S.serializeWith(S.array(S.bool)), JSON.Encode.array([])->Ok, ())
+  t->Assert.deepEqual(
+    Dict.make()->S.serializeWith(S.dict(S.bool)),
+    JSON.Encode.object(Dict.make())->Ok,
     (),
   )
   t->Assert.deepEqual(
     true->S.serializeWith(S.object(s => s.field("foo", S.bool))),
-    Json.object_(Js.Dict.fromArray([("foo", Json.boolean(true))]))->Ok,
+    JSON.Encode.object(Dict.fromArray([("foo", JSON.Encode.bool(true))]))->Ok,
     (),
   )
   t->Assert.deepEqual(
     true->S.serializeWith(S.tuple1(S.bool)),
-    Json.array([Json.boolean(true)])->Ok,
+    JSON.Encode.array([JSON.Encode.bool(true)])->Ok,
     (),
   )
   t->Assert.deepEqual(
     "foo"->S.serializeWith(S.union([S.literal("foo"), S.literal("bar")])),
-    Json.string("foo")->Ok,
+    JSON.Encode.string("foo")->Ok,
     (),
   )
 })
@@ -219,7 +228,7 @@ test("Fails to serialize tuple with invalid nested struct", t => {
 test("Fails to serialize union if one of the items is an invalid struct", t => {
   t->Assert.deepEqual(
     "foo"->S.serializeWith(
-      S.union([S.string, S.unknown->(Obj.magic: S.t<unknown> => S.t<string>)]),
+      S.union([S.string, S.unknown->(TestUtils.magic: S.t<unknown> => S.t<string>)]),
     ),
     Error({
       code: InvalidJsonStruct(S.unknown),

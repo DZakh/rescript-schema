@@ -2,16 +2,16 @@ open Ava
 
 let preprocessNumberToString = S.preprocess(_, _ => {
   parser: unknown => {
-    if unknown->Js.typeof === "number" {
-      unknown->Obj.magic->Js.Float.toString
+    if unknown->typeof === #number {
+      unknown->Obj.magic->Float.toString
     } else {
       unknown->Obj.magic
     }
   },
   serializer: unknown => {
-    if unknown->Js.typeof === "string" {
+    if unknown->typeof === #string {
       let string: string = unknown->Obj.magic
-      switch string->Belt.Float.fromString {
+      switch string->Float.fromString {
       | Some(float) => float->Obj.magic
       | None => string
       }
@@ -194,7 +194,7 @@ test("Applies preproces parser for union structs separately", t => {
     | Float
     | Literal(Number(_)) => {
         parser: unknown => {
-          if unknown->Js.typeof === "string" {
+          if unknown->typeof === #string {
             %raw(`+unknown`)
           } else {
             unknown
@@ -235,8 +235,8 @@ test("Applies preproces serializer for union structs separately", t => {
       }
     | Int => {
         serializer: unknown => {
-          if unknown->Js.typeof === "number" {
-            unknown->Obj.magic->Js.Int.toString->Obj.magic
+          if unknown->typeof === #number {
+            unknown->Obj.magic->Int.toString->Obj.magic
           } else {
             unknown->Obj.magic
           }

@@ -7,7 +7,7 @@
     "res:build": "rescript build -with-deps",
     "res:clean": "rescript clean",
     "res": "rescript build -w -with-deps",
-    "lint:stdlib": "rescript-stdlib-vendorer lint"
+    "lint:stdlib": "rescript-stdlib-vendorer lint --ignore-path=src/ppx/Ppx_Primitives_test.res"
   },
   "dependencies": {
     "@dzakh/rescript-core": "0.2.0",

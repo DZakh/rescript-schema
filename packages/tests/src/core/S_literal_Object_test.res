@@ -30,7 +30,7 @@ module Common = {
       invalid->S.parseAnyWith(struct),
       Error({
         code: InvalidLiteral({
-          expected: Dict(Js.Dict.fromArray([("foo", S.Literal.String("bar"))])),
+          expected: Dict(Dict.fromArray([("foo", S.Literal.String("bar"))])),
           received: invalid,
         }),
         operation: Parsing,
@@ -57,7 +57,7 @@ module Common = {
       invalid->S.serializeToUnknownWith(struct),
       Error({
         code: InvalidLiteral({
-          expected: Dict(Js.Dict.fromArray([("foo", S.Literal.String("bar"))])),
+          expected: Dict(Dict.fromArray([("foo", S.Literal.String("bar"))])),
           received: invalid->TestUtils.castAnyToUnknown,
         }),
         operation: Serializing,
@@ -74,7 +74,7 @@ module Common = {
       %raw(`null`)->S.parseAnyWith(struct),
       Error({
         code: InvalidLiteral({
-          expected: Dict(Js.Dict.fromArray([("foo", S.Literal.String("bar"))])),
+          expected: Dict(Dict.fromArray([("foo", S.Literal.String("bar"))])),
           received: %raw(`null`),
         }),
         operation: Parsing,
@@ -91,7 +91,7 @@ module Common = {
       %raw(`{"foo": "bar","excess":true}`)->S.parseAnyWith(struct),
       Error({
         code: InvalidLiteral({
-          expected: Dict(Js.Dict.fromArray([("foo", S.Literal.String("bar"))])),
+          expected: Dict(Dict.fromArray([("foo", S.Literal.String("bar"))])),
           received: %raw(`{"foo": "bar","excess": true}`),
         }),
         operation: Parsing,
@@ -108,7 +108,7 @@ module Common = {
       makeNotPlainValue()->S.parseAnyWith(struct),
       Error({
         code: InvalidLiteral({
-          expected: Dict(Js.Dict.fromArray([("foo", S.Literal.String("bar"))])),
+          expected: Dict(Dict.fromArray([("foo", S.Literal.String("bar"))])),
           received: makeNotPlainValue()->TestUtils.castAnyToUnknown,
         }),
         operation: Parsing,

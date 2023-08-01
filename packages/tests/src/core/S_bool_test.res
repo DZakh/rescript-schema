@@ -36,11 +36,11 @@ module Common = {
 test("Parses bool when JSON is true", t => {
   let struct = S.bool
 
-  t->Assert.deepEqual(Js.Json.boolean(true)->S.parseAnyWith(struct), Ok(true), ())
+  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseAnyWith(struct), Ok(true), ())
 })
 
 test("Parses bool when JSON is false", t => {
   let struct = S.bool
 
-  t->Assert.deepEqual(Js.Json.boolean(false)->S.parseAnyWith(struct), Ok(false), ())
+  t->Assert.deepEqual(JSON.Encode.bool(false)->S.parseAnyWith(struct), Ok(false), ())
 })

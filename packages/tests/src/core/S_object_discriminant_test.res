@@ -61,7 +61,7 @@ module Positive = {
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.literal(Js.Null.empty),
+      ~discriminantStruct=S.literal(Null.null),
       ~discriminantData=%raw(`null`),
       ~description="Null",
       (),
@@ -115,7 +115,7 @@ module Positive = {
       }`),
       (),
     ),
-  ]->Js.Array2.forEach(testData => {
+  ]->Array.forEach(testData => {
     test(
       `Successfully parses object with discriminant "${testData.discriminantStruct->S.name}"${testData.testNamePostfix}`,
       t => {
@@ -200,7 +200,7 @@ module Negative = {
     TestData.make(~discriminantStruct=S.array(S.literal(true)), ~discriminantData=[true, true], ()),
     TestData.make(
       ~discriminantStruct=S.dict(S.literal(true)),
-      ~discriminantData=Js.Dict.fromArray([("foo", true), ("bar", true)]),
+      ~discriminantData=Dict.fromArray([("foo", true), ("bar", true)]),
       (),
     ),
     TestData.make(
@@ -218,7 +218,7 @@ module Negative = {
       ~discriminantData=true,
       (),
     ),
-  ]->Js.Array2.forEach(testData => {
+  ]->Array.forEach(testData => {
     test(
       `Successfully parses object with discriminant that we don't know how to serialize "${testData.discriminantStruct->S.name}"${testData.testNamePostfix}`,
       t => {

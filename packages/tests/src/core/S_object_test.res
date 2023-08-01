@@ -826,9 +826,7 @@ test("Successfully parses object and serializes it back to the initial data", t 
   )
 
   t->Assert.deepEqual(
-    any
-    ->S.parseAnyWith(struct)
-    ->Belt.Result.map(object => object->S.serializeToUnknownWith(struct)),
+    any->S.parseAnyWith(struct)->Result.map(object => object->S.serializeToUnknownWith(struct)),
     Ok(Ok(any)),
     (),
   )

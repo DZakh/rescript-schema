@@ -1,11 +1,11 @@
 open Ava
 
 module Common = {
-  let value = Js.Null.empty
+  let value = Null.null
   let invalidValue = %raw(`123`)
   let any = %raw(`null`)
   let invalidTypeAny = %raw(`"Hello world!"`)
-  let factory = () => S.literal(Js.Null.empty)
+  let factory = () => S.literal(Null.null)
 
   test("Successfully parses", t => {
     let struct = factory()

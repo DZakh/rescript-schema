@@ -28,7 +28,7 @@ module Suite = {
   let run = suite => {
     suite
     ->_onCycle(event => {
-      Js.log(event.target->BenchmarkResult.toString)
+      Console.log(event.target->BenchmarkResult.toString)
     })
     ->_run
   }
@@ -98,27 +98,27 @@ let makeAdvancedStrictObjectStruct = () => {
 }
 
 let data = makeTestObject()
-Js.Console.timeStart("init")
+Console.time("init")
 let struct = makeAdvancedObjectStruct()
-Js.Console.timeEnd("init")
-Js.Console.timeStart("p: 1")
+Console.timeEnd("init")
+Console.time("p: 1")
 data->S.parseAnyWith(struct)->ignore
-Js.Console.timeEnd("p: 1")
-Js.Console.timeStart("p: 2")
+Console.timeEnd("p: 1")
+Console.time("p: 2")
 data->S.parseAnyWith(struct)->ignore
-Js.Console.timeEnd("p: 2")
-Js.Console.timeStart("p: 3")
+Console.timeEnd("p: 2")
+Console.time("p: 3")
 data->S.parseAnyWith(struct)->ignore
-Js.Console.timeEnd("p: 3")
-Js.Console.timeStart("s: 1")
+Console.timeEnd("p: 3")
+Console.time("s: 1")
 data->S.serializeWith(struct)->ignore
-Js.Console.timeEnd("s: 1")
-Js.Console.timeStart("s: 2")
+Console.timeEnd("s: 1")
+Console.time("s: 2")
 data->S.serializeWith(struct)->ignore
-Js.Console.timeEnd("s: 2")
-Js.Console.timeStart("s: 3")
+Console.timeEnd("s: 2")
+Console.time("s: 3")
 data->S.serializeWith(struct)->ignore
-Js.Console.timeEnd("s: 3")
+Console.timeEnd("s: 3")
 
 Suite.make()
 ->Suite.addWithPrepare("Parse string", () => {

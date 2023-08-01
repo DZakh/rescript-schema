@@ -1,7 +1,7 @@
 open Ava
 
 module CommonWithNested = {
-  let value = Js.Dict.fromArray([("key1", "value1"), ("key2", "value2")])
+  let value = Dict.fromArray([("key1", "value1"), ("key2", "value2")])
   let any = %raw(`{"key1":"value1","key2":"value2"}`)
   let invalidAny = %raw(`true`)
   let nestedInvalidAny = %raw(`{"key1":"value1","key2":true}`)
@@ -53,7 +53,7 @@ test("Successfully parses dict with int keys", t => {
 
   t->Assert.deepEqual(
     %raw(`{1:"b",2:"d"}`)->S.parseAnyWith(struct),
-    Ok(Js.Dict.fromArray([("1", "b"), ("2", "d")])),
+    Ok(Dict.fromArray([("1", "b"), ("2", "d")])),
     (),
   )
 })
@@ -62,7 +62,7 @@ test("Applies operation for each item on serializing", t => {
   let struct = S.dict(S.jsonString(S.int))
 
   t->Assert.deepEqual(
-    Js.Dict.fromArray([("a", 1), ("b", 2)])->S.serializeToUnknownWith(struct),
+    Dict.fromArray([("a", 1), ("b", 2)])->S.serializeToUnknownWith(struct),
     Ok(
       %raw(`{
         "a": "1",
@@ -77,7 +77,7 @@ test("Fails to serialize dict item", t => {
   let struct = S.dict(S.string->S.refine(s => _ => s.fail("User error")))
 
   t->Assert.deepEqual(
-    Js.Dict.fromArray([("a", "aa"), ("b", "bb")])->S.serializeToUnknownWith(struct),
+    Dict.fromArray([("a", "aa"), ("b", "bb")])->S.serializeToUnknownWith(struct),
     Error({
       code: OperationFailed("User error"),
       operation: Serializing,
@@ -92,7 +92,7 @@ test("Successfully parses dict with optional items", t => {
 
   t->Assert.deepEqual(
     %raw(`{"key1":"value1","key2":undefined}`)->S.parseAnyWith(struct),
-    Ok(Js.Dict.fromArray([("key1", Some("value1")), ("key2", None)])),
+    Ok(Dict.fromArray([("key1", Some("value1")), ("key2", None)])),
     (),
   )
 })

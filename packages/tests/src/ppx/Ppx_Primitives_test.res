@@ -96,8 +96,20 @@ type myBigTuple = (string, string, string, int, int, int, float, float, float, b
 test("Big tuple struct", t => {
   t->assertEqualStructs(
     myBigTupleStruct,
-    S.tuple(s => ( s.item(0,S.string), s.item(1,S.string), s.item(2,S.string), s.item(3,S.int), s.item(4,S.int), s.item(5,S.int), s.item(6,S.float), s.item(7,S.float), s.item(8,S.float), s.item(9,S.bool), s.item(10,S.bool), s.item(11,S.bool)))
-    ,
+    S.tuple(s => (
+      s.item(0, S.string),
+      s.item(1, S.string),
+      s.item(2, S.string),
+      s.item(3, S.int),
+      s.item(4, S.int),
+      s.item(5, S.int),
+      s.item(6, S.float),
+      s.item(7, S.float),
+      s.item(8, S.float),
+      s.item(9, S.bool),
+      s.item(10, S.bool),
+      s.item(11, S.bool),
+    )),
     (),
   )
 })
@@ -123,7 +135,7 @@ test("Custom optional string struct", t => {
 // @struct
 // type myNullOfString = null<string>
 // This will result with error:
-// The incompatible parts: option<string> vs myNullOfString (defined as Js.null<string>)
+// The incompatible parts: option<string> vs myNullOfString (defined as null<string>)
 // So use the code below instead
 @struct
 type myNullOfString = @struct(S.null(S.string)) option<string>

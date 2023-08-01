@@ -20,25 +20,25 @@ let assertThrowsTestException = {
 }
 
 let rec cleanUpStruct = struct => {
-  let new = Js.Dict.empty()
+  let new = Dict.make()
   struct
-  ->(magic: S.t<'a> => Js.Dict.t<unknown>)
-  ->Js.Dict.entries
-  ->Js.Array2.forEach(((key, value)) => {
+  ->(magic: S.t<'a> => Dict.t<unknown>)
+  ->Dict.toArray
+  ->Array.forEach(((key, value)) => {
     switch key {
     | "sb" | "pb" | "i" => ()
     | _ =>
-      if Js.typeof(value) === "object" && value !== %raw(`null`) {
-        new->Js.Dict.set(
+      if typeof(value) === #object && value !== %raw(`null`) {
+        new->Dict.set(
           key,
           cleanUpStruct(value->(magic: unknown => S.t<'a>))->(magic: S.t<'a> => unknown),
         )
       } else {
-        new->Js.Dict.set(key, value)
+        new->Dict.set(key, value)
       }
     }
   })
-  new->(magic: Js.Dict.t<unknown> => S.t<'a>)
+  new->(magic: Dict.t<unknown> => S.t<'a>)
 }
 
 let unsafeAssertEqualStructs = {
