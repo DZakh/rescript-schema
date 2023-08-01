@@ -34,7 +34,7 @@ importers:
       '@rollup/plugin-replace': 5.0.2
       execa: 7.1.1
       rescript: 11.0.0-beta.4
-      rescript-nodejs: github:DZakh/rescript-nodejs#3c29dcd
+      rescript-nodejs: 15.0.0
       rescript-stdlib-vendorer: 1.0.0
       rollup: 3.21.0
     dependencies:
@@ -42,7 +42,7 @@ importers:
       '@rollup/plugin-replace': 5.0.2_rollup@3.21.0
       execa: 7.1.1
       rescript: 11.0.0-beta.4
-      rescript-nodejs: github.com/DZakh/rescript-nodejs/3c29dcd
+      rescript-nodejs: 15.0.0
       rescript-stdlib-vendorer: 1.0.0
       rollup: 3.21.0
 
@@ -1181,6 +1181,10 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
+  /rescript-nodejs/15.0.0:
+    resolution: {integrity: sha512-VvvM8/lI90Dfu0x4886NyINbUcBBx8F6hmftH9UaMjUgYIPfsdVopG3d30OzcbroiOKySgo4wwVNEmtYDZs+nw==}
+    dev: false
+
   /rescript-stdlib-vendorer/1.0.0:
     resolution: {integrity: sha512-C6RmDgsTEP9CIDc/wDW+zRzhN5vLvuj6iOsjB/CYhm0+DaY0yTsoX0uU2QJU2UdeYprPpNJwMMI0lglqtAHzgA==}
     hasBin: true
@@ -1535,9 +1539,3 @@ packages:
     resolution: {integrity: sha512-9bnSc/HEW2uRy67wc+T8UwauLuPJVn28jb+GtJY16iiKWyvmYJRXVT4UamsAEGQfPohgr2q4Tq0sQbQlxTfi1g==}
     engines: {node: '>=12.20'}
     dev: true
-
-  github.com/DZakh/rescript-nodejs/3c29dcd:
-    resolution: {tarball: https://codeload.github.com/DZakh/rescript-nodejs/tar.gz/3c29dcd}
-    name: rescript-nodejs
-    version: 14.4.0
-    dev: false

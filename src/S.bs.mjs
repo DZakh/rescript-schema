@@ -278,8 +278,8 @@ function noop(_b, param, inputVar, param$1) {
   return inputVar;
 }
 
-function noopOperation(a) {
-  return a;
+function noopOperation(i) {
+  return i;
 }
 
 function scope(b, fn) {
@@ -660,7 +660,7 @@ function intitialParseAsync(input) {
   return struct.a(input);
 }
 
-var Raised = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Raised");
+var Raised = /* @__PURE__ */Caml_exceptions.create("S.Raised");
 
 function parseAnyWith(any, struct) {
   try {
@@ -1615,13 +1615,14 @@ function strict(struct) {
 }
 
 function builder(b, selfStruct, inputVar, path) {
-  return raiseWithArg(b, path, (function (input) {
-                return {
-                        TAG: "InvalidType",
-                        expected: selfStruct,
-                        received: input
-                      };
-              }), inputVar);
+  b.c = b.c + raiseWithArg(b, path, (function (input) {
+          return {
+                  TAG: "InvalidType",
+                  expected: selfStruct,
+                  received: input
+                };
+        }), inputVar) + ";";
+  return inputVar;
 }
 
 var struct = {

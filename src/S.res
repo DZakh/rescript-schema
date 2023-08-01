@@ -514,7 +514,7 @@ module Builder = {
     inputVar
   })
 
-  let noopOperation = a => a
+  let noopOperation = i => i
 
   module Ctx = {
     type t = ctx
@@ -1932,14 +1932,17 @@ module Object = {
 
 module Never = {
   let builder = Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
-    b->B.raiseWithArg(
-      ~path,
-      input => InvalidType({
-        expected: selfStruct,
-        received: input,
-      }),
-      inputVar,
-    )
+    b.code =
+      b.code ++
+      b->B.raiseWithArg(
+        ~path,
+        input => InvalidType({
+          expected: selfStruct,
+          received: input,
+        }),
+        inputVar,
+      ) ++ ";"
+    inputVar
   })
 
   let struct = make(

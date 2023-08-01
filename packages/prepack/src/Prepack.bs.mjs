@@ -20,9 +20,7 @@ var sourePaths = [
   "src",
   "bsconfig.json",
   "README.md",
-  "RescriptStruct.gen.ts",
-  "__tests__",
-  "benchmark"
+  "RescriptStruct.gen.ts"
 ];
 
 var jsInputPath = Path.join(artifactsPath, "src/S_JsApi.js");

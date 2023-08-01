@@ -7,9 +7,10 @@ const tests = packageJson.ava.files;
 export default () => ({
   files: [
     "package.json",
-    "src/**/*.mjs",
+    "src/S.bs.mjs",
+    "src/S_JsApi.bs.mjs",
     "src/S_JsApi.js",
-    "packages/tests/src/utils/TestUtils.bs.mjs",
+    "packages/tests/tests/utils/TestUtils.bs.mjs",
   ],
   tests,
   env: {

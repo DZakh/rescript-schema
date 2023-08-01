@@ -2,11 +2,5 @@
   "name": "tests",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
-  "scripts": {
-    "lint:stdlib": "rescript-stdlib-vendorer lint --ignore-path=src/ppx/Ppx_Primitives_test.res",
-    "res": "rescript build -w -with-deps",
-    "res:build": "rescript build -with-deps",
-    "res:clean": "rescript clean"
-  }
+  "type": "module"
 }

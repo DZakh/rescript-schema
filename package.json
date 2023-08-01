@@ -50,14 +50,14 @@
     "bsconfig.json"
   ],
   "scripts": {
-    "benchmark": "node ./packages/tests/src/benchmark/Benchmark.bs.mjs",
+    "benchmark": "node ./packages/tests/tests/benchmark/Benchmark.bs.mjs",
     "coverage": "c8 --reporter=lcov npm test",
     "prepack": "node ./packages/prepack/src/Prepack.bs.mjs",
     "ppx:install": "node ./packages/ppx/install.cjs",
-    "res": "rescript build -with-deps -w",
+    "res": "cd ./packages/tests && rescript clean && rescript build -with-deps -w",
     "res:build": "rescript build -with-deps",
     "test": "ava",
-    "test:res": "pnpm --filter=tests res"
+    "lint:stdlib": "rescript-stdlib-vendorer lint --project-path=packages/tests --ignore-path=tests/ppx/Ppx_Primitives_test.res --ignore-path=../../src && pnpm --filter=prepack lint:stdlib"
   },
   "ava": {
     "extensions": {
@@ -65,8 +65,8 @@
       "mjs": true
     },
     "files": [
-      "packages/tests/src/**/*_test.bs.mjs",
-      "packages/tests/src/**/*_test.ts"
+      "packages/tests/tests/**/*_test.bs.mjs",
+      "packages/tests/tests/**/*_test.ts"
     ],
     "nodeArguments": [
       "--no-warnings",
