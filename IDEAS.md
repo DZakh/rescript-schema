@@ -45,8 +45,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add built-in refinements to TS API
   // TODO: Update gen.ts
 - Update S_Js.res to create new structs instead of mixin in the methods
-- Write tests for generated functions
-  // TODO: Tests for compiled code: S.tuple, S.union, S.dict, S.json, S.variant, S.preprocess+async, S.transform+async, S.catch, S.default, S.jsonString+parser+serializer
+- Support serialization with untagged variants
 
 ## v5.1
 

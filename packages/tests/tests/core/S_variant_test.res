@@ -109,3 +109,25 @@ test("Fails to serialize when value registered multiple times", t => {
     (),
   )
 })
+
+test("Compiled parse code snapshot", t => {
+  let struct = S.string->S.variant(s => Ok(s))
+
+  t->TestUtils.assertCompiledCode(
+    ~struct,
+    ~op=#parse,
+    `i=>{if(typeof i!=="string"){e[0](i)}return e[1](i)}`,
+    (),
+  )
+})
+
+test("Compiled serialize code snapshot", t => {
+  let struct = S.string->S.variant(s => Ok(s))
+
+  t->TestUtils.assertCompiledCode(
+    ~struct,
+    ~op=#serialize,
+    `i=>{let v0;v0=i["TAG"];if(v0!==e[0]){e[1](v0)}return i["_0"]}`,
+    (),
+  )
+})

@@ -1126,9 +1126,10 @@ function preprocess(struct, transformer) {
               if (parser !== undefined) {
                 if (match.a !== undefined) {
                   return invalidOperation(b, path, "The S.preprocess doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.");
-                } else {
-                  return run(b, struct.pb, struct, embedSyncOperation(b, inputVar, parser, undefined), path);
                 }
+                var operationResultVar = $$var(b);
+                b.c = b.c + (operationResultVar + "=" + embedSyncOperation(b, inputVar, parser, undefined) + ";");
+                return run(b, struct.pb, struct, operationResultVar, path);
               }
               var asyncParser = match.a;
               if (asyncParser === undefined) {
@@ -1417,6 +1418,16 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
   };
 }
 
+function typeRefinement(b, selfStruct, inputVar, path) {
+  b.c = b.c + ("if(!" + inputVar + "||" + inputVar + ".constructor!==Object){" + raiseWithArg(b, path, (function (input) {
+            return {
+                    TAG: "InvalidType",
+                    expected: selfStruct,
+                    received: input
+                  };
+          }), inputVar) + "}");
+}
+
 function factory$1(definer) {
   var fields = {};
   var fieldNames = [];
@@ -1457,15 +1468,7 @@ function factory$1(definer) {
             fieldNames: fieldNames,
             unknownKeys: "Strip"
           },
-          pb: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, (function (b, selfStruct, inputVar, path) {
-                  b.c = b.c + ("if(!" + inputVar + "||" + inputVar + ".constructor!==Object){" + raiseWithArg(b, path, (function (input) {
-                            return {
-                                    TAG: "InvalidType",
-                                    expected: selfStruct,
-                                    received: input
-                                  };
-                          }), inputVar) + "}");
-                }), (function (b, selfStruct, inputVar, path) {
+          pb: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, typeRefinement, (function (b, selfStruct, inputVar, path) {
                   var withUnknownKeysRefinement = selfStruct.t.unknownKeys === "Strict";
                   if (!withUnknownKeysRefinement) {
                     return ;
@@ -1911,7 +1914,7 @@ function factory$2(struct) {
               return run(b, struct.pb, struct, jsonVar, path);
             }),
           sb: (function (b, param, inputVar, path) {
-              return "JSON.stringify(" + run(b, struct.pb, struct, inputVar, path) + ")";
+              return "JSON.stringify(" + run(b, struct.sb, struct, inputVar, path) + ")";
             }),
           i: 0,
           s: initialSerialize,
@@ -2298,13 +2301,8 @@ function factory$6(struct) {
           pb: (function (b, selfStruct, inputVar, path) {
               var keyVar = varWithoutAllocation(b);
               var outputVar = $$var(b);
-              b.c = b.c + ("if(!(typeof " + inputVar + "===\"object\"&&" + inputVar + "!==null&&!Array.isArray(" + inputVar + "))){" + raiseWithArg(b, path, (function (input) {
-                        return {
-                                TAG: "InvalidType",
-                                expected: selfStruct,
-                                received: input
-                              };
-                      }), inputVar) + "}" + outputVar + "={};for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
+              typeRefinement(b, selfStruct, inputVar, path);
+              b.c = b.c + (outputVar + "={};for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
                         var itemVar = $$var(b);
                         b.c = b.c + (itemVar + "=" + inputVar + "[" + keyVar + "];");
                         var itemOutputVar = withRethrow(b, path, keyVar, (function (b, path) {

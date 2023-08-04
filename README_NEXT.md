@@ -29,7 +29,7 @@ Also, it has declarative API allowing you to use **rescript-struct** as a buildi
 
 Works the same in the browser and in node. See the [examples](#examples) section for more examples.
 
-> 🧠 Note that **rescript-struct** uses the `Function` constructor, which may cause issues when included as a third-party script on a site with a [script-src](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src) header. But it is completely safe to use as part of your application bundle.
+> 🧠 Note that **rescript-struct** uses `eval`, which is completely safe to use as part of your application bundle, but may cause issues when included as a third-party script on a site with a [script-src](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src) header.
 
 ## Install
 

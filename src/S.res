@@ -1281,10 +1281,13 @@ let rec preprocess = (struct, transformer) => {
       ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
         switch transformer(EffectCtx.make(~selfStruct, ~path)) {
         | {parser, asyncParser: ?None} =>
+          let operationResultVar = b->B.var
+          b.code =
+            b.code ++ `${operationResultVar}=${b->B.embedSyncOperation(~inputVar, ~fn=parser)};`
           b->B.run(
             ~builder=struct.parseOperationBuilder,
             ~struct,
-            ~inputVar=b->B.embedSyncOperation(~inputVar, ~fn=parser),
+            ~inputVar=operationResultVar,
             ~path,
           )
         | {parser: ?None, asyncParser} => {
@@ -1752,6 +1755,19 @@ module Object = {
     }
   }
 
+  let typeRefinement = (b: B.t, ~selfStruct, ~inputVar, ~path) => {
+    b.code =
+      b.code ++
+      `if(!${inputVar}||${inputVar}.constructor!==Object){${b->B.raiseWithArg(
+          ~path,
+          input => InvalidType({
+            expected: selfStruct,
+            received: input,
+          }),
+          inputVar,
+        )}}`
+  }
+
   let factory = definer => {
     let ctx = Ctx.make()
     let definition = definer((ctx :> ctx))->(Obj.magic: 'any => Definition.t<itemDefinition>)
@@ -1769,18 +1785,7 @@ module Object = {
         ~itemDefinitions,
         ~itemDefinitionsSet,
         ~definition,
-        ~typeRefinement=(b, ~selfStruct, ~inputVar, ~path) => {
-          b.code =
-            b.code ++
-            `if(!${inputVar}||${inputVar}.constructor!==Object){${b->B.raiseWithArg(
-                ~path,
-                input => InvalidType({
-                  expected: selfStruct,
-                  received: input,
-                }),
-                inputVar,
-              )}}`
-        },
+        ~typeRefinement,
         ~unknownKeysRefinement=(b, ~selfStruct, ~inputVar, ~path) => {
           let withUnknownKeysRefinement =
             (selfStruct->classify->Obj.magic)["unknownKeys"] === Strict
@@ -2228,7 +2233,7 @@ module JsonString = {
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~path) => {
         `JSON.stringify(${b->B.run(
-            ~builder=struct.parseOperationBuilder,
+            ~builder=struct.serializeOperationBuilder,
             ~struct,
             ~inputVar,
             ~path,
@@ -2707,16 +2712,11 @@ module Dict = {
         let keyVar = b->B.varWithoutAllocation
         let outputVar = b->B.var
 
+        Object.typeRefinement(b, ~selfStruct, ~inputVar, ~path)
+
         b.code =
           b.code ++
-          `if(!(typeof ${inputVar}==="object"&&${inputVar}!==null&&!Array.isArray(${inputVar}))){${b->B.raiseWithArg(
-              ~path,
-              input => InvalidType({
-                expected: selfStruct,
-                received: input,
-              }),
-              inputVar,
-            )}}${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
+          `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
               let itemVar = b->B.var
               b.code = b.code ++ `${itemVar}=${inputVar}[${keyVar}];`
               let itemOutputVar =

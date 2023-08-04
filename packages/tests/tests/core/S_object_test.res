@@ -1083,7 +1083,6 @@ module Compiled = {
       t->TestUtils.assertCompiledCode(
         ~struct,
         ~op=#serialize,
-        // TODO: Create a new var for field input
         `i=>{if(i["zoo"]!==e[0]){e[1](i["zoo"])}return {"FOO":i["foo"],"BAR":i["bar"],"tag":e[2],}}`,
         (),
       )

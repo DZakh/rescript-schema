@@ -1,4 +1,5 @@
 open Ava
+open RescriptCore
 
 module Tuple0 = {
   let value = ()
@@ -232,3 +233,84 @@ test("Tuple struct parsing checks order", t => {
     (),
   )
 })
+
+module Compiled = {
+  test("Compiled parse code snapshot for simple tuple", t => {
+    let struct = S.tuple(s => (s.item(0, S.string), s.item(1, S.bool)))
+
+    t->TestUtils.assertCompiledCode(
+      ~struct,
+      ~op=#parse,
+      `i=>{let v0,v1;if(!Array.isArray(i)){e[0](i)}if(i.length!==2){e[1](i.length)}v0=i["0"];if(typeof v0!=="string"){e[2](v0)}v1=i["1"];if(typeof v1!=="boolean"){e[3](v1)}return [v0,v1,]}`,
+      (),
+    )
+  })
+
+  test("Compiled parse code snapshot for simple tuple with async", t => {
+    let struct = S.tuple(s => (
+      s.item(0, S.unknown->S.asyncParserRefine(_ => _ => Promise.resolve())),
+      s.item(1, S.bool),
+    ))
+
+    t->TestUtils.assertCompiledCode(
+      ~struct,
+      ~op=#parse,
+      `i=>{let v0,v1,v2,v3,v4;if(!Array.isArray(i)){e[0](i)}if(i.length!==2){e[1](i.length)}v0=i["0"];v2=e[2](v0);v1=()=>v2().then(_=>v0);v3=i["1"];if(typeof v3!=="boolean"){e[3](v3)}v4=()=>Promise.all([v1()]).then(([v1])=>([v1,v3,]));return v4}`,
+      (),
+    )
+  })
+
+  test("Compiled serialize code snapshot for simple tuple", t => {
+    let struct = S.tuple(s => (s.item(0, S.string), s.item(1, S.bool)))
+
+    // TODO: Improve
+    t->TestUtils.assertCompiledCode(
+      ~struct,
+      ~op=#serialize,
+      `i=>{let v0;v0=[];v0["0"]=i["0"];v0["1"]=i["1"];return v0}`,
+      (),
+    )
+  })
+
+  test(
+    "Compiled parse code snapshot for simple tuple with transformation, constants and discriminants",
+    t => {
+      let struct = S.tuple(s => {
+        s.tag(0, 0)
+        {
+          "foo": s.item(1, S.string),
+          "bar": s.item(2, S.bool),
+          "zoo": 1,
+        }
+      })
+
+      t->TestUtils.assertCompiledCode(
+        ~struct,
+        ~op=#parse,
+        `i=>{let v0,v1,v2;if(!Array.isArray(i)){e[0](i)}if(i.length!==3){e[1](i.length)}v2=i["0"];v2===e[5]||e[6](v2);v0=i["1"];if(typeof v0!=="string"){e[2](v0)}v1=i["2"];if(typeof v1!=="boolean"){e[3](v1)}return {"foo":v0,"bar":v1,"zoo":e[4],}}`,
+        (),
+      )
+    },
+  )
+
+  test(
+    "Compiled serialize code snapshot for simple tuple with transformation, constants and discriminants",
+    t => {
+      let struct = S.tuple(s => {
+        s.tag(0, 0)
+        {
+          "foo": s.item(1, S.string),
+          "bar": s.item(2, S.bool),
+          "zoo": 1,
+        }
+      })
+
+      t->TestUtils.assertCompiledCode(
+        ~struct,
+        ~op=#serialize,
+        `i=>{let v0;v0=[];if(i["zoo"]!==e[0]){e[1](i["zoo"])}v0["1"]=i["foo"];v0["2"]=i["bar"];v0["0"]=e[2];return v0}`,
+        (),
+      )
+    },
+  )
+}

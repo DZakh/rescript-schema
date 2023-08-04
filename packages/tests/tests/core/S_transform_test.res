@@ -320,3 +320,40 @@ asyncTest("Can apply other actions after async transform", t => {
     t->Assert.deepEqual(result, Ok("Hello world!"), ())
   })
 })
+
+test("Compiled parse code snapshot", t => {
+  let struct = S.int->S.transform(_ => {
+    parser: int => int->Int.toFloat,
+    serializer: value => value->Int.fromFloat,
+  })
+
+  t->TestUtils.assertCompiledCode(
+    ~struct,
+    ~op=#parse,
+    `i=>{if(!(typeof i==="number"&&i<2147483648&&i>-2147483649&&i%1===0)){e[0](i)}return e[1](i)}`,
+    (),
+  )
+})
+
+test("Compiled async parse code snapshot", t => {
+  let struct = S.int->S.transform(_ => {
+    asyncParser: int => () => int->Int.toFloat->Promise.resolve,
+    serializer: value => value->Int.fromFloat,
+  })
+
+  t->TestUtils.assertCompiledCode(
+    ~struct,
+    ~op=#parse,
+    `i=>{let v0;if(!(typeof i==="number"&&i<2147483648&&i>-2147483649&&i%1===0)){e[0](i)}v0=e[1](i);return v0}`,
+    (),
+  )
+})
+
+test("Compiled serialize code snapshot", t => {
+  let struct = S.int->S.transform(_ => {
+    parser: int => int->Int.toFloat,
+    serializer: value => value->Int.fromFloat,
+  })
+
+  t->TestUtils.assertCompiledCode(~struct, ~op=#serialize, `i=>{return e[0](i)}`, ())
+})

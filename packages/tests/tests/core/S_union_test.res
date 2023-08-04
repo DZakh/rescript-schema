@@ -1,4 +1,5 @@
 open Ava
+open RescriptCore
 
 test("Throws for a Union struct factory without structs", t => {
   t->Assert.throws(
@@ -282,3 +283,40 @@ module Advanced = {
     )
   })
 }
+
+test("Compiled parse code snapshot", t => {
+  let struct = S.union([S.literal(0), S.literal(1)])
+
+  t->TestUtils.assertCompiledCode(
+    ~struct,
+    ~op=#parse,
+    `i=>{let v0;try{i===e[0]||e[1](i);v0=i}catch(v1){if(v1&&v1.s===s){try{i===e[2]||e[3](i);v0=i}catch(v2){if(v2&&v2.s===s){e[4]([v1,v2])}else{throw v2}}}else{throw v1}}return v0}`,
+    (),
+  )
+})
+
+test("Compiled async parse code snapshot", t => {
+  let struct = S.union([
+    S.literal(0)->S.asyncParserRefine(_ => _ => Promise.resolve()),
+    S.literal(1),
+  ])
+
+  t->TestUtils.assertCompiledCode(
+    ~struct,
+    ~op=#parse,
+    `i=>{let v0,v1,v2;try{i===e[0]||e[1](i);v1=e[2](i);v0=()=>v1().then(_=>i);throw v0}catch(v3){if(v3&&v3.s===s||v3===v0){try{i===e[3]||e[4](i);v2=()=>Promise.resolve(i)}catch(v4){if(v4&&v4.s===s){v2=()=>Promise.any([v3===v0?v3():Promise.reject(v3),Promise.reject(v4)]).catch(t=>{e[5](t.errors)})}else{throw v4}}}else{throw v3}}return v2}`,
+    (),
+  )
+})
+
+test("Compiled serialize code snapshot", t => {
+  let struct = S.union([S.literal(0), S.literal(1)])
+
+  // TODO: Improve compiled code
+  t->TestUtils.assertCompiledCode(
+    ~struct,
+    ~op=#serialize,
+    `i=>{let v0;try{i===e[0]||e[1](i);v0=i}catch(v1){if(v1&&v1.s===s){try{i===e[2]||e[3](i);v0=i}catch(v2){if(v2&&v2.s===s){e[4]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
+    (),
+  )
+})

@@ -267,3 +267,40 @@ test("Doesn't fail to serialize with preprocess when serializer isn't provided",
     (),
   )
 })
+
+test("Compiled parse code snapshot", t => {
+  let struct = S.int->S.preprocess(_ => {
+    parser: _ => 1->Int.toFloat,
+    serializer: _ => 1.->Int.fromFloat,
+  })
+
+  t->TestUtils.assertCompiledCode(
+    ~struct,
+    ~op=#parse,
+    `i=>{let v0;v0=e[0](i);if(!(typeof v0==="number"&&v0<2147483648&&v0>-2147483649&&v0%1===0)){e[1](v0)}return v0}`,
+    (),
+  )
+})
+
+test("Compiled async parse code snapshot", t => {
+  let struct = S.int->S.preprocess(_ => {
+    asyncParser: _ => () => 1->Int.toFloat->Promise.resolve,
+    serializer: _ => 1.->Int.fromFloat,
+  })
+
+  t->TestUtils.assertCompiledCode(
+    ~struct,
+    ~op=#parse,
+    `i=>{let v0,v1;v0=e[0](i);v1=()=>v0().then(t=>{if(!(typeof t==="number"&&t<2147483648&&t>-2147483649&&t%1===0)){e[1](t)}return t});return v1}`,
+    (),
+  )
+})
+
+test("Compiled serialize code snapshot", t => {
+  let struct = S.int->S.preprocess(_ => {
+    parser: _ => 1->Int.toFloat,
+    serializer: _ => 1.->Int.fromFloat,
+  })
+
+  t->TestUtils.assertCompiledCode(~struct, ~op=#serialize, `i=>{return e[0](i)}`, ())
+})

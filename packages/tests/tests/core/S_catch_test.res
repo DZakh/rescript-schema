@@ -106,3 +106,31 @@ asyncTest(
     t->Assert.deepEqual(await "123"->S.parseAnyAsyncWith(struct), Ok("fallback"), ())
   },
 )
+
+test("Compiled parse code snapshot", t => {
+  let struct = S.bool->S.catch(_ => false)
+
+  t->TestUtils.assertCompiledCode(
+    ~struct,
+    ~op=#parse,
+    `i=>{let v0;try{if(typeof i!=="boolean"){e[0](i)}v0=i}catch(t){if(t&&t.s===s){v0=e[1](i,t)}else{throw t}}return v0}`,
+    (),
+  )
+})
+
+test("Compiled async parse code snapshot", t => {
+  let struct = S.bool->S.asyncParserRefine(_ => _ => Promise.resolve())->S.catch(_ => false)
+
+  t->TestUtils.assertCompiledCode(
+    ~struct,
+    ~op=#parse,
+    `i=>{let v0,v3;try{let v1,v2;if(typeof i!=="boolean"){e[0](i)}v2=e[1](i);v1=()=>v2().then(_=>i);v0=v1;v3=()=>{try{return v0().catch(t=>{if(t&&t.s===s){return e[2](i,t)}else{throw t}})}catch(t){if(t&&t.s===s){return Promise.resolve(e[2](i,t))}else{throw t}}}}catch(t){if(t&&t.s===s){v3=()=>Promise.resolve(e[2](i,t))}else{throw t}}return v3}`,
+    (),
+  )
+})
+
+test("Compiled serialize code snapshot", t => {
+  let struct = S.bool->S.catch(_ => false)
+
+  t->TestUtils.assertCompiledCodeIsNoop(~struct, ~op=#serialize, ())
+})
