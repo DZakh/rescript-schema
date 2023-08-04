@@ -670,7 +670,7 @@ function intitialParseAsync(input) {
   return struct.a(input);
 }
 
-var Raised = /* @__PURE__ */Caml_exceptions.create("S.Raised");
+var Raised = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Raised");
 
 function parseAnyWith(any, struct) {
   try {

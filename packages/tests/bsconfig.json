@@ -2,13 +2,9 @@
   "name": "tests",
   "sources": [
     {
-      "dir": "tests",
+      "dir": "src",
       "subdirs": true,
       "type": "dev"
-    },
-    {
-      "dir": "../../src",
-      "subdirs": true
     }
   ],
   "package-specs": {
@@ -16,8 +12,10 @@
     "in-source": true
   },
   "suffix": ".bs.mjs",
+  "bs-dependencies": ["rescript-struct"],
   "bs-dev-dependencies": ["@dzakh/rescript-core", "@dzakh/rescript-ava"],
   "ppx-flags": ["../ppx/ppx"],
+  "bsc-flags": ["-open RescriptStruct"],
   "warnings": {
     "error": true,
     "number": "-48-44"

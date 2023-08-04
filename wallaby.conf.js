@@ -10,7 +10,7 @@ export default () => ({
     "src/S.bs.mjs",
     "src/S_JsApi.bs.mjs",
     "src/S_JsApi.js",
-    "packages/tests/tests/utils/TestUtils.bs.mjs",
+    "packages/tests/src/utils/TestUtils.bs.mjs",
   ],
   tests,
   env: {
