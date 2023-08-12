@@ -311,7 +311,7 @@ asyncTest("Can apply other actions after async transform", t => {
   let struct =
     S.string
     ->S.transform(_ => {asyncParser: value => () => Promise.resolve(value)})
-    ->S.String.trim()
+    ->S.String.trim
     ->S.transform(_ => {asyncParser: value => () => Promise.resolve(value)})
 
   %raw(`"    Hello world!"`)

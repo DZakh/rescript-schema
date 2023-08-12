@@ -23,7 +23,7 @@ test("Supports String", t => {
 // })
 
 // test("Supports built-in String.datetime refinement", t => {
-//   let struct = S.string->S.String.datetime()
+//   let struct = S.string->S.String.datetime
 //   let structInlineResult =
 //     S.string->S.String.datetime(~message="Invalid datetime string! Must be UTC", ())
 

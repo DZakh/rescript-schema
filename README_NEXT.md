@@ -68,7 +68,7 @@ type film = {
 let filmStruct = S.object(s => {
   id: s.field("Id", S.float),
   title: s.field("Title", S.string),
-  tags: s.field("Tags", S.array(S.string)->S.default(() => [])),
+  tags: s.fieldOr("Tags", S.array(S.string), []),
   rating: s.field(
     "Rating",
     S.union([
@@ -78,7 +78,7 @@ let filmStruct = S.object(s => {
       S.literal(Restricted),
     ]),
   ),
-  deprecatedAgeRestriction: s.field("Age", S.int->S.option->S.deprecate("Use rating instead")),
+  deprecatedAgeRestriction: s.field("Age", S.option(S.int)->S.deprecate("Use rating instead")),
 })
 
 // 3. Parse data using the struct
@@ -147,29 +147,29 @@ The `string` struct represents a data that is a string. It can be further constr
 S.string->S.String.max(5) // String must be 5 or fewer characters long
 S.string->S.String.min(5) // String must be 5 or more characters long
 S.string->S.String.length(5) // String must be exactly 5 characters long
-S.string->S.String.email() // Invalid email address
-S.string->S.String.url() // Invalid url
-S.string->S.String.uuid() // Invalid UUID
-S.string->S.String.cuid() // Invalid CUID
+S.string->S.String.email // Invalid email address
+S.string->S.String.url // Invalid url
+S.string->S.String.uuid // Invalid UUID
+S.string->S.String.cuid // Invalid CUID
 S.string->S.String.pattern(%re(`/[0-9]/`)) // Invalid
-S.string->S.String.datetime() // Invalid datetime string! Must be UTC
+S.string->S.String.datetime // Invalid datetime string! Must be UTC
 
-S.string->S.String.trim() // trim whitespaces
+S.string->S.String.trim // trim whitespaces
 ```
 
 When using built-in refinements, you can provide a custom error message.
 
 ```rescript
-S.string->S.String.min(~message="String can't be empty", 1)
-S.string->S.String.length(~message="SMS code should be 5 digits long", 5)
+S.string->S.String.min(1, ~message="String can't be empty")
+S.string->S.String.length(5, ~message="SMS code should be 5 digits long")
 ```
 
 #### ISO datetimes
 
-The `S.string->S.String.datetime()` function has following UTC validation: no timezone offsets with arbitrary sub-second decimal precision.
+The `S.string->S.String.datetime` function has following UTC validation: no timezone offsets with arbitrary sub-second decimal precision.
 
 ```rescript
-let datetimeStruct = S.string->S.String.datetime()
+let datetimeStruct = S.string->S.String.datetime
 // The datetimeStruct has the type S.t<Date.t>
 // String is transformed to the Date.t instance
 
@@ -210,7 +210,7 @@ The `int` struct represents a data that is an integer.
 ```rescript
 S.int->S.Int.max(5) // Number must be lower than or equal to 5
 S.int->S.Int.min(5) // Number must be greater than or equal to 5
-S.int->S.Int.port() // Invalid port
+S.int->S.Int.port // Invalid port
 ```
 
 ### **`float`**
@@ -248,6 +248,38 @@ let struct = S.option(S.string)
 
 The `option` struct represents a data of a specific type that might be undefined.
 
+### **`Option.getOr`**
+
+`(S.t<option<'value>>, 'value) => S.t<'value>`
+
+```rescript
+let struct = S.option(S.string)->S.Option.getOr("Hello World!")
+
+%raw(`undefined`)->S.parseWith(struct)
+// Ok("Hello World!")
+%raw(`"Goodbye World!"`)->S.parseWith(struct)
+// Ok("Goodbye World!")
+```
+
+The `Option.getOr` augments a struct to add transformation logic for default values, which are applied when the input is undefined.
+
+> 🧠 If you want to set a default value for an object field, there's a more convenient `fieldOr` method on `Object.ctx` type.
+
+### **`Option.getOrWith`**
+
+`(S.t<option<'value>>, () => 'value) => S.t<'value>`
+
+```rescript
+let struct = S.option(S.array(S.string))->S.Option.getOrWith(() => ["Hello World!"])
+
+%raw(`undefined`)->S.parseWith(struct)
+// Ok(["Hello World!"])
+%raw(`["Goodbye World!"]`)->S.parseWith(struct)
+// Ok(["Goodbye World!"])
+```
+
+Also you can use `Option.getOrWith` for lazy evaluation of the default value.
+
 ### **`null`**
 
 `S.t<'value> => S.t<option<'value>>`
@@ -262,6 +294,8 @@ let struct = S.null(S.string)
 ```
 
 The `null` struct represents a data of a specific type that might be null.
+
+> 🧠 Since `null` transforms value into `option` type, you can use `Option.getOr`/`Option.getOrWith` for it as well.
 
 ### **`unit`**
 
@@ -679,21 +713,6 @@ let struct = S.jsonString(S.int)
 
 The `jsonString` struct represents a data that is a JSON string containing a value of a specific type.
 
-### **`default`**
-
-`(S.t<'value>, unit => 'value) => S.t<'value>`
-
-```rescript
-let struct = S.string->S.default(() => "Hello World!")
-
-%raw(`undefined`)->S.parseWith(struct)
-// Ok("Hello World!")
-%raw(`"Goodbye World!"`)->S.parseWith(struct)
-// Ok("Goodbye World!")
-```
-
-The `default` augments a struct to add transformation logic for default values, which are applied when the input is undefined.
-
 ### **`describe`**
 
 `(S.t<'value>, string) => S.t<'value>`
@@ -855,7 +874,7 @@ You can also use asynchronous parser:
 ```rescript
 let nodeStruct = S.recursive(nodeStruct => {
   S.object(s => {
-    id: s.field("Id", S.string)->S.asyncParserRefine(checkIsExistingNode),
+    params: s.field("Id", S.string)->S.transform(_ => {asyncParser: id => () => loadParams(id)}),
     children: s.field("Children", S.array(nodeStruct)),
   })
 })
@@ -884,24 +903,6 @@ let shortStringStruct = S.string->S.refine(s => value =>
 ```
 
 The refine function is applied for both parser and serializer.
-
-### **`asyncParserRefine`**
-
-`(S.t<'value>, effectCtx<'value> => 'value => promise<unit>) => S.t<'value>`
-
-Also, you can have an asynchronous refinement. It's applied only for parsing. Serializing is not affected.
-
-```rescript
-let userIdStruct = S.string->S.asyncParserRefine(s => userId =>
-  verfiyUserExistsInDb(~userId)->Promise.thenResolve(isExistingUser =>
-    if !isExistingUser {
-      s.fail("User doesn't exist")
-    }
-  )
-)
-```
-
-> 🧠 If you use async refinements, you must use the `parseAsyncWith` to parse data! Otherwise **rescript-struct** will return an `UnexpectedAsync` error.
 
 ## Transforms
 

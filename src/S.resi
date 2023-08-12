@@ -78,9 +78,9 @@ and operation =
 and unknownKeys = Strip | Strict
 
 type effectCtx<'value> = {
-  @as("s") struct: t<'value>,
-  @as("f") fail: 'a. (~path: Path.t=?, string) => 'a,
-  @as("w") failWithError: 'a. error => 'a,
+  struct: t<'value>,
+  fail: 'a. (string, ~path: Path.t=?) => 'a,
+  failWithError: 'a. error => 'a,
 }
 
 module Error: {
@@ -107,13 +107,11 @@ let null: t<'value> => t<option<'value>>
 let jsonString: t<'value> => t<'value>
 let union: array<t<'value>> => t<'value>
 
-let default: (t<'value>, unit => 'value) => t<'value>
-
 type catchCtx<'value> = {
   @as("e") error: error,
   @as("i") input: unknown,
   @as("s") struct: t<'value>,
-  @as("f") fail: 'a. (~path: Path.t=?, string) => 'a,
+  @as("f") fail: 'a. (string, ~path: Path.t=?) => 'a,
   @as("w") failWithError: 'a. error => 'a,
 }
 let catch: (t<'value>, catchCtx<'value> => 'value) => t<'value>
@@ -155,7 +153,6 @@ type customDefinition<'input, 'output> = {
 let custom: (string, effectCtx<'output> => customDefinition<'input, 'output>) => t<'output>
 
 let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value>
-let asyncParserRefine: (t<'value>, effectCtx<'value> => 'value => promise<unit>) => t<'value>
 
 let variant: (t<'value>, 'value => 'variant) => t<'variant>
 
@@ -187,7 +184,7 @@ let serializeWith: ('value, t<'value>) => result<Js.Json.t, error>
 
 let serializeToUnknownWith: ('value, t<'value>) => result<unknown, error>
 
-let serializeToJsonStringWith: ('value, ~space: int=?, t<'value>) => result<string, error>
+let serializeToJsonStringWith: ('value, t<'value>, ~space: int=?) => result<string, error>
 
 let serializeOrRaiseWith: ('value, t<'value>) => Js.Json.t
 
@@ -207,6 +204,7 @@ external toUnknown: t<'any> => t<unknown> = "%identity"
 module Object: {
   type ctx = {
     @as("f") field: 'value. (string, t<'value>) => 'value,
+    @as("o") fieldOr: 'value. (string, t<'value>, 'value) => 'value,
     @as("t") tag: 'value. (string, 'value) => unit,
   }
 
@@ -231,6 +229,15 @@ let tuple1: t<'value> => t<'value>
 let tuple2: (t<'v1>, t<'v2>) => t<('v1, 'v2)>
 let tuple3: (t<'v1>, t<'v2>, t<'v3>) => t<('v1, 'v2, 'v3)>
 
+module Option: {
+  type default = Value(unknown) | Callback(unit => unknown)
+
+  let default: t<'value> => option<default>
+
+  let getOr: (t<option<'value>>, 'value) => t<'value>
+  let getOrWith: (t<option<'value>>, unit => 'value) => t<'value>
+}
+
 module String: {
   module Refinement: {
     type kind =
@@ -251,16 +258,16 @@ module String: {
 
   let refinements: t<'value> => array<Refinement.t>
 
-  let min: (t<string>, ~message: string=?, int) => t<string>
-  let max: (t<string>, ~message: string=?, int) => t<string>
-  let length: (t<string>, ~message: string=?, int) => t<string>
-  let email: (t<string>, ~message: string=?, unit) => t<string>
-  let uuid: (t<string>, ~message: string=?, unit) => t<string>
-  let cuid: (t<string>, ~message: string=?, unit) => t<string>
-  let url: (t<string>, ~message: string=?, unit) => t<string>
-  let pattern: (t<string>, ~message: string=?, Js.Re.t) => t<string>
-  let datetime: (t<string>, ~message: string=?, unit) => t<Js.Date.t>
-  let trim: (t<string>, unit) => t<string>
+  let min: (t<string>, int, ~message: string=?) => t<string>
+  let max: (t<string>, int, ~message: string=?) => t<string>
+  let length: (t<string>, int, ~message: string=?) => t<string>
+  let email: (t<string>, ~message: string=?) => t<string>
+  let uuid: (t<string>, ~message: string=?) => t<string>
+  let cuid: (t<string>, ~message: string=?) => t<string>
+  let url: (t<string>, ~message: string=?) => t<string>
+  let pattern: (t<string>, Js.Re.t, ~message: string=?) => t<string>
+  let datetime: (t<string>, ~message: string=?) => t<Js.Date.t>
+  let trim: t<string> => t<string>
 }
 
 module Int: {
@@ -277,9 +284,9 @@ module Int: {
 
   let refinements: t<'value> => array<Refinement.t>
 
-  let min: (t<int>, ~message: string=?, int) => t<int>
-  let max: (t<int>, ~message: string=?, int) => t<int>
-  let port: (t<int>, ~message: string=?, unit) => t<int>
+  let min: (t<int>, int, ~message: string=?) => t<int>
+  let max: (t<int>, int, ~message: string=?) => t<int>
+  let port: (t<int>, ~message: string=?) => t<int>
 }
 
 module Float: {
@@ -295,8 +302,8 @@ module Float: {
 
   let refinements: t<'value> => array<Refinement.t>
 
-  let min: (t<float>, ~message: string=?, float) => t<float>
-  let max: (t<float>, ~message: string=?, float) => t<float>
+  let min: (t<float>, float, ~message: string=?) => t<float>
+  let max: (t<float>, float, ~message: string=?) => t<float>
 }
 
 module Array: {
@@ -313,13 +320,9 @@ module Array: {
 
   let refinements: t<'value> => array<Refinement.t>
 
-  let min: (t<array<'a>>, ~message: string=?, int) => t<array<'a>>
-  let max: (t<array<'a>>, ~message: string=?, int) => t<array<'a>>
-  let length: (t<array<'a>>, ~message: string=?, int) => t<array<'a>>
-}
-
-module Default: {
-  let classify: t<'value> => option<unknown>
+  let min: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
+  let max: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
+  let length: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
 }
 
 module Result: {

@@ -20,7 +20,7 @@ test("Example", t => {
   let filmStruct = S.object(s => {
     id: s.field("Id", S.float),
     title: s.field("Title", S.string),
-    tags: s.field("Tags", S.array(S.string)->S.default(() => [])),
+    tags: s.fieldOr("Tags", S.array(S.string), []),
     rating: s.field(
       "Rating",
       S.union([
@@ -30,7 +30,7 @@ test("Example", t => {
         S.literal(Restricted),
       ]),
     ),
-    deprecatedAgeRestriction: s.field("Age", S.int->S.option->S.deprecate("Use rating instead")),
+    deprecatedAgeRestriction: s.field("Age", S.option(S.int)->S.deprecate("Use rating instead")),
   })
 
   t->Assert.deepEqual(

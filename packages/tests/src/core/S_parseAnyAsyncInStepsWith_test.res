@@ -760,7 +760,7 @@ module Option = {
 
 module Defaulted = {
   asyncTest("[Default] Successfully parses", t => {
-    let struct = S.int->validAsyncRefine->validAsyncRefine->S.default(() => 10)
+    let struct = S.int->validAsyncRefine->validAsyncRefine->S.option->S.Option.getOrWith(() => 10)
 
     Promise.all([
       (1->S.parseAnyAsyncInStepsWith(struct)->Result.getExn)()->Promise.thenResolve(result => {
@@ -775,7 +775,7 @@ module Defaulted = {
   })
 
   asyncTest("[Default] Fails to parse with invalid async refine", t => {
-    let struct = S.int->invalidAsyncRefine->S.default(() => 10)
+    let struct = S.int->invalidAsyncRefine->S.option->S.Option.getOrWith(() => 10)
 
     (1->S.parseAnyAsyncInStepsWith(struct)->Result.getExn)()->Promise.thenResolve(result => {
       t->Assert.deepEqual(
@@ -792,7 +792,7 @@ module Defaulted = {
   })
 
   test("[Default] Returns sync error when fails to parse sync part of async item", t => {
-    let struct = S.int->validAsyncRefine->S.default(() => 10)
+    let struct = S.int->validAsyncRefine->S.option->S.Option.getOrWith(() => 10)
 
     t->Assert.deepEqual(
       true->S.parseAnyAsyncInStepsWith(struct),

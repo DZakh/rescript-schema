@@ -58,7 +58,7 @@
     "res:build": "rescript build -with-deps",
     "test:res": "cd ./packages/tests && rescript clean && rescript build -with-deps -w",
     "test": "ava",
-    "lint:stdlib": "rescript-stdlib-vendorer lint --project-path=packages/tests --ignore-path=tests/ppx/Ppx_Primitives_test.res --ignore-path=../../src"
+    "lint:stdlib": "rescript-stdlib-vendorer lint --project-path=packages/tests --ignore-path=src/ppx/Ppx_Primitives_test.res"
   },
   "ava": {
     "extensions": {

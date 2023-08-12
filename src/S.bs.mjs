@@ -246,8 +246,8 @@ function prependLocationOrRethrow(jsExn, $$location) {
 
 function make(selfStruct, path) {
   return {
-          s: selfStruct,
-          f: (function (customPathOpt, message) {
+          struct: selfStruct,
+          fail: (function (message, customPathOpt) {
               var customPath = customPathOpt !== undefined ? customPathOpt : "";
               throw {
                     c: {
@@ -258,7 +258,7 @@ function make(selfStruct, path) {
                     s: symbol
                   };
             }),
-          w: (function (error) {
+          failWithError: (function (error) {
               throw {
                     c: error.code,
                     p: path + error.path,
@@ -271,8 +271,6 @@ function make(selfStruct, path) {
 function classify$1(struct) {
   return struct.t;
 }
-
-var emptyMetadataMap = {};
 
 function noop(_b, param, inputVar, param$1) {
   return inputVar;
@@ -310,46 +308,44 @@ function varWithoutAllocation(b) {
   return "v" + newCounter;
 }
 
-function embedSyncOperation(b, inputVar, fn, isRefineOpt) {
-  var isRefine = isRefineOpt !== undefined ? isRefineOpt : false;
+function transform(b, inputVar, operation) {
   if (!b.a.has(inputVar)) {
-    if (isRefine) {
-      b.c = b.c + ("e[" + (b.e.push(fn) - 1) + "](" + inputVar + ");");
-      return inputVar;
-    } else {
-      return "e[" + (b.e.push(fn) - 1) + "](" + inputVar + ")";
-    }
+    return operation(b, inputVar);
   }
+  var prevCode = b.c;
+  b.c = "";
+  var operationOutputVar = operation(b, "t");
+  var isAsyncOperation = b.a.has(operationOutputVar);
   var outputVar = $$var(b);
   b.a.add(outputVar);
-  b.c = b.c + (outputVar + "=()=>" + inputVar + "().then(" + (
-      isRefine ? "t=>{" + ("e[" + (b.e.push(fn) - 1) + "]") + "(t);return " + inputVar + "}" : "e[" + (b.e.push(fn) - 1) + "]"
-    ) + ");");
+  b.c = prevCode + (outputVar + "=()=>" + inputVar + "().then(t=>{" + b.c + "return " + operationOutputVar + (
+      isAsyncOperation ? "()" : ""
+    ) + "});");
   return outputVar;
 }
 
-function embedAsyncOperation(b, inputVar, fn, isRefineOpt) {
+function embedSyncOperation(b, inputVar, fn, isRefineOpt) {
   var isRefine = isRefineOpt !== undefined ? isRefineOpt : false;
-  var asyncVars = b.a;
-  var isAsyncInput = asyncVars.has(inputVar);
-  var outputVar = $$var(b);
-  asyncVars.add(outputVar);
-  var tmp;
-  if (isAsyncInput) {
-    tmp = outputVar + "=()=>" + inputVar + "().then(t=>" + ("e[" + (b.e.push(fn) - 1) + "]") + "(t)()" + (
-      isRefine ? ".then(_=>t)" : ""
-    ) + ");";
-  } else {
-    var code = "e[" + (b.e.push(fn) - 1) + "](" + inputVar + ")";
-    if (isRefine) {
-      var syncResultVar = $$var(b);
-      tmp = syncResultVar + "=" + code + ";" + outputVar + "=()=>" + syncResultVar + "().then(_=>" + inputVar + ");";
-    } else {
-      tmp = outputVar + "=" + code + ";";
-    }
-  }
-  b.c = b.c + tmp;
-  return outputVar;
+  return transform(b, inputVar, (function (b, inputVar) {
+                if (isRefine) {
+                  b.c = b.c + ("e[" + (b.e.push(fn) - 1) + "](" + inputVar + ");");
+                  return inputVar;
+                } else {
+                  return "e[" + (b.e.push(fn) - 1) + "](" + inputVar + ")";
+                }
+              }));
+}
+
+function embedAsyncOperation(b, inputVar, fn) {
+  return transform(b, inputVar, (function (b, inputVar) {
+                if (b.a.has(inputVar)) {
+                  return "e[" + (b.e.push(fn) - 1) + "](" + inputVar + ")";
+                }
+                var outputVar = $$var(b);
+                b.a.add(outputVar);
+                b.c = b.c + (outputVar + "=" + ("e[" + (b.e.push(fn) - 1) + "]") + "(" + inputVar + ");");
+                return outputVar;
+              }));
 }
 
 function raiseWithArg(b, path, fn, arg) {
@@ -374,12 +370,45 @@ function invalidOperation(_b, path, description) {
       };
 }
 
-function withRethrow(b, path, maybeDynamicLocationVar, fn) {
+function withCatch(b, $$catch, fn) {
   var prevCode = b.c;
   b.c = "";
-  var fnOutputVar;
+  var errorVar = "t";
+  var maybeResolveVar = $$catch(b, errorVar);
+  var catchCode = "if(" + (errorVar + "&&" + errorVar + ".s===s") + "){" + b.c;
+  b.c = "";
+  var fnOutputVar = fn(b);
+  var isAsync = b.a.has(fnOutputVar);
+  var isInlined = fnOutputVar[0] !== "v";
+  var outputVar = isAsync || isInlined ? $$var(b) : fnOutputVar;
+  var catchCode$1 = maybeResolveVar !== undefined ? (function (catchLocation) {
+        return catchCode + (
+                catchLocation === 1 ? "return Promise.resolve(" + maybeResolveVar + ")" : (
+                    catchLocation === 2 ? "return " + maybeResolveVar : (
+                        isAsync ? outputVar + "=()=>Promise.resolve(" + maybeResolveVar + ")" : outputVar + "=" + maybeResolveVar
+                      )
+                  )
+              ) + ("}else{throw " + errorVar + "}");
+      }) : (function (param) {
+        return catchCode + "}throw " + errorVar;
+      });
+  b.c = prevCode + ("try{" + b.c + (
+      isAsync ? (b.a.add(outputVar), outputVar + "=()=>{try{return " + fnOutputVar + "().catch(" + errorVar + "=>{" + catchCode$1(2) + "})}catch(" + errorVar + "){" + catchCode$1(1) + "}};") : (
+          isInlined ? outputVar + "=" + fnOutputVar : ""
+        )
+    ) + "}catch(" + errorVar + "){" + catchCode$1(0) + "}");
+  return outputVar;
+}
+
+function withPathPrepend(b, path, maybeDynamicLocationVar, fn) {
   try {
-    fnOutputVar = fn(b, "");
+    return withCatch(b, (function (b, errorVar) {
+                  b.c = errorVar + ".p=" + JSON.stringify(path) + "+" + (
+                    maybeDynamicLocationVar !== undefined ? "'[\"'+" + maybeDynamicLocationVar + "+'\"]'+" : ""
+                  ) + errorVar + ".p";
+                }), (function (b) {
+                  return fn(b, "");
+                }));
   }
   catch (raw_jsExn){
     var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
@@ -393,20 +422,6 @@ function withRethrow(b, path, maybeDynamicLocationVar, fn) {
     }
     throw jsExn;
   }
-  var isAsync = b.a.has(fnOutputVar);
-  var isInlined = fnOutputVar[0] !== "v";
-  var outputVar = isAsync || isInlined ? $$var(b) : fnOutputVar;
-  var rethrowCode = "if(t&&t.s===s){t.p=" + JSON.stringify(path) + "+" + (
-    maybeDynamicLocationVar !== undefined ? "'[\"'+" + maybeDynamicLocationVar + "+'\"]'+" : ""
-  ) + "t.p}throw t";
-  b.c = prevCode + ("try{" + b.c + (
-      isInlined && !isAsync ? outputVar + "=" + fnOutputVar : ""
-    ) + "}catch(t){" + rethrowCode + "}");
-  if (isAsync) {
-    b.a.add(outputVar);
-    b.c = b.c + (outputVar + "=()=>{try{return " + fnOutputVar + "().catch(t=>{" + rethrowCode + "})}catch(t){" + rethrowCode + "}};");
-  }
-  return outputVar;
 }
 
 function run(b, builder, struct, inputVar, path) {
@@ -441,6 +456,7 @@ function build(builder, struct) {
           var outputVar = run(b, builder, struct, intitialInputVar, "");
           return "return " + outputVar;
         })) + "}";
+  console.log(inlinedFunction);
   return new Function("e", "s", "return " + inlinedFunction)(b.e, symbol);
 }
 
@@ -832,7 +848,7 @@ function serializeWith(value, struct) {
   }
 }
 
-function serializeToJsonStringWith(value, spaceOpt, struct) {
+function serializeToJsonStringWith(value, struct, spaceOpt) {
   var space = spaceOpt !== undefined ? spaceOpt : 0;
   var json = serializeWith(value, struct);
   if (json.TAG === "Ok") {
@@ -878,8 +894,50 @@ function parseJsonStringWith(json, struct) {
   }
 }
 
+function make$1(namespace, name) {
+  return namespace + ":" + name;
+}
+
+var Id = {
+  make: make$1
+};
+
+var empty = {};
+
+var make1 = ((id,metadata)=>({[id]:metadata}));
+
+function set(map, id, metadata) {
+  if (map === empty) {
+    return ({[id]:metadata});
+  }
+  var copy = Object.assign({}, map);
+  copy[id] = metadata;
+  return copy;
+}
+
+function get(struct, id) {
+  return struct.m[id];
+}
+
+function set$1(struct, id, metadata) {
+  var metadataMap = set(struct.m, id, metadata);
+  return {
+          t: struct.t,
+          pb: struct.pb,
+          sb: struct.sb,
+          i: 0,
+          s: initialSerialize,
+          j: initialSerializeToJson,
+          p: intitialParse,
+          a: intitialParseAsync,
+          m: metadataMap
+        };
+}
+
 function recursive(fn) {
-  var placeholder = ({m:emptyMetadataMap});
+  var placeholder = {
+    m: empty
+  };
   var struct = fn(placeholder);
   Object.assign(placeholder, struct);
   var builder = placeholder.pb;
@@ -898,7 +956,7 @@ function recursive(fn) {
           if (isAsync) {
             return embedAsyncOperation(b, inputVar, (function (input) {
                           return selfStruct.a(input);
-                        }), undefined);
+                        }));
           } else {
             return embedSyncOperation(b, inputVar, (function (input) {
                           return selfStruct.p(input);
@@ -907,9 +965,9 @@ function recursive(fn) {
         });
       compileParser(selfStruct, builder);
       selfStruct.pb = builder;
-      return withRethrow(b, path, undefined, (function (b, param) {
+      return withPathPrepend(b, path, undefined, (function (b, param) {
                     if (isAsync) {
-                      return embedAsyncOperation(b, inputVar, selfStruct.a, undefined);
+                      return embedAsyncOperation(b, inputVar, selfStruct.a);
                     } else {
                       return embedSyncOperation(b, inputVar, selfStruct.p, undefined);
                     }
@@ -924,47 +982,11 @@ function recursive(fn) {
         });
       compileSerializer(selfStruct, builder$1);
       selfStruct.sb = builder$1;
-      return withRethrow(b, path, undefined, (function (b, param) {
+      return withPathPrepend(b, path, undefined, (function (b, param) {
                     return embedSyncOperation(b, inputVar, selfStruct.s, undefined);
                   }));
     });
   return placeholder;
-}
-
-function make$1(namespace, name) {
-  return namespace + ":" + name;
-}
-
-var Id = {
-  make: make$1
-};
-
-var make1 = ((id,metadata)=>({[id]:metadata}));
-
-function get(struct, id) {
-  return struct.m[id];
-}
-
-function set(struct, id, metadata) {
-  var metadataMap;
-  if (struct.m === emptyMetadataMap) {
-    metadataMap = make1(id, metadata);
-  } else {
-    var copy = Object.assign({}, struct.m);
-    copy[id] = metadata;
-    metadataMap = copy;
-  }
-  return {
-          t: struct.t,
-          pb: struct.pb,
-          sb: struct.sb,
-          i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
-          m: metadataMap
-        };
 }
 
 var nameMetadataId = "rescript-struct:name";
@@ -1008,7 +1030,7 @@ function name(struct) {
 }
 
 function setName(struct, name) {
-  return set(struct, nameMetadataId, name);
+  return set$1(struct, nameMetadataId, name);
 }
 
 function refine(struct, refiner) {
@@ -1029,33 +1051,12 @@ function refine(struct, refiner) {
         };
 }
 
-function asyncParserRefine(struct, refiner) {
-  return {
-          t: struct.t,
-          pb: (function (b, selfStruct, inputVar, path) {
-              var asyncFn = refiner(make(selfStruct, path));
-              return embedAsyncOperation(b, run(b, struct.pb, struct, inputVar, path), (function (i) {
-                            return function () {
-                              return asyncFn(i);
-                            };
-                          }), true);
-            }),
-          sb: struct.sb,
-          i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
-          m: struct.m
-        };
-}
-
 function addRefinement(struct, metadataId, refinement, refiner) {
   var refinements = struct.m[metadataId];
-  return refine(set(struct, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), refiner);
+  return refine(set$1(struct, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), refiner);
 }
 
-function transform(struct, transformer) {
+function transform$1(struct, transformer) {
   return {
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, path) {
@@ -1071,7 +1072,7 @@ function transform(struct, transformer) {
               }
               var asyncParser = match.a;
               if (asyncParser !== undefined) {
-                return embedAsyncOperation(b, inputVar$1, asyncParser, undefined);
+                return embedAsyncOperation(b, inputVar$1, asyncParser);
               } else if (match.s !== undefined) {
                 return invalidOperation(b, path, "The S.transform parser is missing");
               } else {
@@ -1135,7 +1136,7 @@ function preprocess(struct, transformer) {
               if (asyncParser === undefined) {
                 return run(b, struct.pb, struct, inputVar, path);
               }
-              var parseResultVar = embedAsyncOperation(b, inputVar, asyncParser, undefined);
+              var parseResultVar = embedAsyncOperation(b, inputVar, asyncParser);
               var outputVar = $$var(b);
               b.c = b.c + (outputVar + "=()=>" + parseResultVar + "().then(t=>{" + scope(b, (function (b) {
                         var structOutputVar = run(b, struct.pb, struct, "t", path);
@@ -1180,7 +1181,7 @@ function custom(name, definer) {
               }
               var asyncParser = match.a;
               if (asyncParser !== undefined) {
-                return embedAsyncOperation(b, inputVar, asyncParser, undefined);
+                return embedAsyncOperation(b, inputVar, asyncParser);
               } else if (match.s !== undefined) {
                 return invalidOperation(b, path, "The S.custom parser is missing");
               } else {
@@ -1210,6 +1211,12 @@ function custom(name, definer) {
 function literalCheckBuilder(b, value, inputVar) {
   if (Number.isNaN(value)) {
     return "Number.isNaN(" + inputVar + ")";
+  }
+  if (value === null) {
+    return inputVar + "===null";
+  }
+  if (value === (void 0)) {
+    return inputVar + "===void 0";
   }
   var check = inputVar + "===" + ("e[" + (b.e.push(value) - 1) + "]");
   if (Array.isArray(value)) {
@@ -1255,7 +1262,7 @@ function literal(value) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          m: emptyMetadataMap
+          m: empty
         };
 }
 
@@ -1338,6 +1345,109 @@ function factory(struct, definer) {
           p: intitialParse,
           a: intitialParseAsync,
           m: struct.m
+        };
+}
+
+var defaultMetadataId = "rescript-struct:Option.default";
+
+function $$default(struct) {
+  return struct.m[defaultMetadataId];
+}
+
+function parseOperationBuilder(b, selfStruct, inputVar, path) {
+  var outputVar = $$var(b);
+  var isNull = (selfStruct.t.TAG === "Null");
+  var innerStruct = selfStruct.t._0;
+  var ifCode = scope(b, (function (b) {
+          return outputVar + "=" + run(b, innerStruct.pb, innerStruct, inputVar, path);
+        }));
+  var isAsync = innerStruct.i;
+  b.c = b.c + ("if(" + inputVar + "!==" + (
+      isNull ? "null" : "void 0"
+    ) + "){" + ifCode + "}else{" + outputVar + "=" + (
+      isAsync ? "()=>Promise.resolve(void 0)" : "void 0"
+    ) + "}");
+  return outputVar;
+}
+
+function serializeOperationBuilder(b, selfStruct, inputVar, path) {
+  var outputVar = $$var(b);
+  var isNull = (selfStruct.t.TAG === "Null");
+  var innerStruct = selfStruct.t._0;
+  b.c = b.c + ("if(" + inputVar + "!==void 0){" + scope(b, (function (b) {
+            var value = Caml_option.valFromOption;
+            return outputVar + "=" + run(b, innerStruct.sb, innerStruct, "e[" + (b.e.push(value) - 1) + "](" + inputVar + ")", path);
+          })) + "}else{" + outputVar + "=" + (
+      isNull ? "null" : "void 0"
+    ) + "}");
+  return outputVar;
+}
+
+function factory$1(struct) {
+  return {
+          t: {
+            TAG: "Option",
+            _0: struct
+          },
+          pb: parseOperationBuilder,
+          sb: serializeOperationBuilder,
+          i: 0,
+          s: initialSerialize,
+          j: initialSerializeToJson,
+          p: intitialParse,
+          a: intitialParseAsync,
+          m: empty
+        };
+}
+
+function getWithDefault(struct, $$default) {
+  return {
+          t: struct.t,
+          pb: (function (b, param, inputVar, path) {
+              return transform(b, run(b, struct.pb, struct, inputVar, path), (function (b, inputVar) {
+                            var tmp;
+                            tmp = $$default.TAG === "Value" ? "e[" + (b.e.push($$default._0) - 1) + "]" : "e[" + (b.e.push($$default._0) - 1) + "]()";
+                            return inputVar + "===void 0?" + tmp + ":" + inputVar;
+                          }));
+            }),
+          sb: struct.sb,
+          i: 0,
+          s: initialSerialize,
+          j: initialSerializeToJson,
+          p: intitialParse,
+          a: intitialParseAsync,
+          m: set(struct.m, defaultMetadataId, $$default)
+        };
+}
+
+function getOr(struct, defalutValue) {
+  return getWithDefault(struct, {
+              TAG: "Value",
+              _0: defalutValue
+            });
+}
+
+function getOrWith(struct, defalutCb) {
+  return getWithDefault(struct, {
+              TAG: "Callback",
+              _0: defalutCb
+            });
+}
+
+function factory$2(struct) {
+  return {
+          t: {
+            TAG: "Null",
+            _0: struct
+          },
+          pb: parseOperationBuilder,
+          sb: serializeOperationBuilder,
+          i: 0,
+          s: initialSerialize,
+          j: initialSerializeToJson,
+          p: intitialParse,
+          a: intitialParseAsync,
+          m: empty
         };
 }
 
@@ -1428,7 +1538,7 @@ function typeRefinement(b, selfStruct, inputVar, path) {
           }), inputVar) + "}");
 }
 
-function factory$1(definer) {
+function factory$3(definer) {
   var fields = {};
   var fieldNames = [];
   var itemDefinitionsSet = new Set();
@@ -1451,11 +1561,15 @@ function factory$1(definer) {
   var tag = function (tag$1, asValue) {
     field(tag$1, literal(asValue));
   };
+  var fieldOr = function (fieldName, struct, or) {
+    return field(fieldName, getOr(factory$1(struct), or));
+  };
   var ctx = {
     n: fieldNames,
     h: fields,
     d: itemDefinitionsSet,
     f: field,
+    o: fieldOr,
     t: tag
   };
   var definition = definer(ctx);
@@ -1575,7 +1689,7 @@ function factory$1(definer) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          m: emptyMetadataMap
+          m: empty
         };
 }
 
@@ -1647,7 +1761,7 @@ var struct = {
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
-  m: emptyMetadataMap
+  m: empty
 };
 
 var struct$1 = {
@@ -1659,7 +1773,7 @@ var struct$1 = {
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
-  m: emptyMetadataMap
+  m: empty
 };
 
 var metadataId = "rescript-struct:String.refinements";
@@ -1681,7 +1795,7 @@ var emailRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\")
 
 var datetimeRe = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
-function parseOperationBuilder(b, selfStruct, inputVar, path) {
+function parseOperationBuilder$1(b, selfStruct, inputVar, path) {
   b.c = b.c + ("if(typeof " + inputVar + "!==\"string\"){" + raiseWithArg(b, path, (function (input) {
             return {
                     TAG: "InvalidType",
@@ -1694,22 +1808,22 @@ function parseOperationBuilder(b, selfStruct, inputVar, path) {
 
 var struct$2 = {
   t: "String",
-  pb: parseOperationBuilder,
+  pb: parseOperationBuilder$1,
   sb: noop,
   i: 0,
   s: initialSerialize,
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
-  m: emptyMetadataMap
+  m: empty
 };
 
-function min(struct, maybeMessage, length) {
-  var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length.toString() + " or more characters long";
+function min(struct, length, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length + " or more characters long";
   var refiner = function (s) {
     return function (value) {
       if (value.length < length) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -1723,12 +1837,12 @@ function min(struct, maybeMessage, length) {
             }, refiner);
 }
 
-function max(struct, maybeMessage, length) {
-  var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length.toString() + " or fewer characters long";
+function max(struct, length, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length + " or fewer characters long";
   var refiner = function (s) {
     return function (value) {
       if (value.length > length) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -1742,12 +1856,12 @@ function max(struct, maybeMessage, length) {
             }, refiner);
 }
 
-function length(struct, maybeMessage, length$1) {
-  var message = maybeMessage !== undefined ? maybeMessage : "String must be exactly " + length$1.toString() + " characters long";
+function length(struct, length$1, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "String must be exactly " + length$1 + " characters long";
   var refiner = function (s) {
     return function (value) {
       if (value.length !== length$1) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -1761,12 +1875,12 @@ function length(struct, maybeMessage, length$1) {
             }, refiner);
 }
 
-function email(struct, messageOpt, param) {
+function email(struct, messageOpt) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid email address";
   var refiner = function (s) {
     return function (value) {
       if (!emailRegex.test(value)) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -1777,12 +1891,12 @@ function email(struct, messageOpt, param) {
             }, refiner);
 }
 
-function uuid(struct, messageOpt, param) {
+function uuid(struct, messageOpt) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid UUID";
   var refiner = function (s) {
     return function (value) {
       if (!uuidRegex.test(value)) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -1793,12 +1907,12 @@ function uuid(struct, messageOpt, param) {
             }, refiner);
 }
 
-function cuid(struct, messageOpt, param) {
+function cuid(struct, messageOpt) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid CUID";
   var refiner = function (s) {
     return function (value) {
       if (!cuidRegex.test(value)) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -1809,7 +1923,7 @@ function cuid(struct, messageOpt, param) {
             }, refiner);
 }
 
-function url(struct, messageOpt, param) {
+function url(struct, messageOpt) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid url";
   var refiner = function (s) {
     return function (value) {
@@ -1822,7 +1936,7 @@ function url(struct, messageOpt, param) {
         tmp = false;
       }
       if (!tmp) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -1833,13 +1947,13 @@ function url(struct, messageOpt, param) {
             }, refiner);
 }
 
-function pattern(struct, messageOpt, re) {
+function pattern(struct, re, messageOpt) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid";
   var refiner = function (s) {
     return function (value) {
       re.lastIndex = 0;
       if (!re.test(value)) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -1853,18 +1967,18 @@ function pattern(struct, messageOpt, re) {
             }, refiner);
 }
 
-function datetime(struct, messageOpt, param) {
+function datetime(struct, messageOpt) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid datetime string! Must be UTC";
   var refinement = {
     kind: "Datetime",
     message: message
   };
   var refinements = struct.m[metadataId];
-  return transform(set(struct, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), (function (s) {
+  return transform$1(set$1(struct, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), (function (s) {
                 return {
                         p: (function (string) {
                             if (!datetimeRe.test(string)) {
-                              s.f(undefined, message);
+                              s.fail(message, undefined);
                             }
                             return new Date(string);
                           }),
@@ -1875,11 +1989,11 @@ function datetime(struct, messageOpt, param) {
               }));
 }
 
-function trim(struct, param) {
+function trim(struct) {
   var transformer = function (string) {
     return string.trim();
   };
-  return transform(struct, (function (param) {
+  return transform$1(struct, (function (param) {
                 return {
                         p: transformer,
                         s: transformer
@@ -1887,7 +2001,7 @@ function trim(struct, param) {
               }));
 }
 
-function factory$2(struct) {
+function factory$4(struct) {
   try {
     validateJsonableStruct(struct, struct, true, undefined);
   }
@@ -1903,7 +2017,7 @@ function factory$2(struct) {
   return {
           t: "String",
           pb: (function (b, selfStruct, inputVar, path) {
-              var jsonStringVar = run(b, parseOperationBuilder, selfStruct, inputVar, path);
+              var jsonStringVar = run(b, parseOperationBuilder$1, selfStruct, inputVar, path);
               var jsonVar = $$var(b);
               b.c = b.c + ("try{" + jsonVar + "=JSON.parse(" + jsonStringVar + ")}catch(t){" + raiseWithArg(b, path, (function (message) {
                         return {
@@ -1921,7 +2035,7 @@ function factory$2(struct) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          m: emptyMetadataMap
+          m: empty
         };
 }
 
@@ -1943,7 +2057,7 @@ var struct$3 = {
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
-  m: emptyMetadataMap
+  m: empty
 };
 
 var metadataId$1 = "rescript-struct:Int.refinements";
@@ -1975,15 +2089,15 @@ var struct$4 = {
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
-  m: emptyMetadataMap
+  m: empty
 };
 
-function min$1(struct, maybeMessage, minValue) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue.toString();
+function min$1(struct, minValue, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue;
   var refiner = function (s) {
     return function (value) {
       if (value < minValue) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -1997,12 +2111,12 @@ function min$1(struct, maybeMessage, minValue) {
             }, refiner);
 }
 
-function max$1(struct, maybeMessage, maxValue) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue.toString();
+function max$1(struct, maxValue, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue;
   var refiner = function (s) {
     return function (value) {
       if (value > maxValue) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -2016,12 +2130,12 @@ function max$1(struct, maybeMessage, maxValue) {
             }, refiner);
 }
 
-function port(struct, messageOpt, param) {
+function port(struct, messageOpt) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid port";
   var refiner = function (s) {
     return function (value) {
       if (value < 1 || value > 65535) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -2061,15 +2175,15 @@ var struct$5 = {
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
-  m: emptyMetadataMap
+  m: empty
 };
 
-function min$2(struct, maybeMessage, minValue) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue.toString();
+function min$2(struct, minValue, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue;
   var refiner = function (s) {
     return function (value) {
       if (value < minValue) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -2083,12 +2197,12 @@ function min$2(struct, maybeMessage, minValue) {
             }, refiner);
 }
 
-function max$2(struct, maybeMessage, maxValue) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue.toString();
+function max$2(struct, maxValue, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue;
   var refiner = function (s) {
     return function (value) {
       if (value > maxValue) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -2100,75 +2214,6 @@ function max$2(struct, maybeMessage, maxValue) {
               },
               message: message
             }, refiner);
-}
-
-function factory$3(struct) {
-  return {
-          t: {
-            TAG: "Null",
-            _0: struct
-          },
-          pb: (function (b, param, inputVar, path) {
-              var outputVar = $$var(b);
-              var ifCode = scope(b, (function (b) {
-                      var structOutputVar = run(b, struct.pb, struct, inputVar, path);
-                      return outputVar + "=" + embedSyncOperation(b, structOutputVar, Caml_option.some, undefined);
-                    }));
-              var isAsync = struct.i;
-              b.c = b.c + ("if(" + inputVar + "!==null){" + ifCode + "}else{" + outputVar + "=" + (
-                  isAsync ? "()=>Promise.resolve(void 0)" : "void 0"
-                ) + "}");
-              return outputVar;
-            }),
-          sb: (function (b, param, inputVar, path) {
-              var outputVar = $$var(b);
-              b.c = b.c + ("if(" + inputVar + "!==void 0){" + scope(b, (function (b) {
-                        var value = Caml_option.valFromOption;
-                        return outputVar + "=" + run(b, struct.sb, struct, "e[" + (b.e.push(value) - 1) + "](" + inputVar + ")", path);
-                      })) + "}else{" + outputVar + "=null}");
-              return outputVar;
-            }),
-          i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
-          m: emptyMetadataMap
-        };
-}
-
-function factory$4(struct) {
-  return {
-          t: {
-            TAG: "Option",
-            _0: struct
-          },
-          pb: (function (b, param, inputVar, path) {
-              var outputVar = $$var(b);
-              var ifCode = scope(b, (function (b) {
-                      return outputVar + "=" + embedSyncOperation(b, run(b, struct.pb, struct, inputVar, path), Caml_option.some, undefined);
-                    }));
-              var isAsync = struct.i;
-              b.c = b.c + ("if(" + inputVar + "!==void 0){" + ifCode + "}else{" + outputVar + "=" + (
-                  isAsync ? "()=>Promise.resolve(" + inputVar + ")" : inputVar
-                ) + "}");
-              return outputVar;
-            }),
-          sb: (function (b, param, inputVar, path) {
-              var outputVar = $$var(b);
-              b.c = b.c + ("if(" + inputVar + "!==void 0){" + scope(b, (function (b) {
-                        var value = Caml_option.valFromOption;
-                        return outputVar + "=" + run(b, struct.sb, struct, "e[" + (b.e.push(value) - 1) + "](" + inputVar + ")", path);
-                      })) + "}else{" + outputVar + "=void 0}");
-              return outputVar;
-            }),
-          i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
-          m: emptyMetadataMap
-        };
 }
 
 var metadataId$3 = "rescript-struct:Array.refinements";
@@ -2200,7 +2245,7 @@ function factory$5(struct) {
                       }), inputVar) + "}" + outputVar + "=[];for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
                         var itemVar = $$var(b);
                         b.c = b.c + (itemVar + "=" + inputVar + "[" + iteratorVar + "];");
-                        var itemOutputVar = withRethrow(b, path, iteratorVar, (function (b, path) {
+                        var itemOutputVar = withPathPrepend(b, path, iteratorVar, (function (b, path) {
                                 return run(b, struct.pb, struct, itemVar, path);
                               }));
                         return outputVar + ".push(" + itemOutputVar + ")";
@@ -2219,7 +2264,7 @@ function factory$5(struct) {
               b.c = b.c + (outputVar + "=[];for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
                         var itemVar = $$var(b);
                         b.c = b.c + (itemVar + "=" + inputVar + "[" + iteratorVar + "];");
-                        var itemOutputVar = withRethrow(b, path, iteratorVar, (function (b, path) {
+                        var itemOutputVar = withPathPrepend(b, path, iteratorVar, (function (b, path) {
                                 return run(b, struct.sb, struct, itemVar, path);
                               }));
                         return outputVar + ".push(" + itemOutputVar + ")";
@@ -2231,16 +2276,16 @@ function factory$5(struct) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          m: emptyMetadataMap
+          m: empty
         };
 }
 
-function min$3(struct, maybeMessage, length) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length.toString() + " or more items long";
+function min$3(struct, length, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length + " or more items long";
   var refiner = function (s) {
     return function (value) {
       if (value.length < length) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -2254,12 +2299,12 @@ function min$3(struct, maybeMessage, length) {
             }, refiner);
 }
 
-function max$3(struct, maybeMessage, length) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length.toString() + " or fewer items long";
+function max$3(struct, length, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length + " or fewer items long";
   var refiner = function (s) {
     return function (value) {
       if (value.length > length) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -2273,12 +2318,12 @@ function max$3(struct, maybeMessage, length) {
             }, refiner);
 }
 
-function length$1(struct, maybeMessage, length$2) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Array must be exactly " + length$2.toString() + " items long";
+function length$1(struct, length$2, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Array must be exactly " + length$2 + " items long";
   var refiner = function (s) {
     return function (value) {
       if (value.length !== length$2) {
-        return s.f(undefined, message);
+        return s.fail(message, undefined);
       }
       
     };
@@ -2305,7 +2350,7 @@ function factory$6(struct) {
               b.c = b.c + (outputVar + "={};for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
                         var itemVar = $$var(b);
                         b.c = b.c + (itemVar + "=" + inputVar + "[" + keyVar + "];");
-                        var itemOutputVar = withRethrow(b, path, keyVar, (function (b, path) {
+                        var itemOutputVar = withPathPrepend(b, path, keyVar, (function (b, path) {
                                 return run(b, struct.pb, struct, itemVar, path);
                               }));
                         return outputVar + "[" + keyVar + "]=" + itemOutputVar;
@@ -2328,7 +2373,7 @@ function factory$6(struct) {
               b.c = b.c + (outputVar + "={};for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
                         var itemVar = $$var(b);
                         b.c = b.c + (itemVar + "=" + inputVar + "[" + keyVar + "];");
-                        var itemOutputVar = withRethrow(b, path, keyVar, (function (b, path) {
+                        var itemOutputVar = withPathPrepend(b, path, keyVar, (function (b, path) {
                                 return run(b, struct.sb, struct, itemVar, path);
                               }));
                         return outputVar + "[" + keyVar + "]=" + itemOutputVar;
@@ -2340,47 +2385,11 @@ function factory$6(struct) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          m: emptyMetadataMap
+          m: empty
         };
 }
 
-var metadataId$4 = "rescript-struct:Default";
-
-function factory$7(struct, getDefaultValue) {
-  var struct$1 = factory$4(struct);
-  return set({
-              t: struct$1.t,
-              pb: (function (b, param, inputVar, path) {
-                  var outputVar = $$var(b);
-                  var ifCode = scope(b, (function (b) {
-                          return outputVar + "=" + embedSyncOperation(b, run(b, struct$1.pb, struct$1, inputVar, path), Caml_option.some, undefined);
-                        }));
-                  var defaultValVar = "e[" + (b.e.push(getDefaultValue) - 1) + "]()";
-                  var isAsync = struct$1.i;
-                  b.c = b.c + ("if(" + inputVar + "!==void 0){" + ifCode + "}else{" + outputVar + "=" + (
-                      isAsync ? "()=>Promise.resolve(" + defaultValVar + ")" : defaultValVar
-                    ) + "}");
-                  return outputVar;
-                }),
-              sb: struct$1.sb,
-              i: 0,
-              s: initialSerialize,
-              j: initialSerializeToJson,
-              p: intitialParse,
-              a: intitialParseAsync,
-              m: emptyMetadataMap
-            }, metadataId$4, getDefaultValue);
-}
-
-function classify$2(struct) {
-  var getDefaultValue = struct.m[metadataId$4];
-  if (getDefaultValue !== undefined) {
-    return Caml_option.some(getDefaultValue(undefined));
-  }
-  
-}
-
-function factory$8(definer) {
+function factory$7(definer) {
   var structs = [];
   var itemDefinitionsSet = new Set();
   var item = function (idx, struct) {
@@ -2522,11 +2531,11 @@ function factory$8(definer) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          m: emptyMetadataMap
+          m: empty
         };
 }
 
-function factory$9(structs) {
+function factory$8(structs) {
   if (structs.length < 2) {
     throw new Error("[rescript-struct] A Union struct factory require at least two structs.");
   }
@@ -2623,12 +2632,12 @@ function factory$9(structs) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          m: emptyMetadataMap
+          m: empty
         };
 }
 
 function list(struct) {
-  return transform(factory$5(struct), (function (param) {
+  return transform$1(factory$5(struct), (function (param) {
                 return {
                         p: Belt_List.fromArray,
                         s: Belt_List.toArray
@@ -2699,50 +2708,42 @@ var json = {
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
-  m: emptyMetadataMap
+  m: empty
 };
 
 function $$catch(struct, getFallbackValue) {
   return {
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, path) {
-              var outputVar = $$var(b);
-              var syncTryCode = scope(b, (function (b) {
-                      return outputVar + "=" + run(b, struct.pb, struct, inputVar, path);
-                    }));
-              var isAsync = struct.i;
-              var fallbackValVar = "e[" + (b.e.push(function (input, internalError) {
-                      return getFallbackValue({
-                                  e: toParseError(internalError),
-                                  i: input,
-                                  s: selfStruct,
-                                  f: (function (customPathOpt, message) {
-                                      var customPath = customPathOpt !== undefined ? customPathOpt : "";
-                                      throw {
-                                            c: {
-                                              TAG: "OperationFailed",
-                                              _0: message
-                                            },
-                                            p: path + customPath,
-                                            s: symbol
-                                          };
-                                    }),
-                                  w: (function (error) {
-                                      throw {
-                                            c: error.code,
-                                            p: path + error.path,
-                                            s: symbol
-                                          };
-                                    })
-                                });
-                    }) - 1) + "](" + inputVar + ",t)";
-              if (isAsync) {
-                var asyncOutputVar = $$var(b);
-                b.c = b.c + ("try{" + syncTryCode + ";" + asyncOutputVar + "=()=>{try{return " + outputVar + "().catch(t=>{if(t&&t.s===s){return " + fallbackValVar + "}else{throw t}})}catch(t){if(t&&t.s===s){return Promise.resolve(" + fallbackValVar + ")}else{throw t}}}}catch(t){if(t&&t.s===s){" + asyncOutputVar + "=()=>Promise.resolve(" + fallbackValVar + ")}else{throw t}}");
-                return asyncOutputVar;
-              }
-              b.c = b.c + ("try{" + syncTryCode + "}catch(t){if(t&&t.s===s){" + outputVar + "=" + fallbackValVar + "}else{throw t}}");
-              return outputVar;
+              return withCatch(b, (function (b, errorVar) {
+                            return "e[" + (b.e.push(function (input, internalError) {
+                                          return getFallbackValue({
+                                                      e: toParseError(internalError),
+                                                      i: input,
+                                                      s: selfStruct,
+                                                      f: (function (message, customPathOpt) {
+                                                          var customPath = customPathOpt !== undefined ? customPathOpt : "";
+                                                          throw {
+                                                                c: {
+                                                                  TAG: "OperationFailed",
+                                                                  _0: message
+                                                                },
+                                                                p: path + customPath,
+                                                                s: symbol
+                                                              };
+                                                        }),
+                                                      w: (function (error) {
+                                                          throw {
+                                                                c: error.code,
+                                                                p: path + error.path,
+                                                                s: symbol
+                                                              };
+                                                        })
+                                                    });
+                                        }) - 1) + "](" + inputVar + "," + errorVar + ")";
+                          }), (function (b) {
+                            return run(b, struct.pb, struct, inputVar, path);
+                          }));
             }),
           sb: struct.sb,
           i: 0,
@@ -2757,7 +2758,7 @@ function $$catch(struct, getFallbackValue) {
 var deprecationMetadataId = "rescript-struct:deprecation";
 
 function deprecate(struct, message) {
-  return set(struct, deprecationMetadataId, message);
+  return set$1(struct, deprecationMetadataId, message);
 }
 
 function deprecation(struct) {
@@ -2767,7 +2768,7 @@ function deprecation(struct) {
 var descriptionMetadataId = "rescript-struct:description";
 
 function describe(struct, description) {
-  return set(struct, descriptionMetadataId, description);
+  return set$1(struct, descriptionMetadataId, description);
 }
 
 function description(struct) {
@@ -2790,7 +2791,7 @@ function toReason(nestedLevelOpt, error) {
     case "InvalidLiteral" :
         return "Expected " + toText(reason.expected) + ", received " + toText(classify(reason.received));
     case "InvalidTupleSize" :
-        return "Expected Tuple with " + reason.expected.toString() + " items, received " + reason.received.toString();
+        return "Expected Tuple with " + reason.expected + " items, received " + reason.received;
     case "ExcessField" :
         return "Encountered disallowed excess key " + JSON.stringify(reason._0) + " on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely";
     case "InvalidUnion" :
@@ -2902,7 +2903,7 @@ function internalInline(struct, maybeVariant, param) {
                     )) + ")";
                   break;
               case "Boolean" :
-                  inlinedLiteral = "Bool(" + taggedLiteral$1._0.toString() + ")";
+                  inlinedLiteral = "Bool(" + taggedLiteral$1._0 + ")";
                   break;
               default:
                 inlinedLiteral = "NaN";
@@ -2913,12 +2914,13 @@ function internalInline(struct, maybeVariant, param) {
       case "Option" :
           var struct$1 = taggedLiteral._0;
           var internalInlinedStruct = internalInline(struct$1, undefined, undefined);
-          var defaultValue = classify$2(struct$1);
-          if (defaultValue !== undefined) {
-            var defaultValue$1 = Caml_option.valFromOption(defaultValue);
-            Js_dict.unsafeDeleteKey(metadataMap, metadataId$4);
-            inlinedStruct = internalInlinedStruct + ("->S.default(() => %raw(\`" + (
-                defaultValue$1 === (void 0) ? "undefined" : JSON.stringify(defaultValue$1)
+          var $$default = struct$1.m[defaultMetadataId];
+          if ($$default !== undefined) {
+            Js_dict.unsafeDeleteKey(metadataMap, defaultMetadataId);
+            var any;
+            any = $$default.TAG === "Value" ? $$default._0 : $$default._0(undefined);
+            inlinedStruct = internalInlinedStruct + ("->S.Option.getOrWith(() => %raw(\`" + (
+                any === (void 0) ? "undefined" : JSON.stringify(any)
               ) + "\`))");
           } else {
             inlinedStruct = "S.option(" + internalInlinedStruct + ")";
@@ -2944,7 +2946,7 @@ function internalInline(struct, maybeVariant, param) {
             if (numberOfItems > 10) {
               throw new Error("[rescript-struct] The S.inline doesn't support tuples with more than 10 items.");
             }
-            inlinedStruct = "S.tuple" + numberOfItems.toString() + "(. " + tupleStructs.map(function (s) {
+            inlinedStruct = "S.tuple" + numberOfItems + "(. " + tupleStructs.map(function (s) {
                     return internalInline(s, undefined, undefined);
                   }).join(", ") + ")";
           } else {
@@ -2958,7 +2960,7 @@ function internalInline(struct, maybeVariant, param) {
                   var n = Js_dict.get(variantNamesCounter, variantName);
                   var numberOfVariantNames = n !== undefined ? n : 0;
                   variantNamesCounter[variantName] = numberOfVariantNames + 1;
-                  var variantName$1 = numberOfVariantNames !== 0 ? variantName + (numberOfVariantNames + 1).toString() : variantName;
+                  var variantName$1 = numberOfVariantNames !== 0 ? variantName + (numberOfVariantNames + 1) : variantName;
                   var inlinedVariant = "#" + JSON.stringify(variantName$1);
                   return internalInline(s, inlinedVariant, undefined);
                 }).join(", ") + "])";
@@ -2995,9 +2997,9 @@ function internalInline(struct, maybeVariant, param) {
                     if (typeof match !== "object") {
                       return "->S.Int.port(~message=" + JSON.stringify(refinement.message) + ", ())";
                     } else if (match.TAG === "Min") {
-                      return "->S.Int.min(~message=" + JSON.stringify(refinement.message) + ", " + match.value.toString() + ")";
+                      return "->S.Int.min(~message=" + JSON.stringify(refinement.message) + ", " + match.value + ")";
                     } else {
-                      return "->S.Int.max(~message=" + JSON.stringify(refinement.message) + ", " + match.value.toString() + ")";
+                      return "->S.Int.max(~message=" + JSON.stringify(refinement.message) + ", " + match.value + ")";
                     }
                   }).join("");
           } else {
@@ -3046,11 +3048,11 @@ function internalInline(struct, maybeVariant, param) {
                     var match = refinement.kind;
                     switch (match.TAG) {
                       case "Min" :
-                          return "->S.Array.min(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
+                          return "->S.Array.min(~message=" + JSON.stringify(refinement.message) + ", " + match.length + ")";
                       case "Max" :
-                          return "->S.Array.max(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
+                          return "->S.Array.max(~message=" + JSON.stringify(refinement.message) + ", " + match.length + ")";
                       case "Length" :
-                          return "->S.Array.length(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
+                          return "->S.Array.length(~message=" + JSON.stringify(refinement.message) + ", " + match.length + ")";
                       
                     }
                   }).join("");
@@ -3085,11 +3087,11 @@ function internalInline(struct, maybeVariant, param) {
               } else {
                 switch (match.TAG) {
                   case "Min" :
-                      return "->S.String.min(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
+                      return "->S.String.min(~message=" + JSON.stringify(refinement.message) + ", " + match.length + ")";
                   case "Max" :
-                      return "->S.String.max(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
+                      return "->S.String.max(~message=" + JSON.stringify(refinement.message) + ", " + match.length + ")";
                   case "Length" :
-                      return "->S.String.length(~message=" + JSON.stringify(refinement.message) + ", " + match.length.toString() + ")";
+                      return "->S.String.length(~message=" + JSON.stringify(refinement.message) + ", " + match.length + ")";
                   case "Pattern" :
                       return "->S.String.pattern(~message=" + JSON.stringify(refinement.message) + ", %re(" + JSON.stringify(match.re.toString()) + "))";
                   
@@ -3113,17 +3115,24 @@ function internalInline(struct, maybeVariant, param) {
 }
 
 function inline(struct) {
+  if (false) {
+    var v = (void 0);
+    if (v !== undefined) {
+      Caml_option.valFromOption(v);
+    }
+    
+  }
   return internalInline(struct, undefined, undefined);
 }
 
 function tuple1(v0) {
-  return factory$8(function (s) {
+  return factory$7(function (s) {
               return s.i(0, v0);
             });
 }
 
 function tuple2(v0, v1) {
-  return factory$8(function (s) {
+  return factory$7(function (s) {
               return [
                       s.i(0, v0),
                       s.i(1, v1)
@@ -3132,7 +3141,7 @@ function tuple2(v0, v1) {
 }
 
 function tuple3(v0, v1, v2) {
-  return factory$8(function (s) {
+  return factory$7(function (s) {
               return [
                       s.i(0, v0),
                       s.i(1, v1),
@@ -3170,15 +3179,13 @@ var array = factory$5;
 
 var dict = factory$6;
 
-var option = factory$4;
+var option = factory$1;
 
-var $$null = factory$3;
+var $$null = factory$2;
 
-var jsonString = factory$2;
+var jsonString = factory$4;
 
-var union = factory$9;
-
-var $$default = factory$7;
+var union = factory$8;
 
 var variant = factory;
 
@@ -3191,16 +3198,22 @@ var parseAsyncWith = parseAnyAsyncWith;
 var parseAsyncInStepsWith = parseAnyAsyncInStepsWith;
 
 var $$Object = {
-  factory: factory$1,
+  factory: factory$3,
   strip: strip,
   strict: strict
 };
 
-var object = factory$1;
+var object = factory$3;
 
 var Tuple = {};
 
-var tuple = factory$8;
+var tuple = factory$7;
+
+var $$Option = {
+  $$default: $$default,
+  getOr: getOr,
+  getOrWith: getOrWith
+};
 
 var String_Refinement = {};
 
@@ -3248,14 +3261,10 @@ var $$Array = {
   length: length$1
 };
 
-var Default = {
-  classify: classify$2
-};
-
 var Metadata = {
   Id: Id,
   get: get,
-  set: set
+  set: set$1
 };
 
 export {
@@ -3279,18 +3288,15 @@ export {
   $$null ,
   jsonString ,
   union ,
-  $$default ,
-  $$default as default,
   $$catch ,
   describe ,
   description ,
   deprecate ,
   deprecation ,
-  transform ,
+  transform$1 as transform,
   preprocess ,
   custom ,
   refine ,
-  asyncParserRefine ,
   variant ,
   parseWith ,
   parseAnyWith ,
@@ -3318,11 +3324,11 @@ export {
   tuple1 ,
   tuple2 ,
   tuple3 ,
+  $$Option ,
   $$String ,
   Int ,
   Float ,
   $$Array ,
-  Default ,
   Result ,
   Metadata ,
   inline ,

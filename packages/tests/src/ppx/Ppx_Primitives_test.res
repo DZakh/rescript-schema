@@ -116,21 +116,21 @@ test("Big tuple struct", t => {
 })
 
 @struct
-type myCustomString = @struct(S.string->S.String.email()) string
+type myCustomString = @struct(S.string->S.String.email) string
 test("Custom string struct", t => {
-  t->assertEqualStructs(myCustomStringStruct, S.string->S.String.email(), ())
+  t->assertEqualStructs(myCustomStringStruct, S.string->S.String.email, ())
 })
 
 @struct
-type myCustomLiteralString = @struct(S.literal("123")->S.String.email()) string
+type myCustomLiteralString = @struct(S.literal("123")->S.String.email) string
 test("Custom litaral string struct", t => {
-  t->assertEqualStructs(myCustomLiteralStringStruct, S.literal("123")->S.String.email(), ())
+  t->assertEqualStructs(myCustomLiteralStringStruct, S.literal("123")->S.String.email, ())
 })
 
 @struct
-type myCustomOptionalString = option<@struct(S.string->S.String.email()) string>
+type myCustomOptionalString = option<@struct(S.string->S.String.email) string>
 test("Custom optional string struct", t => {
-  t->assertEqualStructs(myCustomOptionalStringStruct, S.string->S.String.email()->S.option, ())
+  t->assertEqualStructs(myCustomOptionalStringStruct, S.string->S.String.email->S.option, ())
 })
 
 // @struct

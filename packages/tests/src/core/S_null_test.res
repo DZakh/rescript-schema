@@ -39,18 +39,18 @@ module Common = {
     t->TestUtils.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v0;if(i!==null){if(typeof i!=="string"){e[0](i)}v0=e[1](i)}else{v0=void 0}return v0}`,
+      `i=>{let v0;if(i!==null){if(typeof i!=="string"){e[0](i)}v0=i}else{v0=void 0}return v0}`,
       (),
     )
   })
 
   test("Compiled async parse code snapshot", t => {
-    let struct = S.null(S.unknown->S.asyncParserRefine(_ => _ => Promise.resolve()))
+    let struct = S.null(S.unknown->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}))
 
     t->TestUtils.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v0;if(i!==null){let v1,v2,v3;v2=e[0](i);v1=()=>v2().then(_=>i);v3=()=>v1().then(e[1]);v0=v3}else{v0=()=>Promise.resolve(void 0)}return v0}`,
+      `i=>{let v0;if(i!==null){let v1;v1=e[0](i);v0=v1}else{v0=()=>Promise.resolve(void 0)}return v0}`,
       (),
     )
   })
@@ -126,12 +126,16 @@ test("Successfully parses null and serializes it back for deprecated nullable st
   )
 })
 
-test("Successfully parses null and serializes it back for optional nullable struct", t => {
+test("Parses null nested in option as None instead of Some(None)", t => {
   let struct = S.option(S.null(S.bool))
 
-  t->Assert.deepEqual(
-    %raw(`null`)->S.parseAnyWith(struct)->Result.map(S.serializeToUnknownWith(_, struct)),
-    Ok(Ok(%raw(`null`))),
-    (),
-  )
+  t->Assert.deepEqual(%raw(`null`)->S.parseAnyWith(struct), Ok(None), ())
+  t->Assert.deepEqual(%raw(`undefined`)->S.parseAnyWith(struct), Ok(None), ())
+})
+
+test("Serializes Some(None) to null for null nested in option", t => {
+  let struct = S.option(S.null(S.bool))
+
+  t->Assert.deepEqual(Some(None)->S.serializeToUnknownWith(struct), Ok(%raw(`null`)), ())
+  t->Assert.deepEqual(None->S.serializeToUnknownWith(struct), Ok(%raw(`undefined`)), ())
 })

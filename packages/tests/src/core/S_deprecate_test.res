@@ -63,5 +63,5 @@ test("Fails to parse null", t => {
 test("Successfully parses null for deprecated nullable struct", t => {
   let struct = S.null(S.bool)->S.option->S.deprecate("Deprecated")
 
-  t->Assert.deepEqual(%raw(`null`)->S.parseAnyWith(struct), Ok(Some(None)), ())
+  t->Assert.deepEqual(%raw(`null`)->S.parseAnyWith(struct), Ok(None), ())
 })

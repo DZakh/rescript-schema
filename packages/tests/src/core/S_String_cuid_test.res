@@ -1,7 +1,7 @@
 open Ava
 
 test("Successfully parses valid data", t => {
-  let struct = S.string->S.String.cuid()
+  let struct = S.string->S.String.cuid
 
   t->Assert.deepEqual(
     "ckopqwooh000001la8mbi2im9"->S.parseAnyWith(struct),
@@ -11,7 +11,7 @@ test("Successfully parses valid data", t => {
 })
 
 test("Fails to parse invalid data", t => {
-  let struct = S.string->S.String.cuid()
+  let struct = S.string->S.String.cuid
 
   t->Assert.deepEqual(
     "cifjhdsfhsd-invalid-cuid"->S.parseAnyWith(struct),
@@ -25,7 +25,7 @@ test("Fails to parse invalid data", t => {
 })
 
 test("Successfully serializes valid value", t => {
-  let struct = S.string->S.String.cuid()
+  let struct = S.string->S.String.cuid
 
   t->Assert.deepEqual(
     "ckopqwooh000001la8mbi2im9"->S.serializeToUnknownWith(struct),
@@ -35,7 +35,7 @@ test("Successfully serializes valid value", t => {
 })
 
 test("Fails to serialize invalid value", t => {
-  let struct = S.string->S.String.cuid()
+  let struct = S.string->S.String.cuid
 
   t->Assert.deepEqual(
     "cifjhdsfhsd-invalid-cuid"->S.serializeToUnknownWith(struct),
@@ -49,7 +49,7 @@ test("Fails to serialize invalid value", t => {
 })
 
 test("Returns custom error message", t => {
-  let struct = S.string->S.String.cuid(~message="Custom", ())
+  let struct = S.string->S.String.cuid(~message="Custom")
 
   t->Assert.deepEqual(
     "cifjhdsfhsd-invalid-cuid"->S.parseAnyWith(struct),
@@ -63,7 +63,7 @@ test("Returns custom error message", t => {
 })
 
 test("Returns refinement", t => {
-  let struct = S.string->S.String.cuid()
+  let struct = S.string->S.String.cuid
 
   t->Assert.deepEqual(struct->S.String.refinements, [{kind: Cuid, message: "Invalid CUID"}], ())
 })

@@ -248,14 +248,14 @@ module Compiled = {
 
   test("Compiled parse code snapshot for simple tuple with async", t => {
     let struct = S.tuple(s => (
-      s.item(0, S.unknown->S.asyncParserRefine(_ => _ => Promise.resolve())),
+      s.item(0, S.unknown->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)})),
       s.item(1, S.bool),
     ))
 
     t->TestUtils.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v0,v1,v2,v3,v4;if(!Array.isArray(i)){e[0](i)}if(i.length!==2){e[1](i.length)}v0=i["0"];v2=e[2](v0);v1=()=>v2().then(_=>v0);v3=i["1"];if(typeof v3!=="boolean"){e[3](v3)}v4=()=>Promise.all([v1()]).then(([v1])=>([v1,v3,]));return v4}`,
+      `i=>{let v0,v1,v2,v3;if(!Array.isArray(i)){e[0](i)}if(i.length!==2){e[1](i.length)}v0=i["0"];v1=e[2](v0);v2=i["1"];if(typeof v2!=="boolean"){e[3](v2)}v3=()=>Promise.all([v1()]).then(([v1])=>([v1,v2,]));return v3}`,
       (),
     )
   })

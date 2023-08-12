@@ -14,6 +14,7 @@
 - `S.object` enhancements:
   - It became easier to define a field (`o->S.field` -> `s.field`)
   - Added helper for discriminant fields (`ignore(s.field("key", S.literal("value")))` -> `s.tag("key", "value")`)
+  - Added helper for setting default value for fields (`s.field("key", S.option(S.string)->S.default(() => "foo"))` -> `s.fieldOr("key", S.string, "foo")`)
 - Exciting literals rework:
   - It became much easier to define a literal (`S.literal(String("foo"))` -> `S.literal("foo")`)
   - Literal structs now support any Js values, not only the primitive ones as before
@@ -34,9 +35,9 @@
     - `MissingSerializer` and `MissingParser` renamed to single `InvalidOperation({description: string})`
   - Added `S.Path.dynamic` and fixed `S.error.path` for errors happening during operation compilation phase
 - `S.deprecate` doesn't make a struct optional anymore (it used to use `S.option` internally)
-- `S.default` now uses `S.option` internally, so you don't need to call it yourself
+- `S.default` is renamed to `S.Option.getOrWith`. Also, now you can use `S.Option.getOr`.
 - Updated `S.name` logic and added `S.setName` to be able customize it. Name is used for errors, codegen and external tools
-- `S.refine` now accepts only one refining function which is applied both for parser and serializer. If you want to refine the parser and serializer separately as before, use `S.transform` instead. And to asynchronously refine a parser you should use the newly added `S.asyncParserRefine`.
+- `S.refine` now accepts only one refining function which is applied both for parser and serializer. If you want to refine the parser and serializer separately as before, or use asynchronous parser, use `S.transform` instead
 - `S.transform` now accepts only one argument which is a function that gets `effectCtx` and returns a record with parser and serializer.
 - `S.custom` now accepts only one argument which is a function that gets `effectCtx` and returns a record with parser and serializer.
 - `S.advancedTransform` is deprecated in favor of `S.transform`
@@ -48,6 +49,8 @@
 - Added `fail` and `failWithError` methods to the `catchCtx`
 - `Object.UnknownKeys` moved from metadata to `tagged` type
 - `S.object` type check started using `input.constructor===Object` instead of `typeof input === "object"`. Use `S.custom` if it doesn't work for you
+- Removed the need to pass `()` as an ending argument to built-in refinement functions
+- Moved all function optional arguments to the end
 
 ## TS API changes
 
@@ -60,13 +63,15 @@
 - `S.jsonString` throws an error if you pass non-JSONable struct. It used to silently serialize to `undefined` instead of the expected `string` type
 - Added `Json` type and the `S.json` struct for it
 - `S.literal(null)` now returns `S.Struct<null, null>` instead of `S.Struct<undefined>`
-- The `default` method now uses `S.optional` internally, so you don't need to call it yourself
+- Removed `S.nan`. Use `S.literal(NaN)` instead
+- Removed `default` methods is removed. You can pass the default value to the second argument of the `S.optional` function
 - The `refine` method now accepts only one refining function which is applied both for parser and serializer. If you want to refine the parser and serializer separately as before, use `S.transform` instead
 - Removed `S.fail` in favor of having a `ctx` with `.fail` method
 - The `asyncRefine` is renamed to `asyncParserRefine`
 - `S.object` type check started using `input.constructor===Object` instead of `typeof input === "object"`. Use `S.custom` if it doesn't work for you
 - Empty `S.tuple` now returns empty array during parsing instead of `undefined`
 - `S.tuple` with single item doesn't unwrap it from array during parsing
+- Turned all the struct methods to functions, to enable tree-shaking, remove runtime overhead, make API similar to the ReScript one.
 
 ## Opt-in ppx support
 
@@ -142,14 +147,6 @@ rewrite="S.refine(s => :[x])"
 [refine-serializer-2]
 match="S.refine(~serializer=:[x], ())"
 rewrite="S.refine(s => :[x])"
-
-[refine-async-parser]
-match="S.refine(~asyncParser=:[x], ())"
-rewrite="S.asyncParserRefine(s => :[x])"
-
-[refine-async-parser-2]
-match="S.refine( ~asyncParser=:[x], (), )"
-rewrite="S.asyncParserRefine(s => :[x])"
 
 [transform-1-parser]
 match="S.transform(~parser, ())"

@@ -60,12 +60,12 @@ module CommonWithNested = {
   })
 
   test("Compiled async parse code snapshot", t => {
-    let struct = S.array(S.unknown->S.asyncParserRefine(_ => _ => Promise.resolve()))
+    let struct = S.array(S.unknown->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}))
 
     t->TestUtils.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v1,v6;if(!Array.isArray(i)){e[0](i)}v1=[];for(let v0=0;v0<i.length;++v0){let v2,v3,v4,v5;v2=i[v0];try{v4=e[1](v2);v3=()=>v4().then(_=>v2);}catch(t){if(t&&t.s===s){t.p=""+'["'+v0+'"]'+t.p}throw t}v5=()=>{try{return v3().catch(t=>{if(t&&t.s===s){t.p=""+'["'+v0+'"]'+t.p}throw t})}catch(t){if(t&&t.s===s){t.p=""+'["'+v0+'"]'+t.p}throw t}};v1.push(v5)}v6=()=>Promise.all(v1.map(t=>t()));return v6}`,
+      `i=>{let v1,v5;if(!Array.isArray(i)){e[0](i)}v1=[];for(let v0=0;v0<i.length;++v0){let v2,v3,v4;v2=i[v0];try{v3=e[1](v2);v4=()=>{try{return v3().catch(t=>{if(t&&t.s===s){t.p=""+\'["\'+v0+\'"]\'+t.p}throw t})}catch(t){if(t&&t.s===s){t.p=""+\'["\'+v0+\'"]\'+t.p}throw t}};}catch(t){if(t&&t.s===s){t.p=""+\'["\'+v0+\'"]\'+t.p}throw t}v1.push(v4)}v5=()=>Promise.all(v1.map(t=>t()));return v5}`,
       (),
     )
   })

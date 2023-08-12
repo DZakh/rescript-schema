@@ -297,14 +297,14 @@ test("Compiled parse code snapshot", t => {
 
 test("Compiled async parse code snapshot", t => {
   let struct = S.union([
-    S.literal(0)->S.asyncParserRefine(_ => _ => Promise.resolve()),
+    S.literal(0)->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}),
     S.literal(1),
   ])
 
   t->TestUtils.assertCompiledCode(
     ~struct,
     ~op=#parse,
-    `i=>{let v0,v1,v2;try{i===e[0]||e[1](i);v1=e[2](i);v0=()=>v1().then(_=>i);throw v0}catch(v3){if(v3&&v3.s===s||v3===v0){try{i===e[3]||e[4](i);v2=()=>Promise.resolve(i)}catch(v4){if(v4&&v4.s===s){v2=()=>Promise.any([v3===v0?v3():Promise.reject(v3),Promise.reject(v4)]).catch(t=>{e[5](t.errors)})}else{throw v4}}}else{throw v3}}return v2}`,
+    `i=>{let v0,v1;try{i===e[0]||e[1](i);v0=e[2](i);throw v0}catch(v2){if(v2&&v2.s===s||v2===v0){try{i===e[3]||e[4](i);v1=()=>Promise.resolve(i)}catch(v3){if(v3&&v3.s===s){v1=()=>Promise.any([v2===v0?v2():Promise.reject(v2),Promise.reject(v3)]).catch(t=>{e[5](t.errors)})}else{throw v3}}}else{throw v2}}return v1}`,
     (),
   )
 })

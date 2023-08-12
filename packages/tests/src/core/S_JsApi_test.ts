@@ -5,7 +5,7 @@ import * as S from "../../../../src/S_JsApi.js";
 
 test("Successfully parses string", (t) => {
   const struct = S.string;
-  const value = struct.parseOrThrow("123");
+  const value = S.parseOrThrow(struct, "123");
 
   t.deepEqual(value, "123");
 
@@ -15,7 +15,7 @@ test("Successfully parses string", (t) => {
 
 test("Successfully parses int", (t) => {
   const struct = S.integer;
-  const value = struct.parseOrThrow(123);
+  const value = S.parseOrThrow(struct, 123);
 
   t.deepEqual(value, 123);
 
@@ -25,7 +25,7 @@ test("Successfully parses int", (t) => {
 
 test("Successfully parses float", (t) => {
   const struct = S.number;
-  const value = struct.parseOrThrow(123.4);
+  const value = S.parseOrThrow(struct, 123.4);
 
   t.deepEqual(value, 123.4);
 
@@ -35,7 +35,7 @@ test("Successfully parses float", (t) => {
 
 test("Successfully parses bool", (t) => {
   const struct = S.boolean;
-  const value = struct.parseOrThrow(true);
+  const value = S.parseOrThrow(struct, true);
 
   t.deepEqual(value, true);
 
@@ -45,7 +45,7 @@ test("Successfully parses bool", (t) => {
 
 test("Successfully parses unknown", (t) => {
   const struct = S.unknown;
-  const value = struct.parseOrThrow(true);
+  const value = S.parseOrThrow(struct, true);
 
   t.deepEqual(value, true);
 
@@ -55,7 +55,7 @@ test("Successfully parses unknown", (t) => {
 
 test("Successfully parses json", (t) => {
   const struct = S.json;
-  const value = struct.parseOrThrow(true);
+  const value = S.parseOrThrow(struct, true);
 
   t.deepEqual(value, true);
 
@@ -68,7 +68,7 @@ test("Fails to parse never", (t) => {
 
   t.throws(
     () => {
-      const value = struct.parseOrThrow(true);
+      const value = S.parseOrThrow(struct, true);
 
       expectType<TypeEqual<typeof struct, S.Struct<never, never>>>(true);
       expectType<TypeEqual<typeof value, never>>(true);
@@ -82,7 +82,7 @@ test("Fails to parse never", (t) => {
 
 test("Successfully parses array", (t) => {
   const struct = S.array(S.string);
-  const value = struct.parseOrThrow(["foo"]);
+  const value = S.parseOrThrow(struct, ["foo"]);
 
   t.deepEqual(value, ["foo"]);
 
@@ -92,7 +92,7 @@ test("Successfully parses array", (t) => {
 
 test("Successfully parses record", (t) => {
   const struct = S.record(S.string);
-  const value = struct.parseOrThrow({ foo: "bar" });
+  const value = S.parseOrThrow(struct, { foo: "bar" });
 
   t.deepEqual(value, { foo: "bar" });
 
@@ -107,7 +107,7 @@ test("Successfully parses record", (t) => {
 
 test("Successfully parses JSON string", (t) => {
   const struct = S.jsonString(S.boolean);
-  const value = struct.parseOrThrow(`true`);
+  const value = S.parseOrThrow(struct, `true`);
 
   t.deepEqual(value, true);
 
@@ -115,25 +115,10 @@ test("Successfully parses JSON string", (t) => {
   expectType<TypeEqual<typeof value, boolean>>(true);
 });
 
-test("Successfully parses optional string when optional applied as a function", (t) => {
+test("Successfully parses optional string", (t) => {
   const struct = S.optional(S.string);
-  const value1 = struct.parseOrThrow("foo");
-  const value2 = struct.parseOrThrow(undefined);
-
-  t.deepEqual(value1, "foo");
-  t.deepEqual(value2, undefined);
-
-  expectType<
-    TypeEqual<S.Struct<string | undefined, string | undefined>, typeof struct>
-  >(true);
-  expectType<TypeEqual<typeof value1, string | undefined>>(true);
-  expectType<TypeEqual<typeof value2, string | undefined>>(true);
-});
-
-test("Successfully parses optional string when optional applied as a method", (t) => {
-  const struct = S.string.optional();
-  const value1 = struct.parseOrThrow("foo");
-  const value2 = struct.parseOrThrow(undefined);
+  const value1 = S.parseOrThrow(struct, "foo");
+  const value2 = S.parseOrThrow(struct, undefined);
 
   t.deepEqual(value1, "foo");
   t.deepEqual(value2, undefined);
@@ -146,9 +131,9 @@ test("Successfully parses optional string when optional applied as a method", (t
 });
 
 test("Successfully parses struct wrapped in optional multiple times", (t) => {
-  const struct = S.string.optional().optional().optional();
-  const value1 = struct.parseOrThrow("foo");
-  const value2 = struct.parseOrThrow(undefined);
+  const struct = S.optional(S.optional(S.optional(S.string)));
+  const value1 = S.parseOrThrow(struct, "foo");
+  const value2 = S.parseOrThrow(struct, undefined);
 
   t.deepEqual(value1, "foo");
   t.deepEqual(value2, undefined);
@@ -160,25 +145,10 @@ test("Successfully parses struct wrapped in optional multiple times", (t) => {
   expectType<TypeEqual<typeof value2, string | undefined>>(true);
 });
 
-test("Successfully parses nullable string when nullable applied as a function", (t) => {
+test("Successfully parses nullable string", (t) => {
   const struct = S.nullable(S.string);
-  const value1 = struct.parseOrThrow("foo");
-  const value2 = struct.parseOrThrow(null);
-
-  t.deepEqual(value1, "foo");
-  t.deepEqual(value2, undefined);
-
-  expectType<
-    TypeEqual<S.Struct<string | null, string | undefined>, typeof struct>
-  >(true);
-  expectType<TypeEqual<typeof value1, string | undefined>>(true);
-  expectType<TypeEqual<typeof value2, string | undefined>>(true);
-});
-
-test("Successfully parses nullable string when nullable applied as a method", (t) => {
-  const struct = S.string.nullable();
-  const value1 = struct.parseOrThrow("foo");
-  const value2 = struct.parseOrThrow(null);
+  const value1 = S.parseOrThrow(struct, "foo");
+  const value2 = S.parseOrThrow(struct, null);
 
   t.deepEqual(value1, "foo");
   t.deepEqual(value2, undefined);
@@ -191,9 +161,9 @@ test("Successfully parses nullable string when nullable applied as a method", (t
 });
 
 test("Successfully parses struct wrapped in nullable multiple times", (t) => {
-  const struct = S.string.nullable().nullable().nullable();
-  const value1 = struct.parseOrThrow("foo");
-  const value2 = struct.parseOrThrow(null);
+  const struct = S.nullable(S.nullable(S.nullable(S.string)));
+  const value1 = S.parseOrThrow(struct, "foo");
+  const value2 = S.parseOrThrow(struct, null);
 
   t.deepEqual(value1, "foo");
   t.deepEqual(value2, undefined);
@@ -210,7 +180,7 @@ test("Fails to parse with invalid data", (t) => {
 
   t.throws(
     () => {
-      struct.parseOrThrow(123);
+      S.parseOrThrow(struct, 123);
     },
     {
       name: "RescriptStructError",
@@ -221,7 +191,7 @@ test("Fails to parse with invalid data", (t) => {
 
 test("Successfully serializes with valid value", (t) => {
   const struct = S.string;
-  const result = struct.serializeOrThrow("123");
+  const result = S.serializeOrThrow(struct, "123");
 
   t.deepEqual(result, "123");
 
@@ -234,7 +204,7 @@ test("Fails to serialize never", (t) => {
   t.throws(
     () => {
       // @ts-ignore
-      struct.serializeOrThrow("123");
+      S.serializeOrThrow(struct, "123");
     },
     {
       name: "RescriptStructError",
@@ -244,8 +214,8 @@ test("Fails to serialize never", (t) => {
 });
 
 test("Successfully parses with transform to another type", (t) => {
-  const struct = S.string.transform((string) => Number(string));
-  const value = struct.parseOrThrow("123");
+  const struct = S.transform(S.string, (string) => Number(string));
+  const value = S.parseOrThrow(struct, "123");
 
   t.deepEqual(value, 123);
 
@@ -253,20 +223,20 @@ test("Successfully parses with transform to another type", (t) => {
 });
 
 test("Fails to parse with transform with user error", (t) => {
-  const struct = S.string.transform((string, s) => {
+  const struct = S.transform(S.string, (string, s) => {
     const number = Number(string);
     if (Number.isNaN(number)) {
       throw s.fail("Invalid number");
     }
     return number;
   });
-  const value = struct.parseOrThrow("123");
+  const value = S.parseOrThrow(struct, "123");
   t.deepEqual(value, 123);
   expectType<TypeEqual<typeof value, number>>(true);
 
   t.throws(
     () => {
-      struct.parseOrThrow("asdf");
+      S.parseOrThrow(struct, "asdf");
     },
     {
       name: "RescriptStructError",
@@ -276,14 +246,15 @@ test("Fails to parse with transform with user error", (t) => {
 });
 
 test("Successfully serializes with transform to another type", (t) => {
-  const struct = S.string.transform(
+  const struct = S.transform(
+    S.string,
     (string) => Number(string),
     (number) => {
       expectType<TypeEqual<typeof number, number>>(true);
       return number.toString();
     }
   );
-  const result = struct.serializeOrThrow(123);
+  const result = S.serializeOrThrow(struct, 123);
 
   t.deepEqual(result, "123");
 
@@ -291,10 +262,10 @@ test("Successfully serializes with transform to another type", (t) => {
 });
 
 test("Successfully parses with refine", (t) => {
-  const struct = S.string.refine((string) => {
+  const struct = S.refine(S.string, (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
-  const value = struct.parseOrThrow("123");
+  const value = S.parseOrThrow(struct, "123");
 
   t.deepEqual(value, "123");
 
@@ -302,10 +273,10 @@ test("Successfully parses with refine", (t) => {
 });
 
 test("Successfully serializes with refine", (t) => {
-  const struct = S.string.refine((string) => {
+  const struct = S.refine(S.string, (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
-  const result = struct.serializeOrThrow("123");
+  const result = S.serializeOrThrow(struct, "123");
 
   t.deepEqual(result, "123");
 
@@ -313,13 +284,13 @@ test("Successfully serializes with refine", (t) => {
 });
 
 test("Fails to parses with refine raising an error", (t) => {
-  const struct = S.string.refine((_, s) => {
+  const struct = S.refine(S.string, (_, s) => {
     s.fail("User error");
   });
 
   t.throws(
     () => {
-      struct.parseOrThrow("123");
+      S.parseOrThrow(struct, "123");
     },
     {
       name: "RescriptStructError",
@@ -329,10 +300,10 @@ test("Fails to parses with refine raising an error", (t) => {
 });
 
 test("Successfully parses async struct", async (t) => {
-  const struct = S.string.asyncParserRefine(async (string) => {
+  const struct = S.asyncParserRefine(S.string, async (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
-  const value = await struct.parseAsync("123");
+  const value = await S.parseAsync(struct, "123");
 
   t.deepEqual(value, { success: true, value: "123" });
 
@@ -340,13 +311,13 @@ test("Successfully parses async struct", async (t) => {
 });
 
 test("Fails to parses async struct", async (t) => {
-  const struct = S.string.asyncParserRefine(async (_, s) => {
+  const struct = S.asyncParserRefine(S.string, async (_, s) => {
     return Promise.resolve().then(() => {
       s.fail("User error");
     });
   });
 
-  const result = await struct.parseAsync("123");
+  const result = await S.parseAsync(struct, "123");
 
   t.deepEqual(result, {
     success: false,
@@ -372,11 +343,11 @@ test("Custom string struct", (t) => {
     }
   );
 
-  t.deepEqual(struct.parseOrThrow("12345"), "12345");
-  t.deepEqual(struct.serializeOrThrow("12345"), "12345");
+  t.deepEqual(S.parseOrThrow(struct, "12345"), "12345");
+  t.deepEqual(S.serializeOrThrow(struct, "12345"), "12345");
   t.throws(
     () => {
-      struct.parseOrThrow(123);
+      S.parseOrThrow(struct, 123);
     },
     {
       name: "RescriptStructError",
@@ -385,7 +356,7 @@ test("Custom string struct", (t) => {
   );
   t.throws(
     () => {
-      struct.parseOrThrow("123");
+      S.parseOrThrow(struct, "123");
     },
     {
       name: "RescriptStructError",
@@ -402,7 +373,7 @@ test("Successfully parses object by provided shape", (t) => {
     foo: S.string,
     bar: S.boolean,
   });
-  const value = struct.parseOrThrow({
+  const value = S.parseOrThrow(struct, {
     foo: "bar",
     bar: true,
   });
@@ -440,10 +411,10 @@ test("Successfully parses object by provided shape", (t) => {
 
 test("Successfully parses object with transformed field", (t) => {
   const struct = S.object({
-    foo: S.string.transform((string) => Number(string)),
+    foo: S.transform(S.string, (string) => Number(string)),
     bar: S.boolean,
   });
-  const value = struct.parseOrThrow({
+  const value = S.parseOrThrow(struct, {
     foo: "123",
     bar: true,
   });
@@ -486,7 +457,7 @@ test("Fails to parse strict object with exccess fields", (t) => {
 
   t.throws(
     () => {
-      const value = struct.parseOrThrow({
+      const value = S.parseOrThrow(struct, {
         foo: "bar",
         bar: true,
       });
@@ -526,7 +497,7 @@ test("Resets object strict mode with strip method", (t) => {
     .strict()
     .strip();
 
-  const value = struct.parseOrThrow({
+  const value = S.parseOrThrow(struct, {
     foo: "bar",
     bar: true,
   });
@@ -558,7 +529,7 @@ test("Resets object strict mode with strip method", (t) => {
 
 test("Successfully parses and returns result", (t) => {
   const struct = S.string;
-  const value = struct.parse("123");
+  const value = S.parse(struct, "123");
 
   t.deepEqual(value, { success: true, value: "123" });
 
@@ -588,7 +559,7 @@ test("Successfully parses and returns result", (t) => {
 
 test("Successfully serializes and returns result", (t) => {
   const struct = S.string;
-  const value = struct.serialize("123");
+  const value = S.serialize(struct, "123");
 
   t.deepEqual(value, { success: true, value: "123" });
 
@@ -617,7 +588,7 @@ test("Successfully serializes and returns result", (t) => {
 
 test("Successfully parses union", (t) => {
   const struct = S.union([S.string, S.number]);
-  const value = struct.parse("123");
+  const value = S.parse(struct, "123");
 
   t.deepEqual(value, { success: true, value: "123" });
 
@@ -628,10 +599,10 @@ test("Successfully parses union", (t) => {
 
 test("Successfully parses union with transformed items", (t) => {
   const struct = S.union([
-    S.string.transform((string) => Number(string)),
+    S.transform(S.string, (string) => Number(string)),
     S.number,
   ]);
-  const value = struct.parse("123");
+  const value = S.parse(struct, "123");
 
   t.deepEqual(value, { success: true, value: 123 });
 
@@ -641,7 +612,7 @@ test("Successfully parses union with transformed items", (t) => {
 test("String literal", (t) => {
   const struct = S.literal("tuna");
 
-  t.deepEqual(struct.parseOrThrow("tuna"), "tuna");
+  t.deepEqual(S.parseOrThrow(struct, "tuna"), "tuna");
 
   expectType<TypeEqual<typeof struct, S.Struct<"tuna", "tuna">>>(true);
 });
@@ -649,7 +620,7 @@ test("String literal", (t) => {
 test("Boolean literal", (t) => {
   const struct = S.literal(true);
 
-  t.deepEqual(struct.parseOrThrow(true), true);
+  t.deepEqual(S.parseOrThrow(struct, true), true);
 
   expectType<TypeEqual<typeof struct, S.Struct<true, true>>>(true);
 });
@@ -657,7 +628,7 @@ test("Boolean literal", (t) => {
 test("Number literal", (t) => {
   const struct = S.literal(123);
 
-  t.deepEqual(struct.parseOrThrow(123), 123);
+  t.deepEqual(S.parseOrThrow(struct, 123), 123);
 
   expectType<TypeEqual<typeof struct, S.Struct<123, 123>>>(true);
 });
@@ -665,7 +636,7 @@ test("Number literal", (t) => {
 test("Undefined literal", (t) => {
   const struct = S.literal(undefined);
 
-  t.deepEqual(struct.parseOrThrow(undefined), undefined);
+  t.deepEqual(S.parseOrThrow(struct, undefined), undefined);
 
   expectType<TypeEqual<typeof struct, S.Struct<undefined, undefined>>>(true);
 });
@@ -673,7 +644,7 @@ test("Undefined literal", (t) => {
 test("Null literal", (t) => {
   const struct = S.literal(null);
 
-  t.deepEqual(struct.parseOrThrow(null), null);
+  t.deepEqual(S.parseOrThrow(struct, null), null);
 
   expectType<TypeEqual<typeof struct, S.Struct<null, null>>>(true);
 });
@@ -682,7 +653,7 @@ test("Symbol literal", (t) => {
   let symbol = Symbol();
   const struct = S.literal(symbol);
 
-  t.deepEqual(struct.parseOrThrow(symbol), symbol);
+  t.deepEqual(S.parseOrThrow(struct, symbol), symbol);
 
   expectType<TypeEqual<typeof struct, S.Struct<symbol, symbol>>>(true);
 });
@@ -690,34 +661,21 @@ test("Symbol literal", (t) => {
 test("BigInt literal", (t) => {
   const struct = S.literal(123n);
 
-  t.deepEqual(struct.parseOrThrow(123n), 123n);
+  t.deepEqual(S.parseOrThrow(struct, 123n), 123n);
 
   expectType<TypeEqual<typeof struct, S.Struct<bigint, bigint>>>(true);
 });
 
-test("NaN struct", (t) => {
-  const struct = S.nan;
+test("NaN literal", (t) => {
+  const struct = S.literal(NaN);
 
-  t.deepEqual(struct.parseOrThrow(NaN), undefined);
+  t.deepEqual(S.parseOrThrow(struct, NaN), NaN);
 
-  expectType<TypeEqual<typeof struct, S.Struct<number, undefined>>>(true);
-});
-
-test("Fails to create NaN literal. Use S.nan instead", (t) => {
-  t.throws(
-    () => {
-      S.literal(NaN);
-    },
-    {
-      name: "Error",
-      message:
-        "[rescript-struct] Failed to create a NaN literal struct. Use S.nan instead.",
-    }
-  );
+  expectType<TypeEqual<typeof struct, S.Struct<number, number>>>(true);
 });
 
 test("Correctly infers type", (t) => {
-  const struct = S.string.transform((s) => Number(s));
+  const struct = S.transform(S.string, Number);
   expectType<TypeEqual<typeof struct, S.Struct<string, number>>>(true);
   expectType<TypeEqual<S.Input<typeof struct>, string>>(true);
   expectType<TypeEqual<S.Output<typeof struct>, number>>(true);
@@ -725,9 +683,21 @@ test("Correctly infers type", (t) => {
 });
 
 test("Successfully parses undefined using the default value", (t) => {
-  const struct = S.string.default(() => "foo");
+  const struct = S.optional(S.string, "foo");
 
-  const value = struct.parseOrThrow(undefined);
+  const value = S.parseOrThrow(struct, undefined);
+
+  t.deepEqual(value, "foo");
+
+  expectType<TypeEqual<typeof struct, S.Struct<string | undefined, string>>>(
+    true
+  );
+});
+
+test("Successfully parses undefined using the default value from callback", (t) => {
+  const struct = S.optional(S.string, () => "foo");
+
+  const value = S.parseOrThrow(struct, undefined);
 
   t.deepEqual(value, "foo");
 
@@ -743,7 +713,8 @@ test("Creates struct with description", (t) => {
     TypeEqual<typeof undocumentedStringStruct, S.Struct<string, string>>
   >(true);
 
-  const documentedStringStruct = undocumentedStringStruct.describe(
+  const documentedStringStruct = S.describe(
+    undocumentedStringStruct,
     "A useful bit of text, if you know what to do with it."
   );
 
@@ -751,13 +722,13 @@ test("Creates struct with description", (t) => {
     TypeEqual<typeof documentedStringStruct, S.Struct<string, string>>
   >(true);
 
-  const descriptionResult = documentedStringStruct.description();
+  const descriptionResult = S.description(documentedStringStruct);
 
   expectType<TypeEqual<typeof descriptionResult, string | undefined>>(true);
 
-  t.deepEqual(undocumentedStringStruct.description(), undefined);
+  t.deepEqual(S.description(undocumentedStringStruct), undefined);
   t.deepEqual(
-    documentedStringStruct.description(),
+    S.description(documentedStringStruct),
     "A useful bit of text, if you know what to do with it."
   );
 });
@@ -765,23 +736,23 @@ test("Creates struct with description", (t) => {
 test("Empty tuple", (t) => {
   const struct = S.tuple([]);
 
-  t.deepEqual(struct.parseOrThrow([]), []);
+  t.deepEqual(S.parseOrThrow(struct, []), []);
 
   expectType<TypeEqual<typeof struct, S.Struct<[], []>>>(true);
 });
 
 test("Tuple with single element", (t) => {
-  const struct = S.tuple([S.string.transform((s) => Number(s))]);
+  const struct = S.tuple([S.transform(S.string, (s) => Number(s))]);
 
-  t.deepEqual(struct.parseOrThrow(["123"]), [123]);
+  t.deepEqual(S.parseOrThrow(struct, ["123"]), [123]);
 
   expectType<TypeEqual<typeof struct, S.Struct<[string], [number]>>>(true);
 });
 
 test("Tuple with multiple elements", (t) => {
-  const struct = S.tuple([S.string.transform((s) => Number(s)), S.number]);
+  const struct = S.tuple([S.transform(S.string, (s) => Number(s)), S.number]);
 
-  t.deepEqual(struct.parseOrThrow(["123", 123]), [123, 123]);
+  t.deepEqual(S.parseOrThrow(struct, ["123", 123]), [123, 123]);
 
   expectType<
     TypeEqual<typeof struct, S.Struct<[string, number], [number, number]>>
@@ -793,7 +764,7 @@ test("Example", (t) => {
     username: S.string,
   });
 
-  t.deepEqual(User.parseOrThrow({ username: "Ludwig" }), {
+  t.deepEqual(S.parseOrThrow(User, { username: "Ludwig" }), {
     username: "Ludwig",
   });
 

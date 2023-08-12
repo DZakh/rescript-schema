@@ -164,7 +164,7 @@ asyncTest("Can apply other actions after async preprocess", t => {
   let struct =
     S.string
     ->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
-    ->S.String.trim()
+    ->S.String.trim
     ->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
 
   %raw(`"    Hello world!"`)

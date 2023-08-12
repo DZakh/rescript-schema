@@ -84,13 +84,17 @@ test("Can use s.fail inside of S.catch", t => {
 })
 
 asyncTest("Uses fallback value when async struct parsing failed during the sync part", async t => {
-  let struct = S.string->S.asyncParserRefine(_ => _ => Promise.resolve())->S.catch(_ => "fallback")
+  let struct =
+    S.string
+    ->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)})
+    ->S.catch(_ => "fallback")
 
   t->Assert.deepEqual(await 123->S.parseAnyAsyncWith(struct), Ok("fallback"), ())
 })
 
 asyncTest("Uses fallback value when async struct parsing failed during the async part", async t => {
-  let struct = S.string->S.asyncParserRefine(s => _ => s.fail("fail"))->S.catch(_ => "fallback")
+  let struct =
+    S.string->S.transform(s => {asyncParser: _ => s.fail("foo")})->S.catch(_ => "fallback")
 
   t->Assert.deepEqual(await "123"->S.parseAnyAsyncWith(struct), Ok("fallback"), ())
 })
@@ -100,7 +104,9 @@ asyncTest(
   async t => {
     let struct =
       S.string
-      ->S.asyncParserRefine(s => _ => Promise.resolve()->Promise.thenResolve(() => s.fail("fail")))
+      ->S.transform(s => {
+        asyncParser: _ => () => Promise.resolve()->Promise.thenResolve(() => s.fail("fail")),
+      })
       ->S.catch(_ => "fallback")
 
     t->Assert.deepEqual(await "123"->S.parseAnyAsyncWith(struct), Ok("fallback"), ())
@@ -113,18 +119,19 @@ test("Compiled parse code snapshot", t => {
   t->TestUtils.assertCompiledCode(
     ~struct,
     ~op=#parse,
-    `i=>{let v0;try{if(typeof i!=="boolean"){e[0](i)}v0=i}catch(t){if(t&&t.s===s){v0=e[1](i,t)}else{throw t}}return v0}`,
+    `i=>{let v0;try{if(typeof i!=="boolean"){e[1](i)}v0=i}catch(t){if(t&&t.s===s){v0=e[0](i,t)}else{throw t}}return v0}`,
     (),
   )
 })
 
 test("Compiled async parse code snapshot", t => {
-  let struct = S.bool->S.asyncParserRefine(_ => _ => Promise.resolve())->S.catch(_ => false)
+  let struct =
+    S.bool->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)})->S.catch(_ => false)
 
   t->TestUtils.assertCompiledCode(
     ~struct,
     ~op=#parse,
-    `i=>{let v0,v3;try{let v1,v2;if(typeof i!=="boolean"){e[0](i)}v2=e[1](i);v1=()=>v2().then(_=>i);v0=v1;v3=()=>{try{return v0().catch(t=>{if(t&&t.s===s){return e[2](i,t)}else{throw t}})}catch(t){if(t&&t.s===s){return Promise.resolve(e[2](i,t))}else{throw t}}}}catch(t){if(t&&t.s===s){v3=()=>Promise.resolve(e[2](i,t))}else{throw t}}return v3}`,
+    `i=>{let v0,v1;try{if(typeof i!=="boolean"){e[1](i)}v0=e[2](i);v1=()=>{try{return v0().catch(t=>{if(t&&t.s===s){return e[0](i,t)}else{throw t}})}catch(t){if(t&&t.s===s){return Promise.resolve(e[0](i,t))}else{throw t}}};}catch(t){if(t&&t.s===s){v1=()=>Promise.resolve(e[0](i,t))}else{throw t}}return v1}`,
     (),
   )
 })

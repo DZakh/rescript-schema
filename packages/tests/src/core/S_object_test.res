@@ -446,6 +446,36 @@ test("Successfully serializes object with optional fields", t => {
   )
 })
 
+test("Successfully parses object with optional fields with default", t => {
+  let struct = S.object(s =>
+    {
+      "boo": s.fieldOr("boo", S.string, "default boo"),
+      "zoo": s.fieldOr("zoo", S.string, "default zoo"),
+    }
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{boo: "bar"}`)->S.parseAnyWith(struct),
+    Ok({"boo": "bar", "zoo": "default zoo"}),
+    (),
+  )
+})
+
+test("Successfully serializes object with optional fields with default", t => {
+  let struct = S.object(s =>
+    {
+      "boo": s.fieldOr("boo", S.string, "default boo"),
+      "zoo": s.fieldOr("zoo", S.string, "default zoo"),
+    }
+  )
+
+  t->Assert.deepEqual(
+    {"boo": "bar", "zoo": "baz"}->S.serializeToUnknownWith(struct),
+    Ok(%raw(`{boo: "bar", zoo: "baz"}`)),
+    (),
+  )
+})
+
 test(
   "Successfully parses object with optional fields using (?). The optinal field becomes undefined instead of beeing missing",
   t => {
@@ -986,7 +1016,10 @@ module Compiled = {
   test("Compiled parse code snapshot for simple object with async", t => {
     let struct = S.object(s =>
       {
-        "foo": s.field("foo", S.unknown->S.asyncParserRefine(_ => _ => Promise.resolve())),
+        "foo": s.field(
+          "foo",
+          S.unknown->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}),
+        ),
         "bar": s.field("bar", S.bool),
       }
     )
@@ -994,7 +1027,7 @@ module Compiled = {
     t->TestUtils.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v0,v1,v2,v3,v4;if(!i||i.constructor!==Object){e[0](i)}v0=i["foo"];v2=e[1](v0);v1=()=>v2().then(_=>v0);v3=i["bar"];if(typeof v3!=="boolean"){e[2](v3)}v4=()=>Promise.all([v1()]).then(([v1])=>({"foo":v1,"bar":v3,}));return v4}`,
+      `i=>{let v0,v1,v2,v3;if(!i||i.constructor!==Object){e[0](i)}v0=i["foo"];v1=e[1](v0);v2=i["bar"];if(typeof v2!=="boolean"){e[2](v2)}v3=()=>Promise.all([v1()]).then(([v1])=>({"foo":v1,"bar":v2,}));return v3}`,
       (),
     )
   })

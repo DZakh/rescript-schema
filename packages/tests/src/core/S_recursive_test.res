@@ -384,7 +384,10 @@ test("Creates struct with async parse function using S.recursive", t => {
       nodeStruct => {
         S.object(
           s => {
-            id: s.field("Id", S.string->S.asyncParserRefine(_ => _ => Promise.resolve())),
+            id: s.field(
+              "Id",
+              S.string->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}),
+            ),
             children: s.field("Children", S.array(nodeStruct)),
           },
         )
@@ -397,7 +400,7 @@ asyncTest("Successfully parses recursive object with async parse function", t =>
   let nodeStruct = S.recursive(nodeStruct => {
     S.object(
       s => {
-        id: s.field("Id", S.string->S.asyncParserRefine(_ => _ => Promise.resolve())),
+        id: s.field("Id", S.string->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)})),
         children: s.field("Children", S.array(nodeStruct)),
       },
     )
@@ -432,10 +435,12 @@ test("Parses recursive object with async fields in parallel", t => {
       s => {
         id: s.field(
           "Id",
-          S.string->S.asyncParserRefine(
-            _ => _ => {
-              actionCounter.contents = actionCounter.contents + 1
-              unresolvedPromise
+          S.string->S.transform(
+            _ => {
+              asyncParser: _ => () => {
+                actionCounter.contents = actionCounter.contents + 1
+                unresolvedPromise
+              },
             },
           ),
         ),

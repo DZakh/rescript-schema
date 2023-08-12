@@ -12,33 +12,9 @@ export type EffectCtx<Input, Output> = {
   fail: (message: string) => void;
 };
 
-export interface Struct<Input, Output> {
-  parse(data: unknown): Result<Output>;
-  parseOrThrow(data: unknown): Output;
-  parseAsync(data: unknown): Promise<Result<Output>>;
-  serialize(data: Output): Result<Input>;
-  serializeOrThrow(data: Output): Input;
-  transform<Transformed>(
-    parser: (value: Output, s: EffectCtx<unknown, unknown>) => Transformed
-  ): Struct<Input, Transformed>;
-  transform<Transformed>(
-    parser: (
-      value: Output,
-      s: EffectCtx<unknown, unknown>
-    ) => Transformed | undefined,
-    serializer: (value: Transformed, s: EffectCtx<unknown, unknown>) => Input
-  ): Struct<Input, Transformed>;
-  refine(
-    refiner: (value: Output, s: EffectCtx<Input, Output>) => void
-  ): Struct<Input, Output>;
-  asyncParserRefine(
-    refiner: (value: Output, s: EffectCtx<Input, Output>) => Promise<void>
-  ): Struct<Input, Output>;
-  optional(): Struct<Input | undefined, Output | undefined>;
-  nullable(): Struct<Input | null, Output | undefined>;
-  describe(description: string): Struct<Input, Output>;
-  description(): string | undefined;
-  default(def: () => Output): Struct<Input | undefined, Output>;
+// TODO: Research how to do it properly
+export abstract class Struct<Input, Output> {
+  protected opaque: Output;
 }
 
 export type Output<T> = T extends Struct<unknown, infer Output>
@@ -101,7 +77,6 @@ export const number: Struct<number, number>;
 export const never: Struct<never, never>;
 export const unknown: Struct<unknown, unknown>;
 export const json: Struct<Json, Json>;
-export const nan: Struct<number, undefined>;
 
 export function literal<Literal extends string>(
   value: Literal
@@ -118,7 +93,6 @@ export function literal<Literal extends symbol>(
 export function literal<Literal extends BigInt>(
   value: Literal
 ): Struct<Literal, Literal>;
-// TODO: add complete types
 export function literal(value: undefined): Struct<undefined, undefined>;
 export function literal(value: null): Struct<null, null>;
 export function tuple(structs: []): Struct<[], []>;
@@ -132,9 +106,17 @@ export function tuple<A extends UnknownStruct, B extends UnknownStruct[]>(
   [Output<A>, ...StructTupleOutput<B>]
 >;
 
-export const optional: <Input, Output>(
+export function optional<Input, Output>(
   struct: Struct<Input, Output>
-) => Struct<Input | undefined, Output | undefined>;
+): Struct<Input | undefined, Output | undefined>;
+export function optional<Input, Output>(
+  struct: Struct<Input, Output>,
+  or: () => Output
+): Struct<Input | undefined, Output>;
+export function optional<Input, Output>(
+  struct: Struct<Input, Output>,
+  or: Output
+): Struct<Input | undefined, Output>;
 
 export const nullable: <Input, Output>(
   struct: Struct<Input, Output>
@@ -184,4 +166,53 @@ export function custom<Input, Output>(
   serializer: (value: Output, s: EffectCtx<unknown, unknown>) => Input
 ): Struct<Input, Output>;
 
-export const fail: (reason: string) => void;
+export function asyncParserRefine<Input, Output>(
+  struct: Struct<Input, Output>,
+  refiner: (value: Output, s: EffectCtx<Input, Output>) => Promise<void>
+): Struct<Input, Output>;
+export function refine<Input, Output>(
+  struct: Struct<Input, Output>,
+  refiner: (value: Output, s: EffectCtx<Input, Output>) => void
+): Struct<Input, Output>;
+
+export function transform<Input, Output, Transformed>(
+  struct: Struct<Input, Output>,
+  parser: (value: Output, s: EffectCtx<unknown, unknown>) => Transformed
+): Struct<Input, Transformed>;
+export function transform<Input, Output, Transformed>(
+  struct: Struct<Input, Output>,
+  parser: (
+    value: Output,
+    s: EffectCtx<unknown, unknown>
+  ) => Transformed | undefined,
+  serializer: (value: Transformed, s: EffectCtx<unknown, unknown>) => Input
+): Struct<Input, Transformed>;
+
+export function describe<Input, Output>(
+  struct: Struct<Input, Output>,
+  description: string
+): Struct<Input, Output>;
+export function description<Input, Output>(
+  struct: Struct<Input, Output>
+): string | undefined;
+
+export function parse<Input, Output>(
+  struct: Struct<Input, Output>,
+  data: unknown
+): Result<Output>;
+export function parseOrThrow<Input, Output>(
+  struct: Struct<Input, Output>,
+  data: unknown
+): Output;
+export function parseAsync<Input, Output>(
+  struct: Struct<Input, Output>,
+  data: unknown
+): Promise<Result<Output>>;
+export function serialize<Input, Output>(
+  struct: Struct<Input, Output>,
+  data: Output
+): Result<Input>;
+export function serializeOrThrow<Input, Output>(
+  struct: Struct<Input, Output>,
+  data: Output
+): Input;

@@ -18,7 +18,7 @@ test("S.description returns Some for described structs", t => {
 
 test("Transforms don't remove description", t => {
   let struct =
-    S.string->S.describe("A useful bit of text, if you know what to do with it.")->S.String.trim()
+    S.string->S.describe("A useful bit of text, if you know what to do with it.")->S.String.trim
 
   t->Assert.deepEqual(
     struct->S.description,
