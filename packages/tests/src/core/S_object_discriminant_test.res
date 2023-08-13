@@ -257,13 +257,15 @@ module Negative = {
 
         t->Assert.deepEqual(
           {"field": "bar"}->S.serializeToUnknownWith(struct),
-          Error({
-            code: InvalidOperation({
-              description: `Can\'t create serializer. The "discriminant" field is not registered and not a literal. Use S.transform instead`,
+          Error(
+            U.error({
+              code: InvalidOperation({
+                description: `Can\'t create serializer. The "discriminant" field is not registered and not a literal. Use S.transform instead`,
+              }),
+              operation: Serializing,
+              path: S.Path.empty,
             }),
-            operation: Serializing,
-            path: S.Path.empty,
-          }),
+          ),
           (),
         )
       },
@@ -284,11 +286,13 @@ test(`Fails to parse object with invalid data passed to discriminant field`, t =
       "discriminant": false,
       "field": "bar",
     }->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
-      operation: Parsing,
-      path: S.Path.fromArray(["discriminant"]),
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
+        operation: Parsing,
+        path: S.Path.fromArray(["discriminant"]),
+      }),
+    ),
     (),
   )
 })
@@ -306,11 +310,13 @@ test(`Parses discriminant fields before registered fields`, t => {
       "discriminant": false,
       "field": false,
     }->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
-      operation: Parsing,
-      path: S.Path.fromArray(["discriminant"]),
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
+        operation: Parsing,
+        path: S.Path.fromArray(["discriminant"]),
+      }),
+    ),
     (),
   )
 })
@@ -325,13 +331,15 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
 
   t->Assert.deepEqual(
     {"field": "bar"}->S.serializeToUnknownWith(struct),
-    Error({
-      code: InvalidOperation({
-        description: `Can't create serializer. The "discriminant" field is not registered and not a literal. Use S.transform instead`,
+    Error(
+      U.error({
+        code: InvalidOperation({
+          description: `Can't create serializer. The "discriminant" field is not registered and not a literal. Use S.transform instead`,
+        }),
+        operation: Serializing,
+        path: S.Path.empty,
       }),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    ),
     (),
   )
 })
@@ -346,11 +354,13 @@ test(`Serializes constant fields before registered fields`, t => {
 
   t->Assert.deepEqual(
     {"constant": false, "field": false}->S.serializeToUnknownWith(struct),
-    Error({
-      code: InvalidLiteral({expected: Boolean(true), received: Obj.magic(false)}),
-      operation: Serializing,
-      path: S.Path.fromArray(["constant"]),
-    }),
+    Error(
+      U.error({
+        code: InvalidLiteral({expected: Boolean(true), received: Obj.magic(false)}),
+        operation: Serializing,
+        path: S.Path.fromArray(["constant"]),
+      }),
+    ),
     (),
   )
 })

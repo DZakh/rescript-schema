@@ -11,11 +11,13 @@ test("Fails to parse wrapped struct", t => {
 
   t->Assert.deepEqual(
     123->S.parseAnyWith(struct),
-    Error({
-      operation: Parsing,
-      code: InvalidType({received: 123->Obj.magic, expected: S.string->S.toUnknown}),
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidType({received: 123->Obj.magic, expected: S.string->S.toUnknown}),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -35,11 +37,13 @@ test("Fails to serialize when can't unwrap the value from variant", t => {
 
   t->Assert.deepEqual(
     Error("Hello world!")->S.serializeToUnknownWith(struct),
-    Error({
-      code: InvalidLiteral({expected: String("Ok"), received: "Error"->Obj.magic}),
-      path: S.Path.fromLocation("TAG"),
-      operation: Serializing,
-    }),
+    Error(
+      U.error({
+        code: InvalidLiteral({expected: String("Ok"), received: "Error"->Obj.magic}),
+        operation: Serializing,
+        path: S.Path.fromLocation("TAG"),
+      }),
+    ),
     (),
   )
 })
@@ -55,13 +59,15 @@ test("Fails to serialize when the value is not used as the variant payload", t =
 
   t->Assert.deepEqual(
     #foo->S.serializeToUnknownWith(struct),
-    Error({
-      code: InvalidOperation({
-        description: "Can\'t create serializer. The S.variant\'s value is not registered and not a literal. Use S.transform instead",
+    Error(
+      U.error({
+        code: InvalidOperation({
+          description: "Can\'t create serializer. The S.variant\'s value is not registered and not a literal. Use S.transform instead",
+        }),
+        operation: Serializing,
+        path: S.Path.empty,
       }),
-      path: S.Path.empty,
-      operation: Serializing,
-    }),
+    ),
     (),
   )
 })
@@ -99,13 +105,15 @@ test("Fails to serialize when value registered multiple times", t => {
 
   t->Assert.deepEqual(
     #Foo("abc", "abc")->S.serializeToUnknownWith(struct),
-    Error({
-      code: InvalidOperation({
-        description: "Can\'t create serializer. The S.variant\'s value is registered multiple times. Use S.transform instead",
+    Error(
+      U.error({
+        code: InvalidOperation({
+          description: "Can\'t create serializer. The S.variant\'s value is registered multiple times. Use S.transform instead",
+        }),
+        operation: Serializing,
+        path: S.Path.empty,
       }),
-      path: S.Path.empty,
-      operation: Serializing,
-    }),
+    ),
     (),
   )
 })
@@ -113,7 +121,7 @@ test("Fails to serialize when value registered multiple times", t => {
 test("Compiled parse code snapshot", t => {
   let struct = S.string->S.variant(s => Ok(s))
 
-  t->TestUtils.assertCompiledCode(
+  t->U.assertCompiledCode(
     ~struct,
     ~op=#parse,
     `i=>{if(typeof i!=="string"){e[0](i)}return e[1](i)}`,
@@ -124,7 +132,7 @@ test("Compiled parse code snapshot", t => {
 test("Compiled serialize code snapshot", t => {
   let struct = S.string->S.variant(s => Ok(s))
 
-  t->TestUtils.assertCompiledCode(
+  t->U.assertCompiledCode(
     ~struct,
     ~op=#serialize,
     `i=>{let v0;v0=i["TAG"];if(v0!==e[0]){e[1](v0)}return i["_0"]}`,

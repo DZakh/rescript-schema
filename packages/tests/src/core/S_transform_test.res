@@ -29,11 +29,13 @@ test("Fails to parse primitive with transform when parser isn't provided", t => 
 
   t->Assert.deepEqual(
     "Hello world!"->S.parseAnyWith(struct),
-    Error({
-      code: InvalidOperation({description: "The S.transform parser is missing"}),
-      path: S.Path.empty,
-      operation: Parsing,
-    }),
+    Error(
+      U.error({
+        code: InvalidOperation({description: "The S.transform parser is missing"}),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -43,11 +45,7 @@ test("Fails to parse when user raises error in a Transformed Primitive parser", 
 
   t->Assert.deepEqual(
     "Hello world!"->S.parseAnyWith(struct),
-    Error({
-      code: OperationFailed("User error"),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(U.error({code: OperationFailed("User error"), operation: Parsing, path: S.Path.empty})),
     (),
   )
 })
@@ -56,21 +54,25 @@ test("Uses the path from failWithError called in the transform parser", t => {
   let struct = S.array(
     S.string->S.transform(s => {
       parser: _ =>
-        s.failWithError({
-          code: OperationFailed("User error"),
-          operation: Parsing,
-          path: S.Path.fromArray(["a", "b"]),
-        }),
+        s.failWithError(
+          U.error({
+            code: OperationFailed("User error"),
+            operation: Parsing,
+            path: S.Path.fromArray(["a", "b"]),
+          }),
+        ),
     }),
   )
 
   t->Assert.deepEqual(
     ["Hello world!"]->S.parseAnyWith(struct),
-    Error({
-      code: OperationFailed("User error"),
-      operation: Parsing,
-      path: S.Path.fromArray(["0", "a", "b"]),
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("User error"),
+        operation: Parsing,
+        path: S.Path.fromArray(["0", "a", "b"]),
+      }),
+    ),
     (),
   )
 })
@@ -79,21 +81,25 @@ test("Uses the path from failWithError called in the transform serializer", t =>
   let struct = S.array(
     S.string->S.transform(s => {
       serializer: _ =>
-        s.failWithError({
-          code: OperationFailed("User error"),
-          operation: Parsing,
-          path: S.Path.fromArray(["a", "b"]),
-        }),
+        s.failWithError(
+          U.error({
+            code: OperationFailed("User error"),
+            operation: Parsing,
+            path: S.Path.fromArray(["a", "b"]),
+          }),
+        ),
     }),
   )
 
   t->Assert.deepEqual(
     ["Hello world!"]->S.serializeWith(struct),
-    Error({
-      code: OperationFailed("User error"),
-      operation: Serializing,
-      path: S.Path.fromArray(["0", "a", "b"]),
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("User error"),
+        operation: Serializing,
+        path: S.Path.fromArray(["0", "a", "b"]),
+      }),
+    ),
     (),
   )
 })
@@ -113,9 +119,9 @@ test("Transform parser passes through non rescript-struct errors", t => {
 })
 
 test("Transform parser passes through other rescript exceptions", t => {
-  let struct = S.array(S.string->S.transform(_ => {parser: _ => TestUtils.raiseTestException()}))
+  let struct = S.array(S.string->S.transform(_ => {parser: _ => U.raiseTestException()}))
 
-  t->TestUtils.assertThrowsTestException(() => {["Hello world!"]->S.parseAnyWith(struct)}, ())
+  t->U.assertThrowsTestException(() => {["Hello world!"]->S.parseAnyWith(struct)}, ())
 })
 
 test("Transform definition passes through non rescript-struct errors", t => {
@@ -131,9 +137,9 @@ test("Transform definition passes through non rescript-struct errors", t => {
 })
 
 test("Transform definition passes through other rescript exceptions", t => {
-  let struct = S.array(S.string->S.transform(_ => TestUtils.raiseTestException()))
+  let struct = S.array(S.string->S.transform(_ => U.raiseTestException()))
 
-  t->TestUtils.assertThrowsTestException(() => {["Hello world!"]->S.parseAnyWith(struct)}, ())
+  t->U.assertThrowsTestException(() => {["Hello world!"]->S.parseAnyWith(struct)}, ())
 })
 
 test("Successfully serializes primitive with transformation to the same type", t => {
@@ -157,11 +163,13 @@ test("Transformed Primitive serializing fails when serializer isn't provided", t
 
   t->Assert.deepEqual(
     "Hello world!"->S.serializeToUnknownWith(struct),
-    Error({
-      code: InvalidOperation({description: "The S.transform serializer is missing"}),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidOperation({description: "The S.transform serializer is missing"}),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -171,11 +179,9 @@ test("Fails to serialize when user raises error in a Transformed Primitive seria
 
   t->Assert.deepEqual(
     "Hello world!"->S.serializeToUnknownWith(struct),
-    Error({
-      code: OperationFailed("User error"),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({code: OperationFailed("User error"), operation: Serializing, path: S.Path.empty}),
+    ),
     (),
   )
 })
@@ -188,11 +194,9 @@ test("Transform operations applyed in the right order when parsing", t => {
 
   t->Assert.deepEqual(
     123->S.parseAnyWith(struct),
-    Error({
-      code: OperationFailed("First transform"),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({code: OperationFailed("First transform"), operation: Parsing, path: S.Path.empty}),
+    ),
     (),
   )
 })
@@ -205,11 +209,13 @@ test("Transform operations applyed in the right order when serializing", t => {
 
   t->Assert.deepEqual(
     123->S.serializeToUnknownWith(struct),
-    Error({
-      code: OperationFailed("Second transform"),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("Second transform"),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -238,13 +244,15 @@ test("Fails to parse struct with transform having both parser and asyncParser", 
 
   t->Assert.deepEqual(
     "foo"->S.parseAnyWith(struct),
-    Error({
-      code: InvalidOperation({
-        description: "The S.transform doesn\'t allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.",
+    Error(
+      U.error({
+        code: InvalidOperation({
+          description: "The S.transform doesn\'t allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.",
+        }),
+        operation: Parsing,
+        path: S.Path.empty,
       }),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    ),
     (),
   )
 })
@@ -254,11 +262,7 @@ test("Fails to parse async using parseAnyWith", t => {
 
   t->Assert.deepEqual(
     %raw(`"Hello world!"`)->S.parseAnyWith(struct),
-    Error({
-      code: UnexpectedAsync,
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(U.error({code: UnexpectedAsync, operation: Parsing, path: S.Path.empty})),
     (),
   )
 })
@@ -297,11 +301,13 @@ asyncTest("Fails to parse async with user error", t => {
   ->Promise.thenResolve(result => {
     t->Assert.deepEqual(
       result,
-      Error({
-        S.code: OperationFailed("User error"),
-        path: S.Path.empty,
-        operation: Parsing,
-      }),
+      Error(
+        U.error({
+          code: OperationFailed("User error"),
+          path: S.Path.empty,
+          operation: Parsing,
+        }),
+      ),
       (),
     )
   })
@@ -327,7 +333,7 @@ test("Compiled parse code snapshot", t => {
     serializer: value => value->Int.fromFloat,
   })
 
-  t->TestUtils.assertCompiledCode(
+  t->U.assertCompiledCode(
     ~struct,
     ~op=#parse,
     `i=>{if(!(typeof i==="number"&&i<2147483648&&i>-2147483649&&i%1===0)){e[0](i)}return e[1](i)}`,
@@ -341,7 +347,7 @@ test("Compiled async parse code snapshot", t => {
     serializer: value => value->Int.fromFloat,
   })
 
-  t->TestUtils.assertCompiledCode(
+  t->U.assertCompiledCode(
     ~struct,
     ~op=#parse,
     `i=>{let v0;if(!(typeof i==="number"&&i<2147483648&&i>-2147483649&&i%1===0)){e[0](i)}v0=e[1](i);return v0}`,
@@ -355,5 +361,5 @@ test("Compiled serialize code snapshot", t => {
     serializer: value => value->Int.fromFloat,
   })
 
-  t->TestUtils.assertCompiledCode(~struct, ~op=#serialize, `i=>{return e[0](i)}`, ())
+  t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{return e[0](i)}`, ())
 })

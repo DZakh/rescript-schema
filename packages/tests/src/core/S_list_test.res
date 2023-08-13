@@ -24,7 +24,7 @@ module CommonWithNested = {
         switch e.code {
         | InvalidType({expected, received}) => {
             t->Assert.deepEqual(received, invalidAny, ())
-            t->TestUtils.unsafeAssertEqualStructs(expected, S.array(S.string), ())
+            t->U.unsafeAssertEqualStructs(expected, S.array(S.string), ())
           }
         | _ => t->Assert.fail("Unexpected code.")
         }
@@ -37,11 +37,13 @@ module CommonWithNested = {
 
     t->Assert.deepEqual(
       nestedInvalidAny->S.parseAnyWith(struct),
-      Error({
-        code: InvalidType({expected: S.string->S.toUnknown, received: 1->Obj.magic}),
-        operation: Parsing,
-        path: S.Path.fromArray(["1"]),
-      }),
+      Error(
+        U.error({
+          code: InvalidType({expected: S.string->S.toUnknown, received: 1->Obj.magic}),
+          operation: Parsing,
+          path: S.Path.fromArray(["1"]),
+        }),
+      ),
       (),
     )
   })

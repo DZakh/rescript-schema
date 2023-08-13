@@ -23,11 +23,13 @@ test("Fails to parse object with inlinable string field", t => {
 
   t->Assert.deepEqual(
     %raw(`{field: 123}`)->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
-      operation: Parsing,
-      path: S.Path.fromArray(["field"]),
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
+        operation: Parsing,
+        path: S.Path.fromArray(["field"]),
+      }),
+    ),
     (),
   )
 })
@@ -43,11 +45,13 @@ test(
 
     t->Assert.deepEqual(
       %raw(`{field: ["foo"]}`)->S.parseAnyWith(struct),
-      Error({
-        code: OperationFailed("User error"),
-        operation: Parsing,
-        path: S.Path.fromArray(["field", "0"]),
-      }),
+      Error(
+        U.error({
+          code: OperationFailed("User error"),
+          operation: Parsing,
+          path: S.Path.fromArray(["field", "0"]),
+        }),
+      ),
       (),
     )
   },
@@ -72,11 +76,13 @@ test("Fails to parse object with inlinable bool field", t => {
 
   t->Assert.deepEqual(
     %raw(`{field: 123}`)->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`123`)}),
-      operation: Parsing,
-      path: S.Path.fromArray(["field"]),
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`123`)}),
+        operation: Parsing,
+        path: S.Path.fromArray(["field"]),
+      }),
+    ),
     (),
   )
 })
@@ -118,11 +124,13 @@ test("Fails to parse object with inlinable never field", t => {
 
   t->Assert.deepEqual(
     %raw(`{field: true}`)->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`true`)}),
-      operation: Parsing,
-      path: S.Path.fromArray(["field"]),
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`true`)}),
+        operation: Parsing,
+        path: S.Path.fromArray(["field"]),
+      }),
+    ),
     (),
   )
 })
@@ -146,11 +154,13 @@ test("Fails to parse object with inlinable float field", t => {
 
   t->Assert.deepEqual(
     %raw(`{field: true}`)->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({expected: S.float->S.toUnknown, received: %raw(`true`)}),
-      operation: Parsing,
-      path: S.Path.fromArray(["field"]),
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: S.float->S.toUnknown, received: %raw(`true`)}),
+        operation: Parsing,
+        path: S.Path.fromArray(["field"]),
+      }),
+    ),
     (),
   )
 })
@@ -174,11 +184,13 @@ test("Fails to parse object with inlinable int field", t => {
 
   t->Assert.deepEqual(
     %raw(`{field: true}`)->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
-      operation: Parsing,
-      path: S.Path.fromArray(["field"]),
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+        operation: Parsing,
+        path: S.Path.fromArray(["field"]),
+      }),
+    ),
     (),
   )
 })
@@ -203,11 +215,13 @@ test("Fails to parse object with not inlinable empty object field", t => {
 
   t->Assert.deepEqual(
     %raw(`{field: true}`)->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({expected: fieldStruct->S.toUnknown, received: %raw(`true`)}),
-      operation: Parsing,
-      path: S.Path.fromArray(["field"]),
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: fieldStruct->S.toUnknown, received: %raw(`true`)}),
+        operation: Parsing,
+        path: S.Path.fromArray(["field"]),
+      }),
+    ),
     (),
   )
 })
@@ -221,11 +235,13 @@ test("Fails to parse object when provided invalid data", t => {
 
   t->Assert.deepEqual(
     %raw(`12`)->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({expected: struct->S.toUnknown, received: %raw(`12`)}),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`12`)}),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -300,11 +316,13 @@ test("Fails to parse object when transformed field has raises error", t => {
 
   t->Assert.deepEqual(
     {"field": "bar"}->S.parseAnyWith(struct),
-    Error({
-      code: OperationFailed("User error"),
-      operation: Parsing,
-      path: S.Path.fromArray(["field"]),
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("User error"),
+        operation: Parsing,
+        path: S.Path.fromArray(["field"]),
+      }),
+    ),
     (),
   )
 })
@@ -321,11 +339,13 @@ test("Shows transformed object field name in error path when fails to parse", t 
 
   t->Assert.deepEqual(
     {"originalFieldName": "bar"}->S.parseAnyWith(struct),
-    Error({
-      code: OperationFailed("User error"),
-      operation: Parsing,
-      path: S.Path.fromArray(["originalFieldName"]),
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("User error"),
+        operation: Parsing,
+        path: S.Path.fromArray(["originalFieldName"]),
+      }),
+    ),
     (),
   )
 })
@@ -359,11 +379,13 @@ test("Fails to serializes object when transformed field has raises error", t => 
 
   t->Assert.deepEqual(
     {"field": "bar"}->S.serializeToUnknownWith(struct),
-    Error({
-      code: OperationFailed("User error"),
-      operation: Serializing,
-      path: S.Path.fromArray(["field"]),
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("User error"),
+        operation: Serializing,
+        path: S.Path.fromArray(["field"]),
+      }),
+    ),
     (),
   )
 })
@@ -380,11 +402,13 @@ test("Shows transformed object field name in error path when fails to serializes
 
   t->Assert.deepEqual(
     {"transformedFieldName": "bar"}->S.serializeToUnknownWith(struct),
-    Error({
-      code: OperationFailed("User error"),
-      operation: Serializing,
-      path: S.Path.fromArray(["transformedFieldName"]),
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("User error"),
+        operation: Serializing,
+        path: S.Path.fromArray(["transformedFieldName"]),
+      }),
+    ),
     (),
   )
 })
@@ -407,11 +431,13 @@ test("Shows transformed to nested object field name in error path when fails to 
         "transformedFieldName": "bar",
       },
     }->S.serializeToUnknownWith(struct),
-    Error({
-      code: OperationFailed("User error"),
-      operation: Serializing,
-      path: S.Path.fromArray(["v1", "transformedFieldName"]),
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("User error"),
+        operation: Serializing,
+        path: S.Path.fromArray(["v1", "transformedFieldName"]),
+      }),
+    ),
     (),
   )
 })
@@ -921,13 +947,15 @@ test("Fails to serialize object struct with single field registered multiple tim
   })
   t->Assert.deepEqual(
     {"field1": "foo", "field2": "foo"}->S.serializeToUnknownWith(struct),
-    Error({
-      code: InvalidOperation({
-        description: `The field "field" is registered multiple times. If you want to duplicate the field, use S.transform instead`,
+    Error(
+      U.error({
+        code: InvalidOperation({
+          description: `The field "field" is registered multiple times. If you want to duplicate the field, use S.transform instead`,
+        }),
+        operation: Serializing,
+        path: S.Path.empty,
       }),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    ),
     (),
   )
 })
@@ -943,11 +971,13 @@ test("Object struct parsing checks order", t => {
   // Type check should be the first
   t->Assert.deepEqual(
     %raw(`"foo"`)->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({expected: struct->S.toUnknown, received: %raw(`"foo"`)}),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`"foo"`)}),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
   // Tag check should be the second
@@ -955,11 +985,13 @@ test("Object struct parsing checks order", t => {
     %raw(`{tag: "wrong", key: "wrong", unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
       struct,
     ),
-    Error({
-      code: InvalidLiteral({expected: String("value"), received: %raw(`"wrong"`)}),
-      operation: Parsing,
-      path: S.Path.fromLocation("tag"),
-    }),
+    Error(
+      U.error({
+        code: InvalidLiteral({expected: String("value"), received: %raw(`"wrong"`)}),
+        operation: Parsing,
+        path: S.Path.fromLocation("tag"),
+      }),
+    ),
     (),
   )
   // Field check should be the third
@@ -967,11 +999,13 @@ test("Object struct parsing checks order", t => {
     %raw(`{tag: "value", key: "wrong", unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
       struct,
     ),
-    Error({
-      code: InvalidLiteral({expected: String("value"), received: %raw(`"wrong"`)}),
-      operation: Parsing,
-      path: S.Path.fromLocation("key"),
-    }),
+    Error(
+      U.error({
+        code: InvalidLiteral({expected: String("value"), received: %raw(`"wrong"`)}),
+        operation: Parsing,
+        path: S.Path.fromLocation("key"),
+      }),
+    ),
     (),
   )
   // Unknown keys check should be the last
@@ -979,11 +1013,7 @@ test("Object struct parsing checks order", t => {
     %raw(`{tag: "value", key: "value", unknownKey: "value2", unknownKey2: "value2"}`)->S.parseAnyWith(
       struct,
     ),
-    Error({
-      code: ExcessField("unknownKey"),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(U.error({code: ExcessField("unknownKey"), operation: Parsing, path: S.Path.empty})),
     (),
   )
   // Parses valid
@@ -1005,7 +1035,7 @@ module Compiled = {
       }
     )
 
-    t->TestUtils.assertCompiledCode(
+    t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
       `i=>{let v0,v1;if(!i||i.constructor!==Object){e[0](i)}v0=i["foo"];if(typeof v0!=="string"){e[1](v0)}v1=i["bar"];if(typeof v1!=="boolean"){e[2](v1)}return {"foo":v0,"bar":v1,}}`,
@@ -1024,7 +1054,7 @@ module Compiled = {
       }
     )
 
-    t->TestUtils.assertCompiledCode(
+    t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
       `i=>{let v0,v1,v2,v3;if(!i||i.constructor!==Object){e[0](i)}v0=i["foo"];v1=e[1](v0);v2=i["bar"];if(typeof v2!=="boolean"){e[2](v2)}v3=()=>Promise.all([v1()]).then(([v1])=>({"foo":v1,"bar":v2,}));return v3}`,
@@ -1040,7 +1070,7 @@ module Compiled = {
       }
     )
 
-    t->TestUtils.assertCompiledCode(
+    t->U.assertCompiledCode(
       ~struct,
       ~op=#serialize,
       `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`,
@@ -1056,7 +1086,7 @@ module Compiled = {
       }
     )->S.Object.strict
 
-    t->TestUtils.assertCompiledCode(
+    t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
       `i=>{let v0,v1,v2;if(!i||i.constructor!==Object){e[0](i)}v1=i["foo"];if(typeof v1!=="string"){e[2](v1)}v2=i["bar"];if(typeof v2!=="boolean"){e[3](v2)}for(v0 in i){if(v0!=="foo"&&v0!=="bar"){e[1](v0)}}return {"foo":v1,"bar":v2,}}`,
@@ -1072,7 +1102,7 @@ module Compiled = {
       }
     )->S.Object.strict
 
-    t->TestUtils.assertCompiledCode(
+    t->U.assertCompiledCode(
       ~struct,
       ~op=#serialize,
       `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`,
@@ -1092,7 +1122,7 @@ module Compiled = {
         }
       })->S.Object.strict
 
-      t->TestUtils.assertCompiledCode(
+      t->U.assertCompiledCode(
         ~struct,
         ~op=#parse,
         `i=>{let v0,v1,v2,v3;if(!i||i.constructor!==Object){e[0](i)}v3=i["tag"];v3===e[5]||e[6](v3);v1=i["FOO"];if(typeof v1!=="string"){e[2](v1)}v2=i["BAR"];if(typeof v2!=="boolean"){e[3](v2)}for(v0 in i){if(v0!=="tag"&&v0!=="FOO"&&v0!=="BAR"){e[1](v0)}}return {"foo":v1,"bar":v2,"zoo":e[4],}}`,
@@ -1113,7 +1143,7 @@ module Compiled = {
         }
       })->S.Object.strict
 
-      t->TestUtils.assertCompiledCode(
+      t->U.assertCompiledCode(
         ~struct,
         ~op=#serialize,
         `i=>{if(i["zoo"]!==e[0]){e[1](i["zoo"])}return {"FOO":i["foo"],"BAR":i["bar"],"tag":e[2],}}`,

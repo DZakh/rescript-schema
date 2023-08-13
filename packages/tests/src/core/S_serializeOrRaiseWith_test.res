@@ -18,11 +18,13 @@ test("Fails to serialize", t => {
 
   t->Assert.deepEqual(
     maybeError,
-    Some({
-      code: OperationFailed("User error"),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Some(
+      U.error({
+        code: OperationFailed("User error"),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })

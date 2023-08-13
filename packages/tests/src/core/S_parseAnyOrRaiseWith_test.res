@@ -24,11 +24,13 @@ test("Fails to parse", t => {
 
   t->Assert.deepEqual(
     maybeError,
-    Some({
-      code: InvalidType({expected: struct->S.toUnknown, received: Obj.magic(123)}),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Some(
+      U.error({
+        code: InvalidType({expected: struct->S.toUnknown, received: Obj.magic(123)}),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })

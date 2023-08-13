@@ -49,11 +49,7 @@ test("Fails to serialize Unknown struct", t => {
   let struct = S.unknown
   t->Assert.deepEqual(
     Obj.magic(123)->S.serializeToJsonStringWith(struct),
-    Error({
-      code: InvalidJsonStruct(struct),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(U.error({code: InvalidJsonStruct(struct), operation: Serializing, path: S.Path.empty})),
     (),
   )
 })

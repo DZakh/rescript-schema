@@ -1,6 +1,6 @@
 open Ava
 open RescriptCore
-open TestUtils
+open U
 
 @struct
 type myString = string

@@ -73,8 +73,8 @@ and errorCode =
   | UnexpectedAsync
   | InvalidJsonStruct(struct<unknown>)
 and operation =
-  | Serializing
   | Parsing
+  | Serializing
 and unknownKeys = Strip | Strict
 
 type effectCtx<'value> = {

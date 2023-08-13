@@ -73,11 +73,13 @@ test("Fails to serialize Option struct", t => {
   let struct = S.option(S.bool)
   t->Assert.deepEqual(
     None->S.serializeWith(struct),
-    Error({
-      code: InvalidJsonStruct(struct->S.toUnknown),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidJsonStruct(struct->S.toUnknown),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -86,11 +88,13 @@ test("Fails to serialize Undefined literal", t => {
   let struct = S.literal()
   t->Assert.deepEqual(
     ()->S.serializeWith(struct),
-    Error({
-      code: InvalidJsonStruct(struct->S.toUnknown),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidJsonStruct(struct->S.toUnknown),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -100,11 +104,13 @@ test("Fails to serialize Function literal", t => {
   let struct = S.literal(fn)
   t->Assert.deepEqual(
     fn->S.serializeWith(struct),
-    Error({
-      code: InvalidJsonStruct(struct->S.toUnknown),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidJsonStruct(struct->S.toUnknown),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -114,11 +120,13 @@ test("Fails to serialize Object literal", t => {
   let struct = S.literal(error)
   t->Assert.deepEqual(
     error->S.serializeWith(struct),
-    Error({
-      code: InvalidJsonStruct(struct->S.toUnknown),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidJsonStruct(struct->S.toUnknown),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -128,11 +136,13 @@ test("Fails to serialize Symbol literal", t => {
   let struct = S.literal(symbol)
   t->Assert.deepEqual(
     symbol->S.serializeWith(struct),
-    Error({
-      code: InvalidJsonStruct(struct->S.toUnknown),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidJsonStruct(struct->S.toUnknown),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -142,11 +152,13 @@ test("Fails to serialize BigInt literal", t => {
   let struct = S.literal(bigint)
   t->Assert.deepEqual(
     bigint->S.serializeWith(struct),
-    Error({
-      code: InvalidJsonStruct(struct->S.toUnknown),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidJsonStruct(struct->S.toUnknown),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -156,11 +168,13 @@ test("Fails to serialize Dict literal with invalid field", t => {
   let struct = S.literal(dict)
   t->Assert.deepEqual(
     dict->S.serializeWith(struct),
-    Error({
-      code: InvalidJsonStruct(struct->S.toUnknown),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidJsonStruct(struct->S.toUnknown),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -169,11 +183,13 @@ test("Fails to serialize NaN literal", t => {
   let struct = S.literal(%raw(`NaN`))
   t->Assert.deepEqual(
     ()->S.serializeWith(struct),
-    Error({
-      code: InvalidJsonStruct(struct->S.toUnknown),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidJsonStruct(struct->S.toUnknown),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -181,11 +197,9 @@ test("Fails to serialize NaN literal", t => {
 test("Fails to serialize Unknown struct", t => {
   t->Assert.deepEqual(
     Obj.magic(123)->S.serializeWith(S.unknown),
-    Error({
-      code: InvalidJsonStruct(S.unknown),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({code: InvalidJsonStruct(S.unknown), operation: Serializing, path: S.Path.empty}),
+    ),
     (),
   )
 })
@@ -193,11 +207,13 @@ test("Fails to serialize Unknown struct", t => {
 test("Fails to serialize Never struct", t => {
   t->Assert.deepEqual(
     Obj.magic(123)->S.serializeWith(S.never),
-    Error({
-      code: InvalidType({expected: S.never->S.toUnknown, received: Obj.magic(123)}),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: S.never->S.toUnknown, received: Obj.magic(123)}),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -205,11 +221,13 @@ test("Fails to serialize Never struct", t => {
 test("Fails to serialize object with invalid nested struct", t => {
   t->Assert.deepEqual(
     Obj.magic(true)->S.serializeWith(S.object(s => s.field("foo", S.unknown))),
-    Error({
-      code: InvalidJsonStruct(S.unknown),
-      operation: Serializing,
-      path: S.Path.fromArray(["foo"]),
-    }),
+    Error(
+      U.error({
+        code: InvalidJsonStruct(S.unknown),
+        operation: Serializing,
+        path: S.Path.fromArray(["foo"]),
+      }),
+    ),
     (),
   )
 })
@@ -217,25 +235,23 @@ test("Fails to serialize object with invalid nested struct", t => {
 test("Fails to serialize tuple with invalid nested struct", t => {
   t->Assert.deepEqual(
     Obj.magic(true)->S.serializeWith(S.tuple1(S.unknown)),
-    Error({
-      code: InvalidJsonStruct(S.unknown),
-      operation: Serializing,
-      path: S.Path.fromArray(["0"]),
-    }),
+    Error(
+      U.error({
+        code: InvalidJsonStruct(S.unknown),
+        operation: Serializing,
+        path: S.Path.fromArray(["0"]),
+      }),
+    ),
     (),
   )
 })
 
 test("Fails to serialize union if one of the items is an invalid struct", t => {
   t->Assert.deepEqual(
-    "foo"->S.serializeWith(
-      S.union([S.string, S.unknown->(TestUtils.magic: S.t<unknown> => S.t<string>)]),
+    "foo"->S.serializeWith(S.union([S.string, S.unknown->(U.magic: S.t<unknown> => S.t<string>)])),
+    Error(
+      U.error({code: InvalidJsonStruct(S.unknown), operation: Serializing, path: S.Path.empty}),
     ),
-    Error({
-      code: InvalidJsonStruct(S.unknown),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
     (),
   )
 })

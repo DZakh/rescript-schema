@@ -5,8 +5,21 @@ external magic: 'a => 'b = "%identity"
 external castAnyToUnknown: 'any => unknown = "%identity"
 external castUnknownToAny: unknown => 'any = "%identity"
 
+type payloadedVariant<'payload> = {_0: 'payload}
+let unsafeGetVariantPayload = variant => (variant->Obj.magic)._0
+
 exception Test
 let raiseTestException = () => raise(Test)
+
+let error: S.error => S.error = {
+  let result = 0->S.parseAnyWith(S.never)
+  let symbol = (result->unsafeGetVariantPayload)["s"]
+
+  (error: S.error) => {
+    error->Obj.magic->Js.Dict.set("s", symbol)
+    error
+  }
+}
 
 let assertThrowsTestException = {
   (t, fn, ~message=?, ()) => {

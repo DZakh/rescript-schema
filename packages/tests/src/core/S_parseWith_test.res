@@ -18,11 +18,13 @@ test("Fails to parse", t => {
 
   t->Assert.deepEqual(
     %raw("123")->S.parseWith(struct),
-    Error({
-      code: InvalidType({expected: struct->S.toUnknown, received: %raw("123")}),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: struct->S.toUnknown, received: %raw("123")}),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })

@@ -1,5 +1,5 @@
 open Ava
-open TestUtils
+open U
 
 @struct
 type variant = One | Two

@@ -18,11 +18,13 @@ module Common = {
 
     t->Assert.deepEqual(
       invalidTypeAny->S.parseAnyWith(struct),
-      Error({
-        code: InvalidLiteral({expected: NaN, received: invalidTypeAny}),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
+      Error(
+        U.error({
+          code: InvalidLiteral({expected: NaN, received: invalidTypeAny}),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -38,11 +40,13 @@ module Common = {
 
     t->Assert.deepEqual(
       invalidValue->S.serializeToUnknownWith(struct),
-      Error({
-        code: InvalidLiteral({expected: NaN, received: invalidValue}),
-        operation: Serializing,
-        path: S.Path.empty,
-      }),
+      Error(
+        U.error({
+          code: InvalidLiteral({expected: NaN, received: invalidValue}),
+          operation: Serializing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -50,22 +54,12 @@ module Common = {
   test("Compiled parse code snapshot", t => {
     let struct = factory()
 
-    t->TestUtils.assertCompiledCode(
-      ~struct,
-      ~op=#parse,
-      `i=>{Number.isNaN(i)||e[0](i);return i}`,
-      (),
-    )
+    t->U.assertCompiledCode(~struct, ~op=#parse, `i=>{Number.isNaN(i)||e[0](i);return i}`, ())
   })
 
   test("Compiled serialize code snapshot", t => {
     let struct = factory()
 
-    t->TestUtils.assertCompiledCode(
-      ~struct,
-      ~op=#serialize,
-      `i=>{Number.isNaN(i)||e[0](i);return i}`,
-      (),
-    )
+    t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{Number.isNaN(i)||e[0](i);return i}`, ())
   })
 }

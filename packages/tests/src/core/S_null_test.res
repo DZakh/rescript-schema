@@ -18,11 +18,13 @@ module Common = {
 
     t->Assert.deepEqual(
       invalidAny->S.parseAnyWith(struct),
-      Error({
-        code: InvalidType({expected: S.string->S.toUnknown, received: invalidAny}),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
+      Error(
+        U.error({
+          code: InvalidType({expected: S.string->S.toUnknown, received: invalidAny}),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -36,7 +38,7 @@ module Common = {
   test("Compiled parse code snapshot", t => {
     let struct = factory()
 
-    t->TestUtils.assertCompiledCode(
+    t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
       `i=>{let v0;if(i!==null){if(typeof i!=="string"){e[0](i)}v0=i}else{v0=void 0}return v0}`,
@@ -47,7 +49,7 @@ module Common = {
   test("Compiled async parse code snapshot", t => {
     let struct = S.null(S.unknown->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}))
 
-    t->TestUtils.assertCompiledCode(
+    t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
       `i=>{let v0;if(i!==null){let v1;v1=e[0](i);v0=v1}else{v0=()=>Promise.resolve(void 0)}return v0}`,
@@ -58,7 +60,7 @@ module Common = {
   test("Compiled serialize code snapshot", t => {
     let struct = factory()
 
-    t->TestUtils.assertCompiledCode(
+    t->U.assertCompiledCode(
       ~struct,
       ~op=#serialize,
       `i=>{let v0;if(i!==void 0){v0=e[0](i)}else{v0=null}return v0}`,
@@ -78,11 +80,13 @@ test("Fails to parse JS undefined", t => {
 
   t->Assert.deepEqual(
     %raw(`undefined`)->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`undefined`)}),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`undefined`)}),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -92,12 +96,14 @@ test("Fails to parse object with missing field that marked as null", t => {
 
   t->Assert.deepEqual(
     %raw(`{}`)->S.parseAnyWith(struct),
-    Error({
-      // FIXME: It should be S.null(S.string) here
-      code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`undefined`)}),
-      operation: Parsing,
-      path: S.Path.fromArray(["nullableField"]),
-    }),
+    Error(
+      U.error({
+        // FIXME: It should be S.null(S.string) here
+        code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`undefined`)}),
+        operation: Parsing,
+        path: S.Path.fromArray(["nullableField"]),
+      }),
+    ),
     (),
   )
 })
@@ -107,11 +113,13 @@ test("Fails to parse JS null when struct doesn't allow optional data", t => {
 
   t->Assert.deepEqual(
     %raw(`null`)->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({expected: struct->S.toUnknown, received: %raw(`null`)}),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`null`)}),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })

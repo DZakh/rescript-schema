@@ -32,7 +32,7 @@ test("Fails to create struct when passing non-jsonable struct to S.jsonString", 
 test("Compiled parse code snapshot", t => {
   let struct = S.jsonString(S.bool)
 
-  t->TestUtils.assertCompiledCode(
+  t->U.assertCompiledCode(
     ~struct,
     ~op=#parse,
     `i=>{let v0;if(typeof i!=="string"){e[0](i)}try{v0=JSON.parse(i)}catch(t){e[1](t.message)}if(typeof v0!=="boolean"){e[2](v0)}return v0}`,
@@ -43,7 +43,7 @@ test("Compiled parse code snapshot", t => {
 test("Compiled async parse code snapshot", t => {
   let struct = S.jsonString(S.bool->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}))
 
-  t->TestUtils.assertCompiledCode(
+  t->U.assertCompiledCode(
     ~struct,
     ~op=#parse,
     `i=>{let v0,v1;if(typeof i!=="string"){e[0](i)}try{v0=JSON.parse(i)}catch(t){e[1](t.message)}if(typeof v0!=="boolean"){e[2](v0)}v1=e[3](v0);return v1}`,
@@ -54,5 +54,5 @@ test("Compiled async parse code snapshot", t => {
 test("Compiled serialize code snapshot", t => {
   let struct = S.jsonString(S.bool)
 
-  t->TestUtils.assertCompiledCode(~struct, ~op=#serialize, `i=>{return JSON.stringify(i)}`, ())
+  t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{return JSON.stringify(i)}`, ())
 })

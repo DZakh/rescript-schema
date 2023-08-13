@@ -26,11 +26,13 @@ test("Fails to parse non UTC date string", t => {
 
   t->Assert.deepEqual(
     "Thu Apr 20 2023 10:45:48 GMT+0400"->S.parseAnyWith(struct),
-    Error({
-      code: OperationFailed("Invalid datetime string! Must be UTC"),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("Invalid datetime string! Must be UTC"),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -40,11 +42,13 @@ test("Fails to parse UTC date with timezone offset", t => {
 
   t->Assert.deepEqual(
     "2020-01-01T00:00:00+02:00"->S.parseAnyWith(struct),
-    Error({
-      code: OperationFailed("Invalid datetime string! Must be UTC"),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("Invalid datetime string! Must be UTC"),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -54,11 +58,7 @@ test("Uses custom message on failure", t => {
 
   t->Assert.deepEqual(
     "Thu Apr 20 2023 10:45:48 GMT+0400"->S.parseAnyWith(struct),
-    Error({
-      code: OperationFailed("Invalid date"),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(U.error({code: OperationFailed("Invalid date"), operation: Parsing, path: S.Path.empty})),
     (),
   )
 })

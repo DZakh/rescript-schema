@@ -9,11 +9,13 @@ module Common = {
 
     t->Assert.deepEqual(
       any->S.parseAnyWith(struct),
-      Error({
-        code: InvalidType({expected: S.never->S.toUnknown, received: any}),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
+      Error(
+        U.error({
+          code: InvalidType({expected: S.never->S.toUnknown, received: any}),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -23,11 +25,13 @@ module Common = {
 
     t->Assert.deepEqual(
       any->S.serializeToUnknownWith(struct),
-      Error({
-        code: InvalidType({expected: struct->S.toUnknown, received: any}),
-        operation: Serializing,
-        path: S.Path.empty,
-      }),
+      Error(
+        U.error({
+          code: InvalidType({expected: struct->S.toUnknown, received: any}),
+          operation: Serializing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -35,13 +39,13 @@ module Common = {
   test("Compiled parse code snapshot", t => {
     let struct = factory()
 
-    t->TestUtils.assertCompiledCode(~struct, ~op=#parse, `i=>{e[0](i);return i}`, ())
+    t->U.assertCompiledCode(~struct, ~op=#parse, `i=>{e[0](i);return i}`, ())
   })
 
   test("Compiled serialize code snapshot", t => {
     let struct = factory()
 
-    t->TestUtils.assertCompiledCode(~struct, ~op=#serialize, `i=>{e[0](i);return i}`, ())
+    t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{e[0](i);return i}`, ())
   })
 }
 
@@ -56,11 +60,13 @@ module ObjectField = {
 
     t->Assert.deepEqual(
       %raw(`{"key":"value"}`)->S.parseAnyWith(struct),
-      Error({
-        code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`undefined`)}),
-        operation: Parsing,
-        path: S.Path.fromArray(["oldKey"]),
-      }),
+      Error(
+        U.error({
+          code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`undefined`)}),
+          operation: Parsing,
+          path: S.Path.fromArray(["oldKey"]),
+        }),
+      ),
       (),
     )
   })

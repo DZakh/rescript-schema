@@ -25,11 +25,13 @@ module CommonWithNested = {
 
     t->Assert.deepEqual(
       invalidAny->S.parseAnyWith(struct),
-      Error({
-        code: InvalidType({expected: struct->S.toUnknown, received: invalidAny}),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
+      Error(
+        U.error({
+          code: InvalidType({expected: struct->S.toUnknown, received: invalidAny}),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -39,11 +41,13 @@ module CommonWithNested = {
 
     t->Assert.deepEqual(
       nestedInvalidAny->S.parseAnyWith(struct),
-      Error({
-        code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`true`)}),
-        operation: Parsing,
-        path: S.Path.fromArray(["key2"]),
-      }),
+      Error(
+        U.error({
+          code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`true`)}),
+          operation: Parsing,
+          path: S.Path.fromArray(["key2"]),
+        }),
+      ),
       (),
     )
   })
@@ -51,10 +55,10 @@ module CommonWithNested = {
   test("Compiled parse code snapshot", t => {
     let struct = factory()
 
-    t->TestUtils.assertCompiledCode(
+    t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v1;if(!i||i.constructor!==Object){e[0](i)}v1={};for(let v0 in i){let v2;v2=i[v0];try{if(typeof v2!=="string"){e[1](v2)}}catch(t){if(t&&t.s===s){t.p=""+'["'+v0+'"]'+t.p}throw t}v1[v0]=v2}return v1}`,
+      `i=>{let v1;if(!i||i.constructor!==Object){e[0](i)}v1={};for(let v0 in i){let v2;v2=i[v0];try{if(typeof v2!=="string"){e[1](v2)}}catch(t){if(t&&t.s===s){t.path=""+'["'+v0+'"]'+t.path}throw t}v1[v0]=v2}return v1}`,
       (),
     )
   })
@@ -62,10 +66,10 @@ module CommonWithNested = {
   test("Compiled async parse code snapshot", t => {
     let struct = S.dict(S.unknown->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}))
 
-    t->TestUtils.assertCompiledCode(
+    t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v1,v9;if(!i||i.constructor!==Object){e[0](i)}v1={};for(let v0 in i){let v2,v3,v4;v2=i[v0];try{v3=e[1](v2);v4=()=>{try{return v3().catch(t=>{if(t&&t.s===s){t.p=""+\'["\'+v0+\'"]\'+t.p}throw t})}catch(t){if(t&&t.s===s){t.p=""+\'["\'+v0+\'"]\'+t.p}throw t}};}catch(t){if(t&&t.s===s){t.p=""+\'["\'+v0+\'"]\'+t.p}throw t}v1[v0]=v4}v9=()=>new Promise((v5,v6)=>{let v8=Object.keys(v1).length;for(let v0 in v1){v1[v0]().then(v7=>{v1[v0]=v7;if(v8--===1){v5(v1)}},v6)}});return v9}`,
+      `i=>{let v1,v9;if(!i||i.constructor!==Object){e[0](i)}v1={};for(let v0 in i){let v2,v3,v4;v2=i[v0];try{v3=e[1](v2);v4=()=>{try{return v3().catch(t=>{if(t&&t.s===s){t.path=""+\'["\'+v0+\'"]\'+t.path}throw t})}catch(t){if(t&&t.s===s){t.path=""+\'["\'+v0+\'"]\'+t.path}throw t}};}catch(t){if(t&&t.s===s){t.path=""+\'["\'+v0+\'"]\'+t.path}throw t}v1[v0]=v4}v9=()=>new Promise((v5,v6)=>{let v8=Object.keys(v1).length;for(let v0 in v1){v1[v0]().then(v7=>{v1[v0]=v7;if(v8--===1){v5(v1)}},v6)}});return v9}`,
       (),
     )
   })
@@ -74,10 +78,10 @@ module CommonWithNested = {
     let struct = factory()
 
     // TODO: Improve compiled code
-    t->TestUtils.assertCompiledCode(
+    t->U.assertCompiledCode(
       ~struct,
       ~op=#serialize,
-      `i=>{let v1;v1={};for(let v0 in i){let v2;v2=i[v0];try{}catch(t){if(t&&t.s===s){t.p=""+'["'+v0+'"]'+t.p}throw t}v1[v0]=v2}return v1}`,
+      `i=>{let v1;v1={};for(let v0 in i){let v2;v2=i[v0];try{}catch(t){if(t&&t.s===s){t.path=""+'["'+v0+'"]'+t.path}throw t}v1[v0]=v2}return v1}`,
       (),
     )
   })
@@ -113,11 +117,13 @@ test("Fails to serialize dict item", t => {
 
   t->Assert.deepEqual(
     Dict.fromArray([("a", "aa"), ("b", "bb")])->S.serializeToUnknownWith(struct),
-    Error({
-      code: OperationFailed("User error"),
-      operation: Serializing,
-      path: S.Path.fromLocation("a"),
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("User error"),
+        operation: Serializing,
+        path: S.Path.fromLocation("a"),
+      }),
+    ),
     (),
   )
 })

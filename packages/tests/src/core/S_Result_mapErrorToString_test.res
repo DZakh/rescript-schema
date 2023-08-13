@@ -6,11 +6,13 @@ test("Doesn't affect Ok value", t => {
 
 test("Maps the S.Error.t to text", t => {
   t->Assert.deepEqual(
-    Error({
-      code: OperationFailed("Should be positive"),
-      operation: Parsing,
-      path: S.Path.empty,
-    })->S.Result.mapErrorToString,
+    Error(
+      U.error({
+        code: OperationFailed("Should be positive"),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    )->S.Result.mapErrorToString,
     Error("Failed parsing at root. Reason: Should be positive"),
     (),
   )

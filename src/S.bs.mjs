@@ -211,22 +211,6 @@ function concat(path, concatedPath) {
 
 var symbol = Symbol("rescript-struct");
 
-function toParseError(internalError) {
-  return {
-          operation: "Parsing",
-          code: internalError.c,
-          path: internalError.p
-        };
-}
-
-function toSerializeError(internalError) {
-  return {
-          operation: "Serializing",
-          code: internalError.c,
-          path: internalError.p
-        };
-}
-
 function getOrRethrow(jsExn) {
   if ((jsExn&&jsExn.s===symbol)) {
     return jsExn;
@@ -236,32 +220,35 @@ function getOrRethrow(jsExn) {
 
 function prependLocationOrRethrow(jsExn, $$location) {
   var error = getOrRethrow(jsExn);
-  var path = "[" + JSON.stringify($$location) + "]" + error.p;
+  var path = "[" + JSON.stringify($$location) + "]" + error.path;
   throw {
-        c: error.c,
-        p: path,
+        code: error.code,
+        path: path,
+        operation: error.operation,
         s: symbol
       };
 }
 
-function make(selfStruct, path) {
+function make(selfStruct, path, operation) {
   return {
           struct: selfStruct,
           fail: (function (message, customPathOpt) {
               var customPath = customPathOpt !== undefined ? customPathOpt : "";
               throw {
-                    c: {
+                    code: {
                       TAG: "OperationFailed",
                       _0: message
                     },
-                    p: path + customPath,
+                    path: path + customPath,
+                    operation: operation,
                     s: symbol
                   };
             }),
           failWithError: (function (error) {
               throw {
-                    c: error.code,
-                    p: path + error.path,
+                    code: error.code,
+                    path: path + error.path,
+                    operation: operation,
                     s: symbol
                   };
             })
@@ -352,20 +339,22 @@ function raiseWithArg(b, path, fn, arg) {
   return "e[" + (b.e.push(function (arg) {
                 var code = fn(arg);
                 throw {
-                      c: code,
-                      p: path,
+                      code: code,
+                      path: path,
+                      operation: b.o,
                       s: symbol
                     };
               }) - 1) + "](" + arg + ")";
 }
 
-function invalidOperation(_b, path, description) {
+function invalidOperation(b, path, description) {
   throw {
-        c: {
+        code: {
           TAG: "InvalidOperation",
           description: description
         },
-        p: path,
+        path: path,
+        operation: b.o,
         s: symbol
       };
 }
@@ -403,9 +392,9 @@ function withCatch(b, $$catch, fn) {
 function withPathPrepend(b, path, maybeDynamicLocationVar, fn) {
   try {
     return withCatch(b, (function (b, errorVar) {
-                  b.c = errorVar + ".p=" + JSON.stringify(path) + "+" + (
+                  b.c = errorVar + ".path=" + JSON.stringify(path) + "+" + (
                     maybeDynamicLocationVar !== undefined ? "'[\"'+" + maybeDynamicLocationVar + "+'\"]'+" : ""
-                  ) + errorVar + ".p";
+                  ) + errorVar + ".path";
                 }), (function (b) {
                   return fn(b, "");
                 }));
@@ -415,8 +404,9 @@ function withPathPrepend(b, path, maybeDynamicLocationVar, fn) {
     if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       var error = getOrRethrow(jsExn._1);
       throw {
-            c: error.c,
-            p: path + "[]" + error.p,
+            code: error.code,
+            path: path + "[]" + error.path,
+            operation: error.operation,
             s: symbol
           };
     }
@@ -431,15 +421,15 @@ function run(b, builder, struct, inputVar, path) {
   if (isAsync) {
     b.a.add(outputVar);
   }
-  if (struct.pb === builder) {
+  if (b.o === "Parsing") {
     struct.i = isAsync;
   }
   return outputVar;
 }
 
-function build(builder, struct) {
+function build(builder, struct, operation) {
   if (builder === noop) {
-    if (struct.pb === builder) {
+    if (operation === "Parsing") {
       struct.i = false;
     }
     return noopOperation;
@@ -450,7 +440,8 @@ function build(builder, struct) {
     l: "",
     c: "",
     a: new Set(),
-    e: []
+    e: [],
+    o: operation
   };
   var inlinedFunction = intitialInputVar + "=>{" + scope(b, (function (b) {
           var outputVar = run(b, builder, struct, intitialInputVar, "");
@@ -460,16 +451,19 @@ function build(builder, struct) {
   return new Function("e", "s", "return " + inlinedFunction)(b.e, symbol);
 }
 
+function unexpectedAsyncOperation(param) {
+  throw {
+        code: "UnexpectedAsync",
+        path: "",
+        operation: "Parsing",
+        s: symbol
+      };
+}
+
 function compileParser(struct, builder) {
-  var operation = build(builder, struct);
+  var operation = build(builder, struct, "Parsing");
   var isAsync = struct.i;
-  struct.p = isAsync ? (function (param) {
-        throw {
-              c: "UnexpectedAsync",
-              p: "",
-              s: symbol
-            };
-      }) : operation;
+  struct.p = isAsync ? unexpectedAsyncOperation : operation;
   struct.a = isAsync ? operation : (function (input) {
         var syncValue = operation(input);
         return function () {
@@ -479,7 +473,7 @@ function compileParser(struct, builder) {
 }
 
 function compileSerializer(struct, builder) {
-  var operation = build(builder, struct);
+  var operation = build(builder, struct, "Serializing");
   struct.s = operation;
 }
 
@@ -639,11 +633,12 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
           continue ;
       case 2 :
           throw {
-                c: {
+                code: {
                   TAG: "InvalidJsonStruct",
                   _0: struct
                 },
-                p: "",
+                path: "",
+                operation: "Serializing",
                 s: symbol
               };
       
@@ -700,7 +695,7 @@ function parseAnyWith(any, struct) {
     if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       return {
               TAG: "Error",
-              _0: toParseError(getOrRethrow(jsExn._1))
+              _0: getOrRethrow(jsExn._1)
             };
     }
     throw jsExn;
@@ -716,7 +711,7 @@ function parseAnyOrRaiseWith(any, struct) {
     if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       throw {
             RE_EXN_ID: Raised,
-            _1: toParseError(getOrRethrow(jsExn._1)),
+            _1: getOrRethrow(jsExn._1),
             Error: new Error()
           };
     }
@@ -734,7 +729,7 @@ function asyncPrepareOk(value) {
 function asyncPrepareError(jsExn) {
   return {
           TAG: "Error",
-          _0: toParseError(getOrRethrow(jsExn))
+          _0: getOrRethrow(jsExn)
         };
 }
 
@@ -747,7 +742,7 @@ function parseAnyAsyncWith(any, struct) {
     if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       return Promise.resolve({
                   TAG: "Error",
-                  _0: toParseError(getOrRethrow(jsExn._1))
+                  _0: getOrRethrow(jsExn._1)
                 });
     }
     throw jsExn;
@@ -769,7 +764,7 @@ function parseAnyAsyncInStepsWith(any, struct) {
     if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       return {
               TAG: "Error",
-              _0: toParseError(getOrRethrow(jsExn._1))
+              _0: getOrRethrow(jsExn._1)
             };
     }
     throw jsExn;
@@ -788,7 +783,7 @@ function serializeToUnknownWith(value, struct) {
     if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       return {
               TAG: "Error",
-              _0: toSerializeError(getOrRethrow(jsExn._1))
+              _0: getOrRethrow(jsExn._1)
             };
     }
     throw jsExn;
@@ -804,7 +799,7 @@ function serializeOrRaiseWith(value, struct) {
     if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       throw {
             RE_EXN_ID: Raised,
-            _1: toSerializeError(getOrRethrow(jsExn._1)),
+            _1: getOrRethrow(jsExn._1),
             Error: new Error()
           };
     }
@@ -821,7 +816,7 @@ function serializeToUnknownOrRaiseWith(value, struct) {
     if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       throw {
             RE_EXN_ID: Raised,
-            _1: toSerializeError(getOrRethrow(jsExn._1)),
+            _1: getOrRethrow(jsExn._1),
             Error: new Error()
           };
     }
@@ -841,7 +836,7 @@ function serializeWith(value, struct) {
     if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
       return {
               TAG: "Error",
-              _0: toSerializeError(getOrRethrow(jsExn._1))
+              _0: getOrRethrow(jsExn._1)
             };
     }
     throw jsExn;
@@ -949,7 +944,8 @@ function recursive(fn) {
             l: "",
             c: "",
             a: asyncVars,
-            e: []
+            e: [],
+            o: "Parsing"
           }, selfStruct, inputVar, path);
       var isAsync = asyncVars.size > 0;
       selfStruct.pb = (function (b, selfStruct, inputVar, param) {
@@ -1037,10 +1033,10 @@ function refine(struct, refiner) {
   return {
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, path) {
-              return embedSyncOperation(b, run(b, struct.pb, struct, inputVar, path), refiner(make(selfStruct, path)), true);
+              return embedSyncOperation(b, run(b, struct.pb, struct, inputVar, path), refiner(make(selfStruct, path, b.o)), true);
             }),
           sb: (function (b, selfStruct, inputVar, path) {
-              return run(b, struct.pb, struct, embedSyncOperation(b, inputVar, refiner(make(selfStruct, path)), true), path);
+              return run(b, struct.pb, struct, embedSyncOperation(b, inputVar, refiner(make(selfStruct, path, b.o)), true), path);
             }),
           i: 0,
           s: initialSerialize,
@@ -1061,7 +1057,7 @@ function transform$1(struct, transformer) {
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, path) {
               var inputVar$1 = run(b, struct.pb, struct, inputVar, path);
-              var match = transformer(make(selfStruct, path));
+              var match = transformer(make(selfStruct, path, b.o));
               var parser = match.p;
               if (parser !== undefined) {
                 if (match.a !== undefined) {
@@ -1080,7 +1076,7 @@ function transform$1(struct, transformer) {
               }
             }),
           sb: (function (b, selfStruct, inputVar, path) {
-              var match = transformer(make(selfStruct, path));
+              var match = transformer(make(selfStruct, path, b.o));
               var serializer = match.s;
               if (serializer !== undefined) {
                 return run(b, struct.sb, struct, embedSyncOperation(b, inputVar, serializer, undefined), path);
@@ -1122,7 +1118,7 @@ function preprocess(struct, transformer) {
   return {
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, path) {
-              var match = transformer(make(selfStruct, path));
+              var match = transformer(make(selfStruct, path, b.o));
               var parser = match.p;
               if (parser !== undefined) {
                 if (match.a !== undefined) {
@@ -1149,7 +1145,7 @@ function preprocess(struct, transformer) {
             }),
           sb: (function (b, selfStruct, inputVar, path) {
               var inputVar$1 = run(b, struct.sb, struct, inputVar, path);
-              var match = transformer(make(selfStruct, path));
+              var match = transformer(make(selfStruct, path, b.o));
               var serializer = match.s;
               if (serializer !== undefined) {
                 return embedSyncOperation(b, inputVar$1, serializer, undefined);
@@ -1170,7 +1166,7 @@ function custom(name, definer) {
   return {
           t: "Unknown",
           pb: (function (b, selfStruct, inputVar, path) {
-              var match = definer(make(selfStruct, path));
+              var match = definer(make(selfStruct, path, b.o));
               var parser = match.p;
               if (parser !== undefined) {
                 if (match.a !== undefined) {
@@ -1189,7 +1185,7 @@ function custom(name, definer) {
               }
             }),
           sb: (function (b, selfStruct, inputVar, path) {
-              var match = definer(make(selfStruct, path));
+              var match = definer(make(selfStruct, path, b.o));
               var serializer = match.s;
               if (serializer !== undefined) {
                 return embedSyncOperation(b, inputVar, serializer, undefined);
@@ -2589,7 +2585,7 @@ function factory$8(structs) {
                 b.c = b.c + (outputVar + "=()=>Promise.any([" + errorCodeRef + "]).catch(t=>{" + raiseWithArg(b, path, (function (internalErrors) {
                           return {
                                   TAG: "InvalidUnion",
-                                  _0: internalErrors.map(toParseError)
+                                  _0: internalErrors
                                 };
                         }), "t.errors") + "})") + codeEndRef;
                 return outputVar;
@@ -2597,7 +2593,7 @@ function factory$8(structs) {
                 b.c = b.c + raiseWithArg(b, path, (function (internalErrors) {
                         return {
                                 TAG: "InvalidUnion",
-                                _0: internalErrors.map(toParseError)
+                                _0: internalErrors
                               };
                       }), "[" + errorCodeRef + "]") + codeEndRef;
                 return outputVar;
@@ -2622,7 +2618,7 @@ function factory$8(structs) {
               b.c = b.c + raiseWithArg(b, path, (function (internalErrors) {
                       return {
                               TAG: "InvalidUnion",
-                              _0: internalErrors.map(toSerializeError)
+                              _0: internalErrors
                             };
                     }), "[" + errorVarsRef + "]") + codeEndRef;
               return outputVar;
@@ -2676,27 +2672,17 @@ var json = {
           }
           return output$1;
         }
-        if (match === "number") {
-          if (!Number.isNaN(input)) {
-            return input;
-          }
-          throw {
-                c: {
-                  TAG: "InvalidType",
-                  expected: selfStruct,
-                  received: input
-                },
-                p: path$1,
-                s: symbol
-              };
+        if (match === "number" && !Number.isNaN(input)) {
+          return input;
         }
         throw {
-              c: {
+              code: {
                 TAG: "InvalidType",
                 expected: selfStruct,
                 received: input
               },
-              p: path$1,
+              path: path$1,
+              operation: "Parsing",
               s: symbol
             };
       };
@@ -2718,24 +2704,26 @@ function $$catch(struct, getFallbackValue) {
               return withCatch(b, (function (b, errorVar) {
                             return "e[" + (b.e.push(function (input, internalError) {
                                           return getFallbackValue({
-                                                      e: toParseError(internalError),
+                                                      e: internalError,
                                                       i: input,
                                                       s: selfStruct,
                                                       f: (function (message, customPathOpt) {
                                                           var customPath = customPathOpt !== undefined ? customPathOpt : "";
                                                           throw {
-                                                                c: {
+                                                                code: {
                                                                   TAG: "OperationFailed",
                                                                   _0: message
                                                                 },
-                                                                p: path + customPath,
+                                                                path: path + customPath,
+                                                                operation: b.o,
                                                                 s: symbol
                                                               };
                                                         }),
                                                       w: (function (error) {
                                                           throw {
-                                                                c: error.code,
-                                                                p: path + error.path,
+                                                                code: error.code,
+                                                                path: path + error.path,
+                                                                operation: b.o,
                                                                 s: symbol
                                                               };
                                                         })
@@ -2813,7 +2801,7 @@ function toReason(nestedLevelOpt, error) {
 function toString(error) {
   var match = error.operation;
   var operation;
-  operation = match === "Serializing" ? "serializing" : "parsing";
+  operation = match === "Parsing" ? "parsing" : "serializing";
   var reason = toReason(undefined, error);
   var nonEmptyPath = error.path;
   var pathText = nonEmptyPath === "" ? "root" : nonEmptyPath;

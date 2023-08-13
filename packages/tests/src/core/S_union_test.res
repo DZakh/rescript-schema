@@ -109,27 +109,29 @@ module Advanced = {
         "x": 2,
         "y": 3,
       }`)->S.parseAnyWith(shapeStruct),
-      Error({
-        code: InvalidUnion([
-          {
-            code: InvalidLiteral({expected: String("circle"), received: "oval"->Obj.magic}),
-            operation: Parsing,
-            path: S.Path.fromArray(["kind"]),
-          },
-          {
-            code: InvalidLiteral({expected: String("square"), received: "oval"->Obj.magic}),
-            operation: Parsing,
-            path: S.Path.fromArray(["kind"]),
-          },
-          {
-            code: InvalidLiteral({expected: String("triangle"), received: "oval"->Obj.magic}),
-            operation: Parsing,
-            path: S.Path.fromArray(["kind"]),
-          },
-        ]),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
+      Error(
+        U.error({
+          code: InvalidUnion([
+            U.error({
+              code: InvalidLiteral({expected: String("circle"), received: "oval"->Obj.magic}),
+              operation: Parsing,
+              path: S.Path.fromArray(["kind"]),
+            }),
+            U.error({
+              code: InvalidLiteral({expected: String("square"), received: "oval"->Obj.magic}),
+              operation: Parsing,
+              path: S.Path.fromArray(["kind"]),
+            }),
+            U.error({
+              code: InvalidLiteral({expected: String("triangle"), received: "oval"->Obj.magic}),
+              operation: Parsing,
+              path: S.Path.fromArray(["kind"]),
+            }),
+          ]),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -143,27 +145,29 @@ module Advanced = {
           "y": 3,
         }
       }`)->S.parseAnyWith(S.object(s => s.field("field", shapeStruct))),
-      Error({
-        code: InvalidUnion([
-          {
-            code: InvalidLiteral({expected: String("circle"), received: "oval"->Obj.magic}),
-            operation: Parsing,
-            path: S.Path.fromArray(["kind"]),
-          },
-          {
-            code: InvalidLiteral({expected: String("square"), received: "oval"->Obj.magic}),
-            operation: Parsing,
-            path: S.Path.fromArray(["kind"]),
-          },
-          {
-            code: InvalidLiteral({expected: String("triangle"), received: "oval"->Obj.magic}),
-            operation: Parsing,
-            path: S.Path.fromArray(["kind"]),
-          },
-        ]),
-        operation: Parsing,
-        path: S.Path.fromArray(["field"]),
-      }),
+      Error(
+        U.error({
+          code: InvalidUnion([
+            U.error({
+              code: InvalidLiteral({expected: String("circle"), received: "oval"->Obj.magic}),
+              operation: Parsing,
+              path: S.Path.fromArray(["kind"]),
+            }),
+            U.error({
+              code: InvalidLiteral({expected: String("square"), received: "oval"->Obj.magic}),
+              operation: Parsing,
+              path: S.Path.fromArray(["kind"]),
+            }),
+            U.error({
+              code: InvalidLiteral({expected: String("triangle"), received: "oval"->Obj.magic}),
+              operation: Parsing,
+              path: S.Path.fromArray(["kind"]),
+            }),
+          ]),
+          operation: Parsing,
+          path: S.Path.fromArray(["field"]),
+        }),
+      ),
       (),
     )
   })
@@ -171,36 +175,38 @@ module Advanced = {
   test("Fails to parse with invalid data type", t => {
     t->Assert.deepEqual(
       %raw(`"Hello world!"`)->S.parseAnyWith(shapeStruct),
-      Error({
-        code: InvalidUnion([
-          {
-            code: InvalidType({
-              expected: circleStruct->S.toUnknown,
-              received: %raw(`"Hello world!"`),
+      Error(
+        U.error({
+          code: InvalidUnion([
+            U.error({
+              code: InvalidType({
+                expected: circleStruct->S.toUnknown,
+                received: %raw(`"Hello world!"`),
+              }),
+              operation: Parsing,
+              path: S.Path.empty,
             }),
-            operation: Parsing,
-            path: S.Path.empty,
-          },
-          {
-            code: InvalidType({
-              expected: squareStruct->S.toUnknown,
-              received: %raw(`"Hello world!"`),
+            U.error({
+              code: InvalidType({
+                expected: squareStruct->S.toUnknown,
+                received: %raw(`"Hello world!"`),
+              }),
+              operation: Parsing,
+              path: S.Path.empty,
             }),
-            operation: Parsing,
-            path: S.Path.empty,
-          },
-          {
-            code: InvalidType({
-              expected: triangleStruct->S.toUnknown,
-              received: %raw(`"Hello world!"`),
+            U.error({
+              code: InvalidType({
+                expected: triangleStruct->S.toUnknown,
+                received: %raw(`"Hello world!"`),
+              }),
+              operation: Parsing,
+              path: S.Path.empty,
             }),
-            operation: Parsing,
-            path: S.Path.empty,
-          },
-        ]),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
+          ]),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -223,22 +229,24 @@ module Advanced = {
 
     t->Assert.deepEqual(
       Triangle({x: 2., y: 3.})->S.serializeToUnknownWith(incompleteStruct),
-      Error({
-        code: InvalidUnion([
-          {
-            code: InvalidLiteral({expected: String("Circle"), received: "Triangle"->Obj.magic}),
-            operation: Serializing,
-            path: S.Path.fromArray(["TAG"]),
-          },
-          {
-            code: InvalidLiteral({expected: String("Square"), received: "Triangle"->Obj.magic}),
-            operation: Serializing,
-            path: S.Path.fromArray(["TAG"]),
-          },
-        ]),
-        operation: Serializing,
-        path: S.Path.empty,
-      }),
+      Error(
+        U.error({
+          code: InvalidUnion([
+            U.error({
+              code: InvalidLiteral({expected: String("Circle"), received: "Triangle"->Obj.magic}),
+              operation: Serializing,
+              path: S.Path.fromArray(["TAG"]),
+            }),
+            U.error({
+              code: InvalidLiteral({expected: String("Square"), received: "Triangle"->Obj.magic}),
+              operation: Serializing,
+              path: S.Path.fromArray(["TAG"]),
+            }),
+          ]),
+          operation: Serializing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -287,7 +295,7 @@ module Advanced = {
 test("Compiled parse code snapshot", t => {
   let struct = S.union([S.literal(0), S.literal(1)])
 
-  t->TestUtils.assertCompiledCode(
+  t->U.assertCompiledCode(
     ~struct,
     ~op=#parse,
     `i=>{let v0;try{i===e[0]||e[1](i);v0=i}catch(v1){if(v1&&v1.s===s){try{i===e[2]||e[3](i);v0=i}catch(v2){if(v2&&v2.s===s){e[4]([v1,v2])}else{throw v2}}}else{throw v1}}return v0}`,
@@ -301,7 +309,7 @@ test("Compiled async parse code snapshot", t => {
     S.literal(1),
   ])
 
-  t->TestUtils.assertCompiledCode(
+  t->U.assertCompiledCode(
     ~struct,
     ~op=#parse,
     `i=>{let v0,v1;try{i===e[0]||e[1](i);v0=e[2](i);throw v0}catch(v2){if(v2&&v2.s===s||v2===v0){try{i===e[3]||e[4](i);v1=()=>Promise.resolve(i)}catch(v3){if(v3&&v3.s===s){v1=()=>Promise.any([v2===v0?v2():Promise.reject(v2),Promise.reject(v3)]).catch(t=>{e[5](t.errors)})}else{throw v3}}}else{throw v2}}return v1}`,
@@ -313,7 +321,7 @@ test("Compiled serialize code snapshot", t => {
   let struct = S.union([S.literal(0), S.literal(1)])
 
   // TODO: Improve compiled code
-  t->TestUtils.assertCompiledCode(
+  t->U.assertCompiledCode(
     ~struct,
     ~op=#serialize,
     `i=>{let v0;try{i===e[0]||e[1](i);v0=i}catch(v1){if(v1&&v1.s===s){try{i===e[2]||e[3](i);v0=i}catch(v2){if(v2&&v2.s===s){e[4]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,

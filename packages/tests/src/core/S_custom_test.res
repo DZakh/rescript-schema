@@ -34,11 +34,13 @@ test("Correctly parses custom struct", t => {
   t->Assert.deepEqual(%raw(`undefined`)->S.parseAnyWith(struct), Ok(None), ())
   t->Assert.deepEqual(
     123->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -61,11 +63,9 @@ test("Fails to serialize with user error", t => {
 
   t->Assert.deepEqual(
     None->S.serializeToUnknownWith(struct),
-    Error({
-      code: OperationFailed("User error"),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({code: OperationFailed("User error"), operation: Serializing, path: S.Path.empty}),
+    ),
     (),
   )
 })
@@ -77,11 +77,13 @@ test("Fails to serialize with serializer is missing", t => {
 
   t->Assert.deepEqual(
     ()->S.serializeToUnknownWith(struct),
-    Error({
-      code: InvalidOperation({description: "The S.custom serializer is missing"}),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidOperation({description: "The S.custom serializer is missing"}),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })

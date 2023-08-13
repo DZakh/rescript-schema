@@ -34,21 +34,20 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Use S.union for S.option/S.null/S.default? (For more correct errors)
 
-## Next breaking release
+## v5
 
 - Move S.inline to experimental or Codegen module
 - Remove S.toUnknown
 - Add built-in refinements to TS API
   // TODO: Update gen.ts
-- Update S_Js.res to create new structs instead of mixin in the methods
 - Support serialization with untagged variants
+- Add built-in refinements and transforms to ts (try to use gentype)
 
-// Option saga
+Internals
 
-- Remove Caml_option.some
-- Use similar logic from union for Option ???
 - compiled: rename i and t to v for inlined check work properly ???
 - Clean up asyncVars mess
+- Turn internal error into instanceof Error and get rid of `Raised` exception
 
 ## v5.1
 

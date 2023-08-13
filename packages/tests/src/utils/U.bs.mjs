@@ -5,13 +5,26 @@ import * as Caml_exceptions from "rescript/lib/es6/caml_exceptions.js";
 import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
-var Test = /* @__PURE__ */Caml_exceptions.create("TestUtils.Test");
+function unsafeGetVariantPayload(variant) {
+  return variant._0;
+}
+
+var Test = /* @__PURE__ */Caml_exceptions.create("U.Test");
 
 function raiseTestException() {
   throw {
         RE_EXN_ID: Test,
         Error: new Error()
       };
+}
+
+var result = S$RescriptStruct.parseAnyWith(0, S$RescriptStruct.never);
+
+var symbol = result._0.s;
+
+function error(error$1) {
+  error$1["s"] = symbol;
+  return error$1;
 }
 
 function assertThrowsTestException(t, fn, message, param) {
@@ -82,8 +95,10 @@ function assertCompiledCodeIsNoop(t, struct, op, message, param) {
 var assertEqualStructs = unsafeAssertEqualStructs;
 
 export {
+  unsafeGetVariantPayload ,
   Test ,
   raiseTestException ,
+  error ,
   assertThrowsTestException ,
   cleanUpStruct ,
   unsafeAssertEqualStructs ,
@@ -91,4 +106,4 @@ export {
   assertCompiledCodeIsNoop ,
   assertEqualStructs ,
 }
-/* S-RescriptStruct Not a pure module */
+/* result Not a pure module */

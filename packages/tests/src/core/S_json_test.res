@@ -59,11 +59,13 @@ test("Fails to parse Object field", t => {
 
   t->Assert.deepEqual(
     data->S.parseWith(struct),
-    Error({
-      code: InvalidType({received: %raw(`undefined`), expected: struct->S.toUnknown}),
-      operation: Parsing,
-      path: S.Path.fromLocation("bar"),
-    }),
+    Error(
+      U.error({
+        code: InvalidType({received: %raw(`undefined`), expected: struct->S.toUnknown}),
+        operation: Parsing,
+        path: S.Path.fromLocation("bar"),
+      }),
+    ),
     (),
   )
 })
@@ -74,11 +76,13 @@ test("Fails to parse matrix field", t => {
 
   t->Assert.deepEqual(
     data->S.parseWith(struct),
-    Error({
-      code: InvalidType({received: %raw(`undefined`), expected: struct->S.toUnknown}),
-      operation: Parsing,
-      path: S.Path.fromArray(["1", "0"]),
-    }),
+    Error(
+      U.error({
+        code: InvalidType({received: %raw(`undefined`), expected: struct->S.toUnknown}),
+        operation: Parsing,
+        path: S.Path.fromArray(["1", "0"]),
+      }),
+    ),
     (),
   )
 })
@@ -87,11 +91,13 @@ test("Fails to parse NaN", t => {
   let struct = S.json
   t->Assert.deepEqual(
     %raw(`NaN`)->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({received: %raw(`NaN`), expected: struct->S.toUnknown}),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidType({received: %raw(`NaN`), expected: struct->S.toUnknown}),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -100,11 +106,13 @@ test("Fails to parse undefined", t => {
   let struct = S.json
   t->Assert.deepEqual(
     %raw(`undefined`)->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({received: %raw(`undefined`), expected: struct->S.toUnknown}),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidType({received: %raw(`undefined`), expected: struct->S.toUnknown}),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -112,11 +120,11 @@ test("Fails to parse undefined", t => {
 test("Compiled parse code snapshot", t => {
   let struct = S.json
 
-  t->TestUtils.assertCompiledCode(~struct, ~op=#parse, `i=>{return e[0](i)}`, ())
+  t->U.assertCompiledCode(~struct, ~op=#parse, `i=>{return e[0](i)}`, ())
 })
 
 test("Compiled serialize code snapshot", t => {
   let struct = S.json
 
-  t->TestUtils.assertCompiledCodeIsNoop(~struct, ~op=#serialize, ())
+  t->U.assertCompiledCodeIsNoop(~struct, ~op=#serialize, ())
 })

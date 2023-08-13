@@ -401,40 +401,29 @@ and errorCode =
   | UnexpectedAsync
   | InvalidJsonStruct(struct<unknown>)
 and operation =
-  | Serializing
   | Parsing
+  | Serializing
 
 external castUnknownStructToAnyStruct: t<unknown> => t<'any> = "%identity"
 external toUnknown: t<'any> => t<unknown> = "%identity"
 
 module InternalError = {
   type t = {
-    @as("c")
     code: errorCode,
-    @as("p")
     path: Path.t,
+    operation: operation,
     @as("s")
     symbol: Stdlib.Symbol.t,
   }
 
   @inline
-  let raise = (~path, ~code) => {
-    Stdlib.Exn.raiseAny({code, path, symbol})
+  let raise = (~path, ~code, ~operation) => {
+    Stdlib.Exn.raiseAny({code, path, operation, symbol})
   }
 
-  let toParseError = (internalError: t) => {
-    {
-      operation: Parsing,
-      code: internalError.code,
-      path: internalError.path,
-    }
-  }
+  let toPublic = (internalError: t) => (internalError :> error)
 
-  let toSerializeError = (internalError: t) => {
-    operation: Serializing,
-    code: internalError.code,
-    path: internalError.path,
-  }
+  let arrayToPublic = (Obj.magic: array<t> => array<error>)
 
   let getOrRethrow = (jsExn: Js.Exn.t) => {
     if %raw("jsExn&&jsExn.s===symbol") {
@@ -446,7 +435,11 @@ module InternalError = {
 
   let prependLocationOrRethrow = (jsExn, location) => {
     let error = jsExn->getOrRethrow
-    raise(~path=Path.concat(location->Path.fromLocation, error.path), ~code=error.code)
+    raise(
+      ~path=Path.concat(location->Path.fromLocation, error.path),
+      ~code=error.code,
+      ~operation=error.operation,
+    )
   }
 
   @inline
@@ -460,13 +453,17 @@ type effectCtx<'value> = {
 }
 
 module EffectCtx = {
-  let make = (~selfStruct, ~path) => {
+  let make = (~selfStruct, ~path, ~operation) => {
     struct: selfStruct->castUnknownStructToAnyStruct,
     failWithError: (error: error) => {
-      InternalError.raise(~path=path->Path.concat(error.path), ~code=error.code)
+      InternalError.raise(~path=path->Path.concat(error.path), ~code=error.code, ~operation)
     },
     fail: (message, ~path as customPath=Path.empty) => {
-      InternalError.raise(~path=path->Path.concat(customPath), ~code=OperationFailed(message))
+      InternalError.raise(
+        ~path=path->Path.concat(customPath),
+        ~code=OperationFailed(message),
+        ~operation,
+      )
     },
   }
 }
@@ -490,6 +487,8 @@ module Builder = {
     asyncVars: Stdlib.Set.t<string>,
     @as("e")
     embeded: array<unknown>,
+    @as("o")
+    operation: operation,
   }
   type implementation = (
     ctx,
@@ -595,13 +594,16 @@ module Builder = {
 
     let raiseWithArg = (b: t, ~path, fn: 'arg => errorCode, arg) => {
       `${b->embed(arg => {
-          InternalError.raise(~path, ~code=fn(arg))
+          InternalError.raise(~path, ~code=fn(arg), ~operation=b.operation)
         })}(${arg})`
     }
 
-    // Keep it in the Builder.Ctx module instead of InternalError, so it's only used inside of builder
-    let invalidOperation = (_b: t, ~path, ~description) => {
-      InternalError.raise(~path, ~code=InvalidOperation({description: description}))
+    let invalidOperation = (b: t, ~path, ~description) => {
+      InternalError.raise(
+        ~path,
+        ~code=InvalidOperation({description: description}),
+        ~operation=b.operation,
+      )
     }
 
     let withCatch = (b: t, ~catch, fn) => {
@@ -654,10 +656,10 @@ module Builder = {
     let withPathPrepend = (b: t, ~path, ~dynamicLocationVar as maybeDynamicLocationVar=?, fn) => {
       try b->withCatch(
         ~catch=(b, ~errorVar) => {
-          b.code = `${errorVar}.p=${path->Stdlib.Inlined.Value.fromString}+${switch maybeDynamicLocationVar {
+          b.code = `${errorVar}.path=${path->Stdlib.Inlined.Value.fromString}+${switch maybeDynamicLocationVar {
             | Some(var) => `'["'+${var}+'"]'+`
             | _ => ""
-            }}${errorVar}.p`
+            }}${errorVar}.path`
           None
         },
         b => fn(b, ~path=Path.empty),
@@ -667,6 +669,7 @@ module Builder = {
           InternalError.raise(
             ~path=path->Path.concat(Path.dynamic)->Path.concat(error.path),
             ~code=error.code,
+            ~operation=error.operation,
           )
         }
       }
@@ -684,16 +687,16 @@ module Builder = {
       if isAsync {
         b.asyncVars->Stdlib.Set.add(outputVar)->ignore
       }
-      if struct.parseOperationBuilder === builder {
+      if b.operation === Parsing {
         struct.isAsyncParse = Value(isAsync)
       }
       outputVar
     }
   }
 
-  let build = (builder, ~struct) => {
+  let build = (builder, ~struct, ~operation) => {
     if builder === noop {
-      if struct.parseOperationBuilder === builder {
+      if operation === Parsing {
         struct.isAsyncParse = Value(false)
       }
       noopOperation
@@ -706,6 +709,7 @@ module Builder = {
         asyncVars: Stdlib.Set.empty(),
         code: "",
         varsAllocation: "",
+        operation,
       }
 
       let inlinedFunction = `${intitialInputVar}=>{${b->Ctx.scope(b => {
@@ -724,12 +728,13 @@ module Builder = {
     }
   }
 
+  let unexpectedAsyncOperation = _ =>
+    InternalError.raise(~path=Path.empty, ~code=UnexpectedAsync, ~operation=Parsing)
+
   let compileParser = (struct, ~builder) => {
-    let operation = builder->build(~struct)
+    let operation = builder->build(~struct, ~operation=Parsing)
     let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-    struct.parse = isAsync
-      ? _ => InternalError.raise(~path=Path.empty, ~code=UnexpectedAsync)
-      : operation
+    struct.parse = isAsync ? unexpectedAsyncOperation : operation
     struct.parseAsync = isAsync
       ? operation->(Obj.magic: (unknown => unknown) => unknown => unit => promise<unknown>)
       : input => {
@@ -739,7 +744,7 @@ module Builder = {
   }
 
   let compileSerializer = (struct, ~builder) => {
-    let operation = builder->build(~struct)
+    let operation = builder->build(~struct, ~operation=Serializing)
     struct.serialize = operation
   }
 }
@@ -843,7 +848,7 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
     | Option(_)
     | Unknown
     | Literal(_) =>
-      InternalError.raise(~path=Path.empty, ~code=InvalidJsonStruct(struct))
+      InternalError.raise(~path=Path.empty, ~code=InvalidJsonStruct(struct), ~operation=Serializing)
     }
   }
 }
@@ -897,7 +902,7 @@ let parseAnyWith = (any, struct) => {
   try {
     struct.parse(any->castAnyToUnknown)->castUnknownToAny->Ok
   } catch {
-  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toParseError->Error
+  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toPublic->Error
   }
 }
 
@@ -907,8 +912,7 @@ let parseAnyOrRaiseWith = (any, struct) => {
   try {
     struct.parse(any->castAnyToUnknown)->castUnknownToAny
   } catch {
-  | Js.Exn.Error(jsExn) =>
-    raise(Raised(jsExn->InternalError.getOrRethrow->InternalError.toParseError))
+  | Js.Exn.Error(jsExn) => raise(Raised(jsExn->InternalError.getOrRethrow->InternalError.toPublic))
   }
 }
 
@@ -917,7 +921,7 @@ let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value = parseAnyOrRaiseWith
 let asyncPrepareOk = value => Ok(value->castUnknownToAny)
 
 let asyncPrepareError = jsExn => {
-  jsExn->InternalError.getOrRethrow->InternalError.toParseError->Error
+  jsExn->InternalError.getOrRethrow->InternalError.toPublic->Error
 }
 
 let parseAnyAsyncWith = (any, struct) => {
@@ -928,7 +932,7 @@ let parseAnyAsyncWith = (any, struct) => {
     )
   } catch {
   | Js.Exn.Error(jsExn) =>
-    jsExn->InternalError.getOrRethrow->InternalError.toParseError->Error->Stdlib.Promise.resolve
+    jsExn->InternalError.getOrRethrow->InternalError.toPublic->Error->Stdlib.Promise.resolve
   }
 }
 
@@ -940,7 +944,7 @@ let parseAnyAsyncInStepsWith = (any, struct) => {
 
     (() => asyncFn()->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, asyncPrepareError))->Ok
   } catch {
-  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toParseError->Error
+  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toPublic->Error
   }
 }
 
@@ -950,7 +954,7 @@ let serializeToUnknownWith = (value, struct) => {
   try {
     struct.serialize(value->castAnyToUnknown)->Ok
   } catch {
-  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toSerializeError->Error
+  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toPublic->Error
   }
 }
 
@@ -958,8 +962,7 @@ let serializeOrRaiseWith = (value, struct) => {
   try {
     struct.serializeToJson(value->castAnyToUnknown)
   } catch {
-  | Js.Exn.Error(jsExn) =>
-    raise(Raised(jsExn->InternalError.getOrRethrow->InternalError.toSerializeError))
+  | Js.Exn.Error(jsExn) => raise(Raised(jsExn->InternalError.getOrRethrow->InternalError.toPublic))
   }
 }
 
@@ -967,8 +970,7 @@ let serializeToUnknownOrRaiseWith = (value, struct) => {
   try {
     struct.serialize(value->castAnyToUnknown)
   } catch {
-  | Js.Exn.Error(jsExn) =>
-    raise(Raised(jsExn->InternalError.getOrRethrow->InternalError.toSerializeError))
+  | Js.Exn.Error(jsExn) => raise(Raised(jsExn->InternalError.getOrRethrow->InternalError.toPublic))
   }
 }
 
@@ -976,7 +978,7 @@ let serializeWith = (value, struct) => {
   try {
     struct.serializeToJson(value->castAnyToUnknown)->Ok
   } catch {
-  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toSerializeError->Error
+  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toPublic->Error
   }
 }
 
@@ -1073,6 +1075,7 @@ let recursive = fn => {
             code: "",
             asyncVars,
             varCounter: -1,
+            operation: Parsing,
           },
           ~selfStruct,
           ~inputVar,
@@ -1177,7 +1180,7 @@ let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value> = (str
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
       b->B.embedSyncOperation(
         ~inputVar=b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~path),
-        ~fn=refiner(EffectCtx.make(~selfStruct, ~path)),
+        ~fn=refiner(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)),
         ~isRefine=true,
       )
     }),
@@ -1187,7 +1190,7 @@ let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value> = (str
         ~struct,
         ~inputVar=b->B.embedSyncOperation(
           ~inputVar,
-          ~fn=refiner(EffectCtx.make(~selfStruct, ~path)),
+          ~fn=refiner(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)),
           ~isRefine=true,
         ),
         ~path,
@@ -1226,7 +1229,7 @@ let transform: (
     ~tagged=struct.tagged,
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
       let inputVar = b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~path)
-      switch transformer(EffectCtx.make(~selfStruct, ~path)) {
+      switch transformer(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~inputVar, ~fn=parser)
       | {parser: ?None, asyncParser} => b->B.embedAsyncOperation(~inputVar, ~fn=asyncParser)
       | {parser: ?None, asyncParser: ?None, serializer: ?None} => inputVar
@@ -1240,7 +1243,7 @@ let transform: (
       }
     }),
     ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
-      switch transformer(EffectCtx.make(~selfStruct, ~path)) {
+      switch transformer(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)) {
       | {serializer} =>
         b->B.run(
           ~builder=struct.serializeOperationBuilder,
@@ -1285,7 +1288,7 @@ let rec preprocess = (struct, transformer) => {
     make(
       ~tagged=struct.tagged,
       ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
-        switch transformer(EffectCtx.make(~selfStruct, ~path)) {
+        switch transformer(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)) {
         | {parser, asyncParser: ?None} =>
           let operationResultVar = b->B.var
           b.code =
@@ -1323,7 +1326,7 @@ let rec preprocess = (struct, transformer) => {
       ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
         let inputVar =
           b->B.run(~builder=struct.serializeOperationBuilder, ~struct, ~inputVar, ~path)
-        switch transformer(EffectCtx.make(~selfStruct, ~path)) {
+        switch transformer(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)) {
         | {serializer} => b->B.embedSyncOperation(~inputVar, ~fn=serializer)
         // TODO: Test that it doesn't return InvalidOperation when parser is passed but not serializer
         | {serializer: ?None} => inputVar
@@ -1347,7 +1350,7 @@ let custom = (name, definer) => {
     ~metadataMap=Metadata.Map.make1(nameMetadataId, name),
     ~tagged=Unknown,
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
-      switch definer(EffectCtx.make(~selfStruct, ~path)) {
+      switch definer(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~inputVar, ~fn=parser)
       | {parser: ?None, asyncParser} => b->B.embedAsyncOperation(~inputVar, ~fn=asyncParser)
       | {parser: ?None, asyncParser: ?None, serializer: ?None} => inputVar
@@ -1361,7 +1364,7 @@ let custom = (name, definer) => {
       }
     }),
     ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
-      switch definer(EffectCtx.make(~selfStruct, ~path)) {
+      switch definer(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)) {
       | {serializer} => b->B.embedSyncOperation(~inputVar, ~fn=serializer)
       | {parser: ?None, asyncParser: ?None, serializer: ?None} => inputVar
       | {serializer: ?None, asyncParser: ?Some(_)}
@@ -3092,7 +3095,7 @@ module Union = {
             `${outputVar}=()=>Promise.any([${errorCodeRef.contents}]).catch(t=>{${b->B.raiseWithArg(
                 ~path,
                 internalErrors => {
-                  InvalidUnion(internalErrors->Js.Array2.map(InternalError.toParseError))
+                  InvalidUnion(internalErrors->InternalError.arrayToPublic)
                 },
                 `t.errors`,
               )}})` ++
@@ -3103,9 +3106,7 @@ module Union = {
             b.code ++
             b->B.raiseWithArg(
               ~path,
-              internalErrors => InvalidUnion(
-                internalErrors->Js.Array2.map(InternalError.toParseError),
-              ),
+              internalErrors => InvalidUnion(internalErrors->InternalError.arrayToPublic),
               `[${errorCodeRef.contents}]`,
             ) ++
             codeEndRef.contents
@@ -3143,9 +3144,7 @@ module Union = {
           b.code ++
           b->B.raiseWithArg(
             ~path,
-            internalErrors => InvalidUnion(
-              internalErrors->Js.Array2.map(InternalError.toSerializeError),
-            ),
+            internalErrors => InvalidUnion(internalErrors->InternalError.arrayToPublic),
             `[${errorVarsRef.contents}]`,
           ) ++
           codeEndRef.contents
@@ -3212,6 +3211,7 @@ let json = make(
             expected: selfStruct,
             received: input,
           }),
+          ~operation=Parsing,
         )
       }
     }
@@ -3237,15 +3237,20 @@ let catch = (struct, getFallbackValue) => {
           `${b->B.embed((input, internalError) =>
               getFallbackValue({
                 input,
-                error: internalError->InternalError.toParseError,
+                error: internalError->InternalError.toPublic,
                 struct: selfStruct->castUnknownStructToAnyStruct,
                 failWithError: (error: error) => {
-                  InternalError.raise(~path=path->Path.concat(error.path), ~code=error.code)
+                  InternalError.raise(
+                    ~path=path->Path.concat(error.path),
+                    ~code=error.code,
+                    ~operation=b.operation,
+                  )
                 },
                 fail: (message, ~path as customPath=Path.empty) => {
                   InternalError.raise(
                     ~path=path->Path.concat(customPath),
                     ~code=OperationFailed(message),
+                    ~operation=b.operation,
                   )
                 },
               })

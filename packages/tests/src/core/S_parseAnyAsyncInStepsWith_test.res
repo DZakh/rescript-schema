@@ -28,11 +28,13 @@ test("Fails to parse without asyncRefine", t => {
 
   t->Assert.deepEqual(
     %raw(`123`)->S.parseAnyAsyncInStepsWith(struct),
-    Error({
-      S.code: InvalidType({expected: struct->S.toUnknown, received: %raw(`123`)}),
-      path: S.Path.empty,
-      operation: Parsing,
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`123`)}),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -55,11 +57,13 @@ asyncTest("Fails to parse with invalidAsyncRefine", t => {
   )()->Promise.thenResolve(result => {
     t->Assert.deepEqual(
       result,
-      Error({
-        S.code: OperationFailed("Async user error"),
-        path: S.Path.empty,
-        operation: Parsing,
-      }),
+      Error(
+        U.error({
+          code: OperationFailed("Async user error"),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -161,7 +165,7 @@ module Object = {
       ->Result.getExn
     )()->Promise.thenResolve(result => {
       t->Assert.deepEqual(
-        result->Result.map(TestUtils.magic)->Result.map(Dict.keysToArray),
+        result->Result.map(U.magic)->Result.map(Dict.keysToArray),
         Ok(["k1", "k2", "k3"]),
         (),
       )
@@ -222,11 +226,13 @@ module Object = {
     )()->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
-        Error({
-          code: OperationFailed("Async user error"),
-          operation: Parsing,
-          path: S.Path.fromArray(["discriminant"]),
-        }),
+        Error(
+          U.error({
+            code: OperationFailed("Async user error"),
+            operation: Parsing,
+            path: S.Path.fromArray(["discriminant"]),
+          }),
+        ),
         (),
       )
     })
@@ -247,11 +253,13 @@ module Object = {
         "k2": true,
         "k3": 3,
       }->S.parseAnyAsyncInStepsWith(struct),
-      Error({
-        S.code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
-        path: S.Path.fromArray(["k2"]),
-        operation: Parsing,
-      }),
+      Error(
+        U.error({
+          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          operation: Parsing,
+          path: S.Path.fromArray(["k2"]),
+        }),
+      ),
       (),
     )
   })
@@ -271,11 +279,13 @@ module Object = {
         "k2": 2,
         "k3": 3,
       }->S.parseAnyAsyncInStepsWith(struct),
-      Error({
-        S.code: OperationFailed("Sync user error"),
-        path: S.Path.fromArray(["k3"]),
-        operation: Parsing,
-      }),
+      Error(
+        U.error({
+          code: OperationFailed("Sync user error"),
+          operation: Parsing,
+          path: S.Path.fromArray(["k3"]),
+        }),
+      ),
       (),
     )
   })
@@ -345,11 +355,13 @@ module Object = {
     )()->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
-        Error({
-          S.code: OperationFailed("Async user error"),
-          path: S.Path.fromArray(["k2"]),
-          operation: Parsing,
-        }),
+        Error(
+          U.error({
+            code: OperationFailed("Async user error"),
+            operation: Parsing,
+            path: S.Path.fromArray(["k2"]),
+          }),
+        ),
         (),
       )
     })
@@ -372,11 +384,13 @@ module Tuple = {
 
     t->Assert.deepEqual(
       %raw(`[1, true, 3]`)->S.parseAnyAsyncInStepsWith(struct),
-      Error({
-        S.code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
-        path: S.Path.fromArray(["1"]),
-        operation: Parsing,
-      }),
+      Error(
+        U.error({
+          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          operation: Parsing,
+          path: S.Path.fromArray(["1"]),
+        }),
+      ),
       (),
     )
   })
@@ -390,11 +404,13 @@ module Tuple = {
 
     t->Assert.deepEqual(
       [1, 2, 3]->S.parseAnyAsyncInStepsWith(struct),
-      Error({
-        S.code: OperationFailed("Sync user error"),
-        path: S.Path.fromArray(["1"]),
-        operation: Parsing,
-      }),
+      Error(
+        U.error({
+          code: OperationFailed("Sync user error"),
+          operation: Parsing,
+          path: S.Path.fromArray(["1"]),
+        }),
+      ),
       (),
     )
   })
@@ -431,11 +447,13 @@ module Tuple = {
     ([1, 2]->S.parseAnyAsyncInStepsWith(struct)->Result.getExn)()->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
-        Error({
-          S.code: OperationFailed("Async user error"),
-          path: S.Path.fromArray(["1"]),
-          operation: Parsing,
-        }),
+        Error(
+          U.error({
+            code: OperationFailed("Async user error"),
+            operation: Parsing,
+            path: S.Path.fromArray(["1"]),
+          }),
+        ),
         (),
       )
     })
@@ -466,27 +484,29 @@ module Union = {
     (input->S.parseAnyAsyncInStepsWith(struct)->Result.getExn)()->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
-        Error({
-          S.code: InvalidUnion([
-            {
-              S.code: InvalidLiteral({expected: Number(1.), received: input}),
-              path: S.Path.empty,
-              operation: Parsing,
-            },
-            {
-              S.code: InvalidLiteral({expected: Number(2.), received: input}),
-              path: S.Path.empty,
-              operation: Parsing,
-            },
-            {
-              S.code: InvalidLiteral({expected: Number(3.), received: input}),
-              path: S.Path.empty,
-              operation: Parsing,
-            },
-          ]),
-          path: S.Path.empty,
-          operation: Parsing,
-        }),
+        Error(
+          U.error({
+            code: InvalidUnion([
+              U.error({
+                code: InvalidLiteral({expected: Number(1.), received: input}),
+                path: S.Path.empty,
+                operation: Parsing,
+              }),
+              U.error({
+                code: InvalidLiteral({expected: Number(2.), received: input}),
+                path: S.Path.empty,
+                operation: Parsing,
+              }),
+              U.error({
+                code: InvalidLiteral({expected: Number(3.), received: input}),
+                path: S.Path.empty,
+                operation: Parsing,
+              }),
+            ]),
+            operation: Parsing,
+            path: S.Path.empty,
+          }),
+        ),
         (),
       )
     })
@@ -532,11 +552,13 @@ module Array = {
 
     t->Assert.deepEqual(
       %raw(`[1, 2, true]`)->S.parseAnyAsyncInStepsWith(struct),
-      Error({
-        S.code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
-        path: S.Path.fromArray(["2"]),
-        operation: Parsing,
-      }),
+      Error(
+        U.error({
+          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          operation: Parsing,
+          path: S.Path.fromArray(["2"]),
+        }),
+      ),
       (),
     )
   })
@@ -579,11 +601,13 @@ module Array = {
     )()->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
-        Error({
-          S.code: OperationFailed("Async user error"),
-          path: S.Path.fromArray(["2"]),
-          operation: Parsing,
-        }),
+        Error(
+          U.error({
+            code: OperationFailed("Async user error"),
+            operation: Parsing,
+            path: S.Path.fromArray(["2"]),
+          }),
+        ),
         (),
       )
     })
@@ -606,11 +630,13 @@ module Dict = {
 
     t->Assert.deepEqual(
       {"k1": 1, "k2": 2, "k3": true}->S.parseAnyAsyncInStepsWith(struct),
-      Error({
-        S.code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
-        path: S.Path.fromArray(["k3"]),
-        operation: Parsing,
-      }),
+      Error(
+        U.error({
+          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          operation: Parsing,
+          path: S.Path.fromArray(["k3"]),
+        }),
+      ),
       (),
     )
   })
@@ -653,11 +679,13 @@ module Dict = {
     )()->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
-        Error({
-          S.code: OperationFailed("Async user error"),
-          path: S.Path.fromArray(["k3"]),
-          operation: Parsing,
-        }),
+        Error(
+          U.error({
+            code: OperationFailed("Async user error"),
+            operation: Parsing,
+            path: S.Path.fromArray(["k3"]),
+          }),
+        ),
         (),
       )
     })
@@ -686,11 +714,13 @@ module Null = {
     (1->S.parseAnyAsyncInStepsWith(struct)->Result.getExn)()->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
-        Error({
-          S.code: OperationFailed("Async user error"),
-          path: S.Path.empty,
-          operation: Parsing,
-        }),
+        Error(
+          U.error({
+            code: OperationFailed("Async user error"),
+            operation: Parsing,
+            path: S.Path.empty,
+          }),
+        ),
         (),
       )
     })
@@ -701,11 +731,13 @@ module Null = {
 
     t->Assert.deepEqual(
       true->S.parseAnyAsyncInStepsWith(struct),
-      Error({
-        S.code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
-        path: S.Path.empty,
-        operation: Parsing,
-      }),
+      Error(
+        U.error({
+          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -733,11 +765,13 @@ module Option = {
     (1->S.parseAnyAsyncInStepsWith(struct)->Result.getExn)()->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
-        Error({
-          S.code: OperationFailed("Async user error"),
-          path: S.Path.empty,
-          operation: Parsing,
-        }),
+        Error(
+          U.error({
+            code: OperationFailed("Async user error"),
+            operation: Parsing,
+            path: S.Path.empty,
+          }),
+        ),
         (),
       )
     })
@@ -748,11 +782,13 @@ module Option = {
 
     t->Assert.deepEqual(
       true->S.parseAnyAsyncInStepsWith(struct),
-      Error({
-        S.code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
-        path: S.Path.empty,
-        operation: Parsing,
-      }),
+      Error(
+        U.error({
+          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -780,11 +816,13 @@ module Defaulted = {
     (1->S.parseAnyAsyncInStepsWith(struct)->Result.getExn)()->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
-        Error({
-          S.code: OperationFailed("Async user error"),
-          path: S.Path.empty,
-          operation: Parsing,
-        }),
+        Error(
+          U.error({
+            code: OperationFailed("Async user error"),
+            operation: Parsing,
+            path: S.Path.empty,
+          }),
+        ),
         (),
       )
       ()
@@ -796,11 +834,13 @@ module Defaulted = {
 
     t->Assert.deepEqual(
       true->S.parseAnyAsyncInStepsWith(struct),
-      Error({
-        S.code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
-        path: S.Path.empty,
-        operation: Parsing,
-      }),
+      Error(
+        U.error({
+          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -821,11 +861,13 @@ module Json = {
     ("1"->S.parseAnyAsyncInStepsWith(struct)->Result.getExn)()->Promise.thenResolve(result => {
       t->Assert.deepEqual(
         result,
-        Error({
-          S.code: OperationFailed("Async user error"),
-          path: S.Path.empty,
-          operation: Parsing,
-        }),
+        Error(
+          U.error({
+            code: OperationFailed("Async user error"),
+            operation: Parsing,
+            path: S.Path.empty,
+          }),
+        ),
         (),
       )
       ()
@@ -837,11 +879,13 @@ module Json = {
 
     t->Assert.deepEqual(
       "true"->S.parseAnyAsyncInStepsWith(struct),
-      Error({
-        S.code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
-        path: S.Path.empty,
-        operation: Parsing,
-      }),
+      Error(
+        U.error({
+          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })

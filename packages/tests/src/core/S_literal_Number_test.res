@@ -19,11 +19,13 @@ module Common = {
 
     t->Assert.deepEqual(
       invalidAny->S.parseAnyWith(struct),
-      Error({
-        code: InvalidLiteral({expected: Number(123.), received: 444.->Obj.magic}),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
+      Error(
+        U.error({
+          code: InvalidLiteral({expected: Number(123.), received: 444.->Obj.magic}),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -33,11 +35,13 @@ module Common = {
 
     t->Assert.deepEqual(
       invalidTypeAny->S.parseAnyWith(struct),
-      Error({
-        code: InvalidLiteral({expected: Number(123.), received: invalidTypeAny}),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
+      Error(
+        U.error({
+          code: InvalidLiteral({expected: Number(123.), received: invalidTypeAny}),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -53,11 +57,13 @@ module Common = {
 
     t->Assert.deepEqual(
       invalidValue->S.serializeToUnknownWith(struct),
-      Error({
-        code: InvalidLiteral({expected: Number(123.), received: invalidValue}),
-        operation: Serializing,
-        path: S.Path.empty,
-      }),
+      Error(
+        U.error({
+          code: InvalidLiteral({expected: Number(123.), received: invalidValue}),
+          operation: Serializing,
+          path: S.Path.empty,
+        }),
+      ),
       (),
     )
   })
@@ -65,13 +71,13 @@ module Common = {
   test("Compiled parse code snapshot", t => {
     let struct = factory()
 
-    t->TestUtils.assertCompiledCode(~struct, ~op=#parse, `i=>{i===e[0]||e[1](i);return i}`, ())
+    t->U.assertCompiledCode(~struct, ~op=#parse, `i=>{i===e[0]||e[1](i);return i}`, ())
   })
 
   test("Compiled serialize code snapshot", t => {
     let struct = factory()
 
-    t->TestUtils.assertCompiledCode(~struct, ~op=#serialize, `i=>{i===e[0]||e[1](i);return i}`, ())
+    t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{i===e[0]||e[1](i);return i}`, ())
   })
 }
 
@@ -80,11 +86,13 @@ test("Formatting of negative number with a decimal point in an error message", t
 
   t->Assert.deepEqual(
     %raw(`"foo"`)->S.parseAnyWith(struct),
-    Error({
-      code: InvalidLiteral({expected: Number(-123.567), received: "foo"->Obj.magic}),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidLiteral({expected: Number(-123.567), received: "foo"->Obj.magic}),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })

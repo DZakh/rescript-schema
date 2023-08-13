@@ -34,11 +34,7 @@ test("Fails to parse when user raises error in parser", t => {
 
   t->Assert.deepEqual(
     "Hello world!"->S.parseAnyWith(struct),
-    Error({
-      code: OperationFailed("User error"),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(U.error({code: OperationFailed("User error"), operation: Parsing, path: S.Path.empty})),
     (),
   )
 })
@@ -59,11 +55,9 @@ test("Fails to serialize when user raises error in serializer", t => {
 
   t->Assert.deepEqual(
     "Hello world!"->S.serializeToUnknownWith(struct),
-    Error({
-      code: OperationFailed("User error"),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({code: OperationFailed("User error"), operation: Serializing, path: S.Path.empty}),
+    ),
     (),
   )
 })
@@ -76,11 +70,9 @@ test("Preprocess operations applyed in the right order when parsing", t => {
 
   t->Assert.deepEqual(
     123->S.parseAnyWith(struct),
-    Error({
-      code: OperationFailed("Second preprocess"),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({code: OperationFailed("Second preprocess"), operation: Parsing, path: S.Path.empty}),
+    ),
     (),
   )
 })
@@ -93,11 +85,13 @@ test("Preprocess operations applyed in the right order when serializing", t => {
 
   t->Assert.deepEqual(
     123->S.serializeToUnknownWith(struct),
-    Error({
-      code: OperationFailed("First preprocess"),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("First preprocess"),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -107,11 +101,7 @@ test("Fails to parse async using parseAnyWith", t => {
 
   t->Assert.deepEqual(
     %raw(`"Hello world!"`)->S.parseAnyWith(struct),
-    Error({
-      code: UnexpectedAsync,
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(U.error({code: UnexpectedAsync, operation: Parsing, path: S.Path.empty})),
     (),
   )
 })
@@ -134,11 +124,13 @@ asyncTest("Fails to parse async with user error", t => {
   ->Promise.thenResolve(result => {
     t->Assert.deepEqual(
       result,
-      Error({
-        S.code: OperationFailed("User error"),
-        path: S.Path.empty,
-        operation: Parsing,
-      }),
+      Error(
+        U.error({
+          code: OperationFailed("User error"),
+          path: S.Path.empty,
+          operation: Parsing,
+        }),
+      ),
       (),
     )
   })
@@ -274,7 +266,7 @@ test("Compiled parse code snapshot", t => {
     serializer: _ => 1.->Int.fromFloat,
   })
 
-  t->TestUtils.assertCompiledCode(
+  t->U.assertCompiledCode(
     ~struct,
     ~op=#parse,
     `i=>{let v0;v0=e[0](i);if(!(typeof v0==="number"&&v0<2147483648&&v0>-2147483649&&v0%1===0)){e[1](v0)}return v0}`,
@@ -288,7 +280,7 @@ test("Compiled async parse code snapshot", t => {
     serializer: _ => 1.->Int.fromFloat,
   })
 
-  t->TestUtils.assertCompiledCode(
+  t->U.assertCompiledCode(
     ~struct,
     ~op=#parse,
     `i=>{let v0,v1;v0=e[0](i);v1=()=>v0().then(t=>{if(!(typeof t==="number"&&t<2147483648&&t>-2147483649&&t%1===0)){e[1](t)}return t});return v1}`,
@@ -302,5 +294,5 @@ test("Compiled serialize code snapshot", t => {
     serializer: _ => 1.->Int.fromFloat,
   })
 
-  t->TestUtils.assertCompiledCode(~struct, ~op=#serialize, `i=>{return e[0](i)}`, ())
+  t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{return e[0](i)}`, ())
 })

@@ -23,11 +23,7 @@ test("Fails to parse object with excess keys when UnknownKeys are strict", t => 
 
   t->Assert.deepEqual(
     %raw(`{field:"bar"}`)->S.parseAnyWith(struct),
-    Error({
-      code: ExcessField("field"),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(U.error({code: ExcessField("field"), operation: Parsing, path: S.Path.empty})),
     (),
   )
 })
@@ -51,11 +47,13 @@ test("Fails to parse array data", t => {
 
   t->Assert.deepEqual(
     %raw(`[]`)->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({expected: struct->S.toUnknown, received: %raw(`[]`)}),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`[]`)}),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })

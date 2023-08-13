@@ -11,20 +11,24 @@ test("Fails to parse invalid data", t => {
 
   t->Assert.deepEqual(
     ""->S.parseAnyWith(struct),
-    Error({
-      code: OperationFailed("String must be exactly 1 characters long"),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("String must be exactly 1 characters long"),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
   t->Assert.deepEqual(
     "1234"->S.parseAnyWith(struct),
-    Error({
-      code: OperationFailed("String must be exactly 1 characters long"),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("String must be exactly 1 characters long"),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -40,20 +44,24 @@ test("Fails to serialize invalid value", t => {
 
   t->Assert.deepEqual(
     ""->S.serializeToUnknownWith(struct),
-    Error({
-      code: OperationFailed("String must be exactly 1 characters long"),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("String must be exactly 1 characters long"),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
   t->Assert.deepEqual(
     "1234"->S.serializeToUnknownWith(struct),
-    Error({
-      code: OperationFailed("String must be exactly 1 characters long"),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("String must be exactly 1 characters long"),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -63,11 +71,7 @@ test("Returns custom error message", t => {
 
   t->Assert.deepEqual(
     "123"->S.parseAnyWith(struct),
-    Error({
-      code: OperationFailed("Custom"),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(U.error({code: OperationFailed("Custom"), operation: Parsing, path: S.Path.empty})),
     (),
   )
 })

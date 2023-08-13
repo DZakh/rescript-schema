@@ -12,11 +12,13 @@ test("Fails to parse invalid data", t => {
 
   t->Assert.deepEqual(
     "1234"->S.parseAnyWith(struct),
-    Error({
-      code: OperationFailed("String must be 1 or fewer characters long"),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("String must be 1 or fewer characters long"),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -33,11 +35,13 @@ test("Fails to serialize invalid value", t => {
 
   t->Assert.deepEqual(
     "1234"->S.serializeToUnknownWith(struct),
-    Error({
-      code: OperationFailed("String must be 1 or fewer characters long"),
-      operation: Serializing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: OperationFailed("String must be 1 or fewer characters long"),
+        operation: Serializing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -47,11 +51,7 @@ test("Returns custom error message", t => {
 
   t->Assert.deepEqual(
     "1234"->S.parseAnyWith(struct),
-    Error({
-      code: OperationFailed("Custom"),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(U.error({code: OperationFailed("Custom"), operation: Parsing, path: S.Path.empty})),
     (),
   )
 })

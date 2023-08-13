@@ -7,11 +7,13 @@ test("Gets value with Ok", t => {
 test("Throws an Error with Error", t => {
   t->Assert.throws(
     () => {
-      Error({
-        code: OperationFailed("Should be positive"),
-        operation: Parsing,
-        path: S.Path.empty,
-      })->S.Result.getExn
+      Error(
+        U.error({
+          code: OperationFailed("Should be positive"),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+      )->S.Result.getExn
     },
     ~expectations={
       name: "Error",

@@ -29,14 +29,16 @@ module Common = {
 
     t->Assert.deepEqual(
       invalid->S.parseAnyWith(struct),
-      Error({
-        code: InvalidLiteral({
-          expected: Dict(Dict.fromArray([("foo", S.Literal.String("bar"))])),
-          received: invalid,
+      Error(
+        U.error({
+          code: InvalidLiteral({
+            expected: Dict(Dict.fromArray([("foo", S.Literal.String("bar"))])),
+            received: invalid,
+          }),
+          operation: Parsing,
+          path: S.Path.empty,
         }),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
+      ),
       (),
     )
   })
@@ -44,11 +46,7 @@ module Common = {
   test("Successfully serializes", t => {
     let struct = factory()
 
-    t->Assert.deepEqual(
-      value->S.serializeToUnknownWith(struct),
-      Ok(value->TestUtils.castAnyToUnknown),
-      (),
-    )
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(value->U.castAnyToUnknown), ())
   })
 
   test("Fails to serialize invalid", t => {
@@ -56,14 +54,16 @@ module Common = {
 
     t->Assert.deepEqual(
       invalid->S.serializeToUnknownWith(struct),
-      Error({
-        code: InvalidLiteral({
-          expected: Dict(Dict.fromArray([("foo", S.Literal.String("bar"))])),
-          received: invalid->TestUtils.castAnyToUnknown,
+      Error(
+        U.error({
+          code: InvalidLiteral({
+            expected: Dict(Dict.fromArray([("foo", S.Literal.String("bar"))])),
+            received: invalid->U.castAnyToUnknown,
+          }),
+          operation: Serializing,
+          path: S.Path.empty,
         }),
-        operation: Serializing,
-        path: S.Path.empty,
-      }),
+      ),
       (),
     )
   })
@@ -73,14 +73,16 @@ module Common = {
 
     t->Assert.deepEqual(
       %raw(`null`)->S.parseAnyWith(struct),
-      Error({
-        code: InvalidLiteral({
-          expected: Dict(Dict.fromArray([("foo", S.Literal.String("bar"))])),
-          received: %raw(`null`),
+      Error(
+        U.error({
+          code: InvalidLiteral({
+            expected: Dict(Dict.fromArray([("foo", S.Literal.String("bar"))])),
+            received: %raw(`null`),
+          }),
+          operation: Parsing,
+          path: S.Path.empty,
         }),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
+      ),
       (),
     )
   })
@@ -90,14 +92,16 @@ module Common = {
 
     t->Assert.deepEqual(
       %raw(`{"foo": "bar","excess":true}`)->S.parseAnyWith(struct),
-      Error({
-        code: InvalidLiteral({
-          expected: Dict(Dict.fromArray([("foo", S.Literal.String("bar"))])),
-          received: %raw(`{"foo": "bar","excess": true}`),
+      Error(
+        U.error({
+          code: InvalidLiteral({
+            expected: Dict(Dict.fromArray([("foo", S.Literal.String("bar"))])),
+            received: %raw(`{"foo": "bar","excess": true}`),
+          }),
+          operation: Parsing,
+          path: S.Path.empty,
         }),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
+      ),
       (),
     )
   })
@@ -107,14 +111,16 @@ module Common = {
 
     t->Assert.deepEqual(
       makeNotPlainValue()->S.parseAnyWith(struct),
-      Error({
-        code: InvalidLiteral({
-          expected: Dict(Dict.fromArray([("foo", S.Literal.String("bar"))])),
-          received: makeNotPlainValue()->TestUtils.castAnyToUnknown,
+      Error(
+        U.error({
+          code: InvalidLiteral({
+            expected: Dict(Dict.fromArray([("foo", S.Literal.String("bar"))])),
+            received: makeNotPlainValue()->U.castAnyToUnknown,
+          }),
+          operation: Parsing,
+          path: S.Path.empty,
         }),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
+      ),
       (),
     )
   })
@@ -122,7 +128,7 @@ module Common = {
   test("Compiled parse code snapshot", t => {
     let struct = factory()
 
-    t->TestUtils.assertCompiledCode(
+    t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
       `i=>{(i===e[0]||i&&i.constructor===Object&&Object.keys(i).length===1&&i["foo"]===e[1])||e[2](i);return i}`,
@@ -133,7 +139,7 @@ module Common = {
   test("Compiled serialize code snapshot", t => {
     let struct = factory()
 
-    t->TestUtils.assertCompiledCode(
+    t->U.assertCompiledCode(
       ~struct,
       ~op=#serialize,
       `i=>{(i===e[0]||i&&i.constructor===Object&&Object.keys(i).length===1&&i["foo"]===e[1])||e[2](i);return i}`,

@@ -49,11 +49,13 @@ test("Fails to parse data with default", t => {
 
   t->Assert.deepEqual(
     %raw(`"string"`)->S.parseAnyWith(struct),
-    Error({
-      code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`"string"`)}),
-      operation: Parsing,
-      path: S.Path.empty,
-    }),
+    Error(
+      U.error({
+        code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`"string"`)}),
+        operation: Parsing,
+        path: S.Path.empty,
+      }),
+    ),
     (),
   )
 })
@@ -84,7 +86,7 @@ test("Successfully serializes struct with transformation", t => {
 test("Compiled parse code snapshot", t => {
   let struct = S.bool->S.option->S.Option.getOr(false)
 
-  t->TestUtils.assertCompiledCode(
+  t->U.assertCompiledCode(
     ~struct,
     ~op=#parse,
     `i=>{let v0;if(i!==void 0){if(typeof i!=="boolean"){e[0](i)}v0=i}else{v0=void 0}return v0===void 0?e[1]:v0}`,
@@ -99,7 +101,7 @@ test("Compiled async parse code snapshot", t => {
     ->S.option
     ->S.Option.getOr(false)
 
-  t->TestUtils.assertCompiledCode(
+  t->U.assertCompiledCode(
     ~struct,
     ~op=#parse,
     `i=>{let v0,v2;if(i!==void 0){let v1;if(typeof i!=="boolean"){e[0](i)}v1=e[1](i);v0=v1}else{v0=()=>Promise.resolve(void 0)}v2=()=>v0().then(t=>{return t===void 0?e[2]:t});return v2}`,
@@ -110,7 +112,7 @@ test("Compiled async parse code snapshot", t => {
 test("Compiled serialize code snapshot", t => {
   let struct = S.bool->S.option->S.Option.getOr(false)
 
-  t->TestUtils.assertCompiledCode(
+  t->U.assertCompiledCode(
     ~struct,
     ~op=#serialize,
     `i=>{let v0;if(i!==void 0){v0=e[0](i)}else{v0=void 0}return v0}`,
