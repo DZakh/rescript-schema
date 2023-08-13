@@ -295,43 +295,42 @@ function varWithoutAllocation(b) {
   return "v" + newCounter;
 }
 
-function transform(b, inputVar, operation) {
-  if (!b.a.has(inputVar)) {
+function transform(b, inputVar, isAsync, operation) {
+  if (b.a === true) {
+    var prevCode = b.c;
+    b.c = "";
+    var operationOutputVar = operation(b, "t");
+    var outputVar = $$var(b);
+    b.c = prevCode + (outputVar + "=()=>" + inputVar + "().then(t=>{" + b.c + "return " + operationOutputVar + (
+        isAsync ? "()" : ""
+      ) + "});");
+    return outputVar;
+  }
+  if (!isAsync) {
     return operation(b, inputVar);
   }
-  var prevCode = b.c;
-  b.c = "";
-  var operationOutputVar = operation(b, "t");
-  var isAsyncOperation = b.a.has(operationOutputVar);
-  var outputVar = $$var(b);
-  b.a.add(outputVar);
-  b.c = prevCode + (outputVar + "=()=>" + inputVar + "().then(t=>{" + b.c + "return " + operationOutputVar + (
-      isAsyncOperation ? "()" : ""
-    ) + "});");
-  return outputVar;
+  b.a = true;
+  var outputVar$1 = $$var(b);
+  b.c = b.c + (outputVar$1 + "=" + operation(b, inputVar) + ";");
+  return outputVar$1;
 }
 
-function embedSyncOperation(b, inputVar, fn, isRefineOpt) {
-  var isRefine = isRefineOpt !== undefined ? isRefineOpt : false;
-  return transform(b, inputVar, (function (b, inputVar) {
-                if (isRefine) {
-                  b.c = b.c + ("e[" + (b.e.push(fn) - 1) + "](" + inputVar + ");");
-                  return inputVar;
-                } else {
-                  return "e[" + (b.e.push(fn) - 1) + "](" + inputVar + ")";
-                }
+function embedSyncRefineOperation(b, inputVar, fn) {
+  return transform(b, inputVar, false, (function (b, inputVar) {
+                b.c = b.c + ("e[" + (b.e.push(fn) - 1) + "](" + inputVar + ");");
+                return inputVar;
+              }));
+}
+
+function embedSyncOperation(b, inputVar, fn) {
+  return transform(b, inputVar, false, (function (b, inputVar) {
+                return "e[" + (b.e.push(fn) - 1) + "](" + inputVar + ")";
               }));
 }
 
 function embedAsyncOperation(b, inputVar, fn) {
-  return transform(b, inputVar, (function (b, inputVar) {
-                if (b.a.has(inputVar)) {
-                  return "e[" + (b.e.push(fn) - 1) + "](" + inputVar + ")";
-                }
-                var outputVar = $$var(b);
-                b.a.add(outputVar);
-                b.c = b.c + (outputVar + "=" + ("e[" + (b.e.push(fn) - 1) + "]") + "(" + inputVar + ");");
-                return outputVar;
+  return transform(b, inputVar, true, (function (b, inputVar) {
+                return "e[" + (b.e.push(fn) - 1) + "](" + inputVar + ")";
               }));
 }
 
@@ -367,7 +366,7 @@ function withCatch(b, $$catch, fn) {
   var catchCode = "if(" + (errorVar + "&&" + errorVar + ".s===s") + "){" + b.c;
   b.c = "";
   var fnOutputVar = fn(b);
-  var isAsync = b.a.has(fnOutputVar);
+  var isAsync = b.a;
   var isInlined = fnOutputVar[0] !== "v";
   var outputVar = isAsync || isInlined ? $$var(b) : fnOutputVar;
   var catchCode$1 = maybeResolveVar !== undefined ? (function (catchLocation) {
@@ -382,7 +381,7 @@ function withCatch(b, $$catch, fn) {
         return catchCode + "}throw " + errorVar;
       });
   b.c = prevCode + ("try{" + b.c + (
-      isAsync ? (b.a.add(outputVar), outputVar + "=()=>{try{return " + fnOutputVar + "().catch(" + errorVar + "=>{" + catchCode$1(2) + "})}catch(" + errorVar + "){" + catchCode$1(1) + "}};") : (
+      isAsync ? outputVar + "=()=>{try{return " + fnOutputVar + "().catch(" + errorVar + "=>{" + catchCode$1(2) + "})}catch(" + errorVar + "){" + catchCode$1(1) + "}};" : (
           isInlined ? outputVar + "=" + fnOutputVar : ""
         )
     ) + "}catch(" + errorVar + "){" + catchCode$1(0) + "}");
@@ -390,6 +389,9 @@ function withCatch(b, $$catch, fn) {
 }
 
 function withPathPrepend(b, path, maybeDynamicLocationVar, fn) {
+  if (path === "" && maybeDynamicLocationVar === undefined) {
+    return fn(b, path);
+  }
   try {
     return withCatch(b, (function (b, errorVar) {
                   b.c = errorVar + ".path=" + JSON.stringify(path) + "+" + (
@@ -415,15 +417,13 @@ function withPathPrepend(b, path, maybeDynamicLocationVar, fn) {
 }
 
 function run(b, builder, struct, inputVar, path) {
-  var asyncVarsCountBefore = b.a.size;
+  var isParentAsync = b.a;
+  b.a = false;
   var outputVar = builder(b, struct, inputVar, path);
-  var isAsync = b.a.size > asyncVarsCountBefore;
-  if (isAsync) {
-    b.a.add(outputVar);
-  }
   if (b.o === "Parsing") {
-    struct.i = isAsync;
+    struct.i = b.a;
   }
+  b.a = isParentAsync || b.a;
   return outputVar;
 }
 
@@ -436,10 +436,10 @@ function build(builder, struct, operation) {
   }
   var intitialInputVar = "i";
   var b = {
+    a: false,
     v: -1,
     l: "",
     c: "",
-    a: new Set(),
     e: [],
     o: operation
   };
@@ -938,16 +938,16 @@ function recursive(fn) {
   var builder = placeholder.pb;
   placeholder.pb = (function (b, selfStruct, inputVar, path) {
       selfStruct.pb = noop;
-      var asyncVars = new Set();
-      builder({
-            v: -1,
-            l: "",
-            c: "",
-            a: asyncVars,
-            e: [],
-            o: "Parsing"
-          }, selfStruct, inputVar, path);
-      var isAsync = asyncVars.size > 0;
+      var ctx = {
+        a: false,
+        v: -1,
+        l: "",
+        c: "",
+        e: [],
+        o: "Parsing"
+      };
+      builder(ctx, selfStruct, inputVar, path);
+      var isAsync = ctx.a;
       selfStruct.pb = (function (b, selfStruct, inputVar, param) {
           if (isAsync) {
             return embedAsyncOperation(b, inputVar, (function (input) {
@@ -956,7 +956,7 @@ function recursive(fn) {
           } else {
             return embedSyncOperation(b, inputVar, (function (input) {
                           return selfStruct.p(input);
-                        }), undefined);
+                        }));
           }
         });
       compileParser(selfStruct, builder);
@@ -965,7 +965,7 @@ function recursive(fn) {
                     if (isAsync) {
                       return embedAsyncOperation(b, inputVar, selfStruct.a);
                     } else {
-                      return embedSyncOperation(b, inputVar, selfStruct.p, undefined);
+                      return embedSyncOperation(b, inputVar, selfStruct.p);
                     }
                   }));
     });
@@ -974,12 +974,12 @@ function recursive(fn) {
       selfStruct.sb = (function (b, selfStruct, inputVar, param) {
           return embedSyncOperation(b, inputVar, (function (input) {
                         return selfStruct.s(input);
-                      }), undefined);
+                      }));
         });
       compileSerializer(selfStruct, builder$1);
       selfStruct.sb = builder$1;
       return withPathPrepend(b, path, undefined, (function (b, param) {
-                    return embedSyncOperation(b, inputVar, selfStruct.s, undefined);
+                    return embedSyncOperation(b, inputVar, selfStruct.s);
                   }));
     });
   return placeholder;
@@ -1033,10 +1033,10 @@ function refine(struct, refiner) {
   return {
           t: struct.t,
           pb: (function (b, selfStruct, inputVar, path) {
-              return embedSyncOperation(b, run(b, struct.pb, struct, inputVar, path), refiner(make(selfStruct, path, b.o)), true);
+              return embedSyncRefineOperation(b, run(b, struct.pb, struct, inputVar, path), refiner(make(selfStruct, path, b.o)));
             }),
           sb: (function (b, selfStruct, inputVar, path) {
-              return run(b, struct.pb, struct, embedSyncOperation(b, inputVar, refiner(make(selfStruct, path, b.o)), true), path);
+              return run(b, struct.pb, struct, embedSyncRefineOperation(b, inputVar, refiner(make(selfStruct, path, b.o))), path);
             }),
           i: 0,
           s: initialSerialize,
@@ -1063,7 +1063,7 @@ function transform$1(struct, transformer) {
                 if (match.a !== undefined) {
                   return invalidOperation(b, path, "The S.transform doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.");
                 } else {
-                  return embedSyncOperation(b, inputVar$1, parser, undefined);
+                  return embedSyncOperation(b, inputVar$1, parser);
                 }
               }
               var asyncParser = match.a;
@@ -1079,7 +1079,7 @@ function transform$1(struct, transformer) {
               var match = transformer(make(selfStruct, path, b.o));
               var serializer = match.s;
               if (serializer !== undefined) {
-                return run(b, struct.sb, struct, embedSyncOperation(b, inputVar, serializer, undefined), path);
+                return run(b, struct.sb, struct, embedSyncOperation(b, inputVar, serializer), path);
               } else if (match.a !== undefined || match.p !== undefined) {
                 return invalidOperation(b, path, "The S.transform serializer is missing");
               } else {
@@ -1125,7 +1125,7 @@ function preprocess(struct, transformer) {
                   return invalidOperation(b, path, "The S.preprocess doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.");
                 }
                 var operationResultVar = $$var(b);
-                b.c = b.c + (operationResultVar + "=" + embedSyncOperation(b, inputVar, parser, undefined) + ";");
+                b.c = b.c + (operationResultVar + "=" + embedSyncOperation(b, inputVar, parser) + ";");
                 return run(b, struct.pb, struct, operationResultVar, path);
               }
               var asyncParser = match.a;
@@ -1148,7 +1148,7 @@ function preprocess(struct, transformer) {
               var match = transformer(make(selfStruct, path, b.o));
               var serializer = match.s;
               if (serializer !== undefined) {
-                return embedSyncOperation(b, inputVar$1, serializer, undefined);
+                return embedSyncOperation(b, inputVar$1, serializer);
               } else {
                 return inputVar$1;
               }
@@ -1172,7 +1172,7 @@ function custom(name, definer) {
                 if (match.a !== undefined) {
                   return invalidOperation(b, path, "The S.custom doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.");
                 } else {
-                  return embedSyncOperation(b, inputVar, parser, undefined);
+                  return embedSyncOperation(b, inputVar, parser);
                 }
               }
               var asyncParser = match.a;
@@ -1188,7 +1188,7 @@ function custom(name, definer) {
               var match = definer(make(selfStruct, path, b.o));
               var serializer = match.s;
               if (serializer !== undefined) {
-                return embedSyncOperation(b, inputVar, serializer, undefined);
+                return embedSyncOperation(b, inputVar, serializer);
               } else if (match.a !== undefined || match.p !== undefined) {
                 return invalidOperation(b, path, "The S.custom serializer is missing");
               } else {
@@ -1278,7 +1278,7 @@ function factory(struct, definer) {
   return {
           t: struct.t,
           pb: (function (b, param, inputVar, path) {
-              return embedSyncOperation(b, run(b, struct.pb, struct, inputVar, path), definer, undefined);
+              return embedSyncOperation(b, run(b, struct.pb, struct, inputVar, path), definer);
             }),
           sb: (function (b, selfStruct, inputVar, path) {
               var definition = definer(symbol);
@@ -1400,7 +1400,7 @@ function getWithDefault(struct, $$default) {
   return {
           t: struct.t,
           pb: (function (b, param, inputVar, path) {
-              return transform(b, run(b, struct.pb, struct, inputVar, path), (function (b, inputVar) {
+              return transform(b, run(b, struct.pb, struct, inputVar, path), false, (function (b, inputVar) {
                             var tmp;
                             tmp = $$default.TAG === "Value" ? "e[" + (b.e.push($$default._0) - 1) + "]" : "e[" + (b.e.push($$default._0) - 1) + "]()";
                             return inputVar + "===void 0?" + tmp + ":" + inputVar;

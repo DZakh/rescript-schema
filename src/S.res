@@ -64,8 +64,6 @@ module Stdlib = {
     @send
     external has: (t<'value>, 'value) => bool = "has"
 
-    @get external size: t<'value> => int = "size"
-
     @send
     external add: (t<'value>, 'value) => t<'value> = "add"
 
@@ -477,14 +475,14 @@ let unsafeGetVariantPayload = variant => (variant->Obj.magic)._0
 module Builder = {
   type t = builder
   type ctx = {
+    @as("a")
+    mutable isAsync: bool,
     @as("v")
     mutable varCounter: int,
     @as("l")
     mutable varsAllocation: string,
     @as("c")
     mutable code: string,
-    @as("a")
-    asyncVars: Stdlib.Set.t<string>,
     @as("e")
     embeded: array<unknown>,
     @as("o")
@@ -548,47 +546,45 @@ module Builder = {
       `${var}&&${var}.s===s`
     }
 
-    let transform = (b: t, ~inputVar, operation) => {
-      if b.asyncVars->Stdlib.Set.has(inputVar) {
+    let transform = (b: t, ~inputVar, ~isAsync, operation) => {
+      if b.isAsync === true {
         let prevCode = b.code
         b.code = ""
         let operationOutputVar = operation(b, ~inputVar="t")
-        let isAsyncOperation = b.asyncVars->Stdlib.Set.has(operationOutputVar)
-
         let outputVar = b->var
-        b.asyncVars->Stdlib.Set.add(outputVar)->ignore
         b.code =
           prevCode ++
-          `${outputVar}=()=>${inputVar}().then(t=>{${b.code}return ${operationOutputVar}${isAsyncOperation
+          `${outputVar}=()=>${inputVar}().then(t=>{${b.code}return ${operationOutputVar}${isAsync
               ? "()"
               : ""}});`
+        outputVar
+      } else if isAsync {
+        b.isAsync = true
+        // TODO: Would be nice to remove. Needed to enforce that async ops are always vars
+        let outputVar = b->var
+        b.code = b.code ++ `${outputVar}=${operation(b, ~inputVar)};`
         outputVar
       } else {
         operation(b, ~inputVar)
       }
     }
 
-    let embedSyncOperation = (b: t, ~inputVar, ~fn: 'input => 'output, ~isRefine=false) => {
-      b->transform(~inputVar, (b, ~inputVar) => {
-        if isRefine {
-          b.code = b.code ++ `${b->embed(fn)}(${inputVar});`
-          inputVar
-        } else {
-          `${b->embed(fn)}(${inputVar})`
-        }
+    let embedSyncRefineOperation = (b: t, ~inputVar, ~fn: 'input => 'output) => {
+      b->transform(~inputVar, ~isAsync=false, (b, ~inputVar) => {
+        b.code = b.code ++ `${b->embed(fn)}(${inputVar});`
+        inputVar
+      })
+    }
+
+    let embedSyncOperation = (b: t, ~inputVar, ~fn: 'input => 'output) => {
+      b->transform(~inputVar, ~isAsync=false, (b, ~inputVar) => {
+        `${b->embed(fn)}(${inputVar})`
       })
     }
 
     let embedAsyncOperation = (b: t, ~inputVar, ~fn: 'input => unit => promise<'output>) => {
-      b->transform(~inputVar, (b, ~inputVar) => {
-        if b.asyncVars->Stdlib.Set.has(inputVar) {
-          `${b->embed(fn)}(${inputVar})`
-        } else {
-          let outputVar = b->var
-          b.asyncVars->Stdlib.Set.add(outputVar)->ignore
-          b.code = b.code ++ `${outputVar}=${b->embed(fn)}(${inputVar});`
-          outputVar
-        }
+      b->transform(~inputVar, ~isAsync=true, (b, ~inputVar) => {
+        `${b->embed(fn)}(${inputVar})`
       })
     }
 
@@ -616,7 +612,7 @@ module Builder = {
 
       b.code = ""
       let fnOutputVar = fn(b)
-      let isAsync = b.asyncVars->Stdlib.Set.has(fnOutputVar)
+      let isAsync = b.isAsync
       let isInlined = fnOutputVar->Js.String2.get(0) !== "v"
 
       let outputVar = isAsync || isInlined ? b->var : fnOutputVar
@@ -639,12 +635,10 @@ module Builder = {
         prevCode ++
         `try{${b.code}${{
             switch (isAsync, isInlined) {
-            | (true, _) => {
-                b.asyncVars->Stdlib.Set.add(outputVar)->ignore
-                `${outputVar}=()=>{try{return ${fnOutputVar}().catch(${errorVar}=>{${catchCode(
-                    #2,
-                  )}})}catch(${errorVar}){${catchCode(#1)}}};`
-              }
+            | (true, _) =>
+              `${outputVar}=()=>{try{return ${fnOutputVar}().catch(${errorVar}=>{${catchCode(
+                  #2,
+                )}})}catch(${errorVar}){${catchCode(#1)}}};`
             | (_, true) => `${outputVar}=${fnOutputVar}`
             | _ => ""
             }
@@ -654,42 +648,44 @@ module Builder = {
     }
 
     let withPathPrepend = (b: t, ~path, ~dynamicLocationVar as maybeDynamicLocationVar=?, fn) => {
-      try b->withCatch(
-        ~catch=(b, ~errorVar) => {
-          b.code = `${errorVar}.path=${path->Stdlib.Inlined.Value.fromString}+${switch maybeDynamicLocationVar {
-            | Some(var) => `'["'+${var}+'"]'+`
-            | _ => ""
-            }}${errorVar}.path`
-          None
-        },
-        b => fn(b, ~path=Path.empty),
-      ) catch {
-      | Js.Exn.Error(jsExn) => {
-          let error = jsExn->InternalError.getOrRethrow
-          InternalError.raise(
-            ~path=path->Path.concat(Path.dynamic)->Path.concat(error.path),
-            ~code=error.code,
-            ~operation=error.operation,
-          )
+      if path === Path.empty && maybeDynamicLocationVar === None {
+        fn(b, ~path)
+      } else {
+        try b->withCatch(
+          ~catch=(b, ~errorVar) => {
+            b.code = `${errorVar}.path=${path->Stdlib.Inlined.Value.fromString}+${switch maybeDynamicLocationVar {
+              | Some(var) => `'["'+${var}+'"]'+`
+              | _ => ""
+              }}${errorVar}.path`
+            None
+          },
+          b => fn(b, ~path=Path.empty),
+        ) catch {
+        | Js.Exn.Error(jsExn) => {
+            let error = jsExn->InternalError.getOrRethrow
+            InternalError.raise(
+              ~path=path->Path.concat(Path.dynamic)->Path.concat(error.path),
+              ~code=error.code,
+              ~operation=error.operation,
+            )
+          }
         }
       }
     }
 
     let run = (b: t, ~builder, ~struct, ~inputVar, ~path) => {
-      let asyncVarsCountBefore = b.asyncVars->Stdlib.Set.size
+      let isParentAsync = b.isAsync
+      b.isAsync = false
       let outputVar = (builder->(Obj.magic: builder => implementation))(
         b,
         ~selfStruct=struct,
         ~inputVar,
         ~path,
       )
-      let isAsync = b.asyncVars->Stdlib.Set.size > asyncVarsCountBefore
-      if isAsync {
-        b.asyncVars->Stdlib.Set.add(outputVar)->ignore
-      }
       if b.operation === Parsing {
-        struct.isAsyncParse = Value(isAsync)
+        struct.isAsyncParse = Value(b.isAsync)
       }
+      b.isAsync = isParentAsync || b.isAsync
       outputVar
     }
   }
@@ -706,9 +702,9 @@ module Builder = {
       let b = {
         embeded: [],
         varCounter: -1,
-        asyncVars: Stdlib.Set.empty(),
         code: "",
         varsAllocation: "",
+        isAsync: false,
         operation,
       }
 
@@ -717,6 +713,7 @@ module Builder = {
             b->Ctx.run(~builder, ~struct, ~inputVar=intitialInputVar, ~path=Path.empty)
           `return ${outputVar}`
         })}}`
+
       Js.log(inlinedFunction)
       Stdlib.Function.make2(
         ~ctxVarName1="e",
@@ -1067,21 +1064,21 @@ let recursive = fn => {
     placeholder.parseOperationBuilder = Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
       let isAsync = {
         selfStruct.parseOperationBuilder = Builder.noop
-        let asyncVars = Stdlib.Set.empty()
+        let ctx = {
+          Builder.embeded: [],
+          varsAllocation: "",
+          code: "",
+          varCounter: -1,
+          isAsync: false,
+          operation: Parsing,
+        }
         let _ = (builder->(Obj.magic: builder => Builder.implementation))(
-          {
-            Builder.embeded: [],
-            varsAllocation: "",
-            code: "",
-            asyncVars,
-            varCounter: -1,
-            operation: Parsing,
-          },
+          ctx,
           ~selfStruct,
           ~inputVar,
           ~path,
         )
-        asyncVars->Stdlib.Set.size > 0
+        ctx.isAsync
       }
 
       selfStruct.parseOperationBuilder = Builder.make((b, ~selfStruct, ~inputVar, ~path as _) => {
@@ -1093,6 +1090,7 @@ let recursive = fn => {
       })
 
       selfStruct->Builder.compileParser(~builder)
+
       selfStruct.parseOperationBuilder = builder
       b->B.withPathPrepend(~path, (b, ~path as _) =>
         if isAsync {
@@ -1178,20 +1176,18 @@ let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value> = (str
   make(
     ~tagged=struct.tagged,
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
-      b->B.embedSyncOperation(
+      b->B.embedSyncRefineOperation(
         ~inputVar=b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~path),
         ~fn=refiner(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)),
-        ~isRefine=true,
       )
     }),
     ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
       b->B.run(
         ~builder=struct.parseOperationBuilder,
         ~struct,
-        ~inputVar=b->B.embedSyncOperation(
+        ~inputVar=b->B.embedSyncRefineOperation(
           ~inputVar,
           ~fn=refiner(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)),
-          ~isRefine=true,
         ),
         ~path,
       )
@@ -1658,6 +1654,7 @@ module Option = {
       ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~inputVar, ~path) => {
         b->B.transform(
           ~inputVar=b->B.run(~builder=struct.parseOperationBuilder, ~struct, ~inputVar, ~path),
+          ~isAsync=false,
           (b, ~inputVar) => {
             // TODO: Reassign inputVar if it's not a var
             `${inputVar}===void 0?${switch default {

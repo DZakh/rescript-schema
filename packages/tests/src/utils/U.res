@@ -16,7 +16,7 @@ let error: S.error => S.error = {
   let symbol = (result->unsafeGetVariantPayload)["s"]
 
   (error: S.error) => {
-    error->Obj.magic->Js.Dict.set("s", symbol)
+    error->Obj.magic->Dict.set("s", symbol)
     error
   }
 }
