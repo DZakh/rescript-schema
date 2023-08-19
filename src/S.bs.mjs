@@ -431,9 +431,6 @@ function run(b, struct, inputVar, path) {
 }
 
 function build(builder, struct, operation) {
-  if (builder === noop) {
-    return noopOperation;
-  }
   var intitialInputVar = "i";
   var b = {
     a: false,
@@ -443,13 +440,16 @@ function build(builder, struct, operation) {
     e: [],
     o: operation
   };
-  var inlinedFunction = intitialInputVar + "=>{" + scope(b, (function (b) {
-          var outputVar = builder(b, struct, intitialInputVar, "");
-          return "return " + outputVar;
-        })) + "}";
+  var outputVar = builder(b, struct, intitialInputVar, "");
   if (b.o === "Parsing") {
     struct.i = b.a;
   }
+  if (b.c === "" && outputVar === intitialInputVar) {
+    return noopOperation;
+  }
+  var inlinedFunction = intitialInputVar + "=>{" + (
+    b.l === "" ? "" : "let " + b.l + ";"
+  ) + b.c + "return " + outputVar + "}";
   return new Function("e", "s", "return " + inlinedFunction)(b.e, symbol);
 }
 
@@ -1809,7 +1809,7 @@ var struct$2 = {
   pb: typeParser,
   sb: noop,
   i: 0,
-  s: initialSerialize,
+  s: noopOperation,
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
@@ -2051,7 +2051,7 @@ var struct$3 = {
     }),
   sb: noop,
   i: 0,
-  s: initialSerialize,
+  s: noopOperation,
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
@@ -2083,7 +2083,7 @@ var struct$4 = {
     }),
   sb: noop,
   i: 0,
-  s: initialSerialize,
+  s: noopOperation,
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
@@ -2169,7 +2169,7 @@ var struct$5 = {
     }),
   sb: noop,
   i: 0,
-  s: initialSerialize,
+  s: noopOperation,
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,
@@ -2692,7 +2692,7 @@ var json = {
     }),
   sb: noop,
   i: 0,
-  s: initialSerialize,
+  s: noopOperation,
   j: initialSerializeToJson,
   p: intitialParse,
   a: intitialParseAsync,

@@ -691,33 +691,34 @@ module Builder = {
   }
 
   let build = (builder, ~struct, ~operation) => {
-    if builder === noop {
+    let intitialInputVar = "i"
+
+    let b = {
+      embeded: [],
+      varCounter: -1,
+      code: "",
+      varsAllocation: "",
+      isAsyncBranch: false,
+      operation,
+    }
+
+    let outputVar = (builder->(Obj.magic: builder => implementation))(
+      b,
+      ~selfStruct=struct,
+      ~inputVar=intitialInputVar,
+      ~path=Path.empty,
+    )
+
+    if b.operation === Parsing {
+      struct.isAsyncParse = Value(b.isAsyncBranch)
+    }
+
+    if b.code === "" && outputVar === intitialInputVar {
       noopOperation
     } else {
-      let intitialInputVar = "i"
-
-      let b = {
-        embeded: [],
-        varCounter: -1,
-        code: "",
-        varsAllocation: "",
-        isAsyncBranch: false,
-        operation,
-      }
-
-      let inlinedFunction = `${intitialInputVar}=>{${b->Ctx.scope(b => {
-          let outputVar = (builder->(Obj.magic: builder => implementation))(
-            b,
-            ~selfStruct=struct,
-            ~inputVar=intitialInputVar,
-            ~path=Path.empty,
-          )
-          `return ${outputVar}`
-        })}}`
-
-      if b.operation === Parsing {
-        struct.isAsyncParse = Value(b.isAsyncBranch)
-      }
+      let inlinedFunction = `${intitialInputVar}=>{${b.varsAllocation === ""
+          ? ""
+          : `let ${b.varsAllocation};`}${b.code}return ${outputVar}}`
 
       // Js.log(inlinedFunction)
       Stdlib.Function.make2(
@@ -892,6 +893,19 @@ let make = (~tagged, ~metadataMap, ~parseOperationBuilder, ~serializeOperationBu
   serializeOperationBuilder,
   isAsyncParse: Unknown,
   serialize: initialSerialize,
+  serializeToJson: initialSerializeToJson,
+  parse: intitialParse,
+  parseAsync: intitialParseAsync,
+  metadataMap,
+}
+
+@inline
+let makeWithNoopSerializer = (~tagged, ~metadataMap, ~parseOperationBuilder) => {
+  tagged,
+  parseOperationBuilder,
+  serializeOperationBuilder: Builder.noop,
+  isAsyncParse: Unknown,
+  serialize: Builder.noopOperation,
   serializeToJson: initialSerializeToJson,
   parse: intitialParse,
   parseAsync: intitialParseAsync,
@@ -2118,11 +2132,10 @@ module String = {
 
   let parseOperationBuilder = Builder.make(typeParser)
 
-  let struct = make(
+  let struct = makeWithNoopSerializer(
     ~metadataMap=Metadata.Map.empty,
     ~tagged=String,
     ~parseOperationBuilder,
-    ~serializeOperationBuilder=Builder.noop,
   )
 
   let min = (struct, length, ~message as maybeMessage=?) => {
@@ -2332,7 +2345,7 @@ module JsonString = {
 }
 
 module Bool = {
-  let struct = make(
+  let struct = makeWithNoopSerializer(
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Bool,
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
@@ -2348,7 +2361,6 @@ module Bool = {
           )}}`
       inputVar
     }),
-    ~serializeOperationBuilder=Builder.noop,
   )
 }
 
@@ -2376,7 +2388,7 @@ module Int = {
     }
   }
 
-  let struct = make(
+  let struct = makeWithNoopSerializer(
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Int,
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
@@ -2392,7 +2404,6 @@ module Int = {
           )}}`
       inputVar
     }),
-    ~serializeOperationBuilder=Builder.noop,
   )
 
   let min = (struct, minValue, ~message as maybeMessage=?) => {
@@ -2475,7 +2486,7 @@ module Float = {
     }
   }
 
-  let struct = make(
+  let struct = makeWithNoopSerializer(
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Float,
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
@@ -2491,7 +2502,6 @@ module Float = {
           )}}`
       inputVar
     }),
-    ~serializeOperationBuilder=Builder.noop,
   )
 
   let min = (struct, minValue, ~message as maybeMessage=?) => {
@@ -3095,7 +3105,7 @@ let list = struct => {
   })
 }
 
-let json = make(
+let json = makeWithNoopSerializer(
   ~tagged=JSON,
   ~metadataMap=Metadata.Map.empty,
   ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~inputVar, ~path) => {
@@ -3149,7 +3159,6 @@ let json = make(
 
     `${b->B.embed(parse)}(${inputVar})`
   }),
-  ~serializeOperationBuilder=Builder.noop,
 )
 
 type catchCtx<'value> = {
