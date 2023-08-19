@@ -275,7 +275,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v0,v1,v2,v3;if(!Array.isArray(i)){e[0](i)}if(i.length!==2){e[1](i.length)}v0=i["0"];v1=e[2](v0);v2=i["1"];if(typeof v2!=="boolean"){e[3](v2)}v3=()=>Promise.all([v1()]).then(([v1])=>([v1,v2,]));return v3}`,
+      `i=>{let v0,v1,v2;if(!Array.isArray(i)){e[0](i)}if(i.length!==2){e[1](i.length)}v0=e[2](i["0"]);v1=i["1"];if(typeof v1!=="boolean"){e[3](v1)}v2=()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]));return v2}`,
       (),
     )
   })

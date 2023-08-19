@@ -80,7 +80,7 @@ test("Compiled async parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~struct,
     ~op=#parse,
-    `i=>{let v0,v2;if(i!==void 0){let v1;if(typeof i!=="boolean"){e[0](i)}v1=e[1](i);v0=v1}else{v0=()=>Promise.resolve(void 0)}v2=()=>v0().then(t=>{return t===void 0?e[2]():t});return v2}`,
+    `i=>{let v0,v3;if(i!==void 0){let v1;if(typeof i!=="boolean"){e[0](i)}v1=e[1](i);v0=v1}else{v0=()=>Promise.resolve(void 0)}v3=()=>v0().then(v2=>{return v2===void 0?e[2]():v2});return v3}`,
     (),
   )
 })
