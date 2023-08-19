@@ -432,9 +432,6 @@ function run(b, struct, inputVar, path) {
 
 function build(builder, struct, operation) {
   if (builder === noop) {
-    if (operation === "Parsing") {
-      struct.i = false;
-    }
     return noopOperation;
   }
   var intitialInputVar = "i";
@@ -1769,11 +1766,11 @@ var struct$1 = {
   t: "Unknown",
   pb: noop,
   sb: noop,
-  i: 0,
-  s: initialSerialize,
+  i: false,
+  s: noopOperation,
   j: initialSerializeToJson,
-  p: intitialParse,
-  a: intitialParseAsync,
+  p: noopOperation,
+  a: unexpectedAsyncOperation,
   m: empty
 };
 

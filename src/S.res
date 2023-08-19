@@ -692,9 +692,6 @@ module Builder = {
 
   let build = (builder, ~struct, ~operation) => {
     if builder === noop {
-      if operation === Parsing {
-        struct.isAsyncParse = Value(false)
-      }
       noopOperation
     } else {
       let intitialInputVar = "i"
@@ -2055,12 +2052,17 @@ module Never = {
 }
 
 module Unknown = {
-  let struct = make(
-    ~metadataMap=Metadata.Map.empty,
-    ~tagged=Unknown,
-    ~parseOperationBuilder=Builder.noop,
-    ~serializeOperationBuilder=Builder.noop,
-  )
+  let struct = {
+    tagged: Unknown,
+    parseOperationBuilder: Builder.noop,
+    serializeOperationBuilder: Builder.noop,
+    isAsyncParse: Value(false),
+    serialize: Builder.noopOperation,
+    serializeToJson: initialSerializeToJson,
+    parse: Builder.noopOperation,
+    parseAsync: Builder.unexpectedAsyncOperation,
+    metadataMap: Metadata.Map.empty,
+  }
 }
 
 module String = {
