@@ -46,7 +46,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 Internals
 
 - compiled: rename i and t to v for inlined check work properly ???
-- Clean up asyncVars mess
 - Turn internal error into instanceof Error and get rid of `Raised` exception
 
 ## v5.1

@@ -31,11 +31,7 @@ let transform: (
   ~serializer: ('transformed, S.effectCtx<'transformed>) => 'output=?,
 ) => S.t<'transformed>
 
-module Object: {
-  type rec t = {strict: unit => t, strip: unit => t}
-
-  let factory: Js.Dict.t<S.t<'output>> => t
-}
+let object: Js.Dict.t<S.t<'value>> => S.t<Js.Dict.t<'value>>
 
 let parse: (S.t<'output>, 'a) => Result.t<'output>
 let parseOrThrow: (S.t<'output>, 'a) => 'output

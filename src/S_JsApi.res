@@ -11,11 +11,6 @@ module Stdlib = {
     @send
     external thenResolve: (t<'a>, 'a => 'b) => t<'b> = "then"
   }
-
-  module Object = {
-    @val
-    external extendWith: ('target, 'extend) => 'target = "Object.assign"
-  }
 }
 
 module Error = {
@@ -118,42 +113,16 @@ let custom = (~name, ~parser as maybeParser=?, ~serializer as maybeSerializer=?,
   })
 }
 
-module Object = {
-  type rec t = {strict: unit => t, strip: unit => t}
-
-  let objectStructOperations = %raw("{}")
-
-  @inline
-  let toJsStruct = struct => {
-    struct->Stdlib.Object.extendWith(objectStructOperations)->(Obj.magic: S.t<'value> => t)
-  }
-
-  let strict = () => {
-    let struct = %raw("this")
-    struct->S.Object.strict->toJsStruct
-  }
-
-  let strip = () => {
-    let struct = %raw("this")
-    struct->S.Object.strip->toJsStruct
-  }
-
-  let factory = definer => {
-    S.object(s => {
-      let definition = Js.Dict.empty()
-      let fieldNames = definer->Js.Dict.keys
-      for idx in 0 to fieldNames->Js.Array2.length - 1 {
-        let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-        let struct = definer->Js.Dict.unsafeGet(fieldName)
-        definition->Js.Dict.set(fieldName, s.field(fieldName, struct))
-      }
-      definition
-    })->toJsStruct
-  }
-
-  objectStructOperations->Stdlib.Object.extendWith({
-    strict,
-    strip,
+let object = definer => {
+  S.object(s => {
+    let definition = Js.Dict.empty()
+    let fieldNames = definer->Js.Dict.keys
+    for idx in 0 to fieldNames->Js.Array2.length - 1 {
+      let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+      let struct = definer->Js.Dict.unsafeGet(fieldName)
+      definition->Js.Dict.set(fieldName, s.field(fieldName, struct))
+    }
+    definition
   })
 }
 

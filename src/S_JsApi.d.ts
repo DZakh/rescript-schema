@@ -65,11 +65,6 @@ type _TupleInput<
   ? Accumulated
   : _TupleInput<Tuple, Length, [...Accumulated, Input<Tuple[Index]>]>;
 
-export interface ObjectStruct<Input, Output> extends Struct<Input, Output> {
-  strip(): ObjectStruct<Input, Output>;
-  strict(): ObjectStruct<Input, Output>;
-}
-
 export const string: Struct<string, string>;
 export const boolean: Struct<boolean, boolean>;
 export const integer: Struct<number, number>;
@@ -147,7 +142,7 @@ export const object: <
   }
 >(
   shape: Shape
-) => ObjectStruct<
+) => Struct<
   {
     [k in keyof Shape]: Input<Shape[k]>;
   },
@@ -155,6 +150,15 @@ export const object: <
     [k in keyof Shape]: Output<Shape[k]>;
   }
 >;
+
+export const Object: {
+  strip: <Input, Output>(
+    struct: Struct<Input, Output>
+  ) => Struct<Input, Output>;
+  strict: <Input, Output>(
+    struct: Struct<Input, Output>
+  ) => Struct<Input, Output>;
+};
 
 export function custom<Input, Output>(
   name: string,

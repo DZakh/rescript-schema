@@ -72,6 +72,7 @@
 - Empty `S.tuple` now returns empty array during parsing instead of `undefined`
 - `S.tuple` with single item doesn't unwrap it from array during parsing
 - Turned all the struct methods to functions, to enable tree-shaking, remove runtime overhead, make API similar to the ReScript one.
+- Remove `ObjectStruct` type.
 
 ## Opt-in ppx support
 

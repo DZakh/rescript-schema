@@ -386,7 +386,7 @@ test("Successfully parses object by provided shape", (t) => {
   expectType<
     TypeEqual<
       typeof struct,
-      S.ObjectStruct<
+      S.Struct<
         {
           foo: string;
           bar: boolean;
@@ -427,7 +427,7 @@ test("Successfully parses object with transformed field", (t) => {
   expectType<
     TypeEqual<
       typeof struct,
-      S.ObjectStruct<
+      S.Struct<
         {
           foo: string;
           bar: boolean;
@@ -451,9 +451,11 @@ test("Successfully parses object with transformed field", (t) => {
 });
 
 test("Fails to parse strict object with exccess fields", (t) => {
-  const struct = S.object({
-    foo: S.string,
-  }).strict();
+  const struct = S.Object.strict(
+    S.object({
+      foo: S.string,
+    })
+  );
 
   t.throws(
     () => {
@@ -464,7 +466,7 @@ test("Fails to parse strict object with exccess fields", (t) => {
       expectType<
         TypeEqual<
           typeof struct,
-          S.ObjectStruct<
+          S.Struct<
             {
               foo: string;
             },
@@ -491,11 +493,13 @@ test("Fails to parse strict object with exccess fields", (t) => {
 });
 
 test("Resets object strict mode with strip method", (t) => {
-  const struct = S.object({
-    foo: S.string,
-  })
-    .strict()
-    .strip();
+  const struct = S.Object.strip(
+    S.Object.strict(
+      S.object({
+        foo: S.string,
+      })
+    )
+  );
 
   const value = S.parseOrThrow(struct, {
     foo: "bar",
@@ -507,7 +511,7 @@ test("Resets object strict mode with strip method", (t) => {
   expectType<
     TypeEqual<
       typeof struct,
-      S.ObjectStruct<
+      S.Struct<
         {
           foo: string;
         },
@@ -773,7 +777,7 @@ test("Example", (t) => {
   expectType<
     TypeEqual<
       typeof User,
-      S.ObjectStruct<
+      S.Struct<
         {
           username: string;
         },

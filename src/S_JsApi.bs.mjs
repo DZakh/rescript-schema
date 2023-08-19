@@ -100,35 +100,18 @@ function custom(name, maybeParser, maybeSerializer, param) {
               }));
 }
 
-var objectStructOperations = {};
-
-function strict() {
-  var struct = this;
-  return Object.assign(S$RescriptStruct.$$Object.strict(struct), objectStructOperations);
+function object(definer) {
+  return S$RescriptStruct.object(function (s) {
+              var definition = {};
+              var fieldNames = Object.keys(definer);
+              for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+                var fieldName = fieldNames[idx];
+                var struct = definer[fieldName];
+                definition[fieldName] = s.f(fieldName, struct);
+              }
+              return definition;
+            });
 }
-
-function strip() {
-  var struct = this;
-  return Object.assign(S$RescriptStruct.$$Object.strip(struct), objectStructOperations);
-}
-
-function factory(definer) {
-  return Object.assign(S$RescriptStruct.object(function (s) {
-                  var definition = {};
-                  var fieldNames = Object.keys(definer);
-                  for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-                    var fieldName = fieldNames[idx];
-                    var struct = definer[fieldName];
-                    definition[fieldName] = s.f(fieldName, struct);
-                  }
-                  return definition;
-                }), objectStructOperations);
-}
-
-Object.assign(objectStructOperations, {
-      strict: strict,
-      strip: strip
-    });
 
 function parse(struct, data) {
   try {
@@ -196,10 +179,6 @@ var $$Error = {};
 
 var Result = {};
 
-var $$Object = {
-  factory: factory
-};
-
 export {
   $$Error ,
   Result ,
@@ -209,7 +188,7 @@ export {
   asyncParserRefine ,
   refine ,
   transform ,
-  $$Object ,
+  object ,
   parse ,
   parseOrThrow ,
   parseAsync ,
