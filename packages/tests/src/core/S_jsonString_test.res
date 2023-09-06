@@ -35,7 +35,7 @@ test("Compiled parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~struct,
     ~op=#parse,
-    `i=>{let v0;if(typeof i!=="string"){e[0](i)}try{v0=JSON.parse(i)}catch(t){e[1](t.message)}if(typeof v0!=="boolean"){e[2](v0)}return v0}`,
+    `i=>{let v0;if(typeof i!=="string"){e[2](i)}try{v0=JSON.parse(i)}catch(t){e[0](t.message)}if(typeof v0!=="boolean"){e[1](v0)}return v0}`,
     (),
   )
 })
@@ -46,7 +46,7 @@ test("Compiled async parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~struct,
     ~op=#parse,
-    `i=>{let v0,v1;if(typeof i!=="string"){e[0](i)}try{v0=JSON.parse(i)}catch(t){e[1](t.message)}if(typeof v0!=="boolean"){e[2](v0)}v1=e[3](v0);return v1}`,
+    `i=>{let v0,v1;if(typeof i!=="string"){e[3](i)}try{v0=JSON.parse(i)}catch(t){e[0](t.message)}if(typeof v0!=="boolean"){e[1](v0)}v1=e[2](v0);return v1}`,
     (),
   )
 })

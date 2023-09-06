@@ -261,7 +261,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v0,v1;if(!Array.isArray(i)){e[0](i)}if(i.length!==2){e[1](i.length)}v0=i["0"];if(typeof v0!=="string"){e[2](v0)}v1=i["1"];if(typeof v1!=="boolean"){e[3](v1)}return [v0,v1,]}`,
+      `i=>{let v0,v1;if(!Array.isArray(i)){e[3](i)}if(i.length!==2){e[0](i.length)}v0=i["0"];if(typeof v0!=="string"){e[1](v0)}v1=i["1"];if(typeof v1!=="boolean"){e[2](v1)}return [v0,v1,]}`,
       (),
     )
   })
@@ -275,7 +275,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v0,v1,v2;if(!Array.isArray(i)){e[0](i)}if(i.length!==2){e[1](i.length)}v0=e[2](i["0"]);v1=i["1"];if(typeof v1!=="boolean"){e[3](v1)}v2=()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]));return v2}`,
+      `i=>{let v0,v1,v2;if(!Array.isArray(i)){e[3](i)}if(i.length!==2){e[0](i.length)}v0=e[1](i["0"]);v1=i["1"];if(typeof v1!=="boolean"){e[2](v1)}v2=()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]));return v2}`,
       (),
     )
   })
@@ -307,7 +307,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~struct,
         ~op=#parse,
-        `i=>{let v0,v1,v2;if(!Array.isArray(i)){e[0](i)}if(i.length!==3){e[1](i.length)}v2=i["0"];v2===e[5]||e[6](v2);v0=i["1"];if(typeof v0!=="string"){e[2](v0)}v1=i["2"];if(typeof v1!=="boolean"){e[3](v1)}return {"foo":v0,"bar":v1,"zoo":e[4],}}`,
+        `i=>{let v0,v1,v2;if(!Array.isArray(i)){e[6](i)}if(i.length!==3){e[0](i.length)}v2=i["0"];v2===e[4]||e[5](v2);v0=i["1"];if(typeof v0!=="string"){e[1](v0)}v1=i["2"];if(typeof v1!=="boolean"){e[2](v1)}return {"foo":v0,"bar":v1,"zoo":e[3],}}`,
         (),
       )
     },

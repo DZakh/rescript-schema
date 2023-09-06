@@ -292,6 +292,24 @@ module Advanced = {
   })
 }
 
+@unboxed
+type uboxedVariant = String(string) | Int(int)
+// FIXME:
+Failing.test("Successfully serializes unboxed variant", t => {
+  let struct = S.union([
+    S.string->S.variant(s => String(s)),
+    S.string
+    ->S.transform(_ => {
+      parser: string => string->Int.fromString->Option.getExn,
+      serializer: Int.toString,
+    })
+    ->S.variant(i => Int(i)),
+  ])
+
+  t->Assert.deepEqual(String("abc")->S.serializeToUnknownWith(struct), Ok(%raw(`"abc"`)), ())
+  t->Assert.deepEqual(Int(123)->S.serializeToUnknownWith(struct), Ok(%raw(`"123"`)), ())
+})
+
 test("Compiled parse code snapshot", t => {
   let struct = S.union([S.literal(0), S.literal(1)])
 

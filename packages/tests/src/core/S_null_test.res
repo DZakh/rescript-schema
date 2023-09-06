@@ -20,7 +20,7 @@ module Common = {
       invalidAny->S.parseAnyWith(struct),
       Error(
         U.error({
-          code: InvalidType({expected: S.string->S.toUnknown, received: invalidAny}),
+          code: InvalidType({expected: struct->S.toUnknown, received: invalidAny}),
           operation: Parsing,
           path: S.Path.empty,
         }),
@@ -41,7 +41,7 @@ module Common = {
     t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v0;if(i!==null){if(typeof i!=="string"){e[0](i)}v0=i}else{v0=void 0}return v0}`,
+      `i=>{let v0;if(i!==null&&typeof i!=="string"){e[0](i)}if(i!==null){v0=i}else{v0=void 0}return v0}`,
       (),
     )
   })
@@ -82,7 +82,7 @@ test("Fails to parse JS undefined", t => {
     %raw(`undefined`)->S.parseAnyWith(struct),
     Error(
       U.error({
-        code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`undefined`)}),
+        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`undefined`)}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -92,14 +92,14 @@ test("Fails to parse JS undefined", t => {
 })
 
 test("Fails to parse object with missing field that marked as null", t => {
-  let struct = S.object(s => s.field("nullableField", S.null(S.string)))
+  let fieldStruct = S.null(S.string)
+  let struct = S.object(s => s.field("nullableField", fieldStruct))
 
   t->Assert.deepEqual(
     %raw(`{}`)->S.parseAnyWith(struct),
     Error(
       U.error({
-        // FIXME: It should be S.null(S.string) here
-        code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`undefined`)}),
+        code: InvalidType({expected: fieldStruct->S.toUnknown, received: %raw(`undefined`)}),
         operation: Parsing,
         path: S.Path.fromArray(["nullableField"]),
       }),

@@ -20,7 +20,7 @@ module Common = {
       invalidAny->S.parseAnyWith(struct),
       Error(
         U.error({
-          code: InvalidType({expected: S.string->S.toUnknown, received: invalidAny}),
+          code: InvalidType({expected: struct->S.toUnknown, received: invalidAny}),
           operation: Parsing,
           path: S.Path.empty,
         }),
@@ -41,7 +41,7 @@ module Common = {
     t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v0;if(i!==void 0){if(typeof i!=="string"){e[0](i)}v0=i}else{v0=void 0}return v0}`,
+      `i=>{let v0;if(i!==void 0&&typeof i!=="string"){e[0](i)}if(i!==void 0){v0=i}else{v0=void 0}return v0}`,
       (),
     )
   })
@@ -82,7 +82,7 @@ test("Fails to parse JS null", t => {
     %raw(`null`)->S.parseAnyWith(struct),
     Error(
       U.error({
-        code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`null`)}),
+        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`null`)}),
         operation: Parsing,
         path: S.Path.empty,
       }),

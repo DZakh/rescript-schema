@@ -13,7 +13,7 @@ test("Fails to parse wrapped struct", t => {
     123->S.parseAnyWith(struct),
     Error(
       U.error({
-        code: InvalidType({received: 123->Obj.magic, expected: S.string->S.toUnknown}),
+        code: InvalidType({received: 123->Obj.magic, expected: struct->S.toUnknown}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -124,7 +124,7 @@ test("Compiled parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~struct,
     ~op=#parse,
-    `i=>{if(typeof i!=="string"){e[0](i)}return e[1](i)}`,
+    `i=>{if(typeof i!=="string"){e[1](i)}return e[0](i)}`,
     (),
   )
 })

@@ -992,7 +992,7 @@ let prepareEnvStruct = S.preprocess(_, s => {
   })
 ```
 
-> 🧠 When using preprocess on Union it will be applied to nested structs separately instead.
+> 🧠 When using preprocess on Union it will be applied to nested structs separately.
 
 ## Functions on struct
 

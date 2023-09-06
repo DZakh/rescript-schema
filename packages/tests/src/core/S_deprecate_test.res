@@ -20,7 +20,7 @@ module Common = {
       invalidAny->S.parseAnyWith(struct),
       Error(
         U.error({
-          code: InvalidType({expected: S.string->S.toUnknown, received: invalidAny}),
+          code: InvalidType({expected: struct->S.toUnknown, received: invalidAny}),
           operation: Parsing,
           path: S.Path.empty,
         }),
@@ -55,7 +55,7 @@ test("Fails to parse null", t => {
     %raw(`null`)->S.parseAnyWith(struct),
     Error(
       U.error({
-        code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`null`)}),
+        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`null`)}),
         operation: Parsing,
         path: S.Path.empty,
       }),

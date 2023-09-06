@@ -239,10 +239,11 @@ module Object = {
   })
 
   test("[Object] Returns sync error when fails to parse sync part of async item", t => {
+    let invalidStruct = S.int->validAsyncRefine
     let struct = S.object(s =>
       {
         "k1": s.field("k1", S.int),
-        "k2": s.field("k2", S.int->validAsyncRefine),
+        "k2": s.field("k2", invalidStruct),
         "k3": s.field("k3", S.int),
       }
     )
@@ -255,7 +256,7 @@ module Object = {
       }->S.parseAnyAsyncInStepsWith(struct),
       Error(
         U.error({
-          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          code: InvalidType({expected: invalidStruct->S.toUnknown, received: %raw(`true`)}),
           operation: Parsing,
           path: S.Path.fromArray(["k2"]),
         }),
@@ -380,13 +381,14 @@ module Tuple = {
   })
 
   test("[Tuple] Returns sync error when fails to parse sync part of async item", t => {
-    let struct = S.tuple3(S.int, S.int->validAsyncRefine, S.int)
+    let invalidStruct = S.int->validAsyncRefine
+    let struct = S.tuple3(S.int, invalidStruct, S.int)
 
     t->Assert.deepEqual(
       %raw(`[1, true, 3]`)->S.parseAnyAsyncInStepsWith(struct),
       Error(
         U.error({
-          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          code: InvalidType({expected: invalidStruct->S.toUnknown, received: %raw(`true`)}),
           operation: Parsing,
           path: S.Path.fromArray(["1"]),
         }),
@@ -548,13 +550,14 @@ module Array = {
   })
 
   test("[Array] Returns sync error when fails to parse sync part of async item", t => {
-    let struct = S.array(S.int->validAsyncRefine)
+    let invalidStruct = S.int->validAsyncRefine
+    let struct = S.array(invalidStruct)
 
     t->Assert.deepEqual(
       %raw(`[1, 2, true]`)->S.parseAnyAsyncInStepsWith(struct),
       Error(
         U.error({
-          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          code: InvalidType({expected: invalidStruct->S.toUnknown, received: %raw(`true`)}),
           operation: Parsing,
           path: S.Path.fromArray(["2"]),
         }),
@@ -626,13 +629,14 @@ module Dict = {
   })
 
   test("[Dict] Returns sync error when fails to parse sync part of async item", t => {
-    let struct = S.dict(S.int->validAsyncRefine)
+    let invalidStruct = S.int->validAsyncRefine
+    let struct = S.dict(invalidStruct)
 
     t->Assert.deepEqual(
       {"k1": 1, "k2": 2, "k3": true}->S.parseAnyAsyncInStepsWith(struct),
       Error(
         U.error({
-          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          code: InvalidType({expected: invalidStruct->S.toUnknown, received: %raw(`true`)}),
           operation: Parsing,
           path: S.Path.fromArray(["k3"]),
         }),
@@ -733,7 +737,7 @@ module Null = {
       true->S.parseAnyAsyncInStepsWith(struct),
       Error(
         U.error({
-          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          code: InvalidType({expected: struct->S.toUnknown, received: %raw(`true`)}),
           operation: Parsing,
           path: S.Path.empty,
         }),
@@ -784,7 +788,7 @@ module Option = {
       true->S.parseAnyAsyncInStepsWith(struct),
       Error(
         U.error({
-          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          code: InvalidType({expected: struct->S.toUnknown, received: %raw(`true`)}),
           operation: Parsing,
           path: S.Path.empty,
         }),
@@ -836,7 +840,7 @@ module Defaulted = {
       true->S.parseAnyAsyncInStepsWith(struct),
       Error(
         U.error({
-          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          code: InvalidType({expected: struct->S.toUnknown, received: %raw(`true`)}),
           operation: Parsing,
           path: S.Path.empty,
         }),
@@ -875,13 +879,14 @@ module Json = {
   })
 
   test("[JsonString] Returns sync error when fails to parse sync part of async item", t => {
-    let struct = S.jsonString(S.int->validAsyncRefine)
+    let invalidStruct = S.int->validAsyncRefine
+    let struct = S.jsonString(invalidStruct)
 
     t->Assert.deepEqual(
       "true"->S.parseAnyAsyncInStepsWith(struct),
       Error(
         U.error({
-          code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+          code: InvalidType({expected: invalidStruct->S.toUnknown, received: %raw(`true`)}),
           operation: Parsing,
           path: S.Path.empty,
         }),

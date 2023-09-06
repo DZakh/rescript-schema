@@ -31,6 +31,7 @@
     - `InvalidJsonStruct`'s payload now contains the invalid struct itself instead of the name
     - `TupleSize` renamed to `InvalidTupleSize`
     - `UnexpectedType` renamed to `InvalidType` and contains the failed struct and provided input instead of their names. Also, it's not returned for literals anymore, literal structs always fail with `InvlidLiteral` error code now.
+    - Fixed `InvalidType` expected type in error message for nullable and optional structs.
     - `UnexpectedValue` renamed to `InvlidLiteral` and contains the expected literal and provided input instead of their names.
     - `MissingSerializer` and `MissingParser` renamed to single `InvalidOperation({description: string})`
   - Added `S.Path.dynamic` and fixed `S.error.path` for errors happening during operation compilation phase

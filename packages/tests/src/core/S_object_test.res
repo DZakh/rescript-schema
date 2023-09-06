@@ -1038,7 +1038,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v0,v1;if(!i||i.constructor!==Object){e[0](i)}v0=i["foo"];if(typeof v0!=="string"){e[1](v0)}v1=i["bar"];if(typeof v1!=="boolean"){e[2](v1)}return {"foo":v0,"bar":v1,}}`,
+      `i=>{let v0,v1;if(!i||i.constructor!==Object){e[2](i)}v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}v1=i["bar"];if(typeof v1!=="boolean"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
       (),
     )
   })
@@ -1057,7 +1057,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v0,v1,v2;if(!i||i.constructor!==Object){e[0](i)}v0=e[1](i["foo"]);v1=i["bar"];if(typeof v1!=="boolean"){e[2](v1)}v2=()=>Promise.all([v0()]).then(([v0])=>({"foo":v0,"bar":v1,}));return v2}`,
+      `i=>{let v0,v1,v2;if(!i||i.constructor!==Object){e[2](i)}v0=e[0](i["foo"]);v1=i["bar"];if(typeof v1!=="boolean"){e[1](v1)}v2=()=>Promise.all([v0()]).then(([v0])=>({"foo":v0,"bar":v1,}));return v2}`,
       (),
     )
   })
@@ -1089,7 +1089,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v0,v1,v2;if(!i||i.constructor!==Object){e[0](i)}v1=i["foo"];if(typeof v1!=="string"){e[2](v1)}v2=i["bar"];if(typeof v2!=="boolean"){e[3](v2)}for(v0 in i){if(v0!=="foo"&&v0!=="bar"){e[1](v0)}}return {"foo":v1,"bar":v2,}}`,
+      `i=>{let v0,v1,v2;if(!i||i.constructor!==Object){e[3](i)}v1=i["foo"];if(typeof v1!=="string"){e[1](v1)}v2=i["bar"];if(typeof v2!=="boolean"){e[2](v2)}for(v0 in i){if(v0!=="foo"&&v0!=="bar"){e[0](v0)}}return {"foo":v1,"bar":v2,}}`,
       (),
     )
   })
@@ -1125,7 +1125,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~struct,
         ~op=#parse,
-        `i=>{let v0,v1,v2,v3;if(!i||i.constructor!==Object){e[0](i)}v3=i["tag"];v3===e[5]||e[6](v3);v1=i["FOO"];if(typeof v1!=="string"){e[2](v1)}v2=i["BAR"];if(typeof v2!=="boolean"){e[3](v2)}for(v0 in i){if(v0!=="tag"&&v0!=="FOO"&&v0!=="BAR"){e[1](v0)}}return {"foo":v1,"bar":v2,"zoo":e[4],}}`,
+        `i=>{let v0,v1,v2,v3;if(!i||i.constructor!==Object){e[6](i)}v3=i["tag"];v3===e[4]||e[5](v3);v1=i["FOO"];if(typeof v1!=="string"){e[1](v1)}v2=i["BAR"];if(typeof v2!=="boolean"){e[2](v2)}for(v0 in i){if(v0!=="tag"&&v0!=="FOO"&&v0!=="BAR"){e[0](v0)}}return {"foo":v1,"bar":v2,"zoo":e[3],}}`,
         (),
       )
     },

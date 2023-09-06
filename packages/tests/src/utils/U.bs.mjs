@@ -49,6 +49,7 @@ function cleanUpStruct(struct) {
         var value = param[1];
         var key = param[0];
         switch (key) {
+          case "f" :
           case "i" :
           case "pb" :
           case "sb" :

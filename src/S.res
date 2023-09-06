@@ -356,6 +356,8 @@ type rec t<'value> = {
   mutable parseOperationBuilder: builder,
   @as("sb")
   mutable serializeOperationBuilder: builder,
+  @as("f")
+  maybeTypeFilter: option<(~inputVar: string) => string>,
   @as("i")
   mutable isAsyncParse: isAsyncParse,
   @as("s")
@@ -386,6 +388,27 @@ and tagged =
   | Dict(t<unknown>)
   | JSON
 and builder
+and builderCtx = {
+  @as("a")
+  mutable isAsyncBranch: bool,
+  @as("c")
+  mutable code: string,
+  @as("o")
+  operation: operation,
+  @as("v")
+  mutable _varCounter: int,
+  @as("s")
+  mutable _vars: Stdlib.Set.t<string>,
+  @as("l")
+  mutable _varsAllocation: string,
+  @as("i")
+  mutable _input: string,
+  @as("e")
+  _embeded: array<unknown>,
+}
+and operation =
+  | Parsing
+  | Serializing
 and struct<'a> = t<'a>
 type rec error = {operation: operation, code: errorCode, path: Path.t}
 and errorCode =
@@ -398,9 +421,6 @@ and errorCode =
   | InvalidUnion(array<error>)
   | UnexpectedAsync
   | InvalidJsonStruct(struct<unknown>)
-and operation =
-  | Parsing
-  | Serializing
 
 external castUnknownStructToAnyStruct: t<unknown> => t<'any> = "%identity"
 external toUnknown: t<'any> => t<unknown> = "%identity"
@@ -474,24 +494,7 @@ let unsafeGetVariantPayload = variant => (variant->Obj.magic)._0
 
 module Builder = {
   type t = builder
-  type ctx = {
-    @as("a")
-    mutable isAsyncBranch: bool,
-    @as("c")
-    mutable code: string,
-    @as("o")
-    operation: operation,
-    @as("v")
-    mutable _varCounter: int,
-    @as("s")
-    mutable _vars: Stdlib.Set.t<string>,
-    @as("l")
-    mutable _varsAllocation: string,
-    @as("i")
-    mutable _input: string,
-    @as("e")
-    _embeded: array<unknown>,
-  }
+  type ctx = builderCtx
   type implementation = (ctx, ~selfStruct: struct<unknown>, ~path: Path.t) => string
 
   let make = (Obj.magic: implementation => t)
@@ -537,15 +540,18 @@ module Builder = {
       b._input
     }
 
-    let useInputVar = b => {
-      let input = b->useInput
-      if b._vars->Stdlib.Set.has(input) {
-        input
+    let toVar = (b, val) =>
+      if b._vars->Stdlib.Set.has(val) {
+        val
       } else {
         let var = b->var
-        b.code = b.code ++ `${var}=${input};`
+        b.code = b.code ++ `${var}=${val};`
         var
       }
+
+    @inline
+    let useInputVar = b => {
+      b->toVar(b->useInput)
     }
 
     @inline
@@ -681,11 +687,22 @@ module Builder = {
       }
     }
 
-    let run = (b: t, ~struct, ~input, ~path) => {
+    let typeFilterCode = (b: t, ~typeFilter, ~struct, ~inputVar, ~path) => {
+      `if(${typeFilter(~inputVar)}){${b->raiseWithArg(
+          ~path,
+          input => InvalidType({
+            expected: struct,
+            received: input,
+          }),
+          inputVar,
+        )}}`
+    }
+
+    let use = (b: t, ~struct, ~input, ~path) => {
       let isParentAsync = b.isAsyncBranch
       let isParsing = b.operation === Parsing
-      b.isAsyncBranch = false
       b._input = input
+      b.isAsyncBranch = false
       let output = (
         (isParsing ? struct.parseOperationBuilder : struct.serializeOperationBuilder)->(
           Obj.magic: builder => implementation
@@ -693,9 +710,21 @@ module Builder = {
       )(b, ~selfStruct=struct, ~path)
       if isParsing {
         struct.isAsyncParse = Value(b.isAsyncBranch)
+        b.isAsyncBranch = isParentAsync || b.isAsyncBranch
       }
-      b.isAsyncBranch = isParentAsync || b.isAsyncBranch
       output
+    }
+
+    let useWithTypeFilter = (b: t, ~struct, ~input, ~path) => {
+      let input = switch struct.maybeTypeFilter {
+      | Some(typeFilter) => {
+          let inputVar = b->toVar(input)
+          b.code = b.code ++ b->typeFilterCode(~struct, ~typeFilter, ~inputVar, ~path)
+          inputVar
+        }
+      | None => input
+      }
+      b->use(~struct, ~input, ~path)
     }
   }
 
@@ -727,7 +756,18 @@ module Builder = {
       ~path=Path.empty,
     )
 
-    if b.operation === Parsing {
+    if operation === Parsing {
+      switch struct.maybeTypeFilter {
+      | Some(typeFilter) =>
+        b.code =
+          b->Ctx.typeFilterCode(
+            ~struct,
+            ~typeFilter,
+            ~inputVar=intitialInputVar,
+            ~path=Path.empty,
+          ) ++ b.code
+      | None => ()
+      }
       struct.isAsyncParse = Value(b.isAsyncBranch)
     }
 
@@ -906,7 +946,13 @@ let intitialParseAsync = input => {
 }
 
 @inline
-let make = (~tagged, ~metadataMap, ~parseOperationBuilder, ~serializeOperationBuilder) => {
+let make = (
+  ~tagged,
+  ~metadataMap,
+  ~parseOperationBuilder,
+  ~serializeOperationBuilder,
+  ~maybeTypeFilter,
+) => {
   tagged,
   parseOperationBuilder,
   serializeOperationBuilder,
@@ -915,11 +961,12 @@ let make = (~tagged, ~metadataMap, ~parseOperationBuilder, ~serializeOperationBu
   serializeToJson: initialSerializeToJson,
   parse: intitialParse,
   parseAsync: intitialParseAsync,
+  maybeTypeFilter,
   metadataMap,
 }
 
 @inline
-let makeWithNoopSerializer = (~tagged, ~metadataMap, ~parseOperationBuilder) => {
+let makeWithNoopSerializer = (~tagged, ~metadataMap, ~parseOperationBuilder, ~maybeTypeFilter) => {
   tagged,
   parseOperationBuilder,
   serializeOperationBuilder: Builder.noop,
@@ -928,6 +975,7 @@ let makeWithNoopSerializer = (~tagged, ~metadataMap, ~parseOperationBuilder) => 
   serializeToJson: initialSerializeToJson,
   parse: intitialParse,
   parseAsync: intitialParseAsync,
+  maybeTypeFilter,
   metadataMap,
 }
 
@@ -1087,6 +1135,7 @@ module Metadata = {
       ~parseOperationBuilder=struct.parseOperationBuilder,
       ~serializeOperationBuilder=struct.serializeOperationBuilder,
       ~tagged=struct.tagged,
+      ~maybeTypeFilter=struct.maybeTypeFilter,
       ~metadataMap,
     )
   }
@@ -1104,7 +1153,7 @@ let recursive = fn => {
       let isAsync = {
         selfStruct.parseOperationBuilder = Builder.noop
         let ctx = {
-          Builder._embeded: [],
+          _embeded: [],
           _varsAllocation: "",
           code: "",
           _input: Builder.intitialInputVar,
@@ -1212,13 +1261,13 @@ let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value> = (str
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
       let input = b->B.useInput
       b->B.embedSyncRefineOperation(
-        ~input=b->B.run(~struct, ~input, ~path),
+        ~input=b->B.use(~struct, ~input, ~path),
         ~fn=refiner(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)),
       )
     }),
     ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
       let input = b->B.useInput
-      b->B.run(
+      b->B.use(
         ~struct,
         ~input=b->B.embedSyncRefineOperation(
           ~input,
@@ -1227,6 +1276,7 @@ let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value> = (str
         ~path,
       )
     }),
+    ~maybeTypeFilter=struct.maybeTypeFilter,
     ~metadataMap=struct.metadataMap,
   )
 }
@@ -1260,7 +1310,7 @@ let transform: (
     ~tagged=struct.tagged,
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
       let input = b->B.useInput
-      let input = b->B.run(~struct, ~input, ~path)
+      let input = b->B.use(~struct, ~input, ~path)
       switch transformer(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~input, ~fn=parser)
       | {parser: ?None, asyncParser} => b->B.embedAsyncOperation(~input, ~fn=asyncParser)
@@ -1278,13 +1328,14 @@ let transform: (
       let input = b->B.useInput
       switch transformer(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)) {
       | {serializer} =>
-        b->B.run(~struct, ~input=b->B.embedSyncOperation(~input, ~fn=serializer), ~path)
-      | {parser: ?None, asyncParser: ?None, serializer: ?None} => b->B.run(~struct, ~input, ~path)
+        b->B.use(~struct, ~input=b->B.embedSyncOperation(~input, ~fn=serializer), ~path)
+      | {parser: ?None, asyncParser: ?None, serializer: ?None} => b->B.use(~struct, ~input, ~path)
       | {serializer: ?None, asyncParser: ?Some(_)}
       | {serializer: ?None, parser: ?Some(_)} =>
         b->B.invalidOperation(~path, ~description=`The S.transform serializer is missing`)
       }
     }),
+    ~maybeTypeFilter=struct.maybeTypeFilter,
     ~metadataMap=struct.metadataMap,
   )
 }
@@ -1309,6 +1360,7 @@ let rec preprocess = (struct, transformer) => {
       ),
       ~parseOperationBuilder=struct.parseOperationBuilder,
       ~serializeOperationBuilder=struct.serializeOperationBuilder,
+      ~maybeTypeFilter=struct.maybeTypeFilter,
       ~metadataMap=struct.metadataMap,
     )
   | _ =>
@@ -1320,7 +1372,7 @@ let rec preprocess = (struct, transformer) => {
         | {parser, asyncParser: ?None} =>
           let operationResultVar = b->B.var
           b.code = b.code ++ `${operationResultVar}=${b->B.embedSyncOperation(~input, ~fn=parser)};`
-          b->B.run(~struct, ~input=operationResultVar, ~path)
+          b->B.useWithTypeFilter(~struct, ~input=operationResultVar, ~path)
         | {parser: ?None, asyncParser} => {
             let parseResultVar = b->B.embedAsyncOperation(~input, ~fn=asyncParser)
             let outputVar = b->B.var
@@ -1330,13 +1382,14 @@ let rec preprocess = (struct, transformer) => {
             b.code =
               b.code ++
               `${outputVar}=()=>${parseResultVar}().then(${asyncResultVar}=>{${b->B.scope(b => {
-                  let structOutputVar = b->B.run(~struct, ~input=asyncResultVar, ~path)
+                  let structOutputVar =
+                    b->B.useWithTypeFilter(~struct, ~input=asyncResultVar, ~path)
                   let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
                   `return ${isAsync ? `${structOutputVar}()` : structOutputVar}`
                 })}});`
             outputVar
           }
-        | {parser: ?None, asyncParser: ?None} => b->B.run(~struct, ~input, ~path)
+        | {parser: ?None, asyncParser: ?None} => b->B.useWithTypeFilter(~struct, ~input, ~path)
         | {parser: _, asyncParser: _} =>
           b->B.invalidOperation(
             ~path,
@@ -1346,13 +1399,14 @@ let rec preprocess = (struct, transformer) => {
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
         let input = b->B.useInput
-        let input = b->B.run(~struct, ~input, ~path)
+        let input = b->B.use(~struct, ~input, ~path)
         switch transformer(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)) {
         | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
         // TODO: Test that it doesn't return InvalidOperation when parser is passed but not serializer
         | {serializer: ?None} => input
         }
       }),
+      ~maybeTypeFilter=None,
       ~metadataMap=struct.metadataMap,
     )
   }
@@ -1395,6 +1449,7 @@ let custom = (name, definer) => {
         b->B.invalidOperation(~path, ~description=`The S.custom serializer is missing`)
       }
     }),
+    ~maybeTypeFilter=None,
   )
 }
 
@@ -1467,6 +1522,7 @@ let literal = value => {
     ~tagged=Literal(literal),
     ~parseOperationBuilder=operationBuilder,
     ~serializeOperationBuilder=operationBuilder,
+    ~maybeTypeFilter=None,
   )
 }
 let unit = literal(%raw("void 0"))
@@ -1513,7 +1569,7 @@ module Variant = {
         ~tagged=struct.tagged,
         ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
           let input = b->B.useInput
-          b->B.embedSyncOperation(~input=b->B.run(~struct, ~input, ~path), ~fn=definer)
+          b->B.embedSyncOperation(~input=b->B.use(~struct, ~input, ~path), ~fn=definer)
         }),
         ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
           let inputVar = b->B.useInputVar
@@ -1582,10 +1638,10 @@ module Variant = {
               ~path,
               ~description=`Can't create serializer. The S.variant's value is registered multiple times. Use S.transform instead`,
             )
-          | Registered(var) => b->B.run(~struct, ~input=var, ~path)
+          | Registered(var) => b->B.use(~struct, ~input=var, ~path)
           | Unregistered =>
             switch selfStruct->toLiteral {
-            | Some(literal) => b->B.run(~struct, ~input=b->B.embed(literal->Literal.value), ~path)
+            | Some(literal) => b->B.use(~struct, ~input=b->B.embed(literal->Literal.value), ~path)
             | None =>
               b->B.invalidOperation(
                 ~path,
@@ -1594,6 +1650,7 @@ module Variant = {
             }
           }
         }),
+        ~maybeTypeFilter=struct.maybeTypeFilter,
         ~metadataMap=struct.metadataMap,
       )
     }
@@ -1618,7 +1675,7 @@ module Option = {
     let childStruct = selfStruct.tagged->unsafeGetVariantPayload
 
     let ifCode = b->B.scope(b => {
-      `${outputVar}=${b->B.run(~struct=childStruct, ~input=inputVar, ~path)}`
+      `${outputVar}=${b->B.use(~struct=childStruct, ~input=inputVar, ~path)}`
     })
     let isAsync = childStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
 
@@ -1644,7 +1701,7 @@ module Option = {
     b.code =
       b.code ++
       `if(${inputVar}!==void 0){${b->B.scope(b => {
-          `${outputVar}=${b->B.run(
+          `${outputVar}=${b->B.use(
               ~struct=childStruct,
               ~input=`${b->B.embed(%raw("Caml_option.valFromOption"))}(${inputVar})`,
               ~path,
@@ -1653,6 +1710,19 @@ module Option = {
     outputVar
   })
 
+  let maybeTypeFilter = (~struct, ~inlinedNoneValue) => {
+    switch struct.maybeTypeFilter {
+    | Some(typeFilter) =>
+      Some(
+        (~inputVar) => {
+          // TODO: Test that there's no need for brackets
+          `${inputVar}!==${inlinedNoneValue}&&${typeFilter(~inputVar)}`
+        },
+      )
+    | None => None
+    }
+  }
+
   let factory = struct => {
     let struct = struct->toUnknown
     make(
@@ -1660,6 +1730,7 @@ module Option = {
       ~tagged=Option(struct),
       ~parseOperationBuilder,
       ~serializeOperationBuilder,
+      ~maybeTypeFilter=maybeTypeFilter(~struct, ~inlinedNoneValue="void 0"),
     )
   }
 
@@ -1670,7 +1741,7 @@ module Option = {
       ~tagged=struct.tagged,
       ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
         let input = b->B.useInput
-        b->B.transform(~input=b->B.run(~struct, ~input, ~path), ~isAsync=false, (b, ~input) => {
+        b->B.transform(~input=b->B.use(~struct, ~input, ~path), ~isAsync=false, (b, ~input) => {
           // TODO: Reassign input if it's not a var
           `${input}===void 0?${switch default {
             | Value(v) => b->B.embed(v)
@@ -1679,6 +1750,7 @@ module Option = {
         })
       }),
       ~serializeOperationBuilder=struct.serializeOperationBuilder,
+      ~maybeTypeFilter=struct.maybeTypeFilter,
     )
   }
 
@@ -1696,6 +1768,7 @@ module Null = {
       ~tagged=Null(struct),
       ~parseOperationBuilder=Option.parseOperationBuilder,
       ~serializeOperationBuilder=Option.serializeOperationBuilder,
+      ~maybeTypeFilter=Option.maybeTypeFilter(~struct, ~inlinedNoneValue="null"),
     )
   }
 }
@@ -1718,11 +1791,15 @@ module Object = {
     mutable registered: registered,
   }
 
+  let typeFilter = (~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
+
+  let noopRefinement = (_b, ~selfStruct as _, ~inputVar as _, ~path as _) => ()
+
   let makeParseOperationBuilder = (
     ~itemDefinitions,
     ~itemDefinitionsSet,
     ~definition,
-    ~typeRefinement,
+    ~inputRefinement,
     ~unknownKeysRefinement,
   ) => {
     Builder.make((b, ~selfStruct, ~path) => {
@@ -1730,7 +1807,7 @@ module Object = {
 
       let asyncOutputVars = []
 
-      typeRefinement(b, ~selfStruct, ~inputVar, ~path)
+      inputRefinement(b, ~selfStruct, ~inputVar, ~path)
 
       let prevCode = b.code
       b.code = ""
@@ -1747,7 +1824,7 @@ module Object = {
               itemDefinition.registered = ByParsing
               let {struct, inputPath} = itemDefinition
               let fieldOuputVar =
-                b->B.run(
+                b->B.useWithTypeFilter(
                   ~struct,
                   ~input=`${inputVar}${inputPath}`,
                   ~path=path->Path.concat(inputPath),
@@ -1793,7 +1870,11 @@ module Object = {
         let {struct, inputPath, registered} = itemDefinitions->Js.Array2.unsafe_get(idx)
         if registered === Unregistered {
           let fieldOuputVar =
-            b->B.run(~struct, ~input=`${inputVar}${inputPath}`, ~path=path->Path.concat(inputPath))
+            b->B.useWithTypeFilter(
+              ~struct,
+              ~input=`${inputVar}${inputPath}`,
+              ~path=path->Path.concat(inputPath),
+            )
           let isAsyncField = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
           if isAsyncField {
             // TODO: Ensure that it's not a var, but inlined
@@ -1883,19 +1964,6 @@ module Object = {
     }
   }
 
-  let typeRefinement = (b: B.t, ~selfStruct, ~inputVar, ~path) => {
-    b.code =
-      b.code ++
-      `if(!${inputVar}||${inputVar}.constructor!==Object){${b->B.raiseWithArg(
-          ~path,
-          input => InvalidType({
-            expected: selfStruct,
-            received: input,
-          }),
-          inputVar,
-        )}}`
-  }
-
   let factory = definer => {
     let ctx = Ctx.make()
     let definition = definer((ctx :> ctx))->(Obj.magic: 'any => Definition.t<itemDefinition>)
@@ -1913,7 +1981,7 @@ module Object = {
         ~itemDefinitions,
         ~itemDefinitionsSet,
         ~definition,
-        ~typeRefinement,
+        ~inputRefinement=noopRefinement,
         ~unknownKeysRefinement=(b, ~selfStruct, ~inputVar, ~path) => {
           let withUnknownKeysRefinement =
             (selfStruct->classify->Obj.magic)["unknownKeys"] === Strict
@@ -1968,7 +2036,7 @@ module Object = {
                   itemDefinition.registered = BySerializing
                   fieldsCodeRef.contents =
                     fieldsCodeRef.contents ++
-                    `${inlinedInputLocation}:${b->B.run(
+                    `${inlinedInputLocation}:${b->B.use(
                         ~struct,
                         ~input=`${inputVar}${outputPath}`,
                         ~path=path->Path.concat(outputPath),
@@ -2031,6 +2099,7 @@ module Object = {
 
         `{${fieldsCodeRef.contents}}`
       }),
+      ~maybeTypeFilter=Some(typeFilter),
     )
   }
 
@@ -2041,6 +2110,7 @@ module Object = {
         ~tagged=Object({unknownKeys: Strip, fieldNames, fields}),
         ~parseOperationBuilder=struct.parseOperationBuilder,
         ~serializeOperationBuilder=struct.serializeOperationBuilder,
+        ~maybeTypeFilter=struct.maybeTypeFilter,
         ~metadataMap=struct.metadataMap,
       )
     | _ => struct
@@ -2054,6 +2124,7 @@ module Object = {
         ~tagged=Object({unknownKeys: Strict, fieldNames, fields}),
         ~parseOperationBuilder=struct.parseOperationBuilder,
         ~serializeOperationBuilder=struct.serializeOperationBuilder,
+        ~maybeTypeFilter=struct.maybeTypeFilter,
         ~metadataMap=struct.metadataMap,
       )
     // TODO: Should it throw for non Object structs?
@@ -2083,6 +2154,8 @@ module Never = {
     ~tagged=Never,
     ~parseOperationBuilder=builder,
     ~serializeOperationBuilder=builder,
+    // TODO: Should it exist?
+    ~maybeTypeFilter=None,
   )
 }
 
@@ -2097,6 +2170,7 @@ module Unknown = {
     parse: Builder.noopOperation,
     parseAsync: Builder.unexpectedAsyncOperation,
     metadataMap: Metadata.Map.empty,
+    maybeTypeFilter: None,
   }
 }
 
@@ -2137,29 +2211,13 @@ module String = {
   // Adapted from https://stackoverflow.com/a/3143231
   let datetimeRe = %re(`/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/`)
 
-  let typeRefinement = (b: B.t, ~selfStruct, ~inputVar, ~path) => {
-    b.code =
-      b.code ++
-      `if(typeof ${inputVar}!=="string"){${b->B.raiseWithArg(
-          ~path,
-          input => InvalidType({
-            expected: selfStruct,
-            received: input,
-          }),
-          inputVar,
-        )}}`
-  }
-
-  let parseOperationBuilder = Builder.make((b, ~selfStruct, ~path) => {
-    let inputVar = b->B.useInputVar
-    typeRefinement(b, ~selfStruct, ~inputVar, ~path)
-    inputVar
-  })
+  let typeFilter = (~inputVar) => `typeof ${inputVar}!=="string"`
 
   let struct = makeWithNoopSerializer(
     ~metadataMap=Metadata.Map.empty,
     ~tagged=String,
-    ~parseOperationBuilder,
+    ~parseOperationBuilder=Builder.noop,
+    ~maybeTypeFilter=Some(typeFilter),
   )
 
   let min = (struct, length, ~message as maybeMessage=?) => {
@@ -2348,46 +2406,36 @@ module JsonString = {
     make(
       ~metadataMap=Metadata.Map.empty,
       ~tagged=String,
-      ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
-        let inputVar = b->B.useInputVar
-        b->String.typeRefinement(~selfStruct, ~inputVar, ~path)
+      ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
+        let input = b->B.useInput
         let jsonVar = b->B.var
         b.code =
           b.code ++
-          `try{${jsonVar}=JSON.parse(${inputVar})}catch(t){${b->B.raiseWithArg(
+          `try{${jsonVar}=JSON.parse(${input})}catch(t){${b->B.raiseWithArg(
               ~path,
               message => OperationFailed(message),
               "t.message",
             )}}`
 
-        b->B.run(~struct, ~input=jsonVar, ~path)
+        b->B.useWithTypeFilter(~struct, ~input=jsonVar, ~path)
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
         let input = b->B.useInput
-        `JSON.stringify(${b->B.run(~struct, ~input, ~path)})`
+        `JSON.stringify(${b->B.use(~struct, ~input, ~path)})`
       }),
+      ~maybeTypeFilter=Some(String.typeFilter),
     )
   }
 }
 
 module Bool = {
+  let typeFilter = (~inputVar) => `typeof ${inputVar}!=="boolean"`
+
   let struct = makeWithNoopSerializer(
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Bool,
-    ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
-      let inputVar = b->B.useInputVar
-      b.code =
-        b.code ++
-        `if(typeof ${inputVar}!=="boolean"){${b->B.raiseWithArg(
-            ~path,
-            input => InvalidType({
-              expected: selfStruct,
-              received: input,
-            }),
-            inputVar,
-          )}}`
-      inputVar
-    }),
+    ~parseOperationBuilder=Builder.noop,
+    ~maybeTypeFilter=Some(typeFilter),
   )
 }
 
@@ -2415,23 +2463,14 @@ module Int = {
     }
   }
 
+  let typeFilter = (~inputVar) =>
+    `!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)`
+
   let struct = makeWithNoopSerializer(
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Int,
-    ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
-      let inputVar = b->B.useInputVar
-      b.code =
-        b.code ++
-        `if(!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)){${b->B.raiseWithArg(
-            ~path,
-            input => InvalidType({
-              expected: selfStruct,
-              received: input,
-            }),
-            inputVar,
-          )}}`
-      inputVar
-    }),
+    ~parseOperationBuilder=Builder.noop,
+    ~maybeTypeFilter=Some(typeFilter),
   )
 
   let min = (struct, minValue, ~message as maybeMessage=?) => {
@@ -2514,23 +2553,13 @@ module Float = {
     }
   }
 
+  let typeFilter = (~inputVar) => `typeof ${inputVar}!=="number"||Number.isNaN(${inputVar})`
+
   let struct = makeWithNoopSerializer(
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Float,
-    ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
-      let inputVar = b->B.useInputVar
-      b.code =
-        b.code ++
-        `if(typeof ${inputVar}!=="number"||Number.isNaN(${inputVar})){${b->B.raiseWithArg(
-            ~path,
-            input => InvalidType({
-              expected: selfStruct,
-              received: input,
-            }),
-            inputVar,
-          )}}`
-      inputVar
-    }),
+    ~parseOperationBuilder=Builder.noop,
+    ~maybeTypeFilter=Some(typeFilter),
   )
 
   let min = (struct, minValue, ~message as maybeMessage=?) => {
@@ -2598,32 +2627,28 @@ module Array = {
     }
   }
 
+  let typeFilter = (~inputVar) => `!Array.isArray(${inputVar})`
+
   let factory = struct => {
     let struct = struct->toUnknown
     make(
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Array(struct),
-      ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
+      ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
         let inputVar = b->B.useInputVar
         let iteratorVar = b->B.varWithoutAllocation
         let outputVar = b->B.var
 
         b.code =
           b.code ++
-          `if(!Array.isArray(${inputVar})){${b->B.raiseWithArg(
-              ~path,
-              input => InvalidType({
-                expected: selfStruct,
-                received: input,
-              }),
-              inputVar,
-            )}}${outputVar}=[];for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.scope(
+          `${outputVar}=[];for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.scope(
               b => {
                 let itemOutputVar =
                   b->B.withPathPrepend(
                     ~path,
                     ~dynamicLocationVar=iteratorVar,
-                    (b, ~path) => b->B.run(~struct, ~input=`${inputVar}[${iteratorVar}]`, ~path),
+                    (b, ~path) =>
+                      b->B.useWithTypeFilter(~struct, ~input=`${inputVar}[${iteratorVar}]`, ~path),
                   )
                 `${outputVar}.push(${itemOutputVar})`
               },
@@ -2652,7 +2677,7 @@ module Array = {
                   b->B.withPathPrepend(
                     ~path,
                     ~dynamicLocationVar=iteratorVar,
-                    (b, ~path) => b->B.run(~struct, ~input=`${inputVar}[${iteratorVar}]`, ~path),
+                    (b, ~path) => b->B.use(~struct, ~input=`${inputVar}[${iteratorVar}]`, ~path),
                   )
                 `${outputVar}.push(${itemOutputVar})`
               },
@@ -2660,6 +2685,7 @@ module Array = {
 
         outputVar
       }),
+      ~maybeTypeFilter=Some(typeFilter),
     )
   }
 
@@ -2731,12 +2757,10 @@ module Dict = {
     make(
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Dict(struct),
-      ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
+      ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
         let inputVar = b->B.useInputVar
         let keyVar = b->B.varWithoutAllocation
         let outputVar = b->B.var
-
-        Object.typeRefinement(b, ~selfStruct, ~inputVar, ~path)
 
         b.code =
           b.code ++
@@ -2745,7 +2769,8 @@ module Dict = {
                 b->B.withPathPrepend(
                   ~path,
                   ~dynamicLocationVar=keyVar,
-                  (b, ~path) => b->B.run(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
+                  (b, ~path) =>
+                    b->B.useWithTypeFilter(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
                 )
               `${outputVar}[${keyVar}]=${itemOutputVar}`
             })}}`
@@ -2778,7 +2803,7 @@ module Dict = {
                 b->B.withPathPrepend(
                   ~path,
                   ~dynamicLocationVar=keyVar,
-                  (b, ~path) => b->B.run(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
+                  (b, ~path) => b->B.use(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
                 )
 
               `${outputVar}[${keyVar}]=${itemOutputVar}`
@@ -2786,6 +2811,7 @@ module Dict = {
 
         outputVar
       }),
+      ~maybeTypeFilter=Some(Object.typeFilter),
     )
   }
 }
@@ -2873,17 +2899,10 @@ module Tuple = {
         ~itemDefinitions,
         ~itemDefinitionsSet,
         ~definition,
-        ~typeRefinement=(b, ~selfStruct, ~inputVar, ~path) => {
+        ~inputRefinement=(b, ~selfStruct as _, ~inputVar, ~path) => {
           b.code =
             b.code ++
-            `if(!Array.isArray(${inputVar})){${b->B.raiseWithArg(
-                ~path,
-                input => InvalidType({
-                  expected: selfStruct,
-                  received: input,
-                }),
-                inputVar,
-              )}}if(${inputVar}.length!==${length->Stdlib.Int.unsafeToString}){${b->B.raiseWithArg(
+            `if(${inputVar}.length!==${length->Stdlib.Int.unsafeToString}){${b->B.raiseWithArg(
                 ~path,
                 numberOfInputItems => InvalidTupleSize({
                   expected: length,
@@ -2892,7 +2911,7 @@ module Tuple = {
                 `${inputVar}.length`,
               )}}`
         },
-        ~unknownKeysRefinement=(_b, ~selfStruct as _, ~inputVar as _, ~path as _) => (),
+        ~unknownKeysRefinement=Object.noopRefinement,
       ),
       ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
         let inputVar = b->B.useInputVar
@@ -2915,7 +2934,7 @@ module Tuple = {
               | {registered: Unregistered, struct, inputPath} => {
                   itemDefinition.registered = BySerializing
                   let fieldOuputVar =
-                    b->B.run(
+                    b->B.use(
                       ~struct,
                       ~input=`${inputVar}${outputPath}`,
                       ~path=path->Path.concat(outputPath),
@@ -2977,6 +2996,7 @@ module Tuple = {
 
         outputVar
       }),
+      ~maybeTypeFilter=Some(Array.typeFilter),
       ~metadataMap=Metadata.Map.empty,
     )
   }
@@ -3005,7 +3025,7 @@ module Union = {
         for idx in 0 to structs->Js.Array2.length - 1 {
           let struct = structs->Js.Array2.unsafe_get(idx)
           b.code = ""
-          let itemOutputVar = b->B.run(~struct, ~input=inputVar, ~path=Path.empty)
+          let itemOutputVar = b->B.useWithTypeFilter(~struct, ~input=inputVar, ~path=Path.empty)
           let isAsyncItem = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
           if isAsyncItem {
             isAsyncRef.contents = true
@@ -3095,7 +3115,7 @@ module Union = {
           b.code =
             b.code ++
             `try{${b->B.scope(b => {
-                `${outputVar}=${b->B.run(~struct=itemStruct, ~input=inputVar, ~path=Path.empty)}`
+                `${outputVar}=${b->B.use(~struct=itemStruct, ~input=inputVar, ~path=Path.empty)}`
               })}}catch(${errorVar}){if(${b->B.isInternalError(errorVar)}){`
 
           codeEndRef.contents = `}else{throw ${errorVar}}}` ++ codeEndRef.contents
@@ -3112,6 +3132,7 @@ module Union = {
 
         outputVar
       }),
+      ~maybeTypeFilter=None,
     )
   }
 }
@@ -3128,12 +3149,12 @@ let list = struct => {
 let json = makeWithNoopSerializer(
   ~tagged=JSON,
   ~metadataMap=Metadata.Map.empty,
+  ~maybeTypeFilter=None,
   ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
     let rec parse = (input, ~path=path) => {
       switch input->Stdlib.Type.typeof {
       | #number if Js.Float.isNaN(input->(Obj.magic: unknown => float))->not =>
         input->(Obj.magic: unknown => Js.Json.t)
-
       | #object =>
         if input === %raw(`null`) {
           input->(Obj.magic: unknown => Js.Json.t)
@@ -3219,12 +3240,13 @@ let catch = (struct, getFallbackValue) => {
             )}(${inputVar},${errorVar})`,
         ),
         b => {
-          b->B.run(~struct, ~input=inputVar, ~path)
+          b->B.useWithTypeFilter(~struct, ~input=inputVar, ~path)
         },
       )
     }),
     ~serializeOperationBuilder=struct.serializeOperationBuilder,
     ~tagged=struct.tagged,
+    ~maybeTypeFilter=None,
     ~metadataMap=struct.metadataMap,
   )
 }

@@ -286,13 +286,12 @@ function $$var(b) {
   return v;
 }
 
-function useInputVar(b) {
-  var input = b.i;
-  if (b.s.has(input)) {
-    return input;
+function toVar(b, val) {
+  if (b.s.has(val)) {
+    return val;
   }
   var $$var$1 = $$var(b);
-  b.c = b.c + ($$var$1 + "=" + input + ";");
+  b.c = b.c + ($$var$1 + "=" + val + ";");
   return $$var$1;
 }
 
@@ -418,19 +417,42 @@ function withPathPrepend(b, path, maybeDynamicLocationVar, fn) {
   }
 }
 
-function run(b, struct, input, path) {
+function typeFilterCode(b, typeFilter, struct, inputVar, path) {
+  return "if(" + typeFilter(inputVar) + "){" + raiseWithArg(b, path, (function (input) {
+                return {
+                        TAG: "InvalidType",
+                        expected: struct,
+                        received: input
+                      };
+              }), inputVar) + "}";
+}
+
+function use(b, struct, input, path) {
   var isParentAsync = b.a;
   var isParsing = b.o === "Parsing";
-  b.a = false;
   b.i = input;
+  b.a = false;
   var output = (
       isParsing ? struct.pb : struct.sb
     )(b, struct, path);
   if (isParsing) {
     struct.i = b.a;
+    b.a = isParentAsync || b.a;
   }
-  b.a = isParentAsync || b.a;
   return output;
+}
+
+function useWithTypeFilter(b, struct, input, path) {
+  var typeFilter = struct.f;
+  var input$1;
+  if (typeFilter !== undefined) {
+    var inputVar = toVar(b, input);
+    b.c = b.c + typeFilterCode(b, typeFilter, struct, inputVar, path);
+    input$1 = inputVar;
+  } else {
+    input$1 = input;
+  }
+  return use(b, struct, input$1, path);
 }
 
 function noop(b, param, param$1) {
@@ -453,7 +475,11 @@ function build(builder, struct, operation) {
     e: []
   };
   var output = builder(b, struct, "");
-  if (b.o === "Parsing") {
+  if (operation === "Parsing") {
+    var typeFilter = struct.f;
+    if (typeFilter !== undefined) {
+      b.c = typeFilterCode(b, typeFilter, struct, "i", "") + b.c;
+    }
     struct.i = b.a;
   }
   if (b.c === "" && output === "i") {
@@ -934,6 +960,7 @@ function set$1(struct, id, metadata) {
           t: struct.t,
           pb: struct.pb,
           sb: struct.sb,
+          f: struct.f,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -1054,12 +1081,13 @@ function refine(struct, refiner) {
           t: struct.t,
           pb: (function (b, selfStruct, path) {
               var input = b.i;
-              return embedSyncRefineOperation(b, run(b, struct, input, path), refiner(make(selfStruct, path, b.o)));
+              return embedSyncRefineOperation(b, use(b, struct, input, path), refiner(make(selfStruct, path, b.o)));
             }),
           sb: (function (b, selfStruct, path) {
               var input = b.i;
-              return run(b, struct, embedSyncRefineOperation(b, input, refiner(make(selfStruct, path, b.o))), path);
+              return use(b, struct, embedSyncRefineOperation(b, input, refiner(make(selfStruct, path, b.o))), path);
             }),
+          f: struct.f,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -1079,7 +1107,7 @@ function transform$1(struct, transformer) {
           t: struct.t,
           pb: (function (b, selfStruct, path) {
               var input = b.i;
-              var input$1 = run(b, struct, input, path);
+              var input$1 = use(b, struct, input, path);
               var match = transformer(make(selfStruct, path, b.o));
               var parser = match.p;
               if (parser !== undefined) {
@@ -1103,13 +1131,14 @@ function transform$1(struct, transformer) {
               var match = transformer(make(selfStruct, path, b.o));
               var serializer = match.s;
               if (serializer !== undefined) {
-                return run(b, struct, embedSyncOperation(b, input, serializer), path);
+                return use(b, struct, embedSyncOperation(b, input, serializer), path);
               } else if (match.a !== undefined || match.p !== undefined) {
                 return invalidOperation(b, path, "The S.transform serializer is missing");
               } else {
-                return run(b, struct, input, path);
+                return use(b, struct, input, path);
               }
             }),
+          f: struct.f,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -1131,6 +1160,7 @@ function preprocess(struct, transformer) {
             },
             pb: struct.pb,
             sb: struct.sb,
+            f: struct.f,
             i: 0,
             s: initialSerialize,
             j: initialSerializeToJson,
@@ -1151,17 +1181,17 @@ function preprocess(struct, transformer) {
                 }
                 var operationResultVar = $$var(b);
                 b.c = b.c + (operationResultVar + "=" + embedSyncOperation(b, input, parser) + ";");
-                return run(b, struct, operationResultVar, path);
+                return useWithTypeFilter(b, struct, operationResultVar, path);
               }
               var asyncParser = match.a;
               if (asyncParser === undefined) {
-                return run(b, struct, input, path);
+                return useWithTypeFilter(b, struct, input, path);
               }
               var parseResultVar = embedAsyncOperation(b, input, asyncParser);
               var outputVar = $$var(b);
               var asyncResultVar = varWithoutAllocation(b);
               b.c = b.c + (outputVar + "=()=>" + parseResultVar + "().then(" + asyncResultVar + "=>{" + scope(b, (function (b) {
-                        var structOutputVar = run(b, struct, asyncResultVar, path);
+                        var structOutputVar = useWithTypeFilter(b, struct, asyncResultVar, path);
                         var isAsync = struct.i;
                         return "return " + (
                                 isAsync ? structOutputVar + "()" : structOutputVar
@@ -1171,7 +1201,7 @@ function preprocess(struct, transformer) {
             }),
           sb: (function (b, selfStruct, path) {
               var input = b.i;
-              var input$1 = run(b, struct, input, path);
+              var input$1 = use(b, struct, input, path);
               var match = transformer(make(selfStruct, path, b.o));
               var serializer = match.s;
               if (serializer !== undefined) {
@@ -1180,6 +1210,7 @@ function preprocess(struct, transformer) {
                 return input$1;
               }
             }),
+          f: undefined,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -1224,6 +1255,7 @@ function custom(name, definer) {
                 return input;
               }
             }),
+          f: undefined,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -1266,7 +1298,7 @@ function literalCheckBuilder(b, value, inputVar) {
 function literal(value) {
   var literal$1 = classify(value);
   var operationBuilder = function (b, param, path) {
-    var inputVar = useInputVar(b);
+    var inputVar = toVar(b, b.i);
     b.c = b.c + (literalCheckBuilder(b, value, inputVar) + "||" + raiseWithArg(b, path, (function (input) {
               return {
                       TAG: "InvalidLiteral",
@@ -1283,6 +1315,7 @@ function literal(value) {
           },
           pb: operationBuilder,
           sb: operationBuilder,
+          f: undefined,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -1309,10 +1342,10 @@ function factory(struct, definer) {
           t: struct.t,
           pb: (function (b, param, path) {
               var input = b.i;
-              return embedSyncOperation(b, run(b, struct, input, path), definer);
+              return embedSyncOperation(b, use(b, struct, input, path), definer);
             }),
           sb: (function (b, selfStruct, path) {
-              var inputVar = useInputVar(b);
+              var inputVar = toVar(b, b.i);
               var definition = definer(symbol);
               var definitionToOutput = function (definition, outputPath) {
                 var kind = symbol === definition ? 2 : (
@@ -1355,7 +1388,7 @@ function factory(struct, definer) {
               };
               var output = definitionToOutput(definition, "");
               if (typeof output === "string") {
-                return run(b, struct, output, path);
+                return use(b, struct, output, path);
               }
               if (output !== 0) {
                 return invalidOperation(b, path, "Can't create serializer. The S.variant's value is registered multiple times. Use S.transform instead");
@@ -1365,8 +1398,9 @@ function factory(struct, definer) {
                 return invalidOperation(b, path, "Can't create serializer. The S.variant's value is not registered and not a literal. Use S.transform instead");
               }
               var value$1 = value(literal);
-              return run(b, struct, "e[" + (b.e.push(value$1) - 1) + "]", path);
+              return use(b, struct, "e[" + (b.e.push(value$1) - 1) + "]", path);
             }),
+          f: struct.f,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -1383,12 +1417,12 @@ function $$default(struct) {
 }
 
 function parseOperationBuilder(b, selfStruct, path) {
-  var inputVar = useInputVar(b);
+  var inputVar = toVar(b, b.i);
   var outputVar = $$var(b);
   var isNull = (selfStruct.t.TAG === "Null");
   var childStruct = selfStruct.t._0;
   var ifCode = scope(b, (function (b) {
-          return outputVar + "=" + run(b, childStruct, inputVar, path);
+          return outputVar + "=" + use(b, childStruct, inputVar, path);
         }));
   var isAsync = childStruct.i;
   b.c = b.c + ("if(" + inputVar + "!==" + (
@@ -1400,17 +1434,27 @@ function parseOperationBuilder(b, selfStruct, path) {
 }
 
 function serializeOperationBuilder(b, selfStruct, path) {
-  var inputVar = useInputVar(b);
+  var inputVar = toVar(b, b.i);
   var outputVar = $$var(b);
   var isNull = (selfStruct.t.TAG === "Null");
   var childStruct = selfStruct.t._0;
   b.c = b.c + ("if(" + inputVar + "!==void 0){" + scope(b, (function (b) {
             var value = Caml_option.valFromOption;
-            return outputVar + "=" + run(b, childStruct, "e[" + (b.e.push(value) - 1) + "](" + inputVar + ")", path);
+            return outputVar + "=" + use(b, childStruct, "e[" + (b.e.push(value) - 1) + "](" + inputVar + ")", path);
           })) + "}else{" + outputVar + "=" + (
       isNull ? "null" : "void 0"
     ) + "}");
   return outputVar;
+}
+
+function maybeTypeFilter(struct, inlinedNoneValue) {
+  var typeFilter = struct.f;
+  if (typeFilter !== undefined) {
+    return (function (inputVar) {
+              return inputVar + "!==" + inlinedNoneValue + "&&" + typeFilter(inputVar);
+            });
+  }
+  
 }
 
 function factory$1(struct) {
@@ -1421,6 +1465,7 @@ function factory$1(struct) {
           },
           pb: parseOperationBuilder,
           sb: serializeOperationBuilder,
+          f: maybeTypeFilter(struct, "void 0"),
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -1435,13 +1480,14 @@ function getWithDefault(struct, $$default) {
           t: struct.t,
           pb: (function (b, param, path) {
               var input = b.i;
-              return transform(b, run(b, struct, input, path), false, (function (b, input) {
+              return transform(b, use(b, struct, input, path), false, (function (b, input) {
                             var tmp;
                             tmp = $$default.TAG === "Value" ? "e[" + (b.e.push($$default._0) - 1) + "]" : "e[" + (b.e.push($$default._0) - 1) + "]()";
                             return input + "===void 0?" + tmp + ":" + input;
                           }));
             }),
           sb: struct.sb,
+          f: struct.f,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -1473,6 +1519,7 @@ function factory$2(struct) {
           },
           pb: parseOperationBuilder,
           sb: serializeOperationBuilder,
+          f: maybeTypeFilter(struct, "null"),
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -1482,11 +1529,19 @@ function factory$2(struct) {
         };
 }
 
-function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definition, typeRefinement, unknownKeysRefinement) {
+function typeFilter(inputVar) {
+  return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
+}
+
+function noopRefinement(_b, param, param$1, param$2) {
+  
+}
+
+function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definition, inputRefinement, unknownKeysRefinement) {
   return function (b, selfStruct, path) {
-    var inputVar = useInputVar(b);
+    var inputVar = toVar(b, b.i);
     var asyncOutputVars = [];
-    typeRefinement(b, selfStruct, inputVar, path);
+    inputRefinement(b, selfStruct, inputVar, path);
     var prevCode = b.c;
     b.c = "";
     unknownKeysRefinement(b, selfStruct, inputVar, path);
@@ -1516,7 +1571,7 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
             definition.r = 1;
             var inputPath = definition.p;
             var struct = definition.s;
-            var fieldOuputVar = run(b, struct, inputVar + inputPath, path + inputPath);
+            var fieldOuputVar = useWithTypeFilter(b, struct, inputVar + inputPath, path + inputPath);
             var isAsyncField = struct.i;
             if (isAsyncField) {
               asyncOutputVars.push(fieldOuputVar);
@@ -1534,7 +1589,7 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
       var struct = match.s;
       var registered = match.r;
       if (registered === 0) {
-        var fieldOuputVar = run(b, struct, inputVar + inputPath, path + inputPath);
+        var fieldOuputVar = useWithTypeFilter(b, struct, inputVar + inputPath, path + inputPath);
         var isAsyncField = struct.i;
         if (isAsyncField) {
           asyncOutputVars.push(fieldOuputVar);
@@ -1554,16 +1609,6 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
             }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "));");
     return outputVar;
   };
-}
-
-function typeRefinement(b, selfStruct, inputVar, path) {
-  b.c = b.c + ("if(!" + inputVar + "||" + inputVar + ".constructor!==Object){" + raiseWithArg(b, path, (function (input) {
-            return {
-                    TAG: "InvalidType",
-                    expected: selfStruct,
-                    received: input
-                  };
-          }), inputVar) + "}");
 }
 
 function factory$3(definer) {
@@ -1610,7 +1655,7 @@ function factory$3(definer) {
             fieldNames: fieldNames,
             unknownKeys: "Strip"
           },
-          pb: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, typeRefinement, (function (b, selfStruct, inputVar, path) {
+          pb: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, noopRefinement, (function (b, selfStruct, inputVar, path) {
                   var withUnknownKeysRefinement = selfStruct.t.unknownKeys === "Strict";
                   if (!withUnknownKeysRefinement) {
                     return ;
@@ -1642,7 +1687,7 @@ function factory$3(definer) {
                           }), keyVar$1) + "}");
                 })),
           sb: (function (b, param, path) {
-              var inputVar = useInputVar(b);
+              var inputVar = toVar(b, b.i);
               var fieldsCodeRef = {
                 contents: ""
               };
@@ -1679,7 +1724,7 @@ function factory$3(definer) {
                         
                       }
                       definition.r = 2;
-                      fieldsCodeRef.contents = fieldsCodeRef.contents + (definition.l + ":" + run(b, definition.s, inputVar + outputPath, path + outputPath) + ",");
+                      fieldsCodeRef.contents = fieldsCodeRef.contents + (definition.l + ":" + use(b, definition.s, inputVar + outputPath, path + outputPath) + ",");
                       return ;
                   
                 }
@@ -1703,6 +1748,7 @@ function factory$3(definer) {
               }
               return "{" + fieldsCodeRef.contents + "}";
             }),
+          f: typeFilter,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -1726,6 +1772,7 @@ function strip(struct) {
             },
             pb: struct.pb,
             sb: struct.sb,
+            f: struct.f,
             i: 0,
             s: initialSerialize,
             j: initialSerializeToJson,
@@ -1750,6 +1797,7 @@ function strict(struct) {
             },
             pb: struct.pb,
             sb: struct.sb,
+            f: struct.f,
             i: 0,
             s: initialSerialize,
             j: initialSerializeToJson,
@@ -1776,6 +1824,7 @@ var struct = {
   t: "Never",
   pb: builder,
   sb: builder,
+  f: undefined,
   i: 0,
   s: initialSerialize,
   j: initialSerializeToJson,
@@ -1788,6 +1837,7 @@ var struct$1 = {
   t: "Unknown",
   pb: noop,
   sb: noop,
+  f: undefined,
   i: false,
   s: noopOperation,
   j: initialSerializeToJson,
@@ -1815,26 +1865,15 @@ var emailRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\")
 
 var datetimeRe = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
-function typeRefinement$1(b, selfStruct, inputVar, path) {
-  b.c = b.c + ("if(typeof " + inputVar + "!==\"string\"){" + raiseWithArg(b, path, (function (input) {
-            return {
-                    TAG: "InvalidType",
-                    expected: selfStruct,
-                    received: input
-                  };
-          }), inputVar) + "}");
-}
-
-function parseOperationBuilder$1(b, selfStruct, path) {
-  var inputVar = useInputVar(b);
-  typeRefinement$1(b, selfStruct, inputVar, path);
-  return inputVar;
+function typeFilter$1(inputVar) {
+  return "typeof " + inputVar + "!==\"string\"";
 }
 
 var struct$2 = {
   t: "String",
-  pb: parseOperationBuilder$1,
+  pb: noop,
   sb: noop,
+  f: typeFilter$1,
   i: 0,
   s: noopOperation,
   j: initialSerializeToJson,
@@ -2041,22 +2080,22 @@ function factory$4(struct) {
   }
   return {
           t: "String",
-          pb: (function (b, selfStruct, path) {
-              var inputVar = useInputVar(b);
-              typeRefinement$1(b, selfStruct, inputVar, path);
+          pb: (function (b, param, path) {
+              var input = b.i;
               var jsonVar = $$var(b);
-              b.c = b.c + ("try{" + jsonVar + "=JSON.parse(" + inputVar + ")}catch(t){" + raiseWithArg(b, path, (function (message) {
+              b.c = b.c + ("try{" + jsonVar + "=JSON.parse(" + input + ")}catch(t){" + raiseWithArg(b, path, (function (message) {
                         return {
                                 TAG: "OperationFailed",
                                 _0: message
                               };
                       }), "t.message") + "}");
-              return run(b, struct, jsonVar, path);
+              return useWithTypeFilter(b, struct, jsonVar, path);
             }),
           sb: (function (b, param, path) {
               var input = b.i;
-              return "JSON.stringify(" + run(b, struct, input, path) + ")";
+              return "JSON.stringify(" + use(b, struct, input, path) + ")";
             }),
+          f: typeFilter$1,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -2066,20 +2105,15 @@ function factory$4(struct) {
         };
 }
 
+function typeFilter$2(inputVar) {
+  return "typeof " + inputVar + "!==\"boolean\"";
+}
+
 var struct$3 = {
   t: "Bool",
-  pb: (function (b, selfStruct, path) {
-      var inputVar = useInputVar(b);
-      b.c = b.c + ("if(typeof " + inputVar + "!==\"boolean\"){" + raiseWithArg(b, path, (function (input) {
-                return {
-                        TAG: "InvalidType",
-                        expected: selfStruct,
-                        received: input
-                      };
-              }), inputVar) + "}");
-      return inputVar;
-    }),
+  pb: noop,
   sb: noop,
+  f: typeFilter$2,
   i: 0,
   s: noopOperation,
   j: initialSerializeToJson,
@@ -2099,20 +2133,15 @@ function refinements$1(struct) {
   }
 }
 
+function typeFilter$3(inputVar) {
+  return "!(typeof " + inputVar + "===\"number\"&&" + inputVar + "<2147483648&&" + inputVar + ">-2147483649&&" + inputVar + "%1===0)";
+}
+
 var struct$4 = {
   t: "Int",
-  pb: (function (b, selfStruct, path) {
-      var inputVar = useInputVar(b);
-      b.c = b.c + ("if(!(typeof " + inputVar + "===\"number\"&&" + inputVar + "<2147483648&&" + inputVar + ">-2147483649&&" + inputVar + "%1===0)){" + raiseWithArg(b, path, (function (input) {
-                return {
-                        TAG: "InvalidType",
-                        expected: selfStruct,
-                        received: input
-                      };
-              }), inputVar) + "}");
-      return inputVar;
-    }),
+  pb: noop,
   sb: noop,
+  f: typeFilter$3,
   i: 0,
   s: noopOperation,
   j: initialSerializeToJson,
@@ -2186,20 +2215,15 @@ function refinements$2(struct) {
   }
 }
 
+function typeFilter$4(inputVar) {
+  return "typeof " + inputVar + "!==\"number\"||Number.isNaN(" + inputVar + ")";
+}
+
 var struct$5 = {
   t: "Float",
-  pb: (function (b, selfStruct, path) {
-      var inputVar = useInputVar(b);
-      b.c = b.c + ("if(typeof " + inputVar + "!==\"number\"||Number.isNaN(" + inputVar + ")){" + raiseWithArg(b, path, (function (input) {
-                return {
-                        TAG: "InvalidType",
-                        expected: selfStruct,
-                        received: input
-                      };
-              }), inputVar) + "}");
-      return inputVar;
-    }),
+  pb: noop,
   sb: noop,
+  f: typeFilter$4,
   i: 0,
   s: noopOperation,
   j: initialSerializeToJson,
@@ -2257,25 +2281,23 @@ function refinements$3(struct) {
   }
 }
 
+function typeFilter$5(inputVar) {
+  return "!Array.isArray(" + inputVar + ")";
+}
+
 function factory$5(struct) {
   return {
           t: {
             TAG: "Array",
             _0: struct
           },
-          pb: (function (b, selfStruct, path) {
-              var inputVar = useInputVar(b);
+          pb: (function (b, param, path) {
+              var inputVar = toVar(b, b.i);
               var iteratorVar = varWithoutAllocation(b);
               var outputVar = $$var(b);
-              b.c = b.c + ("if(!Array.isArray(" + inputVar + ")){" + raiseWithArg(b, path, (function (input) {
-                        return {
-                                TAG: "InvalidType",
-                                expected: selfStruct,
-                                received: input
-                              };
-                      }), inputVar) + "}" + outputVar + "=[];for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
+              b.c = b.c + (outputVar + "=[];for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
                         var itemOutputVar = withPathPrepend(b, path, iteratorVar, (function (b, path) {
-                                return run(b, struct, inputVar + "[" + iteratorVar + "]", path);
+                                return useWithTypeFilter(b, struct, inputVar + "[" + iteratorVar + "]", path);
                               }));
                         return outputVar + ".push(" + itemOutputVar + ")";
                       })) + "}");
@@ -2288,17 +2310,18 @@ function factory$5(struct) {
               return asyncOutputVar;
             }),
           sb: (function (b, param, path) {
-              var inputVar = useInputVar(b);
+              var inputVar = toVar(b, b.i);
               var iteratorVar = varWithoutAllocation(b);
               var outputVar = $$var(b);
               b.c = b.c + (outputVar + "=[];for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
                         var itemOutputVar = withPathPrepend(b, path, iteratorVar, (function (b, path) {
-                                return run(b, struct, inputVar + "[" + iteratorVar + "]", path);
+                                return use(b, struct, inputVar + "[" + iteratorVar + "]", path);
                               }));
                         return outputVar + ".push(" + itemOutputVar + ")";
                       })) + "}");
               return outputVar;
             }),
+          f: typeFilter$5,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -2371,14 +2394,13 @@ function factory$6(struct) {
             TAG: "Dict",
             _0: struct
           },
-          pb: (function (b, selfStruct, path) {
-              var inputVar = useInputVar(b);
+          pb: (function (b, param, path) {
+              var inputVar = toVar(b, b.i);
               var keyVar = varWithoutAllocation(b);
               var outputVar = $$var(b);
-              typeRefinement(b, selfStruct, inputVar, path);
               b.c = b.c + (outputVar + "={};for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
                         var itemOutputVar = withPathPrepend(b, path, keyVar, (function (b, path) {
-                                return run(b, struct, inputVar + "[" + keyVar + "]", path);
+                                return useWithTypeFilter(b, struct, inputVar + "[" + keyVar + "]", path);
                               }));
                         return outputVar + "[" + keyVar + "]=" + itemOutputVar;
                       })) + "}");
@@ -2395,17 +2417,18 @@ function factory$6(struct) {
               return asyncOutputVar;
             }),
           sb: (function (b, param, path) {
-              var inputVar = useInputVar(b);
+              var inputVar = toVar(b, b.i);
               var keyVar = varWithoutAllocation(b);
               var outputVar = $$var(b);
               b.c = b.c + (outputVar + "={};for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
                         var itemOutputVar = withPathPrepend(b, path, keyVar, (function (b, path) {
-                                return run(b, struct, inputVar + "[" + keyVar + "]", path);
+                                return use(b, struct, inputVar + "[" + keyVar + "]", path);
                               }));
                         return outputVar + "[" + keyVar + "]=" + itemOutputVar;
                       })) + "}");
               return outputVar;
             }),
+          f: typeFilter,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -2466,25 +2489,17 @@ function factory$7(definer) {
             TAG: "Tuple",
             _0: structs$1
           },
-          pb: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, (function (b, selfStruct, inputVar, path) {
-                  b.c = b.c + ("if(!Array.isArray(" + inputVar + ")){" + raiseWithArg(b, path, (function (input) {
-                            return {
-                                    TAG: "InvalidType",
-                                    expected: selfStruct,
-                                    received: input
-                                  };
-                          }), inputVar) + "}if(" + inputVar + ".length!==" + length + "){" + raiseWithArg(b, path, (function (numberOfInputItems) {
+          pb: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, (function (b, param, inputVar, path) {
+                  b.c = b.c + ("if(" + inputVar + ".length!==" + length + "){" + raiseWithArg(b, path, (function (numberOfInputItems) {
                             return {
                                     TAG: "InvalidTupleSize",
                                     expected: length,
                                     received: numberOfInputItems
                                   };
                           }), inputVar + ".length") + "}");
-                }), (function (_b, param, param$1, param$2) {
-                  
-                })),
+                }), noopRefinement),
           sb: (function (b, param, path) {
-              var inputVar = useInputVar(b);
+              var inputVar = toVar(b, b.i);
               var outputVar = $$var(b);
               b.c = b.c + (outputVar + "=[];");
               var prevCode = b.c;
@@ -2520,7 +2535,7 @@ function factory$7(definer) {
                         
                       }
                       definition.r = 2;
-                      var fieldOuputVar = run(b, definition.s, inputVar + outputPath, path + outputPath);
+                      var fieldOuputVar = use(b, definition.s, inputVar + outputPath, path + outputPath);
                       b.c = b.c + (outputVar + definition.p + "=" + fieldOuputVar + ";");
                       return ;
                   
@@ -2544,6 +2559,7 @@ function factory$7(definer) {
               }
               return outputVar;
             }),
+          f: typeFilter$5,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -2563,7 +2579,7 @@ function factory$8(structs) {
             _0: structs
           },
           pb: (function (b, selfStruct, path) {
-              var inputVar = useInputVar(b);
+              var inputVar = toVar(b, b.i);
               var structs = selfStruct.t._0;
               var isAsyncRef = false;
               var itemsCode = [];
@@ -2572,7 +2588,7 @@ function factory$8(structs) {
               for(var idx = 0 ,idx_finish = structs.length; idx < idx_finish; ++idx){
                 var struct = structs[idx];
                 b.c = "";
-                var itemOutputVar = run(b, struct, inputVar, "");
+                var itemOutputVar = useWithTypeFilter(b, struct, inputVar, "");
                 var isAsyncItem = struct.i;
                 if (isAsyncItem) {
                   isAsyncRef = true;
@@ -2623,7 +2639,7 @@ function factory$8(structs) {
               }
             }),
           sb: (function (b, selfStruct, path) {
-              var inputVar = useInputVar(b);
+              var inputVar = toVar(b, b.i);
               var structs = selfStruct.t._0;
               var outputVar = $$var(b);
               var codeEndRef = "";
@@ -2634,7 +2650,7 @@ function factory$8(structs) {
                 errorVarsRef = errorVarsRef + errorVar + ",";
                 b.c = b.c + ("try{" + scope(b, (function(itemStruct){
                       return function (b) {
-                        return outputVar + "=" + run(b, itemStruct, inputVar, "");
+                        return outputVar + "=" + use(b, itemStruct, inputVar, "");
                       }
                       }(itemStruct))) + "}catch(" + errorVar + "){if(" + (errorVar + "&&" + errorVar + ".s===s") + "){");
                 codeEndRef = "}else{throw " + errorVar + "}}" + codeEndRef;
@@ -2647,6 +2663,7 @@ function factory$8(structs) {
                     }), "[" + errorVarsRef + "]") + codeEndRef;
               return outputVar;
             }),
+          f: undefined,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
@@ -2714,6 +2731,7 @@ var json = {
       return "e[" + (b.e.push(parse) - 1) + "](" + input + ")";
     }),
   sb: noop,
+  f: undefined,
   i: 0,
   s: noopOperation,
   j: initialSerializeToJson,
@@ -2726,7 +2744,7 @@ function $$catch(struct, getFallbackValue) {
   return {
           t: struct.t,
           pb: (function (b, selfStruct, path) {
-              var inputVar = useInputVar(b);
+              var inputVar = toVar(b, b.i);
               return withCatch(b, (function (b, errorVar) {
                             return "e[" + (b.e.push(function (input, internalError) {
                                           return getFallbackValue({
@@ -2756,10 +2774,11 @@ function $$catch(struct, getFallbackValue) {
                                                     });
                                         }) - 1) + "](" + inputVar + "," + errorVar + ")";
                           }), (function (b) {
-                            return run(b, struct, inputVar, path);
+                            return useWithTypeFilter(b, struct, inputVar, path);
                           }));
             }),
           sb: struct.sb,
+          f: undefined,
           i: 0,
           s: initialSerialize,
           j: initialSerializeToJson,
