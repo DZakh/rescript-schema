@@ -65,3 +65,14 @@ test("Returns refinement", t => {
     (),
   )
 })
+
+test("Compiled parse code snapshot", t => {
+  let struct = S.float->S.Float.max(~message="Custom", 1.)
+
+  t->U.assertCompiledCode(
+    ~struct,
+    ~op=#parse,
+    `i=>{if(typeof i!=="number"||Number.isNaN(i)){e[2](i)}if(i>e[0]){e[1]()}return i}`,
+    (),
+  )
+})

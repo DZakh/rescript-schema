@@ -26,23 +26,6 @@ module Stdlib = {
     external resolve: 'a => t<'a> = "resolve"
   }
 
-  module Url = {
-    type t
-
-    @new
-    external make: string => t = "URL"
-
-    @inline
-    let test = string => {
-      try {
-        make(string)->ignore
-        true
-      } catch {
-      | _ => false
-      }
-    }
-  }
-
   module Re = {
     @send
     external toString: Js.Re.t => string = "toString"
@@ -583,13 +566,6 @@ module Builder = {
       }
     }
 
-    let embedSyncRefineOperation = (b: t, ~input, ~fn: 'input => 'output) => {
-      b->transform(~input, ~isAsync=false, (b, ~input) => {
-        b.code = b.code ++ `${b->embed(fn)}(${input});`
-        input
-      })
-    }
-
     let embedSyncOperation = (b: t, ~input, ~fn: 'input => 'output) => {
       b->transform(~input, ~isAsync=false, (b, ~input) => {
         `${b->embed(fn)}(${input})`
@@ -606,6 +582,12 @@ module Builder = {
       `${b->embed(arg => {
           InternalError.raise(~path, ~code=fn(arg), ~operation=b.operation)
         })}(${arg})`
+    }
+
+    let fail = (b: t, ~message, ~path) => {
+      `${b->embed(() => {
+          InternalError.raise(~path, ~code=OperationFailed(message), ~operation=b.operation)
+        })}()`
     }
 
     let invalidOperation = (b: t, ~path, ~description) => {
@@ -1254,31 +1236,41 @@ let setName = (struct, name) => {
   struct->Metadata.set(~id=nameMetadataId, name)
 }
 
-let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value> = (struct, refiner) => {
+let internalRefine = (struct, refiner) => {
   let struct = struct->toUnknown
   make(
     ~tagged=struct.tagged,
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
       let input = b->B.useInput
-      b->B.embedSyncRefineOperation(
-        ~input=b->B.use(~struct, ~input, ~path),
-        ~fn=refiner(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)),
-      )
+      b->B.transform(~input=b->B.use(~struct, ~input, ~path), ~isAsync=false, (b, ~input) => {
+        let inputVar = b->B.toVar(input)
+        b.code = b.code ++ refiner(b, ~inputVar, ~selfStruct, ~path)
+        inputVar
+      })
     }),
     ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
       let input = b->B.useInput
       b->B.use(
         ~struct,
-        ~input=b->B.embedSyncRefineOperation(
-          ~input,
-          ~fn=refiner(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)),
-        ),
+        ~input=b->B.transform(~input, ~isAsync=false, (b, ~input) => {
+          let inputVar = b->B.toVar(input)
+          b.code = b.code ++ refiner(b, ~inputVar, ~selfStruct, ~path)
+          inputVar
+        }),
         ~path,
       )
     }),
     ~maybeTypeFilter=struct.maybeTypeFilter,
     ~metadataMap=struct.metadataMap,
   )
+}
+
+let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value> = (struct, refiner) => {
+  struct->internalRefine((b, ~inputVar, ~selfStruct, ~path) => {
+    `${b->B.embed(
+        refiner(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)),
+      )}(${inputVar});`
+  })
 }
 
 let addRefinement = (struct, ~metadataId, ~refinement, ~refiner) => {
@@ -1290,7 +1282,7 @@ let addRefinement = (struct, ~metadataId, ~refinement, ~refiner) => {
     | None => [refinement]
     },
   )
-  ->refine(refiner)
+  ->internalRefine(refiner)
 }
 
 type transformDefinition<'input, 'output> = {
@@ -1887,7 +1879,6 @@ module Object = {
         prevCode ++ unregisteredFieldsCode ++ registeredFieldsCode ++ unknownKeysRefinementCode
 
       if asyncOutputVars->Js.Array2.length === 0 {
-        // TODO: Solve S.refine (and other) allocating the object twice
         syncOutput
       } else {
         let outputVar = b->B.var
@@ -2153,7 +2144,6 @@ module Never = {
     ~tagged=Never,
     ~parseOperationBuilder=builder,
     ~serializeOperationBuilder=builder,
-    // TODO: Should it exist?
     ~maybeTypeFilter=None,
   )
 }
@@ -2224,13 +2214,11 @@ module String = {
     | Some(m) => m
     | None => `String must be ${length->Stdlib.Int.unsafeToString} or more characters long`
     }
-    let refiner = s => value =>
-      if value->Js.String2.length < length {
-        s.fail(message)
-      }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        `if(${inputVar}.length<${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Min({length: length}),
         message,
@@ -2243,13 +2231,11 @@ module String = {
     | Some(m) => m
     | None => `String must be ${length->Stdlib.Int.unsafeToString} or fewer characters long`
     }
-    let refiner = s => value =>
-      if value->Js.String2.length > length {
-        s.fail(message)
-      }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        `if(${inputVar}.length>${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Max({length: length}),
         message,
@@ -2262,13 +2248,11 @@ module String = {
     | Some(m) => m
     | None => `String must be exactly ${length->Stdlib.Int.unsafeToString} characters long`
     }
-    let refiner = s => value =>
-      if value->Js.String2.length !== length {
-        s.fail(message)
-      }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        `if(${inputVar}.length!==${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Length({length: length}),
         message,
@@ -2277,14 +2261,11 @@ module String = {
   }
 
   let email = (struct, ~message=`Invalid email address`) => {
-    let refiner = s => value => {
-      if !(emailRegex->Js.Re.test_(value)) {
-        s.fail(message)
-      }
-    }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        `if(!${b->B.embed(emailRegex)}.test(${inputVar})){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Email,
         message,
@@ -2293,14 +2274,11 @@ module String = {
   }
 
   let uuid = (struct, ~message=`Invalid UUID`) => {
-    let refiner = s => value => {
-      if !(uuidRegex->Js.Re.test_(value)) {
-        s.fail(message)
-      }
-    }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        `if(!${b->B.embed(uuidRegex)}.test(${inputVar})){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Uuid,
         message,
@@ -2309,14 +2287,11 @@ module String = {
   }
 
   let cuid = (struct, ~message=`Invalid CUID`) => {
-    let refiner = s => value => {
-      if !(cuidRegex->Js.Re.test_(value)) {
-        s.fail(message)
-      }
-    }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        `if(!${b->B.embed(cuidRegex)}.test(${inputVar})){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Cuid,
         message,
@@ -2325,14 +2300,11 @@ module String = {
   }
 
   let url = (struct, ~message=`Invalid url`) => {
-    let refiner = s => value => {
-      if !(value->Stdlib.Url.test) {
-        s.fail(message)
-      }
-    }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        `try{new URL(${inputVar})}catch(_){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Url,
         message,
@@ -2341,15 +2313,14 @@ module String = {
   }
 
   let pattern = (struct, re, ~message=`Invalid`) => {
-    let refiner = s => value => {
-      re->Js.Re.setLastIndex(0)
-      if !(re->Js.Re.test_(value)) {
-        s.fail(message)
-      }
-    }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        let reVar = b->B.var
+        `${reVar}=${b->B.embed(
+            re,
+          )};${reVar}.lastIndex=0;if(!${reVar}.test(${inputVar})){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Pattern({re: re}),
         message,
@@ -2477,14 +2448,11 @@ module Int = {
     | Some(m) => m
     | None => `Number must be greater than or equal to ${minValue->Stdlib.Int.unsafeToString}`
     }
-    let refiner = s => value => {
-      if value < minValue {
-        s.fail(message)
-      }
-    }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        `if(${inputVar}<${b->B.embed(minValue)}){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Min({value: minValue}),
         message,
@@ -2497,14 +2465,11 @@ module Int = {
     | Some(m) => m
     | None => `Number must be lower than or equal to ${maxValue->Stdlib.Int.unsafeToString}`
     }
-    let refiner = s => value => {
-      if value > maxValue {
-        s.fail(message)
-      }
-    }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        `if(${inputVar}>${b->B.embed(maxValue)}){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Max({value: maxValue}),
         message,
@@ -2513,14 +2478,11 @@ module Int = {
   }
 
   let port = (struct, ~message="Invalid port") => {
-    let refiner = s => value => {
-      if value < 1 || value > 65535 {
-        s.fail(message)
-      }
-    }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        `if(${inputVar}<1||${inputVar}>65535){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Port,
         message,
@@ -2566,14 +2528,11 @@ module Float = {
     | Some(m) => m
     | None => `Number must be greater than or equal to ${minValue->Stdlib.Float.unsafeToString}`
     }
-    let refiner = s => value => {
-      if value < minValue {
-        s.fail(message)
-      }
-    }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        `if(${inputVar}<${b->B.embed(minValue)}){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Min({value: minValue}),
         message,
@@ -2586,14 +2545,11 @@ module Float = {
     | Some(m) => m
     | None => `Number must be lower than or equal to ${maxValue->Stdlib.Float.unsafeToString}`
     }
-    let refiner = s => value => {
-      if value > maxValue {
-        s.fail(message)
-      }
-    }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        `if(${inputVar}>${b->B.embed(maxValue)}){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Max({value: maxValue}),
         message,
@@ -2688,20 +2644,16 @@ module Array = {
     )
   }
 
-  // TODO: inline built-in refinements
   let min = (struct, length, ~message as maybeMessage=?) => {
     let message = switch maybeMessage {
     | Some(m) => m
     | None => `Array must be ${length->Stdlib.Int.unsafeToString} or more items long`
     }
-    let refiner = s => value => {
-      if value->Js.Array2.length < length {
-        s.fail(message)
-      }
-    }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        `if(${inputVar}.length<${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Min({length: length}),
         message,
@@ -2714,14 +2666,11 @@ module Array = {
     | Some(m) => m
     | None => `Array must be ${length->Stdlib.Int.unsafeToString} or fewer items long`
     }
-    let refiner = s => value => {
-      if value->Js.Array2.length > length {
-        s.fail(message)
-      }
-    }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        `if(${inputVar}.length>${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Max({length: length}),
         message,
@@ -2734,14 +2683,11 @@ module Array = {
     | Some(m) => m
     | None => `Array must be exactly ${length->Stdlib.Int.unsafeToString} items long`
     }
-    let refiner = s => value => {
-      if value->Js.Array2.length !== length {
-        s.fail(message)
-      }
-    }
     struct->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner,
+      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+        `if(${inputVar}.length!==${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+      },
       ~refinement={
         kind: Length({length: length}),
         message,
