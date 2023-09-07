@@ -39,12 +39,10 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Move S.inline to experimental or Codegen module
 - Remove S.toUnknown
   // TODO: Update gen.ts
-- Support serialization with untagged variants
 - Add built-in refinements and transforms to ts (try to use gentype)
 
 Internals
 
-- Support serializing for unboxed variants
 - compiled: rename i and t to v for inlined check work properly ???
 - Turn internal error into instanceof Error and get rid of `Raised` exception
 

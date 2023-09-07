@@ -3,6 +3,7 @@
 ## API changes
 
 - Library works in `uncurried` mode
+- ReScript V11: serializer improvement to support unboxed variants with transformation.
 - Changed primitive structs from functions to values. For example, `S.string()` -> `S.string`
 - `S.jsonable()` -> `S.json`
 - `S.json(struct)` -> `S.jsonString(struct)`

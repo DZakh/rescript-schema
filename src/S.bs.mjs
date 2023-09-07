@@ -2650,7 +2650,17 @@ function factory$8(structs) {
                 errorVarsRef = errorVarsRef + errorVar + ",";
                 b.c = b.c + ("try{" + scope(b, (function(itemStruct){
                       return function (b) {
-                        return outputVar + "=" + use(b, itemStruct, inputVar, "");
+                        var itemOutput = use(b, itemStruct, inputVar, "");
+                        var typeFilter = itemStruct.f;
+                        var itemOutput$1;
+                        if (typeFilter !== undefined) {
+                          var itemOutputVar = toVar(b, itemOutput);
+                          b.c = b.c + typeFilterCode(b, typeFilter, itemStruct, itemOutputVar, "");
+                          itemOutput$1 = itemOutputVar;
+                        } else {
+                          itemOutput$1 = itemOutput;
+                        }
+                        return outputVar + "=" + itemOutput$1;
                       }
                       }(itemStruct))) + "}catch(" + errorVar + "){if(" + (errorVar + "&&" + errorVar + ".s===s") + "){");
                 codeEndRef = "}else{throw " + errorVar + "}}" + codeEndRef;

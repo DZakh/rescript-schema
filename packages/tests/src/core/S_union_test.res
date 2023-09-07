@@ -294,8 +294,7 @@ module Advanced = {
 
 @unboxed
 type uboxedVariant = String(string) | Int(int)
-// FIXME:
-Failing.test("Successfully serializes unboxed variant", t => {
+test("Successfully serializes unboxed variant", t => {
   let struct = S.union([
     S.string->S.variant(s => String(s)),
     S.string
@@ -343,6 +342,25 @@ test("Compiled serialize code snapshot", t => {
     ~struct,
     ~op=#serialize,
     `i=>{let v0;try{i===e[0]||e[1](i);v0=i}catch(v1){if(v1&&v1.s===s){try{i===e[2]||e[3](i);v0=i}catch(v2){if(v2&&v2.s===s){e[4]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
+    (),
+  )
+})
+
+test("Compiled serialize code snapshot for unboxed variant", t => {
+  let struct = S.union([
+    S.string->S.variant(s => String(s)),
+    S.string
+    ->S.transform(_ => {
+      parser: string => string->Int.fromString->Option.getExn,
+      serializer: Int.toString,
+    })
+    ->S.variant(i => Int(i)),
+  ])
+
+  t->U.assertCompiledCode(
+    ~struct,
+    ~op=#serialize,
+    `i=>{let v0;try{if(typeof i!=="string"){e[0](i)}v0=i}catch(v1){if(v1&&v1.s===s){try{let v3;v3=e[1](i);if(typeof v3!=="string"){e[2](v3)}v0=v3}catch(v2){if(v2&&v2.s===s){e[3]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
     (),
   )
 })

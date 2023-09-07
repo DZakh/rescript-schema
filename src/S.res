@@ -3114,7 +3114,22 @@ module Union = {
           b.code =
             b.code ++
             `try{${b->B.scope(b => {
-                `${outputVar}=${b->B.use(~struct=itemStruct, ~input=inputVar, ~path=Path.empty)}`
+                let itemOutput = b->B.use(~struct=itemStruct, ~input=inputVar, ~path=Path.empty)
+                let itemOutput = switch itemStruct.maybeTypeFilter {
+                | Some(typeFilter) =>
+                  let itemOutputVar = b->B.toVar(itemOutput)
+                  b.code =
+                    b.code ++
+                    b->B.typeFilterCode(
+                      ~struct=itemStruct,
+                      ~typeFilter,
+                      ~inputVar=itemOutputVar,
+                      ~path=Path.empty,
+                    )
+                  itemOutputVar
+                | None => itemOutput
+                }
+                `${outputVar}=${itemOutput}`
               })}}catch(${errorVar}){if(${b->B.isInternalError(errorVar)}){`
 
           codeEndRef.contents = `}else{throw ${errorVar}}}` ++ codeEndRef.contents
