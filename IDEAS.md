@@ -36,7 +36,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Move S.inline to experimental or Codegen module
 - Remove S.toUnknown
-- Add built-in refinements and transforms to ts
 
 Internals
 

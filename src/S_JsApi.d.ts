@@ -159,6 +159,81 @@ export const Object: {
   ) => Struct<Output, Input>;
 };
 
+export const String: {
+  min: <Input>(
+    struct: Struct<string, Input>,
+    length: number,
+    message?: string
+  ) => Struct<string, Input>;
+  max: <Input>(
+    struct: Struct<string, Input>,
+    length: number,
+    message?: string
+  ) => Struct<string, Input>;
+  length: <Input>(
+    struct: Struct<string, Input>,
+    length: number,
+    message?: string
+  ) => Struct<string, Input>;
+  email: <Input>(
+    struct: Struct<string, Input>,
+    message?: string
+  ) => Struct<string, Input>;
+  uuid: <Input>(
+    struct: Struct<string, Input>,
+    message?: string
+  ) => Struct<string, Input>;
+  cuid: <Input>(
+    struct: Struct<string, Input>,
+    message?: string
+  ) => Struct<string, Input>;
+  url: <Input>(
+    struct: Struct<string, Input>,
+    message?: string
+  ) => Struct<string, Input>;
+  pattern: <Input>(
+    struct: Struct<string, Input>,
+    re: RegExp,
+    message?: string
+  ) => Struct<string, Input>;
+  datetime: <Input>(
+    struct: Struct<string, Input>,
+    message?: string
+  ) => Struct<Date, Input>;
+  trim: <Input>(struct: Struct<string, Input>) => Struct<string, Input>;
+};
+
+export const Number: {
+  min: <Input>(
+    struct: Struct<number, Input>,
+    value: number,
+    message?: string
+  ) => Struct<number, Input>;
+  max: <Input>(
+    struct: Struct<number, Input>,
+    value: number,
+    message?: string
+  ) => Struct<number, Input>;
+};
+
+export const Array: {
+  min: <Input, ItemStruct>(
+    struct: Struct<ItemStruct[], Input>,
+    length: number,
+    message?: string
+  ) => Struct<ItemStruct[], Input>;
+  max: <Input, ItemStruct>(
+    struct: Struct<ItemStruct[], Input>,
+    length: number,
+    message?: string
+  ) => Struct<ItemStruct[], Input>;
+  length: <Input, ItemStruct>(
+    struct: Struct<ItemStruct[], Input>,
+    length: number,
+    message?: string
+  ) => Struct<ItemStruct[], Input>;
+};
+
 export function custom<Output, Input = unknown>(
   name: string,
   parser: (data: unknown, s: EffectCtx<unknown, unknown>) => Output

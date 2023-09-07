@@ -76,6 +76,7 @@
 - Turned all the struct methods to functions, to enable tree-shaking, remove runtime overhead, make API similar to the ReScript one.
 - Remove `ObjectStruct` type.
 - Use the same `Struct` type as `genType`
+- Add built-in refinements and transforms
 
 ## Opt-in ppx support
 

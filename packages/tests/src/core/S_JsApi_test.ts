@@ -13,6 +13,54 @@ test("Successfully parses string", (t) => {
   expectType<TypeEqual<typeof value, string>>(true);
 });
 
+test("Successfully parses string with built-in refinement", (t) => {
+  const struct = S.String.length(S.string, 5);
+  const result = S.parse(struct, "123");
+
+  t.deepEqual(result, {
+    success: false,
+    error: new S.StructError(
+      "Failed parsing at root. Reason: String must be exactly 5 characters long"
+    ),
+  });
+
+  expectType<TypeEqual<typeof struct, S.Struct<string, string>>>(true);
+});
+
+test("Successfully parses string with built-in refinement and custom message", (t) => {
+  const struct = S.String.length(S.string, 5, "Postcode must have 5 symbols");
+  const result = S.parse(struct, "123");
+
+  t.deepEqual(result, {
+    success: false,
+    error: new S.StructError(
+      "Failed parsing at root. Reason: Postcode must have 5 symbols"
+    ),
+  });
+
+  expectType<TypeEqual<typeof struct, S.Struct<string, string>>>(true);
+});
+
+test("Successfully parses string with built-in transform", (t) => {
+  const struct = S.String.trim(S.string);
+  const value = S.parseOrThrow(struct, "  123");
+
+  t.deepEqual(value, "123");
+
+  expectType<TypeEqual<typeof struct, S.Struct<string, string>>>(true);
+  expectType<TypeEqual<typeof value, string>>(true);
+});
+
+test("Successfully parses string with built-in datetime transform", (t) => {
+  const struct = S.String.datetime(S.string);
+  const value = S.parseOrThrow(struct, "2020-01-01T00:00:00Z");
+
+  t.deepEqual(value, new Date("2020-01-01T00:00:00Z"));
+
+  expectType<TypeEqual<typeof struct, S.Struct<Date, string>>>(true);
+  expectType<TypeEqual<typeof value, Date>>(true);
+});
+
 test("Successfully parses int", (t) => {
   const struct = S.integer;
   const value = S.parseOrThrow(struct, 123);
