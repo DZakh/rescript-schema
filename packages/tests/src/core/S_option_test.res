@@ -41,7 +41,7 @@ module Common = {
     t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{let v0;if(i!==void 0&&typeof i!=="string"){e[0](i)}if(i!==void 0){v0=i}else{v0=void 0}return v0}`,
+      `i=>{let v0;if(i!==void 0&&(typeof i!=="string")){e[0](i)}if(i!==void 0){v0=i}else{v0=void 0}return v0}`,
       (),
     )
   })

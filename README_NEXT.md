@@ -585,9 +585,9 @@ The `array` struct represents an array of data of a specific type.
 **rescript-struct** includes some of array-specific refinements:
 
 ```rescript
-S.array()->S.Array.max(5) // Array must be 5 or fewer items long
-S.array()->S.Array.min(5) // Array must be 5 or more items long
-S.array()->S.Array.length(5) // Array must be exactly 5 items long
+S.array(itemStruct)->S.Array.max(5) // Array must be 5 or fewer items long
+S.array(itemStruct)->S.Array.min(5) // Array must be 5 or more items long
+S.array(itemStruct)->S.Array.length(5) // Array must be exactly 5 items long
 ```
 
 ### **`list`**

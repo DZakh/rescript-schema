@@ -40,7 +40,7 @@ module Common = {
     t->U.assertCompiledCode(
       ~struct,
       ~op=#parse,
-      `i=>{if(!(typeof i==="number"&&i<2147483648&&i>-2147483649&&i%1===0)){e[0](i)}return i}`,
+      `i=>{if(typeof i!=="number"||i>2147483647||i<-2147483648||i%1!==0){e[0](i)}return i}`,
       (),
     )
   })

@@ -1715,8 +1715,7 @@ module Option = {
     | Some(typeFilter) =>
       Some(
         (~inputVar) => {
-          // TODO: Test that there's no need for brackets
-          `${inputVar}!==${inlinedNoneValue}&&${typeFilter(~inputVar)}`
+          `${inputVar}!==${inlinedNoneValue}&&(${typeFilter(~inputVar)})`
         },
       )
     | None => None
@@ -2464,7 +2463,7 @@ module Int = {
   }
 
   let typeFilter = (~inputVar) =>
-    `!(typeof ${inputVar}==="number"&&${inputVar}<2147483648&&${inputVar}>-2147483649&&${inputVar}%1===0)`
+    `typeof ${inputVar}!=="number"||${inputVar}>2147483647||${inputVar}<-2147483648||${inputVar}%1!==0`
 
   let struct = makeWithNoopSerializer(
     ~metadataMap=Metadata.Map.empty,

@@ -1451,7 +1451,7 @@ function maybeTypeFilter(struct, inlinedNoneValue) {
   var typeFilter = struct.f;
   if (typeFilter !== undefined) {
     return (function (inputVar) {
-              return inputVar + "!==" + inlinedNoneValue + "&&" + typeFilter(inputVar);
+              return inputVar + "!==" + inlinedNoneValue + "&&(" + typeFilter(inputVar) + ")";
             });
   }
   
@@ -2134,7 +2134,7 @@ function refinements$1(struct) {
 }
 
 function typeFilter$3(inputVar) {
-  return "!(typeof " + inputVar + "===\"number\"&&" + inputVar + "<2147483648&&" + inputVar + ">-2147483649&&" + inputVar + "%1===0)";
+  return "typeof " + inputVar + "!==\"number\"||" + inputVar + ">2147483647||" + inputVar + "<-2147483648||" + inputVar + "%1!==0";
 }
 
 var struct$4 = {
