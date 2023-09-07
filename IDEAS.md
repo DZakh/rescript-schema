@@ -41,8 +41,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
   // TODO: Update gen.ts
 - Support serialization with untagged variants
 - Add built-in refinements and transforms to ts (try to use gentype)
-- `parser`/`serializer` -> `to`/`from` ???
-- Change Input and Output generics order in ts api
 
 Internals
 

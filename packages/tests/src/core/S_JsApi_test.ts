@@ -111,7 +111,7 @@ test("Successfully parses JSON string", (t) => {
 
   t.deepEqual(value, true);
 
-  expectType<TypeEqual<typeof struct, S.Struct<string, boolean>>>(true);
+  expectType<TypeEqual<typeof struct, S.Struct<boolean, string>>>(true);
   expectType<TypeEqual<typeof value, boolean>>(true);
 });
 
@@ -154,7 +154,7 @@ test("Successfully parses nullable string", (t) => {
   t.deepEqual(value2, undefined);
 
   expectType<
-    TypeEqual<S.Struct<string | null, string | undefined>, typeof struct>
+    TypeEqual<S.Struct<string | undefined, string | null>, typeof struct>
   >(true);
   expectType<TypeEqual<typeof value1, string | undefined>>(true);
   expectType<TypeEqual<typeof value2, string | undefined>>(true);
@@ -169,7 +169,7 @@ test("Successfully parses struct wrapped in nullable multiple times", (t) => {
   t.deepEqual(value2, undefined);
 
   expectType<
-    TypeEqual<S.Struct<string | null, string | undefined>, typeof struct>
+    TypeEqual<S.Struct<string | undefined, string | null>, typeof struct>
   >(true);
   expectType<TypeEqual<typeof value1, string | undefined>>(true);
   expectType<TypeEqual<typeof value2, string | undefined>>(true);
@@ -429,11 +429,11 @@ test("Successfully parses object with transformed field", (t) => {
       typeof struct,
       S.Struct<
         {
-          foo: string;
+          foo: number;
           bar: boolean;
         },
         {
-          foo: number;
+          foo: string;
           bar: boolean;
         }
       >
@@ -610,7 +610,7 @@ test("Successfully parses union with transformed items", (t) => {
 
   t.deepEqual(value, { success: true, value: 123 });
 
-  expectType<TypeEqual<typeof struct, S.Struct<string | number, number>>>(true);
+  expectType<TypeEqual<typeof struct, S.Struct<number, string | number>>>(true);
 });
 
 test("String literal", (t) => {
@@ -680,7 +680,7 @@ test("NaN literal", (t) => {
 
 test("Correctly infers type", (t) => {
   const struct = S.transform(S.string, Number);
-  expectType<TypeEqual<typeof struct, S.Struct<string, number>>>(true);
+  expectType<TypeEqual<typeof struct, S.Struct<number, string>>>(true);
   expectType<TypeEqual<S.Input<typeof struct>, string>>(true);
   expectType<TypeEqual<S.Output<typeof struct>, number>>(true);
   t.pass();
@@ -693,7 +693,7 @@ test("Successfully parses undefined using the default value", (t) => {
 
   t.deepEqual(value, "foo");
 
-  expectType<TypeEqual<typeof struct, S.Struct<string | undefined, string>>>(
+  expectType<TypeEqual<typeof struct, S.Struct<string, string | undefined>>>(
     true
   );
 });
@@ -705,7 +705,7 @@ test("Successfully parses undefined using the default value from callback", (t) 
 
   t.deepEqual(value, "foo");
 
-  expectType<TypeEqual<typeof struct, S.Struct<string | undefined, string>>>(
+  expectType<TypeEqual<typeof struct, S.Struct<string, string | undefined>>>(
     true
   );
 });
@@ -750,7 +750,7 @@ test("Tuple with single element", (t) => {
 
   t.deepEqual(S.parseOrThrow(struct, ["123"]), [123]);
 
-  expectType<TypeEqual<typeof struct, S.Struct<[string], [number]>>>(true);
+  expectType<TypeEqual<typeof struct, S.Struct<[number], [string]>>>(true);
 });
 
 test("Tuple with multiple elements", (t) => {
@@ -759,7 +759,7 @@ test("Tuple with multiple elements", (t) => {
   t.deepEqual(S.parseOrThrow(struct, ["123", 123]), [123, 123]);
 
   expectType<
-    TypeEqual<typeof struct, S.Struct<[string, number], [number, number]>>
+    TypeEqual<typeof struct, S.Struct<[number, number], [string, number]>>
   >(true);
 });
 
