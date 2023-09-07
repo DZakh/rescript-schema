@@ -32,14 +32,11 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Add docstrings
 
-- Use S.union for S.option/S.null/S.default? (For more correct errors)
-
 ## v5
 
 - Move S.inline to experimental or Codegen module
 - Remove S.toUnknown
-  // TODO: Update gen.ts
-- Add built-in refinements and transforms to ts (try to use gentype)
+- Add built-in refinements and transforms to ts
 
 Internals
 
@@ -48,6 +45,8 @@ Internals
 
 ## v5.1
 
+- ppx
+- documentation split
 - S.matcher
 - S.validateWith
 - S.toJSON/S.castToJson

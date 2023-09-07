@@ -75,6 +75,7 @@
 - `S.tuple` with single item doesn't unwrap it from array during parsing
 - Turned all the struct methods to functions, to enable tree-shaking, remove runtime overhead, make API similar to the ReScript one.
 - Remove `ObjectStruct` type.
+- Use the same `Struct` type as `genType`
 
 ## Opt-in ppx support
 

@@ -19,5 +19,8 @@
   "warnings": {
     "error": true,
     "number": "-48-44"
+  },
+  "gentypeconfig": {
+    "generatedFileExtension": ".gen.ts"
   }
 }

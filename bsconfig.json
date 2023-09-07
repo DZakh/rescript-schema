@@ -1,6 +1,6 @@
 {
   "name": "rescript-struct",
-  "namespace": "RescriptStruct",
+  "namespace": true,
   "suffix": ".bs.mjs",
   "package-specs": {
     "module": "es6",

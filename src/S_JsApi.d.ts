@@ -1,3 +1,5 @@
+import { S_t } from "../RescriptStruct.gen";
+
 export class StructError extends Error {}
 
 export type Result<Value> =
@@ -12,10 +14,7 @@ export type EffectCtx<Output, Input> = {
   fail: (message: string) => void;
 };
 
-// TODO: Research how to do it properly
-export abstract class Struct<Output, Input = Output> {
-  protected opaque: Output;
-}
+export type Struct<Output, Input = Output> = S_t<Output, Input>;
 
 export type Output<T> = T extends Struct<infer Output, unknown>
   ? Output
