@@ -61,7 +61,7 @@ and tagged =
   | Dict(t<unknown>)
   | JSON
 and struct<'value> = t<'value>
-and error = {operation: operation, code: errorCode, path: Path.t}
+and error = private {operation: operation, code: errorCode, path: Path.t}
 and errorCode =
   | OperationFailed(string)
   | InvalidOperation({description: string})
@@ -76,6 +76,7 @@ and operation =
   | Parsing
   | Serializing
 and unknownKeys = Strip | Strict
+type exn += private Raised(error)
 
 type effectCtx<'value> = {
   struct: t<'value>,
@@ -84,10 +85,16 @@ type effectCtx<'value> = {
 }
 
 module Error: {
-  let toString: error => string
-}
+  type class
 
-exception Raised(error)
+  let class: class
+
+  let make: (~code: errorCode, ~operation: operation, ~path: Path.t) => error
+
+  let raise: error => 'a
+
+  let message: error => string
+}
 
 let never: t<never>
 let unknown: t<unknown>
@@ -323,12 +330,6 @@ module Array: {
   let min: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
   let max: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
   let length: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
-}
-
-module Result: {
-  let getExn: result<'a, error> => 'a
-
-  let mapErrorToString: result<'a, error> => result<'a, string>
 }
 
 module Metadata: {

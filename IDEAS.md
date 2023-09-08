@@ -35,12 +35,11 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 ## v5
 
 - Move S.inline to experimental or Codegen module
-- Remove S.toUnknown
 
 Internals
 
 - compiled: rename i and t to v for inlined check work properly ???
-- Turn internal error into instanceof Error and get rid of `Raised` exception
+- stop reallocate objects without transformations
 
 ## v5.1
 

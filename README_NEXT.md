@@ -14,9 +14,8 @@ Highlights:
 - Support for both result and exception based API
 - Easy to create _recursive_ structs
 - Ability to disallow excessive object fields
-- Built-in `union`, `literal` and many other structs
-- Js API with TypeScript support for mixed codebases ([.d.ts](./src/S_JsApi.d.ts))
-- The **fastest** parsing library in the entire JavaScript ecosystem ([benchmark](https://dzakh.github.io/rescript-runtime-type-benchmarks/))
+- Full-fledged TS API for non-ReScript users or mixed codebases ([.d.ts](./src/S_JsApi.d.ts))
+- The **fastest** codegen-free parsing library in the entire JavaScript ecosystem ([benchmark](https://dzakh.github.io/rescript-runtime-type-benchmarks/))
 - Small and tree-shakable: [7.1kB minified + zipped](https://bundlephobia.com/package/rescript-struct)
 
 Also, it has declarative API allowing you to use **rescript-struct** as a building block for other tools, such as:
@@ -998,7 +997,7 @@ let prepareEnvStruct = S.preprocess(_, s => {
 
 ### **`parseWith`**
 
-`(JSON.t, S.t<'value>) => result<'value, S.Error.t>`
+`(JSON.t, S.t<'value>) => result<'value, S.error>`
 
 ```rescript
 data->S.parseWith(userStruct)
@@ -1008,7 +1007,7 @@ Given any struct, you can call `parseWith` to check `data` is valid. It returns 
 
 ### **`parseAnyWith`**
 
-`('any, S.t<'value>) => result<'value, S.Error.t>`
+`('any, S.t<'value>) => result<'value, S.error>`
 
 ```rescript
 data->S.parseAnyWith(userStruct)
@@ -1018,7 +1017,7 @@ The same as `parseWith`, but the `data` is loosened to the abstract type.
 
 ### **`parseJsonStringWith`**
 
-`(string, S.t<'value>) => result<'value, S.Error.t>`
+`(string, S.t<'value>) => result<'value, S.error>`
 
 ```rescript
 json->S.parseJsonStringWith(userStruct)
@@ -1034,7 +1033,7 @@ The same as `parseWith`, but applies `JSON.parse` before parsing.
 try {
   data->S.parseOrRaiseWith(userStruct)
 } catch {
-| S.Raised(error) => Exn.raise(error->S.Error.toString)
+| S.Raised(error) => Exn.raise(error->S.Error.message)
 }
 ```
 
@@ -1048,7 +1047,7 @@ The exception-based version of `parseWith`.
 try {
   data->S.parseAnyOrRaiseWith(userStruct)
 } catch {
-| S.Raised(error) => Exn.raise(error->S.Error.toString)
+| S.Raised(error) => Exn.raise(error->S.Error.message)
 }
 ```
 
@@ -1056,7 +1055,7 @@ The exception-based version of `parseAnyWith`.
 
 ### **`parseAsyncWith`**
 
-`(JSON.t, S.t<'value>) => promise<result<'value, S.Error.t>>`
+`(JSON.t, S.t<'value>) => promise<result<'value, S.error>>`
 
 ```rescript
 data->S.parseAsyncWith(userStruct)
@@ -1066,7 +1065,7 @@ If you use asynchronous refinements or transforms (more on those later), you'll 
 
 ### **`parseAsyncInStepsWith`** _Advanced_
 
-`(JSON.t, S.t<'value>) => result<(. unit) => promise<result<'value, S.Error.t>>, S.Error.t>`
+`(JSON.t, S.t<'value>) => result<(. unit) => promise<result<'value, S.error>>, S.error>`
 
 ```rescript
 data->S.parseAsyncInStepsWith(userStruct)
@@ -1076,7 +1075,7 @@ After parsing synchronous branches will return a function to run asynchronous re
 
 ### **`serializeWith`**
 
-`('value, S.t<'value>) => result<JSON.t, S.Error.t>`
+`('value, S.t<'value>) => result<JSON.t, S.error>`
 
 ```rescript
 user->S.serializeWith(userStruct)
@@ -1088,7 +1087,7 @@ Serializes value using the transformation logic that is built-in to the struct. 
 
 ### **`serializeToUnknownWith`**
 
-`('value, S.t<'value>) => result<unknown, S.Error.t>`
+`('value, S.t<'value>) => result<unknown, S.error>`
 
 ```rescript
 user->S.serializeToUnknownWith(userStruct)
@@ -1098,7 +1097,7 @@ Similar to the `serializeWith` but returns `unknown` instead of `JSON.t`. Also, 
 
 ### **`serializeToJsonStringWith`**
 
-`('value, ~space: int=?, S.t<'value>) => result<string, S.Error.t>`
+`('value, ~space: int=?, S.t<'value>) => result<string, S.error>`
 
 ```rescript
 user->S.serializeToJsonStringWith(userStruct)
@@ -1114,7 +1113,7 @@ The same as `serializeToUnknownWith`, but applies `JSON.serialize` at the end.
 try {
   user->S.serializeOrRaiseWith(userStruct)
 } catch {
-| S.Raised(error) => Exn.raise(error->S.Error.toString)
+| S.Raised(error) => Exn.raise(error->S.Error.message)
 }
 ```
 
@@ -1128,7 +1127,7 @@ The exception-based version of `serializeWith`.
 try {
   user->S.serializeToUnknownOrRaiseWith(userStruct)
 } catch {
-| S.Raised(error) => Exn.raise(error->S.Error.toString)
+| S.Raised(error) => Exn.raise(error->S.Error.message)
 }
 ```
 
@@ -1136,7 +1135,7 @@ The exception-based version of `serializeToUnknownWith`.
 
 ## Error handling
 
-**rescript-struct** returns a result type with error `S.Error.t` containing detailed information about the validation problems.
+**rescript-struct** returns a result type with error `S.error` containing detailed information about the validation problems.
 
 ```rescript
 let struct = S.literal(false)
@@ -1149,48 +1148,34 @@ let struct = S.literal(false)
 // })
 ```
 
-### **`Error.toString`**
+Also you can use the exception-based operations like `parseOrRaiseWith`. In this case the instance of `RescriptStructError` will be thrown with a nice error message. Also, you can use the `S.Raised` exception to catch it in ReScript code.
 
-`S.Error.t => string`
+### **`Error.make`**
+
+`(~code: S.errorCode, ~operation: S.operation, ~path: S.Path.t) => S.error`
+
+Creates an instance of `RescriptStructError` error. At the same time it's the `S.Raised` exception.
+
+### **`Error.raise`**
+
+`S.error => exn`
+
+Throws error. Since internally it's both the `S.Raised` exception and instance of `RescriptStructError`, it'll have a nice error message and can be caught using `S.Raised`.
+
+### **`Error.message`**
+
+`S.error => string`
 
 ```rescript
 {
   code: InvalidLiteral({expected: Boolean(false), received: true}),
   operation: Parsing,
   path: S.Path.empty,
-}->S.Error.toString
+}->S.Error.message
 ```
 
 ```rescript
 "Failed parsing at root. Reason: Expected false, received true"
-```
-
-## Result helpers
-
-### **`Result.getExn`**
-
-`result<'a, S.Error.t> => 'a`
-
-```rescript
-let struct = S.literal(false)
-
-%raw(`false`)->S.parseWith(struct)->S.Result.getExn
-// false
-%raw(`true`)->S.parseWith(struct)->S.Result.getExn
-// throw new Error("[rescript-struct] Failed parsing at root. Reason: Expected false, received true")
-```
-
-> 🧠 It's not intended to be caught. Useful to panic with a readable error message.
-
-### **`Result.mapErrorToString`**
-
-`result<'a, S.Error.t> => result<'a, string>`
-
-```rescript
-let struct = S.literal(false)
-
-%raw(`true`)->S.parseWith(struct)->S.Result.mapErrorToString
-// Error("Failed parsing at root. Reason: Expected false, received true")
 ```
 
 ## Integration

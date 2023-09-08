@@ -18,13 +18,8 @@ function raiseTestException() {
       };
 }
 
-var result = S$RescriptStruct.parseAnyWith(0, S$RescriptStruct.never);
-
-var symbol = result._0.s;
-
-function error(error$1) {
-  error$1["s"] = symbol;
-  return error$1;
+function error(param) {
+  return S$RescriptStruct.$$Error.make(param.code, param.operation, param.path);
 }
 
 function assertThrowsTestException(t, fn, message, param) {
@@ -107,4 +102,4 @@ export {
   assertCompiledCodeIsNoop ,
   assertEqualStructs ,
 }
-/* result Not a pure module */
+/* S-RescriptStruct Not a pure module */

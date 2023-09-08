@@ -11,14 +11,10 @@ let unsafeGetVariantPayload = variant => (variant->Obj.magic)._0
 exception Test
 let raiseTestException = () => raise(Test)
 
-let error: S.error => S.error = {
-  let result = 0->S.parseAnyWith(S.never)
-  let symbol = (result->unsafeGetVariantPayload)["s"]
+type errorPayload = {operation: S.operation, code: S.errorCode, path: S.Path.t}
 
-  (error: S.error) => {
-    error->Obj.magic->Dict.set("s", symbol)
-    error
-  }
+let error = ({operation, code, path}: errorPayload): S.error => {
+  S.Error.make(~code, ~operation, ~path)
 }
 
 let assertThrowsTestException = {

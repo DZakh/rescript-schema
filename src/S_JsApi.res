@@ -13,41 +13,23 @@ module Stdlib = {
   }
 }
 
-module Error = {
-  type t = exn
+type jsResult<'value>
 
-  %%raw(`
-    export class RescriptStructError extends Error {
-      constructor(message) {
-        super(message);
-        this.name = "RescriptStructError";
-      }
+let toJsResult = (result: result<'value, S.error>): jsResult<'value> => {
+  let tmp = result->Obj.magic
+  switch result {
+  | Ok(value) => {
+      tmp["success"] = true
+      tmp["value"] = value
     }
-  `)
-
-  @new
-  external _make: string => t = "RescriptStructError"
-
-  @inline
-  let make = error => {
-    error->S.Error.toString->_make
+  | Error(error) => {
+      tmp["success"] = false
+      tmp["error"] = error
+    }
   }
-}
-
-module Result = {
-  type t<'value>
-
-  let fromOk = (value: 'value): t<'value> =>
-    {
-      "success": true,
-      "value": value,
-    }->Obj.magic
-
-  let fromError = (error: Error.t): t<'value> =>
-    {
-      "success": false,
-      "error": error,
-    }->Obj.magic
+  let _ = %raw(`delete result.TAG`)
+  let _ = %raw(`delete result._0`)
+  tmp
 }
 
 let transform = (struct, ~parser as maybeParser=?, ~serializer as maybeSerializer=?) => {
@@ -127,44 +109,21 @@ let object = definer => {
 }
 
 let parse = (struct, data) => {
-  try {
-    data->S.parseAnyOrRaiseWith(struct)->Result.fromOk
-  } catch {
-  | S.Raised(error) => error->Error.make->Result.fromError
-  }
+  data->S.parseAnyWith(struct)->toJsResult
 }
 
 let parseOrThrow = (struct, data) => {
-  try {
-    data->S.parseAnyOrRaiseWith(struct)
-  } catch {
-  | S.Raised(error) => error->Error.make->raise
-  }
+  (struct->Obj.magic)["p"](data)
 }
 
 let parseAsync = (struct, data) => {
-  data
-  ->S.parseAnyAsyncWith(struct)
-  ->Stdlib.Promise.thenResolve(result => {
-    switch result {
-    | Ok(value) => value->Result.fromOk
-    | Error(error) => error->Error.make->Result.fromError
-    }
-  })
+  data->S.parseAnyAsyncWith(struct)->Stdlib.Promise.thenResolve(toJsResult)
 }
 
 let serialize = (struct, value) => {
-  try {
-    value->S.serializeToUnknownOrRaiseWith(struct)->Obj.magic->Result.fromOk
-  } catch {
-  | S.Raised(error) => error->Error.make->Result.fromError
-  }
+  value->S.serializeToUnknownWith(struct)->Obj.magic->toJsResult
 }
 
 let serializeOrThrow = (struct, value) => {
-  try {
-    value->S.serializeToUnknownOrRaiseWith(struct)->Obj.magic
-  } catch {
-  | S.Raised(error) => error->Error.make->raise
-  }
+  (struct->Obj.magic)["s"](value)
 }

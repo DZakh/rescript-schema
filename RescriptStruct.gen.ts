@@ -29,3 +29,8 @@ export abstract class S_errorCode {
 export abstract class S_operation {
   protected opaque!: any;
 } /* simulate opaque types */
+
+// tslint:disable-next-line:max-classes-per-file
+export abstract class S_Error_class {
+  protected opaque!: any;
+} /* simulate opaque types */

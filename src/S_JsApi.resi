@@ -1,12 +1,6 @@
 @@uncurried
 
-module Error: {
-  type t
-}
-
-module Result: {
-  type t<'value>
-}
+type jsResult<'value>
 
 let optional: (S.t<'v>, option<unknown>) => S.t<option<'v>>
 
@@ -33,8 +27,8 @@ let transform: (
 
 let object: Js.Dict.t<S.t<'value>> => S.t<Js.Dict.t<'value>>
 
-let parse: (S.t<'output>, 'a) => Result.t<'output>
+let parse: (S.t<'output>, 'a) => jsResult<'output>
 let parseOrThrow: (S.t<'output>, 'a) => 'output
-let parseAsync: (S.t<'output>, 'a) => promise<Result.t<'output>>
-let serialize: (S.t<'output>, 'output) => Result.t<'input>
+let parseAsync: (S.t<'output>, 'a) => promise<jsResult<'output>>
+let serialize: (S.t<'output>, 'output) => jsResult<'input>
 let serializeOrThrow: (S.t<'output>, 'output) => 'input

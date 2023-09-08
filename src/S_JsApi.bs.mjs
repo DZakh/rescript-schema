@@ -2,28 +2,18 @@
 
 import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as S$RescriptStruct from "./S.bs.mjs";
-import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
-export class RescriptStructError extends Error {
-      constructor(message) {
-        super(message);
-        this.name = "RescriptStructError";
-      }
-    }
-;
-
-function fromOk(value) {
-  return {
-          success: true,
-          value: value
-        };
-}
-
-function fromError(error) {
-  return {
-          success: false,
-          error: error
-        };
+function toJsResult(result) {
+  if (result.TAG === "Ok") {
+    result.success = true;
+    result.value = result._0;
+  } else {
+    result.success = false;
+    result.error = result._0;
+  }
+  ((delete result.TAG));
+  ((delete result._0));
+  return result;
 }
 
 function transform(struct, maybeParser, maybeSerializer) {
@@ -114,74 +104,26 @@ function object(definer) {
 }
 
 function parse(struct, data) {
-  try {
-    return fromOk(S$RescriptStruct.parseAnyOrRaiseWith(data, struct));
-  }
-  catch (raw_error){
-    var error = Caml_js_exceptions.internalToOCamlException(raw_error);
-    if (error.RE_EXN_ID === S$RescriptStruct.Raised) {
-      return fromError(new RescriptStructError(S$RescriptStruct.$$Error.toString(error._1)));
-    }
-    throw error;
-  }
+  return toJsResult(S$RescriptStruct.parseAnyWith(data, struct));
 }
 
 function parseOrThrow(struct, data) {
-  try {
-    return S$RescriptStruct.parseAnyOrRaiseWith(data, struct);
-  }
-  catch (raw_error){
-    var error = Caml_js_exceptions.internalToOCamlException(raw_error);
-    if (error.RE_EXN_ID === S$RescriptStruct.Raised) {
-      throw new RescriptStructError(S$RescriptStruct.$$Error.toString(error._1));
-    }
-    throw error;
-  }
+  return struct.p(data);
 }
 
 function parseAsync(struct, data) {
-  return S$RescriptStruct.parseAnyAsyncWith(data, struct).then(function (result) {
-              if (result.TAG === "Ok") {
-                return fromOk(result._0);
-              } else {
-                return fromError(new RescriptStructError(S$RescriptStruct.$$Error.toString(result._0)));
-              }
-            });
+  return S$RescriptStruct.parseAnyAsyncWith(data, struct).then(toJsResult);
 }
 
 function serialize(struct, value) {
-  try {
-    return fromOk(S$RescriptStruct.serializeToUnknownOrRaiseWith(value, struct));
-  }
-  catch (raw_error){
-    var error = Caml_js_exceptions.internalToOCamlException(raw_error);
-    if (error.RE_EXN_ID === S$RescriptStruct.Raised) {
-      return fromError(new RescriptStructError(S$RescriptStruct.$$Error.toString(error._1)));
-    }
-    throw error;
-  }
+  return toJsResult(S$RescriptStruct.serializeToUnknownWith(value, struct));
 }
 
 function serializeOrThrow(struct, value) {
-  try {
-    return S$RescriptStruct.serializeToUnknownOrRaiseWith(value, struct);
-  }
-  catch (raw_error){
-    var error = Caml_js_exceptions.internalToOCamlException(raw_error);
-    if (error.RE_EXN_ID === S$RescriptStruct.Raised) {
-      throw new RescriptStructError(S$RescriptStruct.$$Error.toString(error._1));
-    }
-    throw error;
-  }
+  return struct.s(value);
 }
 
-var $$Error = {};
-
-var Result = {};
-
 export {
-  $$Error ,
-  Result ,
   optional ,
   tuple ,
   custom ,
@@ -195,4 +137,4 @@ export {
   serialize ,
   serializeOrThrow ,
 }
-/*  Not a pure module */
+/* S-RescriptStruct Not a pure module */

@@ -1,7 +1,7 @@
 import * as S_Js from "./S_JsApi.bs.mjs";
 import * as S from "./S.bs.mjs";
 
-export const StructError = S_Js.RescriptStructError;
+export const Error = S.$$Error.$$class;
 export const string = S.string;
 export const boolean = S.bool;
 export const integer = S.$$int;

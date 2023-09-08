@@ -1,3 +1,4 @@
+import { error } from "./../genType/GenType.gen";
 import test from "ava";
 import { expectType, TypeEqual } from "ts-expect";
 
@@ -17,26 +18,41 @@ test("Successfully parses string with built-in refinement", (t) => {
   const struct = S.String.length(S.string, 5);
   const result = S.parse(struct, "123");
 
-  t.deepEqual(result, {
-    success: false,
-    error: new S.StructError(
-      "Failed parsing at root. Reason: String must be exactly 5 characters long"
-    ),
-  });
+  expectType<TypeEqual<typeof result, S.Result<string>>>(true);
+
+  if (result.success) {
+    t.fail("Should fail");
+    return;
+  }
+  t.is(
+    result.error.message,
+    "Failed parsing at root. Reason: String must be exactly 5 characters long"
+  );
 
   expectType<TypeEqual<typeof struct, S.Struct<string, string>>>(true);
+  expectType<
+    TypeEqual<
+      typeof result,
+      {
+        success: false;
+        error: S.Error;
+      }
+    >
+  >(true);
 });
 
 test("Successfully parses string with built-in refinement and custom message", (t) => {
   const struct = S.String.length(S.string, 5, "Postcode must have 5 symbols");
   const result = S.parse(struct, "123");
 
-  t.deepEqual(result, {
-    success: false,
-    error: new S.StructError(
-      "Failed parsing at root. Reason: Postcode must have 5 symbols"
-    ),
-  });
+  if (result.success) {
+    t.fail("Should fail");
+    return;
+  }
+  t.is(
+    result.error.message,
+    "Failed parsing at root. Reason: Postcode must have 5 symbols"
+  );
 
   expectType<TypeEqual<typeof struct, S.Struct<string, string>>>(true);
 });
@@ -367,10 +383,12 @@ test("Fails to parses async struct", async (t) => {
 
   const result = await S.parseAsync(struct, "123");
 
-  t.deepEqual(result, {
-    success: false,
-    error: new S.StructError("Failed parsing at root. Reason: User error"),
-  });
+  if (result.success) {
+    t.fail("Should fail");
+    return;
+  }
+  t.is(result.error.message, "Failed parsing at root. Reason: User error");
+  t.true(result.error instanceof S.Error);
 });
 
 test("Custom string struct", (t) => {
@@ -602,7 +620,7 @@ test("Successfully parses and returns result", (t) => {
         typeof value,
         {
           success: false;
-          error: S.StructError;
+          error: S.Error;
         }
       >
     >(true);
@@ -631,7 +649,7 @@ test("Successfully serializes and returns result", (t) => {
         typeof value,
         {
           success: false;
-          error: S.StructError;
+          error: S.Error;
         }
       >
     >(true);

@@ -24,10 +24,15 @@
   - `S.Literal` module exposes a lot of useful helpers to work with literals
   - `S.literalVariant` removed in favor of `S.literal` and `S.variant`
 - **rescript-struct** error updates:
+  - Error turned into an instance of `Error`. Thanks to this when it's uncought, the error displayed with a readable error message. At the same time it's still compatible with the ReScript exception and can be caught using `S.Raised`.
+  - Added `S.Error.make`, `S.Error.raise`, `S.Error.code`. `S.Raised` became private, use `S.Error.raise`.
   - Moved error types from `S.Error` module to the `S` module:
     - `S.Error.t` -> `S.error`
     - `S.Error.code` -> `S.errorCode`
     - `S.Error.operation` -> `S.operation`
+  - Renamed `S.Error.toString` -> `S.Error.message`
+  - Removed `S.Result.getExn`. Use `...OrRaiseWith` operations. They now throw beatiful errors.
+  - Removed `S.Result.mapErrorToString`.
   - Updated error codes:
     - `InvalidJsonStruct`'s payload now contains the invalid struct itself instead of the name
     - `TupleSize` renamed to `InvalidTupleSize`
@@ -77,6 +82,7 @@
 - Remove `ObjectStruct` type.
 - Use the same `Struct` type as `genType`
 - Add built-in refinements and transforms
+- `StructError` renamed to `Error` which now contains the `message` getter and other fields.
 
 ## Opt-in ppx support
 

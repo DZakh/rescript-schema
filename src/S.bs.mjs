@@ -211,22 +211,37 @@ function concat(path, concatedPath) {
 
 var symbol = Symbol("rescript-struct");
 
-function getOrRethrow(jsExn) {
-  if ((jsExn&&jsExn.s===symbol)) {
-    return jsExn;
+var Raised = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Raised");
+
+class RescriptStructError extends Error {
+      constructor(code, operation, path) {
+        super();
+        this.operation = operation;
+        this.code = code;
+        this.path = path;
+        this.s = symbol;
+        this.RE_EXN_ID = Raised;
+        this._1 = this;
+        this.Error = this;
+        this.name = "RescriptStructError";
+      }
+      get message() {
+        return message(this);
+      }
+    }
+;
+
+function getOrRethrow(exn) {
+  if ((exn&&exn.s===symbol)) {
+    return exn;
   }
-  throw jsExn;
+  throw (exn&&exn.RE_EXN_ID==='JsError') ? exn._1 : exn;
 }
 
-function prependLocationOrRethrow(jsExn, $$location) {
-  var error = getOrRethrow(jsExn);
+function prependLocationOrRethrow(exn, $$location) {
+  var error = getOrRethrow(exn);
   var path = "[" + JSON.stringify($$location) + "]" + error.path;
-  throw {
-        code: error.code,
-        path: path,
-        operation: error.operation,
-        s: symbol
-      };
+  throw new RescriptStructError(error.code, error.operation, path);
 }
 
 function make(selfStruct, path, operation) {
@@ -234,23 +249,13 @@ function make(selfStruct, path, operation) {
           struct: selfStruct,
           fail: (function (message, customPathOpt) {
               var customPath = customPathOpt !== undefined ? customPathOpt : "";
-              throw {
-                    code: {
-                      TAG: "OperationFailed",
-                      _0: message
-                    },
-                    path: path + customPath,
-                    operation: operation,
-                    s: symbol
-                  };
+              throw new RescriptStructError({
+                        TAG: "OperationFailed",
+                        _0: message
+                      }, operation, path + customPath);
             }),
           failWithError: (function (error) {
-              throw {
-                    code: error.code,
-                    path: path + error.path,
-                    operation: operation,
-                    s: symbol
-                  };
+              throw new RescriptStructError(error.code, operation, path + error.path);
             })
         };
 }
@@ -331,39 +336,24 @@ function embedAsyncOperation(b, input, fn) {
 function raiseWithArg(b, path, fn, arg) {
   return "e[" + (b.e.push(function (arg) {
                 var code = fn(arg);
-                throw {
-                      code: code,
-                      path: path,
-                      operation: b.o,
-                      s: symbol
-                    };
+                throw new RescriptStructError(code, b.o, path);
               }) - 1) + "](" + arg + ")";
 }
 
 function fail(b, message, path) {
   return "e[" + (b.e.push(function () {
-                throw {
-                      code: {
-                        TAG: "OperationFailed",
-                        _0: message
-                      },
-                      path: path,
-                      operation: b.o,
-                      s: symbol
-                    };
+                throw new RescriptStructError({
+                          TAG: "OperationFailed",
+                          _0: message
+                        }, b.o, path);
               }) - 1) + "]()";
 }
 
 function invalidOperation(b, path, description) {
-  throw {
-        code: {
-          TAG: "InvalidOperation",
-          description: description
-        },
-        path: path,
-        operation: b.o,
-        s: symbol
-      };
+  throw new RescriptStructError({
+            TAG: "InvalidOperation",
+            description: description
+          }, b.o, path);
 }
 
 function withCatch(b, $$catch, fn) {
@@ -409,18 +399,13 @@ function withPathPrepend(b, path, maybeDynamicLocationVar, fn) {
                   return fn(b, "");
                 }));
   }
-  catch (raw_jsExn){
-    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
-    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
-      var error = getOrRethrow(jsExn._1);
-      throw {
-            code: error.code,
-            path: path + "[]" + error.path,
-            operation: error.operation,
-            s: symbol
-          };
+  catch (raw_error){
+    var error = Caml_js_exceptions.internalToOCamlException(raw_error);
+    if (error.RE_EXN_ID === Raised) {
+      var error$1 = error._1;
+      throw new RescriptStructError(error$1.code, error$1.operation, path + "[]" + error$1.path);
     }
-    throw jsExn;
+    throw error;
   }
 }
 
@@ -499,12 +484,7 @@ function build(builder, struct, operation) {
 }
 
 function unexpectedAsyncOperation(param) {
-  throw {
-        code: "UnexpectedAsync",
-        path: "",
-        operation: "Parsing",
-        s: symbol
-      };
+  throw new RescriptStructError("UnexpectedAsync", "Parsing", "");
 }
 
 function compileParser(struct, builder) {
@@ -581,13 +561,10 @@ function isAsyncParse(struct) {
     compileParser(struct, struct.pb);
     return struct.i;
   }
-  catch (raw_jsExn){
-    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
-    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
-      getOrRethrow(jsExn._1);
-      return false;
-    }
-    throw jsExn;
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    getOrRethrow(exn);
+    return false;
   }
 }
 
@@ -635,13 +612,9 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
                 tmp = typeof s !== "object" || s.TAG !== "Option" ? fieldStruct : s._0;
                 validateJsonableStruct(tmp, rootStruct, undefined, undefined);
               }
-              catch (raw_jsExn){
-                var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
-                if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
-                  prependLocationOrRethrow(jsExn._1, fieldName);
-                } else {
-                  throw jsExn;
-                }
+              catch (raw_exn){
+                var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+                prependLocationOrRethrow(exn, fieldName);
               }
             }
             return ;
@@ -650,12 +623,9 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
                   try {
                     return validateJsonableStruct(struct, rootStruct, undefined, undefined);
                   }
-                  catch (raw_jsExn){
-                    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
-                    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
-                      return prependLocationOrRethrow(jsExn._1, i.toString());
-                    }
-                    throw jsExn;
+                  catch (raw_exn){
+                    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+                    return prependLocationOrRethrow(exn, i.toString());
                   }
                 });
             return ;
@@ -679,15 +649,10 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
           _struct = childrenStructs._0;
           continue ;
       case 2 :
-          throw {
-                code: {
-                  TAG: "InvalidJsonStruct",
-                  _0: struct
-                },
-                path: "",
-                operation: "Serializing",
-                s: symbol
-              };
+          throw new RescriptStructError({
+                    TAG: "InvalidJsonStruct",
+                    _0: struct
+                  }, "Serializing", "");
       
     }
   };
@@ -702,16 +667,12 @@ function initialSerializeToJson(input) {
     }
     struct.j = struct.s;
   }
-  catch (raw_jsExn){
-    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
-    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
-      var error = getOrRethrow(jsExn._1);
-      struct.j = (function (param) {
-          throw error;
-        });
-    } else {
-      throw jsExn;
-    }
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    var error = getOrRethrow(exn);
+    struct.j = (function (param) {
+        throw error;
+      });
   }
   return struct.j(input);
 }
@@ -728,8 +689,6 @@ function intitialParseAsync(input) {
   return struct.a(input);
 }
 
-var Raised = /* @__PURE__ */Caml_exceptions.create("S-RescriptStruct.Raised");
-
 function parseAnyWith(any, struct) {
   try {
     return {
@@ -737,33 +696,17 @@ function parseAnyWith(any, struct) {
             _0: struct.p(any)
           };
   }
-  catch (raw_jsExn){
-    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
-    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
-      return {
-              TAG: "Error",
-              _0: getOrRethrow(jsExn._1)
-            };
-    }
-    throw jsExn;
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    return {
+            TAG: "Error",
+            _0: getOrRethrow(exn)
+          };
   }
 }
 
 function parseAnyOrRaiseWith(any, struct) {
-  try {
-    return struct.p(any);
-  }
-  catch (raw_jsExn){
-    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
-    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
-      throw {
-            RE_EXN_ID: Raised,
-            _1: getOrRethrow(jsExn._1),
-            Error: new Error()
-          };
-    }
-    throw jsExn;
-  }
+  return struct.p(any);
 }
 
 function asyncPrepareOk(value) {
@@ -784,15 +727,12 @@ function parseAnyAsyncWith(any, struct) {
   try {
     return struct.a(any)(undefined).then(asyncPrepareOk, asyncPrepareError);
   }
-  catch (raw_jsExn){
-    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
-    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
-      return Promise.resolve({
-                  TAG: "Error",
-                  _0: getOrRethrow(jsExn._1)
-                });
-    }
-    throw jsExn;
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    return Promise.resolve({
+                TAG: "Error",
+                _0: getOrRethrow(exn)
+              });
   }
 }
 
@@ -806,15 +746,12 @@ function parseAnyAsyncInStepsWith(any, struct) {
               })
           };
   }
-  catch (raw_jsExn){
-    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
-    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
-      return {
-              TAG: "Error",
-              _0: getOrRethrow(jsExn._1)
-            };
-    }
-    throw jsExn;
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    return {
+            TAG: "Error",
+            _0: getOrRethrow(exn)
+          };
   }
 }
 
@@ -825,50 +762,21 @@ function serializeToUnknownWith(value, struct) {
             _0: struct.s(value)
           };
   }
-  catch (raw_jsExn){
-    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
-    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
-      return {
-              TAG: "Error",
-              _0: getOrRethrow(jsExn._1)
-            };
-    }
-    throw jsExn;
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    return {
+            TAG: "Error",
+            _0: getOrRethrow(exn)
+          };
   }
 }
 
 function serializeOrRaiseWith(value, struct) {
-  try {
-    return struct.j(value);
-  }
-  catch (raw_jsExn){
-    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
-    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
-      throw {
-            RE_EXN_ID: Raised,
-            _1: getOrRethrow(jsExn._1),
-            Error: new Error()
-          };
-    }
-    throw jsExn;
-  }
+  return struct.j(value);
 }
 
 function serializeToUnknownOrRaiseWith(value, struct) {
-  try {
-    return struct.s(value);
-  }
-  catch (raw_jsExn){
-    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
-    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
-      throw {
-            RE_EXN_ID: Raised,
-            _1: getOrRethrow(jsExn._1),
-            Error: new Error()
-          };
-    }
-    throw jsExn;
-  }
+  return struct.s(value);
 }
 
 function serializeWith(value, struct) {
@@ -878,15 +786,12 @@ function serializeWith(value, struct) {
             _0: struct.j(value)
           };
   }
-  catch (raw_jsExn){
-    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
-    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
-      return {
-              TAG: "Error",
-              _0: getOrRethrow(jsExn._1)
-            };
-    }
-    throw jsExn;
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    return {
+            TAG: "Error",
+            _0: getOrRethrow(exn)
+          };
   }
 }
 
@@ -916,14 +821,10 @@ function parseJsonStringWith(json, struct) {
     if (error.RE_EXN_ID === Js_exn.$$Error) {
       json$1 = {
         TAG: "Error",
-        _0: {
-          operation: "Parsing",
-          code: {
-            TAG: "OperationFailed",
-            _0: error._1.message
-          },
-          path: ""
-        }
+        _0: new RescriptStructError({
+              TAG: "OperationFailed",
+              _0: error._1.message
+            }, "Parsing", "")
       };
     } else {
       throw error;
@@ -2035,14 +1936,11 @@ function factory$4(struct) {
   try {
     validateJsonableStruct(struct, struct, true, undefined);
   }
-  catch (raw_jsExn){
-    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
-    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
-      getOrRethrow(jsExn._1);
-      var message = "The struct " + name(struct) + " passed to S.jsonString is not compatible with JSON";
-      throw new Error("[rescript-struct] " + message);
-    }
-    throw jsExn;
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    getOrRethrow(exn);
+    var message = "The struct " + name(struct) + " passed to S.jsonString is not compatible with JSON";
+    throw new Error("[rescript-struct] " + message);
   }
   return {
           t: "String",
@@ -2641,19 +2539,21 @@ var json = {
           }
           return output$1;
         }
-        if (match === "number" && !Number.isNaN(input)) {
-          return input;
+        if (match === "number") {
+          if (!Number.isNaN(input)) {
+            return input;
+          }
+          throw new RescriptStructError({
+                    TAG: "InvalidType",
+                    expected: selfStruct,
+                    received: input
+                  }, "Parsing", path$1);
         }
-        throw {
-              code: {
-                TAG: "InvalidType",
-                expected: selfStruct,
-                received: input
-              },
-              path: path$1,
-              operation: "Parsing",
-              s: symbol
-            };
+        throw new RescriptStructError({
+                  TAG: "InvalidType",
+                  expected: selfStruct,
+                  received: input
+                }, "Parsing", path$1);
       };
       var input = b.i;
       return "e[" + (b.e.push(parse) - 1) + "](" + input + ")";
@@ -2681,23 +2581,13 @@ function $$catch(struct, getFallbackValue) {
                                                       s: selfStruct,
                                                       f: (function (message, customPathOpt) {
                                                           var customPath = customPathOpt !== undefined ? customPathOpt : "";
-                                                          throw {
-                                                                code: {
-                                                                  TAG: "OperationFailed",
-                                                                  _0: message
-                                                                },
-                                                                path: path + customPath,
-                                                                operation: b.o,
-                                                                s: symbol
-                                                              };
+                                                          throw new RescriptStructError({
+                                                                    TAG: "OperationFailed",
+                                                                    _0: message
+                                                                  }, b.o, path + customPath);
                                                         }),
                                                       w: (function (error) {
-                                                          throw {
-                                                                code: error.code,
-                                                                path: path + error.path,
-                                                                operation: b.o,
-                                                                s: symbol
-                                                              };
+                                                          throw new RescriptStructError(error.code, b.o, path + error.path);
                                                         })
                                                     });
                                         }) - 1) + "](" + inputVar + "," + errorVar + ")";
@@ -2736,6 +2626,16 @@ function description(struct) {
   return struct.m[descriptionMetadataId];
 }
 
+var $$class = RescriptStructError;
+
+function make$2(prim0, prim1, prim2) {
+  return new RescriptStructError(prim0, prim1, prim2);
+}
+
+function raise(error) {
+  throw error;
+}
+
 function toReason(nestedLevelOpt, error) {
   var nestedLevel = nestedLevelOpt !== undefined ? nestedLevelOpt : 0;
   var reason = error.code;
@@ -2771,7 +2671,7 @@ function toReason(nestedLevelOpt, error) {
   }
 }
 
-function toString(error) {
+function message(error) {
   var match = error.operation;
   var operation;
   operation = match === "Parsing" ? "parsing" : "serializing";
@@ -2780,30 +2680,6 @@ function toString(error) {
   var pathText = nonEmptyPath === "" ? "root" : nonEmptyPath;
   return "Failed " + operation + " at " + pathText + ". Reason: " + reason;
 }
-
-function getExn(result) {
-  if (result.TAG === "Ok") {
-    return result._0;
-  }
-  var message = toString(result._0);
-  throw new Error("[rescript-struct] " + message);
-}
-
-function mapErrorToString(result) {
-  if (result.TAG === "Ok") {
-    return result;
-  } else {
-    return {
-            TAG: "Error",
-            _0: toString(result._0)
-          };
-  }
-}
-
-var Result = {
-  getExn: getExn,
-  mapErrorToString: mapErrorToString
-};
 
 function internalInline(struct, maybeVariant, param) {
   var metadataMap = Object.assign({}, struct.m);
@@ -3121,7 +2997,10 @@ var Path = {
 };
 
 var $$Error$1 = {
-  toString: toString
+  $$class: $$class,
+  make: make$2,
+  raise: raise,
+  message: message
 };
 
 var never = struct;
@@ -3231,8 +3110,8 @@ var Metadata = {
 export {
   Literal ,
   Path ,
-  $$Error$1 as $$Error,
   Raised ,
+  $$Error$1 as $$Error,
   never ,
   unknown ,
   unit ,
@@ -3290,7 +3169,6 @@ export {
   Int ,
   Float ,
   $$Array ,
-  Result ,
   Metadata ,
   inline ,
 }

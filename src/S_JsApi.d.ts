@@ -1,13 +1,23 @@
-import { S_t } from "../RescriptStruct.gen";
+import { S_t, S_Error_class } from "../RescriptStruct.gen";
 
-export class StructError extends Error {}
+export class Error extends S_Error_class {
+  constructor(
+    code: unknown,
+    operation: "Parsing" | "Serializing",
+    path: string
+  );
+  code: unknown;
+  operation: "Parsing" | "Serializing";
+  path: string;
+  message: string;
+}
 
 export type Result<Value> =
   | {
       success: true;
       value: Value;
     }
-  | { success: false; error: StructError };
+  | { success: false; error: Error };
 
 export type EffectCtx<Output, Input> = {
   struct: Struct<Output, Input>;

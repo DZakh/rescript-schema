@@ -72,15 +72,6 @@ module Stdlib = {
     let isArray = Js.Array2.isArray
   }
 
-  module Result = {
-    @inline
-    let mapError = (result, fn) =>
-      switch result {
-      | Ok(_) as ok => ok
-      | Error(error) => Error(fn(error))
-      }
-  }
-
   module Exn = {
     type error
 
@@ -393,7 +384,7 @@ and operation =
   | Parsing
   | Serializing
 and struct<'a> = t<'a>
-type rec error = {operation: operation, code: errorCode, path: Path.t}
+type rec error = private {operation: operation, code: errorCode, path: Path.t}
 and errorCode =
   | OperationFailed(string)
   | InvalidOperation({description: string})
@@ -404,38 +395,55 @@ and errorCode =
   | InvalidUnion(array<error>)
   | UnexpectedAsync
   | InvalidJsonStruct(struct<unknown>)
+type exn += private Raised(error)
 
 external castUnknownStructToAnyStruct: t<unknown> => t<'any> = "%identity"
 external toUnknown: t<'any> => t<unknown> = "%identity"
 
+type payloadedVariant<'payload> = private {_0: 'payload}
+type payloadedError<'payload> = private {_1: 'payload}
+let unsafeGetVariantPayload = variant => (variant->Obj.magic)._0
+let unsafeGetErrorPayload = variant => (variant->Obj.magic)._1
+
 module InternalError = {
-  type t = {
-    code: errorCode,
-    path: Path.t,
-    operation: operation,
-    @as("s")
-    symbol: Stdlib.Symbol.t,
-  }
+  %%raw(`
+    class RescriptStructError extends Error {
+      constructor(code, operation, path) {
+        super();
+        this.operation = operation;
+        this.code = code;
+        this.path = path;
+        this.s = symbol;
+        this.RE_EXN_ID = Raised;
+        this._1 = this;
+        this.Error = this;
+        this.name = "RescriptStructError";
+      }
+      get message() {
+        return message(this);
+      }
+    }
+  `)
 
-  @inline
-  let raise = (~path, ~code, ~operation) => {
-    Stdlib.Exn.raiseAny({code, path, operation, symbol})
-  }
+  @new
+  external make: (~code: errorCode, ~operation: operation, ~path: Path.t) => error =
+    "RescriptStructError"
 
-  let toPublic = (internalError: t) => (internalError :> error)
-
-  let arrayToPublic = (Obj.magic: array<t> => array<error>)
-
-  let getOrRethrow = (jsExn: Js.Exn.t) => {
-    if %raw("jsExn&&jsExn.s===symbol") {
-      jsExn->(Obj.magic: Js.Exn.t => t)
+  let getOrRethrow = (exn: exn) => {
+    if %raw("exn&&exn.s===symbol") {
+      exn->(Obj.magic: exn => error)
     } else {
-      Stdlib.Exn.raiseAny(jsExn)
+      raise(%raw("exn&&exn.RE_EXN_ID==='JsError'") ? exn->unsafeGetErrorPayload : exn)
     }
   }
 
-  let prependLocationOrRethrow = (jsExn, location) => {
-    let error = jsExn->getOrRethrow
+  @inline
+  let raise = (~code, ~operation, ~path) => {
+    Stdlib.Exn.raiseAny(make(~code, ~operation, ~path))
+  }
+
+  let prependLocationOrRethrow = (exn, location) => {
+    let error = exn->getOrRethrow
     raise(
       ~path=Path.concat(location->Path.fromLocation, error.path),
       ~code=error.code,
@@ -471,9 +479,6 @@ module EffectCtx = {
 
 @inline
 let classify = struct => struct.tagged
-
-type payloadedVariant<'payload> = {_0: 'payload}
-let unsafeGetVariantPayload = variant => (variant->Obj.magic)._0
 
 module Builder = {
   type t = builder
@@ -657,14 +662,12 @@ module Builder = {
           },
           b => fn(b, ~path=Path.empty),
         ) catch {
-        | Js.Exn.Error(jsExn) => {
-            let error = jsExn->InternalError.getOrRethrow
-            InternalError.raise(
-              ~path=path->Path.concat(Path.dynamic)->Path.concat(error.path),
-              ~code=error.code,
-              ~operation=error.operation,
-            )
-          }
+        | Raised(error) =>
+          InternalError.raise(
+            ~path=path->Path.concat(Path.dynamic)->Path.concat(error.path),
+            ~code=error.code,
+            ~operation=error.operation,
+          )
         }
       }
     }
@@ -834,8 +837,8 @@ let isAsyncParse = struct => {
       struct->Builder.compileParser(~builder=struct.parseOperationBuilder)
       struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
     } catch {
-    | Js.Exn.Error(jsExn) => {
-        let _ = jsExn->InternalError.getOrRethrow
+    | exn => {
+        let _ = exn->InternalError.getOrRethrow
         false
       }
     }
@@ -873,7 +876,7 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
           | _ => fieldStruct
           }->validateJsonableStruct(~rootStruct, ())
         } catch {
-        | Js.Exn.Error(jsExn) => jsExn->InternalError.prependLocationOrRethrow(fieldName)
+        | exn => exn->InternalError.prependLocationOrRethrow(fieldName)
         }
       }
 
@@ -883,7 +886,7 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
           struct->validateJsonableStruct(~rootStruct, ())
         } catch {
         // TODO: Should throw with the nested struct instead of prepending path?
-        | Js.Exn.Error(jsExn) => jsExn->InternalError.prependLocationOrRethrow(i->Js.Int.toString)
+        | exn => exn->InternalError.prependLocationOrRethrow(i->Js.Int.toString)
         }
       })
     | Union(childrenStructs) =>
@@ -907,8 +910,8 @@ let initialSerializeToJson = input => {
     struct.serializeToJson =
       struct.serialize->(Obj.magic: (unknown => unknown) => unknown => Js.Json.t)
   } catch {
-  | Js.Exn.Error(jsExn) => {
-      let error = jsExn->InternalError.getOrRethrow
+  | exn => {
+      let error = exn->InternalError.getOrRethrow
       struct.serializeToJson = _ => Stdlib.Exn.raiseAny(error)
     }
   }
@@ -961,24 +964,18 @@ let makeWithNoopSerializer = (~tagged, ~metadataMap, ~parseOperationBuilder, ~ma
   metadataMap,
 }
 
-exception Raised(error)
-
 let parseAnyWith = (any, struct) => {
   try {
     struct.parse(any->castAnyToUnknown)->castUnknownToAny->Ok
   } catch {
-  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toPublic->Error
+  | exn => exn->InternalError.getOrRethrow->Error
   }
 }
 
 let parseWith: (Js.Json.t, t<'value>) => result<'value, error> = parseAnyWith
 
 let parseAnyOrRaiseWith = (any, struct) => {
-  try {
-    struct.parse(any->castAnyToUnknown)->castUnknownToAny
-  } catch {
-  | Js.Exn.Error(jsExn) => raise(Raised(jsExn->InternalError.getOrRethrow->InternalError.toPublic))
-  }
+  struct.parse(any->castAnyToUnknown)->castUnknownToAny
 }
 
 let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value = parseAnyOrRaiseWith
@@ -986,7 +983,7 @@ let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value = parseAnyOrRaiseWith
 let asyncPrepareOk = value => Ok(value->castUnknownToAny)
 
 let asyncPrepareError = jsExn => {
-  jsExn->InternalError.getOrRethrow->InternalError.toPublic->Error
+  jsExn->(Obj.magic: Js.Exn.t => exn)->InternalError.getOrRethrow->Error
 }
 
 let parseAnyAsyncWith = (any, struct) => {
@@ -996,8 +993,7 @@ let parseAnyAsyncWith = (any, struct) => {
       asyncPrepareError,
     )
   } catch {
-  | Js.Exn.Error(jsExn) =>
-    jsExn->InternalError.getOrRethrow->InternalError.toPublic->Error->Stdlib.Promise.resolve
+  | exn => exn->InternalError.getOrRethrow->Error->Stdlib.Promise.resolve
   }
 }
 
@@ -1009,7 +1005,7 @@ let parseAnyAsyncInStepsWith = (any, struct) => {
 
     (() => asyncFn()->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, asyncPrepareError))->Ok
   } catch {
-  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toPublic->Error
+  | exn => exn->InternalError.getOrRethrow->Error
   }
 }
 
@@ -1019,31 +1015,23 @@ let serializeToUnknownWith = (value, struct) => {
   try {
     struct.serialize(value->castAnyToUnknown)->Ok
   } catch {
-  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toPublic->Error
+  | exn => exn->InternalError.getOrRethrow->Error
   }
 }
 
 let serializeOrRaiseWith = (value, struct) => {
-  try {
-    struct.serializeToJson(value->castAnyToUnknown)
-  } catch {
-  | Js.Exn.Error(jsExn) => raise(Raised(jsExn->InternalError.getOrRethrow->InternalError.toPublic))
-  }
+  struct.serializeToJson(value->castAnyToUnknown)
 }
 
 let serializeToUnknownOrRaiseWith = (value, struct) => {
-  try {
-    struct.serialize(value->castAnyToUnknown)
-  } catch {
-  | Js.Exn.Error(jsExn) => raise(Raised(jsExn->InternalError.getOrRethrow->InternalError.toPublic))
-  }
+  struct.serialize(value->castAnyToUnknown)
 }
 
 let serializeWith = (value, struct) => {
   try {
     struct.serializeToJson(value->castAnyToUnknown)->Ok
   } catch {
-  | Js.Exn.Error(jsExn) => jsExn->InternalError.getOrRethrow->InternalError.toPublic->Error
+  | exn => exn->InternalError.getOrRethrow->Error
   }
 }
 
@@ -1062,11 +1050,13 @@ let parseJsonStringWith = (json: string, struct: t<'value>): result<'value, erro
     json->Js.Json.parseExn->Ok
   } catch {
   | Js.Exn.Error(error) =>
-    Error({
-      code: OperationFailed(error->Js.Exn.message->(Obj.magic: option<string> => string)),
-      operation: Parsing,
-      path: Path.empty,
-    })
+    Error(
+      InternalError.make(
+        ~code=OperationFailed(error->Js.Exn.message->(Obj.magic: option<string> => string)),
+        ~operation=Parsing,
+        ~path=Path.empty,
+      ),
+    )
   } {
   | Ok(json) => json->parseWith(struct)
   | Error(_) as e => e
@@ -2366,8 +2356,8 @@ module JsonString = {
     try {
       struct->validateJsonableStruct(~rootStruct=struct, ~isRoot=true, ())
     } catch {
-    | Js.Exn.Error(jsExn) => {
-        let _ = jsExn->InternalError.getOrRethrow
+    | exn => {
+        let _ = exn->InternalError.getOrRethrow
         InternalError.panic(
           `The struct ${struct->name} passed to S.jsonString is not compatible with JSON`,
         )
@@ -3025,7 +3015,7 @@ module Union = {
             `${outputVar}=()=>Promise.any([${errorCodeRef.contents}]).catch(t=>{${b->B.raiseWithArg(
                 ~path,
                 internalErrors => {
-                  InvalidUnion(internalErrors->InternalError.arrayToPublic)
+                  InvalidUnion(internalErrors)
                 },
                 `t.errors`,
               )}})` ++
@@ -3036,7 +3026,7 @@ module Union = {
             b.code ++
             b->B.raiseWithArg(
               ~path,
-              internalErrors => InvalidUnion(internalErrors->InternalError.arrayToPublic),
+              internalErrors => InvalidUnion(internalErrors),
               `[${errorCodeRef.contents}]`,
             ) ++
             codeEndRef.contents
@@ -3085,7 +3075,7 @@ module Union = {
           b.code ++
           b->B.raiseWithArg(
             ~path,
-            internalErrors => InvalidUnion(internalErrors->InternalError.arrayToPublic),
+            internalErrors => InvalidUnion(internalErrors),
             `[${errorVarsRef.contents}]`,
           ) ++
           codeEndRef.contents
@@ -3180,7 +3170,7 @@ let catch = (struct, getFallbackValue) => {
           `${b->B.embed((input, internalError) =>
               getFallbackValue({
                 input,
-                error: internalError->InternalError.toPublic,
+                error: internalError,
                 struct: selfStruct->castUnknownStructToAnyStruct,
                 failWithError: (error: error) => {
                   InternalError.raise(
@@ -3231,6 +3221,13 @@ let describe = (struct, description) => {
 let description = struct => struct->Metadata.get(~id=descriptionMetadataId)
 
 module Error = {
+  type class
+  let class: class = %raw("RescriptStructError")
+
+  let make = InternalError.make
+
+  let raise = (error: error) => error->Stdlib.Exn.raiseAny
+
   let rec toReason = (~nestedLevel=0, error) => {
     switch error.code {
     | OperationFailed(reason) => reason
@@ -3263,7 +3260,7 @@ module Error = {
     }
   }
 
-  let toString = error => {
+  let message = error => {
     let operation = switch error.operation {
     | Serializing => "serializing"
     | Parsing => "parsing"
@@ -3274,19 +3271,6 @@ module Error = {
     | nonEmptyPath => nonEmptyPath
     }
     `Failed ${operation} at ${pathText}. Reason: ${reason}`
-  }
-}
-
-module Result = {
-  let getExn = result => {
-    switch result {
-    | Ok(value) => value
-    | Error(error) => InternalError.panic(error->Error.toString)
-    }
-  }
-
-  let mapErrorToString = result => {
-    result->Stdlib.Result.mapError(Error.toString)
   }
 }
 
