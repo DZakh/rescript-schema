@@ -2144,6 +2144,9 @@ function factory$5(struct) {
               return asyncOutputVar;
             }),
           sb: (function (b, param, path) {
+              if (struct.sb === noop) {
+                return b.i;
+              }
               var inputVar = toVar(b, b.i);
               var iteratorVar = varWithoutAllocation(b);
               var outputVar = $$var(b);
@@ -2233,6 +2236,9 @@ function factory$6(struct) {
               return asyncOutputVar;
             }),
           sb: (function (b, param, path) {
+              if (struct.sb === noop) {
+                return b.i;
+              }
               var inputVar = toVar(b, b.i);
               var keyVar = varWithoutAllocation(b);
               var outputVar = $$var(b);

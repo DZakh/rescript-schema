@@ -38,15 +38,12 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v5
 
-Internals
-
-- compiled: rename i and t to v for inlined check work properly ???
-- stop reallocate objects without transformations
-- Measure toJsResult performance
+Clean up changelog
 
 ## v5.1
 
 - ppx
+- stop reallocate objects without transformations
 - documentation split
 - S.matcher
 - S.validateWith

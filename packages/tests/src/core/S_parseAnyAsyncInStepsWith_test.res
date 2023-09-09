@@ -4,7 +4,6 @@ open RescriptCore
 let validAsyncRefine = S.transform(_, _ => {
   asyncParser: value => () => value->Promise.resolve,
 })
-// FIXME: Correct path when S.refine(_, s => s.fail("Sync user error"))
 let invalidSyncRefine = S.refine(_, s => _ => s.fail("Sync user error"))
 let unresolvedPromise = Promise.make((_, _) => ())
 let makeInvalidPromise = (s: S.effectCtx<'a>) =>

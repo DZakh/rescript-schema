@@ -5,15 +5,16 @@ import * as S$RescriptStruct from "./S.bs.mjs";
 
 function toJsResult(result) {
   if (result.TAG === "Ok") {
-    result.success = true;
-    result.value = result._0;
+    return {
+            success: true,
+            value: result._0
+          };
   } else {
-    result.success = false;
-    result.error = result._0;
+    return {
+            success: false,
+            error: result._0
+          };
   }
-  ((delete result.TAG));
-  ((delete result._0));
-  return result;
 }
 
 function transform(struct, maybeParser, maybeSerializer) {

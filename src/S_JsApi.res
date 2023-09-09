@@ -16,20 +16,10 @@ module Stdlib = {
 type jsResult<'value>
 
 let toJsResult = (result: result<'value, S.error>): jsResult<'value> => {
-  let tmp = result->Obj.magic
   switch result {
-  | Ok(value) => {
-      tmp["success"] = true
-      tmp["value"] = value
-    }
-  | Error(error) => {
-      tmp["success"] = false
-      tmp["error"] = error
-    }
+  | Ok(value) => {"success": true, "value": value}->Obj.magic
+  | Error(error) => {"success": false, "error": error}->Obj.magic
   }
-  let _ = %raw(`delete result.TAG`)
-  let _ = %raw(`delete result._0`)
-  tmp
 }
 
 let transform = (struct, ~parser as maybeParser=?, ~serializer as maybeSerializer=?) => {

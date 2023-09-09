@@ -713,7 +713,6 @@ module Builder = {
     }
   }
 
-  // TODO: Noop checks stopped working
   let noop = make((b, ~selfStruct as _, ~path as _) => {
     b->Ctx.useInput
   })
@@ -2609,26 +2608,29 @@ module Array = {
         }
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
-        let inputVar = b->B.useInputVar
-        let iteratorVar = b->B.varWithoutAllocation
-        let outputVar = b->B.var
+        if struct.serializeOperationBuilder === Builder.noop {
+          b->B.useInput
+        } else {
+          let inputVar = b->B.useInputVar
+          let iteratorVar = b->B.varWithoutAllocation
+          let outputVar = b->B.var
 
-        // TODO: Optimize when struct.serializeOperationBuilder is noop
-        b.code =
-          b.code ++
-          `${outputVar}=[];for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.scope(
-              b => {
-                let itemOutputVar =
-                  b->B.withPathPrepend(
-                    ~path,
-                    ~dynamicLocationVar=iteratorVar,
-                    (b, ~path) => b->B.use(~struct, ~input=`${inputVar}[${iteratorVar}]`, ~path),
-                  )
-                `${outputVar}.push(${itemOutputVar})`
-              },
-            )}}`
+          b.code =
+            b.code ++
+            `${outputVar}=[];for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.scope(
+                b => {
+                  let itemOutputVar =
+                    b->B.withPathPrepend(
+                      ~path,
+                      ~dynamicLocationVar=iteratorVar,
+                      (b, ~path) => b->B.use(~struct, ~input=`${inputVar}[${iteratorVar}]`, ~path),
+                    )
+                  `${outputVar}.push(${itemOutputVar})`
+                },
+              )}}`
 
-        outputVar
+          outputVar
+        }
       }),
       ~maybeTypeFilter=Some(typeFilter),
     )
@@ -2726,25 +2728,28 @@ module Dict = {
         }
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
-        let inputVar = b->B.useInputVar
-        let keyVar = b->B.varWithoutAllocation
-        let outputVar = b->B.var
+        if struct.serializeOperationBuilder === Builder.noop {
+          b->B.useInput
+        } else {
+          let inputVar = b->B.useInputVar
+          let keyVar = b->B.varWithoutAllocation
+          let outputVar = b->B.var
 
-        // TODO: Optimize when struct.serializeOperationBuilder is noop
-        b.code =
-          b.code ++
-          `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
-              let itemOutputVar =
-                b->B.withPathPrepend(
-                  ~path,
-                  ~dynamicLocationVar=keyVar,
-                  (b, ~path) => b->B.use(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
-                )
+          b.code =
+            b.code ++
+            `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
+                let itemOutputVar =
+                  b->B.withPathPrepend(
+                    ~path,
+                    ~dynamicLocationVar=keyVar,
+                    (b, ~path) => b->B.use(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
+                  )
 
-              `${outputVar}[${keyVar}]=${itemOutputVar}`
-            })}}`
+                `${outputVar}[${keyVar}]=${itemOutputVar}`
+              })}}`
 
-        outputVar
+          outputVar
+        }
       }),
       ~maybeTypeFilter=Some(Object.typeFilter),
     )

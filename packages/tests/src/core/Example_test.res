@@ -77,6 +77,6 @@ test("Compiled serialize code snapshot", t => {
   t->U.assertCompiledCode(
     ~struct=filmStruct,
     ~op=#serialize,
-    `i=>{let v0,v1,v7,v8,v13,v14;v0=i["tags"];if(v0!==void 0){let v2,v4;v2=e[0](v0);v4=[];for(let v3=0;v3<v2.length;++v3){let v6;try{v6=v2[v3]}catch(v5){if(v5&&v5.s===s){v5.path="[\\"tags\\"]"+'["'+v3+'"]'+v5.path}throw v5}v4.push(v6)}v1=v4}else{v1=void 0}v7=i["rating"];try{v7===e[1]||e[2](v7);v8=v7}catch(v9){if(v9&&v9.s===s){try{v7===e[3]||e[4](v7);v8=v7}catch(v10){if(v10&&v10.s===s){try{v7===e[5]||e[6](v7);v8=v7}catch(v11){if(v11&&v11.s===s){try{v7===e[7]||e[8](v7);v8=v7}catch(v12){if(v12&&v12.s===s){e[9]([v9,v10,v11,v12,])}else{throw v12}}}else{throw v11}}}else{throw v10}}}else{throw v9}}v13=i["deprecatedAgeRestriction"];if(v13!==void 0){v14=e[10](v13)}else{v14=void 0}return {"Id":i["id"],"Title":i["title"],"Tags":v1,"Rating":v8,"Age":v14,}}`,
+    `i=>{let v0,v1,v2,v3,v8,v9;v0=i["tags"];if(v0!==void 0){v1=e[0](v0)}else{v1=void 0}v2=i["rating"];try{v2===e[1]||e[2](v2);v3=v2}catch(v4){if(v4&&v4.s===s){try{v2===e[3]||e[4](v2);v3=v2}catch(v5){if(v5&&v5.s===s){try{v2===e[5]||e[6](v2);v3=v2}catch(v6){if(v6&&v6.s===s){try{v2===e[7]||e[8](v2);v3=v2}catch(v7){if(v7&&v7.s===s){e[9]([v4,v5,v6,v7,])}else{throw v7}}}else{throw v6}}}else{throw v5}}}else{throw v4}}v8=i["deprecatedAgeRestriction"];if(v8!==void 0){v9=e[10](v8)}else{v9=void 0}return {"Id":i["id"],"Title":i["title"],"Tags":v1,"Rating":v3,"Age":v9,}}`,
   )
 })
