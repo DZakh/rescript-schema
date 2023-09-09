@@ -17,7 +17,7 @@ Ava("Simple record struct", (function (t) {
                           label: s.f("label", S$RescriptStruct.string),
                           value: s.f("value", S$RescriptStruct.$$int)
                         };
-                }), undefined, undefined);
+                }), undefined);
         t.deepEqual(S$RescriptStruct.parseWith({label:"foo",value:1}, simpleRecordStruct), {
               TAG: "Ok",
               _0: {
@@ -40,7 +40,7 @@ Ava("Record struct with alias for field name", (function (t) {
                           label: s.f("aliased-label", S$RescriptStruct.string),
                           value: s.f("value", S$RescriptStruct.$$int)
                         };
-                }), undefined, undefined);
+                }), undefined);
         t.deepEqual(S$RescriptStruct.parseWith({"aliased-label":"foo",value:1}, recordWithAliasStruct), {
               TAG: "Ok",
               _0: {
@@ -63,7 +63,7 @@ Ava("Record struct with optional fields", (function (t) {
                           label: s.f("label", S$RescriptStruct.option(S$RescriptStruct.string)),
                           value: s.f("value", S$RescriptStruct.option(S$RescriptStruct.$$int))
                         };
-                }), undefined, undefined);
+                }), undefined);
         t.deepEqual(S$RescriptStruct.parseWith({"label":"foo",value:1}, recordWithOptionalStruct), {
               TAG: "Ok",
               _0: {

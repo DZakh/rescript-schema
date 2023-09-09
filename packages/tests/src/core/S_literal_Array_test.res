@@ -100,7 +100,6 @@ module Common = {
       ~struct,
       ~op=#parse,
       `i=>{(i===e[0]||Array.isArray(i)&&i.length===2&&i[0]===e[1]&&i[1]===e[2])||e[3](i);return i}`,
-      (),
     )
   })
 
@@ -111,7 +110,6 @@ module Common = {
       ~struct,
       ~op=#serialize,
       `i=>{(i===e[0]||Array.isArray(i)&&i.length===2&&i[0]===e[1]&&i[1]===e[2])||e[3](i);return i}`,
-      (),
     )
   })
 }

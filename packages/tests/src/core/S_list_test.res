@@ -24,7 +24,7 @@ module CommonWithNested = {
         switch e.code {
         | InvalidType({expected, received}) => {
             t->Assert.deepEqual(received, invalidAny, ())
-            t->U.unsafeAssertEqualStructs(expected, struct, ())
+            t->U.unsafeAssertEqualStructs(expected, struct)
           }
         | _ => t->Assert.fail("Unexpected code.")
         }

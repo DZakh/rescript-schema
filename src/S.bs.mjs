@@ -2683,10 +2683,10 @@ function message(error) {
 
 function internalInline(struct, maybeVariant, param) {
   var metadataMap = Object.assign({}, struct.m);
-  var taggedLiteral = struct.t;
+  var literal = struct.t;
   var inlinedStruct;
-  if (typeof taggedLiteral !== "object") {
-    switch (taggedLiteral) {
+  if (typeof literal !== "object") {
+    switch (literal) {
       case "Never" :
           inlinedStruct = "S.never";
           break;
@@ -2711,88 +2711,64 @@ function internalInline(struct, maybeVariant, param) {
       
     }
   } else {
-    switch (taggedLiteral.TAG) {
+    switch (literal.TAG) {
       case "Literal" :
-          var taggedLiteral$1 = taggedLiteral._0;
-          var inlinedLiteral;
-          if (typeof taggedLiteral$1 !== "object") {
-            switch (taggedLiteral$1) {
-              case "Null" :
-                  inlinedLiteral = "EmptyNull";
-                  break;
-              case "Undefined" :
-                  inlinedLiteral = "Undefined";
-                  break;
-              case "NaN" :
-                  inlinedLiteral = "NaN";
-                  break;
-              
-            }
-          } else {
-            switch (taggedLiteral$1.TAG) {
-              case "String" :
-                  inlinedLiteral = "String(" + JSON.stringify(taggedLiteral$1._0) + ")";
-                  break;
-              case "Number" :
-                  var $$float = taggedLiteral$1._0;
-                  inlinedLiteral = "Number(" + ($$float.toString() + (
-                      $$float % 1 === 0 ? "." : ""
-                    )) + ")";
-                  break;
-              case "Boolean" :
-                  inlinedLiteral = "Bool(" + taggedLiteral$1._0 + ")";
-                  break;
-              default:
-                inlinedLiteral = "NaN";
-            }
-          }
-          inlinedStruct = maybeVariant !== undefined ? "S.literalVariant(" + inlinedLiteral + ", " + maybeVariant + ")" : "S.literal(" + inlinedLiteral + ")";
+          inlinedStruct = "S.literal(%raw(\`" + toText(literal._0) + "\`))";
           break;
       case "Option" :
-          var struct$1 = taggedLiteral._0;
-          var internalInlinedStruct = internalInline(struct$1, undefined, undefined);
-          var $$default = struct$1.m[defaultMetadataId];
-          if ($$default !== undefined) {
-            Js_dict.unsafeDeleteKey(metadataMap, defaultMetadataId);
-            var any;
-            any = $$default.TAG === "Value" ? $$default._0 : $$default._0(undefined);
-            inlinedStruct = internalInlinedStruct + ("->S.Option.getOrWith(() => %raw(\`" + (
-                any === (void 0) ? "undefined" : JSON.stringify(any)
-              ) + "\`))");
-          } else {
-            inlinedStruct = "S.option(" + internalInlinedStruct + ")";
-          }
+          inlinedStruct = "S.option(" + internalInline(literal._0, undefined, undefined) + ")";
           break;
       case "Null" :
-          inlinedStruct = "S.null(" + internalInline(taggedLiteral._0, undefined, undefined) + ")";
+          inlinedStruct = "S.null(" + internalInline(literal._0, undefined, undefined) + ")";
           break;
       case "Array" :
-          inlinedStruct = "S.array(" + internalInline(taggedLiteral._0, undefined, undefined) + ")";
+          inlinedStruct = "S.array(" + internalInline(literal._0, undefined, undefined) + ")";
           break;
       case "Object" :
-          var fieldNames = taggedLiteral.fieldNames;
-          var fields = taggedLiteral.fields;
+          var fieldNames = literal.fieldNames;
+          var fields = literal.fields;
           inlinedStruct = fieldNames.length !== 0 ? "S.object(s =>\n  {\n    " + fieldNames.map(function (fieldName) {
                     return JSON.stringify(fieldName) + ": s.field(" + JSON.stringify(fieldName) + ", " + internalInline(fields[fieldName], undefined, undefined) + ")";
                   }).join(",\n    ") + ",\n  }\n)" : "S.object(_ => ())";
           break;
       case "Tuple" :
-          var tupleStructs = taggedLiteral._0;
-          if (tupleStructs.length !== 0) {
-            var numberOfItems = tupleStructs.length;
-            if (numberOfItems > 10) {
-              throw new Error("[rescript-struct] The S.inline doesn't support tuples with more than 10 items.");
-            }
-            inlinedStruct = "S.tuple" + numberOfItems + "(. " + tupleStructs.map(function (s) {
-                    return internalInline(s, undefined, undefined);
-                  }).join(", ") + ")";
+          var tupleStructs = literal._0;
+          var exit = 0;
+          var len = tupleStructs.length;
+          if (len >= 4) {
+            exit = 1;
           } else {
-            inlinedStruct = "S.tuple0(.)";
+            switch (len) {
+              case 0 :
+                  exit = 1;
+                  break;
+              case 1 :
+                  var s1 = tupleStructs[0];
+                  inlinedStruct = "S.tuple1(" + internalInline(s1, undefined, undefined) + ")";
+                  break;
+              case 2 :
+                  var s1$1 = tupleStructs[0];
+                  var s2 = tupleStructs[1];
+                  inlinedStruct = "S.tuple2(" + internalInline(s1$1, undefined, undefined) + ", " + internalInline(s2, undefined, undefined) + ")";
+                  break;
+              case 3 :
+                  var s1$2 = tupleStructs[0];
+                  var s2$1 = tupleStructs[1];
+                  var s3 = tupleStructs[2];
+                  inlinedStruct = "S.tuple3(" + internalInline(s1$2, undefined, undefined) + ", " + internalInline(s2$1, undefined, undefined) + ", " + internalInline(s3, undefined, undefined) + ")";
+                  break;
+              
+            }
+          }
+          if (exit === 1) {
+            inlinedStruct = "S.tuple(s => (" + tupleStructs.map(function (s, idx) {
+                    return "s.item(" + idx + ", " + internalInline(s, undefined, undefined) + ")";
+                  }).join(", ") + "))";
           }
           break;
       case "Union" :
           var variantNamesCounter = {};
-          inlinedStruct = "S.union([" + taggedLiteral._0.map(function (s) {
+          inlinedStruct = "S.union([" + literal._0.map(function (s) {
                   var variantName = name(s);
                   var n = Js_dict.get(variantNamesCounter, variantName);
                   var numberOfVariantNames = n !== undefined ? n : 0;
@@ -2803,151 +2779,165 @@ function internalInline(struct, maybeVariant, param) {
                 }).join(", ") + "])";
           break;
       case "Dict" :
-          inlinedStruct = "S.dict(" + internalInline(taggedLiteral._0, undefined, undefined) + ")";
+          inlinedStruct = "S.dict(" + internalInline(literal._0, undefined, undefined) + ")";
           break;
       
     }
   }
+  var $$default = struct.m[defaultMetadataId];
+  var inlinedStruct$1;
+  if ($$default !== undefined) {
+    Js_dict.unsafeDeleteKey(metadataMap, defaultMetadataId);
+    if ($$default.TAG === "Value") {
+      var defaultValue = $$default._0;
+      inlinedStruct$1 = inlinedStruct + ("->S.Option.getOr(%raw(\`" + (
+          defaultValue === (void 0) ? "undefined" : JSON.stringify(defaultValue)
+        ) + "\`))");
+    } else {
+      var any = $$default._0(undefined);
+      inlinedStruct$1 = inlinedStruct + ("->S.Option.getOrWith(() => %raw(\`" + (
+          any === (void 0) ? "undefined" : JSON.stringify(any)
+        ) + "\`))");
+    }
+  } else {
+    inlinedStruct$1 = inlinedStruct;
+  }
   var message = deprecation(struct);
-  var inlinedStruct$1 = message !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, deprecationMetadataId), inlinedStruct + ("->S.deprecate(" + JSON.stringify(message) + ")")) : inlinedStruct;
+  var inlinedStruct$2 = message !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, deprecationMetadataId), inlinedStruct$1 + ("->S.deprecate(" + JSON.stringify(message) + ")")) : inlinedStruct$1;
   var message$1 = description(struct);
-  var inlinedStruct$2 = message$1 !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, descriptionMetadataId), inlinedStruct$1 + ("->S.describe(" + (
+  var inlinedStruct$3 = message$1 !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, descriptionMetadataId), inlinedStruct$2 + ("->S.describe(" + (
           message$1 === (void 0) ? "undefined" : JSON.stringify(message$1)
-        ) + ")")) : inlinedStruct$1;
+        ) + ")")) : inlinedStruct$2;
   var match = struct.t;
-  var inlinedStruct$3;
-  inlinedStruct$3 = typeof match !== "object" || !(match.TAG === "Object" && match.unknownKeys !== "Strip") ? inlinedStruct$2 : inlinedStruct$2 + "->S.Object.strict";
-  var match$1 = struct.t;
   var inlinedStruct$4;
-  var exit = 0;
+  inlinedStruct$4 = typeof match !== "object" || !(match.TAG === "Object" && match.unknownKeys !== "Strip") ? inlinedStruct$3 : inlinedStruct$3 + "->S.Object.strict";
+  var match$1 = struct.t;
+  var inlinedStruct$5;
+  var exit$1 = 0;
   if (typeof match$1 !== "object") {
     switch (match$1) {
       case "String" :
-          exit = 1;
+          exit$1 = 1;
           break;
       case "Int" :
           var refinements$4 = refinements$1(struct);
           if (refinements$4.length !== 0) {
             Js_dict.unsafeDeleteKey(metadataMap, metadataId$1);
-            inlinedStruct$4 = inlinedStruct$3 + refinements$4.map(function (refinement) {
+            inlinedStruct$5 = inlinedStruct$4 + refinements$4.map(function (refinement) {
                     var match = refinement.kind;
                     if (typeof match !== "object") {
-                      return "->S.Int.port(~message=" + JSON.stringify(refinement.message) + ", ())";
+                      return "->S.Int.port(~message=" + JSON.stringify(refinement.message) + ")";
                     } else if (match.TAG === "Min") {
-                      return "->S.Int.min(~message=" + JSON.stringify(refinement.message) + ", " + match.value + ")";
+                      return "->S.Int.min(" + match.value + ", ~message=" + JSON.stringify(refinement.message) + ")";
                     } else {
-                      return "->S.Int.max(~message=" + JSON.stringify(refinement.message) + ", " + match.value + ")";
+                      return "->S.Int.max(" + match.value + ", ~message=" + JSON.stringify(refinement.message) + ")";
                     }
                   }).join("");
           } else {
-            inlinedStruct$4 = inlinedStruct$3;
+            inlinedStruct$5 = inlinedStruct$4;
           }
           break;
       case "Float" :
           var refinements$5 = refinements$2(struct);
           if (refinements$5.length !== 0) {
             Js_dict.unsafeDeleteKey(metadataMap, metadataId$2);
-            inlinedStruct$4 = inlinedStruct$3 + refinements$5.map(function (refinement) {
+            inlinedStruct$5 = inlinedStruct$4 + refinements$5.map(function (refinement) {
                     var match = refinement.kind;
                     if (match.TAG === "Min") {
                       var value = match.value;
-                      return "->S.Float.min(~message=" + JSON.stringify(refinement.message) + ", " + (value.toString() + (
+                      return "->S.Float.min(" + (value.toString() + (
                                 value % 1 === 0 ? "." : ""
-                              )) + ")";
+                              )) + ", ~message=" + JSON.stringify(refinement.message) + ")";
                     }
                     var value$1 = match.value;
-                    return "->S.Float.max(~message=" + JSON.stringify(refinement.message) + ", " + (value$1.toString() + (
+                    return "->S.Float.max(" + (value$1.toString() + (
                               value$1 % 1 === 0 ? "." : ""
-                            )) + ")";
+                            )) + ", ~message=" + JSON.stringify(refinement.message) + ")";
                   }).join("");
           } else {
-            inlinedStruct$4 = inlinedStruct$3;
+            inlinedStruct$5 = inlinedStruct$4;
           }
           break;
       default:
-        inlinedStruct$4 = inlinedStruct$3;
+        inlinedStruct$5 = inlinedStruct$4;
     }
   } else {
     switch (match$1.TAG) {
       case "Literal" :
           var tmp = match$1._0;
           if (typeof tmp !== "object" || tmp.TAG !== "String") {
-            inlinedStruct$4 = inlinedStruct$3;
+            inlinedStruct$5 = inlinedStruct$4;
           } else {
-            exit = 1;
+            exit$1 = 1;
           }
           break;
       case "Array" :
           var refinements$6 = refinements$3(struct);
           if (refinements$6.length !== 0) {
             Js_dict.unsafeDeleteKey(metadataMap, metadataId$3);
-            inlinedStruct$4 = inlinedStruct$3 + refinements$6.map(function (refinement) {
+            inlinedStruct$5 = inlinedStruct$4 + refinements$6.map(function (refinement) {
                     var match = refinement.kind;
                     switch (match.TAG) {
                       case "Min" :
-                          return "->S.Array.min(~message=" + JSON.stringify(refinement.message) + ", " + match.length + ")";
+                          return "->S.Array.min(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                       case "Max" :
-                          return "->S.Array.max(~message=" + JSON.stringify(refinement.message) + ", " + match.length + ")";
+                          return "->S.Array.max(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                       case "Length" :
-                          return "->S.Array.length(~message=" + JSON.stringify(refinement.message) + ", " + match.length + ")";
+                          return "->S.Array.length(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                       
                     }
                   }).join("");
           } else {
-            inlinedStruct$4 = inlinedStruct$3;
+            inlinedStruct$5 = inlinedStruct$4;
           }
           break;
       default:
-        inlinedStruct$4 = inlinedStruct$3;
+        inlinedStruct$5 = inlinedStruct$4;
     }
   }
-  if (exit === 1) {
+  if (exit$1 === 1) {
     var refinements$7 = refinements(struct);
     if (refinements$7.length !== 0) {
       Js_dict.unsafeDeleteKey(metadataMap, metadataId);
-      inlinedStruct$4 = inlinedStruct$3 + refinements$7.map(function (refinement) {
+      inlinedStruct$5 = inlinedStruct$4 + refinements$7.map(function (refinement) {
               var match = refinement.kind;
               if (typeof match !== "object") {
                 switch (match) {
                   case "Email" :
-                      return "->S.String.email(~message=" + JSON.stringify(refinement.message) + ", ())";
+                      return "->S.String.email(~message=" + JSON.stringify(refinement.message) + ")";
                   case "Uuid" :
-                      return "->S.String.uuid(~message=" + JSON.stringify(refinement.message) + ", ())";
+                      return "->S.String.uuid(~message=" + JSON.stringify(refinement.message) + ")";
                   case "Cuid" :
-                      return "->S.String.cuid(~message=" + JSON.stringify(refinement.message) + ", ())";
+                      return "->S.String.cuid(~message=" + JSON.stringify(refinement.message) + ")";
                   case "Url" :
-                      return "->S.String.url(~message=" + JSON.stringify(refinement.message) + ", ())";
+                      return "->S.String.url(~message=" + JSON.stringify(refinement.message) + ")";
                   case "Datetime" :
-                      return "->S.String.datetime(~message=" + JSON.stringify(refinement.message) + ", ())";
+                      return "->S.String.datetime(~message=" + JSON.stringify(refinement.message) + ")";
                   
                 }
               } else {
                 switch (match.TAG) {
                   case "Min" :
-                      return "->S.String.min(~message=" + JSON.stringify(refinement.message) + ", " + match.length + ")";
+                      return "->S.String.min(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                   case "Max" :
-                      return "->S.String.max(~message=" + JSON.stringify(refinement.message) + ", " + match.length + ")";
+                      return "->S.String.max(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                   case "Length" :
-                      return "->S.String.length(~message=" + JSON.stringify(refinement.message) + ", " + match.length + ")";
+                      return "->S.String.length(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                   case "Pattern" :
-                      return "->S.String.pattern(~message=" + JSON.stringify(refinement.message) + ", %re(" + JSON.stringify(match.re.toString()) + "))";
+                      return "->S.String.pattern(%re(" + JSON.stringify(match.re.toString()) + "), ~message=" + JSON.stringify(refinement.message) + ")";
                   
                 }
               }
             }).join("");
     } else {
-      inlinedStruct$4 = inlinedStruct$3;
+      inlinedStruct$5 = inlinedStruct$4;
     }
   }
-  var inlinedStruct$5 = Object.keys(metadataMap).length !== 0 ? "{\n  let s = " + inlinedStruct$4 + "\n  let _ = %raw(\`s.m = " + JSON.stringify(metadataMap) + "\`)\n  s\n}" : inlinedStruct$4;
-  var match$2 = struct.t;
-  if (typeof match$2 === "object" && match$2.TAG === "Literal") {
-    return inlinedStruct$5;
-  }
+  var inlinedStruct$6 = Object.keys(metadataMap).length !== 0 ? "{\n  let s = " + inlinedStruct$5 + "\n  let _ = %raw(\`s.m = " + JSON.stringify(metadataMap) + "\`)\n  s\n}" : inlinedStruct$5;
   if (maybeVariant !== undefined) {
-    return inlinedStruct$5 + ("->S.variant(v => " + maybeVariant + "(v))");
+    return inlinedStruct$6 + ("->S.variant(v => " + maybeVariant + "(v))");
   } else {
-    return inlinedStruct$5;
+    return inlinedStruct$6;
   }
 }
 

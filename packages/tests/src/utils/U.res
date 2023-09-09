@@ -51,11 +51,11 @@ let rec cleanUpStruct = struct => {
   new->(magic: Dict.t<unknown> => S.t<'a>)
 }
 
-let unsafeAssertEqualStructs = (t, s1: S.t<'v1>, s2: S.t<'v2>, ~message=?, ()) => {
+let unsafeAssertEqualStructs = (t, s1: S.t<'v1>, s2: S.t<'v2>, ~message=?) => {
   t->Assert.unsafeDeepEqual(s1->cleanUpStruct, s2->cleanUpStruct, ~message?, ())
 }
 
-let assertCompiledCode = (t, ~struct, ~op: [#parse | #serialize], code, ~message=?, ()) => {
+let assertCompiledCode = (t, ~struct, ~op: [#parse | #serialize], code, ~message=?) => {
   let compiledCode = switch op {
   | #parse =>
     if struct->S.isAsyncParse {
@@ -75,7 +75,7 @@ let assertCompiledCode = (t, ~struct, ~op: [#parse | #serialize], code, ~message
   t->Assert.is(compiledCode, code, ~message?, ())
 }
 
-let assertCompiledCodeIsNoop = (t, ~struct, ~op: [#parse | #serialize], ~message=?, ()) => {
+let assertCompiledCodeIsNoop = (t, ~struct, ~op: [#parse | #serialize], ~message=?) => {
   let compiledCode = switch op {
   | #parse =>
     if struct->S.isAsyncParse {
@@ -96,5 +96,4 @@ let assertEqualStructs: (
   S.t<'value>,
   S.t<'value>,
   ~message: string=?,
-  unit,
 ) => unit = unsafeAssertEqualStructs

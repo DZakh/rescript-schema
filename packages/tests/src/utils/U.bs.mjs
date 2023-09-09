@@ -61,11 +61,11 @@ function cleanUpStruct(struct) {
   return $$new;
 }
 
-function unsafeAssertEqualStructs(t, s1, s2, message, param) {
+function unsafeAssertEqualStructs(t, s1, s2, message) {
   t.deepEqual(cleanUpStruct(s1), cleanUpStruct(s2), message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }
 
-function assertCompiledCode(t, struct, op, code, message, param) {
+function assertCompiledCode(t, struct, op, code, message) {
   var compiledCode;
   if (op === "parse") {
     compiledCode = S$RescriptStruct.isAsyncParse(struct) ? (struct.a.toString()) : (struct.p.toString());
@@ -81,7 +81,7 @@ function assertCompiledCode(t, struct, op, code, message, param) {
   t.is(compiledCode, code, message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }
 
-function assertCompiledCodeIsNoop(t, struct, op, message, param) {
+function assertCompiledCodeIsNoop(t, struct, op, message) {
   var compiledCode = op === "parse" ? (
       S$RescriptStruct.isAsyncParse(struct) ? (struct.a.toString()) : (struct.p.toString())
     ) : (S$RescriptStruct.serializeToUnknownWith(undefined, struct), (struct.s.toString()));

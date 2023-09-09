@@ -54,12 +54,12 @@ module Common = {
   test("Compiled parse code snapshot", t => {
     let struct = factory()
 
-    t->U.assertCompiledCode(~struct, ~op=#parse, `i=>{Number.isNaN(i)||e[0](i);return i}`, ())
+    t->U.assertCompiledCode(~struct, ~op=#parse, `i=>{Number.isNaN(i)||e[0](i);return i}`)
   })
 
   test("Compiled serialize code snapshot", t => {
     let struct = factory()
 
-    t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{Number.isNaN(i)||e[0](i);return i}`, ())
+    t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{Number.isNaN(i)||e[0](i);return i}`)
   })
 }

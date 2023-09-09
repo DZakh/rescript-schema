@@ -55,12 +55,12 @@ module Common = {
   test("Compiled parse code snapshot", t => {
     let struct = factory()
 
-    t->U.assertCompiledCode(~struct, ~op=#parse, `i=>{i===null||e[0](i);return i}`, ())
+    t->U.assertCompiledCode(~struct, ~op=#parse, `i=>{i===null||e[0](i);return i}`)
   })
 
   test("Compiled serialize code snapshot", t => {
     let struct = factory()
 
-    t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{i===null||e[0](i);return i}`, ())
+    t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{i===null||e[0](i);return i}`)
   })
 }

@@ -132,7 +132,6 @@ module Common = {
       ~struct,
       ~op=#parse,
       `i=>{(i===e[0]||i&&i.constructor===Object&&Object.keys(i).length===1&&i["foo"]===e[1])||e[2](i);return i}`,
-      (),
     )
   })
 
@@ -143,7 +142,6 @@ module Common = {
       ~struct,
       ~op=#serialize,
       `i=>{(i===e[0]||i&&i.constructor===Object&&Object.keys(i).length===1&&i["foo"]===e[1])||e[2](i);return i}`,
-      (),
     )
   })
 }

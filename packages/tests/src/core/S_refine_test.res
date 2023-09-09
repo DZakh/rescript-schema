@@ -71,6 +71,5 @@ test("Compiled parse code snapshot for simple object with refine", t => {
     ~struct,
     ~op=#parse,
     `i=>{let v0,v1,v2;if(!i||i.constructor!==Object){e[3](i)}v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}v1=i["bar"];if(typeof v1!=="boolean"){e[1](v1)}v2={"foo":v0,"bar":v1,};e[2](v2);return v2}`,
-    (),
   )
 })

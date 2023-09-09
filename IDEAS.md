@@ -32,14 +32,17 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Add docstrings
 
-## v5
+- Use internal transform for trim
 
-- Move S.inline to experimental or Codegen module
+- Move S.inline to a separate codegen module
+
+## v5
 
 Internals
 
 - compiled: rename i and t to v for inlined check work properly ???
 - stop reallocate objects without transformations
+- Measure toJsResult performance
 
 ## v5.1
 

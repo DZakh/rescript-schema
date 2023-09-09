@@ -120,11 +120,11 @@ test("Fails to parse undefined", t => {
 test("Compiled parse code snapshot", t => {
   let struct = S.json
 
-  t->U.assertCompiledCode(~struct, ~op=#parse, `i=>{return e[0](i)}`, ())
+  t->U.assertCompiledCode(~struct, ~op=#parse, `i=>{return e[0](i)}`)
 })
 
 test("Compiled serialize code snapshot", t => {
   let struct = S.json
 
-  t->U.assertCompiledCodeIsNoop(~struct, ~op=#serialize, ())
+  t->U.assertCompiledCodeIsNoop(~struct, ~op=#serialize)
 })

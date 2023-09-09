@@ -59,7 +59,6 @@ module CommonWithNested = {
       ~struct,
       ~op=#parse,
       `i=>{let v1;if(!Array.isArray(i)){e[1](i)}v1=[];for(let v0=0;v0<i.length;++v0){let v3;try{v3=i[v0];if(typeof v3!=="string"){e[0](v3)}}catch(v2){if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2}v1.push(v3)}return v1}`,
-      (),
     )
   })
 
@@ -70,7 +69,6 @@ module CommonWithNested = {
       ~struct,
       ~op=#parse,
       `i=>{let v1,v5;if(!Array.isArray(i)){e[1](i)}v1=[];for(let v0=0;v0<i.length;++v0){let v3,v4;try{v3=e[0](i[v0]);v4=()=>{try{return v3().catch(v2=>{if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2})}catch(v2){if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2}};}catch(v2){if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2}v1.push(v4)}v5=()=>Promise.all(v1.map(t=>t()));return v5}`,
-      (),
     )
   })
 
@@ -82,7 +80,6 @@ module CommonWithNested = {
       ~struct,
       ~op=#serialize,
       `i=>{let v1;v1=[];for(let v0=0;v0<i.length;++v0){let v3;try{v3=i[v0]}catch(v2){if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2}v1.push(v3)}return v1}`,
-      (),
     )
   })
 }

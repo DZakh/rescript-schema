@@ -270,7 +270,6 @@ test("Compiled parse code snapshot", t => {
     ~struct,
     ~op=#parse,
     `i=>{let v0;v0=e[0](i);if(typeof v0!=="number"||v0>2147483647||v0<-2147483648||v0%1!==0){e[1](v0)}return v0}`,
-    (),
   )
 })
 
@@ -284,7 +283,6 @@ test("Compiled async parse code snapshot", t => {
     ~struct,
     ~op=#parse,
     `i=>{let v0,v1;v0=e[0](i);v1=()=>v0().then(v2=>{if(typeof v2!=="number"||v2>2147483647||v2<-2147483648||v2%1!==0){e[1](v2)}return v2});return v1}`,
-    (),
   )
 })
 
@@ -294,5 +292,5 @@ test("Compiled serialize code snapshot", t => {
     serializer: _ => 1.->Int.fromFloat,
   })
 
-  t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{return e[0](i)}`, ())
+  t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{return e[0](i)}`)
 })

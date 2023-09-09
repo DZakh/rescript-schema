@@ -125,7 +125,6 @@ test("Compiled parse code snapshot", t => {
     ~struct,
     ~op=#parse,
     `i=>{if(typeof i!=="string"){e[1](i)}return e[0](i)}`,
-    (),
   )
 })
 
@@ -136,6 +135,5 @@ test("Compiled serialize code snapshot", t => {
     ~struct,
     ~op=#serialize,
     `i=>{let v0;v0=i["TAG"];if(v0!==e[0]){e[1](v0)}return i["_0"]}`,
-    (),
   )
 })

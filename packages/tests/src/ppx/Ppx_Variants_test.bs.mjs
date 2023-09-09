@@ -13,13 +13,13 @@ Ava("Variant", (function (t) {
         U.assertEqualStructs(t, variantStruct, S$RescriptStruct.union([
                   S$RescriptStruct.literal("One"),
                   S$RescriptStruct.literal("Two")
-                ]), undefined, undefined);
+                ]), undefined);
       }));
 
 var variantWithSingleItemStruct = S$RescriptStruct.literal("Single");
 
 Ava("Variant with single item becomes a literal struct of the item", (function (t) {
-        U.assertEqualStructs(t, variantWithSingleItemStruct, S$RescriptStruct.literal("Single"), undefined, undefined);
+        U.assertEqualStructs(t, variantWithSingleItemStruct, S$RescriptStruct.literal("Single"), undefined);
       }));
 
 var variantWithAliasStruct = S$RescriptStruct.union([
@@ -31,7 +31,7 @@ Ava("Variant with partial @as usage", (function (t) {
         U.assertEqualStructs(t, variantWithAliasStruct, S$RescriptStruct.union([
                   S$RescriptStruct.literal("하나"),
                   S$RescriptStruct.literal("Two")
-                ]), undefined, undefined);
+                ]), undefined);
       }));
 
 export {

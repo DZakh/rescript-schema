@@ -5,69 +5,69 @@ import Ava from "ava";
 import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
 
 Ava("String struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.string, S$RescriptStruct.string, undefined, undefined);
+        U.assertEqualStructs(t, S$RescriptStruct.string, S$RescriptStruct.string, undefined);
       }));
 
 Ava("Int struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.$$int, S$RescriptStruct.$$int, undefined, undefined);
+        U.assertEqualStructs(t, S$RescriptStruct.$$int, S$RescriptStruct.$$int, undefined);
       }));
 
 Ava("Float struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.$$float, S$RescriptStruct.$$float, undefined, undefined);
+        U.assertEqualStructs(t, S$RescriptStruct.$$float, S$RescriptStruct.$$float, undefined);
       }));
 
 Ava("Bool struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.bool, S$RescriptStruct.bool, undefined, undefined);
+        U.assertEqualStructs(t, S$RescriptStruct.bool, S$RescriptStruct.bool, undefined);
       }));
 
 Ava("Unit struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.unit, S$RescriptStruct.unit, undefined, undefined);
+        U.assertEqualStructs(t, S$RescriptStruct.unit, S$RescriptStruct.unit, undefined);
       }));
 
 Ava("Unknown struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.unknown, S$RescriptStruct.unknown, undefined, undefined);
+        U.assertEqualStructs(t, S$RescriptStruct.unknown, S$RescriptStruct.unknown, undefined);
       }));
 
 Ava("Never struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.never, S$RescriptStruct.never, undefined, undefined);
+        U.assertEqualStructs(t, S$RescriptStruct.never, S$RescriptStruct.never, undefined);
       }));
 
 var myOptionOfStringStruct = S$RescriptStruct.option(S$RescriptStruct.string);
 
 Ava("Option of string struct", (function (t) {
-        U.assertEqualStructs(t, myOptionOfStringStruct, S$RescriptStruct.option(S$RescriptStruct.string), undefined, undefined);
+        U.assertEqualStructs(t, myOptionOfStringStruct, S$RescriptStruct.option(S$RescriptStruct.string), undefined);
       }));
 
 var myArrayOfStringStruct = S$RescriptStruct.array(S$RescriptStruct.string);
 
 Ava("Array of string struct", (function (t) {
-        U.assertEqualStructs(t, myArrayOfStringStruct, S$RescriptStruct.array(S$RescriptStruct.string), undefined, undefined);
+        U.assertEqualStructs(t, myArrayOfStringStruct, S$RescriptStruct.array(S$RescriptStruct.string), undefined);
       }));
 
 var myListOfStringStruct = S$RescriptStruct.list(S$RescriptStruct.string);
 
 Ava("List of string struct", (function (t) {
-        U.assertEqualStructs(t, myListOfStringStruct, S$RescriptStruct.list(S$RescriptStruct.string), undefined, undefined);
+        U.assertEqualStructs(t, myListOfStringStruct, S$RescriptStruct.list(S$RescriptStruct.string), undefined);
       }));
 
 var myDictOfStringStruct = S$RescriptStruct.dict(S$RescriptStruct.string);
 
 Ava("Dict of string struct", (function (t) {
-        U.assertEqualStructs(t, myDictOfStringStruct, S$RescriptStruct.dict(S$RescriptStruct.string), undefined, undefined);
+        U.assertEqualStructs(t, myDictOfStringStruct, S$RescriptStruct.dict(S$RescriptStruct.string), undefined);
       }));
 
 var myDictOfStringFromCoreStruct = S$RescriptStruct.dict(S$RescriptStruct.string);
 
 Ava("Dict of string struct from Core", (function (t) {
-        U.assertEqualStructs(t, myDictOfStringFromCoreStruct, S$RescriptStruct.dict(S$RescriptStruct.string), undefined, undefined);
+        U.assertEqualStructs(t, myDictOfStringFromCoreStruct, S$RescriptStruct.dict(S$RescriptStruct.string), undefined);
       }));
 
 Ava("Json struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.json, S$RescriptStruct.json, undefined, undefined);
+        U.assertEqualStructs(t, S$RescriptStruct.json, S$RescriptStruct.json, undefined);
       }));
 
 Ava("Json struct from Core", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.json, S$RescriptStruct.json, undefined, undefined);
+        U.assertEqualStructs(t, S$RescriptStruct.json, S$RescriptStruct.json, undefined);
       }));
 
 var myTupleStruct = S$RescriptStruct.tuple(function (s) {
@@ -78,7 +78,7 @@ var myTupleStruct = S$RescriptStruct.tuple(function (s) {
     });
 
 Ava("Tuple struct", (function (t) {
-        U.assertEqualStructs(t, myTupleStruct, S$RescriptStruct.tuple2(S$RescriptStruct.string, S$RescriptStruct.$$int), undefined, undefined);
+        U.assertEqualStructs(t, myTupleStruct, S$RescriptStruct.tuple2(S$RescriptStruct.string, S$RescriptStruct.$$int), undefined);
       }));
 
 var myBigTupleStruct = S$RescriptStruct.tuple(function (s) {
@@ -114,31 +114,31 @@ Ava("Big tuple struct", (function (t) {
                           s.i(10, S$RescriptStruct.bool),
                           s.i(11, S$RescriptStruct.bool)
                         ];
-                }), undefined, undefined);
+                }), undefined);
       }));
 
 var myCustomStringStruct = S$RescriptStruct.$$String.email(S$RescriptStruct.string, undefined);
 
 Ava("Custom string struct", (function (t) {
-        U.assertEqualStructs(t, myCustomStringStruct, S$RescriptStruct.$$String.email(S$RescriptStruct.string, undefined), undefined, undefined);
+        U.assertEqualStructs(t, myCustomStringStruct, S$RescriptStruct.$$String.email(S$RescriptStruct.string, undefined), undefined);
       }));
 
 var myCustomLiteralStringStruct = S$RescriptStruct.$$String.email(S$RescriptStruct.literal("123"), undefined);
 
 Ava("Custom litaral string struct", (function (t) {
-        U.assertEqualStructs(t, myCustomLiteralStringStruct, S$RescriptStruct.$$String.email(S$RescriptStruct.literal("123"), undefined), undefined, undefined);
+        U.assertEqualStructs(t, myCustomLiteralStringStruct, S$RescriptStruct.$$String.email(S$RescriptStruct.literal("123"), undefined), undefined);
       }));
 
 var myCustomOptionalStringStruct = S$RescriptStruct.option(S$RescriptStruct.$$String.email(S$RescriptStruct.string, undefined));
 
 Ava("Custom optional string struct", (function (t) {
-        U.assertEqualStructs(t, myCustomOptionalStringStruct, S$RescriptStruct.option(S$RescriptStruct.$$String.email(S$RescriptStruct.string, undefined)), undefined, undefined);
+        U.assertEqualStructs(t, myCustomOptionalStringStruct, S$RescriptStruct.option(S$RescriptStruct.$$String.email(S$RescriptStruct.string, undefined)), undefined);
       }));
 
 var myNullOfStringStruct = S$RescriptStruct.$$null(S$RescriptStruct.string);
 
 Ava("Null of string struct", (function (t) {
-        U.assertEqualStructs(t, myNullOfStringStruct, S$RescriptStruct.$$null(S$RescriptStruct.string), undefined, undefined);
+        U.assertEqualStructs(t, myNullOfStringStruct, S$RescriptStruct.$$null(S$RescriptStruct.string), undefined);
       }));
 
 var myStringStruct = S$RescriptStruct.string;

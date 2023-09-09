@@ -42,7 +42,6 @@ module Common = {
       ~struct,
       ~op=#parse,
       `i=>{let v0;if(i!==void 0&&(typeof i!=="string")){e[0](i)}if(i!==void 0){v0=i}else{v0=void 0}return v0}`,
-      (),
     )
   })
 
@@ -53,7 +52,6 @@ module Common = {
       ~struct,
       ~op=#parse,
       `i=>{let v0;if(i!==void 0){let v1;v1=e[0](i);v0=v1}else{v0=()=>Promise.resolve(void 0)}return v0}`,
-      (),
     )
   })
 
@@ -64,7 +62,6 @@ module Common = {
       ~struct,
       ~op=#serialize,
       `i=>{let v0;if(i!==void 0){v0=e[0](i)}else{v0=void 0}return v0}`,
-      (),
     )
   })
 }

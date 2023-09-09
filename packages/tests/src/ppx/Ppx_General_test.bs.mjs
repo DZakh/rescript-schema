@@ -5,11 +5,11 @@ import Ava from "ava";
 import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
 
 Ava("Creates struct with the name struct from t type", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.string, S$RescriptStruct.string, undefined, undefined);
+        U.assertEqualStructs(t, S$RescriptStruct.string, S$RescriptStruct.string, undefined);
       }));
 
 Ava("Creates struct with the type name and struct at the for non t types", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.$$int, S$RescriptStruct.$$int, undefined, undefined);
+        U.assertEqualStructs(t, S$RescriptStruct.$$int, S$RescriptStruct.$$int, undefined);
       }));
 
 var reusedTypesStruct = S$RescriptStruct.tuple(function (s) {
@@ -29,7 +29,7 @@ Ava("Can reuse structs from other types", (function (t) {
                           s.i(2, S$RescriptStruct.bool),
                           s.i(3, S$RescriptStruct.$$float)
                         ];
-                }), undefined, undefined);
+                }), undefined);
       }));
 
 var struct = S$RescriptStruct.string;

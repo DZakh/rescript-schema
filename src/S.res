@@ -3279,23 +3279,7 @@ let inline = {
     let metadataMap = struct.metadataMap->Stdlib.Dict.copy
 
     let inlinedStruct = switch struct->classify {
-    | Literal(taggedLiteral) => {
-        let inlinedLiteral = switch taggedLiteral {
-        | String(string) => `String(${string->Stdlib.Inlined.Value.fromString})`
-        | Number(float) => `Number(${float->Stdlib.Inlined.Float.toRescript})`
-        | Boolean(bool) => `Bool(${bool->Stdlib.Bool.unsafeToString})`
-        | Undefined => `Undefined`
-        | Null => `EmptyNull`
-        | NaN => `NaN`
-        // TODO:
-        | _ => `NaN`
-        }
-        switch maybeVariant {
-        | Some(variant) => `S.literalVariant(${inlinedLiteral}, ${variant})`
-        | None => `S.literal(${inlinedLiteral})`
-        }
-      }
-
+    | Literal(literal) => `S.literal(%raw(\`${literal->Literal.toText}\`))`
     | Union(unionStructs) => {
         let variantNamesCounter = Js.Dict.empty()
         `S.union([${unionStructs
@@ -3317,17 +3301,16 @@ let inline = {
           ->Js.Array2.joinWith(", ")}])`
       }
     | JSON => `S.json`
-
-    | Tuple([]) => `S.tuple0(.)`
-    | Tuple(tupleStructs) => {
-        let numberOfItems = tupleStructs->Js.Array2.length
-        if numberOfItems > 10 {
-          InternalError.panic("The S.inline doesn't support tuples with more than 10 items.")
-        }
-        `S.tuple${numberOfItems->Stdlib.Int.unsafeToString}(. ${tupleStructs
-          ->Js.Array2.map(s => s->internalInline())
-          ->Js.Array2.joinWith(", ")})`
-      }
+    | Tuple([s1]) => `S.tuple1(${s1->internalInline()})`
+    | Tuple([s1, s2]) => `S.tuple2(${s1->internalInline()}, ${s2->internalInline()})`
+    | Tuple([s1, s2, s3]) =>
+      `S.tuple3(${s1->internalInline()}, ${s2->internalInline()}, ${s3->internalInline()})`
+    | Tuple(tupleStructs) =>
+      `S.tuple(s => (${tupleStructs
+        ->Js.Array2.mapi((s, idx) =>
+          `s.item(${idx->Stdlib.Int.unsafeToString}, ${s->internalInline()})`
+        )
+        ->Js.Array2.joinWith(", ")}))`
     | Object({fieldNames: []}) => `S.object(_ => ())`
     | Object({fieldNames, fields}) =>
       `S.object(s =>
@@ -3345,26 +3328,28 @@ let inline = {
     | Int => `S.int`
     | Float => `S.float`
     | Bool => `S.bool`
-    | Option(struct) => {
-        let internalInlinedStruct = struct->internalInline()
-        switch struct->Option.default {
-        | Some(default) => {
-            metadataMap->Stdlib.Dict.deleteInPlace(Option.defaultMetadataId->Metadata.Id.toKey)
-            internalInlinedStruct ++
-            `->S.Option.getOrWith(() => %raw(\`${switch default {
-              | Value(defaultValue) => defaultValue
-              | Callback(defaultCb) => defaultCb()
-              }->Stdlib.Inlined.Value.stringify}\`))`
-          }
-
-        | None => `S.option(${internalInlinedStruct})`
-        }
-      }
+    | Option(struct) => `S.option(${struct->internalInline()})`
     | Null(struct) => `S.null(${struct->internalInline()})`
     | Never => `S.never`
     | Unknown => `S.unknown`
     | Array(struct) => `S.array(${struct->internalInline()})`
     | Dict(struct) => `S.dict(${struct->internalInline()})`
+    }
+
+    let inlinedStruct = switch struct->Option.default {
+    | Some(default) => {
+        metadataMap->Stdlib.Dict.deleteInPlace(Option.defaultMetadataId->Metadata.Id.toKey)
+        switch default {
+        | Value(defaultValue) =>
+          inlinedStruct ++
+          `->S.Option.getOr(%raw(\`${defaultValue->Stdlib.Inlined.Value.stringify}\`))`
+        | Callback(defaultCb) =>
+          inlinedStruct ++
+          `->S.Option.getOrWith(() => %raw(\`${defaultCb()->Stdlib.Inlined.Value.stringify}\`))`
+        }
+      }
+
+    | None => inlinedStruct
     }
 
     let inlinedStruct = switch struct->deprecation {
@@ -3402,31 +3387,31 @@ let inline = {
         ->Js.Array2.map(refinement => {
           switch refinement {
           | {kind: Email, message} =>
-            `->S.String.email(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+            `->S.String.email(~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Url, message} =>
-            `->S.String.url(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+            `->S.String.url(~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Uuid, message} =>
-            `->S.String.uuid(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+            `->S.String.uuid(~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Cuid, message} =>
-            `->S.String.cuid(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+            `->S.String.cuid(~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Min({length}), message} =>
-            `->S.String.min(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Stdlib.Int.unsafeToString})`
+            `->S.String.min(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Max({length}), message} =>
-            `->S.String.max(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Stdlib.Int.unsafeToString})`
+            `->S.String.max(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Length({length}), message} =>
-            `->S.String.length(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Stdlib.Int.unsafeToString})`
+            `->S.String.length(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Pattern({re}), message} =>
-            `->S.String.pattern(~message=${message->Stdlib.Inlined.Value.fromString}, %re(${re
+            `->S.String.pattern(%re(${re
               ->Stdlib.Re.toString
-              ->Stdlib.Inlined.Value.fromString}))`
+              ->Stdlib.Inlined.Value.fromString}), ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Datetime, message} =>
-            `->S.String.datetime(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+            `->S.String.datetime(~message=${message->Stdlib.Inlined.Value.fromString})`
           }
         })
         ->Js.Array2.joinWith("")
       }
     | Int =>
-      // TODO:| Literal(Int(_))
+      // | Literal(Int(_)) ???
       switch struct->Int.refinements {
       | [] => inlinedStruct
       | refinements =>
@@ -3436,17 +3421,17 @@ let inline = {
         ->Js.Array2.map(refinement => {
           switch refinement {
           | {kind: Max({value}), message} =>
-            `->S.Int.max(~message=${message->Stdlib.Inlined.Value.fromString}, ${value->Stdlib.Int.unsafeToString})`
+            `->S.Int.max(${value->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Min({value}), message} =>
-            `->S.Int.min(~message=${message->Stdlib.Inlined.Value.fromString}, ${value->Stdlib.Int.unsafeToString})`
+            `->S.Int.min(${value->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Port, message} =>
-            `->S.Int.port(~message=${message->Stdlib.Inlined.Value.fromString}, ())`
+            `->S.Int.port(~message=${message->Stdlib.Inlined.Value.fromString})`
           }
         })
         ->Js.Array2.joinWith("")
       }
     | Float =>
-      // TODO: | Literal(Float(_))
+      // | Literal(Float(_)) ???
       switch struct->Float.refinements {
       | [] => inlinedStruct
       | refinements =>
@@ -3456,9 +3441,9 @@ let inline = {
         ->Js.Array2.map(refinement => {
           switch refinement {
           | {kind: Max({value}), message} =>
-            `->S.Float.max(~message=${message->Stdlib.Inlined.Value.fromString}, ${value->Stdlib.Inlined.Float.toRescript})`
+            `->S.Float.max(${value->Stdlib.Inlined.Float.toRescript}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Min({value}), message} =>
-            `->S.Float.min(~message=${message->Stdlib.Inlined.Value.fromString}, ${value->Stdlib.Inlined.Float.toRescript})`
+            `->S.Float.min(${value->Stdlib.Inlined.Float.toRescript}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           }
         })
         ->Js.Array2.joinWith("")
@@ -3474,11 +3459,11 @@ let inline = {
         ->Js.Array2.map(refinement => {
           switch refinement {
           | {kind: Max({length}), message} =>
-            `->S.Array.max(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Stdlib.Int.unsafeToString})`
+            `->S.Array.max(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Min({length}), message} =>
-            `->S.Array.min(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Stdlib.Int.unsafeToString})`
+            `->S.Array.min(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Length({length}), message} =>
-            `->S.Array.length(~message=${message->Stdlib.Inlined.Value.fromString}, ${length->Stdlib.Int.unsafeToString})`
+            `->S.Array.length(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           }
         })
         ->Js.Array2.joinWith("")
@@ -3497,10 +3482,9 @@ let inline = {
       inlinedStruct
     }
 
-    let inlinedStruct = switch (struct->classify, maybeVariant) {
-    | (Literal(_), _) => inlinedStruct
-    | (_, Some(variant)) => inlinedStruct ++ `->S.variant(v => ${variant}(v))`
-    | _ => inlinedStruct
+    let inlinedStruct = switch maybeVariant {
+    | Some(variant) => inlinedStruct ++ `->S.variant(v => ${variant}(v))`
+    | None => inlinedStruct
     }
 
     inlinedStruct
@@ -3508,6 +3492,7 @@ let inline = {
 
   struct => {
     // Have it only for the sake of importing Caml_option in a less painfull way
+    // Not related to the function at all
     if %raw(`false`) {
       switch %raw(`void 0`) {
       | Some(v) => v

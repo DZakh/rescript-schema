@@ -316,7 +316,6 @@ test("Compiled parse code snapshot", t => {
     ~struct,
     ~op=#parse,
     `i=>{let v0;try{i===e[0]||e[1](i);v0=i}catch(v1){if(v1&&v1.s===s){try{i===e[2]||e[3](i);v0=i}catch(v2){if(v2&&v2.s===s){e[4]([v1,v2])}else{throw v2}}}else{throw v1}}return v0}`,
-    (),
   )
 })
 
@@ -330,7 +329,6 @@ test("Compiled async parse code snapshot", t => {
     ~struct,
     ~op=#parse,
     `i=>{let v0,v1;try{i===e[0]||e[1](i);v0=e[2](i);throw v0}catch(v2){if(v2&&v2.s===s||v2===v0){try{i===e[3]||e[4](i);v1=()=>Promise.resolve(i)}catch(v3){if(v3&&v3.s===s){v1=()=>Promise.any([v2===v0?v2():Promise.reject(v2),Promise.reject(v3)]).catch(t=>{e[5](t.errors)})}else{throw v3}}}else{throw v2}}return v1}`,
-    (),
   )
 })
 
@@ -342,7 +340,6 @@ test("Compiled serialize code snapshot", t => {
     ~struct,
     ~op=#serialize,
     `i=>{let v0;try{i===e[0]||e[1](i);v0=i}catch(v1){if(v1&&v1.s===s){try{i===e[2]||e[3](i);v0=i}catch(v2){if(v2&&v2.s===s){e[4]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
-    (),
   )
 })
 
@@ -361,6 +358,5 @@ test("Compiled serialize code snapshot for unboxed variant", t => {
     ~struct,
     ~op=#serialize,
     `i=>{let v0;try{if(typeof i!=="string"){e[0](i)}v0=i}catch(v1){if(v1&&v1.s===s){try{let v3;v3=e[1](i);if(typeof v3!=="string"){e[2](v3)}v0=v3}catch(v2){if(v2&&v2.s===s){e[3]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
-    (),
   )
 })

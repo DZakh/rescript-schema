@@ -13,13 +13,13 @@ Ava("Polymorphic variant", (function (t) {
         U.assertEqualStructs(t, polyStruct, S$RescriptStruct.union([
                   S$RescriptStruct.literal("one"),
                   S$RescriptStruct.literal("two")
-                ]), undefined, undefined);
+                ]), undefined);
       }));
 
 var polyWithSingleItemStruct = S$RescriptStruct.literal("single");
 
 Ava("Polymorphic variant with single item becomes a literal struct of the item", (function (t) {
-        U.assertEqualStructs(t, polyWithSingleItemStruct, S$RescriptStruct.literal("single"), undefined, undefined);
+        U.assertEqualStructs(t, polyWithSingleItemStruct, S$RescriptStruct.literal("single"), undefined);
       }));
 
 var polyWithAliasStruct = S$RescriptStruct.union([
@@ -31,7 +31,7 @@ Ava("Polymorphic variant with partial @as usage", (function (t) {
         U.assertEqualStructs(t, polyWithAliasStruct, S$RescriptStruct.union([
                   S$RescriptStruct.literal("one"),
                   S$RescriptStruct.literal("two")
-                ]), undefined, undefined);
+                ]), undefined);
       }));
 
 export {

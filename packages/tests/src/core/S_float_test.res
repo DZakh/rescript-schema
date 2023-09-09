@@ -41,14 +41,13 @@ module Common = {
       ~struct,
       ~op=#parse,
       `i=>{if(typeof i!=="number"||Number.isNaN(i)){e[0](i)}return i}`,
-      (),
     )
   })
 
   test("Compiled serialize code snapshot", t => {
     let struct = factory()
 
-    t->U.assertCompiledCodeIsNoop(~struct, ~op=#serialize, ())
+    t->U.assertCompiledCodeIsNoop(~struct, ~op=#serialize)
   })
 }
 

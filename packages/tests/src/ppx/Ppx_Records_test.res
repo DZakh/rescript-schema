@@ -13,7 +13,6 @@ test("Simple record struct", t => {
       label: s.field("label", S.string),
       value: s.field("value", S.int),
     }),
-    (),
   )
   t->Assert.deepEqual(
     %raw(`{label:"foo",value:1}`)->S.parseWith(simpleRecordStruct),
@@ -34,7 +33,6 @@ test("Record struct with alias for field name", t => {
       label: s.field("aliased-label", S.string),
       value: s.field("value", S.int),
     }),
-    (),
   )
   t->Assert.deepEqual(
     %raw(`{"aliased-label":"foo",value:1}`)->S.parseWith(recordWithAliasStruct),
@@ -55,7 +53,6 @@ test("Record struct with optional fields", t => {
       label: s.field("label", S.option(S.string)),
       value: ?s.field("value", S.option(S.int)),
     }),
-    (),
   )
   t->Assert.deepEqual(
     %raw(`{"label":"foo",value:1}`)->S.parseWith(recordWithOptionalStruct),
