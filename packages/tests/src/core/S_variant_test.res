@@ -137,3 +137,32 @@ test("Compiled serialize code snapshot", t => {
     `i=>{let v0;v0=i["TAG"];if(v0!==e[0]){e[1](v0)}return i["_0"]}`,
   )
 })
+
+test("Works with variant struct used multiple times as a child struct", t => {
+  let appVersionSpecStruct = S.string->S.variant(current => {"current": current, "minimum": "1.0"})
+
+  let appVersionsStruct = S.object(s =>
+    {
+      "ios": s.field("ios", appVersionSpecStruct),
+      "android": s.field("android", appVersionSpecStruct),
+    }
+  )
+
+  let rawAppVersions = {
+    "ios": "1.1",
+    "android": "1.2",
+  }
+  let appVersions = {
+    "ios": {"current": "1.1", "minimum": "1.0"},
+    "android": {"current": "1.2", "minimum": "1.0"},
+  }
+
+  let value = rawAppVersions->S.parseAnyOrRaiseWith(appVersionsStruct)
+  t->Assert.deepEqual(value, appVersions, ())
+
+  let data = appVersions->S.serializeOrRaiseWith(appVersionsStruct)
+  t->Assert.deepEqual(data, rawAppVersions->Obj.magic, ())
+
+  let data = appVersions->S.serializeOrRaiseWith(appVersionsStruct)
+  t->Assert.deepEqual(data, rawAppVersions->Obj.magic, ())
+})

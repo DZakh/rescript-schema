@@ -1463,6 +1463,7 @@ function noopRefinement(_b, param, param$1, param$2) {
 function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definition, inputRefinement, unknownKeysRefinement) {
   return function (b, selfStruct, path) {
     var inputVar = toVar(b, b.i);
+    var registeredDefinitions = new Set();
     var asyncOutputVars = [];
     inputRefinement(b, selfStruct, inputVar, path);
     var prevCode = b.c;
@@ -1491,7 +1492,7 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
         case 1 :
             return "e[" + (b.e.push(definition) - 1) + "]";
         case 2 :
-            definition.r = 1;
+            registeredDefinitions.add(definition);
             var inputPath = definition.p;
             var struct = definition.s;
             var fieldOuputVar = useWithTypeFilter(b, struct, inputVar + inputPath, path + inputPath);
@@ -1507,11 +1508,10 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
     var registeredFieldsCode = b.c;
     b.c = "";
     for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
-      var match = itemDefinitions[idx];
-      var inputPath = match.p;
-      var struct = match.s;
-      var registered = match.r;
-      if (registered === 0) {
+      var itemDefinition = itemDefinitions[idx];
+      if (!registeredDefinitions.has(itemDefinition)) {
+        var inputPath = itemDefinition.p;
+        var struct = itemDefinition.s;
         var fieldOuputVar = useWithTypeFilter(b, struct, inputVar + inputPath, path + inputPath);
         var isAsyncField = struct.i;
         if (isAsyncField) {
@@ -1543,11 +1543,11 @@ function factory$3(definer) {
     if (fields[fieldName]) {
       throw new Error("[rescript-struct] " + ("The field " + inlinedInputLocation + " is defined multiple times. If you want to duplicate the field, use S.transform instead."));
     }
+    var itemDefinition_p = "[" + inlinedInputLocation + "]";
     var itemDefinition = {
       s: struct,
       l: inlinedInputLocation,
-      p: "[" + inlinedInputLocation + "]",
-      r: 0
+      p: itemDefinition_p
     };
     fields[fieldName] = struct;
     fieldNames.push(fieldName);
@@ -1614,6 +1614,7 @@ function factory$3(definer) {
               var fieldsCodeRef = {
                 contents: ""
               };
+              var registeredDefinitions = new Set();
               var prevCode = b.c;
               b.c = "";
               var definitionToOutput = function (definition, outputPath) {
@@ -1637,29 +1638,23 @@ function factory$3(definer) {
                             }), inputVar + outputPath) + "}" + b.c;
                       return ;
                   case 2 :
-                      var match = definition.r;
-                      switch (match) {
-                        case 0 :
-                        case 1 :
-                            break;
-                        case 2 :
-                            return invalidOperation(b, path, "The field " + definition.l + " is registered multiple times. If you want to duplicate the field, use S.transform instead");
-                        
+                      if (registeredDefinitions.has(definition)) {
+                        return invalidOperation(b, path, "The field " + definition.l + " is registered multiple times. If you want to duplicate the field, use S.transform instead");
+                      } else {
+                        registeredDefinitions.add(definition);
+                        fieldsCodeRef.contents = fieldsCodeRef.contents + (definition.l + ":" + use(b, definition.s, inputVar + outputPath, path + outputPath) + ",");
+                        return ;
                       }
-                      definition.r = 2;
-                      fieldsCodeRef.contents = fieldsCodeRef.contents + (definition.l + ":" + use(b, definition.s, inputVar + outputPath, path + outputPath) + ",");
-                      return ;
                   
                 }
               };
               definitionToOutput(definition, "");
               b.c = prevCode + b.c;
               for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
-                var match = itemDefinitions[idx];
-                var inlinedInputLocation = match.l;
-                var registered = match.r;
-                if (registered === 0) {
-                  var literal = toLiteral(match.s);
+                var itemDefinition = itemDefinitions[idx];
+                if (!registeredDefinitions.has(itemDefinition)) {
+                  var inlinedInputLocation = itemDefinition.l;
+                  var literal = toLiteral(itemDefinition.s);
                   if (literal !== undefined) {
                     var value$1 = value(literal);
                     fieldsCodeRef.contents = fieldsCodeRef.contents + (inlinedInputLocation + ":" + ("e[" + (b.e.push(value$1) - 1) + "]") + ",");
@@ -2268,11 +2263,11 @@ function factory$7(definer) {
     if (structs[idx]) {
       throw new Error("[rescript-struct] " + ("The item " + inlinedInputLocation + " is defined multiple times. If you want to duplicate the item, use S.transform instead."));
     }
+    var itemDefinition_p = "[" + inlinedInputLocation + "]";
     var itemDefinition = {
       s: struct,
       l: inlinedInputLocation,
-      p: "[" + inlinedInputLocation + "]",
-      r: 0
+      p: itemDefinition_p
     };
     structs[idx] = struct;
     itemDefinitionsSet.add(itemDefinition);
@@ -2294,11 +2289,11 @@ function factory$7(definer) {
   for(var idx = 0; idx < length; ++idx){
     if (!structs$1[idx]) {
       var inlinedInputLocation = "\"" + idx + "\"";
+      var itemDefinition_p = "[" + inlinedInputLocation + "]";
       var itemDefinition = {
         s: unit,
         l: inlinedInputLocation,
-        p: "[" + inlinedInputLocation + "]",
-        r: 0
+        p: itemDefinition_p
       };
       structs$1[idx] = unit;
       itemDefinitionsSet$1.add(itemDefinition);
@@ -2323,6 +2318,7 @@ function factory$7(definer) {
           sb: (function (b, param, path) {
               var inputVar = toVar(b, b.i);
               var outputVar = $$var(b);
+              var registeredDefinitions = new Set();
               b.c = b.c + (outputVar + "=[];");
               var prevCode = b.c;
               b.c = "";
@@ -2347,16 +2343,10 @@ function factory$7(definer) {
                             }), inputVar + outputPath) + "}" + b.c;
                       return ;
                   case 2 :
-                      var match = definition.r;
-                      switch (match) {
-                        case 0 :
-                        case 1 :
-                            break;
-                        case 2 :
-                            return invalidOperation(b, path, "The item " + definition.l + " is registered multiple times. If you want to duplicate the item, use S.transform instead");
-                        
+                      if (registeredDefinitions.has(definition)) {
+                        return invalidOperation(b, path, "The item " + definition.l + " is registered multiple times. If you want to duplicate the item, use S.transform instead");
                       }
-                      definition.r = 2;
+                      registeredDefinitions.add(definition);
                       var fieldOuputVar = use(b, definition.s, inputVar + outputPath, path + outputPath);
                       b.c = b.c + (outputVar + definition.p + "=" + fieldOuputVar + ";");
                       return ;
@@ -2366,15 +2356,14 @@ function factory$7(definer) {
               definitionToOutput(definition, "");
               b.c = prevCode + b.c;
               for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
-                var match = itemDefinitions[idx];
-                var registered = match.r;
-                if (registered === 0) {
-                  var literal = toLiteral(match.s);
+                var itemDefinition = itemDefinitions[idx];
+                if (!registeredDefinitions.has(itemDefinition)) {
+                  var literal = toLiteral(itemDefinition.s);
                   if (literal !== undefined) {
                     var value$1 = value(literal);
-                    b.c = b.c + (outputVar + match.p + "=" + ("e[" + (b.e.push(value$1) - 1) + "]") + ";");
+                    b.c = b.c + (outputVar + itemDefinition.p + "=" + ("e[" + (b.e.push(value$1) - 1) + "]") + ";");
                   } else {
-                    invalidOperation(b, path, "Can't create serializer. The " + match.l + " item is not registered and not a literal. Use S.transform instead");
+                    invalidOperation(b, path, "Can't create serializer. The " + itemDefinition.l + " item is not registered and not a literal. Use S.transform instead");
                   }
                 }
                 

@@ -1759,7 +1759,6 @@ module Object = {
     @as("o") fieldOr: 'value. (string, t<'value>, 'value) => 'value,
     @as("t") tag: 'value. (string, 'value) => unit,
   }
-  type registered = | @as(0) Unregistered | @as(1) ByParsing | @as(2) BySerializing
   type itemDefinition = {
     @as("s")
     struct: struct<unknown>,
@@ -1767,8 +1766,6 @@ module Object = {
     inlinedInputLocation: string,
     @as("p")
     inputPath: Path.t,
-    @as("r")
-    mutable registered: registered,
   }
 
   let typeFilter = (~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
@@ -1785,6 +1782,7 @@ module Object = {
     Builder.make((b, ~selfStruct, ~path) => {
       let inputVar = b->B.useInputVar
 
+      let registeredDefinitions = Stdlib.Set.empty()
       let asyncOutputVars = []
 
       inputRefinement(b, ~selfStruct, ~inputVar, ~path)
@@ -1801,7 +1799,7 @@ module Object = {
           switch kind {
           | Embeded => {
               let itemDefinition = definition->Definition.toEmbeded
-              itemDefinition.registered = ByParsing
+              registeredDefinitions->Stdlib.Set.add(itemDefinition)->ignore
               let {struct, inputPath} = itemDefinition
               let fieldOuputVar =
                 b->B.useWithTypeFilter(
@@ -1847,8 +1845,9 @@ module Object = {
       b.code = ""
 
       for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
-        let {struct, inputPath, registered} = itemDefinitions->Js.Array2.unsafe_get(idx)
-        if registered === Unregistered {
+        let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
+        if registeredDefinitions->Stdlib.Set.has(itemDefinition)->not {
+          let {struct, inputPath} = itemDefinition
           let fieldOuputVar =
             b->B.useWithTypeFilter(
               ~struct,
@@ -1914,7 +1913,6 @@ module Object = {
               struct,
               inlinedInputLocation,
               inputPath: inlinedInputLocation->Path.fromInlinedLocation,
-              registered: Unregistered,
             }
             fields->Js.Dict.set(fieldName, struct)
             fieldNames->Js.Array2.push(fieldName)->ignore
@@ -2001,6 +1999,8 @@ module Object = {
         let inputVar = b->B.useInputVar
         let fieldsCodeRef = ref("")
 
+        let registeredDefinitions = Stdlib.Set.empty()
+
         {
           let prevCode = b.code
           b.code = ""
@@ -2009,23 +2009,21 @@ module Object = {
             switch kind {
             | Embeded =>
               let itemDefinition = definition->Definition.toEmbeded
-              switch itemDefinition {
-              | {registered: ByParsing, struct, inlinedInputLocation}
-              | {registered: Unregistered, struct, inlinedInputLocation} => {
-                  itemDefinition.registered = BySerializing
-                  fieldsCodeRef.contents =
-                    fieldsCodeRef.contents ++
-                    `${inlinedInputLocation}:${b->B.use(
-                        ~struct,
-                        ~input=`${inputVar}${outputPath}`,
-                        ~path=path->Path.concat(outputPath),
-                      )},`
-                }
-              | {registered: BySerializing} =>
+              if registeredDefinitions->Stdlib.Set.has(itemDefinition) {
                 b->B.invalidOperation(
                   ~path,
                   ~description=`The field ${itemDefinition.inlinedInputLocation} is registered multiple times. If you want to duplicate the field, use S.transform instead`,
                 )
+              } else {
+                registeredDefinitions->Stdlib.Set.add(itemDefinition)->ignore
+                let {inlinedInputLocation, struct} = itemDefinition
+                fieldsCodeRef.contents =
+                  fieldsCodeRef.contents ++
+                  `${inlinedInputLocation}:${b->B.use(
+                      ~struct,
+                      ~input=`${inputVar}${outputPath}`,
+                      ~path=path->Path.concat(outputPath),
+                    )},`
               }
             | Constant => {
                 let value = definition->Definition.toConstant
@@ -2059,9 +2057,9 @@ module Object = {
         }
 
         for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
-          let {struct, inlinedInputLocation, registered} =
-            itemDefinitions->Js.Array2.unsafe_get(idx)
-          if registered === Unregistered {
+          let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
+          if registeredDefinitions->Stdlib.Set.has(itemDefinition)->not {
+            let {struct, inlinedInputLocation} = itemDefinition
             switch struct->toLiteral {
             | Some(literal) =>
               fieldsCodeRef.contents =
@@ -2790,7 +2788,6 @@ module Tuple = {
               struct,
               inlinedInputLocation,
               inputPath: inlinedInputLocation->Path.fromInlinedLocation,
-              registered: Unregistered,
             }
             structs->Js.Array2.unsafe_set(idx, struct)
             itemDefinitionsSet->Stdlib.Set.add(itemDefinition)->ignore
@@ -2825,7 +2822,6 @@ module Tuple = {
           struct,
           inlinedInputLocation,
           inputPath: inlinedInputLocation->Path.fromInlinedLocation,
-          registered: Unregistered,
         }
         structs->Js.Array2.unsafe_set(idx, struct)
         itemDefinitionsSet->Stdlib.Set.add(itemDefinition)->ignore
@@ -2856,6 +2852,7 @@ module Tuple = {
       ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
         let inputVar = b->B.useInputVar
         let outputVar = b->B.var
+        let registeredDefinitions = Stdlib.Set.empty()
         b.code = b.code ++ `${outputVar}=[];`
 
         {
@@ -2869,23 +2866,21 @@ module Tuple = {
             switch kind {
             | Embeded =>
               let itemDefinition = definition->Definition.toEmbeded
-              switch itemDefinition {
-              | {registered: ByParsing, struct, inputPath}
-              | {registered: Unregistered, struct, inputPath} => {
-                  itemDefinition.registered = BySerializing
-                  let fieldOuputVar =
-                    b->B.use(
-                      ~struct,
-                      ~input=`${inputVar}${outputPath}`,
-                      ~path=path->Path.concat(outputPath),
-                    )
-                  b.code = b.code ++ `${outputVar}${inputPath}=${fieldOuputVar};`
-                }
-              | {registered: BySerializing} =>
+              if registeredDefinitions->Stdlib.Set.has(itemDefinition) {
                 b->B.invalidOperation(
                   ~path,
                   ~description=`The item ${itemDefinition.inlinedInputLocation} is registered multiple times. If you want to duplicate the item, use S.transform instead`,
                 )
+              } else {
+                registeredDefinitions->Stdlib.Set.add(itemDefinition)->ignore
+                let {struct, inputPath} = itemDefinition
+                let fieldOuputVar =
+                  b->B.use(
+                    ~struct,
+                    ~input=`${inputVar}${outputPath}`,
+                    ~path=path->Path.concat(outputPath),
+                  )
+                b.code = b.code ++ `${outputVar}${inputPath}=${fieldOuputVar};`
               }
             | Constant => {
                 let value = definition->Definition.toConstant
@@ -2919,9 +2914,9 @@ module Tuple = {
         }
 
         for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
-          let {struct, inlinedInputLocation, inputPath, registered} =
-            itemDefinitions->Js.Array2.unsafe_get(idx)
-          if registered === Unregistered {
+          let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
+          if registeredDefinitions->Stdlib.Set.has(itemDefinition)->not {
+            let {struct, inlinedInputLocation, inputPath} = itemDefinition
             switch struct->toLiteral {
             | Some(literal) =>
               b.code = b.code ++ `${outputVar}${inputPath}=${b->B.embed(literal->Literal.value)};`

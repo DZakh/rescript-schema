@@ -281,7 +281,7 @@ module Compiled = {
   test("Compiled serialize code snapshot for simple tuple", t => {
     let struct = S.tuple(s => (s.item(0, S.string), s.item(1, S.bool)))
 
-    // TODO: Improve
+    // TODO: Improve (the output of tuple can be inlined)
     t->U.assertCompiledCode(
       ~struct,
       ~op=#serialize,
@@ -329,3 +329,34 @@ module Compiled = {
     },
   )
 }
+
+test("Works with tuple struct used multiple times as a child struct", t => {
+  let appVersionSpecStruct = S.tuple(s =>
+    {
+      "current": s.item(0, S.string),
+      "minimum": s.item(1, S.string),
+    }
+  )
+
+  let appVersionsStruct = S.object(s =>
+    {
+      "ios": s.field("ios", appVersionSpecStruct),
+      "android": s.field("android", appVersionSpecStruct),
+    }
+  )
+
+  let rawAppVersions = {
+    "ios": ("1.1", "1.0"),
+    "android": ("1.2", "1.1"),
+  }
+  let appVersions = {
+    "ios": {"current": "1.1", "minimum": "1.0"},
+    "android": {"current": "1.2", "minimum": "1.1"},
+  }
+
+  let value = rawAppVersions->S.parseAnyOrRaiseWith(appVersionsStruct)
+  t->Assert.deepEqual(value, appVersions, ())
+
+  let data = appVersions->S.serializeOrRaiseWith(appVersionsStruct)
+  t->Assert.deepEqual(data, rawAppVersions->Obj.magic, ())
+})

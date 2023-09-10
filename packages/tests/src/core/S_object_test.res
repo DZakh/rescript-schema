@@ -1137,3 +1137,33 @@ module Compiled = {
     },
   )
 }
+
+test(
+  "Works with object struct used multiple times as a child struct. See: https://github.com/DZakh/rescript-struct/issues/63",
+  t => {
+    let appVersionSpecStruct = S.object(s =>
+      {
+        "current": s.field("current", S.string),
+        "minimum": s.field("minimum", S.string),
+      }
+    )
+
+    let appVersionsStruct = S.object(s =>
+      {
+        "ios": s.field("ios", appVersionSpecStruct),
+        "android": s.field("android", appVersionSpecStruct),
+      }
+    )
+
+    let appVersions = {
+      "ios": {"current": "1.1", "minimum": "1.0"},
+      "android": {"current": "1.2", "minimum": "1.1"},
+    }
+
+    let value = appVersions->S.parseAnyOrRaiseWith(appVersionsStruct)
+    t->Assert.deepEqual(value, appVersions, ())
+
+    let data = appVersions->S.serializeOrRaiseWith(appVersionsStruct)
+    t->Assert.deepEqual(data, appVersions->Obj.magic, ())
+  },
+)
