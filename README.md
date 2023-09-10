@@ -4,19 +4,20 @@
 
 # ReScript Struct
 
-Safely parse and serialize with transformation to convenient ReScript data structures.
+The fastest composable parser/serializer for ReScript (and TypeScript).
 
 Highlights:
 
-- Parses any data, not only `JSON.t`
-- Uses the same struct for parsing and serializing
-- Asynchronous refinements and transforms
-- Support for both result and exception based API
+- Combines validation and transformation without a performance loss
+- Can transform parsed value back to the initial format (serializing)
+- Works with any Js value, not only `Js.Json.t`
+- Support for asynchronous transformations
+- Immutable API with both result and exception-based operations
 - Easy to create _recursive_ structs
-- Ability to disallow excessive object fields
-- Full-fledged TS API for non-ReScript users or mixed codebases ([.d.ts](./src/S_JsApi.d.ts))
+- Strict mode for object structs to prevent excessive fields and many more built-in helpers
+- Works with plain JavaScript/TypeScript too! You don't need to use ReScript ([.d.ts](./src/S_JsApi.d.ts))
 - The **fastest** composable validation library in the entire JavaScript ecosystem ([benchmark](https://dzakh.github.io/rescript-runtime-type-benchmarks/))
-- Small and tree-shakable: [7.1kB minified + zipped](https://bundlephobia.com/package/rescript-struct)
+- Small and tree-shakable: [8.5kB minified + zipped](https://bundlephobia.com/package/rescript-struct)
 
 Also, it has declarative API allowing you to use **rescript-struct** as a building block for other tools, such as:
 

@@ -1,6 +1,6 @@
 {
   "name": "rescript-struct",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "The fastest composable parser/serializer for ReScript (and TypeScript)",
   "keywords": [
     "ReScript",

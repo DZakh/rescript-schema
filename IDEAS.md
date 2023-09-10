@@ -36,10 +36,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Move S.inline to a separate codegen module
 
-## v5
-
-Clean up changelog
-
 ## v5.1
 
 - ppx
