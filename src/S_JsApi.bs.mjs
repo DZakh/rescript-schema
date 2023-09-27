@@ -70,12 +70,16 @@ function optional(struct, maybeOr) {
   }
 }
 
-function tuple(structs) {
-  return S$RescriptStruct.tuple(function (s) {
-              return structs.map(function (struct, idx) {
-                          return s.i(idx, struct);
-                        });
-            });
+function tuple(definer) {
+  if (typeof definer === "function") {
+    return S$RescriptStruct.tuple(definer);
+  } else {
+    return S$RescriptStruct.tuple(function (s) {
+                return definer.map(function (struct, idx) {
+                            return s.i(idx, struct);
+                          });
+              });
+  }
 }
 
 function custom(name, maybeParser, maybeSerializer, param) {
@@ -92,16 +96,20 @@ function custom(name, maybeParser, maybeSerializer, param) {
 }
 
 function object(definer) {
-  return S$RescriptStruct.object(function (s) {
-              var definition = {};
-              var fieldNames = Object.keys(definer);
-              for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-                var fieldName = fieldNames[idx];
-                var struct = definer[fieldName];
-                definition[fieldName] = s.f(fieldName, struct);
-              }
-              return definition;
-            });
+  if (typeof definer === "function") {
+    return S$RescriptStruct.object(definer);
+  } else {
+    return S$RescriptStruct.object(function (s) {
+                var definition = {};
+                var fieldNames = Object.keys(definer);
+                for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+                  var fieldName = fieldNames[idx];
+                  var struct = definer[fieldName];
+                  definition[fieldName] = s.f(fieldName, struct);
+                }
+                return definition;
+              });
+  }
 }
 
 function parse(struct, data) {

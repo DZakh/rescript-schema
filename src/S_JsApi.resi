@@ -4,7 +4,7 @@ type jsResult<'value>
 
 let optional: (S.t<'v>, option<unknown>) => S.t<option<'v>>
 
-let tuple: array<S.t<unknown>> => S.t<array<unknown>>
+let tuple: unknown => S.t<array<unknown>>
 
 let custom: (
   ~name: string,
@@ -25,7 +25,7 @@ let transform: (
   ~serializer: ('transformed, S.effectCtx<'transformed>) => 'output=?,
 ) => S.t<'transformed>
 
-let object: Js.Dict.t<S.t<'value>> => S.t<Js.Dict.t<'value>>
+let object: unknown => S.t<Js.Dict.t<unknown>>
 
 let parse: (S.t<'output>, 'a) => jsResult<'output>
 let parseOrThrow: (S.t<'output>, 'a) => 'output

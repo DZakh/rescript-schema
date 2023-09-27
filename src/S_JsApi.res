@@ -62,12 +62,18 @@ let optional = (struct, maybeOr) => {
   }
 }
 
-let tuple = structs => {
-  S.tuple(s => {
-    structs->Js.Array2.mapi((struct, idx) => {
-      s.item(idx, struct)
+let tuple = definer => {
+  if Js.typeof(definer) === "function" {
+    let definer = definer->(Obj.magic: unknown => S.Tuple.ctx => 'a)
+    S.tuple(definer)
+  } else {
+    let structs = definer->(Obj.magic: unknown => array<S.t<unknown>>)
+    S.tuple(s => {
+      structs->Js.Array2.mapi((struct, idx) => {
+        s.item(idx, struct)
+      })
     })
-  })
+  }
 }
 
 let custom = (~name, ~parser as maybeParser=?, ~serializer as maybeSerializer=?, ()) => {
@@ -86,16 +92,22 @@ let custom = (~name, ~parser as maybeParser=?, ~serializer as maybeSerializer=?,
 }
 
 let object = definer => {
-  S.object(s => {
-    let definition = Js.Dict.empty()
-    let fieldNames = definer->Js.Dict.keys
-    for idx in 0 to fieldNames->Js.Array2.length - 1 {
-      let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-      let struct = definer->Js.Dict.unsafeGet(fieldName)
-      definition->Js.Dict.set(fieldName, s.field(fieldName, struct))
-    }
-    definition
-  })
+  if Js.typeof(definer) === "function" {
+    let definer = definer->(Obj.magic: unknown => S.Object.ctx => 'a)
+    S.object(definer)
+  } else {
+    let definer = definer->(Obj.magic: unknown => Js.Dict.t<S.t<unknown>>)
+    S.object(s => {
+      let definition = Js.Dict.empty()
+      let fieldNames = definer->Js.Dict.keys
+      for idx in 0 to fieldNames->Js.Array2.length - 1 {
+        let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+        let struct = definer->Js.Dict.unsafeGet(fieldName)
+        definition->Js.Dict.set(fieldName, s.field(fieldName, struct))
+      }
+      definition
+    })
+  }
 }
 
 let parse = (struct, data) => {

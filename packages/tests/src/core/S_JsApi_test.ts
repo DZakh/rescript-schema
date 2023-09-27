@@ -127,6 +127,16 @@ test("Successfully parses json", (t) => {
   expectType<TypeEqual<typeof value, S.Json>>(true);
 });
 
+test("Successfully parses undefined", (t) => {
+  const struct = S.undefined;
+  const value = S.parseOrThrow(struct, undefined);
+
+  t.deepEqual(value, undefined);
+
+  expectType<TypeEqual<typeof struct, S.Struct<undefined, undefined>>>(true);
+  expectType<TypeEqual<typeof value, undefined>>(true);
+});
+
 test("Fails to parse never", (t) => {
   const struct = S.never;
 
@@ -475,6 +485,44 @@ test("Successfully parses object by provided shape", (t) => {
   >(true);
 });
 
+test("Successfully parses object with field names transform", (t) => {
+  const struct = S.object((s) => ({
+    foo: s.field("Foo", S.string),
+    bar: s.field("Bar", S.boolean),
+  }));
+  const value = S.parseOrThrow(struct, {
+    Foo: "bar",
+    Bar: true,
+  });
+
+  t.deepEqual(value, {
+    foo: "bar",
+    bar: true,
+  });
+
+  expectType<
+    TypeEqual<
+      typeof struct,
+      S.Struct<
+        {
+          foo: string;
+          bar: boolean;
+        },
+        unknown
+      >
+    >
+  >(true);
+  expectType<
+    TypeEqual<
+      typeof value,
+      {
+        foo: string;
+        bar: boolean;
+      }
+    >
+  >(true);
+});
+
 test("Successfully parses object with transformed field", (t) => {
   const struct = S.object({
     foo: S.transform(S.string, (string) => Number(string)),
@@ -744,6 +792,22 @@ test("NaN literal", (t) => {
   expectType<TypeEqual<typeof struct, S.Struct<number, number>>>(true);
 });
 
+test("Tuple literal", (t) => {
+  const cliArgsStruct = S.literal(["help", "lint"] as const);
+
+  t.deepEqual(S.parseOrThrow(cliArgsStruct, ["help", "lint"]), [
+    "help",
+    "lint",
+  ]);
+
+  expectType<
+    TypeEqual<
+      typeof cliArgsStruct,
+      S.Struct<readonly ["help", "lint"], readonly ["help", "lint"]>
+    >
+  >(true);
+});
+
 test("Correctly infers type", (t) => {
   const struct = S.transform(S.string, Number);
   expectType<TypeEqual<typeof struct, S.Struct<number, string>>>(true);
@@ -829,36 +893,68 @@ test("Tuple with multiple elements", (t) => {
   >(true);
 });
 
-test("Example", (t) => {
-  const User = S.object({
-    username: S.string,
+test("Tuple with transform to object", (t) => {
+  let pointStruct = S.tuple((s) => {
+    s.tag(0, "point");
+    return {
+      x: s.item(1, S.integer),
+      y: s.item(2, S.integer),
+    };
   });
 
-  t.deepEqual(S.parseOrThrow(User, { username: "Ludwig" }), {
-    username: "Ludwig",
-  });
-
-  type User = S.Output<typeof User>;
+  t.deepEqual(S.parseOrThrow(pointStruct, ["point", 1, -4]), { x: 1, y: -4 });
 
   expectType<
     TypeEqual<
-      typeof User,
+      typeof pointStruct,
       S.Struct<
         {
-          username: string;
+          x: number;
+          y: number;
         },
-        {
-          username: string;
-        }
+        unknown
       >
     >
   >(true);
+});
+
+test("Example", (t) => {
+  // Create login struct with email and password
+  const loginStruct = S.object({
+    email: S.String.email(S.string),
+    password: S.String.min(S.string, 8),
+  });
+
+  // Infer output TypeScript type of login struct
+  type LoginData = S.Output<typeof loginStruct>; // { email: string; password: string }
+
+  t.throws(
+    () => {
+      // Throws the S.Error(`Failed parsing at ["email"]. Reason: Invalid email address`)
+      S.parseOrThrow(loginStruct, { email: "", password: "" });
+    },
+    { message: `Failed parsing at ["email"]. Reason: Invalid email address` }
+  );
+
+  // Returns data as { email: string; password: string }
+  const result = S.parseOrThrow(loginStruct, {
+    email: "jane@example.com",
+    password: "12345678",
+  });
+
+  t.deepEqual(result, {
+    email: "jane@example.com",
+    password: "12345678",
+  });
+
   expectType<
     TypeEqual<
-      User,
-      {
-        username: string;
-      }
+      typeof loginStruct,
+      S.Struct<
+        { email: string; password: string },
+        { email: string; password: string }
+      >
     >
   >(true);
+  expectType<TypeEqual<LoginData, { email: string; password: string }>>(true);
 });

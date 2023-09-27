@@ -1,3 +1,11 @@
+## v5.1
+
+- Added js/ts api specific documentation
+- Fixed ts type for S.literal to work with litterally any value
+- Added s.undefined to js api
+- Added advanced object struct to js api
+- Added advanced tuple struct to js api
+
 ## Opt-in ppx support
 
 ### How to install

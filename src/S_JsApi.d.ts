@@ -81,6 +81,7 @@ export const number: Struct<number>;
 export const never: Struct<never>;
 export const unknown: Struct<unknown>;
 export const json: Struct<Json>;
+export const undefined: Struct<undefined>;
 
 export function literal<Literal extends string>(
   value: Literal
@@ -99,6 +100,8 @@ export function literal<Literal extends BigInt>(
 ): Struct<Literal>;
 export function literal(value: undefined): Struct<undefined>;
 export function literal(value: null): Struct<null>;
+export function literal<T>(value: T): Struct<T>;
+
 export function tuple(structs: []): Struct<[]>;
 export function tuple<Output, Input>(
   structs: [Struct<Output, Input>]
@@ -109,6 +112,15 @@ export function tuple<A extends UnknownStruct, B extends UnknownStruct[]>(
   [Output<A>, ...StructTupleOutput<B>],
   [Input<A>, ...StructTupleInput<B>]
 >;
+export function tuple<Output>(
+  definer: (ctx: {
+    item: <InputIndex extends number, ItemOutput>(
+      inputIndex: InputIndex,
+      struct: Struct<ItemOutput, unknown>
+    ) => ItemOutput;
+    tag: (inputIndex: number, value: unknown) => void;
+  }) => Output
+): Struct<Output, unknown>;
 
 export function optional<Output, Input>(
   struct: Struct<Output, Input>
@@ -145,13 +157,27 @@ export const union: <A extends UnknownStruct, B extends UnknownStruct[]>(
   Input<A> | StructTupleInput<B>[number]
 >;
 
-export const object: <
+export function object<Output>(
+  definer: (ctx: {
+    field: <InputFieldName extends string, FieldOutput>(
+      inputFieldName: InputFieldName,
+      struct: Struct<FieldOutput, unknown>
+    ) => FieldOutput;
+    fieldOr: <InputFieldName extends string, FieldOutput>(
+      name: InputFieldName,
+      struct: Struct<FieldOutput, unknown>,
+      or: FieldOutput
+    ) => FieldOutput;
+    tag: (name: string, value: unknown) => void;
+  }) => Output
+): Struct<Output, unknown>;
+export function object<
   Shape extends {
     [k in keyof Shape]: Struct<unknown, unknown>;
   }
 >(
   shape: Shape
-) => Struct<
+): Struct<
   {
     [k in keyof Shape]: Output<Shape[k]>;
   },

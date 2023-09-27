@@ -1564,6 +1564,9 @@ function factory$3(definer) {
     n: fieldNames,
     h: fields,
     d: itemDefinitionsSet,
+    field: field,
+    fieldOr: fieldOr,
+    tag: tag,
     f: field,
     o: fieldOr,
     t: tag
@@ -2279,6 +2282,8 @@ function factory$7(definer) {
   var ctx = {
     s: structs,
     d: itemDefinitionsSet,
+    item: item,
+    tag: tag,
     i: item,
     t: tag
   };

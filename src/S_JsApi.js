@@ -9,6 +9,7 @@ export const number = S.$$float;
 export const json = S.json;
 export const never = S.never;
 export const unknown = S.unknown;
+export const undefined = S.unit;
 export const optional = S_Js.optional;
 export const nullable = S.$$null;
 export const array = S.array;

@@ -1890,6 +1890,14 @@ module Object = {
       fields: Js.Dict.t<struct<unknown>>,
       @as("d")
       itemDefinitionsSet: Stdlib.Set.t<itemDefinition>,
+      // Public API for JS/TS users.
+      // It shouldn't be used from ReScript and
+      // needed only because we use @as to reduce bundle-size
+      // of ReScript compiled code
+      @as("field") _jsField: 'value. (string, t<'value>) => 'value,
+      @as("fieldOr") _jsFieldOr: 'value. (string, t<'value>, 'value) => 'value,
+      @as("tag") _jsTag: 'value. (string, 'value) => unit,
+      // Public API for ReScript users
       ...ctx,
     }
 
@@ -1933,6 +1941,10 @@ module Object = {
         fieldNames,
         fields,
         itemDefinitionsSet,
+        // js/ts methods
+        _jsField: field,
+        _jsFieldOr: fieldOr,
+        _jsTag: tag,
         // methods
         field,
         fieldOr,
@@ -2766,6 +2778,8 @@ module Tuple = {
       structs: array<struct<unknown>>,
       @as("d")
       itemDefinitionsSet: Stdlib.Set.t<Object.itemDefinition>,
+      @as("item") _jsItem: 'value. (int, t<'value>) => 'value,
+      @as("tag") _jsTag: 'value. (int, 'value) => unit,
       ...ctx,
     }
 
@@ -2802,6 +2816,9 @@ module Tuple = {
       {
         structs,
         itemDefinitionsSet,
+        // js/ts methods
+        _jsItem: item,
+        _jsTag: tag,
         // methods
         item,
         tag,
