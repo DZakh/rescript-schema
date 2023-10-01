@@ -5,6 +5,8 @@
 - Added s.undefined to js api
 - Added advanced object struct to js api
 - Added advanced tuple struct to js api
+- Added a proper documentation for JS/TS users
+- Added table of contents and splitted documentation into multiple documents
 
 ## Opt-in ppx support
 

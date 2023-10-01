@@ -4,8 +4,6 @@
 
 - Clean up Caml_option.some, Js_dict.get
 
-- PPX to create structs (v5 ???)
-
 - Add S.nullable (?)
 
 - Add S.bigint (?)
@@ -13,10 +11,6 @@
 - Github Action: Add linter checking that the generated files are up to date (?)
 
 - Don't recreate the object, when nothing should be transformed (???)
-
-- Update String refinements like in zod
-  z.string().startsWith("https://", { message: "Must provide secure URL" });
-  z.string().endsWith(".com", { message: "Only .com domains allowed" }); (?)
 
 - Support optional fields (can have problems with serializing) (???)
 
@@ -38,14 +32,21 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v5.1
 
+- Error.reason
 - ppx
 - stop reallocate objects without transformations
-- documentation split
 - S.matcher
 - S.validateWith
-- S.toJSON/S.castToJson
+- S.toJSON/S.castToJson ???
 - nestedField for object
 - spread for object (intersection)
 - S.produce
 - S.mutator
+
+## v6
+
+- `S.json` -> `S.json(~unsafe: bool)` to improve tree-shaking
+- Add `~space` to `S.jsonString` ?
 - Make S.serializeToString super fast
+- Make operations more treeshakable by starting passing the actual operation to the initialOperation function. Or add a condition (verify performance)
+- Remove `s.failWithError` since there's `Error.raise` 🤔
