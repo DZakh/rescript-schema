@@ -76,7 +76,7 @@ Then add `rescript-struct` to `bs-dependencies` in your `bsconfig.json`:
 ```diff
 {
   ...
-+ "bs-dependencies": ["rescript-struct"]
++ "bs-dependencies": ["rescript-struct"],
 + "bsc-flags": ["-open RescriptStruct"],
 }
 ```

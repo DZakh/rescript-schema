@@ -7,7 +7,6 @@
 - [Table of contents](#table-of-contents)
 - [Install](#install)
 - [Basic usage](#basic-usage)
-- [Comparison](#comparison)
 - [Primitives](#primitives)
 - [Literals](#literals)
 - [Strings](#strings)
@@ -38,6 +37,7 @@
   - [`serialize`](#serialize)
   - [`serializeOrThrow`](#serializeorthrow)
 - [Error handling](#error-handling)
+- [Comparison](#comparison)
 
 ## Install
 
@@ -70,10 +70,6 @@ S.parseOrThrow(loginStruct, {
   password: "12345678",
 });
 ```
-
-## Comparison
-
-TODO: Compare with Zod, Valibot and typia
 
 ## Primitives
 
@@ -541,3 +537,22 @@ The exception-based version of `S.serialize`.
 S.parseOrThrow(S.literal(false), true);
 // => Throws S.Error with the following message: "Failed parsing at root. Reason: Expected false, received true".
 ```
+
+## Comparison
+
+Instead of relying on a few large functions with many methods, **rescript-struct** follows [Valibot](https://github.com/fabian-hiller/valibot)'s approach, where API design and source code is based on many small and independent functions, each with just a single task. This modular design has several advantages.
+
+For example, this allows a bundler to use the import statements to remove code that is not needed. This way, only the code that is actually used gets into your production build. This can reduce the bundle size by up to 2 times compared to [Zod](https://github.com/colinhacks/zod).
+
+Besides the individual bundle size, the overall size of the library is also significantly smaller.
+
+At the same time **rescript-struct** is the fastest composable validation library in the entire JavaScript ecosystem. This is achieved because of the JIT approach when an ultra optimized validator is created using `eval`.
+
+|                                          | rescript-struct@5.0.1 | Zod@3.22.2      | Valibot@0.18.0 |
+| ---------------------------------------- | --------------------- | --------------- | -------------- |
+| **Total size** (minified + gzipped)      | 8.5 kB                | 13.2 kB         | 6.6 kB         |
+| **Example size** (minified + gzipped)    | 6.08 kB               | 12.8 kB         | 965 B          |
+| **Performance** (Example parsing)        | 1,030,417 ops/ms      | 376 ops/ms      | 24,034 ops/ms  |
+| **Eval-free**                            | ❌                    | ✅              | ✅             |
+| **Codegen-free** (Doesn't need compiler) | ✅                    | ✅              | ✅             |
+| **Ecosystem**                            | ⭐️                   | ⭐️⭐️⭐️⭐️⭐️ | ⭐️⭐️         |
