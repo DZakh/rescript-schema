@@ -424,6 +424,9 @@ module InternalError = {
       get message() {
         return message(this);
       }
+      get reason() {
+        return reason(this);
+      }
     }
   `)
 
@@ -3258,7 +3261,7 @@ module Error = {
 
   let raise = (error: error) => error->Stdlib.Exn.raiseAny
 
-  let rec toReason = (~nestedLevel=0, error) => {
+  let rec reason = (error, ~nestedLevel=0) => {
     switch error.code {
     | OperationFailed(reason) => reason
     | InvalidOperation({description}) => description
@@ -3277,7 +3280,7 @@ module Error = {
         let reasons =
           errors
           ->Js.Array2.map(error => {
-            let reason = error->toReason(~nestedLevel=nestedLevel->Stdlib.Int.plus(1))
+            let reason = error->reason(~nestedLevel=nestedLevel->Stdlib.Int.plus(1))
             let location = switch error.path {
             | "" => ""
             | nonEmptyPath => `Failed at ${nonEmptyPath}. `
@@ -3290,17 +3293,18 @@ module Error = {
     }
   }
 
+  let reason = reason->(Obj.magic: ((error, ~nestedLevel: int=?) => string) => error => string)
+
   let message = error => {
     let operation = switch error.operation {
     | Serializing => "serializing"
     | Parsing => "parsing"
     }
-    let reason = error->toReason
     let pathText = switch error.path {
     | "" => "root"
     | nonEmptyPath => nonEmptyPath
     }
-    `Failed ${operation} at ${pathText}. Reason: ${reason}`
+    `Failed ${operation} at ${pathText}. Reason: ${error->reason}`
   }
 }
 

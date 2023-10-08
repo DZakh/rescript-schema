@@ -1210,3 +1210,19 @@ Throws error. Since internally it's both the `S.Raised` exception and instance o
 ```rescript
 "Failed parsing at root. Reason: Expected false, received true"
 ```
+
+### **`Error.reason`**
+
+`S.error => string`
+
+```rescript
+{
+  code: InvalidLiteral({expected: Boolean(false), received: true}),
+  operation: Parsing,
+  path: S.Path.empty,
+}->S.Error.reason
+```
+
+```rescript
+"Expected false, received true"
+```

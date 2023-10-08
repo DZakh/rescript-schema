@@ -228,6 +228,9 @@ class RescriptStructError extends Error {
       get message() {
         return message(this);
       }
+      get reason() {
+        return reason(this);
+      }
     }
 ;
 
@@ -2668,37 +2671,37 @@ function raise(error) {
   throw error;
 }
 
-function toReason(nestedLevelOpt, error) {
+function reason(error, nestedLevelOpt) {
   var nestedLevel = nestedLevelOpt !== undefined ? nestedLevelOpt : 0;
-  var reason = error.code;
-  if (typeof reason !== "object") {
+  var reason$1 = error.code;
+  if (typeof reason$1 !== "object") {
     return "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith";
   }
-  switch (reason.TAG) {
+  switch (reason$1.TAG) {
     case "OperationFailed" :
-        return reason._0;
+        return reason$1._0;
     case "InvalidOperation" :
-        return reason.description;
+        return reason$1.description;
     case "InvalidType" :
-        return "Expected " + reason.expected.n(undefined) + ", received " + toText(classify(reason.received));
+        return "Expected " + reason$1.expected.n(undefined) + ", received " + toText(classify(reason$1.received));
     case "InvalidLiteral" :
-        return "Expected " + toText(reason.expected) + ", received " + toText(classify(reason.received));
+        return "Expected " + toText(reason$1.expected) + ", received " + toText(classify(reason$1.received));
     case "InvalidTupleSize" :
-        return "Expected Tuple with " + reason.expected + " items, received " + reason.received;
+        return "Expected Tuple with " + reason$1.expected + " items, received " + reason$1.received;
     case "ExcessField" :
-        return "Encountered disallowed excess key " + JSON.stringify(reason._0) + " on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely";
+        return "Encountered disallowed excess key " + JSON.stringify(reason$1._0) + " on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely";
     case "InvalidUnion" :
         var lineBreak = "\n" + " ".repeat((nestedLevel << 1));
-        var array = reason._0.map(function (error) {
-              var reason = toReason(nestedLevel + 1, error);
+        var array = reason$1._0.map(function (error) {
+              var reason$2 = reason(error, nestedLevel + 1);
               var nonEmptyPath = error.path;
               var $$location = nonEmptyPath === "" ? "" : "Failed at " + nonEmptyPath + ". ";
-              return "- " + $$location + reason;
+              return "- " + $$location + reason$2;
             });
         var reasons = Array.from(new Set(array));
         return "Invalid union with following errors" + lineBreak + reasons.join(lineBreak);
     case "InvalidJsonStruct" :
-        return "The struct " + reason._0.n(undefined) + " is not compatible with JSON";
+        return "The struct " + reason$1._0.n(undefined) + " is not compatible with JSON";
     
   }
 }
@@ -2707,10 +2710,9 @@ function message(error) {
   var match = error.operation;
   var operation;
   operation = match === "Parsing" ? "parsing" : "serializing";
-  var reason = toReason(undefined, error);
   var nonEmptyPath = error.path;
   var pathText = nonEmptyPath === "" ? "root" : nonEmptyPath;
-  return "Failed " + operation + " at " + pathText + ". Reason: " + reason;
+  return "Failed " + operation + " at " + pathText + ". Reason: " + reason(error);
 }
 
 function internalInline(struct, maybeVariant, param) {
@@ -3022,7 +3024,8 @@ var $$Error$1 = {
   $$class: $$class,
   make: make$2,
   raise: raise,
-  message: message
+  message: message,
+  reason: reason
 };
 
 var never = struct;

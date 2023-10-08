@@ -7,6 +7,7 @@
 - Added a proper documentation for JS/TS users
 - Added table of contents and splitted documentation into multiple documents
 - Improved tree-shaking
+- Added `S.Error.reason`
 
 ## Opt-in ppx support
 

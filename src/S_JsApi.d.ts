@@ -10,6 +10,7 @@ export class Error extends S_Error_class {
   operation: "Parsing" | "Serializing";
   path: string;
   message: string;
+  reason: string;
 }
 
 export type Result<Value> =

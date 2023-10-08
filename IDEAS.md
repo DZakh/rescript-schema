@@ -51,3 +51,4 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Make operations more treeshakable by starting passing the actual operation to the initialOperation function. Or add a condition (verify performance)
 - Remove `s.failWithError` since there's `Error.raise` 🤔
 - Remove `S.classify` & `S.name` in favor of fields on `t` ???
+- Make `error.reason` tree-shakeable

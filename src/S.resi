@@ -94,6 +94,8 @@ module Error: {
   let raise: error => 'a
 
   let message: error => string
+
+  let reason: error => string
 }
 
 let never: t<never>

@@ -154,6 +154,18 @@ test("Fails to parse never", (t) => {
   );
 });
 
+test("Can get a reason from an error", (t) => {
+  const struct = S.never;
+
+  const result = S.parse(struct, true);
+
+  if (result.success) {
+    t.fail("Should fail");
+    return;
+  }
+  t.is(result.error.reason, "Expected Never, received true");
+});
+
 test("Successfully parses array", (t) => {
   const struct = S.array(S.string);
   const value = S.parseOrThrow(struct, ["foo"]);
