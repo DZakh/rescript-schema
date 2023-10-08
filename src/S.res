@@ -326,6 +326,8 @@ type unknownKeys = Strip | Strict
 type rec t<'value> = {
   @as("t")
   tagged: tagged,
+  @as("n")
+  name: unit => string,
   @as("pb")
   mutable parseOperationBuilder: builder,
   @as("sb")
@@ -901,20 +903,20 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
 
 let initialSerializeToJson = input => {
   let struct = %raw("this")
-  try {
+  let serializeToJson = try {
     struct->validateJsonableStruct(~rootStruct=struct, ~isRoot=true, ())
     if struct.serialize === initialSerialize {
       struct->Builder.compileSerializer(~builder=struct.serializeOperationBuilder)
     }
-    struct.serializeToJson =
-      struct.serialize->(Obj.magic: (unknown => unknown) => unknown => Js.Json.t)
+    struct.serialize->(Obj.magic: (unknown => unknown) => unknown => Js.Json.t)
   } catch {
   | exn => {
       let error = exn->InternalError.getOrRethrow
-      struct.serializeToJson = _ => Stdlib.Exn.raiseAny(error)
+      _ => Stdlib.Exn.raiseAny(error)
     }
   }
-  struct.serializeToJson(input)
+  struct.serializeToJson = serializeToJson
+  serializeToJson(input)
 }
 
 let intitialParse = input => {
@@ -931,6 +933,7 @@ let intitialParseAsync = input => {
 
 @inline
 let make = (
+  ~name,
   ~tagged,
   ~metadataMap,
   ~parseOperationBuilder,
@@ -946,11 +949,19 @@ let make = (
   parse: intitialParse,
   parseAsync: intitialParseAsync,
   maybeTypeFilter,
+  name,
   metadataMap,
 }
 
 @inline
-let makeWithNoopSerializer = (~tagged, ~metadataMap, ~parseOperationBuilder, ~maybeTypeFilter) => {
+let makeWithNoopSerializer = (
+  ~name,
+  ~tagged,
+  ~metadataMap,
+  ~parseOperationBuilder,
+  ~maybeTypeFilter,
+) => {
+  name,
   tagged,
   parseOperationBuilder,
   serializeOperationBuilder: Builder.noop,
@@ -1080,11 +1091,6 @@ module Metadata = {
   module Map = {
     let empty = Js.Dict.empty()
 
-    let make1: (
-      Id.t<'metadata>,
-      'metadata,
-    ) => Js.Dict.t<unknown> = %raw(`(id,metadata)=>({[id]:metadata})`)
-
     let set = (map, ~id: Id.t<'metadata>, metadata: 'metadata) => {
       map === empty
         ? %raw(`{[id]:metadata}`)
@@ -1103,6 +1109,7 @@ module Metadata = {
   let set = (struct, ~id: Id.t<'metadata>, metadata: 'metadata) => {
     let metadataMap = struct.metadataMap->Map.set(~id, metadata)
     make(
+      ~name=struct.name,
       ~parseOperationBuilder=struct.parseOperationBuilder,
       ~serializeOperationBuilder=struct.serializeOperationBuilder,
       ~tagged=struct.tagged,
@@ -1178,56 +1185,25 @@ let recursive = fn => {
   placeholder
 }
 
-let nameMetadataId = Metadata.Id.make(~namespace="rescript-struct", ~name="name")
-
-let rec name = struct => {
-  switch struct->Metadata.get(~id=nameMetadataId) {
-  | Some(n) => n
-  | None => {
-      let tagged = struct->classify
-      switch tagged {
-      | Literal(l) => `Literal(${l->Literal.toText})`
-      | Union(structs) =>
-        `Union(${structs
-          ->Js.Array2.map(s => s->castUnknownStructToAnyStruct->name)
-          ->Js.Array2.joinWith(", ")})`
-      | Tuple(structs) =>
-        `Tuple(${structs
-          ->Js.Array2.map(s => s->castUnknownStructToAnyStruct->name)
-          ->Js.Array2.joinWith(", ")})`
-      | Object({fieldNames, fields}) =>
-        `Object({${fieldNames
-          ->Js.Array2.map(fieldName => {
-            let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-            `${fieldName->Stdlib.Inlined.Value.fromString}: ${fieldStruct
-              ->castUnknownStructToAnyStruct
-              ->name}`
-          })
-          ->Js.Array2.joinWith(", ")}})`
-      | Option(s) => `Option(${s->castUnknownStructToAnyStruct->name})`
-      | Null(s) => `Null(${s->castUnknownStructToAnyStruct->name})`
-      | Array(s) => `Array(${s->castUnknownStructToAnyStruct->name})`
-      | Dict(s) => `Dict(${s->castUnknownStructToAnyStruct->name})`
-      | String
-      | Int
-      | Float
-      | Bool
-      | Never
-      | Unknown
-      | JSON =>
-        tagged->(Obj.magic: tagged => string)
-      }
-    }
-  }
+let setName = (struct, name) => {
+  make(
+    ~name=() => name,
+    ~parseOperationBuilder=struct.parseOperationBuilder,
+    ~serializeOperationBuilder=struct.serializeOperationBuilder,
+    ~tagged=struct.tagged,
+    ~maybeTypeFilter=struct.maybeTypeFilter,
+    ~metadataMap=struct.metadataMap,
+  )
 }
 
-let setName = (struct, name) => {
-  struct->Metadata.set(~id=nameMetadataId, name)
+let primitiveName = () => {
+  (%raw(`this`): t<'a>).tagged->(Obj.magic: tagged => string)
 }
 
 let internalRefine = (struct, refiner) => {
   let struct = struct->toUnknown
   make(
+    ~name=struct.name,
     ~tagged=struct.tagged,
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
       let input = b->B.useInput
@@ -1288,6 +1264,7 @@ let transform: (
 ) => t<'output> = (struct, transformer) => {
   let struct = struct->toUnknown
   make(
+    ~name=struct.name,
     ~tagged=struct.tagged,
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
       let input = b->B.useInput
@@ -1334,6 +1311,7 @@ let rec preprocess = (struct, transformer) => {
   switch struct->classify {
   | Union(unionStructs) =>
     make(
+      ~name=struct.name,
       ~tagged=Union(
         unionStructs->Js.Array2.map(unionStruct =>
           unionStruct->castUnknownStructToAnyStruct->preprocess(transformer)->toUnknown
@@ -1346,6 +1324,7 @@ let rec preprocess = (struct, transformer) => {
     )
   | _ =>
     make(
+      ~name=struct.name,
       ~tagged=struct.tagged,
       ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
         let input = b->B.useInput
@@ -1403,7 +1382,8 @@ type customDefinition<'input, 'output> = {
 }
 let custom = (name, definer) => {
   make(
-    ~metadataMap=Metadata.Map.make1(nameMetadataId, name),
+    ~name=() => name,
+    ~metadataMap=Metadata.Map.empty,
     ~tagged=Unknown,
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
       let input = b->B.useInput
@@ -1499,6 +1479,7 @@ let literal = value => {
     inputVar
   })
   make(
+    ~name=() => `Literal(${literal->Literal.toText})`,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Literal(literal),
     ~parseOperationBuilder=operationBuilder,
@@ -1547,6 +1528,7 @@ module Variant = {
     (struct: t<'value>, definer: 'value => 'variant): t<'variant> => {
       let struct = struct->toUnknown
       make(
+        ~name=struct.name,
         ~tagged=struct.tagged,
         ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
           let input = b->B.useInput
@@ -1706,6 +1688,7 @@ module Option = {
   let factory = struct => {
     let struct = struct->toUnknown
     make(
+      ~name=() => `Option(${struct.name()})`,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Option(struct),
       ~parseOperationBuilder,
@@ -1717,6 +1700,7 @@ module Option = {
   let getWithDefault = (struct, default) => {
     let struct = struct->(Obj.magic: t<option<'value>> => t<unknown>)
     make(
+      ~name=struct.name,
       ~metadataMap=struct.metadataMap->Metadata.Map.set(~id=defaultMetadataId, default),
       ~tagged=struct.tagged,
       ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
@@ -1744,6 +1728,7 @@ module Null = {
   let factory = struct => {
     let struct = struct->toUnknown
     make(
+      ~name=() => `Null(${struct.name()})`,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Null(struct),
       ~parseOperationBuilder=Option.parseOperationBuilder,
@@ -1960,6 +1945,13 @@ module Object = {
     let itemDefinitions = itemDefinitionsSet->Stdlib.Set.toArray
 
     make(
+      ~name=() =>
+        `Object({${fieldNames
+          ->Js.Array2.map(fieldName => {
+            let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+            `${fieldName->Stdlib.Inlined.Value.fromString}: ${fieldStruct.name()}`
+          })
+          ->Js.Array2.joinWith(", ")}})`,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Object({
         fields,
@@ -2096,6 +2088,7 @@ module Object = {
     switch struct->classify {
     | Object({unknownKeys: Strict, fieldNames, fields}) =>
       make(
+        ~name=struct.name,
         ~tagged=Object({unknownKeys: Strip, fieldNames, fields}),
         ~parseOperationBuilder=struct.parseOperationBuilder,
         ~serializeOperationBuilder=struct.serializeOperationBuilder,
@@ -2110,6 +2103,7 @@ module Object = {
     switch struct->classify {
     | Object({unknownKeys: Strip, fieldNames, fields}) =>
       make(
+        ~name=struct.name,
         ~tagged=Object({unknownKeys: Strict, fieldNames, fields}),
         ~parseOperationBuilder=struct.parseOperationBuilder,
         ~serializeOperationBuilder=struct.serializeOperationBuilder,
@@ -2139,6 +2133,7 @@ module Never = {
   })
 
   let struct = make(
+    ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Never,
     ~parseOperationBuilder=builder,
@@ -2149,6 +2144,7 @@ module Never = {
 
 module Unknown = {
   let struct = {
+    name: primitiveName,
     tagged: Unknown,
     parseOperationBuilder: Builder.noop,
     serializeOperationBuilder: Builder.noop,
@@ -2202,6 +2198,7 @@ module String = {
   let typeFilter = (~inputVar) => `typeof ${inputVar}!=="string"`
 
   let struct = makeWithNoopSerializer(
+    ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=String,
     ~parseOperationBuilder=Builder.noop,
@@ -2368,11 +2365,12 @@ module JsonString = {
     | exn => {
         let _ = exn->InternalError.getOrRethrow
         InternalError.panic(
-          `The struct ${struct->name} passed to S.jsonString is not compatible with JSON`,
+          `The struct ${struct.name()} passed to S.jsonString is not compatible with JSON`,
         )
       }
     }
     make(
+      ~name=primitiveName,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=String,
       ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
@@ -2401,6 +2399,7 @@ module Bool = {
   let typeFilter = (~inputVar) => `typeof ${inputVar}!=="boolean"`
 
   let struct = makeWithNoopSerializer(
+    ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Bool,
     ~parseOperationBuilder=Builder.noop,
@@ -2436,6 +2435,7 @@ module Int = {
     `typeof ${inputVar}!=="number"||${inputVar}>2147483647||${inputVar}<-2147483648||${inputVar}%1!==0`
 
   let struct = makeWithNoopSerializer(
+    ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Int,
     ~parseOperationBuilder=Builder.noop,
@@ -2516,6 +2516,7 @@ module Float = {
   let typeFilter = (~inputVar) => `typeof ${inputVar}!=="number"||Number.isNaN(${inputVar})`
 
   let struct = makeWithNoopSerializer(
+    ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Float,
     ~parseOperationBuilder=Builder.noop,
@@ -2586,6 +2587,7 @@ module Array = {
   let factory = struct => {
     let struct = struct->toUnknown
     make(
+      ~name=() => `Array(${struct.name()})`,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Array(struct),
       ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
@@ -2702,6 +2704,7 @@ module Dict = {
   let factory = struct => {
     let struct = struct->toUnknown
     make(
+      ~name=() => `Dict(${struct.name()})`,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Dict(struct),
       ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
@@ -2711,16 +2714,18 @@ module Dict = {
 
         b.code =
           b.code ++
-          `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
-              let itemOutputVar =
-                b->B.withPathPrepend(
-                  ~path,
-                  ~dynamicLocationVar=keyVar,
-                  (b, ~path) =>
-                    b->B.useWithTypeFilter(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
-                )
-              `${outputVar}[${keyVar}]=${itemOutputVar}`
-            })}}`
+          `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(
+              b => {
+                let itemOutputVar =
+                  b->B.withPathPrepend(
+                    ~path,
+                    ~dynamicLocationVar=keyVar,
+                    (b, ~path) =>
+                      b->B.useWithTypeFilter(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
+                  )
+                `${outputVar}[${keyVar}]=${itemOutputVar}`
+              },
+            )}}`
 
         let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
         if isAsync {
@@ -2747,16 +2752,18 @@ module Dict = {
 
           b.code =
             b.code ++
-            `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
-                let itemOutputVar =
-                  b->B.withPathPrepend(
-                    ~path,
-                    ~dynamicLocationVar=keyVar,
-                    (b, ~path) => b->B.use(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
-                  )
+            `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(
+                b => {
+                  let itemOutputVar =
+                    b->B.withPathPrepend(
+                      ~path,
+                      ~dynamicLocationVar=keyVar,
+                      (b, ~path) => b->B.use(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
+                    )
 
-                `${outputVar}[${keyVar}]=${itemOutputVar}`
-              })}}`
+                  `${outputVar}[${keyVar}]=${itemOutputVar}`
+                },
+              )}}`
 
           outputVar
         }
@@ -2847,6 +2854,7 @@ module Tuple = {
     let itemDefinitions = itemDefinitionsSet->Stdlib.Set.toArray
 
     make(
+      ~name=() => `Tuple(${structs->Js.Array2.map(s => s.name())->Js.Array2.joinWith(", ")})`,
       ~tagged=Tuple(structs),
       ~parseOperationBuilder=Object.makeParseOperationBuilder(
         ~itemDefinitions,
@@ -2963,6 +2971,7 @@ module Union = {
     }
 
     make(
+      ~name=() => `Union(${structs->Js.Array2.map(s => s.name())->Js.Array2.joinWith(", ")})`,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Union(structs),
       ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
@@ -3066,24 +3075,26 @@ module Union = {
 
           b.code =
             b.code ++
-            `try{${b->B.scope(b => {
-                let itemOutput = b->B.use(~struct=itemStruct, ~input=inputVar, ~path=Path.empty)
-                let itemOutput = switch itemStruct.maybeTypeFilter {
-                | Some(typeFilter) =>
-                  let itemOutputVar = b->B.toVar(itemOutput)
-                  b.code =
-                    b.code ++
-                    b->B.typeFilterCode(
-                      ~struct=itemStruct,
-                      ~typeFilter,
-                      ~inputVar=itemOutputVar,
-                      ~path=Path.empty,
-                    )
-                  itemOutputVar
-                | None => itemOutput
-                }
-                `${outputVar}=${itemOutput}`
-              })}}catch(${errorVar}){if(${b->B.isInternalError(errorVar)}){`
+            `try{${b->B.scope(
+                b => {
+                  let itemOutput = b->B.use(~struct=itemStruct, ~input=inputVar, ~path=Path.empty)
+                  let itemOutput = switch itemStruct.maybeTypeFilter {
+                  | Some(typeFilter) =>
+                    let itemOutputVar = b->B.toVar(itemOutput)
+                    b.code =
+                      b.code ++
+                      b->B.typeFilterCode(
+                        ~struct=itemStruct,
+                        ~typeFilter,
+                        ~inputVar=itemOutputVar,
+                        ~path=Path.empty,
+                      )
+                    itemOutputVar
+                  | None => itemOutput
+                  }
+                  `${outputVar}=${itemOutput}`
+                },
+              )}}catch(${errorVar}){if(${b->B.isInternalError(errorVar)}){`
 
           codeEndRef.contents = `}else{throw ${errorVar}}}` ++ codeEndRef.contents
         }
@@ -3114,6 +3125,7 @@ let list = struct => {
 }
 
 let json = makeWithNoopSerializer(
+  ~name=primitiveName,
   ~tagged=JSON,
   ~metadataMap=Metadata.Map.empty,
   ~maybeTypeFilter=None,
@@ -3180,6 +3192,7 @@ type catchCtx<'value> = {
 let catch = (struct, getFallbackValue) => {
   let struct = struct->toUnknown
   make(
+    ~name=struct.name,
     ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
       let inputVar = b->B.useInputVar
       b->B.withCatch(
@@ -3253,10 +3266,10 @@ module Error = {
     | ExcessField(fieldName) =>
       `Encountered disallowed excess key ${fieldName->Stdlib.Inlined.Value.fromString} on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`
     | InvalidType({expected, received}) =>
-      `Expected ${expected->name}, received ${received->Literal.classify->Literal.toText}`
+      `Expected ${expected.name()}, received ${received->Literal.classify->Literal.toText}`
     | InvalidLiteral({expected, received}) =>
       `Expected ${expected->Literal.toText}, received ${received->Literal.classify->Literal.toText}`
-    | InvalidJsonStruct(struct) => `The struct ${struct->name} is not compatible with JSON`
+    | InvalidJsonStruct(struct) => `The struct ${struct.name()} is not compatible with JSON`
     | InvalidTupleSize({expected, received}) =>
       `Expected Tuple with ${expected->Stdlib.Int.unsafeToString} items, received ${received->Stdlib.Int.unsafeToString}`
     | InvalidUnion(errors) => {
@@ -3301,7 +3314,7 @@ let inline = {
         let variantNamesCounter = Js.Dict.empty()
         `S.union([${unionStructs
           ->Js.Array2.map(s => {
-            let variantName = s->name
+            let variantName = s.name()
             let numberOfVariantNames = switch variantNamesCounter->Js.Dict.get(variantName) {
             | Some(n) => n
             | None => 0
@@ -3539,3 +3552,6 @@ let tuple2 = (v0, v1) => tuple(s => (s.item(0, v0), s.item(1, v1)))
 let tuple3 = (v0, v1, v2) => tuple(s => (s.item(0, v0), s.item(1, v1), s.item(2, v2)))
 let union = Union.factory
 let jsonString = JsonString.factory
+
+@send
+external name: t<'a> => string = "n"

@@ -231,15 +231,7 @@ test("Supports Unknown", t => {
 
 test("Treats custom struct factory as Unknown", t => {
   let struct = S.custom("Test", s => s.fail("User error"))
-  t->Assert.deepEqual(
-    struct->S.inline,
-    `{
-  let s = S.unknown
-  let _ = %raw(\`s.m = {"rescript-struct:name":"Test"}\`)
-  s
-}`,
-    (),
-  )
+  t->Assert.deepEqual(struct->S.inline, `S.unknown`, ())
 })
 
 test("Supports Never", t => {

@@ -203,7 +203,9 @@ let recursive: (t<'value> => t<'value>) => t<'value>
 
 let classify: t<'value> => tagged
 
-let name: t<'value> => string
+@send
+external name: t<'value> => string = "n"
+
 let setName: (t<'value>, string) => t<'value>
 
 external toUnknown: t<'any> => t<unknown> = "%identity"

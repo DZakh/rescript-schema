@@ -660,21 +660,23 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
 
 function initialSerializeToJson(input) {
   var struct = this;
+  var serializeToJson;
   try {
     validateJsonableStruct(struct, struct, true, undefined);
     if (struct.s === initialSerialize) {
       compileSerializer(struct, struct.sb);
     }
-    struct.j = struct.s;
+    serializeToJson = struct.s;
   }
   catch (raw_exn){
     var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
     var error = getOrRethrow(exn);
-    struct.j = (function (param) {
+    serializeToJson = (function (param) {
         throw error;
       });
   }
-  return struct.j(input);
+  struct.j = serializeToJson;
+  return serializeToJson(input);
 }
 
 function intitialParse(input) {
@@ -847,8 +849,6 @@ var Id = {
 
 var empty = {};
 
-var make1 = ((id,metadata)=>({[id]:metadata}));
-
 function set(map, id, metadata) {
   if (map === empty) {
     return ({[id]:metadata});
@@ -866,6 +866,7 @@ function set$1(struct, id, metadata) {
   var metadataMap = set(struct.m, id, metadata);
   return {
           t: struct.t,
+          n: struct.n,
           pb: struct.pb,
           sb: struct.sb,
           f: struct.f,
@@ -940,53 +941,32 @@ function recursive(fn) {
   return placeholder;
 }
 
-var nameMetadataId = "rescript-struct:name";
-
-function name(struct) {
-  var n = struct.m[nameMetadataId];
-  if (n !== undefined) {
-    return n;
-  }
-  var tagged = struct.t;
-  if (typeof tagged !== "object") {
-    return tagged;
-  }
-  switch (tagged.TAG) {
-    case "Literal" :
-        return "Literal(" + toText(tagged._0) + ")";
-    case "Option" :
-        return "Option(" + name(tagged._0) + ")";
-    case "Null" :
-        return "Null(" + name(tagged._0) + ")";
-    case "Array" :
-        return "Array(" + name(tagged._0) + ")";
-    case "Object" :
-        var fields = tagged.fields;
-        return "Object({" + tagged.fieldNames.map(function (fieldName) {
-                      var fieldStruct = fields[fieldName];
-                      return JSON.stringify(fieldName) + ": " + name(fieldStruct);
-                    }).join(", ") + "})";
-    case "Tuple" :
-        return "Tuple(" + tagged._0.map(function (s) {
-                      return name(s);
-                    }).join(", ") + ")";
-    case "Union" :
-        return "Union(" + tagged._0.map(function (s) {
-                      return name(s);
-                    }).join(", ") + ")";
-    case "Dict" :
-        return "Dict(" + name(tagged._0) + ")";
-    
-  }
+function setName(struct, name) {
+  return {
+          t: struct.t,
+          n: (function () {
+              return name;
+            }),
+          pb: struct.pb,
+          sb: struct.sb,
+          f: struct.f,
+          i: 0,
+          s: initialSerialize,
+          j: initialSerializeToJson,
+          p: intitialParse,
+          a: intitialParseAsync,
+          m: struct.m
+        };
 }
 
-function setName(struct, name) {
-  return set$1(struct, nameMetadataId, name);
+function primitiveName() {
+  return this.t;
 }
 
 function internalRefine(struct, refiner) {
   return {
           t: struct.t,
+          n: struct.n,
           pb: (function (b, selfStruct, path) {
               var input = b.i;
               return transform(b, use(b, struct, input, path), false, (function (b, input) {
@@ -1028,6 +1008,7 @@ function addRefinement(struct, metadataId, refinement, refiner) {
 function transform$1(struct, transformer) {
   return {
           t: struct.t,
+          n: struct.n,
           pb: (function (b, selfStruct, path) {
               var input = b.i;
               var input$1 = use(b, struct, input, path);
@@ -1081,6 +1062,7 @@ function preprocess(struct, transformer) {
                     return preprocess(unionStruct, transformer);
                   })
             },
+            n: struct.n,
             pb: struct.pb,
             sb: struct.sb,
             f: struct.f,
@@ -1094,6 +1076,7 @@ function preprocess(struct, transformer) {
   }
   return {
           t: struct.t,
+          n: struct.n,
           pb: (function (b, selfStruct, path) {
               var input = b.i;
               var match = transformer(make(selfStruct, path, b.o));
@@ -1146,6 +1129,9 @@ function preprocess(struct, transformer) {
 function custom(name, definer) {
   return {
           t: "Unknown",
+          n: (function () {
+              return name;
+            }),
           pb: (function (b, selfStruct, path) {
               var input = b.i;
               var match = definer(make(selfStruct, path, b.o));
@@ -1184,7 +1170,7 @@ function custom(name, definer) {
           j: initialSerializeToJson,
           p: intitialParse,
           a: intitialParseAsync,
-          m: make1(nameMetadataId, name)
+          m: empty
         };
 }
 
@@ -1236,6 +1222,9 @@ function literal(value) {
             TAG: "Literal",
             _0: literal$1
           },
+          n: (function () {
+              return "Literal(" + toText(literal$1) + ")";
+            }),
           pb: operationBuilder,
           sb: operationBuilder,
           f: undefined,
@@ -1263,6 +1252,7 @@ function toKindWithSet(definition, embededSet) {
 function factory(struct, definer) {
   return {
           t: struct.t,
+          n: struct.n,
           pb: (function (b, param, path) {
               var input = b.i;
               return embedSyncOperation(b, use(b, struct, input, path), definer);
@@ -1386,6 +1376,9 @@ function factory$1(struct) {
             TAG: "Option",
             _0: struct
           },
+          n: (function () {
+              return "Option(" + struct.n(undefined) + ")";
+            }),
           pb: parseOperationBuilder,
           sb: serializeOperationBuilder,
           f: maybeTypeFilter(struct, "void 0"),
@@ -1401,6 +1394,7 @@ function factory$1(struct) {
 function getWithDefault(struct, $$default) {
   return {
           t: struct.t,
+          n: struct.n,
           pb: (function (b, param, path) {
               var input = b.i;
               return transform(b, use(b, struct, input, path), false, (function (b, input) {
@@ -1440,6 +1434,9 @@ function factory$2(struct) {
             TAG: "Null",
             _0: struct
           },
+          n: (function () {
+              return "Null(" + struct.n(undefined) + ")";
+            }),
           pb: parseOperationBuilder,
           sb: serializeOperationBuilder,
           f: maybeTypeFilter(struct, "null"),
@@ -1573,14 +1570,22 @@ function factory$3(definer) {
   };
   var definition = definer(ctx);
   var itemDefinitionsSet$1 = itemDefinitionsSet;
+  var fields$1 = fields;
+  var fieldNames$1 = fieldNames;
   var itemDefinitions = Array.from(itemDefinitionsSet$1);
   return {
           t: {
             TAG: "Object",
-            fields: fields,
-            fieldNames: fieldNames,
+            fields: fields$1,
+            fieldNames: fieldNames$1,
             unknownKeys: "Strip"
           },
+          n: (function () {
+              return "Object({" + fieldNames$1.map(function (fieldName) {
+                            var fieldStruct = fields$1[fieldName];
+                            return JSON.stringify(fieldName) + ": " + fieldStruct.n(undefined);
+                          }).join(", ") + "})";
+            }),
           pb: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, noopRefinement, (function (b, selfStruct, inputVar, path) {
                   var withUnknownKeysRefinement = selfStruct.t.unknownKeys === "Strict";
                   if (!withUnknownKeysRefinement) {
@@ -1691,6 +1696,7 @@ function strip(struct) {
               fieldNames: match.fieldNames,
               unknownKeys: "Strip"
             },
+            n: struct.n,
             pb: struct.pb,
             sb: struct.sb,
             f: struct.f,
@@ -1716,6 +1722,7 @@ function strict(struct) {
               fieldNames: match.fieldNames,
               unknownKeys: "Strict"
             },
+            n: struct.n,
             pb: struct.pb,
             sb: struct.sb,
             f: struct.f,
@@ -1743,6 +1750,7 @@ function builder(b, selfStruct, path) {
 
 var struct = {
   t: "Never",
+  n: primitiveName,
   pb: builder,
   sb: builder,
   f: undefined,
@@ -1756,6 +1764,7 @@ var struct = {
 
 var struct$1 = {
   t: "Unknown",
+  n: primitiveName,
   pb: noop,
   sb: noop,
   f: undefined,
@@ -1792,6 +1801,7 @@ function typeFilter$1(inputVar) {
 
 var struct$2 = {
   t: "String",
+  n: primitiveName,
   pb: noop,
   sb: noop,
   f: typeFilter$1,
@@ -1937,11 +1947,12 @@ function factory$4(struct) {
   catch (raw_exn){
     var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
     getOrRethrow(exn);
-    var message = "The struct " + name(struct) + " passed to S.jsonString is not compatible with JSON";
+    var message = "The struct " + struct.n(undefined) + " passed to S.jsonString is not compatible with JSON";
     throw new Error("[rescript-struct] " + message);
   }
   return {
           t: "String",
+          n: primitiveName,
           pb: (function (b, param, path) {
               var input = b.i;
               var jsonVar = $$var(b);
@@ -1973,6 +1984,7 @@ function typeFilter$2(inputVar) {
 
 var struct$3 = {
   t: "Bool",
+  n: primitiveName,
   pb: noop,
   sb: noop,
   f: typeFilter$2,
@@ -2001,6 +2013,7 @@ function typeFilter$3(inputVar) {
 
 var struct$4 = {
   t: "Int",
+  n: primitiveName,
   pb: noop,
   sb: noop,
   f: typeFilter$3,
@@ -2065,6 +2078,7 @@ function typeFilter$4(inputVar) {
 
 var struct$5 = {
   t: "Float",
+  n: primitiveName,
   pb: noop,
   sb: noop,
   f: typeFilter$4,
@@ -2123,6 +2137,9 @@ function factory$5(struct) {
             TAG: "Array",
             _0: struct
           },
+          n: (function () {
+              return "Array(" + struct.n(undefined) + ")";
+            }),
           pb: (function (b, param, path) {
               var inputVar = toVar(b, b.i);
               var iteratorVar = varWithoutAllocation(b);
@@ -2211,6 +2228,9 @@ function factory$6(struct) {
             TAG: "Dict",
             _0: struct
           },
+          n: (function () {
+              return "Dict(" + struct.n(undefined) + ")";
+            }),
           pb: (function (b, param, path) {
               var inputVar = toVar(b, b.i);
               var keyVar = varWithoutAllocation(b);
@@ -2311,6 +2331,11 @@ function factory$7(definer) {
             TAG: "Tuple",
             _0: structs$1
           },
+          n: (function () {
+              return "Tuple(" + structs$1.map(function (s) {
+                            return s.n(undefined);
+                          }).join(", ") + ")";
+            }),
           pb: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, (function (b, param, inputVar, path) {
                   b.c = b.c + ("if(" + inputVar + ".length!==" + length + "){" + raiseWithArg(b, path, (function (numberOfInputItems) {
                             return {
@@ -2394,6 +2419,11 @@ function factory$8(structs) {
             TAG: "Union",
             _0: structs
           },
+          n: (function () {
+              return "Union(" + structs.map(function (s) {
+                            return s.n(undefined);
+                          }).join(", ") + ")";
+            }),
           pb: (function (b, selfStruct, path) {
               var inputVar = toVar(b, b.i);
               var structs = selfStruct.t._0;
@@ -2510,6 +2540,7 @@ function list(struct) {
 
 var json = {
   t: "JSON",
+  n: primitiveName,
   pb: (function (b, selfStruct, path) {
       var parse = function (input, pathOpt) {
         var path$1 = pathOpt !== undefined ? pathOpt : path;
@@ -2571,6 +2602,7 @@ var json = {
 function $$catch(struct, getFallbackValue) {
   return {
           t: struct.t,
+          n: struct.n,
           pb: (function (b, selfStruct, path) {
               var inputVar = toVar(b, b.i);
               return withCatch(b, (function (b, errorVar) {
@@ -2648,7 +2680,7 @@ function toReason(nestedLevelOpt, error) {
     case "InvalidOperation" :
         return reason.description;
     case "InvalidType" :
-        return "Expected " + name(reason.expected) + ", received " + toText(classify(reason.received));
+        return "Expected " + reason.expected.n(undefined) + ", received " + toText(classify(reason.received));
     case "InvalidLiteral" :
         return "Expected " + toText(reason.expected) + ", received " + toText(classify(reason.received));
     case "InvalidTupleSize" :
@@ -2666,7 +2698,7 @@ function toReason(nestedLevelOpt, error) {
         var reasons = Array.from(new Set(array));
         return "Invalid union with following errors" + lineBreak + reasons.join(lineBreak);
     case "InvalidJsonStruct" :
-        return "The struct " + name(reason._0) + " is not compatible with JSON";
+        return "The struct " + reason._0.n(undefined) + " is not compatible with JSON";
     
   }
 }
@@ -2769,7 +2801,7 @@ function internalInline(struct, maybeVariant, param) {
       case "Union" :
           var variantNamesCounter = {};
           inlinedStruct = "S.union([" + literal._0.map(function (s) {
-                  var variantName = name(s);
+                  var variantName = s.n(undefined);
                   var n = Js_dict.get(variantNamesCounter, variantName);
                   var numberOfVariantNames = n !== undefined ? n : 0;
                   variantNamesCounter[variantName] = numberOfVariantNames + 1;
@@ -3145,7 +3177,6 @@ export {
   isAsyncParse ,
   recursive ,
   classify$1 as classify,
-  name ,
   setName ,
   $$Object ,
   object ,

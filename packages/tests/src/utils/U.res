@@ -36,7 +36,7 @@ let rec cleanUpStruct = struct => {
   ->Dict.toArray
   ->Array.forEach(((key, value)) => {
     switch key {
-    | "sb" | "pb" | "i" | "f" => ()
+    | "sb" | "pb" | "i" | "f" | "n" => ()
     | _ =>
       if typeof(value) === #object && value !== %raw(`null`) {
         new->Dict.set(

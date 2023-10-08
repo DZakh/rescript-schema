@@ -46,6 +46,7 @@ function cleanUpStruct(struct) {
         switch (key) {
           case "f" :
           case "i" :
+          case "n" :
           case "pb" :
           case "sb" :
               return ;
