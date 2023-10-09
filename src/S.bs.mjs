@@ -428,7 +428,7 @@ function use(b, struct, input, path) {
   b.i = input;
   b.a = false;
   var output = (
-      isParsing ? struct.pb : struct.sb
+      isParsing ? struct.p : struct.s
     )(b, struct, path);
   if (isParsing) {
     struct.i = b.a;
@@ -486,27 +486,6 @@ function build(builder, struct, operation) {
   return new Function("e", "s", "return " + inlinedFunction)(b.e, symbol);
 }
 
-function unexpectedAsyncOperation(param) {
-  throw new RescriptStructError("UnexpectedAsync", "Parsing", "");
-}
-
-function compileParser(struct, builder) {
-  var operation = build(builder, struct, "Parsing");
-  var isAsync = struct.i;
-  struct.p = isAsync ? unexpectedAsyncOperation : operation;
-  struct.a = isAsync ? operation : (function (input) {
-        var syncValue = operation(input);
-        return function () {
-          return Promise.resolve(syncValue);
-        };
-      });
-}
-
-function compileSerializer(struct, builder) {
-  var operation = build(builder, struct, "Serializing");
-  struct.s = operation;
-}
-
 function loop(_struct) {
   while(true) {
     var struct = _struct;
@@ -561,7 +540,7 @@ function isAsyncParse(struct) {
     return v;
   }
   try {
-    compileParser(struct, struct.pb);
+    build(struct.p, struct, "Parsing");
     return struct.i;
   }
   catch (raw_exn){
@@ -569,12 +548,6 @@ function isAsyncParse(struct) {
     getOrRethrow(exn);
     return false;
   }
-}
-
-function initialSerialize(input) {
-  var struct = this;
-  compileSerializer(struct, struct.sb);
-  return struct.s(input);
 }
 
 function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
@@ -661,44 +634,39 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
   };
 }
 
-function initialSerializeToJson(input) {
-  var struct = this;
-  var serializeToJson;
+function unexpectedAsync(param) {
+  throw new RescriptStructError("UnexpectedAsync", "Parsing", "");
+}
+
+function init(struct) {
+  var operation = build(struct.p, struct, "Parsing");
+  var isAsync = struct.i;
+  if (isAsync) {
+    return unexpectedAsync;
+  } else {
+    return operation;
+  }
+}
+
+function parseAnyOrRaiseWith(i, s) {
   try {
-    validateJsonableStruct(struct, struct, true, undefined);
-    if (struct.s === initialSerialize) {
-      compileSerializer(struct, struct.sb);
+    return s["op"](i);
+  }
+  catch (exn){
+    if (s["op"]) {
+      throw exn;
     }
-    serializeToJson = struct.s;
+    var o = init(s);
+    s["op"] = o;
+    return o(i);
   }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    var error = getOrRethrow(exn);
-    serializeToJson = (function (param) {
-        throw error;
-      });
-  }
-  struct.j = serializeToJson;
-  return serializeToJson(input);
-}
-
-function intitialParse(input) {
-  var struct = this;
-  compileParser(struct, struct.pb);
-  return struct.p(input);
-}
-
-function intitialParseAsync(input) {
-  var struct = this;
-  compileParser(struct, struct.pb);
-  return struct.a(input);
 }
 
 function parseAnyWith(any, struct) {
   try {
     return {
             TAG: "Ok",
-            _0: struct.p(any)
+            _0: parseAnyOrRaiseWith(any, struct)
           };
   }
   catch (raw_exn){
@@ -708,10 +676,6 @@ function parseAnyWith(any, struct) {
             _0: getOrRethrow(exn)
           };
   }
-}
-
-function parseAnyOrRaiseWith(any, struct) {
-  return struct.p(any);
 }
 
 function asyncPrepareOk(value) {
@@ -728,9 +692,38 @@ function asyncPrepareError(jsExn) {
         };
 }
 
+function init$1(struct) {
+  var operation = build(struct.p, struct, "Parsing");
+  var isAsync = struct.i;
+  if (isAsync) {
+    return operation;
+  } else {
+    return function (input) {
+      var syncValue = operation(input);
+      return function () {
+        return Promise.resolve(syncValue);
+      };
+    };
+  }
+}
+
+function internalParseAsyncWith(i, s) {
+  try {
+    return s["opa"](i);
+  }
+  catch (exn){
+    if (s["opa"]) {
+      throw exn;
+    }
+    var o = init$1(s);
+    s["opa"] = o;
+    return o(i);
+  }
+}
+
 function parseAnyAsyncWith(any, struct) {
   try {
-    return struct.a(any)(undefined).then(asyncPrepareOk, asyncPrepareError);
+    return internalParseAsyncWith(any, struct)(undefined).then(asyncPrepareOk, asyncPrepareError);
   }
   catch (raw_exn){
     var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
@@ -743,7 +736,7 @@ function parseAnyAsyncWith(any, struct) {
 
 function parseAnyAsyncInStepsWith(any, struct) {
   try {
-    var asyncFn = struct.a(any);
+    var asyncFn = internalParseAsyncWith(any, struct);
     return {
             TAG: "Ok",
             _0: (function () {
@@ -760,11 +753,39 @@ function parseAnyAsyncInStepsWith(any, struct) {
   }
 }
 
-function serializeToUnknownWith(value, struct) {
+function init$2(struct) {
+  try {
+    validateJsonableStruct(struct, struct, true, undefined);
+    return build(struct.s, struct, "Serializing");
+  }
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    var error = getOrRethrow(exn);
+    return function (param) {
+      throw error;
+    };
+  }
+}
+
+function serializeOrRaiseWith(i, s) {
+  try {
+    return s["osj"](i);
+  }
+  catch (exn){
+    if (s["osj"]) {
+      throw exn;
+    }
+    var o = init$2(s);
+    s["osj"] = o;
+    return o(i);
+  }
+}
+
+function serializeWith(value, struct) {
   try {
     return {
             TAG: "Ok",
-            _0: struct.s(value)
+            _0: serializeOrRaiseWith(value, struct)
           };
   }
   catch (raw_exn){
@@ -776,19 +797,29 @@ function serializeToUnknownWith(value, struct) {
   }
 }
 
-function serializeOrRaiseWith(value, struct) {
-  return struct.j(value);
+function init$3(struct) {
+  return build(struct.s, struct, "Serializing");
 }
 
-function serializeToUnknownOrRaiseWith(value, struct) {
-  return struct.s(value);
+function serializeToUnknownOrRaiseWith(i, s) {
+  try {
+    return s["os"](i);
+  }
+  catch (exn){
+    if (s["os"]) {
+      throw exn;
+    }
+    var o = init$3(s);
+    s["os"] = o;
+    return o(i);
+  }
 }
 
-function serializeWith(value, struct) {
+function serializeToUnknownWith(value, struct) {
   try {
     return {
             TAG: "Ok",
-            _0: struct.j(value)
+            _0: serializeToUnknownOrRaiseWith(value, struct)
           };
   }
   catch (raw_exn){
@@ -870,14 +901,10 @@ function set$1(struct, id, metadata) {
   return {
           t: struct.t,
           n: struct.n,
-          pb: struct.pb,
-          sb: struct.sb,
+          p: struct.p,
+          s: struct.s,
           f: struct.f,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: metadataMap
         };
 }
@@ -888,10 +915,10 @@ function recursive(fn) {
   };
   var struct = fn(placeholder);
   Object.assign(placeholder, struct);
-  var builder = placeholder.pb;
-  placeholder.pb = (function (b, selfStruct, path) {
+  var builder = placeholder.p;
+  placeholder.p = (function (b, selfStruct, path) {
       var input = b.i;
-      selfStruct.pb = noop;
+      selfStruct.p = noop;
       var ctx = {
         a: false,
         c: "",
@@ -904,41 +931,47 @@ function recursive(fn) {
       };
       builder(ctx, selfStruct, path);
       var isAsync = ctx.a;
-      selfStruct.pb = (function (b, selfStruct, param) {
+      selfStruct.p = (function (b, selfStruct, param) {
           var input = b.i;
           if (isAsync) {
             return embedAsyncOperation(b, input, (function (input) {
-                          return selfStruct.a(input);
+                          return internalParseAsyncWith(input, selfStruct);
                         }));
           } else {
             return embedSyncOperation(b, input, (function (input) {
-                          return selfStruct.p(input);
+                          return parseAnyOrRaiseWith(input, selfStruct);
                         }));
           }
         });
-      compileParser(selfStruct, builder);
-      selfStruct.pb = builder;
+      var operation = build(builder, selfStruct, "Parsing");
+      if (isAsync) {
+        selfStruct["opa"] = operation;
+      } else {
+        selfStruct["op"] = operation;
+      }
+      selfStruct.p = builder;
       return withPathPrepend(b, path, undefined, (function (b, param) {
                     if (isAsync) {
-                      return embedAsyncOperation(b, input, selfStruct.a);
+                      return embedAsyncOperation(b, input, operation);
                     } else {
-                      return embedSyncOperation(b, input, selfStruct.p);
+                      return embedSyncOperation(b, input, operation);
                     }
                   }));
     });
-  var builder$1 = placeholder.sb;
-  placeholder.sb = (function (b, selfStruct, path) {
+  var builder$1 = placeholder.s;
+  placeholder.s = (function (b, selfStruct, path) {
       var input = b.i;
-      selfStruct.sb = (function (b, selfStruct, param) {
+      selfStruct.s = (function (b, selfStruct, param) {
           var input = b.i;
           return embedSyncOperation(b, input, (function (input) {
-                        return selfStruct.s(input);
+                        return serializeToUnknownOrRaiseWith(input, selfStruct);
                       }));
         });
-      compileSerializer(selfStruct, builder$1);
-      selfStruct.sb = builder$1;
+      var operation = build(builder$1, selfStruct, "Serializing");
+      selfStruct["os"] = operation;
+      selfStruct.s = builder$1;
       return withPathPrepend(b, path, undefined, (function (b, param) {
-                    return embedSyncOperation(b, input, selfStruct.s);
+                    return embedSyncOperation(b, input, operation);
                   }));
     });
   return placeholder;
@@ -950,14 +983,10 @@ function setName(struct, name) {
           n: (function () {
               return name;
             }),
-          pb: struct.pb,
-          sb: struct.sb,
+          p: struct.p,
+          s: struct.s,
           f: struct.f,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: struct.m
         };
 }
@@ -966,11 +995,16 @@ function primitiveName() {
   return this.t;
 }
 
+function containerName() {
+  var tagged = this.t;
+  return tagged.TAG + "(" + tagged._0.n(undefined) + ")";
+}
+
 function internalRefine(struct, refiner) {
   return {
           t: struct.t,
           n: struct.n,
-          pb: (function (b, selfStruct, path) {
+          p: (function (b, selfStruct, path) {
               var input = b.i;
               return transform(b, use(b, struct, input, path), false, (function (b, input) {
                             var inputVar = toVar(b, input);
@@ -978,7 +1012,7 @@ function internalRefine(struct, refiner) {
                             return inputVar;
                           }));
             }),
-          sb: (function (b, selfStruct, path) {
+          s: (function (b, selfStruct, path) {
               var input = b.i;
               return use(b, struct, transform(b, input, false, (function (b, input) {
                                 var inputVar = toVar(b, input);
@@ -988,10 +1022,6 @@ function internalRefine(struct, refiner) {
             }),
           f: struct.f,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: struct.m
         };
 }
@@ -1012,7 +1042,7 @@ function transform$1(struct, transformer) {
   return {
           t: struct.t,
           n: struct.n,
-          pb: (function (b, selfStruct, path) {
+          p: (function (b, selfStruct, path) {
               var input = b.i;
               var input$1 = use(b, struct, input, path);
               var match = transformer(make(selfStruct, path, b.o));
@@ -1033,7 +1063,7 @@ function transform$1(struct, transformer) {
                 return input$1;
               }
             }),
-          sb: (function (b, selfStruct, path) {
+          s: (function (b, selfStruct, path) {
               var input = b.i;
               var match = transformer(make(selfStruct, path, b.o));
               var serializer = match.s;
@@ -1047,10 +1077,6 @@ function transform$1(struct, transformer) {
             }),
           f: struct.f,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: struct.m
         };
 }
@@ -1066,21 +1092,17 @@ function preprocess(struct, transformer) {
                   })
             },
             n: struct.n,
-            pb: struct.pb,
-            sb: struct.sb,
+            p: struct.p,
+            s: struct.s,
             f: struct.f,
             i: 0,
-            s: initialSerialize,
-            j: initialSerializeToJson,
-            p: intitialParse,
-            a: intitialParseAsync,
             m: struct.m
           };
   }
   return {
           t: struct.t,
           n: struct.n,
-          pb: (function (b, selfStruct, path) {
+          p: (function (b, selfStruct, path) {
               var input = b.i;
               var match = transformer(make(selfStruct, path, b.o));
               var parser = match.p;
@@ -1108,7 +1130,7 @@ function preprocess(struct, transformer) {
                       })) + "});");
               return outputVar;
             }),
-          sb: (function (b, selfStruct, path) {
+          s: (function (b, selfStruct, path) {
               var input = b.i;
               var input$1 = use(b, struct, input, path);
               var match = transformer(make(selfStruct, path, b.o));
@@ -1121,10 +1143,6 @@ function preprocess(struct, transformer) {
             }),
           f: undefined,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: struct.m
         };
 }
@@ -1135,7 +1153,7 @@ function custom(name, definer) {
           n: (function () {
               return name;
             }),
-          pb: (function (b, selfStruct, path) {
+          p: (function (b, selfStruct, path) {
               var input = b.i;
               var match = definer(make(selfStruct, path, b.o));
               var parser = match.p;
@@ -1155,7 +1173,7 @@ function custom(name, definer) {
                 return input;
               }
             }),
-          sb: (function (b, selfStruct, path) {
+          s: (function (b, selfStruct, path) {
               var input = b.i;
               var match = definer(make(selfStruct, path, b.o));
               var serializer = match.s;
@@ -1169,10 +1187,6 @@ function custom(name, definer) {
             }),
           f: undefined,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: empty
         };
 }
@@ -1228,14 +1242,10 @@ function literal(value) {
           n: (function () {
               return "Literal(" + toText(literal$1) + ")";
             }),
-          pb: operationBuilder,
-          sb: operationBuilder,
+          p: operationBuilder,
+          s: operationBuilder,
           f: undefined,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: empty
         };
 }
@@ -1256,11 +1266,11 @@ function factory(struct, definer) {
   return {
           t: struct.t,
           n: struct.n,
-          pb: (function (b, param, path) {
+          p: (function (b, param, path) {
               var input = b.i;
               return embedSyncOperation(b, use(b, struct, input, path), definer);
             }),
-          sb: (function (b, selfStruct, path) {
+          s: (function (b, selfStruct, path) {
               var inputVar = toVar(b, b.i);
               var definition = definer(symbol);
               var definitionToOutput = function (definition, outputPath) {
@@ -1318,10 +1328,6 @@ function factory(struct, definer) {
             }),
           f: struct.f,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: struct.m
         };
 }
@@ -1379,17 +1385,11 @@ function factory$1(struct) {
             TAG: "Option",
             _0: struct
           },
-          n: (function () {
-              return "Option(" + struct.n(undefined) + ")";
-            }),
-          pb: parseOperationBuilder,
-          sb: serializeOperationBuilder,
+          n: containerName,
+          p: parseOperationBuilder,
+          s: serializeOperationBuilder,
           f: maybeTypeFilter(struct, "void 0"),
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: empty
         };
 }
@@ -1398,7 +1398,7 @@ function getWithDefault(struct, $$default) {
   return {
           t: struct.t,
           n: struct.n,
-          pb: (function (b, param, path) {
+          p: (function (b, param, path) {
               var input = b.i;
               return transform(b, use(b, struct, input, path), false, (function (b, input) {
                             var tmp;
@@ -1406,13 +1406,9 @@ function getWithDefault(struct, $$default) {
                             return input + "===void 0?" + tmp + ":" + input;
                           }));
             }),
-          sb: struct.sb,
+          s: struct.s,
           f: struct.f,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: set(struct.m, defaultMetadataId, $$default)
         };
 }
@@ -1437,17 +1433,11 @@ function factory$2(struct) {
             TAG: "Null",
             _0: struct
           },
-          n: (function () {
-              return "Null(" + struct.n(undefined) + ")";
-            }),
-          pb: parseOperationBuilder,
-          sb: serializeOperationBuilder,
+          n: containerName,
+          p: parseOperationBuilder,
+          s: serializeOperationBuilder,
           f: maybeTypeFilter(struct, "null"),
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: empty
         };
 }
@@ -1589,7 +1579,7 @@ function factory$3(definer) {
                             return JSON.stringify(fieldName) + ": " + fieldStruct.n(undefined);
                           }).join(", ") + "})";
             }),
-          pb: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, noopRefinement, (function (b, selfStruct, inputVar, path) {
+          p: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, noopRefinement, (function (b, selfStruct, inputVar, path) {
                   var withUnknownKeysRefinement = selfStruct.t.unknownKeys === "Strict";
                   if (!withUnknownKeysRefinement) {
                     return ;
@@ -1620,7 +1610,7 @@ function factory$3(definer) {
                                   };
                           }), keyVar$1) + "}");
                 })),
-          sb: (function (b, param, path) {
+          s: (function (b, param, path) {
               var inputVar = toVar(b, b.i);
               var fieldsCodeRef = {
                 contents: ""
@@ -1679,10 +1669,6 @@ function factory$3(definer) {
             }),
           f: typeFilter,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: empty
         };
 }
@@ -1700,14 +1686,10 @@ function strip(struct) {
               unknownKeys: "Strip"
             },
             n: struct.n,
-            pb: struct.pb,
-            sb: struct.sb,
+            p: struct.p,
+            s: struct.s,
             f: struct.f,
             i: 0,
-            s: initialSerialize,
-            j: initialSerializeToJson,
-            p: intitialParse,
-            a: intitialParseAsync,
             m: struct.m
           };
   }
@@ -1726,14 +1708,10 @@ function strict(struct) {
               unknownKeys: "Strict"
             },
             n: struct.n,
-            pb: struct.pb,
-            sb: struct.sb,
+            p: struct.p,
+            s: struct.s,
             f: struct.f,
             i: 0,
-            s: initialSerialize,
-            j: initialSerializeToJson,
-            p: intitialParse,
-            a: intitialParseAsync,
             m: struct.m
           };
   }
@@ -1754,28 +1732,20 @@ function builder(b, selfStruct, path) {
 var struct = {
   t: "Never",
   n: primitiveName,
-  pb: builder,
-  sb: builder,
+  p: builder,
+  s: builder,
   f: undefined,
   i: 0,
-  s: initialSerialize,
-  j: initialSerializeToJson,
-  p: intitialParse,
-  a: intitialParseAsync,
   m: empty
 };
 
 var struct$1 = {
   t: "Unknown",
   n: primitiveName,
-  pb: noop,
-  sb: noop,
+  p: noop,
+  s: noop,
   f: undefined,
   i: false,
-  s: noopOperation,
-  j: initialSerializeToJson,
-  p: noopOperation,
-  a: unexpectedAsyncOperation,
   m: empty
 };
 
@@ -1805,14 +1775,10 @@ function typeFilter$1(inputVar) {
 var struct$2 = {
   t: "String",
   n: primitiveName,
-  pb: noop,
-  sb: noop,
+  p: noop,
+  s: noop,
   f: typeFilter$1,
   i: 0,
-  s: noopOperation,
-  j: initialSerializeToJson,
-  p: intitialParse,
-  a: intitialParseAsync,
   m: empty
 };
 
@@ -1956,7 +1922,7 @@ function factory$4(struct) {
   return {
           t: "String",
           n: primitiveName,
-          pb: (function (b, param, path) {
+          p: (function (b, param, path) {
               var input = b.i;
               var jsonVar = $$var(b);
               b.c = b.c + ("try{" + jsonVar + "=JSON.parse(" + input + ")}catch(t){" + raiseWithArg(b, path, (function (message) {
@@ -1967,16 +1933,12 @@ function factory$4(struct) {
                       }), "t.message") + "}");
               return useWithTypeFilter(b, struct, jsonVar, path);
             }),
-          sb: (function (b, param, path) {
+          s: (function (b, param, path) {
               var input = b.i;
               return "JSON.stringify(" + use(b, struct, input, path) + ")";
             }),
           f: typeFilter$1,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: empty
         };
 }
@@ -1988,14 +1950,10 @@ function typeFilter$2(inputVar) {
 var struct$3 = {
   t: "Bool",
   n: primitiveName,
-  pb: noop,
-  sb: noop,
+  p: noop,
+  s: noop,
   f: typeFilter$2,
   i: 0,
-  s: noopOperation,
-  j: initialSerializeToJson,
-  p: intitialParse,
-  a: intitialParseAsync,
   m: empty
 };
 
@@ -2017,14 +1975,10 @@ function typeFilter$3(inputVar) {
 var struct$4 = {
   t: "Int",
   n: primitiveName,
-  pb: noop,
-  sb: noop,
+  p: noop,
+  s: noop,
   f: typeFilter$3,
   i: 0,
-  s: noopOperation,
-  j: initialSerializeToJson,
-  p: intitialParse,
-  a: intitialParseAsync,
   m: empty
 };
 
@@ -2082,14 +2036,10 @@ function typeFilter$4(inputVar) {
 var struct$5 = {
   t: "Float",
   n: primitiveName,
-  pb: noop,
-  sb: noop,
+  p: noop,
+  s: noop,
   f: typeFilter$4,
   i: 0,
-  s: noopOperation,
-  j: initialSerializeToJson,
-  p: intitialParse,
-  a: intitialParseAsync,
   m: empty
 };
 
@@ -2140,10 +2090,8 @@ function factory$5(struct) {
             TAG: "Array",
             _0: struct
           },
-          n: (function () {
-              return "Array(" + struct.n(undefined) + ")";
-            }),
-          pb: (function (b, param, path) {
+          n: containerName,
+          p: (function (b, param, path) {
               var inputVar = toVar(b, b.i);
               var iteratorVar = varWithoutAllocation(b);
               var outputVar = $$var(b);
@@ -2161,8 +2109,8 @@ function factory$5(struct) {
               b.c = b.c + (asyncOutputVar + "=()=>Promise.all(" + outputVar + ".map(t=>t()));");
               return asyncOutputVar;
             }),
-          sb: (function (b, param, path) {
-              if (struct.sb === noop) {
+          s: (function (b, param, path) {
+              if (struct.s === noop) {
                 return b.i;
               }
               var inputVar = toVar(b, b.i);
@@ -2178,10 +2126,6 @@ function factory$5(struct) {
             }),
           f: typeFilter$5,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: empty
         };
 }
@@ -2231,10 +2175,8 @@ function factory$6(struct) {
             TAG: "Dict",
             _0: struct
           },
-          n: (function () {
-              return "Dict(" + struct.n(undefined) + ")";
-            }),
-          pb: (function (b, param, path) {
+          n: containerName,
+          p: (function (b, param, path) {
               var inputVar = toVar(b, b.i);
               var keyVar = varWithoutAllocation(b);
               var outputVar = $$var(b);
@@ -2256,8 +2198,8 @@ function factory$6(struct) {
               b.c = b.c + (asyncOutputVar + "=()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=Object.keys(" + outputVar + ").length;for(let " + keyVar + " in " + outputVar + "){" + outputVar + "[" + keyVar + "]().then(" + asyncParseResultVar + "=>{" + outputVar + "[" + keyVar + "]=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + outputVar + ")}}," + rejectVar + ")}});");
               return asyncOutputVar;
             }),
-          sb: (function (b, param, path) {
-              if (struct.sb === noop) {
+          s: (function (b, param, path) {
+              if (struct.s === noop) {
                 return b.i;
               }
               var inputVar = toVar(b, b.i);
@@ -2273,10 +2215,6 @@ function factory$6(struct) {
             }),
           f: typeFilter,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: empty
         };
 }
@@ -2339,7 +2277,7 @@ function factory$7(definer) {
                             return s.n(undefined);
                           }).join(", ") + ")";
             }),
-          pb: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, (function (b, param, inputVar, path) {
+          p: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, (function (b, param, inputVar, path) {
                   b.c = b.c + ("if(" + inputVar + ".length!==" + length + "){" + raiseWithArg(b, path, (function (numberOfInputItems) {
                             return {
                                     TAG: "InvalidTupleSize",
@@ -2348,7 +2286,7 @@ function factory$7(definer) {
                                   };
                           }), inputVar + ".length") + "}");
                 }), noopRefinement),
-          sb: (function (b, param, path) {
+          s: (function (b, param, path) {
               var inputVar = toVar(b, b.i);
               var outputVar = $$var(b);
               var registeredDefinitions = new Set();
@@ -2405,10 +2343,6 @@ function factory$7(definer) {
             }),
           f: typeFilter$5,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: empty
         };
 }
@@ -2427,7 +2361,7 @@ function factory$8(structs) {
                             return s.n(undefined);
                           }).join(", ") + ")";
             }),
-          pb: (function (b, selfStruct, path) {
+          p: (function (b, selfStruct, path) {
               var inputVar = toVar(b, b.i);
               var structs = selfStruct.t._0;
               var isAsyncRef = false;
@@ -2487,7 +2421,7 @@ function factory$8(structs) {
                 return outputVar;
               }
             }),
-          sb: (function (b, selfStruct, path) {
+          s: (function (b, selfStruct, path) {
               var inputVar = toVar(b, b.i);
               var structs = selfStruct.t._0;
               var outputVar = $$var(b);
@@ -2524,10 +2458,6 @@ function factory$8(structs) {
             }),
           f: undefined,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: empty
         };
 }
@@ -2544,7 +2474,7 @@ function list(struct) {
 var json = {
   t: "JSON",
   n: primitiveName,
-  pb: (function (b, selfStruct, path) {
+  p: (function (b, selfStruct, path) {
       var parse = function (input, pathOpt) {
         var path$1 = pathOpt !== undefined ? pathOpt : path;
         var match = typeof input;
@@ -2592,13 +2522,9 @@ var json = {
       var input = b.i;
       return "e[" + (b.e.push(parse) - 1) + "](" + input + ")";
     }),
-  sb: noop,
+  s: noop,
   f: undefined,
   i: 0,
-  s: noopOperation,
-  j: initialSerializeToJson,
-  p: intitialParse,
-  a: intitialParseAsync,
   m: empty
 };
 
@@ -2606,7 +2532,7 @@ function $$catch(struct, getFallbackValue) {
   return {
           t: struct.t,
           n: struct.n,
-          pb: (function (b, selfStruct, path) {
+          p: (function (b, selfStruct, path) {
               var inputVar = toVar(b, b.i);
               return withCatch(b, (function (b, errorVar) {
                             return "e[" + (b.e.push(function (input, internalError) {
@@ -2630,13 +2556,9 @@ function $$catch(struct, getFallbackValue) {
                             return useWithTypeFilter(b, struct, inputVar, path);
                           }));
             }),
-          sb: struct.sb,
+          s: struct.s,
           f: undefined,
           i: 0,
-          s: initialSerialize,
-          j: initialSerializeToJson,
-          p: intitialParse,
-          a: intitialParseAsync,
           m: struct.m
         };
 }

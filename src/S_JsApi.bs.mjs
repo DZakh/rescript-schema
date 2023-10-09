@@ -117,7 +117,7 @@ function parse(struct, data) {
 }
 
 function parseOrThrow(struct, data) {
-  return struct.p(data);
+  return S$RescriptStruct.parseAnyOrRaiseWith(data, struct);
 }
 
 function parseAsync(struct, data) {
@@ -129,7 +129,7 @@ function serialize(struct, value) {
 }
 
 function serializeOrThrow(struct, value) {
-  return struct.s(value);
+  return S$RescriptStruct.serializeToUnknownOrRaiseWith(value, struct);
 }
 
 export {

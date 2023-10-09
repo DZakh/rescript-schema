@@ -328,22 +328,14 @@ type rec t<'value> = {
   tagged: tagged,
   @as("n")
   name: unit => string,
-  @as("pb")
+  @as("p")
   mutable parseOperationBuilder: builder,
-  @as("sb")
+  @as("s")
   mutable serializeOperationBuilder: builder,
   @as("f")
   maybeTypeFilter: option<(~inputVar: string) => string>,
   @as("i")
   mutable isAsyncParse: isAsyncParse,
-  @as("s")
-  mutable serialize: unknown => unknown,
-  @as("j")
-  mutable serializeToJson: unknown => Js.Json.t,
-  @as("p")
-  mutable parse: unknown => unknown,
-  @as("a")
-  mutable parseAsync: unknown => unit => promise<unknown>,
   @as("m")
   metadataMap: Js.Dict.t<unknown>,
 }
@@ -722,7 +714,7 @@ module Builder = {
     b->Ctx.useInput
   })
 
-  let noopOperation = i => i
+  let noopOperation = i => i->Obj.magic
 
   @inline
   let intitialInputVar = "i"
@@ -778,26 +770,6 @@ module Builder = {
       )
     }
   }
-
-  let unexpectedAsyncOperation = _ =>
-    InternalError.raise(~path=Path.empty, ~code=UnexpectedAsync, ~operation=Parsing)
-
-  let compileParser = (struct, ~builder) => {
-    let operation = builder->build(~struct, ~operation=Parsing)
-    let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-    struct.parse = isAsync ? unexpectedAsyncOperation : operation
-    struct.parseAsync = isAsync
-      ? operation->(Obj.magic: (unknown => unknown) => unknown => unit => promise<unknown>)
-      : input => {
-          let syncValue = operation(input)
-          () => syncValue->Stdlib.Promise.resolve
-        }
-  }
-
-  let compileSerializer = (struct, ~builder) => {
-    let operation = builder->build(~struct, ~operation=Serializing)
-    struct.serialize = operation
-  }
 }
 // TODO: Split validation code and transformation code
 module B = Builder.Ctx
@@ -838,7 +810,7 @@ let isAsyncParse = struct => {
   switch struct.isAsyncParse {
   | Unknown =>
     try {
-      struct->Builder.compileParser(~builder=struct.parseOperationBuilder)
+      let _ = struct.parseOperationBuilder->Builder.build(~struct, ~operation=Parsing)
       struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
     } catch {
     | exn => {
@@ -848,12 +820,6 @@ let isAsyncParse = struct => {
     }
   | Value(v) => v
   }
-}
-
-let initialSerialize = input => {
-  let struct = %raw("this")
-  struct->Builder.compileSerializer(~builder=struct.serializeOperationBuilder)
-  struct.serialize(input)
 }
 
 let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
@@ -904,36 +870,6 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
   }
 }
 
-let initialSerializeToJson = input => {
-  let struct = %raw("this")
-  let serializeToJson = try {
-    struct->validateJsonableStruct(~rootStruct=struct, ~isRoot=true, ())
-    if struct.serialize === initialSerialize {
-      struct->Builder.compileSerializer(~builder=struct.serializeOperationBuilder)
-    }
-    struct.serialize->(Obj.magic: (unknown => unknown) => unknown => Js.Json.t)
-  } catch {
-  | exn => {
-      let error = exn->InternalError.getOrRethrow
-      _ => Stdlib.Exn.raiseAny(error)
-    }
-  }
-  struct.serializeToJson = serializeToJson
-  serializeToJson(input)
-}
-
-let intitialParse = input => {
-  let struct = %raw("this")
-  struct->Builder.compileParser(~builder=struct.parseOperationBuilder)
-  struct.parse(input)
-}
-
-let intitialParseAsync = input => {
-  let struct = %raw("this")
-  struct->Builder.compileParser(~builder=struct.parseOperationBuilder)
-  struct.parseAsync(input)
-}
-
 @inline
 let make = (
   ~name,
@@ -947,10 +883,6 @@ let make = (
   parseOperationBuilder,
   serializeOperationBuilder,
   isAsyncParse: Unknown,
-  serialize: initialSerialize,
-  serializeToJson: initialSerializeToJson,
-  parse: intitialParse,
-  parseAsync: intitialParseAsync,
   maybeTypeFilter,
   name,
   metadataMap,
@@ -969,27 +901,50 @@ let makeWithNoopSerializer = (
   parseOperationBuilder,
   serializeOperationBuilder: Builder.noop,
   isAsyncParse: Unknown,
-  serialize: Builder.noopOperation,
-  serializeToJson: initialSerializeToJson,
-  parse: intitialParse,
-  parseAsync: intitialParseAsync,
   maybeTypeFilter,
   metadataMap,
 }
 
+module Operation = {
+  let unexpectedAsync = _ =>
+    InternalError.raise(~path=Path.empty, ~code=UnexpectedAsync, ~operation=Parsing)
+
+  @inline
+  let make = (~label, ~init: t<unknown> => 'input => 'output) => {
+    (
+      (i, s) => {
+        try {
+          (s->Obj.magic->Js.Dict.unsafeGet(label))(i)
+        } catch {
+        | _ =>
+          if s->Obj.magic->Js.Dict.unsafeGet(label)->Obj.magic {
+            %raw(`exn`)->Stdlib.Exn.raiseAny
+          } else {
+            let o = init(s->Obj.magic)
+            s->Obj.magic->Js.Dict.set(label, o)
+            o(i)
+          }
+        }
+      }
+    )->Obj.magic
+  }
+}
+
+let parseAnyOrRaiseWith = Operation.make(~label="op", ~init=struct => {
+  let operation = struct.parseOperationBuilder->Builder.build(~struct, ~operation=Parsing)
+  let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+  isAsync ? Operation.unexpectedAsync : operation
+})
+
 let parseAnyWith = (any, struct) => {
   try {
-    struct.parse(any->castAnyToUnknown)->castUnknownToAny->Ok
+    parseAnyOrRaiseWith(any->castAnyToUnknown, struct)->castUnknownToAny->Ok
   } catch {
   | exn => exn->InternalError.getOrRethrow->Error
   }
 }
 
 let parseWith: (Js.Json.t, t<'value>) => result<'value, error> = parseAnyWith
-
-let parseAnyOrRaiseWith = (any, struct) => {
-  struct.parse(any->castAnyToUnknown)->castUnknownToAny
-}
 
 let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value = parseAnyOrRaiseWith
 
@@ -999,9 +954,20 @@ let asyncPrepareError = jsExn => {
   jsExn->(Obj.magic: Js.Exn.t => exn)->InternalError.getOrRethrow->Error
 }
 
+let internalParseAsyncWith = Operation.make(~label="opa", ~init=struct => {
+  let operation = struct.parseOperationBuilder->Builder.build(~struct, ~operation=Parsing)
+  let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+  isAsync
+    ? operation->(Obj.magic: (unknown => unknown) => unknown => unit => promise<unknown>)
+    : input => {
+        let syncValue = operation(input)
+        () => syncValue->Stdlib.Promise.resolve
+      }
+})
+
 let parseAnyAsyncWith = (any, struct) => {
   try {
-    struct.parseAsync(any->castAnyToUnknown)()->Stdlib.Promise.thenResolveWithCatch(
+    internalParseAsyncWith(any->castAnyToUnknown, struct)()->Stdlib.Promise.thenResolveWithCatch(
       asyncPrepareOk,
       asyncPrepareError,
     )
@@ -1014,8 +980,7 @@ let parseAsyncWith = parseAnyAsyncWith
 
 let parseAnyAsyncInStepsWith = (any, struct) => {
   try {
-    let asyncFn = struct.parseAsync(any->castAnyToUnknown)
-
+    let asyncFn = internalParseAsyncWith(any->castAnyToUnknown, struct)
     (() => asyncFn()->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, asyncPrepareError))->Ok
   } catch {
   | exn => exn->InternalError.getOrRethrow->Error
@@ -1024,25 +989,34 @@ let parseAnyAsyncInStepsWith = (any, struct) => {
 
 let parseAsyncInStepsWith = parseAnyAsyncInStepsWith
 
-let serializeToUnknownWith = (value, struct) => {
+let serializeOrRaiseWith = Operation.make(~label="osj", ~init=struct => {
   try {
-    struct.serialize(value->castAnyToUnknown)->Ok
+    struct->validateJsonableStruct(~rootStruct=struct, ~isRoot=true, ())
+    // TODO: Move outside of the try/catch
+    struct.serializeOperationBuilder->Builder.build(~struct, ~operation=Serializing)
+  } catch {
+  | exn => {
+      let error = exn->InternalError.getOrRethrow
+      _ => Stdlib.Exn.raiseAny(error)
+    }
+  }
+})
+
+let serializeWith = (value, struct) => {
+  try {
+    serializeOrRaiseWith(value, struct)->Ok
   } catch {
   | exn => exn->InternalError.getOrRethrow->Error
   }
 }
 
-let serializeOrRaiseWith = (value, struct) => {
-  struct.serializeToJson(value->castAnyToUnknown)
-}
+let serializeToUnknownOrRaiseWith = Operation.make(~label="os", ~init=struct => {
+  struct.serializeOperationBuilder->Builder.build(~struct, ~operation=Serializing)
+})
 
-let serializeToUnknownOrRaiseWith = (value, struct) => {
-  struct.serialize(value->castAnyToUnknown)
-}
-
-let serializeWith = (value, struct) => {
+let serializeToUnknownWith = (value, struct) => {
   try {
-    struct.serializeToJson(value->castAnyToUnknown)->Ok
+    serializeToUnknownOrRaiseWith(value, struct)->Ok
   } catch {
   | exn => exn->InternalError.getOrRethrow->Error
   }
@@ -1150,20 +1124,26 @@ let recursive = fn => {
       selfStruct.parseOperationBuilder = Builder.make((b, ~selfStruct, ~path as _) => {
         let input = b->B.useInput
         if isAsync {
-          b->B.embedAsyncOperation(~input, ~fn=input => selfStruct.parseAsync(input))
+          b->B.embedAsyncOperation(~input, ~fn=input => input->internalParseAsyncWith(selfStruct))
         } else {
-          b->B.embedSyncOperation(~input, ~fn=input => selfStruct.parse(input))
+          b->B.embedSyncOperation(~input, ~fn=input => input->parseAnyOrRaiseWith(selfStruct))
         }
       })
 
-      selfStruct->Builder.compileParser(~builder)
+      let operation = builder->Builder.build(~struct=selfStruct, ~operation=Parsing)
+      if isAsync {
+        selfStruct->Obj.magic->Js.Dict.set("opa", operation)
+      } else {
+        // TODO: Use init function
+        selfStruct->Obj.magic->Js.Dict.set("op", operation)
+      }
 
       selfStruct.parseOperationBuilder = builder
       b->B.withPathPrepend(~path, (b, ~path as _) =>
         if isAsync {
-          b->B.embedAsyncOperation(~input, ~fn=selfStruct.parseAsync)
+          b->B.embedAsyncOperation(~input, ~fn=operation)
         } else {
-          b->B.embedSyncOperation(~input, ~fn=selfStruct.parse)
+          b->B.embedSyncOperation(~input, ~fn=operation)
         }
       )
     })
@@ -1175,13 +1155,20 @@ let recursive = fn => {
       let input = b->B.useInput
       selfStruct.serializeOperationBuilder = Builder.make((b, ~selfStruct, ~path as _) => {
         let input = b->B.useInput
-        b->B.embedSyncOperation(~input, ~fn=input => selfStruct.serialize(input))
+        b->B.embedSyncOperation(
+          ~input,
+          ~fn=input => input->serializeToUnknownOrRaiseWith(selfStruct),
+        )
       })
-      selfStruct->Builder.compileSerializer(~builder)
+
+      let operation = builder->Builder.build(~struct=selfStruct, ~operation=Serializing)
+
+      // TODO: Use init function
+      // TODO: What about json validation ?? Check whether it works correctly
+      selfStruct->Obj.magic->Js.Dict.set("os", operation)
+
       selfStruct.serializeOperationBuilder = builder
-      b->B.withPathPrepend(~path, (b, ~path as _) =>
-        b->B.embedSyncOperation(~input, ~fn=selfStruct.serialize)
-      )
+      b->B.withPathPrepend(~path, (b, ~path as _) => b->B.embedSyncOperation(~input, ~fn=operation))
     })
   }
 
@@ -1201,6 +1188,11 @@ let setName = (struct, name) => {
 
 let primitiveName = () => {
   (%raw(`this`): t<'a>).tagged->(Obj.magic: tagged => string)
+}
+
+let containerName = () => {
+  let tagged = (%raw(`this`): t<'a>).tagged->Obj.magic
+  `${tagged["TAG"]}(${(tagged->unsafeGetVariantPayload).name()})`
 }
 
 let internalRefine = (struct, refiner) => {
@@ -1691,7 +1683,7 @@ module Option = {
   let factory = struct => {
     let struct = struct->toUnknown
     make(
-      ~name=() => `Option(${struct.name()})`,
+      ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Option(struct),
       ~parseOperationBuilder,
@@ -1731,7 +1723,7 @@ module Null = {
   let factory = struct => {
     let struct = struct->toUnknown
     make(
-      ~name=() => `Null(${struct.name()})`,
+      ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Null(struct),
       ~parseOperationBuilder=Option.parseOperationBuilder,
@@ -2152,10 +2144,6 @@ module Unknown = {
     parseOperationBuilder: Builder.noop,
     serializeOperationBuilder: Builder.noop,
     isAsyncParse: Value(false),
-    serialize: Builder.noopOperation,
-    serializeToJson: initialSerializeToJson,
-    parse: Builder.noopOperation,
-    parseAsync: Builder.unexpectedAsyncOperation,
     metadataMap: Metadata.Map.empty,
     maybeTypeFilter: None,
   }
@@ -2590,7 +2578,7 @@ module Array = {
   let factory = struct => {
     let struct = struct->toUnknown
     make(
-      ~name=() => `Array(${struct.name()})`,
+      ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Array(struct),
       ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
@@ -2707,7 +2695,7 @@ module Dict = {
   let factory = struct => {
     let struct = struct->toUnknown
     make(
-      ~name=() => `Dict(${struct.name()})`,
+      ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Dict(struct),
       ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
@@ -2717,18 +2705,16 @@ module Dict = {
 
         b.code =
           b.code ++
-          `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(
-              b => {
-                let itemOutputVar =
-                  b->B.withPathPrepend(
-                    ~path,
-                    ~dynamicLocationVar=keyVar,
-                    (b, ~path) =>
-                      b->B.useWithTypeFilter(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
-                  )
-                `${outputVar}[${keyVar}]=${itemOutputVar}`
-              },
-            )}}`
+          `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
+              let itemOutputVar =
+                b->B.withPathPrepend(
+                  ~path,
+                  ~dynamicLocationVar=keyVar,
+                  (b, ~path) =>
+                    b->B.useWithTypeFilter(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
+                )
+              `${outputVar}[${keyVar}]=${itemOutputVar}`
+            })}}`
 
         let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
         if isAsync {
@@ -2755,18 +2741,16 @@ module Dict = {
 
           b.code =
             b.code ++
-            `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(
-                b => {
-                  let itemOutputVar =
-                    b->B.withPathPrepend(
-                      ~path,
-                      ~dynamicLocationVar=keyVar,
-                      (b, ~path) => b->B.use(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
-                    )
+            `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
+                let itemOutputVar =
+                  b->B.withPathPrepend(
+                    ~path,
+                    ~dynamicLocationVar=keyVar,
+                    (b, ~path) => b->B.use(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
+                  )
 
-                  `${outputVar}[${keyVar}]=${itemOutputVar}`
-                },
-              )}}`
+                `${outputVar}[${keyVar}]=${itemOutputVar}`
+              })}}`
 
           outputVar
         }

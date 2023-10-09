@@ -36,7 +36,7 @@ let rec cleanUpStruct = struct => {
   ->Dict.toArray
   ->Array.forEach(((key, value)) => {
     switch key {
-    | "sb" | "pb" | "i" | "f" | "n" => ()
+    | "s" | "p" | "i" | "f" | "n" => ()
     | _ =>
       if typeof(value) === #object && value !== %raw(`null`) {
         new->Dict.set(
@@ -59,17 +59,19 @@ let assertCompiledCode = (t, ~struct, ~op: [#parse | #serialize], code, ~message
   let compiledCode = switch op {
   | #parse =>
     if struct->S.isAsyncParse {
-      %raw(`struct.a.toString()`)
+      let _ = %raw(`undefined`)->S.parseAsyncInStepsWith(struct)
+      %raw(`struct.opa.toString()`)
     } else {
-      %raw(`struct.p.toString()`)
+      let _ = %raw(`undefined`)->S.parseAnyWith(struct)
+      %raw(`struct.op.toString()`)
     }
   | #serialize => {
       try {
-        let _ = %raw(`undefined`)->S.serializeToUnknownWith(struct)
+        let _ = %raw(`undefined`)->S.serializeToUnknownOrRaiseWith(struct)
       } catch {
       | _ => ()
       }
-      %raw(`struct.s.toString()`)
+      %raw(`struct.os.toString()`)
     }
   }
   t->Assert.is(compiledCode, code, ~message?, ())
@@ -79,13 +81,19 @@ let assertCompiledCodeIsNoop = (t, ~struct, ~op: [#parse | #serialize], ~message
   let compiledCode = switch op {
   | #parse =>
     if struct->S.isAsyncParse {
-      %raw(`struct.a.toString()`)
+      let _ = %raw(`undefined`)->S.parseAsyncInStepsWith(struct)
+      %raw(`struct.opa.toString()`)
     } else {
-      %raw(`struct.p.toString()`)
+      let _ = %raw(`undefined`)->S.parseAnyWith(struct)
+      %raw(`struct.op.toString()`)
     }
   | #serialize => {
-      let _ = %raw(`undefined`)->S.serializeToUnknownWith(struct)
-      %raw(`struct.s.toString()`)
+      try {
+        let _ = %raw(`undefined`)->S.serializeToUnknownOrRaiseWith(struct)
+      } catch {
+      | _ => ()
+      }
+      %raw(`struct.os.toString()`)
     }
   }
   t->Assert.truthy(compiledCode->String.startsWith("function noopOperation(i)"), ~message?, ())

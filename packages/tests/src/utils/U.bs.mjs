@@ -47,8 +47,8 @@ function cleanUpStruct(struct) {
           case "f" :
           case "i" :
           case "n" :
-          case "pb" :
-          case "sb" :
+          case "p" :
+          case "s" :
               return ;
           default:
             if (typeof value === "object" && value !== null) {
@@ -69,23 +69,44 @@ function unsafeAssertEqualStructs(t, s1, s2, message) {
 function assertCompiledCode(t, struct, op, code, message) {
   var compiledCode;
   if (op === "parse") {
-    compiledCode = S$RescriptStruct.isAsyncParse(struct) ? (struct.a.toString()) : (struct.p.toString());
+    if (S$RescriptStruct.isAsyncParse(struct)) {
+      S$RescriptStruct.parseAsyncInStepsWith(undefined, struct);
+      compiledCode = (struct.opa.toString());
+    } else {
+      S$RescriptStruct.parseAnyWith(undefined, struct);
+      compiledCode = (struct.op.toString());
+    }
   } else {
     try {
-      S$RescriptStruct.serializeToUnknownWith(undefined, struct);
+      S$RescriptStruct.serializeToUnknownOrRaiseWith(undefined, struct);
     }
     catch (exn){
       
     }
-    compiledCode = (struct.s.toString());
+    compiledCode = (struct.os.toString());
   }
   t.is(compiledCode, code, message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }
 
 function assertCompiledCodeIsNoop(t, struct, op, message) {
-  var compiledCode = op === "parse" ? (
-      S$RescriptStruct.isAsyncParse(struct) ? (struct.a.toString()) : (struct.p.toString())
-    ) : (S$RescriptStruct.serializeToUnknownWith(undefined, struct), (struct.s.toString()));
+  var compiledCode;
+  if (op === "parse") {
+    if (S$RescriptStruct.isAsyncParse(struct)) {
+      S$RescriptStruct.parseAsyncInStepsWith(undefined, struct);
+      compiledCode = (struct.opa.toString());
+    } else {
+      S$RescriptStruct.parseAnyWith(undefined, struct);
+      compiledCode = (struct.op.toString());
+    }
+  } else {
+    try {
+      S$RescriptStruct.serializeToUnknownOrRaiseWith(undefined, struct);
+    }
+    catch (exn){
+      
+    }
+    compiledCode = (struct.os.toString());
+  }
   t.truthy(compiledCode.startsWith("function noopOperation(i)"), message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }
 

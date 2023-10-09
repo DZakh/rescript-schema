@@ -115,7 +115,7 @@ let parse = (struct, data) => {
 }
 
 let parseOrThrow = (struct, data) => {
-  (struct->Obj.magic)["p"](data)
+  data->S.parseAnyOrRaiseWith(struct)
 }
 
 let parseAsync = (struct, data) => {
@@ -127,5 +127,5 @@ let serialize = (struct, value) => {
 }
 
 let serializeOrThrow = (struct, value) => {
-  (struct->Obj.magic)["s"](value)
+  value->S.serializeToUnknownOrRaiseWith(struct)
 }

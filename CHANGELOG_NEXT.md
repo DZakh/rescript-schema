@@ -9,6 +9,8 @@
 - Improved tree-shaking
 - Added `S.Error.reason`
 
+// TODO: Fix todo in serializeOrRaiseWith and recursive
+
 ## Opt-in ppx support
 
 ### How to install

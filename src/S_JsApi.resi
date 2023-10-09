@@ -31,4 +31,4 @@ let parse: (S.t<'output>, 'a) => jsResult<'output>
 let parseOrThrow: (S.t<'output>, 'a) => 'output
 let parseAsync: (S.t<'output>, 'a) => promise<jsResult<'output>>
 let serialize: (S.t<'output>, 'output) => jsResult<'input>
-let serializeOrThrow: (S.t<'output>, 'output) => 'input
+let serializeOrThrow: (S.t<'output>, 'output) => unknown
