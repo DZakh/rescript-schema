@@ -1,5 +1,5 @@
 import * as S_Js from "./S_JsApi.bs.mjs";
-import * as S from "./S.bs.mjs";
+import * as S from "./S_Core.bs.mjs";
 
 export const Error = S.$$Error.$$class;
 export const string = S.string;

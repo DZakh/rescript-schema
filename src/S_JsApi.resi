@@ -2,33 +2,33 @@
 
 type jsResult<'value>
 
-let optional: (S.t<'v>, option<unknown>) => S.t<option<'v>>
+let optional: (S_Core.t<'v>, option<unknown>) => S_Core.t<option<'v>>
 
-let tuple: unknown => S.t<array<unknown>>
+let tuple: unknown => S_Core.t<array<unknown>>
 
 let custom: (
   ~name: string,
-  ~parser: (unknown, S.effectCtx<'output>) => 'output=?,
-  ~serializer: ('output, S.effectCtx<'output>) => 'input=?,
+  ~parser: (unknown, S_Core.effectCtx<'output>) => 'output=?,
+  ~serializer: ('output, S_Core.effectCtx<'output>) => 'input=?,
   unit,
-) => S.t<'output>
+) => S_Core.t<'output>
 
 let asyncParserRefine: (
-  S.t<'output>,
-  ('output, S.effectCtx<'output>) => promise<unit>,
-) => S.t<'output>
-let refine: (S.t<'output>, ('output, S.effectCtx<'output>) => unit) => S.t<'output>
+  S_Core.t<'output>,
+  ('output, S_Core.effectCtx<'output>) => promise<unit>,
+) => S_Core.t<'output>
+let refine: (S_Core.t<'output>, ('output, S_Core.effectCtx<'output>) => unit) => S_Core.t<'output>
 
 let transform: (
-  S.t<'output>,
-  ~parser: ('output, S.effectCtx<'transformed>) => 'transformed=?,
-  ~serializer: ('transformed, S.effectCtx<'transformed>) => 'output=?,
-) => S.t<'transformed>
+  S_Core.t<'output>,
+  ~parser: ('output, S_Core.effectCtx<'transformed>) => 'transformed=?,
+  ~serializer: ('transformed, S_Core.effectCtx<'transformed>) => 'output=?,
+) => S_Core.t<'transformed>
 
-let object: unknown => S.t<Js.Dict.t<unknown>>
+let object: unknown => S_Core.t<Js.Dict.t<unknown>>
 
-let parse: (S.t<'output>, 'a) => jsResult<'output>
-let parseOrThrow: (S.t<'output>, 'a) => 'output
-let parseAsync: (S.t<'output>, 'a) => promise<jsResult<'output>>
-let serialize: (S.t<'output>, 'output) => jsResult<'input>
-let serializeOrThrow: (S.t<'output>, 'output) => unknown
+let parse: (S_Core.t<'output>, 'a) => jsResult<'output>
+let parseOrThrow: (S_Core.t<'output>, 'a) => 'output
+let parseAsync: (S_Core.t<'output>, 'a) => promise<jsResult<'output>>
+let serialize: (S_Core.t<'output>, 'output) => jsResult<'input>
+let serializeOrThrow: (S_Core.t<'output>, 'output) => unknown

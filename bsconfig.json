@@ -6,9 +6,8 @@
     "module": "es6",
     "in-source": true
   },
-  "sources": [
-    {
-      "dir": "src"
-    }
-  ]
+  "sources": {
+    "dir": "src",
+    "public": ["S"]
+  }
 }

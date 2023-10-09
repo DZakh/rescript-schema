@@ -1,4 +1,3 @@
-import { error } from "./../genType/GenType.gen";
 import test from "ava";
 import { expectType, TypeEqual } from "ts-expect";
 

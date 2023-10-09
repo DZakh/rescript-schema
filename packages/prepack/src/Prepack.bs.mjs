@@ -77,7 +77,7 @@ Execa.execaSync("npm", [
 
 var bundle = await Rollup.rollup({
       input: jsInputPath,
-      external: [/S\.bs\.mjs/]
+      external: [/S_Core\.bs\.mjs/]
     });
 
 var output = [
@@ -88,8 +88,8 @@ var output = [
     plugins: [PluginReplace({
             values: Object.fromEntries([
                   [
-                    "S.bs.mjs",
-                    "../src/S.bs.js"
+                    "S_Core.bs.mjs",
+                    "../src/S_Core.bs.js"
                   ],
                   [
                     "rescript/lib/es6",
@@ -104,8 +104,8 @@ var output = [
     exports: "named",
     plugins: [PluginReplace({
             values: Object.fromEntries([[
-                    "S.bs.mjs",
-                    "../src/S.bs.mjs"
+                    "S_Core.bs.mjs",
+                    "../src/S_Core.bs.mjs"
                   ]])
           })]
   }

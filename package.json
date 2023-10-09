@@ -41,10 +41,11 @@
   "types": "./src/S_JsApi.d.ts",
   "files": [
     "dist",
+    "src/S_Core.res",
+    "src/S_Core.bs.js",
+    "src/S_Core.bs.mjs",
     "src/S.res",
     "src/S.resi",
-    "src/S.bs.js",
-    "src/S.bs.mjs",
     "src/S_JsApi.d.ts",
     "RescriptStruct.gen.ts",
     "bsconfig.json"

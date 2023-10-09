@@ -15,7 +15,7 @@ module Stdlib = {
 
 type jsResult<'value>
 
-let toJsResult = (result: result<'value, S.error>): jsResult<'value> => {
+let toJsResult = (result: result<'value, S_Core.error>): jsResult<'value> => {
   switch result {
   | Ok(value) => {"success": true, "value": value}->Obj.magic
   | Error(error) => {"success": false, "error": error}->Obj.magic
@@ -23,7 +23,7 @@ let toJsResult = (result: result<'value, S.error>): jsResult<'value> => {
 }
 
 let transform = (struct, ~parser as maybeParser=?, ~serializer as maybeSerializer=?) => {
-  struct->S.transform(s => {
+  struct->S_Core.transform(s => {
     {
       parser: ?switch maybeParser {
       | Some(parser) => Some(v => parser(v, s))
@@ -38,14 +38,14 @@ let transform = (struct, ~parser as maybeParser=?, ~serializer as maybeSerialize
 }
 
 let refine = (struct, refiner) => {
-  struct->S.refine(s => {
+  struct->S_Core.refine(s => {
     v => refiner(v, s)
   })
 }
 
 let noop = a => a
 let asyncParserRefine = (struct, refine) => {
-  struct->S.transform(s => {
+  struct->S_Core.transform(s => {
     {
       asyncParser: v => () => refine(v, s)->Stdlib.Promise.thenResolve(() => v),
       serializer: noop,
@@ -54,21 +54,22 @@ let asyncParserRefine = (struct, refine) => {
 }
 
 let optional = (struct, maybeOr) => {
-  let struct = S.option(struct)
+  let struct = S_Core.option(struct)
   switch maybeOr {
-  | Some(or) if Js.typeof(or) === "function" => struct->S.Option.getOrWith(or->Obj.magic)->Obj.magic
-  | Some(or) => struct->S.Option.getOr(or->Obj.magic)->Obj.magic
+  | Some(or) if Js.typeof(or) === "function" =>
+    struct->S_Core.Option.getOrWith(or->Obj.magic)->Obj.magic
+  | Some(or) => struct->S_Core.Option.getOr(or->Obj.magic)->Obj.magic
   | None => struct
   }
 }
 
 let tuple = definer => {
   if Js.typeof(definer) === "function" {
-    let definer = definer->(Obj.magic: unknown => S.Tuple.ctx => 'a)
-    S.tuple(definer)
+    let definer = definer->(Obj.magic: unknown => S_Core.Tuple.ctx => 'a)
+    S_Core.tuple(definer)
   } else {
-    let structs = definer->(Obj.magic: unknown => array<S.t<unknown>>)
-    S.tuple(s => {
+    let structs = definer->(Obj.magic: unknown => array<S_Core.t<unknown>>)
+    S_Core.tuple(s => {
       structs->Js.Array2.mapi((struct, idx) => {
         s.item(idx, struct)
       })
@@ -77,7 +78,7 @@ let tuple = definer => {
 }
 
 let custom = (~name, ~parser as maybeParser=?, ~serializer as maybeSerializer=?, ()) => {
-  S.custom(name, s => {
+  S_Core.custom(name, s => {
     {
       parser: ?switch maybeParser {
       | Some(parser) => Some(v => parser(v, s))
@@ -93,11 +94,11 @@ let custom = (~name, ~parser as maybeParser=?, ~serializer as maybeSerializer=?,
 
 let object = definer => {
   if Js.typeof(definer) === "function" {
-    let definer = definer->(Obj.magic: unknown => S.Object.ctx => 'a)
-    S.object(definer)
+    let definer = definer->(Obj.magic: unknown => S_Core.Object.ctx => 'a)
+    S_Core.object(definer)
   } else {
-    let definer = definer->(Obj.magic: unknown => Js.Dict.t<S.t<unknown>>)
-    S.object(s => {
+    let definer = definer->(Obj.magic: unknown => Js.Dict.t<S_Core.t<unknown>>)
+    S_Core.object(s => {
       let definition = Js.Dict.empty()
       let fieldNames = definer->Js.Dict.keys
       for idx in 0 to fieldNames->Js.Array2.length - 1 {
@@ -111,21 +112,21 @@ let object = definer => {
 }
 
 let parse = (struct, data) => {
-  data->S.parseAnyWith(struct)->toJsResult
+  data->S_Core.parseAnyWith(struct)->toJsResult
 }
 
 let parseOrThrow = (struct, data) => {
-  data->S.parseAnyOrRaiseWith(struct)
+  data->S_Core.parseAnyOrRaiseWith(struct)
 }
 
 let parseAsync = (struct, data) => {
-  data->S.parseAnyAsyncWith(struct)->Stdlib.Promise.thenResolve(toJsResult)
+  data->S_Core.parseAnyAsyncWith(struct)->Stdlib.Promise.thenResolve(toJsResult)
 }
 
 let serialize = (struct, value) => {
-  value->S.serializeToUnknownWith(struct)->Obj.magic->toJsResult
+  value->S_Core.serializeToUnknownWith(struct)->Obj.magic->toJsResult
 }
 
 let serializeOrThrow = (struct, value) => {
-  value->S.serializeToUnknownOrRaiseWith(struct)
+  value->S_Core.serializeToUnknownOrRaiseWith(struct)
 }
