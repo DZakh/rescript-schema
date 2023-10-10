@@ -20,7 +20,7 @@ Highlights:
 - Strict mode for object structs to prevent excessive fields and many more built-in helpers
 - Works with plain JavaScript/TypeScript too! You don't need to use ReScript
 - The **fastest** composable validation library in the entire JavaScript ecosystem ([benchmark](https://moltar.github.io/typescript-runtime-type-benchmarks/))
-- Small and tree-shakable: [8.5kB minified + zipped](https://bundlephobia.com/package/rescript-struct)
+- Small and tree-shakable: [9.5kB minified + zipped](https://bundlephobia.com/package/rescript-struct)
 
 Also, it has declarative API allowing you to use **rescript-struct** as a building block for other tools, such as:
 

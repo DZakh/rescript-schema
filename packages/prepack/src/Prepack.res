@@ -8,7 +8,7 @@ let sourePaths = [
   "README.md",
   "RescriptStruct.gen.ts",
 ]
-let jsInputPath = NodeJs.Path.join2(artifactsPath, "src/S_JsApi.js")
+let jsInputPath = NodeJs.Path.join2(artifactsPath, "src/S.js")
 
 module Stdlib = {
   module Dict = {

@@ -22,6 +22,9 @@ module Stdlib = {
     @send
     external thenResolveWithCatch: (t<'a>, 'a => 'b, Js.Exn.t => 'b) => t<'b> = "then"
 
+    @send
+    external thenResolve: (t<'a>, 'a => 'b) => t<'b> = "then"
+
     @val @scope("Promise")
     external resolve: 'a => t<'a> = "resolve"
   }
@@ -3546,3 +3549,124 @@ let jsonString = JsonString.factory
 
 @send
 external name: t<'a> => string = "n"
+
+// =============
+// JS/TS API
+// =============
+
+type jsResult<'value>
+
+let toJsResult = (result: result<'value, error>): jsResult<'value> => {
+  switch result {
+  | Ok(value) => {"success": true, "value": value}->Obj.magic
+  | Error(error) => {"success": false, "error": error}->Obj.magic
+  }
+}
+
+let js_parse = (struct, data) => {
+  data->parseAnyWith(struct)->toJsResult
+}
+
+let js_parseOrThrow = (struct, data) => {
+  data->parseAnyOrRaiseWith(struct)
+}
+
+let js_parseAsync = (struct, data) => {
+  data->parseAnyAsyncWith(struct)->Stdlib.Promise.thenResolve(toJsResult)
+}
+
+let js_serialize = (struct, value) => {
+  value->serializeToUnknownWith(struct)->Obj.magic->toJsResult
+}
+
+let js_serializeOrThrow = (struct, value) => {
+  value->serializeToUnknownOrRaiseWith(struct)
+}
+
+let js_transform = (struct, ~parser as maybeParser=?, ~serializer as maybeSerializer=?) => {
+  struct->transform(s => {
+    {
+      parser: ?switch maybeParser {
+      | Some(parser) => Some(v => parser(v, s))
+      | None => None
+      },
+      serializer: ?switch maybeSerializer {
+      | Some(serializer) => Some(v => serializer(v, s))
+      | None => None
+      },
+    }
+  })
+}
+
+let js_refine = (struct, refiner) => {
+  struct->refine(s => {
+    v => refiner(v, s)
+  })
+}
+
+let noop = a => a
+let js_asyncParserRefine = (struct, refine) => {
+  struct->transform(s => {
+    {
+      asyncParser: v => () => refine(v, s)->Stdlib.Promise.thenResolve(() => v),
+      serializer: noop,
+    }
+  })
+}
+
+let js_optional = (struct, maybeOr) => {
+  let struct = option(struct)
+  switch maybeOr {
+  | Some(or) if Js.typeof(or) === "function" => struct->Option.getOrWith(or->Obj.magic)->Obj.magic
+  | Some(or) => struct->Option.getOr(or->Obj.magic)->Obj.magic
+  | None => struct
+  }
+}
+
+let js_tuple = definer => {
+  if Js.typeof(definer) === "function" {
+    let definer = definer->(Obj.magic: unknown => Tuple.ctx => 'a)
+    tuple(definer)
+  } else {
+    let structs = definer->(Obj.magic: unknown => array<t<unknown>>)
+    tuple(s => {
+      structs->Js.Array2.mapi((struct, idx) => {
+        s.item(idx, struct)
+      })
+    })
+  }
+}
+
+let js_custom = (~name, ~parser as maybeParser=?, ~serializer as maybeSerializer=?, ()) => {
+  custom(name, s => {
+    {
+      parser: ?switch maybeParser {
+      | Some(parser) => Some(v => parser(v, s))
+      | None => None
+      },
+      serializer: ?switch maybeSerializer {
+      | Some(serializer) => Some(v => serializer(v, s))
+      | None => None
+      },
+    }
+  })
+}
+
+let js_object = definer => {
+  if Js.typeof(definer) === "function" {
+    let definer = definer->(Obj.magic: unknown => Object.ctx => 'a)
+    object(definer)
+  } else {
+    let definer = definer->(Obj.magic: unknown => Js.Dict.t<t<unknown>>)
+    object(s => {
+      let definition = Js.Dict.empty()
+      let fieldNames = definer->Js.Dict.keys
+      for idx in 0 to fieldNames->Js.Array2.length - 1 {
+        let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+        let struct = definer->Js.Dict.unsafeGet(fieldName)
+        definition->Js.Dict.set(fieldName, s.field(fieldName, struct))
+      }
+      definition
+    })
+  }
+}

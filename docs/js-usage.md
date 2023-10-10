@@ -548,11 +548,11 @@ Besides the individual bundle size, the overall size of the library is also sign
 
 At the same time **rescript-struct** is the fastest composable validation library in the entire JavaScript ecosystem. This is achieved because of the JIT approach when an ultra optimized validator is created using `eval`.
 
-|                                          | rescript-struct@5.0.1 | Zod@3.22.2      | Valibot@0.18.0 |
-| ---------------------------------------- | --------------------- | --------------- | -------------- |
-| **Total size** (minified + gzipped)      | 8.5 kB                | 13.2 kB         | 6.6 kB         |
-| **Example size** (minified + gzipped)    | 6.08 kB               | 12.8 kB         | 965 B          |
-| **Performance** (Example parsing)        | 1,030,417 ops/ms      | 376 ops/ms      | 24,034 ops/ms  |
-| **Eval-free**                            | ❌                    | ✅              | ✅             |
-| **Codegen-free** (Doesn't need compiler) | ✅                    | ✅              | ✅             |
-| **Ecosystem**                            | ⭐️                   | ⭐️⭐️⭐️⭐️⭐️ | ⭐️⭐️         |
+|                                          | rescript-struct@5.1.0 (unreleased) | Zod@3.22.2      | Valibot@0.18.0 |
+| ---------------------------------------- | ---------------------------------- | --------------- | -------------- |
+| **Total size** (minified + gzipped)      | 9.68 kB                            | 13.4 kB         | 6.73 kB        |
+| **Example size** (minified + gzipped)    | 5.92 kB                            | 12.8 kB         | 965 B          |
+| **Performance** (Example parsing)        | 1,030,417 ops/ms                   | 376 ops/ms      | 24,034 ops/ms  |
+| **Eval-free**                            | ❌                                 | ✅              | ✅             |
+| **Codegen-free** (Doesn't need compiler) | ✅                                 | ✅              | ✅             |
+| **Ecosystem**                            | ⭐️                                | ⭐️⭐️⭐️⭐️⭐️ | ⭐️⭐️         |

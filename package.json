@@ -38,7 +38,7 @@
   "type": "module",
   "main": "./dist/S.js",
   "module": "./dist/S.mjs",
-  "types": "./src/S_JsApi.d.ts",
+  "types": "./src/S.d.ts",
   "files": [
     "dist",
     "src/S_Core.res",
@@ -46,7 +46,7 @@
     "src/S_Core.bs.mjs",
     "src/S.res",
     "src/S.resi",
-    "src/S_JsApi.d.ts",
+    "src/S.d.ts",
     "RescriptStruct.gen.ts",
     "bsconfig.json"
   ],

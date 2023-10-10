@@ -3412,6 +3412,135 @@ function tuple3(v0, v1, v2) {
             });
 }
 
+function toJsResult(result) {
+  if (result.TAG === "Ok") {
+    return {
+            success: true,
+            value: result._0
+          };
+  } else {
+    return {
+            success: false,
+            error: result._0
+          };
+  }
+}
+
+function js_parse(struct, data) {
+  return toJsResult(parseAnyWith(data, struct));
+}
+
+function js_parseOrThrow(struct, data) {
+  return parseAnyOrRaiseWith(data, struct);
+}
+
+function js_parseAsync(struct, data) {
+  return parseAnyAsyncWith(data, struct).then(toJsResult);
+}
+
+function js_serialize(struct, value) {
+  return toJsResult(serializeToUnknownWith(value, struct));
+}
+
+function js_serializeOrThrow(struct, value) {
+  return serializeToUnknownOrRaiseWith(value, struct);
+}
+
+function js_transform(struct, maybeParser, maybeSerializer) {
+  return transform$1(struct, (function (s) {
+                return {
+                        p: maybeParser !== undefined ? (function (v) {
+                              return maybeParser(v, s);
+                            }) : undefined,
+                        s: maybeSerializer !== undefined ? (function (v) {
+                              return maybeSerializer(v, s);
+                            }) : undefined
+                      };
+              }));
+}
+
+function js_refine(struct, refiner) {
+  return refine(struct, (function (s) {
+                return function (v) {
+                  refiner(v, s);
+                };
+              }));
+}
+
+function noop$1(a) {
+  return a;
+}
+
+function js_asyncParserRefine(struct, refine) {
+  return transform$1(struct, (function (s) {
+                return {
+                        a: (function (v) {
+                            return function () {
+                              return refine(v, s).then(function () {
+                                          return v;
+                                        });
+                            };
+                          }),
+                        s: noop$1
+                      };
+              }));
+}
+
+function js_optional(struct, maybeOr) {
+  var struct$1 = factory$1(struct);
+  if (maybeOr === undefined) {
+    return struct$1;
+  }
+  var or = Caml_option.valFromOption(maybeOr);
+  if (typeof or === "function") {
+    return getOrWith(struct$1, or);
+  } else {
+    return getOr(struct$1, or);
+  }
+}
+
+function js_tuple(definer) {
+  if (typeof definer === "function") {
+    return factory$7(definer);
+  } else {
+    return factory$7(function (s) {
+                return definer.map(function (struct, idx) {
+                            return s.i(idx, struct);
+                          });
+              });
+  }
+}
+
+function js_custom(name, maybeParser, maybeSerializer, param) {
+  return custom(name, (function (s) {
+                return {
+                        p: maybeParser !== undefined ? (function (v) {
+                              return maybeParser(v, s);
+                            }) : undefined,
+                        s: maybeSerializer !== undefined ? (function (v) {
+                              return maybeSerializer(v, s);
+                            }) : undefined
+                      };
+              }));
+}
+
+function js_object(definer) {
+  if (typeof definer === "function") {
+    return factory$3(definer);
+  } else {
+    return factory$3(function (s) {
+                var definition = {};
+                var fieldNames = Object.keys(definer);
+                for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+                  var fieldName = fieldNames[idx];
+                  var struct = definer[fieldName];
+                  definition[fieldName] = s.f(fieldName, struct);
+                }
+                return definition;
+              });
+  }
+}
+
 var B;
 
 var parseWith = parseAnyWith;
@@ -3548,5 +3677,19 @@ export {
   tuple3 ,
   union ,
   jsonString ,
+  toJsResult ,
+  js_parse ,
+  js_parseOrThrow ,
+  js_parseAsync ,
+  js_serialize ,
+  js_serializeOrThrow ,
+  js_transform ,
+  js_refine ,
+  noop$1 as noop,
+  js_asyncParserRefine ,
+  js_optional ,
+  js_tuple ,
+  js_custom ,
+  js_object ,
 }
 /* symbol Not a pure module */

@@ -23,7 +23,7 @@ var sourePaths = [
   "RescriptStruct.gen.ts"
 ];
 
-var jsInputPath = Path.join(artifactsPath, "src/S_JsApi.js");
+var jsInputPath = Path.join(artifactsPath, "src/S.js");
 
 function update(json, path, value) {
   var dict = Core__JSON.Decode.object(json);
