@@ -912,19 +912,22 @@ module Operation = {
   let unexpectedAsync = _ =>
     InternalError.raise(~path=Path.empty, ~code=UnexpectedAsync, ~operation=Parsing)
 
+  type label =
+    | @as("op") Parser | @as("opa") ParserAsync | @as("os") Serializer | @as("osj") SerializerToJson
+
   @inline
-  let make = (~label, ~init: t<unknown> => 'input => 'output) => {
+  let make = (~label: label, ~init: t<unknown> => 'input => 'output) => {
     (
       (i, s) => {
         try {
-          (s->Obj.magic->Js.Dict.unsafeGet(label))(i)
+          (s->Obj.magic->Js.Dict.unsafeGet((label :> string)))(i)
         } catch {
         | _ =>
-          if s->Obj.magic->Js.Dict.unsafeGet(label)->Obj.magic {
+          if s->Obj.magic->Js.Dict.unsafeGet((label :> string))->Obj.magic {
             %raw(`exn`)->Stdlib.Exn.raiseAny
           } else {
             let o = init(s->Obj.magic)
-            s->Obj.magic->Js.Dict.set(label, o)
+            s->Obj.magic->Js.Dict.set((label :> string), o)
             o(i)
           }
         }
@@ -933,7 +936,7 @@ module Operation = {
   }
 }
 
-let parseAnyOrRaiseWith = Operation.make(~label="op", ~init=struct => {
+let parseAnyOrRaiseWith = Operation.make(~label=Parser, ~init=struct => {
   let operation = struct.parseOperationBuilder->Builder.build(~struct, ~operation=Parsing)
   let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
   isAsync ? Operation.unexpectedAsync : operation
@@ -957,7 +960,7 @@ let asyncPrepareError = jsExn => {
   jsExn->(Obj.magic: Js.Exn.t => exn)->InternalError.getOrRethrow->Error
 }
 
-let internalParseAsyncWith = Operation.make(~label="opa", ~init=struct => {
+let internalParseAsyncWith = Operation.make(~label=ParserAsync, ~init=struct => {
   let operation = struct.parseOperationBuilder->Builder.build(~struct, ~operation=Parsing)
   let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
   isAsync
@@ -992,7 +995,7 @@ let parseAnyAsyncInStepsWith = (any, struct) => {
 
 let parseAsyncInStepsWith = parseAnyAsyncInStepsWith
 
-let serializeOrRaiseWith = Operation.make(~label="osj", ~init=struct => {
+let serializeOrRaiseWith = Operation.make(~label=SerializerToJson, ~init=struct => {
   try {
     struct->validateJsonableStruct(~rootStruct=struct, ~isRoot=true, ())
     // TODO: Move outside of the try/catch
@@ -1013,7 +1016,7 @@ let serializeWith = (value, struct) => {
   }
 }
 
-let serializeToUnknownOrRaiseWith = Operation.make(~label="os", ~init=struct => {
+let serializeToUnknownOrRaiseWith = Operation.make(~label=Serializer, ~init=struct => {
   struct.serializeOperationBuilder->Builder.build(~struct, ~operation=Serializing)
 })
 
@@ -1135,10 +1138,10 @@ let recursive = fn => {
 
       let operation = builder->Builder.build(~struct=selfStruct, ~operation=Parsing)
       if isAsync {
-        selfStruct->Obj.magic->Js.Dict.set("opa", operation)
+        selfStruct->Obj.magic->Js.Dict.set((Operation.ParserAsync :> string), operation)
       } else {
         // TODO: Use init function
-        selfStruct->Obj.magic->Js.Dict.set("op", operation)
+        selfStruct->Obj.magic->Js.Dict.set((Operation.Parser :> string), operation)
       }
 
       selfStruct.parseOperationBuilder = builder
@@ -1168,7 +1171,7 @@ let recursive = fn => {
 
       // TODO: Use init function
       // TODO: What about json validation ?? Check whether it works correctly
-      selfStruct->Obj.magic->Js.Dict.set("os", operation)
+      selfStruct->Obj.magic->Js.Dict.set((Operation.Serializer :> string), operation)
 
       selfStruct.serializeOperationBuilder = builder
       b->B.withPathPrepend(~path, (b, ~path as _) => b->B.embedSyncOperation(~input, ~fn=operation))
@@ -3554,17 +3557,24 @@ external name: t<'a> => string = "n"
 // JS/TS API
 // =============
 
-type jsResult<'value>
+@tag("success")
+type jsResult<'value> = | @as(true) Success({value: 'value}) | @as(false) Failure({error: error})
 
 let toJsResult = (result: result<'value, error>): jsResult<'value> => {
   switch result {
-  | Ok(value) => {"success": true, "value": value}->Obj.magic
-  | Error(error) => {"success": false, "error": error}->Obj.magic
+  | Ok(value) => Success({value: value})
+  | Error(error) => Failure({error: error})
   }
 }
 
 let js_parse = (struct, data) => {
-  data->parseAnyWith(struct)->toJsResult
+  try {
+    Success({
+      value: parseAnyOrRaiseWith(data, struct),
+    })
+  } catch {
+  | exn => Failure({error: exn->InternalError.getOrRethrow})
+  }
 }
 
 let js_parseOrThrow = (struct, data) => {
@@ -3576,7 +3586,13 @@ let js_parseAsync = (struct, data) => {
 }
 
 let js_serialize = (struct, value) => {
-  value->serializeToUnknownWith(struct)->Obj.magic->toJsResult
+  try {
+    Success({
+      value: serializeToUnknownOrRaiseWith(value, struct),
+    })
+  } catch {
+  | exn => Failure({error: exn->InternalError.getOrRethrow})
+  }
 }
 
 let js_serializeOrThrow = (struct, value) => {

@@ -3427,7 +3427,19 @@ function toJsResult(result) {
 }
 
 function js_parse(struct, data) {
-  return toJsResult(parseAnyWith(data, struct));
+  try {
+    return {
+            success: true,
+            value: parseAnyOrRaiseWith(data, struct)
+          };
+  }
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    return {
+            success: false,
+            error: getOrRethrow(exn)
+          };
+  }
 }
 
 function js_parseOrThrow(struct, data) {
@@ -3439,7 +3451,19 @@ function js_parseAsync(struct, data) {
 }
 
 function js_serialize(struct, value) {
-  return toJsResult(serializeToUnknownWith(value, struct));
+  try {
+    return {
+            success: true,
+            value: serializeToUnknownOrRaiseWith(value, struct)
+          };
+  }
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    return {
+            success: false,
+            error: getOrRethrow(exn)
+          };
+  }
 }
 
 function js_serializeOrThrow(struct, value) {
