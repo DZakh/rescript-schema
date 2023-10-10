@@ -82,7 +82,7 @@
     "ava": "5.2.0",
     "benchmark": "2.1.4",
     "c8": "7.12.0",
-    "rescript": "11.0.0-rc.3",
+    "rescript": "11.0.0-rc.4",
     "rescript-stdlib-vendorer": "1.0.0",
     "rescript-struct": ".",
     "ts-expect": "1.3.0",

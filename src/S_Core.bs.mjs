@@ -755,7 +755,7 @@ function toLiteral(struct) {
 
 function isAsyncParse(struct) {
   var v = struct.i;
-  if (v !== 0) {
+  if (typeof v === "boolean") {
     return v;
   }
   try {
