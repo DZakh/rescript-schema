@@ -7,61 +7,6 @@ import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as Caml_exceptions from "rescript/lib/es6/caml_exceptions.js";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
-var Obj = {};
-
-var Type = {};
-
-var $$Promise = {};
-
-var Re = {};
-
-var $$Object = {};
-
-var $$Set = {};
-
-function unique(array) {
-  return Array.from(new Set(array));
-}
-
-function has(array, idx) {
-  return array[idx];
-}
-
-function isArray(prim) {
-  return Array.isArray(prim);
-}
-
-var $$Array = {
-  unique: unique,
-  has: has,
-  isArray: isArray
-};
-
-function raiseAny(any) {
-  throw any;
-}
-
-var Exn = {
-  raiseAny: raiseAny,
-  raiseError: raiseAny
-};
-
-function plus(int1, int2) {
-  return int1 + int2;
-}
-
-var Int = {
-  plus: plus
-};
-
-function has$1(dict, key) {
-  return dict[key];
-}
-
-function deleteInPlace(dict, key) {
-  Js_dict.unsafeDeleteKey(dict, key);
-}
-
 var mapValues = ((dict, fn)=>{
       var key,newDict = {};
       for (key in dict) {
@@ -79,84 +24,9 @@ var every = ((dict, fn)=>{
       return true
     });
 
-var Dict = {
-  has: has$1,
-  deleteInPlace: deleteInPlace,
-  mapValues: mapValues,
-  every: every
-};
-
-var Float = {};
-
-var Bool = {};
-
-function unsafeToString(bigInt) {
-  return bigInt + "n";
-}
-
-var $$BigInt = {
-  unsafeToString: unsafeToString
-};
-
-function make2(ctxVarName1, ctxVarValue1, ctxVarName2, ctxVarValue2, inlinedFunction) {
-  return new Function(ctxVarName1, ctxVarName2, "return " + inlinedFunction)(ctxVarValue1, ctxVarValue2);
-}
-
-var $$Function$1 = {
-  make2: make2
-};
-
-var $$Symbol = {};
-
-function stringify(any) {
-  if (any === (void 0)) {
-    return "undefined";
-  } else {
-    return JSON.stringify(any);
-  }
-}
-
 function fromString(string) {
   return JSON.stringify(string);
 }
-
-var Value = {
-  stringify: stringify,
-  fromString: fromString
-};
-
-function toRescript($$float) {
-  return $$float.toString() + (
-          $$float % 1 === 0 ? "." : ""
-        );
-}
-
-var Float$1 = {
-  toRescript: toRescript
-};
-
-var Inlined = {
-  Value: Value,
-  Float: Float$1
-};
-
-var Stdlib = {
-  Type: Type,
-  $$Promise: $$Promise,
-  Re: Re,
-  $$Object: $$Object,
-  $$Set: $$Set,
-  $$Array: $$Array,
-  Exn: Exn,
-  Int: Int,
-  Dict: Dict,
-  Float: Float,
-  Bool: Bool,
-  $$BigInt: $$BigInt,
-  $$Function: $$Function$1,
-  $$Symbol: $$Symbol,
-  Inlined: Inlined
-};
 
 function classify(value) {
   var typeOfValue = typeof value;
@@ -318,10 +188,6 @@ function toArray(path) {
   }
 }
 
-function fromInlinedLocation(inlinedLocation) {
-  return "[" + inlinedLocation + "]";
-}
-
 function fromLocation($$location) {
   return "[" + JSON.stringify($$location) + "]";
 }
@@ -343,25 +209,9 @@ function concat(path, concatedPath) {
   return path + concatedPath;
 }
 
-var Path = {
-  toArray: toArray,
-  fromInlinedLocation: fromInlinedLocation,
-  fromLocation: fromLocation,
-  fromArray: fromArray,
-  concat: concat
-};
-
 var symbol = Symbol("rescript-struct");
 
 var Raised = /* @__PURE__ */Caml_exceptions.create("S_Core-RescriptStruct.Raised");
-
-function unsafeGetVariantPayload(variant) {
-  return variant._0;
-}
-
-function unsafeGetErrorPayload(variant) {
-  return variant._1;
-}
 
 class RescriptStructError extends Error {
       constructor(code, operation, path) {
@@ -391,26 +241,11 @@ function getOrRethrow(exn) {
   throw (exn&&exn.RE_EXN_ID==='JsError') ? exn._1 : exn;
 }
 
-function raise(code, operation, path) {
-  throw new RescriptStructError(code, operation, path);
-}
-
 function prependLocationOrRethrow(exn, $$location) {
   var error = getOrRethrow(exn);
   var path = "[" + JSON.stringify($$location) + "]" + error.path;
   throw new RescriptStructError(error.code, error.operation, path);
 }
-
-function panic(message) {
-  throw new Error("[rescript-struct] " + message);
-}
-
-var InternalError = {
-  getOrRethrow: getOrRethrow,
-  raise: raise,
-  prependLocationOrRethrow: prependLocationOrRethrow,
-  panic: panic
-};
 
 function make(selfStruct, path, operation) {
   return {
@@ -428,20 +263,8 @@ function make(selfStruct, path, operation) {
         };
 }
 
-var EffectCtx = {
-  make: make
-};
-
 function classify$1(struct) {
   return struct.t;
-}
-
-function make$1(prim) {
-  return prim;
-}
-
-function embed(b, value) {
-  return "e[" + (b.e.push(value) - 1) + "]";
 }
 
 function scope(b, fn) {
@@ -471,10 +294,6 @@ function $$var(b) {
   return v;
 }
 
-function useInput(b) {
-  return b.i;
-}
-
 function toVar(b, val) {
   if (b.s.has(val)) {
     return val;
@@ -482,14 +301,6 @@ function toVar(b, val) {
   var $$var$1 = $$var(b);
   b.c = b.c + ($$var$1 + "=" + val + ";");
   return $$var$1;
-}
-
-function useInputVar(b) {
-  return toVar(b, b.i);
-}
-
-function isInternalError(_b, $$var) {
-  return $$var + "&&" + $$var + ".s===s";
 }
 
 function transform(b, input, isAsync, operation) {
@@ -639,28 +450,6 @@ function useWithTypeFilter(b, struct, input, path) {
   return use(b, struct, input$1, path);
 }
 
-var Ctx = {
-  embed: embed,
-  scope: scope,
-  varWithoutAllocation: varWithoutAllocation,
-  $$var: $$var,
-  useInput: useInput,
-  toVar: toVar,
-  useInputVar: useInputVar,
-  isInternalError: isInternalError,
-  transform: transform,
-  embedSyncOperation: embedSyncOperation,
-  embedAsyncOperation: embedAsyncOperation,
-  raiseWithArg: raiseWithArg,
-  fail: fail,
-  invalidOperation: invalidOperation,
-  withCatch: withCatch,
-  withPathPrepend: withPathPrepend,
-  typeFilterCode: typeFilterCode,
-  use: use,
-  useWithTypeFilter: useWithTypeFilter
-};
-
 function noop(b, param, param$1) {
   return b.i;
 }
@@ -696,14 +485,6 @@ function build(builder, struct, operation) {
   ) + b.c + "return " + output + "}";
   return new Function("e", "s", "return " + inlinedFunction)(b.e, symbol);
 }
-
-var Builder = {
-  make: make$1,
-  Ctx: Ctx,
-  noop: noop,
-  noopOperation: noopOperation,
-  build: build
-};
 
 function loop(_struct) {
   while(true) {
@@ -853,54 +634,9 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
   };
 }
 
-function make$2(name, tagged, metadataMap, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter) {
-  return {
-          t: tagged,
-          n: name,
-          p: parseOperationBuilder,
-          s: serializeOperationBuilder,
-          f: maybeTypeFilter,
-          i: 0,
-          m: metadataMap
-        };
-}
-
-function makeWithNoopSerializer(name, tagged, metadataMap, parseOperationBuilder, maybeTypeFilter) {
-  return {
-          t: tagged,
-          n: name,
-          p: parseOperationBuilder,
-          s: noop,
-          f: maybeTypeFilter,
-          i: 0,
-          m: metadataMap
-        };
-}
-
 function unexpectedAsync(param) {
   throw new RescriptStructError("UnexpectedAsync", "Parsing", "");
 }
-
-function make$3(label, init) {
-  return function (i, s) {
-    try {
-      return s[label](i);
-    }
-    catch (exn){
-      if (s[label]) {
-        throw exn;
-      }
-      var o = init(s);
-      s[label] = o;
-      return o(i);
-    }
-  };
-}
-
-var Operation = {
-  unexpectedAsync: unexpectedAsync,
-  make: make$3
-};
 
 function init(struct) {
   var operation = build(struct.p, struct, "Parsing");
@@ -1137,12 +873,12 @@ function parseJsonStringWith(json, struct) {
   }
 }
 
-function make$4(namespace, name) {
+function make$1(namespace, name) {
   return namespace + ":" + name;
 }
 
 var Id = {
-  make: make$4
+  make: make$1
 };
 
 var empty = {};
@@ -1155,11 +891,6 @@ function set(map, id, metadata) {
   copy[id] = metadata;
   return copy;
 }
-
-var $$Map = {
-  empty: empty,
-  set: set
-};
 
 function get(struct, id) {
   return struct.m[id];
@@ -1177,13 +908,6 @@ function set$1(struct, id, metadata) {
           m: metadataMap
         };
 }
-
-var Metadata = {
-  Id: Id,
-  $$Map: $$Map,
-  get: get,
-  set: set$1
-};
 
 function recursive(fn) {
   var placeholder = {
@@ -1538,36 +1262,6 @@ function toKindWithSet(definition, embededSet) {
   }
 }
 
-function toKindWithValue(definition, embeded) {
-  if (embeded === definition) {
-    return 2;
-  } else if (typeof definition === "object" && definition !== null) {
-    return 0;
-  } else {
-    return 1;
-  }
-}
-
-function toConstant(prim) {
-  return prim;
-}
-
-function toEmbeded(prim) {
-  return prim;
-}
-
-function toNode(prim) {
-  return prim;
-}
-
-var Definition = {
-  toKindWithSet: toKindWithSet,
-  toKindWithValue: toKindWithValue,
-  toConstant: toConstant,
-  toEmbeded: toEmbeded,
-  toNode: toNode
-};
-
 function factory(struct, definer) {
   return {
           t: struct.t,
@@ -1637,10 +1331,6 @@ function factory(struct, definer) {
           m: struct.m
         };
 }
-
-var Variant = {
-  factory: factory
-};
 
 var defaultMetadataId = "rescript-struct:Option.default";
 
@@ -1737,18 +1427,6 @@ function getOrWith(struct, defalutCb) {
             });
 }
 
-var $$Option = {
-  defaultMetadataId: defaultMetadataId,
-  $$default: $$default,
-  parseOperationBuilder: parseOperationBuilder,
-  serializeOperationBuilder: serializeOperationBuilder,
-  maybeTypeFilter: maybeTypeFilter,
-  factory: factory$1,
-  getWithDefault: getWithDefault,
-  getOr: getOr,
-  getOrWith: getOrWith
-};
-
 function factory$2(struct) {
   return {
           t: {
@@ -1763,10 +1441,6 @@ function factory$2(struct) {
           m: empty
         };
 }
-
-var Null = {
-  factory: factory$2
-};
 
 function typeFilter(inputVar) {
   return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
@@ -1849,49 +1523,6 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
     return outputVar;
   };
 }
-
-function make$5() {
-  var fields = {};
-  var fieldNames = [];
-  var itemDefinitionsSet = new Set();
-  var field = function (fieldName, struct) {
-    var inlinedInputLocation = JSON.stringify(fieldName);
-    if (fields[fieldName]) {
-      throw new Error("[rescript-struct] " + ("The field " + inlinedInputLocation + " is defined multiple times. If you want to duplicate the field, use S.transform instead."));
-    }
-    var itemDefinition_p = "[" + inlinedInputLocation + "]";
-    var itemDefinition = {
-      s: struct,
-      l: inlinedInputLocation,
-      p: itemDefinition_p
-    };
-    fields[fieldName] = struct;
-    fieldNames.push(fieldName);
-    itemDefinitionsSet.add(itemDefinition);
-    return itemDefinition;
-  };
-  var tag = function (tag$1, asValue) {
-    field(tag$1, literal(asValue));
-  };
-  var fieldOr = function (fieldName, struct, or) {
-    return field(fieldName, getOr(factory$1(struct), or));
-  };
-  return {
-          n: fieldNames,
-          h: fields,
-          d: itemDefinitionsSet,
-          field: field,
-          fieldOr: fieldOr,
-          tag: tag,
-          f: field,
-          o: fieldOr,
-          t: tag
-        };
-}
-
-var Ctx$1 = {
-  make: make$5
-};
 
 function factory$3(definer) {
   var fields = {};
@@ -2086,16 +1717,6 @@ function strict(struct) {
   }
 }
 
-var $$Object$1 = {
-  typeFilter: typeFilter,
-  noopRefinement: noopRefinement,
-  makeParseOperationBuilder: makeParseOperationBuilder,
-  Ctx: Ctx$1,
-  factory: factory$3,
-  strip: strip,
-  strict: strict
-};
-
 function builder(b, selfStruct, path) {
   var input = b.i;
   b.c = b.c + raiseWithArg(b, path, (function (input) {
@@ -2118,11 +1739,6 @@ var struct = {
   m: empty
 };
 
-var Never = {
-  builder: builder,
-  struct: struct
-};
-
 var struct$1 = {
   t: "Unknown",
   n: primitiveName,
@@ -2133,15 +1749,7 @@ var struct$1 = {
   m: empty
 };
 
-var Unknown = {
-  struct: struct$1
-};
-
 var metadataId = "rescript-struct:String.refinements";
-
-var Refinement = {
-  metadataId: metadataId
-};
 
 function refinements(struct) {
   var m = struct.m[metadataId];
@@ -2164,7 +1772,15 @@ function typeFilter$1(inputVar) {
   return "typeof " + inputVar + "!==\"string\"";
 }
 
-var struct$2 = makeWithNoopSerializer(primitiveName, "String", empty, noop, typeFilter$1);
+var struct$2 = {
+  t: "String",
+  n: primitiveName,
+  p: noop,
+  s: noop,
+  f: typeFilter$1,
+  i: 0,
+  m: empty
+};
 
 function min(struct, length, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length + " or more characters long";
@@ -2293,27 +1909,6 @@ function trim(struct) {
               }));
 }
 
-var $$String = {
-  Refinement: Refinement,
-  refinements: refinements,
-  cuidRegex: cuidRegex,
-  uuidRegex: uuidRegex,
-  emailRegex: emailRegex,
-  datetimeRe: datetimeRe,
-  typeFilter: typeFilter$1,
-  struct: struct$2,
-  min: min,
-  max: max,
-  length: length,
-  email: email,
-  uuid: uuid,
-  cuid: cuid,
-  url: url,
-  pattern: pattern,
-  datetime: datetime,
-  trim: trim
-};
-
 function factory$4(struct) {
   try {
     validateJsonableStruct(struct, struct, true, undefined);
@@ -2348,26 +1943,21 @@ function factory$4(struct) {
         };
 }
 
-var JsonString = {
-  factory: factory$4
-};
-
 function typeFilter$2(inputVar) {
   return "typeof " + inputVar + "!==\"boolean\"";
 }
 
-var struct$3 = makeWithNoopSerializer(primitiveName, "Bool", empty, noop, typeFilter$2);
-
-var Bool$1 = {
-  typeFilter: typeFilter$2,
-  struct: struct$3
+var struct$3 = {
+  t: "Bool",
+  n: primitiveName,
+  p: noop,
+  s: noop,
+  f: typeFilter$2,
+  i: 0,
+  m: empty
 };
 
 var metadataId$1 = "rescript-struct:Int.refinements";
-
-var Refinement$1 = {
-  metadataId: metadataId$1
-};
 
 function refinements$1(struct) {
   var m = struct.m[metadataId$1];
@@ -2382,7 +1972,15 @@ function typeFilter$3(inputVar) {
   return "typeof " + inputVar + "!==\"number\"||" + inputVar + ">2147483647||" + inputVar + "<-2147483648||" + inputVar + "%1!==0";
 }
 
-var struct$4 = makeWithNoopSerializer(primitiveName, "Int", empty, noop, typeFilter$3);
+var struct$4 = {
+  t: "Int",
+  n: primitiveName,
+  p: noop,
+  s: noop,
+  f: typeFilter$3,
+  i: 0,
+  m: empty
+};
 
 function min$1(struct, minValue, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue;
@@ -2420,21 +2018,7 @@ function port(struct, messageOpt) {
               }));
 }
 
-var Int$1 = {
-  Refinement: Refinement$1,
-  refinements: refinements$1,
-  typeFilter: typeFilter$3,
-  struct: struct$4,
-  min: min$1,
-  max: max$1,
-  port: port
-};
-
 var metadataId$2 = "rescript-struct:Float.refinements";
-
-var Refinement$2 = {
-  metadataId: metadataId$2
-};
 
 function refinements$2(struct) {
   var m = struct.m[metadataId$2];
@@ -2449,7 +2033,15 @@ function typeFilter$4(inputVar) {
   return "typeof " + inputVar + "!==\"number\"||Number.isNaN(" + inputVar + ")";
 }
 
-var struct$5 = makeWithNoopSerializer(primitiveName, "Float", empty, noop, typeFilter$4);
+var struct$5 = {
+  t: "Float",
+  n: primitiveName,
+  p: noop,
+  s: noop,
+  f: typeFilter$4,
+  i: 0,
+  m: empty
+};
 
 function min$2(struct, minValue, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue;
@@ -2477,20 +2069,7 @@ function max$2(struct, maxValue, maybeMessage) {
               }));
 }
 
-var Float$2 = {
-  Refinement: Refinement$2,
-  refinements: refinements$2,
-  typeFilter: typeFilter$4,
-  struct: struct$5,
-  min: min$2,
-  max: max$2
-};
-
 var metadataId$3 = "rescript-struct:Array.refinements";
-
-var Refinement$3 = {
-  metadataId: metadataId$3
-};
 
 function refinements$3(struct) {
   var m = struct.m[metadataId$3];
@@ -2590,16 +2169,6 @@ function length$1(struct, length$2, maybeMessage) {
               }));
 }
 
-var $$Array$1 = {
-  Refinement: Refinement$3,
-  refinements: refinements$3,
-  typeFilter: typeFilter$5,
-  factory: factory$5,
-  min: min$3,
-  max: max$3,
-  length: length$1
-};
-
 function factory$6(struct) {
   return {
           t: {
@@ -2649,45 +2218,6 @@ function factory$6(struct) {
           m: empty
         };
 }
-
-var Dict$1 = {
-  factory: factory$6
-};
-
-function make$6() {
-  var structs = [];
-  var itemDefinitionsSet = new Set();
-  var item = function (idx, struct) {
-    var inlinedInputLocation = "\"" + idx + "\"";
-    if (structs[idx]) {
-      throw new Error("[rescript-struct] " + ("The item " + inlinedInputLocation + " is defined multiple times. If you want to duplicate the item, use S.transform instead."));
-    }
-    var itemDefinition_p = "[" + inlinedInputLocation + "]";
-    var itemDefinition = {
-      s: struct,
-      l: inlinedInputLocation,
-      p: itemDefinition_p
-    };
-    structs[idx] = struct;
-    itemDefinitionsSet.add(itemDefinition);
-    return itemDefinition;
-  };
-  var tag = function (idx, asValue) {
-    item(idx, literal(asValue));
-  };
-  return {
-          s: structs,
-          d: itemDefinitionsSet,
-          item: item,
-          tag: tag,
-          i: item,
-          t: tag
-        };
-}
-
-var Ctx$2 = {
-  make: make$6
-};
 
 function factory$7(definer) {
   var structs = [];
@@ -2817,11 +2347,6 @@ function factory$7(definer) {
         };
 }
 
-var Tuple = {
-  Ctx: Ctx$2,
-  factory: factory$7
-};
-
 function factory$8(structs) {
   if (structs.length < 2) {
     throw new Error("[rescript-struct] A Union struct factory require at least two structs.");
@@ -2937,10 +2462,6 @@ function factory$8(structs) {
         };
 }
 
-var Union = {
-  factory: factory$8
-};
-
 function list(struct) {
   return transform$1(factory$5(struct), (function (param) {
                 return {
@@ -2950,54 +2471,62 @@ function list(struct) {
               }));
 }
 
-var json = makeWithNoopSerializer(primitiveName, "JSON", empty, (function (b, selfStruct, path) {
-        var parse = function (input, pathOpt) {
-          var path$1 = pathOpt !== undefined ? pathOpt : path;
-          var match = typeof input;
-          if (match === "string" || match === "boolean") {
+var json = {
+  t: "JSON",
+  n: primitiveName,
+  p: (function (b, selfStruct, path) {
+      var parse = function (input, pathOpt) {
+        var path$1 = pathOpt !== undefined ? pathOpt : path;
+        var match = typeof input;
+        if (match === "string" || match === "boolean") {
+          return input;
+        }
+        if (match === "object") {
+          if (input === null) {
             return input;
           }
-          if (match === "object") {
-            if (input === null) {
-              return input;
+          if (Array.isArray(input)) {
+            var output = [];
+            for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
+              var inputItem = input[idx];
+              var $$location = idx.toString();
+              output.push(parse(inputItem, path$1 + ("[" + JSON.stringify($$location) + "]")));
             }
-            if (Array.isArray(input)) {
-              var output = [];
-              for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
-                var inputItem = input[idx];
-                var $$location = idx.toString();
-                output.push(parse(inputItem, path$1 + ("[" + JSON.stringify($$location) + "]")));
-              }
-              return output;
-            }
-            var keys = Object.keys(input);
-            var output$1 = {};
-            for(var idx$1 = 0 ,idx_finish$1 = keys.length; idx$1 < idx_finish$1; ++idx$1){
-              var key = keys[idx$1];
-              var field = input[key];
-              output$1[key] = parse(field, path$1 + ("[" + JSON.stringify(key) + "]"));
-            }
-            return output$1;
+            return output;
           }
-          if (match === "number") {
-            if (!Number.isNaN(input)) {
-              return input;
-            }
-            throw new RescriptStructError({
-                      TAG: "InvalidType",
-                      expected: selfStruct,
-                      received: input
-                    }, "Parsing", path$1);
+          var keys = Object.keys(input);
+          var output$1 = {};
+          for(var idx$1 = 0 ,idx_finish$1 = keys.length; idx$1 < idx_finish$1; ++idx$1){
+            var key = keys[idx$1];
+            var field = input[key];
+            output$1[key] = parse(field, path$1 + ("[" + JSON.stringify(key) + "]"));
+          }
+          return output$1;
+        }
+        if (match === "number") {
+          if (!Number.isNaN(input)) {
+            return input;
           }
           throw new RescriptStructError({
                     TAG: "InvalidType",
                     expected: selfStruct,
                     received: input
                   }, "Parsing", path$1);
-        };
-        var input = b.i;
-        return "e[" + (b.e.push(parse) - 1) + "](" + input + ")";
-      }), undefined);
+        }
+        throw new RescriptStructError({
+                  TAG: "InvalidType",
+                  expected: selfStruct,
+                  received: input
+                }, "Parsing", path$1);
+      };
+      var input = b.i;
+      return "e[" + (b.e.push(parse) - 1) + "](" + input + ")";
+    }),
+  s: noop,
+  f: undefined,
+  i: 0,
+  m: empty
+};
 
 function $$catch(struct, getFallbackValue) {
   return {
@@ -3056,11 +2585,11 @@ function description(struct) {
 
 var $$class = RescriptStructError;
 
-function make$7(prim0, prim1, prim2) {
+function make$2(prim0, prim1, prim2) {
   return new RescriptStructError(prim0, prim1, prim2);
 }
 
-function raise$1(error) {
+function raise(error) {
   throw error;
 }
 
@@ -3107,14 +2636,6 @@ function message(error) {
   var pathText = nonEmptyPath === "" ? "root" : nonEmptyPath;
   return "Failed " + operation + " at " + pathText + ". Reason: " + reason(error);
 }
-
-var $$Error$1 = {
-  $$class: $$class,
-  make: make$7,
-  raise: raise$1,
-  reason: reason,
-  message: message
-};
 
 function internalInline(struct, maybeVariant, param) {
   var metadataMap = Object.assign({}, struct.m);
@@ -3565,17 +3086,22 @@ function js_object(definer) {
   }
 }
 
-var B;
+var Path = {
+  empty: "",
+  dynamic: "[]",
+  toArray: toArray,
+  fromArray: fromArray,
+  fromLocation: fromLocation,
+  concat: concat
+};
 
-var parseWith = parseAnyWith;
-
-var parseOrRaiseWith = parseAnyOrRaiseWith;
-
-var parseAsyncWith = parseAnyAsyncWith;
-
-var parseAsyncInStepsWith = parseAnyAsyncInStepsWith;
-
-var object = factory$3;
+var $$Error$1 = {
+  $$class: $$class,
+  make: make$2,
+  raise: raise,
+  message: message,
+  reason: reason
+};
 
 var never = struct;
 
@@ -3589,131 +3115,172 @@ var $$int = struct$4;
 
 var $$float = struct$5;
 
-var $$null = factory$2;
-
-var option = factory$1;
-
 var array = factory$5;
 
 var dict = factory$6;
 
-var variant = factory;
+var option = factory$1;
 
-var tuple = factory$7;
-
-var union = factory$8;
+var $$null = factory$2;
 
 var jsonString = factory$4;
 
+var union = factory$8;
+
+var variant = factory;
+
+var parseWith = parseAnyWith;
+
+var parseOrRaiseWith = parseAnyOrRaiseWith;
+
+var parseAsyncWith = parseAnyAsyncWith;
+
+var parseAsyncInStepsWith = parseAnyAsyncInStepsWith;
+
+var $$Object = {
+  factory: factory$3,
+  strip: strip,
+  strict: strict
+};
+
+var object = factory$3;
+
+var Tuple = {};
+
+var tuple = factory$7;
+
+var $$Option = {
+  $$default: $$default,
+  getOr: getOr,
+  getOrWith: getOrWith
+};
+
+var String_Refinement = {};
+
+var $$String = {
+  Refinement: String_Refinement,
+  refinements: refinements,
+  min: min,
+  max: max,
+  length: length,
+  email: email,
+  uuid: uuid,
+  cuid: cuid,
+  url: url,
+  pattern: pattern,
+  datetime: datetime,
+  trim: trim
+};
+
+var Int_Refinement = {};
+
+var Int = {
+  Refinement: Int_Refinement,
+  refinements: refinements$1,
+  min: min$1,
+  max: max$1,
+  port: port
+};
+
+var Float_Refinement = {};
+
+var Float = {
+  Refinement: Float_Refinement,
+  refinements: refinements$2,
+  min: min$2,
+  max: max$2
+};
+
+var Array_Refinement = {};
+
+var $$Array = {
+  Refinement: Array_Refinement,
+  refinements: refinements$3,
+  min: min$3,
+  max: max$3,
+  length: length$1
+};
+
+var Metadata = {
+  Id: Id,
+  get: get,
+  set: set$1
+};
+
 export {
-  Obj ,
-  Stdlib ,
   Literal ,
   Path ,
-  symbol ,
   Raised ,
-  unsafeGetVariantPayload ,
-  unsafeGetErrorPayload ,
-  InternalError ,
-  EffectCtx ,
-  classify$1 as classify,
-  Builder ,
-  B ,
-  toLiteral ,
-  isAsyncParse ,
-  validateJsonableStruct ,
-  make$2 as make,
-  makeWithNoopSerializer ,
-  Operation ,
-  parseAnyOrRaiseWith ,
-  parseAnyWith ,
-  parseWith ,
-  parseOrRaiseWith ,
-  asyncPrepareOk ,
-  asyncPrepareError ,
-  internalParseAsyncWith ,
-  parseAnyAsyncWith ,
-  parseAsyncWith ,
-  parseAnyAsyncInStepsWith ,
-  parseAsyncInStepsWith ,
-  serializeOrRaiseWith ,
-  serializeWith ,
-  serializeToUnknownOrRaiseWith ,
-  serializeToUnknownWith ,
-  serializeToJsonStringWith ,
-  parseJsonStringWith ,
-  Metadata ,
-  recursive ,
-  setName ,
-  primitiveName ,
-  containerName ,
-  internalRefine ,
-  refine ,
-  addRefinement ,
-  transform$1 as transform,
-  preprocess ,
-  custom ,
-  literalCheckBuilder ,
-  literal ,
-  unit ,
-  Definition ,
-  Variant ,
-  $$Option ,
-  Null ,
-  $$Object$1 as $$Object,
-  Never ,
-  Unknown ,
-  $$String ,
-  JsonString ,
-  Bool$1 as Bool,
-  Int$1 as Int,
-  Float$2 as Float,
-  $$Array$1 as $$Array,
-  Dict$1 as Dict,
-  Tuple ,
-  Union ,
-  list ,
-  json ,
-  $$catch ,
-  deprecationMetadataId ,
-  deprecate ,
-  deprecation ,
-  descriptionMetadataId ,
-  describe ,
-  description ,
   $$Error$1 as $$Error,
-  inline ,
-  object ,
   never ,
   unknown ,
+  unit ,
   string ,
   bool ,
   $$int ,
   $$float ,
-  $$null ,
-  option ,
+  json ,
+  literal ,
   array ,
+  list ,
   dict ,
+  option ,
+  $$null ,
+  jsonString ,
+  union ,
+  $$catch ,
+  describe ,
+  description ,
+  deprecate ,
+  deprecation ,
+  transform$1 as transform,
+  preprocess ,
+  custom ,
+  refine ,
   variant ,
+  parseWith ,
+  parseAnyWith ,
+  parseJsonStringWith ,
+  parseOrRaiseWith ,
+  parseAnyOrRaiseWith ,
+  parseAsyncWith ,
+  parseAnyAsyncWith ,
+  parseAsyncInStepsWith ,
+  parseAnyAsyncInStepsWith ,
+  serializeWith ,
+  serializeToUnknownWith ,
+  serializeToJsonStringWith ,
+  serializeOrRaiseWith ,
+  serializeToUnknownOrRaiseWith ,
+  isAsyncParse ,
+  recursive ,
+  classify$1 as classify,
+  setName ,
+  $$Object ,
+  object ,
+  Tuple ,
   tuple ,
   tuple1 ,
   tuple2 ,
   tuple3 ,
-  union ,
-  jsonString ,
-  toJsResult ,
+  $$Option ,
+  $$String ,
+  Int ,
+  Float ,
+  $$Array ,
+  Metadata ,
+  inline ,
+  js_optional ,
+  js_tuple ,
+  js_custom ,
+  js_asyncParserRefine ,
+  js_refine ,
+  js_transform ,
+  js_object ,
   js_parse ,
   js_parseOrThrow ,
   js_parseAsync ,
   js_serialize ,
   js_serializeOrThrow ,
-  js_transform ,
-  js_refine ,
-  noop$1 as noop,
-  js_asyncParserRefine ,
-  js_optional ,
-  js_tuple ,
-  js_custom ,
-  js_object ,
 }
 /* symbol Not a pure module */

@@ -4,42 +4,11 @@ import * as S_Core$RescriptStruct from "./S_Core.bs.mjs";
 
 var Literal = S_Core$RescriptStruct.Literal;
 
-var Path_toArray = S_Core$RescriptStruct.Path.toArray;
-
-var Path_fromArray = S_Core$RescriptStruct.Path.fromArray;
-
-var Path_fromLocation = S_Core$RescriptStruct.Path.fromLocation;
-
-var Path_concat = S_Core$RescriptStruct.Path.concat;
-
-var Path = {
-  empty: "",
-  dynamic: "[]",
-  toArray: Path_toArray,
-  fromArray: Path_fromArray,
-  fromLocation: Path_fromLocation,
-  concat: Path_concat
-};
+var Path = S_Core$RescriptStruct.Path;
 
 var Raised = S_Core$RescriptStruct.Raised;
 
-var Error_class = S_Core$RescriptStruct.$$Error.$$class;
-
-var Error_make = S_Core$RescriptStruct.$$Error.make;
-
-var Error_raise = S_Core$RescriptStruct.$$Error.raise;
-
-var Error_message = S_Core$RescriptStruct.$$Error.message;
-
-var Error_reason = S_Core$RescriptStruct.$$Error.reason;
-
-var $$Error = {
-  $$class: Error_class,
-  make: Error_make,
-  raise: Error_raise,
-  message: Error_message,
-  reason: Error_reason
-};
+var $$Error = S_Core$RescriptStruct.$$Error;
 
 var never = S_Core$RescriptStruct.never;
 
@@ -129,21 +98,11 @@ var classify = S_Core$RescriptStruct.classify;
 
 var setName = S_Core$RescriptStruct.setName;
 
-var Object_factory = S_Core$RescriptStruct.$$Object.factory;
-
-var Object_strip = S_Core$RescriptStruct.$$Object.strip;
-
-var Object_strict = S_Core$RescriptStruct.$$Object.strict;
-
-var $$Object = {
-  factory: Object_factory,
-  strip: Object_strip,
-  strict: Object_strict
-};
+var $$Object = S_Core$RescriptStruct.$$Object;
 
 var object = S_Core$RescriptStruct.object;
 
-var Tuple = {};
+var Tuple = S_Core$RescriptStruct.Tuple;
 
 var tuple = S_Core$RescriptStruct.tuple;
 
@@ -153,119 +112,17 @@ var tuple2 = S_Core$RescriptStruct.tuple2;
 
 var tuple3 = S_Core$RescriptStruct.tuple3;
 
-var Option_default = S_Core$RescriptStruct.$$Option.$$default;
+var $$Option = S_Core$RescriptStruct.$$Option;
 
-var Option_getOr = S_Core$RescriptStruct.$$Option.getOr;
+var $$String = S_Core$RescriptStruct.$$String;
 
-var Option_getOrWith = S_Core$RescriptStruct.$$Option.getOrWith;
+var Int = S_Core$RescriptStruct.Int;
 
-var $$Option = {
-  $$default: Option_default,
-  getOr: Option_getOr,
-  getOrWith: Option_getOrWith
-};
+var Float = S_Core$RescriptStruct.Float;
 
-var String_Refinement = {};
+var $$Array = S_Core$RescriptStruct.$$Array;
 
-var String_refinements = S_Core$RescriptStruct.$$String.refinements;
-
-var String_min = S_Core$RescriptStruct.$$String.min;
-
-var String_max = S_Core$RescriptStruct.$$String.max;
-
-var String_length = S_Core$RescriptStruct.$$String.length;
-
-var String_email = S_Core$RescriptStruct.$$String.email;
-
-var String_uuid = S_Core$RescriptStruct.$$String.uuid;
-
-var String_cuid = S_Core$RescriptStruct.$$String.cuid;
-
-var String_url = S_Core$RescriptStruct.$$String.url;
-
-var String_pattern = S_Core$RescriptStruct.$$String.pattern;
-
-var String_datetime = S_Core$RescriptStruct.$$String.datetime;
-
-var String_trim = S_Core$RescriptStruct.$$String.trim;
-
-var $$String = {
-  Refinement: String_Refinement,
-  refinements: String_refinements,
-  min: String_min,
-  max: String_max,
-  length: String_length,
-  email: String_email,
-  uuid: String_uuid,
-  cuid: String_cuid,
-  url: String_url,
-  pattern: String_pattern,
-  datetime: String_datetime,
-  trim: String_trim
-};
-
-var Int_Refinement = {};
-
-var Int_refinements = S_Core$RescriptStruct.Int.refinements;
-
-var Int_min = S_Core$RescriptStruct.Int.min;
-
-var Int_max = S_Core$RescriptStruct.Int.max;
-
-var Int_port = S_Core$RescriptStruct.Int.port;
-
-var Int = {
-  Refinement: Int_Refinement,
-  refinements: Int_refinements,
-  min: Int_min,
-  max: Int_max,
-  port: Int_port
-};
-
-var Float_Refinement = {};
-
-var Float_refinements = S_Core$RescriptStruct.Float.refinements;
-
-var Float_min = S_Core$RescriptStruct.Float.min;
-
-var Float_max = S_Core$RescriptStruct.Float.max;
-
-var Float = {
-  Refinement: Float_Refinement,
-  refinements: Float_refinements,
-  min: Float_min,
-  max: Float_max
-};
-
-var Array_Refinement = {};
-
-var Array_refinements = S_Core$RescriptStruct.$$Array.refinements;
-
-var Array_min = S_Core$RescriptStruct.$$Array.min;
-
-var Array_max = S_Core$RescriptStruct.$$Array.max;
-
-var Array_length = S_Core$RescriptStruct.$$Array.length;
-
-var $$Array = {
-  Refinement: Array_Refinement,
-  refinements: Array_refinements,
-  min: Array_min,
-  max: Array_max,
-  length: Array_length
-};
-
-var Metadata_Id = S_Core$RescriptStruct.Metadata.Id;
-
-var Metadata_get = S_Core$RescriptStruct.Metadata.get;
-
-var Metadata_set = S_Core$RescriptStruct.Metadata.set;
-
-var Metadata = {
-  Id: Metadata_Id,
-  get: Metadata_get,
-  set: Metadata_set
-};
+var Metadata = S_Core$RescriptStruct.Metadata;
 
 var inline = S_Core$RescriptStruct.inline;
 
