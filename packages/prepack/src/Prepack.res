@@ -8,7 +8,7 @@ let sourePaths = [
   "README.md",
   "RescriptStruct.gen.ts",
 ]
-let jsInputPath = NodeJs.Path.join2(artifactsPath, "src/S_JsApi.js")
+let jsInputPath = NodeJs.Path.join2(artifactsPath, "src/S.js")
 
 module Stdlib = {
   module Dict = {
@@ -140,7 +140,7 @@ let updateJsonFile = (~src, ~path, ~value) => {
 
 let _ = Execa.sync("npm", ["run", "res:build"], ~options={cwd: artifactsPath}, ())
 
-let bundle = await Rollup.Bundle.make({input: jsInputPath, external_: [%re("/S\.bs\.mjs/")]})
+let bundle = await Rollup.Bundle.make({input: jsInputPath, external_: [%re("/S_Core\.bs\.mjs/")]})
 let output: array<Rollup.OutputOptions.t> = [
   {
     file: NodeJs.Path.join2(artifactsPath, "dist/S.js"),
@@ -149,7 +149,7 @@ let output: array<Rollup.OutputOptions.t> = [
     plugins: [
       Rollup.ReplacePlugin.make({
         values: Dict.fromArray([
-          (`S.bs.mjs`, `../src/S.bs.js`),
+          (`S_Core.bs.mjs`, `../src/S_Core.bs.js`),
           (`rescript/lib/es6`, `rescript/lib/js`),
         ]),
       }),
@@ -161,7 +161,7 @@ let output: array<Rollup.OutputOptions.t> = [
     exports: #named,
     plugins: [
       Rollup.ReplacePlugin.make({
-        values: Dict.fromArray([(`S.bs.mjs`, `../src/S.bs.mjs`)]),
+        values: Dict.fromArray([(`S_Core.bs.mjs`, `../src/S_Core.bs.mjs`)]),
       }),
     ],
   },

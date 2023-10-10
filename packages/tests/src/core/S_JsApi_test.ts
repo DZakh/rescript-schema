@@ -1,8 +1,7 @@
-import { error } from "./../genType/GenType.gen";
 import test from "ava";
 import { expectType, TypeEqual } from "ts-expect";
 
-import * as S from "../../../../src/S_JsApi.js";
+import * as S from "../../../../src/S.js";
 
 test("Successfully parses string", (t) => {
   const struct = S.string;

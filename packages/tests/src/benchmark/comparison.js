@@ -1,7 +1,7 @@
 import B from "benchmark";
 import { z } from "zod";
 import * as V from "valibot";
-import * as S from "rescript-struct/src/S_JsApi.js";
+import * as S from "rescript-struct/src/S.js";
 
 new B.Suite()
   .add("rescript-struct", () => {
