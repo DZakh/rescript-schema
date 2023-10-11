@@ -550,7 +550,7 @@ function isAsyncParse(struct) {
   }
 }
 
-function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
+function validateJsonableStruct(_struct, rootStruct, _isRootOpt) {
   while(true) {
     var isRootOpt = _isRootOpt;
     var struct = _struct;
@@ -586,7 +586,7 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
                 var s = fieldStruct.t;
                 var tmp;
                 tmp = typeof s !== "object" || s.TAG !== "Option" ? fieldStruct : s._0;
-                validateJsonableStruct(tmp, rootStruct, undefined, undefined);
+                validateJsonableStruct(tmp, rootStruct, undefined);
               }
               catch (raw_exn){
                 var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
@@ -597,7 +597,7 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
         case "Tuple" :
             childrenStructs._0.forEach(function (struct, i) {
                   try {
-                    return validateJsonableStruct(struct, rootStruct, undefined, undefined);
+                    return validateJsonableStruct(struct, rootStruct, undefined);
                   }
                   catch (raw_exn){
                     var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
@@ -607,7 +607,7 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
             return ;
         case "Union" :
             childrenStructs._0.forEach(function (struct) {
-                  validateJsonableStruct(struct, rootStruct, undefined, undefined);
+                  validateJsonableStruct(struct, rootStruct, undefined);
                 });
             return ;
         case "Null" :
@@ -620,7 +620,6 @@ function validateJsonableStruct(_struct, rootStruct, _isRootOpt, _param) {
     }
     switch (exit) {
       case 1 :
-          _param = undefined;
           _isRootOpt = undefined;
           _struct = childrenStructs._0;
           continue ;
@@ -754,17 +753,8 @@ function parseAnyAsyncInStepsWith(any, struct) {
 }
 
 function init$2(struct) {
-  try {
-    validateJsonableStruct(struct, struct, true, undefined);
-    return build(struct.s, struct, "Serializing");
-  }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    var error = getOrRethrow(exn);
-    return function (param) {
-      throw error;
-    };
-  }
+  validateJsonableStruct(struct, struct, true);
+  return build(struct.s, struct, "Serializing");
 }
 
 function serializeOrRaiseWith(i, s) {
@@ -1911,7 +1901,7 @@ function trim(struct) {
 
 function factory$4(struct) {
   try {
-    validateJsonableStruct(struct, struct, true, undefined);
+    validateJsonableStruct(struct, struct, true);
   }
   catch (raw_exn){
     var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);

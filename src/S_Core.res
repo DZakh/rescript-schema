@@ -825,7 +825,7 @@ let isAsyncParse = struct => {
   }
 }
 
-let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
+let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false) => {
   if isRoot || rootStruct !== struct {
     switch struct->classify {
     | String
@@ -837,7 +837,7 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
     | Dict(struct)
     | Null(struct)
     | Array(struct) =>
-      struct->validateJsonableStruct(~rootStruct, ())
+      struct->validateJsonableStruct(~rootStruct)
     | Object({fieldNames, fields}) =>
       for idx in 0 to fieldNames->Js.Array2.length - 1 {
         let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
@@ -847,7 +847,7 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
           // Allow optional fields
           | Option(s) => s
           | _ => fieldStruct
-          }->validateJsonableStruct(~rootStruct, ())
+          }->validateJsonableStruct(~rootStruct)
         } catch {
         | exn => exn->InternalError.prependLocationOrRethrow(fieldName)
         }
@@ -856,14 +856,14 @@ let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false, ()) => {
     | Tuple(childrenStructs) =>
       childrenStructs->Js.Array2.forEachi((struct, i) => {
         try {
-          struct->validateJsonableStruct(~rootStruct, ())
+          struct->validateJsonableStruct(~rootStruct)
         } catch {
         // TODO: Should throw with the nested struct instead of prepending path?
         | exn => exn->InternalError.prependLocationOrRethrow(i->Js.Int.toString)
         }
       })
     | Union(childrenStructs) =>
-      childrenStructs->Js.Array2.forEach(struct => struct->validateJsonableStruct(~rootStruct, ()))
+      childrenStructs->Js.Array2.forEach(struct => struct->validateJsonableStruct(~rootStruct))
     | Literal(l) if l->Literal.isJsonable => ()
     | Option(_)
     | Unknown
@@ -996,16 +996,8 @@ let parseAnyAsyncInStepsWith = (any, struct) => {
 let parseAsyncInStepsWith = parseAnyAsyncInStepsWith
 
 let serializeOrRaiseWith = Operation.make(~label=SerializerToJson, ~init=struct => {
-  try {
-    struct->validateJsonableStruct(~rootStruct=struct, ~isRoot=true, ())
-    // TODO: Move outside of the try/catch
-    struct.serializeOperationBuilder->Builder.build(~struct, ~operation=Serializing)
-  } catch {
-  | exn => {
-      let error = exn->InternalError.getOrRethrow
-      _ => Stdlib.Exn.raiseAny(error)
-    }
-  }
+  struct->validateJsonableStruct(~rootStruct=struct, ~isRoot=true)
+  struct.serializeOperationBuilder->Builder.build(~struct, ~operation=Serializing)
 })
 
 let serializeWith = (value, struct) => {
@@ -2357,7 +2349,7 @@ module JsonString = {
   let factory = struct => {
     let struct = struct->toUnknown
     try {
-      struct->validateJsonableStruct(~rootStruct=struct, ~isRoot=true, ())
+      struct->validateJsonableStruct(~rootStruct=struct, ~isRoot=true)
     } catch {
     | exn => {
         let _ = exn->InternalError.getOrRethrow

@@ -52,3 +52,4 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Remove `s.failWithError` since there's `Error.raise` 🤔
 - Remove `S.classify` & `S.name` in favor of fields on `t` ???
 - Make `error.reason` tree-shakeable
+- Update `Literal` `tagged` to include `text`, `value` and `kind`. So it's more convinient and smaller bundle-size
