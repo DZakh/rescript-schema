@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "res:build": "rescript build -with-deps",
-    "res": "rescript build -with-deps -w",
+    "res:build": "rescript build",
+    "res": "rescript build -w",
     "lint:stdlib": "rescript-stdlib-vendorer lint"
   },
   "dependencies": {

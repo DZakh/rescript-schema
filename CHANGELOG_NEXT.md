@@ -6,7 +6,7 @@
 - Added advanced tuple struct to js api
 - Added a proper documentation for JS/TS users
 - Added table of contents and splitted documentation into multiple documents
-- Improved tree-shaking
+- Improved tree-shaking. For the JS/TS api example bundle-size reduced by 13% - 2 kB (0.55 kB minified + gzipped)
 - Added `S.Error.reason`
 - Added alpha version of `S.merge` helper (JS/TS api only)
 - Added `S.name`/`S.setName` for JS/TS api

@@ -1,6 +1,6 @@
 {
   "name": "rescript-struct",
-  "version": "5.0.1",
+  "version": "5.1.0",
   "description": "The fastest composable parser/serializer for ReScript (and TypeScript)",
   "keywords": [
     "ReScript",
@@ -14,7 +14,6 @@
     "Decode",
     "Validation",
     "Transform",
-    "Migration",
     "Contract",
     "Mapping",
     "Jzon",
@@ -56,9 +55,9 @@
     "coverage": "c8 --reporter=lcov npm test",
     "prepack": "node ./packages/prepack/src/Prepack.bs.mjs",
     "ppx:install": "node ./packages/ppx/install.cjs",
-    "res": "rescript build -with-deps -w",
-    "res:build": "rescript build -with-deps",
-    "test:res": "cd ./packages/tests && rescript clean && rescript build -with-deps -w",
+    "res": "rescript build -w",
+    "res:build": "rescript build",
+    "test:res": "cd ./packages/tests && rescript clean && rescript build -w",
     "test": "ava",
     "lint:stdlib": "rescript-stdlib-vendorer lint --project-path=packages/tests --ignore-path=src/ppx/Ppx_Primitives_test.res"
   },
