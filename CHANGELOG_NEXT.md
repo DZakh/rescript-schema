@@ -8,6 +8,9 @@
 - Added table of contents and splitted documentation into multiple documents
 - Improved tree-shaking
 - Added `S.Error.reason`
+- Added alpha version of `S.merge` helper (JS/TS api only)
+- Added `S.name`/`S.setName` for JS/TS api
+- Documented `S.classify`/`S.name`/`S.setName`
 
 ## Opt-in ppx support
 

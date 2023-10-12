@@ -8,6 +8,10 @@ test("Name of Literal struct", t => {
   t->Assert.deepEqual(S.literal(123)->S.name, "Literal(123)", ())
 })
 
+test("Name of Literal object struct", t => {
+  t->Assert.deepEqual(S.literal({"abc": 123})->S.name, `Literal({"abc": 123})`, ())
+})
+
 test("Name of Array struct", t => {
   t->Assert.deepEqual(S.array(S.string)->S.name, "Array(String)", ())
 })

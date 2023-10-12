@@ -32,14 +32,13 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v5.1
 
-- Error.reason
 - ppx
 - stop reallocate objects without transformations
 - S.matcher
 - S.validateWith
 - S.toJSON/S.castToJson ???
 - nestedField for object
-- spread for object (intersection)
+- s.spread for object
 - S.produce
 - S.mutator
 

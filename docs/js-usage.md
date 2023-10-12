@@ -19,6 +19,7 @@
   - [Advanced object struct](#advanced-object-struct)
   - [`Object.strict`](#objectstrict)
   - [`Object.strip`](#objectstrip)
+  - [`merge`](#merge)
 - [Arrays](#arrays)
 - [Tuples](#tuples)
   - [Advanced tuple struct](#advanced-tuple-struct)
@@ -36,6 +37,8 @@
   - [`parseAsync`](#parseasync)
   - [`serialize`](#serialize)
   - [`serializeOrThrow`](#serializeorthrow)
+  - [`name`](#name)
+  - [`setName`](#setname)
 - [Error handling](#error-handling)
 - [Comparison](#comparison)
 
@@ -296,6 +299,20 @@ S.parseOrThrow(personStruct, {
 
 You can use the `S.Object.strip` function to reset an object struct to the default behavior (stripping unrecognized keys).
 
+### `merge`
+
+You can add additional fields to an object schema with the `merge` function.
+
+```ts
+const baseTeacherStruct = S.object({ students: S.array(S.string) });
+const hasIDStruct = S.object({ id: S.string });
+
+const teacherStruct = S.merge(baseTeacherStruct, hasIDStruct);
+type Teacher = S.Output<typeof teacherStruct>; // => { students: string[], id: string }
+```
+
+> 🧠 The function will throw if the structs share keys. The returned schema also inherits the "unknownKeys" policy (strip/strict) of B.
+
 ## Arrays
 
 ```ts
@@ -528,6 +545,28 @@ S.serializeOrThrow(userStruct, user); // => Input
 ```
 
 The exception-based version of `S.serialize`.
+
+### **`name`**
+
+```ts
+S.name(S.literal({ abc: 123 }));
+// `Literal({"abc": 123})`
+```
+
+Used internally for readable error messages.
+
+> 🧠 Subject to change
+
+### **`setName`**
+
+```ts
+const struct = S.setName(S.literal({ abc: 123 }, "Abc"));
+
+S.name(struct);
+// `Abc`
+```
+
+You can customise a struct name using `S.setName`.
 
 ## Error handling
 

@@ -3678,3 +3678,53 @@ let js_object = definer => {
     })
   }
 }
+
+let js_merge = (s1, s2) => {
+  switch (s1, s2) {
+  | (
+      {tagged: Object({fieldNames: s1FieldNames, fields: s1Fields})},
+      {tagged: Object({unknownKeys, fieldNames: s2FieldNames, fields: s2Fields})},
+    ) =>
+    let fieldNames = []
+    let fields = Js.Dict.empty()
+    for idx in 0 to s1FieldNames->Js.Array2.length - 1 {
+      let fieldName = s1FieldNames->Js.Array2.unsafe_get(idx)
+      fieldNames->Js.Array2.push(fieldName)->ignore
+      fields->Js.Dict.set(fieldName, s1Fields->Js.Dict.unsafeGet(fieldName))
+    }
+    for idx in 0 to s2FieldNames->Js.Array2.length - 1 {
+      let fieldName = s2FieldNames->Js.Array2.unsafe_get(idx)
+      if fields->Stdlib.Dict.has(fieldName) {
+        InternalError.panic(
+          `The field ${fieldName->Stdlib.Inlined.Value.fromString} is defined multiple times.`,
+        )
+      }
+      fieldNames->Js.Array2.push(fieldName)->ignore
+      fields->Js.Dict.set(fieldName, s2Fields->Js.Dict.unsafeGet(fieldName))
+    }
+    make(
+      ~name=() => `${s1.name()} & ${s2.name()}`,
+      ~tagged=Object({
+        unknownKeys,
+        fieldNames,
+        fields,
+      }),
+      ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
+        let inputVar = b->B.useInputVar
+        let s1Result = b->B.use(~struct=s1, ~input=inputVar, ~path)
+        let s2Result = b->B.use(~struct=s2, ~input=inputVar, ~path)
+        // TODO: Check that these are objects
+        // TODO: Check that s1Result is not mutating input
+        `Object.assign(${s1Result}, ${s2Result})`
+      }),
+      ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
+        b->B.invalidOperation(~path, ~description=`The S.merge serializing is not supported yet`)
+      }),
+      ~maybeTypeFilter=Some(Object.typeFilter),
+      ~metadataMap=Metadata.Map.empty,
+    )
+  | _ => InternalError.panic("The merge supports only Object structs.")
+  }
+}
+
+let js_name = name

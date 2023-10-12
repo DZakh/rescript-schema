@@ -60,6 +60,9 @@
   - [`serializeToJsonStringWith`](#serializetojsonstringwith)
   - [`serializeOrRaiseWith`](#serializeorraisewith)
   - [`serializeToUnknownOrRaiseWith`](#serializetounknownorraisewith)
+  - [`classify`](#classify)
+  - [`name`](#name)
+  - [`setName`](#setname)
 - [Error handling](#error-handling)
   - [`Error.make`](#errormake)
   - [`Error.raise`](#errorraise)
@@ -1165,6 +1168,43 @@ try {
 ```
 
 The exception-based version of `serializeToUnknownWith`.
+
+### **`classify`**
+
+`(S.t<'value>) => S.tagged`
+
+```rescript
+S.string->S.tagged
+// String
+```
+
+This can be useful for building other tools like [`rescript-json-schema`](https://github.com/DZakh/rescript-json-schema).
+
+### **`name`**
+
+`(S.t<'value>) => string`
+
+```rescript
+S.literal({"abc": 123})->S.name
+// `Literal({"abc": 123})`
+```
+
+Used internally for readable error messages.
+
+> 🧠 Subject to change
+
+### **`setName`**
+
+`(S.t<'value>, string) => string`
+
+```rescript
+let struct = S.literal({"abc": 123})->S.setName("Abc")
+
+struct->S.name
+// `Abc`
+```
+
+You can customise a struct name using `S.setName`.
 
 ## Error handling
 

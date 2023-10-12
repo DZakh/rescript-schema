@@ -3076,6 +3076,64 @@ function js_object(definer) {
   }
 }
 
+function js_merge(s1, s2) {
+  var match = s1.t;
+  if (typeof match === "object" && match.TAG === "Object") {
+    var s1FieldNames = match.fieldNames;
+    var s1Fields = match.fields;
+    var match$1 = s2.t;
+    if (typeof match$1 === "object" && match$1.TAG === "Object") {
+      var s2FieldNames = match$1.fieldNames;
+      var s2Fields = match$1.fields;
+      var fieldNames = [];
+      var fields = {};
+      for(var idx = 0 ,idx_finish = s1FieldNames.length; idx < idx_finish; ++idx){
+        var fieldName = s1FieldNames[idx];
+        fieldNames.push(fieldName);
+        fields[fieldName] = s1Fields[fieldName];
+      }
+      for(var idx$1 = 0 ,idx_finish$1 = s2FieldNames.length; idx$1 < idx_finish$1; ++idx$1){
+        var fieldName$1 = s2FieldNames[idx$1];
+        if (fields[fieldName$1]) {
+          var message = "The field " + JSON.stringify(fieldName$1) + " is defined multiple times.";
+          throw new Error("[rescript-struct] " + message);
+        }
+        fieldNames.push(fieldName$1);
+        fields[fieldName$1] = s2Fields[fieldName$1];
+      }
+      return {
+              t: {
+                TAG: "Object",
+                fields: fields,
+                fieldNames: fieldNames,
+                unknownKeys: match$1.unknownKeys
+              },
+              n: (function () {
+                  return s1.n(undefined) + " & " + s2.n(undefined);
+                }),
+              p: (function (b, param, path) {
+                  var inputVar = toVar(b, b.i);
+                  var s1Result = use(b, s1, inputVar, path);
+                  var s2Result = use(b, s2, inputVar, path);
+                  return "Object.assign(" + s1Result + ", " + s2Result + ")";
+                }),
+              s: (function (b, param, path) {
+                  return invalidOperation(b, path, "The S.merge serializing is not supported yet");
+                }),
+              f: typeFilter,
+              i: 0,
+              m: empty
+            };
+    }
+    
+  }
+  throw new Error("[rescript-struct] The merge supports only Object structs.");
+}
+
+function js_name(prim) {
+  return prim.n();
+}
+
 var Path = {
   empty: "",
   dynamic: "[]",
@@ -3267,10 +3325,12 @@ export {
   js_refine ,
   js_transform ,
   js_object ,
+  js_merge ,
   js_parse ,
   js_parseOrThrow ,
   js_parseAsync ,
   js_serialize ,
   js_serializeOrThrow ,
+  js_name ,
 }
 /* symbol Not a pure module */

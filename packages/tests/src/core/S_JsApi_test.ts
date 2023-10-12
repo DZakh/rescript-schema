@@ -656,6 +656,158 @@ test("Resets object strict mode with strip method", (t) => {
   >(true);
 });
 
+test("Successfully parses intersected objects", (t) => {
+  const struct = S.merge(
+    S.object({
+      foo: S.string,
+      bar: S.boolean,
+    }),
+    S.object({
+      baz: S.string,
+    })
+  );
+
+  expectType<
+    TypeEqual<
+      typeof struct,
+      S.Struct<
+        {
+          foo: string;
+          bar: boolean;
+        } & {
+          baz: string;
+        },
+        Record<string, unknown>
+      >
+    >
+  >(true);
+
+  const result = S.parse(struct, {
+    foo: "bar",
+    bar: true,
+  });
+  if (result.success) {
+    t.fail("Should fail");
+    return;
+  }
+  t.is(
+    result.error.message,
+    `Failed parsing at ["baz"]. Reason: Expected String, received undefined`
+  );
+
+  const value = S.parseOrThrow(struct, {
+    foo: "bar",
+    baz: "baz",
+    bar: true,
+  });
+  t.deepEqual(value, {
+    foo: "bar",
+    baz: "baz",
+    bar: true,
+  });
+});
+
+test("Successfully parses intersected objects with transform", (t) => {
+  const struct = S.merge(
+    S.transform(
+      S.object({
+        foo: S.string,
+        bar: S.boolean,
+      }),
+      (obj) => ({
+        abc: obj.foo,
+      })
+    ),
+    S.object({
+      baz: S.string,
+    })
+  );
+
+  expectType<
+    TypeEqual<
+      typeof struct,
+      S.Struct<
+        {
+          abc: string;
+        } & {
+          baz: string;
+        },
+        Record<string, unknown>
+      >
+    >
+  >(true);
+
+  const result = S.parse(struct, {
+    foo: "bar",
+    bar: true,
+  });
+  if (result.success) {
+    t.fail("Should fail");
+    return;
+  }
+  t.is(
+    result.error.message,
+    `Failed parsing at ["baz"]. Reason: Expected String, received undefined`
+  );
+
+  const value = S.parseOrThrow(struct, {
+    foo: "bar",
+    baz: "baz",
+    bar: true,
+  });
+  t.deepEqual(value, {
+    abc: "bar",
+    baz: "baz",
+  });
+});
+
+test("Fails to serialize merge. Not supported yet", (t) => {
+  const struct = S.merge(
+    S.object({
+      foo: S.string,
+      bar: S.boolean,
+    }),
+    S.object({
+      baz: S.string,
+    })
+  );
+
+  const result = S.serialize(struct, {
+    foo: "bar",
+    bar: true,
+    baz: "string",
+  });
+  if (result.success) {
+    t.fail("Should fail");
+    return;
+  }
+  t.is(
+    result.error.message,
+    `Failed serializing at root. Reason: The S.merge serializing is not supported yet`
+  );
+});
+
+test("Name of merge struct", (t) => {
+  const struct = S.merge(
+    S.object({
+      foo: S.string,
+      bar: S.boolean,
+    }),
+    S.object({
+      baz: S.string,
+    })
+  );
+
+  t.is(
+    S.name(struct),
+    `Object({"foo": String, "bar": Bool}) & Object({"baz": String})`
+  );
+});
+
+test("setName", (t) => {
+  t.is(S.name(S.setName(S.unknown, "BlaBla")), `BlaBla`);
+});
+
 test("Successfully parses and returns result", (t) => {
   const struct = S.string;
   const value = S.parse(struct, "123");

@@ -196,6 +196,11 @@ export const Object: {
   ) => Struct<Output, Input>;
 };
 
+export function merge<O1, O2>(
+  struct1: Struct<O1, Record<string, unknown>>,
+  struct2: Struct<O2, Record<string, unknown>>
+): Struct<O1 & O2, Record<string, unknown>>;
+
 export const String: {
   min: <Input>(
     struct: Struct<string, Input>,
@@ -279,6 +284,12 @@ export function custom<Output, Input = unknown>(
   name: string,
   parser: (data: unknown, s: EffectCtx<unknown, unknown>) => Output | undefined,
   serializer: (value: Output, s: EffectCtx<unknown, unknown>) => Input
+): Struct<Output, Input>;
+
+export function name(struct: Struct<unknown, unknown>): string;
+export function setName<Output, Input>(
+  struct: Struct<Output, Input>,
+  name: string
 ): Struct<Output, Input>;
 
 export function asyncParserRefine<Output, Input>(
