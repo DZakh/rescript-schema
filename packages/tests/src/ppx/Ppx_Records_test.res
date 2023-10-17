@@ -23,7 +23,7 @@ test("Simple record struct", t => {
 
 @struct
 type recordWithAlias = {
-  @struct.field("aliased-label") label: string,
+  @as("aliased-label") label: string,
   value: int,
 }
 test("Record struct with alias for field name", t => {

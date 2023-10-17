@@ -30,7 +30,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Move S.inline to a separate codegen module
 
-## v5.1
+## v5.2
 
 - ppx
 - stop reallocate objects without transformations

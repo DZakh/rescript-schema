@@ -370,7 +370,7 @@ type Athlete = S.Output<typeof athleteStruct>;
 // }
 ```
 
-That looks much better than before. And the same as for advanced objects, you can use the same struct for transforming the parsed data back to the initial format. Also, it has 0 performance overhead and as fast as parsing tuples without the transformation.
+That looks much better than before. And the same as for advanced objects, you can use the same struct for transforming the parsed data back to the initial format. Also, it has 0 performance overhead and is as fast as parsing tuples without the transformation.
 
 ## Unions
 

@@ -3,45 +3,40 @@ open Parsetree
 open Ast_helper
 open Utils
 
-(* TODO: Support recursive types *)
-(* TODO: Move default from here *)
-(* TODO: check optional *)
-
-type parsed_decl = {
+type field = {
   name : string;
-  (* "NAME" *)
-  key : expression;
-  (* v.NAME *)
-  field : expression;
+  maybe_alias : expression option;
   struct_expr : expression;
-  default : expression option;
-  is_optional : bool;
 }
 
-let generate_decoder decls =
+let generate_decoder fields =
   (* Use Obj.magic to cast to uncurried function in case of uncurried mode *)
   [%expr
     S.Object.factory
       (Obj.magic (fun (s : S.Object.ctx) ->
            [%e
              Exp.record
-               (decls
-               |> List.map (fun decl ->
-                      ( lid decl.name,
-                        [%expr s.field [%e decl.key] [%e decl.struct_expr]] )))
+               (fields
+               |> List.map (fun field ->
+                      let original_field_name_expr =
+                        match field.maybe_alias with
+                        | Some alias -> alias
+                        | None ->
+                            Exp.constant
+                              (Pconst_string (field.name, Location.none, None))
+                      in
+
+                      ( lid field.name,
+                        [%expr
+                          s.field [%e original_field_name_expr]
+                            [%e field.struct_expr]] )))
                None]))]
 
 let parse_decl { pld_name = { txt }; pld_loc; pld_type; pld_attributes } =
-  let default =
-    match get_attribute_by_name pld_attributes "struct.default" with
+  let maybe_alias =
+    match get_attribute_by_name pld_attributes "as" with
     | Ok (Some attribute) -> Some (get_expr_from_payload attribute)
     | Ok None -> None
-    | Error s -> fail pld_loc s
-  in
-  let key =
-    match get_attribute_by_name pld_attributes "struct.field" with
-    | Ok (Some attribute) -> get_expr_from_payload attribute
-    | Ok None -> Exp.constant (Pconst_string (txt, Location.none, None))
     | Error s -> fail pld_loc s
   in
   let optional_attrs = [ "ns.optional"; "res.optional" ] in
@@ -56,15 +51,8 @@ let parse_decl { pld_name = { txt }; pld_loc; pld_type; pld_attributes } =
     else struct_expr
   in
 
-  {
-    name = txt;
-    key;
-    field = Exp.field [%expr v] (lid txt);
-    struct_expr;
-    default;
-    is_optional;
-  }
+  { name = txt; maybe_alias; struct_expr }
 
 let generate_struct_expr decls =
-  let parsed_decls = List.map parse_decl decls in
-  generate_decoder parsed_decls
+  let fields = List.map parse_decl decls in
+  generate_decoder fields

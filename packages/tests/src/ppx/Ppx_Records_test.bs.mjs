@@ -29,7 +29,7 @@ Ava("Simple record struct", (function (t) {
 
 var recordWithAliasStruct = S$RescriptStruct.$$Object.factory(function (s) {
       return {
-              label: s.f("aliased-label", S$RescriptStruct.string),
+              "aliased-label": s.f("aliased-label", S$RescriptStruct.string),
               value: s.f("value", S$RescriptStruct.$$int)
             };
     });
@@ -37,14 +37,14 @@ var recordWithAliasStruct = S$RescriptStruct.$$Object.factory(function (s) {
 Ava("Record struct with alias for field name", (function (t) {
         U.assertEqualStructs(t, recordWithAliasStruct, S$RescriptStruct.object(function (s) {
                   return {
-                          label: s.f("aliased-label", S$RescriptStruct.string),
+                          "aliased-label": s.f("aliased-label", S$RescriptStruct.string),
                           value: s.f("value", S$RescriptStruct.$$int)
                         };
                 }), undefined);
         t.deepEqual(S$RescriptStruct.parseWith({"aliased-label":"foo",value:1}, recordWithAliasStruct), {
               TAG: "Ok",
               _0: {
-                label: "foo",
+                "aliased-label": "foo",
                 value: 1
               }
             }, undefined);
