@@ -587,11 +587,12 @@ Besides the individual bundle size, the overall size of the library is also sign
 
 At the same time **rescript-struct** is the fastest composable validation library in the entire JavaScript ecosystem. This is achieved because of the JIT approach when an ultra optimized validator is created using `eval`.
 
-|                                          | rescript-struct@5.1.0 | Zod@3.22.2      | Valibot@0.18.0 |
-| ---------------------------------------- | --------------------- | --------------- | -------------- |
-| **Total size** (minified + gzipped)      | 9.67 kB               | 13.4 kB         | 6.73 kB        |
-| **Example size** (minified + gzipped)    | 5.53 kB               | 12.8 kB         | 965 B          |
-| **Performance** (Example parsing)        | 1,030,417 ops/ms      | 407 ops/ms      | 24,034 ops/ms  |
-| **Eval-free**                            | ❌                    | ✅              | ✅             |
-| **Codegen-free** (Doesn't need compiler) | ✅                    | ✅              | ✅             |
-| **Ecosystem**                            | ⭐️                   | ⭐️⭐️⭐️⭐️⭐️ | ⭐️⭐️         |
+|                                                  | rescript-struct@5.1.0 | Zod@3.22.2      | Valibot@0.18.0 |
+| ------------------------------------------------ | --------------------- | --------------- | -------------- |
+| **Total size** (minified + gzipped)              | 9.67 kB               | 13.4 kB         | 6.73 kB        |
+| **Example size** (minified + gzipped)            | 5.53 kB               | 12.8 kB         | 965 B          |
+| **Nested object parsing**                        | 153,787 ops/ms        | 1,177 ops/ms    | 3,562 ops/ms   |
+| **Create struct/schema + Nested object parsing** | 54 ops/ms             | 110 ops/ms      | 1,937 ops/ms   |
+| **Eval-free**                                    | ❌                    | ✅              | ✅             |
+| **Codegen-free** (Doesn't need compiler)         | ✅                    | ✅              | ✅             |
+| **Ecosystem**                                    | ⭐️                   | ⭐️⭐️⭐️⭐️⭐️ | ⭐️⭐️         |

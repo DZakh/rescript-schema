@@ -1,7 +1,5 @@
 # Ideas draft
 
-- Document utility functions (S.name, S.setName, S.classify, S.inline)
-
 - Clean up Caml_option.some, Js_dict.get
 
 - Add S.nullable (?)

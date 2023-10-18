@@ -6,7 +6,7 @@
 
 The fastest composable parser/serializer for ReScript (and TypeScript)
 
-> 🧠 Note that **rescript-struct** uses `eval`, which is completely safe to use as part of your application bundle, but may cause issues when included as a third-party script on a site with a [script-src](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src) header.
+> ⚠️ Be aware that **rescript-struct** uses `eval`. It's usually fine but might not work in some environments like Cloudflare Workers or third-party scripts used on pages with the [script-src](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src) header.
 
 Highlights:
 
