@@ -20,6 +20,14 @@ test("Variant with partial @as usage", t => {
 })
 
 // TODO: Support
-// type variantWithPayloads = One | Two(int) | Three(bool)
+// @struct
+// type variantWithPayloads = Constant | SinglePayload(int)
+// test("Variant with tuple payloads", t => {
+//   t->assertEqualStructs(
+//     variantWithPayloadsStruct,
+//     S.union([S.literal(Constant), S.unknown->Obj.magic]),
+//   )
+// })
+
 // TODO: Support @unboxed
 // TODO: Support @tag
