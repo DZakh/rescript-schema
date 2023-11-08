@@ -24,7 +24,7 @@ function error(param) {
 
 function assertThrowsTestException(t, fn, message, param) {
   try {
-    fn(undefined);
+    fn();
     return t.fail("Didn't throw");
   }
   catch (raw_exn){

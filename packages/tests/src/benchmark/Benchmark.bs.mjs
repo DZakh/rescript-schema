@@ -4,7 +4,7 @@ import * as Benchmark from "benchmark";
 import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
 
 function addWithPrepare(suite, name, fn) {
-  return suite.add(name, fn(undefined));
+  return suite.add(name, fn());
 }
 
 function run(suite) {
@@ -70,11 +70,11 @@ function makeAdvancedStrictObjectStruct() {
                 }));
 }
 
-var data = makeTestObject(undefined);
+var data = makeTestObject();
 
 console.time("init");
 
-var struct = makeAdvancedObjectStruct(undefined);
+var struct = makeAdvancedObjectStruct();
 
 console.timeEnd("init");
 
@@ -123,26 +123,26 @@ run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(a
                                 return S$RescriptStruct.serializeOrRaiseWith("Hello world!", S$RescriptStruct.string);
                               };
                             })).add("Advanced object struct factory", makeAdvancedObjectStruct), "Parse advanced object", (function () {
-                        var struct = makeAdvancedObjectStruct(undefined);
-                        var data = makeTestObject(undefined);
+                        var struct = makeAdvancedObjectStruct();
+                        var data = makeTestObject();
                         return function () {
                           return S$RescriptStruct.parseAnyOrRaiseWith(data, struct);
                         };
                       })), "Create and parse advanced object", (function () {
-                    var data = makeTestObject(undefined);
+                    var data = makeTestObject();
                     return function () {
-                      var struct = makeAdvancedObjectStruct(undefined);
+                      var struct = makeAdvancedObjectStruct();
                       return S$RescriptStruct.parseAnyOrRaiseWith(data, struct);
                     };
                   })), "Parse advanced strict object", (function () {
-                var struct = makeAdvancedStrictObjectStruct(undefined);
-                var data = makeTestObject(undefined);
+                var struct = makeAdvancedStrictObjectStruct();
+                var data = makeTestObject();
                 return function () {
                   return S$RescriptStruct.parseAnyOrRaiseWith(data, struct);
                 };
               })), "Serialize advanced object", (function () {
-            var struct = makeAdvancedObjectStruct(undefined);
-            var data = makeTestObject(undefined);
+            var struct = makeAdvancedObjectStruct();
+            var data = makeTestObject();
             return function () {
               return S$RescriptStruct.serializeOrRaiseWith(data, struct);
             };

@@ -1,8 +1,8 @@
 /* TypeScript file generated from GenType.res by genType. */
-/* eslint-disable import/first */
 
+/* eslint-disable */
+/* tslint:disable */
 
-// @ts-ignore: Implicit any on import
 import * as GenTypeBS__Es6Import from './GenType.bs';
 const GenTypeBS: any = GenTypeBS__Es6Import;
 

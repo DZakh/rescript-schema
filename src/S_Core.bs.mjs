@@ -722,7 +722,7 @@ function internalParseAsyncWith(i, s) {
 
 function parseAnyAsyncWith(any, struct) {
   try {
-    return internalParseAsyncWith(any, struct)(undefined).then(asyncPrepareOk, asyncPrepareError);
+    return internalParseAsyncWith(any, struct)().then(asyncPrepareOk, asyncPrepareError);
   }
   catch (raw_exn){
     var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
@@ -739,7 +739,7 @@ function parseAnyAsyncInStepsWith(any, struct) {
     return {
             TAG: "Ok",
             _0: (function () {
-                return asyncFn(undefined).then(asyncPrepareOk, asyncPrepareError);
+                return asyncFn().then(asyncPrepareOk, asyncPrepareError);
               })
           };
   }
@@ -987,7 +987,7 @@ function primitiveName() {
 
 function containerName() {
   var tagged = this.t;
-  return tagged.TAG + "(" + tagged._0.n(undefined) + ")";
+  return tagged.TAG + "(" + tagged._0.n() + ")";
 }
 
 function internalRefine(struct, refiner) {
@@ -1566,7 +1566,7 @@ function factory$3(definer) {
           n: (function () {
               return "Object({" + fieldNames$1.map(function (fieldName) {
                             var fieldStruct = fields$1[fieldName];
-                            return JSON.stringify(fieldName) + ": " + fieldStruct.n(undefined);
+                            return JSON.stringify(fieldName) + ": " + fieldStruct.n();
                           }).join(", ") + "})";
             }),
           p: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, noopRefinement, (function (b, selfStruct, inputVar, path) {
@@ -1906,7 +1906,7 @@ function factory$4(struct) {
   catch (raw_exn){
     var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
     getOrRethrow(exn);
-    var message = "The struct " + struct.n(undefined) + " passed to S.jsonString is not compatible with JSON";
+    var message = "The struct " + struct.n() + " passed to S.jsonString is not compatible with JSON";
     throw new Error("[rescript-struct] " + message);
   }
   return {
@@ -2264,7 +2264,7 @@ function factory$7(definer) {
           },
           n: (function () {
               return "Tuple(" + structs$1.map(function (s) {
-                            return s.n(undefined);
+                            return s.n();
                           }).join(", ") + ")";
             }),
           p: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, (function (b, param, inputVar, path) {
@@ -2348,7 +2348,7 @@ function factory$8(structs) {
           },
           n: (function () {
               return "Union(" + structs.map(function (s) {
-                            return s.n(undefined);
+                            return s.n();
                           }).join(", ") + ")";
             }),
           p: (function (b, selfStruct, path) {
@@ -2595,7 +2595,7 @@ function reason(error, nestedLevelOpt) {
     case "InvalidOperation" :
         return reason$1.description;
     case "InvalidType" :
-        return "Expected " + reason$1.expected.n(undefined) + ", received " + toText(classify(reason$1.received));
+        return "Expected " + reason$1.expected.n() + ", received " + toText(classify(reason$1.received));
     case "InvalidLiteral" :
         return "Expected " + toText(reason$1.expected) + ", received " + toText(classify(reason$1.received));
     case "InvalidTupleSize" :
@@ -2613,7 +2613,7 @@ function reason(error, nestedLevelOpt) {
         var reasons = Array.from(new Set(array));
         return "Invalid union with following errors" + lineBreak + reasons.join(lineBreak);
     case "InvalidJsonStruct" :
-        return "The struct " + reason$1._0.n(undefined) + " is not compatible with JSON";
+        return "The struct " + reason$1._0.n() + " is not compatible with JSON";
     
   }
 }
@@ -2715,7 +2715,7 @@ function internalInline(struct, maybeVariant, param) {
       case "Union" :
           var variantNamesCounter = {};
           inlinedStruct = "S.union([" + literal._0.map(function (s) {
-                  var variantName = s.n(undefined);
+                  var variantName = s.n();
                   var n = Js_dict.get(variantNamesCounter, variantName);
                   var numberOfVariantNames = n !== undefined ? n : 0;
                   variantNamesCounter[variantName] = numberOfVariantNames + 1;
@@ -2740,7 +2740,7 @@ function internalInline(struct, maybeVariant, param) {
           defaultValue === (void 0) ? "undefined" : JSON.stringify(defaultValue)
         ) + "\`))");
     } else {
-      var any = $$default._0(undefined);
+      var any = $$default._0();
       inlinedStruct$1 = inlinedStruct + ("->S.Option.getOrWith(() => %raw(\`" + (
           any === (void 0) ? "undefined" : JSON.stringify(any)
         ) + "\`))");
@@ -3109,7 +3109,7 @@ function js_merge(s1, s2) {
                 unknownKeys: match$1.unknownKeys
               },
               n: (function () {
-                  return s1.n(undefined) + " & " + s2.n(undefined);
+                  return s1.n() + " & " + s2.n();
                 }),
               p: (function (b, param, path) {
                   var inputVar = toVar(b, b.i);

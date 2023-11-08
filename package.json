@@ -1,6 +1,6 @@
 {
   "name": "rescript-struct",
-  "version": "5.1.0",
+  "version": "5.1.1",
   "description": "The fastest composable parser/serializer for ReScript (and TypeScript)",
   "keywords": [
     "ReScript",
@@ -45,6 +45,8 @@
     "src/S_Core.bs.mjs",
     "src/S.res",
     "src/S.resi",
+    "src/S.bs.js",
+    "src/S.bs.mjs",
     "src/S.d.ts",
     "RescriptStruct.gen.ts",
     "bsconfig.json"
@@ -81,7 +83,7 @@
     "ava": "5.2.0",
     "benchmark": "2.1.4",
     "c8": "7.12.0",
-    "rescript": "11.0.0-rc.4",
+    "rescript": "11.0.0-rc.5",
     "rescript-stdlib-vendorer": "1.0.0",
     "rescript-struct": ".",
     "ts-expect": "1.3.0",
