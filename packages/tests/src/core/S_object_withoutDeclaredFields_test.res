@@ -1,28 +1,28 @@
 open Ava
 
 test("Successfully parses empty object", t => {
-  let struct = S.object(_ => ())
+  let schema = S.object(_ => ())
 
-  t->Assert.deepEqual(%raw(`{}`)->S.parseAnyWith(struct), Ok(), ())
+  t->Assert.deepEqual(%raw(`{}`)->S.parseAnyWith(schema), Ok(), ())
 })
 
 test("Successfully parses object with excess keys", t => {
-  let struct = S.object(_ => ())
+  let schema = S.object(_ => ())
 
-  t->Assert.deepEqual(%raw(`{field:"bar"}`)->S.parseAnyWith(struct), Ok(), ())
+  t->Assert.deepEqual(%raw(`{field:"bar"}`)->S.parseAnyWith(schema), Ok(), ())
 })
 
 test("Successfully parses empty object when UnknownKeys are strict", t => {
-  let struct = S.object(_ => ())->S.Object.strict
+  let schema = S.object(_ => ())->S.Object.strict
 
-  t->Assert.deepEqual(%raw(`{}`)->S.parseAnyWith(struct), Ok(), ())
+  t->Assert.deepEqual(%raw(`{}`)->S.parseAnyWith(schema), Ok(), ())
 })
 
 test("Fails to parse object with excess keys when UnknownKeys are strict", t => {
-  let struct = S.object(_ => ())->S.Object.strict
+  let schema = S.object(_ => ())->S.Object.strict
 
   t->Assert.deepEqual(
-    %raw(`{field:"bar"}`)->S.parseAnyWith(struct),
+    %raw(`{field:"bar"}`)->S.parseAnyWith(schema),
     Error(U.error({code: ExcessField("field"), operation: Parsing, path: S.Path.empty})),
     (),
   )
@@ -30,26 +30,26 @@ test("Fails to parse object with excess keys when UnknownKeys are strict", t => 
 
 test("Successfully parses object with excess keys and returns transformed value", t => {
   let transformedValue = {"bas": true}
-  let struct = S.object(_ => transformedValue)
+  let schema = S.object(_ => transformedValue)
 
-  t->Assert.deepEqual(%raw(`{field:"bar"}`)->S.parseAnyWith(struct), Ok(transformedValue), ())
+  t->Assert.deepEqual(%raw(`{field:"bar"}`)->S.parseAnyWith(schema), Ok(transformedValue), ())
 })
 
 test("Successfully serializes transformed value to empty object", t => {
   let transformedValue = {"bas": true}
-  let struct = S.object(_ => transformedValue)
+  let schema = S.object(_ => transformedValue)
 
-  t->Assert.deepEqual(transformedValue->S.serializeToUnknownWith(struct), Ok(%raw("{}")), ())
+  t->Assert.deepEqual(transformedValue->S.serializeToUnknownWith(schema), Ok(%raw("{}")), ())
 })
 
 test("Fails to parse array data", t => {
-  let struct = S.object(_ => ())
+  let schema = S.object(_ => ())
 
   t->Assert.deepEqual(
-    %raw(`[]`)->S.parseAnyWith(struct),
+    %raw(`[]`)->S.parseAnyWith(schema),
     Error(
       U.error({
-        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`[]`)}),
+        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`[]`)}),
         operation: Parsing,
         path: S.Path.empty,
       }),

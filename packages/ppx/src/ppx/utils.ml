@@ -28,5 +28,5 @@ let get_expr_from_payload { attr_name = { loc }; attr_payload = payload } =
       | _ -> fail loc "Expected expression as attribute payload")
   | _ -> fail loc "Expected expression as attribute payload"
 
-let get_generated_struct_name type_name =
-  match type_name with "t" -> "struct" | _ -> type_name ^ "Struct"
+let get_generated_schema_name type_name =
+  match type_name with "t" -> "schema" | _ -> type_name ^ "Schema"

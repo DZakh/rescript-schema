@@ -1,29 +1,29 @@
 open Ava
 open RescriptCore
 
-test("Returns false for struct with NoOperation", t => {
+test("Returns false for schema with NoOperation", t => {
   t->Assert.is(S.unknown->S.isAsyncParse, false, ())
 })
 
-test("Returns false for sync struct", t => {
+test("Returns false for sync schema", t => {
   t->Assert.is(S.string->S.isAsyncParse, false, ())
 })
 
-test("Returns true for async struct", t => {
-  let struct = S.string->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)})
+test("Returns true for async schema", t => {
+  let schema = S.string->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)})
 
-  t->Assert.is(struct->S.isAsyncParse, true, ())
+  t->Assert.is(schema->S.isAsyncParse, true, ())
 })
 
-test("Returns true for async struct after running a serializer", t => {
-  let struct =
+test("Returns true for async schema after running a serializer", t => {
+  let schema =
     S.string->S.transform(_ => {asyncParser: i => () => Promise.resolve(i), serializer: i => i})
-  t->Assert.deepEqual("abc"->S.serializeWith(struct), Ok(%raw(`"abc"`)), ())
-  t->Assert.is(struct->S.isAsyncParse, true, ())
+  t->Assert.deepEqual("abc"->S.serializeWith(schema), Ok(%raw(`"abc"`)), ())
+  t->Assert.is(schema->S.isAsyncParse, true, ())
 })
 
-test("Returns true for struct with nested async", t => {
-  let struct = S.tuple1(S.string->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}))
+test("Returns true for schema with nested async", t => {
+  let schema = S.tuple1(S.string->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}))
 
-  t->Assert.is(struct->S.isAsyncParse, true, ())
+  t->Assert.is(schema->S.isAsyncParse, true, ())
 })

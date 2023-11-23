@@ -6,7 +6,7 @@ open Utils
 type field = {
   name : string;
   maybe_alias : expression option;
-  struct_expr : expression;
+  schema_expr : expression;
 }
 
 let generate_decoder fields =
@@ -29,7 +29,7 @@ let generate_decoder fields =
                       ( lid field.name,
                         [%expr
                           s.field [%e original_field_name_expr]
-                            [%e field.struct_expr]] )))
+                            [%e field.schema_expr]] )))
                None]))]
 
 let parse_decl { pld_name = { txt }; pld_loc; pld_type; pld_attributes } =
@@ -45,14 +45,14 @@ let parse_decl { pld_name = { txt }; pld_loc; pld_type; pld_attributes } =
     |> List.map (fun attr -> get_attribute_by_name pld_attributes attr)
     |> List.exists (function Ok (Some _) -> true | _ -> false)
   in
-  let struct_expr = Codecs.generate_struct_expr pld_type in
-  let struct_expr =
-    if is_optional then [%expr Obj.magic S.option [%e struct_expr]]
-    else struct_expr
+  let schema_expr = Codecs.generate_schema_expr pld_type in
+  let schema_expr =
+    if is_optional then [%expr Obj.magic S.option [%e schema_expr]]
+    else schema_expr
   in
 
-  { name = txt; maybe_alias; struct_expr }
+  { name = txt; maybe_alias; schema_expr }
 
-let generate_struct_expr decls =
+let generate_schema_expr decls =
   let fields = List.map parse_decl decls in
   generate_decoder fields

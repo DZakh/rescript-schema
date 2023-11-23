@@ -1,16 +1,16 @@
 open Ava
 
 test("Successfully parses valid data", t => {
-  let struct = S.string->S.String.email
+  let schema = S.string->S.String.email
 
-  t->Assert.deepEqual("dzakh.dev@gmail.com"->S.parseAnyWith(struct), Ok("dzakh.dev@gmail.com"), ())
+  t->Assert.deepEqual("dzakh.dev@gmail.com"->S.parseAnyWith(schema), Ok("dzakh.dev@gmail.com"), ())
 })
 
 test("Fails to parse invalid data", t => {
-  let struct = S.string->S.String.email
+  let schema = S.string->S.String.email
 
   t->Assert.deepEqual(
-    "dzakh.dev"->S.parseAnyWith(struct),
+    "dzakh.dev"->S.parseAnyWith(schema),
     Error(
       U.error({
         code: OperationFailed("Invalid email address"),
@@ -23,20 +23,20 @@ test("Fails to parse invalid data", t => {
 })
 
 test("Successfully serializes valid value", t => {
-  let struct = S.string->S.String.email
+  let schema = S.string->S.String.email
 
   t->Assert.deepEqual(
-    "dzakh.dev@gmail.com"->S.serializeToUnknownWith(struct),
+    "dzakh.dev@gmail.com"->S.serializeToUnknownWith(schema),
     Ok(%raw(`"dzakh.dev@gmail.com"`)),
     (),
   )
 })
 
 test("Fails to serialize invalid value", t => {
-  let struct = S.string->S.String.email
+  let schema = S.string->S.String.email
 
   t->Assert.deepEqual(
-    "dzakh.dev"->S.serializeToUnknownWith(struct),
+    "dzakh.dev"->S.serializeToUnknownWith(schema),
     Error(
       U.error({
         code: OperationFailed("Invalid email address"),
@@ -49,20 +49,20 @@ test("Fails to serialize invalid value", t => {
 })
 
 test("Returns custom error message", t => {
-  let struct = S.string->S.String.email(~message="Custom")
+  let schema = S.string->S.String.email(~message="Custom")
 
   t->Assert.deepEqual(
-    "dzakh.dev"->S.parseAnyWith(struct),
+    "dzakh.dev"->S.parseAnyWith(schema),
     Error(U.error({code: OperationFailed("Custom"), operation: Parsing, path: S.Path.empty})),
     (),
   )
 })
 
 test("Returns refinement", t => {
-  let struct = S.string->S.String.email
+  let schema = S.string->S.String.email
 
   t->Assert.deepEqual(
-    struct->S.String.refinements,
+    schema->S.String.refinements,
     [{kind: Email, message: "Invalid email address"}],
     (),
   )

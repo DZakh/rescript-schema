@@ -1,19 +1,19 @@
 open Ava
 
 test("Parses with wrapping the value in variant", t => {
-  let struct = S.string->S.variant(s => Ok(s))
+  let schema = S.string->S.variant(s => Ok(s))
 
-  t->Assert.deepEqual("Hello world!"->S.parseAnyWith(struct), Ok(Ok("Hello world!")), ())
+  t->Assert.deepEqual("Hello world!"->S.parseAnyWith(schema), Ok(Ok("Hello world!")), ())
 })
 
-test("Fails to parse wrapped struct", t => {
-  let struct = S.string->S.variant(s => Ok(s))
+test("Fails to parse wrapped schema", t => {
+  let schema = S.string->S.variant(s => Ok(s))
 
   t->Assert.deepEqual(
-    123->S.parseAnyWith(struct),
+    123->S.parseAnyWith(schema),
     Error(
       U.error({
-        code: InvalidType({received: 123->Obj.magic, expected: struct->S.toUnknown}),
+        code: InvalidType({received: 123->Obj.magic, expected: schema->S.toUnknown}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -23,20 +23,20 @@ test("Fails to parse wrapped struct", t => {
 })
 
 test("Serializes with unwrapping the value from variant", t => {
-  let struct = S.string->S.variant(s => Ok(s))
+  let schema = S.string->S.variant(s => Ok(s))
 
   t->Assert.deepEqual(
-    Ok("Hello world!")->S.serializeToUnknownWith(struct),
+    Ok("Hello world!")->S.serializeToUnknownWith(schema),
     Ok(%raw(`"Hello world!"`)),
     (),
   )
 })
 
 test("Fails to serialize when can't unwrap the value from variant", t => {
-  let struct = S.string->S.variant(s => Ok(s))
+  let schema = S.string->S.variant(s => Ok(s))
 
   t->Assert.deepEqual(
-    Error("Hello world!")->S.serializeToUnknownWith(struct),
+    Error("Hello world!")->S.serializeToUnknownWith(schema),
     Error(
       U.error({
         code: InvalidLiteral({expected: String("Ok"), received: "Error"->Obj.magic}),
@@ -49,16 +49,16 @@ test("Fails to serialize when can't unwrap the value from variant", t => {
 })
 
 test("Successfully parses when the value is not used as the variant payload", t => {
-  let struct = S.string->S.variant(_ => #foo)
+  let schema = S.string->S.variant(_ => #foo)
 
-  t->Assert.deepEqual("Hello world!"->S.parseAnyWith(struct), Ok(#foo), ())
+  t->Assert.deepEqual("Hello world!"->S.parseAnyWith(schema), Ok(#foo), ())
 })
 
 test("Fails to serialize when the value is not used as the variant payload", t => {
-  let struct = S.string->S.variant(_ => #foo)
+  let schema = S.string->S.variant(_ => #foo)
 
   t->Assert.deepEqual(
-    #foo->S.serializeToUnknownWith(struct),
+    #foo->S.serializeToUnknownWith(schema),
     Error(
       U.error({
         code: InvalidOperation({
@@ -73,38 +73,38 @@ test("Fails to serialize when the value is not used as the variant payload", t =
 })
 
 test(
-  "Successfully serializes when the value is not used as the variant payload for literal structs",
+  "Successfully serializes when the value is not used as the variant payload for literal schemas",
   t => {
-    let struct = S.tuple2(S.literal(true), S.literal(12))->S.variant(_ => #foo)
+    let schema = S.tuple2(S.literal(true), S.literal(12))->S.variant(_ => #foo)
 
-    t->Assert.deepEqual(#foo->S.serializeToUnknownWith(struct), Ok(%raw(`[true, 12]`)), ())
+    t->Assert.deepEqual(#foo->S.serializeToUnknownWith(schema), Ok(%raw(`[true, 12]`)), ())
   },
 )
 
 test("Successfully parses when tuple is destructured", t => {
-  let struct = S.tuple2(S.literal(true), S.literal(12))->S.variant(((_, twelve)) => twelve)
+  let schema = S.tuple2(S.literal(true), S.literal(12))->S.variant(((_, twelve)) => twelve)
 
-  t->Assert.deepEqual(%raw(`[true, 12]`)->S.parseAnyWith(struct), Ok(12), ())
+  t->Assert.deepEqual(%raw(`[true, 12]`)->S.parseAnyWith(schema), Ok(12), ())
 })
 
 // TODO: Throw in proxy (???)
 // test("Fails to serialize when tuple is destructured", t => {
-//   let struct = S.tuple2(S.literal(true), S.literal(12))->S.variant(((_, twelve)) => twelve)
+//   let schema = S.tuple2(S.literal(true), S.literal(12))->S.variant(((_, twelve)) => twelve)
 
-//   t->Assert.deepEqual(12->S.serializeToUnknownWith(struct), Ok(%raw(`[true, 12]`)), ())
+//   t->Assert.deepEqual(12->S.serializeToUnknownWith(schema), Ok(%raw(`[true, 12]`)), ())
 // })
 
 test("Successfully parses when value registered multiple times", t => {
-  let struct = S.string->S.variant(s => #Foo(s, s))
+  let schema = S.string->S.variant(s => #Foo(s, s))
 
-  t->Assert.deepEqual(%raw(`"abc"`)->S.parseAnyWith(struct), Ok(#Foo("abc", "abc")), ())
+  t->Assert.deepEqual(%raw(`"abc"`)->S.parseAnyWith(schema), Ok(#Foo("abc", "abc")), ())
 })
 
 test("Fails to serialize when value registered multiple times", t => {
-  let struct = S.string->S.variant(s => #Foo(s, s))
+  let schema = S.string->S.variant(s => #Foo(s, s))
 
   t->Assert.deepEqual(
-    #Foo("abc", "abc")->S.serializeToUnknownWith(struct),
+    #Foo("abc", "abc")->S.serializeToUnknownWith(schema),
     Error(
       U.error({
         code: InvalidOperation({
@@ -119,32 +119,32 @@ test("Fails to serialize when value registered multiple times", t => {
 })
 
 test("Compiled parse code snapshot", t => {
-  let struct = S.string->S.variant(s => Ok(s))
+  let schema = S.string->S.variant(s => Ok(s))
 
   t->U.assertCompiledCode(
-    ~struct,
+    ~schema,
     ~op=#parse,
     `i=>{if(typeof i!=="string"){e[1](i)}return e[0](i)}`,
   )
 })
 
 test("Compiled serialize code snapshot", t => {
-  let struct = S.string->S.variant(s => Ok(s))
+  let schema = S.string->S.variant(s => Ok(s))
 
   t->U.assertCompiledCode(
-    ~struct,
+    ~schema,
     ~op=#serialize,
     `i=>{let v0;v0=i["TAG"];if(v0!==e[0]){e[1](v0)}return i["_0"]}`,
   )
 })
 
-test("Works with variant struct used multiple times as a child struct", t => {
-  let appVersionSpecStruct = S.string->S.variant(current => {"current": current, "minimum": "1.0"})
+test("Works with variant schema used multiple times as a child schema", t => {
+  let appVersionSpecSchema = S.string->S.variant(current => {"current": current, "minimum": "1.0"})
 
-  let appVersionsStruct = S.object(s =>
+  let appVersionsSchema = S.object(s =>
     {
-      "ios": s.field("ios", appVersionSpecStruct),
-      "android": s.field("android", appVersionSpecStruct),
+      "ios": s.field("ios", appVersionSpecSchema),
+      "android": s.field("android", appVersionSpecSchema),
     }
   )
 
@@ -157,12 +157,12 @@ test("Works with variant struct used multiple times as a child struct", t => {
     "android": {"current": "1.2", "minimum": "1.0"},
   }
 
-  let value = rawAppVersions->S.parseAnyOrRaiseWith(appVersionsStruct)
+  let value = rawAppVersions->S.parseAnyOrRaiseWith(appVersionsSchema)
   t->Assert.deepEqual(value, appVersions, ())
 
-  let data = appVersions->S.serializeOrRaiseWith(appVersionsStruct)
+  let data = appVersions->S.serializeOrRaiseWith(appVersionsSchema)
   t->Assert.deepEqual(data, rawAppVersions->Obj.magic, ())
 
-  let data = appVersions->S.serializeOrRaiseWith(appVersionsStruct)
+  let data = appVersions->S.serializeOrRaiseWith(appVersionsSchema)
   t->Assert.deepEqual(data, rawAppVersions->Obj.magic, ())
 })

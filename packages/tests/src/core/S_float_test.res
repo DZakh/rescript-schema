@@ -7,19 +7,19 @@ module Common = {
   let factory = () => S.float
 
   test("Successfully parses", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
   })
 
   test("Fails to parse", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      invalidAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(schema),
       Error(
         U.error({
-          code: InvalidType({expected: struct->S.toUnknown, received: invalidAny}),
+          code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
           operation: Parsing,
           path: S.Path.empty,
         }),
@@ -29,42 +29,42 @@ module Common = {
   })
 
   test("Successfully serializes", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(any), ())
   })
 
   test("Compiled parse code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->U.assertCompiledCode(
-      ~struct,
+      ~schema,
       ~op=#parse,
       `i=>{if(typeof i!=="number"||Number.isNaN(i)){e[0](i)}return i}`,
     )
   })
 
   test("Compiled serialize code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->U.assertCompiledCodeIsNoop(~struct, ~op=#serialize)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
   })
 }
 
 test("Successfully parses number with a fractional part", t => {
-  let struct = S.float
+  let schema = S.float
 
-  t->Assert.deepEqual(%raw(`123.123`)->S.parseAnyWith(struct), Ok(123.123), ())
+  t->Assert.deepEqual(%raw(`123.123`)->S.parseAnyWith(schema), Ok(123.123), ())
 })
 
 test("Fails to parse NaN", t => {
-  let struct = S.float
+  let schema = S.float
 
   t->Assert.deepEqual(
-    %raw(`NaN`)->S.parseAnyWith(struct),
+    %raw(`NaN`)->S.parseAnyWith(schema),
     Error(
       U.error({
-        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`NaN`)}),
+        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`NaN`)}),
         operation: Parsing,
         path: S.Path.empty,
       }),

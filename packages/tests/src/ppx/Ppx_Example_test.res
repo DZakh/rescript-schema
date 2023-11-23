@@ -1,29 +1,29 @@
 open Ava
 open U
 
-@struct
+@schema
 type rating =
   | @as("G") GeneralAudiences
   | @as("PG") ParentalGuidanceSuggested
   | @as("PG13") ParentalStronglyCautioned
   | @as("R") Restricted
-@struct
+@schema
 type film = {
   @as("Id")
   id: float,
   @as("Title")
   title: string,
   @as("Tags")
-  tags: @struct(S.array(S.string)->S.option->S.Option.getOr([])) array<string>,
+  tags: @schema(S.array(S.string)->S.option->S.Option.getOr([])) array<string>,
   @as("Rating")
   rating: rating,
   @as("Age")
-  deprecatedAgeRestriction: @struct(S.int->S.option->S.deprecate("Use rating instead")) option<int>,
+  deprecatedAgeRestriction: @schema(S.int->S.option->S.deprecate("Use rating instead")) option<int>,
 }
 
 test("Example", t => {
-  t->assertEqualStructs(
-    filmStruct,
+  t->assertEqualSchemas(
+    filmSchema,
     S.object(s => {
       id: s.field("Id", S.float),
       title: s.field("Title", S.string),

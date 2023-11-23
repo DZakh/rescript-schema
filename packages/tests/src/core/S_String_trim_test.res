@@ -1,16 +1,16 @@
 open Ava
 
 test("Successfully parses", t => {
-  let struct = S.string->S.String.trim
+  let schema = S.string->S.String.trim
 
-  t->Assert.deepEqual("   Hello world!"->S.parseAnyWith(struct), Ok("Hello world!"), ())
+  t->Assert.deepEqual("   Hello world!"->S.parseAnyWith(schema), Ok("Hello world!"), ())
 })
 
 test("Successfully serializes", t => {
-  let struct = S.string->S.String.trim
+  let schema = S.string->S.String.trim
 
   t->Assert.deepEqual(
-    "   Hello world!"->S.serializeToUnknownWith(struct),
+    "   Hello world!"->S.serializeToUnknownWith(schema),
     Ok(%raw(`"Hello world!"`)),
     (),
   )

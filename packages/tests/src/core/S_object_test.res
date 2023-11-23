@@ -5,24 +5,24 @@ open RescriptCore
 type options = {fast?: bool, mode?: int}
 
 test("Successfully parses object with inlinable string field", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field("field", S.string),
     }
   )
 
-  t->Assert.deepEqual(%raw(`{field: "bar"}`)->S.parseAnyWith(struct), Ok({"field": "bar"}), ())
+  t->Assert.deepEqual(%raw(`{field: "bar"}`)->S.parseAnyWith(schema), Ok({"field": "bar"}), ())
 })
 
 test("Fails to parse object with inlinable string field", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field("field", S.string),
     }
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: 123}`)->S.parseAnyWith(struct),
+    %raw(`{field: 123}`)->S.parseAnyWith(schema),
     Error(
       U.error({
         code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
@@ -37,14 +37,14 @@ test("Fails to parse object with inlinable string field", t => {
 test(
   "Fails to parse object with custom user error in array field (should have correct path)",
   t => {
-    let struct = S.object(s =>
+    let schema = S.object(s =>
       {
         "field": s.field("field", S.array(S.string->S.refine(s => _ => s.fail("User error")))),
       }
     )
 
     t->Assert.deepEqual(
-      %raw(`{field: ["foo"]}`)->S.parseAnyWith(struct),
+      %raw(`{field: ["foo"]}`)->S.parseAnyWith(schema),
       Error(
         U.error({
           code: OperationFailed("User error"),
@@ -58,24 +58,24 @@ test(
 )
 
 test("Successfully parses object with inlinable bool field", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field("field", S.bool),
     }
   )
 
-  t->Assert.deepEqual(%raw(`{field: true}`)->S.parseAnyWith(struct), Ok({"field": true}), ())
+  t->Assert.deepEqual(%raw(`{field: true}`)->S.parseAnyWith(schema), Ok({"field": true}), ())
 })
 
 test("Fails to parse object with inlinable bool field", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field("field", S.bool),
     }
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: 123}`)->S.parseAnyWith(struct),
+    %raw(`{field: 123}`)->S.parseAnyWith(schema),
     Error(
       U.error({
         code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`123`)}),
@@ -88,42 +88,42 @@ test("Fails to parse object with inlinable bool field", t => {
 })
 
 test("Successfully parses object with unknown field (Noop operation)", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field("field", S.unknown),
     }
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: new Date("2015-12-12")}`)->S.parseAnyWith(struct),
+    %raw(`{field: new Date("2015-12-12")}`)->S.parseAnyWith(schema),
     Ok(%raw(`{field: new Date("2015-12-12")}`)),
     (),
   )
 })
 
 test("Successfully serializes object with unknown field (Noop operation)", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field("field", S.unknown),
     }
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: new Date("2015-12-12")}`)->S.serializeToUnknownWith(struct),
+    %raw(`{field: new Date("2015-12-12")}`)->S.serializeToUnknownWith(schema),
     Ok(%raw(`{field: new Date("2015-12-12")}`)),
     (),
   )
 })
 
 test("Fails to parse object with inlinable never field", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field("field", S.never),
     }
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: true}`)->S.parseAnyWith(struct),
+    %raw(`{field: true}`)->S.parseAnyWith(schema),
     Error(
       U.error({
         code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`true`)}),
@@ -136,24 +136,24 @@ test("Fails to parse object with inlinable never field", t => {
 })
 
 test("Successfully parses object with inlinable float field", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field("field", S.float),
     }
   )
 
-  t->Assert.deepEqual(%raw(`{field: 123}`)->S.parseAnyWith(struct), Ok({"field": 123.}), ())
+  t->Assert.deepEqual(%raw(`{field: 123}`)->S.parseAnyWith(schema), Ok({"field": 123.}), ())
 })
 
 test("Fails to parse object with inlinable float field", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field("field", S.float),
     }
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: true}`)->S.parseAnyWith(struct),
+    %raw(`{field: true}`)->S.parseAnyWith(schema),
     Error(
       U.error({
         code: InvalidType({expected: S.float->S.toUnknown, received: %raw(`true`)}),
@@ -166,24 +166,24 @@ test("Fails to parse object with inlinable float field", t => {
 })
 
 test("Successfully parses object with inlinable int field", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field("field", S.int),
     }
   )
 
-  t->Assert.deepEqual(%raw(`{field: 123}`)->S.parseAnyWith(struct), Ok({"field": 123}), ())
+  t->Assert.deepEqual(%raw(`{field: 123}`)->S.parseAnyWith(schema), Ok({"field": 123}), ())
 })
 
 test("Fails to parse object with inlinable int field", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field("field", S.int),
     }
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: true}`)->S.parseAnyWith(struct),
+    %raw(`{field: true}`)->S.parseAnyWith(schema),
     Error(
       U.error({
         code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
@@ -196,28 +196,28 @@ test("Fails to parse object with inlinable int field", t => {
 })
 
 test("Successfully parses object with not inlinable empty object field", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field("field", S.object(_ => ())),
     }
   )
 
-  t->Assert.deepEqual(%raw(`{field: {}}`)->S.parseAnyWith(struct), Ok({"field": ()}), ())
+  t->Assert.deepEqual(%raw(`{field: {}}`)->S.parseAnyWith(schema), Ok({"field": ()}), ())
 })
 
 test("Fails to parse object with not inlinable empty object field", t => {
-  let fieldStruct = S.object(_ => ())
-  let struct = S.object(s =>
+  let fieldSchema = S.object(_ => ())
+  let schema = S.object(s =>
     {
-      "field": s.field("field", fieldStruct),
+      "field": s.field("field", fieldSchema),
     }
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: true}`)->S.parseAnyWith(struct),
+    %raw(`{field: true}`)->S.parseAnyWith(schema),
     Error(
       U.error({
-        code: InvalidType({expected: fieldStruct->S.toUnknown, received: %raw(`true`)}),
+        code: InvalidType({expected: fieldSchema->S.toUnknown, received: %raw(`true`)}),
         operation: Parsing,
         path: S.Path.fromArray(["field"]),
       }),
@@ -227,17 +227,17 @@ test("Fails to parse object with not inlinable empty object field", t => {
 })
 
 test("Fails to parse object when provided invalid data", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field("field", S.string),
     }
   )
 
   t->Assert.deepEqual(
-    %raw(`12`)->S.parseAnyWith(struct),
+    %raw(`12`)->S.parseAnyWith(schema),
     Error(
       U.error({
-        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`12`)}),
+        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`12`)}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -247,21 +247,21 @@ test("Fails to parse object when provided invalid data", t => {
 })
 
 test("Successfully serializes object with single field", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field("field", S.string),
     }
   )
 
   t->Assert.deepEqual(
-    {"field": "bar"}->S.serializeToUnknownWith(struct),
+    {"field": "bar"}->S.serializeToUnknownWith(schema),
     Ok(%raw(`{field: "bar"}`)),
     (),
   )
 })
 
 test("Successfully parses object with multiple fields", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "boo": s.field("boo", S.string),
       "zoo": s.field("zoo", S.string),
@@ -269,14 +269,14 @@ test("Successfully parses object with multiple fields", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{boo: "bar", zoo: "jee"}`)->S.parseAnyWith(struct),
+    %raw(`{boo: "bar", zoo: "jee"}`)->S.parseAnyWith(schema),
     Ok({"boo": "bar", "zoo": "jee"}),
     (),
   )
 })
 
 test("Successfully serializes object with multiple fields", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "boo": s.field("boo", S.string),
       "zoo": s.field("zoo", S.string),
@@ -284,14 +284,14 @@ test("Successfully serializes object with multiple fields", t => {
   )
 
   t->Assert.deepEqual(
-    {"boo": "bar", "zoo": "jee"}->S.serializeToUnknownWith(struct),
+    {"boo": "bar", "zoo": "jee"}->S.serializeToUnknownWith(schema),
     Ok(%raw(`{boo: "bar", zoo: "jee"}`)),
     (),
   )
 })
 
 test("Successfully parses object with transformed field", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "string": s.field(
         "string",
@@ -301,21 +301,21 @@ test("Successfully parses object with transformed field", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{string: "bar"}`)->S.parseAnyWith(struct),
+    %raw(`{string: "bar"}`)->S.parseAnyWith(schema),
     Ok({"string": "barfield"}),
     (),
   )
 })
 
 test("Fails to parse object when transformed field has raises error", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field("field", S.string->S.transform(s => {parser: _ => s.fail("User error")})),
     }
   )
 
   t->Assert.deepEqual(
-    {"field": "bar"}->S.parseAnyWith(struct),
+    {"field": "bar"}->S.parseAnyWith(schema),
     Error(
       U.error({
         code: OperationFailed("User error"),
@@ -328,7 +328,7 @@ test("Fails to parse object when transformed field has raises error", t => {
 })
 
 test("Shows transformed object field name in error path when fails to parse", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "transformedFieldName": s.field(
         "originalFieldName",
@@ -338,7 +338,7 @@ test("Shows transformed object field name in error path when fails to parse", t 
   )
 
   t->Assert.deepEqual(
-    {"originalFieldName": "bar"}->S.parseAnyWith(struct),
+    {"originalFieldName": "bar"}->S.parseAnyWith(schema),
     Error(
       U.error({
         code: OperationFailed("User error"),
@@ -351,7 +351,7 @@ test("Shows transformed object field name in error path when fails to parse", t 
 })
 
 test("Successfully serializes object with transformed field", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "string": s.field(
         "string",
@@ -361,14 +361,14 @@ test("Successfully serializes object with transformed field", t => {
   )
 
   t->Assert.deepEqual(
-    {"string": "bar"}->S.serializeToUnknownWith(struct),
+    {"string": "bar"}->S.serializeToUnknownWith(schema),
     Ok(%raw(`{"string": "barfield"}`)),
     (),
   )
 })
 
 test("Fails to serializes object when transformed field has raises error", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "field": s.field(
         "field",
@@ -378,7 +378,7 @@ test("Fails to serializes object when transformed field has raises error", t => 
   )
 
   t->Assert.deepEqual(
-    {"field": "bar"}->S.serializeToUnknownWith(struct),
+    {"field": "bar"}->S.serializeToUnknownWith(schema),
     Error(
       U.error({
         code: OperationFailed("User error"),
@@ -391,7 +391,7 @@ test("Fails to serializes object when transformed field has raises error", t => 
 })
 
 test("Shows transformed object field name in error path when fails to serializes", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "transformedFieldName": s.field(
         "originalFieldName",
@@ -401,7 +401,7 @@ test("Shows transformed object field name in error path when fails to serializes
   )
 
   t->Assert.deepEqual(
-    {"transformedFieldName": "bar"}->S.serializeToUnknownWith(struct),
+    {"transformedFieldName": "bar"}->S.serializeToUnknownWith(schema),
     Error(
       U.error({
         code: OperationFailed("User error"),
@@ -414,7 +414,7 @@ test("Shows transformed object field name in error path when fails to serializes
 })
 
 test("Shows transformed to nested object field name in error path when fails to serializes", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "v1": {
         "transformedFieldName": s.field(
@@ -430,7 +430,7 @@ test("Shows transformed to nested object field name in error path when fails to 
       "v1": {
         "transformedFieldName": "bar",
       },
-    }->S.serializeToUnknownWith(struct),
+    }->S.serializeToUnknownWith(schema),
     Error(
       U.error({
         code: OperationFailed("User error"),
@@ -443,7 +443,7 @@ test("Shows transformed to nested object field name in error path when fails to 
 })
 
 test("Successfully parses object with optional fields", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "boo": s.field("boo", S.option(S.string)),
       "zoo": s.field("zoo", S.option(S.string)),
@@ -451,14 +451,14 @@ test("Successfully parses object with optional fields", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{boo: "bar"}`)->S.parseAnyWith(struct),
+    %raw(`{boo: "bar"}`)->S.parseAnyWith(schema),
     Ok({"boo": Some("bar"), "zoo": None}),
     (),
   )
 })
 
 test("Successfully serializes object with optional fields", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "boo": s.field("boo", S.option(S.string)),
       "zoo": s.field("zoo", S.option(S.string)),
@@ -466,14 +466,14 @@ test("Successfully serializes object with optional fields", t => {
   )
 
   t->Assert.deepEqual(
-    {"boo": Some("bar"), "zoo": None}->S.serializeToUnknownWith(struct),
+    {"boo": Some("bar"), "zoo": None}->S.serializeToUnknownWith(schema),
     Ok(%raw(`{boo: "bar", zoo: undefined}`)),
     (),
   )
 })
 
 test("Successfully parses object with optional fields with default", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "boo": s.fieldOr("boo", S.string, "default boo"),
       "zoo": s.fieldOr("zoo", S.string, "default zoo"),
@@ -481,14 +481,14 @@ test("Successfully parses object with optional fields with default", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{boo: "bar"}`)->S.parseAnyWith(struct),
+    %raw(`{boo: "bar"}`)->S.parseAnyWith(schema),
     Ok({"boo": "bar", "zoo": "default zoo"}),
     (),
   )
 })
 
 test("Successfully serializes object with optional fields with default", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "boo": s.fieldOr("boo", S.string, "default boo"),
       "zoo": s.fieldOr("zoo", S.string, "default zoo"),
@@ -496,7 +496,7 @@ test("Successfully serializes object with optional fields with default", t => {
   )
 
   t->Assert.deepEqual(
-    {"boo": "bar", "zoo": "baz"}->S.serializeToUnknownWith(struct),
+    {"boo": "bar", "zoo": "baz"}->S.serializeToUnknownWith(schema),
     Ok(%raw(`{boo: "bar", zoo: "baz"}`)),
     (),
   )
@@ -505,7 +505,7 @@ test("Successfully serializes object with optional fields with default", t => {
 test(
   "Successfully parses object with optional fields using (?). The optinal field becomes undefined instead of beeing missing",
   t => {
-    let optionsStruct = S.object(s => {
+    let optionsSchema = S.object(s => {
       {
         fast: ?s.field("fast", S.option(S.bool)),
         mode: s.field("mode", S.int),
@@ -513,7 +513,7 @@ test(
     })
 
     t->Assert.deepEqual(
-      %raw(`{mode: 1}`)->S.parseAnyWith(optionsStruct),
+      %raw(`{mode: 1}`)->S.parseAnyWith(optionsSchema),
       Ok({
         fast: %raw(`undefined`),
         mode: 1,
@@ -524,7 +524,7 @@ test(
 )
 
 test("Successfully serializes object with optional fields using (?)", t => {
-  let optionsStruct = S.object(s => {
+  let optionsSchema = S.object(s => {
     {
       fast: ?s.field("fast", S.option(S.bool)),
       mode: s.field("mode", S.int),
@@ -532,14 +532,14 @@ test("Successfully serializes object with optional fields using (?)", t => {
   })
 
   t->Assert.deepEqual(
-    {mode: 1}->S.serializeToUnknownWith(optionsStruct),
+    {mode: 1}->S.serializeToUnknownWith(optionsSchema),
     Ok(%raw(`{mode: 1, fast: undefined}`)),
     (),
   )
 })
 
 test("Successfully parses object with mapped field names", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "name": s.field("Name", S.string),
       "email": s.field("Email", S.string),
@@ -548,14 +548,14 @@ test("Successfully parses object with mapped field names", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)->S.parseAnyWith(struct),
+    %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)->S.parseAnyWith(schema),
     Ok({"name": "Dmitry", "email": "dzakh.dev@gmail.com", "age": 21}),
     (),
   )
 })
 
 test("Successfully serializes object with mapped field", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "name": s.field("Name", S.string),
       "email": s.field("Email", S.string),
@@ -564,26 +564,26 @@ test("Successfully serializes object with mapped field", t => {
   )
 
   t->Assert.deepEqual(
-    {"name": "Dmitry", "email": "dzakh.dev@gmail.com", "age": 21}->S.serializeToUnknownWith(struct),
+    {"name": "Dmitry", "email": "dzakh.dev@gmail.com", "age": 21}->S.serializeToUnknownWith(schema),
     Ok(%raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)),
     (),
   )
 })
 
 test("Successfully parses object transformed to tuple", t => {
-  let struct = S.object(s => (s.field("boo", S.int), s.field("zoo", S.int)))
+  let schema = S.object(s => (s.field("boo", S.int), s.field("zoo", S.int)))
 
-  t->Assert.deepEqual(%raw(`{boo: 1, zoo: 2}`)->S.parseAnyWith(struct), Ok(1, 2), ())
+  t->Assert.deepEqual(%raw(`{boo: 1, zoo: 2}`)->S.parseAnyWith(schema), Ok(1, 2), ())
 })
 
 test("Successfully serializes object transformed to tuple", t => {
-  let struct = S.object(s => (s.field("boo", S.int), s.field("zoo", S.int)))
+  let schema = S.object(s => (s.field("boo", S.int), s.field("zoo", S.int)))
 
-  t->Assert.deepEqual((1, 2)->S.serializeToUnknownWith(struct), Ok(%raw(`{boo: 1, zoo: 2}`)), ())
+  t->Assert.deepEqual((1, 2)->S.serializeToUnknownWith(schema), Ok(%raw(`{boo: 1, zoo: 2}`)), ())
 })
 
 test("Successfully parses object transformed to nested object", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "v1": {
         "boo": s.field("boo", S.int),
@@ -593,14 +593,14 @@ test("Successfully parses object transformed to nested object", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{boo: 1, zoo: 2}`)->S.parseAnyWith(struct),
+    %raw(`{boo: 1, zoo: 2}`)->S.parseAnyWith(schema),
     Ok({"v1": {"boo": 1, "zoo": 2}}),
     (),
   )
 })
 
 test("Successfully serializes object transformed to nested object", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "v1": {
         "boo": s.field("boo", S.int),
@@ -610,50 +610,50 @@ test("Successfully serializes object transformed to nested object", t => {
   )
 
   t->Assert.deepEqual(
-    {"v1": {"boo": 1, "zoo": 2}}->S.serializeToUnknownWith(struct),
+    {"v1": {"boo": 1, "zoo": 2}}->S.serializeToUnknownWith(schema),
     Ok(%raw(`{boo: 1, zoo: 2}`)),
     (),
   )
 })
 
 test("Successfully parses object transformed to nested tuple", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "v1": (s.field("boo", S.int), s.field("zoo", S.int)),
     }
   )
 
-  t->Assert.deepEqual(%raw(`{boo: 1, zoo: 2}`)->S.parseAnyWith(struct), Ok({"v1": (1, 2)}), ())
+  t->Assert.deepEqual(%raw(`{boo: 1, zoo: 2}`)->S.parseAnyWith(schema), Ok({"v1": (1, 2)}), ())
 })
 
 test("Successfully serializes object transformed to nested tuple", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "v1": (s.field("boo", S.int), s.field("zoo", S.int)),
     }
   )
 
   t->Assert.deepEqual(
-    {"v1": (1, 2)}->S.serializeToUnknownWith(struct),
+    {"v1": (1, 2)}->S.serializeToUnknownWith(schema),
     Ok(%raw(`{boo: 1, zoo: 2}`)),
     (),
   )
 })
 
 test("Successfully parses object with only one field returned from transformer", t => {
-  let struct = S.object(s => s.field("field", S.bool))
+  let schema = S.object(s => s.field("field", S.bool))
 
-  t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseAnyWith(struct), Ok(true), ())
+  t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseAnyWith(schema), Ok(true), ())
 })
 
 test("Successfully serializes object with only one field returned from transformer", t => {
-  let struct = S.object(s => s.field("field", S.bool))
+  let schema = S.object(s => s.field("field", S.bool))
 
-  t->Assert.deepEqual(true->S.serializeToUnknownWith(struct), Ok(%raw(`{"field": true}`)), ())
+  t->Assert.deepEqual(true->S.serializeToUnknownWith(schema), Ok(%raw(`{"field": true}`)), ())
 })
 
 test("Successfully parses object transformed to the one with hardcoded fields", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "hardcoded": false,
       "field": s.field("field", S.bool),
@@ -661,7 +661,7 @@ test("Successfully parses object transformed to the one with hardcoded fields", 
   )
 
   t->Assert.deepEqual(
-    %raw(`{"field": true}`)->S.parseAnyWith(struct),
+    %raw(`{"field": true}`)->S.parseAnyWith(schema),
     Ok({
       "hardcoded": false,
       "field": true,
@@ -671,7 +671,7 @@ test("Successfully parses object transformed to the one with hardcoded fields", 
 })
 
 test("Successfully serializes object transformed to the one with hardcoded fields", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "hardcoded": false,
       "field": s.field("field", S.bool),
@@ -682,30 +682,30 @@ test("Successfully serializes object transformed to the one with hardcoded field
     {
       "hardcoded": false,
       "field": true,
-    }->S.serializeToUnknownWith(struct),
+    }->S.serializeToUnknownWith(schema),
     Ok(%raw(`{"field": true}`)),
     (),
   )
 })
 
 test("Successfully parses object transformed to variant", t => {
-  let struct = S.object(s => #VARIANT(s.field("field", S.bool)))
+  let schema = S.object(s => #VARIANT(s.field("field", S.bool)))
 
-  t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseAnyWith(struct), Ok(#VARIANT(true)), ())
+  t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseAnyWith(schema), Ok(#VARIANT(true)), ())
 })
 
 test("Successfully serializes object transformed to variant", t => {
-  let struct = S.object(s => #VARIANT(s.field("field", S.bool)))
+  let schema = S.object(s => #VARIANT(s.field("field", S.bool)))
 
   t->Assert.deepEqual(
-    #VARIANT(true)->S.serializeToUnknownWith(struct),
+    #VARIANT(true)->S.serializeToUnknownWith(schema),
     Ok(%raw(`{"field": true}`)),
     (),
   )
 })
 
 test("Successfully parses object from benchmark", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "number": s.field("number", S.float),
       "negNumber": s.field("negNumber", S.float),
@@ -741,7 +741,7 @@ test("Successfully parses object from benchmark", t => {
         num: 1,
         bool: false,
       },
-    })`)->S.parseAnyWith(struct),
+    })`)->S.parseAnyWith(schema),
     Ok({
       "number": 1.,
       "negNumber": -1.,
@@ -760,7 +760,7 @@ test("Successfully parses object from benchmark", t => {
 })
 
 test("Successfully parses strict object from benchmark", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "number": s.field("number", S.float),
       "negNumber": s.field("negNumber", S.float),
@@ -796,7 +796,7 @@ test("Successfully parses strict object from benchmark", t => {
         num: 1,
         bool: false,
       },
-    })`)->S.parseAnyWith(struct),
+    })`)->S.parseAnyWith(schema),
     Ok({
       "number": 1.,
       "negNumber": -1.,
@@ -815,7 +815,7 @@ test("Successfully parses strict object from benchmark", t => {
 })
 
 test("Successfully serializes object from benchmark", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "number": s.field("number", S.float),
       "negNumber": s.field("negNumber", S.float),
@@ -850,7 +850,7 @@ test("Successfully serializes object from benchmark", t => {
         "num": 1.,
         "bool": false,
       },
-    }->S.serializeToUnknownWith(struct),
+    }->S.serializeToUnknownWith(schema),
     Ok(
       %raw(`{
         number: 1,
@@ -874,7 +874,7 @@ test("Successfully serializes object from benchmark", t => {
 test("Successfully parses object and serializes it back to the initial data", t => {
   let any = %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)
 
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "name": s.field("Name", S.string),
       "email": s.field("Email", S.string),
@@ -883,14 +883,14 @@ test("Successfully parses object and serializes it back to the initial data", t 
   )
 
   t->Assert.deepEqual(
-    any->S.parseAnyWith(struct)->Result.map(object => object->S.serializeToUnknownWith(struct)),
+    any->S.parseAnyWith(schema)->Result.map(object => object->S.serializeToUnknownWith(schema)),
     Ok(Ok(any)),
     (),
   )
 })
 
-test("Allows to create object struct with unused fields", t => {
-  let struct = S.object(s => {
+test("Allows to create object schema with unused fields", t => {
+  let schema = S.object(s => {
     ignore(s.field("unused", S.string))
     {
       "field": s.field("field", S.string),
@@ -898,13 +898,13 @@ test("Allows to create object struct with unused fields", t => {
   })
 
   t->Assert.deepEqual(
-    %raw(`{"field": "foo", "unused": "bar"}`)->S.parseAnyWith(struct),
+    %raw(`{"field": "foo", "unused": "bar"}`)->S.parseAnyWith(schema),
     Ok({"field": "foo"}),
     (),
   )
 })
 
-test("Fails to create object struct with single field defined multiple times", t => {
+test("Fails to create object schema with single field defined multiple times", t => {
   t->Assert.throws(
     () => {
       S.object(
@@ -916,14 +916,14 @@ test("Fails to create object struct with single field defined multiple times", t
       )
     },
     ~expectations={
-      message: `[rescript-struct] The field "field" is defined multiple times. If you want to duplicate the field, use S.transform instead.`,
+      message: `[rescript-schema] The field "field" is defined multiple times. If you want to duplicate the field, use S.transform instead.`,
     },
     (),
   )
 })
 
-test("Successfully parses object struct with single field registered multiple times", t => {
-  let struct = S.object(s => {
+test("Successfully parses object schema with single field registered multiple times", t => {
+  let schema = S.object(s => {
     let field = s.field("field", S.string)
     {
       "field1": field,
@@ -931,14 +931,14 @@ test("Successfully parses object struct with single field registered multiple ti
     }
   })
   t->Assert.deepEqual(
-    %raw(`{"field": "foo"}`)->S.parseAnyWith(struct),
+    %raw(`{"field": "foo"}`)->S.parseAnyWith(schema),
     Ok({"field1": "foo", "field2": "foo"}),
     (),
   )
 })
 
-test("Fails to serialize object struct with single field registered multiple times", t => {
-  let struct = S.object(s => {
+test("Fails to serialize object schema with single field registered multiple times", t => {
+  let schema = S.object(s => {
     let field = s.field("field", S.string)
     {
       "field1": field,
@@ -946,7 +946,7 @@ test("Fails to serialize object struct with single field registered multiple tim
     }
   })
   t->Assert.deepEqual(
-    {"field1": "foo", "field2": "foo"}->S.serializeToUnknownWith(struct),
+    {"field1": "foo", "field2": "foo"}->S.serializeToUnknownWith(schema),
     Error(
       U.error({
         code: InvalidOperation({
@@ -960,8 +960,8 @@ test("Fails to serialize object struct with single field registered multiple tim
   )
 })
 
-test("Object struct parsing checks order", t => {
-  let struct = S.object(s => {
+test("Object schema parsing checks order", t => {
+  let schema = S.object(s => {
     s.tag("tag", "value")
     {
       "key": s.field("key", S.literal("value")),
@@ -970,10 +970,10 @@ test("Object struct parsing checks order", t => {
 
   // Type check should be the first
   t->Assert.deepEqual(
-    %raw(`"foo"`)->S.parseAnyWith(struct),
+    %raw(`"foo"`)->S.parseAnyWith(schema),
     Error(
       U.error({
-        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`"foo"`)}),
+        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`"foo"`)}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -983,7 +983,7 @@ test("Object struct parsing checks order", t => {
   // Tag check should be the second
   t->Assert.deepEqual(
     %raw(`{tag: "wrong", key: "wrong", unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
-      struct,
+      schema,
     ),
     Error(
       U.error({
@@ -997,7 +997,7 @@ test("Object struct parsing checks order", t => {
   // Field check should be the third
   t->Assert.deepEqual(
     %raw(`{tag: "value", key: "wrong", unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
-      struct,
+      schema,
     ),
     Error(
       U.error({
@@ -1011,14 +1011,14 @@ test("Object struct parsing checks order", t => {
   // Unknown keys check should be the last
   t->Assert.deepEqual(
     %raw(`{tag: "value", key: "value", unknownKey: "value2", unknownKey2: "value2"}`)->S.parseAnyWith(
-      struct,
+      schema,
     ),
     Error(U.error({code: ExcessField("unknownKey"), operation: Parsing, path: S.Path.empty})),
     (),
   )
   // Parses valid
   t->Assert.deepEqual(
-    %raw(`{tag: "value", key: "value"}`)->S.parseAnyWith(struct),
+    %raw(`{tag: "value", key: "value"}`)->S.parseAnyWith(schema),
     Ok({
       "key": "value",
     }),
@@ -1028,7 +1028,7 @@ test("Object struct parsing checks order", t => {
 
 module Compiled = {
   test("Compiled parse code snapshot for simple object", t => {
-    let struct = S.object(s =>
+    let schema = S.object(s =>
       {
         "foo": s.field("foo", S.string),
         "bar": s.field("bar", S.bool),
@@ -1036,14 +1036,14 @@ module Compiled = {
     )
 
     t->U.assertCompiledCode(
-      ~struct,
+      ~schema,
       ~op=#parse,
       `i=>{let v0,v1;if(!i||i.constructor!==Object){e[2](i)}v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}v1=i["bar"];if(typeof v1!=="boolean"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
     )
   })
 
   test("Compiled parse code snapshot for simple object with async", t => {
-    let struct = S.object(s =>
+    let schema = S.object(s =>
       {
         "foo": s.field(
           "foo",
@@ -1054,25 +1054,25 @@ module Compiled = {
     )
 
     t->U.assertCompiledCode(
-      ~struct,
+      ~schema,
       ~op=#parse,
       `i=>{let v0,v1,v2;if(!i||i.constructor!==Object){e[2](i)}v0=e[0](i["foo"]);v1=i["bar"];if(typeof v1!=="boolean"){e[1](v1)}v2=()=>Promise.all([v0()]).then(([v0])=>({"foo":v0,"bar":v1,}));return v2}`,
     )
   })
 
   test("Compiled serialize code snapshot for simple object", t => {
-    let struct = S.object(s =>
+    let schema = S.object(s =>
       {
         "foo": s.field("foo", S.string),
         "bar": s.field("bar", S.bool),
       }
     )
 
-    t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
+    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
   })
 
   test("Compiled parse code snapshot for simple object with strict unknown keys", t => {
-    let struct = S.object(s =>
+    let schema = S.object(s =>
       {
         "foo": s.field("foo", S.string),
         "bar": s.field("bar", S.bool),
@@ -1080,27 +1080,27 @@ module Compiled = {
     )->S.Object.strict
 
     t->U.assertCompiledCode(
-      ~struct,
+      ~schema,
       ~op=#parse,
       `i=>{let v0,v1,v2;if(!i||i.constructor!==Object){e[3](i)}v1=i["foo"];if(typeof v1!=="string"){e[1](v1)}v2=i["bar"];if(typeof v2!=="boolean"){e[2](v2)}for(v0 in i){if(v0!=="foo"&&v0!=="bar"){e[0](v0)}}return {"foo":v1,"bar":v2,}}`,
     )
   })
 
   test("Compiled serialize code snapshot for simple object with strict unknown keys", t => {
-    let struct = S.object(s =>
+    let schema = S.object(s =>
       {
         "foo": s.field("foo", S.string),
         "bar": s.field("bar", S.bool),
       }
     )->S.Object.strict
 
-    t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
+    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
   })
 
   test(
     "Compiled parse code snapshot for simple object with strict unknown keys, renamed fields, constants and discriminants",
     t => {
-      let struct = S.object(s => {
+      let schema = S.object(s => {
         s.tag("tag", 0)
         {
           "foo": s.field("FOO", S.string),
@@ -1110,7 +1110,7 @@ module Compiled = {
       })->S.Object.strict
 
       t->U.assertCompiledCode(
-        ~struct,
+        ~schema,
         ~op=#parse,
         `i=>{let v0,v1,v2,v3;if(!i||i.constructor!==Object){e[6](i)}v3=i["tag"];v3===e[4]||e[5](v3);v1=i["FOO"];if(typeof v1!=="string"){e[1](v1)}v2=i["BAR"];if(typeof v2!=="boolean"){e[2](v2)}for(v0 in i){if(v0!=="tag"&&v0!=="FOO"&&v0!=="BAR"){e[0](v0)}}return {"foo":v1,"bar":v2,"zoo":e[3],}}`,
       )
@@ -1120,7 +1120,7 @@ module Compiled = {
   test(
     "Compiled serialize code snapshot for simple object with strict unknown keys, renamed fields, constants and discriminants",
     t => {
-      let struct = S.object(s => {
+      let schema = S.object(s => {
         s.tag("tag", 0)
         {
           "foo": s.field("FOO", S.string),
@@ -1130,7 +1130,7 @@ module Compiled = {
       })->S.Object.strict
 
       t->U.assertCompiledCode(
-        ~struct,
+        ~schema,
         ~op=#serialize,
         `i=>{if(i["zoo"]!==e[0]){e[1](i["zoo"])}return {"FOO":i["foo"],"BAR":i["bar"],"tag":e[2],}}`,
       )
@@ -1139,19 +1139,19 @@ module Compiled = {
 }
 
 test(
-  "Works with object struct used multiple times as a child struct. See: https://github.com/DZakh/rescript-struct/issues/63",
+  "Works with object schema used multiple times as a child schema. See: https://github.com/DZakh/rescript-schema/issues/63",
   t => {
-    let appVersionSpecStruct = S.object(s =>
+    let appVersionSpecSchema = S.object(s =>
       {
         "current": s.field("current", S.string),
         "minimum": s.field("minimum", S.string),
       }
     )
 
-    let appVersionsStruct = S.object(s =>
+    let appVersionsSchema = S.object(s =>
       {
-        "ios": s.field("ios", appVersionSpecStruct),
-        "android": s.field("android", appVersionSpecStruct),
+        "ios": s.field("ios", appVersionSpecSchema),
+        "android": s.field("android", appVersionSpecSchema),
       }
     )
 
@@ -1160,10 +1160,10 @@ test(
       "android": {"current": "1.2", "minimum": "1.1"},
     }
 
-    let value = appVersions->S.parseAnyOrRaiseWith(appVersionsStruct)
+    let value = appVersions->S.parseAnyOrRaiseWith(appVersionsSchema)
     t->Assert.deepEqual(value, appVersions, ())
 
-    let data = appVersions->S.serializeOrRaiseWith(appVersionsStruct)
+    let data = appVersions->S.serializeOrRaiseWith(appVersionsSchema)
     t->Assert.deepEqual(data, appVersions->Obj.magic, ())
   },
 )

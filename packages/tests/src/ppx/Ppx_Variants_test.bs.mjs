@@ -2,41 +2,41 @@
 
 import * as U from "../utils/U.bs.mjs";
 import Ava from "ava";
-import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
+import * as S$RescriptSchema from "rescript-schema/src/S.bs.mjs";
 
-var variantStruct = S$RescriptStruct.union([
-      S$RescriptStruct.literal("One"),
-      S$RescriptStruct.literal("Two")
+var variantSchema = S$RescriptSchema.union([
+      S$RescriptSchema.literal("One"),
+      S$RescriptSchema.literal("Two")
     ]);
 
 Ava("Variant", (function (t) {
-        U.assertEqualStructs(t, variantStruct, S$RescriptStruct.union([
-                  S$RescriptStruct.literal("One"),
-                  S$RescriptStruct.literal("Two")
+        U.assertEqualSchemas(t, variantSchema, S$RescriptSchema.union([
+                  S$RescriptSchema.literal("One"),
+                  S$RescriptSchema.literal("Two")
                 ]), undefined);
       }));
 
-var variantWithSingleItemStruct = S$RescriptStruct.literal("Single");
+var variantWithSingleItemSchema = S$RescriptSchema.literal("Single");
 
-Ava("Variant with single item becomes a literal struct of the item", (function (t) {
-        U.assertEqualStructs(t, variantWithSingleItemStruct, S$RescriptStruct.literal("Single"), undefined);
+Ava("Variant with single item becomes a literal schema of the item", (function (t) {
+        U.assertEqualSchemas(t, variantWithSingleItemSchema, S$RescriptSchema.literal("Single"), undefined);
       }));
 
-var variantWithAliasStruct = S$RescriptStruct.union([
-      S$RescriptStruct.literal("하나"),
-      S$RescriptStruct.literal("Two")
+var variantWithAliasSchema = S$RescriptSchema.union([
+      S$RescriptSchema.literal("하나"),
+      S$RescriptSchema.literal("Two")
     ]);
 
 Ava("Variant with partial @as usage", (function (t) {
-        U.assertEqualStructs(t, variantWithAliasStruct, S$RescriptStruct.union([
-                  S$RescriptStruct.literal("하나"),
-                  S$RescriptStruct.literal("Two")
+        U.assertEqualSchemas(t, variantWithAliasSchema, S$RescriptSchema.union([
+                  S$RescriptSchema.literal("하나"),
+                  S$RescriptSchema.literal("Two")
                 ]), undefined);
       }));
 
 export {
-  variantStruct ,
-  variantWithSingleItemStruct ,
-  variantWithAliasStruct ,
+  variantSchema ,
+  variantWithSingleItemSchema ,
+  variantWithAliasSchema ,
 }
-/* variantStruct Not a pure module */
+/* variantSchema Not a pure module */

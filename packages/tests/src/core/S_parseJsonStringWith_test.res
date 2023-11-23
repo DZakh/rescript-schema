@@ -1,21 +1,21 @@
 open Ava
 
 test("Successfully parses", t => {
-  let struct = S.bool
+  let schema = S.bool
 
-  t->Assert.deepEqual("true"->S.parseJsonStringWith(struct), Ok(true), ())
+  t->Assert.deepEqual("true"->S.parseJsonStringWith(schema), Ok(true), ())
 })
 
 test("Successfully parses unknown", t => {
-  let struct = S.unknown
+  let schema = S.unknown
 
-  t->Assert.deepEqual("true"->S.parseJsonStringWith(struct), Ok(true->Obj.magic), ())
+  t->Assert.deepEqual("true"->S.parseJsonStringWith(schema), Ok(true->Obj.magic), ())
 })
 
 test("Fails to parse JSON", t => {
-  let struct = S.bool
+  let schema = S.bool
 
-  switch "123,"->S.parseJsonStringWith(struct) {
+  switch "123,"->S.parseJsonStringWith(schema) {
   | Ok(_) => t->Assert.fail("Must return Error")
   | Error({code, operation, path}) => {
       t->Assert.deepEqual(operation, Parsing, ())
@@ -31,13 +31,13 @@ test("Fails to parse JSON", t => {
 })
 
 test("Fails to parse", t => {
-  let struct = S.bool
+  let schema = S.bool
 
   t->Assert.deepEqual(
-    "123"->S.parseJsonStringWith(struct),
+    "123"->S.parseJsonStringWith(schema),
     Error(
       U.error({
-        code: InvalidType({expected: struct->S.toUnknown, received: Obj.magic(123)}),
+        code: InvalidType({expected: schema->S.toUnknown, received: Obj.magic(123)}),
         operation: Parsing,
         path: S.Path.empty,
       }),

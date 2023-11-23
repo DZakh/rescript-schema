@@ -2,7 +2,7 @@
 
 import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as Caml_exceptions from "rescript/lib/es6/caml_exceptions.js";
-import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
+import * as S$RescriptSchema from "rescript-schema/src/S.bs.mjs";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
 function unsafeGetVariantPayload(variant) {
@@ -19,7 +19,7 @@ function raiseTestException() {
 }
 
 function error(param) {
-  return S$RescriptStruct.$$Error.make(param.code, param.operation, param.path);
+  return S$RescriptSchema.$$Error.make(param.code, param.operation, param.path);
 }
 
 function assertThrowsTestException(t, fn, message, param) {
@@ -38,9 +38,9 @@ function assertThrowsTestException(t, fn, message, param) {
   }
 }
 
-function cleanUpStruct(struct) {
+function cleanUpSchema(schema) {
   var $$new = {};
-  Object.entries(struct).forEach(function (param) {
+  Object.entries(schema).forEach(function (param) {
         var value = param[1];
         var key = param[0];
         switch (key) {
@@ -52,7 +52,7 @@ function cleanUpStruct(struct) {
               return ;
           default:
             if (typeof value === "object" && value !== null) {
-              $$new[key] = cleanUpStruct(value);
+              $$new[key] = cleanUpSchema(value);
             } else {
               $$new[key] = value;
             }
@@ -62,55 +62,55 @@ function cleanUpStruct(struct) {
   return $$new;
 }
 
-function unsafeAssertEqualStructs(t, s1, s2, message) {
-  t.deepEqual(cleanUpStruct(s1), cleanUpStruct(s2), message !== undefined ? Caml_option.valFromOption(message) : undefined);
+function unsafeAssertEqualSchemas(t, s1, s2, message) {
+  t.deepEqual(cleanUpSchema(s1), cleanUpSchema(s2), message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }
 
-function assertCompiledCode(t, struct, op, code, message) {
+function assertCompiledCode(t, schema, op, code, message) {
   var compiledCode;
   if (op === "parse") {
-    if (S$RescriptStruct.isAsyncParse(struct)) {
-      S$RescriptStruct.parseAsyncInStepsWith(undefined, struct);
-      compiledCode = (struct.opa.toString());
+    if (S$RescriptSchema.isAsyncParse(schema)) {
+      S$RescriptSchema.parseAsyncInStepsWith(undefined, schema);
+      compiledCode = (schema.opa.toString());
     } else {
-      S$RescriptStruct.parseAnyWith(undefined, struct);
-      compiledCode = (struct.op.toString());
+      S$RescriptSchema.parseAnyWith(undefined, schema);
+      compiledCode = (schema.op.toString());
     }
   } else {
     try {
-      S$RescriptStruct.serializeToUnknownOrRaiseWith(undefined, struct);
+      S$RescriptSchema.serializeToUnknownOrRaiseWith(undefined, schema);
     }
     catch (exn){
       
     }
-    compiledCode = (struct.os.toString());
+    compiledCode = (schema.os.toString());
   }
   t.is(compiledCode, code, message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }
 
-function assertCompiledCodeIsNoop(t, struct, op, message) {
+function assertCompiledCodeIsNoop(t, schema, op, message) {
   var compiledCode;
   if (op === "parse") {
-    if (S$RescriptStruct.isAsyncParse(struct)) {
-      S$RescriptStruct.parseAsyncInStepsWith(undefined, struct);
-      compiledCode = (struct.opa.toString());
+    if (S$RescriptSchema.isAsyncParse(schema)) {
+      S$RescriptSchema.parseAsyncInStepsWith(undefined, schema);
+      compiledCode = (schema.opa.toString());
     } else {
-      S$RescriptStruct.parseAnyWith(undefined, struct);
-      compiledCode = (struct.op.toString());
+      S$RescriptSchema.parseAnyWith(undefined, schema);
+      compiledCode = (schema.op.toString());
     }
   } else {
     try {
-      S$RescriptStruct.serializeToUnknownOrRaiseWith(undefined, struct);
+      S$RescriptSchema.serializeToUnknownOrRaiseWith(undefined, schema);
     }
     catch (exn){
       
     }
-    compiledCode = (struct.os.toString());
+    compiledCode = (schema.os.toString());
   }
   t.truthy(compiledCode.startsWith("function noopOperation(i)"), message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }
 
-var assertEqualStructs = unsafeAssertEqualStructs;
+var assertEqualSchemas = unsafeAssertEqualSchemas;
 
 export {
   unsafeGetVariantPayload ,
@@ -118,10 +118,10 @@ export {
   raiseTestException ,
   error ,
   assertThrowsTestException ,
-  cleanUpStruct ,
-  unsafeAssertEqualStructs ,
+  cleanUpSchema ,
+  unsafeAssertEqualSchemas ,
   assertCompiledCode ,
   assertCompiledCodeIsNoop ,
-  assertEqualStructs ,
+  assertEqualSchemas ,
 }
-/* S-RescriptStruct Not a pure module */
+/* S-RescriptSchema Not a pure module */

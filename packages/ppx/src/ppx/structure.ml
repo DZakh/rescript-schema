@@ -3,13 +3,13 @@ open Parsetree
 open Ast_helper
 open Utils
 
-let generate_decls type_name struct_expr =
-  let struct_name_pat =
-    Pat.var (mknoloc (get_generated_struct_name type_name))
+let generate_decls type_name schema_expr =
+  let schema_name_pat =
+    Pat.var (mknoloc (get_generated_schema_name type_name))
   in
   [
-    Vb.mk struct_name_pat
-      (Exp.constraint_ struct_expr
+    Vb.mk schema_name_pat
+      (Exp.constraint_ schema_expr
          [%type: [%t Typ.constr (lid type_name) []] S.t]);
   ]
 
@@ -25,22 +25,22 @@ let map_type_decl decl =
   in
 
   match
-    (get_attribute_by_name ptype_attributes "struct", ptype_manifest, ptype_kind)
+    (get_attribute_by_name ptype_attributes "schema", ptype_manifest, ptype_kind)
   with
   | Ok None, _, _ -> []
   | Error err, _, _ -> fail ptype_loc err
   | Ok _, None, Ptype_abstract ->
-      fail ptype_loc "Can't generate struct for unspecified type"
+      fail ptype_loc "Can't generate schema for unspecified type"
   | Ok _, Some { ptyp_desc = Ptyp_variant (row_fields, _, _) }, Ptype_abstract
     ->
-      generate_decls type_name (Polyvariants.generate_struct_expr row_fields)
+      generate_decls type_name (Polyvariants.generate_schema_expr row_fields)
   | Ok _, Some manifest, _ ->
-      generate_decls type_name (Codecs.generate_struct_expr manifest)
+      generate_decls type_name (Codecs.generate_schema_expr manifest)
   | Ok _, None, Ptype_variant decls ->
-      generate_decls type_name (Variants.generate_struct_expr decls)
+      generate_decls type_name (Variants.generate_schema_expr decls)
   | Ok _, None, Ptype_record decls ->
-      generate_decls type_name (Records.generate_struct_expr decls)
-  | _ -> fail ptype_loc "This type is not handled by rescript-struct"
+      generate_decls type_name (Records.generate_schema_expr decls)
+  | _ -> fail ptype_loc "This type is not handled by rescript-schema"
 
 let map_structure_item mapper ({ pstr_desc } as structure_item) =
   match pstr_desc with

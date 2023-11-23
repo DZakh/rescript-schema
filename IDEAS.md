@@ -49,6 +49,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Make `error.reason` tree-shakeable
 - Update `Literal` `tagged` to include `text`, `value` and `kind`. So it's more convinient and smaller bundle-size
 - Turn `String.email` -> `email`, `String.min` -> `stringMin` for tree-shaking
+- Rename `InvalidJsonStruct` error, since after `rescript-struct`->`rescript-schema` it became misleading
 
 ## v???
 

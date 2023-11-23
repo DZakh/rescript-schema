@@ -1,66 +1,66 @@
 open Ava
 open U
 
-@struct
+@schema
 type simpleRecord = {
   label: string,
   value: int,
 }
-test("Simple record struct", t => {
-  t->assertEqualStructs(
-    simpleRecordStruct,
+test("Simple record schema", t => {
+  t->assertEqualSchemas(
+    simpleRecordSchema,
     S.object(s => {
       label: s.field("label", S.string),
       value: s.field("value", S.int),
     }),
   )
   t->Assert.deepEqual(
-    %raw(`{label:"foo",value:1}`)->S.parseWith(simpleRecordStruct),
+    %raw(`{label:"foo",value:1}`)->S.parseWith(simpleRecordSchema),
     Ok({label: "foo", value: 1}),
     (),
   )
 })
 
-@struct
+@schema
 type recordWithAlias = {
   @as("aliased-label") label: string,
   value: int,
 }
-test("Record struct with alias for field name", t => {
-  t->assertEqualStructs(
-    recordWithAliasStruct,
+test("Record schema with alias for field name", t => {
+  t->assertEqualSchemas(
+    recordWithAliasSchema,
     S.object(s => {
       label: s.field("aliased-label", S.string),
       value: s.field("value", S.int),
     }),
   )
   t->Assert.deepEqual(
-    %raw(`{"aliased-label":"foo",value:1}`)->S.parseWith(recordWithAliasStruct),
+    %raw(`{"aliased-label":"foo",value:1}`)->S.parseWith(recordWithAliasSchema),
     Ok({label: "foo", value: 1}),
     (),
   )
 })
 
-@struct
+@schema
 type recordWithOptional = {
   label: option<string>,
   value?: int,
 }
-test("Record struct with optional fields", t => {
-  t->assertEqualStructs(
-    recordWithOptionalStruct,
+test("Record schema with optional fields", t => {
+  t->assertEqualSchemas(
+    recordWithOptionalSchema,
     S.object(s => {
       label: s.field("label", S.option(S.string)),
       value: ?s.field("value", S.option(S.int)),
     }),
   )
   t->Assert.deepEqual(
-    %raw(`{"label":"foo",value:1}`)->S.parseWith(recordWithOptionalStruct),
+    %raw(`{"label":"foo",value:1}`)->S.parseWith(recordWithOptionalSchema),
     Ok({label: Some("foo"), value: 1}),
     (),
   )
   t->Assert.deepEqual(
-    %raw(`{}`)->S.parseWith(recordWithOptionalStruct),
+    %raw(`{}`)->S.parseWith(recordWithOptionalSchema),
     Ok({label: %raw(`undefined`), value: %raw(`undefined`)}),
     (),
   )

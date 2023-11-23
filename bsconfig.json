@@ -1,5 +1,5 @@
 {
-  "name": "rescript-struct",
+  "name": "rescript-schema",
   "namespace": true,
   "suffix": ".bs.mjs",
   "package-specs": {

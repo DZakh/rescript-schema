@@ -8,19 +8,19 @@ module Common = {
   let factory = () => S.string->S.option->S.deprecate("Some warning")
 
   test("Successfully parses", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
   })
 
   test("Fails to parse", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      invalidAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(schema),
       Error(
         U.error({
-          code: InvalidType({expected: struct->S.toUnknown, received: invalidAny}),
+          code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
           operation: Parsing,
           path: S.Path.empty,
         }),
@@ -30,32 +30,32 @@ module Common = {
   })
 
   test("Successfully serializes", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(any), ())
   })
 }
 
 test("Successfully parses primitive", t => {
-  let struct = S.bool->S.option->S.deprecate("Deprecated")
+  let schema = S.bool->S.option->S.deprecate("Deprecated")
 
-  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseAnyWith(struct), Ok(Some(true)), ())
+  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseAnyWith(schema), Ok(Some(true)), ())
 })
 
 test("Successfully parses undefined", t => {
-  let struct = S.bool->S.option->S.deprecate("Deprecated")
+  let schema = S.bool->S.option->S.deprecate("Deprecated")
 
-  t->Assert.deepEqual(%raw(`undefined`)->S.parseAnyWith(struct), Ok(None), ())
+  t->Assert.deepEqual(%raw(`undefined`)->S.parseAnyWith(schema), Ok(None), ())
 })
 
 test("Fails to parse null", t => {
-  let struct = S.bool->S.option->S.deprecate("Deprecated")
+  let schema = S.bool->S.option->S.deprecate("Deprecated")
 
   t->Assert.deepEqual(
-    %raw(`null`)->S.parseAnyWith(struct),
+    %raw(`null`)->S.parseAnyWith(schema),
     Error(
       U.error({
-        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`null`)}),
+        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`null`)}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -64,8 +64,8 @@ test("Fails to parse null", t => {
   )
 })
 
-test("Successfully parses null for deprecated nullable struct", t => {
-  let struct = S.null(S.bool)->S.option->S.deprecate("Deprecated")
+test("Successfully parses null for deprecated nullable schema", t => {
+  let schema = S.null(S.bool)->S.option->S.deprecate("Deprecated")
 
-  t->Assert.deepEqual(%raw(`null`)->S.parseAnyWith(struct), Ok(None), ())
+  t->Assert.deepEqual(%raw(`null`)->S.parseAnyWith(schema), Ok(None), ())
 })

@@ -2,41 +2,41 @@
 
 import * as U from "../utils/U.bs.mjs";
 import Ava from "ava";
-import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
+import * as S$RescriptSchema from "rescript-schema/src/S.bs.mjs";
 
-var polyStruct = S$RescriptStruct.union([
-      S$RescriptStruct.literal("one"),
-      S$RescriptStruct.literal("two")
+var polySchema = S$RescriptSchema.union([
+      S$RescriptSchema.literal("one"),
+      S$RescriptSchema.literal("two")
     ]);
 
 Ava("Polymorphic variant", (function (t) {
-        U.assertEqualStructs(t, polyStruct, S$RescriptStruct.union([
-                  S$RescriptStruct.literal("one"),
-                  S$RescriptStruct.literal("two")
+        U.assertEqualSchemas(t, polySchema, S$RescriptSchema.union([
+                  S$RescriptSchema.literal("one"),
+                  S$RescriptSchema.literal("two")
                 ]), undefined);
       }));
 
-var polyWithSingleItemStruct = S$RescriptStruct.literal("single");
+var polyWithSingleItemSchema = S$RescriptSchema.literal("single");
 
-Ava("Polymorphic variant with single item becomes a literal struct of the item", (function (t) {
-        U.assertEqualStructs(t, polyWithSingleItemStruct, S$RescriptStruct.literal("single"), undefined);
+Ava("Polymorphic variant with single item becomes a literal schema of the item", (function (t) {
+        U.assertEqualSchemas(t, polyWithSingleItemSchema, S$RescriptSchema.literal("single"), undefined);
       }));
 
-var polyWithAliasStruct = S$RescriptStruct.union([
-      S$RescriptStruct.literal("one"),
-      S$RescriptStruct.literal("two")
+var polyWithAliasSchema = S$RescriptSchema.union([
+      S$RescriptSchema.literal("one"),
+      S$RescriptSchema.literal("two")
     ]);
 
 Ava("Polymorphic variant with partial @as usage", (function (t) {
-        U.assertEqualStructs(t, polyWithAliasStruct, S$RescriptStruct.union([
-                  S$RescriptStruct.literal("one"),
-                  S$RescriptStruct.literal("two")
+        U.assertEqualSchemas(t, polyWithAliasSchema, S$RescriptSchema.union([
+                  S$RescriptSchema.literal("one"),
+                  S$RescriptSchema.literal("two")
                 ]), undefined);
       }));
 
 export {
-  polyStruct ,
-  polyWithSingleItemStruct ,
-  polyWithAliasStruct ,
+  polySchema ,
+  polyWithSingleItemSchema ,
+  polyWithAliasSchema ,
 }
-/* polyStruct Not a pure module */
+/* polySchema Not a pure module */

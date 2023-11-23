@@ -8,7 +8,7 @@ let parse_decl { pcd_name = { txt = name; loc }; pcd_args } =
   | Pcstr_tuple [] -> [%expr S.literal [%e Exp.construct (lid name) None]]
   | _ -> fail loc "Variants with payload not supported yet"
 
-let generate_struct_expr constr_decls =
+let generate_schema_expr constr_decls =
   let union_items = List.map parse_decl constr_decls in
   match union_items with
   | [ item ] -> item

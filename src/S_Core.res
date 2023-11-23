@@ -320,7 +320,7 @@ module Path = {
   let concat = (path, concatedPath) => path ++ concatedPath
 }
 
-let symbol = Stdlib.Symbol.make("rescript-struct")
+let symbol = Stdlib.Symbol.make("rescript-schema")
 
 @unboxed
 type isAsyncParse = | @as(0) Unknown | Value(bool)
@@ -380,21 +380,21 @@ and builderCtx = {
 and operation =
   | Parsing
   | Serializing
-and struct<'a> = t<'a>
+and schema<'a> = t<'a>
 type rec error = private {operation: operation, code: errorCode, path: Path.t}
 and errorCode =
   | OperationFailed(string)
   | InvalidOperation({description: string})
-  | InvalidType({expected: struct<unknown>, received: unknown})
+  | InvalidType({expected: schema<unknown>, received: unknown})
   | InvalidLiteral({expected: Literal.t, received: unknown})
   | InvalidTupleSize({expected: int, received: int})
   | ExcessField(string)
   | InvalidUnion(array<error>)
   | UnexpectedAsync
-  | InvalidJsonStruct(struct<unknown>)
+  | InvalidJsonStruct(schema<unknown>)
 type exn += private Raised(error)
 
-external castUnknownStructToAnyStruct: t<unknown> => t<'any> = "%identity"
+external castUnknownSchemaToAnySchema: t<unknown> => t<'any> = "%identity"
 external toUnknown: t<'any> => t<unknown> = "%identity"
 
 type payloadedVariant<'payload> = private {_0: 'payload}
@@ -404,7 +404,7 @@ let unsafeGetErrorPayload = variant => (variant->Obj.magic)._1
 
 module InternalError = {
   %%raw(`
-    class RescriptStructError extends Error {
+    class RescriptSchemaError extends Error {
       constructor(code, operation, path) {
         super();
         this.operation = operation;
@@ -414,7 +414,7 @@ module InternalError = {
         this.RE_EXN_ID = Raised;
         this._1 = this;
         this.Error = this;
-        this.name = "RescriptStructError";
+        this.name = "RescriptSchemaError";
       }
       get message() {
         return message(this);
@@ -427,7 +427,7 @@ module InternalError = {
 
   @new
   external make: (~code: errorCode, ~operation: operation, ~path: Path.t) => error =
-    "RescriptStructError"
+    "RescriptSchemaError"
 
   let getOrRethrow = (exn: exn) => {
     if %raw("exn&&exn.s===symbol") {
@@ -452,18 +452,18 @@ module InternalError = {
   }
 
   @inline
-  let panic = message => Stdlib.Exn.raiseError(Stdlib.Exn.makeError(`[rescript-struct] ${message}`))
+  let panic = message => Stdlib.Exn.raiseError(Stdlib.Exn.makeError(`[rescript-schema] ${message}`))
 }
 
 type effectCtx<'value> = {
-  struct: t<'value>,
+  schema: t<'value>,
   fail: 'a. (string, ~path: Path.t=?) => 'a,
   failWithError: 'a. error => 'a,
 }
 
 module EffectCtx = {
-  let make = (~selfStruct, ~path, ~operation) => {
-    struct: selfStruct->castUnknownStructToAnyStruct,
+  let make = (~selfSchema, ~path, ~operation) => {
+    schema: selfSchema->castUnknownSchemaToAnySchema,
     failWithError: (error: error) => {
       InternalError.raise(~path=path->Path.concat(error.path), ~code=error.code, ~operation)
     },
@@ -478,12 +478,12 @@ module EffectCtx = {
 }
 
 @inline
-let classify = struct => struct.tagged
+let classify = schema => schema.tagged
 
 module Builder = {
   type t = builder
   type ctx = builderCtx
-  type implementation = (ctx, ~selfStruct: struct<unknown>, ~path: Path.t) => string
+  type implementation = (ctx, ~selfSchema: schema<unknown>, ~path: Path.t) => string
 
   let make = (Obj.magic: implementation => t)
 
@@ -672,48 +672,48 @@ module Builder = {
       }
     }
 
-    let typeFilterCode = (b: t, ~typeFilter, ~struct, ~inputVar, ~path) => {
+    let typeFilterCode = (b: t, ~typeFilter, ~schema, ~inputVar, ~path) => {
       `if(${typeFilter(~inputVar)}){${b->raiseWithArg(
           ~path,
           input => InvalidType({
-            expected: struct,
+            expected: schema,
             received: input,
           }),
           inputVar,
         )}}`
     }
 
-    let use = (b: t, ~struct, ~input, ~path) => {
+    let use = (b: t, ~schema, ~input, ~path) => {
       let isParentAsync = b.isAsyncBranch
       let isParsing = b.operation === Parsing
       b._input = input
       b.isAsyncBranch = false
       let output = (
-        (isParsing ? struct.parseOperationBuilder : struct.serializeOperationBuilder)->(
+        (isParsing ? schema.parseOperationBuilder : schema.serializeOperationBuilder)->(
           Obj.magic: builder => implementation
         )
-      )(b, ~selfStruct=struct, ~path)
+      )(b, ~selfSchema=schema, ~path)
       if isParsing {
-        struct.isAsyncParse = Value(b.isAsyncBranch)
+        schema.isAsyncParse = Value(b.isAsyncBranch)
         b.isAsyncBranch = isParentAsync || b.isAsyncBranch
       }
       output
     }
 
-    let useWithTypeFilter = (b: t, ~struct, ~input, ~path) => {
-      let input = switch struct.maybeTypeFilter {
+    let useWithTypeFilter = (b: t, ~schema, ~input, ~path) => {
+      let input = switch schema.maybeTypeFilter {
       | Some(typeFilter) => {
           let inputVar = b->toVar(input)
-          b.code = b.code ++ b->typeFilterCode(~struct, ~typeFilter, ~inputVar, ~path)
+          b.code = b.code ++ b->typeFilterCode(~schema, ~typeFilter, ~inputVar, ~path)
           inputVar
         }
       | None => input
       }
-      b->use(~struct, ~input, ~path)
+      b->use(~schema, ~input, ~path)
     }
   }
 
-  let noop = make((b, ~selfStruct as _, ~path as _) => {
+  let noop = make((b, ~selfSchema as _, ~path as _) => {
     b->Ctx.useInput
   })
 
@@ -722,7 +722,7 @@ module Builder = {
   @inline
   let intitialInputVar = "i"
 
-  let build = (builder, ~struct, ~operation) => {
+  let build = (builder, ~schema, ~operation) => {
     let b = {
       _embeded: [],
       _varCounter: -1,
@@ -736,23 +736,23 @@ module Builder = {
 
     let output = (builder->(Obj.magic: builder => implementation))(
       b,
-      ~selfStruct=struct,
+      ~selfSchema=schema,
       ~path=Path.empty,
     )
 
     if operation === Parsing {
-      switch struct.maybeTypeFilter {
+      switch schema.maybeTypeFilter {
       | Some(typeFilter) =>
         b.code =
           b->Ctx.typeFilterCode(
-            ~struct,
+            ~schema,
             ~typeFilter,
             ~inputVar=intitialInputVar,
             ~path=Path.empty,
           ) ++ b.code
       | None => ()
       }
-      struct.isAsyncParse = Value(b.isAsyncBranch)
+      schema.isAsyncParse = Value(b.isAsyncBranch)
     }
 
     if b.code === "" && output === intitialInputVar {
@@ -778,11 +778,11 @@ module Builder = {
 module B = Builder.Ctx
 
 let toLiteral = {
-  let rec loop = struct => {
-    switch struct->classify {
+  let rec loop = schema => {
+    switch schema->classify {
     | Literal(literal) => literal
-    | Union(unionStructs) => unionStructs->Js.Array2.unsafe_get(0)->loop
-    | Tuple(tupleStructs) => Array(tupleStructs->Js.Array2.map(a => a->loop))
+    | Union(unionSchemas) => unionSchemas->Js.Array2.unsafe_get(0)->loop
+    | Tuple(tupleSchemas) => Array(tupleSchemas->Js.Array2.map(a => a->loop))
     | Object({fields}) => Dict(fields->Stdlib.Dict.mapValues(loop))
     | String
     | Int
@@ -798,9 +798,9 @@ let toLiteral = {
       Stdlib.Exn.raiseAny(symbol)
     }
   }
-  struct => {
+  schema => {
     try {
-      Some(loop(struct))
+      Some(loop(schema))
     } catch {
     | Js.Exn.Error(jsExn) =>
       jsExn->(Obj.magic: Js.Exn.t => Stdlib.Symbol.t) === symbol ? None : Stdlib.Exn.raiseAny(jsExn)
@@ -808,13 +808,13 @@ let toLiteral = {
   }
 }
 
-let isAsyncParse = struct => {
-  let struct = struct->toUnknown
-  switch struct.isAsyncParse {
+let isAsyncParse = schema => {
+  let schema = schema->toUnknown
+  switch schema.isAsyncParse {
   | Unknown =>
     try {
-      let _ = struct.parseOperationBuilder->Builder.build(~struct, ~operation=Parsing)
-      struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+      let _ = schema.parseOperationBuilder->Builder.build(~schema, ~operation=Parsing)
+      schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
     } catch {
     | exn => {
         let _ = exn->InternalError.getOrRethrow
@@ -825,50 +825,50 @@ let isAsyncParse = struct => {
   }
 }
 
-let rec validateJsonableStruct = (struct, ~rootStruct, ~isRoot=false) => {
-  if isRoot || rootStruct !== struct {
-    switch struct->classify {
+let rec validateJsonableSchema = (schema, ~rootSchema, ~isRoot=false) => {
+  if isRoot || rootSchema !== schema {
+    switch schema->classify {
     | String
     | Int
     | Float
     | Bool
     | Never
     | JSON => ()
-    | Dict(struct)
-    | Null(struct)
-    | Array(struct) =>
-      struct->validateJsonableStruct(~rootStruct)
+    | Dict(schema)
+    | Null(schema)
+    | Array(schema) =>
+      schema->validateJsonableSchema(~rootSchema)
     | Object({fieldNames, fields}) =>
       for idx in 0 to fieldNames->Js.Array2.length - 1 {
         let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-        let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
+        let fieldSchema = fields->Js.Dict.unsafeGet(fieldName)
         try {
-          switch fieldStruct->classify {
+          switch fieldSchema->classify {
           // Allow optional fields
           | Option(s) => s
-          | _ => fieldStruct
-          }->validateJsonableStruct(~rootStruct)
+          | _ => fieldSchema
+          }->validateJsonableSchema(~rootSchema)
         } catch {
         | exn => exn->InternalError.prependLocationOrRethrow(fieldName)
         }
       }
 
-    | Tuple(childrenStructs) =>
-      childrenStructs->Js.Array2.forEachi((struct, i) => {
+    | Tuple(childrenSchemas) =>
+      childrenSchemas->Js.Array2.forEachi((schema, i) => {
         try {
-          struct->validateJsonableStruct(~rootStruct)
+          schema->validateJsonableSchema(~rootSchema)
         } catch {
-        // TODO: Should throw with the nested struct instead of prepending path?
+        // TODO: Should throw with the nested schema instead of prepending path?
         | exn => exn->InternalError.prependLocationOrRethrow(i->Js.Int.toString)
         }
       })
-    | Union(childrenStructs) =>
-      childrenStructs->Js.Array2.forEach(struct => struct->validateJsonableStruct(~rootStruct))
+    | Union(childrenSchemas) =>
+      childrenSchemas->Js.Array2.forEach(schema => schema->validateJsonableSchema(~rootSchema))
     | Literal(l) if l->Literal.isJsonable => ()
     | Option(_)
     | Unknown
     | Literal(_) =>
-      InternalError.raise(~path=Path.empty, ~code=InvalidJsonStruct(struct), ~operation=Serializing)
+      InternalError.raise(~path=Path.empty, ~code=InvalidJsonStruct(schema), ~operation=Serializing)
     }
   }
 }
@@ -936,15 +936,15 @@ module Operation = {
   }
 }
 
-let parseAnyOrRaiseWith = Operation.make(~label=Parser, ~init=struct => {
-  let operation = struct.parseOperationBuilder->Builder.build(~struct, ~operation=Parsing)
-  let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+let parseAnyOrRaiseWith = Operation.make(~label=Parser, ~init=schema => {
+  let operation = schema.parseOperationBuilder->Builder.build(~schema, ~operation=Parsing)
+  let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
   isAsync ? Operation.unexpectedAsync : operation
 })
 
-let parseAnyWith = (any, struct) => {
+let parseAnyWith = (any, schema) => {
   try {
-    parseAnyOrRaiseWith(any->castAnyToUnknown, struct)->castUnknownToAny->Ok
+    parseAnyOrRaiseWith(any->castAnyToUnknown, schema)->castUnknownToAny->Ok
   } catch {
   | exn => exn->InternalError.getOrRethrow->Error
   }
@@ -960,9 +960,9 @@ let asyncPrepareError = jsExn => {
   jsExn->(Obj.magic: Js.Exn.t => exn)->InternalError.getOrRethrow->Error
 }
 
-let internalParseAsyncWith = Operation.make(~label=ParserAsync, ~init=struct => {
-  let operation = struct.parseOperationBuilder->Builder.build(~struct, ~operation=Parsing)
-  let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+let internalParseAsyncWith = Operation.make(~label=ParserAsync, ~init=schema => {
+  let operation = schema.parseOperationBuilder->Builder.build(~schema, ~operation=Parsing)
+  let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
   isAsync
     ? operation->(Obj.magic: (unknown => unknown) => unknown => unit => promise<unknown>)
     : input => {
@@ -971,9 +971,9 @@ let internalParseAsyncWith = Operation.make(~label=ParserAsync, ~init=struct => 
       }
 })
 
-let parseAnyAsyncWith = (any, struct) => {
+let parseAnyAsyncWith = (any, schema) => {
   try {
-    internalParseAsyncWith(any->castAnyToUnknown, struct)()->Stdlib.Promise.thenResolveWithCatch(
+    internalParseAsyncWith(any->castAnyToUnknown, schema)()->Stdlib.Promise.thenResolveWithCatch(
       asyncPrepareOk,
       asyncPrepareError,
     )
@@ -984,9 +984,9 @@ let parseAnyAsyncWith = (any, struct) => {
 
 let parseAsyncWith = parseAnyAsyncWith
 
-let parseAnyAsyncInStepsWith = (any, struct) => {
+let parseAnyAsyncInStepsWith = (any, schema) => {
   try {
-    let asyncFn = internalParseAsyncWith(any->castAnyToUnknown, struct)
+    let asyncFn = internalParseAsyncWith(any->castAnyToUnknown, schema)
     (() => asyncFn()->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, asyncPrepareError))->Ok
   } catch {
   | exn => exn->InternalError.getOrRethrow->Error
@@ -995,42 +995,42 @@ let parseAnyAsyncInStepsWith = (any, struct) => {
 
 let parseAsyncInStepsWith = parseAnyAsyncInStepsWith
 
-let serializeOrRaiseWith = Operation.make(~label=SerializerToJson, ~init=struct => {
-  struct->validateJsonableStruct(~rootStruct=struct, ~isRoot=true)
-  struct.serializeOperationBuilder->Builder.build(~struct, ~operation=Serializing)
+let serializeOrRaiseWith = Operation.make(~label=SerializerToJson, ~init=schema => {
+  schema->validateJsonableSchema(~rootSchema=schema, ~isRoot=true)
+  schema.serializeOperationBuilder->Builder.build(~schema, ~operation=Serializing)
 })
 
-let serializeWith = (value, struct) => {
+let serializeWith = (value, schema) => {
   try {
-    serializeOrRaiseWith(value, struct)->Ok
+    serializeOrRaiseWith(value, schema)->Ok
   } catch {
   | exn => exn->InternalError.getOrRethrow->Error
   }
 }
 
-let serializeToUnknownOrRaiseWith = Operation.make(~label=Serializer, ~init=struct => {
-  struct.serializeOperationBuilder->Builder.build(~struct, ~operation=Serializing)
+let serializeToUnknownOrRaiseWith = Operation.make(~label=Serializer, ~init=schema => {
+  schema.serializeOperationBuilder->Builder.build(~schema, ~operation=Serializing)
 })
 
-let serializeToUnknownWith = (value, struct) => {
+let serializeToUnknownWith = (value, schema) => {
   try {
-    serializeToUnknownOrRaiseWith(value, struct)->Ok
+    serializeToUnknownOrRaiseWith(value, schema)->Ok
   } catch {
   | exn => exn->InternalError.getOrRethrow->Error
   }
 }
 
-let serializeToJsonStringWith = (value: 'value, struct: t<'value>, ~space=0): result<
+let serializeToJsonStringWith = (value: 'value, schema: t<'value>, ~space=0): result<
   string,
   error,
 > => {
-  switch value->serializeWith(struct) {
+  switch value->serializeWith(schema) {
   | Ok(json) => Ok(json->Js.Json.stringifyWithSpace(space))
   | Error(_) as e => e
   }
 }
 
-let parseJsonStringWith = (json: string, struct: t<'value>): result<'value, error> => {
+let parseJsonStringWith = (json: string, schema: t<'value>): result<'value, error> => {
   switch try {
     json->Js.Json.parseExn->Ok
   } catch {
@@ -1043,7 +1043,7 @@ let parseJsonStringWith = (json: string, struct: t<'value>): result<'value, erro
       ),
     )
   } {
-  | Ok(json) => json->parseWith(struct)
+  | Ok(json) => json->parseWith(schema)
   | Error(_) as e => e
   }
 }
@@ -1077,18 +1077,18 @@ module Metadata = {
     }
   }
 
-  let get = (struct, ~id: Id.t<'metadata>) => {
-    struct.metadataMap->Js.Dict.unsafeGet(id->Id.toKey)->(Obj.magic: unknown => option<'metadata>)
+  let get = (schema, ~id: Id.t<'metadata>) => {
+    schema.metadataMap->Js.Dict.unsafeGet(id->Id.toKey)->(Obj.magic: unknown => option<'metadata>)
   }
 
-  let set = (struct, ~id: Id.t<'metadata>, metadata: 'metadata) => {
-    let metadataMap = struct.metadataMap->Map.set(~id, metadata)
+  let set = (schema, ~id: Id.t<'metadata>, metadata: 'metadata) => {
+    let metadataMap = schema.metadataMap->Map.set(~id, metadata)
     make(
-      ~name=struct.name,
-      ~parseOperationBuilder=struct.parseOperationBuilder,
-      ~serializeOperationBuilder=struct.serializeOperationBuilder,
-      ~tagged=struct.tagged,
-      ~maybeTypeFilter=struct.maybeTypeFilter,
+      ~name=schema.name,
+      ~parseOperationBuilder=schema.parseOperationBuilder,
+      ~serializeOperationBuilder=schema.serializeOperationBuilder,
+      ~tagged=schema.tagged,
+      ~maybeTypeFilter=schema.maybeTypeFilter,
       ~metadataMap,
     )
   }
@@ -1096,15 +1096,15 @@ module Metadata = {
 
 let recursive = fn => {
   let placeholder: t<'value> = {"m": Metadata.Map.empty}->Obj.magic
-  let struct = fn(placeholder)
-  placeholder->Stdlib.Object.overrideWith(struct)
+  let schema = fn(placeholder)
+  placeholder->Stdlib.Object.overrideWith(schema)
 
   {
     let builder = placeholder.parseOperationBuilder
-    placeholder.parseOperationBuilder = Builder.make((b, ~selfStruct, ~path) => {
+    placeholder.parseOperationBuilder = Builder.make((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
       let isAsync = {
-        selfStruct.parseOperationBuilder = Builder.noop
+        selfSchema.parseOperationBuilder = Builder.noop
         let ctx = {
           _embeded: [],
           _varsAllocation: "",
@@ -1115,28 +1115,28 @@ let recursive = fn => {
           isAsyncBranch: false,
           operation: Parsing,
         }
-        let _ = (builder->(Obj.magic: builder => Builder.implementation))(ctx, ~selfStruct, ~path)
+        let _ = (builder->(Obj.magic: builder => Builder.implementation))(ctx, ~selfSchema, ~path)
         ctx.isAsyncBranch
       }
 
-      selfStruct.parseOperationBuilder = Builder.make((b, ~selfStruct, ~path as _) => {
+      selfSchema.parseOperationBuilder = Builder.make((b, ~selfSchema, ~path as _) => {
         let input = b->B.useInput
         if isAsync {
-          b->B.embedAsyncOperation(~input, ~fn=input => input->internalParseAsyncWith(selfStruct))
+          b->B.embedAsyncOperation(~input, ~fn=input => input->internalParseAsyncWith(selfSchema))
         } else {
-          b->B.embedSyncOperation(~input, ~fn=input => input->parseAnyOrRaiseWith(selfStruct))
+          b->B.embedSyncOperation(~input, ~fn=input => input->parseAnyOrRaiseWith(selfSchema))
         }
       })
 
-      let operation = builder->Builder.build(~struct=selfStruct, ~operation=Parsing)
+      let operation = builder->Builder.build(~schema=selfSchema, ~operation=Parsing)
       if isAsync {
-        selfStruct->Obj.magic->Js.Dict.set((Operation.ParserAsync :> string), operation)
+        selfSchema->Obj.magic->Js.Dict.set((Operation.ParserAsync :> string), operation)
       } else {
         // TODO: Use init function
-        selfStruct->Obj.magic->Js.Dict.set((Operation.Parser :> string), operation)
+        selfSchema->Obj.magic->Js.Dict.set((Operation.Parser :> string), operation)
       }
 
-      selfStruct.parseOperationBuilder = builder
+      selfSchema.parseOperationBuilder = builder
       b->B.withPathPrepend(~path, (b, ~path as _) =>
         if isAsync {
           b->B.embedAsyncOperation(~input, ~fn=operation)
@@ -1149,23 +1149,23 @@ let recursive = fn => {
 
   {
     let builder = placeholder.serializeOperationBuilder
-    placeholder.serializeOperationBuilder = Builder.make((b, ~selfStruct, ~path) => {
+    placeholder.serializeOperationBuilder = Builder.make((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
-      selfStruct.serializeOperationBuilder = Builder.make((b, ~selfStruct, ~path as _) => {
+      selfSchema.serializeOperationBuilder = Builder.make((b, ~selfSchema, ~path as _) => {
         let input = b->B.useInput
         b->B.embedSyncOperation(
           ~input,
-          ~fn=input => input->serializeToUnknownOrRaiseWith(selfStruct),
+          ~fn=input => input->serializeToUnknownOrRaiseWith(selfSchema),
         )
       })
 
-      let operation = builder->Builder.build(~struct=selfStruct, ~operation=Serializing)
+      let operation = builder->Builder.build(~schema=selfSchema, ~operation=Serializing)
 
       // TODO: Use init function
       // TODO: What about json validation ?? Check whether it works correctly
-      selfStruct->Obj.magic->Js.Dict.set((Operation.Serializer :> string), operation)
+      selfSchema->Obj.magic->Js.Dict.set((Operation.Serializer :> string), operation)
 
-      selfStruct.serializeOperationBuilder = builder
+      selfSchema.serializeOperationBuilder = builder
       b->B.withPathPrepend(~path, (b, ~path as _) => b->B.embedSyncOperation(~input, ~fn=operation))
     })
   }
@@ -1173,14 +1173,14 @@ let recursive = fn => {
   placeholder
 }
 
-let setName = (struct, name) => {
+let setName = (schema, name) => {
   make(
     ~name=() => name,
-    ~parseOperationBuilder=struct.parseOperationBuilder,
-    ~serializeOperationBuilder=struct.serializeOperationBuilder,
-    ~tagged=struct.tagged,
-    ~maybeTypeFilter=struct.maybeTypeFilter,
-    ~metadataMap=struct.metadataMap,
+    ~parseOperationBuilder=schema.parseOperationBuilder,
+    ~serializeOperationBuilder=schema.serializeOperationBuilder,
+    ~tagged=schema.tagged,
+    ~maybeTypeFilter=schema.maybeTypeFilter,
+    ~metadataMap=schema.metadataMap,
   )
 }
 
@@ -1193,49 +1193,49 @@ let containerName = () => {
   `${tagged["TAG"]}(${(tagged->unsafeGetVariantPayload).name()})`
 }
 
-let internalRefine = (struct, refiner) => {
-  let struct = struct->toUnknown
+let internalRefine = (schema, refiner) => {
+  let schema = schema->toUnknown
   make(
-    ~name=struct.name,
-    ~tagged=struct.tagged,
-    ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
+    ~name=schema.name,
+    ~tagged=schema.tagged,
+    ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
-      b->B.transform(~input=b->B.use(~struct, ~input, ~path), ~isAsync=false, (b, ~input) => {
+      b->B.transform(~input=b->B.use(~schema, ~input, ~path), ~isAsync=false, (b, ~input) => {
         let inputVar = b->B.toVar(input)
-        b.code = b.code ++ refiner(b, ~inputVar, ~selfStruct, ~path)
+        b.code = b.code ++ refiner(b, ~inputVar, ~selfSchema, ~path)
         inputVar
       })
     }),
-    ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
+    ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
       b->B.use(
-        ~struct,
+        ~schema,
         ~input=b->B.transform(~input, ~isAsync=false, (b, ~input) => {
           let inputVar = b->B.toVar(input)
-          b.code = b.code ++ refiner(b, ~inputVar, ~selfStruct, ~path)
+          b.code = b.code ++ refiner(b, ~inputVar, ~selfSchema, ~path)
           inputVar
         }),
         ~path,
       )
     }),
-    ~maybeTypeFilter=struct.maybeTypeFilter,
-    ~metadataMap=struct.metadataMap,
+    ~maybeTypeFilter=schema.maybeTypeFilter,
+    ~metadataMap=schema.metadataMap,
   )
 }
 
-let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value> = (struct, refiner) => {
-  struct->internalRefine((b, ~inputVar, ~selfStruct, ~path) => {
+let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value> = (schema, refiner) => {
+  schema->internalRefine((b, ~inputVar, ~selfSchema, ~path) => {
     `${b->B.embed(
-        refiner(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)),
+        refiner(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)),
       )}(${inputVar});`
   })
 }
 
-let addRefinement = (struct, ~metadataId, ~refinement, ~refiner) => {
-  struct
+let addRefinement = (schema, ~metadataId, ~refinement, ~refiner) => {
+  schema
   ->Metadata.set(
     ~id=metadataId,
-    switch struct->Metadata.get(~id=metadataId) {
+    switch schema->Metadata.get(~id=metadataId) {
     | Some(refinements) => refinements->Stdlib.Array.append(refinement)
     | None => [refinement]
     },
@@ -1254,15 +1254,15 @@ type transformDefinition<'input, 'output> = {
 let transform: (
   t<'input>,
   effectCtx<'output> => transformDefinition<'input, 'output>,
-) => t<'output> = (struct, transformer) => {
-  let struct = struct->toUnknown
+) => t<'output> = (schema, transformer) => {
+  let schema = schema->toUnknown
   make(
-    ~name=struct.name,
-    ~tagged=struct.tagged,
-    ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
+    ~name=schema.name,
+    ~tagged=schema.tagged,
+    ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
-      let input = b->B.use(~struct, ~input, ~path)
-      switch transformer(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)) {
+      let input = b->B.use(~schema, ~input, ~path)
+      switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~input, ~fn=parser)
       | {parser: ?None, asyncParser} => b->B.embedAsyncOperation(~input, ~fn=asyncParser)
       | {parser: ?None, asyncParser: ?None, serializer: ?None} => input
@@ -1275,19 +1275,19 @@ let transform: (
         )
       }
     }),
-    ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
+    ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
-      switch transformer(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)) {
+      switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
       | {serializer} =>
-        b->B.use(~struct, ~input=b->B.embedSyncOperation(~input, ~fn=serializer), ~path)
-      | {parser: ?None, asyncParser: ?None, serializer: ?None} => b->B.use(~struct, ~input, ~path)
+        b->B.use(~schema, ~input=b->B.embedSyncOperation(~input, ~fn=serializer), ~path)
+      | {parser: ?None, asyncParser: ?None, serializer: ?None} => b->B.use(~schema, ~input, ~path)
       | {serializer: ?None, asyncParser: ?Some(_)}
       | {serializer: ?None, parser: ?Some(_)} =>
         b->B.invalidOperation(~path, ~description=`The S.transform serializer is missing`)
       }
     }),
-    ~maybeTypeFilter=struct.maybeTypeFilter,
-    ~metadataMap=struct.metadataMap,
+    ~maybeTypeFilter=schema.maybeTypeFilter,
+    ~metadataMap=schema.metadataMap,
   )
 }
 
@@ -1299,33 +1299,33 @@ type preprocessDefinition<'input, 'output> = {
   @as("s")
   serializer?: unknown => 'input,
 }
-let rec preprocess = (struct, transformer) => {
-  let struct = struct->toUnknown
-  switch struct->classify {
-  | Union(unionStructs) =>
+let rec preprocess = (schema, transformer) => {
+  let schema = schema->toUnknown
+  switch schema->classify {
+  | Union(unionSchemas) =>
     make(
-      ~name=struct.name,
+      ~name=schema.name,
       ~tagged=Union(
-        unionStructs->Js.Array2.map(unionStruct =>
-          unionStruct->castUnknownStructToAnyStruct->preprocess(transformer)->toUnknown
+        unionSchemas->Js.Array2.map(unionSchema =>
+          unionSchema->castUnknownSchemaToAnySchema->preprocess(transformer)->toUnknown
         ),
       ),
-      ~parseOperationBuilder=struct.parseOperationBuilder,
-      ~serializeOperationBuilder=struct.serializeOperationBuilder,
-      ~maybeTypeFilter=struct.maybeTypeFilter,
-      ~metadataMap=struct.metadataMap,
+      ~parseOperationBuilder=schema.parseOperationBuilder,
+      ~serializeOperationBuilder=schema.serializeOperationBuilder,
+      ~maybeTypeFilter=schema.maybeTypeFilter,
+      ~metadataMap=schema.metadataMap,
     )
   | _ =>
     make(
-      ~name=struct.name,
-      ~tagged=struct.tagged,
-      ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
+      ~name=schema.name,
+      ~tagged=schema.tagged,
+      ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
         let input = b->B.useInput
-        switch transformer(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)) {
+        switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
         | {parser, asyncParser: ?None} =>
           let operationResultVar = b->B.var
           b.code = b.code ++ `${operationResultVar}=${b->B.embedSyncOperation(~input, ~fn=parser)};`
-          b->B.useWithTypeFilter(~struct, ~input=operationResultVar, ~path)
+          b->B.useWithTypeFilter(~schema, ~input=operationResultVar, ~path)
         | {parser: ?None, asyncParser} => {
             let parseResultVar = b->B.embedAsyncOperation(~input, ~fn=asyncParser)
             let outputVar = b->B.var
@@ -1335,14 +1335,14 @@ let rec preprocess = (struct, transformer) => {
             b.code =
               b.code ++
               `${outputVar}=()=>${parseResultVar}().then(${asyncResultVar}=>{${b->B.scope(b => {
-                  let structOutputVar =
-                    b->B.useWithTypeFilter(~struct, ~input=asyncResultVar, ~path)
-                  let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-                  `return ${isAsync ? `${structOutputVar}()` : structOutputVar}`
+                  let schemaOutputVar =
+                    b->B.useWithTypeFilter(~schema, ~input=asyncResultVar, ~path)
+                  let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+                  `return ${isAsync ? `${schemaOutputVar}()` : schemaOutputVar}`
                 })}});`
             outputVar
           }
-        | {parser: ?None, asyncParser: ?None} => b->B.useWithTypeFilter(~struct, ~input, ~path)
+        | {parser: ?None, asyncParser: ?None} => b->B.useWithTypeFilter(~schema, ~input, ~path)
         | {parser: _, asyncParser: _} =>
           b->B.invalidOperation(
             ~path,
@@ -1350,17 +1350,17 @@ let rec preprocess = (struct, transformer) => {
           )
         }
       }),
-      ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
+      ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
         let input = b->B.useInput
-        let input = b->B.use(~struct, ~input, ~path)
-        switch transformer(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)) {
+        let input = b->B.use(~schema, ~input, ~path)
+        switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
         | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
         // TODO: Test that it doesn't return InvalidOperation when parser is passed but not serializer
         | {serializer: ?None} => input
         }
       }),
       ~maybeTypeFilter=None,
-      ~metadataMap=struct.metadataMap,
+      ~metadataMap=schema.metadataMap,
     )
   }
 }
@@ -1378,9 +1378,9 @@ let custom = (name, definer) => {
     ~name=() => name,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Unknown,
-    ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
+    ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
-      switch definer(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)) {
+      switch definer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~input, ~fn=parser)
       | {parser: ?None, asyncParser} => b->B.embedAsyncOperation(~input, ~fn=asyncParser)
       | {parser: ?None, asyncParser: ?None, serializer: ?None} => input
@@ -1393,9 +1393,9 @@ let custom = (name, definer) => {
         )
       }
     }),
-    ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
+    ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
-      switch definer(EffectCtx.make(~selfStruct, ~path, ~operation=b.operation)) {
+      switch definer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
       | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
       | {parser: ?None, asyncParser: ?None, serializer: ?None} => input
       | {serializer: ?None, asyncParser: ?Some(_)}
@@ -1457,7 +1457,7 @@ let rec literalCheckBuilder = (b, ~value, ~inputVar) => {
 let literal = value => {
   let value = value->castAnyToUnknown
   let literal = value->Literal.classify
-  let operationBuilder = Builder.make((b, ~selfStruct as _, ~path) => {
+  let operationBuilder = Builder.make((b, ~selfSchema as _, ~path) => {
     let inputVar = b->B.useInputVar
     b.code =
       b.code ++
@@ -1518,16 +1518,16 @@ module Variant = {
   type serializeOutput = Registered(string) | @as(0) Unregistered | @as(1) RegisteredMultipleTimes
 
   let factory = {
-    (struct: t<'value>, definer: 'value => 'variant): t<'variant> => {
-      let struct = struct->toUnknown
+    (schema: t<'value>, definer: 'value => 'variant): t<'variant> => {
+      let schema = schema->toUnknown
       make(
-        ~name=struct.name,
-        ~tagged=struct.tagged,
-        ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
+        ~name=schema.name,
+        ~tagged=schema.tagged,
+        ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
           let input = b->B.useInput
-          b->B.embedSyncOperation(~input=b->B.use(~struct, ~input, ~path), ~fn=definer)
+          b->B.embedSyncOperation(~input=b->B.use(~schema, ~input, ~path), ~fn=definer)
         }),
-        ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
+        ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
           let inputVar = b->B.useInputVar
 
           let definition =
@@ -1594,10 +1594,10 @@ module Variant = {
               ~path,
               ~description=`Can't create serializer. The S.variant's value is registered multiple times. Use S.transform instead`,
             )
-          | Registered(var) => b->B.use(~struct, ~input=var, ~path)
+          | Registered(var) => b->B.use(~schema, ~input=var, ~path)
           | Unregistered =>
-            switch selfStruct->toLiteral {
-            | Some(literal) => b->B.use(~struct, ~input=b->B.embed(literal->Literal.value), ~path)
+            switch selfSchema->toLiteral {
+            | Some(literal) => b->B.use(~schema, ~input=b->B.embed(literal->Literal.value), ~path)
             | None =>
               b->B.invalidOperation(
                 ~path,
@@ -1606,8 +1606,8 @@ module Variant = {
             }
           }
         }),
-        ~maybeTypeFilter=struct.maybeTypeFilter,
-        ~metadataMap=struct.metadataMap,
+        ~maybeTypeFilter=schema.maybeTypeFilter,
+        ~metadataMap=schema.metadataMap,
       )
     }
   }
@@ -1617,23 +1617,23 @@ module Option = {
   type default = Value(unknown) | Callback(unit => unknown)
 
   let defaultMetadataId: Metadata.Id.t<default> = Metadata.Id.make(
-    ~namespace="rescript-struct",
+    ~namespace="rescript-schema",
     ~name="Option.default",
   )
 
-  let default = struct => struct->Metadata.get(~id=defaultMetadataId)
+  let default = schema => schema->Metadata.get(~id=defaultMetadataId)
 
-  let parseOperationBuilder = Builder.make((b, ~selfStruct, ~path) => {
+  let parseOperationBuilder = Builder.make((b, ~selfSchema, ~path) => {
     let inputVar = b->B.useInputVar
     let outputVar = b->B.var
 
-    let isNull = %raw(`selfStruct.t.TAG === "Null"`)
-    let childStruct = selfStruct.tagged->unsafeGetVariantPayload
+    let isNull = %raw(`selfSchema.t.TAG === "Null"`)
+    let childSchema = selfSchema.tagged->unsafeGetVariantPayload
 
     let ifCode = b->B.scope(b => {
-      `${outputVar}=${b->B.use(~struct=childStruct, ~input=inputVar, ~path)}`
+      `${outputVar}=${b->B.use(~schema=childSchema, ~input=inputVar, ~path)}`
     })
-    let isAsync = childStruct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+    let isAsync = childSchema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
 
     b.code =
       b.code ++
@@ -1647,18 +1647,18 @@ module Option = {
     outputVar
   })
 
-  let serializeOperationBuilder = Builder.make((b, ~selfStruct, ~path) => {
+  let serializeOperationBuilder = Builder.make((b, ~selfSchema, ~path) => {
     let inputVar = b->B.useInputVar
     let outputVar = b->B.var
 
-    let isNull = %raw(`selfStruct.t.TAG === "Null"`)
-    let childStruct = selfStruct.tagged->unsafeGetVariantPayload
+    let isNull = %raw(`selfSchema.t.TAG === "Null"`)
+    let childSchema = selfSchema.tagged->unsafeGetVariantPayload
 
     b.code =
       b.code ++
       `if(${inputVar}!==void 0){${b->B.scope(b => {
           `${outputVar}=${b->B.use(
-              ~struct=childStruct,
+              ~schema=childSchema,
               ~input=`${b->B.embed(%raw("Caml_option.valFromOption"))}(${inputVar})`,
               ~path,
             )}`
@@ -1666,8 +1666,8 @@ module Option = {
     outputVar
   })
 
-  let maybeTypeFilter = (~struct, ~inlinedNoneValue) => {
-    switch struct.maybeTypeFilter {
+  let maybeTypeFilter = (~schema, ~inlinedNoneValue) => {
+    switch schema.maybeTypeFilter {
     | Some(typeFilter) =>
       Some(
         (~inputVar) => {
@@ -1678,27 +1678,27 @@ module Option = {
     }
   }
 
-  let factory = struct => {
-    let struct = struct->toUnknown
+  let factory = schema => {
+    let schema = schema->toUnknown
     make(
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
-      ~tagged=Option(struct),
+      ~tagged=Option(schema),
       ~parseOperationBuilder,
       ~serializeOperationBuilder,
-      ~maybeTypeFilter=maybeTypeFilter(~struct, ~inlinedNoneValue="void 0"),
+      ~maybeTypeFilter=maybeTypeFilter(~schema, ~inlinedNoneValue="void 0"),
     )
   }
 
-  let getWithDefault = (struct, default) => {
-    let struct = struct->(Obj.magic: t<option<'value>> => t<unknown>)
+  let getWithDefault = (schema, default) => {
+    let schema = schema->(Obj.magic: t<option<'value>> => t<unknown>)
     make(
-      ~name=struct.name,
-      ~metadataMap=struct.metadataMap->Metadata.Map.set(~id=defaultMetadataId, default),
-      ~tagged=struct.tagged,
-      ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
+      ~name=schema.name,
+      ~metadataMap=schema.metadataMap->Metadata.Map.set(~id=defaultMetadataId, default),
+      ~tagged=schema.tagged,
+      ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         let input = b->B.useInput
-        b->B.transform(~input=b->B.use(~struct, ~input, ~path), ~isAsync=false, (b, ~input) => {
+        b->B.transform(~input=b->B.use(~schema, ~input, ~path), ~isAsync=false, (b, ~input) => {
           // TODO: Reassign input if it's not a var
           `${input}===void 0?${switch default {
             | Value(v) => b->B.embed(v)
@@ -1706,27 +1706,27 @@ module Option = {
             }}:${input}`
         })
       }),
-      ~serializeOperationBuilder=struct.serializeOperationBuilder,
-      ~maybeTypeFilter=struct.maybeTypeFilter,
+      ~serializeOperationBuilder=schema.serializeOperationBuilder,
+      ~maybeTypeFilter=schema.maybeTypeFilter,
     )
   }
 
-  let getOr = (struct, defalutValue) =>
-    struct->getWithDefault(Value(defalutValue->castAnyToUnknown))
-  let getOrWith = (struct, defalutCb) =>
-    struct->getWithDefault(Callback(defalutCb->(Obj.magic: (unit => 'a) => unit => unknown)))
+  let getOr = (schema, defalutValue) =>
+    schema->getWithDefault(Value(defalutValue->castAnyToUnknown))
+  let getOrWith = (schema, defalutCb) =>
+    schema->getWithDefault(Callback(defalutCb->(Obj.magic: (unit => 'a) => unit => unknown)))
 }
 
 module Null = {
-  let factory = struct => {
-    let struct = struct->toUnknown
+  let factory = schema => {
+    let schema = schema->toUnknown
     make(
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
-      ~tagged=Null(struct),
+      ~tagged=Null(schema),
       ~parseOperationBuilder=Option.parseOperationBuilder,
       ~serializeOperationBuilder=Option.serializeOperationBuilder,
-      ~maybeTypeFilter=Option.maybeTypeFilter(~struct, ~inlinedNoneValue="null"),
+      ~maybeTypeFilter=Option.maybeTypeFilter(~schema, ~inlinedNoneValue="null"),
     )
   }
 }
@@ -1739,7 +1739,7 @@ module Object = {
   }
   type itemDefinition = {
     @as("s")
-    struct: struct<unknown>,
+    schema: schema<unknown>,
     @as("l")
     inlinedInputLocation: string,
     @as("p")
@@ -1748,7 +1748,7 @@ module Object = {
 
   let typeFilter = (~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
 
-  let noopRefinement = (_b, ~selfStruct as _, ~inputVar as _, ~path as _) => ()
+  let noopRefinement = (_b, ~selfSchema as _, ~inputVar as _, ~path as _) => ()
 
   let makeParseOperationBuilder = (
     ~itemDefinitions,
@@ -1757,17 +1757,17 @@ module Object = {
     ~inputRefinement,
     ~unknownKeysRefinement,
   ) => {
-    Builder.make((b, ~selfStruct, ~path) => {
+    Builder.make((b, ~selfSchema, ~path) => {
       let inputVar = b->B.useInputVar
 
       let registeredDefinitions = Stdlib.Set.empty()
       let asyncOutputVars = []
 
-      inputRefinement(b, ~selfStruct, ~inputVar, ~path)
+      inputRefinement(b, ~selfSchema, ~inputVar, ~path)
 
       let prevCode = b.code
       b.code = ""
-      unknownKeysRefinement(b, ~selfStruct, ~inputVar, ~path)
+      unknownKeysRefinement(b, ~selfSchema, ~inputVar, ~path)
       let unknownKeysRefinementCode = b.code
       b.code = ""
 
@@ -1778,14 +1778,14 @@ module Object = {
           | Embeded => {
               let itemDefinition = definition->Definition.toEmbeded
               registeredDefinitions->Stdlib.Set.add(itemDefinition)->ignore
-              let {struct, inputPath} = itemDefinition
+              let {schema, inputPath} = itemDefinition
               let fieldOuputVar =
                 b->B.useWithTypeFilter(
-                  ~struct,
+                  ~schema,
                   ~input=`${inputVar}${inputPath}`,
                   ~path=path->Path.concat(inputPath),
                 )
-              let isAsyncField = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+              let isAsyncField = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
               if isAsyncField {
                 // TODO: Ensure that it's not a var, but inlined
                 asyncOutputVars->Js.Array2.push(fieldOuputVar)->ignore
@@ -1825,14 +1825,14 @@ module Object = {
       for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
         let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
         if registeredDefinitions->Stdlib.Set.has(itemDefinition)->not {
-          let {struct, inputPath} = itemDefinition
+          let {schema, inputPath} = itemDefinition
           let fieldOuputVar =
             b->B.useWithTypeFilter(
-              ~struct,
+              ~schema,
               ~input=`${inputVar}${inputPath}`,
               ~path=path->Path.concat(inputPath),
             )
-          let isAsyncField = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+          let isAsyncField = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
           if isAsyncField {
             // TODO: Ensure that it's not a var, but inlined
             asyncOutputVars->Js.Array2.push(fieldOuputVar)->ignore
@@ -1865,7 +1865,7 @@ module Object = {
       @as("n")
       fieldNames: array<string>,
       @as("h")
-      fields: Js.Dict.t<struct<unknown>>,
+      fields: Js.Dict.t<schema<unknown>>,
       @as("d")
       itemDefinitionsSet: Stdlib.Set.t<itemDefinition>,
       // Public API for JS/TS users.
@@ -1886,9 +1886,9 @@ module Object = {
       let itemDefinitionsSet = Stdlib.Set.empty()
 
       let field:
-        type value. (string, struct<value>) => value =
-        (fieldName, struct) => {
-          let struct = struct->toUnknown
+        type value. (string, schema<value>) => value =
+        (fieldName, schema) => {
+          let schema = schema->toUnknown
           let inlinedInputLocation = fieldName->Stdlib.Inlined.Value.fromString
           if fields->Stdlib.Dict.has(fieldName) {
             InternalError.panic(
@@ -1896,11 +1896,11 @@ module Object = {
             )
           } else {
             let itemDefinition: itemDefinition = {
-              struct,
+              schema,
               inlinedInputLocation,
               inputPath: inlinedInputLocation->Path.fromInlinedLocation,
             }
-            fields->Js.Dict.set(fieldName, struct)
+            fields->Js.Dict.set(fieldName, schema)
             fieldNames->Js.Array2.push(fieldName)->ignore
             itemDefinitionsSet->Stdlib.Set.add(itemDefinition)->ignore
             itemDefinition->(Obj.magic: itemDefinition => value)
@@ -1911,8 +1911,8 @@ module Object = {
         let _ = field(tag, literal(asValue))
       }
 
-      let fieldOr = (fieldName, struct, or) => {
-        field(fieldName, Option.factory(struct)->Option.getOr(or))
+      let fieldOr = (fieldName, schema, or) => {
+        field(fieldName, Option.factory(schema)->Option.getOr(or))
       }
 
       {
@@ -1941,8 +1941,8 @@ module Object = {
       ~name=() =>
         `Object({${fieldNames
           ->Js.Array2.map(fieldName => {
-            let fieldStruct = fields->Js.Dict.unsafeGet(fieldName)
-            `${fieldName->Stdlib.Inlined.Value.fromString}: ${fieldStruct.name()}`
+            let fieldSchema = fields->Js.Dict.unsafeGet(fieldName)
+            `${fieldName->Stdlib.Inlined.Value.fromString}: ${fieldSchema.name()}`
           })
           ->Js.Array2.joinWith(", ")}})`,
       ~metadataMap=Metadata.Map.empty,
@@ -1956,9 +1956,9 @@ module Object = {
         ~itemDefinitionsSet,
         ~definition,
         ~inputRefinement=noopRefinement,
-        ~unknownKeysRefinement=(b, ~selfStruct, ~inputVar, ~path) => {
+        ~unknownKeysRefinement=(b, ~selfSchema, ~inputVar, ~path) => {
           let withUnknownKeysRefinement =
-            (selfStruct->classify->Obj.magic)["unknownKeys"] === Strict
+            (selfSchema->classify->Obj.magic)["unknownKeys"] === Strict
           switch (withUnknownKeysRefinement, itemDefinitions) {
           | (true, []) => {
               let keyVar = b->B.var
@@ -1992,7 +1992,7 @@ module Object = {
           }
         },
       ),
-      ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
+      ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         let inputVar = b->B.useInputVar
         let fieldsCodeRef = ref("")
 
@@ -2013,11 +2013,11 @@ module Object = {
                 )
               } else {
                 registeredDefinitions->Stdlib.Set.add(itemDefinition)->ignore
-                let {inlinedInputLocation, struct} = itemDefinition
+                let {inlinedInputLocation, schema} = itemDefinition
                 fieldsCodeRef.contents =
                   fieldsCodeRef.contents ++
                   `${inlinedInputLocation}:${b->B.use(
-                      ~struct,
+                      ~schema,
                       ~input=`${inputVar}${outputPath}`,
                       ~path=path->Path.concat(outputPath),
                     )},`
@@ -2056,8 +2056,8 @@ module Object = {
         for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
           let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
           if registeredDefinitions->Stdlib.Set.has(itemDefinition)->not {
-            let {struct, inlinedInputLocation} = itemDefinition
-            switch struct->toLiteral {
+            let {schema, inlinedInputLocation} = itemDefinition
+            switch schema->toLiteral {
             | Some(literal) =>
               fieldsCodeRef.contents =
                 fieldsCodeRef.contents ++
@@ -2077,47 +2077,47 @@ module Object = {
     )
   }
 
-  let strip = struct => {
-    switch struct->classify {
+  let strip = schema => {
+    switch schema->classify {
     | Object({unknownKeys: Strict, fieldNames, fields}) =>
       make(
-        ~name=struct.name,
+        ~name=schema.name,
         ~tagged=Object({unknownKeys: Strip, fieldNames, fields}),
-        ~parseOperationBuilder=struct.parseOperationBuilder,
-        ~serializeOperationBuilder=struct.serializeOperationBuilder,
-        ~maybeTypeFilter=struct.maybeTypeFilter,
-        ~metadataMap=struct.metadataMap,
+        ~parseOperationBuilder=schema.parseOperationBuilder,
+        ~serializeOperationBuilder=schema.serializeOperationBuilder,
+        ~maybeTypeFilter=schema.maybeTypeFilter,
+        ~metadataMap=schema.metadataMap,
       )
-    | _ => struct
+    | _ => schema
     }
   }
 
-  let strict = struct => {
-    switch struct->classify {
+  let strict = schema => {
+    switch schema->classify {
     | Object({unknownKeys: Strip, fieldNames, fields}) =>
       make(
-        ~name=struct.name,
+        ~name=schema.name,
         ~tagged=Object({unknownKeys: Strict, fieldNames, fields}),
-        ~parseOperationBuilder=struct.parseOperationBuilder,
-        ~serializeOperationBuilder=struct.serializeOperationBuilder,
-        ~maybeTypeFilter=struct.maybeTypeFilter,
-        ~metadataMap=struct.metadataMap,
+        ~parseOperationBuilder=schema.parseOperationBuilder,
+        ~serializeOperationBuilder=schema.serializeOperationBuilder,
+        ~maybeTypeFilter=schema.maybeTypeFilter,
+        ~metadataMap=schema.metadataMap,
       )
-    // TODO: Should it throw for non Object structs?
-    | _ => struct
+    // TODO: Should it throw for non Object schemas?
+    | _ => schema
     }
   }
 }
 
 module Never = {
-  let builder = Builder.make((b, ~selfStruct, ~path) => {
+  let builder = Builder.make((b, ~selfSchema, ~path) => {
     let input = b->B.useInput
     b.code =
       b.code ++
       b->B.raiseWithArg(
         ~path,
         input => InvalidType({
-          expected: selfStruct,
+          expected: selfSchema,
           received: input,
         }),
         input,
@@ -2125,7 +2125,7 @@ module Never = {
     input
   })
 
-  let struct = make(
+  let schema = make(
     ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Never,
@@ -2136,7 +2136,7 @@ module Never = {
 }
 
 module Unknown = {
-  let struct = {
+  let schema = {
     name: primitiveName,
     tagged: Unknown,
     parseOperationBuilder: Builder.noop,
@@ -2165,13 +2165,13 @@ module String = {
     }
 
     let metadataId: Metadata.Id.t<array<t>> = Metadata.Id.make(
-      ~namespace="rescript-struct",
+      ~namespace="rescript-schema",
       ~name="String.refinements",
     )
   }
 
-  let refinements = struct => {
-    switch struct->Metadata.get(~id=Refinement.metadataId) {
+  let refinements = schema => {
+    switch schema->Metadata.get(~id=Refinement.metadataId) {
     | Some(m) => m
     | None => []
     }
@@ -2186,7 +2186,7 @@ module String = {
 
   let typeFilter = (~inputVar) => `typeof ${inputVar}!=="string"`
 
-  let struct = makeWithNoopSerializer(
+  let schema = makeWithNoopSerializer(
     ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=String,
@@ -2194,14 +2194,14 @@ module String = {
     ~maybeTypeFilter=Some(typeFilter),
   )
 
-  let min = (struct, length, ~message as maybeMessage=?) => {
+  let min = (schema, length, ~message as maybeMessage=?) => {
     let message = switch maybeMessage {
     | Some(m) => m
     | None => `String must be ${length->Stdlib.Int.unsafeToString} or more characters long`
     }
-    struct->addRefinement(
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         `if(${inputVar}.length<${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
       },
       ~refinement={
@@ -2211,14 +2211,14 @@ module String = {
     )
   }
 
-  let max = (struct, length, ~message as maybeMessage=?) => {
+  let max = (schema, length, ~message as maybeMessage=?) => {
     let message = switch maybeMessage {
     | Some(m) => m
     | None => `String must be ${length->Stdlib.Int.unsafeToString} or fewer characters long`
     }
-    struct->addRefinement(
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         `if(${inputVar}.length>${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
       },
       ~refinement={
@@ -2228,14 +2228,14 @@ module String = {
     )
   }
 
-  let length = (struct, length, ~message as maybeMessage=?) => {
+  let length = (schema, length, ~message as maybeMessage=?) => {
     let message = switch maybeMessage {
     | Some(m) => m
     | None => `String must be exactly ${length->Stdlib.Int.unsafeToString} characters long`
     }
-    struct->addRefinement(
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         `if(${inputVar}.length!==${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
       },
       ~refinement={
@@ -2245,10 +2245,10 @@ module String = {
     )
   }
 
-  let email = (struct, ~message=`Invalid email address`) => {
-    struct->addRefinement(
+  let email = (schema, ~message=`Invalid email address`) => {
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         `if(!${b->B.embed(emailRegex)}.test(${inputVar})){${b->B.fail(~message, ~path)}}`
       },
       ~refinement={
@@ -2258,10 +2258,10 @@ module String = {
     )
   }
 
-  let uuid = (struct, ~message=`Invalid UUID`) => {
-    struct->addRefinement(
+  let uuid = (schema, ~message=`Invalid UUID`) => {
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         `if(!${b->B.embed(uuidRegex)}.test(${inputVar})){${b->B.fail(~message, ~path)}}`
       },
       ~refinement={
@@ -2271,10 +2271,10 @@ module String = {
     )
   }
 
-  let cuid = (struct, ~message=`Invalid CUID`) => {
-    struct->addRefinement(
+  let cuid = (schema, ~message=`Invalid CUID`) => {
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         `if(!${b->B.embed(cuidRegex)}.test(${inputVar})){${b->B.fail(~message, ~path)}}`
       },
       ~refinement={
@@ -2284,10 +2284,10 @@ module String = {
     )
   }
 
-  let url = (struct, ~message=`Invalid url`) => {
-    struct->addRefinement(
+  let url = (schema, ~message=`Invalid url`) => {
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         `try{new URL(${inputVar})}catch(_){${b->B.fail(~message, ~path)}}`
       },
       ~refinement={
@@ -2297,10 +2297,10 @@ module String = {
     )
   }
 
-  let pattern = (struct, re, ~message=`Invalid`) => {
-    struct->addRefinement(
+  let pattern = (schema, re, ~message=`Invalid`) => {
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         let reVar = b->B.var
         `${reVar}=${b->B.embed(
             re,
@@ -2313,16 +2313,16 @@ module String = {
     )
   }
 
-  let datetime = (struct, ~message=`Invalid datetime string! Must be UTC`) => {
+  let datetime = (schema, ~message=`Invalid datetime string! Must be UTC`) => {
     let refinement = {
       Refinement.kind: Datetime,
       message,
     }
-    struct
+    schema
     ->Metadata.set(
       ~id=Refinement.metadataId,
       {
-        switch struct->Metadata.get(~id=Refinement.metadataId) {
+        switch schema->Metadata.get(~id=Refinement.metadataId) {
         | Some(refinements) => refinements->Stdlib.Array.append(refinement)
         | None => [refinement]
         }
@@ -2339,22 +2339,22 @@ module String = {
     })
   }
 
-  let trim = struct => {
+  let trim = schema => {
     let transformer = string => string->Js.String2.trim
-    struct->transform(_ => {parser: transformer, serializer: transformer})
+    schema->transform(_ => {parser: transformer, serializer: transformer})
   }
 }
 
 module JsonString = {
-  let factory = struct => {
-    let struct = struct->toUnknown
+  let factory = schema => {
+    let schema = schema->toUnknown
     try {
-      struct->validateJsonableStruct(~rootStruct=struct, ~isRoot=true)
+      schema->validateJsonableSchema(~rootSchema=schema, ~isRoot=true)
     } catch {
     | exn => {
         let _ = exn->InternalError.getOrRethrow
         InternalError.panic(
-          `The struct ${struct.name()} passed to S.jsonString is not compatible with JSON`,
+          `The schema ${schema.name()} passed to S.jsonString is not compatible with JSON`,
         )
       }
     }
@@ -2362,7 +2362,7 @@ module JsonString = {
       ~name=primitiveName,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=String,
-      ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
+      ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         let input = b->B.useInput
         let jsonVar = b->B.var
         b.code =
@@ -2373,11 +2373,11 @@ module JsonString = {
               "t.message",
             )}}`
 
-        b->B.useWithTypeFilter(~struct, ~input=jsonVar, ~path)
+        b->B.useWithTypeFilter(~schema, ~input=jsonVar, ~path)
       }),
-      ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
+      ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         let input = b->B.useInput
-        `JSON.stringify(${b->B.use(~struct, ~input, ~path)})`
+        `JSON.stringify(${b->B.use(~schema, ~input, ~path)})`
       }),
       ~maybeTypeFilter=Some(String.typeFilter),
     )
@@ -2387,7 +2387,7 @@ module JsonString = {
 module Bool = {
   let typeFilter = (~inputVar) => `typeof ${inputVar}!=="boolean"`
 
-  let struct = makeWithNoopSerializer(
+  let schema = makeWithNoopSerializer(
     ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Bool,
@@ -2408,13 +2408,13 @@ module Int = {
     }
 
     let metadataId: Metadata.Id.t<array<t>> = Metadata.Id.make(
-      ~namespace="rescript-struct",
+      ~namespace="rescript-schema",
       ~name="Int.refinements",
     )
   }
 
-  let refinements = struct => {
-    switch struct->Metadata.get(~id=Refinement.metadataId) {
+  let refinements = schema => {
+    switch schema->Metadata.get(~id=Refinement.metadataId) {
     | Some(m) => m
     | None => []
     }
@@ -2423,7 +2423,7 @@ module Int = {
   let typeFilter = (~inputVar) =>
     `typeof ${inputVar}!=="number"||${inputVar}>2147483647||${inputVar}<-2147483648||${inputVar}%1!==0`
 
-  let struct = makeWithNoopSerializer(
+  let schema = makeWithNoopSerializer(
     ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Int,
@@ -2431,14 +2431,14 @@ module Int = {
     ~maybeTypeFilter=Some(typeFilter),
   )
 
-  let min = (struct, minValue, ~message as maybeMessage=?) => {
+  let min = (schema, minValue, ~message as maybeMessage=?) => {
     let message = switch maybeMessage {
     | Some(m) => m
     | None => `Number must be greater than or equal to ${minValue->Stdlib.Int.unsafeToString}`
     }
-    struct->addRefinement(
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         `if(${inputVar}<${b->B.embed(minValue)}){${b->B.fail(~message, ~path)}}`
       },
       ~refinement={
@@ -2448,14 +2448,14 @@ module Int = {
     )
   }
 
-  let max = (struct, maxValue, ~message as maybeMessage=?) => {
+  let max = (schema, maxValue, ~message as maybeMessage=?) => {
     let message = switch maybeMessage {
     | Some(m) => m
     | None => `Number must be lower than or equal to ${maxValue->Stdlib.Int.unsafeToString}`
     }
-    struct->addRefinement(
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         `if(${inputVar}>${b->B.embed(maxValue)}){${b->B.fail(~message, ~path)}}`
       },
       ~refinement={
@@ -2465,10 +2465,10 @@ module Int = {
     )
   }
 
-  let port = (struct, ~message="Invalid port") => {
-    struct->addRefinement(
+  let port = (schema, ~message="Invalid port") => {
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         `if(${inputVar}<1||${inputVar}>65535){${b->B.fail(~message, ~path)}}`
       },
       ~refinement={
@@ -2490,13 +2490,13 @@ module Float = {
     }
 
     let metadataId: Metadata.Id.t<array<t>> = Metadata.Id.make(
-      ~namespace="rescript-struct",
+      ~namespace="rescript-schema",
       ~name="Float.refinements",
     )
   }
 
-  let refinements = struct => {
-    switch struct->Metadata.get(~id=Refinement.metadataId) {
+  let refinements = schema => {
+    switch schema->Metadata.get(~id=Refinement.metadataId) {
     | Some(m) => m
     | None => []
     }
@@ -2504,7 +2504,7 @@ module Float = {
 
   let typeFilter = (~inputVar) => `typeof ${inputVar}!=="number"||Number.isNaN(${inputVar})`
 
-  let struct = makeWithNoopSerializer(
+  let schema = makeWithNoopSerializer(
     ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Float,
@@ -2512,14 +2512,14 @@ module Float = {
     ~maybeTypeFilter=Some(typeFilter),
   )
 
-  let min = (struct, minValue, ~message as maybeMessage=?) => {
+  let min = (schema, minValue, ~message as maybeMessage=?) => {
     let message = switch maybeMessage {
     | Some(m) => m
     | None => `Number must be greater than or equal to ${minValue->Stdlib.Float.unsafeToString}`
     }
-    struct->addRefinement(
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         `if(${inputVar}<${b->B.embed(minValue)}){${b->B.fail(~message, ~path)}}`
       },
       ~refinement={
@@ -2529,14 +2529,14 @@ module Float = {
     )
   }
 
-  let max = (struct, maxValue, ~message as maybeMessage=?) => {
+  let max = (schema, maxValue, ~message as maybeMessage=?) => {
     let message = switch maybeMessage {
     | Some(m) => m
     | None => `Number must be lower than or equal to ${maxValue->Stdlib.Float.unsafeToString}`
     }
-    struct->addRefinement(
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         `if(${inputVar}>${b->B.embed(maxValue)}){${b->B.fail(~message, ~path)}}`
       },
       ~refinement={
@@ -2559,13 +2559,13 @@ module Array = {
     }
 
     let metadataId: Metadata.Id.t<array<t>> = Metadata.Id.make(
-      ~namespace="rescript-struct",
+      ~namespace="rescript-schema",
       ~name="Array.refinements",
     )
   }
 
-  let refinements = struct => {
-    switch struct->Metadata.get(~id=Refinement.metadataId) {
+  let refinements = schema => {
+    switch schema->Metadata.get(~id=Refinement.metadataId) {
     | Some(m) => m
     | None => []
     }
@@ -2573,13 +2573,13 @@ module Array = {
 
   let typeFilter = (~inputVar) => `!Array.isArray(${inputVar})`
 
-  let factory = struct => {
-    let struct = struct->toUnknown
+  let factory = schema => {
+    let schema = schema->toUnknown
     make(
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
-      ~tagged=Array(struct),
-      ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
+      ~tagged=Array(schema),
+      ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         let inputVar = b->B.useInputVar
         let iteratorVar = b->B.varWithoutAllocation
         let outputVar = b->B.var
@@ -2593,13 +2593,13 @@ module Array = {
                     ~path,
                     ~dynamicLocationVar=iteratorVar,
                     (b, ~path) =>
-                      b->B.useWithTypeFilter(~struct, ~input=`${inputVar}[${iteratorVar}]`, ~path),
+                      b->B.useWithTypeFilter(~schema, ~input=`${inputVar}[${iteratorVar}]`, ~path),
                   )
                 `${outputVar}.push(${itemOutputVar})`
               },
             )}}`
 
-        let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+        let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
         if isAsync {
           let asyncOutputVar = b->B.var
           b.code = b.code ++ `${asyncOutputVar}=()=>Promise.all(${outputVar}.map(t=>t()));`
@@ -2608,8 +2608,8 @@ module Array = {
           outputVar
         }
       }),
-      ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
-        if struct.serializeOperationBuilder === Builder.noop {
+      ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
+        if schema.serializeOperationBuilder === Builder.noop {
           b->B.useInput
         } else {
           let inputVar = b->B.useInputVar
@@ -2624,7 +2624,7 @@ module Array = {
                     b->B.withPathPrepend(
                       ~path,
                       ~dynamicLocationVar=iteratorVar,
-                      (b, ~path) => b->B.use(~struct, ~input=`${inputVar}[${iteratorVar}]`, ~path),
+                      (b, ~path) => b->B.use(~schema, ~input=`${inputVar}[${iteratorVar}]`, ~path),
                     )
                   `${outputVar}.push(${itemOutputVar})`
                 },
@@ -2637,14 +2637,14 @@ module Array = {
     )
   }
 
-  let min = (struct, length, ~message as maybeMessage=?) => {
+  let min = (schema, length, ~message as maybeMessage=?) => {
     let message = switch maybeMessage {
     | Some(m) => m
     | None => `Array must be ${length->Stdlib.Int.unsafeToString} or more items long`
     }
-    struct->addRefinement(
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         `if(${inputVar}.length<${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
       },
       ~refinement={
@@ -2654,14 +2654,14 @@ module Array = {
     )
   }
 
-  let max = (struct, length, ~message as maybeMessage=?) => {
+  let max = (schema, length, ~message as maybeMessage=?) => {
     let message = switch maybeMessage {
     | Some(m) => m
     | None => `Array must be ${length->Stdlib.Int.unsafeToString} or fewer items long`
     }
-    struct->addRefinement(
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         `if(${inputVar}.length>${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
       },
       ~refinement={
@@ -2671,14 +2671,14 @@ module Array = {
     )
   }
 
-  let length = (struct, length, ~message as maybeMessage=?) => {
+  let length = (schema, length, ~message as maybeMessage=?) => {
     let message = switch maybeMessage {
     | Some(m) => m
     | None => `Array must be exactly ${length->Stdlib.Int.unsafeToString} items long`
     }
-    struct->addRefinement(
+    schema->addRefinement(
       ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~inputVar, ~selfStruct as _, ~path) => {
+      ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
         `if(${inputVar}.length!==${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
       },
       ~refinement={
@@ -2690,13 +2690,13 @@ module Array = {
 }
 
 module Dict = {
-  let factory = struct => {
-    let struct = struct->toUnknown
+  let factory = schema => {
+    let schema = schema->toUnknown
     make(
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
-      ~tagged=Dict(struct),
-      ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
+      ~tagged=Dict(schema),
+      ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         let inputVar = b->B.useInputVar
         let keyVar = b->B.varWithoutAllocation
         let outputVar = b->B.var
@@ -2709,12 +2709,12 @@ module Dict = {
                   ~path,
                   ~dynamicLocationVar=keyVar,
                   (b, ~path) =>
-                    b->B.useWithTypeFilter(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
+                    b->B.useWithTypeFilter(~schema, ~input=`${inputVar}[${keyVar}]`, ~path),
                 )
               `${outputVar}[${keyVar}]=${itemOutputVar}`
             })}}`
 
-        let isAsync = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+        let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
         if isAsync {
           let resolveVar = b->B.varWithoutAllocation
           let rejectVar = b->B.varWithoutAllocation
@@ -2729,8 +2729,8 @@ module Dict = {
           outputVar
         }
       }),
-      ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
-        if struct.serializeOperationBuilder === Builder.noop {
+      ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
+        if schema.serializeOperationBuilder === Builder.noop {
           b->B.useInput
         } else {
           let inputVar = b->B.useInputVar
@@ -2744,7 +2744,7 @@ module Dict = {
                   b->B.withPathPrepend(
                     ~path,
                     ~dynamicLocationVar=keyVar,
-                    (b, ~path) => b->B.use(~struct, ~input=`${inputVar}[${keyVar}]`, ~path),
+                    (b, ~path) => b->B.use(~schema, ~input=`${inputVar}[${keyVar}]`, ~path),
                   )
 
                 `${outputVar}[${keyVar}]=${itemOutputVar}`
@@ -2767,7 +2767,7 @@ module Tuple = {
   module Ctx = {
     type t = {
       @as("s")
-      structs: array<struct<unknown>>,
+      schemas: array<schema<unknown>>,
       @as("d")
       itemDefinitionsSet: Stdlib.Set.t<Object.itemDefinition>,
       @as("item") _jsItem: 'value. (int, t<'value>) => 'value,
@@ -2777,25 +2777,25 @@ module Tuple = {
 
     @inline
     let make = () => {
-      let structs = []
+      let schemas = []
       let itemDefinitionsSet = Stdlib.Set.empty()
 
       let item:
-        type value. (int, struct<value>) => value =
-        (idx, struct) => {
-          let struct = struct->toUnknown
+        type value. (int, schema<value>) => value =
+        (idx, schema) => {
+          let schema = schema->toUnknown
           let inlinedInputLocation = `"${idx->Stdlib.Int.unsafeToString}"`
-          if structs->Stdlib.Array.has(idx) {
+          if schemas->Stdlib.Array.has(idx) {
             InternalError.panic(
               `The item ${inlinedInputLocation} is defined multiple times. If you want to duplicate the item, use S.transform instead.`,
             )
           } else {
             let itemDefinition: Object.itemDefinition = {
-              struct,
+              schema,
               inlinedInputLocation,
               inputPath: inlinedInputLocation->Path.fromInlinedLocation,
             }
-            structs->Js.Array2.unsafe_set(idx, struct)
+            schemas->Js.Array2.unsafe_set(idx, schema)
             itemDefinitionsSet->Stdlib.Set.add(itemDefinition)->ignore
             itemDefinition->(Obj.magic: Object.itemDefinition => value)
           }
@@ -2806,7 +2806,7 @@ module Tuple = {
       }
 
       {
-        structs,
+        schemas,
         itemDefinitionsSet,
         // js/ts methods
         _jsItem: item,
@@ -2821,31 +2821,31 @@ module Tuple = {
   let factory = definer => {
     let ctx = Ctx.make()
     let definition = definer((ctx :> ctx))->(Obj.magic: 'any => Definition.t<Object.itemDefinition>)
-    let {itemDefinitionsSet, structs} = ctx
-    let length = structs->Js.Array2.length
+    let {itemDefinitionsSet, schemas} = ctx
+    let length = schemas->Js.Array2.length
     for idx in 0 to length - 1 {
-      if structs->Js.Array2.unsafe_get(idx)->Obj.magic->not {
-        let struct = unit->toUnknown
+      if schemas->Js.Array2.unsafe_get(idx)->Obj.magic->not {
+        let schema = unit->toUnknown
         let inlinedInputLocation = `"${idx->Stdlib.Int.unsafeToString}"`
         let itemDefinition: Object.itemDefinition = {
-          struct,
+          schema,
           inlinedInputLocation,
           inputPath: inlinedInputLocation->Path.fromInlinedLocation,
         }
-        structs->Js.Array2.unsafe_set(idx, struct)
+        schemas->Js.Array2.unsafe_set(idx, schema)
         itemDefinitionsSet->Stdlib.Set.add(itemDefinition)->ignore
       }
     }
     let itemDefinitions = itemDefinitionsSet->Stdlib.Set.toArray
 
     make(
-      ~name=() => `Tuple(${structs->Js.Array2.map(s => s.name())->Js.Array2.joinWith(", ")})`,
-      ~tagged=Tuple(structs),
+      ~name=() => `Tuple(${schemas->Js.Array2.map(s => s.name())->Js.Array2.joinWith(", ")})`,
+      ~tagged=Tuple(schemas),
       ~parseOperationBuilder=Object.makeParseOperationBuilder(
         ~itemDefinitions,
         ~itemDefinitionsSet,
         ~definition,
-        ~inputRefinement=(b, ~selfStruct as _, ~inputVar, ~path) => {
+        ~inputRefinement=(b, ~selfSchema as _, ~inputVar, ~path) => {
           b.code =
             b.code ++
             `if(${inputVar}.length!==${length->Stdlib.Int.unsafeToString}){${b->B.raiseWithArg(
@@ -2859,7 +2859,7 @@ module Tuple = {
         },
         ~unknownKeysRefinement=Object.noopRefinement,
       ),
-      ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
+      ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         let inputVar = b->B.useInputVar
         let outputVar = b->B.var
         let registeredDefinitions = Stdlib.Set.empty()
@@ -2883,10 +2883,10 @@ module Tuple = {
                 )
               } else {
                 registeredDefinitions->Stdlib.Set.add(itemDefinition)->ignore
-                let {struct, inputPath} = itemDefinition
+                let {schema, inputPath} = itemDefinition
                 let fieldOuputVar =
                   b->B.use(
-                    ~struct,
+                    ~schema,
                     ~input=`${inputVar}${outputPath}`,
                     ~path=path->Path.concat(outputPath),
                   )
@@ -2926,8 +2926,8 @@ module Tuple = {
         for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
           let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
           if registeredDefinitions->Stdlib.Set.has(itemDefinition)->not {
-            let {struct, inlinedInputLocation, inputPath} = itemDefinition
-            switch struct->toLiteral {
+            let {schema, inlinedInputLocation, inputPath} = itemDefinition
+            switch schema->toLiteral {
             | Some(literal) =>
               b.code = b.code ++ `${outputVar}${inputPath}=${b->B.embed(literal->Literal.value)};`
             | None =>
@@ -2948,31 +2948,31 @@ module Tuple = {
 }
 
 module Union = {
-  let factory = structs => {
-    let structs: array<t<unknown>> = structs->Obj.magic
+  let factory = schemas => {
+    let schemas: array<t<unknown>> = schemas->Obj.magic
 
-    if structs->Js.Array2.length < 2 {
-      InternalError.panic("A Union struct factory require at least two structs.")
+    if schemas->Js.Array2.length < 2 {
+      InternalError.panic("A Union schema factory require at least two schemas.")
     }
 
     make(
-      ~name=() => `Union(${structs->Js.Array2.map(s => s.name())->Js.Array2.joinWith(", ")})`,
+      ~name=() => `Union(${schemas->Js.Array2.map(s => s.name())->Js.Array2.joinWith(", ")})`,
       ~metadataMap=Metadata.Map.empty,
-      ~tagged=Union(structs),
-      ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
+      ~tagged=Union(schemas),
+      ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
         let inputVar = b->B.useInputVar
-        let structs = selfStruct->classify->unsafeGetVariantPayload
+        let schemas = selfSchema->classify->unsafeGetVariantPayload
 
         let isAsyncRef = ref(false)
         let itemsCode = []
         let itemsOutputVar = []
 
         let prevCode = b.code
-        for idx in 0 to structs->Js.Array2.length - 1 {
-          let struct = structs->Js.Array2.unsafe_get(idx)
+        for idx in 0 to schemas->Js.Array2.length - 1 {
+          let schema = schemas->Js.Array2.unsafe_get(idx)
           b.code = ""
-          let itemOutputVar = b->B.useWithTypeFilter(~struct, ~input=inputVar, ~path=Path.empty)
-          let isAsyncItem = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+          let itemOutputVar = b->B.useWithTypeFilter(~schema, ~input=inputVar, ~path=Path.empty)
+          let isAsyncItem = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
           if isAsyncItem {
             isAsyncRef.contents = true
           }
@@ -2988,11 +2988,11 @@ module Union = {
         let errorCodeRef = ref("")
 
         // TODO: Use B.withCatch ???
-        for idx in 0 to structs->Js.Array2.length - 1 {
-          let struct = structs->Js.Array2.unsafe_get(idx)
+        for idx in 0 to schemas->Js.Array2.length - 1 {
+          let schema = schemas->Js.Array2.unsafe_get(idx)
           let code = itemsCode->Js.Array2.unsafe_get(idx)
           let itemOutputVar = itemsOutputVar->Js.Array2.unsafe_get(idx)
-          let isAsyncItem = struct.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+          let isAsyncItem = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
 
           let errorVar = b->B.varWithoutAllocation
 
@@ -3044,17 +3044,17 @@ module Union = {
           outputVar
         }
       }),
-      ~serializeOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
+      ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
         let inputVar = b->B.useInputVar
-        let structs = selfStruct->classify->unsafeGetVariantPayload
+        let schemas = selfSchema->classify->unsafeGetVariantPayload
 
         let outputVar = b->B.var
 
         let codeEndRef = ref("")
         let errorVarsRef = ref("")
 
-        for idx in 0 to structs->Js.Array2.length - 1 {
-          let itemStruct = structs->Js.Array2.unsafe_get(idx)
+        for idx in 0 to schemas->Js.Array2.length - 1 {
+          let itemSchema = schemas->Js.Array2.unsafe_get(idx)
           let errorVar = b->B.varWithoutAllocation
           errorVarsRef.contents = errorVarsRef.contents ++ errorVar ++ `,`
 
@@ -3062,14 +3062,14 @@ module Union = {
             b.code ++
             `try{${b->B.scope(
                 b => {
-                  let itemOutput = b->B.use(~struct=itemStruct, ~input=inputVar, ~path=Path.empty)
-                  let itemOutput = switch itemStruct.maybeTypeFilter {
+                  let itemOutput = b->B.use(~schema=itemSchema, ~input=inputVar, ~path=Path.empty)
+                  let itemOutput = switch itemSchema.maybeTypeFilter {
                   | Some(typeFilter) =>
                     let itemOutputVar = b->B.toVar(itemOutput)
                     b.code =
                       b.code ++
                       b->B.typeFilterCode(
-                        ~struct=itemStruct,
+                        ~schema=itemSchema,
                         ~typeFilter,
                         ~inputVar=itemOutputVar,
                         ~path=Path.empty,
@@ -3100,8 +3100,8 @@ module Union = {
   }
 }
 
-let list = struct => {
-  struct
+let list = schema => {
+  schema
   ->Array.factory
   ->transform(_ => {
     parser: array => array->Belt.List.fromArray,
@@ -3114,7 +3114,7 @@ let json = makeWithNoopSerializer(
   ~tagged=JSON,
   ~metadataMap=Metadata.Map.empty,
   ~maybeTypeFilter=None,
-  ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
+  ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
     let rec parse = (input, ~path=path) => {
       switch input->Stdlib.Type.typeof {
       | #number if Js.Float.isNaN(input->(Obj.magic: unknown => float))->not =>
@@ -3154,7 +3154,7 @@ let json = makeWithNoopSerializer(
         InternalError.raise(
           ~path,
           ~code=InvalidType({
-            expected: selfStruct,
+            expected: selfSchema,
             received: input,
           }),
           ~operation=Parsing,
@@ -3170,15 +3170,15 @@ let json = makeWithNoopSerializer(
 type catchCtx<'value> = {
   @as("e") error: error,
   @as("i") input: unknown,
-  @as("s") struct: t<'value>,
+  @as("s") schema: t<'value>,
   @as("f") fail: 'a. (string, ~path: Path.t=?) => 'a,
   @as("w") failWithError: 'a. error => 'a,
 }
-let catch = (struct, getFallbackValue) => {
-  let struct = struct->toUnknown
+let catch = (schema, getFallbackValue) => {
+  let schema = schema->toUnknown
   make(
-    ~name=struct.name,
-    ~parseOperationBuilder=Builder.make((b, ~selfStruct, ~path) => {
+    ~name=schema.name,
+    ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
       let inputVar = b->B.useInputVar
       b->B.withCatch(
         ~catch=(b, ~errorVar) => Some(
@@ -3186,7 +3186,7 @@ let catch = (struct, getFallbackValue) => {
               getFallbackValue({
                 input,
                 error: internalError,
-                struct: selfStruct->castUnknownStructToAnyStruct,
+                schema: selfSchema->castUnknownSchemaToAnySchema,
                 failWithError: (error: error) => {
                   InternalError.raise(
                     ~path=path->Path.concat(error.path),
@@ -3205,42 +3205,42 @@ let catch = (struct, getFallbackValue) => {
             )}(${inputVar},${errorVar})`,
         ),
         b => {
-          b->B.useWithTypeFilter(~struct, ~input=inputVar, ~path)
+          b->B.useWithTypeFilter(~schema, ~input=inputVar, ~path)
         },
       )
     }),
-    ~serializeOperationBuilder=struct.serializeOperationBuilder,
-    ~tagged=struct.tagged,
+    ~serializeOperationBuilder=schema.serializeOperationBuilder,
+    ~tagged=schema.tagged,
     ~maybeTypeFilter=None,
-    ~metadataMap=struct.metadataMap,
+    ~metadataMap=schema.metadataMap,
   )
 }
 
 let deprecationMetadataId: Metadata.Id.t<string> = Metadata.Id.make(
-  ~namespace="rescript-struct",
+  ~namespace="rescript-schema",
   ~name="deprecation",
 )
 
-let deprecate = (struct, message) => {
-  struct->Metadata.set(~id=deprecationMetadataId, message)
+let deprecate = (schema, message) => {
+  schema->Metadata.set(~id=deprecationMetadataId, message)
 }
 
-let deprecation = struct => struct->Metadata.get(~id=deprecationMetadataId)
+let deprecation = schema => schema->Metadata.get(~id=deprecationMetadataId)
 
 let descriptionMetadataId: Metadata.Id.t<string> = Metadata.Id.make(
-  ~namespace="rescript-struct",
+  ~namespace="rescript-schema",
   ~name="description",
 )
 
-let describe = (struct, description) => {
-  struct->Metadata.set(~id=descriptionMetadataId, description)
+let describe = (schema, description) => {
+  schema->Metadata.set(~id=descriptionMetadataId, description)
 }
 
-let description = struct => struct->Metadata.get(~id=descriptionMetadataId)
+let description = schema => schema->Metadata.get(~id=descriptionMetadataId)
 
 module Error = {
   type class
-  let class: class = %raw("RescriptStructError")
+  let class: class = %raw("RescriptSchemaError")
 
   let make = InternalError.make
 
@@ -3257,7 +3257,7 @@ module Error = {
       `Expected ${expected.name()}, received ${received->Literal.classify->Literal.toText}`
     | InvalidLiteral({expected, received}) =>
       `Expected ${expected->Literal.toText}, received ${received->Literal.classify->Literal.toText}`
-    | InvalidJsonStruct(struct) => `The struct ${struct.name()} is not compatible with JSON`
+    | InvalidJsonStruct(schema) => `The schema ${schema.name()} is not compatible with JSON`
     | InvalidTupleSize({expected, received}) =>
       `Expected Tuple with ${expected->Stdlib.Int.unsafeToString} items, received ${received->Stdlib.Int.unsafeToString}`
     | InvalidUnion(errors) => {
@@ -3294,14 +3294,14 @@ module Error = {
 }
 
 let inline = {
-  let rec internalInline = (struct, ~variant as maybeVariant=?, ()) => {
-    let metadataMap = struct.metadataMap->Stdlib.Dict.copy
+  let rec internalInline = (schema, ~variant as maybeVariant=?, ()) => {
+    let metadataMap = schema.metadataMap->Stdlib.Dict.copy
 
-    let inlinedStruct = switch struct->classify {
+    let inlinedSchema = switch schema->classify {
     | Literal(literal) => `S.literal(%raw(\`${literal->Literal.toText}\`))`
-    | Union(unionStructs) => {
+    | Union(unionSchemas) => {
         let variantNamesCounter = Js.Dict.empty()
-        `S.union([${unionStructs
+        `S.union([${unionSchemas
           ->Js.Array2.map(s => {
             let variantName = s.name()
             let numberOfVariantNames = switch variantNamesCounter->Js.Dict.get(variantName) {
@@ -3324,8 +3324,8 @@ let inline = {
     | Tuple([s1, s2]) => `S.tuple2(${s1->internalInline()}, ${s2->internalInline()})`
     | Tuple([s1, s2, s3]) =>
       `S.tuple3(${s1->internalInline()}, ${s2->internalInline()}, ${s3->internalInline()})`
-    | Tuple(tupleStructs) =>
-      `S.tuple(s => (${tupleStructs
+    | Tuple(tupleSchemas) =>
+      `S.tuple(s => (${tupleSchemas
         ->Js.Array2.mapi((s, idx) =>
           `s.item(${idx->Stdlib.Int.unsafeToString}, ${s->internalInline()})`
         )
@@ -3347,61 +3347,61 @@ let inline = {
     | Int => `S.int`
     | Float => `S.float`
     | Bool => `S.bool`
-    | Option(struct) => `S.option(${struct->internalInline()})`
-    | Null(struct) => `S.null(${struct->internalInline()})`
+    | Option(schema) => `S.option(${schema->internalInline()})`
+    | Null(schema) => `S.null(${schema->internalInline()})`
     | Never => `S.never`
     | Unknown => `S.unknown`
-    | Array(struct) => `S.array(${struct->internalInline()})`
-    | Dict(struct) => `S.dict(${struct->internalInline()})`
+    | Array(schema) => `S.array(${schema->internalInline()})`
+    | Dict(schema) => `S.dict(${schema->internalInline()})`
     }
 
-    let inlinedStruct = switch struct->Option.default {
+    let inlinedSchema = switch schema->Option.default {
     | Some(default) => {
         metadataMap->Stdlib.Dict.deleteInPlace(Option.defaultMetadataId->Metadata.Id.toKey)
         switch default {
         | Value(defaultValue) =>
-          inlinedStruct ++
+          inlinedSchema ++
           `->S.Option.getOr(%raw(\`${defaultValue->Stdlib.Inlined.Value.stringify}\`))`
         | Callback(defaultCb) =>
-          inlinedStruct ++
+          inlinedSchema ++
           `->S.Option.getOrWith(() => %raw(\`${defaultCb()->Stdlib.Inlined.Value.stringify}\`))`
         }
       }
 
-    | None => inlinedStruct
+    | None => inlinedSchema
     }
 
-    let inlinedStruct = switch struct->deprecation {
+    let inlinedSchema = switch schema->deprecation {
     | Some(message) => {
         metadataMap->Stdlib.Dict.deleteInPlace(deprecationMetadataId->Metadata.Id.toKey)
-        inlinedStruct ++ `->S.deprecate(${message->Stdlib.Inlined.Value.fromString})`
+        inlinedSchema ++ `->S.deprecate(${message->Stdlib.Inlined.Value.fromString})`
       }
 
-    | None => inlinedStruct
+    | None => inlinedSchema
     }
 
-    let inlinedStruct = switch struct->description {
+    let inlinedSchema = switch schema->description {
     | Some(message) => {
         metadataMap->Stdlib.Dict.deleteInPlace(descriptionMetadataId->Metadata.Id.toKey)
-        inlinedStruct ++ `->S.describe(${message->Stdlib.Inlined.Value.stringify})`
+        inlinedSchema ++ `->S.describe(${message->Stdlib.Inlined.Value.stringify})`
       }
 
-    | None => inlinedStruct
+    | None => inlinedSchema
     }
 
-    let inlinedStruct = switch struct->classify {
-    | Object({unknownKeys: Strict}) => inlinedStruct ++ `->S.Object.strict`
-    | _ => inlinedStruct
+    let inlinedSchema = switch schema->classify {
+    | Object({unknownKeys: Strict}) => inlinedSchema ++ `->S.Object.strict`
+    | _ => inlinedSchema
     }
 
-    let inlinedStruct = switch struct->classify {
+    let inlinedSchema = switch schema->classify {
     | String
     | Literal(String(_)) =>
-      switch struct->String.refinements {
-      | [] => inlinedStruct
+      switch schema->String.refinements {
+      | [] => inlinedSchema
       | refinements =>
         metadataMap->Stdlib.Dict.deleteInPlace(String.Refinement.metadataId->Metadata.Id.toKey)
-        inlinedStruct ++
+        inlinedSchema ++
         refinements
         ->Js.Array2.map(refinement => {
           switch refinement {
@@ -3431,11 +3431,11 @@ let inline = {
       }
     | Int =>
       // | Literal(Int(_)) ???
-      switch struct->Int.refinements {
-      | [] => inlinedStruct
+      switch schema->Int.refinements {
+      | [] => inlinedSchema
       | refinements =>
         metadataMap->Stdlib.Dict.deleteInPlace(Int.Refinement.metadataId->Metadata.Id.toKey)
-        inlinedStruct ++
+        inlinedSchema ++
         refinements
         ->Js.Array2.map(refinement => {
           switch refinement {
@@ -3451,11 +3451,11 @@ let inline = {
       }
     | Float =>
       // | Literal(Float(_)) ???
-      switch struct->Float.refinements {
-      | [] => inlinedStruct
+      switch schema->Float.refinements {
+      | [] => inlinedSchema
       | refinements =>
         metadataMap->Stdlib.Dict.deleteInPlace(Float.Refinement.metadataId->Metadata.Id.toKey)
-        inlinedStruct ++
+        inlinedSchema ++
         refinements
         ->Js.Array2.map(refinement => {
           switch refinement {
@@ -3469,11 +3469,11 @@ let inline = {
       }
 
     | Array(_) =>
-      switch struct->Array.refinements {
-      | [] => inlinedStruct
+      switch schema->Array.refinements {
+      | [] => inlinedSchema
       | refinements =>
         metadataMap->Stdlib.Dict.deleteInPlace(Array.Refinement.metadataId->Metadata.Id.toKey)
-        inlinedStruct ++
+        inlinedSchema ++
         refinements
         ->Js.Array2.map(refinement => {
           switch refinement {
@@ -3488,28 +3488,28 @@ let inline = {
         ->Js.Array2.joinWith("")
       }
 
-    | _ => inlinedStruct
+    | _ => inlinedSchema
     }
 
-    let inlinedStruct = if metadataMap->Js.Dict.keys->Js.Array2.length !== 0 {
+    let inlinedSchema = if metadataMap->Js.Dict.keys->Js.Array2.length !== 0 {
       `{
-  let s = ${inlinedStruct}
+  let s = ${inlinedSchema}
   let _ = %raw(\`s.m = ${metadataMap->Js.Json.stringifyAny->Belt.Option.getUnsafe}\`)
   s
 }`
     } else {
-      inlinedStruct
+      inlinedSchema
     }
 
-    let inlinedStruct = switch maybeVariant {
-    | Some(variant) => inlinedStruct ++ `->S.variant(v => ${variant}(v))`
-    | None => inlinedStruct
+    let inlinedSchema = switch maybeVariant {
+    | Some(variant) => inlinedSchema ++ `->S.variant(v => ${variant}(v))`
+    | None => inlinedSchema
     }
 
-    inlinedStruct
+    inlinedSchema
   }
 
-  struct => {
+  schema => {
     // Have it only for the sake of importing Caml_option in a less painfull way
     // Not related to the function at all
     if %raw(`false`) {
@@ -3519,17 +3519,17 @@ let inline = {
       }
     }
 
-    struct->toUnknown->internalInline()
+    schema->toUnknown->internalInline()
   }
 }
 
 let object = Object.factory
-let never = Never.struct
-let unknown = Unknown.struct
-let string = String.struct
-let bool = Bool.struct
-let int = Int.struct
-let float = Float.struct
+let never = Never.schema
+let unknown = Unknown.schema
+let string = String.schema
+let bool = Bool.schema
+let int = Int.schema
+let float = Float.schema
 let null = Null.factory
 let option = Option.factory
 let array = Array.factory
@@ -3559,40 +3559,40 @@ let toJsResult = (result: result<'value, error>): jsResult<'value> => {
   }
 }
 
-let js_parse = (struct, data) => {
+let js_parse = (schema, data) => {
   try {
     Success({
-      value: parseAnyOrRaiseWith(data, struct),
+      value: parseAnyOrRaiseWith(data, schema),
     })
   } catch {
   | exn => Failure({error: exn->InternalError.getOrRethrow})
   }
 }
 
-let js_parseOrThrow = (struct, data) => {
-  data->parseAnyOrRaiseWith(struct)
+let js_parseOrThrow = (schema, data) => {
+  data->parseAnyOrRaiseWith(schema)
 }
 
-let js_parseAsync = (struct, data) => {
-  data->parseAnyAsyncWith(struct)->Stdlib.Promise.thenResolve(toJsResult)
+let js_parseAsync = (schema, data) => {
+  data->parseAnyAsyncWith(schema)->Stdlib.Promise.thenResolve(toJsResult)
 }
 
-let js_serialize = (struct, value) => {
+let js_serialize = (schema, value) => {
   try {
     Success({
-      value: serializeToUnknownOrRaiseWith(value, struct),
+      value: serializeToUnknownOrRaiseWith(value, schema),
     })
   } catch {
   | exn => Failure({error: exn->InternalError.getOrRethrow})
   }
 }
 
-let js_serializeOrThrow = (struct, value) => {
-  value->serializeToUnknownOrRaiseWith(struct)
+let js_serializeOrThrow = (schema, value) => {
+  value->serializeToUnknownOrRaiseWith(schema)
 }
 
-let js_transform = (struct, ~parser as maybeParser=?, ~serializer as maybeSerializer=?) => {
-  struct->transform(s => {
+let js_transform = (schema, ~parser as maybeParser=?, ~serializer as maybeSerializer=?) => {
+  schema->transform(s => {
     {
       parser: ?switch maybeParser {
       | Some(parser) => Some(v => parser(v, s))
@@ -3606,15 +3606,15 @@ let js_transform = (struct, ~parser as maybeParser=?, ~serializer as maybeSerial
   })
 }
 
-let js_refine = (struct, refiner) => {
-  struct->refine(s => {
+let js_refine = (schema, refiner) => {
+  schema->refine(s => {
     v => refiner(v, s)
   })
 }
 
 let noop = a => a
-let js_asyncParserRefine = (struct, refine) => {
-  struct->transform(s => {
+let js_asyncParserRefine = (schema, refine) => {
+  schema->transform(s => {
     {
       asyncParser: v => () => refine(v, s)->Stdlib.Promise.thenResolve(() => v),
       serializer: noop,
@@ -3622,12 +3622,12 @@ let js_asyncParserRefine = (struct, refine) => {
   })
 }
 
-let js_optional = (struct, maybeOr) => {
-  let struct = option(struct)
+let js_optional = (schema, maybeOr) => {
+  let schema = option(schema)
   switch maybeOr {
-  | Some(or) if Js.typeof(or) === "function" => struct->Option.getOrWith(or->Obj.magic)->Obj.magic
-  | Some(or) => struct->Option.getOr(or->Obj.magic)->Obj.magic
-  | None => struct
+  | Some(or) if Js.typeof(or) === "function" => schema->Option.getOrWith(or->Obj.magic)->Obj.magic
+  | Some(or) => schema->Option.getOr(or->Obj.magic)->Obj.magic
+  | None => schema
   }
 }
 
@@ -3636,10 +3636,10 @@ let js_tuple = definer => {
     let definer = definer->(Obj.magic: unknown => Tuple.ctx => 'a)
     tuple(definer)
   } else {
-    let structs = definer->(Obj.magic: unknown => array<t<unknown>>)
+    let schemas = definer->(Obj.magic: unknown => array<t<unknown>>)
     tuple(s => {
-      structs->Js.Array2.mapi((struct, idx) => {
-        s.item(idx, struct)
+      schemas->Js.Array2.mapi((schema, idx) => {
+        s.item(idx, schema)
       })
     })
   }
@@ -3671,8 +3671,8 @@ let js_object = definer => {
       let fieldNames = definer->Js.Dict.keys
       for idx in 0 to fieldNames->Js.Array2.length - 1 {
         let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-        let struct = definer->Js.Dict.unsafeGet(fieldName)
-        definition->Js.Dict.set(fieldName, s.field(fieldName, struct))
+        let schema = definer->Js.Dict.unsafeGet(fieldName)
+        definition->Js.Dict.set(fieldName, s.field(fieldName, schema))
       }
       definition
     })
@@ -3709,21 +3709,21 @@ let js_merge = (s1, s2) => {
         fieldNames,
         fields,
       }),
-      ~parseOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
+      ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         let inputVar = b->B.useInputVar
-        let s1Result = b->B.use(~struct=s1, ~input=inputVar, ~path)
-        let s2Result = b->B.use(~struct=s2, ~input=inputVar, ~path)
+        let s1Result = b->B.use(~schema=s1, ~input=inputVar, ~path)
+        let s2Result = b->B.use(~schema=s2, ~input=inputVar, ~path)
         // TODO: Check that these are objects
         // TODO: Check that s1Result is not mutating input
         `Object.assign(${s1Result}, ${s2Result})`
       }),
-      ~serializeOperationBuilder=Builder.make((b, ~selfStruct as _, ~path) => {
+      ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         b->B.invalidOperation(~path, ~description=`The S.merge serializing is not supported yet`)
       }),
       ~maybeTypeFilter=Some(Object.typeFilter),
       ~metadataMap=Metadata.Map.empty,
     )
-  | _ => InternalError.panic("The merge supports only Object structs.")
+  | _ => InternalError.panic("The merge supports only Object schemas.")
   }
 }
 

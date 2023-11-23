@@ -1,30 +1,30 @@
 open Ava
 open U
 
-@struct
+@schema
 type variant = One | Two
 test("Variant", t => {
-  t->assertEqualStructs(variantStruct, S.union([S.literal(One), S.literal(Two)]))
+  t->assertEqualSchemas(variantSchema, S.union([S.literal(One), S.literal(Two)]))
 })
 
-@struct
+@schema
 type variantWithSingleItem = Single
-test("Variant with single item becomes a literal struct of the item", t => {
-  t->assertEqualStructs(variantWithSingleItemStruct, S.literal(Single))
+test("Variant with single item becomes a literal schema of the item", t => {
+  t->assertEqualSchemas(variantWithSingleItemSchema, S.literal(Single))
 })
 
-@struct
+@schema
 type variantWithAlias = | @as(`하나`) One | Two
 test("Variant with partial @as usage", t => {
-  t->assertEqualStructs(variantWithAliasStruct, S.union([S.literal(One), S.literal(Two)]))
+  t->assertEqualSchemas(variantWithAliasSchema, S.union([S.literal(One), S.literal(Two)]))
 })
 
 // TODO: Support
-// @struct
+// @schema
 // type variantWithPayloads = Constant | SinglePayload(int)
 // test("Variant with tuple payloads", t => {
-//   t->assertEqualStructs(
-//     variantWithPayloadsStruct,
+//   t->assertEqualSchemas(
+//     variantWithPayloadsSchema,
 //     S.union([S.literal(Constant), S.unknown->Obj.magic]),
 //   )
 // })

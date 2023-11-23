@@ -9,25 +9,25 @@ module CommonWithNested = {
   let factory = () => S.dict(S.string)
 
   test("Successfully parses", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
   })
 
   test("Successfully serializes", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(any), ())
   })
 
   test("Fails to parse", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      invalidAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(schema),
       Error(
         U.error({
-          code: InvalidType({expected: struct->S.toUnknown, received: invalidAny}),
+          code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
           operation: Parsing,
           path: S.Path.empty,
         }),
@@ -37,10 +37,10 @@ module CommonWithNested = {
   })
 
   test("Fails to parse nested", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      nestedInvalidAny->S.parseAnyWith(struct),
+      nestedInvalidAny->S.parseAnyWith(schema),
       Error(
         U.error({
           code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`true`)}),
@@ -53,36 +53,36 @@ module CommonWithNested = {
   })
 
   test("Compiled parse code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->U.assertCompiledCode(
-      ~struct,
+      ~schema,
       ~op=#parse,
       `i=>{let v1;if(!i||i.constructor!==Object){e[1](i)}v1={};for(let v0 in i){let v3;try{v3=i[v0];if(typeof v3!=="string"){e[0](v3)}}catch(v2){if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2}v1[v0]=v3}return v1}`,
     )
   })
 
   test("Compiled async parse code snapshot", t => {
-    let struct = S.dict(S.unknown->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}))
+    let schema = S.dict(S.unknown->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}))
 
     t->U.assertCompiledCode(
-      ~struct,
+      ~schema,
       ~op=#parse,
       `i=>{let v1,v9;if(!i||i.constructor!==Object){e[1](i)}v1={};for(let v0 in i){let v3,v4;try{v3=e[0](i[v0]);v4=()=>{try{return v3().catch(v2=>{if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2})}catch(v2){if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2}};}catch(v2){if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2}v1[v0]=v4}v9=()=>new Promise((v5,v6)=>{let v8=Object.keys(v1).length;for(let v0 in v1){v1[v0]().then(v7=>{v1[v0]=v7;if(v8--===1){v5(v1)}},v6)}});return v9}`,
     )
   })
 
   test("Compiled serialize code snapshot", t => {
-    let struct = S.dict(S.string)
+    let schema = S.dict(S.string)
 
-    t->U.assertCompiledCodeIsNoop(~struct, ~op=#serialize)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
   })
 
   test("Compiled serialize code snapshot with transform", t => {
-    let struct = S.dict(S.option(S.string))
+    let schema = S.dict(S.option(S.string))
 
     t->U.assertCompiledCode(
-      ~struct,
+      ~schema,
       ~op=#serialize,
       `i=>{let v1;v1={};for(let v0 in i){let v3,v4;try{v3=i[v0];if(v3!==void 0){v4=e[0](v3)}else{v4=void 0}}catch(v2){if(v2&&v2.s===s){v2.path=""+\'["\'+v0+\'"]\'+v2.path}throw v2}v1[v0]=v4}return v1}`,
     )
@@ -90,20 +90,20 @@ module CommonWithNested = {
 }
 
 test("Successfully parses dict with int keys", t => {
-  let struct = S.dict(S.string)
+  let schema = S.dict(S.string)
 
   t->Assert.deepEqual(
-    %raw(`{1:"b",2:"d"}`)->S.parseAnyWith(struct),
+    %raw(`{1:"b",2:"d"}`)->S.parseAnyWith(schema),
     Ok(Dict.fromArray([("1", "b"), ("2", "d")])),
     (),
   )
 })
 
 test("Applies operation for each item on serializing", t => {
-  let struct = S.dict(S.jsonString(S.int))
+  let schema = S.dict(S.jsonString(S.int))
 
   t->Assert.deepEqual(
-    Dict.fromArray([("a", 1), ("b", 2)])->S.serializeToUnknownWith(struct),
+    Dict.fromArray([("a", 1), ("b", 2)])->S.serializeToUnknownWith(schema),
     Ok(
       %raw(`{
         "a": "1",
@@ -115,10 +115,10 @@ test("Applies operation for each item on serializing", t => {
 })
 
 test("Fails to serialize dict item", t => {
-  let struct = S.dict(S.string->S.refine(s => _ => s.fail("User error")))
+  let schema = S.dict(S.string->S.refine(s => _ => s.fail("User error")))
 
   t->Assert.deepEqual(
-    Dict.fromArray([("a", "aa"), ("b", "bb")])->S.serializeToUnknownWith(struct),
+    Dict.fromArray([("a", "aa"), ("b", "bb")])->S.serializeToUnknownWith(schema),
     Error(
       U.error({
         code: OperationFailed("User error"),
@@ -131,10 +131,10 @@ test("Fails to serialize dict item", t => {
 })
 
 test("Successfully parses dict with optional items", t => {
-  let struct = S.dict(S.option(S.string))
+  let schema = S.dict(S.option(S.string))
 
   t->Assert.deepEqual(
-    %raw(`{"key1":"value1","key2":undefined}`)->S.parseAnyWith(struct),
+    %raw(`{"key1":"value1","key2":undefined}`)->S.parseAnyWith(schema),
     Ok(Dict.fromArray([("key1", Some("value1")), ("key2", None)])),
     (),
   )

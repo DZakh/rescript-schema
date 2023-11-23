@@ -7,11 +7,11 @@ type rec node = {
 }
 
 test("Successfully parses recursive object", t => {
-  let nodeStruct = S.recursive(nodeStruct => {
+  let nodeSchema = S.recursive(nodeSchema => {
     S.object(
       s => {
         id: s.field("Id", S.string),
-        children: s.field("Children", S.array(nodeStruct)),
+        children: s.field("Children", S.array(nodeSchema)),
       },
     )
   })
@@ -23,7 +23,7 @@ test("Successfully parses recursive object", t => {
         {"Id": "2", "Children": []},
         {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
       ],
-    }->S.parseAnyWith(nodeStruct),
+    }->S.parseAnyWith(nodeSchema),
     Ok({
       id: "1",
       children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
@@ -33,11 +33,11 @@ test("Successfully parses recursive object", t => {
 })
 
 asyncTest("Successfully parses recursive object using S.parseAsyncWith", t => {
-  let nodeStruct = S.recursive(nodeStruct => {
+  let nodeSchema = S.recursive(nodeSchema => {
     S.object(
       s => {
         id: s.field("Id", S.string),
-        children: s.field("Children", S.array(nodeStruct)),
+        children: s.field("Children", S.array(nodeSchema)),
       },
     )
   })
@@ -49,7 +49,7 @@ asyncTest("Successfully parses recursive object using S.parseAsyncWith", t => {
       {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
     ],
   }`)
-  ->S.parseAsyncWith(nodeStruct)
+  ->S.parseAsyncWith(nodeSchema)
   ->Promise.thenResolve(result => {
     t->Assert.deepEqual(
       result,
@@ -63,11 +63,11 @@ asyncTest("Successfully parses recursive object using S.parseAsyncWith", t => {
 })
 
 test("Successfully serializes recursive object", t => {
-  let nodeStruct = S.recursive(nodeStruct => {
+  let nodeSchema = S.recursive(nodeSchema => {
     S.object(
       s => {
         id: s.field("Id", S.string),
-        children: s.field("Children", S.array(nodeStruct)),
+        children: s.field("Children", S.array(nodeSchema)),
       },
     )
   })
@@ -76,7 +76,7 @@ test("Successfully serializes recursive object", t => {
     {
       id: "1",
       children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-    }->S.serializeToUnknownWith(nodeStruct),
+    }->S.serializeToUnknownWith(nodeSchema),
     Ok(
       %raw(`{
         "Id": "1",
@@ -91,7 +91,7 @@ test("Successfully serializes recursive object", t => {
 })
 
 test("Fails to parse nested recursive object", t => {
-  let nodeStruct = S.recursive(nodeStruct => {
+  let nodeSchema = S.recursive(nodeSchema => {
     S.object(
       s => {
         id: s.field(
@@ -104,7 +104,7 @@ test("Fails to parse nested recursive object", t => {
             },
           ),
         ),
-        children: s.field("Children", S.array(nodeStruct)),
+        children: s.field("Children", S.array(nodeSchema)),
       },
     )
   })
@@ -116,7 +116,7 @@ test("Fails to parse nested recursive object", t => {
         {"Id": "2", "Children": []},
         {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
       ],
-    }->S.parseAnyWith(nodeStruct),
+    }->S.parseAnyWith(nodeSchema),
     Error(
       U.error({
         code: OperationFailed("Invalid id"),
@@ -129,11 +129,11 @@ test("Fails to parse nested recursive object", t => {
 })
 
 test("Fails to parse nested recursive object inside of another object", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     s.field(
       "recursive",
       S.recursive(
-        nodeStruct => {
+        nodeSchema => {
           S.object(
             s => {
               id: s.field(
@@ -146,7 +146,7 @@ test("Fails to parse nested recursive object inside of another object", t => {
                   },
                 ),
               ),
-              children: s.field("Children", S.array(nodeStruct)),
+              children: s.field("Children", S.array(nodeSchema)),
             },
           )
         },
@@ -163,7 +163,7 @@ test("Fails to parse nested recursive object inside of another object", t => {
           {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
         ],
       },
-    }->S.parseAnyWith(struct),
+    }->S.parseAnyWith(schema),
     Error(
       U.error({
         code: OperationFailed("Invalid id"),
@@ -176,7 +176,7 @@ test("Fails to parse nested recursive object inside of another object", t => {
 })
 
 test("Fails to serialise nested recursive object", t => {
-  let nodeStruct = S.recursive(nodeStruct => {
+  let nodeSchema = S.recursive(nodeSchema => {
     S.object(
       s => {
         id: s.field(
@@ -189,7 +189,7 @@ test("Fails to serialise nested recursive object", t => {
             },
           ),
         ),
-        children: s.field("Children", S.array(nodeStruct)),
+        children: s.field("Children", S.array(nodeSchema)),
       },
     )
   })
@@ -198,7 +198,7 @@ test("Fails to serialise nested recursive object", t => {
     {
       id: "1",
       children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-    }->S.serializeToUnknownWith(nodeStruct),
+    }->S.serializeToUnknownWith(nodeSchema),
     Error(
       U.error({
         code: OperationFailed("Invalid id"),
@@ -211,13 +211,13 @@ test("Fails to serialise nested recursive object", t => {
 })
 
 test(
-  "Recursively transforms all objects when added transform to the recursive's function returned struct",
+  "Recursively transforms all objects when added transform to the recursive's function returned schema",
   t => {
-    let nodeStruct = S.recursive(nodeStruct => {
+    let nodeSchema = S.recursive(nodeSchema => {
       S.object(
         s => {
           id: s.field("Id", S.string),
-          children: s.field("Children", S.array(nodeStruct)),
+          children: s.field("Children", S.array(nodeSchema)),
         },
       )->S.transform(
         _ => {
@@ -234,7 +234,7 @@ test(
           {"Id": "2", "Children": []},
           {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
         ],
-      }->S.parseAnyWith(nodeStruct),
+      }->S.parseAnyWith(nodeSchema),
       Ok({
         id: "node_1",
         children: [
@@ -251,7 +251,7 @@ test(
           {id: "node_2", children: []},
           {id: "node_3", children: [{id: "node_4", children: []}]},
         ],
-      }->S.serializeToUnknownWith(nodeStruct),
+      }->S.serializeToUnknownWith(nodeSchema),
       Ok(
         {
           "Id": "1",
@@ -266,15 +266,15 @@ test(
   },
 )
 
-test("Recursively transforms nested objects when added transform to the placeholder struct", t => {
-  let nodeStruct = S.recursive(nodeStruct => {
+test("Recursively transforms nested objects when added transform to the placeholder schema", t => {
+  let nodeSchema = S.recursive(nodeSchema => {
     S.object(
       s => {
         id: s.field("Id", S.string),
         children: s.field(
           "Children",
           S.array(
-            nodeStruct->S.transform(
+            nodeSchema->S.transform(
               _ => {
                 parser: node => {...node, id: `child_${node.id}`},
                 serializer: node => {...node, id: node.id->String.sliceToEnd(~start=6)},
@@ -293,7 +293,7 @@ test("Recursively transforms nested objects when added transform to the placehol
         {"Id": "2", "Children": []},
         {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
       ],
-    }->S.parseAnyWith(nodeStruct),
+    }->S.parseAnyWith(nodeSchema),
     Ok({
       id: "1",
       children: [
@@ -310,7 +310,7 @@ test("Recursively transforms nested objects when added transform to the placehol
         {id: "child_2", children: []},
         {id: "child_3", children: [{id: "child_4", children: []}]},
       ],
-    }->S.serializeToUnknownWith(nodeStruct),
+    }->S.serializeToUnknownWith(nodeSchema),
     Ok(
       {
         "Id": "1",
@@ -325,11 +325,11 @@ test("Recursively transforms nested objects when added transform to the placehol
 })
 
 test("Shallowly transforms object when added transform to the S.recursive result", t => {
-  let nodeStruct = S.recursive(nodeStruct => {
+  let nodeSchema = S.recursive(nodeSchema => {
     S.object(
       s => {
         id: s.field("Id", S.string),
-        children: s.field("Children", S.array(nodeStruct)),
+        children: s.field("Children", S.array(nodeSchema)),
       },
     )
   })->S.transform(_ => {
@@ -344,7 +344,7 @@ test("Shallowly transforms object when added transform to the S.recursive result
         {"Id": "2", "Children": []},
         {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
       ],
-    }->S.parseAnyWith(nodeStruct),
+    }->S.parseAnyWith(nodeSchema),
     Ok({
       id: "parent_1",
       children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
@@ -355,7 +355,7 @@ test("Shallowly transforms object when added transform to the S.recursive result
     {
       id: "parent_1",
       children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-    }->S.serializeToUnknownWith(nodeStruct),
+    }->S.serializeToUnknownWith(nodeSchema),
     Ok(
       {
         "Id": "1",
@@ -369,14 +369,14 @@ test("Shallowly transforms object when added transform to the S.recursive result
   )
 })
 
-test("Creates struct without async parse function using S.recursive", t => {
+test("Creates schema without async parse function using S.recursive", t => {
   t->Assert.notThrows(() => {
     S.recursive(
-      nodeStruct => {
+      nodeSchema => {
         S.object(
           s => {
             id: s.field("Id", S.string),
-            children: s.field("Children", S.array(nodeStruct)),
+            children: s.field("Children", S.array(nodeSchema)),
           },
         )
       },
@@ -384,17 +384,17 @@ test("Creates struct without async parse function using S.recursive", t => {
   }, ())
 })
 
-test("Creates struct with async parse function using S.recursive", t => {
+test("Creates schema with async parse function using S.recursive", t => {
   t->Assert.notThrows(() => {
     S.recursive(
-      nodeStruct => {
+      nodeSchema => {
         S.object(
           s => {
             id: s.field(
               "Id",
               S.string->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}),
             ),
-            children: s.field("Children", S.array(nodeStruct)),
+            children: s.field("Children", S.array(nodeSchema)),
           },
         )
       },
@@ -403,11 +403,11 @@ test("Creates struct with async parse function using S.recursive", t => {
 })
 
 asyncTest("Successfully parses recursive object with async parse function", t => {
-  let nodeStruct = S.recursive(nodeStruct => {
+  let nodeSchema = S.recursive(nodeSchema => {
     S.object(
       s => {
         id: s.field("Id", S.string->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)})),
-        children: s.field("Children", S.array(nodeStruct)),
+        children: s.field("Children", S.array(nodeSchema)),
       },
     )
   })
@@ -419,7 +419,7 @@ asyncTest("Successfully parses recursive object with async parse function", t =>
       {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
     ],
   }`)
-  ->S.parseAsyncWith(nodeStruct)
+  ->S.parseAsyncWith(nodeSchema)
   ->Promise.thenResolve(result => {
     t->Assert.deepEqual(
       result,
@@ -436,7 +436,7 @@ test("Parses recursive object with async fields in parallel", t => {
   let unresolvedPromise = Promise.make((_, _) => ())
   let actionCounter = ref(0)
 
-  let nodeStruct = S.recursive(nodeStruct => {
+  let nodeSchema = S.recursive(nodeSchema => {
     S.object(
       s => {
         id: s.field(
@@ -450,7 +450,7 @@ test("Parses recursive object with async fields in parallel", t => {
             },
           ),
         ),
-        children: s.field("Children", S.array(nodeStruct)),
+        children: s.field("Children", S.array(nodeSchema)),
       },
     )
   })
@@ -462,7 +462,7 @@ test("Parses recursive object with async fields in parallel", t => {
       {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
     ],
   }`)
-  ->S.parseAsyncWith(nodeStruct)
+  ->S.parseAsyncWith(nodeSchema)
   ->ignore
 
   t->Assert.deepEqual(actionCounter.contents, 4, ())

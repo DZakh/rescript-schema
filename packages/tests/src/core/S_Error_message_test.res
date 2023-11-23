@@ -211,7 +211,7 @@ test("InvalidJsonStruct error", t => {
       operation: Serializing,
       path: S.Path.empty,
     })->S.Error.message,
-    `Failed serializing at root. Reason: The struct Option(Literal(true)) is not compatible with JSON`,
+    `Failed serializing at root. Reason: The schema Option(Literal(true)) is not compatible with JSON`,
     (),
   )
 })

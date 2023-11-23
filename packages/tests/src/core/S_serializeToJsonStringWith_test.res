@@ -1,13 +1,13 @@
 open Ava
 
 test("Successfully parses", t => {
-  let struct = S.bool
+  let schema = S.bool
 
-  t->Assert.deepEqual(true->S.serializeToJsonStringWith(struct), Ok("true"), ())
+  t->Assert.deepEqual(true->S.serializeToJsonStringWith(schema), Ok("true"), ())
 })
 
 test("Successfully parses object", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "id": s.field("id", S.string),
       "isDeleted": s.field("isDeleted", S.bool),
@@ -18,14 +18,14 @@ test("Successfully parses object", t => {
     {
       "id": "0",
       "isDeleted": true,
-    }->S.serializeToJsonStringWith(struct),
+    }->S.serializeToJsonStringWith(schema),
     Ok(`{"id":"0","isDeleted":true}`),
     (),
   )
 })
 
 test("Successfully parses object with space", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     {
       "id": s.field("id", S.string),
       "isDeleted": s.field("isDeleted", S.bool),
@@ -36,7 +36,7 @@ test("Successfully parses object with space", t => {
     {
       "id": "0",
       "isDeleted": true,
-    }->S.serializeToJsonStringWith(~space=2, struct),
+    }->S.serializeToJsonStringWith(~space=2, schema),
     Ok(`{
   "id": "0",
   "isDeleted": true
@@ -45,11 +45,11 @@ test("Successfully parses object with space", t => {
   )
 })
 
-test("Fails to serialize Unknown struct", t => {
-  let struct = S.unknown
+test("Fails to serialize Unknown schema", t => {
+  let schema = S.unknown
   t->Assert.deepEqual(
-    Obj.magic(123)->S.serializeToJsonStringWith(struct),
-    Error(U.error({code: InvalidJsonStruct(struct), operation: Serializing, path: S.Path.empty})),
+    Obj.magic(123)->S.serializeToJsonStringWith(schema),
+    Error(U.error({code: InvalidJsonStruct(schema), operation: Serializing, path: S.Path.empty})),
     (),
   )
 })

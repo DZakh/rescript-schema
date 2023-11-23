@@ -8,16 +8,16 @@ module Common = {
   let factory = () => S.tuple1(S.int)
 
   test("Successfully parses", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
   })
 
   test("Fails to parse invalid value", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      invalidAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(schema),
       Error(
         U.error({
           code: InvalidTupleSize({
@@ -33,13 +33,13 @@ module Common = {
   })
 
   test("Fails to parse invalid type", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      invalidTypeAny->S.parseAnyWith(struct),
+      invalidTypeAny->S.parseAnyWith(schema),
       Error(
         U.error({
-          code: InvalidType({expected: struct->S.toUnknown, received: invalidTypeAny}),
+          code: InvalidType({expected: schema->S.toUnknown, received: invalidTypeAny}),
           operation: Parsing,
           path: S.Path.empty,
         }),
@@ -49,8 +49,8 @@ module Common = {
   })
 
   test("Successfully serializes", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(any), ())
   })
 }

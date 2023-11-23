@@ -1,22 +1,22 @@
 open Ava
 open U
 
-@struct
+@schema
 type poly = [#one | #two]
 test("Polymorphic variant", t => {
-  t->assertEqualStructs(polyStruct, S.union([S.literal(#one), S.literal(#two)]))
+  t->assertEqualSchemas(polySchema, S.union([S.literal(#one), S.literal(#two)]))
 })
 
-@struct
+@schema
 type polyWithSingleItem = [#single]
-test("Polymorphic variant with single item becomes a literal struct of the item", t => {
-  t->assertEqualStructs(polyWithSingleItemStruct, S.literal(#single))
+test("Polymorphic variant with single item becomes a literal schema of the item", t => {
+  t->assertEqualSchemas(polyWithSingleItemSchema, S.literal(#single))
 })
 
-@struct
+@schema
 type polyWithAlias = [@as(`하나`) #one | #two]
 test("Polymorphic variant with partial @as usage", t => {
-  t->assertEqualStructs(polyWithAliasStruct, S.union([S.literal(#one), S.literal(#two)]))
+  t->assertEqualSchemas(polyWithAliasSchema, S.union([S.literal(#one), S.literal(#two)]))
 })
 
 // TODO: Support

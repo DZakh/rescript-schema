@@ -1,10 +1,10 @@
-@struct
+@schema
 type t = string
 
-@struct
+@schema
 type foo
 
 type bar
 
-@struct
+@schema
 type reusedTypes = (t, foo, bar, float)

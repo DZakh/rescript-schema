@@ -8,44 +8,44 @@ In progress
 
 ### How to use
 
-Add `@struct` in front of a type defenition.
+Add `@schema` in front of a type defenition.
 
 ```rescript
-@struct
+@schema
 type rating =
   | @as("G") GeneralAudiences
   | @as("PG") ParentalGuidanceSuggested
   | @as("PG13") ParentalStronglyCautioned
   | @as("R") Restricted
-@struct
+@schema
 type film = {
   @as("Id")
   id: float,
   @as("Title")
   title: string,
   @as("Tags")
-  tags: @struct(S.array(S.string)->S.default(() => [])) array<string>,
+  tags: @schema(S.array(S.string)->S.default(() => [])) array<string>,
   @as("Rating")
   rating: rating,
   @as("Age")
-  deprecatedAgeRestriction: @struct(S.int->S.option->S.deprecate("Use rating instead")) option<int>,
+  deprecatedAgeRestriction: @schema(S.int->S.option->S.deprecate("Use rating instead")) option<int>,
 }
 ```
 
-This will automatically create `filmStruct` of type `S.t<film>`:
+This will automatically create `filmSchema` of type `S.t<film>`:
 
 ```rescript
-let ratingStruct = S.union([
+let ratingSchema = S.union([
   S.literal(GeneralAudiences),
   S.literal(ParentalGuidanceSuggested),
   S.literal(ParentalStronglyCautioned),
   S.literal(Restricted),
 ])
-let filmStruct = S.object(s => {
+let filmSchema = S.object(s => {
   id: s.field("Id", S.float),
   title: s.field("Title", S.string),
   tags: s.field("Tags", S.array(S.string)->S.default(() => [])),
-  rating: s.field("Rating", ratingStruct),
+  rating: s.field("Rating", ratingSchema),
   deprecatedAgeRestriction: s.field("Age", S.int->S.option->S.deprecate("Use rating instead")),
 })
 ```

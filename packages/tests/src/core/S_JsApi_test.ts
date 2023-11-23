@@ -4,18 +4,18 @@ import { expectType, TypeEqual } from "ts-expect";
 import * as S from "../../../../src/S.js";
 
 test("Successfully parses string", (t) => {
-  const struct = S.string;
-  const value = S.parseOrThrow(struct, "123");
+  const schema = S.string;
+  const value = S.parseOrThrow(schema, "123");
 
   t.deepEqual(value, "123");
 
-  expectType<TypeEqual<typeof struct, S.Struct<string, string>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<string, string>>>(true);
   expectType<TypeEqual<typeof value, string>>(true);
 });
 
 test("Successfully parses string with built-in refinement", (t) => {
-  const struct = S.String.length(S.string, 5);
-  const result = S.parse(struct, "123");
+  const schema = S.String.length(S.string, 5);
+  const result = S.parse(schema, "123");
 
   expectType<TypeEqual<typeof result, S.Result<string>>>(true);
 
@@ -28,7 +28,7 @@ test("Successfully parses string with built-in refinement", (t) => {
     "Failed parsing at root. Reason: String must be exactly 5 characters long"
   );
 
-  expectType<TypeEqual<typeof struct, S.Struct<string, string>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<string, string>>>(true);
   expectType<
     TypeEqual<
       typeof result,
@@ -41,8 +41,8 @@ test("Successfully parses string with built-in refinement", (t) => {
 });
 
 test("Successfully parses string with built-in refinement and custom message", (t) => {
-  const struct = S.String.length(S.string, 5, "Postcode must have 5 symbols");
-  const result = S.parse(struct, "123");
+  const schema = S.String.length(S.string, 5, "Postcode must have 5 symbols");
+  const result = S.parse(schema, "123");
 
   if (result.success) {
     t.fail("Should fail");
@@ -53,110 +53,110 @@ test("Successfully parses string with built-in refinement and custom message", (
     "Failed parsing at root. Reason: Postcode must have 5 symbols"
   );
 
-  expectType<TypeEqual<typeof struct, S.Struct<string, string>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<string, string>>>(true);
 });
 
 test("Successfully parses string with built-in transform", (t) => {
-  const struct = S.String.trim(S.string);
-  const value = S.parseOrThrow(struct, "  123");
+  const schema = S.String.trim(S.string);
+  const value = S.parseOrThrow(schema, "  123");
 
   t.deepEqual(value, "123");
 
-  expectType<TypeEqual<typeof struct, S.Struct<string, string>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<string, string>>>(true);
   expectType<TypeEqual<typeof value, string>>(true);
 });
 
 test("Successfully parses string with built-in datetime transform", (t) => {
-  const struct = S.String.datetime(S.string);
-  const value = S.parseOrThrow(struct, "2020-01-01T00:00:00Z");
+  const schema = S.String.datetime(S.string);
+  const value = S.parseOrThrow(schema, "2020-01-01T00:00:00Z");
 
   t.deepEqual(value, new Date("2020-01-01T00:00:00Z"));
 
-  expectType<TypeEqual<typeof struct, S.Struct<Date, string>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<Date, string>>>(true);
   expectType<TypeEqual<typeof value, Date>>(true);
 });
 
 test("Successfully parses int", (t) => {
-  const struct = S.integer;
-  const value = S.parseOrThrow(struct, 123);
+  const schema = S.integer;
+  const value = S.parseOrThrow(schema, 123);
 
   t.deepEqual(value, 123);
 
-  expectType<TypeEqual<typeof struct, S.Struct<number, number>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<number, number>>>(true);
   expectType<TypeEqual<typeof value, number>>(true);
 });
 
 test("Successfully parses float", (t) => {
-  const struct = S.number;
-  const value = S.parseOrThrow(struct, 123.4);
+  const schema = S.number;
+  const value = S.parseOrThrow(schema, 123.4);
 
   t.deepEqual(value, 123.4);
 
-  expectType<TypeEqual<typeof struct, S.Struct<number, number>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<number, number>>>(true);
   expectType<TypeEqual<typeof value, number>>(true);
 });
 
 test("Successfully parses bool", (t) => {
-  const struct = S.boolean;
-  const value = S.parseOrThrow(struct, true);
+  const schema = S.boolean;
+  const value = S.parseOrThrow(schema, true);
 
   t.deepEqual(value, true);
 
-  expectType<TypeEqual<typeof struct, S.Struct<boolean, boolean>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<boolean, boolean>>>(true);
   expectType<TypeEqual<typeof value, boolean>>(true);
 });
 
 test("Successfully parses unknown", (t) => {
-  const struct = S.unknown;
-  const value = S.parseOrThrow(struct, true);
+  const schema = S.unknown;
+  const value = S.parseOrThrow(schema, true);
 
   t.deepEqual(value, true);
 
-  expectType<TypeEqual<typeof struct, S.Struct<unknown, unknown>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<unknown, unknown>>>(true);
   expectType<TypeEqual<typeof value, unknown>>(true);
 });
 
 test("Successfully parses json", (t) => {
-  const struct = S.json;
-  const value = S.parseOrThrow(struct, true);
+  const schema = S.json;
+  const value = S.parseOrThrow(schema, true);
 
   t.deepEqual(value, true);
 
-  expectType<TypeEqual<typeof struct, S.Struct<S.Json, S.Json>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<S.Json, S.Json>>>(true);
   expectType<TypeEqual<typeof value, S.Json>>(true);
 });
 
 test("Successfully parses undefined", (t) => {
-  const struct = S.undefined;
-  const value = S.parseOrThrow(struct, undefined);
+  const schema = S.undefined;
+  const value = S.parseOrThrow(schema, undefined);
 
   t.deepEqual(value, undefined);
 
-  expectType<TypeEqual<typeof struct, S.Struct<undefined, undefined>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<undefined, undefined>>>(true);
   expectType<TypeEqual<typeof value, undefined>>(true);
 });
 
 test("Fails to parse never", (t) => {
-  const struct = S.never;
+  const schema = S.never;
 
   t.throws(
     () => {
-      const value = S.parseOrThrow(struct, true);
+      const value = S.parseOrThrow(schema, true);
 
-      expectType<TypeEqual<typeof struct, S.Struct<never, never>>>(true);
+      expectType<TypeEqual<typeof schema, S.Schema<never, never>>>(true);
       expectType<TypeEqual<typeof value, never>>(true);
     },
     {
-      name: "RescriptStructError",
+      name: "RescriptSchemaError",
       message: "Failed parsing at root. Reason: Expected Never, received true",
     }
   );
 });
 
 test("Can get a reason from an error", (t) => {
-  const struct = S.never;
+  const schema = S.never;
 
-  const result = S.parse(struct, true);
+  const result = S.parse(schema, true);
 
   if (result.success) {
     t.fail("Should fail");
@@ -166,117 +166,117 @@ test("Can get a reason from an error", (t) => {
 });
 
 test("Successfully parses array", (t) => {
-  const struct = S.array(S.string);
-  const value = S.parseOrThrow(struct, ["foo"]);
+  const schema = S.array(S.string);
+  const value = S.parseOrThrow(schema, ["foo"]);
 
   t.deepEqual(value, ["foo"]);
 
-  expectType<TypeEqual<typeof struct, S.Struct<string[], string[]>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<string[], string[]>>>(true);
   expectType<TypeEqual<typeof value, string[]>>(true);
 });
 
 test("Successfully parses record", (t) => {
-  const struct = S.record(S.string);
-  const value = S.parseOrThrow(struct, { foo: "bar" });
+  const schema = S.record(S.string);
+  const value = S.parseOrThrow(schema, { foo: "bar" });
 
   t.deepEqual(value, { foo: "bar" });
 
   expectType<
     TypeEqual<
-      typeof struct,
-      S.Struct<Record<string, string>, Record<string, string>>
+      typeof schema,
+      S.Schema<Record<string, string>, Record<string, string>>
     >
   >(true);
   expectType<TypeEqual<typeof value, Record<string, string>>>(true);
 });
 
 test("Successfully parses JSON string", (t) => {
-  const struct = S.jsonString(S.boolean);
-  const value = S.parseOrThrow(struct, `true`);
+  const schema = S.jsonString(S.boolean);
+  const value = S.parseOrThrow(schema, `true`);
 
   t.deepEqual(value, true);
 
-  expectType<TypeEqual<typeof struct, S.Struct<boolean, string>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<boolean, string>>>(true);
   expectType<TypeEqual<typeof value, boolean>>(true);
 });
 
 test("Successfully parses optional string", (t) => {
-  const struct = S.optional(S.string);
-  const value1 = S.parseOrThrow(struct, "foo");
-  const value2 = S.parseOrThrow(struct, undefined);
+  const schema = S.optional(S.string);
+  const value1 = S.parseOrThrow(schema, "foo");
+  const value2 = S.parseOrThrow(schema, undefined);
 
   t.deepEqual(value1, "foo");
   t.deepEqual(value2, undefined);
 
   expectType<
-    TypeEqual<S.Struct<string | undefined, string | undefined>, typeof struct>
+    TypeEqual<S.Schema<string | undefined, string | undefined>, typeof schema>
   >(true);
   expectType<TypeEqual<typeof value1, string | undefined>>(true);
   expectType<TypeEqual<typeof value2, string | undefined>>(true);
 });
 
-test("Successfully parses struct wrapped in optional multiple times", (t) => {
-  const struct = S.optional(S.optional(S.optional(S.string)));
-  const value1 = S.parseOrThrow(struct, "foo");
-  const value2 = S.parseOrThrow(struct, undefined);
+test("Successfully parses schema wrapped in optional multiple times", (t) => {
+  const schema = S.optional(S.optional(S.optional(S.string)));
+  const value1 = S.parseOrThrow(schema, "foo");
+  const value2 = S.parseOrThrow(schema, undefined);
 
   t.deepEqual(value1, "foo");
   t.deepEqual(value2, undefined);
 
   expectType<
-    TypeEqual<S.Struct<string | undefined, string | undefined>, typeof struct>
+    TypeEqual<S.Schema<string | undefined, string | undefined>, typeof schema>
   >(true);
   expectType<TypeEqual<typeof value1, string | undefined>>(true);
   expectType<TypeEqual<typeof value2, string | undefined>>(true);
 });
 
 test("Successfully parses nullable string", (t) => {
-  const struct = S.nullable(S.string);
-  const value1 = S.parseOrThrow(struct, "foo");
-  const value2 = S.parseOrThrow(struct, null);
+  const schema = S.nullable(S.string);
+  const value1 = S.parseOrThrow(schema, "foo");
+  const value2 = S.parseOrThrow(schema, null);
 
   t.deepEqual(value1, "foo");
   t.deepEqual(value2, undefined);
 
   expectType<
-    TypeEqual<S.Struct<string | undefined, string | null>, typeof struct>
+    TypeEqual<S.Schema<string | undefined, string | null>, typeof schema>
   >(true);
   expectType<TypeEqual<typeof value1, string | undefined>>(true);
   expectType<TypeEqual<typeof value2, string | undefined>>(true);
 });
 
-test("Successfully parses struct wrapped in nullable multiple times", (t) => {
-  const struct = S.nullable(S.nullable(S.nullable(S.string)));
-  const value1 = S.parseOrThrow(struct, "foo");
-  const value2 = S.parseOrThrow(struct, null);
+test("Successfully parses schema wrapped in nullable multiple times", (t) => {
+  const schema = S.nullable(S.nullable(S.nullable(S.string)));
+  const value1 = S.parseOrThrow(schema, "foo");
+  const value2 = S.parseOrThrow(schema, null);
 
   t.deepEqual(value1, "foo");
   t.deepEqual(value2, undefined);
 
   expectType<
-    TypeEqual<S.Struct<string | undefined, string | null>, typeof struct>
+    TypeEqual<S.Schema<string | undefined, string | null>, typeof schema>
   >(true);
   expectType<TypeEqual<typeof value1, string | undefined>>(true);
   expectType<TypeEqual<typeof value2, string | undefined>>(true);
 });
 
 test("Fails to parse with invalid data", (t) => {
-  const struct = S.string;
+  const schema = S.string;
 
   t.throws(
     () => {
-      S.parseOrThrow(struct, 123);
+      S.parseOrThrow(schema, 123);
     },
     {
-      name: "RescriptStructError",
+      name: "RescriptSchemaError",
       message: "Failed parsing at root. Reason: Expected String, received 123",
     }
   );
 });
 
 test("Successfully serializes with valid value", (t) => {
-  const struct = S.string;
-  const result = S.serializeOrThrow(struct, "123");
+  const schema = S.string;
+  const result = S.serializeOrThrow(schema, "123");
 
   t.deepEqual(result, "123");
 
@@ -284,23 +284,23 @@ test("Successfully serializes with valid value", (t) => {
 });
 
 test("Fails to serialize never", (t) => {
-  const struct = S.never;
+  const schema = S.never;
 
   t.throws(
     () => {
       // @ts-ignore
-      S.serializeOrThrow(struct, "123");
+      S.serializeOrThrow(schema, "123");
     },
     {
-      name: "RescriptStructError",
+      name: "RescriptSchemaError",
       message: `Failed serializing at root. Reason: Expected Never, received "123"`,
     }
   );
 });
 
 test("Successfully parses with transform to another type", (t) => {
-  const struct = S.transform(S.string, (string) => Number(string));
-  const value = S.parseOrThrow(struct, "123");
+  const schema = S.transform(S.string, (string) => Number(string));
+  const value = S.parseOrThrow(schema, "123");
 
   t.deepEqual(value, 123);
 
@@ -308,30 +308,30 @@ test("Successfully parses with transform to another type", (t) => {
 });
 
 test("Fails to parse with transform with user error", (t) => {
-  const struct = S.transform(S.string, (string, s) => {
+  const schema = S.transform(S.string, (string, s) => {
     const number = Number(string);
     if (Number.isNaN(number)) {
       throw s.fail("Invalid number");
     }
     return number;
   });
-  const value = S.parseOrThrow(struct, "123");
+  const value = S.parseOrThrow(schema, "123");
   t.deepEqual(value, 123);
   expectType<TypeEqual<typeof value, number>>(true);
 
   t.throws(
     () => {
-      S.parseOrThrow(struct, "asdf");
+      S.parseOrThrow(schema, "asdf");
     },
     {
-      name: "RescriptStructError",
+      name: "RescriptSchemaError",
       message: "Failed parsing at root. Reason: Invalid number",
     }
   );
 });
 
 test("Successfully serializes with transform to another type", (t) => {
-  const struct = S.transform(
+  const schema = S.transform(
     S.string,
     (string) => Number(string),
     (number) => {
@@ -339,7 +339,7 @@ test("Successfully serializes with transform to another type", (t) => {
       return number.toString();
     }
   );
-  const result = S.serializeOrThrow(struct, 123);
+  const result = S.serializeOrThrow(schema, 123);
 
   t.deepEqual(result, "123");
 
@@ -347,10 +347,10 @@ test("Successfully serializes with transform to another type", (t) => {
 });
 
 test("Successfully parses with refine", (t) => {
-  const struct = S.refine(S.string, (string) => {
+  const schema = S.refine(S.string, (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
-  const value = S.parseOrThrow(struct, "123");
+  const value = S.parseOrThrow(schema, "123");
 
   t.deepEqual(value, "123");
 
@@ -358,10 +358,10 @@ test("Successfully parses with refine", (t) => {
 });
 
 test("Successfully serializes with refine", (t) => {
-  const struct = S.refine(S.string, (string) => {
+  const schema = S.refine(S.string, (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
-  const result = S.serializeOrThrow(struct, "123");
+  const result = S.serializeOrThrow(schema, "123");
 
   t.deepEqual(result, "123");
 
@@ -369,40 +369,40 @@ test("Successfully serializes with refine", (t) => {
 });
 
 test("Fails to parses with refine raising an error", (t) => {
-  const struct = S.refine(S.string, (_, s) => {
+  const schema = S.refine(S.string, (_, s) => {
     s.fail("User error");
   });
 
   t.throws(
     () => {
-      S.parseOrThrow(struct, "123");
+      S.parseOrThrow(schema, "123");
     },
     {
-      name: "RescriptStructError",
+      name: "RescriptSchemaError",
       message: "Failed parsing at root. Reason: User error",
     }
   );
 });
 
-test("Successfully parses async struct", async (t) => {
-  const struct = S.asyncParserRefine(S.string, async (string) => {
+test("Successfully parses async schema", async (t) => {
+  const schema = S.asyncParserRefine(S.string, async (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
-  const value = await S.parseAsync(struct, "123");
+  const value = await S.parseAsync(schema, "123");
 
   t.deepEqual(value, { success: true, value: "123" });
 
   expectType<TypeEqual<typeof value, S.Result<string>>>(true);
 });
 
-test("Fails to parses async struct", async (t) => {
-  const struct = S.asyncParserRefine(S.string, async (_, s) => {
+test("Fails to parses async schema", async (t) => {
+  const schema = S.asyncParserRefine(S.string, async (_, s) => {
     return Promise.resolve().then(() => {
       s.fail("User error");
     });
   });
 
-  const result = await S.parseAsync(struct, "123");
+  const result = await S.parseAsync(schema, "123");
 
   if (result.success) {
     t.fail("Should fail");
@@ -412,8 +412,8 @@ test("Fails to parses async struct", async (t) => {
   t.true(result.error instanceof S.Error);
 });
 
-test("Custom string struct", (t) => {
-  const struct = S.custom(
+test("Custom string schema", (t) => {
+  const schema = S.custom(
     "Postcode",
     (unknown, s) => {
       if (typeof unknown !== "string") {
@@ -430,37 +430,37 @@ test("Custom string struct", (t) => {
     }
   );
 
-  t.deepEqual(S.parseOrThrow(struct, "12345"), "12345");
-  t.deepEqual(S.serializeOrThrow(struct, "12345"), "12345");
+  t.deepEqual(S.parseOrThrow(schema, "12345"), "12345");
+  t.deepEqual(S.serializeOrThrow(schema, "12345"), "12345");
   t.throws(
     () => {
-      S.parseOrThrow(struct, 123);
+      S.parseOrThrow(schema, 123);
     },
     {
-      name: "RescriptStructError",
+      name: "RescriptSchemaError",
       message: "Failed parsing at root. Reason: Postcode should be a string",
     }
   );
   t.throws(
     () => {
-      S.parseOrThrow(struct, "123");
+      S.parseOrThrow(schema, "123");
     },
     {
-      name: "RescriptStructError",
+      name: "RescriptSchemaError",
       message:
         "Failed parsing at root. Reason: Postcode should be 5 characters",
     }
   );
 
-  expectType<TypeEqual<typeof struct, S.Struct<string, string>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<string, string>>>(true);
 });
 
 test("Successfully parses object by provided shape", (t) => {
-  const struct = S.object({
+  const schema = S.object({
     foo: S.string,
     bar: S.boolean,
   });
-  const value = S.parseOrThrow(struct, {
+  const value = S.parseOrThrow(schema, {
     foo: "bar",
     bar: true,
   });
@@ -472,8 +472,8 @@ test("Successfully parses object by provided shape", (t) => {
 
   expectType<
     TypeEqual<
-      typeof struct,
-      S.Struct<
+      typeof schema,
+      S.Schema<
         {
           foo: string;
           bar: boolean;
@@ -497,11 +497,11 @@ test("Successfully parses object by provided shape", (t) => {
 });
 
 test("Successfully parses object with field names transform", (t) => {
-  const struct = S.object((s) => ({
+  const schema = S.object((s) => ({
     foo: s.field("Foo", S.string),
     bar: s.field("Bar", S.boolean),
   }));
-  const value = S.parseOrThrow(struct, {
+  const value = S.parseOrThrow(schema, {
     Foo: "bar",
     Bar: true,
   });
@@ -513,8 +513,8 @@ test("Successfully parses object with field names transform", (t) => {
 
   expectType<
     TypeEqual<
-      typeof struct,
-      S.Struct<
+      typeof schema,
+      S.Schema<
         {
           foo: string;
           bar: boolean;
@@ -535,11 +535,11 @@ test("Successfully parses object with field names transform", (t) => {
 });
 
 test("Successfully parses object with transformed field", (t) => {
-  const struct = S.object({
+  const schema = S.object({
     foo: S.transform(S.string, (string) => Number(string)),
     bar: S.boolean,
   });
-  const value = S.parseOrThrow(struct, {
+  const value = S.parseOrThrow(schema, {
     foo: "123",
     bar: true,
   });
@@ -551,8 +551,8 @@ test("Successfully parses object with transformed field", (t) => {
 
   expectType<
     TypeEqual<
-      typeof struct,
-      S.Struct<
+      typeof schema,
+      S.Schema<
         {
           foo: number;
           bar: boolean;
@@ -576,7 +576,7 @@ test("Successfully parses object with transformed field", (t) => {
 });
 
 test("Fails to parse strict object with exccess fields", (t) => {
-  const struct = S.Object.strict(
+  const schema = S.Object.strict(
     S.object({
       foo: S.string,
     })
@@ -584,14 +584,14 @@ test("Fails to parse strict object with exccess fields", (t) => {
 
   t.throws(
     () => {
-      const value = S.parseOrThrow(struct, {
+      const value = S.parseOrThrow(schema, {
         foo: "bar",
         bar: true,
       });
       expectType<
         TypeEqual<
-          typeof struct,
-          S.Struct<
+          typeof schema,
+          S.Schema<
             {
               foo: string;
             },
@@ -611,14 +611,14 @@ test("Fails to parse strict object with exccess fields", (t) => {
       >(true);
     },
     {
-      name: "RescriptStructError",
+      name: "RescriptSchemaError",
       message: `Failed parsing at root. Reason: Encountered disallowed excess key "bar" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`,
     }
   );
 });
 
 test("Resets object strict mode with strip method", (t) => {
-  const struct = S.Object.strip(
+  const schema = S.Object.strip(
     S.Object.strict(
       S.object({
         foo: S.string,
@@ -626,7 +626,7 @@ test("Resets object strict mode with strip method", (t) => {
     )
   );
 
-  const value = S.parseOrThrow(struct, {
+  const value = S.parseOrThrow(schema, {
     foo: "bar",
     bar: true,
   });
@@ -635,8 +635,8 @@ test("Resets object strict mode with strip method", (t) => {
 
   expectType<
     TypeEqual<
-      typeof struct,
-      S.Struct<
+      typeof schema,
+      S.Schema<
         {
           foo: string;
         },
@@ -657,7 +657,7 @@ test("Resets object strict mode with strip method", (t) => {
 });
 
 test("Successfully parses intersected objects", (t) => {
-  const struct = S.merge(
+  const schema = S.merge(
     S.object({
       foo: S.string,
       bar: S.boolean,
@@ -669,8 +669,8 @@ test("Successfully parses intersected objects", (t) => {
 
   expectType<
     TypeEqual<
-      typeof struct,
-      S.Struct<
+      typeof schema,
+      S.Schema<
         {
           foo: string;
           bar: boolean;
@@ -682,7 +682,7 @@ test("Successfully parses intersected objects", (t) => {
     >
   >(true);
 
-  const result = S.parse(struct, {
+  const result = S.parse(schema, {
     foo: "bar",
     bar: true,
   });
@@ -695,7 +695,7 @@ test("Successfully parses intersected objects", (t) => {
     `Failed parsing at ["baz"]. Reason: Expected String, received undefined`
   );
 
-  const value = S.parseOrThrow(struct, {
+  const value = S.parseOrThrow(schema, {
     foo: "bar",
     baz: "baz",
     bar: true,
@@ -708,7 +708,7 @@ test("Successfully parses intersected objects", (t) => {
 });
 
 test("Successfully parses intersected objects with transform", (t) => {
-  const struct = S.merge(
+  const schema = S.merge(
     S.transform(
       S.object({
         foo: S.string,
@@ -725,8 +725,8 @@ test("Successfully parses intersected objects with transform", (t) => {
 
   expectType<
     TypeEqual<
-      typeof struct,
-      S.Struct<
+      typeof schema,
+      S.Schema<
         {
           abc: string;
         } & {
@@ -737,7 +737,7 @@ test("Successfully parses intersected objects with transform", (t) => {
     >
   >(true);
 
-  const result = S.parse(struct, {
+  const result = S.parse(schema, {
     foo: "bar",
     bar: true,
   });
@@ -750,7 +750,7 @@ test("Successfully parses intersected objects with transform", (t) => {
     `Failed parsing at ["baz"]. Reason: Expected String, received undefined`
   );
 
-  const value = S.parseOrThrow(struct, {
+  const value = S.parseOrThrow(schema, {
     foo: "bar",
     baz: "baz",
     bar: true,
@@ -762,7 +762,7 @@ test("Successfully parses intersected objects with transform", (t) => {
 });
 
 test("Fails to serialize merge. Not supported yet", (t) => {
-  const struct = S.merge(
+  const schema = S.merge(
     S.object({
       foo: S.string,
       bar: S.boolean,
@@ -772,7 +772,7 @@ test("Fails to serialize merge. Not supported yet", (t) => {
     })
   );
 
-  const result = S.serialize(struct, {
+  const result = S.serialize(schema, {
     foo: "bar",
     bar: true,
     baz: "string",
@@ -787,8 +787,8 @@ test("Fails to serialize merge. Not supported yet", (t) => {
   );
 });
 
-test("Name of merge struct", (t) => {
-  const struct = S.merge(
+test("Name of merge schema", (t) => {
+  const schema = S.merge(
     S.object({
       foo: S.string,
       bar: S.boolean,
@@ -799,7 +799,7 @@ test("Name of merge struct", (t) => {
   );
 
   t.is(
-    S.name(struct),
+    S.name(schema),
     `Object({"foo": String, "bar": Bool}) & Object({"baz": String})`
   );
 });
@@ -809,8 +809,8 @@ test("setName", (t) => {
 });
 
 test("Successfully parses and returns result", (t) => {
-  const struct = S.string;
-  const value = S.parse(struct, "123");
+  const schema = S.string;
+  const value = S.parse(schema, "123");
 
   t.deepEqual(value, { success: true, value: "123" });
 
@@ -839,8 +839,8 @@ test("Successfully parses and returns result", (t) => {
 });
 
 test("Successfully serializes and returns result", (t) => {
-  const struct = S.string;
-  const value = S.serialize(struct, "123");
+  const schema = S.string;
+  const value = S.serialize(schema, "123");
 
   t.deepEqual(value, { success: true, value: "123" });
 
@@ -868,196 +868,196 @@ test("Successfully serializes and returns result", (t) => {
 });
 
 test("Successfully parses union", (t) => {
-  const struct = S.union([S.string, S.number]);
-  const value = S.parse(struct, "123");
+  const schema = S.union([S.string, S.number]);
+  const value = S.parse(schema, "123");
 
   t.deepEqual(value, { success: true, value: "123" });
 
   expectType<
-    TypeEqual<typeof struct, S.Struct<string | number, string | number>>
+    TypeEqual<typeof schema, S.Schema<string | number, string | number>>
   >(true);
 });
 
 test("Successfully parses union with transformed items", (t) => {
-  const struct = S.union([
+  const schema = S.union([
     S.transform(S.string, (string) => Number(string)),
     S.number,
   ]);
-  const value = S.parse(struct, "123");
+  const value = S.parse(schema, "123");
 
   t.deepEqual(value, { success: true, value: 123 });
 
-  expectType<TypeEqual<typeof struct, S.Struct<number, string | number>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<number, string | number>>>(true);
 });
 
 test("String literal", (t) => {
-  const struct = S.literal("tuna");
+  const schema = S.literal("tuna");
 
-  t.deepEqual(S.parseOrThrow(struct, "tuna"), "tuna");
+  t.deepEqual(S.parseOrThrow(schema, "tuna"), "tuna");
 
-  expectType<TypeEqual<typeof struct, S.Struct<"tuna", "tuna">>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<"tuna", "tuna">>>(true);
 });
 
 test("Boolean literal", (t) => {
-  const struct = S.literal(true);
+  const schema = S.literal(true);
 
-  t.deepEqual(S.parseOrThrow(struct, true), true);
+  t.deepEqual(S.parseOrThrow(schema, true), true);
 
-  expectType<TypeEqual<typeof struct, S.Struct<true, true>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<true, true>>>(true);
 });
 
 test("Number literal", (t) => {
-  const struct = S.literal(123);
+  const schema = S.literal(123);
 
-  t.deepEqual(S.parseOrThrow(struct, 123), 123);
+  t.deepEqual(S.parseOrThrow(schema, 123), 123);
 
-  expectType<TypeEqual<typeof struct, S.Struct<123, 123>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<123, 123>>>(true);
 });
 
 test("Undefined literal", (t) => {
-  const struct = S.literal(undefined);
+  const schema = S.literal(undefined);
 
-  t.deepEqual(S.parseOrThrow(struct, undefined), undefined);
+  t.deepEqual(S.parseOrThrow(schema, undefined), undefined);
 
-  expectType<TypeEqual<typeof struct, S.Struct<undefined, undefined>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<undefined, undefined>>>(true);
 });
 
 test("Null literal", (t) => {
-  const struct = S.literal(null);
+  const schema = S.literal(null);
 
-  t.deepEqual(S.parseOrThrow(struct, null), null);
+  t.deepEqual(S.parseOrThrow(schema, null), null);
 
-  expectType<TypeEqual<typeof struct, S.Struct<null, null>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<null, null>>>(true);
 });
 
 test("Symbol literal", (t) => {
   let symbol = Symbol();
-  const struct = S.literal(symbol);
+  const schema = S.literal(symbol);
 
-  t.deepEqual(S.parseOrThrow(struct, symbol), symbol);
+  t.deepEqual(S.parseOrThrow(schema, symbol), symbol);
 
-  expectType<TypeEqual<typeof struct, S.Struct<symbol, symbol>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<symbol, symbol>>>(true);
 });
 
 test("BigInt literal", (t) => {
-  const struct = S.literal(123n);
+  const schema = S.literal(123n);
 
-  t.deepEqual(S.parseOrThrow(struct, 123n), 123n);
+  t.deepEqual(S.parseOrThrow(schema, 123n), 123n);
 
-  expectType<TypeEqual<typeof struct, S.Struct<bigint, bigint>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<bigint, bigint>>>(true);
 });
 
 test("NaN literal", (t) => {
-  const struct = S.literal(NaN);
+  const schema = S.literal(NaN);
 
-  t.deepEqual(S.parseOrThrow(struct, NaN), NaN);
+  t.deepEqual(S.parseOrThrow(schema, NaN), NaN);
 
-  expectType<TypeEqual<typeof struct, S.Struct<number, number>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<number, number>>>(true);
 });
 
 test("Tuple literal", (t) => {
-  const cliArgsStruct = S.literal(["help", "lint"] as const);
+  const cliArgsSchema = S.literal(["help", "lint"] as const);
 
-  t.deepEqual(S.parseOrThrow(cliArgsStruct, ["help", "lint"]), [
+  t.deepEqual(S.parseOrThrow(cliArgsSchema, ["help", "lint"]), [
     "help",
     "lint",
   ]);
 
   expectType<
     TypeEqual<
-      typeof cliArgsStruct,
-      S.Struct<readonly ["help", "lint"], readonly ["help", "lint"]>
+      typeof cliArgsSchema,
+      S.Schema<readonly ["help", "lint"], readonly ["help", "lint"]>
     >
   >(true);
 });
 
 test("Correctly infers type", (t) => {
-  const struct = S.transform(S.string, Number);
-  expectType<TypeEqual<typeof struct, S.Struct<number, string>>>(true);
-  expectType<TypeEqual<S.Input<typeof struct>, string>>(true);
-  expectType<TypeEqual<S.Output<typeof struct>, number>>(true);
+  const schema = S.transform(S.string, Number);
+  expectType<TypeEqual<typeof schema, S.Schema<number, string>>>(true);
+  expectType<TypeEqual<S.Input<typeof schema>, string>>(true);
+  expectType<TypeEqual<S.Output<typeof schema>, number>>(true);
   t.pass();
 });
 
 test("Successfully parses undefined using the default value", (t) => {
-  const struct = S.optional(S.string, "foo");
+  const schema = S.optional(S.string, "foo");
 
-  const value = S.parseOrThrow(struct, undefined);
+  const value = S.parseOrThrow(schema, undefined);
 
   t.deepEqual(value, "foo");
 
-  expectType<TypeEqual<typeof struct, S.Struct<string, string | undefined>>>(
+  expectType<TypeEqual<typeof schema, S.Schema<string, string | undefined>>>(
     true
   );
 });
 
 test("Successfully parses undefined using the default value from callback", (t) => {
-  const struct = S.optional(S.string, () => "foo");
+  const schema = S.optional(S.string, () => "foo");
 
-  const value = S.parseOrThrow(struct, undefined);
+  const value = S.parseOrThrow(schema, undefined);
 
   t.deepEqual(value, "foo");
 
-  expectType<TypeEqual<typeof struct, S.Struct<string, string | undefined>>>(
+  expectType<TypeEqual<typeof schema, S.Schema<string, string | undefined>>>(
     true
   );
 });
 
-test("Creates struct with description", (t) => {
-  const undocumentedStringStruct = S.string;
+test("Creates schema with description", (t) => {
+  const undocumentedStringSchema = S.string;
 
   expectType<
-    TypeEqual<typeof undocumentedStringStruct, S.Struct<string, string>>
+    TypeEqual<typeof undocumentedStringSchema, S.Schema<string, string>>
   >(true);
 
-  const documentedStringStruct = S.describe(
-    undocumentedStringStruct,
+  const documentedStringSchema = S.describe(
+    undocumentedStringSchema,
     "A useful bit of text, if you know what to do with it."
   );
 
   expectType<
-    TypeEqual<typeof documentedStringStruct, S.Struct<string, string>>
+    TypeEqual<typeof documentedStringSchema, S.Schema<string, string>>
   >(true);
 
-  const descriptionResult = S.description(documentedStringStruct);
+  const descriptionResult = S.description(documentedStringSchema);
 
   expectType<TypeEqual<typeof descriptionResult, string | undefined>>(true);
 
-  t.deepEqual(S.description(undocumentedStringStruct), undefined);
+  t.deepEqual(S.description(undocumentedStringSchema), undefined);
   t.deepEqual(
-    S.description(documentedStringStruct),
+    S.description(documentedStringSchema),
     "A useful bit of text, if you know what to do with it."
   );
 });
 
 test("Empty tuple", (t) => {
-  const struct = S.tuple([]);
+  const schema = S.tuple([]);
 
-  t.deepEqual(S.parseOrThrow(struct, []), []);
+  t.deepEqual(S.parseOrThrow(schema, []), []);
 
-  expectType<TypeEqual<typeof struct, S.Struct<[], []>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<[], []>>>(true);
 });
 
 test("Tuple with single element", (t) => {
-  const struct = S.tuple([S.transform(S.string, (s) => Number(s))]);
+  const schema = S.tuple([S.transform(S.string, (s) => Number(s))]);
 
-  t.deepEqual(S.parseOrThrow(struct, ["123"]), [123]);
+  t.deepEqual(S.parseOrThrow(schema, ["123"]), [123]);
 
-  expectType<TypeEqual<typeof struct, S.Struct<[number], [string]>>>(true);
+  expectType<TypeEqual<typeof schema, S.Schema<[number], [string]>>>(true);
 });
 
 test("Tuple with multiple elements", (t) => {
-  const struct = S.tuple([S.transform(S.string, (s) => Number(s)), S.number]);
+  const schema = S.tuple([S.transform(S.string, (s) => Number(s)), S.number]);
 
-  t.deepEqual(S.parseOrThrow(struct, ["123", 123]), [123, 123]);
+  t.deepEqual(S.parseOrThrow(schema, ["123", 123]), [123, 123]);
 
   expectType<
-    TypeEqual<typeof struct, S.Struct<[number, number], [string, number]>>
+    TypeEqual<typeof schema, S.Schema<[number, number], [string, number]>>
   >(true);
 });
 
 test("Tuple with transform to object", (t) => {
-  let pointStruct = S.tuple((s) => {
+  let pointSchema = S.tuple((s) => {
     s.tag(0, "point");
     return {
       x: s.item(1, S.integer),
@@ -1065,12 +1065,12 @@ test("Tuple with transform to object", (t) => {
     };
   });
 
-  t.deepEqual(S.parseOrThrow(pointStruct, ["point", 1, -4]), { x: 1, y: -4 });
+  t.deepEqual(S.parseOrThrow(pointSchema, ["point", 1, -4]), { x: 1, y: -4 });
 
   expectType<
     TypeEqual<
-      typeof pointStruct,
-      S.Struct<
+      typeof pointSchema,
+      S.Schema<
         {
           x: number;
           y: number;
@@ -1082,25 +1082,25 @@ test("Tuple with transform to object", (t) => {
 });
 
 test("Example", (t) => {
-  // Create login struct with email and password
-  const loginStruct = S.object({
+  // Create login schema with email and password
+  const loginSchema = S.object({
     email: S.String.email(S.string),
     password: S.String.min(S.string, 8),
   });
 
-  // Infer output TypeScript type of login struct
-  type LoginData = S.Output<typeof loginStruct>; // { email: string; password: string }
+  // Infer output TypeScript type of login schema
+  type LoginData = S.Output<typeof loginSchema>; // { email: string; password: string }
 
   t.throws(
     () => {
       // Throws the S.Error(`Failed parsing at ["email"]. Reason: Invalid email address`)
-      S.parseOrThrow(loginStruct, { email: "", password: "" });
+      S.parseOrThrow(loginSchema, { email: "", password: "" });
     },
     { message: `Failed parsing at ["email"]. Reason: Invalid email address` }
   );
 
   // Returns data as { email: string; password: string }
-  const result = S.parseOrThrow(loginStruct, {
+  const result = S.parseOrThrow(loginSchema, {
     email: "jane@example.com",
     password: "12345678",
   });
@@ -1112,8 +1112,8 @@ test("Example", (t) => {
 
   expectType<
     TypeEqual<
-      typeof loginStruct,
-      S.Struct<
+      typeof loginSchema,
+      S.Schema<
         { email: string; password: string },
         { email: string; password: string }
       >

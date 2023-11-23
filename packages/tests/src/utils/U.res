@@ -29,9 +29,9 @@ let assertThrowsTestException = {
   }
 }
 
-let rec cleanUpStruct = struct => {
+let rec cleanUpSchema = schema => {
   let new = Dict.make()
-  struct
+  schema
   ->(magic: S.t<'a> => Dict.t<unknown>)
   ->Dict.toArray
   ->Array.forEach(((key, value)) => {
@@ -41,7 +41,7 @@ let rec cleanUpStruct = struct => {
       if typeof(value) === #object && value !== %raw(`null`) {
         new->Dict.set(
           key,
-          cleanUpStruct(value->(magic: unknown => S.t<'a>))->(magic: S.t<'a> => unknown),
+          cleanUpSchema(value->(magic: unknown => S.t<'a>))->(magic: S.t<'a> => unknown),
         )
       } else {
         new->Dict.set(key, value)
@@ -51,57 +51,57 @@ let rec cleanUpStruct = struct => {
   new->(magic: Dict.t<unknown> => S.t<'a>)
 }
 
-let unsafeAssertEqualStructs = (t, s1: S.t<'v1>, s2: S.t<'v2>, ~message=?) => {
-  t->Assert.unsafeDeepEqual(s1->cleanUpStruct, s2->cleanUpStruct, ~message?, ())
+let unsafeAssertEqualSchemas = (t, s1: S.t<'v1>, s2: S.t<'v2>, ~message=?) => {
+  t->Assert.unsafeDeepEqual(s1->cleanUpSchema, s2->cleanUpSchema, ~message?, ())
 }
 
-let assertCompiledCode = (t, ~struct, ~op: [#parse | #serialize], code, ~message=?) => {
+let assertCompiledCode = (t, ~schema, ~op: [#parse | #serialize], code, ~message=?) => {
   let compiledCode = switch op {
   | #parse =>
-    if struct->S.isAsyncParse {
-      let _ = %raw(`undefined`)->S.parseAsyncInStepsWith(struct)
-      %raw(`struct.opa.toString()`)
+    if schema->S.isAsyncParse {
+      let _ = %raw(`undefined`)->S.parseAsyncInStepsWith(schema)
+      %raw(`schema.opa.toString()`)
     } else {
-      let _ = %raw(`undefined`)->S.parseAnyWith(struct)
-      %raw(`struct.op.toString()`)
+      let _ = %raw(`undefined`)->S.parseAnyWith(schema)
+      %raw(`schema.op.toString()`)
     }
   | #serialize => {
       try {
-        let _ = %raw(`undefined`)->S.serializeToUnknownOrRaiseWith(struct)
+        let _ = %raw(`undefined`)->S.serializeToUnknownOrRaiseWith(schema)
       } catch {
       | _ => ()
       }
-      %raw(`struct.os.toString()`)
+      %raw(`schema.os.toString()`)
     }
   }
   t->Assert.is(compiledCode, code, ~message?, ())
 }
 
-let assertCompiledCodeIsNoop = (t, ~struct, ~op: [#parse | #serialize], ~message=?) => {
+let assertCompiledCodeIsNoop = (t, ~schema, ~op: [#parse | #serialize], ~message=?) => {
   let compiledCode = switch op {
   | #parse =>
-    if struct->S.isAsyncParse {
-      let _ = %raw(`undefined`)->S.parseAsyncInStepsWith(struct)
-      %raw(`struct.opa.toString()`)
+    if schema->S.isAsyncParse {
+      let _ = %raw(`undefined`)->S.parseAsyncInStepsWith(schema)
+      %raw(`schema.opa.toString()`)
     } else {
-      let _ = %raw(`undefined`)->S.parseAnyWith(struct)
-      %raw(`struct.op.toString()`)
+      let _ = %raw(`undefined`)->S.parseAnyWith(schema)
+      %raw(`schema.op.toString()`)
     }
   | #serialize => {
       try {
-        let _ = %raw(`undefined`)->S.serializeToUnknownOrRaiseWith(struct)
+        let _ = %raw(`undefined`)->S.serializeToUnknownOrRaiseWith(schema)
       } catch {
       | _ => ()
       }
-      %raw(`struct.os.toString()`)
+      %raw(`schema.os.toString()`)
     }
   }
   t->Assert.truthy(compiledCode->String.startsWith("function noopOperation(i)"), ~message?, ())
 }
 
-let assertEqualStructs: (
+let assertEqualSchemas: (
   Ava.ExecutionContext.t<'a>,
   S.t<'value>,
   S.t<'value>,
   ~message: string=?,
-) => unit = unsafeAssertEqualStructs
+) => unit = unsafeAssertEqualSchemas

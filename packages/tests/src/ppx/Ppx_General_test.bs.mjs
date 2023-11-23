@@ -2,43 +2,43 @@
 
 import * as U from "../utils/U.bs.mjs";
 import Ava from "ava";
-import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
+import * as S$RescriptSchema from "rescript-schema/src/S.bs.mjs";
 
-Ava("Creates struct with the name struct from t type", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.string, S$RescriptStruct.string, undefined);
+Ava("Creates schema with the name schema from t type", (function (t) {
+        U.assertEqualSchemas(t, S$RescriptSchema.string, S$RescriptSchema.string, undefined);
       }));
 
-Ava("Creates struct with the type name and struct at the for non t types", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.$$int, S$RescriptStruct.$$int, undefined);
+Ava("Creates schema with the type name and schema at the for non t types", (function (t) {
+        U.assertEqualSchemas(t, S$RescriptSchema.$$int, S$RescriptSchema.$$int, undefined);
       }));
 
-var reusedTypesStruct = S$RescriptStruct.tuple(function (s) {
+var reusedTypesSchema = S$RescriptSchema.tuple(function (s) {
       return [
-              s.i(0, S$RescriptStruct.string),
-              s.i(1, S$RescriptStruct.$$int),
-              s.i(2, S$RescriptStruct.bool),
-              s.i(3, S$RescriptStruct.$$float)
+              s.i(0, S$RescriptSchema.string),
+              s.i(1, S$RescriptSchema.$$int),
+              s.i(2, S$RescriptSchema.bool),
+              s.i(3, S$RescriptSchema.$$float)
             ];
     });
 
-Ava("Can reuse structs from other types", (function (t) {
-        U.assertEqualStructs(t, reusedTypesStruct, S$RescriptStruct.tuple(function (s) {
+Ava("Can reuse schemas from other types", (function (t) {
+        U.assertEqualSchemas(t, reusedTypesSchema, S$RescriptSchema.tuple(function (s) {
                   return [
-                          s.i(0, S$RescriptStruct.string),
-                          s.i(1, S$RescriptStruct.$$int),
-                          s.i(2, S$RescriptStruct.bool),
-                          s.i(3, S$RescriptStruct.$$float)
+                          s.i(0, S$RescriptSchema.string),
+                          s.i(1, S$RescriptSchema.$$int),
+                          s.i(2, S$RescriptSchema.bool),
+                          s.i(3, S$RescriptSchema.$$float)
                         ];
                 }), undefined);
       }));
 
-var struct = S$RescriptStruct.string;
+var schema = S$RescriptSchema.string;
 
-var fooStruct = S$RescriptStruct.$$int;
+var fooSchema = S$RescriptSchema.$$int;
 
 export {
-  struct ,
-  fooStruct ,
-  reusedTypesStruct ,
+  schema ,
+  fooSchema ,
+  reusedTypesSchema ,
 }
 /*  Not a pure module */

@@ -1,3 +1,3 @@
 open Parsetree
 
-val generate_struct_expr: core_type ->expression
+val generate_schema_expr : core_type -> expression

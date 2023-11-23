@@ -1,22 +1,22 @@
 open Ava
 
 test("Successfully parses", t => {
-  let struct = S.bool
+  let schema = S.bool
 
-  t->Assert.deepEqual(true->S.parseAnyOrRaiseWith(struct), true, ())
+  t->Assert.deepEqual(true->S.parseAnyOrRaiseWith(schema), true, ())
 })
 
 test("Successfully parses unknown", t => {
-  let struct = S.unknown
+  let schema = S.unknown
 
-  t->Assert.deepEqual(true->S.parseAnyOrRaiseWith(struct), true->Obj.magic, ())
+  t->Assert.deepEqual(true->S.parseAnyOrRaiseWith(schema), true->Obj.magic, ())
 })
 
 test("Fails to parse", t => {
-  let struct = S.bool
+  let schema = S.bool
 
   let maybeError = try {
-    123->S.parseAnyOrRaiseWith(struct)->ignore
+    123->S.parseAnyOrRaiseWith(schema)->ignore
     None
   } catch {
   | S.Raised(error) => Some(error)
@@ -26,7 +26,7 @@ test("Fails to parse", t => {
     maybeError,
     Some(
       U.error({
-        code: InvalidType({expected: struct->S.toUnknown, received: Obj.magic(123)}),
+        code: InvalidType({expected: schema->S.toUnknown, received: Obj.magic(123)}),
         operation: Parsing,
         path: S.Path.empty,
       }),

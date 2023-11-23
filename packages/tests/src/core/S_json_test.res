@@ -2,66 +2,66 @@ open Ava
 open RescriptCore
 
 test("Supports String", t => {
-  let struct = S.json
+  let schema = S.json
   let data = JSON.Encode.string("Foo")
 
-  t->Assert.deepEqual(data->S.parseWith(struct), Ok(data), ())
-  t->Assert.deepEqual(data->S.serializeWith(struct), Ok(data), ())
+  t->Assert.deepEqual(data->S.parseWith(schema), Ok(data), ())
+  t->Assert.deepEqual(data->S.serializeWith(schema), Ok(data), ())
 })
 
 test("Supports Number", t => {
-  let struct = S.json
+  let schema = S.json
   let data = JSON.Encode.float(123.)
 
-  t->Assert.deepEqual(data->S.parseWith(struct), Ok(data), ())
-  t->Assert.deepEqual(data->S.serializeWith(struct), Ok(data), ())
+  t->Assert.deepEqual(data->S.parseWith(schema), Ok(data), ())
+  t->Assert.deepEqual(data->S.serializeWith(schema), Ok(data), ())
 })
 
 test("Supports Bool", t => {
-  let struct = S.json
+  let schema = S.json
   let data = JSON.Encode.bool(true)
 
-  t->Assert.deepEqual(data->S.parseWith(struct), Ok(data), ())
-  t->Assert.deepEqual(data->S.serializeWith(struct), Ok(data), ())
+  t->Assert.deepEqual(data->S.parseWith(schema), Ok(data), ())
+  t->Assert.deepEqual(data->S.serializeWith(schema), Ok(data), ())
 })
 
 test("Supports Null", t => {
-  let struct = S.json
+  let schema = S.json
   let data = JSON.Encode.null
 
-  t->Assert.deepEqual(data->S.parseWith(struct), Ok(data), ())
-  t->Assert.deepEqual(data->S.serializeWith(struct), Ok(data), ())
+  t->Assert.deepEqual(data->S.parseWith(schema), Ok(data), ())
+  t->Assert.deepEqual(data->S.serializeWith(schema), Ok(data), ())
 })
 
 test("Supports Array", t => {
-  let struct = S.json
+  let schema = S.json
   let data = JSON.Encode.array([JSON.Encode.string("foo"), JSON.Encode.null])
 
-  t->Assert.deepEqual(data->S.parseWith(struct), Ok(data), ())
-  t->Assert.deepEqual(data->S.serializeWith(struct), Ok(data), ())
+  t->Assert.deepEqual(data->S.parseWith(schema), Ok(data), ())
+  t->Assert.deepEqual(data->S.serializeWith(schema), Ok(data), ())
 })
 
 test("Supports Object", t => {
-  let struct = S.json
+  let schema = S.json
   let data = JSON.Encode.object(
     [("bar", JSON.Encode.string("foo")), ("baz", JSON.Encode.null)]->Dict.fromArray,
   )
 
-  t->Assert.deepEqual(data->S.parseWith(struct), Ok(data), ())
-  t->Assert.deepEqual(data->S.serializeWith(struct), Ok(data), ())
+  t->Assert.deepEqual(data->S.parseWith(schema), Ok(data), ())
+  t->Assert.deepEqual(data->S.serializeWith(schema), Ok(data), ())
 })
 
 test("Fails to parse Object field", t => {
-  let struct = S.json
+  let schema = S.json
   let data = JSON.Encode.object(
     [("bar", %raw(`undefined`)), ("baz", JSON.Encode.null)]->Dict.fromArray,
   )
 
   t->Assert.deepEqual(
-    data->S.parseWith(struct),
+    data->S.parseWith(schema),
     Error(
       U.error({
-        code: InvalidType({received: %raw(`undefined`), expected: struct->S.toUnknown}),
+        code: InvalidType({received: %raw(`undefined`), expected: schema->S.toUnknown}),
         operation: Parsing,
         path: S.Path.fromLocation("bar"),
       }),
@@ -71,14 +71,14 @@ test("Fails to parse Object field", t => {
 })
 
 test("Fails to parse matrix field", t => {
-  let struct = S.json
+  let schema = S.json
   let data = %raw(`[1,[undefined]]`)
 
   t->Assert.deepEqual(
-    data->S.parseWith(struct),
+    data->S.parseWith(schema),
     Error(
       U.error({
-        code: InvalidType({received: %raw(`undefined`), expected: struct->S.toUnknown}),
+        code: InvalidType({received: %raw(`undefined`), expected: schema->S.toUnknown}),
         operation: Parsing,
         path: S.Path.fromArray(["1", "0"]),
       }),
@@ -88,12 +88,12 @@ test("Fails to parse matrix field", t => {
 })
 
 test("Fails to parse NaN", t => {
-  let struct = S.json
+  let schema = S.json
   t->Assert.deepEqual(
-    %raw(`NaN`)->S.parseAnyWith(struct),
+    %raw(`NaN`)->S.parseAnyWith(schema),
     Error(
       U.error({
-        code: InvalidType({received: %raw(`NaN`), expected: struct->S.toUnknown}),
+        code: InvalidType({received: %raw(`NaN`), expected: schema->S.toUnknown}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -103,12 +103,12 @@ test("Fails to parse NaN", t => {
 })
 
 test("Fails to parse undefined", t => {
-  let struct = S.json
+  let schema = S.json
   t->Assert.deepEqual(
-    %raw(`undefined`)->S.parseAnyWith(struct),
+    %raw(`undefined`)->S.parseAnyWith(schema),
     Error(
       U.error({
-        code: InvalidType({received: %raw(`undefined`), expected: struct->S.toUnknown}),
+        code: InvalidType({received: %raw(`undefined`), expected: schema->S.toUnknown}),
         operation: Parsing,
         path: S.Path.empty,
       }),
@@ -118,13 +118,13 @@ test("Fails to parse undefined", t => {
 })
 
 test("Compiled parse code snapshot", t => {
-  let struct = S.json
+  let schema = S.json
 
-  t->U.assertCompiledCode(~struct, ~op=#parse, `i=>{return e[0](i)}`)
+  t->U.assertCompiledCode(~schema, ~op=#parse, `i=>{return e[0](i)}`)
 })
 
 test("Compiled serialize code snapshot", t => {
-  let struct = S.json
+  let schema = S.json
 
-  t->U.assertCompiledCodeIsNoop(~struct, ~op=#serialize)
+  t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
 })

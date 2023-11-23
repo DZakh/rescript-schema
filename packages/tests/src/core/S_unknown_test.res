@@ -5,34 +5,34 @@ module Common = {
   let factory = () => S.unknown
 
   test("Successfully parses", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(any), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(any), ())
   })
 
   test("Successfully serializes", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(any->S.serializeToUnknownWith(struct), Ok(any), ())
+    t->Assert.deepEqual(any->S.serializeToUnknownWith(schema), Ok(any), ())
   })
 
   test("Compiled parse code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->U.assertCompiledCodeIsNoop(~struct, ~op=#parse)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#parse)
   })
 
   test("Compiled serialize code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->U.assertCompiledCodeIsNoop(~struct, ~op=#serialize)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
   })
 }
 
 test("Doesn't return refinements", t => {
-  let struct = S.unknown
-  t->Assert.deepEqual(struct->S.String.refinements, [], ())
-  t->Assert.deepEqual(struct->S.Array.refinements, [], ())
-  t->Assert.deepEqual(struct->S.Int.refinements, [], ())
-  t->Assert.deepEqual(struct->S.Float.refinements, [], ())
+  let schema = S.unknown
+  t->Assert.deepEqual(schema->S.String.refinements, [], ())
+  t->Assert.deepEqual(schema->S.Array.refinements, [], ())
+  t->Assert.deepEqual(schema->S.Int.refinements, [], ())
+  t->Assert.deepEqual(schema->S.Float.refinements, [], ())
 })

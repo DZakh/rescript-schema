@@ -1,7 +1,7 @@
 open Ava
 
 test("FIXME: Should keep operation of the error passed to advanced fail", t => {
-  let struct = S.array(
+  let schema = S.array(
     S.string->S.transform(s => {
       parser: _ =>
         s.failWithError(
@@ -15,7 +15,7 @@ test("FIXME: Should keep operation of the error passed to advanced fail", t => {
   )
 
   t->Assert.deepEqual(
-    ["Hello world!"]->S.parseAnyWith(struct),
+    ["Hello world!"]->S.parseAnyWith(schema),
     Error(
       U.error({
         code: OperationFailed("User error"),
@@ -28,7 +28,7 @@ test("FIXME: Should keep operation of the error passed to advanced fail", t => {
 })
 
 test("Works with failing outside of the parser", t => {
-  let struct = S.object(s =>
+  let schema = S.object(s =>
     s.field(
       "root",
       S.array(
@@ -47,7 +47,7 @@ test("Works with failing outside of the parser", t => {
   )
 
   t->Assert.deepEqual(
-    ["Hello world!"]->S.parseAnyWith(struct),
+    ["Hello world!"]->S.parseAnyWith(schema),
     Error(
       U.error({
         code: OperationFailed("User error"),

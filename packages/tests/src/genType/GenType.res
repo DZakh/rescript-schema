@@ -1,5 +1,5 @@
 @genType
-let stringStruct = S.string
+let stringSchema = S.string
 
 @genType
 let error: S.error = U.error({

@@ -8,15 +8,15 @@ module CommonWithNested = {
   let factory = () => S.list(S.string)
 
   test("Successfully parses", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
   })
 
   test("Fails to parse", t => {
-    let struct = factory()
+    let schema = factory()
 
-    switch invalidAny->S.parseAnyWith(struct) {
+    switch invalidAny->S.parseAnyWith(schema) {
     | Ok(_) => t->Assert.fail("Unexpected result.")
     | Error(e) => {
         t->Assert.deepEqual(e.operation, Parsing, ())
@@ -24,7 +24,7 @@ module CommonWithNested = {
         switch e.code {
         | InvalidType({expected, received}) => {
             t->Assert.deepEqual(received, invalidAny, ())
-            t->U.unsafeAssertEqualStructs(expected, struct)
+            t->U.unsafeAssertEqualSchemas(expected, schema)
           }
         | _ => t->Assert.fail("Unexpected code.")
         }
@@ -33,10 +33,10 @@ module CommonWithNested = {
   })
 
   test("Fails to parse nested", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      nestedInvalidAny->S.parseAnyWith(struct),
+      nestedInvalidAny->S.parseAnyWith(schema),
       Error(
         U.error({
           code: InvalidType({expected: S.string->S.toUnknown, received: 1->Obj.magic}),
@@ -49,17 +49,17 @@ module CommonWithNested = {
   })
 
   test("Successfully serializes", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(any), ())
   })
 }
 
 test("Successfully parses list of optional items", t => {
-  let struct = S.list(S.option(S.string))
+  let schema = S.list(S.option(S.string))
 
   t->Assert.deepEqual(
-    %raw(`["a", undefined, undefined, "b"]`)->S.parseAnyWith(struct),
+    %raw(`["a", undefined, undefined, "b"]`)->S.parseAnyWith(schema),
     Ok(list{Some("a"), None, None, Some("b")}),
     (),
   )

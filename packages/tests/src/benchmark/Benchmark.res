@@ -53,7 +53,7 @@ let makeTestObject = () => {
   })`)
 }
 
-let makeAdvancedObjectStruct = () => {
+let makeAdvancedObjectSchema = () => {
   S.object(s =>
     {
       "number": s.field("number", S.float),
@@ -76,7 +76,7 @@ let makeAdvancedObjectStruct = () => {
   )
 }
 
-let makeAdvancedStrictObjectStruct = () => {
+let makeAdvancedStrictObjectSchema = () => {
   S.object(s =>
     {
       "number": s.field("number", S.float),
@@ -101,69 +101,69 @@ let makeAdvancedStrictObjectStruct = () => {
 
 let data = makeTestObject()
 Console.time("init")
-let struct = makeAdvancedObjectStruct()
+let schema = makeAdvancedObjectSchema()
 Console.timeEnd("init")
 Console.time("p: 1")
-data->S.parseAnyWith(struct)->ignore
+data->S.parseAnyWith(schema)->ignore
 Console.timeEnd("p: 1")
 Console.time("p: 2")
-data->S.parseAnyWith(struct)->ignore
+data->S.parseAnyWith(schema)->ignore
 Console.timeEnd("p: 2")
 Console.time("p: 3")
-data->S.parseAnyWith(struct)->ignore
+data->S.parseAnyWith(schema)->ignore
 Console.timeEnd("p: 3")
 Console.time("s: 1")
-data->S.serializeWith(struct)->ignore
+data->S.serializeWith(schema)->ignore
 Console.timeEnd("s: 1")
 Console.time("s: 2")
-data->S.serializeWith(struct)->ignore
+data->S.serializeWith(schema)->ignore
 Console.timeEnd("s: 2")
 Console.time("s: 3")
-data->S.serializeWith(struct)->ignore
+data->S.serializeWith(schema)->ignore
 Console.timeEnd("s: 3")
 
 Suite.make()
 ->Suite.addWithPrepare("Parse string", () => {
-  let struct = S.string
+  let schema = S.string
   let data = "Hello world!"
   () => {
-    data->S.parseAnyOrRaiseWith(struct)
+    data->S.parseAnyOrRaiseWith(schema)
   }
 })
 ->Suite.addWithPrepare("Serialize string", () => {
-  let struct = S.string
+  let schema = S.string
   let data = "Hello world!"
   () => {
-    data->S.serializeOrRaiseWith(struct)
+    data->S.serializeOrRaiseWith(schema)
   }
 })
-->Suite.add("Advanced object struct factory", makeAdvancedObjectStruct)
+->Suite.add("Advanced object schema factory", makeAdvancedObjectSchema)
 ->Suite.addWithPrepare("Parse advanced object", () => {
-  let struct = makeAdvancedObjectStruct()
+  let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.parseAnyOrRaiseWith(struct)
+    data->S.parseAnyOrRaiseWith(schema)
   }
 })
 ->Suite.addWithPrepare("Create and parse advanced object", () => {
   let data = makeTestObject()
   () => {
-    let struct = makeAdvancedObjectStruct()
-    data->S.parseAnyOrRaiseWith(struct)
+    let schema = makeAdvancedObjectSchema()
+    data->S.parseAnyOrRaiseWith(schema)
   }
 })
 ->Suite.addWithPrepare("Parse advanced strict object", () => {
-  let struct = makeAdvancedStrictObjectStruct()
+  let schema = makeAdvancedStrictObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.parseAnyOrRaiseWith(struct)
+    data->S.parseAnyOrRaiseWith(schema)
   }
 })
 ->Suite.addWithPrepare("Serialize advanced object", () => {
-  let struct = makeAdvancedObjectStruct()
+  let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.serializeOrRaiseWith(struct)
+    data->S.serializeOrRaiseWith(schema)
   }
 })
 ->Suite.run

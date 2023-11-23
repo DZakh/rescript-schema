@@ -2,25 +2,25 @@ open Ava
 open RescriptCore
 
 test("Successfully parses", t => {
-  let struct = S.bool
+  let schema = S.bool
 
-  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseWith(struct), Ok(true), ())
+  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseWith(schema), Ok(true), ())
 })
 
 test("Successfully parses unknown", t => {
-  let struct = S.unknown
+  let schema = S.unknown
 
-  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseWith(struct), Ok(true->Obj.magic), ())
+  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseWith(schema), Ok(true->Obj.magic), ())
 })
 
 test("Fails to parse", t => {
-  let struct = S.bool
+  let schema = S.bool
 
   t->Assert.deepEqual(
-    %raw("123")->S.parseWith(struct),
+    %raw("123")->S.parseWith(schema),
     Error(
       U.error({
-        code: InvalidType({expected: struct->S.toUnknown, received: %raw("123")}),
+        code: InvalidType({expected: schema->S.toUnknown, received: %raw("123")}),
         operation: Parsing,
         path: S.Path.empty,
       }),

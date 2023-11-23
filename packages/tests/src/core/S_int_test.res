@@ -7,19 +7,19 @@ module Common = {
   let factory = () => S.int
 
   test("Successfully parses", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
   })
 
   test("Fails to parse", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      invalidAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(schema),
       Error(
         U.error({
-          code: InvalidType({expected: struct->S.toUnknown, received: invalidAny}),
+          code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
           operation: Parsing,
           path: S.Path.empty,
         }),
@@ -29,70 +29,70 @@ module Common = {
   })
 
   test("Successfully serializes", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(any), ())
   })
 
   test("Compiled parse code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->U.assertCompiledCode(
-      ~struct,
+      ~schema,
       ~op=#parse,
       `i=>{if(typeof i!=="number"||i>2147483647||i<-2147483648||i%1!==0){e[0](i)}return i}`,
     )
   })
 
   test("Compiled serialize code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->U.assertCompiledCodeIsNoop(~struct, ~op=#serialize)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
   })
 }
 
 test("Fails to parse int when JSON is a number bigger than +2^31", t => {
-  let struct = S.int
+  let schema = S.int
 
   t->Assert.deepEqual(
-    %raw(`2147483648`)->S.parseAnyWith(struct),
+    %raw(`2147483648`)->S.parseAnyWith(schema),
     Error(
       U.error({
-        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`2147483648`)}),
+        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`2147483648`)}),
         operation: Parsing,
         path: S.Path.empty,
       }),
     ),
     (),
   )
-  t->Assert.deepEqual(%raw(`2147483647`)->S.parseAnyWith(struct), Ok(2147483647), ())
+  t->Assert.deepEqual(%raw(`2147483647`)->S.parseAnyWith(schema), Ok(2147483647), ())
 })
 
 test("Fails to parse int when JSON is a number lower than -2^31", t => {
-  let struct = S.int
+  let schema = S.int
 
   t->Assert.deepEqual(
-    %raw(`-2147483649`)->S.parseAnyWith(struct),
+    %raw(`-2147483649`)->S.parseAnyWith(schema),
     Error(
       U.error({
-        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`-2147483649`)}),
+        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`-2147483649`)}),
         operation: Parsing,
         path: S.Path.empty,
       }),
     ),
     (),
   )
-  t->Assert.deepEqual(%raw(`-2147483648`)->S.parseAnyWith(struct), Ok(-2147483648), ())
+  t->Assert.deepEqual(%raw(`-2147483648`)->S.parseAnyWith(schema), Ok(-2147483648), ())
 })
 
 test("Fails to parse NaN", t => {
-  let struct = S.int
+  let schema = S.int
 
   t->Assert.deepEqual(
-    %raw(`NaN`)->S.parseAnyWith(struct),
+    %raw(`NaN`)->S.parseAnyWith(schema),
     Error(
       U.error({
-        code: InvalidType({expected: struct->S.toUnknown, received: %raw(`NaN`)}),
+        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`NaN`)}),
         operation: Parsing,
         path: S.Path.empty,
       }),

@@ -8,19 +8,19 @@ module Common = {
   let factory = () => S.bool
 
   test("Successfully parses", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
   })
 
   test("Fails to parse ", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      invalidAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(schema),
       Error(
         U.error({
-          code: InvalidType({expected: struct->S.toUnknown, received: invalidAny}),
+          code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
           operation: Parsing,
           path: S.Path.empty,
         }),
@@ -30,32 +30,32 @@ module Common = {
   })
 
   test("Successfully serializes", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(any), ())
   })
 
   test("Compiled parse code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->U.assertCompiledCode(~struct, ~op=#parse, `i=>{if(typeof i!=="boolean"){e[0](i)}return i}`)
+    t->U.assertCompiledCode(~schema, ~op=#parse, `i=>{if(typeof i!=="boolean"){e[0](i)}return i}`)
   })
 
   test("Compiled serialize code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->U.assertCompiledCodeIsNoop(~struct, ~op=#serialize)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
   })
 }
 
 test("Parses bool when JSON is true", t => {
-  let struct = S.bool
+  let schema = S.bool
 
-  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseAnyWith(struct), Ok(true), ())
+  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseAnyWith(schema), Ok(true), ())
 })
 
 test("Parses bool when JSON is false", t => {
-  let struct = S.bool
+  let schema = S.bool
 
-  t->Assert.deepEqual(JSON.Encode.bool(false)->S.parseAnyWith(struct), Ok(false), ())
+  t->Assert.deepEqual(JSON.Encode.bool(false)->S.parseAnyWith(schema), Ok(false), ())
 })

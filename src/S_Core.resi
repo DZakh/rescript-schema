@@ -60,18 +60,18 @@ and tagged =
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
   | JSON
-and struct<'value> = t<'value>
+and schema<'value> = t<'value>
 and error = private {operation: operation, code: errorCode, path: Path.t}
 and errorCode =
   | OperationFailed(string)
   | InvalidOperation({description: string})
-  | InvalidType({expected: struct<unknown>, received: unknown})
+  | InvalidType({expected: schema<unknown>, received: unknown})
   | InvalidLiteral({expected: Literal.t, received: unknown})
   | InvalidTupleSize({expected: int, received: int})
   | ExcessField(string)
   | InvalidUnion(array<error>)
   | UnexpectedAsync
-  | InvalidJsonStruct(struct<unknown>)
+  | InvalidJsonStruct(schema<unknown>)
 and operation =
   | Parsing
   | Serializing
@@ -79,7 +79,7 @@ and unknownKeys = Strip | Strict
 type exn += private Raised(error)
 
 type effectCtx<'value> = {
-  struct: t<'value>,
+  schema: t<'value>,
   fail: 'a. (string, ~path: Path.t=?) => 'a,
   failWithError: 'a. error => 'a,
 }
@@ -119,7 +119,7 @@ let union: array<t<'value>> => t<'value>
 type catchCtx<'value> = {
   @as("e") error: error,
   @as("i") input: unknown,
-  @as("s") struct: t<'value>,
+  @as("s") schema: t<'value>,
   @as("f") fail: 'a. (string, ~path: Path.t=?) => 'a,
   @as("w") failWithError: 'a. error => 'a,
 }

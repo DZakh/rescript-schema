@@ -10,8 +10,8 @@ importers:
       benchmark: 2.1.4
       c8: 7.12.0
       rescript: 11.0.0-rc.5
+      rescript-schema: .
       rescript-stdlib-vendorer: 1.0.0
-      rescript-struct: .
       ts-expect: 1.3.0
       ts-node: 10.9.1
       typescript: 4.9.3
@@ -24,8 +24,8 @@ importers:
       benchmark: 2.1.4
       c8: 7.12.0
       rescript: 11.0.0-rc.5
+      rescript-schema: 'link:'
       rescript-stdlib-vendorer: 1.0.0
-      rescript-struct: 'link:'
       ts-expect: 1.3.0
       ts-node: 10.9.1_typescript@4.9.3
       typescript: 4.9.3

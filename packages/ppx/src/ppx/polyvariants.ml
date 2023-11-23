@@ -11,7 +11,7 @@ let parse_decl { prf_desc } =
 
   [%expr S.literal [%e Exp.variant name None]]
 
-let generate_struct_expr row_fields =
+let generate_schema_expr row_fields =
   let union_items = List.map parse_decl row_fields in
   match union_items with
   | [ item ] -> item

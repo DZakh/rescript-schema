@@ -11,7 +11,7 @@ Before you start working on a contribution, create an issue describing what you 
 The following steps will get you setup to contribute changes to this repo:
 
 1. Fork this repo.
-2. Clone your forked repo: `git clone git@github.com:{your_username}/rescript-struct.git`
+2. Clone your forked repo: `git clone git@github.com:{your_username}/rescript-schema.git`
 3. Install [pnpm](https://pnpm.io/) if not available `npm i -g pnpm@7.11.0`
 4. Run `pnpm i` to install dependencies.
 5. Start playing with the code!
@@ -25,7 +25,7 @@ Make sure running the below commands in `packages/ppx/src`.
 1. Create a sandbox with opam
 
 ```
-opam switch create struct 4.12.1
+opam switch create rescript-schema 4.12.1
 ```
 
 2. Install dependencies
@@ -55,4 +55,4 @@ npm run test -- --watch
 
 ## License
 
-By contributing your code to the rescript-struct GitHub repository, you agree to license your contribution under the MIT license.
+By contributing your code to the rescript-schema GitHub repository, you agree to license your contribution under the MIT license.

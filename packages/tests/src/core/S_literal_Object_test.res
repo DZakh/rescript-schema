@@ -19,16 +19,16 @@ module Common = {
   external makeNotPlainValue: unit => {"foo": string} = "NotPlainValue"
 
   test("Successfully parses", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(value->S.parseAnyWith(struct), Ok(value), ())
+    t->Assert.deepEqual(value->S.parseAnyWith(schema), Ok(value), ())
   })
 
   test("Fails to parse invalid", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      invalid->S.parseAnyWith(struct),
+      invalid->S.parseAnyWith(schema),
       Error(
         U.error({
           code: InvalidLiteral({
@@ -44,16 +44,16 @@ module Common = {
   })
 
   test("Successfully serializes", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(value->U.castAnyToUnknown), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(value->U.castAnyToUnknown), ())
   })
 
   test("Fails to serialize invalid", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      invalid->S.serializeToUnknownWith(struct),
+      invalid->S.serializeToUnknownWith(schema),
       Error(
         U.error({
           code: InvalidLiteral({
@@ -69,10 +69,10 @@ module Common = {
   })
 
   test("Fails to parse null", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      %raw(`null`)->S.parseAnyWith(struct),
+      %raw(`null`)->S.parseAnyWith(schema),
       Error(
         U.error({
           code: InvalidLiteral({
@@ -88,10 +88,10 @@ module Common = {
   })
 
   test("Fails to parse value with excess fields", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      %raw(`{"foo": "bar","excess":true}`)->S.parseAnyWith(struct),
+      %raw(`{"foo": "bar","excess":true}`)->S.parseAnyWith(schema),
       Error(
         U.error({
           code: InvalidLiteral({
@@ -107,10 +107,10 @@ module Common = {
   })
 
   test("Fails to parse non plain objects", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      makeNotPlainValue()->S.parseAnyWith(struct),
+      makeNotPlainValue()->S.parseAnyWith(schema),
       Error(
         U.error({
           code: InvalidLiteral({
@@ -126,20 +126,20 @@ module Common = {
   })
 
   test("Compiled parse code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->U.assertCompiledCode(
-      ~struct,
+      ~schema,
       ~op=#parse,
       `i=>{(i===e[0]||i&&i.constructor===Object&&Object.keys(i).length===1&&i["foo"]===e[1])||e[2](i);return i}`,
     )
   })
 
   test("Compiled serialize code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->U.assertCompiledCode(
-      ~struct,
+      ~schema,
       ~op=#serialize,
       `i=>{(i===e[0]||i&&i.constructor===Object&&Object.keys(i).length===1&&i["foo"]===e[1])||e[2](i);return i}`,
     )

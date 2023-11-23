@@ -2,101 +2,101 @@ open Ava
 open RescriptCore
 open U
 
-@struct
+@schema
 type myString = string
-test("String struct", t => {
-  t->assertEqualStructs(myStringStruct, S.string)
+test("String schema", t => {
+  t->assertEqualSchemas(myStringSchema, S.string)
 })
 
-@struct
+@schema
 type myInt = int
-test("Int struct", t => {
-  t->assertEqualStructs(myIntStruct, S.int)
+test("Int schema", t => {
+  t->assertEqualSchemas(myIntSchema, S.int)
 })
 
-@struct
+@schema
 type myFloat = float
-test("Float struct", t => {
-  t->assertEqualStructs(myFloatStruct, S.float)
+test("Float schema", t => {
+  t->assertEqualSchemas(myFloatSchema, S.float)
 })
 
-@struct
+@schema
 type myBool = bool
-test("Bool struct", t => {
-  t->assertEqualStructs(myBoolStruct, S.bool)
+test("Bool schema", t => {
+  t->assertEqualSchemas(myBoolSchema, S.bool)
 })
 
-@struct
+@schema
 type myUnit = unit
-test("Unit struct", t => {
-  t->assertEqualStructs(myUnitStruct, S.unit)
+test("Unit schema", t => {
+  t->assertEqualSchemas(myUnitSchema, S.unit)
 })
 
-@struct
+@schema
 type myUnknown = unknown
-test("Unknown struct", t => {
-  t->assertEqualStructs(myUnknownStruct, S.unknown)
+test("Unknown schema", t => {
+  t->assertEqualSchemas(myUnknownSchema, S.unknown)
 })
 
-@struct
+@schema
 type myNever = S.never
-test("Never struct", t => {
-  t->assertEqualStructs(myNeverStruct, S.never)
+test("Never schema", t => {
+  t->assertEqualSchemas(myNeverSchema, S.never)
 })
 
-@struct
+@schema
 type myOptionOfString = option<string>
-test("Option of string struct", t => {
-  t->assertEqualStructs(myOptionOfStringStruct, S.option(S.string))
+test("Option of string schema", t => {
+  t->assertEqualSchemas(myOptionOfStringSchema, S.option(S.string))
 })
 
-@struct
+@schema
 type myArrayOfString = array<string>
-test("Array of string struct", t => {
-  t->assertEqualStructs(myArrayOfStringStruct, S.array(S.string))
+test("Array of string schema", t => {
+  t->assertEqualSchemas(myArrayOfStringSchema, S.array(S.string))
 })
 
-@struct
+@schema
 type myListOfString = list<string>
-test("List of string struct", t => {
-  t->assertEqualStructs(myListOfStringStruct, S.list(S.string))
+test("List of string schema", t => {
+  t->assertEqualSchemas(myListOfStringSchema, S.list(S.string))
 })
 
-@struct
+@schema
 type myDictOfString = Js.Dict.t<string>
-test("Dict of string struct", t => {
-  t->assertEqualStructs(myDictOfStringStruct, S.dict(S.string))
+test("Dict of string schema", t => {
+  t->assertEqualSchemas(myDictOfStringSchema, S.dict(S.string))
 })
 
-@struct
+@schema
 type myDictOfStringFromCore = Dict.t<string>
-test("Dict of string struct from Core", t => {
-  t->assertEqualStructs(myDictOfStringFromCoreStruct, S.dict(S.string))
+test("Dict of string schema from Core", t => {
+  t->assertEqualSchemas(myDictOfStringFromCoreSchema, S.dict(S.string))
 })
 
-@struct
+@schema
 type myJson = Js.Json.t
-test("Json struct", t => {
-  t->assertEqualStructs(myJsonStruct, S.json)
+test("Json schema", t => {
+  t->assertEqualSchemas(myJsonSchema, S.json)
 })
 
-@struct
+@schema
 type myJsonFromCore = JSON.t
-test("Json struct from Core", t => {
-  t->assertEqualStructs(myJsonFromCoreStruct, S.json)
+test("Json schema from Core", t => {
+  t->assertEqualSchemas(myJsonFromCoreSchema, S.json)
 })
 
-@struct
+@schema
 type myTuple = (string, int)
-test("Tuple struct", t => {
-  t->assertEqualStructs(myTupleStruct, S.tuple2(S.string, S.int))
+test("Tuple schema", t => {
+  t->assertEqualSchemas(myTupleSchema, S.tuple2(S.string, S.int))
 })
 
-@struct
+@schema
 type myBigTuple = (string, string, string, int, int, int, float, float, float, bool, bool, bool)
-test("Big tuple struct", t => {
-  t->assertEqualStructs(
-    myBigTupleStruct,
+test("Big tuple schema", t => {
+  t->assertEqualSchemas(
+    myBigTupleSchema,
     S.tuple(s => (
       s.item(0, S.string),
       s.item(1, S.string),
@@ -114,31 +114,31 @@ test("Big tuple struct", t => {
   )
 })
 
-@struct
-type myCustomString = @struct(S.string->S.String.email) string
-test("Custom string struct", t => {
-  t->assertEqualStructs(myCustomStringStruct, S.string->S.String.email)
+@schema
+type myCustomString = @schema(S.string->S.String.email) string
+test("Custom string schema", t => {
+  t->assertEqualSchemas(myCustomStringSchema, S.string->S.String.email)
 })
 
-@struct
-type myCustomLiteralString = @struct(S.literal("123")->S.String.email) string
-test("Custom litaral string struct", t => {
-  t->assertEqualStructs(myCustomLiteralStringStruct, S.literal("123")->S.String.email)
+@schema
+type myCustomLiteralString = @schema(S.literal("123")->S.String.email) string
+test("Custom litaral string schema", t => {
+  t->assertEqualSchemas(myCustomLiteralStringSchema, S.literal("123")->S.String.email)
 })
 
-@struct
-type myCustomOptionalString = option<@struct(S.string->S.String.email) string>
-test("Custom optional string struct", t => {
-  t->assertEqualStructs(myCustomOptionalStringStruct, S.string->S.String.email->S.option)
+@schema
+type myCustomOptionalString = option<@schema(S.string->S.String.email) string>
+test("Custom optional string schema", t => {
+  t->assertEqualSchemas(myCustomOptionalStringSchema, S.string->S.String.email->S.option)
 })
 
-// @struct
+// @schema
 // type myNullOfString = null<string>
 // This will result with error:
 // The incompatible parts: option<string> vs myNullOfString (defined as null<string>)
 // So use the code below instead
-@struct
-type myNullOfString = @struct(S.null(S.string)) option<string>
-test("Null of string struct", t => {
-  t->assertEqualStructs(myNullOfStringStruct, S.null(S.string))
+@schema
+type myNullOfString = @schema(S.null(S.string)) option<string>
+test("Null of string schema", t => {
+  t->assertEqualSchemas(myNullOfStringSchema, S.null(S.string))
 })

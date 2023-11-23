@@ -9,19 +9,19 @@ module CommonWithNested = {
   let factory = () => S.array(S.string)
 
   test("Successfully parses", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
   })
 
   test("Fails to parse", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      invalidAny->S.parseAnyWith(struct),
+      invalidAny->S.parseAnyWith(schema),
       Error(
         U.error({
-          code: InvalidType({expected: struct->S.toUnknown, received: invalidAny}),
+          code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
           operation: Parsing,
           path: S.Path.empty,
         }),
@@ -31,10 +31,10 @@ module CommonWithNested = {
   })
 
   test("Fails to parse nested", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      nestedInvalidAny->S.parseAnyWith(struct),
+      nestedInvalidAny->S.parseAnyWith(schema),
       Error(
         U.error({
           code: InvalidType({expected: S.string->S.toUnknown, received: 1->Obj.magic}),
@@ -47,43 +47,43 @@ module CommonWithNested = {
   })
 
   test("Successfully serializes", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(any), ())
   })
 
   test("Compiled parse code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->U.assertCompiledCode(
-      ~struct,
+      ~schema,
       ~op=#parse,
       `i=>{let v1;if(!Array.isArray(i)){e[1](i)}v1=[];for(let v0=0;v0<i.length;++v0){let v3;try{v3=i[v0];if(typeof v3!=="string"){e[0](v3)}}catch(v2){if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2}v1.push(v3)}return v1}`,
     )
   })
 
   test("Compiled async parse code snapshot", t => {
-    let struct = S.array(S.unknown->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}))
+    let schema = S.array(S.unknown->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}))
 
     t->U.assertCompiledCode(
-      ~struct,
+      ~schema,
       ~op=#parse,
       `i=>{let v1,v5;if(!Array.isArray(i)){e[1](i)}v1=[];for(let v0=0;v0<i.length;++v0){let v3,v4;try{v3=e[0](i[v0]);v4=()=>{try{return v3().catch(v2=>{if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2})}catch(v2){if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2}};}catch(v2){if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2}v1.push(v4)}v5=()=>Promise.all(v1.map(t=>t()));return v5}`,
     )
   })
 
   test("Compiled serialize code snapshot", t => {
-    let struct = S.array(S.string)
+    let schema = S.array(S.string)
 
-    t->U.assertCompiledCodeIsNoop(~struct, ~op=#serialize)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
   })
 
   test("Compiled serialize code snapshot with transform", t => {
-    let struct = S.array(S.option(S.string))
+    let schema = S.array(S.option(S.string))
 
     // TODO: Simplify
     t->U.assertCompiledCode(
-      ~struct,
+      ~schema,
       ~op=#serialize,
       `i=>{let v1;v1=[];for(let v0=0;v0<i.length;++v0){let v3,v4;try{v3=i[v0];if(v3!==void 0){v4=e[0](v3)}else{v4=void 0}}catch(v2){if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2}v1.push(v4)}return v1}`,
     )
@@ -91,20 +91,20 @@ module CommonWithNested = {
 }
 
 test("Successfully parses matrix", t => {
-  let struct = S.array(S.array(S.string))
+  let schema = S.array(S.array(S.string))
 
   t->Assert.deepEqual(
-    %raw(`[["a", "b"], ["c", "d"]]`)->S.parseAnyWith(struct),
+    %raw(`[["a", "b"], ["c", "d"]]`)->S.parseAnyWith(schema),
     Ok([["a", "b"], ["c", "d"]]),
     (),
   )
 })
 
 test("Fails to parse matrix", t => {
-  let struct = S.array(S.array(S.string))
+  let schema = S.array(S.array(S.string))
 
   t->Assert.deepEqual(
-    %raw(`[["a", 1], ["c", "d"]]`)->S.parseAnyWith(struct),
+    %raw(`[["a", 1], ["c", "d"]]`)->S.parseAnyWith(schema),
     Error(
       U.error({
         code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`1`)}),
@@ -117,10 +117,10 @@ test("Fails to parse matrix", t => {
 })
 
 test("Successfully parses array of optional items", t => {
-  let struct = S.array(S.option(S.string))
+  let schema = S.array(S.option(S.string))
 
   t->Assert.deepEqual(
-    %raw(`["a", undefined, undefined, "b"]`)->S.parseAnyWith(struct),
+    %raw(`["a", undefined, undefined, "b"]`)->S.parseAnyWith(schema),
     Ok([Some("a"), None, None, Some("b")]),
     (),
   )

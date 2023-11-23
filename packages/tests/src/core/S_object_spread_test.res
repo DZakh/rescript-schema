@@ -13,8 +13,8 @@ type z = {
   ...y,
 }
 
-test("Successfully parses manually created struct using type spread", t => {
-  let zStruct = S.object(s => {
+test("Successfully parses manually created schema using type spread", t => {
+  let zSchema = S.object(s => {
     a: s.field("a", S.int),
     b: s.field("b", S.int),
     c: s.field("c", S.float),
@@ -22,7 +22,7 @@ test("Successfully parses manually created struct using type spread", t => {
   })
 
   t->Assert.deepEqual(
-    %raw(`{a: 1, b: 2, c: 3.3, d: true}`)->S.parseAnyWith(zStruct),
+    %raw(`{a: 1, b: 2, c: 3.3, d: true}`)->S.parseAnyWith(zSchema),
     Ok({a: 1, b: 2, c: 3.3, d: true}),
     (),
   )

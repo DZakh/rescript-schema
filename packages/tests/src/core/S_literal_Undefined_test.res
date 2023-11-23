@@ -8,16 +8,16 @@ module Common = {
   let factory = () => S.literal()
 
   test("Successfully parses", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(struct), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
   })
 
   test("Fails to parse invalid type", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      invalidTypeAny->S.parseAnyWith(struct),
+      invalidTypeAny->S.parseAnyWith(schema),
       Error(
         U.error({
           code: InvalidLiteral({expected: Undefined, received: invalidTypeAny}),
@@ -30,16 +30,16 @@ module Common = {
   })
 
   test("Successfully serializes", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(struct), Ok(any), ())
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(any), ())
   })
 
   test("Fails to serialize invalid value", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      invalidValue->S.serializeToUnknownWith(struct),
+      invalidValue->S.serializeToUnknownWith(schema),
       Error(
         U.error({
           code: InvalidLiteral({expected: Undefined, received: invalidValue}),
@@ -52,14 +52,14 @@ module Common = {
   })
 
   test("Compiled parse code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->U.assertCompiledCode(~struct, ~op=#parse, `i=>{i===void 0||e[0](i);return i}`)
+    t->U.assertCompiledCode(~schema, ~op=#parse, `i=>{i===void 0||e[0](i);return i}`)
   })
 
   test("Compiled serialize code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{i===void 0||e[0](i);return i}`)
+    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{i===void 0||e[0](i);return i}`)
   })
 }

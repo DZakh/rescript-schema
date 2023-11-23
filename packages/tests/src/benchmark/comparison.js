@@ -1,7 +1,7 @@
 import B from "benchmark";
 import { z } from "zod";
 import * as V from "valibot";
-import * as S from "rescript-struct/src/S.js";
+import * as S from "rescript-schema/src/S.js";
 
 const data = Object.freeze({
   number: 1,
@@ -46,7 +46,7 @@ const valibotSchema = V.object({
   }),
 });
 
-const struct = S.object({
+const schema = S.object({
   number: S.number,
   negNumber: S.number,
   maxNumber: S.number,
@@ -130,7 +130,7 @@ new B.Suite()
     });
     return V.parse(valibotSchema, data);
   })
-  .add("rescript-struct (create)", () => {
+  .add("rescript-schema (create)", () => {
     return S.object({
       number: S.number,
       negNumber: S.number,
@@ -145,11 +145,11 @@ new B.Suite()
       }),
     });
   })
-  .add("rescript-struct (parse)", () => {
-    return S.parseOrThrow(struct, data);
+  .add("rescript-schema (parse)", () => {
+    return S.parseOrThrow(schema, data);
   })
-  .add("rescript-struct (create + parse)", () => {
-    const struct = S.object({
+  .add("rescript-schema (create + parse)", () => {
+    const schema = S.object({
       number: S.number,
       negNumber: S.number,
       maxNumber: S.number,
@@ -162,7 +162,7 @@ new B.Suite()
         bool: S.boolean,
       }),
     });
-    return S.parseOrThrow(struct, data);
+    return S.parseOrThrow(schema, data);
   })
   .on("cycle", (event) => {
     console.log(String(event.target));

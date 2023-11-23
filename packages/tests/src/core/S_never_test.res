@@ -5,10 +5,10 @@ module Common = {
   let factory = () => S.never
 
   test("Fails to ", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      any->S.parseAnyWith(struct),
+      any->S.parseAnyWith(schema),
       Error(
         U.error({
           code: InvalidType({expected: S.never->S.toUnknown, received: any}),
@@ -21,13 +21,13 @@ module Common = {
   })
 
   test("Fails to serialize ", t => {
-    let struct = factory()
+    let schema = factory()
 
     t->Assert.deepEqual(
-      any->S.serializeToUnknownWith(struct),
+      any->S.serializeToUnknownWith(schema),
       Error(
         U.error({
-          code: InvalidType({expected: struct->S.toUnknown, received: any}),
+          code: InvalidType({expected: schema->S.toUnknown, received: any}),
           operation: Serializing,
           path: S.Path.empty,
         }),
@@ -37,21 +37,21 @@ module Common = {
   })
 
   test("Compiled parse code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->U.assertCompiledCode(~struct, ~op=#parse, `i=>{e[0](i);return i}`)
+    t->U.assertCompiledCode(~schema, ~op=#parse, `i=>{e[0](i);return i}`)
   })
 
   test("Compiled serialize code snapshot", t => {
-    let struct = factory()
+    let schema = factory()
 
-    t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{e[0](i);return i}`)
+    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{e[0](i);return i}`)
   })
 }
 
 module ObjectField = {
   test("Fails to parse a object with Never field", t => {
-    let struct = S.object(s =>
+    let schema = S.object(s =>
       {
         "key": s.field("key", S.string),
         "oldKey": s.field("oldKey", S.never),
@@ -59,7 +59,7 @@ module ObjectField = {
     )
 
     t->Assert.deepEqual(
-      %raw(`{"key":"value"}`)->S.parseAnyWith(struct),
+      %raw(`{"key":"value"}`)->S.parseAnyWith(schema),
       Error(
         U.error({
           code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`undefined`)}),
@@ -72,7 +72,7 @@ module ObjectField = {
   })
 
   test("Successfully parses a object with Never field when it's optional and not present", t => {
-    let struct = S.object(s =>
+    let schema = S.object(s =>
       {
         "key": s.field("key", S.string),
         "oldKey": s.field(
@@ -83,7 +83,7 @@ module ObjectField = {
     )
 
     t->Assert.deepEqual(
-      %raw(`{"key":"value"}`)->S.parseAnyWith(struct),
+      %raw(`{"key":"value"}`)->S.parseAnyWith(schema),
       Ok({
         "key": "value",
         "oldKey": None,

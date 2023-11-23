@@ -2,183 +2,183 @@
 
 import * as U from "../utils/U.bs.mjs";
 import Ava from "ava";
-import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
+import * as S$RescriptSchema from "rescript-schema/src/S.bs.mjs";
 
-Ava("String struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.string, S$RescriptStruct.string, undefined);
+Ava("String schema", (function (t) {
+        U.assertEqualSchemas(t, S$RescriptSchema.string, S$RescriptSchema.string, undefined);
       }));
 
-Ava("Int struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.$$int, S$RescriptStruct.$$int, undefined);
+Ava("Int schema", (function (t) {
+        U.assertEqualSchemas(t, S$RescriptSchema.$$int, S$RescriptSchema.$$int, undefined);
       }));
 
-Ava("Float struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.$$float, S$RescriptStruct.$$float, undefined);
+Ava("Float schema", (function (t) {
+        U.assertEqualSchemas(t, S$RescriptSchema.$$float, S$RescriptSchema.$$float, undefined);
       }));
 
-Ava("Bool struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.bool, S$RescriptStruct.bool, undefined);
+Ava("Bool schema", (function (t) {
+        U.assertEqualSchemas(t, S$RescriptSchema.bool, S$RescriptSchema.bool, undefined);
       }));
 
-Ava("Unit struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.unit, S$RescriptStruct.unit, undefined);
+Ava("Unit schema", (function (t) {
+        U.assertEqualSchemas(t, S$RescriptSchema.unit, S$RescriptSchema.unit, undefined);
       }));
 
-Ava("Unknown struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.unknown, S$RescriptStruct.unknown, undefined);
+Ava("Unknown schema", (function (t) {
+        U.assertEqualSchemas(t, S$RescriptSchema.unknown, S$RescriptSchema.unknown, undefined);
       }));
 
-Ava("Never struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.never, S$RescriptStruct.never, undefined);
+Ava("Never schema", (function (t) {
+        U.assertEqualSchemas(t, S$RescriptSchema.never, S$RescriptSchema.never, undefined);
       }));
 
-var myOptionOfStringStruct = S$RescriptStruct.option(S$RescriptStruct.string);
+var myOptionOfStringSchema = S$RescriptSchema.option(S$RescriptSchema.string);
 
-Ava("Option of string struct", (function (t) {
-        U.assertEqualStructs(t, myOptionOfStringStruct, S$RescriptStruct.option(S$RescriptStruct.string), undefined);
+Ava("Option of string schema", (function (t) {
+        U.assertEqualSchemas(t, myOptionOfStringSchema, S$RescriptSchema.option(S$RescriptSchema.string), undefined);
       }));
 
-var myArrayOfStringStruct = S$RescriptStruct.array(S$RescriptStruct.string);
+var myArrayOfStringSchema = S$RescriptSchema.array(S$RescriptSchema.string);
 
-Ava("Array of string struct", (function (t) {
-        U.assertEqualStructs(t, myArrayOfStringStruct, S$RescriptStruct.array(S$RescriptStruct.string), undefined);
+Ava("Array of string schema", (function (t) {
+        U.assertEqualSchemas(t, myArrayOfStringSchema, S$RescriptSchema.array(S$RescriptSchema.string), undefined);
       }));
 
-var myListOfStringStruct = S$RescriptStruct.list(S$RescriptStruct.string);
+var myListOfStringSchema = S$RescriptSchema.list(S$RescriptSchema.string);
 
-Ava("List of string struct", (function (t) {
-        U.assertEqualStructs(t, myListOfStringStruct, S$RescriptStruct.list(S$RescriptStruct.string), undefined);
+Ava("List of string schema", (function (t) {
+        U.assertEqualSchemas(t, myListOfStringSchema, S$RescriptSchema.list(S$RescriptSchema.string), undefined);
       }));
 
-var myDictOfStringStruct = S$RescriptStruct.dict(S$RescriptStruct.string);
+var myDictOfStringSchema = S$RescriptSchema.dict(S$RescriptSchema.string);
 
-Ava("Dict of string struct", (function (t) {
-        U.assertEqualStructs(t, myDictOfStringStruct, S$RescriptStruct.dict(S$RescriptStruct.string), undefined);
+Ava("Dict of string schema", (function (t) {
+        U.assertEqualSchemas(t, myDictOfStringSchema, S$RescriptSchema.dict(S$RescriptSchema.string), undefined);
       }));
 
-var myDictOfStringFromCoreStruct = S$RescriptStruct.dict(S$RescriptStruct.string);
+var myDictOfStringFromCoreSchema = S$RescriptSchema.dict(S$RescriptSchema.string);
 
-Ava("Dict of string struct from Core", (function (t) {
-        U.assertEqualStructs(t, myDictOfStringFromCoreStruct, S$RescriptStruct.dict(S$RescriptStruct.string), undefined);
+Ava("Dict of string schema from Core", (function (t) {
+        U.assertEqualSchemas(t, myDictOfStringFromCoreSchema, S$RescriptSchema.dict(S$RescriptSchema.string), undefined);
       }));
 
-Ava("Json struct", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.json, S$RescriptStruct.json, undefined);
+Ava("Json schema", (function (t) {
+        U.assertEqualSchemas(t, S$RescriptSchema.json, S$RescriptSchema.json, undefined);
       }));
 
-Ava("Json struct from Core", (function (t) {
-        U.assertEqualStructs(t, S$RescriptStruct.json, S$RescriptStruct.json, undefined);
+Ava("Json schema from Core", (function (t) {
+        U.assertEqualSchemas(t, S$RescriptSchema.json, S$RescriptSchema.json, undefined);
       }));
 
-var myTupleStruct = S$RescriptStruct.tuple(function (s) {
+var myTupleSchema = S$RescriptSchema.tuple(function (s) {
       return [
-              s.i(0, S$RescriptStruct.string),
-              s.i(1, S$RescriptStruct.$$int)
+              s.i(0, S$RescriptSchema.string),
+              s.i(1, S$RescriptSchema.$$int)
             ];
     });
 
-Ava("Tuple struct", (function (t) {
-        U.assertEqualStructs(t, myTupleStruct, S$RescriptStruct.tuple2(S$RescriptStruct.string, S$RescriptStruct.$$int), undefined);
+Ava("Tuple schema", (function (t) {
+        U.assertEqualSchemas(t, myTupleSchema, S$RescriptSchema.tuple2(S$RescriptSchema.string, S$RescriptSchema.$$int), undefined);
       }));
 
-var myBigTupleStruct = S$RescriptStruct.tuple(function (s) {
+var myBigTupleSchema = S$RescriptSchema.tuple(function (s) {
       return [
-              s.i(0, S$RescriptStruct.string),
-              s.i(1, S$RescriptStruct.string),
-              s.i(2, S$RescriptStruct.string),
-              s.i(3, S$RescriptStruct.$$int),
-              s.i(4, S$RescriptStruct.$$int),
-              s.i(5, S$RescriptStruct.$$int),
-              s.i(6, S$RescriptStruct.$$float),
-              s.i(7, S$RescriptStruct.$$float),
-              s.i(8, S$RescriptStruct.$$float),
-              s.i(9, S$RescriptStruct.bool),
-              s.i(10, S$RescriptStruct.bool),
-              s.i(11, S$RescriptStruct.bool)
+              s.i(0, S$RescriptSchema.string),
+              s.i(1, S$RescriptSchema.string),
+              s.i(2, S$RescriptSchema.string),
+              s.i(3, S$RescriptSchema.$$int),
+              s.i(4, S$RescriptSchema.$$int),
+              s.i(5, S$RescriptSchema.$$int),
+              s.i(6, S$RescriptSchema.$$float),
+              s.i(7, S$RescriptSchema.$$float),
+              s.i(8, S$RescriptSchema.$$float),
+              s.i(9, S$RescriptSchema.bool),
+              s.i(10, S$RescriptSchema.bool),
+              s.i(11, S$RescriptSchema.bool)
             ];
     });
 
-Ava("Big tuple struct", (function (t) {
-        U.assertEqualStructs(t, myBigTupleStruct, S$RescriptStruct.tuple(function (s) {
+Ava("Big tuple schema", (function (t) {
+        U.assertEqualSchemas(t, myBigTupleSchema, S$RescriptSchema.tuple(function (s) {
                   return [
-                          s.i(0, S$RescriptStruct.string),
-                          s.i(1, S$RescriptStruct.string),
-                          s.i(2, S$RescriptStruct.string),
-                          s.i(3, S$RescriptStruct.$$int),
-                          s.i(4, S$RescriptStruct.$$int),
-                          s.i(5, S$RescriptStruct.$$int),
-                          s.i(6, S$RescriptStruct.$$float),
-                          s.i(7, S$RescriptStruct.$$float),
-                          s.i(8, S$RescriptStruct.$$float),
-                          s.i(9, S$RescriptStruct.bool),
-                          s.i(10, S$RescriptStruct.bool),
-                          s.i(11, S$RescriptStruct.bool)
+                          s.i(0, S$RescriptSchema.string),
+                          s.i(1, S$RescriptSchema.string),
+                          s.i(2, S$RescriptSchema.string),
+                          s.i(3, S$RescriptSchema.$$int),
+                          s.i(4, S$RescriptSchema.$$int),
+                          s.i(5, S$RescriptSchema.$$int),
+                          s.i(6, S$RescriptSchema.$$float),
+                          s.i(7, S$RescriptSchema.$$float),
+                          s.i(8, S$RescriptSchema.$$float),
+                          s.i(9, S$RescriptSchema.bool),
+                          s.i(10, S$RescriptSchema.bool),
+                          s.i(11, S$RescriptSchema.bool)
                         ];
                 }), undefined);
       }));
 
-var myCustomStringStruct = S$RescriptStruct.$$String.email(S$RescriptStruct.string, undefined);
+var myCustomStringSchema = S$RescriptSchema.$$String.email(S$RescriptSchema.string, undefined);
 
-Ava("Custom string struct", (function (t) {
-        U.assertEqualStructs(t, myCustomStringStruct, S$RescriptStruct.$$String.email(S$RescriptStruct.string, undefined), undefined);
+Ava("Custom string schema", (function (t) {
+        U.assertEqualSchemas(t, myCustomStringSchema, S$RescriptSchema.$$String.email(S$RescriptSchema.string, undefined), undefined);
       }));
 
-var myCustomLiteralStringStruct = S$RescriptStruct.$$String.email(S$RescriptStruct.literal("123"), undefined);
+var myCustomLiteralStringSchema = S$RescriptSchema.$$String.email(S$RescriptSchema.literal("123"), undefined);
 
-Ava("Custom litaral string struct", (function (t) {
-        U.assertEqualStructs(t, myCustomLiteralStringStruct, S$RescriptStruct.$$String.email(S$RescriptStruct.literal("123"), undefined), undefined);
+Ava("Custom litaral string schema", (function (t) {
+        U.assertEqualSchemas(t, myCustomLiteralStringSchema, S$RescriptSchema.$$String.email(S$RescriptSchema.literal("123"), undefined), undefined);
       }));
 
-var myCustomOptionalStringStruct = S$RescriptStruct.option(S$RescriptStruct.$$String.email(S$RescriptStruct.string, undefined));
+var myCustomOptionalStringSchema = S$RescriptSchema.option(S$RescriptSchema.$$String.email(S$RescriptSchema.string, undefined));
 
-Ava("Custom optional string struct", (function (t) {
-        U.assertEqualStructs(t, myCustomOptionalStringStruct, S$RescriptStruct.option(S$RescriptStruct.$$String.email(S$RescriptStruct.string, undefined)), undefined);
+Ava("Custom optional string schema", (function (t) {
+        U.assertEqualSchemas(t, myCustomOptionalStringSchema, S$RescriptSchema.option(S$RescriptSchema.$$String.email(S$RescriptSchema.string, undefined)), undefined);
       }));
 
-var myNullOfStringStruct = S$RescriptStruct.$$null(S$RescriptStruct.string);
+var myNullOfStringSchema = S$RescriptSchema.$$null(S$RescriptSchema.string);
 
-Ava("Null of string struct", (function (t) {
-        U.assertEqualStructs(t, myNullOfStringStruct, S$RescriptStruct.$$null(S$RescriptStruct.string), undefined);
+Ava("Null of string schema", (function (t) {
+        U.assertEqualSchemas(t, myNullOfStringSchema, S$RescriptSchema.$$null(S$RescriptSchema.string), undefined);
       }));
 
-var myStringStruct = S$RescriptStruct.string;
+var myStringSchema = S$RescriptSchema.string;
 
-var myIntStruct = S$RescriptStruct.$$int;
+var myIntSchema = S$RescriptSchema.$$int;
 
-var myFloatStruct = S$RescriptStruct.$$float;
+var myFloatSchema = S$RescriptSchema.$$float;
 
-var myBoolStruct = S$RescriptStruct.bool;
+var myBoolSchema = S$RescriptSchema.bool;
 
-var myUnitStruct = S$RescriptStruct.unit;
+var myUnitSchema = S$RescriptSchema.unit;
 
-var myUnknownStruct = S$RescriptStruct.unknown;
+var myUnknownSchema = S$RescriptSchema.unknown;
 
-var myNeverStruct = S$RescriptStruct.never;
+var myNeverSchema = S$RescriptSchema.never;
 
-var myJsonStruct = S$RescriptStruct.json;
+var myJsonSchema = S$RescriptSchema.json;
 
-var myJsonFromCoreStruct = S$RescriptStruct.json;
+var myJsonFromCoreSchema = S$RescriptSchema.json;
 
 export {
-  myStringStruct ,
-  myIntStruct ,
-  myFloatStruct ,
-  myBoolStruct ,
-  myUnitStruct ,
-  myUnknownStruct ,
-  myNeverStruct ,
-  myOptionOfStringStruct ,
-  myArrayOfStringStruct ,
-  myListOfStringStruct ,
-  myDictOfStringStruct ,
-  myDictOfStringFromCoreStruct ,
-  myJsonStruct ,
-  myJsonFromCoreStruct ,
-  myTupleStruct ,
-  myBigTupleStruct ,
-  myCustomStringStruct ,
-  myCustomLiteralStringStruct ,
-  myCustomOptionalStringStruct ,
-  myNullOfStringStruct ,
+  myStringSchema ,
+  myIntSchema ,
+  myFloatSchema ,
+  myBoolSchema ,
+  myUnitSchema ,
+  myUnknownSchema ,
+  myNeverSchema ,
+  myOptionOfStringSchema ,
+  myArrayOfStringSchema ,
+  myListOfStringSchema ,
+  myDictOfStringSchema ,
+  myDictOfStringFromCoreSchema ,
+  myJsonSchema ,
+  myJsonFromCoreSchema ,
+  myTupleSchema ,
+  myBigTupleSchema ,
+  myCustomStringSchema ,
+  myCustomLiteralStringSchema ,
+  myCustomOptionalStringSchema ,
+  myNullOfStringSchema ,
 }
 /*  Not a pure module */

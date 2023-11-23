@@ -1,16 +1,16 @@
 opam-version: "2.0"
 name: "ppx_struct"
-version: "4.0.0"
-synopsis: "Safely parse and serialize with transformation to convenient ReScript data structures"
+version: "6.0.0"
+synopsis: "PPX for the fastest composable parser/serializer for ReScript (and TypeScript)"
 description: """
-Safely parse and serialize with transformation to convenient ReScript data structures
+PPX for the fastest composable parser/serializer for ReScript (and TypeScript)
 """
 maintainer: "Dmitry Zakharov <dzakh.dev@gmail.com>"
 authors: "Dmitry Zakharov <dzakh.dev@gmail.com>"
 license: "MIT"
-homepage: "https://github.com/DZakh/rescript-struct"
-bug-reports: "https://github.com/DZakh/rescript-struct/issues"
-dev-repo: "git+https://github.com/DZakh/rescript-struct.git"
+homepage: "https://github.com/DZakh/rescript-schema"
+bug-reports: "https://github.com/DZakh/rescript-schema/issues"
+dev-repo: "git+https://github.com/DZakh/rescript-schema.git"
 depends: [
   "ocaml" { = "4.12.1"}
   "dune" { >= "2.7"}

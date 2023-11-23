@@ -23,38 +23,38 @@ let preprocessNumberToString = S.preprocess(_, _ => {
 })
 
 test("Successfully parses", t => {
-  let struct = S.string->preprocessNumberToString
+  let schema = S.string->preprocessNumberToString
 
-  t->Assert.deepEqual(123->S.parseAnyWith(struct), Ok("123"), ())
-  t->Assert.deepEqual("Hello world!"->S.parseAnyWith(struct), Ok("Hello world!"), ())
+  t->Assert.deepEqual(123->S.parseAnyWith(schema), Ok("123"), ())
+  t->Assert.deepEqual("Hello world!"->S.parseAnyWith(schema), Ok("Hello world!"), ())
 })
 
 test("Fails to parse when user raises error in parser", t => {
-  let struct = S.string->S.preprocess(s => {parser: _ => s.fail("User error")})
+  let schema = S.string->S.preprocess(s => {parser: _ => s.fail("User error")})
 
   t->Assert.deepEqual(
-    "Hello world!"->S.parseAnyWith(struct),
+    "Hello world!"->S.parseAnyWith(schema),
     Error(U.error({code: OperationFailed("User error"), operation: Parsing, path: S.Path.empty})),
     (),
   )
 })
 
 test("Successfully serializes", t => {
-  let struct = S.string->preprocessNumberToString
+  let schema = S.string->preprocessNumberToString
 
   t->Assert.deepEqual(
-    "Hello world!"->S.serializeToUnknownWith(struct),
+    "Hello world!"->S.serializeToUnknownWith(schema),
     Ok(%raw(`"Hello world!"`)),
     (),
   )
-  t->Assert.deepEqual("123"->S.serializeToUnknownWith(struct), Ok(%raw(`123`)), ())
+  t->Assert.deepEqual("123"->S.serializeToUnknownWith(schema), Ok(%raw(`123`)), ())
 })
 
 test("Fails to serialize when user raises error in serializer", t => {
-  let struct = S.string->S.preprocess(s => {serializer: _ => s.fail("User error")})
+  let schema = S.string->S.preprocess(s => {serializer: _ => s.fail("User error")})
 
   t->Assert.deepEqual(
-    "Hello world!"->S.serializeToUnknownWith(struct),
+    "Hello world!"->S.serializeToUnknownWith(schema),
     Error(
       U.error({code: OperationFailed("User error"), operation: Serializing, path: S.Path.empty}),
     ),
@@ -63,13 +63,13 @@ test("Fails to serialize when user raises error in serializer", t => {
 })
 
 test("Preprocess operations applyed in the right order when parsing", t => {
-  let struct =
+  let schema =
     S.int
     ->S.preprocess(s => {parser: _ => s.fail("First preprocess")})
     ->S.preprocess(s => {parser: _ => s.fail("Second preprocess")})
 
   t->Assert.deepEqual(
-    123->S.parseAnyWith(struct),
+    123->S.parseAnyWith(schema),
     Error(
       U.error({code: OperationFailed("Second preprocess"), operation: Parsing, path: S.Path.empty}),
     ),
@@ -78,13 +78,13 @@ test("Preprocess operations applyed in the right order when parsing", t => {
 })
 
 test("Preprocess operations applyed in the right order when serializing", t => {
-  let struct =
+  let schema =
     S.int
     ->S.preprocess(s => {serializer: _ => s.fail("First preprocess")})
     ->S.preprocess(s => {serializer: _ => s.fail("Second preprocess")})
 
   t->Assert.deepEqual(
-    123->S.serializeToUnknownWith(struct),
+    123->S.serializeToUnknownWith(schema),
     Error(
       U.error({
         code: OperationFailed("First preprocess"),
@@ -97,30 +97,30 @@ test("Preprocess operations applyed in the right order when serializing", t => {
 })
 
 test("Fails to parse async using parseAnyWith", t => {
-  let struct = S.string->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
+  let schema = S.string->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
 
   t->Assert.deepEqual(
-    %raw(`"Hello world!"`)->S.parseAnyWith(struct),
+    %raw(`"Hello world!"`)->S.parseAnyWith(schema),
     Error(U.error({code: UnexpectedAsync, operation: Parsing, path: S.Path.empty})),
     (),
   )
 })
 
 asyncTest("Successfully parses async using parseAsyncWith", t => {
-  let struct = S.string->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
+  let schema = S.string->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
 
   %raw(`"Hello world!"`)
-  ->S.parseAsyncWith(struct)
+  ->S.parseAsyncWith(schema)
   ->Promise.thenResolve(result => {
     t->Assert.deepEqual(result, Ok("Hello world!"), ())
   })
 })
 
 asyncTest("Fails to parse async with user error", t => {
-  let struct = S.string->S.preprocess(s => {asyncParser: _ => () => s.fail("User error")})
+  let schema = S.string->S.preprocess(s => {asyncParser: _ => () => s.fail("User error")})
 
   %raw(`"Hello world!"`)
-  ->S.parseAsyncWith(struct)
+  ->S.parseAsyncWith(schema)
   ->Promise.thenResolve(result => {
     t->Assert.deepEqual(
       result,
@@ -137,38 +137,38 @@ asyncTest("Fails to parse async with user error", t => {
 })
 
 test("Successfully parses with empty preprocess", t => {
-  let struct = S.string->S.preprocess(_ => {})
+  let schema = S.string->S.preprocess(_ => {})
 
-  t->Assert.deepEqual(%raw(`"Hello world!"`)->S.parseAnyWith(struct), Ok("Hello world!"), ())
+  t->Assert.deepEqual(%raw(`"Hello world!"`)->S.parseAnyWith(schema), Ok("Hello world!"), ())
 })
 
 test("Successfully serializes with empty preprocess", t => {
-  let struct = S.string->S.preprocess(_ => {})
+  let schema = S.string->S.preprocess(_ => {})
 
   t->Assert.deepEqual(
-    "Hello world!"->S.serializeToUnknownWith(struct),
+    "Hello world!"->S.serializeToUnknownWith(schema),
     Ok(%raw(`"Hello world!"`)),
     (),
   )
 })
 
 asyncTest("Can apply other actions after async preprocess", t => {
-  let struct =
+  let schema =
     S.string
     ->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
     ->S.String.trim
     ->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
 
   %raw(`"    Hello world!"`)
-  ->S.parseAsyncWith(struct)
+  ->S.parseAsyncWith(schema)
   ->Promise.thenResolve(result => {
     t->Assert.deepEqual(result, Ok("Hello world!"), ())
   })
 })
 
-test("Applies preproces parser for union structs separately", t => {
-  let prepareEnvStruct = S.preprocess(_, s => {
-    switch s.struct->S.classify {
+test("Applies preproces parser for union schemas separately", t => {
+  let prepareEnvSchema = S.preprocess(_, s => {
+    switch s.schema->S.classify {
     | Literal(Boolean(_))
     | Bool => {
         parser: unknown => {
@@ -198,23 +198,23 @@ test("Applies preproces parser for union structs separately", t => {
     }
   })
 
-  let struct =
+  let schema =
     S.union([
       S.bool->S.variant(bool => #Bool(bool)),
       S.int->S.variant(int => #Int(int)),
-    ])->prepareEnvStruct
+    ])->prepareEnvSchema
 
-  t->Assert.deepEqual("f"->S.parseAnyWith(struct), Ok(#Bool(false)), ())
-  t->Assert.deepEqual("1"->S.parseAnyWith(struct), Ok(#Bool(true)), ())
-  t->Assert.deepEqual("2"->S.parseAnyWith(struct), Ok(#Int(2)), ())
+  t->Assert.deepEqual("f"->S.parseAnyWith(schema), Ok(#Bool(false)), ())
+  t->Assert.deepEqual("1"->S.parseAnyWith(schema), Ok(#Bool(true)), ())
+  t->Assert.deepEqual("2"->S.parseAnyWith(schema), Ok(#Int(2)), ())
 })
 
-test("Applies preproces serializer for union structs separately", t => {
-  let struct = S.union([
+test("Applies preproces serializer for union schemas separately", t => {
+  let schema = S.union([
     S.bool->S.variant(bool => #Bool(bool)),
     S.int->S.variant(int => #Int(int)),
   ])->S.preprocess(s => {
-    switch s.struct->S.classify {
+    switch s.schema->S.classify {
     | Bool => {
         serializer: unknown => {
           if unknown->Obj.magic === true {
@@ -239,58 +239,58 @@ test("Applies preproces serializer for union structs separately", t => {
     }
   })
 
-  t->Assert.deepEqual(#Bool(false)->S.serializeToUnknownWith(struct), Ok(%raw(`"0"`)), ())
-  t->Assert.deepEqual(#Bool(true)->S.serializeToUnknownWith(struct), Ok(%raw(`"1"`)), ())
-  t->Assert.deepEqual(#Int(2)->S.serializeToUnknownWith(struct), Ok(%raw(`"2"`)), ())
+  t->Assert.deepEqual(#Bool(false)->S.serializeToUnknownWith(schema), Ok(%raw(`"0"`)), ())
+  t->Assert.deepEqual(#Bool(true)->S.serializeToUnknownWith(schema), Ok(%raw(`"1"`)), ())
+  t->Assert.deepEqual(#Int(2)->S.serializeToUnknownWith(schema), Ok(%raw(`"2"`)), ())
 })
 
 test("Doesn't fail to parse with preprocess when parser isn't provided", t => {
-  let struct = S.string->S.preprocess(_ => {serializer: value => value})
+  let schema = S.string->S.preprocess(_ => {serializer: value => value})
 
-  t->Assert.deepEqual("Hello world!"->S.parseAnyWith(struct), Ok("Hello world!"), ())
+  t->Assert.deepEqual("Hello world!"->S.parseAnyWith(schema), Ok("Hello world!"), ())
 })
 
 test("Doesn't fail to serialize with preprocess when serializer isn't provided", t => {
-  let struct = S.string->S.preprocess(_ => {parser: value => value})
+  let schema = S.string->S.preprocess(_ => {parser: value => value})
 
   t->Assert.deepEqual(
-    "Hello world!"->S.serializeToUnknownWith(struct),
+    "Hello world!"->S.serializeToUnknownWith(schema),
     Ok(%raw(`"Hello world!"`)),
     (),
   )
 })
 
 test("Compiled parse code snapshot", t => {
-  let struct = S.int->S.preprocess(_ => {
+  let schema = S.int->S.preprocess(_ => {
     parser: _ => 1->Int.toFloat,
     serializer: _ => 1.->Int.fromFloat,
   })
 
   t->U.assertCompiledCode(
-    ~struct,
+    ~schema,
     ~op=#parse,
     `i=>{let v0;v0=e[0](i);if(typeof v0!=="number"||v0>2147483647||v0<-2147483648||v0%1!==0){e[1](v0)}return v0}`,
   )
 })
 
 test("Compiled async parse code snapshot", t => {
-  let struct = S.int->S.preprocess(_ => {
+  let schema = S.int->S.preprocess(_ => {
     asyncParser: _ => () => 1->Int.toFloat->Promise.resolve,
     serializer: _ => 1.->Int.fromFloat,
   })
 
   t->U.assertCompiledCode(
-    ~struct,
+    ~schema,
     ~op=#parse,
     `i=>{let v0,v1;v0=e[0](i);v1=()=>v0().then(v2=>{if(typeof v2!=="number"||v2>2147483647||v2<-2147483648||v2%1!==0){e[1](v2)}return v2});return v1}`,
   )
 })
 
 test("Compiled serialize code snapshot", t => {
-  let struct = S.int->S.preprocess(_ => {
+  let schema = S.int->S.preprocess(_ => {
     parser: _ => 1->Int.toFloat,
     serializer: _ => 1.->Int.fromFloat,
   })
 
-  t->U.assertCompiledCode(~struct, ~op=#serialize, `i=>{return e[0](i)}`)
+  t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return e[0](i)}`)
 })

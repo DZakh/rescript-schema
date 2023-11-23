@@ -1,3 +1,3 @@
 open Parsetree
 
-val generate_struct_expr : constructor_declaration list -> expression
+val generate_schema_expr : constructor_declaration list -> expression

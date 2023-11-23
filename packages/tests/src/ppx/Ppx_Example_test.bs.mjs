@@ -2,44 +2,44 @@
 
 import * as U from "../utils/U.bs.mjs";
 import Ava from "ava";
-import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
+import * as S$RescriptSchema from "rescript-schema/src/S.bs.mjs";
 
-var ratingStruct = S$RescriptStruct.union([
-      S$RescriptStruct.literal("G"),
-      S$RescriptStruct.literal("PG"),
-      S$RescriptStruct.literal("PG13"),
-      S$RescriptStruct.literal("R")
+var ratingSchema = S$RescriptSchema.union([
+      S$RescriptSchema.literal("G"),
+      S$RescriptSchema.literal("PG"),
+      S$RescriptSchema.literal("PG13"),
+      S$RescriptSchema.literal("R")
     ]);
 
-var filmStruct = S$RescriptStruct.$$Object.factory(function (s) {
+var filmSchema = S$RescriptSchema.$$Object.factory(function (s) {
       return {
-              Id: s.f("Id", S$RescriptStruct.$$float),
-              Title: s.f("Title", S$RescriptStruct.string),
-              Tags: s.f("Tags", S$RescriptStruct.$$Option.getOr(S$RescriptStruct.option(S$RescriptStruct.array(S$RescriptStruct.string)), [])),
-              Rating: s.f("Rating", ratingStruct),
-              Age: s.f("Age", S$RescriptStruct.deprecate(S$RescriptStruct.option(S$RescriptStruct.$$int), "Use rating instead"))
+              Id: s.f("Id", S$RescriptSchema.$$float),
+              Title: s.f("Title", S$RescriptSchema.string),
+              Tags: s.f("Tags", S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.array(S$RescriptSchema.string)), [])),
+              Rating: s.f("Rating", ratingSchema),
+              Age: s.f("Age", S$RescriptSchema.deprecate(S$RescriptSchema.option(S$RescriptSchema.$$int), "Use rating instead"))
             };
     });
 
 Ava("Example", (function (t) {
-        U.assertEqualStructs(t, filmStruct, S$RescriptStruct.object(function (s) {
+        U.assertEqualSchemas(t, filmSchema, S$RescriptSchema.object(function (s) {
                   return {
-                          Id: s.f("Id", S$RescriptStruct.$$float),
-                          Title: s.f("Title", S$RescriptStruct.string),
-                          Tags: s.o("Tags", S$RescriptStruct.array(S$RescriptStruct.string), []),
-                          Rating: s.f("Rating", S$RescriptStruct.union([
-                                    S$RescriptStruct.literal("G"),
-                                    S$RescriptStruct.literal("PG"),
-                                    S$RescriptStruct.literal("PG13"),
-                                    S$RescriptStruct.literal("R")
+                          Id: s.f("Id", S$RescriptSchema.$$float),
+                          Title: s.f("Title", S$RescriptSchema.string),
+                          Tags: s.o("Tags", S$RescriptSchema.array(S$RescriptSchema.string), []),
+                          Rating: s.f("Rating", S$RescriptSchema.union([
+                                    S$RescriptSchema.literal("G"),
+                                    S$RescriptSchema.literal("PG"),
+                                    S$RescriptSchema.literal("PG13"),
+                                    S$RescriptSchema.literal("R")
                                   ])),
-                          Age: s.f("Age", S$RescriptStruct.deprecate(S$RescriptStruct.option(S$RescriptStruct.$$int), "Use rating instead"))
+                          Age: s.f("Age", S$RescriptSchema.deprecate(S$RescriptSchema.option(S$RescriptSchema.$$int), "Use rating instead"))
                         };
                 }), undefined);
       }));
 
 export {
-  ratingStruct ,
-  filmStruct ,
+  ratingSchema ,
+  filmSchema ,
 }
-/* ratingStruct Not a pure module */
+/* ratingSchema Not a pure module */

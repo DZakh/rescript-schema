@@ -4,18 +4,18 @@ open RescriptCore
 module Positive = {
   module TestData = {
     type t = {
-      discriminantStruct: S.t<unknown>,
+      discriminantSchema: S.t<unknown>,
       discriminantData: unknown,
       testNamePostfix: string,
     }
 
     let make = (
-      ~discriminantStruct: S.t<'value>,
+      ~discriminantSchema: S.t<'value>,
       ~discriminantData: 'any,
       ~description as maybeDescription=?,
       (),
     ) => {
-      discriminantStruct: discriminantStruct->Obj.magic,
+      discriminantSchema: discriminantSchema->Obj.magic,
       discriminantData: discriminantData->Obj.magic,
       testNamePostfix: switch maybeDescription {
       | Some(description) => ` ${description}`
@@ -26,71 +26,71 @@ module Positive = {
 
   [
     TestData.make(
-      ~discriminantStruct=S.literal("asdf"),
+      ~discriminantSchema=S.literal("asdf"),
       ~discriminantData=%raw(`"asdf"`),
       ~description="String",
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.literal("\"\'\`"),
+      ~discriminantSchema=S.literal("\"\'\`"),
       ~discriminantData=%raw(`"\"\'\`"`),
       ~description="String which needs to be escaped",
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.literal(123),
+      ~discriminantSchema=S.literal(123),
       ~discriminantData=%raw("123"),
       ~description="Int",
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.literal(1.3),
+      ~discriminantSchema=S.literal(1.3),
       ~discriminantData=%raw("1.3"),
       ~description="Float",
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.literal(true),
+      ~discriminantSchema=S.literal(true),
       ~discriminantData=%raw("true"),
       ~description="Bool",
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.literal(),
+      ~discriminantSchema=S.literal(),
       ~discriminantData=%raw(`undefined`),
       ~description="Unit",
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.literal(Null.null),
+      ~discriminantSchema=S.literal(Null.null),
       ~discriminantData=%raw(`null`),
       ~description="Null",
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.literal(%raw(`NaN`)),
+      ~discriminantSchema=S.literal(%raw(`NaN`)),
       ~discriminantData=%raw(`NaN`),
       ~description="NaN",
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.union([S.literal(false), S.bool]),
+      ~discriminantSchema=S.union([S.literal(false), S.bool]),
       ~discriminantData=%raw("false"),
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.tuple2(S.literal(false), S.literal("bar")),
+      ~discriminantSchema=S.tuple2(S.literal(false), S.literal("bar")),
       ~discriminantData=%raw(`[false, "bar"]`),
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.literal((false, "bar")),
+      ~discriminantSchema=S.literal((false, "bar")),
       ~discriminantData=%raw(`[false, "bar"]`),
       ~description="Tuple",
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.object(s => {
+      ~discriminantSchema=S.object(s => {
         ignore(s.field("nestedDiscriminant", S.literal("abc")))
         {
           "field": s.field("nestedField", S.literal(false)),
@@ -104,7 +104,7 @@ module Positive = {
     ),
     TestData.make(
       ~description="and values needed to be escaped",
-      ~discriminantStruct=S.object(s => {
+      ~discriminantSchema=S.object(s => {
         ignore(s.field("\"\'\`", S.literal("\"\'\`")))
         {
           "field": s.field("nestedField", S.literal(false)),
@@ -118,11 +118,11 @@ module Positive = {
     ),
   ]->Array.forEach(testData => {
     test(
-      `Successfully parses object with discriminant "${testData.discriminantStruct->S.name}"${testData.testNamePostfix}`,
+      `Successfully parses object with discriminant "${testData.discriminantSchema->S.name}"${testData.testNamePostfix}`,
       t => {
-        let struct = S.object(
+        let schema = S.object(
           s => {
-            ignore(s.field("discriminant", testData.discriminantStruct))
+            ignore(s.field("discriminant", testData.discriminantSchema))
             {
               "field": s.field("field", S.string),
             }
@@ -133,7 +133,7 @@ module Positive = {
           {
             "discriminant": testData.discriminantData,
             "field": "bar",
-          }->S.parseAnyWith(struct),
+          }->S.parseAnyWith(schema),
           Ok({"field": "bar"}),
           (),
         )
@@ -141,11 +141,11 @@ module Positive = {
     )
 
     test(
-      `Successfully serializes object with discriminant "${testData.discriminantStruct->S.name}"${testData.testNamePostfix}`,
+      `Successfully serializes object with discriminant "${testData.discriminantSchema->S.name}"${testData.testNamePostfix}`,
       t => {
-        let struct = S.object(
+        let schema = S.object(
           s => {
-            ignore(s.field("discriminant", testData.discriminantStruct))
+            ignore(s.field("discriminant", testData.discriminantSchema))
             {
               "field": s.field("field", S.string),
             }
@@ -153,7 +153,7 @@ module Positive = {
         )
 
         t->Assert.deepEqual(
-          {"field": "bar"}->S.serializeToUnknownWith(struct),
+          {"field": "bar"}->S.serializeToUnknownWith(schema),
           Ok(
             {
               "discriminant": testData.discriminantData,
@@ -170,18 +170,18 @@ module Positive = {
 module Negative = {
   module TestData = {
     type t = {
-      discriminantStruct: S.t<unknown>,
+      discriminantSchema: S.t<unknown>,
       discriminantData: unknown,
       testNamePostfix: string,
     }
 
     let make = (
-      ~discriminantStruct: S.t<'value>,
+      ~discriminantSchema: S.t<'value>,
       ~discriminantData: 'any,
       ~description as maybeDescription=?,
       (),
     ) => {
-      discriminantStruct: discriminantStruct->Obj.magic,
+      discriminantSchema: discriminantSchema->Obj.magic,
       discriminantData: discriminantData->Obj.magic,
       testNamePostfix: switch maybeDescription {
       | Some(description) => ` ${description}`
@@ -191,41 +191,41 @@ module Negative = {
   }
 
   [
-    TestData.make(~discriminantStruct=S.string, ~discriminantData="foo", ()),
-    TestData.make(~discriminantStruct=S.int, ~discriminantData=123, ()),
-    TestData.make(~discriminantStruct=S.float, ~discriminantData=123., ()),
-    TestData.make(~discriminantStruct=S.bool, ~discriminantData=true, ()),
-    TestData.make(~discriminantStruct=S.option(S.literal(true)), ~discriminantData=None, ()),
-    TestData.make(~discriminantStruct=S.null(S.literal(true)), ~discriminantData=%raw(`null`), ()),
-    TestData.make(~discriminantStruct=S.unknown, ~discriminantData="anything", ()),
-    TestData.make(~discriminantStruct=S.array(S.literal(true)), ~discriminantData=[true, true], ()),
+    TestData.make(~discriminantSchema=S.string, ~discriminantData="foo", ()),
+    TestData.make(~discriminantSchema=S.int, ~discriminantData=123, ()),
+    TestData.make(~discriminantSchema=S.float, ~discriminantData=123., ()),
+    TestData.make(~discriminantSchema=S.bool, ~discriminantData=true, ()),
+    TestData.make(~discriminantSchema=S.option(S.literal(true)), ~discriminantData=None, ()),
+    TestData.make(~discriminantSchema=S.null(S.literal(true)), ~discriminantData=%raw(`null`), ()),
+    TestData.make(~discriminantSchema=S.unknown, ~discriminantData="anything", ()),
+    TestData.make(~discriminantSchema=S.array(S.literal(true)), ~discriminantData=[true, true], ()),
     TestData.make(
-      ~discriminantStruct=S.dict(S.literal(true)),
+      ~discriminantSchema=S.dict(S.literal(true)),
       ~discriminantData=Dict.fromArray([("foo", true), ("bar", true)]),
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.tuple2(S.literal(true), S.bool),
+      ~discriminantSchema=S.tuple2(S.literal(true), S.bool),
       ~discriminantData=(true, false),
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.object(s => s.field("field", S.bool)),
+      ~discriminantSchema=S.object(s => s.field("field", S.bool)),
       ~discriminantData={"field": true},
       (),
     ),
     TestData.make(
-      ~discriminantStruct=S.union([S.bool, S.literal(false)]),
+      ~discriminantSchema=S.union([S.bool, S.literal(false)]),
       ~discriminantData=true,
       (),
     ),
   ]->Array.forEach(testData => {
     test(
-      `Successfully parses object with discriminant that we don't know how to serialize "${testData.discriminantStruct->S.name}"${testData.testNamePostfix}`,
+      `Successfully parses object with discriminant that we don't know how to serialize "${testData.discriminantSchema->S.name}"${testData.testNamePostfix}`,
       t => {
-        let struct = S.object(
+        let schema = S.object(
           s => {
-            ignore(s.field("discriminant", testData.discriminantStruct))
+            ignore(s.field("discriminant", testData.discriminantSchema))
             {
               "field": s.field("field", S.string),
             }
@@ -236,7 +236,7 @@ module Negative = {
           {
             "discriminant": testData.discriminantData,
             "field": "bar",
-          }->S.parseAnyWith(struct),
+          }->S.parseAnyWith(schema),
           Ok({"field": "bar"}),
           (),
         )
@@ -244,11 +244,11 @@ module Negative = {
     )
 
     test(
-      `Fails to serialize object with discriminant that we don't know how to serialize "${testData.discriminantStruct->S.name}"${testData.testNamePostfix}`,
+      `Fails to serialize object with discriminant that we don't know how to serialize "${testData.discriminantSchema->S.name}"${testData.testNamePostfix}`,
       t => {
-        let struct = S.object(
+        let schema = S.object(
           s => {
-            ignore(s.field("discriminant", testData.discriminantStruct))
+            ignore(s.field("discriminant", testData.discriminantSchema))
             {
               "field": s.field("field", S.string),
             }
@@ -256,7 +256,7 @@ module Negative = {
         )
 
         t->Assert.deepEqual(
-          {"field": "bar"}->S.serializeToUnknownWith(struct),
+          {"field": "bar"}->S.serializeToUnknownWith(schema),
           Error(
             U.error({
               code: InvalidOperation({
@@ -274,7 +274,7 @@ module Negative = {
 }
 
 test(`Fails to parse object with invalid data passed to discriminant field`, t => {
-  let struct = S.object(s => {
+  let schema = S.object(s => {
     ignore(s.field("discriminant", S.string))
     {
       "field": s.field("field", S.string),
@@ -285,7 +285,7 @@ test(`Fails to parse object with invalid data passed to discriminant field`, t =
     {
       "discriminant": false,
       "field": "bar",
-    }->S.parseAnyWith(struct),
+    }->S.parseAnyWith(schema),
     Error(
       U.error({
         code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
@@ -298,7 +298,7 @@ test(`Fails to parse object with invalid data passed to discriminant field`, t =
 })
 
 test(`Parses discriminant fields before registered fields`, t => {
-  let struct = S.object(s => {
+  let schema = S.object(s => {
     ignore(s.field("discriminant", S.string))
     {
       "field": s.field("field", S.string),
@@ -309,7 +309,7 @@ test(`Parses discriminant fields before registered fields`, t => {
     {
       "discriminant": false,
       "field": false,
-    }->S.parseAnyWith(struct),
+    }->S.parseAnyWith(schema),
     Error(
       U.error({
         code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
@@ -322,7 +322,7 @@ test(`Parses discriminant fields before registered fields`, t => {
 })
 
 test(`Fails to serialize object with discriminant "Never"`, t => {
-  let struct = S.object(s => {
+  let schema = S.object(s => {
     ignore(s.field("discriminant", S.never))
     {
       "field": s.field("field", S.string),
@@ -330,7 +330,7 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
   })
 
   t->Assert.deepEqual(
-    {"field": "bar"}->S.serializeToUnknownWith(struct),
+    {"field": "bar"}->S.serializeToUnknownWith(schema),
     Error(
       U.error({
         code: InvalidOperation({
@@ -345,7 +345,7 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
 })
 
 test(`Serializes constant fields before registered fields`, t => {
-  let struct = S.object(s => {
+  let schema = S.object(s => {
     {
       "field": s.field("field", S.literal(true)),
       "constant": true,
@@ -353,7 +353,7 @@ test(`Serializes constant fields before registered fields`, t => {
   })
 
   t->Assert.deepEqual(
-    {"constant": false, "field": false}->S.serializeToUnknownWith(struct),
+    {"constant": false, "field": false}->S.serializeToUnknownWith(schema),
     Error(
       U.error({
         code: InvalidLiteral({expected: Boolean(true), received: Obj.magic(false)}),

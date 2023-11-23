@@ -2,23 +2,23 @@
 
 import * as U from "../utils/U.bs.mjs";
 import Ava from "ava";
-import * as S$RescriptStruct from "rescript-struct/src/S.bs.mjs";
+import * as S$RescriptSchema from "rescript-schema/src/S.bs.mjs";
 
-var simpleRecordStruct = S$RescriptStruct.$$Object.factory(function (s) {
+var simpleRecordSchema = S$RescriptSchema.$$Object.factory(function (s) {
       return {
-              label: s.f("label", S$RescriptStruct.string),
-              value: s.f("value", S$RescriptStruct.$$int)
+              label: s.f("label", S$RescriptSchema.string),
+              value: s.f("value", S$RescriptSchema.$$int)
             };
     });
 
-Ava("Simple record struct", (function (t) {
-        U.assertEqualStructs(t, simpleRecordStruct, S$RescriptStruct.object(function (s) {
+Ava("Simple record schema", (function (t) {
+        U.assertEqualSchemas(t, simpleRecordSchema, S$RescriptSchema.object(function (s) {
                   return {
-                          label: s.f("label", S$RescriptStruct.string),
-                          value: s.f("value", S$RescriptStruct.$$int)
+                          label: s.f("label", S$RescriptSchema.string),
+                          value: s.f("value", S$RescriptSchema.$$int)
                         };
                 }), undefined);
-        t.deepEqual(S$RescriptStruct.parseWith({label:"foo",value:1}, simpleRecordStruct), {
+        t.deepEqual(S$RescriptSchema.parseWith({label:"foo",value:1}, simpleRecordSchema), {
               TAG: "Ok",
               _0: {
                 label: "foo",
@@ -27,21 +27,21 @@ Ava("Simple record struct", (function (t) {
             }, undefined);
       }));
 
-var recordWithAliasStruct = S$RescriptStruct.$$Object.factory(function (s) {
+var recordWithAliasSchema = S$RescriptSchema.$$Object.factory(function (s) {
       return {
-              "aliased-label": s.f("aliased-label", S$RescriptStruct.string),
-              value: s.f("value", S$RescriptStruct.$$int)
+              "aliased-label": s.f("aliased-label", S$RescriptSchema.string),
+              value: s.f("value", S$RescriptSchema.$$int)
             };
     });
 
-Ava("Record struct with alias for field name", (function (t) {
-        U.assertEqualStructs(t, recordWithAliasStruct, S$RescriptStruct.object(function (s) {
+Ava("Record schema with alias for field name", (function (t) {
+        U.assertEqualSchemas(t, recordWithAliasSchema, S$RescriptSchema.object(function (s) {
                   return {
-                          "aliased-label": s.f("aliased-label", S$RescriptStruct.string),
-                          value: s.f("value", S$RescriptStruct.$$int)
+                          "aliased-label": s.f("aliased-label", S$RescriptSchema.string),
+                          value: s.f("value", S$RescriptSchema.$$int)
                         };
                 }), undefined);
-        t.deepEqual(S$RescriptStruct.parseWith({"aliased-label":"foo",value:1}, recordWithAliasStruct), {
+        t.deepEqual(S$RescriptSchema.parseWith({"aliased-label":"foo",value:1}, recordWithAliasSchema), {
               TAG: "Ok",
               _0: {
                 "aliased-label": "foo",
@@ -50,28 +50,28 @@ Ava("Record struct with alias for field name", (function (t) {
             }, undefined);
       }));
 
-var recordWithOptionalStruct = S$RescriptStruct.$$Object.factory(function (s) {
+var recordWithOptionalSchema = S$RescriptSchema.$$Object.factory(function (s) {
       return {
-              label: s.f("label", S$RescriptStruct.option(S$RescriptStruct.string)),
-              value: s.f("value", S$RescriptStruct.option(S$RescriptStruct.$$int))
+              label: s.f("label", S$RescriptSchema.option(S$RescriptSchema.string)),
+              value: s.f("value", S$RescriptSchema.option(S$RescriptSchema.$$int))
             };
     });
 
-Ava("Record struct with optional fields", (function (t) {
-        U.assertEqualStructs(t, recordWithOptionalStruct, S$RescriptStruct.object(function (s) {
+Ava("Record schema with optional fields", (function (t) {
+        U.assertEqualSchemas(t, recordWithOptionalSchema, S$RescriptSchema.object(function (s) {
                   return {
-                          label: s.f("label", S$RescriptStruct.option(S$RescriptStruct.string)),
-                          value: s.f("value", S$RescriptStruct.option(S$RescriptStruct.$$int))
+                          label: s.f("label", S$RescriptSchema.option(S$RescriptSchema.string)),
+                          value: s.f("value", S$RescriptSchema.option(S$RescriptSchema.$$int))
                         };
                 }), undefined);
-        t.deepEqual(S$RescriptStruct.parseWith({"label":"foo",value:1}, recordWithOptionalStruct), {
+        t.deepEqual(S$RescriptSchema.parseWith({"label":"foo",value:1}, recordWithOptionalSchema), {
               TAG: "Ok",
               _0: {
                 label: "foo",
                 value: 1
               }
             }, undefined);
-        t.deepEqual(S$RescriptStruct.parseWith({}, recordWithOptionalStruct), {
+        t.deepEqual(S$RescriptSchema.parseWith({}, recordWithOptionalSchema), {
               TAG: "Ok",
               _0: {
                 label: undefined,
@@ -81,8 +81,8 @@ Ava("Record struct with optional fields", (function (t) {
       }));
 
 export {
-  simpleRecordStruct ,
-  recordWithAliasStruct ,
-  recordWithOptionalStruct ,
+  simpleRecordSchema ,
+  recordWithAliasSchema ,
+  recordWithOptionalSchema ,
 }
-/* simpleRecordStruct Not a pure module */
+/* simpleRecordSchema Not a pure module */

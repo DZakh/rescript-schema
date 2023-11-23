@@ -1,17 +1,17 @@
 open Ava
 
 test("Successfully parses valid data", t => {
-  let struct = S.array(S.int)->S.Array.max(1)
+  let schema = S.array(S.int)->S.Array.max(1)
 
-  t->Assert.deepEqual([1]->S.parseAnyWith(struct), Ok([1]), ())
-  t->Assert.deepEqual([]->S.parseAnyWith(struct), Ok([]), ())
+  t->Assert.deepEqual([1]->S.parseAnyWith(schema), Ok([1]), ())
+  t->Assert.deepEqual([]->S.parseAnyWith(schema), Ok([]), ())
 })
 
 test("Fails to parse invalid data", t => {
-  let struct = S.array(S.int)->S.Array.max(1)
+  let schema = S.array(S.int)->S.Array.max(1)
 
   t->Assert.deepEqual(
-    [1, 2, 3, 4]->S.parseAnyWith(struct),
+    [1, 2, 3, 4]->S.parseAnyWith(schema),
     Error(
       U.error({
         code: OperationFailed("Array must be 1 or fewer items long"),
@@ -24,17 +24,17 @@ test("Fails to parse invalid data", t => {
 })
 
 test("Successfully serializes valid value", t => {
-  let struct = S.array(S.int)->S.Array.max(1)
+  let schema = S.array(S.int)->S.Array.max(1)
 
-  t->Assert.deepEqual([1]->S.serializeToUnknownWith(struct), Ok(%raw(`[1]`)), ())
-  t->Assert.deepEqual([]->S.serializeToUnknownWith(struct), Ok(%raw(`[]`)), ())
+  t->Assert.deepEqual([1]->S.serializeToUnknownWith(schema), Ok(%raw(`[1]`)), ())
+  t->Assert.deepEqual([]->S.serializeToUnknownWith(schema), Ok(%raw(`[]`)), ())
 })
 
 test("Fails to serialize invalid value", t => {
-  let struct = S.array(S.int)->S.Array.max(1)
+  let schema = S.array(S.int)->S.Array.max(1)
 
   t->Assert.deepEqual(
-    [1, 2, 3, 4]->S.serializeToUnknownWith(struct),
+    [1, 2, 3, 4]->S.serializeToUnknownWith(schema),
     Error(
       U.error({
         code: OperationFailed("Array must be 1 or fewer items long"),
@@ -47,20 +47,20 @@ test("Fails to serialize invalid value", t => {
 })
 
 test("Returns custom error message", t => {
-  let struct = S.array(S.int)->S.Array.max(~message="Custom", 1)
+  let schema = S.array(S.int)->S.Array.max(~message="Custom", 1)
 
   t->Assert.deepEqual(
-    [1, 2]->S.parseAnyWith(struct),
+    [1, 2]->S.parseAnyWith(schema),
     Error(U.error({code: OperationFailed("Custom"), operation: Parsing, path: S.Path.empty})),
     (),
   )
 })
 
 test("Returns refinement", t => {
-  let struct = S.array(S.int)->S.Array.max(1)
+  let schema = S.array(S.int)->S.Array.max(1)
 
   t->Assert.deepEqual(
-    struct->S.Array.refinements,
+    schema->S.Array.refinements,
     [{kind: Max({length: 1}), message: "Array must be 1 or fewer items long"}],
     (),
   )

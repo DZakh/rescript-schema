@@ -6,7 +6,7 @@ let sourePaths = [
   "src",
   "bsconfig.json",
   "README.md",
-  "RescriptStruct.gen.ts",
+  "RescriptSchema.gen.ts",
 ]
 let jsInputPath = NodeJs.Path.join2(artifactsPath, "src/S.js")
 
@@ -192,4 +192,4 @@ updateJsonFile(
   ~value=JSON.Encode.string("commonjs"),
 )
 
-// TODO: Generate RescriptStruct.gen.ts
+// TODO: Generate RescriptSchema.gen.ts
