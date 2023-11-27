@@ -2573,6 +2573,50 @@ function description(schema) {
   return schema.m[descriptionMetadataId];
 }
 
+function definitionToSchema(definition, embededSet) {
+  var kind = toKindWithSet(definition, embededSet);
+  switch (kind) {
+    case 0 :
+        if (Array.isArray(definition)) {
+          return factory$7(function (s) {
+                      for(var idx = 0 ,idx_finish = definition.length; idx < idx_finish; ++idx){
+                        var definition$1 = definition[idx];
+                        definition[idx] = s.i(idx, definitionToSchema(definition$1, embededSet));
+                      }
+                      return definition;
+                    });
+        } else {
+          return factory$3(function (s) {
+                      var keys = Object.keys(definition);
+                      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+                        var key = keys[idx];
+                        var definition$1 = definition[key];
+                        definition[key] = s.f(key, definitionToSchema(definition$1, embededSet));
+                      }
+                      return definition;
+                    });
+        }
+    case 1 :
+        return literal(definition);
+    case 2 :
+        return definition;
+    
+  }
+}
+
+function factory$9(definer) {
+  var embededSet = new Set();
+  var matches = function (schema) {
+    embededSet.add(schema);
+    return schema;
+  };
+  var ctx = {
+    matches: matches
+  };
+  var definition = definer(ctx);
+  return definitionToSchema(definition, embededSet);
+}
+
 var $$class = RescriptSchemaError;
 
 function make$2(prim0, prim1, prim2) {
@@ -3185,6 +3229,8 @@ var parseAsyncWith = parseAnyAsyncWith;
 
 var parseAsyncInStepsWith = parseAnyAsyncInStepsWith;
 
+var schema$6 = factory$9;
+
 var $$Object = {
   factory: factory$3,
   strip: strip,
@@ -3304,6 +3350,7 @@ export {
   recursive ,
   classify$1 as classify,
   setName ,
+  schema$6 as schema,
   $$Object ,
   object ,
   Tuple ,

@@ -212,6 +212,9 @@ let setName: (t<'value>, string) => t<'value>
 
 external toUnknown: t<'any> => t<unknown> = "%identity"
 
+type schemaCtx = {matches: 'value. t<'value> => 'value}
+let schema: (schemaCtx => 'value) => t<'value>
+
 module Object: {
   type ctx = {
     @as("f") field: 'value. (string, t<'value>) => 'value,

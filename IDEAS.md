@@ -28,12 +28,15 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Move S.inline to a separate codegen module
 
-## v5.2
+## v6.1
 
-- S.matcher
+- S.schema (codename "matcher")
+
+## v6.2 
+
 - ppx
 
-## v5.3
+## v6.3
 
 - stop reallocate objects without transformations
 - Add `~space` to `S.jsonString` ?
@@ -42,7 +45,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Make operations more treeshakable by starting passing the actual operation to the initialOperation function. Or add a condition (verify performance)
 - S.validateWith
 
-## v6
+## v7
 
 - `S.json` -> `S.json(~unsafe: bool)` to improve tree-shaking
 - Remove `s.failWithError` since there's `Error.raise` 🤔
@@ -56,5 +59,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - S.toJSON/S.castToJson ???
 - nestedField for object
 - s.spread for object
+- s.optional for object
 - S.produce
 - S.mutator

@@ -98,6 +98,8 @@ var classify = S_Core$RescriptSchema.classify;
 
 var setName = S_Core$RescriptSchema.setName;
 
+var schema = S_Core$RescriptSchema.schema;
+
 var $$Object = S_Core$RescriptSchema.$$Object;
 
 var object = S_Core$RescriptSchema.object;
@@ -175,6 +177,7 @@ export {
   recursive ,
   classify ,
   setName ,
+  schema ,
   $$Object ,
   object ,
   Tuple ,

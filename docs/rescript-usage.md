@@ -469,7 +469,15 @@ let schema = S.object(s => {
 // Ok(Circle({radius: 1}))
 ```
 
-The same schema also works for serializing:
+For values whose runtime representation matches your schema, you can use the less verbose `S.schema`. Under the hood, it'll create the same `S.object` schema from the example above.
+
+```rescript
+let schema = S.schema(s => Circle({
+  radius: s.matches(S.float),
+}))
+```
+
+You can use the schema for parsing as well as serializing:
 
 ```rescript
 Circle({radius: 1})->S.serializeWith(schema)
@@ -514,6 +522,43 @@ let schema = S.object(_ => ())->S.Object.strip
 ```
 
 You can use the `S.Object.strip` function to reset a object schema to the default behavior (stripping unrecognized keys).
+
+### **`schema`**
+
+`(schemaCtx => 'value) => S.t<'value>`
+
+It's a helper built on `S.literal`, `S.object`, and `S.tuple` to create schemas for runtime representation of ReScript types conveniently.
+
+```rescript
+@unboxed
+type answer =
+  | Text(string)
+  | MultiSelect(array<string>)
+  | Other({value: string, @as("description") maybeDescription: option<string>})
+
+let textSchema = S.schema(s => Text(s.matches(S.string)))
+// It'll create the following schema:
+// S.string->S.variant(string => Text(string))
+
+let multySelectSchema = S.schema(s => MultiSelect(s.matches(S.array(S.string))))
+// The same as:
+// S.array(S.string)->S.variant(array => MultiSelect(array))
+
+let otherSchema = S.schema(s => Other({
+  value: s.matches(S.string),
+  maybeDescription: s.matches(S.option(S.string)),
+}))
+// Creates the schema under the hood:
+// S.object(s => Other({
+//   value: s.field("value", S.string),
+//   maybeDescription: s.field("description", S.option(S.string)),
+// }))
+//       Notice how the field name /|\ is taken from the type's @as attribute
+
+let tupleExampleSchema = S.schema(s => (#id, s.matches(S.string)))
+// The same as:
+// S.tuple(s => (s.item(0, S.literal(#id)), s.item(1, S.string)))
+```
 
 ### **`variant`**
 

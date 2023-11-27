@@ -3238,6 +3238,77 @@ let describe = (schema, description) => {
 
 let description = schema => schema->Metadata.get(~id=descriptionMetadataId)
 
+type schemaCtx = {matches: 'value. t<'value> => 'value}
+module Schema = {
+  let rec definitionToSchema = (definition: Definition.t<schema<unknown>>, ~embededSet) => {
+    let kind = definition->Definition.toKindWithSet(~embededSet)
+    switch kind {
+    | Embeded => definition->Definition.toEmbeded
+    | Constant => {
+        let constant = definition->Definition.toConstant
+        literal(constant)
+      }
+    | Node => {
+        let node = definition->Definition.toNode
+        if node->Stdlib.Array.isArray {
+          let node =
+            node->(
+              Obj.magic: Definition.node<schema<unknown>> => array<Definition.t<schema<unknown>>>
+            )
+          Tuple.factory(s => {
+            for idx in 0 to node->Js.Array2.length - 1 {
+              let definition = node->Js.Array2.unsafe_get(idx)
+              node->Js.Array2.unsafe_set(
+                idx,
+                s.item(idx, definition->definitionToSchema(~embededSet))->(
+                  Obj.magic: unknown => Definition.t<schema<unknown>>
+                ),
+              )
+            }
+            node
+          })
+        } else {
+          Object.factory(s => {
+            let keys = node->Js.Dict.keys
+            for idx in 0 to keys->Js.Array2.length - 1 {
+              let key = keys->Js.Array2.unsafe_get(idx)
+              let definition = node->Js.Dict.unsafeGet(key)
+              node->Js.Dict.set(
+                key,
+                s.field(key, definition->definitionToSchema(~embededSet))->(
+                  Obj.magic: unknown => Definition.t<schema<unknown>>
+                ),
+              )
+            }
+            node
+          })
+        }
+      }
+    }
+  }
+
+  let factory = definer => {
+    let embededSet = Stdlib.Set.empty()
+    let matches:
+      type value. schema<value> => value =
+      schema => {
+        let schema = schema->toUnknown
+        embededSet->Stdlib.Set.add(schema)->ignore
+        schema->(Obj.magic: t<unknown> => value)
+      }
+    let ctx = {
+      matches: matches,
+    }
+    let definition =
+      definer(ctx->(Obj.magic: schemaCtx => 'value))->(
+        Obj.magic: 'definition => Definition.t<t<unknown>>
+      )
+    definition->definitionToSchema(~embededSet)->castUnknownSchemaToAnySchema
+  }
+}
+
+let schema = Schema.factory
+
 module Error = {
   type class
   let class: class = %raw("RescriptSchemaError")
