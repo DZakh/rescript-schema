@@ -804,6 +804,70 @@ test("Name of merge schema", (t) => {
   );
 });
 
+test("Successfully parses object using S.schema", (t) => {
+  const schema = S.schema((s) => ({
+    foo: s.matches(S.string),
+    bar: s.matches(S.boolean),
+  }));
+  const value = S.parseOrThrow(schema, {
+    foo: "bar",
+    bar: true,
+  });
+
+  t.deepEqual(value, {
+    foo: "bar",
+    bar: true,
+  });
+
+  expectType<
+    TypeEqual<
+      typeof schema,
+      S.Schema<
+        {
+          foo: string;
+          bar: boolean;
+        },
+        unknown
+      >
+    >
+  >(true);
+  expectType<
+    TypeEqual<
+      typeof value,
+      {
+        foo: string;
+        bar: boolean;
+      }
+    >
+  >(true);
+});
+
+test("S.schema example", (t) => {
+  type Shape =
+    | { kind: "circle"; radius: number }
+    | { kind: "square"; x: number };
+
+  let circleSchema = S.schema(
+    (s): Shape => ({
+      kind: "circle",
+      radius: s.matches(S.number),
+    })
+  );
+
+  const value = S.parseOrThrow(circleSchema, {
+    kind: "circle",
+    radius: 123,
+  });
+
+  t.deepEqual(value, {
+    kind: "circle",
+    radius: 123,
+  });
+
+  expectType<TypeEqual<typeof circleSchema, S.Schema<Shape, unknown>>>(true);
+  expectType<TypeEqual<typeof value, Shape>>(true);
+});
+
 test("setName", (t) => {
   t.is(S.name(S.setName(S.unknown, "BlaBla")), `BlaBla`);
 });

@@ -25,6 +25,7 @@
   - [Advanced tuple schema](#advanced-tuple-schema)
 - [Unions](#unions)
 - [Records](#records)
+- [`schema`](#schema)
 - [JSON](#json)
 - [JSON string](#json-string)
 - [Describe](#describe)
@@ -396,6 +397,26 @@ const numberCacheSchema = S.record(S.number);
 
 type NumberCache = S.Output<typeof numberCacheSchema>;
 // => { [k: string]: number }
+```
+
+### `schema`
+
+It's a helper built on `S.literal`, `S.object`, and `S.tuple` to create schemas more conveniently.
+
+```typescript
+type Shape = { kind: "circle"; radius: number } | { kind: "square"; x: number };
+
+let circleSchema = S.schema(
+  (s): Shape => ({
+    kind: "circle",
+    radius: s.matches(S.number),
+  })
+);
+// The same as:
+// S.object(s => ({
+//   kind: s.field("kind", S.literal("circle")),
+//   radius: s.field("radius", S.number),
+// }))
 ```
 
 ## JSON

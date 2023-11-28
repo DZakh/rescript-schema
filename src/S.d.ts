@@ -158,6 +158,12 @@ export const union: <A extends UnknownSchema, B extends UnknownSchema[]>(
   Input<A> | SchemaTupleInput<B>[number]
 >;
 
+export function schema<Value>(
+  definer: (ctx: {
+    matches: <Output>(schema: Schema<Output, unknown>) => Output;
+  }) => Value
+): Schema<Value, unknown>;
+
 export function object<Output>(
   definer: (ctx: {
     field: <InputFieldName extends string, FieldOutput>(

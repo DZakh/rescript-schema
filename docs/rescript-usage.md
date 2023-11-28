@@ -27,6 +27,7 @@
     - [Transform to a variant](#transform-to-a-variant)
   - [`Object.strict`](#objectstrict)
   - [`Object.strip`](#objectstrip)
+  - [`schema`](#schema)
   - [`variant`](#variant)
   - [`union`](#union)
     - [Enums](#enums)
