@@ -1,6 +1,6 @@
 {
   "name": "rescript-schema",
-  "version": "6.0.0",
+  "version": "6.1.0",
   "description": "The fastest composable parser/serializer for ReScript (and TypeScript)",
   "keywords": [
     "ReScript",
@@ -12,11 +12,8 @@
     "Encode",
     "Decode",
     "Validation",
-    "Transform",
     "Contract",
-    "Mapping",
-    "Struct",
-    "Jzon",
+    "rescript-struct",
     "Zod",
     "Superstruct",
     "Runtypes",
