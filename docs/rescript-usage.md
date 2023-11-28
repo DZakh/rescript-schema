@@ -473,6 +473,12 @@ let schema = S.object(s => {
 For values whose runtime representation matches your schema, you can use the less verbose `S.schema`. Under the hood, it'll create the same `S.object` schema from the example above.
 
 ```rescript
+@tag("kind")
+type shape =
+  | @as("circle") Circle({radius: float})
+  | @as("square") Square({x: float})
+  | @as("triangle") Triangle({x: float, y: float})
+
 let schema = S.schema(s => Circle({
   radius: s.matches(S.float),
 }))
