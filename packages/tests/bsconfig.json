@@ -14,7 +14,7 @@
   "suffix": ".bs.mjs",
   "bs-dependencies": ["rescript-schema"],
   "bs-dev-dependencies": ["@dzakh/rescript-core", "@dzakh/rescript-ava"],
-  "ppx-flags": ["../ppx/ppx"],
+  "ppx-flags": ["../rescript-schema-ppx/ppx"],
   "bsc-flags": ["-open RescriptSchema"],
   "warnings": {
     "error": true,

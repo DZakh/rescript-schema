@@ -47,6 +47,9 @@ function cleanUpSchema(schema) {
           case "f" :
           case "i" :
           case "n" :
+          case "op" :
+          case "opa" :
+          case "os" :
           case "p" :
           case "s" :
               return ;

@@ -1,6 +1,6 @@
 (library
- (name ppx_struct)
- (public_name ppx_struct)
+ (name RescriptSchemaPpx)
+ (public_name rescript-schema-ppx)
  (kind ppx_rewriter)
  (libraries ppxlib)
  (flags

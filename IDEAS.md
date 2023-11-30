@@ -30,7 +30,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v6.2
 
-- ppx
+- rescript-schema-ppx
 
 ## v6.3
 

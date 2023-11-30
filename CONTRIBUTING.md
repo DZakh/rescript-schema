@@ -20,12 +20,12 @@ The following steps will get you setup to contribute changes to this repo:
 
 ### With Dune
 
-Make sure running the below commands in `packages/ppx/src`.
+Make sure running the below commands in `packages/rescript-schema-ppx/src`.
 
 1. Create a sandbox with opam
 
 ```
-opam switch create rescript-schema 4.12.1
+opam switch create rescript-schema-ppx 4.12.1
 ```
 
 2. Install dependencies

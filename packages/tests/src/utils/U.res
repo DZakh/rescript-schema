@@ -36,7 +36,7 @@ let rec cleanUpSchema = schema => {
   ->Dict.toArray
   ->Array.forEach(((key, value)) => {
     switch key {
-    | "s" | "p" | "i" | "f" | "n" => ()
+    | "s" | "p" | "i" | "f" | "n" | "os" | "op" | "opa" => ()
     | _ =>
       if typeof(value) === #object && value !== %raw(`null`) {
         new->Dict.set(

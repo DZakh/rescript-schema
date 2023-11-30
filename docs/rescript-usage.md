@@ -567,6 +567,8 @@ let tupleExampleSchema = S.schema(s => (#id, s.matches(S.string)))
 // S.tuple(s => (s.item(0, S.literal(#id)), s.item(1, S.string)))
 ```
 
+> 🧠 Note that `S.schema` relies on the runtime representation of your type, while `S.object`/`S.tuple` are more flexible and require you to describe the schema explicitly.
+
 ### **`variant`**
 
 `(S.t<'value>, 'value => 'variant) => S.t<'variant>`

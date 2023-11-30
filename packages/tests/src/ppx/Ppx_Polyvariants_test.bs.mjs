@@ -22,21 +22,8 @@ Ava("Polymorphic variant with single item becomes a literal schema of the item",
         U.assertEqualSchemas(t, polyWithSingleItemSchema, S$RescriptSchema.literal("single"), undefined);
       }));
 
-var polyWithAliasSchema = S$RescriptSchema.union([
-      S$RescriptSchema.literal("one"),
-      S$RescriptSchema.literal("two")
-    ]);
-
-Ava("Polymorphic variant with partial @as usage", (function (t) {
-        U.assertEqualSchemas(t, polyWithAliasSchema, S$RescriptSchema.union([
-                  S$RescriptSchema.literal("one"),
-                  S$RescriptSchema.literal("two")
-                ]), undefined);
-      }));
-
 export {
   polySchema ,
   polyWithSingleItemSchema ,
-  polyWithAliasSchema ,
 }
 /* polySchema Not a pure module */
