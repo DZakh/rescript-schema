@@ -18,23 +18,23 @@ let rec generate_constr_schema_expr { Location.txt = identifier; loc } type_args
   | Ldot (Ldot (Lident "Js", "Json"), "t"), _ | Ldot (Lident "JSON", "t"), _ ->
       [%expr S.json]
   | Lident "array", [ item_type ] ->
-      [%expr S.array [%e generate_schema_expr item_type]]
+      [%expr S.array [%e generateSchemaExpression item_type]]
   | Lident "list", [ item_type ] ->
-      [%expr S.list [%e generate_schema_expr item_type]]
+      [%expr S.list [%e generateSchemaExpression item_type]]
   | Lident "option", [ item_type ] ->
-      [%expr S.option [%e generate_schema_expr item_type]]
+      [%expr S.option [%e generateSchemaExpression item_type]]
   | Lident "null", [ item_type ] ->
-      [%expr S.null [%e generate_schema_expr item_type]]
+      [%expr S.null [%e generateSchemaExpression item_type]]
   | Ldot (Ldot (Lident "Js", "Dict"), "t"), [ item_type ]
   | Ldot (Lident "Dict", "t"), [ item_type ] ->
-      [%expr S.dict [%e generate_schema_expr item_type]]
-  | Lident s, _ -> make_ident_expr (get_generated_schema_name s)
+      [%expr S.dict [%e generateSchemaExpression item_type]]
+  | Lident s, _ -> makeIdentExpr (generateSchemaName s)
   | Ldot (left, right), _ ->
-      Exp.ident (mknoloc (Ldot (left, get_generated_schema_name right)))
+      Exp.ident (mknoloc (Ldot (left, generateSchemaName right)))
   | Lapply (_, _), _ -> fail loc "Lapply syntax not handled by rescript-schema"
 
-and generate_schema_expr { ptyp_desc; ptyp_loc; ptyp_attributes } =
-  let custom_schema_expr = get_attribute_by_name ptyp_attributes "schema" in
+and generateSchemaExpression { ptyp_desc; ptyp_loc; ptyp_attributes } =
+  let custom_schema_expr = getAttributeByName ptyp_attributes "schema" in
   match custom_schema_expr with
   | Ok None -> (
       match ptyp_desc with
@@ -53,10 +53,10 @@ and generate_schema_expr { ptyp_desc; ptyp_loc; ptyp_attributes } =
                               [%expr
                                 s.item
                                   [%e Exp.constant (Const.int idx)]
-                                  [%e generate_schema_expr tuple_type]]))]))]
-      | Ptyp_var s -> make_ident_expr (get_generated_schema_name s)
+                                  [%e generateSchemaExpression tuple_type]]))]))]
+      | Ptyp_var s -> makeIdentExpr (generateSchemaName s)
       | Ptyp_constr (constr, typeArgs) ->
           generate_constr_schema_expr constr typeArgs
       | _ -> fail ptyp_loc "This syntax is not yet handled by rescript-schema")
-  | Ok (Some attribute) -> get_expr_from_payload attribute
+  | Ok (Some attribute) -> getExpressionFromPayload attribute
   | Error s -> fail ptyp_loc s

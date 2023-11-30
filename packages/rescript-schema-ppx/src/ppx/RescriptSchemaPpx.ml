@@ -5,14 +5,14 @@ class mapper =
     inherit Ast_traverse.map
 
     method! signature sign =
-      sign |> List.map (Signature_.map_signature_item self) |> List.concat
+      sign |> List.map (Signature.mapSignatureItem self) |> List.concat
 
     method! structure strt =
-      strt |> List.map (Structure_.map_structure_item self) |> List.concat
+      strt |> List.map (Structure.mapStructureItem self) |> List.concat
   end
 
-let signature_mapper = (new mapper)#signature
-let structure_mapper = (new mapper)#structure;;
+let signatureMapper = (new mapper)#signature
+let structureMapper = (new mapper)#structure;;
 
-Ppxlib.Driver.register_transformation ~impl:structure_mapper
-  ~intf:signature_mapper "schema"
+Ppxlib.Driver.register_transformation ~impl:structureMapper
+  ~intf:signatureMapper "schema"
