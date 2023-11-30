@@ -5,10 +5,10 @@ class mapper =
     inherit Ast_traverse.map
 
     method! signature sign =
-      sign |> List.map (Signature.map_signature_item self) |> List.concat
+      sign |> List.map (Signature_.map_signature_item self) |> List.concat
 
     method! structure strt =
-      strt |> List.map (Structure.map_structure_item self) |> List.concat
+      strt |> List.map (Structure_.map_structure_item self) |> List.concat
   end
 
 let signature_mapper = (new mapper)#signature

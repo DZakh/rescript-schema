@@ -1,6 +1,6 @@
 open Parsetree
 open Ast_helper
-open Utils
+open Util
 
 let parse_decl { prf_desc } =
   let name =

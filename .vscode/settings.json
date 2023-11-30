@@ -1,6 +1,6 @@
 {
   "ocaml.sandbox": {
     "kind": "opam",
-    "switch": "rescript-schema"
+    "switch": "rescript-schema-ppx"
   }
 }

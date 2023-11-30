@@ -1,7 +1,7 @@
 open Ppxlib
 open Parsetree
 open Ast_helper
-open Utils
+open Util
 
 type field = {
   name : string;
@@ -45,7 +45,7 @@ let parse_decl { pld_name = { txt }; pld_loc; pld_type; pld_attributes } =
     |> List.map (fun attr -> get_attribute_by_name pld_attributes attr)
     |> List.exists (function Ok (Some _) -> true | _ -> false)
   in
-  let schema_expr = Codecs.generate_schema_expr pld_type in
+  let schema_expr = Codecs_.generate_schema_expr pld_type in
   let schema_expr =
     if is_optional then [%expr Obj.magic S.option [%e schema_expr]]
     else schema_expr

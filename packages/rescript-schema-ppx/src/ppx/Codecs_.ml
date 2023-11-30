@@ -1,7 +1,7 @@
 open Ppxlib
 open Parsetree
 open Ast_helper
-open Utils
+open Util
 
 let rec generate_constr_schema_expr { Location.txt = identifier; loc } type_args
     =

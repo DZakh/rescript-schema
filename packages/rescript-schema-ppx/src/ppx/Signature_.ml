@@ -1,7 +1,7 @@
 open Ppxlib
 open Parsetree
 open Ast_helper
-open Utils
+open Util
 
 let generate_schema_signature_item ~type_declaration =
   let { ptype_name = { txt = type_name } } = type_declaration in
@@ -19,7 +19,7 @@ let map_signature_item mapper ({ psig_desc } as signature_item) =
         decls
         |> List.map (fun type_declaration ->
                match
-                 Utils.get_attribute_by_name type_declaration.ptype_attributes
+                 get_attribute_by_name type_declaration.ptype_attributes
                    "schema"
                with
                | Error err -> fail type_declaration.ptype_loc err

@@ -1,7 +1,7 @@
 open Ppxlib
 open Parsetree
 open Ast_helper
-open Utils
+open Util
 
 let parse_decl { pcd_name = { txt = name; loc }; pcd_args } =
   match pcd_args with
