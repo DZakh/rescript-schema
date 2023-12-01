@@ -5,9 +5,7 @@ open Util
 
 let generateSchemaSignatureItem ~type_declaration =
   let {ptype_name = {txt = type_name}} = type_declaration in
-
   let schema_name = generateSchemaName type_name in
-
   [%type: [%t Typ.constr (lid type_name) []] S.t]
   |> Val.mk (mknoloc schema_name)
   |> Sig.value

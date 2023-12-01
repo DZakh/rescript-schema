@@ -42,21 +42,62 @@ and generatePolyvariantSchemaExpression row_fields =
              | Rtag ({txt}, _, _) -> txt
              | _ -> failwith "Unsupported polymorphic variant constructor"
            in
-
            [%expr S.literal [%e Exp.variant name None]])
   in
   match union_items with
   | [item] -> item
   | _ -> [%expr S.union [%e Exp.array union_items]]
 
+and generateFieldSchemaExpression field =
+  let schema_expression = generateCoreTypeSchemaExpression field.core_type in
+  if field.is_optional then [%expr Obj.magic S.option [%e schema_expression]]
+  else schema_expression
+
 and generateVariantSchemaExpression constr_decls =
+  let payloadCoreTypeToMatchesExpression core_type =
+    [%expr s.matches [%e generateCoreTypeSchemaExpression core_type]]
+  in
   let union_items =
     constr_decls
     |> List.map (fun {pcd_name = {txt = name; loc}; pcd_args} ->
            match pcd_args with
            | Pcstr_tuple [] ->
              [%expr S.literal [%e Exp.construct (lid name) None]]
-           | _ -> fail loc "Variants with payload not supported yet")
+           | Pcstr_tuple payload_core_types ->
+             [%expr
+               S.schema
+                 (Obj.magic (fun (s : S.schemaCtx) ->
+                      [%e
+                        Exp.construct (lid name)
+                          (Some
+                             (match payload_core_types with
+                             | [payload_core_type] ->
+                               payloadCoreTypeToMatchesExpression
+                                 payload_core_type
+                             | payload_core_types ->
+                               Exp.tuple
+                                 (payload_core_types
+                                 |> List.map payloadCoreTypeToMatchesExpression
+                                 )))]))]
+           | Pcstr_record label_declarations ->
+             let fields =
+               label_declarations |> List.map parseLabelDeclaration
+             in
+             let field_expressions =
+               fields
+               |> List.map (fun field ->
+                      let schema_expression =
+                        generateFieldSchemaExpression field
+                      in
+                      ( lid field.runtime_name,
+                        [%expr s.matches [%e schema_expression]] ))
+             in
+             [%expr
+               S.schema
+                 (Obj.magic (fun (s : S.schemaCtx) ->
+                      [%e
+                        Exp.construct (lid name)
+                          (Some (Exp.record field_expressions None))]))])
   in
   match union_items with
   | [item] -> item
@@ -70,16 +111,10 @@ and generateObjectSchema fields =
              Exp.constant
                (Pconst_string (field.runtime_name, Location.none, None))
            in
-
-           let schema_expr = generateCoreTypeSchemaExpression field.core_type in
-           let schema_expr =
-             if field.is_optional then
-               [%expr Obj.magic S.option [%e schema_expr]]
-             else schema_expr
-           in
-
+           let schema_expression = generateFieldSchemaExpression field in
            ( lid field.runtime_name,
-             [%expr s.field [%e runtime_field_name_expression] [%e schema_expr]]
+             [%expr
+               s.field [%e runtime_field_name_expression] [%e schema_expression]]
            ))
   in
   (* Use Obj.magic to cast to uncurried function in case of uncurried mode *)

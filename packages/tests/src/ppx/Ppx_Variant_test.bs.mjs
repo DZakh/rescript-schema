@@ -34,9 +34,128 @@ Ava("Variant with partial @as usage", (function (t) {
                 ]), undefined);
       }));
 
+var variantWithPayloadsSchema = S$RescriptSchema.union([
+      S$RescriptSchema.literal("Constant"),
+      S$RescriptSchema.schema(function (s) {
+            return {
+                    TAG: "SinglePayload",
+                    _0: s.matches(S$RescriptSchema.$$int)
+                  };
+          }),
+      S$RescriptSchema.schema(function (s) {
+            return {
+                    TAG: "TuplePayload",
+                    _0: s.matches(S$RescriptSchema.$$int),
+                    _1: s.matches(S$RescriptSchema.string)
+                  };
+          }),
+      S$RescriptSchema.schema(function (s) {
+            return {
+                    TAG: "RecordPayload",
+                    foo: s.matches(S$RescriptSchema.$$float)
+                  };
+          })
+    ]);
+
+Ava("Variant with payloads", (function (t) {
+        U.assertEqualSchemas(t, variantWithPayloadsSchema, S$RescriptSchema.union([
+                  S$RescriptSchema.literal("Constant"),
+                  S$RescriptSchema.schema(function (s) {
+                        return {
+                                TAG: "SinglePayload",
+                                _0: s.matches(S$RescriptSchema.$$int)
+                              };
+                      }),
+                  S$RescriptSchema.schema(function (s) {
+                        return {
+                                TAG: "TuplePayload",
+                                _0: s.matches(S$RescriptSchema.$$int),
+                                _1: s.matches(S$RescriptSchema.string)
+                              };
+                      }),
+                  S$RescriptSchema.schema(function (s) {
+                        return {
+                                TAG: "RecordPayload",
+                                foo: s.matches(S$RescriptSchema.$$float)
+                              };
+                      })
+                ]), undefined);
+      }));
+
+var unboxedVariantSchema = S$RescriptSchema.union([
+      S$RescriptSchema.literal("Constant"),
+      S$RescriptSchema.schema(function (s) {
+            return s.matches(S$RescriptSchema.$$int);
+          }),
+      S$RescriptSchema.schema(function (s) {
+            return s.matches(S$RescriptSchema.string);
+          })
+    ]);
+
+Ava("Unboxed variant", (function (t) {
+        U.assertEqualSchemas(t, unboxedVariantSchema, S$RescriptSchema.union([
+                  S$RescriptSchema.literal("Constant"),
+                  S$RescriptSchema.schema(function (s) {
+                        return s.matches(S$RescriptSchema.$$int);
+                      }),
+                  S$RescriptSchema.schema(function (s) {
+                        return s.matches(S$RescriptSchema.string);
+                      })
+                ]), undefined);
+      }));
+
+var taggedVariantSchema = S$RescriptSchema.union([
+      S$RescriptSchema.schema(function (s) {
+            return {
+                    kind: "circle",
+                    radius: s.matches(S$RescriptSchema.$$float)
+                  };
+          }),
+      S$RescriptSchema.schema(function (s) {
+            return {
+                    kind: "square",
+                    x: s.matches(S$RescriptSchema.$$float)
+                  };
+          }),
+      S$RescriptSchema.schema(function (s) {
+            return {
+                    kind: "triangle",
+                    x: s.matches(S$RescriptSchema.$$float),
+                    y: s.matches(S$RescriptSchema.$$float)
+                  };
+          })
+    ]);
+
+Ava("Tagged variant", (function (t) {
+        U.assertEqualSchemas(t, taggedVariantSchema, S$RescriptSchema.union([
+                  S$RescriptSchema.schema(function (s) {
+                        return {
+                                kind: "circle",
+                                radius: s.matches(S$RescriptSchema.$$float)
+                              };
+                      }),
+                  S$RescriptSchema.schema(function (s) {
+                        return {
+                                kind: "square",
+                                x: s.matches(S$RescriptSchema.$$float)
+                              };
+                      }),
+                  S$RescriptSchema.schema(function (s) {
+                        return {
+                                kind: "triangle",
+                                x: s.matches(S$RescriptSchema.$$float),
+                                y: s.matches(S$RescriptSchema.$$float)
+                              };
+                      })
+                ]), undefined);
+      }));
+
 export {
   variantSchema ,
   variantWithSingleItemSchema ,
   variantWithAliasSchema ,
+  variantWithPayloadsSchema ,
+  unboxedVariantSchema ,
+  taggedVariantSchema ,
 }
 /* variantSchema Not a pure module */

@@ -65,5 +65,3 @@ test("Record schema with optional fields", t => {
     (),
   )
 })
-
-// TODO: Support object type
