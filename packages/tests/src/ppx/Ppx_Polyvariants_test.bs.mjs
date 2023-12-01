@@ -38,10 +38,25 @@ Ava("Supported as a dict field", (function (t) {
         U.assertEqualSchemas(t, dictFieldSchema, S$RescriptSchema.dict(S$RescriptSchema.literal("one")), undefined);
       }));
 
+var recordFieldSchema = S$RescriptSchema.$$Object.factory(function (s) {
+      return {
+              poly: s.f("poly", S$RescriptSchema.literal("one"))
+            };
+    });
+
+Ava("Supported as a record field", (function (t) {
+        U.assertEqualSchemas(t, recordFieldSchema, S$RescriptSchema.object(function (s) {
+                  return {
+                          poly: s.f("poly", S$RescriptSchema.literal("one"))
+                        };
+                }), undefined);
+      }));
+
 export {
   polySchema ,
   polyWithSingleItemSchema ,
   polyEmbededSchema ,
   dictFieldSchema ,
+  recordFieldSchema ,
 }
 /* polySchema Not a pure module */

@@ -32,3 +32,28 @@ let generateSchemaName type_name =
   match type_name with
   | "t" -> "schema"
   | _ -> type_name ^ "Schema"
+
+type record_field = {
+  name: string;
+  maybe_alias: expression option;
+  core_type: core_type;
+  is_optional: bool;
+}
+
+let parseLabelDeclaration {pld_name = {txt}; pld_loc; pld_type; pld_attributes}
+    =
+  let maybe_alias =
+    match getAttributeByName pld_attributes "as" with
+    | Ok (Some attribute) -> Some (getExpressionFromPayload attribute)
+    | Ok None -> None
+    | Error s -> fail pld_loc s
+  in
+  let optional_attributes = ["ns.optional"; "res.optional"] in
+  let is_optional =
+    optional_attributes
+    |> List.map (fun attr -> getAttributeByName pld_attributes attr)
+    |> List.exists (function
+         | Ok (Some _) -> true
+         | _ -> false)
+  in
+  {name = txt; maybe_alias; core_type = pld_type; is_optional}

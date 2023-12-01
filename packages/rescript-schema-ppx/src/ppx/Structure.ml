@@ -33,6 +33,38 @@ let rec generateConstrSchemaExpression {Location.txt = identifier; loc}
     Exp.ident (mknoloc (Ldot (left, generateSchemaName right)))
   | Lapply (_, _), _ -> fail loc "Unsupported lapply syntax"
 
+and generateRecordSchema (fields : record_field list) =
+  (* Use Obj.magic to cast to uncurried function in case of uncurried mode *)
+  [%expr
+    S.Object.factory
+      (Obj.magic (fun (s : S.Object.ctx) ->
+           [%e
+             Exp.record
+               (fields
+               |> List.map (fun field ->
+                      let original_field_name_expr =
+                        match field.maybe_alias with
+                        | Some alias -> alias
+                        | None ->
+                          Exp.constant
+                            (Pconst_string (field.name, Location.none, None))
+                      in
+
+                      let schema_expr =
+                        generateCoreTypeSchemaExpression field.core_type
+                      in
+                      let schema_expr =
+                        if field.is_optional then
+                          [%expr Obj.magic S.option [%e schema_expr]]
+                        else schema_expr
+                      in
+
+                      ( lid field.name,
+                        [%expr
+                          s.field [%e original_field_name_expr] [%e schema_expr]]
+                      )))
+               None]))]
+
 and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
   let customSchemaExpression = getAttributeByName ptyp_attributes "schema" in
   match customSchemaExpression with
@@ -73,8 +105,8 @@ let generateTypeDeclarationSchemaExpression type_declaration =
     generateCoreTypeSchemaExpression manifest
   | {ptype_kind = Ptype_variant decls; _} ->
     Variants.generateSchemaExpression decls
-  | {ptype_kind = Ptype_record decls; _} ->
-    Records.generateSchemaExpression decls
+  | {ptype_kind = Ptype_record label_declarations; _} ->
+    label_declarations |> List.map parseLabelDeclaration |> generateRecordSchema
   | {ptype_loc; _} -> fail ptype_loc "Unsupported type"
 
 let generateSchemaValueBinding type_name schema_expr =

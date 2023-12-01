@@ -26,10 +26,21 @@ test("Supported as a dict field", t => {
   t->assertEqualSchemas(dictFieldSchema, S.dict(S.literal(#one)))
 })
 
+@schema
+type recordField = {poly: [#one]}
+test("Supported as a record field", t => {
+  t->assertEqualSchemas(
+    recordFieldSchema,
+    S.object(s => {
+      poly: s.field("poly", S.literal(#one)),
+    }),
+  )
+})
+
 // TODO: Support
-// type polyWithPayloads = [#one | #two(int) | #three(bool)]
+// type polyWithPayloads = [#one | #two(int) | #three({"foo": string})]
 // TODO: Support
 // type basicBlueTone<'a> = [> #Blue | #DeepBlue | #LightBlue] as 'a
 // TODO: Support
 // type polyWithInheritance = [poly | #three]
-// TODO: Support poly as record/object fields
+// TODO: Support poly as object fields
