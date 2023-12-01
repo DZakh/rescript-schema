@@ -52,11 +52,26 @@ Ava("Supported as a record field", (function (t) {
                 }), undefined);
       }));
 
+var objectFieldSchema = S$RescriptSchema.$$Object.factory(function (s) {
+      return {
+              poly: s.f("poly", S$RescriptSchema.literal("one"))
+            };
+    });
+
+Ava("Supported as a object field", (function (t) {
+        U.assertEqualSchemas(t, objectFieldSchema, S$RescriptSchema.object(function (s) {
+                  return {
+                          poly: s.f("poly", S$RescriptSchema.literal("one"))
+                        };
+                }), undefined);
+      }));
+
 export {
   polySchema ,
   polyWithSingleItemSchema ,
   polyEmbededSchema ,
   dictFieldSchema ,
   recordFieldSchema ,
+  objectFieldSchema ,
 }
 /* polySchema Not a pure module */

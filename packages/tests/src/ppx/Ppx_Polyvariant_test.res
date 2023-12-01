@@ -37,10 +37,22 @@ test("Supported as a record field", t => {
   )
 })
 
+@schema
+type objectField = {"poly": [#one]}
+test("Supported as a object field", t => {
+  t->assertEqualSchemas(
+    objectFieldSchema,
+    S.object(s =>
+      {
+        "poly": s.field("poly", S.literal(#one)),
+      }
+    ),
+  )
+})
+
 // TODO: Support
 // type polyWithPayloads = [#one | #two(int) | #three({"foo": string})]
 // TODO: Support
 // type basicBlueTone<'a> = [> #Blue | #DeepBlue | #LightBlue] as 'a
 // TODO: Support
 // type polyWithInheritance = [poly | #three]
-// TODO: Support poly as object fields

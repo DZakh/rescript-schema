@@ -22,10 +22,7 @@ let getAttributeByName attributes name =
 
 let getExpressionFromPayload {attr_name = {loc}; attr_payload = payload} =
   match payload with
-  | PStr [{pstr_desc}] -> (
-    match pstr_desc with
-    | Pstr_eval (expr, _) -> expr
-    | _ -> fail loc "Expected expression as attribute payload")
+  | PStr [{pstr_desc = Pstr_eval (expr, _)}] -> expr
   | _ -> fail loc "Expected expression as attribute payload"
 
 let generateSchemaName type_name =
@@ -33,27 +30,50 @@ let generateSchemaName type_name =
   | "t" -> "schema"
   | _ -> type_name ^ "Schema"
 
-type record_field = {
+type field = {
   name: string;
-  maybe_alias: expression option;
+  runtime_name: string;
   core_type: core_type;
   is_optional: bool;
 }
 
+let getMaybeFieldAlias loc attributes =
+  match getAttributeByName attributes "as" with
+  | Ok (Some attribute) -> (
+    match (getExpressionFromPayload attribute).pexp_desc with
+    | Pexp_constant (Pconst_string (str, _, _)) -> Some str
+    | _ -> fail loc "The @as attribute payload is not a string")
+  | Ok None -> None
+  | Error s -> fail loc s
+
 let parseLabelDeclaration {pld_name = {txt}; pld_loc; pld_type; pld_attributes}
     =
-  let maybe_alias =
-    match getAttributeByName pld_attributes "as" with
-    | Ok (Some attribute) -> Some (getExpressionFromPayload attribute)
-    | Ok None -> None
-    | Error s -> fail pld_loc s
+  let maybe_field_alias = getMaybeFieldAlias pld_loc pld_attributes in
+  let runtime_name =
+    match maybe_field_alias with
+    | Some field_alias -> field_alias
+    | None -> txt
   in
-  let optional_attributes = ["ns.optional"; "res.optional"] in
   let is_optional =
-    optional_attributes
+    ["ns.optional"; "res.optional"]
     |> List.map (fun attr -> getAttributeByName pld_attributes attr)
     |> List.exists (function
          | Ok (Some _) -> true
          | _ -> false)
   in
-  {name = txt; maybe_alias; core_type = pld_type; is_optional}
+  {name = txt; runtime_name; core_type = pld_type; is_optional}
+
+let parseObjectField {pof_desc; pof_loc; pof_attributes} =
+  let name, core_type =
+    match pof_desc with
+    | Oinherit _ -> fail pof_loc "Unsupported Oinherit object field"
+    | Otag ({txt}, core_type) -> (txt, core_type)
+  in
+  let is_optional =
+    ["ns.optional"; "res.optional"]
+    |> List.map (fun attr -> getAttributeByName pof_attributes attr)
+    |> List.exists (function
+         | Ok (Some _) -> true
+         | _ -> false)
+  in
+  {name; runtime_name = name; core_type; is_optional}

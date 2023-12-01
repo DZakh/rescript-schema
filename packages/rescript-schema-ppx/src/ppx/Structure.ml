@@ -33,37 +33,63 @@ let rec generateConstrSchemaExpression {Location.txt = identifier; loc}
     Exp.ident (mknoloc (Ldot (left, generateSchemaName right)))
   | Lapply (_, _), _ -> fail loc "Unsupported lapply syntax"
 
-and generateRecordSchema (fields : record_field list) =
+and generatePolyvariantSchemaExpression row_fields =
+  let union_items =
+    row_fields
+    |> List.map (fun {prf_desc} ->
+           let name =
+             match prf_desc with
+             | Rtag ({txt}, _, _) -> txt
+             | _ -> failwith "Unsupported polymorphic variant constructor"
+           in
+
+           [%expr S.literal [%e Exp.variant name None]])
+  in
+  match union_items with
+  | [item] -> item
+  | _ -> [%expr S.union [%e Exp.array union_items]]
+
+and generateVariantSchemaExpression constr_decls =
+  let union_items =
+    constr_decls
+    |> List.map (fun {pcd_name = {txt = name; loc}; pcd_args} ->
+           match pcd_args with
+           | Pcstr_tuple [] ->
+             [%expr S.literal [%e Exp.construct (lid name) None]]
+           | _ -> fail loc "Variants with payload not supported yet")
+  in
+  match union_items with
+  | [item] -> item
+  | _ -> [%expr S.union [%e Exp.array union_items]]
+
+and generateObjectSchema fields =
+  let field_expressions =
+    fields
+    |> List.map (fun field ->
+           let runtime_field_name_expression =
+             Exp.constant
+               (Pconst_string (field.runtime_name, Location.none, None))
+           in
+
+           let schema_expr = generateCoreTypeSchemaExpression field.core_type in
+           let schema_expr =
+             if field.is_optional then
+               [%expr Obj.magic S.option [%e schema_expr]]
+             else schema_expr
+           in
+
+           ( lid field.runtime_name,
+             [%expr s.field [%e runtime_field_name_expression] [%e schema_expr]]
+           ))
+  in
   (* Use Obj.magic to cast to uncurried function in case of uncurried mode *)
   [%expr
     S.Object.factory
       (Obj.magic (fun (s : S.Object.ctx) ->
            [%e
-             Exp.record
-               (fields
-               |> List.map (fun field ->
-                      let original_field_name_expr =
-                        match field.maybe_alias with
-                        | Some alias -> alias
-                        | None ->
-                          Exp.constant
-                            (Pconst_string (field.name, Location.none, None))
-                      in
-
-                      let schema_expr =
-                        generateCoreTypeSchemaExpression field.core_type
-                      in
-                      let schema_expr =
-                        if field.is_optional then
-                          [%expr Obj.magic S.option [%e schema_expr]]
-                        else schema_expr
-                      in
-
-                      ( lid field.name,
-                        [%expr
-                          s.field [%e original_field_name_expr] [%e schema_expr]]
-                      )))
-               None]))]
+             Exp.extension
+               ( mkloc "obj" Location.none,
+                 PStr [Str.eval (Exp.record field_expressions None)] )]))]
 
 and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
   let customSchemaExpression = getAttributeByName ptyp_attributes "schema" in
@@ -91,9 +117,10 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
     | Ptyp_constr (constr, typeArgs) ->
       generateConstrSchemaExpression constr typeArgs
     | Ptyp_variant (row_fields, _, _) ->
-      Polyvariants.generateSchemaExpression row_fields
-    | _ -> fail ptyp_loc "This syntax is not yet handled by rescript-schema-ppx"
-    )
+      generatePolyvariantSchemaExpression row_fields
+    | Ptyp_object (object_fields, Closed) ->
+      object_fields |> List.map parseObjectField |> generateObjectSchema
+    | _ -> fail ptyp_loc "Unsupported type")
   | Ok (Some attribute) -> getExpressionFromPayload attribute
   | Error s -> fail ptyp_loc s
 
@@ -104,10 +131,10 @@ let generateTypeDeclarationSchemaExpression type_declaration =
   | {ptype_manifest = Some manifest; _} ->
     generateCoreTypeSchemaExpression manifest
   | {ptype_kind = Ptype_variant decls; _} ->
-    Variants.generateSchemaExpression decls
+    generateVariantSchemaExpression decls
   | {ptype_kind = Ptype_record label_declarations; _} ->
-    label_declarations |> List.map parseLabelDeclaration |> generateRecordSchema
-  | {ptype_loc; _} -> fail ptype_loc "Unsupported type"
+    label_declarations |> List.map parseLabelDeclaration |> generateObjectSchema
+  | {ptype_loc; _} -> fail ptype_loc "Unsupported type declaration"
 
 let generateSchemaValueBinding type_name schema_expr =
   let schema_name_pat = Pat.var (mknoloc (generateSchemaName type_name)) in
