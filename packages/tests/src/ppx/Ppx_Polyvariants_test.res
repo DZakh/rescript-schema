@@ -1,5 +1,6 @@
 open Ava
 open U
+open RescriptCore
 
 @schema
 type poly = [#one | #two]
@@ -11,6 +12,18 @@ test("Polymorphic variant", t => {
 type polyWithSingleItem = [#single]
 test("Polymorphic variant with single item becomes a literal schema of the item", t => {
   t->assertEqualSchemas(polyWithSingleItemSchema, S.literal(#single))
+})
+
+@schema
+type polyEmbeded = @schema(S.string->S.variant(_ => #one)) [#one]
+test("Embed custom schema for polymorphic variants", t => {
+  t->assertEqualSchemas(polyEmbededSchema, S.string->S.variant(_ => #one))
+})
+
+@schema
+type dictField = Dict.t<[#one]>
+test("Supported as a dict field", t => {
+  t->assertEqualSchemas(dictFieldSchema, S.dict(S.literal(#one)))
 })
 
 // TODO: Support

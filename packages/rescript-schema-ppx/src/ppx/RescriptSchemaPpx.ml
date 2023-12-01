@@ -15,4 +15,4 @@ let signatureMapper = (new mapper)#signature
 let structureMapper = (new mapper)#structure;;
 
 Ppxlib.Driver.register_transformation ~impl:structureMapper
-  ~intf:signatureMapper "schema"
+  ~intf:signatureMapper "rescript-schema"

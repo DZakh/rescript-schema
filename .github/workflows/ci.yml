@@ -32,7 +32,7 @@ jobs:
 
       - name: Copy built PPX file
         run: |
-          mv ./_build/default/bin/rescript-schema-ppx.exe ppx.exe
+          mv ./_build/default/bin/bin.exe ppx.exe
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3

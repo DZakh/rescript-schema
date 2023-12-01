@@ -2,10 +2,10 @@ open Parsetree
 open Ast_helper
 open Util
 
-let parse_decl { prf_desc } =
+let parse_decl {prf_desc} =
   let name =
     match prf_desc with
-    | Rtag ({ txt }, _, _) -> txt
+    | Rtag ({txt}, _, _) -> txt
     | _ -> failwith "cannot get polymorphic variant constructor"
   in
 
@@ -14,5 +14,5 @@ let parse_decl { prf_desc } =
 let generateSchemaExpression row_fields =
   let union_items = List.map parse_decl row_fields in
   match union_items with
-  | [ item ] -> item
+  | [item] -> item
   | _ -> [%expr S.union [%e Exp.array union_items]]

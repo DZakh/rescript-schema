@@ -4,9 +4,9 @@ open Ast_helper
 open Util
 
 type field = {
-  name : string;
-  maybe_alias : expression option;
-  schema_expr : expression;
+  name: string;
+  maybe_alias: expression option;
+  schema_expr: expression;
 }
 
 let generate_decoder fields =
@@ -22,8 +22,8 @@ let generate_decoder fields =
                         match field.maybe_alias with
                         | Some alias -> alias
                         | None ->
-                            Exp.constant
-                              (Pconst_string (field.name, Location.none, None))
+                          Exp.constant
+                            (Pconst_string (field.name, Location.none, None))
                       in
 
                       ( lid field.name,
@@ -32,18 +32,20 @@ let generate_decoder fields =
                             [%e field.schema_expr]] )))
                None]))]
 
-let parse_decl { pld_name = { txt }; pld_loc; pld_type; pld_attributes } =
+let parse_decl {pld_name = {txt}; pld_loc; pld_type; pld_attributes} =
   let maybe_alias =
     match getAttributeByName pld_attributes "as" with
     | Ok (Some attribute) -> Some (getExpressionFromPayload attribute)
     | Ok None -> None
     | Error s -> fail pld_loc s
   in
-  let optional_attrs = [ "ns.optional"; "res.optional" ] in
+  let optional_attrs = ["ns.optional"; "res.optional"] in
   let is_optional =
     optional_attrs
     |> List.map (fun attr -> getAttributeByName pld_attributes attr)
-    |> List.exists (function Ok (Some _) -> true | _ -> false)
+    |> List.exists (function
+         | Ok (Some _) -> true
+         | _ -> false)
   in
   let schema_expr = Codecs.generateSchemaExpression pld_type in
   let schema_expr =
@@ -51,7 +53,7 @@ let parse_decl { pld_name = { txt }; pld_loc; pld_type; pld_attributes } =
     else schema_expr
   in
 
-  { name = txt; maybe_alias; schema_expr }
+  {name = txt; maybe_alias; schema_expr}
 
 let generateSchemaExpression decls =
   let fields = List.map parse_decl decls in

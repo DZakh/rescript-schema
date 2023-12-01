@@ -5,5 +5,4 @@
 
 (executable
  (name bin)
- (public_name rescript-schema-ppx.exe)
  (libraries rescript-schema-ppx))

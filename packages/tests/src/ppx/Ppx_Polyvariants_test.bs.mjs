@@ -22,8 +22,26 @@ Ava("Polymorphic variant with single item becomes a literal schema of the item",
         U.assertEqualSchemas(t, polyWithSingleItemSchema, S$RescriptSchema.literal("single"), undefined);
       }));
 
+var polyEmbededSchema = S$RescriptSchema.variant(S$RescriptSchema.string, (function (param) {
+        return "one";
+      }));
+
+Ava("Embed custom schema for polymorphic variants", (function (t) {
+        U.assertEqualSchemas(t, polyEmbededSchema, S$RescriptSchema.variant(S$RescriptSchema.string, (function (param) {
+                    return "one";
+                  })), undefined);
+      }));
+
+var dictFieldSchema = S$RescriptSchema.dict(S$RescriptSchema.literal("one"));
+
+Ava("Supported as a dict field", (function (t) {
+        U.assertEqualSchemas(t, dictFieldSchema, S$RescriptSchema.dict(S$RescriptSchema.literal("one")), undefined);
+      }));
+
 export {
   polySchema ,
   polyWithSingleItemSchema ,
+  polyEmbededSchema ,
+  dictFieldSchema ,
 }
 /* polySchema Not a pure module */
