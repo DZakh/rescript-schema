@@ -6,7 +6,7 @@
 
 The fastest composable parser/serializer for ReScript (and TypeScript)
 
-> ⚠️ Be aware that **rescript-schema** uses `eval`. It's usually fine but might not work in some environments like Cloudflare Workers or third-party scripts used on pages with the [script-src](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src) header.
+> ⚠️ Be aware that **rescript-schema** uses `eval` for parsing. It's usually fine but might not work in some environments like Cloudflare Workers or third-party scripts used on pages with the [script-src](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src) header.
 
 Highlights:
 
@@ -18,6 +18,7 @@ Highlights:
 - Easy to create _recursive_ schema
 - Detailed error messages
 - Opt-in strict mode for object schema to prevent excessive fields and many more built-in helpers
+- Opt-in PPX to generate schema from type
 - Works with plain JavaScript/TypeScript too! You don't need to use ReScript
 - The **fastest** composable validation library in the entire JavaScript ecosystem ([benchmark](https://moltar.github.io/typescript-runtime-type-benchmarks/))
 - Small JS footprint & tree-shakable API ([Comparison with Zod and Valibot](./docs/js-usage.md#comparison))
@@ -31,5 +32,6 @@ Also, it has declarative API allowing you to use **rescript-schema** as a buildi
 ## Documentation
 
 - [For ReScript users](./docs/rescript-usage.md)
+- [For PPX users](./docs/ppx-usage.md)
 - [For JS/TS users](./docs/js-usage.md)
 - [For library maintainers](./docs/integration-guide.md)

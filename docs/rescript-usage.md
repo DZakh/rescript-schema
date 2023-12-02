@@ -8,7 +8,7 @@
 - [Install](#install)
 - [Basic usage](#basic-usage)
 - [Real-world examples](#real-world-examples)
-- [API](#api)
+- [API reference](#api-reference)
   - [`string`](#string)
     - [ISO datetimes](#iso-datetimes)
   - [`bool`](#bool)
@@ -75,7 +75,7 @@
 npm install rescript-schema
 ```
 
-Then add `rescript-schema` to `bs-dependencies` in your `bsconfig.json`:
+Then add `rescript-schema` to `bs-dependencies` in your `rescript.json`:
 
 ```diff
 {
@@ -155,7 +155,7 @@ let filmSchema = S.object(s => {
 
 // 5. Use schema as a building block for other tools
 // For example, create a JSON-schema with rescript-json-schema and use it for OpenAPI generation
-let filmJsonSchema = JSONSchema.make(filmSchema)
+let filmJSONSchema = JSONSchema.make(filmSchema)
 ```
 
 ## Real-world examples
@@ -164,7 +164,7 @@ let filmJsonSchema = JSONSchema.make(filmSchema)
 - [Creating CLI utility](https://github.com/DZakh/rescript-stdlib-cli/blob/main/src/interactors/RunCli.res)
 - [Safely accessing environment variables](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Env.res)
 
-## API
+## API reference
 
 ### **`string`**
 
