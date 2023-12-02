@@ -192,4 +192,8 @@ updateJsonFile(
   ~value=JSON.Encode.string("commonjs"),
 )
 
+// Clean up before uploading artifacts
+FsX.rmSync(NodeJs.Path.join2(artifactsPath, "lib"), {force: true, recursive: true})
+FsX.rmSync(NodeJs.Path.join2(artifactsPath, "node_modules"), {force: true, recursive: true})
+
 // TODO: Generate RescriptSchema.gen.ts

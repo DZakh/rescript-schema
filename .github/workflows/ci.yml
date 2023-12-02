@@ -130,7 +130,7 @@ jobs:
 
       - name: Move ppx artifacts
         run: |
-          mv binaries/linux/ppx.exe packages/rescript-schema-ppx/ppx-linux.exe
+          mv binaries/linux/bin.exe packages/rescript-schema-ppx/ppx-linux.exe
 
       - name: Install ppx
         run: pnpm ppx:install
