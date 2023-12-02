@@ -1,0 +1,33 @@
+{
+  "name": "rescript-schema-ppx",
+  "version": "6.1.0",
+  "description": "ReScript PPX to generate rescript-schema from type",
+  "keywords": [
+    "ReScript",
+    "Schema",
+    "PPX",
+    "Decco",
+    "Spice"
+  ],
+  "homepage": "https://github.com/DZakh/rescript-schema/packages/rescript-schema-ppx#readme",
+  "bugs": {
+    "url": "https://github.com/DZakh/rescript-schema/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DZakh/rescript-schema.git"
+  },
+  "license": "MIT",
+  "author": "Dmitry Zakharov <dzakh.dev@gmail.com>",
+  "files": [
+    "install.cjs",
+    "ppx-windows.exe",
+    "ppx-linux.exe",
+    "ppx-osx.exe",
+    "ppx.cmd",
+    "ppx"
+  ],
+  "scripts": {
+    "postinstall": "node ./install.cjs"
+  }
+}

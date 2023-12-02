@@ -1,4 +1,4 @@
-[⬅ Back to highlights](../README.md)
+[⬅ Back to highlights](/README.md)
 
 # ReScript Schema PPX
 
@@ -47,11 +47,11 @@ type film = {
   @as("Title")
   title: string,
   @as("Tags")
-  tags: @schema(S.array(S.string)->S.default(() => [])) array<string>,
+  tags: @schema(S.option(S.array(S.string))->S.Option.getOr([])) array<string>,
   @as("Rating")
   rating: rating,
   @as("Age")
-  deprecatedAgeRestriction: @schema(S.int->S.option->S.deprecate("Use rating instead")) option<int>,
+  deprecatedAgeRestriction: @schema(S.option(S.int)->S.deprecate("Use rating instead")) option<int>,
 }
 
 // 2. ppx will generate the code below
@@ -64,9 +64,9 @@ let ratingSchema = S.union([
 let filmSchema = S.object(s => {
   id: s.field("Id", S.float),
   title: s.field("Title", S.string),
-  tags: s.field("Tags", S.array(S.string)->S.default(() => [])),
+  tags: s.fieldOr("Tags", S.array(S.string), []),
   rating: s.field("Rating", ratingSchema),
-  deprecatedAgeRestriction: s.field("Age", S.int->S.option->S.deprecate("Use rating instead")),
+  deprecatedAgeRestriction: s.field("Age", S.option(S.int)->S.deprecate("Use rating instead")),
 })
 
 // 3. Parse data using the schema
@@ -106,7 +106,7 @@ let filmSchema = S.object(s => {
 let filmJSONSchema = JSONSchema.make(filmSchema)
 ```
 
-> 🧠 Read more about schema usage in the _[ReScript Schema for ReScript users](./rescript-usage.md)_ documentation.
+> 🧠 Read more about schema usage in the _[ReScript Schema for ReScript users](/docs/rescript-usage.md)_ documentation.
 
 ## API reference
 

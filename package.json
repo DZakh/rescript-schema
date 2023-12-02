@@ -13,13 +13,10 @@
     "Decode",
     "Validation",
     "Contract",
-    "rescript-struct",
     "Zod",
-    "Superstruct",
     "Runtypes",
     "Ajv",
-    "Ppx",
-    "Decco"
+    "rescript-struct"
   ],
   "homepage": "https://github.com/DZakh/rescript-schema#readme",
   "bugs": {
