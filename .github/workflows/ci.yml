@@ -30,15 +30,11 @@ jobs:
       - name: Build
         run: opam exec -- dune build --profile static
 
-      - name: Copy built PPX file
-        run: |
-          mv ./_build/default/bin/bin.exe ppx.exe
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: ppx_build_linux
-          path: packages/rescript-schema-ppx/src/ppx.exe
+          path: packages/rescript-schema-ppx/src/_build/default/bin/bin.exe
           if-no-files-found: error
 
   test:
@@ -62,7 +58,17 @@ jobs:
 
       - name: Move ppx artifacts
         run: |
-          mv binaries/linux/ppx.exe packages/rescript-schema-ppx/ppx-linux.exe
+          mv binaries/linux/bin.exe packages/rescript-schema-ppx/ppx-linux.exe
+
+      - name: npm pack (rescript-schema-ppx)
+        run: npm pack
+        working-directory: packages/rescript-schema-ppx
+
+      - name: "Upload artifact: rescript-schema-ppx npm package"
+        uses: actions/upload-artifact@v3
+        with:
+          name: rescript-schema-ppx
+          path: packages/rescript-schema-ppx/rescript-schema-ppx-6.1.0.tgz
 
       - name: Install ppx
         run: pnpm ppx:install
@@ -96,6 +102,12 @@ jobs:
         working-directory: packages/prepack
 
       - run: pnpm prepack
+
+      - name: "Upload artifact: rescript-schema npm package"
+        uses: actions/upload-artifact@v3
+        with:
+          name: rescript-schema
+          path: packages/artifacts
 
   benchmark:
     name: Benchmark
