@@ -9,8 +9,8 @@ on:
       - main
 
 jobs:
-  ppx_build_linux:
-    name: ppx_build_linux
+  ppx-build-linux:
+    name: ppx-build-linux
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -33,13 +33,75 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: ppx_build_linux
+          name: ppx-build-linux
+          path: packages/rescript-schema-ppx/src/_build/default/bin/bin.exe
+          if-no-files-found: error
+
+  ppx-build-macos:
+    name: ppx-build-macos
+    runs-on: macOS-latest
+    defaults:
+      run:
+        working-directory: packages/rescript-schema-ppx/src
+    strategy:
+      matrix:
+        ocaml-compiler:
+          - 4.12.1
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Use OCaml ${{ matrix.ocaml-compiler}}
+        uses: ocaml/setup-ocaml@v2
+        with:
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+
+      - name: Install deps
+        run: opam install . --deps-only --with-test
+
+      - name: Build
+        run: opam exec -- dune build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@master
+        with:
+          name: ppx-build-macos
+          path: packages/rescript-schema-ppx/src/_build/default/bin/bin.exe
+          if-no-files-found: error
+
+  ppx-build-windows:
+    name: ppx-build-windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: packages/rescript-schema-ppx/src
+    strategy:
+      matrix:
+        ocaml-compiler:
+          - 4.12.1
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Use OCaml ${{ matrix.ocaml-compiler}}
+        uses: ocaml/setup-ocaml@v2
+        with:
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+
+      - name: Install deps
+        run: opam install . --deps-only --with-test
+
+      - name: Build
+        run: opam exec -- dune build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@master
+        with:
+          name: ppx-build-windows
           path: packages/rescript-schema-ppx/src/_build/default/bin/bin.exe
           if-no-files-found: error
 
   test:
     name: Test
-    needs: [ppx_build_linux]
+    needs: [ppx-build-linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -53,22 +115,12 @@ jobs:
       - name: Download ppx linux artifacts
         uses: actions/download-artifact@v3
         with:
-          name: ppx_build_linux
+          name: ppx-build-linux
           path: binaries/linux
 
       - name: Move ppx artifacts
         run: |
           mv binaries/linux/bin.exe packages/rescript-schema-ppx/ppx-linux.exe
-
-      - name: npm pack (rescript-schema-ppx)
-        run: npm pack
-        working-directory: packages/rescript-schema-ppx
-
-      - name: "Upload artifact: rescript-schema-ppx npm package"
-        uses: actions/upload-artifact@v3
-        with:
-          name: rescript-schema-ppx
-          path: packages/rescript-schema-ppx/rescript-schema-ppx-6.1.0.tgz
 
       - name: Install ppx
         run: pnpm ppx:install
@@ -83,8 +135,8 @@ jobs:
         with:
           files: coverage/lcov.info
 
-  prepack:
-    name: Prepack
+  pack-rescript-schema:
+    name: Pack rescript-schema
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -109,9 +161,9 @@ jobs:
           name: rescript-schema
           path: packages/artifacts
 
-  benchmark:
-    name: Benchmark
-    needs: [ppx_build_linux]
+  pack-rescript-schema-ppx:
+    name: Pack rescript-schema-ppx
+    needs: [ppx-build-linux, ppx-build-macos, ppx-build-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -125,7 +177,54 @@ jobs:
       - name: Download ppx linux artifacts
         uses: actions/download-artifact@v3
         with:
-          name: ppx_build_linux
+          name: ppx-build-linux
+          path: binaries/linux
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@master
+        with:
+          name: ppx-build-macos
+          path: binaries/macos
+
+      - name: Download windows artifacts
+        uses: actions/download-artifact@master
+        with:
+          name: ppx-build-windows
+          path: binaries/windows
+
+      - name: Move ppx artifacts
+        run: |
+          mv binaries/linux/bin.exe packages/rescript-schema-ppx/ppx-linux.exe
+          mv binaries/macos/bin.exe packages/rescript-schema-ppx/ppx-osx.exe
+          mv binaries/windows/bin.exe packages/rescript-schema-ppx/ppx-windows.exe
+
+      - name: npm pack (rescript-schema-ppx)
+        run: npm pack
+        working-directory: packages/rescript-schema-ppx
+
+      - name: "Upload artifact: rescript-schema-ppx npm package"
+        uses: actions/upload-artifact@v3
+        with:
+          name: rescript-schema-ppx
+          path: packages/rescript-schema-ppx/rescript-schema-ppx-6.1.0.tgz
+
+  benchmark:
+    name: Benchmark
+    needs: [ppx-build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: "pnpm"
+      - run: pnpm install
+
+      - name: Download ppx linux artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: ppx-build-linux
           path: binaries/linux
 
       - name: Move ppx artifacts

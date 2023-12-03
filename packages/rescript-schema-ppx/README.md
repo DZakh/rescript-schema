@@ -26,7 +26,7 @@ Then update your `rescript.json` config:
   ...
 + "bs-dependencies": ["rescript-schema"],
 + "bsc-flags": ["-open RescriptSchema"],
-+ "ppx-flags": ["rescript-schema-ppx"],
++ "ppx-flags": ["rescript-schema-ppx/bin"],
 }
 ```
 

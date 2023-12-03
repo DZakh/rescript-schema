@@ -24,8 +24,8 @@
     "ppx-windows.exe",
     "ppx-linux.exe",
     "ppx-osx.exe",
-    "ppx.cmd",
-    "ppx"
+    "bin.cmd",
+    "bin"
   ],
   "scripts": {
     "postinstall": "node ./install.cjs"
