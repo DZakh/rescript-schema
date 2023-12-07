@@ -148,7 +148,8 @@ export const record: <Output, Input>(
 ) => Schema<Record<string, Output>, Record<string, Input>>;
 
 export const jsonString: <Output>(
-  schema: Schema<Output, unknown>
+  schema: Schema<Output, unknown>,
+  space?: number
 ) => Schema<Output, string>;
 
 export const union: <A extends UnknownSchema, B extends UnknownSchema[]>(

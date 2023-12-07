@@ -113,7 +113,7 @@ let list: t<'value> => t<list<'value>>
 let dict: t<'value> => t<Js.Dict.t<'value>>
 let option: t<'value> => t<option<'value>>
 let null: t<'value> => t<option<'value>>
-let jsonString: t<'value> => t<'value>
+let jsonString: (t<'value>, ~space: int=?) => t<'value>
 let union: array<t<'value>> => t<'value>
 
 type catchCtx<'value> = {

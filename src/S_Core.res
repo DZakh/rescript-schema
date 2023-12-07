@@ -2346,7 +2346,7 @@ module String = {
 }
 
 module JsonString = {
-  let factory = schema => {
+  let factory = (schema, ~space=0) => {
     let schema = schema->toUnknown
     try {
       schema->validateJsonableSchema(~rootSchema=schema, ~isRoot=true)
@@ -2377,7 +2377,9 @@ module JsonString = {
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         let input = b->B.useInput
-        `JSON.stringify(${b->B.use(~schema, ~input, ~path)})`
+        `JSON.stringify(${b->B.use(~schema, ~input, ~path)}${space > 0
+            ? `,null,${space->Stdlib.Int.unsafeToString}`
+            : ""})`
       }),
       ~maybeTypeFilter=Some(String.typeFilter),
     )

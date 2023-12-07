@@ -200,6 +200,32 @@ test("Successfully parses JSON string", (t) => {
   expectType<TypeEqual<typeof value, boolean>>(true);
 });
 
+test("Successfully serialized JSON object", (t) => {
+  const objectSchema = S.schema((_) => ({ foo: [1, 2] }));
+  const schema = S.jsonString(objectSchema);
+  const schemaWithSpace = S.jsonString(objectSchema, 2);
+
+  const value = S.serializeOrThrow(schema, { foo: [1, 2] });
+  t.deepEqual(value, '{"foo":[1,2]}');
+
+  const valueWithSpace = S.serializeOrThrow(schemaWithSpace, { foo: [1, 2] });
+  t.deepEqual(valueWithSpace, '{\n  "foo": [\n    1,\n    2\n  ]\n}');
+
+  expectType<
+    TypeEqual<
+      typeof schema,
+      S.Schema<
+        {
+          foo: number[];
+        },
+        string
+      >
+    >
+  >(true);
+  expectType<TypeEqual<typeof schema, typeof schemaWithSpace>>(true);
+  expectType<TypeEqual<typeof value, string>>(true);
+});
+
 test("Successfully parses optional string", (t) => {
   const schema = S.optional(S.string);
   const value1 = S.parseOrThrow(schema, "foo");

@@ -1899,7 +1899,8 @@ function trim(schema) {
               }));
 }
 
-function factory$4(schema) {
+function factory$4(schema, spaceOpt) {
+  var space = spaceOpt !== undefined ? spaceOpt : 0;
   try {
     validateJsonableSchema(schema, schema, true);
   }
@@ -1925,7 +1926,9 @@ function factory$4(schema) {
             }),
           s: (function (b, param, path) {
               var input = b.i;
-              return "JSON.stringify(" + use(b, schema, input, path) + ")";
+              return "JSON.stringify(" + use(b, schema, input, path) + (
+                      space > 0 ? ",null," + space : ""
+                    ) + ")";
             }),
           f: typeFilter$1,
           i: 0,

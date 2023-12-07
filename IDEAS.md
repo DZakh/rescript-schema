@@ -31,7 +31,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 ## v6.3
 
 - stop reallocate objects without transformations
-- Add `~space` to `S.jsonString` ?
 - Make S.serializeToString super fast
 - Add serialiseToString to js api
 - Make operations more treeshakable by starting passing the actual operation to the initialOperation function. Or add a condition (verify performance)

@@ -17,6 +17,42 @@ test("Successfully serializes JSON", t => {
   )
 })
 
+test("Successfully serializes JSON object", t => {
+  let schema = S.schema(_ =>
+    {
+      "foo": "bar",
+      "baz": [1, 3],
+    }
+  )
+
+  t->Assert.deepEqual(
+    {
+      "foo": "bar",
+      "baz": [1, 3],
+    }->S.serializeToUnknownWith(S.jsonString(schema)),
+    Ok(%raw(`'{"foo":"bar","baz":[1,3]}'`)),
+    (),
+  )
+})
+
+test("Successfully serializes JSON object with space", t => {
+  let schema = S.schema(_ =>
+    {
+      "foo": "bar",
+      "baz": [1, 3],
+    }
+  )
+
+  t->Assert.deepEqual(
+    {
+      "foo": "bar",
+      "baz": [1, 3],
+    }->S.serializeToUnknownWith(S.jsonString(schema, ~space=2)),
+    Ok(%raw(`'{\n  "foo": "bar",\n  "baz": [\n    1,\n    3\n  ]\n}'`)),
+    (),
+  )
+})
+
 test("Fails to create schema when passing non-jsonable schema to S.jsonString", t => {
   t->Assert.throws(
     () => {
@@ -53,4 +89,10 @@ test("Compiled serialize code snapshot", t => {
   let schema = S.jsonString(S.bool)
 
   t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return JSON.stringify(i)}`)
+})
+
+test("Compiled serialize code snapshot with space", t => {
+  let schema = S.jsonString(S.bool, ~space=2)
+
+  t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return JSON.stringify(i,null,2)}`)
 })

@@ -793,7 +793,7 @@ The `json` schema represents a data that is compatible with JSON.
 
 ### **`jsonString`**
 
-`S.t<'value> => S.t<'value>`
+`(S.t<'value>, ~space: int=?) => S.t<'value>`
 
 ```rescript
 let schema = S.jsonString(S.int)
