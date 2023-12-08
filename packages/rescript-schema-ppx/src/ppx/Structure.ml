@@ -134,10 +134,17 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
   in
   let customSchemaExpression = getAttributeByName ptyp_attributes "s.matches" in
   let option_factory_expression =
-    match getAttributeByName ptyp_attributes "s.null" with
-    | Ok None -> [%expr S.option]
-    | Ok (Some _) -> [%expr S.null]
-    | Error s -> fail ptyp_loc s
+    match
+      ( getAttributeByName ptyp_attributes "s.null",
+        getAttributeByName ptyp_attributes "s.nullable" )
+    with
+    | Ok None, Ok None -> [%expr S.option]
+    | Ok (Some _), Ok None -> [%expr S.null]
+    | Ok None, Ok (Some _) -> [%expr S.nullable]
+    | Ok (Some _), Ok (Some _) ->
+      fail ptyp_loc
+        "Attributes @s.null and @s.nullable are not supported at the same time"
+    | _, Error s | Error s, _ -> fail ptyp_loc s
   in
   let schema_expression =
     match (deprecatedCustomSchemaExpression, customSchemaExpression) with

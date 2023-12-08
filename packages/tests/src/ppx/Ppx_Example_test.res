@@ -76,6 +76,18 @@ test("@s.null with @s.default", t => {
 })
 
 @schema
+type nullable = @s.nullable option<string>
+test("@s.nullable", t => {
+  t->assertEqualSchemas(nullableSchema, S.nullable(S.string))
+})
+
+@schema
+type nullableWithDefault = @s.nullable @s.default("Unknown") string
+test("@s.nullable with @s.default", t => {
+  t->assertEqualSchemas(nullableWithDefaultSchema, S.nullable(S.string)->S.Option.getOr("Unknown"))
+})
+
+@schema
 type deprecate = @s.deprecate("Will be removed in APIv2") string
 test("@s.deprecate", t => {
   t->assertEqualSchemas(deprecateSchema, S.string->S.deprecate("Will be removed in APIv2"))

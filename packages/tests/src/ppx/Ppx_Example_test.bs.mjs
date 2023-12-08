@@ -72,6 +72,18 @@ Ava("@s.null with @s.default", (function (t) {
         U.assertEqualSchemas(t, nullWithDefaultSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.$$null(S$RescriptSchema.string), "Unknown"), undefined);
       }));
 
+var nullableSchema = S$RescriptSchema.nullable(S$RescriptSchema.string);
+
+Ava("@s.nullable", (function (t) {
+        U.assertEqualSchemas(t, nullableSchema, S$RescriptSchema.nullable(S$RescriptSchema.string), undefined);
+      }));
+
+var nullableWithDefaultSchema = S$RescriptSchema.$$Option.getOr(S$RescriptSchema.nullable(S$RescriptSchema.string), "Unknown");
+
+Ava("@s.nullable with @s.default", (function (t) {
+        U.assertEqualSchemas(t, nullableWithDefaultSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.nullable(S$RescriptSchema.string), "Unknown"), undefined);
+      }));
+
 var deprecateSchema = S$RescriptSchema.deprecate(S$RescriptSchema.string, "Will be removed in APIv2");
 
 Ava("@s.deprecate", (function (t) {
@@ -92,6 +104,8 @@ export {
   defaultWithSchema ,
   nullSchema ,
   nullWithDefaultSchema ,
+  nullableSchema ,
+  nullableWithDefaultSchema ,
   deprecateSchema ,
   describeSchema ,
 }
