@@ -47,11 +47,11 @@ type film = {
   @as("Title")
   title: string,
   @as("Tags")
-  tags: @schema(S.option(S.array(S.string))->S.Option.getOr([])) array<string>,
+  tags: @s.matches(S.option(S.array(S.string))->S.Option.getOr([])) array<string>,
   @as("Rating")
   rating: rating,
   @as("Age")
-  deprecatedAgeRestriction: @schema(S.option(S.int)->S.deprecate("Use rating instead")) option<int>,
+  deprecatedAgeRestriction: @s.matches(S.option(S.int)->S.deprecate("Use rating instead")) option<int>,
 }
 
 // 2. ppx will generate the code below
@@ -116,7 +116,7 @@ let filmJSONSchema = JSONSchema.make(filmSchema)
 
 Indicates that a schema should be generated for the given type.
 
-### `@schema(S.t<'value>)`
+### `@s.matches(S.t<'value>)`
 
 **Applies to**: type expressions
 

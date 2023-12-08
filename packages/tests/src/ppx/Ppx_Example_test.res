@@ -14,11 +14,12 @@ type film = {
   @as("Title")
   title: string,
   @as("Tags")
-  tags: @schema(S.array(S.string)->S.option->S.Option.getOr([])) array<string>,
+  tags: @s.matches(S.array(S.string)->S.option->S.Option.getOr([])) array<string>,
   @as("Rating")
   rating: rating,
   @as("Age")
-  deprecatedAgeRestriction: @schema(S.int->S.option->S.deprecate("Use rating instead")) option<int>,
+  deprecatedAgeRestriction: @s.matches(S.int->S.option->S.deprecate("Use rating instead"))
+  option<int>,
 }
 
 test("Example", t => {
