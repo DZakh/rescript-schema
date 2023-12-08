@@ -260,6 +260,7 @@ module Literal = {
     | NaN => `NaN`
     | Undefined => `undefined`
     | Null => `null`
+    // FIXME: Why isn't it a string???
     | Number(v) => v->Float.unsafeToString
     | Boolean(v) => v->Bool.unsafeToString
     | BigInt(v) => v->BigInt.unsafeToString
@@ -335,8 +336,10 @@ type rec t<'value> = {
   mutable parseOperationBuilder: builder,
   @as("s")
   mutable serializeOperationBuilder: builder,
+  @as("j")
+  maybeToJsonString?: string => string,
   @as("f")
-  maybeTypeFilter: option<(~inputVar: string) => string>,
+  maybeTypeFilter?: (~inputVar: string) => string,
   @as("i")
   mutable isAsyncParse: isAsyncParse,
   @as("m")
@@ -777,6 +780,210 @@ module Builder = {
 // TODO: Split validation code and transformation code
 module B = Builder.Ctx
 
+module InternalLiteral = {
+  open Stdlib
+
+  type rec t = {
+    public: Literal.t,
+    value: unknown,
+    checkBuilder: (B.t, ~value: unknown, ~inputVar: string) => string,
+    jsonString?: string,
+  }
+
+  let undefined = {
+    public: Undefined,
+    value: %raw(`undefined`),
+    checkBuilder: (_, ~value as _, ~inputVar) => `${inputVar}===void 0`,
+  }
+
+  let null = {
+    public: Null,
+    value: %raw(`null`),
+    checkBuilder: (_, ~value as _, ~inputVar) => `${inputVar}===null`,
+  }
+
+  let nan = {
+    public: NaN,
+    value: %raw(`NaN`),
+    checkBuilder: (_, ~value as _, ~inputVar) => `Number.isNaN(${inputVar})`,
+  }
+
+  let strictEqualCheckBuilder = (b, ~value, ~inputVar) => `${inputVar}===${b->B.embed(value)}`
+
+  let string = value => {
+    {
+      public: String(value),
+      value: value->castAnyToUnknown,
+      jsonString: Stdlib.Inlined.Value.fromString(Stdlib.Inlined.Value.fromString(value)),
+      checkBuilder: strictEqualCheckBuilder,
+    }
+  }
+
+  let boolean = value => {
+    let inlined = value ? "true" : "false"
+    {
+      public: Boolean(value),
+      value: value->castAnyToUnknown,
+      jsonString: inlined,
+      checkBuilder: (_, ~value as _, ~inputVar) => `${inputVar}===${inlined}`,
+    }
+  }
+
+  let number = value => {
+    {
+      public: Number(value),
+      value: value->castAnyToUnknown,
+      jsonString: value->Js.Float.toString,
+      checkBuilder: strictEqualCheckBuilder,
+    }
+  }
+
+  let symbol = value => {
+    {
+      public: Symbol(value),
+      value: value->castAnyToUnknown,
+      checkBuilder: strictEqualCheckBuilder,
+    }
+  }
+
+  let bigint = value => {
+    {
+      public: BigInt(value),
+      value: value->castAnyToUnknown,
+      checkBuilder: strictEqualCheckBuilder,
+    }
+  }
+
+  let function = value => {
+    {
+      public: Function(value),
+      value: value->castAnyToUnknown,
+      checkBuilder: strictEqualCheckBuilder,
+    }
+  }
+
+  let object = value => {
+    {
+      public: Object(value),
+      value: value->castAnyToUnknown,
+      checkBuilder: strictEqualCheckBuilder,
+    }
+  }
+
+  let rec parse = (value): t => {
+    let value = value->castAnyToUnknown
+    let typeOfValue = value->Type.typeof
+    switch typeOfValue {
+    | #undefined => undefined
+    | #object if value === %raw(`null`) => null
+    | #object if value->Stdlib.Array.isArray => array(value->(Obj.magic: unknown => array<unknown>))
+    | #object
+      if (value->(Obj.magic: 'a => {"constructor": unknown}))["constructor"] === %raw("Object") =>
+      dict(value->(Obj.magic: unknown => Js.Dict.t<unknown>))
+    | #object => object(value->(Obj.magic: unknown => Js.Types.obj_val))
+    | #function => function(value->(Obj.magic: unknown => Js.Types.function_val))
+    | #string => string(value->(Obj.magic: unknown => string))
+    | #number if value->(Obj.magic: unknown => float)->Js.Float.isNaN => nan
+    | #number => number(value->(Obj.magic: unknown => float))
+    | #boolean => boolean(value->(Obj.magic: unknown => bool))
+    | #symbol => symbol(value->(Obj.magic: unknown => Js.Types.symbol))
+    | #bigint => bigint(value->(Obj.magic: unknown => Js.Types.bigint_val))
+    }
+  }
+  and dict = value => {
+    let items = Js.Dict.empty()
+    let publicItems = Js.Dict.empty()
+    let maybeJsonString = ref(Some("{"))
+    let fields = value->Js.Dict.keys
+    let numberOfFields = fields->Js.Array2.length
+    for idx in 0 to numberOfFields - 1 {
+      let field = fields->Js.Array2.unsafe_get(idx)
+      let itemValue = value->Js.Dict.unsafeGet(field)
+      let literal = itemValue->parse
+      maybeJsonString.contents = switch (maybeJsonString.contents, literal.jsonString) {
+      | (Some(jsonString), Some(itemJsonString)) =>
+        Some(
+          jsonString ++
+          (idx === 0 ? "" : ",") ++
+          field->Stdlib.Inlined.Value.fromString ++
+          ":" ++
+          itemJsonString,
+        )
+      | _ => None
+      }
+      items->Js.Dict.set(field, literal)
+      publicItems->Js.Dict.set(field, literal.public)
+    }
+
+    {
+      public: Dict(publicItems),
+      value: value->castAnyToUnknown,
+      jsonString: ?switch maybeJsonString.contents {
+      | Some(jsonString) => Some(jsonString ++ "}")
+      | None => None
+      },
+      checkBuilder: (b, ~value, ~inputVar) =>
+        `(${inputVar}===${b->B.embed(
+            value,
+          )}||${inputVar}&&${inputVar}.constructor===Object&&Object.keys(${inputVar}).length===${numberOfFields->Stdlib.Int.unsafeToString}` ++
+        (numberOfFields > 0
+          ? "&&" ++
+            fields
+            ->Js.Array2.map(field => {
+              let literal = items->Js.Dict.unsafeGet(field)
+              b->literal.checkBuilder(
+                ~value=literal.value,
+                ~inputVar=`${inputVar}[${field->Stdlib.Inlined.Value.fromString}]`,
+              )
+            })
+            ->Js.Array2.joinWith("&&")
+          : "") ++ ")",
+    }
+  }
+  and array = value => {
+    let items = []
+    let publicItems = []
+    let maybeJsonString = ref(Some("["))
+    for idx in 0 to value->Js.Array2.length - 1 {
+      let itemValue = value->Js.Array2.unsafe_get(idx)
+      let literal = itemValue->parse
+      maybeJsonString.contents = switch (maybeJsonString.contents, literal.jsonString) {
+      | (Some(jsonString), Some(itemJsonString)) =>
+        Some(jsonString ++ (idx === 0 ? "" : ",") ++ itemJsonString)
+      | _ => None
+      }
+      items->Js.Array2.push(literal)->ignore
+      publicItems->Js.Array2.push(literal.public)->ignore
+    }
+
+    {
+      public: Array(publicItems),
+      value: value->castAnyToUnknown,
+      jsonString: ?switch maybeJsonString.contents {
+      | Some(jsonString) => Some(jsonString ++ "]")
+      | None => None
+      },
+      checkBuilder: (b, ~value, ~inputVar) =>
+        `(${inputVar}===${b->B.embed(
+            value,
+          )}||Array.isArray(${inputVar})&&${inputVar}.length===${items
+          ->Js.Array2.length
+          ->Stdlib.Int.unsafeToString}` ++
+        (items->Js.Array2.length > 0
+          ? "&&" ++
+            items
+            ->Js.Array2.mapi((literal, idx) =>
+              b->literal.checkBuilder(
+                ~value=literal.value,
+                ~inputVar=`${inputVar}[${idx->Stdlib.Int.unsafeToString}]`,
+              )
+            )
+            ->Js.Array2.joinWith("&&")
+          : "") ++ ")",
+    }
+  }
+}
+
 let toLiteral = {
   let rec loop = schema => {
     switch schema->classify {
@@ -825,6 +1032,7 @@ let isAsyncParse = schema => {
   }
 }
 
+// FIXME: recursive ?
 let rec validateJsonableSchema = (schema, ~rootSchema, ~isRoot=false) => {
   if isRoot || rootSchema !== schema {
     switch schema->classify {
@@ -832,12 +1040,18 @@ let rec validateJsonableSchema = (schema, ~rootSchema, ~isRoot=false) => {
     | Int
     | Float
     | Bool
-    | Never
-    | JSON => ()
+    | // FIXME:
+    Never
+    | // FIXME:
+    JSON => ()
+    // FIXME:
     | Dict(schema)
-    | Null(schema)
-    | Array(schema) =>
+    | // FIXME:
+    Null(schema)
+    | // FIXME:
+    Array(schema) =>
       schema->validateJsonableSchema(~rootSchema)
+    // FIXME:
     | Object({fieldNames, fields}) =>
       for idx in 0 to fieldNames->Js.Array2.length - 1 {
         let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
@@ -858,10 +1072,11 @@ let rec validateJsonableSchema = (schema, ~rootSchema, ~isRoot=false) => {
         try {
           schema->validateJsonableSchema(~rootSchema)
         } catch {
-        // TODO: Should throw with the nested schema instead of prepending path?
+        // FIXME: Should throw with the nested schema instead of prepending path?
         | exn => exn->InternalError.prependLocationOrRethrow(i->Js.Int.toString)
         }
       })
+    // FIXME:
     | Union(childrenSchemas) =>
       childrenSchemas->Js.Array2.forEach(schema => schema->validateJsonableSchema(~rootSchema))
     | Literal(l) if l->Literal.isJsonable => ()
@@ -881,12 +1096,14 @@ let make = (
   ~parseOperationBuilder,
   ~serializeOperationBuilder,
   ~maybeTypeFilter,
+  ~toJsonString=?,
 ) => {
   tagged,
   parseOperationBuilder,
   serializeOperationBuilder,
   isAsyncParse: Unknown,
-  maybeTypeFilter,
+  ?maybeTypeFilter,
+  maybeToJsonString: ?toJsonString,
   name,
   metadataMap,
 }
@@ -898,13 +1115,15 @@ let makeWithNoopSerializer = (
   ~metadataMap,
   ~parseOperationBuilder,
   ~maybeTypeFilter,
+  ~toJsonString=?,
 ) => {
   name,
   tagged,
   parseOperationBuilder,
   serializeOperationBuilder: Builder.noop,
+  ?maybeTypeFilter,
+  maybeToJsonString: ?toJsonString,
   isAsyncParse: Unknown,
-  maybeTypeFilter,
   metadataMap,
 }
 
@@ -1180,6 +1399,7 @@ let setName = (schema, name) => {
     ~serializeOperationBuilder=schema.serializeOperationBuilder,
     ~tagged=schema.tagged,
     ~maybeTypeFilter=schema.maybeTypeFilter,
+    ~toJsonString=?schema.maybeToJsonString,
     ~metadataMap=schema.metadataMap,
   )
 }
@@ -1219,6 +1439,7 @@ let internalRefine = (schema, refiner) => {
       )
     }),
     ~maybeTypeFilter=schema.maybeTypeFilter,
+    ~toJsonString=?schema.maybeToJsonString,
     ~metadataMap=schema.metadataMap,
   )
 }
@@ -1287,6 +1508,7 @@ let transform: (
       }
     }),
     ~maybeTypeFilter=schema.maybeTypeFilter,
+    ~toJsonString=?schema.maybeToJsonString,
     ~metadataMap=schema.metadataMap,
   )
 }
@@ -1407,64 +1629,18 @@ let custom = (name, definer) => {
   )
 }
 
-let rec literalCheckBuilder = (b, ~value, ~inputVar) => {
-  if value->castUnknownToAny->Js.Float.isNaN {
-    `Number.isNaN(${inputVar})`
-  } else if value === %raw(`null`) {
-    `${inputVar}===null`
-  } else if value === %raw(`void 0`) {
-    `${inputVar}===void 0`
-  } else {
-    let check = `${inputVar}===${b->B.embed(value)}`
-    if value->Stdlib.Array.isArray {
-      let value = value->(Obj.magic: unknown => array<unknown>)
-      `(${check}||Array.isArray(${inputVar})&&${inputVar}.length===${value
-        ->Js.Array2.length
-        ->Stdlib.Int.unsafeToString}` ++
-      (value->Js.Array2.length > 0
-        ? "&&" ++
-          value
-          ->Js.Array2.mapi((item, idx) =>
-            b->literalCheckBuilder(
-              ~value=item,
-              ~inputVar=`${inputVar}[${idx->Stdlib.Int.unsafeToString}]`,
-            )
-          )
-          ->Js.Array2.joinWith("&&")
-        : "") ++ ")"
-    } else if %raw(`value&&value.constructor===Object`) {
-      let value = value->(Obj.magic: unknown => Js.Dict.t<unknown>)
-      let keys = value->Js.Dict.keys
-      let numberOfKeys = keys->Js.Array2.length
-      `(${check}||${inputVar}&&${inputVar}.constructor===Object&&Object.keys(${inputVar}).length===${numberOfKeys->Stdlib.Int.unsafeToString}` ++
-      (numberOfKeys > 0
-        ? "&&" ++
-          keys
-          ->Js.Array2.map(key => {
-            b->literalCheckBuilder(
-              ~value=value->Js.Dict.unsafeGet(key),
-              ~inputVar=`${inputVar}[${key->Stdlib.Inlined.Value.fromString}]`,
-            )
-          })
-          ->Js.Array2.joinWith("&&")
-        : "") ++ ")"
-    } else {
-      check
-    }
-  }
-}
-
 let literal = value => {
   let value = value->castAnyToUnknown
-  let literal = value->Literal.classify
+  let literal = value->InternalLiteral.parse
+  let publicLiteral = literal.public
   let operationBuilder = Builder.make((b, ~selfSchema as _, ~path) => {
     let inputVar = b->B.useInputVar
     b.code =
       b.code ++
-      `${b->literalCheckBuilder(~value, ~inputVar)}||${b->B.raiseWithArg(
+      `${b->literal.checkBuilder(~value, ~inputVar)}||${b->B.raiseWithArg(
           ~path,
           input => InvalidLiteral({
-            expected: literal,
+            expected: publicLiteral,
             received: input,
           }),
           inputVar,
@@ -1472,11 +1648,15 @@ let literal = value => {
     inputVar
   })
   make(
-    ~name=() => `Literal(${literal->Literal.toText})`,
+    ~name=() => `Literal(${publicLiteral->Literal.toText})`,
     ~metadataMap=Metadata.Map.empty,
-    ~tagged=Literal(literal),
+    ~tagged=Literal(publicLiteral),
     ~parseOperationBuilder=operationBuilder,
     ~serializeOperationBuilder=operationBuilder,
+    ~toJsonString=?switch literal.jsonString {
+    | Some(jsonString) => Some(_ => jsonString)
+    | None => None
+    },
     ~maybeTypeFilter=None,
   )
 }
@@ -1607,6 +1787,7 @@ module Variant = {
           }
         }),
         ~maybeTypeFilter=schema.maybeTypeFilter,
+        ~toJsonString=?schema.maybeToJsonString,
         ~metadataMap=schema.metadataMap,
       )
     }
@@ -1727,6 +1908,8 @@ module Null = {
       ~parseOperationBuilder=Option.parseOperationBuilder,
       ~serializeOperationBuilder=Option.serializeOperationBuilder,
       ~maybeTypeFilter=Option.maybeTypeFilter(~schema, ~inlinedNoneValue="null"),
+      //FIXME:
+      ~toJsonString=input => `JSON.stringify(${input})`,
     )
   }
 }
@@ -2074,6 +2257,22 @@ module Object = {
         `{${fieldsCodeRef.contents}}`
       }),
       ~maybeTypeFilter=Some(typeFilter),
+      ~toJsonString=input => {
+        let jsonStringRef = ref(`'{`)
+        for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
+          let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
+          jsonStringRef.contents =
+            jsonStringRef.contents ++
+            (idx === 0 ? `` : `,`) ++
+            itemDefinition.inlinedInputLocation ++
+            `:` ++
+            `'+` ++
+            (itemDefinition.schema.maybeToJsonString->(Obj.magic: option<'a> => 'a))(
+              `${input}[${itemDefinition.inlinedInputLocation}]`,
+            ) ++ `+'`
+        }
+        jsonStringRef.contents ++ `}'`
+      },
     )
   }
 
@@ -2087,6 +2286,7 @@ module Object = {
         ~serializeOperationBuilder=schema.serializeOperationBuilder,
         ~maybeTypeFilter=schema.maybeTypeFilter,
         ~metadataMap=schema.metadataMap,
+        ~toJsonString=?schema.maybeToJsonString,
       )
     | _ => schema
     }
@@ -2102,6 +2302,7 @@ module Object = {
         ~serializeOperationBuilder=schema.serializeOperationBuilder,
         ~maybeTypeFilter=schema.maybeTypeFilter,
         ~metadataMap=schema.metadataMap,
+        ~toJsonString=?schema.maybeToJsonString,
       )
     // TODO: Should it throw for non Object schemas?
     | _ => schema
@@ -2132,6 +2333,7 @@ module Never = {
     ~parseOperationBuilder=builder,
     ~serializeOperationBuilder=builder,
     ~maybeTypeFilter=None,
+    ~toJsonString=_ => `null`,
   )
 }
 
@@ -2143,7 +2345,6 @@ module Unknown = {
     serializeOperationBuilder: Builder.noop,
     isAsyncParse: Value(false),
     metadataMap: Metadata.Map.empty,
-    maybeTypeFilter: None,
   }
 }
 
@@ -2192,6 +2393,7 @@ module String = {
     ~tagged=String,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
+    ~toJsonString=input => `JSON.stringify(${input})`,
   )
 
   let min = (schema, length, ~message as maybeMessage=?) => {
@@ -2348,15 +2550,12 @@ module String = {
 module JsonString = {
   let factory = (schema, ~space=0) => {
     let schema = schema->toUnknown
-    try {
-      schema->validateJsonableSchema(~rootSchema=schema, ~isRoot=true)
-    } catch {
-    | exn => {
-        let _ = exn->InternalError.getOrRethrow
-        InternalError.panic(
-          `The schema ${schema.name()} passed to S.jsonString is not compatible with JSON`,
-        )
-      }
+    let toJsonString = switch schema.maybeToJsonString {
+    | Some(v) => v
+    | None =>
+      InternalError.panic(
+        `The schema ${schema.name()} passed to S.jsonString is not compatible with JSON`,
+      )
     }
     make(
       ~name=primitiveName,
@@ -2377,9 +2576,15 @@ module JsonString = {
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         let input = b->B.useInput
-        `JSON.stringify(${b->B.use(~schema, ~input, ~path)}${space > 0
-            ? `,null,${space->Stdlib.Int.unsafeToString}`
-            : ""})`
+        switch space {
+        | 0 => toJsonString(input)
+        | _ =>
+          `JSON.stringify(${b->B.use(
+              ~schema,
+              ~input,
+              ~path,
+            )},null,${space->Stdlib.Int.unsafeToString})`
+        }
       }),
       ~maybeTypeFilter=Some(String.typeFilter),
     )
@@ -2395,6 +2600,7 @@ module Bool = {
     ~tagged=Bool,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
+    ~toJsonString=input => `(${input}?"true":"false")`,
   )
 }
 
@@ -2431,6 +2637,7 @@ module Int = {
     ~tagged=Int,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
+    ~toJsonString=input => `${input}.toString()`,
   )
 
   let min = (schema, minValue, ~message as maybeMessage=?) => {
@@ -2512,6 +2719,7 @@ module Float = {
     ~tagged=Float,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
+    ~toJsonString=input => `${input}.toString()`,
   )
 
   let min = (schema, minValue, ~message as maybeMessage=?) => {
@@ -2636,6 +2844,8 @@ module Array = {
         }
       }),
       ~maybeTypeFilter=Some(typeFilter),
+      //FIXME:
+      ~toJsonString=input => `JSON.stringify(${input})`,
     )
   }
 
@@ -2705,16 +2915,18 @@ module Dict = {
 
         b.code =
           b.code ++
-          `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
-              let itemOutputVar =
-                b->B.withPathPrepend(
-                  ~path,
-                  ~dynamicLocationVar=keyVar,
-                  (b, ~path) =>
-                    b->B.useWithTypeFilter(~schema, ~input=`${inputVar}[${keyVar}]`, ~path),
-                )
-              `${outputVar}[${keyVar}]=${itemOutputVar}`
-            })}}`
+          `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(
+              b => {
+                let itemOutputVar =
+                  b->B.withPathPrepend(
+                    ~path,
+                    ~dynamicLocationVar=keyVar,
+                    (b, ~path) =>
+                      b->B.useWithTypeFilter(~schema, ~input=`${inputVar}[${keyVar}]`, ~path),
+                  )
+                `${outputVar}[${keyVar}]=${itemOutputVar}`
+              },
+            )}}`
 
         let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
         if isAsync {
@@ -2741,21 +2953,25 @@ module Dict = {
 
           b.code =
             b.code ++
-            `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
-                let itemOutputVar =
-                  b->B.withPathPrepend(
-                    ~path,
-                    ~dynamicLocationVar=keyVar,
-                    (b, ~path) => b->B.use(~schema, ~input=`${inputVar}[${keyVar}]`, ~path),
-                  )
+            `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(
+                b => {
+                  let itemOutputVar =
+                    b->B.withPathPrepend(
+                      ~path,
+                      ~dynamicLocationVar=keyVar,
+                      (b, ~path) => b->B.use(~schema, ~input=`${inputVar}[${keyVar}]`, ~path),
+                    )
 
-                `${outputVar}[${keyVar}]=${itemOutputVar}`
-              })}}`
+                  `${outputVar}[${keyVar}]=${itemOutputVar}`
+                },
+              )}}`
 
           outputVar
         }
       }),
       ~maybeTypeFilter=Some(Object.typeFilter),
+      //FIXME:
+      ~toJsonString=input => `JSON.stringify(${input})`,
     )
   }
 }
@@ -2825,8 +3041,10 @@ module Tuple = {
     let definition = definer((ctx :> ctx))->(Obj.magic: 'any => Definition.t<Object.itemDefinition>)
     let {itemDefinitionsSet, schemas} = ctx
     let length = schemas->Js.Array2.length
+    let isJsonableRef = ref(true)
     for idx in 0 to length - 1 {
-      if schemas->Js.Array2.unsafe_get(idx)->Obj.magic->not {
+      let schema = schemas->Js.Array2.unsafe_get(idx)
+      if schema->Obj.magic->not {
         let schema = unit->toUnknown
         let inlinedInputLocation = `"${idx->Stdlib.Int.unsafeToString}"`
         let itemDefinition: Object.itemDefinition = {
@@ -2836,6 +3054,9 @@ module Tuple = {
         }
         schemas->Js.Array2.unsafe_set(idx, schema)
         itemDefinitionsSet->Stdlib.Set.add(itemDefinition)->ignore
+        isJsonableRef.contents = false
+      } else if schema.maybeToJsonString === None {
+        isJsonableRef.contents = false
       }
     }
     let itemDefinitions = itemDefinitionsSet->Stdlib.Set.toArray
@@ -2944,6 +3165,25 @@ module Tuple = {
         outputVar
       }),
       ~maybeTypeFilter=Some(Array.typeFilter),
+      ~toJsonString=?switch isJsonableRef.contents {
+      | true =>
+        Some(
+          input => {
+            let jsonStringRef = ref(`'['+`)
+            for idx in 0 to schemas->Js.Array2.length - 1 {
+              let schema = schemas->Js.Array2.unsafe_get(idx)
+              jsonStringRef.contents =
+                jsonStringRef.contents ++
+                (idx === 0 ? `` : `+','+`) ++
+                (schema.maybeToJsonString->(Obj.magic: option<'a> => 'a))(
+                  `${input}[${idx->Stdlib.Int.unsafeToString}]`,
+                )
+            }
+            jsonStringRef.contents ++ `+']'`
+          },
+        )
+      | false => None
+      },
       ~metadataMap=Metadata.Map.empty,
     )
   }
@@ -3062,26 +3302,24 @@ module Union = {
 
           b.code =
             b.code ++
-            `try{${b->B.scope(
-                b => {
-                  let itemOutput = b->B.use(~schema=itemSchema, ~input=inputVar, ~path=Path.empty)
-                  let itemOutput = switch itemSchema.maybeTypeFilter {
-                  | Some(typeFilter) =>
-                    let itemOutputVar = b->B.toVar(itemOutput)
-                    b.code =
-                      b.code ++
-                      b->B.typeFilterCode(
-                        ~schema=itemSchema,
-                        ~typeFilter,
-                        ~inputVar=itemOutputVar,
-                        ~path=Path.empty,
-                      )
-                    itemOutputVar
-                  | None => itemOutput
-                  }
-                  `${outputVar}=${itemOutput}`
-                },
-              )}}catch(${errorVar}){if(${b->B.isInternalError(errorVar)}){`
+            `try{${b->B.scope(b => {
+                let itemOutput = b->B.use(~schema=itemSchema, ~input=inputVar, ~path=Path.empty)
+                let itemOutput = switch itemSchema.maybeTypeFilter {
+                | Some(typeFilter) =>
+                  let itemOutputVar = b->B.toVar(itemOutput)
+                  b.code =
+                    b.code ++
+                    b->B.typeFilterCode(
+                      ~schema=itemSchema,
+                      ~typeFilter,
+                      ~inputVar=itemOutputVar,
+                      ~path=Path.empty,
+                    )
+                  itemOutputVar
+                | None => itemOutput
+                }
+                `${outputVar}=${itemOutput}`
+              })}}catch(${errorVar}){if(${b->B.isInternalError(errorVar)}){`
 
           codeEndRef.contents = `}else{throw ${errorVar}}}` ++ codeEndRef.contents
         }
@@ -3098,6 +3336,8 @@ module Union = {
         outputVar
       }),
       ~maybeTypeFilter=None,
+      //FIXME:
+      ~toJsonString=input => `JSON.stringify(${input})`,
     )
   }
 }
@@ -3116,6 +3356,7 @@ let json = makeWithNoopSerializer(
   ~tagged=JSON,
   ~metadataMap=Metadata.Map.empty,
   ~maybeTypeFilter=None,
+  ~toJsonString=input => `JSON.stringify(${input})`,
   ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
     let rec parse = (input, ~path=path) => {
       switch input->Stdlib.Type.typeof {
@@ -3215,6 +3456,7 @@ let catch = (schema, getFallbackValue) => {
     ~tagged=schema.tagged,
     ~maybeTypeFilter=None,
     ~metadataMap=schema.metadataMap,
+    ~toJsonString=?schema.maybeToJsonString,
   )
 }
 
