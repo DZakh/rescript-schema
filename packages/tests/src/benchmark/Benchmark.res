@@ -166,4 +166,27 @@ Suite.make()
     data->S.serializeOrRaiseWith(schema)
   }
 })
+// V6.2 x 279,905 ops/sec
+->Suite.addWithPrepare("Stringify with JSON.stringify", () => {
+  let data = makeTestObject()
+  () => {
+    data->Js.Json.stringifyAny
+  }
+})
+// V6.2 x 278,250 ops/sec
+->Suite.addWithPrepare("Stringify with S.serializeToJsonStringWith", () => {
+  let data = makeTestObject()
+  let schema = makeAdvancedObjectSchema()
+  () => {
+    data->S.serializeToJsonStringWith(schema)
+  }
+})
+// V6.2 x 277,401 ops/sec
+->Suite.addWithPrepare("Stringify with S.jsonString", () => {
+  let data = makeTestObject()
+  let schema = S.jsonString(makeAdvancedObjectSchema())
+  () => {
+    data->S.serializeToUnknownWith(schema)
+  }
+})
 ->Suite.run

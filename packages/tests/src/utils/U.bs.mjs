@@ -46,6 +46,7 @@ function cleanUpSchema(schema) {
         switch (key) {
           case "f" :
           case "i" :
+          case "j" :
           case "n" :
           case "op" :
           case "opa" :

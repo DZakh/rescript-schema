@@ -99,7 +99,7 @@ module Common = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{(i===e[0]||Array.isArray(i)&&i.length===2&&i[0]===e[1]&&i[1]===e[2])||e[3](i);return i}`,
+      `i=>{(i===e[0]||Array.isArray(i)&&i.length===2&&i[0]===e[1]&&i[1]===true)||e[2](i);return i}`,
     )
   })
 
@@ -109,7 +109,7 @@ module Common = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#serialize,
-      `i=>{(i===e[0]||Array.isArray(i)&&i.length===2&&i[0]===e[1]&&i[1]===e[2])||e[3](i);return i}`,
+      `i=>{(i===e[0]||Array.isArray(i)&&i.length===2&&i[0]===e[1]&&i[1]===true)||e[2](i);return i}`,
     )
   })
 }

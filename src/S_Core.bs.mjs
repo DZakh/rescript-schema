@@ -486,6 +486,196 @@ function build(builder, schema, operation) {
   return new Function("e", "s", "return " + inlinedFunction)(b.e, symbol);
 }
 
+var undefined_value = undefined;
+
+function undefined_checkBuilder(param, param$1, inputVar) {
+  return inputVar + "===void 0";
+}
+
+var $$undefined = {
+  public: "Undefined",
+  value: undefined_value,
+  checkBuilder: undefined_checkBuilder
+};
+
+var null_value = null;
+
+function null_checkBuilder(param, param$1, inputVar) {
+  return inputVar + "===null";
+}
+
+var $$null = {
+  public: "Null",
+  value: null_value,
+  checkBuilder: null_checkBuilder
+};
+
+var nan_value = NaN;
+
+function nan_checkBuilder(param, param$1, inputVar) {
+  return "Number.isNaN(" + inputVar + ")";
+}
+
+var nan = {
+  public: "NaN",
+  value: nan_value,
+  checkBuilder: nan_checkBuilder
+};
+
+function strictEqualCheckBuilder(b, value, inputVar) {
+  return inputVar + "===" + ("e[" + (b.e.push(value) - 1) + "]");
+}
+
+function parse(value) {
+  var typeOfValue = typeof value;
+  if (typeOfValue === "symbol") {
+    return {
+            public: {
+              TAG: "Symbol",
+              _0: value
+            },
+            value: value,
+            checkBuilder: strictEqualCheckBuilder
+          };
+  } else if (typeOfValue === "boolean") {
+    var inlined = value ? "true" : "false";
+    return {
+            public: {
+              TAG: "Boolean",
+              _0: value
+            },
+            value: value,
+            checkBuilder: (function (param, param$1, inputVar) {
+                return inputVar + "===" + inlined;
+              }),
+            jsonString: inlined
+          };
+  } else if (typeOfValue === "string") {
+    return {
+            public: {
+              TAG: "String",
+              _0: value
+            },
+            value: value,
+            checkBuilder: strictEqualCheckBuilder,
+            jsonString: JSON.stringify(JSON.stringify(value))
+          };
+  } else if (typeOfValue === "function") {
+    return {
+            public: {
+              TAG: "Function",
+              _0: value
+            },
+            value: value,
+            checkBuilder: strictEqualCheckBuilder
+          };
+  } else if (typeOfValue === "object") {
+    if (value === null) {
+      return $$null;
+    } else if (Array.isArray(value)) {
+      var items = [];
+      var publicItems = [];
+      var maybeJsonString = "[";
+      for(var idx = 0 ,idx_finish = value.length; idx < idx_finish; ++idx){
+        var itemValue = value[idx];
+        var literal = parse(itemValue);
+        var match = maybeJsonString;
+        var match$1 = literal.jsonString;
+        maybeJsonString = match !== undefined && match$1 !== undefined ? match + (
+            idx === 0 ? "" : ","
+          ) + match$1 : undefined;
+        items.push(literal);
+        publicItems.push(literal.public);
+      }
+      var jsonString = maybeJsonString;
+      return {
+              public: {
+                TAG: "Array",
+                _0: publicItems
+              },
+              value: value,
+              checkBuilder: (function (b, value, inputVar) {
+                  return "(" + inputVar + "===" + ("e[" + (b.e.push(value) - 1) + "]") + "||Array.isArray(" + inputVar + ")&&" + inputVar + ".length===" + items.length + (
+                          items.length > 0 ? "&&" + items.map(function (literal, idx) {
+                                    return literal.checkBuilder(b, literal.value, inputVar + "[" + idx + "]");
+                                  }).join("&&") : ""
+                        ) + ")";
+                }),
+              jsonString: jsonString !== undefined ? jsonString + "]" : undefined
+            };
+    } else if (value.constructor === Object) {
+      var items$1 = {};
+      var publicItems$1 = {};
+      var maybeJsonString$1 = "{";
+      var fields = Object.keys(value);
+      var numberOfFields = fields.length;
+      for(var idx$1 = 0; idx$1 < numberOfFields; ++idx$1){
+        var field = fields[idx$1];
+        var itemValue$1 = value[field];
+        var literal$1 = parse(itemValue$1);
+        var match$2 = maybeJsonString$1;
+        var match$3 = literal$1.jsonString;
+        maybeJsonString$1 = match$2 !== undefined && match$3 !== undefined ? match$2 + (
+            idx$1 === 0 ? "" : ","
+          ) + JSON.stringify(field) + ":" + match$3 : undefined;
+        items$1[field] = literal$1;
+        publicItems$1[field] = literal$1.public;
+      }
+      var jsonString$1 = maybeJsonString$1;
+      return {
+              public: {
+                TAG: "Dict",
+                _0: publicItems$1
+              },
+              value: value,
+              checkBuilder: (function (b, value, inputVar) {
+                  return "(" + inputVar + "===" + ("e[" + (b.e.push(value) - 1) + "]") + "||" + inputVar + "&&" + inputVar + ".constructor===Object&&Object.keys(" + inputVar + ").length===" + numberOfFields + (
+                          numberOfFields > 0 ? "&&" + fields.map(function (field) {
+                                    var literal = items$1[field];
+                                    return literal.checkBuilder(b, literal.value, inputVar + "[" + JSON.stringify(field) + "]");
+                                  }).join("&&") : ""
+                        ) + ")";
+                }),
+              jsonString: jsonString$1 !== undefined ? jsonString$1 + "}" : undefined
+            };
+    } else {
+      return {
+              public: {
+                TAG: "Object",
+                _0: value
+              },
+              value: value,
+              checkBuilder: strictEqualCheckBuilder
+            };
+    }
+  } else if (typeOfValue === "undefined") {
+    return $$undefined;
+  } else if (typeOfValue === "number") {
+    if (Number.isNaN(value)) {
+      return nan;
+    } else {
+      return {
+              public: {
+                TAG: "Number",
+                _0: value
+              },
+              value: value,
+              checkBuilder: strictEqualCheckBuilder,
+              jsonString: value.toString()
+            };
+    }
+  } else {
+    return {
+            public: {
+              TAG: "BigInt",
+              _0: value
+            },
+            value: value,
+            checkBuilder: strictEqualCheckBuilder
+          };
+  }
+}
+
 function loop(_schema) {
   while(true) {
     var schema = _schema;
@@ -975,6 +1165,7 @@ function setName(schema, name) {
             }),
           p: schema.p,
           s: schema.s,
+          j: schema.j,
           f: schema.f,
           i: 0,
           m: schema.m
@@ -1010,6 +1201,7 @@ function internalRefine(schema, refiner) {
                                 return inputVar;
                               })), path);
             }),
+          j: schema.j,
           f: schema.f,
           i: 0,
           m: schema.m
@@ -1065,6 +1257,7 @@ function transform$1(schema, transformer) {
                 return use(b, schema, input, path);
               }
             }),
+          j: schema.j,
           f: schema.f,
           i: 0,
           m: schema.m
@@ -1131,7 +1324,6 @@ function preprocess(schema, transformer) {
                 return input$1;
               }
             }),
-          f: undefined,
           i: 0,
           m: schema.m
         };
@@ -1175,66 +1367,39 @@ function custom(name, definer) {
                 return input;
               }
             }),
-          f: undefined,
           i: 0,
           m: empty
         };
 }
 
-function literalCheckBuilder(b, value, inputVar) {
-  if (Number.isNaN(value)) {
-    return "Number.isNaN(" + inputVar + ")";
-  }
-  if (value === null) {
-    return inputVar + "===null";
-  }
-  if (value === (void 0)) {
-    return inputVar + "===void 0";
-  }
-  var check = inputVar + "===" + ("e[" + (b.e.push(value) - 1) + "]");
-  if (Array.isArray(value)) {
-    return "(" + check + "||Array.isArray(" + inputVar + ")&&" + inputVar + ".length===" + value.length + (
-            value.length > 0 ? "&&" + value.map(function (item, idx) {
-                      return literalCheckBuilder(b, item, inputVar + "[" + idx + "]");
-                    }).join("&&") : ""
-          ) + ")";
-  }
-  if (!(value&&value.constructor===Object)) {
-    return check;
-  }
-  var keys = Object.keys(value);
-  var numberOfKeys = keys.length;
-  return "(" + check + "||" + inputVar + "&&" + inputVar + ".constructor===Object&&Object.keys(" + inputVar + ").length===" + numberOfKeys + (
-          numberOfKeys > 0 ? "&&" + keys.map(function (key) {
-                    return literalCheckBuilder(b, value[key], inputVar + "[" + JSON.stringify(key) + "]");
-                  }).join("&&") : ""
-        ) + ")";
-}
-
 function literal(value) {
-  var literal$1 = classify(value);
+  var literal$1 = parse(value);
+  var publicLiteral = literal$1.public;
   var operationBuilder = function (b, param, path) {
     var inputVar = toVar(b, b.i);
-    b.c = b.c + (literalCheckBuilder(b, value, inputVar) + "||" + raiseWithArg(b, path, (function (input) {
+    b.c = b.c + (literal$1.checkBuilder(b, value, inputVar) + "||" + raiseWithArg(b, path, (function (input) {
               return {
                       TAG: "InvalidLiteral",
-                      expected: literal$1,
+                      expected: publicLiteral,
                       received: input
                     };
             }), inputVar) + ";");
     return inputVar;
   };
+  var jsonString = literal$1.jsonString;
   return {
           t: {
             TAG: "Literal",
-            _0: literal$1
+            _0: publicLiteral
           },
           n: (function () {
-              return "Literal(" + toText(literal$1) + ")";
+              return "Literal(" + toText(publicLiteral) + ")";
             }),
           p: operationBuilder,
           s: operationBuilder,
-          f: undefined,
+          j: jsonString !== undefined ? (function (param) {
+                return jsonString;
+              }) : undefined,
           i: 0,
           m: empty
         };
@@ -1316,6 +1481,7 @@ function factory(schema, definer) {
               var value$1 = value(literal);
               return use(b, schema, "e[" + (b.e.push(value$1) - 1) + "]", path);
             }),
+          j: schema.j,
           f: schema.f,
           i: 0,
           m: schema.m
@@ -1426,6 +1592,9 @@ function factory$2(schema) {
           n: containerName,
           p: parseOperationBuilder,
           s: serializeOperationBuilder,
+          j: (function (input) {
+              return "JSON.stringify(" + input + ")";
+            }),
           f: maybeTypeFilter(schema, "null"),
           i: 0,
           m: empty
@@ -1657,6 +1826,16 @@ function factory$3(definer) {
               }
               return "{" + fieldsCodeRef.contents + "}";
             }),
+          j: (function (input) {
+              var jsonStringRef = "'{";
+              for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
+                var itemDefinition = itemDefinitions[idx];
+                jsonStringRef = jsonStringRef + (
+                  idx === 0 ? "" : ","
+                ) + itemDefinition.l + ":'+" + itemDefinition.s.j(input + "[" + itemDefinition.l + "]") + "+'";
+              }
+              return jsonStringRef + "}'";
+            }),
           f: typeFilter,
           i: 0,
           m: empty
@@ -1678,6 +1857,7 @@ function strip(schema) {
             n: schema.n,
             p: schema.p,
             s: schema.s,
+            j: schema.j,
             f: schema.f,
             i: 0,
             m: schema.m
@@ -1700,6 +1880,7 @@ function strict(schema) {
             n: schema.n,
             p: schema.p,
             s: schema.s,
+            j: schema.j,
             f: schema.f,
             i: 0,
             m: schema.m
@@ -1724,7 +1905,9 @@ var schema = {
   n: primitiveName,
   p: builder,
   s: builder,
-  f: undefined,
+  j: (function (param) {
+      return "null";
+    }),
   i: 0,
   m: empty
 };
@@ -1734,7 +1917,6 @@ var schema$1 = {
   n: primitiveName,
   p: noop,
   s: noop,
-  f: undefined,
   i: false,
   m: empty
 };
@@ -1767,6 +1949,9 @@ var schema$2 = {
   n: primitiveName,
   p: noop,
   s: noop,
+  j: (function (input) {
+      return "JSON.stringify(" + input + ")";
+    }),
   f: typeFilter$1,
   i: 0,
   m: empty
@@ -1901,12 +2086,11 @@ function trim(schema) {
 
 function factory$4(schema, spaceOpt) {
   var space = spaceOpt !== undefined ? spaceOpt : 0;
-  try {
-    validateJsonableSchema(schema, schema, true);
-  }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    getOrRethrow(exn);
+  var v = schema.j;
+  var toJsonString;
+  if (v !== undefined) {
+    toJsonString = v;
+  } else {
     var message = "The schema " + schema.n() + " passed to S.jsonString is not compatible with JSON";
     throw new Error("[rescript-schema] " + message);
   }
@@ -1926,9 +2110,11 @@ function factory$4(schema, spaceOpt) {
             }),
           s: (function (b, param, path) {
               var input = b.i;
-              return "JSON.stringify(" + use(b, schema, input, path) + (
-                      space > 0 ? ",null," + space : ""
-                    ) + ")";
+              if (space !== 0) {
+                return "JSON.stringify(" + use(b, schema, input, path) + ",null," + space + ")";
+              } else {
+                return toJsonString(input);
+              }
             }),
           f: typeFilter$1,
           i: 0,
@@ -1945,6 +2131,9 @@ var schema$3 = {
   n: primitiveName,
   p: noop,
   s: noop,
+  j: (function (input) {
+      return "(" + input + "?\"true\":\"false\")";
+    }),
   f: typeFilter$2,
   i: 0,
   m: empty
@@ -1970,6 +2159,9 @@ var schema$4 = {
   n: primitiveName,
   p: noop,
   s: noop,
+  j: (function (input) {
+      return input + ".toString()";
+    }),
   f: typeFilter$3,
   i: 0,
   m: empty
@@ -2031,6 +2223,9 @@ var schema$5 = {
   n: primitiveName,
   p: noop,
   s: noop,
+  j: (function (input) {
+      return input + ".toString()";
+    }),
   f: typeFilter$4,
   i: 0,
   m: empty
@@ -2116,6 +2311,9 @@ function factory$5(schema) {
                         return outputVar + ".push(" + itemOutputVar + ")";
                       })) + "}");
               return outputVar;
+            }),
+          j: (function (input) {
+              return "JSON.stringify(" + input + ")";
             }),
           f: typeFilter$5,
           i: 0,
@@ -2206,6 +2404,9 @@ function factory$6(schema) {
                       })) + "}");
               return outputVar;
             }),
+          j: (function (input) {
+              return "JSON.stringify(" + input + ")";
+            }),
           f: typeFilter,
           i: 0,
           m: empty
@@ -2245,8 +2446,15 @@ function factory$7(definer) {
   var itemDefinitionsSet$1 = itemDefinitionsSet;
   var schemas$1 = schemas;
   var length = schemas$1.length;
+  var isJsonableRef = true;
   for(var idx = 0; idx < length; ++idx){
-    if (!schemas$1[idx]) {
+    var schema = schemas$1[idx];
+    if (schema) {
+      if (schema.j === undefined) {
+        isJsonableRef = false;
+      }
+      
+    } else {
       var inlinedInputLocation = "\"" + idx + "\"";
       var itemDefinition_p = "[" + inlinedInputLocation + "]";
       var itemDefinition = {
@@ -2256,8 +2464,8 @@ function factory$7(definer) {
       };
       schemas$1[idx] = unit;
       itemDefinitionsSet$1.add(itemDefinition);
+      isJsonableRef = false;
     }
-    
   }
   var itemDefinitions = Array.from(itemDefinitionsSet$1);
   return {
@@ -2334,6 +2542,16 @@ function factory$7(definer) {
               }
               return outputVar;
             }),
+          j: isJsonableRef ? (function (input) {
+                var jsonStringRef = "'['+";
+                for(var idx = 0 ,idx_finish = schemas$1.length; idx < idx_finish; ++idx){
+                  var schema = schemas$1[idx];
+                  jsonStringRef = jsonStringRef + (
+                    idx === 0 ? "" : "+','+"
+                  ) + schema.j(input + "[" + idx + "]");
+                }
+                return jsonStringRef + "+']'";
+              }) : undefined,
           f: typeFilter$5,
           i: 0,
           m: empty
@@ -2449,7 +2667,9 @@ function factory$8(schemas) {
                     }), "[" + errorVarsRef + "]") + codeEndRef;
               return outputVar;
             }),
-          f: undefined,
+          j: (function (input) {
+              return "JSON.stringify(" + input + ")";
+            }),
           i: 0,
           m: empty
         };
@@ -2516,7 +2736,9 @@ var json = {
       return "e[" + (b.e.push(parse) - 1) + "](" + input + ")";
     }),
   s: noop,
-  f: undefined,
+  j: (function (input) {
+      return "JSON.stringify(" + input + ")";
+    }),
   i: 0,
   m: empty
 };
@@ -2550,7 +2772,7 @@ function $$catch(schema, getFallbackValue) {
                           }));
             }),
           s: schema.s,
-          f: undefined,
+          j: schema.j,
           i: 0,
           m: schema.m
         };
@@ -3216,7 +3438,7 @@ var dict = factory$6;
 
 var option = factory$1;
 
-var $$null = factory$2;
+var $$null$1 = factory$2;
 
 var jsonString = factory$4;
 
@@ -3322,7 +3544,7 @@ export {
   list ,
   dict ,
   option ,
-  $$null ,
+  $$null$1 as $$null,
   jsonString ,
   union ,
   $$catch ,
