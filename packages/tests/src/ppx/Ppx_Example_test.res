@@ -80,3 +80,12 @@ type deprecated = @s.deprecated("Will be removed in APIv2") string
 test("@s.deprecated", t => {
   t->assertEqualSchemas(deprecatedSchema, S.string->S.deprecate("Will be removed in APIv2"))
 })
+
+@schema
+type describe = @s.describe("A useful bit of text, if you know what to do with it.") string
+test("@s.describe", t => {
+  t->assertEqualSchemas(
+    describeSchema,
+    S.string->S.describe("A useful bit of text, if you know what to do with it."),
+  )
+})

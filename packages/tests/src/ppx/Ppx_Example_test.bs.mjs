@@ -78,6 +78,12 @@ Ava("@s.deprecated", (function (t) {
         U.assertEqualSchemas(t, deprecatedSchema, S$RescriptSchema.deprecate(S$RescriptSchema.string, "Will be removed in APIv2"), undefined);
       }));
 
+var describeSchema = S$RescriptSchema.describe(S$RescriptSchema.string, "A useful bit of text, if you know what to do with it.");
+
+Ava("@s.describe", (function (t) {
+        U.assertEqualSchemas(t, describeSchema, S$RescriptSchema.describe(S$RescriptSchema.string, "A useful bit of text, if you know what to do with it."), undefined);
+      }));
+
 export {
   ratingSchema ,
   filmSchema ,
@@ -87,5 +93,6 @@ export {
   nullSchema ,
   nullWithDefaultSchema ,
   deprecatedSchema ,
+  describeSchema ,
 }
 /* ratingSchema Not a pure module */
