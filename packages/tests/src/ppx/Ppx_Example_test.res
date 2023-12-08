@@ -14,7 +14,7 @@ type film = {
   @as("Title")
   title: string,
   @as("Tags")
-  tags: @s.matches(S.array(S.string)->S.option->S.Option.getOr([])) array<string>,
+  tags: @s.default([]) array<string>,
   @as("Rating")
   rating: rating,
   @as("Age")
@@ -22,7 +22,7 @@ type film = {
   option<int>,
 }
 
-test("Example", t => {
+test("Main example", t => {
   t->assertEqualSchemas(
     filmSchema,
     S.object(s => {
@@ -41,4 +41,16 @@ test("Example", t => {
       deprecatedAgeRestriction: s.field("Age", S.option(S.int)->S.deprecate("Use rating instead")),
     }),
   )
+})
+
+@schema
+type url = @s.matches(S.string->S.String.url) string
+test("@s.matches", t => {
+  t->assertEqualSchemas(urlSchema, S.string->S.String.url)
+})
+
+@schema
+type stringWithDefault = @s.default("Unknown") string
+test("@s.default", t => {
+  t->assertEqualSchemas(stringWithDefaultSchema, S.option(S.string)->S.Option.getOr("Unknown"))
 })

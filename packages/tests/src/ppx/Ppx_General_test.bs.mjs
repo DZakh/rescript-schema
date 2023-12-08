@@ -32,6 +32,18 @@ Ava("Can reuse schemas from other types", (function (t) {
                 }), undefined);
       }));
 
+var stringWithDefaultSchema = S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.string), "Foo");
+
+Ava("Creates schema with default", (function (t) {
+        U.assertEqualSchemas(t, stringWithDefaultSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.string), "Foo"), undefined);
+      }));
+
+var stringWithDefaultAndMatchesSchema = S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined)), "Foo");
+
+Ava("Creates schema with default using @s.matches", (function (t) {
+        U.assertEqualSchemas(t, stringWithDefaultAndMatchesSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined)), "Foo"), undefined);
+      }));
+
 var schema = S$RescriptSchema.string;
 
 var fooSchema = S$RescriptSchema.$$int;

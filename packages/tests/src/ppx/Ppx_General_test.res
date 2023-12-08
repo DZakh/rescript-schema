@@ -25,3 +25,18 @@ test("Can reuse schemas from other types", t => {
 })
 
 // TODO: Support recursive schemas
+
+@schema
+type stringWithDefault = @s.default("Foo") string
+test("Creates schema with default", t => {
+  t->assertEqualSchemas(stringWithDefaultSchema, S.option(S.string)->S.Option.getOr("Foo"))
+})
+
+@schema
+type stringWithDefaultAndMatches = @s.default("Foo") @s.matches(S.string->S.String.url) string
+test("Creates schema with default using @s.matches", t => {
+  t->assertEqualSchemas(
+    stringWithDefaultAndMatchesSchema,
+    S.option(S.string->S.String.url)->S.Option.getOr("Foo"),
+  )
+})

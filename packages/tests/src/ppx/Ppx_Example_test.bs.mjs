@@ -21,7 +21,7 @@ var filmSchema = S$RescriptSchema.$$Object.factory(function (s) {
             };
     });
 
-Ava("Example", (function (t) {
+Ava("Main example", (function (t) {
         U.assertEqualSchemas(t, filmSchema, S$RescriptSchema.object(function (s) {
                   return {
                           Id: s.f("Id", S$RescriptSchema.$$float),
@@ -38,8 +38,22 @@ Ava("Example", (function (t) {
                 }), undefined);
       }));
 
+var urlSchema = S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined);
+
+Ava("@s.matches", (function (t) {
+        U.assertEqualSchemas(t, urlSchema, S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined), undefined);
+      }));
+
+var stringWithDefaultSchema = S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.string), "Unknown");
+
+Ava("@s.default", (function (t) {
+        U.assertEqualSchemas(t, stringWithDefaultSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.string), "Unknown"), undefined);
+      }));
+
 export {
   ratingSchema ,
   filmSchema ,
+  urlSchema ,
+  stringWithDefaultSchema ,
 }
 /* ratingSchema Not a pure module */

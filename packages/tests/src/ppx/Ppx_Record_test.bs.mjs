@@ -80,9 +80,30 @@ Ava("Record schema with optional fields", (function (t) {
             }, undefined);
       }));
 
+var recordWithNullableFieldSchema = S$RescriptSchema.$$Object.factory(function (s) {
+      return {
+              subscription: s.f("subscription", S$RescriptSchema.option(S$RescriptSchema.$$null(S$RescriptSchema.string)))
+            };
+    });
+
+Ava("Record schema with nullable field", (function (t) {
+        U.assertEqualSchemas(t, recordWithNullableFieldSchema, S$RescriptSchema.object(function (s) {
+                  return {
+                          subscription: s.f("subscription", S$RescriptSchema.option(S$RescriptSchema.$$null(S$RescriptSchema.string)))
+                        };
+                }), undefined);
+        t.deepEqual(S$RescriptSchema.parseWith({"subscription":null}, recordWithNullableFieldSchema), {
+              TAG: "Ok",
+              _0: {
+                subscription: undefined
+              }
+            }, undefined);
+      }));
+
 export {
   simpleRecordSchema ,
   recordWithAliasSchema ,
   recordWithOptionalSchema ,
+  recordWithNullableFieldSchema ,
 }
 /* simpleRecordSchema Not a pure module */

@@ -131,37 +131,49 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
     getAttributeByName ptyp_attributes "schema"
   in
   let customSchemaExpression = getAttributeByName ptyp_attributes "s.matches" in
-  match (deprecatedCustomSchemaExpression, customSchemaExpression) with
-  | Ok None, Ok None -> (
-    match ptyp_desc with
-    | Ptyp_any -> fail ptyp_loc "Can't generate schema for `any` type"
-    | Ptyp_arrow (_, _, _) ->
-      fail ptyp_loc "Can't generate schema for function type"
-    | Ptyp_package _ -> fail ptyp_loc "Can't generate schema for module type"
-    | Ptyp_tuple tuple_types ->
+  let schema_expression =
+    match (deprecatedCustomSchemaExpression, customSchemaExpression) with
+    | Ok None, Ok None -> (
+      match ptyp_desc with
+      | Ptyp_any -> fail ptyp_loc "Can't generate schema for `any` type"
+      | Ptyp_arrow (_, _, _) ->
+        fail ptyp_loc "Can't generate schema for function type"
+      | Ptyp_package _ -> fail ptyp_loc "Can't generate schema for module type"
+      | Ptyp_tuple tuple_types ->
+        [%expr
+          S.tuple
+            (Obj.magic (fun (s : S.Tuple.ctx) ->
+                 [%e
+                   Exp.tuple
+                     (tuple_types
+                     |> List.mapi (fun idx tuple_type ->
+                            [%expr
+                              s.item
+                                [%e Exp.constant (Const.int idx)]
+                                [%e generateCoreTypeSchemaExpression tuple_type]])
+                     )]))]
+      | Ptyp_var s -> makeIdentExpr (generateSchemaName s)
+      | Ptyp_constr (constr, typeArgs) ->
+        generateConstrSchemaExpression constr typeArgs
+      | Ptyp_variant (row_fields, _, _) ->
+        generatePolyvariantSchemaExpression row_fields
+      | Ptyp_object (object_fields, Closed) ->
+        object_fields |> List.map parseObjectField |> generateObjectSchema
+      | _ -> fail ptyp_loc "Unsupported type")
+    | Ok (Some attribute), _ | _, Ok (Some attribute) ->
+      getExpressionFromPayload attribute
+    | _, Error s | Error s, _ -> fail ptyp_loc s
+  in
+  let schema_expression =
+    match getAttributeByName ptyp_attributes "s.default" with
+    | Ok None -> schema_expression
+    | Ok (Some attribute) ->
+      let default_value = getExpressionFromPayload attribute in
       [%expr
-        S.tuple
-          (Obj.magic (fun (s : S.Tuple.ctx) ->
-               [%e
-                 Exp.tuple
-                   (tuple_types
-                   |> List.mapi (fun idx tuple_type ->
-                          [%expr
-                            s.item
-                              [%e Exp.constant (Const.int idx)]
-                              [%e generateCoreTypeSchemaExpression tuple_type]])
-                   )]))]
-    | Ptyp_var s -> makeIdentExpr (generateSchemaName s)
-    | Ptyp_constr (constr, typeArgs) ->
-      generateConstrSchemaExpression constr typeArgs
-    | Ptyp_variant (row_fields, _, _) ->
-      generatePolyvariantSchemaExpression row_fields
-    | Ptyp_object (object_fields, Closed) ->
-      object_fields |> List.map parseObjectField |> generateObjectSchema
-    | _ -> fail ptyp_loc "Unsupported type")
-  | Ok (Some attribute), _ | _, Ok (Some attribute) ->
-    getExpressionFromPayload attribute
-  | _, Error s | Error s, _ -> fail ptyp_loc s
+        S.Option.getOr (S.option [%e schema_expression]) [%e default_value]]
+    | Error s -> fail ptyp_loc s
+  in
+  schema_expression
 
 let generateTypeDeclarationSchemaExpression type_declaration =
   match type_declaration with
