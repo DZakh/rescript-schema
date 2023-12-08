@@ -195,6 +195,14 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
           [%e default_cb]]
     | Error s -> fail ptyp_loc s
   in
+  let schema_expression =
+    match getAttributeByName ptyp_attributes "s.deprecated" with
+    | Ok None -> schema_expression
+    | Ok (Some attribute) ->
+      let reason = getExpressionFromPayload attribute in
+      [%expr S.deprecate [%e schema_expression] [%e reason]]
+    | Error s -> fail ptyp_loc s
+  in
   schema_expression
 
 let generateTypeDeclarationSchemaExpression type_declaration =
