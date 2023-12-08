@@ -18,7 +18,7 @@ type film = {
   @as("Rating")
   rating: rating,
   @as("Age")
-  deprecatedAgeRestriction: @s.deprecated("Use rating instead") option<int>,
+  deprecatedAgeRestriction: @s.deprecate("Use rating instead") option<int>,
 }
 
 test("Main example", t => {
@@ -76,9 +76,9 @@ test("@s.null with @s.default", t => {
 })
 
 @schema
-type deprecated = @s.deprecated("Will be removed in APIv2") string
-test("@s.deprecated", t => {
-  t->assertEqualSchemas(deprecatedSchema, S.string->S.deprecate("Will be removed in APIv2"))
+type deprecate = @s.deprecate("Will be removed in APIv2") string
+test("@s.deprecate", t => {
+  t->assertEqualSchemas(deprecateSchema, S.string->S.deprecate("Will be removed in APIv2"))
 })
 
 @schema

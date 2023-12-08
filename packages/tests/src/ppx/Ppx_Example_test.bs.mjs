@@ -72,10 +72,10 @@ Ava("@s.null with @s.default", (function (t) {
         U.assertEqualSchemas(t, nullWithDefaultSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.$$null(S$RescriptSchema.string), "Unknown"), undefined);
       }));
 
-var deprecatedSchema = S$RescriptSchema.deprecate(S$RescriptSchema.string, "Will be removed in APIv2");
+var deprecateSchema = S$RescriptSchema.deprecate(S$RescriptSchema.string, "Will be removed in APIv2");
 
-Ava("@s.deprecated", (function (t) {
-        U.assertEqualSchemas(t, deprecatedSchema, S$RescriptSchema.deprecate(S$RescriptSchema.string, "Will be removed in APIv2"), undefined);
+Ava("@s.deprecate", (function (t) {
+        U.assertEqualSchemas(t, deprecateSchema, S$RescriptSchema.deprecate(S$RescriptSchema.string, "Will be removed in APIv2"), undefined);
       }));
 
 var describeSchema = S$RescriptSchema.describe(S$RescriptSchema.string, "A useful bit of text, if you know what to do with it.");
@@ -92,7 +92,7 @@ export {
   defaultWithSchema ,
   nullSchema ,
   nullWithDefaultSchema ,
-  deprecatedSchema ,
+  deprecateSchema ,
   describeSchema ,
 }
 /* ratingSchema Not a pure module */
