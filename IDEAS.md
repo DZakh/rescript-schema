@@ -2,8 +2,6 @@
 
 - Clean up Caml_option.some, Js_dict.get
 
-- Add S.nullable (?)
-
 - Add S.bigint (?)
 
 - Github Action: Add linter checking that the generated files are up to date (?)
@@ -28,17 +26,17 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Move S.inline to a separate codegen module
 
-## v6.3
+## v6.4
 
 - stop reallocate objects without transformations
-- Make S.serializeToString super fast
-- Add serialiseToString to js api
+- Make S.serializeToJsonString super fast
+- Add serializeToJsonString to js api
 - Make operations more treeshakable by starting passing the actual operation to the initialOperation function. Or add a condition (verify performance)
 - S.validateWith
 
 ## v7
 
-- Rename `@schema`->`@s` for type expressions
+- Remove `@schema` for type expressions
 - `S.json` -> `S.json(~unsafe: bool)` to improve tree-shaking
 - Remove `s.failWithError` since there's `Error.raise` 🤔
 - Make `error.reason` tree-shakeable
