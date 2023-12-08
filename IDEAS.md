@@ -38,6 +38,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v7
 
+- Rename `@schema`->`@s` for type expressions
 - `S.json` -> `S.json(~unsafe: bool)` to improve tree-shaking
 - Remove `s.failWithError` since there's `Error.raise` 🤔
 - Make `error.reason` tree-shakeable

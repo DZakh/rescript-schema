@@ -37,6 +37,30 @@ test("Successfully parses polymorphic variants", t => {
   t->Assert.deepEqual(%raw(`"apple"`)->S.parseAnyWith(schema), Ok(#apple), ())
 })
 
+test("Parses when second struct misses parser", t => {
+  let schema = S.union([S.literal(#apple), S.string->S.transform(_ => {serializer: _ => "apple"})])
+
+  t->Assert.deepEqual("apple"->S.parseAnyWith(schema), Ok(#apple), ())
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#parse,
+    `i=>{let v0;try{i===e[0]||e[1](i);v0=i}catch(v1){if(v1&&v1.s===s){try{throw e[3];v0=i}catch(v2){if(v2&&v2.s===s){e[4]([v1,v2])}else{throw v2}}}else{throw v1}}return v0}`,
+  )
+})
+
+test("Serializes when second struct misses serializer", t => {
+  let schema = S.union([S.literal(#apple), S.string->S.transform(_ => {parser: _ => #apple})])
+
+  t->Assert.deepEqual(#apple->S.serializeToUnknownWith(schema), Ok(%raw(`"apple"`)), ())
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#serialize,
+    `i=>{let v0;try{i===e[0]||e[1](i);v0=i}catch(v1){if(v1&&v1.s===s){try{throw e[2];if(typeof i!=="string"){e[3](i)}v0=i}catch(v2){if(v2&&v2.s===s){e[4]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
+  )
+})
+
 module Advanced = {
   // TypeScript type for reference (https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes-func.html#discriminated-unions)
   // type Shape =

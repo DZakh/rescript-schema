@@ -711,6 +711,18 @@ module Builder = {
       }
       b->use(~schema, ~input, ~path)
     }
+
+    let withBuildErrorInline = (b: t, fn) => {
+      try {
+        fn()
+      } catch {
+      | exn => {
+          let error = exn->InternalError.getOrRethrow
+          b.code = `throw ${b->embed(error)};`
+          b._input
+        }
+      }
+    }
   }
 
   let noop = make((b, ~selfSchema as _, ~path as _) => {
@@ -2973,7 +2985,16 @@ module Union = {
         for idx in 0 to schemas->Js.Array2.length - 1 {
           let schema = schemas->Js.Array2.unsafe_get(idx)
           b.code = ""
-          let itemOutputVar = b->B.useWithTypeFilter(~schema, ~input=inputVar, ~path=Path.empty)
+          let itemOutputVar = b->B.withBuildErrorInline(
+            () => {
+              b->B.useWithTypeFilter(
+                // A hack to bypass an additional function wrapping for var context optimisation
+                ~schema=%raw(`schema`),
+                ~input=inputVar,
+                ~path=Path.empty,
+              )
+            },
+          )
           let isAsyncItem = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
           if isAsyncItem {
             isAsyncRef.contents = true
@@ -3064,7 +3085,10 @@ module Union = {
             b.code ++
             `try{${b->B.scope(
                 b => {
-                  let itemOutput = b->B.use(~schema=itemSchema, ~input=inputVar, ~path=Path.empty)
+                  let itemOutput =
+                    b->B.withBuildErrorInline(
+                      () => b->B.use(~schema=itemSchema, ~input=inputVar, ~path=Path.empty),
+                    )
                   let itemOutput = switch itemSchema.maybeTypeFilter {
                   | Some(typeFilter) =>
                     let itemOutputVar = b->B.toVar(itemOutput)

@@ -450,6 +450,18 @@ function useWithTypeFilter(b, schema, input, path) {
   return use(b, schema, input$1, path);
 }
 
+function withBuildErrorInline(b, fn) {
+  try {
+    return fn();
+  }
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    var error = getOrRethrow(exn);
+    b.c = "throw " + ("e[" + (b.e.push(error) - 1) + "]") + ";";
+    return b.i;
+  }
+}
+
 function noop(b, param, param$1) {
   return b.i;
 }
@@ -2364,7 +2376,9 @@ function factory$8(schemas) {
               for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
                 var schema = schemas[idx];
                 b.c = "";
-                var itemOutputVar = useWithTypeFilter(b, schema, inputVar, "");
+                var itemOutputVar = withBuildErrorInline(b, (function () {
+                        return useWithTypeFilter(b, schema, inputVar, "");
+                      }));
                 var isAsyncItem = schema.i;
                 if (isAsyncItem) {
                   isAsyncRef = true;
@@ -2426,7 +2440,9 @@ function factory$8(schemas) {
                 errorVarsRef = errorVarsRef + errorVar + ",";
                 b.c = b.c + ("try{" + scope(b, (function(itemSchema){
                       return function (b) {
-                        var itemOutput = use(b, itemSchema, inputVar, "");
+                        var itemOutput = withBuildErrorInline(b, (function () {
+                                return use(b, itemSchema, inputVar, "");
+                              }));
                         var typeFilter = itemSchema.f;
                         var itemOutput$1;
                         if (typeFilter !== undefined) {
