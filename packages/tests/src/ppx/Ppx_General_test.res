@@ -40,3 +40,19 @@ test("Creates schema with default using @s.matches", t => {
     S.option(S.string->S.String.url)->S.Option.getOr("Foo"),
   )
 })
+
+@schema
+type stringWithDefaultNullAndMatches = @s.default("Foo") @s.null @s.matches(S.string->S.String.url)
+string
+test("Creates schema with default null using @s.matches", t => {
+  t->assertEqualSchemas(
+    stringWithDefaultNullAndMatchesSchema,
+    S.null(S.string->S.String.url)->S.Option.getOr("Foo"),
+  )
+})
+
+@schema
+type ignoredNullWithMatches = @s.null @s.matches(S.option(S.string)) option<string>
+test("@s.null doesn't override @s.matches(S.option(_))", t => {
+  t->assertEqualSchemas(ignoredNullWithMatchesSchema, S.option(S.string))
+})

@@ -63,3 +63,15 @@ test("@s.defaultWith", t => {
     S.option(S.array(S.string))->S.Option.getOrWith(() => []),
   )
 })
+
+@schema
+type null = @s.null option<string>
+test("@s.null", t => {
+  t->assertEqualSchemas(nullSchema, S.null(S.string))
+})
+
+@schema
+type nullWithDefault = @s.null @s.default("Unknown") string
+test("@s.null with @s.default", t => {
+  t->assertEqualSchemas(nullWithDefaultSchema, S.null(S.string)->S.Option.getOr("Unknown"))
+})

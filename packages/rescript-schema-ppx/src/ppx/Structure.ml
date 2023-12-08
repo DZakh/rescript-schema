@@ -4,7 +4,7 @@ open Ast_helper
 open Util
 
 let rec generateConstrSchemaExpression {Location.txt = identifier; loc}
-    type_args =
+    type_args option_factory_expression =
   let open Longident in
   match (identifier, type_args) with
   | Lident "string", _ -> [%expr S.string]
@@ -22,7 +22,9 @@ let rec generateConstrSchemaExpression {Location.txt = identifier; loc}
   | Lident "list", [item_type] ->
     [%expr S.list [%e generateCoreTypeSchemaExpression item_type]]
   | Lident "option", [item_type] ->
-    [%expr S.option [%e generateCoreTypeSchemaExpression item_type]]
+    [%expr
+      [%e option_factory_expression]
+        [%e generateCoreTypeSchemaExpression item_type]]
   | Lident "null", [item_type] ->
     [%expr S.null [%e generateCoreTypeSchemaExpression item_type]]
   | Ldot (Ldot (Lident "Js", "Dict"), "t"), [item_type]
@@ -131,6 +133,12 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
     getAttributeByName ptyp_attributes "schema"
   in
   let customSchemaExpression = getAttributeByName ptyp_attributes "s.matches" in
+  let option_factory_expression =
+    match getAttributeByName ptyp_attributes "s.null" with
+    | Ok None -> [%expr S.option]
+    | Ok (Some _) -> [%expr S.null]
+    | Error s -> fail ptyp_loc s
+  in
   let schema_expression =
     match (deprecatedCustomSchemaExpression, customSchemaExpression) with
     | Ok None, Ok None -> (
@@ -153,8 +161,9 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
                                 [%e generateCoreTypeSchemaExpression tuple_type]])
                      )]))]
       | Ptyp_var s -> makeIdentExpr (generateSchemaName s)
-      | Ptyp_constr (constr, typeArgs) ->
-        generateConstrSchemaExpression constr typeArgs
+      | Ptyp_constr (constr, type_args) ->
+        generateConstrSchemaExpression constr type_args
+          option_factory_expression
       | Ptyp_variant (row_fields, _, _) ->
         generatePolyvariantSchemaExpression row_fields
       | Ptyp_object (object_fields, Closed) ->
@@ -170,7 +179,9 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
     | Ok (Some attribute) ->
       let default_value = getExpressionFromPayload attribute in
       [%expr
-        S.Option.getOr (S.option [%e schema_expression]) [%e default_value]]
+        S.Option.getOr
+          ([%e option_factory_expression] [%e schema_expression])
+          [%e default_value]]
     | Error s -> fail ptyp_loc s
   in
   let schema_expression =
@@ -179,7 +190,9 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
     | Ok (Some attribute) ->
       let default_cb = getExpressionFromPayload attribute in
       [%expr
-        S.Option.getOrWith (S.option [%e schema_expression]) [%e default_cb]]
+        S.Option.getOrWith
+          ([%e option_factory_expression] [%e schema_expression])
+          [%e default_cb]]
     | Error s -> fail ptyp_loc s
   in
   schema_expression

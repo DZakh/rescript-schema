@@ -60,11 +60,25 @@ Ava("@s.defaultWith", (function (t) {
                   })), undefined);
       }));
 
+var nullSchema = S$RescriptSchema.$$null(S$RescriptSchema.string);
+
+Ava("@s.null", (function (t) {
+        U.assertEqualSchemas(t, nullSchema, S$RescriptSchema.$$null(S$RescriptSchema.string), undefined);
+      }));
+
+var nullWithDefaultSchema = S$RescriptSchema.$$Option.getOr(S$RescriptSchema.$$null(S$RescriptSchema.string), "Unknown");
+
+Ava("@s.null with @s.default", (function (t) {
+        U.assertEqualSchemas(t, nullWithDefaultSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.$$null(S$RescriptSchema.string), "Unknown"), undefined);
+      }));
+
 export {
   ratingSchema ,
   filmSchema ,
   matchesSchema ,
   defaultSchema ,
   defaultWithSchema ,
+  nullSchema ,
+  nullWithDefaultSchema ,
 }
 /* ratingSchema Not a pure module */

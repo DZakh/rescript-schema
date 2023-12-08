@@ -44,6 +44,18 @@ Ava("Creates schema with default using @s.matches", (function (t) {
         U.assertEqualSchemas(t, stringWithDefaultAndMatchesSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined)), "Foo"), undefined);
       }));
 
+var stringWithDefaultNullAndMatchesSchema = S$RescriptSchema.$$Option.getOr(S$RescriptSchema.$$null(S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined)), "Foo");
+
+Ava("Creates schema with default null using @s.matches", (function (t) {
+        U.assertEqualSchemas(t, stringWithDefaultNullAndMatchesSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.$$null(S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined)), "Foo"), undefined);
+      }));
+
+var ignoredNullWithMatchesSchema = S$RescriptSchema.option(S$RescriptSchema.string);
+
+Ava("@s.null doesn't override @s.matches(S.option(_))", (function (t) {
+        U.assertEqualSchemas(t, ignoredNullWithMatchesSchema, S$RescriptSchema.option(S$RescriptSchema.string), undefined);
+      }));
+
 var schema = S$RescriptSchema.string;
 
 var fooSchema = S$RescriptSchema.$$int;
