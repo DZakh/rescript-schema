@@ -1743,6 +1743,10 @@ module Null = {
   }
 }
 
+let nullable = schema => {
+  Option.factory(Null.factory(schema))
+}
+
 module Object = {
   type ctx = {
     @as("f") field: 'value. (string, t<'value>) => 'value,

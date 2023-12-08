@@ -11,6 +11,7 @@ export const unknown = S.unknown;
 export const undefined = S.unit;
 export const optional = S.js_optional;
 export const nullable = S.$$null;
+export const nullish = S.nullable;
 export const array = S.array;
 export const record = S.dict;
 export const jsonString = S.jsonString;

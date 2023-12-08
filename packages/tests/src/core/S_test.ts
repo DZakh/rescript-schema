@@ -268,7 +268,25 @@ test("Successfully parses nullable string", (t) => {
     TypeEqual<S.Schema<string | undefined, string | null>, typeof schema>
   >(true);
   expectType<TypeEqual<typeof value1, string | undefined>>(true);
-  expectType<TypeEqual<typeof value2, string | undefined>>(true);
+});
+
+test("Successfully parses nullish string", (t) => {
+  const schema = S.nullish(S.string);
+  const value1 = S.parseOrThrow(schema, "foo");
+  const value2 = S.parseOrThrow(schema, undefined);
+  const value3 = S.parseOrThrow(schema, null);
+
+  t.deepEqual(value1, "foo");
+  t.deepEqual(value2, undefined);
+  t.deepEqual(value3, undefined);
+
+  expectType<
+    TypeEqual<
+      S.Schema<string | undefined, string | undefined | null>,
+      typeof schema
+    >
+  >(true);
+  expectType<TypeEqual<typeof value1, string | undefined>>(true);
 });
 
 test("Successfully parses schema wrapped in nullable multiple times", (t) => {

@@ -1444,6 +1444,10 @@ function factory$2(schema) {
         };
 }
 
+function nullable(schema) {
+  return factory$1(factory$2(schema));
+}
+
 function typeFilter(inputVar) {
   return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
 }
@@ -3339,6 +3343,7 @@ export {
   dict ,
   option ,
   $$null ,
+  nullable ,
   jsonString ,
   union ,
   $$catch ,

@@ -15,6 +15,7 @@
 - [NaNs](#nans)
 - [Optionals](#optionals)
 - [Nullables](#nullables)
+- [Nullish](#nullish)
 - [Objects](#objects)
   - [Advanced object schema](#advanced-object-schema)
   - [`Object.strict`](#objectstrict)
@@ -226,7 +227,18 @@ Similarly, you can create nullable types with `S.nullable`.
 ```ts
 const nullableStringSchema = S.nullable(S.string);
 S.parseOrThrow(nullableStringSchema, "asdf"); // => "asdf"
-S.parseOrThrow(nullableStringSchema, null); // => null
+S.parseOrThrow(nullableStringSchema, null); // => undefined
+```
+
+## Nullish
+
+A convenience method that returns a "nullish" version of a schema. Nullish schemas will accept both `undefined` and `null`. Read more about the concept of "nullish" [in the TypeScript 3.7 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-7.html#nullish-coalescing).
+
+```ts
+const nullishStringSchema = S.nullish(S.string);
+S.parseOrThrow(nullishStringSchema, "asdf"); // => "asdf"
+S.parseOrThrow(nullishStringSchema, null); // => undefined
+S.parseOrThrow(nullishStringSchema, undefined); // => undefined
 ```
 
 ## Objects

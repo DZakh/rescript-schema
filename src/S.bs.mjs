@@ -38,6 +38,8 @@ var option = S_Core$RescriptSchema.option;
 
 var $$null = S_Core$RescriptSchema.$$null;
 
+var nullable = S_Core$RescriptSchema.nullable;
+
 var jsonString = S_Core$RescriptSchema.jsonString;
 
 var union = S_Core$RescriptSchema.union;
@@ -147,6 +149,7 @@ export {
   dict ,
   option ,
   $$null ,
+  nullable ,
   jsonString ,
   union ,
   $$catch ,
