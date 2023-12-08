@@ -173,6 +173,15 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
         S.Option.getOr (S.option [%e schema_expression]) [%e default_value]]
     | Error s -> fail ptyp_loc s
   in
+  let schema_expression =
+    match getAttributeByName ptyp_attributes "s.defaultWith" with
+    | Ok None -> schema_expression
+    | Ok (Some attribute) ->
+      let default_cb = getExpressionFromPayload attribute in
+      [%expr
+        S.Option.getOrWith (S.option [%e schema_expression]) [%e default_cb]]
+    | Error s -> fail ptyp_loc s
+  in
   schema_expression
 
 let generateTypeDeclarationSchemaExpression type_declaration =

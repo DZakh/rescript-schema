@@ -43,23 +43,15 @@ function cleanUpSchema(schema) {
   Object.entries(schema).forEach(function (param) {
         var value = param[1];
         var key = param[0];
-        switch (key) {
-          case "f" :
-          case "i" :
-          case "n" :
-          case "op" :
-          case "opa" :
-          case "os" :
-          case "p" :
-          case "s" :
-              return ;
-          default:
-            if (typeof value === "object" && value !== null) {
-              $$new[key] = cleanUpSchema(value);
-            } else {
-              $$new[key] = value;
-            }
-            return ;
+        if (key === "i" || typeof value === "function") {
+          return ;
+        } else {
+          if (typeof value === "object" && value !== null) {
+            $$new[key] = cleanUpSchema(value);
+          } else {
+            $$new[key] = value;
+          }
+          return ;
         }
       });
   return $$new;

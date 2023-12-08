@@ -44,13 +44,22 @@ test("Main example", t => {
 })
 
 @schema
-type url = @s.matches(S.string->S.String.url) string
+type matches = @s.matches(S.string->S.String.url) string
 test("@s.matches", t => {
-  t->assertEqualSchemas(urlSchema, S.string->S.String.url)
+  t->assertEqualSchemas(matchesSchema, S.string->S.String.url)
 })
 
 @schema
-type stringWithDefault = @s.default("Unknown") string
+type default = @s.default("Unknown") string
 test("@s.default", t => {
-  t->assertEqualSchemas(stringWithDefaultSchema, S.option(S.string)->S.Option.getOr("Unknown"))
+  t->assertEqualSchemas(defaultSchema, S.option(S.string)->S.Option.getOr("Unknown"))
+})
+
+@schema
+type defaultWith = @s.defaultWith(() => []) array<string>
+test("@s.defaultWith", t => {
+  t->assertEqualSchemas(
+    defaultWithSchema,
+    S.option(S.array(S.string))->S.Option.getOrWith(() => []),
+  )
 })

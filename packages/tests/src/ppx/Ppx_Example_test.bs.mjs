@@ -38,22 +38,33 @@ Ava("Main example", (function (t) {
                 }), undefined);
       }));
 
-var urlSchema = S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined);
+var matchesSchema = S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined);
 
 Ava("@s.matches", (function (t) {
-        U.assertEqualSchemas(t, urlSchema, S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined), undefined);
+        U.assertEqualSchemas(t, matchesSchema, S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined), undefined);
       }));
 
-var stringWithDefaultSchema = S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.string), "Unknown");
+var defaultSchema = S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.string), "Unknown");
 
 Ava("@s.default", (function (t) {
-        U.assertEqualSchemas(t, stringWithDefaultSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.string), "Unknown"), undefined);
+        U.assertEqualSchemas(t, defaultSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.string), "Unknown"), undefined);
+      }));
+
+var defaultWithSchema = S$RescriptSchema.$$Option.getOrWith(S$RescriptSchema.option(S$RescriptSchema.array(S$RescriptSchema.string)), (function () {
+        return [];
+      }));
+
+Ava("@s.defaultWith", (function (t) {
+        U.assertEqualSchemas(t, defaultWithSchema, S$RescriptSchema.$$Option.getOrWith(S$RescriptSchema.option(S$RescriptSchema.array(S$RescriptSchema.string)), (function () {
+                    return [];
+                  })), undefined);
       }));
 
 export {
   ratingSchema ,
   filmSchema ,
-  urlSchema ,
-  stringWithDefaultSchema ,
+  matchesSchema ,
+  defaultSchema ,
+  defaultWithSchema ,
 }
 /* ratingSchema Not a pure module */
