@@ -27,6 +27,7 @@ let rec generateConstrSchemaExpression {Location.txt = identifier; loc}
         [%e generateCoreTypeSchemaExpression item_type]]
   | Lident "null", [item_type] ->
     [%expr S.null [%e generateCoreTypeSchemaExpression item_type]]
+  | Lident "dict", [item_type]
   | Ldot (Ldot (Lident "Js", "Dict"), "t"), [item_type]
   | Ldot (Lident "Dict", "t"), [item_type] ->
     [%expr S.dict [%e generateCoreTypeSchemaExpression item_type]]

@@ -755,7 +755,7 @@ let schema = S.tuple3(S.string, S.int, S.bool)
 
 ### **`dict`**
 
-`S.t<'value> => S.t<Dict.t<'value>>`
+`S.t<'value> => S.t<dict<'value>>`
 
 ```rescript
 let schema = S.dict(S.string)
