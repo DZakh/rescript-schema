@@ -3,13 +3,12 @@
 /* eslint-disable */
 /* tslint:disable */
 
-import * as GenTypeBS__Es6Import from './GenType.bs';
-const GenTypeBS: any = GenTypeBS__Es6Import;
+import * as GenTypeJS from './GenType.bs.mjs';
 
 import type {S_error as RescriptSchema_S_error} from 'rescript-schema/RescriptSchema.gen';
 
 import type {S_t as RescriptSchema_S_t} from 'rescript-schema/RescriptSchema.gen';
 
-export const stringSchema: RescriptSchema_S_t<string> = GenTypeBS.stringSchema;
+export const stringSchema: RescriptSchema_S_t<string> = GenTypeJS.stringSchema as any;
 
-export const error: RescriptSchema_S_error = GenTypeBS.error;
+export const error: RescriptSchema_S_error = GenTypeJS.error as any;

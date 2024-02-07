@@ -359,6 +359,7 @@ let inline: t<'value> => string
 
 @@uncurried
 
+@tag("success")
 type jsResult<'value>
 
 let js_optional: (t<'v>, option<unknown>) => t<option<'v>>
