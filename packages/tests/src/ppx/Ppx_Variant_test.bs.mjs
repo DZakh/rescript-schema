@@ -150,6 +150,38 @@ Ava("Tagged variant", (function (t) {
                 ]), undefined);
       }));
 
+var taggedInlinedAliasSchema = S$RescriptSchema.union([
+      S$RescriptSchema.schema(function (s) {
+            return {
+                    type: "Foo",
+                    Foo: s.matches(S$RescriptSchema.string)
+                  };
+          }),
+      S$RescriptSchema.schema(function (s) {
+            return {
+                    type: "Bar",
+                    Bar: s.matches(S$RescriptSchema.string)
+                  };
+          })
+    ]);
+
+Ava("Tagged variant with inlined alias", (function (t) {
+        U.assertEqualSchemas(t, taggedInlinedAliasSchema, S$RescriptSchema.union([
+                  S$RescriptSchema.schema(function (s) {
+                        return {
+                                type: "Foo",
+                                Foo: s.matches(S$RescriptSchema.string)
+                              };
+                      }),
+                  S$RescriptSchema.schema(function (s) {
+                        return {
+                                type: "Bar",
+                                Bar: s.matches(S$RescriptSchema.string)
+                              };
+                      })
+                ]), undefined);
+      }));
+
 export {
   variantSchema ,
   variantWithSingleItemSchema ,
@@ -157,5 +189,6 @@ export {
   variantWithPayloadsSchema ,
   unboxedVariantSchema ,
   taggedVariantSchema ,
+  taggedInlinedAliasSchema ,
 }
 /* variantSchema Not a pure module */

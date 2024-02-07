@@ -62,3 +62,16 @@ test("Tagged variant", t => {
     ]),
   )
 })
+
+@schema @tag("type")
+type taggedInlinedAlias = Foo({@as("Foo") foo: string}) | Bar({@as("Bar") bar: string})
+
+test("Tagged variant with inlined alias", t => {
+  t->assertEqualSchemas(
+    taggedInlinedAliasSchema,
+    S.union([
+      S.schema(s => Foo({foo: s.matches(S.string)})),
+      S.schema(s => Bar({bar: s.matches(S.string)})),
+    ]),
+  )
+})

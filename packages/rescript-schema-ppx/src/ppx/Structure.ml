@@ -92,8 +92,7 @@ and generateVariantSchemaExpression constr_decls =
                       let schema_expression =
                         generateFieldSchemaExpression field
                       in
-                      ( lid field.runtime_name,
-                        [%expr s.matches [%e schema_expression]] ))
+                      (lid field.name, [%expr s.matches [%e schema_expression]]))
              in
              [%expr
                S.schema
