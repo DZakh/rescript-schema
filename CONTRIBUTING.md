@@ -12,7 +12,7 @@ The following steps will get you setup to contribute changes to this repo:
 
 1. Fork this repo.
 2. Clone your forked repo: `git clone git@github.com:{your_username}/rescript-schema.git`
-3. Install [pnpm](https://pnpm.io/) if not available `npm i -g pnpm@7.11.0`
+3. Install [pnpm](https://pnpm.io/) if not available `npm i -g pnpm@8.14.3`
 4. Run `pnpm i` to install dependencies.
 5. Start playing with the code!
 

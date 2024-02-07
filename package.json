@@ -89,5 +89,5 @@
   "peerDependencies": {
     "rescript": "11.0.x || ~11.0.0-rc"
   },
-  "packageManager": "pnpm@7.11.0"
+  "packageManager": "pnpm@8.14.3"
 }
