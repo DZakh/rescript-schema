@@ -75,7 +75,7 @@ importers:
   packages/rescript-schema-ppx:
     dependencies:
       rescript-schema:
-        specifier: 6.3.0
+        specifier: 6.4.0
         version: link:../..
 
   packages/tests: {}
