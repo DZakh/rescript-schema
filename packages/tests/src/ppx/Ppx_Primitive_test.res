@@ -63,8 +63,14 @@ test("List of string schema", t => {
 })
 
 @schema
-type myDictOfString = Js.Dict.t<string>
+type myDictOfString = dict<string>
 test("Dict of string schema", t => {
+  t->assertEqualSchemas(myDictOfStringSchema, S.dict(S.string))
+})
+
+@schema
+type myDictOfStringFromJs = Js.Dict.t<string>
+test("Dict of string schema from Js", t => {
   t->assertEqualSchemas(myDictOfStringSchema, S.dict(S.string))
 })
 

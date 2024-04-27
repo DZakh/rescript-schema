@@ -10,7 +10,7 @@ module Literal: {
     | BigInt(Js.Types.bigint_val)
     | Symbol(Js.Types.symbol)
     | Array(array<t>)
-    | Dict(Js.Dict.t<t>)
+    | Dict(dict<t>)
     | Function(Js.Types.function_val)
     | Object(Js.Types.obj_val)
     | Null
@@ -55,7 +55,7 @@ and tagged =
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
-  | Object({fields: Js.Dict.t<t<unknown>>, fieldNames: array<string>, unknownKeys: unknownKeys})
+  | Object({fields: dict<t<unknown>>, fieldNames: array<string>, unknownKeys: unknownKeys})
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
@@ -110,7 +110,7 @@ let json: t<Js.Json.t>
 let literal: 'value => t<'value>
 let array: t<'value> => t<array<'value>>
 let list: t<'value> => t<list<'value>>
-let dict: t<'value> => t<Js.Dict.t<'value>>
+let dict: t<'value> => t<dict<'value>>
 let option: t<'value> => t<option<'value>>
 let null: t<'value> => t<option<'value>>
 let nullable: t<'value> => t<option<'value>>

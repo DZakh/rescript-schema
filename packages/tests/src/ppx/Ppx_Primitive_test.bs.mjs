@@ -56,6 +56,12 @@ Ava("Dict of string schema", (function (t) {
         U.assertEqualSchemas(t, myDictOfStringSchema, S$RescriptSchema.dict(S$RescriptSchema.string), undefined);
       }));
 
+var myDictOfStringFromJsSchema = S$RescriptSchema.dict(S$RescriptSchema.string);
+
+Ava("Dict of string schema from Js", (function (t) {
+        U.assertEqualSchemas(t, myDictOfStringSchema, S$RescriptSchema.dict(S$RescriptSchema.string), undefined);
+      }));
+
 var myDictOfStringFromCoreSchema = S$RescriptSchema.dict(S$RescriptSchema.string);
 
 Ava("Dict of string schema from Core", (function (t) {
@@ -171,6 +177,7 @@ export {
   myArrayOfStringSchema ,
   myListOfStringSchema ,
   myDictOfStringSchema ,
+  myDictOfStringFromJsSchema ,
   myDictOfStringFromCoreSchema ,
   myJsonSchema ,
   myJsonFromCoreSchema ,

@@ -97,7 +97,7 @@ module Stdlib = {
 
   module Dict = {
     @val
-    external copy: (@as(json`{}`) _, Js.Dict.t<'a>) => Js.Dict.t<'a> = "Object.assign"
+    external copy: (@as(json`{}`) _, dict<'a>) => dict<'a> = "Object.assign"
 
     @inline
     let has = (dict, key) => {
@@ -106,10 +106,10 @@ module Stdlib = {
 
     @inline
     let deleteInPlace = (dict, key) => {
-      Js.Dict.unsafeDeleteKey(dict->(Obj.magic: Js.Dict.t<'a> => Js.Dict.t<string>), key)
+      Js.Dict.unsafeDeleteKey(dict->(Obj.magic: dict<'a> => dict<string>), key)
     }
 
-    let mapValues: (Js.Dict.t<'a>, 'a => 'b) => Js.Dict.t<'b> = %raw(`(dict, fn)=>{
+    let mapValues: (dict<'a>, 'a => 'b) => dict<'b> = %raw(`(dict, fn)=>{
       var key,newDict = {};
       for (key in dict) {
         newDict[key] = fn(dict[key])
@@ -117,7 +117,7 @@ module Stdlib = {
       return newDict
     }`)
 
-    let every: (Js.Dict.t<'a>, 'a => bool) => bool = %raw(`(dict, fn)=>{
+    let every: (dict<'a>, 'a => bool) => bool = %raw(`(dict, fn)=>{
       for (var key in dict) {
         if (!fn(dict[key])) {
           return false
@@ -193,7 +193,7 @@ module Literal = {
     | BigInt(Js.Types.bigint_val)
     | Symbol(Js.Types.symbol)
     | Array(array<t>)
-    | Dict(Js.Dict.t<t>)
+    | Dict(dict<t>)
     | Function(Js.Types.function_val)
     | Object(Js.Types.obj_val)
     | Null
@@ -209,7 +209,7 @@ module Literal = {
       Array(value->(Obj.magic: 'a => array<'b>)->Js.Array2.map(i => i->classify))
     | #object
       if (value->(Obj.magic: 'a => {"constructor": unknown}))["constructor"] === %raw("Object") =>
-      Dict(value->(Obj.magic: 'a => Js.Dict.t<'b>)->Dict.mapValues(classify))
+      Dict(value->(Obj.magic: 'a => dict<'b>)->Dict.mapValues(classify))
     | #object => Object(value->(Obj.magic: 'a => Js.Types.obj_val))
     | #function => Function(value->(Obj.magic: 'a => Js.Types.function_val))
     | #string => String(value->(Obj.magic: 'a => string))
@@ -340,7 +340,7 @@ type rec t<'value> = {
   @as("i")
   mutable isAsyncParse: isAsyncParse,
   @as("m")
-  metadataMap: Js.Dict.t<unknown>,
+  metadataMap: dict<unknown>,
 }
 and tagged =
   | Never
@@ -353,7 +353,7 @@ and tagged =
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
-  | Object({fields: Js.Dict.t<t<unknown>>, fieldNames: array<string>, unknownKeys: unknownKeys})
+  | Object({fields: dict<t<unknown>>, fieldNames: array<string>, unknownKeys: unknownKeys})
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
@@ -1443,7 +1443,7 @@ let rec literalCheckBuilder = (b, ~value, ~inputVar) => {
           ->Js.Array2.joinWith("&&")
         : "") ++ ")"
     } else if %raw(`value&&value.constructor===Object`) {
-      let value = value->(Obj.magic: unknown => Js.Dict.t<unknown>)
+      let value = value->(Obj.magic: unknown => dict<unknown>)
       let keys = value->Js.Dict.keys
       let numberOfKeys = keys->Js.Array2.length
       `(${check}||${inputVar}&&${inputVar}.constructor===Object&&Object.keys(${inputVar}).length===${numberOfKeys->Stdlib.Int.unsafeToString}` ++
@@ -1494,7 +1494,7 @@ let unit = literal(%raw("void 0"))
 
 module Definition = {
   type t<'embeded>
-  type node<'embeded> = Js.Dict.t<t<'embeded>>
+  type node<'embeded> = dict<t<'embeded>>
   type kind = | @as(0) Node | @as(1) Constant | @as(2) Embeded
 
   let toKindWithSet = (definition: t<'embeded>, ~embededSet: Stdlib.Set.t<'embeded>) => {
@@ -1879,7 +1879,7 @@ module Object = {
       @as("n")
       fieldNames: array<string>,
       @as("h")
-      fields: Js.Dict.t<schema<unknown>>,
+      fields: dict<schema<unknown>>,
       @as("d")
       itemDefinitionsSet: Stdlib.Set.t<itemDefinition>,
       // Public API for JS/TS users.
@@ -3163,7 +3163,7 @@ let json = makeWithNoopSerializer(
           }
           output->Js.Json.array
         } else {
-          let input = input->(Obj.magic: unknown => Js.Dict.t<unknown>)
+          let input = input->(Obj.magic: unknown => dict<unknown>)
           let keys = input->Js.Dict.keys
           let output = Js.Dict.empty()
           for idx in 0 to keys->Js.Array2.length - 1 {
@@ -3764,7 +3764,7 @@ let js_object = definer => {
     let definer = definer->(Obj.magic: unknown => Object.ctx => 'a)
     object(definer)
   } else {
-    let definer = definer->(Obj.magic: unknown => Js.Dict.t<t<unknown>>)
+    let definer = definer->(Obj.magic: unknown => dict<t<unknown>>)
     object(s => {
       let definition = Js.Dict.empty()
       let fieldNames = definer->Js.Dict.keys

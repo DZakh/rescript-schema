@@ -13,7 +13,7 @@ let jsInputPath = NodeJs.Path.join2(artifactsPath, "src/S.js")
 module Stdlib = {
   module Dict = {
     @val
-    external copy: (@as(json`{}`) _, Dict.t<'a>) => Dict.t<'a> = "Object.assign"
+    external copy: (@as(json`{}`) _, dict<'a>) => dict<'a> = "Object.assign"
   }
 
   module Json = {
@@ -45,7 +45,7 @@ module Stdlib = {
 
 module Execa = {
   type returnValue = {stdout: string}
-  type options = {env?: Dict.t<string>, cwd?: string}
+  type options = {env?: dict<string>, cwd?: string}
 
   @module("execa")
   external sync: (string, array<string>, ~options: options=?, unit) => returnValue = "execaSync"
@@ -68,7 +68,7 @@ module Rollup = {
   }
 
   module ReplacePlugin = {
-    type options = {values: Dict.t<string>}
+    type options = {values: dict<string>}
     @module("@rollup/plugin-replace") external make: options => Plugin.t = "default"
   }
 
