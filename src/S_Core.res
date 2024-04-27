@@ -397,10 +397,8 @@ type exn += private Raised(error)
 external castUnknownSchemaToAnySchema: t<unknown> => t<'any> = "%identity"
 external toUnknown: t<'any> => t<unknown> = "%identity"
 
-type payloadedVariant<'payload> = private {_0: 'payload}
-type payloadedError<'payload> = private {_1: 'payload}
-let unsafeGetVariantPayload = variant => (variant->Obj.magic)._0
-let unsafeGetErrorPayload = variant => (variant->Obj.magic)._1
+let unsafeGetVariantPayload = variant => (variant->Obj.magic)["_0"]
+let unsafeGetErrorPayload = variant => (variant->Obj.magic)["_1"]
 
 module InternalError = {
   %%raw(`

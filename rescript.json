@@ -3,7 +3,7 @@
   "namespace": true,
   "suffix": ".bs.mjs",
   "package-specs": {
-    "module": "es6",
+    "module": "esmodule",
     "in-source": true
   },
   "sources": {

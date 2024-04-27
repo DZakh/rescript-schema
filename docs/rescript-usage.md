@@ -1024,7 +1024,7 @@ The refine function is applied for both parser and serializer.
 ```rescript
 let intToString = schema =>
   schema->S.transform(s => {
-    parser: Int.toString,
+    parser: int => int->Int.toString,
     serializer: string =>
       switch string->Int.fromString {
       | Some(int) => int

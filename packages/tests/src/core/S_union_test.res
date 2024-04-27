@@ -324,7 +324,7 @@ test("Successfully serializes unboxed variant", t => {
     S.string
     ->S.transform(_ => {
       parser: string => string->Int.fromString->Option.getExn,
-      serializer: Int.toString,
+      serializer: Int.toString(_),
     })
     ->S.variant(i => Int(i)),
   ])
@@ -373,7 +373,7 @@ test("Compiled serialize code snapshot for unboxed variant", t => {
     S.string
     ->S.transform(_ => {
       parser: string => string->Int.fromString->Option.getExn,
-      serializer: Int.toString,
+      serializer: Int.toString(_),
     })
     ->S.variant(i => Int(i)),
   ])

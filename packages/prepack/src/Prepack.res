@@ -4,7 +4,7 @@ let sourePaths = [
   "package.json",
   "node_modules",
   "src",
-  "bsconfig.json",
+  "rescript.json",
   "README.md",
   "RescriptSchema.gen.ts",
 ]
@@ -126,15 +126,19 @@ sourePaths->Array.forEach(path => {
 let updateJsonFile = (~src, ~path, ~value) => {
   let packageJsonData = NodeJs.Fs.readFileSyncWith(
     src,
-    NodeJs.Fs.readFileOptions(~encoding="utf8", ()),
+    {
+      encoding: "utf8",
+    },
   )
   let packageJson = packageJsonData->NodeJs.Buffer.toString->JSON.parseExn
   let updatedPackageJson =
-    packageJson->Stdlib.Json.update(path->List.fromArray, value)->JSON.stringifyWithIndent(2)
+    packageJson->Stdlib.Json.update(path->List.fromArray, value)->JSON.stringify(~space=2)
   NodeJs.Fs.writeFileSyncWith(
     src,
     updatedPackageJson->NodeJs.Buffer.fromString,
-    NodeJs.Fs.writeFileOptions(~encoding="utf8", ()),
+    {
+      encoding: "utf8",
+    },
   )
 }
 
@@ -175,12 +179,12 @@ await bundle->Rollup.Bundle.close
 // Clean up rescript artifacts so the compiled .bs.js files aren't removed on the .bs.mjs build
 FsX.rmSync(NodeJs.Path.join2(artifactsPath, "lib"), {force: true, recursive: true})
 updateJsonFile(
-  ~src=NodeJs.Path.join2(artifactsPath, "bsconfig.json"),
+  ~src=NodeJs.Path.join2(artifactsPath, "rescript.json"),
   ~path=["package-specs", "module"],
   ~value=JSON.Encode.string("commonjs"),
 )
 updateJsonFile(
-  ~src=NodeJs.Path.join2(artifactsPath, "bsconfig.json"),
+  ~src=NodeJs.Path.join2(artifactsPath, "rescript.json"),
   ~path=["suffix"],
   ~value=JSON.Encode.string(".bs.js"),
 )
