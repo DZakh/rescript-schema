@@ -2,31 +2,21 @@
 
 type never
 
-module Literal: {
-  @tag("kind")
-  type rec t =
-    private
-    | String({value: string})
-    | Number({value: float})
-    | Boolean({value: bool})
-    | BigInt({value: bigint})
-    | Symbol({value: Js.Types.symbol})
-    | Array({value: array<unknown>, items: array<t>})
-    | Dict({value: dict<unknown>, items: dict<t>})
-    | Function({value: Js.Types.function_val})
-    | Object({value: Js.Types.obj_val})
-    | Null({value: Js.Types.null_val})
-    | Undefined({value: unit})
-    | NaN({value: unknown})
-
-  let parse: 'a => t
-
-  let value: t => unknown
-
-  let isJsonable: t => bool
-
-  let toString: t => string
-}
+@tag("kind")
+type rec literal =
+  private
+  | String({value: string})
+  | Number({value: float})
+  | Boolean({value: bool})
+  | BigInt({value: bigint})
+  | Symbol({value: Js.Types.symbol})
+  | Array({value: array<unknown>, items: array<literal>})
+  | Dict({value: dict<unknown>, items: dict<literal>})
+  | Function({value: Js.Types.function_val})
+  | Object({value: Js.Types.obj_val})
+  | Null({value: Js.Types.null_val})
+  | Undefined({value: unit})
+  | NaN({value: unknown})
 
 module Path: {
   type t
@@ -53,7 +43,7 @@ and tagged =
   | Int
   | Float
   | Bool
-  | Literal(Literal.t)
+  | Literal(literal)
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
@@ -68,7 +58,7 @@ and errorCode =
   | OperationFailed(string)
   | InvalidOperation({description: string})
   | InvalidType({expected: schema<unknown>, received: unknown})
-  | InvalidLiteral({expected: Literal.t, received: unknown})
+  | InvalidLiteral({expected: literal, received: unknown})
   | InvalidTupleSize({expected: int, received: int})
   | ExcessField(string)
   | InvalidUnion(array<error>)
@@ -98,6 +88,16 @@ module Error: {
   let message: error => string
 
   let reason: error => string
+}
+
+module Literal: {
+  let parse: 'a => literal
+
+  let value: literal => unknown
+
+  let isJsonable: literal => bool
+
+  let toString: literal => string
 }
 
 let never: t<never>

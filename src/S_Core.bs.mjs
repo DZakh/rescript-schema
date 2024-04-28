@@ -19,191 +19,6 @@ function fromString(string) {
   return JSON.stringify(string);
 }
 
-var undefined_value = undefined;
-
-function undefined_toString() {
-  return "undefined";
-}
-
-var $$undefined = {
-  kind: "Undefined",
-  value: undefined_value,
-  toString: undefined_toString,
-  isJsonable: false
-};
-
-var null_value = null;
-
-function null_toString() {
-  return "null";
-}
-
-var $$null = {
-  kind: "Null",
-  value: null_value,
-  toString: null_toString,
-  isJsonable: true
-};
-
-var nan_value = NaN;
-
-function nan_toString() {
-  return "NaN";
-}
-
-var nan = {
-  kind: "NaN",
-  value: nan_value,
-  toString: nan_toString,
-  isJsonable: false
-};
-
-function parseInternal(value) {
-  var typeOfValue = typeof value;
-  if (typeOfValue === "symbol") {
-    return {
-            kind: "Symbol",
-            value: value,
-            toString: (function () {
-                return value.toString();
-              }),
-            isJsonable: false
-          };
-  } else if (typeOfValue === "boolean") {
-    return {
-            kind: "Boolean",
-            value: value,
-            toString: (function () {
-                if (value) {
-                  return "true";
-                } else {
-                  return "false";
-                }
-              }),
-            isJsonable: true
-          };
-  } else if (typeOfValue === "string") {
-    return {
-            kind: "String",
-            value: value,
-            toString: (function () {
-                return JSON.stringify(value);
-              }),
-            isJsonable: true
-          };
-  } else if (typeOfValue === "function") {
-    return {
-            kind: "Function",
-            value: value,
-            toString: (function () {
-                return value.toString();
-              }),
-            isJsonable: false
-          };
-  } else if (typeOfValue === "object") {
-    if (value === null) {
-      return $$null;
-    } else if (Array.isArray(value)) {
-      var items = [];
-      var isJsonable = true;
-      for(var idx = 0 ,idx_finish = value.length; idx < idx_finish; ++idx){
-        var itemValue = value[idx];
-        var itemLiteral = parseInternal(itemValue);
-        if (isJsonable && !itemLiteral.isJsonable) {
-          isJsonable = false;
-        }
-        items.push(itemLiteral);
-      }
-      return {
-              kind: "Array",
-              value: value,
-              toString: (function () {
-                  return "[" + items.map(function (itemLiteral) {
-                                return itemLiteral.toString();
-                              }).join(",") + "]";
-                }),
-              isJsonable: isJsonable,
-              items: Caml_option.some(items)
-            };
-    } else if (value.constructor === Object) {
-      var items$1 = {};
-      var isJsonable$1 = true;
-      var fields = Object.keys(value);
-      var numberOfFields = fields.length;
-      for(var idx$1 = 0; idx$1 < numberOfFields; ++idx$1){
-        var field = fields[idx$1];
-        var itemValue$1 = value[field];
-        var itemLiteral$1 = parseInternal(itemValue$1);
-        if (isJsonable$1 && !itemLiteral$1.isJsonable) {
-          isJsonable$1 = false;
-        }
-        items$1[field] = itemLiteral$1;
-      }
-      return {
-              kind: "Dict",
-              value: value,
-              toString: (function () {
-                  return "{" + Object.keys(items$1).map(function (field) {
-                                var itemLiteral = items$1[field];
-                                return JSON.stringify(field) + ": " + itemLiteral.toString();
-                              }).join(",") + "}";
-                }),
-              isJsonable: isJsonable$1,
-              items: Caml_option.some(items$1)
-            };
-    } else {
-      return {
-              kind: "Object",
-              value: value,
-              toString: (function () {
-                  return Object.prototype.toString.call(value);
-                }),
-              isJsonable: false
-            };
-    }
-  } else if (typeOfValue === "undefined") {
-    return $$undefined;
-  } else if (typeOfValue === "number") {
-    if (Number.isNaN(value)) {
-      return nan;
-    } else {
-      return {
-              kind: "Number",
-              value: value,
-              toString: (function () {
-                  return value.toString();
-                }),
-              isJsonable: true
-            };
-    }
-  } else {
-    return {
-            kind: "BigInt",
-            value: value,
-            toString: (function () {
-                return value.toString();
-              }),
-            isJsonable: false
-          };
-  }
-}
-
-function parse(any) {
-  return parseInternal(any);
-}
-
-function value(literal) {
-  return literal.value;
-}
-
-function isJsonable(literal) {
-  return literal.isJsonable;
-}
-
-function toString(literal) {
-  return literal.toString();
-}
-
 function toArray(path) {
   if (path === "") {
     return [];
@@ -520,6 +335,191 @@ function build(builder, schema, operation) {
     b.l === "" ? "" : "let " + b.l + ";"
   ) + b.c + "return " + output + "}";
   return new Function("e", "s", "return " + inlinedFunction)(b.e, symbol);
+}
+
+var undefined_value = undefined;
+
+function undefined_toString() {
+  return "undefined";
+}
+
+var $$undefined = {
+  kind: "Undefined",
+  value: undefined_value,
+  toString: undefined_toString,
+  isJsonable: false
+};
+
+var null_value = null;
+
+function null_toString() {
+  return "null";
+}
+
+var $$null = {
+  kind: "Null",
+  value: null_value,
+  toString: null_toString,
+  isJsonable: true
+};
+
+var nan_value = NaN;
+
+function nan_toString() {
+  return "NaN";
+}
+
+var nan = {
+  kind: "NaN",
+  value: nan_value,
+  toString: nan_toString,
+  isJsonable: false
+};
+
+function parseInternal(value) {
+  var typeOfValue = typeof value;
+  if (typeOfValue === "symbol") {
+    return {
+            kind: "Symbol",
+            value: value,
+            toString: (function () {
+                return value.toString();
+              }),
+            isJsonable: false
+          };
+  } else if (typeOfValue === "boolean") {
+    return {
+            kind: "Boolean",
+            value: value,
+            toString: (function () {
+                if (value) {
+                  return "true";
+                } else {
+                  return "false";
+                }
+              }),
+            isJsonable: true
+          };
+  } else if (typeOfValue === "string") {
+    return {
+            kind: "String",
+            value: value,
+            toString: (function () {
+                return JSON.stringify(value);
+              }),
+            isJsonable: true
+          };
+  } else if (typeOfValue === "function") {
+    return {
+            kind: "Function",
+            value: value,
+            toString: (function () {
+                return value.toString();
+              }),
+            isJsonable: false
+          };
+  } else if (typeOfValue === "object") {
+    if (value === null) {
+      return $$null;
+    } else if (Array.isArray(value)) {
+      var items = [];
+      var isJsonable = true;
+      for(var idx = 0 ,idx_finish = value.length; idx < idx_finish; ++idx){
+        var itemValue = value[idx];
+        var itemLiteral = parseInternal(itemValue);
+        if (isJsonable && !itemLiteral.isJsonable) {
+          isJsonable = false;
+        }
+        items.push(itemLiteral);
+      }
+      return {
+              kind: "Array",
+              value: value,
+              toString: (function () {
+                  return "[" + items.map(function (itemLiteral) {
+                                return itemLiteral.toString();
+                              }).join(",") + "]";
+                }),
+              isJsonable: isJsonable,
+              items: Caml_option.some(items)
+            };
+    } else if (value.constructor === Object) {
+      var items$1 = {};
+      var isJsonable$1 = true;
+      var fields = Object.keys(value);
+      var numberOfFields = fields.length;
+      for(var idx$1 = 0; idx$1 < numberOfFields; ++idx$1){
+        var field = fields[idx$1];
+        var itemValue$1 = value[field];
+        var itemLiteral$1 = parseInternal(itemValue$1);
+        if (isJsonable$1 && !itemLiteral$1.isJsonable) {
+          isJsonable$1 = false;
+        }
+        items$1[field] = itemLiteral$1;
+      }
+      return {
+              kind: "Dict",
+              value: value,
+              toString: (function () {
+                  return "{" + Object.keys(items$1).map(function (field) {
+                                var itemLiteral = items$1[field];
+                                return JSON.stringify(field) + ": " + itemLiteral.toString();
+                              }).join(",") + "}";
+                }),
+              isJsonable: isJsonable$1,
+              items: Caml_option.some(items$1)
+            };
+    } else {
+      return {
+              kind: "Object",
+              value: value,
+              toString: (function () {
+                  return Object.prototype.toString.call(value);
+                }),
+              isJsonable: false
+            };
+    }
+  } else if (typeOfValue === "undefined") {
+    return $$undefined;
+  } else if (typeOfValue === "number") {
+    if (Number.isNaN(value)) {
+      return nan;
+    } else {
+      return {
+              kind: "Number",
+              value: value,
+              toString: (function () {
+                  return value.toString();
+                }),
+              isJsonable: true
+            };
+    }
+  } else {
+    return {
+            kind: "BigInt",
+            value: value,
+            toString: (function () {
+                return value.toString();
+              }),
+            isJsonable: false
+          };
+  }
+}
+
+function parse(any) {
+  return parseInternal(any);
+}
+
+function value(literal) {
+  return literal.value;
+}
+
+function isJsonable(literal) {
+  return literal.isJsonable;
+}
+
+function toString(literal) {
+  return literal.toString();
 }
 
 function loop(_schema) {
@@ -3218,13 +3218,6 @@ function js_name(prim) {
   return prim.n();
 }
 
-var Literal = {
-  parse: parse,
-  value: value,
-  isJsonable: isJsonable,
-  toString: toString
-};
-
 var Path = {
   empty: "",
   dynamic: "[]",
@@ -3240,6 +3233,13 @@ var $$Error$1 = {
   raise: raise,
   message: message,
   reason: reason
+};
+
+var Literal = {
+  parse: parse,
+  value: value,
+  isJsonable: isJsonable,
+  toString: toString
 };
 
 var never = schema;
@@ -3349,10 +3349,10 @@ var Metadata = {
 };
 
 export {
-  Literal ,
   Path ,
   Raised ,
   $$Error$1 as $$Error,
+  Literal ,
   never ,
   unknown ,
   unit ,
@@ -3428,4 +3428,4 @@ export {
   js_serializeOrThrow ,
   js_name ,
 }
-/* nan Not a pure module */
+/* symbol Not a pure module */

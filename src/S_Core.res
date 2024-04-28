@@ -168,266 +168,6 @@ module Stdlib = {
   }
 }
 
-module Literal = {
-  @@warning("-37")
-
-  open Stdlib
-
-  @tag("kind")
-  type rec t =
-    | String({value: string})
-    | Number({value: float})
-    | Boolean({value: bool})
-    | BigInt({value: bigint})
-    | Symbol({value: Js.Types.symbol})
-    | Array({value: array<unknown>, items: array<t>})
-    | Dict({value: dict<unknown>, items: dict<t>})
-    | Function({value: Js.Types.function_val})
-    | Object({value: Js.Types.obj_val})
-    | Null({value: Js.Types.null_val})
-    | Undefined({value: unit})
-    | NaN({value: unknown})
-
-  type rec internal = {
-    kind: kind,
-    value: unknown,
-    toString: unit => string,
-    // checkBuilder: (B.t, ~value: unknown, ~inputVar: string) => string,
-    isJsonable: bool,
-    items?: unknown,
-  }
-  and kind =
-    | String
-    | Number
-    | Boolean
-    | BigInt
-    | Symbol
-    | Array
-    | Dict
-    | Function
-    | Object
-    | Null
-    | Undefined
-    | NaN
-
-  external toInternal: t => internal = "%identity"
-  external toPublic: internal => t = "%identity"
-
-  let undefined = {
-    kind: Undefined,
-    value: %raw(`undefined`),
-    toString: () => "undefined",
-    isJsonable: false,
-    // checkBuilder: (_, ~value as _, ~inputVar) => `${inputVar}===void 0`,
-  }
-
-  let null = {
-    kind: Null,
-    value: %raw(`null`),
-    toString: () => "null",
-    isJsonable: true,
-    // checkBuilder: (_, ~value as _, ~inputVar) => `${inputVar}===null`,
-  }
-
-  let nan = {
-    kind: NaN,
-    value: %raw(`NaN`),
-    toString: () => "NaN",
-    isJsonable: false,
-    // checkBuilder: (_, ~value as _, ~inputVar) => `Number.isNaN(${inputVar})`,
-  }
-
-  // let strictEqualCheckBuilder = (b, ~value, ~inputVar) => `${inputVar}===${b->B.embed(value)}`
-
-  let string = value => {
-    {
-      kind: String,
-      value: value->castAnyToUnknown,
-      // FIXME: Test one or two Stdlib.Inlined.Value.fromString
-      toString: () => Stdlib.Inlined.Value.fromString(value),
-      isJsonable: true,
-      // checkBuilder: strictEqualCheckBuilder,
-    }
-  }
-
-  let boolean = value => {
-    {
-      kind: Boolean,
-      value: value->castAnyToUnknown,
-      toString: () => value ? "true" : "false",
-      isJsonable: true,
-      // checkBuilder: (_, ~value as _, ~inputVar) => `${inputVar}===${inlined}`,
-    }
-  }
-
-  let number = value => {
-    {
-      kind: Number,
-      value: value->castAnyToUnknown,
-      toString: () => value->Js.Float.toString,
-      isJsonable: true,
-      // checkBuilder: strictEqualCheckBuilder,
-    }
-  }
-
-  let symbol = value => {
-    {
-      kind: Symbol,
-      value: value->castAnyToUnknown,
-      toString: () => value->Symbol.toString,
-      isJsonable: false,
-      // checkBuilder: strictEqualCheckBuilder,
-    }
-  }
-
-  let bigint = value => {
-    {
-      kind: BigInt,
-      value: value->castAnyToUnknown,
-      toString: () => value->BigInt.toString,
-      isJsonable: false,
-      // checkBuilder: strictEqualCheckBuilder,
-    }
-  }
-
-  let function = value => {
-    {
-      kind: Function,
-      value: value->castAnyToUnknown,
-      toString: () => value->Stdlib.Function.toString,
-      isJsonable: false,
-      // checkBuilder: strictEqualCheckBuilder,
-    }
-  }
-
-  let object = value => {
-    {
-      kind: Object,
-      value: value->castAnyToUnknown,
-      toString: () => value->Object.internalClass,
-      isJsonable: false,
-      // checkBuilder: strictEqualCheckBuilder,
-    }
-  }
-
-  let rec parseInternal = (value): internal => {
-    let value = value->castAnyToUnknown
-    let typeOfValue = value->Type.typeof
-    switch typeOfValue {
-    | #undefined => undefined
-    | #object if value === %raw(`null`) => null
-    | #object if value->Stdlib.Array.isArray => array(value->(Obj.magic: unknown => array<unknown>))
-    | #object
-      if (value->(Obj.magic: 'a => {"constructor": unknown}))["constructor"] === %raw("Object") =>
-      dict(value->(Obj.magic: unknown => Js.Dict.t<unknown>))
-    | #object => object(value->(Obj.magic: unknown => Js.Types.obj_val))
-    | #function => function(value->(Obj.magic: unknown => Js.Types.function_val))
-    | #string => string(value->(Obj.magic: unknown => string))
-    | #number if value->(Obj.magic: unknown => float)->Js.Float.isNaN => nan
-    | #number => number(value->(Obj.magic: unknown => float))
-    | #boolean => boolean(value->(Obj.magic: unknown => bool))
-    | #symbol => symbol(value->(Obj.magic: unknown => Js.Types.symbol))
-    | #bigint => bigint(value->(Obj.magic: unknown => bigint))
-    }
-  }
-  and dict = value => {
-    let items = Js.Dict.empty()
-    let isJsonable = ref(true)
-    let fields = value->Js.Dict.keys
-    let numberOfFields = fields->Js.Array2.length
-    for idx in 0 to numberOfFields - 1 {
-      let field = fields->Js.Array2.unsafe_get(idx)
-      let itemValue = value->Js.Dict.unsafeGet(field)
-      let itemLiteral = itemValue->castUnknownToAny->parseInternal
-      if isJsonable.contents && !itemLiteral.isJsonable {
-        isJsonable.contents = false
-      }
-      items->Js.Dict.set(field, itemLiteral)
-    }
-
-    {
-      kind: Dict,
-      value: value->castAnyToUnknown,
-      items: items->castAnyToUnknown,
-      toString: () =>
-        `{${items
-          ->Js.Dict.keys
-          ->Js.Array2.map(field => {
-            let itemLiteral = items->Js.Dict.unsafeGet(field)
-            `${field->Inlined.Value.fromString}: ${itemLiteral.toString()}`
-          })
-          ->Js.Array2.joinWith(",")}}`,
-      isJsonable: isJsonable.contents,
-      // checkBuilder: (b, ~value, ~inputVar) =>
-      //   `(${inputVar}===${b->B.embed(
-      //       value,
-      //     )}||${inputVar}&&${inputVar}.constructor===Object&&Object.keys(${inputVar}).length===${numberOfFields->Stdlib.Int.unsafeToString}` ++
-      //   (numberOfFields > 0
-      //     ? "&&" ++
-      //       fields
-      //       ->Js.Array2.map(field => {
-      //         let literal = items->Js.Dict.unsafeGet(field)
-      //         b->literal.checkBuilder(
-      //           ~value=literal.value,
-      //           ~inputVar=`${inputVar}[${field->Stdlib.Inlined.Value.fromString}]`,
-      //         )
-      //       })
-      //       ->Js.Array2.joinWith("&&")
-      //     : "") ++ ")",
-    }
-  }
-  and array = value => {
-    let items = []
-    let isJsonable = ref(true)
-
-    for idx in 0 to value->Js.Array2.length - 1 {
-      let itemValue = value->Js.Array2.unsafe_get(idx)
-      let itemLiteral = itemValue->castUnknownToAny->parseInternal
-      if isJsonable.contents && !itemLiteral.isJsonable {
-        isJsonable.contents = false
-      }
-      items->Js.Array2.push(itemLiteral)->ignore
-    }
-
-    {
-      kind: Array,
-      value: value->castAnyToUnknown,
-      items: items->castAnyToUnknown,
-      isJsonable: isJsonable.contents,
-      toString: () =>
-        `[${items
-          ->Js.Array2.map(itemLiteral => itemLiteral.toString())
-          ->Js.Array2.joinWith(",")}]`,
-      // checkBuilder: (b, ~value, ~inputVar) =>
-      //   `(${inputVar}===${b->B.embed(
-      //       value,
-      //     )}||Array.isArray(${inputVar})&&${inputVar}.length===${items
-      //     ->Js.Array2.length
-      //     ->Stdlib.Int.unsafeToString}` ++
-      //   (items->Js.Array2.length > 0
-      //     ? "&&" ++
-      //       items
-      //       ->Js.Array2.mapi((literal, idx) =>
-      //         b->literal.checkBuilder(
-      //           ~value=literal.value,
-      //           ~inputVar=`${inputVar}[${idx->Stdlib.Int.unsafeToString}]`,
-      //         )
-      //       )
-      //       ->Js.Array2.joinWith("&&")
-      //     : "") ++ ")",
-    }
-  }
-
-  @inline
-  let parse = any => any->parseInternal->toPublic
-
-  let value = literal => (literal->toInternal).value
-
-  let isJsonable = literal => (literal->toInternal).isJsonable
-
-  let toString = literal => (literal->toInternal).toString()
-}
-
 module Path = {
   type t = string
 
@@ -475,6 +215,21 @@ let symbol = Stdlib.Symbol.make("rescript-schema")
 type isAsyncParse = | @as(0) Unknown | Value(bool)
 type unknownKeys = Strip | Strict
 
+@tag("kind")
+type rec literal =
+  | String({value: string})
+  | Number({value: float})
+  | Boolean({value: bool})
+  | BigInt({value: bigint})
+  | Symbol({value: Js.Types.symbol})
+  | Array({value: array<unknown>, items: array<literal>})
+  | Dict({value: dict<unknown>, items: dict<literal>})
+  | Function({value: Js.Types.function_val})
+  | Object({value: Js.Types.obj_val})
+  | Null({value: Js.Types.null_val})
+  | Undefined({value: unit})
+  | NaN({value: unknown})
+
 type rec t<'value> = {
   @as("t")
   tagged: tagged,
@@ -498,7 +253,7 @@ and tagged =
   | Int
   | Float
   | Bool
-  | Literal(Literal.t)
+  | Literal(literal)
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
@@ -535,7 +290,7 @@ and errorCode =
   | OperationFailed(string)
   | InvalidOperation({description: string})
   | InvalidType({expected: schema<unknown>, received: unknown})
-  | InvalidLiteral({expected: Literal.t, received: unknown})
+  | InvalidLiteral({expected: literal, received: unknown})
   | InvalidTupleSize({expected: int, received: int})
   | ExcessField(string)
   | InvalidUnion(array<error>)
@@ -935,6 +690,251 @@ module Builder = {
 }
 // TODO: Split validation code and transformation code
 module B = Builder.Ctx
+
+module Literal = {
+  @@warning("-37")
+
+  open Stdlib
+
+  type rec internal = {
+    kind: kind,
+    value: unknown,
+    toString: unit => string,
+    // checkBuilder: (B.t, ~value: unknown, ~inputVar: string) => string,
+    isJsonable: bool,
+    items?: unknown,
+  }
+  and kind =
+    | String
+    | Number
+    | Boolean
+    | BigInt
+    | Symbol
+    | Array
+    | Dict
+    | Function
+    | Object
+    | Null
+    | Undefined
+    | NaN
+
+  external toInternal: literal => internal = "%identity"
+  external toPublic: internal => literal = "%identity"
+
+  let undefined = {
+    kind: Undefined,
+    value: %raw(`undefined`),
+    toString: () => "undefined",
+    isJsonable: false,
+    // checkBuilder: (_, ~value as _, ~inputVar) => `${inputVar}===void 0`,
+  }
+
+  let null = {
+    kind: Null,
+    value: %raw(`null`),
+    toString: () => "null",
+    isJsonable: true,
+    // checkBuilder: (_, ~value as _, ~inputVar) => `${inputVar}===null`,
+  }
+
+  let nan = {
+    kind: NaN,
+    value: %raw(`NaN`),
+    toString: () => "NaN",
+    isJsonable: false,
+    // checkBuilder: (_, ~value as _, ~inputVar) => `Number.isNaN(${inputVar})`,
+  }
+
+  // let strictEqualCheckBuilder = (b, ~value, ~inputVar) => `${inputVar}===${b->B.embed(value)}`
+
+  let string = value => {
+    {
+      kind: String,
+      value: value->castAnyToUnknown,
+      // FIXME: Test one or two Stdlib.Inlined.Value.fromString
+      toString: () => Stdlib.Inlined.Value.fromString(value),
+      isJsonable: true,
+      // checkBuilder: strictEqualCheckBuilder,
+    }
+  }
+
+  let boolean = value => {
+    {
+      kind: Boolean,
+      value: value->castAnyToUnknown,
+      toString: () => value ? "true" : "false",
+      isJsonable: true,
+      // checkBuilder: (_, ~value as _, ~inputVar) => `${inputVar}===${inlined}`,
+    }
+  }
+
+  let number = value => {
+    {
+      kind: Number,
+      value: value->castAnyToUnknown,
+      toString: () => value->Js.Float.toString,
+      isJsonable: true,
+      // checkBuilder: strictEqualCheckBuilder,
+    }
+  }
+
+  let symbol = value => {
+    {
+      kind: Symbol,
+      value: value->castAnyToUnknown,
+      toString: () => value->Symbol.toString,
+      isJsonable: false,
+      // checkBuilder: strictEqualCheckBuilder,
+    }
+  }
+
+  let bigint = value => {
+    {
+      kind: BigInt,
+      value: value->castAnyToUnknown,
+      toString: () => value->BigInt.toString,
+      isJsonable: false,
+      // checkBuilder: strictEqualCheckBuilder,
+    }
+  }
+
+  let function = value => {
+    {
+      kind: Function,
+      value: value->castAnyToUnknown,
+      toString: () => value->Stdlib.Function.toString,
+      isJsonable: false,
+      // checkBuilder: strictEqualCheckBuilder,
+    }
+  }
+
+  let object = value => {
+    {
+      kind: Object,
+      value: value->castAnyToUnknown,
+      toString: () => value->Object.internalClass,
+      isJsonable: false,
+      // checkBuilder: strictEqualCheckBuilder,
+    }
+  }
+
+  let rec parseInternal = (value): internal => {
+    let value = value->castAnyToUnknown
+    let typeOfValue = value->Type.typeof
+    switch typeOfValue {
+    | #undefined => undefined
+    | #object if value === %raw(`null`) => null
+    | #object if value->Stdlib.Array.isArray => array(value->(Obj.magic: unknown => array<unknown>))
+    | #object
+      if (value->(Obj.magic: 'a => {"constructor": unknown}))["constructor"] === %raw("Object") =>
+      dict(value->(Obj.magic: unknown => Js.Dict.t<unknown>))
+    | #object => object(value->(Obj.magic: unknown => Js.Types.obj_val))
+    | #function => function(value->(Obj.magic: unknown => Js.Types.function_val))
+    | #string => string(value->(Obj.magic: unknown => string))
+    | #number if value->(Obj.magic: unknown => float)->Js.Float.isNaN => nan
+    | #number => number(value->(Obj.magic: unknown => float))
+    | #boolean => boolean(value->(Obj.magic: unknown => bool))
+    | #symbol => symbol(value->(Obj.magic: unknown => Js.Types.symbol))
+    | #bigint => bigint(value->(Obj.magic: unknown => bigint))
+    }
+  }
+  and dict = value => {
+    let items = Js.Dict.empty()
+    let isJsonable = ref(true)
+    let fields = value->Js.Dict.keys
+    let numberOfFields = fields->Js.Array2.length
+    for idx in 0 to numberOfFields - 1 {
+      let field = fields->Js.Array2.unsafe_get(idx)
+      let itemValue = value->Js.Dict.unsafeGet(field)
+      let itemLiteral = itemValue->castUnknownToAny->parseInternal
+      if isJsonable.contents && !itemLiteral.isJsonable {
+        isJsonable.contents = false
+      }
+      items->Js.Dict.set(field, itemLiteral)
+    }
+
+    {
+      kind: Dict,
+      value: value->castAnyToUnknown,
+      items: items->castAnyToUnknown,
+      toString: () =>
+        `{${items
+          ->Js.Dict.keys
+          ->Js.Array2.map(field => {
+            let itemLiteral = items->Js.Dict.unsafeGet(field)
+            `${field->Inlined.Value.fromString}: ${itemLiteral.toString()}`
+          })
+          ->Js.Array2.joinWith(",")}}`,
+      isJsonable: isJsonable.contents,
+      // checkBuilder: (b, ~value, ~inputVar) =>
+      //   `(${inputVar}===${b->B.embed(
+      //       value,
+      //     )}||${inputVar}&&${inputVar}.constructor===Object&&Object.keys(${inputVar}).length===${numberOfFields->Stdlib.Int.unsafeToString}` ++
+      //   (numberOfFields > 0
+      //     ? "&&" ++
+      //       fields
+      //       ->Js.Array2.map(field => {
+      //         let literal = items->Js.Dict.unsafeGet(field)
+      //         b->literal.checkBuilder(
+      //           ~value=literal.value,
+      //           ~inputVar=`${inputVar}[${field->Stdlib.Inlined.Value.fromString}]`,
+      //         )
+      //       })
+      //       ->Js.Array2.joinWith("&&")
+      //     : "") ++ ")",
+    }
+  }
+  and array = value => {
+    let items = []
+    let isJsonable = ref(true)
+
+    for idx in 0 to value->Js.Array2.length - 1 {
+      let itemValue = value->Js.Array2.unsafe_get(idx)
+      let itemLiteral = itemValue->castUnknownToAny->parseInternal
+      if isJsonable.contents && !itemLiteral.isJsonable {
+        isJsonable.contents = false
+      }
+      items->Js.Array2.push(itemLiteral)->ignore
+    }
+
+    {
+      kind: Array,
+      value: value->castAnyToUnknown,
+      items: items->castAnyToUnknown,
+      isJsonable: isJsonable.contents,
+      toString: () =>
+        `[${items
+          ->Js.Array2.map(itemLiteral => itemLiteral.toString())
+          ->Js.Array2.joinWith(",")}]`,
+      // checkBuilder: (b, ~value, ~inputVar) =>
+      //   `(${inputVar}===${b->B.embed(
+      //       value,
+      //     )}||Array.isArray(${inputVar})&&${inputVar}.length===${items
+      //     ->Js.Array2.length
+      //     ->Stdlib.Int.unsafeToString}` ++
+      //   (items->Js.Array2.length > 0
+      //     ? "&&" ++
+      //       items
+      //       ->Js.Array2.mapi((literal, idx) =>
+      //         b->literal.checkBuilder(
+      //           ~value=literal.value,
+      //           ~inputVar=`${inputVar}[${idx->Stdlib.Int.unsafeToString}]`,
+      //         )
+      //       )
+      //       ->Js.Array2.joinWith("&&")
+      //     : "") ++ ")",
+    }
+  }
+
+  @inline
+  let parse = any => any->parseInternal->toPublic
+
+  let value = literal => (literal->toInternal).value
+
+  let isJsonable = literal => (literal->toInternal).isJsonable
+
+  let toString = literal => (literal->toInternal).toString()
+}
 
 let toInternalLiteral = {
   let rec loop = schema => {

@@ -2,13 +2,13 @@
 
 import * as S_Core$RescriptSchema from "./S_Core.bs.mjs";
 
-var Literal = S_Core$RescriptSchema.Literal;
-
 var Path = S_Core$RescriptSchema.Path;
 
 var Raised = S_Core$RescriptSchema.Raised;
 
 var $$Error = S_Core$RescriptSchema.$$Error;
+
+var Literal = S_Core$RescriptSchema.Literal;
 
 var never = S_Core$RescriptSchema.never;
 
@@ -131,10 +131,10 @@ var Metadata = S_Core$RescriptSchema.Metadata;
 var inline = S_Core$RescriptSchema.inline;
 
 export {
-  Literal ,
   Path ,
   Raised ,
   $$Error ,
+  Literal ,
   never ,
   unknown ,
   unit ,
