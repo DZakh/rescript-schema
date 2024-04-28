@@ -215,6 +215,7 @@ let symbol = Stdlib.Symbol.make("rescript-schema")
 type isAsyncParse = | @as(0) Unknown | Value(bool)
 type unknownKeys = Strip | Strict
 
+@@warning("-37")
 @tag("kind")
 type rec literal =
   | String({value: string})
@@ -229,6 +230,7 @@ type rec literal =
   | Null({value: Js.Types.null_val})
   | Undefined({value: unit})
   | NaN({value: unknown})
+@@warning("+37")
 
 type rec t<'value> = {
   @as("t")
@@ -692,8 +694,6 @@ module Builder = {
 module B = Builder.Ctx
 
 module Literal = {
-  @@warning("-37")
-
   open Stdlib
 
   type rec internal = {
