@@ -17,35 +17,29 @@ module Tuple0 = {
   test("Fails to parse invalid value", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(
+    t->U.assertErrorResult(
       invalidAny->S.parseAnyWith(schema),
-      Error(
-        U.error({
-          code: InvalidTupleSize({
-            expected: 0,
-            received: 1,
-          }),
-          operation: Parsing,
-          path: S.Path.empty,
+      {
+        code: InvalidTupleSize({
+          expected: 0,
+          received: 1,
         }),
-      ),
-      (),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
     )
   })
 
   test("Fails to parse invalid type", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(
+    t->U.assertErrorResult(
       invalidTypeAny->S.parseAnyWith(schema),
-      Error(
-        U.error({
-          code: InvalidType({expected: schema->S.toUnknown, received: invalidTypeAny}),
-          operation: Parsing,
-          path: S.Path.empty,
-        }),
-      ),
-      (),
+      {
+        code: InvalidType({expected: schema->S.toUnknown, received: invalidTypeAny}),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
     )
   })
 
@@ -75,16 +69,13 @@ test("Successfully parses tuple with holes", t => {
 test("Fails to parse tuple with holes", t => {
   let schema = S.tuple(s => (s.item(0, S.string), s.item(2, S.int)))
 
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     %raw(`["value", "smth", 123]`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
-        code: InvalidLiteral({expected: Undefined, received: %raw(`"smth"`)}),
-        operation: Parsing,
-        path: S.Path.fromLocation("1"),
-      }),
-    ),
-    (),
+    {
+      code: InvalidLiteral({expected: S.Literal.parse(None), received: %raw(`"smth"`)}),
+      operation: Parsing,
+      path: S.Path.fromLocation("1"),
+    },
   )
 })
 
@@ -106,18 +97,15 @@ test("Fails to serialize tuple schema with single item registered multiple times
       "item2": item,
     }
   })
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     {"item1": "foo", "item2": "foo"}->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
-        code: InvalidOperation({
-          description: `The item "0" is registered multiple times. If you want to duplicate the item, use S.transform instead`,
-        }),
-        operation: Serializing,
-        path: S.Path.empty,
+    {
+      code: InvalidOperation({
+        description: `The item "0" is registered multiple times. If you want to duplicate the item, use S.transform instead`,
       }),
-    ),
-    (),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
   )
 })
 
@@ -157,16 +145,13 @@ test("Successfully serializes tuple transformed to variant", t => {
 test("Fails to serialize tuple transformed to variant", t => {
   let schema = S.tuple(s => Ok(s.item(0, S.bool)))
 
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     Error("foo")->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
-        code: InvalidLiteral({expected: String("Ok"), received: %raw(`"Error"`)}),
-        operation: Serializing,
-        path: S.Path.fromLocation("TAG"),
-      }),
-    ),
-    (),
+    {
+      code: InvalidLiteral({expected: S.Literal.parse("Ok"), received: %raw(`"Error"`)}),
+      operation: Serializing,
+      path: S.Path.fromLocation("TAG"),
+    },
   )
 })
 
@@ -197,52 +182,40 @@ test("Tuple schema parsing checks order", t => {
   })
 
   // Type check should be the first
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     %raw(`"foo"`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
-        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`"foo"`)}),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
-    ),
-    (),
+    {
+      code: InvalidType({expected: schema->S.toUnknown, received: %raw(`"foo"`)}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
   )
   // Length check should be the second
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     %raw(`["wrong", "wrong", "value", "value"]`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
-        code: InvalidTupleSize({expected: 2, received: 4}),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
-    ),
-    (),
+    {
+      code: InvalidTupleSize({expected: 2, received: 4}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
   )
   // Tag check should be the third
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     %raw(`["wrong", "wrong"]`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
-        code: InvalidLiteral({expected: String("value"), received: %raw(`"wrong"`)}),
-        operation: Parsing,
-        path: S.Path.fromLocation("1"),
-      }),
-    ),
-    (),
+    {
+      code: InvalidLiteral({expected: S.Literal.parse("value"), received: %raw(`"wrong"`)}),
+      operation: Parsing,
+      path: S.Path.fromLocation("1"),
+    },
   )
   // Field check should be the last
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     %raw(`["wrong", "value"]`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
-        code: InvalidLiteral({expected: String("value"), received: %raw(`"wrong"`)}),
-        operation: Parsing,
-        path: S.Path.fromLocation("0"),
-      }),
-    ),
-    (),
+    {
+      code: InvalidLiteral({expected: S.Literal.parse("value"), received: %raw(`"wrong"`)}),
+      operation: Parsing,
+      path: S.Path.fromLocation("0"),
+    },
   )
   // Parses valid
   t->Assert.deepEqual(

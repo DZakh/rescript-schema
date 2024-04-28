@@ -15,17 +15,11 @@ module Common = {
   test("Fails to parse", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(
-      invalidAny->S.parseAnyWith(schema),
-      Error(
-        U.error({
+    t->U.assertErrorResult(invalidAny->S.parseAnyWith(schema), {
           code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
           operation: Parsing,
           path: S.Path.empty,
-        }),
-      ),
-      (),
-    )
+        })
   })
 
   test("Successfully serializes", t => {
@@ -54,49 +48,31 @@ module Common = {
 test("Fails to parse int when JSON is a number bigger than +2^31", t => {
   let schema = S.int
 
-  t->Assert.deepEqual(
-    %raw(`2147483648`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(%raw(`2147483648`)->S.parseAnyWith(schema), {
         code: InvalidType({expected: schema->S.toUnknown, received: %raw(`2147483648`)}),
         operation: Parsing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
   t->Assert.deepEqual(%raw(`2147483647`)->S.parseAnyWith(schema), Ok(2147483647), ())
 })
 
 test("Fails to parse int when JSON is a number lower than -2^31", t => {
   let schema = S.int
 
-  t->Assert.deepEqual(
-    %raw(`-2147483649`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(%raw(`-2147483649`)->S.parseAnyWith(schema), {
         code: InvalidType({expected: schema->S.toUnknown, received: %raw(`-2147483649`)}),
         operation: Parsing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
   t->Assert.deepEqual(%raw(`-2147483648`)->S.parseAnyWith(schema), Ok(-2147483648), ())
 })
 
 test("Fails to parse NaN", t => {
   let schema = S.int
 
-  t->Assert.deepEqual(
-    %raw(`NaN`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(%raw(`NaN`)->S.parseAnyWith(schema), {
         code: InvalidType({expected: schema->S.toUnknown, received: %raw(`NaN`)}),
         operation: Parsing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })

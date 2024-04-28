@@ -127,41 +127,47 @@ module Advanced = {
   })
 
   test("Fails to parse with unknown kind", t => {
-    t->Assert.deepEqual(
+    t->U.assertErrorResult(
       %raw(`{
         "kind": "oval",
         "x": 2,
         "y": 3,
       }`)->S.parseAnyWith(shapeSchema),
-      Error(
-        U.error({
-          code: InvalidUnion([
-            U.error({
-              code: InvalidLiteral({expected: String("circle"), received: "oval"->Obj.magic}),
-              operation: Parsing,
-              path: S.Path.fromArray(["kind"]),
+      {
+        code: InvalidUnion([
+          U.error({
+            code: InvalidLiteral({
+              expected: S.Literal.parse("circle"),
+              received: "oval"->Obj.magic,
             }),
-            U.error({
-              code: InvalidLiteral({expected: String("square"), received: "oval"->Obj.magic}),
-              operation: Parsing,
-              path: S.Path.fromArray(["kind"]),
+            operation: Parsing,
+            path: S.Path.fromArray(["kind"]),
+          }),
+          U.error({
+            code: InvalidLiteral({
+              expected: S.Literal.parse("square"),
+              received: "oval"->Obj.magic,
             }),
-            U.error({
-              code: InvalidLiteral({expected: String("triangle"), received: "oval"->Obj.magic}),
-              operation: Parsing,
-              path: S.Path.fromArray(["kind"]),
+            operation: Parsing,
+            path: S.Path.fromArray(["kind"]),
+          }),
+          U.error({
+            code: InvalidLiteral({
+              expected: S.Literal.parse("triangle"),
+              received: "oval"->Obj.magic,
             }),
-          ]),
-          operation: Parsing,
-          path: S.Path.empty,
-        }),
-      ),
-      (),
+            operation: Parsing,
+            path: S.Path.fromArray(["kind"]),
+          }),
+        ]),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
     )
   })
 
   test("Fails to parse with unknown kind when the union is an object field", t => {
-    t->Assert.deepEqual(
+    t->U.assertErrorResult(
       %raw(`{
         "field": {
           "kind": "oval",
@@ -169,38 +175,41 @@ module Advanced = {
           "y": 3,
         }
       }`)->S.parseAnyWith(S.object(s => s.field("field", shapeSchema))),
-      Error(
-        U.error({
-          code: InvalidUnion([
-            U.error({
-              code: InvalidLiteral({expected: String("circle"), received: "oval"->Obj.magic}),
-              operation: Parsing,
-              path: S.Path.fromArray(["kind"]),
+      {
+        code: InvalidUnion([
+          U.error({
+            code: InvalidLiteral({
+              expected: S.Literal.parse("circle"),
+              received: "oval"->Obj.magic,
             }),
-            U.error({
-              code: InvalidLiteral({expected: String("square"), received: "oval"->Obj.magic}),
-              operation: Parsing,
-              path: S.Path.fromArray(["kind"]),
+            operation: Parsing,
+            path: S.Path.fromArray(["kind"]),
+          }),
+          U.error({
+            code: InvalidLiteral({
+              expected: S.Literal.parse("square"),
+              received: "oval"->Obj.magic,
             }),
-            U.error({
-              code: InvalidLiteral({expected: String("triangle"), received: "oval"->Obj.magic}),
-              operation: Parsing,
-              path: S.Path.fromArray(["kind"]),
+            operation: Parsing,
+            path: S.Path.fromArray(["kind"]),
+          }),
+          U.error({
+            code: InvalidLiteral({
+              expected: S.Literal.parse("triangle"),
+              received: "oval"->Obj.magic,
             }),
-          ]),
-          operation: Parsing,
-          path: S.Path.fromArray(["field"]),
-        }),
-      ),
-      (),
+            operation: Parsing,
+            path: S.Path.fromArray(["kind"]),
+          }),
+        ]),
+        operation: Parsing,
+        path: S.Path.fromArray(["field"]),
+      },
     )
   })
 
   test("Fails to parse with invalid data type", t => {
-    t->Assert.deepEqual(
-      %raw(`"Hello world!"`)->S.parseAnyWith(shapeSchema),
-      Error(
-        U.error({
+    t->U.assertErrorResult(%raw(`"Hello world!"`)->S.parseAnyWith(shapeSchema), {
           code: InvalidUnion([
             U.error({
               code: InvalidType({
@@ -229,10 +238,7 @@ module Advanced = {
           ]),
           operation: Parsing,
           path: S.Path.empty,
-        }),
-      ),
-      (),
-    )
+        })
   })
 
   test("Fails to serialize incomplete schema", t => {
@@ -251,27 +257,30 @@ module Advanced = {
       }),
     ])
 
-    t->Assert.deepEqual(
+    t->U.assertErrorResult(
       Triangle({x: 2., y: 3.})->S.serializeToUnknownWith(incompleteSchema),
-      Error(
-        U.error({
-          code: InvalidUnion([
-            U.error({
-              code: InvalidLiteral({expected: String("Circle"), received: "Triangle"->Obj.magic}),
-              operation: Serializing,
-              path: S.Path.fromArray(["TAG"]),
+      {
+        code: InvalidUnion([
+          U.error({
+            code: InvalidLiteral({
+              expected: S.Literal.parse("Circle"),
+              received: "Triangle"->Obj.magic,
             }),
-            U.error({
-              code: InvalidLiteral({expected: String("Square"), received: "Triangle"->Obj.magic}),
-              operation: Serializing,
-              path: S.Path.fromArray(["TAG"]),
+            operation: Serializing,
+            path: S.Path.fromArray(["TAG"]),
+          }),
+          U.error({
+            code: InvalidLiteral({
+              expected: S.Literal.parse("Square"),
+              received: "Triangle"->Obj.magic,
             }),
-          ]),
-          operation: Serializing,
-          path: S.Path.empty,
-        }),
-      ),
-      (),
+            operation: Serializing,
+            path: S.Path.fromArray(["TAG"]),
+          }),
+        ]),
+        operation: Serializing,
+        path: S.Path.empty,
+      },
     )
   })
 

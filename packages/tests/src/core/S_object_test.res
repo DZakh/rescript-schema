@@ -21,17 +21,11 @@ test("Fails to parse object with inlinable string field", t => {
     }
   )
 
-  t->Assert.deepEqual(
-    %raw(`{field: 123}`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(%raw(`{field: 123}`)->S.parseAnyWith(schema), {
         code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
         operation: Parsing,
         path: S.Path.fromArray(["field"]),
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test(
@@ -43,17 +37,11 @@ test(
       }
     )
 
-    t->Assert.deepEqual(
-      %raw(`{field: ["foo"]}`)->S.parseAnyWith(schema),
-      Error(
-        U.error({
+    t->U.assertErrorResult(%raw(`{field: ["foo"]}`)->S.parseAnyWith(schema), {
           code: OperationFailed("User error"),
           operation: Parsing,
           path: S.Path.fromArray(["field", "0"]),
-        }),
-      ),
-      (),
-    )
+        })
   },
 )
 
@@ -74,17 +62,11 @@ test("Fails to parse object with inlinable bool field", t => {
     }
   )
 
-  t->Assert.deepEqual(
-    %raw(`{field: 123}`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(%raw(`{field: 123}`)->S.parseAnyWith(schema), {
         code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`123`)}),
         operation: Parsing,
         path: S.Path.fromArray(["field"]),
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Successfully parses object with unknown field (Noop operation)", t => {
@@ -122,17 +104,11 @@ test("Fails to parse object with inlinable never field", t => {
     }
   )
 
-  t->Assert.deepEqual(
-    %raw(`{field: true}`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(%raw(`{field: true}`)->S.parseAnyWith(schema), {
         code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`true`)}),
         operation: Parsing,
         path: S.Path.fromArray(["field"]),
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Successfully parses object with inlinable float field", t => {
@@ -152,17 +128,11 @@ test("Fails to parse object with inlinable float field", t => {
     }
   )
 
-  t->Assert.deepEqual(
-    %raw(`{field: true}`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(%raw(`{field: true}`)->S.parseAnyWith(schema), {
         code: InvalidType({expected: S.float->S.toUnknown, received: %raw(`true`)}),
         operation: Parsing,
         path: S.Path.fromArray(["field"]),
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Successfully parses object with inlinable int field", t => {
@@ -182,17 +152,11 @@ test("Fails to parse object with inlinable int field", t => {
     }
   )
 
-  t->Assert.deepEqual(
-    %raw(`{field: true}`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(%raw(`{field: true}`)->S.parseAnyWith(schema), {
         code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
         operation: Parsing,
         path: S.Path.fromArray(["field"]),
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Successfully parses object with not inlinable empty object field", t => {
@@ -213,17 +177,11 @@ test("Fails to parse object with not inlinable empty object field", t => {
     }
   )
 
-  t->Assert.deepEqual(
-    %raw(`{field: true}`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(%raw(`{field: true}`)->S.parseAnyWith(schema), {
         code: InvalidType({expected: fieldSchema->S.toUnknown, received: %raw(`true`)}),
         operation: Parsing,
         path: S.Path.fromArray(["field"]),
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Fails to parse object when provided invalid data", t => {
@@ -233,17 +191,11 @@ test("Fails to parse object when provided invalid data", t => {
     }
   )
 
-  t->Assert.deepEqual(
-    %raw(`12`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(%raw(`12`)->S.parseAnyWith(schema), {
         code: InvalidType({expected: schema->S.toUnknown, received: %raw(`12`)}),
         operation: Parsing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Successfully serializes object with single field", t => {
@@ -314,17 +266,11 @@ test("Fails to parse object when transformed field has raises error", t => {
     }
   )
 
-  t->Assert.deepEqual(
-    {"field": "bar"}->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult({"field": "bar"}->S.parseAnyWith(schema), {
         code: OperationFailed("User error"),
         operation: Parsing,
         path: S.Path.fromArray(["field"]),
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Shows transformed object field name in error path when fails to parse", t => {
@@ -337,17 +283,11 @@ test("Shows transformed object field name in error path when fails to parse", t 
     }
   )
 
-  t->Assert.deepEqual(
-    {"originalFieldName": "bar"}->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult({"originalFieldName": "bar"}->S.parseAnyWith(schema), {
         code: OperationFailed("User error"),
         operation: Parsing,
         path: S.Path.fromArray(["originalFieldName"]),
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Successfully serializes object with transformed field", t => {
@@ -377,17 +317,11 @@ test("Fails to serializes object when transformed field has raises error", t => 
     }
   )
 
-  t->Assert.deepEqual(
-    {"field": "bar"}->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult({"field": "bar"}->S.serializeToUnknownWith(schema), {
         code: OperationFailed("User error"),
         operation: Serializing,
         path: S.Path.fromArray(["field"]),
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Shows transformed object field name in error path when fails to serializes", t => {
@@ -400,17 +334,11 @@ test("Shows transformed object field name in error path when fails to serializes
     }
   )
 
-  t->Assert.deepEqual(
-    {"transformedFieldName": "bar"}->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult({"transformedFieldName": "bar"}->S.serializeToUnknownWith(schema), {
         code: OperationFailed("User error"),
         operation: Serializing,
         path: S.Path.fromArray(["transformedFieldName"]),
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Shows transformed to nested object field name in error path when fails to serializes", t => {
@@ -425,21 +353,15 @@ test("Shows transformed to nested object field name in error path when fails to 
     }
   )
 
-  t->Assert.deepEqual(
-    {
+  t->U.assertErrorResult({
       "v1": {
         "transformedFieldName": "bar",
       },
-    }->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
+    }->S.serializeToUnknownWith(schema), {
         code: OperationFailed("User error"),
         operation: Serializing,
         path: S.Path.fromArray(["v1", "transformedFieldName"]),
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Successfully parses object with optional fields", t => {
@@ -945,19 +867,13 @@ test("Fails to serialize object schema with single field registered multiple tim
       "field2": field,
     }
   })
-  t->Assert.deepEqual(
-    {"field1": "foo", "field2": "foo"}->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult({"field1": "foo", "field2": "foo"}->S.serializeToUnknownWith(schema), {
         code: InvalidOperation({
           description: `The field "field" is registered multiple times. If you want to duplicate the field, use S.transform instead`,
         }),
         operation: Serializing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Object schema parsing checks order", t => {
@@ -969,52 +885,42 @@ test("Object schema parsing checks order", t => {
   })->S.Object.strict
 
   // Type check should be the first
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     %raw(`"foo"`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
-        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`"foo"`)}),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
-    ),
-    (),
+    {
+      code: InvalidType({expected: schema->S.toUnknown, received: %raw(`"foo"`)}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
   )
   // Tag check should be the second
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     %raw(`{tag: "wrong", key: "wrong", unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
       schema,
     ),
-    Error(
-      U.error({
-        code: InvalidLiteral({expected: String("value"), received: %raw(`"wrong"`)}),
-        operation: Parsing,
-        path: S.Path.fromLocation("tag"),
-      }),
-    ),
-    (),
+    {
+      code: InvalidLiteral({expected: S.Literal.parse("value"), received: %raw(`"wrong"`)}),
+      operation: Parsing,
+      path: S.Path.fromLocation("tag"),
+    },
   )
   // Field check should be the third
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     %raw(`{tag: "value", key: "wrong", unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
       schema,
     ),
-    Error(
-      U.error({
-        code: InvalidLiteral({expected: String("value"), received: %raw(`"wrong"`)}),
-        operation: Parsing,
-        path: S.Path.fromLocation("key"),
-      }),
-    ),
-    (),
+    {
+      code: InvalidLiteral({expected: S.Literal.parse("value"), received: %raw(`"wrong"`)}),
+      operation: Parsing,
+      path: S.Path.fromLocation("key"),
+    },
   )
   // Unknown keys check should be the last
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     %raw(`{tag: "value", key: "value", unknownKey: "value2", unknownKey2: "value2"}`)->S.parseAnyWith(
       schema,
     ),
-    Error(U.error({code: ExcessField("unknownKey"), operation: Parsing, path: S.Path.empty})),
-    (),
+    {code: ExcessField("unknownKey"), operation: Parsing, path: S.Path.empty},
   )
   // Parses valid
   t->Assert.deepEqual(

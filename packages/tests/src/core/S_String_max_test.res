@@ -10,17 +10,11 @@ test("Successfully parses valid data", t => {
 test("Fails to parse invalid data", t => {
   let schema = S.string->S.String.max(1)
 
-  t->Assert.deepEqual(
-    "1234"->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult("1234"->S.parseAnyWith(schema), {
         code: OperationFailed("String must be 1 or fewer characters long"),
         operation: Parsing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Successfully serializes valid value", t => {
@@ -33,17 +27,11 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.String.max(1)
 
-  t->Assert.deepEqual(
-    "1234"->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult("1234"->S.serializeToUnknownWith(schema), {
         code: OperationFailed("String must be 1 or fewer characters long"),
         operation: Serializing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Returns custom error message", t => {

@@ -22,16 +22,13 @@ test("Uses fallback value when parsing failed", t => {
 test("Doesn't affect serializing in any way", t => {
   let schema = S.literal("123")->S.catch(_ => "fallback")
 
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     "abc"->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
-        code: InvalidLiteral({received: "abc"->Obj.magic, expected: String("123")}),
-        operation: Serializing,
-        path: S.Path.empty,
-      }),
-    ),
-    (),
+    {
+      code: InvalidLiteral({received: "abc"->Obj.magic, expected: S.Literal.parse("123")}),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
   )
 })
 
@@ -64,28 +61,22 @@ test("Can use s.fail inside of S.catch", t => {
 
   t->Assert.deepEqual("0"->S.parseAnyWith(schema), Ok("0"), ())
   t->Assert.deepEqual("abc"->S.parseAnyWith(schema), Ok("1"), ())
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     123->S.parseAnyWith(schema),
-    Error(
-      U.error({
-        code: OperationFailed("Fallback value only supported for strings."),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
-    ),
-    (),
+    {
+      code: OperationFailed("Fallback value only supported for strings."),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
   )
   t->Assert.deepEqual("0"->S.serializeToUnknownWith(schema), Ok(%raw(`"0"`)), ())
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     "1"->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
-        code: InvalidLiteral({expected: String("0"), received: "1"->Obj.magic}),
-        operation: Serializing,
-        path: S.Path.empty,
-      }),
-    ),
-    (),
+    {
+      code: InvalidLiteral({expected: S.Literal.parse("0"), received: "1"->Obj.magic}),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
   )
 })
 

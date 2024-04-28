@@ -29,13 +29,7 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.String.url
 
-  t->Assert.deepEqual(
-    "cifjhdsfhsd"->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({code: OperationFailed("Invalid url"), operation: Serializing, path: S.Path.empty}),
-    ),
-    (),
-  )
+  t->U.assertErrorResult("cifjhdsfhsd"->S.serializeToUnknownWith(schema), {code: OperationFailed("Invalid url"), operation: Serializing, path: S.Path.empty})
 })
 
 test("Returns custom error message", t => {

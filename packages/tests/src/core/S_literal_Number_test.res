@@ -17,33 +17,21 @@ module Common = {
   test("Fails to parse invalid value", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(
-      invalidAny->S.parseAnyWith(schema),
-      Error(
-        U.error({
-          code: InvalidLiteral({expected: Number(123.), received: 444.->Obj.magic}),
+    t->U.assertErrorResult(invalidAny->S.parseAnyWith(schema), {
+          code: InvalidLiteral({expected: S.Literal.parse(123.), received: 444.->Obj.magic}),
           operation: Parsing,
           path: S.Path.empty,
-        }),
-      ),
-      (),
-    )
+        })
   })
 
   test("Fails to parse invalid type", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(
-      invalidTypeAny->S.parseAnyWith(schema),
-      Error(
-        U.error({
-          code: InvalidLiteral({expected: Number(123.), received: invalidTypeAny}),
+    t->U.assertErrorResult(invalidTypeAny->S.parseAnyWith(schema), {
+          code: InvalidLiteral({expected: S.Literal.parse(123.), received: invalidTypeAny}),
           operation: Parsing,
           path: S.Path.empty,
-        }),
-      ),
-      (),
-    )
+        })
   })
 
   test("Successfully serializes", t => {
@@ -55,17 +43,11 @@ module Common = {
   test("Fails to serialize invalid value", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(
-      invalidValue->S.serializeToUnknownWith(schema),
-      Error(
-        U.error({
-          code: InvalidLiteral({expected: Number(123.), received: invalidValue}),
+    t->U.assertErrorResult(invalidValue->S.serializeToUnknownWith(schema), {
+          code: InvalidLiteral({expected: S.Literal.parse(123.), received: invalidValue}),
           operation: Serializing,
           path: S.Path.empty,
-        }),
-      ),
-      (),
-    )
+        })
   })
 
   test("Compiled parse code snapshot", t => {
@@ -84,15 +66,9 @@ module Common = {
 test("Formatting of negative number with a decimal point in an error message", t => {
   let schema = S.literal(-123.567)
 
-  t->Assert.deepEqual(
-    %raw(`"foo"`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
-        code: InvalidLiteral({expected: Number(-123.567), received: "foo"->Obj.magic}),
+  t->U.assertErrorResult(%raw(`"foo"`)->S.parseAnyWith(schema), {
+        code: InvalidLiteral({expected: S.Literal.parse(-123.567), received: "foo"->Obj.magic}),
         operation: Parsing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })

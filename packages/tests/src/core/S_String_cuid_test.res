@@ -33,13 +33,7 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.String.cuid
 
-  t->Assert.deepEqual(
-    "cifjhdsfhsd-invalid-cuid"->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({code: OperationFailed("Invalid CUID"), operation: Serializing, path: S.Path.empty}),
-    ),
-    (),
-  )
+  t->U.assertErrorResult("cifjhdsfhsd-invalid-cuid"->S.serializeToUnknownWith(schema), {code: OperationFailed("Invalid CUID"), operation: Serializing, path: S.Path.empty})
 })
 
 test("Returns custom error message", t => {

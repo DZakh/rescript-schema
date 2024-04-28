@@ -7,17 +7,11 @@ test("Successfully refines on parsing", t => {
     })
 
   t->Assert.deepEqual(%raw(`12`)->S.parseAnyWith(schema), Ok(12), ())
-  t->Assert.deepEqual(
-    %raw(`-12`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(%raw(`-12`)->S.parseAnyWith(schema), {
         code: OperationFailed("Should be positive"),
         operation: Parsing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Fails with custom path", t => {
@@ -26,17 +20,11 @@ test("Fails with custom path", t => {
       s.fail(~path=S.Path.fromArray(["data", "myInt"]), "Should be positive")
     })
 
-  t->Assert.deepEqual(
-    %raw(`-12`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(%raw(`-12`)->S.parseAnyWith(schema), {
         code: OperationFailed("Should be positive"),
         operation: Parsing,
         path: S.Path.fromArray(["data", "myInt"]),
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Successfully refines on serializing", t => {
@@ -46,17 +34,11 @@ test("Successfully refines on serializing", t => {
     })
 
   t->Assert.deepEqual(12->S.serializeToUnknownWith(schema), Ok(%raw("12")), ())
-  t->Assert.deepEqual(
-    -12->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(-12->S.serializeToUnknownWith(schema), {
         code: OperationFailed("Should be positive"),
         operation: Serializing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Compiled parse code snapshot for simple object with refine", t => {

@@ -35,17 +35,11 @@ module CommonWithNested = {
   test("Fails to parse nested", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(
-      nestedInvalidAny->S.parseAnyWith(schema),
-      Error(
-        U.error({
+    t->U.assertErrorResult(nestedInvalidAny->S.parseAnyWith(schema), {
           code: InvalidType({expected: S.string->S.toUnknown, received: 1->Obj.magic}),
           operation: Parsing,
           path: S.Path.fromArray(["1"]),
-        }),
-      ),
-      (),
-    )
+        })
   })
 
   test("Successfully serializes", t => {

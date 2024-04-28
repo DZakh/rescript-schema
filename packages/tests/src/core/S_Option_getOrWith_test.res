@@ -40,17 +40,11 @@ test("Successfully parses nested option with default value", t => {
 test("Fails to parse data with default", t => {
   let schema = S.bool->S.option->S.Option.getOrWith(() => false)
 
-  t->Assert.deepEqual(
-    %raw(`"string"`)->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(%raw(`"string"`)->S.parseAnyWith(schema), {
         code: InvalidType({expected: schema->S.toUnknown, received: %raw(`"string"`)}),
         operation: Parsing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Successfully serializes schema with transformation", t => {

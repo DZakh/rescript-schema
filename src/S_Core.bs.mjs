@@ -15,170 +15,194 @@ var mapValues = ((dict, fn)=>{
       return newDict
     });
 
-var every = ((dict, fn)=>{
-      for (var key in dict) {
-        if (!fn(dict[key])) {
-          return false
-        }
-      }
-      return true
-    });
-
 function fromString(string) {
   return JSON.stringify(string);
 }
 
-function classify(value) {
+var undefined_value = undefined;
+
+function undefined_toString() {
+  return "undefined";
+}
+
+var $$undefined = {
+  kind: "Undefined",
+  value: undefined_value,
+  toString: undefined_toString,
+  isJsonable: false
+};
+
+var null_value = null;
+
+function null_toString() {
+  return "null";
+}
+
+var $$null = {
+  kind: "Null",
+  value: null_value,
+  toString: null_toString,
+  isJsonable: true
+};
+
+var nan_value = NaN;
+
+function nan_toString() {
+  return "NaN";
+}
+
+var nan = {
+  kind: "NaN",
+  value: nan_value,
+  toString: nan_toString,
+  isJsonable: false
+};
+
+function parseInternal(value) {
   var typeOfValue = typeof value;
   if (typeOfValue === "symbol") {
     return {
-            TAG: "Symbol",
-            _0: value
+            kind: "Symbol",
+            value: value,
+            toString: (function () {
+                return value.toString();
+              }),
+            isJsonable: false
           };
   } else if (typeOfValue === "boolean") {
     return {
-            TAG: "Boolean",
-            _0: value
+            kind: "Boolean",
+            value: value,
+            toString: (function () {
+                if (value) {
+                  return "true";
+                } else {
+                  return "false";
+                }
+              }),
+            isJsonable: true
           };
   } else if (typeOfValue === "string") {
     return {
-            TAG: "String",
-            _0: value
+            kind: "String",
+            value: value,
+            toString: (function () {
+                return JSON.stringify(value);
+              }),
+            isJsonable: true
           };
   } else if (typeOfValue === "function") {
     return {
-            TAG: "Function",
-            _0: value
+            kind: "Function",
+            value: value,
+            toString: (function () {
+                return value.toString();
+              }),
+            isJsonable: false
           };
   } else if (typeOfValue === "object") {
     if (value === null) {
-      return "Null";
+      return $$null;
     } else if (Array.isArray(value)) {
+      var items = [];
+      var isJsonable = true;
+      for(var idx = 0 ,idx_finish = value.length; idx < idx_finish; ++idx){
+        var itemValue = value[idx];
+        var itemLiteral = parseInternal(itemValue);
+        if (isJsonable && !itemLiteral.isJsonable) {
+          isJsonable = false;
+        }
+        items.push(itemLiteral);
+      }
       return {
-              TAG: "Array",
-              _0: value.map(function (i) {
-                    return classify(i);
-                  })
+              kind: "Array",
+              value: value,
+              toString: (function () {
+                  return "[" + items.map(function (itemLiteral) {
+                                return itemLiteral.toString();
+                              }).join(",") + "]";
+                }),
+              isJsonable: isJsonable,
+              items: Caml_option.some(items)
             };
     } else if (value.constructor === Object) {
+      var items$1 = {};
+      var isJsonable$1 = true;
+      var fields = Object.keys(value);
+      var numberOfFields = fields.length;
+      for(var idx$1 = 0; idx$1 < numberOfFields; ++idx$1){
+        var field = fields[idx$1];
+        var itemValue$1 = value[field];
+        var itemLiteral$1 = parseInternal(itemValue$1);
+        if (isJsonable$1 && !itemLiteral$1.isJsonable) {
+          isJsonable$1 = false;
+        }
+        items$1[field] = itemLiteral$1;
+      }
       return {
-              TAG: "Dict",
-              _0: mapValues(value, classify)
+              kind: "Dict",
+              value: value,
+              toString: (function () {
+                  return "{" + Object.keys(items$1).map(function (field) {
+                                var itemLiteral = items$1[field];
+                                return JSON.stringify(field) + ": " + itemLiteral.toString();
+                              }).join(",") + "}";
+                }),
+              isJsonable: isJsonable$1,
+              items: Caml_option.some(items$1)
             };
     } else {
       return {
-              TAG: "Object",
-              _0: value
+              kind: "Object",
+              value: value,
+              toString: (function () {
+                  return Object.prototype.toString.call(value);
+                }),
+              isJsonable: false
             };
     }
   } else if (typeOfValue === "undefined") {
-    return "Undefined";
+    return $$undefined;
   } else if (typeOfValue === "number") {
     if (Number.isNaN(value)) {
-      return "NaN";
+      return nan;
     } else {
       return {
-              TAG: "Number",
-              _0: value
+              kind: "Number",
+              value: value,
+              toString: (function () {
+                  return value.toString();
+                }),
+              isJsonable: true
             };
     }
   } else {
     return {
-            TAG: "BigInt",
-            _0: value
+            kind: "BigInt",
+            value: value,
+            toString: (function () {
+                return value.toString();
+              }),
+            isJsonable: false
           };
   }
 }
 
+function parse(any) {
+  return parseInternal(any);
+}
+
 function value(literal) {
-  if (typeof literal !== "object") {
-    switch (literal) {
-      case "Null" :
-          return null;
-      case "Undefined" :
-          return undefined;
-      case "NaN" :
-          return NaN;
-      
-    }
-  } else {
-    switch (literal.TAG) {
-      case "Array" :
-          return literal._0.map(value);
-      case "Dict" :
-          return mapValues(literal._0, value);
-      default:
-        return literal._0;
-    }
-  }
+  return literal.value;
 }
 
 function isJsonable(literal) {
-  if (typeof literal !== "object") {
-    if (literal === "Null") {
-      return true;
-    } else {
-      return false;
-    }
-  }
-  switch (literal.TAG) {
-    case "String" :
-    case "Number" :
-    case "Boolean" :
-        return true;
-    case "Array" :
-        return literal._0.every(isJsonable);
-    case "Dict" :
-        return every(literal._0, isJsonable);
-    default:
-      return false;
-  }
+  return literal.isJsonable;
 }
 
-function toText(literal) {
-  if (typeof literal !== "object") {
-    switch (literal) {
-      case "Null" :
-          return "null";
-      case "Undefined" :
-          return "undefined";
-      case "NaN" :
-          return "NaN";
-      
-    }
-  } else {
-    switch (literal.TAG) {
-      case "String" :
-          return JSON.stringify(literal._0);
-      case "Number" :
-      case "Boolean" :
-          return literal._0;
-      case "BigInt" :
-          return literal._0 + "n";
-      case "Symbol" :
-          return literal._0.toString();
-      case "Array" :
-          return "[" + literal._0.map(toText).join(", ") + "]";
-      case "Dict" :
-          var v = literal._0;
-          return "{" + Object.keys(v).map(function (key) {
-                        return JSON.stringify(key) + ": " + toText(v[key]);
-                      }).join(", ") + "}";
-      case "Function" :
-          return "[object Function]";
-      case "Object" :
-          return Object.prototype.toString.call(literal._0);
-      
-    }
-  }
+function toString(literal) {
+  return literal.toString();
 }
-
-var Literal = {
-  classify: classify,
-  value: value,
-  isJsonable: isJsonable,
-  toText: toText
-};
 
 function toArray(path) {
   if (path === "") {
@@ -263,7 +287,7 @@ function make(selfSchema, path, operation) {
         };
 }
 
-function classify$1(schema) {
+function classify(schema) {
   return schema.t;
 }
 
@@ -509,17 +533,13 @@ function loop(_schema) {
       case "Literal" :
           return literal._0;
       case "Object" :
-          return {
-                  TAG: "Dict",
-                  _0: mapValues(literal.fields, loop)
-                };
+          return parseInternal(mapValues(literal.fields, (function (itemSchema) {
+                            return loop(itemSchema).value;
+                          })));
       case "Tuple" :
-          return {
-                  TAG: "Array",
-                  _0: literal._0.map(function (a) {
-                        return loop(a);
-                      })
-                };
+          return parseInternal(literal._0.map(function (itemSchema) {
+                          return loop(itemSchema).value;
+                        }));
       case "Union" :
           _schema = literal._0[0];
           continue ;
@@ -529,7 +549,7 @@ function loop(_schema) {
   };
 }
 
-function toLiteral(schema) {
+function toInternalLiteral(schema) {
   try {
     return loop(schema);
   }
@@ -580,7 +600,7 @@ function validateJsonableSchema(_schema, rootSchema, _isRootOpt) {
     } else {
       switch (childrenSchemas.TAG) {
         case "Literal" :
-            if (isJsonable(childrenSchemas._0)) {
+            if (childrenSchemas._0.isJsonable) {
               return ;
             }
             exit = 2;
@@ -1224,7 +1244,7 @@ function literalCheckBuilder(b, value, inputVar) {
 }
 
 function literal(value) {
-  var literal$1 = classify(value);
+  var literal$1 = parseInternal(value);
   var operationBuilder = function (b, param, path) {
     var inputVar = toVar(b, b.i);
     b.c = b.c + (literalCheckBuilder(b, value, inputVar) + "||" + raiseWithArg(b, path, (function (input) {
@@ -1242,7 +1262,7 @@ function literal(value) {
             _0: literal$1
           },
           n: (function () {
-              return "Literal(" + toText(literal$1) + ")";
+              return "Literal(" + literal$1.toString() + ")";
             }),
           p: operationBuilder,
           s: operationBuilder,
@@ -1304,7 +1324,7 @@ function factory(schema, definer) {
                       b.c = b.c + (constantVar + "=" + inputVar + outputPath + ";if(" + constantVar + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
                                 return {
                                         TAG: "InvalidLiteral",
-                                        expected: classify(definition),
+                                        expected: parseInternal(definition),
                                         received: input
                                       };
                               }), constantVar) + "}");
@@ -1321,12 +1341,12 @@ function factory(schema, definer) {
               if (output !== 0) {
                 return invalidOperation(b, path, "Can't create serializer. The S.variant's value is registered multiple times. Use S.transform instead");
               }
-              var literal = toLiteral(selfSchema);
-              if (literal === undefined) {
+              var literal = toInternalLiteral(selfSchema);
+              if (literal !== undefined) {
+                return use(b, schema, "e[" + (b.e.push(literal.value) - 1) + "]", path);
+              } else {
                 return invalidOperation(b, path, "Can't create serializer. The S.variant's value is not registered and not a literal. Use S.transform instead");
               }
-              var value$1 = value(literal);
-              return use(b, schema, "e[" + (b.e.push(value$1) - 1) + "]", path);
             }),
           f: schema.f,
           i: 0,
@@ -1639,7 +1659,7 @@ function factory$3(definer) {
                       b.c = "if(" + inputVar + outputPath + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
                               return {
                                       TAG: "InvalidLiteral",
-                                      expected: classify(definition),
+                                      expected: parseInternal(definition),
                                       received: input
                                     };
                             }), inputVar + outputPath) + "}" + b.c;
@@ -1661,10 +1681,9 @@ function factory$3(definer) {
                 var itemDefinition = itemDefinitions[idx];
                 if (!registeredDefinitions.has(itemDefinition)) {
                   var inlinedInputLocation = itemDefinition.l;
-                  var literal = toLiteral(itemDefinition.s);
+                  var literal = toInternalLiteral(itemDefinition.s);
                   if (literal !== undefined) {
-                    var value$1 = value(literal);
-                    fieldsCodeRef.contents = fieldsCodeRef.contents + (inlinedInputLocation + ":" + ("e[" + (b.e.push(value$1) - 1) + "]") + ",");
+                    fieldsCodeRef.contents = fieldsCodeRef.contents + (inlinedInputLocation + ":" + ("e[" + (b.e.push(literal.value) - 1) + "]") + ",");
                   } else {
                     invalidOperation(b, path, "Can't create serializer. The " + inlinedInputLocation + " field is not registered and not a literal. Use S.transform instead");
                   }
@@ -2317,7 +2336,7 @@ function factory$7(definer) {
                       b.c = "if(" + inputVar + outputPath + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
                               return {
                                       TAG: "InvalidLiteral",
-                                      expected: classify(definition),
+                                      expected: parseInternal(definition),
                                       received: input
                                     };
                             }), inputVar + outputPath) + "}" + b.c;
@@ -2338,10 +2357,9 @@ function factory$7(definer) {
               for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
                 var itemDefinition = itemDefinitions[idx];
                 if (!registeredDefinitions.has(itemDefinition)) {
-                  var literal = toLiteral(itemDefinition.s);
+                  var literal = toInternalLiteral(itemDefinition.s);
                   if (literal !== undefined) {
-                    var value$1 = value(literal);
-                    b.c = b.c + (outputVar + itemDefinition.p + "=" + ("e[" + (b.e.push(value$1) - 1) + "]") + ";");
+                    b.c = b.c + (outputVar + itemDefinition.p + "=" + ("e[" + (b.e.push(literal.value) - 1) + "]") + ";");
                   } else {
                     invalidOperation(b, path, "Can't create serializer. The " + itemDefinition.l + " item is not registered and not a literal. Use S.transform instead");
                   }
@@ -2662,9 +2680,9 @@ function reason(error, nestedLevelOpt) {
     case "InvalidOperation" :
         return reason$1.description;
     case "InvalidType" :
-        return "Expected " + reason$1.expected.n() + ", received " + toText(classify(reason$1.received));
+        return "Expected " + reason$1.expected.n() + ", received " + parseInternal(reason$1.received).toString();
     case "InvalidLiteral" :
-        return "Expected " + toText(reason$1.expected) + ", received " + toText(classify(reason$1.received));
+        return "Expected " + reason$1.expected.toString() + ", received " + parseInternal(reason$1.received).toString();
     case "InvalidTupleSize" :
         return "Expected Tuple with " + reason$1.expected + " items, received " + reason$1.received;
     case "ExcessField" :
@@ -2726,7 +2744,7 @@ function internalInline(schema, maybeVariant, param) {
   } else {
     switch (literal.TAG) {
       case "Literal" :
-          inlinedSchema = "S.literal(%raw(\`" + toText(literal._0) + "\`))";
+          inlinedSchema = "S.literal(%raw(\`" + literal._0.toString() + "\`))";
           break;
       case "Option" :
           inlinedSchema = "S.option(" + internalInline(literal._0, undefined, undefined) + ")";
@@ -2877,11 +2895,10 @@ function internalInline(schema, maybeVariant, param) {
   } else {
     switch (match$1.TAG) {
       case "Literal" :
-          var tmp = match$1._0;
-          if (typeof tmp !== "object" || tmp.TAG !== "String") {
-            inlinedSchema$5 = inlinedSchema$4;
-          } else {
+          if (match$1._0.kind === "String") {
             exit$1 = 1;
+          } else {
+            inlinedSchema$5 = inlinedSchema$4;
           }
           break;
       case "Array" :
@@ -3201,6 +3218,13 @@ function js_name(prim) {
   return prim.n();
 }
 
+var Literal = {
+  parse: parse,
+  value: value,
+  isJsonable: isJsonable,
+  toString: toString
+};
+
 var Path = {
   empty: "",
   dynamic: "[]",
@@ -3236,7 +3260,7 @@ var dict = factory$6;
 
 var option = factory$1;
 
-var $$null = factory$2;
+var $$null$1 = factory$2;
 
 var jsonString = factory$4;
 
@@ -3342,7 +3366,7 @@ export {
   list ,
   dict ,
   option ,
-  $$null ,
+  $$null$1 as $$null,
   nullable ,
   jsonString ,
   union ,
@@ -3372,7 +3396,7 @@ export {
   serializeToUnknownOrRaiseWith ,
   isAsyncParse ,
   recursive ,
-  classify$1 as classify,
+  classify ,
   setName ,
   schema$6 as schema,
   $$Object ,
@@ -3404,4 +3428,4 @@ export {
   js_serializeOrThrow ,
   js_name ,
 }
-/* symbol Not a pure module */
+/* nan Not a pure module */

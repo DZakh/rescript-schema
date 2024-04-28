@@ -53,13 +53,7 @@ test("Successfully serializes", t => {
 test("Fails to serialize when user raises error in serializer", t => {
   let schema = S.string->S.preprocess(s => {serializer: _ => s.fail("User error")})
 
-  t->Assert.deepEqual(
-    "Hello world!"->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({code: OperationFailed("User error"), operation: Serializing, path: S.Path.empty}),
-    ),
-    (),
-  )
+  t->U.assertErrorResult("Hello world!"->S.serializeToUnknownWith(schema), {code: OperationFailed("User error"), operation: Serializing, path: S.Path.empty})
 })
 
 test("Preprocess operations applyed in the right order when parsing", t => {
@@ -68,13 +62,7 @@ test("Preprocess operations applyed in the right order when parsing", t => {
     ->S.preprocess(s => {parser: _ => s.fail("First preprocess")})
     ->S.preprocess(s => {parser: _ => s.fail("Second preprocess")})
 
-  t->Assert.deepEqual(
-    123->S.parseAnyWith(schema),
-    Error(
-      U.error({code: OperationFailed("Second preprocess"), operation: Parsing, path: S.Path.empty}),
-    ),
-    (),
-  )
+  t->U.assertErrorResult(123->S.parseAnyWith(schema), {code: OperationFailed("Second preprocess"), operation: Parsing, path: S.Path.empty})
 })
 
 test("Preprocess operations applyed in the right order when serializing", t => {
@@ -83,17 +71,11 @@ test("Preprocess operations applyed in the right order when serializing", t => {
     ->S.preprocess(s => {serializer: _ => s.fail("First preprocess")})
     ->S.preprocess(s => {serializer: _ => s.fail("Second preprocess")})
 
-  t->Assert.deepEqual(
-    123->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(123->S.serializeToUnknownWith(schema), {
         code: OperationFailed("First preprocess"),
         operation: Serializing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Fails to parse async using parseAnyWith", t => {
@@ -122,17 +104,11 @@ asyncTest("Fails to parse async with user error", t => {
   %raw(`"Hello world!"`)
   ->S.parseAsyncWith(schema)
   ->Promise.thenResolve(result => {
-    t->Assert.deepEqual(
-      result,
-      Error(
-        U.error({
+    t->U.assertErrorResult(result, {
           code: OperationFailed("User error"),
           path: S.Path.empty,
           operation: Parsing,
-        }),
-      ),
-      (),
-    )
+        })
   })
 })
 

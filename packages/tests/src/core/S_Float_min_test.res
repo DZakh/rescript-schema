@@ -10,17 +10,11 @@ test("Successfully parses valid data", t => {
 test("Fails to parse invalid data", t => {
   let schema = S.float->S.Float.min(1.)
 
-  t->Assert.deepEqual(
-    0->S.parseAnyWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(0->S.parseAnyWith(schema), {
         code: OperationFailed("Number must be greater than or equal to 1"),
         operation: Parsing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Successfully serializes valid value", t => {
@@ -33,17 +27,11 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.float->S.Float.min(1.)
 
-  t->Assert.deepEqual(
-    0.->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(0.->S.serializeToUnknownWith(schema), {
         code: OperationFailed("Number must be greater than or equal to 1"),
         operation: Serializing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Returns custom error message", t => {

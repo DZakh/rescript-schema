@@ -38,6 +38,13 @@ function assertThrowsTestException(t, fn, message, param) {
   }
 }
 
+function assertErrorResult(t, result, errorPayload) {
+  if (result.TAG === "Ok") {
+    return t.fail("Asserted result is not Error.");
+  }
+  t.is(S$RescriptSchema.$$Error.message(result._0), S$RescriptSchema.$$Error.message(error(errorPayload)), undefined);
+}
+
 function cleanUpSchema(schema) {
   var $$new = {};
   Object.entries(schema).forEach(function (param) {
@@ -113,6 +120,7 @@ export {
   raiseTestException ,
   error ,
   assertThrowsTestException ,
+  assertErrorResult ,
   cleanUpSchema ,
   unsafeAssertEqualSchemas ,
   assertCompiledCode ,

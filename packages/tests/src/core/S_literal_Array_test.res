@@ -14,20 +14,14 @@ module Common = {
   test("Fails to parse invalid", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(
-      invalid->S.parseAnyWith(schema),
-      Error(
-        U.error({
+    t->U.assertErrorResult(invalid->S.parseAnyWith(schema), {
           code: InvalidLiteral({
-            expected: Array([String("bar"), Boolean(true)]),
+            expected: S.Literal.parse(("bar", true)),
             received: invalid,
           }),
           operation: Parsing,
           path: S.Path.empty,
-        }),
-      ),
-      (),
-    )
+        })
   })
 
   test("Successfully serializes", t => {
@@ -39,58 +33,40 @@ module Common = {
   test("Fails to serialize invalid", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(
-      invalid->S.serializeToUnknownWith(schema),
-      Error(
-        U.error({
+    t->U.assertErrorResult(invalid->S.serializeToUnknownWith(schema), {
           code: InvalidLiteral({
-            expected: Array([String("bar"), Boolean(true)]),
+            expected: S.Literal.parse(("bar", true)),
             received: invalid->U.castAnyToUnknown,
           }),
           operation: Serializing,
           path: S.Path.empty,
-        }),
-      ),
-      (),
-    )
+        })
   })
 
   test("Fails to parse array like object", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(
-      %raw(`{0: "bar",1:true}`)->S.parseAnyWith(schema),
-      Error(
-        U.error({
+    t->U.assertErrorResult(%raw(`{0: "bar",1:true}`)->S.parseAnyWith(schema), {
           code: InvalidLiteral({
-            expected: Array([String("bar"), Boolean(true)]),
+            expected: S.Literal.parse(("bar", true)),
             received: %raw(`{0: "bar",1:true}`),
           }),
           operation: Parsing,
           path: S.Path.empty,
-        }),
-      ),
-      (),
-    )
+        })
   })
 
   test("Fails to parse array with excess item", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(
-      %raw(`["bar", true, false]`)->S.parseAnyWith(schema),
-      Error(
-        U.error({
+    t->U.assertErrorResult(%raw(`["bar", true, false]`)->S.parseAnyWith(schema), {
           code: InvalidLiteral({
-            expected: Array([String("bar"), Boolean(true)]),
+            expected: S.Literal.parse(("bar", true)),
             received: %raw(`["bar", true, false]`),
           }),
           operation: Parsing,
           path: S.Path.empty,
-        }),
-      ),
-      (),
-    )
+        })
   })
 
   test("Compiled parse code snapshot", t => {

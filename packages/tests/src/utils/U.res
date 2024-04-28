@@ -5,14 +5,14 @@ external magic: 'a => 'b = "%identity"
 external castAnyToUnknown: 'any => unknown = "%identity"
 external castUnknownToAny: unknown => 'any = "%identity"
 
-type payloadedVariant<'payload> = {_0: 'payload}
-let unsafeGetVariantPayload = variant => (variant->Obj.magic)._0
+let unsafeGetVariantPayload = variant => (variant->Obj.magic)["_0"]
 
 exception Test
 let raiseTestException = () => raise(Test)
 
 type errorPayload = {operation: S.operation, code: S.errorCode, path: S.Path.t}
 
+// TODO: Get rid of the helper
 let error = ({operation, code, path}: errorPayload): S.error => {
   S.Error.make(~code, ~operation, ~path)
 }
@@ -26,6 +26,13 @@ let assertThrowsTestException = {
     | Test => t->Assert.pass(~message?, ())
     | _ => t->Assert.fail("Thrown another exception")
     }
+  }
+}
+
+let assertErrorResult = (t, result, errorPayload) => {
+  switch result {
+  | Ok(_) => t->Assert.fail("Asserted result is not Error.")
+  | Error(err) => t->Assert.is(err->S.Error.message, error(errorPayload)->S.Error.message, ())
   }
 }
 

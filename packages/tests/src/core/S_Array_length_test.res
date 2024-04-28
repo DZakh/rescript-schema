@@ -9,27 +9,21 @@ test("Successfully parses valid data", t => {
 test("Fails to parse invalid data", t => {
   let schema = S.array(S.int)->S.Array.length(1)
 
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     []->S.parseAnyWith(schema),
-    Error(
-      U.error({
-        code: OperationFailed("Array must be exactly 1 items long"),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
-    ),
-    (),
+    {
+      code: OperationFailed("Array must be exactly 1 items long"),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
   )
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     [1, 2, 3, 4]->S.parseAnyWith(schema),
-    Error(
-      U.error({
-        code: OperationFailed("Array must be exactly 1 items long"),
-        operation: Parsing,
-        path: S.Path.empty,
-      }),
-    ),
-    (),
+    {
+      code: OperationFailed("Array must be exactly 1 items long"),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
   )
 })
 
@@ -42,27 +36,21 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.array(S.int)->S.Array.length(1)
 
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     []->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
-        code: OperationFailed("Array must be exactly 1 items long"),
-        operation: Serializing,
-        path: S.Path.empty,
-      }),
-    ),
-    (),
+    {
+      code: OperationFailed("Array must be exactly 1 items long"),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
   )
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     [1, 2, 3, 4]->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
-        code: OperationFailed("Array must be exactly 1 items long"),
-        operation: Serializing,
-        path: S.Path.empty,
-      }),
-    ),
-    (),
+    {
+      code: OperationFailed("Array must be exactly 1 items long"),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
   )
 })
 

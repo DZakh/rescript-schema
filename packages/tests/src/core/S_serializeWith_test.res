@@ -71,187 +71,109 @@ test("Successfully serializes jsonable schemas", t => {
 
 test("Fails to serialize Option schema", t => {
   let schema = S.option(S.bool)
-  t->Assert.deepEqual(
-    None->S.serializeWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(None->S.serializeWith(schema), {
         code: InvalidJsonStruct(schema->S.toUnknown),
         operation: Serializing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Fails to serialize Undefined literal", t => {
   let schema = S.literal()
-  t->Assert.deepEqual(
-    ()->S.serializeWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(()->S.serializeWith(schema), {
         code: InvalidJsonStruct(schema->S.toUnknown),
         operation: Serializing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Fails to serialize Function literal", t => {
   let fn = () => ()
   let schema = S.literal(fn)
-  t->Assert.deepEqual(
-    fn->S.serializeWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(fn->S.serializeWith(schema), {
         code: InvalidJsonStruct(schema->S.toUnknown),
         operation: Serializing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Fails to serialize Object literal", t => {
   let error = %raw(`new Error("foo")`)
   let schema = S.literal(error)
-  t->Assert.deepEqual(
-    error->S.serializeWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(error->S.serializeWith(schema), {
         code: InvalidJsonStruct(schema->S.toUnknown),
         operation: Serializing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Fails to serialize Symbol literal", t => {
   let symbol = %raw(`Symbol()`)
   let schema = S.literal(symbol)
-  t->Assert.deepEqual(
-    symbol->S.serializeWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(symbol->S.serializeWith(schema), {
         code: InvalidJsonStruct(schema->S.toUnknown),
         operation: Serializing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Fails to serialize BigInt literal", t => {
   let bigint = %raw(`1234n`)
   let schema = S.literal(bigint)
-  t->Assert.deepEqual(
-    bigint->S.serializeWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(bigint->S.serializeWith(schema), {
         code: InvalidJsonStruct(schema->S.toUnknown),
         operation: Serializing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Fails to serialize Dict literal with invalid field", t => {
   let dict = %raw(`{"foo": 123n}`)
   let schema = S.literal(dict)
-  t->Assert.deepEqual(
-    dict->S.serializeWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(dict->S.serializeWith(schema), {
         code: InvalidJsonStruct(schema->S.toUnknown),
         operation: Serializing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Fails to serialize NaN literal", t => {
   let schema = S.literal(%raw(`NaN`))
-  t->Assert.deepEqual(
-    ()->S.serializeWith(schema),
-    Error(
-      U.error({
+  t->U.assertErrorResult(()->S.serializeWith(schema), {
         code: InvalidJsonStruct(schema->S.toUnknown),
         operation: Serializing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Fails to serialize Unknown schema", t => {
-  t->Assert.deepEqual(
-    Obj.magic(123)->S.serializeWith(S.unknown),
-    Error(
-      U.error({code: InvalidJsonStruct(S.unknown), operation: Serializing, path: S.Path.empty}),
-    ),
-    (),
-  )
+  t->U.assertErrorResult(Obj.magic(123)->S.serializeWith(S.unknown), {code: InvalidJsonStruct(S.unknown), operation: Serializing, path: S.Path.empty})
 })
 
 test("Fails to serialize Never schema", t => {
-  t->Assert.deepEqual(
-    Obj.magic(123)->S.serializeWith(S.never),
-    Error(
-      U.error({
+  t->U.assertErrorResult(Obj.magic(123)->S.serializeWith(S.never), {
         code: InvalidType({expected: S.never->S.toUnknown, received: Obj.magic(123)}),
         operation: Serializing,
         path: S.Path.empty,
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Fails to serialize object with invalid nested schema", t => {
-  t->Assert.deepEqual(
-    Obj.magic(true)->S.serializeWith(S.object(s => s.field("foo", S.unknown))),
-    Error(
-      U.error({
+  t->U.assertErrorResult(Obj.magic(true)->S.serializeWith(S.object(s => s.field("foo", S.unknown))), {
         code: InvalidJsonStruct(S.unknown),
         operation: Serializing,
         path: S.Path.fromArray(["foo"]),
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Fails to serialize tuple with invalid nested schema", t => {
-  t->Assert.deepEqual(
-    Obj.magic(true)->S.serializeWith(S.tuple1(S.unknown)),
-    Error(
-      U.error({
+  t->U.assertErrorResult(Obj.magic(true)->S.serializeWith(S.tuple1(S.unknown)), {
         code: InvalidJsonStruct(S.unknown),
         operation: Serializing,
         path: S.Path.fromArray(["0"]),
-      }),
-    ),
-    (),
-  )
+      })
 })
 
 test("Fails to serialize union if one of the items is an invalid schema", t => {
-  t->Assert.deepEqual(
-    "foo"->S.serializeWith(S.union([S.string, S.unknown->(U.magic: S.t<unknown> => S.t<string>)])),
-    Error(
-      U.error({code: InvalidJsonStruct(S.unknown), operation: Serializing, path: S.Path.empty}),
-    ),
-    (),
-  )
+  t->U.assertErrorResult("foo"->S.serializeWith(S.union([S.string, S.unknown->(U.magic: S.t<unknown> => S.t<string>)])), {code: InvalidJsonStruct(S.unknown), operation: Serializing, path: S.Path.empty})
 })

@@ -1,0 +1,4 @@
+- Redesigned `Literal` module to make it more effecient
+  - The `type t` became private and changed structure a little bit. Use `S.Literal.parse` to create instances of the type.
+  - `Literal.classify` -> `Literal.parse`
+  - `Literal.toText` -> `Literal.toString`. Also, started using `.toString` for `Function` literalls and removed spaces for `Dict` and `Array` literals to make them look the same as the `JSON.stringify` output.

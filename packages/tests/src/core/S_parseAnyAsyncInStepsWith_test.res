@@ -483,32 +483,29 @@ module Union = {
     let input = %raw("true")
 
     (input->S.parseAnyAsyncInStepsWith(schema)->Result.getExn)()->Promise.thenResolve(result => {
-      t->Assert.deepEqual(
+      t->U.assertErrorResult(
         result,
-        Error(
-          U.error({
-            code: InvalidUnion([
-              U.error({
-                code: InvalidLiteral({expected: Number(1.), received: input}),
-                path: S.Path.empty,
-                operation: Parsing,
-              }),
-              U.error({
-                code: InvalidLiteral({expected: Number(2.), received: input}),
-                path: S.Path.empty,
-                operation: Parsing,
-              }),
-              U.error({
-                code: InvalidLiteral({expected: Number(3.), received: input}),
-                path: S.Path.empty,
-                operation: Parsing,
-              }),
-            ]),
-            operation: Parsing,
-            path: S.Path.empty,
-          }),
-        ),
-        (),
+        {
+          code: InvalidUnion([
+            U.error({
+              code: InvalidLiteral({expected: S.Literal.parse(1.), received: input}),
+              path: S.Path.empty,
+              operation: Parsing,
+            }),
+            U.error({
+              code: InvalidLiteral({expected: S.Literal.parse(2.), received: input}),
+              path: S.Path.empty,
+              operation: Parsing,
+            }),
+            U.error({
+              code: InvalidLiteral({expected: S.Literal.parse(3.), received: input}),
+              path: S.Path.empty,
+              operation: Parsing,
+            }),
+          ]),
+          operation: Parsing,
+          path: S.Path.empty,
+        },
       )
     })
   })

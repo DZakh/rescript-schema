@@ -75,7 +75,7 @@ test("UnexpectedAsync error", t => {
 test("InvalidLiteral error", t => {
   t->Assert.is(
     U.error({
-      code: InvalidLiteral({expected: Boolean(false), received: true->Obj.magic}),
+      code: InvalidLiteral({expected: S.Literal.parse(false), received: true->Obj.magic}),
       operation: Parsing,
       path: S.Path.empty,
     })->S.Error.message,
@@ -113,17 +113,20 @@ test("InvalidUnion error", t => {
     U.error({
       code: InvalidUnion([
         U.error({
-          code: InvalidLiteral({expected: String("circle"), received: "oval"->Obj.magic}),
+          code: InvalidLiteral({expected: S.Literal.parse("circle"), received: "oval"->Obj.magic}),
           operation: Parsing,
           path: S.Path.fromArray(["kind"]),
         }),
         U.error({
-          code: InvalidLiteral({expected: String("square"), received: "oval"->Obj.magic}),
+          code: InvalidLiteral({expected: S.Literal.parse("square"), received: "oval"->Obj.magic}),
           operation: Parsing,
           path: S.Path.fromArray(["kind"]),
         }),
         U.error({
-          code: InvalidLiteral({expected: String("triangle"), received: "oval"->Obj.magic}),
+          code: InvalidLiteral({
+            expected: S.Literal.parse("triangle"),
+            received: "oval"->Obj.magic,
+          }),
           operation: Parsing,
           path: S.Path.fromArray(["kind"]),
         }),

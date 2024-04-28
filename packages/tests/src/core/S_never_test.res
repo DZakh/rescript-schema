@@ -7,33 +7,21 @@ module Common = {
   test("Fails to ", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(
-      any->S.parseAnyWith(schema),
-      Error(
-        U.error({
+    t->U.assertErrorResult(any->S.parseAnyWith(schema), {
           code: InvalidType({expected: S.never->S.toUnknown, received: any}),
           operation: Parsing,
           path: S.Path.empty,
-        }),
-      ),
-      (),
-    )
+        })
   })
 
   test("Fails to serialize ", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(
-      any->S.serializeToUnknownWith(schema),
-      Error(
-        U.error({
+    t->U.assertErrorResult(any->S.serializeToUnknownWith(schema), {
           code: InvalidType({expected: schema->S.toUnknown, received: any}),
           operation: Serializing,
           path: S.Path.empty,
-        }),
-      ),
-      (),
-    )
+        })
   })
 
   test("Compiled parse code snapshot", t => {
@@ -58,17 +46,11 @@ module ObjectField = {
       }
     )
 
-    t->Assert.deepEqual(
-      %raw(`{"key":"value"}`)->S.parseAnyWith(schema),
-      Error(
-        U.error({
+    t->U.assertErrorResult(%raw(`{"key":"value"}`)->S.parseAnyWith(schema), {
           code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`undefined`)}),
           operation: Parsing,
           path: S.Path.fromArray(["oldKey"]),
-        }),
-      ),
-      (),
-    )
+        })
   })
 
   test("Successfully parses a object with Never field when it's optional and not present", t => {

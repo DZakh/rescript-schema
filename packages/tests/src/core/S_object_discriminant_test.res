@@ -255,18 +255,15 @@ module Negative = {
           },
         )
 
-        t->Assert.deepEqual(
+        t->U.assertErrorResult(
           {"field": "bar"}->S.serializeToUnknownWith(schema),
-          Error(
-            U.error({
-              code: InvalidOperation({
-                description: `Can\'t create serializer. The "discriminant" field is not registered and not a literal. Use S.transform instead`,
-              }),
-              operation: Serializing,
-              path: S.Path.empty,
+          {
+            code: InvalidOperation({
+              description: `Can\'t create serializer. The "discriminant" field is not registered and not a literal. Use S.transform instead`,
             }),
-          ),
-          (),
+            operation: Serializing,
+            path: S.Path.empty,
+          },
         )
       },
     )
@@ -329,18 +326,15 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
     }
   })
 
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     {"field": "bar"}->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
-        code: InvalidOperation({
-          description: `Can't create serializer. The "discriminant" field is not registered and not a literal. Use S.transform instead`,
-        }),
-        operation: Serializing,
-        path: S.Path.empty,
+    {
+      code: InvalidOperation({
+        description: `Can't create serializer. The "discriminant" field is not registered and not a literal. Use S.transform instead`,
       }),
-    ),
-    (),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
   )
 })
 
@@ -352,15 +346,12 @@ test(`Serializes constant fields before registered fields`, t => {
     }
   })
 
-  t->Assert.deepEqual(
+  t->U.assertErrorResult(
     {"constant": false, "field": false}->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
-        code: InvalidLiteral({expected: Boolean(true), received: Obj.magic(false)}),
-        operation: Serializing,
-        path: S.Path.fromArray(["constant"]),
-      }),
-    ),
-    (),
+    {
+      code: InvalidLiteral({expected: S.Literal.parse(true), received: Obj.magic(false)}),
+      operation: Serializing,
+      path: S.Path.fromArray(["constant"]),
+    },
   )
 })

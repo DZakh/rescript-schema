@@ -3,27 +3,29 @@
 type never
 
 module Literal: {
+  @tag("kind")
   type rec t =
-    | String(string)
-    | Number(float)
-    | Boolean(bool)
-    | BigInt(Js.Types.bigint_val)
-    | Symbol(Js.Types.symbol)
-    | Array(array<t>)
-    | Dict(dict<t>)
-    | Function(Js.Types.function_val)
-    | Object(Js.Types.obj_val)
-    | Null
-    | Undefined
-    | NaN
+    private
+    | String({value: string})
+    | Number({value: float})
+    | Boolean({value: bool})
+    | BigInt({value: bigint})
+    | Symbol({value: Js.Types.symbol})
+    | Array({value: array<unknown>, items: array<t>})
+    | Dict({value: dict<unknown>, items: dict<t>})
+    | Function({value: Js.Types.function_val})
+    | Object({value: Js.Types.obj_val})
+    | Null({value: Js.Types.null_val})
+    | Undefined({value: unit})
+    | NaN({value: unknown})
 
-  let classify: 'a => t
+  let parse: 'a => t
 
   let value: t => unknown
 
   let isJsonable: t => bool
 
-  let toText: t => string
+  let toString: t => string
 }
 
 module Path: {

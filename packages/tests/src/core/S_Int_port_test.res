@@ -25,13 +25,7 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.int->S.Int.port
 
-  t->Assert.deepEqual(
-    -80->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({code: OperationFailed("Invalid port"), operation: Serializing, path: S.Path.empty}),
-    ),
-    (),
-  )
+  t->U.assertErrorResult(-80->S.serializeToUnknownWith(schema), {code: OperationFailed("Invalid port"), operation: Serializing, path: S.Path.empty})
 })
 
 test("Returns custom error message", t => {
