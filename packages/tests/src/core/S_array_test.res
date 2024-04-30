@@ -17,21 +17,27 @@ module CommonWithNested = {
   test("Fails to parse", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(invalidAny->S.parseAnyWith(schema), {
-          code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
-          operation: Parsing,
-          path: S.Path.empty,
-        })
+    t->U.assertErrorResult(
+      invalidAny->S.parseAnyWith(schema),
+      {
+        code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
+    )
   })
 
   test("Fails to parse nested", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(nestedInvalidAny->S.parseAnyWith(schema), {
-          code: InvalidType({expected: S.string->S.toUnknown, received: 1->Obj.magic}),
-          operation: Parsing,
-          path: S.Path.fromArray(["1"]),
-        })
+    t->U.assertErrorResult(
+      nestedInvalidAny->S.parseAnyWith(schema),
+      {
+        code: InvalidType({expected: S.string->S.toUnknown, received: 1->Obj.magic}),
+        operation: Parsing,
+        path: S.Path.fromArray(["1"]),
+      },
+    )
   })
 
   test("Successfully serializes", t => {
@@ -91,11 +97,14 @@ test("Successfully parses matrix", t => {
 test("Fails to parse matrix", t => {
   let schema = S.array(S.array(S.string))
 
-  t->U.assertErrorResult(%raw(`[["a", 1], ["c", "d"]]`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`1`)}),
-        operation: Parsing,
-        path: S.Path.fromArray(["0", "1"]),
-      })
+  t->U.assertErrorResult(
+    %raw(`[["a", 1], ["c", "d"]]`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`1`)}),
+      operation: Parsing,
+      path: S.Path.fromArray(["0", "1"]),
+    },
+  )
 })
 
 test("Successfully parses array of optional items", t => {

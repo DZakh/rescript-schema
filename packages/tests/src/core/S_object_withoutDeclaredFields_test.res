@@ -45,9 +45,12 @@ test("Successfully serializes transformed value to empty object", t => {
 test("Fails to parse array data", t => {
   let schema = S.object(_ => ())
 
-  t->U.assertErrorResult(%raw(`[]`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`[]`)}),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    %raw(`[]`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: schema->S.toUnknown, received: %raw(`[]`)}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })

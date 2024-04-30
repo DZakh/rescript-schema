@@ -15,11 +15,14 @@ module Common = {
   test("Fails to parse", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(invalidAny->S.parseAnyWith(schema), {
-          code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
-          operation: Parsing,
-          path: S.Path.empty,
-        })
+    t->U.assertErrorResult(
+      invalidAny->S.parseAnyWith(schema),
+      {
+        code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
+    )
   })
 
   test("Successfully serializes", t => {
@@ -54,9 +57,12 @@ test("Successfully parses number with a fractional part", t => {
 test("Fails to parse NaN", t => {
   let schema = S.float
 
-  t->U.assertErrorResult(%raw(`NaN`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`NaN`)}),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    %raw(`NaN`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: schema->S.toUnknown, received: %raw(`NaN`)}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })

@@ -57,40 +57,52 @@ test("Fails to parse Object field", t => {
     [("bar", %raw(`undefined`)), ("baz", JSON.Encode.null)]->Dict.fromArray,
   )
 
-  t->U.assertErrorResult(data->S.parseWith(schema), {
-        code: InvalidType({received: %raw(`undefined`), expected: schema->S.toUnknown}),
-        operation: Parsing,
-        path: S.Path.fromLocation("bar"),
-      })
+  t->U.assertErrorResult(
+    data->S.parseWith(schema),
+    {
+      code: InvalidType({received: %raw(`undefined`), expected: schema->S.toUnknown}),
+      operation: Parsing,
+      path: S.Path.fromLocation("bar"),
+    },
+  )
 })
 
 test("Fails to parse matrix field", t => {
   let schema = S.json
   let data = %raw(`[1,[undefined]]`)
 
-  t->U.assertErrorResult(data->S.parseWith(schema), {
-        code: InvalidType({received: %raw(`undefined`), expected: schema->S.toUnknown}),
-        operation: Parsing,
-        path: S.Path.fromArray(["1", "0"]),
-      })
+  t->U.assertErrorResult(
+    data->S.parseWith(schema),
+    {
+      code: InvalidType({received: %raw(`undefined`), expected: schema->S.toUnknown}),
+      operation: Parsing,
+      path: S.Path.fromArray(["1", "0"]),
+    },
+  )
 })
 
 test("Fails to parse NaN", t => {
   let schema = S.json
-  t->U.assertErrorResult(%raw(`NaN`)->S.parseAnyWith(schema), {
-        code: InvalidType({received: %raw(`NaN`), expected: schema->S.toUnknown}),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    %raw(`NaN`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({received: %raw(`NaN`), expected: schema->S.toUnknown}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Fails to parse undefined", t => {
   let schema = S.json
-  t->U.assertErrorResult(%raw(`undefined`)->S.parseAnyWith(schema), {
-        code: InvalidType({received: %raw(`undefined`), expected: schema->S.toUnknown}),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    %raw(`undefined`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({received: %raw(`undefined`), expected: schema->S.toUnknown}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Compiled parse code snapshot", t => {

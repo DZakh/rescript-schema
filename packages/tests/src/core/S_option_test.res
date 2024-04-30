@@ -16,11 +16,14 @@ module Common = {
   test("Fails to parse", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(invalidAny->S.parseAnyWith(schema), {
-          code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
-          operation: Parsing,
-          path: S.Path.empty,
-        })
+    t->U.assertErrorResult(
+      invalidAny->S.parseAnyWith(schema),
+      {
+        code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
+    )
   })
 
   test("Successfully serializes", t => {
@@ -69,21 +72,27 @@ test("Successfully parses primitive", t => {
 test("Fails to parse JS null", t => {
   let schema = S.option(S.bool)
 
-  t->U.assertErrorResult(%raw(`null`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`null`)}),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    %raw(`null`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: schema->S.toUnknown, received: %raw(`null`)}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Fails to parse JS undefined when schema doesn't allow optional data", t => {
   let schema = S.bool
 
-  t->U.assertErrorResult(%raw(`undefined`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`undefined`)}),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    %raw(`undefined`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: schema->S.toUnknown, received: %raw(`undefined`)}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Parses option nested in null as None instead of Some(None)", t => {

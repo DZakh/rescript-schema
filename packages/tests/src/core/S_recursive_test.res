@@ -109,17 +109,20 @@ test("Fails to parse nested recursive object", t => {
     )
   })
 
-  t->U.assertErrorResult({
+  t->U.assertErrorResult(
+    {
       "Id": "1",
       "Children": [
         {"Id": "2", "Children": []},
         {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
       ],
-    }->S.parseAnyWith(nodeSchema), {
-        code: OperationFailed("Invalid id"),
-        operation: Parsing,
-        path: S.Path.fromArray(["Children", "1", "Children", "0", "Id"]),
-      })
+    }->S.parseAnyWith(nodeSchema),
+    {
+      code: OperationFailed("Invalid id"),
+      operation: Parsing,
+      path: S.Path.fromArray(["Children", "1", "Children", "0", "Id"]),
+    },
+  )
 })
 
 test("Fails to parse nested recursive object inside of another object", t => {
@@ -148,7 +151,8 @@ test("Fails to parse nested recursive object inside of another object", t => {
     )
   )
 
-  t->U.assertErrorResult({
+  t->U.assertErrorResult(
+    {
       "recursive": {
         "Id": "1",
         "Children": [
@@ -156,11 +160,13 @@ test("Fails to parse nested recursive object inside of another object", t => {
           {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
         ],
       },
-    }->S.parseAnyWith(schema), {
-        code: OperationFailed("Invalid id"),
-        operation: Parsing,
-        path: S.Path.fromArray(["recursive", "Children", "1", "Children", "0", "Id"]),
-      })
+    }->S.parseAnyWith(schema),
+    {
+      code: OperationFailed("Invalid id"),
+      operation: Parsing,
+      path: S.Path.fromArray(["recursive", "Children", "1", "Children", "0", "Id"]),
+    },
+  )
 })
 
 test("Fails to serialise nested recursive object", t => {
@@ -182,14 +188,17 @@ test("Fails to serialise nested recursive object", t => {
     )
   })
 
-  t->U.assertErrorResult({
+  t->U.assertErrorResult(
+    {
       id: "1",
       children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-    }->S.serializeToUnknownWith(nodeSchema), {
-        code: OperationFailed("Invalid id"),
-        operation: Serializing,
-        path: S.Path.fromArray(["children", "1", "children", "0", "id"]),
-      })
+    }->S.serializeToUnknownWith(nodeSchema),
+    {
+      code: OperationFailed("Invalid id"),
+      operation: Serializing,
+      path: S.Path.fromArray(["children", "1", "children", "0", "id"]),
+    },
+  )
 })
 
 test(

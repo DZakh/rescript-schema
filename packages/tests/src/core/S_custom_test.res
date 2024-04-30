@@ -32,11 +32,14 @@ test("Correctly parses custom schema", t => {
   t->Assert.deepEqual("Hello world!"->S.parseAnyWith(schema), Ok(Some("Hello world!")), ())
   t->Assert.deepEqual(%raw(`null`)->S.parseAnyWith(schema), Ok(None), ())
   t->Assert.deepEqual(%raw(`undefined`)->S.parseAnyWith(schema), Ok(None), ())
-  t->U.assertErrorResult(123->S.parseAnyWith(schema), {
-        code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    123->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Correctly serializes custom schema", t => {
@@ -55,7 +58,10 @@ test("Fails to serialize with user error", t => {
     serializer: _ => s.fail("User error"),
   })
 
-  t->U.assertErrorResult(None->S.serializeToUnknownWith(schema), {code: OperationFailed("User error"), operation: Serializing, path: S.Path.empty})
+  t->U.assertErrorResult(
+    None->S.serializeToUnknownWith(schema),
+    {code: OperationFailed("User error"), operation: Serializing, path: S.Path.empty},
+  )
 })
 
 test("Fails to serialize with serializer is missing", t => {
@@ -63,11 +69,14 @@ test("Fails to serialize with serializer is missing", t => {
     parser: _ => (),
   })
 
-  t->U.assertErrorResult(()->S.serializeToUnknownWith(schema), {
-        code: InvalidOperation({description: "The S.custom serializer is missing"}),
-        operation: Serializing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    ()->S.serializeToUnknownWith(schema),
+    {
+      code: InvalidOperation({description: "The S.custom serializer is missing"}),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 asyncTest("Parses with asyncParser", async t => {

@@ -9,16 +9,22 @@ test("Successfully parses valid data", t => {
 test("Fails to parse invalid data", t => {
   let schema = S.string->S.String.length(1)
 
-  t->U.assertErrorResult(""->S.parseAnyWith(schema), {
-        code: OperationFailed("String must be exactly 1 characters long"),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
-  t->U.assertErrorResult("1234"->S.parseAnyWith(schema), {
-        code: OperationFailed("String must be exactly 1 characters long"),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    ""->S.parseAnyWith(schema),
+    {
+      code: OperationFailed("String must be exactly 1 characters long"),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
+  t->U.assertErrorResult(
+    "1234"->S.parseAnyWith(schema),
+    {
+      code: OperationFailed("String must be exactly 1 characters long"),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Successfully serializes valid value", t => {
@@ -30,16 +36,22 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.String.length(1)
 
-  t->U.assertErrorResult(""->S.serializeToUnknownWith(schema), {
-        code: OperationFailed("String must be exactly 1 characters long"),
-        operation: Serializing,
-        path: S.Path.empty,
-      })
-  t->U.assertErrorResult("1234"->S.serializeToUnknownWith(schema), {
-        code: OperationFailed("String must be exactly 1 characters long"),
-        operation: Serializing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    ""->S.serializeToUnknownWith(schema),
+    {
+      code: OperationFailed("String must be exactly 1 characters long"),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
+  )
+  t->U.assertErrorResult(
+    "1234"->S.serializeToUnknownWith(schema),
+    {
+      code: OperationFailed("String must be exactly 1 characters long"),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Returns custom error message", t => {

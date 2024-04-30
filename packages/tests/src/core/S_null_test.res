@@ -16,11 +16,14 @@ module Common = {
   test("Fails to parse", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(invalidAny->S.parseAnyWith(schema), {
-          code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
-          operation: Parsing,
-          path: S.Path.empty,
-        })
+    t->U.assertErrorResult(
+      invalidAny->S.parseAnyWith(schema),
+      {
+        code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
+    )
   })
 
   test("Successfully serializes", t => {
@@ -69,32 +72,41 @@ test("Successfully parses primitive", t => {
 test("Fails to parse JS undefined", t => {
   let schema = S.null(S.bool)
 
-  t->U.assertErrorResult(%raw(`undefined`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`undefined`)}),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    %raw(`undefined`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: schema->S.toUnknown, received: %raw(`undefined`)}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Fails to parse object with missing field that marked as null", t => {
   let fieldSchema = S.null(S.string)
   let schema = S.object(s => s.field("nullableField", fieldSchema))
 
-  t->U.assertErrorResult(%raw(`{}`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: fieldSchema->S.toUnknown, received: %raw(`undefined`)}),
-        operation: Parsing,
-        path: S.Path.fromArray(["nullableField"]),
-      })
+  t->U.assertErrorResult(
+    %raw(`{}`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: fieldSchema->S.toUnknown, received: %raw(`undefined`)}),
+      operation: Parsing,
+      path: S.Path.fromArray(["nullableField"]),
+    },
+  )
 })
 
 test("Fails to parse JS null when schema doesn't allow optional data", t => {
   let schema = S.bool
 
-  t->U.assertErrorResult(%raw(`null`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`null`)}),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    %raw(`null`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: schema->S.toUnknown, received: %raw(`null`)}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Successfully parses null and serializes it back for deprecated nullable schema", t => {

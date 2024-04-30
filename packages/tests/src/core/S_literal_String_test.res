@@ -17,27 +17,33 @@ module Common = {
   test("Fails to parse invalid value", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(invalidAny->S.parseAnyWith(schema), {
-          code: InvalidLiteral({
-            expected: S.Literal.parse("ReScript is Great!"),
-            received: "Hello world!"->Obj.magic,
-          }),
-          operation: Parsing,
-          path: S.Path.empty,
-        })
+    t->U.assertErrorResult(
+      invalidAny->S.parseAnyWith(schema),
+      {
+        code: InvalidLiteral({
+          expected: S.Literal.parse("ReScript is Great!"),
+          received: "Hello world!"->Obj.magic,
+        }),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
+    )
   })
 
   test("Fails to parse invalid type", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(invalidTypeAny->S.parseAnyWith(schema), {
-          code: InvalidLiteral({
-            expected: S.Literal.parse("ReScript is Great!"),
-            received: invalidTypeAny,
-          }),
-          operation: Parsing,
-          path: S.Path.empty,
-        })
+    t->U.assertErrorResult(
+      invalidTypeAny->S.parseAnyWith(schema),
+      {
+        code: InvalidLiteral({
+          expected: S.Literal.parse("ReScript is Great!"),
+          received: invalidTypeAny,
+        }),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
+    )
   })
 
   test("Successfully serializes", t => {

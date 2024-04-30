@@ -16,24 +16,30 @@ module Common = {
   test("Fails to parse invalid value", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(invalidAny->S.parseAnyWith(schema), {
-          code: InvalidTupleSize({
-            expected: 2,
-            received: 1,
-          }),
-          operation: Parsing,
-          path: S.Path.empty,
-        })
+    t->U.assertErrorResult(
+      invalidAny->S.parseAnyWith(schema),
+      {
+        code: InvalidTupleSize({
+          expected: 2,
+          received: 1,
+        }),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
+    )
   })
 
   test("Fails to parse invalid type", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(invalidTypeAny->S.parseAnyWith(schema), {
-          code: InvalidType({expected: schema->S.toUnknown, received: invalidTypeAny}),
-          operation: Parsing,
-          path: S.Path.empty,
-        })
+    t->U.assertErrorResult(
+      invalidTypeAny->S.parseAnyWith(schema),
+      {
+        code: InvalidType({expected: schema->S.toUnknown, received: invalidTypeAny}),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
+    )
   })
 
   test("Successfully serializes", t => {

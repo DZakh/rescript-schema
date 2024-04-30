@@ -16,11 +16,14 @@ module Common = {
   test("Fails to parse", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(invalidAny->S.parseAnyWith(schema), {
-          code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
-          operation: Parsing,
-          path: S.Path.empty,
-        })
+    t->U.assertErrorResult(
+      invalidAny->S.parseAnyWith(schema),
+      {
+        code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
+    )
   })
 
   test("Successfully serializes", t => {
@@ -45,11 +48,14 @@ test("Successfully parses undefined", t => {
 test("Fails to parse null", t => {
   let schema = S.bool->S.option->S.deprecate("Deprecated")
 
-  t->U.assertErrorResult(%raw(`null`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`null`)}),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    %raw(`null`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: schema->S.toUnknown, received: %raw(`null`)}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Successfully parses null for deprecated nullable schema", t => {

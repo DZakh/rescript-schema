@@ -9,11 +9,14 @@ test("Successfully parses valid data", t => {
 test("Fails to parse invalid data", t => {
   let schema = S.string->S.String.email
 
-  t->U.assertErrorResult("dzakh.dev"->S.parseAnyWith(schema), {
-        code: OperationFailed("Invalid email address"),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    "dzakh.dev"->S.parseAnyWith(schema),
+    {
+      code: OperationFailed("Invalid email address"),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Successfully serializes valid value", t => {
@@ -29,11 +32,14 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.String.email
 
-  t->U.assertErrorResult("dzakh.dev"->S.serializeToUnknownWith(schema), {
-        code: OperationFailed("Invalid email address"),
-        operation: Serializing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    "dzakh.dev"->S.serializeToUnknownWith(schema),
+    {
+      code: OperationFailed("Invalid email address"),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Returns custom error message", t => {

@@ -23,21 +23,27 @@ module CommonWithNested = {
   test("Fails to parse", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(invalidAny->S.parseAnyWith(schema), {
-          code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
-          operation: Parsing,
-          path: S.Path.empty,
-        })
+    t->U.assertErrorResult(
+      invalidAny->S.parseAnyWith(schema),
+      {
+        code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
+    )
   })
 
   test("Fails to parse nested", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(nestedInvalidAny->S.parseAnyWith(schema), {
-          code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`true`)}),
-          operation: Parsing,
-          path: S.Path.fromArray(["key2"]),
-        })
+    t->U.assertErrorResult(
+      nestedInvalidAny->S.parseAnyWith(schema),
+      {
+        code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`true`)}),
+        operation: Parsing,
+        path: S.Path.fromArray(["key2"]),
+      },
+    )
   })
 
   test("Compiled parse code snapshot", t => {

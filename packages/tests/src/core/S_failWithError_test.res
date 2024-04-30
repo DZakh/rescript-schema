@@ -14,11 +14,14 @@ test("FIXME: Should keep operation of the error passed to advanced fail", t => {
     }),
   )
 
-  t->U.assertErrorResult(["Hello world!"]->S.parseAnyWith(schema), {
-        code: OperationFailed("User error"),
-        operation: Parsing,
-        path: S.Path.fromArray(["0", "a", "b"]),
-      })
+  t->U.assertErrorResult(
+    ["Hello world!"]->S.parseAnyWith(schema),
+    {
+      code: OperationFailed("User error"),
+      operation: Parsing,
+      path: S.Path.fromArray(["0", "a", "b"]),
+    },
+  )
 })
 
 test("Works with failing outside of the parser", t => {
@@ -40,11 +43,14 @@ test("Works with failing outside of the parser", t => {
     )
   )
 
-  t->U.assertErrorResult(["Hello world!"]->S.parseAnyWith(schema), {
-        code: OperationFailed("User error"),
-        operation: Parsing,
-        path: S.Path.fromLocation("root")
-        ->S.Path.concat(S.Path.dynamic)
-        ->S.Path.concat(S.Path.fromArray(["a", "b"])),
-      })
+  t->U.assertErrorResult(
+    ["Hello world!"]->S.parseAnyWith(schema),
+    {
+      code: OperationFailed("User error"),
+      operation: Parsing,
+      path: S.Path.fromLocation("root")
+      ->S.Path.concat(S.Path.dynamic)
+      ->S.Path.concat(S.Path.fromArray(["a", "b"])),
+    },
+  )
 })

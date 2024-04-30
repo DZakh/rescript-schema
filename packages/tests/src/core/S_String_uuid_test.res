@@ -33,7 +33,10 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.String.uuid
 
-  t->U.assertErrorResult("123e4567"->S.serializeToUnknownWith(schema), {code: OperationFailed("Invalid UUID"), operation: Serializing, path: S.Path.empty})
+  t->U.assertErrorResult(
+    "123e4567"->S.serializeToUnknownWith(schema),
+    {code: OperationFailed("Invalid UUID"), operation: Serializing, path: S.Path.empty},
+  )
 })
 
 test("Returns custom error message", t => {

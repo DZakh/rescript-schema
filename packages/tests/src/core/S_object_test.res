@@ -21,11 +21,14 @@ test("Fails to parse object with inlinable string field", t => {
     }
   )
 
-  t->U.assertErrorResult(%raw(`{field: 123}`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
-        operation: Parsing,
-        path: S.Path.fromArray(["field"]),
-      })
+  t->U.assertErrorResult(
+    %raw(`{field: 123}`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
+      operation: Parsing,
+      path: S.Path.fromArray(["field"]),
+    },
+  )
 })
 
 test(
@@ -37,11 +40,14 @@ test(
       }
     )
 
-    t->U.assertErrorResult(%raw(`{field: ["foo"]}`)->S.parseAnyWith(schema), {
-          code: OperationFailed("User error"),
-          operation: Parsing,
-          path: S.Path.fromArray(["field", "0"]),
-        })
+    t->U.assertErrorResult(
+      %raw(`{field: ["foo"]}`)->S.parseAnyWith(schema),
+      {
+        code: OperationFailed("User error"),
+        operation: Parsing,
+        path: S.Path.fromArray(["field", "0"]),
+      },
+    )
   },
 )
 
@@ -62,11 +68,14 @@ test("Fails to parse object with inlinable bool field", t => {
     }
   )
 
-  t->U.assertErrorResult(%raw(`{field: 123}`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`123`)}),
-        operation: Parsing,
-        path: S.Path.fromArray(["field"]),
-      })
+  t->U.assertErrorResult(
+    %raw(`{field: 123}`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`123`)}),
+      operation: Parsing,
+      path: S.Path.fromArray(["field"]),
+    },
+  )
 })
 
 test("Successfully parses object with unknown field (Noop operation)", t => {
@@ -104,11 +113,14 @@ test("Fails to parse object with inlinable never field", t => {
     }
   )
 
-  t->U.assertErrorResult(%raw(`{field: true}`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`true`)}),
-        operation: Parsing,
-        path: S.Path.fromArray(["field"]),
-      })
+  t->U.assertErrorResult(
+    %raw(`{field: true}`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`true`)}),
+      operation: Parsing,
+      path: S.Path.fromArray(["field"]),
+    },
+  )
 })
 
 test("Successfully parses object with inlinable float field", t => {
@@ -128,11 +140,14 @@ test("Fails to parse object with inlinable float field", t => {
     }
   )
 
-  t->U.assertErrorResult(%raw(`{field: true}`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: S.float->S.toUnknown, received: %raw(`true`)}),
-        operation: Parsing,
-        path: S.Path.fromArray(["field"]),
-      })
+  t->U.assertErrorResult(
+    %raw(`{field: true}`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: S.float->S.toUnknown, received: %raw(`true`)}),
+      operation: Parsing,
+      path: S.Path.fromArray(["field"]),
+    },
+  )
 })
 
 test("Successfully parses object with inlinable int field", t => {
@@ -152,11 +167,14 @@ test("Fails to parse object with inlinable int field", t => {
     }
   )
 
-  t->U.assertErrorResult(%raw(`{field: true}`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
-        operation: Parsing,
-        path: S.Path.fromArray(["field"]),
-      })
+  t->U.assertErrorResult(
+    %raw(`{field: true}`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
+      operation: Parsing,
+      path: S.Path.fromArray(["field"]),
+    },
+  )
 })
 
 test("Successfully parses object with not inlinable empty object field", t => {
@@ -177,11 +195,14 @@ test("Fails to parse object with not inlinable empty object field", t => {
     }
   )
 
-  t->U.assertErrorResult(%raw(`{field: true}`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: fieldSchema->S.toUnknown, received: %raw(`true`)}),
-        operation: Parsing,
-        path: S.Path.fromArray(["field"]),
-      })
+  t->U.assertErrorResult(
+    %raw(`{field: true}`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: fieldSchema->S.toUnknown, received: %raw(`true`)}),
+      operation: Parsing,
+      path: S.Path.fromArray(["field"]),
+    },
+  )
 })
 
 test("Fails to parse object when provided invalid data", t => {
@@ -191,11 +212,14 @@ test("Fails to parse object when provided invalid data", t => {
     }
   )
 
-  t->U.assertErrorResult(%raw(`12`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: schema->S.toUnknown, received: %raw(`12`)}),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    %raw(`12`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: schema->S.toUnknown, received: %raw(`12`)}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Successfully serializes object with single field", t => {
@@ -266,11 +290,14 @@ test("Fails to parse object when transformed field has raises error", t => {
     }
   )
 
-  t->U.assertErrorResult({"field": "bar"}->S.parseAnyWith(schema), {
-        code: OperationFailed("User error"),
-        operation: Parsing,
-        path: S.Path.fromArray(["field"]),
-      })
+  t->U.assertErrorResult(
+    {"field": "bar"}->S.parseAnyWith(schema),
+    {
+      code: OperationFailed("User error"),
+      operation: Parsing,
+      path: S.Path.fromArray(["field"]),
+    },
+  )
 })
 
 test("Shows transformed object field name in error path when fails to parse", t => {
@@ -283,11 +310,14 @@ test("Shows transformed object field name in error path when fails to parse", t 
     }
   )
 
-  t->U.assertErrorResult({"originalFieldName": "bar"}->S.parseAnyWith(schema), {
-        code: OperationFailed("User error"),
-        operation: Parsing,
-        path: S.Path.fromArray(["originalFieldName"]),
-      })
+  t->U.assertErrorResult(
+    {"originalFieldName": "bar"}->S.parseAnyWith(schema),
+    {
+      code: OperationFailed("User error"),
+      operation: Parsing,
+      path: S.Path.fromArray(["originalFieldName"]),
+    },
+  )
 })
 
 test("Successfully serializes object with transformed field", t => {
@@ -317,11 +347,14 @@ test("Fails to serializes object when transformed field has raises error", t => 
     }
   )
 
-  t->U.assertErrorResult({"field": "bar"}->S.serializeToUnknownWith(schema), {
-        code: OperationFailed("User error"),
-        operation: Serializing,
-        path: S.Path.fromArray(["field"]),
-      })
+  t->U.assertErrorResult(
+    {"field": "bar"}->S.serializeToUnknownWith(schema),
+    {
+      code: OperationFailed("User error"),
+      operation: Serializing,
+      path: S.Path.fromArray(["field"]),
+    },
+  )
 })
 
 test("Shows transformed object field name in error path when fails to serializes", t => {
@@ -334,11 +367,14 @@ test("Shows transformed object field name in error path when fails to serializes
     }
   )
 
-  t->U.assertErrorResult({"transformedFieldName": "bar"}->S.serializeToUnknownWith(schema), {
-        code: OperationFailed("User error"),
-        operation: Serializing,
-        path: S.Path.fromArray(["transformedFieldName"]),
-      })
+  t->U.assertErrorResult(
+    {"transformedFieldName": "bar"}->S.serializeToUnknownWith(schema),
+    {
+      code: OperationFailed("User error"),
+      operation: Serializing,
+      path: S.Path.fromArray(["transformedFieldName"]),
+    },
+  )
 })
 
 test("Shows transformed to nested object field name in error path when fails to serializes", t => {
@@ -353,15 +389,18 @@ test("Shows transformed to nested object field name in error path when fails to 
     }
   )
 
-  t->U.assertErrorResult({
+  t->U.assertErrorResult(
+    {
       "v1": {
         "transformedFieldName": "bar",
       },
-    }->S.serializeToUnknownWith(schema), {
-        code: OperationFailed("User error"),
-        operation: Serializing,
-        path: S.Path.fromArray(["v1", "transformedFieldName"]),
-      })
+    }->S.serializeToUnknownWith(schema),
+    {
+      code: OperationFailed("User error"),
+      operation: Serializing,
+      path: S.Path.fromArray(["v1", "transformedFieldName"]),
+    },
+  )
 })
 
 test("Successfully parses object with optional fields", t => {
@@ -867,13 +906,16 @@ test("Fails to serialize object schema with single field registered multiple tim
       "field2": field,
     }
   })
-  t->U.assertErrorResult({"field1": "foo", "field2": "foo"}->S.serializeToUnknownWith(schema), {
-        code: InvalidOperation({
-          description: `The field "field" is registered multiple times. If you want to duplicate the field, use S.transform instead`,
-        }),
-        operation: Serializing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    {"field1": "foo", "field2": "foo"}->S.serializeToUnknownWith(schema),
+    {
+      code: InvalidOperation({
+        description: `The field "field" is registered multiple times. If you want to duplicate the field, use S.transform instead`,
+      }),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Object schema parsing checks order", t => {

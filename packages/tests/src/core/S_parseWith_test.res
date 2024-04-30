@@ -16,9 +16,12 @@ test("Successfully parses unknown", t => {
 test("Fails to parse", t => {
   let schema = S.bool
 
-  t->U.assertErrorResult(%raw("123")->S.parseWith(schema), {
-        code: InvalidType({expected: schema->S.toUnknown, received: %raw("123")}),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    %raw("123")->S.parseWith(schema),
+    {
+      code: InvalidType({expected: schema->S.toUnknown, received: %raw("123")}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })

@@ -10,11 +10,14 @@ test("Successfully parses valid data", t => {
 test("Fails to parse invalid data", t => {
   let schema = S.array(S.int)->S.Array.max(1)
 
-  t->U.assertErrorResult([1, 2, 3, 4]->S.parseAnyWith(schema), {
-        code: OperationFailed("Array must be 1 or fewer items long"),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    [1, 2, 3, 4]->S.parseAnyWith(schema),
+    {
+      code: OperationFailed("Array must be 1 or fewer items long"),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Successfully serializes valid value", t => {
@@ -27,11 +30,14 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.array(S.int)->S.Array.max(1)
 
-  t->U.assertErrorResult([1, 2, 3, 4]->S.serializeToUnknownWith(schema), {
-        code: OperationFailed("Array must be 1 or fewer items long"),
-        operation: Serializing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    [1, 2, 3, 4]->S.serializeToUnknownWith(schema),
+    {
+      code: OperationFailed("Array must be 1 or fewer items long"),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Returns custom error message", t => {

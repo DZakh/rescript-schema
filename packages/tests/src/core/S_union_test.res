@@ -209,36 +209,39 @@ module Advanced = {
   })
 
   test("Fails to parse with invalid data type", t => {
-    t->U.assertErrorResult(%raw(`"Hello world!"`)->S.parseAnyWith(shapeSchema), {
-          code: InvalidUnion([
-            U.error({
-              code: InvalidType({
-                expected: circleSchema->S.toUnknown,
-                received: %raw(`"Hello world!"`),
-              }),
-              operation: Parsing,
-              path: S.Path.empty,
+    t->U.assertErrorResult(
+      %raw(`"Hello world!"`)->S.parseAnyWith(shapeSchema),
+      {
+        code: InvalidUnion([
+          U.error({
+            code: InvalidType({
+              expected: circleSchema->S.toUnknown,
+              received: %raw(`"Hello world!"`),
             }),
-            U.error({
-              code: InvalidType({
-                expected: squareSchema->S.toUnknown,
-                received: %raw(`"Hello world!"`),
-              }),
-              operation: Parsing,
-              path: S.Path.empty,
+            operation: Parsing,
+            path: S.Path.empty,
+          }),
+          U.error({
+            code: InvalidType({
+              expected: squareSchema->S.toUnknown,
+              received: %raw(`"Hello world!"`),
             }),
-            U.error({
-              code: InvalidType({
-                expected: triangleSchema->S.toUnknown,
-                received: %raw(`"Hello world!"`),
-              }),
-              operation: Parsing,
-              path: S.Path.empty,
+            operation: Parsing,
+            path: S.Path.empty,
+          }),
+          U.error({
+            code: InvalidType({
+              expected: triangleSchema->S.toUnknown,
+              received: %raw(`"Hello world!"`),
             }),
-          ]),
-          operation: Parsing,
-          path: S.Path.empty,
-        })
+            operation: Parsing,
+            path: S.Path.empty,
+          }),
+        ]),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
+    )
   })
 
   test("Fails to serialize incomplete schema", t => {

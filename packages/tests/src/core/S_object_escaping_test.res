@@ -219,11 +219,14 @@ test("Has proper error path when fails to parse object with quotes in a field na
     }
   )
 
-  t->U.assertErrorResult(%raw(`{"\"\'\`": "bar"}`)->S.parseAnyWith(schema), {
-        code: OperationFailed("User error"),
-        operation: Parsing,
-        path: S.Path.fromArray(["\"\'\`"]),
-      })
+  t->U.assertErrorResult(
+    %raw(`{"\"\'\`": "bar"}`)->S.parseAnyWith(schema),
+    {
+      code: OperationFailed("User error"),
+      operation: Parsing,
+      path: S.Path.fromArray(["\"\'\`"]),
+    },
+  )
 })
 
 test("Has proper error path when fails to serialize object with quotes in a field name", t => {
@@ -233,11 +236,14 @@ test("Has proper error path when fails to serialize object with quotes in a fiel
     ])
   )
 
-  t->U.assertErrorResult(Dict.fromArray([("\"\'\`", "bar")])->S.serializeToUnknownWith(schema), {
-        code: OperationFailed("User error"),
-        operation: Serializing,
-        path: S.Path.fromArray(["\"\'\`"]),
-      })
+  t->U.assertErrorResult(
+    Dict.fromArray([("\"\'\`", "bar")])->S.serializeToUnknownWith(schema),
+    {
+      code: OperationFailed("User error"),
+      operation: Serializing,
+      path: S.Path.fromArray(["\"\'\`"]),
+    },
+  )
 })
 
 test("Field name in a format of a path is handled properly", t => {
@@ -247,9 +253,12 @@ test("Field name in a format of a path is handled properly", t => {
     }
   )
 
-  t->U.assertErrorResult(%raw(`{"bar": "foo"}`)->S.parseAnyWith(schema), {
-        code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`undefined`)}),
-        operation: Parsing,
-        path: S.Path.fromArray([`["abc"]["cde"]`]),
-      })
+  t->U.assertErrorResult(
+    %raw(`{"bar": "foo"}`)->S.parseAnyWith(schema),
+    {
+      code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`undefined`)}),
+      operation: Parsing,
+      path: S.Path.fromArray([`["abc"]["cde"]`]),
+    },
+  )
 })
