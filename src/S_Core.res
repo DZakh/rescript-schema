@@ -700,7 +700,7 @@ module Literal = {
     kind: kind,
     value: unknown,
     toString: unit => string,
-    // checkBuilder: (B.t, ~value: unknown, ~inputVar: string) => string,
+    checkBuilder: (B.t, ~value: unknown, ~inputVar: string) => string,
     isJsonable: bool,
     items?: unknown,
   }
@@ -726,7 +726,7 @@ module Literal = {
     value: %raw(`undefined`),
     toString: () => "undefined",
     isJsonable: false,
-    // checkBuilder: (_, ~value as _, ~inputVar) => `${inputVar}===void 0`,
+    checkBuilder: (_, ~value as _, ~inputVar) => `${inputVar}===void 0`,
   }
 
   let null = {
@@ -734,7 +734,7 @@ module Literal = {
     value: %raw(`null`),
     toString: () => "null",
     isJsonable: true,
-    // checkBuilder: (_, ~value as _, ~inputVar) => `${inputVar}===null`,
+    checkBuilder: (_, ~value as _, ~inputVar) => `${inputVar}===null`,
   }
 
   let nan = {
@@ -742,10 +742,10 @@ module Literal = {
     value: %raw(`NaN`),
     toString: () => "NaN",
     isJsonable: false,
-    // checkBuilder: (_, ~value as _, ~inputVar) => `Number.isNaN(${inputVar})`,
+    checkBuilder: (_, ~value as _, ~inputVar) => `Number.isNaN(${inputVar})`,
   }
 
-  // let strictEqualCheckBuilder = (b, ~value, ~inputVar) => `${inputVar}===${b->B.embed(value)}`
+  let strictEqualCheckBuilder = (b, ~value, ~inputVar) => `${inputVar}===${b->B.embed(value)}`
 
   let string = value => {
     {
@@ -754,17 +754,18 @@ module Literal = {
       // FIXME: Test one or two Stdlib.Inlined.Value.fromString
       toString: () => Stdlib.Inlined.Value.fromString(value),
       isJsonable: true,
-      // checkBuilder: strictEqualCheckBuilder,
+      checkBuilder: strictEqualCheckBuilder,
     }
   }
 
   let boolean = value => {
+    let string = value ? "true" : "false"
     {
       kind: Boolean,
       value: value->castAnyToUnknown,
-      toString: () => value ? "true" : "false",
+      toString: () => string,
       isJsonable: true,
-      // checkBuilder: (_, ~value as _, ~inputVar) => `${inputVar}===${inlined}`,
+      checkBuilder: (_, ~value as _, ~inputVar) => `${inputVar}===${string}`,
     }
   }
 
@@ -774,7 +775,7 @@ module Literal = {
       value: value->castAnyToUnknown,
       toString: () => value->Js.Float.toString,
       isJsonable: true,
-      // checkBuilder: strictEqualCheckBuilder,
+      checkBuilder: strictEqualCheckBuilder,
     }
   }
 
@@ -784,7 +785,7 @@ module Literal = {
       value: value->castAnyToUnknown,
       toString: () => value->Symbol.toString,
       isJsonable: false,
-      // checkBuilder: strictEqualCheckBuilder,
+      checkBuilder: strictEqualCheckBuilder,
     }
   }
 
@@ -794,7 +795,7 @@ module Literal = {
       value: value->castAnyToUnknown,
       toString: () => value->BigInt.toString,
       isJsonable: false,
-      // checkBuilder: strictEqualCheckBuilder,
+      checkBuilder: strictEqualCheckBuilder,
     }
   }
 
@@ -804,7 +805,7 @@ module Literal = {
       value: value->castAnyToUnknown,
       toString: () => value->Stdlib.Function.toString,
       isJsonable: false,
-      // checkBuilder: strictEqualCheckBuilder,
+      checkBuilder: strictEqualCheckBuilder,
     }
   }
 
@@ -814,7 +815,7 @@ module Literal = {
       value: value->castAnyToUnknown,
       toString: () => value->Object.internalClass,
       isJsonable: false,
-      // checkBuilder: strictEqualCheckBuilder,
+      checkBuilder: strictEqualCheckBuilder,
     }
   }
 
@@ -866,22 +867,22 @@ module Literal = {
           })
           ->Js.Array2.joinWith(",")}}`,
       isJsonable: isJsonable.contents,
-      // checkBuilder: (b, ~value, ~inputVar) =>
-      //   `(${inputVar}===${b->B.embed(
-      //       value,
-      //     )}||${inputVar}&&${inputVar}.constructor===Object&&Object.keys(${inputVar}).length===${numberOfFields->Stdlib.Int.unsafeToString}` ++
-      //   (numberOfFields > 0
-      //     ? "&&" ++
-      //       fields
-      //       ->Js.Array2.map(field => {
-      //         let literal = items->Js.Dict.unsafeGet(field)
-      //         b->literal.checkBuilder(
-      //           ~value=literal.value,
-      //           ~inputVar=`${inputVar}[${field->Stdlib.Inlined.Value.fromString}]`,
-      //         )
-      //       })
-      //       ->Js.Array2.joinWith("&&")
-      //     : "") ++ ")",
+      checkBuilder: (b, ~value, ~inputVar) =>
+        `(${inputVar}===${b->B.embed(
+            value,
+          )}||${inputVar}&&${inputVar}.constructor===Object&&Object.keys(${inputVar}).length===${numberOfFields->Stdlib.Int.unsafeToString}` ++
+        (numberOfFields > 0
+          ? "&&" ++
+            fields
+            ->Js.Array2.map(field => {
+              let literal = items->Js.Dict.unsafeGet(field)
+              b->literal.checkBuilder(
+                ~value=literal.value,
+                ~inputVar=`${inputVar}[${field->Stdlib.Inlined.Value.fromString}]`,
+              )
+            })
+            ->Js.Array2.joinWith("&&")
+          : "") ++ ")",
     }
   }
   and array = value => {
@@ -906,23 +907,23 @@ module Literal = {
         `[${items
           ->Js.Array2.map(itemLiteral => itemLiteral.toString())
           ->Js.Array2.joinWith(",")}]`,
-      // checkBuilder: (b, ~value, ~inputVar) =>
-      //   `(${inputVar}===${b->B.embed(
-      //       value,
-      //     )}||Array.isArray(${inputVar})&&${inputVar}.length===${items
-      //     ->Js.Array2.length
-      //     ->Stdlib.Int.unsafeToString}` ++
-      //   (items->Js.Array2.length > 0
-      //     ? "&&" ++
-      //       items
-      //       ->Js.Array2.mapi((literal, idx) =>
-      //         b->literal.checkBuilder(
-      //           ~value=literal.value,
-      //           ~inputVar=`${inputVar}[${idx->Stdlib.Int.unsafeToString}]`,
-      //         )
-      //       )
-      //       ->Js.Array2.joinWith("&&")
-      //     : "") ++ ")",
+      checkBuilder: (b, ~value, ~inputVar) =>
+        `(${inputVar}===${b->B.embed(
+            value,
+          )}||Array.isArray(${inputVar})&&${inputVar}.length===${items
+          ->Js.Array2.length
+          ->Stdlib.Int.unsafeToString}` ++
+        (items->Js.Array2.length > 0
+          ? "&&" ++
+            items
+            ->Js.Array2.mapi((literal, idx) =>
+              b->literal.checkBuilder(
+                ~value=literal.value,
+                ~inputVar=`${inputVar}[${idx->Stdlib.Int.unsafeToString}]`,
+              )
+            )
+            ->Js.Array2.joinWith("&&")
+          : "") ++ ")",
     }
   }
 
@@ -1572,61 +1573,15 @@ let custom = (name, definer) => {
   )
 }
 
-let rec literalCheckBuilder = (b, ~value, ~inputVar) => {
-  if value->castUnknownToAny->Js.Float.isNaN {
-    `Number.isNaN(${inputVar})`
-  } else if value === %raw(`null`) {
-    `${inputVar}===null`
-  } else if value === %raw(`void 0`) {
-    `${inputVar}===void 0`
-  } else {
-    let check = `${inputVar}===${b->B.embed(value)}`
-    if value->Stdlib.Array.isArray {
-      let value = value->(Obj.magic: unknown => array<unknown>)
-      `(${check}||Array.isArray(${inputVar})&&${inputVar}.length===${value
-        ->Js.Array2.length
-        ->Stdlib.Int.unsafeToString}` ++
-      (value->Js.Array2.length > 0
-        ? "&&" ++
-          value
-          ->Js.Array2.mapi((item, idx) =>
-            b->literalCheckBuilder(
-              ~value=item,
-              ~inputVar=`${inputVar}[${idx->Stdlib.Int.unsafeToString}]`,
-            )
-          )
-          ->Js.Array2.joinWith("&&")
-        : "") ++ ")"
-    } else if %raw(`value&&value.constructor===Object`) {
-      let value = value->(Obj.magic: unknown => dict<unknown>)
-      let keys = value->Js.Dict.keys
-      let numberOfKeys = keys->Js.Array2.length
-      `(${check}||${inputVar}&&${inputVar}.constructor===Object&&Object.keys(${inputVar}).length===${numberOfKeys->Stdlib.Int.unsafeToString}` ++
-      (numberOfKeys > 0
-        ? "&&" ++
-          keys
-          ->Js.Array2.map(key => {
-            b->literalCheckBuilder(
-              ~value=value->Js.Dict.unsafeGet(key),
-              ~inputVar=`${inputVar}[${key->Stdlib.Inlined.Value.fromString}]`,
-            )
-          })
-          ->Js.Array2.joinWith("&&")
-        : "") ++ ")"
-    } else {
-      check
-    }
-  }
-}
-
 let literal = value => {
   let value = value->castAnyToUnknown
   let literal = value->Literal.parse
+  let internalLiteral = literal->Literal.toInternal
   let operationBuilder = Builder.make((b, ~selfSchema as _, ~path) => {
     let inputVar = b->B.useInputVar
     b.code =
       b.code ++
-      `${b->literalCheckBuilder(~value, ~inputVar)}||${b->B.raiseWithArg(
+      `${b->internalLiteral.checkBuilder(~value, ~inputVar)}||${b->B.raiseWithArg(
           ~path,
           input => InvalidLiteral({
             expected: literal,

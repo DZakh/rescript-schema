@@ -14,14 +14,17 @@ module Common = {
   test("Fails to parse invalid", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(invalid->S.parseAnyWith(schema), {
-          code: InvalidLiteral({
-            expected: S.Literal.parse(("bar", true)),
-            received: invalid,
-          }),
-          operation: Parsing,
-          path: S.Path.empty,
-        })
+    t->U.assertErrorResult(
+      invalid->S.parseAnyWith(schema),
+      {
+        code: InvalidLiteral({
+          expected: S.Literal.parse(("bar", true)),
+          received: invalid,
+        }),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
+    )
   })
 
   test("Successfully serializes", t => {
@@ -33,40 +36,49 @@ module Common = {
   test("Fails to serialize invalid", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(invalid->S.serializeToUnknownWith(schema), {
-          code: InvalidLiteral({
-            expected: S.Literal.parse(("bar", true)),
-            received: invalid->U.castAnyToUnknown,
-          }),
-          operation: Serializing,
-          path: S.Path.empty,
-        })
+    t->U.assertErrorResult(
+      invalid->S.serializeToUnknownWith(schema),
+      {
+        code: InvalidLiteral({
+          expected: S.Literal.parse(("bar", true)),
+          received: invalid->U.castAnyToUnknown,
+        }),
+        operation: Serializing,
+        path: S.Path.empty,
+      },
+    )
   })
 
   test("Fails to parse array like object", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(%raw(`{0: "bar",1:true}`)->S.parseAnyWith(schema), {
-          code: InvalidLiteral({
-            expected: S.Literal.parse(("bar", true)),
-            received: %raw(`{0: "bar",1:true}`),
-          }),
-          operation: Parsing,
-          path: S.Path.empty,
-        })
+    t->U.assertErrorResult(
+      %raw(`{0: "bar",1:true}`)->S.parseAnyWith(schema),
+      {
+        code: InvalidLiteral({
+          expected: S.Literal.parse(("bar", true)),
+          received: %raw(`{0: "bar",1:true}`),
+        }),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
+    )
   })
 
   test("Fails to parse array with excess item", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(%raw(`["bar", true, false]`)->S.parseAnyWith(schema), {
-          code: InvalidLiteral({
-            expected: S.Literal.parse(("bar", true)),
-            received: %raw(`["bar", true, false]`),
-          }),
-          operation: Parsing,
-          path: S.Path.empty,
-        })
+    t->U.assertErrorResult(
+      %raw(`["bar", true, false]`)->S.parseAnyWith(schema),
+      {
+        code: InvalidLiteral({
+          expected: S.Literal.parse(("bar", true)),
+          received: %raw(`["bar", true, false]`),
+        }),
+        operation: Parsing,
+        path: S.Path.empty,
+      },
+    )
   })
 
   test("Compiled parse code snapshot", t => {
@@ -75,7 +87,7 @@ module Common = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{(i===e[0]||Array.isArray(i)&&i.length===2&&i[0]===e[1]&&i[1]===e[2])||e[3](i);return i}`,
+      `i=>{(i===e[0]||Array.isArray(i)&&i.length===2&&i[0]===e[1]&&i[1]===true)||e[2](i);return i}`,
     )
   })
 
@@ -85,7 +97,7 @@ module Common = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#serialize,
-      `i=>{(i===e[0]||Array.isArray(i)&&i.length===2&&i[0]===e[1]&&i[1]===e[2])||e[3](i);return i}`,
+      `i=>{(i===e[0]||Array.isArray(i)&&i.length===2&&i[0]===e[1]&&i[1]===true)||e[2](i);return i}`,
     )
   })
 }

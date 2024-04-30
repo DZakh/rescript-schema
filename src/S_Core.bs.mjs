@@ -343,10 +343,15 @@ function undefined_toString() {
   return "undefined";
 }
 
+function undefined_checkBuilder(param, param$1, inputVar) {
+  return inputVar + "===void 0";
+}
+
 var $$undefined = {
   kind: "Undefined",
   value: undefined_value,
   toString: undefined_toString,
+  checkBuilder: undefined_checkBuilder,
   isJsonable: false
 };
 
@@ -356,10 +361,15 @@ function null_toString() {
   return "null";
 }
 
+function null_checkBuilder(param, param$1, inputVar) {
+  return inputVar + "===null";
+}
+
 var $$null = {
   kind: "Null",
   value: null_value,
   toString: null_toString,
+  checkBuilder: null_checkBuilder,
   isJsonable: true
 };
 
@@ -369,12 +379,21 @@ function nan_toString() {
   return "NaN";
 }
 
+function nan_checkBuilder(param, param$1, inputVar) {
+  return "Number.isNaN(" + inputVar + ")";
+}
+
 var nan = {
   kind: "NaN",
   value: nan_value,
   toString: nan_toString,
+  checkBuilder: nan_checkBuilder,
   isJsonable: false
 };
+
+function strictEqualCheckBuilder(b, value, inputVar) {
+  return inputVar + "===" + ("e[" + (b.e.push(value) - 1) + "]");
+}
 
 function parseInternal(value) {
   var typeOfValue = typeof value;
@@ -385,18 +404,19 @@ function parseInternal(value) {
             toString: (function () {
                 return value.toString();
               }),
+            checkBuilder: strictEqualCheckBuilder,
             isJsonable: false
           };
   } else if (typeOfValue === "boolean") {
+    var string = value ? "true" : "false";
     return {
             kind: "Boolean",
             value: value,
             toString: (function () {
-                if (value) {
-                  return "true";
-                } else {
-                  return "false";
-                }
+                return string;
+              }),
+            checkBuilder: (function (param, param$1, inputVar) {
+                return inputVar + "===" + string;
               }),
             isJsonable: true
           };
@@ -407,6 +427,7 @@ function parseInternal(value) {
             toString: (function () {
                 return JSON.stringify(value);
               }),
+            checkBuilder: strictEqualCheckBuilder,
             isJsonable: true
           };
   } else if (typeOfValue === "function") {
@@ -416,6 +437,7 @@ function parseInternal(value) {
             toString: (function () {
                 return value.toString();
               }),
+            checkBuilder: strictEqualCheckBuilder,
             isJsonable: false
           };
   } else if (typeOfValue === "object") {
@@ -439,6 +461,13 @@ function parseInternal(value) {
                   return "[" + items.map(function (itemLiteral) {
                                 return itemLiteral.toString();
                               }).join(",") + "]";
+                }),
+              checkBuilder: (function (b, value, inputVar) {
+                  return "(" + inputVar + "===" + ("e[" + (b.e.push(value) - 1) + "]") + "||Array.isArray(" + inputVar + ")&&" + inputVar + ".length===" + items.length + (
+                          items.length > 0 ? "&&" + items.map(function (literal, idx) {
+                                    return literal.checkBuilder(b, literal.value, inputVar + "[" + idx + "]");
+                                  }).join("&&") : ""
+                        ) + ")";
                 }),
               isJsonable: isJsonable,
               items: Caml_option.some(items)
@@ -466,6 +495,14 @@ function parseInternal(value) {
                                 return JSON.stringify(field) + ": " + itemLiteral.toString();
                               }).join(",") + "}";
                 }),
+              checkBuilder: (function (b, value, inputVar) {
+                  return "(" + inputVar + "===" + ("e[" + (b.e.push(value) - 1) + "]") + "||" + inputVar + "&&" + inputVar + ".constructor===Object&&Object.keys(" + inputVar + ").length===" + numberOfFields + (
+                          numberOfFields > 0 ? "&&" + fields.map(function (field) {
+                                    var literal = items$1[field];
+                                    return literal.checkBuilder(b, literal.value, inputVar + "[" + JSON.stringify(field) + "]");
+                                  }).join("&&") : ""
+                        ) + ")";
+                }),
               isJsonable: isJsonable$1,
               items: Caml_option.some(items$1)
             };
@@ -476,6 +513,7 @@ function parseInternal(value) {
               toString: (function () {
                   return Object.prototype.toString.call(value);
                 }),
+              checkBuilder: strictEqualCheckBuilder,
               isJsonable: false
             };
     }
@@ -491,6 +529,7 @@ function parseInternal(value) {
               toString: (function () {
                   return value.toString();
                 }),
+              checkBuilder: strictEqualCheckBuilder,
               isJsonable: true
             };
     }
@@ -501,6 +540,7 @@ function parseInternal(value) {
             toString: (function () {
                 return value.toString();
               }),
+            checkBuilder: strictEqualCheckBuilder,
             isJsonable: false
           };
   }
@@ -1213,41 +1253,11 @@ function custom(name, definer) {
         };
 }
 
-function literalCheckBuilder(b, value, inputVar) {
-  if (Number.isNaN(value)) {
-    return "Number.isNaN(" + inputVar + ")";
-  }
-  if (value === null) {
-    return inputVar + "===null";
-  }
-  if (value === (void 0)) {
-    return inputVar + "===void 0";
-  }
-  var check = inputVar + "===" + ("e[" + (b.e.push(value) - 1) + "]");
-  if (Array.isArray(value)) {
-    return "(" + check + "||Array.isArray(" + inputVar + ")&&" + inputVar + ".length===" + value.length + (
-            value.length > 0 ? "&&" + value.map(function (item, idx) {
-                      return literalCheckBuilder(b, item, inputVar + "[" + idx + "]");
-                    }).join("&&") : ""
-          ) + ")";
-  }
-  if (!(value&&value.constructor===Object)) {
-    return check;
-  }
-  var keys = Object.keys(value);
-  var numberOfKeys = keys.length;
-  return "(" + check + "||" + inputVar + "&&" + inputVar + ".constructor===Object&&Object.keys(" + inputVar + ").length===" + numberOfKeys + (
-          numberOfKeys > 0 ? "&&" + keys.map(function (key) {
-                    return literalCheckBuilder(b, value[key], inputVar + "[" + JSON.stringify(key) + "]");
-                  }).join("&&") : ""
-        ) + ")";
-}
-
 function literal(value) {
   var literal$1 = parseInternal(value);
   var operationBuilder = function (b, param, path) {
     var inputVar = toVar(b, b.i);
-    b.c = b.c + (literalCheckBuilder(b, value, inputVar) + "||" + raiseWithArg(b, path, (function (input) {
+    b.c = b.c + (literal$1.checkBuilder(b, value, inputVar) + "||" + raiseWithArg(b, path, (function (input) {
               return {
                       TAG: "InvalidLiteral",
                       expected: literal$1,

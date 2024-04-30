@@ -9,11 +9,14 @@ test("Parses with wrapping the value in variant", t => {
 test("Fails to parse wrapped schema", t => {
   let schema = S.string->S.variant(s => Ok(s))
 
-  t->U.assertErrorResult(123->S.parseAnyWith(schema), {
-        code: InvalidType({received: 123->Obj.magic, expected: schema->S.toUnknown}),
-        operation: Parsing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    123->S.parseAnyWith(schema),
+    {
+      code: InvalidType({received: 123->Obj.magic, expected: schema->S.toUnknown}),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Serializes with unwrapping the value from variant", t => {
@@ -48,13 +51,16 @@ test("Successfully parses when the value is not used as the variant payload", t 
 test("Fails to serialize when the value is not used as the variant payload", t => {
   let schema = S.string->S.variant(_ => #foo)
 
-  t->U.assertErrorResult(#foo->S.serializeToUnknownWith(schema), {
-        code: InvalidOperation({
-          description: "Can\'t create serializer. The S.variant\'s value is not registered and not a literal. Use S.transform instead",
-        }),
-        operation: Serializing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    #foo->S.serializeToUnknownWith(schema),
+    {
+      code: InvalidOperation({
+        description: "Can\'t create serializer. The S.variant\'s value is not registered and not a literal. Use S.transform instead",
+      }),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test(
@@ -88,13 +94,16 @@ test("Successfully parses when value registered multiple times", t => {
 test("Fails to serialize when value registered multiple times", t => {
   let schema = S.string->S.variant(s => #Foo(s, s))
 
-  t->U.assertErrorResult(#Foo("abc", "abc")->S.serializeToUnknownWith(schema), {
-        code: InvalidOperation({
-          description: "Can\'t create serializer. The S.variant\'s value is registered multiple times. Use S.transform instead",
-        }),
-        operation: Serializing,
-        path: S.Path.empty,
-      })
+  t->U.assertErrorResult(
+    #Foo("abc", "abc")->S.serializeToUnknownWith(schema),
+    {
+      code: InvalidOperation({
+        description: "Can\'t create serializer. The S.variant\'s value is registered multiple times. Use S.transform instead",
+      }),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
+  )
 })
 
 test("Compiled parse code snapshot", t => {
@@ -126,7 +135,7 @@ test(
     t->U.assertCompiledCode(
       ~schema,
       ~op=#serialize,
-      `i=>{let v0,v1,v2,v3,v4;v0=i;if(v0!==e[0]){e[1](v0)}v1=e[2];v2=[];v3=v1["0"];v3===e[3]||e[4](v3);v2["0"]=v3;v4=v1["1"];v4===e[5]||e[6](v4);v2["1"]=v4;return v2}`,
+      `i=>{let v0,v1,v2,v3,v4;v0=i;if(v0!==e[0]){e[1](v0)}v1=e[2];v2=[];v3=v1["0"];v3===true||e[3](v3);v2["0"]=v3;v4=v1["1"];v4===e[4]||e[5](v4);v2["1"]=v4;return v2}`,
     )
   },
 )
