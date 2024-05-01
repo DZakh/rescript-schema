@@ -67,8 +67,26 @@ test("Name of custom schema", t => {
 })
 
 test("Name of renamed schema", t => {
-  let originalSchema = S.unknown
-  let renamedSchema = originalSchema->S.setName("Foo")
-  t->Assert.deepEqual(originalSchema->S.name, "Unknown", ())
-  t->Assert.deepEqual(renamedSchema->S.name, "Foo", ())
+  let originalSchema = S.never
+  let renamedSchema = originalSchema->S.setName("Ethers.BigInt")
+  t->Assert.deepEqual(originalSchema->S.name, "Never", ())
+  t->Assert.deepEqual(renamedSchema->S.name, "Ethers.BigInt", ())
+  // Uses new name when failing
+  t->U.assertErrorResult(
+    "smth"->S.parseAnyWith(renamedSchema),
+    {
+      path: S.Path.empty,
+      operation: Parsing,
+      code: InvalidType({expected: renamedSchema->S.toUnknown, received: "smth"->Obj.magic}),
+    },
+  )
+  t->Assert.is(
+    U.error({
+      path: S.Path.empty,
+      operation: Parsing,
+      code: InvalidType({expected: renamedSchema->S.toUnknown, received: "smth"->Obj.magic}),
+    })->S.Error.message,
+    `Failed parsing at root. Reason: Expected Ethers.BigInt, received "smth"`,
+    (),
+  )
 })
