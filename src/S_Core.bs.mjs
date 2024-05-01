@@ -2569,6 +2569,8 @@ var json = {
   m: empty
 };
 
+var Catch = {};
+
 function $$catch(schema, getFallbackValue) {
   return {
           t: schema.t,
@@ -3286,6 +3288,8 @@ var parseAsyncWith = parseAnyAsyncWith;
 
 var parseAsyncInStepsWith = parseAnyAsyncInStepsWith;
 
+var Schema = {};
+
 var schema$6 = factory$9;
 
 var $$Object = {
@@ -3380,6 +3384,7 @@ export {
   nullable ,
   jsonString ,
   union ,
+  Catch ,
   $$catch ,
   describe ,
   description ,
@@ -3408,6 +3413,7 @@ export {
   recursive ,
   classify ,
   setName ,
+  Schema ,
   schema$6 as schema,
   $$Object ,
   object ,

@@ -44,6 +44,8 @@ var jsonString = S_Core$RescriptSchema.jsonString;
 
 var union = S_Core$RescriptSchema.union;
 
+var Catch = S_Core$RescriptSchema.Catch;
+
 var $$catch = S_Core$RescriptSchema.$$catch;
 
 var describe = S_Core$RescriptSchema.describe;
@@ -100,6 +102,8 @@ var classify = S_Core$RescriptSchema.classify;
 
 var setName = S_Core$RescriptSchema.setName;
 
+var Schema = S_Core$RescriptSchema.Schema;
+
 var schema = S_Core$RescriptSchema.schema;
 
 var $$Object = S_Core$RescriptSchema.$$Object;
@@ -152,6 +156,7 @@ export {
   nullable ,
   jsonString ,
   union ,
+  Catch ,
   $$catch ,
   describe ,
   description ,
@@ -180,6 +185,7 @@ export {
   recursive ,
   classify ,
   setName ,
+  Schema ,
   schema ,
   $$Object ,
   object ,

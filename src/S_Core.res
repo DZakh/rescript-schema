@@ -359,7 +359,7 @@ module InternalError = {
   let panic = message => Stdlib.Exn.raiseError(Stdlib.Exn.makeError(`[rescript-schema] ${message}`))
 }
 
-type effectCtx<'value> = {
+type s<'value> = {
   schema: t<'value>,
   fail: 'a. (string, ~path: Path.t=?) => 'a,
   failWithError: 'a. error => 'a,
@@ -1389,7 +1389,7 @@ let internalRefine = (schema, refiner) => {
   )
 }
 
-let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value> = (schema, refiner) => {
+let refine: (t<'value>, s<'value> => 'value => unit) => t<'value> = (schema, refiner) => {
   schema->internalRefine((b, ~inputVar, ~selfSchema, ~path) => {
     `${b->B.embed(
         refiner(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)),
@@ -1417,10 +1417,10 @@ type transformDefinition<'input, 'output> = {
   @as("s")
   serializer?: 'output => 'input,
 }
-let transform: (
-  t<'input>,
-  effectCtx<'output> => transformDefinition<'input, 'output>,
-) => t<'output> = (schema, transformer) => {
+let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) => t<'output> = (
+  schema,
+  transformer,
+) => {
   let schema = schema->toUnknown
   make(
     ~name=schema.name,
@@ -1856,7 +1856,7 @@ let nullable = schema => {
 }
 
 module Object = {
-  type ctx = {
+  type s = {
     @as("f") field: 'value. (string, t<'value>) => 'value,
     @as("o") fieldOr: 'value. (string, t<'value>, 'value) => 'value,
     @as("t") tag: 'value. (string, 'value) => unit,
@@ -2000,7 +2000,7 @@ module Object = {
       @as("fieldOr") _jsFieldOr: 'value. (string, t<'value>, 'value) => 'value,
       @as("tag") _jsTag: 'value. (string, 'value) => unit,
       // Public API for ReScript users
-      ...ctx,
+      ...s,
     }
 
     @inline
@@ -2057,7 +2057,7 @@ module Object = {
 
   let factory = definer => {
     let ctx = Ctx.make()
-    let definition = definer((ctx :> ctx))->(Obj.magic: 'any => Definition.t<itemDefinition>)
+    let definition = definer((ctx :> s))->(Obj.magic: 'any => Definition.t<itemDefinition>)
     let {itemDefinitionsSet, fields, fieldNames} = ctx
     let itemDefinitions = itemDefinitionsSet->Stdlib.Set.toArray
 
@@ -2884,7 +2884,7 @@ module Dict = {
 }
 
 module Tuple = {
-  type ctx = {
+  type s = {
     @as("i") item: 'value. (int, t<'value>) => 'value,
     @as("t") tag: 'value. (int, 'value) => unit,
   }
@@ -2897,7 +2897,7 @@ module Tuple = {
       itemDefinitionsSet: Stdlib.Set.t<Object.itemDefinition>,
       @as("item") _jsItem: 'value. (int, t<'value>) => 'value,
       @as("tag") _jsTag: 'value. (int, 'value) => unit,
-      ...ctx,
+      ...s,
     }
 
     @inline
@@ -2945,7 +2945,7 @@ module Tuple = {
 
   let factory = definer => {
     let ctx = Ctx.make()
-    let definition = definer((ctx :> ctx))->(Obj.magic: 'any => Definition.t<Object.itemDefinition>)
+    let definition = definer((ctx :> s))->(Obj.magic: 'any => Definition.t<Object.itemDefinition>)
     let {itemDefinitionsSet, schemas} = ctx
     let length = schemas->Js.Array2.length
     for idx in 0 to length - 1 {
@@ -3304,12 +3304,14 @@ let json = makeWithNoopSerializer(
   }),
 )
 
-type catchCtx<'value> = {
-  @as("e") error: error,
-  @as("i") input: unknown,
-  @as("s") schema: t<'value>,
-  @as("f") fail: 'a. (string, ~path: Path.t=?) => 'a,
-  @as("w") failWithError: 'a. error => 'a,
+module Catch = {
+  type s<'value> = {
+    @as("e") error: error,
+    @as("i") input: unknown,
+    @as("s") schema: t<'value>,
+    @as("f") fail: 'a. (string, ~path: Path.t=?) => 'a,
+    @as("w") failWithError: 'a. error => 'a,
+  }
 }
 let catch = (schema, getFallbackValue) => {
   let schema = schema->toUnknown
@@ -3321,7 +3323,7 @@ let catch = (schema, getFallbackValue) => {
         ~catch=(b, ~errorVar) => Some(
           `${b->B.embed((input, internalError) =>
               getFallbackValue({
-                input,
+                Catch.input,
                 error: internalError,
                 schema: selfSchema->castUnknownSchemaToAnySchema,
                 failWithError: (error: error) => {
@@ -3375,8 +3377,9 @@ let describe = (schema, description) => {
 
 let description = schema => schema->Metadata.get(~id=descriptionMetadataId)
 
-type schemaCtx = {matches: 'value. t<'value> => 'value}
 module Schema = {
+  type s = {matches: 'value. t<'value> => 'value}
+
   let rec definitionToSchema = (definition: Definition.t<schema<unknown>>, ~embededSet) => {
     let kind = definition->Definition.toKindWithSet(~embededSet)
     switch kind {
@@ -3437,9 +3440,7 @@ module Schema = {
       matches: matches,
     }
     let definition =
-      definer(ctx->(Obj.magic: schemaCtx => 'value))->(
-        Obj.magic: 'definition => Definition.t<t<unknown>>
-      )
+      definer(ctx->(Obj.magic: s => 'value))->(Obj.magic: 'definition => Definition.t<t<unknown>>)
     definition->definitionToSchema(~embededSet)->castUnknownSchemaToAnySchema
   }
 }
@@ -3843,7 +3844,7 @@ let js_optional = (schema, maybeOr) => {
 
 let js_tuple = definer => {
   if Js.typeof(definer) === "function" {
-    let definer = definer->(Obj.magic: unknown => Tuple.ctx => 'a)
+    let definer = definer->(Obj.magic: unknown => Tuple.s => 'a)
     tuple(definer)
   } else {
     let schemas = definer->(Obj.magic: unknown => array<t<unknown>>)
@@ -3872,7 +3873,7 @@ let js_custom = (~name, ~parser as maybeParser=?, ~serializer as maybeSerializer
 
 let js_object = definer => {
   if Js.typeof(definer) === "function" {
-    let definer = definer->(Obj.magic: unknown => Object.ctx => 'a)
+    let definer = definer->(Obj.magic: unknown => Object.s => 'a)
     object(definer)
   } else {
     let definer = definer->(Obj.magic: unknown => dict<t<unknown>>)

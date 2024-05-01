@@ -70,7 +70,7 @@ and operation =
 and unknownKeys = Strip | Strict
 type exn += private Raised(error)
 
-type effectCtx<'value> = {
+type s<'value> = {
   schema: t<'value>,
   fail: 'a. (string, ~path: Path.t=?) => 'a,
   failWithError: 'a. error => 'a,
@@ -119,14 +119,16 @@ let nullable: t<'value> => t<option<'value>>
 let jsonString: (t<'value>, ~space: int=?) => t<'value>
 let union: array<t<'value>> => t<'value>
 
-type catchCtx<'value> = {
-  @as("e") error: error,
-  @as("i") input: unknown,
-  @as("s") schema: t<'value>,
-  @as("f") fail: 'a. (string, ~path: Path.t=?) => 'a,
-  @as("w") failWithError: 'a. error => 'a,
+module Catch: {
+  type s<'value> = {
+    @as("e") error: error,
+    @as("i") input: unknown,
+    @as("s") schema: t<'value>,
+    @as("f") fail: 'a. (string, ~path: Path.t=?) => 'a,
+    @as("w") failWithError: 'a. error => 'a,
+  }
 }
-let catch: (t<'value>, catchCtx<'value> => 'value) => t<'value>
+let catch: (t<'value>, Catch.s<'value> => 'value) => t<'value>
 
 let describe: (t<'value>, string) => t<'value>
 let description: t<'value> => option<string>
@@ -142,7 +144,7 @@ type transformDefinition<'input, 'output> = {
   @as("s")
   serializer?: 'output => 'input,
 }
-let transform: (t<'input>, effectCtx<'output> => transformDefinition<'input, 'output>) => t<'output>
+let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) => t<'output>
 
 type preprocessDefinition<'input, 'output> = {
   @as("p")
@@ -152,7 +154,7 @@ type preprocessDefinition<'input, 'output> = {
   @as("s")
   serializer?: unknown => 'input,
 }
-let preprocess: (t<'value>, effectCtx<'value> => preprocessDefinition<'input, 'output>) => t<'value>
+let preprocess: (t<'value>, s<'value> => preprocessDefinition<'input, 'output>) => t<'value>
 
 type customDefinition<'input, 'output> = {
   @as("p")
@@ -162,9 +164,9 @@ type customDefinition<'input, 'output> = {
   @as("s")
   serializer?: 'output => 'input,
 }
-let custom: (string, effectCtx<'output> => customDefinition<'input, 'output>) => t<'output>
+let custom: (string, s<'output> => customDefinition<'input, 'output>) => t<'output>
 
-let refine: (t<'value>, effectCtx<'value> => 'value => unit) => t<'value>
+let refine: (t<'value>, s<'value> => 'value => unit) => t<'value>
 
 let variant: (t<'value>, 'value => 'variant) => t<'variant>
 
@@ -215,33 +217,35 @@ let setName: (t<'value>, string) => t<'value>
 
 external toUnknown: t<'any> => t<unknown> = "%identity"
 
-type schemaCtx = {matches: 'value. t<'value> => 'value}
-let schema: (schemaCtx => 'value) => t<'value>
+module Schema: {
+  type s = {matches: 'value. t<'value> => 'value}
+}
+let schema: (Schema.s => 'value) => t<'value>
 
 module Object: {
-  type ctx = {
+  type s = {
     @as("f") field: 'value. (string, t<'value>) => 'value,
     @as("o") fieldOr: 'value. (string, t<'value>, 'value) => 'value,
     @as("t") tag: 'value. (string, 'value) => unit,
   }
 
   /* The same as S.object. Expose only for PPX since the object is a reserved name in OCaml */
-  let factory: (ctx => 'value) => t<'value>
+  let factory: (s => 'value) => t<'value>
 
   let strip: t<'value> => t<'value>
   let strict: t<'value> => t<'value>
 }
 
-let object: (Object.ctx => 'value) => t<'value>
+let object: (Object.s => 'value) => t<'value>
 
 module Tuple: {
-  type ctx = {
+  type s = {
     @as("i") item: 'value. (int, t<'value>) => 'value,
     @as("t") tag: 'value. (int, 'value) => unit,
   }
 }
 
-let tuple: (Tuple.ctx => 'value) => t<'value>
+let tuple: (Tuple.s => 'value) => t<'value>
 let tuple1: t<'value> => t<'value>
 let tuple2: (t<'v1>, t<'v2>) => t<('v1, 'v2)>
 let tuple3: (t<'v1>, t<'v2>, t<'v3>) => t<('v1, 'v2, 'v3)>
@@ -370,18 +374,18 @@ let js_tuple: unknown => t<array<unknown>>
 
 let js_custom: (
   ~name: string,
-  ~parser: (unknown, effectCtx<'output>) => 'output=?,
-  ~serializer: ('output, effectCtx<'output>) => 'input=?,
+  ~parser: (unknown, s<'output>) => 'output=?,
+  ~serializer: ('output, s<'output>) => 'input=?,
   unit,
 ) => t<'output>
 
-let js_asyncParserRefine: (t<'output>, ('output, effectCtx<'output>) => promise<unit>) => t<'output>
-let js_refine: (t<'output>, ('output, effectCtx<'output>) => unit) => t<'output>
+let js_asyncParserRefine: (t<'output>, ('output, s<'output>) => promise<unit>) => t<'output>
+let js_refine: (t<'output>, ('output, s<'output>) => unit) => t<'output>
 
 let js_transform: (
   t<'output>,
-  ~parser: ('output, effectCtx<'transformed>) => 'transformed=?,
-  ~serializer: ('transformed, effectCtx<'transformed>) => 'output=?,
+  ~parser: ('output, s<'transformed>) => 'transformed=?,
+  ~serializer: ('transformed, s<'transformed>) => 'output=?,
 ) => t<'transformed>
 
 let js_object: unknown => t<dict<unknown>>
