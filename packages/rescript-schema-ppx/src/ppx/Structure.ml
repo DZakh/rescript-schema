@@ -69,7 +69,7 @@ and generateVariantSchemaExpression constr_decls =
            | Pcstr_tuple payload_core_types ->
              [%expr
                S.schema
-                 (Obj.magic (fun (s : S.schemaCtx) ->
+                 (Obj.magic (fun (s : S.Schema.s) ->
                       [%e
                         Exp.construct (lid name)
                           (Some
@@ -96,7 +96,7 @@ and generateVariantSchemaExpression constr_decls =
              in
              [%expr
                S.schema
-                 (Obj.magic (fun (s : S.schemaCtx) ->
+                 (Obj.magic (fun (s : S.Schema.s) ->
                       [%e
                         Exp.construct (lid name)
                           (Some (Exp.record field_expressions None))]))])
@@ -122,7 +122,7 @@ and generateObjectSchema fields =
   (* Use Obj.magic to cast to uncurried function in case of uncurried mode *)
   [%expr
     S.Object.factory
-      (Obj.magic (fun (s : S.Object.ctx) ->
+      (Obj.magic (fun (s : S.Object.s) ->
            [%e
              Exp.extension
                ( mkloc "obj" Location.none,
@@ -157,7 +157,7 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
       | Ptyp_tuple tuple_types ->
         [%expr
           S.tuple
-            (Obj.magic (fun (s : S.Tuple.ctx) ->
+            (Obj.magic (fun (s : S.Tuple.s) ->
                  [%e
                    Exp.tuple
                      (tuple_types

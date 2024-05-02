@@ -6,7 +6,7 @@ let validAsyncRefine = S.transform(_, _ => {
 })
 let invalidSyncRefine = S.refine(_, s => _ => s.fail("Sync user error"))
 let unresolvedPromise = Promise.make((_, _) => ())
-let makeInvalidPromise = (s: S.effectCtx<'a>) =>
+let makeInvalidPromise = (s: S.s<'a>) =>
   Promise.resolve()->Promise.then(() => s.fail("Async user error"))
 let invalidAsyncRefine = S.transform(_, s => {
   asyncParser: _ => () => makeInvalidPromise(s),
