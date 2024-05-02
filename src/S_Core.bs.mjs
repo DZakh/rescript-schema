@@ -881,6 +881,11 @@ function serializeToJsonStringWith(value, schema, spaceOpt) {
   }
 }
 
+function serializeToJsonStringOrRaiseWith(value, schema, spaceOpt) {
+  var space = spaceOpt !== undefined ? spaceOpt : 0;
+  return JSON.stringify(serializeOrRaiseWith(value, schema), null, space);
+}
+
 function parseJsonStringWith(json, schema) {
   var json$1;
   try {
@@ -3384,6 +3389,7 @@ export {
   serializeToJsonStringWith ,
   serializeOrRaiseWith ,
   serializeToUnknownOrRaiseWith ,
+  serializeToJsonStringOrRaiseWith ,
   isAsyncParse ,
   recursive ,
   classify ,

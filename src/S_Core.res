@@ -1203,6 +1203,10 @@ let serializeToJsonStringWith = (value: 'value, schema: t<'value>, ~space=0): re
   }
 }
 
+let serializeToJsonStringOrRaiseWith = (value: 'value, schema: t<'value>, ~space=0): string => {
+  value->serializeOrRaiseWith(schema)->Js.Json.stringifyWithSpace(space)
+}
+
 let parseJsonStringWith = (json: string, schema: t<'value>): result<'value, error> => {
   switch try {
     json->Js.Json.parseExn->Ok

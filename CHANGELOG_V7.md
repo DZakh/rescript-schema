@@ -8,4 +8,13 @@
   - `Tuple.ctx` -> `Tuple.s`
   - `schemaCtx` -> `Schema.s`
   - `catchCtx` -> `Catch.s`
-    // TODO: Update docs
+- Added `serializeToJsonStringOrRaiseWith`
+
+Plan for V7:
+
+- Tree-shakable error reasons (postponed)
+- Tree-shakable built-in refinements (postponed)
+- 2x faster serializeToJsonString
+- Add S.bigint
+- inline literal ints instead of embeding
+- // TODO: Update doc with changes

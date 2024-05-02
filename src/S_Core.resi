@@ -204,6 +204,8 @@ let serializeOrRaiseWith: ('value, t<'value>) => Js.Json.t
 
 let serializeToUnknownOrRaiseWith: ('value, t<'value>) => unknown
 
+let serializeToJsonStringOrRaiseWith: ('value, t<'value>, ~space: int=?) => string
+
 let isAsyncParse: t<'value> => bool
 
 let recursive: (t<'value> => t<'value>) => t<'value>
