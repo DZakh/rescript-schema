@@ -135,7 +135,7 @@ test(
     t->U.assertCompiledCode(
       ~schema,
       ~op=#serialize,
-      `i=>{let v0,v1,v2,v3,v4;v0=i;if(v0!==e[0]){e[1](v0)}v1=e[2];v2=[];v3=v1["0"];v3===true||e[3](v3);v2["0"]=v3;v4=v1["1"];v4===e[4]||e[5](v4);v2["1"]=v4;return v2}`,
+      `i=>{let v0,v1,v2,v3,v4;v0=i;if(v0!==e[0]){e[1](v0)}v1=e[2];v2=[];v3=v1["0"];v3===true||e[3](v3);v2["0"]=v3;v4=v1["1"];v4===12||e[4](v4);v2["1"]=v4;return v2}`,
     )
   },
 )

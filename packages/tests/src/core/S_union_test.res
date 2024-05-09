@@ -33,7 +33,7 @@ test("Parses when second struct misses parser", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#parse,
-    `i=>{let v0;try{i===e[0]||e[1](i);v0=i}catch(v1){if(v1&&v1.s===s){try{throw e[3];v0=i}catch(v2){if(v2&&v2.s===s){e[4]([v1,v2])}else{throw v2}}}else{throw v1}}return v0}`,
+    `i=>{let v0;try{i==="apple"||e[0](i);v0=i}catch(v1){if(v1&&v1.s===s){try{throw e[2];v0=i}catch(v2){if(v2&&v2.s===s){e[3]([v1,v2])}else{throw v2}}}else{throw v1}}return v0}`,
   )
 })
 
@@ -45,7 +45,7 @@ test("Serializes when second struct misses serializer", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#serialize,
-    `i=>{let v0;try{i===e[0]||e[1](i);v0=i}catch(v1){if(v1&&v1.s===s){try{throw e[2];if(typeof i!=="string"){e[3](i)}v0=i}catch(v2){if(v2&&v2.s===s){e[4]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
+    `i=>{let v0;try{i==="apple"||e[0](i);v0=i}catch(v1){if(v1&&v1.s===s){try{throw e[1];if(typeof i!=="string"){e[2](i)}v0=i}catch(v2){if(v2&&v2.s===s){e[3]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
   )
 })
 
@@ -339,7 +339,7 @@ test("Compiled parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#parse,
-    `i=>{let v0;try{i===e[0]||e[1](i);v0=i}catch(v1){if(v1&&v1.s===s){try{i===e[2]||e[3](i);v0=i}catch(v2){if(v2&&v2.s===s){e[4]([v1,v2])}else{throw v2}}}else{throw v1}}return v0}`,
+    `i=>{let v0;try{i===0||e[0](i);v0=i}catch(v1){if(v1&&v1.s===s){try{i===1||e[1](i);v0=i}catch(v2){if(v2&&v2.s===s){e[2]([v1,v2])}else{throw v2}}}else{throw v1}}return v0}`,
   )
 })
 
@@ -352,7 +352,7 @@ test("Compiled async parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#parse,
-    `i=>{let v0,v1;try{i===e[0]||e[1](i);v0=e[2](i);throw v0}catch(v2){if(v2&&v2.s===s||v2===v0){try{i===e[3]||e[4](i);v1=()=>Promise.resolve(i)}catch(v3){if(v3&&v3.s===s){v1=()=>Promise.any([v2===v0?v2():Promise.reject(v2),Promise.reject(v3)]).catch(t=>{e[5](t.errors)})}else{throw v3}}}else{throw v2}}return v1}`,
+    `i=>{let v0,v1;try{i===0||e[0](i);v0=e[1](i);throw v0}catch(v2){if(v2&&v2.s===s||v2===v0){try{i===1||e[2](i);v1=()=>Promise.resolve(i)}catch(v3){if(v3&&v3.s===s){v1=()=>Promise.any([v2===v0?v2():Promise.reject(v2),Promise.reject(v3)]).catch(t=>{e[3](t.errors)})}else{throw v3}}}else{throw v2}}return v1}`,
   )
 })
 
@@ -363,7 +363,7 @@ test("Compiled serialize code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#serialize,
-    `i=>{let v0;try{i===e[0]||e[1](i);v0=i}catch(v1){if(v1&&v1.s===s){try{i===e[2]||e[3](i);v0=i}catch(v2){if(v2&&v2.s===s){e[4]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
+    `i=>{let v0;try{i===0||e[0](i);v0=i}catch(v1){if(v1&&v1.s===s){try{i===1||e[1](i);v0=i}catch(v2){if(v2&&v2.s===s){e[2]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
   )
 })
 

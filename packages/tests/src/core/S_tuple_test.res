@@ -277,7 +277,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#parse,
-        `i=>{let v0,v1,v2;if(!Array.isArray(i)){e[6](i)}if(i.length!==3){e[0](i.length)}v2=i["0"];v2===e[4]||e[5](v2);v0=i["1"];if(typeof v0!=="string"){e[1](v0)}v1=i["2"];if(typeof v1!=="boolean"){e[2](v1)}return {"foo":v0,"bar":v1,"zoo":e[3],}}`,
+        `i=>{let v0,v1,v2;if(!Array.isArray(i)){e[5](i)}if(i.length!==3){e[0](i.length)}v2=i["0"];v2===0||e[4](v2);v0=i["1"];if(typeof v0!=="string"){e[1](v0)}v1=i["2"];if(typeof v1!=="boolean"){e[2](v1)}return {"foo":v0,"bar":v1,"zoo":e[3],}}`,
       )
     },
   )

@@ -17,5 +17,4 @@ Plan for V7:
 - Tree-shakable built-in refinements (postponed)
 - 2x faster serializeToJsonString
 - Add S.bigint
-- inline literal ints instead of embeding
 - // TODO: Update doc with changes
