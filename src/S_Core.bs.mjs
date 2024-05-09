@@ -2365,122 +2365,126 @@ function factory$7(definer) {
 }
 
 function factory$8(schemas) {
-  if (schemas.length < 2) {
-    throw new Error("[rescript-schema] A Union schema factory require at least two schemas.");
+  var len = schemas.length;
+  if (len === 1) {
+    return schemas[0];
   }
-  return {
-          t: {
-            TAG: "Union",
-            _0: schemas
-          },
-          n: (function () {
-              return "Union(" + schemas.map(function (s) {
-                            return s.n();
-                          }).join(", ") + ")";
-            }),
-          p: (function (b, selfSchema, path) {
-              var inputVar = toVar(b, b.i);
-              var schemas = selfSchema.t._0;
-              var isAsyncRef = false;
-              var itemsCode = [];
-              var itemsOutputVar = [];
-              var prevCode = b.c;
-              for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
-                var schema = schemas[idx];
-                b.c = "";
-                var itemOutputVar = withBuildErrorInline(b, (function () {
-                        return useWithTypeFilter(b, schema, inputVar, "");
-                      }));
-                var isAsyncItem = schema.i;
-                if (isAsyncItem) {
-                  isAsyncRef = true;
+  if (len !== 0) {
+    return {
+            t: {
+              TAG: "Union",
+              _0: schemas
+            },
+            n: (function () {
+                return "Union(" + schemas.map(function (s) {
+                              return s.n();
+                            }).join(", ") + ")";
+              }),
+            p: (function (b, selfSchema, path) {
+                var inputVar = toVar(b, b.i);
+                var schemas = selfSchema.t._0;
+                var isAsyncRef = false;
+                var itemsCode = [];
+                var itemsOutputVar = [];
+                var prevCode = b.c;
+                for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
+                  var schema = schemas[idx];
+                  b.c = "";
+                  var itemOutputVar = withBuildErrorInline(b, (function () {
+                          return useWithTypeFilter(b, schema, inputVar, "");
+                        }));
+                  var isAsyncItem = schema.i;
+                  if (isAsyncItem) {
+                    isAsyncRef = true;
+                  }
+                  itemsOutputVar.push(itemOutputVar);
+                  itemsCode.push(b.c);
                 }
-                itemsOutputVar.push(itemOutputVar);
-                itemsCode.push(b.c);
-              }
-              b.c = prevCode;
-              var isAsync = isAsyncRef;
-              var outputVar = $$var(b);
-              var codeEndRef = "";
-              var errorCodeRef = "";
-              for(var idx$1 = 0 ,idx_finish$1 = schemas.length; idx$1 < idx_finish$1; ++idx$1){
-                var schema$1 = schemas[idx$1];
-                var code = itemsCode[idx$1];
-                var itemOutputVar$1 = itemsOutputVar[idx$1];
-                var isAsyncItem$1 = schema$1.i;
-                var errorVar = varWithoutAllocation(b);
-                var errorCode = isAsync ? (
-                    isAsyncItem$1 ? errorVar + "===" + itemOutputVar$1 + "?" + errorVar + "():" : ""
-                  ) + ("Promise.reject(" + errorVar + ")") : errorVar;
-                errorCodeRef = idx$1 === 0 ? errorCode : errorCodeRef + "," + errorCode;
-                b.c = b.c + ("try{" + code + (
-                    isAsyncItem$1 ? "throw " + itemOutputVar$1 : (
-                        isAsync ? outputVar + "=()=>Promise.resolve(" + itemOutputVar$1 + ")" : outputVar + "=" + itemOutputVar$1
-                      )
-                  ) + "}catch(" + errorVar + "){if(" + (errorVar + "&&" + errorVar + ".s===s") + (
-                    isAsyncItem$1 ? "||" + errorVar + "===" + itemOutputVar$1 : ""
-                  ) + "){");
-                codeEndRef = "}else{throw " + errorVar + "}}" + codeEndRef;
-              }
-              if (isAsync) {
-                b.c = b.c + (outputVar + "=()=>Promise.any([" + errorCodeRef + "]).catch(t=>{" + raiseWithArg(b, path, (function (internalErrors) {
+                b.c = prevCode;
+                var isAsync = isAsyncRef;
+                var outputVar = $$var(b);
+                var codeEndRef = "";
+                var errorCodeRef = "";
+                for(var idx$1 = 0 ,idx_finish$1 = schemas.length; idx$1 < idx_finish$1; ++idx$1){
+                  var schema$1 = schemas[idx$1];
+                  var code = itemsCode[idx$1];
+                  var itemOutputVar$1 = itemsOutputVar[idx$1];
+                  var isAsyncItem$1 = schema$1.i;
+                  var errorVar = varWithoutAllocation(b);
+                  var errorCode = isAsync ? (
+                      isAsyncItem$1 ? errorVar + "===" + itemOutputVar$1 + "?" + errorVar + "():" : ""
+                    ) + ("Promise.reject(" + errorVar + ")") : errorVar;
+                  errorCodeRef = idx$1 === 0 ? errorCode : errorCodeRef + "," + errorCode;
+                  b.c = b.c + ("try{" + code + (
+                      isAsyncItem$1 ? "throw " + itemOutputVar$1 : (
+                          isAsync ? outputVar + "=()=>Promise.resolve(" + itemOutputVar$1 + ")" : outputVar + "=" + itemOutputVar$1
+                        )
+                    ) + "}catch(" + errorVar + "){if(" + (errorVar + "&&" + errorVar + ".s===s") + (
+                      isAsyncItem$1 ? "||" + errorVar + "===" + itemOutputVar$1 : ""
+                    ) + "){");
+                  codeEndRef = "}else{throw " + errorVar + "}}" + codeEndRef;
+                }
+                if (isAsync) {
+                  b.c = b.c + (outputVar + "=()=>Promise.any([" + errorCodeRef + "]).catch(t=>{" + raiseWithArg(b, path, (function (internalErrors) {
+                            return {
+                                    TAG: "InvalidUnion",
+                                    _0: internalErrors
+                                  };
+                          }), "t.errors") + "})") + codeEndRef;
+                  return outputVar;
+                } else {
+                  b.c = b.c + raiseWithArg(b, path, (function (internalErrors) {
                           return {
                                   TAG: "InvalidUnion",
                                   _0: internalErrors
                                 };
-                        }), "t.errors") + "})") + codeEndRef;
-                return outputVar;
-              } else {
+                        }), "[" + errorCodeRef + "]") + codeEndRef;
+                  return outputVar;
+                }
+              }),
+            s: (function (b, selfSchema, path) {
+                var inputVar = toVar(b, b.i);
+                var schemas = selfSchema.t._0;
+                var outputVar = $$var(b);
+                var codeEndRef = "";
+                var errorVarsRef = "";
+                for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
+                  var itemSchema = schemas[idx];
+                  var errorVar = varWithoutAllocation(b);
+                  errorVarsRef = errorVarsRef + errorVar + ",";
+                  b.c = b.c + ("try{" + scope(b, (function(itemSchema){
+                        return function (b) {
+                          var itemOutput = withBuildErrorInline(b, (function () {
+                                  return use(b, itemSchema, inputVar, "");
+                                }));
+                          var typeFilter = itemSchema.f;
+                          var itemOutput$1;
+                          if (typeFilter !== undefined) {
+                            var itemOutputVar = toVar(b, itemOutput);
+                            b.c = b.c + typeFilterCode(b, typeFilter, itemSchema, itemOutputVar, "");
+                            itemOutput$1 = itemOutputVar;
+                          } else {
+                            itemOutput$1 = itemOutput;
+                          }
+                          return outputVar + "=" + itemOutput$1;
+                        }
+                        }(itemSchema))) + "}catch(" + errorVar + "){if(" + (errorVar + "&&" + errorVar + ".s===s") + "){");
+                  codeEndRef = "}else{throw " + errorVar + "}}" + codeEndRef;
+                }
                 b.c = b.c + raiseWithArg(b, path, (function (internalErrors) {
                         return {
                                 TAG: "InvalidUnion",
                                 _0: internalErrors
                               };
-                      }), "[" + errorCodeRef + "]") + codeEndRef;
+                      }), "[" + errorVarsRef + "]") + codeEndRef;
                 return outputVar;
-              }
-            }),
-          s: (function (b, selfSchema, path) {
-              var inputVar = toVar(b, b.i);
-              var schemas = selfSchema.t._0;
-              var outputVar = $$var(b);
-              var codeEndRef = "";
-              var errorVarsRef = "";
-              for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
-                var itemSchema = schemas[idx];
-                var errorVar = varWithoutAllocation(b);
-                errorVarsRef = errorVarsRef + errorVar + ",";
-                b.c = b.c + ("try{" + scope(b, (function(itemSchema){
-                      return function (b) {
-                        var itemOutput = withBuildErrorInline(b, (function () {
-                                return use(b, itemSchema, inputVar, "");
-                              }));
-                        var typeFilter = itemSchema.f;
-                        var itemOutput$1;
-                        if (typeFilter !== undefined) {
-                          var itemOutputVar = toVar(b, itemOutput);
-                          b.c = b.c + typeFilterCode(b, typeFilter, itemSchema, itemOutputVar, "");
-                          itemOutput$1 = itemOutputVar;
-                        } else {
-                          itemOutput$1 = itemOutput;
-                        }
-                        return outputVar + "=" + itemOutput$1;
-                      }
-                      }(itemSchema))) + "}catch(" + errorVar + "){if(" + (errorVar + "&&" + errorVar + ".s===s") + "){");
-                codeEndRef = "}else{throw " + errorVar + "}}" + codeEndRef;
-              }
-              b.c = b.c + raiseWithArg(b, path, (function (internalErrors) {
-                      return {
-                              TAG: "InvalidUnion",
-                              _0: internalErrors
-                            };
-                    }), "[" + errorVarsRef + "]") + codeEndRef;
-              return outputVar;
-            }),
-          f: undefined,
-          i: 0,
-          m: empty
-        };
+              }),
+            f: undefined,
+            i: 0,
+            m: empty
+          };
+  }
+  throw new Error("[rescript-schema] S.union requires at least one item.");
 }
 
 function list(schema) {

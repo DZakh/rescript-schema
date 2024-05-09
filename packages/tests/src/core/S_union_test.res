@@ -7,28 +7,16 @@ test("Throws for a Union schema factory without schemas", t => {
       S.union([])
     },
     ~expectations={
-      message: "[rescript-schema] A Union schema factory require at least two schemas.",
+      message: "[rescript-schema] S.union requires at least one item.",
     },
     (),
   )
 })
 
-test("Throws for a Union schema factory with single schema", t => {
-  t->Assert.throws(
-    () => {
-      S.union([S.string])
-    },
-    ~expectations={
-      message: "[rescript-schema] A Union schema factory require at least two schemas.",
-    },
-    (),
-  )
-})
+test("Successfully creates a Union schema factory with single schema and flattens it", t => {
+  let schema = S.union([S.string])
 
-test("Successfully creates a Union schema factory with two schemas", t => {
-  t->Assert.notThrows(() => {
-    S.union([S.string, S.string])->ignore
-  }, ())
+  t->Assert.deepEqual(schema->S.classify, String, ())
 })
 
 test("Successfully parses polymorphic variants", t => {

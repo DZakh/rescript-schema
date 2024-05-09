@@ -3087,164 +3087,165 @@ module Union = {
   let factory = schemas => {
     let schemas: array<t<unknown>> = schemas->Obj.magic
 
-    if schemas->Js.Array2.length < 2 {
-      InternalError.panic("A Union schema factory require at least two schemas.")
-    }
+    switch schemas {
+    | [] => InternalError.panic("S.union requires at least one item.")
+    | [schema] => schema->castUnknownSchemaToAnySchema
+    | _ =>
+      make(
+        ~name=() => `Union(${schemas->Js.Array2.map(s => s.name())->Js.Array2.joinWith(", ")})`,
+        ~metadataMap=Metadata.Map.empty,
+        ~tagged=Union(schemas),
+        ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
+          let inputVar = b->B.useInputVar
+          let schemas = selfSchema->classify->unsafeGetVariantPayload
 
-    make(
-      ~name=() => `Union(${schemas->Js.Array2.map(s => s.name())->Js.Array2.joinWith(", ")})`,
-      ~metadataMap=Metadata.Map.empty,
-      ~tagged=Union(schemas),
-      ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
-        let inputVar = b->B.useInputVar
-        let schemas = selfSchema->classify->unsafeGetVariantPayload
+          let isAsyncRef = ref(false)
+          let itemsCode = []
+          let itemsOutputVar = []
 
-        let isAsyncRef = ref(false)
-        let itemsCode = []
-        let itemsOutputVar = []
-
-        let prevCode = b.code
-        for idx in 0 to schemas->Js.Array2.length - 1 {
-          let schema = schemas->Js.Array2.unsafe_get(idx)
-          b.code = ""
-          let itemOutputVar = b->B.withBuildErrorInline(
-            () => {
-              b->B.useWithTypeFilter(
-                // A hack to bypass an additional function wrapping for var context optimisation
-                ~schema=%raw(`schema`),
-                ~input=inputVar,
-                ~path=Path.empty,
-              )
-            },
-          )
-          let isAsyncItem = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-          if isAsyncItem {
-            isAsyncRef.contents = true
+          let prevCode = b.code
+          for idx in 0 to schemas->Js.Array2.length - 1 {
+            let schema = schemas->Js.Array2.unsafe_get(idx)
+            b.code = ""
+            let itemOutputVar = b->B.withBuildErrorInline(
+              () => {
+                b->B.useWithTypeFilter(
+                  // A hack to bypass an additional function wrapping for var context optimisation
+                  ~schema=%raw(`schema`),
+                  ~input=inputVar,
+                  ~path=Path.empty,
+                )
+              },
+            )
+            let isAsyncItem = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+            if isAsyncItem {
+              isAsyncRef.contents = true
+            }
+            itemsOutputVar->Js.Array2.push(itemOutputVar)->ignore
+            itemsCode->Js.Array2.push(b.code)->ignore
           }
-          itemsOutputVar->Js.Array2.push(itemOutputVar)->ignore
-          itemsCode->Js.Array2.push(b.code)->ignore
-        }
-        b.code = prevCode
-        let isAsync = isAsyncRef.contents
+          b.code = prevCode
+          let isAsync = isAsyncRef.contents
 
-        let outputVar = b->B.var
+          let outputVar = b->B.var
 
-        let codeEndRef = ref("")
-        let errorCodeRef = ref("")
+          let codeEndRef = ref("")
+          let errorCodeRef = ref("")
 
-        // TODO: Use B.withCatch ???
-        for idx in 0 to schemas->Js.Array2.length - 1 {
-          let schema = schemas->Js.Array2.unsafe_get(idx)
-          let code = itemsCode->Js.Array2.unsafe_get(idx)
-          let itemOutputVar = itemsOutputVar->Js.Array2.unsafe_get(idx)
-          let isAsyncItem = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+          // TODO: Use B.withCatch ???
+          for idx in 0 to schemas->Js.Array2.length - 1 {
+            let schema = schemas->Js.Array2.unsafe_get(idx)
+            let code = itemsCode->Js.Array2.unsafe_get(idx)
+            let itemOutputVar = itemsOutputVar->Js.Array2.unsafe_get(idx)
+            let isAsyncItem = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
 
-          let errorVar = b->B.varWithoutAllocation
+            let errorVar = b->B.varWithoutAllocation
 
-          let errorCode = if isAsync {
-            (isAsyncItem ? `${errorVar}===${itemOutputVar}?${errorVar}():` : "") ++
-            `Promise.reject(${errorVar})`
+            let errorCode = if isAsync {
+              (isAsyncItem ? `${errorVar}===${itemOutputVar}?${errorVar}():` : "") ++
+              `Promise.reject(${errorVar})`
+            } else {
+              errorVar
+            }
+            if idx === 0 {
+              errorCodeRef.contents = errorCode
+            } else {
+              errorCodeRef.contents = errorCodeRef.contents ++ "," ++ errorCode
+            }
+
+            b.code =
+              b.code ++
+              `try{${code}${switch (isAsyncItem, isAsync) {
+                | (true, _) => `throw ${itemOutputVar}`
+                | (false, false) => `${outputVar}=${itemOutputVar}`
+                | (false, true) => `${outputVar}=()=>Promise.resolve(${itemOutputVar})`
+                }}}catch(${errorVar}){if(${b->B.isInternalError(errorVar)}${isAsyncItem
+                  ? `||${errorVar}===${itemOutputVar}`
+                  : ""}){`
+            codeEndRef.contents = `}else{throw ${errorVar}}}` ++ codeEndRef.contents
+          }
+
+          if isAsync {
+            b.code =
+              b.code ++
+              `${outputVar}=()=>Promise.any([${errorCodeRef.contents}]).catch(t=>{${b->B.raiseWithArg(
+                  ~path,
+                  internalErrors => {
+                    InvalidUnion(internalErrors)
+                  },
+                  `t.errors`,
+                )}})` ++
+              codeEndRef.contents
+            outputVar
           } else {
-            errorVar
-          }
-          if idx === 0 {
-            errorCodeRef.contents = errorCode
-          } else {
-            errorCodeRef.contents = errorCodeRef.contents ++ "," ++ errorCode
-          }
-
-          b.code =
-            b.code ++
-            `try{${code}${switch (isAsyncItem, isAsync) {
-              | (true, _) => `throw ${itemOutputVar}`
-              | (false, false) => `${outputVar}=${itemOutputVar}`
-              | (false, true) => `${outputVar}=()=>Promise.resolve(${itemOutputVar})`
-              }}}catch(${errorVar}){if(${b->B.isInternalError(errorVar)}${isAsyncItem
-                ? `||${errorVar}===${itemOutputVar}`
-                : ""}){`
-          codeEndRef.contents = `}else{throw ${errorVar}}}` ++ codeEndRef.contents
-        }
-
-        if isAsync {
-          b.code =
-            b.code ++
-            `${outputVar}=()=>Promise.any([${errorCodeRef.contents}]).catch(t=>{${b->B.raiseWithArg(
+            b.code =
+              b.code ++
+              b->B.raiseWithArg(
                 ~path,
-                internalErrors => {
-                  InvalidUnion(internalErrors)
-                },
-                `t.errors`,
-              )}})` ++
-            codeEndRef.contents
-          outputVar
-        } else {
+                internalErrors => InvalidUnion(internalErrors),
+                `[${errorCodeRef.contents}]`,
+              ) ++
+              codeEndRef.contents
+            outputVar
+          }
+        }),
+        ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
+          let inputVar = b->B.useInputVar
+          let schemas = selfSchema->classify->unsafeGetVariantPayload
+
+          let outputVar = b->B.var
+
+          let codeEndRef = ref("")
+          let errorVarsRef = ref("")
+
+          for idx in 0 to schemas->Js.Array2.length - 1 {
+            let itemSchema = schemas->Js.Array2.unsafe_get(idx)
+            let errorVar = b->B.varWithoutAllocation
+            errorVarsRef.contents = errorVarsRef.contents ++ errorVar ++ `,`
+
+            b.code =
+              b.code ++
+              `try{${b->B.scope(
+                  b => {
+                    let itemOutput =
+                      b->B.withBuildErrorInline(
+                        () => b->B.use(~schema=itemSchema, ~input=inputVar, ~path=Path.empty),
+                      )
+                    let itemOutput = switch itemSchema.maybeTypeFilter {
+                    | Some(typeFilter) =>
+                      let itemOutputVar = b->B.toVar(itemOutput)
+                      b.code =
+                        b.code ++
+                        b->B.typeFilterCode(
+                          ~schema=itemSchema,
+                          ~typeFilter,
+                          ~inputVar=itemOutputVar,
+                          ~path=Path.empty,
+                        )
+                      itemOutputVar
+                    | None => itemOutput
+                    }
+                    `${outputVar}=${itemOutput}`
+                  },
+                )}}catch(${errorVar}){if(${b->B.isInternalError(errorVar)}){`
+
+            codeEndRef.contents = `}else{throw ${errorVar}}}` ++ codeEndRef.contents
+          }
+
           b.code =
             b.code ++
             b->B.raiseWithArg(
               ~path,
               internalErrors => InvalidUnion(internalErrors),
-              `[${errorCodeRef.contents}]`,
+              `[${errorVarsRef.contents}]`,
             ) ++
             codeEndRef.contents
+
           outputVar
-        }
-      }),
-      ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
-        let inputVar = b->B.useInputVar
-        let schemas = selfSchema->classify->unsafeGetVariantPayload
-
-        let outputVar = b->B.var
-
-        let codeEndRef = ref("")
-        let errorVarsRef = ref("")
-
-        for idx in 0 to schemas->Js.Array2.length - 1 {
-          let itemSchema = schemas->Js.Array2.unsafe_get(idx)
-          let errorVar = b->B.varWithoutAllocation
-          errorVarsRef.contents = errorVarsRef.contents ++ errorVar ++ `,`
-
-          b.code =
-            b.code ++
-            `try{${b->B.scope(
-                b => {
-                  let itemOutput =
-                    b->B.withBuildErrorInline(
-                      () => b->B.use(~schema=itemSchema, ~input=inputVar, ~path=Path.empty),
-                    )
-                  let itemOutput = switch itemSchema.maybeTypeFilter {
-                  | Some(typeFilter) =>
-                    let itemOutputVar = b->B.toVar(itemOutput)
-                    b.code =
-                      b.code ++
-                      b->B.typeFilterCode(
-                        ~schema=itemSchema,
-                        ~typeFilter,
-                        ~inputVar=itemOutputVar,
-                        ~path=Path.empty,
-                      )
-                    itemOutputVar
-                  | None => itemOutput
-                  }
-                  `${outputVar}=${itemOutput}`
-                },
-              )}}catch(${errorVar}){if(${b->B.isInternalError(errorVar)}){`
-
-          codeEndRef.contents = `}else{throw ${errorVar}}}` ++ codeEndRef.contents
-        }
-
-        b.code =
-          b.code ++
-          b->B.raiseWithArg(
-            ~path,
-            internalErrors => InvalidUnion(internalErrors),
-            `[${errorVarsRef.contents}]`,
-          ) ++
-          codeEndRef.contents
-
-        outputVar
-      }),
-      ~maybeTypeFilter=None,
-    )
+        }),
+        ~maybeTypeFilter=None,
+      )
+    }
   }
 }
 

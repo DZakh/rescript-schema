@@ -9,6 +9,7 @@
   - `schemaCtx` -> `Schema.s`
   - `catchCtx` -> `Catch.s`
 - Added `serializeToJsonStringOrRaiseWith`
+- Allow to create `S.union` with single item
 
 Plan for V7:
 
