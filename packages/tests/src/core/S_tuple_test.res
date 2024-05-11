@@ -247,7 +247,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!Array.isArray(i)){e[3](i)}let v0,v1,v2;if(i.length!==2){e[0](i.length)}v0=e[1](i["0"]);v1=i["1"];if(typeof v1!=="boolean"){e[2](v1)}v2=()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]));return v2}`,
+      `i=>{if(!Array.isArray(i)){e[3](i)}let v0,v1,v2=()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]));if(i.length!==2){e[0](i.length)}v0=e[1](i["0"]);v1=i["1"];if(typeof v1!=="boolean"){e[2](v1)}return v2}`,
     )
   })
 

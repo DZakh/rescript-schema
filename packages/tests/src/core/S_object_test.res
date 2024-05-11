@@ -1004,7 +1004,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0,v1,v2;v0=e[0](i["foo"]);v1=i["bar"];if(typeof v1!=="boolean"){e[1](v1)}v2=()=>Promise.all([v0()]).then(([v0])=>({"foo":v0,"bar":v1,}));return v2}`,
+      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0,v1,v2=()=>Promise.all([v0()]).then(([v0])=>({"foo":v0,"bar":v1,}));v0=e[0](i["foo"]);v1=i["bar"];if(typeof v1!=="boolean"){e[1](v1)}return v2}`,
     )
   })
 
