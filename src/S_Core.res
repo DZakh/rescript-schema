@@ -267,7 +267,11 @@ and tagged =
   | Dict(t<unknown>)
   | JSON({validated: bool})
 and builder
-and builderCtx = {
+and builderScope = {
+  @as("l")
+  mutable _varsAllocation: string,
+}
+and b = {
   @as("a")
   mutable isAsyncBranch: bool,
   @as("c")
@@ -278,8 +282,8 @@ and builderCtx = {
   mutable _varCounter: int,
   @as("s")
   mutable _vars: Stdlib.Set.t<string>,
-  @as("l")
-  mutable _varsAllocation: string,
+  @as("x")
+  mutable _scope: builderScope,
   @as("i")
   mutable _input: string,
   @as("e")
@@ -384,34 +388,43 @@ let classify = schema => schema.tagged
 
 module Builder = {
   type t = builder
-  type ctx = builderCtx
-  type implementation = (ctx, ~selfSchema: schema<unknown>, ~path: Path.t) => string
-
+  type implementation = (b, ~selfSchema: schema<unknown>, ~path: Path.t) => string
   let make = (Obj.magic: implementation => t)
 
-  module Ctx = {
-    type t = ctx
+  type val = {
+    @as("v")
+    mutable _var?: string,
+    @as("i")
+    mutable _initial?: string,
+    @as("x")
+    _scope: builderScope,
+    @as("a")
+    _isAsync: bool,
+  }
 
+  module Ctx = {
     @inline
-    let embed = (b: t, value) => {
+    let embed = (b: b, value) => {
       `e[${(b._embeded->Js.Array2.push(value->castAnyToUnknown)->(Obj.magic: int => float) -. 1.)
           ->(Obj.magic: float => string)}]`
     }
 
-    let scope = (b: t, fn) => {
-      let prevVarsAllocation = b._varsAllocation
+    let scope = (b: b, fn) => {
+      let prevScope = b._scope
       let prevCode = b.code
-      b._varsAllocation = ""
+      b._scope = {
+        _varsAllocation: "",
+      }
       b.code = ""
       let resultCode = fn(b)
-      let varsAllocation = b._varsAllocation
+      let varsAllocation = b._scope._varsAllocation
       let code = varsAllocation === "" ? b.code : `let ${varsAllocation};${b.code}`
-      b._varsAllocation = prevVarsAllocation
+      b._scope = prevScope
       b.code = prevCode
       code ++ resultCode
     }
 
-    let varWithoutAllocation = (b: t) => {
+    let varWithoutAllocation = (b: b) => {
       let newCounter = b._varCounter->Stdlib.Int.plus(1)
       b._varCounter = newCounter
       let v = `v${newCounter->Stdlib.Int.unsafeToString}`
@@ -419,15 +432,77 @@ module Builder = {
       v
     }
 
-    let var = (b: t) => {
+    let var = (b: b) => {
       let v = b->varWithoutAllocation
-      b._varsAllocation = b._varsAllocation === "" ? v : b._varsAllocation ++ "," ++ v
+      let varsAllocation = b._scope._varsAllocation
+      b._scope._varsAllocation = varsAllocation === "" ? v : varsAllocation ++ "," ++ v
       v
+    }
+
+    module Val = {
+      let var = (b: b, val: val) => {
+        switch val._var {
+        | Some(v) => v
+        | None => {
+            let var = b->varWithoutAllocation
+            let allocation = switch val._initial {
+            | Some(i) => `${var}=${i}`
+            | None => var
+            }
+            let varsAllocation = val._scope._varsAllocation
+            val._scope._varsAllocation = varsAllocation === ""
+              ? allocation
+              : varsAllocation ++ "," ++ allocation
+            val._var = Some(var)
+            var
+          }
+        }
+      }
+
+      let push = (b: b, val: val, code) => {
+        let var = b->var(val)
+        `${var}.push(${code})`
+      }
+
+      let set = (b: b, val: val, code) => {
+        let var = b->var(val)
+        `${var}=${code}`
+      }
+    }
+
+    let val = (b: b): val => {
+      {_scope: b._scope, _isAsync: false}
+    }
+
+    let valWithInitial = (b: b, initial: string): val => {
+      {_initial: initial, _scope: b._scope, _isAsync: false}
+    }
+
+    let asyncVal = (b: b, initial: string): val => {
+      let var = b->varWithoutAllocation
+      let allocation = `${var}=()=>${initial}`
+      let varsAllocation = b._scope._varsAllocation
+      b._scope._varsAllocation = varsAllocation === ""
+        ? allocation
+        : varsAllocation ++ "," ++ allocation
+      // TODO: Don't require for it to be a var.
+      // FIXME: isAsync is currently not used
+      {_var: var, _scope: b._scope, _isAsync: true}
     }
 
     @inline
     let useInput = b => {
       b._input
+    }
+
+    @inline
+    let useInputVal = (b: b): val => {
+      let input = b->useInput
+      if b._vars->Stdlib.Set.has(input) {
+        {_var: input, _scope: b._scope, _isAsync: false /* FIXME: Not sure about async */}
+      } else {
+        {_initial: input, _scope: b._scope, _isAsync: false /* FIXME: Not sure about async */}
+      }
     }
 
     let toVar = (b, val) =>
@@ -445,11 +520,11 @@ module Builder = {
     }
 
     @inline
-    let isInternalError = (_b: t, var) => {
+    let isInternalError = (_b: b, var) => {
       `${var}&&${var}.s===s`
     }
 
-    let transform = (b: t, ~input, ~isAsync, operation) => {
+    let transform = (b: b, ~input, ~isAsync, operation) => {
       if b.isAsyncBranch === true {
         let prevCode = b.code
         b.code = ""
@@ -473,31 +548,31 @@ module Builder = {
       }
     }
 
-    let embedSyncOperation = (b: t, ~input, ~fn: 'input => 'output) => {
+    let embedSyncOperation = (b: b, ~input, ~fn: 'input => 'output) => {
       b->transform(~input, ~isAsync=false, (b, ~input) => {
         `${b->embed(fn)}(${input})`
       })
     }
 
-    let embedAsyncOperation = (b: t, ~input, ~fn: 'input => unit => promise<'output>) => {
+    let embedAsyncOperation = (b: b, ~input, ~fn: 'input => unit => promise<'output>) => {
       b->transform(~input, ~isAsync=true, (b, ~input) => {
         `${b->embed(fn)}(${input})`
       })
     }
 
-    let raiseWithArg = (b: t, ~path, fn: 'arg => errorCode, arg) => {
+    let raiseWithArg = (b: b, ~path, fn: 'arg => errorCode, arg) => {
       `${b->embed(arg => {
           InternalError.raise(~path, ~code=fn(arg), ~operation=b.operation)
         })}(${arg})`
     }
 
-    let fail = (b: t, ~message, ~path) => {
+    let fail = (b: b, ~message, ~path) => {
       `${b->embed(() => {
           InternalError.raise(~path, ~code=OperationFailed(message), ~operation=b.operation)
         })}()`
     }
 
-    let invalidOperation = (b: t, ~path, ~description) => {
+    let invalidOperation = (b: b, ~path, ~description) => {
       InternalError.raise(
         ~path,
         ~code=InvalidOperation({description: description}),
@@ -505,7 +580,7 @@ module Builder = {
       )
     }
 
-    let withCatch = (b: t, ~catch, fn) => {
+    let withCatch = (b: b, ~catch, fn) => {
       let prevCode = b.code
 
       b.code = ""
@@ -550,7 +625,7 @@ module Builder = {
       outputVar
     }
 
-    let withPathPrepend = (b: t, ~path, ~dynamicLocationVar as maybeDynamicLocationVar=?, fn) => {
+    let withPathPrepend = (b: b, ~path, ~dynamicLocationVar as maybeDynamicLocationVar=?, fn) => {
       if path === Path.empty && maybeDynamicLocationVar === None {
         fn(b, ~path)
       } else {
@@ -574,7 +649,7 @@ module Builder = {
       }
     }
 
-    let typeFilterCode = (b: t, ~typeFilter, ~schema, ~inputVar, ~path) => {
+    let typeFilterCode = (b: b, ~typeFilter, ~schema, ~inputVar, ~path) => {
       `if(${typeFilter(~inputVar)}){${b->raiseWithArg(
           ~path,
           input => InvalidType({
@@ -585,7 +660,7 @@ module Builder = {
         )}}`
     }
 
-    let use = (b: t, ~schema, ~input, ~path) => {
+    let use = (b: b, ~schema, ~input, ~path) => {
       let isParentAsync = b.isAsyncBranch
       let isParsing = b.operation === Parsing
       b._input = input
@@ -602,7 +677,7 @@ module Builder = {
       output
     }
 
-    let useWithTypeFilter = (b: t, ~schema, ~input, ~path) => {
+    let useWithTypeFilter = (b: b, ~schema, ~input, ~path) => {
       let input = switch schema.maybeTypeFilter {
       | Some(typeFilter) => {
           let inputVar = b->toVar(input)
@@ -614,7 +689,7 @@ module Builder = {
       b->use(~schema, ~input, ~path)
     }
 
-    let withBuildErrorInline = (b: t, fn) => {
+    let withBuildErrorInline = (b: b, fn) => {
       try {
         fn()
       } catch {
@@ -631,6 +706,17 @@ module Builder = {
     b->Ctx.useInput
   })
 
+  let makeWithValReturn = fn => {
+    make((b, ~selfSchema, ~path) => {
+      let val = fn(b, ~selfSchema, ~path)
+      switch val {
+      | {_var: ?Some(var)} => var
+      | {_initial: ?Some(initial)} => initial
+      | _ => b->Ctx.var
+      }
+    })
+  }
+
   let noopOperation = i => i->Obj.magic
 
   @inline
@@ -640,9 +726,11 @@ module Builder = {
     let b = {
       _embeded: [],
       _varCounter: -1,
-      _varsAllocation: "",
       _vars: Stdlib.Set.fromArray([intitialInputVar]),
       _input: intitialInputVar,
+      _scope: {
+        _varsAllocation: "",
+      },
       code: "",
       isAsyncBranch: false,
       operation,
@@ -654,8 +742,8 @@ module Builder = {
       ~path=Path.empty,
     )
 
-    if b._varsAllocation !== "" {
-      b.code = `let ${b._varsAllocation};${b.code}`
+    if b._scope._varsAllocation !== "" {
+      b.code = `let ${b._scope._varsAllocation};${b.code}`
     }
 
     if operation === Parsing {
@@ -702,7 +790,7 @@ module Literal = {
     @as("s")
     string: string,
     @as("b")
-    checkBuilder: (B.t, ~inputVar: string, ~literal: literal) => string,
+    checkBuilder: (b, ~inputVar: string, ~literal: literal) => string,
     @as("j")
     isJsonable: bool,
     @as("i")
@@ -1298,7 +1386,9 @@ let recursive = fn => {
         selfSchema.parseOperationBuilder = Builder.noop
         let ctx = {
           _embeded: [],
-          _varsAllocation: "",
+          _scope: {
+            _varsAllocation: "",
+          },
           code: "",
           _input: Builder.intitialInputVar,
           _varCounter: -1,
@@ -1768,33 +1858,38 @@ module Option = {
 
   let default = schema => schema->Metadata.get(~id=defaultMetadataId)
 
-  let parseOperationBuilder = Builder.make((b, ~selfSchema, ~path) => {
+  let parseOperationBuilder = Builder.makeWithValReturn((b, ~selfSchema, ~path) => {
     let inputVar = b->B.useInputVar
-    let outputVar = b->B.var
+    let outputVal = b->B.val
 
     let isNull = %raw(`selfSchema.t.TAG === "Null"`)
     let childSchema = selfSchema.tagged->unsafeGetVariantPayload
 
     let ifCode = b->B.scope(b => {
-      `${outputVar}=${b->B.use(~schema=childSchema, ~input=inputVar, ~path)}`
+      b->B.Val.set(outputVal, b->B.use(~schema=childSchema, ~input=inputVar, ~path))
     })
     let isAsync = childSchema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
 
     b.code =
       b.code ++
-      `if(${inputVar}!==${isNull
-          ? "null"
-          : "void 0"}){${ifCode}}else{${outputVar}=${switch isAsync {
-        | false => `void 0`
-        | true => `()=>Promise.resolve(void 0)`
-        }}}`
+      `if(${inputVar}!==${isNull ? "null" : "void 0"}){${ifCode}}${switch (isNull, isAsync) {
+        | (false, false) => ""
+        | _ =>
+          `else{${b->B.Val.set(
+              outputVal,
+              switch isAsync {
+              | false => `void 0`
+              | true => `()=>Promise.resolve(void 0)`
+              },
+            )}}`
+        }}`
 
-    outputVar
+    outputVal
   })
 
-  let serializeOperationBuilder = Builder.make((b, ~selfSchema, ~path) => {
+  let serializeOperationBuilder = Builder.makeWithValReturn((b, ~selfSchema, ~path) => {
     let inputVar = b->B.useInputVar
-    let outputVar = b->B.var
+    let outputVal = b->B.val
 
     let isNull = %raw(`selfSchema.t.TAG === "Null"`)
     let childSchema = selfSchema.tagged->unsafeGetVariantPayload
@@ -1802,13 +1897,17 @@ module Option = {
     b.code =
       b.code ++
       `if(${inputVar}!==void 0){${b->B.scope(b => {
-          `${outputVar}=${b->B.use(
+          b->B.Val.set(
+            outputVal,
+            b->B.use(
               ~schema=childSchema,
               ~input=`${b->B.embed(%raw("Caml_option.valFromOption"))}(${inputVar})`,
               ~path,
-            )}`
-        })}}else{${outputVar}=${isNull ? `null` : `void 0`}}`
-    outputVar
+            ),
+          )
+        })}}${isNull ? `else{${b->B.Val.set(outputVal, `null`)}}` : ""}`
+
+    outputVal
   })
 
   let maybeTypeFilter = (~schema, ~inlinedNoneValue) => {
@@ -2729,14 +2828,14 @@ module Array = {
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Array(schema),
-      ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
+      ~parseOperationBuilder=Builder.makeWithValReturn((b, ~selfSchema as _, ~path) => {
         let inputVar = b->B.useInputVar
         let iteratorVar = b->B.varWithoutAllocation
-        let outputVar = b->B.var
+        let outputVal = b->B.valWithInitial("[]")
 
         b.code =
           b.code ++
-          `${outputVar}=[];for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.scope(
+          `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.scope(
               b => {
                 let itemOutputVar =
                   b->B.withPathPrepend(
@@ -2745,30 +2844,28 @@ module Array = {
                     (b, ~path) =>
                       b->B.useWithTypeFilter(~schema, ~input=`${inputVar}[${iteratorVar}]`, ~path),
                   )
-                `${outputVar}.push(${itemOutputVar})`
+                b->B.Val.push(outputVal, itemOutputVar)
               },
             )}}`
 
         let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
         if isAsync {
-          let asyncOutputVar = b->B.var
-          b.code = b.code ++ `${asyncOutputVar}=()=>Promise.all(${outputVar}.map(t=>t()));`
-          asyncOutputVar
+          b->B.asyncVal(`Promise.all(${b->B.Val.var(outputVal)}.map(t=>t()))`)
         } else {
-          outputVar
+          outputVal
         }
       }),
-      ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
+      ~serializeOperationBuilder=Builder.makeWithValReturn((b, ~selfSchema as _, ~path) => {
         if schema.serializeOperationBuilder === Builder.noop {
-          b->B.useInput
+          b->B.useInputVal
         } else {
           let inputVar = b->B.useInputVar
           let iteratorVar = b->B.varWithoutAllocation
-          let outputVar = b->B.var
+          let outputVal = b->B.valWithInitial("[]")
 
           b.code =
             b.code ++
-            `${outputVar}=[];for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.scope(
+            `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.scope(
                 b => {
                   let itemOutputVar =
                     b->B.withPathPrepend(
@@ -2776,11 +2873,11 @@ module Array = {
                       ~dynamicLocationVar=iteratorVar,
                       (b, ~path) => b->B.use(~schema, ~input=`${inputVar}[${iteratorVar}]`, ~path),
                     )
-                  `${outputVar}.push(${itemOutputVar})`
+                  b->B.Val.push(outputVal, itemOutputVar)
                 },
               )}}`
 
-          outputVar
+          outputVal
         }
       }),
       ~maybeTypeFilter=Some(typeFilter),

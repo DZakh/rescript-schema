@@ -104,14 +104,16 @@ function classify(schema) {
 }
 
 function scope(b, fn) {
-  var prevVarsAllocation = b.l;
+  var prevScope = b.x;
   var prevCode = b.c;
-  b.l = "";
+  b.x = {
+    l: ""
+  };
   b.c = "";
   var resultCode = fn(b);
-  var varsAllocation = b.l;
+  var varsAllocation = b.x.l;
   var code = varsAllocation === "" ? b.c : "let " + varsAllocation + ";" + b.c;
-  b.l = prevVarsAllocation;
+  b.x = prevScope;
   b.c = prevCode;
   return code + resultCode;
 }
@@ -126,17 +128,57 @@ function varWithoutAllocation(b) {
 
 function $$var(b) {
   var v = varWithoutAllocation(b);
-  b.l = b.l === "" ? v : b.l + "," + v;
+  var varsAllocation = b.x.l;
+  b.x.l = varsAllocation === "" ? v : varsAllocation + "," + v;
   return v;
+}
+
+function $$var$1(b, val) {
+  var v = val.v;
+  if (v !== undefined) {
+    return v;
+  }
+  var $$var$2 = varWithoutAllocation(b);
+  var i = val.i;
+  var allocation = i !== undefined ? $$var$2 + "=" + i : $$var$2;
+  var varsAllocation = val.x.l;
+  val.x.l = varsAllocation === "" ? allocation : varsAllocation + "," + allocation;
+  val.v = $$var$2;
+  return $$var$2;
+}
+
+function push(b, val, code) {
+  var $$var$2 = $$var$1(b, val);
+  return $$var$2 + ".push(" + code + ")";
+}
+
+function set(b, val, code) {
+  var $$var$2 = $$var$1(b, val);
+  return $$var$2 + "=" + code;
+}
+
+function val(b) {
+  return {
+          x: b.x,
+          a: false
+        };
+}
+
+function valWithInitial(b, initial) {
+  return {
+          i: initial,
+          x: b.x,
+          a: false
+        };
 }
 
 function toVar(b, val) {
   if (b.s.has(val)) {
     return val;
   }
-  var $$var$1 = $$var(b);
-  b.c = b.c + ($$var$1 + "=" + val + ";");
-  return $$var$1;
+  var $$var$2 = $$var(b);
+  b.c = b.c + ($$var$2 + "=" + val + ";");
+  return $$var$2;
 }
 
 function transform(b, input, isAsync, operation) {
@@ -302,6 +344,22 @@ function noop(b, param, param$1) {
   return b.i;
 }
 
+function makeWithValReturn(fn) {
+  return function (b, selfSchema, path) {
+    var val = fn(b, selfSchema, path);
+    var $$var$2 = val.v;
+    if ($$var$2 !== undefined) {
+      return $$var$2;
+    }
+    var initial = val.i;
+    if (initial !== undefined) {
+      return initial;
+    } else {
+      return $$var(b);
+    }
+  };
+}
+
 function noopOperation(i) {
   return i;
 }
@@ -313,13 +371,15 @@ function build(builder, schema, operation) {
     o: operation,
     v: -1,
     s: new Set(["i"]),
-    l: "",
+    x: {
+      l: ""
+    },
     i: "i",
     e: []
   };
   var output = builder(b, schema, "");
-  if (b.l !== "") {
-    b.c = "let " + b.l + ";" + b.c;
+  if (b.x.l !== "") {
+    b.c = "let " + b.x.l + ";" + b.c;
   }
   if (operation === "Parsing") {
     var typeFilter = schema.f;
@@ -929,7 +989,7 @@ var Id = {
 
 var empty = {};
 
-function set(map, id, metadata) {
+function set$1(map, id, metadata) {
   if (map === empty) {
     return ({[id]:metadata});
   }
@@ -942,8 +1002,8 @@ function get(schema, id) {
   return schema.m[id];
 }
 
-function set$1(schema, id, metadata) {
-  var metadataMap = set(schema.m, id, metadata);
+function set$2(schema, id, metadata) {
+  var metadataMap = set$1(schema.m, id, metadata);
   return {
           t: schema.t,
           n: schema.n,
@@ -971,7 +1031,9 @@ function recursive(fn) {
         o: "Parsing",
         v: -1,
         s: new Set(["i"]),
-        l: "",
+        x: {
+          l: ""
+        },
         i: "i",
         e: []
       };
@@ -1081,7 +1143,7 @@ function refine(schema, refiner) {
 
 function addRefinement(schema, metadataId, refinement, refiner) {
   var refinements = schema.m[metadataId];
-  return internalRefine(set$1(schema, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), refiner);
+  return internalRefine(set$2(schema, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), refiner);
 }
 
 function transform$1(schema, transformer) {
@@ -1354,36 +1416,44 @@ function $$default(schema) {
   return schema.m[defaultMetadataId];
 }
 
-function parseOperationBuilder(b, selfSchema, path) {
-  var inputVar = toVar(b, b.i);
-  var outputVar = $$var(b);
-  var isNull = (selfSchema.t.TAG === "Null");
-  var childSchema = selfSchema.t._0;
-  var ifCode = scope(b, (function (b) {
-          return outputVar + "=" + use(b, childSchema, inputVar, path);
-        }));
-  var isAsync = childSchema.i;
-  b.c = b.c + ("if(" + inputVar + "!==" + (
-      isNull ? "null" : "void 0"
-    ) + "){" + ifCode + "}else{" + outputVar + "=" + (
-      isAsync ? "()=>Promise.resolve(void 0)" : "void 0"
-    ) + "}");
-  return outputVar;
-}
+var parseOperationBuilder = makeWithValReturn(function (b, selfSchema, path) {
+      var inputVar = toVar(b, b.i);
+      var outputVal = val(b);
+      var isNull = (selfSchema.t.TAG === "Null");
+      var childSchema = selfSchema.t._0;
+      var ifCode = scope(b, (function (b) {
+              return set(b, outputVal, use(b, childSchema, inputVar, path));
+            }));
+      var isAsync = childSchema.i;
+      var tmp;
+      var exit = 0;
+      if (isNull || isAsync) {
+        exit = 1;
+      } else {
+        tmp = "";
+      }
+      if (exit === 1) {
+        tmp = "else{" + set(b, outputVal, isAsync ? "()=>Promise.resolve(void 0)" : "void 0") + "}";
+      }
+      b.c = b.c + ("if(" + inputVar + "!==" + (
+          isNull ? "null" : "void 0"
+        ) + "){" + ifCode + "}" + tmp);
+      return outputVal;
+    });
 
-function serializeOperationBuilder(b, selfSchema, path) {
-  var inputVar = toVar(b, b.i);
-  var outputVar = $$var(b);
-  var isNull = (selfSchema.t.TAG === "Null");
-  var childSchema = selfSchema.t._0;
-  b.c = b.c + ("if(" + inputVar + "!==void 0){" + scope(b, (function (b) {
-            var value = Caml_option.valFromOption;
-            return outputVar + "=" + use(b, childSchema, "e[" + (b.e.push(value) - 1) + "](" + inputVar + ")", path);
-          })) + "}else{" + outputVar + "=" + (
-      isNull ? "null" : "void 0"
-    ) + "}");
-  return outputVar;
-}
+var serializeOperationBuilder = makeWithValReturn(function (b, selfSchema, path) {
+      var inputVar = toVar(b, b.i);
+      var outputVal = val(b);
+      var isNull = (selfSchema.t.TAG === "Null");
+      var childSchema = selfSchema.t._0;
+      b.c = b.c + ("if(" + inputVar + "!==void 0){" + scope(b, (function (b) {
+                var value = Caml_option.valFromOption;
+                return set(b, outputVal, use(b, childSchema, "e[" + (b.e.push(value) - 1) + "](" + inputVar + ")", path));
+              })) + "}" + (
+          isNull ? "else{" + set(b, outputVal, "null") + "}" : ""
+        ));
+      return outputVal;
+    });
 
 function maybeTypeFilter(schema, inlinedNoneValue) {
   var typeFilter = schema.f;
@@ -1425,7 +1495,7 @@ function getWithDefault(schema, $$default) {
           s: schema.s,
           f: schema.f,
           i: 0,
-          m: set(schema.m, defaultMetadataId, $$default)
+          m: set$1(schema.m, defaultMetadataId, $$default)
         };
 }
 
@@ -1901,7 +1971,7 @@ function datetime(schema, messageOpt) {
     message: message
   };
   var refinements = schema.m[metadataId];
-  return transform$1(set$1(schema, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), (function (s) {
+  return transform$1(set$2(schema, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), (function (s) {
                 return {
                         p: (function (string) {
                             if (!datetimeRe.test(string)) {
@@ -2113,39 +2183,60 @@ function factory$5(schema) {
             _0: schema
           },
           n: containerName,
-          p: (function (b, param, path) {
-              var inputVar = toVar(b, b.i);
-              var iteratorVar = varWithoutAllocation(b);
-              var outputVar = $$var(b);
-              b.c = b.c + (outputVar + "=[];for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
-                        var itemOutputVar = withPathPrepend(b, path, iteratorVar, (function (b, path) {
-                                return useWithTypeFilter(b, schema, inputVar + "[" + iteratorVar + "]", path);
-                              }));
-                        return outputVar + ".push(" + itemOutputVar + ")";
-                      })) + "}");
-              var isAsync = schema.i;
-              if (!isAsync) {
-                return outputVar;
-              }
-              var asyncOutputVar = $$var(b);
-              b.c = b.c + (asyncOutputVar + "=()=>Promise.all(" + outputVar + ".map(t=>t()));");
-              return asyncOutputVar;
-            }),
-          s: (function (b, param, path) {
-              if (schema.s === noop) {
-                return b.i;
-              }
-              var inputVar = toVar(b, b.i);
-              var iteratorVar = varWithoutAllocation(b);
-              var outputVar = $$var(b);
-              b.c = b.c + (outputVar + "=[];for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
-                        var itemOutputVar = withPathPrepend(b, path, iteratorVar, (function (b, path) {
-                                return use(b, schema, inputVar + "[" + iteratorVar + "]", path);
-                              }));
-                        return outputVar + ".push(" + itemOutputVar + ")";
-                      })) + "}");
-              return outputVar;
-            }),
+          p: makeWithValReturn(function (b, param, path) {
+                var inputVar = toVar(b, b.i);
+                var iteratorVar = varWithoutAllocation(b);
+                var outputVal = valWithInitial(b, "[]");
+                b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
+                          var itemOutputVar = withPathPrepend(b, path, iteratorVar, (function (b, path) {
+                                  return useWithTypeFilter(b, schema, inputVar + "[" + iteratorVar + "]", path);
+                                }));
+                          return push(b, outputVal, itemOutputVar);
+                        })) + "}");
+                var isAsync = schema.i;
+                if (isAsync) {
+                  var initial = "Promise.all(" + $$var$1(b, outputVal) + ".map(t=>t()))";
+                  var $$var$2 = varWithoutAllocation(b);
+                  var allocation = $$var$2 + "=()=>" + initial;
+                  var varsAllocation = b.x.l;
+                  b.x.l = varsAllocation === "" ? allocation : varsAllocation + "," + allocation;
+                  return {
+                          v: $$var$2,
+                          x: b.x,
+                          a: true
+                        };
+                } else {
+                  return outputVal;
+                }
+              }),
+          s: makeWithValReturn(function (b, param, path) {
+                if (schema.s === noop) {
+                  var input = b.i;
+                  if (b.s.has(input)) {
+                    return {
+                            v: input,
+                            x: b.x,
+                            a: false
+                          };
+                  } else {
+                    return {
+                            i: input,
+                            x: b.x,
+                            a: false
+                          };
+                  }
+                }
+                var inputVar = toVar(b, b.i);
+                var iteratorVar = varWithoutAllocation(b);
+                var outputVal = valWithInitial(b, "[]");
+                b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
+                          var itemOutputVar = withPathPrepend(b, path, iteratorVar, (function (b, path) {
+                                  return use(b, schema, inputVar + "[" + iteratorVar + "]", path);
+                                }));
+                          return push(b, outputVal, itemOutputVar);
+                        })) + "}");
+                return outputVal;
+              }),
           f: typeFilter$5,
           i: 0,
           m: empty
@@ -2599,7 +2690,7 @@ function $$catch(schema, getFallbackValue) {
 var deprecationMetadataId = "rescript-schema:deprecation";
 
 function deprecate(schema, message) {
-  return set$1(schema, deprecationMetadataId, message);
+  return set$2(schema, deprecationMetadataId, message);
 }
 
 function deprecation(schema) {
@@ -2609,7 +2700,7 @@ function deprecation(schema) {
 var descriptionMetadataId = "rescript-schema:description";
 
 function describe(schema, description) {
-  return set$1(schema, descriptionMetadataId, description);
+  return set$2(schema, descriptionMetadataId, description);
 }
 
 function description(schema) {
@@ -3349,7 +3440,7 @@ var $$Array = {
 var Metadata = {
   Id: Id,
   get: get,
-  set: set$1
+  set: set$2
 };
 
 export {
