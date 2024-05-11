@@ -344,7 +344,7 @@ function noop(b, param, param$1) {
   return b.i;
 }
 
-function makeWithValReturn(fn) {
+function make$1(fn) {
   return function (b, selfSchema, path) {
     var val = fn(b, selfSchema, path);
     var $$var$2 = val.v;
@@ -979,12 +979,12 @@ function parseJsonStringWith(json, schema) {
   }
 }
 
-function make$1(namespace, name) {
+function make$2(namespace, name) {
   return namespace + ":" + name;
 }
 
 var Id = {
-  make: make$1
+  make: make$2
 };
 
 var empty = {};
@@ -1416,7 +1416,7 @@ function $$default(schema) {
   return schema.m[defaultMetadataId];
 }
 
-var parseOperationBuilder = makeWithValReturn(function (b, selfSchema, path) {
+var parseOperationBuilder = make$1(function (b, selfSchema, path) {
       var inputVar = toVar(b, b.i);
       var outputVal = val(b);
       var isNull = (selfSchema.t.TAG === "Null");
@@ -1441,7 +1441,7 @@ var parseOperationBuilder = makeWithValReturn(function (b, selfSchema, path) {
       return outputVal;
     });
 
-var serializeOperationBuilder = makeWithValReturn(function (b, selfSchema, path) {
+var serializeOperationBuilder = make$1(function (b, selfSchema, path) {
       var inputVar = toVar(b, b.i);
       var outputVal = val(b);
       var isNull = (selfSchema.t.TAG === "Null");
@@ -2183,7 +2183,7 @@ function factory$5(schema) {
             _0: schema
           },
           n: containerName,
-          p: makeWithValReturn(function (b, param, path) {
+          p: make$1(function (b, param, path) {
                 var inputVar = toVar(b, b.i);
                 var iteratorVar = varWithoutAllocation(b);
                 var outputVal = valWithInitial(b, "[]");
@@ -2209,7 +2209,7 @@ function factory$5(schema) {
                   return outputVal;
                 }
               }),
-          s: makeWithValReturn(function (b, param, path) {
+          s: make$1(function (b, param, path) {
                 if (schema.s === noop) {
                   var input = b.i;
                   if (b.s.has(input)) {
@@ -2753,7 +2753,7 @@ function factory$9(definer) {
 
 var $$class = RescriptSchemaError;
 
-function make$2(prim0, prim1, prim2) {
+function make$3(prim0, prim1, prim2) {
   return new RescriptSchemaError(prim0, prim1, prim2);
 }
 
@@ -3322,7 +3322,7 @@ var Path = {
 
 var $$Error$1 = {
   $$class: $$class,
-  make: make$2,
+  make: make$3,
   raise: raise,
   message: message,
   reason: reason

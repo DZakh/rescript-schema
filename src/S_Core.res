@@ -389,7 +389,7 @@ let classify = schema => schema.tagged
 module Builder = {
   type t = builder
   type implementation = (b, ~selfSchema: schema<unknown>, ~path: Path.t) => string
-  let make = (Obj.magic: implementation => t)
+  let deprecatedMake = (Obj.magic: implementation => t)
 
   type val = {
     @as("v")
@@ -702,12 +702,12 @@ module Builder = {
     }
   }
 
-  let noop = make((b, ~selfSchema as _, ~path as _) => {
+  let noop = deprecatedMake((b, ~selfSchema as _, ~path as _) => {
     b->Ctx.useInput
   })
 
-  let makeWithValReturn = fn => {
-    make((b, ~selfSchema, ~path) => {
+  let make = fn => {
+    deprecatedMake((b, ~selfSchema, ~path) => {
       let val = fn(b, ~selfSchema, ~path)
       switch val {
       | {_var: ?Some(var)} => var
@@ -1380,7 +1380,7 @@ let recursive = fn => {
 
   {
     let builder = placeholder.parseOperationBuilder
-    placeholder.parseOperationBuilder = Builder.make((b, ~selfSchema, ~path) => {
+    placeholder.parseOperationBuilder = Builder.deprecatedMake((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
       let isAsync = {
         selfSchema.parseOperationBuilder = Builder.noop
@@ -1400,7 +1400,7 @@ let recursive = fn => {
         ctx.isAsyncBranch
       }
 
-      selfSchema.parseOperationBuilder = Builder.make((b, ~selfSchema, ~path as _) => {
+      selfSchema.parseOperationBuilder = Builder.deprecatedMake((b, ~selfSchema, ~path as _) => {
         let input = b->B.useInput
         if isAsync {
           b->B.embedAsyncOperation(~input, ~fn=input => input->internalParseAsyncWith(selfSchema))
@@ -1430,9 +1430,13 @@ let recursive = fn => {
 
   {
     let builder = placeholder.serializeOperationBuilder
-    placeholder.serializeOperationBuilder = Builder.make((b, ~selfSchema, ~path) => {
+    placeholder.serializeOperationBuilder = Builder.deprecatedMake((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
-      selfSchema.serializeOperationBuilder = Builder.make((b, ~selfSchema, ~path as _) => {
+      selfSchema.serializeOperationBuilder = Builder.deprecatedMake((
+        b,
+        ~selfSchema,
+        ~path as _,
+      ) => {
         let input = b->B.useInput
         b->B.embedSyncOperation(
           ~input,
@@ -1479,7 +1483,7 @@ let internalRefine = (schema, refiner) => {
   make(
     ~name=schema.name,
     ~tagged=schema.tagged,
-    ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
+    ~parseOperationBuilder=Builder.deprecatedMake((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
       b->B.transform(~input=b->B.use(~schema, ~input, ~path), ~isAsync=false, (b, ~input) => {
         let inputVar = b->B.toVar(input)
@@ -1487,7 +1491,7 @@ let internalRefine = (schema, refiner) => {
         inputVar
       })
     }),
-    ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
+    ~serializeOperationBuilder=Builder.deprecatedMake((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
       b->B.use(
         ~schema,
@@ -1540,7 +1544,7 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
   make(
     ~name=schema.name,
     ~tagged=schema.tagged,
-    ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
+    ~parseOperationBuilder=Builder.deprecatedMake((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
       let input = b->B.use(~schema, ~input, ~path)
       switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
@@ -1556,7 +1560,7 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
         )
       }
     }),
-    ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
+    ~serializeOperationBuilder=Builder.deprecatedMake((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
       switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
       | {serializer} =>
@@ -1600,7 +1604,7 @@ let rec preprocess = (schema, transformer) => {
     make(
       ~name=schema.name,
       ~tagged=schema.tagged,
-      ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
+      ~parseOperationBuilder=Builder.deprecatedMake((b, ~selfSchema, ~path) => {
         let input = b->B.useInput
         switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
         | {parser, asyncParser: ?None} =>
@@ -1631,7 +1635,7 @@ let rec preprocess = (schema, transformer) => {
           )
         }
       }),
-      ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
+      ~serializeOperationBuilder=Builder.deprecatedMake((b, ~selfSchema, ~path) => {
         let input = b->B.useInput
         let input = b->B.use(~schema, ~input, ~path)
         switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
@@ -1659,7 +1663,7 @@ let custom = (name, definer) => {
     ~name=() => name,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Unknown,
-    ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
+    ~parseOperationBuilder=Builder.deprecatedMake((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
       switch definer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~input, ~fn=parser)
@@ -1674,7 +1678,7 @@ let custom = (name, definer) => {
         )
       }
     }),
-    ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
+    ~serializeOperationBuilder=Builder.deprecatedMake((b, ~selfSchema, ~path) => {
       let input = b->B.useInput
       switch definer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
       | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
@@ -1692,7 +1696,7 @@ let literal = value => {
   let value = value->castAnyToUnknown
   let literal = value->Literal.parse
   let internalLiteral = literal->Literal.toInternal
-  let operationBuilder = Builder.make((b, ~selfSchema as _, ~path) => {
+  let operationBuilder = Builder.deprecatedMake((b, ~selfSchema as _, ~path) => {
     let inputVar = b->B.useInputVar
     b.code =
       b.code ++
@@ -1758,11 +1762,11 @@ module Variant = {
       make(
         ~name=schema.name,
         ~tagged=schema.tagged,
-        ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
+        ~parseOperationBuilder=Builder.deprecatedMake((b, ~selfSchema as _, ~path) => {
           let input = b->B.useInput
           b->B.embedSyncOperation(~input=b->B.use(~schema, ~input, ~path), ~fn=definer)
         }),
-        ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
+        ~serializeOperationBuilder=Builder.deprecatedMake((b, ~selfSchema, ~path) => {
           let inputVar = b->B.useInputVar
 
           let definition =
@@ -1858,7 +1862,7 @@ module Option = {
 
   let default = schema => schema->Metadata.get(~id=defaultMetadataId)
 
-  let parseOperationBuilder = Builder.makeWithValReturn((b, ~selfSchema, ~path) => {
+  let parseOperationBuilder = Builder.make((b, ~selfSchema, ~path) => {
     let inputVar = b->B.useInputVar
     let outputVal = b->B.val
 
@@ -1887,7 +1891,7 @@ module Option = {
     outputVal
   })
 
-  let serializeOperationBuilder = Builder.makeWithValReturn((b, ~selfSchema, ~path) => {
+  let serializeOperationBuilder = Builder.make((b, ~selfSchema, ~path) => {
     let inputVar = b->B.useInputVar
     let outputVal = b->B.val
 
@@ -1940,7 +1944,7 @@ module Option = {
       ~name=schema.name,
       ~metadataMap=schema.metadataMap->Metadata.Map.set(~id=defaultMetadataId, default),
       ~tagged=schema.tagged,
-      ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
+      ~parseOperationBuilder=Builder.deprecatedMake((b, ~selfSchema as _, ~path) => {
         let input = b->B.useInput
         b->B.transform(~input=b->B.use(~schema, ~input, ~path), ~isAsync=false, (b, ~input) => {
           // TODO: Reassign input if it's not a var
@@ -2005,7 +2009,7 @@ module Object = {
     ~inputRefinement,
     ~unknownKeysRefinement,
   ) => {
-    Builder.make((b, ~selfSchema, ~path) => {
+    Builder.deprecatedMake((b, ~selfSchema, ~path) => {
       let inputVar = b->B.useInputVar
 
       let registeredDefinitions = Stdlib.Set.empty()
@@ -2240,7 +2244,7 @@ module Object = {
           }
         },
       ),
-      ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
+      ~serializeOperationBuilder=Builder.deprecatedMake((b, ~selfSchema as _, ~path) => {
         let inputVar = b->B.useInputVar
         let fieldsCodeRef = ref("")
 
@@ -2357,7 +2361,7 @@ module Object = {
 }
 
 module Never = {
-  let builder = Builder.make((b, ~selfSchema, ~path) => {
+  let builder = Builder.deprecatedMake((b, ~selfSchema, ~path) => {
     let input = b->B.useInput
     b.code =
       b.code ++
@@ -2609,7 +2613,7 @@ module JsonString = {
       ~name=primitiveName,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=String,
-      ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
+      ~parseOperationBuilder=Builder.deprecatedMake((b, ~selfSchema as _, ~path) => {
         let input = b->B.useInput
         let jsonVar = b->B.var
         b.code =
@@ -2622,7 +2626,7 @@ module JsonString = {
 
         b->B.useWithTypeFilter(~schema, ~input=jsonVar, ~path)
       }),
-      ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
+      ~serializeOperationBuilder=Builder.deprecatedMake((b, ~selfSchema as _, ~path) => {
         let input = b->B.useInput
         `JSON.stringify(${b->B.use(~schema, ~input, ~path)}${space > 0
             ? `,null,${space->Stdlib.Int.unsafeToString}`
@@ -2828,7 +2832,7 @@ module Array = {
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Array(schema),
-      ~parseOperationBuilder=Builder.makeWithValReturn((b, ~selfSchema as _, ~path) => {
+      ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         let inputVar = b->B.useInputVar
         let iteratorVar = b->B.varWithoutAllocation
         let outputVal = b->B.valWithInitial("[]")
@@ -2855,7 +2859,7 @@ module Array = {
           outputVal
         }
       }),
-      ~serializeOperationBuilder=Builder.makeWithValReturn((b, ~selfSchema as _, ~path) => {
+      ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         if schema.serializeOperationBuilder === Builder.noop {
           b->B.useInputVal
         } else {
@@ -2943,7 +2947,7 @@ module Dict = {
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Dict(schema),
-      ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
+      ~parseOperationBuilder=Builder.deprecatedMake((b, ~selfSchema as _, ~path) => {
         let inputVar = b->B.useInputVar
         let keyVar = b->B.varWithoutAllocation
         let outputVar = b->B.var
@@ -2976,7 +2980,7 @@ module Dict = {
           outputVar
         }
       }),
-      ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
+      ~serializeOperationBuilder=Builder.deprecatedMake((b, ~selfSchema as _, ~path) => {
         if schema.serializeOperationBuilder === Builder.noop {
           b->B.useInput
         } else {
@@ -3106,7 +3110,7 @@ module Tuple = {
         },
         ~unknownKeysRefinement=Object.noopRefinement,
       ),
-      ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
+      ~serializeOperationBuilder=Builder.deprecatedMake((b, ~selfSchema as _, ~path) => {
         let inputVar = b->B.useInputVar
         let outputVar = b->B.var
         let registeredDefinitions = Stdlib.Set.empty()
@@ -3206,7 +3210,7 @@ module Union = {
         ~name=() => `Union(${schemas->Js.Array2.map(s => s.name())->Js.Array2.joinWith(", ")})`,
         ~metadataMap=Metadata.Map.empty,
         ~tagged=Union(schemas),
-        ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
+        ~parseOperationBuilder=Builder.deprecatedMake((b, ~selfSchema, ~path) => {
           let inputVar = b->B.useInputVar
           let schemas = selfSchema->classify->unsafeGetVariantPayload
 
@@ -3300,7 +3304,7 @@ module Union = {
             outputVar
           }
         }),
-        ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
+        ~serializeOperationBuilder=Builder.deprecatedMake((b, ~selfSchema, ~path) => {
           let inputVar = b->B.useInputVar
           let schemas = selfSchema->classify->unsafeGetVariantPayload
 
@@ -3376,7 +3380,7 @@ let json = (~validate) =>
     ~metadataMap=Metadata.Map.empty,
     ~maybeTypeFilter=None,
     ~parseOperationBuilder=validate
-      ? Builder.make((b, ~selfSchema, ~path) => {
+      ? Builder.deprecatedMake((b, ~selfSchema, ~path) => {
           let rec parse = (input, ~path=path) => {
             switch input->Stdlib.Type.typeof {
             | #number if Js.Float.isNaN(input->(Obj.magic: unknown => float))->not =>
@@ -3447,7 +3451,7 @@ let catch = (schema, getFallbackValue) => {
   let schema = schema->toUnknown
   make(
     ~name=schema.name,
-    ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
+    ~parseOperationBuilder=Builder.deprecatedMake((b, ~selfSchema, ~path) => {
       let inputVar = b->B.useInputVar
       b->B.withCatch(
         ~catch=(b, ~errorVar) => Some(
@@ -4043,7 +4047,7 @@ let js_merge = (s1, s2) => {
         fieldNames,
         fields,
       }),
-      ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
+      ~parseOperationBuilder=Builder.deprecatedMake((b, ~selfSchema as _, ~path) => {
         let inputVar = b->B.useInputVar
         let s1Result = b->B.use(~schema=s1, ~input=inputVar, ~path)
         let s2Result = b->B.use(~schema=s2, ~input=inputVar, ~path)
@@ -4051,7 +4055,7 @@ let js_merge = (s1, s2) => {
         // TODO: Check that s1Result is not mutating input
         `Object.assign(${s1Result}, ${s2Result})`
       }),
-      ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
+      ~serializeOperationBuilder=Builder.deprecatedMake((b, ~selfSchema as _, ~path) => {
         b->B.invalidOperation(~path, ~description=`The S.merge serializing is not supported yet`)
       }),
       ~maybeTypeFilter=Some(Object.typeFilter),
