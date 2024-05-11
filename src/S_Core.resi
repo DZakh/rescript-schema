@@ -73,7 +73,6 @@ type exn += private Raised(error)
 type s<'value> = {
   schema: t<'value>,
   fail: 'a. (string, ~path: Path.t=?) => 'a,
-  failWithError: 'a. error => 'a,
 }
 
 module Error: {
@@ -126,7 +125,6 @@ module Catch: {
     @as("i") input: unknown,
     @as("s") schema: t<'value>,
     @as("f") fail: 'a. (string, ~path: Path.t=?) => 'a,
-    @as("w") failWithError: 'a. error => 'a,
   }
 }
 let catch: (t<'value>, Catch.s<'value> => 'value) => t<'value>

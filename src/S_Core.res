@@ -364,15 +364,11 @@ module InternalError = {
 type s<'value> = {
   schema: t<'value>,
   fail: 'a. (string, ~path: Path.t=?) => 'a,
-  failWithError: 'a. error => 'a,
 }
 
 module EffectCtx = {
   let make = (~selfSchema, ~path, ~operation) => {
     schema: selfSchema->castUnknownSchemaToAnySchema,
-    failWithError: (error: error) => {
-      InternalError.raise(~path=path->Path.concat(error.path), ~code=error.code, ~operation)
-    },
     fail: (message, ~path as customPath=Path.empty) => {
       InternalError.raise(
         ~path=path->Path.concat(customPath),
@@ -3346,7 +3342,6 @@ module Catch = {
     @as("i") input: unknown,
     @as("s") schema: t<'value>,
     @as("f") fail: 'a. (string, ~path: Path.t=?) => 'a,
-    @as("w") failWithError: 'a. error => 'a,
   }
 }
 let catch = (schema, getFallbackValue) => {
@@ -3362,13 +3357,6 @@ let catch = (schema, getFallbackValue) => {
                 Catch.input,
                 error: internalError,
                 schema: selfSchema->castUnknownSchemaToAnySchema,
-                failWithError: (error: error) => {
-                  InternalError.raise(
-                    ~path=path->Path.concat(error.path),
-                    ~code=error.code,
-                    ~operation=b.operation,
-                  )
-                },
                 fail: (message, ~path as customPath=Path.empty) => {
                   InternalError.raise(
                     ~path=path->Path.concat(customPath),

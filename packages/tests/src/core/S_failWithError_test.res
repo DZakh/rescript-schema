@@ -1,10 +1,10 @@
 open Ava
 
-test("FIXME: Should keep operation of the error passed to advanced fail", t => {
+test("Keeps operation of the error passed to S.Error.raise", t => {
   let schema = S.array(
-    S.string->S.transform(s => {
+    S.string->S.transform(_ => {
       parser: _ =>
-        s.failWithError(
+        S.Error.raise(
           U.error({
             code: OperationFailed("User error"),
             operation: Serializing,
@@ -18,7 +18,7 @@ test("FIXME: Should keep operation of the error passed to advanced fail", t => {
     ["Hello world!"]->S.parseAnyWith(schema),
     {
       code: OperationFailed("User error"),
-      operation: Parsing,
+      operation: Serializing,
       path: S.Path.fromArray(["0", "a", "b"]),
     },
   )
@@ -30,11 +30,11 @@ test("Works with failing outside of the parser", t => {
       "root",
       S.array(
         S.string->S.transform(
-          s =>
-            s.failWithError(
+          _ =>
+            S.Error.raise(
               U.error({
                 code: OperationFailed("User error"),
-                operation: Serializing,
+                operation: Parsing,
                 path: S.Path.fromArray(["a", "b"]),
               }),
             ),

@@ -16,3 +16,4 @@
   - More flexible
   - Improved tree-shaking
   - Can get the info from the `tagged` type: `JSON` -> `JSON({validated: bool})`
+- Removed `s.failWithError`. Use `S.Error.raise` instead

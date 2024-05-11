@@ -47,11 +47,11 @@ test("Fails to parse when user raises error in a Transformed Primitive parser", 
   )
 })
 
-test("Uses the path from failWithError called in the transform parser", t => {
+test("Uses the path from S.Error.raise called in the transform parser", t => {
   let schema = S.array(
-    S.string->S.transform(s => {
+    S.string->S.transform(_ => {
       parser: _ =>
-        s.failWithError(
+        S.Error.raise(
           U.error({
             code: OperationFailed("User error"),
             operation: Parsing,
@@ -71,14 +71,14 @@ test("Uses the path from failWithError called in the transform parser", t => {
   )
 })
 
-test("Uses the path from failWithError called in the transform serializer", t => {
+test("Uses the path from S.Error.raise called in the transform serializer", t => {
   let schema = S.array(
-    S.string->S.transform(s => {
+    S.string->S.transform(_ => {
       serializer: _ =>
-        s.failWithError(
+        S.Error.raise(
           U.error({
             code: OperationFailed("User error"),
-            operation: Parsing,
+            operation: Serializing,
             path: S.Path.fromArray(["a", "b"]),
           }),
         ),

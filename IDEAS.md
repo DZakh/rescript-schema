@@ -29,7 +29,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - stop reallocate objects without transformations
 - Make S.serializeToJsonString super fast
 - Make operations more treeshakable by starting passing the actual operation to the initialOperation function. Or add a condition (verify performance)
-- Remove `s.failWithError` since there's `Error.raise` 🤔
 - Turn `String.email` -> `email`, `String.min` -> `stringMin` for tree-shaking
 - Rename `InvalidJsonStruct` error, since after `rescript-struct`->`rescript-schema` it became misleading
 - Add S.bigint

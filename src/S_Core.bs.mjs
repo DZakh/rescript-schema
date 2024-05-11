@@ -95,9 +95,6 @@ function make(selfSchema, path, operation) {
                         TAG: "OperationFailed",
                         _0: message
                       }, operation, path + customPath);
-            }),
-          failWithError: (function (error) {
-              throw new RescriptSchemaError(error.code, operation, path + error.path);
             })
         };
 }
@@ -2584,9 +2581,6 @@ function $$catch(schema, getFallbackValue) {
                                                                     TAG: "OperationFailed",
                                                                     _0: message
                                                                   }, b.o, path + customPath);
-                                                        }),
-                                                      w: (function (error) {
-                                                          throw new RescriptSchemaError(error.code, b.o, path + error.path);
                                                         })
                                                     });
                                         }) - 1) + "](" + inputVar + "," + errorVar + ")";

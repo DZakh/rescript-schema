@@ -2,24 +2,17 @@ open Ava
 open RescriptCore
 
 let nullableSchema = innerSchema => {
-  S.custom("Nullable", s => {
+  S.custom("Nullable", _ => {
     parser: unknown => {
       if unknown === %raw(`undefined`) || unknown === %raw(`null`) {
         None
       } else {
-        switch unknown->S.parseAnyWith(innerSchema) {
-        | Ok(value) => Some(value)
-        | Error(error) => s.failWithError(error)
-        }
+        Some(unknown->S.parseAnyOrRaiseWith(innerSchema))
       }
     },
     serializer: value => {
       switch value {
-      | Some(innerValue) =>
-        switch innerValue->S.serializeToUnknownWith(innerSchema) {
-        | Ok(value) => value
-        | Error(error) => s.failWithError(error)
-        }
+      | Some(innerValue) => innerValue->S.serializeToUnknownOrRaiseWith(innerSchema)
       | None => %raw(`null`)
       }
     },
