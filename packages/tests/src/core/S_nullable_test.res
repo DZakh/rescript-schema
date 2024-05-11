@@ -38,7 +38,7 @@ module NullCommon = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{let v0;if(i!==void 0&&(i!==null&&(typeof i!=="string"))){e[0](i)}if(i!==void 0){let v1;if(i!==null){v1=i}else{v1=void 0}v0=v1}else{v0=void 0}return v0}`,
+      `i=>{if(i!==void 0&&(i!==null&&(typeof i!=="string"))){e[0](i)}let v0;if(i!==void 0){let v1;if(i!==null){v1=i}else{v1=void 0}v0=v1}else{v0=void 0}return v0}`,
     )
   })
 

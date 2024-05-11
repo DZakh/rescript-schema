@@ -318,6 +318,9 @@ function build(builder, schema, operation) {
     e: []
   };
   var output = builder(b, schema, "");
+  if (b.l !== "") {
+    b.c = "let " + b.l + ";" + b.c;
+  }
   if (operation === "Parsing") {
     var typeFilter = schema.f;
     if (typeFilter !== undefined) {
@@ -328,9 +331,7 @@ function build(builder, schema, operation) {
   if (b.c === "" && output === "i") {
     return noopOperation;
   }
-  var inlinedFunction = "i=>{" + (
-    b.l === "" ? "" : "let " + b.l + ";"
-  ) + b.c + "return " + output + "}";
+  var inlinedFunction = "i=>{" + b.c + "return " + output + "}";
   return new Function("e", "s", "return " + inlinedFunction)(b.e, symbol);
 }
 

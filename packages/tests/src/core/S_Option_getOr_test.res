@@ -86,7 +86,7 @@ test("Compiled parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#parse,
-    `i=>{let v0;if(i!==void 0&&(typeof i!=="boolean")){e[1](i)}if(i!==void 0){v0=i}else{v0=void 0}return v0===void 0?e[0]:v0}`,
+    `i=>{if(i!==void 0&&(typeof i!=="boolean")){e[1](i)}let v0;if(i!==void 0){v0=i}else{v0=void 0}return v0===void 0?e[0]:v0}`,
   )
 })
 
@@ -100,7 +100,7 @@ test("Compiled async parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#parse,
-    `i=>{let v0,v3;if(i!==void 0&&(typeof i!=="boolean")){e[2](i)}if(i!==void 0){let v1;v1=e[0](i);v0=v1}else{v0=()=>Promise.resolve(void 0)}v3=()=>v0().then(v2=>{return v2===void 0?e[1]:v2});return v3}`,
+    `i=>{if(i!==void 0&&(typeof i!=="boolean")){e[2](i)}let v0,v3;if(i!==void 0){let v1;v1=e[0](i);v0=v1}else{v0=()=>Promise.resolve(void 0)}v3=()=>v0().then(v2=>{return v2===void 0?e[1]:v2});return v3}`,
   )
 })
 

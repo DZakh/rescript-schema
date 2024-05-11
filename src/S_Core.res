@@ -654,6 +654,10 @@ module Builder = {
       ~path=Path.empty,
     )
 
+    if b._varsAllocation !== "" {
+      b.code = `let ${b._varsAllocation};${b.code}`
+    }
+
     if operation === Parsing {
       switch schema.maybeTypeFilter {
       | Some(typeFilter) =>
@@ -672,9 +676,7 @@ module Builder = {
     if b.code === "" && output === intitialInputVar {
       noopOperation
     } else {
-      let inlinedFunction = `${intitialInputVar}=>{${b._varsAllocation === ""
-          ? ""
-          : `let ${b._varsAllocation};`}${b.code}return ${output}}`
+      let inlinedFunction = `${intitialInputVar}=>{${b.code}return ${output}}`
 
       // Js.log(inlinedFunction)
 
