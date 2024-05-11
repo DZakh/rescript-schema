@@ -133,6 +133,19 @@ function $$var(b) {
   return v;
 }
 
+function embed(b, val) {
+  var $$var$1 = val.v;
+  if ($$var$1 !== undefined) {
+    return $$var$1;
+  }
+  var initial = val.i;
+  if (initial !== undefined) {
+    return initial;
+  } else {
+    return $$var(b);
+  }
+}
+
 function $$var$1(b, val) {
   var v = val.v;
   if (v !== undefined) {
@@ -317,9 +330,10 @@ function use(b, schema, input, path) {
   var isParsing = b.o === "Parsing";
   b.i = input;
   b.a = false;
-  var output = (
+  var outputVal = (
       isParsing ? schema.p : schema.s
     )(b, schema, path);
+  var output = embed(b, outputVal);
   if (isParsing) {
     schema.i = b.a;
     b.a = isParentAsync || b.a;
@@ -352,38 +366,22 @@ function withBuildErrorInline(b, fn) {
   }
 }
 
-function make$1(fn) {
-  return function (b, selfSchema, path) {
-    var val = fn(b, selfSchema, path);
-    var $$var$2 = val.v;
-    if ($$var$2 !== undefined) {
-      return $$var$2;
-    }
-    var initial = val.i;
-    if (initial !== undefined) {
-      return initial;
-    } else {
-      return $$var(b);
-    }
-  };
+function noop(b, param, param$1) {
+  var input = b.i;
+  if (b.s.has(input)) {
+    return {
+            v: input,
+            x: b.x,
+            a: false
+          };
+  } else {
+    return {
+            i: input,
+            x: b.x,
+            a: false
+          };
+  }
 }
-
-var noop = make$1(function (b, param, param$1) {
-      var input = b.i;
-      if (b.s.has(input)) {
-        return {
-                v: input,
-                x: b.x,
-                a: false
-              };
-      } else {
-        return {
-                i: input,
-                x: b.x,
-                a: false
-              };
-      }
-    });
 
 function noopOperation(i) {
   return i;
@@ -402,7 +400,8 @@ function build(builder, schema, operation) {
     i: "i",
     e: []
   };
-  var output = builder(b, schema, "");
+  var outputVal = builder(b, schema, "");
+  var output = embed(b, outputVal);
   if (b.x.l !== "") {
     b.c = "let " + b.x.l + ";" + b.c;
   }
@@ -1004,12 +1003,12 @@ function parseJsonStringWith(json, schema) {
   }
 }
 
-function make$2(namespace, name) {
+function make$1(namespace, name) {
   return namespace + ":" + name;
 }
 
 var Id = {
-  make: make$2
+  make: make$1
 };
 
 var empty = {};
@@ -1047,62 +1046,62 @@ function recursive(fn) {
   var schema = fn(placeholder);
   Object.assign(placeholder, schema);
   var builder = placeholder.p;
-  placeholder.p = make$1(function (b, selfSchema, path) {
-        var input = b.i;
-        selfSchema.p = noop;
-        var ctx = {
-          a: false,
-          c: "",
-          o: "Parsing",
-          v: -1,
-          s: new Set(["i"]),
-          x: {
-            l: ""
-          },
-          i: "i",
-          e: []
-        };
-        builder(ctx, selfSchema, path);
-        var isAsync = ctx.a;
-        selfSchema.p = make$1(function (b, selfSchema, param) {
-              var input = b.i;
-              return valWithInitial(b, isAsync ? embedAsyncOperation(b, input, (function (input) {
-                                  return internalParseAsyncWith(input, selfSchema);
-                                })) : embedSyncOperation(b, input, (function (input) {
-                                  return parseAnyOrRaiseWith(input, selfSchema);
-                                })));
-            });
-        var operation = build(builder, selfSchema, "Parsing");
-        if (isAsync) {
-          selfSchema["opa"] = operation;
-        } else {
-          selfSchema["op"] = operation;
-        }
-        selfSchema.p = builder;
-        return valWithInitial(b, withPathPrepend(b, path, undefined, (function (b, param) {
-                          if (isAsync) {
-                            return embedAsyncOperation(b, input, operation);
-                          } else {
-                            return embedSyncOperation(b, input, operation);
-                          }
-                        })));
-      });
-  var builder$1 = placeholder.s;
-  placeholder.s = make$1(function (b, selfSchema, path) {
-        var input = b.i;
-        selfSchema.s = make$1(function (b, selfSchema, param) {
-              var input = b.i;
-              return valWithInitial(b, embedSyncOperation(b, input, (function (input) {
-                                return serializeToUnknownOrRaiseWith(input, selfSchema);
-                              })));
-            });
-        var operation = build(builder$1, selfSchema, "Serializing");
-        selfSchema["os"] = operation;
-        selfSchema.s = builder$1;
-        return valWithInitial(b, withPathPrepend(b, path, undefined, (function (b, param) {
+  placeholder.p = (function (b, selfSchema, path) {
+      var input = b.i;
+      selfSchema.p = noop;
+      var ctx = {
+        a: false,
+        c: "",
+        o: "Parsing",
+        v: -1,
+        s: new Set(["i"]),
+        x: {
+          l: ""
+        },
+        i: "i",
+        e: []
+      };
+      builder(ctx, selfSchema, path);
+      var isAsync = ctx.a;
+      selfSchema.p = (function (b, selfSchema, param) {
+          var input = b.i;
+          return valWithInitial(b, isAsync ? embedAsyncOperation(b, input, (function (input) {
+                              return internalParseAsyncWith(input, selfSchema);
+                            })) : embedSyncOperation(b, input, (function (input) {
+                              return parseAnyOrRaiseWith(input, selfSchema);
+                            })));
+        });
+      var operation = build(builder, selfSchema, "Parsing");
+      if (isAsync) {
+        selfSchema["opa"] = operation;
+      } else {
+        selfSchema["op"] = operation;
+      }
+      selfSchema.p = builder;
+      return valWithInitial(b, withPathPrepend(b, path, undefined, (function (b, param) {
+                        if (isAsync) {
+                          return embedAsyncOperation(b, input, operation);
+                        } else {
                           return embedSyncOperation(b, input, operation);
-                        })));
-      });
+                        }
+                      })));
+    });
+  var builder$1 = placeholder.s;
+  placeholder.s = (function (b, selfSchema, path) {
+      var input = b.i;
+      selfSchema.s = (function (b, selfSchema, param) {
+          var input = b.i;
+          return valWithInitial(b, embedSyncOperation(b, input, (function (input) {
+                            return serializeToUnknownOrRaiseWith(input, selfSchema);
+                          })));
+        });
+      var operation = build(builder$1, selfSchema, "Serializing");
+      selfSchema["os"] = operation;
+      selfSchema.s = builder$1;
+      return valWithInitial(b, withPathPrepend(b, path, undefined, (function (b, param) {
+                        return embedSyncOperation(b, input, operation);
+                      })));
+    });
   return placeholder;
 }
 
@@ -1133,22 +1132,22 @@ function internalRefine(schema, refiner) {
   return {
           t: schema.t,
           n: schema.n,
-          p: make$1(function (b, selfSchema, path) {
-                var input = b.i;
-                return valWithInitial(b, transform(b, use(b, schema, input, path), false, (function (b, input) {
-                                  var inputVar = toVar(b, input);
-                                  b.c = b.c + refiner(b, inputVar, selfSchema, path);
-                                  return inputVar;
-                                })));
-              }),
-          s: make$1(function (b, selfSchema, path) {
-                var input = b.i;
-                return valWithInitial(b, use(b, schema, transform(b, input, false, (function (b, input) {
-                                      var inputVar = toVar(b, input);
-                                      b.c = b.c + refiner(b, inputVar, selfSchema, path);
-                                      return inputVar;
-                                    })), path));
-              }),
+          p: (function (b, selfSchema, path) {
+              var input = b.i;
+              return valWithInitial(b, transform(b, use(b, schema, input, path), false, (function (b, input) {
+                                var inputVar = toVar(b, input);
+                                b.c = b.c + refiner(b, inputVar, selfSchema, path);
+                                return inputVar;
+                              })));
+            }),
+          s: (function (b, selfSchema, path) {
+              var input = b.i;
+              return valWithInitial(b, use(b, schema, transform(b, input, false, (function (b, input) {
+                                    var inputVar = toVar(b, input);
+                                    b.c = b.c + refiner(b, inputVar, selfSchema, path);
+                                    return inputVar;
+                                  })), path));
+            }),
           f: schema.f,
           i: 0,
           m: schema.m
@@ -1171,30 +1170,30 @@ function transform$1(schema, transformer) {
   return {
           t: schema.t,
           n: schema.n,
-          p: make$1(function (b, selfSchema, path) {
-                var input = b.i;
-                var input$1 = use(b, schema, input, path);
-                var match = transformer(make(selfSchema, path, b.o));
-                var parser = match.p;
-                var tmp;
-                if (parser !== undefined) {
-                  tmp = match.a !== undefined ? invalidOperation(b, path, "The S.transform doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.") : embedSyncOperation(b, input$1, parser);
-                } else {
-                  var asyncParser = match.a;
-                  tmp = asyncParser !== undefined ? embedAsyncOperation(b, input$1, asyncParser) : (
-                      match.s !== undefined ? invalidOperation(b, path, "The S.transform parser is missing") : input$1
-                    );
-                }
-                return valWithInitial(b, tmp);
-              }),
-          s: make$1(function (b, selfSchema, path) {
-                var input = b.i;
-                var match = transformer(make(selfSchema, path, b.o));
-                var serializer = match.s;
-                return valWithInitial(b, serializer !== undefined ? use(b, schema, embedSyncOperation(b, input, serializer), path) : (
-                              match.a !== undefined || match.p !== undefined ? invalidOperation(b, path, "The S.transform serializer is missing") : use(b, schema, input, path)
-                            ));
-              }),
+          p: (function (b, selfSchema, path) {
+              var input = b.i;
+              var input$1 = use(b, schema, input, path);
+              var match = transformer(make(selfSchema, path, b.o));
+              var parser = match.p;
+              var tmp;
+              if (parser !== undefined) {
+                tmp = match.a !== undefined ? invalidOperation(b, path, "The S.transform doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.") : embedSyncOperation(b, input$1, parser);
+              } else {
+                var asyncParser = match.a;
+                tmp = asyncParser !== undefined ? embedAsyncOperation(b, input$1, asyncParser) : (
+                    match.s !== undefined ? invalidOperation(b, path, "The S.transform parser is missing") : input$1
+                  );
+              }
+              return valWithInitial(b, tmp);
+            }),
+          s: (function (b, selfSchema, path) {
+              var input = b.i;
+              var match = transformer(make(selfSchema, path, b.o));
+              var serializer = match.s;
+              return valWithInitial(b, serializer !== undefined ? use(b, schema, embedSyncOperation(b, input, serializer), path) : (
+                            match.a !== undefined || match.p !== undefined ? invalidOperation(b, path, "The S.transform serializer is missing") : use(b, schema, input, path)
+                          ));
+            }),
           f: schema.f,
           i: 0,
           m: schema.m
@@ -1222,46 +1221,46 @@ function preprocess(schema, transformer) {
   return {
           t: schema.t,
           n: schema.n,
-          p: make$1(function (b, selfSchema, path) {
-                var input = b.i;
-                var match = transformer(make(selfSchema, path, b.o));
-                var parser = match.p;
-                var tmp;
-                if (parser !== undefined) {
-                  if (match.a !== undefined) {
-                    tmp = invalidOperation(b, path, "The S.preprocess doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.");
-                  } else {
-                    var operationResultVar = $$var(b);
-                    b.c = b.c + (operationResultVar + "=" + embedSyncOperation(b, input, parser) + ";");
-                    tmp = useWithTypeFilter(b, schema, operationResultVar, path);
-                  }
+          p: (function (b, selfSchema, path) {
+              var input = b.i;
+              var match = transformer(make(selfSchema, path, b.o));
+              var parser = match.p;
+              var tmp;
+              if (parser !== undefined) {
+                if (match.a !== undefined) {
+                  tmp = invalidOperation(b, path, "The S.preprocess doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.");
                 } else {
-                  var asyncParser = match.a;
-                  if (asyncParser !== undefined) {
-                    var parseResultVar = embedAsyncOperation(b, input, asyncParser);
-                    var outputVar = $$var(b);
-                    var asyncResultVar = varWithoutAllocation(b);
-                    b.c = b.c + (outputVar + "=()=>" + parseResultVar + "().then(" + asyncResultVar + "=>{" + scope(b, (function (b) {
-                              var schemaOutputVar = useWithTypeFilter(b, schema, asyncResultVar, path);
-                              var isAsync = schema.i;
-                              return "return " + (
-                                      isAsync ? schemaOutputVar + "()" : schemaOutputVar
-                                    );
-                            })) + "});");
-                    tmp = outputVar;
-                  } else {
-                    tmp = useWithTypeFilter(b, schema, input, path);
-                  }
+                  var operationResultVar = $$var(b);
+                  b.c = b.c + (operationResultVar + "=" + embedSyncOperation(b, input, parser) + ";");
+                  tmp = useWithTypeFilter(b, schema, operationResultVar, path);
                 }
-                return valWithInitial(b, tmp);
-              }),
-          s: make$1(function (b, selfSchema, path) {
-                var input = b.i;
-                var input$1 = use(b, schema, input, path);
-                var match = transformer(make(selfSchema, path, b.o));
-                var serializer = match.s;
-                return valWithInitial(b, serializer !== undefined ? embedSyncOperation(b, input$1, serializer) : input$1);
-              }),
+              } else {
+                var asyncParser = match.a;
+                if (asyncParser !== undefined) {
+                  var parseResultVar = embedAsyncOperation(b, input, asyncParser);
+                  var outputVar = $$var(b);
+                  var asyncResultVar = varWithoutAllocation(b);
+                  b.c = b.c + (outputVar + "=()=>" + parseResultVar + "().then(" + asyncResultVar + "=>{" + scope(b, (function (b) {
+                            var schemaOutputVar = useWithTypeFilter(b, schema, asyncResultVar, path);
+                            var isAsync = schema.i;
+                            return "return " + (
+                                    isAsync ? schemaOutputVar + "()" : schemaOutputVar
+                                  );
+                          })) + "});");
+                  tmp = outputVar;
+                } else {
+                  tmp = useWithTypeFilter(b, schema, input, path);
+                }
+              }
+              return valWithInitial(b, tmp);
+            }),
+          s: (function (b, selfSchema, path) {
+              var input = b.i;
+              var input$1 = use(b, schema, input, path);
+              var match = transformer(make(selfSchema, path, b.o));
+              var serializer = match.s;
+              return valWithInitial(b, serializer !== undefined ? embedSyncOperation(b, input$1, serializer) : input$1);
+            }),
           f: undefined,
           i: 0,
           m: schema.m
@@ -1274,29 +1273,29 @@ function custom(name, definer) {
           n: (function () {
               return name;
             }),
-          p: make$1(function (b, selfSchema, path) {
-                var input = b.i;
-                var match = definer(make(selfSchema, path, b.o));
-                var parser = match.p;
-                var tmp;
-                if (parser !== undefined) {
-                  tmp = match.a !== undefined ? invalidOperation(b, path, "The S.custom doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.") : embedSyncOperation(b, input, parser);
-                } else {
-                  var asyncParser = match.a;
-                  tmp = asyncParser !== undefined ? embedAsyncOperation(b, input, asyncParser) : (
-                      match.s !== undefined ? invalidOperation(b, path, "The S.custom parser is missing") : input
-                    );
-                }
-                return valWithInitial(b, tmp);
-              }),
-          s: make$1(function (b, selfSchema, path) {
-                var input = b.i;
-                var match = definer(make(selfSchema, path, b.o));
-                var serializer = match.s;
-                return valWithInitial(b, serializer !== undefined ? embedSyncOperation(b, input, serializer) : (
-                              match.a !== undefined || match.p !== undefined ? invalidOperation(b, path, "The S.custom serializer is missing") : input
-                            ));
-              }),
+          p: (function (b, selfSchema, path) {
+              var input = b.i;
+              var match = definer(make(selfSchema, path, b.o));
+              var parser = match.p;
+              var tmp;
+              if (parser !== undefined) {
+                tmp = match.a !== undefined ? invalidOperation(b, path, "The S.custom doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.") : embedSyncOperation(b, input, parser);
+              } else {
+                var asyncParser = match.a;
+                tmp = asyncParser !== undefined ? embedAsyncOperation(b, input, asyncParser) : (
+                    match.s !== undefined ? invalidOperation(b, path, "The S.custom parser is missing") : input
+                  );
+              }
+              return valWithInitial(b, tmp);
+            }),
+          s: (function (b, selfSchema, path) {
+              var input = b.i;
+              var match = definer(make(selfSchema, path, b.o));
+              var serializer = match.s;
+              return valWithInitial(b, serializer !== undefined ? embedSyncOperation(b, input, serializer) : (
+                            match.a !== undefined || match.p !== undefined ? invalidOperation(b, path, "The S.custom serializer is missing") : input
+                          ));
+            }),
           f: undefined,
           i: 0,
           m: empty
@@ -1305,17 +1304,17 @@ function custom(name, definer) {
 
 function literal(value) {
   var literal$1 = parseInternal(value);
-  var operationBuilder = make$1(function (b, param, path) {
-        var inputVar = toVar(b, b.i);
-        b.c = b.c + (literal$1.b(b, inputVar, literal$1) + "||" + raiseWithArg(b, path, (function (input) {
-                  return {
-                          TAG: "InvalidLiteral",
-                          expected: literal$1,
-                          received: input
-                        };
-                }), inputVar) + ";");
-        return valWithInitial(b, inputVar);
-      });
+  var operationBuilder = function (b, param, path) {
+    var inputVar = toVar(b, b.i);
+    b.c = b.c + (literal$1.b(b, inputVar, literal$1) + "||" + raiseWithArg(b, path, (function (input) {
+              return {
+                      TAG: "InvalidLiteral",
+                      expected: literal$1,
+                      received: input
+                    };
+            }), inputVar) + ";");
+    return valWithInitial(b, inputVar);
+  };
   return {
           t: {
             TAG: "Literal",
@@ -1348,66 +1347,66 @@ function factory(schema, definer) {
   return {
           t: schema.t,
           n: schema.n,
-          p: make$1(function (b, param, path) {
-                var input = b.i;
-                return valWithInitial(b, embedSyncOperation(b, use(b, schema, input, path), definer));
-              }),
-          s: make$1(function (b, selfSchema, path) {
-                var inputVar = toVar(b, b.i);
-                var definition = definer(symbol);
-                var definitionToOutput = function (definition, outputPath) {
-                  var kind = symbol === definition ? 2 : (
-                      typeof definition === "object" && definition !== null ? 0 : 1
-                    );
-                  switch (kind) {
-                    case 0 :
-                        var keys = Object.keys(definition);
-                        var maybeOutputRef = 0;
-                        for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-                          var key = keys[idx];
-                          var definition$1 = definition[key];
-                          var maybeOutput = definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
-                          var match = maybeOutputRef;
-                          if (typeof match !== "string") {
-                            if (match === 0) {
-                              maybeOutputRef = maybeOutput;
-                            }
-                            
-                          } else if (!(typeof maybeOutput !== "string" && maybeOutput === 0)) {
-                            maybeOutputRef = 1;
+          p: (function (b, param, path) {
+              var input = b.i;
+              return valWithInitial(b, embedSyncOperation(b, use(b, schema, input, path), definer));
+            }),
+          s: (function (b, selfSchema, path) {
+              var inputVar = toVar(b, b.i);
+              var definition = definer(symbol);
+              var definitionToOutput = function (definition, outputPath) {
+                var kind = symbol === definition ? 2 : (
+                    typeof definition === "object" && definition !== null ? 0 : 1
+                  );
+                switch (kind) {
+                  case 0 :
+                      var keys = Object.keys(definition);
+                      var maybeOutputRef = 0;
+                      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+                        var key = keys[idx];
+                        var definition$1 = definition[key];
+                        var maybeOutput = definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+                        var match = maybeOutputRef;
+                        if (typeof match !== "string") {
+                          if (match === 0) {
+                            maybeOutputRef = maybeOutput;
                           }
                           
+                        } else if (!(typeof maybeOutput !== "string" && maybeOutput === 0)) {
+                          maybeOutputRef = 1;
                         }
-                        return maybeOutputRef;
-                    case 1 :
-                        var constantVar = $$var(b);
-                        b.c = b.c + (constantVar + "=" + inputVar + outputPath + ";if(" + constantVar + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
-                                  return {
-                                          TAG: "InvalidLiteral",
-                                          expected: parseInternal(definition),
-                                          received: input
-                                        };
-                                }), constantVar) + "}");
-                        return 0;
-                    case 2 :
-                        return inputVar + outputPath;
-                    
-                  }
-                };
-                var output = definitionToOutput(definition, "");
-                var tmp;
-                if (typeof output !== "string") {
-                  if (output === 0) {
-                    var literal = toInternalLiteral(selfSchema);
-                    tmp = literal !== undefined ? use(b, schema, "e[" + (b.e.push(literal.value) - 1) + "]", path) : invalidOperation(b, path, "Can't create serializer. The S.variant's value is not registered and not a literal. Use S.transform instead");
-                  } else {
-                    tmp = invalidOperation(b, path, "Can't create serializer. The S.variant's value is registered multiple times. Use S.transform instead");
-                  }
-                } else {
-                  tmp = use(b, schema, output, path);
+                        
+                      }
+                      return maybeOutputRef;
+                  case 1 :
+                      var constantVar = $$var(b);
+                      b.c = b.c + (constantVar + "=" + inputVar + outputPath + ";if(" + constantVar + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
+                                return {
+                                        TAG: "InvalidLiteral",
+                                        expected: parseInternal(definition),
+                                        received: input
+                                      };
+                              }), constantVar) + "}");
+                      return 0;
+                  case 2 :
+                      return inputVar + outputPath;
+                  
                 }
-                return valWithInitial(b, tmp);
-              }),
+              };
+              var output = definitionToOutput(definition, "");
+              var tmp;
+              if (typeof output !== "string") {
+                if (output === 0) {
+                  var literal = toInternalLiteral(selfSchema);
+                  tmp = literal !== undefined ? use(b, schema, "e[" + (b.e.push(literal.value) - 1) + "]", path) : invalidOperation(b, path, "Can't create serializer. The S.variant's value is not registered and not a literal. Use S.transform instead");
+                } else {
+                  tmp = invalidOperation(b, path, "Can't create serializer. The S.variant's value is registered multiple times. Use S.transform instead");
+                }
+              } else {
+                tmp = use(b, schema, output, path);
+              }
+              return valWithInitial(b, tmp);
+            }),
           f: schema.f,
           i: 0,
           m: schema.m
@@ -1420,44 +1419,44 @@ function $$default(schema) {
   return schema.m[defaultMetadataId];
 }
 
-var parseOperationBuilder = make$1(function (b, selfSchema, path) {
-      var inputVar = toVar(b, b.i);
-      var outputVal = val(b);
-      var isNull = (selfSchema.t.TAG === "Null");
-      var childSchema = selfSchema.t._0;
-      var ifCode = scope(b, (function (b) {
-              return set(b, outputVal, use(b, childSchema, inputVar, path));
-            }));
-      var isAsync = childSchema.i;
-      var tmp;
-      var exit = 0;
-      if (isNull || isAsync) {
-        exit = 1;
-      } else {
-        tmp = "";
-      }
-      if (exit === 1) {
-        tmp = "else{" + set(b, outputVal, isAsync ? "()=>Promise.resolve(void 0)" : "void 0") + "}";
-      }
-      b.c = b.c + ("if(" + inputVar + "!==" + (
-          isNull ? "null" : "void 0"
-        ) + "){" + ifCode + "}" + tmp);
-      return outputVal;
-    });
+function parseOperationBuilder(b, selfSchema, path) {
+  var inputVar = toVar(b, b.i);
+  var outputVal = val(b);
+  var isNull = (selfSchema.t.TAG === "Null");
+  var childSchema = selfSchema.t._0;
+  var ifCode = scope(b, (function (b) {
+          return set(b, outputVal, use(b, childSchema, inputVar, path));
+        }));
+  var isAsync = childSchema.i;
+  var tmp;
+  var exit = 0;
+  if (isNull || isAsync) {
+    exit = 1;
+  } else {
+    tmp = "";
+  }
+  if (exit === 1) {
+    tmp = "else{" + set(b, outputVal, isAsync ? "()=>Promise.resolve(void 0)" : "void 0") + "}";
+  }
+  b.c = b.c + ("if(" + inputVar + "!==" + (
+      isNull ? "null" : "void 0"
+    ) + "){" + ifCode + "}" + tmp);
+  return outputVal;
+}
 
-var serializeOperationBuilder = make$1(function (b, selfSchema, path) {
-      var inputVar = toVar(b, b.i);
-      var outputVal = val(b);
-      var isNull = (selfSchema.t.TAG === "Null");
-      var childSchema = selfSchema.t._0;
-      b.c = b.c + ("if(" + inputVar + "!==void 0){" + scope(b, (function (b) {
-                var value = Caml_option.valFromOption;
-                return set(b, outputVal, use(b, childSchema, "e[" + (b.e.push(value) - 1) + "](" + inputVar + ")", path));
-              })) + "}" + (
-          isNull ? "else{" + set(b, outputVal, "null") + "}" : ""
-        ));
-      return outputVal;
-    });
+function serializeOperationBuilder(b, selfSchema, path) {
+  var inputVar = toVar(b, b.i);
+  var outputVal = val(b);
+  var isNull = (selfSchema.t.TAG === "Null");
+  var childSchema = selfSchema.t._0;
+  b.c = b.c + ("if(" + inputVar + "!==void 0){" + scope(b, (function (b) {
+            var value = Caml_option.valFromOption;
+            return set(b, outputVal, use(b, childSchema, "e[" + (b.e.push(value) - 1) + "](" + inputVar + ")", path));
+          })) + "}" + (
+      isNull ? "else{" + set(b, outputVal, "null") + "}" : ""
+    ));
+  return outputVal;
+}
 
 function maybeTypeFilter(schema, inlinedNoneValue) {
   var typeFilter = schema.f;
@@ -1488,14 +1487,14 @@ function getWithDefault(schema, $$default) {
   return {
           t: schema.t,
           n: schema.n,
-          p: make$1(function (b, param, path) {
-                var input = b.i;
-                return valWithInitial(b, transform(b, use(b, schema, input, path), false, (function (b, input) {
-                                  var tmp;
-                                  tmp = $$default.TAG === "Value" ? "e[" + (b.e.push($$default._0) - 1) + "]" : "e[" + (b.e.push($$default._0) - 1) + "]()";
-                                  return input + "===void 0?" + tmp + ":" + input;
-                                })));
-              }),
+          p: (function (b, param, path) {
+              var input = b.i;
+              return valWithInitial(b, transform(b, use(b, schema, input, path), false, (function (b, input) {
+                                var tmp;
+                                tmp = $$default.TAG === "Value" ? "e[" + (b.e.push($$default._0) - 1) + "]" : "e[" + (b.e.push($$default._0) - 1) + "]()";
+                                return input + "===void 0?" + tmp + ":" + input;
+                              })));
+            }),
           s: schema.s,
           f: schema.f,
           i: 0,
@@ -1545,76 +1544,76 @@ function noopRefinement(_b, param, param$1, param$2) {
 }
 
 function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definition, inputRefinement, unknownKeysRefinement) {
-  return make$1(function (b, selfSchema, path) {
-              var inputVar = toVar(b, b.i);
-              var registeredDefinitions = new Set();
-              var asyncOutputVars = [];
-              inputRefinement(b, selfSchema, inputVar, path);
-              var prevCode = b.c;
-              b.c = "";
-              unknownKeysRefinement(b, selfSchema, inputVar, path);
-              var unknownKeysRefinementCode = b.c;
-              b.c = "";
-              var definitionToOutput = function (definition, outputPath) {
-                var kind = toKindWithSet(definition, itemDefinitionsSet);
-                switch (kind) {
-                  case 0 :
-                      var isArray = Array.isArray(definition);
-                      var keys = Object.keys(definition);
-                      var codeRef = isArray ? "[" : "{";
-                      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-                        var key = keys[idx];
-                        var definition$1 = definition[key];
-                        var output = definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
-                        codeRef = codeRef + (
-                          isArray ? output : JSON.stringify(key) + ":" + output
-                        ) + ",";
-                      }
-                      return codeRef + (
-                              isArray ? "]" : "}"
-                            );
-                  case 1 :
-                      return "e[" + (b.e.push(definition) - 1) + "]";
-                  case 2 :
-                      registeredDefinitions.add(definition);
-                      var inputPath = definition.p;
-                      var schema = definition.s;
-                      var fieldOuputVar = useWithTypeFilter(b, schema, inputVar + inputPath, path + inputPath);
-                      var isAsyncField = schema.i;
-                      if (isAsyncField) {
-                        asyncOutputVars.push(fieldOuputVar);
-                      }
-                      return fieldOuputVar;
-                  
-                }
-              };
-              var syncOutput = definitionToOutput(definition, "");
-              var registeredFieldsCode = b.c;
-              b.c = "";
-              for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
-                var itemDefinition = itemDefinitions[idx];
-                if (!registeredDefinitions.has(itemDefinition)) {
-                  var inputPath = itemDefinition.p;
-                  var schema = itemDefinition.s;
-                  var fieldOuputVar = useWithTypeFilter(b, schema, inputVar + inputPath, path + inputPath);
-                  var isAsyncField = schema.i;
-                  if (isAsyncField) {
-                    asyncOutputVars.push(fieldOuputVar);
-                  }
-                  
-                }
-                
-              }
-              var unregisteredFieldsCode = b.c;
-              b.c = prevCode + unregisteredFieldsCode + registeredFieldsCode + unknownKeysRefinementCode;
-              if (asyncOutputVars.length === 0) {
-                return valWithInitial(b, syncOutput);
-              } else {
-                return asyncVal(b, "Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
-                                  return asyncOutputVar + "()";
-                                }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "))");
-              }
-            });
+  return function (b, selfSchema, path) {
+    var inputVar = toVar(b, b.i);
+    var registeredDefinitions = new Set();
+    var asyncOutputVars = [];
+    inputRefinement(b, selfSchema, inputVar, path);
+    var prevCode = b.c;
+    b.c = "";
+    unknownKeysRefinement(b, selfSchema, inputVar, path);
+    var unknownKeysRefinementCode = b.c;
+    b.c = "";
+    var definitionToOutput = function (definition, outputPath) {
+      var kind = toKindWithSet(definition, itemDefinitionsSet);
+      switch (kind) {
+        case 0 :
+            var isArray = Array.isArray(definition);
+            var keys = Object.keys(definition);
+            var codeRef = isArray ? "[" : "{";
+            for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+              var key = keys[idx];
+              var definition$1 = definition[key];
+              var output = definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+              codeRef = codeRef + (
+                isArray ? output : JSON.stringify(key) + ":" + output
+              ) + ",";
+            }
+            return codeRef + (
+                    isArray ? "]" : "}"
+                  );
+        case 1 :
+            return "e[" + (b.e.push(definition) - 1) + "]";
+        case 2 :
+            registeredDefinitions.add(definition);
+            var inputPath = definition.p;
+            var schema = definition.s;
+            var fieldOuputVar = useWithTypeFilter(b, schema, inputVar + inputPath, path + inputPath);
+            var isAsyncField = schema.i;
+            if (isAsyncField) {
+              asyncOutputVars.push(fieldOuputVar);
+            }
+            return fieldOuputVar;
+        
+      }
+    };
+    var syncOutput = definitionToOutput(definition, "");
+    var registeredFieldsCode = b.c;
+    b.c = "";
+    for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
+      var itemDefinition = itemDefinitions[idx];
+      if (!registeredDefinitions.has(itemDefinition)) {
+        var inputPath = itemDefinition.p;
+        var schema = itemDefinition.s;
+        var fieldOuputVar = useWithTypeFilter(b, schema, inputVar + inputPath, path + inputPath);
+        var isAsyncField = schema.i;
+        if (isAsyncField) {
+          asyncOutputVars.push(fieldOuputVar);
+        }
+        
+      }
+      
+    }
+    var unregisteredFieldsCode = b.c;
+    b.c = prevCode + unregisteredFieldsCode + registeredFieldsCode + unknownKeysRefinementCode;
+    if (asyncOutputVars.length === 0) {
+      return valWithInitial(b, syncOutput);
+    } else {
+      return asyncVal(b, "Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
+                        return asyncOutputVar + "()";
+                      }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "))");
+    }
+  };
 }
 
 function factory$3(definer) {
@@ -1703,62 +1702,62 @@ function factory$3(definer) {
                                   };
                           }), keyVar$1) + "}");
                 })),
-          s: make$1(function (b, param, path) {
-                var inputVar = toVar(b, b.i);
-                var fieldsCodeRef = {
-                  contents: ""
-                };
-                var registeredDefinitions = new Set();
-                var prevCode = b.c;
-                b.c = "";
-                var definitionToOutput = function (definition, outputPath) {
-                  var kind = toKindWithSet(definition, itemDefinitionsSet$1);
-                  switch (kind) {
-                    case 0 :
-                        var keys = Object.keys(definition);
-                        for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-                          var key = keys[idx];
-                          var definition$1 = definition[key];
-                          definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
-                        }
+          s: (function (b, param, path) {
+              var inputVar = toVar(b, b.i);
+              var fieldsCodeRef = {
+                contents: ""
+              };
+              var registeredDefinitions = new Set();
+              var prevCode = b.c;
+              b.c = "";
+              var definitionToOutput = function (definition, outputPath) {
+                var kind = toKindWithSet(definition, itemDefinitionsSet$1);
+                switch (kind) {
+                  case 0 :
+                      var keys = Object.keys(definition);
+                      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+                        var key = keys[idx];
+                        var definition$1 = definition[key];
+                        definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+                      }
+                      return ;
+                  case 1 :
+                      b.c = "if(" + inputVar + outputPath + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
+                              return {
+                                      TAG: "InvalidLiteral",
+                                      expected: parseInternal(definition),
+                                      received: input
+                                    };
+                            }), inputVar + outputPath) + "}" + b.c;
+                      return ;
+                  case 2 :
+                      if (registeredDefinitions.has(definition)) {
+                        return invalidOperation(b, path, "The field " + definition.l + " is registered multiple times. If you want to duplicate the field, use S.transform instead");
+                      } else {
+                        registeredDefinitions.add(definition);
+                        fieldsCodeRef.contents = fieldsCodeRef.contents + (definition.l + ":" + use(b, definition.s, inputVar + outputPath, path + outputPath) + ",");
                         return ;
-                    case 1 :
-                        b.c = "if(" + inputVar + outputPath + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
-                                return {
-                                        TAG: "InvalidLiteral",
-                                        expected: parseInternal(definition),
-                                        received: input
-                                      };
-                              }), inputVar + outputPath) + "}" + b.c;
-                        return ;
-                    case 2 :
-                        if (registeredDefinitions.has(definition)) {
-                          return invalidOperation(b, path, "The field " + definition.l + " is registered multiple times. If you want to duplicate the field, use S.transform instead");
-                        } else {
-                          registeredDefinitions.add(definition);
-                          fieldsCodeRef.contents = fieldsCodeRef.contents + (definition.l + ":" + use(b, definition.s, inputVar + outputPath, path + outputPath) + ",");
-                          return ;
-                        }
-                    
-                  }
-                };
-                definitionToOutput(definition, "");
-                b.c = prevCode + b.c;
-                for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
-                  var itemDefinition = itemDefinitions[idx];
-                  if (!registeredDefinitions.has(itemDefinition)) {
-                    var inlinedInputLocation = itemDefinition.l;
-                    var literal = toInternalLiteral(itemDefinition.s);
-                    if (literal !== undefined) {
-                      fieldsCodeRef.contents = fieldsCodeRef.contents + (inlinedInputLocation + ":" + ("e[" + (b.e.push(literal.value) - 1) + "]") + ",");
-                    } else {
-                      invalidOperation(b, path, "Can't create serializer. The " + inlinedInputLocation + " field is not registered and not a literal. Use S.transform instead");
-                    }
-                  }
+                      }
                   
                 }
-                return valWithInitial(b, "{" + fieldsCodeRef.contents + "}");
-              }),
+              };
+              definitionToOutput(definition, "");
+              b.c = prevCode + b.c;
+              for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
+                var itemDefinition = itemDefinitions[idx];
+                if (!registeredDefinitions.has(itemDefinition)) {
+                  var inlinedInputLocation = itemDefinition.l;
+                  var literal = toInternalLiteral(itemDefinition.s);
+                  if (literal !== undefined) {
+                    fieldsCodeRef.contents = fieldsCodeRef.contents + (inlinedInputLocation + ":" + ("e[" + (b.e.push(literal.value) - 1) + "]") + ",");
+                  } else {
+                    invalidOperation(b, path, "Can't create serializer. The " + inlinedInputLocation + " field is not registered and not a literal. Use S.transform instead");
+                  }
+                }
+                
+              }
+              return valWithInitial(b, "{" + fieldsCodeRef.contents + "}");
+            }),
           f: typeFilter,
           i: 0,
           m: empty
@@ -1809,17 +1808,17 @@ function strict(schema) {
   }
 }
 
-var builder = make$1(function (b, selfSchema, path) {
-      var input = b.i;
-      b.c = b.c + raiseWithArg(b, path, (function (input) {
-              return {
-                      TAG: "InvalidType",
-                      expected: selfSchema,
-                      received: input
-                    };
-            }), input) + ";";
-      return valWithInitial(b, input);
-    });
+function builder(b, selfSchema, path) {
+  var input = b.i;
+  b.c = b.c + raiseWithArg(b, path, (function (input) {
+          return {
+                  TAG: "InvalidType",
+                  expected: selfSchema,
+                  received: input
+                };
+        }), input) + ";";
+  return valWithInitial(b, input);
+}
 
 var schema = {
   t: "Never",
@@ -2015,23 +2014,23 @@ function factory$4(schema, spaceOpt) {
   return {
           t: "String",
           n: primitiveName,
-          p: make$1(function (b, param, path) {
-                var input = b.i;
-                var jsonVar = $$var(b);
-                b.c = b.c + ("try{" + jsonVar + "=JSON.parse(" + input + ")}catch(t){" + raiseWithArg(b, path, (function (message) {
-                          return {
-                                  TAG: "OperationFailed",
-                                  _0: message
-                                };
-                        }), "t.message") + "}");
-                return valWithInitial(b, useWithTypeFilter(b, schema, jsonVar, path));
-              }),
-          s: make$1(function (b, param, path) {
-                var input = b.i;
-                return valWithInitial(b, "JSON.stringify(" + use(b, schema, input, path) + (
-                            space > 0 ? ",null," + space : ""
-                          ) + ")");
-              }),
+          p: (function (b, param, path) {
+              var input = b.i;
+              var jsonVar = $$var(b);
+              b.c = b.c + ("try{" + jsonVar + "=JSON.parse(" + input + ")}catch(t){" + raiseWithArg(b, path, (function (message) {
+                        return {
+                                TAG: "OperationFailed",
+                                _0: message
+                              };
+                      }), "t.message") + "}");
+              return valWithInitial(b, useWithTypeFilter(b, schema, jsonVar, path));
+            }),
+          s: (function (b, param, path) {
+              var input = b.i;
+              return valWithInitial(b, "JSON.stringify(" + use(b, schema, input, path) + (
+                          space > 0 ? ",null," + space : ""
+                        ) + ")");
+            }),
           f: typeFilter$1,
           i: 0,
           m: empty
@@ -2186,51 +2185,51 @@ function factory$5(schema) {
             _0: schema
           },
           n: containerName,
-          p: make$1(function (b, param, path) {
-                var inputVar = toVar(b, b.i);
-                var iteratorVar = varWithoutAllocation(b);
-                var outputVal = valWithInitial(b, "[]");
-                b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
-                          var itemOutputVar = withPathPrepend(b, path, iteratorVar, (function (b, path) {
-                                  return useWithTypeFilter(b, schema, inputVar + "[" + iteratorVar + "]", path);
-                                }));
-                          return push(b, outputVal, itemOutputVar);
-                        })) + "}");
-                var isAsync = schema.i;
-                if (isAsync) {
-                  return asyncVal(b, "Promise.all(" + $$var$1(b, outputVal) + ".map(t=>t()))");
-                } else {
-                  return outputVal;
-                }
-              }),
-          s: make$1(function (b, param, path) {
-                if (schema.s === noop) {
-                  var input = b.i;
-                  if (b.s.has(input)) {
-                    return {
-                            v: input,
-                            x: b.x,
-                            a: false
-                          };
-                  } else {
-                    return {
-                            i: input,
-                            x: b.x,
-                            a: false
-                          };
-                  }
-                }
-                var inputVar = toVar(b, b.i);
-                var iteratorVar = varWithoutAllocation(b);
-                var outputVal = valWithInitial(b, "[]");
-                b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
-                          var itemOutputVar = withPathPrepend(b, path, iteratorVar, (function (b, path) {
-                                  return use(b, schema, inputVar + "[" + iteratorVar + "]", path);
-                                }));
-                          return push(b, outputVal, itemOutputVar);
-                        })) + "}");
+          p: (function (b, param, path) {
+              var inputVar = toVar(b, b.i);
+              var iteratorVar = varWithoutAllocation(b);
+              var outputVal = valWithInitial(b, "[]");
+              b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
+                        var itemOutputVar = withPathPrepend(b, path, iteratorVar, (function (b, path) {
+                                return useWithTypeFilter(b, schema, inputVar + "[" + iteratorVar + "]", path);
+                              }));
+                        return push(b, outputVal, itemOutputVar);
+                      })) + "}");
+              var isAsync = schema.i;
+              if (isAsync) {
+                return asyncVal(b, "Promise.all(" + $$var$1(b, outputVal) + ".map(t=>t()))");
+              } else {
                 return outputVal;
-              }),
+              }
+            }),
+          s: (function (b, param, path) {
+              if (schema.s === noop) {
+                var input = b.i;
+                if (b.s.has(input)) {
+                  return {
+                          v: input,
+                          x: b.x,
+                          a: false
+                        };
+                } else {
+                  return {
+                          i: input,
+                          x: b.x,
+                          a: false
+                        };
+                }
+              }
+              var inputVar = toVar(b, b.i);
+              var iteratorVar = varWithoutAllocation(b);
+              var outputVal = valWithInitial(b, "[]");
+              b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
+                        var itemOutputVar = withPathPrepend(b, path, iteratorVar, (function (b, path) {
+                                return use(b, schema, inputVar + "[" + iteratorVar + "]", path);
+                              }));
+                        return push(b, outputVal, itemOutputVar);
+                      })) + "}");
+              return outputVal;
+            }),
           f: typeFilter$5,
           i: 0,
           m: empty
@@ -2283,49 +2282,49 @@ function factory$6(schema) {
             _0: schema
           },
           n: containerName,
-          p: make$1(function (b, param, path) {
+          p: (function (b, param, path) {
+              var inputVar = toVar(b, b.i);
+              var keyVar = varWithoutAllocation(b);
+              var outputVar = $$var(b);
+              b.c = b.c + (outputVar + "={};for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
+                        var itemOutputVar = withPathPrepend(b, path, keyVar, (function (b, path) {
+                                return useWithTypeFilter(b, schema, inputVar + "[" + keyVar + "]", path);
+                              }));
+                        return outputVar + "[" + keyVar + "]=" + itemOutputVar;
+                      })) + "}");
+              var isAsync = schema.i;
+              var tmp;
+              if (isAsync) {
+                var resolveVar = varWithoutAllocation(b);
+                var rejectVar = varWithoutAllocation(b);
+                var asyncParseResultVar = varWithoutAllocation(b);
+                var counterVar = varWithoutAllocation(b);
+                var asyncOutputVar = $$var(b);
+                b.c = b.c + (asyncOutputVar + "=()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=Object.keys(" + outputVar + ").length;for(let " + keyVar + " in " + outputVar + "){" + outputVar + "[" + keyVar + "]().then(" + asyncParseResultVar + "=>{" + outputVar + "[" + keyVar + "]=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + outputVar + ")}}," + rejectVar + ")}});");
+                tmp = asyncOutputVar;
+              } else {
+                tmp = outputVar;
+              }
+              return valWithInitial(b, tmp);
+            }),
+          s: (function (b, param, path) {
+              var tmp;
+              if (schema.s === noop) {
+                tmp = b.i;
+              } else {
                 var inputVar = toVar(b, b.i);
                 var keyVar = varWithoutAllocation(b);
                 var outputVar = $$var(b);
                 b.c = b.c + (outputVar + "={};for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
                           var itemOutputVar = withPathPrepend(b, path, keyVar, (function (b, path) {
-                                  return useWithTypeFilter(b, schema, inputVar + "[" + keyVar + "]", path);
+                                  return use(b, schema, inputVar + "[" + keyVar + "]", path);
                                 }));
                           return outputVar + "[" + keyVar + "]=" + itemOutputVar;
                         })) + "}");
-                var isAsync = schema.i;
-                var tmp;
-                if (isAsync) {
-                  var resolveVar = varWithoutAllocation(b);
-                  var rejectVar = varWithoutAllocation(b);
-                  var asyncParseResultVar = varWithoutAllocation(b);
-                  var counterVar = varWithoutAllocation(b);
-                  var asyncOutputVar = $$var(b);
-                  b.c = b.c + (asyncOutputVar + "=()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=Object.keys(" + outputVar + ").length;for(let " + keyVar + " in " + outputVar + "){" + outputVar + "[" + keyVar + "]().then(" + asyncParseResultVar + "=>{" + outputVar + "[" + keyVar + "]=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + outputVar + ")}}," + rejectVar + ")}});");
-                  tmp = asyncOutputVar;
-                } else {
-                  tmp = outputVar;
-                }
-                return valWithInitial(b, tmp);
-              }),
-          s: make$1(function (b, param, path) {
-                var tmp;
-                if (schema.s === noop) {
-                  tmp = b.i;
-                } else {
-                  var inputVar = toVar(b, b.i);
-                  var keyVar = varWithoutAllocation(b);
-                  var outputVar = $$var(b);
-                  b.c = b.c + (outputVar + "={};for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
-                            var itemOutputVar = withPathPrepend(b, path, keyVar, (function (b, path) {
-                                    return use(b, schema, inputVar + "[" + keyVar + "]", path);
-                                  }));
-                            return outputVar + "[" + keyVar + "]=" + itemOutputVar;
-                          })) + "}");
-                  tmp = outputVar;
-                }
-                return valWithInitial(b, tmp);
-              }),
+                tmp = outputVar;
+              }
+              return valWithInitial(b, tmp);
+            }),
           f: typeFilter,
           i: 0,
           m: empty
@@ -2399,60 +2398,60 @@ function factory$7(definer) {
                                   };
                           }), inputVar + ".length") + "}");
                 }), noopRefinement),
-          s: make$1(function (b, param, path) {
-                var inputVar = toVar(b, b.i);
-                var outputVar = $$var(b);
-                var registeredDefinitions = new Set();
-                b.c = b.c + (outputVar + "=[];");
-                var prevCode = b.c;
-                b.c = "";
-                var definitionToOutput = function (definition, outputPath) {
-                  var kind = toKindWithSet(definition, itemDefinitionsSet$1);
-                  switch (kind) {
-                    case 0 :
-                        var keys = Object.keys(definition);
-                        for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-                          var key = keys[idx];
-                          var definition$1 = definition[key];
-                          definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
-                        }
-                        return ;
-                    case 1 :
-                        b.c = "if(" + inputVar + outputPath + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
-                                return {
-                                        TAG: "InvalidLiteral",
-                                        expected: parseInternal(definition),
-                                        received: input
-                                      };
-                              }), inputVar + outputPath) + "}" + b.c;
-                        return ;
-                    case 2 :
-                        if (registeredDefinitions.has(definition)) {
-                          return invalidOperation(b, path, "The item " + definition.l + " is registered multiple times. If you want to duplicate the item, use S.transform instead");
-                        }
-                        registeredDefinitions.add(definition);
-                        var fieldOuputVar = use(b, definition.s, inputVar + outputPath, path + outputPath);
-                        b.c = b.c + (outputVar + definition.p + "=" + fieldOuputVar + ";");
-                        return ;
-                    
-                  }
-                };
-                definitionToOutput(definition, "");
-                b.c = prevCode + b.c;
-                for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
-                  var itemDefinition = itemDefinitions[idx];
-                  if (!registeredDefinitions.has(itemDefinition)) {
-                    var literal = toInternalLiteral(itemDefinition.s);
-                    if (literal !== undefined) {
-                      b.c = b.c + (outputVar + itemDefinition.p + "=" + ("e[" + (b.e.push(literal.value) - 1) + "]") + ";");
-                    } else {
-                      invalidOperation(b, path, "Can't create serializer. The " + itemDefinition.l + " item is not registered and not a literal. Use S.transform instead");
-                    }
-                  }
+          s: (function (b, param, path) {
+              var inputVar = toVar(b, b.i);
+              var outputVar = $$var(b);
+              var registeredDefinitions = new Set();
+              b.c = b.c + (outputVar + "=[];");
+              var prevCode = b.c;
+              b.c = "";
+              var definitionToOutput = function (definition, outputPath) {
+                var kind = toKindWithSet(definition, itemDefinitionsSet$1);
+                switch (kind) {
+                  case 0 :
+                      var keys = Object.keys(definition);
+                      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+                        var key = keys[idx];
+                        var definition$1 = definition[key];
+                        definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+                      }
+                      return ;
+                  case 1 :
+                      b.c = "if(" + inputVar + outputPath + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
+                              return {
+                                      TAG: "InvalidLiteral",
+                                      expected: parseInternal(definition),
+                                      received: input
+                                    };
+                            }), inputVar + outputPath) + "}" + b.c;
+                      return ;
+                  case 2 :
+                      if (registeredDefinitions.has(definition)) {
+                        return invalidOperation(b, path, "The item " + definition.l + " is registered multiple times. If you want to duplicate the item, use S.transform instead");
+                      }
+                      registeredDefinitions.add(definition);
+                      var fieldOuputVar = use(b, definition.s, inputVar + outputPath, path + outputPath);
+                      b.c = b.c + (outputVar + definition.p + "=" + fieldOuputVar + ";");
+                      return ;
                   
                 }
-                return valWithInitial(b, outputVar);
-              }),
+              };
+              definitionToOutput(definition, "");
+              b.c = prevCode + b.c;
+              for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
+                var itemDefinition = itemDefinitions[idx];
+                if (!registeredDefinitions.has(itemDefinition)) {
+                  var literal = toInternalLiteral(itemDefinition.s);
+                  if (literal !== undefined) {
+                    b.c = b.c + (outputVar + itemDefinition.p + "=" + ("e[" + (b.e.push(literal.value) - 1) + "]") + ";");
+                  } else {
+                    invalidOperation(b, path, "Can't create serializer. The " + itemDefinition.l + " item is not registered and not a literal. Use S.transform instead");
+                  }
+                }
+                
+              }
+              return valWithInitial(b, outputVar);
+            }),
           f: typeFilter$5,
           i: 0,
           m: empty
@@ -2475,105 +2474,105 @@ function factory$8(schemas) {
                               return s.n();
                             }).join(", ") + ")";
               }),
-            p: make$1(function (b, selfSchema, path) {
-                  var inputVar = toVar(b, b.i);
-                  var schemas = selfSchema.t._0;
-                  var isAsyncRef = false;
-                  var itemsCode = [];
-                  var itemsOutputVar = [];
-                  var prevCode = b.c;
-                  for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
-                    var schema = schemas[idx];
-                    b.c = "";
-                    var itemOutputVar = withBuildErrorInline(b, (function () {
-                            return useWithTypeFilter(b, schema, inputVar, "");
-                          }));
-                    var isAsyncItem = schema.i;
-                    if (isAsyncItem) {
-                      isAsyncRef = true;
-                    }
-                    itemsOutputVar.push(itemOutputVar);
-                    itemsCode.push(b.c);
+            p: (function (b, selfSchema, path) {
+                var inputVar = toVar(b, b.i);
+                var schemas = selfSchema.t._0;
+                var isAsyncRef = false;
+                var itemsCode = [];
+                var itemsOutputVar = [];
+                var prevCode = b.c;
+                for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
+                  var schema = schemas[idx];
+                  b.c = "";
+                  var itemOutputVar = withBuildErrorInline(b, (function () {
+                          return useWithTypeFilter(b, schema, inputVar, "");
+                        }));
+                  var isAsyncItem = schema.i;
+                  if (isAsyncItem) {
+                    isAsyncRef = true;
                   }
-                  b.c = prevCode;
-                  var isAsync = isAsyncRef;
-                  var outputVar = $$var(b);
-                  var codeEndRef = "";
-                  var errorCodeRef = "";
-                  for(var idx$1 = 0 ,idx_finish$1 = schemas.length; idx$1 < idx_finish$1; ++idx$1){
-                    var schema$1 = schemas[idx$1];
-                    var code = itemsCode[idx$1];
-                    var itemOutputVar$1 = itemsOutputVar[idx$1];
-                    var isAsyncItem$1 = schema$1.i;
-                    var errorVar = varWithoutAllocation(b);
-                    var errorCode = isAsync ? (
-                        isAsyncItem$1 ? errorVar + "===" + itemOutputVar$1 + "?" + errorVar + "():" : ""
-                      ) + ("Promise.reject(" + errorVar + ")") : errorVar;
-                    errorCodeRef = idx$1 === 0 ? errorCode : errorCodeRef + "," + errorCode;
-                    b.c = b.c + ("try{" + code + (
-                        isAsyncItem$1 ? "throw " + itemOutputVar$1 : (
-                            isAsync ? outputVar + "=()=>Promise.resolve(" + itemOutputVar$1 + ")" : outputVar + "=" + itemOutputVar$1
-                          )
-                      ) + "}catch(" + errorVar + "){if(" + (errorVar + "&&" + errorVar + ".s===s") + (
-                        isAsyncItem$1 ? "||" + errorVar + "===" + itemOutputVar$1 : ""
-                      ) + "){");
-                    codeEndRef = "}else{throw " + errorVar + "}}" + codeEndRef;
-                  }
-                  if (isAsync) {
-                    b.c = b.c + (outputVar + "=()=>Promise.any([" + errorCodeRef + "]).catch(t=>{" + raiseWithArg(b, path, (function (internalErrors) {
-                              return {
-                                      TAG: "InvalidUnion",
-                                      _0: internalErrors
-                                    };
-                            }), "t.errors") + "})") + codeEndRef;
-                    return valWithInitial(b, outputVar);
-                  } else {
-                    b.c = b.c + raiseWithArg(b, path, (function (internalErrors) {
+                  itemsOutputVar.push(itemOutputVar);
+                  itemsCode.push(b.c);
+                }
+                b.c = prevCode;
+                var isAsync = isAsyncRef;
+                var outputVar = $$var(b);
+                var codeEndRef = "";
+                var errorCodeRef = "";
+                for(var idx$1 = 0 ,idx_finish$1 = schemas.length; idx$1 < idx_finish$1; ++idx$1){
+                  var schema$1 = schemas[idx$1];
+                  var code = itemsCode[idx$1];
+                  var itemOutputVar$1 = itemsOutputVar[idx$1];
+                  var isAsyncItem$1 = schema$1.i;
+                  var errorVar = varWithoutAllocation(b);
+                  var errorCode = isAsync ? (
+                      isAsyncItem$1 ? errorVar + "===" + itemOutputVar$1 + "?" + errorVar + "():" : ""
+                    ) + ("Promise.reject(" + errorVar + ")") : errorVar;
+                  errorCodeRef = idx$1 === 0 ? errorCode : errorCodeRef + "," + errorCode;
+                  b.c = b.c + ("try{" + code + (
+                      isAsyncItem$1 ? "throw " + itemOutputVar$1 : (
+                          isAsync ? outputVar + "=()=>Promise.resolve(" + itemOutputVar$1 + ")" : outputVar + "=" + itemOutputVar$1
+                        )
+                    ) + "}catch(" + errorVar + "){if(" + (errorVar + "&&" + errorVar + ".s===s") + (
+                      isAsyncItem$1 ? "||" + errorVar + "===" + itemOutputVar$1 : ""
+                    ) + "){");
+                  codeEndRef = "}else{throw " + errorVar + "}}" + codeEndRef;
+                }
+                if (isAsync) {
+                  b.c = b.c + (outputVar + "=()=>Promise.any([" + errorCodeRef + "]).catch(t=>{" + raiseWithArg(b, path, (function (internalErrors) {
                             return {
                                     TAG: "InvalidUnion",
                                     _0: internalErrors
                                   };
-                          }), "[" + errorCodeRef + "]") + codeEndRef;
-                    return valWithInitial(b, outputVar);
-                  }
-                }),
-            s: make$1(function (b, selfSchema, path) {
-                  var inputVar = toVar(b, b.i);
-                  var schemas = selfSchema.t._0;
-                  var outputVar = $$var(b);
-                  var codeEndRef = "";
-                  var errorVarsRef = "";
-                  for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
-                    var itemSchema = schemas[idx];
-                    var errorVar = varWithoutAllocation(b);
-                    errorVarsRef = errorVarsRef + errorVar + ",";
-                    b.c = b.c + ("try{" + scope(b, (function(itemSchema){
-                          return function (b) {
-                            var itemOutput = withBuildErrorInline(b, (function () {
-                                    return use(b, itemSchema, inputVar, "");
-                                  }));
-                            var typeFilter = itemSchema.f;
-                            var itemOutput$1;
-                            if (typeFilter !== undefined) {
-                              var itemOutputVar = toVar(b, itemOutput);
-                              b.c = b.c + typeFilterCode(b, typeFilter, itemSchema, itemOutputVar, "");
-                              itemOutput$1 = itemOutputVar;
-                            } else {
-                              itemOutput$1 = itemOutput;
-                            }
-                            return outputVar + "=" + itemOutput$1;
-                          }
-                          }(itemSchema))) + "}catch(" + errorVar + "){if(" + (errorVar + "&&" + errorVar + ".s===s") + "){");
-                    codeEndRef = "}else{throw " + errorVar + "}}" + codeEndRef;
-                  }
+                          }), "t.errors") + "})") + codeEndRef;
+                  return valWithInitial(b, outputVar);
+                } else {
                   b.c = b.c + raiseWithArg(b, path, (function (internalErrors) {
                           return {
                                   TAG: "InvalidUnion",
                                   _0: internalErrors
                                 };
-                        }), "[" + errorVarsRef + "]") + codeEndRef;
+                        }), "[" + errorCodeRef + "]") + codeEndRef;
                   return valWithInitial(b, outputVar);
-                }),
+                }
+              }),
+            s: (function (b, selfSchema, path) {
+                var inputVar = toVar(b, b.i);
+                var schemas = selfSchema.t._0;
+                var outputVar = $$var(b);
+                var codeEndRef = "";
+                var errorVarsRef = "";
+                for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
+                  var itemSchema = schemas[idx];
+                  var errorVar = varWithoutAllocation(b);
+                  errorVarsRef = errorVarsRef + errorVar + ",";
+                  b.c = b.c + ("try{" + scope(b, (function(itemSchema){
+                        return function (b) {
+                          var itemOutput = withBuildErrorInline(b, (function () {
+                                  return use(b, itemSchema, inputVar, "");
+                                }));
+                          var typeFilter = itemSchema.f;
+                          var itemOutput$1;
+                          if (typeFilter !== undefined) {
+                            var itemOutputVar = toVar(b, itemOutput);
+                            b.c = b.c + typeFilterCode(b, typeFilter, itemSchema, itemOutputVar, "");
+                            itemOutput$1 = itemOutputVar;
+                          } else {
+                            itemOutput$1 = itemOutput;
+                          }
+                          return outputVar + "=" + itemOutput$1;
+                        }
+                        }(itemSchema))) + "}catch(" + errorVar + "){if(" + (errorVar + "&&" + errorVar + ".s===s") + "){");
+                  codeEndRef = "}else{throw " + errorVar + "}}" + codeEndRef;
+                }
+                b.c = b.c + raiseWithArg(b, path, (function (internalErrors) {
+                        return {
+                                TAG: "InvalidUnion",
+                                _0: internalErrors
+                              };
+                      }), "[" + errorVarsRef + "]") + codeEndRef;
+                return valWithInitial(b, outputVar);
+              }),
             f: undefined,
             i: 0,
             m: empty
@@ -2598,54 +2597,54 @@ function json(validate) {
             validated: validate
           },
           n: primitiveName,
-          p: validate ? make$1(function (b, selfSchema, path) {
-                  var parse = function (input, pathOpt) {
-                    var path$1 = pathOpt !== undefined ? pathOpt : path;
-                    var match = typeof input;
-                    if (match === "string" || match === "boolean") {
+          p: validate ? (function (b, selfSchema, path) {
+                var parse = function (input, pathOpt) {
+                  var path$1 = pathOpt !== undefined ? pathOpt : path;
+                  var match = typeof input;
+                  if (match === "string" || match === "boolean") {
+                    return input;
+                  }
+                  if (match === "object") {
+                    if (input === null) {
                       return input;
                     }
-                    if (match === "object") {
-                      if (input === null) {
-                        return input;
+                    if (Array.isArray(input)) {
+                      var output = [];
+                      for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
+                        var inputItem = input[idx];
+                        var $$location = idx.toString();
+                        output.push(parse(inputItem, path$1 + ("[" + JSON.stringify($$location) + "]")));
                       }
-                      if (Array.isArray(input)) {
-                        var output = [];
-                        for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
-                          var inputItem = input[idx];
-                          var $$location = idx.toString();
-                          output.push(parse(inputItem, path$1 + ("[" + JSON.stringify($$location) + "]")));
-                        }
-                        return output;
-                      }
-                      var keys = Object.keys(input);
-                      var output$1 = {};
-                      for(var idx$1 = 0 ,idx_finish$1 = keys.length; idx$1 < idx_finish$1; ++idx$1){
-                        var key = keys[idx$1];
-                        var field = input[key];
-                        output$1[key] = parse(field, path$1 + ("[" + JSON.stringify(key) + "]"));
-                      }
-                      return output$1;
+                      return output;
                     }
-                    if (match === "number") {
-                      if (!Number.isNaN(input)) {
-                        return input;
-                      }
-                      throw new RescriptSchemaError({
-                                TAG: "InvalidType",
-                                expected: selfSchema,
-                                received: input
-                              }, "Parsing", path$1);
+                    var keys = Object.keys(input);
+                    var output$1 = {};
+                    for(var idx$1 = 0 ,idx_finish$1 = keys.length; idx$1 < idx_finish$1; ++idx$1){
+                      var key = keys[idx$1];
+                      var field = input[key];
+                      output$1[key] = parse(field, path$1 + ("[" + JSON.stringify(key) + "]"));
+                    }
+                    return output$1;
+                  }
+                  if (match === "number") {
+                    if (!Number.isNaN(input)) {
+                      return input;
                     }
                     throw new RescriptSchemaError({
                               TAG: "InvalidType",
                               expected: selfSchema,
                               received: input
                             }, "Parsing", path$1);
-                  };
-                  var input = b.i;
-                  return valWithInitial(b, "e[" + (b.e.push(parse) - 1) + "](" + input + ")");
-                }) : noop,
+                  }
+                  throw new RescriptSchemaError({
+                            TAG: "InvalidType",
+                            expected: selfSchema,
+                            received: input
+                          }, "Parsing", path$1);
+                };
+                var input = b.i;
+                return valWithInitial(b, "e[" + (b.e.push(parse) - 1) + "](" + input + ")");
+              }) : noop,
           s: noop,
           f: undefined,
           i: 0,
@@ -2659,27 +2658,27 @@ function $$catch(schema, getFallbackValue) {
   return {
           t: schema.t,
           n: schema.n,
-          p: make$1(function (b, selfSchema, path) {
-                var inputVar = toVar(b, b.i);
-                return valWithInitial(b, withCatch(b, (function (b, errorVar) {
-                                  return "e[" + (b.e.push(function (input, internalError) {
-                                                return getFallbackValue({
-                                                            e: internalError,
-                                                            i: input,
-                                                            s: selfSchema,
-                                                            f: (function (message, customPathOpt) {
-                                                                var customPath = customPathOpt !== undefined ? customPathOpt : "";
-                                                                throw new RescriptSchemaError({
-                                                                          TAG: "OperationFailed",
-                                                                          _0: message
-                                                                        }, b.o, path + customPath);
-                                                              })
-                                                          });
-                                              }) - 1) + "](" + inputVar + "," + errorVar + ")";
-                                }), (function (b) {
-                                  return useWithTypeFilter(b, schema, inputVar, path);
-                                })));
-              }),
+          p: (function (b, selfSchema, path) {
+              var inputVar = toVar(b, b.i);
+              return valWithInitial(b, withCatch(b, (function (b, errorVar) {
+                                return "e[" + (b.e.push(function (input, internalError) {
+                                              return getFallbackValue({
+                                                          e: internalError,
+                                                          i: input,
+                                                          s: selfSchema,
+                                                          f: (function (message, customPathOpt) {
+                                                              var customPath = customPathOpt !== undefined ? customPathOpt : "";
+                                                              throw new RescriptSchemaError({
+                                                                        TAG: "OperationFailed",
+                                                                        _0: message
+                                                                      }, b.o, path + customPath);
+                                                            })
+                                                        });
+                                            }) - 1) + "](" + inputVar + "," + errorVar + ")";
+                              }), (function (b) {
+                                return useWithTypeFilter(b, schema, inputVar, path);
+                              })));
+            }),
           s: schema.s,
           f: undefined,
           i: 0,
@@ -2753,7 +2752,7 @@ function factory$9(definer) {
 
 var $$class = RescriptSchemaError;
 
-function make$3(prim0, prim1, prim2) {
+function make$2(prim0, prim1, prim2) {
   return new RescriptSchemaError(prim0, prim1, prim2);
 }
 
@@ -3288,15 +3287,15 @@ function js_merge(s1, s2) {
               n: (function () {
                   return s1.n() + " & " + s2.n();
                 }),
-              p: make$1(function (b, param, path) {
-                    var inputVar = toVar(b, b.i);
-                    var s1Result = use(b, s1, inputVar, path);
-                    var s2Result = use(b, s2, inputVar, path);
-                    return valWithInitial(b, "Object.assign(" + s1Result + ", " + s2Result + ")");
-                  }),
-              s: make$1(function (b, param, path) {
-                    return invalidOperation(b, path, "The S.merge serializing is not supported yet");
-                  }),
+              p: (function (b, param, path) {
+                  var inputVar = toVar(b, b.i);
+                  var s1Result = use(b, s1, inputVar, path);
+                  var s2Result = use(b, s2, inputVar, path);
+                  return valWithInitial(b, "Object.assign(" + s1Result + ", " + s2Result + ")");
+                }),
+              s: (function (b, param, path) {
+                  return invalidOperation(b, path, "The S.merge serializing is not supported yet");
+                }),
               f: typeFilter,
               i: 0,
               m: empty
@@ -3322,7 +3321,7 @@ var Path = {
 
 var $$Error$1 = {
   $$class: $$class,
-  make: make$3,
+  make: make$2,
   raise: raise,
   message: message,
   reason: reason

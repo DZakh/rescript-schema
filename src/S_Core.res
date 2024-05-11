@@ -388,9 +388,6 @@ let classify = schema => schema.tagged
 
 module Builder = {
   type t = builder
-  type implementation = (b, ~selfSchema: schema<unknown>, ~path: Path.t) => string
-  let deprecatedMake = (Obj.magic: implementation => t)
-
   type val = {
     @as("v")
     mutable _var?: string,
@@ -401,8 +398,10 @@ module Builder = {
     @as("a")
     _isAsync: bool,
   }
+  type implementation = (b, ~selfSchema: schema<unknown>, ~path: Path.t) => val
+  let make = (Obj.magic: implementation => t)
 
-  module Ctx = {
+  module B = {
     @inline
     let embed = (b: b, value) => {
       `e[${(b._embeded->Js.Array2.push(value->castAnyToUnknown)->(Obj.magic: int => float) -. 1.)
@@ -440,6 +439,14 @@ module Builder = {
     }
 
     module Val = {
+      let embed = (b: b, val: val) => {
+        switch val {
+        | {_var: ?Some(var)} => var
+        | {_initial: ?Some(initial)} => initial
+        | _ => b->var
+        }
+      }
+
       let var = (b: b, val: val) => {
         switch val._var {
         | Some(v) => v
@@ -665,11 +672,12 @@ module Builder = {
       let isParsing = b.operation === Parsing
       b._input = input
       b.isAsyncBranch = false
-      let output = (
+      let outputVal = (
         (isParsing ? schema.parseOperationBuilder : schema.serializeOperationBuilder)->(
           Obj.magic: builder => implementation
         )
       )(b, ~selfSchema=schema, ~path)
+      let output = b->Val.embed(outputVal)
       if isParsing {
         schema.isAsyncParse = Value(b.isAsyncBranch)
         b.isAsyncBranch = isParentAsync || b.isAsyncBranch
@@ -702,19 +710,8 @@ module Builder = {
     }
   }
 
-  let make = fn => {
-    deprecatedMake((b, ~selfSchema, ~path) => {
-      let val = fn(b, ~selfSchema, ~path)
-      switch val {
-      | {_var: ?Some(var)} => var
-      | {_initial: ?Some(initial)} => initial
-      | _ => b->Ctx.var
-      }
-    })
-  }
-
   let noop = make((b, ~selfSchema as _, ~path as _) => {
-    b->Ctx.useInputVal
+    b->B.useInputVal
   })
 
   let noopOperation = i => i->Obj.magic
@@ -736,11 +733,12 @@ module Builder = {
       operation,
     }
 
-    let output = (builder->(Obj.magic: builder => implementation))(
+    let outputVal = (builder->(Obj.magic: builder => implementation))(
       b,
       ~selfSchema=schema,
       ~path=Path.empty,
     )
+    let output = b->B.Val.embed(outputVal)
 
     if b._scope._varsAllocation !== "" {
       b.code = `let ${b._scope._varsAllocation};${b.code}`
@@ -750,12 +748,8 @@ module Builder = {
       switch schema.maybeTypeFilter {
       | Some(typeFilter) =>
         b.code =
-          b->Ctx.typeFilterCode(
-            ~schema,
-            ~typeFilter,
-            ~inputVar=intitialInputVar,
-            ~path=Path.empty,
-          ) ++ b.code
+          b->B.typeFilterCode(~schema, ~typeFilter, ~inputVar=intitialInputVar, ~path=Path.empty) ++
+            b.code
       | None => ()
       }
       schema.isAsyncParse = Value(b.isAsyncBranch)
@@ -779,7 +773,7 @@ module Builder = {
   }
 }
 // TODO: Split validation code and transformation code
-module B = Builder.Ctx
+module B = Builder.B
 
 module Literal = {
   open Stdlib
