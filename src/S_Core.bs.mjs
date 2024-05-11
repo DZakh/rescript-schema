@@ -147,9 +147,9 @@ function embed(b, val) {
 }
 
 function $$var$1(b, val) {
-  var v = val.v;
-  if (v !== undefined) {
-    return v;
+  var _var = val.v;
+  if (_var !== undefined) {
+    return _var;
   }
   var $$var$2 = varWithoutAllocation(b);
   var i = val.i;
@@ -170,19 +170,27 @@ function set(b, val, code) {
   return $$var$2 + "=" + code;
 }
 
-function val(b) {
+function allocateVal(b) {
   return {
           x: b.x,
           a: false
         };
 }
 
-function valWithInitial(b, initial) {
-  return {
-          i: initial,
-          x: b.x,
-          a: false
-        };
+function val(b, initial) {
+  if (b.s.has(initial)) {
+    return {
+            v: initial,
+            x: b.x,
+            a: false
+          };
+  } else {
+    return {
+            i: initial,
+            x: b.x,
+            a: false
+          };
+  }
 }
 
 function asyncVal(b, initial) {
@@ -328,7 +336,7 @@ function typeFilterCode(b, typeFilter, schema, inputVar, path) {
 function use(b, schema, input, path) {
   var isParentAsync = b.a;
   var isParsing = b.o === "Parsing";
-  b.i = input;
+  b.i = val(b, input);
   b.a = false;
   var outputVal = (
       isParsing ? schema.p : schema.s
@@ -362,25 +370,12 @@ function withBuildErrorInline(b, fn) {
     var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
     var error = getOrRethrow(exn);
     b.c = "throw " + ("e[" + (b.e.push(error) - 1) + "]") + ";";
-    return b.i;
+    return embed(b, b.i);
   }
 }
 
 function noop(b, param, param$1) {
-  var input = b.i;
-  if (b.s.has(input)) {
-    return {
-            v: input,
-            x: b.x,
-            a: false
-          };
-  } else {
-    return {
-            i: input,
-            x: b.x,
-            a: false
-          };
-  }
+  return b.i;
 }
 
 function noopOperation(i) {
@@ -388,16 +383,21 @@ function noopOperation(i) {
 }
 
 function build(builder, schema, operation) {
+  var scope = {
+    l: ""
+  };
   var b = {
     a: false,
     c: "",
     o: operation,
     v: -1,
     s: new Set(["i"]),
-    x: {
-      l: ""
+    x: scope,
+    i: {
+      v: "i",
+      x: scope,
+      a: false
     },
-    i: "i",
     e: []
   };
   var outputVal = builder(b, schema, "");
@@ -1047,25 +1047,30 @@ function recursive(fn) {
   Object.assign(placeholder, schema);
   var builder = placeholder.p;
   placeholder.p = (function (b, selfSchema, path) {
-      var input = b.i;
+      var input = embed(b, b.i);
       selfSchema.p = noop;
+      var scope = {
+        l: ""
+      };
       var ctx = {
         a: false,
         c: "",
         o: "Parsing",
         v: -1,
         s: new Set(["i"]),
-        x: {
-          l: ""
+        x: scope,
+        i: {
+          v: "i",
+          x: scope,
+          a: false
         },
-        i: "i",
         e: []
       };
       builder(ctx, selfSchema, path);
       var isAsync = ctx.a;
       selfSchema.p = (function (b, selfSchema, param) {
-          var input = b.i;
-          return valWithInitial(b, isAsync ? embedAsyncOperation(b, input, (function (input) {
+          var input = embed(b, b.i);
+          return val(b, isAsync ? embedAsyncOperation(b, input, (function (input) {
                               return internalParseAsyncWith(input, selfSchema);
                             })) : embedSyncOperation(b, input, (function (input) {
                               return parseAnyOrRaiseWith(input, selfSchema);
@@ -1078,7 +1083,7 @@ function recursive(fn) {
         selfSchema["op"] = operation;
       }
       selfSchema.p = builder;
-      return valWithInitial(b, withPathPrepend(b, path, undefined, (function (b, param) {
+      return val(b, withPathPrepend(b, path, undefined, (function (b, param) {
                         if (isAsync) {
                           return embedAsyncOperation(b, input, operation);
                         } else {
@@ -1088,17 +1093,17 @@ function recursive(fn) {
     });
   var builder$1 = placeholder.s;
   placeholder.s = (function (b, selfSchema, path) {
-      var input = b.i;
+      var input = embed(b, b.i);
       selfSchema.s = (function (b, selfSchema, param) {
-          var input = b.i;
-          return valWithInitial(b, embedSyncOperation(b, input, (function (input) {
+          var input = embed(b, b.i);
+          return val(b, embedSyncOperation(b, input, (function (input) {
                             return serializeToUnknownOrRaiseWith(input, selfSchema);
                           })));
         });
       var operation = build(builder$1, selfSchema, "Serializing");
       selfSchema["os"] = operation;
       selfSchema.s = builder$1;
-      return valWithInitial(b, withPathPrepend(b, path, undefined, (function (b, param) {
+      return val(b, withPathPrepend(b, path, undefined, (function (b, param) {
                         return embedSyncOperation(b, input, operation);
                       })));
     });
@@ -1133,16 +1138,16 @@ function internalRefine(schema, refiner) {
           t: schema.t,
           n: schema.n,
           p: (function (b, selfSchema, path) {
-              var input = b.i;
-              return valWithInitial(b, transform(b, use(b, schema, input, path), false, (function (b, input) {
+              var input = embed(b, b.i);
+              return val(b, transform(b, use(b, schema, input, path), false, (function (b, input) {
                                 var inputVar = toVar(b, input);
                                 b.c = b.c + refiner(b, inputVar, selfSchema, path);
                                 return inputVar;
                               })));
             }),
           s: (function (b, selfSchema, path) {
-              var input = b.i;
-              return valWithInitial(b, use(b, schema, transform(b, input, false, (function (b, input) {
+              var input = embed(b, b.i);
+              return val(b, use(b, schema, transform(b, input, false, (function (b, input) {
                                     var inputVar = toVar(b, input);
                                     b.c = b.c + refiner(b, inputVar, selfSchema, path);
                                     return inputVar;
@@ -1171,7 +1176,7 @@ function transform$1(schema, transformer) {
           t: schema.t,
           n: schema.n,
           p: (function (b, selfSchema, path) {
-              var input = b.i;
+              var input = embed(b, b.i);
               var input$1 = use(b, schema, input, path);
               var match = transformer(make(selfSchema, path, b.o));
               var parser = match.p;
@@ -1184,13 +1189,13 @@ function transform$1(schema, transformer) {
                     match.s !== undefined ? invalidOperation(b, path, "The S.transform parser is missing") : input$1
                   );
               }
-              return valWithInitial(b, tmp);
+              return val(b, tmp);
             }),
           s: (function (b, selfSchema, path) {
-              var input = b.i;
+              var input = embed(b, b.i);
               var match = transformer(make(selfSchema, path, b.o));
               var serializer = match.s;
-              return valWithInitial(b, serializer !== undefined ? use(b, schema, embedSyncOperation(b, input, serializer), path) : (
+              return val(b, serializer !== undefined ? use(b, schema, embedSyncOperation(b, input, serializer), path) : (
                             match.a !== undefined || match.p !== undefined ? invalidOperation(b, path, "The S.transform serializer is missing") : use(b, schema, input, path)
                           ));
             }),
@@ -1222,7 +1227,7 @@ function preprocess(schema, transformer) {
           t: schema.t,
           n: schema.n,
           p: (function (b, selfSchema, path) {
-              var input = b.i;
+              var input = embed(b, b.i);
               var match = transformer(make(selfSchema, path, b.o));
               var parser = match.p;
               var tmp;
@@ -1252,14 +1257,14 @@ function preprocess(schema, transformer) {
                   tmp = useWithTypeFilter(b, schema, input, path);
                 }
               }
-              return valWithInitial(b, tmp);
+              return val(b, tmp);
             }),
           s: (function (b, selfSchema, path) {
-              var input = b.i;
+              var input = embed(b, b.i);
               var input$1 = use(b, schema, input, path);
               var match = transformer(make(selfSchema, path, b.o));
               var serializer = match.s;
-              return valWithInitial(b, serializer !== undefined ? embedSyncOperation(b, input$1, serializer) : input$1);
+              return val(b, serializer !== undefined ? embedSyncOperation(b, input$1, serializer) : input$1);
             }),
           f: undefined,
           i: 0,
@@ -1274,7 +1279,7 @@ function custom(name, definer) {
               return name;
             }),
           p: (function (b, selfSchema, path) {
-              var input = b.i;
+              var input = embed(b, b.i);
               var match = definer(make(selfSchema, path, b.o));
               var parser = match.p;
               var tmp;
@@ -1286,13 +1291,13 @@ function custom(name, definer) {
                     match.s !== undefined ? invalidOperation(b, path, "The S.custom parser is missing") : input
                   );
               }
-              return valWithInitial(b, tmp);
+              return val(b, tmp);
             }),
           s: (function (b, selfSchema, path) {
-              var input = b.i;
+              var input = embed(b, b.i);
               var match = definer(make(selfSchema, path, b.o));
               var serializer = match.s;
-              return valWithInitial(b, serializer !== undefined ? embedSyncOperation(b, input, serializer) : (
+              return val(b, serializer !== undefined ? embedSyncOperation(b, input, serializer) : (
                             match.a !== undefined || match.p !== undefined ? invalidOperation(b, path, "The S.custom serializer is missing") : input
                           ));
             }),
@@ -1305,7 +1310,7 @@ function custom(name, definer) {
 function literal(value) {
   var literal$1 = parseInternal(value);
   var operationBuilder = function (b, param, path) {
-    var inputVar = toVar(b, b.i);
+    var inputVar = $$var$1(b, b.i);
     b.c = b.c + (literal$1.b(b, inputVar, literal$1) + "||" + raiseWithArg(b, path, (function (input) {
               return {
                       TAG: "InvalidLiteral",
@@ -1313,7 +1318,7 @@ function literal(value) {
                       received: input
                     };
             }), inputVar) + ";");
-    return valWithInitial(b, inputVar);
+    return val(b, inputVar);
   };
   return {
           t: {
@@ -1348,11 +1353,11 @@ function factory(schema, definer) {
           t: schema.t,
           n: schema.n,
           p: (function (b, param, path) {
-              var input = b.i;
-              return valWithInitial(b, embedSyncOperation(b, use(b, schema, input, path), definer));
+              var input = embed(b, b.i);
+              return val(b, embedSyncOperation(b, use(b, schema, input, path), definer));
             }),
           s: (function (b, selfSchema, path) {
-              var inputVar = toVar(b, b.i);
+              var inputVar = $$var$1(b, b.i);
               var definition = definer(symbol);
               var definitionToOutput = function (definition, outputPath) {
                 var kind = symbol === definition ? 2 : (
@@ -1405,7 +1410,7 @@ function factory(schema, definer) {
               } else {
                 tmp = use(b, schema, output, path);
               }
-              return valWithInitial(b, tmp);
+              return val(b, tmp);
             }),
           f: schema.f,
           i: 0,
@@ -1420,8 +1425,8 @@ function $$default(schema) {
 }
 
 function parseOperationBuilder(b, selfSchema, path) {
-  var inputVar = toVar(b, b.i);
-  var outputVal = val(b);
+  var inputVar = $$var$1(b, b.i);
+  var outputVal = allocateVal(b);
   var isNull = (selfSchema.t.TAG === "Null");
   var childSchema = selfSchema.t._0;
   var ifCode = scope(b, (function (b) {
@@ -1445,8 +1450,8 @@ function parseOperationBuilder(b, selfSchema, path) {
 }
 
 function serializeOperationBuilder(b, selfSchema, path) {
-  var inputVar = toVar(b, b.i);
-  var outputVal = val(b);
+  var inputVar = $$var$1(b, b.i);
+  var outputVal = allocateVal(b);
   var isNull = (selfSchema.t.TAG === "Null");
   var childSchema = selfSchema.t._0;
   b.c = b.c + ("if(" + inputVar + "!==void 0){" + scope(b, (function (b) {
@@ -1488,8 +1493,8 @@ function getWithDefault(schema, $$default) {
           t: schema.t,
           n: schema.n,
           p: (function (b, param, path) {
-              var input = b.i;
-              return valWithInitial(b, transform(b, use(b, schema, input, path), false, (function (b, input) {
+              var input = embed(b, b.i);
+              return val(b, transform(b, use(b, schema, input, path), false, (function (b, input) {
                                 var tmp;
                                 tmp = $$default.TAG === "Value" ? "e[" + (b.e.push($$default._0) - 1) + "]" : "e[" + (b.e.push($$default._0) - 1) + "]()";
                                 return input + "===void 0?" + tmp + ":" + input;
@@ -1545,74 +1550,88 @@ function noopRefinement(_b, param, param$1, param$2) {
 
 function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definition, inputRefinement, unknownKeysRefinement) {
   return function (b, selfSchema, path) {
-    var inputVar = toVar(b, b.i);
+    var inputVar = $$var$1(b, b.i);
     var registeredDefinitions = new Set();
     var asyncOutputVars = [];
     inputRefinement(b, selfSchema, inputVar, path);
-    var prevCode = b.c;
-    b.c = "";
-    unknownKeysRefinement(b, selfSchema, inputVar, path);
-    var unknownKeysRefinementCode = b.c;
-    b.c = "";
-    var definitionToOutput = function (definition, outputPath) {
-      var kind = toKindWithSet(definition, itemDefinitionsSet);
-      switch (kind) {
-        case 0 :
-            var isArray = Array.isArray(definition);
-            var keys = Object.keys(definition);
-            var codeRef = isArray ? "[" : "{";
-            for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-              var key = keys[idx];
-              var definition$1 = definition[key];
-              var output = definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
-              codeRef = codeRef + (
-                isArray ? output : JSON.stringify(key) + ":" + output
-              ) + ",";
-            }
-            return codeRef + (
-                    isArray ? "]" : "}"
-                  );
-        case 1 :
-            return "e[" + (b.e.push(definition) - 1) + "]";
-        case 2 :
-            registeredDefinitions.add(definition);
-            var inputPath = definition.p;
-            var schema = definition.s;
-            var fieldOuputVar = useWithTypeFilter(b, schema, inputVar + inputPath, path + inputPath);
-            var isAsyncField = schema.i;
-            if (isAsyncField) {
-              asyncOutputVars.push(fieldOuputVar);
-            }
-            return fieldOuputVar;
-        
-      }
-    };
-    var syncOutput = definitionToOutput(definition, "");
-    var registeredFieldsCode = b.c;
-    b.c = "";
-    for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
-      var itemDefinition = itemDefinitions[idx];
-      if (!registeredDefinitions.has(itemDefinition)) {
-        var inputPath = itemDefinition.p;
-        var schema = itemDefinition.s;
-        var fieldOuputVar = useWithTypeFilter(b, schema, inputVar + inputPath, path + inputPath);
-        var isAsyncField = schema.i;
-        if (isAsyncField) {
-          asyncOutputVars.push(fieldOuputVar);
+    var fn = function (b) {
+      var prevCode = b.c;
+      b.c = "";
+      unknownKeysRefinement(b, selfSchema, inputVar, path);
+      var unknownKeysRefinementCode = b.c;
+      b.c = "";
+      var definitionToOutput = function (definition, outputPath) {
+        var kind = toKindWithSet(definition, itemDefinitionsSet);
+        switch (kind) {
+          case 0 :
+              var isArray = Array.isArray(definition);
+              var keys = Object.keys(definition);
+              var codeRef = isArray ? "[" : "{";
+              for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+                var key = keys[idx];
+                var definition$1 = definition[key];
+                var output = definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+                codeRef = codeRef + (
+                  isArray ? output : JSON.stringify(key) + ":" + output
+                ) + ",";
+              }
+              return codeRef + (
+                      isArray ? "]" : "}"
+                    );
+          case 1 :
+              return "e[" + (b.e.push(definition) - 1) + "]";
+          case 2 :
+              registeredDefinitions.add(definition);
+              var inputPath = definition.p;
+              var schema = definition.s;
+              var fieldOuputVar = useWithTypeFilter(b, schema, inputVar + inputPath, path + inputPath);
+              var isAsyncField = schema.i;
+              if (isAsyncField) {
+                asyncOutputVars.push(fieldOuputVar);
+              }
+              return fieldOuputVar;
+          
+        }
+      };
+      var syncOutput = definitionToOutput(definition, "");
+      var registeredFieldsCode = b.c;
+      b.c = "";
+      for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
+        var itemDefinition = itemDefinitions[idx];
+        if (!registeredDefinitions.has(itemDefinition)) {
+          var inputPath = itemDefinition.p;
+          var schema = itemDefinition.s;
+          var fieldOuputVar = useWithTypeFilter(b, schema, inputVar + inputPath, path + inputPath);
+          var isAsyncField = schema.i;
+          if (isAsyncField) {
+            asyncOutputVars.push(fieldOuputVar);
+          }
+          
         }
         
       }
-      
-    }
-    var unregisteredFieldsCode = b.c;
-    b.c = prevCode + unregisteredFieldsCode + registeredFieldsCode + unknownKeysRefinementCode;
-    if (asyncOutputVars.length === 0) {
-      return valWithInitial(b, syncOutput);
-    } else {
-      return asyncVal(b, "Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
-                        return asyncOutputVar + "()";
-                      }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "))");
-    }
+      var unregisteredFieldsCode = b.c;
+      b.c = prevCode + unregisteredFieldsCode + registeredFieldsCode + unknownKeysRefinementCode;
+      if (asyncOutputVars.length === 0) {
+        return val(b, syncOutput);
+      } else {
+        return asyncVal(b, "Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
+                          return asyncOutputVar + "()";
+                        }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "))");
+      }
+    };
+    var prevScope = b.x;
+    var prevCode = b.c;
+    b.x = {
+      l: ""
+    };
+    b.c = "";
+    var val$1 = fn(b);
+    var varsAllocation = b.x.l;
+    var code = varsAllocation === "" ? b.c : "let " + varsAllocation + ";" + b.c;
+    b.x = prevScope;
+    b.c = prevCode + code;
+    return val$1;
   };
 }
 
@@ -1703,7 +1722,7 @@ function factory$3(definer) {
                           }), keyVar$1) + "}");
                 })),
           s: (function (b, param, path) {
-              var inputVar = toVar(b, b.i);
+              var inputVar = $$var$1(b, b.i);
               var fieldsCodeRef = {
                 contents: ""
               };
@@ -1756,7 +1775,7 @@ function factory$3(definer) {
                 }
                 
               }
-              return valWithInitial(b, "{" + fieldsCodeRef.contents + "}");
+              return val(b, "{" + fieldsCodeRef.contents + "}");
             }),
           f: typeFilter,
           i: 0,
@@ -1809,7 +1828,7 @@ function strict(schema) {
 }
 
 function builder(b, selfSchema, path) {
-  var input = b.i;
+  var input = embed(b, b.i);
   b.c = b.c + raiseWithArg(b, path, (function (input) {
           return {
                   TAG: "InvalidType",
@@ -1817,7 +1836,7 @@ function builder(b, selfSchema, path) {
                   received: input
                 };
         }), input) + ";";
-  return valWithInitial(b, input);
+  return val(b, input);
 }
 
 var schema = {
@@ -2015,7 +2034,7 @@ function factory$4(schema, spaceOpt) {
           t: "String",
           n: primitiveName,
           p: (function (b, param, path) {
-              var input = b.i;
+              var input = embed(b, b.i);
               var jsonVar = $$var(b);
               b.c = b.c + ("try{" + jsonVar + "=JSON.parse(" + input + ")}catch(t){" + raiseWithArg(b, path, (function (message) {
                         return {
@@ -2023,11 +2042,11 @@ function factory$4(schema, spaceOpt) {
                                 _0: message
                               };
                       }), "t.message") + "}");
-              return valWithInitial(b, useWithTypeFilter(b, schema, jsonVar, path));
+              return val(b, useWithTypeFilter(b, schema, jsonVar, path));
             }),
           s: (function (b, param, path) {
-              var input = b.i;
-              return valWithInitial(b, "JSON.stringify(" + use(b, schema, input, path) + (
+              var input = embed(b, b.i);
+              return val(b, "JSON.stringify(" + use(b, schema, input, path) + (
                           space > 0 ? ",null," + space : ""
                         ) + ")");
             }),
@@ -2186,9 +2205,9 @@ function factory$5(schema) {
           },
           n: containerName,
           p: (function (b, param, path) {
-              var inputVar = toVar(b, b.i);
+              var inputVar = $$var$1(b, b.i);
               var iteratorVar = varWithoutAllocation(b);
-              var outputVal = valWithInitial(b, "[]");
+              var outputVal = val(b, "[]");
               b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
                         var itemOutputVar = withPathPrepend(b, path, iteratorVar, (function (b, path) {
                                 return useWithTypeFilter(b, schema, inputVar + "[" + iteratorVar + "]", path);
@@ -2204,24 +2223,11 @@ function factory$5(schema) {
             }),
           s: (function (b, param, path) {
               if (schema.s === noop) {
-                var input = b.i;
-                if (b.s.has(input)) {
-                  return {
-                          v: input,
-                          x: b.x,
-                          a: false
-                        };
-                } else {
-                  return {
-                          i: input,
-                          x: b.x,
-                          a: false
-                        };
-                }
+                return b.i;
               }
-              var inputVar = toVar(b, b.i);
+              var inputVar = $$var$1(b, b.i);
               var iteratorVar = varWithoutAllocation(b);
-              var outputVal = valWithInitial(b, "[]");
+              var outputVal = val(b, "[]");
               b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
                         var itemOutputVar = withPathPrepend(b, path, iteratorVar, (function (b, path) {
                                 return use(b, schema, inputVar + "[" + iteratorVar + "]", path);
@@ -2283,7 +2289,7 @@ function factory$6(schema) {
           },
           n: containerName,
           p: (function (b, param, path) {
-              var inputVar = toVar(b, b.i);
+              var inputVar = $$var$1(b, b.i);
               var keyVar = varWithoutAllocation(b);
               var outputVar = $$var(b);
               b.c = b.c + (outputVar + "={};for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
@@ -2305,14 +2311,14 @@ function factory$6(schema) {
               } else {
                 tmp = outputVar;
               }
-              return valWithInitial(b, tmp);
+              return val(b, tmp);
             }),
           s: (function (b, param, path) {
               var tmp;
               if (schema.s === noop) {
-                tmp = b.i;
+                tmp = embed(b, b.i);
               } else {
-                var inputVar = toVar(b, b.i);
+                var inputVar = $$var$1(b, b.i);
                 var keyVar = varWithoutAllocation(b);
                 var outputVar = $$var(b);
                 b.c = b.c + (outputVar + "={};for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
@@ -2323,7 +2329,7 @@ function factory$6(schema) {
                         })) + "}");
                 tmp = outputVar;
               }
-              return valWithInitial(b, tmp);
+              return val(b, tmp);
             }),
           f: typeFilter,
           i: 0,
@@ -2399,7 +2405,7 @@ function factory$7(definer) {
                           }), inputVar + ".length") + "}");
                 }), noopRefinement),
           s: (function (b, param, path) {
-              var inputVar = toVar(b, b.i);
+              var inputVar = $$var$1(b, b.i);
               var outputVar = $$var(b);
               var registeredDefinitions = new Set();
               b.c = b.c + (outputVar + "=[];");
@@ -2450,7 +2456,7 @@ function factory$7(definer) {
                 }
                 
               }
-              return valWithInitial(b, outputVar);
+              return val(b, outputVar);
             }),
           f: typeFilter$5,
           i: 0,
@@ -2475,7 +2481,7 @@ function factory$8(schemas) {
                             }).join(", ") + ")";
               }),
             p: (function (b, selfSchema, path) {
-                var inputVar = toVar(b, b.i);
+                var inputVar = $$var$1(b, b.i);
                 var schemas = selfSchema.t._0;
                 var isAsyncRef = false;
                 var itemsCode = [];
@@ -2525,7 +2531,7 @@ function factory$8(schemas) {
                                     _0: internalErrors
                                   };
                           }), "t.errors") + "})") + codeEndRef;
-                  return valWithInitial(b, outputVar);
+                  return val(b, outputVar);
                 } else {
                   b.c = b.c + raiseWithArg(b, path, (function (internalErrors) {
                           return {
@@ -2533,11 +2539,11 @@ function factory$8(schemas) {
                                   _0: internalErrors
                                 };
                         }), "[" + errorCodeRef + "]") + codeEndRef;
-                  return valWithInitial(b, outputVar);
+                  return val(b, outputVar);
                 }
               }),
             s: (function (b, selfSchema, path) {
-                var inputVar = toVar(b, b.i);
+                var inputVar = $$var$1(b, b.i);
                 var schemas = selfSchema.t._0;
                 var outputVar = $$var(b);
                 var codeEndRef = "";
@@ -2571,7 +2577,7 @@ function factory$8(schemas) {
                                 _0: internalErrors
                               };
                       }), "[" + errorVarsRef + "]") + codeEndRef;
-                return valWithInitial(b, outputVar);
+                return val(b, outputVar);
               }),
             f: undefined,
             i: 0,
@@ -2642,8 +2648,8 @@ function json(validate) {
                             received: input
                           }, "Parsing", path$1);
                 };
-                var input = b.i;
-                return valWithInitial(b, "e[" + (b.e.push(parse) - 1) + "](" + input + ")");
+                var input = embed(b, b.i);
+                return val(b, "e[" + (b.e.push(parse) - 1) + "](" + input + ")");
               }) : noop,
           s: noop,
           f: undefined,
@@ -2659,8 +2665,8 @@ function $$catch(schema, getFallbackValue) {
           t: schema.t,
           n: schema.n,
           p: (function (b, selfSchema, path) {
-              var inputVar = toVar(b, b.i);
-              return valWithInitial(b, withCatch(b, (function (b, errorVar) {
+              var inputVar = $$var$1(b, b.i);
+              return val(b, withCatch(b, (function (b, errorVar) {
                                 return "e[" + (b.e.push(function (input, internalError) {
                                               return getFallbackValue({
                                                           e: internalError,
@@ -3288,10 +3294,10 @@ function js_merge(s1, s2) {
                   return s1.n() + " & " + s2.n();
                 }),
               p: (function (b, param, path) {
-                  var inputVar = toVar(b, b.i);
+                  var inputVar = $$var$1(b, b.i);
                   var s1Result = use(b, s1, inputVar, path);
                   var s2Result = use(b, s2, inputVar, path);
-                  return valWithInitial(b, "Object.assign(" + s1Result + ", " + s2Result + ")");
+                  return val(b, "Object.assign(" + s1Result + ", " + s2Result + ")");
                 }),
               s: (function (b, param, path) {
                   return invalidOperation(b, path, "The S.merge serializing is not supported yet");
