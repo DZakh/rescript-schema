@@ -683,6 +683,10 @@ function validateJsonableSchema(_schema, rootSchema, _isRootOpt) {
   };
 }
 
+function defaultToJsonString(input) {
+  return "JSON.stringify(" + input + ")";
+}
+
 function unexpectedAsync(param) {
   throw new RescriptSchemaError("UnexpectedAsync", "Parsing", "");
 }
@@ -949,6 +953,7 @@ function set$1(schema, id, metadata) {
           p: schema.p,
           s: schema.s,
           f: schema.f,
+          j: schema.j,
           i: 0,
           m: metadataMap
         };
@@ -1031,6 +1036,7 @@ function setName(schema, name) {
           p: schema.p,
           s: schema.s,
           f: schema.f,
+          j: schema.j,
           i: 0,
           m: schema.m
         };
@@ -1066,6 +1072,7 @@ function internalRefine(schema, refiner) {
                               })), path);
             }),
           f: schema.f,
+          j: schema.j,
           i: 0,
           m: schema.m
         };
@@ -1121,6 +1128,7 @@ function transform$1(schema, transformer) {
               }
             }),
           f: schema.f,
+          j: schema.j,
           i: 0,
           m: schema.m
         };
@@ -1186,7 +1194,6 @@ function preprocess(schema, transformer) {
                 return input$1;
               }
             }),
-          f: undefined,
           i: 0,
           m: schema.m
         };
@@ -1230,7 +1237,6 @@ function custom(name, definer) {
                 return input;
               }
             }),
-          f: undefined,
           i: 0,
           m: empty
         };
@@ -1249,6 +1255,15 @@ function literal(value) {
             }), inputVar) + ";");
     return inputVar;
   };
+  var tmp;
+  if (literal$1.j) {
+    var string = JSON.stringify(literal$1.s);
+    tmp = (function (param) {
+        return string;
+      });
+  } else {
+    tmp = undefined;
+  }
   return {
           t: {
             TAG: "Literal",
@@ -1259,7 +1274,7 @@ function literal(value) {
             }),
           p: operationBuilder,
           s: operationBuilder,
-          f: undefined,
+          j: tmp,
           i: 0,
           m: empty
         };
@@ -1342,6 +1357,7 @@ function factory(schema, definer) {
               }
             }),
           f: schema.f,
+          j: schema.j,
           i: 0,
           m: schema.m
         };
@@ -1452,6 +1468,7 @@ function factory$2(schema) {
           p: parseOperationBuilder,
           s: serializeOperationBuilder,
           f: maybeTypeFilter(schema, "null"),
+          j: defaultToJsonString,
           i: 0,
           m: empty
         };
@@ -1686,6 +1703,16 @@ function factory$3(definer) {
               return "{" + fieldsCodeRef.contents + "}";
             }),
           f: typeFilter,
+          j: (function (input) {
+              var jsonStringRef = "'{";
+              for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
+                var itemDefinition = itemDefinitions[idx];
+                jsonStringRef = jsonStringRef + (
+                  idx === 0 ? "" : ","
+                ) + itemDefinition.l + ":'+" + itemDefinition.s.j(input + "[" + itemDefinition.l + "]") + "+'";
+              }
+              return jsonStringRef + "}'";
+            }),
           i: 0,
           m: empty
         };
@@ -1707,6 +1734,7 @@ function strip(schema) {
             p: schema.p,
             s: schema.s,
             f: schema.f,
+            j: schema.j,
             i: 0,
             m: schema.m
           };
@@ -1729,6 +1757,7 @@ function strict(schema) {
             p: schema.p,
             s: schema.s,
             f: schema.f,
+            j: schema.j,
             i: 0,
             m: schema.m
           };
@@ -1752,7 +1781,7 @@ var schema = {
   n: primitiveName,
   p: builder,
   s: builder,
-  f: undefined,
+  j: defaultToJsonString,
   i: 0,
   m: empty
 };
@@ -1762,7 +1791,6 @@ var schema$1 = {
   n: primitiveName,
   p: noop,
   s: noop,
-  f: undefined,
   i: false,
   m: empty
 };
@@ -1796,6 +1824,7 @@ var schema$2 = {
   p: noop,
   s: noop,
   f: typeFilter$1,
+  j: defaultToJsonString,
   i: 0,
   m: empty
 };
@@ -1929,12 +1958,11 @@ function trim(schema) {
 
 function factory$4(schema, spaceOpt) {
   var space = spaceOpt !== undefined ? spaceOpt : 0;
-  try {
-    validateJsonableSchema(schema, schema, true);
-  }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    getOrRethrow(exn);
+  var v = schema.j;
+  var toJsonString;
+  if (v !== undefined) {
+    toJsonString = v;
+  } else {
     var message = "The schema " + schema.n() + " passed to S.jsonString is not compatible with JSON";
     throw new Error("[rescript-schema] " + message);
   }
@@ -1954,11 +1982,14 @@ function factory$4(schema, spaceOpt) {
             }),
           s: (function (b, param, path) {
               var input = b.i;
-              return "JSON.stringify(" + use(b, schema, input, path) + (
-                      space > 0 ? ",null," + space : ""
-                    ) + ")";
+              if (space !== 0) {
+                return "JSON.stringify(" + use(b, schema, input, path) + ",null," + space + ")";
+              } else {
+                return toJsonString(input);
+              }
             }),
           f: typeFilter$1,
+          j: defaultToJsonString,
           i: 0,
           m: empty
         };
@@ -1974,6 +2005,9 @@ var schema$3 = {
   p: noop,
   s: noop,
   f: typeFilter$2,
+  j: (function (input) {
+      return "(" + input + "?\"true\":\"false\")";
+    }),
   i: 0,
   m: empty
 };
@@ -1993,12 +2027,17 @@ function typeFilter$3(inputVar) {
   return "typeof " + inputVar + "!==\"number\"||" + inputVar + ">2147483647||" + inputVar + "<-2147483648||" + inputVar + "%1!==0";
 }
 
+function toJsonString(input) {
+  return input + ".toString()";
+}
+
 var schema$4 = {
   t: "Int",
   n: primitiveName,
   p: noop,
   s: noop,
   f: typeFilter$3,
+  j: toJsonString,
   i: 0,
   m: empty
 };
@@ -2060,6 +2099,7 @@ var schema$5 = {
   p: noop,
   s: noop,
   f: typeFilter$4,
+  j: toJsonString,
   i: 0,
   m: empty
 };
@@ -2146,6 +2186,7 @@ function factory$5(schema) {
               return outputVar;
             }),
           f: typeFilter$5,
+          j: defaultToJsonString,
           i: 0,
           m: empty
         };
@@ -2235,6 +2276,7 @@ function factory$6(schema) {
               return outputVar;
             }),
           f: typeFilter,
+          j: defaultToJsonString,
           i: 0,
           m: empty
         };
@@ -2362,6 +2404,7 @@ function factory$7(definer) {
               return outputVar;
             }),
           f: typeFilter$5,
+          j: defaultToJsonString,
           i: 0,
           m: empty
         };
@@ -2482,7 +2525,7 @@ function factory$8(schemas) {
                       }), "[" + errorVarsRef + "]") + codeEndRef;
                 return outputVar;
               }),
-            f: undefined,
+            j: defaultToJsonString,
             i: 0,
             m: empty
           };
@@ -2555,7 +2598,7 @@ function json(validate) {
                 return "e[" + (b.e.push(parse) - 1) + "](" + input + ")";
               }) : noop,
           s: noop,
-          f: undefined,
+          j: defaultToJsonString,
           i: 0,
           m: empty
         };
@@ -2589,7 +2632,7 @@ function $$catch(schema, getFallbackValue) {
                           }));
             }),
           s: schema.s,
-          f: undefined,
+          j: schema.j,
           i: 0,
           m: schema.m
         };

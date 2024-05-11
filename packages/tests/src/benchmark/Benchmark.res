@@ -36,6 +36,14 @@ module Suite = {
   }
 }
 
+let makeNestedTestObject = () => {
+  %raw(`Object.freeze({
+      foo: 'bar',
+      num: 1,
+      bool: false,
+    })`)
+}
+
 let makeTestObject = () => {
   %raw(`Object.freeze({
     number: 1,
@@ -52,6 +60,15 @@ let makeTestObject = () => {
     },
   })`)
 }
+
+let makeNestedSchema = () =>
+  S.object(s =>
+    {
+      "foo": s.field("foo", S.string),
+      "num": s.field("num", S.float),
+      "bool": s.field("bool", S.bool),
+    }
+  )
 
 let makeAdvancedObjectSchema = () => {
   S.object(s =>
@@ -164,6 +181,29 @@ Suite.make()
   let data = makeTestObject()
   () => {
     data->S.serializeOrRaiseWith(schema)
+  }
+})
+// V6.2 x 277,905 ops/sec
+->Suite.addWithPrepare("Stringify with JSON.stringify", () => {
+  let data = makeNestedTestObject()
+  () => {
+    data->Js.Json.stringifyAny
+  }
+})
+// V6.2 x 277,250 ops/sec
+->Suite.addWithPrepare("Stringify with S.serializeToJsonStringWith", () => {
+  let data = makeNestedTestObject()
+  let schema = makeNestedSchema()
+  () => {
+    data->S.serializeToJsonStringWith(schema)
+  }
+})
+// V6.2 x 277,401 ops/sec
+->Suite.addWithPrepare("Stringify with S.jsonString", () => {
+  let data = makeNestedTestObject()
+  let schema = S.jsonString(makeNestedSchema())
+  () => {
+    data->S.serializeToUnknownWith(schema)
   }
 })
 ->Suite.run

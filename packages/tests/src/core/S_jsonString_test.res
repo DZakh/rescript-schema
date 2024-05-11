@@ -7,12 +7,42 @@ test("Successfully parses JSON", t => {
   t->Assert.deepEqual(`"Foo"`->S.parseAnyWith(S.jsonString(schema)), Ok("Foo"), ())
 })
 
-test("Successfully serializes JSON", t => {
+test("Successfully serializes string to JSON", t => {
   let schema = S.string
 
   t->Assert.deepEqual(
     `Foo`->S.serializeToUnknownWith(S.jsonString(schema)),
     Ok(%raw(`'"Foo"'`)),
+    (),
+  )
+})
+
+test("Successfully serializes string literal to JSON", t => {
+  let schema = S.literal("foo")
+
+  t->Assert.deepEqual(
+    `foo`->S.serializeToUnknownWith(S.jsonString(schema)),
+    Ok(%raw(`'"foo"'`)),
+    (),
+  )
+})
+
+test("Successfully serializes float to JSON", t => {
+  let schema = S.float
+
+  t->Assert.deepEqual(
+    123.4->S.serializeToUnknownWith(S.jsonString(schema)),
+    Ok(%raw(`'123.4'`)),
+    (),
+  )
+})
+
+test("Successfully serializes tuple", t => {
+  let schema = S.tuple2(S.int, S.string)
+
+  t->Assert.deepEqual(
+    (12, "foo")->S.serializeToUnknownWith(S.jsonString(schema)),
+    Ok(%raw(`'[12,"foo"]'`)),
     (),
   )
 })
@@ -32,6 +62,12 @@ test("Successfully serializes JSON object", t => {
     }->S.serializeToUnknownWith(S.jsonString(schema)),
     Ok(%raw(`'{"foo":"bar","baz":[1,3]}'`)),
     (),
+  )
+  t->U.assertCompiledCode(
+    ~schema=S.jsonString(schema),
+    ~op=#serialize,
+    // FIXME: Checks??
+    `i=>{return \'{"foo":\'+"\\"bar\\""+\',"baz":\'+JSON.stringify(i["baz"])+\'}\'}`,
   )
 })
 
@@ -88,7 +124,7 @@ test("Compiled async parse code snapshot", t => {
 test("Compiled serialize code snapshot", t => {
   let schema = S.jsonString(S.bool)
 
-  t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return JSON.stringify(i)}`)
+  t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return (i?"true":"false")}`)
 })
 
 test("Compiled serialize code snapshot with space", t => {
