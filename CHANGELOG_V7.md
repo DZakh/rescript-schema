@@ -11,3 +11,8 @@
 - Added `serializeToJsonStringOrRaiseWith`
 - Allow to create `S.union` with single item
 - PPX: Removed `@schema` for type expressions. Use `@s.matches` instead.
+- Added unsafe mode for `S.json`:
+  - `S.json` -> `S.json(~validate: bool)`
+  - More flexible
+  - Improved tree-shaking
+  - Can get the info from the `tagged` type: `JSON` -> `JSON({validated: bool})`

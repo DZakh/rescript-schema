@@ -117,10 +117,20 @@ test("Successfully parses unknown", (t) => {
 });
 
 test("Successfully parses json", (t) => {
-  const schema = S.json;
+  const schema = S.json(true);
   const value = S.parseOrThrow(schema, true);
 
   t.deepEqual(value, true);
+
+  expectType<TypeEqual<typeof schema, S.Schema<S.Json, S.Json>>>(true);
+  expectType<TypeEqual<typeof value, S.Json>>(true);
+});
+
+test("Successfully parses invalid json without validation", (t) => {
+  const schema = S.json(false);
+  const value = S.parseOrThrow(schema, undefined);
+
+  t.deepEqual(value, undefined); // This is broken but it's intentional
 
   expectType<TypeEqual<typeof schema, S.Schema<S.Json, S.Json>>>(true);
   expectType<TypeEqual<typeof value, S.Json>>(true);

@@ -667,7 +667,8 @@ function validateJsonableSchema(_schema, rootSchema, _isRootOpt) {
         case "Dict" :
             exit = 1;
             break;
-        
+        default:
+          return ;
       }
     }
     switch (exit) {
@@ -2501,62 +2502,67 @@ function list(schema) {
               }));
 }
 
-var json = {
-  t: "JSON",
-  n: primitiveName,
-  p: (function (b, selfSchema, path) {
-      var parse = function (input, pathOpt) {
-        var path$1 = pathOpt !== undefined ? pathOpt : path;
-        var match = typeof input;
-        if (match === "string" || match === "boolean") {
-          return input;
-        }
-        if (match === "object") {
-          if (input === null) {
-            return input;
-          }
-          if (Array.isArray(input)) {
-            var output = [];
-            for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
-              var inputItem = input[idx];
-              var $$location = idx.toString();
-              output.push(parse(inputItem, path$1 + ("[" + JSON.stringify($$location) + "]")));
-            }
-            return output;
-          }
-          var keys = Object.keys(input);
-          var output$1 = {};
-          for(var idx$1 = 0 ,idx_finish$1 = keys.length; idx$1 < idx_finish$1; ++idx$1){
-            var key = keys[idx$1];
-            var field = input[key];
-            output$1[key] = parse(field, path$1 + ("[" + JSON.stringify(key) + "]"));
-          }
-          return output$1;
-        }
-        if (match === "number") {
-          if (!Number.isNaN(input)) {
-            return input;
-          }
-          throw new RescriptSchemaError({
-                    TAG: "InvalidType",
-                    expected: selfSchema,
-                    received: input
-                  }, "Parsing", path$1);
-        }
-        throw new RescriptSchemaError({
-                  TAG: "InvalidType",
-                  expected: selfSchema,
-                  received: input
-                }, "Parsing", path$1);
-      };
-      var input = b.i;
-      return "e[" + (b.e.push(parse) - 1) + "](" + input + ")";
-    }),
-  s: noop,
-  f: undefined,
-  i: 0,
-  m: empty
-};
+function json(validate) {
+  return {
+          t: {
+            TAG: "JSON",
+            validated: validate
+          },
+          n: primitiveName,
+          p: validate ? (function (b, selfSchema, path) {
+                var parse = function (input, pathOpt) {
+                  var path$1 = pathOpt !== undefined ? pathOpt : path;
+                  var match = typeof input;
+                  if (match === "string" || match === "boolean") {
+                    return input;
+                  }
+                  if (match === "object") {
+                    if (input === null) {
+                      return input;
+                    }
+                    if (Array.isArray(input)) {
+                      var output = [];
+                      for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
+                        var inputItem = input[idx];
+                        var $$location = idx.toString();
+                        output.push(parse(inputItem, path$1 + ("[" + JSON.stringify($$location) + "]")));
+                      }
+                      return output;
+                    }
+                    var keys = Object.keys(input);
+                    var output$1 = {};
+                    for(var idx$1 = 0 ,idx_finish$1 = keys.length; idx$1 < idx_finish$1; ++idx$1){
+                      var key = keys[idx$1];
+                      var field = input[key];
+                      output$1[key] = parse(field, path$1 + ("[" + JSON.stringify(key) + "]"));
+                    }
+                    return output$1;
+                  }
+                  if (match === "number") {
+                    if (!Number.isNaN(input)) {
+                      return input;
+                    }
+                    throw new RescriptSchemaError({
+                              TAG: "InvalidType",
+                              expected: selfSchema,
+                              received: input
+                            }, "Parsing", path$1);
+                  }
+                  throw new RescriptSchemaError({
+                            TAG: "InvalidType",
+                            expected: selfSchema,
+                            received: input
+                          }, "Parsing", path$1);
+                };
+                var input = b.i;
+                return "e[" + (b.e.push(parse) - 1) + "](" + input + ")";
+              }) : noop,
+          s: noop,
+          f: undefined,
+          i: 0,
+          m: empty
+        };
+}
 
 var Catch = {};
 
@@ -2737,9 +2743,6 @@ function internalInline(schema, maybeVariant, param) {
       case "Bool" :
           inlinedSchema = "S.bool";
           break;
-      case "JSON" :
-          inlinedSchema = "S.json";
-          break;
       
     }
   } else {
@@ -2812,6 +2815,9 @@ function internalInline(schema, maybeVariant, param) {
           break;
       case "Dict" :
           inlinedSchema = "S.dict(" + internalInline(literal._0, undefined, undefined) + ")";
+          break;
+      case "JSON" :
+          inlinedSchema = "S.json(~validate=" + literal.validated + ")";
           break;
       
     }

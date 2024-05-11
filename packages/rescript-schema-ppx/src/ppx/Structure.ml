@@ -16,7 +16,7 @@ let rec generateConstrSchemaExpression {Location.txt = identifier; loc}
   | Lident "unknown", _ -> [%expr S.unknown]
   | Ldot (Lident "S", "never"), _ -> [%expr S.never]
   | Ldot (Ldot (Lident "Js", "Json"), "t"), _ | Ldot (Lident "JSON", "t"), _ ->
-    [%expr S.json]
+    [%expr S.json ~validate:true ]
   | Lident "array", [item_type] ->
     [%expr S.array [%e generateCoreTypeSchemaExpression item_type]]
   | Lident "list", [item_type] ->

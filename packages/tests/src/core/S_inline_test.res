@@ -240,8 +240,11 @@ test("Supports Never", t => {
 })
 
 test("Supports JSON", t => {
-  let schema = S.json
-  t->Assert.deepEqual(schema->S.inline, `S.json`, ())
+  let schema = S.json(~validate=false)
+  t->Assert.deepEqual(schema->S.inline, `S.json(~validate=false)`, ())
+
+  let schema = S.json(~validate=true)
+  t->Assert.deepEqual(schema->S.inline, `S.json(~validate=true)`, ())
 })
 
 test("Supports String Literal", t => {

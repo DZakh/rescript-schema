@@ -265,7 +265,7 @@ and tagged =
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
-  | JSON
+  | JSON({validated: bool})
 and builder
 and builderCtx = {
   @as("a")
@@ -981,7 +981,7 @@ let toInternalLiteral = {
     | Null(_)
     | Never
     | Unknown
-    | JSON
+    | JSON(_)
     | Array(_)
     | Dict(_) =>
       Stdlib.Exn.raiseAny(symbol)
@@ -1022,7 +1022,7 @@ let rec validateJsonableSchema = (schema, ~rootSchema, ~isRoot=false) => {
     | Float
     | Bool
     | Never
-    | JSON => ()
+    | JSON(_) => ()
     | Dict(schema)
     | Null(schema)
     | Array(schema) =>
@@ -3274,63 +3274,71 @@ let list = schema => {
   })
 }
 
-let json = makeWithNoopSerializer(
-  ~name=primitiveName,
-  ~tagged=JSON,
-  ~metadataMap=Metadata.Map.empty,
-  ~maybeTypeFilter=None,
-  ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
-    let rec parse = (input, ~path=path) => {
-      switch input->Stdlib.Type.typeof {
-      | #number if Js.Float.isNaN(input->(Obj.magic: unknown => float))->not =>
-        input->(Obj.magic: unknown => Js.Json.t)
-      | #object =>
-        if input === %raw(`null`) {
-          input->(Obj.magic: unknown => Js.Json.t)
-        } else if input->Stdlib.Array.isArray {
-          let input = input->(Obj.magic: unknown => array<unknown>)
-          let output = []
-          for idx in 0 to input->Js.Array2.length - 1 {
-            let inputItem = input->Js.Array2.unsafe_get(idx)
-            output
-            ->Js.Array2.push(
-              inputItem->parse(~path=path->Path.concat(Path.fromLocation(idx->Js.Int.toString))),
-            )
-            ->ignore
+let json = (~validate) =>
+  makeWithNoopSerializer(
+    ~name=primitiveName,
+    ~tagged=JSON({validated: validate}),
+    ~metadataMap=Metadata.Map.empty,
+    ~maybeTypeFilter=None,
+    ~parseOperationBuilder=validate
+      ? Builder.make((b, ~selfSchema, ~path) => {
+          let rec parse = (input, ~path=path) => {
+            switch input->Stdlib.Type.typeof {
+            | #number if Js.Float.isNaN(input->(Obj.magic: unknown => float))->not =>
+              input->(Obj.magic: unknown => Js.Json.t)
+            | #object =>
+              if input === %raw(`null`) {
+                input->(Obj.magic: unknown => Js.Json.t)
+              } else if input->Stdlib.Array.isArray {
+                let input = input->(Obj.magic: unknown => array<unknown>)
+                let output = []
+                for idx in 0 to input->Js.Array2.length - 1 {
+                  let inputItem = input->Js.Array2.unsafe_get(idx)
+                  output
+                  ->Js.Array2.push(
+                    inputItem->parse(
+                      ~path=path->Path.concat(Path.fromLocation(idx->Js.Int.toString)),
+                    ),
+                  )
+                  ->ignore
+                }
+                output->Js.Json.array
+              } else {
+                let input = input->(Obj.magic: unknown => dict<unknown>)
+                let keys = input->Js.Dict.keys
+                let output = Js.Dict.empty()
+                for idx in 0 to keys->Js.Array2.length - 1 {
+                  let key = keys->Js.Array2.unsafe_get(idx)
+                  let field = input->Js.Dict.unsafeGet(key)
+                  output->Js.Dict.set(
+                    key,
+                    field->parse(~path=path->Path.concat(Path.fromLocation(key))),
+                  )
+                }
+                output->Js.Json.object_
+              }
+
+            | #string
+            | #boolean =>
+              input->(Obj.magic: unknown => Js.Json.t)
+
+            | _ =>
+              InternalError.raise(
+                ~path,
+                ~code=InvalidType({
+                  expected: selfSchema,
+                  received: input,
+                }),
+                ~operation=Parsing,
+              )
+            }
           }
-          output->Js.Json.array
-        } else {
-          let input = input->(Obj.magic: unknown => dict<unknown>)
-          let keys = input->Js.Dict.keys
-          let output = Js.Dict.empty()
-          for idx in 0 to keys->Js.Array2.length - 1 {
-            let key = keys->Js.Array2.unsafe_get(idx)
-            let field = input->Js.Dict.unsafeGet(key)
-            output->Js.Dict.set(key, field->parse(~path=path->Path.concat(Path.fromLocation(key))))
-          }
-          output->Js.Json.object_
-        }
+          let input = b->B.useInput
 
-      | #string
-      | #boolean =>
-        input->(Obj.magic: unknown => Js.Json.t)
-
-      | _ =>
-        InternalError.raise(
-          ~path,
-          ~code=InvalidType({
-            expected: selfSchema,
-            received: input,
-          }),
-          ~operation=Parsing,
-        )
-      }
-    }
-    let input = b->B.useInput
-
-    `${b->B.embed(parse)}(${input})`
-  }),
-)
+          `${b->B.embed(parse)}(${input})`
+        })
+      : Builder.noop,
+  )
 
 module Catch = {
   type s<'value> = {
@@ -3558,7 +3566,7 @@ let inline = {
           })
           ->Js.Array2.joinWith(", ")}])`
       }
-    | JSON => `S.json`
+    | JSON({validated}) => `S.json(~validate=${validated->(Obj.magic: bool => string)})`
     | Tuple([s1]) => `S.tuple1(${s1->internalInline()})`
     | Tuple([s1, s2]) => `S.tuple2(${s1->internalInline()}, ${s2->internalInline()})`
     | Tuple([s1, s2, s3]) =>

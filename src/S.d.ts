@@ -81,8 +81,8 @@ export const integer: Schema<number>;
 export const number: Schema<number>;
 export const never: Schema<never>;
 export const unknown: Schema<unknown>;
-export const json: Schema<Json>;
 export const undefined: Schema<undefined>;
+export const json: (validate: boolean) => Schema<Json>;
 
 export function literal<Literal extends string>(
   value: Literal

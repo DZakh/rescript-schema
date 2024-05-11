@@ -51,7 +51,7 @@ and tagged =
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
-  | JSON
+  | JSON({validated: bool})
 and schema<'value> = t<'value>
 and error = private {operation: operation, code: errorCode, path: Path.t}
 and errorCode =
@@ -107,7 +107,8 @@ let string: t<string>
 let bool: t<bool>
 let int: t<int>
 let float: t<float>
-let json: t<Js.Json.t>
+
+let json: (~validate: bool) => t<Js.Json.t>
 
 let literal: 'value => t<'value>
 let array: t<'value> => t<array<'value>>

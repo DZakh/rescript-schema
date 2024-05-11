@@ -83,13 +83,13 @@ test("Dict of string schema from Core", t => {
 @schema
 type myJson = Js.Json.t
 test("Json schema", t => {
-  t->assertEqualSchemas(myJsonSchema, S.json)
+  t->assertEqualSchemas(myJsonSchema, S.json(~validate=true))
 })
 
 @schema
 type myJsonFromCore = JSON.t
 test("Json schema from Core", t => {
-  t->assertEqualSchemas(myJsonFromCoreSchema, S.json)
+  t->assertEqualSchemas(myJsonFromCoreSchema, S.json(~validate=true))
 })
 
 @schema

@@ -68,12 +68,16 @@ Ava("Dict of string schema from Core", (function (t) {
         U.assertEqualSchemas(t, myDictOfStringFromCoreSchema, S$RescriptSchema.dict(S$RescriptSchema.string), undefined);
       }));
 
+var myJsonSchema = S$RescriptSchema.json(true);
+
 Ava("Json schema", (function (t) {
-        U.assertEqualSchemas(t, S$RescriptSchema.json, S$RescriptSchema.json, undefined);
+        U.assertEqualSchemas(t, myJsonSchema, S$RescriptSchema.json(true), undefined);
       }));
 
+var myJsonFromCoreSchema = S$RescriptSchema.json(true);
+
 Ava("Json schema from Core", (function (t) {
-        U.assertEqualSchemas(t, S$RescriptSchema.json, S$RescriptSchema.json, undefined);
+        U.assertEqualSchemas(t, myJsonFromCoreSchema, S$RescriptSchema.json(true), undefined);
       }));
 
 var myTupleSchema = S$RescriptSchema.tuple(function (s) {
@@ -160,10 +164,6 @@ var myUnitSchema = S$RescriptSchema.unit;
 var myUnknownSchema = S$RescriptSchema.unknown;
 
 var myNeverSchema = S$RescriptSchema.never;
-
-var myJsonSchema = S$RescriptSchema.json;
-
-var myJsonFromCoreSchema = S$RescriptSchema.json;
 
 export {
   myStringSchema ,
