@@ -68,7 +68,7 @@ test("Record schema with optional fields", t => {
 
 @schema
 type recordWithNullableField = {
-  subscription: @schema(S.option(S.null(S.string))) option<option<string>>,
+  subscription: @s.matches(S.option(S.null(S.string))) option<option<string>>,
 }
 test("Record schema with nullable field", t => {
   t->assertEqualSchemas(

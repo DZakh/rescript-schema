@@ -16,7 +16,7 @@ test("Creates schema with the type name and schema at the for non t types", t =>
 type bar = bool
 
 @schema
-type reusedTypes = (t, foo, @schema(S.bool) bar, float)
+type reusedTypes = (t, foo, @s.matches(S.bool) bar, float)
 test("Can reuse schemas from other types", t => {
   t->assertEqualSchemas(
     reusedTypesSchema,

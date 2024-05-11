@@ -2,8 +2,6 @@
 
 - Clean up Caml_option.some, Js_dict.get
 
-- Add S.bigint (?)
-
 - Github Action: Add linter checking that the generated files are up to date (?)
 
 - Don't recreate the object, when nothing should be transformed (???)
@@ -26,26 +24,22 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Move S.inline to a separate codegen module
 
-## v6.4
+## v7
 
 - stop reallocate objects without transformations
 - Make S.serializeToJsonString super fast
-- Add serializeToJsonString to js api
 - Make operations more treeshakable by starting passing the actual operation to the initialOperation function. Or add a condition (verify performance)
-- S.validateWith
-
-## v7
-
-- Remove `@schema` for type expressions
-- `S.json` -> `S.json(~unsafe: bool)` to improve tree-shaking
+- `S.json` -> `S.json(~validate: bool)` to improve tree-shaking
 - Remove `s.failWithError` since there's `Error.raise` 🤔
-- Make `error.reason` tree-shakeable
-- Update `Literal` `tagged` to include `text`, `value` and `kind`. So it's more convinient and smaller bundle-size
 - Turn `String.email` -> `email`, `String.min` -> `stringMin` for tree-shaking
 - Rename `InvalidJsonStruct` error, since after `rescript-struct`->`rescript-schema` it became misleading
+- Add S.bigint
 
 ## v???
 
+- S.validateWith
+- Make `error.reason` tree-shakeable
+- Add serializeToJsonString to js api
 - S.toJSON/S.castToJson ???
 - nestedField for object
 - s.spread for object

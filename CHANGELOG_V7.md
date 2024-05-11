@@ -10,11 +10,4 @@
   - `catchCtx` -> `Catch.s`
 - Added `serializeToJsonStringOrRaiseWith`
 - Allow to create `S.union` with single item
-
-Plan for V7:
-
-- Tree-shakable error reasons (postponed)
-- Tree-shakable built-in refinements (postponed)
-- 2x faster serializeToJsonString
-- Add S.bigint
-- // TODO: Update doc with changes
+- PPX: Removed `@schema` for type expressions. Use `@s.matches` instead.

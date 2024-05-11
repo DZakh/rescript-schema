@@ -129,9 +129,6 @@ and generateObjectSchema fields =
                  PStr [Str.eval (Exp.record field_expressions None)] )]))]
 
 and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
-  let deprecatedCustomSchemaExpression =
-    getAttributeByName ptyp_attributes "schema"
-  in
   let customSchemaExpression = getAttributeByName ptyp_attributes "s.matches" in
   let option_factory_expression =
     match
@@ -147,8 +144,8 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
     | _, Error s | Error s, _ -> fail ptyp_loc s
   in
   let schema_expression =
-    match (deprecatedCustomSchemaExpression, customSchemaExpression) with
-    | Ok None, Ok None -> (
+    match (customSchemaExpression) with
+    | Ok None -> (
       match ptyp_desc with
       | Ptyp_any -> fail ptyp_loc "Can't generate schema for `any` type"
       | Ptyp_arrow (_, _, _) ->
@@ -176,9 +173,9 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
       | Ptyp_object (object_fields, Closed) ->
         object_fields |> List.map parseObjectField |> generateObjectSchema
       | _ -> fail ptyp_loc "Unsupported type")
-    | Ok (Some attribute), _ | _, Ok (Some attribute) ->
+    | Ok (Some attribute) ->
       getExpressionFromPayload attribute
-    | _, Error s | Error s, _ -> fail ptyp_loc s
+    | Error s -> fail ptyp_loc s
   in
   let schema_expression =
     match getAttributeByName ptyp_attributes "s.default" with

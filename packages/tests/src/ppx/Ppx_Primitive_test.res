@@ -121,19 +121,19 @@ test("Big tuple schema", t => {
 })
 
 @schema
-type myCustomString = @schema(S.string->S.String.email) string
+type myCustomString = @s.matches(S.string->S.String.email) string
 test("Custom string schema", t => {
   t->assertEqualSchemas(myCustomStringSchema, S.string->S.String.email)
 })
 
 @schema
-type myCustomLiteralString = @schema(S.literal("123")->S.String.email) string
+type myCustomLiteralString = @s.matches(S.literal("123")->S.String.email) string
 test("Custom litaral string schema", t => {
   t->assertEqualSchemas(myCustomLiteralStringSchema, S.literal("123")->S.String.email)
 })
 
 @schema
-type myCustomOptionalString = option<@schema(S.string->S.String.email) string>
+type myCustomOptionalString = option<@s.matches(S.string->S.String.email) string>
 test("Custom optional string schema", t => {
   t->assertEqualSchemas(myCustomOptionalStringSchema, S.string->S.String.email->S.option)
 })
@@ -144,7 +144,7 @@ test("Custom optional string schema", t => {
 // The incompatible parts: option<string> vs myNullOfString (defined as null<string>)
 // So use the code below instead
 @schema
-type myNullOfString = @schema(S.null(S.string)) option<string>
+type myNullOfString = @s.matches(S.null(S.string)) option<string>
 test("Null of string schema", t => {
   t->assertEqualSchemas(myNullOfStringSchema, S.null(S.string))
 })

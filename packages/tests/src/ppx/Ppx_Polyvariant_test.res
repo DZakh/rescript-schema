@@ -15,7 +15,7 @@ test("Polymorphic variant with single item becomes a literal schema of the item"
 })
 
 @schema
-type polyEmbeded = @schema(S.string->S.variant(_ => #one)) [#one]
+type polyEmbeded = @s.matches(S.string->S.variant(_ => #one)) [#one]
 test("Embed custom schema for polymorphic variants", t => {
   t->assertEqualSchemas(polyEmbededSchema, S.string->S.variant(_ => #one))
 })
