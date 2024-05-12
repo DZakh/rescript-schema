@@ -244,7 +244,9 @@ type rec t<'value> = {
   @as("s")
   mutable serializeOperationBuilder: builder,
   @as("f")
-  maybeTypeFilter: option<(~inputVar: string) => string>,
+  maybeTypeFilter?: (~inputVar: string) => string,
+  @as("j")
+  maybeToJsonString?: string => string,
   @as("i")
   mutable isAsyncParse: isAsyncParse,
   @as("m")
@@ -1068,12 +1070,14 @@ let make = (
   ~parseOperationBuilder,
   ~serializeOperationBuilder,
   ~maybeTypeFilter,
+  ~toJsonString=?,
 ) => {
   tagged,
   parseOperationBuilder,
   serializeOperationBuilder,
   isAsyncParse: Unknown,
-  maybeTypeFilter,
+  ?maybeTypeFilter,
+  maybeToJsonString: ?toJsonString,
   name,
   metadataMap,
 }
@@ -1085,15 +1089,19 @@ let makeWithNoopSerializer = (
   ~metadataMap,
   ~parseOperationBuilder,
   ~maybeTypeFilter,
+  ~toJsonString=?,
 ) => {
   name,
   tagged,
   parseOperationBuilder,
   serializeOperationBuilder: Builder.noop,
   isAsyncParse: Unknown,
-  maybeTypeFilter,
+  ?maybeTypeFilter,
+  maybeToJsonString: ?toJsonString,
   metadataMap,
 }
+
+let defaultToJsonString = input => `JSON.stringify(${input})`
 
 module Operation = {
   let unexpectedAsync = _ =>
@@ -1280,6 +1288,7 @@ module Metadata = {
       ~serializeOperationBuilder=schema.serializeOperationBuilder,
       ~tagged=schema.tagged,
       ~maybeTypeFilter=schema.maybeTypeFilter,
+      ~toJsonString=?schema.maybeToJsonString,
       ~metadataMap,
     )
   }
@@ -1371,6 +1380,7 @@ let setName = (schema, name) => {
     ~serializeOperationBuilder=schema.serializeOperationBuilder,
     ~tagged=schema.tagged,
     ~maybeTypeFilter=schema.maybeTypeFilter,
+    ~toJsonString=?schema.maybeToJsonString,
     ~metadataMap=schema.metadataMap,
   )
 }
@@ -1410,6 +1420,7 @@ let internalRefine = (schema, refiner) => {
       )
     }),
     ~maybeTypeFilter=schema.maybeTypeFilter,
+    ~toJsonString=?schema.maybeToJsonString,
     ~metadataMap=schema.metadataMap,
   )
 }
@@ -1478,6 +1489,7 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
       }
     }),
     ~maybeTypeFilter=schema.maybeTypeFilter,
+    ~toJsonString=?schema.maybeToJsonString,
     ~metadataMap=schema.metadataMap,
   )
 }
@@ -1623,6 +1635,13 @@ let literal = value => {
     ~parseOperationBuilder=operationBuilder,
     ~serializeOperationBuilder=operationBuilder,
     ~maybeTypeFilter=None,
+    ~toJsonString=?switch literal->Literal.isJsonable {
+    | true => {
+        let string = literal->Literal.toString->Stdlib.Inlined.Value.fromString
+        Some(_ => string)
+      }
+    | false => None
+    },
   )
 }
 let unit = literal(%raw("void 0"))
@@ -1752,6 +1771,7 @@ module Variant = {
           }
         }),
         ~maybeTypeFilter=schema.maybeTypeFilter,
+        ~toJsonString=?schema.maybeToJsonString,
         ~metadataMap=schema.metadataMap,
       )
     }
@@ -1872,6 +1892,7 @@ module Null = {
       ~parseOperationBuilder=Option.parseOperationBuilder,
       ~serializeOperationBuilder=Option.serializeOperationBuilder,
       ~maybeTypeFilter=Option.maybeTypeFilter(~schema, ~inlinedNoneValue="null"),
+      ~toJsonString=defaultToJsonString, // FIXME:
     )
   }
 }
@@ -2222,6 +2243,23 @@ module Object = {
         `{${fieldsCodeRef.contents}}`
       }),
       ~maybeTypeFilter=Some(typeFilter),
+      ~toJsonString=input => {
+        let jsonStringRef = ref(`'{`)
+        for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
+          let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
+          jsonStringRef.contents =
+            jsonStringRef.contents ++
+            (idx === 0 ? `` : `,`) ++
+            itemDefinition.inlinedInputLocation ++
+            `:` ++
+            `'+` ++
+            (itemDefinition.schema.maybeToJsonString->(Obj.magic: option<'a> => 'a))(
+              `${input}[${itemDefinition.inlinedInputLocation}]`,
+            ) ++ `+'`
+        }
+        jsonStringRef.contents ++ `}'`
+      },
+      // ~toJsonString=defaultToJsonString, // FIXME:
     )
   }
 
@@ -2234,6 +2272,7 @@ module Object = {
         ~parseOperationBuilder=schema.parseOperationBuilder,
         ~serializeOperationBuilder=schema.serializeOperationBuilder,
         ~maybeTypeFilter=schema.maybeTypeFilter,
+        ~toJsonString=?schema.maybeToJsonString,
         ~metadataMap=schema.metadataMap,
       )
     | _ => schema
@@ -2249,6 +2288,7 @@ module Object = {
         ~parseOperationBuilder=schema.parseOperationBuilder,
         ~serializeOperationBuilder=schema.serializeOperationBuilder,
         ~maybeTypeFilter=schema.maybeTypeFilter,
+        ~toJsonString=?schema.maybeToJsonString,
         ~metadataMap=schema.metadataMap,
       )
     // TODO: Should it throw for non Object schemas?
@@ -2280,6 +2320,7 @@ module Never = {
     ~parseOperationBuilder=builder,
     ~serializeOperationBuilder=builder,
     ~maybeTypeFilter=None,
+    ~toJsonString=defaultToJsonString,
   )
 }
 
@@ -2291,7 +2332,6 @@ module Unknown = {
     serializeOperationBuilder: Builder.noop,
     isAsyncParse: Value(false),
     metadataMap: Metadata.Map.empty,
-    maybeTypeFilter: None,
   }
 }
 
@@ -2340,6 +2380,7 @@ module String = {
     ~tagged=String,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
+    ~toJsonString=defaultToJsonString,
   )
 
   let min = (schema, length, ~message as maybeMessage=?) => {
@@ -2496,15 +2537,12 @@ module String = {
 module JsonString = {
   let factory = (schema, ~space=0) => {
     let schema = schema->toUnknown
-    try {
-      schema->validateJsonableSchema(~rootSchema=schema, ~isRoot=true)
-    } catch {
-    | exn => {
-        let _ = exn->InternalError.getOrRethrow
-        InternalError.panic(
-          `The schema ${schema.name()} passed to S.jsonString is not compatible with JSON`,
-        )
-      }
+    let toJsonString = switch schema.maybeToJsonString {
+    | Some(v) => v
+    | None =>
+      InternalError.panic(
+        `The schema ${schema.name()} passed to S.jsonString is not compatible with JSON`,
+      )
     }
     make(
       ~name=primitiveName,
@@ -2525,11 +2563,18 @@ module JsonString = {
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         let input = b->B.useInput
-        `JSON.stringify(${b->B.use(~schema, ~input, ~path)}${space > 0
-            ? `,null,${space->Stdlib.Int.unsafeToString}`
-            : ""})`
+        switch space {
+        | 0 => toJsonString(input)
+        | _ =>
+          `JSON.stringify(${b->B.use(
+              ~schema,
+              ~input,
+              ~path,
+            )},null,${space->Stdlib.Int.unsafeToString})`
+        }
       }),
       ~maybeTypeFilter=Some(String.typeFilter),
+      ~toJsonString=defaultToJsonString,
     )
   }
 }
@@ -2543,6 +2588,7 @@ module Bool = {
     ~tagged=Bool,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
+    ~toJsonString=input => `(${input}?"true":"false")`,
   )
 }
 
@@ -2573,12 +2619,15 @@ module Int = {
   let typeFilter = (~inputVar) =>
     `typeof ${inputVar}!=="number"||${inputVar}>2147483647||${inputVar}<-2147483648||${inputVar}%1!==0`
 
+  let toJsonString = input => `${input}.toString()`
+
   let schema = makeWithNoopSerializer(
     ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Int,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
+    ~toJsonString,
   )
 
   let min = (schema, minValue, ~message as maybeMessage=?) => {
@@ -2660,6 +2709,7 @@ module Float = {
     ~tagged=Float,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
+    ~toJsonString=Int.toJsonString,
   )
 
   let min = (schema, minValue, ~message as maybeMessage=?) => {
@@ -2784,6 +2834,7 @@ module Array = {
         }
       }),
       ~maybeTypeFilter=Some(typeFilter),
+      ~toJsonString=defaultToJsonString, // FIXME:
     )
   }
 
@@ -2904,6 +2955,7 @@ module Dict = {
         }
       }),
       ~maybeTypeFilter=Some(Object.typeFilter),
+      ~toJsonString=defaultToJsonString, // FIXME:
     )
   }
 }
@@ -3093,6 +3145,7 @@ module Tuple = {
       }),
       ~maybeTypeFilter=Some(Array.typeFilter),
       ~metadataMap=Metadata.Map.empty,
+      ~toJsonString=defaultToJsonString, // FIXME:
     )
   }
 }
@@ -3258,6 +3311,7 @@ module Union = {
           outputVar
         }),
         ~maybeTypeFilter=None,
+        ~toJsonString=defaultToJsonString, // FIXME:
       )
     }
   }
@@ -3278,6 +3332,7 @@ let json = (~validate) =>
     ~tagged=JSON({validated: validate}),
     ~metadataMap=Metadata.Map.empty,
     ~maybeTypeFilter=None,
+    ~toJsonString=defaultToJsonString,
     ~parseOperationBuilder=validate
       ? Builder.make((b, ~selfSchema, ~path) => {
           let rec parse = (input, ~path=path) => {
@@ -3377,6 +3432,7 @@ let catch = (schema, getFallbackValue) => {
     ~serializeOperationBuilder=schema.serializeOperationBuilder,
     ~tagged=schema.tagged,
     ~maybeTypeFilter=None,
+    ~toJsonString=?schema.maybeToJsonString,
     ~metadataMap=schema.metadataMap,
   )
 }

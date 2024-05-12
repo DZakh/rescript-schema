@@ -13,6 +13,14 @@ function run(suite) {
           })).run();
 }
 
+function makeNestedTestObject() {
+  return (Object.freeze({
+      foo: 'bar',
+      num: 1,
+      bool: false,
+    }));
+}
+
 function makeTestObject() {
   return (Object.freeze({
     number: 1,
@@ -28,6 +36,16 @@ function makeTestObject() {
       bool: false,
     },
   }));
+}
+
+function makeNestedSchema() {
+  return S$RescriptSchema.object(function (s) {
+              return {
+                      foo: s.f("foo", S$RescriptSchema.string),
+                      num: s.f("num", S$RescriptSchema.$$float),
+                      bool: s.f("bool", S$RescriptSchema.bool)
+                    };
+            });
 }
 
 function makeAdvancedObjectSchema() {
@@ -114,37 +132,54 @@ S$RescriptSchema.serializeWith(data, schema);
 
 console.timeEnd("s: 3");
 
-run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new (Benchmark.default.Suite)(), "Parse string", (function () {
-                                  return function () {
-                                    return S$RescriptSchema.parseAnyOrRaiseWith("Hello world!", S$RescriptSchema.string);
-                                  };
-                                })), "Serialize string", (function () {
-                              return function () {
-                                return S$RescriptSchema.serializeOrRaiseWith("Hello world!", S$RescriptSchema.string);
-                              };
-                            })).add("Advanced object schema factory", makeAdvancedObjectSchema), "Parse advanced object", (function () {
+run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new (Benchmark.default.Suite)(), "Parse string", (function () {
+                                              return function () {
+                                                return S$RescriptSchema.parseAnyOrRaiseWith("Hello world!", S$RescriptSchema.string);
+                                              };
+                                            })), "Serialize string", (function () {
+                                          return function () {
+                                            return S$RescriptSchema.serializeOrRaiseWith("Hello world!", S$RescriptSchema.string);
+                                          };
+                                        })).add("Advanced object schema factory", makeAdvancedObjectSchema), "Parse advanced object", (function () {
+                                    var schema = makeAdvancedObjectSchema();
+                                    var data = makeTestObject();
+                                    return function () {
+                                      return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
+                                    };
+                                  })), "Create and parse advanced object", (function () {
+                                var data = makeTestObject();
+                                return function () {
+                                  var schema = makeAdvancedObjectSchema();
+                                  return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
+                                };
+                              })), "Parse advanced strict object", (function () {
+                            var schema = makeAdvancedStrictObjectSchema();
+                            var data = makeTestObject();
+                            return function () {
+                              return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
+                            };
+                          })), "Serialize advanced object", (function () {
                         var schema = makeAdvancedObjectSchema();
                         var data = makeTestObject();
                         return function () {
-                          return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
+                          return S$RescriptSchema.serializeOrRaiseWith(data, schema);
                         };
-                      })), "Create and parse advanced object", (function () {
-                    var data = makeTestObject();
+                      })), "Stringify with JSON.stringify", (function () {
+                    var data = makeNestedTestObject();
                     return function () {
-                      var schema = makeAdvancedObjectSchema();
-                      return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
+                      return JSON.stringify(data);
                     };
-                  })), "Parse advanced strict object", (function () {
-                var schema = makeAdvancedStrictObjectSchema();
-                var data = makeTestObject();
+                  })), "Stringify with S.serializeToJsonStringWith", (function () {
+                var data = makeNestedTestObject();
+                var schema = makeNestedSchema();
                 return function () {
-                  return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
+                  return S$RescriptSchema.serializeToJsonStringWith(data, schema, undefined);
                 };
-              })), "Serialize advanced object", (function () {
-            var schema = makeAdvancedObjectSchema();
-            var data = makeTestObject();
+              })), "Stringify with S.jsonString", (function () {
+            var data = makeNestedTestObject();
+            var schema = S$RescriptSchema.jsonString(makeNestedSchema(), undefined);
             return function () {
-              return S$RescriptSchema.serializeOrRaiseWith(data, schema);
+              return S$RescriptSchema.serializeToUnknownWith(data, schema);
             };
           })));
 
