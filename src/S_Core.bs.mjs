@@ -229,19 +229,24 @@ function $$var$1(b, val) {
   return $$var$2;
 }
 
-function push(b, val, code) {
-  var $$var$2 = $$var$1(b, val);
-  return $$var$2 + ".push(" + code + ")";
+function push(b, input, val) {
+  return $$var$1(b, input) + ".push(" + inline(b, val) + ")";
 }
 
-function addKey(b, val, key, code) {
-  var $$var$2 = $$var$1(b, val);
-  return $$var$2 + "[" + key + "]=" + code;
+function addKey(b, input, key, val) {
+  return $$var$1(b, input) + "[" + key + "]=" + inline(b, val);
 }
 
-function set(b, val, code) {
-  var $$var$2 = $$var$1(b, val);
-  return $$var$2 + "=" + code;
+function set(b, input, val) {
+  return $$var$1(b, input) + "=" + inline(b, val);
+}
+
+function setInlined(b, input, inlined) {
+  return $$var$1(b, input) + "=" + inlined;
+}
+
+function map(b, inlinedFn, input) {
+  return val(b, inlinedFn + "(" + inline(b, input) + ")");
 }
 
 function transform(b, input, isAsync, operation) {
@@ -315,7 +320,7 @@ function withCatch(b, $$catch, fn) {
         return catchCode + (
                 catchLocation === 1 ? "return Promise.resolve(" + maybeResolveVar + ")" : (
                     catchLocation === 2 ? "return " + maybeResolveVar : (
-                        isAsync ? set(b, output, "()=>Promise.resolve(" + maybeResolveVar + ")") : set(b, output, maybeResolveVar)
+                        isAsync ? setInlined(b, output, "()=>Promise.resolve(" + maybeResolveVar + ")") : setInlined(b, output, maybeResolveVar)
                       )
                   )
               ) + ("}else{throw " + errorVar + "}");
@@ -323,7 +328,7 @@ function withCatch(b, $$catch, fn) {
         return catchCode + "}throw " + errorVar;
       });
   b.c = prevCode + ("try{" + b.c + (
-      isAsync ? set(b, output, "()=>{try{return " + $$var$1(b, fnOutput) + "().catch(" + errorVar + "=>{" + catchCode$1(2) + "})}catch(" + errorVar + "){" + catchCode$1(1) + "}}") : set(b, output, inline(b, fnOutput))
+      isAsync ? setInlined(b, output, "()=>{try{return " + $$var$1(b, fnOutput) + "().catch(" + errorVar + "=>{" + catchCode$1(2) + "})}catch(" + errorVar + "){" + catchCode$1(1) + "}}") : set(b, output, fnOutput)
     ) + "}catch(" + errorVar + "){" + catchCode$1(0) + "}");
   return output;
 }
@@ -379,8 +384,10 @@ function use(b, schema, input, path) {
 
 function useWithTypeFilter(b, schema, input, path) {
   var typeFilter = schema.f;
-  var input$1 = typeFilter !== undefined ? (b.c = b.c + typeFilterCode(b, typeFilter, schema, input, path), input) : input;
-  return use(b, schema, input$1, path);
+  if (typeFilter !== undefined) {
+    b.c = b.c + typeFilterCode(b, typeFilter, schema, input, path);
+  }
+  return use(b, schema, input, path);
 }
 
 function withBuildErrorInline(b, fn) {
@@ -1490,9 +1497,7 @@ function parseOperationBuilder(b, selfSchema, path) {
   var isNull = (selfSchema.t.TAG === "Null");
   var childSchema = selfSchema.t._0;
   var ifCode = scope(b, (function (b) {
-          return set(b, output, (function (__x) {
-                          return inline(b, __x);
-                        })(use(b, childSchema, input, path)));
+          return set(b, output, use(b, childSchema, input, path));
         }));
   var isAsync = childSchema.i;
   var tmp;
@@ -1503,7 +1508,7 @@ function parseOperationBuilder(b, selfSchema, path) {
     tmp = "";
   }
   if (exit === 1) {
-    tmp = "else{" + set(b, output, isAsync ? "()=>Promise.resolve(void 0)" : "void 0") + "}";
+    tmp = "else{" + setInlined(b, output, isAsync ? "()=>Promise.resolve(void 0)" : "void 0") + "}";
   }
   b.c = b.c + ("if(" + $$var$1(b, input) + "!==" + (
       isNull ? "null" : "void 0"
@@ -1518,13 +1523,11 @@ function serializeOperationBuilder(b, selfSchema, path) {
   var childSchema = selfSchema.t._0;
   b.c = b.c + ("if(" + $$var$1(b, input) + "!==void 0){" + scope(b, (function (b) {
             var value = Caml_option.valFromOption;
-            return set(b, output, (function (__x) {
-                            return inline(b, __x);
-                          })(use(b, childSchema, (function (__x) {
-                                    return val(b, __x);
-                                  })("e[" + (b.e.push(value) - 1) + "](" + $$var$1(b, input) + ")"), path)));
+            return set(b, output, use(b, childSchema, (function (__x) {
+                                return val(b, __x);
+                              })("e[" + (b.e.push(value) - 1) + "](" + $$var$1(b, input) + ")"), path));
           })) + "}" + (
-      isNull ? "else{" + set(b, output, "null") + "}" : ""
+      isNull ? "else{" + setInlined(b, output, "null") + "}" : ""
     ));
   return output;
 }
@@ -2105,7 +2108,7 @@ function factory$4(schema, spaceOpt) {
           p: (function (b, param, path) {
               var input = b.i;
               var jsonVal = allocateVal(b);
-              b.c = b.c + ("try{" + set(b, jsonVal, "JSON.parse(" + inline(b, input) + ")") + "}catch(t){" + raiseWithArg(b, path, (function (message) {
+              b.c = b.c + ("try{" + set(b, jsonVal, map(b, "JSON.parse", input)) + "}catch(t){" + raiseWithArg(b, path, (function (message) {
                         return {
                                 TAG: "OperationFailed",
                                 _0: message
@@ -2285,7 +2288,7 @@ function factory$5(schema) {
                                                 return val(b, __x);
                                               })(inputVar + "[" + iteratorVar + "]"), path);
                               }));
-                        return push(b, output, inline(b, itemOutputVal));
+                        return push(b, output, itemOutputVal);
                       })) + "}");
               var isAsync = schema.i;
               if (isAsync) {
@@ -2302,14 +2305,12 @@ function factory$5(schema) {
               var iteratorVar = varWithoutAllocation(b);
               var output = val(b, "[]");
               b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
-                        var itemOutputVar = (function (__x) {
-                              return $$var$1(b, __x);
-                            })(withPathPrepend(b, path, iteratorVar, (function (b, path) {
-                                    return use(b, schema, (function (__x) {
-                                                    return val(b, __x);
-                                                  })(inputVar + "[" + iteratorVar + "]"), path);
-                                  })));
-                        return push(b, output, itemOutputVar);
+                        var itemOutputVal = withPathPrepend(b, path, iteratorVar, (function (b, path) {
+                                return use(b, schema, (function (__x) {
+                                                return val(b, __x);
+                                              })(inputVar + "[" + iteratorVar + "]"), path);
+                              }));
+                        return push(b, output, itemOutputVal);
                       })) + "}");
               return output;
             }),
@@ -2375,7 +2376,7 @@ function factory$6(schema) {
                                                 return val(b, __x);
                                               })(inputVar + "[" + keyVar + "]"), path);
                               }));
-                        return addKey(b, output, keyVar, inline(b, itemOutputVal));
+                        return addKey(b, output, keyVar, itemOutputVal);
                       })) + "}");
               var isAsync = schema.i;
               if (!isAsync) {
@@ -2401,7 +2402,7 @@ function factory$6(schema) {
                                                 return val(b, __x);
                                               })(inputVar + "[" + keyVar + "]"), path);
                               }));
-                        return addKey(b, output, keyVar, inline(b, itemOutputVal));
+                        return addKey(b, output, keyVar, itemOutputVal);
                       })) + "}");
               return output;
             }),

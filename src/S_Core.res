@@ -530,19 +530,24 @@ module Builder = {
         }
       }
 
-      let push = (b: b, val: val, code) => {
-        let var = b->var(val)
-        `${var}.push(${code})`
+      let push = (b: b, input: val, val: val) => {
+        `${b->var(input)}.push(${b->inline(val)})`
       }
 
-      let addKey = (b: b, val: val, key, code) => {
-        let var = b->var(val)
-        `${var}[${key}]=${code}`
+      let addKey = (b: b, input: val, key, val: val) => {
+        `${b->var(input)}[${key}]=${b->inline(val)}`
       }
 
-      let set = (b: b, val: val, code) => {
-        let var = b->var(val)
-        `${var}=${code}`
+      let set = (b: b, input: val, val) => {
+        `${b->var(input)}=${b->inline(val)}`
+      }
+
+      let setInlined = (b: b, input: val, inlined) => {
+        `${b->var(input)}=${inlined}`
+      }
+
+      let map = (b: b, inlinedFn, input: val) => {
+        b->val(`${inlinedFn}(${b->inline(input)})`)
       }
     }
 
@@ -638,8 +643,8 @@ module Builder = {
         catchLocation =>
           catchCode ++
           switch catchLocation {
-          | #0 if isAsync => b->Val.set(output, `()=>Promise.resolve(${resolveVar})`)
-          | #0 => b->Val.set(output, resolveVar)
+          | #0 if isAsync => b->Val.setInlined(output, `()=>Promise.resolve(${resolveVar})`)
+          | #0 => b->Val.setInlined(output, resolveVar) // FIXME:
           | #1 => `return Promise.resolve(${resolveVar})`
           | #2 => `return ${resolveVar}`
           } ++
@@ -651,13 +656,13 @@ module Builder = {
         `try{${b.code}${{
             switch isAsync {
             | true =>
-              b->Val.set(
+              b->Val.setInlined(
                 output,
                 `()=>{try{return ${b->Val.var(fnOutput)}().catch(${errorVar}=>{${catchCode(
                     #2,
                   )}})}catch(${errorVar}){${catchCode(#1)}}}`,
-              )
-            | false => b->Val.set(output, b->Val.inline(fnOutput))
+              ) // FIXME:
+            | false => b->Val.set(output, fnOutput)
             }
           }}}catch(${errorVar}){${catchCode(#0)}}`
 
@@ -718,12 +723,10 @@ module Builder = {
     }
 
     let useWithTypeFilter = (b: b, ~schema, ~input, ~path) => {
-      let input = switch schema.maybeTypeFilter {
-      | Some(typeFilter) => {
-          b.code = b.code ++ b->typeFilterCode(~schema, ~typeFilter, ~input, ~path)
-          input
-        }
-      | None => input
+      switch schema.maybeTypeFilter {
+      | Some(typeFilter) => b.code =
+          b.code ++ b->typeFilterCode(~schema, ~typeFilter, ~input, ~path)
+      | None => ()
       }
       b->use(~schema, ~input, ~path)
     }
@@ -1910,7 +1913,7 @@ module Option = {
     let childSchema = selfSchema.tagged->unsafeGetVariantPayload
 
     let ifCode = b->B.scope(b => {
-      b->B.Val.set(output, b->B.use(~schema=childSchema, ~input, ~path)->(B.Val.inline(b, _)))
+      b->B.Val.set(output, b->B.use(~schema=childSchema, ~input, ~path))
     })
     let isAsync = childSchema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
 
@@ -1922,7 +1925,7 @@ module Option = {
         ) {
         | (false, false) => ""
         | _ =>
-          `else{${b->B.Val.set(
+          `else{${b->B.Val.setInlined(
               output,
               switch isAsync {
               | false => `void 0`
@@ -1946,17 +1949,15 @@ module Option = {
       `if(${b->B.Val.var(input)}!==void 0){${b->B.scope(b => {
           b->B.Val.set(
             output,
-            b
-            ->B.use(
+            b->B.use(
               ~schema=childSchema,
               ~input=`${b->B.embed(%raw("Caml_option.valFromOption"))}(${b->B.Val.var(input)})`->(
                 B.val(b, _)
               ),
               ~path,
-            )
-            ->(B.Val.inline(b, _)),
+            ),
           )
-        })}}${isNull ? `else{${b->B.Val.set(output, `null`)}}` : ""}`
+        })}}${isNull ? `else{${b->B.Val.setInlined(output, `null`)}}` : ""}`
 
     output
   })
@@ -2678,7 +2679,7 @@ module JsonString = {
           b.code ++
           `try{${b->B.Val.set(
               jsonVal,
-              `JSON.parse(${b->B.Val.inline(input)})`,
+              b->B.Val.map("JSON.parse", input),
             )}}catch(t){${b->B.raiseWithArg(
               ~path,
               message => OperationFailed(message),
@@ -2915,7 +2916,7 @@ module Array = {
                         ~path,
                       ),
                   )
-                b->B.Val.push(output, b->B.Val.inline(itemOutputVal))
+                b->B.Val.push(output, itemOutputVal)
               },
             )}}`
 
@@ -2938,9 +2939,8 @@ module Array = {
             b.code ++
             `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.scope(
                 b => {
-                  let itemOutputVar =
-                    b
-                    ->B.withPathPrepend(
+                  let itemOutputVal =
+                    b->B.withPathPrepend(
                       ~path,
                       ~dynamicLocationVar=iteratorVar,
                       (b, ~path) =>
@@ -2950,8 +2950,8 @@ module Array = {
                           ~path,
                         ),
                     )
-                    ->(B.Val.var(b, _))
-                  b->B.Val.push(output, itemOutputVar)
+
+                  b->B.Val.push(output, itemOutputVal)
                 },
               )}}`
 
@@ -3041,7 +3041,7 @@ module Dict = {
                     ),
                 )
 
-              b->B.Val.addKey(output, keyVar, b->B.Val.inline(itemOutputVal))
+              b->B.Val.addKey(output, keyVar, itemOutputVal)
             })}}`
 
         let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
@@ -3076,7 +3076,7 @@ module Dict = {
                     (b, ~path) =>
                       b->B.use(~schema, ~input=`${inputVar}[${keyVar}]`->(B.val(b, _)), ~path),
                   )
-                b->B.Val.addKey(output, keyVar, b->B.Val.inline(itemOutputVal))
+                b->B.Val.addKey(output, keyVar, itemOutputVal)
               })}}`
 
           output
