@@ -258,8 +258,15 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#serialize,
-      `i=>{let v0;v0=[];v0["0"]=i["0"];v0["1"]=i["1"];return v0}`,
+      `i=>{let v0=[];v0["0"]=i["0"];v0["1"]=i["1"];return v0}`,
     )
+  })
+
+  test("Compiled serialize code snapshot for empty tuple", t => {
+    let schema = S.tuple(_ => ())
+
+    // FIXME: No need to do unit check ?
+    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{if(i!==e[0]){e[1](i)}return []}`)
   })
 
   test(
@@ -297,7 +304,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#serialize,
-        `i=>{let v0;v0=[];if(i["zoo"]!==e[0]){e[1](i["zoo"])}v0["1"]=i["foo"];v0["2"]=i["bar"];v0["0"]=e[2];return v0}`,
+        `i=>{let v0=[];if(i["zoo"]!==e[0]){e[1](i["zoo"])}v0["1"]=i["foo"];v0["2"]=i["bar"];v0["0"]=e[2];return v0}`,
       )
     },
   )

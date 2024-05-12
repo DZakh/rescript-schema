@@ -45,7 +45,7 @@ test("Serializes when second struct misses serializer", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#serialize,
-    `i=>{let v0;try{i==="apple"||e[0](i);v0=i}catch(v1){if(v1&&v1.s===s){try{throw e[1];if(typeof i!=="string"){e[2](i)}v0=i}catch(v2){if(v2&&v2.s===s){e[3]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
+    `i=>{let v1;try{i==="apple"||e[0](i);v1=i}catch(v0){if(v0&&v0.s===s){try{throw e[1];if(typeof i!=="string"){e[2](i)}v1=i}catch(v2){if(v2&&v2.s===s){e[3]([v0,v2,])}else{throw v2}}}else{throw v0}}return v1}`,
   )
 })
 
@@ -371,7 +371,7 @@ test("Compiled serialize code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#serialize,
-    `i=>{let v0;try{i===0||e[0](i);v0=i}catch(v1){if(v1&&v1.s===s){try{i===1||e[1](i);v0=i}catch(v2){if(v2&&v2.s===s){e[2]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
+    `i=>{let v1;try{i===0||e[0](i);v1=i}catch(v0){if(v0&&v0.s===s){try{i===1||e[1](i);v1=i}catch(v2){if(v2&&v2.s===s){e[2]([v0,v2,])}else{throw v2}}}else{throw v0}}return v1}`,
   )
 })
 
@@ -389,6 +389,6 @@ test("Compiled serialize code snapshot for unboxed variant", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#serialize,
-    `i=>{let v0;try{if(typeof i!=="string"){e[0](i)}v0=i}catch(v1){if(v1&&v1.s===s){try{let v3=e[1](i);if(typeof v3!=="string"){e[2](v3)}v0=v3}catch(v2){if(v2&&v2.s===s){e[3]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
+    `i=>{let v1;try{if(typeof i!=="string"){e[0](i)}v1=i}catch(v0){if(v0&&v0.s===s){try{let v3=e[1](i);if(typeof v3!=="string"){e[2](v3)}v1=v3}catch(v2){if(v2&&v2.s===s){e[3]([v0,v2,])}else{throw v2}}}else{throw v0}}return v1}`,
   )
 })

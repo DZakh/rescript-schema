@@ -77,6 +77,6 @@ test("Compiled serialize code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema=filmSchema,
     ~op=#serialize,
-    `i=>{let v0=i["tags"],v1,v2,v4=i["rating"],v8=i["deprecatedAgeRestriction"],v9;if(v0!==void 0){v1=e[0](v0)}try{v4==="G"||e[1](v4);v2=v4}catch(v3){if(v3&&v3.s===s){try{v4==="PG"||e[2](v4);v2=v4}catch(v5){if(v5&&v5.s===s){try{v4==="PG13"||e[3](v4);v2=v4}catch(v6){if(v6&&v6.s===s){try{v4==="R"||e[4](v4);v2=v4}catch(v7){if(v7&&v7.s===s){e[5]([v3,v5,v6,v7,])}else{throw v7}}}else{throw v6}}}else{throw v5}}}else{throw v3}}if(v8!==void 0){v9=e[6](v8)}return {"Id":i["id"],"Title":i["title"],"Tags":v1,"Rating":v2,"Age":v9,}}`,
+    `i=>{let v0=i["tags"],v1,v3=i["rating"],v4,v8=i["deprecatedAgeRestriction"],v9;if(v0!==void 0){v1=e[0](v0)}try{v3==="G"||e[1](v3);v4=v3}catch(v2){if(v2&&v2.s===s){try{v3==="PG"||e[2](v3);v4=v3}catch(v5){if(v5&&v5.s===s){try{v3==="PG13"||e[3](v3);v4=v3}catch(v6){if(v6&&v6.s===s){try{v3==="R"||e[4](v3);v4=v3}catch(v7){if(v7&&v7.s===s){e[5]([v2,v5,v6,v7,])}else{throw v7}}}else{throw v6}}}else{throw v5}}}else{throw v2}}if(v8!==void 0){v9=e[6](v8)}return {"Id":i["id"],"Title":i["title"],"Tags":v1,"Rating":v4,"Age":v9,}}`,
   )
 })

@@ -781,7 +781,7 @@ module Builder = {
     } else {
       let inlinedFunction = `${intitialInputVar}=>{${b.code}return ${output}}`
 
-      // Js.log(inlinedFunction)
+      Js.log(inlinedFunction)
 
       Stdlib.Function.make2(
         ~ctxVarName1="e",
@@ -1621,13 +1621,8 @@ let rec preprocess = (schema, transformer) => {
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
         switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
         | {parser, asyncParser: ?None} =>
-          let operationResultVar = b->B.var
-          b.code =
-            b.code ++
-            `${operationResultVar}=${b
-              ->B.embedSyncOperation(~input, ~fn=parser)
-              ->(B.Val.inline(b, _))};`
-          b->B.useWithTypeFilter(~schema, ~input=operationResultVar->(B.val(b, _)), ~path)
+          let operationResult = b->B.embedSyncOperation(~input, ~fn=parser)
+          b->B.useWithTypeFilter(~schema, ~input=operationResult, ~path)
         | {parser: ?None, asyncParser} => {
             let parseResultVar =
               b->B.embedAsyncOperation(~input, ~fn=asyncParser)->(B.Val.var(b, _))
@@ -1800,12 +1795,11 @@ module Variant = {
               | Embeded => Registered(b->B.val(`${inputVar}${outputPath}`))
               | Constant => {
                   let constant = definition->Definition.toConstant
-                  let constantVar = b->B.var
+                  let constantVal = b->B.val(`${inputVar}${outputPath}`)
+                  let constantVar = b->B.Val.var(constantVal)
                   b.code =
                     b.code ++
-                    `${constantVar}=${inputVar}${outputPath};if(${constantVar}!==${b->B.embed(
-                        constant,
-                      )}){${b->B.raiseWithArg(
+                    `if(${constantVar}!==${b->B.embed(constant)}){${b->B.raiseWithArg(
                         ~path=path->Path.concat(outputPath),
                         input => InvalidLiteral({
                           expected: constant->Literal.parse,
@@ -2240,7 +2234,8 @@ module Object = {
             (selfSchema->classify->Obj.magic)["unknownKeys"] === Strict
           switch (withUnknownKeysRefinement, itemDefinitions) {
           | (true, []) => {
-              let keyVar = b->B.var
+              let key = b->B.allocateVal
+              let keyVar = b->B.Val.var(key)
               b.code =
                 b.code ++
                 `for(${keyVar} in ${inputVar}){${b->B.raiseWithArg(
@@ -2250,7 +2245,8 @@ module Object = {
                   )}}`
             }
           | (true, _) => {
-              let keyVar = b->B.var
+              let key = b->B.allocateVal
+              let keyVar = b->B.Val.var(key)
               b.code = b.code ++ `for(${keyVar} in ${inputVar}){if(`
               for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
                 let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
@@ -2580,10 +2576,12 @@ module String = {
     schema->addRefinement(
       ~metadataId=Refinement.metadataId,
       ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        let reVar = b->B.var
-        `${reVar}=${b->B.embed(re)};${reVar}.lastIndex=0;if(!${reVar}.test(${b->B.Val.var(
-            input,
-          )})){${b->B.fail(~message, ~path)}}`
+        let reVal = b->B.val(b->B.embed(re))
+        let reVar = b->B.Val.var(reVal)
+        `${reVar}.lastIndex=0;if(!${reVar}.test(${b->B.Val.var(input)})){${b->B.fail(
+            ~message,
+            ~path,
+          )}}`
       },
       ~refinement={
         kind: Pattern({re: re}),
@@ -3161,10 +3159,8 @@ module Tuple = {
         ~unknownKeysRefinement=Object.noopRefinement,
       ),
       ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-        let inputVar = b->B.Val.var(input)
-        let outputVar = b->B.var
+        let output = b->B.val("[]")
         let registeredDefinitions = Stdlib.Set.empty()
-        b.code = b.code ++ `${outputVar}=[];`
 
         {
           let prevCode = b.code
@@ -3189,22 +3185,24 @@ module Tuple = {
                   b
                   ->B.use(
                     ~schema,
-                    ~input=`${inputVar}${outputPath}`->(B.val(b, _)),
+                    ~input=`${b->B.Val.var(input)}${outputPath}`->(B.val(b, _)),
                     ~path=path->Path.concat(outputPath),
                   )
                   ->(B.Val.inline(b, _))
-                b.code = b.code ++ `${outputVar}${inputPath}=${fieldOuputVar};`
+                b.code = b.code ++ `${b->B.Val.var(output)}${inputPath}=${fieldOuputVar};`
               }
             | Constant => {
                 let value = definition->Definition.toConstant
                 b.code =
-                  `if(${inputVar}${outputPath}!==${b->B.embed(value)}){${b->B.raiseWithArg(
+                  `if(${b->B.Val.var(input)}${outputPath}!==${b->B.embed(
+                      value,
+                    )}){${b->B.raiseWithArg(
                       ~path=path->Path.concat(outputPath),
                       input => InvalidLiteral({
                         expected: value->Literal.parse,
                         received: input,
                       }),
-                      `${inputVar}${outputPath}`,
+                      `${b->B.Val.var(input)}${outputPath}`,
                     )}}` ++
                   b.code
               }
@@ -3232,7 +3230,7 @@ module Tuple = {
             let {schema, inlinedInputLocation, inputPath} = itemDefinition
             switch schema->toInternalLiteral {
             | Some(literal) =>
-              b.code = b.code ++ `${outputVar}${inputPath}=${b->B.embed(literal.value)};`
+              b.code = b.code ++ `${b->B.Val.var(output)}${inputPath}=${b->B.embed(literal.value)};`
             | None =>
               b->B.invalidOperation(
                 ~path,
@@ -3242,7 +3240,7 @@ module Tuple = {
           }
         }
 
-        b->B.val(outputVar)
+        output
       }),
       ~maybeTypeFilter=Some(Array.typeFilter),
       ~metadataMap=Metadata.Map.empty,
@@ -3267,13 +3265,13 @@ module Union = {
 
           let isAsyncRef = ref(false)
           let itemsCode = []
-          let itemOutputVars = []
+          let itemOutputs = []
 
           let prevCode = b.code
           for idx in 0 to schemas->Js.Array2.length - 1 {
             let schema = schemas->Js.Array2.unsafe_get(idx)
             b.code = ""
-            let itemOutputVal = b->B.withBuildErrorInline(
+            let itemOutput = b->B.withBuildErrorInline(
               ~fallback=input,
               () => {
                 b->B.useWithTypeFilter(
@@ -3288,13 +3286,14 @@ module Union = {
             if isAsyncItem {
               isAsyncRef.contents = true
             }
-            itemOutputVars->Js.Array2.push(itemOutputVal->(B.Val.inline(b, _)))->ignore
+            itemOutputs->Js.Array2.push(b->B.val(b->B.Val.inline(itemOutput)))->ignore
             itemsCode->Js.Array2.push(b.code)->ignore
           }
           b.code = prevCode
           let isAsync = isAsyncRef.contents
 
-          let outputVar = b->B.var
+          let output = b->B.allocateVal
+          let outputVar = b->B.Val.var(output)
 
           let codeEndRef = ref("")
           let errorCodeRef = ref("")
@@ -3303,13 +3302,13 @@ module Union = {
           for idx in 0 to schemas->Js.Array2.length - 1 {
             let schema = schemas->Js.Array2.unsafe_get(idx)
             let code = itemsCode->Js.Array2.unsafe_get(idx)
-            let itemOutputVar = itemOutputVars->Js.Array2.unsafe_get(idx)
+            let itemOutput = itemOutputs->Js.Array2.unsafe_get(idx)
             let isAsyncItem = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
 
             let errorVar = b->B.varWithoutAllocation
 
             let errorCode = if isAsync {
-              (isAsyncItem ? `${errorVar}===${itemOutputVar}?${errorVar}():` : "") ++
+              (isAsyncItem ? `${errorVar}===${b->B.Val.var(itemOutput)}?${errorVar}():` : "") ++
               `Promise.reject(${errorVar})`
             } else {
               errorVar
@@ -3323,11 +3322,12 @@ module Union = {
             b.code =
               b.code ++
               `try{${code}${switch (isAsyncItem, isAsync) {
-                | (true, _) => `throw ${itemOutputVar}`
-                | (false, false) => `${outputVar}=${itemOutputVar}`
-                | (false, true) => `${outputVar}=()=>Promise.resolve(${itemOutputVar})`
+                | (true, _) => `throw ${b->B.Val.var(itemOutput)}`
+                | (false, false) => b->B.Val.set(output, itemOutput)
+                | (false, true) =>
+                  `${outputVar}=()=>Promise.resolve(${b->B.Val.inline(itemOutput)})`
                 }}}catch(${errorVar}){if(${b->B.isInternalError(errorVar)}${isAsyncItem
-                  ? `||${errorVar}===${itemOutputVar}`
+                  ? `||${errorVar}===${b->B.Val.var(itemOutput)}`
                   : ""}){`
             codeEndRef.contents = `}else{throw ${errorVar}}}` ++ codeEndRef.contents
           }
@@ -3343,7 +3343,7 @@ module Union = {
                   `t.errors`,
                 )}})` ++
               codeEndRef.contents
-            b->B.val(outputVar)
+            output
           } else {
             b.code =
               b.code ++
@@ -3353,13 +3353,13 @@ module Union = {
                 `[${errorCodeRef.contents}]`,
               ) ++
               codeEndRef.contents
-            b->B.val(outputVar)
+            output
           }
         }),
         ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
           let schemas = selfSchema->classify->unsafeGetVariantPayload
 
-          let outputVar = b->B.var
+          let output = b->B.allocateVal
 
           let codeEndRef = ref("")
           let errorVarsRef = ref("")
@@ -3390,7 +3390,7 @@ module Union = {
                         )
                     | None => ()
                     }
-                    `${outputVar}=${itemOutput->(B.Val.inline(b, _))}`
+                    b->B.Val.set(output, itemOutput)
                   },
                 )}}catch(${errorVar}){if(${b->B.isInternalError(errorVar)}){`
 
@@ -3406,7 +3406,7 @@ module Union = {
             ) ++
             codeEndRef.contents
 
-          b->B.val(outputVar)
+          output
         }),
         ~maybeTypeFilter=None,
       )
