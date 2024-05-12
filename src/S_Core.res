@@ -547,13 +547,8 @@ module Builder = {
     }
 
     @inline
-    let useInputVal = (b: b): val => {
+    let useInput = (b: b): val => {
       b._input
-    }
-
-    @inline
-    let useInput = b => {
-      b->Val.inline(b._input)
     }
 
     @inline
@@ -635,7 +630,7 @@ module Builder = {
       let fnOutput = b->valScope(fn)
       let isAsync = b.isAsyncBranch
 
-      let outputVal = b->allocateVal
+      let output = b->allocateVal
 
       let catchCode = switch maybeResolveVar {
       | None => _ => `${catchCode}}throw ${errorVar}`
@@ -643,8 +638,8 @@ module Builder = {
         catchLocation =>
           catchCode ++
           switch catchLocation {
-          | #0 if isAsync => b->Val.set(outputVal, `()=>Promise.resolve(${resolveVar})`)
-          | #0 => b->Val.set(outputVal, resolveVar)
+          | #0 if isAsync => b->Val.set(output, `()=>Promise.resolve(${resolveVar})`)
+          | #0 => b->Val.set(output, resolveVar)
           | #1 => `return Promise.resolve(${resolveVar})`
           | #2 => `return ${resolveVar}`
           } ++
@@ -657,16 +652,16 @@ module Builder = {
             switch isAsync {
             | true =>
               b->Val.set(
-                outputVal,
+                output,
                 `()=>{try{return ${b->Val.var(fnOutput)}().catch(${errorVar}=>{${catchCode(
                     #2,
                   )}})}catch(${errorVar}){${catchCode(#1)}}}`,
               )
-            | false => b->Val.set(outputVal, b->Val.inline(fnOutput))
+            | false => b->Val.set(output, b->Val.inline(fnOutput))
             }
           }}}catch(${errorVar}){${catchCode(#0)}}`
 
-      outputVal
+      output
     }
 
     let withPathPrepend = (b: b, ~path, ~dynamicLocationVar as maybeDynamicLocationVar=?, fn) => {
@@ -747,7 +742,7 @@ module Builder = {
   }
 
   let noop = make((b, ~selfSchema as _, ~path as _) => {
-    b->B.useInputVal
+    b->B.useInput
   })
 
   let noopOperation = i => i->Obj.magic
@@ -773,12 +768,12 @@ module Builder = {
       operation,
     }
 
-    let outputVal = (builder->(Obj.magic: builder => implementation))(
+    let output = (builder->(Obj.magic: builder => implementation))(
       b,
       ~selfSchema=schema,
       ~path=Path.empty,
     )
-    let output = b->B.Val.inline(outputVal)
+    let output = b->B.Val.inline(output)
 
     if b._scope._varsAllocation !== "" {
       b.code = `let ${b._scope._varsAllocation};${b.code}`
@@ -1413,7 +1408,7 @@ let recursive = fn => {
   {
     let builder = placeholder.parseOperationBuilder
     placeholder.parseOperationBuilder = Builder.make((b, ~selfSchema, ~path) => {
-      let input = b->B.useInputVal
+      let input = b->B.useInput
       let isAsync = {
         selfSchema.parseOperationBuilder = Builder.noop
         let scope = {
@@ -1436,7 +1431,7 @@ let recursive = fn => {
       }
 
       selfSchema.parseOperationBuilder = Builder.make((b, ~selfSchema, ~path as _) => {
-        let input = b->B.useInputVal
+        let input = b->B.useInput
         if isAsync {
           b->B.embedAsyncOperation(~input, ~fn=input => input->internalParseAsyncWith(selfSchema))
         } else {
@@ -1467,9 +1462,9 @@ let recursive = fn => {
   {
     let builder = placeholder.serializeOperationBuilder
     placeholder.serializeOperationBuilder = Builder.make((b, ~selfSchema, ~path) => {
-      let input = b->B.useInputVal
+      let input = b->B.useInput
       selfSchema.serializeOperationBuilder = Builder.make((b, ~selfSchema, ~path as _) => {
-        let input = b->B.useInputVal
+        let input = b->B.useInput
         b->B.embedSyncOperation(
           ~input,
           ~fn=input => input->serializeToUnknownOrRaiseWith(selfSchema),
@@ -1516,7 +1511,7 @@ let internalRefine = (schema, refiner) => {
     ~name=schema.name,
     ~tagged=schema.tagged,
     ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
-      let input = b->B.useInputVal
+      let input = b->B.useInput
       b->B.transform(~input=b->B.use(~schema, ~input, ~path), ~isAsync=false, (b, ~input) => {
         let rCode = refiner(b, ~input, ~selfSchema, ~path)
         b.code = b.code ++ rCode
@@ -1524,7 +1519,7 @@ let internalRefine = (schema, refiner) => {
       })
     }),
     ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
-      let input = b->B.useInputVal
+      let input = b->B.useInput
       b->B.use(
         ~schema,
         ~input=b->B.transform(~input, ~isAsync=false, (b, ~input) => {
@@ -1577,7 +1572,7 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
     ~name=schema.name,
     ~tagged=schema.tagged,
     ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
-      let input = b->B.useInputVal
+      let input = b->B.useInput
       let input = b->B.use(~schema, ~input, ~path)
 
       switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
@@ -1594,21 +1589,18 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
       }
     }),
     ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
-      b->B.val(
-        switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
-        | {serializer} =>
-          let input = b->B.useInputVal
-          b
-          ->B.use(~schema, ~input=b->B.embedSyncOperation(~input, ~fn=serializer), ~path)
-          ->(B.Val.inline(b, _))
-        | {parser: ?None, asyncParser: ?None, serializer: ?None} =>
-          let input = b->B.useInputVal
-          b->B.use(~schema, ~input, ~path)->(B.Val.inline(b, _))
-        | {serializer: ?None, asyncParser: ?Some(_)}
-        | {serializer: ?None, parser: ?Some(_)} =>
-          b->B.invalidOperation(~path, ~description=`The S.transform serializer is missing`)
-        },
-      )
+      switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
+      | {serializer} =>
+        let input = b->B.useInput
+        b->B.use(~schema, ~input=b->B.embedSyncOperation(~input, ~fn=serializer), ~path)
+
+      | {parser: ?None, asyncParser: ?None, serializer: ?None} =>
+        let input = b->B.useInput
+        b->B.use(~schema, ~input, ~path)
+      | {serializer: ?None, asyncParser: ?Some(_)}
+      | {serializer: ?None, parser: ?Some(_)} =>
+        b->B.invalidOperation(~path, ~description=`The S.transform serializer is missing`)
+      }
     }),
     ~maybeTypeFilter=schema.maybeTypeFilter,
     ~metadataMap=schema.metadataMap,
@@ -1644,53 +1636,44 @@ let rec preprocess = (schema, transformer) => {
       ~name=schema.name,
       ~tagged=schema.tagged,
       ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
-        let input = b->B.useInputVal
+        let input = b->B.useInput
 
-        b->B.val(
-          switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
-          | {parser, asyncParser: ?None} =>
-            let operationResultVar = b->B.var
-            b.code =
-              b.code ++
-              `${operationResultVar}=${b
-                ->B.embedSyncOperation(~input, ~fn=parser)
-                ->(B.Val.inline(b, _))};`
-            b
-            ->B.useWithTypeFilter(~schema, ~input=operationResultVar->(B.val(b, _)), ~path)
-            ->(B.Val.inline(b, _))
-          | {parser: ?None, asyncParser} => {
-              let parseResultVar =
-                b->B.embedAsyncOperation(~input, ~fn=asyncParser)->(B.Val.var(b, _))
-              let outputVar = b->B.var
-              let asyncResultVar = b->B.varWithoutAllocation
+        switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
+        | {parser, asyncParser: ?None} =>
+          let operationResultVar = b->B.var
+          b.code =
+            b.code ++
+            `${operationResultVar}=${b
+              ->B.embedSyncOperation(~input, ~fn=parser)
+              ->(B.Val.inline(b, _))};`
+          b->B.useWithTypeFilter(~schema, ~input=operationResultVar->(B.val(b, _)), ~path)
+        | {parser: ?None, asyncParser} => {
+            let parseResultVar =
+              b->B.embedAsyncOperation(~input, ~fn=asyncParser)->(B.Val.var(b, _))
+            let asyncResultVar = b->B.varWithoutAllocation
 
-              // TODO: Optimize async transformation to chain .then
-              b.code =
-                b.code ++
-                `${outputVar}=()=>${parseResultVar}().then(${asyncResultVar}=>{${b->B.scope(b => {
-                    let schemaOutputVar =
-                      b
-                      ->B.useWithTypeFilter(~schema, ~input=asyncResultVar->(B.val(b, _)), ~path)
-                      ->(B.Val.inline(b, _))
-                    let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-                    `return ${isAsync ? `${schemaOutputVar}()` : schemaOutputVar}`
-                  })}});`
-              outputVar
-            }
-          | {parser: ?None, asyncParser: ?None} =>
-            b
-            ->B.useWithTypeFilter(~schema, ~input, ~path)
-            ->(B.Val.inline(b, _))
-          | {parser: _, asyncParser: _} =>
-            b->B.invalidOperation(
-              ~path,
-              ~description=`The S.preprocess doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.`,
+            // TODO: Optimize async transformation to chain .then
+            b->B.asyncVal(
+              `()=>${parseResultVar}().then(${asyncResultVar}=>{${b->B.scope(b => {
+                  let schemaOutputVar =
+                    b
+                    ->B.useWithTypeFilter(~schema, ~input=asyncResultVar->(B.val(b, _)), ~path)
+                    ->(B.Val.inline(b, _))
+                  let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+                  `return ${isAsync ? `${schemaOutputVar}()` : schemaOutputVar}`
+                })}})`,
             )
-          },
-        )
+          }
+        | {parser: ?None, asyncParser: ?None} => b->B.useWithTypeFilter(~schema, ~input, ~path)
+        | {parser: _, asyncParser: _} =>
+          b->B.invalidOperation(
+            ~path,
+            ~description=`The S.preprocess doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.`,
+          )
+        }
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
-        let input = b->B.useInputVal
+        let input = b->B.useInput
         let input = b->B.use(~schema, ~input, ~path)
 
         switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
@@ -1719,7 +1702,7 @@ let custom = (name, definer) => {
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Unknown,
     ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
-      let input = b->B.useInputVal
+      let input = b->B.useInput
 
       switch definer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~input, ~fn=parser)
@@ -1735,7 +1718,7 @@ let custom = (name, definer) => {
       }
     }),
     ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
-      let input = b->B.useInputVal
+      let input = b->B.useInput
       switch definer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
       | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
       | {parser: ?None, asyncParser: ?None, serializer: ?None} => input
@@ -1819,7 +1802,7 @@ module Variant = {
         ~name=schema.name,
         ~tagged=schema.tagged,
         ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
-          let input = b->B.useInputVal
+          let input = b->B.useInput
           b->B.embedSyncOperation(~input=b->B.use(~schema, ~input, ~path), ~fn=definer)
         }),
         ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
@@ -1920,14 +1903,14 @@ module Option = {
   let default = schema => schema->Metadata.get(~id=defaultMetadataId)
 
   let parseOperationBuilder = Builder.make((b, ~selfSchema, ~path) => {
-    let input = b->B.useInputVal
-    let outputVal = b->B.allocateVal
+    let input = b->B.useInput
+    let output = b->B.allocateVal
 
     let isNull = %raw(`selfSchema.t.TAG === "Null"`)
     let childSchema = selfSchema.tagged->unsafeGetVariantPayload
 
     let ifCode = b->B.scope(b => {
-      b->B.Val.set(outputVal, b->B.use(~schema=childSchema, ~input, ~path)->(B.Val.inline(b, _)))
+      b->B.Val.set(output, b->B.use(~schema=childSchema, ~input, ~path)->(B.Val.inline(b, _)))
     })
     let isAsync = childSchema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
 
@@ -1940,7 +1923,7 @@ module Option = {
         | (false, false) => ""
         | _ =>
           `else{${b->B.Val.set(
-              outputVal,
+              output,
               switch isAsync {
               | false => `void 0`
               | true => `()=>Promise.resolve(void 0)`
@@ -1948,12 +1931,12 @@ module Option = {
             )}}`
         }}`
 
-    outputVal
+    output
   })
 
   let serializeOperationBuilder = Builder.make((b, ~selfSchema, ~path) => {
-    let input = b->B.useInputVal
-    let outputVal = b->B.allocateVal
+    let input = b->B.useInput
+    let output = b->B.allocateVal
 
     let isNull = %raw(`selfSchema.t.TAG === "Null"`)
     let childSchema = selfSchema.tagged->unsafeGetVariantPayload
@@ -1962,7 +1945,7 @@ module Option = {
       b.code ++
       `if(${b->B.Val.var(input)}!==void 0){${b->B.scope(b => {
           b->B.Val.set(
-            outputVal,
+            output,
             b
             ->B.use(
               ~schema=childSchema,
@@ -1973,9 +1956,9 @@ module Option = {
             )
             ->(B.Val.inline(b, _)),
           )
-        })}}${isNull ? `else{${b->B.Val.set(outputVal, `null`)}}` : ""}`
+        })}}${isNull ? `else{${b->B.Val.set(output, `null`)}}` : ""}`
 
-    outputVal
+    output
   })
 
   let maybeTypeFilter = (~schema, ~inlinedNoneValue) => {
@@ -2009,7 +1992,7 @@ module Option = {
       ~metadataMap=schema.metadataMap->Metadata.Map.set(~id=defaultMetadataId, default),
       ~tagged=schema.tagged,
       ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
-        let input = b->B.useInputVal
+        let input = b->B.useInput
         b->B.transform(~input=b->B.use(~schema, ~input, ~path), ~isAsync=false, (b, ~input) => {
           let inputVar = b->B.Val.var(input)
           b->B.val(
@@ -2436,7 +2419,7 @@ module Object = {
 
 module Never = {
   let builder = Builder.make((b, ~selfSchema, ~path) => {
-    let input = b->B.useInputVal
+    let input = b->B.useInput
     b.code =
       b.code ++
       b->B.raiseWithArg(
@@ -2688,7 +2671,7 @@ module JsonString = {
       ~metadataMap=Metadata.Map.empty,
       ~tagged=String,
       ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
-        let input = b->B.useInputVal
+        let input = b->B.useInput
         let jsonVal = b->B.allocateVal
 
         b.code =
@@ -2705,7 +2688,7 @@ module JsonString = {
         b->B.valScope(b => b->B.useWithTypeFilter(~schema, ~input=jsonVal, ~path))
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
-        let input = b->B.useInputVal
+        let input = b->B.useInput
         b->B.val(
           `JSON.stringify(${b->B.Val.inline(b->B.use(~schema, ~input, ~path))}${space > 0
               ? `,null,${space->Stdlib.Int.unsafeToString}`
@@ -2915,7 +2898,7 @@ module Array = {
       ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         let inputVar = b->B.useInputVar
         let iteratorVar = b->B.varWithoutAllocation
-        let outputVal = b->B.val("[]")
+        let output = b->B.val("[]")
 
         b.code =
           b.code ++
@@ -2932,24 +2915,24 @@ module Array = {
                         ~path,
                       ),
                   )
-                b->B.Val.push(outputVal, b->B.Val.inline(itemOutputVal))
+                b->B.Val.push(output, b->B.Val.inline(itemOutputVal))
               },
             )}}`
 
         let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
         if isAsync {
-          b->B.asyncVal(`()=>Promise.all(${b->B.Val.var(outputVal)}.map(t=>t()))`)
+          b->B.asyncVal(`()=>Promise.all(${b->B.Val.var(output)}.map(t=>t()))`)
         } else {
-          outputVal
+          output
         }
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         if schema.serializeOperationBuilder === Builder.noop {
-          b->B.useInputVal
+          b->B.useInput
         } else {
           let inputVar = b->B.useInputVar
           let iteratorVar = b->B.varWithoutAllocation
-          let outputVal = b->B.val("[]")
+          let output = b->B.val("[]")
 
           b.code =
             b.code ++
@@ -2968,11 +2951,11 @@ module Array = {
                         ),
                     )
                     ->(B.Val.var(b, _))
-                  b->B.Val.push(outputVal, itemOutputVar)
+                  b->B.Val.push(output, itemOutputVar)
                 },
               )}}`
 
-          outputVal
+          output
         }
       }),
       ~maybeTypeFilter=Some(typeFilter),
@@ -3041,7 +3024,7 @@ module Dict = {
       ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         let inputVar = b->B.useInputVar
         let keyVar = b->B.varWithoutAllocation
-        let outputVal = b->B.val("{}")
+        let output = b->B.val("{}")
 
         b.code =
           b.code ++
@@ -3058,7 +3041,7 @@ module Dict = {
                     ),
                 )
 
-              b->B.Val.addKey(outputVal, keyVar, b->B.Val.inline(itemOutputVal))
+              b->B.Val.addKey(output, keyVar, b->B.Val.inline(itemOutputVal))
             })}}`
 
         let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
@@ -3067,42 +3050,37 @@ module Dict = {
           let rejectVar = b->B.varWithoutAllocation
           let asyncParseResultVar = b->B.varWithoutAllocation
           let counterVar = b->B.varWithoutAllocation
-          let outputVar = b->B.Val.var(outputVal)
+          let outputVar = b->B.Val.var(output)
           b->B.asyncVal(
             `()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=Object.keys(${outputVar}).length;for(let ${keyVar} in ${outputVar}){${outputVar}[${keyVar}]().then(${asyncParseResultVar}=>{${outputVar}[${keyVar}]=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${outputVar})}},${rejectVar})}})`,
           )
         } else {
-          outputVal
+          output
         }
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
-        b->B.val(
-          if schema.serializeOperationBuilder === Builder.noop {
-            b->B.useInput
-          } else {
-            let inputVar = b->B.useInputVar
-            let keyVar = b->B.varWithoutAllocation
-            let outputVar = b->B.var
+        if schema.serializeOperationBuilder === Builder.noop {
+          b->B.useInput
+        } else {
+          let inputVar = b->B.useInputVar
+          let keyVar = b->B.varWithoutAllocation
+          let output = b->B.val("{}")
 
-            b.code =
-              b.code ++
-              `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
-                  let itemOutputVar =
-                    b
-                    ->B.withPathPrepend(
-                      ~path,
-                      ~dynamicLocationVar=keyVar,
-                      (b, ~path) =>
-                        b->B.use(~schema, ~input=`${inputVar}[${keyVar}]`->(B.val(b, _)), ~path),
-                    )
-                    ->(B.Val.var(b, _))
+          b.code =
+            b.code ++
+            `for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
+                let itemOutputVal =
+                  b->B.withPathPrepend(
+                    ~path,
+                    ~dynamicLocationVar=keyVar,
+                    (b, ~path) =>
+                      b->B.use(~schema, ~input=`${inputVar}[${keyVar}]`->(B.val(b, _)), ~path),
+                  )
+                b->B.Val.addKey(output, keyVar, b->B.Val.inline(itemOutputVal))
+              })}}`
 
-                  `${outputVar}[${keyVar}]=${itemOutputVar}`
-                })}}`
-
-            outputVar
-          },
-        )
+          output
+        }
       }),
       ~maybeTypeFilter=Some(Object.typeFilter),
     )
@@ -3317,7 +3295,7 @@ module Union = {
         ~metadataMap=Metadata.Map.empty,
         ~tagged=Union(schemas),
         ~parseOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
-          let input = b->B.useInputVal
+          let input = b->B.useInput
           let schemas = selfSchema->classify->unsafeGetVariantPayload
 
           let isAsyncRef = ref(false)
@@ -3411,7 +3389,7 @@ module Union = {
           }
         }),
         ~serializeOperationBuilder=Builder.make((b, ~selfSchema, ~path) => {
-          let input = b->B.useInputVal
+          let input = b->B.useInput
           let schemas = selfSchema->classify->unsafeGetVariantPayload
 
           let outputVar = b->B.var
@@ -3536,7 +3514,7 @@ let json = (~validate) =>
               )
             }
           }
-          let input = b->B.useInputVal
+          let input = b->B.useInput
 
           b->B.val(`${b->B.embed(parse)}(${b->B.Val.inline(input)})`)
         })
@@ -4153,7 +4131,7 @@ let js_merge = (s1, s2) => {
         fields,
       }),
       ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
-        let input = b->B.useInputVal
+        let input = b->B.useInput
         let s1Result = b->B.use(~schema=s1, ~input, ~path)
         let s2Result = b->B.use(~schema=s2, ~input, ~path)
         // TODO: Check that these are objects
