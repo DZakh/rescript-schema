@@ -50,6 +50,27 @@ test("Successfully refines on serializing", t => {
   )
 })
 
+test("Successfully parses simple object with empty refine", t => {
+  let schema = S.object(s =>
+    {
+      "foo": s.field("foo", S.string),
+      "bar": s.field("bar", S.bool),
+    }
+  )->S.refine(_ => _ => ())
+
+  t->Assert.deepEqual(
+    %raw(`{
+      "foo": "string",
+      "bar": true,
+    }`)->S.parseAnyWith(schema),
+    Ok({
+      "foo": "string",
+      "bar": true,
+    }),
+    (),
+  )
+})
+
 test("Compiled parse code snapshot for simple object with refine", t => {
   let schema = S.object(s =>
     {
@@ -62,6 +83,6 @@ test("Compiled parse code snapshot for simple object with refine", t => {
     ~schema,
     ~op=#parse,
     // FIXME: Double "let" looks wrong
-    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v2={"foo":v0,"bar":v1,};let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}e[2](v2);return v2}`,
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v2;let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}v2={"foo":v0,"bar":v1,};e[2](v2);return v2}`,
   )
 })

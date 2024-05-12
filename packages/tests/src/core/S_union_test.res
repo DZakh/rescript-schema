@@ -360,7 +360,7 @@ test("Compiled async parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#parse,
-    `i=>{let v0,v1;try{i===0||e[0](i);v0=e[1](i);throw v0}catch(v2){if(v2&&v2.s===s||v2===v0){try{i===1||e[2](i);v1=()=>Promise.resolve(i)}catch(v3){if(v3&&v3.s===s){v1=()=>Promise.any([v2===v0?v2():Promise.reject(v2),Promise.reject(v3)]).catch(t=>{e[3](t.errors)})}else{throw v3}}}else{throw v2}}return v1}`,
+    `i=>{let v0=e[1](i),v1;try{i===0||e[0](i);throw v0}catch(v2){if(v2&&v2.s===s||v2===v0){try{i===1||e[2](i);v1=()=>Promise.resolve(i)}catch(v3){if(v3&&v3.s===s){v1=()=>Promise.any([v2===v0?v2():Promise.reject(v2),Promise.reject(v3)]).catch(t=>{e[3](t.errors)})}else{throw v3}}}else{throw v2}}return v1}`,
   )
 })
 

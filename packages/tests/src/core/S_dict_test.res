@@ -52,7 +52,7 @@ module CommonWithNested = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!i||i.constructor!==Object){e[1](i)}let v1;v1={};for(let v0 in i){let v3=i[v0];try{if(typeof v3!=="string"){e[0](v3)}}catch(v2){if(v2&&v2.s===s){v2.path=""+\'["\'+v0+\'"]\'+v2.path}throw v2}v1[v0]=v3}return v1}`,
+      `i=>{if(!i||i.constructor!==Object){e[1](i)}let v1;v1={};for(let v0 in i){let v4;try{let v3=i[v0];if(typeof v3!=="string"){e[0](v3)}v4=v3}catch(v2){if(v2&&v2.s===s){v2.path=""+\'["\'+v0+\'"]\'+v2.path}throw v2}v1[v0]=v4}return v1}`,
     )
   })
 
@@ -62,7 +62,7 @@ module CommonWithNested = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!i||i.constructor!==Object){e[1](i)}let v1,v9;v1={};for(let v0 in i){let v3,v4;try{v3=e[0](i[v0]);v4=()=>{try{return v3().catch(v2=>{if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2})}catch(v2){if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2}};}catch(v2){if(v2&&v2.s===s){v2.path=""+'["'+v0+'"]'+v2.path}throw v2}v1[v0]=v4}v9=()=>new Promise((v5,v6)=>{let v8=Object.keys(v1).length;for(let v0 in v1){v1[v0]().then(v7=>{v1[v0]=v7;if(v8--===1){v5(v1)}},v6)}});return v9}`,
+      `i=>{if(!i||i.constructor!==Object){e[1](i)}let v1,v9;v1={};for(let v0 in i){let v4;try{let v3=e[0](i[v0]);v4=()=>{try{return v3().catch(v2=>{if(v2&&v2.s===s){v2.path=""+\'["\'+v0+\'"]\'+v2.path}throw v2})}catch(v2){if(v2&&v2.s===s){v2.path=""+\'["\'+v0+\'"]\'+v2.path}throw v2}}}catch(v2){if(v2&&v2.s===s){v2.path=""+\'["\'+v0+\'"]\'+v2.path}throw v2}v1[v0]=v4}v9=()=>new Promise((v5,v6)=>{let v8=Object.keys(v1).length;for(let v0 in v1){v1[v0]().then(v7=>{v1[v0]=v7;if(v8--===1){v5(v1)}},v6)}});return v9}`,
     )
   })
 
@@ -78,7 +78,7 @@ module CommonWithNested = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#serialize,
-      `i=>{let v1;v1={};for(let v0 in i){let v3=i[v0],v4;try{if(v3!==void 0){v4=e[0](v3)}}catch(v2){if(v2&&v2.s===s){v2.path=""+\'["\'+v0+\'"]\'+v2.path}throw v2}v1[v0]=v4}return v1}`,
+      `i=>{let v1;v1={};for(let v0 in i){let v5;try{let v3=i[v0],v4;if(v3!==void 0){v4=e[0](v3)}v5=v4}catch(v2){if(v2&&v2.s===s){v2.path=""+\'["\'+v0+\'"]\'+v2.path}throw v2}v1[v0]=v5}return v1}`,
     )
   })
 }

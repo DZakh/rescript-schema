@@ -52,7 +52,7 @@ module CommonWithNested = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!Array.isArray(i)){e[1](i)}let v3=[];for(let v0=0;v0<i.length;++v0){let v2=i[v0];try{if(typeof v2!=="string"){e[0](v2)}}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}v3.push(v2)}return v3}`,
+      `i=>{if(!Array.isArray(i)){e[1](i)}let v4=[];for(let v0=0;v0<i.length;++v0){let v3;try{let v2=i[v0];if(typeof v2!=="string"){e[0](v2)}v3=v2}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}v4.push(v3)}return v4}`,
     )
   })
 
@@ -62,7 +62,7 @@ module CommonWithNested = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!Array.isArray(i)){e[1](i)}let v4=[],v5=()=>Promise.all(v4.map(t=>t()));for(let v0=0;v0<i.length;++v0){let v2,v3;try{v2=e[0](i[v0]);v3=()=>{try{return v2().catch(v1=>{if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1})}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}};}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}v4.push(v3)}return v5}`,
+      `i=>{if(!Array.isArray(i)){e[1](i)}let v4=[],v5=()=>Promise.all(v4.map(t=>t()));for(let v0=0;v0<i.length;++v0){let v3;try{let v2=e[0](i[v0]);v3=()=>{try{return v2().catch(v1=>{if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1})}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}}}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}v4.push(v3)}return v5}`,
     )
   })
 
@@ -79,7 +79,7 @@ module CommonWithNested = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#serialize,
-      `i=>{let v4=[];for(let v0=0;v0<i.length;++v0){let v2=i[v0],v3;try{if(v2!==void 0){v3=e[0](v2)}}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}v4.push(v3)}return v4}`,
+      `i=>{let v5=[];for(let v0=0;v0<i.length;++v0){let v4;try{let v2=i[v0],v3;if(v2!==void 0){v3=e[0](v2)}v4=v3}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}v5.push(v4)}return v5}`,
     )
   })
 }

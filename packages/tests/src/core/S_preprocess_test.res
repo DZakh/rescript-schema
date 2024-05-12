@@ -270,7 +270,7 @@ test("Compiled async parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#parse,
-    `i=>{let v0,v1;v0=e[0](i);v1=()=>v0().then(v2=>{if(typeof v2!=="number"||v2>2147483647||v2<-2147483648||v2%1!==0){e[1](v2)}return v2});return v1}`,
+    `i=>{let v0=e[0](i),v1;v1=()=>v0().then(v2=>{if(typeof v2!=="number"||v2>2147483647||v2<-2147483648||v2%1!==0){e[1](v2)}return v2});return v1}`,
   )
 })
 
