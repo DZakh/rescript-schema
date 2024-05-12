@@ -452,13 +452,6 @@ module Builder = {
       v
     }
 
-    let var = (b: b) => {
-      let v = b->varWithoutAllocation
-      let varsAllocation = b._scope._varsAllocation
-      b._scope._varsAllocation = varsAllocation === "" ? v : varsAllocation ++ "," ++ v
-      v
-    }
-
     let allocateVal = (b: b): val => {
       {_varScope: b._scope}
     }
@@ -3483,7 +3476,7 @@ let json = (~validate) =>
             }
           }
 
-          b->B.val(`${b->B.embed(parse)}(${b->B.Val.inline(input)})`)
+          b->B.Val.map(b->B.embed(parse), input)
         })
       : Builder.noop,
   )

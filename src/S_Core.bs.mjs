@@ -2687,7 +2687,7 @@ function json(validate) {
                             received: input
                           }, "Parsing", path$1);
                 };
-                return val(b, "e[" + (b.e.push(parse) - 1) + "](" + inline(b, input) + ")");
+                return map(b, "e[" + (b.e.push(parse) - 1) + "]", input);
               }) : noop,
           s: noop,
           f: undefined,
