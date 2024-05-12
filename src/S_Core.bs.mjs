@@ -2377,31 +2377,27 @@ function factory$6(schema) {
           p: (function (b, param, path) {
               var inputVar = $$var$1(b, b.i);
               var keyVar = varWithoutAllocation(b);
-              var outputVar = $$var(b);
-              b.c = b.c + (outputVar + "={};for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
-                        var itemOutputVar = (function (__x) {
-                              return $$var$1(b, __x);
-                            })(withPathPrepend(b, path, keyVar, (function (b, path) {
-                                    return useWithTypeFilter(b, schema, (function (__x) {
-                                                    return val(b, __x);
-                                                  })(inputVar + "[" + keyVar + "]"), path);
-                                  })));
-                        return outputVar + "[" + keyVar + "]=" + itemOutputVar;
+              var outputVal = val(b, "{}");
+              b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
+                        var itemOutputVal = withPathPrepend(b, path, keyVar, (function (b, path) {
+                                return useWithTypeFilter(b, schema, (function (__x) {
+                                                return val(b, __x);
+                                              })(inputVar + "[" + keyVar + "]"), path);
+                              }));
+                        var code = inline(b, itemOutputVal);
+                        var $$var$2 = $$var$1(b, outputVal);
+                        return $$var$2 + "[" + keyVar + "]=" + code;
                       })) + "}");
               var isAsync = schema.i;
-              var tmp;
-              if (isAsync) {
-                var resolveVar = varWithoutAllocation(b);
-                var rejectVar = varWithoutAllocation(b);
-                var asyncParseResultVar = varWithoutAllocation(b);
-                var counterVar = varWithoutAllocation(b);
-                var asyncOutputVar = $$var(b);
-                b.c = b.c + (asyncOutputVar + "=()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=Object.keys(" + outputVar + ").length;for(let " + keyVar + " in " + outputVar + "){" + outputVar + "[" + keyVar + "]().then(" + asyncParseResultVar + "=>{" + outputVar + "[" + keyVar + "]=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + outputVar + ")}}," + rejectVar + ")}});");
-                tmp = asyncOutputVar;
-              } else {
-                tmp = outputVar;
+              if (!isAsync) {
+                return outputVal;
               }
-              return val(b, tmp);
+              var resolveVar = varWithoutAllocation(b);
+              var rejectVar = varWithoutAllocation(b);
+              var asyncParseResultVar = varWithoutAllocation(b);
+              var counterVar = varWithoutAllocation(b);
+              var outputVar = $$var$1(b, outputVal);
+              return asyncVal(b, "()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=Object.keys(" + outputVar + ").length;for(let " + keyVar + " in " + outputVar + "){" + outputVar + "[" + keyVar + "]().then(" + asyncParseResultVar + "=>{" + outputVar + "[" + keyVar + "]=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + outputVar + ")}}," + rejectVar + ")}})");
             }),
           s: (function (b, param, path) {
               var tmp;

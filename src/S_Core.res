@@ -535,6 +535,11 @@ module Builder = {
         `${var}.push(${code})`
       }
 
+      let addKey = (b: b, val: val, key, code) => {
+        let var = b->var(val)
+        `${var}[${key}]=${code}`
+      }
+
       let set = (b: b, val: val, code) => {
         let var = b->var(val)
         `${var}=${code}`
@@ -3036,14 +3041,13 @@ module Dict = {
       ~parseOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         let inputVar = b->B.useInputVar
         let keyVar = b->B.varWithoutAllocation
-        let outputVar = b->B.var
+        let outputVal = b->B.val("{}")
 
         b.code =
           b.code ++
-          `${outputVar}={};for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
-              let itemOutputVar =
-                b
-                ->B.withPathPrepend(
+          `for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
+              let itemOutputVal =
+                b->B.withPathPrepend(
                   ~path,
                   ~dynamicLocationVar=keyVar,
                   (b, ~path) =>
@@ -3053,26 +3057,23 @@ module Dict = {
                       ~path,
                     ),
                 )
-                ->(B.Val.var(b, _))
-              `${outputVar}[${keyVar}]=${itemOutputVar}`
+
+              b->B.Val.addKey(outputVal, keyVar, b->B.Val.inline(itemOutputVal))
             })}}`
 
         let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-        b->B.val(
-          if isAsync {
-            let resolveVar = b->B.varWithoutAllocation
-            let rejectVar = b->B.varWithoutAllocation
-            let asyncParseResultVar = b->B.varWithoutAllocation
-            let counterVar = b->B.varWithoutAllocation
-            let asyncOutputVar = b->B.var
-            b.code =
-              b.code ++
-              `${asyncOutputVar}=()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=Object.keys(${outputVar}).length;for(let ${keyVar} in ${outputVar}){${outputVar}[${keyVar}]().then(${asyncParseResultVar}=>{${outputVar}[${keyVar}]=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${outputVar})}},${rejectVar})}});`
-            asyncOutputVar
-          } else {
-            outputVar
-          },
-        )
+        if isAsync {
+          let resolveVar = b->B.varWithoutAllocation
+          let rejectVar = b->B.varWithoutAllocation
+          let asyncParseResultVar = b->B.varWithoutAllocation
+          let counterVar = b->B.varWithoutAllocation
+          let outputVar = b->B.Val.var(outputVal)
+          b->B.asyncVal(
+            `()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=Object.keys(${outputVar}).length;for(let ${keyVar} in ${outputVar}){${outputVar}[${keyVar}]().then(${asyncParseResultVar}=>{${outputVar}[${keyVar}]=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${outputVar})}},${rejectVar})}})`,
+          )
+        } else {
+          outputVal
+        }
       }),
       ~serializeOperationBuilder=Builder.make((b, ~selfSchema as _, ~path) => {
         b->B.val(
