@@ -52,7 +52,7 @@ module CommonWithNested = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!i||i.constructor!==Object){e[1](i)}let v1;v1={};for(let v0 in i){let v3;try{v3=i[v0];if(typeof v3!=="string"){e[0](v3)}}catch(v2){if(v2&&v2.s===s){v2.path=""+\'["\'+v0+\'"]\'+v2.path}throw v2}v1[v0]=v3}return v1}`,
+      `i=>{if(!i||i.constructor!==Object){e[1](i)}let v1;v1={};for(let v0 in i){let v3=i[v0];try{if(typeof v3!=="string"){e[0](v3)}}catch(v2){if(v2&&v2.s===s){v2.path=""+\'["\'+v0+\'"]\'+v2.path}throw v2}v1[v0]=v3}return v1}`,
     )
   })
 

@@ -986,7 +986,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0,v1;v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}v1=i["bar"];if(typeof v1!=="boolean"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
+      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
     )
   })
 
@@ -1004,7 +1004,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0,v1,v2=()=>Promise.all([v0()]).then(([v0])=>({"foo":v0,"bar":v1,}));v0=e[0](i["foo"]);v1=i["bar"];if(typeof v1!=="boolean"){e[1](v1)}return v2}`,
+      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0,v1=i["bar"],v2=()=>Promise.all([v0()]).then(([v0])=>({"foo":v0,"bar":v1,}));v0=e[0](i["foo"]);if(typeof v1!=="boolean"){e[1](v1)}return v2}`,
     )
   })
 
@@ -1030,7 +1030,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0,v1,v2;v1=i["foo"];if(typeof v1!=="string"){e[1](v1)}v2=i["bar"];if(typeof v2!=="boolean"){e[2](v2)}for(v0 in i){if(v0!=="foo"&&v0!=="bar"){e[0](v0)}}return {"foo":v1,"bar":v2,}}`,
+      `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0,v1=i["foo"],v2=i["bar"];if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}for(v0 in i){if(v0!=="foo"&&v0!=="bar"){e[0](v0)}}return {"foo":v1,"bar":v2,}}`,
     )
   })
 
@@ -1060,7 +1060,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#parse,
-        `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0,v1,v2,v3=i["tag"];v3===0||e[4](v3);v1=i["FOO"];if(typeof v1!=="string"){e[1](v1)}v2=i["BAR"];if(typeof v2!=="boolean"){e[2](v2)}for(v0 in i){if(v0!=="tag"&&v0!=="FOO"&&v0!=="BAR"){e[0](v0)}}return {"foo":v1,"bar":v2,"zoo":e[3],}}`,
+        `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0,v1=i["FOO"],v2=i["BAR"],v3=i["tag"];v3===0||e[4](v3);if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}for(v0 in i){if(v0!=="tag"&&v0!=="FOO"&&v0!=="BAR"){e[0](v0)}}return {"foo":v1,"bar":v2,"zoo":e[3],}}`,
       )
     },
   )

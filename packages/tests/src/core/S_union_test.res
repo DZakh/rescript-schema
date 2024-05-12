@@ -343,6 +343,14 @@ test("Compiled parse code snapshot", t => {
   )
 })
 
+test("Compiled parse code snapshot for discriminated union", t => {
+  t->U.assertCompiledCode(
+    ~schema=Advanced.shapeSchema,
+    ~op=#parse,
+    `i=>{let v7;try{if(!i||i.constructor!==Object){e[0](i)}let v0=i["radius"],v1=i["kind"];v1==="circle"||e[3](v1);if(typeof v0!=="number"||Number.isNaN(v0)){e[2](v0)}v7={"TAG":e[1],"radius":v0,}}catch(v8){if(v8&&v8.s===s){try{if(!i||i.constructor!==Object){e[4](i)}let v2=i["x"],v3=i["kind"];v3==="square"||e[7](v3);if(typeof v2!=="number"||Number.isNaN(v2)){e[6](v2)}v7={"TAG":e[5],"x":v2,}}catch(v9){if(v9&&v9.s===s){try{if(!i||i.constructor!==Object){e[8](i)}let v4=i["x"],v5=i["y"],v6=i["kind"];v6==="triangle"||e[12](v6);if(typeof v4!=="number"||Number.isNaN(v4)){e[10](v4)}if(typeof v5!=="number"||Number.isNaN(v5)){e[11](v5)}v7={"TAG":e[9],"x":v4,"y":v5,}}catch(v10){if(v10&&v10.s===s){e[13]([v8,v9,v10])}else{throw v10}}}else{throw v9}}}else{throw v8}}return v7}`,
+  )
+})
+
 test("Compiled async parse code snapshot", t => {
   let schema = S.union([
     S.literal(0)->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}),
@@ -381,6 +389,6 @@ test("Compiled serialize code snapshot for unboxed variant", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#serialize,
-    `i=>{let v0;try{if(typeof i!=="string"){e[0](i)}v0=i}catch(v1){if(v1&&v1.s===s){try{let v3;v3=e[1](i);if(typeof v3!=="string"){e[2](v3)}v0=v3}catch(v2){if(v2&&v2.s===s){e[3]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
+    `i=>{let v0;try{if(typeof i!=="string"){e[0](i)}v0=i}catch(v1){if(v1&&v1.s===s){try{let v3=e[1](i);if(typeof v3!=="string"){e[2](v3)}v0=v3}catch(v2){if(v2&&v2.s===s){e[3]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
   )
 })
