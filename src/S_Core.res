@@ -280,7 +280,7 @@ and val = {
   mutable _var?: string,
   @as("i")
   _initial?: string,
-  @as("x")
+  @as("s")
   _varScope: builderScope,
   @as("a")
   mutable isAsync: bool,
@@ -293,8 +293,6 @@ and b = {
   @as("v")
   mutable _varCounter: int,
   @as("s")
-  _vars: Stdlib.Set.t<string>,
-  @as("x")
   mutable _scope: builderScope,
   @as("e")
   _embeded: array<unknown>,
@@ -447,9 +445,7 @@ module Builder = {
     let varWithoutAllocation = (b: b) => {
       let newCounter = b._varCounter->Stdlib.Int.plus(1)
       b._varCounter = newCounter
-      let v = `v${newCounter->Stdlib.Int.unsafeToString}`
-      b._vars->Stdlib.Set.add(v)->ignore
-      v
+      `v${newCounter->Stdlib.Int.unsafeToString}`
     }
 
     let allocateVal = (b: b): val => {
@@ -457,12 +453,7 @@ module Builder = {
     }
 
     let val = (b: b, initial: string): val => {
-      // TODO: Get rid of _vars
-      if b._vars->Stdlib.Set.has(initial) {
-        {_var: initial, _varScope: b._scope, isAsync: false}
-      } else {
-        {_initial: initial, _varScope: b._scope, isAsync: false}
-      }
+      {_initial: initial, _varScope: b._scope, isAsync: false}
     }
 
     let asyncVal = (b: b, initial: string): val => {
@@ -753,7 +744,6 @@ module Builder = {
     let b = {
       _embeded: [],
       _varCounter: -1,
-      _vars: Stdlib.Set.fromArray([intitialInputVar]),
       _scope: scope,
       code: "",
       operation,
@@ -1412,7 +1402,6 @@ let recursive = fn => {
           code: "",
           _scope: scope,
           _varCounter: -1,
-          _vars: Stdlib.Set.fromArray([Builder.intitialInputVar]),
           operation: Parsing,
         }
         let output = (builder->(Obj.magic: builder => Builder.implementation))(
@@ -1780,10 +1769,11 @@ module Variant = {
             ) => {
               let kind = definition->Definition.toKindWithValue(~embeded=symbol)
               switch kind {
-              | Embeded => Registered(b->B.val(`${inputVar}${outputPath}`))
+              | Embeded =>
+                Registered(outputPath === "" ? input : b->B.val(`${inputVar}${outputPath}`))
               | Constant => {
                   let constant = definition->Definition.toConstant
-                  let constantVal = b->B.val(`${inputVar}${outputPath}`)
+                  let constantVal = outputPath === "" ? input : b->B.val(`${inputVar}${outputPath}`)
                   let constantVar = b->B.Val.var(constantVal)
                   b.code =
                     b.code ++

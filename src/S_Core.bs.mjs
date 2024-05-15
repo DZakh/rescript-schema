@@ -108,15 +108,15 @@ function scope(b, fn) {
   var newScope = {
     l: "",
     a: false,
-    p: b.x
+    p: b.s
   };
-  b.x = newScope;
+  b.s = newScope;
   b.c = "";
   var resultCode = fn(b);
   var varsAllocation = newScope.l;
   var code = varsAllocation === "" ? b.c : "let " + varsAllocation + ";" + b.c;
   newScope.a = true;
-  b.x = newScope.p;
+  b.s = newScope.p;
   b.c = prevCode;
   return code + resultCode;
 }
@@ -126,15 +126,15 @@ function valScope(b, fn) {
   var newScope = {
     l: "",
     a: false,
-    p: b.x
+    p: b.s
   };
-  b.x = newScope;
+  b.s = newScope;
   b.c = "";
   var val = fn(b);
   var varsAllocation = newScope.l;
   var code = varsAllocation === "" ? b.c : "let " + varsAllocation + ";" + b.c;
   newScope.a = true;
-  b.x = newScope.p;
+  b.s = newScope.p;
   b.c = prevCode + code;
   return val;
 }
@@ -142,42 +142,32 @@ function valScope(b, fn) {
 function varWithoutAllocation(b) {
   var newCounter = b.v + 1;
   b.v = newCounter;
-  var v = "v" + newCounter;
-  b.s.add(v);
-  return v;
+  return "v" + newCounter;
 }
 
 function allocateVal(b) {
   return {
-          x: b.x,
+          s: b.s,
           a: false
         };
 }
 
 function val(b, initial) {
-  if (b.s.has(initial)) {
-    return {
-            v: initial,
-            x: b.x,
-            a: false
-          };
-  } else {
-    return {
-            i: initial,
-            x: b.x,
-            a: false
-          };
-  }
+  return {
+          i: initial,
+          s: b.s,
+          a: false
+        };
 }
 
 function asyncVal(b, initial) {
   var $$var = varWithoutAllocation(b);
   var allocation = $$var + "=" + initial;
-  var varsAllocation = b.x.l;
-  b.x.l = varsAllocation === "" ? allocation : varsAllocation + "," + allocation;
+  var varsAllocation = b.s.l;
+  b.s.l = varsAllocation === "" ? allocation : varsAllocation + "," + allocation;
   return {
           v: $$var,
-          x: b.x,
+          s: b.s,
           a: true
         };
 }
@@ -212,8 +202,8 @@ function $$var(b, val) {
     return _var;
   }
   var $$var$1 = varWithoutAllocation(b);
-  var activeScope = getActiveScope(val.x);
-  var isVarScopeActive = val.x === activeScope;
+  var activeScope = getActiveScope(val.s);
+  var isVarScopeActive = val.s === activeScope;
   var i = val.i;
   var allocation = i !== undefined && isVarScopeActive ? $$var$1 + "=" + i : $$var$1;
   var varsAllocation = activeScope.l;
@@ -269,7 +259,7 @@ function transform(b, input, operation) {
   b.c = "";
   var operationInput = {
     v: varWithoutAllocation(b),
-    x: b.x,
+    s: b.s,
     a: false
   };
   var operationOutputVal = operation(operationInput);
@@ -397,14 +387,14 @@ function useWithTypeFilter(b, schema, input, path) {
 
 function catchBuildError(b, $$catch, payload, fn) {
   var initialCode = b.c;
-  var initialScope = b.x;
+  var initialScope = b.s;
   try {
     return fn(payload);
   }
   catch (raw_exn){
     var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
     $$catch(getOrRethrow(exn));
-    b.x = initialScope;
+    b.s = initialScope;
     b.c = initialCode;
     return ;
   }
@@ -426,20 +416,19 @@ function build(builder, schema, operation) {
   };
   var input = {
     v: "i",
-    x: scope,
+    s: scope,
     a: false
   };
   var b = {
     c: "",
     o: operation,
     v: -1,
-    s: new Set(["i"]),
-    x: scope,
+    s: scope,
     e: []
   };
   var output = builder(b, input, schema, "");
-  if (b.x.l !== "") {
-    b.c = "let " + b.x.l + ";" + b.c;
+  if (b.s.l !== "") {
+    b.c = "let " + b.s.l + ";" + b.c;
   }
   if (operation === "Parsing") {
     var typeFilter = schema.f;
@@ -1091,15 +1080,14 @@ function recursive(fn) {
       };
       var input$1 = {
         v: "i",
-        x: scope,
+        s: scope,
         a: false
       };
       var ctx = {
         c: "",
         o: "Parsing",
         v: -1,
-        s: new Set(["i"]),
-        x: scope,
+        s: scope,
         e: []
       };
       var output = builder(ctx, input$1, selfSchema, path);
@@ -1420,7 +1408,7 @@ function factory(schema, definer) {
                       }
                       return maybeOutputRef;
                   case 1 :
-                      var constantVal = val(b, inputVar + outputPath);
+                      var constantVal = outputPath === "" ? input : val(b, inputVar + outputPath);
                       var constantVar = $$var(b, constantVal);
                       b.c = b.c + ("if(" + constantVar + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
                                 return {
@@ -1431,7 +1419,7 @@ function factory(schema, definer) {
                               }), constantVar) + "}");
                       return 0;
                   case 2 :
-                      return val(b, inputVar + outputPath);
+                      return outputPath === "" ? input : val(b, inputVar + outputPath);
                   
                 }
               };
