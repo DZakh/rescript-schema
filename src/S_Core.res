@@ -696,15 +696,12 @@ module Builder = {
 
     let use = (b: b, ~schema, ~input, ~path) => {
       let isParsing = b.operation === Parsing
-      let output = (
+
+      (
         (isParsing ? schema.parseOperationBuilder : schema.serializeOperationBuilder)->(
           Obj.magic: builder => implementation
         )
       )(b, ~input, ~selfSchema=schema, ~path)
-      if isParsing {
-        schema.isAsyncParse = Value(output.isAsync) // FIXME: Remove?
-      }
-      output
     }
 
     let useWithTypeFilter = (b: b, ~schema, ~input, ~path) => {
@@ -716,11 +713,11 @@ module Builder = {
       b->valScope(b => b->use(~schema, ~input, ~path))
     }
 
-    let catchBuildError = (b: b, ~catch, fn) => {
+    let catchBuildError = (b: b, ~catch, ~payload, fn) => {
       let initialCode = b.code
       let initialScope = b._scope
       try {
-        fn()
+        fn(payload)
       } catch {
       | exn => {
           catch(exn->InternalError.getOrRethrow)
@@ -1628,12 +1625,12 @@ let rec preprocess = (schema, transformer) => {
             // TODO: Optimize async transformation to chain .then
             b->B.asyncVal(
               `()=>${parseResultVar}().then(${asyncResultVar}=>{${b->B.scope(b => {
-                  let schemaOutputVar =
-                    b
-                    ->B.useWithTypeFilter(~schema, ~input=asyncResultVar->(B.val(b, _)), ~path)
-                    ->(B.Val.inline(b, _))
-                  let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-                  `return ${isAsync ? `${schemaOutputVar}()` : schemaOutputVar}`
+                  let schemaOutput =
+                    b->B.useWithTypeFilter(~schema, ~input=b->B.val(asyncResultVar), ~path)
+
+                  `return ${schemaOutput.isAsync
+                      ? `${b->B.Val.inline(schemaOutput)}()`
+                      : b->B.Val.inline(schemaOutput)}`
                 })}})`,
             )
           }
@@ -2019,7 +2016,7 @@ module Object = {
       }
 
       let registeredDefinitions = Stdlib.Set.empty()
-      let asyncOutputVars = []
+      let asyncOutputVals = []
 
       b->B.valScope(b => {
         let inputVar = b->B.Val.var(input)
@@ -2037,21 +2034,18 @@ module Object = {
                 let itemDefinition = definition->Definition.toEmbeded
                 registeredDefinitions->Stdlib.Set.add(itemDefinition)->ignore
                 let {schema, inputPath} = itemDefinition
-                let fieldOuputVar =
-                  b
-                  ->B.useWithTypeFilter(
+                let fieldOuput =
+                  b->B.useWithTypeFilter(
                     ~schema,
                     ~input=`${inputVar}${inputPath}`->(B.val(b, _)),
                     ~path=path->Path.concat(inputPath),
                   )
-                  ->(B.Val.inline(b, _))
-                let isAsyncField = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-                if isAsyncField {
-                  // TODO: Ensure that it's not a var, but inlined
-                  asyncOutputVars->Js.Array2.push(fieldOuputVar)->ignore
+
+                if fieldOuput.isAsync {
+                  asyncOutputVals->Js.Array2.push(fieldOuput)->ignore
                 }
 
-                fieldOuputVar
+                b->B.Val.inline(fieldOuput)
               }
             | Constant => {
                 let constant = definition->Definition.toConstant
@@ -2086,18 +2080,15 @@ module Object = {
           let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
           if registeredDefinitions->Stdlib.Set.has(itemDefinition)->not {
             let {schema, inputPath} = itemDefinition
-            let fieldOuputVar =
-              b
-              ->B.useWithTypeFilter(
+            let fieldOuput =
+              b->B.useWithTypeFilter(
                 ~schema,
                 ~input=`${inputVar}${inputPath}`->(B.val(b, _)),
                 ~path=path->Path.concat(inputPath),
               )
-              ->(B.Val.inline(b, _))
-            let isAsyncField = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-            if isAsyncField {
+            if fieldOuput.isAsync {
               // TODO: Ensure that it's not a var, but inlined
-              asyncOutputVars->Js.Array2.push(fieldOuputVar)->ignore
+              asyncOutputVals->Js.Array2.push(fieldOuput)->ignore
             }
           }
         }
@@ -2106,9 +2097,10 @@ module Object = {
         b.code =
           prevCode ++ unregisteredFieldsCode ++ registeredFieldsCode ++ unknownKeysRefinementCode
 
-        if asyncOutputVars->Js.Array2.length === 0 {
+        if asyncOutputVals->Js.Array2.length === 0 {
           b->B.val(syncOutput)
         } else {
+          let asyncOutputVars = asyncOutputVals->Js.Array2.map(val => b->B.Val.var(val))
           b->B.asyncVal(
             `()=>Promise.all([${asyncOutputVars
               ->Js.Array2.map(asyncOutputVar => `${asyncOutputVar}()`)
@@ -2857,26 +2849,24 @@ module Array = {
         let output = b->B.val("[]")
 
         b.code =
-          b.code ++
-          `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.scope(
-              b => {
-                let itemOutputVal =
-                  b->B.withPathPrepend(
-                    ~path,
-                    ~dynamicLocationVar=iteratorVar,
-                    (b, ~path) =>
-                      b->B.useWithTypeFilter(
-                        ~schema,
-                        ~input=`${inputVar}[${iteratorVar}]`->(B.val(b, _)),
-                        ~path,
-                      ),
-                  )
-                b->B.Val.push(output, itemOutputVal)
-              },
-            )}}`
+          b.code ++ `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){`
 
-        let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-        if isAsync {
+        let itemOutput = b->B.valScope(b => {
+          b->B.withPathPrepend(
+            ~path,
+            ~dynamicLocationVar=iteratorVar,
+            (b, ~path) =>
+              b->B.useWithTypeFilter(
+                ~schema,
+                ~input=`${inputVar}[${iteratorVar}]`->(B.val(b, _)),
+                ~path,
+              ),
+          )
+        })
+
+        b.code = b.code ++ b->B.Val.push(output, itemOutput) ++ `}`
+
+        if itemOutput.isAsync {
           b->B.asyncVal(`()=>Promise.all(${b->B.Val.var(output)}.map(t=>t()))`)
         } else {
           output
@@ -2894,7 +2884,7 @@ module Array = {
             b.code ++
             `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.scope(
                 b => {
-                  let itemOutputVal =
+                  let itemOutput =
                     b->B.withPathPrepend(
                       ~path,
                       ~dynamicLocationVar=iteratorVar,
@@ -2906,7 +2896,7 @@ module Array = {
                         ),
                     )
 
-                  b->B.Val.push(output, itemOutputVal)
+                  b->B.Val.push(output, itemOutput)
                 },
               )}}`
 
@@ -2981,26 +2971,24 @@ module Dict = {
         let keyVar = b->B.varWithoutAllocation
         let output = b->B.val("{}")
 
-        b.code =
-          b.code ++
-          `for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
-              let itemOutputVal =
-                b->B.withPathPrepend(
-                  ~path,
-                  ~dynamicLocationVar=keyVar,
-                  (b, ~path) =>
-                    b->B.useWithTypeFilter(
-                      ~schema,
-                      ~input=`${inputVar}[${keyVar}]`->(B.val(b, _)),
-                      ~path,
-                    ),
-                )
+        b.code = b.code ++ `for(let ${keyVar} in ${inputVar}){`
 
-              b->B.Val.addKey(output, keyVar, itemOutputVal)
-            })}}`
+        let itemOutput = b->B.valScope(b => {
+          b->B.withPathPrepend(
+            ~path,
+            ~dynamicLocationVar=keyVar,
+            (b, ~path) =>
+              b->B.useWithTypeFilter(
+                ~schema,
+                ~input=`${inputVar}[${keyVar}]`->(B.val(b, _)),
+                ~path,
+              ),
+          )
+        })
 
-        let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-        if isAsync {
+        b.code = b.code ++ b->B.Val.addKey(output, keyVar, itemOutput) ++ `}`
+
+        if itemOutput.isAsync {
           let resolveVar = b->B.varWithoutAllocation
           let rejectVar = b->B.varWithoutAllocation
           let asyncParseResultVar = b->B.varWithoutAllocation
@@ -3024,14 +3012,14 @@ module Dict = {
           b.code =
             b.code ++
             `for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
-                let itemOutputVal =
+                let itemOutput =
                   b->B.withPathPrepend(
                     ~path,
                     ~dynamicLocationVar=keyVar,
                     (b, ~path) =>
                       b->B.use(~schema, ~input=`${inputVar}[${keyVar}]`->(B.val(b, _)), ~path),
                   )
-                b->B.Val.addKey(output, keyVar, itemOutputVal)
+                b->B.Val.addKey(output, keyVar, itemOutput)
               })}}`
 
           output
@@ -3262,7 +3250,9 @@ module Union = {
             b->B.catchBuildError(
               // FIXME: What if all schemas fail this way? It should force logic in catch
               ~catch=error => errorCodeRef := errorCodeRef.contents ++ b->B.embed(error) ++ ",",
-              () => {
+              // TODO: Should be not needed in rescript@12. A hack so the idx doesn't create an additional function to catch var context
+              ~payload=idx,
+              idx => {
                 let schema = schemas->Js.Array2.unsafe_get(idx)
                 let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
                 b.code = b.code ++ `try{`
@@ -3297,107 +3287,6 @@ module Union = {
             ) ++
             codeEndRef.contents
 
-          // b.code = b.code ++ "123123123;"
-
-          // Js.log(itemOutputs)
-
-          // let itemsCode = []
-          // let itemOutputs = []
-
-          // let prevCode = b.code
-          // for idx in 0 to schemas->Js.Array2.length - 1 {
-          //   let schema = schemas->Js.Array2.unsafe_get(idx)
-          //   b.code = ""
-          //   let itemOutput = b->B.withBuildErrorInline(
-          //     ~fallback=input,
-          //     () => {
-          //       b->B.valScope(
-          //         b => {
-          //           b->B.useWithTypeFilter(
-          //             // A hack to bypass an additional function wrapping for var context optimisation
-          //             ~schema,
-          //             ~input,
-          //             ~path=Path.empty,
-          //           )
-          //         },
-          //       )
-          //     },
-          //   )
-          //   if itemOutput.isAsync {
-          //     isAsyncRef.contents = true
-          //   }
-          //   let allocatedItemOutput = b->B.allocateVal
-          //   b.code = b.code ++ b->B.Val.set(allocatedItemOutput, itemOutput) ++ ";"
-          //   itemOutputs->Js.Array2.push(allocatedItemOutput)->ignore
-          //   itemsCode->Js.Array2.push(b.code)->ignore
-          // }
-          // b.code = prevCode
-          // let isAsync = isAsyncRef.contents
-
-          // let output = b->B.allocateVal
-          // let outputVar = b->B.Val.var(output)
-
-          // let codeEndRef = ref("")
-          // let errorCodeRef = ref("")
-
-          // // TODO: Use B.withCatch ???
-          // for idx in 0 to schemas->Js.Array2.length - 1 {
-          //   let schema = schemas->Js.Array2.unsafe_get(idx)
-          //   let code = itemsCode->Js.Array2.unsafe_get(idx)
-          //   let itemOutput = itemOutputs->Js.Array2.unsafe_get(idx)
-          //   let isAsyncItem = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-
-          //   let errorVar = b->B.varWithoutAllocation
-
-          //   let errorCode = if isAsync {
-          //     (isAsyncItem ? `${errorVar}===${b->B.Val.var(itemOutput)}?${errorVar}():` : "") ++
-          //     `Promise.reject(${errorVar})`
-          //   } else {
-          //     errorVar
-          //   }
-          //   if idx === 0 {
-          //     errorCodeRef.contents = errorCode
-          //   } else {
-          //     errorCodeRef.contents = errorCodeRef.contents ++ "," ++ errorCode
-          //   }
-
-          //   b.code =
-          //     b.code ++
-          //     `try{${code}${switch (isAsyncItem, isAsync) {
-          //       | (true, _) => `throw ${b->B.Val.var(itemOutput)}`
-          //       | (false, false) => b->B.Val.set(output, itemOutput)
-          //       | (false, true) =>
-          //         `${outputVar}=()=>Promise.resolve(${b->B.Val.inline(itemOutput)})`
-          //       }}}catch(${errorVar}){if(${b->B.isInternalError(errorVar)}${isAsyncItem
-          //         ? `||${errorVar}===${b->B.Val.var(itemOutput)}`
-          //         : ""}){`
-          //   codeEndRef.contents = `}else{throw ${errorVar}}}` ++ codeEndRef.contents
-          // }
-
-          // if isAsync {
-          //   b.code =
-          //     b.code ++
-          //     `${outputVar}=()=>Promise.any([${errorCodeRef.contents}]).catch(t=>{${b->B.raiseWithArg(
-          //         ~path,
-          //         internalErrors => {
-          //           InvalidUnion(internalErrors)
-          //         },
-          //         `t.errors`,
-          //       )}})` ++
-          //     codeEndRef.contents
-          //   output
-          // } else {
-          //   b.code =
-          //     b.code ++
-          //     b->B.raiseWithArg(
-          //       ~path,
-          //       internalErrors => InvalidUnion(internalErrors),
-          //       `[${errorCodeRef.contents}]`,
-          //     ) ++
-          //     codeEndRef.contents
-          //   output
-          // }
-
           let isAllSchemasBuilderFailed = codeEndRef.contents === ""
           if isAllSchemasBuilderFailed {
             b.code = b.code ++ ";"
@@ -3416,7 +3305,8 @@ module Union = {
           for idx in 0 to schemas->Js.Array2.length - 1 {
             b->B.catchBuildError(
               ~catch=error => errorCodeRef := errorCodeRef.contents ++ b->B.embed(error) ++ ",",
-              () => {
+              ~payload=idx,
+              idx => {
                 let schema = schemas->Js.Array2.unsafe_get(idx)
                 let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
                 b.code = b.code ++ `try{`

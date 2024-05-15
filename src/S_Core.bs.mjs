@@ -379,13 +379,9 @@ function typeFilterCode(b, typeFilter, schema, input, path) {
 
 function use(b, schema, input, path) {
   var isParsing = b.o === "Parsing";
-  var output = (
-      isParsing ? schema.p : schema.s
-    )(b, input, schema, path);
-  if (isParsing) {
-    schema.i = output.a;
-  }
-  return output;
+  return (
+            isParsing ? schema.p : schema.s
+          )(b, input, schema, path);
 }
 
 function useWithTypeFilter(b, schema, input, path) {
@@ -398,11 +394,11 @@ function useWithTypeFilter(b, schema, input, path) {
               }));
 }
 
-function catchBuildError(b, $$catch, fn) {
+function catchBuildError(b, $$catch, payload, fn) {
   var initialCode = b.c;
   var initialScope = b.x;
   try {
-    return fn();
+    return fn(payload);
   }
   catch (raw_exn){
     var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
@@ -1290,14 +1286,9 @@ function preprocess(schema, transformer) {
                   })(embedAsyncOperation(b, input, asyncParser));
               var asyncResultVar = varWithoutAllocation(b);
               return asyncVal(b, "()=>" + parseResultVar + "().then(" + asyncResultVar + "=>{" + scope(b, (function (b) {
-                                var schemaOutputVar = (function (__x) {
-                                      return inline(b, __x);
-                                    })(useWithTypeFilter(b, schema, (function (__x) {
-                                              return val(b, __x);
-                                            })(asyncResultVar), path));
-                                var isAsync = schema.i;
+                                var schemaOutput = useWithTypeFilter(b, schema, val(b, asyncResultVar), path);
                                 return "return " + (
-                                        isAsync ? schemaOutputVar + "()" : schemaOutputVar
+                                        schemaOutput.a ? inline(b, schemaOutput) + "()" : inline(b, schemaOutput)
                                       );
                               })) + "})");
             }),
@@ -1608,7 +1599,7 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
       inputRefinement(b, input, selfSchema, path);
     }
     var registeredDefinitions = new Set();
-    var asyncOutputVars = [];
+    var asyncOutputVals = [];
     return valScope(b, (function (b) {
                   var inputVar = $$var(b, input);
                   var prevCode = b.c;
@@ -1639,17 +1630,13 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
                       case 2 :
                           registeredDefinitions.add(definition);
                           var inputPath = definition.p;
-                          var schema = definition.s;
-                          var fieldOuputVar = (function (__x) {
-                                return inline(b, __x);
-                              })(useWithTypeFilter(b, schema, (function (__x) {
-                                        return val(b, __x);
-                                      })(inputVar + inputPath), path + inputPath));
-                          var isAsyncField = schema.i;
-                          if (isAsyncField) {
-                            asyncOutputVars.push(fieldOuputVar);
+                          var fieldOuput = useWithTypeFilter(b, definition.s, (function (__x) {
+                                    return val(b, __x);
+                                  })(inputVar + inputPath), path + inputPath);
+                          if (fieldOuput.a) {
+                            asyncOutputVals.push(fieldOuput);
                           }
-                          return fieldOuputVar;
+                          return inline(b, fieldOuput);
                       
                     }
                   };
@@ -1660,15 +1647,11 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
                     var itemDefinition = itemDefinitions[idx];
                     if (!registeredDefinitions.has(itemDefinition)) {
                       var inputPath = itemDefinition.p;
-                      var schema = itemDefinition.s;
-                      var fieldOuputVar = (function (__x) {
-                            return inline(b, __x);
-                          })(useWithTypeFilter(b, schema, (function (__x) {
-                                    return val(b, __x);
-                                  })(inputVar + inputPath), path + inputPath));
-                      var isAsyncField = schema.i;
-                      if (isAsyncField) {
-                        asyncOutputVars.push(fieldOuputVar);
+                      var fieldOuput = useWithTypeFilter(b, itemDefinition.s, (function (__x) {
+                                return val(b, __x);
+                              })(inputVar + inputPath), path + inputPath);
+                      if (fieldOuput.a) {
+                        asyncOutputVals.push(fieldOuput);
                       }
                       
                     }
@@ -1676,13 +1659,15 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
                   }
                   var unregisteredFieldsCode = b.c;
                   b.c = prevCode + unregisteredFieldsCode + registeredFieldsCode + unknownKeysRefinementCode;
-                  if (asyncOutputVars.length === 0) {
+                  if (asyncOutputVals.length === 0) {
                     return val(b, syncOutput);
-                  } else {
-                    return asyncVal(b, "()=>Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
-                                      return asyncOutputVar + "()";
-                                    }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "))");
                   }
+                  var asyncOutputVars = asyncOutputVals.map(function (val) {
+                        return $$var(b, val);
+                      });
+                  return asyncVal(b, "()=>Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
+                                    return asyncOutputVar + "()";
+                                  }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "))");
                 }));
   };
 }
@@ -2267,16 +2252,16 @@ function factory$5(schema) {
               var inputVar = $$var(b, input);
               var iteratorVar = varWithoutAllocation(b);
               var output = val(b, "[]");
-              b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
-                        var itemOutputVal = withPathPrepend(b, path, iteratorVar, (function (b, path) {
-                                return useWithTypeFilter(b, schema, (function (__x) {
-                                                return val(b, __x);
-                                              })(inputVar + "[" + iteratorVar + "]"), path);
-                              }));
-                        return push(b, output, itemOutputVal);
-                      })) + "}");
-              var isAsync = schema.i;
-              if (isAsync) {
+              b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){");
+              var itemOutput = valScope(b, (function (b) {
+                      return withPathPrepend(b, path, iteratorVar, (function (b, path) {
+                                    return useWithTypeFilter(b, schema, (function (__x) {
+                                                    return val(b, __x);
+                                                  })(inputVar + "[" + iteratorVar + "]"), path);
+                                  }));
+                    }));
+              b.c = b.c + push(b, output, itemOutput) + "}";
+              if (itemOutput.a) {
                 return asyncVal(b, "()=>Promise.all(" + $$var(b, output) + ".map(t=>t()))");
               } else {
                 return output;
@@ -2290,12 +2275,12 @@ function factory$5(schema) {
               var iteratorVar = varWithoutAllocation(b);
               var output = val(b, "[]");
               b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
-                        var itemOutputVal = withPathPrepend(b, path, iteratorVar, (function (b, path) {
+                        var itemOutput = withPathPrepend(b, path, iteratorVar, (function (b, path) {
                                 return use(b, schema, (function (__x) {
                                                 return val(b, __x);
                                               })(inputVar + "[" + iteratorVar + "]"), path);
                               }));
-                        return push(b, output, itemOutputVal);
+                        return push(b, output, itemOutput);
                       })) + "}");
               return output;
             }),
@@ -2355,16 +2340,16 @@ function factory$6(schema) {
               var inputVar = $$var(b, input);
               var keyVar = varWithoutAllocation(b);
               var output = val(b, "{}");
-              b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
-                        var itemOutputVal = withPathPrepend(b, path, keyVar, (function (b, path) {
-                                return useWithTypeFilter(b, schema, (function (__x) {
-                                                return val(b, __x);
-                                              })(inputVar + "[" + keyVar + "]"), path);
-                              }));
-                        return addKey(b, output, keyVar, itemOutputVal);
-                      })) + "}");
-              var isAsync = schema.i;
-              if (!isAsync) {
+              b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){");
+              var itemOutput = valScope(b, (function (b) {
+                      return withPathPrepend(b, path, keyVar, (function (b, path) {
+                                    return useWithTypeFilter(b, schema, (function (__x) {
+                                                    return val(b, __x);
+                                                  })(inputVar + "[" + keyVar + "]"), path);
+                                  }));
+                    }));
+              b.c = b.c + addKey(b, output, keyVar, itemOutput) + "}";
+              if (!itemOutput.a) {
                 return output;
               }
               var resolveVar = varWithoutAllocation(b);
@@ -2382,12 +2367,12 @@ function factory$6(schema) {
               var keyVar = varWithoutAllocation(b);
               var output = val(b, "{}");
               b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
-                        var itemOutputVal = withPathPrepend(b, path, keyVar, (function (b, path) {
+                        var itemOutput = withPathPrepend(b, path, keyVar, (function (b, path) {
                                 return use(b, schema, (function (__x) {
                                                 return val(b, __x);
                                               })(inputVar + "[" + keyVar + "]"), path);
                               }));
-                        return addKey(b, output, keyVar, itemOutputVal);
+                        return addKey(b, output, keyVar, itemOutput);
                       })) + "}");
               return output;
             }),
@@ -2558,20 +2543,18 @@ function factory$8(schemas) {
                 for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
                   catchBuildError(b, (function (error) {
                           errorCodeRef.contents = errorCodeRef.contents + ("e[" + (b.e.push(error) - 1) + "]") + ",";
-                        }), (function(idx){
-                      return function () {
-                        var schema = schemas[idx];
-                        var errorVar = "e" + idx;
-                        b.c = b.c + "try{";
-                        var itemOutput = useWithTypeFilter(b, schema, input, "");
-                        if (itemOutput.a) {
-                          isAsync.contents = true;
-                        }
-                        b.c = b.c + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
-                        codeEndRef.contents = codeEndRef.contents + "}";
-                        errorCodeRef.contents = errorCodeRef.contents + errorVar + ",";
-                      }
-                      }(idx)));
+                        }), idx, (function (idx) {
+                          var schema = schemas[idx];
+                          var errorVar = "e" + idx;
+                          b.c = b.c + "try{";
+                          var itemOutput = useWithTypeFilter(b, schema, input, "");
+                          if (itemOutput.a) {
+                            isAsync.contents = true;
+                          }
+                          b.c = b.c + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
+                          codeEndRef.contents = codeEndRef.contents + "}";
+                          errorCodeRef.contents = errorCodeRef.contents + errorVar + ",";
+                        }));
                 }
                 if (isAsync.contents) {
                   invalidOperation(b, path, "S.union doesn't support async items. Please create an issue to rescript-schema if you nead the feature.");
@@ -2602,20 +2585,18 @@ function factory$8(schemas) {
                 for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
                   catchBuildError(b, (function (error) {
                           errorCodeRef.contents = errorCodeRef.contents + ("e[" + (b.e.push(error) - 1) + "]") + ",";
-                        }), (function(idx){
-                      return function () {
-                        var schema = schemas[idx];
-                        var errorVar = "e" + idx;
-                        b.c = b.c + "try{";
-                        var itemOutput = use(b, schema, input, "");
-                        var typeFilter = schema.f;
-                        b.c = b.c + (
-                          typeFilter !== undefined ? typeFilterCode(b, typeFilter, schema, itemOutput, "") : ""
-                        ) + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
-                        codeEndRef.contents = codeEndRef.contents + "}";
-                        errorCodeRef.contents = errorCodeRef.contents + errorVar + ",";
-                      }
-                      }(idx)));
+                        }), idx, (function (idx) {
+                          var schema = schemas[idx];
+                          var errorVar = "e" + idx;
+                          b.c = b.c + "try{";
+                          var itemOutput = use(b, schema, input, "");
+                          var typeFilter = schema.f;
+                          b.c = b.c + (
+                            typeFilter !== undefined ? typeFilterCode(b, typeFilter, schema, itemOutput, "") : ""
+                          ) + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
+                          codeEndRef.contents = codeEndRef.contents + "}";
+                          errorCodeRef.contents = errorCodeRef.contents + errorVar + ",";
+                        }));
                 }
                 b.c = b.c + raiseWithArg(b, path, (function (internalErrors) {
                         return {
