@@ -1504,7 +1504,6 @@ let internalRefine = (schema, refiner) => {
           b.code = b.code ++ refiner(b, ~input, ~selfSchema, ~path)
           input
         }),
-        // TODO: Remove all ->(B.val(b, _)) and clean up many B.val/B.var/B.inline in other places
         ~path,
       )
     }),
@@ -1823,8 +1822,7 @@ module Variant = {
           | Registered(var) => b->B.use(~schema, ~input=var, ~path)
           | Unregistered =>
             switch selfSchema->toInternalLiteral {
-            | Some(literal) =>
-              b->B.use(~schema, ~input=b->B.embed(literal.value)->(B.val(b, _)), ~path)
+            | Some(literal) => b->B.use(~schema, ~input=b->B.val(b->B.embed(literal.value)), ~path)
             | None =>
               b->B.invalidOperation(
                 ~path,
@@ -1886,9 +1884,7 @@ module Option = {
             output,
             b->B.use(
               ~schema=childSchema,
-              ~input=`${b->B.embed(%raw("Caml_option.valFromOption"))}(${b->B.Val.var(input)})`->(
-                B.val(b, _)
-              ),
+              ~input=b->B.Val.map(b->B.embed(%raw("Caml_option.valFromOption")), input),
               ~path,
             ),
           )
@@ -2021,7 +2017,7 @@ module Object = {
                 let fieldOuput =
                   b->B.useWithTypeFilter(
                     ~schema,
-                    ~input=`${inputVar}${inputPath}`->(B.val(b, _)),
+                    ~input=b->B.val(`${inputVar}${inputPath}`),
                     ~path=path->Path.concat(inputPath),
                   )
 
@@ -2069,7 +2065,7 @@ module Object = {
             let fieldOuput =
               b->B.useWithTypeFilter(
                 ~schema,
-                ~input=`${inputVar}${inputPath}`->(B.val(b, _)),
+                ~input=b->B.val(`${inputVar}${inputPath}`),
                 ~path=path->Path.concat(inputPath),
               )
             if fieldOuput.isAsync {
@@ -2258,13 +2254,13 @@ module Object = {
                 let {inlinedInputLocation, schema} = itemDefinition
                 fieldsCodeRef.contents =
                   fieldsCodeRef.contents ++
-                  `${inlinedInputLocation}:${b
-                    ->B.use(
-                      ~schema,
-                      ~input=`${inputVar}${outputPath}`->(B.val(b, _)),
-                      ~path=path->Path.concat(outputPath),
-                    )
-                    ->(B.Val.inline(b, _))},`
+                  `${inlinedInputLocation}:${b->B.Val.inline(
+                      b->B.use(
+                        ~schema,
+                        ~input=b->B.val(`${inputVar}${outputPath}`),
+                        ~path=path->Path.concat(outputPath),
+                      ),
+                    )},`
               }
             | Constant => {
                 let value = definition->Definition.toConstant
@@ -2844,7 +2840,7 @@ module Array = {
             (b, ~path) =>
               b->B.useWithTypeFilter(
                 ~schema,
-                ~input=`${inputVar}[${iteratorVar}]`->(B.val(b, _)),
+                ~input=b->B.val(`${inputVar}[${iteratorVar}]`),
                 ~path,
               ),
           )
@@ -2875,11 +2871,7 @@ module Array = {
                       ~path,
                       ~dynamicLocationVar=iteratorVar,
                       (b, ~path) =>
-                        b->B.use(
-                          ~schema,
-                          ~input=`${inputVar}[${iteratorVar}]`->(B.val(b, _)),
-                          ~path,
-                        ),
+                        b->B.use(~schema, ~input=b->B.val(`${inputVar}[${iteratorVar}]`), ~path),
                     )
 
                   b->B.Val.push(output, itemOutput)
@@ -2964,11 +2956,7 @@ module Dict = {
             ~path,
             ~dynamicLocationVar=keyVar,
             (b, ~path) =>
-              b->B.useWithTypeFilter(
-                ~schema,
-                ~input=`${inputVar}[${keyVar}]`->(B.val(b, _)),
-                ~path,
-              ),
+              b->B.useWithTypeFilter(~schema, ~input=b->B.val(`${inputVar}[${keyVar}]`), ~path),
           )
         })
 
@@ -3003,7 +2991,7 @@ module Dict = {
                     ~path,
                     ~dynamicLocationVar=keyVar,
                     (b, ~path) =>
-                      b->B.use(~schema, ~input=`${inputVar}[${keyVar}]`->(B.val(b, _)), ~path),
+                      b->B.use(~schema, ~input=b->B.val(`${inputVar}[${keyVar}]`), ~path),
                   )
                 b->B.Val.addKey(output, keyVar, itemOutput)
               })}}`
@@ -3145,13 +3133,13 @@ module Tuple = {
                 registeredDefinitions->Stdlib.Set.add(itemDefinition)->ignore
                 let {schema, inputPath} = itemDefinition
                 let fieldOuputVar =
-                  b
-                  ->B.use(
-                    ~schema,
-                    ~input=`${b->B.Val.var(input)}${outputPath}`->(B.val(b, _)),
-                    ~path=path->Path.concat(outputPath),
+                  b->B.Val.inline(
+                    b->B.use(
+                      ~schema,
+                      ~input=b->B.val(`${b->B.Val.var(input)}${outputPath}`),
+                      ~path=path->Path.concat(outputPath),
+                    ),
                   )
-                  ->(B.Val.inline(b, _))
                 b.code = b.code ++ `${b->B.Val.var(output)}${inputPath}=${fieldOuputVar};`
               }
             | Constant => {

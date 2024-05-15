@@ -1428,9 +1428,7 @@ function factory(schema, definer) {
               }
               var literal = toInternalLiteral(selfSchema);
               if (literal !== undefined) {
-                return use(b, schema, (function (__x) {
-                                return val(b, __x);
-                              })("e[" + (b.e.push(literal.value) - 1) + "]"), path);
+                return use(b, schema, val(b, "e[" + (b.e.push(literal.value) - 1) + "]"), path);
               } else {
                 return invalidOperation(b, path, "Can't create serializer. The S.variant's value is not registered and not a literal. Use S.transform instead");
               }
@@ -1477,9 +1475,7 @@ function serializeOperationBuilder(b, input, selfSchema, path) {
   var childSchema = selfSchema.t._0;
   b.c = b.c + ("if(" + $$var(b, input) + "!==void 0){" + scope(b, (function (b) {
             var value = Caml_option.valFromOption;
-            return set(b, output, use(b, childSchema, (function (__x) {
-                                return val(b, __x);
-                              })("e[" + (b.e.push(value) - 1) + "](" + $$var(b, input) + ")"), path));
+            return set(b, output, use(b, childSchema, map(b, "e[" + (b.e.push(value) - 1) + "]", input), path));
           })) + "}" + (
       isNull ? "else{" + setInlined(b, output, "null") + "}" : ""
     ));
@@ -1608,9 +1604,7 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
                       case 2 :
                           registeredDefinitions.add(definition);
                           var inputPath = definition.p;
-                          var fieldOuput = useWithTypeFilter(b, definition.s, (function (__x) {
-                                    return val(b, __x);
-                                  })(inputVar + inputPath), path + inputPath);
+                          var fieldOuput = useWithTypeFilter(b, definition.s, val(b, inputVar + inputPath), path + inputPath);
                           if (!fieldOuput.a) {
                             return inline(b, fieldOuput);
                           }
@@ -1627,9 +1621,7 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
                     var itemDefinition = itemDefinitions[idx];
                     if (!registeredDefinitions.has(itemDefinition)) {
                       var inputPath = itemDefinition.p;
-                      var fieldOuput = useWithTypeFilter(b, itemDefinition.s, (function (__x) {
-                                return val(b, __x);
-                              })(inputVar + inputPath), path + inputPath);
+                      var fieldOuput = useWithTypeFilter(b, itemDefinition.s, val(b, inputVar + inputPath), path + inputPath);
                       if (fieldOuput.a) {
                         asyncOutputVars.push($$var(b, fieldOuput));
                       }
@@ -1772,11 +1764,7 @@ function factory$3(definer) {
                         return invalidOperation(b, path, "The field " + definition.l + " is registered multiple times. If you want to duplicate the field, use S.transform instead");
                       } else {
                         registeredDefinitions.add(definition);
-                        fieldsCodeRef.contents = fieldsCodeRef.contents + (definition.l + ":" + (function (__x) {
-                                return inline(b, __x);
-                              })(use(b, definition.s, (function (__x) {
-                                        return val(b, __x);
-                                      })(inputVar + outputPath), path + outputPath)) + ",");
+                        fieldsCodeRef.contents = fieldsCodeRef.contents + (definition.l + ":" + inline(b, use(b, definition.s, val(b, inputVar + outputPath), path + outputPath)) + ",");
                         return ;
                       }
                   
@@ -2233,9 +2221,7 @@ function factory$5(schema) {
               b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){");
               var itemOutput = valScope(b, (function (b) {
                       return withPathPrepend(b, path, iteratorVar, (function (b, path) {
-                                    return useWithTypeFilter(b, schema, (function (__x) {
-                                                    return val(b, __x);
-                                                  })(inputVar + "[" + iteratorVar + "]"), path);
+                                    return useWithTypeFilter(b, schema, val(b, inputVar + "[" + iteratorVar + "]"), path);
                                   }));
                     }));
               b.c = b.c + push(b, output, itemOutput) + "}";
@@ -2254,9 +2240,7 @@ function factory$5(schema) {
               var output = val(b, "[]");
               b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + scope(b, (function (b) {
                         var itemOutput = withPathPrepend(b, path, iteratorVar, (function (b, path) {
-                                return use(b, schema, (function (__x) {
-                                                return val(b, __x);
-                                              })(inputVar + "[" + iteratorVar + "]"), path);
+                                return use(b, schema, val(b, inputVar + "[" + iteratorVar + "]"), path);
                               }));
                         return push(b, output, itemOutput);
                       })) + "}");
@@ -2321,9 +2305,7 @@ function factory$6(schema) {
               b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){");
               var itemOutput = valScope(b, (function (b) {
                       return withPathPrepend(b, path, keyVar, (function (b, path) {
-                                    return useWithTypeFilter(b, schema, (function (__x) {
-                                                    return val(b, __x);
-                                                  })(inputVar + "[" + keyVar + "]"), path);
+                                    return useWithTypeFilter(b, schema, val(b, inputVar + "[" + keyVar + "]"), path);
                                   }));
                     }));
               b.c = b.c + addKey(b, output, keyVar, itemOutput) + "}";
@@ -2346,9 +2328,7 @@ function factory$6(schema) {
               var output = val(b, "{}");
               b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + scope(b, (function (b) {
                         var itemOutput = withPathPrepend(b, path, keyVar, (function (b, path) {
-                                return use(b, schema, (function (__x) {
-                                                return val(b, __x);
-                                              })(inputVar + "[" + keyVar + "]"), path);
+                                return use(b, schema, val(b, inputVar + "[" + keyVar + "]"), path);
                               }));
                         return addKey(b, output, keyVar, itemOutput);
                       })) + "}");
@@ -2458,11 +2438,7 @@ function factory$7(definer) {
                         return invalidOperation(b, path, "The item " + definition.l + " is registered multiple times. If you want to duplicate the item, use S.transform instead");
                       }
                       registeredDefinitions.add(definition);
-                      var fieldOuputVar = (function (__x) {
-                            return inline(b, __x);
-                          })(use(b, definition.s, (function (__x) {
-                                    return val(b, __x);
-                                  })($$var(b, input) + outputPath), path + outputPath));
+                      var fieldOuputVar = inline(b, use(b, definition.s, val(b, $$var(b, input) + outputPath), path + outputPath));
                       b.c = b.c + ($$var(b, output) + definition.p + "=" + fieldOuputVar + ";");
                       return ;
                   
