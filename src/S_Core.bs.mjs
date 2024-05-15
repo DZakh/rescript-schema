@@ -261,36 +261,36 @@ function map(b, inlinedFn, input) {
   return val(b, inlinedFn + "(" + inline(b, input) + ")");
 }
 
-function transform(b, input, isAsync, operation) {
+function transform(b, input, operation) {
   if (!input.a) {
-    if (isAsync) {
-      return asyncVal(b, inline(b, operation(b, input)));
-    } else {
-      return operation(b, input);
-    }
+    return operation(input);
   }
   var prevCode = b.c;
   b.c = "";
-  var operationInput = (function (__x) {
-        return val(b, __x);
-      })(varWithoutAllocation(b));
-  var operationOutputVal = operation(b, operationInput);
+  var operationInput = {
+    v: varWithoutAllocation(b),
+    x: b.x,
+    a: false
+  };
+  var operationOutputVal = operation(operationInput);
   var operationCode = b.c;
   b.c = prevCode;
   return asyncVal(b, "()=>" + $$var(b, input) + "().then(" + $$var(b, operationInput) + "=>{" + operationCode + "return " + inline(b, operationOutputVal) + (
-              isAsync ? "()" : ""
+              operationOutputVal.a ? "()" : ""
             ) + "})");
 }
 
 function embedSyncOperation(b, input, fn) {
-  return transform(b, input, false, (function (b, input) {
+  return transform(b, input, (function (input) {
                 return map(b, "e[" + (b.e.push(fn) - 1) + "]", input);
               }));
 }
 
 function embedAsyncOperation(b, input, fn) {
-  return transform(b, input, true, (function (b, input) {
-                return map(b, "e[" + (b.e.push(fn) - 1) + "]", input);
+  return transform(b, input, (function (input) {
+                var val = map(b, "e[" + (b.e.push(fn) - 1) + "]", input);
+                val.a = true;
+                return val;
               }));
 }
 
@@ -327,7 +327,7 @@ function withCatch(b, $$catch, fn) {
   var fnOutput = valScope(b, fn);
   var isAsync = fnOutput.a;
   var output = allocateVal(b);
-  output.a = fnOutput.a;
+  output.a = isAsync;
   var catchCode$1 = maybeResolveVal !== undefined ? (function (catchLocation) {
         return catchCode + (
                 catchLocation === 1 ? "return Promise.resolve(" + inline(b, maybeResolveVal) + ")" : (
@@ -337,8 +337,9 @@ function withCatch(b, $$catch, fn) {
       }) : (function (param) {
         return catchCode + "}throw " + errorVar;
       });
+  var fnOutputVar = $$var(b, fnOutput);
   b.c = prevCode + ("try{" + b.c + (
-      isAsync ? setInlined(b, output, "()=>{try{return " + $$var(b, fnOutput) + "().catch(" + errorVar + "=>{" + catchCode$1(2) + "})}catch(" + errorVar + "){" + catchCode$1(1) + "}}") : set(b, output, fnOutput)
+      isAsync ? setInlined(b, output, "()=>{try{return " + fnOutputVar + "().catch(" + errorVar + "=>{" + catchCode$1(2) + "})}catch(" + errorVar + "){" + catchCode$1(1) + "}}") : set(b, output, fnOutput)
     ) + "}catch(" + errorVar + "){" + catchCode$1(0) + "}");
   return output;
 }
@@ -451,7 +452,6 @@ function build(builder, schema, operation) {
     return noopOperation;
   }
   var inlinedFunction = "i=>{" + b.c + "return " + inline(b, output) + "}";
-  console.log(inlinedFunction);
   return new Function("e", "s", "return " + inlinedFunction)(b.e, symbol);
 }
 
@@ -1175,14 +1175,14 @@ function internalRefine(schema, refiner) {
           t: schema.t,
           n: schema.n,
           p: (function (b, input, selfSchema, path) {
-              return transform(b, use(b, schema, input, path), false, (function (b, input) {
+              return transform(b, use(b, schema, input, path), (function (input) {
                             var rCode = refiner(b, input, selfSchema, path);
                             b.c = b.c + rCode;
                             return input;
                           }));
             }),
           s: (function (b, input, selfSchema, path) {
-              return use(b, schema, transform(b, input, false, (function (b, input) {
+              return use(b, schema, transform(b, input, (function (input) {
                                 b.c = b.c + refiner(b, input, selfSchema, path);
                                 return input;
                               })), path);
@@ -1273,24 +1273,18 @@ function preprocess(schema, transformer) {
               if (parser !== undefined) {
                 if (match.a !== undefined) {
                   return invalidOperation(b, path, "The S.preprocess doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.");
+                } else {
+                  return useWithTypeFilter(b, schema, embedSyncOperation(b, input, parser), path);
                 }
-                var operationResult = embedSyncOperation(b, input, parser);
-                return useWithTypeFilter(b, schema, operationResult, path);
               }
               var asyncParser = match.a;
-              if (asyncParser === undefined) {
+              if (asyncParser !== undefined) {
+                return transform(b, embedAsyncOperation(b, input, asyncParser), (function (input) {
+                              return useWithTypeFilter(b, schema, input, path);
+                            }));
+              } else {
                 return useWithTypeFilter(b, schema, input, path);
               }
-              var parseResultVar = (function (__x) {
-                    return $$var(b, __x);
-                  })(embedAsyncOperation(b, input, asyncParser));
-              var asyncResultVar = varWithoutAllocation(b);
-              return asyncVal(b, "()=>" + parseResultVar + "().then(" + asyncResultVar + "=>{" + scope(b, (function (b) {
-                                var schemaOutput = useWithTypeFilter(b, schema, val(b, asyncResultVar), path);
-                                return "return " + (
-                                        schemaOutput.a ? inline(b, schemaOutput) + "()" : inline(b, schemaOutput)
-                                      );
-                              })) + "})");
             }),
           s: (function (b, input, selfSchema, path) {
               var input$1 = use(b, schema, input, path);
@@ -1538,7 +1532,7 @@ function getWithDefault(schema, $$default) {
           t: schema.t,
           n: schema.n,
           p: (function (b, input, param, path) {
-              return transform(b, use(b, schema, input, path), false, (function (b, input) {
+              return transform(b, use(b, schema, input, path), (function (input) {
                             var inputVar = $$var(b, input);
                             var tmp;
                             tmp = $$default.TAG === "Value" ? "e[" + (b.e.push($$default._0) - 1) + "]" : "e[" + (b.e.push($$default._0) - 1) + "]()";
@@ -1599,7 +1593,7 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
       inputRefinement(b, input, selfSchema, path);
     }
     var registeredDefinitions = new Set();
-    var asyncOutputVals = [];
+    var asyncOutputVars = [];
     return valScope(b, (function (b) {
                   var inputVar = $$var(b, input);
                   var prevCode = b.c;
@@ -1633,10 +1627,12 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
                           var fieldOuput = useWithTypeFilter(b, definition.s, (function (__x) {
                                     return val(b, __x);
                                   })(inputVar + inputPath), path + inputPath);
-                          if (fieldOuput.a) {
-                            asyncOutputVals.push(fieldOuput);
+                          if (!fieldOuput.a) {
+                            return inline(b, fieldOuput);
                           }
-                          return inline(b, fieldOuput);
+                          var asyncOutputVar = $$var(b, fieldOuput);
+                          asyncOutputVars.push(asyncOutputVar);
+                          return asyncOutputVar;
                       
                     }
                   };
@@ -1651,7 +1647,7 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
                                 return val(b, __x);
                               })(inputVar + inputPath), path + inputPath);
                       if (fieldOuput.a) {
-                        asyncOutputVals.push(fieldOuput);
+                        asyncOutputVars.push($$var(b, fieldOuput));
                       }
                       
                     }
@@ -1659,15 +1655,13 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
                   }
                   var unregisteredFieldsCode = b.c;
                   b.c = prevCode + unregisteredFieldsCode + registeredFieldsCode + unknownKeysRefinementCode;
-                  if (asyncOutputVals.length === 0) {
+                  if (asyncOutputVars.length === 0) {
                     return val(b, syncOutput);
+                  } else {
+                    return asyncVal(b, "()=>Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
+                                      return asyncOutputVar + "()";
+                                    }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "))");
                   }
-                  var asyncOutputVars = asyncOutputVals.map(function (val) {
-                        return $$var(b, val);
-                      });
-                  return asyncVal(b, "()=>Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
-                                    return asyncOutputVar + "()";
-                                  }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "))");
                 }));
   };
 }

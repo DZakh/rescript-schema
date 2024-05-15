@@ -488,6 +488,7 @@ module Builder = {
         }
       }
 
+      // FIXME: Remove
       let rec getActiveScope = (scope: builderScope) => {
         if scope._isAllocated {
           getActiveScope(scope._parent)
@@ -557,37 +558,42 @@ module Builder = {
       `${var}&&${var}.s===s`
     }
 
-    let transform = (b: b, ~input, ~isAsync, operation) => {
+    let transform = (b: b, ~input, operation) => {
       if input.isAsync {
         let prevCode = b.code
         b.code = ""
-        let operationInput = b->varWithoutAllocation->(val(b, _))
-        let operationOutputVal = operation(b, ~input=operationInput)
+        let operationInput: val = {
+          _var: b->varWithoutAllocation,
+          _varScope: b._scope,
+          isAsync: false,
+        }
+        // FIXME: Use scope???
+        let operationOutputVal = operation(~input=operationInput)
         let operationCode = b.code
         b.code = prevCode
         b->asyncVal(
           `()=>${b->Val.var(input)}().then(${b->Val.var(
               operationInput,
-            )}=>{${operationCode}return ${b->Val.inline(operationOutputVal)}${isAsync
-              ? "()"
-              : ""}})`,
+            )}=>{${operationCode}return ${b->Val.inline(
+              operationOutputVal,
+            )}${operationOutputVal.isAsync ? "()" : ""}})`,
         )
-      } else if isAsync {
-        b->asyncVal(b->Val.inline(operation(b, ~input)))
       } else {
-        operation(b, ~input)
+        operation(~input)
       }
     }
 
     let embedSyncOperation = (b: b, ~input, ~fn: 'input => 'output) => {
-      b->transform(~input, ~isAsync=false, (b, ~input) => {
+      b->transform(~input, (~input) => {
         b->Val.map(b->embed(fn), input)
       })
     }
 
     let embedAsyncOperation = (b: b, ~input, ~fn: 'input => unit => promise<'output>) => {
-      b->transform(~input, ~isAsync=true, (b, ~input) => {
-        b->Val.map(b->embed(fn), input)
+      b->transform(~input, (~input) => {
+        let val = b->Val.map(b->embed(fn), input)
+        val.isAsync = true
+        val
       })
     }
 
@@ -625,7 +631,7 @@ module Builder = {
       let isAsync = fnOutput.isAsync
 
       let output = b->allocateVal
-      output.isAsync = fnOutput.isAsync // FIXME:
+      output.isAsync = isAsync // FIXME:
 
       let catchCode = switch maybeResolveVal {
       | None => _ => `${catchCode}}throw ${errorVar}`
@@ -640,6 +646,8 @@ module Builder = {
           `}else{throw ${errorVar}}`
       }
 
+      let fnOutputVar = b->Val.var(fnOutput)
+
       b.code =
         prevCode ++
         `try{${b.code}${{
@@ -647,7 +655,7 @@ module Builder = {
             | true =>
               b->Val.setInlined(
                 output,
-                `()=>{try{return ${b->Val.var(fnOutput)}().catch(${errorVar}=>{${catchCode(
+                `()=>{try{return ${fnOutputVar}().catch(${errorVar}=>{${catchCode(
                     #2,
                   )}})}catch(${errorVar}){${catchCode(#1)}}}`,
               ) // FIXME:
@@ -776,7 +784,7 @@ module Builder = {
     } else {
       let inlinedFunction = `${intitialInputVar}=>{${b.code}return ${b->B.Val.inline(output)}}`
 
-      Js.log(inlinedFunction)
+      // Js.log(inlinedFunction)
 
       Stdlib.Function.make2(
         ~ctxVarName1="e",
@@ -1494,7 +1502,7 @@ let internalRefine = (schema, refiner) => {
     ~name=schema.name,
     ~tagged=schema.tagged,
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-      b->B.transform(~input=b->B.use(~schema, ~input, ~path), ~isAsync=false, (b, ~input) => {
+      b->B.transform(~input=b->B.use(~schema, ~input, ~path), (~input) => {
         let rCode = refiner(b, ~input, ~selfSchema, ~path)
         b.code = b.code ++ rCode
         input
@@ -1503,7 +1511,7 @@ let internalRefine = (schema, refiner) => {
     ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       b->B.use(
         ~schema,
-        ~input=b->B.transform(~input, ~isAsync=false, (b, ~input) => {
+        ~input=b->B.transform(~input, (~input) => {
           b.code = b.code ++ refiner(b, ~input, ~selfSchema, ~path)
           input
         }),
@@ -1615,25 +1623,11 @@ let rec preprocess = (schema, transformer) => {
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
         switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
         | {parser, asyncParser: ?None} =>
-          let operationResult = b->B.embedSyncOperation(~input, ~fn=parser)
-          b->B.useWithTypeFilter(~schema, ~input=operationResult, ~path)
-        | {parser: ?None, asyncParser} => {
-            let parseResultVar =
-              b->B.embedAsyncOperation(~input, ~fn=asyncParser)->(B.Val.var(b, _))
-            let asyncResultVar = b->B.varWithoutAllocation
-
-            // TODO: Optimize async transformation to chain .then
-            b->B.asyncVal(
-              `()=>${parseResultVar}().then(${asyncResultVar}=>{${b->B.scope(b => {
-                  let schemaOutput =
-                    b->B.useWithTypeFilter(~schema, ~input=b->B.val(asyncResultVar), ~path)
-
-                  `return ${schemaOutput.isAsync
-                      ? `${b->B.Val.inline(schemaOutput)}()`
-                      : b->B.Val.inline(schemaOutput)}`
-                })}})`,
-            )
-          }
+          b->B.useWithTypeFilter(~schema, ~input=b->B.embedSyncOperation(~input, ~fn=parser), ~path)
+        | {parser: ?None, asyncParser} =>
+          b->B.transform(~input=b->B.embedAsyncOperation(~input, ~fn=asyncParser), (~input) => {
+            b->B.useWithTypeFilter(~schema, ~input, ~path)
+          })
         | {parser: ?None, asyncParser: ?None} => b->B.useWithTypeFilter(~schema, ~input, ~path)
         | {parser: _, asyncParser: _} =>
           b->B.invalidOperation(
@@ -1944,7 +1938,7 @@ module Option = {
       ~metadataMap=schema.metadataMap->Metadata.Map.set(~id=defaultMetadataId, default),
       ~tagged=schema.tagged,
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-        b->B.transform(~input=b->B.use(~schema, ~input, ~path), ~isAsync=false, (b, ~input) => {
+        b->B.transform(~input=b->B.use(~schema, ~input, ~path), (~input) => {
           let inputVar = b->B.Val.var(input)
           b->B.val(
             `${inputVar}===void 0?${switch default {
@@ -2016,7 +2010,7 @@ module Object = {
       }
 
       let registeredDefinitions = Stdlib.Set.empty()
-      let asyncOutputVals = []
+      let asyncOutputVars = []
 
       b->B.valScope(b => {
         let inputVar = b->B.Val.var(input)
@@ -2042,10 +2036,12 @@ module Object = {
                   )
 
                 if fieldOuput.isAsync {
-                  asyncOutputVals->Js.Array2.push(fieldOuput)->ignore
+                  let asyncOutputVar = b->B.Val.var(fieldOuput)
+                  asyncOutputVars->Js.Array2.push(asyncOutputVar)->ignore
+                  asyncOutputVar
+                } else {
+                  b->B.Val.inline(fieldOuput)
                 }
-
-                b->B.Val.inline(fieldOuput)
               }
             | Constant => {
                 let constant = definition->Definition.toConstant
@@ -2088,7 +2084,8 @@ module Object = {
               )
             if fieldOuput.isAsync {
               // TODO: Ensure that it's not a var, but inlined
-              asyncOutputVals->Js.Array2.push(fieldOuput)->ignore
+
+              asyncOutputVars->Js.Array2.push(b->B.Val.var(fieldOuput))->ignore
             }
           }
         }
@@ -2097,10 +2094,9 @@ module Object = {
         b.code =
           prevCode ++ unregisteredFieldsCode ++ registeredFieldsCode ++ unknownKeysRefinementCode
 
-        if asyncOutputVals->Js.Array2.length === 0 {
+        if asyncOutputVars->Js.Array2.length === 0 {
           b->B.val(syncOutput)
         } else {
-          let asyncOutputVars = asyncOutputVals->Js.Array2.map(val => b->B.Val.var(val))
           b->B.asyncVal(
             `()=>Promise.all([${asyncOutputVars
               ->Js.Array2.map(asyncOutputVar => `${asyncOutputVar}()`)
