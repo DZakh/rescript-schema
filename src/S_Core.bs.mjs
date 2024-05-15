@@ -487,15 +487,11 @@ function strictEqualCheckBuilder(b, inputVar, literal) {
 
 var undefined_value = undefined;
 
-function undefined_b(param, inputVar, param$1) {
-  return inputVar + "===void 0";
-}
-
 var $$undefined = {
   kind: "Undefined",
   value: undefined_value,
   s: "undefined",
-  b: undefined_b,
+  b: inlinedStrictEqualCheckBuilder,
   j: false
 };
 

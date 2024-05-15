@@ -884,7 +884,7 @@ module Literal = {
     value: %raw(`undefined`),
     string: "undefined",
     isJsonable: false,
-    checkBuilder: (_, ~inputVar, ~literal as _) => `${inputVar}===void 0`,
+    checkBuilder: inlinedStrictEqualCheckBuilder,
   }
 
   let null = {
