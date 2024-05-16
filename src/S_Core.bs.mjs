@@ -105,10 +105,10 @@ function classify(schema) {
 
 function scope(b, fn) {
   var prevCode = b.c;
+  var prevScope = b.s;
   var newScope = {
     l: "",
-    a: false,
-    p: b.s
+    a: false
   };
   b.s = newScope;
   b.c = "";
@@ -116,17 +116,17 @@ function scope(b, fn) {
   var varsAllocation = newScope.l;
   var code = varsAllocation === "" ? b.c : "let " + varsAllocation + ";" + b.c;
   newScope.a = true;
-  b.s = newScope.p;
+  b.s = prevScope;
   b.c = prevCode;
   return code + resultCode;
 }
 
 function valScope(b, fn) {
   var prevCode = b.c;
+  var prevScope = b.s;
   var newScope = {
     l: "",
-    a: false,
-    p: b.s
+    a: false
   };
   b.s = newScope;
   b.c = "";
@@ -134,7 +134,7 @@ function valScope(b, fn) {
   var varsAllocation = newScope.l;
   var code = varsAllocation === "" ? b.c : "let " + varsAllocation + ";" + b.c;
   newScope.a = true;
-  b.s = newScope.p;
+  b.s = prevScope;
   b.c = prevCode + code;
   return val;
 }
@@ -181,25 +181,14 @@ function inline(_b, val) {
   }
 }
 
-function getActiveScope(_scope) {
-  while(true) {
-    var scope = _scope;
-    if (!scope.a) {
-      return scope;
-    }
-    _scope = scope.p;
-    continue ;
-  };
-}
-
 function $$var(b, val) {
   var _var = val.v;
   if (_var !== undefined) {
     return _var;
   }
   var $$var$1 = varWithoutAllocation(b);
-  var activeScope = getActiveScope(val.s);
-  var isVarScopeActive = val.s === activeScope;
+  var isVarScopeActive = !val.s.a;
+  var activeScope = isVarScopeActive ? val.s : b.s;
   var i = val.i;
   var allocation = i !== undefined && isVarScopeActive ? $$var$1 + "=" + i : $$var$1;
   var varsAllocation = activeScope.l;
@@ -407,8 +396,7 @@ function noopOperation(i) {
 function build(builder, schema, operation) {
   var scope = {
     l: "",
-    a: false,
-    p: (void 0)
+    a: false
   };
   var input = {
     v: "i",
@@ -1067,8 +1055,7 @@ function recursive(fn) {
       selfSchema.p = noop;
       var scope = {
         l: "",
-        a: false,
-        p: (void 0)
+        a: false
       };
       var input$1 = {
         v: "i",

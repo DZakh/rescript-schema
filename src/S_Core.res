@@ -272,8 +272,6 @@ and builderScope = {
   mutable _varsAllocation: string,
   @as("a")
   mutable _isAllocated: bool,
-  @as("p")
-  _parent: builderScope,
 }
 and val = {
   @as("v")
@@ -408,10 +406,10 @@ module Builder = {
 
     let scope = (b: b, fn) => {
       let prevCode = b.code
+      let prevScope = b._scope
       let newScope = {
         _varsAllocation: "",
         _isAllocated: false,
-        _parent: b._scope,
       }
       b._scope = newScope
       b.code = ""
@@ -419,17 +417,17 @@ module Builder = {
       let varsAllocation = newScope._varsAllocation
       let code = varsAllocation === "" ? b.code : `let ${varsAllocation};${b.code}`
       newScope._isAllocated = true
-      b._scope = newScope._parent
+      b._scope = prevScope
       b.code = prevCode
       code ++ resultCode
     }
 
     let valScope = (b: b, fn) => {
       let prevCode = b.code
+      let prevScope = b._scope
       let newScope = {
         _varsAllocation: "",
         _isAllocated: false,
-        _parent: b._scope,
       }
       b._scope = newScope
       b.code = ""
@@ -437,7 +435,7 @@ module Builder = {
       let varsAllocation = newScope._varsAllocation
       let code = varsAllocation === "" ? b.code : `let ${varsAllocation};${b.code}`
       newScope._isAllocated = true
-      b._scope = newScope._parent
+      b._scope = prevScope
       b.code = prevCode ++ code
       val
     }
@@ -475,22 +473,13 @@ module Builder = {
         }
       }
 
-      // FIXME: Remove
-      let rec getActiveScope = (scope: builderScope) => {
-        if scope._isAllocated {
-          getActiveScope(scope._parent)
-        } else {
-          scope
-        }
-      }
-
       let var = (b: b, val: val) => {
         switch val {
         | {_var} => _var
         | _ => {
             let var = b->varWithoutAllocation
-            let activeScope = getActiveScope(val._varScope)
-            let isVarScopeActive = val._varScope === activeScope
+            let isVarScopeActive = !val._varScope._isAllocated
+            let activeScope = isVarScopeActive ? val._varScope : b._scope
             let allocation = switch val._initial {
             | Some(i) if isVarScopeActive => `${var}=${i}`
             | _ => var
@@ -734,7 +723,6 @@ module Builder = {
     let scope = {
       _varsAllocation: "",
       _isAllocated: false,
-      _parent: %raw(`void 0`),
     }
     let input = {_var: intitialInputVar, _varScope: scope, isAsync: false}
     let b = {
@@ -1390,7 +1378,6 @@ let recursive = fn => {
         let scope = {
           _varsAllocation: "",
           _isAllocated: false,
-          _parent: %raw(`void 0`),
         }
         let input = {_var: Builder.intitialInputVar, _varScope: scope, isAsync: false}
         let ctx = {
