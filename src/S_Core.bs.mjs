@@ -161,12 +161,8 @@ function val(b, initial) {
 }
 
 function asyncVal(b, initial) {
-  var $$var = varWithoutAllocation(b);
-  var allocation = $$var + "=" + initial;
-  var varsAllocation = b.s.l;
-  b.s.l = varsAllocation === "" ? allocation : varsAllocation + "," + allocation;
   return {
-          v: $$var,
+          i: initial,
           s: b.s,
           a: true
         };
@@ -250,8 +246,8 @@ function transform(b, input, operation) {
   var operationOutputVal = operation(operationInput);
   var operationCode = b.c;
   b.c = prevCode;
-  return asyncVal(b, "()=>" + $$var(b, input) + "().then(" + $$var(b, operationInput) + "=>{" + operationCode + "return " + inline(b, operationOutputVal) + (
-              operationOutputVal.a ? "()" : ""
+  return asyncVal(b, "()=>" + $$var(b, input) + "().then(" + $$var(b, operationInput) + "=>{" + operationCode + "return " + (
+              operationOutputVal.a ? "(" + inline(b, operationOutputVal) + ")()" : inline(b, operationOutputVal)
             ) + "})");
 }
 

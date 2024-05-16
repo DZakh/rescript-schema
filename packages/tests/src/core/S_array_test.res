@@ -62,7 +62,7 @@ module CommonWithNested = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!Array.isArray(i)){e[1](i)}let v4=[],v5=()=>Promise.all(v4.map(t=>t()));for(let v0=0;v0<i.length;++v0){let v2,v3;try{v2=e[0](i[v0]);v3=()=>{try{return v2().catch(v1=>{if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1})}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}}}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}v4.push(v3)}return v5}`,
+      `i=>{if(!Array.isArray(i)){e[1](i)}let v4=[];for(let v0=0;v0<i.length;++v0){let v2,v3;try{v2=e[0](i[v0]);v3=()=>{try{return v2().catch(v1=>{if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1})}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}}}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}v4.push(v3)}return ()=>Promise.all(v4.map(t=>t()))}`,
     )
   })
 

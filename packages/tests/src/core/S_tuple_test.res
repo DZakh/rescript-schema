@@ -247,7 +247,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!Array.isArray(i)){e[3](i)}if(i.length!==2){e[0](i.length)}let v0,v1=i["1"],v2=()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]));v0=e[1](i["0"]);if(typeof v1!=="boolean"){e[2](v1)}return v2}`,
+      `i=>{if(!Array.isArray(i)){e[3](i)}if(i.length!==2){e[0](i.length)}let v0,v1=i["1"];v0=e[1](i["0"]);if(typeof v1!=="boolean"){e[2](v1)}return ()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]))}`,
     )
   })
 
@@ -265,7 +265,7 @@ module Compiled = {
   test("Compiled serialize code snapshot for empty tuple", t => {
     let schema = S.tuple(_ => ())
 
-    // FIXME: No need to do unit check ?
+    // TODO: No need to do unit check ?
     t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{if(i!==e[0]){e[1](i)}return []}`)
   })
 

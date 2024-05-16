@@ -82,7 +82,7 @@ test("Compiled parse code snapshot for simple object with refine", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#parse,
-    // FIXME: Double "let" looks wrong
+    // TODO: Double "let" looks wrong
     `i=>{if(!i||i.constructor!==Object){e[3](i)}let v2;let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}v2={"foo":v0,"bar":v1,};e[2](v2);return v2}`,
   )
 })

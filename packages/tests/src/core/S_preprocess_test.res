@@ -147,6 +147,13 @@ asyncTest("Can apply other actions after async preprocess", t => {
     ->S.String.trim
     ->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
 
+  // TODO: Can improve builder to use string schema and trim without .then in between
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#parse,
+    `i=>{let v5=e[0](i);return ()=>v5().then(v0=>{let v2=e[1](v0),v4=()=>v2().then(v1=>{if(typeof v1!=="string"){e[2](v1)}return v1});return (()=>v4().then(v3=>{return e[3](v3)}))()})}`,
+  )
+
   %raw(`"    Hello world!"`)
   ->S.parseAsyncWith(schema)
   ->Promise.thenResolve(result => {
@@ -270,7 +277,24 @@ test("Compiled async parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#parse,
-    `i=>{let v1=e[0](i),v2=()=>v1().then(v0=>{if(typeof v0!=="number"||v0>2147483647||v0<-2147483648||v0%1!==0){e[1](v0)}return v0});return v2}`,
+    `i=>{let v1=e[0](i);return ()=>v1().then(v0=>{if(typeof v0!=="number"||v0>2147483647||v0<-2147483648||v0%1!==0){e[1](v0)}return v0})}`,
+  )
+})
+
+test("Compiled async parse code snapshot for object", t => {
+  let schema = S.object(s =>
+    {
+      "foo": s.field("foo", S.string),
+    }
+  )->S.preprocess(_ => {
+    asyncParser: _ => () => 1->Int.toFloat->Promise.resolve,
+    serializer: _ => 1.->Int.fromFloat,
+  })
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#parse,
+    `i=>{let v2=e[0](i);return ()=>v2().then(v0=>{if(!v0||v0.constructor!==Object){e[1](v0)}let v1=v0["foo"];if(typeof v1!=="string"){e[2](v1)}return {"foo":v1,}})}`,
   )
 })
 

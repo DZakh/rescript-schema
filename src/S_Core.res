@@ -455,14 +455,7 @@ module Builder = {
     }
 
     let asyncVal = (b: b, initial: string): val => {
-      let var = b->varWithoutAllocation
-      let allocation = `${var}=${initial}`
-      let varsAllocation = b._scope._varsAllocation
-      b._scope._varsAllocation = varsAllocation === ""
-        ? allocation
-        : varsAllocation ++ "," ++ allocation
-      // TODO: Don't require for it to be a var.
-      {_var: var, _varScope: b._scope, isAsync: true}
+      {_initial: initial, _varScope: b._scope, isAsync: true}
     }
 
     module Val = {
@@ -543,16 +536,15 @@ module Builder = {
           _varScope: b._scope,
           isAsync: false,
         }
-        // FIXME: Use scope???
         let operationOutputVal = operation(~input=operationInput)
         let operationCode = b.code
         b.code = prevCode
         b->asyncVal(
           `()=>${b->Val.var(input)}().then(${b->Val.var(
               operationInput,
-            )}=>{${operationCode}return ${b->Val.inline(
-              operationOutputVal,
-            )}${operationOutputVal.isAsync ? "()" : ""}})`,
+            )}=>{${operationCode}return ${operationOutputVal.isAsync
+              ? "(" ++ b->Val.inline(operationOutputVal) ++ ")()"
+              : b->Val.inline(operationOutputVal)}})`,
         )
       } else {
         operation(~input)
@@ -593,7 +585,7 @@ module Builder = {
       )
     }
 
-    // FIXME: Refactor
+    // TODO: Refactor
     let withCatch = (b: b, ~catch, fn) => {
       let prevCode = b.code
 
@@ -607,7 +599,7 @@ module Builder = {
       let isAsync = fnOutput.isAsync
 
       let output = b->allocateVal
-      output.isAsync = isAsync // FIXME:
+      output.isAsync = isAsync
 
       let catchCode = switch maybeResolveVal {
       | None => _ => `${catchCode}}throw ${errorVar}`
@@ -634,7 +626,7 @@ module Builder = {
                 `()=>{try{return ${fnOutputVar}().catch(${errorVar}=>{${catchCode(
                     #2,
                   )}})}catch(${errorVar}){${catchCode(#1)}}}`,
-              ) // FIXME:
+              )
             | false => b->Val.set(output, fnOutput)
             }
           }}}catch(${errorVar}){${catchCode(#0)}}`
@@ -2052,8 +2044,6 @@ module Object = {
                 ~path=path->Path.concat(inputPath),
               )
             if fieldOuput.isAsync {
-              // TODO: Ensure that it's not a var, but inlined
-
               asyncOutputVars->Js.Array2.push(b->B.Val.var(fieldOuput))->ignore
             }
           }
