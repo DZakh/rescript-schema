@@ -464,7 +464,6 @@ module Builder = {
         ? allocation
         : varsAllocation ++ "," ++ allocation
       // TODO: Don't require for it to be a var.
-      // FIXME: isAsync is currently not used
       {_var: var, _varScope: b._scope, isAsync: true}
     }
 
@@ -472,10 +471,7 @@ module Builder = {
       let inline = (_b: b, val: val) => {
         switch val {
         | {_var: var} => var
-        | {_initial: initial} => initial
-        | _ =>
-          // TODO: This branch should be invalid
-          Js.Exn.raiseError("Can't inline undefined val")
+        | _ => val._initial->(Obj.magic: option<string> => string) // There should never be the case when we inline not allocated val
         }
       }
 
@@ -3222,7 +3218,6 @@ module Union = {
           // TODO: Add support for async
           for idx in 0 to schemas->Js.Array2.length - 1 {
             b->B.catchBuildError(
-              // FIXME: What if all schemas fail this way? It should force logic in catch
               ~catch=error => errorCodeRef := errorCodeRef.contents ++ b->B.embed(error) ++ ",",
               // TODO: Should be not needed in rescript@12. A hack so the idx doesn't create an additional function to catch var context
               ~payload=idx,

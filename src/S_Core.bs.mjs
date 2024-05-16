@@ -176,12 +176,8 @@ function inline(_b, val) {
   var $$var = val.v;
   if ($$var !== undefined) {
     return $$var;
-  }
-  var initial = val.i;
-  if (initial !== undefined) {
-    return initial;
   } else {
-    return Js_exn.raiseError("Can't inline undefined val");
+    return val.i;
   }
 }
 
