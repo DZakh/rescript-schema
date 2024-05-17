@@ -1043,11 +1043,11 @@ let toInternalLiteral = {
     | Tuple(tupleSchemas) =>
       tupleSchemas
       ->Js.Array2.map(itemSchema => (itemSchema->loop).value)
-      ->Literal.parseInternal
+      ->Literal.array
     | Object({fields}) =>
       fields
       ->Stdlib.Dict.mapValues(itemSchema => (itemSchema->loop).value)
-      ->Literal.parseInternal
+      ->Literal.dict
     | String
     | Int
     | Float

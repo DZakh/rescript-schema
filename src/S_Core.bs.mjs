@@ -540,56 +540,9 @@ function parseInternal(value) {
     if (value === null) {
       return $$null;
     } else if (Array.isArray(value)) {
-      var items = [];
-      var isJsonable = true;
-      var string = "[";
-      for(var idx = 0 ,idx_finish = value.length; idx < idx_finish; ++idx){
-        var itemValue = value[idx];
-        var itemLiteral = parseInternal(itemValue);
-        if (isJsonable && !itemLiteral.j) {
-          isJsonable = false;
-        }
-        if (idx !== 0) {
-          string = string + ",";
-        }
-        string = string + itemLiteral.s;
-        items.push(itemLiteral);
-      }
-      return {
-              kind: "Array",
-              value: value,
-              s: string + "]",
-              b: arrayCheckBuilder,
-              j: isJsonable,
-              i: Caml_option.some(items)
-            };
+      return array(value);
     } else if (value.constructor === Object) {
-      var items$1 = {};
-      var string$1 = "{";
-      var isJsonable$1 = true;
-      var fields = Object.keys(value);
-      var numberOfFields = fields.length;
-      for(var idx$1 = 0; idx$1 < numberOfFields; ++idx$1){
-        var field = fields[idx$1];
-        var itemValue$1 = value[field];
-        var itemLiteral$1 = parseInternal(itemValue$1);
-        if (isJsonable$1 && !itemLiteral$1.j) {
-          isJsonable$1 = false;
-        }
-        if (idx$1 !== 0) {
-          string$1 = string$1 + ",";
-        }
-        string$1 = string$1 + (JSON.stringify(field) + ":" + itemLiteral$1.s);
-        items$1[field] = itemLiteral$1;
-      }
-      return {
-              kind: "Dict",
-              value: value,
-              s: string$1 + "}",
-              b: dictCheckBuilder,
-              j: isJsonable$1,
-              i: Caml_option.some(items$1)
-            };
+      return dict(value);
     } else {
       return {
               kind: "Object",
@@ -624,6 +577,61 @@ function parseInternal(value) {
   }
 }
 
+function dict(value) {
+  var items = {};
+  var string = "{";
+  var isJsonable = true;
+  var fields = Object.keys(value);
+  var numberOfFields = fields.length;
+  for(var idx = 0; idx < numberOfFields; ++idx){
+    var field = fields[idx];
+    var itemValue = value[field];
+    var itemLiteral = parseInternal(itemValue);
+    if (isJsonable && !itemLiteral.j) {
+      isJsonable = false;
+    }
+    if (idx !== 0) {
+      string = string + ",";
+    }
+    string = string + (JSON.stringify(field) + ":" + itemLiteral.s);
+    items[field] = itemLiteral;
+  }
+  return {
+          kind: "Dict",
+          value: value,
+          s: string + "}",
+          b: dictCheckBuilder,
+          j: isJsonable,
+          i: Caml_option.some(items)
+        };
+}
+
+function array(value) {
+  var items = [];
+  var isJsonable = true;
+  var string = "[";
+  for(var idx = 0 ,idx_finish = value.length; idx < idx_finish; ++idx){
+    var itemValue = value[idx];
+    var itemLiteral = parseInternal(itemValue);
+    if (isJsonable && !itemLiteral.j) {
+      isJsonable = false;
+    }
+    if (idx !== 0) {
+      string = string + ",";
+    }
+    string = string + itemLiteral.s;
+    items.push(itemLiteral);
+  }
+  return {
+          kind: "Array",
+          value: value,
+          s: string + "]",
+          b: arrayCheckBuilder,
+          j: isJsonable,
+          i: Caml_option.some(items)
+        };
+}
+
 function parse(any) {
   return parseInternal(any);
 }
@@ -639,11 +647,11 @@ function loop(_schema) {
       case "Literal" :
           return literal._0;
       case "Object" :
-          return parseInternal(mapValues(literal.fields, (function (itemSchema) {
+          return dict(mapValues(literal.fields, (function (itemSchema) {
                             return loop(itemSchema).value;
                           })));
       case "Tuple" :
-          return parseInternal(literal._0.map(function (itemSchema) {
+          return array(literal._0.map(function (itemSchema) {
                           return loop(itemSchema).value;
                         }));
       case "Union" :
@@ -3319,9 +3327,9 @@ var $$int = schema$4;
 
 var $$float = schema$5;
 
-var array = factory$5;
+var array$1 = factory$5;
 
-var dict = factory$6;
+var dict$1 = factory$6;
 
 var option = factory$1;
 
@@ -3429,9 +3437,9 @@ export {
   $$float ,
   json ,
   literal ,
-  array ,
+  array$1 as array,
   list ,
-  dict ,
+  dict$1 as dict,
   option ,
   $$null$1 as $$null,
   nullable ,
