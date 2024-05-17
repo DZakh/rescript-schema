@@ -471,10 +471,10 @@ module Builder = {
         | {_var} => _var
         | _ => {
             let var = b->varWithoutAllocation
-            let isVarScopeActive = !val._varScope._isAllocated
-            let activeScope = isVarScopeActive ? val._varScope : b._scope
+            let isValScopeActive = !val._varScope._isAllocated
+            let activeScope = isValScopeActive ? val._varScope : b._scope
             let allocation = switch val._initial {
-            | Some(i) if isVarScopeActive => `${var}=${i}`
+            | Some(i) if isValScopeActive => `${var}=${i}`
             | _ => var
             }
             let varsAllocation = activeScope._varsAllocation
@@ -482,7 +482,7 @@ module Builder = {
               ? allocation
               : varsAllocation ++ "," ++ allocation
             switch val._initial {
-            | Some(i) if !isVarScopeActive => b.code = b.code ++ `${var}=${i};`
+            | Some(i) if !isValScopeActive => b.code = b.code ++ `${var}=${i};`
             | _ => ()
             }
             val._var = Some(var)
@@ -500,16 +500,20 @@ module Builder = {
       }
 
       let set = (b: b, input: val, val) => {
-        switch (input, val) {
-        | ({isAsync: false}, {isAsync: true}) => {
-            input.isAsync = true
+        if input === val {
+          ""
+        } else {
+          switch (input, val) {
+          | ({isAsync: false}, {isAsync: true}) => {
+              input.isAsync = true
+              `${b->var(input)}=${b->inline(val)}`
+            }
+          | ({isAsync: false}, {isAsync: false})
+          | ({isAsync: true}, {isAsync: true}) =>
             `${b->var(input)}=${b->inline(val)}`
+          | ({isAsync: true}, {isAsync: false}) =>
+            `${b->var(input)}=()=>Promise.resolve(${b->inline(val)})`
           }
-        | ({isAsync: false}, {isAsync: false})
-        | ({isAsync: true}, {isAsync: true}) =>
-          `${b->var(input)}=${b->inline(val)}`
-        | ({isAsync: true}, {isAsync: false}) =>
-          `${b->var(input)}=()=>Promise.resolve(${b->inline(val)})`
         }
       }
 
@@ -540,6 +544,7 @@ module Builder = {
         let operationCode = b.code
         b.code = prevCode
         b->asyncVal(
+          // TODO: Use Val.inline
           `()=>${b->Val.var(input)}().then(${b->Val.var(
               operationInput,
             )}=>{${operationCode}return ${operationOutputVal.isAsync
@@ -1824,24 +1829,27 @@ module Option = {
   let default = schema => schema->Metadata.get(~id=defaultMetadataId)
 
   let parseOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path) => {
-    let output = b->B.allocateVal
-
     let isNull = %raw(`selfSchema.t.TAG === "Null"`)
     let childSchema = selfSchema.tagged->unsafeGetVariantPayload
 
-    let ifCode = b->B.scope(b => {
-      b->B.Val.set(output, b->B.use(~schema=childSchema, ~input, ~path))
+    let prevCode = b.code
+    b.code = ""
+    let itemOutput = b->B.valScope(b => {
+      b->B.use(~schema=childSchema, ~input, ~path)
     })
+    let itemCode = b.code
+    let isTransformed = isNull || itemOutput !== input
 
-    b.code =
-      b.code ++
-      `if(${b->B.Val.var(input)}!==${isNull ? "null" : "void 0"}){${ifCode}}${switch (
-          isNull,
-          output.isAsync,
-        ) {
-        | (false, false) => ""
-        | _ => `else{${b->B.Val.set(output, b->B.val(`void 0`))}}`
-        }}`
+    let output = isTransformed ? {_varScope: b._scope, isAsync: itemOutput.isAsync} : input
+
+    if itemCode !== "" || isTransformed {
+      b.code =
+        prevCode ++
+        `if(${b->B.Val.var(input)}!==${isNull ? "null" : "void 0"}){${itemCode}${b->B.Val.set(
+            output,
+            itemOutput,
+          )}}${isNull || output.isAsync ? `else{${b->B.Val.set(output, b->B.val(`void 0`))}}` : ""}`
+    }
 
     output
   })

@@ -183,14 +183,14 @@ function $$var(b, val) {
     return _var;
   }
   var $$var$1 = varWithoutAllocation(b);
-  var isVarScopeActive = !val.s.a;
-  var activeScope = isVarScopeActive ? val.s : b.s;
+  var isValScopeActive = !val.s.a;
+  var activeScope = isValScopeActive ? val.s : b.s;
   var i = val.i;
-  var allocation = i !== undefined && isVarScopeActive ? $$var$1 + "=" + i : $$var$1;
+  var allocation = i !== undefined && isValScopeActive ? $$var$1 + "=" + i : $$var$1;
   var varsAllocation = activeScope.l;
   activeScope.l = varsAllocation === "" ? allocation : varsAllocation + "," + allocation;
   var i$1 = val.i;
-  if (i$1 !== undefined && !isVarScopeActive) {
+  if (i$1 !== undefined && !isValScopeActive) {
     b.c = b.c + ($$var$1 + "=" + i$1 + ";");
   }
   val.v = $$var$1;
@@ -206,6 +206,9 @@ function addKey(b, input, key, val) {
 }
 
 function set(b, input, val) {
+  if (input === val) {
+    return "";
+  }
   var match = input.a;
   if (match) {
     var match$1 = val.a;
@@ -1425,26 +1428,26 @@ function $$default(schema) {
 }
 
 function parseOperationBuilder(b, input, selfSchema, path) {
-  var output = allocateVal(b);
   var isNull = (selfSchema.t.TAG === "Null");
   var childSchema = selfSchema.t._0;
-  var ifCode = scope(b, (function (b) {
-          return set(b, output, use(b, childSchema, input, path));
+  var prevCode = b.c;
+  b.c = "";
+  var itemOutput = valScope(b, (function (b) {
+          return use(b, childSchema, input, path);
         }));
-  var match = output.a;
-  var tmp;
-  var exit = 0;
-  if (isNull || match) {
-    exit = 1;
-  } else {
-    tmp = "";
+  var itemCode = b.c;
+  var isTransformed = isNull || itemOutput !== input;
+  var output = isTransformed ? ({
+        s: b.s,
+        a: itemOutput.a
+      }) : input;
+  if (itemCode !== "" || isTransformed) {
+    b.c = prevCode + ("if(" + $$var(b, input) + "!==" + (
+        isNull ? "null" : "void 0"
+      ) + "){" + itemCode + set(b, output, itemOutput) + "}" + (
+        isNull || output.a ? "else{" + set(b, output, val(b, "void 0")) + "}" : ""
+      ));
   }
-  if (exit === 1) {
-    tmp = "else{" + set(b, output, val(b, "void 0")) + "}";
-  }
-  b.c = b.c + ("if(" + $$var(b, input) + "!==" + (
-      isNull ? "null" : "void 0"
-    ) + "){" + ifCode + "}" + tmp);
   return output;
 }
 
