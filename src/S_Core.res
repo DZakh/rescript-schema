@@ -412,12 +412,6 @@ module Builder = {
       varsAllocation === "" ? b.code : `let ${varsAllocation};${b.code}`
     }
 
-    let exitScope = (b: b): b => {
-      let parent = b._parent
-      parent.code = parent.code ++ b->allocateScope
-      parent
-    }
-
     let varWithoutAllocation = (b: b) => {
       let newCounter = b._varCounter->Stdlib.Int.plus(1)
       b._varCounter = newCounter
@@ -578,9 +572,10 @@ module Builder = {
       let catchCode = `if(${b->isInternalError(errorVar)}){${b.code}`
       b.code = ""
 
-      let b = b->scope
-      let fnOutput = fn(b)
-      let b = b->exitScope
+      let bb = b->scope
+      let fnOutput = fn(bb)
+      b.code = b.code ++ bb->allocateScope
+
       let isAsync = fnOutput.isAsync
       let output = input === fnOutput ? input : {_scope: b, isAsync}
 
@@ -676,9 +671,9 @@ module Builder = {
         b.code = b.code ++ b->typeFilterCode(~schema, ~typeFilter, ~input, ~path)
       | None => ()
       }
-      let b = b->scope
-      let val = b->use(~schema, ~input, ~path)
-      let _ = b->exitScope
+      let bb = b->scope
+      let val = bb->use(~schema, ~input, ~path)
+      b.code = b.code ++ bb->allocateScope
       val
     }
   }
@@ -1919,8 +1914,6 @@ module Object = {
       let registeredDefinitions = Stdlib.Set.empty()
       let asyncOutputVars = []
 
-      let b = b->B.scope
-
       let inputVar = b->B.Val.var(input)
       let prevCode = b.code
       b.code = ""
@@ -1997,8 +1990,6 @@ module Object = {
       b.code = prevCode ++ unregisteredFieldsCode ++ registeredFieldsCode
 
       unknownKeysRefinement(b, ~input, ~selfSchema, ~path)
-
-      let _ = b->B.exitScope
 
       if asyncOutputVars->Js.Array2.length === 0 {
         b->B.val(syncOutput)
@@ -2383,9 +2374,9 @@ module JsonString = {
               "t.message",
             )}}`
 
-        let b = b->B.scope
-        let val = b->B.useWithTypeFilter(~schema, ~input=jsonVal, ~path)
-        let _ = b->B.exitScope
+        let bb = b->B.scope
+        let val = bb->B.useWithTypeFilter(~schema, ~input=jsonVal, ~path)
+        b.code = b.code ++ bb->B.allocateScope
         val
       }),
       ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {

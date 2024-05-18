@@ -118,12 +118,6 @@ function allocateScope(b) {
   }
 }
 
-function exitScope(b) {
-  var parent = b.p;
-  parent.c = parent.c + allocateScope(b);
-  return parent;
-}
-
 function varWithoutAllocation(b) {
   var newCounter = b.v + 1;
   b.v = newCounter;
@@ -283,26 +277,26 @@ function withCatch(b, input, $$catch, fn) {
   var maybeResolveVal = $$catch(b, errorVar);
   var catchCode = "if(" + (errorVar + "&&" + errorVar + ".s===s") + "){" + b.c;
   b.c = "";
-  var b$1 = scope(b);
-  var fnOutput = fn(b$1);
-  var b$2 = exitScope(b$1);
+  var bb = scope(b);
+  var fnOutput = fn(bb);
+  b.c = b.c + allocateScope(bb);
   var isAsync = fnOutput.a;
   var output = input === fnOutput ? input : ({
-        s: b$2,
+        s: b,
         a: isAsync
       });
   var catchCode$1 = maybeResolveVal !== undefined ? (function (catchLocation) {
         return catchCode + (
-                catchLocation === 1 ? "return Promise.resolve(" + inline(b$2, maybeResolveVal) + ")" : (
-                    catchLocation === 2 ? "return " + inline(b$2, maybeResolveVal) : set(b$2, output, maybeResolveVal)
+                catchLocation === 1 ? "return Promise.resolve(" + inline(b, maybeResolveVal) + ")" : (
+                    catchLocation === 2 ? "return " + inline(b, maybeResolveVal) : set(b, output, maybeResolveVal)
                   )
               ) + ("}else{throw " + errorVar + "}");
       }) : (function (param) {
         return catchCode + "}throw " + errorVar;
       });
-  var fnOutputVar = $$var(b$2, fnOutput);
-  b$2.c = prevCode + ("try{" + b$2.c + (
-      isAsync ? setInlined(b$2, output, "()=>{try{return " + fnOutputVar + "().catch(" + errorVar + "=>{" + catchCode$1(2) + "})}catch(" + errorVar + "){" + catchCode$1(1) + "}}") : set(b$2, output, fnOutput)
+  var fnOutputVar = $$var(b, fnOutput);
+  b.c = prevCode + ("try{" + b.c + (
+      isAsync ? setInlined(b, output, "()=>{try{return " + fnOutputVar + "().catch(" + errorVar + "=>{" + catchCode$1(2) + "})}catch(" + errorVar + "){" + catchCode$1(1) + "}}") : set(b, output, fnOutput)
     ) + "}catch(" + errorVar + "){" + catchCode$1(0) + "}");
   return output;
 }
@@ -353,9 +347,9 @@ function useWithTypeFilter(b, schema, input, path) {
   if (typeFilter !== undefined) {
     b.c = b.c + typeFilterCode(b, typeFilter, schema, input, path);
   }
-  var b$1 = scope(b);
-  var val = use(b$1, schema, input, path);
-  exitScope(b$1);
+  var bb = scope(b);
+  var val = use(bb, schema, input, path);
+  b.c = b.c + allocateScope(bb);
   return val;
 }
 
@@ -1488,10 +1482,9 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
   return function (b, input, selfSchema, path) {
     var registeredDefinitions = new Set();
     var asyncOutputVars = [];
-    var b$1 = scope(b);
-    var inputVar = $$var(b$1, input);
-    var prevCode = b$1.c;
-    b$1.c = "";
+    var inputVar = $$var(b, input);
+    var prevCode = b.c;
+    b.c = "";
     var definitionToOutput = function (definition, outputPath) {
       var kind = toKindWithSet(definition, itemDefinitionsSet);
       switch (kind) {
@@ -1511,43 +1504,42 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
                     isArray ? "]" : "}"
                   );
         case 1 :
-            return "e[" + (b$1.e.push(definition) - 1) + "]";
+            return "e[" + (b.e.push(definition) - 1) + "]";
         case 2 :
             registeredDefinitions.add(definition);
             var inputPath = definition.p;
-            var fieldOuput = useWithTypeFilter(b$1, definition.s, val(b$1, inputVar + inputPath), path + inputPath);
+            var fieldOuput = useWithTypeFilter(b, definition.s, val(b, inputVar + inputPath), path + inputPath);
             if (!fieldOuput.a) {
-              return inline(b$1, fieldOuput);
+              return inline(b, fieldOuput);
             }
-            var asyncOutputVar = $$var(b$1, fieldOuput);
+            var asyncOutputVar = $$var(b, fieldOuput);
             asyncOutputVars.push(asyncOutputVar);
             return asyncOutputVar;
         
       }
     };
     var syncOutput = definitionToOutput(definition, "");
-    var registeredFieldsCode = b$1.c;
-    b$1.c = "";
+    var registeredFieldsCode = b.c;
+    b.c = "";
     for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
       var itemDefinition = itemDefinitions[idx];
       if (!registeredDefinitions.has(itemDefinition)) {
         var inputPath = itemDefinition.p;
-        var fieldOuput = useWithTypeFilter(b$1, itemDefinition.s, val(b$1, inputVar + inputPath), path + inputPath);
+        var fieldOuput = useWithTypeFilter(b, itemDefinition.s, val(b, inputVar + inputPath), path + inputPath);
         if (fieldOuput.a) {
-          asyncOutputVars.push($$var(b$1, fieldOuput));
+          asyncOutputVars.push($$var(b, fieldOuput));
         }
         
       }
       
     }
-    var unregisteredFieldsCode = b$1.c;
-    b$1.c = prevCode + unregisteredFieldsCode + registeredFieldsCode;
-    unknownKeysRefinement(b$1, input, selfSchema, path);
-    exitScope(b$1);
+    var unregisteredFieldsCode = b.c;
+    b.c = prevCode + unregisteredFieldsCode + registeredFieldsCode;
+    unknownKeysRefinement(b, input, selfSchema, path);
     if (asyncOutputVars.length === 0) {
-      return val(b$1, syncOutput);
+      return val(b, syncOutput);
     } else {
-      return asyncVal(b$1, "()=>Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
+      return asyncVal(b, "()=>Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
                         return asyncOutputVar + "()";
                       }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "))");
     }
@@ -1835,9 +1827,9 @@ function factory$4(schema, spaceOpt) {
                                 _0: message
                               };
                       }), "t.message") + "}");
-              var b$1 = scope(b);
-              var val = useWithTypeFilter(b$1, schema, jsonVal, path);
-              exitScope(b$1);
+              var bb = scope(b);
+              var val = useWithTypeFilter(bb, schema, jsonVal, path);
+              b.c = b.c + allocateScope(bb);
               return val;
             }),
           s: (function (b, input, param, path) {
