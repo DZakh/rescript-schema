@@ -108,14 +108,6 @@ module Stdlib = {
     let deleteInPlace = (dict, key) => {
       Js.Dict.unsafeDeleteKey(dict->(Obj.magic: dict<'a> => dict<string>), key)
     }
-
-    let mapValues: (dict<'a>, 'a => 'b) => dict<'b> = %raw(`(dict, fn)=>{
-      var key,newDict = {};
-      for (key in dict) {
-        newDict[key] = fn(dict[key])
-      }
-      return newDict
-    }`)
   }
 
   module Float = {
@@ -1014,41 +1006,11 @@ module Literal = {
 
   @inline
   let parse = any => any->parseInternal->toPublic
-}
 
-let toInternalLiteral = {
-  let rec loop = schema => {
+  let fromSchema = schema => {
     switch schema->classify {
-    | Literal(literal) => literal->Literal.toInternal
-    | Union(unionSchemas) => unionSchemas->Js.Array2.unsafe_get(0)->loop
-    | Tuple(tupleSchemas) =>
-      tupleSchemas
-      ->Js.Array2.map(itemSchema => (itemSchema->loop).value)
-      ->Literal.array
-    | Object({fields}) =>
-      fields
-      ->Stdlib.Dict.mapValues(itemSchema => (itemSchema->loop).value)
-      ->Literal.dict
-    | String
-    | Int
-    | Float
-    | Bool
-    | Option(_)
-    | Null(_)
-    | Never
-    | Unknown
-    | JSON(_)
-    | Array(_)
-    | Dict(_) =>
-      Stdlib.Exn.raiseAny(symbol)
-    }
-  }
-  schema => {
-    try {
-      Some(loop(schema))
-    } catch {
-    | Js.Exn.Error(jsExn) =>
-      jsExn->(Obj.magic: Js.Exn.t => Stdlib.Symbol.t) === symbol ? None : Stdlib.Exn.raiseAny(jsExn)
+    | Literal(literal) => Some(literal)
+    | _ => None
     }
   }
 }
@@ -1782,8 +1744,9 @@ module Variant = {
             )
           | Registered(var) => b->B.use(~schema, ~input=var, ~path)
           | Unregistered =>
-            switch selfSchema->toInternalLiteral {
-            | Some(literal) => b->B.use(~schema, ~input=b->B.val(b->B.embed(literal.value)), ~path)
+            switch selfSchema->Literal.fromSchema {
+            | Some(literal) =>
+              b->B.use(~schema, ~input=b->B.val(b->B.embed(literal->Literal.value)), ~path)
             | None =>
               b->B.invalidOperation(
                 ~path,
@@ -2264,10 +2227,11 @@ module Object = {
           let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
           if registeredDefinitions->Stdlib.Set.has(itemDefinition)->not {
             let {schema, inlinedInputLocation} = itemDefinition
-            switch schema->toInternalLiteral {
+            switch schema->Literal.fromSchema {
             | Some(literal) =>
               fieldsCodeRef.contents =
-                fieldsCodeRef.contents ++ `${inlinedInputLocation}:${b->B.embed(literal.value)},`
+                fieldsCodeRef.contents ++
+                `${inlinedInputLocation}:${b->B.embed(literal->Literal.value)},`
             | None =>
               b->B.invalidOperation(
                 ~path,
@@ -2874,9 +2838,12 @@ module Tuple = {
           let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
           if registeredDefinitions->Stdlib.Set.has(itemDefinition)->not {
             let {schema, inlinedInputLocation, inputPath} = itemDefinition
-            switch schema->toInternalLiteral {
+            switch schema->Literal.fromSchema {
             | Some(literal) =>
-              b.code = b.code ++ `${b->B.Val.var(output)}${inputPath}=${b->B.embed(literal.value)};`
+              b.code =
+                b.code ++
+                // TODO: Don't always embed. We can inline some of the literals
+                `${b->B.Val.var(output)}${inputPath}=${b->B.embed(literal->Literal.value)};`
             | None =>
               b->B.invalidOperation(
                 ~path,

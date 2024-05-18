@@ -74,46 +74,9 @@ module Positive = {
       (),
     ),
     TestData.make(
-      ~discriminantSchema=S.union([S.literal(false), S.bool]),
-      ~discriminantData=%raw("false"),
-      (),
-    ),
-    TestData.make(
-      ~discriminantSchema=S.tuple2(S.literal(false), S.literal("bar")),
-      ~discriminantData=%raw(`[false, "bar"]`),
-      (),
-    ),
-    TestData.make(
       ~discriminantSchema=S.literal((false, "bar")),
       ~discriminantData=%raw(`[false, "bar"]`),
       ~description="Tuple",
-      (),
-    ),
-    TestData.make(
-      ~discriminantSchema=S.object(s => {
-        ignore(s.field("nestedDiscriminant", S.literal("abc")))
-        {
-          "field": s.field("nestedField", S.literal(false)),
-        }
-      }),
-      ~discriminantData=%raw(`{
-        "nestedDiscriminant": "abc",
-        "nestedField": false
-      }`),
-      (),
-    ),
-    TestData.make(
-      ~description="and values needed to be escaped",
-      ~discriminantSchema=S.object(s => {
-        ignore(s.field("\"\'\`", S.literal("\"\'\`")))
-        {
-          "field": s.field("nestedField", S.literal(false)),
-        }
-      }),
-      ~discriminantData=%raw(`{
-        "\"\'\`": "\"\'\`",
-        "nestedField": false
-      }`),
       (),
     ),
   ]->Array.forEach(testData => {
@@ -217,6 +180,43 @@ module Negative = {
     TestData.make(
       ~discriminantSchema=S.union([S.bool, S.literal(false)]),
       ~discriminantData=true,
+      (),
+    ),
+    TestData.make(
+      ~discriminantSchema=S.union([S.literal(false), S.bool]),
+      ~discriminantData=%raw("false"),
+      (),
+    ),
+    TestData.make(
+      ~discriminantSchema=S.tuple2(S.literal(false), S.literal("bar")),
+      ~discriminantData=%raw(`[false, "bar"]`),
+      (),
+    ),
+    TestData.make(
+      ~discriminantSchema=S.object(s => {
+        ignore(s.field("nestedDiscriminant", S.literal("abc")))
+        {
+          "field": s.field("nestedField", S.literal(false)),
+        }
+      }),
+      ~discriminantData=%raw(`{
+        "nestedDiscriminant": "abc",
+        "nestedField": false
+      }`),
+      (),
+    ),
+    TestData.make(
+      ~description="and values needed to be escaped",
+      ~discriminantSchema=S.object(s => {
+        ignore(s.field("\"\'\`", S.literal("\"\'\`")))
+        {
+          "field": s.field("nestedField", S.literal(false)),
+        }
+      }),
+      ~discriminantData=%raw(`{
+        "\"\'\`": "\"\'\`",
+        "nestedField": false
+      }`),
       (),
     ),
   ]->Array.forEach(testData => {

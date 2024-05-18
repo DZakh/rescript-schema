@@ -66,14 +66,14 @@ test("Fails to serialize when the value is not used as the variant payload", t =
 test(
   "Successfully serializes when the value is not used as the variant payload for literal schemas",
   t => {
-    let schema = S.tuple2(S.literal(true), S.literal(12))->S.variant(_ => #foo)
+    let schema = S.literal((true, 12))->S.variant(_ => #foo)
 
     t->Assert.deepEqual(#foo->S.serializeToUnknownWith(schema), Ok(%raw(`[true, 12]`)), ())
   },
 )
 
 test("Successfully parses when tuple is destructured", t => {
-  let schema = S.tuple2(S.literal(true), S.literal(12))->S.variant(((_, twelve)) => twelve)
+  let schema = S.literal((true, 12))->S.variant(((_, twelve)) => twelve)
 
   t->Assert.deepEqual(%raw(`[true, 12]`)->S.parseAnyWith(schema), Ok(12), ())
 })
@@ -129,13 +129,13 @@ test("Compiled serialize code snapshot", t => {
 test(
   "Compiled serialize code snapshot when the value is not used as the variant payload for literal schemas",
   t => {
-    let schema = S.tuple2(S.literal(true), S.literal(12))->S.variant(_ => #foo)
+    let schema = S.literal((true, 12))->S.variant(_ => #foo)
 
     // TODO: Can be simplified
     t->U.assertCompiledCode(
       ~schema,
       ~op=#serialize,
-      `i=>{let v0=e[2],v1=v0["0"],v2=[],v3=v0["1"];if(i!==e[0]){e[1](i)}v1===true||e[3](v1);v2["0"]=v1;v3===12||e[4](v3);v2["1"]=v3;return v2}`,
+      `i=>{let v0=e[2];if(i!==e[0]){e[1](i)}(v0===e[3]||Array.isArray(v0)&&v0.length===2&&v0[0]===true&&v0[1]===12)||e[4](v0);return v0}`,
     )
   },
 )

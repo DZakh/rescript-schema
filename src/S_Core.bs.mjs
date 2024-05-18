@@ -7,14 +7,6 @@ import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as Caml_exceptions from "rescript/lib/es6/caml_exceptions.js";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
-var mapValues = ((dict, fn)=>{
-      var key,newDict = {};
-      for (key in dict) {
-        newDict[key] = fn(dict[key])
-      }
-      return newDict
-    });
-
 function fromString(string) {
   return JSON.stringify(string);
 }
@@ -521,9 +513,56 @@ function parseInternal(value) {
     if (value === null) {
       return $$null;
     } else if (Array.isArray(value)) {
-      return array(value);
+      var items = [];
+      var isJsonable = true;
+      var string = "[";
+      for(var idx = 0 ,idx_finish = value.length; idx < idx_finish; ++idx){
+        var itemValue = value[idx];
+        var itemLiteral = parseInternal(itemValue);
+        if (isJsonable && !itemLiteral.j) {
+          isJsonable = false;
+        }
+        if (idx !== 0) {
+          string = string + ",";
+        }
+        string = string + itemLiteral.s;
+        items.push(itemLiteral);
+      }
+      return {
+              kind: "Array",
+              value: value,
+              s: string + "]",
+              b: arrayCheckBuilder,
+              j: isJsonable,
+              i: Caml_option.some(items)
+            };
     } else if (value.constructor === Object) {
-      return dict(value);
+      var items$1 = {};
+      var string$1 = "{";
+      var isJsonable$1 = true;
+      var fields = Object.keys(value);
+      var numberOfFields = fields.length;
+      for(var idx$1 = 0; idx$1 < numberOfFields; ++idx$1){
+        var field = fields[idx$1];
+        var itemValue$1 = value[field];
+        var itemLiteral$1 = parseInternal(itemValue$1);
+        if (isJsonable$1 && !itemLiteral$1.j) {
+          isJsonable$1 = false;
+        }
+        if (idx$1 !== 0) {
+          string$1 = string$1 + ",";
+        }
+        string$1 = string$1 + (JSON.stringify(field) + ":" + itemLiteral$1.s);
+        items$1[field] = itemLiteral$1;
+      }
+      return {
+              kind: "Dict",
+              value: value,
+              s: string$1 + "}",
+              b: dictCheckBuilder,
+              j: isJsonable$1,
+              i: Caml_option.some(items$1)
+            };
     } else {
       return {
               kind: "Object",
@@ -558,106 +597,16 @@ function parseInternal(value) {
   }
 }
 
-function dict(value) {
-  var items = {};
-  var string = "{";
-  var isJsonable = true;
-  var fields = Object.keys(value);
-  var numberOfFields = fields.length;
-  for(var idx = 0; idx < numberOfFields; ++idx){
-    var field = fields[idx];
-    var itemValue = value[field];
-    var itemLiteral = parseInternal(itemValue);
-    if (isJsonable && !itemLiteral.j) {
-      isJsonable = false;
-    }
-    if (idx !== 0) {
-      string = string + ",";
-    }
-    string = string + (JSON.stringify(field) + ":" + itemLiteral.s);
-    items[field] = itemLiteral;
-  }
-  return {
-          kind: "Dict",
-          value: value,
-          s: string + "}",
-          b: dictCheckBuilder,
-          j: isJsonable,
-          i: Caml_option.some(items)
-        };
-}
-
-function array(value) {
-  var items = [];
-  var isJsonable = true;
-  var string = "[";
-  for(var idx = 0 ,idx_finish = value.length; idx < idx_finish; ++idx){
-    var itemValue = value[idx];
-    var itemLiteral = parseInternal(itemValue);
-    if (isJsonable && !itemLiteral.j) {
-      isJsonable = false;
-    }
-    if (idx !== 0) {
-      string = string + ",";
-    }
-    string = string + itemLiteral.s;
-    items.push(itemLiteral);
-  }
-  return {
-          kind: "Array",
-          value: value,
-          s: string + "]",
-          b: arrayCheckBuilder,
-          j: isJsonable,
-          i: Caml_option.some(items)
-        };
-}
-
 function parse(any) {
   return parseInternal(any);
 }
 
-function loop(_schema) {
-  while(true) {
-    var schema = _schema;
-    var literal = schema.t;
-    if (typeof literal !== "object") {
-      throw symbol;
-    }
-    switch (literal.TAG) {
-      case "Literal" :
-          return literal._0;
-      case "Object" :
-          return dict(mapValues(literal.fields, (function (itemSchema) {
-                            return loop(itemSchema).value;
-                          })));
-      case "Tuple" :
-          return array(literal._0.map(function (itemSchema) {
-                          return loop(itemSchema).value;
-                        }));
-      case "Union" :
-          _schema = literal._0[0];
-          continue ;
-      default:
-        throw symbol;
-    }
-  };
-}
-
-function toInternalLiteral(schema) {
-  try {
-    return loop(schema);
-  }
-  catch (raw_jsExn){
-    var jsExn = Caml_js_exceptions.internalToOCamlException(raw_jsExn);
-    if (jsExn.RE_EXN_ID === Js_exn.$$Error) {
-      var jsExn$1 = jsExn._1;
-      if (jsExn$1 === symbol) {
-        return ;
-      }
-      throw jsExn$1;
-    }
-    throw jsExn;
+function fromSchema(schema) {
+  var literal = schema.t;
+  if (typeof literal !== "object" || literal.TAG !== "Literal") {
+    return ;
+  } else {
+    return literal._0;
   }
 }
 
@@ -1395,7 +1344,7 @@ function factory(schema, definer) {
               if (output !== 0) {
                 return invalidOperation(b, path, "Can't create serializer. The S.variant's value is registered multiple times. Use S.transform instead");
               }
-              var literal = toInternalLiteral(selfSchema);
+              var literal = fromSchema(selfSchema);
               if (literal !== undefined) {
                 return use(b, schema, val(b, "e[" + (b.e.push(literal.value) - 1) + "]"), path);
               } else {
@@ -1741,7 +1690,7 @@ function factory$3(definer) {
                 var itemDefinition = itemDefinitions[idx];
                 if (!registeredDefinitions.has(itemDefinition)) {
                   var inlinedInputLocation = itemDefinition.l;
-                  var literal = toInternalLiteral(itemDefinition.s);
+                  var literal = fromSchema(itemDefinition.s);
                   if (literal !== undefined) {
                     fieldsCodeRef.contents = fieldsCodeRef.contents + (inlinedInputLocation + ":" + ("e[" + (b.e.push(literal.value) - 1) + "]") + ",");
                   } else {
@@ -2192,7 +2141,7 @@ function factory$7(definer) {
               for(var idx = 0 ,idx_finish = itemDefinitions.length; idx < idx_finish; ++idx){
                 var itemDefinition = itemDefinitions[idx];
                 if (!registeredDefinitions.has(itemDefinition)) {
-                  var literal = toInternalLiteral(itemDefinition.s);
+                  var literal = fromSchema(itemDefinition.s);
                   if (literal !== undefined) {
                     b.c = b.c + ($$var(b, output) + itemDefinition.p + "=" + ("e[" + (b.e.push(literal.value) - 1) + "]") + ";");
                   } else {
@@ -3309,9 +3258,9 @@ var $$int = schema$4;
 
 var $$float = schema$5;
 
-var array$1 = factory$5;
+var array = factory$5;
 
-var dict$1 = factory$6;
+var dict = factory$6;
 
 var option = factory$1;
 
@@ -3401,9 +3350,9 @@ export {
   $$float ,
   json ,
   literal ,
-  array$1 as array,
+  array ,
   list ,
-  dict$1 as dict,
+  dict ,
   option ,
   $$null$1 as $$null,
   nullable ,
