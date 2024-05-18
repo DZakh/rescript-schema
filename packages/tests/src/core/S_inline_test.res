@@ -11,103 +11,94 @@ test("Doesn't support transforms and refinements", t => {
 })
 
 test("Supports built-in String.email refinement", t => {
-  let schema = S.string->S.String.email
-  let schemaInlineResult = S.string->S.String.email(~message="Invalid email address")
+  let schema = S.string->S.email
+  let schemaInlineResult = S.string->S.email(~message="Invalid email address")
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
-  t->Assert.deepEqual(
-    schema->S.inline,
-    `S.string->S.String.email(~message="Invalid email address")`,
-    (),
-  )
+  t->Assert.deepEqual(schema->S.inline, `S.string->S.email(~message="Invalid email address")`, ())
 })
 
 test("Supports built-in String.datetime refinement", t => {
-  let schema = S.string->S.String.datetime
-  let schemaInlineResult =
-    S.string->S.String.datetime(~message="Invalid datetime string! Must be UTC")
+  let schema = S.string->S.datetime
+  let schemaInlineResult = S.string->S.datetime(~message="Invalid datetime string! Must be UTC")
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.string->S.String.datetime(~message="Invalid datetime string! Must be UTC")`,
+    `S.string->S.datetime(~message="Invalid datetime string! Must be UTC")`,
     (),
   )
 })
 
 test("Supports built-in String.url refinement", t => {
-  let schema = S.string->S.String.url
-  let schemaInlineResult = S.string->S.String.url(~message="Invalid url")
+  let schema = S.string->S.url
+  let schemaInlineResult = S.string->S.url(~message="Invalid url")
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
-  t->Assert.deepEqual(schema->S.inline, `S.string->S.String.url(~message="Invalid url")`, ())
+  t->Assert.deepEqual(schema->S.inline, `S.string->S.url(~message="Invalid url")`, ())
 })
 
 test("Supports built-in String.uuid refinement", t => {
-  let schema = S.string->S.String.uuid
-  let schemaInlineResult = S.string->S.String.uuid(~message="Invalid UUID")
+  let schema = S.string->S.uuid
+  let schemaInlineResult = S.string->S.uuid(~message="Invalid UUID")
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
-  t->Assert.deepEqual(schema->S.inline, `S.string->S.String.uuid(~message="Invalid UUID")`, ())
+  t->Assert.deepEqual(schema->S.inline, `S.string->S.uuid(~message="Invalid UUID")`, ())
 })
 
 test("Supports built-in String.cuid refinement", t => {
-  let schema = S.string->S.String.cuid
-  let schemaInlineResult = S.string->S.String.cuid(~message="Invalid CUID")
+  let schema = S.string->S.cuid
+  let schemaInlineResult = S.string->S.cuid(~message="Invalid CUID")
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
-  t->Assert.deepEqual(schema->S.inline, `S.string->S.String.cuid(~message="Invalid CUID")`, ())
+  t->Assert.deepEqual(schema->S.inline, `S.string->S.cuid(~message="Invalid CUID")`, ())
 })
 
 test("Supports built-in String.min refinement", t => {
-  let schema = S.string->S.String.min(5)
+  let schema = S.string->S.stringMin(5)
   let schemaInlineResult =
-    S.string->S.String.min(5, ~message="String must be 5 or more characters long")
+    S.string->S.stringMin(5, ~message="String must be 5 or more characters long")
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.string->S.String.min(5, ~message="String must be 5 or more characters long")`,
+    `S.string->S.stringMin(5, ~message="String must be 5 or more characters long")`,
     (),
   )
 })
 
 test("Supports built-in String.max refinement", t => {
-  let schema = S.string->S.String.max(5)
+  let schema = S.string->S.stringMax(5)
   let schemaInlineResult =
-    S.string->S.String.max(5, ~message="String must be 5 or fewer characters long")
+    S.string->S.stringMax(5, ~message="String must be 5 or fewer characters long")
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.string->S.String.max(5, ~message="String must be 5 or fewer characters long")`,
+    `S.string->S.stringMax(5, ~message="String must be 5 or fewer characters long")`,
     (),
   )
 })
 
 test("Supports built-in String.length refinement", t => {
-  let schema = S.string->S.String.length(5)
+  let schema = S.string->S.stringLength(5)
   let schemaInlineResult =
-    S.string->S.String.length(~message="String must be exactly 5 characters long", 5)
+    S.string->S.stringLength(~message="String must be exactly 5 characters long", 5)
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.string->S.String.length(5, ~message="String must be exactly 5 characters long")`,
+    `S.string->S.stringLength(5, ~message="String must be exactly 5 characters long")`,
     (),
   )
 })
 
 test("Supports built-in String.pattern refinement", t => {
-  let schema = S.string->S.String.pattern(%re("/0-9/"))
-  let schemaInlineResult = S.string->S.String.pattern(~message="Invalid", %re("/0-9/"))
+  let schema = S.string->S.pattern(%re("/0-9/"))
+  let schemaInlineResult = S.string->S.pattern(~message="Invalid", %re("/0-9/"))
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
-  t->Assert.deepEqual(
-    schema->S.inline,
-    `S.string->S.String.pattern(%re("/0-9/"), ~message="Invalid")`,
-    (),
-  )
+  t->Assert.deepEqual(schema->S.inline, `S.string->S.pattern(%re("/0-9/"), ~message="Invalid")`, ())
 })
 
 test("Supports Int", t => {
@@ -116,35 +107,35 @@ test("Supports Int", t => {
 })
 
 test("Supports built-in Int.max refinement", t => {
-  let schema = S.int->S.Int.max(4)
-  let schemaInlineResult = S.int->S.Int.max(~message="Number must be lower than or equal to 4", 4)
+  let schema = S.int->S.intMax(4)
+  let schemaInlineResult = S.int->S.intMax(~message="Number must be lower than or equal to 4", 4)
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.int->S.Int.max(4, ~message="Number must be lower than or equal to 4")`,
+    `S.int->S.intMax(4, ~message="Number must be lower than or equal to 4")`,
     (),
   )
 })
 
 test("Supports built-in Int.min refinement", t => {
-  let schema = S.int->S.Int.min(4)
-  let schemaInlineResult = S.int->S.Int.min(4, ~message="Number must be greater than or equal to 4")
+  let schema = S.int->S.intMin(4)
+  let schemaInlineResult = S.int->S.intMin(4, ~message="Number must be greater than or equal to 4")
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.int->S.Int.min(4, ~message="Number must be greater than or equal to 4")`,
+    `S.int->S.intMin(4, ~message="Number must be greater than or equal to 4")`,
     (),
   )
 })
 
 test("Supports built-in Int.port refinement", t => {
-  let schema = S.int->S.Int.port
-  let schemaInlineResult = S.int->S.Int.port(~message="Invalid port")
+  let schema = S.int->S.port
+  let schemaInlineResult = S.int->S.port(~message="Invalid port")
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
-  t->Assert.deepEqual(schema->S.inline, `S.int->S.Int.port(~message="Invalid port")`, ())
+  t->Assert.deepEqual(schema->S.inline, `S.int->S.port(~message="Invalid port")`, ())
 })
 
 test("Supports Float", t => {
@@ -153,68 +144,68 @@ test("Supports Float", t => {
 })
 
 test("Supports built-in Float.max refinement", t => {
-  let schema = S.float->S.Float.max(4.)
+  let schema = S.float->S.floatMax(4.)
   let schemaInlineResult =
-    S.float->S.Float.max(~message="Number must be lower than or equal to 4", 4.)
+    S.float->S.floatMax(~message="Number must be lower than or equal to 4", 4.)
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.float->S.Float.max(4., ~message="Number must be lower than or equal to 4")`,
+    `S.float->S.floatMax(4., ~message="Number must be lower than or equal to 4")`,
     (),
   )
 })
 
 test("Supports built-in Float.max refinement with digits after decimal point", t => {
-  let schema = S.float->S.Float.max(4.4)
+  let schema = S.float->S.floatMax(4.4)
   let schemaInlineResult =
-    S.float->S.Float.max(~message="Number must be lower than or equal to 4.4", 4.4)
+    S.float->S.floatMax(~message="Number must be lower than or equal to 4.4", 4.4)
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.float->S.Float.max(4.4, ~message="Number must be lower than or equal to 4.4")`,
+    `S.float->S.floatMax(4.4, ~message="Number must be lower than or equal to 4.4")`,
     (),
   )
 })
 
 test("Supports built-in Float.min refinement", t => {
-  let schema = S.float->S.Float.min(4.)
+  let schema = S.float->S.floatMin(4.)
   let schemaInlineResult =
-    S.float->S.Float.min(~message="Number must be greater than or equal to 4", 4.)
+    S.float->S.floatMin(~message="Number must be greater than or equal to 4", 4.)
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.float->S.Float.min(4., ~message="Number must be greater than or equal to 4")`,
+    `S.float->S.floatMin(4., ~message="Number must be greater than or equal to 4")`,
     (),
   )
 })
 
 test("Supports built-in Float.min refinement with digits after decimal point", t => {
-  let schema = S.float->S.Float.min(4.4)
+  let schema = S.float->S.floatMin(4.4)
   let schemaInlineResult =
-    S.float->S.Float.min(~message="Number must be greater than or equal to 4.4", 4.4)
+    S.float->S.floatMin(~message="Number must be greater than or equal to 4.4", 4.4)
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.float->S.Float.min(4.4, ~message="Number must be greater than or equal to 4.4")`,
+    `S.float->S.floatMin(4.4, ~message="Number must be greater than or equal to 4.4")`,
     (),
   )
 })
 
 test("Supports multiple built-in refinements", t => {
-  let schema = S.string->S.String.min(5)->S.String.max(10)
+  let schema = S.string->S.stringMin(5)->S.stringMax(10)
   let schemaInlineResult =
     S.string
-    ->S.String.min(~message="String must be 5 or more characters long", 5)
-    ->S.String.max(~message="String must be 10 or fewer characters long", 10)
+    ->S.stringMin(~message="String must be 5 or more characters long", 5)
+    ->S.stringMax(~message="String must be 10 or fewer characters long", 10)
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.string->S.String.min(5, ~message="String must be 5 or more characters long")->S.String.max(10, ~message="String must be 10 or fewer characters long")`,
+    `S.string->S.stringMin(5, ~message="String must be 5 or more characters long")->S.stringMax(10, ~message="String must be 10 or fewer characters long")`,
     (),
   )
 })
@@ -331,40 +322,40 @@ test("Supports Array", t => {
 })
 
 test("Supports built-in Array.max refinement", t => {
-  let schema = S.array(S.string)->S.Array.max(4)
+  let schema = S.array(S.string)->S.arrayMax(4)
   let schemaInlineResult =
-    S.array(S.string)->S.Array.max(~message="Array must be 4 or fewer items long", 4)
+    S.array(S.string)->S.arrayMax(~message="Array must be 4 or fewer items long", 4)
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.array(S.string)->S.Array.max(4, ~message="Array must be 4 or fewer items long")`,
+    `S.array(S.string)->S.arrayMax(4, ~message="Array must be 4 or fewer items long")`,
     (),
   )
 })
 
 test("Supports built-in Array.min refinement", t => {
-  let schema = S.array(S.string)->S.Array.min(4)
+  let schema = S.array(S.string)->S.arrayMin(4)
   let schemaInlineResult =
-    S.array(S.string)->S.Array.min(~message="Array must be 4 or more items long", 4)
+    S.array(S.string)->S.arrayMin(~message="Array must be 4 or more items long", 4)
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.array(S.string)->S.Array.min(4, ~message="Array must be 4 or more items long")`,
+    `S.array(S.string)->S.arrayMin(4, ~message="Array must be 4 or more items long")`,
     (),
   )
 })
 
 test("Supports built-in Array.length refinement", t => {
-  let schema = S.array(S.string)->S.Array.length(4)
+  let schema = S.array(S.string)->S.arrayLength(4)
   let schemaInlineResult =
-    S.array(S.string)->S.Array.length(~message="Array must be exactly 4 items long", 4)
+    S.array(S.string)->S.arrayLength(~message="Array must be exactly 4 items long", 4)
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.array(S.string)->S.Array.length(4, ~message="Array must be exactly 4 items long")`,
+    `S.array(S.string)->S.arrayLength(4, ~message="Array must be exactly 4 items long")`,
     (),
   )
 })

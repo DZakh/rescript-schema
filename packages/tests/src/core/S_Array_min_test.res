@@ -1,14 +1,14 @@
 open Ava
 
 test("Successfully parses valid data", t => {
-  let schema = S.array(S.int)->S.Array.min(1)
+  let schema = S.array(S.int)->S.arrayMin(1)
 
   t->Assert.deepEqual([1]->S.parseAnyWith(schema), Ok([1]), ())
   t->Assert.deepEqual([1, 2, 3, 4]->S.parseAnyWith(schema), Ok([1, 2, 3, 4]), ())
 })
 
 test("Fails to parse invalid data", t => {
-  let schema = S.array(S.int)->S.Array.min(1)
+  let schema = S.array(S.int)->S.arrayMin(1)
 
   t->U.assertErrorResult(
     []->S.parseAnyWith(schema),
@@ -21,14 +21,14 @@ test("Fails to parse invalid data", t => {
 })
 
 test("Successfully serializes valid value", t => {
-  let schema = S.array(S.int)->S.Array.min(1)
+  let schema = S.array(S.int)->S.arrayMin(1)
 
   t->Assert.deepEqual([1]->S.serializeToUnknownWith(schema), Ok(%raw(`[1]`)), ())
   t->Assert.deepEqual([1, 2, 3, 4]->S.serializeToUnknownWith(schema), Ok(%raw(`[1,2,3,4]`)), ())
 })
 
 test("Fails to serialize invalid value", t => {
-  let schema = S.array(S.int)->S.Array.min(1)
+  let schema = S.array(S.int)->S.arrayMin(1)
 
   t->U.assertErrorResult(
     []->S.serializeToUnknownWith(schema),
@@ -41,7 +41,7 @@ test("Fails to serialize invalid value", t => {
 })
 
 test("Returns custom error message", t => {
-  let schema = S.array(S.int)->S.Array.min(~message="Custom", 1)
+  let schema = S.array(S.int)->S.arrayMin(~message="Custom", 1)
 
   t->Assert.deepEqual(
     []->S.parseAnyWith(schema),
@@ -51,7 +51,7 @@ test("Returns custom error message", t => {
 })
 
 test("Returns refinement", t => {
-  let schema = S.array(S.int)->S.Array.min(1)
+  let schema = S.array(S.int)->S.arrayMin(1)
 
   t->Assert.deepEqual(
     schema->S.Array.refinements,

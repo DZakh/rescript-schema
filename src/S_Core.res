@@ -2398,158 +2398,6 @@ module String = {
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
   )
-
-  let min = (schema, length, ~message as maybeMessage=?) => {
-    let message = switch maybeMessage {
-    | Some(m) => m
-    | None => `String must be ${length->Stdlib.Int.unsafeToString} or more characters long`
-    }
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        `if(${b->B.Val.var(input)}.length<${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
-      },
-      ~refinement={
-        kind: Min({length: length}),
-        message,
-      },
-    )
-  }
-
-  let max = (schema, length, ~message as maybeMessage=?) => {
-    let message = switch maybeMessage {
-    | Some(m) => m
-    | None => `String must be ${length->Stdlib.Int.unsafeToString} or fewer characters long`
-    }
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        `if(${b->B.Val.var(input)}.length>${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
-      },
-      ~refinement={
-        kind: Max({length: length}),
-        message,
-      },
-    )
-  }
-
-  let length = (schema, length, ~message as maybeMessage=?) => {
-    let message = switch maybeMessage {
-    | Some(m) => m
-    | None => `String must be exactly ${length->Stdlib.Int.unsafeToString} characters long`
-    }
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        `if(${b->B.Val.var(input)}.length!==${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
-      },
-      ~refinement={
-        kind: Length({length: length}),
-        message,
-      },
-    )
-  }
-
-  let email = (schema, ~message=`Invalid email address`) => {
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        `if(!${b->B.embed(emailRegex)}.test(${b->B.Val.var(input)})){${b->B.fail(~message, ~path)}}`
-      },
-      ~refinement={
-        kind: Email,
-        message,
-      },
-    )
-  }
-
-  let uuid = (schema, ~message=`Invalid UUID`) => {
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        `if(!${b->B.embed(uuidRegex)}.test(${b->B.Val.var(input)})){${b->B.fail(~message, ~path)}}`
-      },
-      ~refinement={
-        kind: Uuid,
-        message,
-      },
-    )
-  }
-
-  let cuid = (schema, ~message=`Invalid CUID`) => {
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        `if(!${b->B.embed(cuidRegex)}.test(${b->B.Val.var(input)})){${b->B.fail(~message, ~path)}}`
-      },
-      ~refinement={
-        kind: Cuid,
-        message,
-      },
-    )
-  }
-
-  let url = (schema, ~message=`Invalid url`) => {
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        `try{new URL(${b->B.Val.var(input)})}catch(_){${b->B.fail(~message, ~path)}}`
-      },
-      ~refinement={
-        kind: Url,
-        message,
-      },
-    )
-  }
-
-  let pattern = (schema, re, ~message=`Invalid`) => {
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        let reVal = b->B.val(b->B.embed(re))
-        let reVar = b->B.Val.var(reVal)
-        `${reVar}.lastIndex=0;if(!${reVar}.test(${b->B.Val.var(input)})){${b->B.fail(
-            ~message,
-            ~path,
-          )}}`
-      },
-      ~refinement={
-        kind: Pattern({re: re}),
-        message,
-      },
-    )
-  }
-
-  let datetime = (schema, ~message=`Invalid datetime string! Must be UTC`) => {
-    let refinement = {
-      Refinement.kind: Datetime,
-      message,
-    }
-    schema
-    ->Metadata.set(
-      ~id=Refinement.metadataId,
-      {
-        switch schema->Metadata.get(~id=Refinement.metadataId) {
-        | Some(refinements) => refinements->Stdlib.Array.append(refinement)
-        | None => [refinement]
-        }
-      },
-    )
-    ->transform(s => {
-      parser: string => {
-        if datetimeRe->Js.Re.test_(string)->not {
-          s.fail(message)
-        }
-        Js.Date.fromString(string)
-      },
-      serializer: date => date->Js.Date.toISOString,
-    })
-  }
-
-  let trim = schema => {
-    let transformer = string => string->Js.String2.trim
-    schema->transform(_ => {parser: transformer, serializer: transformer})
-  }
 }
 
 module JsonString = {
@@ -2646,53 +2494,6 @@ module Int = {
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
   )
-
-  let min = (schema, minValue, ~message as maybeMessage=?) => {
-    let message = switch maybeMessage {
-    | Some(m) => m
-    | None => `Number must be greater than or equal to ${minValue->Stdlib.Int.unsafeToString}`
-    }
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        `if(${b->B.Val.var(input)}<${b->B.embed(minValue)}){${b->B.fail(~message, ~path)}}`
-      },
-      ~refinement={
-        kind: Min({value: minValue}),
-        message,
-      },
-    )
-  }
-
-  let max = (schema, maxValue, ~message as maybeMessage=?) => {
-    let message = switch maybeMessage {
-    | Some(m) => m
-    | None => `Number must be lower than or equal to ${maxValue->Stdlib.Int.unsafeToString}`
-    }
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        `if(${b->B.Val.var(input)}>${b->B.embed(maxValue)}){${b->B.fail(~message, ~path)}}`
-      },
-      ~refinement={
-        kind: Max({value: maxValue}),
-        message,
-      },
-    )
-  }
-
-  let port = (schema, ~message="Invalid port") => {
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        `if(${b->B.Val.var(input)}<1||${b->B.Val.var(input)}>65535){${b->B.fail(~message, ~path)}}`
-      },
-      ~refinement={
-        kind: Port,
-        message,
-      },
-    )
-  }
 }
 
 module Float = {
@@ -2727,40 +2528,6 @@ module Float = {
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
   )
-
-  let min = (schema, minValue, ~message as maybeMessage=?) => {
-    let message = switch maybeMessage {
-    | Some(m) => m
-    | None => `Number must be greater than or equal to ${minValue->Stdlib.Float.unsafeToString}`
-    }
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        `if(${b->B.Val.var(input)}<${b->B.embed(minValue)}){${b->B.fail(~message, ~path)}}`
-      },
-      ~refinement={
-        kind: Min({value: minValue}),
-        message,
-      },
-    )
-  }
-
-  let max = (schema, maxValue, ~message as maybeMessage=?) => {
-    let message = switch maybeMessage {
-    | Some(m) => m
-    | None => `Number must be lower than or equal to ${maxValue->Stdlib.Float.unsafeToString}`
-    }
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        `if(${b->B.Val.var(input)}>${b->B.embed(maxValue)}){${b->B.fail(~message, ~path)}}`
-      },
-      ~refinement={
-        kind: Max({value: maxValue}),
-        message,
-      },
-    )
-  }
 }
 
 module Array = {
@@ -2852,57 +2619,6 @@ module Array = {
         }
       }),
       ~maybeTypeFilter=Some(typeFilter),
-    )
-  }
-
-  let min = (schema, length, ~message as maybeMessage=?) => {
-    let message = switch maybeMessage {
-    | Some(m) => m
-    | None => `Array must be ${length->Stdlib.Int.unsafeToString} or more items long`
-    }
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        `if(${b->B.Val.var(input)}.length<${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
-      },
-      ~refinement={
-        kind: Min({length: length}),
-        message,
-      },
-    )
-  }
-
-  let max = (schema, length, ~message as maybeMessage=?) => {
-    let message = switch maybeMessage {
-    | Some(m) => m
-    | None => `Array must be ${length->Stdlib.Int.unsafeToString} or fewer items long`
-    }
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        `if(${b->B.Val.var(input)}.length>${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
-      },
-      ~refinement={
-        kind: Max({length: length}),
-        message,
-      },
-    )
-  }
-
-  let length = (schema, length, ~message as maybeMessage=?) => {
-    let message = switch maybeMessage {
-    | Some(m) => m
-    | None => `Array must be exactly ${length->Stdlib.Int.unsafeToString} items long`
-    }
-    schema->addRefinement(
-      ~metadataId=Refinement.metadataId,
-      ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-        `if(${b->B.Val.var(input)}.length!==${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
-      },
-      ~refinement={
-        kind: Length({length: length}),
-        message,
-      },
     )
   }
 }
@@ -3690,25 +3406,24 @@ let inline = {
         ->Js.Array2.map(refinement => {
           switch refinement {
           | {kind: Email, message} =>
-            `->S.String.email(~message=${message->Stdlib.Inlined.Value.fromString})`
-          | {kind: Url, message} =>
-            `->S.String.url(~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.email(~message=${message->Stdlib.Inlined.Value.fromString})`
+          | {kind: Url, message} => `->S.url(~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Uuid, message} =>
-            `->S.String.uuid(~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.uuid(~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Cuid, message} =>
-            `->S.String.cuid(~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.cuid(~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Min({length}), message} =>
-            `->S.String.min(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.stringMin(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Max({length}), message} =>
-            `->S.String.max(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.stringMax(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Length({length}), message} =>
-            `->S.String.length(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.stringLength(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Pattern({re}), message} =>
-            `->S.String.pattern(%re(${re
+            `->S.pattern(%re(${re
               ->Stdlib.Re.toString
               ->Stdlib.Inlined.Value.fromString}), ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Datetime, message} =>
-            `->S.String.datetime(~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.datetime(~message=${message->Stdlib.Inlined.Value.fromString})`
           }
         })
         ->Js.Array2.joinWith("")
@@ -3724,11 +3439,11 @@ let inline = {
         ->Js.Array2.map(refinement => {
           switch refinement {
           | {kind: Max({value}), message} =>
-            `->S.Int.max(${value->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.intMax(${value->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Min({value}), message} =>
-            `->S.Int.min(${value->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.intMin(${value->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Port, message} =>
-            `->S.Int.port(~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.port(~message=${message->Stdlib.Inlined.Value.fromString})`
           }
         })
         ->Js.Array2.joinWith("")
@@ -3744,9 +3459,9 @@ let inline = {
         ->Js.Array2.map(refinement => {
           switch refinement {
           | {kind: Max({value}), message} =>
-            `->S.Float.max(${value->Stdlib.Inlined.Float.toRescript}, ~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.floatMax(${value->Stdlib.Inlined.Float.toRescript}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Min({value}), message} =>
-            `->S.Float.min(${value->Stdlib.Inlined.Float.toRescript}, ~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.floatMin(${value->Stdlib.Inlined.Float.toRescript}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           }
         })
         ->Js.Array2.joinWith("")
@@ -3762,11 +3477,11 @@ let inline = {
         ->Js.Array2.map(refinement => {
           switch refinement {
           | {kind: Max({length}), message} =>
-            `->S.Array.max(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.arrayMax(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Min({length}), message} =>
-            `->S.Array.min(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.arrayMin(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Length({length}), message} =>
-            `->S.Array.length(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.arrayLength(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           }
         })
         ->Js.Array2.joinWith("")
@@ -3828,6 +3543,303 @@ let jsonString = JsonString.factory
 
 @send
 external name: t<'a> => string = "n"
+
+// =============
+// Built-in refinements
+// =============
+
+let intMin = (schema, minValue, ~message as maybeMessage=?) => {
+  let message = switch maybeMessage {
+  | Some(m) => m
+  | None => `Number must be greater than or equal to ${minValue->Stdlib.Int.unsafeToString}`
+  }
+  schema->addRefinement(
+    ~metadataId=Int.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      `if(${b->B.Val.var(input)}<${b->B.embed(minValue)}){${b->B.fail(~message, ~path)}}`
+    },
+    ~refinement={
+      kind: Min({value: minValue}),
+      message,
+    },
+  )
+}
+
+let intMax = (schema, maxValue, ~message as maybeMessage=?) => {
+  let message = switch maybeMessage {
+  | Some(m) => m
+  | None => `Number must be lower than or equal to ${maxValue->Stdlib.Int.unsafeToString}`
+  }
+  schema->addRefinement(
+    ~metadataId=Int.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      `if(${b->B.Val.var(input)}>${b->B.embed(maxValue)}){${b->B.fail(~message, ~path)}}`
+    },
+    ~refinement={
+      kind: Max({value: maxValue}),
+      message,
+    },
+  )
+}
+
+let port = (schema, ~message="Invalid port") => {
+  schema->addRefinement(
+    ~metadataId=Int.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      `if(${b->B.Val.var(input)}<1||${b->B.Val.var(input)}>65535){${b->B.fail(~message, ~path)}}`
+    },
+    ~refinement={
+      kind: Port,
+      message,
+    },
+  )
+}
+
+let floatMin = (schema, minValue, ~message as maybeMessage=?) => {
+  let message = switch maybeMessage {
+  | Some(m) => m
+  | None => `Number must be greater than or equal to ${minValue->Stdlib.Float.unsafeToString}`
+  }
+  schema->addRefinement(
+    ~metadataId=Float.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      `if(${b->B.Val.var(input)}<${b->B.embed(minValue)}){${b->B.fail(~message, ~path)}}`
+    },
+    ~refinement={
+      kind: Min({value: minValue}),
+      message,
+    },
+  )
+}
+
+let floatMax = (schema, maxValue, ~message as maybeMessage=?) => {
+  let message = switch maybeMessage {
+  | Some(m) => m
+  | None => `Number must be lower than or equal to ${maxValue->Stdlib.Float.unsafeToString}`
+  }
+  schema->addRefinement(
+    ~metadataId=Float.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      `if(${b->B.Val.var(input)}>${b->B.embed(maxValue)}){${b->B.fail(~message, ~path)}}`
+    },
+    ~refinement={
+      kind: Max({value: maxValue}),
+      message,
+    },
+  )
+}
+
+let arrayMin = (schema, length, ~message as maybeMessage=?) => {
+  let message = switch maybeMessage {
+  | Some(m) => m
+  | None => `Array must be ${length->Stdlib.Int.unsafeToString} or more items long`
+  }
+  schema->addRefinement(
+    ~metadataId=Array.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      `if(${b->B.Val.var(input)}.length<${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+    },
+    ~refinement={
+      kind: Min({length: length}),
+      message,
+    },
+  )
+}
+
+let arrayMax = (schema, length, ~message as maybeMessage=?) => {
+  let message = switch maybeMessage {
+  | Some(m) => m
+  | None => `Array must be ${length->Stdlib.Int.unsafeToString} or fewer items long`
+  }
+  schema->addRefinement(
+    ~metadataId=Array.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      `if(${b->B.Val.var(input)}.length>${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+    },
+    ~refinement={
+      kind: Max({length: length}),
+      message,
+    },
+  )
+}
+
+let arrayLength = (schema, length, ~message as maybeMessage=?) => {
+  let message = switch maybeMessage {
+  | Some(m) => m
+  | None => `Array must be exactly ${length->Stdlib.Int.unsafeToString} items long`
+  }
+  schema->addRefinement(
+    ~metadataId=Array.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      `if(${b->B.Val.var(input)}.length!==${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+    },
+    ~refinement={
+      kind: Length({length: length}),
+      message,
+    },
+  )
+}
+
+let stringMin = (schema, length, ~message as maybeMessage=?) => {
+  let message = switch maybeMessage {
+  | Some(m) => m
+  | None => `String must be ${length->Stdlib.Int.unsafeToString} or more characters long`
+  }
+  schema->addRefinement(
+    ~metadataId=String.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      `if(${b->B.Val.var(input)}.length<${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+    },
+    ~refinement={
+      kind: Min({length: length}),
+      message,
+    },
+  )
+}
+
+let stringMax = (schema, length, ~message as maybeMessage=?) => {
+  let message = switch maybeMessage {
+  | Some(m) => m
+  | None => `String must be ${length->Stdlib.Int.unsafeToString} or fewer characters long`
+  }
+  schema->addRefinement(
+    ~metadataId=String.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      `if(${b->B.Val.var(input)}.length>${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+    },
+    ~refinement={
+      kind: Max({length: length}),
+      message,
+    },
+  )
+}
+
+let stringLength = (schema, length, ~message as maybeMessage=?) => {
+  let message = switch maybeMessage {
+  | Some(m) => m
+  | None => `String must be exactly ${length->Stdlib.Int.unsafeToString} characters long`
+  }
+  schema->addRefinement(
+    ~metadataId=String.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      `if(${b->B.Val.var(input)}.length!==${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+    },
+    ~refinement={
+      kind: Length({length: length}),
+      message,
+    },
+  )
+}
+
+let email = (schema, ~message=`Invalid email address`) => {
+  schema->addRefinement(
+    ~metadataId=String.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      `if(!${b->B.embed(String.emailRegex)}.test(${b->B.Val.var(input)})){${b->B.fail(
+          ~message,
+          ~path,
+        )}}`
+    },
+    ~refinement={
+      kind: Email,
+      message,
+    },
+  )
+}
+
+let uuid = (schema, ~message=`Invalid UUID`) => {
+  schema->addRefinement(
+    ~metadataId=String.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      `if(!${b->B.embed(String.uuidRegex)}.test(${b->B.Val.var(input)})){${b->B.fail(
+          ~message,
+          ~path,
+        )}}`
+    },
+    ~refinement={
+      kind: Uuid,
+      message,
+    },
+  )
+}
+
+let cuid = (schema, ~message=`Invalid CUID`) => {
+  schema->addRefinement(
+    ~metadataId=String.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      `if(!${b->B.embed(String.cuidRegex)}.test(${b->B.Val.var(input)})){${b->B.fail(
+          ~message,
+          ~path,
+        )}}`
+    },
+    ~refinement={
+      kind: Cuid,
+      message,
+    },
+  )
+}
+
+let url = (schema, ~message=`Invalid url`) => {
+  schema->addRefinement(
+    ~metadataId=String.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      `try{new URL(${b->B.Val.var(input)})}catch(_){${b->B.fail(~message, ~path)}}`
+    },
+    ~refinement={
+      kind: Url,
+      message,
+    },
+  )
+}
+
+let pattern = (schema, re, ~message=`Invalid`) => {
+  schema->addRefinement(
+    ~metadataId=String.Refinement.metadataId,
+    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+      let reVal = b->B.val(b->B.embed(re))
+      let reVar = b->B.Val.var(reVal)
+      `${reVar}.lastIndex=0;if(!${reVar}.test(${b->B.Val.var(input)})){${b->B.fail(
+          ~message,
+          ~path,
+        )}}`
+    },
+    ~refinement={
+      kind: Pattern({re: re}),
+      message,
+    },
+  )
+}
+
+let datetime = (schema, ~message=`Invalid datetime string! Must be UTC`) => {
+  let refinement = {
+    String.Refinement.kind: Datetime,
+    message,
+  }
+  schema
+  ->Metadata.set(
+    ~id=String.Refinement.metadataId,
+    {
+      switch schema->Metadata.get(~id=String.Refinement.metadataId) {
+      | Some(refinements) => refinements->Stdlib.Array.append(refinement)
+      | None => [refinement]
+      }
+    },
+  )
+  ->transform(s => {
+    parser: string => {
+      if String.datetimeRe->Js.Re.test_(string)->not {
+        s.fail(message)
+      }
+      Js.Date.fromString(string)
+    },
+    serializer: date => date->Js.Date.toISOString,
+  })
+}
+
+let trim = schema => {
+  let transformer = string => string->Js.String2.trim
+  schema->transform(_ => {parser: transformer, serializer: transformer})
+}
 
 // =============
 // JS/TS API

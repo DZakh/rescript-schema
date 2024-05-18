@@ -38,16 +38,16 @@ Ava("Creates schema with default", (function (t) {
         U.assertEqualSchemas(t, stringWithDefaultSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.string), "Foo"), undefined);
       }));
 
-var stringWithDefaultAndMatchesSchema = S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined)), "Foo");
+var stringWithDefaultAndMatchesSchema = S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.url(S$RescriptSchema.string, undefined)), "Foo");
 
 Ava("Creates schema with default using @s.matches", (function (t) {
-        U.assertEqualSchemas(t, stringWithDefaultAndMatchesSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined)), "Foo"), undefined);
+        U.assertEqualSchemas(t, stringWithDefaultAndMatchesSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.url(S$RescriptSchema.string, undefined)), "Foo"), undefined);
       }));
 
-var stringWithDefaultNullAndMatchesSchema = S$RescriptSchema.$$Option.getOr(S$RescriptSchema.$$null(S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined)), "Foo");
+var stringWithDefaultNullAndMatchesSchema = S$RescriptSchema.$$Option.getOr(S$RescriptSchema.$$null(S$RescriptSchema.url(S$RescriptSchema.string, undefined)), "Foo");
 
 Ava("Creates schema with default null using @s.matches", (function (t) {
-        U.assertEqualSchemas(t, stringWithDefaultNullAndMatchesSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.$$null(S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined)), "Foo"), undefined);
+        U.assertEqualSchemas(t, stringWithDefaultNullAndMatchesSchema, S$RescriptSchema.$$Option.getOr(S$RescriptSchema.$$null(S$RescriptSchema.url(S$RescriptSchema.string, undefined)), "Foo"), undefined);
       }));
 
 var ignoredNullWithMatchesSchema = S$RescriptSchema.option(S$RescriptSchema.string);

@@ -75,7 +75,7 @@ test("Successfully parses schema with transformation", t => {
 })
 
 test("Successfully serializes schema with transformation", t => {
-  let schema = S.string->S.String.trim->S.option->S.Option.getOr("default")
+  let schema = S.string->S.trim->S.option->S.Option.getOr("default")
 
   t->Assert.deepEqual(" abc"->S.serializeToUnknownWith(schema), Ok(%raw(`"abc"`)), ())
 })

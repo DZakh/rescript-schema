@@ -127,22 +127,22 @@ Ava("Big tuple schema", (function (t) {
                 }), undefined);
       }));
 
-var myCustomStringSchema = S$RescriptSchema.$$String.email(S$RescriptSchema.string, undefined);
+var myCustomStringSchema = S$RescriptSchema.email(S$RescriptSchema.string, undefined);
 
 Ava("Custom string schema", (function (t) {
-        U.assertEqualSchemas(t, myCustomStringSchema, S$RescriptSchema.$$String.email(S$RescriptSchema.string, undefined), undefined);
+        U.assertEqualSchemas(t, myCustomStringSchema, S$RescriptSchema.email(S$RescriptSchema.string, undefined), undefined);
       }));
 
-var myCustomLiteralStringSchema = S$RescriptSchema.$$String.email(S$RescriptSchema.literal("123"), undefined);
+var myCustomLiteralStringSchema = S$RescriptSchema.email(S$RescriptSchema.literal("123"), undefined);
 
 Ava("Custom litaral string schema", (function (t) {
-        U.assertEqualSchemas(t, myCustomLiteralStringSchema, S$RescriptSchema.$$String.email(S$RescriptSchema.literal("123"), undefined), undefined);
+        U.assertEqualSchemas(t, myCustomLiteralStringSchema, S$RescriptSchema.email(S$RescriptSchema.literal("123"), undefined), undefined);
       }));
 
-var myCustomOptionalStringSchema = S$RescriptSchema.option(S$RescriptSchema.$$String.email(S$RescriptSchema.string, undefined));
+var myCustomOptionalStringSchema = S$RescriptSchema.option(S$RescriptSchema.email(S$RescriptSchema.string, undefined));
 
 Ava("Custom optional string schema", (function (t) {
-        U.assertEqualSchemas(t, myCustomOptionalStringSchema, S$RescriptSchema.option(S$RescriptSchema.$$String.email(S$RescriptSchema.string, undefined)), undefined);
+        U.assertEqualSchemas(t, myCustomOptionalStringSchema, S$RescriptSchema.option(S$RescriptSchema.email(S$RescriptSchema.string, undefined)), undefined);
       }));
 
 var myNullOfStringSchema = S$RescriptSchema.$$null(S$RescriptSchema.string);

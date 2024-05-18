@@ -136,6 +136,42 @@ var Metadata = S_Core$RescriptSchema.Metadata;
 
 var inline = S_Core$RescriptSchema.inline;
 
+var intMin = S_Core$RescriptSchema.intMin;
+
+var intMax = S_Core$RescriptSchema.intMax;
+
+var port = S_Core$RescriptSchema.port;
+
+var floatMin = S_Core$RescriptSchema.floatMin;
+
+var floatMax = S_Core$RescriptSchema.floatMax;
+
+var arrayMin = S_Core$RescriptSchema.arrayMin;
+
+var arrayMax = S_Core$RescriptSchema.arrayMax;
+
+var arrayLength = S_Core$RescriptSchema.arrayLength;
+
+var stringMin = S_Core$RescriptSchema.stringMin;
+
+var stringMax = S_Core$RescriptSchema.stringMax;
+
+var stringLength = S_Core$RescriptSchema.stringLength;
+
+var email = S_Core$RescriptSchema.email;
+
+var uuid = S_Core$RescriptSchema.uuid;
+
+var cuid = S_Core$RescriptSchema.cuid;
+
+var url = S_Core$RescriptSchema.url;
+
+var pattern = S_Core$RescriptSchema.pattern;
+
+var datetime = S_Core$RescriptSchema.datetime;
+
+var trim = S_Core$RescriptSchema.trim;
+
 export {
   Path ,
   Raised ,
@@ -204,5 +240,23 @@ export {
   $$Array ,
   Metadata ,
   inline ,
+  intMin ,
+  intMax ,
+  port ,
+  floatMin ,
+  floatMax ,
+  arrayMin ,
+  arrayMax ,
+  arrayLength ,
+  stringMin ,
+  stringMax ,
+  stringLength ,
+  email ,
+  uuid ,
+  cuid ,
+  url ,
+  pattern ,
+  datetime ,
+  trim ,
 }
 /* S_Core-RescriptSchema Not a pure module */

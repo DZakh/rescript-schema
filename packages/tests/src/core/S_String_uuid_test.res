@@ -1,7 +1,7 @@
 open Ava
 
 test("Successfully parses valid data", t => {
-  let schema = S.string->S.String.uuid
+  let schema = S.string->S.uuid
 
   t->Assert.deepEqual(
     "123e4567-e89b-12d3-a456-426614174000"->S.parseAnyWith(schema),
@@ -11,7 +11,7 @@ test("Successfully parses valid data", t => {
 })
 
 test("Fails to parse invalid data", t => {
-  let schema = S.string->S.String.uuid
+  let schema = S.string->S.uuid
 
   t->Assert.deepEqual(
     "123e4567"->S.parseAnyWith(schema),
@@ -21,7 +21,7 @@ test("Fails to parse invalid data", t => {
 })
 
 test("Successfully serializes valid value", t => {
-  let schema = S.string->S.String.uuid
+  let schema = S.string->S.uuid
 
   t->Assert.deepEqual(
     "123e4567-e89b-12d3-a456-426614174000"->S.serializeToUnknownWith(schema),
@@ -31,7 +31,7 @@ test("Successfully serializes valid value", t => {
 })
 
 test("Fails to serialize invalid value", t => {
-  let schema = S.string->S.String.uuid
+  let schema = S.string->S.uuid
 
   t->U.assertErrorResult(
     "123e4567"->S.serializeToUnknownWith(schema),
@@ -40,7 +40,7 @@ test("Fails to serialize invalid value", t => {
 })
 
 test("Returns custom error message", t => {
-  let schema = S.string->S.String.uuid(~message="Custom")
+  let schema = S.string->S.uuid(~message="Custom")
 
   t->Assert.deepEqual(
     "abc"->S.parseAnyWith(schema),

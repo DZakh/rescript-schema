@@ -14,7 +14,7 @@ test("Successfully parses string", (t) => {
 });
 
 test("Successfully parses string with built-in refinement", (t) => {
-  const schema = S.String.length(S.string, 5);
+  const schema = S.stringLength(S.string, 5);
   const result = S.parse(schema, "123");
 
   expectType<TypeEqual<typeof result, S.Result<string>>>(true);
@@ -41,7 +41,7 @@ test("Successfully parses string with built-in refinement", (t) => {
 });
 
 test("Successfully parses string with built-in refinement and custom message", (t) => {
-  const schema = S.String.length(S.string, 5, "Postcode must have 5 symbols");
+  const schema = S.stringLength(S.string, 5, "Postcode must have 5 symbols");
   const result = S.parse(schema, "123");
 
   if (result.success) {
@@ -57,7 +57,7 @@ test("Successfully parses string with built-in refinement and custom message", (
 });
 
 test("Successfully parses string with built-in transform", (t) => {
-  const schema = S.String.trim(S.string);
+  const schema = S.trim(S.string);
   const value = S.parseOrThrow(schema, "  123");
 
   t.deepEqual(value, "123");
@@ -67,7 +67,7 @@ test("Successfully parses string with built-in transform", (t) => {
 });
 
 test("Successfully parses string with built-in datetime transform", (t) => {
-  const schema = S.String.datetime(S.string);
+  const schema = S.datetime(S.string);
   const value = S.parseOrThrow(schema, "2020-01-01T00:00:00Z");
 
   t.deepEqual(value, new Date("2020-01-01T00:00:00Z"));
@@ -1202,8 +1202,8 @@ test("Tuple with transform to object", (t) => {
 test("Example", (t) => {
   // Create login schema with email and password
   const loginSchema = S.object({
-    email: S.String.email(S.string),
-    password: S.String.min(S.string, 8),
+    email: S.email(S.string),
+    password: S.stringMin(S.string, 8),
   });
 
   // Infer output TypeScript type of login schema

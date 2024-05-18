@@ -290,7 +290,7 @@ asyncTest("Can apply other actions after async transform", t => {
   let schema =
     S.string
     ->S.transform(_ => {asyncParser: value => () => Promise.resolve(value)})
-    ->S.String.trim
+    ->S.trim
     ->S.transform(_ => {asyncParser: value => () => Promise.resolve(value)})
 
   t->U.assertCompiledCode(

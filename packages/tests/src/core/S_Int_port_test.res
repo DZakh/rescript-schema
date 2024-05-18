@@ -1,13 +1,13 @@
 open Ava
 
 test("Successfully parses valid data", t => {
-  let schema = S.int->S.Int.port
+  let schema = S.int->S.port
 
   t->Assert.deepEqual(8080->S.parseAnyWith(schema), Ok(8080), ())
 })
 
 test("Fails to parse invalid data", t => {
-  let schema = S.int->S.Int.port
+  let schema = S.int->S.port
 
   t->Assert.deepEqual(
     65536->S.parseAnyWith(schema),
@@ -17,13 +17,13 @@ test("Fails to parse invalid data", t => {
 })
 
 test("Successfully serializes valid value", t => {
-  let schema = S.int->S.Int.port
+  let schema = S.int->S.port
 
   t->Assert.deepEqual(8080->S.serializeToUnknownWith(schema), Ok(%raw(`8080`)), ())
 })
 
 test("Fails to serialize invalid value", t => {
-  let schema = S.int->S.Int.port
+  let schema = S.int->S.port
 
   t->U.assertErrorResult(
     -80->S.serializeToUnknownWith(schema),
@@ -32,7 +32,7 @@ test("Fails to serialize invalid value", t => {
 })
 
 test("Returns custom error message", t => {
-  let schema = S.int->S.Int.port(~message="Custom")
+  let schema = S.int->S.port(~message="Custom")
 
   t->Assert.deepEqual(
     400000->S.parseAnyWith(schema),
@@ -42,7 +42,7 @@ test("Returns custom error message", t => {
 })
 
 test("Returns refinement", t => {
-  let schema = S.int->S.Int.port
+  let schema = S.int->S.port
 
   t->Assert.deepEqual(schema->S.Int.refinements, [{kind: Port, message: "Invalid port"}], ())
 })

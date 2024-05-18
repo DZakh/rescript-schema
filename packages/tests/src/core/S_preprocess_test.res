@@ -144,7 +144,7 @@ asyncTest("Can apply other actions after async preprocess", t => {
   let schema =
     S.string
     ->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
-    ->S.String.trim
+    ->S.trim
     ->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
 
   // TODO: Can improve builder to use string schema and trim without .then in between

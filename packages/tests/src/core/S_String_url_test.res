@@ -1,13 +1,13 @@
 open Ava
 
 test("Successfully parses valid data", t => {
-  let schema = S.string->S.String.url
+  let schema = S.string->S.url
 
   t->Assert.deepEqual("http://dzakh.dev"->S.parseAnyWith(schema), Ok("http://dzakh.dev"), ())
 })
 
 test("Fails to parse invalid data", t => {
-  let schema = S.string->S.String.url
+  let schema = S.string->S.url
 
   t->Assert.deepEqual(
     "cifjhdsfhsd"->S.parseAnyWith(schema),
@@ -17,7 +17,7 @@ test("Fails to parse invalid data", t => {
 })
 
 test("Successfully serializes valid value", t => {
-  let schema = S.string->S.String.url
+  let schema = S.string->S.url
 
   t->Assert.deepEqual(
     "http://dzakh.dev"->S.serializeToUnknownWith(schema),
@@ -27,7 +27,7 @@ test("Successfully serializes valid value", t => {
 })
 
 test("Fails to serialize invalid value", t => {
-  let schema = S.string->S.String.url
+  let schema = S.string->S.url
 
   t->U.assertErrorResult(
     "cifjhdsfhsd"->S.serializeToUnknownWith(schema),
@@ -36,7 +36,7 @@ test("Fails to serialize invalid value", t => {
 })
 
 test("Returns custom error message", t => {
-  let schema = S.string->S.String.url(~message="Custom")
+  let schema = S.string->S.url(~message="Custom")
 
   t->Assert.deepEqual(
     "abc"->S.parseAnyWith(schema),

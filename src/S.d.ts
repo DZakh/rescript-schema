@@ -212,81 +212,6 @@ export function merge<O1, O2>(
   schema2: Schema<O2, Record<string, unknown>>
 ): Schema<O1 & O2, Record<string, unknown>>;
 
-export const String: {
-  min: <Input>(
-    schema: Schema<string, Input>,
-    length: number,
-    message?: string
-  ) => Schema<string, Input>;
-  max: <Input>(
-    schema: Schema<string, Input>,
-    length: number,
-    message?: string
-  ) => Schema<string, Input>;
-  length: <Input>(
-    schema: Schema<string, Input>,
-    length: number,
-    message?: string
-  ) => Schema<string, Input>;
-  email: <Input>(
-    schema: Schema<string, Input>,
-    message?: string
-  ) => Schema<string, Input>;
-  uuid: <Input>(
-    schema: Schema<string, Input>,
-    message?: string
-  ) => Schema<string, Input>;
-  cuid: <Input>(
-    schema: Schema<string, Input>,
-    message?: string
-  ) => Schema<string, Input>;
-  url: <Input>(
-    schema: Schema<string, Input>,
-    message?: string
-  ) => Schema<string, Input>;
-  pattern: <Input>(
-    schema: Schema<string, Input>,
-    re: RegExp,
-    message?: string
-  ) => Schema<string, Input>;
-  datetime: <Input>(
-    schema: Schema<string, Input>,
-    message?: string
-  ) => Schema<Date, Input>;
-  trim: <Input>(schema: Schema<string, Input>) => Schema<string, Input>;
-};
-
-export const Number: {
-  min: <Input>(
-    schema: Schema<number, Input>,
-    value: number,
-    message?: string
-  ) => Schema<number, Input>;
-  max: <Input>(
-    schema: Schema<number, Input>,
-    value: number,
-    message?: string
-  ) => Schema<number, Input>;
-};
-
-export const Array: {
-  min: <Input, ItemSchema>(
-    schema: Schema<ItemSchema[], Input>,
-    length: number,
-    message?: string
-  ) => Schema<ItemSchema[], Input>;
-  max: <Input, ItemSchema>(
-    schema: Schema<ItemSchema[], Input>,
-    length: number,
-    message?: string
-  ) => Schema<ItemSchema[], Input>;
-  length: <Input, ItemSchema>(
-    schema: Schema<ItemSchema[], Input>,
-    length: number,
-    message?: string
-  ) => Schema<ItemSchema[], Input>;
-};
-
 export function custom<Output, Input = unknown>(
   name: string,
   parser: (data: unknown, s: EffectCtx<unknown, unknown>) => Output
@@ -353,3 +278,89 @@ export function serializeOrThrow<Output, Input>(
   schema: Schema<Output, Input>,
   data: Output
 ): Input;
+
+export const integerMin: <Input>(
+  schema: Schema<number, Input>,
+  value: number,
+  message?: string
+) => Schema<number, Input>;
+export const integerMax: <Input>(
+  schema: Schema<number, Input>,
+  value: number,
+  message?: string
+) => Schema<number, Input>;
+export const port: <Input>(
+  schema: Schema<number, Input>,
+  message?: string
+) => Schema<number, Input>;
+
+export const numberMin: <Input>(
+  schema: Schema<number, Input>,
+  value: number,
+  message?: string
+) => Schema<number, Input>;
+export const numberMax: <Input>(
+  schema: Schema<number, Input>,
+  value: number,
+  message?: string
+) => Schema<number, Input>;
+
+export const arrayMin: <Input, ItemSchema>(
+  schema: Schema<ItemSchema[], Input>,
+  length: number,
+  message?: string
+) => Schema<ItemSchema[], Input>;
+export const arrayMax: <Input, ItemSchema>(
+  schema: Schema<ItemSchema[], Input>,
+  length: number,
+  message?: string
+) => Schema<ItemSchema[], Input>;
+export const arrayLength: <Input, ItemSchema>(
+  schema: Schema<ItemSchema[], Input>,
+  length: number,
+  message?: string
+) => Schema<ItemSchema[], Input>;
+
+export const stringMin: <Input>(
+  schema: Schema<string, Input>,
+  length: number,
+  message?: string
+) => Schema<string, Input>;
+export const stringMax: <Input>(
+  schema: Schema<string, Input>,
+  length: number,
+  message?: string
+) => Schema<string, Input>;
+export const stringLength: <Input>(
+  schema: Schema<string, Input>,
+  length: number,
+  message?: string
+) => Schema<string, Input>;
+export const email: <Input>(
+  schema: Schema<string, Input>,
+  message?: string
+) => Schema<string, Input>;
+export const uuid: <Input>(
+  schema: Schema<string, Input>,
+  message?: string
+) => Schema<string, Input>;
+export const cuid: <Input>(
+  schema: Schema<string, Input>,
+  message?: string
+) => Schema<string, Input>;
+export const url: <Input>(
+  schema: Schema<string, Input>,
+  message?: string
+) => Schema<string, Input>;
+export const pattern: <Input>(
+  schema: Schema<string, Input>,
+  re: RegExp,
+  message?: string
+) => Schema<string, Input>;
+export const datetime: <Input>(
+  schema: Schema<string, Input>,
+  message?: string
+) => Schema<Date, Input>;
+export const trim: <Input>(
+  schema: Schema<string, Input>
+) => Schema<string, Input>;

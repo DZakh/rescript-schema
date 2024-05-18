@@ -51,7 +51,7 @@ test("Fails to parse data with default", t => {
 })
 
 test("Successfully serializes schema with transformation", t => {
-  let schema = S.string->S.String.trim->S.option->S.Option.getOrWith(() => "default")
+  let schema = S.string->S.trim->S.option->S.Option.getOrWith(() => "default")
 
   t->Assert.deepEqual(" abc"->S.serializeToUnknownWith(schema), Ok(%raw(`"abc"`)), ())
 })

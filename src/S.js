@@ -20,9 +20,6 @@ export const object = S.js_object;
 export const schema = S.schema;
 export const merge = S.js_merge;
 export const Object = S.$$Object;
-export const String = S.$$String;
-export const Number = S.Float;
-export const Array = S.$$Array;
 export const custom = S.js_custom;
 export const literal = S.literal;
 export const tuple = S.js_tuple;
@@ -38,3 +35,25 @@ export const serialize = S.js_serialize;
 export const serializeOrThrow = S.js_serializeOrThrow;
 export const name = S.js_name;
 export const setName = S.setName;
+
+export const integerMin = S.intMin;
+export const integerMax = S.intMax;
+export const port = S.port;
+
+export const numberMin = S.floatMin;
+export const numberMax = S.floatMax;
+
+export const arrayMin = S.arrayMin;
+export const arrayMax = S.arrayMax;
+export const arrayLength = S.arrayLength;
+
+export const stringMin = S.stringMin;
+export const stringMax = S.stringMax;
+export const stringLength = S.stringLength;
+export const email = S.email;
+export const uuid = S.uuid;
+export const cuid = S.cuid;
+export const url = S.url;
+export const pattern = S.pattern;
+export const datetime = S.datetime;
+export const trim = S.trim;

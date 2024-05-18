@@ -1,14 +1,14 @@
 open Ava
 
 test("Successfully parses valid data", t => {
-  let schema = S.int->S.Int.max(1)
+  let schema = S.int->S.intMax(1)
 
   t->Assert.deepEqual(1->S.parseAnyWith(schema), Ok(1), ())
   t->Assert.deepEqual(-1->S.parseAnyWith(schema), Ok(-1), ())
 })
 
 test("Fails to parse invalid data", t => {
-  let schema = S.int->S.Int.max(1)
+  let schema = S.int->S.intMax(1)
 
   t->U.assertErrorResult(
     1234->S.parseAnyWith(schema),
@@ -21,14 +21,14 @@ test("Fails to parse invalid data", t => {
 })
 
 test("Successfully serializes valid value", t => {
-  let schema = S.int->S.Int.max(1)
+  let schema = S.int->S.intMax(1)
 
   t->Assert.deepEqual(1->S.serializeToUnknownWith(schema), Ok(%raw(`1`)), ())
   t->Assert.deepEqual(-1->S.serializeToUnknownWith(schema), Ok(%raw(`-1`)), ())
 })
 
 test("Fails to serialize invalid value", t => {
-  let schema = S.int->S.Int.max(1)
+  let schema = S.int->S.intMax(1)
 
   t->U.assertErrorResult(
     1234->S.serializeToUnknownWith(schema),
@@ -41,7 +41,7 @@ test("Fails to serialize invalid value", t => {
 })
 
 test("Returns custom error message", t => {
-  let schema = S.int->S.Int.max(~message="Custom", 1)
+  let schema = S.int->S.intMax(~message="Custom", 1)
 
   t->Assert.deepEqual(
     12->S.parseAnyWith(schema),
@@ -51,7 +51,7 @@ test("Returns custom error message", t => {
 })
 
 test("Returns refinement", t => {
-  let schema = S.int->S.Int.max(1)
+  let schema = S.int->S.intMax(1)
 
   t->Assert.deepEqual(
     schema->S.Int.refinements,

@@ -17,8 +17,7 @@ test("S.description returns Some for described schemas", t => {
 })
 
 test("Transforms don't remove description", t => {
-  let schema =
-    S.string->S.describe("A useful bit of text, if you know what to do with it.")->S.String.trim
+  let schema = S.string->S.describe("A useful bit of text, if you know what to do with it.")->S.trim
 
   t->Assert.deepEqual(
     schema->S.description,

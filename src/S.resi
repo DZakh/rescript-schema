@@ -279,17 +279,6 @@ module String: {
   }
 
   let refinements: t<'value> => array<Refinement.t>
-
-  let min: (t<string>, int, ~message: string=?) => t<string>
-  let max: (t<string>, int, ~message: string=?) => t<string>
-  let length: (t<string>, int, ~message: string=?) => t<string>
-  let email: (t<string>, ~message: string=?) => t<string>
-  let uuid: (t<string>, ~message: string=?) => t<string>
-  let cuid: (t<string>, ~message: string=?) => t<string>
-  let url: (t<string>, ~message: string=?) => t<string>
-  let pattern: (t<string>, Js.Re.t, ~message: string=?) => t<string>
-  let datetime: (t<string>, ~message: string=?) => t<Js.Date.t>
-  let trim: t<string> => t<string>
 }
 
 module Int: {
@@ -305,10 +294,6 @@ module Int: {
   }
 
   let refinements: t<'value> => array<Refinement.t>
-
-  let min: (t<int>, int, ~message: string=?) => t<int>
-  let max: (t<int>, int, ~message: string=?) => t<int>
-  let port: (t<int>, ~message: string=?) => t<int>
 }
 
 module Float: {
@@ -323,9 +308,6 @@ module Float: {
   }
 
   let refinements: t<'value> => array<Refinement.t>
-
-  let min: (t<float>, float, ~message: string=?) => t<float>
-  let max: (t<float>, float, ~message: string=?) => t<float>
 }
 
 module Array: {
@@ -341,10 +323,6 @@ module Array: {
   }
 
   let refinements: t<'value> => array<Refinement.t>
-
-  let min: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
-  let max: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
-  let length: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
 }
 
 module Metadata: {
@@ -359,3 +337,25 @@ module Metadata: {
 }
 
 let inline: t<'value> => string
+
+let intMin: (t<int>, int, ~message: string=?) => t<int>
+let intMax: (t<int>, int, ~message: string=?) => t<int>
+let port: (t<int>, ~message: string=?) => t<int>
+
+let floatMin: (t<float>, float, ~message: string=?) => t<float>
+let floatMax: (t<float>, float, ~message: string=?) => t<float>
+
+let arrayMin: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
+let arrayMax: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
+let arrayLength: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
+
+let stringMin: (t<string>, int, ~message: string=?) => t<string>
+let stringMax: (t<string>, int, ~message: string=?) => t<string>
+let stringLength: (t<string>, int, ~message: string=?) => t<string>
+let email: (t<string>, ~message: string=?) => t<string>
+let uuid: (t<string>, ~message: string=?) => t<string>
+let cuid: (t<string>, ~message: string=?) => t<string>
+let url: (t<string>, ~message: string=?) => t<string>
+let pattern: (t<string>, Js.Re.t, ~message: string=?) => t<string>
+let datetime: (t<string>, ~message: string=?) => t<Js.Date.t>
+let trim: t<string> => t<string>

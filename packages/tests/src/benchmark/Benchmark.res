@@ -76,28 +76,28 @@ let makeAdvancedObjectSchema = () => {
   )
 }
 
-let makeAdvancedStrictObjectSchema = () => {
-  S.object(s =>
-    {
-      "number": s.field("number", S.float),
-      "negNumber": s.field("negNumber", S.float),
-      "maxNumber": s.field("maxNumber", S.float),
-      "string": s.field("string", S.string),
-      "longString": s.field("longString", S.string),
-      "boolean": s.field("boolean", S.bool),
-      "deeplyNested": s.field(
-        "deeplyNested",
-        S.object(s =>
-          {
-            "foo": s.field("foo", S.string),
-            "num": s.field("num", S.float),
-            "bool": s.field("bool", S.bool),
-          }
-        )->S.Object.strict,
-      ),
-    }
-  )->S.Object.strict
-}
+// let makeAdvancedStrictObjectSchema = () => {
+//   S.object(s =>
+//     {
+//       "number": s.field("number", S.float),
+//       "negNumber": s.field("negNumber", S.float),
+//       "maxNumber": s.field("maxNumber", S.float),
+//       "string": s.field("string", S.string),
+//       "longString": s.field("longString", S.string),
+//       "boolean": s.field("boolean", S.bool),
+//       "deeplyNested": s.field(
+//         "deeplyNested",
+//         S.object(s =>
+//           {
+//             "foo": s.field("foo", S.string),
+//             "num": s.field("num", S.float),
+//             "bool": s.field("bool", S.bool),
+//           }
+//         )->S.Object.strict,
+//       ),
+//     }
+//   )->S.Object.strict
+// }
 
 let data = makeTestObject()
 Console.time("init")
@@ -123,47 +123,47 @@ data->S.serializeWith(schema)->ignore
 Console.timeEnd("s: 3")
 
 Suite.make()
-->Suite.addWithPrepare("Parse string", () => {
-  let schema = S.string
-  let data = "Hello world!"
+->Suite.addWithPrepare("Parse array", () => {
+  let schema = S.array(S.string)
+  let data = ["Hello world!", "Bar", "foo"]
   () => {
     data->S.parseAnyOrRaiseWith(schema)
   }
 })
-->Suite.addWithPrepare("Serialize string", () => {
-  let schema = S.string
-  let data = "Hello world!"
-  () => {
-    data->S.serializeOrRaiseWith(schema)
-  }
-})
-->Suite.add("Advanced object schema factory", makeAdvancedObjectSchema)
-->Suite.addWithPrepare("Parse advanced object", () => {
-  let schema = makeAdvancedObjectSchema()
-  let data = makeTestObject()
-  () => {
-    data->S.parseAnyOrRaiseWith(schema)
-  }
-})
-->Suite.addWithPrepare("Create and parse advanced object", () => {
-  let data = makeTestObject()
-  () => {
-    let schema = makeAdvancedObjectSchema()
-    data->S.parseAnyOrRaiseWith(schema)
-  }
-})
-->Suite.addWithPrepare("Parse advanced strict object", () => {
-  let schema = makeAdvancedStrictObjectSchema()
-  let data = makeTestObject()
-  () => {
-    data->S.parseAnyOrRaiseWith(schema)
-  }
-})
-->Suite.addWithPrepare("Serialize advanced object", () => {
-  let schema = makeAdvancedObjectSchema()
-  let data = makeTestObject()
-  () => {
-    data->S.serializeOrRaiseWith(schema)
-  }
-})
+// ->Suite.addWithPrepare("Serialize string", () => {
+//   let schema = S.string
+//   let data = "Hello world!"
+//   () => {
+//     data->S.serializeOrRaiseWith(schema)
+//   }
+// })
+// ->Suite.add("Advanced object schema factory", makeAdvancedObjectSchema)
+// ->Suite.addWithPrepare("Parse advanced object", () => {
+//   let schema = makeAdvancedObjectSchema()
+//   let data = makeTestObject()
+//   () => {
+//     data->S.parseAnyOrRaiseWith(schema)
+//   }
+// })
+// ->Suite.addWithPrepare("Create and parse advanced object", () => {
+//   let data = makeTestObject()
+//   () => {
+//     let schema = makeAdvancedObjectSchema()
+//     data->S.parseAnyOrRaiseWith(schema)
+//   }
+// })
+// ->Suite.addWithPrepare("Parse advanced strict object", () => {
+//   let schema = makeAdvancedStrictObjectSchema()
+//   let data = makeTestObject()
+//   () => {
+//     data->S.parseAnyOrRaiseWith(schema)
+//   }
+// })
+// ->Suite.addWithPrepare("Serialize advanced object", () => {
+//   let schema = makeAdvancedObjectSchema()
+//   let data = makeTestObject()
+//   () => {
+//     data->S.serializeOrRaiseWith(schema)
+//   }
+// })
 ->Suite.run

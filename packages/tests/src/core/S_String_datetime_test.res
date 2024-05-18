@@ -2,7 +2,7 @@ open Ava
 open RescriptCore
 
 test("Successfully parses valid data", t => {
-  let schema = S.string->S.String.datetime
+  let schema = S.string->S.datetime
 
   t->Assert.deepEqual(
     "2020-01-01T00:00:00Z"->S.parseAnyWith(schema),
@@ -22,7 +22,7 @@ test("Successfully parses valid data", t => {
 })
 
 test("Fails to parse non UTC date string", t => {
-  let schema = S.string->S.String.datetime
+  let schema = S.string->S.datetime
 
   t->U.assertErrorResult(
     "Thu Apr 20 2023 10:45:48 GMT+0400"->S.parseAnyWith(schema),
@@ -35,7 +35,7 @@ test("Fails to parse non UTC date string", t => {
 })
 
 test("Fails to parse UTC date with timezone offset", t => {
-  let schema = S.string->S.String.datetime
+  let schema = S.string->S.datetime
 
   t->U.assertErrorResult(
     "2020-01-01T00:00:00+02:00"->S.parseAnyWith(schema),
@@ -48,7 +48,7 @@ test("Fails to parse UTC date with timezone offset", t => {
 })
 
 test("Uses custom message on failure", t => {
-  let schema = S.string->S.String.datetime(~message="Invalid date")
+  let schema = S.string->S.datetime(~message="Invalid date")
 
   t->Assert.deepEqual(
     "Thu Apr 20 2023 10:45:48 GMT+0400"->S.parseAnyWith(schema),
@@ -58,7 +58,7 @@ test("Uses custom message on failure", t => {
 })
 
 test("Successfully serializes valid value", t => {
-  let schema = S.string->S.String.datetime
+  let schema = S.string->S.datetime
 
   t->Assert.deepEqual(
     Date.fromString("2020-01-01T00:00:00.123Z")->S.serializeToUnknownWith(schema),
@@ -68,7 +68,7 @@ test("Successfully serializes valid value", t => {
 })
 
 test("Trims precision to 3 digits when serializing", t => {
-  let schema = S.string->S.String.datetime
+  let schema = S.string->S.datetime
 
   t->Assert.deepEqual(
     Date.fromString("2020-01-01T00:00:00.123456Z")->S.serializeToUnknownWith(schema),
@@ -78,7 +78,7 @@ test("Trims precision to 3 digits when serializing", t => {
 })
 
 test("Returns refinement", t => {
-  let schema = S.string->S.String.datetime
+  let schema = S.string->S.datetime
 
   t->Assert.deepEqual(
     schema->S.String.refinements,

@@ -1,13 +1,13 @@
 open Ava
 
 test("Successfully parses valid data", t => {
-  let schema = S.string->S.String.email
+  let schema = S.string->S.email
 
   t->Assert.deepEqual("dzakh.dev@gmail.com"->S.parseAnyWith(schema), Ok("dzakh.dev@gmail.com"), ())
 })
 
 test("Fails to parse invalid data", t => {
-  let schema = S.string->S.String.email
+  let schema = S.string->S.email
 
   t->U.assertErrorResult(
     "dzakh.dev"->S.parseAnyWith(schema),
@@ -20,7 +20,7 @@ test("Fails to parse invalid data", t => {
 })
 
 test("Successfully serializes valid value", t => {
-  let schema = S.string->S.String.email
+  let schema = S.string->S.email
 
   t->Assert.deepEqual(
     "dzakh.dev@gmail.com"->S.serializeToUnknownWith(schema),
@@ -30,7 +30,7 @@ test("Successfully serializes valid value", t => {
 })
 
 test("Fails to serialize invalid value", t => {
-  let schema = S.string->S.String.email
+  let schema = S.string->S.email
 
   t->U.assertErrorResult(
     "dzakh.dev"->S.serializeToUnknownWith(schema),
@@ -43,7 +43,7 @@ test("Fails to serialize invalid value", t => {
 })
 
 test("Returns custom error message", t => {
-  let schema = S.string->S.String.email(~message="Custom")
+  let schema = S.string->S.email(~message="Custom")
 
   t->Assert.deepEqual(
     "dzakh.dev"->S.parseAnyWith(schema),
@@ -53,7 +53,7 @@ test("Returns custom error message", t => {
 })
 
 test("Returns refinement", t => {
-  let schema = S.string->S.String.email
+  let schema = S.string->S.email
 
   t->Assert.deepEqual(
     schema->S.String.refinements,

@@ -50,26 +50,6 @@ function makeAdvancedObjectSchema() {
             });
 }
 
-function makeAdvancedStrictObjectSchema() {
-  return S$RescriptSchema.$$Object.strict(S$RescriptSchema.object(function (s) {
-                  return {
-                          number: s.f("number", S$RescriptSchema.$$float),
-                          negNumber: s.f("negNumber", S$RescriptSchema.$$float),
-                          maxNumber: s.f("maxNumber", S$RescriptSchema.$$float),
-                          string: s.f("string", S$RescriptSchema.string),
-                          longString: s.f("longString", S$RescriptSchema.string),
-                          boolean: s.f("boolean", S$RescriptSchema.bool),
-                          deeplyNested: s.f("deeplyNested", S$RescriptSchema.$$Object.strict(S$RescriptSchema.object(function (s) {
-                                        return {
-                                                foo: s.f("foo", S$RescriptSchema.string),
-                                                num: s.f("num", S$RescriptSchema.$$float),
-                                                bool: s.f("bool", S$RescriptSchema.bool)
-                                              };
-                                      })))
-                        };
-                }));
-}
-
 var data = makeTestObject();
 
 console.time("init");
@@ -114,37 +94,15 @@ S$RescriptSchema.serializeWith(data, schema);
 
 console.timeEnd("s: 3");
 
-run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new (Benchmark.default.Suite)(), "Parse string", (function () {
-                                  return function () {
-                                    return S$RescriptSchema.parseAnyOrRaiseWith("Hello world!", S$RescriptSchema.string);
-                                  };
-                                })), "Serialize string", (function () {
-                              return function () {
-                                return S$RescriptSchema.serializeOrRaiseWith("Hello world!", S$RescriptSchema.string);
-                              };
-                            })).add("Advanced object schema factory", makeAdvancedObjectSchema), "Parse advanced object", (function () {
-                        var schema = makeAdvancedObjectSchema();
-                        var data = makeTestObject();
-                        return function () {
-                          return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
-                        };
-                      })), "Create and parse advanced object", (function () {
-                    var data = makeTestObject();
-                    return function () {
-                      var schema = makeAdvancedObjectSchema();
-                      return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
-                    };
-                  })), "Parse advanced strict object", (function () {
-                var schema = makeAdvancedStrictObjectSchema();
-                var data = makeTestObject();
-                return function () {
-                  return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
-                };
-              })), "Serialize advanced object", (function () {
-            var schema = makeAdvancedObjectSchema();
-            var data = makeTestObject();
+run(addWithPrepare(new (Benchmark.default.Suite)(), "Parse array", (function () {
+            var schema = S$RescriptSchema.array(S$RescriptSchema.string);
+            var data = [
+              "Hello world!",
+              "Bar",
+              "foo"
+            ];
             return function () {
-              return S$RescriptSchema.serializeOrRaiseWith(data, schema);
+              return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
             };
           })));
 

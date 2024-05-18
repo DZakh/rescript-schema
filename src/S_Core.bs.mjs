@@ -1866,134 +1866,6 @@ var schema$2 = {
   m: empty
 };
 
-function min(schema, length, maybeMessage) {
-  var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length + " or more characters long";
-  return addRefinement(schema, metadataId, {
-              kind: {
-                TAG: "Min",
-                length: length
-              },
-              message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length<" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
-              }));
-}
-
-function max(schema, length, maybeMessage) {
-  var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length + " or fewer characters long";
-  return addRefinement(schema, metadataId, {
-              kind: {
-                TAG: "Max",
-                length: length
-              },
-              message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length>" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
-              }));
-}
-
-function length(schema, length$1, maybeMessage) {
-  var message = maybeMessage !== undefined ? maybeMessage : "String must be exactly " + length$1 + " characters long";
-  return addRefinement(schema, metadataId, {
-              kind: {
-                TAG: "Length",
-                length: length$1
-              },
-              message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length!==" + ("e[" + (b.e.push(length$1) - 1) + "]") + "){" + fail(b, message, path) + "}";
-              }));
-}
-
-function email(schema, messageOpt) {
-  var message = messageOpt !== undefined ? messageOpt : "Invalid email address";
-  return addRefinement(schema, metadataId, {
-              kind: "Email",
-              message: message
-            }, (function (b, input, param, path) {
-                return "if(!" + ("e[" + (b.e.push(emailRegex) - 1) + "]") + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
-              }));
-}
-
-function uuid(schema, messageOpt) {
-  var message = messageOpt !== undefined ? messageOpt : "Invalid UUID";
-  return addRefinement(schema, metadataId, {
-              kind: "Uuid",
-              message: message
-            }, (function (b, input, param, path) {
-                return "if(!" + ("e[" + (b.e.push(uuidRegex) - 1) + "]") + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
-              }));
-}
-
-function cuid(schema, messageOpt) {
-  var message = messageOpt !== undefined ? messageOpt : "Invalid CUID";
-  return addRefinement(schema, metadataId, {
-              kind: "Cuid",
-              message: message
-            }, (function (b, input, param, path) {
-                return "if(!" + ("e[" + (b.e.push(cuidRegex) - 1) + "]") + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
-              }));
-}
-
-function url(schema, messageOpt) {
-  var message = messageOpt !== undefined ? messageOpt : "Invalid url";
-  return addRefinement(schema, metadataId, {
-              kind: "Url",
-              message: message
-            }, (function (b, input, param, path) {
-                return "try{new URL(" + $$var(b, input) + ")}catch(_){" + fail(b, message, path) + "}";
-              }));
-}
-
-function pattern(schema, re, messageOpt) {
-  var message = messageOpt !== undefined ? messageOpt : "Invalid";
-  return addRefinement(schema, metadataId, {
-              kind: {
-                TAG: "Pattern",
-                re: re
-              },
-              message: message
-            }, (function (b, input, param, path) {
-                var reVal = val(b, "e[" + (b.e.push(re) - 1) + "]");
-                var reVar = $$var(b, reVal);
-                return reVar + ".lastIndex=0;if(!" + reVar + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
-              }));
-}
-
-function datetime(schema, messageOpt) {
-  var message = messageOpt !== undefined ? messageOpt : "Invalid datetime string! Must be UTC";
-  var refinement = {
-    kind: "Datetime",
-    message: message
-  };
-  var refinements = schema.m[metadataId];
-  return transform$1(set$2(schema, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), (function (s) {
-                return {
-                        p: (function (string) {
-                            if (!datetimeRe.test(string)) {
-                              s.fail(message, undefined);
-                            }
-                            return new Date(string);
-                          }),
-                        s: (function (date) {
-                            return date.toISOString();
-                          })
-                      };
-              }));
-}
-
-function trim(schema) {
-  var transformer = function (string) {
-    return string.trim();
-  };
-  return transform$1(schema, (function (param) {
-                return {
-                        p: transformer,
-                        s: transformer
-                      };
-              }));
-}
-
 function factory$4(schema, spaceOpt) {
   var space = spaceOpt !== undefined ? spaceOpt : 0;
   try {
@@ -2071,42 +1943,6 @@ var schema$4 = {
   m: empty
 };
 
-function min$1(schema, minValue, maybeMessage) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue;
-  return addRefinement(schema, metadataId$1, {
-              kind: {
-                TAG: "Min",
-                value: minValue
-              },
-              message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + "<" + ("e[" + (b.e.push(minValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
-              }));
-}
-
-function max$1(schema, maxValue, maybeMessage) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue;
-  return addRefinement(schema, metadataId$1, {
-              kind: {
-                TAG: "Max",
-                value: maxValue
-              },
-              message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ">" + ("e[" + (b.e.push(maxValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
-              }));
-}
-
-function port(schema, messageOpt) {
-  var message = messageOpt !== undefined ? messageOpt : "Invalid port";
-  return addRefinement(schema, metadataId$1, {
-              kind: "Port",
-              message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + "<1||" + $$var(b, input) + ">65535){" + fail(b, message, path) + "}";
-              }));
-}
-
 var metadataId$2 = "rescript-schema:Float.refinements";
 
 function refinements$2(schema) {
@@ -2131,32 +1967,6 @@ var schema$5 = {
   i: 0,
   m: empty
 };
-
-function min$2(schema, minValue, maybeMessage) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue;
-  return addRefinement(schema, metadataId$2, {
-              kind: {
-                TAG: "Min",
-                value: minValue
-              },
-              message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + "<" + ("e[" + (b.e.push(minValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
-              }));
-}
-
-function max$2(schema, maxValue, maybeMessage) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue;
-  return addRefinement(schema, metadataId$2, {
-              kind: {
-                TAG: "Max",
-                value: maxValue
-              },
-              message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ">" + ("e[" + (b.e.push(maxValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
-              }));
-}
 
 var metadataId$3 = "rescript-schema:Array.refinements";
 
@@ -2219,45 +2029,6 @@ function factory$5(schema) {
           i: 0,
           m: empty
         };
-}
-
-function min$3(schema, length, maybeMessage) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length + " or more items long";
-  return addRefinement(schema, metadataId$3, {
-              kind: {
-                TAG: "Min",
-                length: length
-              },
-              message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length<" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
-              }));
-}
-
-function max$3(schema, length, maybeMessage) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length + " or fewer items long";
-  return addRefinement(schema, metadataId$3, {
-              kind: {
-                TAG: "Max",
-                length: length
-              },
-              message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length>" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
-              }));
-}
-
-function length$1(schema, length$2, maybeMessage) {
-  var message = maybeMessage !== undefined ? maybeMessage : "Array must be exactly " + length$2 + " items long";
-  return addRefinement(schema, metadataId$3, {
-              kind: {
-                TAG: "Length",
-                length: length$2
-              },
-              message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length!==" + ("e[" + (b.e.push(length$2) - 1) + "]") + "){" + fail(b, message, path) + "}";
-              }));
 }
 
 function factory$6(schema) {
@@ -2913,11 +2684,11 @@ function internalInline(schema, maybeVariant, param) {
             inlinedSchema$5 = inlinedSchema$4 + refinements$4.map(function (refinement) {
                     var match = refinement.kind;
                     if (typeof match !== "object") {
-                      return "->S.Int.port(~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.port(~message=" + JSON.stringify(refinement.message) + ")";
                     } else if (match.TAG === "Min") {
-                      return "->S.Int.min(" + match.value + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.intMin(" + match.value + ", ~message=" + JSON.stringify(refinement.message) + ")";
                     } else {
-                      return "->S.Int.max(" + match.value + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.intMax(" + match.value + ", ~message=" + JSON.stringify(refinement.message) + ")";
                     }
                   }).join("");
           } else {
@@ -2932,12 +2703,12 @@ function internalInline(schema, maybeVariant, param) {
                     var match = refinement.kind;
                     if (match.TAG === "Min") {
                       var value = match.value;
-                      return "->S.Float.min(" + (value.toString() + (
+                      return "->S.floatMin(" + (value.toString() + (
                                 value % 1 === 0 ? "." : ""
                               )) + ", ~message=" + JSON.stringify(refinement.message) + ")";
                     }
                     var value$1 = match.value;
-                    return "->S.Float.max(" + (value$1.toString() + (
+                    return "->S.floatMax(" + (value$1.toString() + (
                               value$1 % 1 === 0 ? "." : ""
                             )) + ", ~message=" + JSON.stringify(refinement.message) + ")";
                   }).join("");
@@ -2965,11 +2736,11 @@ function internalInline(schema, maybeVariant, param) {
                     var match = refinement.kind;
                     switch (match.TAG) {
                       case "Min" :
-                          return "->S.Array.min(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                          return "->S.arrayMin(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                       case "Max" :
-                          return "->S.Array.max(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                          return "->S.arrayMax(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                       case "Length" :
-                          return "->S.Array.length(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                          return "->S.arrayLength(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                       
                     }
                   }).join("");
@@ -2990,27 +2761,27 @@ function internalInline(schema, maybeVariant, param) {
               if (typeof match !== "object") {
                 switch (match) {
                   case "Email" :
-                      return "->S.String.email(~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.email(~message=" + JSON.stringify(refinement.message) + ")";
                   case "Uuid" :
-                      return "->S.String.uuid(~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.uuid(~message=" + JSON.stringify(refinement.message) + ")";
                   case "Cuid" :
-                      return "->S.String.cuid(~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.cuid(~message=" + JSON.stringify(refinement.message) + ")";
                   case "Url" :
-                      return "->S.String.url(~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.url(~message=" + JSON.stringify(refinement.message) + ")";
                   case "Datetime" :
-                      return "->S.String.datetime(~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.datetime(~message=" + JSON.stringify(refinement.message) + ")";
                   
                 }
               } else {
                 switch (match.TAG) {
                   case "Min" :
-                      return "->S.String.min(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.stringMin(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                   case "Max" :
-                      return "->S.String.max(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.stringMax(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                   case "Length" :
-                      return "->S.String.length(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.stringLength(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                   case "Pattern" :
-                      return "->S.String.pattern(%re(" + JSON.stringify(match.re.toString()) + "), ~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.pattern(%re(" + JSON.stringify(match.re.toString()) + "), ~message=" + JSON.stringify(refinement.message) + ")";
                   
                 }
               }
@@ -3061,6 +2832,235 @@ function tuple3(v0, v1, v2) {
                       s.i(2, v2)
                     ];
             });
+}
+
+function intMin(schema, minValue, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue;
+  return addRefinement(schema, metadataId$1, {
+              kind: {
+                TAG: "Min",
+                value: minValue
+              },
+              message: message
+            }, (function (b, input, param, path) {
+                return "if(" + $$var(b, input) + "<" + ("e[" + (b.e.push(minValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+              }));
+}
+
+function intMax(schema, maxValue, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue;
+  return addRefinement(schema, metadataId$1, {
+              kind: {
+                TAG: "Max",
+                value: maxValue
+              },
+              message: message
+            }, (function (b, input, param, path) {
+                return "if(" + $$var(b, input) + ">" + ("e[" + (b.e.push(maxValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+              }));
+}
+
+function port(schema, messageOpt) {
+  var message = messageOpt !== undefined ? messageOpt : "Invalid port";
+  return addRefinement(schema, metadataId$1, {
+              kind: "Port",
+              message: message
+            }, (function (b, input, param, path) {
+                return "if(" + $$var(b, input) + "<1||" + $$var(b, input) + ">65535){" + fail(b, message, path) + "}";
+              }));
+}
+
+function floatMin(schema, minValue, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue;
+  return addRefinement(schema, metadataId$2, {
+              kind: {
+                TAG: "Min",
+                value: minValue
+              },
+              message: message
+            }, (function (b, input, param, path) {
+                return "if(" + $$var(b, input) + "<" + ("e[" + (b.e.push(minValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+              }));
+}
+
+function floatMax(schema, maxValue, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue;
+  return addRefinement(schema, metadataId$2, {
+              kind: {
+                TAG: "Max",
+                value: maxValue
+              },
+              message: message
+            }, (function (b, input, param, path) {
+                return "if(" + $$var(b, input) + ">" + ("e[" + (b.e.push(maxValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+              }));
+}
+
+function arrayMin(schema, length, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length + " or more items long";
+  return addRefinement(schema, metadataId$3, {
+              kind: {
+                TAG: "Min",
+                length: length
+              },
+              message: message
+            }, (function (b, input, param, path) {
+                return "if(" + $$var(b, input) + ".length<" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+              }));
+}
+
+function arrayMax(schema, length, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length + " or fewer items long";
+  return addRefinement(schema, metadataId$3, {
+              kind: {
+                TAG: "Max",
+                length: length
+              },
+              message: message
+            }, (function (b, input, param, path) {
+                return "if(" + $$var(b, input) + ".length>" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+              }));
+}
+
+function arrayLength(schema, length, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "Array must be exactly " + length + " items long";
+  return addRefinement(schema, metadataId$3, {
+              kind: {
+                TAG: "Length",
+                length: length
+              },
+              message: message
+            }, (function (b, input, param, path) {
+                return "if(" + $$var(b, input) + ".length!==" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+              }));
+}
+
+function stringMin(schema, length, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length + " or more characters long";
+  return addRefinement(schema, metadataId, {
+              kind: {
+                TAG: "Min",
+                length: length
+              },
+              message: message
+            }, (function (b, input, param, path) {
+                return "if(" + $$var(b, input) + ".length<" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+              }));
+}
+
+function stringMax(schema, length, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length + " or fewer characters long";
+  return addRefinement(schema, metadataId, {
+              kind: {
+                TAG: "Max",
+                length: length
+              },
+              message: message
+            }, (function (b, input, param, path) {
+                return "if(" + $$var(b, input) + ".length>" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+              }));
+}
+
+function stringLength(schema, length, maybeMessage) {
+  var message = maybeMessage !== undefined ? maybeMessage : "String must be exactly " + length + " characters long";
+  return addRefinement(schema, metadataId, {
+              kind: {
+                TAG: "Length",
+                length: length
+              },
+              message: message
+            }, (function (b, input, param, path) {
+                return "if(" + $$var(b, input) + ".length!==" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+              }));
+}
+
+function email(schema, messageOpt) {
+  var message = messageOpt !== undefined ? messageOpt : "Invalid email address";
+  return addRefinement(schema, metadataId, {
+              kind: "Email",
+              message: message
+            }, (function (b, input, param, path) {
+                return "if(!" + ("e[" + (b.e.push(emailRegex) - 1) + "]") + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
+              }));
+}
+
+function uuid(schema, messageOpt) {
+  var message = messageOpt !== undefined ? messageOpt : "Invalid UUID";
+  return addRefinement(schema, metadataId, {
+              kind: "Uuid",
+              message: message
+            }, (function (b, input, param, path) {
+                return "if(!" + ("e[" + (b.e.push(uuidRegex) - 1) + "]") + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
+              }));
+}
+
+function cuid(schema, messageOpt) {
+  var message = messageOpt !== undefined ? messageOpt : "Invalid CUID";
+  return addRefinement(schema, metadataId, {
+              kind: "Cuid",
+              message: message
+            }, (function (b, input, param, path) {
+                return "if(!" + ("e[" + (b.e.push(cuidRegex) - 1) + "]") + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
+              }));
+}
+
+function url(schema, messageOpt) {
+  var message = messageOpt !== undefined ? messageOpt : "Invalid url";
+  return addRefinement(schema, metadataId, {
+              kind: "Url",
+              message: message
+            }, (function (b, input, param, path) {
+                return "try{new URL(" + $$var(b, input) + ")}catch(_){" + fail(b, message, path) + "}";
+              }));
+}
+
+function pattern(schema, re, messageOpt) {
+  var message = messageOpt !== undefined ? messageOpt : "Invalid";
+  return addRefinement(schema, metadataId, {
+              kind: {
+                TAG: "Pattern",
+                re: re
+              },
+              message: message
+            }, (function (b, input, param, path) {
+                var reVal = val(b, "e[" + (b.e.push(re) - 1) + "]");
+                var reVar = $$var(b, reVal);
+                return reVar + ".lastIndex=0;if(!" + reVar + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
+              }));
+}
+
+function datetime(schema, messageOpt) {
+  var message = messageOpt !== undefined ? messageOpt : "Invalid datetime string! Must be UTC";
+  var refinement = {
+    kind: "Datetime",
+    message: message
+  };
+  var refinements = schema.m[metadataId];
+  return transform$1(set$2(schema, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), (function (s) {
+                return {
+                        p: (function (string) {
+                            if (!datetimeRe.test(string)) {
+                              s.fail(message, undefined);
+                            }
+                            return new Date(string);
+                          }),
+                        s: (function (date) {
+                            return date.toISOString();
+                          })
+                      };
+              }));
+}
+
+function trim(schema) {
+  var transformer = function (string) {
+    return string.trim();
+  };
+  return transform$1(schema, (function (param) {
+                return {
+                        p: transformer,
+                        s: transformer
+                      };
+              }));
 }
 
 function toJsResult(result) {
@@ -3357,46 +3357,28 @@ var String_Refinement = {};
 
 var $$String = {
   Refinement: String_Refinement,
-  refinements: refinements,
-  min: min,
-  max: max,
-  length: length,
-  email: email,
-  uuid: uuid,
-  cuid: cuid,
-  url: url,
-  pattern: pattern,
-  datetime: datetime,
-  trim: trim
+  refinements: refinements
 };
 
 var Int_Refinement = {};
 
 var Int = {
   Refinement: Int_Refinement,
-  refinements: refinements$1,
-  min: min$1,
-  max: max$1,
-  port: port
+  refinements: refinements$1
 };
 
 var Float_Refinement = {};
 
 var Float = {
   Refinement: Float_Refinement,
-  refinements: refinements$2,
-  min: min$2,
-  max: max$2
+  refinements: refinements$2
 };
 
 var Array_Refinement = {};
 
 var $$Array = {
   Refinement: Array_Refinement,
-  refinements: refinements$3,
-  min: min$3,
-  max: max$3,
-  length: length$1
+  refinements: refinements$3
 };
 
 var Metadata = {
@@ -3473,6 +3455,24 @@ export {
   $$Array ,
   Metadata ,
   inline$1 as inline,
+  intMin ,
+  intMax ,
+  port ,
+  floatMin ,
+  floatMax ,
+  arrayMin ,
+  arrayMax ,
+  arrayLength ,
+  stringMin ,
+  stringMax ,
+  stringLength ,
+  email ,
+  uuid ,
+  cuid ,
+  url ,
+  pattern ,
+  datetime ,
+  trim ,
   js_optional ,
   js_tuple ,
   js_custom ,

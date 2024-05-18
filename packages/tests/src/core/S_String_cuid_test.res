@@ -1,7 +1,7 @@
 open Ava
 
 test("Successfully parses valid data", t => {
-  let schema = S.string->S.String.cuid
+  let schema = S.string->S.cuid
 
   t->Assert.deepEqual(
     "ckopqwooh000001la8mbi2im9"->S.parseAnyWith(schema),
@@ -11,7 +11,7 @@ test("Successfully parses valid data", t => {
 })
 
 test("Fails to parse invalid data", t => {
-  let schema = S.string->S.String.cuid
+  let schema = S.string->S.cuid
 
   t->Assert.deepEqual(
     "cifjhdsfhsd-invalid-cuid"->S.parseAnyWith(schema),
@@ -21,7 +21,7 @@ test("Fails to parse invalid data", t => {
 })
 
 test("Successfully serializes valid value", t => {
-  let schema = S.string->S.String.cuid
+  let schema = S.string->S.cuid
 
   t->Assert.deepEqual(
     "ckopqwooh000001la8mbi2im9"->S.serializeToUnknownWith(schema),
@@ -31,7 +31,7 @@ test("Successfully serializes valid value", t => {
 })
 
 test("Fails to serialize invalid value", t => {
-  let schema = S.string->S.String.cuid
+  let schema = S.string->S.cuid
 
   t->U.assertErrorResult(
     "cifjhdsfhsd-invalid-cuid"->S.serializeToUnknownWith(schema),
@@ -40,7 +40,7 @@ test("Fails to serialize invalid value", t => {
 })
 
 test("Returns custom error message", t => {
-  let schema = S.string->S.String.cuid(~message="Custom")
+  let schema = S.string->S.cuid(~message="Custom")
 
   t->Assert.deepEqual(
     "cifjhdsfhsd-invalid-cuid"->S.parseAnyWith(schema),
@@ -50,7 +50,7 @@ test("Returns custom error message", t => {
 })
 
 test("Returns refinement", t => {
-  let schema = S.string->S.String.cuid
+  let schema = S.string->S.cuid
 
   t->Assert.deepEqual(schema->S.String.refinements, [{kind: Cuid, message: "Invalid CUID"}], ())
 })

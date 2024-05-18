@@ -19,3 +19,26 @@
 - Removed `s.failWithError`. Use `S.Error.raise` instead
 - Removed async support for `S.union`. Please create an issue if you used the feature
 - Improved parsing performance of S.array and S.dict ~3 times
+- Moved built-in refinements from nested modules to improve tree-shaking:
+
+  - `Int.min`->`intMin`
+  - `Int.max`->`intMax`
+  - `Int.port`->`port`
+
+  - `Float.min`->`floatMin`
+  - `Float.max`->`floatMax`
+
+  - `Array.min`->`arrayMin`
+  - `Array.max`->`arrayMax`
+  - `Array.length`->`arrayLength`
+
+  - `String.min`->`stringMin`
+  - `String.max`->`stringMax`
+  - `String.length`->`stringLength`
+  - `String.email`->`email`
+  - `String.uuid`->`uuid`
+  - `String.cuid`->`cuid`
+  - `String.url`->`url`
+  - `String.pattern`->`pattern`
+  - `String.datetime`->`datetime`
+  - `String.trim`->`trim`

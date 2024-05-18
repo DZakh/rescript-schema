@@ -38,10 +38,10 @@ Ava("Main example", (function (t) {
                 }), undefined);
       }));
 
-var matchesSchema = S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined);
+var matchesSchema = S$RescriptSchema.url(S$RescriptSchema.string, undefined);
 
 Ava("@s.matches", (function (t) {
-        U.assertEqualSchemas(t, matchesSchema, S$RescriptSchema.$$String.url(S$RescriptSchema.string, undefined), undefined);
+        U.assertEqualSchemas(t, matchesSchema, S$RescriptSchema.url(S$RescriptSchema.string, undefined), undefined);
       }));
 
 var defaultSchema = S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.string), "Unknown");
