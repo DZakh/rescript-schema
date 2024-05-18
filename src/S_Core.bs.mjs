@@ -115,14 +115,20 @@ function scope(b) {
         };
 }
 
-function exitScope(b) {
+function allocateScope(b) {
   var varsAllocation = b.l;
   b.a = true;
+  b.p.v = b.v;
+  if (varsAllocation === "") {
+    return b.c;
+  } else {
+    return "let " + varsAllocation + ";" + b.c;
+  }
+}
+
+function exitScope(b) {
   var parent = b.p;
-  parent.c = parent.c + (
-    varsAllocation === "" ? b.c : "let " + varsAllocation + ";" + b.c
-  );
-  parent.v = b.v;
+  parent.c = parent.c + allocateScope(b);
   return parent;
 }
 
@@ -1422,22 +1428,19 @@ function $$default(schema) {
 function parseOperationBuilder(b, input, selfSchema, path) {
   var isNull = (selfSchema.t.TAG === "Null");
   var childSchema = selfSchema.t._0;
-  var prevCode = b.c;
-  b.c = "";
-  var b$1 = scope(b);
-  var itemOutput = use(b$1, childSchema, input, path);
-  var b$2 = exitScope(b$1);
-  var itemCode = b$2.c;
+  var bb = scope(b);
+  var itemOutput = use(bb, childSchema, input, path);
+  var itemCode = allocateScope(bb);
   var isTransformed = isNull || itemOutput !== input;
   var output = isTransformed ? ({
-        s: b$2,
+        s: b,
         a: itemOutput.a
       }) : input;
   if (itemCode !== "" || isTransformed) {
-    b$2.c = prevCode + ("if(" + $$var(b$2, input) + "!==" + (
+    b.c = b.c + ("if(" + $$var(b, input) + "!==" + (
         isNull ? "null" : "void 0"
-      ) + "){" + itemCode + set(b$2, output, itemOutput) + "}" + (
-        isNull || output.a ? "else{" + set(b$2, output, val(b$2, "void 0")) + "}" : ""
+      ) + "){" + itemCode + set(b, output, itemOutput) + "}" + (
+        isNull || output.a ? "else{" + set(b, output, val(b, "void 0")) + "}" : ""
       ));
   }
   return output;
@@ -1445,15 +1448,15 @@ function parseOperationBuilder(b, input, selfSchema, path) {
 
 function serializeOperationBuilder(b, input, selfSchema, path) {
   var output = allocateVal(b);
+  var inputVar = $$var(b, input);
   var isNull = (selfSchema.t.TAG === "Null");
   var childSchema = selfSchema.t._0;
-  b.c = b.c + ("if(" + $$var(b, input) + "!==void 0){");
-  var b$1 = scope(b);
+  var bb = scope(b);
   var value = Caml_option.valFromOption;
-  var itemOutput = use(b$1, childSchema, map(b$1, "e[" + (b$1.e.push(value) - 1) + "]", input), path);
-  var b$2 = exitScope(b$1);
-  b$2.c = b$2.c + (set(b$2, output, itemOutput) + "}" + (
-      isNull ? "else{" + setInlined(b$2, output, "null") + "}" : ""
+  var itemOutput = use(bb, childSchema, map(bb, "e[" + (bb.e.push(value) - 1) + "]", input), path);
+  var itemCode = allocateScope(bb);
+  b.c = b.c + ("if(" + inputVar + "!==void 0){" + itemCode + set(b, output, itemOutput) + "}" + (
+      isNull ? "else{" + setInlined(b, output, "null") + "}" : ""
     ));
   return output;
 }
@@ -2192,15 +2195,14 @@ function factory$5(schema) {
               var inputVar = $$var(b, input);
               var iteratorVar = varWithoutAllocation(b);
               var output = val(b, "[]");
-              b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){");
-              var b$1 = scope(b);
-              var itemOutput = withPathPrepend(b$1, path, iteratorVar, (function (b, path) {
+              var bb = scope(b);
+              var itemOutput = withPathPrepend(bb, path, iteratorVar, (function (b, path) {
                       return useWithTypeFilter(b, schema, val(b, inputVar + "[" + iteratorVar + "]"), path);
                     }));
-              var b$2 = exitScope(b$1);
-              b$2.c = b$2.c + push(b$2, output, itemOutput) + "}";
+              var itemCode = allocateScope(bb);
+              b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + itemCode + push(b, output, itemOutput) + "}");
               if (itemOutput.a) {
-                return asyncVal(b$2, "()=>Promise.all(" + $$var(b$2, output) + ".map(t=>t()))");
+                return asyncVal(b, "()=>Promise.all(" + $$var(b, output) + ".map(t=>t()))");
               } else {
                 return output;
               }
@@ -2212,13 +2214,12 @@ function factory$5(schema) {
               var inputVar = $$var(b, input);
               var iteratorVar = varWithoutAllocation(b);
               var output = val(b, "[]");
-              b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){");
-              var b$1 = scope(b);
-              var itemOutput = withPathPrepend(b$1, path, iteratorVar, (function (b, path) {
+              var bb = scope(b);
+              var itemOutput = withPathPrepend(bb, path, iteratorVar, (function (b, path) {
                       return use(b, schema, val(b, inputVar + "[" + iteratorVar + "]"), path);
                     }));
-              var b$2 = exitScope(b$1);
-              b$2.c = b$2.c + (push(b$2, output, itemOutput) + "}");
+              var itemCode = allocateScope(bb);
+              b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + itemCode + push(b, output, itemOutput) + "}");
               return output;
             }),
           f: typeFilter$5,
@@ -2277,22 +2278,21 @@ function factory$6(schema) {
               var inputVar = $$var(b, input);
               var keyVar = varWithoutAllocation(b);
               var output = val(b, "{}");
-              b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){");
-              var b$1 = scope(b);
-              var itemOutput = withPathPrepend(b$1, path, keyVar, (function (b, path) {
+              var bb = scope(b);
+              var itemOutput = withPathPrepend(bb, path, keyVar, (function (b, path) {
                       return useWithTypeFilter(b, schema, val(b, inputVar + "[" + keyVar + "]"), path);
                     }));
-              var b$2 = exitScope(b$1);
-              b$2.c = b$2.c + addKey(b$2, output, keyVar, itemOutput) + "}";
+              var itemCode = allocateScope(bb);
+              b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + itemCode + addKey(b, output, keyVar, itemOutput) + "}");
               if (!itemOutput.a) {
                 return output;
               }
-              var resolveVar = varWithoutAllocation(b$2);
-              var rejectVar = varWithoutAllocation(b$2);
-              var asyncParseResultVar = varWithoutAllocation(b$2);
-              var counterVar = varWithoutAllocation(b$2);
-              var outputVar = $$var(b$2, output);
-              return asyncVal(b$2, "()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=Object.keys(" + outputVar + ").length;for(let " + keyVar + " in " + outputVar + "){" + outputVar + "[" + keyVar + "]().then(" + asyncParseResultVar + "=>{" + outputVar + "[" + keyVar + "]=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + outputVar + ")}}," + rejectVar + ")}})");
+              var resolveVar = varWithoutAllocation(b);
+              var rejectVar = varWithoutAllocation(b);
+              var asyncParseResultVar = varWithoutAllocation(b);
+              var counterVar = varWithoutAllocation(b);
+              var outputVar = $$var(b, output);
+              return asyncVal(b, "()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=Object.keys(" + outputVar + ").length;for(let " + keyVar + " in " + outputVar + "){" + outputVar + "[" + keyVar + "]().then(" + asyncParseResultVar + "=>{" + outputVar + "[" + keyVar + "]=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + outputVar + ")}}," + rejectVar + ")}})");
             }),
           s: (function (b, input, param, path) {
               if (schema.s === noop) {
@@ -2301,13 +2301,12 @@ function factory$6(schema) {
               var inputVar = $$var(b, input);
               var keyVar = varWithoutAllocation(b);
               var output = val(b, "{}");
-              b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){");
-              var b$1 = scope(b);
-              var itemOutput = withPathPrepend(b$1, path, keyVar, (function (b, path) {
+              var bb = scope(b);
+              var itemOutput = withPathPrepend(bb, path, keyVar, (function (b, path) {
                       return use(b, schema, val(b, inputVar + "[" + keyVar + "]"), path);
                     }));
-              var b$2 = exitScope(b$1);
-              b$2.c = b$2.c + (addKey(b$2, output, keyVar, itemOutput) + "}");
+              var itemCode = allocateScope(bb);
+              b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + itemCode + addKey(b, output, keyVar, itemOutput) + "}");
               return output;
             }),
           f: typeFilter,

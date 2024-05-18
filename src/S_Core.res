@@ -414,13 +414,16 @@ module Builder = {
       }
     }
 
-    let exitScope = (b: b): b => {
+    let allocateScope = (b: b): string => {
       let varsAllocation = b._varsAllocation
       b._isAllocated = true
+      b._parent._varCounter = b._varCounter
+      varsAllocation === "" ? b.code : `let ${varsAllocation};${b.code}`
+    }
+
+    let exitScope = (b: b): b => {
       let parent = b._parent
-      parent.code =
-        parent.code ++ (varsAllocation === "" ? b.code : `let ${varsAllocation};${b.code}`)
-      parent._varCounter = b._varCounter
+      parent.code = parent.code ++ b->allocateScope
       parent
     }
 
@@ -1814,19 +1817,17 @@ module Option = {
     let isNull = %raw(`selfSchema.t.TAG === "Null"`)
     let childSchema = selfSchema.tagged->unsafeGetVariantPayload
 
-    let prevCode = b.code
-    b.code = ""
-    let b = b->B.scope
-    let itemOutput = b->B.use(~schema=childSchema, ~input, ~path)
-    let b = b->B.exitScope
-    let itemCode = b.code
+    let bb = b->B.scope
+    let itemOutput = bb->B.use(~schema=childSchema, ~input, ~path)
+    let itemCode = bb->B.allocateScope
+
     let isTransformed = isNull || itemOutput !== input
 
     let output = isTransformed ? {_scope: b, isAsync: itemOutput.isAsync} : input
 
     if itemCode !== "" || isTransformed {
       b.code =
-        prevCode ++
+        b.code ++
         `if(${b->B.Val.var(input)}!==${isNull ? "null" : "void 0"}){${itemCode}${b->B.Val.set(
             output,
             itemOutput,
@@ -1838,24 +1839,23 @@ module Option = {
 
   let serializeOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path) => {
     let output = b->B.allocateVal
+    let inputVar = b->B.Val.var(input)
 
     let isNull = %raw(`selfSchema.t.TAG === "Null"`)
     let childSchema = selfSchema.tagged->unsafeGetVariantPayload
 
-    b.code = b.code ++ `if(${b->B.Val.var(input)}!==void 0){`
-
-    let b = b->B.scope
+    let bb = b->B.scope
     let itemOutput =
-      b->B.use(
+      bb->B.use(
         ~schema=childSchema,
-        ~input=b->B.Val.map(b->B.embed(%raw("Caml_option.valFromOption")), input),
+        ~input=bb->B.Val.map(bb->B.embed(%raw("Caml_option.valFromOption")), input),
         ~path,
       )
-    let b = b->B.exitScope
+    let itemCode = bb->B.allocateScope
 
     b.code =
       b.code ++
-      `${b->B.Val.set(output, itemOutput)}}${isNull
+      `if(${inputVar}!==void 0){${itemCode}${b->B.Val.set(output, itemOutput)}}${isNull
           ? `else{${b->B.Val.setInlined(output, `null`)}}`
           : ""}`
 
@@ -2804,17 +2804,19 @@ module Array = {
         let iteratorVar = b->B.varWithoutAllocation
         let output = b->B.val("[]")
 
-        b.code =
-          b.code ++ `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){`
-
-        let b = b->B.scope
+        let bb = b->B.scope
         let itemOutput =
-          b->B.withPathPrepend(~path, ~dynamicLocationVar=iteratorVar, (b, ~path) =>
+          bb->B.withPathPrepend(~path, ~dynamicLocationVar=iteratorVar, (b, ~path) =>
             b->B.useWithTypeFilter(~schema, ~input=b->B.val(`${inputVar}[${iteratorVar}]`), ~path)
           )
-        let b = b->B.exitScope
+        let itemCode = bb->B.allocateScope
 
-        b.code = b.code ++ b->B.Val.push(output, itemOutput) ++ `}`
+        b.code =
+          b.code ++
+          `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${itemCode}${b->B.Val.push(
+              output,
+              itemOutput,
+            )}}`
 
         if itemOutput.isAsync {
           b->B.asyncVal(`()=>Promise.all(${b->B.Val.var(output)}.map(t=>t()))`)
@@ -2830,18 +2832,19 @@ module Array = {
           let iteratorVar = b->B.varWithoutAllocation
           let output = b->B.val("[]")
 
-          b.code =
-            b.code ++
-            `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){`
-
-          let b = b->B.scope
+          let bb = b->B.scope
           let itemOutput =
-            b->B.withPathPrepend(~path, ~dynamicLocationVar=iteratorVar, (b, ~path) =>
+            bb->B.withPathPrepend(~path, ~dynamicLocationVar=iteratorVar, (b, ~path) =>
               b->B.use(~schema, ~input=b->B.val(`${inputVar}[${iteratorVar}]`), ~path)
             )
-          let b = b->B.exitScope
+          let itemCode = bb->B.allocateScope
 
-          b.code = b.code ++ `${b->B.Val.push(output, itemOutput)}}`
+          b.code =
+            b.code ++
+            `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${itemCode}${b->B.Val.push(
+                output,
+                itemOutput,
+              )}}`
 
           output
         }
@@ -2914,16 +2917,20 @@ module Dict = {
         let keyVar = b->B.varWithoutAllocation
         let output = b->B.val("{}")
 
-        b.code = b.code ++ `for(let ${keyVar} in ${inputVar}){`
-
-        let b = b->B.scope
+        let bb = b->B.scope
         let itemOutput =
-          b->B.withPathPrepend(~path, ~dynamicLocationVar=keyVar, (b, ~path) =>
+          bb->B.withPathPrepend(~path, ~dynamicLocationVar=keyVar, (b, ~path) =>
             b->B.useWithTypeFilter(~schema, ~input=b->B.val(`${inputVar}[${keyVar}]`), ~path)
           )
-        let b = b->B.exitScope
+        let itemCode = bb->B.allocateScope
 
-        b.code = b.code ++ b->B.Val.addKey(output, keyVar, itemOutput) ++ `}`
+        b.code =
+          b.code ++
+          `for(let ${keyVar} in ${inputVar}){${itemCode}${b->B.Val.addKey(
+              output,
+              keyVar,
+              itemOutput,
+            )}}`
 
         if itemOutput.isAsync {
           let resolveVar = b->B.varWithoutAllocation
@@ -2946,16 +2953,20 @@ module Dict = {
           let keyVar = b->B.varWithoutAllocation
           let output = b->B.val("{}")
 
-          b.code = b.code ++ `for(let ${keyVar} in ${inputVar}){`
-
-          let b = b->B.scope
+          let bb = b->B.scope
           let itemOutput =
-            b->B.withPathPrepend(~path, ~dynamicLocationVar=keyVar, (b, ~path) =>
+            bb->B.withPathPrepend(~path, ~dynamicLocationVar=keyVar, (b, ~path) =>
               b->B.use(~schema, ~input=b->B.val(`${inputVar}[${keyVar}]`), ~path)
             )
-          let b = b->B.exitScope
+          let itemCode = bb->B.allocateScope
 
-          b.code = b.code ++ `${b->B.Val.addKey(output, keyVar, itemOutput)}}`
+          b.code =
+            b.code ++
+            `for(let ${keyVar} in ${inputVar}){${itemCode}${b->B.Val.addKey(
+                output,
+                keyVar,
+                itemOutput,
+              )}}`
 
           output
         }
