@@ -462,7 +462,7 @@ module Tuple = {
 }
 
 module Union = {
-  asyncTest("[Union] Successfully parses", t => {
+  Failing.asyncTest("[Union] Successfully parses", t => {
     let schema = S.union([S.literal(1), S.literal(2)->validAsyncRefine, S.literal(3)])
 
     Promise.all([
@@ -478,39 +478,56 @@ module Union = {
     ])->Promise.thenResolve(_ => ())
   })
 
-  asyncTest("[Union] Doesn't return sync error when fails to parse sync part of async item", t => {
+  test("[Union] Fails to parse since it's not supported", t => {
     let schema = S.union([S.literal(1), S.literal(2)->validAsyncRefine, S.literal(3)])
-    let input = %raw("true")
 
-    (input->S.parseAnyAsyncInStepsWith(schema)->Result.getExn)()->Promise.thenResolve(result => {
-      t->U.assertErrorResult(
-        result,
-        {
-          code: InvalidUnion([
-            U.error({
-              code: InvalidLiteral({expected: S.Literal.parse(1.), received: input}),
-              path: S.Path.empty,
-              operation: Parsing,
-            }),
-            U.error({
-              code: InvalidLiteral({expected: S.Literal.parse(2.), received: input}),
-              path: S.Path.empty,
-              operation: Parsing,
-            }),
-            U.error({
-              code: InvalidLiteral({expected: S.Literal.parse(3.), received: input}),
-              path: S.Path.empty,
-              operation: Parsing,
-            }),
-          ]),
-          operation: Parsing,
-          path: S.Path.empty,
-        },
-      )
-    })
+    t->Assert.throws(
+      () => {
+        1->S.parseAnyOrRaiseWith(schema)
+      },
+      ~expectations={
+        message: "Failed parsing at root. Reason: S.union doesn\'t support async items. Please create an issue to rescript-schema if you nead the feature.",
+      },
+      (),
+    )
   })
 
-  test("[Union] Parses async items in parallel", t => {
+  Failing.asyncTest(
+    "[Union] Doesn't return sync error when fails to parse sync part of async item",
+    t => {
+      let schema = S.union([S.literal(1), S.literal(2)->validAsyncRefine, S.literal(3)])
+      let input = %raw("true")
+
+      (input->S.parseAnyAsyncInStepsWith(schema)->Result.getExn)()->Promise.thenResolve(result => {
+        t->U.assertErrorResult(
+          result,
+          {
+            code: InvalidUnion([
+              U.error({
+                code: InvalidLiteral({expected: S.Literal.parse(1.), received: input}),
+                path: S.Path.empty,
+                operation: Parsing,
+              }),
+              U.error({
+                code: InvalidLiteral({expected: S.Literal.parse(2.), received: input}),
+                path: S.Path.empty,
+                operation: Parsing,
+              }),
+              U.error({
+                code: InvalidLiteral({expected: S.Literal.parse(3.), received: input}),
+                path: S.Path.empty,
+                operation: Parsing,
+              }),
+            ]),
+            operation: Parsing,
+            path: S.Path.empty,
+          },
+        )
+      })
+    },
+  )
+
+  Failing.test("[Union] Parses async items in parallel", t => {
     let actionCounter = ref(0)
 
     let schema = S.union([
@@ -849,6 +866,12 @@ module Defaulted = {
 module Json = {
   asyncTest("[JsonString] Successfully parses", t => {
     let schema = S.jsonString(S.int->validAsyncRefine)
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#parse,
+      `i=>{if(typeof i!=="string"){e[3](i)}let v0;try{v0=JSON.parse(i)}catch(t){e[0](t.message)}if(typeof v0!=="number"||v0>2147483647||v0<-2147483648||v0%1!==0){e[1](v0)}return e[2](v0)}`,
+    )
 
     ("1"->S.parseAnyAsyncInStepsWith(schema)->Result.getExn)()->Promise.thenResolve(result => {
       t->Assert.deepEqual(result, Ok(1), ())

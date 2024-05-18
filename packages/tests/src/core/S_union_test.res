@@ -25,6 +25,64 @@ test("Successfully parses polymorphic variants", t => {
   t->Assert.deepEqual(%raw(`"apple"`)->S.parseAnyWith(schema), Ok(#apple), ())
 })
 
+test("Parses when both schemas misses parser", t => {
+  let schema = S.union([
+    S.literal(#apple)->S.transform(_ => {serializer: _ => #apple}),
+    S.string->S.transform(_ => {serializer: _ => "apple"}),
+  ])
+
+  t->U.assertErrorResult(
+    %raw(`null`)->S.parseAnyWith(schema),
+    {
+      code: InvalidUnion([
+        U.error({
+          code: InvalidOperation({description: "The S.transform parser is missing"}),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+        U.error({
+          code: InvalidOperation({description: "The S.transform parser is missing"}),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+      ]),
+      operation: Parsing,
+      path: S.Path.empty,
+    },
+  )
+
+  t->U.assertCompiledCode(~schema, ~op=#parse, `i=>{e[4]([e[1],e[3],]);return i}`)
+})
+
+test("Serializes when both schemas misses serializer", t => {
+  let schema = S.union([
+    S.literal(#apple)->S.transform(_ => {parser: _ => #apple}),
+    S.string->S.transform(_ => {parser: _ => #apple}),
+  ])
+
+  t->U.assertErrorResult(
+    %raw(`null`)->S.serializeWith(schema),
+    {
+      code: InvalidUnion([
+        U.error({
+          code: InvalidOperation({description: "The S.transform serializer is missing"}),
+          operation: Serializing,
+          path: S.Path.empty,
+        }),
+        U.error({
+          code: InvalidOperation({description: "The S.transform serializer is missing"}),
+          operation: Serializing,
+          path: S.Path.empty,
+        }),
+      ]),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
+  )
+
+  t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{e[2]([e[0],e[1],]);return i}`)
+})
+
 test("Parses when second struct misses parser", t => {
   let schema = S.union([S.literal(#apple), S.string->S.transform(_ => {serializer: _ => "apple"})])
 
@@ -33,7 +91,7 @@ test("Parses when second struct misses parser", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#parse,
-    `i=>{let v0;try{i==="apple"||e[0](i);v0=i}catch(v1){if(v1&&v1.s===s){try{throw e[2];v0=i}catch(v2){if(v2&&v2.s===s){e[3]([v1,v2])}else{throw v2}}}else{throw v1}}return v0}`,
+    `i=>{let v0;try{i==="apple"||e[0](i);v0=i}catch(e0){e[3]([e0,e[2],])}return v0}`,
   )
 })
 
@@ -45,7 +103,7 @@ test("Serializes when second struct misses serializer", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#serialize,
-    `i=>{let v0;try{i==="apple"||e[0](i);v0=i}catch(v1){if(v1&&v1.s===s){try{throw e[1];if(typeof i!=="string"){e[2](i)}v0=i}catch(v2){if(v2&&v2.s===s){e[3]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
+    `i=>{let v0;try{i==="apple"||e[0](i);v0=i}catch(e0){e[2]([e0,e[1],])}return v0}`,
   )
 })
 
@@ -339,11 +397,20 @@ test("Compiled parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#parse,
-    `i=>{let v0;try{i===0||e[0](i);v0=i}catch(v1){if(v1&&v1.s===s){try{i===1||e[1](i);v0=i}catch(v2){if(v2&&v2.s===s){e[2]([v1,v2])}else{throw v2}}}else{throw v1}}return v0}`,
+    `i=>{let v0;try{i===0||e[0](i);v0=i}catch(e0){try{i===1||e[1](i);v0=i}catch(e1){e[2]([e0,e1,])}}return v0}`,
   )
 })
 
-test("Compiled async parse code snapshot", t => {
+test("Compiled parse code snapshot for discriminated union", t => {
+  t->U.assertCompiledCode(
+    ~schema=Advanced.shapeSchema,
+    ~op=#parse,
+    `i=>{let v2;try{if(!i||i.constructor!==Object){e[0](i)}let v0=i["radius"],v1=i["kind"];v1==="circle"||e[3](v1);if(typeof v0!=="number"||Number.isNaN(v0)){e[2](v0)}v2={"TAG":e[1],"radius":v0,}}catch(e0){try{if(!i||i.constructor!==Object){e[4](i)}let v3=i["x"],v4=i["kind"];v4==="square"||e[7](v4);if(typeof v3!=="number"||Number.isNaN(v3)){e[6](v3)}v2={"TAG":e[5],"x":v3,}}catch(e1){try{if(!i||i.constructor!==Object){e[8](i)}let v5=i["x"],v6=i["y"],v7=i["kind"];v7==="triangle"||e[12](v7);if(typeof v5!=="number"||Number.isNaN(v5)){e[10](v5)}if(typeof v6!=="number"||Number.isNaN(v6)){e[11](v6)}v2={"TAG":e[9],"x":v5,"y":v6,}}catch(e2){e[13]([e0,e1,e2,])}}}return v2}`,
+  )
+})
+
+// It shouldn't compile since it throw InvalidOperation error
+Failing.test("Compiled async parse code snapshot", t => {
   let schema = S.union([
     S.literal(0)->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}),
     S.literal(1),
@@ -352,18 +419,18 @@ test("Compiled async parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#parse,
-    `i=>{let v0,v1;try{i===0||e[0](i);v0=e[1](i);throw v0}catch(v2){if(v2&&v2.s===s||v2===v0){try{i===1||e[2](i);v1=()=>Promise.resolve(i)}catch(v3){if(v3&&v3.s===s){v1=()=>Promise.any([v2===v0?v2():Promise.reject(v2),Promise.reject(v3)]).catch(t=>{e[3](t.errors)})}else{throw v3}}}else{throw v2}}return v1}`,
+    `i=>{let v0=e[1](i),v1;try{i===0||e[0](i);throw v0}catch(v2){if(v2&&v2.s===s||v2===v0){try{i===1||e[2](i);v1=()=>Promise.resolve(i)}catch(v3){if(v3&&v3.s===s){v1=()=>Promise.any([v2===v0?v2():Promise.reject(v2),Promise.reject(v3)]).catch(t=>{e[3](t.errors)})}else{throw v3}}}else{throw v2}}return v1}`,
   )
 })
 
 test("Compiled serialize code snapshot", t => {
   let schema = S.union([S.literal(0), S.literal(1)])
 
-  // TODO: Improve compiled code
+  // TODO: Improve compiled code for literals
   t->U.assertCompiledCode(
     ~schema,
     ~op=#serialize,
-    `i=>{let v0;try{i===0||e[0](i);v0=i}catch(v1){if(v1&&v1.s===s){try{i===1||e[1](i);v0=i}catch(v2){if(v2&&v2.s===s){e[2]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
+    `i=>{let v0;try{i===0||e[0](i);v0=i}catch(e0){try{i===1||e[1](i);v0=i}catch(e1){e[2]([e0,e1,])}}return v0}`,
   )
 })
 
@@ -381,6 +448,6 @@ test("Compiled serialize code snapshot for unboxed variant", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#serialize,
-    `i=>{let v0;try{if(typeof i!=="string"){e[0](i)}v0=i}catch(v1){if(v1&&v1.s===s){try{let v3;v3=e[1](i);if(typeof v3!=="string"){e[2](v3)}v0=v3}catch(v2){if(v2&&v2.s===s){e[3]([v1,v2,])}else{throw v2}}}else{throw v1}}return v0}`,
+    `i=>{let v0,v1=e[1](i);try{if(typeof i!=="string"){e[0](i)}v0=i}catch(e0){try{if(typeof v1!=="string"){e[2](v1)}v0=v1}catch(e1){e[3]([e0,e1,])}}return v0}`,
   )
 })

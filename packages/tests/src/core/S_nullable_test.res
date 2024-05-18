@@ -38,7 +38,7 @@ module NullCommon = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(i!==void 0&&(i!==null&&(typeof i!=="string"))){e[0](i)}let v0;if(i!==void 0){let v1;if(i!==null){v1=i}else{v1=void 0}v0=v1}else{v0=void 0}return v0}`,
+      `i=>{if(i!==void 0&&(i!==null&&(typeof i!=="string"))){e[0](i)}let v1;if(i!==void 0){let v0;if(i!==null){v0=i}else{v0=void 0}v1=v0}return v1}`,
     )
   })
 
@@ -50,7 +50,7 @@ module NullCommon = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{let v0;if(i!==void 0){let v1;if(i!==null){let v2;v2=e[0](i);v1=v2}else{v1=()=>Promise.resolve(void 0)}v0=v1}else{v0=()=>Promise.resolve(void 0)}return v0}`,
+      `i=>{let v1;if(i!==void 0){let v0;if(i!==null){v0=e[0](i)}else{v0=()=>Promise.resolve(void 0)}v1=v0}else{v1=()=>Promise.resolve(void 0)}return v1}`,
     )
   })
 
@@ -60,7 +60,7 @@ module NullCommon = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#serialize,
-      `i=>{let v0;if(i!==void 0){let v1,v2;v1=e[0](i);if(v1!==void 0){v2=e[1](v1)}else{v2=null}v0=v2}else{v0=void 0}return v0}`,
+      `i=>{let v2;if(i!==void 0){let v0=e[0](i),v1;if(v0!==void 0){v1=e[1](v0)}else{v1=null}v2=v1}return v2}`,
     )
   })
 }

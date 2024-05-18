@@ -234,7 +234,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!Array.isArray(i)){e[3](i)}let v0,v1;if(i.length!==2){e[0](i.length)}v0=i["0"];if(typeof v0!=="string"){e[1](v0)}v1=i["1"];if(typeof v1!=="boolean"){e[2](v1)}return [v0,v1,]}`,
+      `i=>{if(!Array.isArray(i)){e[3](i)}if(i.length!==2){e[0](i.length)}let v0=i["0"],v1=i["1"];if(typeof v0!=="string"){e[1](v0)}if(typeof v1!=="boolean"){e[2](v1)}return [v0,v1,]}`,
     )
   })
 
@@ -247,7 +247,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!Array.isArray(i)){e[3](i)}let v0,v1,v2;if(i.length!==2){e[0](i.length)}v0=e[1](i["0"]);v1=i["1"];if(typeof v1!=="boolean"){e[2](v1)}v2=()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]));return v2}`,
+      `i=>{if(!Array.isArray(i)){e[3](i)}if(i.length!==2){e[0](i.length)}let v0,v1=i["1"];v0=e[1](i["0"]);if(typeof v1!=="boolean"){e[2](v1)}return ()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]))}`,
     )
   })
 
@@ -258,8 +258,15 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#serialize,
-      `i=>{let v0;v0=[];v0["0"]=i["0"];v0["1"]=i["1"];return v0}`,
+      `i=>{let v0=[];v0["0"]=i["0"];v0["1"]=i["1"];return v0}`,
     )
+  })
+
+  test("Compiled serialize code snapshot for empty tuple", t => {
+    let schema = S.tuple(_ => ())
+
+    // TODO: No need to do unit check ?
+    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{if(i!==e[0]){e[1](i)}return []}`)
   })
 
   test(
@@ -277,7 +284,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#parse,
-        `i=>{if(!Array.isArray(i)){e[5](i)}let v0,v1,v2;if(i.length!==3){e[0](i.length)}v2=i["0"];v2===0||e[4](v2);v0=i["1"];if(typeof v0!=="string"){e[1](v0)}v1=i["2"];if(typeof v1!=="boolean"){e[2](v1)}return {"foo":v0,"bar":v1,"zoo":e[3],}}`,
+        `i=>{if(!Array.isArray(i)){e[5](i)}if(i.length!==3){e[0](i.length)}let v0=i["1"],v1=i["2"],v2=i["0"];v2===0||e[4](v2);if(typeof v0!=="string"){e[1](v0)}if(typeof v1!=="boolean"){e[2](v1)}return {"foo":v0,"bar":v1,"zoo":e[3],}}`,
       )
     },
   )
@@ -297,7 +304,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#serialize,
-        `i=>{let v0;v0=[];if(i["zoo"]!==e[0]){e[1](i["zoo"])}v0["1"]=i["foo"];v0["2"]=i["bar"];v0["0"]=e[2];return v0}`,
+        `i=>{let v0=[];if(i["zoo"]!==e[0]){e[1](i["zoo"])}v0["1"]=i["foo"];v0["2"]=i["bar"];v0["0"]=e[2];return v0}`,
       )
     },
   )
