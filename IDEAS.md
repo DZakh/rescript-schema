@@ -4,8 +4,6 @@
 
 - Github Action: Add linter checking that the generated files are up to date (?)
 
-- Don't recreate the object, when nothing should be transformed (???)
-
 - Support optional fields (can have problems with serializing) (???)
 
 - S.mutateWith/S.produceWith (aka immer) (???)
@@ -26,7 +24,9 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v7
 
-- stop reallocate objects without transformations
+- Change operation to include AsyncParse and simplify init functions (throw when asyncTransfor applied for SyncParse)
+- Don't recreate the object, when nothing should be transformed - stop reallocate objects without transformations
+- Add s.nested for object
 - Make S.serializeToJsonString super fast
 - Make operations more treeshakable by starting passing the actual operation to the initialOperation function. Or add a condition (verify performance)
 - Turn `String.email` -> `email`, `String.min` -> `stringMin` for tree-shaking

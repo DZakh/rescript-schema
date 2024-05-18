@@ -578,7 +578,7 @@ module Builder = {
     }
 
     // TODO: Refactor
-    let withCatch = (b: b, ~catch, fn) => {
+    let withCatch = (b: b, ~input, ~catch, fn) => {
       let prevCode = b.code
 
       b.code = ""
@@ -591,9 +591,7 @@ module Builder = {
       let fnOutput = fn(b)
       let b = b->exitScope
       let isAsync = fnOutput.isAsync
-
-      let output = b->allocateVal
-      output.isAsync = isAsync
+      let output = input === fnOutput ? input : {_scope: b, isAsync}
 
       let catchCode = switch maybeResolveVal {
       | None => _ => `${catchCode}}throw ${errorVar}`
@@ -628,11 +626,18 @@ module Builder = {
       output
     }
 
-    let withPathPrepend = (b: b, ~path, ~dynamicLocationVar as maybeDynamicLocationVar=?, fn) => {
+    let withPathPrepend = (
+      b: b,
+      ~input,
+      ~path,
+      ~dynamicLocationVar as maybeDynamicLocationVar=?,
+      fn,
+    ) => {
       if path === Path.empty && maybeDynamicLocationVar === None {
-        fn(b, ~path)
+        fn(b, ~input, ~path)
       } else {
         try b->withCatch(
+          ~input,
           ~catch=(b, ~errorVar) => {
             b.code = `${errorVar}.path=${path->Stdlib.Inlined.Value.fromString}+${switch maybeDynamicLocationVar {
               | Some(var) => `'["'+${var}+'"]'+`
@@ -640,7 +645,7 @@ module Builder = {
               }}${errorVar}.path`
             None
           },
-          b => fn(b, ~path=Path.empty),
+          b => fn(b, ~input, ~path=Path.empty),
         ) catch {
         | Raised(error) =>
           InternalError.raise(
@@ -1385,7 +1390,7 @@ let recursive = fn => {
 
       selfSchema.parseOperationBuilder = builder
 
-      b->B.withPathPrepend(~path, (b, ~path as _) =>
+      b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) =>
         if isAsync {
           b->B.embedAsyncOperation(~input, ~fn=operation)
         } else {
@@ -1412,7 +1417,9 @@ let recursive = fn => {
       selfSchema->Obj.magic->Js.Dict.set((Operation.Serializer :> string), operation)
 
       selfSchema.serializeOperationBuilder = builder
-      b->B.withPathPrepend(~path, (b, ~path as _) => b->B.embedSyncOperation(~input, ~fn=operation))
+      b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) =>
+        b->B.embedSyncOperation(~input, ~fn=operation)
+      )
     })
   }
 
@@ -2791,21 +2798,24 @@ module Array = {
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let inputVar = b->B.Val.var(input)
         let iteratorVar = b->B.varWithoutAllocation
-        let output = b->B.val("[]")
 
         let bb = b->B.scope
+        let itemInput = bb->B.val(`${inputVar}[${iteratorVar}]`)
         let itemOutput =
-          bb->B.withPathPrepend(~path, ~dynamicLocationVar=iteratorVar, (b, ~path) =>
-            b->B.useWithTypeFilter(~schema, ~input=b->B.val(`${inputVar}[${iteratorVar}]`), ~path)
-          )
+          bb->B.withPathPrepend(~input=itemInput, ~path, ~dynamicLocationVar=iteratorVar, (
+            b,
+            ~input,
+            ~path,
+          ) => b->B.useWithTypeFilter(~schema, ~input, ~path))
         let itemCode = bb->B.allocateScope
+        let isTransformed = itemInput !== itemOutput
+        let output = isTransformed ? b->B.val("[]") : input
 
         b.code =
           b.code ++
-          `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${itemCode}${b->B.Val.push(
-              output,
-              itemOutput,
-            )}}`
+          `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${itemCode}${isTransformed
+              ? b->B.Val.push(output, itemOutput)
+              : ""}}`
 
         if itemOutput.isAsync {
           b->B.asyncVal(`()=>Promise.all(${b->B.Val.var(output)}.map(t=>t()))`)
@@ -2823,8 +2833,11 @@ module Array = {
 
           let bb = b->B.scope
           let itemOutput =
-            bb->B.withPathPrepend(~path, ~dynamicLocationVar=iteratorVar, (b, ~path) =>
-              b->B.use(~schema, ~input=b->B.val(`${inputVar}[${iteratorVar}]`), ~path)
+            bb->B.withPathPrepend(
+              ~input=bb->B.val(`${inputVar}[${iteratorVar}]`),
+              ~path,
+              ~dynamicLocationVar=iteratorVar,
+              (b, ~input, ~path) => b->B.use(~schema, ~input, ~path),
             )
           let itemCode = bb->B.allocateScope
 
@@ -2908,11 +2921,13 @@ module Dict = {
         let bb = b->B.scope
         let itemInput = bb->B.val(`${inputVar}[${keyVar}]`)
         let itemOutput =
-          bb->B.withPathPrepend(~path, ~dynamicLocationVar=keyVar, (b, ~path) =>
-            b->B.useWithTypeFilter(~schema, ~input=itemInput, ~path)
-          )
+          bb->B.withPathPrepend(~path, ~input=itemInput, ~dynamicLocationVar=keyVar, (
+            b,
+            ~input,
+            ~path,
+          ) => b->B.useWithTypeFilter(~schema, ~input, ~path))
         let itemCode = bb->B.allocateScope
-        let isTransformed = itemInput !== itemOutput // FIXME: Make withPathPrepend return not transformed val
+        let isTransformed = itemInput !== itemOutput
         let output = isTransformed ? b->B.val("{}") : input
 
         b.code =
@@ -2944,8 +2959,11 @@ module Dict = {
 
           let bb = b->B.scope
           let itemOutput =
-            bb->B.withPathPrepend(~path, ~dynamicLocationVar=keyVar, (b, ~path) =>
-              b->B.use(~schema, ~input=b->B.val(`${inputVar}[${keyVar}]`), ~path)
+            bb->B.withPathPrepend(
+              ~input=bb->B.val(`${inputVar}[${keyVar}]`),
+              ~path,
+              ~dynamicLocationVar=keyVar,
+              (b, ~input, ~path) => b->B.use(~schema, ~input, ~path),
             )
           let itemCode = bb->B.allocateScope
 
@@ -3379,6 +3397,7 @@ let catch = (schema, getFallbackValue) => {
       let inputVar = b->B.Val.var(input)
 
       b->B.withCatch(
+        ~input,
         ~catch=(b, ~errorVar) => Some(
           b->B.val(
             `${b->B.embed((input, internalError) =>

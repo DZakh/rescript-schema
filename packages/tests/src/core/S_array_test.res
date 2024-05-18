@@ -52,7 +52,7 @@ module CommonWithNested = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!Array.isArray(i)){e[1](i)}let v4=[];for(let v0=0;v0<i.length;++v0){let v3;try{let v2=i[v0];if(typeof v2!=="string"){e[0](v2)}v3=v2}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}v4.push(v3)}return v4}`,
+      `i=>{if(!Array.isArray(i)){e[1](i)}for(let v0=0;v0<i.length;++v0){let v2=i[v0];try{if(typeof v2!=="string"){e[0](v2)}}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}}return i}`,
     )
   })
 
@@ -79,7 +79,7 @@ module CommonWithNested = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#serialize,
-      `i=>{let v5=[];for(let v0=0;v0<i.length;++v0){let v4;try{let v2=i[v0],v3;if(v2!==void 0){v3=e[0](v2)}v4=v3}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}v5.push(v4)}return v5}`,
+      `i=>{let v5=[];for(let v0=0;v0<i.length;++v0){let v2=i[v0],v4;try{let v3;if(v2!==void 0){v3=e[0](v2)}v4=v3}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}v5.push(v4)}return v5}`,
     )
   })
 }

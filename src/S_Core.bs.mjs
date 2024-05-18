@@ -284,7 +284,7 @@ function invalidOperation(b, path, description) {
           }, b.o, path);
 }
 
-function withCatch(b, $$catch, fn) {
+function withCatch(b, input, $$catch, fn) {
   var prevCode = b.c;
   b.c = "";
   var errorVar = varWithoutAllocation(b);
@@ -295,8 +295,10 @@ function withCatch(b, $$catch, fn) {
   var fnOutput = fn(b$1);
   var b$2 = exitScope(b$1);
   var isAsync = fnOutput.a;
-  var output = allocateVal(b$2);
-  output.a = isAsync;
+  var output = input === fnOutput ? input : ({
+        s: b$2,
+        a: isAsync
+      });
   var catchCode$1 = maybeResolveVal !== undefined ? (function (catchLocation) {
         return catchCode + (
                 catchLocation === 1 ? "return Promise.resolve(" + inline(b$2, maybeResolveVal) + ")" : (
@@ -313,17 +315,17 @@ function withCatch(b, $$catch, fn) {
   return output;
 }
 
-function withPathPrepend(b, path, maybeDynamicLocationVar, fn) {
+function withPathPrepend(b, input, path, maybeDynamicLocationVar, fn) {
   if (path === "" && maybeDynamicLocationVar === undefined) {
-    return fn(b, path);
+    return fn(b, input, path);
   }
   try {
-    return withCatch(b, (function (b, errorVar) {
+    return withCatch(b, input, (function (b, errorVar) {
                   b.c = errorVar + ".path=" + JSON.stringify(path) + "+" + (
                     maybeDynamicLocationVar !== undefined ? "'[\"'+" + maybeDynamicLocationVar + "+'\"]'+" : ""
                   ) + errorVar + ".path";
                 }), (function (b) {
-                  return fn(b, "");
+                  return fn(b, input, "");
                 }));
   }
   catch (raw_error){
@@ -1073,7 +1075,7 @@ function recursive(fn) {
         selfSchema["op"] = operation;
       }
       selfSchema.p = builder;
-      return withPathPrepend(b, path, undefined, (function (b, param) {
+      return withPathPrepend(b, input, path, undefined, (function (b, input, param) {
                     if (isAsync) {
                       return embedAsyncOperation(b, input, operation);
                     } else {
@@ -1091,7 +1093,7 @@ function recursive(fn) {
       var operation = build(builder$1, selfSchema, "Serializing");
       selfSchema["os"] = operation;
       selfSchema.s = builder$1;
-      return withPathPrepend(b, path, undefined, (function (b, param) {
+      return withPathPrepend(b, input, path, undefined, (function (b, input, param) {
                     return embedSyncOperation(b, input, operation);
                   }));
     });
@@ -2181,13 +2183,17 @@ function factory$5(schema) {
           p: (function (b, input, param, path) {
               var inputVar = $$var(b, input);
               var iteratorVar = varWithoutAllocation(b);
-              var output = val(b, "[]");
               var bb = scope(b);
-              var itemOutput = withPathPrepend(bb, path, iteratorVar, (function (b, path) {
-                      return useWithTypeFilter(b, schema, val(b, inputVar + "[" + iteratorVar + "]"), path);
+              var itemInput = val(bb, inputVar + "[" + iteratorVar + "]");
+              var itemOutput = withPathPrepend(bb, itemInput, path, iteratorVar, (function (b, input, path) {
+                      return useWithTypeFilter(b, schema, input, path);
                     }));
               var itemCode = allocateScope(bb);
-              b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + itemCode + push(b, output, itemOutput) + "}");
+              var isTransformed = itemInput !== itemOutput;
+              var output = isTransformed ? val(b, "[]") : input;
+              b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + itemCode + (
+                  isTransformed ? push(b, output, itemOutput) : ""
+                ) + "}");
               if (itemOutput.a) {
                 return asyncVal(b, "()=>Promise.all(" + $$var(b, output) + ".map(t=>t()))");
               } else {
@@ -2202,8 +2208,8 @@ function factory$5(schema) {
               var iteratorVar = varWithoutAllocation(b);
               var output = val(b, "[]");
               var bb = scope(b);
-              var itemOutput = withPathPrepend(bb, path, iteratorVar, (function (b, path) {
-                      return use(b, schema, val(b, inputVar + "[" + iteratorVar + "]"), path);
+              var itemOutput = withPathPrepend(bb, val(bb, inputVar + "[" + iteratorVar + "]"), path, iteratorVar, (function (b, input, path) {
+                      return use(b, schema, input, path);
                     }));
               var itemCode = allocateScope(bb);
               b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + itemCode + push(b, output, itemOutput) + "}");
@@ -2266,8 +2272,8 @@ function factory$6(schema) {
               var keyVar = varWithoutAllocation(b);
               var bb = scope(b);
               var itemInput = val(bb, inputVar + "[" + keyVar + "]");
-              var itemOutput = withPathPrepend(bb, path, keyVar, (function (b, path) {
-                      return useWithTypeFilter(b, schema, itemInput, path);
+              var itemOutput = withPathPrepend(bb, itemInput, path, keyVar, (function (b, input, path) {
+                      return useWithTypeFilter(b, schema, input, path);
                     }));
               var itemCode = allocateScope(bb);
               var isTransformed = itemInput !== itemOutput;
@@ -2293,8 +2299,8 @@ function factory$6(schema) {
               var output = val(b, "{}");
               var keyVar = varWithoutAllocation(b);
               var bb = scope(b);
-              var itemOutput = withPathPrepend(bb, path, keyVar, (function (b, path) {
-                      return use(b, schema, val(b, inputVar + "[" + keyVar + "]"), path);
+              var itemOutput = withPathPrepend(bb, val(bb, inputVar + "[" + keyVar + "]"), path, keyVar, (function (b, input, path) {
+                      return use(b, schema, input, path);
                     }));
               var itemCode = allocateScope(bb);
               b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + itemCode + addKey(b, output, keyVar, itemOutput) + "}");
@@ -2618,7 +2624,7 @@ function $$catch(schema, getFallbackValue) {
           n: schema.n,
           p: (function (b, input, selfSchema, path) {
               var inputVar = $$var(b, input);
-              return withCatch(b, (function (b, errorVar) {
+              return withCatch(b, input, (function (b, errorVar) {
                             return val(b, "e[" + (b.e.push(function (input, internalError) {
                                               return getFallbackValue({
                                                           e: internalError,

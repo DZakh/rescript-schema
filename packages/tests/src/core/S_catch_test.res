@@ -116,8 +116,7 @@ test("Compiled parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#parse,
-    // TODO: Improve to return i without reassigning
-    `i=>{let v1;try{if(typeof i!=="boolean"){e[1](i)}v1=i}catch(v0){if(v0&&v0.s===s){v1=e[0](i,v0)}else{throw v0}}return v1}`,
+    `i=>{try{if(typeof i!=="boolean"){e[1](i)}}catch(v0){if(v0&&v0.s===s){i=e[0](i,v0)}else{throw v0}}return i}`,
   )
 })
 
