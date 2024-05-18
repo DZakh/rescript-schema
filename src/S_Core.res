@@ -505,16 +505,15 @@ module Builder = {
 
     let transform = (b: b, ~input, operation) => {
       if input.isAsync {
-        let prevCode = b.code
-        b.code = ""
+        let bb = b->scope
         let operationInput: val = {
-          _var: b->varWithoutAllocation,
-          _scope: b,
+          _var: bb->varWithoutAllocation,
+          _scope: bb,
           isAsync: false,
         }
-        let operationOutputVal = operation(~input=operationInput)
-        let operationCode = b.code
-        b.code = prevCode
+        let operationOutputVal = operation(bb, ~input=operationInput)
+        let operationCode = bb->allocateScope
+
         b->asyncVal(
           // TODO: Use Val.inline
           `()=>${b->Val.var(input)}().then(${b->Val.var(
@@ -524,18 +523,18 @@ module Builder = {
               : b->Val.inline(operationOutputVal)}})`,
         )
       } else {
-        operation(~input)
+        operation(b, ~input)
       }
     }
 
     let embedSyncOperation = (b: b, ~input, ~fn: 'input => 'output) => {
-      b->transform(~input, (~input) => {
+      b->transform(~input, (b, ~input) => {
         b->Val.map(b->embed(fn), input)
       })
     }
 
     let embedAsyncOperation = (b: b, ~input, ~fn: 'input => unit => promise<'output>) => {
-      b->transform(~input, (~input) => {
+      b->transform(~input, (b, ~input) => {
         let val = b->Val.map(b->embed(fn), input)
         val.isAsync = true
         val
@@ -669,12 +668,12 @@ module Builder = {
       switch schema.maybeTypeFilter {
       | Some(typeFilter) =>
         b.code = b.code ++ b->typeFilterCode(~schema, ~typeFilter, ~input, ~path)
-      | None => ()
+        let bb = b->scope
+        let val = bb->use(~schema, ~input, ~path)
+        b.code = b.code ++ bb->allocateScope
+        val
+      | None => b->use(~schema, ~input, ~path)
       }
-      let bb = b->scope
-      let val = bb->use(~schema, ~input, ~path)
-      b.code = b.code ++ bb->allocateScope
-      val
     }
   }
 
@@ -722,7 +721,7 @@ module Builder = {
     } else {
       let inlinedFunction = `${intitialInputVar}=>{${b.code}return ${b->B.Val.inline(output)}}`
 
-      // Js.log(inlinedFunction)
+      Js.log(inlinedFunction)
 
       Stdlib.Function.make2(
         ~ctxVarName1="e",
@@ -1408,7 +1407,7 @@ let internalRefine = (schema, refiner) => {
     ~name=schema.name,
     ~tagged=schema.tagged,
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-      b->B.transform(~input=b->B.use(~schema, ~input, ~path), (~input) => {
+      b->B.transform(~input=b->B.use(~schema, ~input, ~path), (b, ~input) => {
         let rCode = refiner(b, ~input, ~selfSchema, ~path)
         b.code = b.code ++ rCode
         input
@@ -1417,7 +1416,7 @@ let internalRefine = (schema, refiner) => {
     ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       b->B.use(
         ~schema,
-        ~input=b->B.transform(~input, (~input) => {
+        ~input=b->B.transform(~input, (b, ~input) => {
           b.code = b.code ++ refiner(b, ~input, ~selfSchema, ~path)
           input
         }),
@@ -1530,7 +1529,7 @@ let rec preprocess = (schema, transformer) => {
         | {parser, asyncParser: ?None} =>
           b->B.useWithTypeFilter(~schema, ~input=b->B.embedSyncOperation(~input, ~fn=parser), ~path)
         | {parser: ?None, asyncParser} =>
-          b->B.transform(~input=b->B.embedAsyncOperation(~input, ~fn=asyncParser), (~input) => {
+          b->B.transform(~input=b->B.embedAsyncOperation(~input, ~fn=asyncParser), (b, ~input) => {
             b->B.useWithTypeFilter(~schema, ~input, ~path)
           })
         | {parser: ?None, asyncParser: ?None} => b->B.useWithTypeFilter(~schema, ~input, ~path)
@@ -1846,7 +1845,7 @@ module Option = {
       ~metadataMap=schema.metadataMap->Metadata.Map.set(~id=defaultMetadataId, default),
       ~tagged=schema.tagged,
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-        b->B.transform(~input=b->B.use(~schema, ~input, ~path), (~input) => {
+        b->B.transform(~input=b->B.use(~schema, ~input, ~path), (b, ~input) => {
           let inputVar = b->B.Val.var(input)
           b->B.val(
             `${inputVar}===void 0?${switch default {

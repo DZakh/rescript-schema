@@ -250,7 +250,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0,v1=i["1"];v0=e[0](i["0"]);if(typeof v1!=="boolean"){e[1](v1)}return ()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]))}`,
+      `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0=e[0](i["0"]),v1=i["1"];if(typeof v1!=="boolean"){e[1](v1)}return ()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]))}`,
     )
   })
 

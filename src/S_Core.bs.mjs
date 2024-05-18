@@ -216,31 +216,29 @@ function map(b, inlinedFn, input) {
 
 function transform(b, input, operation) {
   if (!input.a) {
-    return operation(input);
+    return operation(b, input);
   }
-  var prevCode = b.c;
-  b.c = "";
+  var bb = scope(b);
   var operationInput = {
-    v: varWithoutAllocation(b),
-    s: b,
+    v: varWithoutAllocation(bb),
+    s: bb,
     a: false
   };
-  var operationOutputVal = operation(operationInput);
-  var operationCode = b.c;
-  b.c = prevCode;
+  var operationOutputVal = operation(bb, operationInput);
+  var operationCode = allocateScope(bb);
   return asyncVal(b, "()=>" + $$var(b, input) + "().then(" + $$var(b, operationInput) + "=>{" + operationCode + "return " + (
               operationOutputVal.a ? "(" + inline(b, operationOutputVal) + ")()" : inline(b, operationOutputVal)
             ) + "})");
 }
 
 function embedSyncOperation(b, input, fn) {
-  return transform(b, input, (function (input) {
+  return transform(b, input, (function (b, input) {
                 return map(b, "e[" + (b.e.push(fn) - 1) + "]", input);
               }));
 }
 
 function embedAsyncOperation(b, input, fn) {
-  return transform(b, input, (function (input) {
+  return transform(b, input, (function (b, input) {
                 var val = map(b, "e[" + (b.e.push(fn) - 1) + "]", input);
                 val.a = true;
                 return val;
@@ -344,9 +342,10 @@ function use(b, schema, input, path) {
 
 function useWithTypeFilter(b, schema, input, path) {
   var typeFilter = schema.f;
-  if (typeFilter !== undefined) {
-    b.c = b.c + typeFilterCode(b, typeFilter, schema, input, path);
+  if (typeFilter === undefined) {
+    return use(b, schema, input, path);
   }
+  b.c = b.c + typeFilterCode(b, typeFilter, schema, input, path);
   var bb = scope(b);
   var val = use(bb, schema, input, path);
   b.c = b.c + allocateScope(bb);
@@ -391,6 +390,7 @@ function build(builder, schema, operation) {
     return noopOperation;
   }
   var inlinedFunction = "i=>{" + b.c + "return " + inline(b, output) + "}";
+  console.log(inlinedFunction);
   return new Function("e", "s", "return " + inlinedFunction)(b.e, symbol);
 }
 
@@ -1071,14 +1071,14 @@ function internalRefine(schema, refiner) {
           t: schema.t,
           n: schema.n,
           p: (function (b, input, selfSchema, path) {
-              return transform(b, use(b, schema, input, path), (function (input) {
+              return transform(b, use(b, schema, input, path), (function (b, input) {
                             var rCode = refiner(b, input, selfSchema, path);
                             b.c = b.c + rCode;
                             return input;
                           }));
             }),
           s: (function (b, input, selfSchema, path) {
-              return use(b, schema, transform(b, input, (function (input) {
+              return use(b, schema, transform(b, input, (function (b, input) {
                                 b.c = b.c + refiner(b, input, selfSchema, path);
                                 return input;
                               })), path);
@@ -1175,7 +1175,7 @@ function preprocess(schema, transformer) {
               }
               var asyncParser = match.a;
               if (asyncParser !== undefined) {
-                return transform(b, embedAsyncOperation(b, input, asyncParser), (function (input) {
+                return transform(b, embedAsyncOperation(b, input, asyncParser), (function (b, input) {
                               return useWithTypeFilter(b, schema, input, path);
                             }));
               } else {
@@ -1423,7 +1423,7 @@ function getWithDefault(schema, $$default) {
           t: schema.t,
           n: schema.n,
           p: (function (b, input, param, path) {
-              return transform(b, use(b, schema, input, path), (function (input) {
+              return transform(b, use(b, schema, input, path), (function (b, input) {
                             var inputVar = $$var(b, input);
                             var tmp;
                             tmp = $$default.TAG === "Value" ? "e[" + (b.e.push($$default._0) - 1) + "]" : "e[" + (b.e.push($$default._0) - 1) + "]()";
