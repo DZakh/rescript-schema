@@ -19,9 +19,9 @@ module Common = {
     t->U.assertErrorResult(
       invalidAny->S.parseAnyWith(schema),
       {
-        code: InvalidTupleSize({
-          expected: 2,
-          received: 1,
+        code: InvalidType({
+          expected: schema->S.toUnknown,
+          received: invalidAny,
         }),
         operation: Parsing,
         path: S.Path.empty,

@@ -295,7 +295,6 @@ and errorCode =
   | InvalidOperation({description: string})
   | InvalidType({expected: schema<unknown>, received: unknown})
   | InvalidLiteral({expected: literal, received: unknown})
-  | InvalidTupleSize({expected: int, received: int})
   | ExcessField(string)
   | InvalidUnion(array<error>)
   | UnexpectedAsync
@@ -1914,15 +1913,9 @@ module Object = {
     ~itemDefinitions,
     ~itemDefinitionsSet,
     ~definition,
-    ~inputRefinement,
     ~unknownKeysRefinement,
   ) => {
     Builder.make((b, ~input, ~selfSchema, ~path) => {
-      switch inputRefinement {
-      | Some(inputRefinement) => inputRefinement(b, ~input, ~selfSchema, ~path)
-      | None => ()
-      }
-
       let registeredDefinitions = Stdlib.Set.empty()
       let asyncOutputVars = []
 
@@ -1930,9 +1923,6 @@ module Object = {
 
       let inputVar = b->B.Val.var(input)
       let prevCode = b.code
-      b.code = ""
-      unknownKeysRefinement(b, ~input, ~selfSchema, ~path)
-      let unknownKeysRefinementCode = b.code
       b.code = ""
 
       let syncOutput = {
@@ -2004,10 +1994,13 @@ module Object = {
       }
       let unregisteredFieldsCode = b.code
 
-      b.code =
-        prevCode ++ unregisteredFieldsCode ++ registeredFieldsCode ++ unknownKeysRefinementCode
+      b.code = prevCode ++ unregisteredFieldsCode ++ registeredFieldsCode
 
-      let val = if asyncOutputVars->Js.Array2.length === 0 {
+      unknownKeysRefinement(b, ~input, ~selfSchema, ~path)
+
+      let _ = b->B.exitScope
+
+      if asyncOutputVars->Js.Array2.length === 0 {
         b->B.val(syncOutput)
       } else {
         b->B.asyncVal(
@@ -2018,10 +2011,6 @@ module Object = {
             )}]).then(([${asyncOutputVars->Js.Array2.toString}])=>(${syncOutput}))`,
         )
       }
-
-      let _ = b->B.exitScope
-
-      val
     })
   }
 
@@ -2120,7 +2109,6 @@ module Object = {
         ~itemDefinitions,
         ~itemDefinitionsSet,
         ~definition,
-        ~inputRefinement=None,
         ~unknownKeysRefinement=(b, ~input, ~selfSchema, ~path) => {
           let inputVar = b->B.Val.var(input)
           let withUnknownKeysRefinement =
@@ -2750,22 +2738,6 @@ module Tuple = {
         ~itemDefinitions,
         ~itemDefinitionsSet,
         ~definition,
-        ~inputRefinement=Some(
-          (b, ~input, ~selfSchema as _, ~path) => {
-            let inputVar = b->B.Val.var(input)
-
-            b.code =
-              b.code ++
-              `if(${inputVar}.length!==${length->Stdlib.Int.unsafeToString}){${b->B.raiseWithArg(
-                  ~path,
-                  numberOfInputItems => InvalidTupleSize({
-                    expected: length,
-                    received: numberOfInputItems,
-                  }),
-                  `${inputVar}.length`,
-                )}}`
-          },
-        ),
         ~unknownKeysRefinement=Object.noopRefinement,
       ),
       ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
@@ -2855,7 +2827,11 @@ module Tuple = {
 
         output
       }),
-      ~maybeTypeFilter=Some(Array.typeFilter),
+      ~maybeTypeFilter=Some(
+        (~inputVar) =>
+          Array.typeFilter(~inputVar) ++
+          `||${inputVar}.length!==${length->Stdlib.Int.unsafeToString}`,
+      ),
       ~metadataMap=Metadata.Map.empty,
     )
   }
@@ -3225,8 +3201,6 @@ module Error = {
         ->Literal.parse
         ->Literal.toString}`
     | InvalidJsonStruct(schema) => `The schema ${schema.name()} is not compatible with JSON`
-    | InvalidTupleSize({expected, received}) =>
-      `Expected Tuple with ${expected->Stdlib.Int.unsafeToString} items, received ${received->Stdlib.Int.unsafeToString}`
     | InvalidUnion(errors) => {
         let lineBreak = `\n${" "->Js.String2.repeat(nestedLevel * 2)}`
         let reasons =

@@ -20,9 +20,9 @@ module Tuple0 = {
     t->U.assertErrorResult(
       invalidAny->S.parseAnyWith(schema),
       {
-        code: InvalidTupleSize({
-          expected: 0,
-          received: 1,
+        code: InvalidType({
+          expected: schema->S.toUnknown,
+          received: invalidAny,
         }),
         operation: Parsing,
         path: S.Path.empty,
@@ -194,7 +194,10 @@ test("Tuple schema parsing checks order", t => {
   t->U.assertErrorResult(
     %raw(`["wrong", "wrong", "value", "value"]`)->S.parseAnyWith(schema),
     {
-      code: InvalidTupleSize({expected: 2, received: 4}),
+      code: InvalidType({
+        expected: schema->S.toUnknown,
+        received: %raw(`["wrong", "wrong", "value", "value"]`),
+      }),
       operation: Parsing,
       path: S.Path.empty,
     },
@@ -234,7 +237,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!Array.isArray(i)){e[3](i)}if(i.length!==2){e[0](i.length)}let v0=i["0"],v1=i["1"];if(typeof v0!=="string"){e[1](v0)}if(typeof v1!=="boolean"){e[2](v1)}return [v0,v1,]}`,
+      `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0=i["0"],v1=i["1"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return [v0,v1,]}`,
     )
   })
 
@@ -247,7 +250,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!Array.isArray(i)){e[3](i)}if(i.length!==2){e[0](i.length)}let v0,v1=i["1"];v0=e[1](i["0"]);if(typeof v1!=="boolean"){e[2](v1)}return ()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]))}`,
+      `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0,v1=i["1"];v0=e[0](i["0"]);if(typeof v1!=="boolean"){e[1](v1)}return ()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]))}`,
     )
   })
 
@@ -284,7 +287,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#parse,
-        `i=>{if(!Array.isArray(i)){e[5](i)}if(i.length!==3){e[0](i.length)}let v0=i["1"],v1=i["2"],v2=i["0"];v2===0||e[4](v2);if(typeof v0!=="string"){e[1](v0)}if(typeof v1!=="boolean"){e[2](v1)}return {"foo":v0,"bar":v1,"zoo":e[3],}}`,
+        `i=>{if(!Array.isArray(i)||i.length!==3){e[4](i)}let v0=i["1"],v1=i["2"],v2=i["0"];v2===0||e[3](v2);if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return {"foo":v0,"bar":v1,"zoo":e[2],}}`,
       )
     },
   )

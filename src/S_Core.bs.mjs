@@ -1484,19 +1484,13 @@ function noopRefinement(_b, param, param$1, param$2) {
   
 }
 
-function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definition, inputRefinement, unknownKeysRefinement) {
+function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definition, unknownKeysRefinement) {
   return function (b, input, selfSchema, path) {
-    if (inputRefinement !== undefined) {
-      inputRefinement(b, input, selfSchema, path);
-    }
     var registeredDefinitions = new Set();
     var asyncOutputVars = [];
     var b$1 = scope(b);
     var inputVar = $$var(b$1, input);
     var prevCode = b$1.c;
-    b$1.c = "";
-    unknownKeysRefinement(b$1, input, selfSchema, path);
-    var unknownKeysRefinementCode = b$1.c;
     b$1.c = "";
     var definitionToOutput = function (definition, outputPath) {
       var kind = toKindWithSet(definition, itemDefinitionsSet);
@@ -1547,12 +1541,16 @@ function makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet, definiti
       
     }
     var unregisteredFieldsCode = b$1.c;
-    b$1.c = prevCode + unregisteredFieldsCode + registeredFieldsCode + unknownKeysRefinementCode;
-    var val$1 = asyncOutputVars.length === 0 ? val(b$1, syncOutput) : asyncVal(b$1, "()=>Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
-                  return asyncOutputVar + "()";
-                }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "))");
+    b$1.c = prevCode + unregisteredFieldsCode + registeredFieldsCode;
+    unknownKeysRefinement(b$1, input, selfSchema, path);
     exitScope(b$1);
-    return val$1;
+    if (asyncOutputVars.length === 0) {
+      return val(b$1, syncOutput);
+    } else {
+      return asyncVal(b$1, "()=>Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
+                        return asyncOutputVar + "()";
+                      }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "))");
+    }
   };
 }
 
@@ -1611,7 +1609,7 @@ function factory$3(definer) {
                             return JSON.stringify(fieldName) + ": " + fieldSchema.n();
                           }).join(", ") + "})";
             }),
-          p: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, undefined, (function (b, input, selfSchema, path) {
+          p: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, (function (b, input, selfSchema, path) {
                   var inputVar = $$var(b, input);
                   var withUnknownKeysRefinement = selfSchema.t.unknownKeys === "Strict";
                   if (!withUnknownKeysRefinement) {
@@ -2090,16 +2088,7 @@ function factory$7(definer) {
                             return s.n();
                           }).join(", ") + ")";
             }),
-          p: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, (function (b, input, param, path) {
-                  var inputVar = $$var(b, input);
-                  b.c = b.c + ("if(" + inputVar + ".length!==" + length + "){" + raiseWithArg(b, path, (function (numberOfInputItems) {
-                            return {
-                                    TAG: "InvalidTupleSize",
-                                    expected: length,
-                                    received: numberOfInputItems
-                                  };
-                          }), inputVar + ".length") + "}");
-                }), noopRefinement),
+          p: makeParseOperationBuilder(itemDefinitions, itemDefinitionsSet$1, definition, noopRefinement),
           s: (function (b, input, param, path) {
               var output = val(b, "[]");
               var registeredDefinitions = new Set();
@@ -2152,7 +2141,9 @@ function factory$7(definer) {
               }
               return output;
             }),
-          f: typeFilter$5,
+          f: (function (inputVar) {
+              return typeFilter$5(inputVar) + ("||" + inputVar + ".length!==" + length);
+            }),
           i: 0,
           m: empty
         };
@@ -2459,8 +2450,6 @@ function reason(error, nestedLevelOpt) {
         return "Expected " + reason$1.expected.n() + ", received " + parseInternal(reason$1.received).s;
     case "InvalidLiteral" :
         return "Expected " + reason$1.expected.s + ", received " + parseInternal(reason$1.received).s;
-    case "InvalidTupleSize" :
-        return "Expected Tuple with " + reason$1.expected + " items, received " + reason$1.received;
     case "ExcessField" :
         return "Encountered disallowed excess key " + JSON.stringify(reason$1._0) + " on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely";
     case "InvalidUnion" :

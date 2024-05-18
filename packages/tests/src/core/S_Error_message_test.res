@@ -96,14 +96,17 @@ test("ExcessField error", t => {
   )
 })
 
-test("InvalidTupleSize error", t => {
+test("InvalidType error (replacement for InvalidTupleSize)", t => {
   t->Assert.is(
     U.error({
-      code: InvalidTupleSize({expected: 1, received: 2}),
+      code: InvalidType({
+        expected: S.tuple2(S.bool, S.int)->S.toUnknown,
+        received: (1, 2, "foo")->Obj.magic,
+      }),
       operation: Parsing,
       path: S.Path.empty,
     })->S.Error.message,
-    `Failed parsing at root. Reason: Expected Tuple with 1 items, received 2`,
+    `Failed parsing at root. Reason: Expected Tuple(Bool, Int), received [1,2,"foo"]`,
     (),
   )
 })

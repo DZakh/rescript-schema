@@ -20,6 +20,7 @@
 - Removed async support for `S.union`. Please create an issue if you used the feature
 - Improved parsing performance of S.array and S.dict ~3 times
 - Automatic serializing stopped working for tuples/objects/unions of literals. Use `S.literal` instead.
+- Removed `InvalidTupleSize` error code in favor of `InvalidType`
 - Moved built-in refinements from nested modules to improve tree-shaking:
 
   - `Int.min`->`intMin`
