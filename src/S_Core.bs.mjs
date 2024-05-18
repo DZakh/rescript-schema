@@ -365,19 +365,6 @@ function useWithTypeFilter(b, schema, input, path) {
   return val;
 }
 
-function catchBuildError(b, $$catch, payload, fn) {
-  var initialCode = b.c;
-  try {
-    return fn(payload);
-  }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    $$catch(getOrRethrow(exn));
-    b.c = initialCode;
-    return ;
-  }
-}
-
 function noop(_b, input, param, param$1) {
   return input;
 }
@@ -2464,32 +2451,31 @@ function factory$8(schemas) {
             p: (function (b, input, selfSchema, path) {
                 var schemas = selfSchema.t._0;
                 var output = allocateVal(b);
-                var codeEndRef = {
-                  contents: ""
-                };
-                var errorCodeRef = {
-                  contents: ""
-                };
-                var isAsync = {
-                  contents: false
-                };
+                var codeEndRef = "";
+                var errorCodeRef = "";
+                var isAsync = false;
                 for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
-                  catchBuildError(b, (function (error) {
-                          errorCodeRef.contents = errorCodeRef.contents + ("e[" + (b.e.push(error) - 1) + "]") + ",";
-                        }), idx, (function (idx) {
-                          var schema = schemas[idx];
-                          var errorVar = "e" + idx;
-                          b.c = b.c + "try{";
-                          var itemOutput = useWithTypeFilter(b, schema, input, "");
-                          if (itemOutput.a) {
-                            isAsync.contents = true;
-                          }
-                          b.c = b.c + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
-                          codeEndRef.contents = codeEndRef.contents + "}";
-                          errorCodeRef.contents = errorCodeRef.contents + errorVar + ",";
-                        }));
+                  var prevCode = b.c;
+                  try {
+                    var schema = schemas[idx];
+                    var errorVar = "e" + idx;
+                    b.c = b.c + "try{";
+                    var itemOutput = useWithTypeFilter(b, schema, input, "");
+                    if (itemOutput.a) {
+                      isAsync = true;
+                    }
+                    b.c = b.c + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
+                    codeEndRef = codeEndRef + "}";
+                    errorCodeRef = errorCodeRef + errorVar + ",";
+                  }
+                  catch (raw_exn){
+                    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+                    var value = getOrRethrow(exn);
+                    errorCodeRef = errorCodeRef + ("e[" + (b.e.push(value) - 1) + "]") + ",";
+                    b.c = prevCode;
+                  }
                 }
-                if (isAsync.contents) {
+                if (isAsync) {
                   invalidOperation(b, path, "S.union doesn't support async items. Please create an issue to rescript-schema if you nead the feature.");
                 }
                 b.c = b.c + raiseWithArg(b, path, (function (internalErrors) {
@@ -2497,8 +2483,8 @@ function factory$8(schemas) {
                                 TAG: "InvalidUnion",
                                 _0: internalErrors
                               };
-                      }), "[" + errorCodeRef.contents + "]") + codeEndRef.contents;
-                var isAllSchemasBuilderFailed = codeEndRef.contents === "";
+                      }), "[" + errorCodeRef + "]") + codeEndRef;
+                var isAllSchemasBuilderFailed = codeEndRef === "";
                 if (isAllSchemasBuilderFailed) {
                   b.c = b.c + ";";
                   return input;
@@ -2509,35 +2495,36 @@ function factory$8(schemas) {
             s: (function (b, input, selfSchema, path) {
                 var schemas = selfSchema.t._0;
                 var output = allocateVal(b);
-                var codeEndRef = {
-                  contents: ""
-                };
-                var errorCodeRef = {
-                  contents: ""
-                };
+                var codeEndRef = "";
+                var errorCodeRef = "";
                 for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
-                  catchBuildError(b, (function (error) {
-                          errorCodeRef.contents = errorCodeRef.contents + ("e[" + (b.e.push(error) - 1) + "]") + ",";
-                        }), idx, (function (idx) {
-                          var schema = schemas[idx];
-                          var errorVar = "e" + idx;
-                          b.c = b.c + "try{";
-                          var itemOutput = use(b, schema, input, "");
-                          var typeFilter = schema.f;
-                          b.c = b.c + (
-                            typeFilter !== undefined ? typeFilterCode(b, typeFilter, schema, itemOutput, "") : ""
-                          ) + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
-                          codeEndRef.contents = codeEndRef.contents + "}";
-                          errorCodeRef.contents = errorCodeRef.contents + errorVar + ",";
-                        }));
+                  var prevCode = b.c;
+                  try {
+                    var schema = schemas[idx];
+                    var errorVar = "e" + idx;
+                    b.c = b.c + "try{";
+                    var itemOutput = use(b, schema, input, "");
+                    var typeFilter = schema.f;
+                    b.c = b.c + (
+                      typeFilter !== undefined ? typeFilterCode(b, typeFilter, schema, itemOutput, "") : ""
+                    ) + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
+                    codeEndRef = codeEndRef + "}";
+                    errorCodeRef = errorCodeRef + errorVar + ",";
+                  }
+                  catch (raw_exn){
+                    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+                    var value = getOrRethrow(exn);
+                    errorCodeRef = errorCodeRef + ("e[" + (b.e.push(value) - 1) + "]") + ",";
+                    b.c = prevCode;
+                  }
                 }
                 b.c = b.c + raiseWithArg(b, path, (function (internalErrors) {
                         return {
                                 TAG: "InvalidUnion",
                                 _0: internalErrors
                               };
-                      }), "[" + errorCodeRef.contents + "]") + codeEndRef.contents;
-                var isAllSchemasBuilderFailed = codeEndRef.contents === "";
+                      }), "[" + errorCodeRef + "]") + codeEndRef;
+                var isAllSchemasBuilderFailed = codeEndRef === "";
                 if (isAllSchemasBuilderFailed) {
                   b.c = b.c + ";";
                   return input;

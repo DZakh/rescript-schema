@@ -685,17 +685,6 @@ module Builder = {
       let _ = b->exitScope
       val
     }
-
-    let catchBuildError = (b: b, ~catch, ~payload, fn) => {
-      let initialCode = b.code
-      try {
-        fn(payload)
-      } catch {
-      | exn =>
-        catch(exn->InternalError.getOrRethrow)
-        b.code = initialCode
-      }
-    }
   }
 
   let noop = make((_b, ~input, ~selfSchema as _, ~path as _) => input)
@@ -3193,25 +3182,26 @@ module Union = {
 
           // TODO: Add support for async
           for idx in 0 to schemas->Js.Array2.length - 1 {
-            b->B.catchBuildError(
-              ~catch=error => errorCodeRef := errorCodeRef.contents ++ b->B.embed(error) ++ ",",
-              // TODO: Should be not needed in rescript@12. A hack so the idx doesn't create an additional function to catch var context
-              ~payload=idx,
-              idx => {
-                let schema = schemas->Js.Array2.unsafe_get(idx)
-                let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
-                b.code = b.code ++ `try{`
-                let itemOutput = b->B.useWithTypeFilter(~schema, ~input, ~path=Path.empty)
-                if itemOutput.isAsync {
-                  isAsync := true
-                }
+            let prevCode = b.code
+            try {
+              let schema = schemas->Js.Array2.unsafe_get(idx)
+              let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
+              b.code = b.code ++ `try{`
+              let itemOutput = b->B.useWithTypeFilter(~schema, ~input, ~path=Path.empty)
+              if itemOutput.isAsync {
+                isAsync := true
+              }
 
-                b.code = b.code ++ `${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
-                codeEndRef.contents = codeEndRef.contents ++ "}"
+              b.code = b.code ++ `${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
+              codeEndRef.contents = codeEndRef.contents ++ "}"
 
-                errorCodeRef := errorCodeRef.contents ++ errorVar ++ ","
-              },
-            )
+              errorCodeRef := errorCodeRef.contents ++ errorVar ++ ","
+            } catch {
+            | exn =>
+              errorCodeRef :=
+                errorCodeRef.contents ++ b->B.embed(exn->InternalError.getOrRethrow) ++ ","
+              b.code = prevCode
+            }
           }
 
           if isAsync.contents {
@@ -3248,27 +3238,30 @@ module Union = {
           let errorCodeRef = ref("")
 
           for idx in 0 to schemas->Js.Array2.length - 1 {
-            b->B.catchBuildError(
-              ~catch=error => errorCodeRef := errorCodeRef.contents ++ b->B.embed(error) ++ ",",
-              ~payload=idx,
-              idx => {
-                let schema = schemas->Js.Array2.unsafe_get(idx)
-                let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
-                b.code = b.code ++ `try{`
-                let itemOutput = b->B.use(~schema, ~input, ~path=Path.empty)
-                b.code =
-                  b.code ++
-                  switch schema.maybeTypeFilter {
-                  | Some(typeFilter) =>
-                    b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemOutput, ~path=Path.empty)
-                  | None => ""
-                  } ++
-                  `${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
-                codeEndRef.contents = codeEndRef.contents ++ "}"
+            let prevCode = b.code
+            try {
+              let schema = schemas->Js.Array2.unsafe_get(idx)
+              let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
+              b.code = b.code ++ `try{`
+              let itemOutput = b->B.use(~schema, ~input, ~path=Path.empty)
+              b.code =
+                b.code ++
+                switch schema.maybeTypeFilter {
+                | Some(typeFilter) =>
+                  b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemOutput, ~path=Path.empty)
+                | None => ""
+                } ++
+                `${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
+              codeEndRef.contents = codeEndRef.contents ++ "}"
 
-                errorCodeRef := errorCodeRef.contents ++ errorVar ++ ","
-              },
-            )
+              errorCodeRef := errorCodeRef.contents ++ errorVar ++ ","
+            } catch {
+            | exn => {
+                errorCodeRef :=
+                  errorCodeRef.contents ++ b->B.embed(exn->InternalError.getOrRethrow) ++ ","
+                b.code = prevCode
+              }
+            }
           }
 
           b.code =
