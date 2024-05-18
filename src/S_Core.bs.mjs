@@ -2277,13 +2277,17 @@ function factory$6(schema) {
           p: (function (b, input, param, path) {
               var inputVar = $$var(b, input);
               var keyVar = varWithoutAllocation(b);
-              var output = val(b, "{}");
               var bb = scope(b);
+              var itemInput = val(bb, inputVar + "[" + keyVar + "]");
               var itemOutput = withPathPrepend(bb, path, keyVar, (function (b, path) {
-                      return useWithTypeFilter(b, schema, val(b, inputVar + "[" + keyVar + "]"), path);
+                      return useWithTypeFilter(b, schema, itemInput, path);
                     }));
               var itemCode = allocateScope(bb);
-              b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + itemCode + addKey(b, output, keyVar, itemOutput) + "}");
+              var isTransformed = itemInput !== itemOutput;
+              var output = isTransformed ? val(b, "{}") : input;
+              b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + itemCode + (
+                  isTransformed ? addKey(b, output, keyVar, itemOutput) : ""
+                ) + "}");
               if (!itemOutput.a) {
                 return output;
               }
@@ -2299,8 +2303,8 @@ function factory$6(schema) {
                 return input;
               }
               var inputVar = $$var(b, input);
-              var keyVar = varWithoutAllocation(b);
               var output = val(b, "{}");
+              var keyVar = varWithoutAllocation(b);
               var bb = scope(b);
               var itemOutput = withPathPrepend(bb, path, keyVar, (function (b, path) {
                       return use(b, schema, val(b, inputVar + "[" + keyVar + "]"), path);

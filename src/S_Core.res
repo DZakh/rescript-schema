@@ -2915,22 +2915,22 @@ module Dict = {
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let inputVar = b->B.Val.var(input)
         let keyVar = b->B.varWithoutAllocation
-        let output = b->B.val("{}")
 
         let bb = b->B.scope
+        let itemInput = bb->B.val(`${inputVar}[${keyVar}]`)
         let itemOutput =
           bb->B.withPathPrepend(~path, ~dynamicLocationVar=keyVar, (b, ~path) =>
-            b->B.useWithTypeFilter(~schema, ~input=b->B.val(`${inputVar}[${keyVar}]`), ~path)
+            b->B.useWithTypeFilter(~schema, ~input=itemInput, ~path)
           )
         let itemCode = bb->B.allocateScope
+        let isTransformed = itemInput !== itemOutput // FIXME: Make withPathPrepend return not transformed val
+        let output = isTransformed ? b->B.val("{}") : input
 
         b.code =
           b.code ++
-          `for(let ${keyVar} in ${inputVar}){${itemCode}${b->B.Val.addKey(
-              output,
-              keyVar,
-              itemOutput,
-            )}}`
+          `for(let ${keyVar} in ${inputVar}){${itemCode}${isTransformed
+              ? b->B.Val.addKey(output, keyVar, itemOutput)
+              : ""}}`
 
         if itemOutput.isAsync {
           let resolveVar = b->B.varWithoutAllocation
@@ -2950,8 +2950,8 @@ module Dict = {
           input
         } else {
           let inputVar = b->B.Val.var(input)
-          let keyVar = b->B.varWithoutAllocation
           let output = b->B.val("{}")
+          let keyVar = b->B.varWithoutAllocation
 
           let bb = b->B.scope
           let itemOutput =
