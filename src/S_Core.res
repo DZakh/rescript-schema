@@ -267,19 +267,13 @@ and tagged =
   | Dict(t<unknown>)
   | JSON({validated: bool})
 and builder
-and builderScope = {
-  @as("l")
-  mutable _varsAllocation: string,
-  @as("a")
-  mutable _isAllocated: bool,
-}
 and val = {
   @as("v")
   mutable _var?: string,
   @as("i")
   _initial?: string,
   @as("s")
-  _varScope: builderScope,
+  _scope: b,
   @as("a")
   mutable isAsync: bool,
 }
@@ -290,8 +284,12 @@ and b = {
   operation: operation,
   @as("v")
   mutable _varCounter: int,
-  @as("s")
-  mutable _scope: builderScope,
+  @as("l")
+  mutable _varsAllocation: string,
+  @as("a")
+  mutable _isAllocated: bool,
+  @as("p")
+  mutable _parent: b,
   @as("e")
   _embeded: array<unknown>,
 }
@@ -404,40 +402,26 @@ module Builder = {
           ->(Obj.magic: float => string)}]`
     }
 
-    let scope = (b: b, fn) => {
-      let prevCode = b.code
-      let prevScope = b._scope
-      let newScope = {
+    let scope = (b: b): b => {
+      {
+        _parent: b,
+        _embeded: b._embeded,
+        _varCounter: b._varCounter,
+        code: "",
+        operation: b.operation,
         _varsAllocation: "",
         _isAllocated: false,
       }
-      b._scope = newScope
-      b.code = ""
-      let resultCode = fn(b)
-      let varsAllocation = newScope._varsAllocation
-      let code = varsAllocation === "" ? b.code : `let ${varsAllocation};${b.code}`
-      newScope._isAllocated = true
-      b._scope = prevScope
-      b.code = prevCode
-      code ++ resultCode
     }
 
-    let valScope = (b: b, fn) => {
-      let prevCode = b.code
-      let prevScope = b._scope
-      let newScope = {
-        _varsAllocation: "",
-        _isAllocated: false,
-      }
-      b._scope = newScope
-      b.code = ""
-      let val = fn(b)
-      let varsAllocation = newScope._varsAllocation
-      let code = varsAllocation === "" ? b.code : `let ${varsAllocation};${b.code}`
-      newScope._isAllocated = true
-      b._scope = prevScope
-      b.code = prevCode ++ code
-      val
+    let exitScope = (b: b): b => {
+      let varsAllocation = b._varsAllocation
+      b._isAllocated = true
+      let parent = b._parent
+      parent.code =
+        parent.code ++ (varsAllocation === "" ? b.code : `let ${varsAllocation};${b.code}`)
+      parent._varCounter = b._varCounter
+      parent
     }
 
     let varWithoutAllocation = (b: b) => {
@@ -447,15 +431,15 @@ module Builder = {
     }
 
     let allocateVal = (b: b): val => {
-      {_varScope: b._scope, isAsync: false}
+      {_scope: b, isAsync: false}
     }
 
     let val = (b: b, initial: string): val => {
-      {_initial: initial, _varScope: b._scope, isAsync: false}
+      {_initial: initial, _scope: b, isAsync: false}
     }
 
     let asyncVal = (b: b, initial: string): val => {
-      {_initial: initial, _varScope: b._scope, isAsync: true}
+      {_initial: initial, _scope: b, isAsync: true}
     }
 
     module Val = {
@@ -471,8 +455,8 @@ module Builder = {
         | {_var} => _var
         | _ => {
             let var = b->varWithoutAllocation
-            let isValScopeActive = !val._varScope._isAllocated
-            let activeScope = isValScopeActive ? val._varScope : b._scope
+            let isValScopeActive = !val._scope._isAllocated
+            let activeScope = isValScopeActive ? val._scope : b
             let allocation = switch val._initial {
             | Some(i) if isValScopeActive => `${var}=${i}`
             | _ => var
@@ -537,7 +521,7 @@ module Builder = {
         b.code = ""
         let operationInput: val = {
           _var: b->varWithoutAllocation,
-          _varScope: b._scope,
+          _scope: b,
           isAsync: false,
         }
         let operationOutputVal = operation(~input=operationInput)
@@ -598,9 +582,11 @@ module Builder = {
       let errorVar = b->varWithoutAllocation
       let maybeResolveVal = catch(b, ~errorVar)
       let catchCode = `if(${b->isInternalError(errorVar)}){${b.code}`
-
       b.code = ""
-      let fnOutput = b->valScope(fn)
+
+      let b = b->scope
+      let fnOutput = fn(b)
+      let b = b->exitScope
       let isAsync = fnOutput.isAsync
 
       let output = b->allocateVal
@@ -691,20 +677,20 @@ module Builder = {
         b.code = b.code ++ b->typeFilterCode(~schema, ~typeFilter, ~input, ~path)
       | None => ()
       }
-      b->valScope(b => b->use(~schema, ~input, ~path))
+      let b = b->scope
+      let val = b->use(~schema, ~input, ~path)
+      let _ = b->exitScope
+      val
     }
 
     let catchBuildError = (b: b, ~catch, ~payload, fn) => {
       let initialCode = b.code
-      let initialScope = b._scope
       try {
         fn(payload)
       } catch {
-      | exn => {
-          catch(exn->InternalError.getOrRethrow)
-          b._scope = initialScope
-          b.code = initialCode
-        }
+      | exn =>
+        catch(exn->InternalError.getOrRethrow)
+        b.code = initialCode
       }
     }
   }
@@ -717,18 +703,16 @@ module Builder = {
   let intitialInputVar = "i"
 
   let build = (builder, ~schema, ~operation) => {
-    let scope = {
-      _varsAllocation: "",
-      _isAllocated: false,
-    }
-    let input = {_var: intitialInputVar, _varScope: scope, isAsync: false}
     let b = {
       _embeded: [],
       _varCounter: -1,
-      _scope: scope,
       code: "",
+      _varsAllocation: "",
+      _isAllocated: false,
+      _parent: %raw(`void 0`),
       operation,
     }
+    let input = {_var: intitialInputVar, _scope: b, isAsync: false}
 
     let output = (builder->(Obj.magic: builder => implementation))(
       b,
@@ -737,8 +721,8 @@ module Builder = {
       ~path=Path.empty,
     )
 
-    if b._scope._varsAllocation !== "" {
-      b.code = `let ${b._scope._varsAllocation};${b.code}`
+    if b._varsAllocation !== "" {
+      b.code = `let ${b._varsAllocation};${b.code}`
     }
 
     if operation === Parsing {
@@ -1372,20 +1356,18 @@ let recursive = fn => {
     placeholder.parseOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path) => {
       let isAsync = {
         selfSchema.parseOperationBuilder = Builder.noop
-        let scope = {
+        let b = {
+          _embeded: [],
+          code: "",
+          _varCounter: -1,
+          operation: Parsing,
+          _parent: %raw(`void 0`),
           _varsAllocation: "",
           _isAllocated: false,
         }
-        let input = {_var: Builder.intitialInputVar, _varScope: scope, isAsync: false}
-        let ctx = {
-          _embeded: [],
-          code: "",
-          _scope: scope,
-          _varCounter: -1,
-          operation: Parsing,
-        }
+        let input = {_var: Builder.intitialInputVar, _scope: b, isAsync: false}
         let output = (builder->(Obj.magic: builder => Builder.implementation))(
-          ctx,
+          b,
           ~input,
           ~selfSchema,
           ~path,
@@ -1834,13 +1816,13 @@ module Option = {
 
     let prevCode = b.code
     b.code = ""
-    let itemOutput = b->B.valScope(b => {
-      b->B.use(~schema=childSchema, ~input, ~path)
-    })
+    let b = b->B.scope
+    let itemOutput = b->B.use(~schema=childSchema, ~input, ~path)
+    let b = b->B.exitScope
     let itemCode = b.code
     let isTransformed = isNull || itemOutput !== input
 
-    let output = isTransformed ? {_varScope: b._scope, isAsync: itemOutput.isAsync} : input
+    let output = isTransformed ? {_scope: b, isAsync: itemOutput.isAsync} : input
 
     if itemCode !== "" || isTransformed {
       b.code =
@@ -1860,18 +1842,22 @@ module Option = {
     let isNull = %raw(`selfSchema.t.TAG === "Null"`)
     let childSchema = selfSchema.tagged->unsafeGetVariantPayload
 
+    b.code = b.code ++ `if(${b->B.Val.var(input)}!==void 0){`
+
+    let b = b->B.scope
+    let itemOutput =
+      b->B.use(
+        ~schema=childSchema,
+        ~input=b->B.Val.map(b->B.embed(%raw("Caml_option.valFromOption")), input),
+        ~path,
+      )
+    let b = b->B.exitScope
+
     b.code =
       b.code ++
-      `if(${b->B.Val.var(input)}!==void 0){${b->B.scope(b => {
-          b->B.Val.set(
-            output,
-            b->B.use(
-              ~schema=childSchema,
-              ~input=b->B.Val.map(b->B.embed(%raw("Caml_option.valFromOption")), input),
-              ~path,
-            ),
-          )
-        })}}${isNull ? `else{${b->B.Val.setInlined(output, `null`)}}` : ""}`
+      `${b->B.Val.set(output, itemOutput)}}${isNull
+          ? `else{${b->B.Val.setInlined(output, `null`)}}`
+          : ""}`
 
     output
   })
@@ -1981,98 +1967,102 @@ module Object = {
       let registeredDefinitions = Stdlib.Set.empty()
       let asyncOutputVars = []
 
-      b->B.valScope(b => {
-        let inputVar = b->B.Val.var(input)
-        let prevCode = b.code
-        b.code = ""
-        unknownKeysRefinement(b, ~input, ~selfSchema, ~path)
-        let unknownKeysRefinementCode = b.code
-        b.code = ""
+      let b = b->B.scope
 
-        let syncOutput = {
-          let rec definitionToOutput = (definition: Definition.t<itemDefinition>, ~outputPath) => {
-            let kind = definition->Definition.toKindWithSet(~embededSet=itemDefinitionsSet)
-            switch kind {
-            | Embeded => {
-                let itemDefinition = definition->Definition.toEmbeded
-                registeredDefinitions->Stdlib.Set.add(itemDefinition)->ignore
-                let {schema, inputPath} = itemDefinition
-                let fieldOuput =
-                  b->B.useWithTypeFilter(
-                    ~schema,
-                    ~input=b->B.val(`${inputVar}${inputPath}`),
-                    ~path=path->Path.concat(inputPath),
+      let inputVar = b->B.Val.var(input)
+      let prevCode = b.code
+      b.code = ""
+      unknownKeysRefinement(b, ~input, ~selfSchema, ~path)
+      let unknownKeysRefinementCode = b.code
+      b.code = ""
+
+      let syncOutput = {
+        let rec definitionToOutput = (definition: Definition.t<itemDefinition>, ~outputPath) => {
+          let kind = definition->Definition.toKindWithSet(~embededSet=itemDefinitionsSet)
+          switch kind {
+          | Embeded => {
+              let itemDefinition = definition->Definition.toEmbeded
+              registeredDefinitions->Stdlib.Set.add(itemDefinition)->ignore
+              let {schema, inputPath} = itemDefinition
+              let fieldOuput =
+                b->B.useWithTypeFilter(
+                  ~schema,
+                  ~input=b->B.val(`${inputVar}${inputPath}`),
+                  ~path=path->Path.concat(inputPath),
+                )
+
+              if fieldOuput.isAsync {
+                let asyncOutputVar = b->B.Val.var(fieldOuput)
+                asyncOutputVars->Js.Array2.push(asyncOutputVar)->ignore
+                asyncOutputVar
+              } else {
+                b->B.Val.inline(fieldOuput)
+              }
+            }
+          | Constant => {
+              let constant = definition->Definition.toConstant
+              b->B.embed(constant)
+            }
+          | Node => {
+              let node = definition->Definition.toNode
+              let isArray = Stdlib.Array.isArray(node)
+              let keys = node->Js.Dict.keys
+              let codeRef = ref(isArray ? "[" : "{")
+              for idx in 0 to keys->Js.Array2.length - 1 {
+                let key = keys->Js.Array2.unsafe_get(idx)
+                let definition = node->Js.Dict.unsafeGet(key)
+                let output =
+                  definition->definitionToOutput(
+                    ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
                   )
-
-                if fieldOuput.isAsync {
-                  let asyncOutputVar = b->B.Val.var(fieldOuput)
-                  asyncOutputVars->Js.Array2.push(asyncOutputVar)->ignore
-                  asyncOutputVar
-                } else {
-                  b->B.Val.inline(fieldOuput)
-                }
+                codeRef.contents =
+                  codeRef.contents ++
+                  (isArray ? output : `${key->Stdlib.Inlined.Value.fromString}:${output}`) ++ ","
               }
-            | Constant => {
-                let constant = definition->Definition.toConstant
-                b->B.embed(constant)
-              }
-            | Node => {
-                let node = definition->Definition.toNode
-                let isArray = Stdlib.Array.isArray(node)
-                let keys = node->Js.Dict.keys
-                let codeRef = ref(isArray ? "[" : "{")
-                for idx in 0 to keys->Js.Array2.length - 1 {
-                  let key = keys->Js.Array2.unsafe_get(idx)
-                  let definition = node->Js.Dict.unsafeGet(key)
-                  let output =
-                    definition->definitionToOutput(
-                      ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
-                    )
-                  codeRef.contents =
-                    codeRef.contents ++
-                    (isArray ? output : `${key->Stdlib.Inlined.Value.fromString}:${output}`) ++ ","
-                }
-                codeRef.contents ++ (isArray ? "]" : "}")
-              }
-            }
-          }
-          definition->definitionToOutput(~outputPath=Path.empty)
-        }
-        let registeredFieldsCode = b.code
-        b.code = ""
-
-        for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
-          let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
-          if registeredDefinitions->Stdlib.Set.has(itemDefinition)->not {
-            let {schema, inputPath} = itemDefinition
-            let fieldOuput =
-              b->B.useWithTypeFilter(
-                ~schema,
-                ~input=b->B.val(`${inputVar}${inputPath}`),
-                ~path=path->Path.concat(inputPath),
-              )
-            if fieldOuput.isAsync {
-              asyncOutputVars->Js.Array2.push(b->B.Val.var(fieldOuput))->ignore
+              codeRef.contents ++ (isArray ? "]" : "}")
             }
           }
         }
-        let unregisteredFieldsCode = b.code
+        definition->definitionToOutput(~outputPath=Path.empty)
+      }
+      let registeredFieldsCode = b.code
+      b.code = ""
 
-        b.code =
-          prevCode ++ unregisteredFieldsCode ++ registeredFieldsCode ++ unknownKeysRefinementCode
-
-        if asyncOutputVars->Js.Array2.length === 0 {
-          b->B.val(syncOutput)
-        } else {
-          b->B.asyncVal(
-            `()=>Promise.all([${asyncOutputVars
-              ->Js.Array2.map(asyncOutputVar => `${asyncOutputVar}()`)
-              ->Js.Array2.joinWith(
-                ",",
-              )}]).then(([${asyncOutputVars->Js.Array2.toString}])=>(${syncOutput}))`,
-          )
+      for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
+        let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
+        if registeredDefinitions->Stdlib.Set.has(itemDefinition)->not {
+          let {schema, inputPath} = itemDefinition
+          let fieldOuput =
+            b->B.useWithTypeFilter(
+              ~schema,
+              ~input=b->B.val(`${inputVar}${inputPath}`),
+              ~path=path->Path.concat(inputPath),
+            )
+          if fieldOuput.isAsync {
+            asyncOutputVars->Js.Array2.push(b->B.Val.var(fieldOuput))->ignore
+          }
         }
-      })
+      }
+      let unregisteredFieldsCode = b.code
+
+      b.code =
+        prevCode ++ unregisteredFieldsCode ++ registeredFieldsCode ++ unknownKeysRefinementCode
+
+      let val = if asyncOutputVars->Js.Array2.length === 0 {
+        b->B.val(syncOutput)
+      } else {
+        b->B.asyncVal(
+          `()=>Promise.all([${asyncOutputVars
+            ->Js.Array2.map(asyncOutputVar => `${asyncOutputVar}()`)
+            ->Js.Array2.joinWith(
+              ",",
+            )}]).then(([${asyncOutputVars->Js.Array2.toString}])=>(${syncOutput}))`,
+        )
+      }
+
+      let _ = b->B.exitScope
+
+      val
     })
   }
 
@@ -2597,7 +2587,10 @@ module JsonString = {
               "t.message",
             )}}`
 
-        b->B.valScope(b => b->B.useWithTypeFilter(~schema, ~input=jsonVal, ~path))
+        let b = b->B.scope
+        let val = b->B.useWithTypeFilter(~schema, ~input=jsonVal, ~path)
+        let _ = b->B.exitScope
+        val
       }),
       ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         b->B.val(
@@ -2814,18 +2807,12 @@ module Array = {
         b.code =
           b.code ++ `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){`
 
-        let itemOutput = b->B.valScope(b => {
-          b->B.withPathPrepend(
-            ~path,
-            ~dynamicLocationVar=iteratorVar,
-            (b, ~path) =>
-              b->B.useWithTypeFilter(
-                ~schema,
-                ~input=b->B.val(`${inputVar}[${iteratorVar}]`),
-                ~path,
-              ),
+        let b = b->B.scope
+        let itemOutput =
+          b->B.withPathPrepend(~path, ~dynamicLocationVar=iteratorVar, (b, ~path) =>
+            b->B.useWithTypeFilter(~schema, ~input=b->B.val(`${inputVar}[${iteratorVar}]`), ~path)
           )
-        })
+        let b = b->B.exitScope
 
         b.code = b.code ++ b->B.Val.push(output, itemOutput) ++ `}`
 
@@ -2845,19 +2832,16 @@ module Array = {
 
           b.code =
             b.code ++
-            `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${b->B.scope(
-                b => {
-                  let itemOutput =
-                    b->B.withPathPrepend(
-                      ~path,
-                      ~dynamicLocationVar=iteratorVar,
-                      (b, ~path) =>
-                        b->B.use(~schema, ~input=b->B.val(`${inputVar}[${iteratorVar}]`), ~path),
-                    )
+            `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){`
 
-                  b->B.Val.push(output, itemOutput)
-                },
-              )}}`
+          let b = b->B.scope
+          let itemOutput =
+            b->B.withPathPrepend(~path, ~dynamicLocationVar=iteratorVar, (b, ~path) =>
+              b->B.use(~schema, ~input=b->B.val(`${inputVar}[${iteratorVar}]`), ~path)
+            )
+          let b = b->B.exitScope
+
+          b.code = b.code ++ `${b->B.Val.push(output, itemOutput)}}`
 
           output
         }
@@ -2932,14 +2916,12 @@ module Dict = {
 
         b.code = b.code ++ `for(let ${keyVar} in ${inputVar}){`
 
-        let itemOutput = b->B.valScope(b => {
-          b->B.withPathPrepend(
-            ~path,
-            ~dynamicLocationVar=keyVar,
-            (b, ~path) =>
-              b->B.useWithTypeFilter(~schema, ~input=b->B.val(`${inputVar}[${keyVar}]`), ~path),
+        let b = b->B.scope
+        let itemOutput =
+          b->B.withPathPrepend(~path, ~dynamicLocationVar=keyVar, (b, ~path) =>
+            b->B.useWithTypeFilter(~schema, ~input=b->B.val(`${inputVar}[${keyVar}]`), ~path)
           )
-        })
+        let b = b->B.exitScope
 
         b.code = b.code ++ b->B.Val.addKey(output, keyVar, itemOutput) ++ `}`
 
@@ -2964,18 +2946,16 @@ module Dict = {
           let keyVar = b->B.varWithoutAllocation
           let output = b->B.val("{}")
 
-          b.code =
-            b.code ++
-            `for(let ${keyVar} in ${inputVar}){${b->B.scope(b => {
-                let itemOutput =
-                  b->B.withPathPrepend(
-                    ~path,
-                    ~dynamicLocationVar=keyVar,
-                    (b, ~path) =>
-                      b->B.use(~schema, ~input=b->B.val(`${inputVar}[${keyVar}]`), ~path),
-                  )
-                b->B.Val.addKey(output, keyVar, itemOutput)
-              })}}`
+          b.code = b.code ++ `for(let ${keyVar} in ${inputVar}){`
+
+          let b = b->B.scope
+          let itemOutput =
+            b->B.withPathPrepend(~path, ~dynamicLocationVar=keyVar, (b, ~path) =>
+              b->B.use(~schema, ~input=b->B.val(`${inputVar}[${keyVar}]`), ~path)
+            )
+          let b = b->B.exitScope
+
+          b.code = b.code ++ `${b->B.Val.addKey(output, keyVar, itemOutput)}}`
 
           output
         }
