@@ -654,25 +654,35 @@ module Builder = {
         )}}`
     }
 
-    let use = (b: b, ~schema, ~input, ~path) => {
-      let isParsing = b.operation === Parsing
-
-      (
-        (isParsing ? schema.parseOperationBuilder : schema.serializeOperationBuilder)->(
-          Obj.magic: builder => implementation
-        )
-      )(b, ~input, ~selfSchema=schema, ~path)
+    @inline
+    let serialize = (b: b, ~schema, ~input, ~path) => {
+      (schema.serializeOperationBuilder->(Obj.magic: builder => implementation))(
+        b,
+        ~input,
+        ~selfSchema=schema,
+        ~path,
+      )
     }
 
-    let useWithTypeFilter = (b: b, ~schema, ~input, ~path) => {
+    @inline
+    let parse = (b: b, ~schema, ~input, ~path) => {
+      (schema.parseOperationBuilder->(Obj.magic: builder => implementation))(
+        b,
+        ~input,
+        ~selfSchema=schema,
+        ~path,
+      )
+    }
+
+    let parseWithTypeCheck = (b: b, ~schema, ~input, ~path) => {
       switch schema.maybeTypeFilter {
       | Some(typeFilter) =>
         b.code = b.code ++ b->typeFilterCode(~schema, ~typeFilter, ~input, ~path)
         let bb = b->scope
-        let val = bb->use(~schema, ~input, ~path)
+        let val = bb->parse(~schema, ~input, ~path)
         b.code = b.code ++ bb->allocateScope
         val
-      | None => b->use(~schema, ~input, ~path)
+      | None => b->parse(~schema, ~input, ~path)
       }
     }
   }
@@ -721,7 +731,7 @@ module Builder = {
     } else {
       let inlinedFunction = `${intitialInputVar}=>{${b.code}return ${b->B.Val.inline(output)}}`
 
-      Js.log(inlinedFunction)
+      // Js.log(inlinedFunction)
 
       Stdlib.Function.make2(
         ~ctxVarName1="e",
@@ -1407,14 +1417,14 @@ let internalRefine = (schema, refiner) => {
     ~name=schema.name,
     ~tagged=schema.tagged,
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-      b->B.transform(~input=b->B.use(~schema, ~input, ~path), (b, ~input) => {
+      b->B.transform(~input=b->B.parse(~schema, ~input, ~path), (b, ~input) => {
         let rCode = refiner(b, ~input, ~selfSchema, ~path)
         b.code = b.code ++ rCode
         input
       })
     }),
     ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-      b->B.use(
+      b->B.serialize(
         ~schema,
         ~input=b->B.transform(~input, (b, ~input) => {
           b.code = b.code ++ refiner(b, ~input, ~selfSchema, ~path)
@@ -1465,7 +1475,7 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
     ~name=schema.name,
     ~tagged=schema.tagged,
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-      let input = b->B.use(~schema, ~input, ~path)
+      let input = b->B.parse(~schema, ~input, ~path)
 
       switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~input, ~fn=parser)
@@ -1483,9 +1493,9 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
     ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
       | {serializer} =>
-        b->B.use(~schema, ~input=b->B.embedSyncOperation(~input, ~fn=serializer), ~path)
-
-      | {parser: ?None, asyncParser: ?None, serializer: ?None} => b->B.use(~schema, ~input, ~path)
+        b->B.serialize(~schema, ~input=b->B.embedSyncOperation(~input, ~fn=serializer), ~path)
+      | {parser: ?None, asyncParser: ?None, serializer: ?None} =>
+        b->B.serialize(~schema, ~input, ~path)
       | {serializer: ?None, asyncParser: ?Some(_)}
       | {serializer: ?None, parser: ?Some(_)} =>
         b->B.invalidOperation(~path, ~description=`The S.transform serializer is missing`)
@@ -1527,12 +1537,16 @@ let rec preprocess = (schema, transformer) => {
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
         switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
         | {parser, asyncParser: ?None} =>
-          b->B.useWithTypeFilter(~schema, ~input=b->B.embedSyncOperation(~input, ~fn=parser), ~path)
+          b->B.parseWithTypeCheck(
+            ~schema,
+            ~input=b->B.embedSyncOperation(~input, ~fn=parser),
+            ~path,
+          )
         | {parser: ?None, asyncParser} =>
           b->B.transform(~input=b->B.embedAsyncOperation(~input, ~fn=asyncParser), (b, ~input) => {
-            b->B.useWithTypeFilter(~schema, ~input, ~path)
+            b->B.parseWithTypeCheck(~schema, ~input, ~path)
           })
-        | {parser: ?None, asyncParser: ?None} => b->B.useWithTypeFilter(~schema, ~input, ~path)
+        | {parser: ?None, asyncParser: ?None} => b->B.parseWithTypeCheck(~schema, ~input, ~path)
         | {parser: _, asyncParser: _} =>
           b->B.invalidOperation(
             ~path,
@@ -1541,7 +1555,7 @@ let rec preprocess = (schema, transformer) => {
         }
       }),
       ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-        let input = b->B.use(~schema, ~input, ~path)
+        let input = b->B.serialize(~schema, ~input, ~path)
 
         switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
         | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
@@ -1666,7 +1680,7 @@ module Variant = {
         ~name=schema.name,
         ~tagged=schema.tagged,
         ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-          b->B.embedSyncOperation(~input=b->B.use(~schema, ~input, ~path), ~fn=definer)
+          b->B.embedSyncOperation(~input=b->B.parse(~schema, ~input, ~path), ~fn=definer)
         }),
         ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
           let inputVar = b->B.Val.var(input)
@@ -1735,11 +1749,11 @@ module Variant = {
               ~path,
               ~description=`Can't create serializer. The S.variant's value is registered multiple times. Use S.transform instead`,
             )
-          | Registered(var) => b->B.use(~schema, ~input=var, ~path)
+          | Registered(var) => b->B.serialize(~schema, ~input=var, ~path)
           | Unregistered =>
             switch selfSchema->Literal.fromSchema {
             | Some(literal) =>
-              b->B.use(~schema, ~input=b->B.val(b->B.embed(literal->Literal.value)), ~path)
+              b->B.serialize(~schema, ~input=b->B.val(b->B.embed(literal->Literal.value)), ~path)
             | None =>
               b->B.invalidOperation(
                 ~path,
@@ -1770,7 +1784,7 @@ module Option = {
     let childSchema = selfSchema.tagged->unsafeGetVariantPayload
 
     let bb = b->B.scope
-    let itemOutput = bb->B.use(~schema=childSchema, ~input, ~path)
+    let itemOutput = bb->B.parse(~schema=childSchema, ~input, ~path)
     let itemCode = bb->B.allocateScope
 
     let isTransformed = isNull || itemOutput !== input
@@ -1798,7 +1812,7 @@ module Option = {
 
     let bb = b->B.scope
     let itemOutput =
-      bb->B.use(
+      bb->B.serialize(
         ~schema=childSchema,
         ~input=bb->B.Val.map(bb->B.embed(%raw("Caml_option.valFromOption")), input),
         ~path,
@@ -1845,7 +1859,7 @@ module Option = {
       ~metadataMap=schema.metadataMap->Metadata.Map.set(~id=defaultMetadataId, default),
       ~tagged=schema.tagged,
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-        b->B.transform(~input=b->B.use(~schema, ~input, ~path), (b, ~input) => {
+        b->B.transform(~input=b->B.parse(~schema, ~input, ~path), (b, ~input) => {
           let inputVar = b->B.Val.var(input)
           b->B.val(
             `${inputVar}===void 0?${switch default {
@@ -1926,7 +1940,7 @@ module Object = {
               registeredDefinitions->Stdlib.Set.add(itemDefinition)->ignore
               let {schema, inputPath} = itemDefinition
               let fieldOuput =
-                b->B.useWithTypeFilter(
+                b->B.parseWithTypeCheck(
                   ~schema,
                   ~input=b->B.val(`${inputVar}${inputPath}`),
                   ~path=path->Path.concat(inputPath),
@@ -1974,7 +1988,7 @@ module Object = {
         if registeredDefinitions->Stdlib.Set.has(itemDefinition)->not {
           let {schema, inputPath} = itemDefinition
           let fieldOuput =
-            b->B.useWithTypeFilter(
+            b->B.parseWithTypeCheck(
               ~schema,
               ~input=b->B.val(`${inputVar}${inputPath}`),
               ~path=path->Path.concat(inputPath),
@@ -2163,7 +2177,7 @@ module Object = {
                 fieldsCodeRef.contents =
                   fieldsCodeRef.contents ++
                   `${inlinedInputLocation}:${b->B.Val.inline(
-                      b->B.use(
+                      b->B.serialize(
                         ~schema,
                         ~input=b->B.val(`${inputVar}${outputPath}`),
                         ~path=path->Path.concat(outputPath),
@@ -2374,13 +2388,13 @@ module JsonString = {
             )}}`
 
         let bb = b->B.scope
-        let val = bb->B.useWithTypeFilter(~schema, ~input=jsonVal, ~path)
+        let val = bb->B.parseWithTypeCheck(~schema, ~input=jsonVal, ~path)
         b.code = b.code ++ bb->B.allocateScope
         val
       }),
       ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         b->B.val(
-          `JSON.stringify(${b->B.Val.inline(b->B.use(~schema, ~input, ~path))}${space > 0
+          `JSON.stringify(${b->B.Val.inline(b->B.serialize(~schema, ~input, ~path))}${space > 0
               ? `,null,${space->Stdlib.Int.unsafeToString}`
               : ""})`,
         )
@@ -2515,7 +2529,7 @@ module Array = {
             b,
             ~input,
             ~path,
-          ) => b->B.useWithTypeFilter(~schema, ~input, ~path))
+          ) => b->B.parseWithTypeCheck(~schema, ~input, ~path))
         let itemCode = bb->B.allocateScope
         let isTransformed = itemInput !== itemOutput
         let output = isTransformed ? b->B.val("[]") : input
@@ -2546,7 +2560,7 @@ module Array = {
               ~input=bb->B.val(`${inputVar}[${iteratorVar}]`),
               ~path,
               ~dynamicLocationVar=iteratorVar,
-              (b, ~input, ~path) => b->B.use(~schema, ~input, ~path),
+              (b, ~input, ~path) => b->B.serialize(~schema, ~input, ~path),
             )
           let itemCode = bb->B.allocateScope
 
@@ -2583,7 +2597,7 @@ module Dict = {
             b,
             ~input,
             ~path,
-          ) => b->B.useWithTypeFilter(~schema, ~input, ~path))
+          ) => b->B.parseWithTypeCheck(~schema, ~input, ~path))
         let itemCode = bb->B.allocateScope
         let isTransformed = itemInput !== itemOutput
         let output = isTransformed ? b->B.val("{}") : input
@@ -2621,7 +2635,7 @@ module Dict = {
               ~input=bb->B.val(`${inputVar}[${keyVar}]`),
               ~path,
               ~dynamicLocationVar=keyVar,
-              (b, ~input, ~path) => b->B.use(~schema, ~input, ~path),
+              (b, ~input, ~path) => b->B.serialize(~schema, ~input, ~path),
             )
           let itemCode = bb->B.allocateScope
 
@@ -2755,7 +2769,7 @@ module Tuple = {
                 let {schema, inputPath} = itemDefinition
                 let fieldOuputVar =
                   b->B.Val.inline(
-                    b->B.use(
+                    b->B.serialize(
                       ~schema,
                       ~input=b->B.val(`${b->B.Val.var(input)}${outputPath}`),
                       ~path=path->Path.concat(outputPath),
@@ -2854,7 +2868,7 @@ module Union = {
               let schema = schemas->Js.Array2.unsafe_get(idx)
               let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
               b.code = b.code ++ `try{`
-              let itemOutput = b->B.useWithTypeFilter(~schema, ~input, ~path=Path.empty)
+              let itemOutput = b->B.parseWithTypeCheck(~schema, ~input, ~path=Path.empty)
               if itemOutput.isAsync {
                 isAsync := true
               }
@@ -2910,7 +2924,7 @@ module Union = {
               let schema = schemas->Js.Array2.unsafe_get(idx)
               let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
               b.code = b.code ++ `try{`
-              let itemOutput = b->B.use(~schema, ~input, ~path=Path.empty)
+              let itemOutput = b->B.serialize(~schema, ~input, ~path=Path.empty)
               b.code =
                 b.code ++
                 switch schema.maybeTypeFilter {
@@ -3066,7 +3080,7 @@ let catch = (schema, getFallbackValue) => {
           ),
         ),
         b => {
-          b->B.useWithTypeFilter(~schema, ~input, ~path)
+          b->B.parseWithTypeCheck(~schema, ~input, ~path)
         },
       )
     }),
@@ -3937,8 +3951,8 @@ let js_merge = (s1, s2) => {
         fields,
       }),
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-        let s1Result = b->B.use(~schema=s1, ~input, ~path)
-        let s2Result = b->B.use(~schema=s2, ~input, ~path)
+        let s1Result = b->B.parse(~schema=s1, ~input, ~path)
+        let s2Result = b->B.parse(~schema=s2, ~input, ~path)
         // TODO: Check that these are objects
         // TODO: Check that s1Result is not mutating input
         b->B.val(`Object.assign(${b->B.Val.inline(s1Result)}, ${b->B.Val.inline(s2Result)})`)
