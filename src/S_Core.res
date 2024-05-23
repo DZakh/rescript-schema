@@ -264,7 +264,7 @@ and tagged =
   | Null(t<unknown>)
   | Array(t<unknown>)
   | Object({fields: dict<item>, fieldNames: array<string>, unknownKeys: unknownKeys})
-  | Tuple(array<t<unknown>>)
+  | Tuple(array<item>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
   | JSON({validated: bool})
@@ -1079,10 +1079,10 @@ let rec validateJsonableSchema = (schema, ~rootSchema, ~isRoot=false) => {
         }
       }
 
-    | Tuple(childrenSchemas) =>
-      childrenSchemas->Js.Array2.forEachi((schema, i) => {
+    | Tuple(items) =>
+      items->Js.Array2.forEachi((item, i) => {
         try {
-          schema->validateJsonableSchema(~rootSchema)
+          item.schema->validateJsonableSchema(~rootSchema)
         } catch {
         // TODO: Should throw with the nested schema instead of prepending path?
         | exn => exn->InternalError.prependLocationOrRethrow(i->Js.Int.toString)
@@ -2690,9 +2690,9 @@ module Tuple = {
 
   module Ctx = {
     type t = {
+      @as("i")
+      items: array<item>,
       @as("s")
-      schemas: array<schema<unknown>>,
-      @as("d")
       itemsSet: Stdlib.Set.t<item>,
       @as("item") _jsItem: 'value. (int, t<'value>) => 'value,
       @as("tag") _jsTag: 'value. (int, 'value) => unit,
@@ -2701,7 +2701,7 @@ module Tuple = {
 
     @inline
     let make = () => {
-      let schemas = []
+      let items = []
       let itemsSet = Stdlib.Set.empty()
 
       let item:
@@ -2709,7 +2709,7 @@ module Tuple = {
         (idx, schema) => {
           let schema = schema->toUnknown
           let rawLocation = `"${idx->Stdlib.Int.unsafeToString}"`
-          if schemas->Stdlib.Array.has(idx) {
+          if items->Stdlib.Array.has(idx) {
             InternalError.panic(
               `The item ${rawLocation} is defined multiple times. If you want to duplicate the item, use S.transform instead.`,
             )
@@ -2719,7 +2719,7 @@ module Tuple = {
               rawLocation,
               rawPath: rawLocation->Path.fromInlinedLocation,
             }
-            schemas->Js.Array2.unsafe_set(idx, schema)
+            items->Js.Array2.unsafe_set(idx, item)
             itemsSet->Stdlib.Set.add(item)->ignore
             item->(Obj.magic: item => value)
           }
@@ -2730,7 +2730,7 @@ module Tuple = {
       }
 
       {
-        schemas,
+        items,
         itemsSet,
         // js/ts methods
         _jsItem: item,
@@ -2745,10 +2745,10 @@ module Tuple = {
   let factory = definer => {
     let ctx = Ctx.make()
     let definition = definer((ctx :> s))->(Obj.magic: 'any => Definition.t<item>)
-    let {itemsSet, schemas} = ctx
-    let length = schemas->Js.Array2.length
+    let {itemsSet, items} = ctx
+    let length = items->Js.Array2.length
     for idx in 0 to length - 1 {
-      if schemas->Js.Array2.unsafe_get(idx)->Obj.magic->not {
+      if items->Js.Array2.unsafe_get(idx)->Obj.magic->not {
         let schema = unit->toUnknown
         let rawLocation = `"${idx->Stdlib.Int.unsafeToString}"`
         let item: item = {
@@ -2756,15 +2756,14 @@ module Tuple = {
           rawLocation,
           rawPath: rawLocation->Path.fromInlinedLocation,
         }
-        schemas->Js.Array2.unsafe_set(idx, schema)
+        items->Js.Array2.unsafe_set(idx, item)
         itemsSet->Stdlib.Set.add(item)->ignore
       }
     }
-    let items = itemsSet->Stdlib.Set.toArray
 
     make(
-      ~name=() => `Tuple(${schemas->Js.Array2.map(s => s.name())->Js.Array2.joinWith(", ")})`,
-      ~tagged=Tuple(schemas),
+      ~name=() => `Tuple(${items->Js.Array2.map(i => i.schema.name())->Js.Array2.joinWith(", ")})`,
+      ~tagged=Tuple(items),
       ~parseOperationBuilder=Object.makeParseOperationBuilder(
         ~items,
         ~itemsSet,
@@ -3292,14 +3291,14 @@ let inline = {
           ->Js.Array2.joinWith(", ")}])`
       }
     | JSON({validated}) => `S.json(~validate=${validated->(Obj.magic: bool => string)})`
-    | Tuple([s1]) => `S.tuple1(${s1->internalInline()})`
-    | Tuple([s1, s2]) => `S.tuple2(${s1->internalInline()}, ${s2->internalInline()})`
-    | Tuple([s1, s2, s3]) =>
-      `S.tuple3(${s1->internalInline()}, ${s2->internalInline()}, ${s3->internalInline()})`
+    | Tuple([i1]) => `S.tuple1(${i1.schema->internalInline()})`
+    | Tuple([i1, i2]) => `S.tuple2(${i1.schema->internalInline()}, ${i2.schema->internalInline()})`
+    | Tuple([i1, i2, i3]) =>
+      `S.tuple3(${i1.schema->internalInline()}, ${i2.schema->internalInline()}, ${i3.schema->internalInline()})`
     | Tuple(tupleSchemas) =>
       `S.tuple(s => (${tupleSchemas
-        ->Js.Array2.mapi((s, idx) =>
-          `s.item(${idx->Stdlib.Int.unsafeToString}, ${s->internalInline()})`
+        ->Js.Array2.mapi((i, idx) =>
+          `s.item(${idx->Stdlib.Int.unsafeToString}, ${i.schema->internalInline()})`
         )
         ->Js.Array2.joinWith(", ")}))`
     | Object({fieldNames: []}) => `S.object(_ => ())`

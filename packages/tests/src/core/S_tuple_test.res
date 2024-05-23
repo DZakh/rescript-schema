@@ -55,7 +55,11 @@ test("Classify of tuple with holes", t => {
 
   t->Assert.deepEqual(
     schema->S.classify,
-    Tuple([S.string->S.toUnknown, S.unit->S.toUnknown, S.int->S.toUnknown]),
+    Tuple([
+      {schema: S.string->S.toUnknown, rawPath: S.Path.fromLocation("0"), rawLocation: `"0"`},
+      {schema: S.unit->S.toUnknown, rawPath: S.Path.fromLocation("1"), rawLocation: `"1"`},
+      {schema: S.int->S.toUnknown, rawPath: S.Path.fromLocation("2"), rawLocation: `"2"`},
+    ]),
     (),
   )
 })

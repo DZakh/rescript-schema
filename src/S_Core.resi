@@ -48,7 +48,7 @@ and tagged =
   | Null(t<unknown>)
   | Array(t<unknown>)
   | Object({fields: dict<item>, fieldNames: array<string>, unknownKeys: unknownKeys})
-  | Tuple(array<t<unknown>>)
+  | Tuple(array<item>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
   | JSON({validated: bool})
