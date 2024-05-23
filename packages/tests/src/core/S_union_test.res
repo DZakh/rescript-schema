@@ -385,7 +385,7 @@ module Advanced = {
     t->U.assertCompiledCode(
       ~schema=shapeSchema,
       ~op=#serialize,
-      `i=>{let v1;try{let v0={"radius":i["radius"],"kind":e[2],};if(i["TAG"]!==e[0]){e[1](i["TAG"])}if(!v0||v0.constructor!==Object){e[3](v0)}v1=v0}catch(e0){try{let v2={"x":i["x"],"kind":e[6],};if(i["TAG"]!==e[4]){e[5](i["TAG"])}if(!v2||v2.constructor!==Object){e[7](v2)}v1=v2}catch(e1){try{let v3={"x":i["x"],"y":i["y"],"kind":e[10],};if(i["TAG"]!==e[8]){e[9](i["TAG"])}if(!v3||v3.constructor!==Object){e[11](v3)}v1=v3}catch(e2){e[12]([e0,e1,e2,])}}}return v1}`,
+      `i=>{let v1;try{let v0={"kind":e[2],"radius":i["radius"],};if(i["TAG"]!==e[0]){e[1](i["TAG"])}if(!v0||v0.constructor!==Object){e[3](v0)}v1=v0}catch(e0){try{let v2={"kind":e[6],"x":i["x"],};if(i["TAG"]!==e[4]){e[5](i["TAG"])}if(!v2||v2.constructor!==Object){e[7](v2)}v1=v2}catch(e1){try{let v3={"kind":e[10],"x":i["x"],"y":i["y"],};if(i["TAG"]!==e[8]){e[9](i["TAG"])}if(!v3||v3.constructor!==Object){e[11](v3)}v1=v3}catch(e2){e[12]([e0,e1,e2,])}}}return v1}`,
     )
   })
 }

@@ -1543,15 +1543,15 @@ function makeParseOperationBuilder(items, itemsSet, definition, unknownKeysRefin
   };
 }
 
-function makeSerializeOperationBuilder(definition, items, itemsSet) {
-  return function (b, input, param, path) {
+function makeSerializeOperationBuilder(definition, itemsSet) {
+  return function (b, input, selfSchema, path) {
     var inputVar = $$var(b, input);
     var ctx = {
-      f: "",
+      o: "",
       d: "",
       t: false
     };
-    var registeredDefinitions = new Set();
+    var embededOutputs = new WeakMap();
     var definitionToOutput = function (definition, outputPath) {
       var kind = toKindWithSet(definition, itemsSet);
       switch (kind) {
@@ -1578,14 +1578,13 @@ function makeSerializeOperationBuilder(definition, items, itemsSet) {
             ctx.t = true;
             return ;
         case 2 :
-            if (registeredDefinitions.has(definition)) {
-              return invalidOperation(b, path, "The field " + definition.rawLocation + " is registered multiple times. If you want to duplicate the field, use S.transform instead");
+            if (embededOutputs.has(definition)) {
+              return invalidOperation(b, path, "The item " + definition.rawLocation + " is registered multiple times. For advanced transformation cases use S.transform");
             }
-            registeredDefinitions.add(definition);
             var schema = definition.schema;
             var itemInput = val(b, inputVar + outputPath);
             var itemOutput = schema.s(b, itemInput, schema, path + outputPath);
-            ctx.f = ctx.f + (definition.rawLocation + ":" + inline(b, itemOutput) + ",");
+            embededOutputs.set(definition, itemOutput);
             if (itemInput !== itemOutput || outputPath !== definition.rawPath) {
               ctx.t = true;
               return ;
@@ -1596,23 +1595,36 @@ function makeSerializeOperationBuilder(definition, items, itemsSet) {
       }
     };
     definitionToOutput(definition, "");
-    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-      var item = items[idx];
-      if (!registeredDefinitions.has(item)) {
-        var rawLocation = item.rawLocation;
-        var literal = fromSchema(item.schema);
-        if (literal !== undefined) {
-          ctx.t = true;
-          ctx.f = ctx.f + (rawLocation + ":" + ("e[" + (b.e.push(literal.value) - 1) + "]") + ",");
-        } else {
-          invalidOperation(b, path, "Can't create serializer. The " + rawLocation + " field is not registered and not a literal. Use S.transform instead");
-        }
-      }
-      
-    }
     b.c = ctx.d + b.c;
+    var match = selfSchema.t;
+    if (typeof match !== "object" || match.TAG !== "Object") {
+      invalidOperation(b, path, "Only object schema supported");
+    } else {
+      var fieldNames = match.fieldNames;
+      var fields = match.fields;
+      for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+        var fieldName = fieldNames[idx];
+        var item = fields[fieldName];
+        var rawLocation = item.rawLocation;
+        var o = embededOutputs.get(item);
+        var itemOutput;
+        if (o !== undefined) {
+          itemOutput = inline(b, o);
+        } else {
+          var literal = fromSchema(item.schema);
+          if (literal !== undefined) {
+            ctx.t = true;
+            itemOutput = "e[" + (b.e.push(literal.value) - 1) + "]";
+          } else {
+            itemOutput = invalidOperation(b, path, "Can't create serializer. The " + rawLocation + " item is not registered and not a literal. For advanced transformation cases use S.transform");
+          }
+        }
+        ctx.o = ctx.o + (rawLocation + ":" + itemOutput + ",");
+      }
+      ctx.o = "{" + ctx.o + "}";
+    }
     if (ctx.t) {
-      return val(b, "{" + ctx.f + "}");
+      return val(b, ctx.o);
     } else {
       return input;
     }
@@ -1708,7 +1720,7 @@ function factory$3(definer) {
                                   };
                           }), keyVar$1) + "}");
                 })),
-          s: makeSerializeOperationBuilder(definition, items, itemsSet$1),
+          s: makeSerializeOperationBuilder(definition, itemsSet$1),
           f: typeFilter,
           i: 0,
           m: empty

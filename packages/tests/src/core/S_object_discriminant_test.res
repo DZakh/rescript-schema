@@ -259,7 +259,7 @@ module Negative = {
           {"field": "bar"}->S.serializeToUnknownWith(schema),
           {
             code: InvalidOperation({
-              description: `Can\'t create serializer. The "discriminant" field is not registered and not a literal. Use S.transform instead`,
+              description: `Can\'t create serializer. The "discriminant" item is not registered and not a literal. For advanced transformation cases use S.transform`,
             }),
             operation: Serializing,
             path: S.Path.empty,
@@ -330,7 +330,7 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
     {"field": "bar"}->S.serializeToUnknownWith(schema),
     {
       code: InvalidOperation({
-        description: `Can't create serializer. The "discriminant" field is not registered and not a literal. Use S.transform instead`,
+        description: `Can't create serializer. The "discriminant" item is not registered and not a literal. For advanced transformation cases use S.transform`,
       }),
       operation: Serializing,
       path: S.Path.empty,

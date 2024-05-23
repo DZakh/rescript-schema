@@ -60,6 +60,16 @@ module Stdlib = {
     external toArray: t<'value> => array<'value> = "from"
   }
 
+  module WeakMap = {
+    type t<'k, 'v> = Js.WeakMap.t<'k, 'v>
+
+    @new external make: unit => t<'k, 'v> = "WeakMap"
+
+    @send external get: (t<'k, 'v>, 'k) => option<'v> = "get"
+    @send external has: (t<'k, 'v>, 'k) => bool = "has"
+    @send external set: (t<'k, 'v>, 'k, 'v) => t<'k, 'v> = "set"
+  }
+
   module Array = {
     @inline
     let unique = array => array->Set.fromArray->Set.toArray
@@ -2012,35 +2022,36 @@ module Object = {
   }
 
   type serializeCtx = {
-    @as("f") mutable fieldsCode: string,
+    @as("o") mutable output: string,
     @as("d") mutable discriminantCode: string,
     @as("t") mutable isTransformed: bool,
   }
 
-  let makeSerializeOperationBuilder = (~definition, ~items, ~itemsSet) =>
-    Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+  let makeSerializeOperationBuilder = (~definition, ~itemsSet) =>
+    Builder.make((b, ~input, ~selfSchema, ~path) => {
       let inputVar = b->B.Val.var(input)
 
-      let ctx: serializeCtx = {fieldsCode: "", discriminantCode: "", isTransformed: false}
-      let registeredDefinitions = Stdlib.Set.empty()
+      let ctx: serializeCtx = {output: "", discriminantCode: "", isTransformed: false}
+      let embededOutputs = Stdlib.WeakMap.make()
 
       let rec definitionToOutput = (definition: Definition.t<item>, ~outputPath) => {
         let kind = definition->Definition.toKindWithSet(~embededSet=itemsSet)
         switch kind {
         | Embeded =>
           let item = definition->Definition.toEmbeded
-          if registeredDefinitions->Stdlib.Set.has(item) {
+          if embededOutputs->Stdlib.WeakMap.has(item) {
             b->B.invalidOperation(
               ~path,
-              ~description=`The field ${item.rawLocation} is registered multiple times. If you want to duplicate the field, use S.transform instead`,
+              ~description=`The item ${item.rawLocation} is registered multiple times. For advanced transformation cases use S.transform`,
             )
           } else {
-            registeredDefinitions->Stdlib.Set.add(item)->ignore
-            let {rawLocation, rawPath, schema} = item
+            let {rawPath, schema} = item
             let itemInput = b->B.val(`${inputVar}${outputPath}`)
             let itemOutput =
               b->B.serialize(~schema, ~input=itemInput, ~path=path->Path.concat(outputPath))
-            ctx.fieldsCode = ctx.fieldsCode ++ `${rawLocation}:${b->B.Val.inline(itemOutput)},`
+
+            embededOutputs->Stdlib.WeakMap.set(item, itemOutput)->ignore
+
             if itemInput !== itemOutput || outputPath !== rawPath {
               ctx.isTransformed = true
             }
@@ -2078,29 +2089,39 @@ module Object = {
         }
       }
       definitionToOutput(definition, ~outputPath=Path.empty)
-
-      for idx in 0 to items->Js.Array2.length - 1 {
-        let item = items->Js.Array2.unsafe_get(idx)
-        if registeredDefinitions->Stdlib.Set.has(item)->not {
-          let {schema, rawLocation} = item
-          switch schema->Literal.fromSchema {
-          | Some(literal) =>
-            ctx.isTransformed = true
-            ctx.fieldsCode =
-              ctx.fieldsCode ++ `${rawLocation}:${b->B.embed(literal->Literal.value)},`
-          | None =>
-            b->B.invalidOperation(
-              ~path,
-              ~description=`Can't create serializer. The ${rawLocation} field is not registered and not a literal. Use S.transform instead`,
-            )
-          }
-        }
-      }
-
       b.code = ctx.discriminantCode ++ b.code
 
+      switch selfSchema.tagged {
+      | Object({fieldNames, fields}) =>
+        {
+          for idx in 0 to fieldNames->Js.Array2.length - 1 {
+            let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+            let item = fields->Js.Dict.unsafeGet(fieldName)
+            let {schema, rawLocation} = item
+            let itemOutput = switch embededOutputs->Stdlib.WeakMap.get(item) {
+            | Some(o) => b->B.Val.inline(o)
+            | None =>
+              switch schema->Literal.fromSchema {
+              | Some(literal) =>
+                ctx.isTransformed = true
+                b->B.embed(literal->Literal.value)
+              | None =>
+                b->B.invalidOperation(
+                  ~path,
+                  ~description=`Can't create serializer. The ${rawLocation} item is not registered and not a literal. For advanced transformation cases use S.transform`,
+                )
+              }
+            }
+            ctx.output = ctx.output ++ `${rawLocation}:${itemOutput},`
+          }
+        }
+
+        ctx.output = "{" ++ ctx.output ++ "}"
+      | _ => b->B.invalidOperation(~path, ~description=`Only object schema supported`)
+      }
+
       if ctx.isTransformed {
-        b->B.val(`{${ctx.fieldsCode}}`)
+        b->B.val(ctx.output)
       } else {
         input
       }
@@ -2240,7 +2261,7 @@ module Object = {
           }
         },
       ),
-      ~serializeOperationBuilder=makeSerializeOperationBuilder(~definition, ~items, ~itemsSet),
+      ~serializeOperationBuilder=makeSerializeOperationBuilder(~definition, ~itemsSet),
       ~maybeTypeFilter=Some(typeFilter),
     )
   }

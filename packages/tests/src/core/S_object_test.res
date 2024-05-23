@@ -910,7 +910,7 @@ test("Fails to serialize object schema with single field registered multiple tim
     {"field1": "foo", "field2": "foo"}->S.serializeToUnknownWith(schema),
     {
       code: InvalidOperation({
-        description: `The field "field" is registered multiple times. If you want to duplicate the field, use S.transform instead`,
+        description: `The item "field" is registered multiple times. For advanced transformation cases use S.transform`,
       }),
       operation: Serializing,
       path: S.Path.empty,
@@ -1080,7 +1080,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#serialize,
-        `i=>{if(i["zoo"]!==e[0]){e[1](i["zoo"])}return {"FOO":i["foo"],"BAR":i["bar"],"tag":e[2],}}`,
+        `i=>{if(i["zoo"]!==e[0]){e[1](i["zoo"])}return {"tag":e[2],"FOO":i["foo"],"BAR":i["bar"],}}`,
       )
     },
   )
