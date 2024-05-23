@@ -2022,7 +2022,6 @@ module Object = {
   }
 
   type serializeCtx = {
-    @as("o") mutable output: string,
     @as("d") mutable discriminantCode: string,
     @as("t") mutable isTransformed: bool,
   }
@@ -2031,7 +2030,7 @@ module Object = {
     Builder.make((b, ~input, ~selfSchema, ~path) => {
       let inputVar = b->B.Val.var(input)
 
-      let ctx: serializeCtx = {output: "", discriminantCode: "", isTransformed: false}
+      let ctx: serializeCtx = {discriminantCode: "", isTransformed: false}
       let embededOutputs = Stdlib.WeakMap.make()
 
       let rec definitionToOutput = (definition: Definition.t<item>, ~outputPath) => {
@@ -2091,37 +2090,45 @@ module Object = {
       definitionToOutput(definition, ~outputPath=Path.empty)
       b.code = ctx.discriminantCode ++ b.code
 
-      switch selfSchema.tagged {
-      | Object({fieldNames, fields}) =>
-        {
-          for idx in 0 to fieldNames->Js.Array2.length - 1 {
-            let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-            let item = fields->Js.Dict.unsafeGet(fieldName)
-            let {schema, rawLocation} = item
-            let itemOutput = switch embededOutputs->Stdlib.WeakMap.get(item) {
-            | Some(o) => b->B.Val.inline(o)
-            | None =>
-              switch schema->Literal.fromSchema {
-              | Some(literal) =>
-                ctx.isTransformed = true
-                b->B.embed(literal->Literal.value)
-              | None =>
-                b->B.invalidOperation(
-                  ~path,
-                  ~description=`Can't create serializer. The ${rawLocation} item is not registered and not a literal. For advanced transformation cases use S.transform`,
-                )
-              }
-            }
-            ctx.output = ctx.output ++ `${rawLocation}:${itemOutput},`
+      let getItemOutput = item => {
+        switch embededOutputs->Stdlib.WeakMap.get(item) {
+        | Some(o) => b->B.Val.inline(o)
+        | None =>
+          switch item.schema->Literal.fromSchema {
+          | Some(literal) =>
+            ctx.isTransformed = true
+            b->B.embed(literal->Literal.value)
+          | None =>
+            b->B.invalidOperation(
+              ~path,
+              ~description=`Can't create serializer. The ${item.rawLocation} item is not registered and not a literal. For advanced transformation cases use S.transform`,
+            )
           }
         }
+      }
 
-        ctx.output = "{" ++ ctx.output ++ "}"
-      | _ => b->B.invalidOperation(~path, ~description=`Only object schema supported`)
+      let output = ref("")
+      switch selfSchema.tagged {
+      | Object({fieldNames, fields}) =>
+        for idx in 0 to fieldNames->Js.Array2.length - 1 {
+          let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+          let item = fields->Js.Dict.unsafeGet(fieldName)
+          let itemOutput = getItemOutput(item)
+          output := output.contents ++ `${item.rawLocation}:${itemOutput},`
+        }
+        output := "{" ++ output.contents ++ "}"
+      | Tuple(items) =>
+        for idx in 0 to items->Js.Array2.length - 1 {
+          let item = items->Js.Array2.unsafe_get(idx)
+          let itemOutput = getItemOutput(item)
+          output := output.contents ++ `${itemOutput},`
+        }
+        output := "[" ++ output.contents ++ "]"
+      | _ => b->B.invalidOperation(~path, ~description=`Only Tuple and Object schemas supported`)
       }
 
       if ctx.isTransformed {
-        b->B.val(ctx.output)
+        b->B.val(output.contents)
       } else {
         input
       }
@@ -2770,90 +2777,7 @@ module Tuple = {
         ~definition,
         ~unknownKeysRefinement=Object.noopRefinement,
       ),
-      ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-        let output = b->B.val("[]")
-        let registeredDefinitions = Stdlib.Set.empty()
-
-        {
-          let prevCode = b.code
-          b.code = ""
-          let rec definitionToOutput = (definition: Definition.t<item>, ~outputPath) => {
-            let kind = definition->Definition.toKindWithSet(~embededSet=itemsSet)
-            switch kind {
-            | Embeded =>
-              let item = definition->Definition.toEmbeded
-              if registeredDefinitions->Stdlib.Set.has(item) {
-                b->B.invalidOperation(
-                  ~path,
-                  ~description=`The item ${item.rawLocation} is registered multiple times. If you want to duplicate the item, use S.transform instead`,
-                )
-              } else {
-                registeredDefinitions->Stdlib.Set.add(item)->ignore
-                let {schema, rawPath} = item
-                let fieldOuputVar =
-                  b->B.Val.inline(
-                    b->B.serialize(
-                      ~schema,
-                      ~input=b->B.val(`${b->B.Val.var(input)}${outputPath}`),
-                      ~path=path->Path.concat(outputPath),
-                    ),
-                  )
-                b.code = b.code ++ `${b->B.Val.var(output)}${rawPath}=${fieldOuputVar};`
-              }
-            | Constant => {
-                let value = definition->Definition.toConstant
-                b.code =
-                  `if(${b->B.Val.var(input)}${outputPath}!==${b->B.embed(
-                      value,
-                    )}){${b->B.raiseWithArg(
-                      ~path=path->Path.concat(outputPath),
-                      input => InvalidLiteral({
-                        expected: value->Literal.parse,
-                        received: input,
-                      }),
-                      `${b->B.Val.var(input)}${outputPath}`,
-                    )}}` ++
-                  b.code
-              }
-            | Node => {
-                let node = definition->Definition.toNode
-                let keys = node->Js.Dict.keys
-                for idx in 0 to keys->Js.Array2.length - 1 {
-                  let key = keys->Js.Array2.unsafe_get(idx)
-                  let definition = node->Js.Dict.unsafeGet(key)
-                  definitionToOutput(
-                    definition,
-                    ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
-                  )
-                }
-              }
-            }
-          }
-          definitionToOutput(definition, ~outputPath=Path.empty)
-          b.code = prevCode ++ b.code
-        }
-
-        for idx in 0 to items->Js.Array2.length - 1 {
-          let item = items->Js.Array2.unsafe_get(idx)
-          if registeredDefinitions->Stdlib.Set.has(item)->not {
-            let {schema, rawLocation, rawPath} = item
-            switch schema->Literal.fromSchema {
-            | Some(literal) =>
-              b.code =
-                b.code ++
-                // TODO: Don't always embed. We can inline some of the literals
-                `${b->B.Val.var(output)}${rawPath}=${b->B.embed(literal->Literal.value)};`
-            | None =>
-              b->B.invalidOperation(
-                ~path,
-                ~description=`Can't create serializer. The ${rawLocation} item is not registered and not a literal. Use S.transform instead`,
-              )
-            }
-          }
-        }
-
-        output
-      }),
+      ~serializeOperationBuilder=Object.makeSerializeOperationBuilder(~definition, ~itemsSet),
       ~maybeTypeFilter=Some(
         (~inputVar) =>
           Array.typeFilter(~inputVar) ++

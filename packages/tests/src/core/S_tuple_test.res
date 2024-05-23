@@ -105,7 +105,7 @@ test("Fails to serialize tuple schema with single item registered multiple times
     {"item1": "foo", "item2": "foo"}->S.serializeToUnknownWith(schema),
     {
       code: InvalidOperation({
-        description: `The item "0" is registered multiple times. If you want to duplicate the item, use S.transform instead`,
+        description: `The item "0" is registered multiple times. For advanced transformation cases use S.transform`,
       }),
       operation: Serializing,
       path: S.Path.empty,
@@ -124,7 +124,7 @@ test(`Fails to serialize tuple with discriminant "Never"`, t => {
     Error(
       U.error({
         code: InvalidOperation({
-          description: `Can't create serializer. The "0" item is not registered and not a literal. Use S.transform instead`,
+          description: `Can't create serializer. The "0" item is not registered and not a literal. For advanced transformation cases use S.transform`,
         }),
         operation: Serializing,
         path: S.Path.empty,
@@ -261,12 +261,7 @@ module Compiled = {
   test("Compiled serialize code snapshot for simple tuple", t => {
     let schema = S.tuple(s => (s.item(0, S.string), s.item(1, S.bool)))
 
-    // TODO: Improve (the output of tuple can be inlined)
-    t->U.assertCompiledCode(
-      ~schema,
-      ~op=#serialize,
-      `i=>{let v0=[];v0["0"]=i["0"];v0["1"]=i["1"];return v0}`,
-    )
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
   })
 
   test("Compiled serialize code snapshot for empty tuple", t => {
@@ -311,7 +306,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#serialize,
-        `i=>{let v0=[];if(i["zoo"]!==e[0]){e[1](i["zoo"])}v0["1"]=i["foo"];v0["2"]=i["bar"];v0["0"]=e[2];return v0}`,
+        `i=>{if(i["zoo"]!==e[0]){e[1](i["zoo"])}return [e[2],i["foo"],i["bar"],]}`,
       )
     },
   )

@@ -1547,7 +1547,6 @@ function makeSerializeOperationBuilder(definition, itemsSet) {
   return function (b, input, selfSchema, path) {
     var inputVar = $$var(b, input);
     var ctx = {
-      o: "",
       d: "",
       t: false
     };
@@ -1596,35 +1595,51 @@ function makeSerializeOperationBuilder(definition, itemsSet) {
     };
     definitionToOutput(definition, "");
     b.c = ctx.d + b.c;
-    var match = selfSchema.t;
-    if (typeof match !== "object" || match.TAG !== "Object") {
-      invalidOperation(b, path, "Only object schema supported");
-    } else {
-      var fieldNames = match.fieldNames;
-      var fields = match.fields;
-      for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-        var fieldName = fieldNames[idx];
-        var item = fields[fieldName];
-        var rawLocation = item.rawLocation;
-        var o = embededOutputs.get(item);
-        var itemOutput;
-        if (o !== undefined) {
-          itemOutput = inline(b, o);
-        } else {
-          var literal = fromSchema(item.schema);
-          if (literal !== undefined) {
-            ctx.t = true;
-            itemOutput = "e[" + (b.e.push(literal.value) - 1) + "]";
-          } else {
-            itemOutput = invalidOperation(b, path, "Can't create serializer. The " + rawLocation + " item is not registered and not a literal. For advanced transformation cases use S.transform");
-          }
-        }
-        ctx.o = ctx.o + (rawLocation + ":" + itemOutput + ",");
+    var getItemOutput = function (item) {
+      var o = embededOutputs.get(item);
+      if (o !== undefined) {
+        return inline(b, o);
       }
-      ctx.o = "{" + ctx.o + "}";
+      var literal = fromSchema(item.schema);
+      if (literal !== undefined) {
+        ctx.t = true;
+        return "e[" + (b.e.push(literal.value) - 1) + "]";
+      } else {
+        return invalidOperation(b, path, "Can't create serializer. The " + item.rawLocation + " item is not registered and not a literal. For advanced transformation cases use S.transform");
+      }
+    };
+    var output = "";
+    var items = selfSchema.t;
+    if (typeof items !== "object") {
+      invalidOperation(b, path, "Only Tuple and Object schemas supported");
+    } else {
+      switch (items.TAG) {
+        case "Object" :
+            var fieldNames = items.fieldNames;
+            var fields = items.fields;
+            for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+              var fieldName = fieldNames[idx];
+              var item = fields[fieldName];
+              var itemOutput = getItemOutput(item);
+              output = output + (item.rawLocation + ":" + itemOutput + ",");
+            }
+            output = "{" + output + "}";
+            break;
+        case "Tuple" :
+            var items$1 = items._0;
+            for(var idx$1 = 0 ,idx_finish$1 = items$1.length; idx$1 < idx_finish$1; ++idx$1){
+              var item$1 = items$1[idx$1];
+              var itemOutput$1 = getItemOutput(item$1);
+              output = output + (itemOutput$1 + ",");
+            }
+            output = "[" + output + "]";
+            break;
+        default:
+          invalidOperation(b, path, "Only Tuple and Object schemas supported");
+      }
     }
     if (ctx.t) {
-      return val(b, ctx.o);
+      return val(b, output);
     } else {
       return input;
     }
@@ -2110,60 +2125,7 @@ function factory$7(definer) {
                           }).join(", ") + ")";
             }),
           p: makeParseOperationBuilder(items$1, itemsSet$1, definition, noopRefinement),
-          s: (function (b, input, param, path) {
-              var output = val(b, "[]");
-              var registeredDefinitions = new Set();
-              var prevCode = b.c;
-              b.c = "";
-              var definitionToOutput = function (definition, outputPath) {
-                var kind = toKindWithSet(definition, itemsSet$1);
-                switch (kind) {
-                  case 0 :
-                      var keys = Object.keys(definition);
-                      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-                        var key = keys[idx];
-                        var definition$1 = definition[key];
-                        definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
-                      }
-                      return ;
-                  case 1 :
-                      b.c = "if(" + $$var(b, input) + outputPath + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
-                              return {
-                                      TAG: "InvalidLiteral",
-                                      expected: parseInternal(definition),
-                                      received: input
-                                    };
-                            }), $$var(b, input) + outputPath) + "}" + b.c;
-                      return ;
-                  case 2 :
-                      if (registeredDefinitions.has(definition)) {
-                        return invalidOperation(b, path, "The item " + definition.rawLocation + " is registered multiple times. If you want to duplicate the item, use S.transform instead");
-                      }
-                      registeredDefinitions.add(definition);
-                      var schema = definition.schema;
-                      var input$1 = val(b, $$var(b, input) + outputPath);
-                      var fieldOuputVar = inline(b, schema.s(b, input$1, schema, path + outputPath));
-                      b.c = b.c + ($$var(b, output) + definition.rawPath + "=" + fieldOuputVar + ";");
-                      return ;
-                  
-                }
-              };
-              definitionToOutput(definition, "");
-              b.c = prevCode + b.c;
-              for(var idx = 0 ,idx_finish = items$1.length; idx < idx_finish; ++idx){
-                var item = items$1[idx];
-                if (!registeredDefinitions.has(item)) {
-                  var literal = fromSchema(item.schema);
-                  if (literal !== undefined) {
-                    b.c = b.c + ($$var(b, output) + item.rawPath + "=" + ("e[" + (b.e.push(literal.value) - 1) + "]") + ";");
-                  } else {
-                    invalidOperation(b, path, "Can't create serializer. The " + item.rawLocation + " item is not registered and not a literal. Use S.transform instead");
-                  }
-                }
-                
-              }
-              return output;
-            }),
+          s: makeSerializeOperationBuilder(definition, itemsSet$1),
           f: (function (inputVar) {
               return typeFilter$5(inputVar) + ("||" + inputVar + ".length!==" + length);
             }),
