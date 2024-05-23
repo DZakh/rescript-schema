@@ -1016,7 +1016,7 @@ module Compiled = {
       }
     )
 
-    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
   })
 
   test("Compiled parse code snapshot for simple object with strict unknown keys", t => {
@@ -1042,7 +1042,7 @@ module Compiled = {
       }
     )->S.Object.strict
 
-    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
   })
 
   test(

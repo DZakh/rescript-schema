@@ -253,11 +253,16 @@ and tagged =
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
-  | Object({fields: dict<t<unknown>>, fieldNames: array<string>, unknownKeys: unknownKeys})
+  | Object({fields: dict<item>, fieldNames: array<string>, unknownKeys: unknownKeys})
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
   | JSON({validated: bool})
+and item = {
+  schema: schema<unknown>,
+  rawLocation: string,
+  rawPath: Path.t,
+}
 and builder
 and val = {
   @as("v")
@@ -1051,7 +1056,8 @@ let rec validateJsonableSchema = (schema, ~rootSchema, ~isRoot=false) => {
     | Object({fieldNames, fields}) =>
       for idx in 0 to fieldNames->Js.Array2.length - 1 {
         let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-        let fieldSchema = fields->Js.Dict.unsafeGet(fieldName)
+        let item = fields->Js.Dict.unsafeGet(fieldName)
+        let fieldSchema = item.schema
         try {
           switch fieldSchema->classify {
           // Allow optional fields
@@ -1904,25 +1910,12 @@ module Object = {
     @as("o") fieldOr: 'value. (string, t<'value>, 'value) => 'value,
     @as("t") tag: 'value. (string, 'value) => unit,
   }
-  type itemDefinition = {
-    @as("s")
-    schema: schema<unknown>,
-    @as("l")
-    inlinedInputLocation: string,
-    @as("p")
-    inputPath: Path.t,
-  }
 
   let typeFilter = (~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
 
   let noopRefinement = (_b, ~input as _, ~selfSchema as _, ~path as _) => ()
 
-  let makeParseOperationBuilder = (
-    ~itemDefinitions,
-    ~itemDefinitionsSet,
-    ~definition,
-    ~unknownKeysRefinement,
-  ) => {
+  let makeParseOperationBuilder = (~items, ~itemsSet, ~definition, ~unknownKeysRefinement) => {
     Builder.make((b, ~input, ~selfSchema, ~path) => {
       let registeredDefinitions = Stdlib.Set.empty()
       let asyncOutputVars = []
@@ -1932,18 +1925,18 @@ module Object = {
       b.code = ""
 
       let syncOutput = {
-        let rec definitionToOutput = (definition: Definition.t<itemDefinition>, ~outputPath) => {
-          let kind = definition->Definition.toKindWithSet(~embededSet=itemDefinitionsSet)
+        let rec definitionToOutput = (definition: Definition.t<item>, ~outputPath) => {
+          let kind = definition->Definition.toKindWithSet(~embededSet=itemsSet)
           switch kind {
           | Embeded => {
-              let itemDefinition = definition->Definition.toEmbeded
-              registeredDefinitions->Stdlib.Set.add(itemDefinition)->ignore
-              let {schema, inputPath} = itemDefinition
+              let item = definition->Definition.toEmbeded
+              registeredDefinitions->Stdlib.Set.add(item)->ignore
+              let {schema, rawPath} = item
               let fieldOuput =
                 b->B.parseWithTypeCheck(
                   ~schema,
-                  ~input=b->B.val(`${inputVar}${inputPath}`),
-                  ~path=path->Path.concat(inputPath),
+                  ~input=b->B.val(`${inputVar}${rawPath}`),
+                  ~path=path->Path.concat(rawPath),
                 )
 
               if fieldOuput.isAsync {
@@ -1983,15 +1976,15 @@ module Object = {
       let registeredFieldsCode = b.code
       b.code = ""
 
-      for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
-        let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
-        if registeredDefinitions->Stdlib.Set.has(itemDefinition)->not {
-          let {schema, inputPath} = itemDefinition
+      for idx in 0 to items->Js.Array2.length - 1 {
+        let item = items->Js.Array2.unsafe_get(idx)
+        if registeredDefinitions->Stdlib.Set.has(item)->not {
+          let {schema, rawPath} = item
           let fieldOuput =
             b->B.parseWithTypeCheck(
               ~schema,
-              ~input=b->B.val(`${inputVar}${inputPath}`),
-              ~path=path->Path.concat(inputPath),
+              ~input=b->B.val(`${inputVar}${rawPath}`),
+              ~path=path->Path.concat(rawPath),
             )
           if fieldOuput.isAsync {
             asyncOutputVars->Js.Array2.push(b->B.Val.var(fieldOuput))->ignore
@@ -2018,14 +2011,109 @@ module Object = {
     })
   }
 
+  type serializeCtx = {
+    @as("f") mutable fieldsCode: string,
+    @as("d") mutable discriminantCode: string,
+    @as("t") mutable isTransformed: bool,
+  }
+
+  let makeSerializeOperationBuilder = (~definition, ~items, ~itemsSet) =>
+    Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+      let inputVar = b->B.Val.var(input)
+
+      let ctx: serializeCtx = {fieldsCode: "", discriminantCode: "", isTransformed: false}
+      let registeredDefinitions = Stdlib.Set.empty()
+
+      let rec definitionToOutput = (definition: Definition.t<item>, ~outputPath) => {
+        let kind = definition->Definition.toKindWithSet(~embededSet=itemsSet)
+        switch kind {
+        | Embeded =>
+          let item = definition->Definition.toEmbeded
+          if registeredDefinitions->Stdlib.Set.has(item) {
+            b->B.invalidOperation(
+              ~path,
+              ~description=`The field ${item.rawLocation} is registered multiple times. If you want to duplicate the field, use S.transform instead`,
+            )
+          } else {
+            registeredDefinitions->Stdlib.Set.add(item)->ignore
+            let {rawLocation, rawPath, schema} = item
+            let itemInput = b->B.val(`${inputVar}${outputPath}`)
+            let itemOutput =
+              b->B.serialize(~schema, ~input=itemInput, ~path=path->Path.concat(outputPath))
+            ctx.fieldsCode = ctx.fieldsCode ++ `${rawLocation}:${b->B.Val.inline(itemOutput)},`
+            if itemInput !== itemOutput || outputPath !== rawPath {
+              ctx.isTransformed = true
+            }
+          }
+        | Constant => {
+            let value = definition->Definition.toConstant
+            let itemInputVar = `${inputVar}${outputPath}`
+            ctx.discriminantCode =
+              ctx.discriminantCode ++
+              `if(${itemInputVar}!==${b->B.embed(value)}){${b->B.raiseWithArg(
+                  ~path=path->Path.concat(outputPath),
+                  input => InvalidLiteral({
+                    expected: value->Literal.parse,
+                    received: input,
+                  }),
+                  itemInputVar,
+                )}}`
+            ctx.isTransformed = true
+          }
+        | Node => {
+            if outputPath !== Path.empty {
+              ctx.isTransformed = true
+            }
+            let node = definition->Definition.toNode
+            let keys = node->Js.Dict.keys
+            for idx in 0 to keys->Js.Array2.length - 1 {
+              let key = keys->Js.Array2.unsafe_get(idx)
+              let definition = node->Js.Dict.unsafeGet(key)
+              definitionToOutput(
+                definition,
+                ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
+              )
+            }
+          }
+        }
+      }
+      definitionToOutput(definition, ~outputPath=Path.empty)
+
+      for idx in 0 to items->Js.Array2.length - 1 {
+        let item = items->Js.Array2.unsafe_get(idx)
+        if registeredDefinitions->Stdlib.Set.has(item)->not {
+          let {schema, rawLocation} = item
+          switch schema->Literal.fromSchema {
+          | Some(literal) =>
+            ctx.isTransformed = true
+            ctx.fieldsCode =
+              ctx.fieldsCode ++ `${rawLocation}:${b->B.embed(literal->Literal.value)},`
+          | None =>
+            b->B.invalidOperation(
+              ~path,
+              ~description=`Can't create serializer. The ${rawLocation} field is not registered and not a literal. Use S.transform instead`,
+            )
+          }
+        }
+      }
+
+      b.code = ctx.discriminantCode ++ b.code
+
+      if ctx.isTransformed {
+        b->B.val(`{${ctx.fieldsCode}}`)
+      } else {
+        input
+      }
+    })
+
   module Ctx = {
     type t = {
       @as("n")
       fieldNames: array<string>,
       @as("h")
-      fields: dict<schema<unknown>>,
+      fields: dict<item>,
       @as("d")
-      itemDefinitionsSet: Stdlib.Set.t<itemDefinition>,
+      itemsSet: Stdlib.Set.t<item>,
       // Public API for JS/TS users.
       // It shouldn't be used from ReScript and
       // needed only because we use @as to reduce bundle-size
@@ -2041,27 +2129,27 @@ module Object = {
     let make = () => {
       let fields = Js.Dict.empty()
       let fieldNames = []
-      let itemDefinitionsSet = Stdlib.Set.empty()
+      let itemsSet = Stdlib.Set.empty()
 
       let field:
         type value. (string, schema<value>) => value =
         (fieldName, schema) => {
           let schema = schema->toUnknown
-          let inlinedInputLocation = fieldName->Stdlib.Inlined.Value.fromString
+          let rawLocation = fieldName->Stdlib.Inlined.Value.fromString
           if fields->Stdlib.Dict.has(fieldName) {
             InternalError.panic(
-              `The field ${inlinedInputLocation} is defined multiple times. If you want to duplicate the field, use S.transform instead.`,
+              `The field ${rawLocation} is defined multiple times. If you want to duplicate the field, use S.transform instead.`,
             )
           } else {
-            let itemDefinition: itemDefinition = {
+            let item: item = {
               schema,
-              inlinedInputLocation,
-              inputPath: inlinedInputLocation->Path.fromInlinedLocation,
+              rawLocation,
+              rawPath: rawLocation->Path.fromInlinedLocation,
             }
-            fields->Js.Dict.set(fieldName, schema)
+            fields->Js.Dict.set(fieldName, item)
             fieldNames->Js.Array2.push(fieldName)->ignore
-            itemDefinitionsSet->Stdlib.Set.add(itemDefinition)->ignore
-            itemDefinition->(Obj.magic: itemDefinition => value)
+            itemsSet->Stdlib.Set.add(item)->ignore
+            item->(Obj.magic: item => value)
           }
         }
 
@@ -2076,7 +2164,7 @@ module Object = {
       {
         fieldNames,
         fields,
-        itemDefinitionsSet,
+        itemsSet,
         // js/ts methods
         _jsField: field,
         _jsFieldOr: fieldOr,
@@ -2091,16 +2179,16 @@ module Object = {
 
   let factory = definer => {
     let ctx = Ctx.make()
-    let definition = definer((ctx :> s))->(Obj.magic: 'any => Definition.t<itemDefinition>)
-    let {itemDefinitionsSet, fields, fieldNames} = ctx
-    let itemDefinitions = itemDefinitionsSet->Stdlib.Set.toArray
+    let definition = definer((ctx :> s))->(Obj.magic: 'any => Definition.t<item>)
+    let {itemsSet, fields, fieldNames} = ctx
+    let items = itemsSet->Stdlib.Set.toArray
 
     make(
       ~name=() =>
         `Object({${fieldNames
           ->Js.Array2.map(fieldName => {
-            let fieldSchema = fields->Js.Dict.unsafeGet(fieldName)
-            `${fieldName->Stdlib.Inlined.Value.fromString}: ${fieldSchema.name()}`
+            let item = fields->Js.Dict.unsafeGet(fieldName)
+            `${fieldName->Stdlib.Inlined.Value.fromString}: ${item.schema.name()}`
           })
           ->Js.Array2.joinWith(", ")}})`,
       ~metadataMap=Metadata.Map.empty,
@@ -2110,14 +2198,14 @@ module Object = {
         unknownKeys: Strip,
       }),
       ~parseOperationBuilder=makeParseOperationBuilder(
-        ~itemDefinitions,
-        ~itemDefinitionsSet,
+        ~items,
+        ~itemsSet,
         ~definition,
         ~unknownKeysRefinement=(b, ~input, ~selfSchema, ~path) => {
           let inputVar = b->B.Val.var(input)
           let withUnknownKeysRefinement =
             (selfSchema->classify->Obj.magic)["unknownKeys"] === Strict
-          switch (withUnknownKeysRefinement, itemDefinitions) {
+          switch (withUnknownKeysRefinement, items) {
           | (true, []) => {
               let key = b->B.allocateVal
               let keyVar = b->B.Val.var(key)
@@ -2133,12 +2221,12 @@ module Object = {
               let key = b->B.allocateVal
               let keyVar = b->B.Val.var(key)
               b.code = b.code ++ `for(${keyVar} in ${inputVar}){if(`
-              for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
-                let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
+              for idx in 0 to items->Js.Array2.length - 1 {
+                let item = items->Js.Array2.unsafe_get(idx)
                 if idx !== 0 {
                   b.code = b.code ++ "&&"
                 }
-                b.code = b.code ++ `${keyVar}!==${itemDefinition.inlinedInputLocation}`
+                b.code = b.code ++ `${keyVar}!==${item.rawLocation}`
               }
               b.code =
                 b.code ++
@@ -2152,89 +2240,7 @@ module Object = {
           }
         },
       ),
-      ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-        let inputVar = b->B.Val.var(input)
-        let fieldsCodeRef = ref("")
-
-        let registeredDefinitions = Stdlib.Set.empty()
-
-        {
-          let prevCode = b.code
-          b.code = ""
-          let rec definitionToOutput = (definition: Definition.t<itemDefinition>, ~outputPath) => {
-            let kind = definition->Definition.toKindWithSet(~embededSet=itemDefinitionsSet)
-            switch kind {
-            | Embeded =>
-              let itemDefinition = definition->Definition.toEmbeded
-              if registeredDefinitions->Stdlib.Set.has(itemDefinition) {
-                b->B.invalidOperation(
-                  ~path,
-                  ~description=`The field ${itemDefinition.inlinedInputLocation} is registered multiple times. If you want to duplicate the field, use S.transform instead`,
-                )
-              } else {
-                registeredDefinitions->Stdlib.Set.add(itemDefinition)->ignore
-                let {inlinedInputLocation, schema} = itemDefinition
-                fieldsCodeRef.contents =
-                  fieldsCodeRef.contents ++
-                  `${inlinedInputLocation}:${b->B.Val.inline(
-                      b->B.serialize(
-                        ~schema,
-                        ~input=b->B.val(`${inputVar}${outputPath}`),
-                        ~path=path->Path.concat(outputPath),
-                      ),
-                    )},`
-              }
-            | Constant => {
-                let value = definition->Definition.toConstant
-                b.code =
-                  `if(${inputVar}${outputPath}!==${b->B.embed(value)}){${b->B.raiseWithArg(
-                      ~path=path->Path.concat(outputPath),
-                      input => InvalidLiteral({
-                        expected: value->Literal.parse,
-                        received: input,
-                      }),
-                      `${inputVar}${outputPath}`,
-                    )}}` ++
-                  b.code
-              }
-            | Node => {
-                let node = definition->Definition.toNode
-                let keys = node->Js.Dict.keys
-                for idx in 0 to keys->Js.Array2.length - 1 {
-                  let key = keys->Js.Array2.unsafe_get(idx)
-                  let definition = node->Js.Dict.unsafeGet(key)
-                  definitionToOutput(
-                    definition,
-                    ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
-                  )
-                }
-              }
-            }
-          }
-          definitionToOutput(definition, ~outputPath=Path.empty)
-          b.code = prevCode ++ b.code
-        }
-
-        for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
-          let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
-          if registeredDefinitions->Stdlib.Set.has(itemDefinition)->not {
-            let {schema, inlinedInputLocation} = itemDefinition
-            switch schema->Literal.fromSchema {
-            | Some(literal) =>
-              fieldsCodeRef.contents =
-                fieldsCodeRef.contents ++
-                `${inlinedInputLocation}:${b->B.embed(literal->Literal.value)},`
-            | None =>
-              b->B.invalidOperation(
-                ~path,
-                ~description=`Can't create serializer. The ${inlinedInputLocation} field is not registered and not a literal. Use S.transform instead`,
-              )
-            }
-          }
-        }
-
-        b->B.val(`{${fieldsCodeRef.contents}}`)
-      }),
+      ~serializeOperationBuilder=makeSerializeOperationBuilder(~definition, ~items, ~itemsSet),
       ~maybeTypeFilter=Some(typeFilter),
     )
   }
@@ -2666,7 +2672,7 @@ module Tuple = {
       @as("s")
       schemas: array<schema<unknown>>,
       @as("d")
-      itemDefinitionsSet: Stdlib.Set.t<Object.itemDefinition>,
+      itemsSet: Stdlib.Set.t<item>,
       @as("item") _jsItem: 'value. (int, t<'value>) => 'value,
       @as("tag") _jsTag: 'value. (int, 'value) => unit,
       ...s,
@@ -2675,26 +2681,26 @@ module Tuple = {
     @inline
     let make = () => {
       let schemas = []
-      let itemDefinitionsSet = Stdlib.Set.empty()
+      let itemsSet = Stdlib.Set.empty()
 
       let item:
         type value. (int, schema<value>) => value =
         (idx, schema) => {
           let schema = schema->toUnknown
-          let inlinedInputLocation = `"${idx->Stdlib.Int.unsafeToString}"`
+          let rawLocation = `"${idx->Stdlib.Int.unsafeToString}"`
           if schemas->Stdlib.Array.has(idx) {
             InternalError.panic(
-              `The item ${inlinedInputLocation} is defined multiple times. If you want to duplicate the item, use S.transform instead.`,
+              `The item ${rawLocation} is defined multiple times. If you want to duplicate the item, use S.transform instead.`,
             )
           } else {
-            let itemDefinition: Object.itemDefinition = {
+            let item: item = {
               schema,
-              inlinedInputLocation,
-              inputPath: inlinedInputLocation->Path.fromInlinedLocation,
+              rawLocation,
+              rawPath: rawLocation->Path.fromInlinedLocation,
             }
             schemas->Js.Array2.unsafe_set(idx, schema)
-            itemDefinitionsSet->Stdlib.Set.add(itemDefinition)->ignore
-            itemDefinition->(Obj.magic: Object.itemDefinition => value)
+            itemsSet->Stdlib.Set.add(item)->ignore
+            item->(Obj.magic: item => value)
           }
         }
 
@@ -2704,7 +2710,7 @@ module Tuple = {
 
       {
         schemas,
-        itemDefinitionsSet,
+        itemsSet,
         // js/ts methods
         _jsItem: item,
         _jsTag: tag,
@@ -2717,30 +2723,30 @@ module Tuple = {
 
   let factory = definer => {
     let ctx = Ctx.make()
-    let definition = definer((ctx :> s))->(Obj.magic: 'any => Definition.t<Object.itemDefinition>)
-    let {itemDefinitionsSet, schemas} = ctx
+    let definition = definer((ctx :> s))->(Obj.magic: 'any => Definition.t<item>)
+    let {itemsSet, schemas} = ctx
     let length = schemas->Js.Array2.length
     for idx in 0 to length - 1 {
       if schemas->Js.Array2.unsafe_get(idx)->Obj.magic->not {
         let schema = unit->toUnknown
-        let inlinedInputLocation = `"${idx->Stdlib.Int.unsafeToString}"`
-        let itemDefinition: Object.itemDefinition = {
+        let rawLocation = `"${idx->Stdlib.Int.unsafeToString}"`
+        let item: item = {
           schema,
-          inlinedInputLocation,
-          inputPath: inlinedInputLocation->Path.fromInlinedLocation,
+          rawLocation,
+          rawPath: rawLocation->Path.fromInlinedLocation,
         }
         schemas->Js.Array2.unsafe_set(idx, schema)
-        itemDefinitionsSet->Stdlib.Set.add(itemDefinition)->ignore
+        itemsSet->Stdlib.Set.add(item)->ignore
       }
     }
-    let itemDefinitions = itemDefinitionsSet->Stdlib.Set.toArray
+    let items = itemsSet->Stdlib.Set.toArray
 
     make(
       ~name=() => `Tuple(${schemas->Js.Array2.map(s => s.name())->Js.Array2.joinWith(", ")})`,
       ~tagged=Tuple(schemas),
       ~parseOperationBuilder=Object.makeParseOperationBuilder(
-        ~itemDefinitions,
-        ~itemDefinitionsSet,
+        ~items,
+        ~itemsSet,
         ~definition,
         ~unknownKeysRefinement=Object.noopRefinement,
       ),
@@ -2751,22 +2757,19 @@ module Tuple = {
         {
           let prevCode = b.code
           b.code = ""
-          let rec definitionToOutput = (
-            definition: Definition.t<Object.itemDefinition>,
-            ~outputPath,
-          ) => {
-            let kind = definition->Definition.toKindWithSet(~embededSet=itemDefinitionsSet)
+          let rec definitionToOutput = (definition: Definition.t<item>, ~outputPath) => {
+            let kind = definition->Definition.toKindWithSet(~embededSet=itemsSet)
             switch kind {
             | Embeded =>
-              let itemDefinition = definition->Definition.toEmbeded
-              if registeredDefinitions->Stdlib.Set.has(itemDefinition) {
+              let item = definition->Definition.toEmbeded
+              if registeredDefinitions->Stdlib.Set.has(item) {
                 b->B.invalidOperation(
                   ~path,
-                  ~description=`The item ${itemDefinition.inlinedInputLocation} is registered multiple times. If you want to duplicate the item, use S.transform instead`,
+                  ~description=`The item ${item.rawLocation} is registered multiple times. If you want to duplicate the item, use S.transform instead`,
                 )
               } else {
-                registeredDefinitions->Stdlib.Set.add(itemDefinition)->ignore
-                let {schema, inputPath} = itemDefinition
+                registeredDefinitions->Stdlib.Set.add(item)->ignore
+                let {schema, rawPath} = item
                 let fieldOuputVar =
                   b->B.Val.inline(
                     b->B.serialize(
@@ -2775,7 +2778,7 @@ module Tuple = {
                       ~path=path->Path.concat(outputPath),
                     ),
                   )
-                b.code = b.code ++ `${b->B.Val.var(output)}${inputPath}=${fieldOuputVar};`
+                b.code = b.code ++ `${b->B.Val.var(output)}${rawPath}=${fieldOuputVar};`
               }
             | Constant => {
                 let value = definition->Definition.toConstant
@@ -2810,20 +2813,20 @@ module Tuple = {
           b.code = prevCode ++ b.code
         }
 
-        for idx in 0 to itemDefinitions->Js.Array2.length - 1 {
-          let itemDefinition = itemDefinitions->Js.Array2.unsafe_get(idx)
-          if registeredDefinitions->Stdlib.Set.has(itemDefinition)->not {
-            let {schema, inlinedInputLocation, inputPath} = itemDefinition
+        for idx in 0 to items->Js.Array2.length - 1 {
+          let item = items->Js.Array2.unsafe_get(idx)
+          if registeredDefinitions->Stdlib.Set.has(item)->not {
+            let {schema, rawLocation, rawPath} = item
             switch schema->Literal.fromSchema {
             | Some(literal) =>
               b.code =
                 b.code ++
                 // TODO: Don't always embed. We can inline some of the literals
-                `${b->B.Val.var(output)}${inputPath}=${b->B.embed(literal->Literal.value)};`
+                `${b->B.Val.var(output)}${rawPath}=${b->B.embed(literal->Literal.value)};`
             | None =>
               b->B.invalidOperation(
                 ~path,
-                ~description=`Can't create serializer. The ${inlinedInputLocation} item is not registered and not a literal. Use S.transform instead`,
+                ~description=`Can't create serializer. The ${rawLocation} item is not registered and not a literal. Use S.transform instead`,
               )
             }
           }
@@ -2923,18 +2926,21 @@ module Union = {
             try {
               let schema = schemas->Js.Array2.unsafe_get(idx)
               let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
-              b.code = b.code ++ `try{`
-              let itemOutput = b->B.serialize(~schema, ~input, ~path=Path.empty)
+
+              let bb = b->B.scope
+              let itemOutput = bb->B.serialize(~schema, ~input, ~path=Path.empty)
+              switch schema.maybeTypeFilter {
+              | Some(typeFilter) =>
+                bb.code =
+                  bb.code ++
+                  bb->B.typeFilterCode(~schema, ~typeFilter, ~input=itemOutput, ~path=Path.empty)
+              | None => ()
+              }
+
               b.code =
                 b.code ++
-                switch schema.maybeTypeFilter {
-                | Some(typeFilter) =>
-                  b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemOutput, ~path=Path.empty)
-                | None => ""
-                } ++
-                `${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
+                `try{${bb->B.allocateScope}${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
               codeEndRef.contents = codeEndRef.contents ++ "}"
-
               errorCodeRef := errorCodeRef.contents ++ errorVar ++ ","
             } catch {
             | exn => {
@@ -3281,9 +3287,9 @@ let inline = {
   {
     ${fieldNames
         ->Js.Array2.map(fieldName => {
-          `${fieldName->Stdlib.Inlined.Value.fromString}: s.field(${fieldName->Stdlib.Inlined.Value.fromString}, ${fields
-            ->Js.Dict.unsafeGet(fieldName)
-            ->internalInline()})`
+          `${fieldName->Stdlib.Inlined.Value.fromString}: s.field(${fieldName->Stdlib.Inlined.Value.fromString}, ${(
+              fields->Js.Dict.unsafeGet(fieldName)
+            ).schema->internalInline()})`
         })
         ->Js.Array2.joinWith(",\n    ")},
   }

@@ -47,11 +47,16 @@ and tagged =
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
-  | Object({fields: dict<t<unknown>>, fieldNames: array<string>, unknownKeys: unknownKeys})
+  | Object({fields: dict<item>, fieldNames: array<string>, unknownKeys: unknownKeys})
   | Tuple(array<t<unknown>>)
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
   | JSON({validated: bool})
+and item = {
+  schema: t<unknown>,
+  rawLocation: string,
+  rawPath: Path.t,
+}
 and schema<'value> = t<'value>
 and error = private {operation: operation, code: errorCode, path: Path.t}
 and errorCode =
