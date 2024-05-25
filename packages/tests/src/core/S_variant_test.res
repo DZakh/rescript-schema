@@ -116,6 +116,16 @@ test("Compiled parse code snapshot", t => {
   )
 })
 
+test("Compiled parse code snapshot without transform", t => {
+  let schema = S.string->S.variant(s => s)
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#parse,
+    `i=>{if(typeof i!=="string"){e[1](i)}return e[0](i)}`,
+  )
+})
+
 test("Compiled serialize code snapshot", t => {
   let schema = S.string->S.variant(s => Ok(s))
 
@@ -124,6 +134,12 @@ test("Compiled serialize code snapshot", t => {
     ~op=#serialize,
     `i=>{let v0=i["TAG"];if(v0!==e[0]){e[1](v0)}return i["_0"]}`,
   )
+})
+
+test("Compiled serialize code snapshot without transform", t => {
+  let schema = S.string->S.variant(s => s)
+
+  t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
 })
 
 test(

@@ -1923,9 +1923,7 @@ module Object = {
 
   let typeFilter = (~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
 
-  let noopRefinement = (_b, ~input as _, ~selfSchema as _, ~path as _) => ()
-
-  let makeParseOperationBuilder = (~items, ~itemsSet, ~definition, ~unknownKeysRefinement) => {
+  let makeParseOperationBuilder = (~items, ~itemsSet, ~definition) => {
     Builder.make((b, ~input, ~selfSchema, ~path) => {
       let registeredDefinitions = Stdlib.Set.empty()
       let asyncOutputVars = []
@@ -1942,19 +1940,16 @@ module Object = {
               let item = definition->Definition.toEmbeded
               registeredDefinitions->Stdlib.Set.add(item)->ignore
               let {schema, rawPath} = item
-              let fieldOuput =
-                b->B.parseWithTypeCheck(
-                  ~schema,
-                  ~input=b->B.val(`${inputVar}${rawPath}`),
-                  ~path=path->Path.concat(rawPath),
-                )
+              let itemInput = b->B.val(`${inputVar}${rawPath}`)
+              let itemOutput =
+                b->B.parseWithTypeCheck(~schema, ~input=itemInput, ~path=path->Path.concat(rawPath))
 
-              if fieldOuput.isAsync {
-                let asyncOutputVar = b->B.Val.var(fieldOuput)
+              if itemOutput.isAsync {
+                let asyncOutputVar = b->B.Val.var(itemOutput)
                 asyncOutputVars->Js.Array2.push(asyncOutputVar)->ignore
                 asyncOutputVar
               } else {
-                b->B.Val.inline(fieldOuput)
+                b->B.Val.inline(itemOutput)
               }
             }
           | Constant => {
@@ -1965,6 +1960,7 @@ module Object = {
               let node = definition->Definition.toNode
               let isArray = Stdlib.Array.isArray(node)
               let keys = node->Js.Dict.keys
+
               let codeRef = ref(isArray ? "[" : "{")
               for idx in 0 to keys->Js.Array2.length - 1 {
                 let key = keys->Js.Array2.unsafe_get(idx)
@@ -2005,7 +2001,42 @@ module Object = {
 
       b.code = prevCode ++ unregisteredFieldsCode ++ registeredFieldsCode
 
-      unknownKeysRefinement(b, ~input, ~selfSchema, ~path)
+      switch selfSchema->classify {
+      | Object({unknownKeys: Strict}) =>
+        switch items {
+        | [] => {
+            let key = b->B.allocateVal
+            let keyVar = b->B.Val.var(key)
+            b.code =
+              b.code ++
+              `for(${keyVar} in ${inputVar}){${b->B.raiseWithArg(
+                  ~path,
+                  exccessFieldName => ExcessField(exccessFieldName),
+                  keyVar,
+                )}}`
+          }
+        | _ => {
+            let key = b->B.allocateVal
+            let keyVar = b->B.Val.var(key)
+            b.code = b.code ++ `for(${keyVar} in ${inputVar}){if(`
+            for idx in 0 to items->Js.Array2.length - 1 {
+              let item = items->Js.Array2.unsafe_get(idx)
+              if idx !== 0 {
+                b.code = b.code ++ "&&"
+              }
+              b.code = b.code ++ `${keyVar}!==${item.rawLocation}`
+            }
+            b.code =
+              b.code ++
+              `){${b->B.raiseWithArg(
+                  ~path,
+                  exccessFieldName => ExcessField(exccessFieldName),
+                  keyVar,
+                )}}}`
+          }
+        }
+      | _ => ()
+      }
 
       if asyncOutputVars->Js.Array2.length === 0 {
         b->B.val(syncOutput)
@@ -2225,49 +2256,7 @@ module Object = {
         fieldNames,
         unknownKeys: Strip,
       }),
-      ~parseOperationBuilder=makeParseOperationBuilder(
-        ~items,
-        ~itemsSet,
-        ~definition,
-        ~unknownKeysRefinement=(b, ~input, ~selfSchema, ~path) => {
-          let inputVar = b->B.Val.var(input)
-          let withUnknownKeysRefinement =
-            (selfSchema->classify->Obj.magic)["unknownKeys"] === Strict
-          switch (withUnknownKeysRefinement, items) {
-          | (true, []) => {
-              let key = b->B.allocateVal
-              let keyVar = b->B.Val.var(key)
-              b.code =
-                b.code ++
-                `for(${keyVar} in ${inputVar}){${b->B.raiseWithArg(
-                    ~path,
-                    exccessFieldName => ExcessField(exccessFieldName),
-                    keyVar,
-                  )}}`
-            }
-          | (true, _) => {
-              let key = b->B.allocateVal
-              let keyVar = b->B.Val.var(key)
-              b.code = b.code ++ `for(${keyVar} in ${inputVar}){if(`
-              for idx in 0 to items->Js.Array2.length - 1 {
-                let item = items->Js.Array2.unsafe_get(idx)
-                if idx !== 0 {
-                  b.code = b.code ++ "&&"
-                }
-                b.code = b.code ++ `${keyVar}!==${item.rawLocation}`
-              }
-              b.code =
-                b.code ++
-                `){${b->B.raiseWithArg(
-                    ~path,
-                    exccessFieldName => ExcessField(exccessFieldName),
-                    keyVar,
-                  )}}}`
-            }
-          | _ => ()
-          }
-        },
-      ),
+      ~parseOperationBuilder=makeParseOperationBuilder(~items, ~itemsSet, ~definition),
       ~serializeOperationBuilder=makeSerializeOperationBuilder(~definition, ~itemsSet),
       ~maybeTypeFilter=Some(typeFilter),
     )
@@ -2771,12 +2760,7 @@ module Tuple = {
     make(
       ~name=() => `Tuple(${items->Js.Array2.map(i => i.schema.name())->Js.Array2.joinWith(", ")})`,
       ~tagged=Tuple(items),
-      ~parseOperationBuilder=Object.makeParseOperationBuilder(
-        ~items,
-        ~itemsSet,
-        ~definition,
-        ~unknownKeysRefinement=Object.noopRefinement,
-      ),
+      ~parseOperationBuilder=Object.makeParseOperationBuilder(~items, ~itemsSet, ~definition),
       ~serializeOperationBuilder=Object.makeSerializeOperationBuilder(~definition, ~itemsSet),
       ~maybeTypeFilter=Some(
         (~inputVar) =>

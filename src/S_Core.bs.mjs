@@ -1471,11 +1471,7 @@ function typeFilter(inputVar) {
   return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
 }
 
-function noopRefinement(_b, param, param$1, param$2) {
-  
-}
-
-function makeParseOperationBuilder(items, itemsSet, definition, unknownKeysRefinement) {
+function makeParseOperationBuilder(items, itemsSet, definition) {
   return function (b, input, selfSchema, path) {
     var registeredDefinitions = new Set();
     var asyncOutputVars = [];
@@ -1505,11 +1501,12 @@ function makeParseOperationBuilder(items, itemsSet, definition, unknownKeysRefin
         case 2 :
             registeredDefinitions.add(definition);
             var rawPath = definition.rawPath;
-            var fieldOuput = parseWithTypeCheck(b, definition.schema, val(b, inputVar + rawPath), path + rawPath);
-            if (!fieldOuput.a) {
-              return inline(b, fieldOuput);
+            var itemInput = val(b, inputVar + rawPath);
+            var itemOutput = parseWithTypeCheck(b, definition.schema, itemInput, path + rawPath);
+            if (!itemOutput.a) {
+              return inline(b, itemOutput);
             }
-            var asyncOutputVar = $$var(b, fieldOuput);
+            var asyncOutputVar = $$var(b, itemOutput);
             asyncOutputVars.push(asyncOutputVar);
             return asyncOutputVar;
         
@@ -1532,7 +1529,36 @@ function makeParseOperationBuilder(items, itemsSet, definition, unknownKeysRefin
     }
     var unregisteredFieldsCode = b.c;
     b.c = prevCode + unregisteredFieldsCode + registeredFieldsCode;
-    unknownKeysRefinement(b, input, selfSchema, path);
+    var match = selfSchema.t;
+    if (typeof match === "object" && match.TAG === "Object" && match.unknownKeys !== "Strip") {
+      if (items.length !== 0) {
+        var key = allocateVal(b);
+        var keyVar = $$var(b, key);
+        b.c = b.c + ("for(" + keyVar + " in " + inputVar + "){if(");
+        for(var idx$1 = 0 ,idx_finish$1 = items.length; idx$1 < idx_finish$1; ++idx$1){
+          var item$1 = items[idx$1];
+          if (idx$1 !== 0) {
+            b.c = b.c + "&&";
+          }
+          b.c = b.c + (keyVar + "!==" + item$1.rawLocation);
+        }
+        b.c = b.c + ("){" + raiseWithArg(b, path, (function (exccessFieldName) {
+                  return {
+                          TAG: "ExcessField",
+                          _0: exccessFieldName
+                        };
+                }), keyVar) + "}}");
+      } else {
+        var key$1 = allocateVal(b);
+        var keyVar$1 = $$var(b, key$1);
+        b.c = b.c + ("for(" + keyVar$1 + " in " + inputVar + "){" + raiseWithArg(b, path, (function (exccessFieldName) {
+                  return {
+                          TAG: "ExcessField",
+                          _0: exccessFieldName
+                        };
+                }), keyVar$1) + "}");
+      }
+    }
     if (asyncOutputVars.length === 0) {
       return val(b, syncOutput);
     } else {
@@ -1701,40 +1727,7 @@ function factory$3(definer) {
                             return JSON.stringify(fieldName) + ": " + item.schema.n();
                           }).join(", ") + "})";
             }),
-          p: makeParseOperationBuilder(items, itemsSet$1, definition, (function (b, input, selfSchema, path) {
-                  var inputVar = $$var(b, input);
-                  var withUnknownKeysRefinement = selfSchema.t.unknownKeys === "Strict";
-                  if (!withUnknownKeysRefinement) {
-                    return ;
-                  }
-                  if (items.length !== 0) {
-                    var key = allocateVal(b);
-                    var keyVar = $$var(b, key);
-                    b.c = b.c + ("for(" + keyVar + " in " + inputVar + "){if(");
-                    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-                      var item = items[idx];
-                      if (idx !== 0) {
-                        b.c = b.c + "&&";
-                      }
-                      b.c = b.c + (keyVar + "!==" + item.rawLocation);
-                    }
-                    b.c = b.c + ("){" + raiseWithArg(b, path, (function (exccessFieldName) {
-                              return {
-                                      TAG: "ExcessField",
-                                      _0: exccessFieldName
-                                    };
-                            }), keyVar) + "}}");
-                    return ;
-                  }
-                  var key$1 = allocateVal(b);
-                  var keyVar$1 = $$var(b, key$1);
-                  b.c = b.c + ("for(" + keyVar$1 + " in " + inputVar + "){" + raiseWithArg(b, path, (function (exccessFieldName) {
-                            return {
-                                    TAG: "ExcessField",
-                                    _0: exccessFieldName
-                                  };
-                          }), keyVar$1) + "}");
-                })),
+          p: makeParseOperationBuilder(items, itemsSet$1, definition),
           s: makeSerializeOperationBuilder(definition, itemsSet$1),
           f: typeFilter,
           i: 0,
@@ -2124,7 +2117,7 @@ function factory$7(definer) {
                             return i.schema.n();
                           }).join(", ") + ")";
             }),
-          p: makeParseOperationBuilder(items$1, itemsSet$1, definition, noopRefinement),
+          p: makeParseOperationBuilder(items$1, itemsSet$1, definition),
           s: makeSerializeOperationBuilder(definition, itemsSet$1),
           f: (function (inputVar) {
               return typeFilter$5(inputVar) + ("||" + inputVar + ".length!==" + length);
