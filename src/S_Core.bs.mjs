@@ -98,19 +98,15 @@ function classify(schema) {
 function scope(b) {
   return {
           c: "",
-          o: b.o,
-          v: b.v,
           l: "",
           a: false,
-          p: b,
-          e: b.e
+          g: b.g
         };
 }
 
 function allocateScope(b) {
   var varsAllocation = b.l;
   b.a = true;
-  b.p.v = b.v;
   if (varsAllocation === "") {
     return b.c;
   } else {
@@ -119,8 +115,8 @@ function allocateScope(b) {
 }
 
 function varWithoutAllocation(b) {
-  var newCounter = b.v + 1;
-  b.v = newCounter;
+  var newCounter = b.g.v + 1;
+  b.g.v = newCounter;
   return "v" + newCounter;
 }
 
@@ -233,31 +229,31 @@ function transform(b, input, operation) {
 
 function embedSyncOperation(b, input, fn) {
   return transform(b, input, (function (b, input) {
-                return map(b, "e[" + (b.e.push(fn) - 1) + "]", input);
+                return map(b, "e[" + (b.g.e.push(fn) - 1) + "]", input);
               }));
 }
 
 function embedAsyncOperation(b, input, fn) {
   return transform(b, input, (function (b, input) {
-                var val = map(b, "e[" + (b.e.push(fn) - 1) + "]", input);
+                var val = map(b, "e[" + (b.g.e.push(fn) - 1) + "]", input);
                 val.a = true;
                 return val;
               }));
 }
 
 function raiseWithArg(b, path, fn, arg) {
-  return "e[" + (b.e.push(function (arg) {
+  return "e[" + (b.g.e.push(function (arg) {
                 var code = fn(arg);
-                throw new RescriptSchemaError(code, b.o, path);
+                throw new RescriptSchemaError(code, b.g.o, path);
               }) - 1) + "](" + arg + ")";
 }
 
 function fail(b, message, path) {
-  return "e[" + (b.e.push(function () {
+  return "e[" + (b.g.e.push(function () {
                 throw new RescriptSchemaError({
                           TAG: "OperationFailed",
                           _0: message
-                        }, b.o, path);
+                        }, b.g.o, path);
               }) - 1) + "]()";
 }
 
@@ -265,7 +261,7 @@ function invalidOperation(b, path, description) {
   throw new RescriptSchemaError({
             TAG: "InvalidOperation",
             description: description
-          }, b.o, path);
+          }, b.g.o, path);
 }
 
 function withCatch(b, input, $$catch, fn) {
@@ -356,12 +352,13 @@ function noopOperation(i) {
 function build(builder, schema, operation) {
   var b = {
     c: "",
-    o: operation,
-    v: -1,
     l: "",
     a: false,
-    p: (void 0),
-    e: []
+    g: {
+      v: -1,
+      o: operation,
+      e: []
+    }
   };
   var input = {
     v: "i",
@@ -383,7 +380,7 @@ function build(builder, schema, operation) {
     return noopOperation;
   }
   var inlinedFunction = "i=>{" + b.c + "return " + inline(b, output) + "}";
-  return new Function("e", "s", "return " + inlinedFunction)(b.e, symbol);
+  return new Function("e", "s", "return " + inlinedFunction)(b.g.e, symbol);
 }
 
 function value(literal) {
@@ -400,7 +397,7 @@ function toString(literal) {
 
 function arrayCheckBuilder(b, inputVar, literal) {
   var items = literal.i;
-  return "(" + inputVar + "===" + ("e[" + (b.e.push(literal.value) - 1) + "]") + "||Array.isArray(" + inputVar + ")&&" + inputVar + ".length===" + items.length + (
+  return "(" + inputVar + "===" + ("e[" + (b.g.e.push(literal.value) - 1) + "]") + "||Array.isArray(" + inputVar + ")&&" + inputVar + ".length===" + items.length + (
           items.length > 0 ? "&&" + items.map(function (literal, idx) {
                     return literal.b(b, inputVar + "[" + idx + "]", literal);
                   }).join("&&") : ""
@@ -411,7 +408,7 @@ function dictCheckBuilder(b, inputVar, literal) {
   var items = literal.i;
   var fields = Object.keys(items);
   var numberOfFields = fields.length;
-  return "(" + inputVar + "===" + ("e[" + (b.e.push(value) - 1) + "]") + "||" + inputVar + "&&" + inputVar + ".constructor===Object&&Object.keys(" + inputVar + ").length===" + numberOfFields + (
+  return "(" + inputVar + "===" + ("e[" + (b.g.e.push(value) - 1) + "]") + "||" + inputVar + "&&" + inputVar + ".constructor===Object&&Object.keys(" + inputVar + ").length===" + numberOfFields + (
           numberOfFields > 0 ? "&&" + fields.map(function (field) {
                     var literal = items[field];
                     return literal.b(b, inputVar + "[" + JSON.stringify(field) + "]", literal);
@@ -424,7 +421,7 @@ function inlinedStrictEqualCheckBuilder(param, inputVar, literal) {
 }
 
 function strictEqualCheckBuilder(b, inputVar, literal) {
-  return inputVar + "===" + ("e[" + (b.e.push(literal.value) - 1) + "]");
+  return inputVar + "===" + ("e[" + (b.g.e.push(literal.value) - 1) + "]");
 }
 
 var undefined_value = undefined;
@@ -977,14 +974,16 @@ function recursive(fn) {
   var builder = placeholder.p;
   placeholder.p = (function (b, input, selfSchema, path) {
       selfSchema.p = noop;
+      var init = b.g;
       var b$1 = {
         c: "",
-        o: "Parsing",
-        v: -1,
         l: "",
         a: false,
-        p: (void 0),
-        e: []
+        g: {
+          v: -1,
+          o: init.o,
+          e: []
+        }
       };
       var input$1 = {
         v: "i",
@@ -1085,8 +1084,8 @@ function internalRefine(schema, refiner) {
 
 function refine(schema, refiner) {
   return internalRefine(schema, (function (b, input, selfSchema, path) {
-                var value = refiner(make(selfSchema, path, b.o));
-                return "e[" + (b.e.push(value) - 1) + "](" + $$var(b, input) + ");";
+                var value = refiner(make(selfSchema, path, b.g.o));
+                return "e[" + (b.g.e.push(value) - 1) + "](" + $$var(b, input) + ");";
               }));
 }
 
@@ -1101,7 +1100,7 @@ function transform$1(schema, transformer) {
           n: schema.n,
           p: (function (b, input, selfSchema, path) {
               var input$1 = schema.p(b, input, schema, path);
-              var match = transformer(make(selfSchema, path, b.o));
+              var match = transformer(make(selfSchema, path, b.g.o));
               var parser = match.p;
               if (parser !== undefined) {
                 if (match.a !== undefined) {
@@ -1120,7 +1119,7 @@ function transform$1(schema, transformer) {
               }
             }),
           s: (function (b, input, selfSchema, path) {
-              var match = transformer(make(selfSchema, path, b.o));
+              var match = transformer(make(selfSchema, path, b.g.o));
               var serializer = match.s;
               if (serializer === undefined) {
                 if (match.a !== undefined || match.p !== undefined) {
@@ -1160,7 +1159,7 @@ function preprocess(schema, transformer) {
           t: schema.t,
           n: schema.n,
           p: (function (b, input, selfSchema, path) {
-              var match = transformer(make(selfSchema, path, b.o));
+              var match = transformer(make(selfSchema, path, b.g.o));
               var parser = match.p;
               if (parser !== undefined) {
                 if (match.a !== undefined) {
@@ -1180,7 +1179,7 @@ function preprocess(schema, transformer) {
             }),
           s: (function (b, input, selfSchema, path) {
               var input$1 = schema.s(b, input, schema, path);
-              var match = transformer(make(selfSchema, path, b.o));
+              var match = transformer(make(selfSchema, path, b.g.o));
               var serializer = match.s;
               if (serializer !== undefined) {
                 return embedSyncOperation(b, input$1, serializer);
@@ -1201,7 +1200,7 @@ function custom(name, definer) {
               return name;
             }),
           p: (function (b, input, selfSchema, path) {
-              var match = definer(make(selfSchema, path, b.o));
+              var match = definer(make(selfSchema, path, b.g.o));
               var parser = match.p;
               if (parser !== undefined) {
                 if (match.a !== undefined) {
@@ -1220,7 +1219,7 @@ function custom(name, definer) {
               }
             }),
           s: (function (b, input, selfSchema, path) {
-              var match = definer(make(selfSchema, path, b.o));
+              var match = definer(make(selfSchema, path, b.g.o));
               var serializer = match.s;
               if (serializer !== undefined) {
                 return embedSyncOperation(b, input, serializer);
@@ -1314,7 +1313,7 @@ function factory(schema, definer) {
                   case 1 :
                       var constantVal = outputPath === "" ? input : val(b, inputVar + outputPath);
                       var constantVar = $$var(b, constantVal);
-                      b.c = b.c + ("if(" + constantVar + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
+                      b.c = b.c + ("if(" + constantVar + "!==" + ("e[" + (b.g.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
                                 return {
                                         TAG: "InvalidLiteral",
                                         expected: parseInternal(definition),
@@ -1338,7 +1337,7 @@ function factory(schema, definer) {
               if (literal === undefined) {
                 return invalidOperation(b, path, "Can't create serializer. The S.variant's value is not registered and not a literal. Use S.transform instead");
               }
-              var input$1 = val(b, "e[" + (b.e.push(literal.value) - 1) + "]");
+              var input$1 = val(b, "e[" + (b.g.e.push(literal.value) - 1) + "]");
               return schema.s(b, input$1, schema, path);
             }),
           f: schema.f,
@@ -1381,7 +1380,7 @@ function serializeOperationBuilder(b, input, selfSchema, path) {
   var childSchema = selfSchema.t._0;
   var bb = scope(b);
   var value = Caml_option.valFromOption;
-  var input$1 = map(bb, "e[" + (bb.e.push(value) - 1) + "]", input);
+  var input$1 = map(bb, "e[" + (bb.g.e.push(value) - 1) + "]", input);
   var itemOutput = childSchema.s(bb, input$1, childSchema, path);
   var itemCode = allocateScope(bb);
   b.c = b.c + ("if(" + inputVar + "!==void 0){" + itemCode + set(b, output, itemOutput) + "}" + (
@@ -1423,7 +1422,7 @@ function getWithDefault(schema, $$default) {
               return transform(b, schema.p(b, input, schema, path), (function (b, input) {
                             var inputVar = $$var(b, input);
                             var tmp;
-                            tmp = $$default.TAG === "Value" ? "e[" + (b.e.push($$default._0) - 1) + "]" : "e[" + (b.e.push($$default._0) - 1) + "]()";
+                            tmp = $$default.TAG === "Value" ? "e[" + (b.g.e.push($$default._0) - 1) + "]" : "e[" + (b.g.e.push($$default._0) - 1) + "]()";
                             return val(b, inputVar + "===void 0?" + tmp + ":" + inputVar);
                           }));
             }),
@@ -1473,11 +1472,32 @@ function typeFilter(inputVar) {
 
 function makeParseOperationBuilder(items, itemsSet, definition) {
   return function (b, input, selfSchema, path) {
-    var registeredDefinitions = new Set();
     var asyncOutputVars = [];
     var inputVar = $$var(b, input);
-    var prevCode = b.c;
-    b.c = "";
+    var outputs = new WeakMap();
+    var tagsB = scope(b);
+    var parseB = scope(b);
+    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+      var item = items[idx];
+      var rawPath = item.rawPath;
+      var schema = item.schema;
+      var itemInput = val(b, inputVar + rawPath);
+      var path$1 = path + rawPath;
+      var match = schema.t;
+      var isTag;
+      isTag = typeof match !== "object" || match.TAG !== "Literal" ? false : true;
+      var b$1 = isTag ? tagsB : parseB;
+      var typeFilter = schema.f;
+      if (typeFilter !== undefined) {
+        b$1.c = b$1.c + typeFilterCode(b$1, typeFilter, schema, itemInput, path$1);
+      }
+      var itemOutput = schema.p(b$1, itemInput, schema, path$1);
+      outputs.set(item, itemOutput);
+      if (itemOutput.a) {
+        asyncOutputVars.push($$var(b$1, itemOutput));
+      }
+      
+    }
     var definitionToOutput = function (definition, outputPath) {
       var kind = toKindWithSet(definition, itemsSet);
       switch (kind) {
@@ -1497,40 +1517,17 @@ function makeParseOperationBuilder(items, itemsSet, definition) {
                     isArray ? "]" : "}"
                   );
         case 1 :
-            return "e[" + (b.e.push(definition) - 1) + "]";
+            return "e[" + (b.g.e.push(definition) - 1) + "]";
         case 2 :
-            registeredDefinitions.add(definition);
-            var rawPath = definition.rawPath;
-            var itemInput = val(b, inputVar + rawPath);
-            var itemOutput = parseWithTypeCheck(b, definition.schema, itemInput, path + rawPath);
-            if (!itemOutput.a) {
-              return inline(b, itemOutput);
-            }
-            var asyncOutputVar = $$var(b, itemOutput);
-            asyncOutputVars.push(asyncOutputVar);
-            return asyncOutputVar;
+            var itemOutput = outputs.get(definition);
+            return inline(b, itemOutput);
         
       }
     };
     var syncOutput = definitionToOutput(definition, "");
-    var registeredFieldsCode = b.c;
-    b.c = "";
-    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-      var item = items[idx];
-      if (!registeredDefinitions.has(item)) {
-        var rawPath = item.rawPath;
-        var fieldOuput = parseWithTypeCheck(b, item.schema, val(b, inputVar + rawPath), path + rawPath);
-        if (fieldOuput.a) {
-          asyncOutputVars.push($$var(b, fieldOuput));
-        }
-        
-      }
-      
-    }
-    var unregisteredFieldsCode = b.c;
-    b.c = prevCode + unregisteredFieldsCode + registeredFieldsCode;
-    var match = selfSchema.t;
-    if (typeof match === "object" && match.TAG === "Object" && match.unknownKeys !== "Strip") {
+    b.c = b.c + allocateScope(tagsB) + allocateScope(parseB);
+    var match$1 = selfSchema.t;
+    if (typeof match$1 === "object" && match$1.TAG === "Object" && match$1.unknownKeys !== "Strip") {
       if (items.length !== 0) {
         var key = allocateVal(b);
         var keyVar = $$var(b, key);
@@ -1593,7 +1590,7 @@ function makeSerializeOperationBuilder(definition, itemsSet) {
             return ;
         case 1 :
             var itemInputVar = inputVar + outputPath;
-            ctx.d = ctx.d + ("if(" + itemInputVar + "!==" + ("e[" + (b.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
+            ctx.d = ctx.d + ("if(" + itemInputVar + "!==" + ("e[" + (b.g.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
                       return {
                               TAG: "InvalidLiteral",
                               expected: parseInternal(definition),
@@ -1629,7 +1626,7 @@ function makeSerializeOperationBuilder(definition, itemsSet) {
       var literal = fromSchema(item.schema);
       if (literal !== undefined) {
         ctx.t = true;
-        return "e[" + (b.e.push(literal.value) - 1) + "]";
+        return "e[" + (b.g.e.push(literal.value) - 1) + "]";
       } else {
         return invalidOperation(b, path, "Can't create serializer. The " + item.rawLocation + " item is not registered and not a literal. For advanced transformation cases use S.transform");
       }
@@ -1698,37 +1695,35 @@ function factory$3(definer) {
   var fieldOr = function (fieldName, schema, or) {
     return field(fieldName, getOr(factory$1(schema), or));
   };
+  var nestedField = function (_fieldName, _nestedFieldName, _schema) {
+    
+  };
   var ctx = {
-    n: fieldNames,
-    h: fields,
-    d: itemsSet,
     field: field,
     fieldOr: fieldOr,
     tag: tag,
     f: field,
     o: fieldOr,
-    t: tag
+    t: tag,
+    n: nestedField
   };
   var definition = definer(ctx);
-  var itemsSet$1 = itemsSet;
-  var fields$1 = fields;
-  var fieldNames$1 = fieldNames;
-  var items = Array.from(itemsSet$1);
+  var items = Array.from(itemsSet);
   return {
           t: {
             TAG: "Object",
-            fields: fields$1,
-            fieldNames: fieldNames$1,
+            fields: fields,
+            fieldNames: fieldNames,
             unknownKeys: "Strip"
           },
           n: (function () {
-              return "Object({" + fieldNames$1.map(function (fieldName) {
-                            var item = fields$1[fieldName];
+              return "Object({" + fieldNames.map(function (fieldName) {
+                            var item = fields[fieldName];
                             return JSON.stringify(fieldName) + ": " + item.schema.n();
                           }).join(", ") + "})";
             }),
-          p: makeParseOperationBuilder(items, itemsSet$1, definition),
-          s: makeSerializeOperationBuilder(definition, itemsSet$1),
+          p: makeParseOperationBuilder(items, itemsSet, definition),
+          s: makeSerializeOperationBuilder(definition, itemsSet),
           f: typeFilter,
           i: 0,
           m: empty
@@ -2082,19 +2077,15 @@ function factory$7(definer) {
     item(idx, literal(asValue));
   };
   var ctx = {
-    i: items,
-    s: itemsSet,
     item: item,
     tag: tag,
     i: item,
     t: tag
   };
   var definition = definer(ctx);
-  var itemsSet$1 = itemsSet;
-  var items$1 = items;
-  var length = items$1.length;
+  var length = items.length;
   for(var idx = 0; idx < length; ++idx){
-    if (!items$1[idx]) {
+    if (!items[idx]) {
       var rawLocation = "\"" + idx + "\"";
       var item_rawPath = "[" + rawLocation + "]";
       var item$1 = {
@@ -2102,23 +2093,23 @@ function factory$7(definer) {
         rawLocation: rawLocation,
         rawPath: item_rawPath
       };
-      items$1[idx] = item$1;
-      itemsSet$1.add(item$1);
+      items[idx] = item$1;
+      itemsSet.add(item$1);
     }
     
   }
   return {
           t: {
             TAG: "Tuple",
-            _0: items$1
+            _0: items
           },
           n: (function () {
-              return "Tuple(" + items$1.map(function (i) {
+              return "Tuple(" + items.map(function (i) {
                             return i.schema.n();
                           }).join(", ") + ")";
             }),
-          p: makeParseOperationBuilder(items$1, itemsSet$1, definition),
-          s: makeSerializeOperationBuilder(definition, itemsSet$1),
+          p: makeParseOperationBuilder(items, itemsSet, definition),
+          s: makeSerializeOperationBuilder(definition, itemsSet),
           f: (function (inputVar) {
               return typeFilter$5(inputVar) + ("||" + inputVar + ".length!==" + length);
             }),
@@ -2166,7 +2157,7 @@ function factory$8(schemas) {
                   catch (raw_exn){
                     var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
                     var value = getOrRethrow(exn);
-                    errorCodeRef = errorCodeRef + ("e[" + (b.e.push(value) - 1) + "]") + ",";
+                    errorCodeRef = errorCodeRef + ("e[" + (b.g.e.push(value) - 1) + "]") + ",";
                     b.c = prevCode;
                   }
                 }
@@ -2210,7 +2201,7 @@ function factory$8(schemas) {
                   catch (raw_exn){
                     var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
                     var value = getOrRethrow(exn);
-                    errorCodeRef = errorCodeRef + ("e[" + (b.e.push(value) - 1) + "]") + ",";
+                    errorCodeRef = errorCodeRef + ("e[" + (b.g.e.push(value) - 1) + "]") + ",";
                     b.c = prevCode;
                   }
                 }
@@ -2297,7 +2288,7 @@ function json(validate) {
                             received: input
                           }, "Parsing", path$1);
                 };
-                return map(b, "e[" + (b.e.push(parse) - 1) + "]", input);
+                return map(b, "e[" + (b.g.e.push(parse) - 1) + "]", input);
               }) : noop,
           s: noop,
           f: undefined,
@@ -2315,7 +2306,7 @@ function $$catch(schema, getFallbackValue) {
           p: (function (b, input, selfSchema, path) {
               var inputVar = $$var(b, input);
               return withCatch(b, input, (function (b, errorVar) {
-                            return val(b, "e[" + (b.e.push(function (input, internalError) {
+                            return val(b, "e[" + (b.g.e.push(function (input, internalError) {
                                               return getFallbackValue({
                                                           e: internalError,
                                                           i: input,
@@ -2325,7 +2316,7 @@ function $$catch(schema, getFallbackValue) {
                                                               throw new RescriptSchemaError({
                                                                         TAG: "OperationFailed",
                                                                         _0: message
-                                                                      }, b.o, path + customPath);
+                                                                      }, b.g.o, path + customPath);
                                                             })
                                                         });
                                             }) - 1) + "](" + inputVar + "," + errorVar + ")");
@@ -2760,7 +2751,7 @@ function intMin(schema, minValue, maybeMessage) {
               },
               message: message
             }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + "<" + ("e[" + (b.e.push(minValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + $$var(b, input) + "<" + ("e[" + (b.g.e.push(minValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2773,7 +2764,7 @@ function intMax(schema, maxValue, maybeMessage) {
               },
               message: message
             }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ">" + ("e[" + (b.e.push(maxValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + $$var(b, input) + ">" + ("e[" + (b.g.e.push(maxValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2796,7 +2787,7 @@ function floatMin(schema, minValue, maybeMessage) {
               },
               message: message
             }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + "<" + ("e[" + (b.e.push(minValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + $$var(b, input) + "<" + ("e[" + (b.g.e.push(minValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2809,7 +2800,7 @@ function floatMax(schema, maxValue, maybeMessage) {
               },
               message: message
             }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ">" + ("e[" + (b.e.push(maxValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + $$var(b, input) + ">" + ("e[" + (b.g.e.push(maxValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2822,7 +2813,7 @@ function arrayMin(schema, length, maybeMessage) {
               },
               message: message
             }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length<" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + $$var(b, input) + ".length<" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2835,7 +2826,7 @@ function arrayMax(schema, length, maybeMessage) {
               },
               message: message
             }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length>" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + $$var(b, input) + ".length>" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2848,7 +2839,7 @@ function arrayLength(schema, length, maybeMessage) {
               },
               message: message
             }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length!==" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + $$var(b, input) + ".length!==" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2861,7 +2852,7 @@ function stringMin(schema, length, maybeMessage) {
               },
               message: message
             }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length<" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + $$var(b, input) + ".length<" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2874,7 +2865,7 @@ function stringMax(schema, length, maybeMessage) {
               },
               message: message
             }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length>" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + $$var(b, input) + ".length>" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2887,7 +2878,7 @@ function stringLength(schema, length, maybeMessage) {
               },
               message: message
             }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length!==" + ("e[" + (b.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + $$var(b, input) + ".length!==" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2897,7 +2888,7 @@ function email(schema, messageOpt) {
               kind: "Email",
               message: message
             }, (function (b, input, param, path) {
-                return "if(!" + ("e[" + (b.e.push(emailRegex) - 1) + "]") + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
+                return "if(!" + ("e[" + (b.g.e.push(emailRegex) - 1) + "]") + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2907,7 +2898,7 @@ function uuid(schema, messageOpt) {
               kind: "Uuid",
               message: message
             }, (function (b, input, param, path) {
-                return "if(!" + ("e[" + (b.e.push(uuidRegex) - 1) + "]") + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
+                return "if(!" + ("e[" + (b.g.e.push(uuidRegex) - 1) + "]") + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2917,7 +2908,7 @@ function cuid(schema, messageOpt) {
               kind: "Cuid",
               message: message
             }, (function (b, input, param, path) {
-                return "if(!" + ("e[" + (b.e.push(cuidRegex) - 1) + "]") + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
+                return "if(!" + ("e[" + (b.g.e.push(cuidRegex) - 1) + "]") + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2940,7 +2931,7 @@ function pattern(schema, re, messageOpt) {
               },
               message: message
             }, (function (b, input, param, path) {
-                var reVal = val(b, "e[" + (b.e.push(re) - 1) + "]");
+                var reVal = val(b, "e[" + (b.g.e.push(re) - 1) + "]");
                 var reVar = $$var(b, reVal);
                 return reVar + ".lastIndex=0;if(!" + reVar + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
               }));

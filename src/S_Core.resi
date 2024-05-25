@@ -232,6 +232,7 @@ module Object: {
     @as("f") field: 'value. (string, t<'value>) => 'value,
     @as("o") fieldOr: 'value. (string, t<'value>, 'value) => 'value,
     @as("t") tag: 'value. (string, 'value) => unit,
+    @as("n") nestedField: 'value. (string, string, t<'value>) => 'value,
   }
 
   /* The same as S.object. Expose only for PPX since the object is a reserved name in OCaml */

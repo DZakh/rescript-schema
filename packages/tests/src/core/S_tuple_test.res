@@ -181,7 +181,7 @@ test("Tuple schema parsing checks order", t => {
   let schema = S.tuple(s => {
     s.tag(1, "value")
     {
-      "key": s.item(0, S.literal("value")),
+      "key": s.item(0, S.string),
     }
   })
 
@@ -196,11 +196,11 @@ test("Tuple schema parsing checks order", t => {
   )
   // Length check should be the second
   t->U.assertErrorResult(
-    %raw(`["wrong", "wrong", "value", "value"]`)->S.parseAnyWith(schema),
+    %raw(`["value", "value", "value", "value"]`)->S.parseAnyWith(schema),
     {
       code: InvalidType({
         expected: schema->S.toUnknown,
-        received: %raw(`["wrong", "wrong", "value", "value"]`),
+        received: %raw(`["value", "value", "value", "value"]`),
       }),
       operation: Parsing,
       path: S.Path.empty,
@@ -208,7 +208,7 @@ test("Tuple schema parsing checks order", t => {
   )
   // Tag check should be the third
   t->U.assertErrorResult(
-    %raw(`["wrong", "wrong"]`)->S.parseAnyWith(schema),
+    %raw(`["value", "wrong"]`)->S.parseAnyWith(schema),
     {
       code: InvalidLiteral({expected: S.Literal.parse("value"), received: %raw(`"wrong"`)}),
       operation: Parsing,
@@ -217,9 +217,9 @@ test("Tuple schema parsing checks order", t => {
   )
   // Field check should be the last
   t->U.assertErrorResult(
-    %raw(`["wrong", "value"]`)->S.parseAnyWith(schema),
+    %raw(`[1, "value"]`)->S.parseAnyWith(schema),
     {
-      code: InvalidLiteral({expected: S.Literal.parse("value"), received: %raw(`"wrong"`)}),
+      code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`1`)}),
       operation: Parsing,
       path: S.Path.fromLocation("0"),
     },
@@ -254,7 +254,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0=e[0](i["0"]),v1=i["1"];if(typeof v1!=="boolean"){e[1](v1)}return ()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]))}`,
+      `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v1=i["1"];let v0=e[0](i["0"]);if(typeof v1!=="boolean"){e[1](v1)}return ()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]))}`,
     )
   })
 
@@ -286,7 +286,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#parse,
-        `i=>{if(!Array.isArray(i)||i.length!==3){e[4](i)}let v0=i["1"],v1=i["2"],v2=i["0"];v2===0||e[3](v2);if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return {"foo":v0,"bar":v1,"zoo":e[2],}}`,
+        `i=>{if(!Array.isArray(i)||i.length!==3){e[4](i)}let v0=i["0"],v1=i["1"],v2=i["2"];v0===0||e[0](v0);if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}return {"foo":v1,"bar":v2,"zoo":e[3],}}`,
       )
     },
   )

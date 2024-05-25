@@ -377,7 +377,7 @@ module Advanced = {
     t->U.assertCompiledCode(
       ~schema=shapeSchema,
       ~op=#parse,
-      `i=>{let v2;try{if(!i||i.constructor!==Object){e[0](i)}let v0=i["radius"],v1=i["kind"];v1==="circle"||e[3](v1);if(typeof v0!=="number"||Number.isNaN(v0)){e[2](v0)}v2={"TAG":e[1],"radius":v0,}}catch(e0){try{if(!i||i.constructor!==Object){e[4](i)}let v3=i["x"],v4=i["kind"];v4==="square"||e[7](v4);if(typeof v3!=="number"||Number.isNaN(v3)){e[6](v3)}v2={"TAG":e[5],"x":v3,}}catch(e1){try{if(!i||i.constructor!==Object){e[8](i)}let v5=i["x"],v6=i["y"],v7=i["kind"];v7==="triangle"||e[12](v7);if(typeof v5!=="number"||Number.isNaN(v5)){e[10](v5)}if(typeof v6!=="number"||Number.isNaN(v6)){e[11](v6)}v2={"TAG":e[9],"x":v5,"y":v6,}}catch(e2){e[13]([e0,e1,e2,])}}}return v2}`,
+      `i=>{let v2;try{if(!i||i.constructor!==Object){e[0](i)}let v0=i["kind"],v1=i["radius"];v0==="circle"||e[1](v0);if(typeof v1!=="number"||Number.isNaN(v1)){e[2](v1)}v2={"TAG":e[3],"radius":v1,}}catch(e0){try{if(!i||i.constructor!==Object){e[4](i)}let v3=i["kind"],v4=i["x"];v3==="square"||e[5](v3);if(typeof v4!=="number"||Number.isNaN(v4)){e[6](v4)}v2={"TAG":e[7],"x":v4,}}catch(e1){try{if(!i||i.constructor!==Object){e[8](i)}let v5=i["kind"],v6=i["x"],v7=i["y"];v5==="triangle"||e[9](v5);if(typeof v6!=="number"||Number.isNaN(v6)){e[10](v6)}if(typeof v7!=="number"||Number.isNaN(v7)){e[11](v7)}v2={"TAG":e[12],"x":v6,"y":v7,}}catch(e2){e[13]([e0,e1,e2,])}}}return v2}`,
     )
   })
 
@@ -414,14 +414,6 @@ test("Compiled parse code snapshot", t => {
     ~schema,
     ~op=#parse,
     `i=>{let v0;try{i===0||e[0](i);v0=i}catch(e0){try{i===1||e[1](i);v0=i}catch(e1){e[2]([e0,e1,])}}return v0}`,
-  )
-})
-
-test("Compiled parse code snapshot for discriminated union", t => {
-  t->U.assertCompiledCode(
-    ~schema=Advanced.shapeSchema,
-    ~op=#parse,
-    `i=>{let v2;try{if(!i||i.constructor!==Object){e[0](i)}let v0=i["radius"],v1=i["kind"];v1==="circle"||e[3](v1);if(typeof v0!=="number"||Number.isNaN(v0)){e[2](v0)}v2={"TAG":e[1],"radius":v0,}}catch(e0){try{if(!i||i.constructor!==Object){e[4](i)}let v3=i["x"],v4=i["kind"];v4==="square"||e[7](v4);if(typeof v3!=="number"||Number.isNaN(v3)){e[6](v3)}v2={"TAG":e[5],"x":v3,}}catch(e1){try{if(!i||i.constructor!==Object){e[8](i)}let v5=i["x"],v6=i["y"],v7=i["kind"];v7==="triangle"||e[12](v7);if(typeof v5!=="number"||Number.isNaN(v5)){e[10](v5)}if(typeof v6!=="number"||Number.isNaN(v6)){e[11](v6)}v2={"TAG":e[9],"x":v5,"y":v6,}}catch(e2){e[13]([e0,e1,e2,])}}}return v2}`,
   )
 })
 

@@ -66,6 +66,7 @@ module Stdlib = {
     @new external make: unit => t<'k, 'v> = "WeakMap"
 
     @send external get: (t<'k, 'v>, 'k) => option<'v> = "get"
+    @send external getUnsafe: (t<'k, 'v>, 'k) => 'v = "get"
     @send external has: (t<'k, 'v>, 'k) => bool = "has"
     @send external set: (t<'k, 'v>, 'k, 'v) => t<'k, 'v> = "set"
   }
@@ -284,21 +285,23 @@ and val = {
   @as("a")
   mutable isAsync: bool,
 }
+and bGlobal = {
+  @as("v")
+  mutable varCounter: int,
+  @as("o")
+  operation: operation,
+  @as("e")
+  embeded: array<unknown>,
+}
 and b = {
   @as("c")
   mutable code: string,
-  @as("o")
-  operation: operation,
-  @as("v")
-  mutable _varCounter: int,
   @as("l")
-  mutable _varsAllocation: string,
+  mutable varsAllocation: string,
   @as("a")
-  mutable _isAllocated: bool,
-  @as("p")
-  mutable _parent: b,
-  @as("e")
-  _embeded: array<unknown>,
+  mutable isAllocated: bool,
+  @as("g")
+  global: bGlobal,
 }
 and operation =
   | Parsing
@@ -404,32 +407,29 @@ module Builder = {
   module B = {
     @inline
     let embed = (b: b, value) => {
-      `e[${(b._embeded->Js.Array2.push(value->castAnyToUnknown)->(Obj.magic: int => float) -. 1.)
-          ->(Obj.magic: float => string)}]`
+      `e[${(b.global.embeded
+        ->Js.Array2.push(value->castAnyToUnknown)
+        ->(Obj.magic: int => float) -. 1.)->(Obj.magic: float => string)}]`
     }
 
     let scope = (b: b): b => {
       {
-        _parent: b,
-        _embeded: b._embeded,
-        _varCounter: b._varCounter,
+        global: b.global,
         code: "",
-        operation: b.operation,
-        _varsAllocation: "",
-        _isAllocated: false,
+        varsAllocation: "",
+        isAllocated: false,
       }
     }
 
     let allocateScope = (b: b): string => {
-      let varsAllocation = b._varsAllocation
-      b._isAllocated = true
-      b._parent._varCounter = b._varCounter
+      let varsAllocation = b.varsAllocation
+      b.isAllocated = true
       varsAllocation === "" ? b.code : `let ${varsAllocation};${b.code}`
     }
 
     let varWithoutAllocation = (b: b) => {
-      let newCounter = b._varCounter->Stdlib.Int.plus(1)
-      b._varCounter = newCounter
+      let newCounter = b.global.varCounter->Stdlib.Int.plus(1)
+      b.global.varCounter = newCounter
       `v${newCounter->Stdlib.Int.unsafeToString}`
     }
 
@@ -458,14 +458,14 @@ module Builder = {
         | {_var} => _var
         | _ => {
             let var = b->varWithoutAllocation
-            let isValScopeActive = !val._scope._isAllocated
+            let isValScopeActive = !val._scope.isAllocated
             let activeScope = isValScopeActive ? val._scope : b
             let allocation = switch val._initial {
             | Some(i) if isValScopeActive => `${var}=${i}`
             | _ => var
             }
-            let varsAllocation = activeScope._varsAllocation
-            activeScope._varsAllocation = varsAllocation === ""
+            let varsAllocation = activeScope.varsAllocation
+            activeScope.varsAllocation = varsAllocation === ""
               ? allocation
               : varsAllocation ++ "," ++ allocation
             switch val._initial {
@@ -558,13 +558,13 @@ module Builder = {
 
     let raiseWithArg = (b: b, ~path, fn: 'arg => errorCode, arg) => {
       `${b->embed(arg => {
-          InternalError.raise(~path, ~code=fn(arg), ~operation=b.operation)
+          InternalError.raise(~path, ~code=fn(arg), ~operation=b.global.operation)
         })}(${arg})`
     }
 
     let fail = (b: b, ~message, ~path) => {
       `${b->embed(() => {
-          InternalError.raise(~path, ~code=OperationFailed(message), ~operation=b.operation)
+          InternalError.raise(~path, ~code=OperationFailed(message), ~operation=b.global.operation)
         })}()`
     }
 
@@ -572,7 +572,7 @@ module Builder = {
       InternalError.raise(
         ~path,
         ~code=InvalidOperation({description: description}),
-        ~operation=b.operation,
+        ~operation=b.global.operation,
       )
     }
 
@@ -711,13 +711,14 @@ module Builder = {
 
   let build = (builder, ~schema, ~operation) => {
     let b = {
-      _embeded: [],
-      _varCounter: -1,
       code: "",
-      _varsAllocation: "",
-      _isAllocated: false,
-      _parent: %raw(`void 0`),
-      operation,
+      varsAllocation: "",
+      isAllocated: false,
+      global: {
+        varCounter: -1,
+        embeded: [],
+        operation,
+      },
     }
     let input = {_var: intitialInputVar, _scope: b, isAsync: false}
 
@@ -728,8 +729,8 @@ module Builder = {
       ~path=Path.empty,
     )
 
-    if b._varsAllocation !== "" {
-      b.code = `let ${b._varsAllocation};${b.code}`
+    if b.varsAllocation !== "" {
+      b.code = `let ${b.varsAllocation};${b.code}`
     }
 
     if operation === Parsing {
@@ -750,7 +751,7 @@ module Builder = {
 
       Stdlib.Function.make2(
         ~ctxVarName1="e",
-        ~ctxVarValue1=b._embeded,
+        ~ctxVarValue1=b.global.embeded,
         ~ctxVarName2="s",
         ~ctxVarValue2=symbol,
         ~inlinedFunction,
@@ -1335,13 +1336,14 @@ let recursive = fn => {
       let isAsync = {
         selfSchema.parseOperationBuilder = Builder.noop
         let b = {
-          _embeded: [],
+          global: {
+            ...b.global,
+            varCounter: -1,
+            embeded: [],
+          },
           code: "",
-          _varCounter: -1,
-          operation: Parsing,
-          _parent: %raw(`void 0`),
-          _varsAllocation: "",
-          _isAllocated: false,
+          varsAllocation: "",
+          isAllocated: false,
         }
         let input = {_var: Builder.intitialInputVar, _scope: b, isAsync: false}
         let output = (builder->(Obj.magic: builder => Builder.implementation))(
@@ -1457,7 +1459,7 @@ let internalRefine = (schema, refiner) => {
 let refine: (t<'value>, s<'value> => 'value => unit) => t<'value> = (schema, refiner) => {
   schema->internalRefine((b, ~input, ~selfSchema, ~path) => {
     `${b->B.embed(
-        refiner(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)),
+        refiner(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)),
       )}(${b->B.Val.var(input)});`
   })
 }
@@ -1493,7 +1495,7 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       let input = b->B.parse(~schema, ~input, ~path)
 
-      switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
+      switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~input, ~fn=parser)
       | {parser: ?None, asyncParser} => b->B.embedAsyncOperation(~input, ~fn=asyncParser)
       | {parser: ?None, asyncParser: ?None, serializer: ?None} => input
@@ -1507,7 +1509,7 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
       }
     }),
     ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-      switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
+      switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)) {
       | {serializer} =>
         b->B.serialize(~schema, ~input=b->B.embedSyncOperation(~input, ~fn=serializer), ~path)
       | {parser: ?None, asyncParser: ?None, serializer: ?None} =>
@@ -1551,7 +1553,7 @@ let rec preprocess = (schema, transformer) => {
       ~name=schema.name,
       ~tagged=schema.tagged,
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-        switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
+        switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)) {
         | {parser, asyncParser: ?None} =>
           b->B.parseWithTypeCheck(
             ~schema,
@@ -1573,7 +1575,7 @@ let rec preprocess = (schema, transformer) => {
       ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
         let input = b->B.serialize(~schema, ~input, ~path)
 
-        switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
+        switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)) {
         | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
         // TODO: Test that it doesn't return InvalidOperation when parser is passed but not serializer
         | {serializer: ?None} => input
@@ -1599,7 +1601,7 @@ let custom = (name, definer) => {
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Unknown,
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-      switch definer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
+      switch definer(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~input, ~fn=parser)
       | {parser: ?None, asyncParser} => b->B.embedAsyncOperation(~input, ~fn=asyncParser)
       | {parser: ?None, asyncParser: ?None, serializer: ?None} => input
@@ -1613,7 +1615,7 @@ let custom = (name, definer) => {
       }
     }),
     ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-      switch definer(EffectCtx.make(~selfSchema, ~path, ~operation=b.operation)) {
+      switch definer(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)) {
       | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
       | {parser: ?None, asyncParser: ?None, serializer: ?None} => input
       | {serializer: ?None, asyncParser: ?Some(_)}
@@ -1919,18 +1921,47 @@ module Object = {
     @as("f") field: 'value. (string, t<'value>) => 'value,
     @as("o") fieldOr: 'value. (string, t<'value>, 'value) => 'value,
     @as("t") tag: 'value. (string, 'value) => unit,
+    @as("n") nestedField: 'value. (string, string, t<'value>) => 'value,
   }
 
   let typeFilter = (~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
 
   let makeParseOperationBuilder = (~items, ~itemsSet, ~definition) => {
     Builder.make((b, ~input, ~selfSchema, ~path) => {
-      let registeredDefinitions = Stdlib.Set.empty()
       let asyncOutputVars = []
-
       let inputVar = b->B.Val.var(input)
-      let prevCode = b.code
-      b.code = ""
+
+      let outputs = Stdlib.WeakMap.make()
+
+      let tagsB = b->B.scope
+      let parseB = b->B.scope
+
+      for idx in 0 to items->Js.Array2.length - 1 {
+        let item = items->Js.Array2.unsafe_get(idx)
+        let {schema, rawPath} = item
+        let itemInput = b->B.val(`${inputVar}${rawPath}`)
+        let path = path->Path.concat(rawPath)
+
+        let isTag = switch schema->classify {
+        | Literal(_) => true
+        | _ => false
+        }
+        let b = isTag ? tagsB : parseB
+
+        switch schema.maybeTypeFilter {
+        | Some(typeFilter) =>
+          b.code = b.code ++ b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path)
+        | None => ()
+        }
+
+        let itemOutput = b->B.parse(~schema, ~input=itemInput, ~path)
+
+        let _ = outputs->Stdlib.WeakMap.set(item, itemOutput)
+
+        if itemOutput.isAsync {
+          asyncOutputVars->Js.Array2.push(b->B.Val.var(itemOutput))->ignore
+        }
+      }
 
       let syncOutput = {
         let rec definitionToOutput = (definition: Definition.t<item>, ~outputPath) => {
@@ -1938,19 +1969,8 @@ module Object = {
           switch kind {
           | Embeded => {
               let item = definition->Definition.toEmbeded
-              registeredDefinitions->Stdlib.Set.add(item)->ignore
-              let {schema, rawPath} = item
-              let itemInput = b->B.val(`${inputVar}${rawPath}`)
-              let itemOutput =
-                b->B.parseWithTypeCheck(~schema, ~input=itemInput, ~path=path->Path.concat(rawPath))
-
-              if itemOutput.isAsync {
-                let asyncOutputVar = b->B.Val.var(itemOutput)
-                asyncOutputVars->Js.Array2.push(asyncOutputVar)->ignore
-                asyncOutputVar
-              } else {
-                b->B.Val.inline(itemOutput)
-              }
+              let itemOutput = outputs->Stdlib.WeakMap.getUnsafe(item)
+              b->B.Val.inline(itemOutput)
             }
           | Constant => {
               let constant = definition->Definition.toConstant
@@ -1979,27 +1999,8 @@ module Object = {
         }
         definition->definitionToOutput(~outputPath=Path.empty)
       }
-      let registeredFieldsCode = b.code
-      b.code = ""
 
-      for idx in 0 to items->Js.Array2.length - 1 {
-        let item = items->Js.Array2.unsafe_get(idx)
-        if registeredDefinitions->Stdlib.Set.has(item)->not {
-          let {schema, rawPath} = item
-          let fieldOuput =
-            b->B.parseWithTypeCheck(
-              ~schema,
-              ~input=b->B.val(`${inputVar}${rawPath}`),
-              ~path=path->Path.concat(rawPath),
-            )
-          if fieldOuput.isAsync {
-            asyncOutputVars->Js.Array2.push(b->B.Val.var(fieldOuput))->ignore
-          }
-        }
-      }
-      let unregisteredFieldsCode = b.code
-
-      b.code = prevCode ++ unregisteredFieldsCode ++ registeredFieldsCode
+      b.code = b.code ++ tagsB->B.allocateScope ++ parseB->B.allocateScope
 
       switch selfSchema->classify {
       | Object({unknownKeys: Strict}) =>
@@ -2167,12 +2168,6 @@ module Object = {
 
   module Ctx = {
     type t = {
-      @as("n")
-      fieldNames: array<string>,
-      @as("h")
-      fields: dict<item>,
-      @as("d")
-      itemsSet: Stdlib.Set.t<item>,
       // Public API for JS/TS users.
       // It shouldn't be used from ReScript and
       // needed only because we use @as to reduce bundle-size
@@ -2185,11 +2180,7 @@ module Object = {
     }
 
     @inline
-    let make = () => {
-      let fields = Js.Dict.empty()
-      let fieldNames = []
-      let itemsSet = Stdlib.Set.empty()
-
+    let make = (~fields, ~fieldNames, ~itemsSet) => {
       let field:
         type value. (string, schema<value>) => value =
         (fieldName, schema) => {
@@ -2220,10 +2211,11 @@ module Object = {
         field(fieldName, Option.factory(schema)->Option.getOr(or))
       }
 
+      let nestedField = (_fieldName, _nestedFieldName, _schema) => {
+        ()->Obj.magic
+      }
+
       {
-        fieldNames,
-        fields,
-        itemsSet,
         // js/ts methods
         _jsField: field,
         _jsFieldOr: fieldOr,
@@ -2232,14 +2224,17 @@ module Object = {
         field,
         fieldOr,
         tag,
+        nestedField,
       }
     }
   }
 
   let factory = definer => {
-    let ctx = Ctx.make()
+    let fields = Js.Dict.empty()
+    let fieldNames = []
+    let itemsSet = Stdlib.Set.empty()
+    let ctx = Ctx.make(~fields, ~fieldNames, ~itemsSet)
     let definition = definer((ctx :> s))->(Obj.magic: 'any => Definition.t<item>)
-    let {itemsSet, fields, fieldNames} = ctx
     let items = itemsSet->Stdlib.Set.toArray
 
     make(
@@ -2686,20 +2681,13 @@ module Tuple = {
 
   module Ctx = {
     type t = {
-      @as("i")
-      items: array<item>,
-      @as("s")
-      itemsSet: Stdlib.Set.t<item>,
       @as("item") _jsItem: 'value. (int, t<'value>) => 'value,
       @as("tag") _jsTag: 'value. (int, 'value) => unit,
       ...s,
     }
 
     @inline
-    let make = () => {
-      let items = []
-      let itemsSet = Stdlib.Set.empty()
-
+    let make = (~items, ~itemsSet) => {
       let item:
         type value. (int, schema<value>) => value =
         (idx, schema) => {
@@ -2726,8 +2714,6 @@ module Tuple = {
       }
 
       {
-        items,
-        itemsSet,
         // js/ts methods
         _jsItem: item,
         _jsTag: tag,
@@ -2739,9 +2725,11 @@ module Tuple = {
   }
 
   let factory = definer => {
-    let ctx = Ctx.make()
+    let items = []
+    let itemsSet = Stdlib.Set.empty()
+    let ctx = Ctx.make(~items, ~itemsSet)
     let definition = definer((ctx :> s))->(Obj.magic: 'any => Definition.t<item>)
-    let {itemsSet, items} = ctx
+
     let length = items->Js.Array2.length
     for idx in 0 to length - 1 {
       if items->Js.Array2.unsafe_get(idx)->Obj.magic->not {
@@ -3006,7 +2994,7 @@ let catch = (schema, getFallbackValue) => {
                     InternalError.raise(
                       ~path=path->Path.concat(customPath),
                       ~code=OperationFailed(message),
-                      ~operation=b.operation,
+                      ~operation=b.global.operation,
                     )
                   },
                 })
