@@ -2144,38 +2144,27 @@ module Object = {
 
       switch selfSchema->classifyRaw {
       | Object({unknownKeys: Strict}) =>
+        let key = b->B.allocateVal
+        let keyVar = b->B.Val.var(key)
+        b.code = b.code ++ `for(${keyVar} in ${inputVar}){if(`
         switch items {
-        | [] => {
-            let key = b->B.allocateVal
-            let keyVar = b->B.Val.var(key)
-            b.code =
-              b.code ++
-              `for(${keyVar} in ${inputVar}){${b->B.raiseWithArg(
-                  ~path,
-                  exccessFieldName => ExcessField(exccessFieldName),
-                  keyVar,
-                )}}`
-          }
-        | _ => {
-            let key = b->B.allocateVal
-            let keyVar = b->B.Val.var(key)
-            b.code = b.code ++ `for(${keyVar} in ${inputVar}){if(`
-            for idx in 0 to items->Js.Array2.length - 1 {
-              let item = items->Js.Array2.unsafe_get(idx)
-              if idx !== 0 {
-                b.code = b.code ++ "&&"
-              }
-              b.code = b.code ++ `${keyVar}!==${item.rawLocation}`
+        | [] => b.code = b.code ++ "true"
+        | _ =>
+          for idx in 0 to items->Js.Array2.length - 1 {
+            let item = items->Js.Array2.unsafe_get(idx)
+            if idx !== 0 {
+              b.code = b.code ++ "&&"
             }
-            b.code =
-              b.code ++
-              `){${b->B.raiseWithArg(
-                  ~path,
-                  exccessFieldName => ExcessField(exccessFieldName),
-                  keyVar,
-                )}}}`
+            b.code = b.code ++ `${keyVar}!==${item.rawLocation}`
           }
         }
+        b.code =
+          b.code ++
+          `){${b->B.raiseWithArg(
+              ~path,
+              exccessFieldName => ExcessField(exccessFieldName),
+              keyVar,
+            )}}}`
       | _ => ()
       }
 

@@ -1613,10 +1613,10 @@ function makeParseOperationBuilder(items, itemsSet, definition) {
     b.c = b.c + allocateScope(tagsB) + allocateScope(parseB);
     var match$1 = selfSchema.r;
     if (typeof match$1 === "object" && match$1.TAG === "Object" && match$1.unknownKeys !== "Strip") {
+      var key = allocateVal(b);
+      var keyVar = $$var(b, key);
+      b.c = b.c + ("for(" + keyVar + " in " + inputVar + "){if(");
       if (items.length !== 0) {
-        var key = allocateVal(b);
-        var keyVar = $$var(b, key);
-        b.c = b.c + ("for(" + keyVar + " in " + inputVar + "){if(");
         for(var idx$1 = 0 ,idx_finish$1 = items.length; idx$1 < idx_finish$1; ++idx$1){
           var item$1 = items[idx$1];
           if (idx$1 !== 0) {
@@ -1624,22 +1624,15 @@ function makeParseOperationBuilder(items, itemsSet, definition) {
           }
           b.c = b.c + (keyVar + "!==" + item$1.rawLocation);
         }
-        b.c = b.c + ("){" + raiseWithArg(b, path, (function (exccessFieldName) {
-                  return {
-                          TAG: "ExcessField",
-                          _0: exccessFieldName
-                        };
-                }), keyVar) + "}}");
       } else {
-        var key$1 = allocateVal(b);
-        var keyVar$1 = $$var(b, key$1);
-        b.c = b.c + ("for(" + keyVar$1 + " in " + inputVar + "){" + raiseWithArg(b, path, (function (exccessFieldName) {
-                  return {
-                          TAG: "ExcessField",
-                          _0: exccessFieldName
-                        };
-                }), keyVar$1) + "}");
+        b.c = b.c + "true";
       }
+      b.c = b.c + ("){" + raiseWithArg(b, path, (function (exccessFieldName) {
+                return {
+                        TAG: "ExcessField",
+                        _0: exccessFieldName
+                      };
+              }), keyVar) + "}}");
     }
     if (asyncOutputVars.length === 0) {
       return val(b, syncOutput);
