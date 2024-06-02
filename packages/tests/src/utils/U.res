@@ -43,7 +43,11 @@ let rec cleanUpSchema = schema => {
   ->Dict.toArray
   ->Array.forEach(((key, value)) => {
     switch key {
-    | "i" => ()
+    | "i"
+    | // Object ctx
+    "itemsSet"
+    | "definition"
+    | "nestedCtxs" => ()
     | _ =>
       if typeof(value) === #function {
         ()

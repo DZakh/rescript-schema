@@ -238,8 +238,8 @@ type rec literal =
 @@warning("+37")
 
 type rec t<'value> = {
-  @as("t")
-  tagged: tagged,
+  @as("r")
+  rawTagged: tagged,
   @as("n")
   name: unit => string,
   @as("p")
@@ -397,7 +397,7 @@ module EffectCtx = {
 }
 
 @inline
-let classify = schema => schema.tagged
+let classifyRaw = schema => schema.rawTagged
 
 module Builder = {
   type t = builder
@@ -1027,7 +1027,7 @@ module Literal = {
   let parse = any => any->parseInternal->toPublic
 
   let fromSchema = schema => {
-    switch schema->classify {
+    switch schema->classifyRaw {
     | Literal(literal) => Some(literal)
     | _ => None
     }
@@ -1053,7 +1053,7 @@ let isAsyncParse = schema => {
 
 let rec validateJsonableSchema = (schema, ~rootSchema, ~isRoot=false) => {
   if isRoot || rootSchema !== schema {
-    switch schema->classify {
+    switch schema->classifyRaw {
     | String
     | Int
     | Float
@@ -1070,7 +1070,7 @@ let rec validateJsonableSchema = (schema, ~rootSchema, ~isRoot=false) => {
         let item = fields->Js.Dict.unsafeGet(fieldName)
         let fieldSchema = item.schema
         try {
-          switch fieldSchema->classify {
+          switch fieldSchema->classifyRaw {
           // Allow optional fields
           | Option(s) => s
           | _ => fieldSchema
@@ -1103,13 +1103,13 @@ let rec validateJsonableSchema = (schema, ~rootSchema, ~isRoot=false) => {
 @inline
 let make = (
   ~name,
-  ~tagged,
+  ~rawTagged,
   ~metadataMap,
   ~parseOperationBuilder,
   ~serializeOperationBuilder,
   ~maybeTypeFilter,
 ) => {
-  tagged,
+  rawTagged,
   parseOperationBuilder,
   serializeOperationBuilder,
   isAsyncParse: Unknown,
@@ -1121,13 +1121,13 @@ let make = (
 @inline
 let makeWithNoopSerializer = (
   ~name,
-  ~tagged,
+  ~rawTagged,
   ~metadataMap,
   ~parseOperationBuilder,
   ~maybeTypeFilter,
 ) => {
   name,
-  tagged,
+  rawTagged,
   parseOperationBuilder,
   serializeOperationBuilder: Builder.noop,
   isAsyncParse: Unknown,
@@ -1318,7 +1318,7 @@ module Metadata = {
       ~name=schema.name,
       ~parseOperationBuilder=schema.parseOperationBuilder,
       ~serializeOperationBuilder=schema.serializeOperationBuilder,
-      ~tagged=schema.tagged,
+      ~rawTagged=schema.rawTagged,
       ~maybeTypeFilter=schema.maybeTypeFilter,
       ~metadataMap,
     )
@@ -1414,18 +1414,18 @@ let setName = (schema, name) => {
     ~name=() => name,
     ~parseOperationBuilder=schema.parseOperationBuilder,
     ~serializeOperationBuilder=schema.serializeOperationBuilder,
-    ~tagged=schema.tagged,
+    ~rawTagged=schema.rawTagged,
     ~maybeTypeFilter=schema.maybeTypeFilter,
     ~metadataMap=schema.metadataMap,
   )
 }
 
 let primitiveName = () => {
-  (%raw(`this`): t<'a>).tagged->(Obj.magic: tagged => string)
+  (%raw(`this`): t<'a>).rawTagged->(Obj.magic: tagged => string)
 }
 
 let containerName = () => {
-  let tagged = (%raw(`this`): t<'a>).tagged->Obj.magic
+  let tagged = (%raw(`this`): t<'a>).rawTagged->Obj.magic
   `${tagged["TAG"]}(${(tagged->unsafeGetVariantPayload).name()})`
 }
 
@@ -1433,7 +1433,7 @@ let internalRefine = (schema, refiner) => {
   let schema = schema->toUnknown
   make(
     ~name=schema.name,
-    ~tagged=schema.tagged,
+    ~rawTagged=schema.rawTagged,
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       b->B.transform(~input=b->B.parse(~schema, ~input, ~path), (b, ~input) => {
         let rCode = refiner(b, ~input, ~selfSchema, ~path)
@@ -1491,7 +1491,7 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
   let schema = schema->toUnknown
   make(
     ~name=schema.name,
-    ~tagged=schema.tagged,
+    ~rawTagged=schema.rawTagged,
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       let input = b->B.parse(~schema, ~input, ~path)
 
@@ -1534,11 +1534,11 @@ type preprocessDefinition<'input, 'output> = {
 }
 let rec preprocess = (schema, transformer) => {
   let schema = schema->toUnknown
-  switch schema->classify {
+  switch schema->classifyRaw {
   | Union(unionSchemas) =>
     make(
       ~name=schema.name,
-      ~tagged=Union(
+      ~rawTagged=Union(
         unionSchemas->Js.Array2.map(unionSchema =>
           unionSchema->castUnknownSchemaToAnySchema->preprocess(transformer)->toUnknown
         ),
@@ -1551,7 +1551,7 @@ let rec preprocess = (schema, transformer) => {
   | _ =>
     make(
       ~name=schema.name,
-      ~tagged=schema.tagged,
+      ~rawTagged=schema.rawTagged,
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
         switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)) {
         | {parser, asyncParser: ?None} =>
@@ -1599,7 +1599,7 @@ let custom = (name, definer) => {
   make(
     ~name=() => name,
     ~metadataMap=Metadata.Map.empty,
-    ~tagged=Unknown,
+    ~rawTagged=Unknown,
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       switch definer(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~input, ~fn=parser)
@@ -1648,7 +1648,7 @@ let literal = value => {
   make(
     ~name=() => `Literal(${literal->Literal.toString})`,
     ~metadataMap=Metadata.Map.empty,
-    ~tagged=Literal(literal),
+    ~rawTagged=Literal(literal),
     ~parseOperationBuilder=operationBuilder,
     ~serializeOperationBuilder=operationBuilder,
     ~maybeTypeFilter=None,
@@ -1696,7 +1696,7 @@ module Variant = {
       let schema = schema->toUnknown
       make(
         ~name=schema.name,
-        ~tagged=schema.tagged,
+        ~rawTagged=schema.rawTagged,
         ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
           b->B.embedSyncOperation(~input=b->B.parse(~schema, ~input, ~path), ~fn=definer)
         }),
@@ -1798,8 +1798,8 @@ module Option = {
   let default = schema => schema->Metadata.get(~id=defaultMetadataId)
 
   let parseOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path) => {
-    let isNull = %raw(`selfSchema.t.TAG === "Null"`)
-    let childSchema = selfSchema.tagged->unsafeGetVariantPayload
+    let isNull = %raw(`selfSchema.r.TAG === "Null"`)
+    let childSchema = selfSchema->classifyRaw->unsafeGetVariantPayload
 
     let bb = b->B.scope
     let itemOutput = bb->B.parse(~schema=childSchema, ~input, ~path)
@@ -1825,8 +1825,8 @@ module Option = {
     let output = b->B.allocateVal
     let inputVar = b->B.Val.var(input)
 
-    let isNull = %raw(`selfSchema.t.TAG === "Null"`)
-    let childSchema = selfSchema.tagged->unsafeGetVariantPayload
+    let isNull = %raw(`selfSchema.r.TAG === "Null"`)
+    let childSchema = selfSchema->classifyRaw->unsafeGetVariantPayload
 
     let bb = b->B.scope
     let itemOutput =
@@ -1863,7 +1863,7 @@ module Option = {
     make(
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
-      ~tagged=Option(schema),
+      ~rawTagged=Option(schema),
       ~parseOperationBuilder,
       ~serializeOperationBuilder,
       ~maybeTypeFilter=maybeTypeFilter(~schema, ~inlinedNoneValue="void 0"),
@@ -1875,7 +1875,7 @@ module Option = {
     make(
       ~name=schema.name,
       ~metadataMap=schema.metadataMap->Metadata.Map.set(~id=defaultMetadataId, default),
-      ~tagged=schema.tagged,
+      ~rawTagged=schema.rawTagged,
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         b->B.transform(~input=b->B.parse(~schema, ~input, ~path), (b, ~input) => {
           let inputVar = b->B.Val.var(input)
@@ -1904,7 +1904,7 @@ module Null = {
     make(
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
-      ~tagged=Null(schema),
+      ~rawTagged=Null(schema),
       ~parseOperationBuilder=Option.parseOperationBuilder,
       ~serializeOperationBuilder=Option.serializeOperationBuilder,
       ~maybeTypeFilter=Option.maybeTypeFilter(~schema, ~inlinedNoneValue="null"),
@@ -1916,12 +1916,152 @@ let nullable = schema => {
   Option.factory(Null.factory(schema))
 }
 
+module Never = {
+  let builder = Builder.make((b, ~input, ~selfSchema, ~path) => {
+    b.code =
+      b.code ++
+      b->B.raiseWithArg(
+        ~path,
+        input => InvalidType({
+          expected: selfSchema,
+          received: input,
+        }),
+        b->B.Val.inline(input),
+      ) ++ ";"
+    input
+  })
+
+  let schema = make(
+    ~name=primitiveName,
+    ~metadataMap=Metadata.Map.empty,
+    ~rawTagged=Never,
+    ~parseOperationBuilder=builder,
+    ~serializeOperationBuilder=builder,
+    ~maybeTypeFilter=None,
+  )
+}
+
 module Object = {
-  type s = {
+  type rec s = {
     @as("f") field: 'value. (string, t<'value>) => 'value,
     @as("o") fieldOr: 'value. (string, t<'value>, 'value) => 'value,
     @as("t") tag: 'value. (string, 'value) => unit,
-    @as("n") nestedField: 'value. (string, string, t<'value>) => 'value,
+    @as("n") nested: 'value. (string, s => 'value) => 'value,
+  }
+
+  module Ctx = {
+    type rec t = {
+      fields: dict<item>,
+      fieldNames: array<string>,
+      itemsSet: Stdlib.Set.t<item>,
+      mutable nestedCtxs?: dict<t>,
+      mutable definition: Definition.t<item>,
+      // Allow to pass the ctx as tagged
+      @as("TAG")
+      taggedKey: string,
+      unknownKeys: unknownKeys,
+      // Public API for JS/TS users.
+      // It shouldn't be used from ReScript and
+      // needed only because we use @as to reduce bundle-size
+      // of ReScript compiled code
+      @as("field") _jsField: 'value. (string, schema<'value>) => 'value,
+      @as("fieldOr") _jsFieldOr: 'value. (string, schema<'value>, 'value) => 'value,
+      @as("tag") _jsTag: 'value. (string, 'value) => unit,
+      // Public API for ReScript users
+      ...s,
+    }
+
+    let field:
+      type value. (string, schema<value>) => value =
+      (fieldName, schema) => {
+        let ctx = %raw(`this`)
+        let schema = schema->toUnknown
+        let rawLocation = fieldName->Stdlib.Inlined.Value.fromString
+        if ctx.fields->Stdlib.Dict.has(fieldName) {
+          InternalError.panic(
+            `The field ${rawLocation} is defined multiple times. If you want to duplicate the field, use S.transform instead.`,
+          )
+        } else {
+          let item: item = {
+            schema,
+            rawLocation,
+            rawPath: rawLocation->Path.fromInlinedLocation,
+          }
+          ctx.fields->Js.Dict.set(fieldName, item)
+          ctx.fieldNames->Js.Array2.push(fieldName)->ignore
+          ctx.itemsSet->Stdlib.Set.add(item)->ignore
+          item->(Obj.magic: item => value)
+        }
+      }
+
+    let tag = (tag, asValue) => {
+      let ctx = %raw(`this`)
+      let _ = ctx.field(tag, literal(asValue))
+    }
+
+    let fieldOr = (fieldName, schema, or) => {
+      let ctx = %raw(`this`)
+      ctx.field(fieldName, Option.factory(schema)->Option.getOr(or))
+    }
+
+    let nested = (fieldName, definer) => {
+      let ctx: t = %raw(`this`)
+      let existingCtx = switch ctx.nestedCtxs {
+      | Some(dict) => dict->Js.Dict.unsafeGet(fieldName)->(Obj.magic: t => option<t>)
+      | None => None
+      }
+      let nestedCtx = switch existingCtx {
+      | Some(n) => n
+      | None => {
+          let newCtx = {
+            taggedKey: "Object",
+            unknownKeys: Strip,
+            fields: Js.Dict.empty(),
+            fieldNames: [],
+            itemsSet: ctx.itemsSet,
+            definition: %raw(`void 0`),
+            // js/ts methods
+            _jsField: field,
+            _jsFieldOr: fieldOr,
+            _jsTag: tag,
+            // methods
+            field,
+            fieldOr,
+            tag,
+            nested: (nestedFieldName, _) => {
+              InternalError.panic(
+                `Nested ${nestedFieldName->Stdlib.Inlined.Value.fromString} inside of another nested ${fieldName->Stdlib.Inlined.Value.fromString} is not supported`,
+              )
+            },
+          }
+          let nestedCtxs = Js.Dict.fromArray([(fieldName, newCtx)])
+          ctx.nestedCtxs = Some(nestedCtxs)
+          newCtx
+        }
+      }
+      definer((nestedCtx :> s))
+    }
+
+    @inline
+    let make = () => {
+      {
+        taggedKey: "Object",
+        unknownKeys: Strip,
+        fields: Js.Dict.empty(),
+        fieldNames: [],
+        itemsSet: Stdlib.Set.empty(),
+        definition: %raw(`void 0`),
+        // js/ts methods
+        _jsField: field,
+        _jsFieldOr: fieldOr,
+        _jsTag: tag,
+        // methods
+        field,
+        fieldOr,
+        tag,
+        nested,
+      }
+    }
   }
 
   let typeFilter = (~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
@@ -1942,7 +2082,7 @@ module Object = {
         let itemInput = b->B.val(`${inputVar}${rawPath}`)
         let path = path->Path.concat(rawPath)
 
-        let isTag = switch schema->classify {
+        let isTag = switch schema->classifyRaw {
         | Literal(_) => true
         | _ => false
         }
@@ -2002,7 +2142,7 @@ module Object = {
 
       b.code = b.code ++ tagsB->B.allocateScope ++ parseB->B.allocateScope
 
-      switch selfSchema->classify {
+      switch selfSchema->classifyRaw {
       | Object({unknownKeys: Strict}) =>
         switch items {
         | [] => {
@@ -2140,7 +2280,7 @@ module Object = {
       }
 
       let output = ref("")
-      switch selfSchema.tagged {
+      switch selfSchema->classifyRaw {
       | Object({fieldNames, fields}) =>
         for idx in 0 to fieldNames->Js.Array2.length - 1 {
           let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
@@ -2166,103 +2306,63 @@ module Object = {
       }
     })
 
-  module Ctx = {
-    type t = {
-      // Public API for JS/TS users.
-      // It shouldn't be used from ReScript and
-      // needed only because we use @as to reduce bundle-size
-      // of ReScript compiled code
-      @as("field") _jsField: 'value. (string, t<'value>) => 'value,
-      @as("fieldOr") _jsFieldOr: 'value. (string, t<'value>, 'value) => 'value,
-      @as("tag") _jsTag: 'value. (string, 'value) => unit,
-      // Public API for ReScript users
-      ...s,
-    }
-
-    @inline
-    let make = (~fields, ~fieldNames, ~itemsSet) => {
-      let field:
-        type value. (string, schema<value>) => value =
-        (fieldName, schema) => {
-          let schema = schema->toUnknown
-          let rawLocation = fieldName->Stdlib.Inlined.Value.fromString
-          if fields->Stdlib.Dict.has(fieldName) {
-            InternalError.panic(
-              `The field ${rawLocation} is defined multiple times. If you want to duplicate the field, use S.transform instead.`,
-            )
-          } else {
-            let item: item = {
-              schema,
-              rawLocation,
-              rawPath: rawLocation->Path.fromInlinedLocation,
-            }
-            fields->Js.Dict.set(fieldName, item)
-            fieldNames->Js.Array2.push(fieldName)->ignore
-            itemsSet->Stdlib.Set.add(item)->ignore
-            item->(Obj.magic: item => value)
-          }
-        }
-
-      let tag = (tag, asValue) => {
-        let _ = field(tag, literal(asValue))
-      }
-
-      let fieldOr = (fieldName, schema, or) => {
-        field(fieldName, Option.factory(schema)->Option.getOr(or))
-      }
-
-      let nestedField = (_fieldName, _nestedFieldName, _schema) => {
-        ()->Obj.magic
-      }
-
-      {
-        // js/ts methods
-        _jsField: field,
-        _jsFieldOr: fieldOr,
-        _jsTag: tag,
-        // methods
-        field,
-        fieldOr,
-        tag,
-        nestedField,
-      }
-    }
-  }
-
   let factory = definer => {
-    let fields = Js.Dict.empty()
-    let fieldNames = []
-    let itemsSet = Stdlib.Set.empty()
-    let ctx = Ctx.make(~fields, ~fieldNames, ~itemsSet)
+    let ctx = Ctx.make()
     let definition = definer((ctx :> s))->(Obj.magic: 'any => Definition.t<item>)
+    ctx.definition = definition
+
+    switch ctx.nestedCtxs {
+    | Some(nestedCtxs) => {
+        let keys = nestedCtxs->Js.Dict.keys
+        for idx in 0 to keys->Js.Array2.length - 1 {
+          let key = keys->Js.Array2.unsafe_get(idx)
+          let nestedCtx = nestedCtxs->Js.Dict.unsafeGet(key)
+          let schema = make(
+            ~name=() => `NestedObject`,
+            ~metadataMap=Metadata.Map.empty,
+            ~rawTagged=Object({
+              fields: nestedCtx.fields,
+              fieldNames: nestedCtx.fieldNames,
+              unknownKeys: Strip,
+            }),
+            ~parseOperationBuilder=Builder.noop,
+            ~serializeOperationBuilder=Builder.noop,
+            ~maybeTypeFilter=Some(typeFilter),
+          )
+          let _ = ctx.field(key, schema)
+        }
+      }
+    | None => ()
+    }
+
+    let itemsSet = ctx.itemsSet
     let items = itemsSet->Stdlib.Set.toArray
 
-    make(
-      ~name=() =>
-        `Object({${fieldNames
-          ->Js.Array2.map(fieldName => {
-            let item = fields->Js.Dict.unsafeGet(fieldName)
-            `${fieldName->Stdlib.Inlined.Value.fromString}: ${item.schema.name()}`
-          })
-          ->Js.Array2.joinWith(", ")}})`,
-      ~metadataMap=Metadata.Map.empty,
-      ~tagged=Object({
-        fields,
-        fieldNames,
-        unknownKeys: Strip,
-      }),
-      ~parseOperationBuilder=makeParseOperationBuilder(~items, ~itemsSet, ~definition),
-      ~serializeOperationBuilder=makeSerializeOperationBuilder(~definition, ~itemsSet),
-      ~maybeTypeFilter=Some(typeFilter),
-    )
+    make(~name=() =>
+      // FIXME: Using items might be wrong with nested
+      `Object({${items
+        ->Js.Array2.map(item => {
+          `${item.rawLocation}: ${item.schema.name()}`
+        })
+        ->Js.Array2.joinWith(", ")}})`
+    , ~metadataMap=Metadata.Map.empty, ~rawTagged=ctx->(
+      Obj.magic: Ctx.t => tagged
+    ), ~parseOperationBuilder=makeParseOperationBuilder(
+      ~items,
+      ~itemsSet,
+      ~definition,
+    ), ~serializeOperationBuilder=makeSerializeOperationBuilder(
+      ~definition,
+      ~itemsSet,
+    ), ~maybeTypeFilter=Some(typeFilter))
   }
 
   let strip = schema => {
-    switch schema->classify {
+    switch schema->classifyRaw {
     | Object({unknownKeys: Strict, fieldNames, fields}) =>
       make(
         ~name=schema.name,
-        ~tagged=Object({unknownKeys: Strip, fieldNames, fields}),
+        ~rawTagged=Object({unknownKeys: Strip, fieldNames, fields}), // FIXME: Should convert to ctx
         ~parseOperationBuilder=schema.parseOperationBuilder,
         ~serializeOperationBuilder=schema.serializeOperationBuilder,
         ~maybeTypeFilter=schema.maybeTypeFilter,
@@ -2273,11 +2373,11 @@ module Object = {
   }
 
   let strict = schema => {
-    switch schema->classify {
+    switch schema->classifyRaw {
     | Object({unknownKeys: Strip, fieldNames, fields}) =>
       make(
         ~name=schema.name,
-        ~tagged=Object({unknownKeys: Strict, fieldNames, fields}),
+        ~rawTagged=Object({unknownKeys: Strict, fieldNames, fields}), // FIXME: Should convert to ctx
         ~parseOperationBuilder=schema.parseOperationBuilder,
         ~serializeOperationBuilder=schema.serializeOperationBuilder,
         ~maybeTypeFilter=schema.maybeTypeFilter,
@@ -2289,35 +2389,10 @@ module Object = {
   }
 }
 
-module Never = {
-  let builder = Builder.make((b, ~input, ~selfSchema, ~path) => {
-    b.code =
-      b.code ++
-      b->B.raiseWithArg(
-        ~path,
-        input => InvalidType({
-          expected: selfSchema,
-          received: input,
-        }),
-        b->B.Val.inline(input),
-      ) ++ ";"
-    input
-  })
-
-  let schema = make(
-    ~name=primitiveName,
-    ~metadataMap=Metadata.Map.empty,
-    ~tagged=Never,
-    ~parseOperationBuilder=builder,
-    ~serializeOperationBuilder=builder,
-    ~maybeTypeFilter=None,
-  )
-}
-
 module Unknown = {
   let schema = {
     name: primitiveName,
-    tagged: Unknown,
+    rawTagged: Unknown,
     parseOperationBuilder: Builder.noop,
     serializeOperationBuilder: Builder.noop,
     isAsyncParse: Value(false),
@@ -2368,7 +2443,7 @@ module String = {
   let schema = makeWithNoopSerializer(
     ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
-    ~tagged=String,
+    ~rawTagged=String,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
   )
@@ -2390,7 +2465,7 @@ module JsonString = {
     make(
       ~name=primitiveName,
       ~metadataMap=Metadata.Map.empty,
-      ~tagged=String,
+      ~rawTagged=String,
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let jsonVal = b->B.allocateVal
 
@@ -2428,7 +2503,7 @@ module Bool = {
   let schema = makeWithNoopSerializer(
     ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
-    ~tagged=Bool,
+    ~rawTagged=Bool,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
   )
@@ -2464,7 +2539,7 @@ module Int = {
   let schema = makeWithNoopSerializer(
     ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
-    ~tagged=Int,
+    ~rawTagged=Int,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
   )
@@ -2498,7 +2573,7 @@ module Float = {
   let schema = makeWithNoopSerializer(
     ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
-    ~tagged=Float,
+    ~rawTagged=Float,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
   )
@@ -2535,7 +2610,7 @@ module Array = {
     make(
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
-      ~tagged=Array(schema),
+      ~rawTagged=Array(schema),
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let inputVar = b->B.Val.var(input)
         let iteratorVar = b->B.varWithoutAllocation
@@ -2603,7 +2678,7 @@ module Dict = {
     make(
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
-      ~tagged=Dict(schema),
+      ~rawTagged=Dict(schema),
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let inputVar = b->B.Val.var(input)
         let keyVar = b->B.varWithoutAllocation
@@ -2747,7 +2822,7 @@ module Tuple = {
 
     make(
       ~name=() => `Tuple(${items->Js.Array2.map(i => i.schema.name())->Js.Array2.joinWith(", ")})`,
-      ~tagged=Tuple(items),
+      ~rawTagged=Tuple(items),
       ~parseOperationBuilder=Object.makeParseOperationBuilder(~items, ~itemsSet, ~definition),
       ~serializeOperationBuilder=Object.makeSerializeOperationBuilder(~definition, ~itemsSet),
       ~maybeTypeFilter=Some(
@@ -2771,9 +2846,9 @@ module Union = {
       make(
         ~name=() => `Union(${schemas->Js.Array2.map(s => s.name())->Js.Array2.joinWith(", ")})`,
         ~metadataMap=Metadata.Map.empty,
-        ~tagged=Union(schemas),
+        ~rawTagged=Union(schemas),
         ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-          let schemas = selfSchema->classify->unsafeGetVariantPayload
+          let schemas = selfSchema->classifyRaw->unsafeGetVariantPayload
 
           let output = b->B.allocateVal
           let codeEndRef = ref("")
@@ -2831,7 +2906,7 @@ module Union = {
           }
         }),
         ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-          let schemas = selfSchema->classify->unsafeGetVariantPayload
+          let schemas = selfSchema->classifyRaw->unsafeGetVariantPayload
 
           let output = b->B.allocateVal
           let codeEndRef = ref("")
@@ -2904,7 +2979,7 @@ let list = schema => {
 let json = (~validate) =>
   makeWithNoopSerializer(
     ~name=primitiveName,
-    ~tagged=JSON({validated: validate}),
+    ~rawTagged=JSON({validated: validate}),
     ~metadataMap=Metadata.Map.empty,
     ~maybeTypeFilter=None,
     ~parseOperationBuilder=validate
@@ -3007,7 +3082,7 @@ let catch = (schema, getFallbackValue) => {
       )
     }),
     ~serializeOperationBuilder=schema.serializeOperationBuilder,
-    ~tagged=schema.tagged,
+    ~rawTagged=schema.rawTagged,
     ~maybeTypeFilter=None,
     ~metadataMap=schema.metadataMap,
   )
@@ -3164,7 +3239,7 @@ let inline = {
   let rec internalInline = (schema, ~variant as maybeVariant=?, ()) => {
     let metadataMap = schema.metadataMap->Stdlib.Dict.copy
 
-    let inlinedSchema = switch schema->classify {
+    let inlinedSchema = switch schema->classifyRaw {
     | Literal(literal) => `S.literal(%raw(\`${literal->Literal.toString}\`))`
     | Union(unionSchemas) => {
         let variantNamesCounter = Js.Dict.empty()
@@ -3256,12 +3331,12 @@ let inline = {
     | None => inlinedSchema
     }
 
-    let inlinedSchema = switch schema->classify {
+    let inlinedSchema = switch schema->classifyRaw {
     | Object({unknownKeys: Strict}) => inlinedSchema ++ `->S.Object.strict`
     | _ => inlinedSchema
     }
 
-    let inlinedSchema = switch schema->classify {
+    let inlinedSchema = switch schema->classifyRaw {
     | String
     | Literal(String(_)) =>
       switch schema->String.refinements {
@@ -3845,8 +3920,8 @@ let js_object = definer => {
 let js_merge = (s1, s2) => {
   switch (s1, s2) {
   | (
-      {tagged: Object({fieldNames: s1FieldNames, fields: s1Fields})},
-      {tagged: Object({unknownKeys, fieldNames: s2FieldNames, fields: s2Fields})},
+      {rawTagged: Object({fieldNames: s1FieldNames, fields: s1Fields})},
+      {rawTagged: Object({unknownKeys, fieldNames: s2FieldNames, fields: s2Fields})},
     ) =>
     let fieldNames = []
     let fields = Js.Dict.empty()
@@ -3867,7 +3942,7 @@ let js_merge = (s1, s2) => {
     }
     make(
       ~name=() => `${s1.name()} & ${s2.name()}`,
-      ~tagged=Object({
+      ~rawTagged=Object({
         unknownKeys,
         fieldNames,
         fields,

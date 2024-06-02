@@ -50,15 +50,23 @@ function cleanUpSchema(schema) {
   Object.entries(schema).forEach(function (param) {
         var value = param[1];
         var key = param[0];
-        if (key === "i" || typeof value === "function") {
-          return ;
-        } else {
-          if (typeof value === "object" && value !== null) {
-            $$new[key] = cleanUpSchema(value);
-          } else {
-            $$new[key] = value;
-          }
-          return ;
+        switch (key) {
+          case "definition" :
+          case "i" :
+          case "itemsSet" :
+          case "nestedCtxs" :
+              return ;
+          default:
+            if (typeof value === "function") {
+              return ;
+            } else {
+              if (typeof value === "object" && value !== null) {
+                $$new[key] = cleanUpSchema(value);
+              } else {
+                $$new[key] = value;
+              }
+              return ;
+            }
         }
       });
   return $$new;

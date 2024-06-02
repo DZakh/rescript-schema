@@ -23,6 +23,8 @@
 - Removed `InvalidTupleSize` error code in favor of `InvalidType`
 - Changed payload of `Object` and `Tuple` variants in the `tagged` type
 - Don't recreate object and tuples on serialize when it's not transformed (TODO: Measure performance improvement for array of objects)
+- `tagged` type became private
+- Changed `classify` to `classifyRaw`
 - Moved built-in refinements from nested modules to improve tree-shaking:
 
   - `Int.min`->`intMin`

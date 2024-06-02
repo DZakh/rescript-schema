@@ -50,18 +50,10 @@ module Tuple0 = {
   })
 }
 
-test("Classify of tuple with holes", t => {
+test("Fills wholes with S.unit", t => {
   let schema = S.tuple(s => (s.item(0, S.string), s.item(2, S.int)))
 
-  t->Assert.deepEqual(
-    schema->S.classify,
-    Tuple([
-      {schema: S.string->S.toUnknown, rawPath: S.Path.fromLocation("0"), rawLocation: `"0"`},
-      {schema: S.unit->S.toUnknown, rawPath: S.Path.fromLocation("1"), rawLocation: `"1"`},
-      {schema: S.int->S.toUnknown, rawPath: S.Path.fromLocation("2"), rawLocation: `"2"`},
-    ]),
-    (),
-  )
+  t->U.assertEqualSchemas(schema->S.toUnknown, S.tuple3(S.string, S.unit, S.int)->S.toUnknown)
 })
 
 test("Successfully parses tuple with holes", t => {

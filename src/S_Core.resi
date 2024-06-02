@@ -37,6 +37,7 @@ module Path: {
 
 type rec t<'value>
 and tagged =
+  private
   | Never
   | Unknown
   | String
@@ -213,7 +214,7 @@ let isAsyncParse: t<'value> => bool
 
 let recursive: (t<'value> => t<'value>) => t<'value>
 
-let classify: t<'value> => tagged
+let classifyRaw: t<'value> => tagged
 
 @send
 external name: t<'value> => string = "n"
@@ -228,11 +229,11 @@ module Schema: {
 let schema: (Schema.s => 'value) => t<'value>
 
 module Object: {
-  type s = {
+  type rec s = {
     @as("f") field: 'value. (string, t<'value>) => 'value,
     @as("o") fieldOr: 'value. (string, t<'value>, 'value) => 'value,
     @as("t") tag: 'value. (string, 'value) => unit,
-    @as("n") nestedField: 'value. (string, string, t<'value>) => 'value,
+    @as("n") nested: 'value. (string, s => 'value) => 'value,
   }
 
   /* The same as S.object. Expose only for PPX since the object is a reserved name in OCaml */

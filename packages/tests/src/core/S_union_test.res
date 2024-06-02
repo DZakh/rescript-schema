@@ -16,7 +16,7 @@ test("Throws for a Union schema factory without schemas", t => {
 test("Successfully creates a Union schema factory with single schema and flattens it", t => {
   let schema = S.union([S.string])
 
-  t->Assert.deepEqual(schema->S.classify, String, ())
+  t->U.assertEqualSchemas(schema, S.string)
 })
 
 test("Successfully parses polymorphic variants", t => {

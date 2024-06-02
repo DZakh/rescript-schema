@@ -91,8 +91,8 @@ function make(selfSchema, path, operation) {
         };
 }
 
-function classify(schema) {
-  return schema.t;
+function classifyRaw(schema) {
+  return schema.r;
 }
 
 function scope(b) {
@@ -585,7 +585,7 @@ function parse(any) {
 }
 
 function fromSchema(schema) {
-  var literal = schema.t;
+  var literal = schema.r;
   if (typeof literal !== "object" || literal.TAG !== "Literal") {
     return ;
   } else {
@@ -617,7 +617,7 @@ function validateJsonableSchema(_schema, rootSchema, _isRootOpt) {
     if (!(isRoot || rootSchema !== schema)) {
       return ;
     }
-    var items = schema.t;
+    var items = schema.r;
     var exit = 0;
     if (typeof items !== "object") {
       if (items !== "Unknown") {
@@ -643,7 +643,7 @@ function validateJsonableSchema(_schema, rootSchema, _isRootOpt) {
               var item = fields[fieldName];
               var fieldSchema = item.schema;
               try {
-                var s = fieldSchema.t;
+                var s = fieldSchema.r;
                 var tmp;
                 tmp = typeof s !== "object" || s.TAG !== "Option" ? fieldSchema : s._0;
                 validateJsonableSchema(tmp, rootSchema, undefined);
@@ -955,7 +955,7 @@ function get(schema, id) {
 function set$2(schema, id, metadata) {
   var metadataMap = set$1(schema.m, id, metadata);
   return {
-          t: schema.t,
+          r: schema.r,
           n: schema.n,
           p: schema.p,
           s: schema.s,
@@ -1037,7 +1037,7 @@ function recursive(fn) {
 
 function setName(schema, name) {
   return {
-          t: schema.t,
+          r: schema.r,
           n: (function () {
               return name;
             }),
@@ -1050,17 +1050,17 @@ function setName(schema, name) {
 }
 
 function primitiveName() {
-  return this.t;
+  return this.r;
 }
 
 function containerName() {
-  var tagged = this.t;
+  var tagged = this.r;
   return tagged.TAG + "(" + tagged._0.n() + ")";
 }
 
 function internalRefine(schema, refiner) {
   return {
-          t: schema.t,
+          r: schema.r,
           n: schema.n,
           p: (function (b, input, selfSchema, path) {
               return transform(b, schema.p(b, input, schema, path), (function (b, input) {
@@ -1096,7 +1096,7 @@ function addRefinement(schema, metadataId, refinement, refiner) {
 
 function transform$1(schema, transformer) {
   return {
-          t: schema.t,
+          r: schema.r,
           n: schema.n,
           p: (function (b, input, selfSchema, path) {
               var input$1 = schema.p(b, input, schema, path);
@@ -1138,10 +1138,10 @@ function transform$1(schema, transformer) {
 }
 
 function preprocess(schema, transformer) {
-  var unionSchemas = schema.t;
+  var unionSchemas = schema.r;
   if (typeof unionSchemas === "object" && unionSchemas.TAG === "Union") {
     return {
-            t: {
+            r: {
               TAG: "Union",
               _0: unionSchemas._0.map(function (unionSchema) {
                     return preprocess(unionSchema, transformer);
@@ -1156,7 +1156,7 @@ function preprocess(schema, transformer) {
           };
   }
   return {
-          t: schema.t,
+          r: schema.r,
           n: schema.n,
           p: (function (b, input, selfSchema, path) {
               var match = transformer(make(selfSchema, path, b.g.o));
@@ -1195,7 +1195,7 @@ function preprocess(schema, transformer) {
 
 function custom(name, definer) {
   return {
-          t: "Unknown",
+          r: "Unknown",
           n: (function () {
               return name;
             }),
@@ -1249,7 +1249,7 @@ function literal(value) {
     return input;
   };
   return {
-          t: {
+          r: {
             TAG: "Literal",
             _0: literal$1
           },
@@ -1278,7 +1278,7 @@ function toKindWithSet(definition, embededSet) {
 
 function factory(schema, definer) {
   return {
-          t: schema.t,
+          r: schema.r,
           n: schema.n,
           p: (function (b, input, param, path) {
               return embedSyncOperation(b, schema.p(b, input, schema, path), definer);
@@ -1353,8 +1353,8 @@ function $$default(schema) {
 }
 
 function parseOperationBuilder(b, input, selfSchema, path) {
-  var isNull = (selfSchema.t.TAG === "Null");
-  var childSchema = selfSchema.t._0;
+  var isNull = (selfSchema.r.TAG === "Null");
+  var childSchema = selfSchema.r._0;
   var bb = scope(b);
   var itemOutput = childSchema.p(bb, input, childSchema, path);
   var itemCode = allocateScope(bb);
@@ -1376,8 +1376,8 @@ function parseOperationBuilder(b, input, selfSchema, path) {
 function serializeOperationBuilder(b, input, selfSchema, path) {
   var output = allocateVal(b);
   var inputVar = $$var(b, input);
-  var isNull = (selfSchema.t.TAG === "Null");
-  var childSchema = selfSchema.t._0;
+  var isNull = (selfSchema.r.TAG === "Null");
+  var childSchema = selfSchema.r._0;
   var bb = scope(b);
   var value = Caml_option.valFromOption;
   var input$1 = map(bb, "e[" + (bb.g.e.push(value) - 1) + "]", input);
@@ -1401,7 +1401,7 @@ function maybeTypeFilter(schema, inlinedNoneValue) {
 
 function factory$1(schema) {
   return {
-          t: {
+          r: {
             TAG: "Option",
             _0: schema
           },
@@ -1416,7 +1416,7 @@ function factory$1(schema) {
 
 function getWithDefault(schema, $$default) {
   return {
-          t: schema.t,
+          r: schema.r,
           n: schema.n,
           p: (function (b, input, param, path) {
               return transform(b, schema.p(b, input, schema, path), (function (b, input) {
@@ -1449,7 +1449,7 @@ function getOrWith(schema, defalutCb) {
 
 function factory$2(schema) {
   return {
-          t: {
+          r: {
             TAG: "Null",
             _0: schema
           },
@@ -1464,6 +1464,91 @@ function factory$2(schema) {
 
 function nullable(schema) {
   return factory$1(factory$2(schema));
+}
+
+function builder(b, input, selfSchema, path) {
+  b.c = b.c + raiseWithArg(b, path, (function (input) {
+          return {
+                  TAG: "InvalidType",
+                  expected: selfSchema,
+                  received: input
+                };
+        }), inline(b, input)) + ";";
+  return input;
+}
+
+var schema = {
+  r: "Never",
+  n: primitiveName,
+  p: builder,
+  s: builder,
+  f: undefined,
+  i: 0,
+  m: empty
+};
+
+function field(fieldName, schema) {
+  var ctx = this;
+  var rawLocation = JSON.stringify(fieldName);
+  if (ctx.fields[fieldName]) {
+    throw new Error("[rescript-schema] " + ("The field " + rawLocation + " is defined multiple times. If you want to duplicate the field, use S.transform instead."));
+  }
+  var item_rawPath = "[" + rawLocation + "]";
+  var item = {
+    schema: schema,
+    rawLocation: rawLocation,
+    rawPath: item_rawPath
+  };
+  ctx.fields[fieldName] = item;
+  ctx.fieldNames.push(fieldName);
+  ctx.itemsSet.add(item);
+  return item;
+}
+
+function tag(tag$1, asValue) {
+  var ctx = this;
+  ctx.f(tag$1, literal(asValue));
+}
+
+function fieldOr(fieldName, schema, or) {
+  var ctx = this;
+  return ctx.f(fieldName, getOr(factory$1(schema), or));
+}
+
+function nested(fieldName, definer) {
+  var ctx = this;
+  var dict = ctx.nestedCtxs;
+  var existingCtx = dict !== undefined ? dict[fieldName] : undefined;
+  var nestedCtx;
+  if (existingCtx !== undefined) {
+    nestedCtx = existingCtx;
+  } else {
+    var newCtx = {
+      fields: {},
+      fieldNames: [],
+      itemsSet: ctx.itemsSet,
+      definition: (void 0),
+      TAG: "Object",
+      unknownKeys: "Strip",
+      field: field,
+      fieldOr: fieldOr,
+      tag: tag,
+      f: field,
+      o: fieldOr,
+      t: tag,
+      n: (function (nestedFieldName, param) {
+          var message = "Nested " + JSON.stringify(nestedFieldName) + " inside of another nested " + JSON.stringify(fieldName) + " is not supported";
+          throw new Error("[rescript-schema] " + message);
+        })
+    };
+    var nestedCtxs = Js_dict.fromArray([[
+            fieldName,
+            newCtx
+          ]]);
+    ctx.nestedCtxs = nestedCtxs;
+    nestedCtx = newCtx;
+  }
+  return definer(nestedCtx);
 }
 
 function typeFilter(inputVar) {
@@ -1483,7 +1568,7 @@ function makeParseOperationBuilder(items, itemsSet, definition) {
       var schema = item.schema;
       var itemInput = val(b, inputVar + rawPath);
       var path$1 = path + rawPath;
-      var match = schema.t;
+      var match = schema.r;
       var isTag;
       isTag = typeof match !== "object" || match.TAG !== "Literal" ? false : true;
       var b$1 = isTag ? tagsB : parseB;
@@ -1526,7 +1611,7 @@ function makeParseOperationBuilder(items, itemsSet, definition) {
     };
     var syncOutput = definitionToOutput(definition, "");
     b.c = b.c + allocateScope(tagsB) + allocateScope(parseB);
-    var match$1 = selfSchema.t;
+    var match$1 = selfSchema.r;
     if (typeof match$1 === "object" && match$1.TAG === "Object" && match$1.unknownKeys !== "Strip") {
       if (items.length !== 0) {
         var key = allocateVal(b);
@@ -1632,7 +1717,7 @@ function makeSerializeOperationBuilder(definition, itemsSet) {
       }
     };
     var output = "";
-    var items = selfSchema.t;
+    var items = selfSchema.r;
     if (typeof items !== "object") {
       invalidOperation(b, path, "Only Tuple and Object schemas supported");
     } else {
@@ -1670,56 +1755,55 @@ function makeSerializeOperationBuilder(definition, itemsSet) {
 }
 
 function factory$3(definer) {
-  var fields = {};
-  var fieldNames = [];
-  var itemsSet = new Set();
-  var field = function (fieldName, schema) {
-    var rawLocation = JSON.stringify(fieldName);
-    if (fields[fieldName]) {
-      throw new Error("[rescript-schema] " + ("The field " + rawLocation + " is defined multiple times. If you want to duplicate the field, use S.transform instead."));
-    }
-    var item_rawPath = "[" + rawLocation + "]";
-    var item = {
-      schema: schema,
-      rawLocation: rawLocation,
-      rawPath: item_rawPath
-    };
-    fields[fieldName] = item;
-    fieldNames.push(fieldName);
-    itemsSet.add(item);
-    return item;
-  };
-  var tag = function (tag$1, asValue) {
-    field(tag$1, literal(asValue));
-  };
-  var fieldOr = function (fieldName, schema, or) {
-    return field(fieldName, getOr(factory$1(schema), or));
-  };
-  var nestedField = function (_fieldName, _nestedFieldName, _schema) {
-    
-  };
   var ctx = {
+    fields: {},
+    fieldNames: [],
+    itemsSet: new Set(),
+    definition: (void 0),
+    TAG: "Object",
+    unknownKeys: "Strip",
     field: field,
     fieldOr: fieldOr,
     tag: tag,
     f: field,
     o: fieldOr,
     t: tag,
-    n: nestedField
+    n: nested
   };
   var definition = definer(ctx);
+  ctx.definition = definition;
+  var nestedCtxs = ctx.nestedCtxs;
+  if (nestedCtxs !== undefined) {
+    var keys = Object.keys(nestedCtxs);
+    for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+      var key = keys[idx];
+      var nestedCtx = nestedCtxs[key];
+      var schema = {
+        r: {
+          TAG: "Object",
+          fields: nestedCtx.fields,
+          fieldNames: nestedCtx.fieldNames,
+          unknownKeys: "Strip"
+        },
+        n: (function () {
+            return "NestedObject";
+          }),
+        p: noop,
+        s: noop,
+        f: typeFilter,
+        i: 0,
+        m: empty
+      };
+      ctx.f(key, schema);
+    }
+  }
+  var itemsSet = ctx.itemsSet;
   var items = Array.from(itemsSet);
   return {
-          t: {
-            TAG: "Object",
-            fields: fields,
-            fieldNames: fieldNames,
-            unknownKeys: "Strip"
-          },
+          r: ctx,
           n: (function () {
-              return "Object({" + fieldNames.map(function (fieldName) {
-                            var item = fields[fieldName];
-                            return JSON.stringify(fieldName) + ": " + item.schema.n();
+              return "Object({" + items.map(function (item) {
+                            return item.rawLocation + ": " + item.schema.n();
                           }).join(", ") + "})";
             }),
           p: makeParseOperationBuilder(items, itemsSet, definition),
@@ -1731,12 +1815,12 @@ function factory$3(definer) {
 }
 
 function strip(schema) {
-  var match = schema.t;
+  var match = schema.r;
   if (typeof match !== "object" || !(match.TAG === "Object" && match.unknownKeys !== "Strip")) {
     return schema;
   } else {
     return {
-            t: {
+            r: {
               TAG: "Object",
               fields: match.fields,
               fieldNames: match.fieldNames,
@@ -1753,12 +1837,12 @@ function strip(schema) {
 }
 
 function strict(schema) {
-  var match = schema.t;
+  var match = schema.r;
   if (typeof match !== "object" || !(match.TAG === "Object" && match.unknownKeys === "Strip")) {
     return schema;
   } else {
     return {
-            t: {
+            r: {
               TAG: "Object",
               fields: match.fields,
               fieldNames: match.fieldNames,
@@ -1774,29 +1858,8 @@ function strict(schema) {
   }
 }
 
-function builder(b, input, selfSchema, path) {
-  b.c = b.c + raiseWithArg(b, path, (function (input) {
-          return {
-                  TAG: "InvalidType",
-                  expected: selfSchema,
-                  received: input
-                };
-        }), inline(b, input)) + ";";
-  return input;
-}
-
-var schema = {
-  t: "Never",
-  n: primitiveName,
-  p: builder,
-  s: builder,
-  f: undefined,
-  i: 0,
-  m: empty
-};
-
 var schema$1 = {
-  t: "Unknown",
+  r: "Unknown",
   n: primitiveName,
   p: noop,
   s: noop,
@@ -1829,7 +1892,7 @@ function typeFilter$1(inputVar) {
 }
 
 var schema$2 = {
-  t: "String",
+  r: "String",
   n: primitiveName,
   p: noop,
   s: noop,
@@ -1850,7 +1913,7 @@ function factory$4(schema, spaceOpt) {
     throw new Error("[rescript-schema] " + message);
   }
   return {
-          t: "String",
+          r: "String",
           n: primitiveName,
           p: (function (b, input, param, path) {
               var jsonVal = allocateVal(b);
@@ -1881,7 +1944,7 @@ function typeFilter$2(inputVar) {
 }
 
 var schema$3 = {
-  t: "Bool",
+  r: "Bool",
   n: primitiveName,
   p: noop,
   s: noop,
@@ -1906,7 +1969,7 @@ function typeFilter$3(inputVar) {
 }
 
 var schema$4 = {
-  t: "Int",
+  r: "Int",
   n: primitiveName,
   p: noop,
   s: noop,
@@ -1931,7 +1994,7 @@ function typeFilter$4(inputVar) {
 }
 
 var schema$5 = {
-  t: "Float",
+  r: "Float",
   n: primitiveName,
   p: noop,
   s: noop,
@@ -1957,7 +2020,7 @@ function typeFilter$5(inputVar) {
 
 function factory$5(schema) {
   return {
-          t: {
+          r: {
             TAG: "Array",
             _0: schema
           },
@@ -2005,7 +2068,7 @@ function factory$5(schema) {
 
 function factory$6(schema) {
   return {
-          t: {
+          r: {
             TAG: "Dict",
             _0: schema
           },
@@ -2099,7 +2162,7 @@ function factory$7(definer) {
     
   }
   return {
-          t: {
+          r: {
             TAG: "Tuple",
             _0: items
           },
@@ -2125,7 +2188,7 @@ function factory$8(schemas) {
   }
   if (len !== 0) {
     return {
-            t: {
+            r: {
               TAG: "Union",
               _0: schemas
             },
@@ -2135,7 +2198,7 @@ function factory$8(schemas) {
                             }).join(", ") + ")";
               }),
             p: (function (b, input, selfSchema, path) {
-                var schemas = selfSchema.t._0;
+                var schemas = selfSchema.r._0;
                 var output = allocateVal(b);
                 var codeEndRef = "";
                 var errorCodeRef = "";
@@ -2179,7 +2242,7 @@ function factory$8(schemas) {
                 }
               }),
             s: (function (b, input, selfSchema, path) {
-                var schemas = selfSchema.t._0;
+                var schemas = selfSchema.r._0;
                 var output = allocateVal(b);
                 var codeEndRef = "";
                 var errorCodeRef = "";
@@ -2238,7 +2301,7 @@ function list(schema) {
 
 function json(validate) {
   return {
-          t: {
+          r: {
             TAG: "JSON",
             validated: validate
           },
@@ -2301,7 +2364,7 @@ var Catch = {};
 
 function $$catch(schema, getFallbackValue) {
   return {
-          t: schema.t,
+          r: schema.r,
           n: schema.n,
           p: (function (b, input, selfSchema, path) {
               var inputVar = $$var(b, input);
@@ -2449,7 +2512,7 @@ function message(error) {
 
 function internalInline(schema, maybeVariant, param) {
   var metadataMap = Object.assign({}, schema.m);
-  var literal = schema.t;
+  var literal = schema.r;
   var inlinedSchema;
   if (typeof literal !== "object") {
     switch (literal) {
@@ -2574,10 +2637,10 @@ function internalInline(schema, maybeVariant, param) {
   var inlinedSchema$3 = message$1 !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, descriptionMetadataId), inlinedSchema$2 + ("->S.describe(" + (
           message$1 === (void 0) ? "undefined" : JSON.stringify(message$1)
         ) + ")")) : inlinedSchema$2;
-  var match = schema.t;
+  var match = schema.r;
   var inlinedSchema$4;
   inlinedSchema$4 = typeof match !== "object" || !(match.TAG === "Object" && match.unknownKeys !== "Strip") ? inlinedSchema$3 : inlinedSchema$3 + "->S.Object.strict";
-  var match$1 = schema.t;
+  var match$1 = schema.r;
   var inlinedSchema$5;
   var exit$1 = 0;
   if (typeof match$1 !== "object") {
@@ -3125,11 +3188,11 @@ function js_object(definer) {
 }
 
 function js_merge(s1, s2) {
-  var match = s1.t;
+  var match = s1.r;
   if (typeof match === "object" && match.TAG === "Object") {
     var s1FieldNames = match.fieldNames;
     var s1Fields = match.fields;
-    var match$1 = s2.t;
+    var match$1 = s2.r;
     if (typeof match$1 === "object" && match$1.TAG === "Object") {
       var s2FieldNames = match$1.fieldNames;
       var s2Fields = match$1.fields;
@@ -3150,7 +3213,7 @@ function js_merge(s1, s2) {
         fields[fieldName$1] = s2Fields[fieldName$1];
       }
       return {
-              t: {
+              r: {
                 TAG: "Object",
                 fields: fields,
                 fieldNames: fieldNames,
@@ -3345,7 +3408,7 @@ export {
   serializeToJsonStringOrRaiseWith ,
   isAsyncParse ,
   recursive ,
-  classify ,
+  classifyRaw ,
   setName ,
   Schema ,
   schema$6 as schema,
