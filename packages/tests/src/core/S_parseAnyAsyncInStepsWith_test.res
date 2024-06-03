@@ -486,7 +486,7 @@ module Union = {
         1->S.parseAnyOrRaiseWith(schema)
       },
       ~expectations={
-        message: "Failed parsing at root. Reason: S.union doesn\'t support async items. Please create an issue to rescript-schema if you nead the feature.",
+        message: "Failed parsing at root. Reason: S.union doesn\'t support async items. Please create an issue to rescript-schema if you nead the feature",
       },
       (),
     )

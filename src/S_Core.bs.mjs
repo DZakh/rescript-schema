@@ -1104,7 +1104,7 @@ function transform$1(schema, transformer) {
               var parser = match.p;
               if (parser !== undefined) {
                 if (match.a !== undefined) {
-                  return invalidOperation(b, path, "The S.transform doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.");
+                  return invalidOperation(b, path, "The S.transform doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser");
                 } else {
                   return embedSyncOperation(b, input$1, parser);
                 }
@@ -1163,7 +1163,7 @@ function preprocess(schema, transformer) {
               var parser = match.p;
               if (parser !== undefined) {
                 if (match.a !== undefined) {
-                  return invalidOperation(b, path, "The S.preprocess doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.");
+                  return invalidOperation(b, path, "The S.preprocess doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser");
                 } else {
                   return parseWithTypeCheck(b, schema, embedSyncOperation(b, input, parser), path);
                 }
@@ -1204,7 +1204,7 @@ function custom(name, definer) {
               var parser = match.p;
               if (parser !== undefined) {
                 if (match.a !== undefined) {
-                  return invalidOperation(b, path, "The S.custom doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.");
+                  return invalidOperation(b, path, "The S.custom doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser");
                 } else {
                   return embedSyncOperation(b, input, parser);
                 }
@@ -1487,11 +1487,15 @@ var schema = {
   m: empty
 };
 
+function typeFilter(inputVar) {
+  return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
+}
+
 function field(fieldName, schema) {
   var ctx = this;
   var rawLocation = JSON.stringify(fieldName);
   if (ctx.fields[fieldName]) {
-    throw new Error("[rescript-schema] " + ("The field " + rawLocation + " is defined multiple times. If you want to duplicate the field, use S.transform instead."));
+    throw new Error("[rescript-schema] " + ("The field " + rawLocation + " is defined multiple times. If you want to duplicate the field, use S.transform instead"));
   }
   var item_rawPath = "[" + rawLocation + "]";
   var item = {
@@ -1517,42 +1521,49 @@ function fieldOr(fieldName, schema, or) {
 
 function nested(fieldName, definer) {
   var ctx = this;
-  var dict = ctx.nestedCtxs;
-  var existingCtx = dict !== undefined ? dict[fieldName] : undefined;
-  var nestedCtx;
-  if (existingCtx !== undefined) {
-    nestedCtx = existingCtx;
-  } else {
-    var newCtx = {
-      fields: {},
-      fieldNames: [],
-      itemsSet: ctx.itemsSet,
-      definition: (void 0),
-      TAG: "Object",
-      unknownKeys: "Strip",
-      field: field,
-      fieldOr: fieldOr,
-      tag: tag,
-      f: field,
-      o: fieldOr,
-      t: tag,
-      n: (function (nestedFieldName, param) {
-          var message = "Nested " + JSON.stringify(nestedFieldName) + " inside of another nested " + JSON.stringify(fieldName) + " is not supported";
-          throw new Error("[rescript-schema] " + message);
-        })
-    };
-    var nestedCtxs = Js_dict.fromArray([[
-            fieldName,
-            newCtx
-          ]]);
-    ctx.nestedCtxs = nestedCtxs;
-    nestedCtx = newCtx;
+  var match = ctx.fields[fieldName];
+  if (match !== undefined) {
+    var schema = match.schema;
+    var match$1 = schema.r;
+    if (typeof match$1 === "object" && match$1.TAG === "Object") {
+      return definer(schema.r);
+    }
+    throw new Error("[rescript-schema] " + ("Failed to define nested " + match.rawLocation + " field since it's already defined as non-object"));
   }
+  var nestedCtx_fields = {};
+  var nestedCtx_fieldNames = [];
+  var nestedCtx_itemsSet = new Set();
+  var nestedCtx_n = function (nestedFieldName, param) {
+    var message = "Nested " + JSON.stringify(nestedFieldName) + " inside of another nested " + JSON.stringify(fieldName) + " is not supported";
+    throw new Error("[rescript-schema] " + message);
+  };
+  var nestedCtx = {
+    fields: nestedCtx_fields,
+    fieldNames: nestedCtx_fieldNames,
+    itemsSet: nestedCtx_itemsSet,
+    TAG: "Object",
+    unknownKeys: "Strip",
+    field: field,
+    fieldOr: fieldOr,
+    tag: tag,
+    f: field,
+    o: fieldOr,
+    t: tag,
+    n: nestedCtx_n
+  };
+  var nestedSchema = {
+    r: nestedCtx,
+    n: (function () {
+        return "NestedObject";
+      }),
+    p: noop,
+    s: noop,
+    f: typeFilter,
+    i: 0,
+    m: empty
+  };
+  ctx.f(fieldName, nestedSchema);
   return definer(nestedCtx);
-}
-
-function typeFilter(inputVar) {
-  return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
 }
 
 function makeParseOperationBuilder(items, itemsSet, definition) {
@@ -1748,11 +1759,13 @@ function makeSerializeOperationBuilder(definition, itemsSet) {
 }
 
 function factory$3(definer) {
+  var ctx_fields = {};
+  var ctx_fieldNames = [];
+  var ctx_itemsSet = new Set();
   var ctx = {
-    fields: {},
-    fieldNames: [],
-    itemsSet: new Set(),
-    definition: (void 0),
+    fields: ctx_fields,
+    fieldNames: ctx_fieldNames,
+    itemsSet: ctx_itemsSet,
     TAG: "Object",
     unknownKeys: "Strip",
     field: field,
@@ -1764,33 +1777,7 @@ function factory$3(definer) {
     n: nested
   };
   var definition = definer(ctx);
-  ctx.definition = definition;
-  var nestedCtxs = ctx.nestedCtxs;
-  if (nestedCtxs !== undefined) {
-    var keys = Object.keys(nestedCtxs);
-    for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-      var key = keys[idx];
-      var nestedCtx = nestedCtxs[key];
-      var schema = {
-        r: {
-          TAG: "Object",
-          fields: nestedCtx.fields,
-          fieldNames: nestedCtx.fieldNames,
-          unknownKeys: "Strip"
-        },
-        n: (function () {
-            return "NestedObject";
-          }),
-        p: noop,
-        s: noop,
-        f: typeFilter,
-        i: 0,
-        m: empty
-      };
-      ctx.f(key, schema);
-    }
-  }
-  var itemsSet = ctx.itemsSet;
+  var itemsSet = ctx_itemsSet;
   var items = Array.from(itemsSet);
   return {
           r: ctx,
@@ -2117,7 +2104,7 @@ function factory$7(definer) {
   var item = function (idx, schema) {
     var rawLocation = "\"" + idx + "\"";
     if (items[idx]) {
-      throw new Error("[rescript-schema] " + ("The item " + rawLocation + " is defined multiple times. If you want to duplicate the item, use S.transform instead."));
+      throw new Error("[rescript-schema] " + ("The item " + rawLocation + " is defined multiple times. If you want to duplicate the item, use S.transform instead"));
     }
     var item_rawPath = "[" + rawLocation + "]";
     var item$1 = {
@@ -2218,7 +2205,7 @@ function factory$8(schemas) {
                   }
                 }
                 if (isAsync) {
-                  invalidOperation(b, path, "S.union doesn't support async items. Please create an issue to rescript-schema if you nead the feature.");
+                  invalidOperation(b, path, "S.union doesn't support async items. Please create an issue to rescript-schema if you nead the feature");
                 }
                 b.c = b.c + raiseWithArg(b, path, (function (internalErrors) {
                         return {
@@ -2280,7 +2267,7 @@ function factory$8(schemas) {
             m: empty
           };
   }
-  throw new Error("[rescript-schema] S.union requires at least one item.");
+  throw new Error("[rescript-schema] S.union requires at least one item");
 }
 
 function list(schema) {
@@ -3199,7 +3186,7 @@ function js_merge(s1, s2) {
       for(var idx$1 = 0 ,idx_finish$1 = s2FieldNames.length; idx$1 < idx_finish$1; ++idx$1){
         var fieldName$1 = s2FieldNames[idx$1];
         if (fields[fieldName$1]) {
-          var message = "The field " + JSON.stringify(fieldName$1) + " is defined multiple times.";
+          var message = "The field " + JSON.stringify(fieldName$1) + " is defined multiple times";
           throw new Error("[rescript-schema] " + message);
         }
         fieldNames.push(fieldName$1);
@@ -3230,7 +3217,7 @@ function js_merge(s1, s2) {
     }
     
   }
-  throw new Error("[rescript-schema] The merge supports only Object schemas.");
+  throw new Error("[rescript-schema] The merge supports only Object schemas");
 }
 
 function js_name(prim) {

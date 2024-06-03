@@ -1504,7 +1504,7 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
       | {parser: _, asyncParser: _} =>
         b->B.invalidOperation(
           ~path,
-          ~description=`The S.transform doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.`,
+          ~description=`The S.transform doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser`,
         )
       }
     }),
@@ -1568,7 +1568,7 @@ let rec preprocess = (schema, transformer) => {
         | {parser: _, asyncParser: _} =>
           b->B.invalidOperation(
             ~path,
-            ~description=`The S.preprocess doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.`,
+            ~description=`The S.preprocess doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser`,
           )
         }
       }),
@@ -1610,7 +1610,7 @@ let custom = (name, definer) => {
       | {parser: _, asyncParser: _} =>
         b->B.invalidOperation(
           ~path,
-          ~description=`The S.custom doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.`,
+          ~description=`The S.custom doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser`,
         )
       }
     }),
@@ -1949,13 +1949,13 @@ module Object = {
     @as("n") nested: 'value. (string, s => 'value) => 'value,
   }
 
+  let typeFilter = (~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
+
   module Ctx = {
     type rec t = {
       fields: dict<item>,
       fieldNames: array<string>,
       itemsSet: Stdlib.Set.t<item>,
-      mutable nestedCtxs?: dict<t>,
-      mutable definition: Definition.t<item>,
       // Allow to pass the ctx as tagged
       @as("TAG")
       taggedKey: string,
@@ -1979,7 +1979,7 @@ module Object = {
         let rawLocation = fieldName->Stdlib.Inlined.Value.fromString
         if ctx.fields->Stdlib.Dict.has(fieldName) {
           InternalError.panic(
-            `The field ${rawLocation} is defined multiple times. If you want to duplicate the field, use S.transform instead.`,
+            `The field ${rawLocation} is defined multiple times. If you want to duplicate the field, use S.transform instead`,
           )
         } else {
           let item: item = {
@@ -2006,20 +2006,22 @@ module Object = {
 
     let nested = (fieldName, definer) => {
       let ctx: t = %raw(`this`)
-      let existingCtx = switch ctx.nestedCtxs {
-      | Some(dict) => dict->Js.Dict.unsafeGet(fieldName)->(Obj.magic: t => option<t>)
-      | None => None
-      }
-      let nestedCtx = switch existingCtx {
-      | Some(n) => n
+      switch ctx.fields->Js.Dict.unsafeGet(fieldName)->(Obj.magic: item => option<item>) {
+      | Some({schema, rawLocation}) =>
+        switch schema->classifyRaw {
+        | Object(_) => definer(schema->classifyRaw->(Obj.magic: tagged => s))
+        | _ =>
+          InternalError.panic(
+            `Failed to define nested ${rawLocation} field since it's already defined as non-object`,
+          )
+        }
       | None => {
-          let newCtx = {
+          let nestedCtx = {
             taggedKey: "Object",
             unknownKeys: Strip,
             fields: Js.Dict.empty(),
             fieldNames: [],
-            itemsSet: ctx.itemsSet,
-            definition: %raw(`void 0`),
+            itemsSet: Stdlib.Set.empty(),
             // js/ts methods
             _jsField: field,
             _jsFieldOr: fieldOr,
@@ -2034,12 +2036,18 @@ module Object = {
               )
             },
           }
-          let nestedCtxs = Js.Dict.fromArray([(fieldName, newCtx)])
-          ctx.nestedCtxs = Some(nestedCtxs)
-          newCtx
+          let nestedSchema = make(
+            ~name=() => `NestedObject`, // FIXME:
+            ~metadataMap=Metadata.Map.empty,
+            ~rawTagged=nestedCtx->(Obj.magic: t => tagged),
+            ~parseOperationBuilder=Builder.noop,
+            ~serializeOperationBuilder=Builder.noop,
+            ~maybeTypeFilter=Some(typeFilter),
+          )
+          let _ = ctx.field(fieldName, nestedSchema)
+          definer((nestedCtx :> s))
         }
       }
-      definer((nestedCtx :> s))
     }
 
     @inline
@@ -2050,7 +2058,6 @@ module Object = {
         fields: Js.Dict.empty(),
         fieldNames: [],
         itemsSet: Stdlib.Set.empty(),
-        definition: %raw(`void 0`),
         // js/ts methods
         _jsField: field,
         _jsFieldOr: fieldOr,
@@ -2063,8 +2070,6 @@ module Object = {
       }
     }
   }
-
-  let typeFilter = (~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
 
   let makeParseOperationBuilder = (~items, ~itemsSet, ~definition) => {
     Builder.make((b, ~input, ~selfSchema, ~path) => {
@@ -2298,31 +2303,6 @@ module Object = {
   let factory = definer => {
     let ctx = Ctx.make()
     let definition = definer((ctx :> s))->(Obj.magic: 'any => Definition.t<item>)
-    ctx.definition = definition
-
-    switch ctx.nestedCtxs {
-    | Some(nestedCtxs) => {
-        let keys = nestedCtxs->Js.Dict.keys
-        for idx in 0 to keys->Js.Array2.length - 1 {
-          let key = keys->Js.Array2.unsafe_get(idx)
-          let nestedCtx = nestedCtxs->Js.Dict.unsafeGet(key)
-          let schema = make(
-            ~name=() => `NestedObject`,
-            ~metadataMap=Metadata.Map.empty,
-            ~rawTagged=Object({
-              fields: nestedCtx.fields,
-              fieldNames: nestedCtx.fieldNames,
-              unknownKeys: Strip,
-            }),
-            ~parseOperationBuilder=Builder.noop,
-            ~serializeOperationBuilder=Builder.noop,
-            ~maybeTypeFilter=Some(typeFilter),
-          )
-          let _ = ctx.field(key, schema)
-        }
-      }
-    | None => ()
-    }
 
     let itemsSet = ctx.itemsSet
     let items = itemsSet->Stdlib.Set.toArray
@@ -2759,7 +2739,7 @@ module Tuple = {
           let rawLocation = `"${idx->Stdlib.Int.unsafeToString}"`
           if items->Stdlib.Array.has(idx) {
             InternalError.panic(
-              `The item ${rawLocation} is defined multiple times. If you want to duplicate the item, use S.transform instead.`,
+              `The item ${rawLocation} is defined multiple times. If you want to duplicate the item, use S.transform instead`,
             )
           } else {
             let item: item = {
@@ -2829,7 +2809,7 @@ module Union = {
     let schemas: array<t<unknown>> = schemas->Obj.magic
 
     switch schemas {
-    | [] => InternalError.panic("S.union requires at least one item.")
+    | [] => InternalError.panic("S.union requires at least one item")
     | [schema] => schema->castUnknownSchemaToAnySchema
     | _ =>
       make(
@@ -2871,7 +2851,7 @@ module Union = {
           if isAsync.contents {
             b->B.invalidOperation(
               ~path,
-              ~description="S.union doesn't support async items. Please create an issue to rescript-schema if you nead the feature.",
+              ~description="S.union doesn't support async items. Please create an issue to rescript-schema if you nead the feature",
             )
           }
 
@@ -3923,7 +3903,7 @@ let js_merge = (s1, s2) => {
       let fieldName = s2FieldNames->Js.Array2.unsafe_get(idx)
       if fields->Stdlib.Dict.has(fieldName) {
         InternalError.panic(
-          `The field ${fieldName->Stdlib.Inlined.Value.fromString} is defined multiple times.`,
+          `The field ${fieldName->Stdlib.Inlined.Value.fromString} is defined multiple times`,
         )
       }
       fieldNames->Js.Array2.push(fieldName)->ignore
@@ -3949,7 +3929,7 @@ let js_merge = (s1, s2) => {
       ~maybeTypeFilter=Some(Object.typeFilter),
       ~metadataMap=Metadata.Map.empty,
     )
-  | _ => InternalError.panic("The merge supports only Object schemas.")
+  | _ => InternalError.panic("The merge supports only Object schemas")
   }
 }
 

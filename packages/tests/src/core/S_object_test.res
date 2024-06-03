@@ -877,7 +877,7 @@ test("Fails to create object schema with single field defined multiple times", t
       )
     },
     ~expectations={
-      message: `[rescript-schema] The field "field" is defined multiple times. If you want to duplicate the field, use S.transform instead.`,
+      message: `[rescript-schema] The field "field" is defined multiple times. If you want to duplicate the field, use S.transform instead`,
     },
     (),
   )

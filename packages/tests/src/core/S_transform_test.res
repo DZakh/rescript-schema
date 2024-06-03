@@ -225,7 +225,7 @@ test("Fails to parse schema with transform having both parser and asyncParser", 
     "foo"->S.parseAnyWith(schema),
     {
       code: InvalidOperation({
-        description: "The S.transform doesn\'t allow parser and asyncParser at the same time. Remove parser in favor of asyncParser.",
+        description: "The S.transform doesn\'t allow parser and asyncParser at the same time. Remove parser in favor of asyncParser",
       }),
       operation: Parsing,
       path: S.Path.empty,
