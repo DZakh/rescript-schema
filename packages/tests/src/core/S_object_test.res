@@ -922,7 +922,7 @@ test("Object schema parsing checks order", t => {
   let schema = S.object(s => {
     s.tag("tag", "value")
     {
-      "key": s.field("key", S.literal("value")),
+      "key": s.field("key", S.string),
     }
   })->S.Object.strict
 
@@ -937,7 +937,7 @@ test("Object schema parsing checks order", t => {
   )
   // Tag check should be the second
   t->U.assertErrorResult(
-    %raw(`{tag: "wrong", key: "wrong", unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
+    %raw(`{tag: "wrong", key: 123, unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
       schema,
     ),
     {
@@ -948,11 +948,11 @@ test("Object schema parsing checks order", t => {
   )
   // Field check should be the third
   t->U.assertErrorResult(
-    %raw(`{tag: "value", key: "wrong", unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
+    %raw(`{tag: "value", key: 123, unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
       schema,
     ),
     {
-      code: InvalidLiteral({expected: S.Literal.parse("value"), received: %raw(`"wrong"`)}),
+      code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
       operation: Parsing,
       path: S.Path.fromLocation("key"),
     },
@@ -1004,7 +1004,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#parse,
-      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v1=i["bar"];let v0=e[0](i["foo"]);if(typeof v1!=="boolean"){e[1](v1)}return ()=>Promise.all([v0()]).then(([v0])=>({"foo":v0,"bar":v1,}))}`,
+      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=e[0](i["foo"]),v1=i["bar"];if(typeof v1!=="boolean"){e[1](v1)}return ()=>Promise.all([v0()]).then(([v0])=>({"foo":v0,"bar":v1,}))}`,
     )
   })
 
@@ -1060,7 +1060,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#parse,
-        `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0=i["tag"],v1=i["FOO"],v2=i["BAR"],v3;v0===0||e[0](v0);if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}for(v3 in i){if(v3!=="tag"&&v3!=="FOO"&&v3!=="BAR"){e[4](v3)}}return {"foo":v1,"bar":v2,"zoo":e[3],}}`,
+        `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0=i["tag"],v1=i["FOO"],v2=i["BAR"],v3;v0===0||e[0](v0);if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}for(v3 in i){if(v3!=="tag"&&v3!=="FOO"&&v3!=="BAR"){e[3](v3)}}return {"foo":v1,"bar":v2,"zoo":e[4],}}`,
       )
     },
   )

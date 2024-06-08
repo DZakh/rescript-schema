@@ -45,9 +45,7 @@ let rec cleanUpSchema = schema => {
     switch key {
     | "i"
     | // Object ctx
-    "itemsSet"
-    | "definition"
-    | "nestedCtxs" => ()
+    "isNested" => ()
     | _ =>
       if typeof(value) === #function {
         ()
