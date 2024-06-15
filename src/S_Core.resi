@@ -239,9 +239,10 @@ let schema: (Schema.s => 'value) => t<'value>
 module Object: {
   type rec s = {
     @as("f") field: 'value. (string, t<'value>) => 'value,
-    @as("o") fieldOr: 'value. (string, t<'value>, 'value) => 'value,
-    @as("t") tag: 'value. (string, 'value) => unit,
-    @as("n") nested: 'value. (string, s => 'value) => 'value,
+    fieldOr: 'value. (string, t<'value>, 'value) => 'value,
+    tag: 'value. (string, 'value) => unit,
+    nested: 'value. (string, s => 'value) => 'value,
+    flatten: 'value. t<'value> => 'value,
   }
 
   /* The same as S.object. Expose only for PPX since the object is a reserved name in OCaml */

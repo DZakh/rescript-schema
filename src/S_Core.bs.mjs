@@ -1628,6 +1628,13 @@ function factory$3(definer) {
   var fields = {};
   var items = [];
   var embededDefinitions = new WeakSet();
+  var flatten = function (schema) {
+    if (schema.d) {
+      return schema.d(this);
+    }
+    var message = "The schema " + schema.n() + " can't be flattened";
+    throw new Error("[rescript-schema] " + message);
+  };
   var field = function (fieldName, schema) {
     var inlinedLocation = JSON.stringify(fieldName);
     if (fields[fieldName]) {
@@ -1663,12 +1670,11 @@ function factory$3(definer) {
   };
   var ctx = {
     field: field,
+    f: field,
     fieldOr: fieldOr,
     tag: tag,
-    f: field,
-    o: fieldOr,
-    t: tag,
-    n: nested
+    nested: nested,
+    flatten: flatten
   };
   var definition = definer(ctx);
   return {

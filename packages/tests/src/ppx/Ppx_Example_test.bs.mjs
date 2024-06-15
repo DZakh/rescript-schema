@@ -26,7 +26,7 @@ Ava("Main example", (function (t) {
                   return {
                           Id: s.f("Id", S$RescriptSchema.$$float),
                           Title: s.f("Title", S$RescriptSchema.string),
-                          Tags: s.o("Tags", S$RescriptSchema.array(S$RescriptSchema.string), []),
+                          Tags: s.fieldOr("Tags", S$RescriptSchema.array(S$RescriptSchema.string), []),
                           Rating: s.f("Rating", S$RescriptSchema.union([
                                     S$RescriptSchema.literal("G"),
                                     S$RescriptSchema.literal("PG"),

@@ -1909,19 +1909,18 @@ module Never = {
 module Object = {
   type rec s = {
     @as("f") field: 'value. (string, t<'value>) => 'value,
-    @as("o") fieldOr: 'value. (string, t<'value>, 'value) => 'value,
-    @as("t") tag: 'value. (string, 'value) => unit,
-    @as("n") nested: 'value. (string, s => 'value) => 'value,
+    fieldOr: 'value. (string, t<'value>, 'value) => 'value,
+    tag: 'value. (string, 'value) => unit,
+    nested: 'value. (string, s => 'value) => 'value,
+    flatten: 'value. t<'value> => 'value,
   }
 
   type ctx = {
     // Public API for JS/TS users.
     // It shouldn't be used from ReScript and
-    // needed only because we use @as to reduce bundle-size
+    // needed only because we use @as for field to reduce bundle-size
     // of ReScript compiled code
     @as("field") _jsField: 'value. (string, schema<'value>) => 'value,
-    @as("fieldOr") _jsFieldOr: 'value. (string, schema<'value>, 'value) => 'value,
-    @as("tag") _jsTag: 'value. (string, 'value) => unit,
     // Public API for ReScript users
     ...s,
   }
@@ -2149,6 +2148,14 @@ module Object = {
       let embededDefinitions = Stdlib.WeakSet.make()
 
       let ctx = {
+        let flatten = schema => {
+          if schema.definer->Obj.magic {
+            (schema.definer->Obj.magic)(%raw(`this`))
+          } else {
+            InternalError.panic(`The schema ${schema.name()} can't be flattened`)
+          }
+        }
+
         let field:
           type value. (string, schema<value>) => value =
           (fieldName, schema) => {
@@ -2239,13 +2246,12 @@ module Object = {
         {
           // js/ts methods
           _jsField: field,
-          _jsFieldOr: fieldOr,
-          _jsTag: tag,
           // methods
           field,
           fieldOr,
           tag,
           nested,
+          flatten,
         }
       }
 
