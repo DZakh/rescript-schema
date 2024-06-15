@@ -51,8 +51,8 @@ function cleanUpSchema(schema) {
         var value = param[1];
         var key = param[0];
         switch (key) {
+          case "definition" :
           case "i" :
-          case "isNested" :
               return ;
           default:
             if (typeof value === "function") {

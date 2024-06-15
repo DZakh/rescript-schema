@@ -14,20 +14,20 @@ Ava("Creates schema with the type name and schema at the for non t types", (func
 
 var reusedTypesSchema = S$RescriptSchema.tuple(function (s) {
       return [
-              s.i(0, S$RescriptSchema.string),
-              s.i(1, S$RescriptSchema.$$int),
-              s.i(2, S$RescriptSchema.bool),
-              s.i(3, S$RescriptSchema.$$float)
+              s.item(0, S$RescriptSchema.string),
+              s.item(1, S$RescriptSchema.$$int),
+              s.item(2, S$RescriptSchema.bool),
+              s.item(3, S$RescriptSchema.$$float)
             ];
     });
 
 Ava("Can reuse schemas from other types", (function (t) {
         U.assertEqualSchemas(t, reusedTypesSchema, S$RescriptSchema.tuple(function (s) {
                   return [
-                          s.i(0, S$RescriptSchema.string),
-                          s.i(1, S$RescriptSchema.$$int),
-                          s.i(2, S$RescriptSchema.bool),
-                          s.i(3, S$RescriptSchema.$$float)
+                          s.item(0, S$RescriptSchema.string),
+                          s.item(1, S$RescriptSchema.$$int),
+                          s.item(2, S$RescriptSchema.bool),
+                          s.item(3, S$RescriptSchema.$$float)
                         ];
                 }), undefined);
       }));

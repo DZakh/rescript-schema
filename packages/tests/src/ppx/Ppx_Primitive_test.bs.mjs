@@ -82,8 +82,8 @@ Ava("Json schema from Core", (function (t) {
 
 var myTupleSchema = S$RescriptSchema.tuple(function (s) {
       return [
-              s.i(0, S$RescriptSchema.string),
-              s.i(1, S$RescriptSchema.$$int)
+              s.item(0, S$RescriptSchema.string),
+              s.item(1, S$RescriptSchema.$$int)
             ];
     });
 
@@ -93,36 +93,36 @@ Ava("Tuple schema", (function (t) {
 
 var myBigTupleSchema = S$RescriptSchema.tuple(function (s) {
       return [
-              s.i(0, S$RescriptSchema.string),
-              s.i(1, S$RescriptSchema.string),
-              s.i(2, S$RescriptSchema.string),
-              s.i(3, S$RescriptSchema.$$int),
-              s.i(4, S$RescriptSchema.$$int),
-              s.i(5, S$RescriptSchema.$$int),
-              s.i(6, S$RescriptSchema.$$float),
-              s.i(7, S$RescriptSchema.$$float),
-              s.i(8, S$RescriptSchema.$$float),
-              s.i(9, S$RescriptSchema.bool),
-              s.i(10, S$RescriptSchema.bool),
-              s.i(11, S$RescriptSchema.bool)
+              s.item(0, S$RescriptSchema.string),
+              s.item(1, S$RescriptSchema.string),
+              s.item(2, S$RescriptSchema.string),
+              s.item(3, S$RescriptSchema.$$int),
+              s.item(4, S$RescriptSchema.$$int),
+              s.item(5, S$RescriptSchema.$$int),
+              s.item(6, S$RescriptSchema.$$float),
+              s.item(7, S$RescriptSchema.$$float),
+              s.item(8, S$RescriptSchema.$$float),
+              s.item(9, S$RescriptSchema.bool),
+              s.item(10, S$RescriptSchema.bool),
+              s.item(11, S$RescriptSchema.bool)
             ];
     });
 
 Ava("Big tuple schema", (function (t) {
         U.assertEqualSchemas(t, myBigTupleSchema, S$RescriptSchema.tuple(function (s) {
                   return [
-                          s.i(0, S$RescriptSchema.string),
-                          s.i(1, S$RescriptSchema.string),
-                          s.i(2, S$RescriptSchema.string),
-                          s.i(3, S$RescriptSchema.$$int),
-                          s.i(4, S$RescriptSchema.$$int),
-                          s.i(5, S$RescriptSchema.$$int),
-                          s.i(6, S$RescriptSchema.$$float),
-                          s.i(7, S$RescriptSchema.$$float),
-                          s.i(8, S$RescriptSchema.$$float),
-                          s.i(9, S$RescriptSchema.bool),
-                          s.i(10, S$RescriptSchema.bool),
-                          s.i(11, S$RescriptSchema.bool)
+                          s.item(0, S$RescriptSchema.string),
+                          s.item(1, S$RescriptSchema.string),
+                          s.item(2, S$RescriptSchema.string),
+                          s.item(3, S$RescriptSchema.$$int),
+                          s.item(4, S$RescriptSchema.$$int),
+                          s.item(5, S$RescriptSchema.$$int),
+                          s.item(6, S$RescriptSchema.$$float),
+                          s.item(7, S$RescriptSchema.$$float),
+                          s.item(8, S$RescriptSchema.$$float),
+                          s.item(9, S$RescriptSchema.bool),
+                          s.item(10, S$RescriptSchema.bool),
+                          s.item(11, S$RescriptSchema.bool)
                         ];
                 }), undefined);
       }));

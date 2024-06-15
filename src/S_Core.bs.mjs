@@ -42,6 +42,8 @@ function concat(path, concatedPath) {
 
 var symbol = Symbol("rescript-schema");
 
+var itemSymbol = Symbol("item");
+
 var Raised = /* @__PURE__ */Caml_exceptions.create("S_Core-RescriptSchema.Raised");
 
 class RescriptSchemaError extends Error {
@@ -617,17 +619,17 @@ function validateJsonableSchema(_schema, rootSchema, _isRootOpt) {
     if (!(isRoot || rootSchema !== schema)) {
       return ;
     }
-    var items = schema.r;
+    var childrenSchemas = schema.r;
     var exit = 0;
-    if (typeof items !== "object") {
-      if (items !== "Unknown") {
+    if (typeof childrenSchemas !== "object") {
+      if (childrenSchemas !== "Unknown") {
         return ;
       }
       exit = 2;
     } else {
-      switch (items.TAG) {
+      switch (childrenSchemas.TAG) {
         case "Literal" :
-            if (items._0.j) {
+            if (childrenSchemas._0.j) {
               return ;
             }
             exit = 2;
@@ -636,37 +638,34 @@ function validateJsonableSchema(_schema, rootSchema, _isRootOpt) {
             exit = 2;
             break;
         case "Object" :
-            var fieldNames = items.fieldNames;
-            var fields = items.fields;
-            for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-              var fieldName = fieldNames[idx];
-              var item = fields[fieldName];
-              var fieldSchema = item.schema;
+            var items = childrenSchemas.items;
+            for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+              var item = items[idx];
               try {
-                var s = fieldSchema.r;
+                var s = item.t.r;
                 var tmp;
-                tmp = typeof s !== "object" || s.TAG !== "Option" ? fieldSchema : s._0;
+                tmp = typeof s !== "object" || s.TAG !== "Option" ? item.t : s._0;
                 validateJsonableSchema(tmp, rootSchema, undefined);
               }
               catch (raw_exn){
                 var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-                prependLocationOrRethrow(exn, fieldName);
+                prependLocationOrRethrow(exn, item.l);
               }
             }
             return ;
         case "Tuple" :
-            items._0.forEach(function (item, i) {
+            childrenSchemas.items.forEach(function (item, idx) {
                   try {
-                    return validateJsonableSchema(item.schema, rootSchema, undefined);
+                    return validateJsonableSchema(item.t, rootSchema, undefined);
                   }
                   catch (raw_exn){
                     var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-                    return prependLocationOrRethrow(exn, i.toString());
+                    return prependLocationOrRethrow(exn, idx.toString());
                   }
                 });
             return ;
         case "Union" :
-            items._0.forEach(function (schema) {
+            childrenSchemas._0.forEach(function (schema) {
                   validateJsonableSchema(schema, rootSchema, undefined);
                 });
             return ;
@@ -682,7 +681,7 @@ function validateJsonableSchema(_schema, rootSchema, _isRootOpt) {
     switch (exit) {
       case 1 :
           _isRootOpt = undefined;
-          _schema = items._0;
+          _schema = childrenSchemas._0;
           continue ;
       case 2 :
           throw new RescriptSchemaError({
@@ -1187,7 +1186,6 @@ function preprocess(schema, transformer) {
                 return input$1;
               }
             }),
-          f: undefined,
           i: 0,
           m: schema.m
         };
@@ -1229,7 +1227,6 @@ function custom(name, definer) {
                 return input;
               }
             }),
-          f: undefined,
           i: 0,
           m: empty
         };
@@ -1258,7 +1255,6 @@ function literal(value) {
             }),
           p: operationBuilder,
           s: operationBuilder,
-          f: undefined,
           i: 0,
           m: empty
         };
@@ -1276,9 +1272,9 @@ function factory(schema, definer) {
           s: (function (b, input, selfSchema, path) {
               var inputVar = $$var(b, input);
               var definition = definer(symbol);
-              var definitionToOutput = function (definition, outputPath) {
+              var definitionToValue = function (definition, valuePath) {
                 if (symbol === definition) {
-                  return outputPath === "" ? input : val(b, inputVar + outputPath);
+                  return valuePath === "" ? input : val(b, inputVar + valuePath);
                 }
                 if (typeof definition === "object" && definition !== null) {
                   var keys = Object.keys(definition);
@@ -1286,7 +1282,7 @@ function factory(schema, definer) {
                   for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
                     var key = keys[idx];
                     var definition$1 = definition[key];
-                    var maybeOutput = definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+                    var maybeOutput = definitionToValue(definition$1, valuePath + ("[" + JSON.stringify(key) + "]"));
                     var match = maybeOutputRef;
                     if (typeof match !== "object") {
                       if (match === 0) {
@@ -1300,9 +1296,9 @@ function factory(schema, definer) {
                   }
                   return maybeOutputRef;
                 }
-                var constantVal = outputPath === "" ? input : val(b, inputVar + outputPath);
+                var constantVal = valuePath === "" ? input : val(b, inputVar + valuePath);
                 var constantVar = $$var(b, constantVal);
-                b.c = b.c + ("if(" + constantVar + "!==" + ("e[" + (b.g.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
+                b.c = b.c + ("if(" + constantVar + "!==" + ("e[" + (b.g.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + valuePath, (function (input) {
                           return {
                                   TAG: "InvalidLiteral",
                                   expected: parseInternal(definition),
@@ -1311,7 +1307,7 @@ function factory(schema, definer) {
                         }), constantVar) + "}");
                 return 0;
               };
-              var output = definitionToOutput(definition, "");
+              var output = definitionToValue(definition, "");
               if (typeof output === "object") {
                 return schema.s(b, output, schema, path);
               }
@@ -1467,7 +1463,6 @@ var schema = {
   n: primitiveName,
   p: builder,
   s: builder,
-  f: undefined,
   i: 0,
   m: empty
 };
@@ -1476,312 +1471,209 @@ function typeFilter(inputVar) {
   return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
 }
 
-function name() {
-  var ctx = this.r;
-  return "Object({" + ctx.items.map(function (item) {
-                return item.rawLocation + ": " + item.schema.n();
-              }).join(", ") + "})";
-}
-
-function makeParseOperationBuilder(definition) {
-  return function (b, input, selfSchema, path) {
-    var asyncOutputVars = [];
-    var outputs = new WeakMap();
-    var parseItems = function (b, input, schema, path) {
-      var inputVar = $$var(b, input);
-      var items = schema.r;
-      var items$1;
-      if (typeof items !== "object") {
-        items$1 = [];
-      } else {
-        switch (items.TAG) {
-          case "Object" :
-              items$1 = schema.r.items;
-              break;
-          case "Tuple" :
-              items$1 = items._0;
-              break;
-          default:
-            items$1 = [];
-        }
-      }
-      for(var idx = 0 ,idx_finish = items$1.length; idx < idx_finish; ++idx){
-        var prevCode = b.c;
-        b.c = "";
-        var item = items$1[idx];
-        var rawPath = item.rawPath;
-        var schema$1 = item.schema;
-        var itemInput = val(b, inputVar + rawPath);
-        var path$1 = path + rawPath;
-        var match = schema$1.r;
-        var isNested;
-        isNested = typeof match !== "object" || match.TAG !== "Object" ? false : schema$1.r.isNested;
-        var typeFilter = schema$1.f;
-        if (typeFilter !== undefined) {
-          b.c = b.c + typeFilterCode(b, typeFilter, schema$1, itemInput, path$1);
-        }
-        if (isNested) {
-          var bb = scope(b);
-          parseItems(bb, itemInput, schema$1, path$1);
-          b.c = prevCode + b.c + allocateScope(bb);
-        } else {
-          var itemOutput = schema$1.p(b, itemInput, schema$1, path$1);
-          outputs.set(item, itemOutput);
-          if (itemOutput.a) {
-            asyncOutputVars.push($$var(b, itemOutput));
-          }
-          if (schema$1.r.TAG === "Literal") {
-            b.c = b.c + prevCode;
-          } else {
-            b.c = prevCode + b.c;
-          }
-        }
-      }
-      var match$1 = schema.r;
-      if (typeof match$1 !== "object") {
-        return ;
-      }
-      if (match$1.TAG !== "Object") {
-        return ;
-      }
-      if (match$1.unknownKeys === "Strip") {
-        return ;
-      }
-      var key = allocateVal(b);
-      var keyVar = $$var(b, key);
-      b.c = b.c + ("for(" + keyVar + " in " + inputVar + "){if(");
-      if (items$1.length !== 0) {
-        for(var idx$1 = 0 ,idx_finish$1 = items$1.length; idx$1 < idx_finish$1; ++idx$1){
-          var item$1 = items$1[idx$1];
-          if (idx$1 !== 0) {
-            b.c = b.c + "&&";
-          }
-          b.c = b.c + (keyVar + "!==" + item$1.rawLocation);
-        }
-      } else {
-        b.c = b.c + "true";
-      }
-      b.c = b.c + ("){" + raiseWithArg(b, path, (function (exccessFieldName) {
-                return {
-                        TAG: "ExcessField",
-                        _0: exccessFieldName
-                      };
-              }), keyVar) + "}}");
-    };
-    parseItems(b, input, selfSchema, path);
-    var definitionToOutput = function (definition, outputPath) {
-      var itemOutput = outputs.get(definition);
-      if (itemOutput !== undefined) {
-        return inline(b, itemOutput);
-      }
-      if (!(typeof definition === "object" && definition !== null)) {
-        return "e[" + (b.g.e.push(definition) - 1) + "]";
-      }
-      var isArray = Array.isArray(definition);
-      var keys = Object.keys(definition);
-      var codeRef = isArray ? "[" : "{";
-      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-        var key = keys[idx];
-        var definition$1 = definition[key];
-        var output = definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
-        codeRef = codeRef + (
-          isArray ? output : JSON.stringify(key) + ":" + output
-        ) + ",";
-      }
-      return codeRef + (
-              isArray ? "]" : "}"
-            );
-    };
-    var syncOutput = definitionToOutput(definition, "");
-    if (asyncOutputVars.length === 0) {
-      return val(b, syncOutput);
-    } else {
-      return asyncVal(b, "()=>Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
-                        return asyncOutputVar + "()";
-                      }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "))");
-    }
-  };
-}
-
-function makeSerializeOperationBuilder(definition, items) {
-  return function (b, input, selfSchema, path) {
+function parseOperationBuilder$1(b, input, selfSchema, path) {
+  var asyncOutputVars = [];
+  var outputs = new WeakMap();
+  var parseItems = function (b, input, schema, path) {
     var inputVar = $$var(b, input);
-    var itemsSet = new Set(items);
-    var ctx = {
-      d: "",
-      t: false
-    };
-    var embededOutputs = new WeakMap();
-    var definitionToOutput = function (definition, outputPath) {
-      if (itemsSet.has(definition)) {
-        if (embededOutputs.has(definition)) {
-          return invalidOperation(b, path, "The item " + definition.rawLocation + " is registered multiple times. For advanced transformation cases use S.transform");
+    var items = schema.r.items;
+    var isObject = schema.r.TAG === "Object";
+    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+      var prevCode = b.c;
+      b.c = "";
+      var item = items[idx];
+      var itemPath = item.p;
+      var schema$1 = item.t;
+      var itemInput = val(b, inputVar + itemPath);
+      var path$1 = path + itemPath;
+      var typeFilter = schema$1.f;
+      if (typeFilter !== undefined) {
+        b.c = b.c + typeFilterCode(b, typeFilter, schema$1, itemInput, path$1);
+      }
+      var itemOutput = schema$1.p(b, itemInput, schema$1, path$1);
+      outputs.set(item, itemOutput);
+      if (itemOutput.a) {
+        asyncOutputVars.push($$var(b, itemOutput));
+      }
+      if (schema$1.r.TAG === "Literal") {
+        b.c = b.c + prevCode;
+      } else {
+        b.c = prevCode + b.c;
+      }
+    }
+    if (!(isObject && selfSchema.r.unknownKeys === "Strict")) {
+      return ;
+    }
+    var key = allocateVal(b);
+    var keyVar = $$var(b, key);
+    b.c = b.c + ("for(" + keyVar + " in " + inputVar + "){if(");
+    if (items.length !== 0) {
+      for(var idx$1 = 0 ,idx_finish$1 = items.length; idx$1 < idx_finish$1; ++idx$1){
+        var item$1 = items[idx$1];
+        if (idx$1 !== 0) {
+          b.c = b.c + "&&";
         }
-        var schema = definition.schema;
+        b.c = b.c + (keyVar + "!==" + item$1.i);
+      }
+    } else {
+      b.c = b.c + "true";
+    }
+    b.c = b.c + ("){" + raiseWithArg(b, path, (function (exccessFieldName) {
+              return {
+                      TAG: "ExcessField",
+                      _0: exccessFieldName
+                    };
+            }), keyVar) + "}}");
+  };
+  parseItems(b, input, selfSchema, path);
+  var definitionToValue = function (definition, outputPath) {
+    var val = outputs.get(definition);
+    if (val !== undefined) {
+      return inline(b, val);
+    }
+    if (!(typeof definition === "object" && definition !== null)) {
+      return "e[" + (b.g.e.push(definition) - 1) + "]";
+    }
+    var isArray = Array.isArray(definition);
+    var keys = Object.keys(definition);
+    var codeRef = isArray ? "[" : "{";
+    for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+      var key = keys[idx];
+      var definition$1 = definition[key];
+      var output = definitionToValue(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+      codeRef = codeRef + (
+        isArray ? output : JSON.stringify(key) + ":" + output
+      ) + ",";
+    }
+    return codeRef + (
+            isArray ? "]" : "}"
+          );
+  };
+  var syncOutput = definitionToValue(selfSchema.r.definition, "");
+  if (asyncOutputVars.length === 0) {
+    return val(b, syncOutput);
+  } else {
+    return asyncVal(b, "()=>Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
+                      return asyncOutputVar + "()";
+                    }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "))");
+  }
+}
+
+function serializeOperationBuilder$1(b, input, selfSchema, path) {
+  var inputVar = $$var(b, input);
+  var ctx = {
+    d: "",
+    t: false
+  };
+  var embededOutputs = new WeakMap();
+  var definitionToOutput = function (definition, outputPath) {
+    if (typeof definition === "object" && definition !== null) {
+      if (definition.s === itemSymbol) {
+        if (embededOutputs.has(definition)) {
+          return invalidOperation(b, path, "The item " + definition.i + " is registered multiple times. For advanced transformation cases use S.transform");
+        }
+        var schema = definition.t;
         var itemInput = val(b, inputVar + outputPath);
         var itemOutput = schema.s(b, itemInput, schema, path + outputPath);
         embededOutputs.set(definition, itemOutput);
-        if (itemInput !== itemOutput || outputPath !== definition.rawPath) {
+        if (itemInput !== itemOutput || outputPath !== definition.p) {
           ctx.t = true;
           return ;
         } else {
           return ;
         }
       }
-      if (typeof definition === "object" && definition !== null) {
-        if (outputPath !== "") {
-          ctx.t = true;
-        }
-        var keys = Object.keys(definition);
-        for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-          var key = keys[idx];
-          var definition$1 = definition[key];
-          definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
-        }
-        return ;
-      }
-      var itemInputVar = inputVar + outputPath;
-      ctx.d = ctx.d + ("if(" + itemInputVar + "!==" + ("e[" + (b.g.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
-                return {
-                        TAG: "InvalidLiteral",
-                        expected: parseInternal(definition),
-                        received: input
-                      };
-              }), itemInputVar) + "}");
-      ctx.t = true;
-    };
-    definitionToOutput(definition, "");
-    b.c = ctx.d + b.c;
-    var getItemOutput = function (item) {
-      var o = embededOutputs.get(item);
-      if (o !== undefined) {
-        return inline(b, o);
-      }
-      var literal = fromSchema(item.schema);
-      if (literal !== undefined) {
+      if (outputPath !== "") {
         ctx.t = true;
-        return "e[" + (b.g.e.push(literal.value) - 1) + "]";
-      } else {
-        return invalidOperation(b, path, "Can't create serializer. The " + item.rawLocation + " item is not registered and not a literal. For advanced transformation cases use S.transform");
       }
-    };
-    var output = "";
-    var items$1 = selfSchema.r;
-    if (typeof items$1 === "object") {
-      switch (items$1.TAG) {
-        case "Object" :
-            var fieldNames = items$1.fieldNames;
-            var fields = items$1.fields;
-            for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-              var fieldName = fieldNames[idx];
-              var item = fields[fieldName];
-              var itemOutput = getItemOutput(item);
-              output = output + (item.rawLocation + ":" + itemOutput + ",");
-            }
-            output = "{" + output + "}";
-            break;
-        case "Tuple" :
-            var items$2 = items$1._0;
-            for(var idx$1 = 0 ,idx_finish$1 = items$2.length; idx$1 < idx_finish$1; ++idx$1){
-              var item$1 = items$2[idx$1];
-              var itemOutput$1 = getItemOutput(item$1);
-              output = output + (itemOutput$1 + ",");
-            }
-            output = "[" + output + "]";
-            break;
-        default:
-          
+      var keys = Object.keys(definition);
+      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+        var key = keys[idx];
+        var definition$1 = definition[key];
+        definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
       }
+      return ;
     }
-    if (ctx.t) {
-      return val(b, output);
+    var itemInputVar = inputVar + outputPath;
+    ctx.d = ctx.d + ("if(" + itemInputVar + "!==" + ("e[" + (b.g.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + outputPath, (function (input) {
+              return {
+                      TAG: "InvalidLiteral",
+                      expected: parseInternal(definition),
+                      received: input
+                    };
+            }), itemInputVar) + "}");
+    ctx.t = true;
+  };
+  definitionToOutput(selfSchema.r.definition, "");
+  b.c = ctx.d + b.c;
+  var getItemOutput = function (item) {
+    var o = embededOutputs.get(item);
+    if (o !== undefined) {
+      return inline(b, o);
+    }
+    var literal = fromSchema(item.t);
+    if (literal !== undefined) {
+      ctx.t = true;
+      return "e[" + (b.g.e.push(literal.value) - 1) + "]";
     } else {
-      return input;
+      return invalidOperation(b, path, "Can't create serializer. The " + item.i + " item is not registered and not a literal. For advanced transformation cases use S.transform");
     }
   };
-}
-
-function field(fieldName, schema) {
-  var ctx = this;
-  var rawLocation = JSON.stringify(fieldName);
-  if (ctx.fields[fieldName]) {
-    throw new Error("[rescript-schema] " + ("The field " + rawLocation + " is defined multiple times. If you want to duplicate the field, use S.transform instead"));
-  }
-  var item_rawPath = "[" + rawLocation + "]";
-  var item = {
-    schema: schema,
-    rawLocation: rawLocation,
-    rawPath: item_rawPath
-  };
-  ctx.fields[fieldName] = item;
-  ctx.fieldNames.push(fieldName);
-  ctx.items.push(item);
-  return item;
-}
-
-function tag(tag$1, asValue) {
-  var ctx = this;
-  ctx.f(tag$1, literal(asValue));
-}
-
-function fieldOr(fieldName, schema, or) {
-  var ctx = this;
-  return ctx.f(fieldName, getOr(factory$1(schema), or));
-}
-
-function nested(fieldName, definer) {
-  var ctx = this;
-  var match = ctx.fields[fieldName];
-  if (match !== undefined) {
-    var schema = match.schema;
-    var match$1 = schema.r;
-    if (typeof match$1 === "object" && match$1.TAG === "Object") {
-      return definer(schema.r);
+  var items = selfSchema.r.items;
+  var isObject = selfSchema.r.TAG === "Object";
+  var output = "";
+  if (isObject) {
+    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+      var item = items[idx];
+      var itemOutput = getItemOutput(item);
+      output = output + (item.i + ":" + itemOutput + ",");
     }
-    throw new Error("[rescript-schema] " + ("Failed to define nested " + match.rawLocation + " field since it's already defined as non-object"));
+    output = "{" + output + "}";
+  } else {
+    for(var idx$1 = 0 ,idx_finish$1 = items.length; idx$1 < idx_finish$1; ++idx$1){
+      var item$1 = items[idx$1];
+      var itemOutput$1 = getItemOutput(item$1);
+      output = output + (itemOutput$1 + ",");
+    }
+    output = "[" + output + "]";
   }
-  var nestedCtx_fields = {};
-  var nestedCtx_fieldNames = [];
-  var nestedCtx_items = [];
-  var nestedCtx = {
-    fields: nestedCtx_fields,
-    fieldNames: nestedCtx_fieldNames,
-    items: nestedCtx_items,
-    TAG: "Object",
-    unknownKeys: "Strip",
-    isNested: true,
-    field: field,
-    fieldOr: fieldOr,
-    tag: tag,
-    f: field,
-    o: fieldOr,
-    t: tag,
-    n: nested
-  };
-  var nestedSchema = {
-    r: nestedCtx,
-    n: name,
-    p: noop,
-    s: noop,
-    f: typeFilter,
-    i: 0,
-    m: empty
-  };
-  ctx.f(fieldName, nestedSchema);
-  return definer(nestedCtx);
+  if (ctx.t) {
+    return val(b, output);
+  } else {
+    return input;
+  }
 }
 
 function factory$3(definer) {
-  var ctx_fields = {};
-  var ctx_fieldNames = [];
-  var ctx_items = [];
+  var fields = {};
+  var items = [];
+  var field = function (fieldName, schema) {
+    var inlinedLocation = JSON.stringify(fieldName);
+    if (fields[fieldName]) {
+      throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " is defined multiple times. If you want to duplicate the field, use S.transform instead"));
+    }
+    var item_p = "[" + inlinedLocation + "]";
+    var item = {
+      t: schema,
+      p: item_p,
+      l: fieldName,
+      i: inlinedLocation,
+      s: itemSymbol
+    };
+    fields[fieldName] = item;
+    items.push(item);
+    return item;
+  };
+  var tag = function (tag$1, asValue) {
+    field(tag$1, literal(asValue));
+  };
+  var fieldOr = function (fieldName, schema, or) {
+    return field(fieldName, getOr(factory$1(schema), or));
+  };
+  var nested = function (_fieldName, _definer) {
+    throw new Error("[rescript-schema] Nested fields are not supported");
+  };
   var ctx = {
-    fields: ctx_fields,
-    fieldNames: ctx_fieldNames,
-    items: ctx_items,
-    TAG: "Object",
-    unknownKeys: "Strip",
-    isNested: false,
     field: field,
     fieldOr: fieldOr,
     tag: tag,
@@ -1791,12 +1683,21 @@ function factory$3(definer) {
     n: nested
   };
   var definition = definer(ctx);
-  var items = ctx_items;
   return {
-          r: ctx,
-          n: name,
-          p: makeParseOperationBuilder(definition),
-          s: makeSerializeOperationBuilder(definition, items),
+          r: {
+            TAG: "Object",
+            items: items,
+            fields: fields,
+            unknownKeys: "Strip",
+            definition: definition
+          },
+          n: (function () {
+              return "Object({" + items.map(function (item) {
+                            return item.i + ": " + item.t.n();
+                          }).join(", ") + "})";
+            }),
+          p: parseOperationBuilder$1,
+          s: serializeOperationBuilder$1,
           f: typeFilter,
           i: 0,
           m: empty
@@ -1804,31 +1705,24 @@ function factory$3(definer) {
 }
 
 function setUnknownKeys(schema, unknownKeys) {
-  var tagged = schema.r;
-  if (typeof tagged !== "object" || !(tagged.TAG === "Object" && tagged.unknownKeys !== unknownKeys)) {
+  var match = schema.r;
+  if (typeof match !== "object" || !(match.TAG === "Object" && match.unknownKeys !== unknownKeys)) {
     return schema;
   } else {
     return {
             r: {
-              fields: tagged.fields,
-              fieldNames: tagged.fieldNames,
-              items: tagged.items,
-              TAG: tagged.TAG,
+              TAG: "Object",
+              items: match.items,
+              fields: match.fields,
               unknownKeys: unknownKeys,
-              isNested: tagged.isNested,
-              field: tagged.field,
-              fieldOr: tagged.fieldOr,
-              tag: tagged.tag,
-              f: tagged.f,
-              o: tagged.o,
-              t: tagged.t,
-              n: tagged.n
+              definition: match.definition
             },
             n: schema.n,
             p: schema.p,
             s: schema.s,
             f: schema.f,
-            i: 0,
+            i: schema.i,
+            d: schema.d,
             m: schema.m
           };
   }
@@ -1847,7 +1741,6 @@ var schema$1 = {
   n: primitiveName,
   p: noop,
   s: noop,
-  f: undefined,
   i: false,
   m: empty
 };
@@ -2104,20 +1997,21 @@ function factory$6(schema) {
 
 function factory$7(definer) {
   var items = [];
-  var itemsSet = new Set();
   var item = function (idx, schema) {
-    var rawLocation = "\"" + idx + "\"";
+    var $$location = idx.toString();
+    var inlinedLocation = "\"" + $$location + "\"";
     if (items[idx]) {
-      throw new Error("[rescript-schema] " + ("The item " + rawLocation + " is defined multiple times. If you want to duplicate the item, use S.transform instead"));
+      throw new Error("[rescript-schema] " + ("The item " + inlinedLocation + " is defined multiple times. If you want to duplicate the item, use S.transform instead"));
     }
-    var item_rawPath = "[" + rawLocation + "]";
+    var item_p = "[" + inlinedLocation + "]";
     var item$1 = {
-      schema: schema,
-      rawLocation: rawLocation,
-      rawPath: item_rawPath
+      t: schema,
+      p: item_p,
+      l: $$location,
+      i: inlinedLocation,
+      s: itemSymbol
     };
     items[idx] = item$1;
-    itemsSet.add(item$1);
     return item$1;
   };
   var tag = function (idx, asValue) {
@@ -2125,38 +2019,39 @@ function factory$7(definer) {
   };
   var ctx = {
     item: item,
-    tag: tag,
-    i: item,
-    t: tag
+    tag: tag
   };
   var definition = definer(ctx);
   var length = items.length;
   for(var idx = 0; idx < length; ++idx){
     if (!items[idx]) {
-      var rawLocation = "\"" + idx + "\"";
-      var item_rawPath = "[" + rawLocation + "]";
+      var $$location = idx.toString();
+      var inlinedLocation = "\"" + $$location + "\"";
+      var item_p = "[" + inlinedLocation + "]";
       var item$1 = {
-        schema: unit,
-        rawLocation: rawLocation,
-        rawPath: item_rawPath
+        t: unit,
+        p: item_p,
+        l: $$location,
+        i: inlinedLocation,
+        s: itemSymbol
       };
       items[idx] = item$1;
-      itemsSet.add(item$1);
     }
     
   }
   return {
           r: {
             TAG: "Tuple",
-            _0: items
+            items: items,
+            definition: definition
           },
           n: (function () {
               return "Tuple(" + items.map(function (i) {
-                            return i.schema.n();
+                            return i.t.n();
                           }).join(", ") + ")";
             }),
-          p: makeParseOperationBuilder(definition),
-          s: makeSerializeOperationBuilder(definition, items),
+          p: parseOperationBuilder$1,
+          s: serializeOperationBuilder$1,
           f: (function (inputVar) {
               return typeFilter$5(inputVar) + ("||" + inputVar + ".length!==" + length);
             }),
@@ -2266,7 +2161,6 @@ function factory$8(schemas) {
                   return output;
                 }
               }),
-            f: undefined,
             i: 0,
             m: empty
           };
@@ -2338,7 +2232,6 @@ function json(validate) {
                 return map(b, "e[" + (b.g.e.push(parse) - 1) + "]", input);
               }) : noop,
           s: noop,
-          f: undefined,
           i: 0,
           m: empty
         };
@@ -2372,7 +2265,6 @@ function $$catch(schema, getFallbackValue) {
                           }));
             }),
           s: schema.s,
-          f: undefined,
           i: 0,
           m: schema.m
         };
@@ -2406,7 +2298,7 @@ function definitionToSchema(definition, embededSet) {
       return factory$7(function (s) {
                   for(var idx = 0 ,idx_finish = definition.length; idx < idx_finish; ++idx){
                     var definition$1 = definition[idx];
-                    definition[idx] = s.i(idx, definitionToSchema(definition$1, embededSet));
+                    definition[idx] = s.item(idx, definitionToSchema(definition$1, embededSet));
                   }
                   return definition;
                 });
@@ -2427,7 +2319,7 @@ function definitionToSchema(definition, embededSet) {
 }
 
 function factory$9(definer) {
-  var embededSet = new Set();
+  var embededSet = new WeakSet();
   var matches = function (schema) {
     embededSet.add(schema);
     return schema;
@@ -2468,14 +2360,15 @@ function reason(error, nestedLevelOpt) {
         return "Encountered disallowed excess key " + JSON.stringify(reason$1._0) + " on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely";
     case "InvalidUnion" :
         var lineBreak = "\n" + " ".repeat((nestedLevel << 1));
-        var array = reason$1._0.map(function (error) {
+        var reasonsDict = {};
+        reason$1._0.forEach(function (error) {
               var reason$2 = reason(error, nestedLevel + 1);
               var nonEmptyPath = error.path;
               var $$location = nonEmptyPath === "" ? "" : "Failed at " + nonEmptyPath + ". ";
-              return "- " + $$location + reason$2;
+              reasonsDict["- " + $$location + reason$2] = undefined;
             });
-        var reasons = Array.from(new Set(array));
-        return "Invalid union with following errors" + lineBreak + reasons.join(lineBreak);
+        var uniqueReasons = Object.keys(reasonsDict);
+        return "Invalid union with following errors" + lineBreak + uniqueReasons.join(lineBreak);
     case "InvalidJsonStruct" :
         return "The schema " + reason$1._0.n() + " is not compatible with JSON";
     
@@ -2532,14 +2425,13 @@ function internalInline(schema, maybeVariant, param) {
           inlinedSchema = "S.array(" + internalInline(literal._0, undefined, undefined) + ")";
           break;
       case "Object" :
-          var fieldNames = literal.fieldNames;
-          var fields = literal.fields;
-          inlinedSchema = fieldNames.length !== 0 ? "S.object(s =>\n  {\n    " + fieldNames.map(function (fieldName) {
-                    return JSON.stringify(fieldName) + ": s.field(" + JSON.stringify(fieldName) + ", " + internalInline(fields[fieldName].schema, undefined, undefined) + ")";
+          var items = literal.items;
+          inlinedSchema = items.length !== 0 ? "S.object(s =>\n  {\n    " + items.map(function (item) {
+                    return item.i + ": s.field(" + item.i + ", " + internalInline(item.t, undefined, undefined) + ")";
                   }).join(",\n    ") + ",\n  }\n)" : "S.object(_ => ())";
           break;
       case "Tuple" :
-          var tupleSchemas = literal._0;
+          var tupleSchemas = literal.items;
           var exit = 0;
           var len = tupleSchemas.length;
           if (len >= 4) {
@@ -2551,25 +2443,25 @@ function internalInline(schema, maybeVariant, param) {
                   break;
               case 1 :
                   var i1 = tupleSchemas[0];
-                  inlinedSchema = "S.tuple1(" + internalInline(i1.schema, undefined, undefined) + ")";
+                  inlinedSchema = "S.tuple1(" + internalInline(i1.t, undefined, undefined) + ")";
                   break;
               case 2 :
                   var i1$1 = tupleSchemas[0];
                   var i2 = tupleSchemas[1];
-                  inlinedSchema = "S.tuple2(" + internalInline(i1$1.schema, undefined, undefined) + ", " + internalInline(i2.schema, undefined, undefined) + ")";
+                  inlinedSchema = "S.tuple2(" + internalInline(i1$1.t, undefined, undefined) + ", " + internalInline(i2.t, undefined, undefined) + ")";
                   break;
               case 3 :
                   var i1$2 = tupleSchemas[0];
                   var i2$1 = tupleSchemas[1];
                   var i3 = tupleSchemas[2];
-                  inlinedSchema = "S.tuple3(" + internalInline(i1$2.schema, undefined, undefined) + ", " + internalInline(i2$1.schema, undefined, undefined) + ", " + internalInline(i3.schema, undefined, undefined) + ")";
+                  inlinedSchema = "S.tuple3(" + internalInline(i1$2.t, undefined, undefined) + ", " + internalInline(i2$1.t, undefined, undefined) + ", " + internalInline(i3.t, undefined, undefined) + ")";
                   break;
               
             }
           }
           if (exit === 1) {
-            inlinedSchema = "S.tuple(s => (" + tupleSchemas.map(function (i, idx) {
-                    return "s.item(" + idx + ", " + internalInline(i.schema, undefined, undefined) + ")";
+            inlinedSchema = "S.tuple(s => (" + tupleSchemas.map(function (item, idx) {
+                    return "s.item(" + idx + ", " + internalInline(item.t, undefined, undefined) + ")";
                   }).join(", ") + "))";
           }
           break;
@@ -2763,15 +2655,15 @@ function inline$1(schema) {
 
 function tuple1(v0) {
   return factory$7(function (s) {
-              return s.i(0, v0);
+              return s.item(0, v0);
             });
 }
 
 function tuple2(v0, v1) {
   return factory$7(function (s) {
               return [
-                      s.i(0, v0),
-                      s.i(1, v1)
+                      s.item(0, v0),
+                      s.item(1, v1)
                     ];
             });
 }
@@ -2779,9 +2671,9 @@ function tuple2(v0, v1) {
 function tuple3(v0, v1, v2) {
   return factory$7(function (s) {
               return [
-                      s.i(0, v0),
-                      s.i(1, v1),
-                      s.i(2, v2)
+                      s.item(0, v0),
+                      s.item(1, v1),
+                      s.item(2, v2)
                     ];
             });
 }
@@ -3132,7 +3024,7 @@ function js_tuple(definer) {
   } else {
     return factory$7(function (s) {
                 return definer.map(function (schema, idx) {
-                            return s.i(idx, schema);
+                            return s.item(idx, schema);
                           });
               });
   }
@@ -3171,34 +3063,32 @@ function js_object(definer) {
 function js_merge(s1, s2) {
   var match = s1.r;
   if (typeof match === "object" && match.TAG === "Object") {
-    var s1FieldNames = match.fieldNames;
-    var s1Fields = match.fields;
+    var s1Items = match.items;
     var match$1 = s2.r;
     if (typeof match$1 === "object" && match$1.TAG === "Object") {
-      var s2FieldNames = match$1.fieldNames;
-      var s2Fields = match$1.fields;
-      var fieldNames = [];
+      var s2Items = match$1.items;
+      var items = [];
       var fields = {};
-      for(var idx = 0 ,idx_finish = s1FieldNames.length; idx < idx_finish; ++idx){
-        var fieldName = s1FieldNames[idx];
-        fieldNames.push(fieldName);
-        fields[fieldName] = s1Fields[fieldName];
+      for(var idx = 0 ,idx_finish = s1Items.length; idx < idx_finish; ++idx){
+        var item = s1Items[idx];
+        items.push(item);
+        fields[item.l] = item;
       }
-      for(var idx$1 = 0 ,idx_finish$1 = s2FieldNames.length; idx$1 < idx_finish$1; ++idx$1){
-        var fieldName$1 = s2FieldNames[idx$1];
-        if (fields[fieldName$1]) {
-          var message = "The field " + JSON.stringify(fieldName$1) + " is defined multiple times";
-          throw new Error("[rescript-schema] " + message);
+      for(var idx$1 = 0 ,idx_finish$1 = s2Items.length; idx$1 < idx_finish$1; ++idx$1){
+        var item$1 = s2Items[idx$1];
+        if (fields[item$1.l]) {
+          throw new Error("[rescript-schema] " + ("The field " + item$1.i + " is defined multiple times"));
         }
-        fieldNames.push(fieldName$1);
-        fields[fieldName$1] = s2Fields[fieldName$1];
+        items.push(item$1);
+        fields[item$1.l] = item$1;
       }
       return {
               r: {
                 TAG: "Object",
+                items: items,
                 fields: fields,
-                fieldNames: fieldNames,
-                unknownKeys: match$1.unknownKeys
+                unknownKeys: match$1.unknownKeys,
+                definition: (void 0)
               },
               n: (function () {
                   return s1.n() + " & " + s2.n();

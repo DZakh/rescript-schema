@@ -1,4 +1,5 @@
 @@uncurried
+@@warning("-30")
 
 type never
 
@@ -48,15 +49,22 @@ and tagged =
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
-  | Object({fields: dict<item>, fieldNames: array<string>, unknownKeys: unknownKeys})
-  | Tuple(array<item>)
+  | Object({items: array<item>, fields: dict<item>, unknownKeys: unknownKeys, definition: unknown})
+  | Tuple({items: array<item>, definition: unknown})
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
   | JSON({validated: bool})
 and item = {
-  schema: t<unknown>,
-  rawLocation: string,
-  rawPath: Path.t,
+  @as("t")
+  schema: schema<unknown>,
+  @as("p")
+  path: Path.t,
+  @as("l")
+  location: string,
+  @as("i")
+  inlinedLocation: string,
+  @as("s")
+  symbol: Js.Types.symbol,
 }
 and schema<'value> = t<'value>
 and error = private {operation: operation, code: errorCode, path: Path.t}
@@ -247,8 +255,8 @@ let object: (Object.s => 'value) => t<'value>
 
 module Tuple: {
   type s = {
-    @as("i") item: 'value. (int, t<'value>) => 'value,
-    @as("t") tag: 'value. (int, 'value) => unit,
+    item: 'value. (int, t<'value>) => 'value,
+    tag: 'value. (int, 'value) => unit,
   }
 }
 
