@@ -97,7 +97,7 @@ test("Fails to serialize tuple schema with single item registered multiple times
     {"item1": "foo", "item2": "foo"}->S.serializeToUnknownWith(schema),
     {
       code: InvalidOperation({
-        description: `The item "0" is registered multiple times. For advanced transformation cases use S.transform`,
+        description: `The item "0" is registered multiple times`,
       }),
       operation: Serializing,
       path: S.Path.empty,
@@ -116,7 +116,7 @@ test(`Fails to serialize tuple with discriminant "Never"`, t => {
     Error(
       U.error({
         code: InvalidOperation({
-          description: `Can't create serializer. The "0" item is not registered and not a literal. For advanced transformation cases use S.transform`,
+          description: `The "0" item is not registered or not a literal`,
         }),
         operation: Serializing,
         path: S.Path.empty,
@@ -163,7 +163,7 @@ test("Fails to create tuple schema with single item defined multiple times", t =
       )
     },
     ~expectations={
-      message: `[rescript-schema] The item "0" is defined multiple times. If you want to duplicate the item, use S.transform instead`,
+      message: `[rescript-schema] The item "0" is defined multiple times`,
     },
     (),
   )
@@ -226,6 +226,13 @@ test("Tuple schema parsing checks order", t => {
   )
 })
 
+test("Works correctly with not-modified object item", t => {
+  let schema = S.tuple1(S.object(s => s.field("foo", S.string)))
+
+  t->Assert.deepEqual(%raw(`[{"foo": "bar"}]`)->S.parseAnyWith(schema), Ok("bar"), ())
+  t->Assert.deepEqual("bar"->S.serializeWith(schema), Ok(%raw(`[{"foo": "bar"}]`)), ())
+})
+
 module Compiled = {
   test("Compiled parse code snapshot for simple tuple", t => {
     let schema = S.tuple(s => (s.item(0, S.string), s.item(1, S.bool)))
@@ -253,7 +260,7 @@ module Compiled = {
   test("Compiled serialize code snapshot for simple tuple", t => {
     let schema = S.tuple(s => (s.item(0, S.string), s.item(1, S.bool)))
 
-    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
+    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return [i["0"],i["1"],]}`)
   })
 
   test("Compiled serialize code snapshot for empty tuple", t => {

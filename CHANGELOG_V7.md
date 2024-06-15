@@ -22,8 +22,8 @@
 - Automatic serializing stopped working for tuples/objects/unions of literals. Use `S.literal` instead.
 - Removed `InvalidTupleSize` error code in favor of `InvalidType`
 - Changed payload of `Object` and `Tuple` variants in the `tagged` type
-- Don't recreate object and tuples on serialize when it's not transformed (TODO: Measure performance improvement for array of objects)
 - Changed `classify` to `classifyRaw`
+- Allow distructuring not-modified nested object schemas inside of the object definition
 - Added `s.nested` for objects
 - Moved built-in refinements from nested modules to improve tree-shaking:
 

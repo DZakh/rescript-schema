@@ -98,7 +98,7 @@
 //       )
 //     },
 //     ~expectations={
-//       message: `[rescript-schema] The field "nested" is defined multiple times. If you want to duplicate the field, use S.transform instead`,
+//       message: `[rescript-schema] The field "nested" is defined multiple times`,
 //     },
 //     (),
 //   )

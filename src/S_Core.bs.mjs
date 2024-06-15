@@ -586,15 +586,6 @@ function parse(any) {
   return parseInternal(any);
 }
 
-function fromSchema(schema) {
-  var literal = schema.r;
-  if (typeof literal !== "object" || literal.TAG !== "Literal") {
-    return ;
-  } else {
-    return literal._0;
-  }
-}
-
 function isAsyncParse(schema) {
   var v = schema.i;
   if (typeof v === "boolean") {
@@ -970,6 +961,7 @@ function recursive(fn) {
   };
   var schema = fn(placeholder);
   Object.assign(placeholder, schema);
+  placeholder.d = undefined;
   var builder = placeholder.p;
   placeholder.p = (function (b, input, selfSchema, path) {
       selfSchema.p = noop;
@@ -1312,13 +1304,13 @@ function factory(schema, definer) {
                 return schema.s(b, output, schema, path);
               }
               if (output !== 0) {
-                return invalidOperation(b, path, "Can't create serializer. The S.variant's value is registered multiple times. Use S.transform instead");
+                return invalidOperation(b, path, "The S.variant's value is registered multiple times");
               }
-              var literal = fromSchema(selfSchema);
-              if (literal === undefined) {
-                return invalidOperation(b, path, "Can't create serializer. The S.variant's value is not registered and not a literal. Use S.transform instead");
+              if (selfSchema.r.TAG !== "Literal") {
+                return invalidOperation(b, path, "The S.variant's value is not registered");
               }
-              var input$1 = val(b, "e[" + (b.g.e.push(literal.value) - 1) + "]");
+              var value = selfSchema.r._0.value;
+              var input$1 = val(b, "e[" + (b.g.e.push(value) - 1) + "]");
               return schema.s(b, input$1, schema, path);
             }),
           f: schema.f,
@@ -1490,15 +1482,21 @@ function parseOperationBuilder$1(b, input, selfSchema, path) {
       if (typeFilter !== undefined) {
         b.c = b.c + typeFilterCode(b, typeFilter, schema$1, itemInput, path$1);
       }
-      var itemOutput = schema$1.p(b, itemInput, schema$1, path$1);
-      outputs.set(item, itemOutput);
-      if (itemOutput.a) {
-        asyncOutputVars.push($$var(b, itemOutput));
-      }
-      if (schema$1.r.TAG === "Literal") {
-        b.c = b.c + prevCode;
+      if (isObject && schema$1.d) {
+        var bb = scope(b);
+        parseItems(bb, itemInput, schema$1, path$1);
+        b.c = prevCode + b.c + allocateScope(bb);
       } else {
-        b.c = prevCode + b.c;
+        var itemOutput = schema$1.p(b, itemInput, schema$1, path$1);
+        outputs.set(item, itemOutput);
+        if (itemOutput.a) {
+          asyncOutputVars.push($$var(b, itemOutput));
+        }
+        if (schema$1.r.TAG === "Literal") {
+          b.c = b.c + prevCode;
+        } else {
+          b.c = prevCode + b.c;
+        }
       }
     }
     if (!(isObject && selfSchema.r.unknownKeys === "Strict")) {
@@ -1562,29 +1560,20 @@ function parseOperationBuilder$1(b, input, selfSchema, path) {
 function serializeOperationBuilder$1(b, input, selfSchema, path) {
   var inputVar = $$var(b, input);
   var ctx = {
-    d: "",
-    t: false
+    d: ""
   };
   var embededOutputs = new WeakMap();
   var definitionToOutput = function (definition, outputPath) {
     if (typeof definition === "object" && definition !== null) {
       if (definition.s === itemSymbol) {
         if (embededOutputs.has(definition)) {
-          return invalidOperation(b, path, "The item " + definition.i + " is registered multiple times. For advanced transformation cases use S.transform");
+          return invalidOperation(b, path, "The item " + definition.i + " is registered multiple times");
         }
         var schema = definition.t;
         var itemInput = val(b, inputVar + outputPath);
         var itemOutput = schema.s(b, itemInput, schema, path + outputPath);
         embededOutputs.set(definition, itemOutput);
-        if (itemInput !== itemOutput || outputPath !== definition.p) {
-          ctx.t = true;
-          return ;
-        } else {
-          return ;
-        }
-      }
-      if (outputPath !== "") {
-        ctx.t = true;
+        return ;
       }
       var keys = Object.keys(definition);
       for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
@@ -1602,59 +1591,54 @@ function serializeOperationBuilder$1(b, input, selfSchema, path) {
                       received: input
                     };
             }), itemInputVar) + "}");
-    ctx.t = true;
   };
   definitionToOutput(selfSchema.r.definition, "");
   b.c = ctx.d + b.c;
-  var getItemOutput = function (item) {
-    var o = embededOutputs.get(item);
-    if (o !== undefined) {
-      return inline(b, o);
-    }
-    var literal = fromSchema(item.t);
-    if (literal !== undefined) {
-      ctx.t = true;
-      return "e[" + (b.g.e.push(literal.value) - 1) + "]";
-    } else {
-      return invalidOperation(b, path, "Can't create serializer. The " + item.i + " item is not registered and not a literal. For advanced transformation cases use S.transform");
-    }
-  };
-  var items = selfSchema.r.items;
-  var isObject = selfSchema.r.TAG === "Object";
-  var output = "";
-  if (isObject) {
+  var toRaw = function (schema, path) {
+    var items = schema.r.items;
+    var isObject = schema.r.TAG === "Object";
+    var output = "";
     for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
       var item = items[idx];
-      var itemOutput = getItemOutput(item);
-      output = output + (item.i + ":" + itemOutput + ",");
+      var o = embededOutputs.get(item);
+      var itemOutput;
+      if (o !== undefined) {
+        itemOutput = inline(b, o);
+      } else {
+        var itemSchema = item.t;
+        if (itemSchema.r.TAG === "Literal") {
+          var value = itemSchema.r._0.value;
+          itemOutput = "e[" + (b.g.e.push(value) - 1) + "]";
+        } else {
+          itemOutput = isObject && itemSchema.d ? toRaw(itemSchema, path + item.p) : invalidOperation(b, path, "The " + item.i + " item is not registered or not a literal");
+        }
+      }
+      output = isObject ? output + (item.i + ":" + itemOutput + ",") : output + (itemOutput + ",");
     }
-    output = "{" + output + "}";
-  } else {
-    for(var idx$1 = 0 ,idx_finish$1 = items.length; idx$1 < idx_finish$1; ++idx$1){
-      var item$1 = items[idx$1];
-      var itemOutput$1 = getItemOutput(item$1);
-      output = output + (itemOutput$1 + ",");
+    if (isObject) {
+      return "{" + output + "}";
+    } else {
+      return "[" + output + "]";
     }
-    output = "[" + output + "]";
-  }
-  if (ctx.t) {
-    return val(b, output);
-  } else {
-    return input;
-  }
+  };
+  return val(b, toRaw(selfSchema, path));
 }
 
 function factory$3(definer) {
   var fields = {};
   var items = [];
+  var embededDefinitions = new WeakSet();
   var field = function (fieldName, schema) {
     var inlinedLocation = JSON.stringify(fieldName);
     if (fields[fieldName]) {
-      throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " is defined multiple times. If you want to duplicate the field, use S.transform instead"));
+      throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " is defined multiple times"));
     }
+    var schema$1 = schema.d ? (
+        embededDefinitions.has(schema) ? factory$3(schema.d) : (embededDefinitions.add(schema), schema)
+      ) : schema;
     var item_p = "[" + inlinedLocation + "]";
     var item = {
-      t: schema,
+      t: schema$1,
       p: item_p,
       l: fieldName,
       i: inlinedLocation,
@@ -1662,7 +1646,11 @@ function factory$3(definer) {
     };
     fields[fieldName] = item;
     items.push(item);
-    return item;
+    if (schema$1.d) {
+      return schema$1.r.definition;
+    } else {
+      return item;
+    }
   };
   var tag = function (tag$1, asValue) {
     field(tag$1, literal(asValue));
@@ -1700,6 +1688,7 @@ function factory$3(definer) {
           s: serializeOperationBuilder$1,
           f: typeFilter,
           i: 0,
+          d: definer,
           m: empty
         };
 }
@@ -2001,7 +1990,7 @@ function factory$7(definer) {
     var $$location = idx.toString();
     var inlinedLocation = "\"" + $$location + "\"";
     if (items[idx]) {
-      throw new Error("[rescript-schema] " + ("The item " + inlinedLocation + " is defined multiple times. If you want to duplicate the item, use S.transform instead"));
+      throw new Error("[rescript-schema] " + ("The item " + inlinedLocation + " is defined multiple times"));
     }
     var item_p = "[" + inlinedLocation + "]";
     var item$1 = {

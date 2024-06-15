@@ -877,7 +877,7 @@ test("Fails to create object schema with single field defined multiple times", t
       )
     },
     ~expectations={
-      message: `[rescript-schema] The field "field" is defined multiple times. If you want to duplicate the field, use S.transform instead`,
+      message: `[rescript-schema] The field "field" is defined multiple times`,
     },
     (),
   )
@@ -910,11 +910,51 @@ test("Fails to serialize object schema with single field registered multiple tim
     {"field1": "foo", "field2": "foo"}->S.serializeToUnknownWith(schema),
     {
       code: InvalidOperation({
-        description: `The item "field" is registered multiple times. For advanced transformation cases use S.transform`,
+        description: `The item "field" is registered multiple times`,
       }),
       operation: Serializing,
       path: S.Path.empty,
     },
+  )
+})
+
+test("Can destructure fields of simple nested objects", t => {
+  let schema = S.object(s => {
+    let nested = s.field(
+      "nested",
+      S.object(
+        s =>
+          {
+            "foo": s.field("foo", S.string),
+            "bar": s.field("bar", S.string),
+          },
+      ),
+    )
+    {
+      "baz": nested["bar"],
+      "foz": nested["foo"],
+    }
+  })
+  t->Assert.deepEqual(
+    %raw(`{"nested": {"foo": "foo", "bar": "bar"}}`)->S.parseAnyWith(schema),
+    Ok({"baz": "bar", "foz": "foo"}),
+    (),
+  )
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#parse,
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"],v2=v0["bar"];if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}return {"baz":v2,"foz":v1,}}`,
+  )
+
+  t->Assert.deepEqual(
+    {"baz": "bar", "foz": "foo"}->S.serializeWith(schema),
+    Ok(%raw(`{"nested": {"foo": "foo", "bar": "bar"}}`)),
+    (),
+  )
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#serialize,
+    `i=>{return {"nested":{"foo":i["foz"],"bar":i["baz"],},}}`,
   )
 })
 
@@ -1016,7 +1056,7 @@ module Compiled = {
       }
     )
 
-    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
+    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
   })
 
   test("Compiled parse code snapshot for simple object with strict unknown keys", t => {
@@ -1042,7 +1082,7 @@ module Compiled = {
       }
     )->S.Object.strict
 
-    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
+    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
   })
 
   test(

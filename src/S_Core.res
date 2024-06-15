@@ -239,8 +239,8 @@ type rec t<'value> = {
   @as("i")
   mutable isAsyncParse: isAsyncParse,
   @as("d")
-  mutable // FIXME: Store pure definer here
-  define?: (~register: (~location: string, ~schema: t<unknown>) => unknown) => unknown,
+  mutable // Use char to unsafely prevent Caml_option applications
+  definer?: char,
   @as("m")
   metadataMap: dict<unknown>,
 }
@@ -961,10 +961,10 @@ module Literal = {
       let itemValue = value->Js.Dict.unsafeGet(field)
       let itemLiteral = itemValue->castUnknownToAny->parseInternal
       if isJsonable.contents && !itemLiteral.isJsonable {
-        isJsonable.contents = false
+        isJsonable := false
       }
       if idx !== 0 {
-        string.contents = string.contents ++ ","
+        string := string.contents ++ ","
       }
       string.contents =
         string.contents ++ `${field->Inlined.Value.fromString}:${itemLiteral.string}`
@@ -988,12 +988,12 @@ module Literal = {
       let itemValue = value->Js.Array2.unsafe_get(idx)
       let itemLiteral = itemValue->castUnknownToAny->parseInternal
       if isJsonable.contents && !itemLiteral.isJsonable {
-        isJsonable.contents = false
+        isJsonable := false
       }
       if idx !== 0 {
-        string.contents = string.contents ++ ","
+        string := string.contents ++ ","
       }
-      string.contents = string.contents ++ itemLiteral.string
+      string := string.contents ++ itemLiteral.string
       items->Js.Array2.push(itemLiteral)->ignore
     }
 
@@ -1010,11 +1010,12 @@ module Literal = {
   @inline
   let parse = any => any->parseInternal->toPublic
 
-  let fromSchema = schema => {
-    switch schema->classifyRaw {
-    | Literal(literal) => Some(literal)
-    | _ => None
-    }
+  @inline
+  let isLiteralSchema = schema => (schema->classifyRaw->Obj.magic)["TAG"] === "Literal"
+
+  @inline
+  let unsafeFromSchema = (schema): literal => {
+    schema->classifyRaw->unsafeGetVariantPayload
   }
 }
 
@@ -1311,6 +1312,7 @@ let recursive = fn => {
   let placeholder: t<'value> = {"m": Metadata.Map.empty}->Obj.magic
   let schema = fn(placeholder)
   placeholder->Stdlib.Object.overrideWith(schema)
+  placeholder.definer = None
 
   {
     let builder = placeholder.parseOperationBuilder
@@ -1697,10 +1699,10 @@ module Variant = {
                   switch (maybeOutputRef.contents, maybeOutput) {
                   | (Registered(_), Registered(_))
                   | (Registered(_), RegisteredMultipleTimes) =>
-                    maybeOutputRef.contents = RegisteredMultipleTimes
+                    maybeOutputRef := RegisteredMultipleTimes
                   | (RegisteredMultipleTimes, _)
                   | (Registered(_), Unregistered) => ()
-                  | (Unregistered, _) => maybeOutputRef.contents = maybeOutput
+                  | (Unregistered, _) => maybeOutputRef := maybeOutput
                   }
                 }
                 maybeOutputRef.contents
@@ -1728,18 +1730,18 @@ module Variant = {
           | RegisteredMultipleTimes =>
             b->B.invalidOperation(
               ~path,
-              ~description=`Can't create serializer. The S.variant's value is registered multiple times. Use S.transform instead`,
+              ~description=`The S.variant's value is registered multiple times`,
             )
           | Registered(var) => b->B.serialize(~schema, ~input=var, ~path)
           | Unregistered =>
-            switch selfSchema->Literal.fromSchema {
-            | Some(literal) =>
-              b->B.serialize(~schema, ~input=b->B.val(b->B.embed(literal->Literal.value)), ~path)
-            | None =>
-              b->B.invalidOperation(
+            if selfSchema->Literal.isLiteralSchema {
+              b->B.serialize(
+                ~schema,
+                ~input=b->B.val(b->B.embed(selfSchema->Literal.unsafeFromSchema->Literal.value)),
                 ~path,
-                ~description=`Can't create serializer. The S.variant's value is not registered and not a literal. Use S.transform instead`,
               )
+            } else {
+              b->B.invalidOperation(~path, ~description=`The S.variant's value is not registered`)
             }
           }
         }),
@@ -1926,7 +1928,7 @@ module Object = {
 
   let typeFilter = (~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
 
-  let getItems = schema => (schema->classifyRaw->Obj.magic)["items"]
+  let getItems = (schema): array<item> => (schema->classifyRaw->Obj.magic)["items"]
   let getDefinition = schema => (schema->classifyRaw->Obj.magic)["definition"]
 
   let parseOperationBuilder = (b, ~input, ~selfSchema, ~path) => {
@@ -1949,19 +1951,13 @@ module Object = {
         let itemInput = b->B.val(`${inputVar}${itemPath}`)
         let path = path->Path.concat(itemPath)
 
-        // let isNested = switch schema->classifyRaw {
-        // | Object(_) => (schema->classifyRaw->ctxFromTagged).isNested
-        // | _ => false
-        // }
-        let isNested = false
-
         switch schema.maybeTypeFilter {
         | Some(typeFilter) =>
           b.code = b.code ++ b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path)
         | None => ()
         }
 
-        if isNested {
+        if isObject && schema.definer->Obj.magic {
           let bb = b->B.scope
           bb->parseItems(~input=itemInput, ~schema, ~path)
           b.code = prevCode ++ b.code ++ bb->B.allocateScope
@@ -1975,7 +1971,7 @@ module Object = {
           }
 
           // Parse literal fields first, because they are most often used as discriminants
-          if (schema->classifyRaw->Obj.magic)["TAG"] === "Literal" {
+          if schema->Literal.isLiteralSchema {
             b.code = b.code ++ prevCode
           } else {
             b.code = prevCode ++ b.code
@@ -2054,15 +2050,12 @@ module Object = {
     }
   }
 
-  type serializeCtx = {
-    @as("d") mutable discriminantCode: string,
-    @as("t") mutable isTransformed: bool,
-  }
+  type serializeCtx = {@as("d") mutable discriminantCode: string}
 
   let serializeOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path) => {
     let inputVar = b->B.Val.var(input)
 
-    let ctx: serializeCtx = {discriminantCode: "", isTransformed: false}
+    let ctx: serializeCtx = {discriminantCode: ""}
     let embededOutputs = Stdlib.WeakMap.make()
 
     let rec definitionToOutput = (definition: Definition.t<item>, ~outputPath) => {
@@ -2072,24 +2065,17 @@ module Object = {
           if embededOutputs->Stdlib.WeakMap.has(item) {
             b->B.invalidOperation(
               ~path,
-              ~description=`The item ${item.inlinedLocation} is registered multiple times. For advanced transformation cases use S.transform`,
+              ~description=`The item ${item.inlinedLocation} is registered multiple times`,
             )
           } else {
-            let {path: itemPath, schema} = item
+            let {schema} = item
             let itemInput = b->B.val(`${inputVar}${outputPath}`)
             let itemOutput =
               b->B.serialize(~schema, ~input=itemInput, ~path=path->Path.concat(outputPath))
 
             embededOutputs->Stdlib.WeakMap.set(item, itemOutput)->ignore
-
-            if itemInput !== itemOutput || outputPath !== itemPath {
-              ctx.isTransformed = true
-            }
           }
         } else {
-          if outputPath !== Path.empty {
-            ctx.isTransformed = true
-          }
           let node = definition->Definition.toNode
           let keys = node->Js.Dict.keys
           for idx in 0 to keys->Js.Array2.length - 1 {
@@ -2114,61 +2100,53 @@ module Object = {
               }),
               itemInputVar,
             )}}`
-        ctx.isTransformed = true
       }
     }
     selfSchema->getDefinition->definitionToOutput(~outputPath=Path.empty)
     b.code = ctx.discriminantCode ++ b.code
 
-    let getItemOutput = item => {
-      switch embededOutputs->Stdlib.WeakMap.get(item) {
-      | Some(o) => b->B.Val.inline(o)
-      | None =>
-        switch item.schema->Literal.fromSchema {
-        | Some(literal) =>
-          ctx.isTransformed = true
-          b->B.embed(literal->Literal.value)
+    let rec toRaw = (~schema, ~path) => {
+      let items = schema->getItems
+      let isObject = (schema->classifyRaw->Obj.magic)["TAG"] === "Object"
+
+      let output = ref("")
+      for idx in 0 to items->Js.Array2.length - 1 {
+        let item = items->Js.Array2.unsafe_get(idx)
+
+        let itemOutput = switch embededOutputs->Stdlib.WeakMap.get(item) {
+        | Some(o) => b->B.Val.inline(o)
         | None =>
-          b->B.invalidOperation(
-            ~path,
-            ~description=`Can't create serializer. The ${item.inlinedLocation} item is not registered and not a literal. For advanced transformation cases use S.transform`,
-          )
+          let itemSchema = item.schema
+          if itemSchema->Literal.isLiteralSchema {
+            b->B.embed(itemSchema->Literal.unsafeFromSchema->Literal.value)
+          } else if isObject && itemSchema.definer->Obj.magic {
+            toRaw(~schema=itemSchema, ~path=path->Path.concat(item.path))
+          } else {
+            b->B.invalidOperation(
+              ~path,
+              ~description=`The ${item.inlinedLocation} item is not registered or not a literal`,
+            )
+          }
+        }
+        if isObject {
+          output := output.contents ++ `${item.inlinedLocation}:${itemOutput},`
+        } else {
+          output := output.contents ++ `${itemOutput},`
         }
       }
+
+      isObject ? "{" ++ output.contents ++ "}" : "[" ++ output.contents ++ "]"
     }
 
-    let items = selfSchema->getItems
-    let isObject = (selfSchema->classifyRaw->Obj.magic)["TAG"] === "Object"
-
-    let output = ref("")
-    if isObject {
-      for idx in 0 to items->Js.Array2.length - 1 {
-        let item = items->Js.Array2.unsafe_get(idx)
-        let itemOutput = getItemOutput(item)
-        output := output.contents ++ `${item.inlinedLocation}:${itemOutput},`
-      }
-      output := "{" ++ output.contents ++ "}"
-    } else {
-      for idx in 0 to items->Js.Array2.length - 1 {
-        let item = items->Js.Array2.unsafe_get(idx)
-        let itemOutput = getItemOutput(item)
-        output := output.contents ++ `${itemOutput},`
-      }
-      output := "[" ++ output.contents ++ "]"
-    }
-
-    if ctx.isTransformed {
-      b->B.val(output.contents)
-    } else {
-      input
-    }
+    b->B.val(toRaw(~schema=selfSchema, ~path))
   })
 
-  let factory:
+  let rec factory:
     type value. (s => value) => schema<value> =
     definer => {
       let fields = Js.Dict.empty()
       let items = []
+      let embededDefinitions = Stdlib.WeakSet.make()
 
       let ctx = {
         let field:
@@ -2177,10 +2155,18 @@ module Object = {
             let schema = schema->toUnknown
             let inlinedLocation = fieldName->Stdlib.Inlined.Value.fromString
             if fields->Stdlib.Dict.has(fieldName) {
-              InternalError.panic(
-                `The field ${inlinedLocation} is defined multiple times. If you want to duplicate the field, use S.transform instead`,
-              )
+              InternalError.panic(`The field ${inlinedLocation} is defined multiple times`)
             } else {
+              let schema = if schema.definer->Obj.magic {
+                if embededDefinitions->Stdlib.WeakSet.has(schema) {
+                  factory(schema.definer->Obj.magic)
+                } else {
+                  let _ = embededDefinitions->Stdlib.WeakSet.add(schema)
+                  schema
+                }
+              } else {
+                schema
+              }
               let item: item = {
                 schema,
                 location: fieldName,
@@ -2190,7 +2176,11 @@ module Object = {
               }
               fields->Js.Dict.set(fieldName, item)
               items->Js.Array2.push(item)->ignore
-              item->(Obj.magic: item => value)
+              if schema.definer->Obj.magic {
+                schema->getDefinition->(Obj.magic: unknown => value)
+              } else {
+                item->(Obj.magic: item => value)
+              }
             }
           }
 
@@ -2280,7 +2270,7 @@ module Object = {
             ->Js.Array2.joinWith(", ")}})`
         },
         metadataMap: Metadata.Map.empty,
-        // define, // FIXME:
+        definer: definer->Obj.magic,
       }
     }
 
@@ -2300,7 +2290,7 @@ module Object = {
         maybeTypeFilter: schema.maybeTypeFilter,
         isAsyncParse: schema.isAsyncParse,
         metadataMap: schema.metadataMap,
-        define: ?schema.define,
+        definer: ?schema.definer,
       }
     // TODO: Should it throw for non Object schemas?
     | _ => schema
@@ -2691,9 +2681,7 @@ module Tuple = {
           let location = idx->Js.Int.toString
           let inlinedLocation = `"${location}"`
           if items->Stdlib.Array.has(idx) {
-            InternalError.panic(
-              `The item ${inlinedLocation} is defined multiple times. If you want to duplicate the item, use S.transform instead`,
-            )
+            InternalError.panic(`The item ${inlinedLocation} is defined multiple times`)
           } else {
             let item: item = {
               schema,
@@ -2786,7 +2774,7 @@ module Union = {
               }
 
               b.code = b.code ++ `${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
-              codeEndRef.contents = codeEndRef.contents ++ "}"
+              codeEndRef := codeEndRef.contents ++ "}"
 
               errorCodeRef := errorCodeRef.contents ++ errorVar ++ ","
             } catch {
@@ -2849,7 +2837,7 @@ module Union = {
               b.code =
                 b.code ++
                 `try{${bb->B.allocateScope}${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
-              codeEndRef.contents = codeEndRef.contents ++ "}"
+              codeEndRef := codeEndRef.contents ++ "}"
               errorCodeRef := errorCodeRef.contents ++ errorVar ++ ","
             } catch {
             | exn => {

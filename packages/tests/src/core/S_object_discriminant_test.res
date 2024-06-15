@@ -79,6 +79,33 @@ module Positive = {
       ~description="Tuple",
       (),
     ),
+    TestData.make(
+      ~discriminantSchema=S.object(s => {
+        ignore(s.field("nestedDiscriminant", S.literal("abc")))
+        {
+          "field": s.field("nestedField", S.literal(false)),
+        }
+      }),
+      ~discriminantData=%raw(`{
+        "nestedDiscriminant": "abc",
+        "nestedField": false
+      }`),
+      (),
+    ),
+    TestData.make(
+      ~description="and values needed to be escaped",
+      ~discriminantSchema=S.object(s => {
+        ignore(s.field("\"\'\`", S.literal("\"\'\`")))
+        {
+          "field": s.field("nestedField", S.literal(false)),
+        }
+      }),
+      ~discriminantData=%raw(`{
+        "\"\'\`": "\"\'\`",
+        "nestedField": false
+      }`),
+      (),
+    ),
   ]->Array.forEach(testData => {
     test(
       `Successfully parses object with discriminant "${testData.discriminantSchema->S.name}"${testData.testNamePostfix}`,
@@ -173,11 +200,6 @@ module Negative = {
       (),
     ),
     TestData.make(
-      ~discriminantSchema=S.object(s => s.field("field", S.bool)),
-      ~discriminantData={"field": true},
-      (),
-    ),
-    TestData.make(
       ~discriminantSchema=S.union([S.bool, S.literal(false)]),
       ~discriminantData=true,
       (),
@@ -190,33 +212,6 @@ module Negative = {
     TestData.make(
       ~discriminantSchema=S.tuple2(S.literal(false), S.literal("bar")),
       ~discriminantData=%raw(`[false, "bar"]`),
-      (),
-    ),
-    TestData.make(
-      ~discriminantSchema=S.object(s => {
-        ignore(s.field("nestedDiscriminant", S.literal("abc")))
-        {
-          "field": s.field("nestedField", S.literal(false)),
-        }
-      }),
-      ~discriminantData=%raw(`{
-        "nestedDiscriminant": "abc",
-        "nestedField": false
-      }`),
-      (),
-    ),
-    TestData.make(
-      ~description="and values needed to be escaped",
-      ~discriminantSchema=S.object(s => {
-        ignore(s.field("\"\'\`", S.literal("\"\'\`")))
-        {
-          "field": s.field("nestedField", S.literal(false)),
-        }
-      }),
-      ~discriminantData=%raw(`{
-        "\"\'\`": "\"\'\`",
-        "nestedField": false
-      }`),
       (),
     ),
   ]->Array.forEach(testData => {
@@ -259,7 +254,7 @@ module Negative = {
           {"field": "bar"}->S.serializeToUnknownWith(schema),
           {
             code: InvalidOperation({
-              description: `Can\'t create serializer. The "discriminant" item is not registered and not a literal. For advanced transformation cases use S.transform`,
+              description: `The "discriminant" item is not registered or not a literal`,
             }),
             operation: Serializing,
             path: S.Path.empty,
@@ -268,6 +263,52 @@ module Negative = {
       },
     )
   })
+}
+
+module NestedNegative = {
+  test(
+    `Successfully parses object with discriminant object that we don't know how to serialize`,
+    t => {
+      let schema = S.object(s => {
+        ignore(s.field("discriminant", S.object(s => s.field("field", S.bool))))
+        {
+          "field": s.field("field", S.string),
+        }
+      })
+
+      t->Assert.deepEqual(
+        {
+          "discriminant": {"field": true},
+          "field": "bar",
+        }->S.parseAnyWith(schema),
+        Ok({"field": "bar"}),
+        (),
+      )
+    },
+  )
+
+  test(
+    `Fails to serialize object with object discriminant that we don't know how to serialize`,
+    t => {
+      let schema = S.object(s => {
+        ignore(s.field("discriminant", S.object(s => s.field("nestedField", S.bool))))
+        {
+          "field": s.field("field", S.string),
+        }
+      })
+
+      t->U.assertErrorResult(
+        {"field": "bar"}->S.serializeToUnknownWith(schema),
+        {
+          code: InvalidOperation({
+            description: `The "nestedField" item is not registered or not a literal`,
+          }),
+          operation: Serializing,
+          path: S.Path.fromLocation("discriminant"),
+        },
+      )
+    },
+  )
 }
 
 test(`Fails to parse object with invalid data passed to discriminant field`, t => {
@@ -330,7 +371,7 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
     {"field": "bar"}->S.serializeToUnknownWith(schema),
     {
       code: InvalidOperation({
-        description: `Can't create serializer. The "discriminant" item is not registered and not a literal. For advanced transformation cases use S.transform`,
+        description: `The "discriminant" item is not registered or not a literal`,
       }),
       operation: Serializing,
       path: S.Path.empty,
