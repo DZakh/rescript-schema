@@ -97,6 +97,9 @@ module Stdlib = {
     @val
     external copy: (@as(json`{}`) _, dict<'a>) => dict<'a> = "Object.assign"
 
+    @get_index
+    external unsafeGetOption: (dict<'a>, string) => option<'a> = ""
+
     @inline
     let has = (dict, key) => {
       dict->Js.Dict.unsafeGet(key)->(Obj.magic: 'a => bool)
@@ -241,6 +244,8 @@ type rec t<'value> = {
   @as("d")
   mutable // Use char to unsafely prevent Caml_option applications
   definer?: char,
+  @as("c")
+  mutable definerCtx?: char,
   @as("m")
   metadataMap: dict<unknown>,
 }
@@ -1911,11 +1916,13 @@ module Object = {
     @as("f") field: 'value. (string, t<'value>) => 'value,
     fieldOr: 'value. (string, t<'value>, 'value) => 'value,
     tag: 'value. (string, 'value) => unit,
-    nested: 'value. (string, s => 'value) => 'value,
+    nestedField: 'value. (string, string, t<'value>) => 'value,
     flatten: 'value. t<'value> => 'value,
   }
 
   type ctx = {
+    // fields: dict<item>,
+    // items: array<item>,
     // Public API for JS/TS users.
     // It shouldn't be used from ReScript and
     // needed only because we use @as for field to reduce bundle-size
@@ -2140,12 +2147,20 @@ module Object = {
     b->B.val(toRaw(~schema=selfSchema, ~path))
   })
 
+  let name = () => {
+    `Object({${%raw(`this`)
+      ->getItems
+      ->Js.Array2.map(item => {
+        `${item.inlinedLocation}: ${item.schema.name()}`
+      })
+      ->Js.Array2.joinWith(", ")}})`
+  }
+
   let rec factory:
     type value. (s => value) => schema<value> =
     definer => {
       let fields = Js.Dict.empty()
       let items = []
-      let embededDefinitions = Stdlib.WeakSet.make()
 
       let ctx = {
         let flatten = schema => {
@@ -2161,32 +2176,37 @@ module Object = {
           (fieldName, schema) => {
             let schema = schema->toUnknown
             let inlinedLocation = fieldName->Stdlib.Inlined.Value.fromString
-            if fields->Stdlib.Dict.has(fieldName) {
-              InternalError.panic(`The field ${inlinedLocation} is defined multiple times`)
-            } else {
-              let schema = if schema.definer->Obj.magic {
-                if embededDefinitions->Stdlib.WeakSet.has(schema) {
+            switch fields->Stdlib.Dict.unsafeGetOption(fieldName) {
+            | Some(item: item) =>
+              if item.schema.definer->Obj.magic && schema.definer->Obj.magic {
+                (schema.definer->Obj.magic)(item.schema.definerCtx->Obj.magic)->(
+                  Obj.magic: unknown => value
+                )
+              } else {
+                InternalError.panic(
+                  `The field ${inlinedLocation} defined twice with incompatible schemas`,
+                )
+              }
+            | None => {
+                let schema = if schema.definer->Obj.magic {
                   factory(schema.definer->Obj.magic)
                 } else {
-                  let _ = embededDefinitions->Stdlib.WeakSet.add(schema)
                   schema
                 }
-              } else {
-                schema
-              }
-              let item: item = {
-                schema,
-                location: fieldName,
-                inlinedLocation,
-                path: inlinedLocation->Path.fromInlinedLocation,
-                symbol: itemSymbol,
-              }
-              fields->Js.Dict.set(fieldName, item)
-              items->Js.Array2.push(item)->ignore
-              if schema.definer->Obj.magic {
-                schema->getDefinition->(Obj.magic: unknown => value)
-              } else {
-                item->(Obj.magic: item => value)
+                let item: item = {
+                  schema,
+                  location: fieldName,
+                  inlinedLocation,
+                  path: inlinedLocation->Path.fromInlinedLocation,
+                  symbol: itemSymbol,
+                }
+                fields->Js.Dict.set(fieldName, item)
+                items->Js.Array2.push(item)->ignore
+                if schema.definer->Obj.magic {
+                  schema->getDefinition->(Obj.magic: unknown => value)
+                } else {
+                  item->(Obj.magic: item => value)
+                }
               }
             }
           }
@@ -2199,58 +2219,39 @@ module Object = {
           field(fieldName, Option.factory(schema)->Option.getOr(or))
         }
 
-        let nested:
-          type value. (string, s => value) => value =
-          (_fieldName, _definer) => {
-            InternalError.panic(`Nested fields are not supported`)
-            // switch fields->Js.Dict.unsafeGet(fieldName)->(Obj.magic: item => option<item>) {
-            // | Some({schema, inlinedLocation}) =>
-            //   switch schema->classifyRaw {
-            //   | Object(_) => definer(schema->classifyRaw->(Obj.magic: tagged => s))
-            //   | _ =>
-            //     InternalError.panic(
-            //       `Failed to define nested ${inlinedLocation} field since it's already defined as non-object`,
-            //     )
-            //   }
-            // | None =>
-            //   let nestedCtx = {
-            //     taggedKey: "Object",
-            //     unknownKeys: Strip,
-            //     fields: Js.Dict.empty(),
-            //     fieldNames: [],
-            //     items: [],
-            //     isNested: true,
-            //     // js/ts methods
-            //     _jsField: field,
-            //     _jsFieldOr: fieldOr,
-            //     _jsTag: tag,
-            //     // methods
-            //     field,
-            //     fieldOr,
-            //     tag,
-            //     nested,
-            //   }
-            //   let nestedSchema = make(
-            //     ~name,
-            //     ~metadataMap=Metadata.Map.empty,
-            //     ~rawTagged=nestedCtx->ctxToTagged,
-            //     ~parseOperationBuilder=Builder.noop,
-            //     ~serializeOperationBuilder=Builder.noop,
-            //     ~maybeTypeFilter=Some(typeFilter),
-            //   )
-            //   let _ = ctx.field(fieldName, nestedSchema)
-            //   definer((nestedCtx :> s))
-            // }
+        let nestedField:
+          type value. (string, string, t<value>) => value =
+          (fieldName, nestedFieldName, schema) => {
+            let schema = schema->toUnknown
+            switch fields->Stdlib.Dict.unsafeGetOption(fieldName) {
+            | Some(item: item) =>
+              if item.schema.definer->Obj.magic {
+                (item.schema.definerCtx->(Obj.magic: option<char> => ctx)).field(
+                  nestedFieldName,
+                  schema,
+                )->(Obj.magic: unknown => value)
+              } else {
+                InternalError.panic(
+                  `The field ${fieldName->Stdlib.Inlined.Value.fromString} defined twice with incompatible schemas`,
+                )
+              }
+            | None =>
+              field(fieldName, factory(s => s.field(nestedFieldName, schema)))->(
+                Obj.magic: unknown => value
+              )
+            }
           }
 
         {
+          // fields,
+          // items,
           // js/ts methods
           _jsField: field,
           // methods
           field,
           fieldOr,
           tag,
-          nested,
+          nestedField,
           flatten,
         }
       }
@@ -2268,15 +2269,10 @@ module Object = {
         serializeOperationBuilder,
         isAsyncParse: Unknown,
         maybeTypeFilter: Some(typeFilter),
-        name: () => {
-          `Object({${items
-            ->Js.Array2.map(item => {
-              `${item.inlinedLocation}: ${item.schema.name()}`
-            })
-            ->Js.Array2.joinWith(", ")}})`
-        },
+        name,
         metadataMap: Metadata.Map.empty,
         definer: definer->Obj.magic,
+        definerCtx: ctx->Obj.magic,
       }
     }
 
@@ -2297,6 +2293,7 @@ module Object = {
         isAsyncParse: schema.isAsyncParse,
         metadataMap: schema.metadataMap,
         definer: ?schema.definer,
+        definerCtx: ?schema.definerCtx,
       }
     // TODO: Should it throw for non Object schemas?
     | _ => schema
@@ -3049,18 +3046,19 @@ module Schema = {
         })
       } else {
         Object.factory(s => {
+          let objectDefinition = Js.Dict.empty()
           let keys = node->Js.Dict.keys
           for idx in 0 to keys->Js.Array2.length - 1 {
             let key = keys->Js.Array2.unsafe_get(idx)
             let definition = node->Js.Dict.unsafeGet(key)
-            node->Js.Dict.set(
+            objectDefinition->Js.Dict.set(
               key,
               s.field(key, definition->definitionToSchema(~embededSet))->(
                 Obj.magic: unknown => Definition.t<schema<unknown>>
               ),
             )
           }
-          node
+          objectDefinition
         })->toUnknown
       }
     } else {
@@ -3362,15 +3360,6 @@ let inline = {
   }
 
   schema => {
-    // Have it only for the sake of importing Caml_option in a less painfull way
-    // Not related to the function at all
-    if %raw(`false`) {
-      switch %raw(`void 0`) {
-      | Some(v) => v
-      | None => ()
-      }
-    }
-
     schema->toUnknown->internalInline()
   }
 }

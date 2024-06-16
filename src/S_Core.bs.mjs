@@ -1624,10 +1624,16 @@ function serializeOperationBuilder$1(b, input, selfSchema, path) {
   return val(b, toRaw(selfSchema, path));
 }
 
+function name() {
+  var schema = this;
+  return "Object({" + schema.r.items.map(function (item) {
+                return item.i + ": " + item.t.n();
+              }).join(", ") + "})";
+}
+
 function factory$3(definer) {
   var fields = {};
   var items = [];
-  var embededDefinitions = new WeakSet();
   var flatten = function (schema) {
     if (schema.d) {
       return schema.d(this);
@@ -1637,26 +1643,28 @@ function factory$3(definer) {
   };
   var field = function (fieldName, schema) {
     var inlinedLocation = JSON.stringify(fieldName);
-    if (fields[fieldName]) {
-      throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " is defined multiple times"));
+    var item = fields[fieldName];
+    if (item !== undefined) {
+      if (item.t.d && schema.d) {
+        return schema.d(item.t.c);
+      }
+      throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " defined twice with incompatible schemas"));
     }
-    var schema$1 = schema.d ? (
-        embededDefinitions.has(schema) ? factory$3(schema.d) : (embededDefinitions.add(schema), schema)
-      ) : schema;
+    var schema$1 = schema.d ? factory$3(schema.d) : schema;
     var item_p = "[" + inlinedLocation + "]";
-    var item = {
+    var item$1 = {
       t: schema$1,
       p: item_p,
       l: fieldName,
       i: inlinedLocation,
       s: itemSymbol
     };
-    fields[fieldName] = item;
-    items.push(item);
+    fields[fieldName] = item$1;
+    items.push(item$1);
     if (schema$1.d) {
       return schema$1.r.definition;
     } else {
-      return item;
+      return item$1;
     }
   };
   var tag = function (tag$1, asValue) {
@@ -1665,15 +1673,25 @@ function factory$3(definer) {
   var fieldOr = function (fieldName, schema, or) {
     return field(fieldName, getOr(factory$1(schema), or));
   };
-  var nested = function (_fieldName, _definer) {
-    throw new Error("[rescript-schema] Nested fields are not supported");
+  var nestedField = function (fieldName, nestedFieldName, schema) {
+    var item = fields[fieldName];
+    if (item === undefined) {
+      return field(fieldName, factory$3(function (s) {
+                      return s.f(nestedFieldName, schema);
+                    }));
+    }
+    if (item.t.d) {
+      return item.t.c.f(nestedFieldName, schema);
+    }
+    var message = "The field " + JSON.stringify(fieldName) + " defined twice with incompatible schemas";
+    throw new Error("[rescript-schema] " + message);
   };
   var ctx = {
     field: field,
     f: field,
     fieldOr: fieldOr,
     tag: tag,
-    nested: nested,
+    nestedField: nestedField,
     flatten: flatten
   };
   var definition = definer(ctx);
@@ -1685,16 +1703,13 @@ function factory$3(definer) {
             unknownKeys: "Strip",
             definition: definition
           },
-          n: (function () {
-              return "Object({" + items.map(function (item) {
-                            return item.i + ": " + item.t.n();
-                          }).join(", ") + "})";
-            }),
+          n: name,
           p: parseOperationBuilder$1,
           s: serializeOperationBuilder$1,
           f: typeFilter,
           i: 0,
           d: definer,
+          c: ctx,
           m: empty
         };
 }
@@ -1718,6 +1733,7 @@ function setUnknownKeys(schema, unknownKeys) {
             f: schema.f,
             i: schema.i,
             d: schema.d,
+            c: schema.c,
             m: schema.m
           };
   }
@@ -2299,13 +2315,14 @@ function definitionToSchema(definition, embededSet) {
                 });
     } else {
       return factory$3(function (s) {
+                  var objectDefinition = {};
                   var keys = Object.keys(definition);
                   for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
                     var key = keys[idx];
                     var definition$1 = definition[key];
-                    definition[key] = s.f(key, definitionToSchema(definition$1, embededSet));
+                    objectDefinition[key] = s.f(key, definitionToSchema(definition$1, embededSet));
                   }
-                  return definition;
+                  return objectDefinition;
                 });
     }
   } else {
@@ -2638,13 +2655,6 @@ function internalInline(schema, maybeVariant, param) {
 }
 
 function inline$1(schema) {
-  if (false) {
-    var v = (void 0);
-    if (v !== undefined) {
-      Caml_option.valFromOption(v);
-    }
-    
-  }
   return internalInline(schema, undefined, undefined);
 }
 

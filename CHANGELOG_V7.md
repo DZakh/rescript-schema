@@ -24,7 +24,7 @@
 - Changed payload of `Object` and `Tuple` variants in the `tagged` type
 - Changed `classify` to `classifyRaw`
 - Allow distructuring not-modified nested object schemas inside of the object definition
-- Added `s.nested` for objects
+- Added `s.nestedField` for objects
 - Added `s.flatten` for objects
 - Moved built-in refinements from nested modules to improve tree-shaking:
 

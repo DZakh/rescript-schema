@@ -241,7 +241,7 @@ module Object: {
     @as("f") field: 'value. (string, t<'value>) => 'value,
     fieldOr: 'value. (string, t<'value>, 'value) => 'value,
     tag: 'value. (string, 'value) => unit,
-    nested: 'value. (string, s => 'value) => 'value,
+    nestedField: 'value. (string, string, t<'value>) => 'value,
     flatten: 'value. t<'value> => 'value,
   }
 
