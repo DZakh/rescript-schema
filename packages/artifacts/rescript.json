@@ -1,0 +1,15 @@
+{
+  "name": "rescript-schema",
+  "namespace": true,
+  "suffix": ".bs.js",
+  "package-specs": {
+    "module": "commonjs",
+    "in-source": true
+  },
+  "sources": {
+    "dir": "src",
+    "public": [
+      "S"
+    ]
+  }
+}
