@@ -25,8 +25,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 ## v7
 
 - Change operation to include AsyncParse and simplify init functions (throw when asyncTransfor applied for SyncParse)
-- Don't recreate the object, when nothing should be transformed - stop reallocate objects without transformations
-- Add s.nested for object
 - Make S.serializeToJsonString super fast
 - Make operations more treeshakable by starting passing the actual operation to the initialOperation function. Or add a condition (verify performance)
 - Rename `InvalidJsonStruct` error, since after `rescript-struct`->`rescript-schema` it became misleading
@@ -34,12 +32,11 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v???
 
+- Don't recreate the object, when nothing should be transformed - stop reallocate objects without transformations
 - S.validateWith
 - Make `error.reason` tree-shakeable
 - Add serializeToJsonString to js api
 - S.toJSON/S.castToJson ???
-- nestedField for object
-- s.spread for object
 - s.optional for object
 - S.produce
 - S.mutator

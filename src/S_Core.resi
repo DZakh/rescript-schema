@@ -222,7 +222,7 @@ let isAsyncParse: t<'value> => bool
 
 let recursive: (t<'value> => t<'value>) => t<'value>
 
-let classifyRaw: t<'value> => tagged
+let classify: t<'value> => tagged
 
 @send
 external name: t<'value> => string = "n"

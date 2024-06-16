@@ -163,7 +163,7 @@ asyncTest("Can apply other actions after async preprocess", t => {
 
 test("Applies preproces parser for union schemas separately", t => {
   let prepareEnvSchema = S.preprocess(_, s => {
-    switch s.schema->S.classifyRaw {
+    switch s.schema->S.classify {
     | Literal(Boolean(_))
     | Bool => {
         parser: unknown => {
@@ -209,7 +209,7 @@ test("Applies preproces serializer for union schemas separately", t => {
     S.bool->S.variant(bool => #Bool(bool)),
     S.int->S.variant(int => #Int(int)),
   ])->S.preprocess(s => {
-    switch s.schema->S.classifyRaw {
+    switch s.schema->S.classify {
     | Bool => {
         serializer: unknown => {
           if unknown->Obj.magic === true {

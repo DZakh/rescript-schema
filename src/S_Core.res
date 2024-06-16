@@ -400,7 +400,7 @@ module EffectCtx = {
 }
 
 @inline
-let classifyRaw = schema => schema.rawTagged
+let classify = schema => schema.rawTagged
 
 module Builder = {
   type t = builder
@@ -1016,11 +1016,11 @@ module Literal = {
   let parse = any => any->parseInternal->toPublic
 
   @inline
-  let isLiteralSchema = schema => (schema->classifyRaw->Obj.magic)["TAG"] === "Literal"
+  let isLiteralSchema = schema => (schema->classify->Obj.magic)["TAG"] === "Literal"
 
   @inline
   let unsafeFromSchema = (schema): literal => {
-    schema->classifyRaw->unsafeGetVariantPayload
+    schema->classify->unsafeGetVariantPayload
   }
 }
 
@@ -1043,7 +1043,7 @@ let isAsyncParse = schema => {
 
 let rec validateJsonableSchema = (schema, ~rootSchema, ~isRoot=false) => {
   if isRoot || rootSchema !== schema {
-    switch schema->classifyRaw {
+    switch schema->classify {
     | String
     | Int
     | Float
@@ -1058,7 +1058,7 @@ let rec validateJsonableSchema = (schema, ~rootSchema, ~isRoot=false) => {
       for idx in 0 to items->Js.Array2.length - 1 {
         let item = items->Js.Array2.unsafe_get(idx)
         try {
-          switch item.schema->classifyRaw {
+          switch item.schema->classify {
           // Allow optional fields
           | Option(s) => s
           | _ => item.schema
@@ -1518,7 +1518,7 @@ type preprocessDefinition<'input, 'output> = {
 }
 let rec preprocess = (schema, transformer) => {
   let schema = schema->toUnknown
-  switch schema->classifyRaw {
+  switch schema->classify {
   | Union(unionSchemas) =>
     make(
       ~name=schema.name,
@@ -1769,7 +1769,7 @@ module Option = {
 
   let parseOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path) => {
     let isNull = %raw(`selfSchema.r.TAG === "Null"`)
-    let childSchema = selfSchema->classifyRaw->unsafeGetVariantPayload
+    let childSchema = selfSchema->classify->unsafeGetVariantPayload
 
     let bb = b->B.scope
     let itemOutput = bb->B.parse(~schema=childSchema, ~input, ~path)
@@ -1796,7 +1796,7 @@ module Option = {
     let inputVar = b->B.Val.var(input)
 
     let isNull = %raw(`selfSchema.r.TAG === "Null"`)
-    let childSchema = selfSchema->classifyRaw->unsafeGetVariantPayload
+    let childSchema = selfSchema->classify->unsafeGetVariantPayload
 
     let bb = b->B.scope
     let itemOutput =
@@ -1921,8 +1921,6 @@ module Object = {
   }
 
   type ctx = {
-    // fields: dict<item>,
-    // items: array<item>,
     // Public API for JS/TS users.
     // It shouldn't be used from ReScript and
     // needed only because we use @as for field to reduce bundle-size
@@ -1934,8 +1932,8 @@ module Object = {
 
   let typeFilter = (~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
 
-  let getItems = (schema): array<item> => (schema->classifyRaw->Obj.magic)["items"]
-  let getDefinition = schema => (schema->classifyRaw->Obj.magic)["definition"]
+  let getItems = (schema): array<item> => (schema->classify->Obj.magic)["items"]
+  let getDefinition = schema => (schema->classify->Obj.magic)["definition"]
 
   let parseOperationBuilder = (b, ~input, ~selfSchema, ~path) => {
     let asyncOutputVars = []
@@ -1946,7 +1944,7 @@ module Object = {
       let inputVar = b->B.Val.var(input)
 
       let items = schema->getItems
-      let isObject = (schema->classifyRaw->Obj.magic)["TAG"] === "Object"
+      let isObject = (schema->classify->Obj.magic)["TAG"] === "Object"
 
       for idx in 0 to items->Js.Array2.length - 1 {
         let prevCode = b.code
@@ -1985,7 +1983,7 @@ module Object = {
         }
       }
 
-      if isObject && (selfSchema->classifyRaw->Obj.magic)["unknownKeys"] === Strict {
+      if isObject && (selfSchema->classify->Obj.magic)["unknownKeys"] === Strict {
         let key = b->B.allocateVal
         let keyVar = b->B.Val.var(key)
         b.code = b.code ++ `for(${keyVar} in ${inputVar}){if(`
@@ -2113,7 +2111,7 @@ module Object = {
 
     let rec toRaw = (~schema, ~path) => {
       let items = schema->getItems
-      let isObject = (schema->classifyRaw->Obj.magic)["TAG"] === "Object"
+      let isObject = (schema->classify->Obj.magic)["TAG"] === "Object"
 
       let output = ref("")
       for idx in 0 to items->Js.Array2.length - 1 {
@@ -2243,8 +2241,6 @@ module Object = {
           }
 
         {
-          // fields,
-          // items,
           // js/ts methods
           _jsField: field,
           // methods
@@ -2277,7 +2273,7 @@ module Object = {
     }
 
   let setUnknownKeys = (schema, unknownKeys) => {
-    switch schema->classifyRaw {
+    switch schema->classify {
     | Object({unknownKeys: schemaUnknownKeys, items, fields, definition})
       if schemaUnknownKeys !== unknownKeys => {
         name: schema.name,
@@ -2757,7 +2753,7 @@ module Union = {
         ~metadataMap=Metadata.Map.empty,
         ~rawTagged=Union(schemas),
         ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-          let schemas = selfSchema->classifyRaw->unsafeGetVariantPayload
+          let schemas = selfSchema->classify->unsafeGetVariantPayload
 
           let output = b->B.allocateVal
           let codeEndRef = ref("")
@@ -2815,7 +2811,7 @@ module Union = {
           }
         }),
         ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-          let schemas = selfSchema->classifyRaw->unsafeGetVariantPayload
+          let schemas = selfSchema->classify->unsafeGetVariantPayload
 
           let output = b->B.allocateVal
           let codeEndRef = ref("")
@@ -3149,7 +3145,7 @@ let inline = {
   let rec internalInline = (schema, ~variant as maybeVariant=?, ()) => {
     let metadataMap = schema.metadataMap->Stdlib.Dict.copy
 
-    let inlinedSchema = switch schema->classifyRaw {
+    let inlinedSchema = switch schema->classify {
     | Literal(literal) => `S.literal(%raw(\`${literal->Literal.toString}\`))`
     | Union(unionSchemas) => {
         let variantNamesCounter = Js.Dict.empty()
@@ -3240,12 +3236,12 @@ let inline = {
     | None => inlinedSchema
     }
 
-    let inlinedSchema = switch schema->classifyRaw {
+    let inlinedSchema = switch schema->classify {
     | Object({unknownKeys: Strict}) => inlinedSchema ++ `->S.Object.strict`
     | _ => inlinedSchema
     }
 
-    let inlinedSchema = switch schema->classifyRaw {
+    let inlinedSchema = switch schema->classify {
     | String
     | Literal(String(_)) =>
       switch schema->String.refinements {

@@ -93,7 +93,7 @@ function make(selfSchema, path, operation) {
         };
 }
 
-function classifyRaw(schema) {
+function classify(schema) {
   return schema.r;
 }
 
@@ -3284,7 +3284,7 @@ export {
   serializeToJsonStringOrRaiseWith ,
   isAsyncParse ,
   recursive ,
-  classifyRaw ,
+  classify ,
   setName ,
   Schema ,
   schema$6 as schema,

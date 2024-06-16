@@ -100,7 +100,7 @@ var isAsyncParse = S_Core$RescriptSchema.isAsyncParse;
 
 var recursive = S_Core$RescriptSchema.recursive;
 
-var classifyRaw = S_Core$RescriptSchema.classifyRaw;
+var classify = S_Core$RescriptSchema.classify;
 
 var setName = S_Core$RescriptSchema.setName;
 
@@ -222,7 +222,7 @@ export {
   serializeToJsonStringOrRaiseWith ,
   isAsyncParse ,
   recursive ,
-  classifyRaw ,
+  classify ,
   setName ,
   Schema ,
   schema ,
