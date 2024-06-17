@@ -61,7 +61,7 @@ let entitySchema = S.object(s => {
 
 > 🧠 While the example with `s.flatten` expect an object with the type `{id: string, name: string, age: int}`, the example above and with `s.nestedField` will expect an object with the type `{id: string, data: {name: string, age: int}}`.
 
-### Extending object field schema
+### Extend field with another object schema
 
 You can define object field multiple times to extend it with more fields:
 
@@ -114,30 +114,36 @@ Added unsafe mode for `S.json`:
 - Changed payload of `Object` and `Tuple` variants in the `tagged` type
 - Redesigned `Literal` module to make it more effecient
 
-  - The `Literal.t` type was renamed to `literal`, became private and changed structure. Use `S.Literal.parse` to create instances of the type
-  - `Literal.classify` -> `Literal.parse`
-  - `Literal.toText` -> `Literal.toString`. Also, started using `.toString` for `Function` literalls and removed spaces for `Dict` and `Array` literals to make them look the same as the `JSON.stringify` output
+  - The `S.Literal.t` type was renamed to `S.literal`, became private and changed structure. Use `S.Literal.parse` to create instances of the type
+  - `S.Literal.classify` -> `S.Literal.parse`
+  - `S.Literal.toText` -> `S.Literal.toString`. Also, started using `.toString` for `Function` literalls and removed spaces for `Dict` and `Array` literals to make them look the same as the `JSON.stringify` output
 
 - Moved built-in refinements from nested modules to improve tree-shaking:
 
-  - `Int.min` -> `intMin`
-  - `Int.max` -> `intMax`
-  - `Int.port` -> `port`
+  - `S.Int.min` -> `S.intMin`
+  - `S.Int.max` -> `S.intMax`
+  - `S.Int.port` -> `S.port`
 
-  - `Float.min` -> `floatMin`
-  - `Float.max` -> `floatMax`
+  - `S.Float.min` -> `S.floatMin`
+  - `S.Float.max` -> `S.floatMax`
 
-  - `Array.min` -> `arrayMin`
-  - `Array.max` -> `arrayMax`
-  - `Array.length` -> `arrayLength`
+  - `S.Array.min` -> `S.arrayMinLength`
+  - `S.Array.max` -> `S.arrayMaxLength`
+  - `S.Array.length` -> `S.arrayLength`
 
-  - `String.min` -> `stringMin`
-  - `String.max` -> `stringMax`
-  - `String.length` -> `stringLength`
-  - `String.email` -> `email`
-  - `String.uuid` -> `uuid`
-  - `String.cuid` -> `cuid`
-  - `String.url` -> `url`
-  - `String.pattern` -> `pattern`
-  - `String.datetime` -> `datetime`
-  - `String.trim` -> `trim`
+  - `S.String.min` -> `S.stringMinLength`
+  - `S.String.max` -> `S.stringMaxLength`
+  - `S.String.length` -> `S.stringLength`
+  - `S.String.email` -> `S.email`
+  - `S.String.uuid` -> `S.uuid`
+  - `S.String.cuid` -> `S.cuid`
+  - `S.String.url` -> `S.url`
+  - `S.String.pattern` -> `S.pattern`
+  - `S.String.datetime` -> `S.datetime`
+  - `S.String.trim` -> `S.trim`
+
+  - `S.Int.min` -> `S.intMin`
+  - `S.Int.max` -> `S.intMax`
+
+  - `S.Number.max` -> `S.numberMax`/`S.integerMax`
+  - `S.Number.min` -> `S.numberMin`/`S.integerMin`

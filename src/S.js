@@ -43,12 +43,12 @@ export const port = S.port;
 export const numberMin = S.floatMin;
 export const numberMax = S.floatMax;
 
-export const arrayMin = S.arrayMin;
-export const arrayMax = S.arrayMax;
+export const arrayMinLength = S.arrayMinLength;
+export const arrayMaxLength = S.arrayMaxLength;
 export const arrayLength = S.arrayLength;
 
-export const stringMin = S.stringMin;
-export const stringMax = S.stringMax;
+export const stringMinLength = S.stringMinLength;
+export const stringMaxLength = S.stringMaxLength;
 export const stringLength = S.stringLength;
 export const email = S.email;
 export const uuid = S.uuid;

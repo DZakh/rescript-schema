@@ -1203,7 +1203,7 @@ test("Example", (t) => {
   // Create login schema with email and password
   const loginSchema = S.object({
     email: S.email(S.string),
-    password: S.stringMin(S.string, 8),
+    password: S.stringMinLength(S.string, 8),
   });
 
   // Infer output TypeScript type of login schema

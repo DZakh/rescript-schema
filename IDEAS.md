@@ -22,7 +22,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Move S.inline to a separate codegen module
 
-## v7
+## v8
 
 - Change operation to include AsyncParse and simplify init functions (throw when asyncTransfor applied for SyncParse)
 - Make S.serializeToJsonString super fast

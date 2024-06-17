@@ -364,12 +364,12 @@ let port: (t<int>, ~message: string=?) => t<int>
 let floatMin: (t<float>, float, ~message: string=?) => t<float>
 let floatMax: (t<float>, float, ~message: string=?) => t<float>
 
-let arrayMin: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
-let arrayMax: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
+let arrayMinLength: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
+let arrayMaxLength: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
 let arrayLength: (t<array<'a>>, int, ~message: string=?) => t<array<'a>>
 
-let stringMin: (t<string>, int, ~message: string=?) => t<string>
-let stringMax: (t<string>, int, ~message: string=?) => t<string>
+let stringMinLength: (t<string>, int, ~message: string=?) => t<string>
+let stringMaxLength: (t<string>, int, ~message: string=?) => t<string>
 let stringLength: (t<string>, int, ~message: string=?) => t<string>
 let email: (t<string>, ~message: string=?) => t<string>
 let uuid: (t<string>, ~message: string=?) => t<string>

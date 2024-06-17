@@ -55,27 +55,27 @@ test("Supports built-in String.cuid refinement", t => {
 })
 
 test("Supports built-in String.min refinement", t => {
-  let schema = S.string->S.stringMin(5)
+  let schema = S.string->S.stringMinLength(5)
   let schemaInlineResult =
-    S.string->S.stringMin(5, ~message="String must be 5 or more characters long")
+    S.string->S.stringMinLength(5, ~message="String must be 5 or more characters long")
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.string->S.stringMin(5, ~message="String must be 5 or more characters long")`,
+    `S.string->S.stringMinLength(5, ~message="String must be 5 or more characters long")`,
     (),
   )
 })
 
 test("Supports built-in String.max refinement", t => {
-  let schema = S.string->S.stringMax(5)
+  let schema = S.string->S.stringMaxLength(5)
   let schemaInlineResult =
-    S.string->S.stringMax(5, ~message="String must be 5 or fewer characters long")
+    S.string->S.stringMaxLength(5, ~message="String must be 5 or fewer characters long")
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.string->S.stringMax(5, ~message="String must be 5 or fewer characters long")`,
+    `S.string->S.stringMaxLength(5, ~message="String must be 5 or fewer characters long")`,
     (),
   )
 })
@@ -196,16 +196,16 @@ test("Supports built-in Float.min refinement with digits after decimal point", t
 })
 
 test("Supports multiple built-in refinements", t => {
-  let schema = S.string->S.stringMin(5)->S.stringMax(10)
+  let schema = S.string->S.stringMinLength(5)->S.stringMaxLength(10)
   let schemaInlineResult =
     S.string
-    ->S.stringMin(~message="String must be 5 or more characters long", 5)
-    ->S.stringMax(~message="String must be 10 or fewer characters long", 10)
+    ->S.stringMinLength(~message="String must be 5 or more characters long", 5)
+    ->S.stringMaxLength(~message="String must be 10 or fewer characters long", 10)
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.string->S.stringMin(5, ~message="String must be 5 or more characters long")->S.stringMax(10, ~message="String must be 10 or fewer characters long")`,
+    `S.string->S.stringMinLength(5, ~message="String must be 5 or more characters long")->S.stringMaxLength(10, ~message="String must be 10 or fewer characters long")`,
     (),
   )
 })
@@ -322,27 +322,27 @@ test("Supports Array", t => {
 })
 
 test("Supports built-in Array.max refinement", t => {
-  let schema = S.array(S.string)->S.arrayMax(4)
+  let schema = S.array(S.string)->S.arrayMaxLength(4)
   let schemaInlineResult =
-    S.array(S.string)->S.arrayMax(~message="Array must be 4 or fewer items long", 4)
+    S.array(S.string)->S.arrayMaxLength(~message="Array must be 4 or fewer items long", 4)
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.array(S.string)->S.arrayMax(4, ~message="Array must be 4 or fewer items long")`,
+    `S.array(S.string)->S.arrayMaxLength(4, ~message="Array must be 4 or fewer items long")`,
     (),
   )
 })
 
 test("Supports built-in Array.min refinement", t => {
-  let schema = S.array(S.string)->S.arrayMin(4)
+  let schema = S.array(S.string)->S.arrayMinLength(4)
   let schemaInlineResult =
-    S.array(S.string)->S.arrayMin(~message="Array must be 4 or more items long", 4)
+    S.array(S.string)->S.arrayMinLength(~message="Array must be 4 or more items long", 4)
 
   t->U.assertEqualSchemas(schema, schemaInlineResult)
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.array(S.string)->S.arrayMin(4, ~message="Array must be 4 or more items long")`,
+    `S.array(S.string)->S.arrayMinLength(4, ~message="Array must be 4 or more items long")`,
     (),
   )
 })

@@ -2592,9 +2592,9 @@ function internalInline(schema, maybeVariant, param) {
                     var match = refinement.kind;
                     switch (match.TAG) {
                       case "Min" :
-                          return "->S.arrayMin(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                          return "->S.arrayMinLength(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                       case "Max" :
-                          return "->S.arrayMax(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                          return "->S.arrayMaxLength(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                       case "Length" :
                           return "->S.arrayLength(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                       
@@ -2631,9 +2631,9 @@ function internalInline(schema, maybeVariant, param) {
               } else {
                 switch (match.TAG) {
                   case "Min" :
-                      return "->S.stringMin(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.stringMinLength(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                   case "Max" :
-                      return "->S.stringMax(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.stringMaxLength(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                   case "Length" :
                       return "->S.stringLength(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
                   case "Pattern" :
@@ -2745,7 +2745,7 @@ function floatMax(schema, maxValue, maybeMessage) {
               }));
 }
 
-function arrayMin(schema, length, maybeMessage) {
+function arrayMinLength(schema, length, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length + " or more items long";
   return addRefinement(schema, metadataId$3, {
               kind: {
@@ -2758,7 +2758,7 @@ function arrayMin(schema, length, maybeMessage) {
               }));
 }
 
-function arrayMax(schema, length, maybeMessage) {
+function arrayMaxLength(schema, length, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length + " or fewer items long";
   return addRefinement(schema, metadataId$3, {
               kind: {
@@ -2784,7 +2784,7 @@ function arrayLength(schema, length, maybeMessage) {
               }));
 }
 
-function stringMin(schema, length, maybeMessage) {
+function stringMinLength(schema, length, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length + " or more characters long";
   return addRefinement(schema, metadataId, {
               kind: {
@@ -2797,7 +2797,7 @@ function stringMin(schema, length, maybeMessage) {
               }));
 }
 
-function stringMax(schema, length, maybeMessage) {
+function stringMaxLength(schema, length, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length + " or fewer characters long";
   return addRefinement(schema, metadataId, {
               kind: {
@@ -3307,11 +3307,11 @@ export {
   port ,
   floatMin ,
   floatMax ,
-  arrayMin ,
-  arrayMax ,
+  arrayMinLength ,
+  arrayMaxLength ,
   arrayLength ,
-  stringMin ,
-  stringMax ,
+  stringMinLength ,
+  stringMaxLength ,
   stringLength ,
   email ,
   uuid ,

@@ -26,6 +26,10 @@
     - [Transform to a structurally typed object](#transform-to-a-structurally-typed-object)
     - [Transform to a tuple](#transform-to-a-tuple)
     - [Transform to a variant](#transform-to-a-variant)
+    - [`s.flatten`](#sflatten)
+    - [`s.nestedField`](#snestedfield)
+    - [`Object destructuring`](#object-destructuring)
+    - [`Extend field with another object schema`](#extend-field-with-another-object-schema)
   - [`Object.strict`](#objectstrict)
   - [`Object.strip`](#objectstrip)
   - [`schema`](#schema)
@@ -62,6 +66,7 @@
   - [`serializeToJsonStringWith`](#serializetojsonstringwith)
   - [`serializeOrRaiseWith`](#serializeorraisewith)
   - [`serializeToUnknownOrRaiseWith`](#serializetounknownorraisewith)
+  - [`serializeToJsonStringOrRaiseWith`](#serializetojsonstringorraisewith)
   - [`classify`](#classify)
   - [`name`](#name)
   - [`setName`](#setname)
@@ -183,32 +188,32 @@ The `string` schema represents a data that is a string. It can be further constr
 **rescript-schema** includes a handful of string-specific refinements and transforms:
 
 ```rescript
-S.string->S.String.max(5) // String must be 5 or fewer characters long
-S.string->S.String.min(5) // String must be 5 or more characters long
-S.string->S.String.length(5) // String must be exactly 5 characters long
-S.string->S.String.email // Invalid email address
-S.string->S.String.url // Invalid url
-S.string->S.String.uuid // Invalid UUID
-S.string->S.String.cuid // Invalid CUID
-S.string->S.String.pattern(%re(`/[0-9]/`)) // Invalid
-S.string->S.String.datetime // Invalid datetime string! Must be UTC
+S.string->S.stringMaxLength(5) // String must be 5 or fewer characters long
+S.string->S.stringMinLength(5) // String must be 5 or more characters long
+S.string->S.stringLength(5) // String must be exactly 5 characters long
+S.string->S.email // Invalid email address
+S.string->S.url // Invalid url
+S.string->S.uuid // Invalid UUID
+S.string->S.cuid // Invalid CUID
+S.string->S.pattern(%re(`/[0-9]/`)) // Invalid
+S.string->S.datetime // Invalid datetime string! Must be UTC
 
-S.string->S.String.trim // trim whitespaces
+S.string->S.trim // trim whitespaces
 ```
 
 When using built-in refinements, you can provide a custom error message.
 
 ```rescript
-S.string->S.String.min(1, ~message="String can't be empty")
-S.string->S.String.length(5, ~message="SMS code should be 5 digits long")
+S.string->S.stringMinLength(1, ~message="String can't be empty")
+S.string->S.stringLength(5, ~message="SMS code should be 5 digits long")
 ```
 
 #### ISO datetimes
 
-The `S.string->S.String.datetime` function has following UTC validation: no timezone offsets with arbitrary sub-second decimal precision.
+The `S.string->S.datetime` function has following UTC validation: no timezone offsets with arbitrary sub-second decimal precision.
 
 ```rescript
-let datetimeSchema = S.string->S.String.datetime
+let datetimeSchema = S.string->S.datetime
 // The datetimeSchema has the type S.t<Date.t>
 // String is transformed to the Date.t instance
 
@@ -247,9 +252,9 @@ The `int` schema represents a data that is an integer.
 **rescript-schema** includes some of int-specific refinements:
 
 ```rescript
-S.int->S.Int.max(5) // Number must be lower than or equal to 5
-S.int->S.Int.min(5) // Number must be greater than or equal to 5
-S.int->S.Int.port // Invalid port
+S.int->S.intMax(5) // Number must be lower than or equal to 5
+S.int->S.intMin(5) // Number must be greater than or equal to 5
+S.int->S.port // Invalid port
 ```
 
 ### **`float`**
@@ -268,8 +273,8 @@ The `float` schema represents a data that is a number.
 **rescript-schema** includes some of float-specific refinements:
 
 ```rescript
-S.float->S.Float.max(5) // Number must be lower than or equal to 5
-S.float->S.Float.min(5) // Number must be greater than or equal to 5
+S.float->S.floatMax(5) // Number must be lower than or equal to 5
+S.float->S.floatMin(5) // Number must be greater than or equal to 5
 ```
 
 ### **`option`**
@@ -302,7 +307,7 @@ let schema = S.option(S.string)->S.Option.getOr("Hello World!")
 
 The `Option.getOr` augments a schema to add transformation logic for default values, which are applied when the input is undefined.
 
-> 🧠 If you want to set a default value for an object field, there's a more convenient `fieldOr` method on `Object.ctx` type.
+> 🧠 If you want to set a default value for an object field, there's a more convenient `fieldOr` method on `Object.s` type.
 
 ### **`Option.getOrWith`**
 
@@ -405,7 +410,7 @@ The `literal` schema enforces that a data matches an exact value during parsing 
 
 ### **`object`**
 
-`(S.Object.ctx => 'value) => S.t<'value>`
+`(S.Object.s => 'value) => S.t<'value>`
 
 ```rescript
 type point = {
@@ -420,8 +425,8 @@ let pointSchema = S.object(s => {
 })
 
 // It can be used both for parsing and serializing
-%raw(`{ "x": 1,"y": -4 }`)->S.parseWith(pointSchema)
-{ x: 1, y: -4 }->S.serializeWith(pointSchema)
+{"x": 1, "y": -4}->S.parseAnyWith(pointSchema)
+{x: 1, y: -4}->S.serializeWith(pointSchema)
 ```
 
 The `object` schema represents an object value, that can be transformed into any ReScript value. Here are some examples:
@@ -439,8 +444,8 @@ let schema = S.object(s => {
   name: s.field("USER_NAME", S.string),
 })
 
-%raw(`{"USER_ID":1,"USER_NAME":"John"}`)->S.parseWith(schema)
-// Ok({ id: 1, name: "John" })
+%raw(`{"USER_ID":1,"USER_NAME":"John"}`)->S.parseWith(schema) // Ok({id: 1, name: "John"})
+{id: 1, name: "John"}->S.serializeWith(schema) // Ok({"USER_ID":1,"USER_NAME":"John"})
 ```
 
 #### Transform to a structurally typed object
@@ -514,6 +519,86 @@ Circle({radius: 1})->S.serializeWith(schema)
 // }`))
 ```
 
+#### `s.flatten`
+
+It's possible to spread/flatten an object schema in another object schema, allowing you to reuse schemas in a more powerful way.
+
+```rescript
+type entityData = {
+  name: string,
+  age: int,
+}
+type entity = {
+  id: string,
+  ...entityData,
+}
+
+let entityDataSchema = S.object(s => {
+  name: s.field("name", S.string),
+  age: s.field("age", S.int),
+})
+let entitySchema = S.object(s => {
+  let {name, age} = s.flatten(entityDataSchema)
+  {
+    id: s.field("id", S.string),
+    name,
+    age,
+  }
+})
+```
+
+#### `s.nestedField`
+
+A nice way to parse nested fields:
+
+```rescript
+let schema = S.object(s => {
+  {
+    id: s.field("id", S.string),
+    name: s.nestedField("data", "name", S.string)
+    age: s.nestedField("data", "name", S.int),
+  }
+})
+```
+
+#### Object destructuring
+
+It's possible to destructure object field schemas inside of definition. You could also notice it in the `s.flatten` example 😁
+
+```rescript
+let entitySchema = S.object(s => {
+  let {name, age} = s.field("data", entityDataSchema)
+  {
+    id: s.field("id", S.string),
+    name,
+    age,
+  }
+})
+```
+
+> 🧠 While the example with `s.flatten` expect an object with the type `{id: string, name: string, age: int}`, the example above and with `s.nestedField` will expect an object with the type `{id: string, data: {name: string, age: int}}`.
+
+#### Extend field with another object schema
+
+You can define object field multiple times to extend it with more fields:
+
+```rescript
+let entitySchema = S.object(s => {
+  let {name, age} = s.field("data", entityDataSchema)
+  let additionalData = s.field("data", s => {
+    "friends": s.field("friends", S.array(S.string))
+  })
+  {
+    id: s.field("id", S.string),
+    name,
+    age,
+    friends: additionalData["friends"],
+  }
+})
+```
+
+> 🧠 Destructuring works only with not-transformed object schemas. Be careful, since it's not protected by typesystem.
+
 ### **`Object.strict`**
 
 `S.t<'value> => S.t<'value>`
@@ -552,7 +637,7 @@ You can use the `S.Object.strip` function to reset a object schema to the defaul
 
 ### **`schema`**
 
-`(schemaCtx => 'value) => S.t<'value>`
+`(S.Schema.s => 'value) => S.t<'value>`
 
 It's a helper built on `S.literal`, `S.object`, and `S.tuple` to create schemas for runtime representation of ReScript types conveniently.
 
@@ -696,9 +781,9 @@ The `array` schema represents an array of data of a specific type.
 **rescript-schema** includes some of array-specific refinements:
 
 ```rescript
-S.array(itemSchema)->S.Array.max(5) // Array must be 5 or fewer items long
-S.array(itemSchema)->S.Array.min(5) // Array must be 5 or more items long
-S.array(itemSchema)->S.Array.length(5) // Array must be exactly 5 items long
+S.array(itemSchema)->S.arrayMaxLength(5) // Array must be 5 or fewer items long
+S.array(itemSchema)->S.arrayMinLength(5) // Array must be 5 or more items long
+S.array(itemSchema)->S.arrayLength(5) // Array must be exactly 5 items long
 ```
 
 ### **`list`**
@@ -716,7 +801,7 @@ The `list` schema represents an array of data of a specific type which is transf
 
 ### **`tuple`**
 
-`(S.Tuple.ctx => 'value) => S.t<'value>`
+`(S.Tuple.s => 'value) => S.t<'value>`
 
 ```rescript
 type point = {
@@ -800,16 +885,18 @@ The `never` schema will fail parsing for every value.
 
 ### **`json`**
 
-`S.t<JSON.t>`
+`(~validate: bool) => S.t<JSON.t>`
 
 ```rescript
-let schema = S.json
+let schema = S.json(~validate=true)
 
-%raw(`"123"`)->S.parseWith(schema)
-// Ok(String("123"))
+`"abc"`->S.parseAnyWith(schema)
+// Ok(String("abc"))
 ```
 
 The `json` schema represents a data that is compatible with JSON.
+
+It accepts a `validate` as an argument. If it's true, then the value will be validated as valid JSON; otherwise, it unsafely casts it to the `JSON.t` type.
 
 ### **`jsonString`**
 
@@ -856,7 +943,7 @@ This can be useful for documenting a field, for example in a JSON Schema using a
 
 ### **`catch`**
 
-`(S.t<'value>, S.catchCtx<'value> => 'value) => S.t<'value>`
+`(S.t<'value>, S.Catch.s<'value> => 'value) => S.t<'value>`
 
 Use `S.catch` to provide a "catch value" to be returned instead of a parsing error.
 
@@ -886,7 +973,7 @@ Conceptually, this is how **rescript-schema** processes "catch values":
 
 ### **`custom`**
 
-`(string, effectCtx<'output> => customDefinition<'input, 'output>) => t<'output>`
+`(string, S.s<'output> => customDefinition<'input, 'output>) => t<'output>`
 
 You can also define your own custom schema factories that are specific to your application's requirements:
 
@@ -995,7 +1082,7 @@ One great aspect of the example above is that it uses parallelism to make four r
 
 ### **`refine`**
 
-`(S.t<'value>, effectCtx<'value> => 'value => unit) => S.t<'value>`
+`(S.t<'value>, S.s<'value> => 'value => unit) => S.t<'value>`
 
 ```rescript
 let shortStringSchema = S.string->S.refine(s => value =>
@@ -1013,7 +1100,7 @@ The refine function is applied for both parser and serializer.
 
 ### **`transform`**
 
-`(S.t<'input>, S.effectCtx<'output> => S.transformDefinition<'input, 'output>) => S.t<'output>`
+`(S.t<'input>, S.s<'output> => S.transformDefinition<'input, 'output>) => S.t<'output>`
 
 ```rescript
 let intToString = schema =>
@@ -1037,7 +1124,7 @@ type user = {
 
 let userSchema =
   S.string
-  ->S.String.uuid
+  ->S.uuid
   ->S.transform(s => {
     asyncParser: userId => () => loadUser(~userId),
     serializer: user => user.id,
@@ -1237,6 +1324,16 @@ try {
 
 The exception-based version of `serializeToUnknownWith`.
 
+### **`serializeToJsonStringOrRaiseWith`**
+
+`('value, ~space: int=?, S.t<'value>) => string`
+
+```rescript
+user->S.serializeToJsonStringOrRaiseWith(userSchema)
+```
+
+The exception-based version of `serializeToJsonStringWith`.
+
 ### **`classify`**
 
 `(S.t<'value>) => S.tagged`
@@ -1254,7 +1351,7 @@ This can be useful for building other tools like [`rescript-json-schema`](https:
 
 ```rescript
 S.literal({"abc": 123})->S.name
-// `Literal({"abc": 123})`
+// `Literal({"abc":123})`
 ```
 
 Used internally for readable error messages.
@@ -1283,7 +1380,7 @@ let schema = S.literal(false)
 
 %raw(`true`)->S.parseWith(schema)
 // Error({
-//   code: InvalidLiteral({expected: Boolean(false), received: true}),
+//   code: InvalidLiteral({expected: S.Literal.parse(false), received: true}),
 //   operation: Parsing,
 //   path: S.Path.empty,
 // })
@@ -1309,7 +1406,7 @@ Throws error. Since internally it's both the `S.Raised` exception and instance o
 
 ```rescript
 {
-  code: InvalidLiteral({expected: Boolean(false), received: true}),
+  code: InvalidLiteral({expected: S.Literal.parse(false), received: true}),
   operation: Parsing,
   path: S.Path.empty,
 }->S.Error.message
@@ -1325,7 +1422,7 @@ Throws error. Since internally it's both the `S.Raised` exception and instance o
 
 ```rescript
 {
-  code: InvalidLiteral({expected: Boolean(false), received: true}),
+  code: InvalidLiteral({expected: S.Literal.parse(false), received: true}),
   operation: Parsing,
   path: S.Path.empty,
 }->S.Error.reason

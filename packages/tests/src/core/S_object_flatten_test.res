@@ -30,7 +30,7 @@ test("Can flatten strict object", t => {
   t->Assert.deepEqual(
     switch schema->S.classify {
     | Object({unknownKeys}) => unknownKeys
-    | _ => Js.Exn.raiseError("Invalid case")
+    | _ => assert(false)
     },
     S.Strip,
     (),

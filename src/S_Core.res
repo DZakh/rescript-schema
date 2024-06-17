@@ -3260,9 +3260,9 @@ let inline = {
           | {kind: Cuid, message} =>
             `->S.cuid(~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Min({length}), message} =>
-            `->S.stringMin(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.stringMinLength(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Max({length}), message} =>
-            `->S.stringMax(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.stringMaxLength(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Length({length}), message} =>
             `->S.stringLength(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Pattern({re}), message} =>
@@ -3324,9 +3324,9 @@ let inline = {
         ->Js.Array2.map(refinement => {
           switch refinement {
           | {kind: Max({length}), message} =>
-            `->S.arrayMax(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.arrayMaxLength(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Min({length}), message} =>
-            `->S.arrayMin(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
+            `->S.arrayMinLength(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           | {kind: Length({length}), message} =>
             `->S.arrayLength(${length->Stdlib.Int.unsafeToString}, ~message=${message->Stdlib.Inlined.Value.fromString})`
           }
@@ -3467,7 +3467,7 @@ let floatMax = (schema, maxValue, ~message as maybeMessage=?) => {
   )
 }
 
-let arrayMin = (schema, length, ~message as maybeMessage=?) => {
+let arrayMinLength = (schema, length, ~message as maybeMessage=?) => {
   let message = switch maybeMessage {
   | Some(m) => m
   | None => `Array must be ${length->Stdlib.Int.unsafeToString} or more items long`
@@ -3484,7 +3484,7 @@ let arrayMin = (schema, length, ~message as maybeMessage=?) => {
   )
 }
 
-let arrayMax = (schema, length, ~message as maybeMessage=?) => {
+let arrayMaxLength = (schema, length, ~message as maybeMessage=?) => {
   let message = switch maybeMessage {
   | Some(m) => m
   | None => `Array must be ${length->Stdlib.Int.unsafeToString} or fewer items long`
@@ -3518,7 +3518,7 @@ let arrayLength = (schema, length, ~message as maybeMessage=?) => {
   )
 }
 
-let stringMin = (schema, length, ~message as maybeMessage=?) => {
+let stringMinLength = (schema, length, ~message as maybeMessage=?) => {
   let message = switch maybeMessage {
   | Some(m) => m
   | None => `String must be ${length->Stdlib.Int.unsafeToString} or more characters long`
@@ -3535,7 +3535,7 @@ let stringMin = (schema, length, ~message as maybeMessage=?) => {
   )
 }
 
-let stringMax = (schema, length, ~message as maybeMessage=?) => {
+let stringMaxLength = (schema, length, ~message as maybeMessage=?) => {
   let message = switch maybeMessage {
   | Some(m) => m
   | None => `String must be ${length->Stdlib.Int.unsafeToString} or fewer characters long`

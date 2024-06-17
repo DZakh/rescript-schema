@@ -146,15 +146,15 @@ var floatMin = S_Core$RescriptSchema.floatMin;
 
 var floatMax = S_Core$RescriptSchema.floatMax;
 
-var arrayMin = S_Core$RescriptSchema.arrayMin;
+var arrayMinLength = S_Core$RescriptSchema.arrayMinLength;
 
-var arrayMax = S_Core$RescriptSchema.arrayMax;
+var arrayMaxLength = S_Core$RescriptSchema.arrayMaxLength;
 
 var arrayLength = S_Core$RescriptSchema.arrayLength;
 
-var stringMin = S_Core$RescriptSchema.stringMin;
+var stringMinLength = S_Core$RescriptSchema.stringMinLength;
 
-var stringMax = S_Core$RescriptSchema.stringMax;
+var stringMaxLength = S_Core$RescriptSchema.stringMaxLength;
 
 var stringLength = S_Core$RescriptSchema.stringLength;
 
@@ -245,11 +245,11 @@ export {
   port ,
   floatMin ,
   floatMax ,
-  arrayMin ,
-  arrayMax ,
+  arrayMinLength ,
+  arrayMaxLength ,
   arrayLength ,
-  stringMin ,
-  stringMax ,
+  stringMinLength ,
+  stringMaxLength ,
   stringLength ,
   email ,
   uuid ,

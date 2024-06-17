@@ -305,12 +305,12 @@ export const numberMax: <Input>(
   message?: string
 ) => Schema<number, Input>;
 
-export const arrayMin: <Input, ItemSchema>(
+export const arrayMinLength: <Input, ItemSchema>(
   schema: Schema<ItemSchema[], Input>,
   length: number,
   message?: string
 ) => Schema<ItemSchema[], Input>;
-export const arrayMax: <Input, ItemSchema>(
+export const arrayMaxLength: <Input, ItemSchema>(
   schema: Schema<ItemSchema[], Input>,
   length: number,
   message?: string
@@ -321,12 +321,12 @@ export const arrayLength: <Input, ItemSchema>(
   message?: string
 ) => Schema<ItemSchema[], Input>;
 
-export const stringMin: <Input>(
+export const stringMinLength: <Input>(
   schema: Schema<string, Input>,
   length: number,
   message?: string
 ) => Schema<string, Input>;
-export const stringMax: <Input>(
+export const stringMaxLength: <Input>(
   schema: Schema<string, Input>,
   length: number,
   message?: string

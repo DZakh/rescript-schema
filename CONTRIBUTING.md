@@ -53,6 +53,73 @@ npm run test:res
 npm run test -- --watch
 ```
 
+## Make comparison
+
+https://bundlejs.com/
+
+`rescript-schema`
+
+```ts
+import * as S from "github:DZakh/rescript-schema/artifacts/packages/artifacts/dist/S.mjs";
+
+// Create login schema with email and password
+const loginSchema = S.object({
+  email: S.email(S.string),
+  password: S.stringMinLength(S.string, 8),
+});
+
+// Infer output TypeScript type of login schema
+type LoginData = S.Output<typeof loginSchema>; // { email: string; password: string }
+
+// Throws the S.Error(`Failed parsing at ["email"]. Reason: Invalid email address`)
+S.parseOrThrow(loginSchema, { email: "", password: "" });
+
+// Returns data as { email: string; password: string }
+S.parseOrThrow(loginSchema, {
+  email: "jane@example.com",
+  password: "12345678",
+});
+```
+
+valibot
+
+```ts
+import * as v from "valibot"; // 1.21 kB
+
+// Create login schema with email and password
+const LoginSchema = v.object({
+  email: v.pipe(v.string(), v.email()),
+  password: v.pipe(v.string(), v.minLength(8)),
+});
+
+// Infer output TypeScript type of login schema
+type LoginData = v.InferOutput<typeof LoginSchema>; // { email: string; password: string }
+
+// Throws error for `email` and `password`
+v.parse(LoginSchema, { email: "", password: "" });
+
+// Returns data as { email: string; password: string }
+v.parse(LoginSchema, { email: "jane@example.com", password: "12345678" });
+```
+
+zod
+
+```ts
+export * as z from "zod"; // 1.21 kB
+
+// Create login schema with email and password
+const LoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
+// Throws error for `email` and `password`
+LoginSchema.parse({ email: "", password: "" });
+
+// Returns data as { email: string; password: string }
+LoginSchema.parse({ email: "jane@example.com", password: "12345678" });
+```
+
 ## License
 
 By contributing your code to the rescript-schema GitHub repository, you agree to license your contribution under the MIT license.

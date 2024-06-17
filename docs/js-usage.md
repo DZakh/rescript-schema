@@ -59,8 +59,8 @@ import * as S from "rescript-schema";
 
 // Create login schema with email and password
 const loginSchema = S.object({
-  email: S.String.email(S.string),
-  password: S.String.min(S.string, 8),
+  email: S.email(S.string),
+  password: S.stringMinLength(S.string, 8),
 });
 
 // Infer output TypeScript type of login schema
@@ -86,7 +86,6 @@ S.string;
 S.number;
 S.integer; // ReScript's S.int
 S.boolean;
-S.json;
 
 // empty type
 S.undefined;
@@ -125,32 +124,32 @@ const cliArgsSchema = S.literal(["help", "lint"] as const);
 **rescript-schema** includes a handful of string-specific refinements and transforms:
 
 ```ts
-S.String.max(S.string, 5); // String must be 5 or fewer characters long
-S.String.min(S.string, 5); // String must be 5 or more characters long
-S.String.length(S.string, 5); // String must be exactly 5 characters long
-S.String.email(S.string); // Invalid email address
-S.String.url(S.string); // Invalid url
-S.String.uuid(S.string); // Invalid UUID
-S.String.cuid(S.string); // Invalid CUID
-S.String.pattern(S.string, %re(`/[0-9]/`)); // Invalid
-S.String.datetime(S.string); // Invalid datetime string! Must be UTC
+S.stringMaxLength(S.string, 5); // String must be 5 or fewer characters long
+S.stringMinLength(S.string, 5); // String must be 5 or more characters long
+S.stringLength(S.string, 5); // String must be exactly 5 characters long
+S.email(S.string); // Invalid email address
+S.url(S.string); // Invalid url
+S.uuid(S.string); // Invalid UUID
+S.cuid(S.string); // Invalid CUID
+S.pattern(S.string, %re(`/[0-9]/`)); // Invalid
+S.datetime(S.string); // Invalid datetime string! Must be UTC
 
-S.String.trim(S.string); // trim whitespaces
+S.trim(S.string); // trim whitespaces
 ```
 
 When using built-in refinements, you can provide a custom error message.
 
 ```ts
-S.String.min(S.string, 1, "String can't be empty");
-S.String.length(S.string, 5, "SMS code should be 5 digits long");
+S.stringMinLength(S.string, 1, "String can't be empty");
+S.stringLength(S.string, 5, "SMS code should be 5 digits long");
 ```
 
 ### ISO datetimes
 
-The `S.String.datetime(S.string)` function has following UTC validation: no timezone offsets with arbitrary sub-second decimal precision.
+The `S.datetime(S.string)` function has following UTC validation: no timezone offsets with arbitrary sub-second decimal precision.
 
 ```ts
-const datetimeSchema = S.String.datetime(S.string);
+const datetimeSchema = S.datetime(S.string);
 // The datetimeSchema has the type S.Schema<Date, string>
 // String is transformed to the Date instance
 
@@ -165,14 +164,14 @@ S.parseOrThrow(datetimeSchema, "2020-01-01T00:00:00+02:00"); // fail (no offsets
 **rescript-schema** includes some of number-specific refinements:
 
 ```ts
-S.Number.max(S.number, 5); // Number must be lower than or equal to 5
-S.Number.min(S.number 5); // Number must be greater than or equal to 5
+S.numberMax(S.number, 5); // Number must be lower than or equal to 5
+S.numberMin(S.number 5); // Number must be greater than or equal to 5
 ```
 
 Optionally, you can pass in a second argument to provide a custom error message.
 
 ```ts
-S.Number.max(S.number, 5, "this👏is👏too👏big");
+S.numberMax(S.number, 5, "this👏is👏too👏big");
 ```
 
 ## NaNs
@@ -335,9 +334,9 @@ const stringArraySchema = S.array(S.string);
 **rescript-schema** includes some of array-specific refinements:
 
 ```ts
-S.Array.max(S.array(S.string), 5); // Array must be 5 or fewer items long
-S.Array.min(S.array(S.string) 5); // Array must be 5 or more items long
-S.Array.length(S.array(S.string) 5); // Array must be exactly 5 items long
+S.arrayMaxLength(S.array(S.string), 5); // Array must be 5 or fewer items long
+S.arrayMinLength(S.array(S.string) 5); // Array must be 5 or more items long
+S.arrayLength(S.array(S.string) 5); // Array must be exactly 5 items long
 ```
 
 ## Tuples
@@ -435,8 +434,10 @@ let circleSchema = S.schema(
 
 The `S.json` schema makes sure that the value is compatible with JSON.
 
+It accepts a boolean as an argument. If it's true, then the value will be validated as valid JSON; otherwise, it unsafely casts it to the `S.Json` type.
+
 ```ts
-S.parseOrThrow(S.json, "foo"); // passes
+S.parseOrThrow(S.json(true), `"foo"`); // passes
 ```
 
 ## JSON string
@@ -498,7 +499,7 @@ Also, you can have an asynchronous refinement (for parser only):
 
 ```ts
 const userSchema = S.object({
-  id: S.asyncParserRefine(S.String.uuid(S.string), async (id, s) => {
+  id: S.asyncParserRefine(S.uuid(S.string), async (id, s) => {
     const isActiveUser = await checkIsActiveUser(id);
     if (!isActiveUser) {
       s.fail(`The user ${id} is inactive.`);
