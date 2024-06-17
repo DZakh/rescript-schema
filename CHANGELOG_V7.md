@@ -4,7 +4,7 @@
 
 ### `s.flatten`
 
-Now it's possible to spread/flatten an object schema in another object schema, allowing you to reuse schemas in a more powerful way.
+Now, it's possible to spread/flatten an object schema in another object schema, allowing you to reuse schemas in a more powerful way.
 
 ```rescript
 type entityData = {
@@ -46,7 +46,7 @@ let schema = S.object(s => {
 
 ### Object destructuring
 
-Also, it's possible to destructure object field schemas inside of definition. You could also notice it in the `s.flatten` example 😁
+Also, it's possible to destructure object field schemas inside of the definition. You could also notice it in the `s.flatten` example 😁
 
 ```rescript
 let entitySchema = S.object(s => {
@@ -80,7 +80,7 @@ let entitySchema = S.object(s => {
 })
 ```
 
-> 🧠 Destructuring works only with not-transformed object schemas. Be careful, since it's not protected by typesystem.
+> 🧠 Destructuring works only with not-transformed object schemas. Be careful since it's not protected by type system.
 
 ## Autocomplete improvements ⌨️
 
@@ -104,7 +104,7 @@ Added unsafe mode for `S.json`:
 ## Other cool changes and sometimes breaking 💣
 
 - Added `serializeToJsonStringOrRaiseWith`
-- Allow to create `S.union` with single item
+- Allow to create `S.union` with a single item
 - Removed `s.failWithError`. Use `S.Error.raise` instead
 - PPX: Removed `@schema` for type expressions. Use `@s.matches` instead.
 - Removed async support for `S.union`. Please create an issue if you used the feature
@@ -112,11 +112,11 @@ Added unsafe mode for `S.json`:
 - Automatic serializing stopped working for tuples/objects/unions of literals. Use `S.literal` instead
 - Removed `InvalidTupleSize` error code in favor of `InvalidType`
 - Changed payload of `Object` and `Tuple` variants in the `tagged` type
-- Redesigned `Literal` module to make it more effecient
+- Redesigned `Literal` module to make it more efficient
 
   - The `S.Literal.t` type was renamed to `S.literal`, became private and changed structure. Use `S.Literal.parse` to create instances of the type
   - `S.Literal.classify` -> `S.Literal.parse`
-  - `S.Literal.toText` -> `S.Literal.toString`. Also, started using `.toString` for `Function` literalls and removed spaces for `Dict` and `Array` literals to make them look the same as the `JSON.stringify` output
+  - `S.Literal.toText` -> `S.Literal.toString`. Also, started using `.toString` for `Function` literals and removed spaces for `Dict` and `Array` literals to make them look the same as the `JSON.stringify` output
 
 - Moved built-in refinements from nested modules to improve tree-shaking:
 
