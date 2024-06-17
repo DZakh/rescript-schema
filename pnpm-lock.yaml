@@ -75,8 +75,8 @@ importers:
   packages/rescript-schema-ppx:
     dependencies:
       rescript-schema:
-        specifier: 7.0.0
-        version: 7.0.0(rescript@11.1.0)
+        specifier: 7.0.1
+        version: 7.0.1(rescript@11.1.0)
 
   packages/tests: {}
 
@@ -769,8 +769,8 @@ packages:
   rescript-nodejs@16.1.0:
     resolution: {integrity: sha512-RyXGIEsb8UhuShf5PwKcTkYNPz+cPQ0CZq74lbYCbCa5YFidbmiIWpQhCMtpsgP1PkLClhKGDkfZfmwwNOil4Q==}
 
-  rescript-schema@7.0.0:
-    resolution: {integrity: sha512-+Bl/6/dsLNtTb+omn+btvxqrMxhYQ14eRKd1ufs0P8E29y3aP3SlRoLhBSHuOD7SND/E+ZidTwyTCCnd6XfEag==}
+  rescript-schema@7.0.1:
+    resolution: {integrity: sha512-iCcYsHO8owjlB5uWQ50tXQnMBwsNlsOUAPNGJ8tUxPn8bhq3TIVJLTAnnRDJxHuSZj7fj4nXltCjj2pr606tSA==}
     peerDependencies:
       rescript: 11.x
 
@@ -1649,7 +1649,7 @@ snapshots:
 
   rescript-nodejs@16.1.0: {}
 
-  rescript-schema@7.0.0(rescript@11.1.0):
+  rescript-schema@7.0.1(rescript@11.1.0):
     dependencies:
       rescript: 11.1.0
 
