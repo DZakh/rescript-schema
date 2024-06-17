@@ -2825,17 +2825,18 @@ module Union = {
 
               let bb = b->B.scope
               let itemOutput = bb->B.serialize(~schema, ~input, ~path=Path.empty)
+              b.code = b.code ++ `try{${bb->B.allocateScope}`
+
               switch schema.maybeTypeFilter {
               | Some(typeFilter) =>
-                bb.code =
-                  bb.code ++
-                  bb->B.typeFilterCode(~schema, ~typeFilter, ~input=itemOutput, ~path=Path.empty)
+                let code =
+                  b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemOutput, ~path=Path.empty)
+                b.code = b.code ++ code
+
               | None => ()
               }
 
-              b.code =
-                b.code ++
-                `try{${bb->B.allocateScope}${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
+              b.code = b.code ++ `${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
               codeEndRef := codeEndRef.contents ++ "}"
               errorCodeRef := errorCodeRef.contents ++ errorVar ++ ","
             } catch {

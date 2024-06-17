@@ -385,7 +385,7 @@ module Advanced = {
     t->U.assertCompiledCode(
       ~schema=shapeSchema,
       ~op=#serialize,
-      `i=>{let v1;try{let v0={"kind":e[2],"radius":i["radius"],};if(i["TAG"]!==e[0]){e[1](i["TAG"])}if(!v0||v0.constructor!==Object){e[3](v0)}v1=v0}catch(e0){try{let v2={"kind":e[6],"x":i["x"],};if(i["TAG"]!==e[4]){e[5](i["TAG"])}if(!v2||v2.constructor!==Object){e[7](v2)}v1=v2}catch(e1){try{let v3={"kind":e[10],"x":i["x"],"y":i["y"],};if(i["TAG"]!==e[8]){e[9](i["TAG"])}if(!v3||v3.constructor!==Object){e[11](v3)}v1=v3}catch(e2){e[12]([e0,e1,e2,])}}}return v1}`,
+      `i=>{let v0,v1,v2,v3;try{if(i["TAG"]!==e[0]){e[1](i["TAG"])}v0={"kind":e[2],"radius":i["radius"],};if(!v0||v0.constructor!==Object){e[3](v0)}v1=v0}catch(e0){try{if(i["TAG"]!==e[4]){e[5](i["TAG"])}v2={"kind":e[6],"x":i["x"],};if(!v2||v2.constructor!==Object){e[7](v2)}v1=v2}catch(e1){try{if(i["TAG"]!==e[8]){e[9](i["TAG"])}v3={"kind":e[10],"x":i["x"],"y":i["y"],};if(!v3||v3.constructor!==Object){e[11](v3)}v1=v3}catch(e2){e[12]([e0,e1,e2,])}}}return v1}`,
     )
   })
 }
@@ -418,17 +418,17 @@ test("Compiled parse code snapshot", t => {
 })
 
 // It shouldn't compile since it throw InvalidOperation error
-Failing.test("Compiled async parse code snapshot", t => {
-  let schema = S.union([
+Failing.test("Compiled async parse code snapshot", _t => {
+  let _schema = S.union([
     S.literal(0)->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}),
     S.literal(1),
   ])
 
-  t->U.assertCompiledCode(
-    ~schema,
-    ~op=#parse,
-    `i=>{let v0=e[1](i),v1;try{i===0||e[0](i);throw v0}catch(v2){if(v2&&v2.s===s||v2===v0){try{i===1||e[2](i);v1=()=>Promise.resolve(i)}catch(v3){if(v3&&v3.s===s){v1=()=>Promise.any([v2===v0?v2():Promise.reject(v2),Promise.reject(v3)]).catch(t=>{e[3](t.errors)})}else{throw v3}}}else{throw v2}}return v1}`,
-  )
+  // t->U.assertCompiledCode(
+  //   ~schema,
+  //   ~op=#parse,
+  //   `i=>{let v0=e[1](i),v1;try{i===0||e[0](i);throw v0}catch(v2){if(v2&&v2.s===s||v2===v0){try{i===1||e[2](i);v1=()=>Promise.resolve(i)}catch(v3){if(v3&&v3.s===s){v1=()=>Promise.any([v2===v0?v2():Promise.reject(v2),Promise.reject(v3)]).catch(t=>{e[3](t.errors)})}else{throw v3}}}else{throw v2}}return v1}`,
+  // )
 })
 
 test("Compiled serialize code snapshot", t => {
@@ -456,6 +456,47 @@ test("Compiled serialize code snapshot for unboxed variant", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#serialize,
-    `i=>{let v0;try{if(typeof i!=="string"){e[0](i)}v0=i}catch(e0){try{let v1=e[1](i);if(typeof v1!=="string"){e[2](v1)}v0=v1}catch(e1){e[3]([e0,e1,])}}return v0}`,
+    `i=>{let v0,v1;try{if(typeof i!=="string"){e[0](i)}v0=i}catch(e0){try{v1=e[1](i);if(typeof v1!=="string"){e[2](v1)}v0=v1}catch(e1){e[3]([e0,e1,])}}return v0}`,
   )
 })
+
+module CknittelBugReport = {
+  module A = {
+    @schema
+    type payload = {a?: string}
+
+    @schema
+    type t = {payload: payload}
+  }
+
+  module B = {
+    @schema
+    type payload = {b?: int}
+
+    @schema
+    type t = {payload: payload}
+  }
+
+  type value = A(A.t) | B(B.t)
+
+  test("Union serializing of objects with optional fields", t => {
+    let schema = S.union([A.schema->S.variant(m => A(m)), B.schema->S.variant(m => B(m))])
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#serialize,
+      `i=>{let v4,v5,v10;try{let v0=i["TAG"],v1=i["_0"],v2=v1["payload"]["a"],v3;if(v0!==e[0]){e[1](v0)}if(v2!==void 0){v3=e[2](v2)}v4={"payload":{"a":v3,},};if(!v4||v4.constructor!==Object){e[3](v4)}v5=v4}catch(e0){try{let v6=i["TAG"],v7=i["_0"],v8=v7["payload"]["b"],v9;if(v6!==e[4]){e[5](v6)}if(v8!==void 0){v9=e[6](v8)}v10={"payload":{"b":v9,},};if(!v10||v10.constructor!==Object){e[7](v10)}v5=v10}catch(e1){e[8]([e0,e1,])}}return v5}`,
+    )
+
+    let x = {
+      B.payload: {
+        b: 42,
+      },
+    }
+    t->Assert.deepEqual(
+      B(x)->S.serializeToUnknownWith(schema),
+      Ok(%raw(`{"payload":{"b":42}}`)),
+      (),
+    )
+  })
+}

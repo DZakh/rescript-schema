@@ -2143,11 +2143,13 @@ function factory$8(schemas) {
                     var errorVar = "e" + idx;
                     var bb = scope(b);
                     var itemOutput = schema.s(bb, input, schema, "");
+                    b.c = b.c + ("try{" + allocateScope(bb));
                     var typeFilter = schema.f;
                     if (typeFilter !== undefined) {
-                      bb.c = bb.c + typeFilterCode(bb, typeFilter, schema, itemOutput, "");
+                      var code = typeFilterCode(b, typeFilter, schema, itemOutput, "");
+                      b.c = b.c + code;
                     }
-                    b.c = b.c + ("try{" + allocateScope(bb) + set(b, output, itemOutput) + "}catch(" + errorVar + "){");
+                    b.c = b.c + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
                     codeEndRef = codeEndRef + "}";
                     errorCodeRef = errorCodeRef + errorVar + ",";
                   }
