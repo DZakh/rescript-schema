@@ -25,6 +25,7 @@ Highlights:
 
 Also, it has declarative API allowing you to use **rescript-schema** as a building block for other tools, such as:
 
+- [rescript-rest](https://github.com/DZakh/rescript-rest) - RPC-like client, contract, and server implementation for a pure REST API
 - [rescript-envsafe](https://github.com/DZakh/rescript-envsafe) - Makes sure you don't accidentally deploy apps with missing or invalid environment variables
 - [rescript-json-schema](https://github.com/DZakh/rescript-json-schema) - Typesafe JSON schema for ReScript
 - Internal form library at [Carla](https://www.carla.se/)
