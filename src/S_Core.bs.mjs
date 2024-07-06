@@ -1254,71 +1254,6 @@ function literal(value) {
 
 var unit = literal((void 0));
 
-function factory(schema, definer) {
-  return {
-          r: schema.r,
-          n: schema.n,
-          p: (function (b, input, param, path) {
-              return embedSyncOperation(b, schema.p(b, input, schema, path), definer);
-            }),
-          s: (function (b, input, selfSchema, path) {
-              var inputVar = $$var(b, input);
-              var definition = definer(symbol);
-              var definitionToValue = function (definition, valuePath) {
-                if (symbol === definition) {
-                  return valuePath === "" ? input : val(b, inputVar + valuePath);
-                }
-                if (typeof definition === "object" && definition !== null) {
-                  var keys = Object.keys(definition);
-                  var maybeOutputRef = 0;
-                  for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-                    var key = keys[idx];
-                    var definition$1 = definition[key];
-                    var maybeOutput = definitionToValue(definition$1, valuePath + ("[" + JSON.stringify(key) + "]"));
-                    var match = maybeOutputRef;
-                    if (typeof match !== "object") {
-                      if (match === 0) {
-                        maybeOutputRef = maybeOutput;
-                      }
-                      
-                    } else if (!(typeof maybeOutput !== "object" && maybeOutput === 0)) {
-                      maybeOutputRef = 1;
-                    }
-                    
-                  }
-                  return maybeOutputRef;
-                }
-                var constantVal = valuePath === "" ? input : val(b, inputVar + valuePath);
-                var constantVar = $$var(b, constantVal);
-                b.c = b.c + ("if(" + constantVar + "!==" + ("e[" + (b.g.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + valuePath, (function (input) {
-                          return {
-                                  TAG: "InvalidLiteral",
-                                  expected: parseInternal(definition),
-                                  received: input
-                                };
-                        }), constantVar) + "}");
-                return 0;
-              };
-              var output = definitionToValue(definition, "");
-              if (typeof output === "object") {
-                return schema.s(b, output, schema, path);
-              }
-              if (output !== 0) {
-                return invalidOperation(b, path, "The S.variant's value is registered multiple times");
-              }
-              if (selfSchema.r.TAG !== "Literal") {
-                return invalidOperation(b, path, "The S.variant's value is not registered");
-              }
-              var value = selfSchema.r._0.value;
-              var input$1 = val(b, "e[" + (b.g.e.push(value) - 1) + "]");
-              return schema.s(b, input$1, schema, path);
-            }),
-          f: schema.f,
-          i: 0,
-          m: schema.m
-        };
-}
-
 var defaultMetadataId = "rescript-schema:Option.default";
 
 function $$default(schema) {
@@ -1372,7 +1307,7 @@ function maybeTypeFilter(schema, inlinedNoneValue) {
   
 }
 
-function factory$1(schema) {
+function factory(schema) {
   return {
           r: {
             TAG: "Option",
@@ -1420,7 +1355,7 @@ function getOrWith(schema, defalutCb) {
             });
 }
 
-function factory$2(schema) {
+function factory$1(schema) {
   return {
           r: {
             TAG: "Null",
@@ -1436,7 +1371,7 @@ function factory$2(schema) {
 }
 
 function nullable(schema) {
-  return factory$1(factory$2(schema));
+  return factory(factory$1(schema));
 }
 
 function builder(b, input, selfSchema, path) {
@@ -1631,7 +1566,7 @@ function name() {
               }).join(", ") + "})";
 }
 
-function factory$3(definer) {
+function factory$2(definer) {
   var fields = {};
   var items = [];
   var flatten = function (schema) {
@@ -1650,7 +1585,7 @@ function factory$3(definer) {
       }
       throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " defined twice with incompatible schemas"));
     }
-    var schema$1 = schema.d ? factory$3(schema.d) : schema;
+    var schema$1 = schema.d ? factory$2(schema.d) : schema;
     var item_p = "[" + inlinedLocation + "]";
     var item$1 = {
       t: schema$1,
@@ -1671,12 +1606,12 @@ function factory$3(definer) {
     field(tag$1, literal(asValue));
   };
   var fieldOr = function (fieldName, schema, or) {
-    return field(fieldName, getOr(factory$1(schema), or));
+    return field(fieldName, getOr(factory(schema), or));
   };
   var nestedField = function (fieldName, nestedFieldName, schema) {
     var item = fields[fieldName];
     if (item === undefined) {
-      return field(fieldName, factory$3(function (s) {
+      return field(fieldName, factory$2(function (s) {
                       return s.f(nestedFieldName, schema);
                     }));
     }
@@ -1745,6 +1680,77 @@ function strip(schema) {
 
 function strict(schema) {
   return setUnknownKeys(schema, "Strict");
+}
+
+function factory$3(schema, definer) {
+  if (schema.d) {
+    return factory$2(function (ctx) {
+                return definer(schema.d(ctx));
+              });
+  } else {
+    return {
+            r: schema.r,
+            n: schema.n,
+            p: (function (b, input, param, path) {
+                return embedSyncOperation(b, schema.p(b, input, schema, path), definer);
+              }),
+            s: (function (b, input, selfSchema, path) {
+                var inputVar = $$var(b, input);
+                var definition = definer(symbol);
+                var definitionToValue = function (definition, valuePath) {
+                  if (symbol === definition) {
+                    return valuePath === "" ? input : val(b, inputVar + valuePath);
+                  }
+                  if (typeof definition === "object" && definition !== null) {
+                    var keys = Object.keys(definition);
+                    var maybeOutputRef = 0;
+                    for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+                      var key = keys[idx];
+                      var definition$1 = definition[key];
+                      var maybeOutput = definitionToValue(definition$1, valuePath + ("[" + JSON.stringify(key) + "]"));
+                      var match = maybeOutputRef;
+                      if (typeof match !== "object") {
+                        if (match === 0) {
+                          maybeOutputRef = maybeOutput;
+                        }
+                        
+                      } else if (!(typeof maybeOutput !== "object" && maybeOutput === 0)) {
+                        maybeOutputRef = 1;
+                      }
+                      
+                    }
+                    return maybeOutputRef;
+                  }
+                  var constantVal = valuePath === "" ? input : val(b, inputVar + valuePath);
+                  var constantVar = $$var(b, constantVal);
+                  b.c = b.c + ("if(" + constantVar + "!==" + ("e[" + (b.g.e.push(definition) - 1) + "]") + "){" + raiseWithArg(b, path + valuePath, (function (input) {
+                            return {
+                                    TAG: "InvalidLiteral",
+                                    expected: parseInternal(definition),
+                                    received: input
+                                  };
+                          }), constantVar) + "}");
+                  return 0;
+                };
+                var output = definitionToValue(definition, "");
+                if (typeof output === "object") {
+                  return schema.s(b, output, schema, path);
+                }
+                if (output !== 0) {
+                  return invalidOperation(b, path, "The S.variant's value is registered multiple times");
+                }
+                if (selfSchema.r.TAG !== "Literal") {
+                  return invalidOperation(b, path, "The S.variant's value is not registered");
+                }
+                var value = selfSchema.r._0.value;
+                var input$1 = val(b, "e[" + (b.g.e.push(value) - 1) + "]");
+                return schema.s(b, input$1, schema, path);
+              }),
+            f: schema.f,
+            i: 0,
+            m: schema.m
+          };
+  }
 }
 
 var schema$1 = {
@@ -2316,7 +2322,7 @@ function definitionToSchema(definition, embededSet) {
                   return definition;
                 });
     } else {
-      return factory$3(function (s) {
+      return factory$2(function (s) {
                   var objectDefinition = {};
                   var keys = Object.keys(definition);
                   for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
@@ -3013,7 +3019,7 @@ function js_asyncParserRefine(schema, refine) {
 }
 
 function js_optional(schema, maybeOr) {
-  var schema$1 = factory$1(schema);
+  var schema$1 = factory(schema);
   if (maybeOr === undefined) {
     return schema$1;
   }
@@ -3052,9 +3058,9 @@ function js_custom(name, maybeParser, maybeSerializer, param) {
 
 function js_object(definer) {
   if (typeof definer === "function") {
-    return factory$3(definer);
+    return factory$2(definer);
   } else {
-    return factory$3(function (s) {
+    return factory$2(function (s) {
                 var definition = {};
                 var fieldNames = Object.keys(definer);
                 for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
@@ -3162,15 +3168,15 @@ var array = factory$5;
 
 var dict = factory$6;
 
-var option = factory$1;
+var option = factory;
 
-var $$null$1 = factory$2;
+var $$null$1 = factory$1;
 
 var jsonString = factory$4;
 
 var union = factory$8;
 
-var variant = factory;
+var variant = factory$3;
 
 var parseWith = parseAnyWith;
 
@@ -3185,12 +3191,12 @@ var Schema = {};
 var schema$6 = factory$9;
 
 var $$Object = {
-  factory: factory$3,
+  factory: factory$2,
   strip: strip,
   strict: strict
 };
 
-var object = factory$3;
+var object = factory$2;
 
 var Tuple = {};
 

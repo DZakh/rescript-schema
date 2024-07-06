@@ -106,6 +106,35 @@ test("Fails to serialize when value registered multiple times", t => {
   )
 })
 
+test("Can destructure object value passed to S.variant", t => {
+  let schema =
+    S.object(s => (s.field("foo", S.string), s.field("bar", S.string)))->S.variant(((foo, bar)) =>
+      {"foo": foo, "bar": bar}
+    )
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#parse,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
+  )
+  t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
+})
+
+test("Compiled code snapshot of variant applied to object", t => {
+  let schema = S.object(s => s.field("foo", S.string))->S.variant(s => Ok(s))
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#parse,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return {"TAG":e[1],"_0":v0,}}`,
+  )
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#serialize,
+    `i=>{if(i["TAG"]!==e[0]){e[1](i["TAG"])}return {"foo":i["_0"],}}`,
+  )
+})
+
 test("Compiled parse code snapshot", t => {
   let schema = S.string->S.variant(s => Ok(s))
 

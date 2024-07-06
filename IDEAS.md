@@ -29,7 +29,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Make operations more treeshakable by starting passing the actual operation to the initialOperation function. Or add a condition (verify performance)
 - Rename `InvalidJsonStruct` error, since after `rescript-struct`->`rescript-schema` it became misleading
 - Add S.bigint
-- Allow object destructuring in S.variant
 
 ## v???
 

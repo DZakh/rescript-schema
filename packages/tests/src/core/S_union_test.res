@@ -485,7 +485,7 @@ module CknittelBugReport = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#serialize,
-      `i=>{let v4,v5,v10;try{let v0=i["TAG"],v1=i["_0"],v2=v1["payload"]["a"],v3;if(v0!==e[0]){e[1](v0)}if(v2!==void 0){v3=e[2](v2)}v4={"payload":{"a":v3,},};if(!v4||v4.constructor!==Object){e[3](v4)}v5=v4}catch(e0){try{let v6=i["TAG"],v7=i["_0"],v8=v7["payload"]["b"],v9;if(v6!==e[4]){e[5](v6)}if(v8!==void 0){v9=e[6](v8)}v10={"payload":{"b":v9,},};if(!v10||v10.constructor!==Object){e[7](v10)}v5=v10}catch(e1){e[8]([e0,e1,])}}return v5}`,
+      `i=>{let v2,v3,v6;try{let v0=i["_0"]["payload"]["a"],v1;if(i["TAG"]!==e[0]){e[1](i["TAG"])}if(v0!==void 0){v1=e[2](v0)}v2={"payload":{"a":v1,},};if(!v2||v2.constructor!==Object){e[3](v2)}v3=v2}catch(e0){try{let v4=i["_0"]["payload"]["b"],v5;if(i["TAG"]!==e[4]){e[5](i["TAG"])}if(v4!==void 0){v5=e[6](v4)}v6={"payload":{"b":v5,},};if(!v6||v6.constructor!==Object){e[7](v6)}v3=v6}catch(e1){e[8]([e0,e1,])}}return v3}`,
     )
 
     let x = {
