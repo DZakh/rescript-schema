@@ -79,10 +79,10 @@ function assertCompiledCode(t, schema, op, code, message) {
   if (op === "parse") {
     if (S$RescriptSchema.isAsyncParse(schema)) {
       S$RescriptSchema.parseAsyncInStepsWith(undefined, schema);
-      compiledCode = (schema.opa.toString());
+      compiledCode = (schema.a.toString());
     } else {
       S$RescriptSchema.parseAnyWith(undefined, schema);
-      compiledCode = (schema.op.toString());
+      compiledCode = (schema.parseOrThrow.toString());
     }
   } else {
     try {
@@ -91,7 +91,7 @@ function assertCompiledCode(t, schema, op, code, message) {
     catch (exn){
       
     }
-    compiledCode = (schema.os.toString());
+    compiledCode = (schema.serializeOrThrow.toString());
   }
   t.is(compiledCode, code, message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }
@@ -101,10 +101,10 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
   if (op === "parse") {
     if (S$RescriptSchema.isAsyncParse(schema)) {
       S$RescriptSchema.parseAsyncInStepsWith(undefined, schema);
-      compiledCode = (schema.opa.toString());
+      compiledCode = (schema.a.toString());
     } else {
       S$RescriptSchema.parseAnyWith(undefined, schema);
-      compiledCode = (schema.op.toString());
+      compiledCode = (schema.parseOrThrow.toString());
     }
   } else {
     try {
@@ -113,7 +113,7 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
     catch (exn){
       
     }
-    compiledCode = (schema.os.toString());
+    compiledCode = (schema.serializeOrThrow.toString());
   }
   t.truthy(compiledCode.startsWith("function noopOperation(i)"), message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }

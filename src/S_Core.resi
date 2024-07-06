@@ -412,10 +412,4 @@ let js_object: unknown => t<dict<unknown>>
 
 let js_merge: (t<unknown>, t<unknown>) => t<unknown>
 
-let js_parse: (t<'output>, 'a) => jsResult<'output>
-let js_parseOrThrow: (t<'output>, 'a) => 'output
-let js_parseAsync: (t<'output>, 'a) => promise<jsResult<'output>>
-let js_serialize: (t<'output>, 'output) => jsResult<'input>
-let js_serializeOrThrow: (t<'output>, 'output) => unknown
-
 let js_name: t<'value> => string

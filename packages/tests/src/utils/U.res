@@ -71,10 +71,10 @@ let assertCompiledCode = (t, ~schema, ~op: [#parse | #serialize], code, ~message
   | #parse =>
     if schema->S.isAsyncParse {
       let _ = %raw(`undefined`)->S.parseAsyncInStepsWith(schema)
-      %raw(`schema.opa.toString()`)
+      %raw(`schema.a.toString()`)
     } else {
       let _ = %raw(`undefined`)->S.parseAnyWith(schema)
-      %raw(`schema.op.toString()`)
+      %raw(`schema.parseOrThrow.toString()`)
     }
   | #serialize => {
       try {
@@ -82,7 +82,7 @@ let assertCompiledCode = (t, ~schema, ~op: [#parse | #serialize], code, ~message
       } catch {
       | _ => ()
       }
-      %raw(`schema.os.toString()`)
+      %raw(`schema.serializeOrThrow.toString()`)
     }
   }
   t->Assert.is(compiledCode, code, ~message?, ())
@@ -93,10 +93,10 @@ let assertCompiledCodeIsNoop = (t, ~schema, ~op: [#parse | #serialize], ~message
   | #parse =>
     if schema->S.isAsyncParse {
       let _ = %raw(`undefined`)->S.parseAsyncInStepsWith(schema)
-      %raw(`schema.opa.toString()`)
+      %raw(`schema.a.toString()`)
     } else {
       let _ = %raw(`undefined`)->S.parseAnyWith(schema)
-      %raw(`schema.op.toString()`)
+      %raw(`schema.parseOrThrow.toString()`)
     }
   | #serialize => {
       try {
@@ -104,7 +104,7 @@ let assertCompiledCodeIsNoop = (t, ~schema, ~op: [#parse | #serialize], ~message
       } catch {
       | _ => ()
       }
-      %raw(`schema.os.toString()`)
+      %raw(`schema.serializeOrThrow.toString()`)
     }
   }
   t->Assert.truthy(compiledCode->String.startsWith("function noopOperation(i)"), ~message?, ())

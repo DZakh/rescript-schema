@@ -146,7 +146,7 @@ new B.Suite()
     });
   })
   .add("rescript-schema (parse)", () => {
-    return S.parseOrThrow(schema, data);
+    return schema.parseOrThrow(data);
   })
   .add("rescript-schema (create + parse)", () => {
     const schema = S.object({
@@ -162,7 +162,7 @@ new B.Suite()
         bool: S.boolean,
       }),
     });
-    return S.parseOrThrow(schema, data);
+    return schema.parseOrThrow(data);
   })
   .on("cycle", (event) => {
     console.log(String(event.target));

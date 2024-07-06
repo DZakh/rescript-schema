@@ -35,6 +35,18 @@ test("Successfully serializes JSON object", t => {
   )
 })
 
+test("Fails to serialize Option schema", t => {
+  let schema = S.jsonString(S.option(S.bool))
+  t->U.assertErrorResult(
+    None->S.serializeToUnknownWith(schema),
+    {
+      code: InvalidJsonStruct(S.option(S.bool)->S.toUnknown),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
+  )
+})
+
 test("Successfully serializes JSON object with space", t => {
   let schema = S.schema(_ =>
     {

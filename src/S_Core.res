@@ -248,6 +248,20 @@ type rec t<'value> = {
   mutable definerCtx?: char,
   @as("m")
   metadataMap: dict<unknown>,
+  @as("a")
+  mutable parseAsyncOrRaise: unknown => unit => promise<unknown>,
+  @as("parseOrThrow")
+  mutable parseOrRaise: unknown => unknown,
+  @as("parse")
+  jsParse: unknown => jsResult<unknown>,
+  @as("parseAsync")
+  jsParseAsync: unknown => promise<jsResult<unknown>>,
+  @as("serialize")
+  jsSerialize: unknown => jsResult<unknown>,
+  @as("serializeOrThrow")
+  mutable serializeToUnknownOrRaise: unknown => unknown,
+  @as("serializeToJsonOrThrow")
+  mutable serializeOrRaise: unknown => Js.Json.t,
 }
 and tagged =
   | Never
@@ -317,7 +331,7 @@ and internalOperation =
   | SerializeToUnknown
   | SerializeToJsonString
 and schema<'a> = t<'a>
-type rec error = private {operation: operation, code: errorCode, path: Path.t}
+and error = private {operation: operation, code: errorCode, path: Path.t}
 and errorCode =
   | OperationFailed(string)
   | InvalidOperation({description: string})
@@ -327,6 +341,9 @@ and errorCode =
   | InvalidUnion(array<error>)
   | UnexpectedAsync
   | InvalidJsonStruct(schema<unknown>)
+@tag("success")
+and jsResult<'value> = | @as(true) Success({value: 'value}) | @as(false) Failure({error: error})
+
 type exn += private Raised(error)
 
 external castUnknownSchemaToAnySchema: t<unknown> => t<'any> = "%identity"
@@ -335,6 +352,13 @@ external toUnknown: t<'any> => t<unknown> = "%identity"
 let unsafeGetVariantPayload = variant => (variant->Obj.magic)["_0"]
 let unsafeGetVarianTag = (variant): string => (variant->Obj.magic)["TAG"]
 let unsafeGetErrorPayload = variant => (variant->Obj.magic)["_1"]
+
+let toJsResult = (result: result<'value, error>): jsResult<'value> => {
+  switch result {
+  | Ok(value) => Success({value: value})
+  | Error(error) => Failure({error: error})
+  }
+}
 
 module InternalError = {
   %%raw(`
@@ -711,10 +735,6 @@ module Builder = {
   }
 
   let noop = make((_b, ~input, ~selfSchema as _, ~path as _) => input)
-  let noopInvalidJson = make((b, ~input, ~selfSchema, ~path) => {
-    b->B.registerInvalidJson(~selfSchema, ~path)
-    input
-  })
 
   let noopOperation = i => i->Obj.magic
 
@@ -755,12 +775,8 @@ module Builder = {
     }
 
     // FIXME:
-    if (
-      schema.rawTagged->unsafeGetVarianTag === "Option" &&
-        (operation === SerializeToJson || operation === SerializeToJsonString)
-    ) {
-      _ => b->B.raise(~path=Path.empty, ~code=InvalidJsonStruct(schema))
-    } else if operation === Parse && output.isAsync {
+
+    if operation === Parse && output.isAsync {
       unexpectedAsyncOperation
     } else if b.code === "" && output === input {
       noopOperation
@@ -1073,68 +1089,9 @@ let isAsyncParse = schema => {
 }
 
 @inline
-let make = (
-  ~name,
-  ~rawTagged,
-  ~metadataMap,
-  ~parseOperationBuilder,
-  ~serializeOperationBuilder,
-  ~maybeTypeFilter,
-) => {
-  rawTagged,
-  parseOperationBuilder,
-  serializeOperationBuilder,
-  isAsyncParse: Unknown,
-  maybeTypeFilter,
-  name,
-  metadataMap,
+let parseAnyOrRaiseWith = (any, schema) => {
+  schema.parseOrRaise(any->castAnyToUnknown)->castUnknownToAny
 }
-
-@inline
-let makeWithNoopSerializer = (
-  ~name,
-  ~rawTagged,
-  ~metadataMap,
-  ~parseOperationBuilder,
-  ~maybeTypeFilter,
-) => {
-  name,
-  rawTagged,
-  parseOperationBuilder,
-  serializeOperationBuilder: Builder.noop,
-  isAsyncParse: Unknown,
-  maybeTypeFilter,
-  metadataMap,
-}
-
-module Operation = {
-  type label =
-    | @as("op") Parser | @as("opa") ParserAsync | @as("os") Serializer | @as("osj") SerializerToJson
-
-  @inline
-  let make = (~label: label, ~init: t<unknown> => 'input => 'output) => {
-    (
-      (i, s) => {
-        try {
-          (s->Obj.magic->Js.Dict.unsafeGet((label :> string)))(i)
-        } catch {
-        | _ =>
-          if s->Obj.magic->Js.Dict.unsafeGet((label :> string))->Obj.magic {
-            %raw(`exn`)->Stdlib.Exn.raiseAny
-          } else {
-            let o = init(s->Obj.magic)
-            s->Obj.magic->Js.Dict.set((label :> string), o)
-            o(i)
-          }
-        }
-      }
-    )->Obj.magic
-  }
-}
-
-let parseAnyOrRaiseWith = Operation.make(~label=Parser, ~init=schema => {
-  schema.parseOperationBuilder->Builder.build(~schema, ~operation=Parse)
-})
 
 let parseAnyWith = (any, schema) => {
   try {
@@ -1154,20 +1111,9 @@ let asyncPrepareError = jsExn => {
   jsExn->(Obj.magic: Js.Exn.t => exn)->InternalError.getOrRethrow->Error
 }
 
-let internalParseAsyncWith = Operation.make(~label=ParserAsync, ~init=schema => {
-  let operation = schema.parseOperationBuilder->Builder.build(~schema, ~operation=ParseAsync)
-  let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-  isAsync
-    ? operation->(Obj.magic: (unknown => unknown) => unknown => unit => promise<unknown>)
-    : input => {
-        let syncValue = operation(input)
-        () => syncValue->Stdlib.Promise.resolve
-      }
-})
-
 let parseAnyAsyncWith = (any, schema) => {
   try {
-    internalParseAsyncWith(any->castAnyToUnknown, schema)()->Stdlib.Promise.thenResolveWithCatch(
+    schema.parseAsyncOrRaise(any->castAnyToUnknown)()->Stdlib.Promise.thenResolveWithCatch(
       asyncPrepareOk,
       asyncPrepareError,
     )
@@ -1180,7 +1126,7 @@ let parseAsyncWith = parseAnyAsyncWith
 
 let parseAnyAsyncInStepsWith = (any, schema) => {
   try {
-    let asyncFn = internalParseAsyncWith(any->castAnyToUnknown, schema)
+    let asyncFn = schema.parseAsyncOrRaise(any->castAnyToUnknown)
     (() => asyncFn()->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, asyncPrepareError))->Ok
   } catch {
   | exn => exn->InternalError.getOrRethrow->Error
@@ -1189,9 +1135,9 @@ let parseAnyAsyncInStepsWith = (any, schema) => {
 
 let parseAsyncInStepsWith = parseAnyAsyncInStepsWith
 
-let serializeOrRaiseWith = Operation.make(~label=SerializerToJson, ~init=schema => {
-  schema.serializeOperationBuilder->Builder.build(~schema, ~operation=SerializeToJson)
-})
+let serializeOrRaiseWith = (value, schema) => {
+  schema.serializeOrRaise(value->castAnyToUnknown)
+}
 
 let serializeWith = (value, schema) => {
   try {
@@ -1201,9 +1147,10 @@ let serializeWith = (value, schema) => {
   }
 }
 
-let serializeToUnknownOrRaiseWith = Operation.make(~label=Serializer, ~init=schema => {
-  schema.serializeOperationBuilder->Builder.build(~schema, ~operation=SerializeToUnknown)
-})
+@inline
+let serializeToUnknownOrRaiseWith = (value, schema) => {
+  schema.serializeToUnknownOrRaise(value->castAnyToUnknown)
+}
 
 let serializeToUnknownWith = (value, schema) => {
   try {
@@ -1243,6 +1190,119 @@ let parseJsonStringWith = (json: string, schema: t<'value>): result<'value, erro
   | Ok(json) => json->parseWith(schema)
   | Error(_) as e => e
   }
+}
+
+let initialParseOrRaise = unknown => {
+  let schema = %raw(`this`)
+  let operation = schema.parseOperationBuilder->Builder.build(~schema, ~operation=Parse)
+  schema.parseOrRaise = operation
+  operation(unknown)
+}
+
+let initialParseAsyncOrRaise = unknown => {
+  let schema = %raw(`this`)
+  let operation = schema.parseOperationBuilder->Builder.build(~schema, ~operation=ParseAsync)
+  let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+  let operation = isAsync
+    ? operation->(Obj.magic: (unknown => unknown) => unknown => unit => promise<unknown>)
+    : input => {
+        let syncValue = operation(input)
+        () => syncValue->Stdlib.Promise.resolve
+      }
+  schema.parseAsyncOrRaise = operation
+  operation(unknown)
+}
+
+let initialSerializeToUnknownOrRaise = unknown => {
+  let schema = %raw(`this`)
+  let operation =
+    schema.serializeOperationBuilder->Builder.build(~schema, ~operation=SerializeToUnknown)
+  schema.serializeToUnknownOrRaise = operation
+  operation(unknown)
+}
+
+let initialSerializeOrRaise = unknown => {
+  let schema = %raw(`this`)
+  if schema.rawTagged->unsafeGetVarianTag === "Option" {
+    Stdlib.Exn.raiseAny(
+      InternalError.make(~code=InvalidJsonStruct(schema), ~operation=Serializing, ~path=Path.empty),
+    )
+  }
+  let operation =
+    schema.serializeOperationBuilder->Builder.build(~schema, ~operation=SerializeToJson)
+  schema.serializeOrRaise = operation
+  operation(unknown)
+}
+
+let jsParse = unknown => {
+  try {
+    Success({
+      value: (%raw(`this`)).parseOrRaise(unknown),
+    })
+  } catch {
+  | exn => Failure({error: exn->InternalError.getOrRethrow})
+  }
+}
+
+let jsParseAsync = data => {
+  data->parseAnyAsyncWith(%raw(`this`))->Stdlib.Promise.thenResolve(toJsResult)
+}
+
+let jsSerialize = value => {
+  try {
+    Success({
+      value: serializeToUnknownOrRaiseWith(value, %raw(`this`))->castUnknownToAny,
+    })
+  } catch {
+  | exn => Failure({error: exn->InternalError.getOrRethrow})
+  }
+}
+
+let make = (
+  ~name,
+  ~rawTagged,
+  ~metadataMap,
+  ~parseOperationBuilder,
+  ~serializeOperationBuilder,
+  ~maybeTypeFilter,
+) => {
+  rawTagged,
+  parseOperationBuilder,
+  serializeOperationBuilder,
+  isAsyncParse: Unknown,
+  maybeTypeFilter,
+  name,
+  metadataMap,
+  parseOrRaise: initialParseOrRaise,
+  parseAsyncOrRaise: initialParseAsyncOrRaise,
+  serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
+  serializeOrRaise: initialSerializeOrRaise,
+  jsParse,
+  jsParseAsync,
+  jsSerialize,
+}
+
+let makeWithNoopSerializer = (
+  ~name,
+  ~rawTagged,
+  ~metadataMap,
+  ~parseOperationBuilder,
+  ~maybeTypeFilter,
+) => {
+  name,
+  rawTagged,
+  parseOperationBuilder,
+  serializeOperationBuilder: Builder.noop,
+  isAsyncParse: Unknown,
+  maybeTypeFilter,
+  metadataMap,
+  parseOrRaise: initialParseOrRaise,
+  parseAsyncOrRaise: initialParseAsyncOrRaise,
+  serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
+  serializeOrRaise: initialSerializeOrRaise,
+  jsParse,
+  jsParseAsync,
+  jsSerialize,
 }
 
 module Metadata = {
@@ -1319,7 +1379,7 @@ let recursive = fn => {
 
       selfSchema.parseOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path as _) => {
         if isAsync {
-          b->B.embedAsyncOperation(~input, ~fn=input => input->internalParseAsyncWith(selfSchema))
+          b->B.embedAsyncOperation(~input, ~fn=input => selfSchema.parseAsyncOrRaise(input))
         } else {
           b->B.embedSyncOperation(~input, ~fn=input => input->parseAnyOrRaiseWith(selfSchema))
         }
@@ -1327,10 +1387,10 @@ let recursive = fn => {
 
       let operation = builder->Builder.build(~schema=selfSchema, ~operation=b.global.operation)
       if isAsync {
-        selfSchema->Obj.magic->Js.Dict.set((Operation.ParserAsync :> string), operation)
+        selfSchema.parseAsyncOrRaise = operation
       } else {
         // TODO: Use init function
-        selfSchema->Obj.magic->Js.Dict.set((Operation.Parser :> string), operation)
+        selfSchema.parseOrRaise = operation
       }
 
       selfSchema.parseOperationBuilder = builder
@@ -1357,9 +1417,9 @@ let recursive = fn => {
 
       let operation = builder->Builder.build(~schema=selfSchema, ~operation=b.global.operation)
 
-      // TODO: Use init function
+      // TODO: Use init function ?
       // TODO: What about json validation ?? Check whether it works correctly
-      selfSchema->Obj.magic->Js.Dict.set((Operation.Serializer :> string), operation)
+      selfSchema.serializeToUnknownOrRaise = operation
 
       selfSchema.serializeOperationBuilder = builder
       b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) =>
@@ -2155,6 +2215,13 @@ module Object = {
         metadataMap: Metadata.Map.empty,
         definer: definer->Obj.magic,
         definerCtx: ctx->Obj.magic,
+        parseOrRaise: initialParseOrRaise,
+        parseAsyncOrRaise: initialParseAsyncOrRaise,
+        serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
+        serializeOrRaise: initialSerializeOrRaise,
+        jsParse,
+        jsParseAsync,
+        jsSerialize,
       }
     }
 
@@ -2176,6 +2243,13 @@ module Object = {
         metadataMap: schema.metadataMap,
         definer: ?schema.definer,
         definerCtx: ?schema.definerCtx,
+        parseOrRaise: initialParseOrRaise,
+        parseAsyncOrRaise: initialParseAsyncOrRaise,
+        serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
+        serializeOrRaise: initialSerializeOrRaise,
+        jsParse,
+        jsParseAsync,
+        jsSerialize,
       }
     // TODO: Should it throw for non Object schemas?
     | _ => schema
@@ -2292,15 +2366,17 @@ module Variant = {
 }
 
 module Unknown = {
-  let schema = {
-    name: primitiveName,
-    rawTagged: Unknown,
-    parseOperationBuilder: Builder.noop,
-    serializeOperationBuilder: Builder.noopInvalidJson,
-    isAsyncParse: Value(false),
-    metadataMap: Metadata.Map.empty,
-    maybeTypeFilter: None,
-  }
+  let schema = make(
+    ~name=primitiveName,
+    ~rawTagged=Unknown,
+    ~parseOperationBuilder=Builder.noop,
+    ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+      b->B.registerInvalidJson(~selfSchema, ~path)
+      input
+    }),
+    ~metadataMap=Metadata.Map.empty,
+    ~maybeTypeFilter=None,
+  )
 }
 
 module String = {
@@ -2380,6 +2456,9 @@ module JsonString = {
       ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let prevOperation = b.global.operation
         b.global.operation = SerializeToJsonString
+        if schema.rawTagged->unsafeGetVarianTag === "Option" {
+          b->B.raise(~code=InvalidJsonStruct(schema), ~path=Path.empty)
+        }
         let output =
           b->B.val(
             `JSON.stringify(${b->B.Val.inline(b->B.serialize(~schema, ~input, ~path))}${space > 0
@@ -3068,7 +3147,7 @@ module Error = {
 
   let raise = (error: error) => error->Stdlib.Exn.raiseAny
 
-  let rec reason = (error, ~nestedLevel=0) => {
+  let rec reason = (error: error, ~nestedLevel=0) => {
     switch error.code {
     | OperationFailed(reason) => reason
     | InvalidOperation({description}) => description
@@ -3105,7 +3184,7 @@ module Error = {
 
   let reason = reason->(Obj.magic: ((error, ~nestedLevel: int=?) => string) => error => string)
 
-  let message = error => {
+  let message = (error: error) => {
     let operation = switch error.operation {
     | Serializing => "serializing"
     | Parsing => "parsing"
@@ -3659,48 +3738,6 @@ let trim = schema => {
 // =============
 // JS/TS API
 // =============
-
-@tag("success")
-type jsResult<'value> = | @as(true) Success({value: 'value}) | @as(false) Failure({error: error})
-
-let toJsResult = (result: result<'value, error>): jsResult<'value> => {
-  switch result {
-  | Ok(value) => Success({value: value})
-  | Error(error) => Failure({error: error})
-  }
-}
-
-let js_parse = (schema, data) => {
-  try {
-    Success({
-      value: parseAnyOrRaiseWith(data, schema),
-    })
-  } catch {
-  | exn => Failure({error: exn->InternalError.getOrRethrow})
-  }
-}
-
-let js_parseOrThrow = (schema, data) => {
-  data->parseAnyOrRaiseWith(schema)
-}
-
-let js_parseAsync = (schema, data) => {
-  data->parseAnyAsyncWith(schema)->Stdlib.Promise.thenResolve(toJsResult)
-}
-
-let js_serialize = (schema, value) => {
-  try {
-    Success({
-      value: serializeToUnknownOrRaiseWith(value, schema),
-    })
-  } catch {
-  | exn => Failure({error: exn->InternalError.getOrRethrow})
-  }
-}
-
-let js_serializeOrThrow = (schema, value) => {
-  value->serializeToUnknownOrRaiseWith(schema)
-}
 
 let js_transform = (schema, ~parser as maybeParser=?, ~serializer as maybeSerializer=?) => {
   schema->transform(s => {

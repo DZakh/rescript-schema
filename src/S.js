@@ -28,11 +28,6 @@ export const refine = S.js_refine;
 export const transform = S.js_transform;
 export const description = S.description;
 export const describe = S.describe;
-export const parse = S.js_parse;
-export const parseOrThrow = S.js_parseOrThrow;
-export const parseAsync = S.js_parseAsync;
-export const serialize = S.js_serialize;
-export const serializeOrThrow = S.js_serializeOrThrow;
 export const name = S.js_name;
 export const setName = S.setName;
 

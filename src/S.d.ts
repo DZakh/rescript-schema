@@ -25,7 +25,14 @@ export type EffectCtx<Output, Input> = {
   fail: (message: string) => void;
 };
 
-export type Schema<Output, Input = Output> = S_t<Output, Input>;
+export type Schema<Output, Input = Output> = S_t<Output, Input> & {
+  parse(data: unknown): Result<Output>;
+  parseAsync(data: unknown): Promise<Result<Output>>;
+  parseOrThrow(data: unknown): Output;
+  serialize(value: Output): Result<Input>;
+  serializeOrThrow(value: Output): Input;
+  serializeToJsonOrThrow(value: Output): Json;
+};
 
 export type Output<T> = T extends Schema<infer Output, unknown>
   ? Output
@@ -257,27 +264,6 @@ export function describe<Output, Input>(
 export function description<Output, Input>(
   schema: Schema<Output, Input>
 ): string | undefined;
-
-export function parse<Output, Input>(
-  schema: Schema<Output, Input>,
-  data: unknown
-): Result<Output>;
-export function parseOrThrow<Output, Input>(
-  schema: Schema<Output, Input>,
-  data: unknown
-): Output;
-export function parseAsync<Output, Input>(
-  schema: Schema<Output, Input>,
-  data: unknown
-): Promise<Result<Output>>;
-export function serialize<Output, Input>(
-  schema: Schema<Output, Input>,
-  data: Output
-): Result<Input>;
-export function serializeOrThrow<Output, Input>(
-  schema: Schema<Output, Input>,
-  data: Output
-): Input;
 
 export const integerMin: <Input>(
   schema: Schema<number, Input>,
