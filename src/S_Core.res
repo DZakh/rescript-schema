@@ -292,7 +292,7 @@ and bGlobal = {
   @as("v")
   mutable varCounter: int,
   @as("o")
-  operation: operation,
+  mutable operation: internalOperation,
   @as("e")
   embeded: array<unknown>,
 }
@@ -309,6 +309,13 @@ and b = {
 and operation =
   | Parsing
   | Serializing
+// TODO: Deprecate operation in favor of internalOperation in V8
+and internalOperation =
+  | Parse
+  | ParseAsync
+  | SerializeToJson
+  | SerializeToUnknown
+  | SerializeToJsonString
 and schema<'a> = t<'a>
 type rec error = private {operation: operation, code: errorCode, path: Path.t}
 and errorCode =
@@ -326,6 +333,7 @@ external castUnknownSchemaToAnySchema: t<unknown> => t<'any> = "%identity"
 external toUnknown: t<'any> => t<unknown> = "%identity"
 
 let unsafeGetVariantPayload = variant => (variant->Obj.magic)["_0"]
+let unsafeGetVarianTag = (variant): string => (variant->Obj.magic)["TAG"]
 let unsafeGetErrorPayload = variant => (variant->Obj.magic)["_1"]
 
 module InternalError = {
@@ -364,39 +372,12 @@ module InternalError = {
   }
 
   @inline
-  let raise = (~code, ~operation, ~path) => {
-    Stdlib.Exn.raiseAny(make(~code, ~operation, ~path))
-  }
-
-  let prependLocationOrRethrow = (exn, location) => {
-    let error = exn->getOrRethrow
-    raise(
-      ~path=Path.concat(location->Path.fromLocation, error.path),
-      ~code=error.code,
-      ~operation=error.operation,
-    )
-  }
-
-  @inline
   let panic = message => Stdlib.Exn.raiseError(Stdlib.Exn.makeError(`[rescript-schema] ${message}`))
 }
 
 type s<'value> = {
   schema: t<'value>,
   fail: 'a. (string, ~path: Path.t=?) => 'a,
-}
-
-module EffectCtx = {
-  let make = (~selfSchema, ~path, ~operation) => {
-    schema: selfSchema->castUnknownSchemaToAnySchema,
-    fail: (message, ~path as customPath=Path.empty) => {
-      InternalError.raise(
-        ~path=path->Path.concat(customPath),
-        ~code=OperationFailed(message),
-        ~operation,
-      )
-    },
-  }
 }
 
 @inline
@@ -560,24 +541,55 @@ module Builder = {
       })
     }
 
-    let raiseWithArg = (b: b, ~path, fn: 'arg => errorCode, arg) => {
+    let raise = (b: b, ~code, ~path) => {
+      Stdlib.Exn.raiseAny(
+        InternalError.make(
+          ~code,
+          ~operation=switch b.global.operation {
+          | Parse => Parsing
+          | ParseAsync => Parsing
+          | SerializeToJson
+          | SerializeToJsonString
+          | SerializeToUnknown =>
+            Serializing
+          },
+          ~path,
+        ),
+      )
+    }
+
+    let failWithArg = (b: b, ~path, fn: 'arg => errorCode, arg) => {
       `${b->embed(arg => {
-          InternalError.raise(~path, ~code=fn(arg), ~operation=b.global.operation)
+          b->raise(~path, ~code=fn(arg))
         })}(${arg})`
     }
 
     let fail = (b: b, ~message, ~path) => {
       `${b->embed(() => {
-          InternalError.raise(~path, ~code=OperationFailed(message), ~operation=b.global.operation)
+          b->raise(~path, ~code=OperationFailed(message))
         })}()`
     }
 
+    let effectCtx = (b, ~selfSchema, ~path) => {
+      schema: selfSchema->castUnknownSchemaToAnySchema,
+      fail: (message, ~path as customPath=Path.empty) => {
+        b->raise(~path=path->Path.concat(customPath), ~code=OperationFailed(message))
+      },
+    }
+
+    let registerInvalidJson = (b, ~selfSchema, ~path) => {
+      switch b.global.operation {
+      | SerializeToJson
+      | SerializeToJsonString =>
+        b->raise(~path, ~code=InvalidJsonStruct(selfSchema))
+      | Parse
+      | ParseAsync
+      | SerializeToUnknown => ()
+      }
+    }
+
     let invalidOperation = (b: b, ~path, ~description) => {
-      InternalError.raise(
-        ~path,
-        ~code=InvalidOperation({description: description}),
-        ~operation=b.global.operation,
-      )
+      b->raise(~path, ~code=InvalidOperation({description: description}))
     }
 
     // TODO: Refactor
@@ -652,10 +664,12 @@ module Builder = {
           b => fn(b, ~input, ~path=Path.empty),
         ) catch {
         | Raised(error) =>
-          InternalError.raise(
-            ~path=path->Path.concat(Path.dynamic)->Path.concat(error.path),
-            ~code=error.code,
-            ~operation=error.operation,
+          Stdlib.Exn.raiseAny(
+            InternalError.make(
+              ~path=path->Path.concat(Path.dynamic)->Path.concat(error.path),
+              ~code=error.code,
+              ~operation=error.operation,
+            ),
           )
         }
       }
@@ -663,7 +677,7 @@ module Builder = {
 
     let typeFilterCode = (b: b, ~typeFilter, ~schema, ~input, ~path) => {
       let inputVar = b->Val.var(input)
-      `if(${typeFilter(~inputVar)}){${b->raiseWithArg(
+      `if(${typeFilter(~inputVar)}){${b->failWithArg(
           ~path,
           input => InvalidType({
             expected: schema,
@@ -697,8 +711,17 @@ module Builder = {
   }
 
   let noop = make((_b, ~input, ~selfSchema as _, ~path as _) => input)
+  let noopInvalidJson = make((b, ~input, ~selfSchema, ~path) => {
+    b->B.registerInvalidJson(~selfSchema, ~path)
+    input
+  })
 
   let noopOperation = i => i->Obj.magic
+
+  let unexpectedAsyncOperation = _ =>
+    Stdlib.Exn.raiseAny(
+      InternalError.make(~path=Path.empty, ~code=UnexpectedAsync, ~operation=Parsing),
+    )
 
   @inline
   let intitialInputVar = "i"
@@ -722,7 +745,7 @@ module Builder = {
       b.code = `let ${b.varsAllocation};${b.code}`
     }
 
-    if operation === Parsing {
+    if operation === Parse || operation === ParseAsync {
       switch schema.maybeTypeFilter {
       | Some(typeFilter) =>
         b.code = b->B.typeFilterCode(~schema, ~typeFilter, ~input, ~path=Path.empty) ++ b.code
@@ -731,7 +754,15 @@ module Builder = {
       schema.isAsyncParse = Value(output.isAsync)
     }
 
-    if b.code === "" && output === input {
+    // FIXME:
+    if (
+      schema.rawTagged->unsafeGetVarianTag === "Option" &&
+        (operation === SerializeToJson || operation === SerializeToJsonString)
+    ) {
+      _ => b->B.raise(~path=Path.empty, ~code=InvalidJsonStruct(schema))
+    } else if operation === Parse && output.isAsync {
+      unexpectedAsyncOperation
+    } else if b.code === "" && output === input {
       noopOperation
     } else {
       let inlinedFunction = `${intitialInputVar}=>{${b.code}return ${b->B.Val.inline(output)}}`
@@ -1016,7 +1047,7 @@ module Literal = {
   let parse = any => any->parseInternal->toPublic
 
   @inline
-  let isLiteralSchema = schema => (schema->classify->Obj.magic)["TAG"] === "Literal"
+  let isLiteralSchema = schema => schema->classify->unsafeGetVarianTag === "Literal"
 
   @inline
   let unsafeFromSchema = (schema): literal => {
@@ -1029,7 +1060,7 @@ let isAsyncParse = schema => {
   switch schema.isAsyncParse {
   | Unknown =>
     try {
-      let _ = schema.parseOperationBuilder->Builder.build(~schema, ~operation=Parsing)
+      let _ = schema.parseOperationBuilder->Builder.build(~schema, ~operation=Parse)
       schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
     } catch {
     | exn => {
@@ -1038,53 +1069,6 @@ let isAsyncParse = schema => {
       }
     }
   | Value(v) => v
-  }
-}
-
-let rec validateJsonableSchema = (schema, ~rootSchema, ~isRoot=false) => {
-  if isRoot || rootSchema !== schema {
-    switch schema->classify {
-    | String
-    | Int
-    | Float
-    | Bool
-    | Never
-    | JSON(_) => ()
-    | Dict(schema)
-    | Null(schema)
-    | Array(schema) =>
-      schema->validateJsonableSchema(~rootSchema)
-    | Object({items}) =>
-      for idx in 0 to items->Js.Array2.length - 1 {
-        let item = items->Js.Array2.unsafe_get(idx)
-        try {
-          switch item.schema->classify {
-          // Allow optional fields
-          | Option(s) => s
-          | _ => item.schema
-          }->validateJsonableSchema(~rootSchema)
-        } catch {
-        | exn => exn->InternalError.prependLocationOrRethrow(item.location)
-        }
-      }
-
-    | Tuple({items}) =>
-      items->Js.Array2.forEachi((item, idx) => {
-        try {
-          item.schema->validateJsonableSchema(~rootSchema)
-        } catch {
-        // TODO: Should throw with the nested schema instead of prepending path?
-        | exn => exn->InternalError.prependLocationOrRethrow(idx->Js.Int.toString)
-        }
-      })
-    | Union(childrenSchemas) =>
-      childrenSchemas->Js.Array2.forEach(schema => schema->validateJsonableSchema(~rootSchema))
-    | Literal(l) if l->Literal.isJsonable => ()
-    | Option(_)
-    | Unknown
-    | Literal(_) =>
-      InternalError.raise(~path=Path.empty, ~code=InvalidJsonStruct(schema), ~operation=Serializing)
-    }
   }
 }
 
@@ -1124,9 +1108,6 @@ let makeWithNoopSerializer = (
 }
 
 module Operation = {
-  let unexpectedAsync = () =>
-    InternalError.raise(~path=Path.empty, ~code=UnexpectedAsync, ~operation=Parsing)
-
   type label =
     | @as("op") Parser | @as("opa") ParserAsync | @as("os") Serializer | @as("osj") SerializerToJson
 
@@ -1152,9 +1133,7 @@ module Operation = {
 }
 
 let parseAnyOrRaiseWith = Operation.make(~label=Parser, ~init=schema => {
-  let operation = schema.parseOperationBuilder->Builder.build(~schema, ~operation=Parsing)
-  let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-  isAsync ? Operation.unexpectedAsync : operation
+  schema.parseOperationBuilder->Builder.build(~schema, ~operation=Parse)
 })
 
 let parseAnyWith = (any, schema) => {
@@ -1176,7 +1155,7 @@ let asyncPrepareError = jsExn => {
 }
 
 let internalParseAsyncWith = Operation.make(~label=ParserAsync, ~init=schema => {
-  let operation = schema.parseOperationBuilder->Builder.build(~schema, ~operation=Parsing)
+  let operation = schema.parseOperationBuilder->Builder.build(~schema, ~operation=ParseAsync)
   let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
   isAsync
     ? operation->(Obj.magic: (unknown => unknown) => unknown => unit => promise<unknown>)
@@ -1211,8 +1190,7 @@ let parseAnyAsyncInStepsWith = (any, schema) => {
 let parseAsyncInStepsWith = parseAnyAsyncInStepsWith
 
 let serializeOrRaiseWith = Operation.make(~label=SerializerToJson, ~init=schema => {
-  schema->validateJsonableSchema(~rootSchema=schema, ~isRoot=true)
-  schema.serializeOperationBuilder->Builder.build(~schema, ~operation=Serializing)
+  schema.serializeOperationBuilder->Builder.build(~schema, ~operation=SerializeToJson)
 })
 
 let serializeWith = (value, schema) => {
@@ -1224,7 +1202,7 @@ let serializeWith = (value, schema) => {
 }
 
 let serializeToUnknownOrRaiseWith = Operation.make(~label=Serializer, ~init=schema => {
-  schema.serializeOperationBuilder->Builder.build(~schema, ~operation=Serializing)
+  schema.serializeOperationBuilder->Builder.build(~schema, ~operation=SerializeToUnknown)
 })
 
 let serializeToUnknownWith = (value, schema) => {
@@ -1347,7 +1325,7 @@ let recursive = fn => {
         }
       })
 
-      let operation = builder->Builder.build(~schema=selfSchema, ~operation=Parsing)
+      let operation = builder->Builder.build(~schema=selfSchema, ~operation=b.global.operation)
       if isAsync {
         selfSchema->Obj.magic->Js.Dict.set((Operation.ParserAsync :> string), operation)
       } else {
@@ -1377,7 +1355,7 @@ let recursive = fn => {
         )
       })
 
-      let operation = builder->Builder.build(~schema=selfSchema, ~operation=Serializing)
+      let operation = builder->Builder.build(~schema=selfSchema, ~operation=b.global.operation)
 
       // TODO: Use init function
       // TODO: What about json validation ?? Check whether it works correctly
@@ -1409,8 +1387,8 @@ let primitiveName = () => {
 }
 
 let containerName = () => {
-  let tagged = (%raw(`this`): t<'a>).rawTagged->Obj.magic
-  `${tagged["TAG"]}(${(tagged->unsafeGetVariantPayload).name()})`
+  let tagged = (%raw(`this`): t<'a>).rawTagged
+  `${tagged->unsafeGetVarianTag}(${(tagged->unsafeGetVariantPayload).name()})`
 }
 
 let internalRefine = (schema, refiner) => {
@@ -1442,9 +1420,7 @@ let internalRefine = (schema, refiner) => {
 
 let refine: (t<'value>, s<'value> => 'value => unit) => t<'value> = (schema, refiner) => {
   schema->internalRefine((b, ~input, ~selfSchema, ~path) => {
-    `${b->B.embed(
-        refiner(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)),
-      )}(${b->B.Val.var(input)});`
+    `${b->B.embed(refiner(b->B.effectCtx(~selfSchema, ~path)))}(${b->B.Val.var(input)});`
   })
 }
 
@@ -1479,7 +1455,7 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       let input = b->B.parse(~schema, ~input, ~path)
 
-      switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)) {
+      switch transformer(b->B.effectCtx(~selfSchema, ~path)) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~input, ~fn=parser)
       | {parser: ?None, asyncParser} => b->B.embedAsyncOperation(~input, ~fn=asyncParser)
       | {parser: ?None, asyncParser: ?None, serializer: ?None} => input
@@ -1493,7 +1469,7 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
       }
     }),
     ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-      switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)) {
+      switch transformer(b->B.effectCtx(~selfSchema, ~path)) {
       | {serializer} =>
         b->B.serialize(~schema, ~input=b->B.embedSyncOperation(~input, ~fn=serializer), ~path)
       | {parser: ?None, asyncParser: ?None, serializer: ?None} =>
@@ -1537,7 +1513,7 @@ let rec preprocess = (schema, transformer) => {
       ~name=schema.name,
       ~rawTagged=schema.rawTagged,
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-        switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)) {
+        switch transformer(b->B.effectCtx(~selfSchema, ~path)) {
         | {parser, asyncParser: ?None} =>
           b->B.parseWithTypeCheck(
             ~schema,
@@ -1559,7 +1535,7 @@ let rec preprocess = (schema, transformer) => {
       ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
         let input = b->B.serialize(~schema, ~input, ~path)
 
-        switch transformer(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)) {
+        switch transformer(b->B.effectCtx(~selfSchema, ~path)) {
         | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
         // TODO: Test that it doesn't return InvalidOperation when parser is passed but not serializer
         | {serializer: ?None} => input
@@ -1585,7 +1561,7 @@ let custom = (name, definer) => {
     ~metadataMap=Metadata.Map.empty,
     ~rawTagged=Unknown,
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-      switch definer(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)) {
+      switch definer(b->B.effectCtx(~selfSchema, ~path)) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~input, ~fn=parser)
       | {parser: ?None, asyncParser} => b->B.embedAsyncOperation(~input, ~fn=asyncParser)
       | {parser: ?None, asyncParser: ?None, serializer: ?None} => input
@@ -1599,7 +1575,7 @@ let custom = (name, definer) => {
       }
     }),
     ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-      switch definer(EffectCtx.make(~selfSchema, ~path, ~operation=b.global.operation)) {
+      switch definer(b->B.effectCtx(~selfSchema, ~path)) {
       | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
       | {parser: ?None, asyncParser: ?None, serializer: ?None} => input
       | {serializer: ?None, asyncParser: ?Some(_)}
@@ -1615,11 +1591,14 @@ let literal = value => {
   let value = value->castAnyToUnknown
   let literal = value->Literal.parse
   let internalLiteral = literal->Literal.toInternal
-  let operationBuilder = Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+  let operationBuilder = Builder.make((b, ~input, ~selfSchema, ~path) => {
+    if !(literal->Literal.isJsonable) {
+      b->B.registerInvalidJson(~selfSchema, ~path)
+    }
     let inputVar = b->B.Val.var(input)
     b.code =
       b.code ++
-      `${b->internalLiteral.checkBuilder(~inputVar, ~literal)}||${b->B.raiseWithArg(
+      `${b->internalLiteral.checkBuilder(~inputVar, ~literal)}||${b->B.failWithArg(
           ~path,
           input => InvalidLiteral({
             expected: literal,
@@ -1797,7 +1776,7 @@ module Never = {
   let builder = Builder.make((b, ~input, ~selfSchema, ~path) => {
     b.code =
       b.code ++
-      b->B.raiseWithArg(
+      b->B.failWithArg(
         ~path,
         input => InvalidType({
           expected: selfSchema,
@@ -1851,7 +1830,7 @@ module Object = {
       let inputVar = b->B.Val.var(input)
 
       let items = schema->getItems
-      let isObject = (schema->classify->Obj.magic)["TAG"] === "Object"
+      let isObject = schema->classify->unsafeGetVarianTag === "Object"
 
       for idx in 0 to items->Js.Array2.length - 1 {
         let prevCode = b.code
@@ -1907,7 +1886,7 @@ module Object = {
         }
         b.code =
           b.code ++
-          `){${b->B.raiseWithArg(
+          `){${b->B.failWithArg(
               ~path,
               exccessFieldName => ExcessField(exccessFieldName),
               keyVar,
@@ -2003,7 +1982,7 @@ module Object = {
         let itemInputVar = `${inputVar}${outputPath}`
         ctx.discriminantCode =
           ctx.discriminantCode ++
-          `if(${itemInputVar}!==${b->B.embed(value)}){${b->B.raiseWithArg(
+          `if(${itemInputVar}!==${b->B.embed(value)}){${b->B.failWithArg(
               ~path=path->Path.concat(outputPath),
               input => InvalidLiteral({
                 expected: value->Literal.parse,
@@ -2018,7 +1997,7 @@ module Object = {
 
     let rec toRaw = (~schema, ~path) => {
       let items = schema->getItems
-      let isObject = (schema->classify->Obj.magic)["TAG"] === "Object"
+      let isObject = schema->classify->unsafeGetVarianTag === "Object"
 
       let output = ref("")
       for idx in 0 to items->Js.Array2.length - 1 {
@@ -2271,7 +2250,7 @@ module Variant = {
                   let constantVar = b->B.Val.var(constantVal)
                   b.code =
                     b.code ++
-                    `if(${constantVar}!==${b->B.embed(constant)}){${b->B.raiseWithArg(
+                    `if(${constantVar}!==${b->B.embed(constant)}){${b->B.failWithArg(
                         ~path=path->Path.concat(valuePath),
                         input => InvalidLiteral({
                           expected: constant->Literal.parse,
@@ -2317,7 +2296,7 @@ module Unknown = {
     name: primitiveName,
     rawTagged: Unknown,
     parseOperationBuilder: Builder.noop,
-    serializeOperationBuilder: Builder.noop,
+    serializeOperationBuilder: Builder.noopInvalidJson,
     isAsyncParse: Value(false),
     metadataMap: Metadata.Map.empty,
     maybeTypeFilter: None,
@@ -2375,16 +2354,6 @@ module String = {
 module JsonString = {
   let factory = (schema, ~space=0) => {
     let schema = schema->toUnknown
-    try {
-      schema->validateJsonableSchema(~rootSchema=schema, ~isRoot=true)
-    } catch {
-    | exn => {
-        let _ = exn->InternalError.getOrRethrow
-        InternalError.panic(
-          `The schema ${schema.name()} passed to S.jsonString is not compatible with JSON`,
-        )
-      }
-    }
     make(
       ~name=primitiveName,
       ~metadataMap=Metadata.Map.empty,
@@ -2397,7 +2366,7 @@ module JsonString = {
           `try{${b->B.Val.set(
               jsonVal,
               b->B.Val.map("JSON.parse", input),
-            )}}catch(t){${b->B.raiseWithArg(
+            )}}catch(t){${b->B.failWithArg(
               ~path,
               message => OperationFailed(message),
               "t.message",
@@ -2409,11 +2378,16 @@ module JsonString = {
         val
       }),
       ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-        b->B.val(
-          `JSON.stringify(${b->B.Val.inline(b->B.serialize(~schema, ~input, ~path))}${space > 0
-              ? `,null,${space->Stdlib.Int.unsafeToString}`
-              : ""})`,
-        )
+        let prevOperation = b.global.operation
+        b.global.operation = SerializeToJsonString
+        let output =
+          b->B.val(
+            `JSON.stringify(${b->B.Val.inline(b->B.serialize(~schema, ~input, ~path))}${space > 0
+                ? `,null,${space->Stdlib.Int.unsafeToString}`
+                : ""})`,
+          )
+        b.global.operation = prevOperation
+        output
       }),
       ~maybeTypeFilter=Some(String.typeFilter),
     )
@@ -2800,7 +2774,7 @@ module Union = {
 
           b.code =
             b.code ++
-            b->B.raiseWithArg(
+            b->B.failWithArg(
               ~path,
               internalErrors => {
                 InvalidUnion(internalErrors)
@@ -2857,7 +2831,7 @@ module Union = {
 
           b.code =
             b.code ++
-            b->B.raiseWithArg(
+            b->B.failWithArg(
               ~path,
               internalErrors => {
                 InvalidUnion(internalErrors)
@@ -2938,13 +2912,12 @@ let json = (~validate) =>
               input->(Obj.magic: unknown => Js.Json.t)
 
             | _ =>
-              InternalError.raise(
+              b->B.raise(
                 ~path,
                 ~code=InvalidType({
                   expected: selfSchema,
                   received: input,
                 }),
-                ~operation=Parsing,
               )
             }
           }
@@ -2979,11 +2952,7 @@ let catch = (schema, getFallbackValue) => {
                   error: internalError,
                   schema: selfSchema->castUnknownSchemaToAnySchema,
                   fail: (message, ~path as customPath=Path.empty) => {
-                    InternalError.raise(
-                      ~path=path->Path.concat(customPath),
-                      ~code=OperationFailed(message),
-                      ~operation=b.global.operation,
-                    )
+                    b->B.raise(~path=path->Path.concat(customPath), ~code=OperationFailed(message))
                   },
                 })
               )}(${inputVar},${errorVar})`,

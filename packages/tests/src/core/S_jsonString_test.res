@@ -53,17 +53,21 @@ test("Successfully serializes JSON object with space", t => {
   )
 })
 
-test("Fails to create schema when passing non-jsonable schema to S.jsonString", t => {
-  t->Assert.throws(
-    () => {
-      S.jsonString(S.object(s => s.field("foo", S.unknown)))
-    },
-    ~expectations={
-      message: `[rescript-schema] The schema Object({"foo": Unknown}) passed to S.jsonString is not compatible with JSON`,
-    },
-    (),
-  )
-})
+test(
+  "Create schema when passing non-jsonable schema to S.jsonString, but fails to serialize",
+  t => {
+    let schema = S.jsonString(S.object(s => s.field("foo", S.unknown)))
+
+    t->U.assertErrorResult(
+      %raw(`"foo"`)->S.serializeToUnknownWith(S.jsonString(schema, ~space=2)),
+      {
+        code: InvalidJsonStruct(S.unknown),
+        operation: Serializing,
+        path: S.Path.empty,
+      },
+    )
+  },
+)
 
 test("Compiled parse code snapshot", t => {
   let schema = S.jsonString(S.bool)

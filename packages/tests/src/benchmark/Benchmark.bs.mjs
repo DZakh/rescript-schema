@@ -72,47 +72,56 @@ function makeAdvancedStrictObjectSchema() {
 
 var data = makeTestObject();
 
-console.time("init");
+console.time("makeAdvancedObjectSchema");
 
 var schema = makeAdvancedObjectSchema();
 
-console.timeEnd("init");
+console.timeEnd("makeAdvancedObjectSchema");
 
-console.time("p: 1");
-
-S$RescriptSchema.parseAnyWith(data, schema);
-
-console.timeEnd("p: 1");
-
-console.time("p: 2");
+console.time("parseAnyWith: 1");
 
 S$RescriptSchema.parseAnyWith(data, schema);
 
-console.timeEnd("p: 2");
+console.timeEnd("parseAnyWith: 1");
 
-console.time("p: 3");
+console.time("parseAnyWith: 2");
 
 S$RescriptSchema.parseAnyWith(data, schema);
 
-console.timeEnd("p: 3");
+console.timeEnd("parseAnyWith: 2");
 
-console.time("s: 1");
+console.time("parseAnyWith: 3");
 
-S$RescriptSchema.serializeWith(data, schema);
+S$RescriptSchema.parseAnyWith(data, schema);
 
-console.timeEnd("s: 1");
+console.timeEnd("parseAnyWith: 3");
 
-console.time("s: 2");
-
-S$RescriptSchema.serializeWith(data, schema);
-
-console.timeEnd("s: 2");
-
-console.time("s: 3");
+console.time("serializeWith: 1");
 
 S$RescriptSchema.serializeWith(data, schema);
 
-console.timeEnd("s: 3");
+console.timeEnd("serializeWith: 1");
+
+console.time("serializeWith: 2");
+
+S$RescriptSchema.serializeWith(data, schema);
+
+console.timeEnd("serializeWith: 2");
+
+console.time("serializeWith: 3");
+
+S$RescriptSchema.serializeWith(data, schema);
+
+console.timeEnd("serializeWith: 3");
+
+console.time("S.Error.make");
+
+S$RescriptSchema.$$Error.make({
+      TAG: "OperationFailed",
+      _0: "Should be positive"
+    }, "Parsing", S$RescriptSchema.Path.empty);
+
+console.timeEnd("S.Error.make");
 
 run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new (Benchmark.default.Suite)(), "Parse string", (function () {
                                   return function () {

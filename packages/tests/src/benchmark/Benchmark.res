@@ -100,27 +100,37 @@ let makeAdvancedStrictObjectSchema = () => {
 }
 
 let data = makeTestObject()
-Console.time("init")
+Console.time("makeAdvancedObjectSchema")
 let schema = makeAdvancedObjectSchema()
-Console.timeEnd("init")
-Console.time("p: 1")
+Console.timeEnd("makeAdvancedObjectSchema")
+
+Console.time("parseAnyWith: 1")
 data->S.parseAnyWith(schema)->ignore
-Console.timeEnd("p: 1")
-Console.time("p: 2")
+Console.timeEnd("parseAnyWith: 1")
+Console.time("parseAnyWith: 2")
 data->S.parseAnyWith(schema)->ignore
-Console.timeEnd("p: 2")
-Console.time("p: 3")
+Console.timeEnd("parseAnyWith: 2")
+Console.time("parseAnyWith: 3")
 data->S.parseAnyWith(schema)->ignore
-Console.timeEnd("p: 3")
-Console.time("s: 1")
+Console.timeEnd("parseAnyWith: 3")
+
+Console.time("serializeWith: 1")
 data->S.serializeWith(schema)->ignore
-Console.timeEnd("s: 1")
-Console.time("s: 2")
+Console.timeEnd("serializeWith: 1")
+Console.time("serializeWith: 2")
 data->S.serializeWith(schema)->ignore
-Console.timeEnd("s: 2")
-Console.time("s: 3")
+Console.timeEnd("serializeWith: 2")
+Console.time("serializeWith: 3")
 data->S.serializeWith(schema)->ignore
-Console.timeEnd("s: 3")
+Console.timeEnd("serializeWith: 3")
+
+Console.time("S.Error.make")
+let _ = S.Error.make(
+  ~code=OperationFailed("Should be positive"),
+  ~operation=Parsing,
+  ~path=S.Path.empty,
+)
+Console.timeEnd("S.Error.make")
 
 Suite.make()
 ->Suite.addWithPrepare("Parse string", () => {
@@ -167,3 +177,22 @@ Suite.make()
   }
 })
 ->Suite.run
+
+/*
+V7.0.1
+makeAdvancedObjectSchema: 0.174ms
+parseAnyWith: 1: 0.465ms
+parseAnyWith: 2: 0.006ms
+parseAnyWith: 3: 0.004ms
+serializeWith: 1: 0.208ms
+serializeWith: 2: 0.004ms
+serializeWith: 3: 0.003ms
+S.Error.make: 0.029ms
+Parse string x 607,790,506 ops/sec ±0.21% (100 runs sampled)
+Serialize string x 607,895,909 ops/sec ±0.23% (99 runs sampled)
+Advanced object schema factory x 789,559 ops/sec ±0.28% (99 runs sampled)
+Parse advanced object x 70,550,720 ops/sec ±0.51% (98 runs sampled)
+Create and parse advanced object x 54,592 ops/sec ±0.49% (93 runs sampled)
+Parse advanced strict object x 26,614,621 ops/sec ±0.30% (93 runs sampled)
+Serialize advanced object x 598,233,913 ops/sec ±0.19% (95 runs sampled)
+ */

@@ -194,7 +194,7 @@ test("Fails to serialize object with invalid nested schema", t => {
     {
       code: InvalidJsonStruct(S.unknown),
       operation: Serializing,
-      path: S.Path.fromArray(["foo"]),
+      path: S.Path.empty,
     },
   )
 })
@@ -205,14 +205,151 @@ test("Fails to serialize tuple with invalid nested schema", t => {
     {
       code: InvalidJsonStruct(S.unknown),
       operation: Serializing,
-      path: S.Path.fromArray(["0"]),
+      path: S.Path.empty,
     },
   )
 })
 
-test("Fails to serialize union if one of the items is an invalid schema", t => {
-  t->U.assertErrorResult(
+test("Serializes union even one of the items is an invalid JSON schema", t => {
+  t->Assert.deepEqual(
     "foo"->S.serializeWith(S.union([S.string, S.unknown->(U.magic: S.t<unknown> => S.t<string>)])),
-    {code: InvalidJsonStruct(S.unknown), operation: Serializing, path: S.Path.empty},
+    JSON.Encode.string("foo")->Ok,
+    (),
+  )
+  t->Assert.deepEqual(
+    "foo"->S.serializeWith(S.union([S.unknown->(U.magic: S.t<unknown> => S.t<string>), S.string])),
+    JSON.Encode.string("foo")->Ok,
+    (),
   )
 })
+
+test("Fails to serialize union with invalid schemas", t => {
+  t->U.assertErrorResult(
+    "foo"->S.serializeWith(
+      S.union([S.literal(%raw(`NaN`)), S.unknown->(U.magic: S.t<unknown> => S.t<string>)]),
+    ),
+    {
+      code: InvalidUnion([
+        U.error({
+          code: InvalidJsonStruct(S.literal(%raw(`NaN`))),
+          operation: Parsing,
+          path: S.Path.empty,
+        }),
+        U.error({code: InvalidJsonStruct(S.unknown), operation: Parsing, path: S.Path.empty}),
+      ]),
+      operation: Serializing,
+      path: S.Path.empty,
+    },
+  )
+})
+
+// https://github.com/DZakh/rescript-schema/issues/74
+module SerializesDeepRecursive = {
+  module Condition = {
+    module Connective = {
+      type operator = | @as("or") Or | @as("and") And
+      type t<'t> = {
+        operator: operator,
+        conditions: array<'t>,
+      }
+    }
+
+    module Comparison = {
+      module Operator = {
+        type t =
+          | @as("equal") Equal
+          | @as("greater-than") GreaterThan
+      }
+      type t = {
+        operator: Operator.t,
+        values: (string, string),
+      }
+    }
+
+    type rec t =
+      | Connective(Connective.t<t>)
+      | Comparison(Comparison.t)
+
+    let schema = S.recursive(innerSchema =>
+      S.union([
+        S.object(s => {
+          s.tag("type", "or")
+          Connective({operator: Or, conditions: s.field("value", S.array(innerSchema))})
+        }),
+        S.object(s => {
+          s.tag("type", "and")
+          Connective({operator: And, conditions: s.field("value", S.array(innerSchema))})
+        }),
+        S.object(s => {
+          s.tag("type", "equal")
+          Comparison({
+            operator: Equal,
+            values: s.field("value", S.tuple2(S.string, S.string)),
+          })
+        }),
+        S.object(s => {
+          s.tag("type", "greater-than")
+          Comparison({
+            operator: GreaterThan,
+            values: s.field("value", S.tuple2(S.string, S.string)),
+          })
+        }),
+      ])
+    )
+  }
+
+  // This is just a simple wrapper record that causes the error
+  type body = {condition: Condition.t}
+
+  let bodySchema = S.schema(s => {
+    condition: s.matches(Condition.schema),
+  })
+
+  let conditionJSON = %raw(`
+{
+  "type": "and",
+  "value": [
+    {
+      "type": "equal",
+      "value": [
+        "account",
+        "1234"        
+      ]
+    },
+    {
+      "type": "greater-than",
+      "value": [
+        "cost-center",
+        "1000"        
+      ]
+    }
+  ]
+}
+`)
+
+  let condition = Condition.Connective({
+    operator: And,
+    conditions: [
+      Condition.Comparison({
+        operator: Equal,
+        values: ("account", "1234"),
+      }),
+      Condition.Comparison({
+        operator: GreaterThan,
+        values: ("cost-center", "1000"),
+      }),
+    ],
+  })
+
+  test("Serializes deeply recursive schema", t => {
+    t->Assert.deepEqual(
+      {condition: condition}->S.serializeWith(bodySchema),
+      {
+        "condition": conditionJSON,
+      }
+      ->U.magic
+      ->Ok,
+      (),
+    )
+  })
+}
