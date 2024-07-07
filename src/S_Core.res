@@ -325,7 +325,6 @@ and operation =
   | ParseAsync
   | SerializeToJson
   | SerializeToUnknown
-  | SerializeToJsonString
 and schema<'a> = t<'a>
 and error = private {operation: operation, code: errorCode, path: Path.t}
 and errorCode =
@@ -588,13 +587,8 @@ module Builder = {
     }
 
     let registerInvalidJson = (b, ~selfSchema, ~path) => {
-      switch b.global.operation {
-      | SerializeToJson
-      | SerializeToJsonString =>
+      if b.global.operation === SerializeToJson {
         b->raise(~path, ~code=InvalidJsonStruct(selfSchema))
-      | Parse
-      | ParseAsync
-      | SerializeToUnknown => ()
       }
     }
 
@@ -2436,7 +2430,7 @@ module JsonString = {
       }),
       ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let prevOperation = b.global.operation
-        b.global.operation = SerializeToJsonString
+        b.global.operation = SerializeToJson
         if schema.rawTagged->unsafeGetVarianTag === "Option" {
           b->B.raise(~code=InvalidJsonStruct(schema), ~path=Path.empty)
         }
@@ -3169,7 +3163,6 @@ module Error = {
     let operation = switch error.operation {
     | SerializeToUnknown => "serializing"
     | SerializeToJson => "serializing to JSON"
-    | SerializeToJsonString => "serializing to JSON string"
     | Parse => "parsing"
     | ParseAsync => "parsing async"
     }

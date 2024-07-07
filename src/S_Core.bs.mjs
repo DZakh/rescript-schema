@@ -274,17 +274,13 @@ function effectCtx(b, selfSchema, path) {
 }
 
 function registerInvalidJson(b, selfSchema, path) {
-  var match = b.g.o;
-  switch (match) {
-    case "SerializeToJson" :
-    case "SerializeToJsonString" :
-        return raise(b, {
-                    TAG: "InvalidJsonStruct",
-                    _0: selfSchema
-                  }, path);
-    default:
-      return ;
+  if (b.g.o === "SerializeToJson") {
+    return raise(b, {
+                TAG: "InvalidJsonStruct",
+                _0: selfSchema
+              }, path);
   }
+  
 }
 
 function invalidOperation(b, path, description) {
@@ -1696,7 +1692,7 @@ function factory$4(schema, spaceOpt) {
                 return val;
               }), (function (b, input, param, path) {
                 var prevOperation = b.g.o;
-                b.g.o = "SerializeToJsonString";
+                b.g.o = "SerializeToJson";
                 if (schema.r.TAG === "Option") {
                   raise(b, {
                         TAG: "InvalidJsonStruct",
@@ -2212,9 +2208,6 @@ function message(error) {
         break;
     case "SerializeToUnknown" :
         operation = "serializing";
-        break;
-    case "SerializeToJsonString" :
-        operation = "serializing to JSON string";
         break;
     
   }

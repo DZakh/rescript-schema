@@ -82,7 +82,6 @@ and operation =
   | ParseAsync
   | SerializeToJson
   | SerializeToUnknown
-  | SerializeToJsonString
 and unknownKeys = Strip | Strict
 type exn += private Raised(error)
 

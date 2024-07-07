@@ -4,8 +4,7 @@ type Operation =
   | "Parse"
   | "ParseAsync"
   | "SerializeToJson"
-  | "SerializeToUnknown"
-  | "SerializeToJsonString";
+  | "SerializeToUnknown";
 
 export class Error extends S_Error_class {
   constructor(code: unknown, operation: Operation, path: string);
