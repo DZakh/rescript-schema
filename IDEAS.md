@@ -26,7 +26,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Change operation to include AsyncParse and simplify init functions (throw when asyncTransfor applied for SyncParse)
 - Make S.serializeToJsonString super fast
-- Make operations more treeshakable by starting passing the actual operation to the initialOperation function. Or add a condition (verify performance)
 - Rename `InvalidJsonStruct` error, since after `rescript-struct`->`rescript-schema` it became misleading
 - Add S.bigint
 

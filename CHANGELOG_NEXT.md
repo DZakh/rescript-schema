@@ -9,3 +9,4 @@
   - Move operations from functions to Schema methods
   - Add `serializeToJsonOrThrow`
 - Update operation type to be more detailed and feature it in the error message.
+- S.union still doesn't support schemas with async, but treats them differently. Please don't try to use them, since the behavior is not predictable.

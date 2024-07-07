@@ -547,6 +547,10 @@ module Builder = {
       }
     }
 
+    let raise = (b: b, ~code, ~path) => {
+      Stdlib.Exn.raiseAny(InternalError.make(~code, ~operation=b.global.operation, ~path))
+    }
+
     let embedSyncOperation = (b: b, ~input, ~fn: 'input => 'output) => {
       b->transform(~input, (b, ~input) => {
         b->Val.map(b->embed(fn), input)
@@ -554,15 +558,14 @@ module Builder = {
     }
 
     let embedAsyncOperation = (b: b, ~input, ~fn: 'input => unit => promise<'output>) => {
+      if b.global.operation !== ParseAsync {
+        b->raise(~code=UnexpectedAsync, ~path=Path.empty)
+      }
       b->transform(~input, (b, ~input) => {
         let val = b->Val.map(b->embed(fn), input)
         val.isAsync = true
         val
       })
-    }
-
-    let raise = (b: b, ~code, ~path) => {
-      Stdlib.Exn.raiseAny(InternalError.make(~code, ~operation=b.global.operation, ~path))
     }
 
     let failWithArg = (b: b, ~path, fn: 'arg => errorCode, arg) => {
@@ -721,11 +724,6 @@ module Builder = {
 
   let noopOperation = i => i->Obj.magic
 
-  let unexpectedAsyncOperation = _ =>
-    Stdlib.Exn.raiseAny(
-      InternalError.make(~path=Path.empty, ~code=UnexpectedAsync, ~operation=Parse),
-    )
-
   @inline
   let intitialInputVar = "i"
 
@@ -757,11 +755,7 @@ module Builder = {
       schema.isAsyncParse = Value(output.isAsync)
     }
 
-    // FIXME:
-
-    if operation === Parse && output.isAsync {
-      unexpectedAsyncOperation
-    } else if b.code === "" && output === input {
+    if b.code === "" && output === input {
       noopOperation
     } else {
       let inlinedFunction = `${intitialInputVar}=>{${b.code}return ${b->B.Val.inline(output)}}`
@@ -1059,7 +1053,7 @@ let isAsyncParse = schema => {
   switch schema.isAsyncParse {
   | Unknown =>
     try {
-      let _ = schema.parseOperationBuilder->Builder.build(~schema, ~operation=Parse)
+      let _ = schema.parseOperationBuilder->Builder.build(~schema, ~operation=ParseAsync)
       schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
     } catch {
     | exn => {
@@ -3138,9 +3132,9 @@ module Error = {
     switch error.code {
     | OperationFailed(reason) => reason
     | InvalidOperation({description}) => description
-    | UnexpectedAsync => "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith"
+    | UnexpectedAsync => "Encountered unexpected async transform or refine. Use ParseAsync operation instead"
     | ExcessField(fieldName) =>
-      `Encountered disallowed excess key ${fieldName->Stdlib.Inlined.Value.fromString} on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`
+      `Encountered disallowed excess key ${fieldName->Stdlib.Inlined.Value.fromString} on an object`
     | InvalidType({expected, received}) =>
       `Expected ${expected.name()}, received ${received->Literal.parse->Literal.toString}`
     | InvalidLiteral({expected, received}) =>

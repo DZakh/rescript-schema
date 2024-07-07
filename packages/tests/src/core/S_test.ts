@@ -693,7 +693,7 @@ test("Fails to parse strict object with exccess fields", (t) => {
     },
     {
       name: "RescriptSchemaError",
-      message: `Failed parsing at root. Reason: Encountered disallowed excess key "bar" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`,
+      message: `Failed parsing at root. Reason: Encountered disallowed excess key "bar" on an object`,
     }
   );
 });

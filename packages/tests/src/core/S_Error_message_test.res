@@ -67,7 +67,7 @@ test("UnexpectedAsync error", t => {
       operation: Parse,
       path: S.Path.empty,
     })->S.Error.message,
-    "Failed parsing at root. Reason: Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith",
+    "Failed parsing at root. Reason: Encountered unexpected async transform or refine. Use ParseAsync operation instead",
     (),
   )
 })
@@ -91,7 +91,7 @@ test("ExcessField error", t => {
       operation: Parse,
       path: S.Path.empty,
     })->S.Error.message,
-    `Failed parsing at root. Reason: Encountered disallowed excess key "unknownKey" on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely`,
+    `Failed parsing at root. Reason: Encountered disallowed excess key "unknownKey" on an object`,
     (),
   )
 })

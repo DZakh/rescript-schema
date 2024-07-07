@@ -478,17 +478,38 @@ module Union = {
     ])->Promise.thenResolve(_ => ())
   })
 
-  test("[Union] Fails to parse since it's not supported", t => {
+  test("[Union] Passes with Parse operation. Async item should fail", t => {
+    let schema = S.union([S.literal(2)->validAsyncRefine, S.literal(2), S.literal(3)])
+
+    t->Assert.deepEqual(2->S.parseAnyWith(schema), Ok(2), ())
+  })
+
+  test("[Union] Fails with Parse operation", t => {
     let schema = S.union([S.literal(1), S.literal(2)->validAsyncRefine, S.literal(3)])
 
-    t->Assert.throws(
-      () => {
-        1->S.parseAnyOrRaiseWith(schema)
+    t->U.assertErrorResult(
+      2->S.parseAnyWith(schema),
+      {
+        code: InvalidUnion([
+          U.error({
+            code: InvalidLiteral({expected: S.Literal.parse(1.), received: %raw("2")}),
+            path: S.Path.empty,
+            operation: Parse,
+          }),
+          U.error({
+            code: UnexpectedAsync,
+            path: S.Path.empty,
+            operation: Parse,
+          }),
+          U.error({
+            code: InvalidLiteral({expected: S.Literal.parse(3.), received: %raw("2")}),
+            path: S.Path.empty,
+            operation: Parse,
+          }),
+        ]),
+        operation: Parse,
+        path: S.Path.empty,
       },
-      ~expectations={
-        message: "Failed parsing at root. Reason: S.union doesn\'t support async items. Please create an issue to rescript-schema if you nead the feature",
-      },
-      (),
     )
   })
 

@@ -224,6 +224,10 @@ function transform(b, input, operation) {
             ) + "})");
 }
 
+function raise(b, code, path) {
+  throw new RescriptSchemaError(code, b.g.o, path);
+}
+
 function embedSyncOperation(b, input, fn) {
   return transform(b, input, (function (b, input) {
                 return map(b, "e[" + (b.g.e.push(fn) - 1) + "]", input);
@@ -231,15 +235,14 @@ function embedSyncOperation(b, input, fn) {
 }
 
 function embedAsyncOperation(b, input, fn) {
+  if (b.g.o !== "ParseAsync") {
+    raise(b, "UnexpectedAsync", "");
+  }
   return transform(b, input, (function (b, input) {
                 var val = map(b, "e[" + (b.g.e.push(fn) - 1) + "]", input);
                 val.a = true;
                 return val;
               }));
-}
-
-function raise(b, code, path) {
-  throw new RescriptSchemaError(code, b.g.o, path);
 }
 
 function failWithArg(b, path, fn, arg) {
@@ -376,10 +379,6 @@ function noopOperation(i) {
   return i;
 }
 
-function unexpectedAsyncOperation(param) {
-  throw new RescriptSchemaError("UnexpectedAsync", "Parse", "");
-}
-
 function build(builder, schema, operation) {
   var b = {
     c: "",
@@ -406,9 +405,6 @@ function build(builder, schema, operation) {
       b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
     }
     schema.i = output.a;
-  }
-  if (operation === "Parse" && output.a) {
-    return unexpectedAsyncOperation;
   }
   if (b.c === "" && output === input) {
     return noopOperation;
@@ -624,7 +620,7 @@ function isAsyncParse(schema) {
     return v;
   }
   try {
-    build(schema.p, schema, "Parse");
+    build(schema.p, schema, "ParseAsync");
     return schema.i;
   }
   catch (raw_exn){
@@ -2171,7 +2167,7 @@ function reason(error, nestedLevelOpt) {
   var nestedLevel = nestedLevelOpt !== undefined ? nestedLevelOpt : 0;
   var reason$1 = error.code;
   if (typeof reason$1 !== "object") {
-    return "Encountered unexpected asynchronous transform or refine. Use S.parseAsyncWith instead of S.parseWith";
+    return "Encountered unexpected async transform or refine. Use ParseAsync operation instead";
   }
   switch (reason$1.TAG) {
     case "OperationFailed" :
@@ -2183,7 +2179,7 @@ function reason(error, nestedLevelOpt) {
     case "InvalidLiteral" :
         return "Expected " + reason$1.expected.s + ", received " + parseInternal(reason$1.received).s;
     case "ExcessField" :
-        return "Encountered disallowed excess key " + JSON.stringify(reason$1._0) + " on an object. Use Deprecated to ignore a specific field, or S.Object.strip to ignore excess keys completely";
+        return "Encountered disallowed excess key " + JSON.stringify(reason$1._0) + " on an object";
     case "InvalidUnion" :
         var lineBreak = "\n" + " ".repeat((nestedLevel << 1));
         var reasonsDict = {};
