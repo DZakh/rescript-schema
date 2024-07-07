@@ -66,9 +66,9 @@ let unsafeAssertEqualSchemas = (t, s1: S.t<'v1>, s2: S.t<'v2>, ~message=?) => {
   t->Assert.unsafeDeepEqual(s1->cleanUpSchema, s2->cleanUpSchema, ~message?, ())
 }
 
-let assertCompiledCode = (t, ~schema, ~op: [#parse | #serialize], code, ~message=?) => {
+let assertCompiledCode = (t, ~schema, ~op: [#Parse | #Serialize | #Assert], code, ~message=?) => {
   let compiledCode = switch op {
-  | #parse =>
+  | #Parse =>
     if schema->S.isAsyncParse {
       let _ = %raw(`undefined`)->S.parseAsyncInStepsWith(schema)
       %raw(`schema.a.toString()`)
@@ -76,7 +76,14 @@ let assertCompiledCode = (t, ~schema, ~op: [#parse | #serialize], code, ~message
       let _ = %raw(`undefined`)->S.parseAnyWith(schema)
       %raw(`schema.parseOrThrow.toString()`)
     }
-  | #serialize => {
+  | #Assert =>
+    try {
+      let _ = %raw(`undefined`)->S.assertOrRaiseWith(schema)
+    } catch {
+    | _ => ()
+    }
+    %raw(`schema.assert.toString()`)
+  | #Serialize => {
       try {
         let _ = %raw(`undefined`)->S.serializeToUnknownOrRaiseWith(schema)
       } catch {
@@ -88,9 +95,9 @@ let assertCompiledCode = (t, ~schema, ~op: [#parse | #serialize], code, ~message
   t->Assert.is(compiledCode, code, ~message?, ())
 }
 
-let assertCompiledCodeIsNoop = (t, ~schema, ~op: [#parse | #serialize], ~message=?) => {
+let assertCompiledCodeIsNoop = (t, ~schema, ~op: [#Parse | #Serialize], ~message=?) => {
   let compiledCode = switch op {
-  | #parse =>
+  | #Parse =>
     if schema->S.isAsyncParse {
       let _ = %raw(`undefined`)->S.parseAsyncInStepsWith(schema)
       %raw(`schema.a.toString()`)
@@ -98,7 +105,7 @@ let assertCompiledCodeIsNoop = (t, ~schema, ~op: [#parse | #serialize], ~message
       let _ = %raw(`undefined`)->S.parseAnyWith(schema)
       %raw(`schema.parseOrThrow.toString()`)
     }
-  | #serialize => {
+  | #Serialize => {
       try {
         let _ = %raw(`undefined`)->S.serializeToUnknownOrRaiseWith(schema)
       } catch {

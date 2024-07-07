@@ -76,37 +76,35 @@ function unsafeAssertEqualSchemas(t, s1, s2, message) {
 
 function assertCompiledCode(t, schema, op, code, message) {
   var compiledCode;
-  if (op === "parse") {
-    if (S$RescriptSchema.isAsyncParse(schema)) {
-      S$RescriptSchema.parseAsyncInStepsWith(undefined, schema);
-      compiledCode = (schema.a.toString());
-    } else {
-      S$RescriptSchema.parseAnyWith(undefined, schema);
-      compiledCode = (schema.parseOrThrow.toString());
-    }
-  } else {
+  if (op === "Assert") {
     try {
-      S$RescriptSchema.serializeToUnknownOrRaiseWith(undefined, schema);
+      S$RescriptSchema.assertOrRaiseWith(undefined, schema);
     }
     catch (exn){
       
     }
+    compiledCode = (schema.assert.toString());
+  } else if (op === "Serialize") {
+    try {
+      S$RescriptSchema.serializeToUnknownOrRaiseWith(undefined, schema);
+    }
+    catch (exn$1){
+      
+    }
     compiledCode = (schema.serializeOrThrow.toString());
+  } else if (S$RescriptSchema.isAsyncParse(schema)) {
+    S$RescriptSchema.parseAsyncInStepsWith(undefined, schema);
+    compiledCode = (schema.a.toString());
+  } else {
+    S$RescriptSchema.parseAnyWith(undefined, schema);
+    compiledCode = (schema.parseOrThrow.toString());
   }
   t.is(compiledCode, code, message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }
 
 function assertCompiledCodeIsNoop(t, schema, op, message) {
   var compiledCode;
-  if (op === "parse") {
-    if (S$RescriptSchema.isAsyncParse(schema)) {
-      S$RescriptSchema.parseAsyncInStepsWith(undefined, schema);
-      compiledCode = (schema.a.toString());
-    } else {
-      S$RescriptSchema.parseAnyWith(undefined, schema);
-      compiledCode = (schema.parseOrThrow.toString());
-    }
-  } else {
+  if (op === "Serialize") {
     try {
       S$RescriptSchema.serializeToUnknownOrRaiseWith(undefined, schema);
     }
@@ -114,6 +112,12 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
       
     }
     compiledCode = (schema.serializeOrThrow.toString());
+  } else if (S$RescriptSchema.isAsyncParse(schema)) {
+    S$RescriptSchema.parseAsyncInStepsWith(undefined, schema);
+    compiledCode = (schema.a.toString());
+  } else {
+    S$RescriptSchema.parseAnyWith(undefined, schema);
+    compiledCode = (schema.parseOrThrow.toString());
   }
   t.truthy(compiledCode.startsWith("function noopOperation(i)"), message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }

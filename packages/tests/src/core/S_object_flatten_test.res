@@ -107,7 +107,7 @@ test("Successfully parses simple object with flatten", t => {
     (),
   )
   t->U.assertCompiledCode(
-    ~op=#parse,
+    ~op=#Parse,
     ~schema,
     `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
   )
@@ -126,7 +126,7 @@ test("Successfully serializes simple object with flatten", t => {
     Ok(%raw(`{"foo": "foo", "bar": "bar"}`)),
     (),
   )
-  t->U.assertCompiledCode(~op=#serialize, ~schema, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
+  t->U.assertCompiledCode(~op=#Serialize, ~schema, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
 })
 
 type entityData = {
@@ -158,7 +158,7 @@ test("Can destructure flattened schema", t => {
     (),
   )
   t->U.assertCompiledCode(
-    ~op=#serialize,
+    ~op=#Serialize,
     ~schema=entitySchema,
     `i=>{return {"name":i["name"],"age":i["age"],"id":i["id"],}}`,
   )

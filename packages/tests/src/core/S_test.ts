@@ -1223,6 +1223,31 @@ test("Tuple with transform to object", (t) => {
   >(true);
 });
 
+test("Assert throws with invalid data", (t) => {
+  const schema: S.Schema<string> = S.string;
+
+  t.throws(
+    () => {
+      schema.assert(123);
+    },
+    {
+      name: "RescriptSchemaError",
+      message:
+        "Failed asserting at root. Reason: Expected String, received 123",
+    }
+  );
+});
+
+test("Assert passes with valid data", (t) => {
+  const schema: S.Schema<string> = S.string;
+
+  const data: unknown = "abc";
+  expectType<TypeEqual<typeof data, unknown>>(true);
+  schema.assert(data);
+  expectType<TypeEqual<typeof data, string>>(true);
+  t.pass();
+});
+
 test("Example", (t) => {
   // Create login schema with email and password
   const loginSchema = S.object({

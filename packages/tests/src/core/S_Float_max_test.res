@@ -65,7 +65,7 @@ test("Compiled parse code snapshot", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#parse,
+    ~op=#Parse,
     `i=>{if(typeof i!=="number"||Number.isNaN(i)){e[2](i)}if(i>e[0]){e[1]()}return i}`,
   )
 })

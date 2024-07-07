@@ -82,6 +82,7 @@ and operation =
   | ParseAsync
   | SerializeToJson
   | SerializeToUnknown
+  | Assert
 and unknownKeys = Strip | Strict
 type exn += private Raised(error)
 
@@ -219,6 +220,8 @@ let serializeOrRaiseWith: ('value, t<'value>) => Js.Json.t
 let serializeToUnknownOrRaiseWith: ('value, t<'value>) => unknown
 
 let serializeToJsonStringOrRaiseWith: ('value, t<'value>, ~space: int=?) => string
+
+let assertOrRaiseWith: ('any, t<'value>) => unit
 
 let isAsyncParse: t<'value> => bool
 

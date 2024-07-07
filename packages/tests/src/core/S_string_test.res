@@ -34,12 +34,12 @@ module Common = {
   test("Compiled parse code snapshot", t => {
     let schema = factory()
 
-    t->U.assertCompiledCode(~schema, ~op=#parse, `i=>{if(typeof i!=="string"){e[0](i)}return i}`)
+    t->U.assertCompiledCode(~schema, ~op=#Parse, `i=>{if(typeof i!=="string"){e[0](i)}return i}`)
   })
 
   test("Compiled serialize code snapshot", t => {
     let schema = factory()
 
-    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
   })
 }

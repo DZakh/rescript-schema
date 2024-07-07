@@ -51,7 +51,7 @@ test("Parses when both schemas misses parser", t => {
     },
   )
 
-  t->U.assertCompiledCode(~schema, ~op=#parse, `i=>{e[4]([e[1],e[3],]);return i}`)
+  t->U.assertCompiledCode(~schema, ~op=#Parse, `i=>{e[4]([e[1],e[3],]);return i}`)
 })
 
 test("Serializes when both schemas misses serializer", t => {
@@ -80,7 +80,7 @@ test("Serializes when both schemas misses serializer", t => {
     },
   )
 
-  t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{e[2]([e[0],e[1],]);return i}`)
+  t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{e[2]([e[0],e[1],]);return i}`)
 })
 
 test("Parses when second struct misses parser", t => {
@@ -90,7 +90,7 @@ test("Parses when second struct misses parser", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#parse,
+    ~op=#Parse,
     `i=>{let v0;try{i==="apple"||e[0](i);v0=i}catch(e0){e[3]([e0,e[2],])}return v0}`,
   )
 })
@@ -102,7 +102,7 @@ test("Serializes when second struct misses serializer", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#serialize,
+    ~op=#Serialize,
     `i=>{let v0;try{i==="apple"||e[0](i);v0=i}catch(e0){e[2]([e0,e[1],])}return v0}`,
   )
 })
@@ -376,7 +376,7 @@ module Advanced = {
   test("Compiled parse code snapshot of shape schema", t => {
     t->U.assertCompiledCode(
       ~schema=shapeSchema,
-      ~op=#parse,
+      ~op=#Parse,
       `i=>{let v2;try{if(!i||i.constructor!==Object){e[0](i)}let v0=i["kind"],v1=i["radius"];v0==="circle"||e[1](v0);if(typeof v1!=="number"||Number.isNaN(v1)){e[2](v1)}v2={"TAG":e[3],"radius":v1,}}catch(e0){try{if(!i||i.constructor!==Object){e[4](i)}let v3=i["kind"],v4=i["x"];v3==="square"||e[5](v3);if(typeof v4!=="number"||Number.isNaN(v4)){e[6](v4)}v2={"TAG":e[7],"x":v4,}}catch(e1){try{if(!i||i.constructor!==Object){e[8](i)}let v5=i["kind"],v6=i["x"],v7=i["y"];v5==="triangle"||e[9](v5);if(typeof v6!=="number"||Number.isNaN(v6)){e[10](v6)}if(typeof v7!=="number"||Number.isNaN(v7)){e[11](v7)}v2={"TAG":e[12],"x":v6,"y":v7,}}catch(e2){e[13]([e0,e1,e2,])}}}return v2}`,
     )
   })
@@ -384,7 +384,7 @@ module Advanced = {
   test("Compiled serialize code snapshot of shape schema", t => {
     t->U.assertCompiledCode(
       ~schema=shapeSchema,
-      ~op=#serialize,
+      ~op=#Serialize,
       `i=>{let v0,v1,v2,v3;try{if(i["TAG"]!==e[0]){e[1](i["TAG"])}v0={"kind":e[2],"radius":i["radius"],};if(!v0||v0.constructor!==Object){e[3](v0)}v1=v0}catch(e0){try{if(i["TAG"]!==e[4]){e[5](i["TAG"])}v2={"kind":e[6],"x":i["x"],};if(!v2||v2.constructor!==Object){e[7](v2)}v1=v2}catch(e1){try{if(i["TAG"]!==e[8]){e[9](i["TAG"])}v3={"kind":e[10],"x":i["x"],"y":i["y"],};if(!v3||v3.constructor!==Object){e[11](v3)}v1=v3}catch(e2){e[12]([e0,e1,e2,])}}}return v1}`,
     )
   })
@@ -412,7 +412,7 @@ test("Compiled parse code snapshot", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#parse,
+    ~op=#Parse,
     `i=>{let v0;try{i===0||e[0](i);v0=i}catch(e0){try{i===1||e[1](i);v0=i}catch(e1){e[2]([e0,e1,])}}return v0}`,
   )
 })
@@ -426,7 +426,7 @@ Failing.test("Compiled async parse code snapshot", _t => {
 
   // t->U.assertCompiledCode(
   //   ~schema,
-  //   ~op=#parse,
+  //   ~op=#Parse,
   //   `i=>{let v0=e[1](i),v1;try{i===0||e[0](i);throw v0}catch(v2){if(v2&&v2.s===s||v2===v0){try{i===1||e[2](i);v1=()=>Promise.resolve(i)}catch(v3){if(v3&&v3.s===s){v1=()=>Promise.any([v2===v0?v2():Promise.reject(v2),Promise.reject(v3)]).catch(t=>{e[3](t.errors)})}else{throw v3}}}else{throw v2}}return v1}`,
   // )
 })
@@ -437,7 +437,7 @@ test("Compiled serialize code snapshot", t => {
   // TODO: Improve compiled code for literals
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#serialize,
+    ~op=#Serialize,
     `i=>{let v0;try{i===0||e[0](i);v0=i}catch(e0){try{i===1||e[1](i);v0=i}catch(e1){e[2]([e0,e1,])}}return v0}`,
   )
 })
@@ -455,7 +455,7 @@ test("Compiled serialize code snapshot for unboxed variant", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#serialize,
+    ~op=#Serialize,
     `i=>{let v0,v1;try{if(typeof i!=="string"){e[0](i)}v0=i}catch(e0){try{v1=e[1](i);if(typeof v1!=="string"){e[2](v1)}v0=v1}catch(e1){e[3]([e0,e1,])}}return v0}`,
   )
 })
@@ -484,7 +484,7 @@ module CknittelBugReport = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#serialize,
+      ~op=#Serialize,
       `i=>{let v2,v3,v6;try{let v0=i["_0"]["payload"]["a"],v1;if(i["TAG"]!==e[0]){e[1](i["TAG"])}if(v0!==void 0){v1=e[2](v0)}v2={"payload":{"a":v1,},};if(!v2||v2.constructor!==Object){e[3](v2)}v3=v2}catch(e0){try{let v4=i["_0"]["payload"]["b"],v5;if(i["TAG"]!==e[4]){e[5](i["TAG"])}if(v4!==void 0){v5=e[6](v4)}v6={"payload":{"b":v5,},};if(!v6||v6.constructor!==Object){e[7](v6)}v3=v6}catch(e1){e[8]([e0,e1,])}}return v3}`,
     )
 

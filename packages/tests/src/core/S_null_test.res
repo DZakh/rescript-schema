@@ -37,7 +37,7 @@ module Common = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#parse,
+      ~op=#Parse,
       `i=>{if(i!==null&&(typeof i!=="string")){e[0](i)}let v0;if(i!==null){v0=i}else{v0=void 0}return v0}`,
     )
   })
@@ -47,7 +47,7 @@ module Common = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#parse,
+      ~op=#Parse,
       `i=>{let v0;if(i!==null){v0=e[0](i)}else{v0=()=>Promise.resolve(void 0)}return v0}`,
     )
   })
@@ -57,7 +57,7 @@ module Common = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#serialize,
+      ~op=#Serialize,
       `i=>{let v0;if(i!==void 0){v0=e[0](i)}else{v0=null}return v0}`,
     )
   })

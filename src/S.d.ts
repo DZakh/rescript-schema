@@ -34,6 +34,7 @@ export type Schema<Output, Input = Output> = S_t<Output, Input> & {
   serialize(value: Output): Result<Input>;
   serializeOrThrow(value: Output): Input;
   serializeToJsonOrThrow(value: Output): Json;
+  assert(data: unknown): asserts data is Output;
 };
 
 export type Output<T> = T extends Schema<infer Output, unknown>

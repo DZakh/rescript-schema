@@ -48,12 +48,12 @@ module Common = {
   test("Compiled parse code snapshot", t => {
     let schema = factory()
 
-    t->U.assertCompiledCode(~schema, ~op=#parse, `i=>{Number.isNaN(i)||e[0](i);return i}`)
+    t->U.assertCompiledCode(~schema, ~op=#Parse, `i=>{Number.isNaN(i)||e[0](i);return i}`)
   })
 
   test("Compiled serialize code snapshot", t => {
     let schema = factory()
 
-    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{Number.isNaN(i)||e[0](i);return i}`)
+    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{Number.isNaN(i)||e[0](i);return i}`)
   })
 }

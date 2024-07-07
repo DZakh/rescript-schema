@@ -114,10 +114,10 @@ test("Can destructure object value passed to S.variant", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#parse,
+    ~op=#Parse,
     `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
   )
-  t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
+  t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
 })
 
 test("Compiled code snapshot of variant applied to object", t => {
@@ -125,12 +125,12 @@ test("Compiled code snapshot of variant applied to object", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#parse,
+    ~op=#Parse,
     `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return {"TAG":e[1],"_0":v0,}}`,
   )
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#serialize,
+    ~op=#Serialize,
     `i=>{if(i["TAG"]!==e[0]){e[1](i["TAG"])}return {"foo":i["_0"],}}`,
   )
 })
@@ -140,7 +140,7 @@ test("Compiled parse code snapshot", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#parse,
+    ~op=#Parse,
     `i=>{if(typeof i!=="string"){e[1](i)}return e[0](i)}`,
   )
 })
@@ -150,7 +150,7 @@ test("Compiled parse code snapshot without transform", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#parse,
+    ~op=#Parse,
     `i=>{if(typeof i!=="string"){e[1](i)}return e[0](i)}`,
   )
 })
@@ -160,7 +160,7 @@ test("Compiled serialize code snapshot", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#serialize,
+    ~op=#Serialize,
     `i=>{let v0=i["TAG"];if(v0!==e[0]){e[1](v0)}return i["_0"]}`,
   )
 })
@@ -168,7 +168,7 @@ test("Compiled serialize code snapshot", t => {
 test("Compiled serialize code snapshot without transform", t => {
   let schema = S.string->S.variant(s => s)
 
-  t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
+  t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
 })
 
 test(
@@ -179,7 +179,7 @@ test(
     // TODO: Can be simplified
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#serialize,
+      ~op=#Serialize,
       `i=>{let v0=e[2];if(i!==e[0]){e[1](i)}(v0===e[3]||Array.isArray(v0)&&v0.length===2&&v0[0]===true&&v0[1]===12)||e[4](v0);return v0}`,
     )
   },

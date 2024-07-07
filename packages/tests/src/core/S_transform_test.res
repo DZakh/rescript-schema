@@ -295,7 +295,7 @@ asyncTest("Can apply other actions after async transform", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#parse,
+    ~op=#Parse,
     `i=>{if(typeof i!=="string"){e[3](i)}let v1=e[0](i),v3=()=>v1().then(v0=>{return e[1](v0)});return ()=>v3().then(v2=>{return (e[2](v2))()})}`,
   )
 
@@ -314,7 +314,7 @@ test("Compiled parse code snapshot", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#parse,
+    ~op=#Parse,
     `i=>{if(typeof i!=="number"||i>2147483647||i<-2147483648||i%1!==0){e[1](i)}return e[0](i)}`,
   )
 })
@@ -327,7 +327,7 @@ test("Compiled async parse code snapshot", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#parse,
+    ~op=#Parse,
     `i=>{if(typeof i!=="number"||i>2147483647||i<-2147483648||i%1!==0){e[1](i)}return e[0](i)}`,
   )
 })
@@ -338,5 +338,5 @@ test("Compiled serialize code snapshot", t => {
     serializer: value => value->Int.fromFloat,
   })
 
-  t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return e[0](i)}`)
+  t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return e[0](i)}`)
 })

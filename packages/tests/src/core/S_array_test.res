@@ -51,7 +51,7 @@ module CommonWithNested = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#parse,
+      ~op=#Parse,
       `i=>{if(!Array.isArray(i)){e[1](i)}for(let v0=0;v0<i.length;++v0){let v2=i[v0];try{if(typeof v2!=="string"){e[0](v2)}}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}}return i}`,
     )
   })
@@ -61,7 +61,7 @@ module CommonWithNested = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#parse,
+      ~op=#Parse,
       `i=>{if(!Array.isArray(i)){e[1](i)}let v4=[];for(let v0=0;v0<i.length;++v0){let v2,v3;try{v2=e[0](i[v0]);v3=()=>{try{return v2().catch(v1=>{if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1})}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}}}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}v4.push(v3)}return ()=>Promise.all(v4.map(t=>t()))}`,
     )
   })
@@ -69,7 +69,7 @@ module CommonWithNested = {
   test("Compiled serialize code snapshot", t => {
     let schema = S.array(S.string)
 
-    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
   })
 
   test("Compiled serialize code snapshot with transform", t => {
@@ -78,7 +78,7 @@ module CommonWithNested = {
     // TODO: Simplify
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#serialize,
+      ~op=#Serialize,
       `i=>{let v5=[];for(let v0=0;v0<i.length;++v0){let v2=i[v0],v4;try{let v3;if(v2!==void 0){v3=e[0](v2)}v4=v3}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}v5.push(v4)}return v5}`,
     )
   })

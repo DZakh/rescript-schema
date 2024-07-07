@@ -375,7 +375,11 @@ function noopOperation(i) {
   return i;
 }
 
-function build(builder, schema, operation) {
+function noopFinalizer(_b, param, output) {
+  return output;
+}
+
+function build(builder, schema, operation, finalizer) {
   var b = {
     c: "",
     l: "",
@@ -395,17 +399,11 @@ function build(builder, schema, operation) {
   if (b.l !== "") {
     b.c = "let " + b.l + ";" + b.c;
   }
-  if (operation === "Parse" || operation === "ParseAsync") {
-    var typeFilter = schema.f;
-    if (typeFilter !== undefined) {
-      b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
-    }
-    schema.i = output.a;
-  }
-  if (b.c === "" && output === input) {
+  var output$1 = finalizer(b, input, output);
+  if (b.c === "" && output$1 === input) {
     return noopOperation;
   }
-  var inlinedFunction = "i=>{" + b.c + "return " + inline(b, output) + "}";
+  var inlinedFunction = "i=>{" + b.c + "return " + inline(b, output$1) + "}";
   return new Function("e", "s", "return " + inlinedFunction)(b.g.e, symbol);
 }
 
@@ -616,7 +614,11 @@ function isAsyncParse(schema) {
     return v;
   }
   try {
-    build(schema.p, schema, "ParseAsync");
+    build(schema.p, schema, "ParseAsync", (function (b, input, output) {
+            schema.i = output.a;
+            b.c = "";
+            return input;
+          }));
     return schema.i;
   }
   catch (raw_exn){
@@ -628,6 +630,10 @@ function isAsyncParse(schema) {
 
 function parseAnyOrRaiseWith(any, schema) {
   return schema.parseOrThrow(any);
+}
+
+function assertOrRaiseWith(any, schema) {
+  schema.assert(any);
 }
 
 function parseAnyWith(any, schema) {
@@ -781,14 +787,28 @@ function parseJsonStringWith(jsonString, schema) {
 
 function initialParseOrRaise(unknown) {
   var schema = this;
-  var operation = build(schema.p, schema, "Parse");
+  var operation = build(schema.p, schema, "Parse", (function (b, input, output) {
+          var typeFilter = schema.f;
+          if (typeFilter !== undefined) {
+            b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
+          }
+          schema.i = false;
+          return output;
+        }));
   schema.parseOrThrow = operation;
   return operation(unknown);
 }
 
 function initialParseAsyncOrRaise(unknown) {
   var schema = this;
-  var operation = build(schema.p, schema, "ParseAsync");
+  var operation = build(schema.p, schema, "ParseAsync", (function (b, input, output) {
+          var typeFilter = schema.f;
+          if (typeFilter !== undefined) {
+            b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
+          }
+          schema.i = output.a;
+          return output;
+        }));
   var isAsync = schema.i;
   var operation$1 = isAsync ? operation : (function (input) {
         var syncValue = operation(input);
@@ -800,9 +820,23 @@ function initialParseAsyncOrRaise(unknown) {
   return operation$1(unknown);
 }
 
+function initialAssertOrRaise(unknown) {
+  var schema = this;
+  var operation = build(schema.p, schema, "Assert", (function (b, input, param) {
+          var typeFilter = schema.f;
+          if (typeFilter !== undefined) {
+            b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
+          }
+          schema.i = false;
+          return val(b, "void 0");
+        }));
+  schema.assert = operation;
+  return operation(unknown);
+}
+
 function initialSerializeToUnknownOrRaise(unknown) {
   var schema = this;
-  var operation = build(schema.s, schema, "SerializeToUnknown");
+  var operation = build(schema.s, schema, "SerializeToUnknown", noopFinalizer);
   schema.serializeOrThrow = operation;
   return operation(unknown);
 }
@@ -815,7 +849,7 @@ function initialSerializeOrRaise(unknown) {
               _0: schema
             }, "SerializeToJson", "");
   }
-  var operation = build(schema.s, schema, "SerializeToJson");
+  var operation = build(schema.s, schema, "SerializeToJson", noopFinalizer);
   schema.serializeToJsonOrThrow = operation;
   return operation(unknown);
 }
@@ -872,7 +906,8 @@ function make(name, rawTagged, metadataMap, parseOperationBuilder, serializeOper
           parseAsync: jsParseAsync,
           serialize: jsSerialize,
           serializeOrThrow: initialSerializeToUnknownOrRaise,
-          serializeToJsonOrThrow: initialSerializeOrRaise
+          serializeToJsonOrThrow: initialSerializeOrRaise,
+          assert: initialAssertOrRaise
         };
 }
 
@@ -891,7 +926,8 @@ function makeWithNoopSerializer(name, rawTagged, metadataMap, parseOperationBuil
           parseAsync: jsParseAsync,
           serialize: jsSerialize,
           serializeOrThrow: initialSerializeToUnknownOrRaise,
-          serializeToJsonOrThrow: initialSerializeOrRaise
+          serializeToJsonOrThrow: initialSerializeOrRaise,
+          assert: initialAssertOrRaise
         };
 }
 
@@ -962,7 +998,7 @@ function recursive(fn) {
                         }));
           }
         });
-      var operation = build(builder, selfSchema, b.g.o);
+      var operation = build(builder, selfSchema, b.g.o, noopFinalizer);
       if (isAsync) {
         selfSchema.a = operation;
       } else {
@@ -984,7 +1020,7 @@ function recursive(fn) {
                         return selfSchema.serializeOrThrow(input);
                       }));
         });
-      var operation = build(builder$1, selfSchema, b.g.o);
+      var operation = build(builder$1, selfSchema, b.g.o, noopFinalizer);
       selfSchema.serializeOrThrow = operation;
       selfSchema.s = builder$1;
       return withPathPrepend(b, input, path, undefined, (function (b, input, param) {
@@ -1539,7 +1575,8 @@ function factory$2(definer) {
           parseAsync: jsParseAsync,
           serialize: jsSerialize,
           serializeOrThrow: initialSerializeToUnknownOrRaise,
-          serializeToJsonOrThrow: initialSerializeOrRaise
+          serializeToJsonOrThrow: initialSerializeOrRaise,
+          assert: initialAssertOrRaise
         };
 }
 
@@ -1570,7 +1607,8 @@ function setUnknownKeys(schema, unknownKeys) {
             parseAsync: jsParseAsync,
             serialize: jsSerialize,
             serializeOrThrow: initialSerializeToUnknownOrRaise,
-            serializeToJsonOrThrow: initialSerializeOrRaise
+            serializeToJsonOrThrow: initialSerializeOrRaise,
+            assert: initialAssertOrRaise
           };
   }
 }
@@ -2208,6 +2246,9 @@ function message(error) {
         break;
     case "SerializeToUnknown" :
         operation = "serializing";
+        break;
+    case "Assert" :
+        operation = "asserting";
         break;
     
   }
@@ -3036,6 +3077,7 @@ export {
   serializeOrRaiseWith ,
   serializeToUnknownOrRaiseWith ,
   serializeToJsonStringOrRaiseWith ,
+  assertOrRaiseWith ,
   isAsyncParse ,
   recursive ,
   classify ,

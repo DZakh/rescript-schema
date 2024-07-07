@@ -19,13 +19,13 @@ module Common = {
   test("Compiled parse code snapshot", t => {
     let schema = factory()
 
-    t->U.assertCompiledCodeIsNoop(~schema, ~op=#parse)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#Parse)
   })
 
   test("Compiled serialize code snapshot", t => {
     let schema = factory()
 
-    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
   })
 }
 

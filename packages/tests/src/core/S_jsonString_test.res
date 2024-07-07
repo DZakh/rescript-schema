@@ -86,7 +86,7 @@ test("Compiled parse code snapshot", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#parse,
+    ~op=#Parse,
     `i=>{if(typeof i!=="string"){e[2](i)}let v0;try{v0=JSON.parse(i)}catch(t){e[0](t.message)}if(typeof v0!=="boolean"){e[1](v0)}return v0}`,
   )
 })
@@ -96,7 +96,7 @@ test("Compiled async parse code snapshot", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#parse,
+    ~op=#Parse,
     `i=>{if(typeof i!=="string"){e[3](i)}let v0;try{v0=JSON.parse(i)}catch(t){e[0](t.message)}if(typeof v0!=="boolean"){e[1](v0)}return e[2](v0)}`,
   )
 })
@@ -104,11 +104,11 @@ test("Compiled async parse code snapshot", t => {
 test("Compiled serialize code snapshot", t => {
   let schema = S.jsonString(S.bool)
 
-  t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return JSON.stringify(i)}`)
+  t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return JSON.stringify(i)}`)
 })
 
 test("Compiled serialize code snapshot with space", t => {
   let schema = S.jsonString(S.bool, ~space=2)
 
-  t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return JSON.stringify(i,null,2)}`)
+  t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return JSON.stringify(i,null,2)}`)
 })

@@ -239,7 +239,7 @@ module Compiled = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#parse,
+      ~op=#Parse,
       `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0=i["0"],v1=i["1"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return [v0,v1,]}`,
     )
   })
@@ -252,7 +252,7 @@ module Compiled = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#parse,
+      ~op=#Parse,
       `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0=e[0](i["0"]),v1=i["1"];if(typeof v1!=="boolean"){e[1](v1)}return ()=>Promise.all([v0()]).then(([v0])=>([v0,v1,]))}`,
     )
   })
@@ -260,14 +260,14 @@ module Compiled = {
   test("Compiled serialize code snapshot for simple tuple", t => {
     let schema = S.tuple(s => (s.item(0, S.string), s.item(1, S.bool)))
 
-    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return [i["0"],i["1"],]}`)
+    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return [i["0"],i["1"],]}`)
   })
 
   test("Compiled serialize code snapshot for empty tuple", t => {
     let schema = S.tuple(_ => ())
 
     // TODO: No need to do unit check ?
-    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{if(i!==e[0]){e[1](i)}return []}`)
+    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{if(i!==e[0]){e[1](i)}return []}`)
   })
 
   test(
@@ -284,7 +284,7 @@ module Compiled = {
 
       t->U.assertCompiledCode(
         ~schema,
-        ~op=#parse,
+        ~op=#Parse,
         `i=>{if(!Array.isArray(i)||i.length!==3){e[4](i)}let v0=i["0"],v1=i["1"],v2=i["2"];v0===0||e[0](v0);if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}return {"foo":v1,"bar":v2,"zoo":e[3],}}`,
       )
     },
@@ -304,7 +304,7 @@ module Compiled = {
 
       t->U.assertCompiledCode(
         ~schema,
-        ~op=#serialize,
+        ~op=#Serialize,
         `i=>{if(i["zoo"]!==e[0]){e[1](i["zoo"])}return [e[2],i["foo"],i["bar"],]}`,
       )
     },

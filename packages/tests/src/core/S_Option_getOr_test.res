@@ -85,7 +85,7 @@ test("Compiled parse code snapshot", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#parse,
+    ~op=#Parse,
     `i=>{if(i!==void 0&&(typeof i!=="boolean")){e[1](i)}return i===void 0?e[0]:i}`,
   )
 })
@@ -99,7 +99,7 @@ test("Compiled async parse code snapshot", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#parse,
+    ~op=#Parse,
     `i=>{if(i!==void 0&&(typeof i!=="boolean")){e[2](i)}let v0;if(i!==void 0){v0=e[0](i)}else{v0=()=>Promise.resolve(void 0)}return ()=>v0().then(v1=>{return v1===void 0?e[1]:v1})}`,
   )
 })
@@ -109,7 +109,7 @@ test("Compiled serialize code snapshot", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#serialize,
+    ~op=#Serialize,
     `i=>{let v0;if(i!==void 0){v0=e[0](i)}return v0}`,
   )
 })

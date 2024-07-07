@@ -665,155 +665,169 @@ test("Successfully serializes object transformed to variant", t => {
   )
 })
 
-test("Successfully parses object from benchmark", t => {
-  let schema = S.object(s =>
-    {
-      "number": s.field("number", S.float),
-      "negNumber": s.field("negNumber", S.float),
-      "maxNumber": s.field("maxNumber", S.float),
-      "string": s.field("string", S.string),
-      "longString": s.field("longString", S.string),
-      "boolean": s.field("boolean", S.bool),
-      "deeplyNested": s.field(
-        "deeplyNested",
-        S.object(
-          s =>
-            {
-              "foo": s.field("foo", S.string),
-              "num": s.field("num", S.float),
-              "bool": s.field("bool", S.bool),
-            },
-        ),
-      ),
-    }
-  )
-
-  t->Assert.deepEqual(
+module Benchmark = {
+  let makeTestObject = () => {
     %raw(`Object.freeze({
-      number: 1,
-      negNumber: -1,
-      maxNumber: Number.MAX_VALUE,
-      string: 'string',
-      longString:
-        'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
-      boolean: true,
-      deeplyNested: {
-        foo: 'bar',
-        num: 1,
-        bool: false,
-      },
-    })`)->S.parseAnyWith(schema),
-    Ok({
-      "number": 1.,
-      "negNumber": -1.,
-      "maxNumber": %raw("Number.MAX_VALUE"),
-      "string": "string",
-      "longString": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-      "boolean": true,
-      "deeplyNested": {
-        "foo": "bar",
-        "num": 1.,
-        "bool": false,
-      },
-    }),
-    (),
-  )
-})
+    number: 1,
+    negNumber: -1,
+    maxNumber: Number.MAX_VALUE,
+    string: 'string',
+    longString:
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
+    boolean: true,
+    deeplyNested: {
+      foo: 'bar',
+      num: 1,
+      bool: false,
+    },
+  })`)
+  }
 
-test("Successfully parses strict object from benchmark", t => {
-  let schema = S.object(s =>
-    {
-      "number": s.field("number", S.float),
-      "negNumber": s.field("negNumber", S.float),
-      "maxNumber": s.field("maxNumber", S.float),
-      "string": s.field("string", S.string),
-      "longString": s.field("longString", S.string),
-      "boolean": s.field("boolean", S.bool),
-      "deeplyNested": s.field(
-        "deeplyNested",
-        S.object(
-          s =>
+  let makeAdvancedObjectSchema = () => {
+    S.object(s =>
+      {
+        "number": s.field("number", S.float),
+        "negNumber": s.field("negNumber", S.float),
+        "maxNumber": s.field("maxNumber", S.float),
+        "string": s.field("string", S.string),
+        "longString": s.field("longString", S.string),
+        "boolean": s.field("boolean", S.bool),
+        "deeplyNested": s.field(
+          "deeplyNested",
+          S.object(s =>
             {
               "foo": s.field("foo", S.string),
               "num": s.field("num", S.float),
               "bool": s.field("bool", S.bool),
-            },
-        )->S.Object.strict,
-      ),
-    }
-  )->S.Object.strict
-
-  t->Assert.deepEqual(
-    %raw(`Object.freeze({
-      number: 1,
-      negNumber: -1,
-      maxNumber: Number.MAX_VALUE,
-      string: 'string',
-      longString:
-        'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
-      boolean: true,
-      deeplyNested: {
-        foo: 'bar',
-        num: 1,
-        bool: false,
-      },
-    })`)->S.parseAnyWith(schema),
-    Ok({
-      "number": 1.,
-      "negNumber": -1.,
-      "maxNumber": %raw("Number.MAX_VALUE"),
-      "string": "string",
-      "longString": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-      "boolean": true,
-      "deeplyNested": {
-        "foo": "bar",
-        "num": 1.,
-        "bool": false,
-      },
-    }),
-    (),
-  )
-})
-
-test("Successfully serializes object from benchmark", t => {
-  let schema = S.object(s =>
-    {
-      "number": s.field("number", S.float),
-      "negNumber": s.field("negNumber", S.float),
-      "maxNumber": s.field("maxNumber", S.float),
-      "string": s.field("string", S.string),
-      "longString": s.field("longString", S.string),
-      "boolean": s.field("boolean", S.bool),
-      "deeplyNested": s.field(
-        "deeplyNested",
-        S.object(
-          s =>
-            {
-              "foo": s.field("foo", S.string),
-              "num": s.field("num", S.float),
-              "bool": s.field("bool", S.bool),
-            },
+            }
+          ),
         ),
-      ),
-    }
-  )
+      }
+    )
+  }
 
-  t->Assert.deepEqual(
-    {
-      "number": 1.,
-      "negNumber": -1.,
-      "maxNumber": %raw("Number.MAX_VALUE"),
-      "string": "string",
-      "longString": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-      "boolean": true,
-      "deeplyNested": {
-        "foo": "bar",
-        "num": 1.,
-        "bool": false,
-      },
-    }->S.serializeToUnknownWith(schema),
-    Ok(
-      %raw(`{
+  let makeAdvancedStrictObjectSchema = () => {
+    S.object(s =>
+      {
+        "number": s.field("number", S.float),
+        "negNumber": s.field("negNumber", S.float),
+        "maxNumber": s.field("maxNumber", S.float),
+        "string": s.field("string", S.string),
+        "longString": s.field("longString", S.string),
+        "boolean": s.field("boolean", S.bool),
+        "deeplyNested": s.field(
+          "deeplyNested",
+          S.object(s =>
+            {
+              "foo": s.field("foo", S.string),
+              "num": s.field("num", S.float),
+              "bool": s.field("bool", S.bool),
+            }
+          )->S.Object.strict,
+        ),
+      }
+    )->S.Object.strict
+  }
+
+  test("Successfully parses object from benchmark", t => {
+    let schema = makeAdvancedObjectSchema()
+
+    t->Assert.deepEqual(
+      makeTestObject()->S.parseAnyWith(schema),
+      Ok({
+        "number": 1.,
+        "negNumber": -1.,
+        "maxNumber": %raw("Number.MAX_VALUE"),
+        "string": "string",
+        "longString": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+        "boolean": true,
+        "deeplyNested": {
+          "foo": "bar",
+          "num": 1.,
+          "bool": false,
+        },
+      }),
+      (),
+    )
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(!i||i.constructor!==Object){e[10](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"];if(typeof v0!=="number"||Number.isNaN(v0)){e[0](v0)}if(typeof v1!=="number"||Number.isNaN(v1)){e[1](v1)}if(typeof v2!=="number"||Number.isNaN(v2)){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"];if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"||Number.isNaN(v8)){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}return {"number":v0,"negNumber":v1,"maxNumber":v2,"string":v3,"longString":v4,"boolean":v5,"deeplyNested":{"foo":v7,"num":v8,"bool":v9,},}}`,
+    )
+  })
+
+  test("Successfully asserts object from benchmark", t => {
+    let schema = makeAdvancedObjectSchema()
+
+    t->Assert.deepEqual(makeTestObject()->S.assertOrRaiseWith(schema), (), ())
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Assert,
+      `i=>{if(!i||i.constructor!==Object){e[10](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"];if(typeof v0!=="number"||Number.isNaN(v0)){e[0](v0)}if(typeof v1!=="number"||Number.isNaN(v1)){e[1](v1)}if(typeof v2!=="number"||Number.isNaN(v2)){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"];if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"||Number.isNaN(v8)){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}return void 0}`,
+    )
+  })
+
+  test("Successfully parses strict object from benchmark", t => {
+    let schema = makeAdvancedStrictObjectSchema()
+
+    t->Assert.deepEqual(
+      makeTestObject()->S.parseAnyWith(schema),
+      Ok({
+        "number": 1.,
+        "negNumber": -1.,
+        "maxNumber": %raw("Number.MAX_VALUE"),
+        "string": "string",
+        "longString": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+        "boolean": true,
+        "deeplyNested": {
+          "foo": "bar",
+          "num": 1.,
+          "bool": false,
+        },
+      }),
+      (),
+    )
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(!i||i.constructor!==Object){e[12](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"],v11;if(typeof v0!=="number"||Number.isNaN(v0)){e[0](v0)}if(typeof v1!=="number"||Number.isNaN(v1)){e[1](v1)}if(typeof v2!=="number"||Number.isNaN(v2)){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"],v10;if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"||Number.isNaN(v8)){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}for(v10 in v6){if(v10!=="foo"&&v10!=="num"&&v10!=="bool"){e[10](v10)}}for(v11 in i){if(v11!=="number"&&v11!=="negNumber"&&v11!=="maxNumber"&&v11!=="string"&&v11!=="longString"&&v11!=="boolean"&&v11!=="deeplyNested"){e[11](v11)}}return {"number":v0,"negNumber":v1,"maxNumber":v2,"string":v3,"longString":v4,"boolean":v5,"deeplyNested":{"foo":v7,"num":v8,"bool":v9,},}}`,
+    )
+  })
+
+  test("Successfully asserts strict object from benchmark", t => {
+    let schema = makeAdvancedStrictObjectSchema()
+
+    t->Assert.deepEqual(makeTestObject()->S.assertOrRaiseWith(schema), (), ())
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Assert,
+      `i=>{if(!i||i.constructor!==Object){e[12](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"],v11;if(typeof v0!=="number"||Number.isNaN(v0)){e[0](v0)}if(typeof v1!=="number"||Number.isNaN(v1)){e[1](v1)}if(typeof v2!=="number"||Number.isNaN(v2)){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"],v10;if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"||Number.isNaN(v8)){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}for(v10 in v6){if(v10!=="foo"&&v10!=="num"&&v10!=="bool"){e[10](v10)}}for(v11 in i){if(v11!=="number"&&v11!=="negNumber"&&v11!=="maxNumber"&&v11!=="string"&&v11!=="longString"&&v11!=="boolean"&&v11!=="deeplyNested"){e[11](v11)}}return void 0}`,
+    )
+  })
+
+  test("Successfully serializes object from benchmark", t => {
+    let schema = makeAdvancedObjectSchema()
+
+    t->Assert.deepEqual(
+      {
+        "number": 1.,
+        "negNumber": -1.,
+        "maxNumber": %raw("Number.MAX_VALUE"),
+        "string": "string",
+        "longString": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+        "boolean": true,
+        "deeplyNested": {
+          "foo": "bar",
+          "num": 1.,
+          "bool": false,
+        },
+      }->S.serializeToUnknownWith(schema),
+      Ok(
+        %raw(`{
         number: 1,
         negNumber: -1,
         maxNumber: Number.MAX_VALUE,
@@ -827,10 +841,17 @@ test("Successfully serializes object from benchmark", t => {
           bool: false,
         },
       }`),
-    ),
-    (),
-  )
-})
+      ),
+      (),
+    )
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Serialize,
+      `i=>{return {"number":i["number"],"negNumber":i["negNumber"],"maxNumber":i["maxNumber"],"string":i["string"],"longString":i["longString"],"boolean":i["boolean"],"deeplyNested":{"foo":i["deeplyNested"]["foo"],"num":i["deeplyNested"]["num"],"bool":i["deeplyNested"]["bool"],},}}`,
+    )
+  })
+}
 
 test("Successfully parses object and serializes it back to the initial data", t => {
   let any = %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)
@@ -942,7 +963,7 @@ test("Can destructure fields of simple nested objects", t => {
   )
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#parse,
+    ~op=#Parse,
     `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"],v2=v0["bar"];if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}return {"baz":v2,"foz":v1,}}`,
   )
 
@@ -953,7 +974,7 @@ test("Can destructure fields of simple nested objects", t => {
   )
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#serialize,
+    ~op=#Serialize,
     `i=>{return {"nested":{"foo":i["foz"],"bar":i["baz"],},}}`,
   )
 })
@@ -1025,7 +1046,7 @@ module Compiled = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#parse,
+      ~op=#Parse,
       `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
     )
   })
@@ -1043,7 +1064,7 @@ module Compiled = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#parse,
+      ~op=#Parse,
       `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=e[0](i["foo"]),v1=i["bar"];if(typeof v1!=="boolean"){e[1](v1)}return ()=>Promise.all([v0()]).then(([v0])=>({"foo":v0,"bar":v1,}))}`,
     )
   })
@@ -1056,7 +1077,7 @@ module Compiled = {
       }
     )
 
-    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
+    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
   })
 
   test("Compiled parse code snapshot for simple object with strict unknown keys", t => {
@@ -1069,7 +1090,7 @@ module Compiled = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#parse,
+      ~op=#Parse,
       `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["foo"],v1=i["bar"],v2;if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}for(v2 in i){if(v2!=="foo"&&v2!=="bar"){e[2](v2)}}return {"foo":v0,"bar":v1,}}`,
     )
   })
@@ -1082,7 +1103,7 @@ module Compiled = {
       }
     )->S.Object.strict
 
-    t->U.assertCompiledCode(~schema, ~op=#serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
+    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
   })
 
   test(
@@ -1099,7 +1120,7 @@ module Compiled = {
 
       t->U.assertCompiledCode(
         ~schema,
-        ~op=#parse,
+        ~op=#Parse,
         `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0=i["tag"],v1=i["FOO"],v2=i["BAR"],v3;v0===0||e[0](v0);if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}for(v3 in i){if(v3!=="tag"&&v3!=="FOO"&&v3!=="BAR"){e[3](v3)}}return {"foo":v1,"bar":v2,"zoo":e[4],}}`,
       )
     },
@@ -1119,7 +1140,7 @@ module Compiled = {
 
       t->U.assertCompiledCode(
         ~schema,
-        ~op=#serialize,
+        ~op=#Serialize,
         `i=>{if(i["zoo"]!==e[0]){e[1](i["zoo"])}return {"tag":e[2],"FOO":i["foo"],"BAR":i["bar"],}}`,
       )
     },

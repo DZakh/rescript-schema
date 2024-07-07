@@ -96,6 +96,8 @@ var serializeToUnknownOrRaiseWith = S_Core$RescriptSchema.serializeToUnknownOrRa
 
 var serializeToJsonStringOrRaiseWith = S_Core$RescriptSchema.serializeToJsonStringOrRaiseWith;
 
+var assertOrRaiseWith = S_Core$RescriptSchema.assertOrRaiseWith;
+
 var isAsyncParse = S_Core$RescriptSchema.isAsyncParse;
 
 var recursive = S_Core$RescriptSchema.recursive;
@@ -220,6 +222,7 @@ export {
   serializeOrRaiseWith ,
   serializeToUnknownOrRaiseWith ,
   serializeToJsonStringOrRaiseWith ,
+  assertOrRaiseWith ,
   isAsyncParse ,
   recursive ,
   classify ,

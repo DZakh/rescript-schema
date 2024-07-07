@@ -36,7 +36,7 @@ module Common = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#parse,
+      ~op=#Parse,
       `i=>{if(typeof i!=="number"||Number.isNaN(i)){e[0](i)}return i}`,
     )
   })
@@ -44,7 +44,7 @@ module Common = {
   test("Compiled serialize code snapshot", t => {
     let schema = factory()
 
-    t->U.assertCompiledCodeIsNoop(~schema, ~op=#serialize)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
   })
 }
 

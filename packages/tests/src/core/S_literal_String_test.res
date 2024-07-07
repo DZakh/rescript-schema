@@ -71,7 +71,7 @@ module Common = {
   test("Compiled parse code snapshot", t => {
     let schema = factory()
 
-    t->U.assertCompiledCode(~schema, ~op=#parse, `i=>{i==="ReScript is Great!"||e[0](i);return i}`)
+    t->U.assertCompiledCode(~schema, ~op=#Parse, `i=>{i==="ReScript is Great!"||e[0](i);return i}`)
   })
 
   test("Compiled serialize code snapshot", t => {
@@ -79,7 +79,7 @@ module Common = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#serialize,
+      ~op=#Serialize,
       `i=>{i==="ReScript is Great!"||e[0](i);return i}`,
     )
   })
