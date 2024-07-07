@@ -11,3 +11,8 @@
 - Update operation type to be more detailed and feature it in the error message.
 - S.union still doesn't support schemas with async, but treats them differently. Please don't try to use them, since the behavior is not predictable.
 - Added `S.assertOrRaiseWith` or `schema.assert` for js/ts users. It doesn't return parsed value, but that makes the function 2-3 times faster, depending on the schema.
+
+// TODO:
+
+- Test type check for recursive schema
+- Test GenType compatibility with d.ts

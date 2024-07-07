@@ -724,7 +724,7 @@ module Builder = {
   @inline
   let intitialInputVar = "i"
 
-  let noopFinalizer = (_b, ~input as _, ~output) => output
+  let noopFinalizer = (_b, ~schema as _, ~input as _, ~output) => output
 
   let build = (builder, ~schema, ~operation, finalizer) => {
     let b = {
@@ -745,7 +745,7 @@ module Builder = {
       b.code = `let ${b.varsAllocation};${b.code}`
     }
 
-    let output = finalizer(b, ~input, ~output)
+    let output = finalizer(b, ~schema, ~input, ~output)
 
     if b.code === "" && output === input {
       noopOperation
@@ -1040,22 +1040,25 @@ module Literal = {
   }
 }
 
+let isAsyncParseFinalizer = (b, ~schema, ~input, ~output) => {
+  schema.isAsyncParse = Value(output.isAsync)
+
+  // Avoid new Function call
+  b.code = ""
+  input
+}
+
 let isAsyncParse = schema => {
   let schema = schema->toUnknown
   switch schema.isAsyncParse {
   | Unknown =>
     try {
-      let _ = schema.parseOperationBuilder->Builder.build(~schema, ~operation=ParseAsync, (
-        b,
-        ~input,
-        ~output,
-      ) => {
-        schema.isAsyncParse = Value(output.isAsync)
-
-        // Avoid new Function call
-        b.code = ""
-        input
-      })
+      let _ =
+        schema.parseOperationBuilder->Builder.build(
+          ~schema,
+          ~operation=ParseAsync,
+          isAsyncParseFinalizer,
+        )
       schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
     } catch {
     | exn => {
@@ -1175,40 +1178,38 @@ let parseJsonStringWith = (jsonString: string, schema: t<'value>): result<'value
   }
 }
 
+let parseFinalizer = (b, ~schema, ~input, ~output) => {
+  switch schema.maybeTypeFilter {
+  | Some(typeFilter) =>
+    b.code = b->B.typeFilterCode(~schema, ~typeFilter, ~input, ~path=Path.empty) ++ b.code
+  | None => ()
+  }
+  schema.isAsyncParse = Value(false)
+  output
+}
+
 let initialParseOrRaise = unknown => {
   let schema = %raw(`this`)
-  let operation = schema.parseOperationBuilder->Builder.build(~schema, ~operation=Parse, (
-    b,
-    ~input,
-    ~output,
-  ) => {
-    switch schema.maybeTypeFilter {
-    | Some(typeFilter) =>
-      b.code = b->B.typeFilterCode(~schema, ~typeFilter, ~input, ~path=Path.empty) ++ b.code
-    | None => ()
-    }
-    schema.isAsyncParse = Value(false)
-    output
-  })
+  let operation =
+    schema.parseOperationBuilder->Builder.build(~schema, ~operation=Parse, parseFinalizer)
   schema.parseOrRaise = operation
   operation(unknown)
 }
 
+let parseAsyncFinalizer = (b, ~schema, ~input, ~output) => {
+  switch schema.maybeTypeFilter {
+  | Some(typeFilter) =>
+    b.code = b->B.typeFilterCode(~schema, ~typeFilter, ~input, ~path=Path.empty) ++ b.code
+  | None => ()
+  }
+  schema.isAsyncParse = Value(output.isAsync)
+  output
+}
+
 let initialParseAsyncOrRaise = unknown => {
   let schema = %raw(`this`)
-  let operation = schema.parseOperationBuilder->Builder.build(~schema, ~operation=ParseAsync, (
-    b,
-    ~input,
-    ~output,
-  ) => {
-    switch schema.maybeTypeFilter {
-    | Some(typeFilter) =>
-      b.code = b->B.typeFilterCode(~schema, ~typeFilter, ~input, ~path=Path.empty) ++ b.code
-    | None => ()
-    }
-    schema.isAsyncParse = Value(output.isAsync)
-    output
-  })
+  let operation =
+    schema.parseOperationBuilder->Builder.build(~schema, ~operation=ParseAsync, parseAsyncFinalizer)
   let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
   // FIXME: Get rid of this
   let operation = isAsync
@@ -1221,21 +1222,20 @@ let initialParseAsyncOrRaise = unknown => {
   operation(unknown)
 }
 
+let assertFinalizer = (b, ~schema, ~input, ~output as _) => {
+  switch schema.maybeTypeFilter {
+  | Some(typeFilter) =>
+    b.code = b->B.typeFilterCode(~schema, ~typeFilter, ~input, ~path=Path.empty) ++ b.code
+  | None => ()
+  }
+  schema.isAsyncParse = Value(false)
+  b->B.val("void 0")
+}
+
 let initialAssertOrRaise = unknown => {
   let schema = %raw(`this`)
-  let operation = schema.parseOperationBuilder->Builder.build(~schema, ~operation=Assert, (
-    b,
-    ~input,
-    ~output as _,
-  ) => {
-    switch schema.maybeTypeFilter {
-    | Some(typeFilter) =>
-      b.code = b->B.typeFilterCode(~schema, ~typeFilter, ~input, ~path=Path.empty) ++ b.code
-    | None => ()
-    }
-    schema.isAsyncParse = Value(false)
-    b->B.val("void 0")
-  })
+  let operation =
+    schema.parseOperationBuilder->Builder.build(~schema, ~operation=Assert, assertFinalizer)
   schema.assertOrRaise = operation
   operation(unknown)
 }
@@ -1426,26 +1426,26 @@ let recursive = fn => {
         }
       })
 
-      let operation =
-        builder->Builder.build(
-          ~schema=selfSchema,
-          ~operation=b.global.operation,
-          Builder.noopFinalizer,
-        )
       if isAsync {
-        selfSchema.parseAsyncOrRaise = operation
+        selfSchema.parseAsyncOrRaise =
+          builder->Builder.build(
+            ~schema=selfSchema,
+            ~operation=b.global.operation,
+            parseAsyncFinalizer,
+          )
       } else {
         // TODO: Use init function
-        selfSchema.parseOrRaise = operation
+        selfSchema.parseOrRaise =
+          builder->Builder.build(~schema=selfSchema, ~operation=b.global.operation, parseFinalizer)
       }
 
       selfSchema.parseOperationBuilder = builder
 
       b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) =>
         if isAsync {
-          b->B.embedAsyncOperation(~input, ~fn=operation)
+          b->B.embedAsyncOperation(~input, ~fn=selfSchema.parseAsyncOrRaise)
         } else {
-          b->B.embedSyncOperation(~input, ~fn=operation)
+          b->B.embedSyncOperation(~input, ~fn=selfSchema.parseOrRaise)
         }
       )
     })

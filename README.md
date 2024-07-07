@@ -47,12 +47,12 @@ Besides the individual bundle size, the overall size of the library is also sign
 
 At the same time **rescript-schema** is the fastest composable validation library in the entire JavaScript ecosystem. This is achieved because of the JIT approach when an ultra optimized validator is created using `eval`.
 
-|                                           | rescript-schema@7.0.0 | Zod@3.22.2      | Valibot@0.32.0 |
-| ----------------------------------------- | --------------------- | --------------- | -------------- |
-| **Total size** (minified + gzipped)       | 9.82 kB               | 14.6 kB         | 9.88 kB        |
-| **Example size** (minified + gzipped)     | 4.98 kB               | 12.9 kB         | 1.22 B         |
-| **Nested object parsing**                 | 156,244 ops/ms        | 1,304 ops/ms    | 3,822 ops/ms   |
-| **Create schema + Nested object parsing** | 56 ops/ms             | 112 ops/ms      | 2,475 ops/ms   |
-| **Eval-free**                             | ❌                    | ✅              | ✅             |
-| **Codegen-free** (Doesn't need compiler)  | ✅                    | ✅              | ✅             |
-| **Ecosystem**                             | ⭐️                   | ⭐️⭐️⭐️⭐️⭐️ | ⭐️⭐️⭐️      |
+|                                          | rescript-schema@7.0.0 | Zod@3.22.2      | Valibot@0.32.0 |
+| ---------------------------------------- | --------------------- | --------------- | -------------- |
+| **Total size** (minified + gzipped)      | 9.82 kB               | 14.6 kB         | 9.88 kB        |
+| **Example size** (minified + gzipped)    | 4.98 kB               | 12.9 kB         | 1.22 B         |
+| **Nested object parsing**                | 156,244 ops/ms        | 1,304 ops/ms    | 3,822 ops/ms   |
+| **Create schema + parse once**           | 56 ops/ms             | 112 ops/ms      | 2,475 ops/ms   |
+| **Eval-free**                            | ❌                    | ✅              | ✅             |
+| **Codegen-free** (Doesn't need compiler) | ✅                    | ✅              | ✅             |
+| **Ecosystem**                            | ⭐️                   | ⭐️⭐️⭐️⭐️⭐️ | ⭐️⭐️⭐️      |

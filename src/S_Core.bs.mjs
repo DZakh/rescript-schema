@@ -375,7 +375,7 @@ function noopOperation(i) {
   return i;
 }
 
-function noopFinalizer(_b, param, output) {
+function noopFinalizer(_b, param, param$1, output) {
   return output;
 }
 
@@ -399,7 +399,7 @@ function build(builder, schema, operation, finalizer) {
   if (b.l !== "") {
     b.c = "let " + b.l + ";" + b.c;
   }
-  var output$1 = finalizer(b, input, output);
+  var output$1 = finalizer(b, schema, input, output);
   if (b.c === "" && output$1 === input) {
     return noopOperation;
   }
@@ -608,17 +608,19 @@ function parse(any) {
   return parseInternal(any);
 }
 
+function isAsyncParseFinalizer(b, schema, input, output) {
+  schema.i = output.a;
+  b.c = "";
+  return input;
+}
+
 function isAsyncParse(schema) {
   var v = schema.i;
   if (typeof v === "boolean") {
     return v;
   }
   try {
-    build(schema.p, schema, "ParseAsync", (function (b, input, output) {
-            schema.i = output.a;
-            b.c = "";
-            return input;
-          }));
+    build(schema.p, schema, "ParseAsync", isAsyncParseFinalizer);
     return schema.i;
   }
   catch (raw_exn){
@@ -785,30 +787,34 @@ function parseJsonStringWith(jsonString, schema) {
   }
 }
 
+function parseFinalizer(b, schema, input, output) {
+  var typeFilter = schema.f;
+  if (typeFilter !== undefined) {
+    b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
+  }
+  schema.i = false;
+  return output;
+}
+
 function initialParseOrRaise(unknown) {
   var schema = this;
-  var operation = build(schema.p, schema, "Parse", (function (b, input, output) {
-          var typeFilter = schema.f;
-          if (typeFilter !== undefined) {
-            b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
-          }
-          schema.i = false;
-          return output;
-        }));
+  var operation = build(schema.p, schema, "Parse", parseFinalizer);
   schema.parseOrThrow = operation;
   return operation(unknown);
 }
 
+function parseAsyncFinalizer(b, schema, input, output) {
+  var typeFilter = schema.f;
+  if (typeFilter !== undefined) {
+    b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
+  }
+  schema.i = output.a;
+  return output;
+}
+
 function initialParseAsyncOrRaise(unknown) {
   var schema = this;
-  var operation = build(schema.p, schema, "ParseAsync", (function (b, input, output) {
-          var typeFilter = schema.f;
-          if (typeFilter !== undefined) {
-            b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
-          }
-          schema.i = output.a;
-          return output;
-        }));
+  var operation = build(schema.p, schema, "ParseAsync", parseAsyncFinalizer);
   var isAsync = schema.i;
   var operation$1 = isAsync ? operation : (function (input) {
         var syncValue = operation(input);
@@ -820,16 +826,18 @@ function initialParseAsyncOrRaise(unknown) {
   return operation$1(unknown);
 }
 
+function assertFinalizer(b, schema, input, param) {
+  var typeFilter = schema.f;
+  if (typeFilter !== undefined) {
+    b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
+  }
+  schema.i = false;
+  return val(b, "void 0");
+}
+
 function initialAssertOrRaise(unknown) {
   var schema = this;
-  var operation = build(schema.p, schema, "Assert", (function (b, input, param) {
-          var typeFilter = schema.f;
-          if (typeFilter !== undefined) {
-            b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
-          }
-          schema.i = false;
-          return val(b, "void 0");
-        }));
+  var operation = build(schema.p, schema, "Assert", assertFinalizer);
   schema.assert = operation;
   return operation(unknown);
 }
@@ -998,18 +1006,17 @@ function recursive(fn) {
                         }));
           }
         });
-      var operation = build(builder, selfSchema, b.g.o, noopFinalizer);
       if (isAsync) {
-        selfSchema.a = operation;
+        selfSchema.a = build(builder, selfSchema, b.g.o, parseAsyncFinalizer);
       } else {
-        selfSchema.parseOrThrow = operation;
+        selfSchema.parseOrThrow = build(builder, selfSchema, b.g.o, parseFinalizer);
       }
       selfSchema.p = builder;
       return withPathPrepend(b, input, path, undefined, (function (b, input, param) {
                     if (isAsync) {
-                      return embedAsyncOperation(b, input, operation);
+                      return embedAsyncOperation(b, input, selfSchema.a);
                     } else {
-                      return embedSyncOperation(b, input, operation);
+                      return embedSyncOperation(b, input, selfSchema.parseOrThrow);
                     }
                   }));
     });

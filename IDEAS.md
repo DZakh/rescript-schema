@@ -24,10 +24,10 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v8
 
-- Change operation to include AsyncParse and simplify init functions (throw when asyncTransfor applied for SyncParse)
 - Make S.serializeToJsonString super fast
 - Rename `InvalidJsonStruct` error, since after `rescript-struct`->`rescript-schema` it became misleading
 - Add S.bigint
+- Check only number of fields for strict object schema when fields are not optional
 
 ## v???
 
