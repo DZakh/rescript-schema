@@ -18,7 +18,7 @@ test("Fails to parse JSON", t => {
   switch "123,"->S.parseJsonStringWith(schema) {
   | Ok(_) => t->Assert.fail("Must return Error")
   | Error({code, operation, path}) => {
-      t->Assert.deepEqual(operation, Parsing, ())
+      t->Assert.deepEqual(operation, Parse, ())
       t->Assert.deepEqual(path, S.Path.empty, ())
       switch code {
       // For some reason when running tests with wallaby I get another error message
@@ -37,7 +37,7 @@ test("Fails to parse", t => {
     "123"->S.parseJsonStringWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: Obj.magic(123)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )

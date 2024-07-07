@@ -23,7 +23,7 @@ module Common = {
           expected: schema->S.toUnknown,
           received: invalidAny,
         }),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -36,7 +36,7 @@ module Common = {
       invalidTypeAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidTypeAny}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )

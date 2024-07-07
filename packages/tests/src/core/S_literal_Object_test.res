@@ -34,7 +34,7 @@ module Common = {
           expected: S.Literal.parse(Dict.fromArray([("foo", "bar")])),
           received: invalid,
         }),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -56,7 +56,7 @@ module Common = {
           expected: S.Literal.parse(Dict.fromArray([("foo", "bar")])),
           received: invalid->U.castAnyToUnknown,
         }),
-        operation: Serializing,
+        operation: SerializeToUnknown,
         path: S.Path.empty,
       },
     )
@@ -72,7 +72,7 @@ module Common = {
           expected: S.Literal.parse(Dict.fromArray([("foo", "bar")])),
           received: %raw(`null`),
         }),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -88,7 +88,7 @@ module Common = {
           expected: S.Literal.parse(Dict.fromArray([("foo", "bar")])),
           received: %raw(`{"foo": "bar","excess": true}`),
         }),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -104,7 +104,7 @@ module Common = {
           expected: S.Literal.parse(Dict.fromArray([("foo", "bar")])),
           received: makeNotPlainValue()->U.castAnyToUnknown,
         }),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )

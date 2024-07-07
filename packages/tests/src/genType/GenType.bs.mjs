@@ -4,7 +4,7 @@ import * as U from "../utils/U.bs.mjs";
 import * as S$RescriptSchema from "rescript-schema/src/S.bs.mjs";
 
 var error = U.error({
-      operation: "Parsing",
+      operation: "Parse",
       code: {
         TAG: "OperationFailed",
         _0: "Something went wrong"

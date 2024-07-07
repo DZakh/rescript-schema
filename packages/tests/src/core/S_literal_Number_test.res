@@ -21,7 +21,7 @@ module Common = {
       invalidAny->S.parseAnyWith(schema),
       {
         code: InvalidLiteral({expected: S.Literal.parse(123.), received: 444.->Obj.magic}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -34,7 +34,7 @@ module Common = {
       invalidTypeAny->S.parseAnyWith(schema),
       {
         code: InvalidLiteral({expected: S.Literal.parse(123.), received: invalidTypeAny}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -53,7 +53,7 @@ module Common = {
       invalidValue->S.serializeToUnknownWith(schema),
       {
         code: InvalidLiteral({expected: S.Literal.parse(123.), received: invalidValue}),
-        operation: Serializing,
+        operation: SerializeToUnknown,
         path: S.Path.empty,
       },
     )
@@ -79,7 +79,7 @@ test("Formatting of negative number with a decimal point in an error message", t
     %raw(`"foo"`)->S.parseAnyWith(schema),
     {
       code: InvalidLiteral({expected: S.Literal.parse(-123.567), received: "foo"->Obj.magic}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )

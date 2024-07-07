@@ -21,7 +21,7 @@ test("Fails to serialize", t => {
     Some(
       U.error({
         code: OperationFailed("User error"),
-        operation: Serializing,
+        operation: SerializeToJson,
         path: S.Path.empty,
       }),
     ),

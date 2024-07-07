@@ -31,7 +31,7 @@ test("Fails to parse primitive with transform when parser isn't provided", t => 
     "Hello world!"->S.parseAnyWith(schema),
     {
       code: InvalidOperation({description: "The S.transform parser is missing"}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )
@@ -42,7 +42,7 @@ test("Fails to parse when user raises error in a Transformed Primitive parser", 
 
   t->Assert.deepEqual(
     "Hello world!"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("User error"), operation: Parsing, path: S.Path.empty})),
+    Error(U.error({code: OperationFailed("User error"), operation: Parse, path: S.Path.empty})),
     (),
   )
 })
@@ -54,7 +54,7 @@ test("Uses the path from S.Error.raise called in the transform parser", t => {
         S.Error.raise(
           U.error({
             code: OperationFailed("User error"),
-            operation: Parsing,
+            operation: Parse,
             path: S.Path.fromArray(["a", "b"]),
           }),
         ),
@@ -65,7 +65,7 @@ test("Uses the path from S.Error.raise called in the transform parser", t => {
     ["Hello world!"]->S.parseAnyWith(schema),
     {
       code: OperationFailed("User error"),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.fromArray(["0", "a", "b"]),
     },
   )
@@ -78,7 +78,7 @@ test("Uses the path from S.Error.raise called in the transform serializer", t =>
         S.Error.raise(
           U.error({
             code: OperationFailed("User error"),
-            operation: Serializing,
+            operation: SerializeToUnknown,
             path: S.Path.fromArray(["a", "b"]),
           }),
         ),
@@ -89,7 +89,7 @@ test("Uses the path from S.Error.raise called in the transform serializer", t =>
     ["Hello world!"]->S.serializeWith(schema),
     {
       code: OperationFailed("User error"),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.fromArray(["0", "a", "b"]),
     },
   )
@@ -156,7 +156,7 @@ test("Transformed Primitive serializing fails when serializer isn't provided", t
     "Hello world!"->S.serializeToUnknownWith(schema),
     {
       code: InvalidOperation({description: "The S.transform serializer is missing"}),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.empty,
     },
   )
@@ -167,7 +167,7 @@ test("Fails to serialize when user raises error in a Transformed Primitive seria
 
   t->U.assertErrorResult(
     "Hello world!"->S.serializeToUnknownWith(schema),
-    {code: OperationFailed("User error"), operation: Serializing, path: S.Path.empty},
+    {code: OperationFailed("User error"), operation: SerializeToUnknown, path: S.Path.empty},
   )
 })
 
@@ -179,7 +179,7 @@ test("Transform operations applyed in the right order when parsing", t => {
 
   t->U.assertErrorResult(
     123->S.parseAnyWith(schema),
-    {code: OperationFailed("First transform"), operation: Parsing, path: S.Path.empty},
+    {code: OperationFailed("First transform"), operation: Parse, path: S.Path.empty},
   )
 })
 
@@ -193,7 +193,7 @@ test("Transform operations applyed in the right order when serializing", t => {
     123->S.serializeToUnknownWith(schema),
     {
       code: OperationFailed("Second transform"),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.empty,
     },
   )
@@ -227,7 +227,7 @@ test("Fails to parse schema with transform having both parser and asyncParser", 
       code: InvalidOperation({
         description: "The S.transform doesn\'t allow parser and asyncParser at the same time. Remove parser in favor of asyncParser",
       }),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )
@@ -238,7 +238,7 @@ test("Fails to parse async using parseAnyWith", t => {
 
   t->Assert.deepEqual(
     %raw(`"Hello world!"`)->S.parseAnyWith(schema),
-    Error(U.error({code: UnexpectedAsync, operation: Parsing, path: S.Path.empty})),
+    Error(U.error({code: UnexpectedAsync, operation: Parse, path: S.Path.empty})),
     (),
   )
 })
@@ -280,7 +280,7 @@ asyncTest("Fails to parse async with user error", t => {
       {
         code: OperationFailed("User error"),
         path: S.Path.empty,
-        operation: Parsing,
+        operation: ParseAsync,
       },
     )
   })

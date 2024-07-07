@@ -1,13 +1,16 @@
 import { S_t, S_Error_class } from "../RescriptSchema.gen";
 
+type Operation =
+  | "Parse"
+  | "ParseAsync"
+  | "SerializeToJson"
+  | "SerializeToUnknown"
+  | "SerializeToJsonString";
+
 export class Error extends S_Error_class {
-  constructor(
-    code: unknown,
-    operation: "Parsing" | "Serializing",
-    path: string
-  );
+  constructor(code: unknown, operation: Operation, path: string);
   code: unknown;
-  operation: "Parsing" | "Serializing";
+  operation: Operation;
   path: string;
   message: string;
   reason: string;

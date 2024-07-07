@@ -19,7 +19,7 @@ module Common = {
       invalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -55,7 +55,7 @@ test("Fails to parse int when JSON is a number bigger than +2^31", t => {
     %raw(`2147483648`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`2147483648`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )
@@ -69,7 +69,7 @@ test("Fails to parse int when JSON is a number lower than -2^31", t => {
     %raw(`-2147483649`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`-2147483649`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )
@@ -83,7 +83,7 @@ test("Fails to parse NaN", t => {
     %raw(`NaN`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`NaN`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )

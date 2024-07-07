@@ -14,7 +14,7 @@ test("Fails to parse invalid data", t => {
     ""->S.parseAnyWith(schema),
     {
       code: OperationFailed("String must be 1 or more characters long"),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )
@@ -34,7 +34,7 @@ test("Fails to serialize invalid value", t => {
     ""->S.serializeToUnknownWith(schema),
     {
       code: OperationFailed("String must be 1 or more characters long"),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.empty,
     },
   )
@@ -45,7 +45,7 @@ test("Returns custom error message", t => {
 
   t->Assert.deepEqual(
     ""->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("Custom"), operation: Parsing, path: S.Path.empty})),
+    Error(U.error({code: OperationFailed("Custom"), operation: Parse, path: S.Path.empty})),
     (),
   )
 })

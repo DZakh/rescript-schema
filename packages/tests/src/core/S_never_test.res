@@ -11,7 +11,7 @@ module Common = {
       any->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: S.never->S.toUnknown, received: any}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -24,7 +24,7 @@ module Common = {
       any->S.serializeToUnknownWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: any}),
-        operation: Serializing,
+        operation: SerializeToUnknown,
         path: S.Path.empty,
       },
     )
@@ -56,7 +56,7 @@ module ObjectField = {
       %raw(`{"key":"value"}`)->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`undefined`)}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.fromArray(["oldKey"]),
       },
     )

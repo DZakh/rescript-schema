@@ -20,7 +20,7 @@ test("Fails to parse", t => {
     %raw("123")->S.parseWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw("123")}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )

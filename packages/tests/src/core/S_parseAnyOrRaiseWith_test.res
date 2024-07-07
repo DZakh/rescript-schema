@@ -27,7 +27,7 @@ test("Fails to parse", t => {
     Some(
       U.error({
         code: InvalidType({expected: schema->S.toUnknown, received: Obj.magic(123)}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       }),
     ),

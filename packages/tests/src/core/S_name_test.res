@@ -76,14 +76,14 @@ test("Name of renamed schema", t => {
     "smth"->S.parseAnyWith(renamedSchema),
     {
       path: S.Path.empty,
-      operation: Parsing,
+      operation: Parse,
       code: InvalidType({expected: renamedSchema->S.toUnknown, received: "smth"->Obj.magic}),
     },
   )
   t->Assert.is(
     U.error({
       path: S.Path.empty,
-      operation: Parsing,
+      operation: Parse,
       code: InvalidType({expected: renamedSchema->S.toUnknown, received: "smth"->Obj.magic}),
     })->S.Error.message,
     `Failed parsing at root. Reason: Expected Ethers.BigInt, received "smth"`,

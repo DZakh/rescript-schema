@@ -27,7 +27,7 @@ module CommonWithNested = {
       invalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -40,7 +40,7 @@ module CommonWithNested = {
       nestedInvalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`true`)}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.fromArray(["key2"]),
       },
     )
@@ -116,7 +116,7 @@ test("Fails to serialize dict item", t => {
     Error(
       U.error({
         code: OperationFailed("User error"),
-        operation: Serializing,
+        operation: SerializeToUnknown,
         path: S.Path.fromLocation("a"),
       }),
     ),

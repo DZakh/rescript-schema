@@ -34,7 +34,7 @@ test("Fails to parse when user raises error in parser", t => {
 
   t->Assert.deepEqual(
     "Hello world!"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("User error"), operation: Parsing, path: S.Path.empty})),
+    Error(U.error({code: OperationFailed("User error"), operation: Parse, path: S.Path.empty})),
     (),
   )
 })
@@ -55,7 +55,7 @@ test("Fails to serialize when user raises error in serializer", t => {
 
   t->U.assertErrorResult(
     "Hello world!"->S.serializeToUnknownWith(schema),
-    {code: OperationFailed("User error"), operation: Serializing, path: S.Path.empty},
+    {code: OperationFailed("User error"), operation: SerializeToUnknown, path: S.Path.empty},
   )
 })
 
@@ -67,7 +67,7 @@ test("Preprocess operations applyed in the right order when parsing", t => {
 
   t->U.assertErrorResult(
     123->S.parseAnyWith(schema),
-    {code: OperationFailed("Second preprocess"), operation: Parsing, path: S.Path.empty},
+    {code: OperationFailed("Second preprocess"), operation: Parse, path: S.Path.empty},
   )
 })
 
@@ -81,7 +81,7 @@ test("Preprocess operations applyed in the right order when serializing", t => {
     123->S.serializeToUnknownWith(schema),
     {
       code: OperationFailed("First preprocess"),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.empty,
     },
   )
@@ -92,7 +92,7 @@ test("Fails to parse async using parseAnyWith", t => {
 
   t->Assert.deepEqual(
     %raw(`"Hello world!"`)->S.parseAnyWith(schema),
-    Error(U.error({code: UnexpectedAsync, operation: Parsing, path: S.Path.empty})),
+    Error(U.error({code: UnexpectedAsync, operation: Parse, path: S.Path.empty})),
     (),
   )
 })
@@ -118,7 +118,7 @@ asyncTest("Fails to parse async with user error", t => {
       {
         code: OperationFailed("User error"),
         path: S.Path.empty,
-        operation: Parsing,
+        operation: ParseAsync,
       },
     )
   })

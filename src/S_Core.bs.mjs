@@ -239,17 +239,7 @@ function embedAsyncOperation(b, input, fn) {
 }
 
 function raise(b, code, path) {
-  var match = b.g.o;
-  var tmp;
-  switch (match) {
-    case "Parse" :
-    case "ParseAsync" :
-        tmp = "Parsing";
-        break;
-    default:
-      tmp = "Serializing";
-  }
-  throw new RescriptSchemaError(code, tmp, path);
+  throw new RescriptSchemaError(code, b.g.o, path);
 }
 
 function failWithArg(b, path, fn, arg) {
@@ -387,7 +377,7 @@ function noopOperation(i) {
 }
 
 function unexpectedAsyncOperation(param) {
-  throw new RescriptSchemaError("UnexpectedAsync", "Parsing", "");
+  throw new RescriptSchemaError("UnexpectedAsync", "Parse", "");
 }
 
 function build(builder, schema, operation) {
@@ -768,32 +758,32 @@ function serializeToJsonStringOrRaiseWith(value, schema, spaceOpt) {
   return JSON.stringify(schema.serializeToJsonOrThrow(value), null, space);
 }
 
-function parseJsonStringWith(json, schema) {
-  var json$1;
+function parseJsonStringWith(jsonString, schema) {
+  var json;
   try {
-    json$1 = {
+    json = {
       TAG: "Ok",
-      _0: JSON.parse(json)
+      _0: JSON.parse(jsonString)
     };
   }
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
     if (error.RE_EXN_ID === Js_exn.$$Error) {
-      json$1 = {
+      json = {
         TAG: "Error",
         _0: new RescriptSchemaError({
               TAG: "OperationFailed",
               _0: error._1.message
-            }, "Parsing", "")
+            }, "Parse", "")
       };
     } else {
       throw error;
     }
   }
-  if (json$1.TAG === "Ok") {
-    return parseAnyWith(json$1._0, schema);
+  if (json.TAG === "Ok") {
+    return parseAnyWith(json._0, schema);
   } else {
-    return json$1;
+    return json;
   }
 }
 
@@ -831,7 +821,7 @@ function initialSerializeOrRaise(unknown) {
     throw new RescriptSchemaError({
               TAG: "InvalidJsonStruct",
               _0: schema
-            }, "Serializing", "");
+            }, "SerializeToJson", "");
   }
   var operation = build(schema.s, schema, "SerializeToJson");
   schema.serializeToJsonOrThrow = operation;
@@ -2214,7 +2204,24 @@ function reason(error, nestedLevelOpt) {
 function message(error) {
   var match = error.operation;
   var operation;
-  operation = match === "Parsing" ? "parsing" : "serializing";
+  switch (match) {
+    case "Parse" :
+        operation = "parsing";
+        break;
+    case "ParseAsync" :
+        operation = "parsing async";
+        break;
+    case "SerializeToJson" :
+        operation = "serializing to JSON";
+        break;
+    case "SerializeToUnknown" :
+        operation = "serializing";
+        break;
+    case "SerializeToJsonString" :
+        operation = "serializing to JSON string";
+        break;
+    
+  }
   var nonEmptyPath = error.path;
   var pathText = nonEmptyPath === "" ? "root" : nonEmptyPath;
   return "Failed " + operation + " at " + pathText + ". Reason: " + reason(error);

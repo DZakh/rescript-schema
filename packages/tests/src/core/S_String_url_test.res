@@ -11,7 +11,7 @@ test("Fails to parse invalid data", t => {
 
   t->Assert.deepEqual(
     "cifjhdsfhsd"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("Invalid url"), operation: Parsing, path: S.Path.empty})),
+    Error(U.error({code: OperationFailed("Invalid url"), operation: Parse, path: S.Path.empty})),
     (),
   )
 })
@@ -31,7 +31,7 @@ test("Fails to serialize invalid value", t => {
 
   t->U.assertErrorResult(
     "cifjhdsfhsd"->S.serializeToUnknownWith(schema),
-    {code: OperationFailed("Invalid url"), operation: Serializing, path: S.Path.empty},
+    {code: OperationFailed("Invalid url"), operation: SerializeToUnknown, path: S.Path.empty},
   )
 })
 
@@ -40,7 +40,7 @@ test("Returns custom error message", t => {
 
   t->Assert.deepEqual(
     "abc"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("Custom"), operation: Parsing, path: S.Path.empty})),
+    Error(U.error({code: OperationFailed("Custom"), operation: Parse, path: S.Path.empty})),
     (),
   )
 })

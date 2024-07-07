@@ -37,16 +37,16 @@ test("Parses when both schemas misses parser", t => {
       code: InvalidUnion([
         U.error({
           code: InvalidOperation({description: "The S.transform parser is missing"}),
-          operation: Parsing,
+          operation: Parse,
           path: S.Path.empty,
         }),
         U.error({
           code: InvalidOperation({description: "The S.transform parser is missing"}),
-          operation: Parsing,
+          operation: Parse,
           path: S.Path.empty,
         }),
       ]),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )
@@ -66,16 +66,16 @@ test("Serializes when both schemas misses serializer", t => {
       code: InvalidUnion([
         U.error({
           code: InvalidOperation({description: "The S.transform serializer is missing"}),
-          operation: Serializing,
+          operation: SerializeToJson,
           path: S.Path.empty,
         }),
         U.error({
           code: InvalidOperation({description: "The S.transform serializer is missing"}),
-          operation: Serializing,
+          operation: SerializeToJson,
           path: S.Path.empty,
         }),
       ]),
-      operation: Serializing,
+      operation: SerializeToJson,
       path: S.Path.empty,
     },
   )
@@ -186,7 +186,7 @@ module Advanced = {
               expected: S.Literal.parse("circle"),
               received: "oval"->Obj.magic,
             }),
-            operation: Parsing,
+            operation: Parse,
             path: S.Path.fromArray(["kind"]),
           }),
           U.error({
@@ -194,7 +194,7 @@ module Advanced = {
               expected: S.Literal.parse("square"),
               received: "oval"->Obj.magic,
             }),
-            operation: Parsing,
+            operation: Parse,
             path: S.Path.fromArray(["kind"]),
           }),
           U.error({
@@ -202,11 +202,11 @@ module Advanced = {
               expected: S.Literal.parse("triangle"),
               received: "oval"->Obj.magic,
             }),
-            operation: Parsing,
+            operation: Parse,
             path: S.Path.fromArray(["kind"]),
           }),
         ]),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -228,7 +228,7 @@ module Advanced = {
               expected: S.Literal.parse("circle"),
               received: "oval"->Obj.magic,
             }),
-            operation: Parsing,
+            operation: Parse,
             path: S.Path.fromArray(["kind"]),
           }),
           U.error({
@@ -236,7 +236,7 @@ module Advanced = {
               expected: S.Literal.parse("square"),
               received: "oval"->Obj.magic,
             }),
-            operation: Parsing,
+            operation: Parse,
             path: S.Path.fromArray(["kind"]),
           }),
           U.error({
@@ -244,11 +244,11 @@ module Advanced = {
               expected: S.Literal.parse("triangle"),
               received: "oval"->Obj.magic,
             }),
-            operation: Parsing,
+            operation: Parse,
             path: S.Path.fromArray(["kind"]),
           }),
         ]),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.fromArray(["field"]),
       },
     )
@@ -264,7 +264,7 @@ module Advanced = {
               expected: circleSchema->S.toUnknown,
               received: %raw(`"Hello world!"`),
             }),
-            operation: Parsing,
+            operation: Parse,
             path: S.Path.empty,
           }),
           U.error({
@@ -272,7 +272,7 @@ module Advanced = {
               expected: squareSchema->S.toUnknown,
               received: %raw(`"Hello world!"`),
             }),
-            operation: Parsing,
+            operation: Parse,
             path: S.Path.empty,
           }),
           U.error({
@@ -280,11 +280,11 @@ module Advanced = {
               expected: triangleSchema->S.toUnknown,
               received: %raw(`"Hello world!"`),
             }),
-            operation: Parsing,
+            operation: Parse,
             path: S.Path.empty,
           }),
         ]),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -315,7 +315,7 @@ module Advanced = {
               expected: S.Literal.parse("Circle"),
               received: "Triangle"->Obj.magic,
             }),
-            operation: Serializing,
+            operation: SerializeToUnknown,
             path: S.Path.fromArray(["TAG"]),
           }),
           U.error({
@@ -323,11 +323,11 @@ module Advanced = {
               expected: S.Literal.parse("Square"),
               received: "Triangle"->Obj.magic,
             }),
-            operation: Serializing,
+            operation: SerializeToUnknown,
             path: S.Path.fromArray(["TAG"]),
           }),
         ]),
-        operation: Serializing,
+        operation: SerializeToUnknown,
         path: S.Path.empty,
       },
     )

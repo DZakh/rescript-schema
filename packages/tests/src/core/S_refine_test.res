@@ -11,7 +11,7 @@ test("Successfully refines on parsing", t => {
     %raw(`-12`)->S.parseAnyWith(schema),
     {
       code: OperationFailed("Should be positive"),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )
@@ -27,7 +27,7 @@ test("Fails with custom path", t => {
     %raw(`-12`)->S.parseAnyWith(schema),
     {
       code: OperationFailed("Should be positive"),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.fromArray(["data", "myInt"]),
     },
   )
@@ -44,7 +44,7 @@ test("Successfully refines on serializing", t => {
     -12->S.serializeToUnknownWith(schema),
     {
       code: OperationFailed("Should be positive"),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.empty,
     },
   )

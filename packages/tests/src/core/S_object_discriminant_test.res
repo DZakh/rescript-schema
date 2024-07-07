@@ -256,7 +256,7 @@ module Negative = {
             code: InvalidOperation({
               description: `The "discriminant" item is not registered or not a literal`,
             }),
-            operation: Serializing,
+            operation: SerializeToUnknown,
             path: S.Path.empty,
           },
         )
@@ -303,7 +303,7 @@ module NestedNegative = {
           code: InvalidOperation({
             description: `The "nestedField" item is not registered or not a literal`,
           }),
-          operation: Serializing,
+          operation: SerializeToUnknown,
           path: S.Path.fromLocation("discriminant"),
         },
       )
@@ -327,7 +327,7 @@ test(`Fails to parse object with invalid data passed to discriminant field`, t =
     Error(
       U.error({
         code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.fromArray(["discriminant"]),
       }),
     ),
@@ -351,7 +351,7 @@ test(`Parses discriminant fields before registered fields`, t => {
     Error(
       U.error({
         code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.fromArray(["discriminant"]),
       }),
     ),
@@ -373,7 +373,7 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
       code: InvalidOperation({
         description: `The "discriminant" item is not registered or not a literal`,
       }),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.empty,
     },
   )
@@ -391,7 +391,7 @@ test(`Serializes constant fields before registered fields`, t => {
     {"constant": false, "field": false}->S.serializeToUnknownWith(schema),
     {
       code: InvalidLiteral({expected: S.Literal.parse(true), received: Obj.magic(false)}),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.fromArray(["constant"]),
     },
   )

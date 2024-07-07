@@ -21,7 +21,7 @@ module CommonWithNested = {
       invalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -34,7 +34,7 @@ module CommonWithNested = {
       nestedInvalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: S.string->S.toUnknown, received: 1->Obj.magic}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.fromArray(["1"]),
       },
     )
@@ -101,7 +101,7 @@ test("Fails to parse matrix", t => {
     %raw(`[["a", 1], ["c", "d"]]`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`1`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.fromArray(["0", "1"]),
     },
   )

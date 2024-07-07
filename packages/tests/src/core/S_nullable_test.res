@@ -20,7 +20,7 @@ module NullCommon = {
       invalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )

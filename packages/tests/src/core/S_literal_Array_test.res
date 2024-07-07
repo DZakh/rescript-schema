@@ -21,7 +21,7 @@ module Common = {
           expected: S.Literal.parse(("bar", true)),
           received: invalid,
         }),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -43,7 +43,7 @@ module Common = {
           expected: S.Literal.parse(("bar", true)),
           received: invalid->U.castAnyToUnknown,
         }),
-        operation: Serializing,
+        operation: SerializeToUnknown,
         path: S.Path.empty,
       },
     )
@@ -59,7 +59,7 @@ module Common = {
           expected: S.Literal.parse(("bar", true)),
           received: %raw(`{0: "bar",1:true}`),
         }),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -75,7 +75,7 @@ module Common = {
           expected: S.Literal.parse(("bar", true)),
           received: %raw(`["bar", true, false]`),
         }),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )

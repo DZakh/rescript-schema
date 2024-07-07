@@ -75,7 +75,7 @@ test("Fails to serialize Option schema", t => {
     None->S.serializeWith(schema),
     {
       code: InvalidJsonStruct(schema->S.toUnknown),
-      operation: Serializing,
+      operation: SerializeToJson,
       path: S.Path.empty,
     },
   )
@@ -87,7 +87,7 @@ test("Fails to serialize Undefined literal", t => {
     ()->S.serializeWith(schema),
     {
       code: InvalidJsonStruct(schema->S.toUnknown),
-      operation: Serializing,
+      operation: SerializeToJson,
       path: S.Path.empty,
     },
   )
@@ -100,7 +100,7 @@ test("Fails to serialize Function literal", t => {
     fn->S.serializeWith(schema),
     {
       code: InvalidJsonStruct(schema->S.toUnknown),
-      operation: Serializing,
+      operation: SerializeToJson,
       path: S.Path.empty,
     },
   )
@@ -113,7 +113,7 @@ test("Fails to serialize Object literal", t => {
     error->S.serializeWith(schema),
     {
       code: InvalidJsonStruct(schema->S.toUnknown),
-      operation: Serializing,
+      operation: SerializeToJson,
       path: S.Path.empty,
     },
   )
@@ -126,7 +126,7 @@ test("Fails to serialize Symbol literal", t => {
     symbol->S.serializeWith(schema),
     {
       code: InvalidJsonStruct(schema->S.toUnknown),
-      operation: Serializing,
+      operation: SerializeToJson,
       path: S.Path.empty,
     },
   )
@@ -139,7 +139,7 @@ test("Fails to serialize BigInt literal", t => {
     bigint->S.serializeWith(schema),
     {
       code: InvalidJsonStruct(schema->S.toUnknown),
-      operation: Serializing,
+      operation: SerializeToJson,
       path: S.Path.empty,
     },
   )
@@ -152,7 +152,7 @@ test("Fails to serialize Dict literal with invalid field", t => {
     dict->S.serializeWith(schema),
     {
       code: InvalidJsonStruct(schema->S.toUnknown),
-      operation: Serializing,
+      operation: SerializeToJson,
       path: S.Path.empty,
     },
   )
@@ -164,7 +164,7 @@ test("Fails to serialize NaN literal", t => {
     ()->S.serializeWith(schema),
     {
       code: InvalidJsonStruct(schema->S.toUnknown),
-      operation: Serializing,
+      operation: SerializeToJson,
       path: S.Path.empty,
     },
   )
@@ -173,7 +173,7 @@ test("Fails to serialize NaN literal", t => {
 test("Fails to serialize Unknown schema", t => {
   t->U.assertErrorResult(
     Obj.magic(123)->S.serializeWith(S.unknown),
-    {code: InvalidJsonStruct(S.unknown), operation: Serializing, path: S.Path.empty},
+    {code: InvalidJsonStruct(S.unknown), operation: SerializeToJson, path: S.Path.empty},
   )
 })
 
@@ -182,7 +182,7 @@ test("Fails to serialize Never schema", t => {
     Obj.magic(123)->S.serializeWith(S.never),
     {
       code: InvalidType({expected: S.never->S.toUnknown, received: Obj.magic(123)}),
-      operation: Serializing,
+      operation: SerializeToJson,
       path: S.Path.empty,
     },
   )
@@ -193,7 +193,7 @@ test("Fails to serialize object with invalid nested schema", t => {
     Obj.magic(true)->S.serializeWith(S.object(s => s.field("foo", S.unknown))),
     {
       code: InvalidJsonStruct(S.unknown),
-      operation: Serializing,
+      operation: SerializeToJson,
       path: S.Path.empty,
     },
   )
@@ -204,7 +204,7 @@ test("Fails to serialize tuple with invalid nested schema", t => {
     Obj.magic(true)->S.serializeWith(S.tuple1(S.unknown)),
     {
       code: InvalidJsonStruct(S.unknown),
-      operation: Serializing,
+      operation: SerializeToJson,
       path: S.Path.empty,
     },
   )
@@ -232,12 +232,12 @@ test("Fails to serialize union with invalid schemas", t => {
       code: InvalidUnion([
         U.error({
           code: InvalidJsonStruct(S.literal(%raw(`NaN`))),
-          operation: Parsing,
+          operation: Parse,
           path: S.Path.empty,
         }),
-        U.error({code: InvalidJsonStruct(S.unknown), operation: Parsing, path: S.Path.empty}),
+        U.error({code: InvalidJsonStruct(S.unknown), operation: Parse, path: S.Path.empty}),
       ]),
-      operation: Serializing,
+      operation: SerializeToJson,
       path: S.Path.empty,
     },
   )

@@ -78,8 +78,11 @@ and errorCode =
   | UnexpectedAsync
   | InvalidJsonStruct(schema<unknown>)
 and operation =
-  | Parsing
-  | Serializing
+  | Parse
+  | ParseAsync
+  | SerializeToJson
+  | SerializeToUnknown
+  | SerializeToJsonString
 and unknownKeys = Strip | Strict
 type exn += private Raised(error)
 

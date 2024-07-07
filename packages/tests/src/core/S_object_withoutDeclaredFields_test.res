@@ -23,7 +23,7 @@ test("Fails to parse object with excess keys when UnknownKeys are strict", t => 
 
   t->Assert.deepEqual(
     %raw(`{field:"bar"}`)->S.parseAnyWith(schema),
-    Error(U.error({code: ExcessField("field"), operation: Parsing, path: S.Path.empty})),
+    Error(U.error({code: ExcessField("field"), operation: Parse, path: S.Path.empty})),
     (),
   )
 })
@@ -49,7 +49,7 @@ test("Fails to parse array data", t => {
     %raw(`[]`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`[]`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )

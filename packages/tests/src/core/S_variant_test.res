@@ -13,7 +13,7 @@ test("Fails to parse wrapped schema", t => {
     123->S.parseAnyWith(schema),
     {
       code: InvalidType({received: 123->Obj.magic, expected: schema->S.toUnknown}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )
@@ -36,7 +36,7 @@ test("Fails to serialize when can't unwrap the value from variant", t => {
     Error("Hello world!")->S.serializeToUnknownWith(schema),
     {
       code: InvalidLiteral({expected: S.Literal.parse("Ok"), received: "Error"->Obj.magic}),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.fromLocation("TAG"),
     },
   )
@@ -57,7 +57,7 @@ test("Fails to serialize when the value is not used as the variant payload", t =
       code: InvalidOperation({
         description: "The S.variant\'s value is not registered",
       }),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.empty,
     },
   )
@@ -100,7 +100,7 @@ test("Fails to serialize when value registered multiple times", t => {
       code: InvalidOperation({
         description: "The S.variant\'s value is registered multiple times",
       }),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.empty,
     },
   )

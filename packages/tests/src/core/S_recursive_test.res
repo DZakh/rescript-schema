@@ -119,7 +119,7 @@ test("Fails to parse nested recursive object", t => {
     }->S.parseAnyWith(nodeSchema),
     {
       code: OperationFailed("Invalid id"),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.fromArray(["Children", "1", "Children", "0", "Id"]),
     },
   )
@@ -163,7 +163,7 @@ test("Fails to parse nested recursive object inside of another object", t => {
     }->S.parseAnyWith(schema),
     {
       code: OperationFailed("Invalid id"),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.fromArray(["recursive", "Children", "1", "Children", "0", "Id"]),
     },
   )
@@ -195,7 +195,7 @@ test("Fails to serialise nested recursive object", t => {
     }->S.serializeToUnknownWith(nodeSchema),
     {
       code: OperationFailed("Invalid id"),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.fromArray(["children", "1", "children", "0", "id"]),
     },
   )

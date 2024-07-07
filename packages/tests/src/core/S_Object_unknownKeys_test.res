@@ -19,7 +19,7 @@ test("Fails fast and shows only one excees key in the error message", t => {
 
   t->Assert.deepEqual(
     %raw(`{key: "value", unknownKey: "value2", unknownKey2: "value2"}`)->S.parseAnyWith(schema),
-    Error(U.error({code: ExcessField("unknownKey"), operation: Parsing, path: S.Path.empty})),
+    Error(U.error({code: ExcessField("unknownKey"), operation: Parse, path: S.Path.empty})),
     (),
   )
 })
@@ -59,7 +59,7 @@ test("Can reset unknown keys strategy applying Strict strategy", t => {
 
   t->Assert.deepEqual(
     any->S.parseAnyWith(schema),
-    Error(U.error({code: ExcessField("unknownKey"), operation: Parsing, path: S.Path.empty})),
+    Error(U.error({code: ExcessField("unknownKey"), operation: Parse, path: S.Path.empty})),
     (),
   )
 })

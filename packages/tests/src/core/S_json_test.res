@@ -61,7 +61,7 @@ test("Fails to parse Object field", t => {
     data->S.parseWith(schema),
     {
       code: InvalidType({received: %raw(`undefined`), expected: schema->S.toUnknown}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.fromLocation("bar"),
     },
   )
@@ -75,7 +75,7 @@ test("Fails to parse matrix field", t => {
     data->S.parseWith(schema),
     {
       code: InvalidType({received: %raw(`undefined`), expected: schema->S.toUnknown}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.fromArray(["1", "0"]),
     },
   )
@@ -87,7 +87,7 @@ test("Fails to parse NaN", t => {
     %raw(`NaN`)->S.parseAnyWith(schema),
     {
       code: InvalidType({received: %raw(`NaN`), expected: schema->S.toUnknown}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )
@@ -99,7 +99,7 @@ test("Fails to parse undefined", t => {
     %raw(`undefined`)->S.parseAnyWith(schema),
     {
       code: InvalidType({received: %raw(`undefined`), expected: schema->S.toUnknown}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )

@@ -19,7 +19,7 @@ module Common = {
       invalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -61,7 +61,7 @@ test("Fails to parse NaN", t => {
     %raw(`NaN`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`NaN`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )

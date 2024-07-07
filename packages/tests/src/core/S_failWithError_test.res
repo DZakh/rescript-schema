@@ -7,7 +7,7 @@ test("Keeps operation of the error passed to S.Error.raise", t => {
         S.Error.raise(
           U.error({
             code: OperationFailed("User error"),
-            operation: Serializing,
+            operation: SerializeToUnknown,
             path: S.Path.fromArray(["a", "b"]),
           }),
         ),
@@ -18,7 +18,7 @@ test("Keeps operation of the error passed to S.Error.raise", t => {
     ["Hello world!"]->S.parseAnyWith(schema),
     {
       code: OperationFailed("User error"),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.fromArray(["0", "a", "b"]),
     },
   )
@@ -34,7 +34,7 @@ test("Works with failing outside of the parser", t => {
             S.Error.raise(
               U.error({
                 code: OperationFailed("User error"),
-                operation: Parsing,
+                operation: Parse,
                 path: S.Path.fromArray(["a", "b"]),
               }),
             ),
@@ -47,7 +47,7 @@ test("Works with failing outside of the parser", t => {
     ["Hello world!"]->S.parseAnyWith(schema),
     {
       code: OperationFailed("User error"),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.fromLocation("root")
       ->S.Path.concat(S.Path.dynamic)
       ->S.Path.concat(S.Path.fromArray(["a", "b"])),

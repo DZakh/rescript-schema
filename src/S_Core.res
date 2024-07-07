@@ -306,7 +306,7 @@ and bGlobal = {
   @as("v")
   mutable varCounter: int,
   @as("o")
-  mutable operation: internalOperation,
+  mutable operation: operation,
   @as("e")
   embeded: array<unknown>,
 }
@@ -321,10 +321,6 @@ and b = {
   global: bGlobal,
 }
 and operation =
-  | Parsing
-  | Serializing
-// TODO: Deprecate operation in favor of internalOperation in V8
-and internalOperation =
   | Parse
   | ParseAsync
   | SerializeToJson
@@ -566,20 +562,7 @@ module Builder = {
     }
 
     let raise = (b: b, ~code, ~path) => {
-      Stdlib.Exn.raiseAny(
-        InternalError.make(
-          ~code,
-          ~operation=switch b.global.operation {
-          | Parse => Parsing
-          | ParseAsync => Parsing
-          | SerializeToJson
-          | SerializeToJsonString
-          | SerializeToUnknown =>
-            Serializing
-          },
-          ~path,
-        ),
-      )
+      Stdlib.Exn.raiseAny(InternalError.make(~code, ~operation=b.global.operation, ~path))
     }
 
     let failWithArg = (b: b, ~path, fn: 'arg => errorCode, arg) => {
@@ -740,7 +723,7 @@ module Builder = {
 
   let unexpectedAsyncOperation = _ =>
     Stdlib.Exn.raiseAny(
-      InternalError.make(~path=Path.empty, ~code=UnexpectedAsync, ~operation=Parsing),
+      InternalError.make(~path=Path.empty, ~code=UnexpectedAsync, ~operation=Parse),
     )
 
   @inline
@@ -1174,15 +1157,15 @@ let serializeToJsonStringOrRaiseWith = (value: 'value, schema: t<'value>, ~space
   value->serializeOrRaiseWith(schema)->Js.Json.stringifyWithSpace(space)
 }
 
-let parseJsonStringWith = (json: string, schema: t<'value>): result<'value, error> => {
+let parseJsonStringWith = (jsonString: string, schema: t<'value>): result<'value, error> => {
   switch try {
-    json->Js.Json.parseExn->Ok
+    jsonString->Js.Json.parseExn->Ok
   } catch {
   | Js.Exn.Error(error) =>
     Error(
       InternalError.make(
         ~code=OperationFailed(error->Js.Exn.message->(Obj.magic: option<string> => string)),
-        ~operation=Parsing,
+        ~operation=Parse,
         ~path=Path.empty,
       ),
     )
@@ -1225,7 +1208,11 @@ let initialSerializeOrRaise = unknown => {
   let schema = %raw(`this`)
   if schema.rawTagged->unsafeGetVarianTag === "Option" {
     Stdlib.Exn.raiseAny(
-      InternalError.make(~code=InvalidJsonStruct(schema), ~operation=Serializing, ~path=Path.empty),
+      InternalError.make(
+        ~code=InvalidJsonStruct(schema),
+        ~operation=SerializeToJson,
+        ~path=Path.empty,
+      ),
     )
   }
   let operation =
@@ -3186,8 +3173,11 @@ module Error = {
 
   let message = (error: error) => {
     let operation = switch error.operation {
-    | Serializing => "serializing"
-    | Parsing => "parsing"
+    | SerializeToUnknown => "serializing"
+    | SerializeToJson => "serializing to JSON"
+    | SerializeToJsonString => "serializing to JSON string"
+    | Parse => "parsing"
+    | ParseAsync => "parsing async"
     }
     let pathText = switch error.path {
     | "" => "root"

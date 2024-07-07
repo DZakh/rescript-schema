@@ -8,3 +8,4 @@
 - For JS/TS users
   - Move operations from functions to Schema methods
   - Add `serializeToJsonOrThrow`
+- Update operation type to be more detailed and feature it in the error message.

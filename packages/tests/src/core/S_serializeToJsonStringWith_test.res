@@ -49,7 +49,9 @@ test("Fails to serialize Unknown schema", t => {
   let schema = S.unknown
   t->Assert.deepEqual(
     Obj.magic(123)->S.serializeToJsonStringWith(schema),
-    Error(U.error({code: InvalidJsonStruct(schema), operation: Serializing, path: S.Path.empty})),
+    Error(
+      U.error({code: InvalidJsonStruct(schema), operation: SerializeToJson, path: S.Path.empty}),
+    ),
     (),
   )
 })

@@ -223,7 +223,7 @@ test("Has proper error path when fails to parse object with quotes in a field na
     %raw(`{"\"\'\`": "bar"}`)->S.parseAnyWith(schema),
     {
       code: OperationFailed("User error"),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.fromArray(["\"\'\`"]),
     },
   )
@@ -240,7 +240,7 @@ test("Has proper error path when fails to serialize object with quotes in a fiel
     Dict.fromArray([("\"\'\`", "bar")])->S.serializeToUnknownWith(schema),
     {
       code: OperationFailed("User error"),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.fromArray(["\"\'\`"]),
     },
   )
@@ -257,7 +257,7 @@ test("Field name in a format of a path is handled properly", t => {
     %raw(`{"bar": "foo"}`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`undefined`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.fromArray([`["abc"]["cde"]`]),
     },
   )

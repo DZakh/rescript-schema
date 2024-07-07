@@ -24,7 +24,7 @@ module Tuple0 = {
           expected: schema->S.toUnknown,
           received: invalidAny,
         }),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -37,7 +37,7 @@ module Tuple0 = {
       invalidTypeAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidTypeAny}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -69,7 +69,7 @@ test("Fails to parse tuple with holes", t => {
     %raw(`["value", "smth", 123]`)->S.parseAnyWith(schema),
     {
       code: InvalidLiteral({expected: S.Literal.parse(None), received: %raw(`"smth"`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.fromLocation("1"),
     },
   )
@@ -99,7 +99,7 @@ test("Fails to serialize tuple schema with single item registered multiple times
       code: InvalidOperation({
         description: `The item "0" is registered multiple times`,
       }),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.empty,
     },
   )
@@ -118,7 +118,7 @@ test(`Fails to serialize tuple with discriminant "Never"`, t => {
         code: InvalidOperation({
           description: `The "0" item is not registered or not a literal`,
         }),
-        operation: Serializing,
+        operation: SerializeToUnknown,
         path: S.Path.empty,
       }),
     ),
@@ -145,7 +145,7 @@ test("Fails to serialize tuple transformed to variant", t => {
     Error("foo")->S.serializeToUnknownWith(schema),
     {
       code: InvalidLiteral({expected: S.Literal.parse("Ok"), received: %raw(`"Error"`)}),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.fromLocation("TAG"),
     },
   )
@@ -182,7 +182,7 @@ test("Tuple schema parsing checks order", t => {
     %raw(`"foo"`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`"foo"`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )
@@ -194,7 +194,7 @@ test("Tuple schema parsing checks order", t => {
         expected: schema->S.toUnknown,
         received: %raw(`["value", "value", "value", "value"]`),
       }),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )
@@ -203,7 +203,7 @@ test("Tuple schema parsing checks order", t => {
     %raw(`["value", "wrong"]`)->S.parseAnyWith(schema),
     {
       code: InvalidLiteral({expected: S.Literal.parse("value"), received: %raw(`"wrong"`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.fromLocation("1"),
     },
   )
@@ -212,7 +212,7 @@ test("Tuple schema parsing checks order", t => {
     %raw(`[1, "value"]`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`1`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.fromLocation("0"),
     },
   )

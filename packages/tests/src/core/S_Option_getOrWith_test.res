@@ -44,7 +44,7 @@ test("Fails to parse data with default", t => {
     %raw(`"string"`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`"string"`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )

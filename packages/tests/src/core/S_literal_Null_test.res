@@ -21,7 +21,7 @@ module Common = {
       invalidTypeAny->S.parseAnyWith(schema),
       {
         code: InvalidLiteral({expected: S.Literal.parse(%raw(`null`)), received: invalidTypeAny}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -40,7 +40,7 @@ module Common = {
       invalidValue->S.serializeToUnknownWith(schema),
       {
         code: InvalidLiteral({expected: S.Literal.parse(%raw(`null`)), received: invalidValue}),
-        operation: Serializing,
+        operation: SerializeToUnknown,
         path: S.Path.empty,
       },
     )

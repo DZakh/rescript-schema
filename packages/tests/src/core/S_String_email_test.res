@@ -13,7 +13,7 @@ test("Fails to parse invalid data", t => {
     "dzakh.dev"->S.parseAnyWith(schema),
     {
       code: OperationFailed("Invalid email address"),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )
@@ -36,7 +36,7 @@ test("Fails to serialize invalid value", t => {
     "dzakh.dev"->S.serializeToUnknownWith(schema),
     {
       code: OperationFailed("Invalid email address"),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.empty,
     },
   )
@@ -47,7 +47,7 @@ test("Returns custom error message", t => {
 
   t->Assert.deepEqual(
     "dzakh.dev"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("Custom"), operation: Parsing, path: S.Path.empty})),
+    Error(U.error({code: OperationFailed("Custom"), operation: Parse, path: S.Path.empty})),
     (),
   )
 })

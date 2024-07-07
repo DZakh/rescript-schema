@@ -356,7 +356,7 @@ test("Fails to serialize to json non-jsonable schema", (t) => {
     },
     {
       message:
-        "Failed serializing at root. Reason: The schema Option(String) is not compatible with JSON",
+        "Failed serializing to JSON at root. Reason: The schema Option(String) is not compatible with JSON",
     }
   );
 });
@@ -486,7 +486,10 @@ test("Fails to parses async schema", async (t) => {
     t.fail("Should fail");
     return;
   }
-  t.is(result.error.message, "Failed parsing at root. Reason: User error");
+  t.is(
+    result.error.message,
+    "Failed parsing async at root. Reason: User error"
+  );
   t.true(result.error instanceof S.Error);
 });
 

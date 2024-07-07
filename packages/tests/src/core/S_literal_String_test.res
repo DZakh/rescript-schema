@@ -24,7 +24,7 @@ module Common = {
           expected: S.Literal.parse("ReScript is Great!"),
           received: "Hello world!"->Obj.magic,
         }),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -40,7 +40,7 @@ module Common = {
           expected: S.Literal.parse("ReScript is Great!"),
           received: invalidTypeAny,
         }),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -62,7 +62,7 @@ module Common = {
           expected: S.Literal.parse("ReScript is Great!"),
           received: "Hello world!"->Obj.magic,
         }),
-        operation: Serializing,
+        operation: SerializeToUnknown,
         path: S.Path.empty,
       },
     )

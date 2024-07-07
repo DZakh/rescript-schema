@@ -127,7 +127,7 @@ Console.timeEnd("serializeWith: 3")
 Console.time("S.Error.make")
 let _ = S.Error.make(
   ~code=OperationFailed("Should be positive"),
-  ~operation=Parsing,
+  ~operation=Parse,
   ~path=S.Path.empty,
 )
 Console.timeEnd("S.Error.make")

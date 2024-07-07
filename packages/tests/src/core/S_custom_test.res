@@ -29,7 +29,7 @@ test("Correctly parses custom schema", t => {
     123->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )
@@ -53,7 +53,7 @@ test("Fails to serialize with user error", t => {
 
   t->U.assertErrorResult(
     None->S.serializeToUnknownWith(schema),
-    {code: OperationFailed("User error"), operation: Serializing, path: S.Path.empty},
+    {code: OperationFailed("User error"), operation: SerializeToUnknown, path: S.Path.empty},
   )
 })
 
@@ -66,7 +66,7 @@ test("Fails to serialize with serializer is missing", t => {
     ()->S.serializeToUnknownWith(schema),
     {
       code: InvalidOperation({description: "The S.custom serializer is missing"}),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.empty,
     },
   )

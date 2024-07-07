@@ -30,7 +30,7 @@ test("Fails to parse without asyncRefine", t => {
     Error(
       U.error({
         code: InvalidType({expected: schema->S.toUnknown, received: %raw(`123`)}),
-        operation: Parsing,
+        operation: ParseAsync,
         path: S.Path.empty,
       }),
     ),
@@ -59,7 +59,7 @@ asyncTest("Fails to parse with invalidAsyncRefine", t => {
       Error(
         U.error({
           code: OperationFailed("Async user error"),
-          operation: Parsing,
+          operation: ParseAsync,
           path: S.Path.empty,
         }),
       ),
@@ -228,7 +228,7 @@ module Object = {
         Error(
           U.error({
             code: OperationFailed("Async user error"),
-            operation: Parsing,
+            operation: ParseAsync,
             path: S.Path.fromArray(["discriminant"]),
           }),
         ),
@@ -256,7 +256,7 @@ module Object = {
       Error(
         U.error({
           code: InvalidType({expected: invalidSchema->S.toUnknown, received: %raw(`true`)}),
-          operation: Parsing,
+          operation: ParseAsync,
           path: S.Path.fromArray(["k2"]),
         }),
       ),
@@ -282,7 +282,7 @@ module Object = {
       Error(
         U.error({
           code: OperationFailed("Sync user error"),
-          operation: Parsing,
+          operation: ParseAsync,
           path: S.Path.fromArray(["k3"]),
         }),
       ),
@@ -358,7 +358,7 @@ module Object = {
         Error(
           U.error({
             code: OperationFailed("Async user error"),
-            operation: Parsing,
+            operation: ParseAsync,
             path: S.Path.fromArray(["k2"]),
           }),
         ),
@@ -388,7 +388,7 @@ module Tuple = {
       Error(
         U.error({
           code: InvalidType({expected: invalidSchema->S.toUnknown, received: %raw(`true`)}),
-          operation: Parsing,
+          operation: ParseAsync,
           path: S.Path.fromArray(["1"]),
         }),
       ),
@@ -408,7 +408,7 @@ module Tuple = {
       Error(
         U.error({
           code: OperationFailed("Sync user error"),
-          operation: Parsing,
+          operation: ParseAsync,
           path: S.Path.fromArray(["1"]),
         }),
       ),
@@ -451,7 +451,7 @@ module Tuple = {
         Error(
           U.error({
             code: OperationFailed("Async user error"),
-            operation: Parsing,
+            operation: ParseAsync,
             path: S.Path.fromArray(["1"]),
           }),
         ),
@@ -506,20 +506,20 @@ module Union = {
               U.error({
                 code: InvalidLiteral({expected: S.Literal.parse(1.), received: input}),
                 path: S.Path.empty,
-                operation: Parsing,
+                operation: ParseAsync,
               }),
               U.error({
                 code: InvalidLiteral({expected: S.Literal.parse(2.), received: input}),
                 path: S.Path.empty,
-                operation: Parsing,
+                operation: ParseAsync,
               }),
               U.error({
                 code: InvalidLiteral({expected: S.Literal.parse(3.), received: input}),
                 path: S.Path.empty,
-                operation: Parsing,
+                operation: ParseAsync,
               }),
             ]),
-            operation: Parsing,
+            operation: ParseAsync,
             path: S.Path.empty,
           },
         )
@@ -571,7 +571,7 @@ module Array = {
       Error(
         U.error({
           code: InvalidType({expected: invalidSchema->S.toUnknown, received: %raw(`true`)}),
-          operation: Parsing,
+          operation: ParseAsync,
           path: S.Path.fromArray(["2"]),
         }),
       ),
@@ -620,7 +620,7 @@ module Array = {
         Error(
           U.error({
             code: OperationFailed("Async user error"),
-            operation: Parsing,
+            operation: ParseAsync,
             path: S.Path.fromArray(["2"]),
           }),
         ),
@@ -650,7 +650,7 @@ module Dict = {
       Error(
         U.error({
           code: InvalidType({expected: invalidSchema->S.toUnknown, received: %raw(`true`)}),
-          operation: Parsing,
+          operation: ParseAsync,
           path: S.Path.fromArray(["k3"]),
         }),
       ),
@@ -699,7 +699,7 @@ module Dict = {
         Error(
           U.error({
             code: OperationFailed("Async user error"),
-            operation: Parsing,
+            operation: ParseAsync,
             path: S.Path.fromArray(["k3"]),
           }),
         ),
@@ -734,7 +734,7 @@ module Null = {
         Error(
           U.error({
             code: OperationFailed("Async user error"),
-            operation: Parsing,
+            operation: ParseAsync,
             path: S.Path.empty,
           }),
         ),
@@ -751,7 +751,7 @@ module Null = {
       Error(
         U.error({
           code: InvalidType({expected: schema->S.toUnknown, received: %raw(`true`)}),
-          operation: Parsing,
+          operation: ParseAsync,
           path: S.Path.empty,
         }),
       ),
@@ -785,7 +785,7 @@ module Option = {
         Error(
           U.error({
             code: OperationFailed("Async user error"),
-            operation: Parsing,
+            operation: ParseAsync,
             path: S.Path.empty,
           }),
         ),
@@ -802,7 +802,7 @@ module Option = {
       Error(
         U.error({
           code: InvalidType({expected: schema->S.toUnknown, received: %raw(`true`)}),
-          operation: Parsing,
+          operation: ParseAsync,
           path: S.Path.empty,
         }),
       ),
@@ -836,7 +836,7 @@ module Defaulted = {
         Error(
           U.error({
             code: OperationFailed("Async user error"),
-            operation: Parsing,
+            operation: ParseAsync,
             path: S.Path.empty,
           }),
         ),
@@ -854,7 +854,7 @@ module Defaulted = {
       Error(
         U.error({
           code: InvalidType({expected: schema->S.toUnknown, received: %raw(`true`)}),
-          operation: Parsing,
+          operation: ParseAsync,
           path: S.Path.empty,
         }),
       ),
@@ -887,7 +887,7 @@ module Json = {
         Error(
           U.error({
             code: OperationFailed("Async user error"),
-            operation: Parsing,
+            operation: ParseAsync,
             path: S.Path.empty,
           }),
         ),
@@ -906,7 +906,7 @@ module Json = {
       Error(
         U.error({
           code: InvalidType({expected: invalidSchema->S.toUnknown, received: %raw(`true`)}),
-          operation: Parsing,
+          operation: ParseAsync,
           path: S.Path.empty,
         }),
       ),

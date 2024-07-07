@@ -21,7 +21,7 @@ module Common = {
       invalidAny->S.parseAnyWith(schema),
       {
         code: InvalidLiteral({expected: S.Literal.parse(false), received: true->Obj.magic}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -34,7 +34,7 @@ module Common = {
       invalidTypeAny->S.parseAnyWith(schema),
       {
         code: InvalidLiteral({expected: S.Literal.parse(false), received: invalidTypeAny}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -53,7 +53,7 @@ module Common = {
       invalidValue->S.serializeToUnknownWith(schema),
       {
         code: InvalidLiteral({expected: S.Literal.parse(false), received: invalidValue}),
-        operation: Serializing,
+        operation: SerializeToUnknown,
         path: S.Path.empty,
       },
     )

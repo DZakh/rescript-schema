@@ -26,7 +26,7 @@ test("Doesn't affect serializing in any way", t => {
     "abc"->S.serializeToUnknownWith(schema),
     {
       code: InvalidLiteral({received: "abc"->Obj.magic, expected: S.Literal.parse("123")}),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.empty,
     },
   )
@@ -39,7 +39,7 @@ test("Provides ctx to use in catch", t => {
       s.error,
       U.error({
         code: InvalidType({received: %raw(`123`), expected: S.string->S.toUnknown}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       }),
       (),
@@ -65,7 +65,7 @@ test("Can use s.fail inside of S.catch", t => {
     123->S.parseAnyWith(schema),
     {
       code: OperationFailed("Fallback value only supported for strings."),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )
@@ -74,7 +74,7 @@ test("Can use s.fail inside of S.catch", t => {
     "1"->S.serializeToUnknownWith(schema),
     {
       code: InvalidLiteral({expected: S.Literal.parse("0"), received: "1"->Obj.magic}),
-      operation: Serializing,
+      operation: SerializeToUnknown,
       path: S.Path.empty,
     },
   )

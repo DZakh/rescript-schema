@@ -3,7 +3,7 @@ let stringSchema = S.string
 
 @genType
 let error: S.error = U.error({
-  operation: Parsing,
+  operation: Parse,
   code: OperationFailed("Something went wrong"),
   path: S.Path.empty,
 })

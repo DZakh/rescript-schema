@@ -20,7 +20,7 @@ module Common = {
       invalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.empty,
       },
     )
@@ -76,7 +76,7 @@ test("Fails to parse JS undefined", t => {
     %raw(`undefined`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`undefined`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )
@@ -90,7 +90,7 @@ test("Fails to parse object with missing field that marked as null", t => {
     %raw(`{}`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: fieldSchema->S.toUnknown, received: %raw(`undefined`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.fromArray(["nullableField"]),
     },
   )
@@ -103,7 +103,7 @@ test("Fails to parse JS null when schema doesn't allow optional data", t => {
     %raw(`null`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`null`)}),
-      operation: Parsing,
+      operation: Parse,
       path: S.Path.empty,
     },
   )

@@ -119,7 +119,7 @@ console.time("S.Error.make");
 S$RescriptSchema.$$Error.make({
       TAG: "OperationFailed",
       _0: "Should be positive"
-    }, "Parsing", S$RescriptSchema.Path.empty);
+    }, "Parse", S$RescriptSchema.Path.empty);
 
 console.timeEnd("S.Error.make");
 

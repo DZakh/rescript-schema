@@ -19,7 +19,7 @@ module CommonWithNested = {
     switch invalidAny->S.parseAnyWith(schema) {
     | Ok(_) => t->Assert.fail("Unexpected result.")
     | Error(e) => {
-        t->Assert.deepEqual(e.operation, Parsing, ())
+        t->Assert.deepEqual(e.operation, Parse, ())
         t->Assert.deepEqual(e.path, S.Path.empty, ())
         switch e.code {
         | InvalidType({expected, received}) => {
@@ -39,7 +39,7 @@ module CommonWithNested = {
       nestedInvalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: S.string->S.toUnknown, received: 1->Obj.magic}),
-        operation: Parsing,
+        operation: Parse,
         path: S.Path.fromArray(["1"]),
       },
     )
