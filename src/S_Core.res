@@ -36,9 +36,6 @@ module Stdlib = {
   }
 
   module Object = {
-    @val
-    external overrideWith: ('object, 'object) => unit = "Object.assign"
-
     @val external internalClass: Js.Types.obj_val => string = "Object.prototype.toString.call"
   }
 
@@ -206,6 +203,16 @@ module Path = {
 
 let symbol = Stdlib.Symbol.make("rescript-schema")
 let itemSymbol = Stdlib.Symbol.make("item")
+
+type global = {mutable recCounter: int}
+
+let global = {
+  recCounter: 0,
+}
+
+let __internal_resetGlobal = () => {
+  global.recCounter = 0
+}
 
 @unboxed
 type isAsyncParse = | @as(0) Unknown | Value(bool)
@@ -1393,93 +1400,78 @@ module Metadata = {
 }
 
 let recursive = fn => {
-  let placeholder: t<'value> = {"m": Metadata.Map.empty}->Obj.magic
+  let r = "r" ++ global.recCounter->Stdlib.Int.unsafeToString
+  global.recCounter = global.recCounter + 1
+
+  let placeholder: t<'value> = {
+    // metadataMap
+    "m": Metadata.Map.empty,
+    // rawTagged
+    "r": Unknown,
+    // name
+    "n": () => "<recursive>",
+    // parseOperationBuilder
+    "p": Builder.make((b, ~input, ~selfSchema as _, ~path as _) => {
+      b->B.transform(~input, (b, ~input) => {
+        b->B.Val.map(r, input)
+      })
+    }),
+    // serializeOperationBuilder
+    "s": Builder.make((b, ~input, ~selfSchema as _, ~path as _) => {
+      b->B.Val.map(r, input)
+    }),
+  }->Obj.magic
   let schema = fn(placeholder)
-  placeholder->Stdlib.Object.overrideWith(schema)
-  placeholder.definer = None
 
-  {
-    let builder = placeholder.parseOperationBuilder
-    placeholder.parseOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path) => {
-      let isAsync = {
-        selfSchema.parseOperationBuilder = Builder.noop
-        let b = {
-          global: {
-            ...b.global,
-            varCounter: -1,
-            embeded: [],
-          },
-          code: "",
-          varsAllocation: "",
-          isAllocated: false,
-        }
-        let input = {_var: Builder.intitialInputVar, _scope: b, isAsync: false}
-        let output = builder(b, ~input, ~selfSchema, ~path)
-        output.isAsync
-      }
+  // maybeTypeFilter
+  (placeholder->Obj.magic)["f"] = schema.maybeTypeFilter
 
-      selfSchema.parseOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path as _) => {
-        if isAsync {
-          b->B.embedAsyncOperation(~input, ~fn=input => selfSchema.parseAsyncOrRaise(input))
-        } else {
-          b->B.embedSyncOperation(~input, ~fn=input => input->parseAnyOrRaiseWith(selfSchema))
-        }
-      })
+  // Don't allow destructuring for recursive schemas
+  schema.definer = None
+  schema.definerCtx = None
 
-      if isAsync {
-        selfSchema.parseAsyncOrRaise =
-          builder->Builder.build(
-            ~schema=selfSchema,
-            ~operation=b.global.operation,
-            parseAsyncFinalizer,
-          )
-      } else {
-        // TODO: Use init function
-        selfSchema.parseOrRaise =
-          builder->Builder.build(~schema=selfSchema, ~operation=b.global.operation, parseFinalizer)
-      }
-
-      selfSchema.parseOperationBuilder = builder
-
-      b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) =>
-        if isAsync {
-          b->B.embedAsyncOperation(~input, ~fn=selfSchema.parseAsyncOrRaise)
-        } else {
-          b->B.embedSyncOperation(~input, ~fn=selfSchema.parseOrRaise)
-        }
+  let initialParseOperationBuilder = schema.parseOperationBuilder
+  schema.parseOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path) => {
+    let bb = b->B.scope
+    let opOutput = initialParseOperationBuilder(bb, ~input, ~selfSchema, ~path=Path.empty)
+    let opBodyCode = bb->B.allocateScope ++ `return ${b->B.Val.inline(opOutput)}`
+    b.code = b.code ++ `let ${r}=${b->B.Val.var(input)}=>{${opBodyCode}};`
+    b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) => {
+      b->B.transform(
+        ~input,
+        (b, ~input) => {
+          let output = b->B.Val.map(r, input)
+          if opOutput.isAsync {
+            output.isAsync = true
+            placeholder.parseOperationBuilder = Builder.make(
+              (b, ~input, ~selfSchema as _, ~path as _) => {
+                b->B.transform(
+                  ~input,
+                  (b, ~input) => {
+                    let output = b->B.Val.map(r, input)
+                    output.isAsync = true
+                    output
+                  },
+                )
+              },
+            )
+          }
+          output
+        },
       )
     })
-  }
+  })
 
-  {
-    let builder = placeholder.serializeOperationBuilder
-    placeholder.serializeOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path) => {
-      selfSchema.serializeOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path as _) => {
-        b->B.embedSyncOperation(
-          ~input,
-          ~fn=input => input->serializeToUnknownOrRaiseWith(selfSchema),
-        )
-      })
+  let initialSerializeOperationBuilder = schema.serializeOperationBuilder
+  schema.serializeOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path) => {
+    let bb = b->B.scope
+    let opOutput = initialSerializeOperationBuilder(bb, ~input, ~selfSchema, ~path=Path.empty)
+    let opBodyCode = bb->B.allocateScope ++ `return ${b->B.Val.inline(opOutput)}`
+    b.code = b.code ++ `let ${r}=${b->B.Val.var(input)}=>{${opBodyCode}};`
+    b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) => b->B.Val.map(r, input))
+  })
 
-      let operation =
-        builder->Builder.build(
-          ~schema=selfSchema,
-          ~operation=b.global.operation,
-          Builder.noopFinalizer,
-        )
-
-      // TODO: Use init function ?
-      // TODO: What about json validation ?? Check whether it works correctly
-      selfSchema.serializeToUnknownOrRaise = operation
-
-      selfSchema.serializeOperationBuilder = builder
-      b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) =>
-        b->B.embedSyncOperation(~input, ~fn=operation)
-      )
-    })
-  }
-
-  placeholder
+  schema
 }
 
 let setName = (schema, name) => {

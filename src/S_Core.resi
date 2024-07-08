@@ -418,3 +418,5 @@ let js_object: unknown => t<dict<unknown>>
 let js_merge: (t<unknown>, t<unknown>) => t<unknown>
 
 let js_name: t<'value> => string
+
+let __internal_resetGlobal: unit => unit

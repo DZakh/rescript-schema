@@ -379,3 +379,5 @@ let url: (t<string>, ~message: string=?) => t<string>
 let pattern: (t<string>, Js.Re.t, ~message: string=?) => t<string>
 let datetime: (t<string>, ~message: string=?) => t<Js.Date.t>
 let trim: t<string> => t<string>
+
+let __internal_resetGlobal: unit => unit

@@ -44,6 +44,14 @@ var symbol = Symbol("rescript-schema");
 
 var itemSymbol = Symbol("item");
 
+var $$global = {
+  recCounter: 0
+};
+
+function __internal_resetGlobal() {
+  $$global.recCounter = 0;
+}
+
 var Raised = /* @__PURE__ */Caml_exceptions.create("S_Core-RescriptSchema.Raised");
 
 function toJsResult(result) {
@@ -968,73 +976,61 @@ function set$2(schema, id, metadata) {
 }
 
 function recursive(fn) {
+  var r = "r" + $$global.recCounter;
+  $$global.recCounter = $$global.recCounter + 1 | 0;
   var placeholder = {
-    m: empty
+    m: empty,
+    r: "Unknown",
+    n: (function () {
+        return "<recursive>";
+      }),
+    p: (function (b, input, param, param$1) {
+        return transform(b, input, (function (b, input) {
+                      return map(b, r, input);
+                    }));
+      }),
+    s: (function (b, input, param, param$1) {
+        return map(b, r, input);
+      })
   };
   var schema = fn(placeholder);
-  Object.assign(placeholder, schema);
-  placeholder.d = undefined;
-  var builder = placeholder.p;
-  placeholder.p = (function (b, input, selfSchema, path) {
-      selfSchema.p = noop;
-      var init = b.g;
-      var b$1 = {
-        c: "",
-        l: "",
-        a: false,
-        g: {
-          v: -1,
-          o: init.o,
-          e: []
-        }
-      };
-      var input$1 = {
-        v: "i",
-        s: b$1,
-        a: false
-      };
-      var output = builder(b$1, input$1, selfSchema, path);
-      var isAsync = output.a;
-      selfSchema.p = (function (b, input, selfSchema, param) {
-          if (isAsync) {
-            return embedAsyncOperation(b, input, (function (input) {
-                          return selfSchema.a(input);
-                        }));
-          } else {
-            return embedSyncOperation(b, input, (function (input) {
-                          return selfSchema.parseOrThrow(input);
-                        }));
-          }
-        });
-      if (isAsync) {
-        selfSchema.a = build(builder, selfSchema, b.g.o, parseAsyncFinalizer);
-      } else {
-        selfSchema.parseOrThrow = build(builder, selfSchema, b.g.o, parseFinalizer);
-      }
-      selfSchema.p = builder;
+  placeholder.f = schema.f;
+  schema.d = undefined;
+  schema.c = undefined;
+  var initialParseOperationBuilder = schema.p;
+  schema.p = (function (b, input, selfSchema, path) {
+      var bb = scope(b);
+      var opOutput = initialParseOperationBuilder(bb, input, selfSchema, "");
+      var opBodyCode = allocateScope(bb) + ("return " + inline(b, opOutput));
+      b.c = b.c + ("let " + r + "=" + $$var(b, input) + "=>{" + opBodyCode + "};");
       return withPathPrepend(b, input, path, undefined, (function (b, input, param) {
-                    if (isAsync) {
-                      return embedAsyncOperation(b, input, selfSchema.a);
-                    } else {
-                      return embedSyncOperation(b, input, selfSchema.parseOrThrow);
-                    }
+                    return transform(b, input, (function (b, input) {
+                                  var output = map(b, r, input);
+                                  if (opOutput.a) {
+                                    output.a = true;
+                                    placeholder.p = (function (b, input, param, param$1) {
+                                        return transform(b, input, (function (b, input) {
+                                                      var output = map(b, r, input);
+                                                      output.a = true;
+                                                      return output;
+                                                    }));
+                                      });
+                                  }
+                                  return output;
+                                }));
                   }));
     });
-  var builder$1 = placeholder.s;
-  placeholder.s = (function (b, input, selfSchema, path) {
-      selfSchema.s = (function (b, input, selfSchema, param) {
-          return embedSyncOperation(b, input, (function (input) {
-                        return selfSchema.serializeOrThrow(input);
-                      }));
-        });
-      var operation = build(builder$1, selfSchema, b.g.o, noopFinalizer);
-      selfSchema.serializeOrThrow = operation;
-      selfSchema.s = builder$1;
+  var initialSerializeOperationBuilder = schema.s;
+  schema.s = (function (b, input, selfSchema, path) {
+      var bb = scope(b);
+      var opOutput = initialSerializeOperationBuilder(bb, input, selfSchema, "");
+      var opBodyCode = allocateScope(bb) + ("return " + inline(b, opOutput));
+      b.c = b.c + ("let " + r + "=" + $$var(b, input) + "=>{" + opBodyCode + "};");
       return withPathPrepend(b, input, path, undefined, (function (b, input, param) {
-                    return embedSyncOperation(b, input, operation);
+                    return map(b, r, input);
                   }));
     });
-  return placeholder;
+  return schema;
 }
 
 function setName(schema, name) {
@@ -3132,5 +3128,6 @@ export {
   js_object ,
   js_merge ,
   js_name ,
+  __internal_resetGlobal ,
 }
 /* symbol Not a pure module */
