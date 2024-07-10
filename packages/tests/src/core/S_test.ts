@@ -96,6 +96,37 @@ test("Successfully parses float", (t) => {
   expectType<TypeEqual<typeof value, number>>(true);
 });
 
+test("Fails to parse float when NaN is provided", (t) => {
+  const schema = S.number;
+
+  t.throws(
+    () => {
+      const value = schema.parseOrThrow(NaN);
+
+      expectType<TypeEqual<typeof schema, S.Schema<number, number>>>(true);
+      expectType<TypeEqual<typeof value, number>>(true);
+    },
+    {
+      name: "RescriptSchemaError",
+      message: "Failed parsing at root. Reason: Expected Float, received NaN",
+    }
+  );
+});
+
+test("Successfully parses float when NaN is provided and NaN check disabled in global config", (t) => {
+  S.setGlobalConfig({
+    disableNanNumberCheck: true,
+  });
+  const schema = S.number;
+  const value = schema.parseOrThrow(NaN);
+  S.setGlobalConfig({});
+
+  t.deepEqual(value, NaN);
+
+  expectType<TypeEqual<typeof schema, S.Schema<number, number>>>(true);
+  expectType<TypeEqual<typeof value, number>>(true);
+});
+
 test("Successfully parses bool", (t) => {
   const schema = S.boolean;
   const value = schema.parseOrThrow(true);
@@ -662,6 +693,51 @@ test("Fails to parse strict object with exccess fields", (t) => {
       foo: S.string,
     })
   );
+
+  t.throws(
+    () => {
+      const value = schema.parseOrThrow({
+        foo: "bar",
+        bar: true,
+      });
+      expectType<
+        TypeEqual<
+          typeof schema,
+          S.Schema<
+            {
+              foo: string;
+            },
+            {
+              foo: string;
+            }
+          >
+        >
+      >(true);
+      expectType<
+        TypeEqual<
+          typeof value,
+          {
+            foo: string;
+          }
+        >
+      >(true);
+    },
+    {
+      name: "RescriptSchemaError",
+      message: `Failed parsing at root. Reason: Encountered disallowed excess key "bar" on an object`,
+    }
+  );
+});
+
+test("Fails to parse strict object with exccess fields which created using global config override", (t) => {
+  S.setGlobalConfig({
+    defaultUnknownKeys: "Strict",
+  });
+  const schema = S.object({
+    foo: S.string,
+  });
+  // Reset global config back
+  S.setGlobalConfig({});
 
   t.throws(
     () => {

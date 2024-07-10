@@ -27,6 +27,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Make S.serializeToJsonString super fast
 - Rename `InvalidJsonStruct` error, since after `rescript-struct`->`rescript-schema` it became misleading
 - Add S.bigint
+- Add S.promise
 - Check only number of fields for strict object schema when fields are not optional
 
 ## v???

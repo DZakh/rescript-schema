@@ -12,9 +12,16 @@
 - S.union still doesn't support schemas with async, but treats them differently. Please don't try to use them, since the behavior is not predictable.
 - Added `S.assertOrRaiseWith` or `schema.assert` for js/ts users. It doesn't return parsed value, but that makes the function 2-3 times faster, depending on the schema.
 - Improved S.recursive implementation
+- Added `S.setGlobalConfig`. Now it's possible to customize the behavior of the library:
+  - Change the default `unknownKeys` strategy for Object from `Strip` to `Strict`
+  - Disable NaN check for numbers
 
 // TODO:
 
+- Codegen type
+- Codegen schema using type
+- Prepare for union refactoring
 - Release 7.0.2 with type check fix for recursive schema
 - Test GenType compatibility with d.ts
 - Clean up error tags
+- Refactor parse async in steps (remove callback and prepend unresolved promise)

@@ -70,6 +70,10 @@ function makeAdvancedStrictObjectSchema() {
                 }));
 }
 
+S$RescriptSchema.setGlobalConfig({
+      disableNanNumberCheck: true
+    });
+
 var data = makeTestObject();
 
 console.time("makeAdvancedObjectSchema");
@@ -172,4 +176,4 @@ run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(a
 export {
   
 }
-/* data Not a pure module */
+/*  Not a pure module */

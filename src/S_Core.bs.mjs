@@ -44,15 +44,13 @@ var symbol = Symbol("rescript-schema");
 
 var itemSymbol = Symbol("item");
 
-var $$global = {
-  recCounter: 0
-};
-
-function __internal_resetGlobal() {
-  $$global.recCounter = 0;
-}
-
 var Raised = /* @__PURE__ */Caml_exceptions.create("S_Core-RescriptSchema.Raised");
+
+var globalConfig = {
+  r: 0,
+  u: "Strip",
+  n: false
+};
 
 function toJsResult(result) {
   if (result.TAG === "Ok") {
@@ -976,8 +974,8 @@ function set$2(schema, id, metadata) {
 }
 
 function recursive(fn) {
-  var r = "r" + $$global.recCounter;
-  $$global.recCounter = $$global.recCounter + 1 | 0;
+  var r = "r" + globalConfig.r;
+  globalConfig.r = globalConfig.r + 1 | 0;
   var placeholder = {
     m: empty,
     r: "Unknown",
@@ -1561,7 +1559,7 @@ function factory$2(definer) {
             TAG: "Object",
             items: items,
             fields: fields,
-            unknownKeys: "Strip",
+            unknownKeys: globalConfig.u,
             definition: definition
           },
           n: name,
@@ -1783,7 +1781,9 @@ function refinements$2(schema) {
 }
 
 function typeFilter$4(inputVar) {
-  return "typeof " + inputVar + "!==\"number\"||Number.isNaN(" + inputVar + ")";
+  return "typeof " + inputVar + "!==\"number\"" + (
+          globalConfig.n ? "" : "||Number.isNaN(" + inputVar + ")"
+        );
 }
 
 var schema$5 = makeWithNoopSerializer(primitiveName, "Float", empty, noop, typeFilter$4);
@@ -2918,6 +2918,22 @@ function js_name(prim) {
   return prim.n();
 }
 
+function setGlobalConfig(override) {
+  globalConfig.r = 0;
+  var unknownKeys = override.defaultUnknownKeys;
+  globalConfig.u = unknownKeys !== undefined ? unknownKeys : "Strip";
+  var prevDisableNanNumberCheck = globalConfig.n;
+  var disableNanNumberCheck = override.disableNanNumberCheck;
+  globalConfig.n = disableNanNumberCheck !== undefined ? disableNanNumberCheck : false;
+  if (prevDisableNanNumberCheck !== globalConfig.n) {
+    schema$5.assert = initialAssertOrRaise;
+    schema$5.parseOrThrow = initialParseOrRaise;
+    schema$5.a = initialParseAsyncOrRaise;
+    return ;
+  }
+  
+}
+
 var Path = {
   empty: "",
   dynamic: "[]",
@@ -3128,6 +3144,6 @@ export {
   js_object ,
   js_merge ,
   js_name ,
-  __internal_resetGlobal ,
+  setGlobalConfig ,
 }
 /* symbol Not a pure module */

@@ -174,7 +174,7 @@ var datetime = S_Core$RescriptSchema.datetime;
 
 var trim = S_Core$RescriptSchema.trim;
 
-var __internal_resetGlobal = S_Core$RescriptSchema.__internal_resetGlobal;
+var setGlobalConfig = S_Core$RescriptSchema.setGlobalConfig;
 
 export {
   Path ,
@@ -263,6 +263,6 @@ export {
   pattern ,
   datetime ,
   trim ,
-  __internal_resetGlobal ,
+  setGlobalConfig ,
 }
 /* S_Core-RescriptSchema Not a pure module */

@@ -1,3 +1,4 @@
+import { unknown } from "./S.d";
 import { S_t, S_Error_class } from "../RescriptSchema.gen";
 
 type Operation =
@@ -353,3 +354,14 @@ export const datetime: <Input>(
 export const trim: <Input>(
   schema: Schema<string, Input>
 ) => Schema<string, Input>;
+
+export type UnknownKeys = "Strip" | "Strict";
+
+export type GlobalConfigOverride = {
+  defaultUnknownKeys?: UnknownKeys;
+  disableNanNumberCheck?: boolean;
+};
+
+export function setGlobalConfig(
+  globalConfigOverride: GlobalConfigOverride
+): void;

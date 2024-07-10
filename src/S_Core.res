@@ -204,16 +204,6 @@ module Path = {
 let symbol = Stdlib.Symbol.make("rescript-schema")
 let itemSymbol = Stdlib.Symbol.make("item")
 
-type global = {mutable recCounter: int}
-
-let global = {
-  recCounter: 0,
-}
-
-let __internal_resetGlobal = () => {
-  global.recCounter = 0
-}
-
 @unboxed
 type isAsyncParse = | @as(0) Unknown | Value(bool)
 type unknownKeys = Strip | Strict
@@ -357,6 +347,28 @@ external toUnknown: t<'any> => t<unknown> = "%identity"
 let unsafeGetVariantPayload = variant => (variant->Obj.magic)["_0"]
 let unsafeGetVarianTag = (variant): string => (variant->Obj.magic)["TAG"]
 let unsafeGetErrorPayload = variant => (variant->Obj.magic)["_1"]
+
+type globalConfig = {
+  @as("r")
+  mutable recCounter: int,
+  @as("u")
+  mutable defaultUnknownKeys: unknownKeys,
+  @as("n")
+  mutable disableNanNumberCheck: bool,
+}
+
+type globalConfigOverride = {
+  defaultUnknownKeys?: unknownKeys,
+  disableNanNumberCheck?: bool,
+}
+
+let initialDefaultUnknownKeys = Strip
+let initialDisableNanNumberProtection = false
+let globalConfig = {
+  recCounter: 0,
+  defaultUnknownKeys: initialDefaultUnknownKeys,
+  disableNanNumberCheck: initialDisableNanNumberProtection,
+}
 
 let toJsResult = (result: result<'value, error>): jsResult<'value> => {
   switch result {
@@ -1400,8 +1412,8 @@ module Metadata = {
 }
 
 let recursive = fn => {
-  let r = "r" ++ global.recCounter->Stdlib.Int.unsafeToString
-  global.recCounter = global.recCounter + 1
+  let r = "r" ++ globalConfig.recCounter->Stdlib.Int.unsafeToString
+  globalConfig.recCounter = globalConfig.recCounter + 1
 
   let placeholder: t<'value> = {
     // metadataMap
@@ -2247,7 +2259,7 @@ module Object = {
         rawTagged: Object({
           items,
           fields,
-          unknownKeys: Strip,
+          unknownKeys: globalConfig.defaultUnknownKeys,
           definition,
         }),
         parseOperationBuilder,
@@ -2589,7 +2601,12 @@ module Float = {
     }
   }
 
-  let typeFilter = (~inputVar) => `typeof ${inputVar}!=="number"||Number.isNaN(${inputVar})`
+  let typeFilter = (~inputVar) =>
+    `typeof ${inputVar}!=="number"` ++ if globalConfig.disableNanNumberCheck {
+      ""
+    } else {
+      `||Number.isNaN(${inputVar})`
+    }
 
   let schema = makeWithNoopSerializer(
     ~name=primitiveName,
@@ -3919,3 +3936,21 @@ let js_merge = (s1, s2) => {
 }
 
 let js_name = name
+
+let setGlobalConfig = override => {
+  globalConfig.recCounter = 0
+  globalConfig.defaultUnknownKeys = switch override.defaultUnknownKeys {
+  | Some(unknownKeys) => unknownKeys
+  | None => initialDefaultUnknownKeys
+  }
+  let prevDisableNanNumberCheck = globalConfig.disableNanNumberCheck
+  globalConfig.disableNanNumberCheck = switch override.disableNanNumberCheck {
+  | Some(disableNanNumberCheck) => disableNanNumberCheck
+  | None => initialDisableNanNumberProtection
+  }
+  if prevDisableNanNumberCheck != globalConfig.disableNanNumberCheck {
+    float.assertOrRaise = initialAssertOrRaise
+    float.parseOrRaise = initialParseOrRaise
+    float.parseAsyncOrRaise = initialParseAsyncOrRaise
+  }
+}

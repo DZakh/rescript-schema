@@ -419,4 +419,9 @@ let js_merge: (t<unknown>, t<unknown>) => t<unknown>
 
 let js_name: t<'value> => string
 
-let __internal_resetGlobal: unit => unit
+type globalConfigOverride = {
+  defaultUnknownKeys?: unknownKeys,
+  disableNanNumberCheck?: bool,
+}
+
+let setGlobalConfig: globalConfigOverride => unit

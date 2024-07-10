@@ -86,7 +86,7 @@ asyncTest("Successfully parses recursive object using S.parseAsyncWith", t => {
 })
 
 test("Successfully serializes recursive object", t => {
-  S.__internal_resetGlobal()
+  S.setGlobalConfig({})
 
   let nodeSchema = S.recursive(nodeSchema => {
     S.object(
@@ -201,7 +201,7 @@ test("Fails to parse nested recursive object inside of another object", t => {
 })
 
 test("Parses multiple nested recursive object inside of another object", t => {
-  S.__internal_resetGlobal()
+  S.setGlobalConfig({})
 
   let schema = S.object(s =>
     {
@@ -496,7 +496,7 @@ test("Creates schema with async parse function using S.recursive", t => {
 })
 
 asyncTest("Successfully parses recursive object with async parse function", t => {
-  S.__internal_resetGlobal()
+  S.setGlobalConfig({})
 
   let nodeSchema = S.recursive(nodeSchema => {
     S.object(
@@ -573,7 +573,7 @@ test("Parses recursive object with async fields in parallel", t => {
 })
 
 test("Compiled parse code snapshot", t => {
-  S.__internal_resetGlobal()
+  S.setGlobalConfig({})
 
   let schema = S.recursive(schema => {
     S.object(

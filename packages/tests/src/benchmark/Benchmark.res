@@ -99,6 +99,10 @@ let makeAdvancedStrictObjectSchema = () => {
   )->S.Object.strict
 }
 
+S.setGlobalConfig({
+  disableNanNumberCheck: true,
+})
+
 let data = makeTestObject()
 Console.time("makeAdvancedObjectSchema")
 let schema = makeAdvancedObjectSchema()
