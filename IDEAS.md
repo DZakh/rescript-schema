@@ -28,7 +28,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Rename `InvalidJsonStruct` error, since after `rescript-struct`->`rescript-schema` it became misleading
 - Add S.bigint
 - Add S.promise
-- Check only number of fields for strict object schema when fields are not optional
 
 ## v???
 
@@ -40,3 +39,4 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - s.optional for object
 - S.produce
 - S.mutator
+- Check only number of fields for strict object schema when fields are not optional (bad idea since it's not possible to create a good error message, so we still need to have the loop)

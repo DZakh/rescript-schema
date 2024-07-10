@@ -80,10 +80,6 @@ var parseAsyncWith = S_Core$RescriptSchema.parseAsyncWith;
 
 var parseAnyAsyncWith = S_Core$RescriptSchema.parseAnyAsyncWith;
 
-var parseAsyncInStepsWith = S_Core$RescriptSchema.parseAsyncInStepsWith;
-
-var parseAnyAsyncInStepsWith = S_Core$RescriptSchema.parseAnyAsyncInStepsWith;
-
 var serializeWith = S_Core$RescriptSchema.serializeWith;
 
 var serializeToUnknownWith = S_Core$RescriptSchema.serializeToUnknownWith;
@@ -216,8 +212,6 @@ export {
   parseAnyOrRaiseWith ,
   parseAsyncWith ,
   parseAnyAsyncWith ,
-  parseAsyncInStepsWith ,
-  parseAnyAsyncInStepsWith ,
   serializeWith ,
   serializeToUnknownWith ,
   serializeToJsonStringWith ,

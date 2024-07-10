@@ -93,7 +93,7 @@ function assertCompiledCode(t, schema, op, code, message) {
     }
     compiledCode = (schema.serializeOrThrow.toString());
   } else if (S$RescriptSchema.isAsyncParse(schema)) {
-    S$RescriptSchema.parseAsyncInStepsWith(undefined, schema);
+    S$RescriptSchema.parseAsyncWith(undefined, schema);
     compiledCode = (schema.a.toString());
   } else {
     S$RescriptSchema.parseAnyWith(undefined, schema);
@@ -113,7 +113,7 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
     }
     compiledCode = (schema.serializeOrThrow.toString());
   } else if (S$RescriptSchema.isAsyncParse(schema)) {
-    S$RescriptSchema.parseAsyncInStepsWith(undefined, schema);
+    S$RescriptSchema.parseAsyncWith(undefined, schema);
     compiledCode = (schema.a.toString());
   } else {
     S$RescriptSchema.parseAnyWith(undefined, schema);

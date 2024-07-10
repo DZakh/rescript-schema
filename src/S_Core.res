@@ -1129,17 +1129,6 @@ let parseAnyAsyncWith = (any, schema) => {
 
 let parseAsyncWith = parseAnyAsyncWith
 
-let parseAnyAsyncInStepsWith = (any, schema) => {
-  try {
-    let asyncFn = schema.parseAsyncOrRaise(any->castAnyToUnknown)
-    (() => asyncFn()->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, asyncPrepareError))->Ok
-  } catch {
-  | exn => exn->InternalError.getOrRethrow->Error
-  }
-}
-
-let parseAsyncInStepsWith = parseAnyAsyncInStepsWith
-
 let serializeOrRaiseWith = (value, schema) => {
   schema.serializeOrRaise(value->castAnyToUnknown)
 }

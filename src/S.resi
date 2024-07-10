@@ -199,16 +199,6 @@ let parseAsyncWith: (Js.Json.t, t<'value>) => promise<result<'value, error>>
 
 let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
 
-let parseAsyncInStepsWith: (
-  Js.Json.t,
-  t<'value>,
-) => result<unit => promise<result<'value, error>>, error>
-
-let parseAnyAsyncInStepsWith: (
-  'any,
-  t<'value>,
-) => result<unit => promise<result<'value, error>>, error>
-
 let serializeWith: ('value, t<'value>) => result<Js.Json.t, error>
 
 let serializeToUnknownWith: ('value, t<'value>) => result<unknown, error>

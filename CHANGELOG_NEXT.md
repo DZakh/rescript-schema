@@ -15,6 +15,7 @@
 - Added `S.setGlobalConfig`. Now it's possible to customize the behavior of the library:
   - Change the default `unknownKeys` strategy for Object from `Strip` to `Strict`
   - Disable NaN check for numbers
+- Removed `parseAsyncInStepsWith` and `parseAnyAsyncInStepsWith` to reduce internal library complexity. Let me know if you need it. I can re-implement it in a future version in a simpler way.
 
 // TODO:
 

@@ -687,25 +687,6 @@ function parseAnyAsyncWith(any, schema) {
   }
 }
 
-function parseAnyAsyncInStepsWith(any, schema) {
-  try {
-    var asyncFn = schema.a(any);
-    return {
-            TAG: "Ok",
-            _0: (function () {
-                return asyncFn().then(asyncPrepareOk, asyncPrepareError);
-              })
-          };
-  }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    return {
-            TAG: "Error",
-            _0: getOrRethrow(exn)
-          };
-  }
-}
-
 function serializeOrRaiseWith(value, schema) {
   return schema.serializeToJsonOrThrow(value);
 }
@@ -2990,8 +2971,6 @@ var parseOrRaiseWith = parseAnyOrRaiseWith;
 
 var parseAsyncWith = parseAnyAsyncWith;
 
-var parseAsyncInStepsWith = parseAnyAsyncInStepsWith;
-
 var Schema = {};
 
 var schema$6 = factory$9;
@@ -3088,8 +3067,6 @@ export {
   parseAnyOrRaiseWith ,
   parseAsyncWith ,
   parseAnyAsyncWith ,
-  parseAsyncInStepsWith ,
-  parseAnyAsyncInStepsWith ,
   serializeWith ,
   serializeToUnknownWith ,
   serializeToJsonStringWith ,
