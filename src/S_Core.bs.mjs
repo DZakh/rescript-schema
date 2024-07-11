@@ -191,7 +191,7 @@ function set(b, input, val) {
   if (match) {
     var match$1 = val.a;
     if (!match$1) {
-      return $$var(b, input) + "=()=>Promise.resolve(" + inline(b, val) + ")";
+      return $$var(b, input) + "=Promise.resolve(" + inline(b, val) + ")";
     }
     
   } else {
@@ -225,9 +225,7 @@ function transform(b, input, operation) {
   };
   var operationOutputVal = operation(bb, operationInput);
   var operationCode = allocateScope(bb);
-  return asyncVal(b, "()=>" + $$var(b, input) + "().then(" + $$var(b, operationInput) + "=>{" + operationCode + "return " + (
-              operationOutputVal.a ? "(" + inline(b, operationOutputVal) + ")()" : inline(b, operationOutputVal)
-            ) + "})");
+  return asyncVal(b, inline(b, input) + ".then(" + $$var(b, operationInput) + "=>{" + operationCode + "return " + inline(b, operationOutputVal) + "})");
 }
 
 function raise(b, code, path) {
@@ -235,20 +233,22 @@ function raise(b, code, path) {
 }
 
 function embedSyncOperation(b, input, fn) {
-  return transform(b, input, (function (b, input) {
-                return map(b, "e[" + (b.g.e.push(fn) - 1) + "]", input);
-              }));
+  if (input.a) {
+    return asyncVal(b, inline(b, input) + ".then(" + ("e[" + (b.g.e.push(fn) - 1) + "]") + ")");
+  } else {
+    return map(b, "e[" + (b.g.e.push(fn) - 1) + "]", input);
+  }
 }
 
 function embedAsyncOperation(b, input, fn) {
   if (b.g.o !== "ParseAsync") {
     raise(b, "UnexpectedAsync", "");
   }
-  return transform(b, input, (function (b, input) {
-                var val = map(b, "e[" + (b.g.e.push(fn) - 1) + "]", input);
-                val.a = true;
-                return val;
-              }));
+  var val = embedSyncOperation(b, input, (function (v) {
+          return fn(v)();
+        }));
+  val.a = true;
+  return val;
 }
 
 function failWithArg(b, path, fn, arg) {
@@ -313,16 +313,13 @@ function withCatch(b, input, $$catch, fn) {
       });
   var catchCode$1 = maybeResolveVal !== undefined ? (function (catchLocation) {
         return catchCode + (
-                catchLocation === 1 ? "return Promise.resolve(" + inline(b, maybeResolveVal) + ")" : (
-                    catchLocation === 2 ? "return " + inline(b, maybeResolveVal) : set(b, output, maybeResolveVal)
-                  )
+                catchLocation === 1 ? "return " + inline(b, maybeResolveVal) : set(b, output, maybeResolveVal)
               ) + ("}else{throw " + errorVar + "}");
       }) : (function (param) {
         return catchCode + "}throw " + errorVar;
       });
-  var fnOutputVar = $$var(b, fnOutput);
   b.c = prevCode + ("try{" + b.c + (
-      isAsync ? setInlined(b, output, "()=>{try{return " + fnOutputVar + "().catch(" + errorVar + "=>{" + catchCode$1(2) + "})}catch(" + errorVar + "){" + catchCode$1(1) + "}}") : set(b, output, fnOutput)
+      isAsync ? setInlined(b, output, inline(b, fnOutput) + ".catch(" + errorVar + "=>{" + catchCode$1(1) + "})") : set(b, output, fnOutput)
     ) + "}catch(" + errorVar + "){" + catchCode$1(0) + "}");
   return output;
 }
@@ -676,7 +673,7 @@ function asyncPrepareError(jsExn) {
 
 function parseAnyAsyncWith(any, schema) {
   try {
-    return schema.a(any)().then(asyncPrepareOk, asyncPrepareError);
+    return schema.a(any).then(asyncPrepareOk, asyncPrepareError);
   }
   catch (raw_exn){
     var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
@@ -796,21 +793,18 @@ function parseAsyncFinalizer(b, schema, input, output) {
     b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
   }
   schema.i = output.a;
-  return output;
+  if (output.a) {
+    return output;
+  } else {
+    return asyncVal(b, "Promise.resolve(" + inline(b, output) + ")");
+  }
 }
 
 function initialParseAsyncOrRaise(unknown) {
   var schema = this;
   var operation = build(schema.p, schema, "ParseAsync", parseAsyncFinalizer);
-  var isAsync = schema.i;
-  var operation$1 = isAsync ? operation : (function (input) {
-        var syncValue = operation(input);
-        return function () {
-          return Promise.resolve(syncValue);
-        };
-      });
-  schema.a = operation$1;
-  return operation$1(unknown);
+  schema.a = operation;
+  return operation(unknown);
 }
 
 function assertFinalizer(b, schema, input, param) {
@@ -1304,7 +1298,7 @@ function typeFilter(inputVar) {
 }
 
 function parseOperationBuilder$1(b, input, selfSchema, path) {
-  var asyncOutputVars = [];
+  var asyncOutputs = [];
   var outputs = new WeakMap();
   var parseItems = function (b, input, schema, path) {
     var inputVar = $$var(b, input);
@@ -1328,10 +1322,15 @@ function parseOperationBuilder$1(b, input, selfSchema, path) {
         b.c = prevCode + b.c + allocateScope(bb);
       } else {
         var itemOutput = schema$1.p(b, itemInput, schema$1, path$1);
-        outputs.set(item, itemOutput);
+        var itemOutput$1;
         if (itemOutput.a) {
-          asyncOutputVars.push($$var(b, itemOutput));
+          var index = asyncOutputs.length;
+          asyncOutputs.push(itemOutput);
+          itemOutput$1 = val(b, "a[" + index + "]");
+        } else {
+          itemOutput$1 = itemOutput;
         }
+        outputs.set(item, itemOutput$1);
         if (schema$1.r.TAG === "Literal") {
           b.c = b.c + prevCode;
         } else {
@@ -1388,12 +1387,12 @@ function parseOperationBuilder$1(b, input, selfSchema, path) {
           );
   };
   var syncOutput = definitionToValue(selfSchema.r.definition, "");
-  if (asyncOutputVars.length === 0) {
+  if (asyncOutputs.length === 0) {
     return val(b, syncOutput);
   } else {
-    return asyncVal(b, "()=>Promise.all([" + asyncOutputVars.map(function (asyncOutputVar) {
-                      return asyncOutputVar + "()";
-                    }).join(",") + "]).then(([" + asyncOutputVars.toString() + "])=>(" + syncOutput + "))");
+    return asyncVal(b, "Promise.all([" + asyncOutputs.map(function (val) {
+                      return inline(b, val);
+                    }).toString() + "]).then(a=>(" + syncOutput + "))");
   }
 }
 
@@ -1803,7 +1802,7 @@ function factory$5(schema) {
                     isTransformed ? push(b, output, itemOutput) : ""
                   ) + "}");
                 if (itemOutput.a) {
-                  return asyncVal(b, "()=>Promise.all(" + $$var(b, output) + ".map(t=>t()))");
+                  return asyncVal(b, "Promise.all(" + inline(b, output) + ")");
                 } else {
                   return output;
                 }
@@ -1850,7 +1849,7 @@ function factory$6(schema) {
                 var asyncParseResultVar = varWithoutAllocation(b);
                 var counterVar = varWithoutAllocation(b);
                 var outputVar = $$var(b, output);
-                return asyncVal(b, "()=>new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=Object.keys(" + outputVar + ").length;for(let " + keyVar + " in " + outputVar + "){" + outputVar + "[" + keyVar + "]().then(" + asyncParseResultVar + "=>{" + outputVar + "[" + keyVar + "]=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + outputVar + ")}}," + rejectVar + ")}})");
+                return asyncVal(b, "new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=Object.keys(" + outputVar + ").length;for(let " + keyVar + " in " + outputVar + "){" + outputVar + "[" + keyVar + "].then(" + asyncParseResultVar + "=>{" + outputVar + "[" + keyVar + "]=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + outputVar + ")}}," + rejectVar + ")}})");
               }), (function (b, input, param, path) {
                 if (schema.s === noop) {
                   return input;

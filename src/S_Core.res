@@ -246,7 +246,7 @@ type rec t<'value> = {
   @as("m")
   metadataMap: dict<unknown>,
   @as("a")
-  mutable parseAsyncOrRaise: unknown => unit => promise<unknown>,
+  mutable parseAsyncOrRaise: unknown => promise<unknown>,
   @as("parseOrThrow")
   mutable parseOrRaise: unknown => unknown,
   @as("parse")
@@ -525,7 +525,7 @@ module Builder = {
           | ({isAsync: true}, {isAsync: true}) =>
             `${b->var(input)}=${b->inline(val)}`
           | ({isAsync: true}, {isAsync: false}) =>
-            `${b->var(input)}=()=>Promise.resolve(${b->inline(val)})`
+            `${b->var(input)}=Promise.resolve(${b->inline(val)})`
           }
         }
       }
@@ -556,12 +556,9 @@ module Builder = {
         let operationCode = bb->allocateScope
 
         b->asyncVal(
-          // TODO: Use Val.inline
-          `()=>${b->Val.var(input)}().then(${b->Val.var(
+          `${b->Val.inline(input)}.then(${b->Val.var(
               operationInput,
-            )}=>{${operationCode}return ${operationOutputVal.isAsync
-              ? "(" ++ b->Val.inline(operationOutputVal) ++ ")()"
-              : b->Val.inline(operationOutputVal)}})`,
+            )}=>{${operationCode}return ${b->Val.inline(operationOutputVal)}})`,
         )
       } else {
         operation(b, ~input)
@@ -573,20 +570,20 @@ module Builder = {
     }
 
     let embedSyncOperation = (b: b, ~input, ~fn: 'input => 'output) => {
-      b->transform(~input, (b, ~input) => {
+      if input.isAsync {
+        b->asyncVal(`${b->Val.inline(input)}.then(${b->embed(fn)})`)
+      } else {
         b->Val.map(b->embed(fn), input)
-      })
+      }
     }
 
     let embedAsyncOperation = (b: b, ~input, ~fn: 'input => unit => promise<'output>) => {
       if b.global.operation !== ParseAsync {
         b->raise(~code=UnexpectedAsync, ~path=Path.empty)
       }
-      b->transform(~input, (b, ~input) => {
-        let val = b->Val.map(b->embed(fn), input)
-        val.isAsync = true
-        val
-      })
+      let val = b->embedSyncOperation(~input, ~fn=v => fn(v)())
+      val.isAsync = true
+      val
     }
 
     let failWithArg = (b: b, ~path, fn: 'arg => errorCode, arg) => {
@@ -642,27 +639,20 @@ module Builder = {
           catchCode ++
           switch catchLocation {
           | #0 => b->Val.set(output, resolveVal)
-          | #1 => `return Promise.resolve(${b->Val.inline(resolveVal)})`
-          | #2 => `return ${b->Val.inline(resolveVal)}`
+          | #1 => `return ${b->Val.inline(resolveVal)}`
           } ++
           `}else{throw ${errorVar}}`
       }
 
-      let fnOutputVar = b->Val.var(fnOutput)
-
       b.code =
         prevCode ++
-        `try{${b.code}${{
-            switch isAsync {
-            | true =>
-              b->Val.setInlined(
-                output,
-                `()=>{try{return ${fnOutputVar}().catch(${errorVar}=>{${catchCode(
-                    #2,
-                  )}})}catch(${errorVar}){${catchCode(#1)}}}`,
-              )
-            | false => b->Val.set(output, fnOutput)
-            }
+        `try{${b.code}${switch isAsync {
+          | true =>
+            b->Val.setInlined(
+              output,
+              `${b->Val.inline(fnOutput)}.catch(${errorVar}=>{${catchCode(#1)}})`,
+            )
+          | false => b->Val.set(output, fnOutput)
           }}}catch(${errorVar}){${catchCode(#0)}}`
 
       output
@@ -1118,7 +1108,7 @@ let asyncPrepareError = jsExn => {
 
 let parseAnyAsyncWith = (any, schema) => {
   try {
-    schema.parseAsyncOrRaise(any->castAnyToUnknown)()->Stdlib.Promise.thenResolveWithCatch(
+    schema.parseAsyncOrRaise(any->castAnyToUnknown)->Stdlib.Promise.thenResolveWithCatch(
       asyncPrepareOk,
       asyncPrepareError,
     )
@@ -1211,21 +1201,17 @@ let parseAsyncFinalizer = (b, ~schema, ~input, ~output) => {
   | None => ()
   }
   schema.isAsyncParse = Value(output.isAsync)
-  output
+  if output.isAsync {
+    output
+  } else {
+    b->B.asyncVal(`Promise.resolve(${b->B.Val.inline(output)})`)
+  }
 }
 
 let initialParseAsyncOrRaise = unknown => {
   let schema = %raw(`this`)
   let operation =
     schema.parseOperationBuilder->Builder.build(~schema, ~operation=ParseAsync, parseAsyncFinalizer)
-  let isAsync = schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
-  // FIXME: Get rid of this
-  let operation = isAsync
-    ? operation->(Obj.magic: (unknown => unknown) => unknown => unit => promise<unknown>)
-    : input => {
-        let syncValue = operation(input)
-        () => syncValue->Stdlib.Promise.resolve
-      }
   schema.parseAsyncOrRaise = operation
   operation(unknown)
 }
@@ -1926,8 +1912,7 @@ module Object = {
   let getDefinition = schema => (schema->classify->Obj.magic)["definition"]
 
   let parseOperationBuilder = (b, ~input, ~selfSchema, ~path) => {
-    let asyncOutputVars = []
-
+    let asyncOutputs = []
     let outputs = Stdlib.WeakMap.make()
 
     let rec parseItems = (b: b, ~input, ~schema, ~path) => {
@@ -1957,12 +1942,15 @@ module Object = {
           b.code = prevCode ++ b.code ++ bb->B.allocateScope
         } else {
           let itemOutput = b->B.parse(~schema, ~input=itemInput, ~path)
+          let itemOutput = if itemOutput.isAsync {
+            let index = asyncOutputs->Js.Array2.length
+            asyncOutputs->Js.Array2.push(itemOutput)->ignore
+            b->B.val(`a[${index->Stdlib.Int.unsafeToString}]`)
+          } else {
+            itemOutput
+          }
 
           let _ = outputs->Stdlib.WeakMap.set(item, itemOutput)
-
-          if itemOutput.isAsync {
-            asyncOutputVars->Js.Array2.push(b->B.Val.var(itemOutput))->ignore
-          }
 
           // Parse literal fields first, because they are most often used as discriminants
           if schema->Literal.isLiteralSchema {
@@ -2031,15 +2019,13 @@ module Object = {
       selfSchema->getDefinition->definitionToValue(~outputPath=Path.empty)
     }
 
-    if asyncOutputVars->Js.Array2.length === 0 {
+    if asyncOutputs->Js.Array2.length === 0 {
       b->B.val(syncOutput)
     } else {
       b->B.asyncVal(
-        `()=>Promise.all([${asyncOutputVars
-          ->Js.Array2.map(asyncOutputVar => `${asyncOutputVar}()`)
-          ->Js.Array2.joinWith(
-            ",",
-          )}]).then(([${asyncOutputVars->Js.Array2.toString}])=>(${syncOutput}))`,
+        `Promise.all([${asyncOutputs
+          ->Js.Array2.map(val => b->B.Val.inline(val))
+          ->Js.Array2.toString}]).then(a=>(${syncOutput}))`,
       )
     }
   }
@@ -2661,7 +2647,7 @@ module Array = {
               : ""}}`
 
         if itemOutput.isAsync {
-          b->B.asyncVal(`()=>Promise.all(${b->B.Val.var(output)}.map(t=>t()))`)
+          b->B.asyncVal(`Promise.all(${b->B.Val.inline(output)})`)
         } else {
           output
         }
@@ -2735,7 +2721,7 @@ module Dict = {
           let counterVar = b->B.varWithoutAllocation
           let outputVar = b->B.Val.var(output)
           b->B.asyncVal(
-            `()=>new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=Object.keys(${outputVar}).length;for(let ${keyVar} in ${outputVar}){${outputVar}[${keyVar}]().then(${asyncParseResultVar}=>{${outputVar}[${keyVar}]=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${outputVar})}},${rejectVar})}})`,
+            `new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=Object.keys(${outputVar}).length;for(let ${keyVar} in ${outputVar}){${outputVar}[${keyVar}].then(${asyncParseResultVar}=>{${outputVar}[${keyVar}]=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${outputVar})}},${rejectVar})}})`,
           )
         } else {
           output

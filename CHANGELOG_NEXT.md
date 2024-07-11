@@ -16,6 +16,7 @@
   - Change the default `unknownKeys` strategy for Object from `Strip` to `Strict`
   - Disable NaN check for numbers
 - Removed `parseAsyncInStepsWith` and `parseAnyAsyncInStepsWith` to reduce internal library complexity. Let me know if you need it. I can re-implement it in a future version in a simpler way.
+- Refactored parse async. Fixed some bugs and made it more performant.
 
 // TODO:
 
@@ -25,4 +26,3 @@
 - Release 7.0.2 with type check fix for recursive schema
 - Test GenType compatibility with d.ts
 - Clean up error tags
-- Refactor parse async in steps (remove callback and prepend unresolved promise)

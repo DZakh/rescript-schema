@@ -50,7 +50,7 @@ module NullCommon = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{let v1;if(i!==void 0){let v0;if(i!==null){v0=e[0](i)}else{v0=()=>Promise.resolve(void 0)}v1=v0}else{v1=()=>Promise.resolve(void 0)}return v1}`,
+      `i=>{let v1;if(i!==void 0){let v0;if(i!==null){v0=e[0](i)}else{v0=Promise.resolve(void 0)}v1=v0}else{v1=Promise.resolve(void 0)}return v1}`,
     )
   })
 

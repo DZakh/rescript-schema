@@ -48,7 +48,7 @@ module Common = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{let v0;if(i!==void 0){v0=e[0](i)}else{v0=()=>Promise.resolve(void 0)}return v0}`,
+      `i=>{let v0;if(i!==void 0){v0=e[0](i)}else{v0=Promise.resolve(void 0)}return v0}`,
     )
   })
 
