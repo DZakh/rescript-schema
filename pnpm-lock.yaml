@@ -75,7 +75,7 @@ importers:
   packages/rescript-schema-ppx:
     dependencies:
       rescript-schema:
-        specifier: 7.0.1
+        specifier: 7.0.x
         version: 7.0.1(rescript@11.1.0)
 
   packages/tests: {}
