@@ -379,8 +379,11 @@ let toJsResult = (result: result<'value, error>): jsResult<'value> => {
 
 module InternalError = {
   %%raw(`
+    // let index = 0;
     class RescriptSchemaError extends Error {
       constructor(code, operation, path) {
+        // console.log(index)
+        // index = index + 1;
         super();
         this.operation = operation;
         this.code = code;
