@@ -962,6 +962,9 @@ function recursive(fn) {
   var schema = fn(placeholder);
   Object.assign(placeholder, schema);
   placeholder.d = undefined;
+  placeholder.n = (function () {
+      return "<recursive>";
+    });
   var builder = placeholder.p;
   placeholder.p = (function (b, input, selfSchema, path) {
       selfSchema.p = noop;

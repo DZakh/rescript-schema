@@ -1318,6 +1318,7 @@ let recursive = fn => {
   let schema = fn(placeholder)
   placeholder->Stdlib.Object.overrideWith(schema)
   placeholder.definer = None
+  (placeholder->Obj.magic)["n"] = () => "<recursive>"
 
   {
     let builder = placeholder.parseOperationBuilder
