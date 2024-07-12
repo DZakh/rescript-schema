@@ -4,10 +4,10 @@ on:
   push:
     branches:
       - main
+      - "v*.*.*-hotfix"
   pull_request:
     branches:
       - main
-      - "v*.*.*"
 
 jobs:
   ppx-build-linux:
