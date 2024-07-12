@@ -379,8 +379,11 @@ let toJsResult = (result: result<'value, error>): jsResult<'value> => {
 
 module InternalError = {
   %%raw(`
+    // let index = 0;
     class RescriptSchemaError extends Error {
       constructor(code, operation, path) {
+        // console.log(index)
+        // index = index + 1;
         super();
         this.operation = operation;
         this.code = code;
@@ -2838,6 +2841,58 @@ module Tuple = {
 }
 
 module Union = {
+  let genericParse = (b, ~schemas, ~input, ~output, ~path) => {
+    let codeEndRef = ref("")
+    let errorCodeRef = ref("")
+    let isAsync = ref(false)
+
+    // TODO: Add support for async
+    for idx in 0 to schemas->Js.Array2.length - 1 {
+      let prevCode = b.code
+      try {
+        let schema = schemas->Js.Array2.unsafe_get(idx)
+        let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
+        b.code = b.code ++ `try{`
+        let itemOutput = b->B.parseWithTypeCheck(~schema, ~input, ~path=Path.empty)
+        if itemOutput.isAsync {
+          isAsync := true
+        }
+
+        b.code = b.code ++ `${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
+        codeEndRef := codeEndRef.contents ++ "}"
+
+        errorCodeRef := errorCodeRef.contents ++ errorVar ++ ","
+      } catch {
+      | exn =>
+        errorCodeRef := errorCodeRef.contents ++ b->B.embed(exn->InternalError.getOrRethrow) ++ ","
+        b.code = prevCode
+      }
+    }
+
+    if isAsync.contents {
+      b->B.invalidOperation(
+        ~path,
+        ~description="S.union doesn't support async items. Please create an issue to rescript-schema if you nead the feature",
+      )
+    }
+
+    b.code =
+      b.code ++
+      b->B.failWithArg(
+        ~path,
+        internalErrors => {
+          InvalidUnion(internalErrors)
+        },
+        `[${errorCodeRef.contents}]`,
+      ) ++
+      codeEndRef.contents
+
+    let isAllSchemasBuilderFailed = codeEndRef.contents === ""
+    if isAllSchemasBuilderFailed {
+      b.code = b.code ++ ";"
+    }
+  }
+
   let factory = schemas => {
     let schemas: array<t<unknown>> = schemas->Obj.magic
 
@@ -2851,61 +2906,68 @@ module Union = {
         ~rawTagged=Union(schemas),
         ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
           let schemas = selfSchema->classify->unsafeGetVariantPayload
+          let inputVar = b->B.Val.var(input)
 
-          let output = b->B.allocateVal
-          let codeEndRef = ref("")
-          let errorCodeRef = ref("")
-          let isAsync = ref(false)
-
-          // TODO: Add support for async
+          let groupsByTypeFilter = Js.Dict.empty()
+          let typeFilters = []
           for idx in 0 to schemas->Js.Array2.length - 1 {
-            let prevCode = b.code
-            try {
-              let schema = schemas->Js.Array2.unsafe_get(idx)
-              let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
-              b.code = b.code ++ `try{`
-              let itemOutput = b->B.parseWithTypeCheck(~schema, ~input, ~path=Path.empty)
-              if itemOutput.isAsync {
-                isAsync := true
+            let schema = schemas->Js.Array2.unsafe_get(idx)
+            let typeFilterCode = switch schema.maybeTypeFilter {
+            | Some(typeFilter) => typeFilter(~inputVar)
+            | None =>
+              switch schema.rawTagged {
+              | Literal(literal) =>
+                `!(${b->(literal->Literal.toInternal).checkBuilder(~inputVar, ~literal)})`
+              | _ => "false"
               }
-
-              b.code = b.code ++ `${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
-              codeEndRef := codeEndRef.contents ++ "}"
-
-              errorCodeRef := errorCodeRef.contents ++ errorVar ++ ","
-            } catch {
-            | exn =>
-              errorCodeRef :=
-                errorCodeRef.contents ++ b->B.embed(exn->InternalError.getOrRethrow) ++ ","
-              b.code = prevCode
+            }
+            switch groupsByTypeFilter->Js.Dict.get(typeFilterCode) {
+            | Some(schemas) => schemas->Js.Array2.push(schema)->ignore
+            | None => {
+                typeFilters->Js.Array2.push(typeFilterCode)->ignore
+                groupsByTypeFilter->Js.Dict.set(typeFilterCode, [schema])
+              }
             }
           }
 
-          if isAsync.contents {
-            b->B.invalidOperation(
-              ~path,
-              ~description="S.union doesn't support async items. Please create an issue to rescript-schema if you nead the feature",
-            )
-          }
+          let output = b->B.allocateVal
 
-          b.code =
-            b.code ++
-            b->B.failWithArg(
-              ~path,
-              internalErrors => {
-                InvalidUnion(internalErrors)
-              },
-              `[${errorCodeRef.contents}]`,
-            ) ++
-            codeEndRef.contents
+          let rec loopTypeFilters = idx => {
+            let isLastItem = idx === typeFilters->Js.Array2.length - 1
+            let typeFilterCode = typeFilters->Js.Array2.unsafe_get(idx)
+            let schemas = groupsByTypeFilter->Js.Dict.unsafeGet(typeFilterCode)
 
-          let isAllSchemasBuilderFailed = codeEndRef.contents === ""
-          if isAllSchemasBuilderFailed {
-            b.code = b.code ++ ";"
-            input
-          } else {
-            output
+            b.code = b.code ++ `if(${typeFilterCode}){`
+            if isLastItem {
+              b.code =
+                b.code ++
+                b->B.failWithArg(
+                  ~path,
+                  received => InvalidType({
+                    expected: selfSchema,
+                    received,
+                  }),
+                  inputVar,
+                )
+            } else {
+              loopTypeFilters(idx + 1)
+            }
+            b.code = b.code ++ `}else{`
+            switch schemas {
+            | [schema] =>
+              let prevCode = b.code
+              try {
+                b.code = b.code ++ b->B.Val.set(output, b->B.parse(~schema, ~input, ~path))
+              } catch {
+              | exn => b.code = prevCode ++ "throw " ++ b->B.embed(exn->InternalError.getOrRethrow)
+              }
+            | _ => genericParse(b, ~schemas, ~input, ~output, ~path)
+            }
+            b.code = b.code ++ `}`
           }
+          loopTypeFilters(0)
+
+          output
         }),
         ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
           let schemas = selfSchema->classify->unsafeGetVariantPayload

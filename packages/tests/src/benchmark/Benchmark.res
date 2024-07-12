@@ -103,6 +103,116 @@ S.setGlobalConfig({
   disableNanNumberCheck: true,
 })
 
+// Reported in https://gist.github.com/cknitt/4ac6813a3f3bc907187105e01a4324ca
+module CrazyUnion = {
+  type rec test =
+    | A(array<test>)
+    | B
+    | C
+    | D
+    | E
+    | F
+    | G
+    | H
+    | I
+    | J
+    | K
+    | L
+    | M
+    | N
+    | O
+    | P
+    | Q
+    | R
+    | S
+    | T
+    | U
+    | V
+    | W
+    | X
+    | Y
+    | Z(array<test>)
+
+  let schema = S.recursive(schema =>
+    S.union([
+      S.object(s => {
+        s.tag("type", "A")
+        A(s.field("nested", S.array(schema)))
+      }),
+      S.literal(B),
+      S.literal(C),
+      S.literal(D),
+      S.literal(E),
+      S.literal(F),
+      S.literal(G),
+      S.literal(H),
+      S.literal(I),
+      S.literal(J),
+      S.literal(K),
+      S.literal(L),
+      S.literal(M),
+      S.literal(N),
+      S.literal(O),
+      S.literal(P),
+      S.literal(Q),
+      S.literal(R),
+      S.literal(S),
+      S.literal(T),
+      S.literal(U),
+      S.literal(V),
+      S.literal(W),
+      S.literal(X),
+      S.literal(Y),
+      S.object(s => {
+        s.tag("type", "Z")
+        Z(s.field("nested", S.array(schema)))
+      }),
+    ])
+  )
+
+  let testData1 = Z(Array.make(~length=25, Z(Array.make(~length=25, Z(Array.make(~length=25, Y))))))
+
+  let testData2 = A(Array.make(~length=25, A(Array.make(~length=25, A(Array.make(~length=25, B))))))
+
+  let test = () => {
+    Console.time("testData1 serialize")
+    let json = S.serializeOrRaiseWith(testData1, schema)
+    Console.timeEnd("testData1 serialize")
+
+    Console.time("testData1 parse")
+    let _ = S.parseOrRaiseWith(json, schema)
+    Console.timeEnd("testData1 parse")
+
+    Console.time("testData2 serialize")
+    let json = S.serializeOrRaiseWith(testData2, schema)
+    Console.timeEnd("testData2 serialize")
+
+    Console.time("testData2 parse")
+    let _ = S.parseOrRaiseWith(json, schema)
+    Console.timeEnd("testData2 parse")
+
+    // Js.log((schema->Obj.magic)["parseOrThrow"]["toString"]())
+  }
+}
+
+// Full
+// testData1 serialize: 5.414s
+// testData1 parse: 5.519s
+// testData2 serialize: 70.864ms
+// testData2 parse: 70.967ms
+
+// Wip
+// testData1 serialize: 5.398s
+// testData1 parse: 6.171ms
+// testData2 serialize: 69.621ms
+// testData2 parse: 0.878ms
+
+// Partial
+// testData1 serialize: 1.802ms
+// testData1 parse: 1.411ms
+// 734 Error.make
+CrazyUnion.test()
+
 let data = makeTestObject()
 Console.time("makeAdvancedObjectSchema")
 let schema = makeAdvancedObjectSchema()
