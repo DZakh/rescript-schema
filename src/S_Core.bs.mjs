@@ -1930,7 +1930,6 @@ function factory$7(definer) {
 function genericParse(b, schemas, input, output, path) {
   var codeEndRef = "";
   var errorCodeRef = "";
-  var isAsync = false;
   for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
     var prevCode = b.c;
     try {
@@ -1938,9 +1937,6 @@ function genericParse(b, schemas, input, output, path) {
       var errorVar = "e" + idx;
       b.c = b.c + "try{";
       var itemOutput = parseWithTypeCheck(b, schema, input, "");
-      if (itemOutput.a) {
-        isAsync = true;
-      }
       b.c = b.c + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
       codeEndRef = codeEndRef + "}";
       errorCodeRef = errorCodeRef + errorVar + ",";
@@ -1951,9 +1947,6 @@ function genericParse(b, schemas, input, output, path) {
       errorCodeRef = errorCodeRef + ("e[" + (b.g.e.push(value) - 1) + "]") + ",";
       b.c = prevCode;
     }
-  }
-  if (isAsync) {
-    invalidOperation(b, path, "S.union doesn't support async items. Please create an issue to rescript-schema if you nead the feature");
   }
   b.c = b.c + failWithArg(b, path, (function (internalErrors) {
           return {
@@ -2010,7 +2003,7 @@ function factory$8(schemas) {
                       groupsByTypeFilter[typeFilterCode] = [schema];
                     }
                   }
-                  var output = allocateVal(b);
+                  var output = val(b, inputVar);
                   var loopTypeFilters = function (idx) {
                     var isLastItem = idx === (typeFilters.length - 1 | 0);
                     var typeFilterCode = typeFilters[idx];
@@ -2034,7 +2027,11 @@ function factory$8(schemas) {
                       var schema = schemas[0];
                       var prevCode = b.c;
                       try {
-                        b.c = b.c + set(b, output, schema.p(b, input, schema, path));
+                        var schemaOutput = schema.p(b, input, schema, path);
+                        if (schemaOutput !== input) {
+                          b.c = b.c + set(b, output, schemaOutput);
+                        }
+                        
                       }
                       catch (raw_exn){
                         var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
@@ -2045,7 +2042,11 @@ function factory$8(schemas) {
                     b.c = b.c + "}";
                   };
                   loopTypeFilters(0);
-                  return output;
+                  if (output.a) {
+                    return asyncVal(b, "Promise.resolve(" + inline(b, output) + ")");
+                  } else {
+                    return output;
+                  }
                 }), (function (b, input, selfSchema, path) {
                   var schemas = selfSchema.r._0;
                   var output = allocateVal(b);

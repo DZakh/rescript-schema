@@ -2844,7 +2844,6 @@ module Union = {
   let genericParse = (b, ~schemas, ~input, ~output, ~path) => {
     let codeEndRef = ref("")
     let errorCodeRef = ref("")
-    let isAsync = ref(false)
 
     // TODO: Add support for async
     for idx in 0 to schemas->Js.Array2.length - 1 {
@@ -2854,9 +2853,6 @@ module Union = {
         let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
         b.code = b.code ++ `try{`
         let itemOutput = b->B.parseWithTypeCheck(~schema, ~input, ~path=Path.empty)
-        if itemOutput.isAsync {
-          isAsync := true
-        }
 
         b.code = b.code ++ `${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
         codeEndRef := codeEndRef.contents ++ "}"
@@ -2867,13 +2863,6 @@ module Union = {
         errorCodeRef := errorCodeRef.contents ++ b->B.embed(exn->InternalError.getOrRethrow) ++ ","
         b.code = prevCode
       }
-    }
-
-    if isAsync.contents {
-      b->B.invalidOperation(
-        ~path,
-        ~description="S.union doesn't support async items. Please create an issue to rescript-schema if you nead the feature",
-      )
     }
 
     b.code =
@@ -2930,7 +2919,7 @@ module Union = {
             }
           }
 
-          let output = b->B.allocateVal
+          let output = b->B.val(inputVar)
 
           let rec loopTypeFilters = idx => {
             let isLastItem = idx === typeFilters->Js.Array2.length - 1
@@ -2957,7 +2946,10 @@ module Union = {
             | [schema] =>
               let prevCode = b.code
               try {
-                b.code = b.code ++ b->B.Val.set(output, b->B.parse(~schema, ~input, ~path))
+                let schemaOutput = b->B.parse(~schema, ~input, ~path)
+                if schemaOutput !== input {
+                  b.code = b.code ++ b->B.Val.set(output, schemaOutput)
+                }
               } catch {
               | exn => b.code = prevCode ++ "throw " ++ b->B.embed(exn->InternalError.getOrRethrow)
               }
@@ -2967,7 +2959,11 @@ module Union = {
           }
           loopTypeFilters(0)
 
-          output
+          if output.isAsync {
+            b->B.asyncVal(`Promise.resolve(${b->B.Val.inline(output)})`)
+          } else {
+            output
+          }
         }),
         ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
           let schemas = selfSchema->classify->unsafeGetVariantPayload

@@ -191,7 +191,7 @@ module CrazyUnion = {
     let _ = S.parseOrRaiseWith(json, schema)
     Console.timeEnd("testData2 parse")
 
-    // Js.log((schema->Obj.magic)["parseOrThrow"]["toString"]())
+    // Console.log((schema->Obj.magic)["parseOrThrow"]["toString"]())
   }
 }
 

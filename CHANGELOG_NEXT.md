@@ -9,7 +9,7 @@
   - Move operations from functions to Schema methods
   - Add `serializeToJsonOrThrow`
 - Update operation type to be more detailed and feature it in the error message.
-- S.union still doesn't support schemas with async, but treats them differently. Please don't try to use them, since the behavior is not predictable.
+- S.union supports schemas with async
 - Added `S.assertOrRaiseWith` or `schema.assert` for js/ts users. It doesn't return parsed value, but that makes the function 2-3 times faster, depending on the schema.
 - Improved S.recursive implementation
 - Added `S.setGlobalConfig`. Now it's possible to customize the behavior of the library:
@@ -17,6 +17,7 @@
   - Disable NaN check for numbers
 - Removed `parseAsyncInStepsWith` and `parseAnyAsyncInStepsWith` to reduce internal library complexity. Let me know if you need it. I can re-implement it in a future version in a simpler way.
 - Refactored parse async. Fixed some bugs and made it more performant.
+- Improved performance and errors of S.union schema
 
 // TODO:
 
