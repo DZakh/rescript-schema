@@ -26,3 +26,5 @@
 - Release 7.0.2 with type check fix for recursive schema
 - Test GenType compatibility with d.ts
 - Clean up error tags
+- Set 8.0.x for rescript-schema in ppx deps
+- Update github ci to run on "v*.*.\*-patch"

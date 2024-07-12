@@ -1927,6 +1927,48 @@ function factory$7(definer) {
               }));
 }
 
+function genericParse(b, schemas, input, output, path) {
+  var codeEndRef = "";
+  var errorCodeRef = "";
+  var isAsync = false;
+  for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
+    var prevCode = b.c;
+    try {
+      var schema = schemas[idx];
+      var errorVar = "e" + idx;
+      b.c = b.c + "try{";
+      var itemOutput = parseWithTypeCheck(b, schema, input, "");
+      if (itemOutput.a) {
+        isAsync = true;
+      }
+      b.c = b.c + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
+      codeEndRef = codeEndRef + "}";
+      errorCodeRef = errorCodeRef + errorVar + ",";
+    }
+    catch (raw_exn){
+      var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+      var value = getOrRethrow(exn);
+      errorCodeRef = errorCodeRef + ("e[" + (b.g.e.push(value) - 1) + "]") + ",";
+      b.c = prevCode;
+    }
+  }
+  if (isAsync) {
+    invalidOperation(b, path, "S.union doesn't support async items. Please create an issue to rescript-schema if you nead the feature");
+  }
+  b.c = b.c + failWithArg(b, path, (function (internalErrors) {
+          return {
+                  TAG: "InvalidUnion",
+                  _0: internalErrors
+                };
+        }), "[" + errorCodeRef + "]") + codeEndRef;
+  var isAllSchemasBuilderFailed = codeEndRef === "";
+  if (isAllSchemasBuilderFailed) {
+    b.c = b.c + ";";
+    return ;
+  }
+  
+}
+
 function factory$8(schemas) {
   var len = schemas.length;
   if (len === 1) {
@@ -1942,47 +1984,68 @@ function factory$8(schemas) {
                 _0: schemas
               }, empty, (function (b, input, selfSchema, path) {
                   var schemas = selfSchema.r._0;
-                  var output = allocateVal(b);
-                  var codeEndRef = "";
-                  var errorCodeRef = "";
-                  var isAsync = false;
+                  var inputVar = $$var(b, input);
+                  var groupsByTypeFilter = {};
+                  var typeFilters = [];
                   for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
-                    var prevCode = b.c;
-                    try {
-                      var schema = schemas[idx];
-                      var errorVar = "e" + idx;
-                      b.c = b.c + "try{";
-                      var itemOutput = parseWithTypeCheck(b, schema, input, "");
-                      if (itemOutput.a) {
-                        isAsync = true;
+                    var schema = schemas[idx];
+                    var typeFilter = schema.f;
+                    var typeFilterCode;
+                    if (typeFilter !== undefined) {
+                      typeFilterCode = typeFilter(inputVar);
+                    } else {
+                      var literal = schema.r;
+                      if (typeof literal !== "object" || literal.TAG !== "Literal") {
+                        typeFilterCode = "false";
+                      } else {
+                        var literal$1 = literal._0;
+                        typeFilterCode = "!(" + literal$1.b(b, inputVar, literal$1) + ")";
                       }
-                      b.c = b.c + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
-                      codeEndRef = codeEndRef + "}";
-                      errorCodeRef = errorCodeRef + errorVar + ",";
                     }
-                    catch (raw_exn){
-                      var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-                      var value = getOrRethrow(exn);
-                      errorCodeRef = errorCodeRef + ("e[" + (b.g.e.push(value) - 1) + "]") + ",";
-                      b.c = prevCode;
+                    var schemas$1 = Js_dict.get(groupsByTypeFilter, typeFilterCode);
+                    if (schemas$1 !== undefined) {
+                      schemas$1.push(schema);
+                    } else {
+                      typeFilters.push(typeFilterCode);
+                      groupsByTypeFilter[typeFilterCode] = [schema];
                     }
                   }
-                  if (isAsync) {
-                    invalidOperation(b, path, "S.union doesn't support async items. Please create an issue to rescript-schema if you nead the feature");
-                  }
-                  b.c = b.c + failWithArg(b, path, (function (internalErrors) {
-                          return {
-                                  TAG: "InvalidUnion",
-                                  _0: internalErrors
-                                };
-                        }), "[" + errorCodeRef + "]") + codeEndRef;
-                  var isAllSchemasBuilderFailed = codeEndRef === "";
-                  if (isAllSchemasBuilderFailed) {
-                    b.c = b.c + ";";
-                    return input;
-                  } else {
-                    return output;
-                  }
+                  var output = allocateVal(b);
+                  var loopTypeFilters = function (idx) {
+                    var isLastItem = idx === (typeFilters.length - 1 | 0);
+                    var typeFilterCode = typeFilters[idx];
+                    var schemas = groupsByTypeFilter[typeFilterCode];
+                    b.c = b.c + ("if(" + typeFilterCode + "){");
+                    if (isLastItem) {
+                      b.c = b.c + failWithArg(b, path, (function (received) {
+                              return {
+                                      TAG: "InvalidType",
+                                      expected: selfSchema,
+                                      received: received
+                                    };
+                            }), inputVar);
+                    } else {
+                      loopTypeFilters(idx + 1 | 0);
+                    }
+                    b.c = b.c + "}else{";
+                    if (schemas.length !== 1) {
+                      genericParse(b, schemas, input, output, path);
+                    } else {
+                      var schema = schemas[0];
+                      var prevCode = b.c;
+                      try {
+                        b.c = b.c + set(b, output, schema.p(b, input, schema, path));
+                      }
+                      catch (raw_exn){
+                        var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+                        var value = getOrRethrow(exn);
+                        b.c = prevCode + "throw " + ("e[" + (b.g.e.push(value) - 1) + "]");
+                      }
+                    }
+                    b.c = b.c + "}";
+                  };
+                  loopTypeFilters(0);
+                  return output;
                 }), (function (b, input, selfSchema, path) {
                   var schemas = selfSchema.r._0;
                   var output = allocateVal(b);

@@ -120,22 +120,25 @@ var schema = S$RescriptSchema.recursive(function (schema) {
 
 var testData1 = {
   TAG: "Z",
-  _0: Core__Array.make(2, {
+  _0: Core__Array.make(25, {
         TAG: "Z",
-        _0: Core__Array.make(2, {
+        _0: Core__Array.make(25, {
               TAG: "Z",
-              _0: Core__Array.make(2, "Y")
+              _0: Core__Array.make(25, "Y")
             })
       })
 };
 
-Core__Array.make(2, {
-      TAG: "A",
-      _0: Core__Array.make(2, {
-            TAG: "A",
-            _0: Core__Array.make(2, "B")
-          })
-    });
+var testData2 = {
+  TAG: "A",
+  _0: Core__Array.make(25, {
+        TAG: "A",
+        _0: Core__Array.make(25, {
+              TAG: "A",
+              _0: Core__Array.make(25, "B")
+            })
+      })
+};
 
 function test() {
   console.time("testData1 serialize");
@@ -144,7 +147,12 @@ function test() {
   console.time("testData1 parse");
   S$RescriptSchema.parseOrRaiseWith(json, schema);
   console.timeEnd("testData1 parse");
-  console.log(schema.parseOrThrow.toString());
+  console.time("testData2 serialize");
+  var json$1 = S$RescriptSchema.serializeOrRaiseWith(testData2, schema);
+  console.timeEnd("testData2 serialize");
+  console.time("testData2 parse");
+  S$RescriptSchema.parseOrRaiseWith(json$1, schema);
+  console.timeEnd("testData2 parse");
 }
 
 test();
