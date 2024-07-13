@@ -2862,7 +2862,9 @@ module Union = {
 
         try {
           b.code = b.code ++ `try{`
-          let itemOutput = b->B.parseWithTypeCheck(~schema, ~input, ~path=Path.empty)
+          let bb = b->B.scope
+          let itemOutput = bb->B.parse(~schema, ~input, ~path=Path.empty)
+          b.code = b.code ++ bb->B.allocateScope
           b.code = b.code ++ `${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
           loopSchemas(idx + 1, errorCodes ++ errorVar ++ ",")
           b.code = b.code ++ "}"

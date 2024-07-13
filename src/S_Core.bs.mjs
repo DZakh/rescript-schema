@@ -1946,7 +1946,9 @@ function parseSameType(b, schemas, input, output, path) {
       var errorVar = "e" + idx;
       try {
         b.c = b.c + "try{";
-        var itemOutput = parseWithTypeCheck(b, schema, input, "");
+        var bb = scope(b);
+        var itemOutput = schema.p(bb, input, schema, "");
+        b.c = b.c + allocateScope(bb);
         b.c = b.c + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
         loopSchemas(idx + 1 | 0, errorCodes + errorVar + ",");
         b.c = b.c + "}";

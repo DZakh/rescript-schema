@@ -66,7 +66,7 @@ test("Parses when both schemas misses parser and have the same type", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(typeof i!=="string"){e[0](i)}else{e[5]([e[2],e[4],])}return i}`,
+    `i=>{if(typeof i!=="string"){e[0](i)}else{e[3]([e[1],e[2],])}return i}`,
   )
 })
 
@@ -405,7 +405,7 @@ module Advanced = {
     t->U.assertCompiledCode(
       ~schema=shapeSchema,
       ~op=#Parse,
-      `i=>{let v2=i;if(!i||i.constructor!==Object){e[0](i)}else{try{if(!i||i.constructor!==Object){e[1](i)}let v0=i["kind"],v1=i["radius"];if(v0!=="circle"){e[2](v0)}if(typeof v1!=="number"||Number.isNaN(v1)){e[3](v1)}v2={"TAG":e[4],"radius":v1,}}catch(e0){try{if(!i||i.constructor!==Object){e[5](i)}let v3=i["kind"],v4=i["x"];if(v3!=="square"){e[6](v3)}if(typeof v4!=="number"||Number.isNaN(v4)){e[7](v4)}v2={"TAG":e[8],"x":v4,}}catch(e1){try{if(!i||i.constructor!==Object){e[9](i)}let v5=i["kind"],v6=i["x"],v7=i["y"];if(v5!=="triangle"){e[10](v5)}if(typeof v6!=="number"||Number.isNaN(v6)){e[11](v6)}if(typeof v7!=="number"||Number.isNaN(v7)){e[12](v7)}v2={"TAG":e[13],"x":v6,"y":v7,}}catch(e2){e[14]([e0,e1,e2,])}}}}return v2}`,
+      `i=>{let v2=i;if(!i||i.constructor!==Object){e[0](i)}else{try{let v0=i["kind"],v1=i["radius"];if(v0!=="circle"){e[1](v0)}if(typeof v1!=="number"||Number.isNaN(v1)){e[2](v1)}v2={"TAG":e[3],"radius":v1,}}catch(e0){try{let v3=i["kind"],v4=i["x"];if(v3!=="square"){e[4](v3)}if(typeof v4!=="number"||Number.isNaN(v4)){e[5](v4)}v2={"TAG":e[6],"x":v4,}}catch(e1){try{let v5=i["kind"],v6=i["x"],v7=i["y"];if(v5!=="triangle"){e[7](v5)}if(typeof v6!=="number"||Number.isNaN(v6)){e[8](v6)}if(typeof v7!=="number"||Number.isNaN(v7)){e[9](v7)}v2={"TAG":e[10],"x":v6,"y":v7,}}catch(e2){e[11]([e0,e1,e2,])}}}}return v2}`,
     )
   })
 
