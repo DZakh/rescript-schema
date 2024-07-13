@@ -180,7 +180,7 @@ test(
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Serialize,
-      `i=>{let v0=e[2];if(i!==e[0]){e[1](i)}(v0===e[3]||Array.isArray(v0)&&v0.length===2&&v0[0]===true&&v0[1]===12)||e[4](v0);return v0}`,
+      `i=>{let v0=e[2];if(i!==e[0]){e[1](i)}if(v0!==e[3]&&(!Array.isArray(v0)||v0.length!==2||v0[0]!==true||v0[1]!==12)){e[4](v0)}return v0}`,
     )
   },
 )

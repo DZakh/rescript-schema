@@ -1143,7 +1143,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#Parse,
-        `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0=i["tag"],v1=i["FOO"],v2=i["BAR"],v3;v0===0||e[0](v0);if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}for(v3 in i){if(v3!=="tag"&&v3!=="FOO"&&v3!=="BAR"){e[3](v3)}}return {"foo":v1,"bar":v2,"zoo":e[4],}}`,
+        `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0=i["tag"],v1=i["FOO"],v2=i["BAR"],v3;if(v0!==0){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}for(v3 in i){if(v3!=="tag"&&v3!=="FOO"&&v3!=="BAR"){e[3](v3)}}return {"foo":v1,"bar":v2,"zoo":e[4],}}`,
       )
     },
   )

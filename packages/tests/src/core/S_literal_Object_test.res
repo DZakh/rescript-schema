@@ -116,7 +116,7 @@ module Common = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{(i===e[0]||i&&i.constructor===Object&&Object.keys(i).length===1&&i["foo"]==="bar")||e[1](i);return i}`,
+      `i=>{if(i!==e[0]&&(!i||i.constructor!==Object||Object.keys(i).length!==1||i["foo"]!=="bar")){e[1](i)}return i}`,
     )
   })
 
@@ -126,7 +126,7 @@ module Common = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Serialize,
-      `i=>{(i===e[0]||i&&i.constructor===Object&&Object.keys(i).length===1&&i["foo"]==="bar")||e[1](i);return i}`,
+      `i=>{if(i!==e[0]&&(!i||i.constructor!==Object||Object.keys(i).length!==1||i["foo"]!=="bar")){e[1](i)}return i}`,
     )
   })
 }

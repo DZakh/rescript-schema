@@ -100,7 +100,7 @@ test("Parses when both schemas misses parser and have different types", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!(i==="apple")){if(typeof i!=="string"){e[0](i)}else{throw e[1]}}else{throw e[3]}return i}`,
+    `i=>{if(i!=="apple"){if(typeof i!=="string"){e[0](i)}else{throw e[1]}}else{throw e[3]}return i}`,
   )
 })
 
@@ -141,7 +141,7 @@ test("Parses when second struct misses parser", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!(i==="apple")){if(typeof i!=="string"){e[0](i)}else{throw e[1]}}else{i==="apple"||e[2](i);}return i}`,
+    `i=>{if(i!=="apple"){if(typeof i!=="string"){e[0](i)}else{throw e[1]}}else{if(i!=="apple"){e[2](i)}}return i}`,
   )
 })
 
@@ -153,7 +153,7 @@ test("Serializes when second struct misses serializer", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Serialize,
-    `i=>{let v0;try{i==="apple"||e[0](i);v0=i}catch(e0){e[2]([e0,e[1],])}return v0}`,
+    `i=>{let v0;try{if(i!=="apple"){e[0](i)}v0=i}catch(e0){e[2]([e0,e[1],])}return v0}`,
   )
 })
 
@@ -405,7 +405,7 @@ module Advanced = {
     t->U.assertCompiledCode(
       ~schema=shapeSchema,
       ~op=#Parse,
-      `i=>{let v2=i;if(!i||i.constructor!==Object){e[0](i)}else{try{if(!i||i.constructor!==Object){e[1](i)}let v0=i["kind"],v1=i["radius"];v0==="circle"||e[2](v0);if(typeof v1!=="number"||Number.isNaN(v1)){e[3](v1)}v2={"TAG":e[4],"radius":v1,}}catch(e0){try{if(!i||i.constructor!==Object){e[5](i)}let v3=i["kind"],v4=i["x"];v3==="square"||e[6](v3);if(typeof v4!=="number"||Number.isNaN(v4)){e[7](v4)}v2={"TAG":e[8],"x":v4,}}catch(e1){try{if(!i||i.constructor!==Object){e[9](i)}let v5=i["kind"],v6=i["x"],v7=i["y"];v5==="triangle"||e[10](v5);if(typeof v6!=="number"||Number.isNaN(v6)){e[11](v6)}if(typeof v7!=="number"||Number.isNaN(v7)){e[12](v7)}v2={"TAG":e[13],"x":v6,"y":v7,}}catch(e2){e[14]([e0,e1,e2,])}}}}return v2}`,
+      `i=>{let v2=i;if(!i||i.constructor!==Object){e[0](i)}else{try{if(!i||i.constructor!==Object){e[1](i)}let v0=i["kind"],v1=i["radius"];if(v0!=="circle"){e[2](v0)}if(typeof v1!=="number"||Number.isNaN(v1)){e[3](v1)}v2={"TAG":e[4],"radius":v1,}}catch(e0){try{if(!i||i.constructor!==Object){e[5](i)}let v3=i["kind"],v4=i["x"];if(v3!=="square"){e[6](v3)}if(typeof v4!=="number"||Number.isNaN(v4)){e[7](v4)}v2={"TAG":e[8],"x":v4,}}catch(e1){try{if(!i||i.constructor!==Object){e[9](i)}let v5=i["kind"],v6=i["x"],v7=i["y"];if(v5!=="triangle"){e[10](v5)}if(typeof v6!=="number"||Number.isNaN(v6)){e[11](v6)}if(typeof v7!=="number"||Number.isNaN(v7)){e[12](v7)}v2={"TAG":e[13],"x":v6,"y":v7,}}catch(e2){e[14]([e0,e1,e2,])}}}}return v2}`,
     )
   })
 
@@ -441,7 +441,7 @@ test("Compiled parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!(i===0)){if(!(i===1)){e[0](i)}else{i===1||e[1](i);}}else{i===0||e[2](i);}return i}`,
+    `i=>{if(i!==0){if(i!==1){e[0](i)}else{if(i!==1){e[1](i)}}}else{if(i!==0){e[2](i)}}return i}`,
   )
 })
 
@@ -454,7 +454,7 @@ test("Compiled async parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{let v0=i;if(!(i===0)){if(!(i===1)){e[0](i)}else{i===1||e[1](i);}}else{i===0||e[2](i);v0=e[3](i)}return Promise.resolve(v0)}`,
+    `i=>{let v0=i;if(i!==0){if(i!==1){e[0](i)}else{if(i!==1){e[1](i)}}}else{if(i!==0){e[2](i)}v0=e[3](i)}return Promise.resolve(v0)}`,
   )
 })
 
@@ -465,7 +465,7 @@ test("Compiled serialize code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Serialize,
-    `i=>{let v0;try{i===0||e[0](i);v0=i}catch(e0){try{i===1||e[1](i);v0=i}catch(e1){e[2]([e0,e1,])}}return v0}`,
+    `i=>{let v0;try{if(i!==0){e[0](i)}v0=i}catch(e0){try{if(i!==1){e[1](i)}v0=i}catch(e1){e[2]([e0,e1,])}}return v0}`,
   )
 })
 

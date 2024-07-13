@@ -425,33 +425,33 @@ function toString(literal) {
   return literal.s;
 }
 
-function arrayCheckBuilder(b, inputVar, literal) {
+function arrayFilterBuilder(b, inputVar, literal) {
   var items = literal.i;
-  return "(" + inputVar + "===" + ("e[" + (b.g.e.push(literal.value) - 1) + "]") + "||Array.isArray(" + inputVar + ")&&" + inputVar + ".length===" + items.length + (
-          items.length > 0 ? "&&" + items.map(function (literal, idx) {
-                    return literal.b(b, inputVar + "[" + idx + "]", literal);
-                  }).join("&&") : ""
+  return inputVar + "!==" + ("e[" + (b.g.e.push(literal.value) - 1) + "]") + "&&(!Array.isArray(" + inputVar + ")||" + inputVar + ".length!==" + items.length + (
+          items.length > 0 ? "||" + items.map(function (literal, idx) {
+                    return literal.f(b, inputVar + "[" + idx + "]", literal);
+                  }).join("||") : ""
         ) + ")";
 }
 
-function dictCheckBuilder(b, inputVar, literal) {
+function dictFilterBuilder(b, inputVar, literal) {
   var items = literal.i;
   var fields = Object.keys(items);
   var numberOfFields = fields.length;
-  return "(" + inputVar + "===" + ("e[" + (b.g.e.push(value) - 1) + "]") + "||" + inputVar + "&&" + inputVar + ".constructor===Object&&Object.keys(" + inputVar + ").length===" + numberOfFields + (
-          numberOfFields > 0 ? "&&" + fields.map(function (field) {
+  return inputVar + "!==" + ("e[" + (b.g.e.push(value) - 1) + "]") + "&&(!" + inputVar + "||" + inputVar + ".constructor!==Object||Object.keys(" + inputVar + ").length!==" + numberOfFields + (
+          numberOfFields > 0 ? "||" + fields.map(function (field) {
                     var literal = items[field];
-                    return literal.b(b, inputVar + "[" + JSON.stringify(field) + "]", literal);
-                  }).join("&&") : ""
+                    return literal.f(b, inputVar + "[" + JSON.stringify(field) + "]", literal);
+                  }).join("||") : ""
         ) + ")";
 }
 
-function inlinedStrictEqualCheckBuilder(param, inputVar, literal) {
-  return inputVar + "===" + literal.s;
+function inlinedStrictEqualFilterBuilder(param, inputVar, literal) {
+  return inputVar + "!==" + literal.s;
 }
 
-function strictEqualCheckBuilder(b, inputVar, literal) {
-  return inputVar + "===" + ("e[" + (b.g.e.push(literal.value) - 1) + "]");
+function strictEqualFilterBuilder(b, inputVar, literal) {
+  return inputVar + "!==" + ("e[" + (b.g.e.push(literal.value) - 1) + "]");
 }
 
 var undefined_value = undefined;
@@ -460,7 +460,7 @@ var $$undefined = {
   kind: "Undefined",
   value: undefined_value,
   s: "undefined",
-  b: inlinedStrictEqualCheckBuilder,
+  f: inlinedStrictEqualFilterBuilder,
   j: false
 };
 
@@ -470,21 +470,21 @@ var $$null = {
   kind: "Null",
   value: null_value,
   s: "null",
-  b: inlinedStrictEqualCheckBuilder,
+  f: inlinedStrictEqualFilterBuilder,
   j: true
 };
 
 var nan_value = NaN;
 
-function nan_b(param, inputVar, param$1) {
-  return "Number.isNaN(" + inputVar + ")";
+function nan_f(param, inputVar, param$1) {
+  return "!Number.isNaN(" + inputVar + ")";
 }
 
 var nan = {
   kind: "NaN",
   value: nan_value,
   s: "NaN",
-  b: nan_b,
+  f: nan_f,
   j: false
 };
 
@@ -495,7 +495,7 @@ function parseInternal(value) {
             kind: "Symbol",
             value: value,
             s: value.toString(),
-            b: strictEqualCheckBuilder,
+            f: strictEqualFilterBuilder,
             j: false
           };
   } else if (typeOfValue === "boolean") {
@@ -503,7 +503,7 @@ function parseInternal(value) {
             kind: "Boolean",
             value: value,
             s: value ? "true" : "false",
-            b: inlinedStrictEqualCheckBuilder,
+            f: inlinedStrictEqualFilterBuilder,
             j: true
           };
   } else if (typeOfValue === "string") {
@@ -511,7 +511,7 @@ function parseInternal(value) {
             kind: "String",
             value: value,
             s: JSON.stringify(value),
-            b: inlinedStrictEqualCheckBuilder,
+            f: inlinedStrictEqualFilterBuilder,
             j: true
           };
   } else if (typeOfValue === "function") {
@@ -519,7 +519,7 @@ function parseInternal(value) {
             kind: "Function",
             value: value,
             s: value.toString(),
-            b: strictEqualCheckBuilder,
+            f: strictEqualFilterBuilder,
             j: false
           };
   } else if (typeOfValue === "object") {
@@ -545,7 +545,7 @@ function parseInternal(value) {
               kind: "Array",
               value: value,
               s: string + "]",
-              b: arrayCheckBuilder,
+              f: arrayFilterBuilder,
               j: isJsonable,
               i: Caml_option.some(items)
             };
@@ -572,7 +572,7 @@ function parseInternal(value) {
               kind: "Dict",
               value: value,
               s: string$1 + "}",
-              b: dictCheckBuilder,
+              f: dictFilterBuilder,
               j: isJsonable$1,
               i: Caml_option.some(items$1)
             };
@@ -581,7 +581,7 @@ function parseInternal(value) {
               kind: "Object",
               value: value,
               s: Object.prototype.toString.call(value),
-              b: strictEqualCheckBuilder,
+              f: strictEqualFilterBuilder,
               j: false
             };
     }
@@ -595,7 +595,7 @@ function parseInternal(value) {
               kind: "Number",
               value: value,
               s: value.toString(),
-              b: inlinedStrictEqualCheckBuilder,
+              f: inlinedStrictEqualFilterBuilder,
               j: true
             };
     }
@@ -604,7 +604,7 @@ function parseInternal(value) {
             kind: "BigInt",
             value: value,
             s: value.toString() + "n",
-            b: inlinedStrictEqualCheckBuilder,
+            f: inlinedStrictEqualFilterBuilder,
             j: false
           };
   }
@@ -1168,13 +1168,13 @@ function literal(value) {
       registerInvalidJson(b, selfSchema, path);
     }
     var inputVar = $$var(b, input);
-    b.c = b.c + (literal$1.b(b, inputVar, literal$1) + "||" + failWithArg(b, path, (function (input) {
+    b.c = b.c + ("if(" + literal$1.f(b, inputVar, literal$1) + "){" + failWithArg(b, path, (function (input) {
               return {
                       TAG: "InvalidLiteral",
                       expected: literal$1,
                       received: input
                     };
-            }), inputVar) + ";");
+            }), inputVar) + "}");
     return input;
   };
   return make((function () {
@@ -1992,7 +1992,7 @@ function factory$8(schemas) {
                         typeFilterCode = "false";
                       } else {
                         var literal$1 = literal._0;
-                        typeFilterCode = "!(" + literal$1.b(b, inputVar, literal$1) + ")";
+                        typeFilterCode = literal$1.f(b, inputVar, literal$1);
                       }
                     }
                     var schemas$1 = Js_dict.get(groupsByTypeFilter, typeFilterCode);

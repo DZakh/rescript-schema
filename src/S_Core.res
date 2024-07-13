@@ -787,8 +787,8 @@ module Literal = {
     value: unknown,
     @as("s")
     string: string,
-    @as("b")
-    checkBuilder: (b, ~inputVar: string, ~literal: literal) => string,
+    @as("f")
+    filterBuilder: (b, ~inputVar: string, ~literal: literal) => string,
     @as("j")
     isJsonable: bool,
     @as("i")
@@ -820,61 +820,63 @@ module Literal = {
   @inline
   let toString = literal => (literal->toInternal).string
 
-  let arrayCheckBuilder = (b, ~inputVar, ~literal) => {
+  // FIXME:
+  let arrayFilterBuilder = (b, ~inputVar, ~literal) => {
     let items = (literal->toInternal).items->(Obj.magic: option<unknown> => array<internal>)
 
-    `(${inputVar}===${b->B.embed(
+    `${inputVar}!==${b->B.embed(
         literal->value,
-      )}||Array.isArray(${inputVar})&&${inputVar}.length===${items
+      )}&&(!Array.isArray(${inputVar})||${inputVar}.length!==${items
       ->Js.Array2.length
       ->Stdlib.Int.unsafeToString}` ++
     (items->Js.Array2.length > 0
-      ? "&&" ++
+      ? "||" ++
         items
         ->Js.Array2.mapi((literal, idx) =>
-          b->literal.checkBuilder(
+          b->literal.filterBuilder(
             ~inputVar=`${inputVar}[${idx->Stdlib.Int.unsafeToString}]`,
             ~literal=literal->toPublic,
           )
         )
-        ->Js.Array2.joinWith("&&")
+        ->Js.Array2.joinWith("||")
       : "") ++ ")"
   }
 
-  let dictCheckBuilder = (b, ~inputVar, ~literal) => {
+  // FIXME:
+  let dictFilterBuilder = (b, ~inputVar, ~literal) => {
     let items = (literal->toInternal).items->(Obj.magic: option<unknown> => dict<internal>)
     let fields = items->Js.Dict.keys
     let numberOfFields = fields->Js.Array2.length
 
-    `(${inputVar}===${b->B.embed(
+    `${inputVar}!==${b->B.embed(
         value,
-      )}||${inputVar}&&${inputVar}.constructor===Object&&Object.keys(${inputVar}).length===${numberOfFields->Stdlib.Int.unsafeToString}` ++
+      )}&&(!${inputVar}||${inputVar}.constructor!==Object||Object.keys(${inputVar}).length!==${numberOfFields->Stdlib.Int.unsafeToString}` ++
     (numberOfFields > 0
-      ? "&&" ++
+      ? "||" ++
         fields
         ->Js.Array2.map(field => {
           let literal = items->Js.Dict.unsafeGet(field)
-          b->literal.checkBuilder(
+          b->literal.filterBuilder(
             ~inputVar=`${inputVar}[${field->Stdlib.Inlined.Value.fromString}]`,
             ~literal=literal->toPublic,
           )
         })
-        ->Js.Array2.joinWith("&&")
+        ->Js.Array2.joinWith("||")
       : "") ++ ")"
   }
 
-  let inlinedStrictEqualCheckBuilder = (_, ~inputVar, ~literal) =>
-    `${inputVar}===${literal->toString}`
+  let inlinedStrictEqualFilterBuilder = (_, ~inputVar, ~literal) =>
+    `${inputVar}!==${literal->toString}`
 
-  let strictEqualCheckBuilder = (b, ~inputVar, ~literal) =>
-    `${inputVar}===${b->B.embed(literal->value)}`
+  let strictEqualFilterBuilder = (b, ~inputVar, ~literal) =>
+    `${inputVar}!==${b->B.embed(literal->value)}`
 
   let undefined = {
     kind: Undefined,
     value: %raw(`undefined`),
     string: "undefined",
     isJsonable: false,
-    checkBuilder: inlinedStrictEqualCheckBuilder,
+    filterBuilder: inlinedStrictEqualFilterBuilder,
   }
 
   let null = {
@@ -882,7 +884,7 @@ module Literal = {
     value: %raw(`null`),
     string: "null",
     isJsonable: true,
-    checkBuilder: inlinedStrictEqualCheckBuilder,
+    filterBuilder: inlinedStrictEqualFilterBuilder,
   }
 
   let nan = {
@@ -890,7 +892,7 @@ module Literal = {
     value: %raw(`NaN`),
     string: "NaN",
     isJsonable: false,
-    checkBuilder: (_, ~inputVar, ~literal as _) => `Number.isNaN(${inputVar})`,
+    filterBuilder: (_, ~inputVar, ~literal as _) => `!Number.isNaN(${inputVar})`,
   }
 
   let string = value => {
@@ -899,7 +901,7 @@ module Literal = {
       value: value->castAnyToUnknown,
       string: Stdlib.Inlined.Value.fromString(value),
       isJsonable: true,
-      checkBuilder: inlinedStrictEqualCheckBuilder,
+      filterBuilder: inlinedStrictEqualFilterBuilder,
     }
   }
 
@@ -909,7 +911,7 @@ module Literal = {
       value: value->castAnyToUnknown,
       string: value ? "true" : "false",
       isJsonable: true,
-      checkBuilder: inlinedStrictEqualCheckBuilder,
+      filterBuilder: inlinedStrictEqualFilterBuilder,
     }
   }
 
@@ -919,7 +921,7 @@ module Literal = {
       value: value->castAnyToUnknown,
       string: value->Js.Float.toString,
       isJsonable: true,
-      checkBuilder: inlinedStrictEqualCheckBuilder,
+      filterBuilder: inlinedStrictEqualFilterBuilder,
     }
   }
 
@@ -929,7 +931,7 @@ module Literal = {
       value: value->castAnyToUnknown,
       string: value->Symbol.toString,
       isJsonable: false,
-      checkBuilder: strictEqualCheckBuilder,
+      filterBuilder: strictEqualFilterBuilder,
     }
   }
 
@@ -939,7 +941,7 @@ module Literal = {
       value: value->castAnyToUnknown,
       string: value->BigInt.toString,
       isJsonable: false,
-      checkBuilder: inlinedStrictEqualCheckBuilder,
+      filterBuilder: inlinedStrictEqualFilterBuilder,
     }
   }
 
@@ -949,7 +951,7 @@ module Literal = {
       value: value->castAnyToUnknown,
       string: value->Stdlib.Function.toString,
       isJsonable: false,
-      checkBuilder: strictEqualCheckBuilder,
+      filterBuilder: strictEqualFilterBuilder,
     }
   }
 
@@ -959,7 +961,7 @@ module Literal = {
       value: value->castAnyToUnknown,
       string: value->Object.internalClass,
       isJsonable: false,
-      checkBuilder: strictEqualCheckBuilder,
+      filterBuilder: strictEqualFilterBuilder,
     }
   }
 
@@ -1010,7 +1012,7 @@ module Literal = {
       items: items->castAnyToUnknown,
       string: string.contents ++ "}",
       isJsonable: isJsonable.contents,
-      checkBuilder: dictCheckBuilder,
+      filterBuilder: dictFilterBuilder,
     }
   }
   and array = value => {
@@ -1036,7 +1038,7 @@ module Literal = {
       items: items->castAnyToUnknown,
       isJsonable: isJsonable.contents,
       string: string.contents ++ "]",
-      checkBuilder: arrayCheckBuilder,
+      filterBuilder: arrayFilterBuilder,
     }
   }
 
@@ -1691,14 +1693,14 @@ let literal = value => {
     let inputVar = b->B.Val.var(input)
     b.code =
       b.code ++
-      `${b->internalLiteral.checkBuilder(~inputVar, ~literal)}||${b->B.failWithArg(
+      `if(${b->internalLiteral.filterBuilder(~inputVar, ~literal)}){${b->B.failWithArg(
           ~path,
           input => InvalidLiteral({
             expected: literal,
             received: input,
           }),
           inputVar,
-        )};`
+        )}}`
     input
   })
   make(
@@ -2906,7 +2908,7 @@ module Union = {
             | None =>
               switch schema.rawTagged {
               | Literal(literal) =>
-                `!(${b->(literal->Literal.toInternal).checkBuilder(~inputVar, ~literal)})`
+                b->(literal->Literal.toInternal).filterBuilder(~inputVar, ~literal)
               | _ => "false"
               }
             }
