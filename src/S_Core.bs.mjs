@@ -352,7 +352,7 @@ function withPathPrepend(b, input, path, maybeDynamicLocationVar, fn) {
 
 function typeFilterCode(b, typeFilter, schema, input, path) {
   var inputVar = $$var(b, input);
-  return "if(" + typeFilter(inputVar) + "){" + failWithArg(b, path, (function (input) {
+  return "if(" + typeFilter(b, inputVar) + "){" + failWithArg(b, path, (function (input) {
                 return {
                         TAG: "InvalidType",
                         expected: schema,
@@ -1163,26 +1163,27 @@ function custom(name, definer) {
 
 function literal(value) {
   var literal$1 = parseInternal(value);
-  var operationBuilder = function (b, input, selfSchema, path) {
-    if (!literal$1.j) {
-      registerInvalidJson(b, selfSchema, path);
-    }
-    var inputVar = $$var(b, input);
-    b.c = b.c + ("if(" + literal$1.f(b, inputVar, literal$1) + "){" + failWithArg(b, path, (function (input) {
-              return {
-                      TAG: "InvalidType",
-                      expected: selfSchema,
-                      received: input
-                    };
-            }), inputVar) + "}");
-    return input;
-  };
   return make((function () {
                 return literal$1.s;
               }), {
               TAG: "Literal",
               _0: literal$1
-            }, empty, operationBuilder, operationBuilder, undefined);
+            }, empty, noop, (function (b, input, selfSchema, path) {
+                if (!literal$1.j) {
+                  registerInvalidJson(b, selfSchema, path);
+                }
+                var inputVar = $$var(b, input);
+                b.c = b.c + ("if(" + literal$1.f(b, inputVar, literal$1) + "){" + failWithArg(b, path, (function (input) {
+                          return {
+                                  TAG: "InvalidType",
+                                  expected: selfSchema,
+                                  received: input
+                                };
+                        }), inputVar) + "}");
+                return input;
+              }), (function (b, inputVar) {
+                return literal$1.f(b, inputVar, literal$1);
+              }));
 }
 
 var unit = literal((void 0));
@@ -1233,8 +1234,8 @@ function serializeOperationBuilder(b, input, selfSchema, path) {
 function maybeTypeFilter(schema, inlinedNoneValue) {
   var typeFilter = schema.f;
   if (typeFilter !== undefined) {
-    return (function (inputVar) {
-              return inputVar + "!==" + inlinedNoneValue + "&&(" + typeFilter(inputVar) + ")";
+    return (function (b, inputVar) {
+              return inputVar + "!==" + inlinedNoneValue + "&&(" + typeFilter(b, inputVar) + ")";
             });
   }
   
@@ -1296,7 +1297,7 @@ function builder(b, input, selfSchema, path) {
 
 var schema = make(primitiveName, "Never", empty, builder, builder, undefined);
 
-function typeFilter(inputVar) {
+function typeFilter(_b, inputVar) {
   return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
 }
 
@@ -1694,7 +1695,7 @@ var emailRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\")
 
 var datetimeRe = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
-function typeFilter$1(inputVar) {
+function typeFilter$1(_b, inputVar) {
   return "typeof " + inputVar + "!==\"string\"";
 }
 
@@ -1731,7 +1732,7 @@ function factory$4(schema, spaceOpt) {
               }), typeFilter$1);
 }
 
-function typeFilter$2(inputVar) {
+function typeFilter$2(_b, inputVar) {
   return "typeof " + inputVar + "!==\"boolean\"";
 }
 
@@ -1748,7 +1749,7 @@ function refinements$1(schema) {
   }
 }
 
-function typeFilter$3(inputVar) {
+function typeFilter$3(_b, inputVar) {
   return "typeof " + inputVar + "!==\"number\"||" + inputVar + ">2147483647||" + inputVar + "<-2147483648||" + inputVar + "%1!==0";
 }
 
@@ -1765,7 +1766,7 @@ function refinements$2(schema) {
   }
 }
 
-function typeFilter$4(inputVar) {
+function typeFilter$4(_b, inputVar) {
   return "typeof " + inputVar + "!==\"number\"" + (
           globalConfig.n ? "" : "||Number.isNaN(" + inputVar + ")"
         );
@@ -1784,7 +1785,7 @@ function refinements$3(schema) {
   }
 }
 
-function typeFilter$5(inputVar) {
+function typeFilter$5(_b, inputVar) {
   return "!Array.isArray(" + inputVar + ")";
 }
 
@@ -1924,8 +1925,8 @@ function factory$7(definer) {
               TAG: "Tuple",
               items: items,
               definition: definition
-            }, empty, parseOperationBuilder$1, serializeOperationBuilder$1, (function (inputVar) {
-                return typeFilter$5(inputVar) + ("||" + inputVar + ".length!==" + length);
+            }, empty, parseOperationBuilder$1, serializeOperationBuilder$1, (function (b, inputVar) {
+                return typeFilter$5(b, inputVar) + ("||" + inputVar + ".length!==" + length);
               }));
 }
 
@@ -1951,18 +1952,7 @@ function factory$8(schemas) {
                   for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
                     var schema = schemas[idx];
                     var typeFilter = schema.f;
-                    var typeFilterCode;
-                    if (typeFilter !== undefined) {
-                      typeFilterCode = typeFilter(inputVar);
-                    } else {
-                      var literal = schema.r;
-                      if (typeof literal !== "object" || literal.TAG !== "Literal") {
-                        typeFilterCode = "false";
-                      } else {
-                        var literal$1 = literal._0;
-                        typeFilterCode = literal$1.f(b, inputVar, literal$1);
-                      }
-                    }
+                    var typeFilterCode = typeFilter !== undefined ? typeFilter(b, inputVar) : "0";
                     var parserCode;
                     try {
                       var bb = scope(b);
@@ -2021,7 +2011,10 @@ function factory$8(schemas) {
                       loopSchemas(0, "");
                     } else {
                       var parserCode = parsers[0];
-                      b.c = b.c + "}else{" + parserCode;
+                      if (parserCode !== "") {
+                        b.c = b.c + "}else{" + parserCode;
+                      }
+                      
                     }
                     b.c = b.c + "}";
                   };

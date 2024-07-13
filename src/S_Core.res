@@ -235,7 +235,7 @@ type rec t<'value> = {
   @as("s")
   mutable serializeOperationBuilder: builder,
   @as("f")
-  maybeTypeFilter: option<(~inputVar: string) => string>,
+  maybeTypeFilter: option<(b, ~inputVar: string) => string>,
   @as("i")
   mutable isAsyncParse: isAsyncParse,
   @as("d")
@@ -695,7 +695,7 @@ module Builder = {
 
     let typeFilterCode = (b: b, ~typeFilter, ~schema, ~input, ~path) => {
       let inputVar = b->Val.var(input)
-      `if(${typeFilter(~inputVar)}){${b->failWithArg(
+      `if(${b->typeFilter(~inputVar)}){${b->failWithArg(
           ~path,
           input => InvalidType({
             expected: schema,
@@ -1685,30 +1685,30 @@ let literal = value => {
   let value = value->castAnyToUnknown
   let literal = value->Literal.parse
   let internalLiteral = literal->Literal.toInternal
-  let operationBuilder = Builder.make((b, ~input, ~selfSchema, ~path) => {
-    if !(literal->Literal.isJsonable) {
-      b->B.registerInvalidJson(~selfSchema, ~path)
-    }
-    let inputVar = b->B.Val.var(input)
-    b.code =
-      b.code ++
-      `if(${b->internalLiteral.filterBuilder(~inputVar, ~literal)}){${b->B.failWithArg(
-          ~path,
-          input => InvalidType({
-            expected: selfSchema,
-            received: input,
-          }),
-          inputVar,
-        )}}`
-    input
-  })
+
   make(
     ~name=() => literal->Literal.toString,
     ~metadataMap=Metadata.Map.empty,
     ~rawTagged=Literal(literal),
-    ~parseOperationBuilder=operationBuilder,
-    ~serializeOperationBuilder=operationBuilder,
-    ~maybeTypeFilter=None,
+    ~parseOperationBuilder=Builder.noop,
+    ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+      if !(literal->Literal.isJsonable) {
+        b->B.registerInvalidJson(~selfSchema, ~path)
+      }
+      let inputVar = b->B.Val.var(input)
+      b.code =
+        b.code ++
+        `if(${b->internalLiteral.filterBuilder(~inputVar, ~literal)}){${b->B.failWithArg(
+            ~path,
+            input => InvalidType({
+              expected: selfSchema,
+              received: input,
+            }),
+            inputVar,
+          )}}`
+      input
+    }),
+    ~maybeTypeFilter=Some((b, ~inputVar) => b->internalLiteral.filterBuilder(~inputVar, ~literal)),
   )
 }
 let unit = literal(%raw("void 0"))
@@ -1800,8 +1800,8 @@ module Option = {
     switch schema.maybeTypeFilter {
     | Some(typeFilter) =>
       Some(
-        (~inputVar) => {
-          `${inputVar}!==${inlinedNoneValue}&&(${typeFilter(~inputVar)})`
+        (b, ~inputVar) => {
+          `${inputVar}!==${inlinedNoneValue}&&(${b->typeFilter(~inputVar)})`
         },
       )
     | None => None
@@ -1910,7 +1910,7 @@ module Object = {
     ...s,
   }
 
-  let typeFilter = (~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
+  let typeFilter = (_b, ~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
 
   let getItems = (schema): array<item> => (schema->classify->Obj.magic)["items"]
   let getDefinition = schema => (schema->classify->Obj.magic)["definition"]
@@ -2454,7 +2454,7 @@ module String = {
   // Adapted from https://stackoverflow.com/a/3143231
   let datetimeRe = %re(`/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/`)
 
-  let typeFilter = (~inputVar) => `typeof ${inputVar}!=="string"`
+  let typeFilter = (_b, ~inputVar) => `typeof ${inputVar}!=="string"`
 
   let schema = makeWithNoopSerializer(
     ~name=primitiveName,
@@ -2512,7 +2512,7 @@ module JsonString = {
 }
 
 module Bool = {
-  let typeFilter = (~inputVar) => `typeof ${inputVar}!=="boolean"`
+  let typeFilter = (_b, ~inputVar) => `typeof ${inputVar}!=="boolean"`
 
   let schema = makeWithNoopSerializer(
     ~name=primitiveName,
@@ -2547,7 +2547,7 @@ module Int = {
     }
   }
 
-  let typeFilter = (~inputVar) =>
+  let typeFilter = (_b, ~inputVar) =>
     `typeof ${inputVar}!=="number"||${inputVar}>2147483647||${inputVar}<-2147483648||${inputVar}%1!==0`
 
   let schema = makeWithNoopSerializer(
@@ -2582,7 +2582,7 @@ module Float = {
     }
   }
 
-  let typeFilter = (~inputVar) =>
+  let typeFilter = (_b, ~inputVar) =>
     `typeof ${inputVar}!=="number"` ++ if globalConfig.disableNanNumberCheck {
       ""
     } else {
@@ -2622,7 +2622,7 @@ module Array = {
     }
   }
 
-  let typeFilter = (~inputVar) => `!Array.isArray(${inputVar})`
+  let typeFilter = (_b, ~inputVar) => `!Array.isArray(${inputVar})`
 
   let factory = schema => {
     let schema = schema->toUnknown
@@ -2834,9 +2834,9 @@ module Tuple = {
       ~parseOperationBuilder=Object.parseOperationBuilder,
       ~serializeOperationBuilder=Object.serializeOperationBuilder,
       ~maybeTypeFilter=Some(
-        (~inputVar) =>
-          Array.typeFilter(~inputVar) ++
-          `||${inputVar}.length!==${length->Stdlib.Int.unsafeToString}`,
+        (b, ~inputVar) =>
+          b->Array.typeFilter(~inputVar) ++
+            `||${inputVar}.length!==${length->Stdlib.Int.unsafeToString}`,
       ),
       ~metadataMap=Metadata.Map.empty,
     )
@@ -2890,13 +2890,8 @@ module Union = {
           for idx in 0 to schemas->Js.Array2.length - 1 {
             let schema = schemas->Js.Array2.unsafe_get(idx)
             let typeFilterCode = switch schema.maybeTypeFilter {
-            | Some(typeFilter) => typeFilter(~inputVar)
-            | None =>
-              switch schema.rawTagged {
-              | Literal(literal) =>
-                b->(literal->Literal.toInternal).filterBuilder(~inputVar, ~literal)
-              | _ => "false"
-              }
+            | Some(typeFilter) => b->typeFilter(~inputVar)
+            | None => "0"
             }
             let parserCode = try {
               let bb = b->B.scope
@@ -2936,7 +2931,7 @@ module Union = {
               b.code = b.code ++ `if(${typeFilterCode}){`
               loopTypeFilters(idx + 1)
               switch parsers {
-              // | [""] => () TODO: Move literal check to type filter
+              | [""] => ()
               | [parserCode] => b.code = b.code ++ `}else{` ++ parserCode
               | parsers =>
                 b.code = b.code ++ `}else{`

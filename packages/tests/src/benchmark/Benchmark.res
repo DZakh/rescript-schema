@@ -202,10 +202,10 @@ module CrazyUnion = {
 // testData2 parse: 70.967ms
 
 // Wip
-// testData1 serialize: 5.398s
-// testData1 parse: 6.171ms
-// testData2 serialize: 69.621ms
-// testData2 parse: 0.878ms
+// testData1 serialize: 5.843s
+// testData1 parse: 5.625ms
+// testData2 serialize: 64.489ms
+// testData2 parse: 0.836ms
 
 // Partial
 // testData1 serialize: 1.802ms
