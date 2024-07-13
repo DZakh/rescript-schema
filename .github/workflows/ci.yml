@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - "v\\d+.\\d+.\\d+-patch"
   pull_request:
     branches:
       - main
