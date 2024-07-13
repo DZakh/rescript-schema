@@ -1024,7 +1024,7 @@ test("Object schema parsing checks order", t => {
       schema,
     ),
     {
-      code: InvalidLiteral({expected: S.Literal.parse("value"), received: %raw(`"wrong"`)}),
+      code: InvalidType({expected: S.literal("value")->S.toUnknown, received: %raw(`"wrong"`)}),
       operation: Parse,
       path: S.Path.fromLocation("tag"),
     },

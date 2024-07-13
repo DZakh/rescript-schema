@@ -20,8 +20,8 @@ module Common = {
     t->U.assertErrorResult(
       invalidAny->S.parseAnyWith(schema),
       {
-        code: InvalidLiteral({
-          expected: S.Literal.parse("ReScript is Great!"),
+        code: InvalidType({
+          expected: S.literal("ReScript is Great!")->S.toUnknown,
           received: "Hello world!"->Obj.magic,
         }),
         operation: Parse,
@@ -36,8 +36,8 @@ module Common = {
     t->U.assertErrorResult(
       invalidTypeAny->S.parseAnyWith(schema),
       {
-        code: InvalidLiteral({
-          expected: S.Literal.parse("ReScript is Great!"),
+        code: InvalidType({
+          expected: S.literal("ReScript is Great!")->S.toUnknown,
           received: invalidTypeAny,
         }),
         operation: Parse,
@@ -58,8 +58,8 @@ module Common = {
     t->U.assertErrorResult(
       invalidValue->S.serializeToUnknownWith(schema),
       {
-        code: InvalidLiteral({
-          expected: S.Literal.parse("ReScript is Great!"),
+        code: InvalidType({
+          expected: S.literal("ReScript is Great!")->S.toUnknown,
           received: "Hello world!"->Obj.magic,
         }),
         operation: SerializeToUnknown,

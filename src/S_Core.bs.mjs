@@ -1170,15 +1170,15 @@ function literal(value) {
     var inputVar = $$var(b, input);
     b.c = b.c + ("if(" + literal$1.f(b, inputVar, literal$1) + "){" + failWithArg(b, path, (function (input) {
               return {
-                      TAG: "InvalidLiteral",
-                      expected: literal$1,
+                      TAG: "InvalidType",
+                      expected: selfSchema,
                       received: input
                     };
             }), inputVar) + "}");
     return input;
   };
   return make((function () {
-                return "Literal(" + literal$1.s + ")";
+                return literal$1.s;
               }), {
               TAG: "Literal",
               _0: literal$1
@@ -1425,11 +1425,12 @@ function serializeOperationBuilder$1(b, input, selfSchema, path) {
       }
       return ;
     }
+    var schema$1 = literal(definition);
     var itemInputVar = inputVar + outputPath;
     ctx.d = ctx.d + ("if(" + itemInputVar + "!==" + ("e[" + (b.g.e.push(definition) - 1) + "]") + "){" + failWithArg(b, path + outputPath, (function (input) {
               return {
-                      TAG: "InvalidLiteral",
-                      expected: parseInternal(definition),
+                      TAG: "InvalidType",
+                      expected: schema$1,
                       received: input
                     };
             }), itemInputVar) + "}");
@@ -1640,12 +1641,13 @@ function factory$3(schema, definer) {
                       }
                       return maybeOutputRef;
                     }
+                    var schema = literal(definition);
                     var constantVal = valuePath === "" ? input : val(b, inputVar + valuePath);
                     var constantVar = $$var(b, constantVal);
                     b.c = b.c + ("if(" + constantVar + "!==" + ("e[" + (b.g.e.push(definition) - 1) + "]") + "){" + failWithArg(b, path + valuePath, (function (input) {
                               return {
-                                      TAG: "InvalidLiteral",
-                                      expected: parseInternal(definition),
+                                      TAG: "InvalidType",
+                                      expected: schema,
                                       received: input
                                     };
                             }), constantVar) + "}");
@@ -1927,46 +1929,6 @@ function factory$7(definer) {
               }));
 }
 
-function parseSameType(b, schemas, input, output, path) {
-  var loopSchemas = function (_idx, _errorCodes) {
-    while(true) {
-      var errorCodes = _errorCodes;
-      var idx = _idx;
-      if (idx >= schemas.length) {
-        b.c = b.c + failWithArg(b, path, (function (internalErrors) {
-                return {
-                        TAG: "InvalidUnion",
-                        _0: internalErrors
-                      };
-              }), "[" + errorCodes + "]");
-        return ;
-      }
-      var prevCode = b.c;
-      var schema = schemas[idx];
-      var errorVar = "e" + idx;
-      try {
-        b.c = b.c + "try{";
-        var bb = scope(b);
-        var itemOutput = schema.p(bb, input, schema, "");
-        b.c = b.c + allocateScope(bb);
-        b.c = b.c + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
-        loopSchemas(idx + 1 | 0, errorCodes + errorVar + ",");
-        b.c = b.c + "}";
-        return ;
-      }
-      catch (raw_exn){
-        var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-        b.c = prevCode;
-        var value = getOrRethrow(exn);
-        _errorCodes = errorCodes + ("e[" + (b.g.e.push(value) - 1) + "]") + ",";
-        _idx = idx + 1 | 0;
-        continue ;
-      }
-    };
-  };
-  loopSchemas(0, "");
-}
-
 function factory$8(schemas) {
   var len = schemas.length;
   if (len === 1) {
@@ -1983,7 +1945,8 @@ function factory$8(schemas) {
               }, empty, (function (b, input, selfSchema, path) {
                   var schemas = selfSchema.r._0;
                   var inputVar = $$var(b, input);
-                  var groupsByTypeFilter = {};
+                  var output = val(b, inputVar);
+                  var prsersByTypeFilter = {};
                   var typeFilters = [];
                   for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
                     var schema = schemas[idx];
@@ -2000,21 +1963,30 @@ function factory$8(schemas) {
                         typeFilterCode = literal$1.f(b, inputVar, literal$1);
                       }
                     }
-                    var schemas$1 = Js_dict.get(groupsByTypeFilter, typeFilterCode);
-                    if (schemas$1 !== undefined) {
-                      schemas$1.push(schema);
+                    var parserCode;
+                    try {
+                      var bb = scope(b);
+                      var schemaOutput = schema.p(bb, input, schema, "");
+                      if (schemaOutput !== input) {
+                        bb.c = bb.c + set(bb, output, schemaOutput);
+                      }
+                      parserCode = allocateScope(bb);
+                    }
+                    catch (raw_exn){
+                      var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+                      var value = getOrRethrow(exn);
+                      parserCode = "throw " + ("e[" + (b.g.e.push(value) - 1) + "]");
+                    }
+                    var parsers = Js_dict.get(prsersByTypeFilter, typeFilterCode);
+                    if (parsers !== undefined) {
+                      parsers.push(parserCode);
                     } else {
                       typeFilters.push(typeFilterCode);
-                      groupsByTypeFilter[typeFilterCode] = [schema];
+                      prsersByTypeFilter[typeFilterCode] = [parserCode];
                     }
                   }
-                  var output = val(b, inputVar);
                   var loopTypeFilters = function (idx) {
-                    var isLastItem = idx === (typeFilters.length - 1 | 0);
-                    var typeFilterCode = typeFilters[idx];
-                    var schemas = groupsByTypeFilter[typeFilterCode];
-                    b.c = b.c + ("if(" + typeFilterCode + "){");
-                    if (isLastItem) {
+                    if (idx === typeFilters.length) {
                       b.c = b.c + failWithArg(b, path, (function (received) {
                               return {
                                       TAG: "InvalidType",
@@ -2022,27 +1994,34 @@ function factory$8(schemas) {
                                       received: received
                                     };
                             }), inputVar);
-                    } else {
-                      loopTypeFilters(idx + 1 | 0);
+                      return ;
                     }
-                    b.c = b.c + "}else{";
-                    if (schemas.length !== 1) {
-                      parseSameType(b, schemas, input, output, path);
-                    } else {
-                      var schema = schemas[0];
-                      var prevCode = b.c;
-                      try {
-                        var schemaOutput = schema.p(b, input, schema, path);
-                        if (schemaOutput !== input) {
-                          b.c = b.c + set(b, output, schemaOutput);
+                    var typeFilterCode = typeFilters[idx];
+                    var parsers = prsersByTypeFilter[typeFilterCode];
+                    b.c = b.c + ("if(" + typeFilterCode + "){");
+                    loopTypeFilters(idx + 1 | 0);
+                    if (parsers.length !== 1) {
+                      b.c = b.c + "}else{";
+                      var loopSchemas = function (idx, errorCodes) {
+                        if (idx === parsers.length) {
+                          b.c = b.c + failWithArg(b, path, (function (internalErrors) {
+                                  return {
+                                          TAG: "InvalidUnion",
+                                          _0: internalErrors
+                                        };
+                                }), "[" + errorCodes + "]");
+                          return ;
                         }
-                        
-                      }
-                      catch (raw_exn){
-                        var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-                        var value = getOrRethrow(exn);
-                        b.c = prevCode + "throw " + ("e[" + (b.g.e.push(value) - 1) + "]");
-                      }
+                        var parserCode = parsers[idx];
+                        var errorVar = "e" + idx;
+                        b.c = b.c + ("try{" + parserCode + "}catch(" + errorVar + "){");
+                        loopSchemas(idx + 1 | 0, errorCodes + errorVar + ",");
+                        b.c = b.c + "}";
+                      };
+                      loopSchemas(0, "");
+                    } else {
+                      var parserCode = parsers[0];
+                      b.c = b.c + "}else{" + parserCode;
                     }
                     b.c = b.c + "}";
                   };
@@ -2265,8 +2244,6 @@ function reason(error, nestedLevelOpt) {
         return reason$1.description;
     case "InvalidType" :
         return "Expected " + reason$1.expected.n() + ", received " + parseInternal(reason$1.received).s;
-    case "InvalidLiteral" :
-        return "Expected " + reason$1.expected.s + ", received " + parseInternal(reason$1.received).s;
     case "ExcessField" :
         return "Encountered disallowed excess key " + JSON.stringify(reason$1._0) + " on an object";
     case "InvalidUnion" :

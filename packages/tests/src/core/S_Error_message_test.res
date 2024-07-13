@@ -72,10 +72,10 @@ test("UnexpectedAsync error", t => {
   )
 })
 
-test("InvalidLiteral error", t => {
+test("InvalidType with literal error", t => {
   t->Assert.is(
     U.error({
-      code: InvalidLiteral({expected: S.Literal.parse(false), received: true->Obj.magic}),
+      code: InvalidType({expected: S.literal(false)->S.toUnknown, received: true->Obj.magic}),
       operation: Parse,
       path: S.Path.empty,
     })->S.Error.message,
@@ -116,18 +116,24 @@ test("InvalidUnion error", t => {
     U.error({
       code: InvalidUnion([
         U.error({
-          code: InvalidLiteral({expected: S.Literal.parse("circle"), received: "oval"->Obj.magic}),
+          code: InvalidType({
+            expected: S.literal("circle")->S.toUnknown,
+            received: "oval"->Obj.magic,
+          }),
           operation: Parse,
           path: S.Path.fromArray(["kind"]),
         }),
         U.error({
-          code: InvalidLiteral({expected: S.Literal.parse("square"), received: "oval"->Obj.magic}),
+          code: InvalidType({
+            expected: S.literal("square")->S.toUnknown,
+            received: "oval"->Obj.magic,
+          }),
           operation: Parse,
           path: S.Path.fromArray(["kind"]),
         }),
         U.error({
-          code: InvalidLiteral({
-            expected: S.Literal.parse("triangle"),
+          code: InvalidType({
+            expected: S.literal("triangle")->S.toUnknown,
             received: "oval"->Obj.magic,
           }),
           operation: Parse,
@@ -217,7 +223,7 @@ test("InvalidJsonStruct error", t => {
       operation: SerializeToUnknown,
       path: S.Path.empty,
     })->S.Error.message,
-    `Failed serializing at root. Reason: The schema Option(Literal(true)) is not compatible with JSON`,
+    `Failed serializing at root. Reason: The schema Option(true) is not compatible with JSON`,
     (),
   )
 })

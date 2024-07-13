@@ -17,8 +17,8 @@ module Common = {
     t->U.assertErrorResult(
       invalid->S.parseAnyWith(schema),
       {
-        code: InvalidLiteral({
-          expected: S.Literal.parse(("bar", true)),
+        code: InvalidType({
+          expected: S.literal(("bar", true))->S.toUnknown,
           received: invalid,
         }),
         operation: Parse,
@@ -39,8 +39,8 @@ module Common = {
     t->U.assertErrorResult(
       invalid->S.serializeToUnknownWith(schema),
       {
-        code: InvalidLiteral({
-          expected: S.Literal.parse(("bar", true)),
+        code: InvalidType({
+          expected: S.literal(("bar", true))->S.toUnknown,
           received: invalid->U.castAnyToUnknown,
         }),
         operation: SerializeToUnknown,
@@ -55,8 +55,8 @@ module Common = {
     t->U.assertErrorResult(
       %raw(`{0: "bar",1:true}`)->S.parseAnyWith(schema),
       {
-        code: InvalidLiteral({
-          expected: S.Literal.parse(("bar", true)),
+        code: InvalidType({
+          expected: S.literal(("bar", true))->S.toUnknown,
           received: %raw(`{0: "bar",1:true}`),
         }),
         operation: Parse,
@@ -71,8 +71,8 @@ module Common = {
     t->U.assertErrorResult(
       %raw(`["bar", true, false]`)->S.parseAnyWith(schema),
       {
-        code: InvalidLiteral({
-          expected: S.Literal.parse(("bar", true)),
+        code: InvalidType({
+          expected: S.literal(("bar", true))->S.toUnknown,
           received: %raw(`["bar", true, false]`),
         }),
         operation: Parse,

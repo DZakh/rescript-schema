@@ -5,11 +5,11 @@ test("Name of primitive schema", t => {
 })
 
 test("Name of Literal schema", t => {
-  t->Assert.deepEqual(S.literal(123)->S.name, "Literal(123)", ())
+  t->Assert.deepEqual(S.literal(123)->S.name, "123", ())
 })
 
 test("Name of Literal object schema", t => {
-  t->Assert.deepEqual(S.literal({"abc": 123})->S.name, `Literal({"abc":123})`, ())
+  t->Assert.deepEqual(S.literal({"abc": 123})->S.name, `{"abc":123}`, ())
 })
 
 test("Name of Array schema", t => {
@@ -29,11 +29,7 @@ test("Name of Null schema", t => {
 })
 
 test("Name of Union schema", t => {
-  t->Assert.deepEqual(
-    S.union([S.string, S.literal("foo")])->S.name,
-    `Union(String, Literal("foo"))`,
-    (),
-  )
+  t->Assert.deepEqual(S.union([S.string, S.literal("foo")])->S.name, `Union(String, "foo")`, ())
 })
 
 test("Name of Object schema", t => {

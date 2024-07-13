@@ -66,7 +66,7 @@ test("Parses when both schemas misses parser and have the same type", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(typeof i!=="string"){e[0](i)}else{e[3]([e[1],e[2],])}return i}`,
+    `i=>{if(typeof i!=="string"){e[2](i)}else{try{throw e[0]}catch(e0){try{throw e[1]}catch(e1){e[3]([e0,e1,])}}}return i}`,
   )
 })
 
@@ -100,7 +100,7 @@ test("Parses when both schemas misses parser and have different types", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(i!=="apple"){if(typeof i!=="string"){e[0](i)}else{throw e[1]}}else{throw e[3]}return i}`,
+    `i=>{if(i!=="apple"){if(typeof i!=="string"){e[3](i)}else{throw e[2]}}else{throw e[1]}return i}`,
   )
 })
 
@@ -141,7 +141,7 @@ test("Parses when second struct misses parser", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(i!=="apple"){if(typeof i!=="string"){e[0](i)}else{throw e[1]}}else{if(i!=="apple"){e[2](i)}}return i}`,
+    `i=>{if(i!=="apple"){if(typeof i!=="string"){e[2](i)}else{throw e[1]}}else{if(i!=="apple"){e[0](i)}}return i}`,
   )
 })
 
@@ -232,24 +232,24 @@ module Advanced = {
       {
         code: InvalidUnion([
           U.error({
-            code: InvalidLiteral({
-              expected: S.Literal.parse("circle"),
+            code: InvalidType({
+              expected: S.literal("circle")->S.toUnknown,
               received: "oval"->Obj.magic,
             }),
             operation: Parse,
             path: S.Path.fromArray(["kind"]),
           }),
           U.error({
-            code: InvalidLiteral({
-              expected: S.Literal.parse("square"),
+            code: InvalidType({
+              expected: S.literal("square")->S.toUnknown,
               received: "oval"->Obj.magic,
             }),
             operation: Parse,
             path: S.Path.fromArray(["kind"]),
           }),
           U.error({
-            code: InvalidLiteral({
-              expected: S.Literal.parse("triangle"),
+            code: InvalidType({
+              expected: S.literal("triangle")->S.toUnknown,
               received: "oval"->Obj.magic,
             }),
             operation: Parse,
@@ -274,24 +274,24 @@ module Advanced = {
       {
         code: InvalidUnion([
           U.error({
-            code: InvalidLiteral({
-              expected: S.Literal.parse("circle"),
+            code: InvalidType({
+              expected: S.literal("circle")->S.toUnknown,
               received: "oval"->Obj.magic,
             }),
             operation: Parse,
             path: S.Path.fromArray(["kind"]),
           }),
           U.error({
-            code: InvalidLiteral({
-              expected: S.Literal.parse("square"),
+            code: InvalidType({
+              expected: S.literal("square")->S.toUnknown,
               received: "oval"->Obj.magic,
             }),
             operation: Parse,
             path: S.Path.fromArray(["kind"]),
           }),
           U.error({
-            code: InvalidLiteral({
-              expected: S.Literal.parse("triangle"),
+            code: InvalidType({
+              expected: S.literal("triangle")->S.toUnknown,
               received: "oval"->Obj.magic,
             }),
             operation: Parse,
@@ -339,16 +339,16 @@ module Advanced = {
       {
         code: InvalidUnion([
           U.error({
-            code: InvalidLiteral({
-              expected: S.Literal.parse("Circle"),
+            code: InvalidType({
+              expected: S.literal("Circle")->S.toUnknown,
               received: "Triangle"->Obj.magic,
             }),
             operation: SerializeToUnknown,
             path: S.Path.fromArray(["TAG"]),
           }),
           U.error({
-            code: InvalidLiteral({
-              expected: S.Literal.parse("Square"),
+            code: InvalidType({
+              expected: S.literal("Square")->S.toUnknown,
               received: "Triangle"->Obj.magic,
             }),
             operation: SerializeToUnknown,
@@ -405,7 +405,7 @@ module Advanced = {
     t->U.assertCompiledCode(
       ~schema=shapeSchema,
       ~op=#Parse,
-      `i=>{let v2=i;if(!i||i.constructor!==Object){e[0](i)}else{try{let v0=i["kind"],v1=i["radius"];if(v0!=="circle"){e[1](v0)}if(typeof v1!=="number"||Number.isNaN(v1)){e[2](v1)}v2={"TAG":e[3],"radius":v1,}}catch(e0){try{let v3=i["kind"],v4=i["x"];if(v3!=="square"){e[4](v3)}if(typeof v4!=="number"||Number.isNaN(v4)){e[5](v4)}v2={"TAG":e[6],"x":v4,}}catch(e1){try{let v5=i["kind"],v6=i["x"],v7=i["y"];if(v5!=="triangle"){e[7](v5)}if(typeof v6!=="number"||Number.isNaN(v6)){e[8](v6)}if(typeof v7!=="number"||Number.isNaN(v7)){e[9](v7)}v2={"TAG":e[10],"x":v6,"y":v7,}}catch(e2){e[11]([e0,e1,e2,])}}}}return v2}`,
+      `i=>{let v2=i;if(!i||i.constructor!==Object){e[10](i)}else{try{let v0=i["kind"],v1=i["radius"];if(v0!=="circle"){e[0](v0)}if(typeof v1!=="number"||Number.isNaN(v1)){e[1](v1)}v2={"TAG":e[2],"radius":v1,}}catch(e0){try{let v3=i["kind"],v4=i["x"];if(v3!=="square"){e[3](v3)}if(typeof v4!=="number"||Number.isNaN(v4)){e[4](v4)}v2={"TAG":e[5],"x":v4,}}catch(e1){try{let v5=i["kind"],v6=i["x"],v7=i["y"];if(v5!=="triangle"){e[6](v5)}if(typeof v6!=="number"||Number.isNaN(v6)){e[7](v6)}if(typeof v7!=="number"||Number.isNaN(v7)){e[8](v7)}v2={"TAG":e[9],"x":v6,"y":v7,}}catch(e2){e[11]([e0,e1,e2,])}}}}return v2}`,
     )
   })
 
@@ -441,7 +441,7 @@ test("Compiled parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(i!==0){if(i!==1){e[0](i)}else{if(i!==1){e[1](i)}}}else{if(i!==0){e[2](i)}}return i}`,
+    `i=>{if(i!==0){if(i!==1){e[2](i)}else{if(i!==1){e[1](i)}}}else{if(i!==0){e[0](i)}}return i}`,
   )
 })
 
@@ -454,7 +454,7 @@ test("Compiled async parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{let v0=i;if(i!==0){if(i!==1){e[0](i)}else{if(i!==1){e[1](i)}}}else{if(i!==0){e[2](i)}v0=e[3](i)}return Promise.resolve(v0)}`,
+    `i=>{let v0=i;if(i!==0){if(i!==1){e[3](i)}else{if(i!==1){e[2](i)}}}else{if(i!==0){e[0](i)}v0=e[1](i)}return Promise.resolve(v0)}`,
   )
 })
 

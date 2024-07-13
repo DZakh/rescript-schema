@@ -390,7 +390,7 @@ test(`Serializes constant fields before registered fields`, t => {
   t->U.assertErrorResult(
     {"constant": false, "field": false}->S.serializeToUnknownWith(schema),
     {
-      code: InvalidLiteral({expected: S.Literal.parse(true), received: Obj.magic(false)}),
+      code: InvalidType({expected: S.literal(true)->S.toUnknown, received: Obj.magic(false)}),
       operation: SerializeToUnknown,
       path: S.Path.fromArray(["constant"]),
     },

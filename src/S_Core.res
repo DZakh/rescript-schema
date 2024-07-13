@@ -331,7 +331,6 @@ and errorCode =
   | OperationFailed(string)
   | InvalidOperation({description: string})
   | InvalidType({expected: schema<unknown>, received: unknown})
-  | InvalidLiteral({expected: literal, received: unknown})
   | ExcessField(string)
   | InvalidUnion(array<error>)
   | UnexpectedAsync
@@ -1695,8 +1694,8 @@ let literal = value => {
       b.code ++
       `if(${b->internalLiteral.filterBuilder(~inputVar, ~literal)}){${b->B.failWithArg(
           ~path,
-          input => InvalidLiteral({
-            expected: literal,
+          input => InvalidType({
+            expected: selfSchema,
             received: input,
           }),
           inputVar,
@@ -1704,7 +1703,7 @@ let literal = value => {
     input
   })
   make(
-    ~name=() => `Literal(${literal->Literal.toString})`,
+    ~name=() => literal->Literal.toString,
     ~metadataMap=Metadata.Map.empty,
     ~rawTagged=Literal(literal),
     ~parseOperationBuilder=operationBuilder,
@@ -2074,13 +2073,14 @@ module Object = {
         }
       } else {
         let value = definition->Definition.toConstant
+        let schema = literal(value) // FIXME: Use it more actively
         let itemInputVar = `${inputVar}${outputPath}`
         ctx.discriminantCode =
           ctx.discriminantCode ++
           `if(${itemInputVar}!==${b->B.embed(value)}){${b->B.failWithArg(
               ~path=path->Path.concat(outputPath),
-              input => InvalidLiteral({
-                expected: value->Literal.parse,
+              input => InvalidType({
+                expected: schema,
                 received: input,
               }),
               itemInputVar,
@@ -2357,14 +2357,15 @@ module Variant = {
                   maybeOutputRef.contents
                 } else {
                   let constant = definition->Definition.toConstant
+                  let schema = literal(constant) // FIXME: Use it more actively
                   let constantVal = valuePath === "" ? input : b->B.val(`${inputVar}${valuePath}`)
                   let constantVar = b->B.Val.var(constantVal)
                   b.code =
                     b.code ++
                     `if(${constantVar}!==${b->B.embed(constant)}){${b->B.failWithArg(
                         ~path=path->Path.concat(valuePath),
-                        input => InvalidLiteral({
-                          expected: constant->Literal.parse,
+                        input => InvalidType({
+                          expected: schema,
                           received: input,
                         }),
                         constantVar,
@@ -2843,9 +2844,10 @@ module Tuple = {
 }
 
 module Union = {
-  let parseSameType = (b, ~schemas, ~input, ~output, ~path) => {
+  @inline
+  let parseSameType = (b, ~parsers, ~path) => {
     let rec loopSchemas = (idx, errorCodes) => {
-      if idx >= schemas->Js.Array2.length {
+      if idx === parsers->Js.Array2.length {
         b.code =
           b.code ++
           b->B.failWithArg(
@@ -2856,23 +2858,12 @@ module Union = {
             `[${errorCodes}]`,
           )
       } else {
-        let prevCode = b.code
-        let schema = schemas->Js.Array2.unsafe_get(idx)
+        let parserCode = parsers->Js.Array2.unsafe_get(idx)
         let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
 
-        try {
-          b.code = b.code ++ `try{`
-          let bb = b->B.scope
-          let itemOutput = bb->B.parse(~schema, ~input, ~path=Path.empty)
-          b.code = b.code ++ bb->B.allocateScope
-          b.code = b.code ++ `${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
-          loopSchemas(idx + 1, errorCodes ++ errorVar ++ ",")
-          b.code = b.code ++ "}"
-        } catch {
-        | exn =>
-          b.code = prevCode
-          loopSchemas(idx + 1, errorCodes ++ b->B.embed(exn->InternalError.getOrRethrow) ++ ",")
-        }
+        b.code = b.code ++ `try{${parserCode}}catch(${errorVar}){`
+        loopSchemas(idx + 1, errorCodes ++ errorVar ++ ",")
+        b.code = b.code ++ "}"
       }
     }
     loopSchemas(0, "")
@@ -2892,8 +2883,9 @@ module Union = {
         ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
           let schemas = selfSchema->classify->unsafeGetVariantPayload
           let inputVar = b->B.Val.var(input)
+          let output = b->B.val(inputVar)
 
-          let groupsByTypeFilter = Js.Dict.empty()
+          let prsersByTypeFilter = Js.Dict.empty()
           let typeFilters = []
           for idx in 0 to schemas->Js.Array2.length - 1 {
             let schema = schemas->Js.Array2.unsafe_get(idx)
@@ -2906,24 +2898,27 @@ module Union = {
               | _ => "false"
               }
             }
-            switch groupsByTypeFilter->Js.Dict.get(typeFilterCode) {
-            | Some(schemas) => schemas->Js.Array2.push(schema)->ignore
+            let parserCode = try {
+              let bb = b->B.scope
+              let schemaOutput = bb->B.parse(~schema, ~input, ~path=Path.empty)
+              if schemaOutput !== input {
+                bb.code = bb.code ++ bb->B.Val.set(output, schemaOutput)
+              }
+              bb->B.allocateScope
+            } catch {
+            | exn => "throw " ++ b->B.embed(exn->InternalError.getOrRethrow)
+            }
+            switch prsersByTypeFilter->Js.Dict.get(typeFilterCode) {
+            | Some(parsers) => parsers->Js.Array2.push(parserCode)->ignore
             | None => {
                 typeFilters->Js.Array2.push(typeFilterCode)->ignore
-                groupsByTypeFilter->Js.Dict.set(typeFilterCode, [schema])
+                prsersByTypeFilter->Js.Dict.set(typeFilterCode, [parserCode])
               }
             }
           }
 
-          let output = b->B.val(inputVar)
-
           let rec loopTypeFilters = idx => {
-            let isLastItem = idx === typeFilters->Js.Array2.length - 1
-            let typeFilterCode = typeFilters->Js.Array2.unsafe_get(idx)
-            let schemas = groupsByTypeFilter->Js.Dict.unsafeGet(typeFilterCode)
-
-            b.code = b.code ++ `if(${typeFilterCode}){`
-            if isLastItem {
+            if idx === typeFilters->Js.Array2.length {
               b.code =
                 b.code ++
                 b->B.failWithArg(
@@ -2935,23 +2930,20 @@ module Union = {
                   inputVar,
                 )
             } else {
+              let typeFilterCode = typeFilters->Js.Array2.unsafe_get(idx)
+              let parsers = prsersByTypeFilter->Js.Dict.unsafeGet(typeFilterCode)
+
+              b.code = b.code ++ `if(${typeFilterCode}){`
               loopTypeFilters(idx + 1)
-            }
-            b.code = b.code ++ `}else{`
-            switch schemas {
-            | [schema] =>
-              let prevCode = b.code
-              try {
-                let schemaOutput = b->B.parse(~schema, ~input, ~path)
-                if schemaOutput !== input {
-                  b.code = b.code ++ b->B.Val.set(output, schemaOutput)
-                }
-              } catch {
-              | exn => b.code = prevCode ++ "throw " ++ b->B.embed(exn->InternalError.getOrRethrow)
+              switch parsers {
+              // | [""] => () TODO: Move literal check to type filter
+              | [parserCode] => b.code = b.code ++ `}else{` ++ parserCode
+              | parsers =>
+                b.code = b.code ++ `}else{`
+                parseSameType(b, ~parsers, ~path)
               }
-            | schemas => parseSameType(b, ~schemas, ~input, ~output, ~path)
+              b.code = b.code ++ `}`
             }
-            b.code = b.code ++ `}`
           }
           loopTypeFilters(0)
 
@@ -3247,10 +3239,6 @@ module Error = {
       `Encountered disallowed excess key ${fieldName->Stdlib.Inlined.Value.fromString} on an object`
     | InvalidType({expected, received}) =>
       `Expected ${expected.name()}, received ${received->Literal.parse->Literal.toString}`
-    | InvalidLiteral({expected, received}) =>
-      `Expected ${expected->Literal.toString}, received ${received
-        ->Literal.parse
-        ->Literal.toString}`
     | InvalidJsonStruct(schema) => `The schema ${schema.name()} is not compatible with JSON`
     | InvalidUnion(errors) => {
         let lineBreak = `\n${" "->Js.String2.repeat(nestedLevel * 2)}`

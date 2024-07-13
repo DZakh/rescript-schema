@@ -35,7 +35,7 @@ test("Fails to serialize when can't unwrap the value from variant", t => {
   t->U.assertErrorResult(
     Error("Hello world!")->S.serializeToUnknownWith(schema),
     {
-      code: InvalidLiteral({expected: S.Literal.parse("Ok"), received: "Error"->Obj.magic}),
+      code: InvalidType({expected: S.literal("Ok")->S.toUnknown, received: "Error"->Obj.magic}),
       operation: SerializeToUnknown,
       path: S.Path.fromLocation("TAG"),
     },

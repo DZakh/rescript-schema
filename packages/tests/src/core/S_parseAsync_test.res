@@ -524,17 +524,17 @@ module Union = {
   //         {
   //           code: InvalidUnion([
   //             U.error({
-  //               code: InvalidLiteral({expected: S.Literal.parse(1.), received: input}),
+  //               code: InvalidType({expected: S.literal(1.), received: input})->S.toUnknown,
   //               path: S.Path.empty,
   //               operation: ParseAsync,
   //             }),
   //             U.error({
-  //               code: InvalidLiteral({expected: S.Literal.parse(2.), received: input}),
+  //               code: InvalidType({expected: S.literal(2.), received: input})->S.toUnknown,
   //               path: S.Path.empty,
   //               operation: ParseAsync,
   //             }),
   //             U.error({
-  //               code: InvalidLiteral({expected: S.Literal.parse(3.), received: input}),
+  //               code: InvalidType({expected: S.literal(3.), received: input})->S.toUnknown,
   //               path: S.Path.empty,
   //               operation: ParseAsync,
   //             }),

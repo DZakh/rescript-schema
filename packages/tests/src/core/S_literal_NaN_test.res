@@ -19,7 +19,10 @@ module Common = {
     t->U.assertErrorResult(
       invalidTypeAny->S.parseAnyWith(schema),
       {
-        code: InvalidLiteral({expected: S.Literal.parse(%raw(`NaN`)), received: invalidTypeAny}),
+        code: InvalidType({
+          expected: S.literal(%raw(`NaN`))->S.toUnknown,
+          received: invalidTypeAny,
+        }),
         operation: Parse,
         path: S.Path.empty,
       },
@@ -38,7 +41,7 @@ module Common = {
     t->U.assertErrorResult(
       invalidValue->S.serializeToUnknownWith(schema),
       {
-        code: InvalidLiteral({expected: S.Literal.parse(%raw(`NaN`)), received: invalidValue}),
+        code: InvalidType({expected: S.literal(%raw(`NaN`))->S.toUnknown, received: invalidValue}),
         operation: SerializeToUnknown,
         path: S.Path.empty,
       },

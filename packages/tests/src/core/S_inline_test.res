@@ -413,16 +413,14 @@ test("Supports Tuple with 4 items", t => {
 
 test("Supports Union", t => {
   let schema = S.union([S.literal(#yes), S.literal(#no)])
-  let schemaInlineResult = S.union([
-    S.literal(%raw(`"yes"`))->S.variant(v => #"Literal(\"yes\")"(v)),
-    S.literal(%raw(`"no"`))->S.variant(v => #"Literal(\"no\")"(v)),
+  let _schemaInlineResult = S.union([
+    S.literal(%raw(`"yes"`))->S.variant(v => #"\"yes\""(v)),
+    S.literal(%raw(`"no"`))->S.variant(v => #"\"no\""(v)),
   ])
-
-  schemaInlineResult->(U.magic: S.t<[> #"Literal(\"yes\")"('a) | #"Literal(\"no\")"('b)]> => unit)
 
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.union([S.literal(%raw(\`"yes"\`))->S.variant(v => #"Literal(\\"yes\\")"(v)), S.literal(%raw(\`"no"\`))->S.variant(v => #"Literal(\\"no\\")"(v))])`,
+    `S.union([S.literal(%raw(\`"yes"\`))->S.variant(v => #"\\"yes\\""(v)), S.literal(%raw(\`"no"\`))->S.variant(v => #"\\"no\\""(v))])`,
     (),
   )
 })

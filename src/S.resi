@@ -72,7 +72,6 @@ and errorCode =
   | OperationFailed(string)
   | InvalidOperation({description: string})
   | InvalidType({expected: schema<unknown>, received: unknown})
-  | InvalidLiteral({expected: literal, received: unknown})
   | ExcessField(string)
   | InvalidUnion(array<error>)
   | UnexpectedAsync

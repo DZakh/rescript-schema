@@ -30,8 +30,8 @@ module Common = {
     t->U.assertErrorResult(
       invalid->S.parseAnyWith(schema),
       {
-        code: InvalidLiteral({
-          expected: S.Literal.parse(Dict.fromArray([("foo", "bar")])),
+        code: InvalidType({
+          expected: S.literal(Dict.fromArray([("foo", "bar")]))->S.toUnknown,
           received: invalid,
         }),
         operation: Parse,
@@ -52,8 +52,8 @@ module Common = {
     t->U.assertErrorResult(
       invalid->S.serializeToUnknownWith(schema),
       {
-        code: InvalidLiteral({
-          expected: S.Literal.parse(Dict.fromArray([("foo", "bar")])),
+        code: InvalidType({
+          expected: S.literal(Dict.fromArray([("foo", "bar")]))->S.toUnknown,
           received: invalid->U.castAnyToUnknown,
         }),
         operation: SerializeToUnknown,
@@ -68,8 +68,8 @@ module Common = {
     t->U.assertErrorResult(
       %raw(`null`)->S.parseAnyWith(schema),
       {
-        code: InvalidLiteral({
-          expected: S.Literal.parse(Dict.fromArray([("foo", "bar")])),
+        code: InvalidType({
+          expected: S.literal(Dict.fromArray([("foo", "bar")]))->S.toUnknown,
           received: %raw(`null`),
         }),
         operation: Parse,
@@ -84,8 +84,8 @@ module Common = {
     t->U.assertErrorResult(
       %raw(`{"foo": "bar","excess":true}`)->S.parseAnyWith(schema),
       {
-        code: InvalidLiteral({
-          expected: S.Literal.parse(Dict.fromArray([("foo", "bar")])),
+        code: InvalidType({
+          expected: S.literal(Dict.fromArray([("foo", "bar")]))->S.toUnknown,
           received: %raw(`{"foo": "bar","excess": true}`),
         }),
         operation: Parse,
@@ -100,8 +100,8 @@ module Common = {
     t->U.assertErrorResult(
       makeNotPlainValue()->S.parseAnyWith(schema),
       {
-        code: InvalidLiteral({
-          expected: S.Literal.parse(Dict.fromArray([("foo", "bar")])),
+        code: InvalidType({
+          expected: S.literal(Dict.fromArray([("foo", "bar")]))->S.toUnknown,
           received: makeNotPlainValue()->U.castAnyToUnknown,
         }),
         operation: Parse,

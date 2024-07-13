@@ -25,7 +25,7 @@ test("Doesn't affect serializing in any way", t => {
   t->U.assertErrorResult(
     "abc"->S.serializeToUnknownWith(schema),
     {
-      code: InvalidLiteral({received: "abc"->Obj.magic, expected: S.Literal.parse("123")}),
+      code: InvalidType({received: "abc"->Obj.magic, expected: S.literal("123")->S.toUnknown}),
       operation: SerializeToUnknown,
       path: S.Path.empty,
     },
@@ -73,7 +73,7 @@ test("Can use s.fail inside of S.catch", t => {
   t->U.assertErrorResult(
     "1"->S.serializeToUnknownWith(schema),
     {
-      code: InvalidLiteral({expected: S.Literal.parse("0"), received: "1"->Obj.magic}),
+      code: InvalidType({expected: S.literal("0")->S.toUnknown, received: "1"->Obj.magic}),
       operation: SerializeToUnknown,
       path: S.Path.empty,
     },

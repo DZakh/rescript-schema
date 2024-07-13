@@ -18,6 +18,8 @@
 - Removed `parseAsyncInStepsWith` and `parseAnyAsyncInStepsWith` to reduce internal library complexity. Let me know if you need it. I can re-implement it in a future version in a simpler way.
 - Refactored parse async. Fixed some bugs and made it more performant.
 - Improved performance and errors of S.union schema
+- Removed `InvalidLiteral` error in favor of `InvalidType`
+- Changed default `name` of `S.literal` schema. `Literal(<value>)` is now `<value>`
 
 // TODO:
 

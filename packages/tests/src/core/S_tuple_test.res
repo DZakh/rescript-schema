@@ -68,7 +68,7 @@ test("Fails to parse tuple with holes", t => {
   t->U.assertErrorResult(
     %raw(`["value", "smth", 123]`)->S.parseAnyWith(schema),
     {
-      code: InvalidLiteral({expected: S.Literal.parse(None), received: %raw(`"smth"`)}),
+      code: InvalidType({expected: S.literal(None)->S.toUnknown, received: %raw(`"smth"`)}),
       operation: Parse,
       path: S.Path.fromLocation("1"),
     },
@@ -144,7 +144,7 @@ test("Fails to serialize tuple transformed to variant", t => {
   t->U.assertErrorResult(
     Error("foo")->S.serializeToUnknownWith(schema),
     {
-      code: InvalidLiteral({expected: S.Literal.parse("Ok"), received: %raw(`"Error"`)}),
+      code: InvalidType({expected: S.literal("Ok")->S.toUnknown, received: %raw(`"Error"`)}),
       operation: SerializeToUnknown,
       path: S.Path.fromLocation("TAG"),
     },
@@ -202,7 +202,7 @@ test("Tuple schema parsing checks order", t => {
   t->U.assertErrorResult(
     %raw(`["value", "wrong"]`)->S.parseAnyWith(schema),
     {
-      code: InvalidLiteral({expected: S.Literal.parse("value"), received: %raw(`"wrong"`)}),
+      code: InvalidType({expected: S.literal("value")->S.toUnknown, received: %raw(`"wrong"`)}),
       operation: Parse,
       path: S.Path.fromLocation("1"),
     },

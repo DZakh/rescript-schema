@@ -19,7 +19,7 @@ module Common = {
     t->U.assertErrorResult(
       invalidTypeAny->S.parseAnyWith(schema),
       {
-        code: InvalidLiteral({expected: S.Literal.parse(None), received: invalidTypeAny}),
+        code: InvalidType({expected: S.literal(None)->S.toUnknown, received: invalidTypeAny}),
         operation: Parse,
         path: S.Path.empty,
       },
@@ -38,7 +38,7 @@ module Common = {
     t->U.assertErrorResult(
       invalidValue->S.serializeToUnknownWith(schema),
       {
-        code: InvalidLiteral({expected: S.Literal.parse(None), received: invalidValue}),
+        code: InvalidType({expected: S.literal(None)->S.toUnknown, received: invalidValue}),
         operation: SerializeToUnknown,
         path: S.Path.empty,
       },
