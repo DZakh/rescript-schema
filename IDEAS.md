@@ -25,12 +25,13 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 ## v8
 
 - Make S.serializeToJsonString super fast
-- Rename `InvalidJsonStruct` error, since after `rescript-struct`->`rescript-schema` it became misleading
 - Add S.bigint
 - Add S.promise
 
 ## v???
 
+- Codegen type
+- Codegen schema using type
 - Don't recreate the object, when nothing should be transformed - stop reallocate objects without transformations
 - S.validateWith
 - Make `error.reason` tree-shakeable

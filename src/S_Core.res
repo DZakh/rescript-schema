@@ -338,7 +338,7 @@ and errorCode =
   | ExcessField(string)
   | InvalidUnion(array<error>)
   | UnexpectedAsync
-  | InvalidJsonStruct(schema<unknown>)
+  | InvalidJsonSchema(schema<unknown>)
 @tag("success")
 and jsResult<'value> = | @as(true) Success({value: 'value}) | @as(false) Failure({error: error})
 
@@ -613,7 +613,7 @@ module Builder = {
 
     let registerInvalidJson = (b, ~selfSchema, ~path) => {
       if b.global.operation === SerializeToJson {
-        b->raise(~path, ~code=InvalidJsonStruct(selfSchema))
+        b->raise(~path, ~code=InvalidJsonSchema(selfSchema))
       }
     }
 
@@ -1257,7 +1257,7 @@ let initialSerializeOrRaise = unknown => {
   if schema.rawTagged->unsafeGetVarianTag === "Option" {
     Stdlib.Exn.raiseAny(
       InternalError.make(
-        ~code=InvalidJsonStruct(schema),
+        ~code=InvalidJsonSchema(schema),
         ~operation=SerializeToJson,
         ~path=Path.empty,
       ),
@@ -2503,7 +2503,7 @@ module JsonString = {
         let prevOperation = b.global.operation
         b.global.operation = SerializeToJson
         if schema.rawTagged->unsafeGetVarianTag === "Option" {
-          b->B.raise(~code=InvalidJsonStruct(schema), ~path=Path.empty)
+          b->B.raise(~code=InvalidJsonSchema(schema), ~path=Path.empty)
         }
         let output =
           b->B.val(
@@ -3242,7 +3242,7 @@ module Error = {
       `Encountered disallowed excess key ${fieldName->Stdlib.Inlined.Value.fromString} on an object`
     | InvalidType({expected, received}) =>
       `Expected ${expected.name()}, received ${received->Literal.parse->Literal.toString}`
-    | InvalidJsonStruct(schema) => `The schema ${schema.name()} is not compatible with JSON`
+    | InvalidJsonSchema(schema) => `The schema ${schema.name()} is not compatible with JSON`
     | InvalidUnion(errors) => {
         let lineBreak = `\n${" "->Js.String2.repeat(nestedLevel * 2)}`
         let reasonsDict = Js.Dict.empty()

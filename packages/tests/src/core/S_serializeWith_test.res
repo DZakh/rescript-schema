@@ -74,7 +74,7 @@ test("Fails to serialize Option schema", t => {
   t->U.assertErrorResult(
     None->S.serializeWith(schema),
     {
-      code: InvalidJsonStruct(schema->S.toUnknown),
+      code: InvalidJsonSchema(schema->S.toUnknown),
       operation: SerializeToJson,
       path: S.Path.empty,
     },
@@ -86,7 +86,7 @@ test("Fails to serialize Undefined literal", t => {
   t->U.assertErrorResult(
     ()->S.serializeWith(schema),
     {
-      code: InvalidJsonStruct(schema->S.toUnknown),
+      code: InvalidJsonSchema(schema->S.toUnknown),
       operation: SerializeToJson,
       path: S.Path.empty,
     },
@@ -99,7 +99,7 @@ test("Fails to serialize Function literal", t => {
   t->U.assertErrorResult(
     fn->S.serializeWith(schema),
     {
-      code: InvalidJsonStruct(schema->S.toUnknown),
+      code: InvalidJsonSchema(schema->S.toUnknown),
       operation: SerializeToJson,
       path: S.Path.empty,
     },
@@ -112,7 +112,7 @@ test("Fails to serialize Object literal", t => {
   t->U.assertErrorResult(
     error->S.serializeWith(schema),
     {
-      code: InvalidJsonStruct(schema->S.toUnknown),
+      code: InvalidJsonSchema(schema->S.toUnknown),
       operation: SerializeToJson,
       path: S.Path.empty,
     },
@@ -125,7 +125,7 @@ test("Fails to serialize Symbol literal", t => {
   t->U.assertErrorResult(
     symbol->S.serializeWith(schema),
     {
-      code: InvalidJsonStruct(schema->S.toUnknown),
+      code: InvalidJsonSchema(schema->S.toUnknown),
       operation: SerializeToJson,
       path: S.Path.empty,
     },
@@ -138,7 +138,7 @@ test("Fails to serialize BigInt literal", t => {
   t->U.assertErrorResult(
     bigint->S.serializeWith(schema),
     {
-      code: InvalidJsonStruct(schema->S.toUnknown),
+      code: InvalidJsonSchema(schema->S.toUnknown),
       operation: SerializeToJson,
       path: S.Path.empty,
     },
@@ -151,7 +151,7 @@ test("Fails to serialize Dict literal with invalid field", t => {
   t->U.assertErrorResult(
     dict->S.serializeWith(schema),
     {
-      code: InvalidJsonStruct(schema->S.toUnknown),
+      code: InvalidJsonSchema(schema->S.toUnknown),
       operation: SerializeToJson,
       path: S.Path.empty,
     },
@@ -163,7 +163,7 @@ test("Fails to serialize NaN literal", t => {
   t->U.assertErrorResult(
     ()->S.serializeWith(schema),
     {
-      code: InvalidJsonStruct(schema->S.toUnknown),
+      code: InvalidJsonSchema(schema->S.toUnknown),
       operation: SerializeToJson,
       path: S.Path.empty,
     },
@@ -173,7 +173,7 @@ test("Fails to serialize NaN literal", t => {
 test("Fails to serialize Unknown schema", t => {
   t->U.assertErrorResult(
     Obj.magic(123)->S.serializeWith(S.unknown),
-    {code: InvalidJsonStruct(S.unknown), operation: SerializeToJson, path: S.Path.empty},
+    {code: InvalidJsonSchema(S.unknown), operation: SerializeToJson, path: S.Path.empty},
   )
 })
 
@@ -192,7 +192,7 @@ test("Fails to serialize object with invalid nested schema", t => {
   t->U.assertErrorResult(
     Obj.magic(true)->S.serializeWith(S.object(s => s.field("foo", S.unknown))),
     {
-      code: InvalidJsonStruct(S.unknown),
+      code: InvalidJsonSchema(S.unknown),
       operation: SerializeToJson,
       path: S.Path.empty,
     },
@@ -203,7 +203,7 @@ test("Fails to serialize tuple with invalid nested schema", t => {
   t->U.assertErrorResult(
     Obj.magic(true)->S.serializeWith(S.tuple1(S.unknown)),
     {
-      code: InvalidJsonStruct(S.unknown),
+      code: InvalidJsonSchema(S.unknown),
       operation: SerializeToJson,
       path: S.Path.empty,
     },
@@ -231,11 +231,11 @@ test("Fails to serialize union with invalid schemas", t => {
     {
       code: InvalidUnion([
         U.error({
-          code: InvalidJsonStruct(S.literal(%raw(`NaN`))),
+          code: InvalidJsonSchema(S.literal(%raw(`NaN`))),
           operation: Parse,
           path: S.Path.empty,
         }),
-        U.error({code: InvalidJsonStruct(S.unknown), operation: Parse, path: S.Path.empty}),
+        U.error({code: InvalidJsonSchema(S.unknown), operation: Parse, path: S.Path.empty}),
       ]),
       operation: SerializeToJson,
       path: S.Path.empty,

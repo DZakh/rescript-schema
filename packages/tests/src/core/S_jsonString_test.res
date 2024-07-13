@@ -40,7 +40,7 @@ test("Fails to serialize Option schema", t => {
   t->U.assertErrorResult(
     None->S.serializeToUnknownWith(schema),
     {
-      code: InvalidJsonStruct(S.option(S.bool)->S.toUnknown),
+      code: InvalidJsonSchema(S.option(S.bool)->S.toUnknown),
       operation: SerializeToJson,
       path: S.Path.empty,
     },
@@ -73,7 +73,7 @@ test(
     t->U.assertErrorResult(
       %raw(`"foo"`)->S.serializeToUnknownWith(S.jsonString(schema, ~space=2)),
       {
-        code: InvalidJsonStruct(S.unknown),
+        code: InvalidJsonSchema(S.unknown),
         operation: SerializeToJson,
         path: S.Path.empty,
       },

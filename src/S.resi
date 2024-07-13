@@ -75,7 +75,7 @@ and errorCode =
   | ExcessField(string)
   | InvalidUnion(array<error>)
   | UnexpectedAsync
-  | InvalidJsonStruct(schema<unknown>)
+  | InvalidJsonSchema(schema<unknown>)
 and operation =
   | Parse
   | ParseAsync

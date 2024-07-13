@@ -20,14 +20,12 @@
 - Improved performance and errors of S.union schema
 - Removed `InvalidLiteral` error in favor of `InvalidType`
 - Changed default `name` of `S.literal` schema. `Literal(<value>)` is now `<value>`
+- Renamed `InvalidJsonStruct` error, since after `rescript-struct`->`rescript-schema` it became misleading
 
 // TODO:
 
-- Codegen type
-- Codegen schema using type
 - Prepare for union refactoring
 - Release 7.0.2 with type check fix for recursive schema
 - Test GenType compatibility with d.ts
-- Clean up error tags
 - Set 8.0.x for rescript-schema in ppx deps
 - Update github ci to run on "v*.*.\*-patch"

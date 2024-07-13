@@ -216,10 +216,10 @@ test("Nested InvalidUnion error", t => {
   )
 })
 
-test("InvalidJsonStruct error", t => {
+test("InvalidJsonSchema error", t => {
   t->Assert.is(
     U.error({
-      code: InvalidJsonStruct(S.option(S.literal(true))->S.toUnknown),
+      code: InvalidJsonSchema(S.option(S.literal(true))->S.toUnknown),
       operation: SerializeToUnknown,
       path: S.Path.empty,
     })->S.Error.message,

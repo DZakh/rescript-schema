@@ -285,7 +285,7 @@ function effectCtx(b, selfSchema, path) {
 function registerInvalidJson(b, selfSchema, path) {
   if (b.g.o === "SerializeToJson") {
     return raise(b, {
-                TAG: "InvalidJsonStruct",
+                TAG: "InvalidJsonSchema",
                 _0: selfSchema
               }, path);
   }
@@ -837,7 +837,7 @@ function initialSerializeOrRaise(unknown) {
   var schema = this;
   if (schema.r.TAG === "Option") {
     throw new RescriptSchemaError({
-              TAG: "InvalidJsonStruct",
+              TAG: "InvalidJsonSchema",
               _0: schema
             }, "SerializeToJson", "");
   }
@@ -1720,7 +1720,7 @@ function factory$4(schema, spaceOpt) {
                 b.g.o = "SerializeToJson";
                 if (schema.r.TAG === "Option") {
                   raise(b, {
-                        TAG: "InvalidJsonStruct",
+                        TAG: "InvalidJsonSchema",
                         _0: schema
                       }, "");
                 }
@@ -2250,7 +2250,7 @@ function reason(error, nestedLevelOpt) {
             });
         var uniqueReasons = Object.keys(reasonsDict);
         return "Invalid union with following errors" + lineBreak + uniqueReasons.join(lineBreak);
-    case "InvalidJsonStruct" :
+    case "InvalidJsonSchema" :
         return "The schema " + reason$1._0.n() + " is not compatible with JSON";
     
   }
