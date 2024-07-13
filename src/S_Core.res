@@ -2843,45 +2843,37 @@ module Tuple = {
 }
 
 module Union = {
-  let genericParse = (b, ~schemas, ~input, ~output, ~path) => {
-    let codeEndRef = ref("")
-    let errorCodeRef = ref("")
-
-    // TODO: Add support for async
-    for idx in 0 to schemas->Js.Array2.length - 1 {
-      let prevCode = b.code
-      try {
+  let parseSameType = (b, ~schemas, ~input, ~output, ~path) => {
+    let rec loopSchemas = (idx, errorCodes) => {
+      if idx >= schemas->Js.Array2.length {
+        b.code =
+          b.code ++
+          b->B.failWithArg(
+            ~path,
+            internalErrors => {
+              InvalidUnion(internalErrors)
+            },
+            `[${errorCodes}]`,
+          )
+      } else {
+        let prevCode = b.code
         let schema = schemas->Js.Array2.unsafe_get(idx)
         let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
-        b.code = b.code ++ `try{`
-        let itemOutput = b->B.parseWithTypeCheck(~schema, ~input, ~path=Path.empty)
 
-        b.code = b.code ++ `${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
-        codeEndRef := codeEndRef.contents ++ "}"
-
-        errorCodeRef := errorCodeRef.contents ++ errorVar ++ ","
-      } catch {
-      | exn =>
-        errorCodeRef := errorCodeRef.contents ++ b->B.embed(exn->InternalError.getOrRethrow) ++ ","
-        b.code = prevCode
+        try {
+          b.code = b.code ++ `try{`
+          let itemOutput = b->B.parseWithTypeCheck(~schema, ~input, ~path=Path.empty)
+          b.code = b.code ++ `${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
+          loopSchemas(idx + 1, errorCodes ++ errorVar ++ ",")
+          b.code = b.code ++ "}"
+        } catch {
+        | exn =>
+          b.code = prevCode
+          loopSchemas(idx + 1, errorCodes ++ b->B.embed(exn->InternalError.getOrRethrow) ++ ",")
+        }
       }
     }
-
-    b.code =
-      b.code ++
-      b->B.failWithArg(
-        ~path,
-        internalErrors => {
-          InvalidUnion(internalErrors)
-        },
-        `[${errorCodeRef.contents}]`,
-      ) ++
-      codeEndRef.contents
-
-    let isAllSchemasBuilderFailed = codeEndRef.contents === ""
-    if isAllSchemasBuilderFailed {
-      b.code = b.code ++ ";"
-    }
+    loopSchemas(0, "")
   }
 
   let factory = schemas => {
@@ -2955,7 +2947,7 @@ module Union = {
               } catch {
               | exn => b.code = prevCode ++ "throw " ++ b->B.embed(exn->InternalError.getOrRethrow)
               }
-            | _ => genericParse(b, ~schemas, ~input, ~output, ~path)
+            | schemas => parseSameType(b, ~schemas, ~input, ~output, ~path)
             }
             b.code = b.code ++ `}`
           }

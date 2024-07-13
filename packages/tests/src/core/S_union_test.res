@@ -66,7 +66,7 @@ test("Parses when both schemas misses parser and have the same type", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(typeof i!=="string"){e[0](i)}else{e[5]([e[2],e[4],]);}return i}`,
+    `i=>{if(typeof i!=="string"){e[0](i)}else{e[5]([e[2],e[4],])}return i}`,
   )
 })
 

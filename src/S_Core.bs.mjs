@@ -1927,39 +1927,42 @@ function factory$7(definer) {
               }));
 }
 
-function genericParse(b, schemas, input, output, path) {
-  var codeEndRef = "";
-  var errorCodeRef = "";
-  for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
-    var prevCode = b.c;
-    try {
+function parseSameType(b, schemas, input, output, path) {
+  var loopSchemas = function (_idx, _errorCodes) {
+    while(true) {
+      var errorCodes = _errorCodes;
+      var idx = _idx;
+      if (idx >= schemas.length) {
+        b.c = b.c + failWithArg(b, path, (function (internalErrors) {
+                return {
+                        TAG: "InvalidUnion",
+                        _0: internalErrors
+                      };
+              }), "[" + errorCodes + "]");
+        return ;
+      }
+      var prevCode = b.c;
       var schema = schemas[idx];
       var errorVar = "e" + idx;
-      b.c = b.c + "try{";
-      var itemOutput = parseWithTypeCheck(b, schema, input, "");
-      b.c = b.c + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
-      codeEndRef = codeEndRef + "}";
-      errorCodeRef = errorCodeRef + errorVar + ",";
-    }
-    catch (raw_exn){
-      var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-      var value = getOrRethrow(exn);
-      errorCodeRef = errorCodeRef + ("e[" + (b.g.e.push(value) - 1) + "]") + ",";
-      b.c = prevCode;
-    }
-  }
-  b.c = b.c + failWithArg(b, path, (function (internalErrors) {
-          return {
-                  TAG: "InvalidUnion",
-                  _0: internalErrors
-                };
-        }), "[" + errorCodeRef + "]") + codeEndRef;
-  var isAllSchemasBuilderFailed = codeEndRef === "";
-  if (isAllSchemasBuilderFailed) {
-    b.c = b.c + ";";
-    return ;
-  }
-  
+      try {
+        b.c = b.c + "try{";
+        var itemOutput = parseWithTypeCheck(b, schema, input, "");
+        b.c = b.c + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
+        loopSchemas(idx + 1 | 0, errorCodes + errorVar + ",");
+        b.c = b.c + "}";
+        return ;
+      }
+      catch (raw_exn){
+        var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+        b.c = prevCode;
+        var value = getOrRethrow(exn);
+        _errorCodes = errorCodes + ("e[" + (b.g.e.push(value) - 1) + "]") + ",";
+        _idx = idx + 1 | 0;
+        continue ;
+      }
+    };
+  };
+  loopSchemas(0, "");
 }
 
 function factory$8(schemas) {
@@ -2022,7 +2025,7 @@ function factory$8(schemas) {
                     }
                     b.c = b.c + "}else{";
                     if (schemas.length !== 1) {
-                      genericParse(b, schemas, input, output, path);
+                      parseSameType(b, schemas, input, output, path);
                     } else {
                       var schema = schemas[0];
                       var prevCode = b.c;
