@@ -11,6 +11,10 @@ module Obj = {
 }
 
 module Stdlib = {
+  module Option = {
+    external unsafeUnwrap: option<'a> => 'a = "%identity"
+  }
+
   module Type = {
     type t = [#undefined | #object | #boolean | #number | #bigint | #string | #symbol | #function]
 
@@ -819,7 +823,6 @@ module Literal = {
   @inline
   let toString = literal => (literal->toInternal).string
 
-  // FIXME:
   let arrayFilterBuilder = (b, ~inputVar, ~literal) => {
     let items = (literal->toInternal).items->(Obj.magic: option<unknown> => array<internal>)
 
@@ -841,7 +844,6 @@ module Literal = {
       : "") ++ ")"
   }
 
-  // FIXME:
   let dictFilterBuilder = (b, ~inputVar, ~literal) => {
     let items = (literal->toInternal).items->(Obj.magic: option<unknown> => dict<internal>)
     let fields = items->Js.Dict.keys
@@ -2072,16 +2074,19 @@ module Object = {
           }
         }
       } else {
-        let value = definition->Definition.toConstant
-        let schema = literal(value) // FIXME: Use it more actively
+        let tag = definition->Definition.toConstant
+        let tagSchema = literal(tag)
         let itemInputVar = `${inputVar}${outputPath}`
         ctx.discriminantCode =
           ctx.discriminantCode ++
-          `if(${itemInputVar}!==${b->B.embed(value)}){${b->B.failWithArg(
+          `if(${(tagSchema.maybeTypeFilter->Stdlib.Option.unsafeUnwrap)(
+              b,
+              ~inputVar=itemInputVar,
+            )}){${b->B.failWithArg(
               ~path=path->Path.concat(outputPath),
-              input => InvalidType({
-                expected: schema,
-                received: input,
+              received => InvalidType({
+                expected: tagSchema,
+                received,
               }),
               itemInputVar,
             )}}`
@@ -2356,19 +2361,22 @@ module Variant = {
                   }
                   maybeOutputRef.contents
                 } else {
-                  let constant = definition->Definition.toConstant
-                  let schema = literal(constant) // FIXME: Use it more actively
-                  let constantVal = valuePath === "" ? input : b->B.val(`${inputVar}${valuePath}`)
-                  let constantVar = b->B.Val.var(constantVal)
+                  let tag = definition->Definition.toConstant
+                  let tagSchema = literal(tag)
+                  let tagVal = valuePath === "" ? input : b->B.val(`${inputVar}${valuePath}`)
+                  let tagInputVar = b->B.Val.var(tagVal)
                   b.code =
                     b.code ++
-                    `if(${constantVar}!==${b->B.embed(constant)}){${b->B.failWithArg(
+                    `if(${(tagSchema.maybeTypeFilter->Stdlib.Option.unsafeUnwrap)(
+                        b,
+                        ~inputVar=tagInputVar,
+                      )}){${b->B.failWithArg(
                         ~path=path->Path.concat(valuePath),
-                        input => InvalidType({
-                          expected: schema,
-                          received: input,
+                        received => InvalidType({
+                          expected: tagSchema,
+                          received,
                         }),
-                        constantVar,
+                        tagInputVar,
                       )}}`
                   Unregistered
                 }

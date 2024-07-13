@@ -1426,13 +1426,13 @@ function serializeOperationBuilder$1(b, input, selfSchema, path) {
       }
       return ;
     }
-    var schema$1 = literal(definition);
+    var tagSchema = literal(definition);
     var itemInputVar = inputVar + outputPath;
-    ctx.d = ctx.d + ("if(" + itemInputVar + "!==" + ("e[" + (b.g.e.push(definition) - 1) + "]") + "){" + failWithArg(b, path + outputPath, (function (input) {
+    ctx.d = ctx.d + ("if(" + tagSchema.f(b, itemInputVar) + "){" + failWithArg(b, path + outputPath, (function (received) {
               return {
                       TAG: "InvalidType",
-                      expected: schema$1,
-                      received: input
+                      expected: tagSchema,
+                      received: received
                     };
             }), itemInputVar) + "}");
   };
@@ -1642,16 +1642,16 @@ function factory$3(schema, definer) {
                       }
                       return maybeOutputRef;
                     }
-                    var schema = literal(definition);
-                    var constantVal = valuePath === "" ? input : val(b, inputVar + valuePath);
-                    var constantVar = $$var(b, constantVal);
-                    b.c = b.c + ("if(" + constantVar + "!==" + ("e[" + (b.g.e.push(definition) - 1) + "]") + "){" + failWithArg(b, path + valuePath, (function (input) {
+                    var tagSchema = literal(definition);
+                    var tagVal = valuePath === "" ? input : val(b, inputVar + valuePath);
+                    var tagInputVar = $$var(b, tagVal);
+                    b.c = b.c + ("if(" + tagSchema.f(b, tagInputVar) + "){" + failWithArg(b, path + valuePath, (function (received) {
                               return {
                                       TAG: "InvalidType",
-                                      expected: schema,
-                                      received: input
+                                      expected: tagSchema,
+                                      received: received
                                     };
-                            }), constantVar) + "}");
+                            }), tagInputVar) + "}");
                     return 0;
                   };
                   var output = definitionToValue(definition, "");

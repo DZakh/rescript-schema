@@ -131,7 +131,7 @@ test("Compiled code snapshot of variant applied to object", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Serialize,
-    `i=>{if(i["TAG"]!==e[0]){e[1](i["TAG"])}return {"foo":i["_0"],}}`,
+    `i=>{if(i["TAG"]!=="Ok"){e[0](i["TAG"])}return {"foo":i["_0"],}}`,
   )
 })
 
@@ -161,7 +161,7 @@ test("Compiled serialize code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Serialize,
-    `i=>{let v0=i["TAG"];if(v0!==e[0]){e[1](v0)}return i["_0"]}`,
+    `i=>{let v0=i["TAG"];if(v0!=="Ok"){e[0](v0)}return i["_0"]}`,
   )
 })
 
@@ -180,7 +180,7 @@ test(
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Serialize,
-      `i=>{let v0=e[2];if(i!==e[0]){e[1](i)}if(v0!==e[3]&&(!Array.isArray(v0)||v0.length!==2||v0[0]!==true||v0[1]!==12)){e[4](v0)}return v0}`,
+      `i=>{let v0=e[1];if(i!=="foo"){e[0](i)}if(v0!==e[2]&&(!Array.isArray(v0)||v0.length!==2||v0[0]!==true||v0[1]!==12)){e[3](v0)}return v0}`,
     )
   },
 )

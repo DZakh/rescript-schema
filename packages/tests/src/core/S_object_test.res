@@ -1163,7 +1163,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#Serialize,
-        `i=>{if(i["zoo"]!==e[0]){e[1](i["zoo"])}return {"tag":e[2],"FOO":i["foo"],"BAR":i["bar"],}}`,
+        `i=>{if(i["zoo"]!==1){e[0](i["zoo"])}return {"tag":e[1],"FOO":i["foo"],"BAR":i["bar"],}}`,
       )
     },
   )

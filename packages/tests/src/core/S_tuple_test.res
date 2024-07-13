@@ -267,7 +267,7 @@ module Compiled = {
     let schema = S.tuple(_ => ())
 
     // TODO: No need to do unit check ?
-    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{if(i!==e[0]){e[1](i)}return []}`)
+    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{if(i!==undefined){e[0](i)}return []}`)
   })
 
   test(
@@ -305,7 +305,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#Serialize,
-        `i=>{if(i["zoo"]!==e[0]){e[1](i["zoo"])}return [e[2],i["foo"],i["bar"],]}`,
+        `i=>{if(i["zoo"]!==1){e[0](i["zoo"])}return [e[1],i["foo"],i["bar"],]}`,
       )
     },
   )
