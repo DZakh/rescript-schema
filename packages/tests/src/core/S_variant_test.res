@@ -176,12 +176,9 @@ test(
   t => {
     let schema = S.literal((true, 12))->S.variant(_ => #foo)
 
-    // TODO: Can be simplified
-    t->U.assertCompiledCode(
-      ~schema,
-      ~op=#Serialize,
-      `i=>{let v0=e[1];if(i!=="foo"){e[0](i)}if(v0!==e[2]&&(!Array.isArray(v0)||v0.length!==2||v0[0]!==true||v0[1]!==12)){e[3](v0)}return v0}`,
-    )
+    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{if(i!=="foo"){e[1](i)}return e[0]}`)
+
+    t->Assert.deepEqual(#foo->S.serializeWith(schema), Ok(%raw(`[true, 12]`)), ())
   },
 )
 

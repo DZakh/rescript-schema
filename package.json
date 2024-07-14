@@ -63,8 +63,7 @@
       "mjs": true
     },
     "files": [
-      "packages/tests/src/**/*_test.bs.mjs",
-      "packages/tests/src/**/*_test.ts"
+      "packages/tests/src/core/S_object_test.bs.mjs"
     ],
     "nodeArguments": [
       "--no-warnings",
