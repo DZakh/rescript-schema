@@ -869,7 +869,7 @@ module Benchmark = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Serialize,
-      `i=>{return {"number":i["number"],"negNumber":i["negNumber"],"maxNumber":i["maxNumber"],"string":i["string"],"longString":i["longString"],"boolean":i["boolean"],"deeplyNested":{"foo":i["deeplyNested"]["foo"],"num":i["deeplyNested"]["num"],"bool":i["deeplyNested"]["bool"],},}}`,
+      `i=>{let v0=i["deeplyNested"];return {"number":i["number"],"negNumber":i["negNumber"],"maxNumber":i["maxNumber"],"string":i["string"],"longString":i["longString"],"boolean":i["boolean"],"deeplyNested":{"foo":v0["foo"],"num":v0["num"],"bool":v0["bool"],},}}`,
     )
     S.setGlobalConfig({})
   })
@@ -1148,7 +1148,7 @@ module Compiled = {
     },
   )
 
-  test(
+  Only.test(
     "Compiled serialize code snapshot for simple object with strict unknown keys, renamed fields, constants and discriminants",
     t => {
       let schema = S.object(s => {

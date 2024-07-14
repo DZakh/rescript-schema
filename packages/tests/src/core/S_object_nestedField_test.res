@@ -4,9 +4,9 @@ test("Has correct tagged type with nestedField called multiple times", t => {
   let schema = S.object(s =>
     {
       "foo": s.field("foo", S.string),
-      "bar": s.nestedField("nested", "bar", S.string),
-      "baz": s.nestedField("nested", "baz", S.string),
-      "baj": s.nestedField("nested", "baj", S.string),
+      "bar": s.nestedField(["nested", "bar"], S.string),
+      "baz": s.nestedField(["nested", "baz"], S.string),
+      "baj": s.nestedField(["nested", "baj"], S.string),
     }
   )
 
@@ -39,7 +39,7 @@ test("Fails to create schema with nestedField called additinally to non-object f
           {
             "foo": s.field("foo", S.string),
             "bar": s.field("nested", S.string),
-            "baz": s.nestedField("nested", "baz", S.string),
+            "baz": s.nestedField(["nested", "baz"], S.string),
           },
       )
     },
@@ -54,7 +54,7 @@ test("Fails to create schema with nestedField called additinally to non-object f
         s =>
           {
             "foo": s.field("foo", S.string),
-            "baz": s.nestedField("nested", "baz", S.string),
+            "baz": s.nestedField(["nested", "baz"], S.string),
             "bar": s.field("nested", S.string),
           },
       )
@@ -70,8 +70,8 @@ test("Successfully parses with nestedField used multiple times", t => {
   let schema = S.object(s =>
     {
       "foo": s.field("foo", S.string),
-      "bar": s.nestedField("nested", "bar", S.string),
-      "baz": s.nestedField("nested", "baz", S.string),
+      "bar": s.nestedField(["nested", "bar"], S.string),
+      "baz": s.nestedField(["nested", "baz"], S.string),
     }
   )
 
@@ -91,8 +91,8 @@ test("Successfully serializes with nestedField used multiple times", t => {
   let schema = S.object(s =>
     {
       "foo": s.field("foo", S.string),
-      "bar": s.nestedField("nested", "bar", S.string),
-      "baz": s.nestedField("nested", "baz", S.string),
+      "bar": s.nestedField(["nested", "bar"], S.string),
+      "baz": s.nestedField(["nested", "baz"], S.string),
     }
   )
 

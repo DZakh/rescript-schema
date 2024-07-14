@@ -43,7 +43,7 @@ let rec cleanUpSchema = schema => {
   ->Dict.toArray
   ->Array.forEach(((key, value)) => {
     switch key {
-    | "i" => ()
+    | "i" | "v" => ()
     // tagged
     | "definition" => ()
     | _ =>
@@ -95,7 +95,7 @@ let assertCompiledCode = (t, ~schema, ~op: [#Parse | #Serialize | #Assert], code
   t->Assert.is(compiledCode, code, ~message?, ())
 }
 
-let assertCompiledCodeIsNoop = (t, ~schema, ~op: [#Parse | #Serialize], ~message=?) => {
+let assertCompiledCodeIsNoop = (t, ~schema, ~op: [#Parse | #Serialize]) => {
   let compiledCode = switch op {
   | #Parse =>
     if schema->S.isAsyncParse {
@@ -114,7 +114,11 @@ let assertCompiledCodeIsNoop = (t, ~schema, ~op: [#Parse | #Serialize], ~message
       %raw(`schema.serializeOrThrow.toString()`)
     }
   }
-  t->Assert.truthy(compiledCode->String.startsWith("function noopOperation(i)"), ~message?, ())
+  t->Assert.truthy(
+    compiledCode->String.startsWith("function noopOperation(i)"),
+    ~message=`Compiled code is: ${compiledCode}`,
+    (),
+  )
 }
 
 let assertEqualSchemas: (
