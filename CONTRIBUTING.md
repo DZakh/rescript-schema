@@ -72,10 +72,10 @@ const loginSchema = S.object({
 type LoginData = S.Output<typeof loginSchema>; // { email: string; password: string }
 
 // Throws the S.Error(`Failed parsing at ["email"]. Reason: Invalid email address`)
-S.parseOrThrow(loginSchema, { email: "", password: "" });
+loginSchema.parseOrThrow({ email: "", password: "" });
 
 // Returns data as { email: string; password: string }
-S.parseOrThrow(loginSchema, {
+loginSchema.parseOrThrow({
   email: "jane@example.com",
   password: "12345678",
 });

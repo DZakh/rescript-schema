@@ -2,26 +2,25 @@
 [![codecov](https://codecov.io/gh/DZakh/rescript-schema/branch/main/graph/badge.svg?token=40G6YKKD6J)](https://codecov.io/gh/DZakh/rescript-schema)
 [![npm](https://img.shields.io/npm/dm/rescript-schema)](https://www.npmjs.com/package/rescript-schema)
 
-# ReScript Schema
+# ReScript Schema 🧬
 
-The fastest composable parser/serializer for ReScript and TypeScript
+The fastest parser in the entire JavaScript ecosystem with a focus on small bundle size and top-notch DX.
 
 > ⚠️ Be aware that **rescript-schema** uses `eval` for parsing. It's usually fine but might not work in some environments like Cloudflare Workers or third-party scripts used on pages with the [script-src](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src) header.
 
 Highlights:
 
-- Combines validation and transformation without a performance loss
-- Can transform parsed value back to the initial format (serializing)
-- Works with any Js value, not only `Js.Json.t`
+- Works with plain JavaScript, TypeScript, and ReScript. You don't need to use any compiler.
+- The **fastest** parsing and validation library in the entire JavaScript ecosystem ([benchmark](https://moltar.github.io/typescript-runtime-type-benchmarks/))
+- Small JS footprint & tree-shakable API ([Comparison with Zod and Valibot](#comparison))
+- Describe transformations in a schema without a performance loss
+- Can reverse transformed values to the initial format (serializing)
+- Error messages are detailed and easy to understand
 - Support for asynchronous transformations
 - Immutable API with both result and exception-based operations
 - Easy to create _recursive_ schema
-- Detailed error messages
-- Opt-in strict mode for object schema to prevent excessive fields and many more built-in helpers
-- Opt-in PPX to generate schema from type
-- Works with plain JavaScript/TypeScript too! You don't need to use ReScript
-- The **fastest** composable validation library in the entire JavaScript ecosystem ([benchmark](https://moltar.github.io/typescript-runtime-type-benchmarks/))
-- Small JS footprint & tree-shakable API ([Comparison with Zod and Valibot](#comparison))
+- Opt-in strict mode for object schema to prevent excessive fields. And many more built-in helpers
+- Opt-in ReScript PPX to generate schema from type definition
 
 Also, it has declarative API allowing you to use **rescript-schema** as a building block for other tools, such as:
 
@@ -47,12 +46,12 @@ Besides the individual bundle size, the overall size of the library is also sign
 
 At the same time **rescript-schema** is the fastest composable validation library in the entire JavaScript ecosystem. This is achieved because of the JIT approach when an ultra optimized validator is created using `eval`.
 
-|                                          | rescript-schema@7.0.0 | Zod@3.22.2      | Valibot@0.32.0 |
+|                                          | rescript-schema@8.0.0 | Zod@3.22.2      | Valibot@0.36.0 |
 | ---------------------------------------- | --------------------- | --------------- | -------------- |
-| **Total size** (minified + gzipped)      | 9.82 kB               | 14.6 kB         | 9.88 kB        |
-| **Example size** (minified + gzipped)    | 4.98 kB               | 12.9 kB         | 1.22 B         |
-| **Nested object parsing**                | 156,244 ops/ms        | 1,304 ops/ms    | 3,822 ops/ms   |
-| **Create schema + parse once**           | 56 ops/ms             | 112 ops/ms      | 2,475 ops/ms   |
+| **Total size** (minified + gzipped)      | 9.71 kB               | 14.6 kB         | 10.4 kB        |
+| **Example size** (minified + gzipped)    | 5.48 kB               | 12.9 kB         | 1.22 B         |
+| **Parse with the same schema**           | 155,887 ops/ms        | 1,273 ops/ms    | 3,771 ops/ms   |
+| **Create schema & parse once**           | 146 ops/ms            | 108 ops/ms      | 2,485 ops/ms   |
 | **Eval-free**                            | ❌                    | ✅              | ✅             |
 | **Codegen-free** (Doesn't need compiler) | ✅                    | ✅              | ✅             |
-| **Ecosystem**                            | ⭐️                   | ⭐️⭐️⭐️⭐️⭐️ | ⭐️⭐️⭐️      |
+| **Ecosystem**                            | ⭐️⭐️                | ⭐️⭐️⭐️⭐️⭐️ | ⭐️⭐️⭐️      |

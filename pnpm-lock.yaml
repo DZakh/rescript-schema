@@ -42,8 +42,8 @@ importers:
         specifier: 4.9.3
         version: 4.9.3
       valibot:
-        specifier: 0.32.0
-        version: 0.32.0
+        specifier: 0.36.0
+        version: 0.36.0
       zod:
         specifier: 3.23.8
         version: 3.23.8
@@ -75,8 +75,8 @@ importers:
   packages/rescript-schema-ppx:
     dependencies:
       rescript-schema:
-        specifier: 7.0.1
-        version: 7.0.1(rescript@11.1.0)
+        specifier: 8.0.x
+        version: 8.0.0(rescript@11.1.0)
 
   packages/tests: {}
 
@@ -769,8 +769,8 @@ packages:
   rescript-nodejs@16.1.0:
     resolution: {integrity: sha512-RyXGIEsb8UhuShf5PwKcTkYNPz+cPQ0CZq74lbYCbCa5YFidbmiIWpQhCMtpsgP1PkLClhKGDkfZfmwwNOil4Q==}
 
-  rescript-schema@7.0.1:
-    resolution: {integrity: sha512-iCcYsHO8owjlB5uWQ50tXQnMBwsNlsOUAPNGJ8tUxPn8bhq3TIVJLTAnnRDJxHuSZj7fj4nXltCjj2pr606tSA==}
+  rescript-schema@8.0.0:
+    resolution: {integrity: sha512-+i/us90Q73HeRZ9Y6BXfogb0BXpfwDmmFhHI+dZkvnzGOLMQEx3kowXv78LfP2ujpedwpN85/aqEPXRb+eBtog==}
     peerDependencies:
       rescript: 11.x
 
@@ -944,8 +944,8 @@ packages:
     resolution: {integrity: sha512-6z3GW9x8G1gd+JIIgQQQxXuiJtCXeAjp6RaPEPLv62mH3iPHPxV6W3robxtCzNErRo6ZwTmzWhsbNvjyEBKzKA==}
     engines: {node: '>=10.12.0'}
 
-  valibot@0.32.0:
-    resolution: {integrity: sha512-FXBnJl4bNOmeg7lQv+jfvo/wADsRBN8e9C3r+O77Re3dEnDma8opp7p4hcIbF7XJJ30h/5SVohdjer17/sHOsQ==}
+  valibot@0.36.0:
+    resolution: {integrity: sha512-CjF1XN4sUce8sBK9TixrDqFM7RwNkuXdJu174/AwmQUB62QbCQADg5lLe8ldBalFgtj1uKj+pKwDJiNo4Mn+eQ==}
 
   well-known-symbols@2.0.0:
     resolution: {integrity: sha512-ZMjC3ho+KXo0BfJb7JgtQ5IBuvnShdlACNkKkdsqBmYw3bPAaJfPeYUo6tLUaT5tG/Gkh7xkpBhKRQ9e7pyg9Q==}
@@ -1649,7 +1649,7 @@ snapshots:
 
   rescript-nodejs@16.1.0: {}
 
-  rescript-schema@7.0.1(rescript@11.1.0):
+  rescript-schema@8.0.0(rescript@11.1.0):
     dependencies:
       rescript: 11.1.0
 
@@ -1804,7 +1804,7 @@ snapshots:
       '@types/istanbul-lib-coverage': 2.0.4
       convert-source-map: 1.9.0
 
-  valibot@0.32.0: {}
+  valibot@0.36.0: {}
 
   well-known-symbols@2.0.0: {}
 

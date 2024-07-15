@@ -60,13 +60,13 @@
   - [`parseOrRaiseWith`](#parseorraisewith)
   - [`parseAnyOrRaiseWith`](#parseanyorraisewith)
   - [`parseAsyncWith`](#parseasyncwith)
-  - [`parseAsyncInStepsWith`](#parseasyncinstepswith-advanced)
   - [`serializeWith`](#serializewith)
   - [`serializeToUnknownWith`](#serializetounknownwith)
   - [`serializeToJsonStringWith`](#serializetojsonstringwith)
   - [`serializeOrRaiseWith`](#serializeorraisewith)
   - [`serializeToUnknownOrRaiseWith`](#serializetounknownorraisewith)
   - [`serializeToJsonStringOrRaiseWith`](#serializetojsonstringorraisewith)
+  - [`assertOrRaiseWith`](#assertorraisewith)
   - [`classify`](#classify)
   - [`name`](#name)
   - [`setName`](#setname)
@@ -74,6 +74,9 @@
   - [`Error.make`](#errormake)
   - [`Error.raise`](#errorraise)
   - [`Error.message`](#errormessage)
+- [Global config](#global-config)
+  - [`defaultUnknownKeys`](#defaultunknownkeys)
+  - [`disableNanNumberCheck`](#disablenannumbercheck)
 
 ## Install
 
@@ -612,7 +615,7 @@ let schema = S.object(_ => ())->S.Object.strict
 }`)->S.parseWith(schema)
 // Error({
 //   code: ExcessField("someField"),
-//   operation: Parsing,
+//   operation: Parse,
 //   path: S.Path.empty,
 // })
 ```
@@ -876,7 +879,7 @@ let schema = S.never
 %raw(`undefined`)->S.parseWith(schema)
 // Error({
 //   code: InvalidType({expected: S.never, received: undefined}),
-//   operation: Parsing,
+//   operation: Parse,
 //   path: S.Path.empty,
 // })
 ```
@@ -1006,7 +1009,7 @@ let nullableSchema = innerSchema => {
 %raw(`123`)->S.parseWith(schema)
 // Error({
 //   code: InvalidType({expected: S.string, received: 123}),
-//   operation: Parsing,
+//   operation: Parse,
 //   path: S.Path.empty,
 // })
 ```
@@ -1254,16 +1257,6 @@ data->S.parseAsyncWith(userSchema)
 
 If you use asynchronous refinements or transforms, you'll need to use `parseAsyncWith`. It will parse all synchronous branches first and then continue with asynchronous refinements and transforms in parallel.
 
-### **`parseAsyncInStepsWith`** _Advanced_
-
-`(JSON.t, S.t<'value>) => result<(. unit) => promise<result<'value, S.error>>, S.error>`
-
-```rescript
-data->S.parseAsyncInStepsWith(userSchema)
-```
-
-After parsing synchronous branches will return a function to run asynchronous refinements and transforms.
-
 ### **`serializeWith`**
 
 `('value, S.t<'value>) => result<JSON.t, S.error>`
@@ -1334,6 +1327,16 @@ user->S.serializeToJsonStringOrRaiseWith(userSchema)
 
 The exception-based version of `serializeToJsonStringWith`.
 
+### **`assertOrRaiseWith`**
+
+`('any, S.t<'value>) => unit`
+
+```rescript
+data->S.assertOrRaiseWith(userSchema)
+```
+
+Given any schema, you can call `assertOrRaiseWith` to check `data` is valid. It returns `unit` and throws an exception if the data is invalid. Since the operation doesn't return a value, it's 2-3 times faster than `parseOrRaiseWith` depending on the schema.
+
 ### **`classify`**
 
 `(S.t<'value>) => S.tagged`
@@ -1351,7 +1354,7 @@ This can be useful for building other tools like [`rescript-json-schema`](https:
 
 ```rescript
 S.literal({"abc": 123})->S.name
-// `Literal({"abc":123})`
+// `{"abc":123}`
 ```
 
 Used internally for readable error messages.
@@ -1380,8 +1383,8 @@ let schema = S.literal(false)
 
 %raw(`true`)->S.parseWith(schema)
 // Error({
-//   code: InvalidLiteral({expected: S.Literal.parse(false), received: true}),
-//   operation: Parsing,
+//   code: InvalidType({expected: S.literal(false), received: true}),
+//   operation: Parse,
 //   path: S.Path.empty,
 // })
 ```
@@ -1406,8 +1409,8 @@ Throws error. Since internally it's both the `S.Raised` exception and instance o
 
 ```rescript
 {
-  code: InvalidLiteral({expected: S.Literal.parse(false), received: true}),
-  operation: Parsing,
+  code: InvalidType({expected: S.literal(false), received: true}),
+  operation: Parse,
   path: S.Path.empty,
 }->S.Error.message
 ```
@@ -1422,12 +1425,36 @@ Throws error. Since internally it's both the `S.Raised` exception and instance o
 
 ```rescript
 {
-  code: InvalidLiteral({expected: S.Literal.parse(false), received: true}),
-  operation: Parsing,
+  code: InvalidType({expected: S.literal(false), received: true}),
+  operation: Parse,
   path: S.Path.empty,
 }->S.Error.reason
 ```
 
 ```rescript
 "Expected false, received true"
+```
+
+## Global config
+
+**rescript-schema** has a global config that can be changed to customize the behavior of the library.
+
+### `defaultUnknownKeys`
+
+`defaultUnknownKeys` is an option that controls how unknown keys are handled when parsing objects. The default value is `Strip`, but you can globally change it to `Strict` to enforce strict object parsing.
+
+```rescript
+S.setGlobalConfig({
+  defaultUnknownKeys: Strict,
+})
+```
+
+### `disableNanNumberCheck`
+
+`disableNanNumberCheck` is an option that controls whether the library should check for NaN values when parsing numbers. The default value is `false`, but you can globally change it to `true` to allow NaN values. If you parse many numbers which are guaranteed to be non-NaN, you can set it to `true` to improve performance ~10%, depending on the case.
+
+```rescript
+S.setGlobalConfig({
+  disableNanNumberCheck: true,
+})
 ```
