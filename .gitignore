@@ -4,5 +4,3 @@ node_modules
 packages/tests/src/core/**/*_test.bs.mjs
 lib
 coverage
-dist
-packages/artifacts
