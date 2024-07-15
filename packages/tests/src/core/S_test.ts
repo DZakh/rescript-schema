@@ -2,6 +2,10 @@ import test from "ava";
 import { expectType, TypeEqual } from "ts-expect";
 
 import * as S from "../../../../src/S.js";
+import { stringSchema } from "../genType/GenType.gen.js";
+
+// Can use genType schema
+expectType<TypeEqual<typeof stringSchema, S.Schema<string, unknown>>>(true);
 
 test("Successfully parses string", (t) => {
   const schema = S.string;

@@ -158,7 +158,7 @@ jobs:
       - run: pnpm lint:stdlib
         working-directory: packages/prepack
 
-      - run: pnpm prepack
+      - run: pnpm build
 
       - name: "Upload artifact: rescript-schema npm package"
         uses: actions/upload-artifact@v3

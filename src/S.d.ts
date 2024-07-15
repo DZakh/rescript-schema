@@ -1,57 +1,18 @@
-import { unknown } from "./S.d";
-import { S_t, S_Error_class } from "../RescriptSchema.gen";
-
-type Operation =
-  | "Parse"
-  | "ParseAsync"
-  | "SerializeToJson"
-  | "SerializeToUnknown";
-
-export class Error extends S_Error_class {
-  constructor(code: unknown, operation: Operation, path: string);
-  code: unknown;
-  operation: Operation;
-  path: string;
-  message: string;
-  reason: string;
-}
-
-export type Result<Value> =
-  | {
-      success: true;
-      value: Value;
-    }
-  | { success: false; error: Error };
+import { Json, S_t } from "../RescriptSchema.gen";
+export { Json, Result, S_error as Error } from "../RescriptSchema.gen";
 
 export type EffectCtx<Output, Input> = {
   schema: Schema<Output, Input>;
   fail: (message: string) => void;
 };
 
-export type Schema<Output, Input = Output> = S_t<Output, Input> & {
-  parse(data: unknown): Result<Output>;
-  parseAsync(data: unknown): Promise<Result<Output>>;
-  parseOrThrow(data: unknown): Output;
-  serialize(value: Output): Result<Input>;
-  serializeOrThrow(value: Output): Input;
-  serializeToJsonOrThrow(value: Output): Json;
-  assert(data: unknown): asserts data is Output;
-};
+export type Schema<Output, Input = Output> = S_t<Output, Input>;
 
 export type Output<T> = T extends Schema<infer Output, unknown>
   ? Output
   : never;
 export type Input<T> = T extends Schema<unknown, infer Input> ? Input : never;
 
-export type Json =
-  | string
-  | boolean
-  | number
-  | null
-  | { [key: string]: Json }
-  | Json[];
-
-type NoUndefined<T> = T extends undefined ? never : T;
 type UnknownSchema = Schema<unknown, unknown>;
 type SchemaTupleOutput<
   Tuple extends UnknownSchema[],

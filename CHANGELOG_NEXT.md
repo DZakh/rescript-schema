@@ -21,9 +21,8 @@
 - Removed `InvalidLiteral` error in favor of `InvalidType`
 - Changed default `name` of `S.literal` schema. `Literal(<value>)` is now `<value>`
 - Renamed `InvalidJsonStruct` error, since after `rescript-struct`->`rescript-schema` it became misleading
+- Improve TS types and add interop with genType
 
 // TODO:
 
-- Test GenType compatibility with d.ts
 - Set 8.0.x for rescript-schema in ppx deps
-- Update github ci to run on "v*.*.\*-patch"

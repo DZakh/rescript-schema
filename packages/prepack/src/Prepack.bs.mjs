@@ -20,14 +20,14 @@ var sourePaths = [
   "src",
   "rescript.json",
   "README.md",
-  "RescriptSchema.gen.ts"
+  "RescriptSchema.gen.d.ts",
 ];
 
 var jsInputPath = Nodepath.join(artifactsPath, "src/S.js");
 
 function update(json, path, value) {
   var dict = Core__JSON.Decode.object(json);
-  var dict$1 = dict !== undefined ? Object.assign({}, dict) : ({});
+  var dict$1 = dict !== undefined ? Object.assign({}, dict) : {};
   if (!path) {
     return value;
   }
@@ -44,74 +44,74 @@ function update(json, path, value) {
 
 if (Nodefs.existsSync(artifactsPath)) {
   Fs.rmSync(artifactsPath, {
-        recursive: true,
-        force: true
-      });
+    recursive: true,
+    force: true,
+  });
 }
 
 Nodefs.mkdirSync(artifactsPath);
 
 sourePaths.forEach(function (path) {
-      Fs.cpSync(Nodepath.join(projectPath, path), Nodepath.join(artifactsPath, path), {
-            recursive: true
-          });
-    });
+  Fs.cpSync(
+    Nodepath.join(projectPath, path),
+    Nodepath.join(artifactsPath, path),
+    {
+      recursive: true,
+    }
+  );
+});
 
 function updateJsonFile(src, path, value) {
   var packageJsonData = Nodefs.readFileSync(src, {
-        encoding: "utf8"
-      });
+    encoding: "utf8",
+  });
   var packageJson = JSON.parse(packageJsonData.toString());
-  var updatedPackageJson = JSON.stringify(update(packageJson, Core__List.fromArray(path), value), undefined, 2);
+  var updatedPackageJson = JSON.stringify(
+    update(packageJson, Core__List.fromArray(path), value),
+    undefined,
+    2
+  );
   Nodefs.writeFileSync(src, Buffer.from(updatedPackageJson), {
-        encoding: "utf8"
-      });
+    encoding: "utf8",
+  });
 }
 
-Execa.execaSync("npm", [
-      "run",
-      "res:build"
-    ], {
-      cwd: artifactsPath
-    });
+Execa.execaSync("npm", ["run", "res:build"], {
+  cwd: artifactsPath,
+});
 
 var bundle = await Rollup.rollup({
-      input: jsInputPath,
-      external: [/S_Core\.bs\.mjs/]
-    });
+  input: jsInputPath,
+  external: [/S_Core\.bs\.mjs/],
+});
 
 var output = [
   {
     file: Nodepath.join(artifactsPath, "dist/S.js"),
     format: "cjs",
     exports: "named",
-    plugins: [PluginReplace({
-            values: Object.fromEntries([
-                  [
-                    "S_Core.bs.mjs",
-                    "../src/S_Core.bs.js"
-                  ],
-                  [
-                    "rescript/lib/es6",
-                    "rescript/lib/js"
-                  ]
-                ])
-          })]
+    plugins: [
+      PluginReplace({
+        values: Object.fromEntries([
+          ["S_Core.bs.mjs", "../src/S_Core.bs.js"],
+          ["rescript/lib/es6", "rescript/lib/js"],
+        ]),
+      }),
+    ],
   },
   {
     file: Nodepath.join(artifactsPath, "dist/S.mjs"),
     format: "es",
     exports: "named",
-    plugins: [PluginReplace({
-            values: Object.fromEntries([[
-                    "S_Core.bs.mjs",
-                    "../src/S_Core.bs.mjs"
-                  ]])
-          })]
-  }
+    plugins: [
+      PluginReplace({
+        values: Object.fromEntries([["S_Core.bs.mjs", "../src/S_Core.bs.mjs"]]),
+      }),
+    ],
+  },
 ];
 
-for(var idx = 0 ,idx_finish = output.length; idx < idx_finish; ++idx){
+for (var idx = 0, idx_finish = output.length; idx < idx_finish; ++idx) {
   var outpuOptions = output[idx];
   await bundle.write(outpuOptions);
 }
@@ -119,37 +119,41 @@ for(var idx = 0 ,idx_finish = output.length; idx < idx_finish; ++idx){
 await bundle.close();
 
 Fs.rmSync(Nodepath.join(artifactsPath, "lib"), {
-      recursive: true,
-      force: true
-    });
+  recursive: true,
+  force: true,
+});
 
-updateJsonFile(Nodepath.join(artifactsPath, "rescript.json"), [
-      "package-specs",
-      "module"
-    ], "commonjs");
+updateJsonFile(
+  Nodepath.join(artifactsPath, "rescript.json"),
+  ["package-specs", "module"],
+  "commonjs"
+);
 
-updateJsonFile(Nodepath.join(artifactsPath, "rescript.json"), ["suffix"], ".bs.js");
+updateJsonFile(
+  Nodepath.join(artifactsPath, "rescript.json"),
+  ["suffix"],
+  ".bs.js"
+);
 
-Execa.execaSync("npm", [
-      "run",
-      "res:build"
-    ], {
-      cwd: artifactsPath
-    });
+Execa.execaSync("npm", ["run", "res:build"], {
+  cwd: artifactsPath,
+});
 
-updateJsonFile(Nodepath.join(artifactsPath, "package.json"), ["type"], "commonjs");
+updateJsonFile(
+  Nodepath.join(artifactsPath, "package.json"),
+  ["type"],
+  "commonjs"
+);
 
 Fs.rmSync(Nodepath.join(artifactsPath, "lib"), {
-      recursive: true,
-      force: true
-    });
+  recursive: true,
+  force: true,
+});
 
 Fs.rmSync(Nodepath.join(artifactsPath, "node_modules"), {
-      recursive: true,
-      force: true
-    });
+  recursive: true,
+  force: true,
+});
 
-export {
-  
-}
+export {};
 /* artifactsPath Not a pure module */

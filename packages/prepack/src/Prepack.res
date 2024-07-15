@@ -6,7 +6,7 @@ let sourePaths = [
   "src",
   "rescript.json",
   "README.md",
-  "RescriptSchema.gen.ts",
+  "RescriptSchema.gen.d.ts",
 ]
 let jsInputPath = NodeJs.Path.join2(artifactsPath, "src/S.js")
 
@@ -199,5 +199,3 @@ updateJsonFile(
 // Clean up before uploading artifacts
 FsX.rmSync(NodeJs.Path.join2(artifactsPath, "lib"), {force: true, recursive: true})
 FsX.rmSync(NodeJs.Path.join2(artifactsPath, "node_modules"), {force: true, recursive: true})
-
-// TODO: Generate RescriptSchema.gen.ts
