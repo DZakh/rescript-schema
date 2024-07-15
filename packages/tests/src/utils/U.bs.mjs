@@ -53,6 +53,7 @@ function cleanUpSchema(schema) {
         switch (key) {
           case "definition" :
           case "i" :
+          case "v" :
               return ;
           default:
             if (typeof value === "function") {
@@ -102,7 +103,7 @@ function assertCompiledCode(t, schema, op, code, message) {
   t.is(compiledCode, code, message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }
 
-function assertCompiledCodeIsNoop(t, schema, op, message) {
+function assertCompiledCodeIsNoop(t, schema, op) {
   var compiledCode;
   if (op === "Serialize") {
     try {
@@ -119,7 +120,7 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
     S$RescriptSchema.parseAnyWith(undefined, schema);
     compiledCode = (schema.parseOrThrow.toString());
   }
-  t.truthy(compiledCode.startsWith("function noopOperation(i)"), message !== undefined ? Caml_option.valFromOption(message) : undefined);
+  t.truthy(compiledCode.startsWith("function noopOperation(i)"), "Compiled code is: " + compiledCode);
 }
 
 var assertEqualSchemas = unsafeAssertEqualSchemas;
