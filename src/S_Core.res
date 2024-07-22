@@ -1494,7 +1494,14 @@ let internalRefine = (schema, refiner) => {
     ~rawTagged=schema.rawTagged,
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       b->B.transform(~input=b->B.parse(~schema, ~input, ~path), (b, ~input) => {
-        let rCode = refiner(b, ~input, ~selfSchema, ~path)
+        let input = if b.code === "" && input._var !== None {
+          input
+        } else {
+          let scopedInput = b->B.allocateVal
+          b.code = b.code ++ b->B.Val.set(scopedInput, input) ++ ";"
+          scopedInput
+        }
+        let rCode = refiner(b, ~inputVar=b->B.Val.var(input), ~selfSchema, ~path)
         b.code = b.code ++ rCode
         input
       })
@@ -1503,7 +1510,7 @@ let internalRefine = (schema, refiner) => {
       b->B.serialize(
         ~schema,
         ~input=b->B.transform(~input, (b, ~input) => {
-          b.code = b.code ++ refiner(b, ~input, ~selfSchema, ~path)
+          b.code = b.code ++ refiner(b, ~inputVar=b->B.Val.var(input), ~selfSchema, ~path)
           input
         }),
         ~path,
@@ -1515,8 +1522,8 @@ let internalRefine = (schema, refiner) => {
 }
 
 let refine: (t<'value>, s<'value> => 'value => unit) => t<'value> = (schema, refiner) => {
-  schema->internalRefine((b, ~input, ~selfSchema, ~path) => {
-    `${b->B.embed(refiner(b->B.effectCtx(~selfSchema, ~path)))}(${b->B.Val.var(input)});`
+  schema->internalRefine((b, ~inputVar, ~selfSchema, ~path) => {
+    `${b->B.embed(refiner(b->B.effectCtx(~selfSchema, ~path)))}(${inputVar});`
   })
 }
 
@@ -3534,8 +3541,8 @@ let intMin = (schema, minValue, ~message as maybeMessage=?) => {
   }
   schema->addRefinement(
     ~metadataId=Int.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-      `if(${b->B.Val.var(input)}<${b->B.embed(minValue)}){${b->B.fail(~message, ~path)}}`
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
+      `if(${inputVar}<${b->B.embed(minValue)}){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Min({value: minValue}),
@@ -3551,8 +3558,8 @@ let intMax = (schema, maxValue, ~message as maybeMessage=?) => {
   }
   schema->addRefinement(
     ~metadataId=Int.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-      `if(${b->B.Val.var(input)}>${b->B.embed(maxValue)}){${b->B.fail(~message, ~path)}}`
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
+      `if(${inputVar}>${b->B.embed(maxValue)}){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Max({value: maxValue}),
@@ -3564,8 +3571,8 @@ let intMax = (schema, maxValue, ~message as maybeMessage=?) => {
 let port = (schema, ~message="Invalid port") => {
   schema->addRefinement(
     ~metadataId=Int.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-      `if(${b->B.Val.var(input)}<1||${b->B.Val.var(input)}>65535){${b->B.fail(~message, ~path)}}`
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
+      `if(${inputVar}<1||${inputVar}>65535){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Port,
@@ -3581,8 +3588,8 @@ let floatMin = (schema, minValue, ~message as maybeMessage=?) => {
   }
   schema->addRefinement(
     ~metadataId=Float.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-      `if(${b->B.Val.var(input)}<${b->B.embed(minValue)}){${b->B.fail(~message, ~path)}}`
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
+      `if(${inputVar}<${b->B.embed(minValue)}){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Min({value: minValue}),
@@ -3598,8 +3605,8 @@ let floatMax = (schema, maxValue, ~message as maybeMessage=?) => {
   }
   schema->addRefinement(
     ~metadataId=Float.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-      `if(${b->B.Val.var(input)}>${b->B.embed(maxValue)}){${b->B.fail(~message, ~path)}}`
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
+      `if(${inputVar}>${b->B.embed(maxValue)}){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Max({value: maxValue}),
@@ -3615,8 +3622,8 @@ let arrayMinLength = (schema, length, ~message as maybeMessage=?) => {
   }
   schema->addRefinement(
     ~metadataId=Array.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-      `if(${b->B.Val.var(input)}.length<${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
+      `if(${inputVar}.length<${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Min({length: length}),
@@ -3632,8 +3639,8 @@ let arrayMaxLength = (schema, length, ~message as maybeMessage=?) => {
   }
   schema->addRefinement(
     ~metadataId=Array.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-      `if(${b->B.Val.var(input)}.length>${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
+      `if(${inputVar}.length>${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Max({length: length}),
@@ -3649,8 +3656,8 @@ let arrayLength = (schema, length, ~message as maybeMessage=?) => {
   }
   schema->addRefinement(
     ~metadataId=Array.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-      `if(${b->B.Val.var(input)}.length!==${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
+      `if(${inputVar}.length!==${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Length({length: length}),
@@ -3666,8 +3673,8 @@ let stringMinLength = (schema, length, ~message as maybeMessage=?) => {
   }
   schema->addRefinement(
     ~metadataId=String.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-      `if(${b->B.Val.var(input)}.length<${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
+      `if(${inputVar}.length<${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Min({length: length}),
@@ -3683,8 +3690,8 @@ let stringMaxLength = (schema, length, ~message as maybeMessage=?) => {
   }
   schema->addRefinement(
     ~metadataId=String.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-      `if(${b->B.Val.var(input)}.length>${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
+      `if(${inputVar}.length>${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Max({length: length}),
@@ -3700,8 +3707,8 @@ let stringLength = (schema, length, ~message as maybeMessage=?) => {
   }
   schema->addRefinement(
     ~metadataId=String.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-      `if(${b->B.Val.var(input)}.length!==${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
+      `if(${inputVar}.length!==${b->B.embed(length)}){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Length({length: length}),
@@ -3713,11 +3720,8 @@ let stringLength = (schema, length, ~message as maybeMessage=?) => {
 let email = (schema, ~message=`Invalid email address`) => {
   schema->addRefinement(
     ~metadataId=String.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-      `if(!${b->B.embed(String.emailRegex)}.test(${b->B.Val.var(input)})){${b->B.fail(
-          ~message,
-          ~path,
-        )}}`
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
+      `if(!${b->B.embed(String.emailRegex)}.test(${inputVar})){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Email,
@@ -3729,11 +3733,8 @@ let email = (schema, ~message=`Invalid email address`) => {
 let uuid = (schema, ~message=`Invalid UUID`) => {
   schema->addRefinement(
     ~metadataId=String.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-      `if(!${b->B.embed(String.uuidRegex)}.test(${b->B.Val.var(input)})){${b->B.fail(
-          ~message,
-          ~path,
-        )}}`
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
+      `if(!${b->B.embed(String.uuidRegex)}.test(${inputVar})){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Uuid,
@@ -3745,11 +3746,8 @@ let uuid = (schema, ~message=`Invalid UUID`) => {
 let cuid = (schema, ~message=`Invalid CUID`) => {
   schema->addRefinement(
     ~metadataId=String.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-      `if(!${b->B.embed(String.cuidRegex)}.test(${b->B.Val.var(input)})){${b->B.fail(
-          ~message,
-          ~path,
-        )}}`
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
+      `if(!${b->B.embed(String.cuidRegex)}.test(${inputVar})){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Cuid,
@@ -3761,8 +3759,8 @@ let cuid = (schema, ~message=`Invalid CUID`) => {
 let url = (schema, ~message=`Invalid url`) => {
   schema->addRefinement(
     ~metadataId=String.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
-      `try{new URL(${b->B.Val.var(input)})}catch(_){${b->B.fail(~message, ~path)}}`
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
+      `try{new URL(${inputVar})}catch(_){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Url,
@@ -3774,13 +3772,10 @@ let url = (schema, ~message=`Invalid url`) => {
 let pattern = (schema, re, ~message=`Invalid`) => {
   schema->addRefinement(
     ~metadataId=String.Refinement.metadataId,
-    ~refiner=(b, ~input, ~selfSchema as _, ~path) => {
+    ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
       let reVal = b->B.val(b->B.embed(re))
       let reVar = b->B.Val.var(reVal)
-      `${reVar}.lastIndex=0;if(!${reVar}.test(${b->B.Val.var(input)})){${b->B.fail(
-          ~message,
-          ~path,
-        )}}`
+      `${reVar}.lastIndex=0;if(!${reVar}.test(${inputVar})){${b->B.fail(~message, ~path)}}`
     },
     ~refinement={
       kind: Pattern({re: re}),

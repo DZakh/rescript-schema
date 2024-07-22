@@ -1027,13 +1027,21 @@ function containerName() {
 function internalRefine(schema, refiner) {
   return make(schema.n, schema.r, schema.m, (function (b, input, selfSchema, path) {
                 return transform(b, schema.p(b, input, schema, path), (function (b, input) {
-                              var rCode = refiner(b, input, selfSchema, path);
+                              var input$1;
+                              if (b.c === "" && input.v !== undefined) {
+                                input$1 = input;
+                              } else {
+                                var scopedInput = allocateVal(b);
+                                b.c = b.c + set(b, scopedInput, input) + ";";
+                                input$1 = scopedInput;
+                              }
+                              var rCode = refiner(b, $$var(b, input$1), selfSchema, path);
                               b.c = b.c + rCode;
-                              return input;
+                              return input$1;
                             }));
               }), (function (b, input, selfSchema, path) {
                 var input$1 = transform(b, input, (function (b, input) {
-                        b.c = b.c + refiner(b, input, selfSchema, path);
+                        b.c = b.c + refiner(b, $$var(b, input), selfSchema, path);
                         return input;
                       }));
                 return schema.s(b, input$1, schema, path);
@@ -1041,9 +1049,9 @@ function internalRefine(schema, refiner) {
 }
 
 function refine(schema, refiner) {
-  return internalRefine(schema, (function (b, input, selfSchema, path) {
+  return internalRefine(schema, (function (b, inputVar, selfSchema, path) {
                 var value = refiner(effectCtx(b, selfSchema, path));
-                return "e[" + (b.g.e.push(value) - 1) + "](" + $$var(b, input) + ");";
+                return "e[" + (b.g.e.push(value) - 1) + "](" + inputVar + ");";
               }));
 }
 
@@ -2577,8 +2585,8 @@ function intMin(schema, minValue, maybeMessage) {
                 value: minValue
               },
               message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + "<" + ("e[" + (b.g.e.push(minValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+            }, (function (b, inputVar, param, path) {
+                return "if(" + inputVar + "<" + ("e[" + (b.g.e.push(minValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2590,8 +2598,8 @@ function intMax(schema, maxValue, maybeMessage) {
                 value: maxValue
               },
               message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ">" + ("e[" + (b.g.e.push(maxValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+            }, (function (b, inputVar, param, path) {
+                return "if(" + inputVar + ">" + ("e[" + (b.g.e.push(maxValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2600,8 +2608,8 @@ function port(schema, messageOpt) {
   return addRefinement(schema, metadataId$1, {
               kind: "Port",
               message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + "<1||" + $$var(b, input) + ">65535){" + fail(b, message, path) + "}";
+            }, (function (b, inputVar, param, path) {
+                return "if(" + inputVar + "<1||" + inputVar + ">65535){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2613,8 +2621,8 @@ function floatMin(schema, minValue, maybeMessage) {
                 value: minValue
               },
               message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + "<" + ("e[" + (b.g.e.push(minValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+            }, (function (b, inputVar, param, path) {
+                return "if(" + inputVar + "<" + ("e[" + (b.g.e.push(minValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2626,8 +2634,8 @@ function floatMax(schema, maxValue, maybeMessage) {
                 value: maxValue
               },
               message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ">" + ("e[" + (b.g.e.push(maxValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+            }, (function (b, inputVar, param, path) {
+                return "if(" + inputVar + ">" + ("e[" + (b.g.e.push(maxValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2639,8 +2647,8 @@ function arrayMinLength(schema, length, maybeMessage) {
                 length: length
               },
               message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length<" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+            }, (function (b, inputVar, param, path) {
+                return "if(" + inputVar + ".length<" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2652,8 +2660,8 @@ function arrayMaxLength(schema, length, maybeMessage) {
                 length: length
               },
               message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length>" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+            }, (function (b, inputVar, param, path) {
+                return "if(" + inputVar + ".length>" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2665,8 +2673,8 @@ function arrayLength(schema, length, maybeMessage) {
                 length: length
               },
               message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length!==" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+            }, (function (b, inputVar, param, path) {
+                return "if(" + inputVar + ".length!==" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2678,8 +2686,8 @@ function stringMinLength(schema, length, maybeMessage) {
                 length: length
               },
               message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length<" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+            }, (function (b, inputVar, param, path) {
+                return "if(" + inputVar + ".length<" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2691,8 +2699,8 @@ function stringMaxLength(schema, length, maybeMessage) {
                 length: length
               },
               message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length>" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+            }, (function (b, inputVar, param, path) {
+                return "if(" + inputVar + ".length>" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2704,8 +2712,8 @@ function stringLength(schema, length, maybeMessage) {
                 length: length
               },
               message: message
-            }, (function (b, input, param, path) {
-                return "if(" + $$var(b, input) + ".length!==" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+            }, (function (b, inputVar, param, path) {
+                return "if(" + inputVar + ".length!==" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2714,8 +2722,8 @@ function email(schema, messageOpt) {
   return addRefinement(schema, metadataId, {
               kind: "Email",
               message: message
-            }, (function (b, input, param, path) {
-                return "if(!" + ("e[" + (b.g.e.push(emailRegex) - 1) + "]") + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
+            }, (function (b, inputVar, param, path) {
+                return "if(!" + ("e[" + (b.g.e.push(emailRegex) - 1) + "]") + ".test(" + inputVar + ")){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2724,8 +2732,8 @@ function uuid(schema, messageOpt) {
   return addRefinement(schema, metadataId, {
               kind: "Uuid",
               message: message
-            }, (function (b, input, param, path) {
-                return "if(!" + ("e[" + (b.g.e.push(uuidRegex) - 1) + "]") + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
+            }, (function (b, inputVar, param, path) {
+                return "if(!" + ("e[" + (b.g.e.push(uuidRegex) - 1) + "]") + ".test(" + inputVar + ")){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2734,8 +2742,8 @@ function cuid(schema, messageOpt) {
   return addRefinement(schema, metadataId, {
               kind: "Cuid",
               message: message
-            }, (function (b, input, param, path) {
-                return "if(!" + ("e[" + (b.g.e.push(cuidRegex) - 1) + "]") + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
+            }, (function (b, inputVar, param, path) {
+                return "if(!" + ("e[" + (b.g.e.push(cuidRegex) - 1) + "]") + ".test(" + inputVar + ")){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2744,8 +2752,8 @@ function url(schema, messageOpt) {
   return addRefinement(schema, metadataId, {
               kind: "Url",
               message: message
-            }, (function (b, input, param, path) {
-                return "try{new URL(" + $$var(b, input) + ")}catch(_){" + fail(b, message, path) + "}";
+            }, (function (b, inputVar, param, path) {
+                return "try{new URL(" + inputVar + ")}catch(_){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2757,10 +2765,10 @@ function pattern(schema, re, messageOpt) {
                 re: re
               },
               message: message
-            }, (function (b, input, param, path) {
+            }, (function (b, inputVar, param, path) {
                 var reVal = val(b, "e[" + (b.g.e.push(re) - 1) + "]");
                 var reVar = $$var(b, reVal);
-                return reVar + ".lastIndex=0;if(!" + reVar + ".test(" + $$var(b, input) + ")){" + fail(b, message, path) + "}";
+                return reVar + ".lastIndex=0;if(!" + reVar + ".test(" + inputVar + ")){" + fail(b, message, path) + "}";
               }));
 }
 
