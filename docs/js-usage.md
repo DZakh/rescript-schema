@@ -31,6 +31,7 @@
 - [JSON string](#json-string)
 - [Describe](#describe)
 - [Custom schema](#custom-schema)
+- [Recursive schemas](#recursive-schemas)
 - [Refinements](#refinements)
 - [Transforms](#transforms)
 - [Functions on schema](#functions-on-schema)
@@ -485,6 +486,26 @@ const mySetSchema = S.custom("MySet", (input, s) => {
 
 type MySet = S.Output<typeof mySetSchema>; // Set<any>
 ```
+
+## Recursive schemas
+
+You can define a recursive schema in **rescript-schema**. Unfortunately, TypeScript derives the Schema type as `unknown` so you need to explicitly specify the type and it'll start correctly typechecking.
+
+```ts
+type Node = {
+  id: string;
+  children: Node[];
+};
+
+let nodeSchema = S.recursive<Node>((nodeSchema) =>
+  S.object({
+    id: S.string,
+    children: S.array(nodeSchema),
+  })
+);
+```
+
+> 🧠 Despite supporting recursive schema, passing cyclical data into rescript-schema will cause an infinite loop.
 
 ## Refinements
 

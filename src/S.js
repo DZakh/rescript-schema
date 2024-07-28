@@ -18,6 +18,7 @@ export const jsonString = S.jsonString;
 export const union = S.union;
 export const object = S.js_object;
 export const schema = S.schema;
+export const recursive = S.recursive;
 export const merge = S.js_merge;
 export const Object = S.$$Object;
 export const custom = S.js_custom;

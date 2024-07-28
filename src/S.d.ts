@@ -86,7 +86,7 @@ export function tuple<A extends UnknownSchema, B extends UnknownSchema[]>(
   [Input<A>, ...SchemaTupleInput<B>]
 >;
 export function tuple<Output>(
-  definer: (ctx: {
+  definer: (s: {
     item: <InputIndex extends number, ItemOutput>(
       inputIndex: InputIndex,
       schema: Schema<ItemOutput, unknown>
@@ -136,13 +136,13 @@ export const union: <A extends UnknownSchema, B extends UnknownSchema[]>(
 >;
 
 export function schema<Value>(
-  definer: (ctx: {
+  definer: (s: {
     matches: <Output>(schema: Schema<Output, unknown>) => Output;
   }) => Value
 ): Schema<Value, unknown>;
 
 export function object<Output>(
-  definer: (ctx: {
+  definer: (s: {
     field: <InputFieldName extends string, FieldOutput>(
       inputFieldName: InputFieldName,
       schema: Schema<FieldOutput, unknown>
@@ -192,6 +192,10 @@ export function custom<Output, Input = unknown>(
   name: string,
   parser: (data: unknown, s: EffectCtx<unknown, unknown>) => Output | undefined,
   serializer: (value: Output, s: EffectCtx<unknown, unknown>) => Input
+): Schema<Output, Input>;
+
+export function recursive<Output, Input = Output>(
+  definer: (schema: Schema<Output, Input>) => Schema<Output, Input>
 ): Schema<Output, Input>;
 
 export function name(schema: Schema<unknown, unknown>): string;

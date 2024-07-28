@@ -1328,6 +1328,39 @@ test("Assert passes with valid data", (t) => {
   t.pass();
 });
 
+test("Successfully parses recursive object", (t) => {
+  type Node = {
+    id: string;
+    children: Node[];
+  };
+
+  let nodeSchema = S.recursive<Node>((nodeSchema) =>
+    S.object({
+      id: S.string,
+      children: S.array(nodeSchema),
+    })
+  );
+
+  expectType<TypeEqual<typeof nodeSchema, S.Schema<Node, Node>>>(true);
+
+  t.deepEqual(
+    nodeSchema.parseOrThrow({
+      id: "1",
+      children: [
+        { id: "2", children: [] },
+        { id: "3", children: [{ id: "4", children: [] }] },
+      ],
+    }),
+    {
+      id: "1",
+      children: [
+        { id: "2", children: [] },
+        { id: "3", children: [{ id: "4", children: [] }] },
+      ],
+    }
+  );
+});
+
 test("Example", (t) => {
   // Create login schema with email and password
   const loginSchema = S.object({
