@@ -424,7 +424,7 @@ test("Fails to parse with transform with user error", (t) => {
   const schema = S.transform(S.string, (string, s) => {
     const number = Number(string);
     if (Number.isNaN(number)) {
-      throw s.fail("Invalid number");
+      s.fail("Invalid number");
     }
     return number;
   });

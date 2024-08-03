@@ -25,7 +25,7 @@ export type S_t<Output, Input = unknown> = {
   serialize(value: Output): Result<Input>;
   serializeOrThrow(value: Output): Input;
   serializeToJsonOrThrow(value: Output): Json;
-  assert(data: unknown): asserts data is Output;
+  assert(data: unknown): asserts data is Input;
 };
 
 export abstract class S_Path_t {

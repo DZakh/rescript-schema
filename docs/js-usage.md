@@ -514,7 +514,7 @@ let nodeSchema = S.recursive<Node>((nodeSchema) =>
 ```ts
 const shortStringSchema = S.refine(S.string, (value, s) =>
   if (value.length > 255) {
-    throw s.fail("String can't be more than 255 characters")
+    s.fail("String can't be more than 255 characters")
   }
 )
 ```
@@ -555,7 +555,7 @@ const intToString = (schema) =>
     (string, s) => {
       const int = parseInt(string, 10);
       if (isNaN(int)) {
-        throw s.fail("Can't convert string to int");
+        s.fail("Can't convert string to int");
       }
       return int;
     }
