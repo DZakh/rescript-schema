@@ -76,7 +76,7 @@ module Rollup = {
     type t = {
       input?: string,
       @as("external")
-      external_?: array<Re.t>,
+      external_?: array<RegExp.t>,
     }
   }
 
