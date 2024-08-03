@@ -3,7 +3,7 @@ export { Json, Result, S_error as Error } from "../RescriptSchema.gen";
 
 export type EffectCtx<Output, Input> = {
   schema: Schema<Output, Input>;
-  fail: (message: string) => void;
+  fail: (message: string) => never;
 };
 
 export type Schema<Output, Input = Output> = S_t<Output, Input>;
