@@ -10,6 +10,16 @@ test("Successfully parses valid data", t => {
   )
 })
 
+test("Successfully parses uuid V7", t => {
+  let schema = S.string->S.uuid
+
+  t->Assert.deepEqual(
+    "019122ba-bb79-75ef-9a97-190f1effbb54"->S.parseAnyWith(schema),
+    Ok("019122ba-bb79-75ef-9a97-190f1effbb54"),
+    (),
+  )
+})
+
 test("Fails to parse invalid data", t => {
   let schema = S.string->S.uuid
 
