@@ -204,6 +204,8 @@ S.string->S.datetime // Invalid datetime string! Must be UTC
 S.string->S.trim // trim whitespaces
 ```
 
+> ⚠️ Validating email addresses is nearly impossible with just code. Different clients and servers accept different things and many diverge from the various specs defining "valid" emails. The ONLY real way to validate an email address is to send a verification email to it and check that the user got it. With that in mind, rescript-schema picks a relatively simple regex that does not cover all cases.
+
 When using built-in refinements, you can provide a custom error message.
 
 ```rescript
