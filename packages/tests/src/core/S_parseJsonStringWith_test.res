@@ -21,9 +21,12 @@ test("Fails to parse JSON", t => {
       t->Assert.deepEqual(operation, Parse, ())
       t->Assert.deepEqual(path, S.Path.empty, ())
       switch code {
-      // For some reason when running tests with wallaby I get another error message
+      // Different errors for different Node.js versions
       | OperationFailed("Unexpected token , in JSON at position 3")
-      | OperationFailed("Unexpected non-whitespace character after JSON at position 3") => ()
+      | OperationFailed("Unexpected non-whitespace character after JSON at position 3")
+      | OperationFailed(
+        "Unexpected non-whitespace character after JSON at position 3 (line 1 column 4)",
+      ) => ()
       | _ => t->Assert.fail("Code must be OperationFailed")
       }
     }

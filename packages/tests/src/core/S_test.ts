@@ -612,6 +612,47 @@ test("Successfully parses object by provided shape", (t) => {
   >(true);
 });
 
+test("Successfully parses tagged object", (t) => {
+  const schema = S.object({
+    tag: "block" as const,
+    bar: S.boolean,
+  });
+  const value = schema.parseOrThrow({
+    tag: "block",
+    bar: true,
+  });
+
+  t.deepEqual(value, {
+    tag: "block",
+    bar: true,
+  });
+
+  expectType<
+    TypeEqual<
+      typeof schema,
+      S.Schema<
+        {
+          tag: "block";
+          bar: boolean;
+        },
+        {
+          tag: "block";
+          bar: boolean;
+        }
+      >
+    >
+  >(true);
+  expectType<
+    TypeEqual<
+      typeof value,
+      {
+        tag: "block";
+        bar: boolean;
+      }
+    >
+  >(true);
+});
+
 test("Successfully parses object with field names transform", (t) => {
   const schema = S.object((s) => ({
     foo: s.field("Foo", S.string),

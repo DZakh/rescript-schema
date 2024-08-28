@@ -3900,6 +3900,12 @@ let js_object = definer => {
       for idx in 0 to fieldNames->Js.Array2.length - 1 {
         let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
         let schema = definer->Js.Dict.unsafeGet(fieldName)
+        // A dirty check that this is rescript-schema object
+        let schema = if Obj.magic(schema) && Obj.magic(schema)["serializeToJsonOrThrow"] {
+          schema
+        } else {
+          literal(Obj.magic(schema))
+        }
         definition->Js.Dict.set(fieldName, s.field(fieldName, schema))
       }
       definition

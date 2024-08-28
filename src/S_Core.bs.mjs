@@ -2894,7 +2894,8 @@ function js_object(definer) {
                 for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
                   var fieldName = fieldNames[idx];
                   var schema = definer[fieldName];
-                  definition[fieldName] = s.f(fieldName, schema);
+                  var schema$1 = schema && schema.serializeToJsonOrThrow ? schema : literal(schema);
+                  definition[fieldName] = s.f(fieldName, schema$1);
                 }
                 return definition;
               });

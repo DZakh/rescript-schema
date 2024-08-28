@@ -157,16 +157,20 @@ export function object<Output>(
 ): Schema<Output, unknown>;
 export function object<
   Shape extends {
-    [k in keyof Shape]: Schema<unknown, unknown>;
+    [k in keyof Shape]: unknown;
   }
 >(
   shape: Shape
 ): Schema<
   {
-    [k in keyof Shape]: Output<Shape[k]>;
+    [k in keyof Shape]: Shape[k] extends Schema<unknown, unknown>
+      ? Output<Shape[k]>
+      : Shape[k];
   },
   {
-    [k in keyof Shape]: Input<Shape[k]>;
+    [k in keyof Shape]: Shape[k] extends Schema<unknown, unknown>
+      ? Input<Shape[k]>
+      : Shape[k];
   }
 >;
 
