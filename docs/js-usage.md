@@ -17,6 +17,7 @@
 - [Nullables](#nullables)
 - [Nullish](#nullish)
 - [Objects](#objects)
+  - [Literal shorthand](#literal-shorthand)
   - [Advanced object schema](#advanced-object-schema)
   - [`Object.strict`](#objectstrict)
   - [`Object.strip`](#objectstrip)
@@ -25,6 +26,7 @@
 - [Tuples](#tuples)
   - [Advanced tuple schema](#advanced-tuple-schema)
 - [Unions](#unions)
+  - [Discriminated unions](#discriminated-unions)
 - [Records](#records)
 - [`schema`](#schema)
 - [JSON](#json)
@@ -265,6 +267,25 @@ type Dog = {
 };
 ```
 
+### Literal shorthand
+
+Besides passing schemas for values in `S.object`, you can also pass **any** Js value.
+
+```ts
+const meSchema = S.object({
+  id: S.number,
+  name: "Dmitry Zakharov",
+  age: 23,
+  kind: "human" as const,
+  metadata: {
+    description: "What?? Even an object with NaN works! Yes 🔥",
+    money: NaN,
+  },
+});
+```
+
+This is a shorthand for `S.literal` and useful for discriminated unions.
+
 ### Advanced object schema
 
 Sometimes you want to transform the data coming to your system. You can easily do it by passing a function to the `S.object` schema.
@@ -392,16 +413,47 @@ That looks much better than before. And the same as for advanced objects, you ca
 
 ## Unions
 
-**rescript-schema** includes a built-in S.union schema for composing "OR" types.
+An union represents a logical OR relationship. You can apply this concept to your schemas with `S.union`. The same api works for discriminated unions as well.
+
+The schema function `union` creates an OR relationship between any number of schemas that you pass as the first argument in the form of an array. On validation, the schema returns the result of the first schema that was successfully validated.
 
 ```ts
+// TypeScript type for reference:
+// type Union = string | number;
+
 const stringOrNumberSchema = S.union([S.string, S.number]);
 
 stringOrNumberSchema.parseOrThrow("foo"); // passes
 stringOrNumberSchema.parseOrThrow(14); // passes
 ```
 
-It will test the input against each of the "options" in order and return the first value that parses successfully.
+If a bad input can be uniquely assigned to one of the schemas based on the data type, the result of that schema is returned. Otherwise, a general issue is returned that contains the issues of each schema as subissues.
+
+### Discriminated unions
+
+```typescript
+// TypeScript type for reference:
+// type Shape =
+// | { kind: "circle"; radius: number }
+// | { kind: "square"; x: number }
+// | { kind: "triangle"; x: number; y: number };
+
+const shapeSchema = S.union([
+  S.object({
+    kind: "circle" as const,
+    radius: S.number,
+  }),
+  S.object({
+    kind: "square" as const,
+    x: S.number,
+  }),
+  S.object({
+    kind: "triangle" as const,
+    x: S.number,
+    y: S.number,
+  }),
+]);
+```
 
 ## Records
 
