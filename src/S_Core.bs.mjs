@@ -641,7 +641,11 @@ function isAsyncParse(schema) {
 }
 
 function reverse(schema) {
-  return schema.r();
+  var reversed = schema.r();
+  reversed.r = (function () {
+      return schema;
+    });
+  return reversed;
 }
 
 function parseAnyOrRaiseWith(any, schema) {

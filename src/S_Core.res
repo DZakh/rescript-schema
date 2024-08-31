@@ -1091,7 +1091,11 @@ let isAsyncParse = schema => {
   }
 }
 
-let reverse = schema => schema.reverse()
+let reverse = schema => {
+  let reversed = schema.reverse()
+  reversed.reverse = () => schema->toUnknown
+  reversed
+}
 
 @inline
 let parseAnyOrRaiseWith = (any, schema) => {
