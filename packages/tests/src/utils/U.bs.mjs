@@ -51,6 +51,7 @@ function cleanUpSchema(schema) {
         var value = param[1];
         var key = param[0];
         switch (key) {
+          case "c" :
           case "definition" :
           case "i" :
               return ;

@@ -953,6 +953,15 @@ function makeReverseSchema(name, rawTagged, metadataMap, parseOperationBuilder, 
         };
 }
 
+function mapSchemaBuilder(schema, builder) {
+  return makeReverseSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
+                var bb = scope(b);
+                var input$1 = schema.p(bb, input, schema, path);
+                b.c = b.c + allocateScope(bb);
+                return builder(b, input$1, selfSchema, path);
+              }), schema.f);
+}
+
 function make(namespace, name) {
   return namespace + ":" + name;
 }
@@ -1370,7 +1379,64 @@ function builder(b, input, selfSchema, path) {
 
 var schema = makeSchema(primitiveName, "Never", empty, builder, builder, undefined, toSelf);
 
+var metadataId = "rescript-schema:Array.refinements";
+
+function refinements(schema) {
+  var m = schema.m[metadataId];
+  if (m !== undefined) {
+    return m;
+  } else {
+    return [];
+  }
+}
+
 function typeFilter(_b, inputVar) {
+  return "!Array.isArray(" + inputVar + ")";
+}
+
+function factory$2(schema) {
+  return makeSchema(containerName, {
+              TAG: "Array",
+              _0: schema
+            }, empty, (function (b, input, param, path) {
+                var inputVar = $$var(b, input);
+                var iteratorVar = varWithoutAllocation(b);
+                var bb = scope(b);
+                var itemInput = val(bb, inputVar + "[" + iteratorVar + "]");
+                var itemOutput = withPathPrepend(bb, itemInput, path, iteratorVar, (function (b, input, path) {
+                        return parseWithTypeCheck(b, schema, input, path);
+                      }));
+                var itemCode = allocateScope(bb);
+                var isTransformed = itemInput !== itemOutput;
+                var output = isTransformed ? val(b, "[]") : input;
+                b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + itemCode + (
+                    isTransformed ? push(b, output, itemOutput) : ""
+                  ) + "}");
+                if (itemOutput.a) {
+                  return asyncVal(b, "Promise.all(" + inline(b, output) + ")");
+                } else {
+                  return output;
+                }
+              }), (function (b, input, param, path) {
+                if (schema.s === noop) {
+                  return input;
+                }
+                var inputVar = $$var(b, input);
+                var iteratorVar = varWithoutAllocation(b);
+                var output = val(b, "[]");
+                var bb = scope(b);
+                var itemOutput = withPathPrepend(bb, val(bb, inputVar + "[" + iteratorVar + "]"), path, iteratorVar, (function (b, input, path) {
+                        return schema.s(b, input, schema, path);
+                      }));
+                var itemCode = allocateScope(bb);
+                b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + itemCode + push(b, output, itemOutput) + "}");
+                return output;
+              }), typeFilter, onlyChild(factory$2, schema));
+}
+
+var Tuple = {};
+
+function typeFilter$1(_b, inputVar) {
   return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
 }
 
@@ -1548,7 +1614,131 @@ function name() {
               }).join(", ") + "})";
 }
 
-function factory$2(definer) {
+function reverse$1() {
+  var embededOutputs = new WeakMap();
+  var originalSchema = this;
+  var definitionToReversed = function (definition, outputPath) {
+    if (typeof definition === "object" && definition !== null) {
+      if (definition.s === itemSymbol) {
+        embededOutputs.set(definition, outputPath);
+        return definition.t.r();
+      } else if (Array.isArray(definition)) {
+        return tuple(function (s) {
+                    var tupleDefinition = [];
+                    for(var idx = 0 ,idx_finish = definition.length; idx < idx_finish; ++idx){
+                      var definition$1 = definition[idx];
+                      var $$location = idx.toString();
+                      tupleDefinition[idx] = s.item(idx, definitionToReversed(definition$1, outputPath + ("[" + JSON.stringify($$location) + "]")));
+                    }
+                    return tupleDefinition;
+                  });
+      } else {
+        return factory$3(function (s) {
+                    var objectDefinition = {};
+                    var keys = Object.keys(definition);
+                    for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+                      var key = keys[idx];
+                      var definition$1 = definition[key];
+                      objectDefinition[key] = s.f(key, definitionToReversed(definition$1, outputPath + ("[" + JSON.stringify(key) + "]")));
+                    }
+                    return objectDefinition;
+                  });
+      }
+    } else {
+      return literal(definition);
+    }
+  };
+  var reversedSchema = definitionToReversed(originalSchema.t.definition, "");
+  return mapSchemaBuilder(reversedSchema, (function (b, input, param, path) {
+                var toRaw = function (schema, path) {
+                  var items = schema.t.items;
+                  var isObject = schema.t.TAG === "Object";
+                  var output = "";
+                  for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+                    var item = items[idx];
+                    var path$1 = embededOutputs.get(item);
+                    var itemOutput;
+                    if (path$1 !== undefined) {
+                      itemOutput = path$1 === "" ? inline(b, input) : $$var(b, input) + path$1;
+                    } else {
+                      var itemSchema = item.t;
+                      if (itemSchema.t.TAG === "Literal") {
+                        var value = itemSchema.t._0.value;
+                        itemOutput = "e[" + (b.g.e.push(value) - 1) + "]";
+                      } else {
+                        itemOutput = isObject && itemSchema.d ? toRaw(itemSchema, path + item.p) : invalidOperation(b, path, "The " + item.i + " item is not registered or not a literal");
+                      }
+                    }
+                    output = isObject ? output + (item.i + ":" + itemOutput + ",") : output + (itemOutput + ",");
+                  }
+                  if (isObject) {
+                    return "{" + output + "}";
+                  } else {
+                    return "[" + output + "]";
+                  }
+                };
+                return val(b, toRaw(originalSchema, path));
+              }));
+}
+
+function tuple(definer) {
+  var items = [];
+  var item = function (idx, schema) {
+    var $$location = idx.toString();
+    var inlinedLocation = "\"" + $$location + "\"";
+    if (items[idx]) {
+      throw new Error("[rescript-schema] " + ("The item " + inlinedLocation + " is defined multiple times"));
+    }
+    var item_p = "[" + inlinedLocation + "]";
+    var item$1 = {
+      t: schema,
+      p: item_p,
+      l: $$location,
+      i: inlinedLocation,
+      s: itemSymbol
+    };
+    items[idx] = item$1;
+    return item$1;
+  };
+  var tag = function (idx, asValue) {
+    item(idx, literal(asValue));
+  };
+  var ctx = {
+    item: item,
+    tag: tag
+  };
+  var definition = definer(ctx);
+  var length = items.length;
+  for(var idx = 0; idx < length; ++idx){
+    if (!items[idx]) {
+      var $$location = idx.toString();
+      var inlinedLocation = "\"" + $$location + "\"";
+      var item_p = "[" + inlinedLocation + "]";
+      var item$1 = {
+        t: unit,
+        p: item_p,
+        l: $$location,
+        i: inlinedLocation,
+        s: itemSymbol
+      };
+      items[idx] = item$1;
+    }
+    
+  }
+  return makeSchema((function () {
+                return "Tuple(" + items.map(function (i) {
+                              return i.t.n();
+                            }).join(", ") + ")";
+              }), {
+              TAG: "Tuple",
+              items: items,
+              definition: definition
+            }, empty, parseOperationBuilder$1, serializeOperationBuilder$1, (function (b, inputVar) {
+                return typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
+              }), reverse$1);
+}
+
+function factory$3(definer) {
   var fields = {};
   var items = [];
   var flatten = function (schema) {
@@ -1567,7 +1757,7 @@ function factory$2(definer) {
       }
       throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " defined twice with incompatible schemas"));
     }
-    var schema$1 = schema.d ? factory$2(schema.d) : schema;
+    var schema$1 = schema.d ? factory$3(schema.d) : schema;
     var item_p = "[" + inlinedLocation + "]";
     var item$1 = {
       t: schema$1,
@@ -1593,7 +1783,7 @@ function factory$2(definer) {
   var nestedField = function (fieldName, nestedFieldName, schema) {
     var item = fields[fieldName];
     if (item === undefined) {
-      return field(fieldName, factory$2(function (s) {
+      return field(fieldName, factory$3(function (s) {
                       return s.f(nestedFieldName, schema);
                     }));
     }
@@ -1621,10 +1811,10 @@ function factory$2(definer) {
             definition: definition
           },
           n: name,
-          r: toSelf,
+          r: reverse$1,
           p: parseOperationBuilder$1,
           s: serializeOperationBuilder$1,
-          f: typeFilter,
+          f: typeFilter$1,
           i: 0,
           d: definer,
           c: ctx,
@@ -1682,9 +1872,53 @@ function strict(schema) {
   return setUnknownKeys(schema, "Strict");
 }
 
-function factory$3(schema, definer) {
+function factory$4(schema) {
+  return makeSchema(containerName, {
+              TAG: "Dict",
+              _0: schema
+            }, empty, (function (b, input, param, path) {
+                var inputVar = $$var(b, input);
+                var keyVar = varWithoutAllocation(b);
+                var bb = scope(b);
+                var itemInput = val(bb, inputVar + "[" + keyVar + "]");
+                var itemOutput = withPathPrepend(bb, itemInput, path, keyVar, (function (b, input, path) {
+                        return parseWithTypeCheck(b, schema, input, path);
+                      }));
+                var itemCode = allocateScope(bb);
+                var isTransformed = itemInput !== itemOutput;
+                var output = isTransformed ? val(b, "{}") : input;
+                b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + itemCode + (
+                    isTransformed ? addKey(b, output, keyVar, itemOutput) : ""
+                  ) + "}");
+                if (!itemOutput.a) {
+                  return output;
+                }
+                var resolveVar = varWithoutAllocation(b);
+                var rejectVar = varWithoutAllocation(b);
+                var asyncParseResultVar = varWithoutAllocation(b);
+                var counterVar = varWithoutAllocation(b);
+                var outputVar = $$var(b, output);
+                return asyncVal(b, "new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=Object.keys(" + outputVar + ").length;for(let " + keyVar + " in " + outputVar + "){" + outputVar + "[" + keyVar + "].then(" + asyncParseResultVar + "=>{" + outputVar + "[" + keyVar + "]=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + outputVar + ")}}," + rejectVar + ")}})");
+              }), (function (b, input, param, path) {
+                if (schema.s === noop) {
+                  return input;
+                }
+                var inputVar = $$var(b, input);
+                var output = val(b, "{}");
+                var keyVar = varWithoutAllocation(b);
+                var bb = scope(b);
+                var itemOutput = withPathPrepend(bb, val(bb, inputVar + "[" + keyVar + "]"), path, keyVar, (function (b, input, path) {
+                        return schema.s(b, input, schema, path);
+                      }));
+                var itemCode = allocateScope(bb);
+                b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + itemCode + addKey(b, output, keyVar, itemOutput) + "}");
+                return output;
+              }), typeFilter$1, onlyChild(factory$4, schema));
+}
+
+function factory$5(schema, definer) {
   if (schema.d) {
-    return factory$2(function (ctx) {
+    return factory$3(function (ctx) {
                 return definer(schema.d(ctx));
               });
   } else {
@@ -1751,10 +1985,10 @@ var schema$1 = makeSchema(primitiveName, "Unknown", empty, noop, (function (b, i
         return input;
       }), undefined, toSelf);
 
-var metadataId = "rescript-schema:String.refinements";
+var metadataId$1 = "rescript-schema:String.refinements";
 
-function refinements(schema) {
-  var m = schema.m[metadataId];
+function refinements$1(schema) {
+  var m = schema.m[metadataId$1];
   if (m !== undefined) {
     return m;
   } else {
@@ -1770,13 +2004,13 @@ var emailRegex = /^(?!\.)(?!.*\.\.)([A-Z0-9_'+\-\.]*)[A-Z0-9_+-]@([A-Z0-9][A-Z0-
 
 var datetimeRe = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
-function typeFilter$1(_b, inputVar) {
+function typeFilter$2(_b, inputVar) {
   return "typeof " + inputVar + "!==\"string\"";
 }
 
-var schema$2 = makePrimitiveSchema("String", noop, typeFilter$1);
+var schema$2 = makePrimitiveSchema("String", noop, typeFilter$2);
 
-function factory$4(schema, spaceOpt) {
+function factory$6(schema, spaceOpt) {
   var space = spaceOpt !== undefined ? spaceOpt : 0;
   return makeSchema(primitiveName, "String", empty, (function (b, input, param, path) {
                 var jsonVal = allocateVal(b);
@@ -1804,53 +2038,32 @@ function factory$4(schema, spaceOpt) {
                     ) + ")");
                 b.g.o = prevOperation;
                 return output;
-              }), typeFilter$1, (function () {
-                var schema$1 = schema.r();
-                var builder = function (b, input, param, param$1) {
-                  var prevOperation = b.g.o;
-                  b.g.o = "SerializeToJson";
-                  if (schema.t.TAG === "Option") {
-                    raise(b, {
-                          TAG: "InvalidJsonSchema",
-                          _0: schema
-                        }, "");
-                  }
-                  var output = val(b, "JSON.stringify(" + inline(b, input) + (
-                        space > 0 ? ",null," + space : ""
-                      ) + ")");
-                  b.g.o = prevOperation;
-                  return output;
-                };
-                return makeReverseSchema(schema$1.n, schema$1.t, schema$1.m, (function (b, input, selfSchema, path) {
-                              return builder(b, schema$1.p(b, input, schema$1, path), selfSchema, path);
-                            }), schema$1.f);
+              }), typeFilter$2, (function () {
+                return mapSchemaBuilder(schema.r(), (function (b, input, param, param$1) {
+                              var prevOperation = b.g.o;
+                              b.g.o = "SerializeToJson";
+                              if (schema.t.TAG === "Option") {
+                                raise(b, {
+                                      TAG: "InvalidJsonSchema",
+                                      _0: schema
+                                    }, "");
+                              }
+                              var output = val(b, "JSON.stringify(" + inline(b, input) + (
+                                    space > 0 ? ",null," + space : ""
+                                  ) + ")");
+                              b.g.o = prevOperation;
+                              return output;
+                            }));
               }));
 }
 
-function typeFilter$2(_b, inputVar) {
+function typeFilter$3(_b, inputVar) {
   return "typeof " + inputVar + "!==\"boolean\"";
 }
 
-var schema$3 = makePrimitiveSchema("Bool", noop, typeFilter$2);
+var schema$3 = makePrimitiveSchema("Bool", noop, typeFilter$3);
 
-var metadataId$1 = "rescript-schema:Int.refinements";
-
-function refinements$1(schema) {
-  var m = schema.m[metadataId$1];
-  if (m !== undefined) {
-    return m;
-  } else {
-    return [];
-  }
-}
-
-function typeFilter$3(_b, inputVar) {
-  return "typeof " + inputVar + "!==\"number\"||" + inputVar + ">2147483647||" + inputVar + "<-2147483648||" + inputVar + "%1!==0";
-}
-
-var schema$4 = makePrimitiveSchema("Int", noop, typeFilter$3);
-
-var metadataId$2 = "rescript-schema:Float.refinements";
+var metadataId$2 = "rescript-schema:Int.refinements";
 
 function refinements$2(schema) {
   var m = schema.m[metadataId$2];
@@ -1862,14 +2075,12 @@ function refinements$2(schema) {
 }
 
 function typeFilter$4(_b, inputVar) {
-  return "typeof " + inputVar + "!==\"number\"" + (
-          globalConfig.n ? "" : "||Number.isNaN(" + inputVar + ")"
-        );
+  return "typeof " + inputVar + "!==\"number\"||" + inputVar + ">2147483647||" + inputVar + "<-2147483648||" + inputVar + "%1!==0";
 }
 
-var schema$5 = makePrimitiveSchema("Float", noop, typeFilter$4);
+var schema$4 = makePrimitiveSchema("Int", noop, typeFilter$4);
 
-var metadataId$3 = "rescript-schema:Array.refinements";
+var metadataId$3 = "rescript-schema:Float.refinements";
 
 function refinements$3(schema) {
   var m = schema.m[metadataId$3];
@@ -1881,151 +2092,14 @@ function refinements$3(schema) {
 }
 
 function typeFilter$5(_b, inputVar) {
-  return "!Array.isArray(" + inputVar + ")";
+  return "typeof " + inputVar + "!==\"number\"" + (
+          globalConfig.n ? "" : "||Number.isNaN(" + inputVar + ")"
+        );
 }
 
-function factory$5(schema) {
-  return makeSchema(containerName, {
-              TAG: "Array",
-              _0: schema
-            }, empty, (function (b, input, param, path) {
-                var inputVar = $$var(b, input);
-                var iteratorVar = varWithoutAllocation(b);
-                var bb = scope(b);
-                var itemInput = val(bb, inputVar + "[" + iteratorVar + "]");
-                var itemOutput = withPathPrepend(bb, itemInput, path, iteratorVar, (function (b, input, path) {
-                        return parseWithTypeCheck(b, schema, input, path);
-                      }));
-                var itemCode = allocateScope(bb);
-                var isTransformed = itemInput !== itemOutput;
-                var output = isTransformed ? val(b, "[]") : input;
-                b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + itemCode + (
-                    isTransformed ? push(b, output, itemOutput) : ""
-                  ) + "}");
-                if (itemOutput.a) {
-                  return asyncVal(b, "Promise.all(" + inline(b, output) + ")");
-                } else {
-                  return output;
-                }
-              }), (function (b, input, param, path) {
-                if (schema.s === noop) {
-                  return input;
-                }
-                var inputVar = $$var(b, input);
-                var iteratorVar = varWithoutAllocation(b);
-                var output = val(b, "[]");
-                var bb = scope(b);
-                var itemOutput = withPathPrepend(bb, val(bb, inputVar + "[" + iteratorVar + "]"), path, iteratorVar, (function (b, input, path) {
-                        return schema.s(b, input, schema, path);
-                      }));
-                var itemCode = allocateScope(bb);
-                b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + itemCode + push(b, output, itemOutput) + "}");
-                return output;
-              }), typeFilter$5, onlyChild(factory$5, schema));
-}
+var schema$5 = makePrimitiveSchema("Float", noop, typeFilter$5);
 
-function factory$6(schema) {
-  return makeSchema(containerName, {
-              TAG: "Dict",
-              _0: schema
-            }, empty, (function (b, input, param, path) {
-                var inputVar = $$var(b, input);
-                var keyVar = varWithoutAllocation(b);
-                var bb = scope(b);
-                var itemInput = val(bb, inputVar + "[" + keyVar + "]");
-                var itemOutput = withPathPrepend(bb, itemInput, path, keyVar, (function (b, input, path) {
-                        return parseWithTypeCheck(b, schema, input, path);
-                      }));
-                var itemCode = allocateScope(bb);
-                var isTransformed = itemInput !== itemOutput;
-                var output = isTransformed ? val(b, "{}") : input;
-                b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + itemCode + (
-                    isTransformed ? addKey(b, output, keyVar, itemOutput) : ""
-                  ) + "}");
-                if (!itemOutput.a) {
-                  return output;
-                }
-                var resolveVar = varWithoutAllocation(b);
-                var rejectVar = varWithoutAllocation(b);
-                var asyncParseResultVar = varWithoutAllocation(b);
-                var counterVar = varWithoutAllocation(b);
-                var outputVar = $$var(b, output);
-                return asyncVal(b, "new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=Object.keys(" + outputVar + ").length;for(let " + keyVar + " in " + outputVar + "){" + outputVar + "[" + keyVar + "].then(" + asyncParseResultVar + "=>{" + outputVar + "[" + keyVar + "]=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + outputVar + ")}}," + rejectVar + ")}})");
-              }), (function (b, input, param, path) {
-                if (schema.s === noop) {
-                  return input;
-                }
-                var inputVar = $$var(b, input);
-                var output = val(b, "{}");
-                var keyVar = varWithoutAllocation(b);
-                var bb = scope(b);
-                var itemOutput = withPathPrepend(bb, val(bb, inputVar + "[" + keyVar + "]"), path, keyVar, (function (b, input, path) {
-                        return schema.s(b, input, schema, path);
-                      }));
-                var itemCode = allocateScope(bb);
-                b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + itemCode + addKey(b, output, keyVar, itemOutput) + "}");
-                return output;
-              }), typeFilter, onlyChild(factory$6, schema));
-}
-
-function factory$7(definer) {
-  var items = [];
-  var item = function (idx, schema) {
-    var $$location = idx.toString();
-    var inlinedLocation = "\"" + $$location + "\"";
-    if (items[idx]) {
-      throw new Error("[rescript-schema] " + ("The item " + inlinedLocation + " is defined multiple times"));
-    }
-    var item_p = "[" + inlinedLocation + "]";
-    var item$1 = {
-      t: schema,
-      p: item_p,
-      l: $$location,
-      i: inlinedLocation,
-      s: itemSymbol
-    };
-    items[idx] = item$1;
-    return item$1;
-  };
-  var tag = function (idx, asValue) {
-    item(idx, literal(asValue));
-  };
-  var ctx = {
-    item: item,
-    tag: tag
-  };
-  var definition = definer(ctx);
-  var length = items.length;
-  for(var idx = 0; idx < length; ++idx){
-    if (!items[idx]) {
-      var $$location = idx.toString();
-      var inlinedLocation = "\"" + $$location + "\"";
-      var item_p = "[" + inlinedLocation + "]";
-      var item$1 = {
-        t: unit,
-        p: item_p,
-        l: $$location,
-        i: inlinedLocation,
-        s: itemSymbol
-      };
-      items[idx] = item$1;
-    }
-    
-  }
-  return makeSchema((function () {
-                return "Tuple(" + items.map(function (i) {
-                              return i.t.n();
-                            }).join(", ") + ")";
-              }), {
-              TAG: "Tuple",
-              items: items,
-              definition: definition
-            }, empty, parseOperationBuilder$1, serializeOperationBuilder$1, (function (b, inputVar) {
-                return typeFilter$5(b, inputVar) + ("||" + inputVar + ".length!==" + length);
-              }), toSelf);
-}
-
-function factory$8(schemas) {
+function factory$7(schemas) {
   var len = schemas.length;
   if (len === 1) {
     return schemas[0];
@@ -2167,7 +2241,7 @@ function factory$8(schemas) {
 }
 
 function list(schema) {
-  return transform$1(factory$5(schema), (function (param) {
+  return transform$1(factory$2(schema), (function (param) {
                 return {
                         p: Belt_List.fromArray,
                         s: Belt_List.toArray
@@ -2272,7 +2346,7 @@ function definitionToSchema(definition, embededSet) {
     return definition;
   } else if (typeof definition === "object" && definition !== null) {
     if (Array.isArray(definition)) {
-      return factory$7(function (s) {
+      return tuple(function (s) {
                   for(var idx = 0 ,idx_finish = definition.length; idx < idx_finish; ++idx){
                     var definition$1 = definition[idx];
                     definition[idx] = s.item(idx, definitionToSchema(definition$1, embededSet));
@@ -2280,7 +2354,7 @@ function definitionToSchema(definition, embededSet) {
                   return definition;
                 });
     } else {
-      return factory$2(function (s) {
+      return factory$3(function (s) {
                   var objectDefinition = {};
                   var keys = Object.keys(definition);
                   for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
@@ -2296,7 +2370,7 @@ function definitionToSchema(definition, embededSet) {
   }
 }
 
-function factory$9(definer) {
+function factory$8(definer) {
   var embededSet = new WeakSet();
   var matches = function (schema) {
     embededSet.add(schema);
@@ -2515,9 +2589,9 @@ function internalInline(schema, maybeVariant, param) {
           exit$1 = 1;
           break;
       case "Int" :
-          var refinements$4 = refinements$1(schema);
+          var refinements$4 = refinements$2(schema);
           if (refinements$4.length !== 0) {
-            Js_dict.unsafeDeleteKey(metadataMap, metadataId$1);
+            Js_dict.unsafeDeleteKey(metadataMap, metadataId$2);
             inlinedSchema$5 = inlinedSchema$4 + refinements$4.map(function (refinement) {
                     var match = refinement.kind;
                     if (typeof match !== "object") {
@@ -2533,9 +2607,9 @@ function internalInline(schema, maybeVariant, param) {
           }
           break;
       case "Float" :
-          var refinements$5 = refinements$2(schema);
+          var refinements$5 = refinements$3(schema);
           if (refinements$5.length !== 0) {
-            Js_dict.unsafeDeleteKey(metadataMap, metadataId$2);
+            Js_dict.unsafeDeleteKey(metadataMap, metadataId$3);
             inlinedSchema$5 = inlinedSchema$4 + refinements$5.map(function (refinement) {
                     var match = refinement.kind;
                     if (match.TAG === "Min") {
@@ -2566,9 +2640,9 @@ function internalInline(schema, maybeVariant, param) {
           }
           break;
       case "Array" :
-          var refinements$6 = refinements$3(schema);
+          var refinements$6 = refinements(schema);
           if (refinements$6.length !== 0) {
-            Js_dict.unsafeDeleteKey(metadataMap, metadataId$3);
+            Js_dict.unsafeDeleteKey(metadataMap, metadataId);
             inlinedSchema$5 = inlinedSchema$4 + refinements$6.map(function (refinement) {
                     var match = refinement.kind;
                     switch (match.TAG) {
@@ -2590,9 +2664,9 @@ function internalInline(schema, maybeVariant, param) {
     }
   }
   if (exit$1 === 1) {
-    var refinements$7 = refinements(schema);
+    var refinements$7 = refinements$1(schema);
     if (refinements$7.length !== 0) {
-      Js_dict.unsafeDeleteKey(metadataMap, metadataId);
+      Js_dict.unsafeDeleteKey(metadataMap, metadataId$1);
       inlinedSchema$5 = inlinedSchema$4 + refinements$7.map(function (refinement) {
               var match = refinement.kind;
               if (typeof match !== "object") {
@@ -2640,13 +2714,13 @@ function inline$1(schema) {
 }
 
 function tuple1(v0) {
-  return factory$7(function (s) {
+  return tuple(function (s) {
               return s.item(0, v0);
             });
 }
 
 function tuple2(v0, v1) {
-  return factory$7(function (s) {
+  return tuple(function (s) {
               return [
                       s.item(0, v0),
                       s.item(1, v1)
@@ -2655,7 +2729,7 @@ function tuple2(v0, v1) {
 }
 
 function tuple3(v0, v1, v2) {
-  return factory$7(function (s) {
+  return tuple(function (s) {
               return [
                       s.item(0, v0),
                       s.item(1, v1),
@@ -2666,7 +2740,7 @@ function tuple3(v0, v1, v2) {
 
 function intMin(schema, minValue, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue;
-  return addRefinement(schema, metadataId$1, {
+  return addRefinement(schema, metadataId$2, {
               kind: {
                 TAG: "Min",
                 value: minValue
@@ -2679,7 +2753,7 @@ function intMin(schema, minValue, maybeMessage) {
 
 function intMax(schema, maxValue, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue;
-  return addRefinement(schema, metadataId$1, {
+  return addRefinement(schema, metadataId$2, {
               kind: {
                 TAG: "Max",
                 value: maxValue
@@ -2692,7 +2766,7 @@ function intMax(schema, maxValue, maybeMessage) {
 
 function port(schema, messageOpt) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid port";
-  return addRefinement(schema, metadataId$1, {
+  return addRefinement(schema, metadataId$2, {
               kind: "Port",
               message: message
             }, (function (b, inputVar, param, path) {
@@ -2702,7 +2776,7 @@ function port(schema, messageOpt) {
 
 function floatMin(schema, minValue, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be greater than or equal to " + minValue;
-  return addRefinement(schema, metadataId$2, {
+  return addRefinement(schema, metadataId$3, {
               kind: {
                 TAG: "Min",
                 value: minValue
@@ -2715,7 +2789,7 @@ function floatMin(schema, minValue, maybeMessage) {
 
 function floatMax(schema, maxValue, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "Number must be lower than or equal to " + maxValue;
-  return addRefinement(schema, metadataId$2, {
+  return addRefinement(schema, metadataId$3, {
               kind: {
                 TAG: "Max",
                 value: maxValue
@@ -2728,7 +2802,7 @@ function floatMax(schema, maxValue, maybeMessage) {
 
 function arrayMinLength(schema, length, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length + " or more items long";
-  return addRefinement(schema, metadataId$3, {
+  return addRefinement(schema, metadataId, {
               kind: {
                 TAG: "Min",
                 length: length
@@ -2741,7 +2815,7 @@ function arrayMinLength(schema, length, maybeMessage) {
 
 function arrayMaxLength(schema, length, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "Array must be " + length + " or fewer items long";
-  return addRefinement(schema, metadataId$3, {
+  return addRefinement(schema, metadataId, {
               kind: {
                 TAG: "Max",
                 length: length
@@ -2754,7 +2828,7 @@ function arrayMaxLength(schema, length, maybeMessage) {
 
 function arrayLength(schema, length, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "Array must be exactly " + length + " items long";
-  return addRefinement(schema, metadataId$3, {
+  return addRefinement(schema, metadataId, {
               kind: {
                 TAG: "Length",
                 length: length
@@ -2767,7 +2841,7 @@ function arrayLength(schema, length, maybeMessage) {
 
 function stringMinLength(schema, length, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length + " or more characters long";
-  return addRefinement(schema, metadataId, {
+  return addRefinement(schema, metadataId$1, {
               kind: {
                 TAG: "Min",
                 length: length
@@ -2780,7 +2854,7 @@ function stringMinLength(schema, length, maybeMessage) {
 
 function stringMaxLength(schema, length, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "String must be " + length + " or fewer characters long";
-  return addRefinement(schema, metadataId, {
+  return addRefinement(schema, metadataId$1, {
               kind: {
                 TAG: "Max",
                 length: length
@@ -2793,7 +2867,7 @@ function stringMaxLength(schema, length, maybeMessage) {
 
 function stringLength(schema, length, maybeMessage) {
   var message = maybeMessage !== undefined ? maybeMessage : "String must be exactly " + length + " characters long";
-  return addRefinement(schema, metadataId, {
+  return addRefinement(schema, metadataId$1, {
               kind: {
                 TAG: "Length",
                 length: length
@@ -2806,7 +2880,7 @@ function stringLength(schema, length, maybeMessage) {
 
 function email(schema, messageOpt) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid email address";
-  return addRefinement(schema, metadataId, {
+  return addRefinement(schema, metadataId$1, {
               kind: "Email",
               message: message
             }, (function (b, inputVar, param, path) {
@@ -2816,7 +2890,7 @@ function email(schema, messageOpt) {
 
 function uuid(schema, messageOpt) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid UUID";
-  return addRefinement(schema, metadataId, {
+  return addRefinement(schema, metadataId$1, {
               kind: "Uuid",
               message: message
             }, (function (b, inputVar, param, path) {
@@ -2826,7 +2900,7 @@ function uuid(schema, messageOpt) {
 
 function cuid(schema, messageOpt) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid CUID";
-  return addRefinement(schema, metadataId, {
+  return addRefinement(schema, metadataId$1, {
               kind: "Cuid",
               message: message
             }, (function (b, inputVar, param, path) {
@@ -2836,7 +2910,7 @@ function cuid(schema, messageOpt) {
 
 function url(schema, messageOpt) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid url";
-  return addRefinement(schema, metadataId, {
+  return addRefinement(schema, metadataId$1, {
               kind: "Url",
               message: message
             }, (function (b, inputVar, param, path) {
@@ -2846,7 +2920,7 @@ function url(schema, messageOpt) {
 
 function pattern(schema, re, messageOpt) {
   var message = messageOpt !== undefined ? messageOpt : "Invalid";
-  return addRefinement(schema, metadataId, {
+  return addRefinement(schema, metadataId$1, {
               kind: {
                 TAG: "Pattern",
                 re: re
@@ -2865,8 +2939,8 @@ function datetime(schema, messageOpt) {
     kind: "Datetime",
     message: message
   };
-  var refinements = schema.m[metadataId];
-  return transform$1(set$2(schema, metadataId, refinements !== undefined ? refinements.concat(refinement) : [refinement]), (function (s) {
+  var refinements = schema.m[metadataId$1];
+  return transform$1(set$2(schema, metadataId$1, refinements !== undefined ? refinements.concat(refinement) : [refinement]), (function (s) {
                 return {
                         p: (function (string) {
                             if (!datetimeRe.test(string)) {
@@ -2948,9 +3022,9 @@ function js_optional(schema, maybeOr) {
 
 function js_tuple(definer) {
   if (typeof definer === "function") {
-    return factory$7(definer);
+    return tuple(definer);
   } else {
-    return factory$7(function (s) {
+    return tuple(function (s) {
                 return definer.map(function (schema, idx) {
                             return s.item(idx, schema);
                           });
@@ -2973,9 +3047,9 @@ function js_custom(name, maybeParser, maybeSerializer, param) {
 
 function js_object(definer) {
   if (typeof definer === "function") {
-    return factory$2(definer);
+    return factory$3(definer);
   } else {
-    return factory$2(function (s) {
+    return factory$3(function (s) {
                 var definition = {};
                 var fieldNames = Object.keys(definer);
                 for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
@@ -3025,7 +3099,7 @@ function js_merge(s1, s2) {
                     return val(b, "Object.assign(" + inline(b, s1Result) + ", " + inline(b, s2Result) + ")");
                   }), (function (b, param, param$1, path) {
                     return invalidOperation(b, path, "The S.merge serializing is not supported yet");
-                  }), typeFilter, toSelf);
+                  }), typeFilter$1, toSelf);
     }
     
   }
@@ -3088,19 +3162,19 @@ var $$int = schema$4;
 
 var $$float = schema$5;
 
-var array = factory$5;
+var array = factory$2;
 
-var dict = factory$6;
+var dict = factory$4;
 
 var option = factory;
 
 var $$null$1 = factory$1;
 
-var jsonString = factory$4;
+var jsonString = factory$6;
 
-var union = factory$8;
+var union = factory$7;
 
-var variant = factory$3;
+var variant = factory$5;
 
 var parseWith = parseAnyWith;
 
@@ -3110,19 +3184,15 @@ var parseAsyncWith = parseAnyAsyncWith;
 
 var Schema = {};
 
-var schema$6 = factory$9;
+var schema$6 = factory$8;
 
 var $$Object = {
-  factory: factory$2,
+  factory: factory$3,
   strip: strip,
   strict: strict
 };
 
-var object = factory$2;
-
-var Tuple = {};
-
-var tuple = factory$7;
+var object = factory$3;
 
 var $$Option = {
   $$default: $$default,
@@ -3134,28 +3204,28 @@ var String_Refinement = {};
 
 var $$String = {
   Refinement: String_Refinement,
-  refinements: refinements
+  refinements: refinements$1
 };
 
 var Int_Refinement = {};
 
 var Int = {
   Refinement: Int_Refinement,
-  refinements: refinements$1
+  refinements: refinements$2
 };
 
 var Float_Refinement = {};
 
 var Float = {
   Refinement: Float_Refinement,
-  refinements: refinements$2
+  refinements: refinements$3
 };
 
 var Array_Refinement = {};
 
 var $$Array = {
   Refinement: Array_Refinement,
-  refinements: refinements$3
+  refinements: refinements
 };
 
 var Metadata = {

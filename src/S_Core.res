@@ -353,6 +353,9 @@ let unsafeGetVariantPayload = variant => (variant->Obj.magic)["_0"]
 let unsafeGetVarianTag = (variant): string => (variant->Obj.magic)["TAG"]
 let unsafeGetErrorPayload = variant => (variant->Obj.magic)["_1"]
 
+@inline
+let isLiteralSchema = schema => schema.rawTagged->unsafeGetVarianTag === "Literal"
+
 type globalConfig = {
   @as("r")
   mutable recCounter: int,
@@ -1064,9 +1067,6 @@ module Literal = {
   let parse = any => any->parseInternal->toPublic
 
   @inline
-  let isLiteralSchema = schema => schema->classify->unsafeGetVarianTag === "Literal"
-
-  @inline
   let unsafeFromSchema = (schema): literal => {
     schema->classify->unsafeGetVariantPayload
   }
@@ -1377,12 +1377,17 @@ let makeReverseSchema = (
   reverse: Reverse.toSelf,
 }
 
+// FIXME: Apply only for primitive schemas, for the other ones it's better to mutate parseOperationBuilder
 let mapSchemaBuilder = (schema, builder) => {
   makeReverseSchema(
     ~name=schema.name,
     ~rawTagged=schema.rawTagged,
     ~parseOperationBuilder=(b, ~input, ~selfSchema, ~path) => {
-      b->builder(~input=b->B.parse(~schema, ~input, ~path), ~selfSchema, ~path)
+      // FIXME: Have the logic with scope only for some of the schemas (definetely required for Object)
+      let bb = b->B.scope
+      let input = bb->B.parse(~schema, ~input, ~path)
+      b.code = b.code ++ bb->B.allocateScope
+      b->builder(~input, ~selfSchema, ~path)
     },
     ~maybeTypeFilter=schema.maybeTypeFilter,
     ~metadataMap=schema.metadataMap,
@@ -2020,6 +2025,107 @@ module Never = {
   )
 }
 
+module Array = {
+  module Refinement = {
+    type kind =
+      | Min({length: int})
+      | Max({length: int})
+      | Length({length: int})
+    type t = {
+      kind: kind,
+      message: string,
+    }
+
+    let metadataId: Metadata.Id.t<array<t>> = Metadata.Id.make(
+      ~namespace="rescript-schema",
+      ~name="Array.refinements",
+    )
+  }
+
+  let refinements = schema => {
+    switch schema->Metadata.get(~id=Refinement.metadataId) {
+    | Some(m) => m
+    | None => []
+    }
+  }
+
+  let typeFilter = (_b, ~inputVar) => `!Array.isArray(${inputVar})`
+
+  let rec factory = schema => {
+    let schema = schema->toUnknown
+    makeSchema(
+      ~name=containerName,
+      ~metadataMap=Metadata.Map.empty,
+      ~rawTagged=Array(schema),
+      ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+        let inputVar = b->B.Val.var(input)
+        let iteratorVar = b->B.varWithoutAllocation
+
+        let bb = b->B.scope
+        let itemInput = bb->B.val(`${inputVar}[${iteratorVar}]`)
+        let itemOutput =
+          bb->B.withPathPrepend(~input=itemInput, ~path, ~dynamicLocationVar=iteratorVar, (
+            b,
+            ~input,
+            ~path,
+          ) => b->B.parseWithTypeCheck(~schema, ~input, ~path))
+        let itemCode = bb->B.allocateScope
+        let isTransformed = itemInput !== itemOutput
+        let output = isTransformed ? b->B.val("[]") : input
+
+        b.code =
+          b.code ++
+          `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${itemCode}${isTransformed
+              ? b->B.Val.push(output, itemOutput)
+              : ""}}`
+
+        if itemOutput.isAsync {
+          b->B.asyncVal(`Promise.all(${b->B.Val.inline(output)})`)
+        } else {
+          output
+        }
+      }),
+      ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+        if schema.serializeOperationBuilder === Builder.noop {
+          input
+        } else {
+          let inputVar = b->B.Val.var(input)
+          let iteratorVar = b->B.varWithoutAllocation
+          let output = b->B.val("[]")
+
+          let bb = b->B.scope
+          let itemOutput =
+            bb->B.withPathPrepend(
+              ~input=bb->B.val(`${inputVar}[${iteratorVar}]`),
+              ~path,
+              ~dynamicLocationVar=iteratorVar,
+              (b, ~input, ~path) => b->B.serialize(~schema, ~input, ~path),
+            )
+          let itemCode = bb->B.allocateScope
+
+          b.code =
+            b.code ++
+            `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${itemCode}${b->B.Val.push(
+                output,
+                itemOutput,
+              )}}`
+
+          output
+        }
+      }),
+      ~maybeTypeFilter=Some(typeFilter),
+      ~reverse=Reverse.onlyChild(~factory, ~schema),
+    )
+  }
+}
+
+module Tuple = {
+  type s = {
+    item: 'value. (int, t<'value>) => 'value,
+    tag: 'value. (int, 'value) => unit,
+  }
+}
+
 module Object = {
   type rec s = {
     @as("f") field: 'value. (string, t<'value>) => 'value,
@@ -2086,7 +2192,7 @@ module Object = {
           let _ = outputs->Stdlib.WeakMap.set(item, itemOutput)
 
           // Parse literal fields first, because they are most often used as discriminants
-          if schema->Literal.isLiteralSchema {
+          if schema->isLiteralSchema {
             b.code = b.code ++ prevCode
           } else {
             b.code = prevCode ++ b.code
@@ -2234,7 +2340,7 @@ module Object = {
         | Some(o) => b->B.Val.inline(o)
         | None =>
           let itemSchema = item.schema
-          if itemSchema->Literal.isLiteralSchema {
+          if itemSchema->isLiteralSchema {
             b->B.embed(itemSchema->Literal.unsafeFromSchema->Literal.value)
           } else if isObject && itemSchema.definer->Obj.magic {
             toRaw(~schema=itemSchema, ~path=path->Path.concat(item.path))
@@ -2267,7 +2373,189 @@ module Object = {
       ->Js.Array2.joinWith(", ")}})`
   }
 
-  let rec factory:
+  let rec reverse = () => {
+    let embededOutputs = Stdlib.WeakMap.make()
+
+    let originalSchema = %raw(`this`)
+
+    let reversedSchema = {
+      let rec definitionToReversed = (definition: Definition.t<item>, ~outputPath) => {
+        if definition->Definition.isNode {
+          if definition->Definition.isEmbededItem {
+            let item = definition->Definition.toEmbeded
+            // FIXME: Validate that the fields have the same value
+            // if embededOutputs->Stdlib.WeakMap.has(item) {
+            //   b->B.invalidOperation(
+            //     ~path,
+            //     ~description=`The item ${item.inlinedLocation} is registered multiple times`,
+            //   ))
+            // } else {
+            embededOutputs->Stdlib.WeakMap.set(item, outputPath)->ignore
+            item.schema.reverse()
+            // }
+          } else {
+            let node = definition->Definition.toNode
+            if node->Stdlib.Array.isArray {
+              let node = node->(Obj.magic: Definition.node<item> => array<Definition.t<item>>)
+              tuple((s: Tuple.s) => {
+                let tupleDefinition = []
+                for idx in 0 to node->Js.Array2.length - 1 {
+                  let definition = node->Js.Array2.unsafe_get(idx)
+                  tupleDefinition->Js.Array2.unsafe_set(
+                    idx,
+                    s.item(
+                      idx,
+                      definition->definitionToReversed(
+                        ~outputPath=Path.concat(
+                          outputPath,
+                          Path.fromLocation(idx->Js.Int.toString),
+                        ),
+                      ),
+                    )->(Obj.magic: unknown => Definition.t<item>),
+                  )
+                }
+                tupleDefinition->(Obj.magic: array<Definition.t<item>> => 'value)
+              })->toUnknown
+            } else {
+              factory(s => {
+                let objectDefinition = Js.Dict.empty()
+                let keys = node->Js.Dict.keys
+                for idx in 0 to keys->Js.Array2.length - 1 {
+                  let key = keys->Js.Array2.unsafe_get(idx)
+                  let definition = node->Js.Dict.unsafeGet(key)
+                  objectDefinition->Js.Dict.set(
+                    key,
+                    s.field(
+                      key,
+                      definition->definitionToReversed(
+                        ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
+                      ),
+                    )->(Obj.magic: unknown => Definition.t<item>),
+                  )
+                }
+                objectDefinition
+              })->toUnknown
+            }
+          }
+        } else {
+          let tag = definition->Definition.toConstant
+          literal(tag)
+        }
+      }
+      originalSchema->getDefinition->definitionToReversed(~outputPath=Path.empty)
+    }
+
+    reversedSchema->mapSchemaBuilder(
+      Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+        let rec toRaw = (~schema, ~path) => {
+          let items = schema->getItems
+          let isObject = schema->classify->unsafeGetVarianTag === "Object"
+
+          let output = ref("")
+          for idx in 0 to items->Js.Array2.length - 1 {
+            let item = items->Js.Array2.unsafe_get(idx)
+
+            let itemOutput = switch embededOutputs->Stdlib.WeakMap.get(item) {
+            | Some("") => b->B.Val.inline(input)
+            | Some(path) => b->B.Val.var(input) ++ path
+            | None =>
+              let itemSchema = item.schema
+              if itemSchema->isLiteralSchema {
+                // FIXME: Inline
+                b->B.embed(itemSchema->Literal.unsafeFromSchema->Literal.value)
+              } else if isObject && itemSchema.definer->Obj.magic {
+                toRaw(~schema=itemSchema, ~path=path->Path.concat(item.path))
+              } else {
+                b->B.invalidOperation(
+                  ~path,
+                  ~description=`The ${item.inlinedLocation} item is not registered or not a literal`,
+                )
+              }
+            }
+            if isObject {
+              output := output.contents ++ `${item.inlinedLocation}:${itemOutput},`
+            } else {
+              output := output.contents ++ `${itemOutput},`
+            }
+          }
+
+          isObject ? "{" ++ output.contents ++ "}" : "[" ++ output.contents ++ "]"
+        }
+
+        b->B.val(toRaw(~schema=originalSchema, ~path))
+      }),
+    )
+  }
+  and tuple = definer => {
+    let items = []
+    let ctx: Tuple.s = {
+      let item:
+        type value. (int, schema<value>) => value =
+        (idx, schema) => {
+          let schema = schema->toUnknown
+          let location = idx->Js.Int.toString
+          let inlinedLocation = `"${location}"`
+          if items->Stdlib.Array.has(idx) {
+            InternalError.panic(`The item ${inlinedLocation} is defined multiple times`)
+          } else {
+            let item: item = {
+              schema,
+              location,
+              inlinedLocation,
+              path: inlinedLocation->Path.fromInlinedLocation,
+              symbol: itemSymbol,
+            }
+            items->Js.Array2.unsafe_set(idx, item)
+            item->(Obj.magic: item => value)
+          }
+        }
+
+      let tag = (idx, asValue) => {
+        let _ = item(idx, literal(asValue))
+      }
+
+      {
+        item,
+        tag,
+      }
+    }
+    let definition = definer((ctx :> Tuple.s))->(Obj.magic: 'any => unknown)
+
+    let length = items->Js.Array2.length
+    for idx in 0 to length - 1 {
+      if items->Js.Array2.unsafe_get(idx)->Obj.magic->not {
+        let schema = unit->toUnknown
+        let location = idx->Js.Int.toString
+        let inlinedLocation = `"${location}"`
+        let item: item = {
+          schema,
+          location,
+          inlinedLocation,
+          path: inlinedLocation->Path.fromInlinedLocation,
+          symbol: itemSymbol,
+        }
+        items->Js.Array2.unsafe_set(idx, item)
+      }
+    }
+
+    makeSchema(
+      ~name=() => `Tuple(${items->Js.Array2.map(i => i.schema.name())->Js.Array2.joinWith(", ")})`,
+      ~rawTagged=Tuple({
+        items,
+        definition,
+      }),
+      ~parseOperationBuilder,
+      ~serializeOperationBuilder,
+      ~maybeTypeFilter=Some(
+        (b, ~inputVar) =>
+          b->Array.typeFilter(~inputVar) ++
+            `||${inputVar}.length!==${length->Stdlib.Int.unsafeToString}`,
+      ),
+      ~metadataMap=Metadata.Map.empty,
+      ~reverse,
+    )
+  }
+  and factory:
     type value. (s => value) => schema<value> =
     definer => {
       let fields = Js.Dict.empty()
@@ -2390,7 +2678,7 @@ module Object = {
         jsParse,
         jsParseAsync,
         jsSerialize,
-        reverse: Reverse.toSelf,
+        reverse,
       }
     }
 
@@ -2433,6 +2721,83 @@ module Object = {
 
   let strict = schema => {
     schema->setUnknownKeys(Strict)
+  }
+}
+
+module Dict = {
+  let rec factory = schema => {
+    let schema = schema->toUnknown
+    makeSchema(
+      ~name=containerName,
+      ~metadataMap=Metadata.Map.empty,
+      ~rawTagged=Dict(schema),
+      ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+        let inputVar = b->B.Val.var(input)
+        let keyVar = b->B.varWithoutAllocation
+
+        let bb = b->B.scope
+        let itemInput = bb->B.val(`${inputVar}[${keyVar}]`)
+        let itemOutput =
+          bb->B.withPathPrepend(~path, ~input=itemInput, ~dynamicLocationVar=keyVar, (
+            b,
+            ~input,
+            ~path,
+          ) => b->B.parseWithTypeCheck(~schema, ~input, ~path))
+        let itemCode = bb->B.allocateScope
+        let isTransformed = itemInput !== itemOutput
+        let output = isTransformed ? b->B.val("{}") : input
+
+        b.code =
+          b.code ++
+          `for(let ${keyVar} in ${inputVar}){${itemCode}${isTransformed
+              ? b->B.Val.addKey(output, keyVar, itemOutput)
+              : ""}}`
+
+        if itemOutput.isAsync {
+          let resolveVar = b->B.varWithoutAllocation
+          let rejectVar = b->B.varWithoutAllocation
+          let asyncParseResultVar = b->B.varWithoutAllocation
+          let counterVar = b->B.varWithoutAllocation
+          let outputVar = b->B.Val.var(output)
+          b->B.asyncVal(
+            `new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=Object.keys(${outputVar}).length;for(let ${keyVar} in ${outputVar}){${outputVar}[${keyVar}].then(${asyncParseResultVar}=>{${outputVar}[${keyVar}]=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${outputVar})}},${rejectVar})}})`,
+          )
+        } else {
+          output
+        }
+      }),
+      ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+        if schema.serializeOperationBuilder === Builder.noop {
+          input
+        } else {
+          let inputVar = b->B.Val.var(input)
+          let output = b->B.val("{}")
+          let keyVar = b->B.varWithoutAllocation
+
+          let bb = b->B.scope
+          let itemOutput =
+            bb->B.withPathPrepend(
+              ~input=bb->B.val(`${inputVar}[${keyVar}]`),
+              ~path,
+              ~dynamicLocationVar=keyVar,
+              (b, ~input, ~path) => b->B.serialize(~schema, ~input, ~path),
+            )
+          let itemCode = bb->B.allocateScope
+
+          b.code =
+            b.code ++
+            `for(let ${keyVar} in ${inputVar}){${itemCode}${b->B.Val.addKey(
+                output,
+                keyVar,
+                itemOutput,
+              )}}`
+
+          output
+        }
+      }),
+      ~maybeTypeFilter=Some(Object.typeFilter),
+      ~reverse=Reverse.onlyChild(~factory, ~schema),
+    )
   }
 }
 
@@ -2521,7 +2886,7 @@ module Variant = {
               )
             | Registered(var) => b->B.serialize(~schema, ~input=var, ~path)
             | Unregistered =>
-              if selfSchema->Literal.isLiteralSchema {
+              if selfSchema->isLiteralSchema {
                 b->B.serialize(
                   ~schema,
                   ~input=b->B.val(b->B.embed(selfSchema->Literal.unsafeFromSchema->Literal.value)),
@@ -2744,254 +3109,6 @@ module Float = {
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
   )
-}
-
-module Array = {
-  module Refinement = {
-    type kind =
-      | Min({length: int})
-      | Max({length: int})
-      | Length({length: int})
-    type t = {
-      kind: kind,
-      message: string,
-    }
-
-    let metadataId: Metadata.Id.t<array<t>> = Metadata.Id.make(
-      ~namespace="rescript-schema",
-      ~name="Array.refinements",
-    )
-  }
-
-  let refinements = schema => {
-    switch schema->Metadata.get(~id=Refinement.metadataId) {
-    | Some(m) => m
-    | None => []
-    }
-  }
-
-  let typeFilter = (_b, ~inputVar) => `!Array.isArray(${inputVar})`
-
-  let rec factory = schema => {
-    let schema = schema->toUnknown
-    makeSchema(
-      ~name=containerName,
-      ~metadataMap=Metadata.Map.empty,
-      ~rawTagged=Array(schema),
-      ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-        let inputVar = b->B.Val.var(input)
-        let iteratorVar = b->B.varWithoutAllocation
-
-        let bb = b->B.scope
-        let itemInput = bb->B.val(`${inputVar}[${iteratorVar}]`)
-        let itemOutput =
-          bb->B.withPathPrepend(~input=itemInput, ~path, ~dynamicLocationVar=iteratorVar, (
-            b,
-            ~input,
-            ~path,
-          ) => b->B.parseWithTypeCheck(~schema, ~input, ~path))
-        let itemCode = bb->B.allocateScope
-        let isTransformed = itemInput !== itemOutput
-        let output = isTransformed ? b->B.val("[]") : input
-
-        b.code =
-          b.code ++
-          `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${itemCode}${isTransformed
-              ? b->B.Val.push(output, itemOutput)
-              : ""}}`
-
-        if itemOutput.isAsync {
-          b->B.asyncVal(`Promise.all(${b->B.Val.inline(output)})`)
-        } else {
-          output
-        }
-      }),
-      ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-        if schema.serializeOperationBuilder === Builder.noop {
-          input
-        } else {
-          let inputVar = b->B.Val.var(input)
-          let iteratorVar = b->B.varWithoutAllocation
-          let output = b->B.val("[]")
-
-          let bb = b->B.scope
-          let itemOutput =
-            bb->B.withPathPrepend(
-              ~input=bb->B.val(`${inputVar}[${iteratorVar}]`),
-              ~path,
-              ~dynamicLocationVar=iteratorVar,
-              (b, ~input, ~path) => b->B.serialize(~schema, ~input, ~path),
-            )
-          let itemCode = bb->B.allocateScope
-
-          b.code =
-            b.code ++
-            `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${itemCode}${b->B.Val.push(
-                output,
-                itemOutput,
-              )}}`
-
-          output
-        }
-      }),
-      ~maybeTypeFilter=Some(typeFilter),
-      ~reverse=Reverse.onlyChild(~factory, ~schema),
-    )
-  }
-}
-
-module Dict = {
-  let rec factory = schema => {
-    let schema = schema->toUnknown
-    makeSchema(
-      ~name=containerName,
-      ~metadataMap=Metadata.Map.empty,
-      ~rawTagged=Dict(schema),
-      ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-        let inputVar = b->B.Val.var(input)
-        let keyVar = b->B.varWithoutAllocation
-
-        let bb = b->B.scope
-        let itemInput = bb->B.val(`${inputVar}[${keyVar}]`)
-        let itemOutput =
-          bb->B.withPathPrepend(~path, ~input=itemInput, ~dynamicLocationVar=keyVar, (
-            b,
-            ~input,
-            ~path,
-          ) => b->B.parseWithTypeCheck(~schema, ~input, ~path))
-        let itemCode = bb->B.allocateScope
-        let isTransformed = itemInput !== itemOutput
-        let output = isTransformed ? b->B.val("{}") : input
-
-        b.code =
-          b.code ++
-          `for(let ${keyVar} in ${inputVar}){${itemCode}${isTransformed
-              ? b->B.Val.addKey(output, keyVar, itemOutput)
-              : ""}}`
-
-        if itemOutput.isAsync {
-          let resolveVar = b->B.varWithoutAllocation
-          let rejectVar = b->B.varWithoutAllocation
-          let asyncParseResultVar = b->B.varWithoutAllocation
-          let counterVar = b->B.varWithoutAllocation
-          let outputVar = b->B.Val.var(output)
-          b->B.asyncVal(
-            `new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=Object.keys(${outputVar}).length;for(let ${keyVar} in ${outputVar}){${outputVar}[${keyVar}].then(${asyncParseResultVar}=>{${outputVar}[${keyVar}]=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${outputVar})}},${rejectVar})}})`,
-          )
-        } else {
-          output
-        }
-      }),
-      ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-        if schema.serializeOperationBuilder === Builder.noop {
-          input
-        } else {
-          let inputVar = b->B.Val.var(input)
-          let output = b->B.val("{}")
-          let keyVar = b->B.varWithoutAllocation
-
-          let bb = b->B.scope
-          let itemOutput =
-            bb->B.withPathPrepend(
-              ~input=bb->B.val(`${inputVar}[${keyVar}]`),
-              ~path,
-              ~dynamicLocationVar=keyVar,
-              (b, ~input, ~path) => b->B.serialize(~schema, ~input, ~path),
-            )
-          let itemCode = bb->B.allocateScope
-
-          b.code =
-            b.code ++
-            `for(let ${keyVar} in ${inputVar}){${itemCode}${b->B.Val.addKey(
-                output,
-                keyVar,
-                itemOutput,
-              )}}`
-
-          output
-        }
-      }),
-      ~maybeTypeFilter=Some(Object.typeFilter),
-      ~reverse=Reverse.onlyChild(~factory, ~schema),
-    )
-  }
-}
-
-module Tuple = {
-  type s = {
-    item: 'value. (int, t<'value>) => 'value,
-    tag: 'value. (int, 'value) => unit,
-  }
-
-  let factory = definer => {
-    let items = []
-    let ctx = {
-      let item:
-        type value. (int, schema<value>) => value =
-        (idx, schema) => {
-          let schema = schema->toUnknown
-          let location = idx->Js.Int.toString
-          let inlinedLocation = `"${location}"`
-          if items->Stdlib.Array.has(idx) {
-            InternalError.panic(`The item ${inlinedLocation} is defined multiple times`)
-          } else {
-            let item: item = {
-              schema,
-              location,
-              inlinedLocation,
-              path: inlinedLocation->Path.fromInlinedLocation,
-              symbol: itemSymbol,
-            }
-            items->Js.Array2.unsafe_set(idx, item)
-            item->(Obj.magic: item => value)
-          }
-        }
-
-      let tag = (idx, asValue) => {
-        let _ = item(idx, literal(asValue))
-      }
-
-      {
-        item,
-        tag,
-      }
-    }
-    let definition = definer((ctx :> s))->(Obj.magic: 'any => unknown)
-
-    let length = items->Js.Array2.length
-    for idx in 0 to length - 1 {
-      if items->Js.Array2.unsafe_get(idx)->Obj.magic->not {
-        let schema = unit->toUnknown
-        let location = idx->Js.Int.toString
-        let inlinedLocation = `"${location}"`
-        let item: item = {
-          schema,
-          location,
-          inlinedLocation,
-          path: inlinedLocation->Path.fromInlinedLocation,
-          symbol: itemSymbol,
-        }
-        items->Js.Array2.unsafe_set(idx, item)
-      }
-    }
-
-    makeSchema(
-      ~name=() => `Tuple(${items->Js.Array2.map(i => i.schema.name())->Js.Array2.joinWith(", ")})`,
-      ~rawTagged=Tuple({
-        items,
-        definition,
-      }),
-      ~parseOperationBuilder=Object.parseOperationBuilder,
-      ~serializeOperationBuilder=Object.serializeOperationBuilder,
-      ~maybeTypeFilter=Some(
-        (b, ~inputVar) =>
-          b->Array.typeFilter(~inputVar) ++
-            `||${inputVar}.length!==${length->Stdlib.Int.unsafeToString}`,
-      ),
-      ~metadataMap=Metadata.Map.empty,
-      ~reverse=Reverse.toSelf,
-    )
-  }
 }
 
 module Union = {
@@ -3313,7 +3430,7 @@ module Schema = {
           node->(
             Obj.magic: Definition.node<schema<unknown>> => array<Definition.t<schema<unknown>>>
           )
-        Tuple.factory(s => {
+        Object.tuple(s => {
           for idx in 0 to node->Js.Array2.length - 1 {
             let definition = node->Js.Array2.unsafe_get(idx)
             node->Js.Array2.unsafe_set(
@@ -3656,7 +3773,7 @@ let option = Option.factory
 let array = Array.factory
 let dict = Dict.factory
 let variant = Variant.factory
-let tuple = Tuple.factory
+let tuple = Object.tuple
 let tuple1 = v0 => tuple(s => s.item(0, v0))
 let tuple2 = (v0, v1) => tuple(s => (s.item(0, v0), s.item(1, v1)))
 let tuple3 = (v0, v1, v2) => tuple(s => (s.item(0, v0), s.item(1, v1), s.item(2, v2)))

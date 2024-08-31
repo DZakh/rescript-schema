@@ -43,7 +43,7 @@ let rec cleanUpSchema = schema => {
   ->Dict.toArray
   ->Array.forEach(((key, value)) => {
     switch key {
-    | "i" => ()
+    | "i" | "c" => ()
     // tagged
     | "definition" => ()
     | _ =>
