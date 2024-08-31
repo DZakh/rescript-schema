@@ -67,16 +67,6 @@ module Common = {
     t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
   })
 
-  test("Compiled reverse code snapshot", t => {
-    let schema = factory()
-
-    t->U.assertCompiledCode(
-      ~schema=schema->S.reverse,
-      ~op=#Parse,
-      `i=>{if(i!==void 0&&(typeof i!=="string")){e[0](i)}return i}`,
-    )
-  })
-
   test("Succesfully uses reversed schema for parsing back to initial value", t => {
     let schema = factory()
     t->U.assertReverseParsesBack(schema, Some("abc"))

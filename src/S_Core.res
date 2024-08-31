@@ -2725,7 +2725,7 @@ module Array = {
 
   let typeFilter = (_b, ~inputVar) => `!Array.isArray(${inputVar})`
 
-  let factory = schema => {
+  let rec factory = schema => {
     let schema = schema->toUnknown
     makeSchema(
       ~name=containerName,
@@ -2788,13 +2788,13 @@ module Array = {
         }
       }),
       ~maybeTypeFilter=Some(typeFilter),
-      ~reverse=Reverse.toSelf,
+      ~reverse=Reverse.onlyChild(~factory, ~schema),
     )
   }
 }
 
 module Dict = {
-  let factory = schema => {
+  let rec factory = schema => {
     let schema = schema->toUnknown
     makeSchema(
       ~name=containerName,
@@ -2865,7 +2865,7 @@ module Dict = {
         }
       }),
       ~maybeTypeFilter=Some(Object.typeFilter),
-      ~reverse=Reverse.toSelf,
+      ~reverse=Reverse.onlyChild(~factory, ~schema),
     )
   }
 }

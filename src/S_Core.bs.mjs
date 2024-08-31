@@ -1886,7 +1886,7 @@ function factory$5(schema) {
                 var itemCode = allocateScope(bb);
                 b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + itemCode + push(b, output, itemOutput) + "}");
                 return output;
-              }), typeFilter$5, toSelf);
+              }), typeFilter$5, onlyChild(factory$5, schema));
 }
 
 function factory$6(schema) {
@@ -1930,7 +1930,7 @@ function factory$6(schema) {
                 var itemCode = allocateScope(bb);
                 b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + itemCode + addKey(b, output, keyVar, itemOutput) + "}");
                 return output;
-              }), typeFilter, toSelf);
+              }), typeFilter, onlyChild(factory$6, schema));
 }
 
 function factory$7(definer) {
