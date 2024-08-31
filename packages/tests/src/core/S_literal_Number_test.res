@@ -70,6 +70,12 @@ module Common = {
 
     t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{if(i!==123){e[0](i)}return i}`)
   })
+
+  test("Reverse schema to self", t => {
+    let schema = factory()
+
+    t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
+  })
 }
 
 test("Formatting of negative number with a decimal point in an error message", t => {

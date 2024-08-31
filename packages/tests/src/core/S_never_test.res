@@ -41,6 +41,12 @@ module Common = {
 
     t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{e[0](i);return i}`)
   })
+
+  test("Reverse schema to self", t => {
+    let schema = factory()
+
+    t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
+  })
 }
 
 module ObjectField = {

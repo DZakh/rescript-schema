@@ -100,4 +100,10 @@ module Common = {
       `i=>{if(i!==e[0]&&(!Array.isArray(i)||i.length!==2||i[0]!=="bar"||i[1]!==true)){e[1](i)}return i}`,
     )
   })
+
+  test("Reverse schema to self", t => {
+    let schema = factory()
+
+    t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
+  })
 }

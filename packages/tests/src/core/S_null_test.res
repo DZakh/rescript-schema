@@ -61,6 +61,12 @@ module Common = {
       `i=>{let v0;if(i!==void 0){v0=e[0](i)}else{v0=null}return v0}`,
     )
   })
+
+  test("Reverse schema to self", t => {
+    let schema = factory()
+
+    t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
+  })
 }
 
 test("Successfully parses primitive", t => {

@@ -347,6 +347,8 @@ module Metadata: {
 
 let inline: t<'value> => string
 
+let reverse: t<'value> => t<unknown>
+
 // =============
 // Built-in refinements
 // =============

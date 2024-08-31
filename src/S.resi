@@ -347,6 +347,8 @@ module Metadata: {
 
 let inline: t<'value> => string
 
+let reverse: t<'value> => t<unknown>
+
 let intMin: (t<int>, int, ~message: string=?) => t<int>
 let intMax: (t<int>, int, ~message: string=?) => t<int>
 let port: (t<int>, ~message: string=?) => t<int>

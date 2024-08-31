@@ -234,6 +234,8 @@ type rec t<'value> = {
   rawTagged: tagged,
   @as("n")
   name: unit => string,
+  @as("r")
+  mutable reverse: unit => t<unknown>,
   @as("p")
   mutable parseOperationBuilder: builder,
   @as("s")
@@ -782,6 +784,10 @@ module Builder = {
 // TODO: Split validation code and transformation code
 module B = Builder.B
 
+module Reverse = {
+  let self = () => %raw(`this`)
+}
+
 module Literal = {
   open Stdlib
 
@@ -1085,6 +1091,8 @@ let isAsyncParse = schema => {
   }
 }
 
+let reverse = schema => schema.reverse()
+
 @inline
 let parseAnyOrRaiseWith = (any, schema) => {
   schema.parseOrRaise(any->castAnyToUnknown)->castUnknownToAny
@@ -1320,6 +1328,7 @@ let make = (
   jsParse,
   jsParseAsync,
   jsSerialize,
+  reverse: Reverse.self,
 }
 
 let makeWithNoopSerializer = (
@@ -1344,6 +1353,7 @@ let makeWithNoopSerializer = (
   jsParse,
   jsParseAsync,
   jsSerialize,
+  reverse: Reverse.self,
 }
 
 module Metadata = {
@@ -2270,6 +2280,7 @@ module Object = {
         jsParse,
         jsParseAsync,
         jsSerialize,
+        reverse: Reverse.self,
       }
     }
 
@@ -2299,6 +2310,7 @@ module Object = {
         jsParse,
         jsParseAsync,
         jsSerialize,
+        reverse: Reverse.self,
       }
     // TODO: Should it throw for non Object schemas?
     | _ => schema

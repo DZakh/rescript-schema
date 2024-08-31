@@ -413,6 +413,10 @@ function build(builder, schema, operation, finalizer) {
   return new Function("e", "s", "return " + inlinedFunction)(b.g.e, symbol);
 }
 
+function self() {
+  return this;
+}
+
 function value(literal) {
   return literal.value;
 }
@@ -634,6 +638,10 @@ function isAsyncParse(schema) {
     getOrRethrow(exn);
     return false;
   }
+}
+
+function reverse(schema) {
+  return schema.r();
 }
 
 function parseAnyOrRaiseWith(any, schema) {
@@ -887,6 +895,7 @@ function make(name, rawTagged, metadataMap, parseOperationBuilder, serializeOper
   return {
           t: rawTagged,
           n: name,
+          r: self,
           p: parseOperationBuilder,
           s: serializeOperationBuilder,
           f: maybeTypeFilter,
@@ -907,6 +916,7 @@ function makeWithNoopSerializer(name, rawTagged, metadataMap, parseOperationBuil
   return {
           t: rawTagged,
           n: name,
+          r: self,
           p: parseOperationBuilder,
           s: noop,
           f: maybeTypeFilter,
@@ -1556,6 +1566,7 @@ function factory$2(definer) {
             definition: definition
           },
           n: name,
+          r: self,
           p: parseOperationBuilder$1,
           s: serializeOperationBuilder$1,
           f: typeFilter,
@@ -1588,6 +1599,7 @@ function setUnknownKeys(schema, unknownKeys) {
               definition: match.definition
             },
             n: schema.n,
+            r: self,
             p: schema.p,
             s: schema.s,
             f: schema.f,
@@ -3144,6 +3156,7 @@ export {
   $$Array ,
   Metadata ,
   inline$1 as inline,
+  reverse ,
   intMin ,
   intMax ,
   port ,

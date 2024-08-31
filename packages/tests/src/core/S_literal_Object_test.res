@@ -129,4 +129,10 @@ module Common = {
       `i=>{if(i!==e[0]&&(!i||i.constructor!==Object||Object.keys(i).length!==1||i["foo"]!=="bar")){e[1](i)}return i}`,
     )
   })
+
+  test("Reverse schema to self", t => {
+    let schema = factory()
+
+    t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
+  })
 }
