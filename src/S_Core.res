@@ -230,7 +230,7 @@ type rec literal =
 @@warning("+37")
 
 type rec t<'value> = {
-  @as("r")
+  @as("t")
   rawTagged: tagged,
   @as("n")
   name: unit => string,
@@ -1400,7 +1400,7 @@ let recursive = fn => {
     // metadataMap
     "m": Metadata.Map.empty,
     // rawTagged
-    "r": Unknown,
+    "t": Unknown,
     // name
     "n": () => "<recursive>",
     // parseOperationBuilder
@@ -1757,7 +1757,7 @@ module Option = {
   let default = schema => schema->Metadata.get(~id=defaultMetadataId)
 
   let parseOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path) => {
-    let isNull = %raw(`selfSchema.r.TAG === "Null"`)
+    let isNull = %raw(`selfSchema.t.TAG === "Null"`)
     let childSchema = selfSchema->classify->unsafeGetVariantPayload
 
     let bb = b->B.scope
@@ -1784,7 +1784,7 @@ module Option = {
     let output = b->B.allocateVal
     let inputVar = b->B.Val.var(input)
 
-    let isNull = %raw(`selfSchema.r.TAG === "Null"`)
+    let isNull = %raw(`selfSchema.t.TAG === "Null"`)
     let childSchema = selfSchema->classify->unsafeGetVariantPayload
 
     let bb = b->B.scope
