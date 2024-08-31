@@ -1126,7 +1126,21 @@ function transform$1(schema, transformer) {
                 }
                 var input$1 = embedSyncOperation(b, input, serializer);
                 return schema.s(b, input$1, schema, path);
-              }), schema.f, toSelf);
+              }), schema.f, (function () {
+                var schema$1 = schema.r();
+                return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, input, selfSchema, path) {
+                              var input$1 = schema$1.p(b, input, schema$1, path);
+                              var match = transformer(effectCtx(b, selfSchema, path));
+                              var serializer = match.s;
+                              if (serializer !== undefined) {
+                                return embedSyncOperation(b, input$1, serializer);
+                              } else if (match.a !== undefined || match.p !== undefined) {
+                                return invalidOperation(b, path, "The S.transform serializer is missing");
+                              } else {
+                                return input$1;
+                              }
+                            }), undefined);
+              }));
 }
 
 function preprocess(schema, transformer) {

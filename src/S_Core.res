@@ -1642,7 +1642,26 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
     }),
     ~maybeTypeFilter=schema.maybeTypeFilter,
     ~metadataMap=schema.metadataMap,
-    ~reverse=Reverse.toSelf,
+    ~reverse=() => {
+      let schema = schema.reverse()
+      makeReverseSchema(
+        ~name=primitiveName,
+        ~rawTagged=Unknown,
+        ~parseOperationBuilder=(b, ~input, ~selfSchema, ~path) => {
+          let input = b->B.parse(~schema, ~input, ~path)
+          switch transformer(b->B.effectCtx(~selfSchema, ~path)) {
+          | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
+          | {parser: ?None, asyncParser: ?None, serializer: ?None} => input
+          | {serializer: ?None, asyncParser: ?Some(_)}
+          | {serializer: ?None, parser: ?Some(_)} =>
+            b->B.invalidOperation(~path, ~description=`The S.transform serializer is missing`)
+          }
+        },
+        ~maybeTypeFilter=None,
+        // FIXME: Test how metadata should work for reversed schemas
+        ~metadataMap=Metadata.Map.empty,
+      )
+    },
   )
 }
 
