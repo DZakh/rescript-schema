@@ -1377,6 +1377,18 @@ let makeReverseSchema = (
   reverse: Reverse.toSelf,
 }
 
+let mapSchemaBuilder = (schema, builder) => {
+  makeReverseSchema(
+    ~name=schema.name,
+    ~rawTagged=schema.rawTagged,
+    ~parseOperationBuilder=(b, ~input, ~selfSchema, ~path) => {
+      b->builder(~input=b->B.parse(~schema, ~input, ~path), ~selfSchema, ~path)
+    },
+    ~maybeTypeFilter=schema.maybeTypeFilter,
+    ~metadataMap=schema.metadataMap,
+  )
+}
+
 module Metadata = {
   module Id: {
     type t<'metadata>
@@ -2613,7 +2625,23 @@ module JsonString = {
         output
       }),
       ~maybeTypeFilter=Some(String.typeFilter),
-      ~reverse=Reverse.toSelf,
+      ~reverse=() => {
+        schema.reverse()->mapSchemaBuilder((b, ~input, ~selfSchema as _, ~path as _) => {
+          let prevOperation = b.global.operation
+          b.global.operation = SerializeToJson
+          if schema.rawTagged->unsafeGetVarianTag === "Option" {
+            b->B.raise(~code=InvalidJsonSchema(schema), ~path=Path.empty)
+          }
+          let output =
+            b->B.val(
+              `JSON.stringify(${b->B.Val.inline(input)}${space > 0
+                  ? `,null,${space->Stdlib.Int.unsafeToString}`
+                  : ""})`,
+            )
+          b.global.operation = prevOperation
+          output
+        })
+      },
     )
   }
 }
