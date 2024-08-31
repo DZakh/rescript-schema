@@ -785,7 +785,7 @@ module Builder = {
 module B = Builder.B
 
 module Reverse = {
-  let self = () => %raw(`this`)
+  let toSelf = () => %raw(`this`)
 }
 
 module Literal = {
@@ -1305,7 +1305,7 @@ let jsSerialize = value => {
   }
 }
 
-let make = (
+let makeSchema = (
   ~name,
   ~rawTagged,
   ~metadataMap,
@@ -1328,7 +1328,7 @@ let make = (
   jsParse,
   jsParseAsync,
   jsSerialize,
-  reverse: Reverse.self,
+  reverse: Reverse.toSelf,
 }
 
 let makeWithNoopSerializer = (
@@ -1353,7 +1353,7 @@ let makeWithNoopSerializer = (
   jsParse,
   jsParseAsync,
   jsSerialize,
-  reverse: Reverse.self,
+  reverse: Reverse.toSelf,
 }
 
 module Metadata = {
@@ -1391,7 +1391,7 @@ module Metadata = {
 
   let set = (schema, ~id: Id.t<'metadata>, metadata: 'metadata) => {
     let metadataMap = schema.metadataMap->Map.set(~id, metadata)
-    make(
+    makeSchema(
       ~name=schema.name,
       ~parseOperationBuilder=schema.parseOperationBuilder,
       ~serializeOperationBuilder=schema.serializeOperationBuilder,
@@ -1478,7 +1478,7 @@ let recursive = fn => {
 }
 
 let setName = (schema, name) => {
-  make(
+  makeSchema(
     ~name=() => name,
     ~parseOperationBuilder=schema.parseOperationBuilder,
     ~serializeOperationBuilder=schema.serializeOperationBuilder,
@@ -1499,7 +1499,7 @@ let containerName = () => {
 
 let internalRefine = (schema, refiner) => {
   let schema = schema->toUnknown
-  make(
+  makeSchema(
     ~name=schema.name,
     ~rawTagged=schema.rawTagged,
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
@@ -1562,7 +1562,7 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
   transformer,
 ) => {
   let schema = schema->toUnknown
-  make(
+  makeSchema(
     ~name=schema.name,
     ~rawTagged=schema.rawTagged,
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
@@ -1609,7 +1609,7 @@ let rec preprocess = (schema, transformer) => {
   let schema = schema->toUnknown
   switch schema->classify {
   | Union(unionSchemas) =>
-    make(
+    makeSchema(
       ~name=schema.name,
       ~rawTagged=Union(
         unionSchemas->Js.Array2.map(unionSchema =>
@@ -1622,7 +1622,7 @@ let rec preprocess = (schema, transformer) => {
       ~metadataMap=schema.metadataMap,
     )
   | _ =>
-    make(
+    makeSchema(
       ~name=schema.name,
       ~rawTagged=schema.rawTagged,
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
@@ -1669,7 +1669,7 @@ type customDefinition<'input, 'output> = {
   serializer?: 'output => 'input,
 }
 let custom = (name, definer) => {
-  make(
+  makeSchema(
     ~name=() => name,
     ~metadataMap=Metadata.Map.empty,
     ~rawTagged=Unknown,
@@ -1705,7 +1705,7 @@ let literal = value => {
   let literal = value->Literal.parse
   let internalLiteral = literal->Literal.toInternal
 
-  make(
+  makeSchema(
     ~name=() => literal->Literal.toString,
     ~metadataMap=Metadata.Map.empty,
     ~rawTagged=Literal(literal),
@@ -1829,7 +1829,7 @@ module Option = {
 
   let factory = schema => {
     let schema = schema->toUnknown
-    make(
+    makeSchema(
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
       ~rawTagged=Option(schema),
@@ -1841,7 +1841,7 @@ module Option = {
 
   let getWithDefault = (schema, default) => {
     let schema = schema->(Obj.magic: t<option<'value>> => t<unknown>)
-    make(
+    makeSchema(
       ~name=schema.name,
       ~metadataMap=schema.metadataMap->Metadata.Map.set(~id=defaultMetadataId, default),
       ~rawTagged=schema.rawTagged,
@@ -1870,7 +1870,7 @@ module Option = {
 module Null = {
   let factory = schema => {
     let schema = schema->toUnknown
-    make(
+    makeSchema(
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
       ~rawTagged=Null(schema),
@@ -1900,7 +1900,7 @@ module Never = {
     input
   })
 
-  let schema = make(
+  let schema = makeSchema(
     ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
     ~rawTagged=Never,
@@ -2280,7 +2280,7 @@ module Object = {
         jsParse,
         jsParseAsync,
         jsSerialize,
-        reverse: Reverse.self,
+        reverse: Reverse.toSelf,
       }
     }
 
@@ -2310,7 +2310,7 @@ module Object = {
         jsParse,
         jsParseAsync,
         jsSerialize,
-        reverse: Reverse.self,
+        reverse: Reverse.toSelf,
       }
     // TODO: Should it throw for non Object schemas?
     | _ => schema
@@ -2336,7 +2336,7 @@ module Variant = {
       if schema.definer->Obj.magic {
         Object.factory((ctx => definer((schema.definer->Obj.magic)(ctx)))->Obj.magic)
       } else {
-        make(
+        makeSchema(
           ~name=schema.name,
           ~rawTagged=schema.rawTagged,
           ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
@@ -2431,7 +2431,7 @@ module Variant = {
 }
 
 module Unknown = {
-  let schema = make(
+  let schema = makeSchema(
     ~name=primitiveName,
     ~rawTagged=Unknown,
     ~parseOperationBuilder=Builder.noop,
@@ -2495,7 +2495,7 @@ module String = {
 module JsonString = {
   let factory = (schema, ~space=0) => {
     let schema = schema->toUnknown
-    make(
+    makeSchema(
       ~name=primitiveName,
       ~metadataMap=Metadata.Map.empty,
       ~rawTagged=String,
@@ -2653,7 +2653,7 @@ module Array = {
 
   let factory = schema => {
     let schema = schema->toUnknown
-    make(
+    makeSchema(
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
       ~rawTagged=Array(schema),
@@ -2721,7 +2721,7 @@ module Array = {
 module Dict = {
   let factory = schema => {
     let schema = schema->toUnknown
-    make(
+    makeSchema(
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
       ~rawTagged=Dict(schema),
@@ -2852,7 +2852,7 @@ module Tuple = {
       }
     }
 
-    make(
+    makeSchema(
       ~name=() => `Tuple(${items->Js.Array2.map(i => i.schema.name())->Js.Array2.joinWith(", ")})`,
       ~rawTagged=Tuple({
         items,
@@ -2903,7 +2903,7 @@ module Union = {
     | [] => InternalError.panic("S.union requires at least one item")
     | [schema] => schema->castUnknownSchemaToAnySchema
     | _ =>
-      make(
+      makeSchema(
         ~name=() => `Union(${schemas->Js.Array2.map(s => s.name())->Js.Array2.joinWith(", ")})`,
         ~metadataMap=Metadata.Map.empty,
         ~rawTagged=Union(schemas),
@@ -3121,7 +3121,7 @@ module Catch = {
 }
 let catch = (schema, getFallbackValue) => {
   let schema = schema->toUnknown
-  make(
+  makeSchema(
     ~name=schema.name,
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       let inputVar = b->B.Val.var(input)
@@ -3943,7 +3943,7 @@ let js_merge = (s1, s2) => {
       items->Js.Array2.push(item)->ignore
       fields->Js.Dict.set(item.location, item)
     }
-    make(
+    makeSchema(
       ~name=() => `${s1.name()} & ${s2.name()}`,
       ~rawTagged=Object({
         unknownKeys,

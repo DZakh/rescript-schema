@@ -413,7 +413,7 @@ function build(builder, schema, operation, finalizer) {
   return new Function("e", "s", "return " + inlinedFunction)(b.g.e, symbol);
 }
 
-function self() {
+function toSelf() {
   return this;
 }
 
@@ -891,11 +891,11 @@ function jsSerialize(value) {
   }
 }
 
-function make(name, rawTagged, metadataMap, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter) {
+function makeSchema(name, rawTagged, metadataMap, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter) {
   return {
           t: rawTagged,
           n: name,
-          r: self,
+          r: toSelf,
           p: parseOperationBuilder,
           s: serializeOperationBuilder,
           f: maybeTypeFilter,
@@ -916,7 +916,7 @@ function makeWithNoopSerializer(name, rawTagged, metadataMap, parseOperationBuil
   return {
           t: rawTagged,
           n: name,
-          r: self,
+          r: toSelf,
           p: parseOperationBuilder,
           s: noop,
           f: maybeTypeFilter,
@@ -933,12 +933,12 @@ function makeWithNoopSerializer(name, rawTagged, metadataMap, parseOperationBuil
         };
 }
 
-function make$1(namespace, name) {
+function make(namespace, name) {
   return namespace + ":" + name;
 }
 
 var Id = {
-  make: make$1
+  make: make
 };
 
 var empty = {};
@@ -958,7 +958,7 @@ function get(schema, id) {
 
 function set$2(schema, id, metadata) {
   var metadataMap = set$1(schema.m, id, metadata);
-  return make(schema.n, schema.t, metadataMap, schema.p, schema.s, schema.f);
+  return makeSchema(schema.n, schema.t, metadataMap, schema.p, schema.s, schema.f);
 }
 
 function recursive(fn) {
@@ -1020,7 +1020,7 @@ function recursive(fn) {
 }
 
 function setName(schema, name) {
-  return make((function () {
+  return makeSchema((function () {
                 return name;
               }), schema.t, schema.m, schema.p, schema.s, schema.f);
 }
@@ -1035,7 +1035,7 @@ function containerName() {
 }
 
 function internalRefine(schema, refiner) {
-  return make(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
+  return makeSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
                 return transform(b, schema.p(b, input, schema, path), (function (b, input) {
                               var input$1;
                               if (b.c === "" && input.v !== undefined) {
@@ -1071,7 +1071,7 @@ function addRefinement(schema, metadataId, refinement, refiner) {
 }
 
 function transform$1(schema, transformer) {
-  return make(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
+  return makeSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
                 var input$1 = schema.p(b, input, schema, path);
                 var match = transformer(effectCtx(b, selfSchema, path));
                 var parser = match.p;
@@ -1108,14 +1108,14 @@ function transform$1(schema, transformer) {
 function preprocess(schema, transformer) {
   var unionSchemas = schema.t;
   if (typeof unionSchemas === "object" && unionSchemas.TAG === "Union") {
-    return make(schema.n, {
+    return makeSchema(schema.n, {
                 TAG: "Union",
                 _0: unionSchemas._0.map(function (unionSchema) {
                       return preprocess(unionSchema, transformer);
                     })
               }, schema.m, schema.p, schema.s, schema.f);
   }
-  return make(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
+  return makeSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
                 var match = transformer(effectCtx(b, selfSchema, path));
                 var parser = match.p;
                 if (parser !== undefined) {
@@ -1146,7 +1146,7 @@ function preprocess(schema, transformer) {
 }
 
 function custom(name, definer) {
-  return make((function () {
+  return makeSchema((function () {
                 return name;
               }), "Unknown", empty, (function (b, input, selfSchema, path) {
                 var match = definer(effectCtx(b, selfSchema, path));
@@ -1181,7 +1181,7 @@ function custom(name, definer) {
 
 function literal(value) {
   var literal$1 = parseInternal(value);
-  return make((function () {
+  return makeSchema((function () {
                 return literal$1.s;
               }), {
               TAG: "Literal",
@@ -1260,14 +1260,14 @@ function maybeTypeFilter(schema, inlinedNoneValue) {
 }
 
 function factory(schema) {
-  return make(containerName, {
+  return makeSchema(containerName, {
               TAG: "Option",
               _0: schema
             }, empty, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter(schema, "void 0"));
 }
 
 function getWithDefault(schema, $$default) {
-  return make(schema.n, schema.t, set$1(schema.m, defaultMetadataId, $$default), (function (b, input, param, path) {
+  return makeSchema(schema.n, schema.t, set$1(schema.m, defaultMetadataId, $$default), (function (b, input, param, path) {
                 return transform(b, schema.p(b, input, schema, path), (function (b, input) {
                               var inputVar = $$var(b, input);
                               var tmp;
@@ -1292,7 +1292,7 @@ function getOrWith(schema, defalutCb) {
 }
 
 function factory$1(schema) {
-  return make(containerName, {
+  return makeSchema(containerName, {
               TAG: "Null",
               _0: schema
             }, empty, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter(schema, "null"));
@@ -1313,7 +1313,7 @@ function builder(b, input, selfSchema, path) {
   return input;
 }
 
-var schema = make(primitiveName, "Never", empty, builder, builder, undefined);
+var schema = makeSchema(primitiveName, "Never", empty, builder, builder, undefined);
 
 function typeFilter(_b, inputVar) {
   return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
@@ -1566,7 +1566,7 @@ function factory$2(definer) {
             definition: definition
           },
           n: name,
-          r: self,
+          r: toSelf,
           p: parseOperationBuilder$1,
           s: serializeOperationBuilder$1,
           f: typeFilter,
@@ -1599,7 +1599,7 @@ function setUnknownKeys(schema, unknownKeys) {
               definition: match.definition
             },
             n: schema.n,
-            r: self,
+            r: toSelf,
             p: schema.p,
             s: schema.s,
             f: schema.f,
@@ -1633,7 +1633,7 @@ function factory$3(schema, definer) {
                 return definer(schema.d(ctx));
               });
   } else {
-    return make(schema.n, schema.t, schema.m, (function (b, input, param, path) {
+    return makeSchema(schema.n, schema.t, schema.m, (function (b, input, param, path) {
                   return embedSyncOperation(b, schema.p(b, input, schema, path), definer);
                 }), (function (b, input, selfSchema, path) {
                   var inputVar = $$var(b, input);
@@ -1691,7 +1691,7 @@ function factory$3(schema, definer) {
   }
 }
 
-var schema$1 = make(primitiveName, "Unknown", empty, noop, (function (b, input, selfSchema, path) {
+var schema$1 = makeSchema(primitiveName, "Unknown", empty, noop, (function (b, input, selfSchema, path) {
         registerInvalidJson(b, selfSchema, path);
         return input;
       }), undefined);
@@ -1723,7 +1723,7 @@ var schema$2 = makeWithNoopSerializer(primitiveName, "String", empty, noop, type
 
 function factory$4(schema, spaceOpt) {
   var space = spaceOpt !== undefined ? spaceOpt : 0;
-  return make(primitiveName, "String", empty, (function (b, input, param, path) {
+  return makeSchema(primitiveName, "String", empty, (function (b, input, param, path) {
                 var jsonVal = allocateVal(b);
                 b.c = b.c + ("try{" + set(b, jsonVal, map(b, "JSON.parse", input)) + "}catch(t){" + failWithArg(b, path, (function (message) {
                           return {
@@ -1810,7 +1810,7 @@ function typeFilter$5(_b, inputVar) {
 }
 
 function factory$5(schema) {
-  return make(containerName, {
+  return makeSchema(containerName, {
               TAG: "Array",
               _0: schema
             }, empty, (function (b, input, param, path) {
@@ -1850,7 +1850,7 @@ function factory$5(schema) {
 }
 
 function factory$6(schema) {
-  return make(containerName, {
+  return makeSchema(containerName, {
               TAG: "Dict",
               _0: schema
             }, empty, (function (b, input, param, path) {
@@ -1937,7 +1937,7 @@ function factory$7(definer) {
     }
     
   }
-  return make((function () {
+  return makeSchema((function () {
                 return "Tuple(" + items.map(function (i) {
                               return i.t.n();
                             }).join(", ") + ")";
@@ -1956,7 +1956,7 @@ function factory$8(schemas) {
     return schemas[0];
   }
   if (len !== 0) {
-    return make((function () {
+    return makeSchema((function () {
                   return "Union(" + schemas.map(function (s) {
                                 return s.n();
                               }).join(", ") + ")";
@@ -2149,7 +2149,7 @@ function json(validate) {
 var Catch = {};
 
 function $$catch(schema, getFallbackValue) {
-  return make(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
+  return makeSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
                 var inputVar = $$var(b, input);
                 return withCatch(b, input, (function (b, errorVar) {
                               return val(b, "e[" + (b.g.e.push(function (input, internalError) {
@@ -2236,7 +2236,7 @@ function factory$9(definer) {
 
 var $$class = RescriptSchemaError;
 
-function make$2(prim0, prim1, prim2) {
+function make$1(prim0, prim1, prim2) {
   return new RescriptSchemaError(prim0, prim1, prim2);
 }
 
@@ -2936,7 +2936,7 @@ function js_merge(s1, s2) {
         items.push(item$1);
         fields[item$1.l] = item$1;
       }
-      return make((function () {
+      return makeSchema((function () {
                     return s1.n() + " & " + s2.n();
                   }), {
                   TAG: "Object",
@@ -2988,7 +2988,7 @@ var Path = {
 
 var $$Error$1 = {
   $$class: $$class,
-  make: make$2,
+  make: make$1,
   raise: raise$1,
   message: message,
   reason: reason
