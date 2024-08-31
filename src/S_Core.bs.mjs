@@ -1282,7 +1282,49 @@ function factory$1(schema) {
   return makeSchema(containerName, {
               TAG: "Null",
               _0: schema
-            }, empty, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter(schema, "null"), toSelf);
+            }, empty, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter(schema, "null"), (function () {
+                var schema$1 = schema.r();
+                var rawTagged = {
+                  TAG: "Option",
+                  _0: schema$1
+                };
+                var parseOperationBuilder = function (b, input, selfSchema, path) {
+                  var output = allocateVal(b);
+                  var inputVar = $$var(b, input);
+                  var childSchema = selfSchema.t._0;
+                  var bb = scope(b);
+                  var value = Caml_option.valFromOption;
+                  var input$1 = map(bb, "e[" + (bb.g.e.push(value) - 1) + "]", input);
+                  var itemOutput = childSchema.p(bb, input$1, childSchema, path);
+                  var itemCode = allocateScope(bb);
+                  b.c = b.c + ("if(" + inputVar + "!==void 0){" + itemCode + set(b, output, itemOutput) + "}else{" + setInlined(b, output, "null") + "}");
+                  return output;
+                };
+                var maybeTypeFilter$1 = maybeTypeFilter(schema$1, "void 0");
+                return {
+                        t: rawTagged,
+                        n: containerName,
+                        r: toSelf,
+                        p: parseOperationBuilder,
+                        s: (function (b, param, param$1, path) {
+                            return raise(b, {
+                                        TAG: "InvalidOperation",
+                                        description: "The S.reverse serializing is not supported."
+                                      }, path);
+                          }),
+                        f: maybeTypeFilter$1,
+                        i: 0,
+                        m: empty,
+                        a: initialParseAsyncOrRaise,
+                        parseOrThrow: initialParseOrRaise,
+                        parse: jsParse,
+                        parseAsync: jsParseAsync,
+                        serialize: jsSerialize,
+                        serializeOrThrow: initialSerializeToUnknownOrRaise,
+                        serializeToJsonOrThrow: initialSerializeOrRaise,
+                        assert: initialAssertOrRaise
+                      };
+              }));
 }
 
 function nullable(schema) {

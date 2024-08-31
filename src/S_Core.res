@@ -1336,6 +1336,36 @@ let makeSchema = (
   reverse,
 }
 
+let makeReverseSchema = (
+  ~name,
+  ~rawTagged,
+  ~metadataMap,
+  ~parseOperationBuilder,
+  ~maybeTypeFilter,
+) => {
+  rawTagged,
+  parseOperationBuilder,
+  serializeOperationBuilder: Builder.make((b, ~input as _, ~selfSchema as _, ~path) => {
+    b->B.raise(
+      ~code=InvalidOperation({description: "The S.reverse serializing is not supported."}),
+      ~path,
+    )
+  }),
+  isAsyncParse: Unknown,
+  maybeTypeFilter,
+  name,
+  metadataMap,
+  parseOrRaise: initialParseOrRaise,
+  parseAsyncOrRaise: initialParseAsyncOrRaise,
+  serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
+  serializeOrRaise: initialSerializeOrRaise,
+  assertOrRaise: initialAssertOrRaise,
+  jsParse,
+  jsParseAsync,
+  jsSerialize,
+  reverse: Reverse.toSelf,
+}
+
 module Metadata = {
   module Id: {
     type t<'metadata>
@@ -1879,7 +1909,40 @@ module Null = {
       ~parseOperationBuilder=Option.parseOperationBuilder,
       ~serializeOperationBuilder=Option.serializeOperationBuilder,
       ~maybeTypeFilter=Option.maybeTypeFilter(~schema, ~inlinedNoneValue="null"),
-      ~reverse=Reverse.toSelf,
+      ~reverse=() => {
+        let schema = schema.reverse()
+        makeReverseSchema(
+          ~name=containerName,
+          ~rawTagged=Option(schema),
+          ~metadataMap=Metadata.Map.empty,
+          // FIXME: Reuse with option
+          ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+            let output = b->B.allocateVal
+            let inputVar = b->B.Val.var(input)
+
+            let childSchema = selfSchema->classify->unsafeGetVariantPayload
+
+            let bb = b->B.scope
+            let itemOutput = bb->B.parse(
+              ~schema=childSchema,
+              // FIXME: Apply only for option children
+              ~input=bb->B.Val.map(bb->B.embed(%raw("Caml_option.valFromOption")), input),
+              ~path,
+            )
+            let itemCode = bb->B.allocateScope
+
+            b.code =
+              b.code ++
+              `if(${inputVar}!==void 0){${itemCode}${b->B.Val.set(
+                  output,
+                  itemOutput,
+                )}}else{${b->B.Val.setInlined(output, `null`)}}`
+
+            output
+          }),
+          ~maybeTypeFilter=Option.maybeTypeFilter(~schema, ~inlinedNoneValue="void 0"),
+        )
+      },
     )
   }
 }

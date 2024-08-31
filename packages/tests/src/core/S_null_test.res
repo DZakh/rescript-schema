@@ -52,20 +52,33 @@ module Common = {
     )
   })
 
+  test("Reverse schema to option", t => {
+    let schema = factory()
+
+    t->U.assertEqualSchemas(schema->S.reverse, S.option(S.string)->S.toUnknown)
+  })
+
+  test("Reverse of reverse returns the original schema", t => {
+    let schema = factory()
+
+    t->Assert.is(schema->S.reverse->S.reverse, schema->S.toUnknown, ())
+  })
+
+  let serializeCode = `let v0;if(i!==void 0){v0=e[0](i)}else{v0=null}return v0`
   test("Compiled serialize code snapshot", t => {
     let schema = factory()
 
-    t->U.assertCompiledCode(
-      ~schema,
-      ~op=#Serialize,
-      `i=>{let v0;if(i!==void 0){v0=e[0](i)}else{v0=null}return v0}`,
-    )
+    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{${serializeCode}}`)
   })
 
-  test("Reverse schema to self", t => {
+  test("Compiled reverse code snapshot", t => {
     let schema = factory()
 
-    t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
+    t->U.assertCompiledCode(
+      ~schema=schema->S.reverse,
+      ~op=#Parse,
+      `i=>{if(i!==void 0&&(typeof i!=="string")){e[1](i)}${serializeCode}}`,
+    )
   })
 }
 
