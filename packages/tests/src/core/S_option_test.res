@@ -61,7 +61,33 @@ module Common = {
       `i=>{let v0;if(i!==void 0){v0=e[0](i)}return v0}`,
     )
   })
+
+  test("Reverse to self", t => {
+    let schema = factory()
+    t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
+  })
+
+  test("Compiled reverse code snapshot", t => {
+    let schema = factory()
+
+    t->U.assertCompiledCode(
+      ~schema=schema->S.reverse,
+      ~op=#Parse,
+      `i=>{if(i!==void 0&&(typeof i!=="string")){e[0](i)}return i}`,
+    )
+  })
+
+  test("Succesfully uses reversed schema for parsing back to initial value", t => {
+    let schema = factory()
+    t->U.assertReverseParsesBack(schema, Some("abc"))
+    t->U.assertReverseParsesBack(schema, None)
+  })
 }
+
+test("Reverse child schema", t => {
+  let schema = S.option(S.null(S.string))
+  t->U.assertEqualSchemas(schema->S.reverse, S.option(S.option(S.string))->S.toUnknown)
+})
 
 test("Successfully parses primitive", t => {
   let schema = S.option(S.bool)

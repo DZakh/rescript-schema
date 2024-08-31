@@ -122,6 +122,10 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
   t.truthy(compiledCode.startsWith("function noopOperation(i)"), message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }
 
+function assertReverseParsesBack(t, schema, value) {
+  t.deepEqual(S$RescriptSchema.parseAnyOrRaiseWith(S$RescriptSchema.parseAnyOrRaiseWith(value, S$RescriptSchema.reverse(schema)), schema), value, undefined);
+}
+
 var assertEqualSchemas = unsafeAssertEqualSchemas;
 
 export {
@@ -136,5 +140,6 @@ export {
   assertCompiledCode ,
   assertCompiledCodeIsNoop ,
   assertEqualSchemas ,
+  assertReverseParsesBack ,
 }
 /* S-RescriptSchema Not a pure module */

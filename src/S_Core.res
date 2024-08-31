@@ -786,6 +786,17 @@ module B = Builder.B
 
 module Reverse = {
   let toSelf = () => %raw(`this`)
+
+  let onlyChild = (~factory, ~schema) => {
+    () => {
+      let reversed = schema.reverse()
+      if reversed === schema {
+        %raw(`this`)
+      } else {
+        factory(reversed->castUnknownSchemaToAnySchema)->toUnknown
+      }
+    }
+  }
 }
 
 module Literal = {
@@ -1857,7 +1868,7 @@ module Option = {
     }
   }
 
-  let factory = schema => {
+  let rec factory = schema => {
     let schema = schema->toUnknown
     makeSchema(
       ~name=containerName,
@@ -1866,7 +1877,8 @@ module Option = {
       ~parseOperationBuilder,
       ~serializeOperationBuilder,
       ~maybeTypeFilter=maybeTypeFilter(~schema, ~inlinedNoneValue="void 0"),
-      ~reverse=Reverse.toSelf,
+      // FIXME: Should be able to unwrap nested options
+      ~reverse=Reverse.onlyChild(~factory, ~schema),
     )
   }
 

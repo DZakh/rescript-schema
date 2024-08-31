@@ -417,6 +417,17 @@ function toSelf() {
   return this;
 }
 
+function onlyChild(factory, schema) {
+  return function () {
+    var reversed = schema.r();
+    if (reversed === schema) {
+      return this;
+    } else {
+      return factory(reversed);
+    }
+  };
+}
+
 function value(literal) {
   return literal.value;
 }
@@ -1250,7 +1261,7 @@ function factory(schema) {
   return makeSchema(containerName, {
               TAG: "Option",
               _0: schema
-            }, empty, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter(schema, "void 0"), toSelf);
+            }, empty, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter(schema, "void 0"), onlyChild(factory, schema));
 }
 
 function getWithDefault(schema, $$default) {

@@ -123,3 +123,11 @@ let assertEqualSchemas: (
   S.t<'value>,
   ~message: string=?,
 ) => unit = unsafeAssertEqualSchemas
+
+let assertReverseParsesBack = (t, schema: S.t<'value>, value: 'value) => {
+  t->Assert.unsafeDeepEqual(
+    value->S.parseAnyOrRaiseWith(schema->S.reverse)->S.parseAnyOrRaiseWith(schema),
+    value,
+    (),
+  )
+}
