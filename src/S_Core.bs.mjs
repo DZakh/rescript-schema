@@ -1037,17 +1037,7 @@ function internalRefine(schema, refiner) {
                               b.c = b.c + rCode;
                               return input$1;
                             }));
-<<<<<<< HEAD
-              }), (function (b, input, selfSchema, path) {
-                var input$1 = transform(b, input, (function (b, input) {
-                        b.c = b.c + refiner(b, $$var(b, input), selfSchema, path);
-                        return input;
-                      }));
-                return schema.s(b, input$1, schema, path);
-              }), schema.f);
-=======
               }), schema.f, toSelf);
->>>>>>> 5df61b1 (MVP: reverse)
 }
 
 function refine(schema, refiner) {
@@ -1460,43 +1450,50 @@ function factory$2(definer) {
         unknownKeys: globalConfig.u,
         definition: definition
       }, empty, builder$2, typeFilter, (function () {
-          if (typeof definition === "object" && definition !== null) {
-            if (definition.s === itemSymbol) {
-              return mapSchemaBuilder(definition.t.r(), (function (b, input, selfSchema, path) {
-                            var toRaw = function (schema, path) {
-                              var items = schema.t.items;
-                              var isObject = schema.t.TAG === "Object";
-                              var output = "";
-                              for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-                                var item = items[idx];
-                                var itemOutput;
-                                if (item === definition) {
-                                  itemOutput = inline(b, input);
-                                } else {
-                                  var itemSchema = item.t.r();
-                                  if (itemSchema.t.TAG === "Literal") {
-                                    var value = itemSchema.t._0.value;
-                                    itemOutput = "e[" + (b.g.e.push(value) - 1) + "]";
-                                  } else {
-                                    itemOutput = isObject && itemSchema.d ? toRaw(itemSchema, path + item.p) : invalidOperation(b, path, "The " + item.i + " item is not registered or not a literal");
-                                  }
-                                }
-                                output = isObject ? output + (item.i + ":" + itemOutput + ",") : output + (itemOutput + ",");
-                              }
-                              if (isObject) {
-                                return "{" + output + "}";
-                              } else {
-                                return "[" + output + "]";
-                              }
-                            };
-                            return val(b, toRaw(selfSchema, path));
-                          }));
-            } else {
-              return this;
-            }
-          } else {
+          if (!(typeof definition === "object" && definition !== null)) {
             return literal(definition);
           }
+          if (definition.s === itemSymbol) {
+            return mapSchemaBuilder(definition.t.r(), (function (b, input, selfSchema, path) {
+                          var toRaw = function (schema, path) {
+                            var items = schema.t.items;
+                            var isObject = schema.t.TAG === "Object";
+                            var output = "";
+                            for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+                              var item = items[idx];
+                              var itemOutput;
+                              if (item === definition) {
+                                itemOutput = inline(b, input);
+                              } else {
+                                var itemSchema = item.t.r();
+                                if (itemSchema.t.TAG === "Literal") {
+                                  var value = itemSchema.t._0.value;
+                                  itemOutput = "e[" + (b.g.e.push(value) - 1) + "]";
+                                } else {
+                                  itemOutput = isObject && itemSchema.d ? toRaw(itemSchema, path + item.p) : invalidOperation(b, path, "The " + item.i + " item is not registered or not a literal");
+                                }
+                              }
+                              output = isObject ? output + (item.i + ":" + itemOutput + ",") : output + (itemOutput + ",");
+                            }
+                            if (isObject) {
+                              return "{" + output + "}";
+                            } else {
+                              return "[" + output + "]";
+                            }
+                          };
+                          return val(b, toRaw(selfSchema, path));
+                        }));
+          }
+          var reversed = makeSchema(name, {
+                TAG: "Object",
+                items: items,
+                fields: fields,
+                unknownKeys: globalConfig.u,
+                definition: definition
+              }, empty, builder$2, typeFilter, placeholder);
+          reversed.d = definer;
+          reversed.c = ctx;
+          return reversed;
         }));
   schema.d = definer;
   schema.c = ctx;

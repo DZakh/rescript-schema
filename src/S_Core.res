@@ -2119,7 +2119,7 @@ module Object = {
                   items,
                   fields,
                   unknownKeys: globalConfig.defaultUnknownKeys,
-                  definition,
+                  definition: definition->(Obj.magic: Definition.t<item> => unknown),
                 }),
                 ~reverse=Reverse.placeholder, // FIXME:
                 ~builder,
