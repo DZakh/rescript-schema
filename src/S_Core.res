@@ -1312,6 +1312,7 @@ let makeSchema = (
   ~parseOperationBuilder,
   ~serializeOperationBuilder,
   ~maybeTypeFilter,
+  ~reverse,
 ) => {
   rawTagged,
   parseOperationBuilder,
@@ -1328,32 +1329,7 @@ let makeSchema = (
   jsParse,
   jsParseAsync,
   jsSerialize,
-  reverse: Reverse.toSelf,
-}
-
-let makeWithNoopSerializer = (
-  ~name,
-  ~rawTagged,
-  ~metadataMap,
-  ~parseOperationBuilder,
-  ~maybeTypeFilter,
-) => {
-  name,
-  rawTagged,
-  parseOperationBuilder,
-  serializeOperationBuilder: Builder.noop,
-  isAsyncParse: Unknown,
-  maybeTypeFilter,
-  metadataMap,
-  parseOrRaise: initialParseOrRaise,
-  parseAsyncOrRaise: initialParseAsyncOrRaise,
-  serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
-  serializeOrRaise: initialSerializeOrRaise,
-  assertOrRaise: initialAssertOrRaise,
-  jsParse,
-  jsParseAsync,
-  jsSerialize,
-  reverse: Reverse.toSelf,
+  reverse,
 }
 
 module Metadata = {
@@ -1398,8 +1374,30 @@ module Metadata = {
       ~rawTagged=schema.rawTagged,
       ~maybeTypeFilter=schema.maybeTypeFilter,
       ~metadataMap,
+      ~reverse=Reverse.toSelf,
     )
   }
+}
+
+let primitiveName = () => {
+  (%raw(`this`): t<'a>).rawTagged->(Obj.magic: tagged => string)
+}
+
+let containerName = () => {
+  let tagged = (%raw(`this`): t<'a>).rawTagged
+  `${tagged->unsafeGetVarianTag}(${(tagged->unsafeGetVariantPayload).name()})`
+}
+
+let makePrimitiveSchema = (~rawTagged, ~parseOperationBuilder, ~maybeTypeFilter) => {
+  makeSchema(
+    ~name=primitiveName,
+    ~metadataMap=Metadata.Map.empty,
+    ~rawTagged,
+    ~parseOperationBuilder,
+    ~serializeOperationBuilder=Builder.noop,
+    ~maybeTypeFilter,
+    ~reverse=Reverse.toSelf,
+  )
 }
 
 let recursive = fn => {
@@ -1485,16 +1483,8 @@ let setName = (schema, name) => {
     ~rawTagged=schema.rawTagged,
     ~maybeTypeFilter=schema.maybeTypeFilter,
     ~metadataMap=schema.metadataMap,
+    ~reverse=Reverse.toSelf,
   )
-}
-
-let primitiveName = () => {
-  (%raw(`this`): t<'a>).rawTagged->(Obj.magic: tagged => string)
-}
-
-let containerName = () => {
-  let tagged = (%raw(`this`): t<'a>).rawTagged
-  `${tagged->unsafeGetVarianTag}(${(tagged->unsafeGetVariantPayload).name()})`
 }
 
 let internalRefine = (schema, refiner) => {
@@ -1528,6 +1518,7 @@ let internalRefine = (schema, refiner) => {
     }),
     ~maybeTypeFilter=schema.maybeTypeFilter,
     ~metadataMap=schema.metadataMap,
+    ~reverse=Reverse.toSelf,
   )
 }
 
@@ -1594,6 +1585,7 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
     }),
     ~maybeTypeFilter=schema.maybeTypeFilter,
     ~metadataMap=schema.metadataMap,
+    ~reverse=Reverse.toSelf,
   )
 }
 
@@ -1620,6 +1612,7 @@ let rec preprocess = (schema, transformer) => {
       ~serializeOperationBuilder=schema.serializeOperationBuilder,
       ~maybeTypeFilter=schema.maybeTypeFilter,
       ~metadataMap=schema.metadataMap,
+      ~reverse=Reverse.toSelf,
     )
   | _ =>
     makeSchema(
@@ -1656,6 +1649,7 @@ let rec preprocess = (schema, transformer) => {
       }),
       ~maybeTypeFilter=None,
       ~metadataMap=schema.metadataMap,
+      ~reverse=Reverse.toSelf,
     )
   }
 }
@@ -1697,6 +1691,7 @@ let custom = (name, definer) => {
       }
     }),
     ~maybeTypeFilter=None,
+    ~reverse=Reverse.toSelf,
   )
 }
 
@@ -1728,6 +1723,7 @@ let literal = value => {
       input
     }),
     ~maybeTypeFilter=Some((b, ~inputVar) => b->internalLiteral.filterBuilder(~inputVar, ~literal)),
+    ~reverse=Reverse.toSelf,
   )
 }
 let unit = literal(%raw("void 0"))
@@ -1836,6 +1832,7 @@ module Option = {
       ~parseOperationBuilder,
       ~serializeOperationBuilder,
       ~maybeTypeFilter=maybeTypeFilter(~schema, ~inlinedNoneValue="void 0"),
+      ~reverse=Reverse.toSelf,
     )
   }
 
@@ -1858,6 +1855,7 @@ module Option = {
       }),
       ~serializeOperationBuilder=schema.serializeOperationBuilder,
       ~maybeTypeFilter=schema.maybeTypeFilter,
+      ~reverse=Reverse.toSelf,
     )
   }
 
@@ -1877,6 +1875,7 @@ module Null = {
       ~parseOperationBuilder=Option.parseOperationBuilder,
       ~serializeOperationBuilder=Option.serializeOperationBuilder,
       ~maybeTypeFilter=Option.maybeTypeFilter(~schema, ~inlinedNoneValue="null"),
+      ~reverse=Reverse.toSelf,
     )
   }
 }
@@ -1907,6 +1906,7 @@ module Never = {
     ~parseOperationBuilder=builder,
     ~serializeOperationBuilder=builder,
     ~maybeTypeFilter=None,
+    ~reverse=Reverse.toSelf,
   )
 }
 
@@ -2424,6 +2424,7 @@ module Variant = {
           }),
           ~maybeTypeFilter=schema.maybeTypeFilter,
           ~metadataMap=schema.metadataMap,
+          ~reverse=Reverse.toSelf,
         )
       }
     }
@@ -2441,6 +2442,7 @@ module Unknown = {
     }),
     ~metadataMap=Metadata.Map.empty,
     ~maybeTypeFilter=None,
+    ~reverse=Reverse.toSelf,
   )
 }
 
@@ -2483,9 +2485,7 @@ module String = {
 
   let typeFilter = (_b, ~inputVar) => `typeof ${inputVar}!=="string"`
 
-  let schema = makeWithNoopSerializer(
-    ~name=primitiveName,
-    ~metadataMap=Metadata.Map.empty,
+  let schema = makePrimitiveSchema(
     ~rawTagged=String,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
@@ -2534,6 +2534,7 @@ module JsonString = {
         output
       }),
       ~maybeTypeFilter=Some(String.typeFilter),
+      ~reverse=Reverse.toSelf,
     )
   }
 }
@@ -2541,9 +2542,7 @@ module JsonString = {
 module Bool = {
   let typeFilter = (_b, ~inputVar) => `typeof ${inputVar}!=="boolean"`
 
-  let schema = makeWithNoopSerializer(
-    ~name=primitiveName,
-    ~metadataMap=Metadata.Map.empty,
+  let schema = makePrimitiveSchema(
     ~rawTagged=Bool,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
@@ -2577,9 +2576,7 @@ module Int = {
   let typeFilter = (_b, ~inputVar) =>
     `typeof ${inputVar}!=="number"||${inputVar}>2147483647||${inputVar}<-2147483648||${inputVar}%1!==0`
 
-  let schema = makeWithNoopSerializer(
-    ~name=primitiveName,
-    ~metadataMap=Metadata.Map.empty,
+  let schema = makePrimitiveSchema(
     ~rawTagged=Int,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
@@ -2616,9 +2613,7 @@ module Float = {
       `||Number.isNaN(${inputVar})`
     }
 
-  let schema = makeWithNoopSerializer(
-    ~name=primitiveName,
-    ~metadataMap=Metadata.Map.empty,
+  let schema = makePrimitiveSchema(
     ~rawTagged=Float,
     ~parseOperationBuilder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
@@ -2714,6 +2709,7 @@ module Array = {
         }
       }),
       ~maybeTypeFilter=Some(typeFilter),
+      ~reverse=Reverse.toSelf,
     )
   }
 }
@@ -2790,6 +2786,7 @@ module Dict = {
         }
       }),
       ~maybeTypeFilter=Some(Object.typeFilter),
+      ~reverse=Reverse.toSelf,
     )
   }
 }
@@ -2866,6 +2863,7 @@ module Tuple = {
             `||${inputVar}.length!==${length->Stdlib.Int.unsafeToString}`,
       ),
       ~metadataMap=Metadata.Map.empty,
+      ~reverse=Reverse.toSelf,
     )
   }
 }
@@ -3033,6 +3031,7 @@ module Union = {
           }
         }),
         ~maybeTypeFilter=None,
+        ~reverse=Reverse.toSelf,
       )
     }
   }
@@ -3048,10 +3047,8 @@ let list = schema => {
 }
 
 let json = (~validate) =>
-  makeWithNoopSerializer(
-    ~name=primitiveName,
+  makePrimitiveSchema(
     ~rawTagged=JSON({validated: validate}),
-    ~metadataMap=Metadata.Map.empty,
     ~maybeTypeFilter=None,
     ~parseOperationBuilder=validate
       ? Builder.make((b, ~input, ~selfSchema, ~path) => {
@@ -3151,6 +3148,7 @@ let catch = (schema, getFallbackValue) => {
     ~rawTagged=schema.rawTagged,
     ~maybeTypeFilter=None,
     ~metadataMap=schema.metadataMap,
+    ~reverse=Reverse.toSelf,
   )
 }
 
@@ -3963,6 +3961,7 @@ let js_merge = (s1, s2) => {
       }),
       ~maybeTypeFilter=Some(Object.typeFilter),
       ~metadataMap=Metadata.Map.empty,
+      ~reverse=Reverse.toSelf,
     )
   | _ => InternalError.panic("The merge supports only Object schemas")
   }

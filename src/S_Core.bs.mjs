@@ -891,34 +891,13 @@ function jsSerialize(value) {
   }
 }
 
-function makeSchema(name, rawTagged, metadataMap, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter) {
+function makeSchema(name, rawTagged, metadataMap, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter, reverse) {
   return {
           t: rawTagged,
           n: name,
-          r: toSelf,
+          r: reverse,
           p: parseOperationBuilder,
           s: serializeOperationBuilder,
-          f: maybeTypeFilter,
-          i: 0,
-          m: metadataMap,
-          a: initialParseAsyncOrRaise,
-          parseOrThrow: initialParseOrRaise,
-          parse: jsParse,
-          parseAsync: jsParseAsync,
-          serialize: jsSerialize,
-          serializeOrThrow: initialSerializeToUnknownOrRaise,
-          serializeToJsonOrThrow: initialSerializeOrRaise,
-          assert: initialAssertOrRaise
-        };
-}
-
-function makeWithNoopSerializer(name, rawTagged, metadataMap, parseOperationBuilder, maybeTypeFilter) {
-  return {
-          t: rawTagged,
-          n: name,
-          r: toSelf,
-          p: parseOperationBuilder,
-          s: noop,
           f: maybeTypeFilter,
           i: 0,
           m: metadataMap,
@@ -958,7 +937,20 @@ function get(schema, id) {
 
 function set$2(schema, id, metadata) {
   var metadataMap = set$1(schema.m, id, metadata);
-  return makeSchema(schema.n, schema.t, metadataMap, schema.p, schema.s, schema.f);
+  return makeSchema(schema.n, schema.t, metadataMap, schema.p, schema.s, schema.f, toSelf);
+}
+
+function primitiveName() {
+  return this.t;
+}
+
+function containerName() {
+  var tagged = this.t;
+  return tagged.TAG + "(" + tagged._0.n() + ")";
+}
+
+function makePrimitiveSchema(rawTagged, parseOperationBuilder, maybeTypeFilter) {
+  return makeSchema(primitiveName, rawTagged, empty, parseOperationBuilder, noop, maybeTypeFilter, toSelf);
 }
 
 function recursive(fn) {
@@ -1022,16 +1014,7 @@ function recursive(fn) {
 function setName(schema, name) {
   return makeSchema((function () {
                 return name;
-              }), schema.t, schema.m, schema.p, schema.s, schema.f);
-}
-
-function primitiveName() {
-  return this.t;
-}
-
-function containerName() {
-  var tagged = this.t;
-  return tagged.TAG + "(" + tagged._0.n() + ")";
+              }), schema.t, schema.m, schema.p, schema.s, schema.f, toSelf);
 }
 
 function internalRefine(schema, refiner) {
@@ -1055,7 +1038,7 @@ function internalRefine(schema, refiner) {
                         return input;
                       }));
                 return schema.s(b, input$1, schema, path);
-              }), schema.f);
+              }), schema.f, toSelf);
 }
 
 function refine(schema, refiner) {
@@ -1102,7 +1085,7 @@ function transform$1(schema, transformer) {
                 }
                 var input$1 = embedSyncOperation(b, input, serializer);
                 return schema.s(b, input$1, schema, path);
-              }), schema.f);
+              }), schema.f, toSelf);
 }
 
 function preprocess(schema, transformer) {
@@ -1113,7 +1096,7 @@ function preprocess(schema, transformer) {
                 _0: unionSchemas._0.map(function (unionSchema) {
                       return preprocess(unionSchema, transformer);
                     })
-              }, schema.m, schema.p, schema.s, schema.f);
+              }, schema.m, schema.p, schema.s, schema.f, toSelf);
   }
   return makeSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
                 var match = transformer(effectCtx(b, selfSchema, path));
@@ -1142,7 +1125,7 @@ function preprocess(schema, transformer) {
                 } else {
                   return input$1;
                 }
-              }), undefined);
+              }), undefined, toSelf);
 }
 
 function custom(name, definer) {
@@ -1176,7 +1159,7 @@ function custom(name, definer) {
                 } else {
                   return input;
                 }
-              }), undefined);
+              }), undefined, toSelf);
 }
 
 function literal(value) {
@@ -1201,7 +1184,7 @@ function literal(value) {
                 return input;
               }), (function (b, inputVar) {
                 return literal$1.f(b, inputVar, literal$1);
-              }));
+              }), toSelf);
 }
 
 var unit = literal((void 0));
@@ -1263,7 +1246,7 @@ function factory(schema) {
   return makeSchema(containerName, {
               TAG: "Option",
               _0: schema
-            }, empty, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter(schema, "void 0"));
+            }, empty, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter(schema, "void 0"), toSelf);
 }
 
 function getWithDefault(schema, $$default) {
@@ -1274,7 +1257,7 @@ function getWithDefault(schema, $$default) {
                               tmp = $$default.TAG === "Value" ? "e[" + (b.g.e.push($$default._0) - 1) + "]" : "e[" + (b.g.e.push($$default._0) - 1) + "]()";
                               return val(b, inputVar + "===void 0?" + tmp + ":" + inputVar);
                             }));
-              }), schema.s, schema.f);
+              }), schema.s, schema.f, toSelf);
 }
 
 function getOr(schema, defalutValue) {
@@ -1295,7 +1278,7 @@ function factory$1(schema) {
   return makeSchema(containerName, {
               TAG: "Null",
               _0: schema
-            }, empty, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter(schema, "null"));
+            }, empty, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter(schema, "null"), toSelf);
 }
 
 function nullable(schema) {
@@ -1313,7 +1296,7 @@ function builder(b, input, selfSchema, path) {
   return input;
 }
 
-var schema = makeSchema(primitiveName, "Never", empty, builder, builder, undefined);
+var schema = makeSchema(primitiveName, "Never", empty, builder, builder, undefined, toSelf);
 
 function typeFilter(_b, inputVar) {
   return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
@@ -1687,14 +1670,14 @@ function factory$3(schema, definer) {
                   var value = selfSchema.t._0.value;
                   var input$1 = val(b, "e[" + (b.g.e.push(value) - 1) + "]");
                   return schema.s(b, input$1, schema, path);
-                }), schema.f);
+                }), schema.f, toSelf);
   }
 }
 
 var schema$1 = makeSchema(primitiveName, "Unknown", empty, noop, (function (b, input, selfSchema, path) {
         registerInvalidJson(b, selfSchema, path);
         return input;
-      }), undefined);
+      }), undefined, toSelf);
 
 var metadataId = "rescript-schema:String.refinements";
 
@@ -1719,7 +1702,7 @@ function typeFilter$1(_b, inputVar) {
   return "typeof " + inputVar + "!==\"string\"";
 }
 
-var schema$2 = makeWithNoopSerializer(primitiveName, "String", empty, noop, typeFilter$1);
+var schema$2 = makePrimitiveSchema("String", noop, typeFilter$1);
 
 function factory$4(schema, spaceOpt) {
   var space = spaceOpt !== undefined ? spaceOpt : 0;
@@ -1749,14 +1732,14 @@ function factory$4(schema, spaceOpt) {
                     ) + ")");
                 b.g.o = prevOperation;
                 return output;
-              }), typeFilter$1);
+              }), typeFilter$1, toSelf);
 }
 
 function typeFilter$2(_b, inputVar) {
   return "typeof " + inputVar + "!==\"boolean\"";
 }
 
-var schema$3 = makeWithNoopSerializer(primitiveName, "Bool", empty, noop, typeFilter$2);
+var schema$3 = makePrimitiveSchema("Bool", noop, typeFilter$2);
 
 var metadataId$1 = "rescript-schema:Int.refinements";
 
@@ -1773,7 +1756,7 @@ function typeFilter$3(_b, inputVar) {
   return "typeof " + inputVar + "!==\"number\"||" + inputVar + ">2147483647||" + inputVar + "<-2147483648||" + inputVar + "%1!==0";
 }
 
-var schema$4 = makeWithNoopSerializer(primitiveName, "Int", empty, noop, typeFilter$3);
+var schema$4 = makePrimitiveSchema("Int", noop, typeFilter$3);
 
 var metadataId$2 = "rescript-schema:Float.refinements";
 
@@ -1792,7 +1775,7 @@ function typeFilter$4(_b, inputVar) {
         );
 }
 
-var schema$5 = makeWithNoopSerializer(primitiveName, "Float", empty, noop, typeFilter$4);
+var schema$5 = makePrimitiveSchema("Float", noop, typeFilter$4);
 
 var metadataId$3 = "rescript-schema:Array.refinements";
 
@@ -1846,7 +1829,7 @@ function factory$5(schema) {
                 var itemCode = allocateScope(bb);
                 b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + itemCode + push(b, output, itemOutput) + "}");
                 return output;
-              }), typeFilter$5);
+              }), typeFilter$5, toSelf);
 }
 
 function factory$6(schema) {
@@ -1890,7 +1873,7 @@ function factory$6(schema) {
                 var itemCode = allocateScope(bb);
                 b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + itemCode + addKey(b, output, keyVar, itemOutput) + "}");
                 return output;
-              }), typeFilter);
+              }), typeFilter, toSelf);
 }
 
 function factory$7(definer) {
@@ -1947,7 +1930,7 @@ function factory$7(definer) {
               definition: definition
             }, empty, parseOperationBuilder$1, serializeOperationBuilder$1, (function (b, inputVar) {
                 return typeFilter$5(b, inputVar) + ("||" + inputVar + ".length!==" + length);
-              }));
+              }), toSelf);
 }
 
 function factory$8(schemas) {
@@ -2086,7 +2069,7 @@ function factory$8(schemas) {
                   } else {
                     return output;
                   }
-                }), undefined);
+                }), undefined, toSelf);
   }
   throw new Error("[rescript-schema] S.union requires at least one item");
 }
@@ -2101,10 +2084,10 @@ function list(schema) {
 }
 
 function json(validate) {
-  return makeWithNoopSerializer(primitiveName, {
+  return makePrimitiveSchema({
               TAG: "JSON",
               validated: validate
-            }, empty, validate ? (function (b, input, selfSchema, path) {
+            }, validate ? (function (b, input, selfSchema, path) {
                   var parse = function (input, pathOpt) {
                     var path$1 = pathOpt !== undefined ? pathOpt : path;
                     var match = typeof input;
@@ -2169,7 +2152,7 @@ function $$catch(schema, getFallbackValue) {
                             }), (function (b) {
                               return parseWithTypeCheck(b, schema, input, path);
                             }));
-              }), schema.s, undefined);
+              }), schema.s, undefined, toSelf);
 }
 
 var deprecationMetadataId = "rescript-schema:deprecation";
@@ -2950,7 +2933,7 @@ function js_merge(s1, s2) {
                     return val(b, "Object.assign(" + inline(b, s1Result) + ", " + inline(b, s2Result) + ")");
                   }), (function (b, param, param$1, path) {
                     return invalidOperation(b, path, "The S.merge serializing is not supported yet");
-                  }), typeFilter);
+                  }), typeFilter, toSelf);
     }
     
   }
