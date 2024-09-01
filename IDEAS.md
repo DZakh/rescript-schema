@@ -20,9 +20,22 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Use internal transform for trim
 
-- Move S.inline to a separate codegen module
+## v9
 
-## v8
+- Add S.reverse
+  TODO:
+
+  - S.recursive
+  - S.schema
+  - memo
+
+- async serializing support
+- S.create / S.validate
+- S.parseToJsonString
+- Rename S.inline to S.toRescriptCode
+- Add serializeToJsonString to js api
+
+## v10
 
 - Make S.serializeToJsonString super fast
 - Add S.bigint
@@ -33,9 +46,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Codegen type
 - Codegen schema using type
 - Don't recreate the object, when nothing should be transformed - stop reallocate objects without transformations
-- S.validateWith
 - Make `error.reason` tree-shakeable
-- Add serializeToJsonString to js api
 - S.toJSON/S.castToJson ???
 - s.optional for object
 - S.produce

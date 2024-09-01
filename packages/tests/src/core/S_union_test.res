@@ -483,6 +483,20 @@ test("Compiled serialize code snapshot for unboxed variant", t => {
   )
 })
 
+test("Reverse schema with items", t => {
+  let schema = S.union([S.literal(%raw(`0`)), S.null(S.bool)])
+
+  t->U.assertEqualSchemas(
+    schema->S.reverse,
+    S.union([S.literal(%raw(`0`)), S.option(S.bool)])->S.toUnknown,
+  )
+})
+
+test("Succesfully uses reversed schema for parsing back to initial value", t => {
+  let schema = S.union([S.literal(%raw(`0`)), S.null(S.bool)])
+  t->U.assertReverseParsesBack(schema, None)
+})
+
 module CknittelBugReport = {
   module A = {
     @schema

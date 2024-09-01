@@ -1436,7 +1436,16 @@ module Metadata = {
       ~rawTagged=schema.rawTagged,
       ~maybeTypeFilter=schema.maybeTypeFilter,
       ~metadataMap,
-      ~reverse=Reverse.toSelf,
+      ~reverse=() => {
+        let schema = schema.reverse()
+        makeReverseSchema(
+          ~name=schema.name,
+          ~parseOperationBuilder=schema.parseOperationBuilder,
+          ~rawTagged=schema.rawTagged,
+          ~maybeTypeFilter=schema.maybeTypeFilter,
+          ~metadataMap, // FIXME: Verify that we can reuse the same metadata object
+        )
+      },
     )
   }
 }
@@ -1545,7 +1554,7 @@ let setName = (schema, name) => {
     ~rawTagged=schema.rawTagged,
     ~maybeTypeFilter=schema.maybeTypeFilter,
     ~metadataMap=schema.metadataMap,
-    ~reverse=Reverse.toSelf,
+    ~reverse=schema.reverse, // FIXME: test
   )
 }
 
@@ -1555,32 +1564,56 @@ let internalRefine = (schema, refiner) => {
     ~name=schema.name,
     ~rawTagged=schema.rawTagged,
     ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-      b->B.transform(~input=b->B.parse(~schema, ~input, ~path), (b, ~input) => {
-        let input = if b.code === "" && input._var !== None {
+      b->B.transform(
+        ~input=b->B.parse(~schema, ~input, ~path),
+        (b, ~input) => {
+          let input = if b.code === "" && input._var !== None {
+            input
+          } else {
+            let scopedInput = b->B.allocateVal
+            b.code = b.code ++ b->B.Val.set(scopedInput, input) ++ ";"
+            scopedInput
+          }
+          let rCode = refiner(b, ~inputVar=b->B.Val.var(input), ~selfSchema, ~path)
+          b.code = b.code ++ rCode
           input
-        } else {
-          let scopedInput = b->B.allocateVal
-          b.code = b.code ++ b->B.Val.set(scopedInput, input) ++ ";"
-          scopedInput
-        }
-        let rCode = refiner(b, ~inputVar=b->B.Val.var(input), ~selfSchema, ~path)
-        b.code = b.code ++ rCode
-        input
-      })
+        },
+      )
     }),
     ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       b->B.serialize(
         ~schema,
-        ~input=b->B.transform(~input, (b, ~input) => {
-          b.code = b.code ++ refiner(b, ~inputVar=b->B.Val.var(input), ~selfSchema, ~path)
-          input
-        }),
+        ~input=b->B.transform(
+          ~input,
+          (b, ~input) => {
+            b.code = b.code ++ refiner(b, ~inputVar=b->B.Val.var(input), ~selfSchema, ~path)
+            input
+          },
+        ),
         ~path,
       )
     }),
     ~maybeTypeFilter=schema.maybeTypeFilter,
     ~metadataMap=schema.metadataMap,
-    ~reverse=Reverse.toSelf,
+    ~reverse=() => {
+      let schema = schema.reverse()
+      makeReverseSchema(
+        ~name=schema.name,
+        ~rawTagged=schema.rawTagged,
+        ~parseOperationBuilder=(b, ~input, ~selfSchema, ~path) => {
+          b->B.parse(
+            ~schema,
+            ~input=b->B.transform(~input, (b, ~input) => {
+              b.code = b.code ++ refiner(b, ~inputVar=b->B.Val.var(input), ~selfSchema, ~path)
+              input
+            }),
+            ~path,
+          )
+        },
+        ~maybeTypeFilter=schema.maybeTypeFilter,
+        ~metadataMap=schema.metadataMap,
+      )
+    },
   )
 }
 
@@ -1693,7 +1726,7 @@ let rec preprocess = (schema, transformer) => {
       ~serializeOperationBuilder=schema.serializeOperationBuilder,
       ~maybeTypeFilter=schema.maybeTypeFilter,
       ~metadataMap=schema.metadataMap,
-      ~reverse=Reverse.toSelf,
+      ~reverse=schema.reverse, // FIXME: Might break with memo
     )
   | _ =>
     makeSchema(
@@ -1708,9 +1741,12 @@ let rec preprocess = (schema, transformer) => {
             ~path,
           )
         | {parser: ?None, asyncParser} =>
-          b->B.transform(~input=b->B.embedAsyncOperation(~input, ~fn=asyncParser), (b, ~input) => {
-            b->B.parseWithTypeCheck(~schema, ~input, ~path)
-          })
+          b->B.transform(
+            ~input=b->B.embedAsyncOperation(~input, ~fn=asyncParser),
+            (b, ~input) => {
+              b->B.parseWithTypeCheck(~schema, ~input, ~path)
+            },
+          )
         | {parser: ?None, asyncParser: ?None} => b->B.parseWithTypeCheck(~schema, ~input, ~path)
         | {parser: _, asyncParser: _} =>
           b->B.invalidOperation(
@@ -1730,7 +1766,23 @@ let rec preprocess = (schema, transformer) => {
       }),
       ~maybeTypeFilter=None,
       ~metadataMap=schema.metadataMap,
-      ~reverse=Reverse.toSelf,
+      ~reverse=() => {
+        let schema = schema.reverse()
+        makeReverseSchema(
+          ~name=primitiveName,
+          ~rawTagged=Unknown,
+          ~parseOperationBuilder=(b, ~input, ~selfSchema, ~path) => {
+            let input = b->B.parse(~schema, ~input, ~path)
+            switch transformer(b->B.effectCtx(~selfSchema, ~path)) {
+            | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
+            | {serializer: ?None} => input
+            }
+          },
+          ~maybeTypeFilter=None,
+          // FIXME: Test how metadata should work for reversed schemas
+          ~metadataMap=Metadata.Map.empty,
+        )
+      },
     )
   }
 }
@@ -1772,7 +1824,23 @@ let custom = (name, definer) => {
       }
     }),
     ~maybeTypeFilter=None,
-    ~reverse=Reverse.toSelf,
+    ~reverse=() => {
+      makeReverseSchema(
+        ~name=() => name, // FIXME: Test that it should have the custom name
+        ~rawTagged=Unknown,
+        ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+          switch definer(b->B.effectCtx(~selfSchema, ~path)) {
+          | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
+          | {parser: ?None, asyncParser: ?None, serializer: ?None} => input
+          | {serializer: ?None, asyncParser: ?Some(_)}
+          | {serializer: ?None, parser: ?Some(_)} =>
+            b->B.invalidOperation(~path, ~description=`The S.custom serializer is missing`)
+          }
+        }),
+        ~metadataMap=Metadata.Map.empty,
+        ~maybeTypeFilter=None,
+      )
+    },
   )
 }
 
@@ -1925,19 +1993,22 @@ module Option = {
       ~metadataMap=schema.metadataMap->Metadata.Map.set(~id=defaultMetadataId, default),
       ~rawTagged=schema.rawTagged,
       ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-        b->B.transform(~input=b->B.parse(~schema, ~input, ~path), (b, ~input) => {
-          let inputVar = b->B.Val.var(input)
-          b->B.val(
-            `${inputVar}===void 0?${switch default {
-              | Value(v) => b->B.embed(v)
-              | Callback(cb) => `${b->B.embed(cb)}()`
-              }}:${inputVar}`,
-          )
-        })
+        b->B.transform(
+          ~input=b->B.parse(~schema, ~input, ~path),
+          (b, ~input) => {
+            let inputVar = b->B.Val.var(input)
+            b->B.val(
+              `${inputVar}===void 0?${switch default {
+                | Value(v) => b->B.embed(v)
+                | Callback(cb) => `${b->B.embed(cb)}()`
+                }}:${inputVar}`,
+            )
+          },
+        )
       }),
       ~serializeOperationBuilder=schema.serializeOperationBuilder,
       ~maybeTypeFilter=schema.maybeTypeFilter,
-      ~reverse=Reverse.toSelf,
+      ~reverse=() => schema, // FIXME: test
     )
   }
 
@@ -2916,7 +2987,7 @@ module Object = {
         jsParse,
         jsParseAsync,
         jsSerialize,
-        reverse: Reverse.toSelf,
+        reverse: schema.reverse, // FIXME: test
       }
     // TODO: Should it throw for non Object schemas?
     | _ => schema
@@ -3240,7 +3311,7 @@ module Union = {
     loopSchemas(0, "")
   }
 
-  let factory = schemas => {
+  let rec factory = schemas => {
     let schemas: array<t<unknown>> = schemas->Obj.magic
 
     switch schemas {
@@ -3377,7 +3448,10 @@ module Union = {
           }
         }),
         ~maybeTypeFilter=None,
-        ~reverse=Reverse.toSelf,
+        ~reverse=() => {
+          // FIXME: Return self if all reversed schemas are self
+          factory(schemas->Js.Array2.map(s => s.reverse()->castUnknownSchemaToAnySchema))->toUnknown
+        },
       )
     }
   }
@@ -3494,7 +3568,7 @@ let catch = (schema, getFallbackValue) => {
     ~rawTagged=schema.rawTagged,
     ~maybeTypeFilter=None,
     ~metadataMap=schema.metadataMap,
-    ~reverse=Reverse.toSelf,
+    ~reverse=schema.reverse, // FIXME: test
   )
 }
 
@@ -4307,7 +4381,7 @@ let js_merge = (s1, s2) => {
       }),
       ~maybeTypeFilter=Some(Object.typeFilter),
       ~metadataMap=Metadata.Map.empty,
-      ~reverse=Reverse.toSelf,
+      ~reverse=Reverse.toSelf, // FIXME: test
     )
   | _ => InternalError.panic("The merge supports only Object schemas")
   }

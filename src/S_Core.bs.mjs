@@ -987,7 +987,10 @@ function get(schema, id) {
 
 function set$2(schema, id, metadata) {
   var metadataMap = set$1(schema.m, id, metadata);
-  return makeSchema(schema.n, schema.t, metadataMap, schema.p, schema.s, schema.f, toSelf);
+  return makeSchema(schema.n, schema.t, metadataMap, schema.p, schema.s, schema.f, (function () {
+                var schema$1 = schema.r();
+                return makeReverseSchema(schema$1.n, schema$1.t, metadataMap, schema$1.p, schema$1.f);
+              }));
 }
 
 function primitiveName() {
@@ -1064,7 +1067,7 @@ function recursive(fn) {
 function setName(schema, name) {
   return makeSchema((function () {
                 return name;
-              }), schema.t, schema.m, schema.p, schema.s, schema.f, toSelf);
+              }), schema.t, schema.m, schema.p, schema.s, schema.f, schema.r);
 }
 
 function internalRefine(schema, refiner) {
@@ -1088,7 +1091,16 @@ function internalRefine(schema, refiner) {
                         return input;
                       }));
                 return schema.s(b, input$1, schema, path);
-              }), schema.f, toSelf);
+              }), schema.f, (function () {
+                var schema$1 = schema.r();
+                return makeReverseSchema(schema$1.n, schema$1.t, schema$1.m, (function (b, input, selfSchema, path) {
+                              var input$1 = transform(b, input, (function (b, input) {
+                                      b.c = b.c + refiner(b, $$var(b, input), selfSchema, path);
+                                      return input;
+                                    }));
+                              return schema$1.p(b, input$1, schema$1, path);
+                            }), schema$1.f);
+              }));
 }
 
 function refine(schema, refiner) {
@@ -1160,7 +1172,7 @@ function preprocess(schema, transformer) {
                 _0: unionSchemas._0.map(function (unionSchema) {
                       return preprocess(unionSchema, transformer);
                     })
-              }, schema.m, schema.p, schema.s, schema.f, toSelf);
+              }, schema.m, schema.p, schema.s, schema.f, schema.r);
   }
   return makeSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
                 var match = transformer(effectCtx(b, selfSchema, path));
@@ -1189,7 +1201,19 @@ function preprocess(schema, transformer) {
                 } else {
                   return input$1;
                 }
-              }), undefined, toSelf);
+              }), undefined, (function () {
+                var schema$1 = schema.r();
+                return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, input, selfSchema, path) {
+                              var input$1 = schema$1.p(b, input, schema$1, path);
+                              var match = transformer(effectCtx(b, selfSchema, path));
+                              var serializer = match.s;
+                              if (serializer !== undefined) {
+                                return embedSyncOperation(b, input$1, serializer);
+                              } else {
+                                return input$1;
+                              }
+                            }), undefined);
+              }));
 }
 
 function custom(name, definer) {
@@ -1223,7 +1247,21 @@ function custom(name, definer) {
                 } else {
                   return input;
                 }
-              }), undefined, toSelf);
+              }), undefined, (function () {
+                return makeReverseSchema((function () {
+                              return name;
+                            }), "Unknown", empty, (function (b, input, selfSchema, path) {
+                              var match = definer(effectCtx(b, selfSchema, path));
+                              var serializer = match.s;
+                              if (serializer !== undefined) {
+                                return embedSyncOperation(b, input, serializer);
+                              } else if (match.a !== undefined || match.p !== undefined) {
+                                return invalidOperation(b, path, "The S.custom serializer is missing");
+                              } else {
+                                return input;
+                              }
+                            }), undefined);
+              }));
 }
 
 function literal(value) {
@@ -1321,7 +1359,9 @@ function getWithDefault(schema, $$default) {
                               tmp = $$default.TAG === "Value" ? "e[" + (b.g.e.push($$default._0) - 1) + "]" : "e[" + (b.g.e.push($$default._0) - 1) + "]()";
                               return val(b, inputVar + "===void 0?" + tmp + ":" + inputVar);
                             }));
-              }), schema.s, schema.f, toSelf);
+              }), schema.s, schema.f, (function () {
+                return schema;
+              }));
 }
 
 function getOr(schema, defalutValue) {
@@ -1964,7 +2004,7 @@ function setUnknownKeys(schema, unknownKeys) {
               definition: match.definition
             },
             n: schema.n,
-            r: toSelf,
+            r: schema.r,
             p: schema.p,
             s: schema.s,
             f: schema.f,
@@ -2291,7 +2331,11 @@ function factory$6(schemas) {
                   } else {
                     return output;
                   }
-                }), undefined, toSelf);
+                }), undefined, (function () {
+                  return factory$6(schemas.map(function (s) {
+                                  return s.r();
+                                }));
+                }));
   }
   throw new Error("[rescript-schema] S.union requires at least one item");
 }
@@ -2374,7 +2418,7 @@ function $$catch(schema, getFallbackValue) {
                             }), (function (b) {
                               return parseWithTypeCheck(b, schema, input, path);
                             }));
-              }), schema.s, undefined, toSelf);
+              }), schema.s, undefined, schema.r);
 }
 
 var deprecationMetadataId = "rescript-schema:deprecation";

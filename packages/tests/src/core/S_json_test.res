@@ -113,12 +113,33 @@ test("Compiled parse code snapshot", t => {
 
 test("Compiled parse code snapshot with validate=false", t => {
   let schema = S.json(~validate=false)
-
   t->U.assertCompiledCodeIsNoop(~schema, ~op=#Parse)
 })
 
 test("Compiled serialize code snapshot", t => {
   let schema = S.json(~validate=true)
-
   t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
 })
+
+test("Reverse schema to self with validate=true", t => {
+  let schema = S.json(~validate=true)
+  t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
+})
+
+test("Succesfully uses reversed schema with validate=true for parsing back to initial value", t => {
+  let schema = S.json(~validate=true)
+  t->U.assertReverseParsesBack(schema, %raw(`{"foo":"bar"}`))
+})
+
+test("Reverse schema to self with validate=false", t => {
+  let schema = S.json(~validate=false)
+  t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
+})
+
+test(
+  "Succesfully uses reversed schema with validate=false for parsing back to initial value",
+  t => {
+    let schema = S.json(~validate=false)
+    t->U.assertReverseParsesBack(schema, %raw(`{"foo":"bar"}`))
+  },
+)

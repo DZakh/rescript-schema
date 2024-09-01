@@ -46,6 +46,17 @@ test("Correctly serializes custom schema", t => {
   t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
 })
 
+test("Reverses custom schema to unknown", t => {
+  let schema = nullableSchema(S.string)
+
+  t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
+})
+
+test("Succesfully uses reversed schema for parsing back to initial value", t => {
+  let schema = nullableSchema(S.string)
+  t->U.assertReverseParsesBack(schema, Some("abc"))
+})
+
 test("Fails to serialize with user error", t => {
   let schema = S.custom("Test", s => {
     serializer: _ => s.fail("User error"),
