@@ -906,9 +906,9 @@ function jsSerialize(value) {
   }
 }
 
-function makeSchema(name, rawTagged, metadataMap, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter, reverse) {
+function makeSchema(name, tagged, metadataMap, parseOperationBuilder, serializeOperationBuilder, maybeTypeFilter, reverse) {
   return {
-          t: rawTagged,
+          t: tagged,
           n: name,
           r: reverse,
           p: parseOperationBuilder,
@@ -927,9 +927,9 @@ function makeSchema(name, rawTagged, metadataMap, parseOperationBuilder, seriali
         };
 }
 
-function makeReverseSchema(name, rawTagged, metadataMap, parseOperationBuilder, maybeTypeFilter) {
+function makeReverseSchema(name, tagged, metadataMap, parseOperationBuilder, maybeTypeFilter) {
   return {
-          t: rawTagged,
+          t: tagged,
           n: name,
           r: toSelf,
           p: parseOperationBuilder,
@@ -1002,8 +1002,8 @@ function containerName() {
   return tagged.TAG + "(" + tagged._0.n() + ")";
 }
 
-function makePrimitiveSchema(rawTagged, parseOperationBuilder, maybeTypeFilter) {
-  return makeSchema(primitiveName, rawTagged, empty, parseOperationBuilder, noop, maybeTypeFilter, toSelf);
+function makePrimitiveSchema(tagged, parseOperationBuilder, maybeTypeFilter) {
+  return makeSchema(primitiveName, tagged, empty, parseOperationBuilder, noop, maybeTypeFilter, toSelf);
 }
 
 function recursive(fn) {
