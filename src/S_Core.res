@@ -2145,6 +2145,10 @@ module Object = {
     ...s,
   }
 
+  @unboxed
+  type variantSerializeOutput =
+    Registered(val) | @as(0) Unregistered | @as(1) RegisteredMultipleTimes
+
   let typeFilter = (_b, ~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
 
   let getItems = (schema): array<item> => (schema->classify->Obj.magic)["items"]
@@ -2555,6 +2559,210 @@ module Object = {
       ~reverse,
     )
   }
+  and variant = {
+    (schema: t<'value>, definer: 'value => 'variant): t<'variant> => {
+      let schema = schema->toUnknown
+      if schema.definer->Obj.magic {
+        factory((ctx => definer((schema.definer->Obj.magic)(ctx)))->Obj.magic)
+      } else {
+        makeSchema(
+          ~name=schema.name,
+          ~rawTagged=schema.rawTagged,
+          ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+            b->B.embedSyncOperation(~input=b->B.parse(~schema, ~input, ~path), ~fn=definer)
+          }),
+          ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+            let inputVar = b->B.Val.var(input)
+
+            let definition =
+              definer(symbol->(Obj.magic: Stdlib.Symbol.t => 'value))->(
+                Obj.magic: 'variant => Definition.t<Stdlib.Symbol.t>
+              )
+
+            let output = {
+              // TODO: Check that it might be not an object in union
+              let rec definitionToValue = (
+                definition: Definition.t<Stdlib.Symbol.t>,
+                ~valuePath,
+              ) => {
+                if definition->Definition.isEmbeded(~embeded=symbol) {
+                  Registered(valuePath === "" ? input : b->B.val(`${inputVar}${valuePath}`))
+                } else if definition->Definition.isNode {
+                  let node = definition->Definition.toNode
+                  let keys = node->Js.Dict.keys
+                  let maybeOutputRef = ref(Unregistered)
+                  for idx in 0 to keys->Js.Array2.length - 1 {
+                    let key = keys->Js.Array2.unsafe_get(idx)
+                    let definition = node->Js.Dict.unsafeGet(key)
+                    let maybeOutput = definitionToValue(
+                      definition,
+                      ~valuePath=Path.concat(valuePath, Path.fromLocation(key)),
+                    )
+                    switch (maybeOutputRef.contents, maybeOutput) {
+                    | (Registered(_), Registered(_))
+                    | (Registered(_), RegisteredMultipleTimes) =>
+                      maybeOutputRef := RegisteredMultipleTimes
+                    | (RegisteredMultipleTimes, _)
+                    | (Registered(_), Unregistered) => ()
+                    | (Unregistered, _) => maybeOutputRef := maybeOutput
+                    }
+                  }
+                  maybeOutputRef.contents
+                } else {
+                  let tag = definition->Definition.toConstant
+                  let tagSchema = literal(tag)
+                  let tagVal = valuePath === "" ? input : b->B.val(`${inputVar}${valuePath}`)
+                  let tagInputVar = b->B.Val.var(tagVal)
+                  b.code =
+                    b.code ++
+                    `if(${(tagSchema.maybeTypeFilter->Stdlib.Option.unsafeUnwrap)(
+                        b,
+                        ~inputVar=tagInputVar,
+                      )}){${b->B.failWithArg(
+                        ~path=path->Path.concat(valuePath),
+                        received => InvalidType({
+                          expected: tagSchema,
+                          received,
+                        }),
+                        tagInputVar,
+                      )}}`
+                  Unregistered
+                }
+              }
+              definitionToValue(definition, ~valuePath=Path.empty)
+            }
+
+            switch output {
+            | RegisteredMultipleTimes =>
+              b->B.invalidOperation(
+                ~path,
+                ~description=`The S.variant's value is registered multiple times`,
+              )
+            | Registered(var) => b->B.serialize(~schema, ~input=var, ~path)
+            | Unregistered =>
+              if selfSchema->isLiteralSchema {
+                b->B.serialize(
+                  ~schema,
+                  ~input=b->B.val(b->B.embed(selfSchema->Literal.unsafeFromSchema->Literal.value)),
+                  ~path,
+                )
+              } else {
+                b->B.invalidOperation(~path, ~description=`The S.variant's value is not registered`)
+              }
+            }
+          }),
+          ~maybeTypeFilter=schema.maybeTypeFilter,
+          ~metadataMap=schema.metadataMap,
+          ~reverse=() => {
+            let definition =
+              definer(symbol->(Obj.magic: Stdlib.Symbol.t => 'value))->(
+                Obj.magic: 'variant => Definition.t<Stdlib.Symbol.t>
+              )
+
+            if definition->Definition.isEmbeded(~embeded=symbol) {
+              %raw(`this`)
+            } else {
+              let outputPaths = []
+
+              let reversedSchema = {
+                let rec definitionToReversed = (
+                  definition: Definition.t<Stdlib.Symbol.t>,
+                  ~outputPath,
+                ) => {
+                  if definition->Definition.isEmbeded(~embeded=symbol) {
+                    // FIXME: This check is needed to prevent duplication of output path
+                    // since object factory might be called multiple times.
+                    // We don't care about the logic checking duplication only for one item,
+                    // since the logic below will fail with "The S.variant's value is registered multiple times" anyways
+                    if outputPaths->Js.Array2.unsafe_get(0) !== outputPath {
+                      outputPaths->Js.Array2.push(outputPath)->ignore
+                    }
+
+                    schema.reverse()
+                  } else if definition->Definition.isNode {
+                    let node = definition->Definition.toNode
+                    if node->Stdlib.Array.isArray {
+                      let node =
+                        node->(
+                          Obj.magic: Definition.node<Stdlib.Symbol.t> => array<
+                            Definition.t<Stdlib.Symbol.t>,
+                          >
+                        )
+                      tuple((s: Tuple.s) => {
+                        let tupleDefinition = []
+                        for idx in 0 to node->Js.Array2.length - 1 {
+                          let definition = node->Js.Array2.unsafe_get(idx)
+                          tupleDefinition->Js.Array2.unsafe_set(
+                            idx,
+                            s.item(
+                              idx,
+                              definition->definitionToReversed(
+                                ~outputPath=Path.concat(
+                                  outputPath,
+                                  Path.fromLocation(idx->Js.Int.toString),
+                                ),
+                              ),
+                            )->(Obj.magic: unknown => Definition.t<Stdlib.Symbol.t>),
+                          )
+                        }
+                        tupleDefinition->(Obj.magic: array<Definition.t<Stdlib.Symbol.t>> => 'value)
+                      })->toUnknown
+                    } else {
+                      factory(s => {
+                        let objectDefinition = Js.Dict.empty()
+                        let keys = node->Js.Dict.keys
+                        for idx in 0 to keys->Js.Array2.length - 1 {
+                          let key = keys->Js.Array2.unsafe_get(idx)
+                          let definition = node->Js.Dict.unsafeGet(key)
+                          objectDefinition->Js.Dict.set(
+                            key,
+                            s.field(
+                              key,
+                              definition->definitionToReversed(
+                                ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
+                              ),
+                            )->(Obj.magic: unknown => Definition.t<Stdlib.Symbol.t>),
+                          )
+                        }
+                        objectDefinition
+                      })->toUnknown
+                    }
+                  } else {
+                    let tag = definition->Definition.toConstant
+                    literal(tag)
+                  }
+                }
+                definition->definitionToReversed(~outputPath=Path.empty)
+              }
+
+              reversedSchema->mapSchemaBuilder(
+                Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+                  switch outputPaths {
+                  | [path] => b->B.val(b->B.Val.inline(input) ++ path)
+                  | [] =>
+                    let reversed = schema.reverse()
+                    if reversed->isLiteralSchema {
+                      b->B.val(b->B.embed(reversed->Literal.unsafeFromSchema->Literal.value))
+                    } else {
+                      b->B.invalidOperation(
+                        ~path,
+                        ~description=`The S.variant's value is not registered`,
+                      )
+                    }
+                  | _ =>
+                    b->B.invalidOperation(
+                      ~path,
+                      ~description=`The S.variant's value is registered multiple times`,
+                    )
+                  }
+                }),
+              )
+            }
+          },
+        )
+      }
+    }
+  }
   and factory:
     type value. (s => value) => schema<value> =
     definer => {
@@ -2798,111 +3006,6 @@ module Dict = {
       ~maybeTypeFilter=Some(Object.typeFilter),
       ~reverse=Reverse.onlyChild(~factory, ~schema),
     )
-  }
-}
-
-module Variant = {
-  @unboxed
-  type serializeOutput = Registered(val) | @as(0) Unregistered | @as(1) RegisteredMultipleTimes
-
-  let factory = {
-    (schema: t<'value>, definer: 'value => 'variant): t<'variant> => {
-      let schema = schema->toUnknown
-      if schema.definer->Obj.magic {
-        Object.factory((ctx => definer((schema.definer->Obj.magic)(ctx)))->Obj.magic)
-      } else {
-        makeSchema(
-          ~name=schema.name,
-          ~rawTagged=schema.rawTagged,
-          ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-            b->B.embedSyncOperation(~input=b->B.parse(~schema, ~input, ~path), ~fn=definer)
-          }),
-          ~serializeOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-            let inputVar = b->B.Val.var(input)
-
-            let definition =
-              definer(symbol->(Obj.magic: Stdlib.Symbol.t => 'value))->(
-                Obj.magic: 'variant => Definition.t<Stdlib.Symbol.t>
-              )
-
-            let output = {
-              // TODO: Check that it might be not an object in union
-              let rec definitionToValue = (
-                definition: Definition.t<Stdlib.Symbol.t>,
-                ~valuePath,
-              ) => {
-                if definition->Definition.isEmbeded(~embeded=symbol) {
-                  Registered(valuePath === "" ? input : b->B.val(`${inputVar}${valuePath}`))
-                } else if definition->Definition.isNode {
-                  let node = definition->Definition.toNode
-                  let keys = node->Js.Dict.keys
-                  let maybeOutputRef = ref(Unregistered)
-                  for idx in 0 to keys->Js.Array2.length - 1 {
-                    let key = keys->Js.Array2.unsafe_get(idx)
-                    let definition = node->Js.Dict.unsafeGet(key)
-                    let maybeOutput = definitionToValue(
-                      definition,
-                      ~valuePath=Path.concat(valuePath, Path.fromLocation(key)),
-                    )
-                    switch (maybeOutputRef.contents, maybeOutput) {
-                    | (Registered(_), Registered(_))
-                    | (Registered(_), RegisteredMultipleTimes) =>
-                      maybeOutputRef := RegisteredMultipleTimes
-                    | (RegisteredMultipleTimes, _)
-                    | (Registered(_), Unregistered) => ()
-                    | (Unregistered, _) => maybeOutputRef := maybeOutput
-                    }
-                  }
-                  maybeOutputRef.contents
-                } else {
-                  let tag = definition->Definition.toConstant
-                  let tagSchema = literal(tag)
-                  let tagVal = valuePath === "" ? input : b->B.val(`${inputVar}${valuePath}`)
-                  let tagInputVar = b->B.Val.var(tagVal)
-                  b.code =
-                    b.code ++
-                    `if(${(tagSchema.maybeTypeFilter->Stdlib.Option.unsafeUnwrap)(
-                        b,
-                        ~inputVar=tagInputVar,
-                      )}){${b->B.failWithArg(
-                        ~path=path->Path.concat(valuePath),
-                        received => InvalidType({
-                          expected: tagSchema,
-                          received,
-                        }),
-                        tagInputVar,
-                      )}}`
-                  Unregistered
-                }
-              }
-              definitionToValue(definition, ~valuePath=Path.empty)
-            }
-
-            switch output {
-            | RegisteredMultipleTimes =>
-              b->B.invalidOperation(
-                ~path,
-                ~description=`The S.variant's value is registered multiple times`,
-              )
-            | Registered(var) => b->B.serialize(~schema, ~input=var, ~path)
-            | Unregistered =>
-              if selfSchema->isLiteralSchema {
-                b->B.serialize(
-                  ~schema,
-                  ~input=b->B.val(b->B.embed(selfSchema->Literal.unsafeFromSchema->Literal.value)),
-                  ~path,
-                )
-              } else {
-                b->B.invalidOperation(~path, ~description=`The S.variant's value is not registered`)
-              }
-            }
-          }),
-          ~maybeTypeFilter=schema.maybeTypeFilter,
-          ~metadataMap=schema.metadataMap,
-          ~reverse=Reverse.toSelf,
-        )
-      }
-    }
   }
 }
 
@@ -3772,7 +3875,7 @@ let null = Null.factory
 let option = Option.factory
 let array = Array.factory
 let dict = Dict.factory
-let variant = Variant.factory
+let variant = Object.variant
 let tuple = Object.tuple
 let tuple1 = v0 => tuple(s => s.item(0, v0))
 let tuple2 = (v0, v1) => tuple(s => (s.item(0, v0), s.item(1, v1)))

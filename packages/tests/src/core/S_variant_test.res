@@ -213,3 +213,68 @@ test("Works with variant schema used multiple times as a child schema", t => {
   let data = appVersions->S.serializeOrRaiseWith(appVersionsSchema)
   t->Assert.deepEqual(data, rawAppVersions->Obj.magic, ())
 })
+
+test("Reverse variant schema to literal", t => {
+  let schema = S.literal("foo")->S.variant(_ => ())
+  t->U.assertEqualSchemas(schema->S.reverse, S.unit->S.toUnknown)
+})
+
+test("Succesfully uses reversed variant schema to literal for parsing back to initial value", t => {
+  let schema = S.literal("foo")->S.variant(_ => ())
+  t->U.assertReverseParsesBack(schema, ())
+})
+
+test("Reverse variant schema to self", t => {
+  let schema = S.bool->S.variant(v => v)
+  t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
+})
+
+test("Succesfully uses reversed variant schema to self for parsing back to initial value", t => {
+  let schema = S.bool->S.variant(v => v)
+  t->U.assertReverseParsesBack(schema, true)
+})
+
+test("Reverse with output of nested object/tuple schema", t => {
+  let schema = S.bool->S.variant(v => {
+    {
+      "nested": {
+        "field": (v, true),
+      },
+    }
+  })
+  t->U.assertEqualSchemas(
+    schema->S.reverse,
+    S.object(s => {
+      let _ = s.field(
+        "nested",
+        S.object(
+          s => {
+            let _ = s.field(
+              "field",
+              S.tuple(
+                s => {
+                  let _ = s.item(0, S.bool)
+                  s.tag(1, true)
+                },
+              ),
+            )
+          },
+        ),
+      )
+    })->S.toUnknown,
+  )
+})
+
+test(
+  "Succesfully parses reversed schema with output of nested object/tuple and parses it back to initial value",
+  t => {
+    let schema = S.bool->S.variant(v => {
+      {
+        "nested": {
+          "field": (v, true),
+        },
+      }
+    })
+    t->U.assertReverseParsesBack(schema, {"nested": {"field": (true, true)}})
+  },
+)
