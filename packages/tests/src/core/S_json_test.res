@@ -121,9 +121,9 @@ test("Compiled serialize code snapshot", t => {
   t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
 })
 
-test("Reverse schema to self with validate=true", t => {
+test("Reverse schema to S.json(~validate=false) with validate=true", t => {
   let schema = S.json(~validate=true)
-  t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
+  t->U.assertEqualSchemas(schema->S.reverse, S.json(~validate=false)->S.toUnknown)
 })
 
 test("Succesfully uses reversed schema with validate=true for parsing back to initial value", t => {

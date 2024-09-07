@@ -31,7 +31,11 @@ let assertThrowsTestException = {
 
 let assertErrorResult = (t, result, errorPayload) => {
   switch result {
-  | Ok(_) => t->Assert.fail("Asserted result is not Error.")
+  | Ok(any) =>
+    t->Assert.fail(
+      "Asserted result is not Error. Recieved: " ++
+      any->Js.Json.stringifyAny->Belt.Option.getUnsafe,
+    )
   | Error(err) => t->Assert.is(err->S.Error.message, error(errorPayload)->S.Error.message, ())
   }
 }
@@ -114,7 +118,7 @@ let assertCompiledCodeIsNoop = (t, ~schema, ~op: [#Parse | #Serialize], ~message
       %raw(`schema.serializeOrThrow.toString()`)
     }
   }
-  t->Assert.truthy(compiledCode->String.startsWith("function noopOperation(i)"), ~message?, ())
+  t->Assert.is(compiledCode, "function noopOperation(i) {\n  return i;\n}", ~message?, ())
 }
 
 let assertEqualSchemas: (

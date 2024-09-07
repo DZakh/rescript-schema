@@ -152,4 +152,10 @@ test("Serializes Some(None) to null for null nested in option", t => {
 
   t->Assert.deepEqual(Some(None)->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
   t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`undefined`)), ())
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Serialize,
+    `i=>{let v2;if(i!==void 0){let v0=e[0](i),v1;if(v0!==void 0){v1=e[1](v0)}else{v1=null}v2=v1}return v2}`,
+  )
 })

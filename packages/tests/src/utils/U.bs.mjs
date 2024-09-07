@@ -40,7 +40,7 @@ function assertThrowsTestException(t, fn, message, param) {
 
 function assertErrorResult(t, result, errorPayload) {
   if (result.TAG === "Ok") {
-    return t.fail("Asserted result is not Error.");
+    return t.fail("Asserted result is not Error. Recieved: " + JSON.stringify(result._0));
   }
   t.is(S$RescriptSchema.$$Error.message(result._0), S$RescriptSchema.$$Error.message(error(errorPayload)), undefined);
 }
@@ -120,7 +120,7 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
     S$RescriptSchema.parseAnyWith(undefined, schema);
     compiledCode = (schema.parseOrThrow.toString());
   }
-  t.truthy(compiledCode.startsWith("function noopOperation(i)"), message !== undefined ? Caml_option.valFromOption(message) : undefined);
+  t.is(compiledCode, "function noopOperation(i) {\n  return i;\n}", message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }
 
 function assertReverseParsesBack(t, schema, value) {
