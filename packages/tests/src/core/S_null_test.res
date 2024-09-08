@@ -54,12 +54,16 @@ module Common = {
 
   test("Reverse schema to option", t => {
     let schema = factory()
-    t->U.assertEqualSchemas(schema->S.reverse, S.option(S.string)->S.toUnknown)
+    t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.option(S.string)->S.toUnknown)
   })
 
   test("Reverse of reverse returns the original schema", t => {
     let schema = factory()
-    t->Assert.is(schema->S.reverse->S.reverse, schema->S.toUnknown, ())
+    t->Assert.is(
+      schema->S.\"~experimantalReverse"->S.\"~experimantalReverse",
+      schema->S.toUnknown,
+      (),
+    )
   })
 
   let serializeCode = `let v0;if(i!==void 0){v0=i}else{v0=null}return v0`
@@ -71,7 +75,7 @@ module Common = {
   test("Compiled reverse code snapshot", t => {
     let schema = factory()
     t->U.assertCompiledCode(
-      ~schema=schema->S.reverse,
+      ~schema=schema->S.\"~experimantalReverse",
       ~op=#Parse,
       `i=>{if(i!==void 0&&(typeof i!=="string")){e[0](i)}${serializeCode}}`,
     )

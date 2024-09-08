@@ -44,7 +44,7 @@ module Common = {
 
   test("Reverse schema to self", t => {
     let schema = factory()
-    t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
+    t->Assert.is(schema->S.\"~experimantalReverse", schema->S.toUnknown, ())
   })
 }
 

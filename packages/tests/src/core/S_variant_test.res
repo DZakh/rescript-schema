@@ -213,20 +213,20 @@ test("Works with variant schema used multiple times as a child schema", t => {
 
 test("Reverse variant schema to literal", t => {
   let schema = S.literal("foo")->S.variant(_ => ())
-  // t->U.assertEqualSchemas(schema->S.reverse, S.unit->S.toUnknown)
-  t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
+  // t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unit->S.toUnknown)
+  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown)
 })
 
 test("Succesfully uses reversed variant schema to literal for parsing back to initial value", t => {
   let schema = S.literal("foo")->S.variant(_ => ())
   // t->U.assertReverseParsesBack(schema, ())
-  t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
+  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown)
 })
 
 test("Reverse variant schema to self", t => {
   let schema = S.bool->S.variant(v => v)
-  // t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
-  t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
+  // t->Assert.is(schema->S.\"~experimantalReverse", schema->S.toUnknown, ())
+  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown)
 })
 
 test("Succesfully uses reversed variant schema to self for parsing back to initial value", t => {
@@ -243,7 +243,7 @@ test("Reverse with output of nested object/tuple schema", t => {
     }
   })
   // t->U.assertEqualSchemas(
-  //   schema->S.reverse,
+  //   schema->S.\"~experimantalReverse",
   //   S.object(s => {
   //     let _ = s.field(
   //       "nested",
@@ -263,7 +263,7 @@ test("Reverse with output of nested object/tuple schema", t => {
   //     )
   //   })->S.toUnknown,
   // )
-  t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
+  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown)
 })
 
 test(

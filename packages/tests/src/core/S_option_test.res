@@ -64,7 +64,7 @@ module Common = {
 
   test("Reverse to self", t => {
     let schema = factory()
-    t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
+    t->Assert.is(schema->S.\"~experimantalReverse", schema->S.toUnknown, ())
   })
 
   test("Succesfully uses reversed schema for parsing back to initial value", t => {
@@ -76,7 +76,10 @@ module Common = {
 
 test("Reverse child schema", t => {
   let schema = S.option(S.null(S.string))
-  t->U.assertEqualSchemas(schema->S.reverse, S.option(S.option(S.string))->S.toUnknown)
+  t->U.assertEqualSchemas(
+    schema->S.\"~experimantalReverse",
+    S.option(S.option(S.string))->S.toUnknown,
+  )
 })
 
 test("Successfully parses primitive", t => {

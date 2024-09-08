@@ -653,7 +653,7 @@ function isAsyncParse(schema) {
   }
 }
 
-function reverse(schema) {
+function $tildeexperimantalReverse(schema) {
   return schema.r();
 }
 
@@ -1479,7 +1479,7 @@ function name() {
               }).join(", ") + "})";
 }
 
-function reverse$1() {
+function reverse() {
   var original = this;
   return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, input, param, path) {
                 var inputVar = $$var(b, input);
@@ -1623,7 +1623,7 @@ function factory$3(definer) {
             definition: definition
           },
           n: name,
-          r: reverse$1,
+          r: reverse,
           b: builder$2,
           f: typeFilter$1,
           i: 0,
@@ -1695,7 +1695,7 @@ function tuple(definer) {
               definition: definition
             }, empty, builder$2, (function (b, inputVar) {
                 return typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
-              }), reverse$1);
+              }), reverse);
 }
 
 function variant(schema, definer) {
@@ -3180,7 +3180,7 @@ export {
   $$Array ,
   Metadata ,
   inline$1 as inline,
-  reverse ,
+  $tildeexperimantalReverse ,
   intMin ,
   intMax ,
   port ,

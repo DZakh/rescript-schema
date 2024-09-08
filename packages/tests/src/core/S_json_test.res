@@ -123,7 +123,7 @@ test("Compiled serialize code snapshot", t => {
 
 test("Reverse schema to S.json(~validate=false) with validate=true", t => {
   let schema = S.json(~validate=true)
-  t->U.assertEqualSchemas(schema->S.reverse, S.json(~validate=false)->S.toUnknown)
+  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.json(~validate=false)->S.toUnknown)
 })
 
 test("Succesfully uses reversed schema with validate=true for parsing back to initial value", t => {
@@ -133,7 +133,7 @@ test("Succesfully uses reversed schema with validate=true for parsing back to in
 
 test("Reverse schema to self with validate=false", t => {
   let schema = S.json(~validate=false)
-  t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
+  t->Assert.is(schema->S.\"~experimantalReverse", schema->S.toUnknown, ())
 })
 
 test(

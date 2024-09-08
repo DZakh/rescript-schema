@@ -66,7 +66,10 @@ module NullCommon = {
 
   test("Reverse schema", t => {
     let schema = factory()
-    t->U.assertEqualSchemas(schema->S.reverse, S.option(S.option(S.string))->S.toUnknown)
+    t->U.assertEqualSchemas(
+      schema->S.\"~experimantalReverse",
+      S.option(S.option(S.string))->S.toUnknown,
+    )
   })
 
   test("Succesfully uses reversed schema for parsing back to initial value", t => {
