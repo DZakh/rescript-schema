@@ -77,6 +77,6 @@ test("Compiled serialize code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema=filmSchema,
     ~op=#Serialize,
-    `i=>{let v0=i["tags"],v4,v5=i["rating"],v6,v7=i["deprecatedAgeRestriction"],v8;if(v0!==void 0){let v1=e[0](v0);v4=v1}try{if(v5!=="G"){e[1](v5)}v6=v5}catch(e0){try{if(v5!=="PG"){e[2](v5)}v6=v5}catch(e1){try{if(v5!=="PG13"){e[3](v5)}v6=v5}catch(e2){try{if(v5!=="R"){e[4](v5)}v6=v5}catch(e3){e[5]([e0,e1,e2,e3,])}}}}if(v7!==void 0){v8=e[6](v7)}return {"Id":i["id"],"Title":i["title"],"Tags":v4,"Rating":v6,"Age":v8,}}`,
+    `i=>{let v0=i["tags"],v3=i["rating"],v4,v5=i["deprecatedAgeRestriction"],v6;try{if(v3!=="G"){e[0](v3)}v4=v3}catch(e0){try{if(v3!=="PG"){e[1](v3)}v4=v3}catch(e1){try{if(v3!=="PG13"){e[2](v3)}v4=v3}catch(e2){try{if(v3!=="R"){e[3](v3)}v4=v3}catch(e3){e[4]([e0,e1,e2,e3,])}}}}if(v5!==void 0){v6=e[5](v5)}return {"Id":i["id"],"Title":i["title"],"Tags":v0,"Rating":v4,"Age":v6,}}`,
   )
 })

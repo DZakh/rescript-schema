@@ -354,6 +354,9 @@ let unsafeGetErrorPayload = variant => (variant->Obj.magic)["_1"]
 @inline
 let isLiteralSchema = schema => schema.tagged->unsafeGetVarianTag === "Literal"
 
+@inline
+let isNullSchema = schema => schema.tagged->unsafeGetVarianTag === "Null"
+
 type globalConfig = {
   @as("r")
   mutable recCounter: int,
@@ -1096,9 +1099,7 @@ let isAsyncParse = schema => {
 }
 
 let reverse = schema => {
-  let reversed = schema.reverse()
-  reversed.reverse = () => schema->toUnknown
-  reversed
+  schema.reverse()
 }
 
 @inline
@@ -1264,7 +1265,7 @@ let initialAssertOrRaise = unknown => {
 
 let initialSerializeToUnknownOrRaise = unknown => {
   let schema = %raw(`this`)
-  let reversed = schema->reverse
+  let reversed = schema.reverse()
   let operation =
     reversed.builder->Builder.build(
       ~schema=reversed,
@@ -1286,7 +1287,7 @@ let initialSerializeOrRaise = unknown => {
       ),
     )
   }
-  let reversed = schema->reverse
+  let reversed = schema.reverse()
   let operation =
     reversed.builder->Builder.build(
       ~schema=reversed,
@@ -1336,7 +1337,12 @@ let makeSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilter, ~rev
   jsParse,
   jsParseAsync,
   jsSerialize,
-  reverse,
+  reverse: () => {
+    let original = %raw(`this`)
+    let reversed = (reverse->Obj.magic)["call"](original)
+    reversed.reverse = () => original
+    reversed
+  },
 }
 
 let makeReverseSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilter) => {
@@ -1530,7 +1536,7 @@ let setName = (schema, name) => {
     ~tagged=schema.tagged,
     ~maybeTypeFilter=schema.maybeTypeFilter,
     ~metadataMap=schema.metadataMap,
-    ~reverse=schema.reverse, // FIXME: test
+    ~reverse=() => schema.reverse(), // FIXME: test better
   )
 }
 
@@ -1760,24 +1766,41 @@ module Option = {
   let default = schema => schema->Metadata.get(~id=defaultMetadataId)
 
   let builder = Builder.make((b, ~input, ~selfSchema, ~path) => {
-    let isNull = %raw(`selfSchema.t.TAG === "Null"`)
+    let isNullInput = selfSchema->isNullSchema
+    let reversed = selfSchema.reverse()
+    let isNullOutput = reversed->isNullSchema
     let childSchema = selfSchema->classify->unsafeGetVariantPayload
 
     let bb = b->B.scope
-    let itemOutput = bb->B.parse(~schema=childSchema, ~input, ~path)
+    // TODO: Improve the logic
+    let itemInput = if (
+      !isNullOutput &&
+      (b.global.operation === SerializeToJson || b.global.operation === SerializeToUnknown)
+    ) {
+      bb->B.val(`${bb->B.embed(%raw("Caml_option.valFromOption"))}(${b->B.Val.var(input)})`)
+    } else {
+      input
+    }
+
+    let itemOutput = bb->B.parse(~schema=childSchema, ~input=itemInput, ~path)
     let itemCode = bb->B.allocateScope
 
-    let isTransformed = isNull || itemOutput !== input
+    let inputLiteral = isNullInput ? "null" : "void 0"
+    let ouputLiteral = isNullOutput ? "null" : "void 0"
+
+    let isTransformed = inputLiteral !== ouputLiteral || itemOutput !== input
 
     let output = isTransformed ? {_scope: b, isAsync: itemOutput.isAsync} : input
 
     if itemCode !== "" || isTransformed {
       b.code =
         b.code ++
-        `if(${b->B.Val.var(input)}!==${isNull ? "null" : "void 0"}){${itemCode}${b->B.Val.set(
+        `if(${b->B.Val.var(input)}!==${inputLiteral}){${itemCode}${b->B.Val.set(
             output,
             itemOutput,
-          )}}${isNull || output.isAsync ? `else{${b->B.Val.set(output, b->B.val(`void 0`))}}` : ""}`
+          )}}${inputLiteral !== ouputLiteral || output.isAsync
+            ? `else{${b->B.Val.set(output, b->B.val(ouputLiteral))}}`
+            : ""}`
     }
 
     output
@@ -1795,42 +1818,7 @@ module Option = {
     }
   }
 
-  let reverse = () => {
-    let original = %raw(`this`)
-    let isNull = %raw(`original.t.TAG === "Null"`)
-    let originalChild = original->classify->unsafeGetVariantPayload
-    let child = originalChild.reverse()
-
-    makeReverseSchema(
-      ~name=containerName,
-      ~tagged=Option(child),
-      ~metadataMap=Metadata.Map.empty,
-      ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-        let output = b->B.allocateVal
-        let inputVar = b->B.Val.var(input)
-
-        let bb = b->B.scope
-        let itemOutput = bb->B.parse(
-          ~schema=child,
-          // FIXME: Apply only for option child
-          ~input=bb->B.Val.map(bb->B.embed(%raw("Caml_option.valFromOption")), input),
-          ~path,
-        )
-        let itemCode = bb->B.allocateScope
-
-        b.code =
-          b.code ++
-          `if(${inputVar}!==void 0){${itemCode}${b->B.Val.set(output, itemOutput)}}${isNull
-              ? `else{${b->B.Val.setInlined(output, `null`)}}`
-              : ""}`
-
-        output
-      }),
-      ~maybeTypeFilter=maybeTypeFilter(~schema=child, ~inlinedNoneValue="void 0"),
-    )
-  }
-
-  let factory = schema => {
+  let rec factory = schema => {
     let schema = schema->toUnknown
     makeSchema(
       ~name=containerName,
@@ -1838,7 +1826,7 @@ module Option = {
       ~tagged=Option(schema),
       ~builder,
       ~maybeTypeFilter=maybeTypeFilter(~schema, ~inlinedNoneValue="void 0"),
-      ~reverse,
+      ~reverse=Reverse.onlyChild(~factory, ~schema),
     )
   }
 
@@ -1863,7 +1851,22 @@ module Option = {
         )
       }),
       ~maybeTypeFilter=schema.maybeTypeFilter,
-      ~reverse=() => schema.reverse(),
+      ~reverse=() => {
+        let reversed = schema.reverse()
+        switch reversed->classify {
+        | Option(child) =>
+          // Copy to prevent mutating of primitive's reverse function
+          // TODO: Can be improved to copy only for primitives
+          makeReverseSchema(
+            ~name=child.name,
+            ~tagged=child.tagged,
+            ~metadataMap=child.metadataMap,
+            ~builder=child.builder,
+            ~maybeTypeFilter=child.maybeTypeFilter,
+          )
+        | _ => reversed
+        }
+      },
     )
   }
 
@@ -1882,7 +1885,9 @@ module Null = {
       ~tagged=Null(schema),
       ~builder=Option.builder,
       ~maybeTypeFilter=Option.maybeTypeFilter(~schema, ~inlinedNoneValue="null"),
-      ~reverse=Option.reverse,
+      ~reverse=() => {
+        Option.factory(schema.reverse())
+      },
     )
   }
 }
@@ -3027,7 +3032,6 @@ module Union = {
             ~maybeTypeFilter=None,
             ~metadataMap=Metadata.Map.empty,
           )
-          // FIXME: Return self if all reversed schemas are self
         },
       )
     }
