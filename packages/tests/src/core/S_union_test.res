@@ -153,7 +153,7 @@ test("Serializes when second struct misses serializer", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Serialize,
-    `i=>{let v0;try{if(i!=="apple"){e[0](i)}if(i!=="apple"){e[1](i)}v0=i}catch(e0){e[3]([e0,e[2],])}return v0}`,
+    `i=>{let v0;try{if(i!=="apple"){e[0](i)}v0=i}catch(e0){e[2]([e0,e[1],])}return v0}`,
   )
 })
 
@@ -457,11 +457,11 @@ test("Compiled async parse code snapshot", t => {
 test("Compiled serialize code snapshot", t => {
   let schema = S.union([S.literal(0), S.literal(1)])
 
-  // TODO: Improve - Fix literal check duplication - Use if/else instead of try/catch
+  // TODO: Improve - Use if/else instead of try/catch
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Serialize,
-    `i=>{let v0;try{if(i!==0){e[0](i)}if(i!==0){e[1](i)}v0=i}catch(e0){try{if(i!==1){e[2](i)}if(i!==1){e[3](i)}v0=i}catch(e1){e[4]([e0,e1,])}}return v0}`,
+    `i=>{let v0;try{if(i!==0){e[0](i)}v0=i}catch(e0){try{if(i!==1){e[1](i)}v0=i}catch(e1){e[2]([e0,e1,])}}return v0}`,
   )
 })
 
@@ -620,7 +620,7 @@ module CrazyUnion = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Serialize,
-      `i=>{let r0=i=>{let v5,v6,v12;try{let v0=i["_0"],v4=[];if(i["TAG"]!=="A"){e[0](i["TAG"])}for(let v1=0;v1<v0.length;++v1){let v3;try{v3=r0(v0[v1])}catch(v2){if(v2&&v2.s===s){v2.path="[\\"_0\\"]"+\'["\'+v1+\'"]\'+v2.path}throw v2}v4.push(v3)}v5={"type":e[1],"nested":v4,};if(!v5||v5.constructor!==Object){e[2](v5)}v6=v5}catch(e0){try{if(i!=="B"){e[3](i)}if(i!=="B"){e[4](i)}v6=i}catch(e1){try{if(i!=="C"){e[5](i)}if(i!=="C"){e[6](i)}v6=i}catch(e2){try{if(i!=="D"){e[7](i)}if(i!=="D"){e[8](i)}v6=i}catch(e3){try{if(i!=="E"){e[9](i)}if(i!=="E"){e[10](i)}v6=i}catch(e4){try{if(i!=="F"){e[11](i)}if(i!=="F"){e[12](i)}v6=i}catch(e5){try{if(i!=="G"){e[13](i)}if(i!=="G"){e[14](i)}v6=i}catch(e6){try{if(i!=="H"){e[15](i)}if(i!=="H"){e[16](i)}v6=i}catch(e7){try{if(i!=="I"){e[17](i)}if(i!=="I"){e[18](i)}v6=i}catch(e8){try{if(i!=="J"){e[19](i)}if(i!=="J"){e[20](i)}v6=i}catch(e9){try{if(i!=="K"){e[21](i)}if(i!=="K"){e[22](i)}v6=i}catch(e10){try{if(i!=="L"){e[23](i)}if(i!=="L"){e[24](i)}v6=i}catch(e11){try{if(i!=="M"){e[25](i)}if(i!=="M"){e[26](i)}v6=i}catch(e12){try{if(i!=="N"){e[27](i)}if(i!=="N"){e[28](i)}v6=i}catch(e13){try{if(i!=="O"){e[29](i)}if(i!=="O"){e[30](i)}v6=i}catch(e14){try{if(i!=="P"){e[31](i)}if(i!=="P"){e[32](i)}v6=i}catch(e15){try{if(i!=="Q"){e[33](i)}if(i!=="Q"){e[34](i)}v6=i}catch(e16){try{if(i!=="R"){e[35](i)}if(i!=="R"){e[36](i)}v6=i}catch(e17){try{if(i!=="S"){e[37](i)}if(i!=="S"){e[38](i)}v6=i}catch(e18){try{if(i!=="T"){e[39](i)}if(i!=="T"){e[40](i)}v6=i}catch(e19){try{if(i!=="U"){e[41](i)}if(i!=="U"){e[42](i)}v6=i}catch(e20){try{if(i!=="V"){e[43](i)}if(i!=="V"){e[44](i)}v6=i}catch(e21){try{if(i!=="W"){e[45](i)}if(i!=="W"){e[46](i)}v6=i}catch(e22){try{if(i!=="X"){e[47](i)}if(i!=="X"){e[48](i)}v6=i}catch(e23){try{if(i!=="Y"){e[49](i)}if(i!=="Y"){e[50](i)}v6=i}catch(e24){try{let v7=i["_0"],v11=[];if(i["TAG"]!=="Z"){e[51](i["TAG"])}for(let v8=0;v8<v7.length;++v8){let v10;try{v10=r0(v7[v8])}catch(v9){if(v9&&v9.s===s){v9.path="[\\"_0\\"]"+\'["\'+v8+\'"]\'+v9.path}throw v9}v11.push(v10)}v12={"type":e[52],"nested":v11,};if(!v12||v12.constructor!==Object){e[53](v12)}v6=v12}catch(e25){e[54]([e0,e1,e2,e3,e4,e5,e6,e7,e8,e9,e10,e11,e12,e13,e14,e15,e16,e17,e18,e19,e20,e21,e22,e23,e24,e25,])}}}}}}}}}}}}}}}}}}}}}}}}}}return v6};return r0(i)}`,
+      `i=>{let r0=i=>{let v5,v6,v12;try{let v0=i["_0"],v4=[];if(i["TAG"]!=="A"){e[0](i["TAG"])}for(let v1=0;v1<v0.length;++v1){let v3;try{v3=r0(v0[v1])}catch(v2){if(v2&&v2.s===s){v2.path="[\\"_0\\"]"+\'["\'+v1+\'"]\'+v2.path}throw v2}v4.push(v3)}v5={"type":e[1],"nested":v4,};if(!v5||v5.constructor!==Object){e[2](v5)}v6=v5}catch(e0){try{if(i!=="B"){e[3](i)}v6=i}catch(e1){try{if(i!=="C"){e[4](i)}v6=i}catch(e2){try{if(i!=="D"){e[5](i)}v6=i}catch(e3){try{if(i!=="E"){e[6](i)}v6=i}catch(e4){try{if(i!=="F"){e[7](i)}v6=i}catch(e5){try{if(i!=="G"){e[8](i)}v6=i}catch(e6){try{if(i!=="H"){e[9](i)}v6=i}catch(e7){try{if(i!=="I"){e[10](i)}v6=i}catch(e8){try{if(i!=="J"){e[11](i)}v6=i}catch(e9){try{if(i!=="K"){e[12](i)}v6=i}catch(e10){try{if(i!=="L"){e[13](i)}v6=i}catch(e11){try{if(i!=="M"){e[14](i)}v6=i}catch(e12){try{if(i!=="N"){e[15](i)}v6=i}catch(e13){try{if(i!=="O"){e[16](i)}v6=i}catch(e14){try{if(i!=="P"){e[17](i)}v6=i}catch(e15){try{if(i!=="Q"){e[18](i)}v6=i}catch(e16){try{if(i!=="R"){e[19](i)}v6=i}catch(e17){try{if(i!=="S"){e[20](i)}v6=i}catch(e18){try{if(i!=="T"){e[21](i)}v6=i}catch(e19){try{if(i!=="U"){e[22](i)}v6=i}catch(e20){try{if(i!=="V"){e[23](i)}v6=i}catch(e21){try{if(i!=="W"){e[24](i)}v6=i}catch(e22){try{if(i!=="X"){e[25](i)}v6=i}catch(e23){try{if(i!=="Y"){e[26](i)}v6=i}catch(e24){try{let v7=i["_0"],v11=[];if(i["TAG"]!=="Z"){e[27](i["TAG"])}for(let v8=0;v8<v7.length;++v8){let v10;try{v10=r0(v7[v8])}catch(v9){if(v9&&v9.s===s){v9.path="[\\"_0\\"]"+\'["\'+v8+\'"]\'+v9.path}throw v9}v11.push(v10)}v12={"type":e[28],"nested":v11,};if(!v12||v12.constructor!==Object){e[29](v12)}v6=v12}catch(e25){e[30]([e0,e1,e2,e3,e4,e5,e6,e7,e8,e9,e10,e11,e12,e13,e14,e15,e16,e17,e18,e19,e20,e21,e22,e23,e24,e25,])}}}}}}}}}}}}}}}}}}}}}}}}}}return v6};return r0(i)}`,
     )
   })
 }
