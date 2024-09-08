@@ -2862,32 +2862,64 @@ module Float = {
 }
 
 module Union = {
-  @inline
-  let parseSameType = (b, ~parsers, ~path) => {
-    let rec loopSchemas = (idx, errorCodes) => {
-      if idx === parsers->Js.Array2.length {
-        b.code =
-          b.code ++
-          b->B.failWithArg(
-            ~path,
-            internalErrors => {
-              InvalidUnion(internalErrors)
-            },
-            `[${errorCodes}]`,
-          )
+  let parse = (b, ~schemas, ~path, ~input, ~output) => {
+    let isMultiple = schemas->Js.Array2.length > 1
+    let rec loop = (idx, errorCodes) => {
+      if idx === schemas->Js.Array2.length {
+        b->B.failWithArg(
+          ~path,
+          internalErrors => {
+            InvalidUnion(internalErrors)
+          },
+          `[${errorCodes}]`,
+        )
       } else {
-        let parserCode = parsers->Js.Array2.unsafe_get(idx)
-        let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
+        let schema = schemas->Js.Array2.unsafe_get(idx)
+        let parserCode = try {
+          let bb = b->B.scope
+          let itemOutput = bb->B.parse(~schema, ~input, ~path=Path.empty)
 
-        b.code = b.code ++ `try{${parserCode}}catch(${errorVar}){`
-        loopSchemas(idx + 1, errorCodes ++ errorVar ++ ",")
-        b.code = b.code ++ "}"
+          if (
+            isMultiple &&
+            (b.global.operation === SerializeToJson || b.global.operation === SerializeToUnknown)
+          ) {
+            let reversed = schema.reverse()
+            switch reversed.maybeTypeFilter {
+            | Some(typeFilter) =>
+              let code =
+                bb->B.typeFilterCode(
+                  ~schema=reversed,
+                  ~typeFilter,
+                  ~input=itemOutput,
+                  ~path=Path.empty,
+                )
+              bb.code = bb.code ++ code
+
+            | None => ()
+            }
+          }
+
+          if itemOutput !== input {
+            bb.code = bb.code ++ bb->B.Val.set(output, itemOutput)
+          }
+
+          bb->B.allocateScope
+        } catch {
+        | exn => "throw " ++ b->B.embed(exn->InternalError.getOrRethrow)
+        }
+        if isMultiple {
+          let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
+          `try{${parserCode}}catch(${errorVar}){` ++
+          loop(idx + 1, errorCodes ++ errorVar ++ ",") ++ "}"
+        } else {
+          parserCode
+        }
       }
     }
-    loopSchemas(0, "")
+    loop(0, "")
   }
 
-  let factory = schemas => {
+  let rec factory = schemas => {
     let schemas: array<t<unknown>> = schemas->Obj.magic
 
     switch schemas {
@@ -2903,37 +2935,28 @@ module Union = {
           let inputVar = b->B.Val.var(input)
           let output = b->B.val(inputVar)
 
-          let prsersByTypeFilter = Js.Dict.empty()
+          let byTypeFilter = Js.Dict.empty()
           let typeFilters = []
           for idx in 0 to schemas->Js.Array2.length - 1 {
             let schema = schemas->Js.Array2.unsafe_get(idx)
             let typeFilterCode = switch schema.maybeTypeFilter {
             | Some(typeFilter) => b->typeFilter(~inputVar)
-            | None => "0"
+            | None => ""
             }
-            let parserCode = try {
-              let bb = b->B.scope
-              let schemaOutput = bb->B.parse(~schema, ~input, ~path=Path.empty)
-              if schemaOutput !== input {
-                bb.code = bb.code ++ bb->B.Val.set(output, schemaOutput)
-              }
-              bb->B.allocateScope
-            } catch {
-            | exn => "throw " ++ b->B.embed(exn->InternalError.getOrRethrow)
-            }
-            switch prsersByTypeFilter->Js.Dict.get(typeFilterCode) {
-            | Some(parsers) => parsers->Js.Array2.push(parserCode)->ignore
+
+            switch byTypeFilter->Js.Dict.get(typeFilterCode) {
+            | Some(schemas) => schemas->Js.Array2.push(schema)->ignore
             | None => {
                 typeFilters->Js.Array2.push(typeFilterCode)->ignore
-                prsersByTypeFilter->Js.Dict.set(typeFilterCode, [parserCode])
+                byTypeFilter->Js.Dict.set(typeFilterCode, [schema])
               }
             }
           }
 
-          let rec loopTypeFilters = idx => {
+          let rec loopTypeFilters = (idx, maybeUnknownParser) => {
             if idx === typeFilters->Js.Array2.length {
-              b.code =
-                b.code ++
+              switch maybeUnknownParser {
+              | None =>
                 b->B.failWithArg(
                   ~path,
                   received => InvalidType({
@@ -2942,23 +2965,27 @@ module Union = {
                   }),
                   inputVar,
                 )
+              | Some(unknownParserCode) => unknownParserCode
+              }
             } else {
               let typeFilterCode = typeFilters->Js.Array2.unsafe_get(idx)
-              let parsers = prsersByTypeFilter->Js.Dict.unsafeGet(typeFilterCode)
+              let schemas = byTypeFilter->Js.Dict.unsafeGet(typeFilterCode)
 
-              b.code = b.code ++ `if(${typeFilterCode}){`
-              loopTypeFilters(idx + 1)
-              switch parsers {
-              | [""] => ()
-              | [parserCode] => b.code = b.code ++ `}else{` ++ parserCode
-              | parsers =>
-                b.code = b.code ++ `}else{`
-                parseSameType(b, ~parsers, ~path)
+              let parserCode = parse(b, ~schemas, ~path, ~input, ~output)
+
+              switch typeFilterCode {
+              | "" => loopTypeFilters(idx + 1, Some(parserCode))
+              | _ =>
+                `if(${typeFilterCode}){` ++
+                loopTypeFilters(idx + 1, maybeUnknownParser) ++
+                switch parserCode {
+                | "" => ""
+                | _ => `}else{` ++ parserCode
+                } ++ `}`
               }
-              b.code = b.code ++ `}`
             }
           }
-          loopTypeFilters(0)
+          b.code = b.code ++ loopTypeFilters(0, None)
 
           if output.isAsync {
             b->B.asyncVal(`Promise.resolve(${b->B.Val.inline(output)})`)
@@ -2969,69 +2996,8 @@ module Union = {
         ~maybeTypeFilter=None,
         ~reverse=() => {
           let original = %raw(`this`)
-          makeReverseSchema(
-            ~name=primitiveName,
-            ~tagged=Unknown,
-            ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-              let schemas = original->classify->unsafeGetVariantPayload
-
-              let output = b->B.allocateVal
-              let codeEndRef = ref("")
-              let errorCodeRef = ref("")
-
-              for idx in 0 to schemas->Js.Array2.length - 1 {
-                let prevCode = b.code
-                try {
-                  let schema = schemas->Js.Array2.unsafe_get(idx)
-                  let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
-
-                  let bb = b->B.scope
-                  let itemOutput = bb->B.parse(~schema=schema.reverse(), ~input, ~path=Path.empty)
-                  b.code = b.code ++ `try{${bb->B.allocateScope}`
-
-                  switch schema.maybeTypeFilter {
-                  | Some(typeFilter) =>
-                    let code =
-                      b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemOutput, ~path=Path.empty)
-                    b.code = b.code ++ code
-
-                  | None => ()
-                  }
-
-                  b.code = b.code ++ `${b->B.Val.set(output, itemOutput)}}catch(${errorVar}){`
-                  codeEndRef := codeEndRef.contents ++ "}"
-                  errorCodeRef := errorCodeRef.contents ++ errorVar ++ ","
-                } catch {
-                | exn => {
-                    errorCodeRef :=
-                      errorCodeRef.contents ++ b->B.embed(exn->InternalError.getOrRethrow) ++ ","
-                    b.code = prevCode
-                  }
-                }
-              }
-
-              b.code =
-                b.code ++
-                b->B.failWithArg(
-                  ~path,
-                  internalErrors => {
-                    InvalidUnion(internalErrors)
-                  },
-                  `[${errorCodeRef.contents}]`,
-                ) ++
-                codeEndRef.contents
-
-              let isAllSchemasBuilderFailed = codeEndRef.contents === ""
-              if isAllSchemasBuilderFailed {
-                b.code = b.code ++ ";"
-                input
-              } else {
-                output
-              }
-            }),
-            ~maybeTypeFilter=None,
-            ~metadataMap=Metadata.Map.empty,
-          )
+          let schemas = original->classify->unsafeGetVariantPayload
+          factory(schemas->Js.Array2.map(s => s.reverse()->castUnknownSchemaToAnySchema))
         },
       )
     }

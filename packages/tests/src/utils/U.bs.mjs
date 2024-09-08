@@ -85,11 +85,19 @@ function assertCompiledCode(t, schema, op, code, message) {
       
     }
     compiledCode = (schema.assert.toString());
+  } else if (op === "SerializeJson") {
+    try {
+      S$RescriptSchema.serializeOrRaiseWith(undefined, schema);
+    }
+    catch (exn$1){
+      
+    }
+    compiledCode = (schema.serializeToJsonOrThrow.toString());
   } else if (op === "Serialize") {
     try {
       S$RescriptSchema.serializeToUnknownOrRaiseWith(undefined, schema);
     }
-    catch (exn$1){
+    catch (exn$2){
       
     }
     compiledCode = (schema.serializeOrThrow.toString());

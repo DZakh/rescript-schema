@@ -1945,6 +1945,50 @@ function typeFilter$5(_b, inputVar) {
 
 var schema$5 = makePrimitiveSchema("Float", noop, typeFilter$5);
 
+function parse$1(b, schemas, path, input, output) {
+  var isMultiple = schemas.length > 1;
+  var loop = function (idx, errorCodes) {
+    if (idx === schemas.length) {
+      return failWithArg(b, path, (function (internalErrors) {
+                    return {
+                            TAG: "InvalidUnion",
+                            _0: internalErrors
+                          };
+                  }), "[" + errorCodes + "]");
+    }
+    var schema = schemas[idx];
+    var parserCode;
+    try {
+      var bb = scope(b);
+      var itemOutput = schema.b(bb, input, schema, "");
+      if (isMultiple && (b.g.o === "SerializeToJson" || b.g.o === "SerializeToUnknown")) {
+        var reversed = schema.r();
+        var typeFilter = reversed.f;
+        if (typeFilter !== undefined) {
+          var code = typeFilterCode(bb, typeFilter, reversed, itemOutput, "");
+          bb.c = bb.c + code;
+        }
+        
+      }
+      if (itemOutput !== input) {
+        bb.c = bb.c + set(bb, output, itemOutput);
+      }
+      parserCode = allocateScope(bb);
+    }
+    catch (raw_exn){
+      var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+      var value = getOrRethrow(exn);
+      parserCode = "throw " + ("e[" + (b.g.e.push(value) - 1) + "]");
+    }
+    if (!isMultiple) {
+      return parserCode;
+    }
+    var errorVar = "e" + idx;
+    return "try{" + parserCode + "}catch(" + errorVar + "){" + loop(idx + 1 | 0, errorCodes + errorVar + ",") + "}";
+  };
+  return loop(0, "");
+}
+
 function factory$6(schemas) {
   var len = schemas.length;
   if (len === 1) {
@@ -1962,78 +2006,50 @@ function factory$6(schemas) {
                   var schemas = selfSchema.t._0;
                   var inputVar = $$var(b, input);
                   var output = val(b, inputVar);
-                  var prsersByTypeFilter = {};
+                  var byTypeFilter = {};
                   var typeFilters = [];
                   for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
                     var schema = schemas[idx];
                     var typeFilter = schema.f;
-                    var typeFilterCode = typeFilter !== undefined ? typeFilter(b, inputVar) : "0";
-                    var parserCode;
-                    try {
-                      var bb = scope(b);
-                      var schemaOutput = schema.b(bb, input, schema, "");
-                      if (schemaOutput !== input) {
-                        bb.c = bb.c + set(bb, output, schemaOutput);
-                      }
-                      parserCode = allocateScope(bb);
-                    }
-                    catch (raw_exn){
-                      var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-                      var value = getOrRethrow(exn);
-                      parserCode = "throw " + ("e[" + (b.g.e.push(value) - 1) + "]");
-                    }
-                    var parsers = Js_dict.get(prsersByTypeFilter, typeFilterCode);
-                    if (parsers !== undefined) {
-                      parsers.push(parserCode);
+                    var typeFilterCode = typeFilter !== undefined ? typeFilter(b, inputVar) : "";
+                    var schemas$1 = Js_dict.get(byTypeFilter, typeFilterCode);
+                    if (schemas$1 !== undefined) {
+                      schemas$1.push(schema);
                     } else {
                       typeFilters.push(typeFilterCode);
-                      prsersByTypeFilter[typeFilterCode] = [parserCode];
+                      byTypeFilter[typeFilterCode] = [schema];
                     }
                   }
-                  var loopTypeFilters = function (idx) {
-                    if (idx === typeFilters.length) {
-                      b.c = b.c + failWithArg(b, path, (function (received) {
-                              return {
-                                      TAG: "InvalidType",
-                                      expected: selfSchema,
-                                      received: received
-                                    };
-                            }), inputVar);
-                      return ;
-                    }
-                    var typeFilterCode = typeFilters[idx];
-                    var parsers = prsersByTypeFilter[typeFilterCode];
-                    b.c = b.c + ("if(" + typeFilterCode + "){");
-                    loopTypeFilters(idx + 1 | 0);
-                    if (parsers.length !== 1) {
-                      b.c = b.c + "}else{";
-                      var loopSchemas = function (idx, errorCodes) {
-                        if (idx === parsers.length) {
-                          b.c = b.c + failWithArg(b, path, (function (internalErrors) {
-                                  return {
-                                          TAG: "InvalidUnion",
-                                          _0: internalErrors
-                                        };
-                                }), "[" + errorCodes + "]");
-                          return ;
+                  var loopTypeFilters = function (_idx, _maybeUnknownParser) {
+                    while(true) {
+                      var maybeUnknownParser = _maybeUnknownParser;
+                      var idx = _idx;
+                      if (idx === typeFilters.length) {
+                        if (maybeUnknownParser !== undefined) {
+                          return maybeUnknownParser;
+                        } else {
+                          return failWithArg(b, path, (function (received) {
+                                        return {
+                                                TAG: "InvalidType",
+                                                expected: selfSchema,
+                                                received: received
+                                              };
+                                      }), inputVar);
                         }
-                        var parserCode = parsers[idx];
-                        var errorVar = "e" + idx;
-                        b.c = b.c + ("try{" + parserCode + "}catch(" + errorVar + "){");
-                        loopSchemas(idx + 1 | 0, errorCodes + errorVar + ",");
-                        b.c = b.c + "}";
-                      };
-                      loopSchemas(0, "");
-                    } else {
-                      var parserCode = parsers[0];
-                      if (parserCode !== "") {
-                        b.c = b.c + "}else{" + parserCode;
                       }
-                      
-                    }
-                    b.c = b.c + "}";
+                      var typeFilterCode = typeFilters[idx];
+                      var schemas = byTypeFilter[typeFilterCode];
+                      var parserCode = parse$1(b, schemas, path, input, output);
+                      if (typeFilterCode === "") {
+                        _maybeUnknownParser = parserCode;
+                        _idx = idx + 1 | 0;
+                        continue ;
+                      }
+                      var tmp = parserCode === "" ? "" : "}else{" + parserCode;
+                      return "if(" + typeFilterCode + "){" + loopTypeFilters(idx + 1 | 0, maybeUnknownParser) + tmp + "}";
+                    };
                   };
-                  loopTypeFilters(0);
+                  b.c = b.c + loopTypeFilters(0, undefined);
                   if (output.a) {
                     return asyncVal(b, "Promise.resolve(" + inline(b, output) + ")");
                   } else {
@@ -2041,50 +2057,10 @@ function factory$6(schemas) {
                   }
                 }), undefined, (function () {
                   var original = this;
-                  return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, input, param, path) {
-                                var schemas = original.t._0;
-                                var output = allocateVal(b);
-                                var codeEndRef = "";
-                                var errorCodeRef = "";
-                                for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
-                                  var prevCode = b.c;
-                                  try {
-                                    var schema = schemas[idx];
-                                    var errorVar = "e" + idx;
-                                    var bb = scope(b);
-                                    var schema$1 = schema.r();
-                                    var itemOutput = schema$1.b(bb, input, schema$1, "");
-                                    b.c = b.c + ("try{" + allocateScope(bb));
-                                    var typeFilter = schema.f;
-                                    if (typeFilter !== undefined) {
-                                      var code = typeFilterCode(b, typeFilter, schema, itemOutput, "");
-                                      b.c = b.c + code;
-                                    }
-                                    b.c = b.c + (set(b, output, itemOutput) + "}catch(" + errorVar + "){");
-                                    codeEndRef = codeEndRef + "}";
-                                    errorCodeRef = errorCodeRef + errorVar + ",";
-                                  }
-                                  catch (raw_exn){
-                                    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-                                    var value = getOrRethrow(exn);
-                                    errorCodeRef = errorCodeRef + ("e[" + (b.g.e.push(value) - 1) + "]") + ",";
-                                    b.c = prevCode;
-                                  }
-                                }
-                                b.c = b.c + failWithArg(b, path, (function (internalErrors) {
-                                        return {
-                                                TAG: "InvalidUnion",
-                                                _0: internalErrors
-                                              };
-                                      }), "[" + errorCodeRef + "]") + codeEndRef;
-                                var isAllSchemasBuilderFailed = codeEndRef === "";
-                                if (isAllSchemasBuilderFailed) {
-                                  b.c = b.c + ";";
-                                  return input;
-                                } else {
-                                  return output;
-                                }
-                              }), undefined);
+                  var schemas = original.t._0;
+                  return factory$6(schemas.map(function (s) {
+                                  return s.r();
+                                }));
                 }));
   }
   throw new Error("[rescript-schema] S.union requires at least one item");

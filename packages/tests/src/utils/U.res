@@ -71,7 +71,13 @@ let unsafeAssertEqualSchemas = (t, s1: S.t<'v1>, s2: S.t<'v2>, ~message=?) => {
   t->Assert.unsafeDeepEqual(s1->cleanUpSchema, s2->cleanUpSchema, ~message?, ())
 }
 
-let assertCompiledCode = (t, ~schema, ~op: [#Parse | #Serialize | #Assert], code, ~message=?) => {
+let assertCompiledCode = (
+  t,
+  ~schema,
+  ~op: [#Parse | #Serialize | #Assert | #SerializeJson],
+  code,
+  ~message=?,
+) => {
   let compiledCode = switch op {
   | #Parse =>
     if schema->S.isAsyncParse {
@@ -95,6 +101,14 @@ let assertCompiledCode = (t, ~schema, ~op: [#Parse | #Serialize | #Assert], code
       | _ => ()
       }
       %raw(`schema.serializeOrThrow.toString()`)
+    }
+  | #SerializeJson => {
+      try {
+        let _ = %raw(`undefined`)->S.serializeOrRaiseWith(schema)
+      } catch {
+      | _ => ()
+      }
+      %raw(`schema.serializeToJsonOrThrow.toString()`)
     }
   }
   t->Assert.is(compiledCode, code, ~message?, ())

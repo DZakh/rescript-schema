@@ -1,15 +1,19 @@
 (i) => {
-  if (!i || i.constructor !== Object) {
-    e[3](i);
+  let v0 = i["tags"],
+    v3 = i["rating"],
+    v4 = i["deprecatedAgeRestriction"],
+    v5;
+  if (v3 !== "G") {
+    if (v3 !== "PG") {
+      if (v3 !== "PG13") {
+        if (v3 !== "R") {
+          e[0](v3);
+        }
+      }
+    }
   }
-  let v0 = i["nested"],
-    v2 = { nested: { field: v1 } };
-  if (!v0 || v0.constructor !== Object) {
-    e[0](v0);
+  if (v4 !== void 0) {
+    v5 = e[1](v4);
   }
-  let v1 = v0["field"];
-  if (typeof v1 !== "boolean") {
-    e[1](v1);
-  }
-  return { kind: e[2], raw_field: v2["nested"]["field"] };
+  return { Id: i["id"], Title: i["title"], Tags: v0, Rating: v3, Age: v5 };
 };
