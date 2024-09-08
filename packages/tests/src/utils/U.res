@@ -5,6 +5,11 @@ external magic: 'a => 'b = "%identity"
 external castAnyToUnknown: 'any => unknown = "%identity"
 external castUnknownToAny: unknown => 'any = "%identity"
 
+%%private(
+  @val @scope("JSON")
+  external unsafeStringify: 'a => string = "stringify"
+)
+
 let unsafeGetVariantPayload = variant => (variant->Obj.magic)["_0"]
 
 exception Test
@@ -31,11 +36,7 @@ let assertThrowsTestException = {
 
 let assertErrorResult = (t, result, errorPayload) => {
   switch result {
-  | Ok(any) =>
-    t->Assert.fail(
-      "Asserted result is not Error. Recieved: " ++
-      any->Js.Json.stringifyAny->Belt.Option.getUnsafe,
-    )
+  | Ok(any) => t->Assert.fail("Asserted result is not Error. Recieved: " ++ any->unsafeStringify)
   | Error(err) => t->Assert.is(err->S.Error.message, error(errorPayload)->S.Error.message, ())
   }
 }
