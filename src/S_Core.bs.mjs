@@ -367,14 +367,14 @@ function typeFilterCode(b, typeFilter, schema, input, path) {
 function parseWithTypeCheck(b, schema, input, path) {
   var typeFilter = schema.f;
   if (typeFilter === undefined) {
-    return schema.p(b, input, schema, path);
+    return schema.b(b, input, schema, path);
   }
   if (!(schema.t.TAG === "Literal" || b.g.o !== "SerializeToJson" && b.g.o !== "SerializeToUnknown")) {
-    return schema.p(b, input, schema, path);
+    return schema.b(b, input, schema, path);
   }
   b.c = b.c + typeFilterCode(b, typeFilter, schema, input, path);
   var bb = scope(b);
-  var val = schema.p(bb, input, schema, path);
+  var val = schema.b(bb, input, schema, path);
   b.c = b.c + allocateScope(bb);
   return val;
 }
@@ -631,7 +631,7 @@ function parse(any) {
   return parseInternal(any);
 }
 
-function isAsyncParseFinalizer(b, schema, input, output) {
+function isAsyncSchemaFinalizer(b, schema, input, output) {
   schema.i = output.a;
   b.c = "";
   return input;
@@ -643,7 +643,7 @@ function isAsyncParse(schema) {
     return v;
   }
   try {
-    build(schema.p, schema, "ParseAsync", isAsyncParseFinalizer);
+    build(schema.b, schema, "ParseAsync", isAsyncSchemaFinalizer);
     return schema.i;
   }
   catch (raw_exn){
@@ -810,7 +810,7 @@ function parseFinalizer(b, schema, input, output) {
 
 function initialParseOrRaise(unknown) {
   var schema = this;
-  var operation = build(schema.p, schema, "Parse", parseFinalizer);
+  var operation = build(schema.b, schema, "Parse", parseFinalizer);
   schema.parseOrThrow = operation;
   return operation(unknown);
 }
@@ -838,7 +838,7 @@ function serializeFinalizer(b, schema, input, output) {
 
 function initialParseAsyncOrRaise(unknown) {
   var schema = this;
-  var operation = build(schema.p, schema, "ParseAsync", parseAsyncFinalizer);
+  var operation = build(schema.b, schema, "ParseAsync", parseAsyncFinalizer);
   schema.a = operation;
   return operation(unknown);
 }
@@ -854,7 +854,7 @@ function assertFinalizer(b, schema, input, param) {
 
 function initialAssertOrRaise(unknown) {
   var schema = this;
-  var operation = build(schema.p, schema, "Assert", assertFinalizer);
+  var operation = build(schema.b, schema, "Assert", assertFinalizer);
   schema.assert = operation;
   return operation(unknown);
 }
@@ -862,7 +862,7 @@ function initialAssertOrRaise(unknown) {
 function initialSerializeToUnknownOrRaise(unknown) {
   var schema = this;
   var reversed = reverse(schema);
-  var operation = build(reversed.p, reversed, "SerializeToUnknown", serializeFinalizer);
+  var operation = build(reversed.b, reversed, "SerializeToUnknown", serializeFinalizer);
   schema.serializeOrThrow = operation;
   return operation(unknown);
 }
@@ -876,7 +876,7 @@ function initialSerializeOrRaise(unknown) {
             }, "SerializeToJson", "");
   }
   var reversed = reverse(schema);
-  var operation = build(reversed.p, reversed, "SerializeToJson", serializeFinalizer);
+  var operation = build(reversed.b, reversed, "SerializeToJson", serializeFinalizer);
   schema.serializeToJsonOrThrow = operation;
   return operation(unknown);
 }
@@ -918,12 +918,12 @@ function jsSerialize(value) {
   }
 }
 
-function makeSchema(name, tagged, metadataMap, parseOperationBuilder, maybeTypeFilter, reverse) {
+function makeSchema(name, tagged, metadataMap, builder, maybeTypeFilter, reverse) {
   return {
           t: tagged,
           n: name,
           r: reverse,
-          p: parseOperationBuilder,
+          b: builder,
           f: maybeTypeFilter,
           i: 0,
           m: metadataMap,
@@ -938,12 +938,12 @@ function makeSchema(name, tagged, metadataMap, parseOperationBuilder, maybeTypeF
         };
 }
 
-function makeReverseSchema(name, tagged, metadataMap, parseOperationBuilder, maybeTypeFilter) {
+function makeReverseSchema(name, tagged, metadataMap, builder, maybeTypeFilter) {
   return {
           t: tagged,
           n: name,
           r: toSelf,
-          p: parseOperationBuilder,
+          b: builder,
           f: maybeTypeFilter,
           i: 0,
           m: metadataMap,
@@ -983,9 +983,9 @@ function get(schema, id) {
 
 function set$2(schema, id, metadata) {
   var metadataMap = set$1(schema.m, id, metadata);
-  return makeSchema(schema.n, schema.t, metadataMap, schema.p, schema.f, (function () {
+  return makeSchema(schema.n, schema.t, metadataMap, schema.b, schema.f, (function () {
                 var schema$1 = schema.r();
-                return makeReverseSchema(schema$1.n, schema$1.t, metadataMap, schema$1.p, schema$1.f);
+                return makeReverseSchema(schema$1.n, schema$1.t, metadataMap, schema$1.b, schema$1.f);
               }));
 }
 
@@ -998,8 +998,8 @@ function containerName() {
   return tagged.TAG + "(" + tagged._0.n() + ")";
 }
 
-function makePrimitiveSchema(tagged, parseOperationBuilder, maybeTypeFilter) {
-  return makeSchema(primitiveName, tagged, empty, parseOperationBuilder, maybeTypeFilter, toSelf);
+function makePrimitiveSchema(tagged, builder, maybeTypeFilter) {
+  return makeSchema(primitiveName, tagged, empty, builder, maybeTypeFilter, toSelf);
 }
 
 function recursive(fn) {
@@ -1011,7 +1011,7 @@ function recursive(fn) {
     n: (function () {
         return "<recursive>";
       }),
-    p: (function (b, input, param, param$1) {
+    b: (function (b, input, param, param$1) {
         return transform(b, input, (function (b, input) {
                       return map(b, r, input);
                     }));
@@ -1026,8 +1026,8 @@ function recursive(fn) {
   placeholder.f = schema.f;
   schema.d = undefined;
   schema.c = undefined;
-  var initialParseOperationBuilder = schema.p;
-  schema.p = (function (b, input, selfSchema, path) {
+  var initialParseOperationBuilder = schema.b;
+  schema.b = (function (b, input, selfSchema, path) {
       var bb = scope(b);
       var opOutput = initialParseOperationBuilder(bb, input, selfSchema, "");
       var opBodyCode = allocateScope(bb) + ("return " + inline(b, opOutput));
@@ -1037,7 +1037,7 @@ function recursive(fn) {
                                   var output = map(b, r, input);
                                   if (opOutput.a) {
                                     output.a = true;
-                                    placeholder.p = (function (b, input, param, param$1) {
+                                    placeholder.b = (function (b, input, param, param$1) {
                                         return transform(b, input, (function (b, input) {
                                                       var output = map(b, r, input);
                                                       output.a = true;
@@ -1054,7 +1054,7 @@ function recursive(fn) {
       var reversed = initialReverse();
       return makeReverseSchema(reversed.n, reversed.t, reversed.m, (function (b, input, selfSchema, path) {
                     var bb = scope(b);
-                    var opOutput = reversed.p(bb, input, selfSchema, "");
+                    var opOutput = reversed.b(bb, input, selfSchema, "");
                     var opBodyCode = allocateScope(bb) + ("return " + inline(b, opOutput));
                     b.c = b.c + ("let " + r + "=" + $$var(b, input) + "=>{" + opBodyCode + "};");
                     return withPathPrepend(b, input, path, undefined, (function (b, input, param) {
@@ -1068,12 +1068,12 @@ function recursive(fn) {
 function setName(schema, name) {
   return makeSchema((function () {
                 return name;
-              }), schema.t, schema.m, schema.p, schema.f, schema.r);
+              }), schema.t, schema.m, schema.b, schema.f, schema.r);
 }
 
 function internalRefine(schema, refiner) {
   return makeSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
-                return transform(b, schema.p(b, input, schema, path), (function (b, input) {
+                return transform(b, schema.b(b, input, schema, path), (function (b, input) {
                               var input$1;
                               if (b.c === "" && input.v !== undefined) {
                                 input$1 = input;
@@ -1093,7 +1093,7 @@ function internalRefine(schema, refiner) {
                                       b.c = b.c + refiner(b, $$var(b, input), selfSchema, path);
                                       return input;
                                     }));
-                              return schema$1.p(b, input$1, schema$1, path);
+                              return schema$1.b(b, input$1, schema$1, path);
                             }), schema$1.f);
               }));
 }
@@ -1112,7 +1112,7 @@ function addRefinement(schema, metadataId, refinement, refiner) {
 
 function transform$1(schema, transformer) {
   return makeSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
-                var input$1 = schema.p(b, input, schema, path);
+                var input$1 = schema.b(b, input, schema, path);
                 var match = transformer(effectCtx(b, selfSchema, path));
                 var parser = match.p;
                 if (parser !== undefined) {
@@ -1139,11 +1139,11 @@ function transform$1(schema, transformer) {
                                 if (match.a !== undefined || match.p !== undefined) {
                                   return invalidOperation(b, path, "The S.transform serializer is missing");
                                 } else {
-                                  return schema$1.p(b, input, schema$1, path);
+                                  return schema$1.b(b, input, schema$1, path);
                                 }
                               }
                               var input$1 = embedSyncOperation(b, input, serializer);
-                              return schema$1.p(b, input$1, schema$1, path);
+                              return schema$1.b(b, input$1, schema$1, path);
                             }), undefined);
               }));
 }
@@ -1209,11 +1209,11 @@ function $$default(schema) {
   return schema.m[defaultMetadataId];
 }
 
-function parseOperationBuilder(b, input, selfSchema, path) {
+function builder(b, input, selfSchema, path) {
   var isNull = (selfSchema.t.TAG === "Null");
   var childSchema = selfSchema.t._0;
   var bb = scope(b);
-  var itemOutput = childSchema.p(bb, input, childSchema, path);
+  var itemOutput = childSchema.b(bb, input, childSchema, path);
   var itemCode = allocateScope(bb);
   var isTransformed = isNull || itemOutput !== input;
   var output = isTransformed ? ({
@@ -1254,7 +1254,7 @@ function reverse$1() {
                 var bb = scope(b);
                 var value = Caml_option.valFromOption;
                 var input$1 = map(bb, "e[" + (bb.g.e.push(value) - 1) + "]", input);
-                var itemOutput = child.p(bb, input$1, child, path);
+                var itemOutput = child.b(bb, input$1, child, path);
                 var itemCode = allocateScope(bb);
                 b.c = b.c + ("if(" + inputVar + "!==void 0){" + itemCode + set(b, output, itemOutput) + "}" + (
                     isNull ? "else{" + setInlined(b, output, "null") + "}" : ""
@@ -1267,12 +1267,12 @@ function factory(schema) {
   return makeSchema(containerName, {
               TAG: "Option",
               _0: schema
-            }, empty, parseOperationBuilder, maybeTypeFilter(schema, "void 0"), reverse$1);
+            }, empty, builder, maybeTypeFilter(schema, "void 0"), reverse$1);
 }
 
 function getWithDefault(schema, $$default) {
   return makeSchema(schema.n, schema.t, set$1(schema.m, defaultMetadataId, $$default), (function (b, input, param, path) {
-                return transform(b, schema.p(b, input, schema, path), (function (b, input) {
+                return transform(b, schema.b(b, input, schema, path), (function (b, input) {
                               var inputVar = $$var(b, input);
                               var tmp;
                               tmp = $$default.TAG === "Value" ? "e[" + (b.g.e.push($$default._0) - 1) + "]" : "e[" + (b.g.e.push($$default._0) - 1) + "]()";
@@ -1301,14 +1301,14 @@ function factory$1(schema) {
   return makeSchema(containerName, {
               TAG: "Null",
               _0: schema
-            }, empty, parseOperationBuilder, maybeTypeFilter(schema, "null"), reverse$1);
+            }, empty, builder, maybeTypeFilter(schema, "null"), reverse$1);
 }
 
 function nullable(schema) {
   return factory(factory$1(schema));
 }
 
-function builder(b, input, selfSchema, path) {
+function builder$1(b, input, selfSchema, path) {
   b.c = b.c + failWithArg(b, path, (function (input) {
           return {
                   TAG: "InvalidType",
@@ -1319,7 +1319,7 @@ function builder(b, input, selfSchema, path) {
   return input;
 }
 
-var schema = makeSchema(primitiveName, "Never", empty, builder, undefined, toSelf);
+var schema = makeSchema(primitiveName, "Never", empty, builder$1, undefined, toSelf);
 
 var metadataId = "rescript-schema:Array.refinements";
 
@@ -1370,7 +1370,7 @@ function typeFilter$1(_b, inputVar) {
   return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
 }
 
-function parseOperationBuilder$1(b, input, selfSchema, path) {
+function builder$2(b, input, selfSchema, path) {
   var asyncOutputs = [];
   var outputs = new WeakMap();
   var parseItems = function (b, input, schema, path) {
@@ -1395,7 +1395,7 @@ function parseOperationBuilder$1(b, input, selfSchema, path) {
         parseItems(bb, itemInput, schema$1, path$1);
         b.c = prevCode + b.c + allocateScope(bb);
       } else {
-        var itemOutput = schema$1.p(b, itemInput, schema$1, path$1);
+        var itemOutput = schema$1.b(b, itemInput, schema$1, path$1);
         var itemOutput$1;
         if (itemOutput.a) {
           var index = asyncOutputs.length;
@@ -1493,7 +1493,7 @@ function reverse$2() {
                       }
                       var itemInput = val(b, inputVar + outputPath);
                       var schema = definition.t.r();
-                      var itemOutput = schema.p(b, itemInput, schema, path + outputPath);
+                      var itemOutput = schema.b(b, itemInput, schema, path + outputPath);
                       embededOutputs.set(definition, itemOutput);
                       return ;
                     }
@@ -1622,7 +1622,7 @@ function factory$3(definer) {
           },
           n: name,
           r: reverse$2,
-          p: parseOperationBuilder$1,
+          b: builder$2,
           f: typeFilter$1,
           i: 0,
           d: definer,
@@ -1691,7 +1691,7 @@ function tuple(definer) {
               TAG: "Tuple",
               items: items,
               definition: definition
-            }, empty, parseOperationBuilder$1, (function (b, inputVar) {
+            }, empty, builder$2, (function (b, inputVar) {
                 return typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
               }), reverse$2);
 }
@@ -1703,7 +1703,7 @@ function variant(schema, definer) {
               });
   } else {
     return makeSchema(schema.n, schema.t, schema.m, (function (b, input, param, path) {
-                  return embedSyncOperation(b, schema.p(b, input, schema, path), definer);
+                  return embedSyncOperation(b, schema.b(b, input, schema, path), definer);
                 }), schema.f, (function () {
                   var original = this;
                   var reversed = schema.r();
@@ -1748,7 +1748,7 @@ function variant(schema, definer) {
                                 };
                                 var output = definitionToValue(definition, "");
                                 if (typeof output === "object") {
-                                  return reversed.p(b, output, reversed, path);
+                                  return reversed.b(b, output, reversed, path);
                                 }
                                 if (output !== 0) {
                                   return invalidOperation(b, path, "The S.variant's value is registered multiple times");
@@ -1758,7 +1758,7 @@ function variant(schema, definer) {
                                 }
                                 var value = original.t._0.value;
                                 var input$1 = val(b, "e[" + (b.g.e.push(value) - 1) + "]");
-                                return reversed.p(b, input$1, reversed, path);
+                                return reversed.b(b, input$1, reversed, path);
                               }), undefined);
                 }));
   }
@@ -1779,7 +1779,7 @@ function setUnknownKeys(schema, unknownKeys) {
             },
             n: schema.n,
             r: schema.r,
-            p: schema.p,
+            b: schema.b,
             f: schema.f,
             i: schema.i,
             d: schema.d,
@@ -1892,7 +1892,7 @@ function factory$5(schema, spaceOpt) {
                                       _0: reversed
                                     }, "");
                               }
-                              var output = val(b, "JSON.stringify(" + inline(b, reversed.p(b, input, reversed, path)) + (
+                              var output = val(b, "JSON.stringify(" + inline(b, reversed.b(b, input, reversed, path)) + (
                                     space > 0 ? ",null," + space : ""
                                   ) + ")");
                               b.g.o = prevOperation;
@@ -1969,7 +1969,7 @@ function factory$6(schemas) {
                     var parserCode;
                     try {
                       var bb = scope(b);
-                      var schemaOutput = schema.p(bb, input, schema, "");
+                      var schemaOutput = schema.b(bb, input, schema, "");
                       if (schemaOutput !== input) {
                         bb.c = bb.c + set(bb, output, schemaOutput);
                       }
@@ -2051,7 +2051,7 @@ function factory$6(schemas) {
                                     var errorVar = "e" + idx;
                                     var bb = scope(b);
                                     var schema$1 = schema.r();
-                                    var itemOutput = schema$1.p(bb, input, schema$1, "");
+                                    var itemOutput = schema$1.b(bb, input, schema$1, "");
                                     b.c = b.c + ("try{" + allocateScope(bb));
                                     var typeFilter = schema.f;
                                     if (typeFilter !== undefined) {
@@ -2096,7 +2096,7 @@ function preprocess(schema, transformer) {
                 _0: unionSchemas._0.map(function (unionSchema) {
                       return preprocess(unionSchema, transformer);
                     })
-              }, schema.m, schema.p, schema.f, schema.r);
+              }, schema.m, schema.b, schema.f, schema.r);
   }
   return makeSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
                 var match = transformer(effectCtx(b, selfSchema, path));
@@ -2119,7 +2119,7 @@ function preprocess(schema, transformer) {
               }), undefined, (function () {
                 var reversed = schema.r();
                 return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, input, param, path) {
-                              var input$1 = reversed.p(b, input, reversed, path);
+                              var input$1 = reversed.b(b, input, reversed, path);
                               var match = transformer(effectCtx(b, schema, path));
                               var serializer = match.s;
                               if (serializer !== undefined) {
@@ -2995,8 +2995,8 @@ function js_merge(s1, s2) {
                   unknownKeys: match$1.unknownKeys,
                   definition: (void 0)
                 }, empty, (function (b, input, param, path) {
-                    var s1Result = s1.p(b, input, s1, path);
-                    var s2Result = s2.p(b, input, s2, path);
+                    var s1Result = s1.b(b, input, s1, path);
+                    var s2Result = s2.b(b, input, s2, path);
                     return val(b, "Object.assign(" + inline(b, s1Result) + ", " + inline(b, s2Result) + ")");
                   }), typeFilter$1, (function () {
                     return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, param, param$1, path) {

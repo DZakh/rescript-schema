@@ -209,7 +209,7 @@ let symbol = Stdlib.Symbol.make("rescript-schema")
 let itemSymbol = Stdlib.Symbol.make("item")
 
 @unboxed
-type isAsyncParse = | @as(0) Unknown | Value(bool)
+type isAsyncSchema = | @as(0) Unknown | Value(bool)
 type unknownKeys = Strip | Strict
 
 @@warning("-37")
@@ -236,12 +236,12 @@ type rec t<'value> = {
   name: unit => string,
   @as("r")
   mutable reverse: unit => t<unknown>,
-  @as("p")
-  mutable parseOperationBuilder: builder,
+  @as("b")
+  mutable builder: builder,
   @as("f")
   maybeTypeFilter: option<(b, ~inputVar: string) => string>,
   @as("i")
-  mutable isAsyncParse: isAsyncParse,
+  mutable isAsyncSchema: isAsyncSchema,
   @as("d")
   mutable // Use char to unsafely prevent Caml_option applications
   definer?: char,
@@ -718,7 +718,7 @@ module Builder = {
 
     @inline
     let parse = (b: b, ~schema, ~input, ~path) => {
-      schema.parseOperationBuilder(b, ~input, ~selfSchema=schema, ~path)
+      schema.builder(b, ~input, ~selfSchema=schema, ~path)
     }
 
     let parseWithTypeCheck = (b: b, ~schema, ~input, ~path) => {
@@ -1069,26 +1069,22 @@ module Literal = {
   }
 }
 
-let isAsyncParseFinalizer = (b, ~schema, ~input, ~output) => {
-  schema.isAsyncParse = Value(output.isAsync)
+let isAsyncSchemaFinalizer = (b, ~schema, ~input, ~output) => {
+  schema.isAsyncSchema = Value(output.isAsync)
 
   // Avoid new Function call
   b.code = ""
   input
 }
 
+// TODO: Rename to isAsync
 let isAsyncParse = schema => {
   let schema = schema->toUnknown
-  switch schema.isAsyncParse {
+  switch schema.isAsyncSchema {
   | Unknown =>
     try {
-      let _ =
-        schema.parseOperationBuilder->Builder.build(
-          ~schema,
-          ~operation=ParseAsync,
-          isAsyncParseFinalizer,
-        )
-      schema.isAsyncParse->(Obj.magic: isAsyncParse => bool)
+      let _ = schema.builder->Builder.build(~schema, ~operation=ParseAsync, isAsyncSchemaFinalizer)
+      schema.isAsyncSchema->(Obj.magic: isAsyncSchema => bool)
     } catch {
     | exn => {
         let _ = exn->InternalError.getOrRethrow
@@ -1208,14 +1204,13 @@ let parseFinalizer = (b, ~schema, ~input, ~output) => {
     b.code = b->B.typeFilterCode(~schema, ~typeFilter, ~input, ~path=Path.empty) ++ b.code
   | None => ()
   }
-  schema.isAsyncParse = Value(false)
+  schema.isAsyncSchema = Value(false)
   output
 }
 
 let initialParseOrRaise = unknown => {
   let schema = %raw(`this`)
-  let operation =
-    schema.parseOperationBuilder->Builder.build(~schema, ~operation=Parse, parseFinalizer)
+  let operation = schema.builder->Builder.build(~schema, ~operation=Parse, parseFinalizer)
   schema.parseOrRaise = operation
   operation(unknown)
 }
@@ -1226,7 +1221,7 @@ let parseAsyncFinalizer = (b, ~schema, ~input, ~output) => {
     b.code = b->B.typeFilterCode(~schema, ~typeFilter, ~input, ~path=Path.empty) ++ b.code
   | None => ()
   }
-  schema.isAsyncParse = Value(output.isAsync)
+  schema.isAsyncSchema = Value(output.isAsync)
   if output.isAsync {
     output
   } else {
@@ -1245,8 +1240,7 @@ let serializeFinalizer = (b, ~schema, ~input, ~output) => {
 
 let initialParseAsyncOrRaise = unknown => {
   let schema = %raw(`this`)
-  let operation =
-    schema.parseOperationBuilder->Builder.build(~schema, ~operation=ParseAsync, parseAsyncFinalizer)
+  let operation = schema.builder->Builder.build(~schema, ~operation=ParseAsync, parseAsyncFinalizer)
   schema.parseAsyncOrRaise = operation
   operation(unknown)
 }
@@ -1257,14 +1251,13 @@ let assertFinalizer = (b, ~schema, ~input, ~output as _) => {
     b.code = b->B.typeFilterCode(~schema, ~typeFilter, ~input, ~path=Path.empty) ++ b.code
   | None => ()
   }
-  schema.isAsyncParse = Value(false)
+  schema.isAsyncSchema = Value(false)
   b->B.val("void 0")
 }
 
 let initialAssertOrRaise = unknown => {
   let schema = %raw(`this`)
-  let operation =
-    schema.parseOperationBuilder->Builder.build(~schema, ~operation=Assert, assertFinalizer)
+  let operation = schema.builder->Builder.build(~schema, ~operation=Assert, assertFinalizer)
   schema.assertOrRaise = operation
   operation(unknown)
 }
@@ -1273,7 +1266,7 @@ let initialSerializeToUnknownOrRaise = unknown => {
   let schema = %raw(`this`)
   let reversed = schema->reverse
   let operation =
-    reversed.parseOperationBuilder->Builder.build(
+    reversed.builder->Builder.build(
       ~schema=reversed,
       ~operation=SerializeToUnknown,
       serializeFinalizer,
@@ -1295,7 +1288,7 @@ let initialSerializeOrRaise = unknown => {
   }
   let reversed = schema->reverse
   let operation =
-    reversed.parseOperationBuilder->Builder.build(
+    reversed.builder->Builder.build(
       ~schema=reversed,
       ~operation=SerializeToJson,
       serializeFinalizer,
@@ -1328,17 +1321,10 @@ let jsSerialize = value => {
   }
 }
 
-let makeSchema = (
-  ~name,
-  ~tagged,
-  ~metadataMap,
-  ~parseOperationBuilder,
-  ~maybeTypeFilter,
-  ~reverse,
-) => {
+let makeSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilter, ~reverse) => {
   tagged,
-  parseOperationBuilder,
-  isAsyncParse: Unknown,
+  builder,
+  isAsyncSchema: Unknown,
   maybeTypeFilter,
   name,
   metadataMap,
@@ -1353,16 +1339,10 @@ let makeSchema = (
   reverse,
 }
 
-let makeReverseSchema = (
-  ~name,
-  ~tagged,
-  ~metadataMap,
-  ~parseOperationBuilder,
-  ~maybeTypeFilter,
-) => {
+let makeReverseSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilter) => {
   tagged,
-  parseOperationBuilder,
-  isAsyncParse: Unknown,
+  builder,
+  isAsyncSchema: Unknown,
   maybeTypeFilter,
   name,
   metadataMap,
@@ -1414,7 +1394,7 @@ module Metadata = {
     let metadataMap = schema.metadataMap->Map.set(~id, metadata)
     makeSchema(
       ~name=schema.name,
-      ~parseOperationBuilder=schema.parseOperationBuilder,
+      ~builder=schema.builder,
       ~tagged=schema.tagged,
       ~maybeTypeFilter=schema.maybeTypeFilter,
       ~metadataMap,
@@ -1422,7 +1402,7 @@ module Metadata = {
         let schema = schema.reverse()
         makeReverseSchema(
           ~name=schema.name,
-          ~parseOperationBuilder=schema.parseOperationBuilder,
+          ~builder=schema.builder,
           ~tagged=schema.tagged,
           ~maybeTypeFilter=schema.maybeTypeFilter,
           ~metadataMap, // FIXME: Verify that we can reuse the same metadata object
@@ -1441,12 +1421,12 @@ let containerName = () => {
   `${tagged->unsafeGetVarianTag}(${(tagged->unsafeGetVariantPayload).name()})`
 }
 
-let makePrimitiveSchema = (~tagged, ~parseOperationBuilder, ~maybeTypeFilter) => {
+let makePrimitiveSchema = (~tagged, ~builder, ~maybeTypeFilter) => {
   makeSchema(
     ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
     ~tagged,
-    ~parseOperationBuilder,
+    ~builder,
     ~maybeTypeFilter,
     ~reverse=Reverse.toSelf,
   )
@@ -1463,8 +1443,8 @@ let recursive = fn => {
     "t": Unknown,
     // name
     "n": () => "<recursive>",
-    // parseOperationBuilder
-    "p": Builder.make((b, ~input, ~selfSchema as _, ~path as _) => {
+    // builder
+    "b": Builder.make((b, ~input, ~selfSchema as _, ~path as _) => {
       b->B.transform(~input, (b, ~input) => {
         b->B.Val.map(r, input)
       })
@@ -1473,7 +1453,7 @@ let recursive = fn => {
       makeReverseSchema(
         ~tagged=Unknown,
         ~name=primitiveName,
-        ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path as _) => {
+        ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path as _) => {
           b->B.Val.map(r, input)
         }),
         ~maybeTypeFilter=None,
@@ -1490,8 +1470,8 @@ let recursive = fn => {
   schema.definer = None
   schema.definerCtx = None
 
-  let initialParseOperationBuilder = schema.parseOperationBuilder
-  schema.parseOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path) => {
+  let initialParseOperationBuilder = schema.builder
+  schema.builder = Builder.make((b, ~input, ~selfSchema, ~path) => {
     let bb = b->B.scope
     let opOutput = initialParseOperationBuilder(bb, ~input, ~selfSchema, ~path=Path.empty)
     let opBodyCode = bb->B.allocateScope ++ `return ${b->B.Val.inline(opOutput)}`
@@ -1503,7 +1483,7 @@ let recursive = fn => {
           let output = b->B.Val.map(r, input)
           if opOutput.isAsync {
             output.isAsync = true
-            placeholder.parseOperationBuilder = Builder.make(
+            placeholder.builder = Builder.make(
               (b, ~input, ~selfSchema as _, ~path as _) => {
                 b->B.transform(
                   ~input,
@@ -1529,9 +1509,9 @@ let recursive = fn => {
       ~name=reversed.name,
       ~tagged=reversed.tagged,
       ~metadataMap=reversed.metadataMap,
-      ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+      ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
         let bb = b->B.scope
-        let opOutput = reversed.parseOperationBuilder(bb, ~input, ~selfSchema, ~path=Path.empty)
+        let opOutput = reversed.builder(bb, ~input, ~selfSchema, ~path=Path.empty)
         let opBodyCode = bb->B.allocateScope ++ `return ${b->B.Val.inline(opOutput)}`
         b.code = b.code ++ `let ${r}=${b->B.Val.var(input)}=>{${opBodyCode}};`
         b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) => b->B.Val.map(r, input))
@@ -1546,7 +1526,7 @@ let recursive = fn => {
 let setName = (schema, name) => {
   makeSchema(
     ~name=() => name,
-    ~parseOperationBuilder=schema.parseOperationBuilder,
+    ~builder=schema.builder,
     ~tagged=schema.tagged,
     ~maybeTypeFilter=schema.maybeTypeFilter,
     ~metadataMap=schema.metadataMap,
@@ -1559,7 +1539,7 @@ let internalRefine = (schema, refiner) => {
   makeSchema(
     ~name=schema.name,
     ~tagged=schema.tagged,
-    ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+    ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       b->B.transform(
         ~input=b->B.parse(~schema, ~input, ~path),
         (b, ~input) => {
@@ -1583,7 +1563,7 @@ let internalRefine = (schema, refiner) => {
       makeReverseSchema(
         ~name=schema.name,
         ~tagged=schema.tagged,
-        ~parseOperationBuilder=(b, ~input, ~selfSchema, ~path) => {
+        ~builder=(b, ~input, ~selfSchema, ~path) => {
           b->B.parse(
             ~schema,
             ~input=b->B.transform(~input, (b, ~input) => {
@@ -1634,7 +1614,7 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
   makeSchema(
     ~name=schema.name,
     ~tagged=schema.tagged,
-    ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+    ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       let input = b->B.parse(~schema, ~input, ~path)
 
       switch transformer(b->B.effectCtx(~selfSchema, ~path)) {
@@ -1657,7 +1637,7 @@ let transform: (t<'input>, s<'output> => transformDefinition<'input, 'output>) =
       makeReverseSchema(
         ~name=primitiveName,
         ~tagged=Unknown,
-        ~parseOperationBuilder=(b, ~input, ~selfSchema, ~path) => {
+        ~builder=(b, ~input, ~selfSchema, ~path) => {
           switch transformer(b->B.effectCtx(~selfSchema, ~path)) {
           | {serializer} =>
             b->B.parse(~schema, ~input=b->B.embedSyncOperation(~input, ~fn=serializer), ~path)
@@ -1689,7 +1669,7 @@ let custom = (name, definer) => {
     ~name=() => name,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Unknown,
-    ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+    ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       switch definer(b->B.effectCtx(~selfSchema, ~path)) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~input, ~fn=parser)
       | {parser: ?None, asyncParser} => b->B.embedAsyncOperation(~input, ~fn=asyncParser)
@@ -1708,7 +1688,7 @@ let custom = (name, definer) => {
       makeReverseSchema(
         ~name=() => name, // FIXME: Test that it should have the custom name
         ~tagged=Unknown,
-        ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+        ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
           switch definer(b->B.effectCtx(~selfSchema, ~path)) {
           | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
           | {parser: ?None, asyncParser: ?None, serializer: ?None} => input
@@ -1733,7 +1713,7 @@ let literal = value => {
     ~name=() => literal->Literal.toString,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Literal(literal),
-    ~parseOperationBuilder=literal->Literal.isJsonable
+    ~builder=literal->Literal.isJsonable
       ? Builder.noop
       : Builder.make((b, ~input, ~selfSchema, ~path) => {
           b->B.registerInvalidJson(~selfSchema, ~path)
@@ -1779,7 +1759,7 @@ module Option = {
 
   let default = schema => schema->Metadata.get(~id=defaultMetadataId)
 
-  let parseOperationBuilder = Builder.make((b, ~input, ~selfSchema, ~path) => {
+  let builder = Builder.make((b, ~input, ~selfSchema, ~path) => {
     let isNull = %raw(`selfSchema.t.TAG === "Null"`)
     let childSchema = selfSchema->classify->unsafeGetVariantPayload
 
@@ -1825,7 +1805,7 @@ module Option = {
       ~name=containerName,
       ~tagged=Option(child),
       ~metadataMap=Metadata.Map.empty,
-      ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+      ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let output = b->B.allocateVal
         let inputVar = b->B.Val.var(input)
 
@@ -1856,7 +1836,7 @@ module Option = {
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Option(schema),
-      ~parseOperationBuilder,
+      ~builder,
       ~maybeTypeFilter=maybeTypeFilter(~schema, ~inlinedNoneValue="void 0"),
       ~reverse,
     )
@@ -1868,7 +1848,7 @@ module Option = {
       ~name=schema.name,
       ~metadataMap=schema.metadataMap->Metadata.Map.set(~id=defaultMetadataId, default),
       ~tagged=schema.tagged,
-      ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+      ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         b->B.transform(
           ~input=b->B.parse(~schema, ~input, ~path),
           (b, ~input) => {
@@ -1900,7 +1880,7 @@ module Null = {
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Null(schema),
-      ~parseOperationBuilder=Option.parseOperationBuilder,
+      ~builder=Option.builder,
       ~maybeTypeFilter=Option.maybeTypeFilter(~schema, ~inlinedNoneValue="null"),
       ~reverse=Option.reverse,
     )
@@ -1930,7 +1910,7 @@ module Never = {
     ~name=primitiveName,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Never,
-    ~parseOperationBuilder=builder,
+    ~builder,
     ~maybeTypeFilter=None,
     ~reverse=Reverse.toSelf,
   )
@@ -1968,7 +1948,7 @@ module Array = {
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Array(schema),
-      ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+      ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let inputVar = b->B.Val.var(input)
         let iteratorVar = b->B.varWithoutAllocation
 
@@ -2039,7 +2019,7 @@ module Object = {
   let getItems = (schema): array<item> => (schema->classify->Obj.magic)["items"]
   let getDefinition = schema => (schema->classify->Obj.magic)["definition"]
 
-  let parseOperationBuilder = (b, ~input, ~selfSchema, ~path) => {
+  let builder = (b, ~input, ~selfSchema, ~path) => {
     let asyncOutputs = []
     let outputs = Stdlib.WeakMap.make()
 
@@ -2184,7 +2164,7 @@ module Object = {
       ~name=primitiveName,
       ~tagged=Unknown,
       ~metadataMap=Metadata.Map.empty,
-      ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+      ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let inputVar = b->B.Val.var(input)
 
         let ctx: serializeCtx = {discriminantCode: ""}
@@ -2340,7 +2320,7 @@ module Object = {
         items,
         definition,
       }),
-      ~parseOperationBuilder,
+      ~builder,
       ~maybeTypeFilter=Some(
         (b, ~inputVar) =>
           b->Array.typeFilter(~inputVar) ++
@@ -2359,7 +2339,7 @@ module Object = {
         makeSchema(
           ~name=schema.name,
           ~tagged=schema.tagged,
-          ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+          ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
             b->B.embedSyncOperation(~input=b->B.parse(~schema, ~input, ~path), ~fn=definer)
           }),
           ~maybeTypeFilter=schema.maybeTypeFilter,
@@ -2372,7 +2352,7 @@ module Object = {
               ~name=primitiveName,
               ~tagged=Unknown,
               ~metadataMap=Metadata.Map.empty,
-              ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+              ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
                 let inputVar = b->B.Val.var(input)
 
                 let definition =
@@ -2570,8 +2550,8 @@ module Object = {
           unknownKeys: globalConfig.defaultUnknownKeys,
           definition,
         }),
-        parseOperationBuilder,
-        isAsyncParse: Unknown,
+        builder,
+        isAsyncSchema: Unknown,
         maybeTypeFilter: Some(typeFilter),
         name,
         metadataMap: Metadata.Map.empty,
@@ -2600,9 +2580,9 @@ module Object = {
           fields,
           definition,
         }),
-        parseOperationBuilder: schema.parseOperationBuilder,
+        builder: schema.builder,
         maybeTypeFilter: schema.maybeTypeFilter,
-        isAsyncParse: schema.isAsyncParse,
+        isAsyncSchema: schema.isAsyncSchema,
         metadataMap: schema.metadataMap,
         definer: ?schema.definer,
         definerCtx: ?schema.definerCtx,
@@ -2637,7 +2617,7 @@ module Dict = {
       ~name=containerName,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Dict(schema),
-      ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+      ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let inputVar = b->B.Val.var(input)
         let keyVar = b->B.varWithoutAllocation
 
@@ -2684,7 +2664,7 @@ module Unknown = {
   let schema = makeSchema(
     ~name=primitiveName,
     ~tagged=Unknown,
-    ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+    ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       b->B.registerInvalidJson(~selfSchema, ~path)
       input
     }),
@@ -2735,7 +2715,7 @@ module String = {
 
   let schema = makePrimitiveSchema(
     ~tagged=String,
-    ~parseOperationBuilder=Builder.noop,
+    ~builder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
   )
 }
@@ -2747,7 +2727,7 @@ module JsonString = {
       ~name=primitiveName,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=String,
-      ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+      ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let jsonVal = b->B.allocateVal
 
         b.code =
@@ -2773,7 +2753,7 @@ module JsonString = {
           ~name=reversed.name,
           ~tagged=reversed.tagged,
           ~metadataMap=reversed.metadataMap,
-          ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+          ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
             let prevOperation = b.global.operation
             b.global.operation = SerializeToJson
             if reversed.tagged->unsafeGetVarianTag === "Option" {
@@ -2800,7 +2780,7 @@ module Bool = {
 
   let schema = makePrimitiveSchema(
     ~tagged=Bool,
-    ~parseOperationBuilder=Builder.noop,
+    ~builder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
   )
 }
@@ -2834,7 +2814,7 @@ module Int = {
 
   let schema = makePrimitiveSchema(
     ~tagged=Int,
-    ~parseOperationBuilder=Builder.noop,
+    ~builder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
   )
 }
@@ -2871,7 +2851,7 @@ module Float = {
 
   let schema = makePrimitiveSchema(
     ~tagged=Float,
-    ~parseOperationBuilder=Builder.noop,
+    ~builder=Builder.noop,
     ~maybeTypeFilter=Some(typeFilter),
   )
 }
@@ -2913,7 +2893,7 @@ module Union = {
         ~name=() => `Union(${schemas->Js.Array2.map(s => s.name())->Js.Array2.joinWith(", ")})`,
         ~metadataMap=Metadata.Map.empty,
         ~tagged=Union(schemas),
-        ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+        ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
           let schemas = selfSchema->classify->unsafeGetVariantPayload
           let inputVar = b->B.Val.var(input)
           let output = b->B.val(inputVar)
@@ -2987,7 +2967,7 @@ module Union = {
           makeReverseSchema(
             ~name=primitiveName,
             ~tagged=Unknown,
-            ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+            ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
               let schemas = original->classify->unsafeGetVariantPayload
 
               let output = b->B.allocateVal
@@ -3073,7 +3053,7 @@ let rec preprocess = (schema, transformer) => {
           unionSchema->castUnknownSchemaToAnySchema->preprocess(transformer)->toUnknown
         ),
       ),
-      ~parseOperationBuilder=schema.parseOperationBuilder,
+      ~builder=schema.builder,
       ~maybeTypeFilter=schema.maybeTypeFilter,
       ~metadataMap=schema.metadataMap,
       ~reverse=schema.reverse, // FIXME: Might break with memo
@@ -3082,7 +3062,7 @@ let rec preprocess = (schema, transformer) => {
     makeSchema(
       ~name=schema.name,
       ~tagged=schema.tagged,
-      ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+      ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
         switch transformer(b->B.effectCtx(~selfSchema, ~path)) {
         | {parser, asyncParser: ?None} =>
           b->B.parseWithTypeCheck(
@@ -3112,7 +3092,7 @@ let rec preprocess = (schema, transformer) => {
         makeReverseSchema(
           ~name=primitiveName,
           ~tagged=Unknown,
-          ~parseOperationBuilder=(b, ~input, ~selfSchema as _, ~path) => {
+          ~builder=(b, ~input, ~selfSchema as _, ~path) => {
             let input = b->B.parse(~schema=reversed, ~input, ~path)
             switch transformer(b->B.effectCtx(~selfSchema=schema, ~path)) {
             | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
@@ -3143,7 +3123,7 @@ let rec json = (~validate) =>
     ~maybeTypeFilter=None,
     ~metadataMap=Metadata.Map.empty,
     ~name=() => "JSON",
-    ~parseOperationBuilder=validate
+    ~builder=validate
       ? Builder.make((b, ~input, ~selfSchema, ~path) => {
           let rec parse = (input, ~path=path) => {
             switch input->Stdlib.Type.typeof {
@@ -3214,7 +3194,7 @@ let catch = (schema, getFallbackValue) => {
   let schema = schema->toUnknown
   makeSchema(
     ~name=schema.name,
-    ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+    ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
       let inputVar = b->B.Val.var(input)
 
       b->B.withCatch(
@@ -4046,7 +4026,7 @@ let js_merge = (s1, s2) => {
         fields,
         definition: %raw(`void 0`),
       }),
-      ~parseOperationBuilder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+      ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let s1Result = b->B.parse(~schema=s1, ~input, ~path)
         let s2Result = b->B.parse(~schema=s2, ~input, ~path)
         // TODO: Check that these are objects
@@ -4059,7 +4039,7 @@ let js_merge = (s1, s2) => {
         makeReverseSchema(
           ~name=primitiveName,
           ~tagged=Unknown,
-          ~parseOperationBuilder=Builder.make((b, ~input as _, ~selfSchema as _, ~path) => {
+          ~builder=Builder.make((b, ~input as _, ~selfSchema as _, ~path) => {
             b->B.invalidOperation(
               ~path,
               ~description=`The S.merge serializing is not supported yet`,
