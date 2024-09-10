@@ -493,20 +493,14 @@ module Builder = {
         | {_var} => _var
         | _ => {
             let var = b->varWithoutAllocation
-            let isValScopeActive = !val._scope.isAllocated
-            let activeScope = isValScopeActive ? val._scope : b
             let allocation = switch val._initial {
-            | Some(i) if isValScopeActive => `${var}=${i}`
-            | _ => var
+            | Some(i) => `${var}=${i}`
+            | None => var
             }
-            let varsAllocation = activeScope.varsAllocation
-            activeScope.varsAllocation = varsAllocation === ""
+            let varsAllocation = val._scope.varsAllocation
+            val._scope.varsAllocation = varsAllocation === ""
               ? allocation
               : varsAllocation ++ "," ++ allocation
-            switch val._initial {
-            | Some(i) if !isValScopeActive => b.code = b.code ++ `${var}=${i};`
-            | _ => ()
-            }
             val._var = Some(var)
             var
           }
@@ -1166,18 +1160,19 @@ let serializeToUnknownWith = (value, schema) => {
   }
 }
 
+let serializeToJsonStringOrRaiseWith = (value: 'value, schema: t<'value>, ~space=0): string => {
+  value->serializeOrRaiseWith(schema)->Js.Json.stringifyWithSpace(space)
+}
+
 let serializeToJsonStringWith = (value: 'value, schema: t<'value>, ~space=0): result<
   string,
   error,
 > => {
-  switch value->serializeWith(schema) {
-  | Ok(json) => Ok(json->Js.Json.stringifyWithSpace(space))
-  | Error(_) as e => e
+  try {
+    serializeToJsonStringOrRaiseWith(value, schema, ~space)->Ok
+  } catch {
+  | exn => exn->InternalError.getOrRethrow->Error
   }
-}
-
-let serializeToJsonStringOrRaiseWith = (value: 'value, schema: t<'value>, ~space=0): string => {
-  value->serializeOrRaiseWith(schema)->Js.Json.stringifyWithSpace(space)
 }
 
 let parseJsonStringWith = (jsonString: string, schema: t<'value>): result<'value, error> => {
@@ -1853,8 +1848,8 @@ module Option = {
       ~maybeTypeFilter=schema.maybeTypeFilter,
       ~reverse=() => {
         let reversed = schema.reverse()
-        switch reversed->classify {
-        | Option(child) =>
+        if reversed.tagged->unsafeGetVarianTag === "Option" {
+          let child = reversed.tagged->unsafeGetVariantPayload
           // Copy to prevent mutating of primitive's reverse function
           // TODO: Can be improved to copy only for primitives
           makeReverseSchema(
@@ -1864,7 +1859,8 @@ module Option = {
             ~builder=child.builder,
             ~maybeTypeFilter=child.maybeTypeFilter,
           )
-        | _ => reversed
+        } else {
+          reversed
         }
       },
     )

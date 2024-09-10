@@ -164,16 +164,10 @@ function $$var(b, val) {
     return _var;
   }
   var $$var$1 = varWithoutAllocation(b);
-  var isValScopeActive = !val.s.a;
-  var activeScope = isValScopeActive ? val.s : b;
   var i = val.i;
-  var allocation = i !== undefined && isValScopeActive ? $$var$1 + "=" + i : $$var$1;
-  var varsAllocation = activeScope.l;
-  activeScope.l = varsAllocation === "" ? allocation : varsAllocation + "," + allocation;
-  var i$1 = val.i;
-  if (i$1 !== undefined && !isValScopeActive) {
-    b.c = b.c + ($$var$1 + "=" + i$1 + ";");
-  }
+  var allocation = i !== undefined ? $$var$1 + "=" + i : $$var$1;
+  var varsAllocation = val.s.l;
+  val.s.l = varsAllocation === "" ? allocation : varsAllocation + "," + allocation;
   val.v = $$var$1;
   return $$var$1;
 }
@@ -748,22 +742,26 @@ function serializeToUnknownWith(value, schema) {
   }
 }
 
-function serializeToJsonStringWith(value, schema, spaceOpt) {
-  var space = spaceOpt !== undefined ? spaceOpt : 0;
-  var json = serializeWith(value, schema);
-  if (json.TAG === "Ok") {
-    return {
-            TAG: "Ok",
-            _0: JSON.stringify(json._0, null, space)
-          };
-  } else {
-    return json;
-  }
-}
-
 function serializeToJsonStringOrRaiseWith(value, schema, spaceOpt) {
   var space = spaceOpt !== undefined ? spaceOpt : 0;
   return JSON.stringify(schema.serializeToJsonOrThrow(value), null, space);
+}
+
+function serializeToJsonStringWith(value, schema, spaceOpt) {
+  var space = spaceOpt !== undefined ? spaceOpt : 0;
+  try {
+    return {
+            TAG: "Ok",
+            _0: serializeToJsonStringOrRaiseWith(value, schema, space)
+          };
+  }
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    return {
+            TAG: "Error",
+            _0: getOrRethrow(exn)
+          };
+  }
 }
 
 function parseJsonStringWith(jsonString, schema) {
@@ -1271,15 +1269,11 @@ function getWithDefault(schema, $$default) {
                             }));
               }), schema.f, (function () {
                 var reversed = schema.r();
-                var child = reversed.t;
-                if (typeof child !== "object") {
+                if (reversed.t.TAG !== "Option") {
                   return reversed;
                 }
-                if (child.TAG !== "Option") {
-                  return reversed;
-                }
-                var child$1 = child._0;
-                return makeReverseSchema(child$1.n, child$1.t, child$1.m, child$1.b, child$1.f);
+                var child = reversed.t._0;
+                return makeReverseSchema(child.n, child.t, child.m, child.b, child.f);
               }));
 }
 

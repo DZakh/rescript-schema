@@ -111,3 +111,86 @@ module Common = {
     t->U.assertReverseParsesBack(schema, ("bar", true))
   })
 }
+
+module EmptyArray = {
+  let value: array<string> = []
+  let invalid = ["abc"]
+  let factory = () => S.literal([])
+
+  test("Successfully parses empty array literal schema", t => {
+    let schema = factory()
+
+    t->Assert.deepEqual(value->S.parseAnyWith(schema), Ok(value), ())
+  })
+
+  test("Fails to parse empty array literal schema with invalid type", t => {
+    let schema = factory()
+
+    t->U.assertErrorResult(
+      invalid->S.parseAnyWith(schema),
+      {
+        code: InvalidType({
+          expected: S.literal([])->S.toUnknown,
+          received: invalid->U.castAnyToUnknown,
+        }),
+        operation: Parse,
+        path: S.Path.empty,
+      },
+    )
+  })
+
+  test("Successfully serializes empty array literal schema", t => {
+    let schema = factory()
+
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(value->U.castAnyToUnknown), ())
+  })
+
+  test("Fails to serialize empty array literal schema with invalid value", t => {
+    let schema = factory()
+
+    t->U.assertErrorResult(
+      invalid->S.serializeToUnknownWith(schema),
+      {
+        code: InvalidType({
+          expected: S.literal([])->S.toUnknown,
+          received: invalid->U.castAnyToUnknown,
+        }),
+        operation: SerializeToUnknown,
+        path: S.Path.empty,
+      },
+    )
+  })
+
+  test("Compiled parse code snapshot of empty array literal schema", t => {
+    let schema = factory()
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(i!==e[0]&&(!Array.isArray(i)||i.length!==0)){e[1](i)}return i}`,
+    )
+  })
+
+  test("Compiled serialize code snapshot of empty array literal schema", t => {
+    let schema = factory()
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Serialize,
+      `i=>{if(i!==e[0]&&(!Array.isArray(i)||i.length!==0)){e[1](i)}return i}`,
+    )
+  })
+
+  test("Reverse empty array literal schema to self", t => {
+    let schema = factory()
+    t->Assert.is(schema->S.\"~experimantalReverse", schema->S.toUnknown, ())
+  })
+
+  test(
+    "Succesfully uses reversed empty array literal schema for parsing back to initial value",
+    t => {
+      let schema = factory()
+      t->U.assertReverseParsesBack(schema, value)
+    },
+  )
+}
