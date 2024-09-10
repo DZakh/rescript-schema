@@ -211,7 +211,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: rescript-schema-ppx
-          path: packages/rescript-schema-ppx/rescript-schema-ppx-8.1.0.tgz
+          path: packages/rescript-schema-ppx/rescript-schema-ppx-8.2.0.tgz
 
   benchmark:
     name: Benchmark
