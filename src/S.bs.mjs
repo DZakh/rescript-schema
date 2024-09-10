@@ -44,6 +44,8 @@ var jsonString = S_Core$RescriptSchema.jsonString;
 
 var union = S_Core$RescriptSchema.union;
 
+var $$enum = S_Core$RescriptSchema.$$enum;
+
 var Catch = S_Core$RescriptSchema.Catch;
 
 var $$catch = S_Core$RescriptSchema.$$catch;
@@ -196,6 +198,7 @@ export {
   nullable ,
   jsonString ,
   union ,
+  $$enum ,
   Catch ,
   $$catch ,
   describe ,

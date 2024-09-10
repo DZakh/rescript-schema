@@ -133,6 +133,7 @@ let null: t<'value> => t<option<'value>>
 let nullable: t<'value> => t<option<'value>>
 let jsonString: (t<'value>, ~space: int=?) => t<'value>
 let union: array<t<'value>> => t<'value>
+let enum: array<'value> => t<'value>
 
 module Catch: {
   type s<'value> = {

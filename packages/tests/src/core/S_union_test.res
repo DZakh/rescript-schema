@@ -482,6 +482,10 @@ test("Compiled serialize code snapshot", t => {
   t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{if(i!==0){if(i!==1){e[0](i)}}return i}`)
 })
 
+test("Enum is a shorthand for union", t => {
+  t->U.assertEqualSchemas(S.enum([0, 1]), S.union([S.literal(0), S.literal(1)]))
+})
+
 test("Reverse schema with items", t => {
   let schema = S.union([S.literal(%raw(`0`)), S.null(S.bool)])
 

@@ -23,12 +23,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 ## v9
 
 - Add S.reverse
-  TODO:
-
-  - S.recursive
-  - S.schema
-  - memo
-
 - async serializing support
 - S.create / S.validate
 - S.parseToJsonString

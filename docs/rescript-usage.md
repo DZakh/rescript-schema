@@ -759,7 +759,7 @@ Square({x: 2.})->S.serializeWith(shapeSchema)
 
 #### Enums
 
-Also, you can describe enums using `S.union` together with `S.literal`.
+Also, you can describe a schema for a enum-like variant using `S.union` together with `S.literal`.
 
 ```rescript
 type outcome = | @as("win") Win | @as("draw") Draw | @as("loss") Loss
@@ -772,6 +772,12 @@ let schema = S.union([
 
 %raw(`"draw"`)->S.parseWith(schema)
 // Ok(Draw)
+```
+
+Also, you can use `S.enum` as a shorthand for the use case above.
+
+```rescript
+let schema = S.enum([Win, Draw, Loss])
 ```
 
 ### **`array`**

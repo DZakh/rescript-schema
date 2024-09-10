@@ -2064,6 +2064,10 @@ function factory$6(schemas) {
   throw new Error("[rescript-schema] S.union requires at least one item");
 }
 
+function $$enum(values) {
+  return factory$6(values.map(literal));
+}
+
 function preprocess(schema, transformer) {
   var unionSchemas = schema.t;
   if (typeof unionSchemas === "object" && unionSchemas.TAG === "Union") {
@@ -3133,6 +3137,7 @@ export {
   nullable ,
   jsonString ,
   union ,
+  $$enum ,
   Catch ,
   $$catch ,
   describe ,

@@ -3007,6 +3007,8 @@ module Union = {
   }
 }
 
+let enum = values => Union.factory(values->Js.Array2.map(literal))
+
 type preprocessDefinition<'input, 'output> = {
   @as("p")
   parser?: unknown => 'output,
