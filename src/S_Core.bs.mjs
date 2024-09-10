@@ -1214,34 +1214,34 @@ function $$default(schema) {
   return schema.m[defaultMetadataId];
 }
 
-function builder(b, input, selfSchema, path) {
-  var isNullInput = selfSchema.t.TAG === "Null";
-  var reversed = selfSchema.r();
-  var isNullOutput = reversed.t.TAG === "Null";
-  var childSchema = selfSchema.t._0;
-  var bb = scope(b);
-  var itemInput;
-  if (!isNullOutput && (b.g.o === "SerializeToJson" || b.g.o === "SerializeToUnknown")) {
-    var value = Caml_option.valFromOption;
-    itemInput = val(bb, "e[" + (bb.g.e.push(value) - 1) + "](" + $$var(b, input) + ")");
-  } else {
-    itemInput = input;
-  }
-  var itemOutput = childSchema.b(bb, itemInput, childSchema, path);
-  var itemCode = allocateScope(bb);
-  var inputLiteral = isNullInput ? "null" : "void 0";
-  var ouputLiteral = isNullOutput ? "null" : "void 0";
-  var isTransformed = inputLiteral !== ouputLiteral || itemOutput !== input;
-  var output = isTransformed ? ({
-        s: b,
-        a: itemOutput.a
-      }) : input;
-  if (itemCode !== "" || isTransformed) {
-    b.c = b.c + ("if(" + $$var(b, input) + "!==" + inputLiteral + "){" + itemCode + set(b, output, itemOutput) + "}" + (
-        inputLiteral !== ouputLiteral || output.a ? "else{" + set(b, output, val(b, ouputLiteral)) + "}" : ""
-      ));
-  }
-  return output;
+function makeBuilder(isNullInput, isNullOutput) {
+  return function (b, input, selfSchema, path) {
+    var childSchema = selfSchema.t._0;
+    var childSchemaTag = childSchema.t.TAG;
+    var bb = scope(b);
+    var itemInput;
+    if ((b.g.o === "SerializeToJson" || b.g.o === "SerializeToUnknown") && (childSchema.t === "Unknown" || childSchemaTag === "Option" || childSchemaTag === "Literal" && childSchema.t._0.value === (void 0))) {
+      var value = Caml_option.valFromOption;
+      itemInput = val(bb, "e[" + (bb.g.e.push(value) - 1) + "](" + $$var(b, input) + ")");
+    } else {
+      itemInput = input;
+    }
+    var itemOutput = childSchema.b(bb, itemInput, childSchema, path);
+    var itemCode = allocateScope(bb);
+    var inputLiteral = isNullInput ? "null" : "void 0";
+    var ouputLiteral = isNullOutput ? "null" : "void 0";
+    var isTransformed = inputLiteral !== ouputLiteral || itemOutput !== input;
+    var output = isTransformed ? ({
+          s: b,
+          a: itemOutput.a
+        }) : input;
+    if (itemCode !== "" || isTransformed) {
+      b.c = b.c + ("if(" + $$var(b, input) + "!==" + inputLiteral + "){" + itemCode + set(b, output, itemOutput) + "}" + (
+          inputLiteral !== ouputLiteral || output.a ? "else{" + set(b, output, val(b, ouputLiteral)) + "}" : ""
+        ));
+    }
+    return output;
+  };
 }
 
 function maybeTypeFilter(schema, inlinedNoneValue) {
@@ -1258,7 +1258,7 @@ function factory(schema) {
   return makeSchema(containerName, {
               TAG: "Option",
               _0: schema
-            }, empty, builder, maybeTypeFilter(schema, "void 0"), onlyChild(factory, schema));
+            }, empty, makeBuilder(false, false), maybeTypeFilter(schema, "void 0"), onlyChild(factory, schema));
 }
 
 function getWithDefault(schema, $$default) {
@@ -1301,8 +1301,12 @@ function factory$1(schema) {
   return makeSchema(containerName, {
               TAG: "Null",
               _0: schema
-            }, empty, builder, maybeTypeFilter(schema, "null"), (function () {
-                return factory(schema.r());
+            }, empty, makeBuilder(true, false), maybeTypeFilter(schema, "null"), (function () {
+                var child = schema.r();
+                return makeReverseSchema(containerName, {
+                            TAG: "Option",
+                            _0: child
+                          }, empty, makeBuilder(false, true), maybeTypeFilter(schema, "void 0"));
               }));
 }
 
@@ -1310,7 +1314,7 @@ function nullable(schema) {
   return factory(factory$1(schema));
 }
 
-function builder$1(b, input, selfSchema, path) {
+function builder(b, input, selfSchema, path) {
   b.c = b.c + failWithArg(b, path, (function (input) {
           return {
                   TAG: "InvalidType",
@@ -1321,7 +1325,7 @@ function builder$1(b, input, selfSchema, path) {
   return input;
 }
 
-var schema = makeSchema(primitiveName, "Never", empty, builder$1, undefined, toSelf);
+var schema = makeSchema(primitiveName, "Never", empty, builder, undefined, toSelf);
 
 var metadataId = "rescript-schema:Array.refinements";
 
@@ -1372,7 +1376,7 @@ function typeFilter$1(_b, inputVar) {
   return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
 }
 
-function builder$2(b, input, selfSchema, path) {
+function builder$1(b, input, selfSchema, path) {
   var asyncOutputs = [];
   var outputs = new WeakMap();
   var parseItems = function (b, input, schema, path) {
@@ -1624,7 +1628,7 @@ function factory$3(definer) {
           },
           n: name,
           r: reverse,
-          b: builder$2,
+          b: builder$1,
           f: typeFilter$1,
           i: 0,
           d: definer,
@@ -1693,7 +1697,7 @@ function tuple(definer) {
               TAG: "Tuple",
               items: items,
               definition: definition
-            }, empty, builder$2, (function (b, inputVar) {
+            }, empty, builder$1, (function (b, inputVar) {
                 return typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
               }), reverse);
 }

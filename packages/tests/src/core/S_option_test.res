@@ -55,11 +55,7 @@ module Common = {
   test("Compiled serialize code snapshot", t => {
     let schema = factory()
 
-    t->U.assertCompiledCode(
-      ~schema,
-      ~op=#Serialize,
-      `i=>{let v0;if(i!==void 0){v0=e[0](i)}return v0}`,
-    )
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
   })
 
   test("Reverse to self", t => {
@@ -126,4 +122,51 @@ test("Serializes Some(None) to undefined for option nested in null", t => {
 
   t->Assert.deepEqual(Some(None)->S.serializeToUnknownWith(schema), Ok(%raw(`undefined`)), ())
   t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Serialize,
+    `i=>{let v0;if(i!==void 0){v0=e[0](i)}else{v0=null}return v0}`,
+  )
+})
+
+test("Applies valFromOption for Some()", t => {
+  let schema = S.option(S.literal())
+
+  t->Assert.deepEqual(Some()->S.serializeToUnknownWith(schema), Ok(%raw(`undefined`)), ())
+  t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`undefined`)), ())
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Serialize,
+    `i=>{let v0;if(i!==void 0){v0=e[0](i)}return v0}`,
+  )
+})
+
+test("Doesn't apply valFromOption for non-undefined literals in option", t => {
+  let schema: S.t<option<Js.Null.t<unknown>>> = S.option(S.literal(%raw(`null`)))
+
+  // Note: It'll fail without a type annotation, but we can't do anything here
+  t->Assert.deepEqual(Some(%raw(`null`))->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
+  t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`undefined`)), ())
+
+  t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
+})
+
+test("Applies valFromOption for unknown in option", t => {
+  let schema = S.option(S.unknown)
+
+  t->Assert.deepEqual(
+    Some(%raw(`undefined`))->S.serializeToUnknownWith(schema),
+    Ok(%raw(`undefined`)),
+    (),
+  )
+  t->Assert.deepEqual(Some(%raw(`"foo"`))->S.serializeToUnknownWith(schema), Ok(%raw(`"foo"`)), ())
+  t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`undefined`)), ())
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Serialize,
+    `i=>{let v0;if(i!==void 0){v0=e[0](i)}return v0}`,
+  )
 })

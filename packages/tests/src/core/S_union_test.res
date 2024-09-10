@@ -521,7 +521,7 @@ module CknittelBugReport = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Serialize,
-      `i=>{let v2=i;try{let v0=i["_0"]["payload"]["a"],v1;if(i["TAG"]!=="A"){e[0](i["TAG"])}if(v0!==void 0){v1=e[1](v0)}v2={"payload":{"a":v1,},}}catch(e0){try{let v3=i["_0"]["payload"]["b"],v4;if(i["TAG"]!=="B"){e[2](i["TAG"])}if(v3!==void 0){v4=e[3](v3)}v2={"payload":{"b":v4,},}}catch(e1){e[4]([e0,e1,])}}return v2}`,
+      `i=>{let v0=i;try{if(i["TAG"]!=="A"){e[0](i["TAG"])}v0={"payload":{"a":i["_0"]["payload"]["a"],},}}catch(e0){try{if(i["TAG"]!=="B"){e[1](i["TAG"])}v0={"payload":{"b":i["_0"]["payload"]["b"],},}}catch(e1){e[2]([e0,e1,])}}return v0}`,
     )
 
     let x = {

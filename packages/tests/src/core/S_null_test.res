@@ -66,18 +66,12 @@ module Common = {
     )
   })
 
-  let serializeCode = `let v0;if(i!==void 0){v0=i}else{v0=null}return v0`
   test("Compiled serialize code snapshot", t => {
     let schema = factory()
-    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{${serializeCode}}`)
-  })
-
-  test("Compiled reverse code snapshot", t => {
-    let schema = factory()
     t->U.assertCompiledCode(
-      ~schema=schema->S.\"~experimantalReverse",
-      ~op=#Parse,
-      `i=>{if(i!==void 0&&(typeof i!=="string")){e[0](i)}${serializeCode}}`,
+      ~schema,
+      ~op=#Serialize,
+      `i=>{let v0;if(i!==void 0){v0=i}else{v0=null}return v0}`,
     )
   })
 
@@ -161,5 +155,18 @@ test("Serializes Some(None) to null for null nested in option", t => {
     ~schema,
     ~op=#Serialize,
     `i=>{let v2;if(i!==void 0){let v0=e[0](i),v1;if(v0!==void 0){v1=v0}else{v1=null}v2=v1}return v2}`,
+  )
+})
+
+test("Serializes Some(None) to null for null nested in null", t => {
+  let schema = S.null(S.null(S.bool))
+
+  t->Assert.deepEqual(Some(None)->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
+  t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Serialize,
+    `i=>{let v2;if(i!==void 0){let v0=e[0](i),v1;if(v0!==void 0){v1=v0}else{v1=null}v2=v1}else{v2=null}return v2}`,
   )
 })
