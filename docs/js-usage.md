@@ -419,6 +419,8 @@ An union represents a logical OR relationship. You can apply this concept to you
 
 The schema function `union` creates an OR relationship between any number of schemas that you pass as the first argument in the form of an array. On validation, the schema returns the result of the first schema that was successfully validated.
 
+> 🧠 Schemas are not guaranteed to be validated in the order they are passed to `S.union`. They are grouped by the input data type to optimise performance and improve error message. Schemas with unknown data typed validated the last.
+
 ```ts
 // TypeScript type for reference:
 // type Union = string | number;
@@ -428,8 +430,6 @@ const stringOrNumberSchema = S.union([S.string, S.number]);
 stringOrNumberSchema.parseOrThrow("foo"); // passes
 stringOrNumberSchema.parseOrThrow(14); // passes
 ```
-
-If a bad input can be uniquely assigned to one of the schemas based on the data type, the result of that schema is returned. Otherwise, a general issue is returned that contains the issues of each schema as subissues.
 
 ### Discriminated unions
 
