@@ -77,6 +77,6 @@ test("Compiled serialize code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema=filmSchema,
     ~op=#Serialize,
-    `i=>{let v0=i["tags"],v1,v2=i["rating"],v3,v4=i["deprecatedAgeRestriction"],v5;if(v0!==void 0){v1=e[0](v0)}try{if(v2!=="G"){e[1](v2)}if(v2!=="G"){e[2](v2)}v3=v2}catch(e0){try{if(v2!=="PG"){e[3](v2)}if(v2!=="PG"){e[4](v2)}v3=v2}catch(e1){try{if(v2!=="PG13"){e[5](v2)}if(v2!=="PG13"){e[6](v2)}v3=v2}catch(e2){try{if(v2!=="R"){e[7](v2)}if(v2!=="R"){e[8](v2)}v3=v2}catch(e3){e[9]([e0,e1,e2,e3,])}}}}if(v4!==void 0){v5=e[10](v4)}return {"Id":i["id"],"Title":i["title"],"Tags":v1,"Rating":v3,"Age":v5,}}`,
+    `i=>{let v0=i["tags"],v3=i["rating"];if(v3!=="G"){if(v3!=="PG"){if(v3!=="PG13"){if(v3!=="R"){e[0](v3)}}}}return {"Id":i["id"],"Title":i["title"],"Tags":v0,"Rating":v3,"Age":i["deprecatedAgeRestriction"],}}`,
   )
 })

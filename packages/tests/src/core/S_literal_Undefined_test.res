@@ -56,4 +56,14 @@ module Common = {
 
     t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{if(i!==undefined){e[0](i)}return i}`)
   })
+
+  test("Reverse schema to self", t => {
+    let schema = factory()
+    t->Assert.is(schema->S.\"~experimantalReverse", schema->S.toUnknown, ())
+  })
+
+  test("Succesfully uses reversed schema for parsing back to initial value", t => {
+    let schema = factory()
+    t->U.assertReverseParsesBack(schema, %raw(`undefined`))
+  })
 }

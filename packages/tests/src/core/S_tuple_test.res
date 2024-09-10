@@ -341,3 +341,54 @@ test("Works with tuple schema used multiple times as a child schema", t => {
   let data = appVersions->S.serializeOrRaiseWith(appVersionsSchema)
   t->Assert.deepEqual(data, rawAppVersions->Obj.magic, ())
 })
+
+test("Reverse empty tuple schema to literal", t => {
+  let schema = S.tuple(_ => ())
+  // t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unit->S.toUnknown)
+  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown)
+})
+
+test("Succesfully uses reversed empty tuple schema for parsing back to initial value", t => {
+  let schema = S.tuple(_ => ())
+  t->U.assertReverseParsesBack(schema, ())
+})
+
+test("Reverse tagged tuple to literal without payload", t => {
+  let schema = S.tuple(s => {
+    s.tag(0, "test")
+    #Test
+  })
+  // t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.literal(#Test)->S.toUnknown)
+  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown)
+})
+
+test(
+  "Succesfully uses reversed non-payloaded tagged tuple schema for parsing back to initial value",
+  t => {
+    let schema = S.tuple(s => {
+      s.tag(0, "test")
+      #Test
+    })
+    t->U.assertReverseParsesBack(schema, #Test)
+  },
+)
+
+test("Reverse tagged tuple to primitive schema", t => {
+  let schema = S.tuple(s => {
+    s.tag(0, "test")
+    s.item(1, S.bool)
+  })
+  // t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.bool->S.toUnknown)
+  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown)
+})
+
+test(
+  "Succesfully uses reversed tagged tuple schema with item as output for parsing back to initial value",
+  t => {
+    let schema = S.tuple(s => {
+      s.tag(0, "test")
+      s.item(1, S.bool)
+    })
+    t->U.assertReverseParsesBack(schema, true)
+  },
+)

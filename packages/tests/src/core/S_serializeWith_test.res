@@ -211,32 +211,47 @@ test("Fails to serialize tuple with invalid nested schema", t => {
 })
 
 test("Serializes union even one of the items is an invalid JSON schema", t => {
-  t->Assert.deepEqual(
-    "foo"->S.serializeWith(S.union([S.string, S.unknown->(U.magic: S.t<unknown> => S.t<string>)])),
-    JSON.Encode.string("foo")->Ok,
-    (),
+  let schema = S.union([S.string, S.unknown->(U.magic: S.t<unknown> => S.t<string>)])
+  t->Assert.deepEqual("foo"->S.serializeWith(schema), JSON.Encode.string("foo")->Ok, ())
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#SerializeJson,
+    `i=>{if(typeof i!=="string"){throw e[0]}return i}`,
   )
-  t->Assert.deepEqual(
-    "foo"->S.serializeWith(S.union([S.unknown->(U.magic: S.t<unknown> => S.t<string>), S.string])),
-    JSON.Encode.string("foo")->Ok,
-    (),
+
+  // Not related to the test, just check that it doesn't crash while we are at it
+  t->Assert.deepEqual("foo"->S.serializeToUnknownWith(schema), %raw(`"foo"`)->Ok, ())
+  // TODO: Can be improved to return null
+  t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{if(typeof i!=="string"){}return i}`)
+
+  let schema = S.union([S.unknown->(U.magic: S.t<unknown> => S.t<string>), S.string])
+  t->Assert.deepEqual("foo"->S.serializeWith(schema), JSON.Encode.string("foo")->Ok, ())
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#SerializeJson,
+    `i=>{if(typeof i!=="string"){throw e[0]}return i}`,
   )
 })
 
-test("Fails to serialize union with invalid schemas", t => {
+test("Fails to serialize union with invalid json schemas", t => {
+  let schema = S.union([S.literal(%raw(`NaN`)), S.unknown->(U.magic: S.t<unknown> => S.t<string>)])
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#SerializeJson,
+    `i=>{if(!Number.isNaN(i)){throw e[1]}else{throw e[0]}return i}`,
+  )
   t->U.assertErrorResult(
-    "foo"->S.serializeWith(
-      S.union([S.literal(%raw(`NaN`)), S.unknown->(U.magic: S.t<unknown> => S.t<string>)]),
-    ),
+    "foo"->S.serializeWith(schema),
     {
-      code: InvalidUnion([
-        U.error({
-          code: InvalidJsonSchema(S.literal(%raw(`NaN`))),
-          operation: Parse,
-          path: S.Path.empty,
-        }),
-        U.error({code: InvalidJsonSchema(S.unknown), operation: Parse, path: S.Path.empty}),
-      ]),
+      code: InvalidJsonSchema(S.unknown),
+      operation: SerializeToJson,
+      path: S.Path.empty,
+    },
+  )
+  t->U.assertErrorResult(
+    %raw(`NaN`)->S.serializeWith(schema),
+    {
+      code: InvalidJsonSchema(S.literal(%raw(`NaN`))),
       operation: SerializeToJson,
       path: S.Path.empty,
     },

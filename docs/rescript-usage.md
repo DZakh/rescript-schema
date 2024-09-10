@@ -704,6 +704,12 @@ Circle({radius: 1})->S.serializeWith(schema)
 
 `array<S.t<'value>> => S.t<'value>`
 
+An union represents a logical OR relationship. You can apply this concept to your schemas with `S.union`. This is the best API to use for variants and polymorphic variants.
+
+On validation, the `S.union` schema returns the result of the first item that was successfully validated.
+
+> 🧠 Schemas are not guaranteed to be validated in the order they are passed to `S.union`. They are grouped by the input data type to optimise performance and improve error message. Schemas with unknown data typed validated the last.
+
 ```rescript
 // TypeScript type for reference:
 // type Shape =
@@ -750,8 +756,6 @@ Square({x: 2.})->S.serializeWith(shapeSchema)
 //   "x": 2,
 // })
 ```
-
-The `union` will test the input against each of the schemas in order and return the first value that validates successfully.
 
 #### Enums
 

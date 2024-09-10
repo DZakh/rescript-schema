@@ -40,7 +40,7 @@ function assertThrowsTestException(t, fn, message, param) {
 
 function assertErrorResult(t, result, errorPayload) {
   if (result.TAG === "Ok") {
-    return t.fail("Asserted result is not Error.");
+    return t.fail("Asserted result is not Error. Recieved: " + JSON.stringify(result._0));
   }
   t.is(S$RescriptSchema.$$Error.message(result._0), S$RescriptSchema.$$Error.message(error(errorPayload)), undefined);
 }
@@ -51,6 +51,7 @@ function cleanUpSchema(schema) {
         var value = param[1];
         var key = param[0];
         switch (key) {
+          case "c" :
           case "definition" :
           case "i" :
               return ;
@@ -84,11 +85,19 @@ function assertCompiledCode(t, schema, op, code, message) {
       
     }
     compiledCode = (schema.assert.toString());
+  } else if (op === "SerializeJson") {
+    try {
+      S$RescriptSchema.serializeOrRaiseWith(undefined, schema);
+    }
+    catch (exn$1){
+      
+    }
+    compiledCode = (schema.serializeToJsonOrThrow.toString());
   } else if (op === "Serialize") {
     try {
       S$RescriptSchema.serializeToUnknownOrRaiseWith(undefined, schema);
     }
-    catch (exn$1){
+    catch (exn$2){
       
     }
     compiledCode = (schema.serializeOrThrow.toString());
@@ -119,7 +128,11 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
     S$RescriptSchema.parseAnyWith(undefined, schema);
     compiledCode = (schema.parseOrThrow.toString());
   }
-  t.truthy(compiledCode.startsWith("function noopOperation(i)"), message !== undefined ? Caml_option.valFromOption(message) : undefined);
+  t.is(compiledCode, "function noopOperation(i) {\n  return i;\n}", message !== undefined ? Caml_option.valFromOption(message) : undefined);
+}
+
+function assertReverseParsesBack(t, schema, value) {
+  t.deepEqual(S$RescriptSchema.parseAnyOrRaiseWith(S$RescriptSchema.parseAnyOrRaiseWith(value, S$RescriptSchema.$tildeexperimantalReverse(schema)), schema), value, undefined);
 }
 
 var assertEqualSchemas = unsafeAssertEqualSchemas;
@@ -136,5 +149,6 @@ export {
   assertCompiledCode ,
   assertCompiledCodeIsNoop ,
   assertEqualSchemas ,
+  assertReverseParsesBack ,
 }
 /* S-RescriptSchema Not a pure module */

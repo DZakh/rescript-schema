@@ -306,3 +306,19 @@ test("Compiled serialize code snapshot", t => {
 
   t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return e[0](i)}`)
 })
+
+test("Reverse schema to the original schema", t => {
+  let schema = S.int->S.preprocess(_ => {
+    parser: _ => 1->Int.toFloat,
+    serializer: _ => 1.->Int.fromFloat,
+  })
+  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown->S.toUnknown)
+})
+
+test("Succesfully uses reversed schema for parsing back to initial value", t => {
+  let schema = S.int->S.preprocess(_ => {
+    parser: _ => 1->Int.toFloat,
+    serializer: _ => 1.->Int.fromFloat,
+  })
+  t->U.assertReverseParsesBack(schema, 1)
+})

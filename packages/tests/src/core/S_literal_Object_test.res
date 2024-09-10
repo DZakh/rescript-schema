@@ -129,4 +129,97 @@ module Common = {
       `i=>{if(i!==e[0]&&(!i||i.constructor!==Object||Object.keys(i).length!==1||i["foo"]!=="bar")){e[1](i)}return i}`,
     )
   })
+
+  test("Reverse schema to self", t => {
+    let schema = factory()
+    t->Assert.is(schema->S.\"~experimantalReverse", schema->S.toUnknown, ())
+  })
+
+  test("Succesfully uses reversed schema for parsing back to initial value", t => {
+    let schema = factory()
+    t->U.assertReverseParsesBack(schema, {"foo": "bar"})
+  })
+}
+
+module EmptyDict = {
+  let value: dict<string> = Dict.make()
+  let invalid = Dict.fromArray([("abc", "def")])
+  let factory = () => S.literal(Dict.make())
+
+  test("Successfully parses empty dict literal schema", t => {
+    let schema = factory()
+
+    t->Assert.deepEqual(value->S.parseAnyWith(schema), Ok(value), ())
+  })
+
+  test("Fails to parse empty dict literal schema with invalid type", t => {
+    let schema = factory()
+
+    t->U.assertErrorResult(
+      invalid->S.parseAnyWith(schema),
+      {
+        code: InvalidType({
+          expected: S.literal(Dict.make())->S.toUnknown,
+          received: invalid->U.castAnyToUnknown,
+        }),
+        operation: Parse,
+        path: S.Path.empty,
+      },
+    )
+  })
+
+  test("Successfully serializes empty dict literal schema", t => {
+    let schema = factory()
+
+    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(value->U.castAnyToUnknown), ())
+  })
+
+  test("Fails to serialize empty dict literal schema with invalid value", t => {
+    let schema = factory()
+
+    t->U.assertErrorResult(
+      invalid->S.serializeToUnknownWith(schema),
+      {
+        code: InvalidType({
+          expected: S.literal(Dict.make())->S.toUnknown,
+          received: invalid->U.castAnyToUnknown,
+        }),
+        operation: SerializeToUnknown,
+        path: S.Path.empty,
+      },
+    )
+  })
+
+  test("Compiled parse code snapshot of empty dict literal schema", t => {
+    let schema = factory()
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(i!==e[0]&&(!i||i.constructor!==Object||Object.keys(i).length!==0)){e[1](i)}return i}`,
+    )
+  })
+
+  test("Compiled serialize code snapshot of empty dict literal schema", t => {
+    let schema = factory()
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Serialize,
+      `i=>{if(i!==e[0]&&(!i||i.constructor!==Object||Object.keys(i).length!==0)){e[1](i)}return i}`,
+    )
+  })
+
+  test("Reverse empty dict literal schema to self", t => {
+    let schema = factory()
+    t->Assert.is(schema->S.\"~experimantalReverse", schema->S.toUnknown, ())
+  })
+
+  test(
+    "Succesfully uses reversed empty dict literal schema for parsing back to initial value",
+    t => {
+      let schema = factory()
+      t->U.assertReverseParsesBack(schema, value)
+    },
+  )
 }

@@ -46,6 +46,16 @@ module Common = {
 
     t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
   })
+
+  test("Reverse schema to self", t => {
+    let schema = factory()
+    t->Assert.is(schema->S.\"~experimantalReverse", schema->S.toUnknown, ())
+  })
+
+  test("Succesfully uses reversed schema for parsing back to initial value", t => {
+    let schema = factory()
+    t->U.assertReverseParsesBack(schema, 123)
+  })
 }
 
 test("Fails to parse int when JSON is a number bigger than +2^31", t => {

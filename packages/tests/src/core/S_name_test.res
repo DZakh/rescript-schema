@@ -85,4 +85,12 @@ test("Name of renamed schema", t => {
     `Failed parsing at root. Reason: Expected Ethers.BigInt, received "smth"`,
     (),
   )
+  t->U.assertErrorResult(
+    %raw(`"smth"`)->S.serializeToUnknownWith(S.null(S.never)->S.setName("Ethers.BigInt")),
+    {
+      path: S.Path.empty,
+      operation: SerializeToUnknown,
+      code: InvalidType({expected: S.never->S.toUnknown, received: "smth"->Obj.magic}),
+    },
+  )
 })

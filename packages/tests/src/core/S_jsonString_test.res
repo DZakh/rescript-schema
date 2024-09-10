@@ -112,3 +112,13 @@ test("Compiled serialize code snapshot with space", t => {
 
   t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return JSON.stringify(i,null,2)}`)
 })
+
+test("Reverse schema to the original schema", t => {
+  let schema = S.jsonString(S.bool)
+  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.bool->S.toUnknown)
+})
+
+test("Succesfully uses reversed schema for parsing back to initial value", t => {
+  let schema = S.jsonString(S.bool)
+  t->U.assertReverseParsesBack(schema, true)
+})

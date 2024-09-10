@@ -107,9 +107,5 @@ test("Compiled async parse code snapshot", t => {
 test("Compiled serialize code snapshot", t => {
   let schema = S.bool->S.option->S.Option.getOr(false)
 
-  t->U.assertCompiledCode(
-    ~schema,
-    ~op=#Serialize,
-    `i=>{let v0;if(i!==void 0){v0=e[0](i)}return v0}`,
-  )
+  t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
 })

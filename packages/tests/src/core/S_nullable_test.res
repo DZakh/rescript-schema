@@ -60,8 +60,22 @@ module NullCommon = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Serialize,
-      `i=>{let v2;if(i!==void 0){let v0=e[0](i),v1;if(v0!==void 0){v1=e[1](v0)}else{v1=null}v2=v1}return v2}`,
+      `i=>{let v2;if(i!==void 0){let v0=e[0](i),v1;if(v0!==void 0){v1=v0}else{v1=null}v2=v1}return v2}`,
     )
+  })
+
+  test("Reverse schema", t => {
+    let schema = factory()
+    t->U.assertEqualSchemas(
+      schema->S.\"~experimantalReverse",
+      S.option(S.option(S.string))->S.toUnknown,
+    )
+  })
+
+  test("Succesfully uses reversed schema for parsing back to initial value", t => {
+    let schema = factory()
+    t->U.assertReverseParsesBack(schema, Some("abc"))
+    t->U.assertReverseParsesBack(schema, None)
   })
 }
 

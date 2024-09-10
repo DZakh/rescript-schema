@@ -86,6 +86,23 @@ test("Compiled parse code snapshot for simple object with refine", t => {
   )
 })
 
+test("Reverse schema to the original schema", t => {
+  let schema = S.int->S.refine(s => value =>
+    if value < 0 {
+      s.fail("Should be positive")
+    })
+  t->Assert.not(schema->S.\"~experimantalReverse", schema->S.toUnknown, ())
+  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.int->S.toUnknown)
+})
+
+test("Succesfully uses reversed schema for parsing back to initial value", t => {
+  let schema = S.int->S.refine(s => value =>
+    if value < 0 {
+      s.fail("Should be positive")
+    })
+  t->U.assertReverseParsesBack(schema, 12)
+})
+
 // https://github.com/DZakh/rescript-schema/issues/79
 module Issue79 = {
   test("Successfully parses", t => {

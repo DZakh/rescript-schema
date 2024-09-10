@@ -68,21 +68,40 @@ module CommonWithNested = {
 
   test("Compiled serialize code snapshot", t => {
     let schema = S.array(S.string)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
 
+    let schema = S.array(S.option(S.string))
     t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
   })
 
   test("Compiled serialize code snapshot with transform", t => {
-    let schema = S.array(S.option(S.string))
+    let schema = S.array(S.null(S.string))
 
-    // TODO: Simplify
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Serialize,
-      `i=>{let v5=[];for(let v0=0;v0<i.length;++v0){let v2=i[v0],v4;try{let v3;if(v2!==void 0){v3=e[0](v2)}v4=v3}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}v5.push(v4)}return v5}`,
+      `i=>{let v5=[];for(let v0=0;v0<i.length;++v0){let v2=i[v0],v4;try{let v3;if(v2!==void 0){v3=v2}else{v3=null}v4=v3}catch(v1){if(v1&&v1.s===s){v1.path=""+\'["\'+v0+\'"]\'+v1.path}throw v1}v5.push(v4)}return v5}`,
     )
   })
+
+  test("Reverse to self", t => {
+    let schema = factory()
+    t->Assert.is(schema->S.\"~experimantalReverse", schema->S.toUnknown, ())
+  })
+
+  test("Succesfully uses reversed schema for parsing back to initial value", t => {
+    let schema = factory()
+    t->U.assertReverseParsesBack(schema, value)
+  })
 }
+
+test("Reverse child schema", t => {
+  let schema = S.array(S.null(S.string))
+  t->U.assertEqualSchemas(
+    schema->S.\"~experimantalReverse",
+    S.array(S.option(S.string))->S.toUnknown,
+  )
+})
 
 test("Successfully parses matrix", t => {
   let schema = S.array(S.array(S.string))

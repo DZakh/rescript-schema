@@ -52,14 +52,33 @@ module Common = {
     )
   })
 
+  test("Reverse schema to option", t => {
+    let schema = factory()
+    t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.option(S.string)->S.toUnknown)
+  })
+
+  test("Reverse of reverse returns the original schema", t => {
+    let schema = factory()
+    t->Assert.is(
+      schema->S.\"~experimantalReverse"->S.\"~experimantalReverse",
+      schema->S.toUnknown,
+      (),
+    )
+  })
+
   test("Compiled serialize code snapshot", t => {
     let schema = factory()
-
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Serialize,
-      `i=>{let v0;if(i!==void 0){v0=e[0](i)}else{v0=null}return v0}`,
+      `i=>{let v0;if(i!==void 0){v0=i}else{v0=null}return v0}`,
     )
+  })
+
+  test("Succesfully uses reversed schema for parsing back to initial value", t => {
+    let schema = factory()
+    t->U.assertReverseParsesBack(schema, Some("abc"))
+    t->U.assertReverseParsesBack(schema, None)
   })
 }
 
@@ -131,4 +150,23 @@ test("Serializes Some(None) to null for null nested in option", t => {
 
   t->Assert.deepEqual(Some(None)->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
   t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`undefined`)), ())
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Serialize,
+    `i=>{let v2;if(i!==void 0){let v0=e[0](i),v1;if(v0!==void 0){v1=v0}else{v1=null}v2=v1}return v2}`,
+  )
+})
+
+test("Serializes Some(None) to null for null nested in null", t => {
+  let schema = S.null(S.null(S.bool))
+
+  t->Assert.deepEqual(Some(None)->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
+  t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Serialize,
+    `i=>{let v2;if(i!==void 0){let v0=e[0](i),v1;if(v0!==void 0){v1=v0}else{v1=null}v2=v1}else{v2=null}return v2}`,
+  )
 })

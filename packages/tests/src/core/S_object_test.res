@@ -1198,3 +1198,102 @@ test(
     t->Assert.deepEqual(data, appVersions->Obj.magic, ())
   },
 )
+
+test("Reverse empty object schema to literal", t => {
+  let schema = S.object(_ => ())
+  // t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unit->S.toUnknown)
+  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown)
+})
+
+test("Succesfully uses reversed empty object schema for parsing back to initial value", t => {
+  let schema = S.object(_ => ())
+  t->U.assertReverseParsesBack(schema, ())
+})
+
+test("Reverse tagged object to literal without payload", t => {
+  let schema = S.object(s => {
+    s.tag("kind", "test")
+    #Test
+  })
+  // t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.literal(#Test)->S.toUnknown)
+  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown)
+})
+
+test(
+  "Succesfully uses reversed non-payloaded tagged object schema for parsing back to initial value",
+  t => {
+    let schema = S.object(s => {
+      s.tag("kind", "test")
+      #Test
+    })
+    t->U.assertReverseParsesBack(schema, #Test)
+  },
+)
+
+test("Reverse tagged object to primitive schema", t => {
+  let schema = S.object(s => {
+    s.tag("kind", "test")
+    s.field("field", S.bool)
+  })
+  // t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.bool->S.toUnknown)
+  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown)
+})
+
+test(
+  "Succesfully uses reversed tagged object schema with field as output for parsing back to initial value",
+  t => {
+    let schema = S.object(s => {
+      s.tag("kind", "test")
+      s.field("field", S.bool)
+    })
+    t->U.assertReverseParsesBack(schema, true)
+  },
+)
+
+test("Reverse with output of nested object/tuple schema", t => {
+  let schema = S.object(s => {
+    s.tag("kind", "test")
+    {
+      "nested": {
+        "field": (s.field("raw_field", S.bool), true),
+      },
+    }
+  })
+  // t->U.assertEqualSchemas(
+  //   schema->S.\"~experimantalReverse",
+  //   S.object(s => {
+  //     let _ = s.field(
+  //       "nested",
+  //       S.object(
+  //         s => {
+  //           let _ = s.field(
+  //             "field",
+  //             S.tuple(
+  //               s => {
+  //                 let _ = s.item(0, S.bool)
+  //                 s.tag(1, true)
+  //               },
+  //             ),
+  //           )
+  //         },
+  //       ),
+  //     )
+  //   })->S.toUnknown,
+  // )
+  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown)
+})
+
+test(
+  "Succesfully parses reversed schema with output of nested object/tuple and parses it back to initial value",
+  t => {
+    let schema = S.object(s => {
+      s.tag("kind", "test")
+      {
+        "nested": {
+          "field": (s.field("raw_field", S.bool), true),
+        },
+      }
+    })
+    t->U.assertReverseParsesBack(schema, {"nested": {"field": (true, true)}})
+  },
+)

@@ -5,6 +5,11 @@ external magic: 'a => 'b = "%identity"
 external castAnyToUnknown: 'any => unknown = "%identity"
 external castUnknownToAny: unknown => 'any = "%identity"
 
+%%private(
+  @val @scope("JSON")
+  external unsafeStringify: 'a => string = "stringify"
+)
+
 let unsafeGetVariantPayload = variant => (variant->Obj.magic)["_0"]
 
 exception Test
@@ -31,7 +36,7 @@ let assertThrowsTestException = {
 
 let assertErrorResult = (t, result, errorPayload) => {
   switch result {
-  | Ok(_) => t->Assert.fail("Asserted result is not Error.")
+  | Ok(any) => t->Assert.fail("Asserted result is not Error. Recieved: " ++ any->unsafeStringify)
   | Error(err) => t->Assert.is(err->S.Error.message, error(errorPayload)->S.Error.message, ())
   }
 }
@@ -43,7 +48,7 @@ let rec cleanUpSchema = schema => {
   ->Dict.toArray
   ->Array.forEach(((key, value)) => {
     switch key {
-    | "i" => ()
+    | "i" | "c" => ()
     // tagged
     | "definition" => ()
     | _ =>
@@ -66,7 +71,13 @@ let unsafeAssertEqualSchemas = (t, s1: S.t<'v1>, s2: S.t<'v2>, ~message=?) => {
   t->Assert.unsafeDeepEqual(s1->cleanUpSchema, s2->cleanUpSchema, ~message?, ())
 }
 
-let assertCompiledCode = (t, ~schema, ~op: [#Parse | #Serialize | #Assert], code, ~message=?) => {
+let assertCompiledCode = (
+  t,
+  ~schema,
+  ~op: [#Parse | #Serialize | #Assert | #SerializeJson],
+  code,
+  ~message=?,
+) => {
   let compiledCode = switch op {
   | #Parse =>
     if schema->S.isAsyncParse {
@@ -91,6 +102,14 @@ let assertCompiledCode = (t, ~schema, ~op: [#Parse | #Serialize | #Assert], code
       }
       %raw(`schema.serializeOrThrow.toString()`)
     }
+  | #SerializeJson => {
+      try {
+        let _ = %raw(`undefined`)->S.serializeOrRaiseWith(schema)
+      } catch {
+      | _ => ()
+      }
+      %raw(`schema.serializeToJsonOrThrow.toString()`)
+    }
   }
   t->Assert.is(compiledCode, code, ~message?, ())
 }
@@ -114,7 +133,7 @@ let assertCompiledCodeIsNoop = (t, ~schema, ~op: [#Parse | #Serialize], ~message
       %raw(`schema.serializeOrThrow.toString()`)
     }
   }
-  t->Assert.truthy(compiledCode->String.startsWith("function noopOperation(i)"), ~message?, ())
+  t->Assert.is(compiledCode, "function noopOperation(i) {\n  return i;\n}", ~message?, ())
 }
 
 let assertEqualSchemas: (
@@ -123,3 +142,11 @@ let assertEqualSchemas: (
   S.t<'value>,
   ~message: string=?,
 ) => unit = unsafeAssertEqualSchemas
+
+let assertReverseParsesBack = (t, schema: S.t<'value>, value: 'value) => {
+  t->Assert.unsafeDeepEqual(
+    value->S.parseAnyOrRaiseWith(schema->S.\"~experimantalReverse")->S.parseAnyOrRaiseWith(schema),
+    value,
+    (),
+  )
+}
