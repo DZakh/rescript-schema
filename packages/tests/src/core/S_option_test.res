@@ -144,7 +144,7 @@ test("Applies valFromOption for Some()", t => {
 })
 
 test("Doesn't apply valFromOption for non-undefined literals in option", t => {
-  let schema: S.t<option<Js.Null.t<unknown>>> = S.option(S.literal(%raw(`null`)))
+  let schema: S.t<option<Null.t<unknown>>> = S.option(S.literal(%raw(`null`)))
 
   // Note: It'll fail without a type annotation, but we can't do anything here
   t->Assert.deepEqual(Some(%raw(`null`))->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
