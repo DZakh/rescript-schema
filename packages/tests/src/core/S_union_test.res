@@ -626,3 +626,60 @@ module CrazyUnion = {
     )
   })
 }
+
+test("json-rpc response", t => {
+  let jsonRpcSchema = (okSchema, errorSchema) =>
+    S.union([
+      S.object(s => Ok(s.field("result", okSchema))),
+      S.object(s => Error(s.field("error", errorSchema))),
+    ])
+
+  let getLogsResponseSchema = jsonRpcSchema(
+    S.array(S.string),
+    S.union([
+      S.object(s => {
+        s.tag("message", "NotFound")
+        #LogsNotFound
+      }),
+      S.object(s => {
+        s.tag("message", "Invalid")
+        #InvalidData(s.field("data", S.string))
+      }),
+    ]),
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": ["foo", "bar"]
+      }`)->S.parseOrRaiseWith(getLogsResponseSchema),
+    Ok(["foo", "bar"]),
+    (),
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{
+        "jsonrpc": "2.0",
+        "id": 1,
+        "error": {
+          "message": "NotFound"
+        }
+      }`)->S.parseOrRaiseWith(getLogsResponseSchema),
+    Error(#LogsNotFound),
+    (),
+  )
+
+  t->Assert.deepEqual(
+    %raw(`{
+        "jsonrpc": "2.0",
+        "id": 1,
+        "error": {
+          "message": "Invalid",
+          "data": "foo"
+        }
+      }`)->S.parseOrRaiseWith(getLogsResponseSchema),
+    Error(#InvalidData("foo")),
+    (),
+  )
+})
