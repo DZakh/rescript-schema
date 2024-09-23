@@ -1,6 +1,6 @@
 {
   "name": "rescript-schema-ppx",
-  "version": "8.2.1",
+  "version": "8.2.2",
   "description": "ReScript PPX to generate rescript-schema from type",
   "keywords": [
     "ReScript",
@@ -24,6 +24,7 @@
     "ppx-windows.exe",
     "ppx-linux.exe",
     "ppx-osx.exe",
+    "ppx-osx-x64.exe",
     "bin.cmd",
     "bin"
   ],
