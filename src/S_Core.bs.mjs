@@ -226,7 +226,14 @@ function transform(b, input, operation) {
 }
 
 function raise(b, code, path) {
-  throw new RescriptSchemaError(code, b.g.o, path);
+  var operation = b.g.o;
+  throw new RescriptSchemaError(code, operation & 8 ? "Assert" : (
+              operation & 1 ? (
+                  operation & 2 ? "ParseAsync" : "Parse"
+                ) : (
+                  operation & 4 ? "SerializeToJson" : "SerializeToUnknown"
+                )
+            ), path);
 }
 
 function embedSyncOperation(b, input, fn) {
@@ -238,7 +245,7 @@ function embedSyncOperation(b, input, fn) {
 }
 
 function embedAsyncOperation(b, input, fn) {
-  if (b.g.o !== "ParseAsync") {
+  if (!(b.g.o & 2)) {
     raise(b, "UnexpectedAsync", "");
   }
   var val = embedSyncOperation(b, input, (function (v) {
@@ -277,7 +284,7 @@ function effectCtx(b, selfSchema, path) {
 }
 
 function registerInvalidJson(b, selfSchema, path) {
-  if (b.g.o === "SerializeToJson") {
+  if (b.g.o & 4) {
     return raise(b, {
                 TAG: "InvalidJsonSchema",
                 _0: selfSchema
@@ -363,7 +370,7 @@ function parseWithTypeCheck(b, schema, input, path) {
   if (typeFilter === undefined) {
     return schema.b(b, input, schema, path);
   }
-  if (!(schema.t.TAG === "Literal" || b.g.o !== "SerializeToJson" && b.g.o !== "SerializeToUnknown")) {
+  if (!(schema.t.TAG === "Literal" || b.g.o & 1)) {
     return schema.b(b, input, schema, path);
   }
   b.c = b.c + typeFilterCode(b, typeFilter, schema, input, path);
@@ -381,7 +388,7 @@ function noopOperation(i) {
   return i;
 }
 
-function build(builder, schema, operation, finalizer) {
+function compile(builder, schema, operation) {
   var b = {
     c: "",
     l: "",
@@ -398,15 +405,46 @@ function build(builder, schema, operation, finalizer) {
     a: false
   };
   var output = builder(b, input, schema, "");
+  schema.i = output.a;
   if (b.l !== "") {
     b.c = "let " + b.l + ";" + b.c;
   }
-  var output$1 = finalizer(b, schema, input, output);
-  if (b.c === "" && output$1 === input) {
+  if (operation & 1 || schema.t.TAG === "Literal") {
+    var typeFilter = schema.f;
+    if (typeFilter !== undefined) {
+      b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
+    }
+    
+  }
+  if (b.c === "" && output === input && !(operation & 8)) {
     return noopOperation;
   }
-  var inlinedFunction = "i=>{" + b.c + "return " + inline(b, output$1) + "}";
+  var inlinedOutput = operation & 8 ? "void 0" : (
+      operation & 2 && !output.a ? "Promise.resolve(" + inline(b, output) + ")" : inline(b, output)
+    );
+  var inlinedFunction = "i=>{" + b.c + "return " + inlinedOutput + "}";
   return new Function("e", "s", "return " + inlinedFunction)(b.g.e, symbol);
+}
+
+function compile$1(schema, input, output, typeValidation) {
+  var operation = 0;
+  switch (output) {
+    case "Output" :
+    case "Unknown" :
+        break;
+    case "Assert" :
+        operation = operation | 8;
+        break;
+    case "Json" :
+    case "JsonString" :
+        operation = operation | 4;
+        break;
+    
+  }
+  if (typeValidation) {
+    operation = operation | 1;
+  }
+  return compile(schema.b, schema, operation);
 }
 
 function toSelf() {
@@ -625,19 +663,29 @@ function parse(any) {
   return parseInternal(any);
 }
 
-function isAsyncSchemaFinalizer(b, schema, input, output) {
-  schema.i = output.a;
-  b.c = "";
-  return input;
-}
-
 function isAsyncParse(schema) {
   var v = schema.i;
   if (typeof v === "boolean") {
     return v;
   }
   try {
-    build(schema.b, schema, "ParseAsync", isAsyncSchemaFinalizer);
+    var b = {
+      c: "",
+      l: "",
+      a: false,
+      g: {
+        v: -1,
+        o: 2,
+        e: []
+      }
+    };
+    var input = {
+      v: "i",
+      s: b,
+      a: false
+    };
+    var output = schema.b(b, input, schema, "");
+    schema.i = output.a;
     return schema.i;
   }
   catch (raw_exn){
@@ -793,62 +841,23 @@ function parseJsonStringWith(jsonString, schema) {
   }
 }
 
-function parseFinalizer(b, schema, input, output) {
-  var typeFilter = schema.f;
-  if (typeFilter !== undefined) {
-    b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
-  }
-  schema.i = false;
-  return output;
-}
-
 function initialParseOrRaise(unknown) {
   var schema = this;
-  var operation = build(schema.b, schema, "Parse", parseFinalizer);
+  var operation = compile(schema.b, schema, 1);
   schema.parseOrThrow = operation;
   return operation(unknown);
 }
 
-function parseAsyncFinalizer(b, schema, input, output) {
-  var typeFilter = schema.f;
-  if (typeFilter !== undefined) {
-    b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
-  }
-  schema.i = output.a;
-  if (output.a) {
-    return output;
-  } else {
-    return asyncVal(b, "Promise.resolve(" + inline(b, output) + ")");
-  }
-}
-
-function serializeFinalizer(b, schema, input, output) {
-  var typeFilter = schema.f;
-  if (typeFilter !== undefined && schema.t.TAG === "Literal") {
-    b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
-  }
-  return output;
-}
-
 function initialParseAsyncOrRaise(unknown) {
   var schema = this;
-  var operation = build(schema.b, schema, "ParseAsync", parseAsyncFinalizer);
+  var operation = compile(schema.b, schema, 3);
   schema.a = operation;
   return operation(unknown);
 }
 
-function assertFinalizer(b, schema, input, param) {
-  var typeFilter = schema.f;
-  if (typeFilter !== undefined) {
-    b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
-  }
-  schema.i = false;
-  return val(b, "void 0");
-}
-
 function initialAssertOrRaise(unknown) {
   var schema = this;
-  var operation = build(schema.b, schema, "Assert", assertFinalizer);
+  var operation = compile(schema.b, schema, 9);
   schema.assert = operation;
   return operation(unknown);
 }
@@ -856,7 +865,7 @@ function initialAssertOrRaise(unknown) {
 function initialSerializeToUnknownOrRaise(unknown) {
   var schema = this;
   var reversed = schema.r();
-  var operation = build(reversed.b, reversed, "SerializeToUnknown", serializeFinalizer);
+  var operation = compile(reversed.b, reversed, 0);
   schema.serializeOrThrow = operation;
   return operation(unknown);
 }
@@ -870,7 +879,7 @@ function initialSerializeOrRaise(unknown) {
             }, "SerializeToJson", "");
   }
   var reversed = schema.r();
-  var operation = build(reversed.b, reversed, "SerializeToJson", serializeFinalizer);
+  var operation = compile(reversed.b, reversed, 4);
   schema.serializeToJsonOrThrow = operation;
   return operation(unknown);
 }
@@ -1218,7 +1227,7 @@ function makeBuilder(isNullInput, isNullOutput) {
     var childSchemaTag = childSchema.t.TAG;
     var bb = scope(b);
     var itemInput;
-    if ((b.g.o === "SerializeToJson" || b.g.o === "SerializeToUnknown") && (childSchema.t === "Unknown" || childSchemaTag === "Option" || childSchemaTag === "Literal" && childSchema.t._0.value === (void 0))) {
+    if (!(b.g.o & 1) && (childSchema.t === "Unknown" || childSchemaTag === "Option" || childSchemaTag === "Literal" && childSchema.t._0.value === (void 0))) {
       var value = Caml_option.valFromOption;
       itemInput = val(bb, "e[" + (bb.g.e.push(value) - 1) + "](" + $$var(b, input) + ")");
     } else {
@@ -1387,7 +1396,7 @@ function builder$1(b, input, selfSchema, path) {
       var path$1 = path + itemPath;
       var isLiteral = schema$1.t.TAG === "Literal";
       var typeFilter = schema$1.f;
-      if (typeFilter !== undefined && (isLiteral || b.g.o !== "SerializeToJson" && b.g.o !== "SerializeToUnknown")) {
+      if (typeFilter !== undefined && (isLiteral || b.g.o & 1)) {
         b.c = b.c + typeFilterCode(b, typeFilter, schema$1, itemInput, path$1);
       }
       if (isObject && schema$1.d) {
@@ -1412,7 +1421,7 @@ function builder$1(b, input, selfSchema, path) {
         }
       }
     }
-    if (!(isObject && selfSchema.t.unknownKeys === "Strict" && b.g.o !== "SerializeToJson" && b.g.o !== "SerializeToUnknown")) {
+    if (!(isObject && selfSchema.t.unknownKeys === "Strict" && b.g.o & 1)) {
       return ;
     }
     var key = allocateVal(b);
@@ -1885,7 +1894,7 @@ function factory$5(schema, spaceOpt) {
                 var reversed = schema.r();
                 return makeReverseSchema(reversed.n, reversed.t, reversed.m, (function (b, input, param, path) {
                               var prevOperation = b.g.o;
-                              b.g.o = "SerializeToJson";
+                              b.g.o = prevOperation | 4;
                               if (reversed.t.TAG === "Option") {
                                 raise(b, {
                                       TAG: "InvalidJsonSchema",
@@ -1959,7 +1968,7 @@ function parse$1(b, schemas, path, input, output) {
     try {
       var bb = scope(b);
       var itemOutput = schema.b(bb, input, schema, "");
-      if (isMultiple && (b.g.o === "SerializeToJson" || b.g.o === "SerializeToUnknown")) {
+      if (isMultiple && !(b.g.o & 1)) {
         var reversed = schema.r();
         var typeFilter = reversed.f;
         if (typeFilter !== undefined) {
@@ -3149,6 +3158,7 @@ export {
   custom ,
   refine ,
   variant ,
+  compile$1 as compile,
   parseWith ,
   parseAnyWith ,
   parseJsonStringWith ,

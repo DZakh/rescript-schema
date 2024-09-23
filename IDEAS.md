@@ -22,17 +22,29 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v9
 
-- Add S.reverse
+- Add S.compile
+- Remove ...OrThrow from js/ts api
+- Add mode/flags instead of operation
+- Simplify caching by the mode/flag
+- Add S./"~experimentalReverse"
+- S.transform(s => {
+  s.reverse(input => input) // Or s.asyncReverse(input => Promise.resolve(input))
+  input => input
+  }) // or asyncTransform // Maybe format ?
 - async serializing support
+- Add S.unwrap
+- Rename S.variant to something
+- Rename serialize to convertReverse
+- Add S.removeTypeValidation
 - S.create / S.validate
-- S.parseToJsonString
 - Rename S.inline to S.toRescriptCode
 - Add serializeToJsonString to js api
+- Add S.bigint
+- Fix reverse for object/tuple/variant/recursive
 
 ## v10
 
 - Make S.serializeToJsonString super fast
-- Add S.bigint
 - Add S.promise
 
 ## v???
