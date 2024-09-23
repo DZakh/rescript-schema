@@ -199,8 +199,7 @@ jobs:
 
   pack-rescript-schema-ppx:
     name: Pack rescript-schema-ppx
-    needs:
-      [ppx-build-linux, ppx-build-macos, ppx-build-macos-x64, ppx-build-windows]
+    needs: [ppx-build-linux, ppx-build-macos, ppx-build-macos-x64, ppx-build-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -250,7 +249,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: rescript-schema-ppx
-          path: packages/rescript-schema-ppx/rescript-schema-ppx-8.2.0.tgz
+          path: packages/rescript-schema-ppx/rescript-schema-ppx-8.2.1.tgz
 
   benchmark:
     name: Benchmark
