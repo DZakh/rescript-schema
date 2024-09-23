@@ -38,8 +38,9 @@ switch (process.platform) {
     installMacLinuxBinary("ppx-linux.exe");
     break;
   case "darwin":
-    installMacLinuxBinary("ppx-osx.exe");
-    break;
+    const binaryName =
+      process.arch === "x64" ? "ppx-osx-x64.exe" : "ppx-osx.exe";
+    installMacLinuxBinary(binaryName);
   case "win32":
     installWindowsBinary();
     break;
