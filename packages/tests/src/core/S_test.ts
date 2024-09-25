@@ -100,6 +100,16 @@ test("Successfully parses float", (t) => {
   expectType<TypeEqual<typeof value, number>>(true);
 });
 
+test("Successfully parses BigInt", (t) => {
+  const schema = S.bigint;
+  const value = schema.parseOrThrow(123n);
+
+  t.deepEqual(value, 123n);
+
+  expectType<TypeEqual<typeof schema, S.Schema<bigint, bigint>>>(true);
+  expectType<TypeEqual<typeof value, bigint>>(true);
+});
+
 test("Fails to parse float when NaN is provided", (t) => {
   const schema = S.number;
 

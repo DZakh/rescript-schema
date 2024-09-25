@@ -1,10 +1,10 @@
 open Ava
 
 module Common = {
-  let value = 123.
-  let any = %raw(`123`)
-  let invalidAny = %raw(`"Hello world!"`)
-  let factory = () => S.float
+  let value = 123n
+  let any = %raw(`123n`)
+  let invalidAny = %raw(`123.45`)
+  let factory = () => S.bigint
 
   test("Successfully parses", t => {
     let schema = factory()
@@ -25,6 +25,11 @@ module Common = {
     )
   })
 
+  test("BigInt name", t => {
+    let schema = factory()
+    t->Assert.is(schema->S.name, "BigInt", ())
+  })
+
   test("Successfully serializes", t => {
     let schema = factory()
 
@@ -34,11 +39,7 @@ module Common = {
   test("Compiled parse code snapshot", t => {
     let schema = factory()
 
-    t->U.assertCompiledCode(
-      ~schema,
-      ~op=#Parse,
-      `i=>{if(typeof i!=="number"||Number.isNaN(i)){e[0](i)}return i}`,
-    )
+    t->U.assertCompiledCode(~schema, ~op=#Parse, `i=>{if(typeof i!=="bigint"){e[0](i)}return i}`)
   })
 
   test("Compiled serialize code snapshot", t => {
@@ -47,32 +48,13 @@ module Common = {
     t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
   })
 
-  test("Reverse schema to S.float", t => {
+  test("Reverse schema to self", t => {
     let schema = factory()
     t->Assert.is(schema->S.\"~experimantalReverse", schema->S.toUnknown, ())
   })
 
   test("Succesfully uses reversed schema for parsing back to initial value", t => {
     let schema = factory()
-    t->U.assertReverseParsesBack(schema, 123.3)
+    t->U.assertReverseParsesBack(schema, value)
   })
 }
-
-test("Successfully parses number with a fractional part", t => {
-  let schema = S.float
-
-  t->Assert.deepEqual(%raw(`123.123`)->S.parseAnyWith(schema), Ok(123.123), ())
-})
-
-test("Fails to parse NaN", t => {
-  let schema = S.float
-
-  t->U.assertErrorResult(
-    %raw(`NaN`)->S.parseAnyWith(schema),
-    {
-      code: InvalidType({expected: schema->S.toUnknown, received: %raw(`NaN`)}),
-      operation: Parse,
-      path: S.Path.empty,
-    },
-  )
-})

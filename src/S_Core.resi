@@ -121,6 +121,7 @@ let string: t<string>
 let bool: t<bool>
 let int: t<int>
 let float: t<float>
+let bigint: t<bigint>
 
 let json: (~validate: bool) => t<Js.Json.t>
 

@@ -1417,6 +1417,24 @@ let jsSerialize = value => {
   }
 }
 
+let makeReverseSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilter) => {
+  tagged,
+  builder,
+  isAsyncSchema: Unknown,
+  maybeTypeFilter,
+  name,
+  metadataMap,
+  parseOrRaise: initialParseOrRaise,
+  parseAsyncOrRaise: initialParseAsyncOrRaise,
+  serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
+  serializeOrRaise: initialSerializeOrRaise,
+  assertOrRaise: initialAssertOrRaise,
+  jsParse,
+  jsParseAsync,
+  jsSerialize,
+  reverse: Reverse.toSelf,
+}
+
 let makeSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilter, ~reverse) => {
   tagged,
   builder,
@@ -1435,27 +1453,22 @@ let makeSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilter, ~rev
   reverse: () => {
     let original = %raw(`this`)
     let reversed = (reverse->Obj.magic)["call"](original)
+
+    // Copy primitive reversed schema to prevent mutating original reverse function
+    let reversed = if original !== reversed && reversed->classify->Js.typeof === "string" {
+      makeReverseSchema(
+        ~name=reversed.name,
+        ~tagged=reversed.tagged,
+        ~metadataMap=reversed.metadataMap,
+        ~builder=reversed.builder,
+        ~maybeTypeFilter=reversed.maybeTypeFilter,
+      )
+    } else {
+      reversed
+    }
     reversed.reverse = () => original
     reversed
   },
-}
-
-let makeReverseSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilter) => {
-  tagged,
-  builder,
-  isAsyncSchema: Unknown,
-  maybeTypeFilter,
-  name,
-  metadataMap,
-  parseOrRaise: initialParseOrRaise,
-  parseAsyncOrRaise: initialParseAsyncOrRaise,
-  serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
-  serializeOrRaise: initialSerializeOrRaise,
-  assertOrRaise: initialAssertOrRaise,
-  jsParse,
-  jsParseAsync,
-  jsSerialize,
-  reverse: Reverse.toSelf,
 }
 
 module Metadata = {
@@ -1950,16 +1963,7 @@ module Option = {
       ~reverse=() => {
         let reversed = schema.reverse()
         if reversed.tagged->unsafeGetVarianTag === "Option" {
-          let child = reversed.tagged->unsafeGetVariantPayload
-          // Copy to prevent mutating of primitive's reverse function
-          // TODO: Can be improved to copy only for primitives
-          makeReverseSchema(
-            ~name=child.name,
-            ~tagged=child.tagged,
-            ~metadataMap=child.metadataMap,
-            ~builder=child.builder,
-            ~maybeTypeFilter=child.maybeTypeFilter,
-          )
+          reversed.tagged->unsafeGetVariantPayload
         } else {
           reversed
         }
@@ -2964,6 +2968,17 @@ module Float = {
   )
 }
 
+module BigInt = {
+  let typeFilter = (_b, ~inputVar) => `typeof ${inputVar}!=="bigint"`
+
+  let schema = makePrimitiveSchema(
+    ~tagged=Unknown, // TODO: Add BigInt in v9
+    ~builder=Builder.noop,
+    ~maybeTypeFilter=Some(typeFilter),
+  )
+  (schema->Obj.magic)["n"] = %raw(`() => "BigInt"`)
+}
+
 module Union = {
   let parse = (b, ~schemas, ~path, ~input, ~output) => {
     let isMultiple = schemas->Js.Array2.length > 1
@@ -3677,6 +3692,7 @@ let string = String.schema
 let bool = Bool.schema
 let int = Int.schema
 let float = Float.schema
+let bigint = BigInt.schema
 let null = Null.factory
 let option = Option.factory
 let array = Array.factory

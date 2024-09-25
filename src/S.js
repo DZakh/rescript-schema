@@ -5,6 +5,7 @@ export const string = S.string;
 export const boolean = S.bool;
 export const integer = S.$$int;
 export const number = S.$$float;
+export const bigint = S.bigint;
 export const json = S.json;
 export const never = S.never;
 export const unknown = S.unknown;

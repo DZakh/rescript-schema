@@ -38,12 +38,12 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - S.create / S.validate
 - Rename S.inline to S.toRescriptCode
 - Add serializeToJsonString to js api
-- Add S.bigint
 - Fix reverse for object/tuple/variant/recursive
 
 ### Done
 
 - Add S.compile
+- Add S.bigint
 
 ## v10
 

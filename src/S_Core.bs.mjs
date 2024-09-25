@@ -944,18 +944,11 @@ function jsSerialize(value) {
   }
 }
 
-function makeSchema(name, tagged, metadataMap, builder, maybeTypeFilter, reverse) {
+function makeReverseSchema(name, tagged, metadataMap, builder, maybeTypeFilter) {
   return {
           t: tagged,
           n: name,
-          r: (function () {
-              var original = this;
-              var reversed = reverse.call(original);
-              reversed.r = (function () {
-                  return original;
-                });
-              return reversed;
-            }),
+          r: toSelf,
           b: builder,
           f: maybeTypeFilter,
           i: 0,
@@ -971,11 +964,19 @@ function makeSchema(name, tagged, metadataMap, builder, maybeTypeFilter, reverse
         };
 }
 
-function makeReverseSchema(name, tagged, metadataMap, builder, maybeTypeFilter) {
+function makeSchema(name, tagged, metadataMap, builder, maybeTypeFilter, reverse) {
   return {
           t: tagged,
           n: name,
-          r: toSelf,
+          r: (function () {
+              var original = this;
+              var reversed = reverse.call(original);
+              var reversed$1 = original !== reversed && typeof reversed.t === "string" ? makeReverseSchema(reversed.n, reversed.t, reversed.m, reversed.b, reversed.f) : reversed;
+              reversed$1.r = (function () {
+                  return original;
+                });
+              return reversed$1;
+            }),
           b: builder,
           f: maybeTypeFilter,
           i: 0,
@@ -1301,11 +1302,11 @@ function getWithDefault(schema, $$default) {
                             }));
               }), schema.f, (function () {
                 var reversed = schema.r();
-                if (reversed.t.TAG !== "Option") {
+                if (reversed.t.TAG === "Option") {
+                  return reversed.t._0;
+                } else {
                   return reversed;
                 }
-                var child = reversed.t._0;
-                return makeReverseSchema(child.n, child.t, child.m, child.b, child.f);
               }));
 }
 
@@ -1974,6 +1975,14 @@ function typeFilter$5(_b, inputVar) {
 }
 
 var schema$5 = makePrimitiveSchema("Float", noop, typeFilter$5);
+
+function typeFilter$6(_b, inputVar) {
+  return "typeof " + inputVar + "!==\"bigint\"";
+}
+
+var schema$6 = makePrimitiveSchema("Unknown", noop, typeFilter$6);
+
+schema$6.n = (() => "BigInt");
 
 function parse$1(b, schemas, path, input, output) {
   var isMultiple = schemas.length > 1;
@@ -3077,6 +3086,8 @@ var $$int = schema$4;
 
 var $$float = schema$5;
 
+var bigint = schema$6;
+
 var array = factory$2;
 
 var dict = factory$4;
@@ -3097,7 +3108,7 @@ var parseAsyncWith = parseAnyAsyncWith;
 
 var Schema = {};
 
-var schema$6 = factory$7;
+var schema$7 = factory$7;
 
 var $$Object = {
   factory: factory$3,
@@ -3159,6 +3170,7 @@ export {
   bool ,
   $$int ,
   $$float ,
+  bigint ,
   json ,
   literal ,
   array ,
@@ -3201,7 +3213,7 @@ export {
   classify ,
   setName ,
   Schema ,
-  schema$6 as schema,
+  schema$7 as schema,
   $$Object ,
   object ,
   Tuple ,

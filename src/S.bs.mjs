@@ -24,6 +24,8 @@ var $$int = S_Core$RescriptSchema.$$int;
 
 var $$float = S_Core$RescriptSchema.$$float;
 
+var bigint = S_Core$RescriptSchema.bigint;
+
 var json = S_Core$RescriptSchema.json;
 
 var literal = S_Core$RescriptSchema.literal;
@@ -190,6 +192,7 @@ export {
   bool ,
   $$int ,
   $$float ,
+  bigint ,
   json ,
   literal ,
   array ,

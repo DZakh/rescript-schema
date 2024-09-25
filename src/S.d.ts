@@ -51,6 +51,7 @@ export const string: Schema<string>;
 export const boolean: Schema<boolean>;
 export const integer: Schema<number>;
 export const number: Schema<number>;
+export const bigint: Schema<bigint>;
 export const never: Schema<never>;
 export const unknown: Schema<unknown>;
 export const undefined: Schema<undefined>;
