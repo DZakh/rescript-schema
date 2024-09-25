@@ -68,6 +68,8 @@ var refine = S_Core$RescriptSchema.refine;
 
 var variant = S_Core$RescriptSchema.variant;
 
+var compile = S_Core$RescriptSchema.compile;
+
 var parseWith = S_Core$RescriptSchema.parseWith;
 
 var parseAnyWith = S_Core$RescriptSchema.parseAnyWith;
@@ -210,6 +212,7 @@ export {
   custom ,
   refine ,
   variant ,
+  compile ,
   parseWith ,
   parseAnyWith ,
   parseJsonStringWith ,

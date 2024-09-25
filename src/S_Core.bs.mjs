@@ -444,7 +444,30 @@ function compile$1(schema, input, output, typeValidation) {
   if (typeValidation) {
     operation = operation | 1;
   }
-  return compile(schema.b, schema, operation);
+  var fn = compile(schema.b, schema, operation);
+  var fn$1;
+  fn$1 = input === "JsonString" ? (function (jsonString) {
+        try {
+          return fn(JSON.parse(jsonString));
+        }
+        catch (raw_error){
+          var error = Caml_js_exceptions.internalToOCamlException(raw_error);
+          if (error.RE_EXN_ID === Js_exn.$$Error) {
+            throw new RescriptSchemaError({
+                      TAG: "OperationFailed",
+                      _0: error._1.message
+                    }, "Parse", "");
+          }
+          throw error;
+        }
+      }) : fn;
+  if (output === "JsonString") {
+    return function (value) {
+      return JSON.stringify(fn$1(value));
+    };
+  } else {
+    return fn$1;
+  }
 }
 
 function toSelf() {

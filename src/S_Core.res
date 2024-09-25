@@ -850,6 +850,12 @@ type rec output<'output, 'computed> =
   | JsonString: output<'output, string>
 
 @@warning("-37")
+type internalInput =
+  | Input
+  | Any
+  | Unknown
+  | Json
+  | JsonString
 type internalOutput =
   | Output
   | Unknown
@@ -860,13 +866,16 @@ type internalOutput =
 
 let compile = (
   schema: t<'schemaOutput>,
-  ~input: input<unknown, 'input>, // FIXME:
+  ~input: input<unknown, 'input>,
   ~output: output<'schemaOutput, 'output>,
   ~typeValidation,
 ): ('input => 'output) => {
   let schema = schema->toUnknown
+  let output = output->(Obj.magic: output<'schemaOutput, 'output> => internalOutput)
+  let input = input->(Obj.magic: input<'schemaInput, 'input> => internalInput)
+
   let operation = ref(Operation.make())
-  switch output->(Obj.magic: output<'schemaOutput, 'output> => internalOutput) {
+  switch output {
   | Output
   | Unknown => ()
   | Assert => operation := operation.contents->Operation.addFlag(Operation.Flag.assertOutput)
@@ -876,7 +885,29 @@ let compile = (
   if typeValidation {
     operation := operation.contents->Operation.addFlag(Operation.Flag.typeValidation)
   }
-  schema.builder->Builder.compile(~schema, ~operation=operation.contents)->Obj.magic
+  let fn = schema.builder->Builder.compile(~schema, ~operation=operation.contents)->Obj.magic
+
+  let fn = switch input {
+  | JsonString =>
+    jsonString =>
+      try jsonString->Obj.magic->Js.Json.parseExn->fn catch {
+      | Js.Exn.Error(error) =>
+        Stdlib.Exn.raiseAny(
+          InternalError.make(
+            ~code=OperationFailed(error->Js.Exn.message->(Obj.magic: option<string> => string)),
+            ~operation=Parse,
+            ~path=Path.empty,
+          ),
+        )
+      }
+  | _ => fn
+  }
+  let fn = switch output {
+  | JsonString => value => value->fn->Js.Json.stringifyAny->(Obj.magic: option<string> => 'output)
+  | _ => fn
+  }
+
+  fn
 }
 
 module Reverse = {

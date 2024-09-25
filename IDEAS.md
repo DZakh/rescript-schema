@@ -22,7 +22,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v9
 
-- Add S.compile
 - Remove ...OrThrow from js/ts api
 - Add mode/flags instead of operation
 - Simplify caching by the mode/flag
@@ -41,6 +40,10 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add serializeToJsonString to js api
 - Add S.bigint
 - Fix reverse for object/tuple/variant/recursive
+
+### Done
+
+- Add S.compile
 
 ## v10
 

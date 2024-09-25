@@ -185,6 +185,26 @@ let refine: (t<'value>, s<'value> => 'value => unit) => t<'value>
 
 let variant: (t<'value>, 'value => 'variant) => t<'variant>
 
+type rec input<'input, 'computed> =
+  | Input: input<'input, 'input>
+  | Any: input<'input, 'any>
+  | Unknown: input<'input, unknown>
+  | Json: input<'input, Js.Json.t>
+  | JsonString: input<'input, string>
+type rec output<'output, 'computed> =
+  | Output: output<'output, 'output>
+  | Unknown: output<'output, unknown>
+  | Assert: output<'output, unit>
+  | Json: output<'output, Js.Json.t>
+  | JsonString: output<'output, string>
+
+let compile: (
+  t<'schemaOutput>,
+  ~input: input<unknown, 'input>,
+  ~output: output<'schemaOutput, 'output>,
+  ~typeValidation: bool,
+) => 'input => 'output
+
 let parseWith: (Js.Json.t, t<'value>) => result<'value, error>
 
 let parseAnyWith: ('any, t<'value>) => result<'value, error>
