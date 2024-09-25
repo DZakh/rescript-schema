@@ -269,6 +269,14 @@ Suite.make()
     data->S.parseAnyOrRaiseWith(schema)
   }
 })
+->Suite.addWithPrepare("Assert advanced object - compile", () => {
+  let schema = makeAdvancedObjectSchema()
+  let data = makeTestObject()
+  let assertFn = schema->S.compile(~input=Any, ~output=Assert, ~typeValidation=true)
+  () => {
+    assertFn(data)
+  }
+})
 ->Suite.addWithPrepare("Assert advanced object", () => {
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()

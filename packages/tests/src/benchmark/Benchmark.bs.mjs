@@ -210,19 +210,26 @@ S$RescriptSchema.$$Error.make({
 
 console.timeEnd("S.Error.make");
 
-run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new (Benchmark.default.Suite)(), "Parse string", (function () {
+run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new (Benchmark.default.Suite)(), "Parse string", (function () {
+                                              return function () {
+                                                return S$RescriptSchema.parseAnyOrRaiseWith("Hello world!", S$RescriptSchema.string);
+                                              };
+                                            })), "Serialize string", (function () {
                                           return function () {
-                                            return S$RescriptSchema.parseAnyOrRaiseWith("Hello world!", S$RescriptSchema.string);
+                                            return S$RescriptSchema.serializeOrRaiseWith("Hello world!", S$RescriptSchema.string);
                                           };
-                                        })), "Serialize string", (function () {
-                                      return function () {
-                                        return S$RescriptSchema.serializeOrRaiseWith("Hello world!", S$RescriptSchema.string);
-                                      };
-                                    })).add("Advanced object schema factory", makeAdvancedObjectSchema), "Parse advanced object", (function () {
+                                        })).add("Advanced object schema factory", makeAdvancedObjectSchema), "Parse advanced object", (function () {
+                                    var schema = makeAdvancedObjectSchema();
+                                    var data = makeTestObject();
+                                    return function () {
+                                      return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
+                                    };
+                                  })), "Assert advanced object - compile", (function () {
                                 var schema = makeAdvancedObjectSchema();
                                 var data = makeTestObject();
+                                var assertFn = S$RescriptSchema.compile(schema, "Any", "Assert", true);
                                 return function () {
-                                  return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
+                                  assertFn(data);
                                 };
                               })), "Assert advanced object", (function () {
                             var schema = makeAdvancedObjectSchema();

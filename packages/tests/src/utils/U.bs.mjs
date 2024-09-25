@@ -78,18 +78,13 @@ function unsafeAssertEqualSchemas(t, s1, s2, message) {
 function assertCompiledCode(t, schema, op, code, message) {
   var compiledCode;
   if (op === "Assert") {
-    try {
-      S$RescriptSchema.assertOrRaiseWith(undefined, schema);
-    }
-    catch (exn){
-      
-    }
-    compiledCode = (schema.assert.toString());
+    var fn = S$RescriptSchema.compile(schema, "Any", "Assert", true);
+    compiledCode = fn.toString();
   } else if (op === "SerializeJson") {
     try {
       S$RescriptSchema.serializeOrRaiseWith(undefined, schema);
     }
-    catch (exn$1){
+    catch (exn){
       
     }
     compiledCode = (schema.serializeToJsonOrThrow.toString());
@@ -97,7 +92,7 @@ function assertCompiledCode(t, schema, op, code, message) {
     try {
       S$RescriptSchema.serializeToUnknownOrRaiseWith(undefined, schema);
     }
-    catch (exn$2){
+    catch (exn$1){
       
     }
     compiledCode = (schema.serializeOrThrow.toString());
@@ -105,8 +100,8 @@ function assertCompiledCode(t, schema, op, code, message) {
     S$RescriptSchema.parseAsyncWith(undefined, schema);
     compiledCode = (schema.a.toString());
   } else {
-    S$RescriptSchema.parseAnyWith(undefined, schema);
-    compiledCode = (schema.parseOrThrow.toString());
+    var fn$1 = S$RescriptSchema.compile(schema, "Any", "Output", true);
+    compiledCode = fn$1.toString();
   }
   t.is(compiledCode, code, message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }

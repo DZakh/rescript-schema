@@ -84,16 +84,12 @@ let assertCompiledCode = (
       let _ = %raw(`undefined`)->S.parseAsyncWith(schema)
       %raw(`schema.a.toString()`)
     } else {
-      let _ = %raw(`undefined`)->S.parseAnyWith(schema)
-      %raw(`schema.parseOrThrow.toString()`)
+      let fn = schema->S.compile(~input=Any, ~output=Output, ~typeValidation=true)
+      (fn->magic)["toString"]()
     }
   | #Assert =>
-    try {
-      let _ = %raw(`undefined`)->S.assertOrRaiseWith(schema)
-    } catch {
-    | _ => ()
-    }
-    %raw(`schema.assert.toString()`)
+    let fn = schema->S.compile(~input=Any, ~output=Assert, ~typeValidation=true)
+    (fn->magic)["toString"]()
   | #Serialize => {
       try {
         let _ = %raw(`undefined`)->S.serializeToUnknownOrRaiseWith(schema)
