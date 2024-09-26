@@ -24,8 +24,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Remove ...OrThrow from js/ts api
 - Add mode/flags instead of operation
-- Simplify caching by the mode/flag
-- Add S./"~experimentalReverse"
+- Expose S.reverse
 - S.transform(s => {
   s.reverse(input => input) // Or s.asyncReverse(input => Promise.resolve(input))
   input => input
@@ -37,6 +36,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Rename S.inline to S.toRescriptCode
 - Add serializeToJsonString to js api
 - Fix reverse for object/tuple/variant/recursive
+- Rename disableNanNumberCheck
 
 ### Done
 
@@ -49,6 +49,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
   let convertWith: ('any, t<'value>) => result<'value, error>
   let convertToJsonWith: ('any, t<'value>) => result<Js.Json.t, error>
   let convertToJsonStringWith: ('any, t<'value>) => result<string, error>
+- Deprecated S.parseOrRaiseWith, S.parseAnyOrRaiseWith, S.serializeOrRaiseWith, S.serializeToUnknownOrRaiseWith, S.serializeToJsonStringOrRaiseWith
 
 ## v10
 

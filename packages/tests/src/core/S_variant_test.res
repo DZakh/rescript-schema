@@ -201,13 +201,13 @@ test("Works with variant schema used multiple times as a child schema", t => {
     "android": {"current": "1.2", "minimum": "1.0"},
   }
 
-  let value = rawAppVersions->S.parseAnyOrRaiseWith(appVersionsSchema)
+  let value = rawAppVersions->S.parseAnyWith(appVersionsSchema)->S.unwrap
   t->Assert.deepEqual(value, appVersions, ())
 
-  let data = appVersions->S.serializeOrRaiseWith(appVersionsSchema)
+  let data = appVersions->S.serializeWith(appVersionsSchema)->S.unwrap
   t->Assert.deepEqual(data, rawAppVersions->Obj.magic, ())
 
-  let data = appVersions->S.serializeOrRaiseWith(appVersionsSchema)
+  let data = appVersions->S.serializeWith(appVersionsSchema)->S.unwrap
   t->Assert.deepEqual(data, rawAppVersions->Obj.magic, ())
 })
 

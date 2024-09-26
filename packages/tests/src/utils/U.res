@@ -110,26 +110,8 @@ let assertCompiledCode = (
   t->Assert.is(compiledCode, code, ~message?, ())
 }
 
-let assertCompiledCodeIsNoop = (t, ~schema, ~op: [#Parse | #Serialize], ~message=?) => {
-  let compiledCode = switch op {
-  | #Parse =>
-    if schema->S.isAsync {
-      let _ = %raw(`undefined`)->S.parseAsyncWith(schema)
-      %raw(`schema.a.toString()`)
-    } else {
-      let _ = %raw(`undefined`)->S.parseAnyWith(schema)
-      %raw(`schema.parseOrThrow.toString()`)
-    }
-  | #Serialize => {
-      try {
-        let _ = %raw(`undefined`)->S.serializeToUnknownOrRaiseWith(schema)
-      } catch {
-      | _ => ()
-      }
-      %raw(`schema.serializeOrThrow.toString()`)
-    }
-  }
-  t->Assert.is(compiledCode, "function noopOperation(i) {\n  return i;\n}", ~message?, ())
+let assertCompiledCodeIsNoop = (t, ~schema, ~op, ~message=?) => {
+  t->assertCompiledCode(~schema, ~op, "function noopOperation(i) {\n  return i;\n}", ~message?)
 }
 
 let assertEqualSchemas: (
@@ -141,7 +123,11 @@ let assertEqualSchemas: (
 
 let assertReverseParsesBack = (t, schema: S.t<'value>, value: 'value) => {
   t->Assert.unsafeDeepEqual(
-    value->S.parseAnyOrRaiseWith(schema->S.\"~experimentalReverse")->S.parseAnyOrRaiseWith(schema),
+    value
+    ->S.parseAnyWith(schema->S.\"~experimentalReverse")
+    ->S.unwrap
+    ->S.parseAnyWith(schema)
+    ->S.unwrap,
     value,
     (),
   )

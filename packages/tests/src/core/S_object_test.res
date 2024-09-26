@@ -1191,10 +1191,10 @@ test(
       "android": {"current": "1.2", "minimum": "1.1"},
     }
 
-    let value = appVersions->S.parseAnyOrRaiseWith(appVersionsSchema)
+    let value = appVersions->S.parseAnyWith(appVersionsSchema)->S.unwrap
     t->Assert.deepEqual(value, appVersions, ())
 
-    let data = appVersions->S.serializeOrRaiseWith(appVersionsSchema)
+    let data = appVersions->S.serializeWith(appVersionsSchema)->S.unwrap
     t->Assert.deepEqual(data, appVersions->Obj.magic, ())
   },
 )

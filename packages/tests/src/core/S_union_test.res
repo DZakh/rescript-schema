@@ -653,7 +653,9 @@ test("json-rpc response", t => {
         "jsonrpc": "2.0",
         "id": 1,
         "result": ["foo", "bar"]
-      }`)->S.parseOrRaiseWith(getLogsResponseSchema),
+      }`)
+    ->S.parseWith(getLogsResponseSchema)
+    ->S.unwrap,
     Ok(["foo", "bar"]),
     (),
   )
@@ -665,7 +667,9 @@ test("json-rpc response", t => {
         "error": {
           "message": "NotFound"
         }
-      }`)->S.parseOrRaiseWith(getLogsResponseSchema),
+      }`)
+    ->S.parseWith(getLogsResponseSchema)
+    ->S.unwrap,
     Error(#LogsNotFound),
     (),
   )
@@ -678,7 +682,9 @@ test("json-rpc response", t => {
           "message": "Invalid",
           "data": "foo"
         }
-      }`)->S.parseOrRaiseWith(getLogsResponseSchema),
+      }`)
+    ->S.parseWith(getLogsResponseSchema)
+    ->S.unwrap,
     Error(#InvalidData("foo")),
     (),
   )

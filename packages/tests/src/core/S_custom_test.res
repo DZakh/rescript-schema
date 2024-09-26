@@ -7,12 +7,12 @@ let nullableSchema = innerSchema => {
       if unknown === %raw(`undefined`) || unknown === %raw(`null`) {
         None
       } else {
-        Some(unknown->S.parseAnyOrRaiseWith(innerSchema))
+        Some(unknown->S.parseAnyWith(innerSchema)->S.unwrap)
       }
     },
     serializer: value => {
       switch value {
-      | Some(innerValue) => innerValue->S.serializeToUnknownOrRaiseWith(innerSchema)
+      | Some(innerValue) => innerValue->S.serializeToUnknownWith(innerSchema)->S.unwrap
       | None => %raw(`null`)
       }
     },

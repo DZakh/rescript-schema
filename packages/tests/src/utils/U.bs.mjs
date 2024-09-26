@@ -89,27 +89,11 @@ function assertCompiledCode(t, schema, op, code, message) {
 }
 
 function assertCompiledCodeIsNoop(t, schema, op, message) {
-  var compiledCode;
-  if (op === "Serialize") {
-    try {
-      S$RescriptSchema.serializeToUnknownOrRaiseWith(undefined, schema);
-    }
-    catch (exn){
-      
-    }
-    compiledCode = (schema.serializeOrThrow.toString());
-  } else if (S$RescriptSchema.isAsync(schema)) {
-    S$RescriptSchema.parseAsyncWith(undefined, schema);
-    compiledCode = (schema.a.toString());
-  } else {
-    S$RescriptSchema.parseAnyWith(undefined, schema);
-    compiledCode = (schema.parseOrThrow.toString());
-  }
-  t.is(compiledCode, "function noopOperation(i) {\n  return i;\n}", message !== undefined ? Caml_option.valFromOption(message) : undefined);
+  assertCompiledCode(t, schema, op, "function noopOperation(i) {\n  return i;\n}", message);
 }
 
 function assertReverseParsesBack(t, schema, value) {
-  t.deepEqual(S$RescriptSchema.parseAnyOrRaiseWith(S$RescriptSchema.parseAnyOrRaiseWith(value, S$RescriptSchema.$tildeexperimentalReverse(schema)), schema), value, undefined);
+  t.deepEqual(S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith(S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith(value, S$RescriptSchema.$tildeexperimentalReverse(schema))), schema)), value, undefined);
 }
 
 var assertEqualSchemas = unsafeAssertEqualSchemas;

@@ -176,19 +176,19 @@ module CrazyUnion = {
 
   let test = () => {
     Console.time("testData1 serialize")
-    let json = S.serializeOrRaiseWith(testData1, schema)
+    let json = S.serializeWith(testData1, schema)->S.unwrap
     Console.timeEnd("testData1 serialize")
 
     Console.time("testData1 parse")
-    let _ = S.parseOrRaiseWith(json, schema)
+    let _ = S.parseWith(json, schema)->S.unwrap
     Console.timeEnd("testData1 parse")
 
     Console.time("testData2 serialize")
-    let json = S.serializeOrRaiseWith(testData2, schema)
+    let json = S.serializeWith(testData2, schema)->S.unwrap
     Console.timeEnd("testData2 serialize")
 
     Console.time("testData2 parse")
-    let _ = S.parseOrRaiseWith(json, schema)
+    let _ = S.parseWith(json, schema)->S.unwrap
     Console.timeEnd("testData2 parse")
 
     // Console.log((schema->Obj.magic)["parseOrThrow"]["toString"]())
@@ -251,14 +251,14 @@ Suite.make()
   let schema = S.string
   let data = "Hello world!"
   () => {
-    data->S.parseAnyOrRaiseWith(schema)
+    data->S.parseAnyWith(schema)->S.unwrap
   }
 })
 ->Suite.addWithPrepare("Serialize string", () => {
   let schema = S.string
   let data = "Hello world!"
   () => {
-    data->S.serializeOrRaiseWith(schema)
+    data->S.serializeWith(schema)->S.unwrap
   }
 })
 ->Suite.add("Advanced object schema factory", makeAdvancedObjectSchema)
@@ -266,7 +266,7 @@ Suite.make()
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.parseAnyOrRaiseWith(schema)
+    data->S.parseAnyWith(schema)->S.unwrap
   }
 })
 ->Suite.addWithPrepare("Assert advanced object - compile", () => {
@@ -288,14 +288,14 @@ Suite.make()
   let data = makeTestObject()
   () => {
     let schema = makeAdvancedObjectSchema()
-    data->S.parseAnyOrRaiseWith(schema)
+    data->S.parseAnyWith(schema)->S.unwrap
   }
 })
 ->Suite.addWithPrepare("Parse advanced strict object", () => {
   let schema = makeAdvancedStrictObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.parseAnyOrRaiseWith(schema)
+    data->S.parseAnyWith(schema)->S.unwrap
   }
 })
 ->Suite.addWithPrepare("Assert advanced strict object", () => {
@@ -309,7 +309,7 @@ Suite.make()
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.serializeOrRaiseWith(schema)
+    data->S.serializeWith(schema)->S.unwrap
   }
 })
 ->Suite.run
