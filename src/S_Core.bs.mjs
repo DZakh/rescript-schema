@@ -2356,6 +2356,10 @@ function reason(error, nestedLevelOpt) {
   }
 }
 
+function reason$1(error) {
+  return reason(error, undefined);
+}
+
 function message(error) {
   var match = error.operation;
   var operation;
@@ -2379,7 +2383,7 @@ function message(error) {
   }
   var nonEmptyPath = error.path;
   var pathText = nonEmptyPath === "" ? "root" : nonEmptyPath;
-  return "Failed " + operation + " at " + pathText + ". Reason: " + reason(error);
+  return "Failed " + operation + " at " + pathText + ". Reason: " + reason(error, undefined);
 }
 
 function internalInline(schema, maybeVariant, param) {
@@ -3087,7 +3091,7 @@ var $$Error$1 = {
   make: make$1,
   raise: raise$1,
   message: message,
-  reason: reason
+  reason: reason$1
 };
 
 var Literal = {

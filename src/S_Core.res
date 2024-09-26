@@ -3473,7 +3473,7 @@ module Error = {
     }
   }
 
-  let reason = reason->(Obj.magic: ((error, ~nestedLevel: int=?) => string) => error => string)
+  let reason = error => reason(error)
 
   let message = (error: error) => {
     let operation = switch error.operation {
