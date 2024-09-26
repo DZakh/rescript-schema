@@ -263,7 +263,7 @@ Suite.make()
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.assertOrRaiseWith(schema)
+    data->S.assertAnyWith(schema)
   }
 })
 ->Suite.addWithPrepare("Create and parse advanced object", () => {
@@ -284,7 +284,7 @@ Suite.make()
   let schema = makeAdvancedStrictObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.assertOrRaiseWith(schema)
+    data->S.assertAnyWith(schema)
   }
 })
 ->Suite.addWithPrepare("Serialize advanced object", () => {

@@ -94,6 +94,7 @@ S.string;
 S.number;
 S.integer; // ReScript's S.int
 S.boolean;
+S.bigint;
 
 // empty type
 S.undefined;

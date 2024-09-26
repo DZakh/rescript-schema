@@ -108,6 +108,8 @@ var serializeToJsonStringOrRaiseWith = S_Core$RescriptSchema.serializeToJsonStri
 
 var assertOrRaiseWith = S_Core$RescriptSchema.assertOrRaiseWith;
 
+var assertAnyWith = S_Core$RescriptSchema.assertAnyWith;
+
 var isAsyncParse = S_Core$RescriptSchema.isAsyncParse;
 
 var isAsync = S_Core$RescriptSchema.isAsync;
@@ -248,6 +250,7 @@ export {
   serializeToUnknownOrRaiseWith ,
   serializeToJsonStringOrRaiseWith ,
   assertOrRaiseWith ,
+  assertAnyWith ,
   isAsyncParse ,
   isAsync ,
   recursive ,

@@ -211,17 +211,11 @@ let compile: (
 ) => 'input => 'output
 
 let parseWith: (Js.Json.t, t<'value>) => result<'value, error>
-
 let parseAnyWith: ('any, t<'value>) => result<'value, error>
-
 let parseJsonStringWith: (string, t<'value>) => result<'value, error>
-
 let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value
-
 let parseAnyOrRaiseWith: ('any, t<'value>) => 'value
-
 let parseAsyncWith: (Js.Json.t, t<'value>) => promise<result<'value, error>>
-
 let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
 
 let convertAnyWith: ('any, t<'value>) => result<'value, error>
@@ -230,18 +224,14 @@ let convertAnyToJsonStringWith: ('any, t<'value>) => result<string, error>
 let convertAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
 
 let serializeWith: ('value, t<'value>) => result<Js.Json.t, error>
-
 let serializeToUnknownWith: ('value, t<'value>) => result<unknown, error>
-
 let serializeToJsonStringWith: ('value, t<'value>, ~space: int=?) => result<string, error>
-
 let serializeOrRaiseWith: ('value, t<'value>) => Js.Json.t
-
 let serializeToUnknownOrRaiseWith: ('value, t<'value>) => unknown
-
 let serializeToJsonStringOrRaiseWith: ('value, t<'value>, ~space: int=?) => string
 
 let assertOrRaiseWith: ('any, t<'value>) => unit
+let assertAnyWith: ('any, t<'value>) => unit
 
 let isAsyncParse: t<'value> => bool
 let isAsync: t<'value> => bool

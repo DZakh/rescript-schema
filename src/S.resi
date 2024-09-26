@@ -235,7 +235,9 @@ let serializeToUnknownOrRaiseWith: ('value, t<'value>) => unknown
 @deprecated("It'll be removed in v9. Use S.serializeToJsonString together with S.unwrap instead")
 let serializeToJsonStringOrRaiseWith: ('value, t<'value>, ~space: int=?) => string
 
+@deprecated("It'll be removed in v9. Use S.assertAnyWith instead")
 let assertOrRaiseWith: ('any, t<'value>) => unit
+let assertAnyWith: ('any, t<'value>) => unit
 
 @deprecated("It'll be removed in v9. Use S.isAsync instead")
 let isAsyncParse: t<'value> => bool

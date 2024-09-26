@@ -14,6 +14,7 @@
   - [`bool`](#bool)
   - [`int`](#int)
   - [`float`](#float)
+  - [`bigint`](#bigint)
   - [`option`](#option)
   - [`Option.getOr`](#optiongetor)
   - [`Option.getOrWith`](#optiongetorwith)
@@ -57,20 +58,23 @@
   - [`parseWith`](#parsewith)
   - [`parseAnyWith`](#parseanywith)
   - [`parseJsonStringWith`](#parsejsonstringwith)
-  - [`parseOrRaiseWith`](#parseorraisewith)
-  - [`parseAnyOrRaiseWith`](#parseanyorraisewith)
   - [`parseAsyncWith`](#parseasyncwith)
   - [`serializeWith`](#serializewith)
   - [`serializeToUnknownWith`](#serializetounknownwith)
   - [`serializeToJsonStringWith`](#serializetojsonstringwith)
-  - [`serializeOrRaiseWith`](#serializeorraisewith)
-  - [`serializeToUnknownOrRaiseWith`](#serializetounknownorraisewith)
-  - [`serializeToJsonStringOrRaiseWith`](#serializetojsonstringorraisewith)
-  - [`assertOrRaiseWith`](#assertorraisewith)
+  - [`convertAnyWith`](#convertanywith)
+  - [`convertAnyToJsonWith`](#convertanytojsonwith)
+  - [`convertAnyToJsonStringWith`](#convertanytojsonstringwith)
+  - [`convertAnyAsyncWith`](#convertanyasyncwith)
+  - [`assertAnyWith`](#assertanywith)
+  - [`compile`](#compile)
   - [`classify`](#classify)
+  - [`isAsync`](#isasync)
   - [`name`](#name)
   - [`setName`](#setname)
+  - [`removeTypeValidation`](#removetypevalidation)
 - [Error handling](#error-handling)
+  - [`unwrap`](#unwrap)
   - [`Error.make`](#errormake)
   - [`Error.raise`](#errorraise)
   - [`Error.message`](#errormessage)
@@ -383,6 +387,19 @@ The `float` schema represents a data that is a number.
 S.float->S.floatMax(5) // Number must be lower than or equal to 5
 S.float->S.floatMin(5) // Number must be greater than or equal to 5
 ```
+
+### **`bigint`**
+
+`S.t<bigint>`
+
+```rescript
+let schema = S.bigint
+
+%raw(`123n`)->S.parseWith(schema)
+// Ok(123n)
+```
+
+The `bigint` schema represents a data that is a BigInt.
 
 ### **`option`**
 
@@ -1101,13 +1118,13 @@ let nullableSchema = innerSchema => {
       if unknown === %raw(`undefined`) || unknown === %raw(`null`) {
         None
       } else {
-        Some(unknown->S.parseAnyOrRaiseWith(innerSchema))
+        Some(unknown->S.parseAnyWith(innerSchema)->S.unwrap)
       }
     },
     serializer: value => {
       switch value {
       | Some(innerValue) =>
-        innerValue->S.serializeToUnknownOrRaiseWith(innerSchema)
+        innerValue->S.serializeToUnknownWith(innerSchema)->S.unwrap
       | None => %raw(`null`)
       }
     },
@@ -1333,34 +1350,6 @@ json->S.parseJsonStringWith(userSchema)
 
 The same as `parseWith`, but applies `JSON.parse` before parsing.
 
-### **`parseOrRaiseWith`**
-
-`(JSON.t, S.t<'value>) => 'value`
-
-```rescript
-try {
-  data->S.parseOrRaiseWith(userSchema)
-} catch {
-| S.Raised(error) => Exn.raise(error->S.Error.message)
-}
-```
-
-The exception-based version of `parseWith`.
-
-### **`parseAnyOrRaiseWith`**
-
-`('any', S.t<'value>) => 'value`
-
-```rescript
-try {
-  data->S.parseAnyOrRaiseWith(userSchema)
-} catch {
-| S.Raised(error) => Exn.raise(error->S.Error.message)
-}
-```
-
-The exception-based version of `parseAnyWith`.
-
 ### **`parseAsyncWith`**
 
 `(JSON.t, S.t<'value>) => promise<result<'value, S.error>>`
@@ -1383,16 +1372,6 @@ Serializes value using the transformation logic that is built-in to the schema. 
 
 > 🧠 It'll fail with JSON incompatible schema. Use S.serializeToUnknownWith if you have schema which doesn't serialize to JSON.
 
-### **`serializeToUnknownWith`**
-
-`('value, S.t<'value>) => result<unknown, S.error>`
-
-```rescript
-user->S.serializeToUnknownWith(userSchema)
-```
-
-Similar to the `serializeWith` but returns `unknown` instead of `JSON.t`. Also, it doesn't check the schema on JSON compatibility.
-
 ### **`serializeToJsonStringWith`**
 
 `('value, ~space: int=?, S.t<'value>) => result<string, S.error>`
@@ -1403,64 +1382,114 @@ user->S.serializeToJsonStringWith(userSchema)
 
 The same as `serializeToUnknownWith`, but applies `JSON.serialize` at the end.
 
-### **`serializeOrRaiseWith`**
+### **`convertAnyWith`**
 
-`('value, S.t<'value>) => JSON.t`
-
-```rescript
-try {
-  user->S.serializeOrRaiseWith(userSchema)
-} catch {
-| S.Raised(error) => Exn.raise(error->S.Error.message)
-}
-```
-
-The exception-based version of `serializeWith`.
-
-### **`serializeToUnknownOrRaiseWith`**
-
-`('value, S.t<'value>) => JSON.t`
+`('any, S.t<'value>) => result<'value, S.error>`
 
 ```rescript
-try {
-  user->S.serializeToUnknownOrRaiseWith(userSchema)
-} catch {
-| S.Raised(error) => Exn.raise(error->S.Error.message)
-}
+rawUser->S.convertAnyWith(userSchema)
 ```
 
-The exception-based version of `serializeToUnknownWith`.
+The same as `parseAnyWith`, but it doesn't contain any type validations. It's useful for transforming valid data to the value format.
 
-### **`serializeToJsonStringOrRaiseWith`**
+### **`convertAnyToJsonWith`**
 
-`('value, ~space: int=?, S.t<'value>) => string`
+`('any, S.t<'value>) => result<Js.Json.t, S.error>`
 
 ```rescript
-user->S.serializeToJsonStringOrRaiseWith(userSchema)
+rawUser->S.convertAnyToJsonWith(userSchema)
 ```
 
-The exception-based version of `serializeToJsonStringWith`.
+The same as `convertAnyWith`, but the output type is `Js.Json.t`. Also, it validates that the schema is JSON compatible, otherwise it returns an error.
 
-### **`assertOrRaiseWith`**
+### **`convertAnyToJsonStringWith`**
 
-`('any, S.t<'value>) => unit`
+`('any, S.t<'value>) => result<string, S.error>`
 
 ```rescript
-data->S.assertOrRaiseWith(userSchema)
+rawUser->S.convertAnyToJsonStringWith(userSchema)
 ```
 
-Given any schema, you can call `assertOrRaiseWith` to check `data` is valid. It returns `unit` and throws an exception if the data is invalid. Since the operation doesn't return a value, it's 2-3 times faster than `parseOrRaiseWith` depending on the schema.
+Validates that the schema is JSON compatible, converts valid data to the value format and serializes it to JSON string.
+
+### **`convertAnyAsyncWith`**
+
+`('any, S.t<'value>) => promise<result<'value, S.error>>`
+
+```rescript
+rawUser->S.convertAnyAsyncWith(userSchema)
+```
+
+Async version for the `convertAnyWith` operation.
+
+### **`compile`**
+
+`(S.t<'schemaOutput>, ~input: input<unknown, 'input>, ~output: output<'schemaOutput, 'transformedOutput>, ~mode: mode<'transformedOutput, 'output>, ~typeValidation: bool) => 'input => 'output`
+
+If you want to have the most possible performance, or the built-in operations doesn't cover your specific use case, you can use `compile` to create fine-tuned operation functions.
+
+```rescript
+let fn = S.compile(
+  S.int,
+  ~input=Any,
+  ~output=Assert,
+  ~mode=Async,
+  ~typeValidation=true,
+)
+await fn("Hello world!")
+// Ok("Hello world!")
+```
+
+For example, in the example above we've created an async assert operation, which is not available by default.
+
+You can configure compiled function `input` with the following options:
+
+- `Any` - accepts `'any`
+- `Input` | `Unknown` - accepts `unknown`
+- `Json` - accepts `Js.Json.t`
+- `JsonString` - accepts `string` and applies `JSON.parse` before parsing
+
+You can configure compiled function `output` with the following options:
+
+- `Output` - returns `'value` type from `S.t<'value>`
+- `Unknown` - returns `unknown`
+- `Assert` - returns `unit`
+- `Json` - validates that the schema is JSON compatible and returns `Js.Json.t`
+- `JsonString` - validates that the schema is JSON compatible and transforms output to JSON string
+
+You can configure compiled function `mode` with the following options:
+
+- `Sync` - for sync operations
+- `Async` - for async operations - will wrap result in a promise
+
+And you can configure compiled function `typeValidation` with the following options:
+
+- `true` - performs type validation
+- `false` - doesn't perform type validation and only converts data to the output format. Note that refines are still applied.
 
 ### **`classify`**
 
 `(S.t<'value>) => S.tagged`
 
 ```rescript
-S.string->S.tagged
+S.string->S.classify
 // String
 ```
 
 This can be useful for building other tools like [`rescript-json-schema`](https://github.com/DZakh/rescript-json-schema).
+
+### **`isAsync`**
+
+`(S.t<'value>) => bool`
+
+```rescript
+S.string->S.isAsync
+// false
+S.string->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)})->S.isAsync
+// true
+```
+
+Determines if the schema is async. It can be useful to decide whether you should use async operation.
 
 ### **`name`**
 
@@ -1473,7 +1502,7 @@ S.literal({"abc": 123})->S.name
 
 Used internally for readable error messages.
 
-> 🧠 Subject to change
+> 🧠 Names are subject to change in the future versions
 
 ### **`setName`**
 
@@ -1487,6 +1516,23 @@ schema->S.name
 ```
 
 You can customise a schema name using `S.setName`.
+
+### **`removeTypeValidation`**
+
+`S.t<'value> => S.t<'value>`
+
+```rescript
+let schema = S.object(s => s.field("abc", S.int))->S.removeTypeValidation
+
+{
+  "abc": 123,
+}->S.parseWith(schema) // This doesn't have `if (!i || i.constructor !== Object) {` check. But field types are still validated.
+// Ok(123)
+```
+
+Removes type validation for provided schema. Nested schemas are not affected.
+
+This can be useful to optimise `S.object` parsing when you construct the input data yourself.
 
 ## Error handling
 
@@ -1503,7 +1549,23 @@ let schema = S.literal(false)
 // })
 ```
 
-Also you can use the exception-based operations like `parseOrRaiseWith`. In this case the instance of `RescriptSchemaError` will be thrown with a nice error message. Also, you can use the `S.Raised` exception to catch it in ReScript code.
+👇 Also you can use `S.unwrap` to get the value from the result.
+
+### **`unwrap`**
+
+`result<'value, S.error> => 'value`
+
+```rescript
+123->S.parseWith(S.int)->S.unwrap
+// 123
+
+"foo"->S.parseWith(S.int)->S.unwrap
+// throws S.Error
+```
+
+A helper function to unwrap value from the result.
+
+if the result is an error, the instance of `RescriptSchemaError` will be thrown with a nice error message. Also, you can use the `S.Raised` exception to catch it in ReScript code.
 
 ### **`Error.make`**
 

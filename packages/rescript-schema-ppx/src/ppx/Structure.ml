@@ -11,6 +11,7 @@ let rec generateConstrSchemaExpression {Location.txt = identifier; loc}
   | Lident "int", _ -> [%expr S.int]
   | Lident "int64", _ -> fail loc "Can't generate schema for `int64` type"
   | Lident "float", _ -> [%expr S.float]
+  | Lident "bigint", _ -> [%expr S.bigint]
   | Lident "bool", _ -> [%expr S.bool]
   | Lident "unit", _ -> [%expr S.unit]
   | Lident "unknown", _ -> [%expr S.unknown]

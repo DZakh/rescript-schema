@@ -40,7 +40,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Rename disableNanNumberCheck
 - Add tag for BigInt
 
-### Done
+### Done in v8.3.0
 
 - Add S.compile
 - Add S.bigint

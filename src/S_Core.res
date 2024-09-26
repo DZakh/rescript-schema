@@ -1339,9 +1339,11 @@ let parseAnyOrRaiseWith = (any, schema) => {
   schema.parseOrRaise(any->castAnyToUnknown)->castUnknownToAny
 }
 
-let assertOrRaiseWith = (any, schema) => {
+let assertAnyWith = (any, schema) => {
   schema.assertOrRaise(any->castAnyToUnknown)
 }
+
+let assertOrRaiseWith = assertAnyWith
 
 let parseAnyWith = (any, schema) => {
   try {

@@ -798,7 +798,7 @@ function parseAnyOrRaiseWith(any, schema) {
   return schema.parseOrThrow(any);
 }
 
-function assertOrRaiseWith(any, schema) {
+function assertAnyWith(any, schema) {
   schema.assert(any);
 }
 
@@ -3176,6 +3176,8 @@ var parseOrRaiseWith = parseAnyOrRaiseWith;
 
 var parseAsyncWith = parseAnyAsyncWith;
 
+var assertOrRaiseWith = assertAnyWith;
+
 var isAsyncParse = isAsync;
 
 var Schema = {};
@@ -3284,6 +3286,7 @@ export {
   serializeToUnknownOrRaiseWith ,
   serializeToJsonStringOrRaiseWith ,
   assertOrRaiseWith ,
+  assertAnyWith ,
   isAsyncParse ,
   isAsync ,
   recursive ,

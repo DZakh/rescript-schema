@@ -8,7 +8,7 @@ asyncTest("Resets S.float cache after disableNanNumberCheck=true removed", async
   })
   t->Assert.deepEqual(nan->S.parseAnyWith(S.float), Ok(nan), ())
   t->Assert.deepEqual(await nan->S.parseAnyAsyncWith(S.float), Ok(nan), ())
-  t->Assert.deepEqual(nan->S.assertOrRaiseWith(S.float), (), ())
+  t->Assert.deepEqual(nan->S.assertAnyWith(S.float), (), ())
 
   S.setGlobalConfig({})
   t->Assert.deepEqual(
@@ -41,7 +41,7 @@ asyncTest("Resets S.float cache after disableNanNumberCheck=true removed", async
   )
   t->Assert.throws(
     () => {
-      nan->S.assertOrRaiseWith(S.float)
+      nan->S.assertAnyWith(S.float)
     },
     ~expectations={
       message: "Failed asserting at root. Reason: Expected Float, received NaN",
