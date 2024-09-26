@@ -3106,6 +3106,14 @@ function js_name(prim) {
   return prim.n();
 }
 
+var resetOperationsCache = ((schema) => {
+  for (let key in schema) {
+    if (+key) {
+      delete schema[key];
+    }
+  }
+});
+
 function setGlobalConfig(override) {
   globalConfig.r = 0;
   var unknownKeys = override.defaultUnknownKeys;
@@ -3116,7 +3124,7 @@ function setGlobalConfig(override) {
   if (prevDisableNanNumberCheck !== globalConfig.n) {
     schema$5.assert = initialAssertOrRaise;
     schema$5.parseOrThrow = initialParseOrRaise;
-    return ;
+    return resetOperationsCache(schema$5);
   }
   
 }

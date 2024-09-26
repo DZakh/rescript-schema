@@ -4229,6 +4229,14 @@ let js_merge = (s1, s2) => {
 
 let js_name = name
 
+let resetOperationsCache: schema<'value> => unit = %raw(`(schema) => {
+  for (let key in schema) {
+    if (+key) {
+      delete schema[key];
+    }
+  }
+}`)
+
 let setGlobalConfig = override => {
   globalConfig.recCounter = 0
   globalConfig.defaultUnknownKeys = switch override.defaultUnknownKeys {
@@ -4242,7 +4250,8 @@ let setGlobalConfig = override => {
   }
   if prevDisableNanNumberCheck != globalConfig.disableNanNumberCheck {
     float.assertOrRaise = initialAssertOrRaise
-    float.parseOrRaise = initialParseOrRaise // FIXME: Reset all memoid operations by flag
+    float.parseOrRaise = initialParseOrRaise
+    resetOperationsCache(float)
   }
 }
 
