@@ -81,14 +81,14 @@ let assertCompiledCode = (
   let compiledCode = switch op {
   | #Parse =>
     if schema->S.isAsync {
-      let _ = %raw(`undefined`)->S.parseAsyncWith(schema)
-      %raw(`schema.a.toString()`)
+      let fn = schema->S.compile(~input=Any, ~output=Output, ~mode=Async, ~typeValidation=true)
+      (fn->magic)["toString"]()
     } else {
-      let fn = schema->S.compile(~input=Any, ~output=Output, ~typeValidation=true)
+      let fn = schema->S.compile(~input=Any, ~output=Output, ~mode=Sync, ~typeValidation=true)
       (fn->magic)["toString"]()
     }
   | #Assert =>
-    let fn = schema->S.compile(~input=Any, ~output=Assert, ~typeValidation=true)
+    let fn = schema->S.compile(~input=Any, ~output=Assert, ~mode=Sync, ~typeValidation=true)
     (fn->magic)["toString"]()
   | #Serialize => {
       try {

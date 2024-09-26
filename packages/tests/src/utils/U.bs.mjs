@@ -78,7 +78,7 @@ function unsafeAssertEqualSchemas(t, s1, s2, message) {
 function assertCompiledCode(t, schema, op, code, message) {
   var compiledCode;
   if (op === "Assert") {
-    var fn = S$RescriptSchema.compile(schema, "Any", "Assert", true);
+    var fn = S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true);
     compiledCode = fn.toString();
   } else if (op === "SerializeJson") {
     try {
@@ -97,11 +97,11 @@ function assertCompiledCode(t, schema, op, code, message) {
     }
     compiledCode = (schema.serializeOrThrow.toString());
   } else if (S$RescriptSchema.isAsync(schema)) {
-    S$RescriptSchema.parseAsyncWith(undefined, schema);
-    compiledCode = (schema.a.toString());
-  } else {
-    var fn$1 = S$RescriptSchema.compile(schema, "Any", "Output", true);
+    var fn$1 = S$RescriptSchema.compile(schema, "Any", "Output", "Async", true);
     compiledCode = fn$1.toString();
+  } else {
+    var fn$2 = S$RescriptSchema.compile(schema, "Any", "Output", "Sync", true);
+    compiledCode = fn$2.toString();
   }
   t.is(compiledCode, code, message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }

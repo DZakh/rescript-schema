@@ -426,7 +426,7 @@ function compile(builder, schema, operation) {
   return new Function("e", "s", "return " + inlinedFunction)(b.g.e, symbol);
 }
 
-function compile$1(schema, input, output, typeValidation) {
+function compile$1(schema, input, output, mode, typeValidation) {
   var operation = 0;
   switch (output) {
     case "Output" :
@@ -440,6 +440,9 @@ function compile$1(schema, input, output, typeValidation) {
         operation = operation | 4;
         break;
     
+  }
+  if (mode !== "Sync") {
+    operation = operation | 2;
   }
   if (typeValidation) {
     operation = operation | 1;

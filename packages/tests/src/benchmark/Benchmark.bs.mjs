@@ -227,7 +227,7 @@ run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(a
                                   })), "Assert advanced object - compile", (function () {
                                 var schema = makeAdvancedObjectSchema();
                                 var data = makeTestObject();
-                                var assertFn = S$RescriptSchema.compile(schema, "Any", "Assert", true);
+                                var assertFn = S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true);
                                 return function () {
                                   assertFn(data);
                                 };

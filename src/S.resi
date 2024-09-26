@@ -198,11 +198,15 @@ type rec output<'output, 'computed> =
   | Assert: output<'output, unit>
   | Json: output<'output, Js.Json.t>
   | JsonString: output<'output, string>
+type rec mode<'output, 'computed> =
+  | Sync: mode<'output, 'output>
+  | Async: mode<'output, promise<'output>>
 
 let compile: (
   t<'schemaOutput>,
   ~input: input<unknown, 'input>,
-  ~output: output<'schemaOutput, 'output>,
+  ~output: output<'schemaOutput, 'transformedOutput>,
+  ~mode: mode<'transformedOutput, 'output>,
   ~typeValidation: bool,
 ) => 'input => 'output
 

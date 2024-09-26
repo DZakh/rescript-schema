@@ -272,7 +272,7 @@ Suite.make()
 ->Suite.addWithPrepare("Assert advanced object - compile", () => {
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
-  let assertFn = schema->S.compile(~input=Any, ~output=Assert, ~typeValidation=true)
+  let assertFn = schema->S.compile(~input=Any, ~output=Assert, ~mode=Sync, ~typeValidation=true)
   () => {
     assertFn(data)
   }

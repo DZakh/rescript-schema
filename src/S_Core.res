@@ -850,6 +850,9 @@ type rec output<'output, 'computed> =
   | Assert: output<'output, unit>
   | Json: output<'output, Js.Json.t>
   | JsonString: output<'output, string>
+type rec mode<'output, 'computed> =
+  | Sync: mode<'output, 'output>
+  | Async: mode<'output, promise<'output>>
 
 @@warning("-37")
 type internalInput =
@@ -864,17 +867,22 @@ type internalOutput =
   | Assert
   | Json
   | JsonString
+type internalMode =
+  | Sync
+  | Async
 @@warning("+37")
 
 let compile = (
   schema: t<'schemaOutput>,
   ~input: input<unknown, 'input>,
-  ~output: output<'schemaOutput, 'output>,
+  ~output: output<'schemaOutput, 'transformedOutput>,
+  ~mode: mode<'transformedOutput, 'output>,
   ~typeValidation,
 ): ('input => 'output) => {
   let schema = schema->toUnknown
-  let output = output->(Obj.magic: output<'schemaOutput, 'output> => internalOutput)
+  let output = output->(Obj.magic: output<'schemaOutput, 'transformedOutput> => internalOutput)
   let input = input->(Obj.magic: input<'schemaInput, 'input> => internalInput)
+  let mode = mode->(Obj.magic: mode<'transformedOutput, 'output> => internalMode)
 
   let operation = ref(Operation.make())
   switch output {
@@ -883,6 +891,10 @@ let compile = (
   | Assert => operation := operation.contents->Operation.addFlag(Operation.Flag.assertOutput)
   | Json => operation := operation.contents->Operation.addFlag(Operation.Flag.jsonableOutput)
   | JsonString => operation := operation.contents->Operation.addFlag(Operation.Flag.jsonableOutput) // FIXME:
+  }
+  switch mode {
+  | Sync => ()
+  | Async => operation := operation.contents->Operation.addFlag(Operation.Flag.async)
   }
   if typeValidation {
     operation := operation.contents->Operation.addFlag(Operation.Flag.typeValidation)
