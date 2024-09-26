@@ -25,3 +25,11 @@ test("Fails to parse", t => {
     },
   )
 })
+
+test("Fails to parse with unwraped result", t => {
+  let schema = S.bool
+
+  t->Assert.throws(() => {
+    %raw("123")->S.parseWith(schema)->S.unwrap
+  }, ~expectations={message: "Failed parsing at root. Reason: Expected Bool, received 123"}, ())
+})

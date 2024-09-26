@@ -4006,6 +4006,13 @@ let trim = schema => {
   schema->transform(_ => {parser: transformer, serializer: transformer})
 }
 
+let unwrap = result => {
+  switch result {
+  | Ok(v) => v
+  | Error(error) => Stdlib.Exn.raiseAny(error)
+  }
+}
+
 // =============
 // JS/TS API
 // =============
@@ -4174,5 +4181,12 @@ let setGlobalConfig = override => {
     float.assertOrRaise = initialAssertOrRaise
     float.parseOrRaise = initialParseOrRaise
     float.parseAsyncOrRaise = initialParseAsyncOrRaise
+  }
+}
+
+let js_unwrap = (result: jsResult<'value>): 'value => {
+  switch result {
+  | Success({value}) => value
+  | Failure({error}) => Stdlib.Exn.raiseAny(error)
   }
 }

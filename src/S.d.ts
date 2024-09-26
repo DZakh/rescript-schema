@@ -1,4 +1,4 @@
-import { Json, S_t } from "../RescriptSchema.gen";
+import { Json, Result, S_t } from "../RescriptSchema.gen";
 export { Json, Result, S_error as Error } from "../RescriptSchema.gen";
 
 export type EffectCtx<Output, Input> = {
@@ -329,6 +329,8 @@ export const trim: <Input>(
 ) => Schema<string, Input>;
 
 export type UnknownKeys = "Strip" | "Strict";
+
+export function unwrap<Value>(result: Result<Value>): Value;
 
 export type GlobalConfigOverride = {
   defaultUnknownKeys?: UnknownKeys;

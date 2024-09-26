@@ -247,6 +247,8 @@ let setName: (t<'value>, string) => t<'value>
 
 let removeTypeValidation: t<'value> => t<'value>
 
+let unwrap: result<'value, error> => 'value
+
 external toUnknown: t<'any> => t<unknown> = "%identity"
 
 module Schema: {

@@ -33,6 +33,7 @@ export const describe = S.describe;
 export const name = S.js_name;
 export const setName = S.setName;
 export const removeTypeValidation = S.removeTypeValidation;
+export const unwrap = S.js_unwrap;
 
 export const integerMin = S.intMin;
 export const integerMax = S.intMax;

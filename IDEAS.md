@@ -31,7 +31,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
   input => input
   }) // or asyncTransform // Maybe format ?
 - async serializing support
-- Add S.unwrap
 - Rename S.variant to something
 - Rename serialize to convertReverse
 - S.create / S.validate
@@ -44,6 +43,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add S.compile
 - Add S.bigint
 - Add S.removeTypeValidation
+- Add S.unwrap
 
 ## v10
 

@@ -208,6 +208,23 @@ test("Fails to parse never", (t) => {
   );
 });
 
+test("Throws with S.unwrap for a never schema result", (t) => {
+  const schema = S.never;
+
+  t.throws(
+    () => {
+      const value = S.unwrap(schema.parse(true));
+
+      expectType<TypeEqual<typeof schema, S.Schema<never, never>>>(true);
+      expectType<TypeEqual<typeof value, never>>(true);
+    },
+    {
+      name: "RescriptSchemaError",
+      message: "Failed parsing at root. Reason: Expected Never, received true",
+    }
+  );
+});
+
 test("Can get a reason from an error", (t) => {
   const schema = S.never;
 

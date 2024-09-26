@@ -2895,6 +2895,13 @@ function trim(schema) {
               }));
 }
 
+function unwrap(result) {
+  if (result.TAG === "Ok") {
+    return result._0;
+  }
+  throw result._0;
+}
+
 function js_transform(schema, maybeParser, maybeSerializer) {
   return transform$1(schema, (function (s) {
                 return {
@@ -3054,6 +3061,13 @@ function setGlobalConfig(override) {
     return ;
   }
   
+}
+
+function js_unwrap(result) {
+  if (result.success === true) {
+    return result.value;
+  }
+  throw result.error;
 }
 
 var Path = {
@@ -3219,6 +3233,7 @@ export {
   classify ,
   setName ,
   removeTypeValidation ,
+  unwrap ,
   Schema ,
   schema$7 as schema,
   $$Object ,
@@ -3256,6 +3271,7 @@ export {
   trim ,
   js_optional ,
   js_tuple ,
+  js_unwrap ,
   js_custom ,
   js_asyncParserRefine ,
   js_refine ,

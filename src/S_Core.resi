@@ -247,6 +247,8 @@ let setName: (t<'value>, string) => t<'value>
 
 let removeTypeValidation: t<'value> => t<'value>
 
+let unwrap: result<'value, error> => 'value
+
 external toUnknown: t<'any> => t<unknown> = "%identity"
 
 module Schema: {
@@ -411,6 +413,8 @@ type jsResult<'value>
 let js_optional: (t<'v>, option<unknown>) => t<option<'v>>
 
 let js_tuple: unknown => t<array<unknown>>
+
+let js_unwrap: jsResult<'value> => 'value
 
 let js_custom: (
   ~name: string,
