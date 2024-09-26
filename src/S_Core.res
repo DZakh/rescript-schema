@@ -250,7 +250,8 @@ type rec t<'value> = {
   @as("m")
   metadataMap: dict<unknown>,
   @as("a")
-  mutable parseAsyncOrRaise: unknown => promise<unknown>,
+  mutable // FIXME: Remove
+  parseAsyncOrRaise: unknown => promise<unknown>,
   @as("parseOrThrow")
   mutable parseOrRaise: unknown => unknown,
   @as("parse")
@@ -439,8 +440,9 @@ module Operation = {
   module Flag = {
     @inline let typeValidation = 1
     @inline let async = 2
-    @inline let jsonableOutput = 4
-    @inline let assertOutput = 8
+    @inline let assertOutput = 4
+    @inline let jsonableOutput = 8
+    @inline let jsonStringOutput = 16
   }
 
   type t = int
@@ -809,19 +811,32 @@ module Builder = {
     if (
       b.code === "" &&
       output === input &&
-      !(operation->Operation.unsafeHasFlag(Operation.Flag.assertOutput))
+      !(
+        operation->Operation.unsafeHasFlag(
+          Operation.make()
+          ->Operation.addFlag(Operation.Flag.assertOutput)
+          ->Operation.addFlag(Operation.Flag.async)
+          ->Operation.addFlag(Operation.Flag.jsonStringOutput),
+        )
+      )
     ) {
       noopOperation
     } else {
-      let inlinedOutput = if operation->Operation.unsafeHasFlag(Operation.Flag.assertOutput) {
-        `void 0`
-      } else if operation->Operation.unsafeHasFlag(Operation.Flag.async) && !output.isAsync {
-        `Promise.resolve(${b->B.Val.inline(output)})`
-      } else {
-        b->B.Val.inline(output)
+      let inlinedOutput = ref(
+        if operation->Operation.unsafeHasFlag(Operation.Flag.assertOutput) {
+          `void 0`
+        } else {
+          b->B.Val.inline(output)
+        },
+      )
+      if operation->Operation.unsafeHasFlag(Operation.Flag.jsonStringOutput) {
+        inlinedOutput := `JSON.stringify(${inlinedOutput.contents})`
+      }
+      if operation->Operation.unsafeHasFlag(Operation.Flag.async) && !output.isAsync {
+        inlinedOutput := `Promise.resolve(${inlinedOutput.contents})`
       }
 
-      let inlinedFunction = `${intitialInputVar}=>{${b.code}return ${inlinedOutput}}`
+      let inlinedFunction = `${intitialInputVar}=>{${b.code}return ${inlinedOutput.contents}}`
 
       // Js.log(inlinedFunction)
 
@@ -890,7 +905,13 @@ let compile = (
   | Unknown => ()
   | Assert => operation := operation.contents->Operation.addFlag(Operation.Flag.assertOutput)
   | Json => operation := operation.contents->Operation.addFlag(Operation.Flag.jsonableOutput)
-  | JsonString => operation := operation.contents->Operation.addFlag(Operation.Flag.jsonableOutput) // FIXME:
+  | JsonString =>
+    operation :=
+      operation.contents->Operation.addFlag(
+        Operation.make()
+        ->Operation.addFlag(Operation.Flag.jsonableOutput)
+        ->Operation.addFlag(Operation.Flag.jsonStringOutput),
+      )
   }
   switch mode {
   | Sync => ()
@@ -916,11 +937,6 @@ let compile = (
       }
   | _ => fn
   }
-  let fn = switch output {
-  | JsonString => value => value->fn->Js.Json.stringifyAny->(Obj.magic: option<string> => 'output)
-  | _ => fn
-  }
-
   fn
 }
 
@@ -1241,8 +1257,39 @@ let isAsync = schema => {
 }
 let isAsyncParse = isAsync
 
-let \"~experimantalReverse" = schema => {
+let \"~experimentalReverse" = schema => {
   schema.reverse()
+}
+
+// =============
+// Operations
+// =============
+
+@inline
+let callMemoizedOperation = (schema, operation, input) => {
+  let schema = schema->toUnknown
+  if (schema->Obj.magic->Js.Dict.unsafeGet(operation->Stdlib.Int.unsafeToString): bool) {
+    ()
+  } else {
+    schema
+    ->Obj.magic
+    ->Js.Dict.set(
+      operation->Stdlib.Int.unsafeToString,
+      schema.builder->Builder.compile(~schema, ~operation),
+    )
+  }
+  (schema->Obj.magic->Js.Dict.unsafeGet(operation->Stdlib.Int.unsafeToString))(input)
+}
+
+@inline
+let useSyncOperation = (schema, operation, input) => {
+  try {
+    schema
+    ->callMemoizedOperation(operation, input)
+    ->Ok
+  } catch {
+  | exn => exn->InternalError.getOrRethrow->Error
+  }
 }
 
 @inline
@@ -1265,6 +1312,21 @@ let parseAnyWith = (any, schema) => {
 let parseWith: (Js.Json.t, t<'value>) => result<'value, error> = parseAnyWith
 
 let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value = parseAnyOrRaiseWith
+
+let convertWith = (any, schema) => {
+  schema->useSyncOperation(Operation.make(), any)
+}
+
+let convertToJsonWith = (any, schema) => {
+  schema->useSyncOperation(Operation.make()->Operation.addFlag(Operation.Flag.jsonableOutput), any)
+}
+
+let convertToJsonStringWith = (any, schema) => {
+  schema->useSyncOperation(
+    Operation.make()->Operation.addFlag(Operation.Flag.jsonStringOutput),
+    any,
+  )
+}
 
 let asyncPrepareOk = value => Ok(value->castUnknownToAny)
 

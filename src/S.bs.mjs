@@ -86,6 +86,12 @@ var parseAsyncWith = S_Core$RescriptSchema.parseAsyncWith;
 
 var parseAnyAsyncWith = S_Core$RescriptSchema.parseAnyAsyncWith;
 
+var convertWith = S_Core$RescriptSchema.convertWith;
+
+var convertToJsonWith = S_Core$RescriptSchema.convertToJsonWith;
+
+var convertToJsonStringWith = S_Core$RescriptSchema.convertToJsonStringWith;
+
 var serializeWith = S_Core$RescriptSchema.serializeWith;
 
 var serializeToUnknownWith = S_Core$RescriptSchema.serializeToUnknownWith;
@@ -146,7 +152,7 @@ var Metadata = S_Core$RescriptSchema.Metadata;
 
 var inline = S_Core$RescriptSchema.inline;
 
-var $tildeexperimantalReverse = S_Core$RescriptSchema.$tildeexperimantalReverse;
+var $tildeexperimentalReverse = S_Core$RescriptSchema.$tildeexperimentalReverse;
 
 var intMin = S_Core$RescriptSchema.intMin;
 
@@ -229,6 +235,9 @@ export {
   parseAnyOrRaiseWith ,
   parseAsyncWith ,
   parseAnyAsyncWith ,
+  convertWith ,
+  convertToJsonWith ,
+  convertToJsonStringWith ,
   serializeWith ,
   serializeToUnknownWith ,
   serializeToJsonStringWith ,
@@ -259,7 +268,7 @@ export {
   $$Array ,
   Metadata ,
   inline ,
-  $tildeexperimantalReverse ,
+  $tildeexperimentalReverse ,
   intMin ,
   intMax ,
   port ,

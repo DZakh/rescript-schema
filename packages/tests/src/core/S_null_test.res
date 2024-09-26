@@ -54,13 +54,13 @@ module Common = {
 
   test("Reverse schema to option", t => {
     let schema = factory()
-    t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.option(S.string)->S.toUnknown)
+    t->U.assertEqualSchemas(schema->S.\"~experimentalReverse", S.option(S.string)->S.toUnknown)
   })
 
   test("Reverse of reverse returns the original schema", t => {
     let schema = factory()
     t->Assert.is(
-      schema->S.\"~experimantalReverse"->S.\"~experimantalReverse",
+      schema->S.\"~experimentalReverse"->S.\"~experimentalReverse",
       schema->S.toUnknown,
       (),
     )

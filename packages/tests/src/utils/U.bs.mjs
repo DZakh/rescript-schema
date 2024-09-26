@@ -76,33 +76,15 @@ function unsafeAssertEqualSchemas(t, s1, s2, message) {
 }
 
 function assertCompiledCode(t, schema, op, code, message) {
-  var compiledCode;
-  if (op === "Assert") {
-    var fn = S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true);
-    compiledCode = fn.toString();
-  } else if (op === "SerializeJson") {
-    try {
-      S$RescriptSchema.serializeOrRaiseWith(undefined, schema);
-    }
-    catch (exn){
-      
-    }
-    compiledCode = (schema.serializeToJsonOrThrow.toString());
-  } else if (op === "Serialize") {
-    try {
-      S$RescriptSchema.serializeToUnknownOrRaiseWith(undefined, schema);
-    }
-    catch (exn$1){
-      
-    }
-    compiledCode = (schema.serializeOrThrow.toString());
-  } else if (S$RescriptSchema.isAsync(schema)) {
-    var fn$1 = S$RescriptSchema.compile(schema, "Any", "Output", "Async", true);
-    compiledCode = fn$1.toString();
-  } else {
-    var fn$2 = S$RescriptSchema.compile(schema, "Any", "Output", "Sync", true);
-    compiledCode = fn$2.toString();
-  }
+  var compiledCode = (
+      op === "Assert" ? S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true) : (
+          op === "SerializeJson" ? S$RescriptSchema.compile(S$RescriptSchema.$tildeexperimentalReverse(schema), "Any", "Json", "Sync", false) : (
+              op === "Serialize" ? S$RescriptSchema.compile(S$RescriptSchema.$tildeexperimentalReverse(schema), "Any", "Output", "Sync", false) : (
+                  S$RescriptSchema.isAsync(schema) ? S$RescriptSchema.compile(schema, "Any", "Output", "Async", true) : S$RescriptSchema.compile(schema, "Any", "Output", "Sync", true)
+                )
+            )
+        )
+    ).toString();
   t.is(compiledCode, code, message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }
 
@@ -127,7 +109,7 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
 }
 
 function assertReverseParsesBack(t, schema, value) {
-  t.deepEqual(S$RescriptSchema.parseAnyOrRaiseWith(S$RescriptSchema.parseAnyOrRaiseWith(value, S$RescriptSchema.$tildeexperimantalReverse(schema)), schema), value, undefined);
+  t.deepEqual(S$RescriptSchema.parseAnyOrRaiseWith(S$RescriptSchema.parseAnyOrRaiseWith(value, S$RescriptSchema.$tildeexperimentalReverse(schema)), schema), value, undefined);
 }
 
 var assertEqualSchemas = unsafeAssertEqualSchemas;

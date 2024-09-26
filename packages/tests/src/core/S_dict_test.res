@@ -86,7 +86,7 @@ module CommonWithNested = {
 
   test("Reverse to self", t => {
     let schema = factory()
-    t->Assert.is(schema->S.\"~experimantalReverse", schema->S.toUnknown, ())
+    t->Assert.is(schema->S.\"~experimentalReverse", schema->S.toUnknown, ())
   })
 
   test("Succesfully uses reversed schema for parsing back to initial value", t => {
@@ -98,7 +98,7 @@ module CommonWithNested = {
 test("Reverse child schema", t => {
   let schema = S.dict(S.null(S.string))
   t->U.assertEqualSchemas(
-    schema->S.\"~experimantalReverse",
+    schema->S.\"~experimentalReverse",
     S.dict(S.option(S.string))->S.toUnknown,
   )
 })

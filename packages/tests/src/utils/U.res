@@ -78,35 +78,35 @@ let assertCompiledCode = (
   code,
   ~message=?,
 ) => {
-  let compiledCode = switch op {
-  | #Parse =>
-    if schema->S.isAsync {
-      let fn = schema->S.compile(~input=Any, ~output=Output, ~mode=Async, ~typeValidation=true)
-      (fn->magic)["toString"]()
-    } else {
-      let fn = schema->S.compile(~input=Any, ~output=Output, ~mode=Sync, ~typeValidation=true)
-      (fn->magic)["toString"]()
-    }
-  | #Assert =>
-    let fn = schema->S.compile(~input=Any, ~output=Assert, ~mode=Sync, ~typeValidation=true)
-    (fn->magic)["toString"]()
-  | #Serialize => {
-      try {
-        let _ = %raw(`undefined`)->S.serializeToUnknownOrRaiseWith(schema)
-      } catch {
-      | _ => ()
+  let compiledCode = (
+    switch op {
+    | #Parse =>
+      if schema->S.isAsync {
+        let fn = schema->S.compile(~input=Any, ~output=Output, ~mode=Async, ~typeValidation=true)
+        fn->magic
+      } else {
+        let fn = schema->S.compile(~input=Any, ~output=Output, ~mode=Sync, ~typeValidation=true)
+        fn->magic
       }
-      %raw(`schema.serializeOrThrow.toString()`)
-    }
-  | #SerializeJson => {
-      try {
-        let _ = %raw(`undefined`)->S.serializeOrRaiseWith(schema)
-      } catch {
-      | _ => ()
+    | #Assert =>
+      let fn = schema->S.compile(~input=Any, ~output=Assert, ~mode=Sync, ~typeValidation=true)
+      fn->magic
+    | #Serialize => {
+        let fn =
+          schema
+          ->S.\"~experimentalReverse"
+          ->S.compile(~input=Any, ~output=Output, ~mode=Sync, ~typeValidation=false)
+        fn->magic
       }
-      %raw(`schema.serializeToJsonOrThrow.toString()`)
+    | #SerializeJson => {
+        let fn =
+          schema
+          ->S.\"~experimentalReverse"
+          ->S.compile(~input=Any, ~output=Json, ~mode=Sync, ~typeValidation=false)
+        fn->magic
+      }
     }
-  }
+  )["toString"]()
   t->Assert.is(compiledCode, code, ~message?, ())
 }
 
@@ -141,7 +141,7 @@ let assertEqualSchemas: (
 
 let assertReverseParsesBack = (t, schema: S.t<'value>, value: 'value) => {
   t->Assert.unsafeDeepEqual(
-    value->S.parseAnyOrRaiseWith(schema->S.\"~experimantalReverse")->S.parseAnyOrRaiseWith(schema),
+    value->S.parseAnyOrRaiseWith(schema->S.\"~experimentalReverse")->S.parseAnyOrRaiseWith(schema),
     value,
     (),
   )

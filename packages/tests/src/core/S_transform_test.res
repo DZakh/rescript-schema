@@ -346,7 +346,7 @@ test("Reverse schema to the original schema", t => {
     parser: int => int->Int.toFloat,
     serializer: value => value->Int.fromFloat,
   })
-  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown->S.toUnknown)
+  t->U.assertEqualSchemas(schema->S.\"~experimentalReverse", S.unknown->S.toUnknown)
 })
 
 test("Succesfully uses reversed schema for parsing back to initial value", t => {

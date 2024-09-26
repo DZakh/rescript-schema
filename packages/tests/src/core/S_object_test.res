@@ -1201,8 +1201,8 @@ test(
 
 test("Reverse empty object schema to literal", t => {
   let schema = S.object(_ => ())
-  // t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unit->S.toUnknown)
-  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown)
+  // t->U.assertEqualSchemas(schema->S.\"~experimentalReverse", S.unit->S.toUnknown)
+  t->U.assertEqualSchemas(schema->S.\"~experimentalReverse", S.unknown)
 })
 
 test("Succesfully uses reversed empty object schema for parsing back to initial value", t => {
@@ -1215,8 +1215,8 @@ test("Reverse tagged object to literal without payload", t => {
     s.tag("kind", "test")
     #Test
   })
-  // t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.literal(#Test)->S.toUnknown)
-  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown)
+  // t->U.assertEqualSchemas(schema->S.\"~experimentalReverse", S.literal(#Test)->S.toUnknown)
+  t->U.assertEqualSchemas(schema->S.\"~experimentalReverse", S.unknown)
 })
 
 test(
@@ -1235,8 +1235,8 @@ test("Reverse tagged object to primitive schema", t => {
     s.tag("kind", "test")
     s.field("field", S.bool)
   })
-  // t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.bool->S.toUnknown)
-  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown)
+  // t->U.assertEqualSchemas(schema->S.\"~experimentalReverse", S.bool->S.toUnknown)
+  t->U.assertEqualSchemas(schema->S.\"~experimentalReverse", S.unknown)
 })
 
 test(
@@ -1260,7 +1260,7 @@ test("Reverse with output of nested object/tuple schema", t => {
     }
   })
   // t->U.assertEqualSchemas(
-  //   schema->S.\"~experimantalReverse",
+  //   schema->S.\"~experimentalReverse",
   //   S.object(s => {
   //     let _ = s.field(
   //       "nested",
@@ -1280,7 +1280,7 @@ test("Reverse with output of nested object/tuple schema", t => {
   //     )
   //   })->S.toUnknown,
   // )
-  t->U.assertEqualSchemas(schema->S.\"~experimantalReverse", S.unknown)
+  t->U.assertEqualSchemas(schema->S.\"~experimentalReverse", S.unknown)
 })
 
 test(

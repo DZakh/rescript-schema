@@ -224,6 +224,10 @@ let parseAsyncWith: (Js.Json.t, t<'value>) => promise<result<'value, error>>
 
 let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
 
+let convertWith: ('any, t<'value>) => result<'value, error>
+let convertToJsonWith: ('any, t<'value>) => result<Js.Json.t, error>
+let convertToJsonStringWith: ('any, t<'value>) => result<string, error>
+
 let serializeWith: ('value, t<'value>) => result<Js.Json.t, error>
 
 let serializeToUnknownWith: ('value, t<'value>) => result<unknown, error>
@@ -379,7 +383,7 @@ module Metadata: {
 
 let inline: t<'value> => string
 
-let \"~experimantalReverse": t<'value> => t<unknown>
+let \"~experimentalReverse": t<'value> => t<unknown>
 
 let intMin: (t<int>, int, ~message: string=?) => t<int>
 let intMax: (t<int>, int, ~message: string=?) => t<int>

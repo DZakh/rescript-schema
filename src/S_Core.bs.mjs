@@ -227,11 +227,11 @@ function transform(b, input, operation) {
 
 function raise(b, code, path) {
   var operation = b.g.o;
-  throw new RescriptSchemaError(code, operation & 8 ? "Assert" : (
+  throw new RescriptSchemaError(code, operation & 4 ? "Assert" : (
               operation & 1 ? (
                   operation & 2 ? "ParseAsync" : "Parse"
                 ) : (
-                  operation & 4 ? "SerializeToJson" : "SerializeToUnknown"
+                  operation & 8 ? "SerializeToJson" : "SerializeToUnknown"
                 )
             ), path);
 }
@@ -284,7 +284,7 @@ function effectCtx(b, selfSchema, path) {
 }
 
 function registerInvalidJson(b, selfSchema, path) {
-  if (b.g.o & 4) {
+  if (b.g.o & 8) {
     return raise(b, {
                 TAG: "InvalidJsonSchema",
                 _0: selfSchema
@@ -416,12 +416,16 @@ function compile(builder, schema, operation) {
     }
     
   }
-  if (b.c === "" && output === input && !(operation & 8)) {
+  if (b.c === "" && output === input && !(operation & 22)) {
     return noopOperation;
   }
-  var inlinedOutput = operation & 8 ? "void 0" : (
-      operation & 2 && !output.a ? "Promise.resolve(" + inline(b, output) + ")" : inline(b, output)
-    );
+  var inlinedOutput = operation & 4 ? "void 0" : inline(b, output);
+  if (operation & 16) {
+    inlinedOutput = "JSON.stringify(" + inlinedOutput + ")";
+  }
+  if (operation & 2 && !output.a) {
+    inlinedOutput = "Promise.resolve(" + inlinedOutput + ")";
+  }
   var inlinedFunction = "i=>{" + b.c + "return " + inlinedOutput + "}";
   return new Function("e", "s", "return " + inlinedFunction)(b.g.e, symbol);
 }
@@ -433,11 +437,13 @@ function compile$1(schema, input, output, mode, typeValidation) {
     case "Unknown" :
         break;
     case "Assert" :
-        operation = operation | 8;
+        operation = operation | 4;
         break;
     case "Json" :
+        operation = operation | 8;
+        break;
     case "JsonString" :
-        operation = operation | 4;
+        operation = operation | 24;
         break;
     
   }
@@ -448,28 +454,24 @@ function compile$1(schema, input, output, mode, typeValidation) {
     operation = operation | 1;
   }
   var fn = compile(schema.b, schema, operation);
-  var fn$1;
-  fn$1 = input === "JsonString" ? (function (jsonString) {
-        try {
-          return fn(JSON.parse(jsonString));
+  if (input === "JsonString") {
+    return function (jsonString) {
+      try {
+        return fn(JSON.parse(jsonString));
+      }
+      catch (raw_error){
+        var error = Caml_js_exceptions.internalToOCamlException(raw_error);
+        if (error.RE_EXN_ID === Js_exn.$$Error) {
+          throw new RescriptSchemaError({
+                    TAG: "OperationFailed",
+                    _0: error._1.message
+                  }, "Parse", "");
         }
-        catch (raw_error){
-          var error = Caml_js_exceptions.internalToOCamlException(raw_error);
-          if (error.RE_EXN_ID === Js_exn.$$Error) {
-            throw new RescriptSchemaError({
-                      TAG: "OperationFailed",
-                      _0: error._1.message
-                    }, "Parse", "");
-          }
-          throw error;
-        }
-      }) : fn;
-  if (output === "JsonString") {
-    return function (value) {
-      return JSON.stringify(fn$1(value));
+        throw error;
+      }
     };
   } else {
-    return fn$1;
+    return fn;
   }
 }
 
@@ -721,7 +723,7 @@ function isAsync(schema) {
   }
 }
 
-function $tildeexperimantalReverse(schema) {
+function $tildeexperimentalReverse(schema) {
   return schema.r();
 }
 
@@ -738,6 +740,54 @@ function parseAnyWith(any, schema) {
     return {
             TAG: "Ok",
             _0: schema.parseOrThrow(any)
+          };
+  }
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    return {
+            TAG: "Error",
+            _0: getOrRethrow(exn)
+          };
+  }
+}
+
+function convertWith(any, schema) {
+  try {
+    return {
+            TAG: "Ok",
+            _0: (schema[0] ? undefined : (schema[0] = compile(schema.b, schema, 0), undefined), schema[0](any))
+          };
+  }
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    return {
+            TAG: "Error",
+            _0: getOrRethrow(exn)
+          };
+  }
+}
+
+function convertToJsonWith(any, schema) {
+  try {
+    return {
+            TAG: "Ok",
+            _0: (schema[8] ? undefined : (schema[8] = compile(schema.b, schema, 8), undefined), schema[8](any))
+          };
+  }
+  catch (raw_exn){
+    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    return {
+            TAG: "Error",
+            _0: getOrRethrow(exn)
+          };
+  }
+}
+
+function convertToJsonStringWith(any, schema) {
+  try {
+    return {
+            TAG: "Ok",
+            _0: (schema[16] ? undefined : (schema[16] = compile(schema.b, schema, 16), undefined), schema[16](any))
           };
   }
   catch (raw_exn){
@@ -883,7 +933,7 @@ function initialParseAsyncOrRaise(unknown) {
 
 function initialAssertOrRaise(unknown) {
   var schema = this;
-  var operation = compile(schema.b, schema, 9);
+  var operation = compile(schema.b, schema, 5);
   schema.assert = operation;
   return operation(unknown);
 }
@@ -905,7 +955,7 @@ function initialSerializeOrRaise(unknown) {
             }, "SerializeToJson", "");
   }
   var reversed = schema.r();
-  var operation = compile(reversed.b, reversed, 4);
+  var operation = compile(reversed.b, reversed, 8);
   schema.serializeToJsonOrThrow = operation;
   return operation(unknown);
 }
@@ -1927,7 +1977,7 @@ function factory$5(schema, spaceOpt) {
                 var reversed = schema.r();
                 return makeReverseSchema(reversed.n, reversed.t, reversed.m, (function (b, input, param, path) {
                               var prevOperation = b.g.o;
-                              b.g.o = prevOperation | 4;
+                              b.g.o = prevOperation | 8;
                               if (reversed.t.TAG === "Option") {
                                 raise(b, {
                                       TAG: "InvalidJsonSchema",
@@ -3230,6 +3280,9 @@ export {
   parseAnyOrRaiseWith ,
   parseAsyncWith ,
   parseAnyAsyncWith ,
+  convertWith ,
+  convertToJsonWith ,
+  convertToJsonStringWith ,
   serializeWith ,
   serializeToUnknownWith ,
   serializeToJsonStringWith ,
@@ -3260,7 +3313,7 @@ export {
   $$Array ,
   Metadata ,
   inline$1 as inline,
-  $tildeexperimantalReverse ,
+  $tildeexperimentalReverse ,
   intMin ,
   intMax ,
   port ,

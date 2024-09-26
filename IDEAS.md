@@ -45,6 +45,10 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add S.removeTypeValidation
 - Add S.unwrap
 - S.isAsyncParse -> S.isAsync
+- Add:
+  let convertWith: ('any, t<'value>) => result<'value, error>
+  let convertToJsonWith: ('any, t<'value>) => result<Js.Json.t, error>
+  let convertToJsonStringWith: ('any, t<'value>) => result<string, error>
 
 ## v10
 

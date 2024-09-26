@@ -103,7 +103,7 @@ module Common = {
 
   test("Reverse schema to self", t => {
     let schema = factory()
-    t->Assert.is(schema->S.\"~experimantalReverse", schema->S.toUnknown, ())
+    t->Assert.is(schema->S.\"~experimentalReverse", schema->S.toUnknown, ())
   })
 
   test("Succesfully uses reversed schema for parsing back to initial value", t => {
@@ -183,7 +183,7 @@ module EmptyArray = {
 
   test("Reverse empty array literal schema to self", t => {
     let schema = factory()
-    t->Assert.is(schema->S.\"~experimantalReverse", schema->S.toUnknown, ())
+    t->Assert.is(schema->S.\"~experimentalReverse", schema->S.toUnknown, ())
   })
 
   test(
