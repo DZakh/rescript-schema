@@ -249,9 +249,6 @@ type rec t<'value> = {
   mutable definerCtx?: char,
   @as("m")
   metadataMap: dict<unknown>,
-  @as("a")
-  mutable // FIXME: Remove
-  parseAsyncOrRaise: unknown => promise<unknown>,
   @as("parseOrThrow")
   mutable parseOrRaise: unknown => unknown,
   @as("parse")
@@ -1292,6 +1289,42 @@ let useSyncOperation = (schema, operation, input) => {
   }
 }
 
+let asyncPrepareOk = value => Ok(value->castUnknownToAny)
+
+let asyncPrepareError = jsExn => {
+  jsExn->(Obj.magic: Js.Exn.t => exn)->InternalError.getOrRethrow->Error
+}
+
+@inline
+let useAsyncOperation = (schema, operation, input) => {
+  try {
+    schema
+    ->callMemoizedOperation(operation->Operation.addFlag(Operation.Flag.async), input)
+    ->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, asyncPrepareError)
+  } catch {
+  | exn => exn->InternalError.getOrRethrow->Error->Stdlib.Promise.resolve
+  }
+}
+
+let convertAnyWith = (any, schema) => {
+  schema->useSyncOperation(Operation.make(), any)
+}
+
+let convertAnyToJsonWith = (any, schema) => {
+  schema->useSyncOperation(Operation.make()->Operation.addFlag(Operation.Flag.jsonableOutput), any)
+}
+
+let convertAnyToJsonStringWith = (any, schema) => {
+  schema->useSyncOperation(
+    Operation.make()->Operation.addFlag(Operation.Flag.jsonStringOutput),
+    any,
+  )
+}
+
+let convertAnyAsyncWith = (any, schema) => {
+  schema->useAsyncOperation(Operation.make(), any)
+}
+
 @inline
 let parseAnyOrRaiseWith = (any, schema) => {
   schema.parseOrRaise(any->castAnyToUnknown)->castUnknownToAny
@@ -1313,36 +1346,8 @@ let parseWith: (Js.Json.t, t<'value>) => result<'value, error> = parseAnyWith
 
 let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value = parseAnyOrRaiseWith
 
-let convertWith = (any, schema) => {
-  schema->useSyncOperation(Operation.make(), any)
-}
-
-let convertToJsonWith = (any, schema) => {
-  schema->useSyncOperation(Operation.make()->Operation.addFlag(Operation.Flag.jsonableOutput), any)
-}
-
-let convertToJsonStringWith = (any, schema) => {
-  schema->useSyncOperation(
-    Operation.make()->Operation.addFlag(Operation.Flag.jsonStringOutput),
-    any,
-  )
-}
-
-let asyncPrepareOk = value => Ok(value->castUnknownToAny)
-
-let asyncPrepareError = jsExn => {
-  jsExn->(Obj.magic: Js.Exn.t => exn)->InternalError.getOrRethrow->Error
-}
-
 let parseAnyAsyncWith = (any, schema) => {
-  try {
-    schema.parseAsyncOrRaise(any->castAnyToUnknown)->Stdlib.Promise.thenResolveWithCatch(
-      asyncPrepareOk,
-      asyncPrepareError,
-    )
-  } catch {
-  | exn => exn->InternalError.getOrRethrow->Error->Stdlib.Promise.resolve
-  }
+  schema->useAsyncOperation(Operation.make()->Operation.addFlag(Operation.Flag.typeValidation), any)
 }
 
 let parseAsyncWith = parseAnyAsyncWith
@@ -1413,18 +1418,6 @@ let initialParseOrRaise = unknown => {
       ~operation=Operation.make()->Operation.addFlag(Operation.Flag.typeValidation),
     )
   schema.parseOrRaise = operation
-  operation(unknown)
-}
-
-let initialParseAsyncOrRaise = unknown => {
-  let schema = %raw(`this`)
-  let operation = schema.builder->Builder.compile(
-    ~schema,
-    ~operation=Operation.make()
-    ->Operation.addFlag(Operation.Flag.typeValidation)
-    ->Operation.addFlag(Operation.Flag.async),
-  )
-  schema.parseAsyncOrRaise = operation
   operation(unknown)
 }
 
@@ -1501,7 +1494,6 @@ let makeReverseSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilte
   name,
   metadataMap,
   parseOrRaise: initialParseOrRaise,
-  parseAsyncOrRaise: initialParseAsyncOrRaise,
   serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
   serializeOrRaise: initialSerializeOrRaise,
   assertOrRaise: initialAssertOrRaise,
@@ -1519,7 +1511,6 @@ let makeSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilter, ~rev
   name,
   metadataMap,
   parseOrRaise: initialParseOrRaise,
-  parseAsyncOrRaise: initialParseAsyncOrRaise,
   serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
   serializeOrRaise: initialSerializeOrRaise,
   assertOrRaise: initialAssertOrRaise,
@@ -2757,7 +2748,6 @@ module Object = {
         definer: definer->Obj.magic,
         definerCtx: ctx->Obj.magic,
         parseOrRaise: initialParseOrRaise,
-        parseAsyncOrRaise: initialParseAsyncOrRaise,
         serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
         serializeOrRaise: initialSerializeOrRaise,
         assertOrRaise: initialAssertOrRaise,
@@ -2786,7 +2776,6 @@ module Object = {
         definer: ?schema.definer,
         definerCtx: ?schema.definerCtx,
         parseOrRaise: initialParseOrRaise,
-        parseAsyncOrRaise: initialParseAsyncOrRaise,
         serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
         serializeOrRaise: initialSerializeOrRaise,
         assertOrRaise: initialAssertOrRaise,
@@ -4253,8 +4242,7 @@ let setGlobalConfig = override => {
   }
   if prevDisableNanNumberCheck != globalConfig.disableNanNumberCheck {
     float.assertOrRaise = initialAssertOrRaise
-    float.parseOrRaise = initialParseOrRaise
-    float.parseAsyncOrRaise = initialParseAsyncOrRaise
+    float.parseOrRaise = initialParseOrRaise // FIXME: Reset all memoid operations by flag
   }
 }
 

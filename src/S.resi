@@ -224,9 +224,10 @@ let parseAsyncWith: (Js.Json.t, t<'value>) => promise<result<'value, error>>
 
 let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
 
-let convertWith: ('any, t<'value>) => result<'value, error>
-let convertToJsonWith: ('any, t<'value>) => result<Js.Json.t, error>
-let convertToJsonStringWith: ('any, t<'value>) => result<string, error>
+let convertAnyWith: ('any, t<'value>) => result<'value, error>
+let convertAnyToJsonWith: ('any, t<'value>) => result<Js.Json.t, error>
+let convertAnyToJsonStringWith: ('any, t<'value>) => result<string, error>
+let convertAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
 
 let serializeWith: ('value, t<'value>) => result<Js.Json.t, error>
 
