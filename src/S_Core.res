@@ -25,7 +25,7 @@ module Stdlib = {
     type t<+'a> = promise<'a>
 
     @send
-    external thenResolveWithCatch: (t<'a>, 'a => 'b, Js.Exn.t => 'b) => t<'b> = "then"
+    external thenResolveWithCatch: (t<'a>, 'a => 'b, exn => 'b) => t<'b> = "then"
 
     @send
     external thenResolve: (t<'a>, 'a => 'b) => t<'b> = "then"
@@ -770,6 +770,11 @@ module Builder = {
 
   let noop = make((_b, ~input, ~selfSchema as _, ~path as _) => input)
 
+  let invalidJson = make((b, ~input, ~selfSchema, ~path) => {
+    b->B.registerInvalidJson(~selfSchema, ~path)
+    input
+  })
+
   let noopOperation = i => i->Obj.magic
 
   @inline
@@ -1278,6 +1283,14 @@ let callMemoizedOperation = (schema, operation, input) => {
   (schema->Obj.magic->Js.Dict.unsafeGet(operation->Stdlib.Int.unsafeToString))(input)
 }
 
+let wrapExnToError = exn => {
+  if %raw("exn&&exn.s===symbol") {
+    Error(exn->(Obj.magic: exn => error))
+  } else {
+    raise(exn)
+  }
+}
+
 @inline
 let useSyncOperation = (schema, operation, input) => {
   try {
@@ -1285,24 +1298,20 @@ let useSyncOperation = (schema, operation, input) => {
     ->callMemoizedOperation(operation, input)
     ->Ok
   } catch {
-  | exn => exn->InternalError.getOrRethrow->Error
+  | _ => wrapExnToError(%raw(`exn`))
   }
 }
 
 let asyncPrepareOk = value => Ok(value->castUnknownToAny)
-
-let asyncPrepareError = jsExn => {
-  jsExn->(Obj.magic: Js.Exn.t => exn)->InternalError.getOrRethrow->Error
-}
 
 @inline
 let useAsyncOperation = (schema, operation, input) => {
   try {
     schema
     ->callMemoizedOperation(operation->Operation.addFlag(Operation.Flag.async), input)
-    ->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, asyncPrepareError)
+    ->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, wrapExnToError)
   } catch {
-  | exn => exn->InternalError.getOrRethrow->Error->Stdlib.Promise.resolve
+  | _ => wrapExnToError(%raw(`exn`))->Stdlib.Promise.resolve
   }
 }
 
@@ -1861,6 +1870,7 @@ let custom = (name, definer) => {
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Unknown,
     ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+      b->B.registerInvalidJson(~selfSchema, ~path)
       switch definer(b->B.effectCtx(~selfSchema, ~path)) {
       | {parser, asyncParser: ?None} => b->B.embedSyncOperation(~input, ~fn=parser)
       | {parser: ?None, asyncParser} => b->B.embedAsyncOperation(~input, ~fn=asyncParser)
@@ -1880,6 +1890,7 @@ let custom = (name, definer) => {
         ~name=() => name,
         ~tagged=Unknown,
         ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+          b->B.registerInvalidJson(~selfSchema, ~path)
           switch definer(b->B.effectCtx(~selfSchema, ~path)) {
           | {serializer} => b->B.embedSyncOperation(~input, ~fn=serializer)
           | {parser: ?None, asyncParser: ?None, serializer: ?None} => input
@@ -1904,12 +1915,7 @@ let literal = value => {
     ~name=() => literal->Literal.toString,
     ~metadataMap=Metadata.Map.empty,
     ~tagged=Literal(literal),
-    ~builder=literal->Literal.isJsonable
-      ? Builder.noop
-      : Builder.make((b, ~input, ~selfSchema, ~path) => {
-          b->B.registerInvalidJson(~selfSchema, ~path)
-          input
-        }),
+    ~builder=literal->Literal.isJsonable ? Builder.noop : Builder.invalidJson,
     ~maybeTypeFilter=Some((b, ~inputVar) => b->internalLiteral.filterBuilder(~inputVar, ~literal)),
     ~reverse=Reverse.toSelf,
   )
@@ -2852,10 +2858,7 @@ module Unknown = {
   let schema = makeSchema(
     ~name=primitiveName,
     ~tagged=Unknown,
-    ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-      b->B.registerInvalidJson(~selfSchema, ~path)
-      input
-    }),
+    ~builder=Builder.invalidJson,
     ~metadataMap=Metadata.Map.empty,
     ~maybeTypeFilter=None,
     ~reverse=Reverse.toSelf,
@@ -3049,7 +3052,7 @@ module BigInt = {
 
   let schema = makePrimitiveSchema(
     ~tagged=Unknown, // TODO: Add BigInt in v9
-    ~builder=Builder.noop,
+    ~builder=Builder.invalidJson,
     ~maybeTypeFilter=Some(typeFilter),
   )
   (schema->Obj.magic)["n"] = %raw(`() => "BigInt"`)

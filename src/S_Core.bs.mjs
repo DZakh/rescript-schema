@@ -384,6 +384,11 @@ function noop(_b, input, param, param$1) {
   return input;
 }
 
+function invalidJson(b, input, selfSchema, path) {
+  registerInvalidJson(b, selfSchema, path);
+  return input;
+}
+
 function noopOperation(i) {
   return i;
 }
@@ -727,17 +732,20 @@ function $tildeexperimentalReverse(schema) {
   return schema.r();
 }
 
+function wrapExnToError(exn) {
+  if ((exn&&exn.s===symbol)) {
+    return {
+            TAG: "Error",
+            _0: exn
+          };
+  }
+  throw exn;
+}
+
 function asyncPrepareOk(value) {
   return {
           TAG: "Ok",
           _0: value
-        };
-}
-
-function asyncPrepareError(jsExn) {
-  return {
-          TAG: "Error",
-          _0: getOrRethrow(jsExn)
         };
 }
 
@@ -748,12 +756,8 @@ function convertAnyWith(any, schema) {
             _0: (schema[0] ? undefined : (schema[0] = compile(schema.b, schema, 0), undefined), schema[0](any))
           };
   }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    return {
-            TAG: "Error",
-            _0: getOrRethrow(exn)
-          };
+  catch (exn){
+    return wrapExnToError(exn);
   }
 }
 
@@ -764,12 +768,8 @@ function convertAnyToJsonWith(any, schema) {
             _0: (schema[8] ? undefined : (schema[8] = compile(schema.b, schema, 8), undefined), schema[8](any))
           };
   }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    return {
-            TAG: "Error",
-            _0: getOrRethrow(exn)
-          };
+  catch (exn){
+    return wrapExnToError(exn);
   }
 }
 
@@ -780,25 +780,17 @@ function convertAnyToJsonStringWith(any, schema) {
             _0: (schema[16] ? undefined : (schema[16] = compile(schema.b, schema, 16), undefined), schema[16](any))
           };
   }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    return {
-            TAG: "Error",
-            _0: getOrRethrow(exn)
-          };
+  catch (exn){
+    return wrapExnToError(exn);
   }
 }
 
 function convertAnyAsyncWith(any, schema) {
   try {
-    return (schema[2] ? undefined : (schema[2] = compile(schema.b, schema, 2), undefined), schema[2](any)).then(asyncPrepareOk, asyncPrepareError);
+    return (schema[2] ? undefined : (schema[2] = compile(schema.b, schema, 2), undefined), schema[2](any)).then(asyncPrepareOk, wrapExnToError);
   }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    return Promise.resolve({
-                TAG: "Error",
-                _0: getOrRethrow(exn)
-              });
+  catch (exn){
+    return Promise.resolve(wrapExnToError(exn));
   }
 }
 
@@ -828,14 +820,10 @@ function parseAnyWith(any, schema) {
 
 function parseAnyAsyncWith(any, schema) {
   try {
-    return (schema[3] ? undefined : (schema[3] = compile(schema.b, schema, 3), undefined), schema[3](any)).then(asyncPrepareOk, asyncPrepareError);
+    return (schema[3] ? undefined : (schema[3] = compile(schema.b, schema, 3), undefined), schema[3](any)).then(asyncPrepareOk, wrapExnToError);
   }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    return Promise.resolve({
-                TAG: "Error",
-                _0: getOrRethrow(exn)
-              });
+  catch (exn){
+    return Promise.resolve(wrapExnToError(exn));
   }
 }
 
@@ -1251,6 +1239,7 @@ function custom(name, definer) {
   return makeSchema((function () {
                 return name;
               }), "Unknown", empty, (function (b, input, selfSchema, path) {
+                registerInvalidJson(b, selfSchema, path);
                 var match = definer(effectCtx(b, selfSchema, path));
                 var parser = match.p;
                 if (parser !== undefined) {
@@ -1272,6 +1261,7 @@ function custom(name, definer) {
                 return makeReverseSchema((function () {
                               return name;
                             }), "Unknown", empty, (function (b, input, selfSchema, path) {
+                              registerInvalidJson(b, selfSchema, path);
                               var match = definer(effectCtx(b, selfSchema, path));
                               var serializer = match.s;
                               if (serializer !== undefined) {
@@ -1292,10 +1282,7 @@ function literal(value) {
               }), {
               TAG: "Literal",
               _0: literal$1
-            }, empty, literal$1.j ? noop : (function (b, input, selfSchema, path) {
-                  registerInvalidJson(b, selfSchema, path);
-                  return input;
-                }), (function (b, inputVar) {
+            }, empty, literal$1.j ? noop : invalidJson, (function (b, inputVar) {
                 return literal$1.f(b, inputVar, literal$1);
               }), toSelf);
 }
@@ -1931,10 +1918,7 @@ function factory$4(schema) {
               }), typeFilter$1, onlyChild(factory$4, schema));
 }
 
-var schema$1 = makeSchema(primitiveName, "Unknown", empty, (function (b, input, selfSchema, path) {
-        registerInvalidJson(b, selfSchema, path);
-        return input;
-      }), undefined, toSelf);
+var schema$1 = makeSchema(primitiveName, "Unknown", empty, invalidJson, undefined, toSelf);
 
 var metadataId$1 = "rescript-schema:String.refinements";
 
@@ -2041,7 +2025,7 @@ function typeFilter$6(_b, inputVar) {
   return "typeof " + inputVar + "!==\"bigint\"";
 }
 
-var schema$6 = makePrimitiveSchema("Unknown", noop, typeFilter$6);
+var schema$6 = makePrimitiveSchema("Unknown", invalidJson, typeFilter$6);
 
 schema$6.n = (() => "BigInt");
 

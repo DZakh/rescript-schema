@@ -190,27 +190,9 @@ module CrazyUnion = {
     Console.time("testData2 parse")
     let _ = S.parseWith(json, schema)->S.unwrap
     Console.timeEnd("testData2 parse")
-
-    // Console.log((schema->Obj.magic)["parseOrThrow"]["toString"]())
   }
 }
 
-// Full
-// testData1 serialize: 5.414s
-// testData1 parse: 5.519s
-// testData2 serialize: 70.864ms
-// testData2 parse: 70.967ms
-
-// Wip
-// testData1 serialize: 5.843s
-// testData1 parse: 5.625ms
-// testData2 serialize: 64.489ms
-// testData2 parse: 0.836ms
-
-// Partial
-// testData1 serialize: 1.802ms
-// testData1 parse: 1.411ms
-// 734 Error.make
 CrazyUnion.test()
 
 let data = makeTestObject()
@@ -310,6 +292,17 @@ Suite.make()
   let data = makeTestObject()
   () => {
     data->S.serializeWith(schema)->S.unwrap
+  }
+})
+->Suite.addWithPrepare("Serialize advanced object - compile", () => {
+  let schema = makeAdvancedObjectSchema()
+  let data = makeTestObject()
+  let fn =
+    schema
+    ->S.\"~experimentalReverse"
+    ->S.compile(~input=Any, ~output=Output, ~mode=Sync, ~typeValidation=false)
+  () => {
+    fn(data)
   }
 })
 ->Suite.run

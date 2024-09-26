@@ -25,6 +25,19 @@ module Common = {
     )
   })
 
+  test("Fails to convert to Json", t => {
+    let schema = factory()
+
+    t->U.assertErrorResult(
+      value->S.convertAnyToJsonWith(schema),
+      {
+        code: InvalidJsonSchema(schema->S.toUnknown),
+        operation: SerializeToJson,
+        path: S.Path.empty,
+      },
+    )
+  })
+
   test("BigInt name", t => {
     let schema = factory()
     t->Assert.is(schema->S.name, "BigInt", ())

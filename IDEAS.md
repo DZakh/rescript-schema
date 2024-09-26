@@ -22,7 +22,8 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v9
 
-- Remove ...OrThrow from js/ts api
+- Remove ...OrThrow/orRaise
+- Add S.compile to Js/ts api
 - Add mode/flags instead of operation
 - Expose S.reverse
 - S.transform(s => {
@@ -37,6 +38,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add serializeToJsonString to js api
 - Fix reverse for object/tuple/variant/recursive
 - Rename disableNanNumberCheck
+- Add tag for BigInt
 
 ### Done
 
@@ -46,9 +48,10 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add S.unwrap
 - S.isAsyncParse -> S.isAsync
 - Add:
-  let convertWith: ('any, t<'value>) => result<'value, error>
-  let convertToJsonWith: ('any, t<'value>) => result<Js.Json.t, error>
-  let convertToJsonStringWith: ('any, t<'value>) => result<string, error>
+  let convertAnyWith: ('any, t<'value>) => result<'value, error>
+  let convertAnyToJsonWith: ('any, t<'value>) => result<Js.Json.t, error>
+  let convertAnyToJsonStringWith: ('any, t<'value>) => result<string, error>
+  let convertAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
 - Deprecated S.parseOrRaiseWith, S.parseAnyOrRaiseWith, S.serializeOrRaiseWith, S.serializeToUnknownOrRaiseWith, S.serializeToJsonStringOrRaiseWith
 
 ## v10
