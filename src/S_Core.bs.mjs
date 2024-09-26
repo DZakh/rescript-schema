@@ -1107,6 +1107,12 @@ function setName(schema, name) {
               }));
 }
 
+function removeTypeValidation(schema) {
+  return makeSchema(schema.n, schema.t, schema.m, schema.b, undefined, (function () {
+                return schema.r();
+              }));
+}
+
 function internalRefine(schema, refiner) {
   return makeSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
                 return transform(b, schema.b(b, input, schema, path), (function (b, input) {
@@ -3212,6 +3218,7 @@ export {
   recursive ,
   classify ,
   setName ,
+  removeTypeValidation ,
   Schema ,
   schema$7 as schema,
   $$Object ,

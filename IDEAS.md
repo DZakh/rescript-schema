@@ -34,7 +34,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add S.unwrap
 - Rename S.variant to something
 - Rename serialize to convertReverse
-- Add S.removeTypeValidation
 - S.create / S.validate
 - Rename S.inline to S.toRescriptCode
 - Add serializeToJsonString to js api
@@ -44,6 +43,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Add S.compile
 - Add S.bigint
+- Add S.removeTypeValidation
 
 ## v10
 

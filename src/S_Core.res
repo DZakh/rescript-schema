@@ -353,6 +353,8 @@ let unsafeGetErrorPayload = variant => (variant->Obj.magic)["_1"]
 
 @inline
 let isLiteralSchema = schema => schema.tagged->unsafeGetVarianTag === "Literal"
+@inline
+let isPrimitiveSchema = schema => schema.tagged->Js.typeof === "string"
 
 type globalConfig = {
   @as("r")
@@ -1455,7 +1457,7 @@ let makeSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilter, ~rev
     let reversed = (reverse->Obj.magic)["call"](original)
 
     // Copy primitive reversed schema to prevent mutating original reverse function
-    let reversed = if original !== reversed && reversed->classify->Js.typeof === "string" {
+    let reversed = if original !== reversed && reversed->isPrimitiveSchema {
       makeReverseSchema(
         ~name=reversed.name,
         ~tagged=reversed.tagged,
@@ -1645,6 +1647,17 @@ let setName = (schema, name) => {
     ~maybeTypeFilter=schema.maybeTypeFilter,
     ~metadataMap=schema.metadataMap,
     ~reverse=() => schema.reverse(), // TODO: test better
+  )
+}
+
+let removeTypeValidation = schema => {
+  makeSchema(
+    ~name=schema.name,
+    ~builder=schema.builder,
+    ~tagged=schema.tagged,
+    ~maybeTypeFilter=None,
+    ~metadataMap=schema.metadataMap,
+    ~reverse=() => schema.reverse(), // TODO: test better or use bind?
   )
 }
 
