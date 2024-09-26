@@ -80,7 +80,7 @@ let assertCompiledCode = (
 ) => {
   let compiledCode = switch op {
   | #Parse =>
-    if schema->S.isAsyncParse {
+    if schema->S.isAsync {
       let _ = %raw(`undefined`)->S.parseAsyncWith(schema)
       %raw(`schema.a.toString()`)
     } else {
@@ -113,7 +113,7 @@ let assertCompiledCode = (
 let assertCompiledCodeIsNoop = (t, ~schema, ~op: [#Parse | #Serialize], ~message=?) => {
   let compiledCode = switch op {
   | #Parse =>
-    if schema->S.isAsyncParse {
+    if schema->S.isAsync {
       let _ = %raw(`undefined`)->S.parseAsyncWith(schema)
       %raw(`schema.a.toString()`)
     } else {

@@ -1199,8 +1199,7 @@ module Literal = {
   }
 }
 
-// TODO: Rename to isAsync
-let isAsyncParse = schema => {
+let isAsync = schema => {
   let schema = schema->toUnknown
   switch schema.isAsyncSchema {
   | Unknown =>
@@ -1228,6 +1227,7 @@ let isAsyncParse = schema => {
   | Value(v) => v
   }
 }
+let isAsyncParse = isAsync
 
 let \"~experimantalReverse" = schema => {
   schema.reverse()

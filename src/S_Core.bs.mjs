@@ -686,7 +686,7 @@ function parse(any) {
   return parseInternal(any);
 }
 
-function isAsyncParse(schema) {
+function isAsync(schema) {
   var v = schema.i;
   if (typeof v === "boolean") {
     return v;
@@ -3126,6 +3126,8 @@ var parseOrRaiseWith = parseAnyOrRaiseWith;
 
 var parseAsyncWith = parseAnyAsyncWith;
 
+var isAsyncParse = isAsync;
+
 var Schema = {};
 
 var schema$7 = factory$7;
@@ -3229,6 +3231,7 @@ export {
   serializeToJsonStringOrRaiseWith ,
   assertOrRaiseWith ,
   isAsyncParse ,
+  isAsync ,
   recursive ,
   classify ,
   setName ,

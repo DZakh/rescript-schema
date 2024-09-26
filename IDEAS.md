@@ -44,6 +44,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add S.bigint
 - Add S.removeTypeValidation
 - Add S.unwrap
+- S.isAsyncParse -> S.isAsync
 
 ## v10
 

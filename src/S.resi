@@ -234,7 +234,9 @@ let serializeToJsonStringOrRaiseWith: ('value, t<'value>, ~space: int=?) => stri
 
 let assertOrRaiseWith: ('any, t<'value>) => unit
 
+@deprecated("It'll be removed in v9. Use S.isAsync instead")
 let isAsyncParse: t<'value> => bool
+let isAsync: t<'value> => bool
 
 let recursive: (t<'value> => t<'value>) => t<'value>
 
