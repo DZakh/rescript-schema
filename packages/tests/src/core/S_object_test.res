@@ -767,7 +767,7 @@ module Benchmark = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(makeTestObject()->S.assertAnyWith(schema), (), ())
+    t->Assert.deepEqual(makeTestObject()->S.assertWith(schema), (), ())
 
     t->U.assertCompiledCode(
       ~schema,
@@ -817,7 +817,7 @@ module Benchmark = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(makeTestObject()->S.assertAnyWith(schema), (), ())
+    t->Assert.deepEqual(makeTestObject()->S.assertWith(schema), (), ())
 
     t->U.assertCompiledCode(
       ~schema,

@@ -218,6 +218,10 @@ let parseAnyOrRaiseWith: ('any, t<'value>) => 'value
 let parseAsyncWith: (Js.Json.t, t<'value>) => promise<result<'value, error>>
 let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
 
+// TODO: In V9 expose them instead of safe convertAny fns below
+let convertWith: ('any, t<'value>) => 'value
+let convertToJsonStringWith: ('any, t<'value>) => string
+
 let convertAnyWith: ('any, t<'value>) => result<'value, error>
 let convertAnyToJsonWith: ('any, t<'value>) => result<Js.Json.t, error>
 let convertAnyToJsonStringWith: ('any, t<'value>) => result<string, error>
@@ -232,6 +236,7 @@ let serializeToJsonStringOrRaiseWith: ('value, t<'value>, ~space: int=?) => stri
 
 let assertOrRaiseWith: ('any, t<'value>) => unit
 let assertAnyWith: ('any, t<'value>) => unit
+let assertWith: ('any, t<'value>) => unit
 
 let isAsyncParse: t<'value> => bool
 let isAsync: t<'value> => bool
@@ -404,8 +409,6 @@ let trim: t<string> => t<string>
 // =============
 // JS/TS API
 // =============
-
-@@uncurried
 
 @tag("success")
 type jsResult<'value>

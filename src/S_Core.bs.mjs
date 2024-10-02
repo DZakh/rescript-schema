@@ -94,7 +94,7 @@ function getOrRethrow(exn) {
   if ((exn&&exn.s===symbol)) {
     return exn;
   }
-  throw (exn&&exn.RE_EXN_ID==='JsError') ? exn._1 : exn;
+  throw exn;
 }
 
 function classify(schema) {
@@ -344,13 +344,9 @@ function withPathPrepend(b, input, path, maybeDynamicLocationVar, fn) {
                   return fn(b, input, "");
                 }));
   }
-  catch (raw_error){
-    var error = Caml_js_exceptions.internalToOCamlException(raw_error);
-    if (error.RE_EXN_ID === Raised) {
-      var error$1 = error._1;
-      throw new RescriptSchemaError(error$1.code, error$1.operation, path + "[]" + error$1.path);
-    }
-    throw error;
+  catch (exn){
+    var error = getOrRethrow(exn);
+    throw new RescriptSchemaError(error.code, error.operation, path + "[]" + error.path);
   }
 }
 
@@ -394,6 +390,12 @@ function noopOperation(i) {
 }
 
 function compile(builder, schema, operation) {
+  if (operation & 8 && schema.r().t.TAG === "Option") {
+    throw new RescriptSchemaError({
+              TAG: "InvalidJsonSchema",
+              _0: schema
+            }, "SerializeToJson", "");
+  }
   var b = {
     c: "",
     l: "",
@@ -435,6 +437,15 @@ function compile(builder, schema, operation) {
   return new Function("e", "s", "return " + inlinedFunction)(b.g.e, symbol);
 }
 
+function operationFn(s, o) {
+  if ((o in s)) {
+    return (s[o]);
+  }
+  var f = compile(s.b, s, o);
+  ((s[o] = f));
+  return f;
+}
+
 function compile$1(schema, input, output, mode, typeValidation) {
   var operation = 0;
   switch (output) {
@@ -458,7 +469,7 @@ function compile$1(schema, input, output, mode, typeValidation) {
   if (typeValidation) {
     operation = operation | 1;
   }
-  var fn = compile(schema.b, schema, operation);
+  var fn = operationFn(schema, operation);
   if (input === "JsonString") {
     return function (jsonString) {
       try {
@@ -721,8 +732,7 @@ function isAsync(schema) {
     schema.i = output.a;
     return schema.i;
   }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+  catch (exn){
     getOrRethrow(exn);
     return false;
   }
@@ -749,11 +759,19 @@ function asyncPrepareOk(value) {
         };
 }
 
+function convertWith(input, schema) {
+  return operationFn(schema, 0)(input);
+}
+
+function convertToJsonStringWith(input, schema) {
+  return operationFn(schema, 24)(input);
+}
+
 function convertAnyWith(any, schema) {
   try {
     return {
             TAG: "Ok",
-            _0: (schema[0] ? undefined : (schema[0] = compile(schema.b, schema, 0), undefined), schema[0](any))
+            _0: operationFn(schema, 0)(any)
           };
   }
   catch (exn){
@@ -765,7 +783,7 @@ function convertAnyToJsonWith(any, schema) {
   try {
     return {
             TAG: "Ok",
-            _0: (schema[8] ? undefined : (schema[8] = compile(schema.b, schema, 8), undefined), schema[8](any))
+            _0: operationFn(schema, 8)(any)
           };
   }
   catch (exn){
@@ -777,7 +795,7 @@ function convertAnyToJsonStringWith(any, schema) {
   try {
     return {
             TAG: "Ok",
-            _0: (schema[16] ? undefined : (schema[16] = compile(schema.b, schema, 16), undefined), schema[16](any))
+            _0: operationFn(schema, 24)(any)
           };
   }
   catch (exn){
@@ -787,7 +805,7 @@ function convertAnyToJsonStringWith(any, schema) {
 
 function convertAnyAsyncWith(any, schema) {
   try {
-    return (schema[2] ? undefined : (schema[2] = compile(schema.b, schema, 2), undefined), schema[2](any)).then(asyncPrepareOk, wrapExnToError);
+    return operationFn(schema, 2)(any).then(asyncPrepareOk, wrapExnToError);
   }
   catch (exn){
     return Promise.resolve(wrapExnToError(exn));
@@ -795,32 +813,28 @@ function convertAnyAsyncWith(any, schema) {
 }
 
 function parseAnyOrRaiseWith(any, schema) {
-  return schema.parseOrThrow(any);
+  return operationFn(schema, 1)(any);
 }
 
-function assertAnyWith(any, schema) {
-  schema.assert(any);
+function assertWith(any, schema) {
+  return operationFn(schema, 5)(any);
 }
 
 function parseAnyWith(any, schema) {
   try {
     return {
             TAG: "Ok",
-            _0: schema.parseOrThrow(any)
+            _0: operationFn(schema, 1)(any)
           };
   }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    return {
-            TAG: "Error",
-            _0: getOrRethrow(exn)
-          };
+  catch (exn){
+    return wrapExnToError(exn);
   }
 }
 
 function parseAnyAsyncWith(any, schema) {
   try {
-    return (schema[3] ? undefined : (schema[3] = compile(schema.b, schema, 3), undefined), schema[3](any)).then(asyncPrepareOk, wrapExnToError);
+    return operationFn(schema, 3)(any).then(asyncPrepareOk, wrapExnToError);
   }
   catch (exn){
     return Promise.resolve(wrapExnToError(exn));
@@ -832,38 +846,32 @@ function serializeOrRaiseWith(value, schema) {
 }
 
 function serializeWith(value, schema) {
+  var schema$1 = schema.r();
   try {
     return {
             TAG: "Ok",
-            _0: schema.serializeToJsonOrThrow(value)
+            _0: operationFn(schema$1, 8)(value)
           };
   }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    return {
-            TAG: "Error",
-            _0: getOrRethrow(exn)
-          };
+  catch (exn){
+    return wrapExnToError(exn);
   }
 }
 
 function serializeToUnknownOrRaiseWith(value, schema) {
-  return schema.serializeOrThrow(value);
+  return operationFn(schema.r(), 0)(value);
 }
 
 function serializeToUnknownWith(value, schema) {
+  var schema$1 = schema.r();
   try {
     return {
             TAG: "Ok",
-            _0: schema.serializeOrThrow(value)
+            _0: operationFn(schema$1, 0)(value)
           };
   }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    return {
-            TAG: "Error",
-            _0: getOrRethrow(exn)
-          };
+  catch (exn){
+    return wrapExnToError(exn);
   }
 }
 
@@ -880,12 +888,8 @@ function serializeToJsonStringWith(value, schema, spaceOpt) {
             _0: serializeToJsonStringOrRaiseWith(value, schema, space)
           };
   }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
-    return {
-            TAG: "Error",
-            _0: getOrRethrow(exn)
-          };
+  catch (exn){
+    return wrapExnToError(exn);
   }
 }
 
@@ -919,39 +923,19 @@ function parseJsonStringWith(jsonString, schema) {
 }
 
 function initialParseOrRaise(unknown) {
-  var schema = this;
-  var operation = compile(schema.b, schema, 1);
-  schema.parseOrThrow = operation;
-  return operation(unknown);
+  return operationFn(this, 1)(unknown);
 }
 
 function initialAssertOrRaise(unknown) {
-  var schema = this;
-  var operation = compile(schema.b, schema, 5);
-  schema.assert = operation;
-  return operation(unknown);
+  return operationFn(this, 5)(unknown);
 }
 
 function initialSerializeToUnknownOrRaise(unknown) {
-  var schema = this;
-  var reversed = schema.r();
-  var operation = compile(reversed.b, reversed, 0);
-  schema.serializeOrThrow = operation;
-  return operation(unknown);
+  return operationFn(this.r(), 0)(unknown);
 }
 
 function initialSerializeOrRaise(unknown) {
-  var schema = this;
-  if (schema.t.TAG === "Option") {
-    throw new RescriptSchemaError({
-              TAG: "InvalidJsonSchema",
-              _0: schema
-            }, "SerializeToJson", "");
-  }
-  var reversed = schema.r();
-  var operation = compile(reversed.b, reversed, 8);
-  schema.serializeToJsonOrThrow = operation;
-  return operation(unknown);
+  return operationFn(this.r(), 8)(unknown);
 }
 
 function jsParse(unknown) {
@@ -961,8 +945,7 @@ function jsParse(unknown) {
             value: this.parseOrThrow(unknown)
           };
   }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+  catch (exn){
     return {
             success: false,
             error: getOrRethrow(exn)
@@ -976,14 +959,12 @@ function jsParseAsync(data) {
 
 function jsSerialize(value) {
   try {
-    var schema = this;
     return {
             success: true,
-            value: schema.serializeOrThrow(value)
+            value: serializeToUnknownOrRaiseWith(value, this)
           };
   }
-  catch (raw_exn){
-    var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+  catch (exn){
     return {
             success: false,
             error: getOrRethrow(exn)
@@ -1018,6 +999,9 @@ function makeSchema(name, tagged, metadataMap, builder, maybeTypeFilter, reverse
               var original = this;
               var reversed = reverse.call(original);
               var reversed$1 = original !== reversed && typeof reversed.t === "string" ? makeReverseSchema(reversed.n, reversed.t, reversed.m, reversed.b, reversed.f) : reversed;
+              original.r = (function () {
+                  return reversed$1;
+                });
               reversed$1.r = (function () {
                   return original;
                 });
@@ -2059,8 +2043,7 @@ function parse$1(b, schemas, path, input, output) {
       }
       parserCode = allocateScope(bb);
     }
-    catch (raw_exn){
-      var exn = Caml_js_exceptions.internalToOCamlException(raw_exn);
+    catch (exn){
       var value = getOrRethrow(exn);
       parserCode = "throw " + ("e[" + (b.g.e.push(value) - 1) + "]");
     }
@@ -3106,8 +3089,6 @@ function setGlobalConfig(override) {
   var disableNanNumberCheck = override.disableNanNumberCheck;
   globalConfig.n = disableNanNumberCheck !== undefined ? disableNanNumberCheck : false;
   if (prevDisableNanNumberCheck !== globalConfig.n) {
-    schema$5.assert = initialAssertOrRaise;
-    schema$5.parseOrThrow = initialParseOrRaise;
     return resetOperationsCache(schema$5);
   }
   
@@ -3176,7 +3157,9 @@ var parseOrRaiseWith = parseAnyOrRaiseWith;
 
 var parseAsyncWith = parseAnyAsyncWith;
 
-var assertOrRaiseWith = assertAnyWith;
+var assertOrRaiseWith = assertWith;
+
+var assertAnyWith = assertWith;
 
 var isAsyncParse = isAsync;
 
@@ -3275,6 +3258,8 @@ export {
   parseAnyOrRaiseWith ,
   parseAsyncWith ,
   parseAnyAsyncWith ,
+  convertWith ,
+  convertToJsonStringWith ,
   convertAnyWith ,
   convertAnyToJsonWith ,
   convertAnyToJsonStringWith ,
@@ -3287,6 +3272,7 @@ export {
   serializeToJsonStringOrRaiseWith ,
   assertOrRaiseWith ,
   assertAnyWith ,
+  assertWith ,
   isAsyncParse ,
   isAsync ,
   recursive ,

@@ -235,7 +235,7 @@ run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(a
                                 var schema = makeAdvancedObjectSchema();
                                 var data = makeTestObject();
                                 return function () {
-                                  S$RescriptSchema.assertAnyWith(data, schema);
+                                  S$RescriptSchema.assertWith(data, schema);
                                 };
                               })), "Create and parse advanced object", (function () {
                             var data = makeTestObject();
@@ -253,7 +253,7 @@ run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(a
                     var schema = makeAdvancedStrictObjectSchema();
                     var data = makeTestObject();
                     return function () {
-                      S$RescriptSchema.assertAnyWith(data, schema);
+                      S$RescriptSchema.assertWith(data, schema);
                     };
                   })), "Serialize advanced object", (function () {
                 var schema = makeAdvancedObjectSchema();

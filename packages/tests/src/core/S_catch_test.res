@@ -58,7 +58,6 @@ test("Can use s.fail inside of S.catch", t => {
     | Error(_) => s.fail("Fallback value only supported for strings.")
     }
   })
-
   t->Assert.deepEqual("0"->S.parseAnyWith(schema), Ok("0"), ())
   t->Assert.deepEqual("abc"->S.parseAnyWith(schema), Ok("1"), ())
   t->U.assertErrorResult(

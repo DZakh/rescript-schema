@@ -40,10 +40,14 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add tag for BigInt
 - Add literal shorthand for unions in ts api
 - Add flatten to ts api
+- Get rid of Caml_js_exceptions.internalToOCamlException
+- Add testWith
 
 ### Done
 
 - Expose S.reverse
+- Renamed S.assertAnyWith to S.assertWith
+- Ts operation api changes
 
 ## v10
 

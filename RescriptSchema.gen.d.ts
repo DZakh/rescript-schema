@@ -23,8 +23,17 @@ export type S_t<Output, Input = unknown> = {
   parseAsync(data: unknown): Promise<Result<Output>>;
   parseOrThrow(data: unknown): Output;
   serialize(value: Output): Result<Input>;
+  /**
+   * @deprecated It'll be removed in v9. Use S.convertWith(data, S.reverse(schema)) instead
+   */
   serializeOrThrow(value: Output): Input;
+  /**
+   * @deprecated It'll be removed in v9. Create an issue if you use it, there're currently no alternatives
+   */
   serializeToJsonOrThrow(value: Output): Json;
+  /**
+   * @deprecated It'll be removed in v9. Use S.assertWith(data, schema) instead
+   */
   assert(data: unknown): asserts data is Input;
 };
 

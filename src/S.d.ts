@@ -61,6 +61,20 @@ export function reverse<Output, Input>(
   schema: Schema<Output, Input>
 ): Schema<Input, Output>;
 
+export function convertWith<Output, Input>(
+  data: Input,
+  schema: Schema<Output, Input>
+): Output;
+export function convertToJsonStringWith<Output, Input>(
+  data: Input,
+  schema: Schema<Output, Input>
+): string;
+
+export function assertWith<Output, Input>(
+  data: unknown,
+  schema: Schema<Output, Input>
+): asserts data is Input;
+
 export function literal<Literal extends string>(
   value: Literal
 ): Schema<Literal>;

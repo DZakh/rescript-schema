@@ -250,7 +250,7 @@ type rec t<'value> = {
   @as("m")
   metadataMap: dict<unknown>,
   @as("parseOrThrow")
-  mutable parseOrRaise: unknown => unknown,
+  parseOrRaise: unknown => unknown,
   @as("parse")
   jsParse: unknown => jsResult<unknown>,
   @as("parseAsync")
@@ -258,11 +258,11 @@ type rec t<'value> = {
   @as("serialize")
   jsSerialize: unknown => jsResult<unknown>,
   @as("serializeOrThrow")
-  mutable serializeToUnknownOrRaise: unknown => unknown,
+  serializeToUnknownOrRaise: unknown => unknown,
   @as("serializeToJsonOrThrow")
-  mutable serializeOrRaise: unknown => Js.Json.t,
+  serializeOrRaise: unknown => Js.Json.t,
   @as("assert")
-  mutable assertOrRaise: unknown => unit,
+  assertOrRaise: unknown => unit,
 }
 and tagged =
   | Never
@@ -347,7 +347,6 @@ external toUnknown: t<'any> => t<unknown> = "%identity"
 
 let unsafeGetVariantPayload = variant => (variant->Obj.magic)["_0"]
 let unsafeGetVarianTag = (variant): string => (variant->Obj.magic)["TAG"]
-let unsafeGetErrorPayload = variant => (variant->Obj.magic)["_1"]
 
 @inline
 let isLiteralSchema = schema => schema.tagged->unsafeGetVarianTag === "Literal"
@@ -417,7 +416,7 @@ module InternalError = {
     if %raw("exn&&exn.s===symbol") {
       exn->(Obj.magic: exn => error)
     } else {
-      raise(%raw("exn&&exn.RE_EXN_ID==='JsError'") ? exn->unsafeGetErrorPayload : exn)
+      raise(exn)
     }
   }
 
@@ -724,7 +723,8 @@ module Builder = {
           },
           b => fn(b, ~input, ~path=Path.empty),
         ) catch {
-        | Raised(error) =>
+        | _ =>
+          let error = %raw(`exn`)->InternalError.getOrRethrow
           Stdlib.Exn.raiseAny(
             InternalError.make(
               ~path=path->Path.concat(Path.dynamic)->Path.concat(error.path),
@@ -781,6 +781,19 @@ module Builder = {
   let intitialInputVar = "i"
 
   let compile = (builder, ~schema, ~operation) => {
+    if (
+      operation->Operation.unsafeHasFlag(Operation.Flag.jsonableOutput) &&
+        schema.reverse().tagged->unsafeGetVarianTag === "Option"
+    ) {
+      Stdlib.Exn.raiseAny(
+        InternalError.make(
+          ~code=InvalidJsonSchema(schema),
+          ~operation=SerializeToJson,
+          ~path=Path.empty,
+        ),
+      )
+    }
+
     let b = {
       code: "",
       varsAllocation: "",
@@ -855,6 +868,17 @@ module Builder = {
 // TODO: Split validation code and transformation code
 module B = Builder.B
 
+let operationFn = (s, o) => {
+  let s = s->toUnknown
+  if %raw(`o in s`) {
+    %raw(`s[o]`)
+  } else {
+    let f = s.builder->Builder.compile(~schema=s, ~operation=o)
+    let _ = %raw(`s[o] = f`)
+    f
+  }
+}
+
 type rec input<'input, 'computed> =
   | Input: input<'input, 'input>
   | Any: input<'input, 'any>
@@ -922,7 +946,7 @@ let compile = (
   if typeValidation {
     operation := operation.contents->Operation.addFlag(Operation.Flag.typeValidation)
   }
-  let fn = schema.builder->Builder.compile(~schema, ~operation=operation.contents)->Obj.magic
+  let fn = schema->operationFn(operation.contents)->Obj.magic
 
   let fn = switch input {
   | JsonString =>
@@ -1249,8 +1273,8 @@ let isAsync = schema => {
       schema.isAsyncSchema = Value(output.isAsync)
       schema.isAsyncSchema->(Obj.magic: isAsyncSchema => bool)
     } catch {
-    | exn => {
-        let _ = exn->InternalError.getOrRethrow
+    | _ => {
+        let _ = %raw(`exn`)->InternalError.getOrRethrow
         false
       }
     }
@@ -1267,22 +1291,6 @@ let reverse = schema => {
 // Operations
 // =============
 
-@inline
-let callMemoizedOperation = (schema, operation, input) => {
-  let schema = schema->toUnknown
-  if (schema->Obj.magic->Js.Dict.unsafeGet(operation->Stdlib.Int.unsafeToString): bool) {
-    ()
-  } else {
-    schema
-    ->Obj.magic
-    ->Js.Dict.set(
-      operation->Stdlib.Int.unsafeToString,
-      schema.builder->Builder.compile(~schema, ~operation),
-    )
-  }
-  (schema->Obj.magic->Js.Dict.unsafeGet(operation->Stdlib.Int.unsafeToString))(input)
-}
-
 let wrapExnToError = exn => {
   if %raw("exn&&exn.s===symbol") {
     Error(exn->(Obj.magic: exn => error))
@@ -1294,9 +1302,7 @@ let wrapExnToError = exn => {
 @inline
 let useSyncOperation = (schema, operation, input) => {
   try {
-    schema
-    ->callMemoizedOperation(operation, input)
-    ->Ok
+    (schema->operationFn(operation))(input)->Ok
   } catch {
   | _ => wrapExnToError(%raw(`exn`))
   }
@@ -1307,12 +1313,26 @@ let asyncPrepareOk = value => Ok(value->castUnknownToAny)
 @inline
 let useAsyncOperation = (schema, operation, input) => {
   try {
-    schema
-    ->callMemoizedOperation(operation->Operation.addFlag(Operation.Flag.async), input)
-    ->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, wrapExnToError)
+    (schema->operationFn(operation->Operation.addFlag(Operation.Flag.async)))(
+      input,
+    )->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, wrapExnToError)
   } catch {
   | _ => wrapExnToError(%raw(`exn`))->Stdlib.Promise.resolve
   }
+}
+
+let convertWith = (input, schema) => {
+  (schema->operationFn(Operation.make()))(input)
+}
+
+let convertToJsonStringWith = (input, schema) => {
+  (
+    schema->operationFn(
+      Operation.make()
+      ->Operation.addFlag(Operation.Flag.jsonableOutput)
+      ->Operation.addFlag(Operation.Flag.jsonStringOutput),
+    )
+  )(input)
 }
 
 let convertAnyWith = (any, schema) => {
@@ -1325,7 +1345,9 @@ let convertAnyToJsonWith = (any, schema) => {
 
 let convertAnyToJsonStringWith = (any, schema) => {
   schema->useSyncOperation(
-    Operation.make()->Operation.addFlag(Operation.Flag.jsonStringOutput),
+    Operation.make()
+    ->Operation.addFlag(Operation.Flag.jsonableOutput)
+    ->Operation.addFlag(Operation.Flag.jsonStringOutput),
     any,
   )
 }
@@ -1336,21 +1358,24 @@ let convertAnyAsyncWith = (any, schema) => {
 
 @inline
 let parseAnyOrRaiseWith = (any, schema) => {
-  schema.parseOrRaise(any->castAnyToUnknown)->castUnknownToAny
+  (schema->operationFn(Operation.make()->Operation.addFlag(Operation.Flag.typeValidation)))(any)
 }
 
-let assertAnyWith = (any, schema) => {
-  schema.assertOrRaise(any->castAnyToUnknown)
+let assertWith = (any, schema) => {
+  (
+    schema->operationFn(
+      Operation.make()
+      ->Operation.addFlag(Operation.Flag.typeValidation)
+      ->Operation.addFlag(Operation.Flag.assertOutput),
+    )
+  )(any)
 }
 
-let assertOrRaiseWith = assertAnyWith
+let assertAnyWith = assertWith
+let assertOrRaiseWith = assertWith
 
 let parseAnyWith = (any, schema) => {
-  try {
-    parseAnyOrRaiseWith(any->castAnyToUnknown, schema)->castUnknownToAny->Ok
-  } catch {
-  | exn => exn->InternalError.getOrRethrow->Error
-  }
+  schema->useSyncOperation(Operation.make()->Operation.addFlag(Operation.Flag.typeValidation), any)
 }
 
 let parseWith: (Js.Json.t, t<'value>) => result<'value, error> = parseAnyWith
@@ -1368,24 +1393,19 @@ let serializeOrRaiseWith = (value, schema) => {
 }
 
 let serializeWith = (value, schema) => {
-  try {
-    serializeOrRaiseWith(value, schema)->Ok
-  } catch {
-  | exn => exn->InternalError.getOrRethrow->Error
-  }
+  schema.reverse()->useSyncOperation(
+    Operation.make()->Operation.addFlag(Operation.Flag.jsonableOutput),
+    value,
+  )
 }
 
 @inline
 let serializeToUnknownOrRaiseWith = (value, schema) => {
-  schema.serializeToUnknownOrRaise(value->castAnyToUnknown)
+  (schema.reverse()->operationFn(Operation.make()))(value)
 }
 
 let serializeToUnknownWith = (value, schema) => {
-  try {
-    serializeToUnknownOrRaiseWith(value, schema)->Ok
-  } catch {
-  | exn => exn->InternalError.getOrRethrow->Error
-  }
+  schema.reverse()->useSyncOperation(Operation.make(), value)
 }
 
 let serializeToJsonStringOrRaiseWith = (value: 'value, schema: t<'value>, ~space=0): string => {
@@ -1399,7 +1419,7 @@ let serializeToJsonStringWith = (value: 'value, schema: t<'value>, ~space=0): re
   try {
     serializeToJsonStringOrRaiseWith(value, schema, ~space)->Ok
   } catch {
-  | exn => exn->InternalError.getOrRethrow->Error
+  | _ => %raw(`exn`)->wrapExnToError
   }
 }
 
@@ -1422,55 +1442,31 @@ let parseJsonStringWith = (jsonString: string, schema: t<'value>): result<'value
 }
 
 let initialParseOrRaise = unknown => {
-  let schema = %raw(`this`)
-  let operation =
-    schema.builder->Builder.compile(
-      ~schema,
-      ~operation=Operation.make()->Operation.addFlag(Operation.Flag.typeValidation),
-    )
-  schema.parseOrRaise = operation
-  operation(unknown)
+  (%raw(`this`)->operationFn(Operation.make()->Operation.addFlag(Operation.Flag.typeValidation)))(
+    unknown,
+  )
 }
 
 let initialAssertOrRaise = unknown => {
-  let schema = %raw(`this`)
-  let operation = schema.builder->Builder.compile(
-    ~schema,
-    ~operation=Operation.make()
-    ->Operation.addFlag(Operation.Flag.typeValidation)
-    ->Operation.addFlag(Operation.Flag.assertOutput),
-  )
-  schema.assertOrRaise = operation
-  operation(unknown)
+  (
+    %raw(`this`)->operationFn(
+      Operation.make()
+      ->Operation.addFlag(Operation.Flag.typeValidation)
+      ->Operation.addFlag(Operation.Flag.assertOutput),
+    )
+  )(unknown)
 }
 
 let initialSerializeToUnknownOrRaise = unknown => {
-  let schema = %raw(`this`)
-  let reversed = schema.reverse()
-  let operation = reversed.builder->Builder.compile(~schema=reversed, ~operation=Operation.make())
-  schema.serializeToUnknownOrRaise = operation
-  operation(unknown)
+  ((%raw(`this`)).reverse()->operationFn(Operation.make()))(unknown)
 }
 
 let initialSerializeOrRaise = unknown => {
-  let schema = %raw(`this`)
-  if schema.tagged->unsafeGetVarianTag === "Option" {
-    Stdlib.Exn.raiseAny(
-      InternalError.make(
-        ~code=InvalidJsonSchema(schema),
-        ~operation=SerializeToJson,
-        ~path=Path.empty,
-      ),
+  (
+    (%raw(`this`)).reverse()->operationFn(
+      Operation.make()->Operation.addFlag(Operation.Flag.jsonableOutput),
     )
-  }
-  let reversed = schema.reverse()
-  let operation =
-    reversed.builder->Builder.compile(
-      ~schema=reversed,
-      ~operation=Operation.make()->Operation.addFlag(Operation.Flag.jsonableOutput),
-    )
-  schema.serializeOrRaise = operation
-  operation(unknown)
+  )(unknown)
 }
 
 let jsParse = unknown => {
@@ -1479,7 +1475,7 @@ let jsParse = unknown => {
       value: (%raw(`this`)).parseOrRaise(unknown),
     })
   } catch {
-  | exn => Failure({error: exn->InternalError.getOrRethrow})
+  | _ => Failure({error: %raw(`exn`)->InternalError.getOrRethrow})
   }
 }
 
@@ -1493,7 +1489,7 @@ let jsSerialize = value => {
       value: serializeToUnknownOrRaiseWith(value, %raw(`this`))->castUnknownToAny,
     })
   } catch {
-  | exn => Failure({error: exn->InternalError.getOrRethrow})
+  | _ => Failure({error: %raw(`exn`)->InternalError.getOrRethrow})
   }
 }
 
@@ -1544,6 +1540,7 @@ let makeSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilter, ~rev
     } else {
       reversed
     }
+    original.reverse = () => reversed
     reversed.reverse = () => original
     reversed
   },
@@ -3104,7 +3101,7 @@ module Union = {
 
           bb->B.allocateScope
         } catch {
-        | exn => "throw " ++ b->B.embed(exn->InternalError.getOrRethrow)
+        | _ => "throw " ++ b->B.embed(%raw(`exn`)->InternalError.getOrRethrow)
         }
         if isMultiple {
           let errorVar = `e` ++ idx->Stdlib.Int.unsafeToString
@@ -4254,8 +4251,6 @@ let setGlobalConfig = override => {
   | None => initialDisableNanNumberProtection
   }
   if prevDisableNanNumberCheck != globalConfig.disableNanNumberCheck {
-    float.assertOrRaise = initialAssertOrRaise
-    float.parseOrRaise = initialParseOrRaise
     resetOperationsCache(float)
   }
 }
