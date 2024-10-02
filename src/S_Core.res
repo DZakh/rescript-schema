@@ -1259,7 +1259,7 @@ let isAsync = schema => {
 }
 let isAsyncParse = isAsync
 
-let \"~experimentalReverse" = schema => {
+let reverse = schema => {
   schema.reverse()
 }
 

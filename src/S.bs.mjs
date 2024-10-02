@@ -156,7 +156,7 @@ var Metadata = S_Core$RescriptSchema.Metadata;
 
 var inline = S_Core$RescriptSchema.inline;
 
-var $tildeexperimentalReverse = S_Core$RescriptSchema.$tildeexperimentalReverse;
+var reverse = S_Core$RescriptSchema.reverse;
 
 var intMin = S_Core$RescriptSchema.intMin;
 
@@ -274,7 +274,7 @@ export {
   $$Array ,
   Metadata ,
   inline ,
-  $tildeexperimentalReverse ,
+  reverse ,
   intMin ,
   intMax ,
   port ,

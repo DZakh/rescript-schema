@@ -94,14 +94,14 @@ let assertCompiledCode = (
     | #Serialize => {
         let fn =
           schema
-          ->S.\"~experimentalReverse"
+          ->S.reverse
           ->S.compile(~input=Any, ~output=Output, ~mode=Sync, ~typeValidation=false)
         fn->magic
       }
     | #SerializeJson => {
         let fn =
           schema
-          ->S.\"~experimentalReverse"
+          ->S.reverse
           ->S.compile(~input=Any, ~output=Json, ~mode=Sync, ~typeValidation=false)
         fn->magic
       }
@@ -124,7 +124,7 @@ let assertEqualSchemas: (
 let assertReverseParsesBack = (t, schema: S.t<'value>, value: 'value) => {
   t->Assert.unsafeDeepEqual(
     value
-    ->S.parseAnyWith(schema->S.\"~experimentalReverse")
+    ->S.parseAnyWith(schema->S.reverse)
     ->S.unwrap
     ->S.parseAnyWith(schema)
     ->S.unwrap,

@@ -78,8 +78,8 @@ function unsafeAssertEqualSchemas(t, s1, s2, message) {
 function assertCompiledCode(t, schema, op, code, message) {
   var compiledCode = (
       op === "Assert" ? S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true) : (
-          op === "SerializeJson" ? S$RescriptSchema.compile(S$RescriptSchema.$tildeexperimentalReverse(schema), "Any", "Json", "Sync", false) : (
-              op === "Serialize" ? S$RescriptSchema.compile(S$RescriptSchema.$tildeexperimentalReverse(schema), "Any", "Output", "Sync", false) : (
+          op === "SerializeJson" ? S$RescriptSchema.compile(S$RescriptSchema.reverse(schema), "Any", "Json", "Sync", false) : (
+              op === "Serialize" ? S$RescriptSchema.compile(S$RescriptSchema.reverse(schema), "Any", "Output", "Sync", false) : (
                   S$RescriptSchema.isAsync(schema) ? S$RescriptSchema.compile(schema, "Any", "Output", "Async", true) : S$RescriptSchema.compile(schema, "Any", "Output", "Sync", true)
                 )
             )
@@ -93,7 +93,7 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
 }
 
 function assertReverseParsesBack(t, schema, value) {
-  t.deepEqual(S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith(S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith(value, S$RescriptSchema.$tildeexperimentalReverse(schema))), schema)), value, undefined);
+  t.deepEqual(S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith(S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith(value, S$RescriptSchema.reverse(schema))), schema)), value, undefined);
 }
 
 var assertEqualSchemas = unsafeAssertEqualSchemas;

@@ -373,7 +373,7 @@ module Metadata: {
 
 let inline: t<'value> => string
 
-let \"~experimentalReverse": t<'value> => t<unknown>
+let reverse: t<'value> => t<unknown>
 
 // =============
 // Built-in refinements

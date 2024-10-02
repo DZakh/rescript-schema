@@ -91,8 +91,8 @@ test("Reverse schema to the original schema", t => {
     if value < 0 {
       s.fail("Should be positive")
     })
-  t->Assert.not(schema->S.\"~experimentalReverse", schema->S.toUnknown, ())
-  t->U.assertEqualSchemas(schema->S.\"~experimentalReverse", S.int->S.toUnknown)
+  t->Assert.not(schema->S.reverse, schema->S.toUnknown, ())
+  t->U.assertEqualSchemas(schema->S.reverse, S.int->S.toUnknown)
 })
 
 test("Succesfully uses reversed schema for parsing back to initial value", t => {

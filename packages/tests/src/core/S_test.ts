@@ -486,6 +486,22 @@ test("Successfully serializes with transform to another type", (t) => {
   expectType<TypeEqual<typeof result, string>>(true);
 });
 
+test("Successfully converts reversed schema with transform to another type", (t) => {
+  const schema = S.transform(
+    S.string,
+    (string) => Number(string),
+    (number) => {
+      expectType<TypeEqual<typeof number, number>>(true);
+      return number.toString();
+    }
+  );
+  const result = S.reverse(schema).parseOrThrow(123);
+
+  t.deepEqual(result, "123");
+
+  expectType<TypeEqual<typeof result, string>>(true);
+});
+
 test("Successfully parses with refine", (t) => {
   const schema = S.refine(S.string, (string) => {
     expectType<TypeEqual<typeof string, string>>(true);

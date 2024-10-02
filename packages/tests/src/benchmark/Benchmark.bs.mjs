@@ -264,7 +264,7 @@ run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(a
               })), "Serialize advanced object - compile", (function () {
             var schema = makeAdvancedObjectSchema();
             var data = makeTestObject();
-            var fn = S$RescriptSchema.compile(S$RescriptSchema.$tildeexperimentalReverse(schema), "Any", "Output", "Sync", false);
+            var fn = S$RescriptSchema.compile(S$RescriptSchema.reverse(schema), "Any", "Output", "Sync", false);
             return function () {
               return fn(data);
             };

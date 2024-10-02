@@ -490,7 +490,7 @@ test("Reverse schema with items", t => {
   let schema = S.union([S.literal(%raw(`0`)), S.null(S.bool)])
 
   t->U.assertEqualSchemas(
-    schema->S.\"~experimentalReverse",
+    schema->S.reverse,
     S.union([S.literal(%raw(`0`)), S.option(S.bool)])->S.toUnknown,
   )
 })

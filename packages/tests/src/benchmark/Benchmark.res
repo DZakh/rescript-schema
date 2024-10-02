@@ -299,7 +299,7 @@ Suite.make()
   let data = makeTestObject()
   let fn =
     schema
-    ->S.\"~experimentalReverse"
+    ->S.reverse
     ->S.compile(~input=Any, ~output=Output, ~mode=Sync, ~typeValidation=false)
   () => {
     fn(data)

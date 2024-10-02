@@ -57,6 +57,10 @@ export const unknown: Schema<unknown>;
 export const undefined: Schema<undefined>;
 export const json: (validate: boolean) => Schema<Json>;
 
+export function reverse<Output, Input>(
+  schema: Schema<Output, Input>
+): Schema<Input, Output>;
+
 export function literal<Literal extends string>(
   value: Literal
 ): Schema<Literal>;

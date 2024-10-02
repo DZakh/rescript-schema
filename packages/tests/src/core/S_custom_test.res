@@ -49,7 +49,7 @@ test("Correctly serializes custom schema", t => {
 test("Reverses custom schema to unknown", t => {
   let schema = nullableSchema(S.string)
 
-  t->U.assertEqualSchemas(schema->S.\"~experimentalReverse", S.unknown)
+  t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
 })
 
 test("Succesfully uses reversed schema for parsing back to initial value", t => {
