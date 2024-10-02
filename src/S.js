@@ -22,6 +22,7 @@ export const schema = S.schema;
 export const reverse = S.reverse;
 export const convertWith = S.convertWith;
 export const convertToJsonStringWith = S.convertToJsonStringWith;
+export const parseWith = S.parseAnyOrRaiseWith;
 export const assertWith = S.assertWith;
 export const recursive = S.recursive;
 export const merge = S.js_merge;

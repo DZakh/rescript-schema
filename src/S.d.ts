@@ -61,6 +61,11 @@ export function reverse<Output, Input>(
   schema: Schema<Output, Input>
 ): Schema<Input, Output>;
 
+export function parseWith<Output, Input>(
+  data: unknown,
+  schema: Schema<Output, Input>
+): Output;
+
 export function convertWith<Output, Input>(
   data: Input,
   schema: Schema<Output, Input>

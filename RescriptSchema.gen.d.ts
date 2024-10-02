@@ -21,6 +21,9 @@ export type Json =
 export type S_t<Output, Input = unknown> = {
   parse(data: unknown): Result<Output>;
   parseAsync(data: unknown): Promise<Result<Output>>;
+  /**
+   * @deprecated It'll be removed in v9. Use S.parseWith(data, schema) instead
+   */
   parseOrThrow(data: unknown): Output;
   serialize(value: Output): Result<Input>;
   /**
