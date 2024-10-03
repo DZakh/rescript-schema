@@ -3,7 +3,7 @@ open Ava
 test("Successfully parses", t => {
   let schema = S.bool
 
-  t->Assert.deepEqual(true->S.serializeToJsonStringWith(schema), Ok("true"), ())
+  t->Assert.deepEqual(true->S.reverseConvertToJsonStringWith(schema), "true", ())
 })
 
 test("Successfully parses object", t => {
@@ -18,8 +18,8 @@ test("Successfully parses object", t => {
     {
       "id": "0",
       "isDeleted": true,
-    }->S.serializeToJsonStringWith(schema),
-    Ok(`{"id":"0","isDeleted":true}`),
+    }->S.reverseConvertToJsonStringWith(schema),
+    `{"id":"0","isDeleted":true}`,
     (),
   )
 })
@@ -36,22 +36,25 @@ test("Successfully parses object with space", t => {
     {
       "id": "0",
       "isDeleted": true,
-    }->S.serializeToJsonStringWith(~space=2, schema),
-    Ok(`{
+    }->S.reverseConvertToJsonStringWith(~space=2, schema),
+    `{
   "id": "0",
   "isDeleted": true
-}`),
+}`,
     (),
   )
 })
 
 test("Fails to serialize Unknown schema", t => {
   let schema = S.unknown
-  t->Assert.deepEqual(
-    Obj.magic(123)->S.serializeToJsonStringWith(schema),
-    Error(
-      U.error({code: InvalidJsonSchema(schema), operation: SerializeToJson, path: S.Path.empty}),
-    ),
+
+  t->Assert.throws(
+    () => {
+      Obj.magic(123)->S.reverseConvertToJsonStringWith(schema)
+    },
+    ~expectations={
+      message: "Failed serializing to JSON at root. Reason: The schema Unknown is not compatible with JSON",
+    },
     (),
   )
 })

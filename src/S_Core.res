@@ -1431,6 +1431,10 @@ let serializeToJsonStringWith = (value: 'value, schema: t<'value>, ~space=0): re
   }
 }
 
+let reverseConvertWith = serializeToUnknownOrRaiseWith
+let reverseConvertToJsonWith = serializeOrRaiseWith
+let reverseConvertToJsonStringWith = serializeToJsonStringOrRaiseWith
+
 let parseJsonStringWith = (jsonString: string, schema: t<'value>): result<'value, error> => {
   switch try {
     jsonString->Js.Json.parseExn->Ok

@@ -3191,6 +3191,12 @@ var parseOrRaiseWith = parseAnyOrRaiseWith;
 
 var parseAsyncWith = parseAnyAsyncWith;
 
+var reverseConvertWith = serializeToUnknownOrRaiseWith;
+
+var reverseConvertToJsonWith = serializeOrRaiseWith;
+
+var reverseConvertToJsonStringWith = serializeToJsonStringOrRaiseWith;
+
 var assertOrRaiseWith = assertWith;
 
 var assertAnyWith = assertWith;
@@ -3298,6 +3304,9 @@ export {
   convertAnyToJsonWith ,
   convertAnyToJsonStringWith ,
   convertAnyAsyncWith ,
+  reverseConvertWith ,
+  reverseConvertToJsonWith ,
+  reverseConvertToJsonStringWith ,
   serializeWith ,
   serializeToUnknownWith ,
   serializeToJsonStringWith ,

@@ -94,6 +94,12 @@ var convertAnyToJsonStringWith = S_Core$RescriptSchema.convertAnyToJsonStringWit
 
 var convertAnyAsyncWith = S_Core$RescriptSchema.convertAnyAsyncWith;
 
+var reverseConvertWith = S_Core$RescriptSchema.reverseConvertWith;
+
+var reverseConvertToJsonWith = S_Core$RescriptSchema.reverseConvertToJsonWith;
+
+var reverseConvertToJsonStringWith = S_Core$RescriptSchema.reverseConvertToJsonStringWith;
+
 var serializeWith = S_Core$RescriptSchema.serializeWith;
 
 var serializeToUnknownWith = S_Core$RescriptSchema.serializeToUnknownWith;
@@ -245,6 +251,9 @@ export {
   convertAnyToJsonWith ,
   convertAnyToJsonStringWith ,
   convertAnyAsyncWith ,
+  reverseConvertWith ,
+  reverseConvertToJsonWith ,
+  reverseConvertToJsonStringWith ,
   serializeWith ,
   serializeToUnknownWith ,
   serializeToJsonStringWith ,

@@ -213,9 +213,7 @@ let compile: (
 let parseWith: (Js.Json.t, t<'value>) => result<'value, error>
 let parseAnyWith: ('any, t<'value>) => result<'value, error>
 let parseJsonStringWith: (string, t<'value>) => result<'value, error>
-@deprecated("It'll be removed in v9. Use S.parseWith together with S.unwrap instead")
 let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value
-@deprecated("It'll be removed in v9. Use S.parseAnyWith together with S.unwrap instead")
 let parseAnyOrRaiseWith: ('any, t<'value>) => 'value
 let parseAsyncWith: (Js.Json.t, t<'value>) => promise<result<'value, error>>
 let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
@@ -225,14 +223,22 @@ let convertAnyToJsonWith: ('any, t<'value>) => result<Js.Json.t, error>
 let convertAnyToJsonStringWith: ('any, t<'value>) => result<string, error>
 let convertAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
 
+let reverseConvertWith: ('value, t<'value>) => unknown
+let reverseConvertToJsonWith: ('value, t<'value>) => Js.Json.t
+let reverseConvertToJsonStringWith: ('value, t<'value>, ~space: int=?) => string
+
+// TODO: Uncomment when a codemod is ready
+// @deprecated("It'll be removed in v9. Use S.reverseConvertToJsonWith and try/catch instead")
 let serializeWith: ('value, t<'value>) => result<Js.Json.t, error>
+// @deprecated("It'll be removed in v9. Use S.reverseConvertWith and try/catch instead")
 let serializeToUnknownWith: ('value, t<'value>) => result<unknown, error>
+@deprecated("It'll be removed in v9. Use S.reverseConvertToJsonStringWith and try/catch instead")
 let serializeToJsonStringWith: ('value, t<'value>, ~space: int=?) => result<string, error>
-@deprecated("It'll be removed in v9. Use S.serializeWith together with S.unwrap instead")
+@deprecated("It'll be removed in v9. Use S.reverseConvertToJsonWith instead")
 let serializeOrRaiseWith: ('value, t<'value>) => Js.Json.t
-@deprecated("It'll be removed in v9. Use S.serializeToUnknown together with S.unwrap instead")
+@deprecated("It'll be removed in v9. Use S.reverseConvertWith instead")
 let serializeToUnknownOrRaiseWith: ('value, t<'value>) => unknown
-@deprecated("It'll be removed in v9. Use S.serializeToJsonString together with S.unwrap instead")
+@deprecated("It'll be removed in v9. Use S.reverseConvertToJsonStringWith instead")
 let serializeToJsonStringOrRaiseWith: ('value, t<'value>, ~space: int=?) => string
 
 @deprecated("It'll be removed in v9. Use S.assertWith instead")

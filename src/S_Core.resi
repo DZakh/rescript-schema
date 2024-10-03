@@ -227,6 +227,10 @@ let convertAnyToJsonWith: ('any, t<'value>) => result<Js.Json.t, error>
 let convertAnyToJsonStringWith: ('any, t<'value>) => result<string, error>
 let convertAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
 
+let reverseConvertWith: ('value, t<'value>) => unknown
+let reverseConvertToJsonWith: ('value, t<'value>) => Js.Json.t
+let reverseConvertToJsonStringWith: ('value, t<'value>, ~space: int=?) => string
+
 let serializeWith: ('value, t<'value>) => result<Js.Json.t, error>
 let serializeToUnknownWith: ('value, t<'value>) => result<unknown, error>
 let serializeToJsonStringWith: ('value, t<'value>, ~space: int=?) => result<string, error>

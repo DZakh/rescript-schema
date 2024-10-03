@@ -34,7 +34,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Rename serialize to convertReverse
 - S.create / S.validate
 - Rename S.inline to S.toRescriptCode
-- Add serializeToJsonString to js api
 - Fix reverse for object/tuple/variant/recursive
 - Rename disableNanNumberCheck to use validation
 - Add tag for BigInt
