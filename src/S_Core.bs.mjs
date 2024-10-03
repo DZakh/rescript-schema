@@ -1471,6 +1471,43 @@ function typeFilter$1(_b, inputVar) {
   return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
 }
 
+function makeOutput(b, definition, outputs, asyncOutputs) {
+  var definitionToValue = function (definition, outputPath) {
+    var val = outputs.get(definition);
+    if (val !== undefined) {
+      return inline(b, val);
+    }
+    if (!(typeof definition === "object" && definition !== null)) {
+      return "e[" + (b.g.e.push(definition) - 1) + "]";
+    }
+    var isArray = Array.isArray(definition);
+    var keys = Object.keys(definition);
+    var codeRef = isArray ? "[" : "{";
+    for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+      var key = keys[idx];
+      var definition$1 = definition[key];
+      var output = definitionToValue(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+      if (idx !== 0) {
+        codeRef = codeRef + ",";
+      }
+      codeRef = codeRef + (
+        isArray ? output : JSON.stringify(key) + ":" + output
+      );
+    }
+    return codeRef + (
+            isArray ? "]" : "}"
+          );
+  };
+  var syncOutput = definitionToValue(definition, "");
+  if (asyncOutputs.length === 0) {
+    return val(b, syncOutput);
+  } else {
+    return asyncVal(b, "Promise.all([" + asyncOutputs.map(function (val) {
+                      return inline(b, val);
+                    }).toString() + "]).then(a=>(" + syncOutput + "))");
+  }
+}
+
 function builder$1(b, input, selfSchema, path) {
   var asyncOutputs = [];
   var outputs = new WeakMap();
@@ -1538,37 +1575,7 @@ function builder$1(b, input, selfSchema, path) {
             }), keyVar) + "}}");
   };
   parseItems(b, input, selfSchema, path);
-  var definitionToValue = function (definition, outputPath) {
-    var val = outputs.get(definition);
-    if (val !== undefined) {
-      return inline(b, val);
-    }
-    if (!(typeof definition === "object" && definition !== null)) {
-      return "e[" + (b.g.e.push(definition) - 1) + "]";
-    }
-    var isArray = Array.isArray(definition);
-    var keys = Object.keys(definition);
-    var codeRef = isArray ? "[" : "{";
-    for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-      var key = keys[idx];
-      var definition$1 = definition[key];
-      var output = definitionToValue(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
-      codeRef = codeRef + (
-        isArray ? output : JSON.stringify(key) + ":" + output
-      ) + ",";
-    }
-    return codeRef + (
-            isArray ? "]" : "}"
-          );
-  };
-  var syncOutput = definitionToValue(selfSchema.t.definition, "");
-  if (asyncOutputs.length === 0) {
-    return val(b, syncOutput);
-  } else {
-    return asyncVal(b, "Promise.all([" + asyncOutputs.map(function (val) {
-                      return inline(b, val);
-                    }).toString() + "]).then(a=>(" + syncOutput + "))");
-  }
+  return makeOutput(b, selfSchema.t.definition, outputs, asyncOutputs);
 }
 
 function name() {
@@ -1578,75 +1585,96 @@ function name() {
               }).join(", ") + "})";
 }
 
-function reverse$1() {
-  var original = this;
-  return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, input, param, path) {
-                var inputVar = $$var(b, input);
-                var ctx = {
-                  d: ""
-                };
-                var embededOutputs = new WeakMap();
-                var definitionToOutput = function (definition, outputPath) {
-                  if (typeof definition === "object" && definition !== null) {
-                    if (definition.s === itemSymbol) {
-                      if (embededOutputs.has(definition)) {
-                        return invalidOperation(b, path, "The item " + definition.i + " is registered multiple times");
+function reverse$1(inputDefinition, toItem) {
+  return function () {
+    var original = this;
+    return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, input, param, path) {
+                  var inputVar = $$var(b, input);
+                  var ctx = {
+                    d: ""
+                  };
+                  var embededOutputs = new WeakMap();
+                  var definitionToOutput = function (definition, outputPath) {
+                    if (typeof definition === "object" && definition !== null) {
+                      if (definition.s === itemSymbol) {
+                        var embededOutput = embededOutputs.get(definition);
+                        if (embededOutput !== undefined) {
+                          var itemInput = outputPath === "" ? input : val(b, inputVar + outputPath);
+                          var schema = definition.t.r();
+                          var itemOutput = schema.b(b, itemInput, schema, path + outputPath);
+                          b.c = b.c + ("if(" + $$var(b, embededOutput) + "!==" + $$var(b, itemOutput) + "){" + fail(b, "Multiple sources provided not equal data for " + definition.i, path) + "}");
+                          return ;
+                        }
+                        var itemInput$1 = outputPath === "" ? input : val(b, inputVar + outputPath);
+                        var schema$1 = definition.t.r();
+                        var itemOutput$1 = schema$1.b(b, itemInput$1, schema$1, path + outputPath);
+                        embededOutputs.set(definition, itemOutput$1);
+                        return ;
                       }
-                      var itemInput = val(b, inputVar + outputPath);
-                      var schema = definition.t.r();
-                      var itemOutput = schema.b(b, itemInput, schema, path + outputPath);
-                      embededOutputs.set(definition, itemOutput);
+                      var keys = Object.keys(definition);
+                      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+                        var key = keys[idx];
+                        var definition$1 = definition[key];
+                        definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+                      }
                       return ;
                     }
-                    var keys = Object.keys(definition);
-                    for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-                      var key = keys[idx];
-                      var definition$1 = definition[key];
-                      definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+                    var tagSchema = literal(definition);
+                    var itemInputVar = inputVar + outputPath;
+                    ctx.d = ctx.d + ("if(" + tagSchema.f(b, itemInputVar) + "){" + failWithArg(b, path + outputPath, (function (received) {
+                              return {
+                                      TAG: "InvalidType",
+                                      expected: tagSchema,
+                                      received: received
+                                    };
+                            }), itemInputVar) + "}");
+                  };
+                  definitionToOutput(inputDefinition, "");
+                  b.c = ctx.d + b.c;
+                  var isRootObject = original.t.TAG === "Object";
+                  var schemaOutput = function (schema, isObject, path) {
+                    var items = schema.t.items;
+                    var output = "";
+                    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+                      var item = items[idx];
+                      var o = embededOutputs.get(item);
+                      var itemOutput = o !== undefined ? inline(b, o) : fallbackOutput(item, path);
+                      if (idx !== 0) {
+                        output = output + ",";
+                      }
+                      output = output + (
+                        isObject ? item.i + ":" + itemOutput : itemOutput
+                      );
                     }
-                    return ;
-                  }
-                  var tagSchema = literal(definition);
-                  var itemInputVar = inputVar + outputPath;
-                  ctx.d = ctx.d + ("if(" + tagSchema.f(b, itemInputVar) + "){" + failWithArg(b, path + outputPath, (function (received) {
-                            return {
-                                    TAG: "InvalidType",
-                                    expected: tagSchema,
-                                    received: received
-                                  };
-                          }), itemInputVar) + "}");
-                };
-                definitionToOutput(original.t.definition, "");
-                b.c = ctx.d + b.c;
-                var toRaw = function (schema, path) {
-                  var items = schema.t.items;
-                  var isObject = schema.t.TAG === "Object";
-                  var output = "";
-                  for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-                    var item = items[idx];
-                    var o = embededOutputs.get(item);
-                    var itemOutput;
-                    if (o !== undefined) {
-                      itemOutput = inline(b, o);
+                    if (isObject) {
+                      return "{" + output + "}";
                     } else {
-                      var itemSchema = item.t;
-                      if (itemSchema.t.TAG === "Literal") {
-                        var value = itemSchema.t._0.value;
-                        itemOutput = "e[" + (b.g.e.push(value) - 1) + "]";
+                      return "[" + output + "]";
+                    }
+                  };
+                  var fallbackOutput = function (item, path) {
+                    var itemSchema = item.t;
+                    if (itemSchema.t.TAG !== "Literal") {
+                      if (isRootObject && itemSchema.d) {
+                        return schemaOutput(itemSchema, true, path + item.p);
                       } else {
-                        itemOutput = isObject && itemSchema.d ? toRaw(itemSchema, path + item.p) : invalidOperation(b, path, "The " + item.i + " item is not registered or not a literal");
+                        return invalidOperation(b, path, "Schema for " + item.i + " isn't registered");
                       }
                     }
-                    output = isObject ? output + (item.i + ":" + itemOutput + ",") : output + (itemOutput + ",");
+                    var value = itemSchema.t._0.value;
+                    return "e[" + (b.g.e.push(value) - 1) + "]";
+                  };
+                  if (toItem === undefined) {
+                    return val(b, schemaOutput(original, isRootObject, path));
                   }
-                  if (isObject) {
-                    return "{" + output + "}";
+                  var o = embededOutputs.get(toItem);
+                  if (o !== undefined) {
+                    return o;
                   } else {
-                    return "[" + output + "]";
+                    return val(b, fallbackOutput(toItem, path));
                   }
-                };
-                return val(b, toRaw(original, path));
-              }), undefined);
+                }), undefined);
+  };
 }
 
 function factory$3(definer) {
@@ -1722,7 +1750,7 @@ function factory$3(definer) {
             definition: definition
           },
           n: name,
-          r: reverse$1,
+          r: reverse$1(definition, undefined),
           b: builder$1,
           f: typeFilter$1,
           i: 0,
@@ -1793,75 +1821,38 @@ function tuple(definer) {
               definition: definition
             }, empty, builder$1, (function (b, inputVar) {
                 return typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
-              }), reverse$1);
+              }), reverse$1(definition, undefined));
 }
 
-function variant(schema, definer) {
+function to(schema, definer) {
   if (schema.d) {
     return factory$3(function (ctx) {
                 return definer(schema.d(ctx));
               });
-  } else {
-    return makeSchema(schema.n, schema.t, schema.m, (function (b, input, param, path) {
-                  return embedSyncOperation(b, schema.b(b, input, schema, path), definer);
-                }), schema.f, (function () {
-                  var original = this;
-                  var reversed = schema.r();
-                  return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, input, param, path) {
-                                var inputVar = $$var(b, input);
-                                var definition = definer(symbol);
-                                var definitionToValue = function (definition, valuePath) {
-                                  if (symbol === definition) {
-                                    return valuePath === "" ? input : val(b, inputVar + valuePath);
-                                  }
-                                  if (typeof definition === "object" && definition !== null) {
-                                    var keys = Object.keys(definition);
-                                    var maybeOutputRef = 0;
-                                    for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-                                      var key = keys[idx];
-                                      var definition$1 = definition[key];
-                                      var maybeOutput = definitionToValue(definition$1, valuePath + ("[" + JSON.stringify(key) + "]"));
-                                      var match = maybeOutputRef;
-                                      if (typeof match !== "object") {
-                                        if (match === 0) {
-                                          maybeOutputRef = maybeOutput;
-                                        }
-                                        
-                                      } else if (!(typeof maybeOutput !== "object" && maybeOutput === 0)) {
-                                        maybeOutputRef = 1;
-                                      }
-                                      
-                                    }
-                                    return maybeOutputRef;
-                                  }
-                                  var tagSchema = literal(definition);
-                                  var tagVal = valuePath === "" ? input : val(b, inputVar + valuePath);
-                                  var tagInputVar = $$var(b, tagVal);
-                                  b.c = b.c + ("if(" + tagSchema.f(b, tagInputVar) + "){" + failWithArg(b, path + valuePath, (function (received) {
-                                            return {
-                                                    TAG: "InvalidType",
-                                                    expected: tagSchema,
-                                                    received: received
-                                                  };
-                                          }), tagInputVar) + "}");
-                                  return 0;
-                                };
-                                var output = definitionToValue(definition, "");
-                                if (typeof output === "object") {
-                                  return reversed.b(b, output, reversed, path);
-                                }
-                                if (output !== 0) {
-                                  return invalidOperation(b, path, "The S.to's value is registered multiple times");
-                                }
-                                if (original.t.TAG !== "Literal") {
-                                  return invalidOperation(b, path, "The S.to's value is not registered");
-                                }
-                                var value = original.t._0.value;
-                                var input$1 = val(b, "e[" + (b.g.e.push(value) - 1) + "]");
-                                return reversed.b(b, input$1, reversed, path);
-                              }), undefined);
-                }));
   }
+  var item = {
+    t: schema,
+    p: "",
+    l: "",
+    i: "\"\"",
+    s: itemSymbol
+  };
+  var definition = definer(item);
+  return makeSchema(schema.n, schema.t, schema.m, (function (b, input, param, path) {
+                var asyncOutputs = [];
+                var outputs = new WeakMap();
+                var itemOutput = schema.b(b, input, schema, path);
+                var itemOutput$1;
+                if (itemOutput.a) {
+                  var index = asyncOutputs.length;
+                  asyncOutputs.push(itemOutput);
+                  itemOutput$1 = val(b, "a[" + index + "]");
+                } else {
+                  itemOutput$1 = itemOutput;
+                }
+                outputs.set(item, itemOutput$1);
+                return makeOutput(b, definition, outputs, asyncOutputs);
+              }), schema.f, reverse$1(definition, item));
 }
 
 function setUnknownKeys(schema, unknownKeys) {
@@ -2331,11 +2322,12 @@ function definitionToSchema(definition, embededSet) {
   } else if (typeof definition === "object" && definition !== null) {
     if (Array.isArray(definition)) {
       return tuple(function (s) {
+                  var tupleDefinition = [];
                   for(var idx = 0 ,idx_finish = definition.length; idx < idx_finish; ++idx){
                     var definition$1 = definition[idx];
-                    definition[idx] = s.item(idx, definitionToSchema(definition$1, embededSet));
+                    tupleDefinition[idx] = s.item(idx, definitionToSchema(definition$1, embededSet));
                   }
-                  return definition;
+                  return tupleDefinition;
                 });
     } else {
       return factory$3(function (s) {
@@ -3185,7 +3177,7 @@ var jsonString = factory$5;
 
 var union = factory$6;
 
-var to = variant;
+var variant = to;
 
 var parseWith = parseAnyWith;
 

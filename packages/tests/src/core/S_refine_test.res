@@ -82,7 +82,7 @@ test("Compiled parse code snapshot for simple object with refine", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["foo"],v1=i["bar"],v2;if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}v2={"foo":v0,"bar":v1,};e[2](v2);return v2}`,
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["foo"],v1=i["bar"],v2;if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}v2={"foo":v0,"bar":v1};e[2](v2);return v2}`,
   )
 })
 

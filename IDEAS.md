@@ -40,6 +40,9 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add flatten to ts api
 - Get rid of Caml_js_exceptions.internalToOCamlException
 - Add testWith
+- Use type args for S.compile
+- Change asyncParser from () => () => promise to () => promise
+- Add schema input to the error ??? What about build errors?
 
 ### Done
 
@@ -47,6 +50,8 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Renamed S.assertAnyWith to S.assertWith
 - Ts operation api changes
 - Rename S.variant to S.to
+- Reverse operations for schemas where a single field is used multiple times
+- S.to/S.variant don't allow to distructure tuples anymore
 
 ## v10
 

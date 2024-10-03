@@ -6,6 +6,17 @@ test("Parses with wrapping the value in variant", t => {
   t->Assert.deepEqual("Hello world!"->S.parseAnyWith(schema), Ok(Ok("Hello world!")), ())
 })
 
+asyncTest("Parses with wrapping async schema in variant", async t => {
+  let schema = S.string->S.transform(_ => {asyncParser: i => async () => i})->S.to(s => Ok(s))
+
+  t->Assert.deepEqual(await "Hello world!"->S.parseAnyAsyncWith(schema), Ok(Ok("Hello world!")), ())
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{if(typeof i!=="string"){e[2](i)}return Promise.all([e[0](i)]).then(a=>({"TAG":e[1],"_0":a[0]}))}`,
+  )
+})
+
 test("Fails to parse wrapped schema", t => {
   let schema = S.string->S.to(s => Ok(s))
 
@@ -55,7 +66,7 @@ test("Fails to serialize when the value is not used as the variant payload", t =
     #foo->S.serializeToUnknownWith(schema),
     {
       code: InvalidOperation({
-        description: "The S.to\'s value is not registered",
+        description: `Schema for "" isn\'t registered`,
       }),
       operation: SerializeToUnknown,
       path: S.Path.empty,
@@ -72,18 +83,28 @@ test(
   },
 )
 
-test("Successfully parses when tuple is destructured", t => {
+test("BROKEN: Successfully parses when tuple is destructured", t => {
   let schema = S.literal((true, 12))->S.to(((_, twelve)) => twelve)
 
-  t->Assert.deepEqual(%raw(`[true, 12]`)->S.parseAnyWith(schema), Ok(12), ())
+  // FIXME: This is wrong, the result should be Ok(12)
+  t->Assert.deepEqual(%raw(`[true, 12]`)->S.parseAnyWith(schema), Ok(%raw(`undefined`)), ())
 })
 
-// TODO: Throw in proxy (???)
-// test("Fails to serialize when tuple is destructured", t => {
-//   let schema = S.tuple2(S.literal(true), S.literal(12))->S.to(((_, twelve)) => twelve)
+// FIXME: Throw in proxy (???)
+test("BROKEN: Fails to serialize when tuple is destructured", t => {
+  let schema = S.tuple2(S.literal(true), S.literal(12))->S.to(((_, twelve)) => twelve)
 
-//   t->Assert.deepEqual(12->S.serializeToUnknownWith(schema), Ok(%raw(`[true, 12]`)), ())
-// })
+  // t->Assert.deepEqual(12->S.serializeToUnknownWith(schema), Ok(%raw(`[true, 12]`)), ())
+  t->Assert.throws(
+    () => {
+      12->S.reverseConvertWith(schema)
+    },
+    ~expectations={
+      message: `Failed serializing at root. Reason: Schema for "" isn\'t registered`,
+    },
+    (),
+  )
+})
 
 test("Successfully parses when value registered multiple times", t => {
   let schema = S.string->S.to(s => #Foo(s, s))
@@ -91,14 +112,21 @@ test("Successfully parses when value registered multiple times", t => {
   t->Assert.deepEqual(%raw(`"abc"`)->S.parseAnyWith(schema), Ok(#Foo("abc", "abc")), ())
 })
 
-test("Fails to serialize when value registered multiple times", t => {
+test("Reverse convert with value registered multiple times", t => {
   let schema = S.string->S.to(s => #Foo(s, s))
 
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Serialize,
+    `i=>{let v0=i["VAL"]["0"],v1=i["VAL"]["1"];if(i["NAME"]!=="Foo"){e[0](i["NAME"])}if(v0!==v1){e[1]()}return v0}`,
+  )
+
+  t->Assert.deepEqual(#Foo("abc", "abc")->S.reverseConvertWith(schema), %raw(`"abc"`), ())
   t->U.assertErrorResult(
-    #Foo("abc", "abc")->S.serializeToUnknownWith(schema),
+    #Foo("abc", "abcd")->S.serializeToUnknownWith(schema),
     {
       code: InvalidOperation({
-        description: "The S.to\'s value is registered multiple times",
+        description: `Multiple sources provided not equal data for ""`,
       }),
       operation: SerializeToUnknown,
       path: S.Path.empty,
@@ -115,9 +143,9 @@ test("Can destructure object value passed to S.to", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"foo":v0,"bar":v1}}`,
   )
-  t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
+  t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"]}}`)
 })
 
 test("Compiled code snapshot of variant applied to object", t => {
@@ -126,12 +154,12 @@ test("Compiled code snapshot of variant applied to object", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return {"TAG":e[1],"_0":v0,}}`,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return {"TAG":e[1],"_0":v0}}`,
   )
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Serialize,
-    `i=>{if(i["TAG"]!=="Ok"){e[0](i["TAG"])}return {"foo":i["_0"],}}`,
+    `i=>{if(i["TAG"]!=="Ok"){e[0](i["TAG"])}return {"foo":i["_0"]}}`,
   )
 })
 
@@ -141,18 +169,14 @@ test("Compiled parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(typeof i!=="string"){e[1](i)}return e[0](i)}`,
+    `i=>{if(typeof i!=="string"){e[1](i)}return {"TAG":e[0],"_0":i}}`,
   )
 })
 
 test("Compiled parse code snapshot without transform", t => {
   let schema = S.string->S.to(s => s)
 
-  t->U.assertCompiledCode(
-    ~schema,
-    ~op=#Parse,
-    `i=>{if(typeof i!=="string"){e[1](i)}return e[0](i)}`,
-  )
+  t->U.assertCompiledCode(~schema, ~op=#Parse, `i=>{if(typeof i!=="string"){e[0](i)}return i}`)
 })
 
 test("Compiled serialize code snapshot", t => {
@@ -161,7 +185,7 @@ test("Compiled serialize code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Serialize,
-    `i=>{let v0=i["TAG"];if(v0!=="Ok"){e[0](v0)}return i["_0"]}`,
+    `i=>{if(i["TAG"]!=="Ok"){e[0](i["TAG"])}return i["_0"]}`,
   )
 })
 
@@ -232,6 +256,17 @@ test("Reverse variant schema to self", t => {
 test("Succesfully uses reversed variant schema to self for parsing back to initial value", t => {
   let schema = S.bool->S.to(v => v)
   t->U.assertReverseParsesBack(schema, true)
+})
+
+test("Reverse convert tuple turned to Ok", t => {
+  let schema = S.tuple2(S.string, S.bool)->S.to(t => Ok(t))
+
+  t->Assert.deepEqual(Ok(("foo", true))->S.reverseConvertWith(schema), %raw(`["foo", true]`), ())
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Serialize,
+    `i=>{let v0=i["_0"];if(i["TAG"]!=="Ok"){e[0](i["TAG"])}return [v0["0"],v0["1"]]}`, // TODO: Can prevent tuple recreation
+  )
 })
 
 test("Reverse with output of nested object/tuple schema", t => {

@@ -291,7 +291,7 @@ test("Compiled async parse code snapshot for object", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{return e[0](i).then(v0=>{if(!v0||v0.constructor!==Object){e[1](v0)}let v1=v0["foo"];if(typeof v1!=="string"){e[2](v1)}return {"foo":v1,}})}`,
+    `i=>{return e[0](i).then(v0=>{if(!v0||v0.constructor!==Object){e[1](v0)}let v1=v0["foo"];if(typeof v1!=="string"){e[2](v1)}return {"foo":v1}})}`,
   )
 })
 

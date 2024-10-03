@@ -49,7 +49,6 @@ module Stdlib = {
     @new external make: unit => t<'k, 'v> = "WeakMap"
 
     @send external get: (t<'k, 'v>, 'k) => option<'v> = "get"
-    @send external has: (t<'k, 'v>, 'k) => bool = "has"
     @send external set: (t<'k, 'v>, 'k, 'v) => t<'k, 'v> = "set"
   }
 
@@ -1550,7 +1549,14 @@ let makeReverseSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilte
   reverse: Reverse.toSelf,
 }
 
-let makeSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilter, ~reverse) => {
+let makeSchema = (
+  ~name,
+  ~tagged,
+  ~metadataMap,
+  ~builder,
+  ~maybeTypeFilter,
+  ~reverse: unit => t<'v>,
+) => {
   tagged,
   builder,
   isAsyncSchema: Unknown,
@@ -1966,10 +1972,6 @@ module Definition = {
   type node<'embeded> = dict<t<'embeded>>
 
   @inline
-  let isEmbeded = (definition: t<'embeded>, ~embeded) =>
-    embeded === definition->(Obj.magic: t<'embeded> => 'embeded)
-
-  @inline
   let isEmbededBySet = (definition: t<'embeded>, ~embededSet) =>
     embededSet->Stdlib.WeakSet.has(definition->(Obj.magic: t<'embeded> => 'embeded))
 
@@ -2246,14 +2248,60 @@ module Object = {
     ...s,
   }
 
-  @unboxed
-  type variantSerializeOutput =
-    Registered(val) | @as(0) Unregistered | @as(1) RegisteredMultipleTimes
-
   let typeFilter = (_b, ~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
 
   let getItems = (schema): array<item> => (schema->classify->Obj.magic)["items"]
-  let getDefinition = schema => (schema->classify->Obj.magic)["definition"]
+  let getOutputDefinition = schema => (schema->classify->Obj.magic)["definition"]
+
+  let makeOutput = (b, ~definition, ~outputs, ~asyncOutputs) => {
+    let syncOutput = {
+      let rec definitionToValue = (definition: Definition.t<item>, ~outputPath) => {
+        switch outputs->Stdlib.WeakMap.get(definition->Definition.toEmbeded) {
+        | Some(val) => b->B.Val.inline(val)
+        | None =>
+          if definition->Definition.isNode {
+            let node = definition->Definition.toNode
+            let isArray = Stdlib.Array.isArray(node)
+            let keys = node->Js.Dict.keys
+
+            let codeRef = ref(isArray ? "[" : "{")
+            for idx in 0 to keys->Js.Array2.length - 1 {
+              let key = keys->Js.Array2.unsafe_get(idx)
+              let definition = node->Js.Dict.unsafeGet(key)
+              let output =
+                definition->definitionToValue(
+                  ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
+                )
+              if idx !== 0 {
+                codeRef := codeRef.contents ++ ","
+              }
+              codeRef :=
+                codeRef.contents ++ (
+                  isArray ? output : `${key->Stdlib.Inlined.Value.fromString}:${output}`
+                )
+            }
+            codeRef.contents ++ (isArray ? "]" : "}")
+          } else {
+            let constant = definition->Definition.toConstant
+            b->B.embed(constant)
+          }
+        }
+      }
+      definition
+      ->(Obj.magic: unknown => Definition.t<item>)
+      ->definitionToValue(~outputPath=Path.empty)
+    }
+
+    if asyncOutputs->Js.Array2.length === 0 {
+      b->B.val(syncOutput)
+    } else {
+      b->B.asyncVal(
+        `Promise.all([${asyncOutputs
+          ->Js.Array2.map(val => b->B.Val.inline(val))
+          ->Js.Array2.toString}]).then(a=>(${syncOutput}))`,
+      )
+    }
+  }
 
   let builder = (b, ~input, ~selfSchema, ~path) => {
     let asyncOutputs = []
@@ -2338,47 +2386,7 @@ module Object = {
     }
     b->parseItems(~input, ~schema=selfSchema, ~path)
 
-    let syncOutput = {
-      let rec definitionToValue = (definition: Definition.t<item>, ~outputPath) => {
-        switch outputs->Stdlib.WeakMap.get(definition->Definition.toEmbeded) {
-        | Some(val) => b->B.Val.inline(val)
-        | None =>
-          if definition->Definition.isNode {
-            let node = definition->Definition.toNode
-            let isArray = Stdlib.Array.isArray(node)
-            let keys = node->Js.Dict.keys
-
-            let codeRef = ref(isArray ? "[" : "{")
-            for idx in 0 to keys->Js.Array2.length - 1 {
-              let key = keys->Js.Array2.unsafe_get(idx)
-              let definition = node->Js.Dict.unsafeGet(key)
-              let output =
-                definition->definitionToValue(
-                  ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
-                )
-              codeRef.contents =
-                codeRef.contents ++
-                (isArray ? output : `${key->Stdlib.Inlined.Value.fromString}:${output}`) ++ ","
-            }
-            codeRef.contents ++ (isArray ? "]" : "}")
-          } else {
-            let constant = definition->Definition.toConstant
-            b->B.embed(constant)
-          }
-        }
-      }
-      selfSchema->getDefinition->definitionToValue(~outputPath=Path.empty)
-    }
-
-    if asyncOutputs->Js.Array2.length === 0 {
-      b->B.val(syncOutput)
-    } else {
-      b->B.asyncVal(
-        `Promise.all([${asyncOutputs
-          ->Js.Array2.map(val => b->B.Val.inline(val))
-          ->Js.Array2.toString}]).then(a=>(${syncOutput}))`,
-      )
-    }
+    b->makeOutput(~definition=selfSchema->getOutputDefinition, ~outputs, ~asyncOutputs)
   }
 
   type serializeCtx = {@as("d") mutable discriminantCode: string}
@@ -2392,8 +2400,61 @@ module Object = {
       ->Js.Array2.joinWith(", ")}})`
   }
 
-  let rec reverse = () => {
+  let makeReverseOutput = (b, ~toItem: option<item>, ~original, ~outputs, ~path) => {
+    let isRootObject = original->classify->unsafeGetVarianTag === "Object"
+
+    let rec schemaOutput = (~schema, ~isObject, ~path) => {
+      let items = schema->getItems
+
+      let output = ref("")
+      for idx in 0 to items->Js.Array2.length - 1 {
+        let item = items->Js.Array2.unsafe_get(idx)
+
+        let itemOutput = switch outputs->Stdlib.WeakMap.get(item) {
+        | Some(o) => b->B.Val.inline(o)
+        | None => fallbackOutput(item, ~path)
+        }
+        if idx !== 0 {
+          output := output.contents ++ ","
+        }
+        output :=
+          output.contents ++ (isObject ? `${item.inlinedLocation}:${itemOutput}` : itemOutput)
+      }
+
+      if isObject {
+        "{" ++ output.contents ++ "}"
+      } else {
+        "[" ++ output.contents ++ "]"
+      }
+    }
+    and fallbackOutput = (item, ~path) => {
+      let itemSchema = item.schema
+      if itemSchema->isLiteralSchema {
+        b->B.embed(itemSchema->Literal.unsafeFromSchema->Literal.value)
+      } else if isRootObject && itemSchema.definer->Obj.magic {
+        schemaOutput(~isObject=true, ~schema=itemSchema, ~path=path->Path.concat(item.path))
+      } else {
+        b->B.invalidOperation(
+          ~path,
+          ~description=`Schema for ${item.inlinedLocation} isn't registered`,
+        )
+      }
+    }
+
+    switch toItem {
+    | Some(item) =>
+      switch outputs->Stdlib.WeakMap.get(item) {
+      | Some(o) => o
+      | None => b->B.val(fallbackOutput(item, ~path))
+      }
+    | None => b->B.val(schemaOutput(~isObject=isRootObject, ~schema=original, ~path))
+    }
+  }
+
+  let rec reverse = (~definition as inputDefinition, ~toItem=?) => () => {
     let original = %raw(`this`)
+    let inputDefinition = inputDefinition->(Obj.magic: unknown => Definition.t<item>)
+
     makeReverseSchema(
       ~maybeTypeFilter=None,
       ~name=primitiveName,
@@ -2409,22 +2470,38 @@ module Object = {
           if definition->Definition.isNode {
             if definition->Definition.isEmbededItem {
               let item = definition->Definition.toEmbeded
-              if embededOutputs->Stdlib.WeakMap.has(item) {
-                b->B.invalidOperation(
-                  ~path,
-                  ~description=`The item ${item.inlinedLocation} is registered multiple times`,
-                )
-              } else {
-                let {schema} = item
-                let itemInput = b->B.val(`${inputVar}${outputPath}`)
-                let itemOutput =
-                  b->B.parse(
-                    ~schema=schema.reverse(),
-                    ~input=itemInput,
-                    ~path=path->Path.concat(outputPath),
-                  )
+              switch embededOutputs->Stdlib.WeakMap.get(item) {
+              | Some(embededOutput) => {
+                  let {schema} = item
+                  let itemInput =
+                    outputPath === Path.empty ? input : b->B.val(`${inputVar}${outputPath}`)
+                  let itemOutput =
+                    b->B.parse(
+                      ~schema=schema.reverse(),
+                      ~input=itemInput,
+                      ~path=path->Path.concat(outputPath),
+                    )
 
-                embededOutputs->Stdlib.WeakMap.set(item, itemOutput)->ignore
+                  b.code =
+                    b.code ++
+                    `if(${b->B.Val.var(embededOutput)}!==${b->B.Val.var(itemOutput)}){${b->B.fail(
+                        ~message=`Multiple sources provided not equal data for ${item.inlinedLocation}`,
+                        ~path,
+                      )}}`
+                }
+
+              | None => {
+                  let {schema} = item
+                  let itemInput =
+                    outputPath === Path.empty ? input : b->B.val(`${inputVar}${outputPath}`)
+                  let itemOutput =
+                    b->B.parse(
+                      ~schema=schema.reverse(),
+                      ~input=itemInput,
+                      ~path=path->Path.concat(outputPath),
+                    )
+                  embededOutputs->Stdlib.WeakMap.set(item, itemOutput)->ignore
+                }
               }
             } else {
               let node = definition->Definition.toNode
@@ -2457,43 +2534,10 @@ module Object = {
                 )}}`
           }
         }
-        original->getDefinition->definitionToOutput(~outputPath=Path.empty)
+        inputDefinition->definitionToOutput(~outputPath=Path.empty)
         b.code = ctx.discriminantCode ++ b.code
 
-        let rec toRaw = (~schema, ~path) => {
-          let items = schema->getItems
-          let isObject = schema->classify->unsafeGetVarianTag === "Object"
-
-          let output = ref("")
-          for idx in 0 to items->Js.Array2.length - 1 {
-            let item = items->Js.Array2.unsafe_get(idx)
-
-            let itemOutput = switch embededOutputs->Stdlib.WeakMap.get(item) {
-            | Some(o) => b->B.Val.inline(o)
-            | None =>
-              let itemSchema = item.schema
-              if itemSchema->isLiteralSchema {
-                b->B.embed(itemSchema->Literal.unsafeFromSchema->Literal.value)
-              } else if isObject && itemSchema.definer->Obj.magic {
-                toRaw(~schema=itemSchema, ~path=path->Path.concat(item.path))
-              } else {
-                b->B.invalidOperation(
-                  ~path,
-                  ~description=`The ${item.inlinedLocation} item is not registered or not a literal`,
-                )
-              }
-            }
-            if isObject {
-              output := output.contents ++ `${item.inlinedLocation}:${itemOutput},`
-            } else {
-              output := output.contents ++ `${itemOutput},`
-            }
-          }
-
-          isObject ? "{" ++ output.contents ++ "}" : "[" ++ output.contents ++ "]"
-        }
-
-        b->B.val(toRaw(~schema=original, ~path))
+        b->makeReverseOutput(~original, ~toItem, ~outputs=embededOutputs, ~path)
       }),
     )
   }
@@ -2562,115 +2606,48 @@ module Object = {
             `||${inputVar}.length!==${length->Stdlib.Int.unsafeToString}`,
       ),
       ~metadataMap=Metadata.Map.empty,
-      ~reverse,
+      ~reverse=reverse(~definition),
     )
   }
-  and variant = {
+  and to = {
     (schema: t<'value>, definer: 'value => 'variant): t<'variant> => {
       let schema = schema->toUnknown
       if schema.definer->Obj.magic {
         factory((ctx => definer((schema.definer->Obj.magic)(ctx)))->Obj.magic)
       } else {
+        let item: item = {
+          schema,
+          path: Path.empty,
+          location: "",
+          inlinedLocation: `""`,
+          symbol: itemSymbol,
+        }
+        let definition: unknown = definer(item->Obj.magic)->Obj.magic
+
         makeSchema(
           ~name=schema.name,
           ~tagged=schema.tagged,
           ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-            b->B.embedSyncOperation(~input=b->B.parse(~schema, ~input, ~path), ~fn=definer)
+            // TODO: Improve to not to use an array when there's only a single async item
+            let asyncOutputs = []
+            let outputs = Stdlib.WeakMap.make()
+
+            let itemOutput = b->B.parse(~schema, ~input, ~path)
+            let itemOutput = if itemOutput.isAsync {
+              let index = asyncOutputs->Js.Array2.length
+              asyncOutputs->Js.Array2.push(itemOutput)->ignore
+              b->B.val(`a[${index->Stdlib.Int.unsafeToString}]`)
+            } else {
+              itemOutput
+            }
+
+            let _ = outputs->Stdlib.WeakMap.set(item, itemOutput)
+
+            b->makeOutput(~definition, ~outputs, ~asyncOutputs)
           }),
           ~maybeTypeFilter=schema.maybeTypeFilter,
           ~metadataMap=schema.metadataMap,
-          ~reverse=() => {
-            let original = %raw(`this`)
-            let reversed = schema.reverse()
-            makeReverseSchema(
-              ~maybeTypeFilter=None,
-              ~name=primitiveName,
-              ~tagged=Unknown,
-              ~metadataMap=Metadata.Map.empty,
-              ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-                let inputVar = b->B.Val.var(input)
-
-                let definition =
-                  definer(symbol->(Obj.magic: Stdlib.Symbol.t => 'value))->(
-                    Obj.magic: 'variant => Definition.t<Stdlib.Symbol.t>
-                  )
-
-                let output = {
-                  // TODO: Check that it might be not an object in union
-                  let rec definitionToValue = (
-                    definition: Definition.t<Stdlib.Symbol.t>,
-                    ~valuePath,
-                  ) => {
-                    if definition->Definition.isEmbeded(~embeded=symbol) {
-                      Registered(valuePath === "" ? input : b->B.val(`${inputVar}${valuePath}`))
-                    } else if definition->Definition.isNode {
-                      let node = definition->Definition.toNode
-                      let keys = node->Js.Dict.keys
-                      let maybeOutputRef = ref(Unregistered)
-                      for idx in 0 to keys->Js.Array2.length - 1 {
-                        let key = keys->Js.Array2.unsafe_get(idx)
-                        let definition = node->Js.Dict.unsafeGet(key)
-                        let maybeOutput = definitionToValue(
-                          definition,
-                          ~valuePath=Path.concat(valuePath, Path.fromLocation(key)),
-                        )
-                        switch (maybeOutputRef.contents, maybeOutput) {
-                        | (Registered(_), Registered(_))
-                        | (Registered(_), RegisteredMultipleTimes) =>
-                          maybeOutputRef := RegisteredMultipleTimes
-                        | (RegisteredMultipleTimes, _)
-                        | (Registered(_), Unregistered) => ()
-                        | (Unregistered, _) => maybeOutputRef := maybeOutput
-                        }
-                      }
-                      maybeOutputRef.contents
-                    } else {
-                      let tag = definition->Definition.toConstant
-                      let tagSchema = literal(tag)
-                      let tagVal = valuePath === "" ? input : b->B.val(`${inputVar}${valuePath}`)
-                      let tagInputVar = b->B.Val.var(tagVal)
-                      b.code =
-                        b.code ++
-                        `if(${(tagSchema.maybeTypeFilter->Stdlib.Option.unsafeUnwrap)(
-                            b,
-                            ~inputVar=tagInputVar,
-                          )}){${b->B.failWithArg(
-                            ~path=path->Path.concat(valuePath),
-                            received => InvalidType({
-                              expected: tagSchema,
-                              received,
-                            }),
-                            tagInputVar,
-                          )}}`
-                      Unregistered
-                    }
-                  }
-                  definitionToValue(definition, ~valuePath=Path.empty)
-                }
-
-                switch output {
-                | RegisteredMultipleTimes =>
-                  b->B.invalidOperation(
-                    ~path,
-                    ~description=`The S.to's value is registered multiple times`,
-                  )
-                | Registered(var) => b->B.parse(~schema=reversed, ~input=var, ~path)
-                | Unregistered =>
-                  if original->isLiteralSchema {
-                    b->B.parse(
-                      ~schema=reversed,
-                      ~input=b->B.val(
-                        b->B.embed(original->Literal.unsafeFromSchema->Literal.value),
-                      ),
-                      ~path,
-                    )
-                  } else {
-                    b->B.invalidOperation(~path, ~description=`The S.to's value is not registered`)
-                  }
-                }
-              }),
-            )
-          },
+          ~reverse=reverse(~definition, ~toItem=item),
         )
       }
     }
@@ -2722,7 +2699,7 @@ module Object = {
                 fields->Js.Dict.set(fieldName, item)
                 items->Js.Array2.push(item)->ignore
                 if schema.definer->Obj.magic {
-                  schema->getDefinition->(Obj.magic: unknown => value)
+                  schema->getOutputDefinition->(Obj.magic: unknown => value)
                 } else {
                   item->(Obj.magic: item => value)
                 }
@@ -2796,7 +2773,7 @@ module Object = {
         jsParse,
         jsParseAsync,
         jsSerialize,
-        reverse,
+        reverse: reverse(~definition),
       }
     }
 
@@ -3470,16 +3447,17 @@ module Schema = {
             Obj.magic: Definition.node<schema<unknown>> => array<Definition.t<schema<unknown>>>
           )
         Object.tuple(s => {
+          let tupleDefinition = []
           for idx in 0 to node->Js.Array2.length - 1 {
             let definition = node->Js.Array2.unsafe_get(idx)
-            node->Js.Array2.unsafe_set(
+            tupleDefinition->Js.Array2.unsafe_set(
               idx,
               s.item(idx, definition->definitionToSchema(~embededSet))->(
                 Obj.magic: unknown => Definition.t<schema<unknown>>
               ),
             )
           }
-          node
+          tupleDefinition
         })
       } else {
         Object.factory(s => {
@@ -3812,8 +3790,8 @@ let null = Null.factory
 let option = Option.factory
 let array = Array.factory
 let dict = Dict.factory
-let variant = Object.variant
-let to = Object.variant
+let variant = Object.to
+let to = Object.to
 let tuple = Object.tuple
 let tuple1 = v0 => tuple(s => s.item(0, v0))
 let tuple2 = (v0, v1) => tuple(s => (s.item(0, v0), s.item(1, v1)))

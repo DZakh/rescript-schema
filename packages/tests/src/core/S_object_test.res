@@ -756,7 +756,7 @@ module Benchmark = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[10](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"];if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"];if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}return {"number":v0,"negNumber":v1,"maxNumber":v2,"string":v3,"longString":v4,"boolean":v5,"deeplyNested":{"foo":v7,"num":v8,"bool":v9,},}}`,
+      `i=>{if(!i||i.constructor!==Object){e[10](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"];if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"];if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}return {"number":v0,"negNumber":v1,"maxNumber":v2,"string":v3,"longString":v4,"boolean":v5,"deeplyNested":{"foo":v7,"num":v8,"bool":v9}}}`,
     )
     S.setGlobalConfig({})
   })
@@ -805,7 +805,7 @@ module Benchmark = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[12](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"],v11;if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"],v10;if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}for(v10 in v6){if(v10!=="foo"&&v10!=="num"&&v10!=="bool"){e[10](v10)}}for(v11 in i){if(v11!=="number"&&v11!=="negNumber"&&v11!=="maxNumber"&&v11!=="string"&&v11!=="longString"&&v11!=="boolean"&&v11!=="deeplyNested"){e[11](v11)}}return {"number":v0,"negNumber":v1,"maxNumber":v2,"string":v3,"longString":v4,"boolean":v5,"deeplyNested":{"foo":v7,"num":v8,"bool":v9,},}}`,
+      `i=>{if(!i||i.constructor!==Object){e[12](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"],v11;if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"],v10;if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}for(v10 in v6){if(v10!=="foo"&&v10!=="num"&&v10!=="bool"){e[10](v10)}}for(v11 in i){if(v11!=="number"&&v11!=="negNumber"&&v11!=="maxNumber"&&v11!=="string"&&v11!=="longString"&&v11!=="boolean"&&v11!=="deeplyNested"){e[11](v11)}}return {"number":v0,"negNumber":v1,"maxNumber":v2,"string":v3,"longString":v4,"boolean":v5,"deeplyNested":{"foo":v7,"num":v8,"bool":v9}}}`,
     )
     S.setGlobalConfig({})
   })
@@ -869,7 +869,7 @@ module Benchmark = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Serialize,
-      `i=>{return {"number":i["number"],"negNumber":i["negNumber"],"maxNumber":i["maxNumber"],"string":i["string"],"longString":i["longString"],"boolean":i["boolean"],"deeplyNested":{"foo":i["deeplyNested"]["foo"],"num":i["deeplyNested"]["num"],"bool":i["deeplyNested"]["bool"],},}}`,
+      `i=>{return {"number":i["number"],"negNumber":i["negNumber"],"maxNumber":i["maxNumber"],"string":i["string"],"longString":i["longString"],"boolean":i["boolean"],"deeplyNested":{"foo":i["deeplyNested"]["foo"],"num":i["deeplyNested"]["num"],"bool":i["deeplyNested"]["bool"]}}}`,
     )
     S.setGlobalConfig({})
   })
@@ -941,19 +941,32 @@ test("Successfully parses object schema with single field registered multiple ti
   )
 })
 
-test("Fails to serialize object schema with single field registered multiple times", t => {
+test("Reverse convert of object schema with single field registered multiple times", t => {
   let schema = S.object(s => {
     let field = s.field("field", S.string)
     {
       "field1": field,
       "field2": field,
+      "field3": field,
     }
   })
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Serialize,
+    `i=>{let v0=i["field1"],v1=i["field2"],v2=i["field3"];if(v0!==v1){e[0]()}if(v0!==v2){e[1]()}return {"field":v0}}`,
+  )
+
+  t->Assert.deepEqual(
+    {"field1": "foo", "field2": "foo", "field3": "foo"}->S.reverseConvertWith(schema),
+    %raw(`{"field": "foo"}`),
+    (),
+  )
   t->U.assertErrorResult(
-    {"field1": "foo", "field2": "foo"}->S.serializeToUnknownWith(schema),
+    {"field1": "foo", "field2": "foo", "field3": "foz"}->S.serializeToUnknownWith(schema),
     {
       code: InvalidOperation({
-        description: `The item "field" is registered multiple times`,
+        description: `Multiple sources provided not equal data for "field"`,
       }),
       operation: SerializeToUnknown,
       path: S.Path.empty,
@@ -986,7 +999,7 @@ test("Can destructure fields of simple nested objects", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"],v2=v0["bar"];if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}return {"baz":v2,"foz":v1,}}`,
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"],v2=v0["bar"];if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}return {"baz":v2,"foz":v1}}`,
   )
 
   t->Assert.deepEqual(
@@ -997,7 +1010,7 @@ test("Can destructure fields of simple nested objects", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Serialize,
-    `i=>{return {"nested":{"foo":i["foz"],"bar":i["baz"],},}}`,
+    `i=>{return {"nested":{"foo":i["foz"],"bar":i["baz"]}}}`,
   )
 })
 
@@ -1069,7 +1082,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
+      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return {"foo":v0,"bar":v1}}`,
     )
   })
 
@@ -1087,7 +1100,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["bar"];if(typeof v0!=="boolean"){e[1](v0)}return Promise.all([e[0](i["foo"])]).then(a=>({"foo":a[0],"bar":v0,}))}`,
+      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["bar"];if(typeof v0!=="boolean"){e[1](v0)}return Promise.all([e[0](i["foo"])]).then(a=>({"foo":a[0],"bar":v0}))}`,
     )
   })
 
@@ -1099,7 +1112,7 @@ module Compiled = {
       }
     )
 
-    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
+    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"]}}`)
   })
 
   test("Compiled parse code snapshot for simple object with strict unknown keys", t => {
@@ -1113,7 +1126,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["foo"],v1=i["bar"],v2;if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}for(v2 in i){if(v2!=="foo"&&v2!=="bar"){e[2](v2)}}return {"foo":v0,"bar":v1,}}`,
+      `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["foo"],v1=i["bar"],v2;if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}for(v2 in i){if(v2!=="foo"&&v2!=="bar"){e[2](v2)}}return {"foo":v0,"bar":v1}}`,
     )
   })
 
@@ -1125,7 +1138,7 @@ module Compiled = {
       }
     )->S.Object.strict
 
-    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`)
+    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"]}}`)
   })
 
   test(
@@ -1143,7 +1156,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#Parse,
-        `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0=i["tag"],v1=i["FOO"],v2=i["BAR"],v3;if(v0!==0){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}for(v3 in i){if(v3!=="tag"&&v3!=="FOO"&&v3!=="BAR"){e[3](v3)}}return {"foo":v1,"bar":v2,"zoo":e[4],}}`,
+        `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0=i["tag"],v1=i["FOO"],v2=i["BAR"],v3;if(v0!==0){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}for(v3 in i){if(v3!=="tag"&&v3!=="FOO"&&v3!=="BAR"){e[3](v3)}}return {"foo":v1,"bar":v2,"zoo":e[4]}}`,
       )
     },
   )
@@ -1163,7 +1176,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#Serialize,
-        `i=>{if(i["zoo"]!==1){e[0](i["zoo"])}return {"tag":e[1],"FOO":i["foo"],"BAR":i["bar"],}}`,
+        `i=>{if(i["zoo"]!==1){e[0](i["zoo"])}return {"tag":e[1],"FOO":i["foo"],"BAR":i["bar"]}}`,
       )
     },
   )

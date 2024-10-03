@@ -254,7 +254,7 @@ module Negative = {
           {"field": "bar"}->S.serializeToUnknownWith(schema),
           {
             code: InvalidOperation({
-              description: `The "discriminant" item is not registered or not a literal`,
+              description: `Schema for "discriminant" isn\'t registered`,
             }),
             operation: SerializeToUnknown,
             path: S.Path.empty,
@@ -301,7 +301,7 @@ module NestedNegative = {
         {"field": "bar"}->S.serializeToUnknownWith(schema),
         {
           code: InvalidOperation({
-            description: `The "nestedField" item is not registered or not a literal`,
+            description: `Schema for "nestedField" isn\'t registered`,
           }),
           operation: SerializeToUnknown,
           path: S.Path.fromLocation("discriminant"),
@@ -371,7 +371,7 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
     {"field": "bar"}->S.serializeToUnknownWith(schema),
     {
       code: InvalidOperation({
-        description: `The "discriminant" item is not registered or not a literal`,
+        description: `Schema for "discriminant" isn\'t registered`,
       }),
       operation: SerializeToUnknown,
       path: S.Path.empty,
