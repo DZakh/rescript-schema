@@ -57,6 +57,11 @@ export const unknown: Schema<unknown>;
 export const undefined: Schema<undefined>;
 export const json: (validate: boolean) => Schema<Json>;
 
+export function safe<Value>(scope: () => Value): Result<Value>;
+export function safeAsync<Value>(
+  scope: () => Promise<Value>
+): Promise<Result<Value>>;
+
 export function reverse<Output, Input>(
   schema: Schema<Output, Input>
 ): Schema<Input, Output>;
@@ -65,6 +70,10 @@ export function parseWith<Output, Input>(
   data: unknown,
   schema: Schema<Output, Input>
 ): Output;
+export function parseAsyncWith<Output, Input>(
+  data: unknown,
+  schema: Schema<Output, Input>
+): Promise<Output>;
 
 export function convertWith<Output, Input>(
   data: Input,

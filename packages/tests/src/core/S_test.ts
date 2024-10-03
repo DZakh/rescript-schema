@@ -19,7 +19,7 @@ test("Successfully parses string", (t) => {
 
 test("Successfully parses string with built-in refinement", (t) => {
   const schema = S.stringLength(S.string, 5);
-  const result = schema.parse("123");
+  const result = S.safe(() => S.parseWith("123", schema));
 
   expectType<TypeEqual<typeof result, S.Result<string>>>(true);
 
@@ -46,7 +46,7 @@ test("Successfully parses string with built-in refinement", (t) => {
 
 test("Successfully parses string with built-in refinement and custom message", (t) => {
   const schema = S.stringLength(S.string, 5, "Postcode must have 5 symbols");
-  const result = schema.parse("123");
+  const result = S.safe(() => S.parseWith("123", schema));
 
   if (result.success) {
     t.fail("Should fail");
@@ -208,12 +208,14 @@ test("Fails to parse never", (t) => {
   );
 });
 
-test("Throws with S.unwrap for a never schema result", (t) => {
+test("Throws with S.unwrap for a failure result", (t) => {
   const schema = S.never;
+
+  const failureResult = S.safe(() => S.parseWith(true, schema));
 
   t.throws(
     () => {
-      const value = S.unwrap(schema.parse(true));
+      const value = S.unwrap(failureResult);
 
       expectType<TypeEqual<typeof schema, S.Schema<never, never>>>(true);
       expectType<TypeEqual<typeof value, never>>(true);
@@ -228,7 +230,7 @@ test("Throws with S.unwrap for a never schema result", (t) => {
 test("Can get a reason from an error", (t) => {
   const schema = S.never;
 
-  const result = schema.parse(true);
+  const result = S.safe(() => S.parseWith(true, schema));
 
   if (result.success) {
     t.fail("Should fail");
@@ -547,7 +549,7 @@ test("Successfully parses async schema", async (t) => {
   const schema = S.asyncParserRefine(S.string, async (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
-  const value = await schema.parseAsync("123");
+  const value = await S.safeAsync(() => S.parseAsyncWith("123", schema));
 
   t.deepEqual(value, { success: true, value: "123" });
 
@@ -561,7 +563,7 @@ test("Fails to parses async schema", async (t) => {
     });
   });
 
-  const result = await schema.parseAsync("123");
+  const result = await S.safeAsync(() => S.parseAsyncWith("123", schema));
 
   if (result.success) {
     t.fail("Should fail");
@@ -951,10 +953,15 @@ test("Successfully parses intersected objects", (t) => {
     >
   >(true);
 
-  const result = schema.parse({
-    foo: "bar",
-    bar: true,
-  });
+  const result = S.safe(() =>
+    S.parseWith(
+      {
+        foo: "bar",
+        bar: true,
+      },
+      schema
+    )
+  );
   if (result.success) {
     t.fail("Should fail");
     return;
@@ -1009,10 +1016,15 @@ test("Successfully parses intersected objects with transform", (t) => {
     >
   >(true);
 
-  const result = schema.parse({
-    foo: "bar",
-    bar: true,
-  });
+  const result = S.safe(() =>
+    S.parseWith(
+      {
+        foo: "bar",
+        bar: true,
+      },
+      schema
+    )
+  );
   if (result.success) {
     t.fail("Should fail");
     return;
@@ -1047,11 +1059,16 @@ test("Fails to serialize merge. Not supported yet", (t) => {
     })
   );
 
-  const result = schema.serialize({
-    foo: "bar",
-    bar: true,
-    baz: "string",
-  });
+  const result = S.safe(() =>
+    S.convertWith(
+      {
+        foo: "bar",
+        bar: true,
+        baz: "string",
+      },
+      S.reverse(schema)
+    )
+  );
   if (result.success) {
     t.fail("Should fail");
     return;
@@ -1155,7 +1172,7 @@ test("setName", (t) => {
 
 test("Successfully parses and returns result", (t) => {
   const schema = S.string;
-  const value = schema.parse("123");
+  const value = S.safe(() => S.parseWith("123", schema));
 
   t.deepEqual(value, { success: true, value: "123" });
 
@@ -1185,7 +1202,7 @@ test("Successfully parses and returns result", (t) => {
 
 test("Successfully serializes and returns result", (t) => {
   const schema = S.string;
-  const value = schema.serialize("123");
+  const value = S.safe(() => S.convertWith("123", S.reverse(schema)));
 
   t.deepEqual(value, { success: true, value: "123" });
 
@@ -1214,7 +1231,7 @@ test("Successfully serializes and returns result", (t) => {
 
 test("Successfully parses union", (t) => {
   const schema = S.union([S.string, S.number]);
-  const value = schema.parse("123");
+  const value = S.safe(() => S.parseWith("123", schema));
 
   t.deepEqual(value, { success: true, value: "123" });
 
@@ -1228,7 +1245,7 @@ test("Successfully parses union with transformed items", (t) => {
     S.transform(S.string, (string) => Number(string)),
     S.number,
   ]);
-  const value = schema.parse("123");
+  const value = S.safe(() => S.parseWith("123", schema));
 
   t.deepEqual(value, { success: true, value: 123 });
 

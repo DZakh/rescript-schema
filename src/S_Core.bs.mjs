@@ -752,6 +752,16 @@ function wrapExnToError(exn) {
   throw exn;
 }
 
+function wrapExnToFailure(exn) {
+  if ((exn&&exn.s===symbol)) {
+    return {
+            success: false,
+            error: exn
+          };
+  }
+  throw exn;
+}
+
 function asyncPrepareOk(value) {
   return {
           TAG: "Ok",
@@ -946,10 +956,7 @@ function jsParse(unknown) {
           };
   }
   catch (exn){
-    return {
-            success: false,
-            error: getOrRethrow(exn)
-          };
+    return wrapExnToFailure(exn);
   }
 }
 
@@ -965,10 +972,37 @@ function jsSerialize(value) {
           };
   }
   catch (exn){
+    return wrapExnToFailure(exn);
+  }
+}
+
+function js_parseAsyncWith(input, schema) {
+  return operationFn(schema, 3)(input);
+}
+
+function js_safe(fn) {
+  try {
     return {
-            success: false,
-            error: getOrRethrow(exn)
+            success: true,
+            value: fn()
           };
+  }
+  catch (exn){
+    return wrapExnToFailure(exn);
+  }
+}
+
+function js_safeAsync(fn) {
+  try {
+    return fn().then((function (value) {
+                  return {
+                          success: true,
+                          value: value
+                        };
+                }), wrapExnToFailure);
+  }
+  catch (exn){
+    return Promise.resolve(wrapExnToFailure(exn));
   }
 }
 
@@ -3315,6 +3349,9 @@ export {
   pattern ,
   datetime ,
   trim ,
+  js_safe ,
+  js_safeAsync ,
+  js_parseAsyncWith ,
   js_optional ,
   js_tuple ,
   js_unwrap ,

@@ -413,6 +413,12 @@ let trim: t<string> => t<string>
 @tag("success")
 type jsResult<'value>
 
+let js_safe: (unit => 'v) => jsResult<'v>
+let js_safeAsync: (unit => promise<'v>) => promise<jsResult<'v>>
+
+// TODO: Replace parseAsyncWith with it in V9
+let js_parseAsyncWith: (Js.Json.t, t<'value>) => promise<'value>
+
 let js_optional: (t<'v>, option<unknown>) => t<option<'v>>
 
 let js_tuple: unknown => t<array<unknown>>

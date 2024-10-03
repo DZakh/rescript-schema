@@ -1299,6 +1299,14 @@ let wrapExnToError = exn => {
   }
 }
 
+let wrapExnToFailure = exn => {
+  if %raw("exn&&exn.s===symbol") {
+    Failure({error: exn->(Obj.magic: exn => error)})
+  } else {
+    raise(exn)
+  }
+}
+
 @inline
 let useSyncOperation = (schema, operation, input) => {
   try {
@@ -1475,7 +1483,7 @@ let jsParse = unknown => {
       value: (%raw(`this`)).parseOrRaise(unknown),
     })
   } catch {
-  | _ => Failure({error: %raw(`exn`)->InternalError.getOrRethrow})
+  | _ => wrapExnToFailure(%raw(`exn`))
   }
 }
 
@@ -1489,7 +1497,35 @@ let jsSerialize = value => {
       value: serializeToUnknownOrRaiseWith(value, %raw(`this`))->castUnknownToAny,
     })
   } catch {
-  | _ => Failure({error: %raw(`exn`)->InternalError.getOrRethrow})
+  | _ => wrapExnToFailure(%raw(`exn`))
+  }
+}
+
+let js_parseAsyncWith = (input, schema) => {
+  (
+    schema->operationFn(
+      Operation.make()
+      ->Operation.addFlag(Operation.Flag.typeValidation)
+      ->Operation.addFlag(Operation.Flag.async),
+    )
+  )(input)
+}
+
+let js_safe = fn => {
+  try {
+    Success({
+      value: fn(),
+    })
+  } catch {
+  | _ => wrapExnToFailure(%raw(`exn`))
+  }
+}
+
+let js_safeAsync = fn => {
+  try {
+    fn()->Stdlib.Promise.thenResolveWithCatch(value => Success({value: value}), wrapExnToFailure)
+  } catch {
+  | _ => Stdlib.Promise.resolve(wrapExnToFailure(%raw(`exn`)))
   }
 }
 

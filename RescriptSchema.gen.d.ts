@@ -19,12 +19,21 @@ export type Json =
   | Json[];
 
 export type S_t<Output, Input = unknown> = {
+  /**
+   * @deprecated It'll be removed in v9. Use S.safe(() => S.parseWith(data, schema)) instead
+   */
   parse(data: unknown): Result<Output>;
+  /**
+   * @deprecated It'll be removed in v9. Use S.safeAsync(() => S.parseAsyncWith(data, schema)) instead
+   */
   parseAsync(data: unknown): Promise<Result<Output>>;
   /**
    * @deprecated It'll be removed in v9. Use S.parseWith(data, schema) instead
    */
   parseOrThrow(data: unknown): Output;
+  /**
+   * @deprecated It'll be removed in v9. Use S.safe(() => S.convertWith(data, S.reverse(schema))) instead
+   */
   serialize(value: Output): Result<Input>;
   /**
    * @deprecated It'll be removed in v9. Use S.convertWith(data, S.reverse(schema)) instead
