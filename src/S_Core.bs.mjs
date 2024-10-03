@@ -1851,10 +1851,10 @@ function variant(schema, definer) {
                                   return reversed.b(b, output, reversed, path);
                                 }
                                 if (output !== 0) {
-                                  return invalidOperation(b, path, "The S.variant's value is registered multiple times");
+                                  return invalidOperation(b, path, "The S.to's value is registered multiple times");
                                 }
                                 if (original.t.TAG !== "Literal") {
-                                  return invalidOperation(b, path, "The S.variant's value is not registered");
+                                  return invalidOperation(b, path, "The S.to's value is not registered");
                                 }
                                 var value = original.t._0.value;
                                 var input$1 = val(b, "e[" + (b.g.e.push(value) - 1) + "]");
@@ -2691,7 +2691,7 @@ function internalInline(schema, maybeVariant, param) {
   }
   var inlinedSchema$6 = Object.keys(metadataMap).length !== 0 ? "{\n  let s = " + inlinedSchema$5 + "\n  let _ = %raw(\`s.m = " + JSON.stringify(metadataMap) + "\`)\n  s\n}" : inlinedSchema$5;
   if (maybeVariant !== undefined) {
-    return inlinedSchema$6 + ("->S.variant(v => " + maybeVariant + "(v))");
+    return inlinedSchema$6 + ("->S.to(v => " + maybeVariant + "(v))");
   } else {
     return inlinedSchema$6;
   }
@@ -3185,6 +3185,8 @@ var jsonString = factory$5;
 
 var union = factory$6;
 
+var to = variant;
+
 var parseWith = parseAnyWith;
 
 var parseOrRaiseWith = parseAnyOrRaiseWith;
@@ -3290,6 +3292,7 @@ export {
   custom ,
   refine ,
   variant ,
+  to ,
   compile$1 as compile,
   parseWith ,
   parseAnyWith ,

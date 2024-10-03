@@ -414,13 +414,13 @@ test("Supports Tuple with 4 items", t => {
 test("Supports Union", t => {
   let schema = S.union([S.literal(#yes), S.literal(#no)])
   let _schemaInlineResult = S.union([
-    S.literal(%raw(`"yes"`))->S.variant(v => #"\"yes\""(v)),
-    S.literal(%raw(`"no"`))->S.variant(v => #"\"no\""(v)),
+    S.literal(%raw(`"yes"`))->S.to(v => #"\"yes\""(v)),
+    S.literal(%raw(`"no"`))->S.to(v => #"\"no\""(v)),
   ])
 
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.union([S.literal(%raw(\`"yes"\`))->S.variant(v => #"\\"yes\\""(v)), S.literal(%raw(\`"no"\`))->S.variant(v => #"\\"no\\""(v))])`,
+    `S.union([S.literal(%raw(\`"yes"\`))->S.to(v => #"\\"yes\\""(v)), S.literal(%raw(\`"no"\`))->S.to(v => #"\\"no\\""(v))])`,
     (),
   )
 })
@@ -432,18 +432,18 @@ test("Supports description", t => {
 
 // test("Uses S.transform for primitive schemas inside of union", t => {
 //   let schema = S.union([
-//     S.string->S.variant(v => #String(v)),
-//     S.bool->S.variant(v => #Bool(v)),
-//     S.float->S.variant(v => #Float(v)),
-//     S.int->S.variant(v => #Int(v)),
-//     S.unknown->S.variant(v => #Unknown(v)),
-//     S.never->S.variant(v => #Never(v)),
-//     S.json->S.variant(v => #JSON(v)),
+//     S.string->S.to(v => #String(v)),
+//     S.bool->S.to(v => #Bool(v)),
+//     S.float->S.to(v => #Float(v)),
+//     S.int->S.to(v => #Int(v)),
+//     S.unknown->S.to(v => #Unknown(v)),
+//     S.never->S.to(v => #Never(v)),
+//     S.json->S.to(v => #JSON(v)),
 //   ])
 
 //   t->Assert.deepEqual(
 //     schema->S.inline,
-//     `S.union([S.string->S.variant(v => #"String"(v)), S.bool->S.variant(v => #"Bool"(v)), S.float->S.variant(v => #"Float"(v)), S.int->S.variant(v => #"Int"(v)), S.unknown->S.variant(v => #"Unknown"(v)), S.never->S.variant(v => #"Never"(v)), S.json->S.variant(v => #"JSON"(v))])`,
+//     `S.union([S.string->S.to(v => #"String"(v)), S.bool->S.to(v => #"Bool"(v)), S.float->S.to(v => #"Float"(v)), S.int->S.to(v => #"Int"(v)), S.unknown->S.to(v => #"Unknown"(v)), S.never->S.to(v => #"Never"(v)), S.json->S.to(v => #"JSON"(v))])`,
 //     (),
 //   )
 // })
@@ -451,8 +451,8 @@ test("Supports description", t => {
 // test("Adds index for the same schemas inside of the union", t => {
 //   let schema = S.union([S.string, S.string])
 //   let schemaInlineResult = S.union([
-//     S.string->S.variant(v => #String(v)),
-//     S.string->S.variant(v => #String2(v)),
+//     S.string->S.to(v => #String(v)),
+//     S.string->S.to(v => #String2(v)),
 //   ])
 
 //   schemaInlineResult->(
@@ -466,7 +466,7 @@ test("Supports description", t => {
 
 //   t->Assert.deepEqual(
 //     schema->S.inline,
-//     `S.union([S.string->S.variant(v => #"String"(v)), S.string->S.variant(v => #"String2"(v))])`,
+//     `S.union([S.string->S.to(v => #"String"(v)), S.string->S.to(v => #"String2"(v))])`,
 //     (),
 //   )
 // })
@@ -513,15 +513,15 @@ test("Supports empty Object (ignores transformations)", t => {
 test("Supports empty Object in union", t => {
   let schema = S.union([S.object(_ => ()), S.object(_ => ())])
   let schemaInlineResult = S.union([
-    S.object(_ => ())->S.variant(v => #"Object({})"(v)),
-    S.object(_ => ())->S.variant(v => #"Object({})2"(v)),
+    S.object(_ => ())->S.to(v => #"Object({})"(v)),
+    S.object(_ => ())->S.to(v => #"Object({})2"(v)),
   ])
 
   schemaInlineResult->(U.magic: S.t<[#"Object({})"(unit) | #"Object({})2"(unit)]> => unit)
 
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.union([S.object(_ => ())->S.variant(v => #"Object({})"(v)), S.object(_ => ())->S.variant(v => #"Object({})2"(v))])`,
+    `S.union([S.object(_ => ())->S.to(v => #"Object({})"(v)), S.object(_ => ())->S.to(v => #"Object({})2"(v))])`,
     (),
   )
 })
@@ -529,15 +529,15 @@ test("Supports empty Object in union", t => {
 test("Supports  Tuple in union", t => {
   let schema = S.union([S.tuple1(S.string), S.tuple1(S.string)])
   let schemaInlineResult = S.union([
-    S.tuple1(S.string)->S.variant(v => #"Tuple(String)"(v)),
-    S.tuple1(S.string)->S.variant(v => #"Tuple(String)2"(v)),
+    S.tuple1(S.string)->S.to(v => #"Tuple(String)"(v)),
+    S.tuple1(S.string)->S.to(v => #"Tuple(String)2"(v)),
   ])
 
   schemaInlineResult->(U.magic: S.t<[#"Tuple(String)"(string) | #"Tuple(String)2"(string)]> => unit)
 
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.union([S.tuple1(S.string)->S.variant(v => #"Tuple(String)"(v)), S.tuple1(S.string)->S.variant(v => #"Tuple(String)2"(v))])`,
+    `S.union([S.tuple1(S.string)->S.to(v => #"Tuple(String)"(v)), S.tuple1(S.string)->S.to(v => #"Tuple(String)2"(v))])`,
     (),
   )
 })
@@ -545,8 +545,8 @@ test("Supports  Tuple in union", t => {
 // test("Supports Option schemas in union", t => {
 //   let schema = S.union([S.option(S.literalVariant(String("123"), 123.)), S.option(S.float)])
 //   let schemaInlineResult = S.union([
-//     S.option(S.literal(String("123")))->S.variant(v => #OptionOf123(v)),
-//     S.option(S.float)->S.variant(v => #OptionOfFloat(v)),
+//     S.option(S.literal(String("123")))->S.to(v => #OptionOf123(v)),
+//     S.option(S.float)->S.to(v => #OptionOfFloat(v)),
 //   ])
 
 //   schemaInlineResult->(
@@ -560,7 +560,7 @@ test("Supports  Tuple in union", t => {
 
 //   t->Assert.deepEqual(
 //     schema->S.inline,
-//     `S.union([S.option(S.literal(String("123")))->S.variant(v => #"OptionOf123"(v)), S.option(S.float)->S.variant(v => #"OptionOfFloat"(v))])`,
+//     `S.union([S.option(S.literal(String("123")))->S.to(v => #"OptionOf123"(v)), S.option(S.float)->S.to(v => #"OptionOfFloat"(v))])`,
 //     (),
 //   )
 // })
@@ -568,8 +568,8 @@ test("Supports  Tuple in union", t => {
 // test("Supports Null schemas in union", t => {
 //   let schema = S.union([S.null(S.literalVariant(String("123"), 123.)), S.null(S.float)])
 //   let schemaInlineResult = S.union([
-//     S.null(S.literal(String("123")))->S.variant(v => #NullOf123(v)),
-//     S.null(S.float)->S.variant(v => #NullOfFloat(v)),
+//     S.null(S.literal(String("123")))->S.to(v => #NullOf123(v)),
+//     S.null(S.float)->S.to(v => #NullOfFloat(v)),
 //   ])
 
 //   schemaInlineResult->(
@@ -583,7 +583,7 @@ test("Supports  Tuple in union", t => {
 
 //   t->Assert.deepEqual(
 //     schema->S.inline,
-//     `S.union([S.null(S.literal(String("123")))->S.variant(v => #"NullOf123"(v)), S.null(S.float)->S.variant(v => #"NullOfFloat"(v))])`,
+//     `S.union([S.null(S.literal(String("123")))->S.to(v => #"NullOf123"(v)), S.null(S.float)->S.to(v => #"NullOfFloat"(v))])`,
 //     (),
 //   )
 // })
@@ -591,8 +591,8 @@ test("Supports  Tuple in union", t => {
 // test("Supports Array schemas in union", t => {
 //   let schema = S.union([S.array(S.literalVariant(String("123"), 123.)), S.array(S.float)])
 //   let schemaInlineResult = S.union([
-//     S.array(S.literal(String("123")))->S.variant(v => #ArrayOf123(v)),
-//     S.array(S.float)->S.variant(v => #ArrayOfFloat(v)),
+//     S.array(S.literal(String("123")))->S.to(v => #ArrayOf123(v)),
+//     S.array(S.float)->S.to(v => #ArrayOfFloat(v)),
 //   ])
 
 //   schemaInlineResult->(
@@ -606,7 +606,7 @@ test("Supports  Tuple in union", t => {
 
 //   t->Assert.deepEqual(
 //     schema->S.inline,
-//     `S.union([S.array(S.literal(String("123")))->S.variant(v => #"ArrayOf123"(v)), S.array(S.float)->S.variant(v => #"ArrayOfFloat"(v))])`,
+//     `S.union([S.array(S.literal(String("123")))->S.to(v => #"ArrayOf123"(v)), S.array(S.float)->S.to(v => #"ArrayOfFloat"(v))])`,
 //     (),
 //   )
 // })
@@ -614,8 +614,8 @@ test("Supports  Tuple in union", t => {
 // test("Supports Dict schemas in union", t => {
 //   let schema = S.union([S.dict(S.literalVariant(String("123"), 123.)), S.dict(S.float)])
 //   let schemaInlineResult = S.union([
-//     S.dict(S.literal(String("123")))->S.variant(v => #DictOf123(v)),
-//     S.dict(S.float)->S.variant(v => #DictOfFloat(v)),
+//     S.dict(S.literal(String("123")))->S.to(v => #DictOf123(v)),
+//     S.dict(S.float)->S.to(v => #DictOfFloat(v)),
 //   ])
 
 //   schemaInlineResult->(
@@ -629,7 +629,7 @@ test("Supports  Tuple in union", t => {
 
 //   t->Assert.deepEqual(
 //     schema->S.inline,
-//     `S.union([S.dict(S.literal(String("123")))->S.variant(v => #"DictOf123"(v)), S.dict(S.float)->S.variant(v => #"DictOfFloat"(v))])`,
+//     `S.union([S.dict(S.literal(String("123")))->S.to(v => #"DictOf123"(v)), S.dict(S.float)->S.to(v => #"DictOfFloat"(v))])`,
 //     (),
 //   )
 // })
@@ -644,12 +644,12 @@ test("Supports  Tuple in union", t => {
 //       {
 //         "field": s.field("field", S.literal(String("123"))),
 //       }
-//     )->S.variant(v => #Object(v)),
+//     )->S.to(v => #Object(v)),
 //     S.object(s =>
 //       {
 //         "field": s.field("field", S.float),
 //       }
-//     )->S.variant(v => #Object2(v)),
+//     )->S.to(v => #Object2(v)),
 //   ])
 
 //   schemaInlineResult->(
@@ -667,11 +667,11 @@ test("Supports  Tuple in union", t => {
 //   {
 //     "field": s.field("field", S.literal(String("123"))),
 //   }
-// )->S.variant(v => #"Object"(v)), S.object(s =>
+// )->S.to(v => #"Object"(v)), S.object(s =>
 //   {
 //     "field": s.field("field", S.float),
 //   }
-// )->S.variant(v => #"Object2"(v))])`,
+// )->S.to(v => #"Object2"(v))])`,
 //     (),
 //   )
 // })
@@ -679,8 +679,8 @@ test("Supports  Tuple in union", t => {
 // test("Supports Tuple schemas in union", t => {
 //   let schema = S.union([S.tuple1(. S.literalVariant(String("123"), 123.)), S.tuple1(. S.float)])
 //   let schemaInlineResult = S.union([
-//     S.tuple1(. S.literal(String("123")))->S.variant(v => #Tuple(v)),
-//     S.tuple1(. S.float)->S.variant(v => #Tuple2(v)),
+//     S.tuple1(. S.literal(String("123")))->S.to(v => #Tuple(v)),
+//     S.tuple1(. S.float)->S.to(v => #Tuple2(v)),
 //   ])
 
 //   schemaInlineResult->(
@@ -694,7 +694,7 @@ test("Supports  Tuple in union", t => {
 
 //   t->Assert.deepEqual(
 //     schema->S.inline,
-//     `S.union([S.tuple1(. S.literal(String("123")))->S.variant(v => #"Tuple"(v)), S.tuple1(. S.float)->S.variant(v => #"Tuple2"(v))])`,
+//     `S.union([S.tuple1(. S.literal(String("123")))->S.to(v => #"Tuple"(v)), S.tuple1(. S.float)->S.to(v => #"Tuple2"(v))])`,
 //     (),
 //   )
 // })
@@ -708,8 +708,8 @@ test("Supports  Tuple in union", t => {
 //     S.union([
 //       S.literalVariant(String("red"), #red),
 //       S.literalVariant(String("blue"), #blue),
-//     ])->S.variant(v => #Union(v)),
-//     S.union([S.literalVariant(Int(0), #0), S.literalVariant(Int(1), #1)])->S.variant(v =>
+//     ])->S.to(v => #Union(v)),
+//     S.union([S.literalVariant(Int(0), #0), S.literalVariant(Int(1), #1)])->S.to(v =>
 //       #Union2(v)
 //     ),
 //   ])
@@ -718,7 +718,7 @@ test("Supports  Tuple in union", t => {
 
 //   t->Assert.deepEqual(
 //     schema->S.inline,
-//     `S.union([S.union([S.literalVariant(String("red"), #"red"), S.literalVariant(String("blue"), #"blue")])->S.variant(v => #"Union"(v)), S.union([S.literalVariant(Int(0), #"0"), S.literalVariant(Int(1), #"1")])->S.variant(v => #"Union2"(v))])`,
+//     `S.union([S.union([S.literalVariant(String("red"), #"red"), S.literalVariant(String("blue"), #"blue")])->S.to(v => #"Union"(v)), S.union([S.literalVariant(Int(0), #"0"), S.literalVariant(Int(1), #"1")])->S.to(v => #"Union2"(v))])`,
 //     (),
 //   )
 // })

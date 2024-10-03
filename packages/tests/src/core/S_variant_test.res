@@ -1,13 +1,13 @@
 open Ava
 
 test("Parses with wrapping the value in variant", t => {
-  let schema = S.string->S.variant(s => Ok(s))
+  let schema = S.string->S.to(s => Ok(s))
 
   t->Assert.deepEqual("Hello world!"->S.parseAnyWith(schema), Ok(Ok("Hello world!")), ())
 })
 
 test("Fails to parse wrapped schema", t => {
-  let schema = S.string->S.variant(s => Ok(s))
+  let schema = S.string->S.to(s => Ok(s))
 
   t->U.assertErrorResult(
     123->S.parseAnyWith(schema),
@@ -20,7 +20,7 @@ test("Fails to parse wrapped schema", t => {
 })
 
 test("Serializes with unwrapping the value from variant", t => {
-  let schema = S.string->S.variant(s => Ok(s))
+  let schema = S.string->S.to(s => Ok(s))
 
   t->Assert.deepEqual(
     Ok("Hello world!")->S.serializeToUnknownWith(schema),
@@ -30,7 +30,7 @@ test("Serializes with unwrapping the value from variant", t => {
 })
 
 test("Fails to serialize when can't unwrap the value from variant", t => {
-  let schema = S.string->S.variant(s => Ok(s))
+  let schema = S.string->S.to(s => Ok(s))
 
   t->U.assertErrorResult(
     Error("Hello world!")->S.serializeToUnknownWith(schema),
@@ -43,19 +43,19 @@ test("Fails to serialize when can't unwrap the value from variant", t => {
 })
 
 test("Successfully parses when the value is not used as the variant payload", t => {
-  let schema = S.string->S.variant(_ => #foo)
+  let schema = S.string->S.to(_ => #foo)
 
   t->Assert.deepEqual("Hello world!"->S.parseAnyWith(schema), Ok(#foo), ())
 })
 
 test("Fails to serialize when the value is not used as the variant payload", t => {
-  let schema = S.string->S.variant(_ => #foo)
+  let schema = S.string->S.to(_ => #foo)
 
   t->U.assertErrorResult(
     #foo->S.serializeToUnknownWith(schema),
     {
       code: InvalidOperation({
-        description: "The S.variant\'s value is not registered",
+        description: "The S.to\'s value is not registered",
       }),
       operation: SerializeToUnknown,
       path: S.Path.empty,
@@ -66,39 +66,39 @@ test("Fails to serialize when the value is not used as the variant payload", t =
 test(
   "Successfully serializes when the value is not used as the variant payload for literal schemas",
   t => {
-    let schema = S.literal((true, 12))->S.variant(_ => #foo)
+    let schema = S.literal((true, 12))->S.to(_ => #foo)
 
     t->Assert.deepEqual(#foo->S.serializeToUnknownWith(schema), Ok(%raw(`[true, 12]`)), ())
   },
 )
 
 test("Successfully parses when tuple is destructured", t => {
-  let schema = S.literal((true, 12))->S.variant(((_, twelve)) => twelve)
+  let schema = S.literal((true, 12))->S.to(((_, twelve)) => twelve)
 
   t->Assert.deepEqual(%raw(`[true, 12]`)->S.parseAnyWith(schema), Ok(12), ())
 })
 
 // TODO: Throw in proxy (???)
 // test("Fails to serialize when tuple is destructured", t => {
-//   let schema = S.tuple2(S.literal(true), S.literal(12))->S.variant(((_, twelve)) => twelve)
+//   let schema = S.tuple2(S.literal(true), S.literal(12))->S.to(((_, twelve)) => twelve)
 
 //   t->Assert.deepEqual(12->S.serializeToUnknownWith(schema), Ok(%raw(`[true, 12]`)), ())
 // })
 
 test("Successfully parses when value registered multiple times", t => {
-  let schema = S.string->S.variant(s => #Foo(s, s))
+  let schema = S.string->S.to(s => #Foo(s, s))
 
   t->Assert.deepEqual(%raw(`"abc"`)->S.parseAnyWith(schema), Ok(#Foo("abc", "abc")), ())
 })
 
 test("Fails to serialize when value registered multiple times", t => {
-  let schema = S.string->S.variant(s => #Foo(s, s))
+  let schema = S.string->S.to(s => #Foo(s, s))
 
   t->U.assertErrorResult(
     #Foo("abc", "abc")->S.serializeToUnknownWith(schema),
     {
       code: InvalidOperation({
-        description: "The S.variant\'s value is registered multiple times",
+        description: "The S.to\'s value is registered multiple times",
       }),
       operation: SerializeToUnknown,
       path: S.Path.empty,
@@ -106,9 +106,9 @@ test("Fails to serialize when value registered multiple times", t => {
   )
 })
 
-test("Can destructure object value passed to S.variant", t => {
+test("Can destructure object value passed to S.to", t => {
   let schema =
-    S.object(s => (s.field("foo", S.string), s.field("bar", S.string)))->S.variant(((foo, bar)) =>
+    S.object(s => (s.field("foo", S.string), s.field("bar", S.string)))->S.to(((foo, bar)) =>
       {"foo": foo, "bar": bar}
     )
 
@@ -121,7 +121,7 @@ test("Can destructure object value passed to S.variant", t => {
 })
 
 test("Compiled code snapshot of variant applied to object", t => {
-  let schema = S.object(s => s.field("foo", S.string))->S.variant(s => Ok(s))
+  let schema = S.object(s => s.field("foo", S.string))->S.to(s => Ok(s))
 
   t->U.assertCompiledCode(
     ~schema,
@@ -136,7 +136,7 @@ test("Compiled code snapshot of variant applied to object", t => {
 })
 
 test("Compiled parse code snapshot", t => {
-  let schema = S.string->S.variant(s => Ok(s))
+  let schema = S.string->S.to(s => Ok(s))
 
   t->U.assertCompiledCode(
     ~schema,
@@ -146,7 +146,7 @@ test("Compiled parse code snapshot", t => {
 })
 
 test("Compiled parse code snapshot without transform", t => {
-  let schema = S.string->S.variant(s => s)
+  let schema = S.string->S.to(s => s)
 
   t->U.assertCompiledCode(
     ~schema,
@@ -156,7 +156,7 @@ test("Compiled parse code snapshot without transform", t => {
 })
 
 test("Compiled serialize code snapshot", t => {
-  let schema = S.string->S.variant(s => Ok(s))
+  let schema = S.string->S.to(s => Ok(s))
 
   t->U.assertCompiledCode(
     ~schema,
@@ -166,7 +166,7 @@ test("Compiled serialize code snapshot", t => {
 })
 
 test("Compiled serialize code snapshot without transform", t => {
-  let schema = S.string->S.variant(s => s)
+  let schema = S.string->S.to(s => s)
 
   t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
 })
@@ -174,7 +174,7 @@ test("Compiled serialize code snapshot without transform", t => {
 test(
   "Compiled serialize code snapshot when the value is not used as the variant payload for literal schemas",
   t => {
-    let schema = S.literal((true, 12))->S.variant(_ => #foo)
+    let schema = S.literal((true, 12))->S.to(_ => #foo)
 
     t->Assert.deepEqual(#foo->S.serializeToUnknownWith(schema), Ok(%raw(`[true,12]`)), ())
 
@@ -183,7 +183,7 @@ test(
 )
 
 test("Works with variant schema used multiple times as a child schema", t => {
-  let appVersionSpecSchema = S.string->S.variant(current => {"current": current, "minimum": "1.0"})
+  let appVersionSpecSchema = S.string->S.to(current => {"current": current, "minimum": "1.0"})
 
   let appVersionsSchema = S.object(s =>
     {
@@ -212,30 +212,30 @@ test("Works with variant schema used multiple times as a child schema", t => {
 })
 
 test("Reverse variant schema to literal", t => {
-  let schema = S.literal("foo")->S.variant(_ => ())
+  let schema = S.literal("foo")->S.to(_ => ())
   // t->U.assertEqualSchemas(schema->S.reverse, S.unit->S.toUnknown)
   t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
 })
 
 test("Succesfully uses reversed variant schema to literal for parsing back to initial value", t => {
-  let schema = S.literal("foo")->S.variant(_ => ())
+  let schema = S.literal("foo")->S.to(_ => ())
   // t->U.assertReverseParsesBack(schema, ())
   t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
 })
 
 test("Reverse variant schema to self", t => {
-  let schema = S.bool->S.variant(v => v)
+  let schema = S.bool->S.to(v => v)
   // t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
   t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
 })
 
 test("Succesfully uses reversed variant schema to self for parsing back to initial value", t => {
-  let schema = S.bool->S.variant(v => v)
+  let schema = S.bool->S.to(v => v)
   t->U.assertReverseParsesBack(schema, true)
 })
 
 test("Reverse with output of nested object/tuple schema", t => {
-  let schema = S.bool->S.variant(v => {
+  let schema = S.bool->S.to(v => {
     {
       "nested": {
         "field": (v, true),
@@ -269,7 +269,7 @@ test("Reverse with output of nested object/tuple schema", t => {
 test(
   "Succesfully parses reversed schema with output of nested object/tuple and parses it back to initial value",
   t => {
-    let schema = S.bool->S.variant(v => {
+    let schema = S.bool->S.to(v => {
       {
         "nested": {
           "field": (v, true),

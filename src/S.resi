@@ -184,7 +184,9 @@ let custom: (string, s<'output> => customDefinition<'input, 'output>) => t<'outp
 
 let refine: (t<'value>, s<'value> => 'value => unit) => t<'value>
 
+@deprecated("It'll be removed in v9. Use S.to instead")
 let variant: (t<'value>, 'value => 'variant) => t<'variant>
+let to: (t<'value>, 'value => 'variant) => t<'variant>
 
 type rec input<'input, 'computed> =
   | Input: input<'input, 'input>

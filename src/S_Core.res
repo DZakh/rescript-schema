@@ -2652,7 +2652,7 @@ module Object = {
                 | RegisteredMultipleTimes =>
                   b->B.invalidOperation(
                     ~path,
-                    ~description=`The S.variant's value is registered multiple times`,
+                    ~description=`The S.to's value is registered multiple times`,
                   )
                 | Registered(var) => b->B.parse(~schema=reversed, ~input=var, ~path)
                 | Unregistered =>
@@ -2665,10 +2665,7 @@ module Object = {
                       ~path,
                     )
                   } else {
-                    b->B.invalidOperation(
-                      ~path,
-                      ~description=`The S.variant's value is not registered`,
-                    )
+                    b->B.invalidOperation(~path, ~description=`The S.to's value is not registered`)
                   }
                 }
               }),
@@ -3791,7 +3788,7 @@ let inline = {
     }
 
     let inlinedSchema = switch maybeVariant {
-    | Some(variant) => inlinedSchema ++ `->S.variant(v => ${variant}(v))`
+    | Some(variant) => inlinedSchema ++ `->S.to(v => ${variant}(v))`
     | None => inlinedSchema
     }
 
@@ -3816,6 +3813,7 @@ let option = Option.factory
 let array = Array.factory
 let dict = Dict.factory
 let variant = Object.variant
+let to = Object.variant
 let tuple = Object.tuple
 let tuple1 = v0 => tuple(s => s.item(0, v0))
 let tuple2 = (v0, v1) => tuple(s => (s.item(0, v0), s.item(1, v1)))

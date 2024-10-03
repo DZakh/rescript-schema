@@ -138,10 +138,7 @@ test("Serializes when both schemas misses serializer", t => {
 })
 
 test("When union of json and string schemas, should parse the first one", t => {
-  let schema = S.union([
-    S.json(~validate=false)->S.variant(_ => #json),
-    S.string->S.variant(_ => #str),
-  ])
+  let schema = S.union([S.json(~validate=false)->S.to(_ => #json), S.string->S.to(_ => #str)])
 
   // FIXME: This is not working
   t->Assert.deepEqual(%raw(`"string"`)->S.parseAnyWith(schema), Ok(#str), ())
@@ -438,13 +435,13 @@ module Advanced = {
 type uboxedVariant = String(string) | Int(int)
 test("Successfully serializes unboxed variant", t => {
   let schema = S.union([
-    S.string->S.variant(s => String(s)),
+    S.string->S.to(s => String(s)),
     S.string
     ->S.transform(_ => {
       parser: string => string->Int.fromString->Option.getExn,
       serializer: Int.toString(_),
     })
-    ->S.variant(i => Int(i)),
+    ->S.to(i => Int(i)),
   ])
 
   t->Assert.deepEqual(String("abc")->S.serializeToUnknownWith(schema), Ok(%raw(`"abc"`)), ())
@@ -520,7 +517,7 @@ module CknittelBugReport = {
   type value = A(A.t) | B(B.t)
 
   test("Union serializing of objects with optional fields", t => {
-    let schema = S.union([A.schema->S.variant(m => A(m)), B.schema->S.variant(m => B(m))])
+    let schema = S.union([A.schema->S.to(m => A(m)), B.schema->S.to(m => B(m))])
 
     t->U.assertCompiledCode(
       ~schema,

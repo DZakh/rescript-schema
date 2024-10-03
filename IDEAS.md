@@ -30,7 +30,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
   input => input
   }) // or asyncTransform // Maybe format ?
 - async serializing support
-- Rename S.variant to something
 - Rename serialize to convertReverse
 - S.create / S.validate
 - Rename S.inline to S.toRescriptCode
@@ -47,6 +46,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Expose S.reverse
 - Renamed S.assertAnyWith to S.assertWith
 - Ts operation api changes
+- Rename S.variant to S.to
 
 ## v10
 

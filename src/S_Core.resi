@@ -185,6 +185,7 @@ let custom: (string, s<'output> => customDefinition<'input, 'output>) => t<'outp
 let refine: (t<'value>, s<'value> => 'value => unit) => t<'value>
 
 let variant: (t<'value>, 'value => 'variant) => t<'variant>
+let to: (t<'value>, 'value => 'to) => t<'to>
 
 type rec input<'input, 'computed> =
   | Input: input<'input, 'input>
