@@ -621,6 +621,12 @@ module CrazyUnion = {
       ~op=#Serialize,
       `i=>{let r0=i=>{let v5=i;if(i!=="B"){if(i!=="C"){if(i!=="D"){if(i!=="E"){if(i!=="F"){if(i!=="G"){if(i!=="H"){if(i!=="I"){if(i!=="J"){if(i!=="K"){if(i!=="L"){if(i!=="M"){if(i!=="N"){if(i!=="O"){if(i!=="P"){if(i!=="Q"){if(i!=="R"){if(i!=="S"){if(i!=="T"){if(i!=="U"){if(i!=="V"){if(i!=="W"){if(i!=="X"){if(i!=="Y"){try{let v0=i["_0"],v4=[];if(i["TAG"]!=="A"){e[0](i["TAG"])}for(let v1=0;v1<v0.length;++v1){let v3;try{v3=r0(v0[v1])}catch(v2){if(v2&&v2.s===s){v2.path="[\\"_0\\"]"+\'["\'+v1+\'"]\'+v2.path}throw v2}v4.push(v3)}v5={"type":e[1],"nested":v4}}catch(e0){try{let v6=i["_0"],v10=[];if(i["TAG"]!=="Z"){e[2](i["TAG"])}for(let v7=0;v7<v6.length;++v7){let v9;try{v9=r0(v6[v7])}catch(v8){if(v8&&v8.s===s){v8.path="[\\"_0\\"]"+\'["\'+v7+\'"]\'+v8.path}throw v8}v10.push(v9)}v5={"type":e[3],"nested":v10}}catch(e1){e[4]([e0,e1,])}}}}}}}}}}}}}}}}}}}}}}}}}}return v5};return r0(i)}`,
     )
+    // There was an issue with reverse when it doesn't return the same code on second run
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Serialize,
+      `i=>{let r0=i=>{let v5=i;if(i!=="B"){if(i!=="C"){if(i!=="D"){if(i!=="E"){if(i!=="F"){if(i!=="G"){if(i!=="H"){if(i!=="I"){if(i!=="J"){if(i!=="K"){if(i!=="L"){if(i!=="M"){if(i!=="N"){if(i!=="O"){if(i!=="P"){if(i!=="Q"){if(i!=="R"){if(i!=="S"){if(i!=="T"){if(i!=="U"){if(i!=="V"){if(i!=="W"){if(i!=="X"){if(i!=="Y"){try{let v0=i["_0"],v4=[];if(i["TAG"]!=="A"){e[0](i["TAG"])}for(let v1=0;v1<v0.length;++v1){let v3;try{v3=r0(v0[v1])}catch(v2){if(v2&&v2.s===s){v2.path="[\\"_0\\"]"+\'["\'+v1+\'"]\'+v2.path}throw v2}v4.push(v3)}v5={"type":e[1],"nested":v4}}catch(e0){try{let v6=i["_0"],v10=[];if(i["TAG"]!=="Z"){e[2](i["TAG"])}for(let v7=0;v7<v6.length;++v7){let v9;try{v9=r0(v6[v7])}catch(v8){if(v8&&v8.s===s){v8.path="[\\"_0\\"]"+\'["\'+v7+\'"]\'+v8.path}throw v8}v10.push(v9)}v5={"type":e[3],"nested":v10}}catch(e1){e[4]([e0,e1,])}}}}}}}}}}}}}}}}}}}}}}}}}}return v5};return r0(i)}`,
+    )
   })
 }
 

@@ -1148,16 +1148,23 @@ function recursive(fn) {
     });
   var initialReverse = schema.r.bind(schema);
   schema.r = (function () {
-      var reversed = initialReverse();
-      return makeReverseSchema(reversed.n, reversed.t, reversed.m, (function (b, input, selfSchema, path) {
-                    var bb = scope(b);
-                    var opOutput = reversed.b(bb, input, selfSchema, "");
-                    var opBodyCode = allocateScope(bb) + ("return " + inline(b, opOutput));
-                    b.c = b.c + ("let " + r + "=" + $$var(b, input) + "=>{" + opBodyCode + "};");
-                    return withPathPrepend(b, input, path, undefined, (function (b, input, param) {
-                                  return map(b, r, input);
-                                }));
-                  }), reversed.f);
+      var initialReversed = initialReverse();
+      var reversed = makeReverseSchema(initialReversed.n, initialReversed.t, initialReversed.m, (function (b, input, selfSchema, path) {
+              var bb = scope(b);
+              var opOutput = initialReversed.b(bb, input, selfSchema, "");
+              var opBodyCode = allocateScope(bb) + ("return " + inline(b, opOutput));
+              b.c = b.c + ("let " + r + "=" + $$var(b, input) + "=>{" + opBodyCode + "};");
+              return withPathPrepend(b, input, path, undefined, (function (b, input, param) {
+                            return map(b, r, input);
+                          }));
+            }), initialReversed.f);
+      reversed.r = (function () {
+          return schema;
+        });
+      schema.r = (function () {
+          return reversed;
+        });
+      return reversed;
     });
   return schema;
 }

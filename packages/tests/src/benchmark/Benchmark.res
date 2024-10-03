@@ -233,14 +233,14 @@ Suite.make()
   let schema = S.string
   let data = "Hello world!"
   () => {
-    data->S.parseAnyWith(schema)->S.unwrap
+    data->S.parseAnyOrRaiseWith(schema)
   }
 })
-->Suite.addWithPrepare("Serialize string", () => {
+->Suite.addWithPrepare("Reverse convert string", () => {
   let schema = S.string
   let data = "Hello world!"
   () => {
-    data->S.serializeWith(schema)->S.unwrap
+    data->S.reverseConvertWith(schema)
   }
 })
 ->Suite.add("Advanced object schema factory", makeAdvancedObjectSchema)
@@ -248,7 +248,7 @@ Suite.make()
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.parseAnyWith(schema)->S.unwrap
+    data->S.parseAnyOrRaiseWith(schema)
   }
 })
 ->Suite.addWithPrepare("Assert advanced object - compile", () => {
@@ -270,14 +270,14 @@ Suite.make()
   let data = makeTestObject()
   () => {
     let schema = makeAdvancedObjectSchema()
-    data->S.parseAnyWith(schema)->S.unwrap
+    data->S.parseAnyOrRaiseWith(schema)
   }
 })
 ->Suite.addWithPrepare("Parse advanced strict object", () => {
   let schema = makeAdvancedStrictObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.parseAnyWith(schema)->S.unwrap
+    data->S.parseAnyOrRaiseWith(schema)
   }
 })
 ->Suite.addWithPrepare("Assert advanced strict object", () => {
@@ -287,14 +287,14 @@ Suite.make()
     data->S.assertWith(schema)
   }
 })
-->Suite.addWithPrepare("Serialize advanced object", () => {
+->Suite.addWithPrepare("Reverse convert advanced object", () => {
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.serializeWith(schema)->S.unwrap
+    data->S.reverseConvertWith(schema) // FIXME: This is super slow
   }
 })
-->Suite.addWithPrepare("Serialize advanced object - compile", () => {
+->Suite.addWithPrepare("Reverse convert advanced object - compile", () => {
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   let fn =
@@ -318,10 +318,10 @@ serializeWith: 2: 0.004ms
 serializeWith: 3: 0.003ms
 S.Error.make: 0.029ms
 Parse string x 607,790,506 ops/sec ±0.21% (100 runs sampled)
-Serialize string x 607,895,909 ops/sec ±0.23% (99 runs sampled)
+Reverse convert string x 607,895,909 ops/sec ±0.23% (99 runs sampled)
 Advanced object schema factory x 789,559 ops/sec ±0.28% (99 runs sampled)
 Parse advanced object x 70,550,720 ops/sec ±0.51% (98 runs sampled)
 Create and parse advanced object x 54,592 ops/sec ±0.49% (93 runs sampled)
 Parse advanced strict object x 26,614,621 ops/sec ±0.30% (93 runs sampled)
-Serialize advanced object x 598,233,913 ops/sec ±0.19% (95 runs sampled)
+Reverse convert advanced object x 598,233,913 ops/sec ±0.19% (95 runs sampled)
  */

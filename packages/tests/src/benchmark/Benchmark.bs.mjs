@@ -212,17 +212,17 @@ console.timeEnd("S.Error.make");
 
 run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new (Benchmark.default.Suite)(), "Parse string", (function () {
                                                   return function () {
-                                                    return S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith("Hello world!", S$RescriptSchema.string));
+                                                    return S$RescriptSchema.parseAnyOrRaiseWith("Hello world!", S$RescriptSchema.string);
                                                   };
-                                                })), "Serialize string", (function () {
+                                                })), "Reverse convert string", (function () {
                                               return function () {
-                                                return S$RescriptSchema.unwrap(S$RescriptSchema.serializeWith("Hello world!", S$RescriptSchema.string));
+                                                return S$RescriptSchema.reverseConvertWith("Hello world!", S$RescriptSchema.string);
                                               };
                                             })).add("Advanced object schema factory", makeAdvancedObjectSchema), "Parse advanced object", (function () {
                                         var schema = makeAdvancedObjectSchema();
                                         var data = makeTestObject();
                                         return function () {
-                                          return S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith(data, schema));
+                                          return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
                                         };
                                       })), "Assert advanced object - compile", (function () {
                                     var schema = makeAdvancedObjectSchema();
@@ -241,13 +241,13 @@ run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(a
                             var data = makeTestObject();
                             return function () {
                               var schema = makeAdvancedObjectSchema();
-                              return S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith(data, schema));
+                              return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
                             };
                           })), "Parse advanced strict object", (function () {
                         var schema = makeAdvancedStrictObjectSchema();
                         var data = makeTestObject();
                         return function () {
-                          return S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith(data, schema));
+                          return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
                         };
                       })), "Assert advanced strict object", (function () {
                     var schema = makeAdvancedStrictObjectSchema();
@@ -255,13 +255,13 @@ run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(a
                     return function () {
                       S$RescriptSchema.assertWith(data, schema);
                     };
-                  })), "Serialize advanced object", (function () {
+                  })), "Reverse convert advanced object", (function () {
                 var schema = makeAdvancedObjectSchema();
                 var data = makeTestObject();
                 return function () {
-                  return S$RescriptSchema.unwrap(S$RescriptSchema.serializeWith(data, schema));
+                  return S$RescriptSchema.reverseConvertWith(data, schema);
                 };
-              })), "Serialize advanced object - compile", (function () {
+              })), "Reverse convert advanced object - compile", (function () {
             var schema = makeAdvancedObjectSchema();
             var data = makeTestObject();
             var fn = S$RescriptSchema.compile(S$RescriptSchema.reverse(schema), "Any", "Output", "Sync", false);

@@ -1696,7 +1696,7 @@ let recursive = fn => {
       )
     },
   }->Obj.magic
-  let schema = fn(placeholder)
+  let schema = fn(placeholder)->toUnknown
 
   // maybeTypeFilter
   (placeholder->Obj.magic)["f"] = schema.maybeTypeFilter
@@ -1739,23 +1739,26 @@ let recursive = fn => {
 
   let initialReverse = (schema.reverse->Obj.magic)["bind"](schema)
   schema.reverse = () => {
-    let reversed = initialReverse()
-    makeReverseSchema(
-      ~name=reversed.name,
-      ~tagged=reversed.tagged,
-      ~metadataMap=reversed.metadataMap,
+    let initialReversed = initialReverse()
+    let reversed = makeReverseSchema(
+      ~name=initialReversed.name,
+      ~tagged=initialReversed.tagged,
+      ~metadataMap=initialReversed.metadataMap,
       ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
         let bb = b->B.scope
-        let opOutput = reversed.builder(bb, ~input, ~selfSchema, ~path=Path.empty)
+        let opOutput = initialReversed.builder(bb, ~input, ~selfSchema, ~path=Path.empty)
         let opBodyCode = bb->B.allocateScope ++ `return ${b->B.Val.inline(opOutput)}`
         b.code = b.code ++ `let ${r}=${b->B.Val.var(input)}=>{${opBodyCode}};`
         b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) => b->B.Val.map(r, input))
       }),
-      ~maybeTypeFilter=reversed.maybeTypeFilter,
+      ~maybeTypeFilter=initialReversed.maybeTypeFilter,
     )
+    reversed.reverse = () => schema
+    schema.reverse = () => reversed
+    reversed
   }
 
-  schema
+  schema->castUnknownSchemaToAnySchema
 }
 
 let setName = (schema, name) => {
