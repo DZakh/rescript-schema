@@ -52,15 +52,6 @@ module Stdlib = {
     @send external set: (t<'k, 'v>, 'k, 'v) => t<'k, 'v> = "set"
   }
 
-  module WeakSet = {
-    type t<'v> = Js.WeakSet.t<'v>
-
-    @new external make: unit => t<'v> = "WeakSet"
-
-    @send external add: (t<'v>, 'v) => t<'v> = "add"
-    @send external has: (t<'v>, 'v) => bool = "has"
-  }
-
   module Array = {
     @send
     external append: (array<'a>, 'a) => array<'a> = "concat"
@@ -347,6 +338,11 @@ external toUnknown: t<'any> => t<unknown> = "%identity"
 let unsafeGetVariantPayload = variant => (variant->Obj.magic)["_0"]
 let unsafeGetVarianTag = (variant): string => (variant->Obj.magic)["TAG"]
 
+// A dirty check that this is rescript-schema object
+@inline
+let isSchemaObject = object => Obj.magic(object)["serializeToJsonOrThrow"]
+@inline
+let isSchema = any => Obj.magic(any) && any->isSchemaObject
 @inline
 let isLiteralSchema = schema => schema.tagged->unsafeGetVarianTag === "Literal"
 @inline
@@ -383,11 +379,8 @@ let toJsResult = (result: result<'value, error>): jsResult<'value> => {
 
 module InternalError = {
   %%raw(`
-    // let index = 0;
     class RescriptSchemaError extends Error {
       constructor(code, operation, path) {
-        // console.log(index)
-        // index = index + 1;
         super();
         this.operation = operation;
         this.code = code;
@@ -1975,11 +1968,7 @@ module Definition = {
   type node<'embeded> = dict<t<'embeded>>
 
   @inline
-  let isEmbededBySet = (definition: t<'embeded>, ~embededSet) =>
-    embededSet->Stdlib.WeakSet.has(definition->(Obj.magic: t<'embeded> => 'embeded))
-
-  @inline
-  let isNode = (definition: t<'embeded>) =>
+  let isNode = (definition: 'any) =>
     definition->Stdlib.Type.typeof === #object && definition !== %raw(`null`)
 
   let toConstant = (Obj.magic: t<'embeded> => unknown)
@@ -3456,30 +3445,22 @@ let description = schema => schema->Metadata.get(~id=descriptionMetadataId)
 module Schema = {
   type s = {matches: 'value. t<'value> => 'value}
 
-  let rec definitionToSchema = (definition: Definition.t<schema<unknown>>, ~embededSet) => {
-    if definition->Definition.isEmbededBySet(~embededSet) {
-      definition->Definition.toEmbeded
-    } else if definition->Definition.isNode {
-      let node = definition->Definition.toNode
-      if node->Stdlib.Array.isArray {
-        let node =
-          node->(
-            Obj.magic: Definition.node<schema<unknown>> => array<Definition.t<schema<unknown>>>
-          )
+  let rec definitionToSchema = (definition: unknown) => {
+    if definition->Definition.isNode {
+      if definition->isSchemaObject {
+        definition->(Obj.magic: unknown => schema<unknown>)
+      } else if definition->Stdlib.Array.isArray {
+        let node = definition->(Obj.magic: unknown => array<unknown>)
         Object.tuple(s => {
           let tupleDefinition = []
           for idx in 0 to node->Js.Array2.length - 1 {
             let definition = node->Js.Array2.unsafe_get(idx)
-            tupleDefinition->Js.Array2.unsafe_set(
-              idx,
-              s.item(idx, definition->definitionToSchema(~embededSet))->(
-                Obj.magic: unknown => Definition.t<schema<unknown>>
-              ),
-            )
+            tupleDefinition->Js.Array2.unsafe_set(idx, s.item(idx, definition->definitionToSchema))
           }
           tupleDefinition
         })
       } else {
+        let node = definition->(Obj.magic: unknown => dict<unknown>)
         Object.factory(s => {
           let objectDefinition = Js.Dict.empty()
           let keys = node->Js.Dict.keys
@@ -3488,8 +3469,8 @@ module Schema = {
             let definition = node->Js.Dict.unsafeGet(key)
             objectDefinition->Js.Dict.set(
               key,
-              s.field(key, definition->definitionToSchema(~embededSet))->(
-                Obj.magic: unknown => Definition.t<schema<unknown>>
+              s.field(key, definition->definitionToSchema)->(
+                Obj.magic: unknown => Definition.t<item>
               ),
             )
           }
@@ -3497,26 +3478,21 @@ module Schema = {
         })->toUnknown
       }
     } else {
-      let constant = definition->Definition.toConstant
-      literal(constant)
+      literal(definition)
     }
   }
 
+  let matches:
+    type value. schema<value> => value =
+    schema => schema->(Obj.magic: schema<value> => value)
+
+  let ctx = {
+    matches: matches,
+  }
+
   let factory = definer => {
-    let embededSet = Stdlib.WeakSet.make()
-    let matches:
-      type value. schema<value> => value =
-      schema => {
-        let schema = schema->toUnknown
-        embededSet->Stdlib.WeakSet.add(schema)->ignore
-        schema->(Obj.magic: t<unknown> => value)
-      }
-    let ctx = {
-      matches: matches,
-    }
-    let definition =
-      definer(ctx->(Obj.magic: s => 'value))->(Obj.magic: 'definition => Definition.t<t<unknown>>)
-    definition->definitionToSchema(~embededSet)->castUnknownSchemaToAnySchema
+    let definition = definer(ctx->(Obj.magic: s => 'value))->(Obj.magic: 'definition => unknown)
+    definition->definitionToSchema->castUnknownSchemaToAnySchema
   }
 }
 
@@ -4199,8 +4175,7 @@ let js_object = definer => {
       for idx in 0 to fieldNames->Js.Array2.length - 1 {
         let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
         let schema = definer->Js.Dict.unsafeGet(fieldName)
-        // A dirty check that this is rescript-schema object
-        let schema = if Obj.magic(schema) && Obj.magic(schema)["serializeToJsonOrThrow"] {
+        let schema = if schema->isSchema {
           schema
         } else {
           literal(Obj.magic(schema))

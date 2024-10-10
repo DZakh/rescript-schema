@@ -66,11 +66,8 @@ function toJsResult(result) {
   }
 }
 
-// let index = 0;
-    class RescriptSchemaError extends Error {
+class RescriptSchemaError extends Error {
       constructor(code, operation, path) {
-        // console.log(index)
-        // index = index + 1;
         super();
         this.operation = operation;
         this.code = code;
@@ -2335,16 +2332,16 @@ function description(schema) {
   return schema.m[descriptionMetadataId];
 }
 
-function definitionToSchema(definition, embededSet) {
-  if (embededSet.has(definition)) {
-    return definition;
-  } else if (typeof definition === "object" && definition !== null) {
-    if (Array.isArray(definition)) {
+function definitionToSchema(definition) {
+  if (typeof definition === "object" && definition !== null) {
+    if (definition.serializeToJsonOrThrow) {
+      return definition;
+    } else if (Array.isArray(definition)) {
       return tuple(function (s) {
                   var tupleDefinition = [];
                   for(var idx = 0 ,idx_finish = definition.length; idx < idx_finish; ++idx){
                     var definition$1 = definition[idx];
-                    tupleDefinition[idx] = s.item(idx, definitionToSchema(definition$1, embededSet));
+                    tupleDefinition[idx] = s.item(idx, definitionToSchema(definition$1));
                   }
                   return tupleDefinition;
                 });
@@ -2355,7 +2352,7 @@ function definitionToSchema(definition, embededSet) {
                   for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
                     var key = keys[idx];
                     var definition$1 = definition[key];
-                    objectDefinition[key] = s.f(key, definitionToSchema(definition$1, embededSet));
+                    objectDefinition[key] = s.f(key, definitionToSchema(definition$1));
                   }
                   return objectDefinition;
                 });
@@ -2365,17 +2362,17 @@ function definitionToSchema(definition, embededSet) {
   }
 }
 
+function matches(schema) {
+  return schema;
+}
+
+var ctx = {
+  matches: matches
+};
+
 function factory$7(definer) {
-  var embededSet = new WeakSet();
-  var matches = function (schema) {
-    embededSet.add(schema);
-    return schema;
-  };
-  var ctx = {
-    matches: matches
-  };
   var definition = definer(ctx);
-  return definitionToSchema(definition, embededSet);
+  return definitionToSchema(definition);
 }
 
 var $$class = RescriptSchemaError;

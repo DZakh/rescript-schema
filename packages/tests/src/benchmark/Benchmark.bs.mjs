@@ -51,6 +51,26 @@ function makeAdvancedObjectSchema() {
             });
 }
 
+function makeAdvancedObjectSchemaWithSSchema() {
+  return S$RescriptSchema.schema(function (s) {
+              return {
+                      number: s.matches(S$RescriptSchema.$$float),
+                      negNumber: s.matches(S$RescriptSchema.$$float),
+                      maxNumber: s.matches(S$RescriptSchema.$$float),
+                      string: s.matches(S$RescriptSchema.string),
+                      longString: s.matches(S$RescriptSchema.string),
+                      boolean: s.matches(S$RescriptSchema.bool),
+                      deeplyNested: s.matches(S$RescriptSchema.schema(function (s) {
+                                return {
+                                        foo: s.matches(S$RescriptSchema.string),
+                                        num: s.matches(S$RescriptSchema.$$float),
+                                        bool: s.matches(S$RescriptSchema.bool)
+                                      };
+                              }))
+                    };
+            });
+}
+
 function makeAdvancedStrictObjectSchema() {
   return S$RescriptSchema.$$Object.strict(S$RescriptSchema.object(function (s) {
                   return {
@@ -210,37 +230,43 @@ S$RescriptSchema.$$Error.make({
 
 console.timeEnd("S.Error.make");
 
-run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new (Benchmark.default.Suite)(), "Parse string", (function () {
+run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new (Benchmark.default.Suite)(), "Parse string", (function () {
+                                                      return function () {
+                                                        return S$RescriptSchema.parseAnyOrRaiseWith("Hello world!", S$RescriptSchema.string);
+                                                      };
+                                                    })), "Reverse convert string", (function () {
                                                   return function () {
-                                                    return S$RescriptSchema.parseAnyOrRaiseWith("Hello world!", S$RescriptSchema.string);
+                                                    return S$RescriptSchema.reverseConvertWith("Hello world!", S$RescriptSchema.string);
                                                   };
-                                                })), "Reverse convert string", (function () {
-                                              return function () {
-                                                return S$RescriptSchema.reverseConvertWith("Hello world!", S$RescriptSchema.string);
-                                              };
-                                            })).add("Advanced object schema factory", makeAdvancedObjectSchema), "Parse advanced object", (function () {
+                                                })).add("Advanced object schema factory", makeAdvancedObjectSchema), "Parse advanced object", (function () {
+                                            var schema = makeAdvancedObjectSchema();
+                                            var data = makeTestObject();
+                                            return function () {
+                                              return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
+                                            };
+                                          })), "Assert advanced object - compile", (function () {
                                         var schema = makeAdvancedObjectSchema();
                                         var data = makeTestObject();
+                                        var assertFn = S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true);
                                         return function () {
-                                          return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
+                                          assertFn(data);
                                         };
-                                      })), "Assert advanced object - compile", (function () {
+                                      })), "Assert advanced object", (function () {
                                     var schema = makeAdvancedObjectSchema();
                                     var data = makeTestObject();
-                                    var assertFn = S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true);
                                     return function () {
-                                      assertFn(data);
+                                      S$RescriptSchema.assertWith(data, schema);
                                     };
-                                  })), "Assert advanced object", (function () {
-                                var schema = makeAdvancedObjectSchema();
+                                  })), "Create and parse advanced object", (function () {
                                 var data = makeTestObject();
                                 return function () {
-                                  S$RescriptSchema.assertWith(data, schema);
+                                  var schema = makeAdvancedObjectSchema();
+                                  return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
                                 };
-                              })), "Create and parse advanced object", (function () {
+                              })), "Create and parse advanced object - with S.schema", (function () {
                             var data = makeTestObject();
                             return function () {
-                              var schema = makeAdvancedObjectSchema();
+                              var schema = makeAdvancedObjectSchemaWithSSchema();
                               return S$RescriptSchema.parseAnyOrRaiseWith(data, schema);
                             };
                           })), "Parse advanced strict object", (function () {

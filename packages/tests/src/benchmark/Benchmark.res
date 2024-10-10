@@ -76,6 +76,28 @@ let makeAdvancedObjectSchema = () => {
   )
 }
 
+let makeAdvancedObjectSchemaWithSSchema = () => {
+  S.schema(s =>
+    {
+      "number": s.matches(S.float),
+      "negNumber": s.matches(S.float),
+      "maxNumber": s.matches(S.float),
+      "string": s.matches(S.string),
+      "longString": s.matches(S.string),
+      "boolean": s.matches(S.bool),
+      "deeplyNested": s.matches(
+        S.schema(s =>
+          {
+            "foo": s.matches(S.string),
+            "num": s.matches(S.float),
+            "bool": s.matches(S.bool),
+          }
+        ),
+      ),
+    }
+  )
+}
+
 let makeAdvancedStrictObjectSchema = () => {
   S.object(s =>
     {
@@ -270,6 +292,13 @@ Suite.make()
   let data = makeTestObject()
   () => {
     let schema = makeAdvancedObjectSchema()
+    data->S.parseAnyOrRaiseWith(schema)
+  }
+})
+->Suite.addWithPrepare("Create and parse advanced object - with S.schema", () => {
+  let data = makeTestObject()
+  () => {
+    let schema = makeAdvancedObjectSchemaWithSSchema()
     data->S.parseAnyOrRaiseWith(schema)
   }
 })
