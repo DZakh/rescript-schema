@@ -1474,13 +1474,38 @@ function factory$2(schema) {
 
 var Tuple = {};
 
-function typeFilter$1(_b, inputVar) {
-  return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
+function make$1(selfSchema) {
+  return {
+          a: 0,
+          o: new WeakMap(),
+          s: selfSchema
+        };
 }
 
-function makeOutput(b, definition, outputs, asyncOutputs) {
+function addItemOutput(b, ctx, item, output) {
+  var output$1;
+  if (output.a) {
+    var a = ctx.a;
+    var asyncOutputs;
+    if (Array.isArray(a)) {
+      asyncOutputs = a;
+    } else {
+      var a$1 = [];
+      ctx.a = a$1;
+      asyncOutputs = a$1;
+    }
+    var index = asyncOutputs.length;
+    asyncOutputs.push(output);
+    output$1 = val(b, "a[" + index + "]");
+  } else {
+    output$1 = output;
+  }
+  ctx.o.set(item, output$1);
+}
+
+function toOutputVal(b, ctx, outputDefinition) {
   var definitionToValue = function (definition, outputPath) {
-    var val = outputs.get(definition);
+    var val = ctx.o.get(definition);
     if (val !== undefined) {
       return inline(b, val);
     }
@@ -1505,84 +1530,80 @@ function makeOutput(b, definition, outputs, asyncOutputs) {
             isArray ? "]" : "}"
           );
   };
-  var syncOutput = definitionToValue(definition, "");
-  if (asyncOutputs.length === 0) {
+  var syncOutput = definitionToValue(outputDefinition, "");
+  if (ctx.a === 0) {
     return val(b, syncOutput);
-  } else {
-    return asyncVal(b, "Promise.all([" + asyncOutputs.map(function (val) {
-                      return inline(b, val);
-                    }).toString() + "]).then(a=>(" + syncOutput + "))");
   }
+  var asyncOutputs = ctx.a;
+  return asyncVal(b, "Promise.all([" + asyncOutputs.map(function (val) {
+                    return inline(b, val);
+                  }).toString() + "]).then(a=>(" + syncOutput + "))");
+}
+
+function typeFilter$1(_b, inputVar) {
+  return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
+}
+
+function processInputItems(b, ctx, input, schema, path) {
+  var inputVar = $$var(b, input);
+  var items = schema.t.items;
+  var isObject = schema.t.TAG === "Object";
+  for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+    var prevCode = b.c;
+    b.c = "";
+    var item = items[idx];
+    var itemPath = item.p;
+    var schema$1 = item.t;
+    var itemInput = val(b, inputVar + itemPath);
+    var path$1 = path + itemPath;
+    var isLiteral = schema$1.t.TAG === "Literal";
+    var typeFilter = schema$1.f;
+    if (typeFilter !== undefined && (isLiteral || b.g.o & 1)) {
+      b.c = b.c + typeFilterCode(b, typeFilter, schema$1, itemInput, path$1);
+    }
+    if (isObject && schema$1.d) {
+      var bb = scope(b);
+      processInputItems(bb, ctx, itemInput, schema$1, path$1);
+      b.c = prevCode + b.c + allocateScope(bb);
+    } else {
+      var itemOutput = schema$1.b(b, itemInput, schema$1, path$1);
+      addItemOutput(b, ctx, item, itemOutput);
+      if (isLiteral) {
+        b.c = b.c + prevCode;
+      } else {
+        b.c = prevCode + b.c;
+      }
+    }
+  }
+  if (!(isObject && ctx.s.t.unknownKeys === "Strict" && b.g.o & 1)) {
+    return ;
+  }
+  var key = allocateVal(b);
+  var keyVar = $$var(b, key);
+  b.c = b.c + ("for(" + keyVar + " in " + inputVar + "){if(");
+  if (items.length !== 0) {
+    for(var idx$1 = 0 ,idx_finish$1 = items.length; idx$1 < idx_finish$1; ++idx$1){
+      var item$1 = items[idx$1];
+      if (idx$1 !== 0) {
+        b.c = b.c + "&&";
+      }
+      b.c = b.c + (keyVar + "!==" + item$1.i);
+    }
+  } else {
+    b.c = b.c + "true";
+  }
+  b.c = b.c + ("){" + failWithArg(b, path, (function (exccessFieldName) {
+            return {
+                    TAG: "ExcessField",
+                    _0: exccessFieldName
+                  };
+          }), keyVar) + "}}");
 }
 
 function builder$1(b, input, selfSchema, path) {
-  var asyncOutputs = [];
-  var outputs = new WeakMap();
-  var parseItems = function (b, input, schema, path) {
-    var inputVar = $$var(b, input);
-    var items = schema.t.items;
-    var isObject = schema.t.TAG === "Object";
-    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-      var prevCode = b.c;
-      b.c = "";
-      var item = items[idx];
-      var itemPath = item.p;
-      var schema$1 = item.t;
-      var itemInput = val(b, inputVar + itemPath);
-      var path$1 = path + itemPath;
-      var isLiteral = schema$1.t.TAG === "Literal";
-      var typeFilter = schema$1.f;
-      if (typeFilter !== undefined && (isLiteral || b.g.o & 1)) {
-        b.c = b.c + typeFilterCode(b, typeFilter, schema$1, itemInput, path$1);
-      }
-      if (isObject && schema$1.d) {
-        var bb = scope(b);
-        parseItems(bb, itemInput, schema$1, path$1);
-        b.c = prevCode + b.c + allocateScope(bb);
-      } else {
-        var itemOutput = schema$1.b(b, itemInput, schema$1, path$1);
-        var itemOutput$1;
-        if (itemOutput.a) {
-          var index = asyncOutputs.length;
-          asyncOutputs.push(itemOutput);
-          itemOutput$1 = val(b, "a[" + index + "]");
-        } else {
-          itemOutput$1 = itemOutput;
-        }
-        outputs.set(item, itemOutput$1);
-        if (isLiteral) {
-          b.c = b.c + prevCode;
-        } else {
-          b.c = prevCode + b.c;
-        }
-      }
-    }
-    if (!(isObject && selfSchema.t.unknownKeys === "Strict" && b.g.o & 1)) {
-      return ;
-    }
-    var key = allocateVal(b);
-    var keyVar = $$var(b, key);
-    b.c = b.c + ("for(" + keyVar + " in " + inputVar + "){if(");
-    if (items.length !== 0) {
-      for(var idx$1 = 0 ,idx_finish$1 = items.length; idx$1 < idx_finish$1; ++idx$1){
-        var item$1 = items[idx$1];
-        if (idx$1 !== 0) {
-          b.c = b.c + "&&";
-        }
-        b.c = b.c + (keyVar + "!==" + item$1.i);
-      }
-    } else {
-      b.c = b.c + "true";
-    }
-    b.c = b.c + ("){" + failWithArg(b, path, (function (exccessFieldName) {
-              return {
-                      TAG: "ExcessField",
-                      _0: exccessFieldName
-                    };
-            }), keyVar) + "}}");
-  };
-  parseItems(b, input, selfSchema, path);
-  return makeOutput(b, selfSchema.t.definition, outputs, asyncOutputs);
+  var ctx = make$1(selfSchema);
+  processInputItems(b, ctx, input, selfSchema, path);
+  return toOutputVal(b, ctx, selfSchema.t.definition);
 }
 
 function name() {
@@ -1845,20 +1866,11 @@ function to(schema, definer) {
     s: itemSymbol
   };
   var definition = definer(item);
-  return makeSchema(schema.n, schema.t, schema.m, (function (b, input, param, path) {
-                var asyncOutputs = [];
-                var outputs = new WeakMap();
+  return makeSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
+                var ctx = make$1(selfSchema);
                 var itemOutput = schema.b(b, input, schema, path);
-                var itemOutput$1;
-                if (itemOutput.a) {
-                  var index = asyncOutputs.length;
-                  asyncOutputs.push(itemOutput);
-                  itemOutput$1 = val(b, "a[" + index + "]");
-                } else {
-                  itemOutput$1 = itemOutput;
-                }
-                outputs.set(item, itemOutput$1);
-                return makeOutput(b, definition, outputs, asyncOutputs);
+                addItemOutput(b, ctx, item, itemOutput);
+                return toOutputVal(b, ctx, definition);
               }), schema.f, reverse$1(definition, item));
 }
 
@@ -2368,7 +2380,7 @@ function factory$7(definer) {
 
 var $$class = RescriptSchemaError;
 
-function make$1(prim0, prim1, prim2) {
+function make$2(prim0, prim1, prim2) {
   return new RescriptSchemaError(prim0, prim1, prim2);
 }
 
@@ -3145,7 +3157,7 @@ var Path = {
 
 var $$Error$1 = {
   $$class: $$class,
-  make: make$1,
+  make: make$2,
   raise: raise$1,
   message: message,
   reason: reason$1

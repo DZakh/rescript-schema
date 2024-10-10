@@ -33,14 +33,14 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Rename serialize to convertReverse
 - S.create / S.validate
 - Rename S.inline to S.toRescriptCode
-- Fix reverse for object/tuple/variant/recursive
+- Fix reverse for object/tuple/to/recursive/schema
 - Rename disableNanNumberCheck to use validation
 - Add tag for BigInt
 - Add literal shorthand for unions in ts api
 - Add flatten to ts api
 - Get rid of Caml_js_exceptions.internalToOCamlException
 - Add testWith
-- Use type args for S.compile
+- Use type args for S.compile - tweet why it didn't work
 - Change asyncParser from () => () => promise to () => promise
 - Add schema input to the error ??? What about build errors?
 

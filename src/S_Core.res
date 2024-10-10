@@ -2251,145 +2251,174 @@ module Object = {
     ...s,
   }
 
-  let typeFilter = (_b, ~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
-
   let getItems = (schema): array<item> => (schema->classify->Obj.magic)["items"]
   let getOutputDefinition = schema => (schema->classify->Obj.magic)["definition"]
 
-  let makeOutput = (b, ~definition, ~outputs, ~asyncOutputs) => {
-    let syncOutput = {
-      let rec definitionToValue = (definition: Definition.t<item>, ~outputPath) => {
-        switch outputs->Stdlib.WeakMap.get(definition->Definition.toEmbeded) {
-        | Some(val) => b->B.Val.inline(val)
-        | None =>
-          if definition->Definition.isNode {
-            let node = definition->Definition.toNode
-            let isArray = Stdlib.Array.isArray(node)
-            let keys = node->Js.Dict.keys
+  module BuildCtx = {
+    // type inputKind = | @as(0) Any | @as(1) Object | @as(2) Tuple
+    @unboxed
+    type asyncOutputs = | @as(0) None | Array(array<val>)
 
-            let codeRef = ref(isArray ? "[" : "{")
-            for idx in 0 to keys->Js.Array2.length - 1 {
-              let key = keys->Js.Array2.unsafe_get(idx)
-              let definition = node->Js.Dict.unsafeGet(key)
-              let output =
-                definition->definitionToValue(
-                  ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
-                )
-              if idx !== 0 {
-                codeRef := codeRef.contents ++ ","
-              }
-              codeRef :=
-                codeRef.contents ++ (
-                  isArray ? output : `${key->Stdlib.Inlined.Value.fromString}:${output}`
-                )
-            }
-            codeRef.contents ++ (isArray ? "]" : "}")
-          } else {
-            let constant = definition->Definition.toConstant
-            b->B.embed(constant)
-          }
-        }
-      }
-      definition
-      ->(Obj.magic: unknown => Definition.t<item>)
-      ->definitionToValue(~outputPath=Path.empty)
+    type t = {
+      @as("a")
+      mutable asyncOutputs: asyncOutputs,
+      @as("o")
+      outputs: Stdlib.WeakMap.t<item, val>,
+      @as("s")
+      selfSchema: schema<unknown>,
     }
 
-    if asyncOutputs->Js.Array2.length === 0 {
-      b->B.val(syncOutput)
-    } else {
-      b->B.asyncVal(
-        `Promise.all([${asyncOutputs
-          ->Js.Array2.map(val => b->B.Val.inline(val))
-          ->Js.Array2.toString}]).then(a=>(${syncOutput}))`,
-      )
+    let make = (~selfSchema) => {
+      asyncOutputs: None,
+      outputs: Stdlib.WeakMap.make(),
+      selfSchema,
+    }
+
+    let addItemOutput = (b, ~ctx, item, output) => {
+      let output = if output.isAsync {
+        let asyncOutputs = switch ctx.asyncOutputs {
+        | None => {
+            let a = []
+            ctx.asyncOutputs = Array(a)
+            a
+          }
+        | Array(a) => a
+        }
+        let index = asyncOutputs->Js.Array2.length
+        asyncOutputs->Js.Array2.push(output)->ignore
+        // TODO: Improve to not to use an array when there's only a single async item
+        b->B.val(`a[${index->Stdlib.Int.unsafeToString}]`)
+      } else {
+        output
+      }
+
+      let _ = ctx.outputs->Stdlib.WeakMap.set(item, output)
+    }
+
+    let toOutputVal = (b, ~ctx: t, ~outputDefinition) => {
+      let syncOutput = {
+        let rec definitionToValue = (definition: Definition.t<item>, ~outputPath) => {
+          switch ctx.outputs->Stdlib.WeakMap.get(definition->Definition.toEmbeded) {
+          | Some(val) => b->B.Val.inline(val)
+          | None =>
+            if definition->Definition.isNode {
+              let node = definition->Definition.toNode
+              let isArray = Stdlib.Array.isArray(node)
+              let keys = node->Js.Dict.keys
+
+              let codeRef = ref(isArray ? "[" : "{")
+              for idx in 0 to keys->Js.Array2.length - 1 {
+                let key = keys->Js.Array2.unsafe_get(idx)
+                let definition = node->Js.Dict.unsafeGet(key)
+                let output =
+                  definition->definitionToValue(
+                    ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
+                  )
+                if idx !== 0 {
+                  codeRef := codeRef.contents ++ ","
+                }
+                codeRef :=
+                  codeRef.contents ++ (
+                    isArray ? output : `${key->Stdlib.Inlined.Value.fromString}:${output}`
+                  )
+              }
+              codeRef.contents ++ (isArray ? "]" : "}")
+            } else {
+              let constant = definition->Definition.toConstant
+              b->B.embed(constant)
+            }
+          }
+        }
+        outputDefinition
+        ->(Obj.magic: unknown => Definition.t<item>)
+        ->definitionToValue(~outputPath=Path.empty)
+      }
+
+      if ctx.asyncOutputs === None {
+        b->B.val(syncOutput)
+      } else {
+        let asyncOutputs = ctx.asyncOutputs->(Obj.magic: asyncOutputs => array<val>)
+        b->B.asyncVal(
+          `Promise.all([${asyncOutputs
+            ->Js.Array2.map(val => b->B.Val.inline(val))
+            ->Js.Array2.toString}]).then(a=>(${syncOutput}))`,
+        )
+      }
+    }
+  }
+
+  let typeFilter = (_b, ~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
+
+  let rec processInputItems = (b: b, ~ctx: BuildCtx.t, ~input, ~schema, ~path) => {
+    let inputVar = b->B.Val.var(input)
+
+    let items = schema->getItems
+    let isObject = schema->classify->unsafeGetVarianTag === "Object"
+
+    for idx in 0 to items->Js.Array2.length - 1 {
+      let prevCode = b.code
+      b.code = ""
+
+      let item = items->Js.Array2.unsafe_get(idx)
+      let {schema, path: itemPath} = item
+      let itemInput = b->B.val(`${inputVar}${itemPath}`)
+      let path = path->Path.concat(itemPath)
+      let isLiteral = schema->isLiteralSchema
+
+      switch schema.maybeTypeFilter {
+      | Some(typeFilter)
+        if isLiteral ||
+        b.global.operation->Operation.unsafeHasFlag(Operation.Flag.typeValidation) =>
+        b.code = b.code ++ b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path)
+      | _ => ()
+      }
+
+      if isObject && schema.definer->Obj.magic {
+        let bb = b->B.scope
+        bb->processInputItems(~ctx, ~input=itemInput, ~schema, ~path)
+        b.code = prevCode ++ b.code ++ bb->B.allocateScope
+      } else {
+        let itemOutput = b->B.parse(~schema, ~input=itemInput, ~path)
+        b->BuildCtx.addItemOutput(~ctx, item, itemOutput)
+
+        // Parse literal fields first, because they are most often used as discriminants
+        if isLiteral {
+          b.code = b.code ++ prevCode
+        } else {
+          b.code = prevCode ++ b.code
+        }
+      }
+    }
+
+    if (
+      isObject &&
+      (ctx.selfSchema->classify->Obj.magic)["unknownKeys"] === Strict &&
+      b.global.operation->Operation.unsafeHasFlag(Operation.Flag.typeValidation)
+    ) {
+      let key = b->B.allocateVal
+      let keyVar = b->B.Val.var(key)
+      b.code = b.code ++ `for(${keyVar} in ${inputVar}){if(`
+      switch items {
+      | [] => b.code = b.code ++ "true"
+      | _ =>
+        for idx in 0 to items->Js.Array2.length - 1 {
+          let item = items->Js.Array2.unsafe_get(idx)
+          if idx !== 0 {
+            b.code = b.code ++ "&&"
+          }
+          b.code = b.code ++ `${keyVar}!==${item.inlinedLocation}`
+        }
+      }
+      b.code =
+        b.code ++
+        `){${b->B.failWithArg(~path, exccessFieldName => ExcessField(exccessFieldName), keyVar)}}}`
     }
   }
 
   let builder = (b, ~input, ~selfSchema, ~path) => {
-    let asyncOutputs = []
-    let outputs = Stdlib.WeakMap.make()
-
-    let rec parseItems = (b: b, ~input, ~schema, ~path) => {
-      let inputVar = b->B.Val.var(input)
-
-      let items = schema->getItems
-      let isObject = schema->classify->unsafeGetVarianTag === "Object"
-
-      for idx in 0 to items->Js.Array2.length - 1 {
-        let prevCode = b.code
-        b.code = ""
-
-        let item = items->Js.Array2.unsafe_get(idx)
-        let {schema, path: itemPath} = item
-        let itemInput = b->B.val(`${inputVar}${itemPath}`)
-        let path = path->Path.concat(itemPath)
-        let isLiteral = schema->isLiteralSchema
-
-        switch schema.maybeTypeFilter {
-        | Some(typeFilter)
-          if isLiteral ||
-          b.global.operation->Operation.unsafeHasFlag(Operation.Flag.typeValidation) =>
-          b.code = b.code ++ b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path)
-        | _ => ()
-        }
-
-        if isObject && schema.definer->Obj.magic {
-          let bb = b->B.scope
-          bb->parseItems(~input=itemInput, ~schema, ~path)
-          b.code = prevCode ++ b.code ++ bb->B.allocateScope
-        } else {
-          let itemOutput = b->B.parse(~schema, ~input=itemInput, ~path)
-          let itemOutput = if itemOutput.isAsync {
-            let index = asyncOutputs->Js.Array2.length
-            asyncOutputs->Js.Array2.push(itemOutput)->ignore
-            b->B.val(`a[${index->Stdlib.Int.unsafeToString}]`)
-          } else {
-            itemOutput
-          }
-
-          let _ = outputs->Stdlib.WeakMap.set(item, itemOutput)
-
-          // Parse literal fields first, because they are most often used as discriminants
-          if isLiteral {
-            b.code = b.code ++ prevCode
-          } else {
-            b.code = prevCode ++ b.code
-          }
-        }
-      }
-
-      if (
-        isObject &&
-        (selfSchema->classify->Obj.magic)["unknownKeys"] === Strict &&
-        b.global.operation->Operation.unsafeHasFlag(Operation.Flag.typeValidation)
-      ) {
-        let key = b->B.allocateVal
-        let keyVar = b->B.Val.var(key)
-        b.code = b.code ++ `for(${keyVar} in ${inputVar}){if(`
-        switch items {
-        | [] => b.code = b.code ++ "true"
-        | _ =>
-          for idx in 0 to items->Js.Array2.length - 1 {
-            let item = items->Js.Array2.unsafe_get(idx)
-            if idx !== 0 {
-              b.code = b.code ++ "&&"
-            }
-            b.code = b.code ++ `${keyVar}!==${item.inlinedLocation}`
-          }
-        }
-        b.code =
-          b.code ++
-          `){${b->B.failWithArg(
-              ~path,
-              exccessFieldName => ExcessField(exccessFieldName),
-              keyVar,
-            )}}}`
-      }
-    }
-    b->parseItems(~input, ~schema=selfSchema, ~path)
-
-    b->makeOutput(~definition=selfSchema->getOutputDefinition, ~outputs, ~asyncOutputs)
+    let ctx = BuildCtx.make(~selfSchema)
+    b->processInputItems(~ctx, ~input, ~schema=selfSchema, ~path)
+    b->BuildCtx.toOutputVal(~ctx, ~outputDefinition=selfSchema->getOutputDefinition)
   }
 
   type serializeCtx = {@as("d") mutable discriminantCode: string}
@@ -2630,23 +2659,11 @@ module Object = {
         makeSchema(
           ~name=schema.name,
           ~tagged=schema.tagged,
-          ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-            // TODO: Improve to not to use an array when there's only a single async item
-            let asyncOutputs = []
-            let outputs = Stdlib.WeakMap.make()
-
+          ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+            let ctx = BuildCtx.make(~selfSchema)
             let itemOutput = b->B.parse(~schema, ~input, ~path)
-            let itemOutput = if itemOutput.isAsync {
-              let index = asyncOutputs->Js.Array2.length
-              asyncOutputs->Js.Array2.push(itemOutput)->ignore
-              b->B.val(`a[${index->Stdlib.Int.unsafeToString}]`)
-            } else {
-              itemOutput
-            }
-
-            let _ = outputs->Stdlib.WeakMap.set(item, itemOutput)
-
-            b->makeOutput(~definition, ~outputs, ~asyncOutputs)
+            b->BuildCtx.addItemOutput(~ctx, item, itemOutput)
+            b->BuildCtx.toOutputVal(~ctx, ~outputDefinition=definition)
           }),
           ~maybeTypeFilter=schema.maybeTypeFilter,
           ~metadataMap=schema.metadataMap,
