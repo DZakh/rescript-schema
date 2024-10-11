@@ -45,6 +45,18 @@ function assertErrorResult(t, result, errorPayload) {
   t.is(S$RescriptSchema.$$Error.message(result._0), S$RescriptSchema.$$Error.message(error(errorPayload)), undefined);
 }
 
+function getCompiledCodeString(schema, op) {
+  return (
+            op === "Assert" ? S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true) : (
+                op === "SerializeJson" ? S$RescriptSchema.compile(S$RescriptSchema.reverse(schema), "Any", "Json", "Sync", false) : (
+                    op === "Serialize" ? S$RescriptSchema.compile(S$RescriptSchema.reverse(schema), "Any", "Output", "Sync", false) : (
+                        S$RescriptSchema.isAsync(schema) ? S$RescriptSchema.compile(schema, "Any", "Output", "Async", true) : S$RescriptSchema.compile(schema, "Any", "Output", "Sync", true)
+                      )
+                  )
+              )
+          ).toString();
+}
+
 function cleanUpSchema(schema) {
   var $$new = {};
   Object.entries(schema).forEach(function (param) {
@@ -76,16 +88,7 @@ function unsafeAssertEqualSchemas(t, s1, s2, message) {
 }
 
 function assertCompiledCode(t, schema, op, code, message) {
-  var compiledCode = (
-      op === "Assert" ? S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true) : (
-          op === "SerializeJson" ? S$RescriptSchema.compile(S$RescriptSchema.reverse(schema), "Any", "Json", "Sync", false) : (
-              op === "Serialize" ? S$RescriptSchema.compile(S$RescriptSchema.reverse(schema), "Any", "Output", "Sync", false) : (
-                  S$RescriptSchema.isAsync(schema) ? S$RescriptSchema.compile(schema, "Any", "Output", "Async", true) : S$RescriptSchema.compile(schema, "Any", "Output", "Sync", true)
-                )
-            )
-        )
-    ).toString();
-  t.is(compiledCode, code, message !== undefined ? Caml_option.valFromOption(message) : undefined);
+  t.is(getCompiledCodeString(schema, op), code, message !== undefined ? Caml_option.valFromOption(message) : undefined);
 }
 
 function assertCompiledCodeIsNoop(t, schema, op, message) {
@@ -105,6 +108,7 @@ export {
   error ,
   assertThrowsTestException ,
   assertErrorResult ,
+  getCompiledCodeString ,
   cleanUpSchema ,
   unsafeAssertEqualSchemas ,
   assertCompiledCode ,

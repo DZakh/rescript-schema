@@ -13,7 +13,7 @@ export type Output<T> = T extends Schema<infer Output, unknown>
   : never;
 export type Input<T> = T extends Schema<unknown, infer Input> ? Input : never;
 
-type UnknownSchema = Schema<unknown, unknown>;
+type UnknownSchema = Schema<unknown>;
 type SchemaTupleOutput<
   Tuple extends UnknownSchema[],
   Length extends number = Tuple["length"]
@@ -168,11 +168,37 @@ export const union: <A extends UnknownSchema, B extends UnknownSchema[]>(
   Input<A> | SchemaTupleInput<B>[number]
 >;
 
+type UnknownToOuput<T> = T extends Schema<unknown>
+  ? Output<T>
+  : T extends {
+      [k in keyof T]: unknown;
+    }
+  ? {
+      [k in keyof T]: UnknownToOuput<T[k]>;
+    }
+  : T;
+
+type UnknownToInput<T> = T extends Schema<unknown>
+  ? Input<T>
+  : T extends {
+      [k in keyof T]: unknown;
+    }
+  ? {
+      [k in keyof T]: UnknownToInput<T[k]>;
+    }
+  : T;
+
+/**
+ * @deprecated Pass the Schema directly instead of using the s.matches method
+ */
 export function schema<Value>(
   definer: (s: {
     matches: <Output>(schema: Schema<Output, unknown>) => Output;
   }) => Value
 ): Schema<Value, unknown>;
+export function schema<T>(
+  value: T
+): Schema<UnknownToOuput<T>, UnknownToInput<T>>;
 
 export function object<Output>(
   definer: (s: {
@@ -196,12 +222,12 @@ export function object<
   shape: Shape
 ): Schema<
   {
-    [k in keyof Shape]: Shape[k] extends Schema<unknown, unknown>
+    [k in keyof Shape]: Shape[k] extends Schema<unknown>
       ? Output<Shape[k]>
       : Shape[k];
   },
   {
-    [k in keyof Shape]: Shape[k] extends Schema<unknown, unknown>
+    [k in keyof Shape]: Shape[k] extends Schema<unknown>
       ? Input<Shape[k]>
       : Shape[k];
   }
@@ -235,7 +261,7 @@ export function recursive<Output, Input = Output>(
   definer: (schema: Schema<Output, Input>) => Schema<Output, Input>
 ): Schema<Output, Input>;
 
-export function name(schema: Schema<unknown, unknown>): string;
+export function name(schema: Schema<unknown>): string;
 export function setName<Output, Input>(
   schema: Schema<Output, Input>,
   name: string

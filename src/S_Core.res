@@ -2214,13 +2214,6 @@ module Array = {
   }
 }
 
-module Tuple = {
-  type s = {
-    item: 'value. (int, t<'value>) => 'value,
-    tag: 'value. (int, 'value) => unit,
-  }
-}
-
 module Object = {
   type rec s = {
     @as("f") field: 'value. (string, t<'value>) => 'value,
@@ -2562,74 +2555,6 @@ module Object = {
       }),
     )
   }
-  and tuple = definer => {
-    let items = []
-    let ctx: Tuple.s = {
-      let item:
-        type value. (int, schema<value>) => value =
-        (idx, schema) => {
-          let schema = schema->toUnknown
-          let location = idx->Js.Int.toString
-          let inlinedLocation = `"${location}"`
-          if items->Stdlib.Array.has(idx) {
-            InternalError.panic(`The item ${inlinedLocation} is defined multiple times`)
-          } else {
-            let item: item = {
-              schema,
-              location,
-              inlinedLocation,
-              path: inlinedLocation->Path.fromInlinedLocation,
-              symbol: itemSymbol,
-            }
-            items->Js.Array2.unsafe_set(idx, item)
-            item->(Obj.magic: item => value)
-          }
-        }
-
-      let tag = (idx, asValue) => {
-        let _ = item(idx, literal(asValue))
-      }
-
-      {
-        item,
-        tag,
-      }
-    }
-    let definition = definer((ctx :> Tuple.s))->(Obj.magic: 'any => unknown)
-
-    let length = items->Js.Array2.length
-    for idx in 0 to length - 1 {
-      if items->Js.Array2.unsafe_get(idx)->Obj.magic->not {
-        let schema = unit->toUnknown
-        let location = idx->Js.Int.toString
-        let inlinedLocation = `"${location}"`
-        let item: item = {
-          schema,
-          location,
-          inlinedLocation,
-          path: inlinedLocation->Path.fromInlinedLocation,
-          symbol: itemSymbol,
-        }
-        items->Js.Array2.unsafe_set(idx, item)
-      }
-    }
-
-    makeSchema(
-      ~name=() => `Tuple(${items->Js.Array2.map(i => i.schema.name())->Js.Array2.joinWith(", ")})`,
-      ~tagged=Tuple({
-        items,
-        definition,
-      }),
-      ~builder,
-      ~maybeTypeFilter=Some(
-        (b, ~inputVar) =>
-          b->Array.typeFilter(~inputVar) ++
-            `||${inputVar}.length!==${length->Stdlib.Int.unsafeToString}`,
-      ),
-      ~metadataMap=Metadata.Map.empty,
-      ~reverse=reverse(~definition),
-    )
-  }
   and to = {
     (schema: t<'value>, definer: 'value => 'variant): t<'variant> => {
       let schema = schema->toUnknown
@@ -2823,6 +2748,89 @@ module Object = {
 
   let strict = schema => {
     schema->setUnknownKeys(Strict)
+  }
+}
+
+module Tuple = {
+  type s = {
+    item: 'value. (int, t<'value>) => 'value,
+    tag: 'value. (int, 'value) => unit,
+  }
+
+  let name = () => {
+    `Tuple(${%raw(`this`)
+      ->Object.getItems
+      ->Js.Array2.map(item => item.schema.name())
+      ->Js.Array2.joinWith(", ")})`
+  }
+
+  @inline
+  let typeFilter = (~length) => (b, ~inputVar) =>
+    b->Array.typeFilter(~inputVar) ++ `||${inputVar}.length!==${length->Stdlib.Int.unsafeToString}`
+
+  let factory = definer => {
+    let items = []
+    let ctx: s = {
+      let item:
+        type value. (int, schema<value>) => value =
+        (idx, schema) => {
+          let schema = schema->toUnknown
+          let location = idx->Js.Int.toString
+          let inlinedLocation = `"${location}"`
+          if items->Stdlib.Array.has(idx) {
+            InternalError.panic(`The item ${inlinedLocation} is defined multiple times`)
+          } else {
+            let item: item = {
+              schema,
+              location,
+              inlinedLocation,
+              path: inlinedLocation->Path.fromInlinedLocation,
+              symbol: itemSymbol,
+            }
+            items->Js.Array2.unsafe_set(idx, item)
+            item->(Obj.magic: item => value)
+          }
+        }
+
+      let tag = (idx, asValue) => {
+        let _ = item(idx, literal(asValue))
+      }
+
+      {
+        item,
+        tag,
+      }
+    }
+    let definition = definer((ctx :> s))->(Obj.magic: 'any => unknown)
+
+    let length = items->Js.Array2.length
+    for idx in 0 to length - 1 {
+      if items->Js.Array2.unsafe_get(idx)->Obj.magic->not {
+        let schema = unit->toUnknown
+        let location = idx->Js.Int.toString
+        let inlinedLocation = `"${location}"`
+        let item: item = {
+          schema,
+          location,
+          inlinedLocation,
+          path: inlinedLocation->Path.fromInlinedLocation,
+          symbol: itemSymbol,
+        }
+        items->Js.Array2.unsafe_set(idx, item)
+      }
+    }
+
+    makeSchema(
+      ~name,
+      ~tagged=Tuple({
+        items,
+        definition,
+      }),
+      ~builder=Object.builder,
+      ~maybeTypeFilter=Some(typeFilter(~length)),
+      ~metadataMap=Metadata.Map.empty,
+      ~reverse=Object.reverse(~definition),
+    )
   }
 }
 
@@ -3451,31 +3459,73 @@ module Schema = {
         definition->(Obj.magic: unknown => schema<unknown>)
       } else if definition->Stdlib.Array.isArray {
         let node = definition->(Obj.magic: unknown => array<unknown>)
-        Object.tuple(s => {
-          let tupleDefinition = []
-          for idx in 0 to node->Js.Array2.length - 1 {
-            let definition = node->Js.Array2.unsafe_get(idx)
-            tupleDefinition->Js.Array2.unsafe_set(idx, s.item(idx, definition->definitionToSchema))
+        let items = []
+        let isTransformed = ref(false)
+        for idx in 0 to node->Js.Array2.length - 1 {
+          let location = idx->Js.Int.toString
+          let inlinedLocation = `"${location}"`
+          let schema = node->Js.Array2.unsafe_get(idx)->definitionToSchema
+          let item: item = {
+            schema,
+            location,
+            inlinedLocation,
+            path: inlinedLocation->Path.fromInlinedLocation,
+            symbol: itemSymbol,
           }
-          tupleDefinition
-        })
+          items->Js.Array2.unsafe_set(idx, item)
+          if !isTransformed.contents && schema !== schema.reverse() {
+            isTransformed := true
+          }
+        }
+        let definition = items->(Obj.magic: array<item> => unknown)
+        makeSchema(
+          ~name=Tuple.name,
+          ~tagged=Tuple({
+            items,
+            definition,
+          }),
+          ~builder=Object.builder,
+          ~maybeTypeFilter=Some(Tuple.typeFilter(~length=items->Js.Array2.length)),
+          ~metadataMap=Metadata.Map.empty,
+          ~reverse=isTransformed.contents ? Object.reverse(~definition) : Reverse.toSelf,
+        )
       } else {
         let node = definition->(Obj.magic: unknown => dict<unknown>)
-        Object.factory(s => {
-          let objectDefinition = Js.Dict.empty()
-          let keys = node->Js.Dict.keys
-          for idx in 0 to keys->Js.Array2.length - 1 {
-            let key = keys->Js.Array2.unsafe_get(idx)
-            let definition = node->Js.Dict.unsafeGet(key)
-            objectDefinition->Js.Dict.set(
-              key,
-              s.field(key, definition->definitionToSchema)->(
-                Obj.magic: unknown => Definition.t<item>
-              ),
-            )
+        let items = []
+        let fields = Js.Dict.empty()
+        let fieldNames = node->Js.Dict.keys
+        let isTransformed = ref(false)
+        for idx in 0 to fieldNames->Js.Array2.length - 1 {
+          let location = fieldNames->Js.Array2.unsafe_get(idx)
+          let inlinedLocation = `"${location}"`
+          let schema = node->Js.Dict.unsafeGet(location)->definitionToSchema
+          let item: item = {
+            schema,
+            location,
+            inlinedLocation,
+            path: inlinedLocation->Path.fromInlinedLocation,
+            symbol: itemSymbol,
           }
-          objectDefinition
-        })->toUnknown
+          items->Js.Array2.unsafe_set(idx, item)
+          fields->Js.Dict.set(location, item)
+          if !isTransformed.contents && schema !== schema.reverse() {
+            isTransformed := true
+          }
+        }
+        let definition = fields->(Obj.magic: dict<item> => unknown)
+        makeSchema(
+          ~name=Object.name,
+          ~tagged=Object({
+            items,
+            fields,
+            definition,
+            unknownKeys: globalConfig.defaultUnknownKeys,
+          }),
+          ~builder=Object.builder,
+          ~maybeTypeFilter=Some(Object.typeFilter),
+          ~metadataMap=Metadata.Map.empty,
+          ~reverse=isTransformed.contents ? Object.reverse(~definition) : Reverse.toSelf,
+        )
       }
     } else {
       literal(definition)
@@ -3491,7 +3541,10 @@ module Schema = {
   }
 
   let factory = definer => {
-    let definition = definer(ctx->(Obj.magic: s => 'value))->(Obj.magic: 'definition => unknown)
+    let definition =
+      Js.typeof(definer) === "function" // TODO: Move to js_schema after the cb version is removed in v9
+        ? definer(ctx->(Obj.magic: s => 'value))->(Obj.magic: 'definition => unknown)
+        : definer->(Obj.magic: ('value => 'definition) => unknown)
     definition->definitionToSchema->castUnknownSchemaToAnySchema
   }
 }
@@ -3788,7 +3841,7 @@ let array = Array.factory
 let dict = Dict.factory
 let variant = Object.to
 let to = Object.to
-let tuple = Object.tuple
+let tuple = Tuple.factory
 let tuple1 = v0 => tuple(s => s.item(0, v0))
 let tuple2 = (v0, v1) => tuple(s => (s.item(0, v0), s.item(1, v1)))
 let tuple3 = (v0, v1, v2) => tuple(s => (s.item(0, v0), s.item(1, v1), s.item(2, v2)))

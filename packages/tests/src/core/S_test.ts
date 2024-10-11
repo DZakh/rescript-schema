@@ -275,7 +275,7 @@ test("Successfully parses JSON string", (t) => {
 });
 
 test("Successfully serialized JSON object", (t) => {
-  const objectSchema = S.schema((_) => ({ foo: [1, 2] }));
+  const objectSchema = S.schema({ foo: [1, S.number] });
   const schema = S.jsonString(objectSchema);
   const schemaWithSpace = S.jsonString(objectSchema, 2);
 
@@ -1097,10 +1097,10 @@ test("Name of merge schema", (t) => {
 });
 
 test("Successfully parses object using S.schema", (t) => {
-  const schema = S.schema((s) => ({
-    foo: s.matches(S.string),
-    bar: s.matches(S.boolean),
-  }));
+  const schema = S.schema({
+    foo: S.string,
+    bar: S.boolean,
+  });
   const value = S.parseWith(
     {
       foo: "bar",
@@ -1117,13 +1117,10 @@ test("Successfully parses object using S.schema", (t) => {
   expectType<
     TypeEqual<
       typeof schema,
-      S.Schema<
-        {
-          foo: string;
-          bar: boolean;
-        },
-        unknown
-      >
+      S.Schema<{
+        foo: string;
+        bar: boolean;
+      }>
     >
   >(true);
   expectType<
@@ -1137,17 +1134,83 @@ test("Successfully parses object using S.schema", (t) => {
   >(true);
 });
 
+test("Successfully parses tuple using S.schema", (t) => {
+  const schema = S.schema([S.string, S.boolean] as const);
+  const value = S.parseWith(["bar", true], schema);
+
+  t.deepEqual(value, ["bar", true]);
+
+  expectType<TypeEqual<typeof schema, S.Schema<readonly [string, boolean]>>>(
+    true
+  );
+  expectType<TypeEqual<typeof value, readonly [string, boolean]>>(true);
+});
+
+test("Successfully parses primitive schema passed to S.schema", (t) => {
+  const schema = S.schema(S.string);
+  const value = S.parseWith("bar", schema);
+
+  t.deepEqual(value, "bar");
+
+  expectType<TypeEqual<typeof schema, S.Schema<string>>>(true);
+  expectType<TypeEqual<typeof value, string>>(true);
+});
+
+test("Successfully parses literal using S.schema", (t) => {
+  const schema = S.schema("foo" as const);
+
+  const value = S.parseWith("foo", schema);
+
+  t.deepEqual(value, "foo");
+
+  expectType<TypeEqual<typeof schema, S.Schema<"foo">>>(true);
+  expectType<TypeEqual<typeof value, "foo">>(true);
+});
+
+test("Successfully parses nested object using S.schema", (t) => {
+  const schema = S.schema({
+    foo: {
+      bar: S.number,
+    },
+  });
+  const value = S.parseWith(
+    {
+      foo: { bar: 123 },
+    },
+    schema
+  );
+
+  t.deepEqual(value, {
+    foo: { bar: 123 },
+  });
+
+  expectType<
+    TypeEqual<
+      typeof schema,
+      S.Schema<{
+        foo: { bar: number };
+      }>
+    >
+  >(true);
+  expectType<
+    TypeEqual<
+      typeof value,
+      {
+        foo: { bar: number };
+      }
+    >
+  >(true);
+});
+
 test("S.schema example", (t) => {
   type Shape =
     | { kind: "circle"; radius: number }
     | { kind: "square"; x: number };
 
-  let circleSchema = S.schema(
-    (s): Shape => ({
-      kind: "circle",
-      radius: s.matches(S.number),
-    })
-  );
+  let circleSchema: S.Schema<Shape> = S.schema({
+    kind: "circle",
+    radius: S.number,
+  });
 
   const value = S.parseWith(
     {
@@ -1162,7 +1225,7 @@ test("S.schema example", (t) => {
     radius: 123,
   });
 
-  expectType<TypeEqual<typeof circleSchema, S.Schema<Shape, unknown>>>(true);
+  expectType<TypeEqual<typeof circleSchema, S.Schema<Shape>>>(true);
   expectType<TypeEqual<typeof value, Shape>>(true);
 });
 

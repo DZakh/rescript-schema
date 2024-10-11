@@ -43,6 +43,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Use type args for S.compile - tweet why it didn't work
 - Change asyncParser from () => () => promise to () => promise
 - Add schema input to the error ??? What about build errors?
+- Improve S.schema performance and expose it to the JS/TS API instead of S.object shorthand
 
 ### Done
 
@@ -52,6 +53,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Rename S.variant to S.to
 - Reverse operations for schemas where a single field is used multiple times
 - S.to/S.variant don't allow to distructure tuples anymore
+- Shorthand version for S.schema in Js/Ts API TODO: Update docs to use it by default
 
 ## v10
 

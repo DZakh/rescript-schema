@@ -323,6 +323,13 @@ Suite.make()
     data->S.reverseConvertWith(schema) // FIXME: This is super slow
   }
 })
+->Suite.addWithPrepare("Reverse convert advanced object - with S.schema", () => {
+  let schema = makeAdvancedObjectSchemaWithSSchema()
+  let data = makeTestObject()
+  () => {
+    data->S.reverseConvertWith(schema)
+  }
+})
 ->Suite.addWithPrepare("Reverse convert advanced object - compile", () => {
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()

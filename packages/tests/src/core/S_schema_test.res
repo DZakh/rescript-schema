@@ -31,26 +31,55 @@ test("Tuple of literals schema", t => {
 })
 
 test("Object with embeded", t => {
-  t->U.assertEqualSchemas(
-    S.schema(s =>
-      {
-        "foo": "bar",
-        "zoo": s.matches(S.int),
-      }
-    ),
-    S.object(s =>
-      {
-        "foo": s.field("foo", S.literal("bar")),
-        "zoo": s.field("zoo", S.int),
-      }
-    ),
+  let schema = S.schema(s =>
+    {
+      "foo": "bar",
+      "zoo": s.matches(S.int),
+    }
+  )
+  let objectSchema = S.object(s =>
+    {
+      "foo": s.field("foo", S.literal("bar")),
+      "zoo": s.field("zoo", S.int),
+    }
+  )
+  t->U.assertEqualSchemas(schema, objectSchema)
+  t->Assert.is(
+    schema->U.getCompiledCodeString(~op=#Parse),
+    objectSchema->U.getCompiledCodeString(~op=#Parse),
+    (),
+  )
+  t->Assert.is(
+    schema->U.getCompiledCodeString(~op=#Serialize),
+    `i=>{let v0=i["foo"];if(v0!=="bar"){e[0](v0)}return {"foo":v0,"zoo":i["zoo"]}}`,
+    (),
+  )
+  t->Assert.is(
+    objectSchema->U.getCompiledCodeString(~op=#Serialize),
+    `i=>{return {"foo":i["foo"],"zoo":i["zoo"]}}`, // FIXME: Validate literals for S.object schemas
+    (),
   )
 })
 
 test("Tuple with embeded", t => {
-  t->U.assertEqualSchemas(
-    S.schema(s => (s.matches(S.string), (), "bar")),
-    S.tuple3(S.string, S.literal(), S.literal("bar")),
+  let schema = S.schema(s => (s.matches(S.string), (), "bar"))
+  let tupleSchema = S.tuple3(S.string, S.literal(), S.literal("bar"))
+
+  t->U.assertEqualSchemas(schema, tupleSchema)
+  t->Assert.is(
+    schema->U.getCompiledCodeString(~op=#Parse),
+    tupleSchema->U.getCompiledCodeString(~op=#Parse),
+    (),
+  )
+  t->Assert.is(
+    schema->U.getCompiledCodeString(~op=#Serialize),
+    `i=>{let v0=i["1"],v1=i["2"];if(v1!=="bar"){e[1](v1)}if(v0!==undefined){e[0](v0)}return [i["0"],v0,v1]}`,
+    (),
+  )
+  t->Assert.is(
+    tupleSchema->U.getCompiledCodeString(~op=#Serialize),
+    `i=>{return [i["0"],i["1"],i["2"]]}`, // FIXME: validate literals for S.tuple schemas
+    (),
   )
 })
 
