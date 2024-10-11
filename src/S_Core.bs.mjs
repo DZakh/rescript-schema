@@ -3008,6 +3008,10 @@ function unwrap(result) {
   throw result._0;
 }
 
+function js_union(values) {
+  return factory$7(values.map(definitionToSchema));
+}
+
 function js_transform(schema, maybeParser, maybeSerializer) {
   return transform$1(schema, (function (s) {
                 return {
@@ -3413,6 +3417,7 @@ export {
   trim ,
   js_safe ,
   js_safeAsync ,
+  js_union ,
   js_parseAsyncWith ,
   js_optional ,
   js_tuple ,

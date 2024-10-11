@@ -421,6 +421,8 @@ type jsResult<'value>
 let js_safe: (unit => 'v) => jsResult<'v>
 let js_safeAsync: (unit => promise<'v>) => promise<jsResult<'v>>
 
+let js_union: array<unknown> => t<'value>
+
 // TODO: Replace parseAsyncWith with it in V9
 let js_parseAsyncWith: (Js.Json.t, t<'value>) => promise<'value>
 

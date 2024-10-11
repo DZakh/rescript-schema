@@ -14,6 +14,27 @@ export type Output<T> = T extends Schema<infer Output, unknown>
 export type Input<T> = T extends Schema<unknown, infer Input> ? Input : never;
 
 type UnknownSchema = Schema<unknown>;
+
+type UnknownToOuput<T> = T extends Schema<unknown>
+  ? Output<T>
+  : T extends {
+      [k in keyof T]: unknown;
+    }
+  ? {
+      [k in keyof T]: UnknownToOuput<T[k]>;
+    }
+  : T;
+
+type UnknownToInput<T> = T extends Schema<unknown>
+  ? Input<T>
+  : T extends {
+      [k in keyof T]: unknown;
+    }
+  ? {
+      [k in keyof T]: UnknownToInput<T[k]>;
+    }
+  : T;
+
 type SchemaTupleOutput<
   Tuple extends UnknownSchema[],
   Length extends number = Tuple["length"]
@@ -46,6 +67,47 @@ type _TupleInput<
 > = Index extends Length
   ? Accumulated
   : _TupleInput<Tuple, Length, [...Accumulated, Input<Tuple[Index]>]>;
+
+type SchemaUnionTupleOutput<
+  Tuple extends unknown[],
+  Length extends number = Tuple["length"]
+> = Length extends Length
+  ? number extends Length
+    ? Tuple
+    : _UnionTupleOutput<Tuple, Length, []>
+  : never;
+type _UnionTupleOutput<
+  Tuple extends unknown[],
+  Length extends number,
+  Accumulated extends unknown[],
+  Index extends number = Accumulated["length"]
+> = Index extends Length
+  ? Accumulated
+  : _UnionTupleOutput<
+      Tuple,
+      Length,
+      [...Accumulated, UnknownToOuput<Tuple[Index]>]
+    >;
+type SchemaUnionTupleInput<
+  Tuple extends unknown[],
+  Length extends number = Tuple["length"]
+> = Length extends Length
+  ? number extends Length
+    ? Tuple
+    : _UnionTupleInput<Tuple, Length, []>
+  : never;
+type _UnionTupleInput<
+  Tuple extends unknown[],
+  Length extends number,
+  Accumulated extends unknown[],
+  Index extends number = Accumulated["length"]
+> = Index extends Length
+  ? Accumulated
+  : _UnionTupleInput<
+      Tuple,
+      Length,
+      [...Accumulated, UnknownToInput<Tuple[Index]>]
+    >;
 
 export const string: Schema<string>;
 export const boolean: Schema<boolean>;
@@ -108,6 +170,7 @@ export function literal(value: undefined): Schema<undefined>;
 export function literal(value: null): Schema<null>;
 export function literal<T>(value: T): Schema<T>;
 
+// TODO: Deprecate for V9
 export function tuple(schemas: []): Schema<[]>;
 export function tuple<Output, Input>(
   schemas: [Schema<Output, Input>]
@@ -161,32 +224,12 @@ export const jsonString: <Output>(
   space?: number
 ) => Schema<Output, string>;
 
-export const union: <A extends UnknownSchema, B extends UnknownSchema[]>(
+export const union: <A, B extends unknown[]>(
   schemas: [A, ...B]
 ) => Schema<
-  Output<A> | SchemaTupleOutput<B>[number],
-  Input<A> | SchemaTupleInput<B>[number]
+  UnknownToOuput<A> | SchemaUnionTupleOutput<B>[number],
+  UnknownToInput<A> | SchemaUnionTupleInput<B>[number]
 >;
-
-type UnknownToOuput<T> = T extends Schema<unknown>
-  ? Output<T>
-  : T extends {
-      [k in keyof T]: unknown;
-    }
-  ? {
-      [k in keyof T]: UnknownToOuput<T[k]>;
-    }
-  : T;
-
-type UnknownToInput<T> = T extends Schema<unknown>
-  ? Input<T>
-  : T extends {
-      [k in keyof T]: unknown;
-    }
-  ? {
-      [k in keyof T]: UnknownToInput<T[k]>;
-    }
-  : T;
 
 /**
  * @deprecated Pass the Schema directly instead of using the s.matches method
@@ -214,6 +257,9 @@ export function object<Output>(
     tag: (name: string, value: unknown) => void;
   }) => Output
 ): Schema<Output, unknown>;
+/**
+ * @deprecated Will be removed in V9. Use S.schema instead
+ */
 export function object<
   Shape extends {
     [k in keyof Shape]: unknown;
@@ -388,6 +434,9 @@ export const trim: <Input>(
 
 export type UnknownKeys = "Strip" | "Strict";
 
+/**
+ * @deprecated Will be removed in V9
+ */
 export function unwrap<Value>(result: Result<Value>): Value;
 
 export type GlobalConfigOverride = {

@@ -4152,6 +4152,8 @@ let unwrap = result => {
 // JS/TS API
 // =============
 
+let js_union = values => Union.factory(values->Js.Array2.map(Schema.definitionToSchema))
+
 let js_transform = (schema, ~parser as maybeParser=?, ~serializer as maybeSerializer=?) => {
   schema->transform(s => {
     {

@@ -1331,6 +1331,57 @@ test("Successfully parses union", (t) => {
   >(true);
 });
 
+test("Shape union", (t) => {
+  const shapeSchema = S.union([
+    {
+      kind: "circle" as const,
+      radius: S.number,
+    },
+    {
+      kind: "square" as const,
+      x: S.number,
+    },
+    {
+      kind: "triangle" as const,
+      x: S.number,
+      y: S.number,
+    },
+  ]);
+  const value = S.parseWith(
+    {
+      kind: "circle",
+      radius: 123,
+    },
+    shapeSchema
+  );
+
+  t.deepEqual(value, {
+    kind: "circle",
+    radius: 123,
+  });
+
+  expectType<
+    TypeEqual<
+      typeof shapeSchema,
+      S.Schema<
+        | {
+            kind: "circle";
+            radius: number;
+          }
+        | {
+            kind: "square";
+            x: number;
+          }
+        | {
+            kind: "triangle";
+            x: number;
+            y: number;
+          }
+      >
+    >
+  >(true);
+});
+
 test("Successfully parses union with transformed items", (t) => {
   const schema = S.union([
     S.transform(S.string, (string) => Number(string)),

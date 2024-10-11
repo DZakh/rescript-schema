@@ -49,14 +49,14 @@ const valibotSchema = V.object({
 S.setGlobalConfig({
   disableNanNumberCheck: true,
 });
-const schema = S.object({
+const schema = S.schema({
   number: S.number,
   negNumber: S.number,
   maxNumber: S.number,
   string: S.string,
   longString: S.string,
   boolean: S.boolean,
-  deeplyNested: S.object({
+  deeplyNested: S.schema({
     foo: S.string,
     num: S.number,
     bool: S.boolean,
@@ -134,14 +134,14 @@ new B.Suite()
     return V.parse(valibotSchema, data);
   })
   .add("rescript-schema (create)", () => {
-    return S.object({
+    return S.schema({
       number: S.number,
       negNumber: S.number,
       maxNumber: S.number,
       string: S.string,
       longString: S.string,
       boolean: S.boolean,
-      deeplyNested: S.object({
+      deeplyNested: S.schema({
         foo: S.string,
         num: S.number,
         bool: S.boolean,
@@ -152,14 +152,14 @@ new B.Suite()
     return S.parseWith(data, schema);
   })
   .add("rescript-schema (create + parse)", () => {
-    const schema = S.object({
+    const schema = S.schema({
       number: S.number,
       negNumber: S.number,
       maxNumber: S.number,
       string: S.string,
       longString: S.string,
       boolean: S.boolean,
-      deeplyNested: S.object({
+      deeplyNested: S.schema({
         foo: S.string,
         num: S.number,
         bool: S.boolean,
