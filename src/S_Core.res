@@ -431,6 +431,7 @@ module Operation = {
     @inline let assertOutput = 4
     @inline let jsonableOutput = 8
     @inline let jsonStringOutput = 16
+    @inline let reverse = 32
   }
 
   type t = int
@@ -865,7 +866,8 @@ let operationFn = (s, o) => {
   if %raw(`o in s`) {
     %raw(`s[o]`)
   } else {
-    let f = s.builder->Builder.compile(~schema=s, ~operation=o)
+    let ss = o->Operation.unsafeHasFlag(Operation.Flag.reverse) ? s.reverse() : s
+    let f = ss.builder->Builder.compile(~schema=ss, ~operation=o)
     let _ = %raw(`s[o] = f`)
     f
   }
@@ -1393,19 +1395,21 @@ let serializeOrRaiseWith = (value, schema) => {
 }
 
 let serializeWith = (value, schema) => {
-  schema.reverse()->useSyncOperation(
-    Operation.make()->Operation.addFlag(Operation.Flag.jsonableOutput),
+  schema->useSyncOperation(
+    Operation.make()
+    ->Operation.addFlag(Operation.Flag.reverse)
+    ->Operation.addFlag(Operation.Flag.jsonableOutput),
     value,
   )
 }
 
 @inline
 let serializeToUnknownOrRaiseWith = (value, schema) => {
-  (schema.reverse()->operationFn(Operation.make()))(value)
+  (schema->operationFn(Operation.make()->Operation.addFlag(Operation.Flag.reverse)))(value)
 }
 
 let serializeToUnknownWith = (value, schema) => {
-  schema.reverse()->useSyncOperation(Operation.make(), value)
+  schema->useSyncOperation(Operation.make()->Operation.addFlag(Operation.Flag.reverse), value)
 }
 
 let serializeToJsonStringOrRaiseWith = (value: 'value, schema: t<'value>, ~space=0): string => {
@@ -1462,13 +1466,15 @@ let initialAssertOrRaise = unknown => {
 }
 
 let initialSerializeToUnknownOrRaise = unknown => {
-  ((%raw(`this`)).reverse()->operationFn(Operation.make()))(unknown)
+  (%raw(`this`)->operationFn(Operation.make()->Operation.addFlag(Operation.Flag.reverse)))(unknown)
 }
 
 let initialSerializeOrRaise = unknown => {
   (
-    (%raw(`this`)).reverse()->operationFn(
-      Operation.make()->Operation.addFlag(Operation.Flag.jsonableOutput),
+    %raw(`this`)->operationFn(
+      Operation.make()
+      ->Operation.addFlag(Operation.Flag.jsonableOutput)
+      ->Operation.addFlag(Operation.Flag.reverse),
     )
   )(unknown)
 }

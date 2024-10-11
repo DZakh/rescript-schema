@@ -438,7 +438,8 @@ function operationFn(s, o) {
   if ((o in s)) {
     return (s[o]);
   }
-  var f = compile(s.b, s, o);
+  var ss = o & 32 ? s.r() : s;
+  var f = compile(ss.b, ss, o);
   ((s[o] = f));
   return f;
 }
@@ -853,11 +854,10 @@ function serializeOrRaiseWith(value, schema) {
 }
 
 function serializeWith(value, schema) {
-  var schema$1 = schema.r();
   try {
     return {
             TAG: "Ok",
-            _0: operationFn(schema$1, 8)(value)
+            _0: operationFn(schema, 40)(value)
           };
   }
   catch (exn){
@@ -866,15 +866,14 @@ function serializeWith(value, schema) {
 }
 
 function serializeToUnknownOrRaiseWith(value, schema) {
-  return operationFn(schema.r(), 0)(value);
+  return operationFn(schema, 32)(value);
 }
 
 function serializeToUnknownWith(value, schema) {
-  var schema$1 = schema.r();
   try {
     return {
             TAG: "Ok",
-            _0: operationFn(schema$1, 0)(value)
+            _0: operationFn(schema, 32)(value)
           };
   }
   catch (exn){
@@ -938,11 +937,11 @@ function initialAssertOrRaise(unknown) {
 }
 
 function initialSerializeToUnknownOrRaise(unknown) {
-  return operationFn(this.r(), 0)(unknown);
+  return operationFn(this, 32)(unknown);
 }
 
 function initialSerializeOrRaise(unknown) {
-  return operationFn(this.r(), 8)(unknown);
+  return operationFn(this, 40)(unknown);
 }
 
 function jsParse(unknown) {
