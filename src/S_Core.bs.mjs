@@ -1555,18 +1555,17 @@ function processInputItems(b, ctx, input, schema, path) {
     if (typeFilter !== undefined && (isLiteral || b.g.o & 1)) {
       b.c = b.c + typeFilterCode(b, typeFilter, schema$1, itemInput, path$1);
     }
+    var bb = scope(b);
     if (isObject && schema$1.d) {
-      var bb = scope(b);
       processInputItems(bb, ctx, itemInput, schema$1, path$1);
-      b.c = prevCode + b.c + allocateScope(bb);
     } else {
-      var itemOutput = schema$1.b(b, itemInput, schema$1, path$1);
+      var itemOutput = schema$1.b(bb, itemInput, schema$1, path$1);
       addItemOutput(b, ctx, item, itemOutput);
-      if (isLiteral) {
-        b.c = b.c + prevCode;
-      } else {
-        b.c = prevCode + b.c;
-      }
+    }
+    if (isLiteral) {
+      b.c = b.c + allocateScope(bb) + prevCode;
+    } else {
+      b.c = prevCode + b.c + allocateScope(bb);
     }
   }
   if (!(isObject && ctx.s.t.unknownKeys === "Strict" && b.g.o & 1)) {

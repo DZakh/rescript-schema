@@ -2361,20 +2361,19 @@ module Object = {
       | _ => ()
       }
 
+      let bb = b->B.scope
       if isObject && schema.definer->Obj.magic {
-        let bb = b->B.scope
         bb->processInputItems(~ctx, ~input=itemInput, ~schema, ~path)
-        b.code = prevCode ++ b.code ++ bb->B.allocateScope
       } else {
-        let itemOutput = b->B.parse(~schema, ~input=itemInput, ~path)
+        let itemOutput = bb->B.parse(~schema, ~input=itemInput, ~path)
         b->BuildCtx.addItemOutput(~ctx, item, itemOutput)
+      }
 
-        // Parse literal fields first, because they are most often used as discriminants
-        if isLiteral {
-          b.code = b.code ++ prevCode
-        } else {
-          b.code = prevCode ++ b.code
-        }
+      // Parse literal fields first, because they are most often used as discriminants
+      if isLiteral {
+        b.code = b.code ++ bb->B.allocateScope ++ prevCode
+      } else {
+        b.code = prevCode ++ b.code ++ bb->B.allocateScope
       }
     }
 

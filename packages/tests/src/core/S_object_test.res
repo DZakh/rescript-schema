@@ -1071,7 +1071,7 @@ test("Object schema parsing checks order", t => {
 })
 
 module Compiled = {
-  test("Compiled parse code snapshot for simple object", t => {
+  test("Compiled code snapshot for simple object", t => {
     let schema = S.object(s =>
       {
         "foo": s.field("foo", S.string),
@@ -1083,6 +1083,34 @@ module Compiled = {
       ~schema,
       ~op=#Parse,
       `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return {"foo":v0,"bar":v1}}`,
+    )
+    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"]}}`)
+  })
+
+  test("Compiled code snapshot for refined nested object", t => {
+    let schema = S.object(s =>
+      {
+        "foo": s.field("foo", S.literal(12)),
+        "bar": s.field(
+          "bar",
+          S.object(
+            s => {
+              {"baz": s.field("baz", S.string)}
+            },
+          )->S.refine(_ => _ => ()),
+        ),
+      }
+    )
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(!i||i.constructor!==Object){e[4](i)}let v0=i["foo"],v1=i["bar"];if(v0!==12){e[0](v0)}if(!v1||v1.constructor!==Object){e[1](v1)}let v2=v1["baz"],v3;if(typeof v2!=="string"){e[2](v2)}v3={"baz":v2};e[3](v3);return {"foo":v0,"bar":v3}}`,
+    )
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Serialize,
+      `i=>{let v0=i["bar"];e[0](v0);return {"foo":i["foo"],"bar":{"baz":v0["baz"]}}}`, // FIXME: Should validate literal here
     )
   })
 
@@ -1102,17 +1130,6 @@ module Compiled = {
       ~op=#Parse,
       `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["bar"];if(typeof v0!=="boolean"){e[1](v0)}return Promise.all([e[0](i["foo"])]).then(a=>({"foo":a[0],"bar":v0}))}`,
     )
-  })
-
-  test("Compiled serialize code snapshot for simple object", t => {
-    let schema = S.object(s =>
-      {
-        "foo": s.field("foo", S.string),
-        "bar": s.field("bar", S.bool),
-      }
-    )
-
-    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"]}}`)
   })
 
   test("Compiled parse code snapshot for simple object with strict unknown keys", t => {

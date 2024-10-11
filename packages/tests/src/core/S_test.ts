@@ -707,6 +707,34 @@ test("Successfully parses tagged object", (t) => {
   >(true);
 });
 
+test("Successfully parses and reverse convert object with optional field", (t) => {
+  const schema = S.object({
+    bar: S.optional(S.boolean),
+  });
+  const value = S.parseWith({}, schema);
+  t.deepEqual(value, { bar: undefined });
+
+  const reversed = S.convertWith(value, S.reverse(schema));
+  t.deepEqual(reversed, { bar: undefined });
+
+  expectType<
+    TypeEqual<
+      typeof schema,
+      S.Schema<{
+        bar: boolean | undefined;
+      }>
+    >
+  >(true);
+  expectType<
+    TypeEqual<
+      typeof value,
+      {
+        bar: boolean | undefined;
+      }
+    >
+  >(true);
+});
+
 test("Successfully parses object with field names transform", (t) => {
   const schema = S.object((s) => ({
     foo: s.field("Foo", S.string),

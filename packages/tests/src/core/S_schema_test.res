@@ -84,29 +84,44 @@ test("Tuple with embeded", t => {
 })
 
 test("Nested embeded object", t => {
-  t->U.assertEqualSchemas(
-    S.schema(s =>
-      {
-        "nested": {
-          "foo": "bar",
-          "zoo": s.matches(S.int),
-        },
-      }
-    ),
-    S.object(s =>
-      {
-        "nested": s.field(
-          "nested",
-          S.object(
-            s =>
-              {
-                "foo": s.field("foo", S.literal("bar")),
-                "zoo": s.field("zoo", S.int),
-              },
-          ),
+  let schema = S.schema(s =>
+    {
+      "nested": {
+        "foo": "bar",
+        "zoo": s.matches(S.int),
+      },
+    }
+  )
+  let objectSchema = S.object(s =>
+    {
+      "nested": s.field(
+        "nested",
+        S.object(
+          s =>
+            {
+              "foo": s.field("foo", S.literal("bar")),
+              "zoo": s.field("zoo", S.int),
+            },
         ),
-      }
-    ),
+      ),
+    }
+  )
+  t->U.assertEqualSchemas(schema, objectSchema)
+
+  t->Assert.is(
+    schema->U.getCompiledCodeString(~op=#Parse),
+    objectSchema->U.getCompiledCodeString(~op=#Parse),
+    (),
+  )
+  t->Assert.is(
+    schema->U.getCompiledCodeString(~op=#Serialize),
+    `i=>{let v0=i["nested"];let v1=v0["foo"];if(v1!=="bar"){e[0](v1)}return {"nested":{"foo":v1,"zoo":v0["zoo"]}}}`,
+    (),
+  )
+  t->Assert.is(
+    objectSchema->U.getCompiledCodeString(~op=#Serialize),
+    `i=>{return {"nested":{"foo":i["nested"]["foo"],"zoo":i["nested"]["zoo"]}}}`, // FIXME: validate literals for S.tuple schemas
+    (),
   )
 })
 

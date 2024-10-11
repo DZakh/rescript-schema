@@ -54,6 +54,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Reverse operations for schemas where a single field is used multiple times
 - S.to/S.variant don't allow to distructure tuples anymore
 - Shorthand version for S.schema in Js/Ts API TODO: Update docs to use it by default
+- Fix tuple parsing nested in an object schema
 
 ## v10
 
