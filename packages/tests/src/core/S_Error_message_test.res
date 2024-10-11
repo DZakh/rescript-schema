@@ -223,7 +223,7 @@ test("InvalidJsonSchema error", t => {
       operation: SerializeToUnknown,
       path: S.Path.empty,
     })->S.Error.message,
-    `Failed serializing at root. Reason: The schema Option(true) is not compatible with JSON`,
+    `Failed serializing at root. Reason: The Option(true) schema is not compatible with JSON`,
     (),
   )
 })

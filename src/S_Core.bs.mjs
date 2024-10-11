@@ -1610,6 +1610,12 @@ function reverse$1(inputDefinition, toItem) {
   return function () {
     var original = this;
     return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, input, param, path) {
+                  if (b.g.o & 1) {
+                    invalidOperation(b, path, "Type validation mode is not supported. Use convert operation instead");
+                  }
+                  if (b.g.o & 2) {
+                    invalidOperation(b, path, "Async mode is not supported");
+                  }
                   var inputVar = $$var(b, input);
                   var ctx = {
                     d: ""
@@ -1705,7 +1711,7 @@ function factory$3(definer) {
     if (schema.d) {
       return schema.d(this);
     }
-    var message = "The schema " + schema.n() + " can't be flattened";
+    var message = "The " + schema.n() + " schema can't be flattened";
     throw new Error("[rescript-schema] " + message);
   };
   var field = function (fieldName, schema) {
@@ -2450,7 +2456,7 @@ function reason(error, nestedLevelOpt) {
         var uniqueReasons = Object.keys(reasonsDict);
         return "Invalid union with following errors" + lineBreak + uniqueReasons.join(lineBreak);
     case "InvalidJsonSchema" :
-        return "The schema " + reason$1._0.n() + " is not compatible with JSON";
+        return "The " + reason$1._0.n() + " schema is not compatible with JSON";
     
   }
 }

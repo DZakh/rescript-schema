@@ -45,6 +45,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add schema input to the error ??? What about build errors?
 - Improve S.schema performance and expose it to the JS/TS API instead of S.object shorthand
 - Get rid of S.literal in Js/ts API
+- Use Ts types for schema names
   // FIXME: Return back s.flatten support for schemas created with S.schema
 
 ### Done
@@ -58,6 +59,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Shorthand version for S.schema in Js/Ts API TODO: Update docs to use it by default
 - Fix tuple parsing nested in an object schema
 - Add shorthand syntax for S.union in Js/Ts API
+- s.flatten stopped working with S.schema
 
 ## v10
 

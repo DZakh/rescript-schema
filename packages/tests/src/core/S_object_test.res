@@ -1235,6 +1235,33 @@ test("Reverse empty object schema to literal", t => {
   t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
 })
 
+test("Failse to parse reversed object schema", t => {
+  let schema = S.object(_ => ())
+  t->Assert.throws(
+    () => {
+      let _ = ()->S.parseAnyOrRaiseWith(schema->S.reverse)
+    },
+    ~expectations={
+      message: "Failed parsing at root. Reason: Type validation mode is not supported. Use convert operation instead",
+    },
+    (),
+  )
+})
+
+test("Failse to compile to async reversed object schema", t => {
+  let schema = S.object(_ => ())
+  t->Assert.throws(
+    () => {
+      let _ =
+        schema->S.reverse->S.compile(~input=Any, ~output=Output, ~mode=Async, ~typeValidation=false)
+    },
+    ~expectations={
+      message: "Failed serializing at root. Reason: Async mode is not supported",
+    },
+    (),
+  )
+})
+
 test("Succesfully uses reversed empty object schema for parsing back to initial value", t => {
   let schema = S.object(_ => ())
   t->U.assertReverseParsesBack(schema, ())

@@ -423,7 +423,7 @@ test("Fails to serialize to json non-jsonable schema", (t) => {
     },
     {
       message:
-        "Failed serializing to JSON at root. Reason: The schema Option(String) is not compatible with JSON",
+        "Failed serializing to JSON at root. Reason: The Option(String) schema is not compatible with JSON",
     }
   );
 });

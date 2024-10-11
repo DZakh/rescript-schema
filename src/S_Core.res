@@ -2480,6 +2480,16 @@ module Object = {
       ~tagged=Unknown,
       ~metadataMap=Metadata.Map.empty,
       ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+        if b.global.operation->Operation.unsafeHasFlag(Operation.Flag.typeValidation) {
+          b->B.invalidOperation(
+            ~path,
+            ~description="Type validation mode is not supported. Use convert operation instead",
+          )
+        }
+        if b.global.operation->Operation.unsafeHasFlag(Operation.Flag.async) {
+          b->B.invalidOperation(~path, ~description="Async mode is not supported")
+        }
+
         let inputVar = b->B.Val.var(input)
 
         let ctx: serializeCtx = {discriminantCode: ""}
@@ -2602,7 +2612,7 @@ module Object = {
           if schema.definer->Obj.magic {
             (schema.definer->Obj.magic)(%raw(`this`))
           } else {
-            InternalError.panic(`The schema ${schema.name()} can't be flattened`)
+            InternalError.panic(`The ${schema.name()} schema can't be flattened`)
           }
         }
 
@@ -3573,7 +3583,7 @@ module Error = {
       `Encountered disallowed excess key ${fieldName->Stdlib.Inlined.Value.fromString} on an object`
     | InvalidType({expected, received}) =>
       `Expected ${expected.name()}, received ${received->Literal.parse->Literal.toString}`
-    | InvalidJsonSchema(schema) => `The schema ${schema.name()} is not compatible with JSON`
+    | InvalidJsonSchema(schema) => `The ${schema.name()} schema is not compatible with JSON`
     | InvalidUnion(errors) => {
         let lineBreak = `\n${" "->Js.String2.repeat(nestedLevel * 2)}`
         let reasonsDict = Js.Dict.empty()

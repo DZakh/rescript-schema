@@ -19,6 +19,25 @@ test("Has correct tagged type", t => {
   )
 })
 
+test("Can flatten S.schema", t => {
+  let schema = S.object(s =>
+    {
+      "foo": s.field("foo", S.string),
+      "bar": s.flatten(S.schema(s => {"baz": s.matches(S.string)})),
+    }
+  )
+
+  t->U.unsafeAssertEqualSchemas(
+    schema,
+    S.object(s =>
+      {
+        "foo": s.field("foo", S.string),
+        "bar": s.field("bar", S.string),
+      }
+    ),
+  )
+})
+
 test("Can flatten strict object", t => {
   let schema = S.object(s =>
     {
@@ -49,7 +68,7 @@ test("Fails to flatten renamed object schema", t => {
       )
     },
     ~expectations={
-      message: `[rescript-schema] The schema My Obj can\'t be flattened`,
+      message: `[rescript-schema] The My Obj schema can\'t be flattened`,
     },
     (),
   )
@@ -69,7 +88,7 @@ test("Fails to flatten transformed object schema", t => {
       )
     },
     ~expectations={
-      message: `[rescript-schema] The schema Object({"bar": String}) can\'t be flattened`,
+      message: `[rescript-schema] The Object({"bar": String}) schema can\'t be flattened`,
     },
     (),
   )
@@ -87,7 +106,7 @@ test("Fails to flatten non-object schema", t => {
       )
     },
     ~expectations={
-      message: `[rescript-schema] The schema String can\'t be flattened`,
+      message: `[rescript-schema] The String schema can\'t be flattened`,
     },
     (),
   )
