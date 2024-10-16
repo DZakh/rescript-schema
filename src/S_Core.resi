@@ -219,14 +219,10 @@ let parseAnyOrRaiseWith: ('any, t<'value>) => 'value
 let parseAsyncWith: (Js.Json.t, t<'value>) => promise<result<'value, error>>
 let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
 
-// TODO: In V9 expose them instead of safe convertAny fns below
 let convertWith: ('any, t<'value>) => 'value
+let convertToJsonWith: ('any, t<'value>) => Js.Json.t
 let convertToJsonStringWith: ('any, t<'value>) => string
-
-let convertAnyWith: ('any, t<'value>) => result<'value, error>
-let convertAnyToJsonWith: ('any, t<'value>) => result<Js.Json.t, error>
-let convertAnyToJsonStringWith: ('any, t<'value>) => result<string, error>
-let convertAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
+let convertAsyncWith: ('any, t<'value>) => promise<'value>
 
 let reverseConvertWith: ('value, t<'value>) => unknown
 let reverseConvertToJsonWith: ('value, t<'value>) => Js.Json.t
