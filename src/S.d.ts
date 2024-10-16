@@ -405,11 +405,6 @@ export const trim: <Input>(
 
 export type UnknownKeys = "Strip" | "Strict";
 
-/**
- * @deprecated Will be removed in V9
- */
-export function unwrap<Value>(result: Result<Value>): Value;
-
 export type GlobalConfigOverride = {
   defaultUnknownKeys?: UnknownKeys;
   disableNanNumberCheck?: boolean;
