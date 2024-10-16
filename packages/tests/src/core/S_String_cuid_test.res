@@ -33,7 +33,7 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.cuid
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => "cifjhdsfhsd-invalid-cuid"->S.reverseConvertWith(schema),
     {code: OperationFailed("Invalid CUID"), operation: SerializeToUnknown, path: S.Path.empty},
   )

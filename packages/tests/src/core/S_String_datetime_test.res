@@ -25,7 +25,7 @@ test("Fails to parse non UTC date string", t => {
   let schema = S.string->S.datetime
 
   t->U.assertErrorResult(
-    "Thu Apr 20 2023 10:45:48 GMT+0400"->S.parseAnyWith(schema),
+    () => "Thu Apr 20 2023 10:45:48 GMT+0400"->S.parseAnyWith(schema),
     {
       code: OperationFailed("Invalid datetime string! Must be UTC"),
       operation: Parse,
@@ -38,7 +38,7 @@ test("Fails to parse UTC date with timezone offset", t => {
   let schema = S.string->S.datetime
 
   t->U.assertErrorResult(
-    "2020-01-01T00:00:00+02:00"->S.parseAnyWith(schema),
+    () => "2020-01-01T00:00:00+02:00"->S.parseAnyWith(schema),
     {
       code: OperationFailed("Invalid datetime string! Must be UTC"),
       operation: Parse,

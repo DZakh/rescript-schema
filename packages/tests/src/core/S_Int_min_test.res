@@ -11,7 +11,7 @@ test("Fails to parse invalid data", t => {
   let schema = S.int->S.intMin(1)
 
   t->U.assertErrorResult(
-    0->S.parseAnyWith(schema),
+    () => 0->S.parseAnyWith(schema),
     {
       code: OperationFailed("Number must be greater than or equal to 1"),
       operation: Parse,
@@ -30,7 +30,7 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.int->S.intMin(1)
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => 0->S.reverseConvertWith(schema),
     {
       code: OperationFailed("Number must be greater than or equal to 1"),

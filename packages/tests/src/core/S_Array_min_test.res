@@ -11,7 +11,7 @@ test("Fails to parse invalid data", t => {
   let schema = S.array(S.int)->S.arrayMinLength(1)
 
   t->U.assertErrorResult(
-    []->S.parseAnyWith(schema),
+    () => []->S.parseAnyWith(schema),
     {
       code: OperationFailed("Array must be 1 or more items long"),
       operation: Parse,
@@ -30,7 +30,7 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.array(S.int)->S.arrayMinLength(1)
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => []->S.reverseConvertWith(schema),
     {
       code: OperationFailed("Array must be 1 or more items long"),

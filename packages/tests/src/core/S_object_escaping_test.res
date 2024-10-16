@@ -208,7 +208,7 @@ test("Has proper error path when fails to parse object with quotes in a field na
   )
 
   t->U.assertErrorResult(
-    %raw(`{"\"\'\`": "bar"}`)->S.parseAnyWith(schema),
+    () => %raw(`{"\"\'\`": "bar"}`)->S.parseAnyWith(schema),
     {
       code: OperationFailed("User error"),
       operation: Parse,
@@ -224,7 +224,7 @@ test("Has proper error path when fails to serialize object with quotes in a fiel
     ])
   )
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => Dict.fromArray([("\"\'\`", "bar")])->S.reverseConvertWith(schema),
     {
       code: OperationFailed("User error"),
@@ -242,7 +242,7 @@ test("Field name in a format of a path is handled properly", t => {
   )
 
   t->U.assertErrorResult(
-    %raw(`{"bar": "foo"}`)->S.parseAnyWith(schema),
+    () => %raw(`{"bar": "foo"}`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`undefined`)}),
       operation: Parse,

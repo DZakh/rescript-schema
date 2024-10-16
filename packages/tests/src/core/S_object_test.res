@@ -22,7 +22,7 @@ test("Fails to parse object with inlinable string field", t => {
   )
 
   t->U.assertErrorResult(
-    %raw(`{field: 123}`)->S.parseAnyWith(schema),
+    () => %raw(`{field: 123}`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
       operation: Parse,
@@ -41,7 +41,7 @@ test(
     )
 
     t->U.assertErrorResult(
-      %raw(`{field: ["foo"]}`)->S.parseAnyWith(schema),
+      () => %raw(`{field: ["foo"]}`)->S.parseAnyWith(schema),
       {
         code: OperationFailed("User error"),
         operation: Parse,
@@ -69,7 +69,7 @@ test("Fails to parse object with inlinable bool field", t => {
   )
 
   t->U.assertErrorResult(
-    %raw(`{field: 123}`)->S.parseAnyWith(schema),
+    () => %raw(`{field: 123}`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`123`)}),
       operation: Parse,
@@ -114,7 +114,7 @@ test("Fails to parse object with inlinable never field", t => {
   )
 
   t->U.assertErrorResult(
-    %raw(`{field: true}`)->S.parseAnyWith(schema),
+    () => %raw(`{field: true}`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`true`)}),
       operation: Parse,
@@ -141,7 +141,7 @@ test("Fails to parse object with inlinable float field", t => {
   )
 
   t->U.assertErrorResult(
-    %raw(`{field: true}`)->S.parseAnyWith(schema),
+    () => %raw(`{field: true}`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: S.float->S.toUnknown, received: %raw(`true`)}),
       operation: Parse,
@@ -168,7 +168,7 @@ test("Fails to parse object with inlinable int field", t => {
   )
 
   t->U.assertErrorResult(
-    %raw(`{field: true}`)->S.parseAnyWith(schema),
+    () => %raw(`{field: true}`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
       operation: Parse,
@@ -196,7 +196,7 @@ test("Fails to parse object with not inlinable empty object field", t => {
   )
 
   t->U.assertErrorResult(
-    %raw(`{field: true}`)->S.parseAnyWith(schema),
+    () => %raw(`{field: true}`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: fieldSchema->S.toUnknown, received: %raw(`true`)}),
       operation: Parse,
@@ -213,7 +213,7 @@ test("Fails to parse object when provided invalid data", t => {
   )
 
   t->U.assertErrorResult(
-    %raw(`12`)->S.parseAnyWith(schema),
+    () => %raw(`12`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`12`)}),
       operation: Parse,
@@ -287,7 +287,7 @@ test("Fails to parse object when transformed field has raises error", t => {
   )
 
   t->U.assertErrorResult(
-    {"field": "bar"}->S.parseAnyWith(schema),
+    () => {"field": "bar"}->S.parseAnyWith(schema),
     {
       code: OperationFailed("User error"),
       operation: Parse,
@@ -307,7 +307,7 @@ test("Shows transformed object field name in error path when fails to parse", t 
   )
 
   t->U.assertErrorResult(
-    {"originalFieldName": "bar"}->S.parseAnyWith(schema),
+    () => {"originalFieldName": "bar"}->S.parseAnyWith(schema),
     {
       code: OperationFailed("User error"),
       operation: Parse,
@@ -343,7 +343,7 @@ test("Fails to serializes object when transformed field has raises error", t => 
     }
   )
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => {"field": "bar"}->S.reverseConvertWith(schema),
     {
       code: OperationFailed("User error"),
@@ -363,7 +363,7 @@ test("Shows transformed object field name in error path when fails to serializes
     }
   )
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => {"transformedFieldName": "bar"}->S.reverseConvertWith(schema),
     {
       code: OperationFailed("User error"),
@@ -385,7 +385,7 @@ test("Shows transformed to nested object field name in error path when fails to 
     }
   )
 
-  t->U.assertError(
+  t->U.assertRaised(
     () =>
       {
         "v1": {
@@ -949,7 +949,7 @@ test("Reverse convert of object schema with single field registered multiple tim
     %raw(`{"field": "foo"}`),
     (),
   )
-  t->U.assertError(
+  t->U.assertRaised(
     () => {"field1": "foo", "field2": "foo", "field3": "foz"}->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({
@@ -1011,7 +1011,7 @@ test("Object schema parsing checks order", t => {
 
   // Type check should be the first
   t->U.assertErrorResult(
-    %raw(`"foo"`)->S.parseAnyWith(schema),
+    () => %raw(`"foo"`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`"foo"`)}),
       operation: Parse,
@@ -1020,9 +1020,10 @@ test("Object schema parsing checks order", t => {
   )
   // Tag check should be the second
   t->U.assertErrorResult(
-    %raw(`{tag: "wrong", key: 123, unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
-      schema,
-    ),
+    () =>
+      %raw(`{tag: "wrong", key: 123, unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
+        schema,
+      ),
     {
       code: InvalidType({expected: S.literal("value")->S.toUnknown, received: %raw(`"wrong"`)}),
       operation: Parse,
@@ -1031,9 +1032,10 @@ test("Object schema parsing checks order", t => {
   )
   // Field check should be the third
   t->U.assertErrorResult(
-    %raw(`{tag: "value", key: 123, unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
-      schema,
-    ),
+    () =>
+      %raw(`{tag: "value", key: 123, unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
+        schema,
+      ),
     {
       code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
       operation: Parse,
@@ -1042,9 +1044,10 @@ test("Object schema parsing checks order", t => {
   )
   // Unknown keys check should be the last
   t->U.assertErrorResult(
-    %raw(`{tag: "value", key: "value", unknownKey: "value2", unknownKey2: "value2"}`)->S.parseAnyWith(
-      schema,
-    ),
+    () =>
+      %raw(`{tag: "value", key: "value", unknownKey: "value2", unknownKey2: "value2"}`)->S.parseAnyWith(
+        schema,
+      ),
     {code: ExcessField("unknownKey"), operation: Parse, path: S.Path.empty},
   )
   // Parses valid

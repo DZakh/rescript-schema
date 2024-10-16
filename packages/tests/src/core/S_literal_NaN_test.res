@@ -17,7 +17,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      invalidTypeAny->S.parseAnyWith(schema),
+      () => invalidTypeAny->S.parseAnyWith(schema),
       {
         code: InvalidType({
           expected: S.literal(%raw(`NaN`))->S.toUnknown,
@@ -38,7 +38,7 @@ module Common = {
   test("Fails to serialize invalid value", t => {
     let schema = factory()
 
-    t->U.assertError(
+    t->U.assertRaised(
       () => invalidValue->S.reverseConvertWith(schema),
       {
         code: InvalidType({expected: S.literal(%raw(`NaN`))->S.toUnknown, received: invalidValue}),

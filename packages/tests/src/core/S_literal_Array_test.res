@@ -15,7 +15,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      invalid->S.parseAnyWith(schema),
+      () => invalid->S.parseAnyWith(schema),
       {
         code: InvalidType({
           expected: S.literal(("bar", true))->S.toUnknown,
@@ -36,7 +36,7 @@ module Common = {
   test("Fails to serialize invalid", t => {
     let schema = factory()
 
-    t->U.assertError(
+    t->U.assertRaised(
       () => invalid->S.reverseConvertWith(schema),
       {
         code: InvalidType({
@@ -53,7 +53,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      %raw(`{0: "bar",1:true}`)->S.parseAnyWith(schema),
+      () => %raw(`{0: "bar",1:true}`)->S.parseAnyWith(schema),
       {
         code: InvalidType({
           expected: S.literal(("bar", true))->S.toUnknown,
@@ -69,7 +69,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      %raw(`["bar", true, false]`)->S.parseAnyWith(schema),
+      () => %raw(`["bar", true, false]`)->S.parseAnyWith(schema),
       {
         code: InvalidType({
           expected: S.literal(("bar", true))->S.toUnknown,
@@ -127,7 +127,7 @@ module EmptyArray = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      invalid->S.parseAnyWith(schema),
+      () => invalid->S.parseAnyWith(schema),
       {
         code: InvalidType({
           expected: S.literal([])->S.toUnknown,
@@ -148,7 +148,7 @@ module EmptyArray = {
   test("Fails to serialize empty array literal schema with invalid value", t => {
     let schema = factory()
 
-    t->U.assertError(
+    t->U.assertRaised(
       () => invalid->S.reverseConvertWith(schema),
       {
         code: InvalidType({

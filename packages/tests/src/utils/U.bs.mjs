@@ -38,14 +38,15 @@ function assertThrowsTestException(t, fn, message, param) {
   }
 }
 
-function assertErrorResult(t, result, errorPayload) {
-  if (result.TAG === "Ok") {
-    return t.fail("Asserted result is not Error. Recieved: " + JSON.stringify(result._0));
+function assertErrorResult(t, cb, errorPayload) {
+  var any = cb();
+  if (any.TAG === "Ok") {
+    return t.fail("Asserted result is not Error. Recieved: " + JSON.stringify(any._0));
   }
-  t.is(S$RescriptSchema.$$Error.message(result._0), S$RescriptSchema.$$Error.message(error(errorPayload)), undefined);
+  t.is(S$RescriptSchema.$$Error.message(any._0), S$RescriptSchema.$$Error.message(error(errorPayload)), undefined);
 }
 
-function assertError(t, cb, errorPayload) {
+function assertRaised(t, cb, errorPayload) {
   var any;
   try {
     any = cb();
@@ -124,7 +125,7 @@ export {
   error ,
   assertThrowsTestException ,
   assertErrorResult ,
-  assertError ,
+  assertRaised ,
   getCompiledCodeString ,
   cleanUpSchema ,
   unsafeAssertEqualSchemas ,

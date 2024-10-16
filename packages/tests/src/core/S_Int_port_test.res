@@ -25,7 +25,7 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.int->S.port
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => -80->S.reverseConvertWith(schema),
     {code: OperationFailed("Invalid port"), operation: SerializeToUnknown, path: S.Path.empty},
   )

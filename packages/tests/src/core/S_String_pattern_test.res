@@ -25,7 +25,7 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.pattern(%re(`/[0-9]/`))
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => "abc"->S.reverseConvertWith(schema),
     {
       code: OperationFailed("Invalid"),

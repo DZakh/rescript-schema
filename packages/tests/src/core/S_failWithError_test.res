@@ -15,7 +15,7 @@ test("Keeps operation of the error passed to S.Error.raise", t => {
   )
 
   t->U.assertErrorResult(
-    ["Hello world!"]->S.parseAnyWith(schema),
+    () => ["Hello world!"]->S.parseAnyWith(schema),
     {
       code: OperationFailed("User error"),
       operation: SerializeToUnknown,
@@ -44,7 +44,7 @@ test("Works with failing outside of the parser", t => {
   )
 
   t->U.assertErrorResult(
-    ["Hello world!"]->S.parseAnyWith(schema),
+    () => ["Hello world!"]->S.parseAnyWith(schema),
     {
       code: OperationFailed("User error"),
       operation: Parse,

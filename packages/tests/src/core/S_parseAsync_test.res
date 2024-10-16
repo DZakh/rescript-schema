@@ -492,7 +492,7 @@ module Union = {
     ])
 
     t->U.assertErrorResult(
-      2->S.parseAnyWith(schema),
+      () => 2->S.parseAnyWith(schema),
       {
         code: InvalidUnion([
           U.error({
@@ -519,7 +519,7 @@ module Union = {
   //     let input = %raw("true")
 
   //     (input->S.parseAnyAsyncInStepsWith(schema)->Result.getExn)()->Promise.thenResolve(result => {
-  //       t->U.assertErrorResult(
+  //       t->U.assertErrorResult(() =>
   //         result,
   //         {
   //           code: InvalidUnion([

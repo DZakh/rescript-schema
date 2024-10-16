@@ -29,7 +29,7 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.url
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => "cifjhdsfhsd"->S.reverseConvertWith(schema),
     {code: OperationFailed("Invalid url"), operation: SerializeToUnknown, path: S.Path.empty},
   )
