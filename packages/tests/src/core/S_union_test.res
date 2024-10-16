@@ -110,8 +110,8 @@ test("Serializes when both schemas misses serializer", t => {
     S.string->S.transform(_ => {parser: _ => #apple}),
   ])
 
-  t->U.assertErrorResult(
-    %raw(`null`)->S.serializeWith(schema),
+  t->U.assertError(
+    () => %raw(`null`)->S.reverseConvertToJsonWith(schema),
     {
       code: InvalidUnion([
         U.error({

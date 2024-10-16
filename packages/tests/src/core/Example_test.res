@@ -51,16 +51,14 @@ test("Example", t => {
       title: "Sad & sed",
       rating: ParentalStronglyCautioned,
       deprecatedAgeRestriction: None,
-    }->S.serializeWith(filmSchema),
-    Ok(
-      %raw(`{
+    }->S.reverseConvertToJsonWith(filmSchema),
+    %raw(`{
         "Id": 2,
         "Title": "Sad & sed",
         "Rating": "PG13",
         "Tags": ["Loved"],
         "Age": undefined,
       }`),
-    ),
     (),
   )
 })
