@@ -232,11 +232,6 @@ type rec t<'value> = {
   maybeTypeFilter: option<(b, ~inputVar: string) => string>,
   @as("i")
   mutable isAsyncSchema: isAsyncSchema,
-  @as("d")
-  mutable // Use char to unsafely prevent Caml_option applications
-  definer?: char,
-  @as("c")
-  mutable definerCtx?: char,
   @as("m")
   metadataMap: dict<unknown>,
   @as("parseOrThrow")
@@ -1700,10 +1695,6 @@ let recursive = fn => {
   // maybeTypeFilter
   (placeholder->Obj.magic)["f"] = schema.maybeTypeFilter
 
-  // Don't allow destructuring for recursive schemas
-  schema.definer = None
-  schema.definerCtx = None
-
   let initialParseOperationBuilder = schema.builder
   schema.builder = Builder.make((b, ~input, ~selfSchema, ~path) => {
     let bb = b->B.scope
@@ -2337,7 +2328,7 @@ module Object = {
 
   let typeFilter = (_b, ~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
 
-  let rec processInputItems = (b: b, ~ctx: BuildCtx.t, ~input, ~schema, ~path) => {
+  let processInputItems = (b: b, ~ctx: BuildCtx.t, ~input, ~schema, ~path) => {
     let inputVar = b->B.Val.var(input)
 
     let items = schema->getItems
@@ -2362,12 +2353,8 @@ module Object = {
       }
 
       let bb = b->B.scope
-      if isObject && schema.definer->Obj.magic {
-        bb->processInputItems(~ctx, ~input=itemInput, ~schema, ~path)
-      } else {
-        let itemOutput = bb->B.parse(~schema, ~input=itemInput, ~path)
-        b->BuildCtx.addItemOutput(~ctx, item, itemOutput)
-      }
+      let itemOutput = bb->B.parse(~schema, ~input=itemInput, ~path)
+      b->BuildCtx.addItemOutput(~ctx, item, itemOutput)
 
       // Parse literal fields first, because they are most often used as discriminants
       if isLiteral {
@@ -2450,8 +2437,6 @@ module Object = {
       let itemSchema = item.schema
       if itemSchema->isLiteralSchema {
         b->B.embed(itemSchema->Literal.unsafeFromSchema->Literal.value)
-      } else if isRootObject && itemSchema.definer->Obj.magic {
-        schemaOutput(~isObject=true, ~schema=itemSchema, ~path=path->Path.concat(item.path))
       } else {
         b->B.invalidOperation(
           ~path,
@@ -2573,32 +2558,29 @@ module Object = {
   and to = {
     (schema: t<'value>, definer: 'value => 'variant): t<'variant> => {
       let schema = schema->toUnknown
-      if schema.definer->Obj.magic {
-        factory((ctx => definer((schema.definer->Obj.magic)(ctx)))->Obj.magic)
-      } else {
-        let item: item = {
-          schema,
-          path: Path.empty,
-          location: "",
-          inlinedLocation: `""`,
-          symbol: itemSymbol,
-        }
-        let definition: unknown = definer(item->Obj.magic)->Obj.magic
 
-        makeSchema(
-          ~name=schema.name,
-          ~tagged=schema.tagged,
-          ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-            let ctx = BuildCtx.make(~selfSchema)
-            let itemOutput = b->B.parse(~schema, ~input, ~path)
-            b->BuildCtx.addItemOutput(~ctx, item, itemOutput)
-            b->BuildCtx.toOutputVal(~ctx, ~outputDefinition=definition)
-          }),
-          ~maybeTypeFilter=schema.maybeTypeFilter,
-          ~metadataMap=schema.metadataMap,
-          ~reverse=reverse(~definition, ~toItem=item),
-        )
+      let item: item = {
+        schema,
+        path: Path.empty,
+        location: "",
+        inlinedLocation: `""`,
+        symbol: itemSymbol,
       }
+      let definition: unknown = definer(item->Obj.magic)->Obj.magic
+
+      makeSchema(
+        ~name=schema.name,
+        ~tagged=schema.tagged,
+        ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+          let ctx = BuildCtx.make(~selfSchema)
+          let itemOutput = b->B.parse(~schema, ~input, ~path)
+          b->BuildCtx.addItemOutput(~ctx, item, itemOutput)
+          b->BuildCtx.toOutputVal(~ctx, ~outputDefinition=definition)
+        }),
+        ~maybeTypeFilter=schema.maybeTypeFilter,
+        ~metadataMap=schema.metadataMap,
+        ~reverse=reverse(~definition, ~toItem=item),
+      )
     }
   }
   and factory:
@@ -2609,11 +2591,11 @@ module Object = {
 
       let ctx = {
         let flatten = schema => {
-          if schema.definer->Obj.magic {
-            (schema.definer->Obj.magic)(%raw(`this`))
-          } else {
-            InternalError.panic(`The ${schema.name()} schema can't be flattened`)
-          }
+          // if schema.definer->Obj.magic {
+          //   (schema.definer->Obj.magic)(%raw(`this`))
+          // } else {
+          InternalError.panic(`The ${schema.name()} schema can't be flattened`)
+          // }
         }
 
         let field:
@@ -2622,22 +2604,22 @@ module Object = {
             let schema = schema->toUnknown
             let inlinedLocation = fieldName->Stdlib.Inlined.Value.fromString
             switch fields->Stdlib.Dict.unsafeGetOption(fieldName) {
-            | Some(item: item) =>
-              if item.schema.definer->Obj.magic && schema.definer->Obj.magic {
-                (schema.definer->Obj.magic)(item.schema.definerCtx->Obj.magic)->(
-                  Obj.magic: unknown => value
-                )
-              } else {
-                InternalError.panic(
-                  `The field ${inlinedLocation} defined twice with incompatible schemas`,
-                )
-              }
+            | Some(_item: item) =>
+              // if item.schema.definer->Obj.magic && schema.definer->Obj.magic {
+              //   (schema.definer->Obj.magic)(item.schema.definerCtx->Obj.magic)->(
+              //     Obj.magic: unknown => value
+              //   )
+              // } else {
+              InternalError.panic(
+                `The field ${inlinedLocation} defined twice with incompatible schemas`,
+              )
+            // }
             | None => {
-                let schema = if schema.definer->Obj.magic {
-                  factory(schema.definer->Obj.magic)
-                } else {
-                  schema
-                }
+                // let schema = if schema.definer->Obj.magic {
+                //   factory(schema.definer->Obj.magic)
+                // } else {
+                //   schema
+                // }
                 let item: item = {
                   schema,
                   location: fieldName,
@@ -2647,11 +2629,11 @@ module Object = {
                 }
                 fields->Js.Dict.set(fieldName, item)
                 items->Js.Array2.push(item)->ignore
-                if schema.definer->Obj.magic {
-                  schema->getOutputDefinition->(Obj.magic: unknown => value)
-                } else {
-                  item->(Obj.magic: item => value)
-                }
+                // if schema.definer->Obj.magic {
+                //   schema->getOutputDefinition->(Obj.magic: unknown => value)
+                // } else {
+                item->(Obj.magic: item => value)
+                // }
               }
             }
           }
@@ -2669,17 +2651,17 @@ module Object = {
           (fieldName, nestedFieldName, schema) => {
             let schema = schema->toUnknown
             switch fields->Stdlib.Dict.unsafeGetOption(fieldName) {
-            | Some(item: item) =>
-              if item.schema.definer->Obj.magic {
-                (item.schema.definerCtx->(Obj.magic: option<char> => ctx)).field(
-                  nestedFieldName,
-                  schema,
-                )->(Obj.magic: unknown => value)
-              } else {
-                InternalError.panic(
-                  `The field ${fieldName->Stdlib.Inlined.Value.fromString} defined twice with incompatible schemas`,
-                )
-              }
+            | Some(_item: item) =>
+              // if item.schema.definer->Obj.magic {
+              //   (item.schema.definerCtx->(Obj.magic: option<char> => ctx)).field(
+              //     nestedFieldName,
+              //     schema,
+              //   )->(Obj.magic: unknown => value)
+              // } else {
+              InternalError.panic(
+                `The field ${fieldName->Stdlib.Inlined.Value.fromString} defined twice with incompatible schemas`,
+              )
+            // }
             | None =>
               field(fieldName, factory(s => s.field(nestedFieldName, schema)))->(
                 Obj.magic: unknown => value
@@ -2713,8 +2695,8 @@ module Object = {
         maybeTypeFilter: Some(typeFilter),
         name,
         metadataMap: Metadata.Map.empty,
-        definer: definer->Obj.magic,
-        definerCtx: ctx->Obj.magic,
+        // definer: definer->Obj.magic,
+        // definerCtx: ctx->Obj.magic,
         parseOrRaise: initialParseOrRaise,
         serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
         serializeOrRaise: initialSerializeOrRaise,
@@ -2741,8 +2723,8 @@ module Object = {
         maybeTypeFilter: schema.maybeTypeFilter,
         isAsyncSchema: schema.isAsyncSchema,
         metadataMap: schema.metadataMap,
-        definer: ?schema.definer,
-        definerCtx: ?schema.definerCtx,
+        // definer: ?schema.definer,
+        // definerCtx: ?schema.definerCtx,
         parseOrRaise: initialParseOrRaise,
         serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
         serializeOrRaise: initialSerializeOrRaise,

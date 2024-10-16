@@ -1117,8 +1117,6 @@ function recursive(fn) {
   };
   var schema = fn(placeholder);
   placeholder.f = schema.f;
-  schema.d = undefined;
-  schema.c = undefined;
   var initialParseOperationBuilder = schema.b;
   schema.b = (function (b, input, selfSchema, path) {
       var bb = scope(b);
@@ -1556,12 +1554,8 @@ function processInputItems(b, ctx, input, schema, path) {
       b.c = b.c + typeFilterCode(b, typeFilter, schema$1, itemInput, path$1);
     }
     var bb = scope(b);
-    if (isObject && schema$1.d) {
-      processInputItems(bb, ctx, itemInput, schema$1, path$1);
-    } else {
-      var itemOutput = schema$1.b(bb, itemInput, schema$1, path$1);
-      addItemOutput(b, ctx, item, itemOutput);
-    }
+    var itemOutput = schema$1.b(bb, itemInput, schema$1, path$1);
+    addItemOutput(b, ctx, item, itemOutput);
     if (isLiteral) {
       b.c = b.c + allocateScope(bb) + prevCode;
     } else {
@@ -1659,6 +1653,14 @@ function reverse$1(inputDefinition, toItem) {
                   definitionToOutput(inputDefinition, "");
                   b.c = ctx.d + b.c;
                   var isRootObject = original.t.TAG === "Object";
+                  var fallbackOutput = function (item, path) {
+                    var itemSchema = item.t;
+                    if (itemSchema.t.TAG !== "Literal") {
+                      return invalidOperation(b, path, "Schema for " + item.i + " isn't registered");
+                    }
+                    var value = itemSchema.t._0.value;
+                    return "e[" + (b.g.e.push(value) - 1) + "]";
+                  };
                   var schemaOutput = function (schema, isObject, path) {
                     var items = schema.t.items;
                     var output = "";
@@ -1679,18 +1681,6 @@ function reverse$1(inputDefinition, toItem) {
                       return "[" + output + "]";
                     }
                   };
-                  var fallbackOutput = function (item, path) {
-                    var itemSchema = item.t;
-                    if (itemSchema.t.TAG !== "Literal") {
-                      if (isRootObject && itemSchema.d) {
-                        return schemaOutput(itemSchema, true, path + item.p);
-                      } else {
-                        return invalidOperation(b, path, "Schema for " + item.i + " isn't registered");
-                      }
-                    }
-                    var value = itemSchema.t._0.value;
-                    return "e[" + (b.g.e.push(value) - 1) + "]";
-                  };
                   if (toItem === undefined) {
                     return val(b, schemaOutput(original, isRootObject, path));
                   }
@@ -1708,37 +1698,26 @@ function factory$3(definer) {
   var fields = {};
   var items = [];
   var flatten = function (schema) {
-    if (schema.d) {
-      return schema.d(this);
-    }
     var message = "The " + schema.n() + " schema can't be flattened";
     throw new Error("[rescript-schema] " + message);
   };
   var field = function (fieldName, schema) {
     var inlinedLocation = JSON.stringify(fieldName);
-    var item = fields[fieldName];
-    if (item !== undefined) {
-      if (item.t.d && schema.d) {
-        return schema.d(item.t.c);
-      }
+    var _item = fields[fieldName];
+    if (_item !== undefined) {
       throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " defined twice with incompatible schemas"));
     }
-    var schema$1 = schema.d ? factory$3(schema.d) : schema;
     var item_p = "[" + inlinedLocation + "]";
-    var item$1 = {
-      t: schema$1,
+    var item = {
+      t: schema,
       p: item_p,
       l: fieldName,
       i: inlinedLocation,
       s: itemSymbol
     };
-    fields[fieldName] = item$1;
-    items.push(item$1);
-    if (schema$1.d) {
-      return schema$1.t.definition;
-    } else {
-      return item$1;
-    }
+    fields[fieldName] = item;
+    items.push(item);
+    return item;
   };
   var tag = function (tag$1, asValue) {
     field(tag$1, literal(asValue));
@@ -1747,14 +1726,11 @@ function factory$3(definer) {
     return field(fieldName, getOr(factory(schema), or));
   };
   var nestedField = function (fieldName, nestedFieldName, schema) {
-    var item = fields[fieldName];
-    if (item === undefined) {
+    var _item = fields[fieldName];
+    if (_item === undefined) {
       return field(fieldName, factory$3(function (s) {
                       return s.f(nestedFieldName, schema);
                     }));
-    }
-    if (item.t.d) {
-      return item.t.c.f(nestedFieldName, schema);
     }
     var message = "The field " + JSON.stringify(fieldName) + " defined twice with incompatible schemas";
     throw new Error("[rescript-schema] " + message);
@@ -1781,8 +1757,6 @@ function factory$3(definer) {
           b: builder$1,
           f: typeFilter$1,
           i: 0,
-          d: definer,
-          c: ctx,
           m: empty,
           parseOrThrow: initialParseOrRaise,
           parse: jsParse,
@@ -1795,11 +1769,6 @@ function factory$3(definer) {
 }
 
 function to(schema, definer) {
-  if (schema.d) {
-    return factory$3(function (ctx) {
-                return definer(schema.d(ctx));
-              });
-  }
   var item = {
     t: schema,
     p: "",
@@ -1834,8 +1803,6 @@ function setUnknownKeys(schema, unknownKeys) {
             b: schema.b,
             f: schema.f,
             i: schema.i,
-            d: schema.d,
-            c: schema.c,
             m: schema.m,
             parseOrThrow: initialParseOrRaise,
             parse: jsParse,
