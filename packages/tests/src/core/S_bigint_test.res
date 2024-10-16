@@ -28,13 +28,12 @@ module Common = {
   test("Fails to convert to Json", t => {
     let schema = factory()
 
-    t->U.assertRaised(
+    t->Assert.throws(
       () => value->S.convertToJsonWith(schema),
-      {
-        code: InvalidJsonSchema(schema->S.toUnknown),
-        operation: SerializeToJson,
-        path: S.Path.empty,
+      ~expectations={
+        message: "Failed converting to JSON at root. Reason: The BigInt schema is not compatible with JSON",
       },
+      (),
     )
   })
 

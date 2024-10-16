@@ -6,6 +6,8 @@ var Path = S_Core$RescriptSchema.Path;
 
 var Raised = S_Core$RescriptSchema.Raised;
 
+var Flag = S_Core$RescriptSchema.Flag;
+
 var $$Error = S_Core$RescriptSchema.$$Error;
 
 var Literal = S_Core$RescriptSchema.Literal;
@@ -189,6 +191,7 @@ var setGlobalConfig = S_Core$RescriptSchema.setGlobalConfig;
 export {
   Path ,
   Raised ,
+  Flag ,
   $$Error ,
   Literal ,
   never ,

@@ -34,7 +34,7 @@ test("Fails to serialize invalid value", t => {
     () => 1234.->S.reverseConvertWith(schema),
     {
       code: OperationFailed("Number must be lower than or equal to 1"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )

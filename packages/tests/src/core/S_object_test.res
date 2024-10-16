@@ -347,7 +347,7 @@ test("Fails to serializes object when transformed field has raises error", t => 
     () => {"field": "bar"}->S.reverseConvertWith(schema),
     {
       code: OperationFailed("User error"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromArray(["field"]),
     },
   )
@@ -367,7 +367,7 @@ test("Shows transformed object field name in error path when fails to serializes
     () => {"transformedFieldName": "bar"}->S.reverseConvertWith(schema),
     {
       code: OperationFailed("User error"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromArray(["transformedFieldName"]),
     },
   )
@@ -394,7 +394,7 @@ test("Shows transformed to nested object field name in error path when fails to 
       }->S.reverseConvertWith(schema),
     {
       code: OperationFailed("User error"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromArray(["v1", "transformedFieldName"]),
     },
   )
@@ -955,7 +955,7 @@ test("Reverse convert of object schema with single field registered multiple tim
       code: InvalidOperation({
         description: `Multiple sources provided not equal data for "field"`,
       }),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )
@@ -1246,7 +1246,7 @@ test("Failse to compile to async reversed object schema", t => {
         schema->S.reverse->S.compile(~input=Any, ~output=Output, ~mode=Async, ~typeValidation=false)
     },
     ~expectations={
-      message: "Failed serializing at root. Reason: Async mode is not supported",
+      message: "Failed converting async at root. Reason: Async mode is not supported",
     },
     (),
   )

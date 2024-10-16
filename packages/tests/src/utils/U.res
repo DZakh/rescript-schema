@@ -15,11 +15,28 @@ let unsafeGetVariantPayload = variant => (variant->Obj.magic)["_0"]
 exception Test
 let raiseTestException = () => raise(Test)
 
-type errorPayload = {operation: S.operation, code: S.errorCode, path: S.Path.t}
+type taggedFlag =
+  | Parse
+  | ParseAsync
+  | ReverseConvertToJson
+  | ReverseConvert
+  | Assert
+
+type errorPayload = {operation: taggedFlag, code: S.errorCode, path: S.Path.t}
 
 // TODO: Get rid of the helper
 let error = ({operation, code, path}: errorPayload): S.error => {
-  S.Error.make(~code, ~operation, ~path)
+  S.Error.make(
+    ~code,
+    ~flag=switch operation {
+    | Parse => S.Flag.typeValidation
+    | ReverseConvertToJson => S.Flag.reverse->S.Flag.with(S.Flag.jsonableOutput)
+    | ReverseConvert => S.Flag.reverse
+    | ParseAsync => S.Flag.typeValidation->S.Flag.with(S.Flag.async)
+    | Assert => S.Flag.typeValidation->S.Flag.with(S.Flag.assertOutput)
+    },
+    ~path,
+  )
 }
 
 let assertThrowsTestException = {

@@ -62,7 +62,7 @@ module Common = {
           expected: S.literal("ReScript is Great!")->S.toUnknown,
           received: "Hello world!"->Obj.magic,
         }),
-        operation: SerializeToUnknown,
+        operation: ReverseConvert,
         path: S.Path.empty,
       },
     )

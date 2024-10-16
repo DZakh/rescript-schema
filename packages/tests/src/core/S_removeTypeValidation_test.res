@@ -12,7 +12,7 @@ test("Successfully parses", t => {
           expected: schema->S.toUnknown,
           received: %raw(`1`),
         }),
-        ~operation=S.Parse,
+        ~flag=S.Flag.typeValidation,
         ~path=S.Path.empty,
       ),
     ),

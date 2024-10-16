@@ -29,7 +29,7 @@ test("Fails to serialize invalid value", t => {
     () => "abc"->S.reverseConvertWith(schema),
     {
       code: OperationFailed("Invalid"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )

@@ -27,7 +27,7 @@ export abstract class S_Path_t {
 } /* simulate opaque types */
 
 export class S_error {
-  readonly operation: S_operation;
+  readonly flag: number;
   readonly code: S_errorCode;
   readonly path: S_Path_t;
   readonly message: string;
@@ -37,9 +37,3 @@ export class S_error {
 export abstract class S_errorCode {
   protected opaque: any;
 } /* simulate opaque types */
-
-export type S_operation =
-  | "Parse"
-  | "ParseAsync"
-  | "SerializeToJson"
-  | "SerializeToUnknown";

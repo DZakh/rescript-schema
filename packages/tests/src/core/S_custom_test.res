@@ -64,7 +64,7 @@ test("Fails to serialize with user error", t => {
 
   t->U.assertRaised(
     () => None->S.reverseConvertWith(schema),
-    {code: OperationFailed("User error"), operation: SerializeToUnknown, path: S.Path.empty},
+    {code: OperationFailed("User error"), operation: ReverseConvert, path: S.Path.empty},
   )
 })
 
@@ -77,7 +77,7 @@ test("Fails to serialize with serializer is missing", t => {
     () => ()->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({description: "The S.custom serializer is missing"}),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )

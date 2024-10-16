@@ -43,7 +43,7 @@ module Common = {
           expected: S.literal(("bar", true))->S.toUnknown,
           received: invalid->U.castAnyToUnknown,
         }),
-        operation: SerializeToUnknown,
+        operation: ReverseConvert,
         path: S.Path.empty,
       },
     )
@@ -155,7 +155,7 @@ module EmptyArray = {
           expected: S.literal([])->S.toUnknown,
           received: invalid->U.castAnyToUnknown,
         }),
-        operation: SerializeToUnknown,
+        operation: ReverseConvert,
         path: S.Path.empty,
       },
     )

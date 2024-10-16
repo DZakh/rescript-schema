@@ -107,7 +107,7 @@ test("Reverse convert of tuple schema with single item registered multiple times
       code: InvalidOperation({
         description: `Multiple sources provided not equal data for "0"`,
       }),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )
@@ -125,7 +125,7 @@ test(`Fails to serialize tuple with discriminant "Never"`, t => {
       code: InvalidOperation({
         description: `Schema for "0" isn\'t registered`,
       }),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )
@@ -151,7 +151,7 @@ test(`Fails to serialize tuple with discriminant "Never" inside of an object (te
       code: InvalidOperation({
         description: `Schema for "0" isn\'t registered`,
       }),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromLocation(`foo`),
     },
   )
@@ -176,7 +176,7 @@ test("Fails to serialize tuple transformed to variant", t => {
     () => Error("foo")->S.reverseConvertWith(schema),
     {
       code: InvalidType({expected: S.literal("Ok")->S.toUnknown, received: %raw(`"Error"`)}),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromLocation("TAG"),
     },
   )

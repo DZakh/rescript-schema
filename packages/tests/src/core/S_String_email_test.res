@@ -36,7 +36,7 @@ test("Fails to serialize invalid value", t => {
     () => "dzakh.dev"->S.reverseConvertWith(schema),
     {
       code: OperationFailed("Invalid email address"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )

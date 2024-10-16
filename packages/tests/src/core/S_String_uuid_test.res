@@ -45,7 +45,7 @@ test("Fails to serialize invalid value", t => {
 
   t->U.assertRaised(
     () => "123e4567"->S.reverseConvertWith(schema),
-    {code: OperationFailed("Invalid UUID"), operation: SerializeToUnknown, path: S.Path.empty},
+    {code: OperationFailed("Invalid UUID"), operation: ReverseConvert, path: S.Path.empty},
   )
 })
 

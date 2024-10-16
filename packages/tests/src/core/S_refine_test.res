@@ -44,7 +44,7 @@ test("Successfully refines on serializing", t => {
     () => -12->S.reverseConvertWith(schema),
     {
       code: OperationFailed("Should be positive"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )

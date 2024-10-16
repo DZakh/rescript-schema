@@ -414,7 +414,7 @@ test("Fails to serialize never", (t) => {
     },
     {
       name: "RescriptSchemaError",
-      message: `Failed serializing at root. Reason: Expected Never, received "123"`,
+      message: `Failed converting at root. Reason: Expected Never, received "123"`,
     }
   );
 });
@@ -1079,7 +1079,7 @@ test("Fails to serialize merge. Not supported yet", (t) => {
   }
   t.is(
     result.error.message,
-    `Failed serializing at root. Reason: The S.merge serializing is not supported yet`
+    `Failed converting at root. Reason: The S.merge serializing is not supported yet`
   );
 });
 
