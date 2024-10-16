@@ -232,18 +232,8 @@ let reverseConvertWith: ('value, t<'value>) => unknown
 let reverseConvertToJsonWith: ('value, t<'value>) => Js.Json.t
 let reverseConvertToJsonStringWith: ('value, t<'value>, ~space: int=?) => string
 
-let serializeWith: ('value, t<'value>) => result<Js.Json.t, error>
-let serializeToUnknownWith: ('value, t<'value>) => result<unknown, error>
-let serializeToJsonStringWith: ('value, t<'value>, ~space: int=?) => result<string, error>
-let serializeOrRaiseWith: ('value, t<'value>) => Js.Json.t
-let serializeToUnknownOrRaiseWith: ('value, t<'value>) => unknown
-let serializeToJsonStringOrRaiseWith: ('value, t<'value>, ~space: int=?) => string
-
-let assertOrRaiseWith: ('any, t<'value>) => unit
-let assertAnyWith: ('any, t<'value>) => unit
 let assertWith: ('any, t<'value>) => unit
 
-let isAsyncParse: t<'value> => bool
 let isAsync: t<'value> => bool
 
 let recursive: (t<'value> => t<'value>) => t<'value>
