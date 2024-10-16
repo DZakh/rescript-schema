@@ -100,10 +100,6 @@ var reverseConvertToJsonWith = S_Core$RescriptSchema.reverseConvertToJsonWith;
 
 var reverseConvertToJsonStringWith = S_Core$RescriptSchema.reverseConvertToJsonStringWith;
 
-var serializeWith = S_Core$RescriptSchema.serializeWith;
-
-var serializeToUnknownWith = S_Core$RescriptSchema.serializeToUnknownWith;
-
 var assertWith = S_Core$RescriptSchema.assertWith;
 
 var isAsync = S_Core$RescriptSchema.isAsync;
@@ -240,8 +236,6 @@ export {
   reverseConvertWith ,
   reverseConvertToJsonWith ,
   reverseConvertToJsonStringWith ,
-  serializeWith ,
-  serializeToUnknownWith ,
   assertWith ,
   isAsync ,
   recursive ,

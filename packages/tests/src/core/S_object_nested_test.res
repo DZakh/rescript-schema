@@ -104,8 +104,8 @@ test("Successfully serializes with nested object defined multiple times", t => {
   )
 
   t->Assert.deepEqual(
-    {"foo": "foo", "bar": "bar", "baz": "baz"}->S.serializeWith(schema),
-    Ok(%raw(`{"foo": "foo", "nested": {"bar": "bar", "baz": "baz"}}`)),
+    {"foo": "foo", "bar": "bar", "baz": "baz"}->S.reverseConvertToJsonWith(schema),
+    %raw(`{"foo": "foo", "nested": {"bar": "bar", "baz": "baz"}}`),
     (),
   )
   t->U.assertCompiledCode(
@@ -165,8 +165,8 @@ test("Merges deeply nested in different branches", t => {
   )
 
   t->Assert.deepEqual(
-    {"bar": "bar", "baz": "baz"}->S.serializeWith(schema),
-    Ok(%raw(`{"nested": {"nested2": {"bar": "bar", "baz": "baz"}}}`)),
+    {"bar": "bar", "baz": "baz"}->S.reverseConvertToJsonWith(schema),
+    %raw(`{"nested": {"nested2": {"bar": "bar", "baz": "baz"}}}`),
     (),
   )
   t->U.assertCompiledCode(

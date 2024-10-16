@@ -162,16 +162,16 @@ var testData2 = {
 
 function test() {
   console.time("testData1 serialize");
-  var json = S$RescriptSchema.unwrap(S$RescriptSchema.serializeWith(testData1, schema));
+  var json = S$RescriptSchema.reverseConvertWith(testData1, schema);
   console.timeEnd("testData1 serialize");
   console.time("testData1 parse");
-  S$RescriptSchema.unwrap(S$RescriptSchema.parseWith(json, schema));
+  S$RescriptSchema.parseAnyWith(json, schema);
   console.timeEnd("testData1 parse");
   console.time("testData2 serialize");
-  var json$1 = S$RescriptSchema.unwrap(S$RescriptSchema.serializeWith(testData2, schema));
+  var json$1 = S$RescriptSchema.reverseConvertWith(testData2, schema);
   console.timeEnd("testData2 serialize");
   console.time("testData2 parse");
-  S$RescriptSchema.unwrap(S$RescriptSchema.parseWith(json$1, schema));
+  S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith(json$1, schema));
   console.timeEnd("testData2 parse");
 }
 
@@ -205,19 +205,19 @@ console.timeEnd("parseAnyWith: 3");
 
 console.time("serializeWith: 1");
 
-S$RescriptSchema.serializeWith(data, schema$1);
+S$RescriptSchema.reverseConvertWith(data, schema$1);
 
 console.timeEnd("serializeWith: 1");
 
 console.time("serializeWith: 2");
 
-S$RescriptSchema.serializeWith(data, schema$1);
+S$RescriptSchema.reverseConvertWith(data, schema$1);
 
 console.timeEnd("serializeWith: 2");
 
 console.time("serializeWith: 3");
 
-S$RescriptSchema.serializeWith(data, schema$1);
+S$RescriptSchema.reverseConvertWith(data, schema$1);
 
 console.timeEnd("serializeWith: 3");
 

@@ -261,7 +261,7 @@ test("Works correctly with not-modified object item", t => {
   let schema = S.tuple1(S.object(s => s.field("foo", S.string)))
 
   t->Assert.deepEqual(%raw(`[{"foo": "bar"}]`)->S.parseAnyWith(schema), Ok("bar"), ())
-  t->Assert.deepEqual("bar"->S.serializeWith(schema), Ok(%raw(`[{"foo": "bar"}]`)), ())
+  t->Assert.deepEqual("bar"->S.reverseConvertToJsonWith(schema), %raw(`[{"foo": "bar"}]`), ())
 })
 
 module Compiled = {
@@ -369,7 +369,7 @@ test("Works with tuple schema used multiple times as a child schema", t => {
   let value = rawAppVersions->S.parseAnyWith(appVersionsSchema)->S.unwrap
   t->Assert.deepEqual(value, appVersions, ())
 
-  let data = appVersions->S.serializeWith(appVersionsSchema)->S.unwrap
+  let data = appVersions->S.reverseConvertToJsonWith(appVersionsSchema)
   t->Assert.deepEqual(data, rawAppVersions->Obj.magic, ())
 })
 
