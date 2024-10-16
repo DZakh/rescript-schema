@@ -4116,10 +4116,3 @@ let setGlobalConfig = override => {
     resetOperationsCache(float)
   }
 }
-
-let js_unwrap = (result: jsResult<'value>): 'value => {
-  switch result {
-  | Success({value}) => value
-  | Failure({error}) => Stdlib.Exn.raiseAny(error)
-  }
-}

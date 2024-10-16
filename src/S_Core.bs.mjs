@@ -2999,13 +2999,6 @@ function setGlobalConfig(override) {
   
 }
 
-function js_unwrap(result) {
-  if (result.success === true) {
-    return result.value;
-  }
-  throw result.error;
-}
-
 var Path = {
   empty: "",
   dynamic: "[]",
@@ -3233,7 +3226,6 @@ export {
   js_parseAsyncWith ,
   js_optional ,
   js_tuple ,
-  js_unwrap ,
   js_custom ,
   js_asyncParserRefine ,
   js_refine ,
