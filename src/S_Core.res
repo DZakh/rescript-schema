@@ -3426,15 +3426,16 @@ module Schema = {
   }
 
   let factory = definer => {
-    let definition =
-      Js.typeof(definer) === "function" // TODO: Move to js_schema after the cb version is removed in v9
-        ? definer(ctx->(Obj.magic: s => 'value))->(Obj.magic: 'definition => unknown)
-        : definer->(Obj.magic: ('value => 'definition) => unknown)
-    definition->definitionToSchema->castUnknownSchemaToAnySchema
+    definer(ctx->(Obj.magic: s => 'value))
+    ->(Obj.magic: 'definition => unknown)
+    ->definitionToSchema
+    ->castUnknownSchemaToAnySchema
   }
 }
 
 let schema = Schema.factory
+
+let js_schema = Schema.definitionToSchema
 
 module Error = {
   type class
