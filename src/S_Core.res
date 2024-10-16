@@ -11,6 +11,13 @@ module Obj = {
 }
 
 module Stdlib = {
+  module Proxy = {
+    type traps<'a> = {get?: (~target: 'a, ~prop: unknown) => unknown}
+
+    @new
+    external make: ('a, traps<'a>) => 'a = "Proxy"
+  }
+
   module Option = {
     external unsafeUnwrap: option<'a> => 'a = "%identity"
   }
@@ -40,6 +47,8 @@ module Stdlib = {
   }
 
   module Object = {
+    let immutableEmpty = %raw(`{}`)
+
     @val external internalClass: Js.Types.obj_val => string = "Object.prototype.toString.call"
   }
 
@@ -90,6 +99,9 @@ module Stdlib = {
 
     @get_index
     external unsafeGetOption: (dict<'a>, string) => option<'a> = ""
+
+    @get_index
+    external unsafeGetOptionBySymbol: (dict<'a>, Js.Types.symbol) => option<'a> = ""
 
     @inline
     let has = (dict, key) => {
@@ -274,8 +286,6 @@ and item = {
   location: string,
   @as("i")
   inlinedLocation: string,
-  @as("s")
-  symbol: Js.Types.symbol,
 }
 and builder = (b, ~input: val, ~selfSchema: schema<unknown>, ~path: Path.t) => val
 and val = {
@@ -1969,11 +1979,11 @@ module Definition = {
     definition->Stdlib.Type.typeof === #object && definition !== %raw(`null`)
 
   let toConstant = (Obj.magic: t<'embeded> => unknown)
-  let toEmbeded = (Obj.magic: t<'embeded> => 'embeded)
   let toNode = (Obj.magic: t<'embeded> => node<'embeded>)
 
   @inline
-  let isEmbededItem = definition => (definition->toEmbeded).symbol === itemSymbol
+  let toEmbededItem = (definition: t<'embeded>): option<item> =>
+    definition->Obj.magic->Stdlib.Dict.unsafeGetOptionBySymbol(itemSymbol)
 }
 
 module Option = {
@@ -2276,41 +2286,41 @@ module Object = {
 
     let toOutputVal = (b, ~ctx: t, ~outputDefinition) => {
       let syncOutput = {
-        let rec definitionToValue = (definition: Definition.t<item>, ~outputPath) => {
-          switch ctx.outputs->Stdlib.WeakMap.get(definition->Definition.toEmbeded) {
-          | Some(val) => b->B.Val.inline(val)
-          | None =>
-            if definition->Definition.isNode {
-              let node = definition->Definition.toNode
-              let isArray = Stdlib.Array.isArray(node)
-              let keys = node->Js.Dict.keys
+        let rec definitionToValue = (definition: Definition.t<item>) => {
+          if definition->Definition.isNode {
+            switch ctx.outputs->Stdlib.WeakMap.get(
+              definition->Definition.toEmbededItem->Stdlib.Option.unsafeUnwrap,
+            ) {
+            | Some(val) => b->B.Val.inline(val)
+            | None => {
+                let node = definition->Definition.toNode
+                let isArray = Stdlib.Array.isArray(node)
+                let keys = node->Js.Dict.keys
 
-              let codeRef = ref(isArray ? "[" : "{")
-              for idx in 0 to keys->Js.Array2.length - 1 {
-                let key = keys->Js.Array2.unsafe_get(idx)
-                let definition = node->Js.Dict.unsafeGet(key)
-                let output =
-                  definition->definitionToValue(
-                    ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
-                  )
-                if idx !== 0 {
-                  codeRef := codeRef.contents ++ ","
+                let codeRef = ref(isArray ? "[" : "{")
+                for idx in 0 to keys->Js.Array2.length - 1 {
+                  let key = keys->Js.Array2.unsafe_get(idx)
+                  let definition = node->Js.Dict.unsafeGet(key)
+                  let output = definition->definitionToValue
+                  if idx !== 0 {
+                    codeRef := codeRef.contents ++ ","
+                  }
+                  codeRef :=
+                    codeRef.contents ++ (
+                      isArray ? output : `${key->Stdlib.Inlined.Value.fromString}:${output}`
+                    )
                 }
-                codeRef :=
-                  codeRef.contents ++ (
-                    isArray ? output : `${key->Stdlib.Inlined.Value.fromString}:${output}`
-                  )
+                codeRef.contents ++ (isArray ? "]" : "}")
               }
-              codeRef.contents ++ (isArray ? "]" : "}")
-            } else {
-              let constant = definition->Definition.toConstant
-              b->B.embed(constant)
             }
+          } else {
+            let constant = definition->Definition.toConstant
+            b->B.embed(constant)
           }
         }
         outputDefinition
         ->(Obj.magic: unknown => Definition.t<item>)
-        ->definitionToValue(~outputPath=Path.empty)
+        ->definitionToValue
       }
 
       if ctx.asyncOutputs === None {
@@ -2455,6 +2465,17 @@ module Object = {
     }
   }
 
+  let proxify = (item: item): 'a =>
+    Stdlib.Object.immutableEmpty->Stdlib.Proxy.make({
+      get: (~target as _, ~prop) => {
+        if prop === itemSymbol->Obj.magic {
+          item->Obj.magic
+        } else {
+          %raw(`void 0`)
+        }
+      },
+    })
+
   let rec reverse = (~definition as inputDefinition, ~toItem=?) => () => {
     let original = %raw(`this`)
     let inputDefinition = inputDefinition->(Obj.magic: unknown => Definition.t<item>)
@@ -2482,8 +2503,8 @@ module Object = {
 
         let rec definitionToOutput = (definition: Definition.t<item>, ~outputPath) => {
           if definition->Definition.isNode {
-            if definition->Definition.isEmbededItem {
-              let item = definition->Definition.toEmbeded
+            switch definition->Definition.toEmbededItem {
+            | Some(item) =>
               switch embededOutputs->Stdlib.WeakMap.get(item) {
               | Some(embededOutput) => {
                   let {schema} = item
@@ -2517,16 +2538,17 @@ module Object = {
                   embededOutputs->Stdlib.WeakMap.set(item, itemOutput)->ignore
                 }
               }
-            } else {
-              let node = definition->Definition.toNode
-              let keys = node->Js.Dict.keys
-              for idx in 0 to keys->Js.Array2.length - 1 {
-                let key = keys->Js.Array2.unsafe_get(idx)
-                let definition = node->Js.Dict.unsafeGet(key)
-                definitionToOutput(
-                  definition,
-                  ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
-                )
+            | None => {
+                let node = definition->Definition.toNode
+                let keys = node->Js.Dict.keys
+                for idx in 0 to keys->Js.Array2.length - 1 {
+                  let key = keys->Js.Array2.unsafe_get(idx)
+                  let definition = node->Js.Dict.unsafeGet(key)
+                  definitionToOutput(
+                    definition,
+                    ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
+                  )
+                }
               }
             }
           } else {
@@ -2564,9 +2586,10 @@ module Object = {
         path: Path.empty,
         location: "",
         inlinedLocation: `""`,
-        symbol: itemSymbol,
       }
-      let definition: unknown = definer(item->Obj.magic)->Obj.magic
+      let definition: unknown = definer(item->proxify)->Obj.magic
+
+      // let outputs =
 
       makeSchema(
         ~name=schema.name,
@@ -2625,14 +2648,13 @@ module Object = {
                   location: fieldName,
                   inlinedLocation,
                   path: inlinedLocation->Path.fromInlinedLocation,
-                  symbol: itemSymbol,
                 }
                 fields->Js.Dict.set(fieldName, item)
                 items->Js.Array2.push(item)->ignore
                 // if schema.definer->Obj.magic {
                 //   schema->getOutputDefinition->(Obj.magic: unknown => value)
                 // } else {
-                item->(Obj.magic: item => value)
+                item->proxify
                 // }
               }
             }
@@ -2782,10 +2804,9 @@ module Tuple = {
               location,
               inlinedLocation,
               path: inlinedLocation->Path.fromInlinedLocation,
-              symbol: itemSymbol,
             }
             items->Js.Array2.unsafe_set(idx, item)
-            item->(Obj.magic: item => value)
+            item->Object.proxify
           }
         }
 
@@ -2811,7 +2832,6 @@ module Tuple = {
           location,
           inlinedLocation,
           path: inlinedLocation->Path.fromInlinedLocation,
-          symbol: itemSymbol,
         }
         items->Js.Array2.unsafe_set(idx, item)
       }
@@ -3467,19 +3487,18 @@ module Schema = {
             location,
             inlinedLocation,
             path: inlinedLocation->Path.fromInlinedLocation,
-            symbol: itemSymbol,
           }
           items->Js.Array2.unsafe_set(idx, item)
           if !isTransformed.contents && schema !== schema.reverse() {
             isTransformed := true
           }
         }
-        let definition = items->(Obj.magic: array<item> => unknown)
+        let definition = items->Js.Array2.map(Object.proxify)->(Obj.magic: array<item> => unknown)
         makeSchema(
           ~name=Tuple.name,
           ~tagged=Tuple({
             items,
-            definition,
+            definition, // FIXME: stop passing definition here
           }),
           ~builder=Object.builder,
           ~maybeTypeFilter=Some(Tuple.typeFilter(~length=items->Js.Array2.length)),
@@ -3490,6 +3509,7 @@ module Schema = {
         let node = definition->(Obj.magic: unknown => dict<unknown>)
         let items = []
         let fields = Js.Dict.empty()
+        let definition = Js.Dict.empty()
         let fieldNames = node->Js.Dict.keys
         let isTransformed = ref(false)
         for idx in 0 to fieldNames->Js.Array2.length - 1 {
@@ -3501,15 +3521,15 @@ module Schema = {
             location,
             inlinedLocation,
             path: inlinedLocation->Path.fromInlinedLocation,
-            symbol: itemSymbol,
           }
           items->Js.Array2.unsafe_set(idx, item)
           fields->Js.Dict.set(location, item)
+          definition->Js.Dict.set(location, item->Object.proxify) // FIXME: remove
           if !isTransformed.contents && schema !== schema.reverse() {
             isTransformed := true
           }
         }
-        let definition = fields->(Obj.magic: dict<item> => unknown)
+        let definition = definition->(Obj.magic: dict<unknown> => unknown)
         makeSchema(
           ~name=Object.name,
           ~tagged=Object({

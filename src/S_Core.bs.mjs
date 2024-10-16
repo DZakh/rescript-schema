@@ -7,6 +7,8 @@ import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as Caml_exceptions from "rescript/lib/es6/caml_exceptions.js";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
+var immutableEmpty = {};
+
 function fromString(string) {
   return JSON.stringify(string);
 }
@@ -1496,13 +1498,13 @@ function addItemOutput(b, ctx, item, output) {
 }
 
 function toOutputVal(b, ctx, outputDefinition) {
-  var definitionToValue = function (definition, outputPath) {
-    var val = ctx.o.get(definition);
-    if (val !== undefined) {
-      return inline(b, val);
-    }
+  var definitionToValue = function (definition) {
     if (!(typeof definition === "object" && definition !== null)) {
       return "e[" + (b.g.e.push(definition) - 1) + "]";
+    }
+    var val = ctx.o.get(definition[itemSymbol]);
+    if (val !== undefined) {
+      return inline(b, val);
     }
     var isArray = Array.isArray(definition);
     var keys = Object.keys(definition);
@@ -1510,7 +1512,7 @@ function toOutputVal(b, ctx, outputDefinition) {
     for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
       var key = keys[idx];
       var definition$1 = definition[key];
-      var output = definitionToValue(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+      var output = definitionToValue(definition$1);
       if (idx !== 0) {
         codeRef = codeRef + ",";
       }
@@ -1522,7 +1524,7 @@ function toOutputVal(b, ctx, outputDefinition) {
             isArray ? "]" : "}"
           );
   };
-  var syncOutput = definitionToValue(outputDefinition, "");
+  var syncOutput = definitionToValue(outputDefinition);
   if (ctx.a === 0) {
     return val(b, syncOutput);
   }
@@ -1600,6 +1602,18 @@ function name() {
               }).join(", ") + "})";
 }
 
+function proxify(item) {
+  return new Proxy(immutableEmpty, {
+              get: (function (param, prop) {
+                  if (prop === itemSymbol) {
+                    return item;
+                  } else {
+                    return (void 0);
+                  }
+                })
+            });
+}
+
 function reverse$1(inputDefinition, toItem) {
   return function () {
     var original = this;
@@ -1617,19 +1631,20 @@ function reverse$1(inputDefinition, toItem) {
                   var embededOutputs = new WeakMap();
                   var definitionToOutput = function (definition, outputPath) {
                     if (typeof definition === "object" && definition !== null) {
-                      if (definition.s === itemSymbol) {
-                        var embededOutput = embededOutputs.get(definition);
+                      var item = definition[itemSymbol];
+                      if (item !== undefined) {
+                        var embededOutput = embededOutputs.get(item);
                         if (embededOutput !== undefined) {
                           var itemInput = outputPath === "" ? input : val(b, inputVar + outputPath);
-                          var schema = definition.t.r();
+                          var schema = item.t.r();
                           var itemOutput = schema.b(b, itemInput, schema, path + outputPath);
-                          b.c = b.c + ("if(" + $$var(b, embededOutput) + "!==" + $$var(b, itemOutput) + "){" + fail(b, "Multiple sources provided not equal data for " + definition.i, path) + "}");
+                          b.c = b.c + ("if(" + $$var(b, embededOutput) + "!==" + $$var(b, itemOutput) + "){" + fail(b, "Multiple sources provided not equal data for " + item.i, path) + "}");
                           return ;
                         }
                         var itemInput$1 = outputPath === "" ? input : val(b, inputVar + outputPath);
-                        var schema$1 = definition.t.r();
+                        var schema$1 = item.t.r();
                         var itemOutput$1 = schema$1.b(b, itemInput$1, schema$1, path + outputPath);
-                        embededOutputs.set(definition, itemOutput$1);
+                        embededOutputs.set(item, itemOutput$1);
                         return ;
                       }
                       var keys = Object.keys(definition);
@@ -1712,12 +1727,11 @@ function factory$3(definer) {
       t: schema,
       p: item_p,
       l: fieldName,
-      i: inlinedLocation,
-      s: itemSymbol
+      i: inlinedLocation
     };
     fields[fieldName] = item;
     items.push(item);
-    return item;
+    return proxify(item);
   };
   var tag = function (tag$1, asValue) {
     field(tag$1, literal(asValue));
@@ -1773,10 +1787,9 @@ function to(schema, definer) {
     t: schema,
     p: "",
     l: "",
-    i: "\"\"",
-    s: itemSymbol
+    i: "\"\""
   };
-  var definition = definer(item);
+  var definition = definer(proxify(item));
   return makeSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
                 var ctx = make$1(selfSchema);
                 var itemOutput = schema.b(b, input, schema, path);
@@ -1843,11 +1856,10 @@ function factory$4(definer) {
       t: schema,
       p: item_p,
       l: $$location,
-      i: inlinedLocation,
-      s: itemSymbol
+      i: inlinedLocation
     };
     items[idx] = item$1;
-    return item$1;
+    return proxify(item$1);
   };
   var tag = function (idx, asValue) {
     item(idx, literal(asValue));
@@ -1867,8 +1879,7 @@ function factory$4(definer) {
         t: unit,
         p: item_p,
         l: $$location,
-        i: inlinedLocation,
-        s: itemSymbol
+        i: inlinedLocation
       };
       items[idx] = item$1;
     }
@@ -2323,8 +2334,7 @@ function definitionToSchema(definition) {
         t: schema,
         p: item_p,
         l: $$location,
-        i: inlinedLocation,
-        s: itemSymbol
+        i: inlinedLocation
       };
       items[idx] = item;
       if (!isTransformed && schema !== schema.r()) {
@@ -2332,17 +2342,19 @@ function definitionToSchema(definition) {
       }
       
     }
+    var definition$1 = items.map(proxify);
     var length = items.length;
     return makeSchema(name$1, {
                 TAG: "Tuple",
                 items: items,
-                definition: items
+                definition: definition$1
               }, empty, builder$1, (function (b, inputVar) {
                   return typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
-                }), isTransformed ? reverse$1(items, undefined) : toSelf);
+                }), isTransformed ? reverse$1(definition$1, undefined) : toSelf);
   }
   var items$1 = [];
   var fields = {};
+  var definition$2 = {};
   var fieldNames = Object.keys(definition);
   var isTransformed$1 = false;
   for(var idx$1 = 0 ,idx_finish$1 = fieldNames.length; idx$1 < idx_finish$1; ++idx$1){
@@ -2354,11 +2366,11 @@ function definitionToSchema(definition) {
       t: schema$1,
       p: item_p$1,
       l: $$location$1,
-      i: inlinedLocation$1,
-      s: itemSymbol
+      i: inlinedLocation$1
     };
     items$1[idx$1] = item$1;
     fields[$$location$1] = item$1;
+    definition$2[$$location$1] = proxify(item$1);
     if (!isTransformed$1 && schema$1 !== schema$1.r()) {
       isTransformed$1 = true;
     }
@@ -2369,8 +2381,8 @@ function definitionToSchema(definition) {
               items: items$1,
               fields: fields,
               unknownKeys: globalConfig.u,
-              definition: fields
-            }, empty, builder$1, typeFilter$1, isTransformed$1 ? reverse$1(fields, undefined) : toSelf);
+              definition: definition$2
+            }, empty, builder$1, typeFilter$1, isTransformed$1 ? reverse$1(definition$2, undefined) : toSelf);
 }
 
 function matches(schema) {
