@@ -9,9 +9,5 @@ test("Successfully parses", t => {
 test("Successfully serializes", t => {
   let schema = S.string->S.trim
 
-  t->Assert.deepEqual(
-    "   Hello world!"->S.serializeToUnknownWith(schema),
-    Ok(%raw(`"Hello world!"`)),
-    (),
-  )
+  t->Assert.deepEqual("   Hello world!"->S.reverseConvertWith(schema), %raw(`"Hello world!"`), ())
 })

@@ -220,7 +220,7 @@ test("Serializes union even one of the items is an invalid JSON schema", t => {
   )
 
   // Not related to the test, just check that it doesn't crash while we are at it
-  t->Assert.deepEqual("foo"->S.serializeToUnknownWith(schema), %raw(`"foo"`)->Ok, ())
+  t->Assert.deepEqual("foo"->S.reverseConvertWith(schema), %raw(`"foo"`), ())
   // TODO: Can be improved to return null
   t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{if(typeof i!=="string"){}return i}`)
 

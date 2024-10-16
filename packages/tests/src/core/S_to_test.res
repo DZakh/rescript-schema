@@ -33,18 +33,14 @@ test("Fails to parse wrapped schema", t => {
 test("Serializes with unwrapping the value from variant", t => {
   let schema = S.string->S.to(s => Ok(s))
 
-  t->Assert.deepEqual(
-    Ok("Hello world!")->S.serializeToUnknownWith(schema),
-    Ok(%raw(`"Hello world!"`)),
-    (),
-  )
+  t->Assert.deepEqual(Ok("Hello world!")->S.reverseConvertWith(schema), %raw(`"Hello world!"`), ())
 })
 
 test("Fails to serialize when can't unwrap the value from variant", t => {
   let schema = S.string->S.to(s => Ok(s))
 
-  t->U.assertErrorResult(
-    Error("Hello world!")->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => Error("Hello world!")->S.reverseConvertWith(schema),
     {
       code: InvalidType({expected: S.literal("Ok")->S.toUnknown, received: "Error"->Obj.magic}),
       operation: SerializeToUnknown,
@@ -62,8 +58,8 @@ test("Successfully parses when the value is not used as the variant payload", t 
 test("Fails to serialize when the value is not used as the variant payload", t => {
   let schema = S.string->S.to(_ => #foo)
 
-  t->U.assertErrorResult(
-    #foo->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => #foo->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({
         description: `Schema for "" isn\'t registered`,
@@ -79,7 +75,7 @@ test(
   t => {
     let schema = S.literal((true, 12))->S.to(_ => #foo)
 
-    t->Assert.deepEqual(#foo->S.serializeToUnknownWith(schema), Ok(%raw(`[true, 12]`)), ())
+    t->Assert.deepEqual(#foo->S.reverseConvertWith(schema), %raw(`[true, 12]`), ())
   },
 )
 
@@ -94,7 +90,7 @@ test("BROKEN: Successfully parses when tuple is destructured", t => {
 test("BROKEN: Fails to serialize when tuple is destructured", t => {
   let schema = S.tuple2(S.literal(true), S.literal(12))->S.to(((_, twelve)) => twelve)
 
-  // t->Assert.deepEqual(12->S.serializeToUnknownWith(schema), Ok(%raw(`[true, 12]`)), ())
+  // t->Assert.deepEqual(12->S.reverseConvertWith(schema), Ok(%raw(`[true, 12]`)), ())
   t->Assert.throws(
     () => {
       12->S.reverseConvertWith(schema)
@@ -122,8 +118,8 @@ test("Reverse convert with value registered multiple times", t => {
   )
 
   t->Assert.deepEqual(#Foo("abc", "abc")->S.reverseConvertWith(schema), %raw(`"abc"`), ())
-  t->U.assertErrorResult(
-    #Foo("abc", "abcd")->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => #Foo("abc", "abcd")->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({
         description: `Multiple sources provided not equal data for ""`,
@@ -200,7 +196,7 @@ test(
   t => {
     let schema = S.literal((true, 12))->S.to(_ => #foo)
 
-    t->Assert.deepEqual(#foo->S.serializeToUnknownWith(schema), Ok(%raw(`[true,12]`)), ())
+    t->Assert.deepEqual(#foo->S.reverseConvertWith(schema), %raw(`[true,12]`), ())
 
     t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{if(i!=="foo"){e[0](i)}return e[1]}`)
   },

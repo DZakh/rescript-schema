@@ -184,8 +184,6 @@ let custom: (string, s<'output> => customDefinition<'input, 'output>) => t<'outp
 
 let refine: (t<'value>, s<'value> => 'value => unit) => t<'value>
 
-@deprecated("It'll be removed in v9. Use S.to instead")
-let variant: (t<'value>, 'value => 'variant) => t<'variant>
 let to: (t<'value>, 'value => 'variant) => t<'variant>
 
 type rec input<'input, 'computed> =
@@ -234,23 +232,9 @@ let reverseConvertToJsonStringWith: ('value, t<'value>, ~space: int=?) => string
 let serializeWith: ('value, t<'value>) => result<Js.Json.t, error>
 // @deprecated("It'll be removed in v9. Use S.reverseConvertWith and try/catch instead")
 let serializeToUnknownWith: ('value, t<'value>) => result<unknown, error>
-@deprecated("It'll be removed in v9. Use S.reverseConvertToJsonStringWith and try/catch instead")
-let serializeToJsonStringWith: ('value, t<'value>, ~space: int=?) => result<string, error>
-@deprecated("It'll be removed in v9. Use S.reverseConvertToJsonWith instead")
-let serializeOrRaiseWith: ('value, t<'value>) => Js.Json.t
-@deprecated("It'll be removed in v9. Use S.reverseConvertWith instead")
-let serializeToUnknownOrRaiseWith: ('value, t<'value>) => unknown
-@deprecated("It'll be removed in v9. Use S.reverseConvertToJsonStringWith instead")
-let serializeToJsonStringOrRaiseWith: ('value, t<'value>, ~space: int=?) => string
 
-@deprecated("It'll be removed in v9. Use S.assertWith instead")
-let assertOrRaiseWith: ('any, t<'value>) => unit
-@deprecated("It'll be removed in v9. Use S.assertWith instead")
-let assertAnyWith: ('any, t<'value>) => unit
 let assertWith: ('any, t<'value>) => unit
 
-@deprecated("It'll be removed in v9. Use S.isAsync instead")
-let isAsyncParse: t<'value> => bool
 let isAsync: t<'value> => bool
 
 let recursive: (t<'value> => t<'value>) => t<'value>

@@ -20,8 +20,8 @@ test("Successfully serializes valid value", t => {
   let schema = S.string->S.url
 
   t->Assert.deepEqual(
-    "http://dzakh.dev"->S.serializeToUnknownWith(schema),
-    Ok(%raw(`"http://dzakh.dev"`)),
+    "http://dzakh.dev"->S.reverseConvertWith(schema),
+    %raw(`"http://dzakh.dev"`),
     (),
   )
 })
@@ -29,8 +29,8 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.url
 
-  t->U.assertErrorResult(
-    "cifjhdsfhsd"->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => "cifjhdsfhsd"->S.reverseConvertWith(schema),
     {code: OperationFailed("Invalid url"), operation: SerializeToUnknown, path: S.Path.empty},
   )
 })

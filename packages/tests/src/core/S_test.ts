@@ -404,30 +404,6 @@ test("Successfully serializes with valid value", (t) => {
   expectType<TypeEqual<typeof result, string>>(true);
 });
 
-test("Successfully serializes to json with valid value", (t) => {
-  const schema = S.string;
-  const result = schema.serializeToJsonOrThrow("123");
-
-  t.deepEqual(result, "123");
-
-  expectType<TypeEqual<typeof result, S.Json>>(true);
-});
-
-test("Fails to serialize to json non-jsonable schema", (t) => {
-  const schema = S.optional(S.string);
-
-  t.throws(
-    () => {
-      const result = schema.serializeToJsonOrThrow("123");
-      expectType<TypeEqual<typeof result, S.Json>>(true);
-    },
-    {
-      message:
-        "Failed serializing to JSON at root. Reason: The Option(String) schema is not compatible with JSON",
-    }
-  );
-});
-
 test("Fails to serialize never", (t) => {
   const schema = S.never;
 

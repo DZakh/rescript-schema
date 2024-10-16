@@ -46,7 +46,7 @@ module Tuple0 = {
   test("Successfully serializes", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(any), ())
+    t->Assert.deepEqual(value->S.reverseConvertWith(schema), any, ())
   })
 }
 
@@ -78,11 +78,7 @@ test("Fails to parse tuple with holes", t => {
 test("Successfully serializes tuple with holes", t => {
   let schema = S.tuple(s => (s.item(0, S.string), s.item(2, S.int)))
 
-  t->Assert.deepEqual(
-    ("value", 123)->S.serializeToUnknownWith(schema),
-    Ok(%raw(`["value",, 123]`)),
-    (),
-  )
+  t->Assert.deepEqual(("value", 123)->S.reverseConvertWith(schema), %raw(`["value",, 123]`), ())
 })
 
 test("Reverse convert of tuple schema with single item registered multiple times", t => {
@@ -105,8 +101,8 @@ test("Reverse convert of tuple schema with single item registered multiple times
     %raw(`["foo"]`),
     (),
   )
-  t->U.assertErrorResult(
-    {"item1": "foo", "item2": "foz"}->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => {"item1": "foo", "item2": "foz"}->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({
         description: `Multiple sources provided not equal data for "0"`,
@@ -123,18 +119,15 @@ test(`Fails to serialize tuple with discriminant "Never"`, t => {
     s.item(1, S.string)
   })
 
-  t->Assert.deepEqual(
-    "bar"->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
-        code: InvalidOperation({
-          description: `Schema for "0" isn\'t registered`,
-        }),
-        operation: SerializeToUnknown,
-        path: S.Path.empty,
+  t->U.assertError(
+    () => "bar"->S.reverseConvertWith(schema),
+    {
+      code: InvalidOperation({
+        description: `Schema for "0" isn\'t registered`,
       }),
-    ),
-    (),
+      operation: SerializeToUnknown,
+      path: S.Path.empty,
+    },
   )
 })
 
@@ -152,18 +145,15 @@ test(`Fails to serialize tuple with discriminant "Never" inside of an object (te
     }
   )
 
-  t->Assert.deepEqual(
-    {"foo": "bar"}->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
-        code: InvalidOperation({
-          description: `Schema for "0" isn\'t registered`,
-        }),
-        operation: SerializeToUnknown,
-        path: S.Path.fromLocation(`foo`),
+  t->U.assertError(
+    () => {"foo": "bar"}->S.reverseConvertWith(schema),
+    {
+      code: InvalidOperation({
+        description: `Schema for "0" isn\'t registered`,
       }),
-    ),
-    (),
+      operation: SerializeToUnknown,
+      path: S.Path.fromLocation(`foo`),
+    },
   )
 })
 
@@ -176,14 +166,14 @@ test("Successfully parses tuple transformed to variant", t => {
 test("Successfully serializes tuple transformed to variant", t => {
   let schema = S.tuple(s => #VARIANT(s.item(0, S.bool)))
 
-  t->Assert.deepEqual(#VARIANT(true)->S.serializeToUnknownWith(schema), Ok(%raw(`[true]`)), ())
+  t->Assert.deepEqual(#VARIANT(true)->S.reverseConvertWith(schema), %raw(`[true]`), ())
 })
 
 test("Fails to serialize tuple transformed to variant", t => {
   let schema = S.tuple(s => Ok(s.item(0, S.bool)))
 
-  t->U.assertErrorResult(
-    Error("foo")->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => Error("foo")->S.reverseConvertWith(schema),
     {
       code: InvalidType({expected: S.literal("Ok")->S.toUnknown, received: %raw(`"Error"`)}),
       operation: SerializeToUnknown,
