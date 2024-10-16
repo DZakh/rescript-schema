@@ -278,7 +278,7 @@ and tagged =
   | Dict(t<unknown>)
   | JSON({validated: bool})
 and item = {
-  @as("t")
+  @as("s")
   schema: schema<unknown>,
   @as("p")
   path: Path.t,
@@ -2243,6 +2243,13 @@ module Object = {
   let getItems = (schema): array<item> => (schema->classify->Obj.magic)["items"]
   let getOutputDefinition = schema => (schema->classify->Obj.magic)["definition"]
 
+  type outputItem =
+    | ExitNode
+    | Object({path: Path.t})
+    | Tuple({path: Path.t})
+    | Target({path: Path.t, item: item})
+    | Constant({path: Path.t, value: unknown})
+
   module BuildCtx = {
     // type inputKind = | @as(0) Any | @as(1) Object | @as(2) Tuple
     @unboxed
@@ -2286,7 +2293,7 @@ module Object = {
 
     let toOutputVal = (b, ~ctx: t, ~outputDefinition) => {
       let syncOutput = {
-        let rec definitionToValue = (definition: Definition.t<item>) => {
+        let rec definitionToValue = (definition: Definition.t<item>, ~outputPath) => {
           if definition->Definition.isNode {
             switch ctx.outputs->Stdlib.WeakMap.get(
               definition->Definition.toEmbededItem->Stdlib.Option.unsafeUnwrap,
@@ -2301,7 +2308,10 @@ module Object = {
                 for idx in 0 to keys->Js.Array2.length - 1 {
                   let key = keys->Js.Array2.unsafe_get(idx)
                   let definition = node->Js.Dict.unsafeGet(key)
-                  let output = definition->definitionToValue
+                  let output =
+                    definition->definitionToValue(
+                      ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
+                    )
                   if idx !== 0 {
                     codeRef := codeRef.contents ++ ","
                   }
@@ -2320,7 +2330,7 @@ module Object = {
         }
         outputDefinition
         ->(Obj.magic: unknown => Definition.t<item>)
-        ->definitionToValue
+        ->definitionToValue(~outputPath=Path.empty)
       }
 
       if ctx.asyncOutputs === None {
@@ -2331,6 +2341,71 @@ module Object = {
           `Promise.all([${asyncOutputs
             ->Js.Array2.map(val => b->B.Val.inline(val))
             ->Js.Array2.toString}]).then(a=>(${syncOutput}))`,
+        )
+      }
+    }
+
+    let toOutputVal2 = (b, ~ctx: t, ~outputItems: array<outputItem>) => {
+      // let syncOutput = {
+      //   let rec definitionToValue = (definition: Definition.t<item>, ~outputPath) => {
+      //     if definition->Definition.isNode {
+      //       switch ctx.outputs->Stdlib.WeakMap.get(
+      //         definition->Definition.toEmbededItem->Stdlib.Option.unsafeUnwrap,
+      //       ) {
+      //       | Some(val) => b->B.Val.inline(val)
+      //       | None => {
+      //           let node = definition->Definition.toNode
+      //           let isArray = Stdlib.Array.isArray(node)
+      //           let keys = node->Js.Dict.keys
+
+      //           let codeRef = ref(isArray ? "[" : "{")
+      //           for idx in 0 to keys->Js.Array2.length - 1 {
+      //             let key = keys->Js.Array2.unsafe_get(idx)
+      //             let definition = node->Js.Dict.unsafeGet(key)
+      //             let output =
+      //               definition->definitionToValue(
+      //                 ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
+      //               )
+      //             if idx !== 0 {
+      //               codeRef := codeRef.contents ++ ","
+      //             }
+      //             codeRef :=
+      //               codeRef.contents ++ (
+      //                 isArray ? output : `${key->Stdlib.Inlined.Value.fromString}:${output}`
+      //               )
+      //           }
+      //           codeRef.contents ++ (isArray ? "]" : "}")
+      //         }
+      //       }
+      //     } else {
+      //       let constant = definition->Definition.toConstant
+      //       b->B.embed(constant)
+      //     }
+      //   }
+      //   outputDefinition
+      //   ->(Obj.magic: unknown => Definition.t<item>)
+      //   ->definitionToValue(~outputPath=Path.empty)
+      // }
+
+      let syncOutput = ref("")
+      let currentPath = ref(Path.empty)
+
+      for idx in 0 to outputItems->Js.Array2.length - 1 {
+        let outputItem = outputItems->Js.Array2.unsafe_get(idx)
+        switch outputItem {
+        | Constant({path, value}) => b->B.embed(value)
+        | ExitNode => ()
+        }
+      }
+
+      if ctx.asyncOutputs === None {
+        b->B.val(syncOutput.contents)
+      } else {
+        let asyncOutputs = ctx.asyncOutputs->(Obj.magic: asyncOutputs => array<val>)
+        b->B.asyncVal(
+          `Promise.all([${asyncOutputs
+            ->Js.Array2.map(val => b->B.Val.inline(val))
+            ->Js.Array2.toString}]).then(a=>(${syncOutput.contents}))`,
         )
       }
     }
@@ -2589,7 +2664,33 @@ module Object = {
       }
       let definition: unknown = definer(item->proxify)->Obj.magic
 
-      // let outputs =
+      let outputItems: array<outputItem> = []
+
+      let rec traverseDefinition = (definition: Definition.t<item>, ~path) => {
+        if definition->Definition.isNode {
+          switch definition->Definition.toEmbededItem {
+          | Some(item) => outputItems->Js.Array2.push(Target({path, item}))->ignore
+          | None => {
+              let node = definition->Definition.toNode
+              let isArray = Stdlib.Array.isArray(node)
+              outputItems
+              ->Js.Array2.push(isArray ? Tuple({path: path}) : Object({path: path}))
+              ->ignore
+              let keys = node->Js.Dict.keys
+              for idx in 0 to keys->Js.Array2.length - 1 {
+                let key = keys->Js.Array2.unsafe_get(idx)
+                let definition = node->Js.Dict.unsafeGet(key)
+                definition->traverseDefinition(~path=Path.concat(path, Path.fromLocation(key)))
+              }
+              outputItems->Js.Array2.push(ExitNode)->ignore
+            }
+          }
+        } else {
+          let constant = definition->Definition.toConstant
+          outputItems->Js.Array2.push(Constant({path, value: constant}))->ignore
+        }
+      }
+      definition->Obj.magic->traverseDefinition(~path=Path.empty)
 
       makeSchema(
         ~name=schema.name,
@@ -3482,11 +3583,12 @@ module Schema = {
           let location = idx->Js.Int.toString
           let inlinedLocation = `"${location}"`
           let schema = node->Js.Array2.unsafe_get(idx)->definitionToSchema
+          let path = inlinedLocation->Path.fromInlinedLocation
           let item: item = {
             schema,
             location,
             inlinedLocation,
-            path: inlinedLocation->Path.fromInlinedLocation,
+            path,
           }
           items->Js.Array2.unsafe_set(idx, item)
           if !isTransformed.contents && schema !== schema.reverse() {

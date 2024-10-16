@@ -55,7 +55,7 @@ and tagged =
   | Dict(t<unknown>)
   | JSON({validated: bool})
 and item = {
-  @as("t")
+  @as("s")
   schema: schema<unknown>,
   @as("p")
   path: Path.t,
