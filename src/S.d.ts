@@ -231,14 +231,6 @@ export const union: <A, B extends unknown[]>(
   UnknownToInput<A> | SchemaUnionTupleInput<B>[number]
 >;
 
-/**
- * @deprecated Pass the Schema directly instead of using the s.matches method
- */
-export function schema<Value>(
-  definer: (s: {
-    matches: <Output>(schema: Schema<Output, unknown>) => Output;
-  }) => Value
-): Schema<Value, unknown>;
 export function schema<T>(
   value: T
 ): Schema<UnknownToOuput<T>, UnknownToInput<T>>;

@@ -438,6 +438,8 @@ let js_transform: (
   ~serializer: ('transformed, s<'transformed>) => 'output=?,
 ) => t<'transformed>
 
+let js_schema: unknown => t<unknown>
+
 let js_merge: (t<unknown>, t<unknown>) => t<unknown>
 
 let js_name: t<'value> => string
