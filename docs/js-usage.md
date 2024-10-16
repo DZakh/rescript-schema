@@ -66,7 +66,7 @@ npm install rescript-schema rescript@11
 import * as S from "rescript-schema";
 
 // Create login schema with email and password
-const loginSchema = S.object({
+const loginSchema = S.schema({
   email: S.email(S.string),
   password: S.stringMinLength(S.string, 8),
 });
@@ -75,13 +75,16 @@ const loginSchema = S.object({
 type LoginData = S.Output<typeof loginSchema>; // { email: string; password: string }
 
 // Throws the S.Error(`Failed parsing at ["email"]. Reason: Invalid email address`)
-loginSchema.parseOrThrow({ email: "", password: "" });
+S.parseWith({ email: "", password: "" }, loginSchema);
 
 // Returns data as { email: string; password: string }
-loginSchema.parseOrThrow({
-  email: "jane@example.com",
-  password: "12345678",
-});
+S.parseWith(
+  {
+    email: "jane@example.com",
+    password: "12345678",
+  },
+  loginSchema
+);
 ```
 
 ## Primitives
@@ -164,10 +167,10 @@ const datetimeSchema = S.datetime(S.string);
 // The datetimeSchema has the type S.Schema<Date, string>
 // String is transformed to the Date instance
 
-datetimeSchema.parseOrThrow("2020-01-01T00:00:00Z"); // pass
-datetimeSchema.parseOrThrow("2020-01-01T00:00:00.123Z"); // pass
-datetimeSchema.parseOrThrow("2020-01-01T00:00:00.123456Z"); // pass (arbitrary precision)
-datetimeSchema.parseOrThrow("2020-01-01T00:00:00+02:00"); // fail (no offsets allowed)
+S.parseWith("2020-01-01T00:00:00Z", datetimeSchema); // pass
+S.parseWith("2020-01-01T00:00:00.123Z", datetimeSchema); // pass
+S.parseWith("2020-01-01T00:00:00.123456Z", datetimeSchema); // pass (arbitrary precision)
+S.parseWith("2020-01-01T00:00:00+02:00", datetimeSchema); // fail (no offsets allowed)
 ```
 
 ## Numbers
@@ -202,7 +205,7 @@ You can make any schema optional with `S.optional`.
 ```ts
 const schema = S.optional(S.string);
 
-schema.parseOrThrow(undefined); // => returns undefined
+S.parseWith(undefined, schema); // => returns undefined
 type A = S.Output<typeof schema>; // string | undefined
 ```
 
@@ -211,7 +214,7 @@ You can pass a default value to the second argument of `S.optional`.
 ```ts
 const stringWithDefaultSchema = S.optional(S.string, "tuna");
 
-stringWithDefaultSchema.parseOrThrow(undefined); // => returns "tuna"
+S.parseWith(undefined, stringWithDefaultSchema); // => returns "tuna"
 type A = S.Output<typeof stringWithDefaultSchema>; // string
 ```
 
@@ -220,9 +223,9 @@ Optionally, you can pass a function as a default value that will be re-executed 
 ```ts
 const numberWithRandomDefault = S.optional(S.number, Math.random);
 
-numberWithRandomDefault.parseOrThrow(undefined); // => 0.4413456736055323
-numberWithRandomDefault.parseOrThrow(undefined); // => 0.1871840107401901
-numberWithRandomDefault.parseOrThrow(undefined); // => 0.7223408162401552
+S.parseWith(undefined, numberWithRandomDefault); // => 0.4413456736055323
+S.parseWith(undefined, numberWithRandomDefault); // => 0.1871840107401901
+S.parseWith(undefined, numberWithRandomDefault); // => 0.7223408162401552
 ```
 
 Conceptually, this is how **rescript-schema** processes default values:
@@ -236,9 +239,11 @@ Similarly, you can create nullable types with `S.nullable`.
 
 ```ts
 const nullableStringSchema = S.nullable(S.string);
-nullableStringSchema.parseOrThrow("asdf"); // => "asdf"
-nullableStringSchema.parseOrThrow(null); // => undefined
+S.parseWith("asdf", nullableStringSchema); // => "asdf"
+S.parseWith(null, nullableStringSchema); // => undefined
 ```
+
+Notice how the `null` input transformed to `undefined`.
 
 ## Nullish
 
@@ -246,16 +251,16 @@ A convenience method that returns a "nullish" version of a schema. Nullish schem
 
 ```ts
 const nullishStringSchema = S.nullish(S.string);
-nullishStringSchema.parseOrThrow("asdf"); // => "asdf"
-nullishStringSchema.parseOrThrow(null); // => undefined
-nullishStringSchema.parseOrThrow(undefined); // => undefined
+S.parseWith("asdf", nullishStringSchema); // => "asdf"
+S.parseWith(null, nullishStringSchema); // => undefined
+S.parseWith(undefined, nullishStringSchema); // => undefined
 ```
 
 ## Objects
 
 ```ts
 // all properties are required by default
-const dogSchema = S.object({
+const dogSchema = S.schema({
   name: S.string,
   age: S.number,
 });
@@ -272,10 +277,10 @@ type Dog = {
 
 ### Literal shorthand
 
-Besides passing schemas for values in `S.object`, you can also pass **any** Js value.
+Besides passing schemas for values in `S.schema`, you can also pass **any** Js value.
 
 ```ts
-const meSchema = S.object({
+const meSchema = S.schema({
   id: S.number,
   name: "Dmitry Zakharov",
   age: 23,
@@ -299,23 +304,29 @@ const userSchema = S.object((s) => ({
   name: s.field("USER_NAME", S.string),
 }));
 
-userSchema.parseOrThrow({
-  USER_ID: 1,
-  USER_NAME: "John",
-});
+S.parseWith(
+  {
+    USER_ID: 1,
+    USER_NAME: "John",
+  },
+  userSchema
+);
 // => returns { id: 1, name: "John" }
 
 // Infer output TypeScript type of the userSchema
 type User = S.Output<typeof userSchema>; // { id: number; name: string }
 ```
 
-Compared to using `S.transform`, the approach has 0 performance overhead. Also, you can use the same schema to transform the parsed data back to the initial format:
+Compared to using `S.transform`, the approach has 0 performance overhead. Also, you can use the same schema to convert the parsed data back to the initial format:
 
 ```ts
-userSchema.serializeOrThrow({
-  id: 1,
-  name: "John",
-});
+S.convertWith(
+  {
+    id: 1,
+    name: "John",
+  },
+  S.reverse(userSchema)
+);
 // => returns { USER_ID: 1, USER_NAME: "John" }
 ```
 
@@ -325,15 +336,18 @@ By default **rescript-schema** object schema strip out unrecognized keys during 
 
 ```ts
 const personSchema = S.Object.strict(
-  S.object({
+  S.schema({
     name: S.string,
   })
 );
 
-personSchema.parseOrThrow({
-  name: "bob dylan",
-  extraKey: 61,
-});
+S.parseWith(
+  {
+    name: "bob dylan",
+    extraKey: 61,
+  },
+  personSchema
+);
 // => throws S.Error
 ```
 
@@ -346,8 +360,8 @@ You can use the `S.Object.strip` function to reset an object schema to the defau
 You can add additional fields to an object schema with the `merge` function.
 
 ```ts
-const baseTeacherSchema = S.object({ students: S.array(S.string) });
-const hasIDSchema = S.object({ id: S.string });
+const baseTeacherSchema = S.schema({ students: S.array(S.string) });
+const hasIDSchema = S.schema({ id: S.string });
 
 const teacherSchema = S.merge(baseTeacherSchema, hasIDSchema);
 type Teacher = S.Output<typeof teacherSchema>; // => { students: string[], id: string }
@@ -377,7 +391,7 @@ Unlike arrays, tuples have a fixed number of elements and each element can have 
 const athleteSchema = S.tuple([
   S.string, // name
   S.number, // jersey number
-  S.object({
+  S.schema({
     pointsScored: S.number,
   }), // statistics
 ]);
@@ -396,7 +410,7 @@ const athleteSchema = S.tuple((s) => ({
   jerseyNumber: s.item(1, S.number),
   statistics: s.item(
     2,
-    S.object({
+    S.schema({
       pointsScored: S.number,
     })
   ),
@@ -428,8 +442,8 @@ The schema function `union` creates an OR relationship between any number of sch
 
 const stringOrNumberSchema = S.union([S.string, S.number]);
 
-stringOrNumberSchema.parseOrThrow("foo"); // passes
-stringOrNumberSchema.parseOrThrow(14); // passes
+S.parseWith("foo", stringOrNumberSchema); // passes
+S.parseWith(14, stringOrNumberSchema); // passes
 ```
 
 ### Discriminated unions
@@ -442,19 +456,19 @@ stringOrNumberSchema.parseOrThrow(14); // passes
 // | { kind: "triangle"; x: number; y: number };
 
 const shapeSchema = S.union([
-  S.object({
+  {
     kind: "circle" as const,
     radius: S.number,
-  }),
-  S.object({
+  },
+  {
     kind: "square" as const,
     x: S.number,
-  }),
-  S.object({
+  },
+  {
     kind: "triangle" as const,
     x: S.number,
     y: S.number,
-  }),
+  },
 ]);
 ```
 
@@ -478,12 +492,10 @@ It's a helper built on `S.literal`, `S.object`, and `S.tuple` to create schemas 
 ```typescript
 type Shape = { kind: "circle"; radius: number } | { kind: "square"; x: number };
 
-let circleSchema = S.schema(
-  (s): Shape => ({
-    kind: "circle",
-    radius: s.matches(S.number),
-  })
-);
+let circleSchema: S.Schema<Shape> = S.schema({
+  kind: "circle" as const,
+  radius: S.number,
+});
 // The same as:
 // S.object(s => ({
 //   kind: s.field("kind", S.literal("circle")),
@@ -498,7 +510,7 @@ The `S.json` schema makes sure that the value is compatible with JSON.
 It accepts a boolean as an argument. If it's true, then the value will be validated as valid JSON; otherwise, it unsafely casts it to the `S.Json` type.
 
 ```ts
-S.json(true).parseOrThrow(`"foo"`); // passes
+S.parseWith(`"foo"`, S.json(true)); // passes
 ```
 
 ## JSON string
@@ -506,7 +518,7 @@ S.json(true).parseOrThrow(`"foo"`); // passes
 ```ts
 const schema = S.jsonString(S.int);
 
-schema.parseOrThrow("123");
+S.parseWith("123", schema);
 // => 123
 ```
 
@@ -553,7 +565,7 @@ type Node = {
 };
 
 let nodeSchema = S.recursive<Node>((nodeSchema) =>
-  S.object({
+  S.schema({
     id: S.string,
     children: S.array(nodeSchema),
   })
@@ -567,11 +579,11 @@ let nodeSchema = S.recursive<Node>((nodeSchema) =>
 **rescript-schema** lets you provide custom validation logic via refinements. It's useful to add checks that's not possible to cover with type system. For instance: checking that a number is an integer or that a string is a valid email address.
 
 ```ts
-const shortStringSchema = S.refine(S.string, (value, s) =>
+const shortStringSchema = S.refine(S.string, (value, s) => {
   if (value.length > 255) {
-    s.fail("String can't be more than 255 characters")
+    s.fail("String can't be more than 255 characters");
   }
-)
+});
 ```
 
 The refine function is applied for both parser and serializer.
@@ -579,7 +591,7 @@ The refine function is applied for both parser and serializer.
 Also, you can have an asynchronous refinement (for parser only):
 
 ```ts
-const userSchema = S.object({
+const userSchema = S.schema({
   id: S.asyncParserRefine(S.uuid(S.string), async (id, s) => {
     const isActiveUser = await checkIsActiveUser(id);
     if (!isActiveUser) {
