@@ -75,7 +75,7 @@ test("Successfully serializes jsonable schemas", t => {
 
 test("Fails to serialize Option schema", t => {
   let schema = S.option(S.bool)
-  t->U.assertError(
+  t->U.assertRaised(
     () => None->S.reverseConvertToJsonWith(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
@@ -87,7 +87,7 @@ test("Fails to serialize Option schema", t => {
 
 test("Fails to serialize Undefined literal", t => {
   let schema = S.literal()
-  t->U.assertError(
+  t->U.assertRaised(
     () => ()->S.reverseConvertToJsonWith(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
@@ -100,7 +100,7 @@ test("Fails to serialize Undefined literal", t => {
 test("Fails to serialize Function literal", t => {
   let fn = () => ()
   let schema = S.literal(fn)
-  t->U.assertError(
+  t->U.assertRaised(
     () => fn->S.reverseConvertToJsonWith(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
@@ -113,7 +113,7 @@ test("Fails to serialize Function literal", t => {
 test("Fails to serialize Object literal", t => {
   let error = %raw(`new Error("foo")`)
   let schema = S.literal(error)
-  t->U.assertError(
+  t->U.assertRaised(
     () => error->S.reverseConvertToJsonWith(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
@@ -126,7 +126,7 @@ test("Fails to serialize Object literal", t => {
 test("Fails to serialize Symbol literal", t => {
   let symbol = %raw(`Symbol()`)
   let schema = S.literal(symbol)
-  t->U.assertError(
+  t->U.assertRaised(
     () => symbol->S.reverseConvertToJsonWith(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
@@ -139,7 +139,7 @@ test("Fails to serialize Symbol literal", t => {
 test("Fails to serialize BigInt literal", t => {
   let bigint = %raw(`1234n`)
   let schema = S.literal(bigint)
-  t->U.assertError(
+  t->U.assertRaised(
     () => bigint->S.reverseConvertToJsonWith(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
@@ -152,7 +152,7 @@ test("Fails to serialize BigInt literal", t => {
 test("Fails to serialize Dict literal with invalid field", t => {
   let dict = %raw(`{"foo": 123n}`)
   let schema = S.literal(dict)
-  t->U.assertError(
+  t->U.assertRaised(
     () => dict->S.reverseConvertToJsonWith(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
@@ -164,7 +164,7 @@ test("Fails to serialize Dict literal with invalid field", t => {
 
 test("Fails to serialize NaN literal", t => {
   let schema = S.literal(%raw(`NaN`))
-  t->U.assertError(
+  t->U.assertRaised(
     () => ()->S.reverseConvertToJsonWith(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
@@ -175,14 +175,14 @@ test("Fails to serialize NaN literal", t => {
 })
 
 test("Fails to serialize Unknown schema", t => {
-  t->U.assertError(
+  t->U.assertRaised(
     () => Obj.magic(123)->S.reverseConvertToJsonWith(S.unknown),
     {code: InvalidJsonSchema(S.unknown), operation: SerializeToJson, path: S.Path.empty},
   )
 })
 
 test("Fails to serialize Never schema", t => {
-  t->U.assertError(
+  t->U.assertRaised(
     () => Obj.magic(123)->S.reverseConvertToJsonWith(S.never),
     {
       code: InvalidType({expected: S.never->S.toUnknown, received: Obj.magic(123)}),
@@ -193,7 +193,7 @@ test("Fails to serialize Never schema", t => {
 })
 
 test("Fails to serialize object with invalid nested schema", t => {
-  t->U.assertError(
+  t->U.assertRaised(
     () => Obj.magic(true)->S.reverseConvertToJsonWith(S.object(s => s.field("foo", S.unknown))),
     {
       code: InvalidJsonSchema(S.unknown),
@@ -204,7 +204,7 @@ test("Fails to serialize object with invalid nested schema", t => {
 })
 
 test("Fails to serialize tuple with invalid nested schema", t => {
-  t->U.assertError(
+  t->U.assertRaised(
     () => Obj.magic(true)->S.reverseConvertToJsonWith(S.tuple1(S.unknown)),
     {
       code: InvalidJsonSchema(S.unknown),
@@ -244,7 +244,7 @@ test("Fails to serialize union with invalid json schemas", t => {
     ~op=#SerializeJson,
     `i=>{if(!Number.isNaN(i)){throw e[1]}else{throw e[0]}return i}`,
   )
-  t->U.assertError(
+  t->U.assertRaised(
     () => "foo"->S.reverseConvertToJsonWith(schema),
     {
       code: InvalidJsonSchema(S.unknown),
@@ -252,7 +252,7 @@ test("Fails to serialize union with invalid json schemas", t => {
       path: S.Path.empty,
     },
   )
-  t->U.assertError(
+  t->U.assertRaised(
     () => %raw(`NaN`)->S.reverseConvertToJsonWith(schema),
     {
       code: InvalidJsonSchema(S.literal(%raw(`NaN`))),

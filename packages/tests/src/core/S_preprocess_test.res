@@ -49,7 +49,7 @@ test("Successfully serializes", t => {
 test("Fails to serialize when user raises error in serializer", t => {
   let schema = S.string->S.preprocess(s => {serializer: _ => s.fail("User error")})
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => "Hello world!"->S.reverseConvertWith(schema),
     {code: OperationFailed("User error"), operation: SerializeToUnknown, path: S.Path.empty},
   )
@@ -62,7 +62,7 @@ test("Preprocess operations applyed in the right order when parsing", t => {
     ->S.preprocess(s => {parser: _ => s.fail("Second preprocess")})
 
   t->U.assertErrorResult(
-    123->S.parseAnyWith(schema),
+    () => 123->S.parseAnyWith(schema),
     {code: OperationFailed("Second preprocess"), operation: Parse, path: S.Path.empty},
   )
 })
@@ -73,7 +73,7 @@ test("Preprocess operations applyed in the right order when serializing", t => {
     ->S.preprocess(s => {serializer: _ => s.fail("First preprocess")})
     ->S.preprocess(s => {serializer: _ => s.fail("Second preprocess")})
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => 123->S.reverseConvertWith(schema),
     {
       code: OperationFailed("First preprocess"),
@@ -110,7 +110,7 @@ asyncTest("Fails to parse async with user error", t => {
   ->S.parseAsyncWith(schema)
   ->Promise.thenResolve(result => {
     t->U.assertErrorResult(
-      result,
+      () => result,
       {
         code: OperationFailed("User error"),
         path: S.Path.empty,

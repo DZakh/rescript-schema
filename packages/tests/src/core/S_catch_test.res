@@ -22,7 +22,7 @@ test("Uses fallback value when parsing failed", t => {
 test("Doesn't affect serializing in any way", t => {
   let schema = S.literal("123")->S.catch(_ => "fallback")
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => "abc"->S.reverseConvertWith(schema),
     {
       code: InvalidType({received: "abc"->Obj.magic, expected: S.literal("123")->S.toUnknown}),
@@ -61,7 +61,7 @@ test("Can use s.fail inside of S.catch", t => {
   t->Assert.deepEqual("0"->S.parseAnyWith(schema), Ok("0"), ())
   t->Assert.deepEqual("abc"->S.parseAnyWith(schema), Ok("1"), ())
   t->U.assertErrorResult(
-    123->S.parseAnyWith(schema),
+    () => 123->S.parseAnyWith(schema),
     {
       code: OperationFailed("Fallback value only supported for strings."),
       operation: Parse,
@@ -69,7 +69,7 @@ test("Can use s.fail inside of S.catch", t => {
     },
   )
   t->Assert.deepEqual("0"->S.reverseConvertWith(schema), %raw(`"0"`), ())
-  t->U.assertError(
+  t->U.assertRaised(
     () => "1"->S.reverseConvertWith(schema),
     {
       code: InvalidType({expected: S.literal("0")->S.toUnknown, received: "1"->Obj.magic}),

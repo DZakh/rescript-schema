@@ -46,7 +46,7 @@ test("Fails to parse array data", t => {
   let schema = S.object(_ => ())
 
   t->U.assertErrorResult(
-    %raw(`[]`)->S.parseAnyWith(schema),
+    () => %raw(`[]`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`[]`)}),
       operation: Parse,

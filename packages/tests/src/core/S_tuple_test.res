@@ -18,7 +18,7 @@ module Tuple0 = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      invalidAny->S.parseAnyWith(schema),
+      () => invalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({
           expected: schema->S.toUnknown,
@@ -34,7 +34,7 @@ module Tuple0 = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      invalidTypeAny->S.parseAnyWith(schema),
+      () => invalidTypeAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidTypeAny}),
         operation: Parse,
@@ -66,7 +66,7 @@ test("Fails to parse tuple with holes", t => {
   let schema = S.tuple(s => (s.item(0, S.string), s.item(2, S.int)))
 
   t->U.assertErrorResult(
-    %raw(`["value", "smth", 123]`)->S.parseAnyWith(schema),
+    () => %raw(`["value", "smth", 123]`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: S.literal(None)->S.toUnknown, received: %raw(`"smth"`)}),
       operation: Parse,
@@ -101,7 +101,7 @@ test("Reverse convert of tuple schema with single item registered multiple times
     %raw(`["foo"]`),
     (),
   )
-  t->U.assertError(
+  t->U.assertRaised(
     () => {"item1": "foo", "item2": "foz"}->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({
@@ -119,7 +119,7 @@ test(`Fails to serialize tuple with discriminant "Never"`, t => {
     s.item(1, S.string)
   })
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => "bar"->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({
@@ -145,7 +145,7 @@ test(`Fails to serialize tuple with discriminant "Never" inside of an object (te
     }
   )
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => {"foo": "bar"}->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({
@@ -172,7 +172,7 @@ test("Successfully serializes tuple transformed to variant", t => {
 test("Fails to serialize tuple transformed to variant", t => {
   let schema = S.tuple(s => Ok(s.item(0, S.bool)))
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => Error("foo")->S.reverseConvertWith(schema),
     {
       code: InvalidType({expected: S.literal("Ok")->S.toUnknown, received: %raw(`"Error"`)}),
@@ -210,7 +210,7 @@ test("Tuple schema parsing checks order", t => {
 
   // Type check should be the first
   t->U.assertErrorResult(
-    %raw(`"foo"`)->S.parseAnyWith(schema),
+    () => %raw(`"foo"`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`"foo"`)}),
       operation: Parse,
@@ -219,7 +219,7 @@ test("Tuple schema parsing checks order", t => {
   )
   // Length check should be the second
   t->U.assertErrorResult(
-    %raw(`["value", "value", "value", "value"]`)->S.parseAnyWith(schema),
+    () => %raw(`["value", "value", "value", "value"]`)->S.parseAnyWith(schema),
     {
       code: InvalidType({
         expected: schema->S.toUnknown,
@@ -231,7 +231,7 @@ test("Tuple schema parsing checks order", t => {
   )
   // Tag check should be the third
   t->U.assertErrorResult(
-    %raw(`["value", "wrong"]`)->S.parseAnyWith(schema),
+    () => %raw(`["value", "wrong"]`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: S.literal("value")->S.toUnknown, received: %raw(`"wrong"`)}),
       operation: Parse,
@@ -240,7 +240,7 @@ test("Tuple schema parsing checks order", t => {
   )
   // Field check should be the last
   t->U.assertErrorResult(
-    %raw(`[1, "value"]`)->S.parseAnyWith(schema),
+    () => %raw(`[1, "value"]`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`1`)}),
       operation: Parse,

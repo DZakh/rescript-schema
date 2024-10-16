@@ -28,7 +28,7 @@ test("Fails to parse primitive with transform when parser isn't provided", t => 
   let schema = S.string->S.transform(_ => {serializer: value => value})
 
   t->U.assertErrorResult(
-    "Hello world!"->S.parseAnyWith(schema),
+    () => "Hello world!"->S.parseAnyWith(schema),
     {
       code: InvalidOperation({description: "The S.transform parser is missing"}),
       operation: Parse,
@@ -62,7 +62,7 @@ test("Uses the path from S.Error.raise called in the transform parser", t => {
   )
 
   t->U.assertErrorResult(
-    ["Hello world!"]->S.parseAnyWith(schema),
+    () => ["Hello world!"]->S.parseAnyWith(schema),
     {
       code: OperationFailed("User error"),
       operation: Parse,
@@ -85,7 +85,7 @@ test("Uses the path from S.Error.raise called in the transform serializer", t =>
     }),
   )
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => ["Hello world!"]->S.reverseConvertToJsonWith(schema),
     {
       code: OperationFailed("User error"),
@@ -148,7 +148,7 @@ test("Successfully serializes primitive with transformation to another type", t 
 test("Transformed Primitive serializing fails when serializer isn't provided", t => {
   let schema = S.string->S.transform(_ => {parser: value => value})
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => "Hello world!"->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({description: "The S.transform serializer is missing"}),
@@ -161,7 +161,7 @@ test("Transformed Primitive serializing fails when serializer isn't provided", t
 test("Fails to serialize when user raises error in a Transformed Primitive serializer", t => {
   let schema = S.string->S.transform(s => {serializer: _ => s.fail("User error")})
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => "Hello world!"->S.reverseConvertWith(schema),
     {code: OperationFailed("User error"), operation: SerializeToUnknown, path: S.Path.empty},
   )
@@ -174,7 +174,7 @@ test("Transform operations applyed in the right order when parsing", t => {
     ->S.transform(s => {parser: _ => s.fail("Second transform")})
 
   t->U.assertErrorResult(
-    123->S.parseAnyWith(schema),
+    () => 123->S.parseAnyWith(schema),
     {code: OperationFailed("First transform"), operation: Parse, path: S.Path.empty},
   )
 })
@@ -185,7 +185,7 @@ test("Transform operations applyed in the right order when serializing", t => {
     ->S.transform(s => {serializer: _ => s.fail("First transform")})
     ->S.transform(s => {serializer: _ => s.fail("Second transform")})
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => 123->S.reverseConvertWith(schema),
     {
       code: OperationFailed("Second transform"),
@@ -218,7 +218,7 @@ test("Fails to parse schema with transform having both parser and asyncParser", 
     S.string->S.transform(_ => {parser: _ => (), asyncParser: _ => () => Promise.resolve()})
 
   t->U.assertErrorResult(
-    "foo"->S.parseAnyWith(schema),
+    () => "foo"->S.parseAnyWith(schema),
     {
       code: InvalidOperation({
         description: "The S.transform doesn\'t allow parser and asyncParser at the same time. Remove parser in favor of asyncParser",
@@ -268,7 +268,7 @@ asyncTest("Fails to parse async with user error", t => {
   ->S.parseAsyncWith(schema)
   ->Promise.thenResolve(result => {
     t->U.assertErrorResult(
-      result,
+      () => result,
       {
         code: OperationFailed("User error"),
         path: S.Path.empty,

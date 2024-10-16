@@ -18,7 +18,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      invalidAny->S.parseAnyWith(schema),
+      () => invalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: S.literal(123.)->S.toUnknown, received: 444.->Obj.magic}),
         operation: Parse,
@@ -31,7 +31,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      invalidTypeAny->S.parseAnyWith(schema),
+      () => invalidTypeAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: S.literal(123.)->S.toUnknown, received: invalidTypeAny}),
         operation: Parse,
@@ -49,7 +49,7 @@ module Common = {
   test("Fails to serialize invalid value", t => {
     let schema = factory()
 
-    t->U.assertError(
+    t->U.assertRaised(
       () => invalidValue->S.reverseConvertWith(schema),
       {
         code: InvalidType({expected: S.literal(123.)->S.toUnknown, received: invalidValue}),
@@ -86,7 +86,7 @@ test("Formatting of negative number with a decimal point in an error message", t
   let schema = S.literal(-123.567)
 
   t->U.assertErrorResult(
-    %raw(`"foo"`)->S.parseAnyWith(schema),
+    () => %raw(`"foo"`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: S.literal(-123.567)->S.toUnknown, received: "foo"->Obj.magic}),
       operation: Parse,

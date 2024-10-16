@@ -21,7 +21,7 @@ test("Fails to parse wrapped schema", t => {
   let schema = S.string->S.to(s => Ok(s))
 
   t->U.assertErrorResult(
-    123->S.parseAnyWith(schema),
+    () => 123->S.parseAnyWith(schema),
     {
       code: InvalidType({received: 123->Obj.magic, expected: schema->S.toUnknown}),
       operation: Parse,
@@ -39,7 +39,7 @@ test("Serializes with unwrapping the value from variant", t => {
 test("Fails to serialize when can't unwrap the value from variant", t => {
   let schema = S.string->S.to(s => Ok(s))
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => Error("Hello world!")->S.reverseConvertWith(schema),
     {
       code: InvalidType({expected: S.literal("Ok")->S.toUnknown, received: "Error"->Obj.magic}),
@@ -58,7 +58,7 @@ test("Successfully parses when the value is not used as the variant payload", t 
 test("Fails to serialize when the value is not used as the variant payload", t => {
   let schema = S.string->S.to(_ => #foo)
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => #foo->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({
@@ -118,7 +118,7 @@ test("Reverse convert with value registered multiple times", t => {
   )
 
   t->Assert.deepEqual(#Foo("abc", "abc")->S.reverseConvertWith(schema), %raw(`"abc"`), ())
-  t->U.assertError(
+  t->U.assertRaised(
     () => #Foo("abc", "abcd")->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({

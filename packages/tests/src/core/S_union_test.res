@@ -32,7 +32,7 @@ test("Parses when both schemas misses parser and have the same type", t => {
   ])
 
   t->U.assertErrorResult(
-    %raw(`null`)->S.parseAnyWith(schema),
+    () => %raw(`null`)->S.parseAnyWith(schema),
     {
       code: InvalidType({
         expected: schema->S.toUnknown,
@@ -44,7 +44,7 @@ test("Parses when both schemas misses parser and have the same type", t => {
   )
 
   t->U.assertErrorResult(
-    %raw(`"foo"`)->S.parseAnyWith(schema),
+    () => %raw(`"foo"`)->S.parseAnyWith(schema),
     {
       code: InvalidUnion([
         U.error({
@@ -77,7 +77,7 @@ test("Parses when both schemas misses parser and have different types", t => {
   ])
 
   t->U.assertErrorResult(
-    %raw(`null`)->S.parseAnyWith(schema),
+    () => %raw(`null`)->S.parseAnyWith(schema),
     {
       code: InvalidType({
         expected: schema->S.toUnknown,
@@ -89,7 +89,7 @@ test("Parses when both schemas misses parser and have different types", t => {
   )
 
   t->U.assertErrorResult(
-    %raw(`"abc"`)->S.parseAnyWith(schema),
+    () => %raw(`"abc"`)->S.parseAnyWith(schema),
     {
       code: InvalidOperation({description: "The S.transform parser is missing"}),
       operation: Parse,
@@ -110,7 +110,7 @@ test("Serializes when both schemas misses serializer", t => {
     S.string->S.transform(_ => {parser: _ => #apple}),
   ])
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => %raw(`null`)->S.reverseConvertToJsonWith(schema),
     {
       code: InvalidUnion([
@@ -237,7 +237,8 @@ module Advanced = {
 
   test("Fails to parse with unknown kind", t => {
     t->U.assertErrorResult(
-      %raw(`{
+      () =>
+        %raw(`{
         "kind": "oval",
         "x": 2,
         "y": 3,
@@ -277,7 +278,8 @@ module Advanced = {
 
   test("Fails to parse with unknown kind when the union is an object field", t => {
     t->U.assertErrorResult(
-      %raw(`{
+      () =>
+        %raw(`{
         "field": {
           "kind": "oval",
           "x": 2,
@@ -319,7 +321,7 @@ module Advanced = {
 
   test("Fails to parse with invalid data type", t => {
     t->U.assertErrorResult(
-      %raw(`"Hello world!"`)->S.parseAnyWith(shapeSchema),
+      () => %raw(`"Hello world!"`)->S.parseAnyWith(shapeSchema),
       {
         code: InvalidType({
           expected: shapeSchema->S.toUnknown,
@@ -347,7 +349,7 @@ module Advanced = {
       }),
     ])
 
-    t->U.assertError(
+    t->U.assertRaised(
       () => Triangle({x: 2., y: 3.})->S.reverseConvertWith(incompleteSchema),
       {
         code: InvalidUnion([

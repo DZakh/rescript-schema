@@ -16,7 +16,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      invalidAny->S.parseAnyWith(schema),
+      () => invalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
         operation: Parse,
@@ -68,7 +68,7 @@ test("Fails to parse NaN", t => {
   let schema = S.float
 
   t->U.assertErrorResult(
-    %raw(`NaN`)->S.parseAnyWith(schema),
+    () => %raw(`NaN`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`NaN`)}),
       operation: Parse,

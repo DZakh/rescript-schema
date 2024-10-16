@@ -33,7 +33,7 @@ test("Successfully serializes JSON object", t => {
 
 test("Fails to serialize Option schema", t => {
   let schema = S.jsonString(S.option(S.bool))
-  t->U.assertError(
+  t->U.assertRaised(
     () => None->S.reverseConvertWith(schema),
     {
       code: InvalidJsonSchema(S.option(S.bool)->S.toUnknown),
@@ -66,7 +66,7 @@ test(
   t => {
     let schema = S.jsonString(S.object(s => s.field("foo", S.unknown)))
 
-    t->U.assertError(
+    t->U.assertRaised(
       () => %raw(`"foo"`)->S.reverseConvertWith(S.jsonString(schema, ~space=2)),
       {
         code: InvalidJsonSchema(S.unknown),

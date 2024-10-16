@@ -16,7 +16,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      invalidAny->S.parseAnyWith(schema),
+      () => invalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
         operation: Parse,
@@ -28,7 +28,7 @@ module Common = {
   test("Fails to convert to Json", t => {
     let schema = factory()
 
-    t->U.assertError(
+    t->U.assertRaised(
       () => value->S.convertToJsonWith(schema),
       {
         code: InvalidJsonSchema(schema->S.toUnknown),

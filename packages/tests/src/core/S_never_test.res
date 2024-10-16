@@ -8,7 +8,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      any->S.parseAnyWith(schema),
+      () => any->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: S.never->S.toUnknown, received: any}),
         operation: Parse,
@@ -20,7 +20,7 @@ module Common = {
   test("Fails to serialize ", t => {
     let schema = factory()
 
-    t->U.assertError(
+    t->U.assertRaised(
       () => any->S.reverseConvertWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: any}),
@@ -58,7 +58,7 @@ module ObjectField = {
     )
 
     t->U.assertErrorResult(
-      %raw(`{"key":"value"}`)->S.parseAnyWith(schema),
+      () => %raw(`{"key":"value"}`)->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`undefined`)}),
         operation: Parse,

@@ -58,7 +58,7 @@ test("Fails to parse Object field", t => {
   )
 
   t->U.assertErrorResult(
-    data->S.parseWith(schema),
+    () => data->S.parseWith(schema),
     {
       code: InvalidType({received: %raw(`undefined`), expected: schema->S.toUnknown}),
       operation: Parse,
@@ -72,7 +72,7 @@ test("Fails to parse matrix field", t => {
   let data = %raw(`[1,[undefined]]`)
 
   t->U.assertErrorResult(
-    data->S.parseWith(schema),
+    () => data->S.parseWith(schema),
     {
       code: InvalidType({received: %raw(`undefined`), expected: schema->S.toUnknown}),
       operation: Parse,
@@ -84,7 +84,7 @@ test("Fails to parse matrix field", t => {
 test("Fails to parse NaN", t => {
   let schema = S.json(~validate=true)
   t->U.assertErrorResult(
-    %raw(`NaN`)->S.parseAnyWith(schema),
+    () => %raw(`NaN`)->S.parseAnyWith(schema),
     {
       code: InvalidType({received: %raw(`NaN`), expected: schema->S.toUnknown}),
       operation: Parse,
@@ -96,7 +96,7 @@ test("Fails to parse NaN", t => {
 test("Fails to parse undefined", t => {
   let schema = S.json(~validate=true)
   t->U.assertErrorResult(
-    %raw(`undefined`)->S.parseAnyWith(schema),
+    () => %raw(`undefined`)->S.parseAnyWith(schema),
     {
       code: InvalidType({received: %raw(`undefined`), expected: schema->S.toUnknown}),
       operation: Parse,

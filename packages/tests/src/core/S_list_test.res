@@ -36,7 +36,7 @@ module CommonWithNested = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      nestedInvalidAny->S.parseAnyWith(schema),
+      () => nestedInvalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: S.string->S.toUnknown, received: 1->Obj.magic}),
         operation: Parse,

@@ -34,14 +34,14 @@ let assertThrowsTestException = {
   }
 }
 
-let assertErrorResult = (t, result, errorPayload) => {
-  switch result {
+let assertErrorResult = (t, cb, errorPayload) => {
+  switch cb() {
   | Ok(any) => t->Assert.fail("Asserted result is not Error. Recieved: " ++ any->unsafeStringify)
   | Error(err) => t->Assert.is(err->S.Error.message, error(errorPayload)->S.Error.message, ())
   }
 }
 
-let assertError = (t, cb, errorPayload) => {
+let assertRaised = (t, cb, errorPayload) => {
   switch cb() {
   | any => t->Assert.fail("Asserted result is not Error. Recieved: " ++ any->unsafeStringify)
   | exception S.Raised(err) =>

@@ -48,7 +48,7 @@ test("Fails to parse data with default", t => {
   let schema = S.bool->S.option->S.Option.getOr(false)
 
   t->U.assertErrorResult(
-    %raw(`"string"`)->S.parseAnyWith(schema),
+    () => %raw(`"string"`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`"string"`)}),
       operation: Parse,

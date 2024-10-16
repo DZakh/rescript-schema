@@ -69,7 +69,7 @@ test("Name of renamed schema", t => {
   t->Assert.deepEqual(renamedSchema->S.name, "Ethers.BigInt", ())
   // Uses new name when failing
   t->U.assertErrorResult(
-    "smth"->S.parseAnyWith(renamedSchema),
+    () => "smth"->S.parseAnyWith(renamedSchema),
     {
       path: S.Path.empty,
       operation: Parse,
@@ -85,7 +85,7 @@ test("Name of renamed schema", t => {
     `Failed parsing at root. Reason: Expected Ethers.BigInt, received "smth"`,
     (),
   )
-  t->U.assertError(
+  t->U.assertRaised(
     () => %raw(`"smth"`)->S.reverseConvertWith(S.null(S.never)->S.setName("Ethers.BigInt")),
     {
       path: S.Path.empty,
