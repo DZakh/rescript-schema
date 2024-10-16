@@ -224,8 +224,9 @@ type rec t<'value> = {
   tagged: tagged,
   @as("n")
   name: unit => string,
-  @as("r")
-  mutable reverse: unit => t<unknown>,
+  @as("~r")
+  mutable // FIXME: Use a better way
+  reverse: unit => t<unknown>,
   @as("b")
   mutable builder: builder,
   @as("f")
@@ -239,20 +240,6 @@ type rec t<'value> = {
   mutable definerCtx?: char,
   @as("m")
   metadataMap: dict<unknown>,
-  @as("parseOrThrow")
-  parseOrRaise: unknown => unknown,
-  @as("parse")
-  jsParse: unknown => jsResult<unknown>,
-  @as("parseAsync")
-  jsParseAsync: unknown => promise<jsResult<unknown>>,
-  @as("serialize")
-  jsSerialize: unknown => jsResult<unknown>,
-  @as("serializeOrThrow")
-  serializeToUnknownOrRaise: unknown => unknown,
-  @as("serializeToJsonOrThrow")
-  serializeOrRaise: unknown => Js.Json.t,
-  @as("assert")
-  assertOrRaise: unknown => unit,
 }
 and tagged =
   | Never
@@ -340,7 +327,7 @@ let unsafeGetVarianTag = (variant): string => (variant->Obj.magic)["TAG"]
 
 // A dirty check that this is rescript-schema object
 @inline
-let isSchemaObject = object => Obj.magic(object)["serializeToJsonOrThrow"]
+let isSchemaObject = object => Obj.magic(object)["~r"]
 @inline
 let isSchema = any => Obj.magic(any) && any->isSchemaObject
 @inline
@@ -368,13 +355,6 @@ let globalConfig = {
   recCounter: 0,
   defaultUnknownKeys: initialDefaultUnknownKeys,
   disableNanNumberCheck: initialDisableNanNumberProtection,
-}
-
-let toJsResult = (result: result<'value, error>): jsResult<'value> => {
-  switch result {
-  | Ok(value) => Success({value: value})
-  | Error(error) => Failure({error: error})
-  }
 }
 
 module InternalError = {
@@ -1275,7 +1255,6 @@ let isAsync = schema => {
   | Value(v) => v
   }
 }
-let isAsyncParse = isAsync
 
 let reverse = schema => {
   schema.reverse()
@@ -1373,9 +1352,6 @@ let assertWith = (any, schema) => {
   )(any)
 }
 
-let assertAnyWith = assertWith
-let assertOrRaiseWith = assertWith
-
 let parseAnyWith = (any, schema) => {
   schema->useSyncOperation(Operation.make()->Operation.addFlag(Operation.Flag.typeValidation), any)
 }
@@ -1390,46 +1366,24 @@ let parseAnyAsyncWith = (any, schema) => {
 
 let parseAsyncWith = parseAnyAsyncWith
 
-let serializeOrRaiseWith = (value, schema) => {
-  schema.serializeOrRaise(value->castAnyToUnknown)
-}
-
-let serializeWith = (value, schema) => {
-  schema->useSyncOperation(
-    Operation.make()
-    ->Operation.addFlag(Operation.Flag.reverse)
-    ->Operation.addFlag(Operation.Flag.jsonableOutput),
-    value,
-  )
+let reverseConvertToJsonWith = (value, schema) => {
+  (
+    schema->operationFn(
+      Operation.make()
+      ->Operation.addFlag(Operation.Flag.jsonableOutput)
+      ->Operation.addFlag(Operation.Flag.reverse),
+    )
+  )(value)
 }
 
 @inline
-let serializeToUnknownOrRaiseWith = (value, schema) => {
+let reverseConvertWith = (value, schema) => {
   (schema->operationFn(Operation.make()->Operation.addFlag(Operation.Flag.reverse)))(value)
 }
 
-let serializeToUnknownWith = (value, schema) => {
-  schema->useSyncOperation(Operation.make()->Operation.addFlag(Operation.Flag.reverse), value)
+let reverseConvertToJsonStringWith = (value: 'value, schema: t<'value>, ~space=0): string => {
+  value->reverseConvertToJsonWith(schema)->Js.Json.stringifyWithSpace(space)
 }
-
-let serializeToJsonStringOrRaiseWith = (value: 'value, schema: t<'value>, ~space=0): string => {
-  value->serializeOrRaiseWith(schema)->Js.Json.stringifyWithSpace(space)
-}
-
-let serializeToJsonStringWith = (value: 'value, schema: t<'value>, ~space=0): result<
-  string,
-  error,
-> => {
-  try {
-    serializeToJsonStringOrRaiseWith(value, schema, ~space)->Ok
-  } catch {
-  | _ => %raw(`exn`)->wrapExnToError
-  }
-}
-
-let reverseConvertWith = serializeToUnknownOrRaiseWith
-let reverseConvertToJsonWith = serializeOrRaiseWith
-let reverseConvertToJsonStringWith = serializeToJsonStringOrRaiseWith
 
 let parseJsonStringWith = (jsonString: string, schema: t<'value>): result<'value, error> => {
   switch try {
@@ -1446,60 +1400,6 @@ let parseJsonStringWith = (jsonString: string, schema: t<'value>): result<'value
   } {
   | Ok(json) => json->parseWith(schema)
   | Error(_) as e => e
-  }
-}
-
-let initialParseOrRaise = unknown => {
-  (%raw(`this`)->operationFn(Operation.make()->Operation.addFlag(Operation.Flag.typeValidation)))(
-    unknown,
-  )
-}
-
-let initialAssertOrRaise = unknown => {
-  (
-    %raw(`this`)->operationFn(
-      Operation.make()
-      ->Operation.addFlag(Operation.Flag.typeValidation)
-      ->Operation.addFlag(Operation.Flag.assertOutput),
-    )
-  )(unknown)
-}
-
-let initialSerializeToUnknownOrRaise = unknown => {
-  (%raw(`this`)->operationFn(Operation.make()->Operation.addFlag(Operation.Flag.reverse)))(unknown)
-}
-
-let initialSerializeOrRaise = unknown => {
-  (
-    %raw(`this`)->operationFn(
-      Operation.make()
-      ->Operation.addFlag(Operation.Flag.jsonableOutput)
-      ->Operation.addFlag(Operation.Flag.reverse),
-    )
-  )(unknown)
-}
-
-let jsParse = unknown => {
-  try {
-    Success({
-      value: (%raw(`this`)).parseOrRaise(unknown),
-    })
-  } catch {
-  | _ => wrapExnToFailure(%raw(`exn`))
-  }
-}
-
-let jsParseAsync = data => {
-  data->parseAnyAsyncWith(%raw(`this`))->Stdlib.Promise.thenResolve(toJsResult)
-}
-
-let jsSerialize = value => {
-  try {
-    Success({
-      value: serializeToUnknownOrRaiseWith(value, %raw(`this`))->castUnknownToAny,
-    })
-  } catch {
-  | _ => wrapExnToFailure(%raw(`exn`))
   }
 }
 
@@ -1538,13 +1438,6 @@ let makeReverseSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilte
   maybeTypeFilter,
   name,
   metadataMap,
-  parseOrRaise: initialParseOrRaise,
-  serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
-  serializeOrRaise: initialSerializeOrRaise,
-  assertOrRaise: initialAssertOrRaise,
-  jsParse,
-  jsParseAsync,
-  jsSerialize,
   reverse: Reverse.toSelf,
 }
 
@@ -1562,13 +1455,6 @@ let makeSchema = (
   maybeTypeFilter,
   name,
   metadataMap,
-  parseOrRaise: initialParseOrRaise,
-  serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
-  serializeOrRaise: initialSerializeOrRaise,
-  assertOrRaise: initialAssertOrRaise,
-  jsParse,
-  jsParseAsync,
-  jsSerialize,
   reverse: () => {
     let original = %raw(`this`)
     let reversed = (reverse->Obj.magic)["call"](original)
@@ -1683,7 +1569,7 @@ let recursive = fn => {
         b->B.Val.map(r, input)
       })
     }),
-    "r": () => {
+    "~r": () => {
       makeReverseSchema(
         ~tagged=Unknown,
         ~name=primitiveName,
@@ -2715,13 +2601,6 @@ module Object = {
         metadataMap: Metadata.Map.empty,
         definer: definer->Obj.magic,
         definerCtx: ctx->Obj.magic,
-        parseOrRaise: initialParseOrRaise,
-        serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
-        serializeOrRaise: initialSerializeOrRaise,
-        assertOrRaise: initialAssertOrRaise,
-        jsParse,
-        jsParseAsync,
-        jsSerialize,
         reverse: reverse(~definition),
       }
     }
@@ -2743,13 +2622,6 @@ module Object = {
         metadataMap: schema.metadataMap,
         definer: ?schema.definer,
         definerCtx: ?schema.definerCtx,
-        parseOrRaise: initialParseOrRaise,
-        serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
-        serializeOrRaise: initialSerializeOrRaise,
-        assertOrRaise: initialAssertOrRaise,
-        jsParse,
-        jsParseAsync,
-        jsSerialize,
         reverse: schema.reverse,
       }
     // TODO: Should it throw for non Object schemas?

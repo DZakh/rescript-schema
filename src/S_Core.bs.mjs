@@ -52,20 +52,6 @@ var globalConfig = {
   n: false
 };
 
-function toJsResult(result) {
-  if (result.TAG === "Ok") {
-    return {
-            success: true,
-            value: result._0
-          };
-  } else {
-    return {
-            success: false,
-            error: result._0
-          };
-  }
-}
-
 class RescriptSchemaError extends Error {
       constructor(code, operation, path) {
         super();
@@ -387,7 +373,7 @@ function noopOperation(i) {
 }
 
 function compile(builder, schema, operation) {
-  if (operation & 8 && schema.r().t.TAG === "Option") {
+  if (operation & 8 && schema["~r"]().t.TAG === "Option") {
     throw new RescriptSchemaError({
               TAG: "InvalidJsonSchema",
               _0: schema
@@ -438,7 +424,7 @@ function operationFn(s, o) {
   if ((o in s)) {
     return (s[o]);
   }
-  var ss = o & 32 ? s.r() : s;
+  var ss = o & 32 ? s["~r"]() : s;
   var f = compile(ss.b, ss, o);
   ((s[o] = f));
   return f;
@@ -495,7 +481,7 @@ function toSelf() {
 
 function onlyChild(factory, schema) {
   return function () {
-    var reversed = schema.r();
+    var reversed = schema["~r"]();
     if (reversed === schema) {
       return this;
     } else {
@@ -737,7 +723,7 @@ function isAsync(schema) {
 }
 
 function reverse(schema) {
-  return schema.r();
+  return schema["~r"]();
 }
 
 function wrapExnToError(exn) {
@@ -849,54 +835,17 @@ function parseAnyAsyncWith(any, schema) {
   }
 }
 
-function serializeOrRaiseWith(value, schema) {
-  return schema.serializeToJsonOrThrow(value);
+function reverseConvertToJsonWith(value, schema) {
+  return operationFn(schema, 40)(value);
 }
 
-function serializeWith(value, schema) {
-  try {
-    return {
-            TAG: "Ok",
-            _0: operationFn(schema, 40)(value)
-          };
-  }
-  catch (exn){
-    return wrapExnToError(exn);
-  }
-}
-
-function serializeToUnknownOrRaiseWith(value, schema) {
+function reverseConvertWith(value, schema) {
   return operationFn(schema, 32)(value);
 }
 
-function serializeToUnknownWith(value, schema) {
-  try {
-    return {
-            TAG: "Ok",
-            _0: operationFn(schema, 32)(value)
-          };
-  }
-  catch (exn){
-    return wrapExnToError(exn);
-  }
-}
-
-function serializeToJsonStringOrRaiseWith(value, schema, spaceOpt) {
+function reverseConvertToJsonStringWith(value, schema, spaceOpt) {
   var space = spaceOpt !== undefined ? spaceOpt : 0;
-  return JSON.stringify(schema.serializeToJsonOrThrow(value), null, space);
-}
-
-function serializeToJsonStringWith(value, schema, spaceOpt) {
-  var space = spaceOpt !== undefined ? spaceOpt : 0;
-  try {
-    return {
-            TAG: "Ok",
-            _0: serializeToJsonStringOrRaiseWith(value, schema, space)
-          };
-  }
-  catch (exn){
-    return wrapExnToError(exn);
-  }
+  return JSON.stringify(reverseConvertToJsonWith(value, schema), null, space);
 }
 
 function parseJsonStringWith(jsonString, schema) {
@@ -925,50 +874,6 @@ function parseJsonStringWith(jsonString, schema) {
     return parseAnyWith(json._0, schema);
   } else {
     return json;
-  }
-}
-
-function initialParseOrRaise(unknown) {
-  return operationFn(this, 1)(unknown);
-}
-
-function initialAssertOrRaise(unknown) {
-  return operationFn(this, 5)(unknown);
-}
-
-function initialSerializeToUnknownOrRaise(unknown) {
-  return operationFn(this, 32)(unknown);
-}
-
-function initialSerializeOrRaise(unknown) {
-  return operationFn(this, 40)(unknown);
-}
-
-function jsParse(unknown) {
-  try {
-    return {
-            success: true,
-            value: this.parseOrThrow(unknown)
-          };
-  }
-  catch (exn){
-    return wrapExnToFailure(exn);
-  }
-}
-
-function jsParseAsync(data) {
-  return parseAnyAsyncWith(data, this).then(toJsResult);
-}
-
-function jsSerialize(value) {
-  try {
-    return {
-            success: true,
-            value: serializeToUnknownOrRaiseWith(value, this)
-          };
-  }
-  catch (exn){
-    return wrapExnToFailure(exn);
   }
 }
 
@@ -1006,18 +911,11 @@ function makeReverseSchema(name, tagged, metadataMap, builder, maybeTypeFilter) 
   return {
           t: tagged,
           n: name,
-          r: toSelf,
+          "~r": toSelf,
           b: builder,
           f: maybeTypeFilter,
           i: 0,
-          m: metadataMap,
-          parseOrThrow: initialParseOrRaise,
-          parse: jsParse,
-          parseAsync: jsParseAsync,
-          serialize: jsSerialize,
-          serializeOrThrow: initialSerializeToUnknownOrRaise,
-          serializeToJsonOrThrow: initialSerializeOrRaise,
-          assert: initialAssertOrRaise
+          m: metadataMap
         };
 }
 
@@ -1025,14 +923,14 @@ function makeSchema(name, tagged, metadataMap, builder, maybeTypeFilter, reverse
   return {
           t: tagged,
           n: name,
-          r: (function () {
+          "~r": (function () {
               var original = this;
               var reversed = reverse.call(original);
               var reversed$1 = original !== reversed && typeof reversed.t === "string" ? makeReverseSchema(reversed.n, reversed.t, reversed.m, reversed.b, reversed.f) : reversed;
-              original.r = (function () {
+              original["~r"] = (function () {
                   return reversed$1;
                 });
-              reversed$1.r = (function () {
+              reversed$1["~r"] = (function () {
                   return original;
                 });
               return reversed$1;
@@ -1040,14 +938,7 @@ function makeSchema(name, tagged, metadataMap, builder, maybeTypeFilter, reverse
           b: builder,
           f: maybeTypeFilter,
           i: 0,
-          m: metadataMap,
-          parseOrThrow: initialParseOrRaise,
-          parse: jsParse,
-          parseAsync: jsParseAsync,
-          serialize: jsSerialize,
-          serializeOrThrow: initialSerializeToUnknownOrRaise,
-          serializeToJsonOrThrow: initialSerializeOrRaise,
-          assert: initialAssertOrRaise
+          m: metadataMap
         };
 }
 
@@ -1077,7 +968,7 @@ function get(schema, id) {
 function set$2(schema, id, metadata) {
   var metadataMap = set$1(schema.m, id, metadata);
   return makeSchema(schema.n, schema.t, metadataMap, schema.b, schema.f, (function () {
-                var schema$1 = schema.r();
+                var schema$1 = schema["~r"]();
                 return makeReverseSchema(schema$1.n, schema$1.t, metadataMap, schema$1.b, schema$1.f);
               }));
 }
@@ -1109,7 +1000,7 @@ function recursive(fn) {
                       return map(b, r, input);
                     }));
       }),
-    r: (function () {
+    "~r": (function () {
         return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, input, param, param$1) {
                       return map(b, r, input);
                     }), undefined);
@@ -1142,8 +1033,8 @@ function recursive(fn) {
                                 }));
                   }));
     });
-  var initialReverse = schema.r.bind(schema);
-  schema.r = (function () {
+  var initialReverse = schema["~r"].bind(schema);
+  schema["~r"] = (function () {
       var initialReversed = initialReverse();
       var reversed = makeReverseSchema(initialReversed.n, initialReversed.t, initialReversed.m, (function (b, input, selfSchema, path) {
               var bb = scope(b);
@@ -1154,10 +1045,10 @@ function recursive(fn) {
                             return map(b, r, input);
                           }));
             }), initialReversed.f);
-      reversed.r = (function () {
+      reversed["~r"] = (function () {
           return schema;
         });
-      schema.r = (function () {
+      schema["~r"] = (function () {
           return reversed;
         });
       return reversed;
@@ -1169,13 +1060,13 @@ function setName(schema, name) {
   return makeSchema((function () {
                 return name;
               }), schema.t, schema.m, schema.b, schema.f, (function () {
-                return schema.r();
+                return schema["~r"]();
               }));
 }
 
 function removeTypeValidation(schema) {
   return makeSchema(schema.n, schema.t, schema.m, schema.b, undefined, (function () {
-                return schema.r();
+                return schema["~r"]();
               }));
 }
 
@@ -1195,7 +1086,7 @@ function internalRefine(schema, refiner) {
                               return input$1;
                             }));
               }), schema.f, (function () {
-                var schema$1 = schema.r();
+                var schema$1 = schema["~r"]();
                 return makeReverseSchema(schema$1.n, schema$1.t, schema$1.m, (function (b, input, selfSchema, path) {
                               var input$1 = transform(b, input, (function (b, input) {
                                       b.c = b.c + refiner(b, $$var(b, input), selfSchema, path);
@@ -1239,7 +1130,7 @@ function transform$1(schema, transformer) {
                   return input$1;
                 }
               }), schema.f, (function () {
-                var schema$1 = schema.r();
+                var schema$1 = schema["~r"]();
                 return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, input, selfSchema, path) {
                               var match = transformer(effectCtx(b, selfSchema, path));
                               var serializer = match.s;
@@ -1372,7 +1263,7 @@ function getWithDefault(schema, $$default) {
                               return val(b, inputVar + "===void 0?" + tmp + ":" + inputVar);
                             }));
               }), schema.f, (function () {
-                var reversed = schema.r();
+                var reversed = schema["~r"]();
                 if (reversed.t.TAG === "Option") {
                   return reversed.t._0;
                 } else {
@@ -1400,7 +1291,7 @@ function factory$1(schema) {
               TAG: "Null",
               _0: schema
             }, empty, makeBuilder(true, false), maybeTypeFilter(schema, "null"), (function () {
-                var child = schema.r();
+                var child = schema["~r"]();
                 return makeReverseSchema(containerName, {
                             TAG: "Option",
                             _0: child
@@ -1627,13 +1518,13 @@ function reverse$1(inputDefinition, toItem) {
                         var embededOutput = embededOutputs.get(definition);
                         if (embededOutput !== undefined) {
                           var itemInput = outputPath === "" ? input : val(b, inputVar + outputPath);
-                          var schema = definition.t.r();
+                          var schema = definition.t["~r"]();
                           var itemOutput = schema.b(b, itemInput, schema, path + outputPath);
                           b.c = b.c + ("if(" + $$var(b, embededOutput) + "!==" + $$var(b, itemOutput) + "){" + fail(b, "Multiple sources provided not equal data for " + definition.i, path) + "}");
                           return ;
                         }
                         var itemInput$1 = outputPath === "" ? input : val(b, inputVar + outputPath);
-                        var schema$1 = definition.t.r();
+                        var schema$1 = definition.t["~r"]();
                         var itemOutput$1 = schema$1.b(b, itemInput$1, schema$1, path + outputPath);
                         embededOutputs.set(definition, itemOutput$1);
                         return ;
@@ -1777,20 +1668,13 @@ function factory$3(definer) {
             definition: definition
           },
           n: name,
-          r: reverse$1(definition, undefined),
+          "~r": reverse$1(definition, undefined),
           b: builder$1,
           f: typeFilter$1,
           i: 0,
           d: definer,
           c: ctx,
-          m: empty,
-          parseOrThrow: initialParseOrRaise,
-          parse: jsParse,
-          parseAsync: jsParseAsync,
-          serialize: jsSerialize,
-          serializeOrThrow: initialSerializeToUnknownOrRaise,
-          serializeToJsonOrThrow: initialSerializeOrRaise,
-          assert: initialAssertOrRaise
+          m: empty
         };
 }
 
@@ -1830,20 +1714,13 @@ function setUnknownKeys(schema, unknownKeys) {
               definition: match.definition
             },
             n: schema.n,
-            r: schema.r,
+            "~r": schema["~r"],
             b: schema.b,
             f: schema.f,
             i: schema.i,
             d: schema.d,
             c: schema.c,
-            m: schema.m,
-            parseOrThrow: initialParseOrRaise,
-            parse: jsParse,
-            parseAsync: jsParseAsync,
-            serialize: jsSerialize,
-            serializeOrThrow: initialSerializeToUnknownOrRaise,
-            serializeToJsonOrThrow: initialSerializeOrRaise,
-            assert: initialAssertOrRaise
+            m: schema.m
           };
   }
 }
@@ -1990,7 +1867,7 @@ function factory$6(schema, spaceOpt) {
                 b.c = b.c + allocateScope(bb);
                 return val;
               }), typeFilter$2, (function () {
-                var reversed = schema.r();
+                var reversed = schema["~r"]();
                 return makeReverseSchema(reversed.n, reversed.t, reversed.m, (function (b, input, param, path) {
                               var prevOperation = b.g.o;
                               b.g.o = prevOperation | 8;
@@ -2076,7 +1953,7 @@ function parse$1(b, schemas, path, input, output) {
       var bb = scope(b);
       var itemOutput = schema.b(bb, input, schema, "");
       if (isMultiple && !(b.g.o & 1)) {
-        var reversed = schema.r();
+        var reversed = schema["~r"]();
         var typeFilter = reversed.f;
         if (typeFilter !== undefined) {
           var code = typeFilterCode(bb, typeFilter, reversed, itemOutput, "");
@@ -2172,7 +2049,7 @@ function factory$7(schemas) {
                   var original = this;
                   var schemas = original.t._0;
                   return factory$7(schemas.map(function (s) {
-                                  return s.r();
+                                  return s["~r"]();
                                 }));
                 }));
   }
@@ -2191,7 +2068,7 @@ function preprocess(schema, transformer) {
                 _0: unionSchemas._0.map(function (unionSchema) {
                       return preprocess(unionSchema, transformer);
                     })
-              }, schema.m, schema.b, schema.f, schema.r);
+              }, schema.m, schema.b, schema.f, schema["~r"]);
   }
   return makeSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
                 var match = transformer(effectCtx(b, selfSchema, path));
@@ -2212,7 +2089,7 @@ function preprocess(schema, transformer) {
                   return parseWithTypeCheck(b, schema, input, path);
                 }
               }), undefined, (function () {
-                var reversed = schema.r();
+                var reversed = schema["~r"]();
                 return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, input, param, path) {
                               var input$1 = reversed.b(b, input, reversed, path);
                               var match = transformer(effectCtx(b, schema, path));
@@ -2313,7 +2190,7 @@ function $$catch(schema, getFallbackValue) {
                               return parseWithTypeCheck(b, schema, input, path);
                             }));
               }), undefined, (function () {
-                return schema.r();
+                return schema["~r"]();
               }));
 }
 
@@ -2341,7 +2218,7 @@ function definitionToSchema(definition) {
   if (!(typeof definition === "object" && definition !== null)) {
     return literal(definition);
   }
-  if (definition.serializeToJsonOrThrow) {
+  if (definition["~r"]) {
     return definition;
   }
   if (Array.isArray(definition)) {
@@ -2360,7 +2237,7 @@ function definitionToSchema(definition) {
         s: itemSymbol
       };
       items[idx] = item;
-      if (!isTransformed && schema !== schema.r()) {
+      if (!isTransformed && schema !== schema["~r"]()) {
         isTransformed = true;
       }
       
@@ -2392,7 +2269,7 @@ function definitionToSchema(definition) {
     };
     items$1[idx$1] = item$1;
     fields[$$location$1] = item$1;
-    if (!isTransformed$1 && schema$1 !== schema$1.r()) {
+    if (!isTransformed$1 && schema$1 !== schema$1["~r"]()) {
       isTransformed$1 = true;
     }
     
@@ -3106,7 +2983,7 @@ function js_object(definer) {
                 for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
                   var fieldName = fieldNames[idx];
                   var schema = definer[fieldName];
-                  var schema$1 = schema && schema.serializeToJsonOrThrow ? schema : literal(schema);
+                  var schema$1 = schema && schema["~r"] ? schema : literal(schema);
                   definition[fieldName] = s.f(fieldName, schema$1);
                 }
                 return definition;
@@ -3249,18 +3126,6 @@ var parseOrRaiseWith = parseAnyOrRaiseWith;
 
 var parseAsyncWith = parseAnyAsyncWith;
 
-var reverseConvertWith = serializeToUnknownOrRaiseWith;
-
-var reverseConvertToJsonWith = serializeOrRaiseWith;
-
-var reverseConvertToJsonStringWith = serializeToJsonStringOrRaiseWith;
-
-var assertOrRaiseWith = assertWith;
-
-var assertAnyWith = assertWith;
-
-var isAsyncParse = isAsync;
-
 var Schema = {};
 
 var schema$7 = factory$8;
@@ -3370,16 +3235,7 @@ export {
   reverseConvertWith ,
   reverseConvertToJsonWith ,
   reverseConvertToJsonStringWith ,
-  serializeWith ,
-  serializeToUnknownWith ,
-  serializeToJsonStringWith ,
-  serializeOrRaiseWith ,
-  serializeToUnknownOrRaiseWith ,
-  serializeToJsonStringOrRaiseWith ,
-  assertOrRaiseWith ,
-  assertAnyWith ,
   assertWith ,
-  isAsyncParse ,
   isAsync ,
   recursive ,
   classify ,
