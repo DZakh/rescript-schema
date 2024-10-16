@@ -198,19 +198,19 @@ module CrazyUnion = {
 
   let test = () => {
     Console.time("testData1 serialize")
-    let json = S.serializeWith(testData1, schema)->S.unwrap
+    let json = S.reverseConvertWith(testData1, schema)
     Console.timeEnd("testData1 serialize")
 
     Console.time("testData1 parse")
-    let _ = S.parseWith(json, schema)->S.unwrap
+    let _ = S.parseAnyWith(json, schema)
     Console.timeEnd("testData1 parse")
 
     Console.time("testData2 serialize")
-    let json = S.serializeWith(testData2, schema)->S.unwrap
+    let json = S.reverseConvertWith(testData2, schema)
     Console.timeEnd("testData2 serialize")
 
     Console.time("testData2 parse")
-    let _ = S.parseWith(json, schema)->S.unwrap
+    let _ = S.parseAnyWith(json, schema)->S.unwrap
     Console.timeEnd("testData2 parse")
   }
 }
@@ -233,13 +233,13 @@ data->S.parseAnyWith(schema)->ignore
 Console.timeEnd("parseAnyWith: 3")
 
 Console.time("serializeWith: 1")
-data->S.serializeWith(schema)->ignore
+data->S.reverseConvertWith(schema)->ignore
 Console.timeEnd("serializeWith: 1")
 Console.time("serializeWith: 2")
-data->S.serializeWith(schema)->ignore
+data->S.reverseConvertWith(schema)->ignore
 Console.timeEnd("serializeWith: 2")
 Console.time("serializeWith: 3")
-data->S.serializeWith(schema)->ignore
+data->S.reverseConvertWith(schema)->ignore
 Console.timeEnd("serializeWith: 3")
 
 Console.time("S.Error.make")

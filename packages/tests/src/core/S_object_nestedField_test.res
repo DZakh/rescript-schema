@@ -97,8 +97,8 @@ test("Successfully serializes with nestedField used multiple times", t => {
   )
 
   t->Assert.deepEqual(
-    {"foo": "foo", "bar": "bar", "baz": "baz"}->S.serializeWith(schema),
-    Ok(%raw(`{"foo": "foo", "nested": {"bar": "bar", "baz": "baz"}}`)),
+    {"foo": "foo", "bar": "bar", "baz": "baz"}->S.reverseConvertToJsonWith(schema),
+    %raw(`{"foo": "foo", "nested": {"bar": "bar", "baz": "baz"}}`),
     (),
   )
   t->U.assertCompiledCode(

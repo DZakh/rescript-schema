@@ -224,10 +224,10 @@ test("Works with variant schema used multiple times as a child schema", t => {
   let value = rawAppVersions->S.parseAnyWith(appVersionsSchema)->S.unwrap
   t->Assert.deepEqual(value, appVersions, ())
 
-  let data = appVersions->S.serializeWith(appVersionsSchema)->S.unwrap
+  let data = appVersions->S.reverseConvertToJsonWith(appVersionsSchema)
   t->Assert.deepEqual(data, rawAppVersions->Obj.magic, ())
 
-  let data = appVersions->S.serializeWith(appVersionsSchema)->S.unwrap
+  let data = appVersions->S.reverseConvertToJsonWith(appVersionsSchema)
   t->Assert.deepEqual(data, rawAppVersions->Obj.magic, ())
 })
 

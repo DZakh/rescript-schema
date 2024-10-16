@@ -210,6 +210,7 @@ let compile: (
   ~typeValidation: bool,
 ) => 'input => 'output
 
+// FIXME: V9 turn to exception based / Remove any prefix
 let parseWith: (Js.Json.t, t<'value>) => result<'value, error>
 let parseAnyWith: ('any, t<'value>) => result<'value, error>
 let parseJsonStringWith: (string, t<'value>) => result<'value, error>
@@ -218,6 +219,7 @@ let parseAnyOrRaiseWith: ('any, t<'value>) => 'value
 let parseAsyncWith: (Js.Json.t, t<'value>) => promise<result<'value, error>>
 let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
 
+// FIXME: V9 turn to exception based / Remove any prefix
 let convertAnyWith: ('any, t<'value>) => result<'value, error>
 let convertAnyToJsonWith: ('any, t<'value>) => result<Js.Json.t, error>
 let convertAnyToJsonStringWith: ('any, t<'value>) => result<string, error>
@@ -226,12 +228,6 @@ let convertAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
 let reverseConvertWith: ('value, t<'value>) => unknown
 let reverseConvertToJsonWith: ('value, t<'value>) => Js.Json.t
 let reverseConvertToJsonStringWith: ('value, t<'value>, ~space: int=?) => string
-
-// TODO: Uncomment when a codemod is ready
-// @deprecated("It'll be removed in v9. Use S.reverseConvertToJsonWith and try/catch instead")
-let serializeWith: ('value, t<'value>) => result<Js.Json.t, error>
-// @deprecated("It'll be removed in v9. Use S.reverseConvertWith and try/catch instead")
-let serializeToUnknownWith: ('value, t<'value>) => result<unknown, error>
 
 let assertWith: ('any, t<'value>) => unit
 
@@ -248,6 +244,7 @@ let setName: (t<'value>, string) => t<'value>
 
 let removeTypeValidation: t<'value> => t<'value>
 
+// FIXME: v9 Remove
 let unwrap: result<'value, error> => 'value
 
 external toUnknown: t<'any> => t<unknown> = "%identity"

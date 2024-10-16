@@ -85,8 +85,8 @@ test("Uses the path from S.Error.raise called in the transform serializer", t =>
     }),
   )
 
-  t->U.assertErrorResult(
-    ["Hello world!"]->S.serializeWith(schema),
+  t->U.assertError(
+    () => ["Hello world!"]->S.reverseConvertToJsonWith(schema),
     {
       code: OperationFailed("User error"),
       operation: SerializeToUnknown,

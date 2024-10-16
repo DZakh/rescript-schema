@@ -990,8 +990,8 @@ test("Can destructure fields of simple nested objects", t => {
   )
 
   t->Assert.deepEqual(
-    {"baz": "bar", "foz": "foo"}->S.serializeWith(schema),
-    Ok(%raw(`{"nested": {"foo": "foo", "bar": "bar"}}`)),
+    {"baz": "bar", "foz": "foo"}->S.reverseConvertToJsonWith(schema),
+    %raw(`{"nested": {"foo": "foo", "bar": "bar"}}`),
     (),
   )
   t->U.assertCompiledCode(
@@ -1211,7 +1211,7 @@ test(
     let value = appVersions->S.parseAnyWith(appVersionsSchema)->S.unwrap
     t->Assert.deepEqual(value, appVersions, ())
 
-    let data = appVersions->S.serializeWith(appVersionsSchema)->S.unwrap
+    let data = appVersions->S.reverseConvertToJsonWith(appVersionsSchema)
     t->Assert.deepEqual(data, appVersions->Obj.magic, ())
   },
 )
