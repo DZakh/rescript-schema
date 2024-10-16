@@ -257,27 +257,6 @@ export function object<Output>(
     tag: (name: string, value: unknown) => void;
   }) => Output
 ): Schema<Output, unknown>;
-/**
- * @deprecated Will be removed in V9. Use S.schema instead
- */
-export function object<
-  Shape extends {
-    [k in keyof Shape]: unknown;
-  }
->(
-  shape: Shape
-): Schema<
-  {
-    [k in keyof Shape]: Shape[k] extends Schema<unknown>
-      ? Output<Shape[k]>
-      : Shape[k];
-  },
-  {
-    [k in keyof Shape]: Shape[k] extends Schema<unknown>
-      ? Input<Shape[k]>
-      : Shape[k];
-  }
->;
 
 export const Object: {
   strip: <Output, Input>(
