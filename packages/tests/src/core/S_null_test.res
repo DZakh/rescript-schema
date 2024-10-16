@@ -17,7 +17,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      invalidAny->S.parseAnyWith(schema),
+      () => invalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
         operation: Parse,
@@ -88,7 +88,7 @@ test("Fails to parse JS undefined", t => {
   let schema = S.null(S.bool)
 
   t->U.assertErrorResult(
-    %raw(`undefined`)->S.parseAnyWith(schema),
+    () => %raw(`undefined`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`undefined`)}),
       operation: Parse,
@@ -102,7 +102,7 @@ test("Fails to parse object with missing field that marked as null", t => {
   let schema = S.object(s => s.field("nullableField", fieldSchema))
 
   t->U.assertErrorResult(
-    %raw(`{}`)->S.parseAnyWith(schema),
+    () => %raw(`{}`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: fieldSchema->S.toUnknown, received: %raw(`undefined`)}),
       operation: Parse,
@@ -115,7 +115,7 @@ test("Fails to parse JS null when schema doesn't allow optional data", t => {
   let schema = S.bool
 
   t->U.assertErrorResult(
-    %raw(`null`)->S.parseAnyWith(schema),
+    () => %raw(`null`)->S.parseAnyWith(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`null`)}),
       operation: Parse,

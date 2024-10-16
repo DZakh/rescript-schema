@@ -17,7 +17,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      invalidAny->S.parseAnyWith(schema),
+      () => invalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({
           expected: schema->S.toUnknown,
@@ -33,7 +33,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      invalidTypeAny->S.parseAnyWith(schema),
+      () => invalidTypeAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidTypeAny}),
         operation: Parse,

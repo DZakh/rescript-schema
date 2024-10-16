@@ -139,13 +139,14 @@ test("Fails to parse nested recursive object", t => {
   })
 
   t->U.assertErrorResult(
-    {
-      "Id": "1",
-      "Children": [
-        {"Id": "2", "Children": []},
-        {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
-      ],
-    }->S.parseAnyWith(nodeSchema),
+    () =>
+      {
+        "Id": "1",
+        "Children": [
+          {"Id": "2", "Children": []},
+          {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
+        ],
+      }->S.parseAnyWith(nodeSchema),
     {
       code: OperationFailed("Invalid id"),
       operation: Parse,
@@ -181,15 +182,16 @@ test("Fails to parse nested recursive object inside of another object", t => {
   )
 
   t->U.assertErrorResult(
-    {
-      "recursive": {
-        "Id": "1",
-        "Children": [
-          {"Id": "2", "Children": []},
-          {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
-        ],
-      },
-    }->S.parseAnyWith(schema),
+    () =>
+      {
+        "recursive": {
+          "Id": "1",
+          "Children": [
+            {"Id": "2", "Children": []},
+            {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
+          ],
+        },
+      }->S.parseAnyWith(schema),
     {
       code: OperationFailed("Invalid id"),
       operation: Parse,
@@ -288,7 +290,7 @@ test("Fails to serialise nested recursive object", t => {
     )
   })
 
-  t->U.assertError(
+  t->U.assertRaised(
     () =>
       {
         id: "1",

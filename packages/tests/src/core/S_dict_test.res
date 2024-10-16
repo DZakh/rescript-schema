@@ -24,7 +24,7 @@ module CommonWithNested = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      invalidAny->S.parseAnyWith(schema),
+      () => invalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
         operation: Parse,
@@ -37,7 +37,7 @@ module CommonWithNested = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      nestedInvalidAny->S.parseAnyWith(schema),
+      () => nestedInvalidAny->S.parseAnyWith(schema),
       {
         code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`true`)}),
         operation: Parse,
@@ -126,7 +126,7 @@ test("Applies operation for each item on serializing", t => {
 test("Fails to serialize dict item", t => {
   let schema = S.dict(S.string->S.refine(s => _ => s.fail("User error")))
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => Dict.fromArray([("a", "aa"), ("b", "bb")])->S.reverseConvertWith(schema),
     {
       code: OperationFailed("User error"),

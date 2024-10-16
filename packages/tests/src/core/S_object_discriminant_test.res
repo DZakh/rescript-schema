@@ -248,7 +248,7 @@ module Negative = {
           },
         )
 
-        t->U.assertError(
+        t->U.assertRaised(
           () => {"field": "bar"}->S.reverseConvertWith(schema),
           {
             code: InvalidOperation({
@@ -295,7 +295,7 @@ module NestedNegative = {
         }
       })
 
-      t->U.assertError(
+      t->U.assertRaised(
         () => {"field": "bar"}->S.reverseConvertWith(schema),
         {
           code: InvalidOperation({
@@ -365,7 +365,7 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
     }
   })
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => {"field": "bar"}->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({
@@ -385,7 +385,7 @@ test(`Serializes constant fields before registered fields`, t => {
     }
   })
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => {"constant": false, "field": false}->S.reverseConvertWith(schema),
     {
       code: InvalidType({expected: S.literal(true)->S.toUnknown, received: Obj.magic(false)}),

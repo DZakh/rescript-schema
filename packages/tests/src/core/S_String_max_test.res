@@ -11,7 +11,7 @@ test("Fails to parse invalid data", t => {
   let schema = S.string->S.stringMaxLength(1)
 
   t->U.assertErrorResult(
-    "1234"->S.parseAnyWith(schema),
+    () => "1234"->S.parseAnyWith(schema),
     {
       code: OperationFailed("String must be 1 or fewer characters long"),
       operation: Parse,
@@ -30,7 +30,7 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.stringMaxLength(1)
 
-  t->U.assertError(
+  t->U.assertRaised(
     () => "1234"->S.reverseConvertWith(schema),
     {
       code: OperationFailed("String must be 1 or fewer characters long"),

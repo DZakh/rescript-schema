@@ -28,7 +28,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      invalid->S.parseAnyWith(schema),
+      () => invalid->S.parseAnyWith(schema),
       {
         code: InvalidType({
           expected: S.literal(Dict.fromArray([("foo", "bar")]))->S.toUnknown,
@@ -49,7 +49,7 @@ module Common = {
   test("Fails to serialize invalid", t => {
     let schema = factory()
 
-    t->U.assertError(
+    t->U.assertRaised(
       () => invalid->S.reverseConvertWith(schema),
       {
         code: InvalidType({
@@ -66,7 +66,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      %raw(`null`)->S.parseAnyWith(schema),
+      () => %raw(`null`)->S.parseAnyWith(schema),
       {
         code: InvalidType({
           expected: S.literal(Dict.fromArray([("foo", "bar")]))->S.toUnknown,
@@ -82,7 +82,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      %raw(`{"foo": "bar","excess":true}`)->S.parseAnyWith(schema),
+      () => %raw(`{"foo": "bar","excess":true}`)->S.parseAnyWith(schema),
       {
         code: InvalidType({
           expected: S.literal(Dict.fromArray([("foo", "bar")]))->S.toUnknown,
@@ -98,7 +98,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      makeNotPlainValue()->S.parseAnyWith(schema),
+      () => makeNotPlainValue()->S.parseAnyWith(schema),
       {
         code: InvalidType({
           expected: S.literal(Dict.fromArray([("foo", "bar")]))->S.toUnknown,
@@ -156,7 +156,7 @@ module EmptyDict = {
     let schema = factory()
 
     t->U.assertErrorResult(
-      invalid->S.parseAnyWith(schema),
+      () => invalid->S.parseAnyWith(schema),
       {
         code: InvalidType({
           expected: S.literal(Dict.make())->S.toUnknown,
@@ -177,7 +177,7 @@ module EmptyDict = {
   test("Fails to serialize empty dict literal schema with invalid value", t => {
     let schema = factory()
 
-    t->U.assertError(
+    t->U.assertRaised(
       () => invalid->S.reverseConvertWith(schema),
       {
         code: InvalidType({
