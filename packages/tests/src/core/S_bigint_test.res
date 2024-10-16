@@ -28,8 +28,8 @@ module Common = {
   test("Fails to convert to Json", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      value->S.convertAnyToJsonWith(schema),
+    t->U.assertError(
+      () => value->S.convertToJsonWith(schema),
       {
         code: InvalidJsonSchema(schema->S.toUnknown),
         operation: SerializeToJson,

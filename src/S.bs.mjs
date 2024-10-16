@@ -86,13 +86,13 @@ var parseAsyncWith = S_Core$RescriptSchema.parseAsyncWith;
 
 var parseAnyAsyncWith = S_Core$RescriptSchema.parseAnyAsyncWith;
 
-var convertAnyWith = S_Core$RescriptSchema.convertAnyWith;
+var convertWith = S_Core$RescriptSchema.convertWith;
 
-var convertAnyToJsonWith = S_Core$RescriptSchema.convertAnyToJsonWith;
+var convertToJsonWith = S_Core$RescriptSchema.convertToJsonWith;
 
-var convertAnyToJsonStringWith = S_Core$RescriptSchema.convertAnyToJsonStringWith;
+var convertToJsonStringWith = S_Core$RescriptSchema.convertToJsonStringWith;
 
-var convertAnyAsyncWith = S_Core$RescriptSchema.convertAnyAsyncWith;
+var convertAsyncWith = S_Core$RescriptSchema.convertAsyncWith;
 
 var reverseConvertWith = S_Core$RescriptSchema.reverseConvertWith;
 
@@ -229,10 +229,10 @@ export {
   parseAnyOrRaiseWith ,
   parseAsyncWith ,
   parseAnyAsyncWith ,
-  convertAnyWith ,
-  convertAnyToJsonWith ,
-  convertAnyToJsonStringWith ,
-  convertAnyAsyncWith ,
+  convertWith ,
+  convertToJsonWith ,
+  convertToJsonStringWith ,
+  convertAsyncWith ,
   reverseConvertWith ,
   reverseConvertToJsonWith ,
   reverseConvertToJsonStringWith ,

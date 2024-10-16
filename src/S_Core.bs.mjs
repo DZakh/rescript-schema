@@ -761,49 +761,12 @@ function convertToJsonStringWith(input, schema) {
   return operationFn(schema, 24)(input);
 }
 
-function convertAnyWith(any, schema) {
-  try {
-    return {
-            TAG: "Ok",
-            _0: operationFn(schema, 0)(any)
-          };
-  }
-  catch (exn){
-    return wrapExnToError(exn);
-  }
+function convertToJsonWith(any, schema) {
+  return operationFn(schema, 8)(any);
 }
 
-function convertAnyToJsonWith(any, schema) {
-  try {
-    return {
-            TAG: "Ok",
-            _0: operationFn(schema, 8)(any)
-          };
-  }
-  catch (exn){
-    return wrapExnToError(exn);
-  }
-}
-
-function convertAnyToJsonStringWith(any, schema) {
-  try {
-    return {
-            TAG: "Ok",
-            _0: operationFn(schema, 24)(any)
-          };
-  }
-  catch (exn){
-    return wrapExnToError(exn);
-  }
-}
-
-function convertAnyAsyncWith(any, schema) {
-  try {
-    return operationFn(schema, 2)(any).then(asyncPrepareOk, wrapExnToError);
-  }
-  catch (exn){
-    return Promise.resolve(wrapExnToError(exn));
-  }
+function convertAsyncWith(any, schema) {
+  return operationFn(schema, 2)(any);
 }
 
 function parseAnyOrRaiseWith(any, schema) {
@@ -3210,11 +3173,9 @@ export {
   parseAsyncWith ,
   parseAnyAsyncWith ,
   convertWith ,
+  convertToJsonWith ,
   convertToJsonStringWith ,
-  convertAnyWith ,
-  convertAnyToJsonWith ,
-  convertAnyToJsonStringWith ,
-  convertAnyAsyncWith ,
+  convertAsyncWith ,
   reverseConvertWith ,
   reverseConvertToJsonWith ,
   reverseConvertToJsonStringWith ,

@@ -1314,25 +1314,12 @@ let convertToJsonStringWith = (input, schema) => {
   )(input)
 }
 
-let convertAnyWith = (any, schema) => {
-  schema->useSyncOperation(Operation.make(), any)
+let convertToJsonWith = (any, schema) => {
+  (schema->operationFn(Operation.make()->Operation.addFlag(Operation.Flag.jsonableOutput)))(any)
 }
 
-let convertAnyToJsonWith = (any, schema) => {
-  schema->useSyncOperation(Operation.make()->Operation.addFlag(Operation.Flag.jsonableOutput), any)
-}
-
-let convertAnyToJsonStringWith = (any, schema) => {
-  schema->useSyncOperation(
-    Operation.make()
-    ->Operation.addFlag(Operation.Flag.jsonableOutput)
-    ->Operation.addFlag(Operation.Flag.jsonStringOutput),
-    any,
-  )
-}
-
-let convertAnyAsyncWith = (any, schema) => {
-  schema->useAsyncOperation(Operation.make(), any)
+let convertAsyncWith = (any, schema) => {
+  (schema->operationFn(Operation.make()->Operation.addFlag(Operation.Flag.async)))(any)
 }
 
 @inline
