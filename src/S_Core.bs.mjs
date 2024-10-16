@@ -2292,8 +2292,7 @@ var ctx = {
 };
 
 function factory$8(definer) {
-  var definition = typeof definer === "function" ? definer(ctx) : definer;
-  return definitionToSchema(definition);
+  return definitionToSchema(definer(ctx));
 }
 
 var $$class = RescriptSchemaError;
@@ -3164,6 +3163,8 @@ var Metadata = {
   set: set$2
 };
 
+var js_schema = definitionToSchema;
+
 export {
   Path ,
   Raised ,
@@ -3270,6 +3271,7 @@ export {
   js_asyncParserRefine ,
   js_refine ,
   js_transform ,
+  js_schema ,
   js_merge ,
   js_name ,
   setGlobalConfig ,
