@@ -228,7 +228,7 @@ test("Has proper error path when fails to serialize object with quotes in a fiel
     () => Dict.fromArray([("\"\'\`", "bar")])->S.reverseConvertWith(schema),
     {
       code: OperationFailed("User error"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromArray(["\"\'\`"]),
     },
   )

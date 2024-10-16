@@ -7,7 +7,7 @@ test(
       () => {
         S.Error.make(
           ~code=OperationFailed("Should be positive"),
-          ~operation=Parse,
+          ~flag=S.Flag.typeValidation,
           ~path=S.Path.empty,
         )->S.Error.raise
       },
@@ -23,7 +23,7 @@ test(
 test("Raised error is also the S.Raised exeption and can be caught with catch", t => {
   let error = S.Error.make(
     ~code=OperationFailed("Should be positive"),
-    ~operation=Parse,
+    ~flag=S.Flag.typeValidation,
     ~path=S.Path.empty,
   )
   t->ExecutionContext.plan(1)

@@ -34,7 +34,7 @@ test("Fails to serialize invalid value", t => {
     () => ""->S.reverseConvertWith(schema),
     {
       code: OperationFailed("String must be 1 or more characters long"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )

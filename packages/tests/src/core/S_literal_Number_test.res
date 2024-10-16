@@ -53,7 +53,7 @@ module Common = {
       () => invalidValue->S.reverseConvertWith(schema),
       {
         code: InvalidType({expected: S.literal(123.)->S.toUnknown, received: invalidValue}),
-        operation: SerializeToUnknown,
+        operation: ReverseConvert,
         path: S.Path.empty,
       },
     )

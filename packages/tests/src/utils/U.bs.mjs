@@ -19,7 +19,26 @@ function raiseTestException() {
 }
 
 function error(param) {
-  return S$RescriptSchema.$$Error.make(param.code, param.operation, param.path);
+  var tmp;
+  switch (param.operation) {
+    case "Parse" :
+        tmp = S$RescriptSchema.Flag.typeValidation;
+        break;
+    case "ParseAsync" :
+        tmp = S$RescriptSchema.Flag.typeValidation | S$RescriptSchema.Flag.async;
+        break;
+    case "ReverseConvertToJson" :
+        tmp = S$RescriptSchema.Flag.reverse | S$RescriptSchema.Flag.jsonableOutput;
+        break;
+    case "ReverseConvert" :
+        tmp = S$RescriptSchema.Flag.reverse;
+        break;
+    case "Assert" :
+        tmp = S$RescriptSchema.Flag.typeValidation | S$RescriptSchema.Flag.assertOutput;
+        break;
+    
+  }
+  return S$RescriptSchema.$$Error.make(param.code, tmp, param.path);
 }
 
 function assertThrowsTestException(t, fn, message, param) {

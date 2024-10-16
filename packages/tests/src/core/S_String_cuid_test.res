@@ -35,7 +35,7 @@ test("Fails to serialize invalid value", t => {
 
   t->U.assertRaised(
     () => "cifjhdsfhsd-invalid-cuid"->S.reverseConvertWith(schema),
-    {code: OperationFailed("Invalid CUID"), operation: SerializeToUnknown, path: S.Path.empty},
+    {code: OperationFailed("Invalid CUID"), operation: ReverseConvert, path: S.Path.empty},
   )
 })
 

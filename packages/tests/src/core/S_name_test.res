@@ -89,7 +89,7 @@ test("Name of renamed schema", t => {
     () => %raw(`"smth"`)->S.reverseConvertWith(S.null(S.never)->S.setName("Ethers.BigInt")),
     {
       path: S.Path.empty,
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       code: InvalidType({expected: S.never->S.toUnknown, received: "smth"->Obj.magic}),
     },
   )

@@ -298,7 +298,7 @@ test("Fails to serialise nested recursive object", t => {
       }->S.reverseConvertWith(nodeSchema),
     {
       code: OperationFailed("Invalid id"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromArray(["children", "1", "children", "0", "id"]),
     },
   )

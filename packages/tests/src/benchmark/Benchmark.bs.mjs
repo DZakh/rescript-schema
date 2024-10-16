@@ -226,7 +226,7 @@ console.time("S.Error.make");
 S$RescriptSchema.$$Error.make({
       TAG: "OperationFailed",
       _0: "Should be positive"
-    }, "Parse", S$RescriptSchema.Path.empty);
+    }, S$RescriptSchema.Flag.typeValidation, S$RescriptSchema.Path.empty);
 
 console.timeEnd("S.Error.make");
 

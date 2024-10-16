@@ -78,7 +78,7 @@ test("Uses the path from S.Error.raise called in the transform serializer", t =>
         S.Error.raise(
           U.error({
             code: OperationFailed("User error"),
-            operation: SerializeToUnknown,
+            operation: ReverseConvert,
             path: S.Path.fromArray(["a", "b"]),
           }),
         ),
@@ -89,7 +89,7 @@ test("Uses the path from S.Error.raise called in the transform serializer", t =>
     () => ["Hello world!"]->S.reverseConvertToJsonWith(schema),
     {
       code: OperationFailed("User error"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromArray(["0", "a", "b"]),
     },
   )
@@ -152,7 +152,7 @@ test("Transformed Primitive serializing fails when serializer isn't provided", t
     () => "Hello world!"->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({description: "The S.transform serializer is missing"}),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )
@@ -163,7 +163,7 @@ test("Fails to serialize when user raises error in a Transformed Primitive seria
 
   t->U.assertRaised(
     () => "Hello world!"->S.reverseConvertWith(schema),
-    {code: OperationFailed("User error"), operation: SerializeToUnknown, path: S.Path.empty},
+    {code: OperationFailed("User error"), operation: ReverseConvert, path: S.Path.empty},
   )
 })
 
@@ -189,7 +189,7 @@ test("Transform operations applyed in the right order when serializing", t => {
     () => 123->S.reverseConvertWith(schema),
     {
       code: OperationFailed("Second transform"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )

@@ -7,7 +7,7 @@ test("Keeps operation of the error passed to S.Error.raise", t => {
         S.Error.raise(
           U.error({
             code: OperationFailed("User error"),
-            operation: SerializeToUnknown,
+            operation: ReverseConvert,
             path: S.Path.fromArray(["a", "b"]),
           }),
         ),
@@ -18,7 +18,7 @@ test("Keeps operation of the error passed to S.Error.raise", t => {
     () => ["Hello world!"]->S.parseAnyWith(schema),
     {
       code: OperationFailed("User error"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromArray(["0", "a", "b"]),
     },
   )

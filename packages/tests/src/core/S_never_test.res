@@ -24,7 +24,7 @@ module Common = {
       () => any->S.reverseConvertWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: any}),
-        operation: SerializeToUnknown,
+        operation: ReverseConvert,
         path: S.Path.empty,
       },
     )

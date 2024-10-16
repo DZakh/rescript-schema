@@ -53,9 +53,9 @@ var globalConfig = {
 };
 
 class RescriptSchemaError extends Error {
-      constructor(code, operation, path) {
+      constructor(code, flag, path) {
         super();
-        this.operation = operation;
+        this.flag = flag;
         this.code = code;
         this.path = path;
         this.s = symbol;
@@ -82,6 +82,10 @@ function getOrRethrow(exn) {
 
 function classify(schema) {
   return schema.t;
+}
+
+function has(acc, flag) {
+  return (acc & flag) !== 0;
 }
 
 function scope(b) {
@@ -209,14 +213,7 @@ function transform(b, input, operation) {
 }
 
 function raise(b, code, path) {
-  var operation = b.g.o;
-  throw new RescriptSchemaError(code, operation & 4 ? "Assert" : (
-              operation & 1 ? (
-                  operation & 2 ? "ParseAsync" : "Parse"
-                ) : (
-                  operation & 8 ? "SerializeToJson" : "SerializeToUnknown"
-                )
-            ), path);
+  throw new RescriptSchemaError(code, b.g.o, path);
 }
 
 function embedSyncOperation(b, input, fn) {
@@ -329,7 +326,7 @@ function withPathPrepend(b, input, path, maybeDynamicLocationVar, fn) {
   }
   catch (exn){
     var error = getOrRethrow(exn);
-    throw new RescriptSchemaError(error.code, error.operation, path + "[]" + error.path);
+    throw new RescriptSchemaError(error.code, error.flag, path + "[]" + error.path);
   }
 }
 
@@ -372,12 +369,12 @@ function noopOperation(i) {
   return i;
 }
 
-function compile(builder, schema, operation) {
-  if (operation & 8 && schema["~r"]().t.TAG === "Option") {
+function compile(builder, schema, flag) {
+  if (flag & 8 && schema["~r"]().t.TAG === "Option") {
     throw new RescriptSchemaError({
               TAG: "InvalidJsonSchema",
               _0: schema
-            }, "SerializeToJson", "");
+            }, flag, "");
   }
   var b = {
     c: "",
@@ -385,7 +382,7 @@ function compile(builder, schema, operation) {
     a: false,
     g: {
       v: -1,
-      o: operation,
+      o: flag,
       e: []
     }
   };
@@ -399,21 +396,21 @@ function compile(builder, schema, operation) {
   if (b.l !== "") {
     b.c = "let " + b.l + ";" + b.c;
   }
-  if (operation & 1 || schema.t.TAG === "Literal") {
+  if (flag & 1 || schema.t.TAG === "Literal") {
     var typeFilter = schema.f;
     if (typeFilter !== undefined) {
       b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
     }
     
   }
-  if (b.c === "" && output === input && !(operation & 22)) {
+  if (b.c === "" && output === input && !(flag & 22)) {
     return noopOperation;
   }
-  var inlinedOutput = operation & 4 ? "void 0" : inline(b, output);
-  if (operation & 16) {
+  var inlinedOutput = flag & 4 ? "void 0" : inline(b, output);
+  if (flag & 16) {
     inlinedOutput = "JSON.stringify(" + inlinedOutput + ")";
   }
-  if (operation & 2 && !output.a) {
+  if (flag & 2 && !output.a) {
     inlinedOutput = "Promise.resolve(" + inlinedOutput + ")";
   }
   var inlinedFunction = "i=>{" + b.c + "return " + inlinedOutput + "}";
@@ -431,48 +428,48 @@ function operationFn(s, o) {
 }
 
 function compile$1(schema, input, output, mode, typeValidation) {
-  var operation = 0;
+  var flag = 0;
   switch (output) {
     case "Output" :
     case "Unknown" :
         break;
     case "Assert" :
-        operation = operation | 4;
+        flag = flag | 4;
         break;
     case "Json" :
-        operation = operation | 8;
+        flag = flag | 8;
         break;
     case "JsonString" :
-        operation = operation | 24;
+        flag = flag | 24;
         break;
     
   }
   if (mode !== "Sync") {
-    operation = operation | 2;
+    flag = flag | 2;
   }
   if (typeValidation) {
-    operation = operation | 1;
+    flag = flag | 1;
   }
-  var fn = operationFn(schema, operation);
-  if (input === "JsonString") {
-    return function (jsonString) {
-      try {
-        return fn(JSON.parse(jsonString));
-      }
-      catch (raw_error){
-        var error = Caml_js_exceptions.internalToOCamlException(raw_error);
-        if (error.RE_EXN_ID === Js_exn.$$Error) {
-          throw new RescriptSchemaError({
-                    TAG: "OperationFailed",
-                    _0: error._1.message
-                  }, "Parse", "");
-        }
-        throw error;
-      }
-    };
-  } else {
+  var fn = operationFn(schema, flag);
+  if (input !== "JsonString") {
     return fn;
   }
+  var flag$1 = flag;
+  return function (jsonString) {
+    try {
+      return fn(JSON.parse(jsonString));
+    }
+    catch (raw_error){
+      var error = Caml_js_exceptions.internalToOCamlException(raw_error);
+      if (error.RE_EXN_ID === Js_exn.$$Error) {
+        throw new RescriptSchemaError({
+                  TAG: "OperationFailed",
+                  _0: error._1.message
+                }, flag$1, "");
+      }
+      throw error;
+    }
+  };
 }
 
 function toSelf() {
@@ -827,7 +824,7 @@ function parseJsonStringWith(jsonString, schema) {
         _0: new RescriptSchemaError({
               TAG: "OperationFailed",
               _0: error._1.message
-            }, "Parse", "")
+            }, 1, "")
       };
     } else {
       throw error;
@@ -2305,29 +2302,26 @@ function reason$1(error) {
 }
 
 function message(error) {
-  var match = error.operation;
-  var operation;
-  switch (match) {
-    case "Parse" :
-        operation = "parsing";
-        break;
-    case "ParseAsync" :
-        operation = "parsing async";
-        break;
-    case "SerializeToJson" :
-        operation = "serializing to JSON";
-        break;
-    case "SerializeToUnknown" :
-        operation = "serializing";
-        break;
-    case "Assert" :
-        operation = "asserting";
-        break;
-    
+  var op = error.flag;
+  var text = "Failed " + (
+    op & 1 ? (
+        op & 4 ? "asserting" : "parsing"
+      ) : "converting"
+  );
+  if (op & 32) {
+    text = text + " reverse";
+  }
+  if (op & 2) {
+    text = text + " async";
+  }
+  if (op & 8) {
+    text = text + " to JSON" + (
+      op & 16 ? " string" : ""
+    );
   }
   var nonEmptyPath = error.path;
   var pathText = nonEmptyPath === "" ? "root" : nonEmptyPath;
-  return "Failed " + operation + " at " + pathText + ". Reason: " + reason(error, undefined);
+  return text + " at " + pathText + ". Reason: " + reason(error, undefined);
 }
 
 function internalInline(schema, maybeVariant, param) {
@@ -3021,6 +3015,17 @@ var Path = {
   concat: concat
 };
 
+var Flag = {
+  none: 0,
+  typeValidation: 1,
+  async: 2,
+  assertOutput: 4,
+  jsonableOutput: 8,
+  jsonStringOutput: 16,
+  reverse: 32,
+  has: has
+};
+
 var $$Error$1 = {
   $$class: $$class,
   make: make$2,
@@ -3131,6 +3136,7 @@ var js_schema = definitionToSchema;
 export {
   Path ,
   Raised ,
+  Flag ,
   $$Error$1 as $$Error,
   Literal ,
   never ,
