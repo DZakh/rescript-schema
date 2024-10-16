@@ -424,8 +424,6 @@ let js_optional: (t<'v>, option<unknown>) => t<option<'v>>
 
 let js_tuple: unknown => t<array<unknown>>
 
-let js_unwrap: jsResult<'value> => 'value
-
 let js_custom: (
   ~name: string,
   ~parser: (unknown, s<'output>) => 'output=?,
