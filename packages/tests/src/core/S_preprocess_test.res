@@ -51,7 +51,7 @@ test("Fails to serialize when user raises error in serializer", t => {
 
   t->U.assertRaised(
     () => "Hello world!"->S.reverseConvertWith(schema),
-    {code: OperationFailed("User error"), operation: SerializeToUnknown, path: S.Path.empty},
+    {code: OperationFailed("User error"), operation: ReverseConvert, path: S.Path.empty},
   )
 })
 
@@ -77,7 +77,7 @@ test("Preprocess operations applyed in the right order when serializing", t => {
     () => 123->S.reverseConvertWith(schema),
     {
       code: OperationFailed("First preprocess"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )

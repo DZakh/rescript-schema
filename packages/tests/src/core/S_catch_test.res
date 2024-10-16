@@ -26,7 +26,7 @@ test("Doesn't affect serializing in any way", t => {
     () => "abc"->S.reverseConvertWith(schema),
     {
       code: InvalidType({received: "abc"->Obj.magic, expected: S.literal("123")->S.toUnknown}),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )
@@ -73,7 +73,7 @@ test("Can use s.fail inside of S.catch", t => {
     () => "1"->S.reverseConvertWith(schema),
     {
       code: InvalidType({expected: S.literal("0")->S.toUnknown, received: "1"->Obj.magic}),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )

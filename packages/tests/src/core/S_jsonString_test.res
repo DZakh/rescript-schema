@@ -37,7 +37,7 @@ test("Fails to serialize Option schema", t => {
     () => None->S.reverseConvertWith(schema),
     {
       code: InvalidJsonSchema(S.option(S.bool)->S.toUnknown),
-      operation: SerializeToJson,
+      operation: ReverseConvertToJson,
       path: S.Path.empty,
     },
   )
@@ -70,7 +70,7 @@ test(
       () => %raw(`"foo"`)->S.reverseConvertWith(S.jsonString(schema, ~space=2)),
       {
         code: InvalidJsonSchema(S.unknown),
-        operation: SerializeToJson,
+        operation: ReverseConvertToJson,
         path: S.Path.empty,
       },
     )

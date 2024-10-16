@@ -27,7 +27,7 @@ test("Fails to serialize invalid value", t => {
 
   t->U.assertRaised(
     () => -80->S.reverseConvertWith(schema),
-    {code: OperationFailed("Invalid port"), operation: SerializeToUnknown, path: S.Path.empty},
+    {code: OperationFailed("Invalid port"), operation: ReverseConvert, path: S.Path.empty},
   )
 })
 

@@ -67,7 +67,7 @@ and item = {
   symbol: Js.Types.symbol,
 }
 and schema<'value> = t<'value>
-and error = private {operation: operation, code: errorCode, path: Path.t}
+and error = private {flag: flag, code: errorCode, path: Path.t}
 and errorCode =
   | OperationFailed(string)
   | InvalidOperation({description: string})
@@ -76,12 +76,7 @@ and errorCode =
   | InvalidUnion(array<error>)
   | UnexpectedAsync
   | InvalidJsonSchema(schema<unknown>)
-and operation =
-  | Parse
-  | ParseAsync
-  | SerializeToJson
-  | SerializeToUnknown
-  | Assert
+and flag
 and unknownKeys = Strip | Strict
 type exn += private Raised(error)
 
@@ -90,12 +85,25 @@ type s<'value> = {
   fail: 'a. (string, ~path: Path.t=?) => 'a,
 }
 
+module Flag: {
+  @inline let none: flag
+  @inline let typeValidation: flag
+  @inline let async: flag
+  @inline let assertOutput: flag
+  @inline let jsonableOutput: flag
+  @inline let jsonStringOutput: flag
+  @inline let reverse: flag
+
+  external with: (flag, flag) => flag = "%orint"
+  let has: (flag, flag) => bool
+}
+
 module Error: {
   type class
 
   let class: class
 
-  let make: (~code: errorCode, ~operation: operation, ~path: Path.t) => error
+  let make: (~code: errorCode, ~flag: flag, ~path: Path.t) => error
 
   let raise: error => 'a
 

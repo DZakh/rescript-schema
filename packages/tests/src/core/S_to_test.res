@@ -43,7 +43,7 @@ test("Fails to serialize when can't unwrap the value from variant", t => {
     () => Error("Hello world!")->S.reverseConvertWith(schema),
     {
       code: InvalidType({expected: S.literal("Ok")->S.toUnknown, received: "Error"->Obj.magic}),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromLocation("TAG"),
     },
   )
@@ -64,7 +64,7 @@ test("Fails to serialize when the value is not used as the variant payload", t =
       code: InvalidOperation({
         description: `Schema for "" isn\'t registered`,
       }),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )
@@ -96,7 +96,7 @@ test("BROKEN: Fails to serialize when tuple is destructured", t => {
       12->S.reverseConvertWith(schema)
     },
     ~expectations={
-      message: `Failed serializing at root. Reason: Schema for "" isn\'t registered`,
+      message: `Failed converting reverse at root. Reason: Schema for "" isn\'t registered`,
     },
     (),
   )
@@ -124,7 +124,7 @@ test("Reverse convert with value registered multiple times", t => {
       code: InvalidOperation({
         description: `Multiple sources provided not equal data for ""`,
       }),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )

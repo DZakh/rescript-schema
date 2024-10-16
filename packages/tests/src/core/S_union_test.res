@@ -116,16 +116,16 @@ test("Serializes when both schemas misses serializer", t => {
       code: InvalidUnion([
         U.error({
           code: InvalidOperation({description: "The S.transform serializer is missing"}),
-          operation: SerializeToJson,
+          operation: ReverseConvertToJson,
           path: S.Path.empty,
         }),
         U.error({
           code: InvalidOperation({description: "The S.transform serializer is missing"}),
-          operation: SerializeToJson,
+          operation: ReverseConvertToJson,
           path: S.Path.empty,
         }),
       ]),
-      operation: SerializeToJson,
+      operation: ReverseConvertToJson,
       path: S.Path.empty,
     },
   )
@@ -358,7 +358,7 @@ module Advanced = {
               expected: S.literal("Circle")->S.toUnknown,
               received: "Triangle"->Obj.magic,
             }),
-            operation: SerializeToUnknown,
+            operation: ReverseConvert,
             path: S.Path.fromArray(["TAG"]),
           }),
           U.error({
@@ -366,11 +366,11 @@ module Advanced = {
               expected: S.literal("Square")->S.toUnknown,
               received: "Triangle"->Obj.magic,
             }),
-            operation: SerializeToUnknown,
+            operation: ReverseConvert,
             path: S.Path.fromArray(["TAG"]),
           }),
         ]),
-        operation: SerializeToUnknown,
+        operation: ReverseConvert,
         path: S.Path.empty,
       },
     )

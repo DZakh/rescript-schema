@@ -130,7 +130,7 @@ test("Fails to serialize dict item", t => {
     () => Dict.fromArray([("a", "aa"), ("b", "bb")])->S.reverseConvertWith(schema),
     {
       code: OperationFailed("User error"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromLocation("a"),
     },
   )

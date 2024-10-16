@@ -31,7 +31,7 @@ test("Fails to serialize invalid value", t => {
 
   t->U.assertRaised(
     () => "cifjhdsfhsd"->S.reverseConvertWith(schema),
-    {code: OperationFailed("Invalid url"), operation: SerializeToUnknown, path: S.Path.empty},
+    {code: OperationFailed("Invalid url"), operation: ReverseConvert, path: S.Path.empty},
   )
 })
 

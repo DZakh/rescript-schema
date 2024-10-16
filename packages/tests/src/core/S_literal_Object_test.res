@@ -56,7 +56,7 @@ module Common = {
           expected: S.literal(Dict.fromArray([("foo", "bar")]))->S.toUnknown,
           received: invalid->U.castAnyToUnknown,
         }),
-        operation: SerializeToUnknown,
+        operation: ReverseConvert,
         path: S.Path.empty,
       },
     )
@@ -184,7 +184,7 @@ module EmptyDict = {
           expected: S.literal(Dict.make())->S.toUnknown,
           received: invalid->U.castAnyToUnknown,
         }),
-        operation: SerializeToUnknown,
+        operation: ReverseConvert,
         path: S.Path.empty,
       },
     )
