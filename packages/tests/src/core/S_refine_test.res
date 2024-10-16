@@ -39,9 +39,9 @@ test("Successfully refines on serializing", t => {
       s.fail("Should be positive")
     })
 
-  t->Assert.deepEqual(12->S.serializeToUnknownWith(schema), Ok(%raw("12")), ())
-  t->U.assertErrorResult(
-    -12->S.serializeToUnknownWith(schema),
+  t->Assert.deepEqual(12->S.reverseConvertWith(schema), %raw("12"), ())
+  t->U.assertError(
+    () => -12->S.reverseConvertWith(schema),
     {
       code: OperationFailed("Should be positive"),
       operation: SerializeToUnknown,

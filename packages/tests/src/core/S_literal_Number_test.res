@@ -43,14 +43,14 @@ module Common = {
   test("Successfully serializes", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(any), ())
+    t->Assert.deepEqual(value->S.reverseConvertWith(schema), any, ())
   })
 
   test("Fails to serialize invalid value", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      invalidValue->S.serializeToUnknownWith(schema),
+    t->U.assertError(
+      () => invalidValue->S.reverseConvertWith(schema),
       {
         code: InvalidType({expected: S.literal(123.)->S.toUnknown, received: invalidValue}),
         operation: SerializeToUnknown,

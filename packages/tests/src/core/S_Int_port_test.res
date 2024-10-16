@@ -19,14 +19,14 @@ test("Fails to parse invalid data", t => {
 test("Successfully serializes valid value", t => {
   let schema = S.int->S.port
 
-  t->Assert.deepEqual(8080->S.serializeToUnknownWith(schema), Ok(%raw(`8080`)), ())
+  t->Assert.deepEqual(8080->S.reverseConvertWith(schema), %raw(`8080`), ())
 })
 
 test("Fails to serialize invalid value", t => {
   let schema = S.int->S.port
 
-  t->U.assertErrorResult(
-    -80->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => -80->S.reverseConvertWith(schema),
     {code: OperationFailed("Invalid port"), operation: SerializeToUnknown, path: S.Path.empty},
   )
 })

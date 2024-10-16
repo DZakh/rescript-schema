@@ -66,7 +66,6 @@
   - [`convertAnyToJsonWith`](#convertanytojsonwith)
   - [`convertAnyToJsonStringWith`](#convertanytojsonstringwith)
   - [`convertAnyAsyncWith`](#convertanyasyncwith)
-  - [`assertAnyWith`](#assertanywith)
   - [`compile`](#compile)
   - [`classify`](#classify)
   - [`isAsync`](#isasync)

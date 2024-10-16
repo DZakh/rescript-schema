@@ -19,22 +19,19 @@ test("Fails to parse invalid data", t => {
 test("Successfully serializes valid value", t => {
   let schema = S.string->S.pattern(%re(`/[0-9]/`))
 
-  t->Assert.deepEqual("123"->S.serializeToUnknownWith(schema), Ok(%raw(`"123"`)), ())
+  t->Assert.deepEqual("123"->S.reverseConvertWith(schema), %raw(`"123"`), ())
 })
 
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.pattern(%re(`/[0-9]/`))
 
-  t->Assert.deepEqual(
-    "abc"->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
-        code: OperationFailed("Invalid"),
-        operation: SerializeToUnknown,
-        path: S.Path.empty,
-      }),
-    ),
-    (),
+  t->U.assertError(
+    () => "abc"->S.reverseConvertWith(schema),
+    {
+      code: OperationFailed("Invalid"),
+      operation: SerializeToUnknown,
+      path: S.Path.empty,
+    },
   )
 })
 

@@ -10,11 +10,7 @@ test("Successfully parses JSON", t => {
 test("Successfully serializes JSON", t => {
   let schema = S.string
 
-  t->Assert.deepEqual(
-    `Foo`->S.serializeToUnknownWith(S.jsonString(schema)),
-    Ok(%raw(`'"Foo"'`)),
-    (),
-  )
+  t->Assert.deepEqual(`Foo`->S.reverseConvertWith(S.jsonString(schema)), %raw(`'"Foo"'`), ())
 })
 
 test("Successfully serializes JSON object", t => {
@@ -29,16 +25,16 @@ test("Successfully serializes JSON object", t => {
     {
       "foo": "bar",
       "baz": [1, 3],
-    }->S.serializeToUnknownWith(S.jsonString(schema)),
-    Ok(%raw(`'{"foo":"bar","baz":[1,3]}'`)),
+    }->S.reverseConvertWith(S.jsonString(schema)),
+    %raw(`'{"foo":"bar","baz":[1,3]}'`),
     (),
   )
 })
 
 test("Fails to serialize Option schema", t => {
   let schema = S.jsonString(S.option(S.bool))
-  t->U.assertErrorResult(
-    None->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => None->S.reverseConvertWith(schema),
     {
       code: InvalidJsonSchema(S.option(S.bool)->S.toUnknown),
       operation: SerializeToJson,
@@ -59,8 +55,8 @@ test("Successfully serializes JSON object with space", t => {
     {
       "foo": "bar",
       "baz": [1, 3],
-    }->S.serializeToUnknownWith(S.jsonString(schema, ~space=2)),
-    Ok(%raw(`'{\n  "foo": "bar",\n  "baz": [\n    1,\n    3\n  ]\n}'`)),
+    }->S.reverseConvertWith(S.jsonString(schema, ~space=2)),
+    %raw(`'{\n  "foo": "bar",\n  "baz": [\n    1,\n    3\n  ]\n}'`),
     (),
   )
 })
@@ -70,8 +66,8 @@ test(
   t => {
     let schema = S.jsonString(S.object(s => s.field("foo", S.unknown)))
 
-    t->U.assertErrorResult(
-      %raw(`"foo"`)->S.serializeToUnknownWith(S.jsonString(schema, ~space=2)),
+    t->U.assertError(
+      () => %raw(`"foo"`)->S.reverseConvertWith(S.jsonString(schema, ~space=2)),
       {
         code: InvalidJsonSchema(S.unknown),
         operation: SerializeToJson,

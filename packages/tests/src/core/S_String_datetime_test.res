@@ -61,8 +61,8 @@ test("Successfully serializes valid value", t => {
   let schema = S.string->S.datetime
 
   t->Assert.deepEqual(
-    Date.fromString("2020-01-01T00:00:00.123Z")->S.serializeToUnknownWith(schema),
-    Ok(%raw(`"2020-01-01T00:00:00.123Z"`)),
+    Date.fromString("2020-01-01T00:00:00.123Z")->S.reverseConvertWith(schema),
+    %raw(`"2020-01-01T00:00:00.123Z"`),
     (),
   )
 })
@@ -71,8 +71,8 @@ test("Trims precision to 3 digits when serializing", t => {
   let schema = S.string->S.datetime
 
   t->Assert.deepEqual(
-    Date.fromString("2020-01-01T00:00:00.123456Z")->S.serializeToUnknownWith(schema),
-    Ok(%raw(`"2020-01-01T00:00:00.123Z"`)),
+    Date.fromString("2020-01-01T00:00:00.123456Z")->S.reverseConvertWith(schema),
+    %raw(`"2020-01-01T00:00:00.123Z"`),
     (),
   )
 })

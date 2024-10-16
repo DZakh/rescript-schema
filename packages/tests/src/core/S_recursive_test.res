@@ -107,16 +107,14 @@ test("Successfully serializes recursive object", t => {
     {
       id: "1",
       children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-    }->S.serializeToUnknownWith(nodeSchema),
-    Ok(
-      %raw(`{
+    }->S.reverseConvertWith(nodeSchema),
+    %raw(`{
         "Id": "1",
         "Children": [
           {"Id": "2", "Children": []},
           {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
         ],
       }`),
-    ),
     (),
   )
 })
@@ -290,11 +288,12 @@ test("Fails to serialise nested recursive object", t => {
     )
   })
 
-  t->U.assertErrorResult(
-    {
-      id: "1",
-      children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-    }->S.serializeToUnknownWith(nodeSchema),
+  t->U.assertError(
+    () =>
+      {
+        id: "1",
+        children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
+      }->S.reverseConvertWith(nodeSchema),
     {
       code: OperationFailed("Invalid id"),
       operation: SerializeToUnknown,
@@ -344,16 +343,14 @@ test(
           {id: "node_2", children: []},
           {id: "node_3", children: [{id: "node_4", children: []}]},
         ],
-      }->S.serializeToUnknownWith(nodeSchema),
-      Ok(
-        {
-          "Id": "1",
-          "Children": [
-            {"Id": "2", "Children": []},
-            {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
-          ],
-        }->Obj.magic,
-      ),
+      }->S.reverseConvertWith(nodeSchema),
+      {
+        "Id": "1",
+        "Children": [
+          {"Id": "2", "Children": []},
+          {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
+        ],
+      }->Obj.magic,
       (),
     )
   },
@@ -403,16 +400,14 @@ test("Recursively transforms nested objects when added transform to the placehol
         {id: "child_2", children: []},
         {id: "child_3", children: [{id: "child_4", children: []}]},
       ],
-    }->S.serializeToUnknownWith(nodeSchema),
-    Ok(
-      {
-        "Id": "1",
-        "Children": [
-          {"Id": "2", "Children": []},
-          {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
-        ],
-      }->Obj.magic,
-    ),
+    }->S.reverseConvertWith(nodeSchema),
+    {
+      "Id": "1",
+      "Children": [
+        {"Id": "2", "Children": []},
+        {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
+      ],
+    }->Obj.magic,
     (),
   )
 })
@@ -448,16 +443,14 @@ test("Shallowly transforms object when added transform to the S.recursive result
     {
       id: "parent_1",
       children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-    }->S.serializeToUnknownWith(nodeSchema),
-    Ok(
-      {
-        "Id": "1",
-        "Children": [
-          {"Id": "2", "Children": []},
-          {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
-        ],
-      }->Obj.magic,
-    ),
+    }->S.reverseConvertWith(nodeSchema),
+    {
+      "Id": "1",
+      "Children": [
+        {"Id": "2", "Children": []},
+        {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
+      ],
+    }->Obj.magic,
     (),
   )
 })
