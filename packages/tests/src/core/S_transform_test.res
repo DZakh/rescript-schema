@@ -136,24 +136,20 @@ test("Transform definition passes through other rescript exceptions", t => {
 test("Successfully serializes primitive with transformation to the same type", t => {
   let schema = S.string->S.transform(_ => {serializer: value => value->String.trim})
 
-  t->Assert.deepEqual(
-    "  Hello world!"->S.serializeToUnknownWith(schema),
-    Ok(%raw(`"Hello world!"`)),
-    (),
-  )
+  t->Assert.deepEqual("  Hello world!"->S.reverseConvertWith(schema), %raw(`"Hello world!"`), ())
 })
 
 test("Successfully serializes primitive with transformation to another type", t => {
   let schema = S.float->S.transform(_ => {serializer: value => value->Int.toFloat})
 
-  t->Assert.deepEqual(123->S.serializeToUnknownWith(schema), Ok(%raw(`123`)), ())
+  t->Assert.deepEqual(123->S.reverseConvertWith(schema), %raw(`123`), ())
 })
 
 test("Transformed Primitive serializing fails when serializer isn't provided", t => {
   let schema = S.string->S.transform(_ => {parser: value => value})
 
-  t->U.assertErrorResult(
-    "Hello world!"->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => "Hello world!"->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({description: "The S.transform serializer is missing"}),
       operation: SerializeToUnknown,
@@ -165,8 +161,8 @@ test("Transformed Primitive serializing fails when serializer isn't provided", t
 test("Fails to serialize when user raises error in a Transformed Primitive serializer", t => {
   let schema = S.string->S.transform(s => {serializer: _ => s.fail("User error")})
 
-  t->U.assertErrorResult(
-    "Hello world!"->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => "Hello world!"->S.reverseConvertWith(schema),
     {code: OperationFailed("User error"), operation: SerializeToUnknown, path: S.Path.empty},
   )
 })
@@ -189,8 +185,8 @@ test("Transform operations applyed in the right order when serializing", t => {
     ->S.transform(s => {serializer: _ => s.fail("First transform")})
     ->S.transform(s => {serializer: _ => s.fail("Second transform")})
 
-  t->U.assertErrorResult(
-    123->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => 123->S.reverseConvertWith(schema),
     {
       code: OperationFailed("Second transform"),
       operation: SerializeToUnknown,
@@ -210,8 +206,8 @@ test(
     })
 
     t->Assert.deepEqual(
-      any->S.parseAnyWith(schema)->Result.map(object => object->S.serializeToUnknownWith(schema)),
-      Ok(Ok(any)),
+      any->S.parseAnyWith(schema)->Result.map(object => object->S.reverseConvertWith(schema)),
+      Ok(any),
       (),
     )
   },
@@ -252,11 +248,7 @@ test("Successfully parses with empty transform", t => {
 test("Successfully serializes with empty transform", t => {
   let schema = S.string->S.transform(_ => {})
 
-  t->Assert.deepEqual(
-    "Hello world!"->S.serializeToUnknownWith(schema),
-    Ok(%raw(`"Hello world!"`)),
-    (),
-  )
+  t->Assert.deepEqual("Hello world!"->S.reverseConvertWith(schema), %raw(`"Hello world!"`), ())
 })
 
 asyncTest("Successfully parses async using parseAsyncWith", t => {

@@ -34,8 +34,8 @@ test("Successfully serializes valid value", t => {
   let schema = S.string->S.uuid
 
   t->Assert.deepEqual(
-    "123e4567-e89b-12d3-a456-426614174000"->S.serializeToUnknownWith(schema),
-    Ok(%raw(`"123e4567-e89b-12d3-a456-426614174000"`)),
+    "123e4567-e89b-12d3-a456-426614174000"->S.reverseConvertWith(schema),
+    %raw(`"123e4567-e89b-12d3-a456-426614174000"`),
     (),
   )
 })
@@ -43,8 +43,8 @@ test("Successfully serializes valid value", t => {
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.uuid
 
-  t->U.assertErrorResult(
-    "123e4567"->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => "123e4567"->S.reverseConvertWith(schema),
     {code: OperationFailed("Invalid UUID"), operation: SerializeToUnknown, path: S.Path.empty},
   )
 })

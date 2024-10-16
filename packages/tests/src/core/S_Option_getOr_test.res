@@ -37,11 +37,11 @@ test("Successfully serializes nested option with default value", t => {
   )
 
   t->Assert.deepEqual(
-    Some(Some(Some(Some(None))))->S.serializeToUnknownWith(schema),
-    Ok(%raw(`undefined`)),
+    Some(Some(Some(Some(None))))->S.reverseConvertWith(schema),
+    %raw(`undefined`),
     (),
   )
-  t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`undefined`)), ())
+  t->Assert.deepEqual(None->S.reverseConvertWith(schema), %raw(`undefined`), ())
 })
 
 test("Fails to parse data with default", t => {
@@ -77,7 +77,7 @@ test("Successfully parses schema with transformation", t => {
 test("Successfully serializes schema with transformation", t => {
   let schema = S.string->S.trim->S.option->S.Option.getOr("default")
 
-  t->Assert.deepEqual(" abc"->S.serializeToUnknownWith(schema), Ok(%raw(`"abc"`)), ())
+  t->Assert.deepEqual(" abc"->S.reverseConvertWith(schema), %raw(`"abc"`), ())
 })
 
 test("Compiled parse code snapshot", t => {

@@ -68,8 +68,6 @@ var custom = S_Core$RescriptSchema.custom;
 
 var refine = S_Core$RescriptSchema.refine;
 
-var variant = S_Core$RescriptSchema.variant;
-
 var to = S_Core$RescriptSchema.to;
 
 var compile = S_Core$RescriptSchema.compile;
@@ -106,21 +104,7 @@ var serializeWith = S_Core$RescriptSchema.serializeWith;
 
 var serializeToUnknownWith = S_Core$RescriptSchema.serializeToUnknownWith;
 
-var serializeToJsonStringWith = S_Core$RescriptSchema.serializeToJsonStringWith;
-
-var serializeOrRaiseWith = S_Core$RescriptSchema.serializeOrRaiseWith;
-
-var serializeToUnknownOrRaiseWith = S_Core$RescriptSchema.serializeToUnknownOrRaiseWith;
-
-var serializeToJsonStringOrRaiseWith = S_Core$RescriptSchema.serializeToJsonStringOrRaiseWith;
-
-var assertOrRaiseWith = S_Core$RescriptSchema.assertOrRaiseWith;
-
-var assertAnyWith = S_Core$RescriptSchema.assertAnyWith;
-
 var assertWith = S_Core$RescriptSchema.assertWith;
-
-var isAsyncParse = S_Core$RescriptSchema.isAsyncParse;
 
 var isAsync = S_Core$RescriptSchema.isAsync;
 
@@ -240,7 +224,6 @@ export {
   preprocess ,
   custom ,
   refine ,
-  variant ,
   to ,
   compile ,
   parseWith ,
@@ -259,14 +242,7 @@ export {
   reverseConvertToJsonStringWith ,
   serializeWith ,
   serializeToUnknownWith ,
-  serializeToJsonStringWith ,
-  serializeOrRaiseWith ,
-  serializeToUnknownOrRaiseWith ,
-  serializeToJsonStringOrRaiseWith ,
-  assertOrRaiseWith ,
-  assertAnyWith ,
   assertWith ,
-  isAsyncParse ,
   isAsync ,
   recursive ,
   classify ,

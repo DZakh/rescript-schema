@@ -29,7 +29,7 @@ module Common = {
   test("Successfully serializes", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(any), ())
+    t->Assert.deepEqual(value->S.reverseConvertWith(schema), any, ())
   })
 
   test("Compiled parse code snapshot", t => {
@@ -128,8 +128,8 @@ test("Successfully parses null and serializes it back for deprecated nullable sc
   let schema = S.null(S.bool)->S.deprecate("Deprecated")
 
   t->Assert.deepEqual(
-    %raw(`null`)->S.parseAnyWith(schema)->Result.map(S.serializeToUnknownWith(_, schema)),
-    Ok(Ok(%raw(`null`))),
+    %raw(`null`)->S.parseAnyWith(schema)->Result.map(S.reverseConvertWith(_, schema)),
+    Ok(%raw(`null`)),
     (),
   )
 })
@@ -144,8 +144,8 @@ test("Parses null nested in option as None instead of Some(None)", t => {
 test("Serializes Some(None) to null for null nested in option", t => {
   let schema = S.option(S.null(S.bool))
 
-  t->Assert.deepEqual(Some(None)->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
-  t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`undefined`)), ())
+  t->Assert.deepEqual(Some(None)->S.reverseConvertWith(schema), %raw(`null`), ())
+  t->Assert.deepEqual(None->S.reverseConvertWith(schema), %raw(`undefined`), ())
 
   t->U.assertCompiledCode(
     ~schema,
@@ -157,8 +157,8 @@ test("Serializes Some(None) to null for null nested in option", t => {
 test("Serializes Some(None) to null for null nested in null", t => {
   let schema = S.null(S.null(S.bool))
 
-  t->Assert.deepEqual(Some(None)->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
-  t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
+  t->Assert.deepEqual(Some(None)->S.reverseConvertWith(schema), %raw(`null`), ())
+  t->Assert.deepEqual(None->S.reverseConvertWith(schema), %raw(`null`), ())
 
   t->U.assertCompiledCode(
     ~schema,

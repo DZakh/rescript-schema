@@ -20,8 +20,8 @@ module Common = {
   test("Fails to serialize ", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      any->S.serializeToUnknownWith(schema),
+    t->U.assertError(
+      () => any->S.reverseConvertWith(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: any}),
         operation: SerializeToUnknown,

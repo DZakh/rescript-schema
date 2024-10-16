@@ -100,8 +100,8 @@ test("Successfully serializes object with unknown field (Noop operation)", t => 
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: new Date("2015-12-12")}`)->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{field: new Date("2015-12-12")}`)),
+    %raw(`{field: new Date("2015-12-12")}`)->S.reverseConvertWith(schema),
+    %raw(`{field: new Date("2015-12-12")}`),
     (),
   )
 })
@@ -229,11 +229,7 @@ test("Successfully serializes object with single field", t => {
     }
   )
 
-  t->Assert.deepEqual(
-    {"field": "bar"}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{field: "bar"}`)),
-    (),
-  )
+  t->Assert.deepEqual({"field": "bar"}->S.reverseConvertWith(schema), %raw(`{field: "bar"}`), ())
 })
 
 test("Successfully parses object with multiple fields", t => {
@@ -260,8 +256,8 @@ test("Successfully serializes object with multiple fields", t => {
   )
 
   t->Assert.deepEqual(
-    {"boo": "bar", "zoo": "jee"}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{boo: "bar", zoo: "jee"}`)),
+    {"boo": "bar", "zoo": "jee"}->S.reverseConvertWith(schema),
+    %raw(`{boo: "bar", zoo: "jee"}`),
     (),
   )
 })
@@ -331,8 +327,8 @@ test("Successfully serializes object with transformed field", t => {
   )
 
   t->Assert.deepEqual(
-    {"string": "bar"}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{"string": "barfield"}`)),
+    {"string": "bar"}->S.reverseConvertWith(schema),
+    %raw(`{"string": "barfield"}`),
     (),
   )
 })
@@ -347,8 +343,8 @@ test("Fails to serializes object when transformed field has raises error", t => 
     }
   )
 
-  t->U.assertErrorResult(
-    {"field": "bar"}->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => {"field": "bar"}->S.reverseConvertWith(schema),
     {
       code: OperationFailed("User error"),
       operation: SerializeToUnknown,
@@ -367,8 +363,8 @@ test("Shows transformed object field name in error path when fails to serializes
     }
   )
 
-  t->U.assertErrorResult(
-    {"transformedFieldName": "bar"}->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => {"transformedFieldName": "bar"}->S.reverseConvertWith(schema),
     {
       code: OperationFailed("User error"),
       operation: SerializeToUnknown,
@@ -389,12 +385,13 @@ test("Shows transformed to nested object field name in error path when fails to 
     }
   )
 
-  t->U.assertErrorResult(
-    {
-      "v1": {
-        "transformedFieldName": "bar",
-      },
-    }->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () =>
+      {
+        "v1": {
+          "transformedFieldName": "bar",
+        },
+      }->S.reverseConvertWith(schema),
     {
       code: OperationFailed("User error"),
       operation: SerializeToUnknown,
@@ -427,8 +424,8 @@ test("Successfully serializes object with optional fields", t => {
   )
 
   t->Assert.deepEqual(
-    {"boo": Some("bar"), "zoo": None}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{boo: "bar", zoo: undefined}`)),
+    {"boo": Some("bar"), "zoo": None}->S.reverseConvertWith(schema),
+    %raw(`{boo: "bar", zoo: undefined}`),
     (),
   )
 })
@@ -457,8 +454,8 @@ test("Successfully serializes object with optional fields with default", t => {
   )
 
   t->Assert.deepEqual(
-    {"boo": "bar", "zoo": "baz"}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{boo: "bar", zoo: "baz"}`)),
+    {"boo": "bar", "zoo": "baz"}->S.reverseConvertWith(schema),
+    %raw(`{boo: "bar", zoo: "baz"}`),
     (),
   )
 })
@@ -493,8 +490,8 @@ test("Successfully serializes object with optional fields using (?)", t => {
   })
 
   t->Assert.deepEqual(
-    {mode: 1}->S.serializeToUnknownWith(optionsSchema),
-    Ok(%raw(`{mode: 1, fast: undefined}`)),
+    {mode: 1}->S.reverseConvertWith(optionsSchema),
+    %raw(`{mode: 1, fast: undefined}`),
     (),
   )
 })
@@ -525,8 +522,8 @@ test("Successfully serializes object with mapped field", t => {
   )
 
   t->Assert.deepEqual(
-    {"name": "Dmitry", "email": "dzakh.dev@gmail.com", "age": 21}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)),
+    {"name": "Dmitry", "email": "dzakh.dev@gmail.com", "age": 21}->S.reverseConvertWith(schema),
+    %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`),
     (),
   )
 })
@@ -540,7 +537,7 @@ test("Successfully parses object transformed to tuple", t => {
 test("Successfully serializes object transformed to tuple", t => {
   let schema = S.object(s => (s.field("boo", S.int), s.field("zoo", S.int)))
 
-  t->Assert.deepEqual((1, 2)->S.serializeToUnknownWith(schema), Ok(%raw(`{boo: 1, zoo: 2}`)), ())
+  t->Assert.deepEqual((1, 2)->S.reverseConvertWith(schema), %raw(`{boo: 1, zoo: 2}`), ())
 })
 
 test("Successfully parses object transformed to nested object", t => {
@@ -571,8 +568,8 @@ test("Successfully serializes object transformed to nested object", t => {
   )
 
   t->Assert.deepEqual(
-    {"v1": {"boo": 1, "zoo": 2}}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{boo: 1, zoo: 2}`)),
+    {"v1": {"boo": 1, "zoo": 2}}->S.reverseConvertWith(schema),
+    %raw(`{boo: 1, zoo: 2}`),
     (),
   )
 })
@@ -594,11 +591,7 @@ test("Successfully serializes object transformed to nested tuple", t => {
     }
   )
 
-  t->Assert.deepEqual(
-    {"v1": (1, 2)}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{boo: 1, zoo: 2}`)),
-    (),
-  )
+  t->Assert.deepEqual({"v1": (1, 2)}->S.reverseConvertWith(schema), %raw(`{boo: 1, zoo: 2}`), ())
 })
 
 test("Successfully parses object with only one field returned from transformer", t => {
@@ -610,7 +603,7 @@ test("Successfully parses object with only one field returned from transformer",
 test("Successfully serializes object with only one field returned from transformer", t => {
   let schema = S.object(s => s.field("field", S.bool))
 
-  t->Assert.deepEqual(true->S.serializeToUnknownWith(schema), Ok(%raw(`{"field": true}`)), ())
+  t->Assert.deepEqual(true->S.reverseConvertWith(schema), %raw(`{"field": true}`), ())
 })
 
 test("Successfully parses object transformed to the one with hardcoded fields", t => {
@@ -643,8 +636,8 @@ test("Successfully serializes object transformed to the one with hardcoded field
     {
       "hardcoded": false,
       "field": true,
-    }->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{"field": true}`)),
+    }->S.reverseConvertWith(schema),
+    %raw(`{"field": true}`),
     (),
   )
 })
@@ -658,11 +651,7 @@ test("Successfully parses object transformed to variant", t => {
 test("Successfully serializes object transformed to variant", t => {
   let schema = S.object(s => #VARIANT(s.field("field", S.bool)))
 
-  t->Assert.deepEqual(
-    #VARIANT(true)->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{"field": true}`)),
-    (),
-  )
+  t->Assert.deepEqual(#VARIANT(true)->S.reverseConvertWith(schema), %raw(`{"field": true}`), ())
 })
 
 module Benchmark = {
@@ -846,9 +835,8 @@ module Benchmark = {
           "num": 1.,
           "bool": false,
         },
-      }->S.serializeToUnknownWith(schema),
-      Ok(
-        %raw(`{
+      }->S.reverseConvertWith(schema),
+      %raw(`{
         number: 1,
         negNumber: -1,
         maxNumber: Number.MAX_VALUE,
@@ -862,7 +850,6 @@ module Benchmark = {
           bool: false,
         },
       }`),
-      ),
       (),
     )
 
@@ -887,8 +874,8 @@ test("Successfully parses object and serializes it back to the initial data", t 
   )
 
   t->Assert.deepEqual(
-    any->S.parseAnyWith(schema)->Result.map(object => object->S.serializeToUnknownWith(schema)),
-    Ok(Ok(any)),
+    any->S.parseAnyWith(schema)->Result.map(object => object->S.reverseConvertWith(schema)),
+    Ok(any),
     (),
   )
 })
@@ -962,8 +949,8 @@ test("Reverse convert of object schema with single field registered multiple tim
     %raw(`{"field": "foo"}`),
     (),
   )
-  t->U.assertErrorResult(
-    {"field1": "foo", "field2": "foo", "field3": "foz"}->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => {"field1": "foo", "field2": "foo", "field3": "foz"}->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({
         description: `Multiple sources provided not equal data for "field"`,

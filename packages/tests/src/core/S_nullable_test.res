@@ -29,7 +29,7 @@ module NullCommon = {
   test("Successfully serializes (to undefined)", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(%raw(`undefined`)), ())
+    t->Assert.deepEqual(value->S.reverseConvertWith(schema), %raw(`undefined`), ())
   })
 
   test("Compiled parse code snapshot", t => {
@@ -101,8 +101,8 @@ test(
     let schema = S.nullable(S.bool)->S.deprecate("Deprecated")
 
     t->Assert.deepEqual(
-      %raw(`null`)->S.parseAnyWith(schema)->Result.map(S.serializeToUnknownWith(_, schema)),
-      Ok(Ok(%raw(`undefined`))),
+      %raw(`null`)->S.parseAnyWith(schema)->Result.map(S.reverseConvertWith(_, schema)),
+      Ok(%raw(`undefined`)),
       (),
     )
   },

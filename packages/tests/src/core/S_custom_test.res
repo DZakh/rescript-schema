@@ -12,7 +12,7 @@ let nullableSchema = innerSchema => {
     },
     serializer: value => {
       switch value {
-      | Some(innerValue) => innerValue->S.serializeToUnknownWith(innerSchema)->S.unwrap
+      | Some(innerValue) => innerValue->S.reverseConvertWith(innerSchema)
       | None => %raw(`null`)
       }
     },
@@ -39,11 +39,11 @@ test("Correctly serializes custom schema", t => {
   let schema = nullableSchema(S.string)
 
   t->Assert.deepEqual(
-    Some("Hello world!")->S.serializeToUnknownWith(schema),
-    Ok(%raw(`"Hello world!"`)),
+    Some("Hello world!")->S.reverseConvertWith(schema),
+    %raw(`"Hello world!"`),
     (),
   )
-  t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
+  t->Assert.deepEqual(None->S.reverseConvertWith(schema), %raw(`null`), ())
 })
 
 test("Reverses custom schema to unknown", t => {
@@ -62,8 +62,8 @@ test("Fails to serialize with user error", t => {
     serializer: _ => s.fail("User error"),
   })
 
-  t->U.assertErrorResult(
-    None->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => None->S.reverseConvertWith(schema),
     {code: OperationFailed("User error"), operation: SerializeToUnknown, path: S.Path.empty},
   )
 })
@@ -73,8 +73,8 @@ test("Fails to serialize with serializer is missing", t => {
     parser: _ => (),
   })
 
-  t->U.assertErrorResult(
-    ()->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => ()->S.reverseConvertWith(schema),
     {
       code: InvalidOperation({description: "The S.custom serializer is missing"}),
       operation: SerializeToUnknown,

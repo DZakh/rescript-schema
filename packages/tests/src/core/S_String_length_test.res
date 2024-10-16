@@ -30,22 +30,22 @@ test("Fails to parse invalid data", t => {
 test("Successfully serializes valid value", t => {
   let schema = S.string->S.stringLength(1)
 
-  t->Assert.deepEqual("1"->S.serializeToUnknownWith(schema), Ok(%raw(`"1"`)), ())
+  t->Assert.deepEqual("1"->S.reverseConvertWith(schema), %raw(`"1"`), ())
 })
 
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.stringLength(1)
 
-  t->U.assertErrorResult(
-    ""->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => ""->S.reverseConvertWith(schema),
     {
       code: OperationFailed("String must be exactly 1 characters long"),
       operation: SerializeToUnknown,
       path: S.Path.empty,
     },
   )
-  t->U.assertErrorResult(
-    "1234"->S.serializeToUnknownWith(schema),
+  t->U.assertError(
+    () => "1234"->S.reverseConvertWith(schema),
     {
       code: OperationFailed("String must be exactly 1 characters long"),
       operation: SerializeToUnknown,

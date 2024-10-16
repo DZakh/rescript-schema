@@ -17,7 +17,7 @@ module CommonWithNested = {
   test("Successfully serializes", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(any), ())
+    t->Assert.deepEqual(value->S.reverseConvertWith(schema), any, ())
   })
 
   test("Fails to parse", t => {
@@ -114,13 +114,11 @@ test("Applies operation for each item on serializing", t => {
   let schema = S.dict(S.jsonString(S.int))
 
   t->Assert.deepEqual(
-    Dict.fromArray([("a", 1), ("b", 2)])->S.serializeToUnknownWith(schema),
-    Ok(
-      %raw(`{
+    Dict.fromArray([("a", 1), ("b", 2)])->S.reverseConvertWith(schema),
+    %raw(`{
         "a": "1",
         "b": "2",
       }`),
-    ),
     (),
   )
 })
@@ -128,16 +126,13 @@ test("Applies operation for each item on serializing", t => {
 test("Fails to serialize dict item", t => {
   let schema = S.dict(S.string->S.refine(s => _ => s.fail("User error")))
 
-  t->Assert.deepEqual(
-    Dict.fromArray([("a", "aa"), ("b", "bb")])->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
-        code: OperationFailed("User error"),
-        operation: SerializeToUnknown,
-        path: S.Path.fromLocation("a"),
-      }),
-    ),
-    (),
+  t->U.assertError(
+    () => Dict.fromArray([("a", "aa"), ("b", "bb")])->S.reverseConvertWith(schema),
+    {
+      code: OperationFailed("User error"),
+      operation: SerializeToUnknown,
+      path: S.Path.fromLocation("a"),
+    },
   )
 })
 

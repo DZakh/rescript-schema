@@ -30,14 +30,14 @@ module Common = {
   test("Successfully serializes", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(value->U.castAnyToUnknown), ())
+    t->Assert.deepEqual(value->S.reverseConvertWith(schema), value->U.castAnyToUnknown, ())
   })
 
   test("Fails to serialize invalid", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      invalid->S.serializeToUnknownWith(schema),
+    t->U.assertError(
+      () => invalid->S.reverseConvertWith(schema),
       {
         code: InvalidType({
           expected: S.literal(("bar", true))->S.toUnknown,
@@ -142,14 +142,14 @@ module EmptyArray = {
   test("Successfully serializes empty array literal schema", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(value->U.castAnyToUnknown), ())
+    t->Assert.deepEqual(value->S.reverseConvertWith(schema), value->U.castAnyToUnknown, ())
   })
 
   test("Fails to serialize empty array literal schema with invalid value", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      invalid->S.serializeToUnknownWith(schema),
+    t->U.assertError(
+      () => invalid->S.reverseConvertWith(schema),
       {
         code: InvalidType({
           expected: S.literal([])->S.toUnknown,

@@ -45,6 +45,22 @@ function assertErrorResult(t, result, errorPayload) {
   t.is(S$RescriptSchema.$$Error.message(result._0), S$RescriptSchema.$$Error.message(error(errorPayload)), undefined);
 }
 
+function assertError(t, cb, errorPayload) {
+  var any;
+  try {
+    any = cb();
+  }
+  catch (raw_err){
+    var err = Caml_js_exceptions.internalToOCamlException(raw_err);
+    if (err.RE_EXN_ID === S$RescriptSchema.Raised) {
+      t.is(S$RescriptSchema.$$Error.message(err._1), S$RescriptSchema.$$Error.message(error(errorPayload)), undefined);
+      return ;
+    }
+    throw err;
+  }
+  t.fail("Asserted result is not Error. Recieved: " + JSON.stringify(any));
+}
+
 function getCompiledCodeString(schema, op) {
   return (
             op === "Assert" ? S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true) : (
@@ -108,6 +124,7 @@ export {
   error ,
   assertThrowsTestException ,
   assertErrorResult ,
+  assertError ,
   getCompiledCodeString ,
   cleanUpSchema ,
   unsafeAssertEqualSchemas ,
