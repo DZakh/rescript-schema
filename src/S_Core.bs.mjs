@@ -2973,24 +2973,6 @@ function js_custom(name, maybeParser, maybeSerializer, param) {
               }));
 }
 
-function js_object(definer) {
-  if (typeof definer === "function") {
-    return factory$3(definer);
-  } else {
-    return factory$3(function (s) {
-                var definition = {};
-                var fieldNames = Object.keys(definer);
-                for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-                  var fieldName = fieldNames[idx];
-                  var schema = definer[fieldName];
-                  var schema$1 = schema && schema["~r"] ? schema : literal(schema);
-                  definition[fieldName] = s.f(fieldName, schema$1);
-                }
-                return definition;
-              });
-  }
-}
-
 function js_merge(s1, s2) {
   var match = s1.t;
   if (typeof match === "object" && match.TAG === "Object") {
@@ -3288,7 +3270,6 @@ export {
   js_asyncParserRefine ,
   js_refine ,
   js_transform ,
-  js_object ,
   js_merge ,
   js_name ,
   setGlobalConfig ,

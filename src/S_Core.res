@@ -329,8 +329,6 @@ let unsafeGetVarianTag = (variant): string => (variant->Obj.magic)["TAG"]
 @inline
 let isSchemaObject = object => Obj.magic(object)["~r"]
 @inline
-let isSchema = any => Obj.magic(any) && any->isSchemaObject
-@inline
 let isLiteralSchema = schema => schema.tagged->unsafeGetVarianTag === "Literal"
 @inline
 let isPrimitiveSchema = schema => schema.tagged->Js.typeof === "string"
@@ -4103,30 +4101,6 @@ let js_custom = (~name, ~parser as maybeParser=?, ~serializer as maybeSerializer
       },
     }
   })
-}
-
-let js_object = definer => {
-  if Js.typeof(definer) === "function" {
-    let definer = definer->(Obj.magic: unknown => Object.s => 'a)
-    object(definer)
-  } else {
-    let definer = definer->(Obj.magic: unknown => dict<t<unknown>>)
-    object(s => {
-      let definition = Js.Dict.empty()
-      let fieldNames = definer->Js.Dict.keys
-      for idx in 0 to fieldNames->Js.Array2.length - 1 {
-        let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-        let schema = definer->Js.Dict.unsafeGet(fieldName)
-        let schema = if schema->isSchema {
-          schema
-        } else {
-          literal(Obj.magic(schema))
-        }
-        definition->Js.Dict.set(fieldName, s.field(fieldName, schema))
-      }
-      definition
-    })
-  }
 }
 
 let js_merge = (s1, s2) => {
