@@ -596,7 +596,7 @@ test("Custom string schema", (t) => {
 });
 
 test("Successfully parses object by provided shape", (t) => {
-  const schema = S.object({
+  const schema = S.schema({
     foo: S.string,
     bar: S.boolean,
   });
@@ -640,7 +640,7 @@ test("Successfully parses object by provided shape", (t) => {
 });
 
 test("Successfully parses tagged object", (t) => {
-  const schema = S.object({
+  const schema = S.schema({
     tag: "block" as const,
     bar: S.boolean,
   });
@@ -684,7 +684,7 @@ test("Successfully parses tagged object", (t) => {
 });
 
 test("Successfully parses and reverse convert object with optional field", (t) => {
-  const schema = S.object({
+  const schema = S.schema({
     bar: S.optional(S.boolean),
   });
   const value = S.parseWith({}, schema);
@@ -753,7 +753,7 @@ test("Successfully parses object with field names transform", (t) => {
 });
 
 test("Successfully parses object with transformed field", (t) => {
-  const schema = S.object({
+  const schema = S.schema({
     foo: S.transform(S.string, (string) => Number(string)),
     bar: S.boolean,
   });
@@ -798,7 +798,7 @@ test("Successfully parses object with transformed field", (t) => {
 
 test("Fails to parse strict object with exccess fields", (t) => {
   const schema = S.Object.strict(
-    S.object({
+    S.schema({
       foo: S.string,
     })
   );
@@ -845,7 +845,7 @@ test("Fails to parse strict object with exccess fields which created using globa
   S.setGlobalConfig({
     defaultUnknownKeys: "Strict",
   });
-  const schema = S.object({
+  const schema = S.schema({
     foo: S.string,
   });
   // Reset global config back
@@ -892,7 +892,7 @@ test("Fails to parse strict object with exccess fields which created using globa
 test("Resets object strict mode with strip method", (t) => {
   const schema = S.Object.strip(
     S.Object.strict(
-      S.object({
+      S.schema({
         foo: S.string,
       })
     )
@@ -933,11 +933,11 @@ test("Resets object strict mode with strip method", (t) => {
 
 test("Successfully parses intersected objects", (t) => {
   const schema = S.merge(
-    S.object({
+    S.schema({
       foo: S.string,
       bar: S.boolean,
     }),
-    S.object({
+    S.schema({
       baz: S.string,
     })
   );
@@ -993,7 +993,7 @@ test("Successfully parses intersected objects", (t) => {
 test("Successfully parses intersected objects with transform", (t) => {
   const schema = S.merge(
     S.transform(
-      S.object({
+      S.schema({
         foo: S.string,
         bar: S.boolean,
       }),
@@ -1001,7 +1001,7 @@ test("Successfully parses intersected objects with transform", (t) => {
         abc: obj.foo,
       })
     ),
-    S.object({
+    S.schema({
       baz: S.string,
     })
   );
@@ -1054,11 +1054,11 @@ test("Successfully parses intersected objects with transform", (t) => {
 
 test("Fails to serialize merge. Not supported yet", (t) => {
   const schema = S.merge(
-    S.object({
+    S.schema({
       foo: S.string,
       bar: S.boolean,
     }),
-    S.object({
+    S.schema({
       baz: S.string,
     })
   );
@@ -1085,11 +1085,11 @@ test("Fails to serialize merge. Not supported yet", (t) => {
 
 test("Name of merge schema", (t) => {
   const schema = S.merge(
-    S.object({
+    S.schema({
       foo: S.string,
       bar: S.boolean,
     }),
-    S.object({
+    S.schema({
       baz: S.string,
     })
   );
@@ -1590,7 +1590,7 @@ test("Successfully parses recursive object", (t) => {
   };
 
   let nodeSchema = S.recursive<Node>((nodeSchema) =>
-    S.object({
+    S.schema({
       id: S.string,
       children: S.array(nodeSchema),
     })
@@ -1621,7 +1621,7 @@ test("Successfully parses recursive object", (t) => {
 
 test("Example", (t) => {
   // Create login schema with email and password
-  const loginSchema = S.object({
+  const loginSchema = S.schema({
     email: S.email(S.string),
     password: S.stringMinLength(S.string, 8),
   });
