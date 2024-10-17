@@ -1,6 +1,6 @@
 {
   "name": "rescript-schema-ppx",
-  "version": "8.3.0",
+  "version": "8.4.0",
   "description": "ReScript PPX to generate rescript-schema from type",
   "keywords": [
     "ReScript",
@@ -32,6 +32,6 @@
     "postinstall": "node ./install.cjs"
   },
   "peerDependencies": {
-    "rescript-schema": "8.3.x"
+    "rescript-schema": "^8.3.0"
   }
 }
