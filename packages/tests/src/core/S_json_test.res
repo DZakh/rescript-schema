@@ -118,7 +118,7 @@ test("Compiled parse code snapshot with validate=false", t => {
 
 test("Compiled serialize code snapshot", t => {
   let schema = S.json(~validate=true)
-  t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
+  t->U.assertCompiledCodeIsNoop(~schema, ~op=#ReverseConvert)
 })
 
 test("Reverse schema to S.json(~validate=false) with validate=true", t => {

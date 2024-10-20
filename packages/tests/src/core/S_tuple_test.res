@@ -92,8 +92,8 @@ test("Reverse convert of tuple schema with single item registered multiple times
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#Serialize,
-    `i=>{let v0=i["item1"],v1=i["item2"];if(v0!==v1){e[0]()}return [v0]}`,
+    ~op=#ReverseConvert,
+    `i=>{let v0=i["item1"],v1=i["item2"];if(v0!==v1){e[0]()}return [v0,]}`,
   )
 
   t->Assert.deepEqual(
@@ -271,7 +271,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0=i["0"],v1=i["1"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return [v0,v1]}`,
+      `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0=i["0"],v1=i["1"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return [v0,v1,]}`,
     )
   })
 
@@ -284,21 +284,25 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0=i["1"];if(typeof v0!=="boolean"){e[1](v0)}return Promise.all([e[0](i["0"])]).then(a=>([a[0],v0]))}`,
+      `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0=i["1"];if(typeof v0!=="boolean"){e[1](v0)}return Promise.all([e[0](i["0"]),]).then(a=>([a[0],v0,]))}`,
     )
   })
 
   test("Compiled serialize code snapshot for simple tuple", t => {
     let schema = S.tuple(s => (s.item(0, S.string), s.item(1, S.bool)))
 
-    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return [i["0"],i["1"]]}`)
+    t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return [i["0"],i["1"],]}`)
   })
 
   test("Compiled serialize code snapshot for empty tuple", t => {
     let schema = S.tuple(_ => ())
 
     // TODO: No need to do unit check ?
-    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{if(i!==undefined){e[0](i)}return []}`)
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#ReverseConvert,
+      `i=>{if(i!==undefined){e[0](i)}return []}`,
+    )
   })
 
   test(
@@ -316,7 +320,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#Parse,
-        `i=>{if(!Array.isArray(i)||i.length!==3){e[4](i)}let v0=i["0"],v1=i["1"],v2=i["2"];if(v0!==0){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}return {"foo":v1,"bar":v2,"zoo":e[3]}}`,
+        `i=>{if(!Array.isArray(i)||i.length!==3){e[4](i)}let v0=i["0"],v1=i["1"],v2=i["2"];if(v0!==0){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}return {"foo":v1,"bar":v2,"zoo":e[3],}}`,
       )
     },
   )
@@ -335,8 +339,8 @@ module Compiled = {
 
       t->U.assertCompiledCode(
         ~schema,
-        ~op=#Serialize,
-        `i=>{if(i["zoo"]!==1){e[0](i["zoo"])}return [e[1],i["foo"],i["bar"]]}`,
+        ~op=#ReverseConvert,
+        `i=>{if(i["zoo"]!==1){e[0](i["zoo"])}return [e[1],i["foo"],i["bar"],]}`,
       )
     },
   )

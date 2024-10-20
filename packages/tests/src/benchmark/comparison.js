@@ -56,11 +56,11 @@ const schema = S.schema({
   string: S.string,
   longString: S.string,
   boolean: S.boolean,
-  deeplyNested: S.schema({
+  deeplyNested: {
     foo: S.string,
     num: S.number,
     bool: S.boolean,
-  }),
+  },
 });
 
 new B.Suite()
@@ -141,11 +141,11 @@ new B.Suite()
       string: S.string,
       longString: S.string,
       boolean: S.boolean,
-      deeplyNested: S.schema({
+      deeplyNested: {
         foo: S.string,
         num: S.number,
         bool: S.boolean,
-      }),
+      },
     });
   })
   .add("rescript-schema (parse)", () => {
@@ -159,11 +159,11 @@ new B.Suite()
       string: S.string,
       longString: S.string,
       boolean: S.boolean,
-      deeplyNested: S.schema({
+      deeplyNested: {
         foo: S.string,
         num: S.number,
         bool: S.boolean,
-      }),
+      },
     });
     return S.parseOrThrow(data, schema);
   })

@@ -25,7 +25,7 @@ module Common = {
   test("Compiled serialize code snapshot", t => {
     let schema = factory()
 
-    t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#ReverseConvert)
   })
 
   test("Reverse schema to self", t => {
