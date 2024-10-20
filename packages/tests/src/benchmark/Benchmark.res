@@ -202,7 +202,7 @@ module CrazyUnion = {
     Console.timeEnd("testData1 serialize")
 
     Console.time("testData1 parse")
-    let _ = S.parseAnyWith(json, schema)
+    let _ = S.parseOrThrow(json, schema)
     Console.timeEnd("testData1 parse")
 
     Console.time("testData2 serialize")
@@ -210,7 +210,7 @@ module CrazyUnion = {
     Console.timeEnd("testData2 serialize")
 
     Console.time("testData2 parse")
-    let _ = S.parseAnyWith(json, schema)->S.unwrap
+    let _ = S.parseOrThrow(json, schema)
     Console.timeEnd("testData2 parse")
   }
 }
@@ -222,15 +222,15 @@ Console.time("makeAdvancedObjectSchema")
 let schema = makeAdvancedObjectSchema()
 Console.timeEnd("makeAdvancedObjectSchema")
 
-Console.time("parseAnyWith: 1")
-data->S.parseAnyWith(schema)->ignore
-Console.timeEnd("parseAnyWith: 1")
-Console.time("parseAnyWith: 2")
-data->S.parseAnyWith(schema)->ignore
-Console.timeEnd("parseAnyWith: 2")
-Console.time("parseAnyWith: 3")
-data->S.parseAnyWith(schema)->ignore
-Console.timeEnd("parseAnyWith: 3")
+Console.time("parseOrThrow: 1")
+data->S.parseOrThrow(schema)->ignore
+Console.timeEnd("parseOrThrow: 1")
+Console.time("parseOrThrow: 2")
+data->S.parseOrThrow(schema)->ignore
+Console.timeEnd("parseOrThrow: 2")
+Console.time("parseOrThrow: 3")
+data->S.parseOrThrow(schema)->ignore
+Console.timeEnd("parseOrThrow: 3")
 
 Console.time("serializeWith: 1")
 data->S.reverseConvertOrThrow(schema)->ignore
@@ -346,9 +346,9 @@ Suite.make()
 /*
 V7.0.1
 makeAdvancedObjectSchema: 0.174ms
-parseAnyWith: 1: 0.465ms
-parseAnyWith: 2: 0.006ms
-parseAnyWith: 3: 0.004ms
+parseOrThrow: 1: 0.465ms
+parseOrThrow: 2: 0.006ms
+parseOrThrow: 3: 0.004ms
 serializeWith: 1: 0.208ms
 serializeWith: 2: 0.004ms
 serializeWith: 3: 0.003ms

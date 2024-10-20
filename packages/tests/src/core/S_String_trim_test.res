@@ -3,7 +3,7 @@ open Ava
 test("Successfully parses", t => {
   let schema = S.string->S.trim
 
-  t->Assert.deepEqual("   Hello world!"->S.parseAnyWith(schema), Ok("Hello world!"), ())
+  t->Assert.deepEqual("   Hello world!"->S.parseOrThrow(schema), "Hello world!", ())
 })
 
 test("Successfully serializes", t => {

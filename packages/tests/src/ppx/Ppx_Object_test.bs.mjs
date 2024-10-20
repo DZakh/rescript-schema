@@ -18,12 +18,9 @@ Ava("Simple object schema", (function (t) {
                           value: s.f("value", S$RescriptSchema.$$int)
                         };
                 }), undefined);
-        t.deepEqual(S$RescriptSchema.parseWith({label:"foo",value:1}, simpleObjectSchema), {
-              TAG: "Ok",
-              _0: {
-                label: "foo",
-                value: 1
-              }
+        t.deepEqual(S$RescriptSchema.parseOrThrow({label:"foo",value:1}, simpleObjectSchema), {
+              label: "foo",
+              value: 1
             }, undefined);
       }));
 
@@ -41,12 +38,9 @@ Ava("The @as attribute for the object schema is ignored since it doesn't work", 
                           value: s.f("value", S$RescriptSchema.$$int)
                         };
                 }), undefined);
-        t.deepEqual(S$RescriptSchema.parseWith({"label":"foo",value:1}, objectWithAliasSchema), {
-              TAG: "Ok",
-              _0: {
-                label: "foo",
-                value: 1
-              }
+        t.deepEqual(S$RescriptSchema.parseOrThrow({"label":"foo",value:1}, objectWithAliasSchema), {
+              label: "foo",
+              value: 1
             }, undefined);
       }));
 

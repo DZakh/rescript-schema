@@ -34,14 +34,16 @@ let filmSchema = S.object(s => {
 
 test("Example", t => {
   t->Assert.deepEqual(
-    %raw(`{"Id": 1, "Title": "My first film", "Rating": "R", "Age": 17}`)->S.parseWith(filmSchema),
-    Ok({
+    %raw(`{"Id": 1, "Title": "My first film", "Rating": "R", "Age": 17}`)->S.parseOrThrow(
+      filmSchema,
+    ),
+    {
       id: 1.,
       title: "My first film",
       tags: [],
       rating: Restricted,
       deprecatedAgeRestriction: Some(17),
-    }),
+    },
     (),
   )
   t->Assert.deepEqual(

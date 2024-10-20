@@ -83,8 +83,8 @@ test("Successfully parses with nested object defined multiple times", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{"foo": "foo", "nested": {"bar": "bar", "baz": "baz"}}`)->S.parseAnyWith(schema),
-    Ok({"foo": "foo", "bar": "bar", "baz": "baz"}),
+    %raw(`{"foo": "foo", "nested": {"bar": "bar", "baz": "baz"}}`)->S.parseOrThrow(schema),
+    {"foo": "foo", "bar": "bar", "baz": "baz"},
     (),
   )
   t->U.assertCompiledCode(
@@ -154,8 +154,8 @@ test("Merges deeply nested in different branches", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{"nested": {"nested2": {"bar": "bar", "baz": "baz"}}}`)->S.parseAnyWith(schema),
-    Ok({"bar": "bar", "baz": "baz"}),
+    %raw(`{"nested": {"nested2": {"bar": "bar", "baz": "baz"}}}`)->S.parseOrThrow(schema),
+    {"bar": "bar", "baz": "baz"},
     (),
   )
   t->U.assertCompiledCode(

@@ -8,7 +8,7 @@ test("Successfully parses object with quotes in a field name", t => {
     }
   )
 
-  t->Assert.deepEqual(%raw(`{"\"\'\`": "bar"}`)->S.parseAnyWith(schema), Ok({"field": "bar"}), ())
+  t->Assert.deepEqual(%raw(`{"\"\'\`": "bar"}`)->S.parseOrThrow(schema), {"field": "bar"}, ())
 })
 
 test("Successfully serializing object with quotes in a field name", t => {
@@ -32,7 +32,7 @@ test("Successfully parses object transformed to object with quotes in a field na
     }
   )
 
-  t->Assert.deepEqual(%raw(`{"field": "bar"}`)->S.parseAnyWith(schema), Ok({"\"\'\`": "bar"}), ())
+  t->Assert.deepEqual(%raw(`{"field": "bar"}`)->S.parseOrThrow(schema), {"\"\'\`": "bar"}, ())
 })
 
 test("Successfully serializes object transformed to object with quotes in a field name", t => {
@@ -61,8 +61,8 @@ test("Successfully parses object with discriminant which has quotes as the field
     %raw(`{
       "\"\'\`": null,
       "field": "bar",
-    }`)->S.parseAnyWith(schema),
-    Ok({"field": "bar"}),
+    }`)->S.parseOrThrow(schema),
+    {"field": "bar"},
     (),
   )
 })
@@ -97,8 +97,8 @@ test("Successfully parses object with discriminant which has quotes as the liter
     %raw(`{
       "kind": "\"\'\`",
       "field": "bar",
-    }`)->S.parseAnyWith(schema),
-    Ok({"field": "bar"}),
+    }`)->S.parseOrThrow(schema),
+    {"field": "bar"},
     (),
   )
 })
@@ -135,11 +135,11 @@ test(
     )
 
     t->Assert.deepEqual(
-      %raw(`{"field": "bar"}`)->S.parseAnyWith(schema),
-      Ok({
+      %raw(`{"field": "bar"}`)->S.parseOrThrow(schema),
+      {
         "\"\'\`": "hardcoded",
         "field": "bar",
-      }),
+      },
       (),
     )
   },
@@ -177,11 +177,11 @@ test(
     )
 
     t->Assert.deepEqual(
-      %raw(`{"field": "bar"}`)->S.parseAnyWith(schema),
-      Ok({
+      %raw(`{"field": "bar"}`)->S.parseOrThrow(schema),
+      {
         "hardcoded": "\"\'\`",
         "field": "bar",
-      }),
+      },
       (),
     )
   },
@@ -215,8 +215,8 @@ test("Has proper error path when fails to parse object with quotes in a field na
     }
   )
 
-  t->U.assertErrorResult(
-    () => %raw(`{"\"\'\`": "bar"}`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`{"\"\'\`": "bar"}`)->S.parseOrThrow(schema),
     {
       code: OperationFailed("User error"),
       operation: Parse,
@@ -249,8 +249,8 @@ test("Field name in a format of a path is handled properly", t => {
     }
   )
 
-  t->U.assertErrorResult(
-    () => %raw(`{"bar": "foo"}`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`{"bar": "foo"}`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`undefined`)}),
       operation: Parse,

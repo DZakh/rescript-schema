@@ -7,7 +7,7 @@ module Common = {
   test("Successfully parses", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(any), ())
+    t->Assert.deepEqual(any->S.parseOrThrow(schema), any, ())
   })
 
   test("Successfully serializes", t => {

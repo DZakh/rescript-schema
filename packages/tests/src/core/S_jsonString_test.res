@@ -4,7 +4,7 @@ open RescriptCore
 test("Successfully parses JSON", t => {
   let schema = S.string
 
-  t->Assert.deepEqual(`"Foo"`->S.parseAnyWith(S.jsonString(schema)), Ok("Foo"), ())
+  t->Assert.deepEqual(`"Foo"`->S.parseOrThrow(S.jsonString(schema)), "Foo", ())
 })
 
 test("Successfully serializes JSON", t => {

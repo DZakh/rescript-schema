@@ -165,13 +165,13 @@ function test() {
   var json = S$RescriptSchema.reverseConvertOrThrow(testData1, schema);
   console.timeEnd("testData1 serialize");
   console.time("testData1 parse");
-  S$RescriptSchema.parseAnyWith(json, schema);
+  S$RescriptSchema.parseOrThrow(json, schema);
   console.timeEnd("testData1 parse");
   console.time("testData2 serialize");
   var json$1 = S$RescriptSchema.reverseConvertOrThrow(testData2, schema);
   console.timeEnd("testData2 serialize");
   console.time("testData2 parse");
-  S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith(json$1, schema));
+  S$RescriptSchema.parseOrThrow(json$1, schema);
   console.timeEnd("testData2 parse");
 }
 
@@ -185,23 +185,23 @@ var schema$1 = makeAdvancedObjectSchema();
 
 console.timeEnd("makeAdvancedObjectSchema");
 
-console.time("parseAnyWith: 1");
+console.time("parseOrThrow: 1");
 
-S$RescriptSchema.parseAnyWith(data, schema$1);
+S$RescriptSchema.parseOrThrow(data, schema$1);
 
-console.timeEnd("parseAnyWith: 1");
+console.timeEnd("parseOrThrow: 1");
 
-console.time("parseAnyWith: 2");
+console.time("parseOrThrow: 2");
 
-S$RescriptSchema.parseAnyWith(data, schema$1);
+S$RescriptSchema.parseOrThrow(data, schema$1);
 
-console.timeEnd("parseAnyWith: 2");
+console.timeEnd("parseOrThrow: 2");
 
-console.time("parseAnyWith: 3");
+console.time("parseOrThrow: 3");
 
-S$RescriptSchema.parseAnyWith(data, schema$1);
+S$RescriptSchema.parseOrThrow(data, schema$1);
 
-console.timeEnd("parseAnyWith: 3");
+console.timeEnd("parseOrThrow: 3");
 
 console.time("serializeWith: 1");
 

@@ -21,14 +21,14 @@ module Common = {
   test("Successfully parses", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(value->S.parseAnyWith(schema), Ok(value), ())
+    t->Assert.deepEqual(value->S.parseOrThrow(schema), value, ())
   })
 
   test("Fails to parse invalid", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => invalid->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => invalid->S.parseOrThrow(schema),
       {
         code: InvalidType({
           expected: S.literal(Dict.fromArray([("foo", "bar")]))->S.toUnknown,
@@ -65,8 +65,8 @@ module Common = {
   test("Fails to parse null", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => %raw(`null`)->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => %raw(`null`)->S.parseOrThrow(schema),
       {
         code: InvalidType({
           expected: S.literal(Dict.fromArray([("foo", "bar")]))->S.toUnknown,
@@ -81,8 +81,8 @@ module Common = {
   test("Fails to parse value with excess fields", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => %raw(`{"foo": "bar","excess":true}`)->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => %raw(`{"foo": "bar","excess":true}`)->S.parseOrThrow(schema),
       {
         code: InvalidType({
           expected: S.literal(Dict.fromArray([("foo", "bar")]))->S.toUnknown,
@@ -97,8 +97,8 @@ module Common = {
   test("Fails to parse non plain objects", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => makeNotPlainValue()->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => makeNotPlainValue()->S.parseOrThrow(schema),
       {
         code: InvalidType({
           expected: S.literal(Dict.fromArray([("foo", "bar")]))->S.toUnknown,
@@ -149,14 +149,14 @@ module EmptyDict = {
   test("Successfully parses empty dict literal schema", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(value->S.parseAnyWith(schema), Ok(value), ())
+    t->Assert.deepEqual(value->S.parseOrThrow(schema), value, ())
   })
 
   test("Fails to parse empty dict literal schema with invalid type", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => invalid->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => invalid->S.parseOrThrow(schema),
       {
         code: InvalidType({
           expected: S.literal(Dict.make())->S.toUnknown,

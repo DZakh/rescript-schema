@@ -10,14 +10,14 @@ module Common = {
   test("Successfully parses", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseOrThrow(schema), value, ())
   })
 
   test("Fails to parse ", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => invalidAny->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => invalidAny->S.parseOrThrow(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
         operation: Parse,
@@ -58,11 +58,11 @@ module Common = {
 test("Parses bool when JSON is true", t => {
   let schema = S.bool
 
-  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseAnyWith(schema), Ok(true), ())
+  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseOrThrow(schema), true, ())
 })
 
 test("Parses bool when JSON is false", t => {
   let schema = S.bool
 
-  t->Assert.deepEqual(JSON.Encode.bool(false)->S.parseAnyWith(schema), Ok(false), ())
+  t->Assert.deepEqual(JSON.Encode.bool(false)->S.parseOrThrow(schema), false, ())
 })

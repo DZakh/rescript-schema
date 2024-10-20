@@ -14,8 +14,8 @@ test("Keeps operation of the error passed to S.Error.raise", t => {
     }),
   )
 
-  t->U.assertErrorResult(
-    () => ["Hello world!"]->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => ["Hello world!"]->S.parseOrThrow(schema),
     {
       code: OperationFailed("User error"),
       operation: ReverseConvert,
@@ -43,8 +43,8 @@ test("Works with failing outside of the parser", t => {
     )
   )
 
-  t->U.assertErrorResult(
-    () => ["Hello world!"]->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => ["Hello world!"]->S.parseOrThrow(schema),
     {
       code: OperationFailed("User error"),
       operation: Parse,

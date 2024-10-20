@@ -123,8 +123,8 @@ module Positive = {
           {
             "discriminant": testData.discriminantData,
             "field": "bar",
-          }->S.parseAnyWith(schema),
-          Ok({"field": "bar"}),
+          }->S.parseOrThrow(schema),
+          {"field": "bar"},
           (),
         )
       },
@@ -229,8 +229,8 @@ module Negative = {
           {
             "discriminant": testData.discriminantData,
             "field": "bar",
-          }->S.parseAnyWith(schema),
-          Ok({"field": "bar"}),
+          }->S.parseOrThrow(schema),
+          {"field": "bar"},
           (),
         )
       },
@@ -278,8 +278,8 @@ module NestedNegative = {
         {
           "discriminant": {"field": true},
           "field": "bar",
-        }->S.parseAnyWith(schema),
-        Ok({"field": "bar"}),
+        }->S.parseOrThrow(schema),
+        {"field": "bar"},
         (),
       )
     },
@@ -317,19 +317,17 @@ test(`Fails to parse object with invalid data passed to discriminant field`, t =
     }
   })
 
-  t->Assert.deepEqual(
+  t->U.assertRaised(
+    () =>
+      {
+        "discriminant": false,
+        "field": "bar",
+      }->S.parseOrThrow(schema),
     {
-      "discriminant": false,
-      "field": "bar",
-    }->S.parseAnyWith(schema),
-    Error(
-      U.error({
-        code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
-        operation: Parse,
-        path: S.Path.fromArray(["discriminant"]),
-      }),
-    ),
-    (),
+      code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
+      operation: Parse,
+      path: S.Path.fromArray(["discriminant"]),
+    },
   )
 })
 
@@ -341,19 +339,17 @@ test(`Parses discriminant fields before registered fields`, t => {
     }
   })
 
-  t->Assert.deepEqual(
+  t->U.assertRaised(
+    () =>
+      {
+        "discriminant": false,
+        "field": false,
+      }->S.parseOrThrow(schema),
     {
-      "discriminant": false,
-      "field": false,
-    }->S.parseAnyWith(schema),
-    Error(
-      U.error({
-        code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
-        operation: Parse,
-        path: S.Path.fromArray(["discriminant"]),
-      }),
-    ),
-    (),
+      code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
+      operation: Parse,
+      path: S.Path.fromArray(["discriminant"]),
+    },
   )
 })
 

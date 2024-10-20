@@ -10,14 +10,14 @@ module Common = {
   test("Successfully parses", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseOrThrow(schema), value, ())
   })
 
   test("Fails to parse", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => invalidAny->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => invalidAny->S.parseOrThrow(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
         operation: Parse,
@@ -36,20 +36,20 @@ module Common = {
 test("Successfully parses primitive", t => {
   let schema = S.bool->S.option->S.deprecate("Deprecated")
 
-  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseAnyWith(schema), Ok(Some(true)), ())
+  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseOrThrow(schema), Some(true), ())
 })
 
 test("Successfully parses undefined", t => {
   let schema = S.bool->S.option->S.deprecate("Deprecated")
 
-  t->Assert.deepEqual(%raw(`undefined`)->S.parseAnyWith(schema), Ok(None), ())
+  t->Assert.deepEqual(%raw(`undefined`)->S.parseOrThrow(schema), None, ())
 })
 
 test("Fails to parse null", t => {
   let schema = S.bool->S.option->S.deprecate("Deprecated")
 
-  t->U.assertErrorResult(
-    () => %raw(`null`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`null`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`null`)}),
       operation: Parse,
@@ -61,5 +61,5 @@ test("Fails to parse null", t => {
 test("Successfully parses null for deprecated nullable schema", t => {
   let schema = S.null(S.bool)->S.option->S.deprecate("Deprecated")
 
-  t->Assert.deepEqual(%raw(`null`)->S.parseAnyWith(schema), Ok(None), ())
+  t->Assert.deepEqual(%raw(`null`)->S.parseOrThrow(schema), None, ())
 })

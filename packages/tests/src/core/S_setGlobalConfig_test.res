@@ -6,38 +6,32 @@ asyncTest("Resets S.float cache after disableNanNumberCheck=true removed", async
   S.setGlobalConfig({
     disableNanNumberCheck: true,
   })
-  t->Assert.deepEqual(nan->S.parseAnyWith(S.float), Ok(nan), ())
-  t->Assert.deepEqual(await nan->S.parseAnyAsyncWith(S.float), Ok(nan), ())
+  t->Assert.deepEqual(nan->S.parseOrThrow(S.float), nan, ())
+  t->Assert.deepEqual(await nan->S.parseAsyncOrThrow(S.float), nan, ())
   t->Assert.deepEqual(nan->S.assertOrThrow(S.float), (), ())
 
   S.setGlobalConfig({})
-  t->Assert.deepEqual(
-    nan->S.parseAnyWith(S.float),
-    Error(
-      S.Error.make(
-        ~code=S.InvalidType({
-          expected: S.float->S.toUnknown,
-          received: nan,
-        }),
-        ~flag=S.Flag.typeValidation,
-        ~path=S.Path.empty,
-      ),
-    ),
-    (),
+  t->U.assertRaised(
+    () => nan->S.parseOrThrow(S.float),
+    {
+      code: S.InvalidType({
+        expected: S.float->S.toUnknown,
+        received: nan,
+      }),
+      operation: Parse,
+      path: S.Path.empty,
+    },
   )
-  t->Assert.deepEqual(
-    await nan->S.parseAnyAsyncWith(S.float),
-    Error(
-      S.Error.make(
-        ~code=S.InvalidType({
-          expected: S.float->S.toUnknown,
-          received: nan,
-        }),
-        ~flag=S.Flag.typeValidation->S.Flag.with(S.Flag.async),
-        ~path=S.Path.empty,
-      ),
-    ),
-    (),
+  await t->U.assertRaisedAsync(
+    () => nan->S.parseAsyncOrThrow(S.float),
+    {
+      code: S.InvalidType({
+        expected: S.float->S.toUnknown,
+        received: nan,
+      }),
+      operation: ParseAsync,
+      path: S.Path.empty,
+    },
   )
   t->Assert.throws(
     () => {

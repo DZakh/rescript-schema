@@ -4,19 +4,19 @@ open RescriptCore
 test("Doesn't affect valid parsing", t => {
   let schema = S.string->S.catch(_ => "fallback")
 
-  t->Assert.deepEqual("abc"->S.parseAnyWith(schema), Ok("abc"), ())
+  t->Assert.deepEqual("abc"->S.parseOrThrow(schema), "abc", ())
 })
 
 test("Doesn't do anything with unknown schema", t => {
   let schema = S.unknown->S.catch(_ => %raw(`"fallback"`))
 
-  t->Assert.deepEqual("abc"->S.parseAnyWith(schema), Ok(%raw(`"abc"`)), ())
+  t->Assert.deepEqual("abc"->S.parseOrThrow(schema), %raw(`"abc"`), ())
 })
 
 test("Uses fallback value when parsing failed", t => {
   let schema = S.string->S.catch(_ => "fallback")
 
-  t->Assert.deepEqual(123->S.parseAnyWith(schema), Ok("fallback"), ())
+  t->Assert.deepEqual(123->S.parseOrThrow(schema), "fallback", ())
 })
 
 test("Doesn't affect serializing in any way", t => {
@@ -48,20 +48,20 @@ test("Provides ctx to use in catch", t => {
     "fallback"
   })
 
-  t->Assert.deepEqual(123->S.parseAnyWith(schema), Ok("fallback"), ())
+  t->Assert.deepEqual(123->S.parseOrThrow(schema), "fallback", ())
 })
 
 test("Can use s.fail inside of S.catch", t => {
   let schema = S.literal("0")->S.catch(s => {
-    switch s.input->S.parseAnyWith(S.string) {
-    | Ok(_) => "1"
-    | Error(_) => s.fail("Fallback value only supported for strings.")
+    switch s.input->S.parseOrThrow(S.string) {
+    | _ => "1"
+    | exception S.Raised(_) => s.fail("Fallback value only supported for strings.")
     }
   })
-  t->Assert.deepEqual("0"->S.parseAnyWith(schema), Ok("0"), ())
-  t->Assert.deepEqual("abc"->S.parseAnyWith(schema), Ok("1"), ())
-  t->U.assertErrorResult(
-    () => 123->S.parseAnyWith(schema),
+  t->Assert.deepEqual("0"->S.parseOrThrow(schema), "0", ())
+  t->Assert.deepEqual("abc"->S.parseOrThrow(schema), "1", ())
+  t->U.assertRaised(
+    () => 123->S.parseOrThrow(schema),
     {
       code: OperationFailed("Fallback value only supported for strings."),
       operation: Parse,
@@ -85,14 +85,14 @@ asyncTest("Uses fallback value when async schema parsing failed during the sync 
     ->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)})
     ->S.catch(_ => "fallback")
 
-  t->Assert.deepEqual(await 123->S.parseAnyAsyncWith(schema), Ok("fallback"), ())
+  t->Assert.deepEqual(await 123->S.parseAsyncOrThrow(schema), "fallback", ())
 })
 
 asyncTest("Uses fallback value when async schema parsing failed during the async part", async t => {
   let schema =
     S.string->S.transform(s => {asyncParser: _ => s.fail("foo")})->S.catch(_ => "fallback")
 
-  t->Assert.deepEqual(await "123"->S.parseAnyAsyncWith(schema), Ok("fallback"), ())
+  t->Assert.deepEqual(await "123"->S.parseAsyncOrThrow(schema), "fallback", ())
 })
 
 asyncTest(
@@ -105,7 +105,7 @@ asyncTest(
       })
       ->S.catch(_ => "fallback")
 
-    t->Assert.deepEqual(await "123"->S.parseAnyAsyncWith(schema), Ok("fallback"), ())
+    t->Assert.deepEqual(await "123"->S.parseAsyncOrThrow(schema), "fallback", ())
   },
 )
 

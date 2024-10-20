@@ -9,14 +9,14 @@ module Common = {
   test("Successfully parses", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseOrThrow(schema), value, ())
   })
 
   test("Fails to parse", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => invalidAny->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => invalidAny->S.parseOrThrow(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
         operation: Parse,
@@ -61,14 +61,14 @@ module Common = {
 test("Successfully parses number with a fractional part", t => {
   let schema = S.float
 
-  t->Assert.deepEqual(%raw(`123.123`)->S.parseAnyWith(schema), Ok(123.123), ())
+  t->Assert.deepEqual(%raw(`123.123`)->S.parseOrThrow(schema), 123.123, ())
 })
 
 test("Fails to parse NaN", t => {
   let schema = S.float
 
-  t->U.assertErrorResult(
-    () => %raw(`NaN`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`NaN`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`NaN`)}),
       operation: Parse,
