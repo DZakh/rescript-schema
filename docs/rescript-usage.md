@@ -1548,6 +1548,7 @@ let schema = S.literal(false)
 // })
 ```
 
+<!--
 👇 Also you can use `S.unwrap` to get the value from the result.
 
 ### **`unwrap`**
@@ -1564,7 +1565,7 @@ let schema = S.literal(false)
 
 A helper function to unwrap value from the result.
 
-if the result is an error, the instance of `RescriptSchemaError` will be thrown with a nice error message. Also, you can use the `S.Raised` exception to catch it in ReScript code.
+if the result is an error, the instance of `RescriptSchemaError` will be thrown with a nice error message. Also, you can use the `S.Raised` exception to catch it in ReScript code. -->
 
 ### **`Error.make`**
 
