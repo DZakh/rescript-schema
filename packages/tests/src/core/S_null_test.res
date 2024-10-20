@@ -66,7 +66,7 @@ module Common = {
     let schema = factory()
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#Serialize,
+      ~op=#ReverseConvert,
       `i=>{let v0;if(i!==void 0){v0=i}else{v0=null}return v0}`,
     )
   })
@@ -149,7 +149,7 @@ test("Serializes Some(None) to null for null nested in option", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#Serialize,
+    ~op=#ReverseConvert,
     `i=>{let v2;if(i!==void 0){let v0=e[0](i),v1;if(v0!==void 0){v1=v0}else{v1=null}v2=v1}return v2}`,
   )
 })
@@ -162,7 +162,7 @@ test("Serializes Some(None) to null for null nested in null", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#Serialize,
+    ~op=#ReverseConvert,
     `i=>{let v2;if(i!==void 0){let v0=e[0](i),v1;if(v0!==void 0){v1=v0}else{v1=null}v2=v1}else{v2=null}return v2}`,
   )
 })

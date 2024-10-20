@@ -194,26 +194,26 @@ let refine: (t<'value>, s<'value> => 'value => unit) => t<'value>
 
 let to: (t<'value>, 'value => 'variant) => t<'variant>
 
-type rec input<'input, 'computed> =
-  | Input: input<'input, 'input>
-  | Any: input<'input, 'any>
-  | Unknown: input<'input, unknown>
-  | Json: input<'input, Js.Json.t>
-  | JsonString: input<'input, string>
-type rec output<'output, 'computed> =
-  | Output: output<'output, 'output>
-  | Unknown: output<'output, unknown>
-  | Assert: output<'output, unit>
-  | Json: output<'output, Js.Json.t>
-  | JsonString: output<'output, string>
+type rec input<'value, 'computed> =
+  | Value: input<'value, 'value>
+  | Any: input<'value, 'any>
+  | Unknown: input<'value, unknown>
+  | Json: input<'value, Js.Json.t>
+  | JsonString: input<'value, string>
+type rec output<'value, 'computed> =
+  | Value: output<'value, 'value>
+  | Unknown: output<'value, unknown>
+  | Assert: output<'value, unit>
+  | Json: output<'value, Js.Json.t>
+  | JsonString: output<'value, string>
 type rec mode<'output, 'computed> =
   | Sync: mode<'output, 'output>
   | Async: mode<'output, promise<'output>>
 
 let compile: (
-  t<'schemaOutput>,
-  ~input: input<unknown, 'input>,
-  ~output: output<'schemaOutput, 'transformedOutput>,
+  t<'value>,
+  ~input: input<'value, 'input>,
+  ~output: output<'value, 'transformedOutput>,
   ~mode: mode<'transformedOutput, 'output>,
   ~typeValidation: bool,
 ) => 'input => 'output

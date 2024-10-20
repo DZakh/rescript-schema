@@ -100,13 +100,13 @@ test("Compiled async parse code snapshot", t => {
 test("Compiled serialize code snapshot", t => {
   let schema = S.jsonString(S.bool)
 
-  t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return JSON.stringify(i)}`)
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return JSON.stringify(i)}`)
 })
 
 test("Compiled serialize code snapshot with space", t => {
   let schema = S.jsonString(S.bool, ~space=2)
 
-  t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return JSON.stringify(i,null,2)}`)
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return JSON.stringify(i,null,2)}`)
 })
 
 test("Reverse schema to the original schema", t => {

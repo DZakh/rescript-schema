@@ -59,7 +59,7 @@ module NullCommon = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#Serialize,
+      ~op=#ReverseConvert,
       `i=>{let v2;if(i!==void 0){let v0=e[0](i),v1;if(v0!==void 0){v1=v0}else{v1=null}v2=v1}return v2}`,
     )
   })
