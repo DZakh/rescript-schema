@@ -25,37 +25,32 @@ let preprocessNumberToString = S.preprocess(_, _ => {
 test("Successfully parses", t => {
   let schema = S.string->preprocessNumberToString
 
-  t->Assert.deepEqual(123->S.parseAnyWith(schema), Ok("123"), ())
-  t->Assert.deepEqual("Hello world!"->S.parseAnyWith(schema), Ok("Hello world!"), ())
+  t->Assert.deepEqual(123->S.parseOrThrow(schema), "123", ())
+  t->Assert.deepEqual("Hello world!"->S.parseOrThrow(schema), "Hello world!", ())
 })
 
 test("Fails to parse when user raises error in parser", t => {
   let schema = S.string->S.preprocess(s => {parser: _ => s.fail("User error")})
 
-  t->Assert.deepEqual(
-    "Hello world!"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("User error"), operation: Parse, path: S.Path.empty})),
-    (),
+  t->U.assertRaised(
+    () => "Hello world!"->S.parseOrThrow(schema),
+    {code: OperationFailed("User error"), operation: Parse, path: S.Path.empty},
   )
 })
 
 test("Successfully serializes", t => {
   let schema = S.string->preprocessNumberToString
 
-  t->Assert.deepEqual(
-    "Hello world!"->S.serializeToUnknownWith(schema),
-    Ok(%raw(`"Hello world!"`)),
-    (),
-  )
-  t->Assert.deepEqual("123"->S.serializeToUnknownWith(schema), Ok(%raw(`123`)), ())
+  t->Assert.deepEqual("Hello world!"->S.reverseConvertOrThrow(schema), %raw(`"Hello world!"`), ())
+  t->Assert.deepEqual("123"->S.reverseConvertOrThrow(schema), %raw(`123`), ())
 })
 
 test("Fails to serialize when user raises error in serializer", t => {
   let schema = S.string->S.preprocess(s => {serializer: _ => s.fail("User error")})
 
-  t->U.assertErrorResult(
-    "Hello world!"->S.serializeToUnknownWith(schema),
-    {code: OperationFailed("User error"), operation: SerializeToUnknown, path: S.Path.empty},
+  t->U.assertRaised(
+    () => "Hello world!"->S.reverseConvertOrThrow(schema),
+    {code: OperationFailed("User error"), operation: ReverseConvert, path: S.Path.empty},
   )
 })
 
@@ -65,8 +60,8 @@ test("Preprocess operations applyed in the right order when parsing", t => {
     ->S.preprocess(s => {parser: _ => s.fail("First preprocess")})
     ->S.preprocess(s => {parser: _ => s.fail("Second preprocess")})
 
-  t->U.assertErrorResult(
-    123->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => 123->S.parseOrThrow(schema),
     {code: OperationFailed("Second preprocess"), operation: Parse, path: S.Path.empty},
   )
 })
@@ -77,70 +72,53 @@ test("Preprocess operations applyed in the right order when serializing", t => {
     ->S.preprocess(s => {serializer: _ => s.fail("First preprocess")})
     ->S.preprocess(s => {serializer: _ => s.fail("Second preprocess")})
 
-  t->U.assertErrorResult(
-    123->S.serializeToUnknownWith(schema),
+  t->U.assertRaised(
+    () => 123->S.reverseConvertOrThrow(schema),
     {
       code: OperationFailed("First preprocess"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )
 })
 
-test("Fails to parse async using parseAnyWith", t => {
+test("Fails to parse async using parseOrThrow", t => {
   let schema = S.string->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
 
-  t->Assert.deepEqual(
-    %raw(`"Hello world!"`)->S.parseAnyWith(schema),
-    Error(U.error({code: UnexpectedAsync, operation: Parse, path: S.Path.empty})),
-    (),
+  t->U.assertRaised(
+    () => %raw(`"Hello world!"`)->S.parseOrThrow(schema),
+    {code: UnexpectedAsync, operation: Parse, path: S.Path.empty},
   )
 })
 
-asyncTest("Successfully parses async using parseAsyncWith", t => {
+asyncTest("Successfully parses async using parseAsyncOrThrow", async t => {
   let schema = S.string->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
 
-  %raw(`"Hello world!"`)
-  ->S.parseAsyncWith(schema)
-  ->Promise.thenResolve(result => {
-    t->Assert.deepEqual(result, Ok("Hello world!"), ())
-  })
+  t->Assert.deepEqual(await %raw(`"Hello world!"`)->S.parseAsyncOrThrow(schema), "Hello world!", ())
 })
 
 asyncTest("Fails to parse async with user error", t => {
   let schema = S.string->S.preprocess(s => {asyncParser: _ => () => s.fail("User error")})
 
-  %raw(`"Hello world!"`)
-  ->S.parseAsyncWith(schema)
-  ->Promise.thenResolve(result => {
-    t->U.assertErrorResult(
-      result,
-      {
-        code: OperationFailed("User error"),
-        path: S.Path.empty,
-        operation: ParseAsync,
-      },
-    )
-  })
+  t->U.assertRaisedAsync(
+    () => %raw(`"Hello world!"`)->S.parseAsyncOrThrow(schema),
+    {code: OperationFailed("User error"), operation: ParseAsync, path: S.Path.empty},
+  )
 })
 
 test("Successfully parses with empty preprocess", t => {
   let schema = S.string->S.preprocess(_ => {})
 
-  t->Assert.deepEqual(%raw(`"Hello world!"`)->S.parseAnyWith(schema), Ok("Hello world!"), ())
+  t->Assert.deepEqual(%raw(`"Hello world!"`)->S.parseOrThrow(schema), "Hello world!", ())
 })
 
 test("Successfully serializes with empty preprocess", t => {
   let schema = S.string->S.preprocess(_ => {})
 
-  t->Assert.deepEqual(
-    "Hello world!"->S.serializeToUnknownWith(schema),
-    Ok(%raw(`"Hello world!"`)),
-    (),
-  )
+  t->Assert.deepEqual("Hello world!"->S.reverseConvertOrThrow(schema), %raw(`"Hello world!"`), ())
 })
 
-asyncTest("Can apply other actions after async preprocess", t => {
+asyncTest("Can apply other actions after async preprocess", async t => {
   let schema =
     S.string
     ->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
@@ -154,11 +132,11 @@ asyncTest("Can apply other actions after async preprocess", t => {
     `i=>{return e[0](i).then(v0=>{return e[1](v0).then(v1=>{if(typeof v1!=="string"){e[2](v1)}return v1}).then(e[3])})}`,
   )
 
-  %raw(`"    Hello world!"`)
-  ->S.parseAsyncWith(schema)
-  ->Promise.thenResolve(result => {
-    t->Assert.deepEqual(result, Ok("Hello world!"), ())
-  })
+  t->Assert.deepEqual(
+    await %raw(`"    Hello world!"`)->S.parseAsyncOrThrow(schema),
+    "Hello world!",
+    (),
+  )
 })
 
 test("Applies preproces parser for union schemas separately", t => {
@@ -196,9 +174,9 @@ test("Applies preproces parser for union schemas separately", t => {
   let schema =
     S.union([S.bool->S.to(bool => #Bool(bool)), S.int->S.to(int => #Int(int))])->prepareEnvSchema
 
-  t->Assert.deepEqual("f"->S.parseAnyWith(schema), Ok(#Bool(false)), ())
-  t->Assert.deepEqual("1"->S.parseAnyWith(schema), Ok(#Bool(true)), ())
-  t->Assert.deepEqual("2"->S.parseAnyWith(schema), Ok(#Int(2)), ())
+  t->Assert.deepEqual("f"->S.parseOrThrow(schema), #Bool(false), ())
+  t->Assert.deepEqual("1"->S.parseOrThrow(schema), #Bool(true), ())
+  t->Assert.deepEqual("2"->S.parseOrThrow(schema), #Int(2), ())
 })
 
 test("Applies preproces serializer for union schemas separately", t => {
@@ -231,25 +209,21 @@ test("Applies preproces serializer for union schemas separately", t => {
     }
   })
 
-  t->Assert.deepEqual(#Bool(false)->S.serializeToUnknownWith(schema), Ok(%raw(`"0"`)), ())
-  t->Assert.deepEqual(#Bool(true)->S.serializeToUnknownWith(schema), Ok(%raw(`"1"`)), ())
-  t->Assert.deepEqual(#Int(2)->S.serializeToUnknownWith(schema), Ok(%raw(`"2"`)), ())
+  t->Assert.deepEqual(#Bool(false)->S.reverseConvertOrThrow(schema), %raw(`"0"`), ())
+  t->Assert.deepEqual(#Bool(true)->S.reverseConvertOrThrow(schema), %raw(`"1"`), ())
+  t->Assert.deepEqual(#Int(2)->S.reverseConvertOrThrow(schema), %raw(`"2"`), ())
 })
 
 test("Doesn't fail to parse with preprocess when parser isn't provided", t => {
   let schema = S.string->S.preprocess(_ => {serializer: value => value})
 
-  t->Assert.deepEqual("Hello world!"->S.parseAnyWith(schema), Ok("Hello world!"), ())
+  t->Assert.deepEqual("Hello world!"->S.parseOrThrow(schema), "Hello world!", ())
 })
 
 test("Doesn't fail to serialize with preprocess when serializer isn't provided", t => {
   let schema = S.string->S.preprocess(_ => {parser: value => value})
 
-  t->Assert.deepEqual(
-    "Hello world!"->S.serializeToUnknownWith(schema),
-    Ok(%raw(`"Hello world!"`)),
-    (),
-  )
+  t->Assert.deepEqual("Hello world!"->S.reverseConvertOrThrow(schema), %raw(`"Hello world!"`), ())
 })
 
 test("Compiled parse code snapshot", t => {
@@ -291,7 +265,7 @@ test("Compiled async parse code snapshot for object", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{return e[0](i).then(v0=>{if(!v0||v0.constructor!==Object){e[1](v0)}let v1=v0["foo"];if(typeof v1!=="string"){e[2](v1)}return {"foo":v1}})}`,
+    `i=>{return e[0](i).then(v0=>{if(!v0||v0.constructor!==Object){e[1](v0)}let v1=v0["foo"];if(typeof v1!=="string"){e[2](v1)}return {"foo":v1,}})}`,
   )
 })
 
@@ -301,7 +275,7 @@ test("Compiled serialize code snapshot", t => {
     serializer: _ => 1.->Int.fromFloat,
   })
 
-  t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return e[0](i)}`)
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return e[0](i)}`)
 })
 
 test("Reverse schema to the original schema", t => {

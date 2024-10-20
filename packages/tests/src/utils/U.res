@@ -15,11 +15,28 @@ let unsafeGetVariantPayload = variant => (variant->Obj.magic)["_0"]
 exception Test
 let raiseTestException = () => raise(Test)
 
-type errorPayload = {operation: S.operation, code: S.errorCode, path: S.Path.t}
+type taggedFlag =
+  | Parse
+  | ParseAsync
+  | ReverseConvertToJson
+  | ReverseConvert
+  | Assert
+
+type errorPayload = {operation: taggedFlag, code: S.errorCode, path: S.Path.t}
 
 // TODO: Get rid of the helper
 let error = ({operation, code, path}: errorPayload): S.error => {
-  S.Error.make(~code, ~operation, ~path)
+  S.Error.make(
+    ~code,
+    ~flag=switch operation {
+    | Parse => S.Flag.typeValidation
+    | ReverseConvertToJson => S.Flag.reverse->S.Flag.with(S.Flag.jsonableOutput)
+    | ReverseConvert => S.Flag.reverse
+    | ParseAsync => S.Flag.typeValidation->S.Flag.with(S.Flag.async)
+    | Assert => S.Flag.typeValidation->S.Flag.with(S.Flag.assertOutput)
+    },
+    ~path,
+  )
 }
 
 let assertThrowsTestException = {
@@ -34,39 +51,58 @@ let assertThrowsTestException = {
   }
 }
 
-let assertErrorResult = (t, result, errorPayload) => {
-  switch result {
-  | Ok(any) => t->Assert.fail("Asserted result is not Error. Recieved: " ++ any->unsafeStringify)
-  | Error(err) => t->Assert.is(err->S.Error.message, error(errorPayload)->S.Error.message, ())
+let assertRaised = (t, cb, errorPayload) => {
+  switch cb() {
+  | any => t->Assert.fail("Asserted result is not Error. Recieved: " ++ any->unsafeStringify)
+  | exception S.Raised(err) =>
+    t->Assert.is(err->S.Error.message, error(errorPayload)->S.Error.message, ())
   }
 }
 
-let getCompiledCodeString = (schema, ~op: [#Parse | #Serialize | #Assert | #SerializeJson]) => {
+let assertRaisedAsync = async (t, cb, errorPayload) => {
+  switch await cb() {
+  | any => t->Assert.fail("Asserted result is not Error. Recieved: " ++ any->unsafeStringify)
+  | exception S.Raised(err) =>
+    t->Assert.is(err->S.Error.message, error(errorPayload)->S.Error.message, ())
+  }
+}
+
+let getCompiledCodeString = (
+  schema,
+  ~op: [
+    | #Parse
+    | #ParseAsync
+    | #ReverseConvertAsync
+    | #ReverseConvert
+    | #Assert
+    | #ReverseConvertToJson
+  ],
+) => {
   (
     switch op {
-    | #Parse =>
-      if schema->S.isAsync {
-        let fn = schema->S.compile(~input=Any, ~output=Output, ~mode=Async, ~typeValidation=true)
+    | #Parse
+    | #ParseAsync =>
+      if op === #ParseAsync || schema->S.isAsync {
+        let fn = schema->S.compile(~input=Any, ~output=Value, ~mode=Async, ~typeValidation=true)
         fn->magic
       } else {
-        let fn = schema->S.compile(~input=Any, ~output=Output, ~mode=Sync, ~typeValidation=true)
+        let fn = schema->S.compile(~input=Any, ~output=Value, ~mode=Sync, ~typeValidation=true)
         fn->magic
       }
     | #Assert =>
       let fn = schema->S.compile(~input=Any, ~output=Assert, ~mode=Sync, ~typeValidation=true)
       fn->magic
-    | #Serialize => {
-        let fn =
-          schema
-          ->S.reverse
-          ->S.compile(~input=Any, ~output=Output, ~mode=Sync, ~typeValidation=false)
+    | #ReverseConvert => {
+        let fn = schema->S.compile(~input=Value, ~output=Unknown, ~mode=Sync, ~typeValidation=false)
         fn->magic
       }
-    | #SerializeJson => {
+    | #ReverseConvertAsync => {
         let fn =
-          schema
-          ->S.reverse
-          ->S.compile(~input=Any, ~output=Json, ~mode=Sync, ~typeValidation=false)
+          schema->S.compile(~input=Value, ~output=Unknown, ~mode=Async, ~typeValidation=false)
+        fn->magic
+      }
+    | #ReverseConvertToJson => {
+        let fn = schema->S.compile(~input=Value, ~output=Json, ~mode=Sync, ~typeValidation=false)
         fn->magic
       }
     }
@@ -121,9 +157,8 @@ let assertEqualSchemas: (
 let assertReverseParsesBack = (t, schema: S.t<'value>, value: 'value) => {
   t->Assert.unsafeDeepEqual(
     value
-    ->S.reverseConvertWith(schema)
-    ->S.parseAnyWith(schema)
-    ->S.unwrap,
+    ->S.reverseConvertOrThrow(schema)
+    ->S.parseOrThrow(schema),
     value,
     (),
   )

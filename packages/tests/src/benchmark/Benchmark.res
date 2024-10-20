@@ -53,7 +53,7 @@ let makeTestObject = () => {
   })`)
 }
 
-let makeAdvancedObjectSchema = () => {
+let makeAdvancedObjectSchemaWithSObject = () => {
   S.object(s =>
     {
       "number": s.field("number", S.float),
@@ -76,7 +76,7 @@ let makeAdvancedObjectSchema = () => {
   )
 }
 
-let makeAdvancedObjectSchemaWithSSchema = () => {
+let makeAdvancedObjectSchema = () => {
   S.schema(s =>
     {
       "number": s.matches(S.float),
@@ -85,40 +85,13 @@ let makeAdvancedObjectSchemaWithSSchema = () => {
       "string": s.matches(S.string),
       "longString": s.matches(S.string),
       "boolean": s.matches(S.bool),
-      "deeplyNested": s.matches(
-        S.schema(s =>
-          {
-            "foo": s.matches(S.string),
-            "num": s.matches(S.float),
-            "bool": s.matches(S.bool),
-          }
-        ),
-      ),
+      "deeplyNested": {
+        "foo": s.matches(S.string),
+        "num": s.matches(S.float),
+        "bool": s.matches(S.bool),
+      },
     }
   )
-}
-
-let makeAdvancedStrictObjectSchema = () => {
-  S.object(s =>
-    {
-      "number": s.field("number", S.float),
-      "negNumber": s.field("negNumber", S.float),
-      "maxNumber": s.field("maxNumber", S.float),
-      "string": s.field("string", S.string),
-      "longString": s.field("longString", S.string),
-      "boolean": s.field("boolean", S.bool),
-      "deeplyNested": s.field(
-        "deeplyNested",
-        S.object(s =>
-          {
-            "foo": s.field("foo", S.string),
-            "num": s.field("num", S.float),
-            "bool": s.field("bool", S.bool),
-          }
-        )->S.Object.strict,
-      ),
-    }
-  )->S.Object.strict
 }
 
 S.setGlobalConfig({
@@ -198,19 +171,19 @@ module CrazyUnion = {
 
   let test = () => {
     Console.time("testData1 serialize")
-    let json = S.serializeWith(testData1, schema)->S.unwrap
+    let json = S.reverseConvertOrThrow(testData1, schema)
     Console.timeEnd("testData1 serialize")
 
     Console.time("testData1 parse")
-    let _ = S.parseWith(json, schema)->S.unwrap
+    let _ = S.parseOrThrow(json, schema)
     Console.timeEnd("testData1 parse")
 
     Console.time("testData2 serialize")
-    let json = S.serializeWith(testData2, schema)->S.unwrap
+    let json = S.reverseConvertOrThrow(testData2, schema)
     Console.timeEnd("testData2 serialize")
 
     Console.time("testData2 parse")
-    let _ = S.parseWith(json, schema)->S.unwrap
+    let _ = S.parseOrThrow(json, schema)
     Console.timeEnd("testData2 parse")
   }
 }
@@ -222,30 +195,30 @@ Console.time("makeAdvancedObjectSchema")
 let schema = makeAdvancedObjectSchema()
 Console.timeEnd("makeAdvancedObjectSchema")
 
-Console.time("parseAnyWith: 1")
-data->S.parseAnyWith(schema)->ignore
-Console.timeEnd("parseAnyWith: 1")
-Console.time("parseAnyWith: 2")
-data->S.parseAnyWith(schema)->ignore
-Console.timeEnd("parseAnyWith: 2")
-Console.time("parseAnyWith: 3")
-data->S.parseAnyWith(schema)->ignore
-Console.timeEnd("parseAnyWith: 3")
+Console.time("parseOrThrow: 1")
+data->S.parseOrThrow(schema)->ignore
+Console.timeEnd("parseOrThrow: 1")
+Console.time("parseOrThrow: 2")
+data->S.parseOrThrow(schema)->ignore
+Console.timeEnd("parseOrThrow: 2")
+Console.time("parseOrThrow: 3")
+data->S.parseOrThrow(schema)->ignore
+Console.timeEnd("parseOrThrow: 3")
 
 Console.time("serializeWith: 1")
-data->S.serializeWith(schema)->ignore
+data->S.reverseConvertOrThrow(schema)->ignore
 Console.timeEnd("serializeWith: 1")
 Console.time("serializeWith: 2")
-data->S.serializeWith(schema)->ignore
+data->S.reverseConvertOrThrow(schema)->ignore
 Console.timeEnd("serializeWith: 2")
 Console.time("serializeWith: 3")
-data->S.serializeWith(schema)->ignore
+data->S.reverseConvertOrThrow(schema)->ignore
 Console.timeEnd("serializeWith: 3")
 
 Console.time("S.Error.make")
 let _ = S.Error.make(
   ~code=OperationFailed("Should be positive"),
-  ~operation=Parse,
+  ~flag=S.Flag.typeValidation,
   ~path=S.Path.empty,
 )
 Console.timeEnd("S.Error.make")
@@ -255,14 +228,14 @@ Suite.make()
   let schema = S.string
   let data = "Hello world!"
   () => {
-    data->S.parseAnyOrRaiseWith(schema)
+    data->S.parseOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Reverse convert string", () => {
   let schema = S.string
   let data = "Hello world!"
   () => {
-    data->S.reverseConvertWith(schema)
+    data->S.reverseConvertOrThrow(schema)
   }
 })
 ->Suite.add("Advanced object schema factory", makeAdvancedObjectSchema)
@@ -270,7 +243,7 @@ Suite.make()
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.parseAnyOrRaiseWith(schema)
+    data->S.parseOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Assert advanced object - compile", () => {
@@ -285,58 +258,62 @@ Suite.make()
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.assertWith(schema)
+    data->S.assertOrThrow(schema)
+  }
+})
+->Suite.addWithPrepare("Create and parse advanced object - with S.object", () => {
+  let data = makeTestObject()
+  () => {
+    let schema = makeAdvancedObjectSchemaWithSObject()
+    data->S.parseOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Create and parse advanced object", () => {
   let data = makeTestObject()
   () => {
     let schema = makeAdvancedObjectSchema()
-    data->S.parseAnyOrRaiseWith(schema)
-  }
-})
-->Suite.addWithPrepare("Create and parse advanced object - with S.schema", () => {
-  let data = makeTestObject()
-  () => {
-    let schema = makeAdvancedObjectSchemaWithSSchema()
-    data->S.parseAnyOrRaiseWith(schema)
+    data->S.parseOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Parse advanced strict object", () => {
-  let schema = makeAdvancedStrictObjectSchema()
+  S.setGlobalConfig({
+    disableNanNumberCheck: true,
+    defaultUnknownKeys: Strict,
+  })
+  let schema = makeAdvancedObjectSchema()
+  S.setGlobalConfig({
+    disableNanNumberCheck: true,
+  })
   let data = makeTestObject()
   () => {
-    data->S.parseAnyOrRaiseWith(schema)
+    data->S.parseOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Assert advanced strict object", () => {
-  let schema = makeAdvancedStrictObjectSchema()
+  S.setGlobalConfig({
+    disableNanNumberCheck: true,
+    defaultUnknownKeys: Strict,
+  })
+  let schema = makeAdvancedObjectSchema()
+  S.setGlobalConfig({
+    disableNanNumberCheck: true,
+  })
   let data = makeTestObject()
   () => {
-    data->S.assertWith(schema)
+    data->S.assertOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Reverse convert advanced object", () => {
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.reverseConvertWith(schema) // FIXME: This is super slow
-  }
-})
-->Suite.addWithPrepare("Reverse convert advanced object - with S.schema", () => {
-  let schema = makeAdvancedObjectSchemaWithSSchema()
-  let data = makeTestObject()
-  () => {
-    data->S.reverseConvertWith(schema)
+    data->S.reverseConvertOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Reverse convert advanced object - compile", () => {
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
-  let fn =
-    schema
-    ->S.reverse
-    ->S.compile(~input=Any, ~output=Output, ~mode=Sync, ~typeValidation=false)
+  let fn = schema->S.compile(~input=Value, ~output=Unknown, ~mode=Sync, ~typeValidation=false)
   () => {
     fn(data)
   }
@@ -346,9 +323,9 @@ Suite.make()
 /*
 V7.0.1
 makeAdvancedObjectSchema: 0.174ms
-parseAnyWith: 1: 0.465ms
-parseAnyWith: 2: 0.006ms
-parseAnyWith: 3: 0.004ms
+parseOrThrow: 1: 0.465ms
+parseOrThrow: 2: 0.006ms
+parseOrThrow: 3: 0.004ms
 serializeWith: 1: 0.208ms
 serializeWith: 2: 0.004ms
 serializeWith: 3: 0.003ms

@@ -7,12 +7,12 @@ let nullableSchema = innerSchema => {
       if unknown === %raw(`undefined`) || unknown === %raw(`null`) {
         None
       } else {
-        Some(unknown->S.parseAnyWith(innerSchema)->S.unwrap)
+        Some(unknown->S.parseOrThrow(innerSchema))
       }
     },
     serializer: value => {
       switch value {
-      | Some(innerValue) => innerValue->S.serializeToUnknownWith(innerSchema)->S.unwrap
+      | Some(innerValue) => innerValue->S.reverseConvertOrThrow(innerSchema)
       | None => %raw(`null`)
       }
     },
@@ -22,11 +22,11 @@ let nullableSchema = innerSchema => {
 test("Correctly parses custom schema", t => {
   let schema = nullableSchema(S.string)
 
-  t->Assert.deepEqual("Hello world!"->S.parseAnyWith(schema), Ok(Some("Hello world!")), ())
-  t->Assert.deepEqual(%raw(`null`)->S.parseAnyWith(schema), Ok(None), ())
-  t->Assert.deepEqual(%raw(`undefined`)->S.parseAnyWith(schema), Ok(None), ())
-  t->U.assertErrorResult(
-    123->S.parseAnyWith(schema),
+  t->Assert.deepEqual("Hello world!"->S.parseOrThrow(schema), Some("Hello world!"), ())
+  t->Assert.deepEqual(%raw(`null`)->S.parseOrThrow(schema), None, ())
+  t->Assert.deepEqual(%raw(`undefined`)->S.parseOrThrow(schema), None, ())
+  t->U.assertRaised(
+    () => 123->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
       operation: Parse,
@@ -39,11 +39,11 @@ test("Correctly serializes custom schema", t => {
   let schema = nullableSchema(S.string)
 
   t->Assert.deepEqual(
-    Some("Hello world!")->S.serializeToUnknownWith(schema),
-    Ok(%raw(`"Hello world!"`)),
+    Some("Hello world!")->S.reverseConvertOrThrow(schema),
+    %raw(`"Hello world!"`),
     (),
   )
-  t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
+  t->Assert.deepEqual(None->S.reverseConvertOrThrow(schema), %raw(`null`), ())
 })
 
 test("Reverses custom schema to unknown", t => {
@@ -62,9 +62,9 @@ test("Fails to serialize with user error", t => {
     serializer: _ => s.fail("User error"),
   })
 
-  t->U.assertErrorResult(
-    None->S.serializeToUnknownWith(schema),
-    {code: OperationFailed("User error"), operation: SerializeToUnknown, path: S.Path.empty},
+  t->U.assertRaised(
+    () => None->S.reverseConvertOrThrow(schema),
+    {code: OperationFailed("User error"), operation: ReverseConvert, path: S.Path.empty},
   )
 })
 
@@ -73,11 +73,11 @@ test("Fails to serialize with serializer is missing", t => {
     parser: _ => (),
   })
 
-  t->U.assertErrorResult(
-    ()->S.serializeToUnknownWith(schema),
+  t->U.assertRaised(
+    () => ()->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({description: "The S.custom serializer is missing"}),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )
@@ -88,5 +88,5 @@ asyncTest("Parses with asyncParser", async t => {
     asyncParser: _ => () => Promise.resolve(),
   })
 
-  t->Assert.deepEqual(await %raw(`undefined`)->S.parseAnyAsyncWith(schema), Ok(), ())
+  t->Assert.deepEqual(await %raw(`undefined`)->S.parseAsyncOrThrow(schema), (), ())
 })

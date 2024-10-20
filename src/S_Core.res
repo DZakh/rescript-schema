@@ -224,8 +224,9 @@ type rec t<'value> = {
   tagged: tagged,
   @as("n")
   name: unit => string,
-  @as("r")
-  mutable reverse: unit => t<unknown>,
+  @as("~r")
+  mutable // FIXME: Use a better way
+  reverse: unit => t<unknown>,
   @as("b")
   mutable builder: builder,
   @as("f")
@@ -239,20 +240,6 @@ type rec t<'value> = {
   mutable definerCtx?: char,
   @as("m")
   metadataMap: dict<unknown>,
-  @as("parseOrThrow")
-  parseOrRaise: unknown => unknown,
-  @as("parse")
-  jsParse: unknown => jsResult<unknown>,
-  @as("parseAsync")
-  jsParseAsync: unknown => promise<jsResult<unknown>>,
-  @as("serialize")
-  jsSerialize: unknown => jsResult<unknown>,
-  @as("serializeOrThrow")
-  serializeToUnknownOrRaise: unknown => unknown,
-  @as("serializeToJsonOrThrow")
-  serializeOrRaise: unknown => Js.Json.t,
-  @as("assert")
-  assertOrRaise: unknown => unit,
 }
 and tagged =
   | Never
@@ -285,9 +272,9 @@ and item = {
 and builder = (b, ~input: val, ~selfSchema: schema<unknown>, ~path: Path.t) => val
 and val = {
   @as("v")
-  mutable _var?: string,
+  mutable isVar: bool,
   @as("i")
-  _initial?: string,
+  mutable inline: string,
   @as("s")
   _scope: b,
   @as("a")
@@ -297,7 +284,7 @@ and bGlobal = {
   @as("v")
   mutable varCounter: int,
   @as("o")
-  mutable operation: int,
+  mutable flag: int,
   @as("e")
   embeded: array<unknown>,
 }
@@ -311,14 +298,9 @@ and b = {
   @as("g")
   global: bGlobal,
 }
-and operation =
-  | Parse
-  | ParseAsync
-  | SerializeToJson
-  | SerializeToUnknown
-  | Assert
+and flag = int
 and schema<'a> = t<'a>
-and error = private {operation: operation, code: errorCode, path: Path.t}
+and error = private {flag: flag, code: errorCode, path: Path.t}
 and errorCode =
   | OperationFailed(string)
   | InvalidOperation({description: string})
@@ -340,9 +322,7 @@ let unsafeGetVarianTag = (variant): string => (variant->Obj.magic)["TAG"]
 
 // A dirty check that this is rescript-schema object
 @inline
-let isSchemaObject = object => Obj.magic(object)["serializeToJsonOrThrow"]
-@inline
-let isSchema = any => Obj.magic(any) && any->isSchemaObject
+let isSchemaObject = object => Obj.magic(object)["~r"]
 @inline
 let isLiteralSchema = schema => schema.tagged->unsafeGetVarianTag === "Literal"
 @inline
@@ -370,19 +350,12 @@ let globalConfig = {
   disableNanNumberCheck: initialDisableNanNumberProtection,
 }
 
-let toJsResult = (result: result<'value, error>): jsResult<'value> => {
-  switch result {
-  | Ok(value) => Success({value: value})
-  | Error(error) => Failure({error: error})
-  }
-}
-
 module InternalError = {
   %%raw(`
     class RescriptSchemaError extends Error {
-      constructor(code, operation, path) {
+      constructor(code, flag, path) {
         super();
-        this.operation = operation;
+        this.flag = flag;
         this.code = code;
         this.path = path;
         this.s = symbol;
@@ -401,8 +374,7 @@ module InternalError = {
   `)
 
   @new
-  external make: (~code: errorCode, ~operation: operation, ~path: Path.t) => error =
-    "RescriptSchemaError"
+  external make: (~code: errorCode, ~flag: int, ~path: Path.t) => error = "RescriptSchemaError"
 
   let getOrRethrow = (exn: exn) => {
     if %raw("exn&&exn.s===symbol") {
@@ -424,41 +396,19 @@ type s<'value> = {
 @inline
 let classify = schema => schema.tagged
 
-module Operation = {
-  module Flag = {
-    @inline let typeValidation = 1
-    @inline let async = 2
-    @inline let assertOutput = 4
-    @inline let jsonableOutput = 8
-    @inline let jsonStringOutput = 16
-    @inline let reverse = 32
-  }
+module Flag = {
+  @inline let none = 0
+  @inline let typeValidation = 1
+  @inline let async = 2
+  @inline let assertOutput = 4
+  @inline let jsonableOutput = 8
+  @inline let jsonStringOutput = 16
+  @inline let reverse = 32
 
-  type t = int
+  external with: (flag, flag) => flag = "%orint"
 
-  let make = () => 0
-
-  let addFlag = (operation: t, flag): t => operation->lor(flag)
-
-  let unsafeHasFlag = (operation: t, flag) => operation->land(flag)->(Obj.magic: int => bool)
-
-  // TODO: Replace public with Operation.t in v9
-  @inline
-  let toPublic = (operation: t) => {
-    if operation->unsafeHasFlag(Flag.assertOutput) {
-      Assert
-    } else if operation->unsafeHasFlag(Flag.typeValidation) {
-      if operation->unsafeHasFlag(Flag.async) {
-        ParseAsync
-      } else {
-        Parse
-      }
-    } else if operation->unsafeHasFlag(Flag.jsonableOutput) {
-      SerializeToJson
-    } else {
-      SerializeToUnknown
-    }
-  }
+  let unsafeHas = (acc: flag, flag) => acc->land(flag)->(Obj.magic: int => bool)
+  let has = (acc: flag, flag) => acc->land(flag) !== 0
 }
 
 module Builder = {
@@ -497,66 +447,116 @@ module Builder = {
     }
 
     let allocateVal = (b: b): val => {
-      {_scope: b, isAsync: false}
+      let var = b->varWithoutAllocation
+      let varsAllocation = b.varsAllocation
+      b.varsAllocation = varsAllocation === "" ? var : varsAllocation ++ "," ++ var
+      {isVar: true, _scope: b, isAsync: false, inline: var}
     }
 
     let val = (b: b, initial: string): val => {
-      {_initial: initial, _scope: b, isAsync: false}
+      {isVar: false, inline: initial, _scope: b, isAsync: false}
     }
 
     let asyncVal = (b: b, initial: string): val => {
-      {_initial: initial, _scope: b, isAsync: true}
+      {isVar: false, inline: initial, _scope: b, isAsync: true}
     }
 
     module Val = {
-      let inline = (_b: b, val: val) => {
-        switch val {
-        | {_var: var} => var
-        | _ => val._initial->(Obj.magic: option<string> => string) // There should never be the case when we inline not allocated val
+      module Object = {
+        type t = {
+          ...val,
+          @as("j")
+          mutable join: (string, string) => string,
+          @as("c")
+          mutable asyncCount: int,
+          @as("p")
+          mutable promiseAllContent: string,
+        }
+
+        let objectJoin = (key, value) => {
+          `${key->Stdlib.Inlined.Value.fromString}:${value},`
+        }
+
+        let arrayJoin = (_key, value) => {
+          value ++ ","
+        }
+
+        let make = (b, ~isArray): t => {
+          {
+            isVar: false,
+            inline: "",
+            _scope: b,
+            isAsync: false,
+            join: isArray ? arrayJoin : objectJoin,
+            asyncCount: 0,
+            promiseAllContent: "",
+          }
+        }
+
+        @inline
+        let add = (objectVal, key, val: val) => {
+          if val.isAsync {
+            objectVal.promiseAllContent = objectVal.promiseAllContent ++ val.inline ++ ","
+            objectVal.inline =
+              objectVal.inline ++ objectVal.join(key, `a[${%raw(`objectVal.c++`)}]`)
+          } else {
+            objectVal.inline = objectVal.inline ++ objectVal.join(key, val.inline)
+          }
+        }
+
+        let complete = (objectVal, ~isArray) => {
+          objectVal.inline = isArray
+            ? "[" ++ objectVal.inline ++ "]"
+            : "{" ++ objectVal.inline ++ "}"
+          if objectVal.asyncCount->Obj.magic {
+            objectVal.isAsync = true
+            objectVal.inline = `Promise.all([${objectVal.promiseAllContent}]).then(a=>(${objectVal.inline}))`
+          }
+          (objectVal :> val)
         }
       }
 
       let var = (b: b, val: val) => {
-        switch val {
-        | {_var} => _var
-        | _ => {
-            let var = b->varWithoutAllocation
-            let allocation = switch val._initial {
-            | Some(i) => `${var}=${i}`
-            | None => var
-            }
-            let varsAllocation = val._scope.varsAllocation
-            val._scope.varsAllocation = varsAllocation === ""
-              ? allocation
-              : varsAllocation ++ "," ++ allocation
-            val._var = Some(var)
-            var
+        if val.isVar {
+          val.inline
+        } else {
+          let var = b->varWithoutAllocation
+          let allocation = switch val.inline {
+          | "" => var
+          | i => `${var}=${i}`
           }
+          let varsAllocation = val._scope.varsAllocation
+          val._scope.varsAllocation = varsAllocation === ""
+            ? allocation
+            : varsAllocation ++ "," ++ allocation
+          val.isVar = true
+          val.inline = var
+          var
         }
       }
 
       let push = (b: b, input: val, val: val) => {
-        `${b->var(input)}.push(${b->inline(val)})`
+        `${b->var(input)}.push(${val.inline})`
       }
 
       let addKey = (b: b, input: val, key, val: val) => {
-        `${b->var(input)}[${key}]=${b->inline(val)}`
+        `${b->var(input)}[${key}]=${val.inline}`
       }
 
       let set = (b: b, input: val, val) => {
         if input === val {
           ""
         } else {
+          let inputVar = b->var(input)
           switch (input, val) {
           | ({isAsync: false}, {isAsync: true}) => {
               input.isAsync = true
-              `${b->var(input)}=${b->inline(val)}`
+              `${inputVar}=${val.inline}`
             }
           | ({isAsync: false}, {isAsync: false})
           | ({isAsync: true}, {isAsync: true}) =>
-            `${b->var(input)}=${b->inline(val)}`
-          | ({isAsync: true}, {isAsync: false}) =>
-            `${b->var(input)}=Promise.resolve(${b->inline(val)})`
+            `${inputVar}=${val.inline}`
+          | ({isAsync: true}, {isAsync: false}) => `${inputVar}=Promise.resolve(${val.inline})`
           }
         }
       }
@@ -566,7 +566,7 @@ module Builder = {
       }
 
       let map = (b: b, inlinedFn, input: val) => {
-        b->val(`${inlinedFn}(${b->inline(input)})`)
+        b->val(`${inlinedFn}(${input.inline})`)
       }
     }
 
@@ -579,17 +579,18 @@ module Builder = {
       if input.isAsync {
         let bb = b->scope
         let operationInput: val = {
-          _var: bb->varWithoutAllocation,
+          isVar: true,
           _scope: bb,
+          inline: bb->varWithoutAllocation,
           isAsync: false,
         }
         let operationOutputVal = operation(bb, ~input=operationInput)
         let operationCode = bb->allocateScope
 
         b->asyncVal(
-          `${b->Val.inline(input)}.then(${b->Val.var(
+          `${input.inline}.then(${b->Val.var(
               operationInput,
-            )}=>{${operationCode}return ${b->Val.inline(operationOutputVal)}})`,
+            )}=>{${operationCode}return ${operationOutputVal.inline}})`,
         )
       } else {
         operation(b, ~input)
@@ -597,21 +598,19 @@ module Builder = {
     }
 
     let raise = (b: b, ~code, ~path) => {
-      Stdlib.Exn.raiseAny(
-        InternalError.make(~code, ~operation=b.global.operation->Operation.toPublic, ~path),
-      )
+      Stdlib.Exn.raiseAny(InternalError.make(~code, ~flag=b.global.flag, ~path))
     }
 
     let embedSyncOperation = (b: b, ~input, ~fn: 'input => 'output) => {
       if input.isAsync {
-        b->asyncVal(`${b->Val.inline(input)}.then(${b->embed(fn)})`)
+        b->asyncVal(`${input.inline}.then(${b->embed(fn)})`)
       } else {
         b->Val.map(b->embed(fn), input)
       }
     }
 
     let embedAsyncOperation = (b: b, ~input, ~fn: 'input => unit => promise<'output>) => {
-      if !(b.global.operation->Operation.unsafeHasFlag(Operation.Flag.async)) {
+      if !(b.global.flag->Flag.unsafeHas(Flag.async)) {
         b->raise(~code=UnexpectedAsync, ~path=Path.empty)
       }
       let val = b->embedSyncOperation(~input, ~fn=v => fn(v)())
@@ -639,7 +638,7 @@ module Builder = {
     }
 
     let registerInvalidJson = (b, ~selfSchema, ~path) => {
-      if b.global.operation->Operation.unsafeHasFlag(Operation.Flag.jsonableOutput) {
+      if b.global.flag->Flag.unsafeHas(Flag.jsonableOutput) {
         b->raise(~path, ~code=InvalidJsonSchema(selfSchema))
       }
     }
@@ -666,7 +665,7 @@ module Builder = {
         fnOutput
       } else {
         let isAsync = fnOutput.isAsync
-        let output = input === fnOutput ? input : {_scope: b, isAsync}
+        let output = input === fnOutput ? input : {isVar: false, _scope: b, inline: "", isAsync}
 
         let catchCode = switch maybeResolveVal {
         | None => _ => `${catchCode}}throw ${errorVar}`
@@ -675,7 +674,7 @@ module Builder = {
             catchCode ++
             switch catchLocation {
             | #0 => b->Val.set(output, resolveVal)
-            | #1 => `return ${b->Val.inline(resolveVal)}`
+            | #1 => `return ${resolveVal.inline}`
             } ++
             `}else{throw ${errorVar}}`
         }
@@ -684,10 +683,7 @@ module Builder = {
           prevCode ++
           `try{${b.code}${switch isAsync {
             | true =>
-              b->Val.setInlined(
-                output,
-                `${b->Val.inline(fnOutput)}.catch(${errorVar}=>{${catchCode(#1)}})`,
-              )
+              b->Val.setInlined(output, `${fnOutput.inline}.catch(${errorVar}=>{${catchCode(#1)}})`)
             | false => b->Val.set(output, fnOutput)
             }}}catch(${errorVar}){${catchCode(#0)}}`
 
@@ -722,7 +718,7 @@ module Builder = {
             InternalError.make(
               ~path=path->Path.concat(Path.dynamic)->Path.concat(error.path),
               ~code=error.code,
-              ~operation=error.operation,
+              ~flag=error.flag,
             ),
           )
         }
@@ -749,8 +745,7 @@ module Builder = {
     let parseWithTypeCheck = (b: b, ~schema, ~input, ~path) => {
       switch schema.maybeTypeFilter {
       | Some(typeFilter)
-        if schema->isLiteralSchema ||
-          b.global.operation->Operation.unsafeHasFlag(Operation.Flag.typeValidation) =>
+        if schema->isLiteralSchema || b.global.flag->Flag.unsafeHas(Flag.typeValidation) =>
         b.code = b.code ++ b->typeFilterCode(~schema, ~typeFilter, ~input, ~path)
         let bb = b->scope
         let val = bb->parse(~schema, ~input, ~path)
@@ -773,17 +768,13 @@ module Builder = {
   @inline
   let intitialInputVar = "i"
 
-  let compile = (builder, ~schema, ~operation) => {
+  let compile = (builder, ~schema, ~flag) => {
     if (
-      operation->Operation.unsafeHasFlag(Operation.Flag.jsonableOutput) &&
+      flag->Flag.unsafeHas(Flag.jsonableOutput) &&
         schema.reverse().tagged->unsafeGetVarianTag === "Option"
     ) {
       Stdlib.Exn.raiseAny(
-        InternalError.make(
-          ~code=InvalidJsonSchema(schema),
-          ~operation=SerializeToJson,
-          ~path=Path.empty,
-        ),
+        InternalError.make(~code=InvalidJsonSchema(schema), ~flag, ~path=Path.empty),
       )
     }
 
@@ -794,10 +785,10 @@ module Builder = {
       global: {
         varCounter: -1,
         embeded: [],
-        operation,
+        flag,
       },
     }
-    let input = {_var: intitialInputVar, _scope: b, isAsync: false}
+    let input = {isVar: true, _scope: b, isAsync: false, inline: intitialInputVar}
 
     let output = builder(b, ~input, ~selfSchema=schema, ~path=Path.empty)
     schema.isAsyncSchema = Value(output.isAsync)
@@ -806,9 +797,7 @@ module Builder = {
       b.code = `let ${b.varsAllocation};${b.code}`
     }
 
-    if (
-      operation->Operation.unsafeHasFlag(Operation.Flag.typeValidation) || schema->isLiteralSchema
-    ) {
+    if flag->Flag.unsafeHas(Flag.typeValidation) || schema->isLiteralSchema {
       switch schema.maybeTypeFilter {
       | Some(typeFilter) =>
         b.code = b->B.typeFilterCode(~schema, ~typeFilter, ~input, ~path=Path.empty) ++ b.code
@@ -820,27 +809,26 @@ module Builder = {
       b.code === "" &&
       output === input &&
       !(
-        operation->Operation.unsafeHasFlag(
-          Operation.make()
-          ->Operation.addFlag(Operation.Flag.assertOutput)
-          ->Operation.addFlag(Operation.Flag.async)
-          ->Operation.addFlag(Operation.Flag.jsonStringOutput),
+        flag->Flag.unsafeHas(
+          Flag.assertOutput
+          ->Flag.with(Flag.async)
+          ->Flag.with(Flag.jsonStringOutput),
         )
       )
     ) {
       noopOperation
     } else {
       let inlinedOutput = ref(
-        if operation->Operation.unsafeHasFlag(Operation.Flag.assertOutput) {
+        if flag->Flag.unsafeHas(Flag.assertOutput) {
           `void 0`
         } else {
-          b->B.Val.inline(output)
+          output.inline
         },
       )
-      if operation->Operation.unsafeHasFlag(Operation.Flag.jsonStringOutput) {
+      if flag->Flag.unsafeHas(Flag.jsonStringOutput) {
         inlinedOutput := `JSON.stringify(${inlinedOutput.contents})`
       }
-      if operation->Operation.unsafeHasFlag(Operation.Flag.async) && !output.isAsync {
+      if flag->Flag.unsafeHas(Flag.async) && !output.isAsync {
         inlinedOutput := `Promise.resolve(${inlinedOutput.contents})`
       }
 
@@ -866,38 +854,38 @@ let operationFn = (s, o) => {
   if %raw(`o in s`) {
     %raw(`s[o]`)
   } else {
-    let ss = o->Operation.unsafeHasFlag(Operation.Flag.reverse) ? s.reverse() : s
-    let f = ss.builder->Builder.compile(~schema=ss, ~operation=o)
+    let ss = o->Flag.unsafeHas(Flag.reverse) ? s.reverse() : s
+    let f = ss.builder->Builder.compile(~schema=ss, ~flag=o)
     let _ = %raw(`s[o] = f`)
     f
   }
 }
 
-type rec input<'input, 'computed> =
-  | Input: input<'input, 'input>
-  | Any: input<'input, 'any>
-  | Unknown: input<'input, unknown>
-  | Json: input<'input, Js.Json.t>
-  | JsonString: input<'input, string>
-type rec output<'output, 'computed> =
-  | Output: output<'output, 'output>
-  | Unknown: output<'output, unknown>
-  | Assert: output<'output, unit>
-  | Json: output<'output, Js.Json.t>
-  | JsonString: output<'output, string>
+type rec input<'value, 'computed> =
+  | Value: input<'value, 'value>
+  | Any: input<'value, 'any>
+  | Unknown: input<'value, unknown>
+  | Json: input<'value, Js.Json.t>
+  | JsonString: input<'value, string>
+type rec output<'value, 'computed> =
+  | Value: output<'value, 'value>
+  | Unknown: output<'value, unknown>
+  | Assert: output<'value, unit>
+  | Json: output<'value, Js.Json.t>
+  | JsonString: output<'value, string>
 type rec mode<'output, 'computed> =
   | Sync: mode<'output, 'output>
   | Async: mode<'output, promise<'output>>
 
 @@warning("-37")
 type internalInput =
-  | Input
+  | Value
   | Any
   | Unknown
   | Json
   | JsonString
 type internalOutput =
-  | Output
+  | Value
   | Unknown
   | Assert
   | Json
@@ -908,56 +896,55 @@ type internalMode =
 @@warning("+37")
 
 let compile = (
-  schema: t<'schemaOutput>,
-  ~input: input<unknown, 'input>,
-  ~output: output<'schemaOutput, 'transformedOutput>,
+  schema: t<'value>,
+  ~input: input<'value, 'input>,
+  ~output: output<'value, 'transformedOutput>,
   ~mode: mode<'transformedOutput, 'output>,
   ~typeValidation,
 ): ('input => 'output) => {
-  let schema = schema->toUnknown
-  let output = output->(Obj.magic: output<'schemaOutput, 'transformedOutput> => internalOutput)
+  let output = output->(Obj.magic: output<'value, 'transformedOutput> => internalOutput)
   let input = input->(Obj.magic: input<'schemaInput, 'input> => internalInput)
   let mode = mode->(Obj.magic: mode<'transformedOutput, 'output> => internalMode)
 
-  let operation = ref(Operation.make())
+  let schema = schema->toUnknown
+
+  let flag = ref(Flag.none)
   switch output {
-  | Output
+  | Value
   | Unknown => ()
-  | Assert => operation := operation.contents->Operation.addFlag(Operation.Flag.assertOutput)
-  | Json => operation := operation.contents->Operation.addFlag(Operation.Flag.jsonableOutput)
+  | Assert => flag := flag.contents->Flag.with(Flag.assertOutput)
+  | Json => flag := flag.contents->Flag.with(Flag.jsonableOutput)
   | JsonString =>
-    operation :=
-      operation.contents->Operation.addFlag(
-        Operation.make()
-        ->Operation.addFlag(Operation.Flag.jsonableOutput)
-        ->Operation.addFlag(Operation.Flag.jsonStringOutput),
-      )
+    flag := flag.contents->Flag.with(Flag.jsonableOutput->Flag.with(Flag.jsonStringOutput))
   }
   switch mode {
   | Sync => ()
-  | Async => operation := operation.contents->Operation.addFlag(Operation.Flag.async)
+  | Async => flag := flag.contents->Flag.with(Flag.async)
   }
   if typeValidation {
-    operation := operation.contents->Operation.addFlag(Operation.Flag.typeValidation)
+    flag := flag.contents->Flag.with(Flag.typeValidation)
   }
-  let fn = schema->operationFn(operation.contents)->Obj.magic
+  if input === Value {
+    if output === Value {
+      InternalError.panic(`Can't compile Value input to Value output`)
+    }
+    flag := flag.contents->Flag.with(Flag.reverse)
+  }
+  let fn = schema->operationFn(flag.contents)->Obj.magic
 
-  let fn = switch input {
+  switch input {
   | JsonString =>
-    jsonString =>
+    let flag = flag.contents
+    jsonString => {
       try jsonString->Obj.magic->Js.Json.parseExn->fn catch {
-      | Js.Exn.Error(error) =>
+      | _ =>
         Stdlib.Exn.raiseAny(
-          InternalError.make(
-            ~code=OperationFailed(error->Js.Exn.message->(Obj.magic: option<string> => string)),
-            ~operation=Parse,
-            ~path=Path.empty,
-          ),
+          InternalError.make(~code=OperationFailed(%raw(`exn.message`)), ~flag, ~path=Path.empty),
         )
       }
+    }
   | _ => fn
   }
-  fn
 }
 
 module Reverse = {
@@ -1259,10 +1246,15 @@ let isAsync = schema => {
         global: {
           varCounter: -1,
           embeded: [],
-          operation: Operation.make()->Operation.addFlag(Operation.Flag.async),
+          flag: Flag.async,
         },
       }
-      let input = {_var: "i", _scope: b, isAsync: false}
+      let input = {
+        isVar: true,
+        _scope: b,
+        isAsync: false,
+        inline: Builder.intitialInputVar,
+      }
       let output = schema.builder(b, ~input, ~selfSchema=schema, ~path=Path.empty)
       schema.isAsyncSchema = Value(output.isAsync)
       schema.isAsyncSchema->(Obj.magic: isAsyncSchema => bool)
@@ -1275,7 +1267,6 @@ let isAsync = schema => {
   | Value(v) => v
   }
 }
-let isAsyncParse = isAsync
 
 let reverse = schema => {
   schema.reverse()
@@ -1285,12 +1276,61 @@ let reverse = schema => {
 // Operations
 // =============
 
-let wrapExnToError = exn => {
-  if %raw("exn&&exn.s===symbol") {
-    Error(exn->(Obj.magic: exn => error))
-  } else {
-    raise(exn)
-  }
+@inline
+let parseOrThrow = (any, schema) => {
+  (schema->operationFn(Flag.typeValidation))(any)
+}
+
+let parseJsonStringOrThrow = (jsonString: string, schema: t<'value>): 'value => {
+  try {
+    jsonString->Js.Json.parseExn
+  } catch {
+  | _ =>
+    Stdlib.Exn.raiseAny(
+      InternalError.make(
+        ~code=OperationFailed(%raw(`exn.message`)),
+        ~flag=Flag.typeValidation,
+        ~path=Path.empty,
+      ),
+    )
+  }->parseOrThrow(schema)
+}
+
+let parseAsyncOrThrow = (any, schema) => {
+  (schema->operationFn(Flag.async->Flag.with(Flag.typeValidation)))(any)
+}
+
+let convertOrThrow = (input, schema) => {
+  (schema->operationFn(Flag.none))(input)
+}
+
+let convertToJsonOrThrow = (any, schema) => {
+  (schema->operationFn(Flag.jsonableOutput))(any)
+}
+
+let convertToJsonStringOrThrow = (input, schema) => {
+  (schema->operationFn(Flag.jsonableOutput->Flag.with(Flag.jsonStringOutput)))(input)
+}
+
+let convertAsyncOrThrow = (any, schema) => {
+  (schema->operationFn(Flag.async))(any)
+}
+
+let reverseConvertOrThrow = (value, schema) => {
+  (schema->operationFn(Flag.reverse))(value)
+}
+
+@inline
+let reverseConvertToJsonOrThrow = (value, schema) => {
+  (schema->operationFn(Flag.jsonableOutput->Flag.with(Flag.reverse)))(value)
+}
+
+let reverseConvertToJsonStringOrThrow = (value: 'value, schema: t<'value>, ~space=0): string => {
+  value->reverseConvertToJsonOrThrow(schema)->Js.Json.stringifyWithSpace(space)
+}
+
+let assertOrThrow = (any, schema) => {
+  (schema->operationFn(Flag.typeValidation->Flag.with(Flag.assertOutput)))(any)
 }
 
 let wrapExnToFailure = exn => {
@@ -1299,218 +1339,6 @@ let wrapExnToFailure = exn => {
   } else {
     raise(exn)
   }
-}
-
-@inline
-let useSyncOperation = (schema, operation, input) => {
-  try {
-    (schema->operationFn(operation))(input)->Ok
-  } catch {
-  | _ => wrapExnToError(%raw(`exn`))
-  }
-}
-
-let asyncPrepareOk = value => Ok(value->castUnknownToAny)
-
-@inline
-let useAsyncOperation = (schema, operation, input) => {
-  try {
-    (schema->operationFn(operation->Operation.addFlag(Operation.Flag.async)))(
-      input,
-    )->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, wrapExnToError)
-  } catch {
-  | _ => wrapExnToError(%raw(`exn`))->Stdlib.Promise.resolve
-  }
-}
-
-let convertWith = (input, schema) => {
-  (schema->operationFn(Operation.make()))(input)
-}
-
-let convertToJsonStringWith = (input, schema) => {
-  (
-    schema->operationFn(
-      Operation.make()
-      ->Operation.addFlag(Operation.Flag.jsonableOutput)
-      ->Operation.addFlag(Operation.Flag.jsonStringOutput),
-    )
-  )(input)
-}
-
-let convertAnyWith = (any, schema) => {
-  schema->useSyncOperation(Operation.make(), any)
-}
-
-let convertAnyToJsonWith = (any, schema) => {
-  schema->useSyncOperation(Operation.make()->Operation.addFlag(Operation.Flag.jsonableOutput), any)
-}
-
-let convertAnyToJsonStringWith = (any, schema) => {
-  schema->useSyncOperation(
-    Operation.make()
-    ->Operation.addFlag(Operation.Flag.jsonableOutput)
-    ->Operation.addFlag(Operation.Flag.jsonStringOutput),
-    any,
-  )
-}
-
-let convertAnyAsyncWith = (any, schema) => {
-  schema->useAsyncOperation(Operation.make(), any)
-}
-
-@inline
-let parseAnyOrRaiseWith = (any, schema) => {
-  (schema->operationFn(Operation.make()->Operation.addFlag(Operation.Flag.typeValidation)))(any)
-}
-
-let assertWith = (any, schema) => {
-  (
-    schema->operationFn(
-      Operation.make()
-      ->Operation.addFlag(Operation.Flag.typeValidation)
-      ->Operation.addFlag(Operation.Flag.assertOutput),
-    )
-  )(any)
-}
-
-let assertAnyWith = assertWith
-let assertOrRaiseWith = assertWith
-
-let parseAnyWith = (any, schema) => {
-  schema->useSyncOperation(Operation.make()->Operation.addFlag(Operation.Flag.typeValidation), any)
-}
-
-let parseWith: (Js.Json.t, t<'value>) => result<'value, error> = parseAnyWith
-
-let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value = parseAnyOrRaiseWith
-
-let parseAnyAsyncWith = (any, schema) => {
-  schema->useAsyncOperation(Operation.make()->Operation.addFlag(Operation.Flag.typeValidation), any)
-}
-
-let parseAsyncWith = parseAnyAsyncWith
-
-let serializeOrRaiseWith = (value, schema) => {
-  schema.serializeOrRaise(value->castAnyToUnknown)
-}
-
-let serializeWith = (value, schema) => {
-  schema->useSyncOperation(
-    Operation.make()
-    ->Operation.addFlag(Operation.Flag.reverse)
-    ->Operation.addFlag(Operation.Flag.jsonableOutput),
-    value,
-  )
-}
-
-@inline
-let serializeToUnknownOrRaiseWith = (value, schema) => {
-  (schema->operationFn(Operation.make()->Operation.addFlag(Operation.Flag.reverse)))(value)
-}
-
-let serializeToUnknownWith = (value, schema) => {
-  schema->useSyncOperation(Operation.make()->Operation.addFlag(Operation.Flag.reverse), value)
-}
-
-let serializeToJsonStringOrRaiseWith = (value: 'value, schema: t<'value>, ~space=0): string => {
-  value->serializeOrRaiseWith(schema)->Js.Json.stringifyWithSpace(space)
-}
-
-let serializeToJsonStringWith = (value: 'value, schema: t<'value>, ~space=0): result<
-  string,
-  error,
-> => {
-  try {
-    serializeToJsonStringOrRaiseWith(value, schema, ~space)->Ok
-  } catch {
-  | _ => %raw(`exn`)->wrapExnToError
-  }
-}
-
-let reverseConvertWith = serializeToUnknownOrRaiseWith
-let reverseConvertToJsonWith = serializeOrRaiseWith
-let reverseConvertToJsonStringWith = serializeToJsonStringOrRaiseWith
-
-let parseJsonStringWith = (jsonString: string, schema: t<'value>): result<'value, error> => {
-  switch try {
-    jsonString->Js.Json.parseExn->Ok
-  } catch {
-  | Js.Exn.Error(error) =>
-    Error(
-      InternalError.make(
-        ~code=OperationFailed(error->Js.Exn.message->(Obj.magic: option<string> => string)),
-        ~operation=Parse,
-        ~path=Path.empty,
-      ),
-    )
-  } {
-  | Ok(json) => json->parseWith(schema)
-  | Error(_) as e => e
-  }
-}
-
-let initialParseOrRaise = unknown => {
-  (%raw(`this`)->operationFn(Operation.make()->Operation.addFlag(Operation.Flag.typeValidation)))(
-    unknown,
-  )
-}
-
-let initialAssertOrRaise = unknown => {
-  (
-    %raw(`this`)->operationFn(
-      Operation.make()
-      ->Operation.addFlag(Operation.Flag.typeValidation)
-      ->Operation.addFlag(Operation.Flag.assertOutput),
-    )
-  )(unknown)
-}
-
-let initialSerializeToUnknownOrRaise = unknown => {
-  (%raw(`this`)->operationFn(Operation.make()->Operation.addFlag(Operation.Flag.reverse)))(unknown)
-}
-
-let initialSerializeOrRaise = unknown => {
-  (
-    %raw(`this`)->operationFn(
-      Operation.make()
-      ->Operation.addFlag(Operation.Flag.jsonableOutput)
-      ->Operation.addFlag(Operation.Flag.reverse),
-    )
-  )(unknown)
-}
-
-let jsParse = unknown => {
-  try {
-    Success({
-      value: (%raw(`this`)).parseOrRaise(unknown),
-    })
-  } catch {
-  | _ => wrapExnToFailure(%raw(`exn`))
-  }
-}
-
-let jsParseAsync = data => {
-  data->parseAnyAsyncWith(%raw(`this`))->Stdlib.Promise.thenResolve(toJsResult)
-}
-
-let jsSerialize = value => {
-  try {
-    Success({
-      value: serializeToUnknownOrRaiseWith(value, %raw(`this`))->castUnknownToAny,
-    })
-  } catch {
-  | _ => wrapExnToFailure(%raw(`exn`))
-  }
-}
-
-let js_parseAsyncWith = (input, schema) => {
-  (
-    schema->operationFn(
-      Operation.make()
-      ->Operation.addFlag(Operation.Flag.typeValidation)
-      ->Operation.addFlag(Operation.Flag.async),
-    )
-  )(input)
 }
 
 let js_safe = fn => {
@@ -1538,13 +1366,6 @@ let makeReverseSchema = (~name, ~tagged, ~metadataMap, ~builder, ~maybeTypeFilte
   maybeTypeFilter,
   name,
   metadataMap,
-  parseOrRaise: initialParseOrRaise,
-  serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
-  serializeOrRaise: initialSerializeOrRaise,
-  assertOrRaise: initialAssertOrRaise,
-  jsParse,
-  jsParseAsync,
-  jsSerialize,
   reverse: Reverse.toSelf,
 }
 
@@ -1562,13 +1383,6 @@ let makeSchema = (
   maybeTypeFilter,
   name,
   metadataMap,
-  parseOrRaise: initialParseOrRaise,
-  serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
-  serializeOrRaise: initialSerializeOrRaise,
-  assertOrRaise: initialAssertOrRaise,
-  jsParse,
-  jsParseAsync,
-  jsSerialize,
   reverse: () => {
     let original = %raw(`this`)
     let reversed = (reverse->Obj.magic)["call"](original)
@@ -1683,7 +1497,7 @@ let recursive = fn => {
         b->B.Val.map(r, input)
       })
     }),
-    "r": () => {
+    "~r": () => {
       makeReverseSchema(
         ~tagged=Unknown,
         ~name=primitiveName,
@@ -1708,7 +1522,7 @@ let recursive = fn => {
   schema.builder = Builder.make((b, ~input, ~selfSchema, ~path) => {
     let bb = b->B.scope
     let opOutput = initialParseOperationBuilder(bb, ~input, ~selfSchema, ~path=Path.empty)
-    let opBodyCode = bb->B.allocateScope ++ `return ${b->B.Val.inline(opOutput)}`
+    let opBodyCode = bb->B.allocateScope ++ `return ${opOutput.inline}`
     b.code = b.code ++ `let ${r}=${b->B.Val.var(input)}=>{${opBodyCode}};`
     b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) => {
       b->B.transform(
@@ -1746,7 +1560,7 @@ let recursive = fn => {
       ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
         let bb = b->B.scope
         let opOutput = initialReversed.builder(bb, ~input, ~selfSchema, ~path=Path.empty)
-        let opBodyCode = bb->B.allocateScope ++ `return ${b->B.Val.inline(opOutput)}`
+        let opBodyCode = bb->B.allocateScope ++ `return ${opOutput.inline}`
         b.code = b.code ++ `let ${r}=${b->B.Val.var(input)}=>{${opBodyCode}};`
         b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) => b->B.Val.map(r, input))
       }),
@@ -1791,7 +1605,7 @@ let internalRefine = (schema, refiner) => {
       b->B.transform(
         ~input=b->B.parse(~schema, ~input, ~path),
         (b, ~input) => {
-          let input = if b.code === "" && input._var !== None {
+          let input = if b.code === "" && input.isVar {
             input
           } else {
             let scopedInput = b->B.allocateVal
@@ -2002,7 +1816,7 @@ module Option = {
 
       let bb = b->B.scope
       let itemInput = if (
-        !(b.global.operation->Operation.unsafeHasFlag(Operation.Flag.typeValidation)) &&
+        !(b.global.flag->Flag.unsafeHas(Flag.typeValidation)) &&
         (childSchema->classify === Unknown ||
         childSchemaTag === "Option" ||
         (childSchemaTag === "Literal" &&
@@ -2022,7 +1836,9 @@ module Option = {
 
       let isTransformed = inputLiteral !== ouputLiteral || itemOutput !== input
 
-      let output = isTransformed ? {_scope: b, isAsync: itemOutput.isAsync} : input
+      let output = isTransformed
+        ? {isVar: false, _scope: b, isAsync: itemOutput.isAsync, inline: ""}
+        : input
 
       if itemCode !== "" || isTransformed {
         b.code =
@@ -2137,7 +1953,7 @@ module Never = {
           expected: selfSchema,
           received: input,
         }),
-        b->B.Val.inline(input),
+        input.inline,
       ) ++ ";"
     input
   })
@@ -2209,7 +2025,7 @@ module Array = {
         }
 
         if itemOutput.isAsync {
-          b->B.asyncVal(`Promise.all(${b->B.Val.inline(output)})`)
+          b->B.asyncVal(`Promise.all(${output.inline})`)
         } else {
           output
         }
@@ -2242,102 +2058,52 @@ module Object = {
   let getItems = (schema): array<item> => (schema->classify->Obj.magic)["items"]
   let getOutputDefinition = schema => (schema->classify->Obj.magic)["definition"]
 
-  module BuildCtx = {
-    // type inputKind = | @as(0) Any | @as(1) Object | @as(2) Tuple
-    @unboxed
-    type asyncOutputs = | @as(0) None | Array(array<val>)
+  @inline
+  let addItemOutput = (~outputs, item, output) => {
+    let _ = outputs->Stdlib.WeakMap.set(item, output)
+  }
 
-    type t = {
-      @as("a")
-      mutable asyncOutputs: asyncOutputs,
-      @as("o")
-      outputs: Stdlib.WeakMap.t<item, val>,
-      @as("s")
-      selfSchema: schema<unknown>,
-    }
+  let toOutputVal = (b, ~outputs, ~outputDefinition) => {
+    let output = {
+      let rec definitionToOutput = (definition: Definition.t<item>, ~outputPath) => {
+        switch outputs->Stdlib.WeakMap.get(definition->Definition.toEmbeded) {
+        | Some(val) => val
+        | None =>
+          if definition->Definition.isNode {
+            let node = definition->Definition.toNode
+            let isArray = Stdlib.Array.isArray(node)
+            let keys = node->Js.Dict.keys
 
-    let make = (~selfSchema) => {
-      asyncOutputs: None,
-      outputs: Stdlib.WeakMap.make(),
-      selfSchema,
-    }
+            let objectVal = b->B.Val.Object.make(~isArray)
 
-    let addItemOutput = (b, ~ctx, item, output) => {
-      let output = if output.isAsync {
-        let asyncOutputs = switch ctx.asyncOutputs {
-        | None => {
-            let a = []
-            ctx.asyncOutputs = Array(a)
-            a
-          }
-        | Array(a) => a
-        }
-        let index = asyncOutputs->Js.Array2.length
-        asyncOutputs->Js.Array2.push(output)->ignore
-        // TODO: Improve to not to use an array when there's only a single async item
-        b->B.val(`a[${index->Stdlib.Int.unsafeToString}]`)
-      } else {
-        output
-      }
+            for idx in 0 to keys->Js.Array2.length - 1 {
+              let key = keys->Js.Array2.unsafe_get(idx)
+              let definition = node->Js.Dict.unsafeGet(key)
+              let output =
+                definition->definitionToOutput(
+                  ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
+                )
 
-      let _ = ctx.outputs->Stdlib.WeakMap.set(item, output)
-    }
-
-    let toOutputVal = (b, ~ctx: t, ~outputDefinition) => {
-      let syncOutput = {
-        let rec definitionToValue = (definition: Definition.t<item>, ~outputPath) => {
-          switch ctx.outputs->Stdlib.WeakMap.get(definition->Definition.toEmbeded) {
-          | Some(val) => b->B.Val.inline(val)
-          | None =>
-            if definition->Definition.isNode {
-              let node = definition->Definition.toNode
-              let isArray = Stdlib.Array.isArray(node)
-              let keys = node->Js.Dict.keys
-
-              let codeRef = ref(isArray ? "[" : "{")
-              for idx in 0 to keys->Js.Array2.length - 1 {
-                let key = keys->Js.Array2.unsafe_get(idx)
-                let definition = node->Js.Dict.unsafeGet(key)
-                let output =
-                  definition->definitionToValue(
-                    ~outputPath=Path.concat(outputPath, Path.fromLocation(key)),
-                  )
-                if idx !== 0 {
-                  codeRef := codeRef.contents ++ ","
-                }
-                codeRef :=
-                  codeRef.contents ++ (
-                    isArray ? output : `${key->Stdlib.Inlined.Value.fromString}:${output}`
-                  )
-              }
-              codeRef.contents ++ (isArray ? "]" : "}")
-            } else {
-              let constant = definition->Definition.toConstant
-              b->B.embed(constant)
+              objectVal->B.Val.Object.add(key, output)
             }
+            objectVal->B.Val.Object.complete(~isArray)
+          } else {
+            let constant = definition->Definition.toConstant
+            b->B.val(b->B.embed(constant))
           }
         }
-        outputDefinition
-        ->(Obj.magic: unknown => Definition.t<item>)
-        ->definitionToValue(~outputPath=Path.empty)
       }
-
-      if ctx.asyncOutputs === None {
-        b->B.val(syncOutput)
-      } else {
-        let asyncOutputs = ctx.asyncOutputs->(Obj.magic: asyncOutputs => array<val>)
-        b->B.asyncVal(
-          `Promise.all([${asyncOutputs
-            ->Js.Array2.map(val => b->B.Val.inline(val))
-            ->Js.Array2.toString}]).then(a=>(${syncOutput}))`,
-        )
-      }
+      outputDefinition
+      ->(Obj.magic: unknown => Definition.t<item>)
+      ->definitionToOutput(~outputPath=Path.empty)
     }
+
+    output
   }
 
   let typeFilter = (_b, ~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
 
-  let rec processInputItems = (b: b, ~ctx: BuildCtx.t, ~input, ~schema, ~path) => {
+  let rec processInputItems = (b: b, ~outputs, ~input, ~schema, ~path, ~unknownKeys) => {
     let inputVar = b->B.Val.var(input)
 
     let items = schema->getItems
@@ -2354,19 +2120,17 @@ module Object = {
       let isLiteral = schema->isLiteralSchema
 
       switch schema.maybeTypeFilter {
-      | Some(typeFilter)
-        if isLiteral ||
-        b.global.operation->Operation.unsafeHasFlag(Operation.Flag.typeValidation) =>
+      | Some(typeFilter) if isLiteral || b.global.flag->Flag.unsafeHas(Flag.typeValidation) =>
         b.code = b.code ++ b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path)
       | _ => ()
       }
 
       let bb = b->B.scope
       if isObject && schema.definer->Obj.magic {
-        bb->processInputItems(~ctx, ~input=itemInput, ~schema, ~path)
+        bb->processInputItems(~outputs, ~input=itemInput, ~schema, ~path, ~unknownKeys)
       } else {
         let itemOutput = bb->B.parse(~schema, ~input=itemInput, ~path)
-        b->BuildCtx.addItemOutput(~ctx, item, itemOutput)
+        addItemOutput(~outputs, item, itemOutput)
       }
 
       // Parse literal fields first, because they are most often used as discriminants
@@ -2377,13 +2141,9 @@ module Object = {
       }
     }
 
-    if (
-      isObject &&
-      (ctx.selfSchema->classify->Obj.magic)["unknownKeys"] === Strict &&
-      b.global.operation->Operation.unsafeHasFlag(Operation.Flag.typeValidation)
-    ) {
+    if isObject && unknownKeys === Strict && b.global.flag->Flag.unsafeHas(Flag.typeValidation) {
       let key = b->B.allocateVal
-      let keyVar = b->B.Val.var(key)
+      let keyVar = key.inline
       b.code = b.code ++ `for(${keyVar} in ${inputVar}){if(`
       switch items {
       | [] => b.code = b.code ++ "true"
@@ -2403,9 +2163,17 @@ module Object = {
   }
 
   let builder = (b, ~input, ~selfSchema, ~path) => {
-    let ctx = BuildCtx.make(~selfSchema)
-    b->processInputItems(~ctx, ~input, ~schema=selfSchema, ~path)
-    b->BuildCtx.toOutputVal(~ctx, ~outputDefinition=selfSchema->getOutputDefinition)
+    let outputs = Stdlib.WeakMap.make()
+    let unknownKeys = (selfSchema->classify->Obj.magic)["unknownKeys"]
+    b->processInputItems(~outputs, ~input, ~schema=selfSchema, ~path, ~unknownKeys)
+    if (
+      (unknownKeys !== Strip || b.global.flag->Flag.unsafeHas(Flag.reverse)) &&
+        selfSchema === selfSchema.reverse()
+    ) {
+      input
+    } else {
+      b->toOutputVal(~outputs, ~outputDefinition=selfSchema->getOutputDefinition)
+    }
   }
 
   type serializeCtx = {@as("d") mutable discriminantCode: string}
@@ -2421,35 +2189,23 @@ module Object = {
 
   let makeReverseOutput = (b, ~toItem: option<item>, ~original, ~outputs, ~path) => {
     let isRootObject = original->classify->unsafeGetVarianTag === "Object"
-
     let rec schemaOutput = (~schema, ~isObject, ~path) => {
       let items = schema->getItems
-
-      let output = ref("")
+      let objectVal = b->B.Val.Object.make(~isArray=!isObject)
       for idx in 0 to items->Js.Array2.length - 1 {
         let item = items->Js.Array2.unsafe_get(idx)
-
         let itemOutput = switch outputs->Stdlib.WeakMap.get(item) {
-        | Some(o) => b->B.Val.inline(o)
+        | Some(o) => o
         | None => fallbackOutput(item, ~path)
         }
-        if idx !== 0 {
-          output := output.contents ++ ","
-        }
-        output :=
-          output.contents ++ (isObject ? `${item.inlinedLocation}:${itemOutput}` : itemOutput)
+        objectVal->B.Val.Object.add(item.location, itemOutput)
       }
-
-      if isObject {
-        "{" ++ output.contents ++ "}"
-      } else {
-        "[" ++ output.contents ++ "]"
-      }
+      objectVal->B.Val.Object.complete(~isArray=!isObject)
     }
     and fallbackOutput = (item, ~path) => {
       let itemSchema = item.schema
       if itemSchema->isLiteralSchema {
-        b->B.embed(itemSchema->Literal.unsafeFromSchema->Literal.value)
+        b->B.val(b->B.embed(itemSchema->Literal.unsafeFromSchema->Literal.value))
       } else if isRootObject && itemSchema.definer->Obj.magic {
         schemaOutput(~isObject=true, ~schema=itemSchema, ~path=path->Path.concat(item.path))
       } else {
@@ -2464,9 +2220,9 @@ module Object = {
     | Some(item) =>
       switch outputs->Stdlib.WeakMap.get(item) {
       | Some(o) => o
-      | None => b->B.val(fallbackOutput(item, ~path))
+      | None => fallbackOutput(item, ~path)
       }
-    | None => b->B.val(schemaOutput(~isObject=isRootObject, ~schema=original, ~path))
+    | None => schemaOutput(~isObject=isRootObject, ~schema=original, ~path)
     }
   }
 
@@ -2480,14 +2236,11 @@ module Object = {
       ~tagged=Unknown,
       ~metadataMap=Metadata.Map.empty,
       ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-        if b.global.operation->Operation.unsafeHasFlag(Operation.Flag.typeValidation) {
+        if b.global.flag->Flag.unsafeHas(Flag.typeValidation) {
           b->B.invalidOperation(
             ~path,
             ~description="Type validation mode is not supported. Use convert operation instead",
           )
-        }
-        if b.global.operation->Operation.unsafeHasFlag(Operation.Flag.async) {
-          b->B.invalidOperation(~path, ~description="Async mode is not supported")
         }
 
         let inputVar = b->B.Val.var(input)
@@ -2588,11 +2341,11 @@ module Object = {
         makeSchema(
           ~name=schema.name,
           ~tagged=schema.tagged,
-          ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
-            let ctx = BuildCtx.make(~selfSchema)
+          ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+            let outputs = Stdlib.WeakMap.make()
             let itemOutput = b->B.parse(~schema, ~input, ~path)
-            b->BuildCtx.addItemOutput(~ctx, item, itemOutput)
-            b->BuildCtx.toOutputVal(~ctx, ~outputDefinition=definition)
+            addItemOutput(~outputs, item, itemOutput)
+            b->toOutputVal(~outputs, ~outputDefinition=definition)
           }),
           ~maybeTypeFilter=schema.maybeTypeFilter,
           ~metadataMap=schema.metadataMap,
@@ -2715,13 +2468,6 @@ module Object = {
         metadataMap: Metadata.Map.empty,
         definer: definer->Obj.magic,
         definerCtx: ctx->Obj.magic,
-        parseOrRaise: initialParseOrRaise,
-        serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
-        serializeOrRaise: initialSerializeOrRaise,
-        assertOrRaise: initialAssertOrRaise,
-        jsParse,
-        jsParseAsync,
-        jsSerialize,
         reverse: reverse(~definition),
       }
     }
@@ -2743,13 +2489,6 @@ module Object = {
         metadataMap: schema.metadataMap,
         definer: ?schema.definer,
         definerCtx: ?schema.definerCtx,
-        parseOrRaise: initialParseOrRaise,
-        serializeToUnknownOrRaise: initialSerializeToUnknownOrRaise,
-        serializeOrRaise: initialSerializeOrRaise,
-        assertOrRaise: initialAssertOrRaise,
-        jsParse,
-        jsParseAsync,
-        jsSerialize,
         reverse: schema.reverse,
       }
     // TODO: Should it throw for non Object schemas?
@@ -2968,10 +2707,7 @@ module JsonString = {
 
         b.code =
           b.code ++
-          `try{${b->B.Val.set(
-              jsonVal,
-              b->B.Val.map("JSON.parse", input),
-            )}}catch(t){${b->B.failWithArg(
+          `try{${jsonVal.inline}=JSON.parse(${input.inline})}catch(t){${b->B.failWithArg(
               ~path,
               message => OperationFailed(message),
               "t.message",
@@ -2990,18 +2726,18 @@ module JsonString = {
           ~tagged=reversed.tagged,
           ~metadataMap=reversed.metadataMap,
           ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-            let prevOperation = b.global.operation
-            b.global.operation = prevOperation->Operation.addFlag(Operation.Flag.jsonableOutput)
+            let prevOperation = b.global.flag
+            b.global.flag = prevOperation->Flag.with(Flag.jsonableOutput)
             if reversed.tagged->unsafeGetVarianTag === "Option" {
               b->B.raise(~code=InvalidJsonSchema(reversed), ~path=Path.empty)
             }
             let output =
               b->B.val(
-                `JSON.stringify(${b->B.Val.inline(
-                    b->B.parse(~schema=reversed, ~input, ~path),
-                  )}${space > 0 ? `,null,${space->Stdlib.Int.unsafeToString}` : ""})`,
+                `JSON.stringify(${(b->B.parse(~schema=reversed, ~input, ~path)).inline}${space > 0
+                    ? `,null,${space->Stdlib.Int.unsafeToString}`
+                    : ""})`,
               )
-            b.global.operation = prevOperation
+            b.global.flag = prevOperation
             output
           }),
           ~maybeTypeFilter=reversed.maybeTypeFilter,
@@ -3121,10 +2857,7 @@ module Union = {
           let bb = b->B.scope
           let itemOutput = bb->B.parse(~schema, ~input, ~path=Path.empty)
 
-          if (
-            isMultiple &&
-            !(b.global.operation->Operation.unsafeHasFlag(Operation.Flag.typeValidation))
-          ) {
+          if isMultiple && !(b.global.flag->Flag.unsafeHas(Flag.typeValidation)) {
             let reversed = schema.reverse()
             switch reversed.maybeTypeFilter {
             | Some(typeFilter) =>
@@ -3230,7 +2963,7 @@ module Union = {
           b.code = b.code ++ loopTypeFilters(0, None)
 
           if output.isAsync {
-            b->B.asyncVal(`Promise.resolve(${b->B.Val.inline(output)})`)
+            b->B.asyncVal(`Promise.resolve(${output.inline})`)
           } else {
             output
           }
@@ -3556,15 +3289,16 @@ module Schema = {
   }
 
   let factory = definer => {
-    let definition =
-      Js.typeof(definer) === "function" // TODO: Move to js_schema after the cb version is removed in v9
-        ? definer(ctx->(Obj.magic: s => 'value))->(Obj.magic: 'definition => unknown)
-        : definer->(Obj.magic: ('value => 'definition) => unknown)
-    definition->definitionToSchema->castUnknownSchemaToAnySchema
+    definer(ctx->(Obj.magic: s => 'value))
+    ->(Obj.magic: 'definition => unknown)
+    ->definitionToSchema
+    ->castUnknownSchemaToAnySchema
   }
 }
 
 let schema = Schema.factory
+
+let js_schema = Schema.definitionToSchema
 
 module Error = {
   type class
@@ -3608,18 +3342,36 @@ module Error = {
   let reason = error => reason(error)
 
   let message = (error: error) => {
-    let operation = switch error.operation {
-    | SerializeToUnknown => "serializing"
-    | SerializeToJson => "serializing to JSON"
-    | Parse => "parsing"
-    | ParseAsync => "parsing async"
-    | Assert => "asserting"
+    let op = error.flag
+
+    let text = ref(
+      "Failed " ++ if op->Flag.unsafeHas(Flag.typeValidation) {
+        if op->Flag.unsafeHas(Flag.assertOutput) {
+          "asserting"
+        } else {
+          "parsing"
+        }
+      } else {
+        "converting"
+      },
+    )
+
+    if op->Flag.unsafeHas(Flag.reverse) {
+      text := text.contents ++ " reverse"
     }
+    if op->Flag.unsafeHas(Flag.async) {
+      text := text.contents ++ " async"
+    }
+    if op->Flag.unsafeHas(Flag.jsonableOutput) {
+      text :=
+        text.contents ++ " to JSON" ++ (op->Flag.unsafeHas(Flag.jsonStringOutput) ? " string" : "")
+    }
+
     let pathText = switch error.path {
     | "" => "root"
     | nonEmptyPath => nonEmptyPath
     }
-    `Failed ${operation} at ${pathText}. Reason: ${error->reason}`
+    `${text.contents} at ${pathText}. Reason: ${error->reason}`
   }
 }
 
@@ -3858,8 +3610,12 @@ let variant = Object.to
 let to = Object.to
 let tuple = Tuple.factory
 let tuple1 = v0 => tuple(s => s.item(0, v0))
-let tuple2 = (v0, v1) => tuple(s => (s.item(0, v0), s.item(1, v1)))
-let tuple3 = (v0, v1, v2) => tuple(s => (s.item(0, v0), s.item(1, v1), s.item(2, v2)))
+let tuple2 = (v0, v1) =>
+  Schema.definitionToSchema([v0->toUnknown, v1->toUnknown]->Obj.magic)->castUnknownSchemaToAnySchema
+let tuple3 = (v0, v1, v2) =>
+  Schema.definitionToSchema(
+    [v0->toUnknown, v1->toUnknown, v2->toUnknown]->Obj.magic,
+  )->castUnknownSchemaToAnySchema
 let union = Union.factory
 let jsonString = JsonString.factory
 
@@ -4151,13 +3907,6 @@ let trim = schema => {
   schema->transform(_ => {parser: transformer, serializer: transformer})
 }
 
-let unwrap = result => {
-  switch result {
-  | Ok(v) => v
-  | Error(error) => Stdlib.Exn.raiseAny(error)
-  }
-}
-
 // =============
 // JS/TS API
 // =============
@@ -4233,30 +3982,6 @@ let js_custom = (~name, ~parser as maybeParser=?, ~serializer as maybeSerializer
   })
 }
 
-let js_object = definer => {
-  if Js.typeof(definer) === "function" {
-    let definer = definer->(Obj.magic: unknown => Object.s => 'a)
-    object(definer)
-  } else {
-    let definer = definer->(Obj.magic: unknown => dict<t<unknown>>)
-    object(s => {
-      let definition = Js.Dict.empty()
-      let fieldNames = definer->Js.Dict.keys
-      for idx in 0 to fieldNames->Js.Array2.length - 1 {
-        let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-        let schema = definer->Js.Dict.unsafeGet(fieldName)
-        let schema = if schema->isSchema {
-          schema
-        } else {
-          literal(Obj.magic(schema))
-        }
-        definition->Js.Dict.set(fieldName, s.field(fieldName, schema))
-      }
-      definition
-    })
-  }
-}
-
 let js_merge = (s1, s2) => {
   switch (s1, s2) {
   | ({tagged: Object({items: s1Items})}, {tagged: Object({items: s2Items, unknownKeys})}) =>
@@ -4288,7 +4013,7 @@ let js_merge = (s1, s2) => {
         let s2Result = b->B.parse(~schema=s2, ~input, ~path)
         // TODO: Check that these are objects
         // TODO: Check that s1Result is not mutating input
-        b->B.val(`Object.assign(${b->B.Val.inline(s1Result)}, ${b->B.Val.inline(s2Result)})`)
+        b->B.val(`Object.assign(${s1Result.inline}, ${s2Result.inline})`)
       }),
       ~maybeTypeFilter=Some(Object.typeFilter),
       ~metadataMap=Metadata.Map.empty,
@@ -4333,12 +4058,5 @@ let setGlobalConfig = override => {
   }
   if prevDisableNanNumberCheck != globalConfig.disableNanNumberCheck {
     resetOperationsCache(float)
-  }
-}
-
-let js_unwrap = (result: jsResult<'value>): 'value => {
-  switch result {
-  | Success({value}) => value
-  | Failure({error}) => Stdlib.Exn.raiseAny(error)
   }
 }

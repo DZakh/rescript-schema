@@ -67,7 +67,7 @@ and item = {
   symbol: Js.Types.symbol,
 }
 and schema<'value> = t<'value>
-and error = private {operation: operation, code: errorCode, path: Path.t}
+and error = private {flag: flag, code: errorCode, path: Path.t}
 and errorCode =
   | OperationFailed(string)
   | InvalidOperation({description: string})
@@ -76,12 +76,7 @@ and errorCode =
   | InvalidUnion(array<error>)
   | UnexpectedAsync
   | InvalidJsonSchema(schema<unknown>)
-and operation =
-  | Parse
-  | ParseAsync
-  | SerializeToJson
-  | SerializeToUnknown
-  | Assert
+and flag
 and unknownKeys = Strip | Strict
 type exn += private Raised(error)
 
@@ -90,12 +85,25 @@ type s<'value> = {
   fail: 'a. (string, ~path: Path.t=?) => 'a,
 }
 
+module Flag: {
+  @inline let none: flag
+  @inline let typeValidation: flag
+  @inline let async: flag
+  @inline let assertOutput: flag
+  @inline let jsonableOutput: flag
+  @inline let jsonStringOutput: flag
+  @inline let reverse: flag
+
+  external with: (flag, flag) => flag = "%orint"
+  let has: (flag, flag) => bool
+}
+
 module Error: {
   type class
 
   let class: class
 
-  let make: (~code: errorCode, ~operation: operation, ~path: Path.t) => error
+  let make: (~code: errorCode, ~flag: flag, ~path: Path.t) => error
 
   let raise: error => 'a
 
@@ -184,73 +192,47 @@ let custom: (string, s<'output> => customDefinition<'input, 'output>) => t<'outp
 
 let refine: (t<'value>, s<'value> => 'value => unit) => t<'value>
 
-@deprecated("It'll be removed in v9. Use S.to instead")
-let variant: (t<'value>, 'value => 'variant) => t<'variant>
 let to: (t<'value>, 'value => 'variant) => t<'variant>
 
-type rec input<'input, 'computed> =
-  | Input: input<'input, 'input>
-  | Any: input<'input, 'any>
-  | Unknown: input<'input, unknown>
-  | Json: input<'input, Js.Json.t>
-  | JsonString: input<'input, string>
-type rec output<'output, 'computed> =
-  | Output: output<'output, 'output>
-  | Unknown: output<'output, unknown>
-  | Assert: output<'output, unit>
-  | Json: output<'output, Js.Json.t>
-  | JsonString: output<'output, string>
+type rec input<'value, 'computed> =
+  | Value: input<'value, 'value>
+  | Any: input<'value, 'any>
+  | Unknown: input<'value, unknown>
+  | Json: input<'value, Js.Json.t>
+  | JsonString: input<'value, string>
+type rec output<'value, 'computed> =
+  | Value: output<'value, 'value>
+  | Unknown: output<'value, unknown>
+  | Assert: output<'value, unit>
+  | Json: output<'value, Js.Json.t>
+  | JsonString: output<'value, string>
 type rec mode<'output, 'computed> =
   | Sync: mode<'output, 'output>
   | Async: mode<'output, promise<'output>>
 
 let compile: (
-  t<'schemaOutput>,
-  ~input: input<unknown, 'input>,
-  ~output: output<'schemaOutput, 'transformedOutput>,
+  t<'value>,
+  ~input: input<'value, 'input>,
+  ~output: output<'value, 'transformedOutput>,
   ~mode: mode<'transformedOutput, 'output>,
   ~typeValidation: bool,
 ) => 'input => 'output
 
-let parseWith: (Js.Json.t, t<'value>) => result<'value, error>
-let parseAnyWith: ('any, t<'value>) => result<'value, error>
-let parseJsonStringWith: (string, t<'value>) => result<'value, error>
-let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value
-let parseAnyOrRaiseWith: ('any, t<'value>) => 'value
-let parseAsyncWith: (Js.Json.t, t<'value>) => promise<result<'value, error>>
-let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
+let parseOrThrow: ('any, t<'value>) => 'value
+let parseJsonStringOrThrow: (string, t<'value>) => 'value
+let parseAsyncOrThrow: ('any, t<'value>) => promise<'value>
 
-let convertAnyWith: ('any, t<'value>) => result<'value, error>
-let convertAnyToJsonWith: ('any, t<'value>) => result<Js.Json.t, error>
-let convertAnyToJsonStringWith: ('any, t<'value>) => result<string, error>
-let convertAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
+let convertOrThrow: ('any, t<'value>) => 'value
+let convertToJsonOrThrow: ('any, t<'value>) => Js.Json.t
+let convertToJsonStringOrThrow: ('any, t<'value>) => string
+let convertAsyncOrThrow: ('any, t<'value>) => promise<'value>
 
-let reverseConvertWith: ('value, t<'value>) => unknown
-let reverseConvertToJsonWith: ('value, t<'value>) => Js.Json.t
-let reverseConvertToJsonStringWith: ('value, t<'value>, ~space: int=?) => string
+let reverseConvertOrThrow: ('value, t<'value>) => unknown
+let reverseConvertToJsonOrThrow: ('value, t<'value>) => Js.Json.t
+let reverseConvertToJsonStringOrThrow: ('value, t<'value>, ~space: int=?) => string
 
-// TODO: Uncomment when a codemod is ready
-// @deprecated("It'll be removed in v9. Use S.reverseConvertToJsonWith and try/catch instead")
-let serializeWith: ('value, t<'value>) => result<Js.Json.t, error>
-// @deprecated("It'll be removed in v9. Use S.reverseConvertWith and try/catch instead")
-let serializeToUnknownWith: ('value, t<'value>) => result<unknown, error>
-@deprecated("It'll be removed in v9. Use S.reverseConvertToJsonStringWith and try/catch instead")
-let serializeToJsonStringWith: ('value, t<'value>, ~space: int=?) => result<string, error>
-@deprecated("It'll be removed in v9. Use S.reverseConvertToJsonWith instead")
-let serializeOrRaiseWith: ('value, t<'value>) => Js.Json.t
-@deprecated("It'll be removed in v9. Use S.reverseConvertWith instead")
-let serializeToUnknownOrRaiseWith: ('value, t<'value>) => unknown
-@deprecated("It'll be removed in v9. Use S.reverseConvertToJsonStringWith instead")
-let serializeToJsonStringOrRaiseWith: ('value, t<'value>, ~space: int=?) => string
+let assertOrThrow: ('any, t<'value>) => unit
 
-@deprecated("It'll be removed in v9. Use S.assertWith instead")
-let assertOrRaiseWith: ('any, t<'value>) => unit
-@deprecated("It'll be removed in v9. Use S.assertWith instead")
-let assertAnyWith: ('any, t<'value>) => unit
-let assertWith: ('any, t<'value>) => unit
-
-@deprecated("It'll be removed in v9. Use S.isAsync instead")
-let isAsyncParse: t<'value> => bool
 let isAsync: t<'value> => bool
 
 let recursive: (t<'value> => t<'value>) => t<'value>
@@ -263,8 +245,6 @@ external name: t<'value> => string = "n"
 let setName: (t<'value>, string) => t<'value>
 
 let removeTypeValidation: t<'value> => t<'value>
-
-let unwrap: result<'value, error> => 'value
 
 external toUnknown: t<'any> => t<unknown> = "%identity"
 

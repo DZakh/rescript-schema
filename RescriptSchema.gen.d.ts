@@ -18,43 +18,16 @@ export type Json =
   | { [key: string]: Json }
   | Json[];
 
-export type S_t<Output, Input = unknown> = {
-  /**
-   * @deprecated It'll be removed in v9. Use S.safe(() => S.parseWith(data, schema)) instead
-   */
-  parse(data: unknown): Result<Output>;
-  /**
-   * @deprecated It'll be removed in v9. Use S.safeAsync(() => S.parseAsyncWith(data, schema)) instead
-   */
-  parseAsync(data: unknown): Promise<Result<Output>>;
-  /**
-   * @deprecated It'll be removed in v9. Use S.parseWith(data, schema) instead
-   */
-  parseOrThrow(data: unknown): Output;
-  /**
-   * @deprecated It'll be removed in v9. Use S.safe(() => S.convertWith(data, S.reverse(schema))) instead
-   */
-  serialize(value: Output): Result<Input>;
-  /**
-   * @deprecated It'll be removed in v9. Use S.convertWith(data, S.reverse(schema)) instead
-   */
-  serializeOrThrow(value: Output): Input;
-  /**
-   * @deprecated It'll be removed in v9. Create an issue if you use it, there're currently no alternatives
-   */
-  serializeToJsonOrThrow(value: Output): Json;
-  /**
-   * @deprecated It'll be removed in v9. Use S.assertWith(data, schema) instead
-   */
-  assert(data: unknown): asserts data is Input;
-};
+export abstract class S_t<Output, Input = unknown> {
+  protected opaque: any;
+} /* simulate opaque types */
 
 export abstract class S_Path_t {
   protected opaque: any;
 } /* simulate opaque types */
 
 export class S_error {
-  readonly operation: S_operation;
+  readonly flag: number;
   readonly code: S_errorCode;
   readonly path: S_Path_t;
   readonly message: string;
@@ -64,9 +37,3 @@ export class S_error {
 export abstract class S_errorCode {
   protected opaque: any;
 } /* simulate opaque types */
-
-export type S_operation =
-  | "Parse"
-  | "ParseAsync"
-  | "SerializeToJson"
-  | "SerializeToUnknown";

@@ -7,8 +7,8 @@ module Common = {
   test("Fails to ", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      any->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => any->S.parseOrThrow(schema),
       {
         code: InvalidType({expected: S.never->S.toUnknown, received: any}),
         operation: Parse,
@@ -20,11 +20,11 @@ module Common = {
   test("Fails to serialize ", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      any->S.serializeToUnknownWith(schema),
+    t->U.assertRaised(
+      () => any->S.reverseConvertOrThrow(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: any}),
-        operation: SerializeToUnknown,
+        operation: ReverseConvert,
         path: S.Path.empty,
       },
     )
@@ -39,7 +39,7 @@ module Common = {
   test("Compiled serialize code snapshot", t => {
     let schema = factory()
 
-    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{e[0](i);return i}`)
+    t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{e[0](i);return i}`)
   })
 
   test("Reverse schema to self", t => {
@@ -57,8 +57,8 @@ module ObjectField = {
       }
     )
 
-    t->U.assertErrorResult(
-      %raw(`{"key":"value"}`)->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => %raw(`{"key":"value"}`)->S.parseOrThrow(schema),
       {
         code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`undefined`)}),
         operation: Parse,
@@ -79,11 +79,11 @@ module ObjectField = {
     )
 
     t->Assert.deepEqual(
-      %raw(`{"key":"value"}`)->S.parseAnyWith(schema),
-      Ok({
+      %raw(`{"key":"value"}`)->S.parseOrThrow(schema),
+      {
         "key": "value",
         "oldKey": None,
-      }),
+      },
       (),
     )
   })

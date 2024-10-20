@@ -6,9 +6,9 @@ test("Successfully refines on parsing", t => {
       s.fail("Should be positive")
     })
 
-  t->Assert.deepEqual(%raw(`12`)->S.parseAnyWith(schema), Ok(12), ())
-  t->U.assertErrorResult(
-    %raw(`-12`)->S.parseAnyWith(schema),
+  t->Assert.deepEqual(%raw(`12`)->S.parseOrThrow(schema), 12, ())
+  t->U.assertRaised(
+    () => %raw(`-12`)->S.parseOrThrow(schema),
     {
       code: OperationFailed("Should be positive"),
       operation: Parse,
@@ -23,8 +23,8 @@ test("Fails with custom path", t => {
       s.fail(~path=S.Path.fromArray(["data", "myInt"]), "Should be positive")
     })
 
-  t->U.assertErrorResult(
-    %raw(`-12`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`-12`)->S.parseOrThrow(schema),
     {
       code: OperationFailed("Should be positive"),
       operation: Parse,
@@ -39,12 +39,12 @@ test("Successfully refines on serializing", t => {
       s.fail("Should be positive")
     })
 
-  t->Assert.deepEqual(12->S.serializeToUnknownWith(schema), Ok(%raw("12")), ())
-  t->U.assertErrorResult(
-    -12->S.serializeToUnknownWith(schema),
+  t->Assert.deepEqual(12->S.reverseConvertOrThrow(schema), %raw("12"), ())
+  t->U.assertRaised(
+    () => -12->S.reverseConvertOrThrow(schema),
     {
       code: OperationFailed("Should be positive"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )
@@ -62,11 +62,11 @@ test("Successfully parses simple object with empty refine", t => {
     %raw(`{
       "foo": "string",
       "bar": true,
-    }`)->S.parseAnyWith(schema),
-    Ok({
+    }`)->S.parseOrThrow(schema),
+    {
       "foo": "string",
       "bar": true,
-    }),
+    },
     (),
   )
 })
@@ -82,7 +82,7 @@ test("Compiled parse code snapshot for simple object with refine", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["foo"],v1=i["bar"],v2;if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}v2={"foo":v0,"bar":v1};e[2](v2);return v2}`,
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["foo"],v1=i["bar"],v2;if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}v2={"foo":v0,"bar":v1,};e[2](v2);return v2}`,
   )
 })
 
@@ -115,6 +115,6 @@ module Issue79 = {
       `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["myField"],v3;if(v0!==void 0&&(v0!==null&&(typeof v0!=="string"))){e[0](v0)}let v2;if(v0!==void 0){let v1;if(v0!==null){v1=v0}else{v1=void 0}v2=v1}v3=v2;e[1](v3);return v3}`,
     )
 
-    t->Assert.deepEqual(jsonString->S.parseJsonStringWith(schema), Ok(Some("test")), ())
+    t->Assert.deepEqual(jsonString->S.parseJsonStringOrThrow(schema), Some("test"), ())
   })
 }

@@ -10,14 +10,14 @@ module Common = {
   test("Successfully parses", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseOrThrow(schema), value, ())
   })
 
   test("Fails to parse", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      invalidAny->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => invalidAny->S.parseOrThrow(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
         operation: Parse,
@@ -29,7 +29,7 @@ module Common = {
   test("Successfully serializes", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(any), ())
+    t->Assert.deepEqual(value->S.reverseConvertOrThrow(schema), any, ())
   })
 
   test("Compiled parse code snapshot", t => {
@@ -66,7 +66,7 @@ module Common = {
     let schema = factory()
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#Serialize,
+      ~op=#ReverseConvert,
       `i=>{let v0;if(i!==void 0){v0=i}else{v0=null}return v0}`,
     )
   })
@@ -81,14 +81,14 @@ module Common = {
 test("Successfully parses primitive", t => {
   let schema = S.null(S.bool)
 
-  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseAnyWith(schema), Ok(Some(true)), ())
+  t->Assert.deepEqual(JSON.Encode.bool(true)->S.parseOrThrow(schema), Some(true), ())
 })
 
 test("Fails to parse JS undefined", t => {
   let schema = S.null(S.bool)
 
-  t->U.assertErrorResult(
-    %raw(`undefined`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`undefined`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`undefined`)}),
       operation: Parse,
@@ -101,8 +101,8 @@ test("Fails to parse object with missing field that marked as null", t => {
   let fieldSchema = S.null(S.string)
   let schema = S.object(s => s.field("nullableField", fieldSchema))
 
-  t->U.assertErrorResult(
-    %raw(`{}`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`{}`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: fieldSchema->S.toUnknown, received: %raw(`undefined`)}),
       operation: Parse,
@@ -114,8 +114,8 @@ test("Fails to parse object with missing field that marked as null", t => {
 test("Fails to parse JS null when schema doesn't allow optional data", t => {
   let schema = S.bool
 
-  t->U.assertErrorResult(
-    %raw(`null`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`null`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`null`)}),
       operation: Parse,
@@ -128,8 +128,8 @@ test("Successfully parses null and serializes it back for deprecated nullable sc
   let schema = S.null(S.bool)->S.deprecate("Deprecated")
 
   t->Assert.deepEqual(
-    %raw(`null`)->S.parseAnyWith(schema)->Result.map(S.serializeToUnknownWith(_, schema)),
-    Ok(Ok(%raw(`null`))),
+    %raw(`null`)->S.parseOrThrow(schema)->S.reverseConvertOrThrow(schema),
+    %raw(`null`),
     (),
   )
 })
@@ -137,19 +137,19 @@ test("Successfully parses null and serializes it back for deprecated nullable sc
 test("Parses null nested in option as None instead of Some(None)", t => {
   let schema = S.option(S.null(S.bool))
 
-  t->Assert.deepEqual(%raw(`null`)->S.parseAnyWith(schema), Ok(None), ())
-  t->Assert.deepEqual(%raw(`undefined`)->S.parseAnyWith(schema), Ok(None), ())
+  t->Assert.deepEqual(%raw(`null`)->S.parseOrThrow(schema), None, ())
+  t->Assert.deepEqual(%raw(`undefined`)->S.parseOrThrow(schema), None, ())
 })
 
 test("Serializes Some(None) to null for null nested in option", t => {
   let schema = S.option(S.null(S.bool))
 
-  t->Assert.deepEqual(Some(None)->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
-  t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`undefined`)), ())
+  t->Assert.deepEqual(Some(None)->S.reverseConvertOrThrow(schema), %raw(`null`), ())
+  t->Assert.deepEqual(None->S.reverseConvertOrThrow(schema), %raw(`undefined`), ())
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#Serialize,
+    ~op=#ReverseConvert,
     `i=>{let v2;if(i!==void 0){let v0=e[0](i),v1;if(v0!==void 0){v1=v0}else{v1=null}v2=v1}return v2}`,
   )
 })
@@ -157,12 +157,12 @@ test("Serializes Some(None) to null for null nested in option", t => {
 test("Serializes Some(None) to null for null nested in null", t => {
   let schema = S.null(S.null(S.bool))
 
-  t->Assert.deepEqual(Some(None)->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
-  t->Assert.deepEqual(None->S.serializeToUnknownWith(schema), Ok(%raw(`null`)), ())
+  t->Assert.deepEqual(Some(None)->S.reverseConvertOrThrow(schema), %raw(`null`), ())
+  t->Assert.deepEqual(None->S.reverseConvertOrThrow(schema), %raw(`null`), ())
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#Serialize,
+    ~op=#ReverseConvert,
     `i=>{let v2;if(i!==void 0){let v0=e[0](i),v1;if(v0!==void 0){v1=v0}else{v1=null}v2=v1}else{v2=null}return v2}`,
   )
 })

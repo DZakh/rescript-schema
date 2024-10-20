@@ -4,29 +4,29 @@ open RescriptCore
 test("Doesn't affect valid parsing", t => {
   let schema = S.string->S.catch(_ => "fallback")
 
-  t->Assert.deepEqual("abc"->S.parseAnyWith(schema), Ok("abc"), ())
+  t->Assert.deepEqual("abc"->S.parseOrThrow(schema), "abc", ())
 })
 
 test("Doesn't do anything with unknown schema", t => {
   let schema = S.unknown->S.catch(_ => %raw(`"fallback"`))
 
-  t->Assert.deepEqual("abc"->S.parseAnyWith(schema), Ok(%raw(`"abc"`)), ())
+  t->Assert.deepEqual("abc"->S.parseOrThrow(schema), %raw(`"abc"`), ())
 })
 
 test("Uses fallback value when parsing failed", t => {
   let schema = S.string->S.catch(_ => "fallback")
 
-  t->Assert.deepEqual(123->S.parseAnyWith(schema), Ok("fallback"), ())
+  t->Assert.deepEqual(123->S.parseOrThrow(schema), "fallback", ())
 })
 
 test("Doesn't affect serializing in any way", t => {
   let schema = S.literal("123")->S.catch(_ => "fallback")
 
-  t->U.assertErrorResult(
-    "abc"->S.serializeToUnknownWith(schema),
+  t->U.assertRaised(
+    () => "abc"->S.reverseConvertOrThrow(schema),
     {
       code: InvalidType({received: "abc"->Obj.magic, expected: S.literal("123")->S.toUnknown}),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )
@@ -48,32 +48,32 @@ test("Provides ctx to use in catch", t => {
     "fallback"
   })
 
-  t->Assert.deepEqual(123->S.parseAnyWith(schema), Ok("fallback"), ())
+  t->Assert.deepEqual(123->S.parseOrThrow(schema), "fallback", ())
 })
 
 test("Can use s.fail inside of S.catch", t => {
   let schema = S.literal("0")->S.catch(s => {
-    switch s.input->S.parseAnyWith(S.string) {
-    | Ok(_) => "1"
-    | Error(_) => s.fail("Fallback value only supported for strings.")
+    switch s.input->S.parseOrThrow(S.string) {
+    | _ => "1"
+    | exception S.Raised(_) => s.fail("Fallback value only supported for strings.")
     }
   })
-  t->Assert.deepEqual("0"->S.parseAnyWith(schema), Ok("0"), ())
-  t->Assert.deepEqual("abc"->S.parseAnyWith(schema), Ok("1"), ())
-  t->U.assertErrorResult(
-    123->S.parseAnyWith(schema),
+  t->Assert.deepEqual("0"->S.parseOrThrow(schema), "0", ())
+  t->Assert.deepEqual("abc"->S.parseOrThrow(schema), "1", ())
+  t->U.assertRaised(
+    () => 123->S.parseOrThrow(schema),
     {
       code: OperationFailed("Fallback value only supported for strings."),
       operation: Parse,
       path: S.Path.empty,
     },
   )
-  t->Assert.deepEqual("0"->S.serializeToUnknownWith(schema), Ok(%raw(`"0"`)), ())
-  t->U.assertErrorResult(
-    "1"->S.serializeToUnknownWith(schema),
+  t->Assert.deepEqual("0"->S.reverseConvertOrThrow(schema), %raw(`"0"`), ())
+  t->U.assertRaised(
+    () => "1"->S.reverseConvertOrThrow(schema),
     {
       code: InvalidType({expected: S.literal("0")->S.toUnknown, received: "1"->Obj.magic}),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )
@@ -85,14 +85,14 @@ asyncTest("Uses fallback value when async schema parsing failed during the sync 
     ->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)})
     ->S.catch(_ => "fallback")
 
-  t->Assert.deepEqual(await 123->S.parseAnyAsyncWith(schema), Ok("fallback"), ())
+  t->Assert.deepEqual(await 123->S.parseAsyncOrThrow(schema), "fallback", ())
 })
 
 asyncTest("Uses fallback value when async schema parsing failed during the async part", async t => {
   let schema =
     S.string->S.transform(s => {asyncParser: _ => s.fail("foo")})->S.catch(_ => "fallback")
 
-  t->Assert.deepEqual(await "123"->S.parseAnyAsyncWith(schema), Ok("fallback"), ())
+  t->Assert.deepEqual(await "123"->S.parseAsyncOrThrow(schema), "fallback", ())
 })
 
 asyncTest(
@@ -105,7 +105,7 @@ asyncTest(
       })
       ->S.catch(_ => "fallback")
 
-    t->Assert.deepEqual(await "123"->S.parseAnyAsyncWith(schema), Ok("fallback"), ())
+    t->Assert.deepEqual(await "123"->S.parseAsyncOrThrow(schema), "fallback", ())
   },
 )
 
@@ -133,5 +133,5 @@ test("Compiled async parse code snapshot", t => {
 test("Compiled serialize code snapshot", t => {
   let schema = S.bool->S.catch(_ => false)
 
-  t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
+  t->U.assertCompiledCodeIsNoop(~schema, ~op=#ReverseConvert)
 })

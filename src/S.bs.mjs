@@ -6,6 +6,8 @@ var Path = S_Core$RescriptSchema.Path;
 
 var Raised = S_Core$RescriptSchema.Raised;
 
+var Flag = S_Core$RescriptSchema.Flag;
+
 var $$Error = S_Core$RescriptSchema.$$Error;
 
 var Literal = S_Core$RescriptSchema.Literal;
@@ -68,59 +70,31 @@ var custom = S_Core$RescriptSchema.custom;
 
 var refine = S_Core$RescriptSchema.refine;
 
-var variant = S_Core$RescriptSchema.variant;
-
 var to = S_Core$RescriptSchema.to;
 
 var compile = S_Core$RescriptSchema.compile;
 
-var parseWith = S_Core$RescriptSchema.parseWith;
+var parseOrThrow = S_Core$RescriptSchema.parseOrThrow;
 
-var parseAnyWith = S_Core$RescriptSchema.parseAnyWith;
+var parseJsonStringOrThrow = S_Core$RescriptSchema.parseJsonStringOrThrow;
 
-var parseJsonStringWith = S_Core$RescriptSchema.parseJsonStringWith;
+var parseAsyncOrThrow = S_Core$RescriptSchema.parseAsyncOrThrow;
 
-var parseOrRaiseWith = S_Core$RescriptSchema.parseOrRaiseWith;
+var convertOrThrow = S_Core$RescriptSchema.convertOrThrow;
 
-var parseAnyOrRaiseWith = S_Core$RescriptSchema.parseAnyOrRaiseWith;
+var convertToJsonOrThrow = S_Core$RescriptSchema.convertToJsonOrThrow;
 
-var parseAsyncWith = S_Core$RescriptSchema.parseAsyncWith;
+var convertToJsonStringOrThrow = S_Core$RescriptSchema.convertToJsonStringOrThrow;
 
-var parseAnyAsyncWith = S_Core$RescriptSchema.parseAnyAsyncWith;
+var convertAsyncOrThrow = S_Core$RescriptSchema.convertAsyncOrThrow;
 
-var convertAnyWith = S_Core$RescriptSchema.convertAnyWith;
+var reverseConvertOrThrow = S_Core$RescriptSchema.reverseConvertOrThrow;
 
-var convertAnyToJsonWith = S_Core$RescriptSchema.convertAnyToJsonWith;
+var reverseConvertToJsonOrThrow = S_Core$RescriptSchema.reverseConvertToJsonOrThrow;
 
-var convertAnyToJsonStringWith = S_Core$RescriptSchema.convertAnyToJsonStringWith;
+var reverseConvertToJsonStringOrThrow = S_Core$RescriptSchema.reverseConvertToJsonStringOrThrow;
 
-var convertAnyAsyncWith = S_Core$RescriptSchema.convertAnyAsyncWith;
-
-var reverseConvertWith = S_Core$RescriptSchema.reverseConvertWith;
-
-var reverseConvertToJsonWith = S_Core$RescriptSchema.reverseConvertToJsonWith;
-
-var reverseConvertToJsonStringWith = S_Core$RescriptSchema.reverseConvertToJsonStringWith;
-
-var serializeWith = S_Core$RescriptSchema.serializeWith;
-
-var serializeToUnknownWith = S_Core$RescriptSchema.serializeToUnknownWith;
-
-var serializeToJsonStringWith = S_Core$RescriptSchema.serializeToJsonStringWith;
-
-var serializeOrRaiseWith = S_Core$RescriptSchema.serializeOrRaiseWith;
-
-var serializeToUnknownOrRaiseWith = S_Core$RescriptSchema.serializeToUnknownOrRaiseWith;
-
-var serializeToJsonStringOrRaiseWith = S_Core$RescriptSchema.serializeToJsonStringOrRaiseWith;
-
-var assertOrRaiseWith = S_Core$RescriptSchema.assertOrRaiseWith;
-
-var assertAnyWith = S_Core$RescriptSchema.assertAnyWith;
-
-var assertWith = S_Core$RescriptSchema.assertWith;
-
-var isAsyncParse = S_Core$RescriptSchema.isAsyncParse;
+var assertOrThrow = S_Core$RescriptSchema.assertOrThrow;
 
 var isAsync = S_Core$RescriptSchema.isAsync;
 
@@ -131,8 +105,6 @@ var classify = S_Core$RescriptSchema.classify;
 var setName = S_Core$RescriptSchema.setName;
 
 var removeTypeValidation = S_Core$RescriptSchema.removeTypeValidation;
-
-var unwrap = S_Core$RescriptSchema.unwrap;
 
 var Schema = S_Core$RescriptSchema.Schema;
 
@@ -209,6 +181,7 @@ var setGlobalConfig = S_Core$RescriptSchema.setGlobalConfig;
 export {
   Path ,
   Raised ,
+  Flag ,
   $$Error ,
   Literal ,
   never ,
@@ -240,39 +213,24 @@ export {
   preprocess ,
   custom ,
   refine ,
-  variant ,
   to ,
   compile ,
-  parseWith ,
-  parseAnyWith ,
-  parseJsonStringWith ,
-  parseOrRaiseWith ,
-  parseAnyOrRaiseWith ,
-  parseAsyncWith ,
-  parseAnyAsyncWith ,
-  convertAnyWith ,
-  convertAnyToJsonWith ,
-  convertAnyToJsonStringWith ,
-  convertAnyAsyncWith ,
-  reverseConvertWith ,
-  reverseConvertToJsonWith ,
-  reverseConvertToJsonStringWith ,
-  serializeWith ,
-  serializeToUnknownWith ,
-  serializeToJsonStringWith ,
-  serializeOrRaiseWith ,
-  serializeToUnknownOrRaiseWith ,
-  serializeToJsonStringOrRaiseWith ,
-  assertOrRaiseWith ,
-  assertAnyWith ,
-  assertWith ,
-  isAsyncParse ,
+  parseOrThrow ,
+  parseJsonStringOrThrow ,
+  parseAsyncOrThrow ,
+  convertOrThrow ,
+  convertToJsonOrThrow ,
+  convertToJsonStringOrThrow ,
+  convertAsyncOrThrow ,
+  reverseConvertOrThrow ,
+  reverseConvertToJsonOrThrow ,
+  reverseConvertToJsonStringOrThrow ,
+  assertOrThrow ,
   isAsync ,
   recursive ,
   classify ,
   setName ,
   removeTypeValidation ,
-  unwrap ,
   Schema ,
   schema ,
   $$Object ,

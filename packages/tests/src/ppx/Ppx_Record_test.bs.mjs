@@ -18,12 +18,9 @@ Ava("Simple record schema", (function (t) {
                           value: s.f("value", S$RescriptSchema.$$int)
                         };
                 }), undefined);
-        t.deepEqual(S$RescriptSchema.parseWith({label:"foo",value:1}, simpleRecordSchema), {
-              TAG: "Ok",
-              _0: {
-                label: "foo",
-                value: 1
-              }
+        t.deepEqual(S$RescriptSchema.parseOrThrow({label:"foo",value:1}, simpleRecordSchema), {
+              label: "foo",
+              value: 1
             }, undefined);
       }));
 
@@ -41,12 +38,9 @@ Ava("Record schema with alias for field name", (function (t) {
                           value: s.f("value", S$RescriptSchema.$$int)
                         };
                 }), undefined);
-        t.deepEqual(S$RescriptSchema.parseWith({"aliased-label":"foo",value:1}, recordWithAliasSchema), {
-              TAG: "Ok",
-              _0: {
-                "aliased-label": "foo",
-                value: 1
-              }
+        t.deepEqual(S$RescriptSchema.parseOrThrow({"aliased-label":"foo",value:1}, recordWithAliasSchema), {
+              "aliased-label": "foo",
+              value: 1
             }, undefined);
       }));
 
@@ -64,19 +58,13 @@ Ava("Record schema with optional fields", (function (t) {
                           value: s.f("value", S$RescriptSchema.option(S$RescriptSchema.$$int))
                         };
                 }), undefined);
-        t.deepEqual(S$RescriptSchema.parseWith({"label":"foo",value:1}, recordWithOptionalSchema), {
-              TAG: "Ok",
-              _0: {
-                label: "foo",
-                value: 1
-              }
+        t.deepEqual(S$RescriptSchema.parseOrThrow({"label":"foo",value:1}, recordWithOptionalSchema), {
+              label: "foo",
+              value: 1
             }, undefined);
-        t.deepEqual(S$RescriptSchema.parseWith({}, recordWithOptionalSchema), {
-              TAG: "Ok",
-              _0: {
-                label: undefined,
-                value: undefined
-              }
+        t.deepEqual(S$RescriptSchema.parseOrThrow({}, recordWithOptionalSchema), {
+              label: undefined,
+              value: undefined
             }, undefined);
       }));
 
@@ -92,11 +80,8 @@ Ava("Record schema with nullable field", (function (t) {
                           subscription: s.f("subscription", S$RescriptSchema.option(S$RescriptSchema.$$null(S$RescriptSchema.string)))
                         };
                 }), undefined);
-        t.deepEqual(S$RescriptSchema.parseWith({"subscription":null}, recordWithNullableFieldSchema), {
-              TAG: "Ok",
-              _0: {
-                subscription: undefined
-              }
+        t.deepEqual(S$RescriptSchema.parseOrThrow({"subscription":null}, recordWithNullableFieldSchema), {
+              subscription: undefined
             }, undefined);
       }));
 
