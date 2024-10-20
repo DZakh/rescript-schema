@@ -882,13 +882,9 @@ let compile = (
     let flag = flag.contents
     jsonString => {
       try jsonString->Obj.magic->Js.Json.parseExn->fn catch {
-      | Js.Exn.Error(error) =>
+      | _ =>
         Stdlib.Exn.raiseAny(
-          InternalError.make(
-            ~code=OperationFailed(error->Js.Exn.message->(Obj.magic: option<string> => string)),
-            ~flag,
-            ~path=Path.empty,
-          ),
+          InternalError.make(~code=OperationFailed(%raw(`exn.message`)), ~flag, ~path=Path.empty),
         )
       }
     }
@@ -1220,12 +1216,61 @@ let reverse = schema => {
 // Operations
 // =============
 
-let wrapExnToError = exn => {
-  if %raw("exn&&exn.s===symbol") {
-    Error(exn->(Obj.magic: exn => error))
-  } else {
-    raise(exn)
-  }
+@inline
+let parseOrThrow = (any, schema) => {
+  (schema->operationFn(Flag.typeValidation))(any)
+}
+
+let parseJsonStringOrThrow = (jsonString: string, schema: t<'value>): 'value => {
+  try {
+    jsonString->Js.Json.parseExn
+  } catch {
+  | _ =>
+    Stdlib.Exn.raiseAny(
+      InternalError.make(
+        ~code=OperationFailed(%raw(`exn.message`)),
+        ~flag=Flag.typeValidation,
+        ~path=Path.empty,
+      ),
+    )
+  }->parseOrThrow(schema)
+}
+
+let parseAsyncOrThrow = (any, schema) => {
+  (schema->operationFn(Flag.async->Flag.with(Flag.typeValidation)))(any)
+}
+
+let convertOrThrow = (input, schema) => {
+  (schema->operationFn(Flag.none))(input)
+}
+
+let convertToJsonOrThrow = (any, schema) => {
+  (schema->operationFn(Flag.jsonableOutput))(any)
+}
+
+let convertToJsonStringOrThrow = (input, schema) => {
+  (schema->operationFn(Flag.jsonableOutput->Flag.with(Flag.jsonStringOutput)))(input)
+}
+
+let convertAsyncOrThrow = (any, schema) => {
+  (schema->operationFn(Flag.async))(any)
+}
+
+let reverseConvertOrThrow = (value, schema) => {
+  (schema->operationFn(Flag.reverse))(value)
+}
+
+@inline
+let reverseConvertToJsonOrThrow = (value, schema) => {
+  (schema->operationFn(Flag.jsonableOutput->Flag.with(Flag.reverse)))(value)
+}
+
+let reverseConvertToJsonStringOrThrow = (value: 'value, schema: t<'value>, ~space=0): string => {
+  value->reverseConvertToJsonOrThrow(schema)->Js.Json.stringifyWithSpace(space)
+}
+
+let assertOrThrow = (any, schema) => {
+  (schema->operationFn(Flag.typeValidation->Flag.with(Flag.assertOutput)))(any)
 }
 
 let wrapExnToFailure = exn => {
@@ -1234,100 +1279,6 @@ let wrapExnToFailure = exn => {
   } else {
     raise(exn)
   }
-}
-
-@inline
-let useSyncOperation = (schema, operation, input) => {
-  try {
-    (schema->operationFn(operation))(input)->Ok
-  } catch {
-  | _ => wrapExnToError(%raw(`exn`))
-  }
-}
-
-let asyncPrepareOk = value => Ok(value->castUnknownToAny)
-
-@inline
-let useAsyncOperation = (schema, operation, input) => {
-  try {
-    (schema->operationFn(operation->Flag.with(Flag.async)))(
-      input,
-    )->Stdlib.Promise.thenResolveWithCatch(asyncPrepareOk, wrapExnToError)
-  } catch {
-  | _ => wrapExnToError(%raw(`exn`))->Stdlib.Promise.resolve
-  }
-}
-
-let convertOrThrow = (input, schema) => {
-  (schema->operationFn(Flag.none))(input)
-}
-
-let convertToJsonStringOrThrow = (input, schema) => {
-  (schema->operationFn(Flag.jsonableOutput->Flag.with(Flag.jsonStringOutput)))(input)
-}
-
-let convertToJsonOrThrow = (any, schema) => {
-  (schema->operationFn(Flag.jsonableOutput))(any)
-}
-
-let convertAsyncOrThrow = (any, schema) => {
-  (schema->operationFn(Flag.async))(any)
-}
-
-@inline
-let parseOrThrow = (any, schema) => {
-  (schema->operationFn(Flag.typeValidation))(any)
-}
-
-let assertOrThrow = (any, schema) => {
-  (schema->operationFn(Flag.typeValidation->Flag.with(Flag.assertOutput)))(any)
-}
-
-let parseAnyWith = (any, schema) => {
-  schema->useSyncOperation(Flag.typeValidation, any)
-}
-
-let parseWith: (Js.Json.t, t<'value>) => result<'value, error> = parseAnyWith
-
-let parseAnyAsyncWith = (any, schema) => {
-  schema->useAsyncOperation(Flag.typeValidation, any)
-}
-
-let parseAsyncWith = parseAnyAsyncWith
-
-let reverseConvertToJsonOrThrow = (value, schema) => {
-  (schema->operationFn(Flag.jsonableOutput->Flag.with(Flag.reverse)))(value)
-}
-
-@inline
-let reverseConvertOrThrow = (value, schema) => {
-  (schema->operationFn(Flag.reverse))(value)
-}
-
-let reverseConvertToJsonStringOrThrow = (value: 'value, schema: t<'value>, ~space=0): string => {
-  value->reverseConvertToJsonOrThrow(schema)->Js.Json.stringifyWithSpace(space)
-}
-
-let parseJsonStringWith = (jsonString: string, schema: t<'value>): result<'value, error> => {
-  switch try {
-    jsonString->Js.Json.parseExn->Ok
-  } catch {
-  | Js.Exn.Error(error) =>
-    Error(
-      InternalError.make(
-        ~code=OperationFailed(error->Js.Exn.message->(Obj.magic: option<string> => string)),
-        ~flag=Flag.typeValidation,
-        ~path=Path.empty,
-      ),
-    )
-  } {
-  | Ok(json) => json->parseWith(schema)
-  | Error(_) as e => e
-  }
-}
-
-let js_parseAsyncWith = (input, schema) => {
-  (schema->operationFn(Flag.typeValidation->Flag.with(Flag.async)))(input)
 }
 
 let js_safe = fn => {

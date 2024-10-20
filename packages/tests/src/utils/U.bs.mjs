@@ -57,14 +57,6 @@ function assertThrowsTestException(t, fn, message, param) {
   }
 }
 
-function assertErrorResult(t, cb, errorPayload) {
-  var any = cb();
-  if (any.TAG === "Ok") {
-    return t.fail("Asserted result is not Error. Recieved: " + JSON.stringify(any._0));
-  }
-  t.is(S$RescriptSchema.$$Error.message(any._0), S$RescriptSchema.$$Error.message(error(errorPayload)), undefined);
-}
-
 function assertRaised(t, cb, errorPayload) {
   var any;
   try {
@@ -79,6 +71,22 @@ function assertRaised(t, cb, errorPayload) {
     throw err;
   }
   t.fail("Asserted result is not Error. Recieved: " + JSON.stringify(any));
+}
+
+async function assertRaisedAsync(t, cb, errorPayload) {
+  var any;
+  try {
+    any = await cb();
+  }
+  catch (raw_err){
+    var err = Caml_js_exceptions.internalToOCamlException(raw_err);
+    if (err.RE_EXN_ID === S$RescriptSchema.Raised) {
+      t.is(S$RescriptSchema.$$Error.message(err._1), S$RescriptSchema.$$Error.message(error(errorPayload)), undefined);
+      return ;
+    }
+    throw err;
+  }
+  return t.fail("Asserted result is not Error. Recieved: " + JSON.stringify(any));
 }
 
 function getCompiledCodeString(schema, op) {
@@ -132,7 +140,7 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
 }
 
 function assertReverseParsesBack(t, schema, value) {
-  t.deepEqual(S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith(S$RescriptSchema.reverseConvertOrThrow(value, schema), schema)), value, undefined);
+  t.deepEqual(S$RescriptSchema.parseOrThrow(S$RescriptSchema.reverseConvertOrThrow(value, schema), schema), value, undefined);
 }
 
 var assertEqualSchemas = unsafeAssertEqualSchemas;
@@ -143,8 +151,8 @@ export {
   raiseTestException ,
   error ,
   assertThrowsTestException ,
-  assertErrorResult ,
   assertRaised ,
+  assertRaisedAsync ,
   getCompiledCodeString ,
   cleanUpSchema ,
   unsafeAssertEqualSchemas ,

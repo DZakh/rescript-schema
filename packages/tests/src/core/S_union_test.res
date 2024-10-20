@@ -22,7 +22,7 @@ test("Successfully creates a Union schema factory with single schema and flatten
 test("Successfully parses polymorphic variants", t => {
   let schema = S.union([S.literal(#apple), S.literal(#orange)])
 
-  t->Assert.deepEqual(%raw(`"apple"`)->S.parseAnyWith(schema), Ok(#apple), ())
+  t->Assert.deepEqual(%raw(`"apple"`)->S.parseOrThrow(schema), #apple, ())
 })
 
 test("Parses when both schemas misses parser and have the same type", t => {
@@ -31,8 +31,8 @@ test("Parses when both schemas misses parser and have the same type", t => {
     S.string->S.transform(_ => {serializer: _ => "apple"}),
   ])
 
-  t->U.assertErrorResult(
-    () => %raw(`null`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`null`)->S.parseOrThrow(schema),
     {
       code: InvalidType({
         expected: schema->S.toUnknown,
@@ -43,8 +43,8 @@ test("Parses when both schemas misses parser and have the same type", t => {
     },
   )
 
-  t->U.assertErrorResult(
-    () => %raw(`"foo"`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`"foo"`)->S.parseOrThrow(schema),
     {
       code: InvalidUnion([
         U.error({
@@ -76,8 +76,8 @@ test("Parses when both schemas misses parser and have different types", t => {
     S.string->S.transform(_ => {serializer: _ => "apple"}),
   ])
 
-  t->U.assertErrorResult(
-    () => %raw(`null`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`null`)->S.parseOrThrow(schema),
     {
       code: InvalidType({
         expected: schema->S.toUnknown,
@@ -88,8 +88,8 @@ test("Parses when both schemas misses parser and have different types", t => {
     },
   )
 
-  t->U.assertErrorResult(
-    () => %raw(`"abc"`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`"abc"`)->S.parseOrThrow(schema),
     {
       code: InvalidOperation({description: "The S.transform parser is missing"}),
       operation: Parse,
@@ -141,7 +141,7 @@ test("When union of json and string schemas, should parse the first one", t => {
   let schema = S.union([S.json(~validate=false)->S.to(_ => #json), S.string->S.to(_ => #str)])
 
   // FIXME: This is not working. Should be #json instead
-  t->Assert.deepEqual(%raw(`"string"`)->S.parseAnyWith(schema), Ok(#str), ())
+  t->Assert.deepEqual(%raw(`"string"`)->S.parseOrThrow(schema), #str, ())
 
   t->U.assertCompiledCode(
     ~schema,
@@ -153,7 +153,7 @@ test("When union of json and string schemas, should parse the first one", t => {
 test("Parses when second struct misses parser", t => {
   let schema = S.union([S.literal(#apple), S.string->S.transform(_ => {serializer: _ => "apple"})])
 
-  t->Assert.deepEqual("apple"->S.parseAnyWith(schema), Ok(#apple), ())
+  t->Assert.deepEqual("apple"->S.parseOrThrow(schema), #apple, ())
 
   t->U.assertCompiledCode(
     ~schema,
@@ -206,8 +206,8 @@ module Advanced = {
       %raw(`{
       "kind": "circle",
       "radius": 1,
-    }`)->S.parseAnyWith(shapeSchema),
-      Ok(Circle({radius: 1.})),
+    }`)->S.parseOrThrow(shapeSchema),
+      Circle({radius: 1.}),
       (),
     )
   })
@@ -217,8 +217,8 @@ module Advanced = {
       %raw(`{
       "kind": "square",
       "x": 2,
-    }`)->S.parseAnyWith(shapeSchema),
-      Ok(Square({x: 2.})),
+    }`)->S.parseOrThrow(shapeSchema),
+      Square({x: 2.}),
       (),
     )
   })
@@ -229,20 +229,20 @@ module Advanced = {
       "kind": "triangle",
       "x": 2,
       "y": 3,
-    }`)->S.parseAnyWith(shapeSchema),
-      Ok(Triangle({x: 2., y: 3.})),
+    }`)->S.parseOrThrow(shapeSchema),
+      Triangle({x: 2., y: 3.}),
       (),
     )
   })
 
   test("Fails to parse with unknown kind", t => {
-    t->U.assertErrorResult(
+    t->U.assertRaised(
       () =>
         %raw(`{
         "kind": "oval",
         "x": 2,
         "y": 3,
-      }`)->S.parseAnyWith(shapeSchema),
+      }`)->S.parseOrThrow(shapeSchema),
       {
         code: InvalidUnion([
           U.error({
@@ -277,7 +277,7 @@ module Advanced = {
   })
 
   test("Fails to parse with unknown kind when the union is an object field", t => {
-    t->U.assertErrorResult(
+    t->U.assertRaised(
       () =>
         %raw(`{
         "field": {
@@ -285,7 +285,7 @@ module Advanced = {
           "x": 2,
           "y": 3,
         }
-      }`)->S.parseAnyWith(S.object(s => s.field("field", shapeSchema))),
+      }`)->S.parseOrThrow(S.object(s => s.field("field", shapeSchema))),
       {
         code: InvalidUnion([
           U.error({
@@ -320,8 +320,8 @@ module Advanced = {
   })
 
   test("Fails to parse with invalid data type", t => {
-    t->U.assertErrorResult(
-      () => %raw(`"Hello world!"`)->S.parseAnyWith(shapeSchema),
+    t->U.assertRaised(
+      () => %raw(`"Hello world!"`)->S.parseOrThrow(shapeSchema),
       {
         code: InvalidType({
           expected: shapeSchema->S.toUnknown,
@@ -648,9 +648,7 @@ test("json-rpc response", t => {
         "jsonrpc": "2.0",
         "id": 1,
         "result": ["foo", "bar"]
-      }`)
-    ->S.parseWith(getLogsResponseSchema)
-    ->S.unwrap,
+      }`)->S.parseOrThrow(getLogsResponseSchema),
     Ok(["foo", "bar"]),
     (),
   )
@@ -662,9 +660,7 @@ test("json-rpc response", t => {
         "error": {
           "message": "NotFound"
         }
-      }`)
-    ->S.parseWith(getLogsResponseSchema)
-    ->S.unwrap,
+      }`)->S.parseOrThrow(getLogsResponseSchema),
     Error(#LogsNotFound),
     (),
   )
@@ -677,9 +673,7 @@ test("json-rpc response", t => {
           "message": "Invalid",
           "data": "foo"
         }
-      }`)
-    ->S.parseWith(getLogsResponseSchema)
-    ->S.unwrap,
+      }`)->S.parseOrThrow(getLogsResponseSchema),
     Error(#InvalidData("foo")),
     (),
   )

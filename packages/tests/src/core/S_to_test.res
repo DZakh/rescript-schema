@@ -3,13 +3,13 @@ open Ava
 test("Parses with wrapping the value in variant", t => {
   let schema = S.string->S.to(s => Ok(s))
 
-  t->Assert.deepEqual("Hello world!"->S.parseAnyWith(schema), Ok(Ok("Hello world!")), ())
+  t->Assert.deepEqual("Hello world!"->S.parseOrThrow(schema), Ok("Hello world!"), ())
 })
 
 asyncTest("Parses with wrapping async schema in variant", async t => {
   let schema = S.string->S.transform(_ => {asyncParser: i => async () => i})->S.to(s => Ok(s))
 
-  t->Assert.deepEqual(await "Hello world!"->S.parseAnyAsyncWith(schema), Ok(Ok("Hello world!")), ())
+  t->Assert.deepEqual(await "Hello world!"->S.parseAsyncOrThrow(schema), Ok("Hello world!"), ())
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
@@ -20,8 +20,8 @@ asyncTest("Parses with wrapping async schema in variant", async t => {
 test("Fails to parse wrapped schema", t => {
   let schema = S.string->S.to(s => Ok(s))
 
-  t->U.assertErrorResult(
-    () => 123->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => 123->S.parseOrThrow(schema),
     {
       code: InvalidType({received: 123->Obj.magic, expected: schema->S.toUnknown}),
       operation: Parse,
@@ -56,7 +56,7 @@ test("Fails to serialize when can't unwrap the value from variant", t => {
 test("Successfully parses when the value is not used as the variant payload", t => {
   let schema = S.string->S.to(_ => #foo)
 
-  t->Assert.deepEqual("Hello world!"->S.parseAnyWith(schema), Ok(#foo), ())
+  t->Assert.deepEqual("Hello world!"->S.parseOrThrow(schema), #foo, ())
 })
 
 test("Fails to serialize when the value is not used as the variant payload", t => {
@@ -87,7 +87,7 @@ test("BROKEN: Successfully parses when tuple is destructured", t => {
   let schema = S.literal((true, 12))->S.to(((_, twelve)) => twelve)
 
   // FIXME: This is wrong, the result should be Ok(12)
-  t->Assert.deepEqual(%raw(`[true, 12]`)->S.parseAnyWith(schema), Ok(%raw(`undefined`)), ())
+  t->Assert.deepEqual(%raw(`[true, 12]`)->S.parseOrThrow(schema), %raw(`undefined`), ())
 })
 
 // FIXME: Throw in proxy (???)
@@ -109,7 +109,7 @@ test("BROKEN: Fails to serialize when tuple is destructured", t => {
 test("Successfully parses when value registered multiple times", t => {
   let schema = S.string->S.to(s => #Foo(s, s))
 
-  t->Assert.deepEqual(%raw(`"abc"`)->S.parseAnyWith(schema), Ok(#Foo("abc", "abc")), ())
+  t->Assert.deepEqual(%raw(`"abc"`)->S.parseOrThrow(schema), #Foo("abc", "abc"), ())
 })
 
 test("Reverse convert with value registered multiple times", t => {
@@ -225,7 +225,7 @@ test("Works with variant schema used multiple times as a child schema", t => {
     "android": {"current": "1.2", "minimum": "1.0"},
   }
 
-  let value = rawAppVersions->S.parseAnyWith(appVersionsSchema)->S.unwrap
+  let value = rawAppVersions->S.parseOrThrow(appVersionsSchema)
   t->Assert.deepEqual(value, appVersions, ())
 
   let data = appVersions->S.reverseConvertToJsonOrThrow(appVersionsSchema)

@@ -218,13 +218,9 @@ let compile: (
   ~typeValidation: bool,
 ) => 'input => 'output
 
-// FIXME: V9 turn to exception based / Remove any prefix
-let parseWith: (Js.Json.t, t<'value>) => result<'value, error>
-let parseAnyWith: ('any, t<'value>) => result<'value, error>
-let parseJsonStringWith: (string, t<'value>) => result<'value, error>
 let parseOrThrow: ('any, t<'value>) => 'value
-let parseAsyncWith: (Js.Json.t, t<'value>) => promise<result<'value, error>>
-let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
+let parseJsonStringOrThrow: (string, t<'value>) => 'value
+let parseAsyncOrThrow: ('any, t<'value>) => promise<'value>
 
 let convertOrThrow: ('any, t<'value>) => 'value
 let convertToJsonOrThrow: ('any, t<'value>) => Js.Json.t

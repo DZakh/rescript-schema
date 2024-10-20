@@ -74,17 +74,11 @@ var to = S_Core$RescriptSchema.to;
 
 var compile = S_Core$RescriptSchema.compile;
 
-var parseWith = S_Core$RescriptSchema.parseWith;
-
-var parseAnyWith = S_Core$RescriptSchema.parseAnyWith;
-
-var parseJsonStringWith = S_Core$RescriptSchema.parseJsonStringWith;
-
 var parseOrThrow = S_Core$RescriptSchema.parseOrThrow;
 
-var parseAsyncWith = S_Core$RescriptSchema.parseAsyncWith;
+var parseJsonStringOrThrow = S_Core$RescriptSchema.parseJsonStringOrThrow;
 
-var parseAnyAsyncWith = S_Core$RescriptSchema.parseAnyAsyncWith;
+var parseAsyncOrThrow = S_Core$RescriptSchema.parseAsyncOrThrow;
 
 var convertOrThrow = S_Core$RescriptSchema.convertOrThrow;
 
@@ -223,12 +217,9 @@ export {
   refine ,
   to ,
   compile ,
-  parseWith ,
-  parseAnyWith ,
-  parseJsonStringWith ,
   parseOrThrow ,
-  parseAsyncWith ,
-  parseAnyAsyncWith ,
+  parseJsonStringOrThrow ,
+  parseAsyncOrThrow ,
   convertOrThrow ,
   convertToJsonOrThrow ,
   convertToJsonStringOrThrow ,

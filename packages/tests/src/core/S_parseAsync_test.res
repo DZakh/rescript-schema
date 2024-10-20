@@ -324,7 +324,7 @@ let invalidAsyncRefine = S.transform(_, s => {
 //       "k1": 1,
 //       "k2": 2,
 //     }
-//     ->S.parseAnyAsyncWith(schema)
+//     ->S.parseAsyncOrThrow(schema)
 //     ->ignore
 
 //     t->Assert.deepEqual(actionCounter.contents, 2, ())
@@ -434,7 +434,7 @@ let invalidAsyncRefine = S.transform(_, s => {
 //       }),
 //     )
 
-//     [1, 2]->S.parseAnyAsyncWith(schema)->ignore
+//     [1, 2]->S.parseAsyncOrThrow(schema)->ignore
 
 //     t->Assert.deepEqual(actionCounter.contents, 2, ())
 //   })
@@ -481,7 +481,7 @@ module Union = {
   test("[Union] Passes with Parse operation. Async item should fail", t => {
     let schema = S.union([S.literal(2)->validAsyncRefine, S.literal(2), S.literal(3)])
 
-    t->Assert.deepEqual(2->S.parseAnyWith(schema), Ok(2), ())
+    t->Assert.deepEqual(2->S.parseOrThrow(schema), 2, ())
   })
 
   test("[Union] Fails with Parse operation", t => {
@@ -491,8 +491,8 @@ module Union = {
       S.literal(3),
     ])
 
-    t->U.assertErrorResult(
-      () => 2->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => 2->S.parseOrThrow(schema),
       {
         code: InvalidUnion([
           U.error({
@@ -519,7 +519,7 @@ module Union = {
   //     let input = %raw("true")
 
   //     (input->S.parseAnyAsyncInStepsWith(schema)->Result.getExn)()->Promise.thenResolve(result => {
-  //       t->U.assertErrorResult(() =>
+  //       t->U.assertRaised(() =>
   //         result,
   //         {
   //           code: InvalidUnion([
@@ -569,7 +569,7 @@ module Union = {
       }),
     ])
 
-    2->S.parseAnyAsyncWith(schema)->ignore
+    2->S.parseAsyncOrThrow(schema)->ignore
 
     t->Assert.deepEqual(actionCounter.contents, 1, ())
   })
@@ -615,7 +615,7 @@ module Union = {
 //       }),
 //     )
 
-//     [1, 2]->S.parseAnyAsyncWith(schema)->ignore
+//     [1, 2]->S.parseAsyncOrThrow(schema)->ignore
 
 //     t->Assert.deepEqual(actionCounter.contents, 2, ())
 //   })
@@ -694,7 +694,7 @@ module Union = {
 //       }),
 //     )
 
-//     {"k1": 1, "k2": 2}->S.parseAnyAsyncWith(schema)->ignore
+//     {"k1": 1, "k2": 2}->S.parseAsyncOrThrow(schema)->ignore
 
 //     t->Assert.deepEqual(actionCounter.contents, 2, ())
 //   })

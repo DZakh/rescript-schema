@@ -15,8 +15,8 @@ test("Simple record schema", t => {
     }),
   )
   t->Assert.deepEqual(
-    %raw(`{label:"foo",value:1}`)->S.parseWith(simpleRecordSchema),
-    Ok({label: "foo", value: 1}),
+    %raw(`{label:"foo",value:1}`)->S.parseOrThrow(simpleRecordSchema),
+    {label: "foo", value: 1},
     (),
   )
 })
@@ -35,8 +35,8 @@ test("Record schema with alias for field name", t => {
     }),
   )
   t->Assert.deepEqual(
-    %raw(`{"aliased-label":"foo",value:1}`)->S.parseWith(recordWithAliasSchema),
-    Ok({label: "foo", value: 1}),
+    %raw(`{"aliased-label":"foo",value:1}`)->S.parseOrThrow(recordWithAliasSchema),
+    {label: "foo", value: 1},
     (),
   )
 })
@@ -55,13 +55,13 @@ test("Record schema with optional fields", t => {
     }),
   )
   t->Assert.deepEqual(
-    %raw(`{"label":"foo",value:1}`)->S.parseWith(recordWithOptionalSchema),
-    Ok({label: Some("foo"), value: 1}),
+    %raw(`{"label":"foo",value:1}`)->S.parseOrThrow(recordWithOptionalSchema),
+    {label: Some("foo"), value: 1},
     (),
   )
   t->Assert.deepEqual(
-    %raw(`{}`)->S.parseWith(recordWithOptionalSchema),
-    Ok({label: %raw(`undefined`), value: %raw(`undefined`)}),
+    %raw(`{}`)->S.parseOrThrow(recordWithOptionalSchema),
+    {label: %raw(`undefined`), value: %raw(`undefined`)},
     (),
   )
 })
@@ -78,8 +78,8 @@ test("Record schema with nullable field", t => {
     }),
   )
   t->Assert.deepEqual(
-    %raw(`{"subscription":null}`)->S.parseWith(recordWithNullableFieldSchema),
-    Ok({subscription: None}),
+    %raw(`{"subscription":null}`)->S.parseOrThrow(recordWithNullableFieldSchema),
+    {subscription: None},
     (),
   )
 })

@@ -7,7 +7,7 @@ let nullableSchema = innerSchema => {
       if unknown === %raw(`undefined`) || unknown === %raw(`null`) {
         None
       } else {
-        Some(unknown->S.parseAnyWith(innerSchema)->S.unwrap)
+        Some(unknown->S.parseOrThrow(innerSchema))
       }
     },
     serializer: value => {
@@ -22,11 +22,11 @@ let nullableSchema = innerSchema => {
 test("Correctly parses custom schema", t => {
   let schema = nullableSchema(S.string)
 
-  t->Assert.deepEqual("Hello world!"->S.parseAnyWith(schema), Ok(Some("Hello world!")), ())
-  t->Assert.deepEqual(%raw(`null`)->S.parseAnyWith(schema), Ok(None), ())
-  t->Assert.deepEqual(%raw(`undefined`)->S.parseAnyWith(schema), Ok(None), ())
-  t->U.assertErrorResult(
-    () => 123->S.parseAnyWith(schema),
+  t->Assert.deepEqual("Hello world!"->S.parseOrThrow(schema), Some("Hello world!"), ())
+  t->Assert.deepEqual(%raw(`null`)->S.parseOrThrow(schema), None, ())
+  t->Assert.deepEqual(%raw(`undefined`)->S.parseOrThrow(schema), None, ())
+  t->U.assertRaised(
+    () => 123->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
       operation: Parse,
@@ -88,5 +88,5 @@ asyncTest("Parses with asyncParser", async t => {
     asyncParser: _ => () => Promise.resolve(),
   })
 
-  t->Assert.deepEqual(await %raw(`undefined`)->S.parseAnyAsyncWith(schema), Ok(), ())
+  t->Assert.deepEqual(await %raw(`undefined`)->S.parseAsyncOrThrow(schema), (), ())
 })

@@ -35,8 +35,8 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Rename disableNanNumberCheck to use validation
 - Add tag for BigInt
 - Add flatten to ts api
-- Get rid of Caml_js_exceptions.internalToOCamlException
 - Add testWith
+- Add reverseConvert to js/ts api
 - Use type args for S.compile - tweet why it didn't work
 - Change asyncParser from () => () => promise to () => promise
 - Add schema input to the error ??? What about build errors?

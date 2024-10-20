@@ -11,14 +11,14 @@ module Tuple0 = {
   test("Successfully parses", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseOrThrow(schema), value, ())
   })
 
   test("Fails to parse invalid value", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => invalidAny->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => invalidAny->S.parseOrThrow(schema),
       {
         code: InvalidType({
           expected: schema->S.toUnknown,
@@ -33,8 +33,8 @@ module Tuple0 = {
   test("Fails to parse invalid type", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => invalidTypeAny->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => invalidTypeAny->S.parseOrThrow(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidTypeAny}),
         operation: Parse,
@@ -59,14 +59,14 @@ test("Fills wholes with S.unit", t => {
 test("Successfully parses tuple with holes", t => {
   let schema = S.tuple(s => (s.item(0, S.string), s.item(2, S.int)))
 
-  t->Assert.deepEqual(%raw(`["value",, 123]`)->S.parseAnyWith(schema), Ok("value", 123), ())
+  t->Assert.deepEqual(%raw(`["value",, 123]`)->S.parseOrThrow(schema), ("value", 123), ())
 })
 
 test("Fails to parse tuple with holes", t => {
   let schema = S.tuple(s => (s.item(0, S.string), s.item(2, S.int)))
 
-  t->U.assertErrorResult(
-    () => %raw(`["value", "smth", 123]`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`["value", "smth", 123]`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: S.literal(None)->S.toUnknown, received: %raw(`"smth"`)}),
       operation: Parse,
@@ -160,7 +160,7 @@ test(`Fails to serialize tuple with discriminant "Never" inside of an object (te
 test("Successfully parses tuple transformed to variant", t => {
   let schema = S.tuple(s => #VARIANT(s.item(0, S.bool)))
 
-  t->Assert.deepEqual(%raw(`[true]`)->S.parseAnyWith(schema), Ok(#VARIANT(true)), ())
+  t->Assert.deepEqual(%raw(`[true]`)->S.parseOrThrow(schema), #VARIANT(true), ())
 })
 
 test("Successfully serializes tuple transformed to variant", t => {
@@ -209,8 +209,8 @@ test("Tuple schema parsing checks order", t => {
   })
 
   // Type check should be the first
-  t->U.assertErrorResult(
-    () => %raw(`"foo"`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`"foo"`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`"foo"`)}),
       operation: Parse,
@@ -218,8 +218,8 @@ test("Tuple schema parsing checks order", t => {
     },
   )
   // Length check should be the second
-  t->U.assertErrorResult(
-    () => %raw(`["value", "value", "value", "value"]`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`["value", "value", "value", "value"]`)->S.parseOrThrow(schema),
     {
       code: InvalidType({
         expected: schema->S.toUnknown,
@@ -230,8 +230,8 @@ test("Tuple schema parsing checks order", t => {
     },
   )
   // Tag check should be the third
-  t->U.assertErrorResult(
-    () => %raw(`["value", "wrong"]`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`["value", "wrong"]`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: S.literal("value")->S.toUnknown, received: %raw(`"wrong"`)}),
       operation: Parse,
@@ -239,8 +239,8 @@ test("Tuple schema parsing checks order", t => {
     },
   )
   // Field check should be the last
-  t->U.assertErrorResult(
-    () => %raw(`[1, "value"]`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`[1, "value"]`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`1`)}),
       operation: Parse,
@@ -249,10 +249,10 @@ test("Tuple schema parsing checks order", t => {
   )
   // Parses valid
   t->Assert.deepEqual(
-    %raw(`["value", "value"]`)->S.parseAnyWith(schema),
-    Ok({
+    %raw(`["value", "value"]`)->S.parseOrThrow(schema),
+    {
       "key": "value",
-    }),
+    },
     (),
   )
 })
@@ -260,7 +260,7 @@ test("Tuple schema parsing checks order", t => {
 test("Works correctly with not-modified object item", t => {
   let schema = S.tuple1(S.object(s => s.field("foo", S.string)))
 
-  t->Assert.deepEqual(%raw(`[{"foo": "bar"}]`)->S.parseAnyWith(schema), Ok("bar"), ())
+  t->Assert.deepEqual(%raw(`[{"foo": "bar"}]`)->S.parseOrThrow(schema), "bar", ())
   t->Assert.deepEqual("bar"->S.reverseConvertToJsonOrThrow(schema), %raw(`[{"foo": "bar"}]`), ())
 })
 
@@ -366,7 +366,7 @@ test("Works with tuple schema used multiple times as a child schema", t => {
     "android": {"current": "1.2", "minimum": "1.1"},
   }
 
-  let value = rawAppVersions->S.parseAnyWith(appVersionsSchema)->S.unwrap
+  let value = rawAppVersions->S.parseOrThrow(appVersionsSchema)
   t->Assert.deepEqual(value, appVersions, ())
 
   let data = appVersions->S.reverseConvertToJsonOrThrow(appVersionsSchema)

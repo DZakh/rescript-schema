@@ -11,7 +11,7 @@ module CommonWithNested = {
   test("Successfully parses", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseOrThrow(schema), value, ())
   })
 
   test("Successfully serializes", t => {
@@ -23,8 +23,8 @@ module CommonWithNested = {
   test("Fails to parse", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => invalidAny->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => invalidAny->S.parseOrThrow(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
         operation: Parse,
@@ -36,8 +36,8 @@ module CommonWithNested = {
   test("Fails to parse nested", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => nestedInvalidAny->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => nestedInvalidAny->S.parseOrThrow(schema),
       {
         code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`true`)}),
         operation: Parse,
@@ -104,8 +104,8 @@ test("Successfully parses dict with int keys", t => {
   let schema = S.dict(S.string)
 
   t->Assert.deepEqual(
-    %raw(`{1:"b",2:"d"}`)->S.parseAnyWith(schema),
-    Ok(Dict.fromArray([("1", "b"), ("2", "d")])),
+    %raw(`{1:"b",2:"d"}`)->S.parseOrThrow(schema),
+    Dict.fromArray([("1", "b"), ("2", "d")]),
     (),
   )
 })
@@ -140,8 +140,8 @@ test("Successfully parses dict with optional items", t => {
   let schema = S.dict(S.option(S.string))
 
   t->Assert.deepEqual(
-    %raw(`{"key1":"value1","key2":undefined}`)->S.parseAnyWith(schema),
-    Ok(Dict.fromArray([("key1", Some("value1")), ("key2", None)])),
+    %raw(`{"key1":"value1","key2":undefined}`)->S.parseOrThrow(schema),
+    Dict.fromArray([("key1", Some("value1")), ("key2", None)]),
     (),
   )
 })

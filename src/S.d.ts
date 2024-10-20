@@ -128,11 +128,11 @@ export function reverse<Output, Input>(
   schema: Schema<Output, Input>
 ): Schema<Input, Output>;
 
-export function parseWith<Output, Input>(
+export function parseOrThrow<Output, Input>(
   data: unknown,
   schema: Schema<Output, Input>
 ): Output;
-export function parseAsyncWith<Output, Input>(
+export function parseAsyncOrThrow<Output, Input>(
   data: unknown,
   schema: Schema<Output, Input>
 ): Promise<Output>;

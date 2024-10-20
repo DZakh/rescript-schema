@@ -5,18 +5,18 @@ test("Successfully parses valid data", t => {
   let schema = S.string->S.datetime
 
   t->Assert.deepEqual(
-    "2020-01-01T00:00:00Z"->S.parseAnyWith(schema),
-    Ok(Date.fromString("2020-01-01T00:00:00Z")),
+    "2020-01-01T00:00:00Z"->S.parseOrThrow(schema),
+    Date.fromString("2020-01-01T00:00:00Z"),
     (),
   )
   t->Assert.deepEqual(
-    "2020-01-01T00:00:00.123Z"->S.parseAnyWith(schema),
-    Ok(Date.fromString("2020-01-01T00:00:00.123Z")),
+    "2020-01-01T00:00:00.123Z"->S.parseOrThrow(schema),
+    Date.fromString("2020-01-01T00:00:00.123Z"),
     (),
   )
   t->Assert.deepEqual(
-    "2020-01-01T00:00:00.123456Z"->S.parseAnyWith(schema),
-    Ok(Date.fromString("2020-01-01T00:00:00.123456Z")),
+    "2020-01-01T00:00:00.123456Z"->S.parseOrThrow(schema),
+    Date.fromString("2020-01-01T00:00:00.123456Z"),
     (),
   )
 })
@@ -24,8 +24,8 @@ test("Successfully parses valid data", t => {
 test("Fails to parse non UTC date string", t => {
   let schema = S.string->S.datetime
 
-  t->U.assertErrorResult(
-    () => "Thu Apr 20 2023 10:45:48 GMT+0400"->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => "Thu Apr 20 2023 10:45:48 GMT+0400"->S.parseOrThrow(schema),
     {
       code: OperationFailed("Invalid datetime string! Must be UTC"),
       operation: Parse,
@@ -37,8 +37,8 @@ test("Fails to parse non UTC date string", t => {
 test("Fails to parse UTC date with timezone offset", t => {
   let schema = S.string->S.datetime
 
-  t->U.assertErrorResult(
-    () => "2020-01-01T00:00:00+02:00"->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => "2020-01-01T00:00:00+02:00"->S.parseOrThrow(schema),
     {
       code: OperationFailed("Invalid datetime string! Must be UTC"),
       operation: Parse,
@@ -50,10 +50,9 @@ test("Fails to parse UTC date with timezone offset", t => {
 test("Uses custom message on failure", t => {
   let schema = S.string->S.datetime(~message="Invalid date")
 
-  t->Assert.deepEqual(
-    "Thu Apr 20 2023 10:45:48 GMT+0400"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("Invalid date"), operation: Parse, path: S.Path.empty})),
-    (),
+  t->U.assertRaised(
+    () => "Thu Apr 20 2023 10:45:48 GMT+0400"->S.parseOrThrow(schema),
+    {code: OperationFailed("Invalid date"), operation: Parse, path: S.Path.empty},
   )
 })
 

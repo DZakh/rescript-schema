@@ -14,8 +14,8 @@ test("Simple object schema", t => {
     ),
   )
   t->Assert.deepEqual(
-    %raw(`{label:"foo",value:1}`)->S.parseWith(simpleObjectSchema),
-    Ok({"label": "foo", "value": 1}),
+    %raw(`{label:"foo",value:1}`)->S.parseOrThrow(simpleObjectSchema),
+    {"label": "foo", "value": 1},
     (),
   )
 })
@@ -33,8 +33,8 @@ test("The @as attribute for the object schema is ignored since it doesn't work",
     ),
   )
   t->Assert.deepEqual(
-    %raw(`{"label":"foo",value:1}`)->S.parseWith(objectWithAliasSchema),
-    Ok({"label": "foo", "value": 1}),
+    %raw(`{"label":"foo",value:1}`)->S.parseOrThrow(objectWithAliasSchema),
+    {"label": "foo", "value": 1},
     (),
   )
 })
