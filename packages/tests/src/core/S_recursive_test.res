@@ -107,7 +107,7 @@ test("Successfully serializes recursive object", t => {
     {
       id: "1",
       children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-    }->S.reverseConvertWith(nodeSchema),
+    }->S.reverseConvertOrThrow(nodeSchema),
     %raw(`{
         "Id": "1",
         "Children": [
@@ -295,7 +295,7 @@ test("Fails to serialise nested recursive object", t => {
       {
         id: "1",
         children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-      }->S.reverseConvertWith(nodeSchema),
+      }->S.reverseConvertOrThrow(nodeSchema),
     {
       code: OperationFailed("Invalid id"),
       operation: ReverseConvert,
@@ -345,7 +345,7 @@ test(
           {id: "node_2", children: []},
           {id: "node_3", children: [{id: "node_4", children: []}]},
         ],
-      }->S.reverseConvertWith(nodeSchema),
+      }->S.reverseConvertOrThrow(nodeSchema),
       {
         "Id": "1",
         "Children": [
@@ -402,7 +402,7 @@ test("Recursively transforms nested objects when added transform to the placehol
         {id: "child_2", children: []},
         {id: "child_3", children: [{id: "child_4", children: []}]},
       ],
-    }->S.reverseConvertWith(nodeSchema),
+    }->S.reverseConvertOrThrow(nodeSchema),
     {
       "Id": "1",
       "Children": [
@@ -445,7 +445,7 @@ test("Shallowly transforms object when added transform to the S.recursive result
     {
       id: "parent_1",
       children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-    }->S.reverseConvertWith(nodeSchema),
+    }->S.reverseConvertOrThrow(nodeSchema),
     {
       "Id": "1",
       "Children": [

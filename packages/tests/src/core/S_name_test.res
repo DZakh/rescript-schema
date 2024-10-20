@@ -86,7 +86,7 @@ test("Name of renamed schema", t => {
     (),
   )
   t->U.assertRaised(
-    () => %raw(`"smth"`)->S.reverseConvertWith(S.null(S.never)->S.setName("Ethers.BigInt")),
+    () => %raw(`"smth"`)->S.reverseConvertOrThrow(S.null(S.never)->S.setName("Ethers.BigInt")),
     {
       path: S.Path.empty,
       operation: ReverseConvert,

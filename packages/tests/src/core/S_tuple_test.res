@@ -46,7 +46,7 @@ module Tuple0 = {
   test("Successfully serializes", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(value->S.reverseConvertWith(schema), any, ())
+    t->Assert.deepEqual(value->S.reverseConvertOrThrow(schema), any, ())
   })
 }
 
@@ -78,7 +78,7 @@ test("Fails to parse tuple with holes", t => {
 test("Successfully serializes tuple with holes", t => {
   let schema = S.tuple(s => (s.item(0, S.string), s.item(2, S.int)))
 
-  t->Assert.deepEqual(("value", 123)->S.reverseConvertWith(schema), %raw(`["value",, 123]`), ())
+  t->Assert.deepEqual(("value", 123)->S.reverseConvertOrThrow(schema), %raw(`["value",, 123]`), ())
 })
 
 test("Reverse convert of tuple schema with single item registered multiple times", t => {
@@ -97,12 +97,12 @@ test("Reverse convert of tuple schema with single item registered multiple times
   )
 
   t->Assert.deepEqual(
-    {"item1": "foo", "item2": "foo"}->S.reverseConvertWith(schema),
+    {"item1": "foo", "item2": "foo"}->S.reverseConvertOrThrow(schema),
     %raw(`["foo"]`),
     (),
   )
   t->U.assertRaised(
-    () => {"item1": "foo", "item2": "foz"}->S.reverseConvertWith(schema),
+    () => {"item1": "foo", "item2": "foz"}->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
         description: `Multiple sources provided not equal data for "0"`,
@@ -120,7 +120,7 @@ test(`Fails to serialize tuple with discriminant "Never"`, t => {
   })
 
   t->U.assertRaised(
-    () => "bar"->S.reverseConvertWith(schema),
+    () => "bar"->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
         description: `Schema for "0" isn\'t registered`,
@@ -146,7 +146,7 @@ test(`Fails to serialize tuple with discriminant "Never" inside of an object (te
   )
 
   t->U.assertRaised(
-    () => {"foo": "bar"}->S.reverseConvertWith(schema),
+    () => {"foo": "bar"}->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
         description: `Schema for "0" isn\'t registered`,
@@ -166,14 +166,14 @@ test("Successfully parses tuple transformed to variant", t => {
 test("Successfully serializes tuple transformed to variant", t => {
   let schema = S.tuple(s => #VARIANT(s.item(0, S.bool)))
 
-  t->Assert.deepEqual(#VARIANT(true)->S.reverseConvertWith(schema), %raw(`[true]`), ())
+  t->Assert.deepEqual(#VARIANT(true)->S.reverseConvertOrThrow(schema), %raw(`[true]`), ())
 })
 
 test("Fails to serialize tuple transformed to variant", t => {
   let schema = S.tuple(s => Ok(s.item(0, S.bool)))
 
   t->U.assertRaised(
-    () => Error("foo")->S.reverseConvertWith(schema),
+    () => Error("foo")->S.reverseConvertOrThrow(schema),
     {
       code: InvalidType({expected: S.literal("Ok")->S.toUnknown, received: %raw(`"Error"`)}),
       operation: ReverseConvert,
@@ -261,7 +261,7 @@ test("Works correctly with not-modified object item", t => {
   let schema = S.tuple1(S.object(s => s.field("foo", S.string)))
 
   t->Assert.deepEqual(%raw(`[{"foo": "bar"}]`)->S.parseAnyWith(schema), Ok("bar"), ())
-  t->Assert.deepEqual("bar"->S.reverseConvertToJsonWith(schema), %raw(`[{"foo": "bar"}]`), ())
+  t->Assert.deepEqual("bar"->S.reverseConvertToJsonOrThrow(schema), %raw(`[{"foo": "bar"}]`), ())
 })
 
 module Compiled = {
@@ -369,7 +369,7 @@ test("Works with tuple schema used multiple times as a child schema", t => {
   let value = rawAppVersions->S.parseAnyWith(appVersionsSchema)->S.unwrap
   t->Assert.deepEqual(value, appVersions, ())
 
-  let data = appVersions->S.reverseConvertToJsonWith(appVersionsSchema)
+  let data = appVersions->S.reverseConvertToJsonOrThrow(appVersionsSchema)
   t->Assert.deepEqual(data, rawAppVersions->Obj.magic, ())
 })
 

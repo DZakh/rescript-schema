@@ -39,9 +39,9 @@ test("Successfully refines on serializing", t => {
       s.fail("Should be positive")
     })
 
-  t->Assert.deepEqual(12->S.reverseConvertWith(schema), %raw("12"), ())
+  t->Assert.deepEqual(12->S.reverseConvertOrThrow(schema), %raw("12"), ())
   t->U.assertRaised(
-    () => -12->S.reverseConvertWith(schema),
+    () => -12->S.reverseConvertOrThrow(schema),
     {
       code: OperationFailed("Should be positive"),
       operation: ReverseConvert,

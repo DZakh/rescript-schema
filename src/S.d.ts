@@ -137,16 +137,16 @@ export function parseAsyncWith<Output, Input>(
   schema: Schema<Output, Input>
 ): Promise<Output>;
 
-export function convertWith<Output, Input>(
+export function convertOrThrow<Output, Input>(
   data: Input,
   schema: Schema<Output, Input>
 ): Output;
-export function convertToJsonStringWith<Output, Input>(
+export function convertToJsonStringOrThrow<Output, Input>(
   data: Input,
   schema: Schema<Output, Input>
 ): string;
 
-export function assertWith<Output, Input>(
+export function assertOrThrow<Output, Input>(
   data: unknown,
   schema: Schema<Output, Input>
 ): asserts data is Input;

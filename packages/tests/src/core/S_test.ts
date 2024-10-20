@@ -260,10 +260,10 @@ test("Successfully serialized JSON object", (t) => {
   const schema = S.jsonString(objectSchema);
   const schemaWithSpace = S.jsonString(objectSchema, 2);
 
-  const value = S.convertWith({ foo: [1, 2] }, S.reverse(schema));
+  const value = S.convertOrThrow({ foo: [1, 2] }, S.reverse(schema));
   t.deepEqual(value, '{"foo":[1,2]}');
 
-  const valueWithSpace = S.convertWith(
+  const valueWithSpace = S.convertOrThrow(
     { foo: [1, 2] },
     S.reverse(schemaWithSpace)
   );
@@ -378,7 +378,7 @@ test("Fails to parse with invalid data", (t) => {
 
 test("Successfully serializes with valid value", (t) => {
   const schema = S.string;
-  const result = S.convertWith("123", S.reverse(schema));
+  const result = S.convertOrThrow("123", S.reverse(schema));
 
   t.deepEqual(result, "123");
 
@@ -391,7 +391,7 @@ test("Fails to serialize never", (t) => {
   t.throws(
     () => {
       // @ts-ignore
-      S.convertWith("123", S.reverse(schema));
+      S.convertOrThrow("123", S.reverse(schema));
     },
     {
       name: "RescriptSchemaError",
@@ -441,7 +441,7 @@ test("Successfully serializes with transform to another type", (t) => {
       return number.toString();
     }
   );
-  const result = S.convertWith(123, S.reverse(schema));
+  const result = S.convertOrThrow(123, S.reverse(schema));
 
   t.deepEqual(result, "123");
 
@@ -457,7 +457,7 @@ test("Successfully converts reversed schema with transform to another type", (t)
       return number.toString();
     }
   );
-  const result = S.convertWith(123, S.reverse(schema));
+  const result = S.convertOrThrow(123, S.reverse(schema));
 
   t.deepEqual(result, "123");
 
@@ -479,7 +479,7 @@ test("Successfully serializes with refine", (t) => {
   const schema = S.refine(S.string, (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
-  const result = S.convertWith("123", S.reverse(schema));
+  const result = S.convertOrThrow("123", S.reverse(schema));
 
   t.deepEqual(result, "123");
 
@@ -552,7 +552,7 @@ test("Custom string schema", (t) => {
   );
 
   t.deepEqual(S.parseWith("12345", schema), "12345");
-  t.deepEqual(S.convertWith("12345", S.reverse(schema)), "12345");
+  t.deepEqual(S.convertOrThrow("12345", S.reverse(schema)), "12345");
   t.throws(
     () => {
       S.parseWith(123, schema);
@@ -671,7 +671,7 @@ test("Successfully parses and reverse convert object with optional field", (t) =
   const value = S.parseWith({}, schema);
   t.deepEqual(value, { bar: undefined });
 
-  const reversed = S.convertWith(value, S.reverse(schema));
+  const reversed = S.convertOrThrow(value, S.reverse(schema));
   t.deepEqual(reversed, { bar: undefined });
 
   expectType<
@@ -1045,7 +1045,7 @@ test("Fails to serialize merge. Not supported yet", (t) => {
   );
 
   const result = S.safe(() =>
-    S.convertWith(
+    S.convertOrThrow(
       {
         foo: "bar",
         bar: true,
@@ -1250,7 +1250,7 @@ test("Successfully parses and returns result", (t) => {
 
 test("Successfully serializes and returns result", (t) => {
   const schema = S.string;
-  const value = S.safe(() => S.convertWith("123", S.reverse(schema)));
+  const value = S.safe(() => S.convertOrThrow("123", S.reverse(schema)));
 
   t.deepEqual(value, { success: true, value: "123" });
 
@@ -1544,7 +1544,7 @@ test("Assert throws with invalid data", (t) => {
 
   t.throws(
     () => {
-      S.assertWith(123, schema);
+      S.assertOrThrow(123, schema);
     },
     {
       name: "RescriptSchemaError",
@@ -1559,7 +1559,7 @@ test("Assert passes with valid data", (t) => {
 
   const data: unknown = "abc";
   expectType<TypeEqual<typeof data, unknown>>(true);
-  S.assertWith(data, schema);
+  S.assertOrThrow(data, schema);
   expectType<TypeEqual<typeof data, string>>(true);
   t.pass();
 });

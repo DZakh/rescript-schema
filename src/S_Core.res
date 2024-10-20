@@ -1258,28 +1258,28 @@ let useAsyncOperation = (schema, operation, input) => {
   }
 }
 
-let convertWith = (input, schema) => {
+let convertOrThrow = (input, schema) => {
   (schema->operationFn(Flag.none))(input)
 }
 
-let convertToJsonStringWith = (input, schema) => {
+let convertToJsonStringOrThrow = (input, schema) => {
   (schema->operationFn(Flag.jsonableOutput->Flag.with(Flag.jsonStringOutput)))(input)
 }
 
-let convertToJsonWith = (any, schema) => {
+let convertToJsonOrThrow = (any, schema) => {
   (schema->operationFn(Flag.jsonableOutput))(any)
 }
 
-let convertAsyncWith = (any, schema) => {
+let convertAsyncOrThrow = (any, schema) => {
   (schema->operationFn(Flag.async))(any)
 }
 
 @inline
-let parseAnyOrRaiseWith = (any, schema) => {
+let parseOrThrow = (any, schema) => {
   (schema->operationFn(Flag.typeValidation))(any)
 }
 
-let assertWith = (any, schema) => {
+let assertOrThrow = (any, schema) => {
   (schema->operationFn(Flag.typeValidation->Flag.with(Flag.assertOutput)))(any)
 }
 
@@ -1289,25 +1289,23 @@ let parseAnyWith = (any, schema) => {
 
 let parseWith: (Js.Json.t, t<'value>) => result<'value, error> = parseAnyWith
 
-let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value = parseAnyOrRaiseWith
-
 let parseAnyAsyncWith = (any, schema) => {
   schema->useAsyncOperation(Flag.typeValidation, any)
 }
 
 let parseAsyncWith = parseAnyAsyncWith
 
-let reverseConvertToJsonWith = (value, schema) => {
+let reverseConvertToJsonOrThrow = (value, schema) => {
   (schema->operationFn(Flag.jsonableOutput->Flag.with(Flag.reverse)))(value)
 }
 
 @inline
-let reverseConvertWith = (value, schema) => {
+let reverseConvertOrThrow = (value, schema) => {
   (schema->operationFn(Flag.reverse))(value)
 }
 
-let reverseConvertToJsonStringWith = (value: 'value, schema: t<'value>, ~space=0): string => {
-  value->reverseConvertToJsonWith(schema)->Js.Json.stringifyWithSpace(space)
+let reverseConvertToJsonStringOrThrow = (value: 'value, schema: t<'value>, ~space=0): string => {
+  value->reverseConvertToJsonOrThrow(schema)->Js.Json.stringifyWithSpace(space)
 }
 
 let parseJsonStringWith = (jsonString: string, schema: t<'value>): result<'value, error> => {

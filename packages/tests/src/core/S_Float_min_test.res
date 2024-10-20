@@ -23,15 +23,15 @@ test("Fails to parse invalid data", t => {
 test("Successfully serializes valid value", t => {
   let schema = S.float->S.floatMin(1.)
 
-  t->Assert.deepEqual(1.->S.reverseConvertWith(schema), %raw(`1`), ())
-  t->Assert.deepEqual(1234.->S.reverseConvertWith(schema), %raw(`1234`), ())
+  t->Assert.deepEqual(1.->S.reverseConvertOrThrow(schema), %raw(`1`), ())
+  t->Assert.deepEqual(1234.->S.reverseConvertOrThrow(schema), %raw(`1234`), ())
 })
 
 test("Fails to serialize invalid value", t => {
   let schema = S.float->S.floatMin(1.)
 
   t->U.assertRaised(
-    () => 0.->S.reverseConvertWith(schema),
+    () => 0.->S.reverseConvertOrThrow(schema),
     {
       code: OperationFailed("Number must be greater than or equal to 1"),
       operation: ReverseConvert,

@@ -17,7 +17,7 @@ module CommonWithNested = {
   test("Successfully serializes", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(value->S.reverseConvertWith(schema), any, ())
+    t->Assert.deepEqual(value->S.reverseConvertOrThrow(schema), any, ())
   })
 
   test("Fails to parse", t => {
@@ -114,7 +114,7 @@ test("Applies operation for each item on serializing", t => {
   let schema = S.dict(S.jsonString(S.int))
 
   t->Assert.deepEqual(
-    Dict.fromArray([("a", 1), ("b", 2)])->S.reverseConvertWith(schema),
+    Dict.fromArray([("a", 1), ("b", 2)])->S.reverseConvertOrThrow(schema),
     %raw(`{
         "a": "1",
         "b": "2",
@@ -127,7 +127,7 @@ test("Fails to serialize dict item", t => {
   let schema = S.dict(S.string->S.refine(s => _ => s.fail("User error")))
 
   t->U.assertRaised(
-    () => Dict.fromArray([("a", "aa"), ("b", "bb")])->S.reverseConvertWith(schema),
+    () => Dict.fromArray([("a", "aa"), ("b", "bb")])->S.reverseConvertOrThrow(schema),
     {
       code: OperationFailed("User error"),
       operation: ReverseConvert,

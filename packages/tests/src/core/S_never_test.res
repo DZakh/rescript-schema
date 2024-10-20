@@ -21,7 +21,7 @@ module Common = {
     let schema = factory()
 
     t->U.assertRaised(
-      () => any->S.reverseConvertWith(schema),
+      () => any->S.reverseConvertOrThrow(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: any}),
         operation: ReverseConvert,

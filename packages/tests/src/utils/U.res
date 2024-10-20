@@ -146,7 +146,7 @@ let assertEqualSchemas: (
 let assertReverseParsesBack = (t, schema: S.t<'value>, value: 'value) => {
   t->Assert.unsafeDeepEqual(
     value
-    ->S.reverseConvertWith(schema)
+    ->S.reverseConvertOrThrow(schema)
     ->S.parseAnyWith(schema)
     ->S.unwrap,
     value,

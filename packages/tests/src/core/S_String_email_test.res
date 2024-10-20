@@ -23,7 +23,7 @@ test("Successfully serializes valid value", t => {
   let schema = S.string->S.email
 
   t->Assert.deepEqual(
-    "dzakh.dev@gmail.com"->S.reverseConvertWith(schema),
+    "dzakh.dev@gmail.com"->S.reverseConvertOrThrow(schema),
     %raw(`"dzakh.dev@gmail.com"`),
     (),
   )
@@ -33,7 +33,7 @@ test("Fails to serialize invalid value", t => {
   let schema = S.string->S.email
 
   t->U.assertRaised(
-    () => "dzakh.dev"->S.reverseConvertWith(schema),
+    () => "dzakh.dev"->S.reverseConvertOrThrow(schema),
     {
       code: OperationFailed("Invalid email address"),
       operation: ReverseConvert,

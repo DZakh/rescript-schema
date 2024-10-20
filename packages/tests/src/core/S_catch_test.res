@@ -23,7 +23,7 @@ test("Doesn't affect serializing in any way", t => {
   let schema = S.literal("123")->S.catch(_ => "fallback")
 
   t->U.assertRaised(
-    () => "abc"->S.reverseConvertWith(schema),
+    () => "abc"->S.reverseConvertOrThrow(schema),
     {
       code: InvalidType({received: "abc"->Obj.magic, expected: S.literal("123")->S.toUnknown}),
       operation: ReverseConvert,
@@ -68,9 +68,9 @@ test("Can use s.fail inside of S.catch", t => {
       path: S.Path.empty,
     },
   )
-  t->Assert.deepEqual("0"->S.reverseConvertWith(schema), %raw(`"0"`), ())
+  t->Assert.deepEqual("0"->S.reverseConvertOrThrow(schema), %raw(`"0"`), ())
   t->U.assertRaised(
-    () => "1"->S.reverseConvertWith(schema),
+    () => "1"->S.reverseConvertOrThrow(schema),
     {
       code: InvalidType({expected: S.literal("0")->S.toUnknown, received: "1"->Obj.magic}),
       operation: ReverseConvert,

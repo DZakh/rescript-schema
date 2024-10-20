@@ -750,27 +750,27 @@ function asyncPrepareOk(value) {
         };
 }
 
-function convertWith(input, schema) {
+function convertOrThrow(input, schema) {
   return operationFn(schema, 0)(input);
 }
 
-function convertToJsonStringWith(input, schema) {
+function convertToJsonStringOrThrow(input, schema) {
   return operationFn(schema, 24)(input);
 }
 
-function convertToJsonWith(any, schema) {
+function convertToJsonOrThrow(any, schema) {
   return operationFn(schema, 8)(any);
 }
 
-function convertAsyncWith(any, schema) {
+function convertAsyncOrThrow(any, schema) {
   return operationFn(schema, 2)(any);
 }
 
-function parseAnyOrRaiseWith(any, schema) {
+function parseOrThrow(any, schema) {
   return operationFn(schema, 1)(any);
 }
 
-function assertWith(any, schema) {
+function assertOrThrow(any, schema) {
   return operationFn(schema, 5)(any);
 }
 
@@ -795,17 +795,17 @@ function parseAnyAsyncWith(any, schema) {
   }
 }
 
-function reverseConvertToJsonWith(value, schema) {
+function reverseConvertToJsonOrThrow(value, schema) {
   return operationFn(schema, 40)(value);
 }
 
-function reverseConvertWith(value, schema) {
+function reverseConvertOrThrow(value, schema) {
   return operationFn(schema, 32)(value);
 }
 
-function reverseConvertToJsonStringWith(value, schema, spaceOpt) {
+function reverseConvertToJsonStringOrThrow(value, schema, spaceOpt) {
   var space = spaceOpt !== undefined ? spaceOpt : 0;
-  return JSON.stringify(reverseConvertToJsonWith(value, schema), null, space);
+  return JSON.stringify(reverseConvertToJsonOrThrow(value, schema), null, space);
 }
 
 function parseJsonStringWith(jsonString, schema) {
@@ -3064,8 +3064,6 @@ var variant = to;
 
 var parseWith = parseAnyWith;
 
-var parseOrRaiseWith = parseAnyOrRaiseWith;
-
 var parseAsyncWith = parseAnyAsyncWith;
 
 var Schema = {};
@@ -3167,18 +3165,17 @@ export {
   parseWith ,
   parseAnyWith ,
   parseJsonStringWith ,
-  parseOrRaiseWith ,
-  parseAnyOrRaiseWith ,
+  parseOrThrow ,
   parseAsyncWith ,
   parseAnyAsyncWith ,
-  convertWith ,
-  convertToJsonWith ,
-  convertToJsonStringWith ,
-  convertAsyncWith ,
-  reverseConvertWith ,
-  reverseConvertToJsonWith ,
-  reverseConvertToJsonStringWith ,
-  assertWith ,
+  convertOrThrow ,
+  convertToJsonOrThrow ,
+  convertToJsonStringOrThrow ,
+  convertAsyncOrThrow ,
+  reverseConvertOrThrow ,
+  reverseConvertToJsonOrThrow ,
+  reverseConvertToJsonStringOrThrow ,
+  assertOrThrow ,
   isAsync ,
   recursive ,
   classify ,
