@@ -9,5 +9,9 @@ test("Successfully parses", t => {
 test("Successfully serializes", t => {
   let schema = S.string->S.trim
 
-  t->Assert.deepEqual("   Hello world!"->S.reverseConvertWith(schema), %raw(`"Hello world!"`), ())
+  t->Assert.deepEqual(
+    "   Hello world!"->S.reverseConvertOrThrow(schema),
+    %raw(`"Hello world!"`),
+    (),
+  )
 })

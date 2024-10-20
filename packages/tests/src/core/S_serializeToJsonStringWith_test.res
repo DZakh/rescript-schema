@@ -3,7 +3,7 @@ open Ava
 test("Successfully parses", t => {
   let schema = S.bool
 
-  t->Assert.deepEqual(true->S.reverseConvertToJsonStringWith(schema), "true", ())
+  t->Assert.deepEqual(true->S.reverseConvertToJsonStringOrThrow(schema), "true", ())
 })
 
 test("Successfully parses object", t => {
@@ -18,7 +18,7 @@ test("Successfully parses object", t => {
     {
       "id": "0",
       "isDeleted": true,
-    }->S.reverseConvertToJsonStringWith(schema),
+    }->S.reverseConvertToJsonStringOrThrow(schema),
     `{"id":"0","isDeleted":true}`,
     (),
   )
@@ -36,7 +36,7 @@ test("Successfully parses object with space", t => {
     {
       "id": "0",
       "isDeleted": true,
-    }->S.reverseConvertToJsonStringWith(~space=2, schema),
+    }->S.reverseConvertToJsonStringOrThrow(~space=2, schema),
     `{
   "id": "0",
   "isDeleted": true
@@ -50,7 +50,7 @@ test("Fails to serialize Unknown schema", t => {
 
   t->Assert.throws(
     () => {
-      Obj.magic(123)->S.reverseConvertToJsonStringWith(schema)
+      Obj.magic(123)->S.reverseConvertToJsonStringOrThrow(schema)
     },
     ~expectations={
       message: "Failed converting reverse to JSON at root. Reason: The Unknown schema is not compatible with JSON",

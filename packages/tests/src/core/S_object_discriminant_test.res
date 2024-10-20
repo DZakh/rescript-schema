@@ -143,7 +143,7 @@ module Positive = {
         )
 
         t->Assert.deepEqual(
-          {"field": "bar"}->S.reverseConvertWith(schema),
+          {"field": "bar"}->S.reverseConvertOrThrow(schema),
           {
             "discriminant": testData.discriminantData,
             "field": "bar",
@@ -249,7 +249,7 @@ module Negative = {
         )
 
         t->U.assertRaised(
-          () => {"field": "bar"}->S.reverseConvertWith(schema),
+          () => {"field": "bar"}->S.reverseConvertOrThrow(schema),
           {
             code: InvalidOperation({
               description: `Schema for "discriminant" isn\'t registered`,
@@ -296,7 +296,7 @@ module NestedNegative = {
       })
 
       t->U.assertRaised(
-        () => {"field": "bar"}->S.reverseConvertWith(schema),
+        () => {"field": "bar"}->S.reverseConvertOrThrow(schema),
         {
           code: InvalidOperation({
             description: `Schema for "nestedField" isn\'t registered`,
@@ -366,7 +366,7 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
   })
 
   t->U.assertRaised(
-    () => {"field": "bar"}->S.reverseConvertWith(schema),
+    () => {"field": "bar"}->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
         description: `Schema for "discriminant" isn\'t registered`,
@@ -386,7 +386,7 @@ test(`Serializes constant fields before registered fields`, t => {
   })
 
   t->U.assertRaised(
-    () => {"constant": false, "field": false}->S.reverseConvertWith(schema),
+    () => {"constant": false, "field": false}->S.reverseConvertOrThrow(schema),
     {
       code: InvalidType({expected: S.literal(true)->S.toUnknown, received: Obj.magic(false)}),
       operation: ReverseConvert,

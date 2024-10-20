@@ -222,21 +222,20 @@ let compile: (
 let parseWith: (Js.Json.t, t<'value>) => result<'value, error>
 let parseAnyWith: ('any, t<'value>) => result<'value, error>
 let parseJsonStringWith: (string, t<'value>) => result<'value, error>
-let parseOrRaiseWith: (Js.Json.t, t<'value>) => 'value
-let parseAnyOrRaiseWith: ('any, t<'value>) => 'value
+let parseOrThrow: ('any, t<'value>) => 'value
 let parseAsyncWith: (Js.Json.t, t<'value>) => promise<result<'value, error>>
 let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
 
-let convertWith: ('any, t<'value>) => 'value
-let convertToJsonWith: ('any, t<'value>) => Js.Json.t
-let convertToJsonStringWith: ('any, t<'value>) => string
-let convertAsyncWith: ('any, t<'value>) => promise<'value>
+let convertOrThrow: ('any, t<'value>) => 'value
+let convertToJsonOrThrow: ('any, t<'value>) => Js.Json.t
+let convertToJsonStringOrThrow: ('any, t<'value>) => string
+let convertAsyncOrThrow: ('any, t<'value>) => promise<'value>
 
-let reverseConvertWith: ('value, t<'value>) => unknown
-let reverseConvertToJsonWith: ('value, t<'value>) => Js.Json.t
-let reverseConvertToJsonStringWith: ('value, t<'value>, ~space: int=?) => string
+let reverseConvertOrThrow: ('value, t<'value>) => unknown
+let reverseConvertToJsonOrThrow: ('value, t<'value>) => Js.Json.t
+let reverseConvertToJsonStringOrThrow: ('value, t<'value>, ~space: int=?) => string
 
-let assertWith: ('any, t<'value>) => unit
+let assertOrThrow: ('any, t<'value>) => unit
 
 let isAsync: t<'value> => bool
 

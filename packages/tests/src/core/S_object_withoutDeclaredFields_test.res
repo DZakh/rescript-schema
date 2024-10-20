@@ -39,7 +39,7 @@ test("Successfully serializes transformed value to empty object", t => {
   let transformedValue = {"bas": true}
   let schema = S.object(_ => transformedValue)
 
-  t->Assert.deepEqual(transformedValue->S.reverseConvertWith(schema), %raw("{}"), ())
+  t->Assert.deepEqual(transformedValue->S.reverseConvertOrThrow(schema), %raw("{}"), ())
 })
 
 test("Fails to parse array data", t => {

@@ -80,29 +80,27 @@ var parseAnyWith = S_Core$RescriptSchema.parseAnyWith;
 
 var parseJsonStringWith = S_Core$RescriptSchema.parseJsonStringWith;
 
-var parseOrRaiseWith = S_Core$RescriptSchema.parseOrRaiseWith;
-
-var parseAnyOrRaiseWith = S_Core$RescriptSchema.parseAnyOrRaiseWith;
+var parseOrThrow = S_Core$RescriptSchema.parseOrThrow;
 
 var parseAsyncWith = S_Core$RescriptSchema.parseAsyncWith;
 
 var parseAnyAsyncWith = S_Core$RescriptSchema.parseAnyAsyncWith;
 
-var convertWith = S_Core$RescriptSchema.convertWith;
+var convertOrThrow = S_Core$RescriptSchema.convertOrThrow;
 
-var convertToJsonWith = S_Core$RescriptSchema.convertToJsonWith;
+var convertToJsonOrThrow = S_Core$RescriptSchema.convertToJsonOrThrow;
 
-var convertToJsonStringWith = S_Core$RescriptSchema.convertToJsonStringWith;
+var convertToJsonStringOrThrow = S_Core$RescriptSchema.convertToJsonStringOrThrow;
 
-var convertAsyncWith = S_Core$RescriptSchema.convertAsyncWith;
+var convertAsyncOrThrow = S_Core$RescriptSchema.convertAsyncOrThrow;
 
-var reverseConvertWith = S_Core$RescriptSchema.reverseConvertWith;
+var reverseConvertOrThrow = S_Core$RescriptSchema.reverseConvertOrThrow;
 
-var reverseConvertToJsonWith = S_Core$RescriptSchema.reverseConvertToJsonWith;
+var reverseConvertToJsonOrThrow = S_Core$RescriptSchema.reverseConvertToJsonOrThrow;
 
-var reverseConvertToJsonStringWith = S_Core$RescriptSchema.reverseConvertToJsonStringWith;
+var reverseConvertToJsonStringOrThrow = S_Core$RescriptSchema.reverseConvertToJsonStringOrThrow;
 
-var assertWith = S_Core$RescriptSchema.assertWith;
+var assertOrThrow = S_Core$RescriptSchema.assertOrThrow;
 
 var isAsync = S_Core$RescriptSchema.isAsync;
 
@@ -228,18 +226,17 @@ export {
   parseWith ,
   parseAnyWith ,
   parseJsonStringWith ,
-  parseOrRaiseWith ,
-  parseAnyOrRaiseWith ,
+  parseOrThrow ,
   parseAsyncWith ,
   parseAnyAsyncWith ,
-  convertWith ,
-  convertToJsonWith ,
-  convertToJsonStringWith ,
-  convertAsyncWith ,
-  reverseConvertWith ,
-  reverseConvertToJsonWith ,
-  reverseConvertToJsonStringWith ,
-  assertWith ,
+  convertOrThrow ,
+  convertToJsonOrThrow ,
+  convertToJsonStringOrThrow ,
+  convertAsyncOrThrow ,
+  reverseConvertOrThrow ,
+  reverseConvertToJsonOrThrow ,
+  reverseConvertToJsonStringOrThrow ,
+  assertOrThrow ,
   isAsync ,
   recursive ,
   classify ,

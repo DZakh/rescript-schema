@@ -86,7 +86,7 @@ test("Uses the path from S.Error.raise called in the transform serializer", t =>
   )
 
   t->U.assertRaised(
-    () => ["Hello world!"]->S.reverseConvertToJsonWith(schema),
+    () => ["Hello world!"]->S.reverseConvertToJsonOrThrow(schema),
     {
       code: OperationFailed("User error"),
       operation: ReverseConvert,
@@ -136,20 +136,20 @@ test("Transform definition passes through other rescript exceptions", t => {
 test("Successfully serializes primitive with transformation to the same type", t => {
   let schema = S.string->S.transform(_ => {serializer: value => value->String.trim})
 
-  t->Assert.deepEqual("  Hello world!"->S.reverseConvertWith(schema), %raw(`"Hello world!"`), ())
+  t->Assert.deepEqual("  Hello world!"->S.reverseConvertOrThrow(schema), %raw(`"Hello world!"`), ())
 })
 
 test("Successfully serializes primitive with transformation to another type", t => {
   let schema = S.float->S.transform(_ => {serializer: value => value->Int.toFloat})
 
-  t->Assert.deepEqual(123->S.reverseConvertWith(schema), %raw(`123`), ())
+  t->Assert.deepEqual(123->S.reverseConvertOrThrow(schema), %raw(`123`), ())
 })
 
 test("Transformed Primitive serializing fails when serializer isn't provided", t => {
   let schema = S.string->S.transform(_ => {parser: value => value})
 
   t->U.assertRaised(
-    () => "Hello world!"->S.reverseConvertWith(schema),
+    () => "Hello world!"->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({description: "The S.transform serializer is missing"}),
       operation: ReverseConvert,
@@ -162,7 +162,7 @@ test("Fails to serialize when user raises error in a Transformed Primitive seria
   let schema = S.string->S.transform(s => {serializer: _ => s.fail("User error")})
 
   t->U.assertRaised(
-    () => "Hello world!"->S.reverseConvertWith(schema),
+    () => "Hello world!"->S.reverseConvertOrThrow(schema),
     {code: OperationFailed("User error"), operation: ReverseConvert, path: S.Path.empty},
   )
 })
@@ -186,7 +186,7 @@ test("Transform operations applyed in the right order when serializing", t => {
     ->S.transform(s => {serializer: _ => s.fail("Second transform")})
 
   t->U.assertRaised(
-    () => 123->S.reverseConvertWith(schema),
+    () => 123->S.reverseConvertOrThrow(schema),
     {
       code: OperationFailed("Second transform"),
       operation: ReverseConvert,
@@ -206,7 +206,7 @@ test(
     })
 
     t->Assert.deepEqual(
-      any->S.parseAnyWith(schema)->Result.map(object => object->S.reverseConvertWith(schema)),
+      any->S.parseAnyWith(schema)->Result.map(object => object->S.reverseConvertOrThrow(schema)),
       Ok(any),
       (),
     )
@@ -248,7 +248,7 @@ test("Successfully parses with empty transform", t => {
 test("Successfully serializes with empty transform", t => {
   let schema = S.string->S.transform(_ => {})
 
-  t->Assert.deepEqual("Hello world!"->S.reverseConvertWith(schema), %raw(`"Hello world!"`), ())
+  t->Assert.deepEqual("Hello world!"->S.reverseConvertOrThrow(schema), %raw(`"Hello world!"`), ())
 })
 
 asyncTest("Successfully parses async using parseAsyncWith", t => {

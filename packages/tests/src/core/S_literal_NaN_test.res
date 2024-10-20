@@ -32,14 +32,14 @@ module Common = {
   test("Successfully serializes", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(value->S.reverseConvertWith(schema), any, ())
+    t->Assert.deepEqual(value->S.reverseConvertOrThrow(schema), any, ())
   })
 
   test("Fails to serialize invalid value", t => {
     let schema = factory()
 
     t->U.assertRaised(
-      () => invalidValue->S.reverseConvertWith(schema),
+      () => invalidValue->S.reverseConvertOrThrow(schema),
       {
         code: InvalidType({expected: S.literal(%raw(`NaN`))->S.toUnknown, received: invalidValue}),
         operation: ReverseConvert,

@@ -111,7 +111,7 @@ test("Serializes when both schemas misses serializer", t => {
   ])
 
   t->U.assertRaised(
-    () => %raw(`null`)->S.reverseConvertToJsonWith(schema),
+    () => %raw(`null`)->S.reverseConvertToJsonOrThrow(schema),
     {
       code: InvalidUnion([
         U.error({
@@ -165,7 +165,7 @@ test("Parses when second struct misses parser", t => {
 test("Serializes when second struct misses serializer", t => {
   let schema = S.union([S.literal(#apple), S.string->S.transform(_ => {parser: _ => #apple})])
 
-  t->Assert.deepEqual(#apple->S.reverseConvertWith(schema), %raw(`"apple"`), ())
+  t->Assert.deepEqual(#apple->S.reverseConvertOrThrow(schema), %raw(`"apple"`), ())
 
   t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{if(i!=="apple"){throw e[0]}return i}`)
 })
@@ -350,7 +350,7 @@ module Advanced = {
     ])
 
     t->U.assertRaised(
-      () => Triangle({x: 2., y: 3.})->S.reverseConvertWith(incompleteSchema),
+      () => Triangle({x: 2., y: 3.})->S.reverseConvertOrThrow(incompleteSchema),
       {
         code: InvalidUnion([
           U.error({
@@ -378,7 +378,7 @@ module Advanced = {
 
   test("Successfully serializes Circle shape", t => {
     t->Assert.deepEqual(
-      Circle({radius: 1.})->S.reverseConvertWith(shapeSchema),
+      Circle({radius: 1.})->S.reverseConvertOrThrow(shapeSchema),
       %raw(`{
           "kind": "circle",
           "radius": 1,
@@ -389,7 +389,7 @@ module Advanced = {
 
   test("Successfully serializes Square shape", t => {
     t->Assert.deepEqual(
-      Square({x: 2.})->S.reverseConvertWith(shapeSchema),
+      Square({x: 2.})->S.reverseConvertOrThrow(shapeSchema),
       %raw(`{
         "kind": "square",
         "x": 2,
@@ -400,7 +400,7 @@ module Advanced = {
 
   test("Successfully serializes Triangle shape", t => {
     t->Assert.deepEqual(
-      Triangle({x: 2., y: 3.})->S.reverseConvertWith(shapeSchema),
+      Triangle({x: 2., y: 3.})->S.reverseConvertOrThrow(shapeSchema),
       %raw(`{
         "kind": "triangle",
         "x": 2,
@@ -440,8 +440,8 @@ test("Successfully serializes unboxed variant", t => {
     ->S.to(i => Int(i)),
   ])
 
-  t->Assert.deepEqual(String("abc")->S.reverseConvertWith(schema), %raw(`"abc"`), ())
-  t->Assert.deepEqual(Int(123)->S.reverseConvertWith(schema), %raw(`"123"`), ())
+  t->Assert.deepEqual(String("abc")->S.reverseConvertOrThrow(schema), %raw(`"abc"`), ())
+  t->Assert.deepEqual(Int(123)->S.reverseConvertOrThrow(schema), %raw(`"123"`), ())
 
   t->U.assertCompiledCode(
     ~schema,
@@ -526,7 +526,7 @@ module CknittelBugReport = {
         b: 42,
       },
     }
-    t->Assert.deepEqual(B(x)->S.reverseConvertWith(schema), %raw(`{"payload":{"b":42}}`), ())
+    t->Assert.deepEqual(B(x)->S.reverseConvertOrThrow(schema), %raw(`{"payload":{"b":42}}`), ())
   })
 }
 

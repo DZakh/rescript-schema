@@ -12,7 +12,7 @@ let nullableSchema = innerSchema => {
     },
     serializer: value => {
       switch value {
-      | Some(innerValue) => innerValue->S.reverseConvertWith(innerSchema)
+      | Some(innerValue) => innerValue->S.reverseConvertOrThrow(innerSchema)
       | None => %raw(`null`)
       }
     },
@@ -39,11 +39,11 @@ test("Correctly serializes custom schema", t => {
   let schema = nullableSchema(S.string)
 
   t->Assert.deepEqual(
-    Some("Hello world!")->S.reverseConvertWith(schema),
+    Some("Hello world!")->S.reverseConvertOrThrow(schema),
     %raw(`"Hello world!"`),
     (),
   )
-  t->Assert.deepEqual(None->S.reverseConvertWith(schema), %raw(`null`), ())
+  t->Assert.deepEqual(None->S.reverseConvertOrThrow(schema), %raw(`null`), ())
 })
 
 test("Reverses custom schema to unknown", t => {
@@ -63,7 +63,7 @@ test("Fails to serialize with user error", t => {
   })
 
   t->U.assertRaised(
-    () => None->S.reverseConvertWith(schema),
+    () => None->S.reverseConvertOrThrow(schema),
     {code: OperationFailed("User error"), operation: ReverseConvert, path: S.Path.empty},
   )
 })
@@ -74,7 +74,7 @@ test("Fails to serialize with serializer is missing", t => {
   })
 
   t->U.assertRaised(
-    () => ()->S.reverseConvertWith(schema),
+    () => ()->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({description: "The S.custom serializer is missing"}),
       operation: ReverseConvert,

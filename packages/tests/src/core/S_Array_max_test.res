@@ -23,15 +23,15 @@ test("Fails to parse invalid data", t => {
 test("Successfully serializes valid value", t => {
   let schema = S.array(S.int)->S.arrayMaxLength(1)
 
-  t->Assert.deepEqual([1]->S.reverseConvertWith(schema), %raw(`[1]`), ())
-  t->Assert.deepEqual([]->S.reverseConvertWith(schema), %raw(`[]`), ())
+  t->Assert.deepEqual([1]->S.reverseConvertOrThrow(schema), %raw(`[1]`), ())
+  t->Assert.deepEqual([]->S.reverseConvertOrThrow(schema), %raw(`[]`), ())
 })
 
 test("Fails to serialize invalid value", t => {
   let schema = S.array(S.int)->S.arrayMaxLength(1)
 
   t->U.assertRaised(
-    () => [1, 2, 3, 4]->S.reverseConvertWith(schema),
+    () => [1, 2, 3, 4]->S.reverseConvertOrThrow(schema),
     {
       code: OperationFailed("Array must be 1 or fewer items long"),
       operation: ReverseConvert,

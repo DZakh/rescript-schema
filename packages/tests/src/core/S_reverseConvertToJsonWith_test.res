@@ -2,34 +2,44 @@ open Ava
 open RescriptCore
 
 test("Successfully reverse converts jsonable schemas", t => {
-  t->Assert.deepEqual(true->S.reverseConvertToJsonWith(S.bool), true->JSON.Encode.bool, ())
-  t->Assert.deepEqual(true->S.reverseConvertToJsonWith(S.literal(true)), true->JSON.Encode.bool, ())
-  t->Assert.deepEqual("abc"->S.reverseConvertToJsonWith(S.string), "abc"->JSON.Encode.string, ())
+  t->Assert.deepEqual(true->S.reverseConvertToJsonOrThrow(S.bool), true->JSON.Encode.bool, ())
   t->Assert.deepEqual(
-    "abc"->S.reverseConvertToJsonWith(S.literal("abc")),
+    true->S.reverseConvertToJsonOrThrow(S.literal(true)),
+    true->JSON.Encode.bool,
+    (),
+  )
+  t->Assert.deepEqual("abc"->S.reverseConvertToJsonOrThrow(S.string), "abc"->JSON.Encode.string, ())
+  t->Assert.deepEqual(
+    "abc"->S.reverseConvertToJsonOrThrow(S.literal("abc")),
     "abc"->JSON.Encode.string,
     (),
   )
-  t->Assert.deepEqual(123->S.reverseConvertToJsonWith(S.int), 123.->JSON.Encode.float, ())
-  t->Assert.deepEqual(123->S.reverseConvertToJsonWith(S.literal(123)), 123.->JSON.Encode.float, ())
-  t->Assert.deepEqual(123.->S.reverseConvertToJsonWith(S.float), 123.->JSON.Encode.float, ())
+  t->Assert.deepEqual(123->S.reverseConvertToJsonOrThrow(S.int), 123.->JSON.Encode.float, ())
   t->Assert.deepEqual(
-    123.->S.reverseConvertToJsonWith(S.literal(123.)),
+    123->S.reverseConvertToJsonOrThrow(S.literal(123)),
+    123.->JSON.Encode.float,
+    (),
+  )
+  t->Assert.deepEqual(123.->S.reverseConvertToJsonOrThrow(S.float), 123.->JSON.Encode.float, ())
+  t->Assert.deepEqual(
+    123.->S.reverseConvertToJsonOrThrow(S.literal(123.)),
     123.->JSON.Encode.float,
     (),
   )
   t->Assert.deepEqual(
-    (true, "foo", 123)->S.reverseConvertToJsonWith(S.literal((true, "foo", 123))),
+    (true, "foo", 123)->S.reverseConvertToJsonOrThrow(S.literal((true, "foo", 123))),
     JSON.Encode.array([JSON.Encode.bool(true), JSON.Encode.string("foo"), JSON.Encode.float(123.)]),
     (),
   )
   t->Assert.deepEqual(
-    {"foo": true}->S.reverseConvertToJsonWith(S.literal({"foo": true})),
+    {"foo": true}->S.reverseConvertToJsonOrThrow(S.literal({"foo": true})),
     JSON.Encode.object(Dict.fromArray([("foo", JSON.Encode.bool(true))])),
     (),
   )
   t->Assert.deepEqual(
-    {"foo": (true, "foo", 123)}->S.reverseConvertToJsonWith(S.literal({"foo": (true, "foo", 123)})),
+    {"foo": (true, "foo", 123)}->S.reverseConvertToJsonOrThrow(
+      S.literal({"foo": (true, "foo", 123)}),
+    ),
     JSON.Encode.object(
       Dict.fromArray([
         (
@@ -44,30 +54,30 @@ test("Successfully reverse converts jsonable schemas", t => {
     ),
     (),
   )
-  t->Assert.deepEqual(None->S.reverseConvertToJsonWith(S.null(S.bool)), JSON.Encode.null, ())
+  t->Assert.deepEqual(None->S.reverseConvertToJsonOrThrow(S.null(S.bool)), JSON.Encode.null, ())
   t->Assert.deepEqual(
-    JSON.Encode.null->S.reverseConvertToJsonWith(S.literal(JSON.Encode.null)),
+    JSON.Encode.null->S.reverseConvertToJsonOrThrow(S.literal(JSON.Encode.null)),
     JSON.Encode.null,
     (),
   )
-  t->Assert.deepEqual([]->S.reverseConvertToJsonWith(S.array(S.bool)), JSON.Encode.array([]), ())
+  t->Assert.deepEqual([]->S.reverseConvertToJsonOrThrow(S.array(S.bool)), JSON.Encode.array([]), ())
   t->Assert.deepEqual(
-    Dict.make()->S.reverseConvertToJsonWith(S.dict(S.bool)),
+    Dict.make()->S.reverseConvertToJsonOrThrow(S.dict(S.bool)),
     JSON.Encode.object(Dict.make()),
     (),
   )
   t->Assert.deepEqual(
-    true->S.reverseConvertToJsonWith(S.object(s => s.field("foo", S.bool))),
+    true->S.reverseConvertToJsonOrThrow(S.object(s => s.field("foo", S.bool))),
     JSON.Encode.object(Dict.fromArray([("foo", JSON.Encode.bool(true))])),
     (),
   )
   t->Assert.deepEqual(
-    true->S.reverseConvertToJsonWith(S.tuple1(S.bool)),
+    true->S.reverseConvertToJsonOrThrow(S.tuple1(S.bool)),
     JSON.Encode.array([JSON.Encode.bool(true)]),
     (),
   )
   t->Assert.deepEqual(
-    "foo"->S.reverseConvertToJsonWith(S.union([S.literal("foo"), S.literal("bar")])),
+    "foo"->S.reverseConvertToJsonOrThrow(S.union([S.literal("foo"), S.literal("bar")])),
     JSON.Encode.string("foo"),
     (),
   )
@@ -76,7 +86,7 @@ test("Successfully reverse converts jsonable schemas", t => {
 test("Fails to reverse convert Option schema", t => {
   let schema = S.option(S.bool)
   t->U.assertRaised(
-    () => None->S.reverseConvertToJsonWith(schema),
+    () => None->S.reverseConvertToJsonOrThrow(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
       operation: ReverseConvertToJson,
@@ -88,7 +98,7 @@ test("Fails to reverse convert Option schema", t => {
 test("Fails to reverse convert Undefined literal", t => {
   let schema = S.literal()
   t->U.assertRaised(
-    () => ()->S.reverseConvertToJsonWith(schema),
+    () => ()->S.reverseConvertToJsonOrThrow(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
       operation: ReverseConvertToJson,
@@ -101,7 +111,7 @@ test("Fails to reverse convert Function literal", t => {
   let fn = () => ()
   let schema = S.literal(fn)
   t->U.assertRaised(
-    () => fn->S.reverseConvertToJsonWith(schema),
+    () => fn->S.reverseConvertToJsonOrThrow(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
       operation: ReverseConvertToJson,
@@ -114,7 +124,7 @@ test("Fails to reverse convert Object literal", t => {
   let error = %raw(`new Error("foo")`)
   let schema = S.literal(error)
   t->U.assertRaised(
-    () => error->S.reverseConvertToJsonWith(schema),
+    () => error->S.reverseConvertToJsonOrThrow(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
       operation: ReverseConvertToJson,
@@ -127,7 +137,7 @@ test("Fails to reverse convert Symbol literal", t => {
   let symbol = %raw(`Symbol()`)
   let schema = S.literal(symbol)
   t->U.assertRaised(
-    () => symbol->S.reverseConvertToJsonWith(schema),
+    () => symbol->S.reverseConvertToJsonOrThrow(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
       operation: ReverseConvertToJson,
@@ -140,7 +150,7 @@ test("Fails to reverse convert BigInt literal", t => {
   let bigint = %raw(`1234n`)
   let schema = S.literal(bigint)
   t->U.assertRaised(
-    () => bigint->S.reverseConvertToJsonWith(schema),
+    () => bigint->S.reverseConvertToJsonOrThrow(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
       operation: ReverseConvertToJson,
@@ -153,7 +163,7 @@ test("Fails to reverse convert Dict literal with invalid field", t => {
   let dict = %raw(`{"foo": 123n}`)
   let schema = S.literal(dict)
   t->U.assertRaised(
-    () => dict->S.reverseConvertToJsonWith(schema),
+    () => dict->S.reverseConvertToJsonOrThrow(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
       operation: ReverseConvertToJson,
@@ -165,7 +175,7 @@ test("Fails to reverse convert Dict literal with invalid field", t => {
 test("Fails to reverse convert NaN literal", t => {
   let schema = S.literal(%raw(`NaN`))
   t->U.assertRaised(
-    () => ()->S.reverseConvertToJsonWith(schema),
+    () => ()->S.reverseConvertToJsonOrThrow(schema),
     {
       code: InvalidJsonSchema(schema->S.toUnknown),
       operation: ReverseConvertToJson,
@@ -176,14 +186,14 @@ test("Fails to reverse convert NaN literal", t => {
 
 test("Fails to reverse convert Unknown schema", t => {
   t->U.assertRaised(
-    () => Obj.magic(123)->S.reverseConvertToJsonWith(S.unknown),
+    () => Obj.magic(123)->S.reverseConvertToJsonOrThrow(S.unknown),
     {code: InvalidJsonSchema(S.unknown), operation: ReverseConvertToJson, path: S.Path.empty},
   )
 })
 
 test("Fails to reverse convert Never schema", t => {
   t->U.assertRaised(
-    () => Obj.magic(123)->S.reverseConvertToJsonWith(S.never),
+    () => Obj.magic(123)->S.reverseConvertToJsonOrThrow(S.never),
     {
       code: InvalidType({expected: S.never->S.toUnknown, received: Obj.magic(123)}),
       operation: ReverseConvertToJson,
@@ -194,7 +204,7 @@ test("Fails to reverse convert Never schema", t => {
 
 test("Fails to reverse convert object with invalid nested schema", t => {
   t->U.assertRaised(
-    () => Obj.magic(true)->S.reverseConvertToJsonWith(S.object(s => s.field("foo", S.unknown))),
+    () => Obj.magic(true)->S.reverseConvertToJsonOrThrow(S.object(s => s.field("foo", S.unknown))),
     {
       code: InvalidJsonSchema(S.unknown),
       operation: ReverseConvertToJson,
@@ -205,7 +215,7 @@ test("Fails to reverse convert object with invalid nested schema", t => {
 
 test("Fails to reverse convert tuple with invalid nested schema", t => {
   t->U.assertRaised(
-    () => Obj.magic(true)->S.reverseConvertToJsonWith(S.tuple1(S.unknown)),
+    () => Obj.magic(true)->S.reverseConvertToJsonOrThrow(S.tuple1(S.unknown)),
     {
       code: InvalidJsonSchema(S.unknown),
       operation: ReverseConvertToJson,
@@ -216,7 +226,7 @@ test("Fails to reverse convert tuple with invalid nested schema", t => {
 
 test("Serializes union even one of the items is an invalid JSON schema", t => {
   let schema = S.union([S.string, S.unknown->(U.magic: S.t<unknown> => S.t<string>)])
-  t->Assert.deepEqual("foo"->S.reverseConvertToJsonWith(schema), JSON.Encode.string("foo"), ())
+  t->Assert.deepEqual("foo"->S.reverseConvertToJsonOrThrow(schema), JSON.Encode.string("foo"), ())
   t->U.assertCompiledCode(
     ~schema,
     ~op=#SerializeJson,
@@ -224,12 +234,12 @@ test("Serializes union even one of the items is an invalid JSON schema", t => {
   )
 
   // Not related to the test, just check that it doesn't crash while we are at it
-  t->Assert.deepEqual("foo"->S.reverseConvertWith(schema), %raw(`"foo"`), ())
+  t->Assert.deepEqual("foo"->S.reverseConvertOrThrow(schema), %raw(`"foo"`), ())
   // TODO: Can be improved to return null
   t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{if(typeof i!=="string"){}return i}`)
 
   let schema = S.union([S.unknown->(U.magic: S.t<unknown> => S.t<string>), S.string])
-  t->Assert.deepEqual("foo"->S.reverseConvertToJsonWith(schema), JSON.Encode.string("foo"), ())
+  t->Assert.deepEqual("foo"->S.reverseConvertToJsonOrThrow(schema), JSON.Encode.string("foo"), ())
   t->U.assertCompiledCode(
     ~schema,
     ~op=#SerializeJson,
@@ -245,7 +255,7 @@ test("Fails to reverse convert union with invalid json schemas", t => {
     `i=>{if(!Number.isNaN(i)){throw e[1]}else{throw e[0]}return i}`,
   )
   t->U.assertRaised(
-    () => "foo"->S.reverseConvertToJsonWith(schema),
+    () => "foo"->S.reverseConvertToJsonOrThrow(schema),
     {
       code: InvalidJsonSchema(S.unknown),
       operation: ReverseConvertToJson,
@@ -253,7 +263,7 @@ test("Fails to reverse convert union with invalid json schemas", t => {
     },
   )
   t->U.assertRaised(
-    () => %raw(`NaN`)->S.reverseConvertToJsonWith(schema),
+    () => %raw(`NaN`)->S.reverseConvertToJsonOrThrow(schema),
     {
       code: InvalidJsonSchema(S.literal(%raw(`NaN`))),
       operation: ReverseConvertToJson,
@@ -362,7 +372,7 @@ module SerializesDeepRecursive = {
 
   test("Serializes deeply recursive schema", t => {
     t->Assert.deepEqual(
-      {condition: condition}->S.reverseConvertToJsonWith(bodySchema),
+      {condition: condition}->S.reverseConvertToJsonOrThrow(bodySchema),
       {
         "condition": conditionJSON,
       }->U.magic,
