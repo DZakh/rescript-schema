@@ -3,16 +3,15 @@ open Ava
 test("Successfully parses valid data", t => {
   let schema = S.string->S.pattern(%re(`/[0-9]/`))
 
-  t->Assert.deepEqual("123"->S.parseAnyWith(schema), Ok("123"), ())
+  t->Assert.deepEqual("123"->S.parseOrThrow(schema), "123", ())
 })
 
 test("Fails to parse invalid data", t => {
   let schema = S.string->S.pattern(%re(`/[0-9]/`))
 
-  t->Assert.deepEqual(
-    "abc"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("Invalid"), operation: Parse, path: S.Path.empty})),
-    (),
+  t->U.assertRaised(
+    () => "abc"->S.parseOrThrow(schema),
+    {code: OperationFailed("Invalid"), operation: Parse, path: S.Path.empty},
   )
 })
 
@@ -38,10 +37,9 @@ test("Fails to serialize invalid value", t => {
 test("Returns custom error message", t => {
   let schema = S.string->S.pattern(~message="Custom", %re(`/[0-9]/`))
 
-  t->Assert.deepEqual(
-    "abc"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("Custom"), operation: Parse, path: S.Path.empty})),
-    (),
+  t->U.assertRaised(
+    () => "abc"->S.parseOrThrow(schema),
+    {code: OperationFailed("Custom"), operation: Parse, path: S.Path.empty},
   )
 })
 

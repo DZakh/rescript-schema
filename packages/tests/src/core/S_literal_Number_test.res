@@ -11,14 +11,14 @@ module Common = {
   test("Successfully parses", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseOrThrow(schema), value, ())
   })
 
   test("Fails to parse invalid value", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => invalidAny->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => invalidAny->S.parseOrThrow(schema),
       {
         code: InvalidType({expected: S.literal(123.)->S.toUnknown, received: 444.->Obj.magic}),
         operation: Parse,
@@ -30,8 +30,8 @@ module Common = {
   test("Fails to parse invalid type", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => invalidTypeAny->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => invalidTypeAny->S.parseOrThrow(schema),
       {
         code: InvalidType({expected: S.literal(123.)->S.toUnknown, received: invalidTypeAny}),
         operation: Parse,
@@ -85,8 +85,8 @@ module Common = {
 test("Formatting of negative number with a decimal point in an error message", t => {
   let schema = S.literal(-123.567)
 
-  t->U.assertErrorResult(
-    () => %raw(`"foo"`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`"foo"`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: S.literal(-123.567)->S.toUnknown, received: "foo"->Obj.magic}),
       operation: Parse,

@@ -3,21 +3,21 @@ open Ava
 test("Successfully parses", t => {
   let schema = S.bool
 
-  t->Assert.deepEqual("true"->S.parseJsonStringWith(schema), Ok(true), ())
+  t->Assert.deepEqual("true"->S.parseJsonStringOrThrow(schema), true, ())
 })
 
 test("Successfully parses unknown", t => {
   let schema = S.unknown
 
-  t->Assert.deepEqual("true"->S.parseJsonStringWith(schema), Ok(true->Obj.magic), ())
+  t->Assert.deepEqual("true"->S.parseJsonStringOrThrow(schema), true->Obj.magic, ())
 })
 
 test("Fails to parse JSON", t => {
   let schema = S.bool
 
-  switch "123,"->S.parseJsonStringWith(schema) {
-  | Ok(_) => t->Assert.fail("Must return Error")
-  | Error({code, flag, path}) => {
+  switch "123,"->S.parseJsonStringOrThrow(schema) {
+  | _ => t->Assert.fail("Must return Error")
+  | exception S.Raised({code, flag, path}) => {
       t->Assert.deepEqual(flag, S.Flag.typeValidation, ())
       t->Assert.deepEqual(path, S.Path.empty, ())
       switch code {
@@ -36,8 +36,8 @@ test("Fails to parse JSON", t => {
 test("Fails to parse", t => {
   let schema = S.bool
 
-  t->U.assertErrorResult(
-    () => "123"->S.parseJsonStringWith(schema),
+  t->U.assertRaised(
+    () => "123"->S.parseJsonStringOrThrow(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: Obj.magic(123)}),
       operation: Parse,

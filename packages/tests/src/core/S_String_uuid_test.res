@@ -4,8 +4,8 @@ test("Successfully parses valid data", t => {
   let schema = S.string->S.uuid
 
   t->Assert.deepEqual(
-    "123e4567-e89b-12d3-a456-426614174000"->S.parseAnyWith(schema),
-    Ok("123e4567-e89b-12d3-a456-426614174000"),
+    "123e4567-e89b-12d3-a456-426614174000"->S.parseOrThrow(schema),
+    "123e4567-e89b-12d3-a456-426614174000",
     (),
   )
 })
@@ -14,8 +14,8 @@ test("Successfully parses uuid V7", t => {
   let schema = S.string->S.uuid
 
   t->Assert.deepEqual(
-    "019122ba-bb79-75ef-9a97-190f1effbb54"->S.parseAnyWith(schema),
-    Ok("019122ba-bb79-75ef-9a97-190f1effbb54"),
+    "019122ba-bb79-75ef-9a97-190f1effbb54"->S.parseOrThrow(schema),
+    "019122ba-bb79-75ef-9a97-190f1effbb54",
     (),
   )
 })
@@ -23,10 +23,9 @@ test("Successfully parses uuid V7", t => {
 test("Fails to parse invalid data", t => {
   let schema = S.string->S.uuid
 
-  t->Assert.deepEqual(
-    "123e4567"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("Invalid UUID"), operation: Parse, path: S.Path.empty})),
-    (),
+  t->U.assertRaised(
+    () => "123e4567"->S.parseOrThrow(schema),
+    {code: OperationFailed("Invalid UUID"), operation: Parse, path: S.Path.empty},
   )
 })
 
@@ -52,9 +51,8 @@ test("Fails to serialize invalid value", t => {
 test("Returns custom error message", t => {
   let schema = S.string->S.uuid(~message="Custom")
 
-  t->Assert.deepEqual(
-    "abc"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("Custom"), operation: Parse, path: S.Path.empty})),
-    (),
+  t->U.assertRaised(
+    () => "abc"->S.parseOrThrow(schema),
+    {code: OperationFailed("Custom"), operation: Parse, path: S.Path.empty},
   )
 })

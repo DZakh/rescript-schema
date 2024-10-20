@@ -7,8 +7,8 @@ module Common = {
   test("Fails to ", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => any->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => any->S.parseOrThrow(schema),
       {
         code: InvalidType({expected: S.never->S.toUnknown, received: any}),
         operation: Parse,
@@ -57,8 +57,8 @@ module ObjectField = {
       }
     )
 
-    t->U.assertErrorResult(
-      () => %raw(`{"key":"value"}`)->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => %raw(`{"key":"value"}`)->S.parseOrThrow(schema),
       {
         code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`undefined`)}),
         operation: Parse,
@@ -79,11 +79,11 @@ module ObjectField = {
     )
 
     t->Assert.deepEqual(
-      %raw(`{"key":"value"}`)->S.parseAnyWith(schema),
-      Ok({
+      %raw(`{"key":"value"}`)->S.parseOrThrow(schema),
+      {
         "key": "value",
         "oldKey": None,
-      }),
+      },
       (),
     )
   })

@@ -76,8 +76,8 @@ test("Successfully parses with nestedField used multiple times", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{"foo": "foo", "nested": {"bar": "bar", "baz": "baz"}}`)->S.parseAnyWith(schema),
-    Ok({"foo": "foo", "bar": "bar", "baz": "baz"}),
+    %raw(`{"foo": "foo", "nested": {"bar": "bar", "baz": "baz"}}`)->S.parseOrThrow(schema),
+    {"foo": "foo", "bar": "bar", "baz": "baz"},
     (),
   )
   t->U.assertCompiledCode(

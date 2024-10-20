@@ -131,8 +131,8 @@ test("Successfully parses simple object with flatten", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{"foo": "foo", "bar": "bar"}`)->S.parseAnyWith(schema),
-    Ok({"foo": "foo", "bar": "bar"}),
+    %raw(`{"foo": "foo", "bar": "bar"}`)->S.parseOrThrow(schema),
+    {"foo": "foo", "bar": "bar"},
     (),
   )
   t->U.assertCompiledCode(

@@ -3,16 +3,15 @@ open Ava
 test("Successfully parses valid data", t => {
   let schema = S.string->S.url
 
-  t->Assert.deepEqual("http://dzakh.dev"->S.parseAnyWith(schema), Ok("http://dzakh.dev"), ())
+  t->Assert.deepEqual("http://dzakh.dev"->S.parseOrThrow(schema), "http://dzakh.dev", ())
 })
 
 test("Fails to parse invalid data", t => {
   let schema = S.string->S.url
 
-  t->Assert.deepEqual(
-    "cifjhdsfhsd"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("Invalid url"), operation: Parse, path: S.Path.empty})),
-    (),
+  t->U.assertRaised(
+    () => "cifjhdsfhsd"->S.parseOrThrow(schema),
+    {code: OperationFailed("Invalid url"), operation: Parse, path: S.Path.empty},
   )
 })
 
@@ -38,9 +37,8 @@ test("Fails to serialize invalid value", t => {
 test("Returns custom error message", t => {
   let schema = S.string->S.url(~message="Custom")
 
-  t->Assert.deepEqual(
-    "abc"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("Custom"), operation: Parse, path: S.Path.empty})),
-    (),
+  t->U.assertRaised(
+    () => "abc"->S.parseOrThrow(schema),
+    {code: OperationFailed("Custom"), operation: Parse, path: S.Path.empty},
   )
 })

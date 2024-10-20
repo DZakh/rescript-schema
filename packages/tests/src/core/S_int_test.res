@@ -9,14 +9,14 @@ module Common = {
   test("Successfully parses", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseOrThrow(schema), value, ())
   })
 
   test("Fails to parse", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      () => invalidAny->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => invalidAny->S.parseOrThrow(schema),
       {
         code: InvalidType({expected: schema->S.toUnknown, received: invalidAny}),
         operation: Parse,
@@ -61,36 +61,36 @@ module Common = {
 test("Fails to parse int when JSON is a number bigger than +2^31", t => {
   let schema = S.int
 
-  t->U.assertErrorResult(
-    () => %raw(`2147483648`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`2147483648`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`2147483648`)}),
       operation: Parse,
       path: S.Path.empty,
     },
   )
-  t->Assert.deepEqual(%raw(`2147483647`)->S.parseAnyWith(schema), Ok(2147483647), ())
+  t->Assert.deepEqual(%raw(`2147483647`)->S.parseOrThrow(schema), 2147483647, ())
 })
 
 test("Fails to parse int when JSON is a number lower than -2^31", t => {
   let schema = S.int
 
-  t->U.assertErrorResult(
-    () => %raw(`-2147483649`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`-2147483649`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`-2147483649`)}),
       operation: Parse,
       path: S.Path.empty,
     },
   )
-  t->Assert.deepEqual(%raw(`-2147483648`)->S.parseAnyWith(schema), Ok(-2147483648), ())
+  t->Assert.deepEqual(%raw(`-2147483648`)->S.parseOrThrow(schema), -2147483648, ())
 })
 
 test("Fails to parse NaN", t => {
   let schema = S.int
 
-  t->U.assertErrorResult(
-    () => %raw(`NaN`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`NaN`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`NaN`)}),
       operation: Parse,

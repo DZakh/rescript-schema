@@ -9,7 +9,7 @@ expectType<TypeEqual<typeof stringSchema, S.Schema<string, unknown>>>(true);
 
 test("Successfully parses string", (t) => {
   const schema = S.string;
-  const value = S.parseWith("123", schema);
+  const value = S.parseOrThrow("123", schema);
 
   t.deepEqual(value, "123");
 
@@ -19,7 +19,7 @@ test("Successfully parses string", (t) => {
 
 test("Successfully parses string with built-in refinement", (t) => {
   const schema = S.stringLength(S.string, 5);
-  const result = S.safe(() => S.parseWith("123", schema));
+  const result = S.safe(() => S.parseOrThrow("123", schema));
 
   expectType<TypeEqual<typeof result, S.Result<string>>>(true);
 
@@ -46,7 +46,7 @@ test("Successfully parses string with built-in refinement", (t) => {
 
 test("Successfully parses string with built-in refinement and custom message", (t) => {
   const schema = S.stringLength(S.string, 5, "Postcode must have 5 symbols");
-  const result = S.safe(() => S.parseWith("123", schema));
+  const result = S.safe(() => S.parseOrThrow("123", schema));
 
   if (result.success) {
     t.fail("Should fail");
@@ -62,7 +62,7 @@ test("Successfully parses string with built-in refinement and custom message", (
 
 test("Successfully parses string with built-in transform", (t) => {
   const schema = S.trim(S.string);
-  const value = S.parseWith("  123", schema);
+  const value = S.parseOrThrow("  123", schema);
 
   t.deepEqual(value, "123");
 
@@ -72,7 +72,7 @@ test("Successfully parses string with built-in transform", (t) => {
 
 test("Successfully parses string with built-in datetime transform", (t) => {
   const schema = S.datetime(S.string);
-  const value = S.parseWith("2020-01-01T00:00:00Z", schema);
+  const value = S.parseOrThrow("2020-01-01T00:00:00Z", schema);
 
   t.deepEqual(value, new Date("2020-01-01T00:00:00Z"));
 
@@ -82,7 +82,7 @@ test("Successfully parses string with built-in datetime transform", (t) => {
 
 test("Successfully parses int", (t) => {
   const schema = S.integer;
-  const value = S.parseWith(123, schema);
+  const value = S.parseOrThrow(123, schema);
 
   t.deepEqual(value, 123);
 
@@ -92,7 +92,7 @@ test("Successfully parses int", (t) => {
 
 test("Successfully parses float", (t) => {
   const schema = S.number;
-  const value = S.parseWith(123.4, schema);
+  const value = S.parseOrThrow(123.4, schema);
 
   t.deepEqual(value, 123.4);
 
@@ -102,7 +102,7 @@ test("Successfully parses float", (t) => {
 
 test("Successfully parses BigInt", (t) => {
   const schema = S.bigint;
-  const value = S.parseWith(123n, schema);
+  const value = S.parseOrThrow(123n, schema);
 
   t.deepEqual(value, 123n);
 
@@ -115,7 +115,7 @@ test("Fails to parse float when NaN is provided", (t) => {
 
   t.throws(
     () => {
-      const value = S.parseWith(NaN, schema);
+      const value = S.parseOrThrow(NaN, schema);
 
       expectType<TypeEqual<typeof schema, S.Schema<number, number>>>(true);
       expectType<TypeEqual<typeof value, number>>(true);
@@ -132,7 +132,7 @@ test("Successfully parses float when NaN is provided and NaN check disabled in g
     disableNanNumberCheck: true,
   });
   const schema = S.number;
-  const value = S.parseWith(NaN, schema);
+  const value = S.parseOrThrow(NaN, schema);
   S.setGlobalConfig({});
 
   t.deepEqual(value, NaN);
@@ -143,7 +143,7 @@ test("Successfully parses float when NaN is provided and NaN check disabled in g
 
 test("Successfully parses bool", (t) => {
   const schema = S.boolean;
-  const value = S.parseWith(true, schema);
+  const value = S.parseOrThrow(true, schema);
 
   t.deepEqual(value, true);
 
@@ -153,7 +153,7 @@ test("Successfully parses bool", (t) => {
 
 test("Successfully parses unknown", (t) => {
   const schema = S.unknown;
-  const value = S.parseWith(true, schema);
+  const value = S.parseOrThrow(true, schema);
 
   t.deepEqual(value, true);
 
@@ -163,7 +163,7 @@ test("Successfully parses unknown", (t) => {
 
 test("Successfully parses json", (t) => {
   const schema = S.json(true);
-  const value = S.parseWith(true, schema);
+  const value = S.parseOrThrow(true, schema);
 
   t.deepEqual(value, true);
 
@@ -173,7 +173,7 @@ test("Successfully parses json", (t) => {
 
 test("Successfully parses invalid json without validation", (t) => {
   const schema = S.json(false);
-  const value = S.parseWith(undefined, schema);
+  const value = S.parseOrThrow(undefined, schema);
 
   t.deepEqual(value, undefined); // This is broken but it's intentional
 
@@ -183,7 +183,7 @@ test("Successfully parses invalid json without validation", (t) => {
 
 test("Successfully parses undefined", (t) => {
   const schema = S.undefined;
-  const value = S.parseWith(undefined, schema);
+  const value = S.parseOrThrow(undefined, schema);
 
   t.deepEqual(value, undefined);
 
@@ -196,7 +196,7 @@ test("Fails to parse never", (t) => {
 
   t.throws(
     () => {
-      const value = S.parseWith(true, schema);
+      const value = S.parseOrThrow(true, schema);
 
       expectType<TypeEqual<typeof schema, S.Schema<never, never>>>(true);
       expectType<TypeEqual<typeof value, never>>(true);
@@ -211,7 +211,7 @@ test("Fails to parse never", (t) => {
 test("Can get a reason from an error", (t) => {
   const schema = S.never;
 
-  const result = S.safe(() => S.parseWith(true, schema));
+  const result = S.safe(() => S.parseOrThrow(true, schema));
 
   if (result.success) {
     t.fail("Should fail");
@@ -222,7 +222,7 @@ test("Can get a reason from an error", (t) => {
 
 test("Successfully parses array", (t) => {
   const schema = S.array(S.string);
-  const value = S.parseWith(["foo"], schema);
+  const value = S.parseOrThrow(["foo"], schema);
 
   t.deepEqual(value, ["foo"]);
 
@@ -232,7 +232,7 @@ test("Successfully parses array", (t) => {
 
 test("Successfully parses record", (t) => {
   const schema = S.record(S.string);
-  const value = S.parseWith({ foo: "bar" }, schema);
+  const value = S.parseOrThrow({ foo: "bar" }, schema);
 
   t.deepEqual(value, { foo: "bar" });
 
@@ -247,7 +247,7 @@ test("Successfully parses record", (t) => {
 
 test("Successfully parses JSON string", (t) => {
   const schema = S.jsonString(S.boolean);
-  const value = S.parseWith(`true`, schema);
+  const value = S.parseOrThrow(`true`, schema);
 
   t.deepEqual(value, true);
 
@@ -286,8 +286,8 @@ test("Successfully serialized JSON object", (t) => {
 
 test("Successfully parses optional string", (t) => {
   const schema = S.optional(S.string);
-  const value1 = S.parseWith("foo", schema);
-  const value2 = S.parseWith(undefined, schema);
+  const value1 = S.parseOrThrow("foo", schema);
+  const value2 = S.parseOrThrow(undefined, schema);
 
   t.deepEqual(value1, "foo");
   t.deepEqual(value2, undefined);
@@ -301,8 +301,8 @@ test("Successfully parses optional string", (t) => {
 
 test("Successfully parses schema wrapped in optional multiple times", (t) => {
   const schema = S.optional(S.optional(S.optional(S.string)));
-  const value1 = S.parseWith("foo", schema);
-  const value2 = S.parseWith(undefined, schema);
+  const value1 = S.parseOrThrow("foo", schema);
+  const value2 = S.parseOrThrow(undefined, schema);
 
   t.deepEqual(value1, "foo");
   t.deepEqual(value2, undefined);
@@ -316,8 +316,8 @@ test("Successfully parses schema wrapped in optional multiple times", (t) => {
 
 test("Successfully parses nullable string", (t) => {
   const schema = S.nullable(S.string);
-  const value1 = S.parseWith("foo", schema);
-  const value2 = S.parseWith(null, schema);
+  const value1 = S.parseOrThrow("foo", schema);
+  const value2 = S.parseOrThrow(null, schema);
 
   t.deepEqual(value1, "foo");
   t.deepEqual(value2, undefined);
@@ -330,9 +330,9 @@ test("Successfully parses nullable string", (t) => {
 
 test("Successfully parses nullish string", (t) => {
   const schema = S.nullish(S.string);
-  const value1 = S.parseWith("foo", schema);
-  const value2 = S.parseWith(undefined, schema);
-  const value3 = S.parseWith(null, schema);
+  const value1 = S.parseOrThrow("foo", schema);
+  const value2 = S.parseOrThrow(undefined, schema);
+  const value3 = S.parseOrThrow(null, schema);
 
   t.deepEqual(value1, "foo");
   t.deepEqual(value2, undefined);
@@ -349,8 +349,8 @@ test("Successfully parses nullish string", (t) => {
 
 test("Successfully parses schema wrapped in nullable multiple times", (t) => {
   const schema = S.nullable(S.nullable(S.nullable(S.string)));
-  const value1 = S.parseWith("foo", schema);
-  const value2 = S.parseWith(null, schema);
+  const value1 = S.parseOrThrow("foo", schema);
+  const value2 = S.parseOrThrow(null, schema);
 
   t.deepEqual(value1, "foo");
   t.deepEqual(value2, undefined);
@@ -367,7 +367,7 @@ test("Fails to parse with invalid data", (t) => {
 
   t.throws(
     () => {
-      S.parseWith(123, schema);
+      S.parseOrThrow(123, schema);
     },
     {
       name: "RescriptSchemaError",
@@ -402,7 +402,7 @@ test("Fails to serialize never", (t) => {
 
 test("Successfully parses with transform to another type", (t) => {
   const schema = S.transform(S.string, (string) => Number(string));
-  const value = S.parseWith("123", schema);
+  const value = S.parseOrThrow("123", schema);
 
   t.deepEqual(value, 123);
 
@@ -417,13 +417,13 @@ test("Fails to parse with transform with user error", (t) => {
     }
     return number;
   });
-  const value = S.parseWith("123", schema);
+  const value = S.parseOrThrow("123", schema);
   t.deepEqual(value, 123);
   expectType<TypeEqual<typeof value, number>>(true);
 
   t.throws(
     () => {
-      S.parseWith("asdf", schema);
+      S.parseOrThrow("asdf", schema);
     },
     {
       name: "RescriptSchemaError",
@@ -468,7 +468,7 @@ test("Successfully parses with refine", (t) => {
   const schema = S.refine(S.string, (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
-  const value = S.parseWith("123", schema);
+  const value = S.parseOrThrow("123", schema);
 
   t.deepEqual(value, "123");
 
@@ -493,7 +493,7 @@ test("Fails to parses with refine raising an error", (t) => {
 
   t.throws(
     () => {
-      S.parseWith("123", schema);
+      S.parseOrThrow("123", schema);
     },
     {
       name: "RescriptSchemaError",
@@ -506,7 +506,7 @@ test("Successfully parses async schema", async (t) => {
   const schema = S.asyncParserRefine(S.string, async (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
-  const value = await S.safeAsync(() => S.parseAsyncWith("123", schema));
+  const value = await S.safeAsync(() => S.parseAsyncOrThrow("123", schema));
 
   t.deepEqual(value, { success: true, value: "123" });
 
@@ -520,7 +520,7 @@ test("Fails to parses async schema", async (t) => {
     });
   });
 
-  const result = await S.safeAsync(() => S.parseAsyncWith("123", schema));
+  const result = await S.safeAsync(() => S.parseAsyncOrThrow("123", schema));
 
   if (result.success) {
     t.fail("Should fail");
@@ -551,11 +551,11 @@ test("Custom string schema", (t) => {
     }
   );
 
-  t.deepEqual(S.parseWith("12345", schema), "12345");
+  t.deepEqual(S.parseOrThrow("12345", schema), "12345");
   t.deepEqual(S.convertOrThrow("12345", S.reverse(schema)), "12345");
   t.throws(
     () => {
-      S.parseWith(123, schema);
+      S.parseOrThrow(123, schema);
     },
     {
       name: "RescriptSchemaError",
@@ -564,7 +564,7 @@ test("Custom string schema", (t) => {
   );
   t.throws(
     () => {
-      S.parseWith("123", schema);
+      S.parseOrThrow("123", schema);
     },
     {
       name: "RescriptSchemaError",
@@ -581,7 +581,7 @@ test("Successfully parses object by provided shape", (t) => {
     foo: S.string,
     bar: S.boolean,
   });
-  const value = S.parseWith(
+  const value = S.parseOrThrow(
     {
       foo: "bar",
       bar: true,
@@ -625,7 +625,7 @@ test("Successfully parses tagged object", (t) => {
     tag: "block" as const,
     bar: S.boolean,
   });
-  const value = S.parseWith(
+  const value = S.parseOrThrow(
     {
       tag: "block",
       bar: true,
@@ -668,7 +668,7 @@ test("Successfully parses and reverse convert object with optional field", (t) =
   const schema = S.schema({
     bar: S.optional(S.boolean),
   });
-  const value = S.parseWith({}, schema);
+  const value = S.parseOrThrow({}, schema);
   t.deepEqual(value, { bar: undefined });
 
   const reversed = S.convertOrThrow(value, S.reverse(schema));
@@ -697,7 +697,7 @@ test("Successfully parses object with field names transform", (t) => {
     foo: s.field("Foo", S.string),
     bar: s.field("Bar", S.boolean),
   }));
-  const value = S.parseWith(
+  const value = S.parseOrThrow(
     {
       Foo: "bar",
       Bar: true,
@@ -738,7 +738,7 @@ test("Successfully parses object with transformed field", (t) => {
     foo: S.transform(S.string, (string) => Number(string)),
     bar: S.boolean,
   });
-  const value = S.parseWith(
+  const value = S.parseOrThrow(
     {
       foo: "123",
       bar: true,
@@ -786,7 +786,7 @@ test("Fails to parse strict object with exccess fields", (t) => {
 
   t.throws(
     () => {
-      const value = S.parseWith(
+      const value = S.parseOrThrow(
         {
           foo: "bar",
           bar: true,
@@ -834,7 +834,7 @@ test("Fails to parse strict object with exccess fields which created using globa
 
   t.throws(
     () => {
-      const value = S.parseWith(
+      const value = S.parseOrThrow(
         {
           foo: "bar",
           bar: true,
@@ -879,7 +879,7 @@ test("Resets object strict mode with strip method", (t) => {
     )
   );
 
-  const value = S.parseWith(
+  const value = S.parseOrThrow(
     {
       foo: "bar",
       bar: true,
@@ -939,7 +939,7 @@ test("Successfully parses intersected objects", (t) => {
   >(true);
 
   const result = S.safe(() =>
-    S.parseWith(
+    S.parseOrThrow(
       {
         foo: "bar",
         bar: true,
@@ -956,7 +956,7 @@ test("Successfully parses intersected objects", (t) => {
     `Failed parsing at ["baz"]. Reason: Expected String, received undefined`
   );
 
-  const value = S.parseWith(
+  const value = S.parseOrThrow(
     {
       foo: "bar",
       baz: "baz",
@@ -1002,7 +1002,7 @@ test("Successfully parses intersected objects with transform", (t) => {
   >(true);
 
   const result = S.safe(() =>
-    S.parseWith(
+    S.parseOrThrow(
       {
         foo: "bar",
         bar: true,
@@ -1019,7 +1019,7 @@ test("Successfully parses intersected objects with transform", (t) => {
     `Failed parsing at ["baz"]. Reason: Expected String, received undefined`
   );
 
-  const value = S.parseWith(
+  const value = S.parseOrThrow(
     {
       foo: "bar",
       baz: "baz",
@@ -1086,7 +1086,7 @@ test("Successfully parses object using S.schema", (t) => {
     foo: S.string,
     bar: S.boolean,
   });
-  const value = S.parseWith(
+  const value = S.parseOrThrow(
     {
       foo: "bar",
       bar: true,
@@ -1121,7 +1121,7 @@ test("Successfully parses object using S.schema", (t) => {
 
 test("Successfully parses tuple using S.schema", (t) => {
   const schema = S.schema([S.string, S.boolean] as const);
-  const value = S.parseWith(["bar", true], schema);
+  const value = S.parseOrThrow(["bar", true], schema);
 
   t.deepEqual(value, ["bar", true]);
 
@@ -1133,7 +1133,7 @@ test("Successfully parses tuple using S.schema", (t) => {
 
 test("Successfully parses primitive schema passed to S.schema", (t) => {
   const schema = S.schema(S.string);
-  const value = S.parseWith("bar", schema);
+  const value = S.parseOrThrow("bar", schema);
 
   t.deepEqual(value, "bar");
 
@@ -1144,7 +1144,7 @@ test("Successfully parses primitive schema passed to S.schema", (t) => {
 test("Successfully parses literal using S.schema", (t) => {
   const schema = S.schema("foo" as const);
 
-  const value = S.parseWith("foo", schema);
+  const value = S.parseOrThrow("foo", schema);
 
   t.deepEqual(value, "foo");
 
@@ -1158,7 +1158,7 @@ test("Successfully parses nested object using S.schema", (t) => {
       bar: S.number,
     },
   });
-  const value = S.parseWith(
+  const value = S.parseOrThrow(
     {
       foo: { bar: 123 },
     },
@@ -1197,7 +1197,7 @@ test("S.schema example", (t) => {
     radius: S.number,
   });
 
-  const value = S.parseWith(
+  const value = S.parseOrThrow(
     {
       kind: "circle",
       radius: 123,
@@ -1220,7 +1220,7 @@ test("setName", (t) => {
 
 test("Successfully parses and returns result", (t) => {
   const schema = S.string;
-  const value = S.safe(() => S.parseWith("123", schema));
+  const value = S.safe(() => S.parseOrThrow("123", schema));
 
   t.deepEqual(value, { success: true, value: "123" });
 
@@ -1279,7 +1279,7 @@ test("Successfully serializes and returns result", (t) => {
 
 test("Successfully parses union", (t) => {
   const schema = S.union([S.string, S.number]);
-  const value = S.safe(() => S.parseWith("123", schema));
+  const value = S.safe(() => S.parseOrThrow("123", schema));
 
   t.deepEqual(value, { success: true, value: "123" });
 
@@ -1304,7 +1304,7 @@ test("Shape union", (t) => {
       y: S.number,
     },
   ]);
-  const value = S.parseWith(
+  const value = S.parseOrThrow(
     {
       kind: "circle",
       radius: 123,
@@ -1344,7 +1344,7 @@ test("Successfully parses union with transformed items", (t) => {
     S.transform(S.string, (string) => Number(string)),
     S.number,
   ]);
-  const value = S.safe(() => S.parseWith("123", schema));
+  const value = S.safe(() => S.parseOrThrow("123", schema));
 
   t.deepEqual(value, { success: true, value: 123 });
 
@@ -1354,7 +1354,7 @@ test("Successfully parses union with transformed items", (t) => {
 test("String literal", (t) => {
   const schema = S.literal("tuna");
 
-  t.deepEqual(S.parseWith("tuna", schema), "tuna");
+  t.deepEqual(S.parseOrThrow("tuna", schema), "tuna");
 
   expectType<TypeEqual<typeof schema, S.Schema<"tuna", "tuna">>>(true);
 });
@@ -1362,7 +1362,7 @@ test("String literal", (t) => {
 test("Boolean literal", (t) => {
   const schema = S.literal(true);
 
-  t.deepEqual(S.parseWith(true, schema), true);
+  t.deepEqual(S.parseOrThrow(true, schema), true);
 
   expectType<TypeEqual<typeof schema, S.Schema<true, true>>>(true);
 });
@@ -1370,7 +1370,7 @@ test("Boolean literal", (t) => {
 test("Number literal", (t) => {
   const schema = S.literal(123);
 
-  t.deepEqual(S.parseWith(123, schema), 123);
+  t.deepEqual(S.parseOrThrow(123, schema), 123);
 
   expectType<TypeEqual<typeof schema, S.Schema<123, 123>>>(true);
 });
@@ -1378,7 +1378,7 @@ test("Number literal", (t) => {
 test("Undefined literal", (t) => {
   const schema = S.literal(undefined);
 
-  t.deepEqual(S.parseWith(undefined, schema), undefined);
+  t.deepEqual(S.parseOrThrow(undefined, schema), undefined);
 
   expectType<TypeEqual<typeof schema, S.Schema<undefined, undefined>>>(true);
 });
@@ -1386,7 +1386,7 @@ test("Undefined literal", (t) => {
 test("Null literal", (t) => {
   const schema = S.literal(null);
 
-  t.deepEqual(S.parseWith(null, schema), null);
+  t.deepEqual(S.parseOrThrow(null, schema), null);
 
   expectType<TypeEqual<typeof schema, S.Schema<null, null>>>(true);
 });
@@ -1395,7 +1395,7 @@ test("Symbol literal", (t) => {
   let symbol = Symbol();
   const schema = S.literal(symbol);
 
-  t.deepEqual(S.parseWith(symbol, schema), symbol);
+  t.deepEqual(S.parseOrThrow(symbol, schema), symbol);
 
   expectType<TypeEqual<typeof schema, S.Schema<symbol, symbol>>>(true);
 });
@@ -1403,7 +1403,7 @@ test("Symbol literal", (t) => {
 test("BigInt literal", (t) => {
   const schema = S.literal(123n);
 
-  t.deepEqual(S.parseWith(123n, schema), 123n);
+  t.deepEqual(S.parseOrThrow(123n, schema), 123n);
 
   expectType<TypeEqual<typeof schema, S.Schema<bigint, bigint>>>(true);
 });
@@ -1411,7 +1411,7 @@ test("BigInt literal", (t) => {
 test("NaN literal", (t) => {
   const schema = S.literal(NaN);
 
-  t.deepEqual(S.parseWith(NaN, schema), NaN);
+  t.deepEqual(S.parseOrThrow(NaN, schema), NaN);
 
   expectType<TypeEqual<typeof schema, S.Schema<number, number>>>(true);
 });
@@ -1419,7 +1419,10 @@ test("NaN literal", (t) => {
 test("Tuple literal", (t) => {
   const cliArgsSchema = S.literal(["help", "lint"] as const);
 
-  t.deepEqual(S.parseWith(["help", "lint"], cliArgsSchema), ["help", "lint"]);
+  t.deepEqual(S.parseOrThrow(["help", "lint"], cliArgsSchema), [
+    "help",
+    "lint",
+  ]);
 
   expectType<
     TypeEqual<
@@ -1440,7 +1443,7 @@ test("Correctly infers type", (t) => {
 test("Successfully parses undefined using the default value", (t) => {
   const schema = S.optional(S.string, "foo");
 
-  const value = S.parseWith(undefined, schema);
+  const value = S.parseOrThrow(undefined, schema);
 
   t.deepEqual(value, "foo");
 
@@ -1452,7 +1455,7 @@ test("Successfully parses undefined using the default value", (t) => {
 test("Successfully parses undefined using the default value from callback", (t) => {
   const schema = S.optional(S.string, () => "foo");
 
-  const value = S.parseWith(undefined, schema);
+  const value = S.parseOrThrow(undefined, schema);
 
   t.deepEqual(value, "foo");
 
@@ -1491,7 +1494,7 @@ test("Creates schema with description", (t) => {
 test("Empty tuple", (t) => {
   const schema = S.tuple([]);
 
-  t.deepEqual(S.parseWith([], schema), []);
+  t.deepEqual(S.parseOrThrow([], schema), []);
 
   expectType<TypeEqual<typeof schema, S.Schema<[], []>>>(true);
 });
@@ -1499,7 +1502,7 @@ test("Empty tuple", (t) => {
 test("Tuple with single element", (t) => {
   const schema = S.tuple([S.transform(S.string, (s) => Number(s))]);
 
-  t.deepEqual(S.parseWith(["123"], schema), [123]);
+  t.deepEqual(S.parseOrThrow(["123"], schema), [123]);
 
   expectType<TypeEqual<typeof schema, S.Schema<[number], [string]>>>(true);
 });
@@ -1507,7 +1510,7 @@ test("Tuple with single element", (t) => {
 test("Tuple with multiple elements", (t) => {
   const schema = S.tuple([S.transform(S.string, (s) => Number(s)), S.number]);
 
-  t.deepEqual(S.parseWith(["123", 123], schema), [123, 123]);
+  t.deepEqual(S.parseOrThrow(["123", 123], schema), [123, 123]);
 
   expectType<
     TypeEqual<typeof schema, S.Schema<[number, number], [string, number]>>
@@ -1523,7 +1526,7 @@ test("Tuple with transform to object", (t) => {
     };
   });
 
-  t.deepEqual(S.parseWith(["point", 1, -4], pointSchema), { x: 1, y: -4 });
+  t.deepEqual(S.parseOrThrow(["point", 1, -4], pointSchema), { x: 1, y: -4 });
 
   expectType<
     TypeEqual<
@@ -1580,7 +1583,7 @@ test("Successfully parses recursive object", (t) => {
   expectType<TypeEqual<typeof nodeSchema, S.Schema<Node, Node>>>(true);
 
   t.deepEqual(
-    S.parseWith(
+    S.parseOrThrow(
       {
         id: "1",
         children: [
@@ -1613,13 +1616,13 @@ test("Example", (t) => {
   t.throws(
     () => {
       // Throws the S.Error(`Failed parsing at ["email"]. Reason: Invalid email address`)
-      S.parseWith({ email: "", password: "" }, loginSchema);
+      S.parseOrThrow({ email: "", password: "" }, loginSchema);
     },
     { message: `Failed parsing at ["email"]. Reason: Invalid email address` }
   );
 
   // Returns data as { email: string; password: string }
-  const result = S.parseWith(
+  const result = S.parseOrThrow(
     {
       email: "jane@example.com",
       password: "12345678",

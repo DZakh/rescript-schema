@@ -219,12 +219,9 @@ let compile: (
   ~typeValidation: bool,
 ) => 'input => 'output
 
-let parseWith: (Js.Json.t, t<'value>) => result<'value, error>
-let parseAnyWith: ('any, t<'value>) => result<'value, error>
-let parseJsonStringWith: (string, t<'value>) => result<'value, error>
 let parseOrThrow: ('any, t<'value>) => 'value
-let parseAsyncWith: (Js.Json.t, t<'value>) => promise<result<'value, error>>
-let parseAnyAsyncWith: ('any, t<'value>) => promise<result<'value, error>>
+let parseJsonStringOrThrow: (string, t<'value>) => 'value
+let parseAsyncOrThrow: ('any, t<'value>) => promise<'value>
 
 let convertOrThrow: ('any, t<'value>) => 'value
 let convertToJsonOrThrow: ('any, t<'value>) => Js.Json.t
@@ -415,9 +412,6 @@ let js_safe: (unit => 'v) => jsResult<'v>
 let js_safeAsync: (unit => promise<'v>) => promise<jsResult<'v>>
 
 let js_union: array<unknown> => t<'value>
-
-// TODO: Replace parseAsyncWith with it in V9
-let js_parseAsyncWith: (Js.Json.t, t<'value>) => promise<'value>
 
 let js_optional: (t<'v>, option<unknown>) => t<option<'v>>
 

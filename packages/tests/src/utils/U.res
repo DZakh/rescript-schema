@@ -51,15 +51,16 @@ let assertThrowsTestException = {
   }
 }
 
-let assertErrorResult = (t, cb, errorPayload) => {
+let assertRaised = (t, cb, errorPayload) => {
   switch cb() {
-  | Ok(any) => t->Assert.fail("Asserted result is not Error. Recieved: " ++ any->unsafeStringify)
-  | Error(err) => t->Assert.is(err->S.Error.message, error(errorPayload)->S.Error.message, ())
+  | any => t->Assert.fail("Asserted result is not Error. Recieved: " ++ any->unsafeStringify)
+  | exception S.Raised(err) =>
+    t->Assert.is(err->S.Error.message, error(errorPayload)->S.Error.message, ())
   }
 }
 
-let assertRaised = (t, cb, errorPayload) => {
-  switch cb() {
+let assertRaisedAsync = async (t, cb, errorPayload) => {
+  switch await cb() {
   | any => t->Assert.fail("Asserted result is not Error. Recieved: " ++ any->unsafeStringify)
   | exception S.Raised(err) =>
     t->Assert.is(err->S.Error.message, error(errorPayload)->S.Error.message, ())
@@ -147,8 +148,7 @@ let assertReverseParsesBack = (t, schema: S.t<'value>, value: 'value) => {
   t->Assert.unsafeDeepEqual(
     value
     ->S.reverseConvertOrThrow(schema)
-    ->S.parseAnyWith(schema)
-    ->S.unwrap,
+    ->S.parseOrThrow(schema),
     value,
     (),
   )

@@ -4,13 +4,13 @@ open RescriptCore
 test("Parses unknown primitive with transformation to the same type", t => {
   let schema = S.string->S.transform(_ => {parser: value => value->String.trim})
 
-  t->Assert.deepEqual("  Hello world!"->S.parseAnyWith(schema), Ok("Hello world!"), ())
+  t->Assert.deepEqual("  Hello world!"->S.parseOrThrow(schema), "Hello world!", ())
 })
 
 test("Parses unknown primitive with transformation to another type", t => {
   let schema = S.int->S.transform(_ => {parser: value => value->Int.toFloat})
 
-  t->Assert.deepEqual(123->S.parseAnyWith(schema), Ok(123.), ())
+  t->Assert.deepEqual(123->S.parseOrThrow(schema), 123., ())
 })
 
 asyncTest(
@@ -20,15 +20,15 @@ asyncTest(
       asyncParser: value => () => Promise.resolve()->Promise.thenResolve(() => value->Int.toFloat),
     })
 
-    t->Assert.deepEqual(await 123->S.parseAnyAsyncWith(schema), Ok(123.), ())
+    t->Assert.deepEqual(await 123->S.parseAsyncOrThrow(schema), 123., ())
   },
 )
 
 test("Fails to parse primitive with transform when parser isn't provided", t => {
   let schema = S.string->S.transform(_ => {serializer: value => value})
 
-  t->U.assertErrorResult(
-    () => "Hello world!"->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => "Hello world!"->S.parseOrThrow(schema),
     {
       code: InvalidOperation({description: "The S.transform parser is missing"}),
       operation: Parse,
@@ -40,10 +40,9 @@ test("Fails to parse primitive with transform when parser isn't provided", t => 
 test("Fails to parse when user raises error in a Transformed Primitive parser", t => {
   let schema = S.string->S.transform(s => {parser: _ => s.fail("User error")})
 
-  t->Assert.deepEqual(
-    "Hello world!"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("User error"), operation: Parse, path: S.Path.empty})),
-    (),
+  t->U.assertRaised(
+    () => "Hello world!"->S.parseOrThrow(schema),
+    {code: OperationFailed("User error"), operation: Parse, path: S.Path.empty},
   )
 })
 
@@ -61,8 +60,8 @@ test("Uses the path from S.Error.raise called in the transform parser", t => {
     }),
   )
 
-  t->U.assertErrorResult(
-    () => ["Hello world!"]->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => ["Hello world!"]->S.parseOrThrow(schema),
     {
       code: OperationFailed("User error"),
       operation: Parse,
@@ -101,7 +100,7 @@ test("Transform parser passes through non rescript-schema errors", t => {
   )
 
   t->Assert.throws(
-    () => {["Hello world!"]->S.parseAnyWith(schema)},
+    () => {["Hello world!"]->S.parseOrThrow(schema)},
     ~expectations={
       message: "Application crashed",
     },
@@ -112,14 +111,14 @@ test("Transform parser passes through non rescript-schema errors", t => {
 test("Transform parser passes through other rescript exceptions", t => {
   let schema = S.array(S.string->S.transform(_ => {parser: _ => U.raiseTestException()}))
 
-  t->U.assertThrowsTestException(() => {["Hello world!"]->S.parseAnyWith(schema)}, ())
+  t->U.assertThrowsTestException(() => {["Hello world!"]->S.parseOrThrow(schema)}, ())
 })
 
 test("Transform definition passes through non rescript-schema errors", t => {
   let schema = S.array(S.string->S.transform(_ => Exn.raiseError("Application crashed")))
 
   t->Assert.throws(
-    () => {["Hello world!"]->S.parseAnyWith(schema)},
+    () => {["Hello world!"]->S.parseOrThrow(schema)},
     ~expectations={
       message: "Application crashed",
     },
@@ -130,7 +129,7 @@ test("Transform definition passes through non rescript-schema errors", t => {
 test("Transform definition passes through other rescript exceptions", t => {
   let schema = S.array(S.string->S.transform(_ => U.raiseTestException()))
 
-  t->U.assertThrowsTestException(() => {["Hello world!"]->S.parseAnyWith(schema)}, ())
+  t->U.assertThrowsTestException(() => {["Hello world!"]->S.parseOrThrow(schema)}, ())
 })
 
 test("Successfully serializes primitive with transformation to the same type", t => {
@@ -173,8 +172,8 @@ test("Transform operations applyed in the right order when parsing", t => {
     ->S.transform(s => {parser: _ => s.fail("First transform")})
     ->S.transform(s => {parser: _ => s.fail("Second transform")})
 
-  t->U.assertErrorResult(
-    () => 123->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => 123->S.parseOrThrow(schema),
     {code: OperationFailed("First transform"), operation: Parse, path: S.Path.empty},
   )
 })
@@ -205,11 +204,7 @@ test(
       serializer: value => value->Int.fromFloat,
     })
 
-    t->Assert.deepEqual(
-      any->S.parseAnyWith(schema)->Result.map(object => object->S.reverseConvertOrThrow(schema)),
-      Ok(any),
-      (),
-    )
+    t->Assert.deepEqual(any->S.parseOrThrow(schema)->S.reverseConvertOrThrow(schema), any, ())
   },
 )
 
@@ -217,8 +212,8 @@ test("Fails to parse schema with transform having both parser and asyncParser", 
   let schema =
     S.string->S.transform(_ => {parser: _ => (), asyncParser: _ => () => Promise.resolve()})
 
-  t->U.assertErrorResult(
-    () => "foo"->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => "foo"->S.parseOrThrow(schema),
     {
       code: InvalidOperation({
         description: "The S.transform doesn\'t allow parser and asyncParser at the same time. Remove parser in favor of asyncParser",
@@ -229,20 +224,19 @@ test("Fails to parse schema with transform having both parser and asyncParser", 
   )
 })
 
-test("Fails to parse async using parseAnyWith", t => {
+test("Fails to parse async using parseOrThrow", t => {
   let schema = S.string->S.transform(_ => {asyncParser: value => () => Promise.resolve(value)})
 
-  t->Assert.deepEqual(
-    %raw(`"Hello world!"`)->S.parseAnyWith(schema),
-    Error(U.error({code: UnexpectedAsync, operation: Parse, path: S.Path.empty})),
-    (),
+  t->U.assertRaised(
+    () => %raw(`"Hello world!"`)->S.parseOrThrow(schema),
+    {code: UnexpectedAsync, operation: Parse, path: S.Path.empty},
   )
 })
 
 test("Successfully parses with empty transform", t => {
   let schema = S.string->S.transform(_ => {})
 
-  t->Assert.deepEqual(%raw(`"Hello world!"`)->S.parseAnyWith(schema), Ok("Hello world!"), ())
+  t->Assert.deepEqual(%raw(`"Hello world!"`)->S.parseOrThrow(schema), "Hello world!", ())
 })
 
 test("Successfully serializes with empty transform", t => {
@@ -251,31 +245,23 @@ test("Successfully serializes with empty transform", t => {
   t->Assert.deepEqual("Hello world!"->S.reverseConvertOrThrow(schema), %raw(`"Hello world!"`), ())
 })
 
-asyncTest("Successfully parses async using parseAsyncWith", t => {
+asyncTest("Successfully parses async using parseAsyncOrThrow", t => {
   let schema = S.string->S.transform(_ => {asyncParser: value => () => Promise.resolve(value)})
 
   %raw(`"Hello world!"`)
-  ->S.parseAsyncWith(schema)
+  ->S.parseAsyncOrThrow(schema)
   ->Promise.thenResolve(result => {
-    t->Assert.deepEqual(result, Ok("Hello world!"), ())
+    t->Assert.deepEqual(result, "Hello world!", ())
   })
 })
 
 asyncTest("Fails to parse async with user error", t => {
   let schema = S.string->S.transform(s => {asyncParser: _ => () => s.fail("User error")})
 
-  %raw(`"Hello world!"`)
-  ->S.parseAsyncWith(schema)
-  ->Promise.thenResolve(result => {
-    t->U.assertErrorResult(
-      () => result,
-      {
-        code: OperationFailed("User error"),
-        path: S.Path.empty,
-        operation: ParseAsync,
-      },
-    )
-  })
+  t->U.assertRaisedAsync(
+    () => %raw(`"Hello world!"`)->S.parseAsyncOrThrow(schema),
+    {code: OperationFailed("User error"), operation: ParseAsync, path: S.Path.empty},
+  )
 })
 
 asyncTest("Can apply other actions after async transform", t => {
@@ -292,9 +278,9 @@ asyncTest("Can apply other actions after async transform", t => {
   )
 
   %raw(`"    Hello world!"`)
-  ->S.parseAsyncWith(schema)
+  ->S.parseAsyncOrThrow(schema)
   ->Promise.thenResolve(result => {
-    t->Assert.deepEqual(result, Ok("Hello world!"), ())
+    t->Assert.deepEqual(result, "Hello world!", ())
   })
 })
 

@@ -4,8 +4,8 @@ test("Successfully parses valid data", t => {
   let schema = S.string->S.cuid
 
   t->Assert.deepEqual(
-    "ckopqwooh000001la8mbi2im9"->S.parseAnyWith(schema),
-    Ok("ckopqwooh000001la8mbi2im9"),
+    "ckopqwooh000001la8mbi2im9"->S.parseOrThrow(schema),
+    "ckopqwooh000001la8mbi2im9",
     (),
   )
 })
@@ -13,10 +13,9 @@ test("Successfully parses valid data", t => {
 test("Fails to parse invalid data", t => {
   let schema = S.string->S.cuid
 
-  t->Assert.deepEqual(
-    "cifjhdsfhsd-invalid-cuid"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("Invalid CUID"), operation: Parse, path: S.Path.empty})),
-    (),
+  t->U.assertRaised(
+    () => "cifjhdsfhsd-invalid-cuid"->S.parseOrThrow(schema),
+    {code: OperationFailed("Invalid CUID"), operation: Parse, path: S.Path.empty},
   )
 })
 
@@ -42,10 +41,9 @@ test("Fails to serialize invalid value", t => {
 test("Returns custom error message", t => {
   let schema = S.string->S.cuid(~message="Custom")
 
-  t->Assert.deepEqual(
-    "cifjhdsfhsd-invalid-cuid"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("Custom"), operation: Parse, path: S.Path.empty})),
-    (),
+  t->U.assertRaised(
+    () => "cifjhdsfhsd-invalid-cuid"->S.parseOrThrow(schema),
+    {code: OperationFailed("Custom"), operation: Parse, path: S.Path.empty},
   )
 })
 

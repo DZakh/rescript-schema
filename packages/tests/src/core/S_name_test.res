@@ -68,8 +68,8 @@ test("Name of renamed schema", t => {
   t->Assert.deepEqual(originalSchema->S.name, "Never", ())
   t->Assert.deepEqual(renamedSchema->S.name, "Ethers.BigInt", ())
   // Uses new name when failing
-  t->U.assertErrorResult(
-    () => "smth"->S.parseAnyWith(renamedSchema),
+  t->U.assertRaised(
+    () => "smth"->S.parseOrThrow(renamedSchema),
     {
       path: S.Path.empty,
       operation: Parse,
