@@ -106,8 +106,6 @@ var setName = S_Core$RescriptSchema.setName;
 
 var removeTypeValidation = S_Core$RescriptSchema.removeTypeValidation;
 
-var unwrap = S_Core$RescriptSchema.unwrap;
-
 var Schema = S_Core$RescriptSchema.Schema;
 
 var schema = S_Core$RescriptSchema.schema;
@@ -233,7 +231,6 @@ export {
   classify ,
   setName ,
   removeTypeValidation ,
-  unwrap ,
   Schema ,
   schema ,
   $$Object ,
