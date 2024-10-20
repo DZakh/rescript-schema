@@ -3905,13 +3905,6 @@ let trim = schema => {
   schema->transform(_ => {parser: transformer, serializer: transformer})
 }
 
-let unwrap = result => {
-  switch result {
-  | Ok(v) => v
-  | Error(error) => Stdlib.Exn.raiseAny(error)
-  }
-}
-
 // =============
 // JS/TS API
 // =============

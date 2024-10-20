@@ -2781,13 +2781,6 @@ function trim(schema) {
               }));
 }
 
-function unwrap(result) {
-  if (result.TAG === "Ok") {
-    return result._0;
-  }
-  throw result._0;
-}
-
 function js_union(values) {
   return factory$7(values.map(definitionToSchema));
 }
@@ -3115,7 +3108,6 @@ export {
   classify ,
   setName ,
   removeTypeValidation ,
-  unwrap ,
   Schema ,
   schema$7 as schema,
   $$Object ,
