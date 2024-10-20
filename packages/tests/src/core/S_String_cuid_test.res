@@ -24,7 +24,7 @@ test("Successfully serializes valid value", t => {
   let schema = S.string->S.cuid
 
   t->Assert.deepEqual(
-    "ckopqwooh000001la8mbi2im9"->S.reverseConvertWith(schema),
+    "ckopqwooh000001la8mbi2im9"->S.reverseConvertOrThrow(schema),
     %raw(`"ckopqwooh000001la8mbi2im9"`),
     (),
   )
@@ -34,7 +34,7 @@ test("Fails to serialize invalid value", t => {
   let schema = S.string->S.cuid
 
   t->U.assertRaised(
-    () => "cifjhdsfhsd-invalid-cuid"->S.reverseConvertWith(schema),
+    () => "cifjhdsfhsd-invalid-cuid"->S.reverseConvertOrThrow(schema),
     {code: OperationFailed("Invalid CUID"), operation: ReverseConvert, path: S.Path.empty},
   )
 })

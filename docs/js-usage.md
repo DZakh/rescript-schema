@@ -320,7 +320,7 @@ type User = S.Output<typeof userSchema>; // { id: number; name: string }
 Compared to using `S.transform`, the approach has 0 performance overhead. Also, you can use the same schema to convert the parsed data back to the initial format:
 
 ```ts
-S.convertWith(
+S.convertOrThrow(
   {
     id: 1,
     name: "John",

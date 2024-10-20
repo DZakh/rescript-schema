@@ -198,7 +198,7 @@ module CrazyUnion = {
 
   let test = () => {
     Console.time("testData1 serialize")
-    let json = S.reverseConvertWith(testData1, schema)
+    let json = S.reverseConvertOrThrow(testData1, schema)
     Console.timeEnd("testData1 serialize")
 
     Console.time("testData1 parse")
@@ -206,7 +206,7 @@ module CrazyUnion = {
     Console.timeEnd("testData1 parse")
 
     Console.time("testData2 serialize")
-    let json = S.reverseConvertWith(testData2, schema)
+    let json = S.reverseConvertOrThrow(testData2, schema)
     Console.timeEnd("testData2 serialize")
 
     Console.time("testData2 parse")
@@ -233,13 +233,13 @@ data->S.parseAnyWith(schema)->ignore
 Console.timeEnd("parseAnyWith: 3")
 
 Console.time("serializeWith: 1")
-data->S.reverseConvertWith(schema)->ignore
+data->S.reverseConvertOrThrow(schema)->ignore
 Console.timeEnd("serializeWith: 1")
 Console.time("serializeWith: 2")
-data->S.reverseConvertWith(schema)->ignore
+data->S.reverseConvertOrThrow(schema)->ignore
 Console.timeEnd("serializeWith: 2")
 Console.time("serializeWith: 3")
-data->S.reverseConvertWith(schema)->ignore
+data->S.reverseConvertOrThrow(schema)->ignore
 Console.timeEnd("serializeWith: 3")
 
 Console.time("S.Error.make")
@@ -255,14 +255,14 @@ Suite.make()
   let schema = S.string
   let data = "Hello world!"
   () => {
-    data->S.parseAnyOrRaiseWith(schema)
+    data->S.parseOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Reverse convert string", () => {
   let schema = S.string
   let data = "Hello world!"
   () => {
-    data->S.reverseConvertWith(schema)
+    data->S.reverseConvertOrThrow(schema)
   }
 })
 ->Suite.add("Advanced object schema factory", makeAdvancedObjectSchema)
@@ -270,7 +270,7 @@ Suite.make()
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.parseAnyOrRaiseWith(schema)
+    data->S.parseOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Assert advanced object - compile", () => {
@@ -285,49 +285,49 @@ Suite.make()
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.assertWith(schema)
+    data->S.assertOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Create and parse advanced object", () => {
   let data = makeTestObject()
   () => {
     let schema = makeAdvancedObjectSchema()
-    data->S.parseAnyOrRaiseWith(schema)
+    data->S.parseOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Create and parse advanced object - with S.schema", () => {
   let data = makeTestObject()
   () => {
     let schema = makeAdvancedObjectSchemaWithSSchema()
-    data->S.parseAnyOrRaiseWith(schema)
+    data->S.parseOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Parse advanced strict object", () => {
   let schema = makeAdvancedStrictObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.parseAnyOrRaiseWith(schema)
+    data->S.parseOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Assert advanced strict object", () => {
   let schema = makeAdvancedStrictObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.assertWith(schema)
+    data->S.assertOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Reverse convert advanced object", () => {
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.reverseConvertWith(schema) // FIXME: This is super slow
+    data->S.reverseConvertOrThrow(schema) // FIXME: This is super slow
   }
 })
 ->Suite.addWithPrepare("Reverse convert advanced object - with S.schema", () => {
   let schema = makeAdvancedObjectSchemaWithSSchema()
   let data = makeTestObject()
   () => {
-    data->S.reverseConvertWith(schema)
+    data->S.reverseConvertOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Reverse convert advanced object - compile", () => {

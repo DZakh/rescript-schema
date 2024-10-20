@@ -13,7 +13,7 @@ module Common = {
   test("Successfully serializes", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(any->S.reverseConvertWith(schema), any, ())
+    t->Assert.deepEqual(any->S.reverseConvertOrThrow(schema), any, ())
   })
 
   test("Compiled parse code snapshot", t => {

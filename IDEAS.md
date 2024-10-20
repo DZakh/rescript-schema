@@ -24,42 +24,29 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Remove ...OrThrow/orRaise
 - Add S.compile to Js/ts api
-- Add mode/flags instead of operation
 - S.transform(s => {
   s.reverse(input => input) // Or s.asyncReverse(input => Promise.resolve(input))
   input => input
   }) // or asyncTransform // Maybe format ?
 - async serializing support
-- Rename serialize to convertReverse
 - S.create / S.validate
 - Rename S.inline to S.toRescriptCode
 - Fix reverse for object/tuple/to/recursive/schema
 - Rename disableNanNumberCheck to use validation
 - Add tag for BigInt
-- Add literal shorthand for unions in ts api
 - Add flatten to ts api
 - Get rid of Caml_js_exceptions.internalToOCamlException
 - Add testWith
 - Use type args for S.compile - tweet why it didn't work
 - Change asyncParser from () => () => promise to () => promise
 - Add schema input to the error ??? What about build errors?
-- Improve S.schema performance and expose it to the JS/TS API instead of S.object shorthand
 - Get rid of S.literal in Js/ts API
 - Use Ts types for schema names
   // FIXME: Return back s.flatten support for schemas created with S.schema
 
 ### Done
 
-- Expose S.reverse
-- Renamed S.assertAnyWith to S.assertWith
-- Ts operation api changes
-- Rename S.variant to S.to
-- Reverse operations for schemas where a single field is used multiple times
-- S.to/S.variant don't allow to distructure tuples anymore
-- Shorthand version for S.schema in Js/Ts API TODO: Update docs to use it by default
-- Fix tuple parsing nested in an object schema
-- Add shorthand syntax for S.union in Js/Ts API
-- s.flatten stopped working with S.schema
+- Removed deprecated APIs, check S.resi diff, S.d.ts and RescriptSchema.gen.ts
 
 ## v10
 

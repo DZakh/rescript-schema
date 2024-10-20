@@ -18,7 +18,11 @@ test("Successfully serializing object with quotes in a field name", t => {
     }
   )
 
-  t->Assert.deepEqual({"field": "bar"}->S.reverseConvertWith(schema), %raw(`{"\"\'\`": "bar"}`), ())
+  t->Assert.deepEqual(
+    {"field": "bar"}->S.reverseConvertOrThrow(schema),
+    %raw(`{"\"\'\`": "bar"}`),
+    (),
+  )
 })
 
 test("Successfully parses object transformed to object with quotes in a field name", t => {
@@ -38,7 +42,11 @@ test("Successfully serializes object transformed to object with quotes in a fiel
     }
   )
 
-  t->Assert.deepEqual({"\"\'\`": "bar"}->S.reverseConvertWith(schema), %raw(`{"field": "bar"}`), ())
+  t->Assert.deepEqual(
+    {"\"\'\`": "bar"}->S.reverseConvertOrThrow(schema),
+    %raw(`{"field": "bar"}`),
+    (),
+  )
 })
 
 test("Successfully parses object with discriminant which has quotes as the field name", t => {
@@ -68,7 +76,7 @@ test("Successfully serializes object with discriminant which has quotes as the f
   })
 
   t->Assert.deepEqual(
-    {"field": "bar"}->S.reverseConvertWith(schema),
+    {"field": "bar"}->S.reverseConvertOrThrow(schema),
     %raw(`{
         "\"\'\`": null,
         "field": "bar",
@@ -106,7 +114,7 @@ test(
     })
 
     t->Assert.deepEqual(
-      {"field": "bar"}->S.reverseConvertWith(schema),
+      {"field": "bar"}->S.reverseConvertOrThrow(schema),
       %raw(`{
           "kind": "\"\'\`",
           "field": "bar",
@@ -151,7 +159,7 @@ test(
       {
         "\"\'\`": "hardcoded",
         "field": "bar",
-      }->S.reverseConvertWith(schema),
+      }->S.reverseConvertOrThrow(schema),
       %raw(`{"field": "bar"}`),
       (),
     )
@@ -193,7 +201,7 @@ test(
       {
         "hardcoded": "\"\'\`",
         "field": "bar",
-      }->S.reverseConvertWith(schema),
+      }->S.reverseConvertOrThrow(schema),
       %raw(`{"field": "bar"}`),
       (),
     )
@@ -225,7 +233,7 @@ test("Has proper error path when fails to serialize object with quotes in a fiel
   )
 
   t->U.assertRaised(
-    () => Dict.fromArray([("\"\'\`", "bar")])->S.reverseConvertWith(schema),
+    () => Dict.fromArray([("\"\'\`", "bar")])->S.reverseConvertOrThrow(schema),
     {
       code: OperationFailed("User error"),
       operation: ReverseConvert,

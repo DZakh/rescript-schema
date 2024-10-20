@@ -19,14 +19,14 @@ test("Fails to parse invalid data", t => {
 test("Successfully serializes valid value", t => {
   let schema = S.int->S.port
 
-  t->Assert.deepEqual(8080->S.reverseConvertWith(schema), %raw(`8080`), ())
+  t->Assert.deepEqual(8080->S.reverseConvertOrThrow(schema), %raw(`8080`), ())
 })
 
 test("Fails to serialize invalid value", t => {
   let schema = S.int->S.port
 
   t->U.assertRaised(
-    () => -80->S.reverseConvertWith(schema),
+    () => -80->S.reverseConvertOrThrow(schema),
     {code: OperationFailed("Invalid port"), operation: ReverseConvert, path: S.Path.empty},
   )
 })

@@ -29,7 +29,7 @@ module Common = {
     let schema = factory()
 
     t->Assert.throws(
-      () => value->S.convertToJsonWith(schema),
+      () => value->S.convertToJsonOrThrow(schema),
       ~expectations={
         message: "Failed converting to JSON at root. Reason: The BigInt schema is not compatible with JSON",
       },
@@ -45,7 +45,7 @@ module Common = {
   test("Successfully serializes", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(value->S.reverseConvertWith(schema), any, ())
+    t->Assert.deepEqual(value->S.reverseConvertOrThrow(schema), any, ())
   })
 
   test("Compiled parse code snapshot", t => {

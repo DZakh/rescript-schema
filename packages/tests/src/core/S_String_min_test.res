@@ -23,15 +23,15 @@ test("Fails to parse invalid data", t => {
 test("Successfully serializes valid value", t => {
   let schema = S.string->S.stringMinLength(1)
 
-  t->Assert.deepEqual("1"->S.reverseConvertWith(schema), %raw(`"1"`), ())
-  t->Assert.deepEqual("1234"->S.reverseConvertWith(schema), %raw(`"1234"`), ())
+  t->Assert.deepEqual("1"->S.reverseConvertOrThrow(schema), %raw(`"1"`), ())
+  t->Assert.deepEqual("1234"->S.reverseConvertOrThrow(schema), %raw(`"1234"`), ())
 })
 
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.stringMinLength(1)
 
   t->U.assertRaised(
-    () => ""->S.reverseConvertWith(schema),
+    () => ""->S.reverseConvertOrThrow(schema),
     {
       code: OperationFailed("String must be 1 or more characters long"),
       operation: ReverseConvert,

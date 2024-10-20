@@ -132,7 +132,7 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
 }
 
 function assertReverseParsesBack(t, schema, value) {
-  t.deepEqual(S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith(S$RescriptSchema.reverseConvertWith(value, schema), schema)), value, undefined);
+  t.deepEqual(S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith(S$RescriptSchema.reverseConvertOrThrow(value, schema), schema)), value, undefined);
 }
 
 var assertEqualSchemas = unsafeAssertEqualSchemas;

@@ -42,15 +42,15 @@ test("Fails to parse when user raises error in parser", t => {
 test("Successfully serializes", t => {
   let schema = S.string->preprocessNumberToString
 
-  t->Assert.deepEqual("Hello world!"->S.reverseConvertWith(schema), %raw(`"Hello world!"`), ())
-  t->Assert.deepEqual("123"->S.reverseConvertWith(schema), %raw(`123`), ())
+  t->Assert.deepEqual("Hello world!"->S.reverseConvertOrThrow(schema), %raw(`"Hello world!"`), ())
+  t->Assert.deepEqual("123"->S.reverseConvertOrThrow(schema), %raw(`123`), ())
 })
 
 test("Fails to serialize when user raises error in serializer", t => {
   let schema = S.string->S.preprocess(s => {serializer: _ => s.fail("User error")})
 
   t->U.assertRaised(
-    () => "Hello world!"->S.reverseConvertWith(schema),
+    () => "Hello world!"->S.reverseConvertOrThrow(schema),
     {code: OperationFailed("User error"), operation: ReverseConvert, path: S.Path.empty},
   )
 })
@@ -74,7 +74,7 @@ test("Preprocess operations applyed in the right order when serializing", t => {
     ->S.preprocess(s => {serializer: _ => s.fail("Second preprocess")})
 
   t->U.assertRaised(
-    () => 123->S.reverseConvertWith(schema),
+    () => 123->S.reverseConvertOrThrow(schema),
     {
       code: OperationFailed("First preprocess"),
       operation: ReverseConvert,
@@ -129,7 +129,7 @@ test("Successfully parses with empty preprocess", t => {
 test("Successfully serializes with empty preprocess", t => {
   let schema = S.string->S.preprocess(_ => {})
 
-  t->Assert.deepEqual("Hello world!"->S.reverseConvertWith(schema), %raw(`"Hello world!"`), ())
+  t->Assert.deepEqual("Hello world!"->S.reverseConvertOrThrow(schema), %raw(`"Hello world!"`), ())
 })
 
 asyncTest("Can apply other actions after async preprocess", t => {
@@ -223,9 +223,9 @@ test("Applies preproces serializer for union schemas separately", t => {
     }
   })
 
-  t->Assert.deepEqual(#Bool(false)->S.reverseConvertWith(schema), %raw(`"0"`), ())
-  t->Assert.deepEqual(#Bool(true)->S.reverseConvertWith(schema), %raw(`"1"`), ())
-  t->Assert.deepEqual(#Int(2)->S.reverseConvertWith(schema), %raw(`"2"`), ())
+  t->Assert.deepEqual(#Bool(false)->S.reverseConvertOrThrow(schema), %raw(`"0"`), ())
+  t->Assert.deepEqual(#Bool(true)->S.reverseConvertOrThrow(schema), %raw(`"1"`), ())
+  t->Assert.deepEqual(#Int(2)->S.reverseConvertOrThrow(schema), %raw(`"2"`), ())
 })
 
 test("Doesn't fail to parse with preprocess when parser isn't provided", t => {
@@ -237,7 +237,7 @@ test("Doesn't fail to parse with preprocess when parser isn't provided", t => {
 test("Doesn't fail to serialize with preprocess when serializer isn't provided", t => {
   let schema = S.string->S.preprocess(_ => {parser: value => value})
 
-  t->Assert.deepEqual("Hello world!"->S.reverseConvertWith(schema), %raw(`"Hello world!"`), ())
+  t->Assert.deepEqual("Hello world!"->S.reverseConvertOrThrow(schema), %raw(`"Hello world!"`), ())
 })
 
 test("Compiled parse code snapshot", t => {
