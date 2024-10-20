@@ -316,7 +316,7 @@ test("Compiled serialize code snapshot", t => {
     serializer: value => value->Int.fromFloat,
   })
 
-  t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return e[0](i)}`)
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return e[0](i)}`)
 })
 
 test("Reverse schema to the original schema", t => {

@@ -13,7 +13,7 @@ asyncTest("Parses with wrapping async schema in variant", async t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(typeof i!=="string"){e[2](i)}return Promise.all([e[0](i)]).then(a=>({"TAG":e[1],"_0":a[0]}))}`,
+    `i=>{if(typeof i!=="string"){e[2](i)}return Promise.all([e[0](i),]).then(a=>({"TAG":e[1],"_0":a[0],}))}`,
   )
 })
 
@@ -117,7 +117,7 @@ test("Reverse convert with value registered multiple times", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#Serialize,
+    ~op=#ReverseConvert,
     `i=>{let v0=i["VAL"]["0"],v1=i["VAL"]["1"];if(i["NAME"]!=="Foo"){e[0](i["NAME"])}if(v0!==v1){e[1]()}return v0}`,
   )
 
@@ -143,9 +143,13 @@ test("Can destructure object value passed to S.to", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"foo":v0,"bar":v1}}`,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
   )
-  t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"]}}`)
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#ReverseConvert,
+    `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`,
+  )
 })
 
 test("Compiled code snapshot of variant applied to object", t => {
@@ -154,12 +158,12 @@ test("Compiled code snapshot of variant applied to object", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return {"TAG":e[1],"_0":v0}}`,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return {"TAG":e[1],"_0":v0,}}`,
   )
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#Serialize,
-    `i=>{if(i["TAG"]!=="Ok"){e[0](i["TAG"])}return {"foo":i["_0"]}}`,
+    ~op=#ReverseConvert,
+    `i=>{if(i["TAG"]!=="Ok"){e[0](i["TAG"])}return {"foo":i["_0"],}}`,
   )
 })
 
@@ -169,7 +173,7 @@ test("Compiled parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(typeof i!=="string"){e[1](i)}return {"TAG":e[0],"_0":i}}`,
+    `i=>{if(typeof i!=="string"){e[1](i)}return {"TAG":e[0],"_0":i,}}`,
   )
 })
 
@@ -184,7 +188,7 @@ test("Compiled serialize code snapshot", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#Serialize,
+    ~op=#ReverseConvert,
     `i=>{if(i["TAG"]!=="Ok"){e[0](i["TAG"])}return i["_0"]}`,
   )
 })
@@ -192,7 +196,7 @@ test("Compiled serialize code snapshot", t => {
 test("Compiled serialize code snapshot without transform", t => {
   let schema = S.string->S.to(s => s)
 
-  t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
+  t->U.assertCompiledCodeIsNoop(~schema, ~op=#ReverseConvert)
 })
 
 test(
@@ -202,7 +206,7 @@ test(
 
     t->Assert.deepEqual(#foo->S.reverseConvertOrThrow(schema), %raw(`[true,12]`), ())
 
-    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{if(i!=="foo"){e[0](i)}return e[1]}`)
+    t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{if(i!=="foo"){e[0](i)}return e[1]}`)
   },
 )
 
@@ -264,8 +268,8 @@ test("Reverse convert tuple turned to Ok", t => {
   t->Assert.deepEqual(Ok(("foo", true))->S.reverseConvertOrThrow(schema), %raw(`["foo", true]`), ())
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#Serialize,
-    `i=>{let v0=i["_0"];if(i["TAG"]!=="Ok"){e[0](i["TAG"])}return [v0["0"],v0["1"]]}`, // TODO: Can prevent tuple recreation
+    ~op=#ReverseConvert,
+    `i=>{let v0=i["_0"];if(i["TAG"]!=="Ok"){e[0](i["TAG"])}return v0}`,
   )
 })
 

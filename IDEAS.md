@@ -47,6 +47,9 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 ### Done
 
 - Removed deprecated APIs, check S.resi diff, S.d.ts and RescriptSchema.gen.ts
+- Tuples and Objects created by S.schema don't recreate the input if there are no transformed fields
+- Async for reversed object ???
+- S.compile changed some arg variant names and now supports reverse flag
 
 ## v10
 

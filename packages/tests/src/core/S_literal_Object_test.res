@@ -125,7 +125,7 @@ module Common = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#Serialize,
+      ~op=#ReverseConvert,
       `i=>{if(i!==e[0]&&(!i||i.constructor!==Object||Object.keys(i).length!==1||i["foo"]!=="bar")){e[1](i)}return i}`,
     )
   })
@@ -205,7 +205,7 @@ module EmptyDict = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#Serialize,
+      ~op=#ReverseConvert,
       `i=>{if(i!==e[0]&&(!i||i.constructor!==Object||Object.keys(i).length!==0)){e[1](i)}return i}`,
     )
   })

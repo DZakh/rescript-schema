@@ -83,7 +83,7 @@ module Common = {
 
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#Serialize,
+      ~op=#ReverseConvert,
       `i=>{if(i!=="ReScript is Great!"){e[0](i)}return i}`,
     )
   })

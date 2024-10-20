@@ -91,10 +91,12 @@ async function assertRaisedAsync(t, cb, errorPayload) {
 
 function getCompiledCodeString(schema, op) {
   return (
-            op === "Assert" ? S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true) : (
-                op === "SerializeJson" ? S$RescriptSchema.compile(S$RescriptSchema.reverse(schema), "Any", "Json", "Sync", false) : (
-                    op === "Serialize" ? S$RescriptSchema.compile(S$RescriptSchema.reverse(schema), "Any", "Output", "Sync", false) : (
-                        S$RescriptSchema.isAsync(schema) ? S$RescriptSchema.compile(schema, "Any", "Output", "Async", true) : S$RescriptSchema.compile(schema, "Any", "Output", "Sync", true)
+            op === "Parse" || op === "ParseAsync" ? (
+                op === "ParseAsync" || S$RescriptSchema.isAsync(schema) ? S$RescriptSchema.compile(schema, "Any", "Value", "Async", true) : S$RescriptSchema.compile(schema, "Any", "Value", "Sync", true)
+              ) : (
+                op === "ReverseConvertToJson" ? S$RescriptSchema.compile(schema, "Value", "Json", "Sync", false) : (
+                    op === "ReverseConvert" ? S$RescriptSchema.compile(schema, "Value", "Unknown", "Sync", false) : (
+                        op === "Assert" ? S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true) : S$RescriptSchema.compile(schema, "Value", "Unknown", "Async", false)
                       )
                   )
               )

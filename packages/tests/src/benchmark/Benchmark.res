@@ -53,7 +53,7 @@ let makeTestObject = () => {
   })`)
 }
 
-let makeAdvancedObjectSchema = () => {
+let makeAdvancedObjectSchemaWithSObject = () => {
   S.object(s =>
     {
       "number": s.field("number", S.float),
@@ -76,7 +76,7 @@ let makeAdvancedObjectSchema = () => {
   )
 }
 
-let makeAdvancedObjectSchemaWithSSchema = () => {
+let makeAdvancedObjectSchema = () => {
   S.schema(s =>
     {
       "number": s.matches(S.float),
@@ -85,40 +85,13 @@ let makeAdvancedObjectSchemaWithSSchema = () => {
       "string": s.matches(S.string),
       "longString": s.matches(S.string),
       "boolean": s.matches(S.bool),
-      "deeplyNested": s.matches(
-        S.schema(s =>
-          {
-            "foo": s.matches(S.string),
-            "num": s.matches(S.float),
-            "bool": s.matches(S.bool),
-          }
-        ),
-      ),
+      "deeplyNested": {
+        "foo": s.matches(S.string),
+        "num": s.matches(S.float),
+        "bool": s.matches(S.bool),
+      },
     }
   )
-}
-
-let makeAdvancedStrictObjectSchema = () => {
-  S.object(s =>
-    {
-      "number": s.field("number", S.float),
-      "negNumber": s.field("negNumber", S.float),
-      "maxNumber": s.field("maxNumber", S.float),
-      "string": s.field("string", S.string),
-      "longString": s.field("longString", S.string),
-      "boolean": s.field("boolean", S.bool),
-      "deeplyNested": s.field(
-        "deeplyNested",
-        S.object(s =>
-          {
-            "foo": s.field("foo", S.string),
-            "num": s.field("num", S.float),
-            "bool": s.field("bool", S.bool),
-          }
-        )->S.Object.strict,
-      ),
-    }
-  )->S.Object.strict
 }
 
 S.setGlobalConfig({
@@ -288,6 +261,13 @@ Suite.make()
     data->S.assertOrThrow(schema)
   }
 })
+->Suite.addWithPrepare("Create and parse advanced object - with S.object", () => {
+  let data = makeTestObject()
+  () => {
+    let schema = makeAdvancedObjectSchemaWithSObject()
+    data->S.parseOrThrow(schema)
+  }
+})
 ->Suite.addWithPrepare("Create and parse advanced object", () => {
   let data = makeTestObject()
   () => {
@@ -295,22 +275,29 @@ Suite.make()
     data->S.parseOrThrow(schema)
   }
 })
-->Suite.addWithPrepare("Create and parse advanced object - with S.schema", () => {
-  let data = makeTestObject()
-  () => {
-    let schema = makeAdvancedObjectSchemaWithSSchema()
-    data->S.parseOrThrow(schema)
-  }
-})
 ->Suite.addWithPrepare("Parse advanced strict object", () => {
-  let schema = makeAdvancedStrictObjectSchema()
+  S.setGlobalConfig({
+    disableNanNumberCheck: true,
+    defaultUnknownKeys: Strict,
+  })
+  let schema = makeAdvancedObjectSchema()
+  S.setGlobalConfig({
+    disableNanNumberCheck: true,
+  })
   let data = makeTestObject()
   () => {
     data->S.parseOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Assert advanced strict object", () => {
-  let schema = makeAdvancedStrictObjectSchema()
+  S.setGlobalConfig({
+    disableNanNumberCheck: true,
+    defaultUnknownKeys: Strict,
+  })
+  let schema = makeAdvancedObjectSchema()
+  S.setGlobalConfig({
+    disableNanNumberCheck: true,
+  })
   let data = makeTestObject()
   () => {
     data->S.assertOrThrow(schema)
@@ -320,23 +307,13 @@ Suite.make()
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
-    data->S.reverseConvertOrThrow(schema) // FIXME: This is super slow
-  }
-})
-->Suite.addWithPrepare("Reverse convert advanced object - with S.schema", () => {
-  let schema = makeAdvancedObjectSchemaWithSSchema()
-  let data = makeTestObject()
-  () => {
     data->S.reverseConvertOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("Reverse convert advanced object - compile", () => {
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
-  let fn =
-    schema
-    ->S.reverse
-    ->S.compile(~input=Any, ~output=Output, ~mode=Sync, ~typeValidation=false)
+  let fn = schema->S.compile(~input=Value, ~output=Unknown, ~mode=Sync, ~typeValidation=false)
   () => {
     fn(data)
   }

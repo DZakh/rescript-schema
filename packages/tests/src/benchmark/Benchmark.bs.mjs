@@ -31,7 +31,7 @@ function makeTestObject() {
   }));
 }
 
-function makeAdvancedObjectSchema() {
+function makeAdvancedObjectSchemaWithSObject() {
   return S$RescriptSchema.object(function (s) {
               return {
                       number: s.f("number", S$RescriptSchema.$$float),
@@ -51,7 +51,7 @@ function makeAdvancedObjectSchema() {
             });
 }
 
-function makeAdvancedObjectSchemaWithSSchema() {
+function makeAdvancedObjectSchema() {
   return S$RescriptSchema.schema(function (s) {
               return {
                       number: s.matches(S$RescriptSchema.$$float),
@@ -60,35 +60,13 @@ function makeAdvancedObjectSchemaWithSSchema() {
                       string: s.matches(S$RescriptSchema.string),
                       longString: s.matches(S$RescriptSchema.string),
                       boolean: s.matches(S$RescriptSchema.bool),
-                      deeplyNested: s.matches(S$RescriptSchema.schema(function (s) {
-                                return {
-                                        foo: s.matches(S$RescriptSchema.string),
-                                        num: s.matches(S$RescriptSchema.$$float),
-                                        bool: s.matches(S$RescriptSchema.bool)
-                                      };
-                              }))
+                      deeplyNested: {
+                        foo: s.matches(S$RescriptSchema.string),
+                        num: s.matches(S$RescriptSchema.$$float),
+                        bool: s.matches(S$RescriptSchema.bool)
+                      }
                     };
             });
-}
-
-function makeAdvancedStrictObjectSchema() {
-  return S$RescriptSchema.$$Object.strict(S$RescriptSchema.object(function (s) {
-                  return {
-                          number: s.f("number", S$RescriptSchema.$$float),
-                          negNumber: s.f("negNumber", S$RescriptSchema.$$float),
-                          maxNumber: s.f("maxNumber", S$RescriptSchema.$$float),
-                          string: s.f("string", S$RescriptSchema.string),
-                          longString: s.f("longString", S$RescriptSchema.string),
-                          boolean: s.f("boolean", S$RescriptSchema.bool),
-                          deeplyNested: s.f("deeplyNested", S$RescriptSchema.$$Object.strict(S$RescriptSchema.object(function (s) {
-                                        return {
-                                                foo: s.f("foo", S$RescriptSchema.string),
-                                                num: s.f("num", S$RescriptSchema.$$float),
-                                                bool: s.f("bool", S$RescriptSchema.bool)
-                                              };
-                                      })))
-                        };
-                }));
 }
 
 S$RescriptSchema.setGlobalConfig({
@@ -230,65 +208,73 @@ S$RescriptSchema.$$Error.make({
 
 console.timeEnd("S.Error.make");
 
-run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new (Benchmark.default.Suite)(), "Parse string", (function () {
-                                                          return function () {
-                                                            return S$RescriptSchema.parseOrThrow("Hello world!", S$RescriptSchema.string);
-                                                          };
-                                                        })), "Reverse convert string", (function () {
+run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(new (Benchmark.default.Suite)(), "Parse string", (function () {
                                                       return function () {
-                                                        return S$RescriptSchema.reverseConvertOrThrow("Hello world!", S$RescriptSchema.string);
+                                                        return S$RescriptSchema.parseOrThrow("Hello world!", S$RescriptSchema.string);
                                                       };
-                                                    })).add("Advanced object schema factory", makeAdvancedObjectSchema), "Parse advanced object", (function () {
-                                                var schema = makeAdvancedObjectSchema();
-                                                var data = makeTestObject();
-                                                return function () {
-                                                  return S$RescriptSchema.parseOrThrow(data, schema);
-                                                };
-                                              })), "Assert advanced object - compile", (function () {
+                                                    })), "Reverse convert string", (function () {
+                                                  return function () {
+                                                    return S$RescriptSchema.reverseConvertOrThrow("Hello world!", S$RescriptSchema.string);
+                                                  };
+                                                })).add("Advanced object schema factory", makeAdvancedObjectSchema), "Parse advanced object", (function () {
                                             var schema = makeAdvancedObjectSchema();
                                             var data = makeTestObject();
-                                            var assertFn = S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true);
                                             return function () {
-                                              assertFn(data);
+                                              return S$RescriptSchema.parseOrThrow(data, schema);
                                             };
-                                          })), "Assert advanced object", (function () {
+                                          })), "Assert advanced object - compile", (function () {
                                         var schema = makeAdvancedObjectSchema();
                                         var data = makeTestObject();
+                                        var assertFn = S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true);
                                         return function () {
-                                          S$RescriptSchema.assertOrThrow(data, schema);
+                                          assertFn(data);
                                         };
-                                      })), "Create and parse advanced object", (function () {
+                                      })), "Assert advanced object", (function () {
+                                    var schema = makeAdvancedObjectSchema();
                                     var data = makeTestObject();
                                     return function () {
-                                      var schema = makeAdvancedObjectSchema();
-                                      return S$RescriptSchema.parseOrThrow(data, schema);
+                                      S$RescriptSchema.assertOrThrow(data, schema);
                                     };
-                                  })), "Create and parse advanced object - with S.schema", (function () {
+                                  })), "Create and parse advanced object - with S.object", (function () {
                                 var data = makeTestObject();
                                 return function () {
-                                  var schema = makeAdvancedObjectSchemaWithSSchema();
+                                  var schema = makeAdvancedObjectSchemaWithSObject();
                                   return S$RescriptSchema.parseOrThrow(data, schema);
                                 };
-                              })), "Parse advanced strict object", (function () {
-                            var schema = makeAdvancedStrictObjectSchema();
+                              })), "Create and parse advanced object", (function () {
                             var data = makeTestObject();
                             return function () {
+                              var schema = makeAdvancedObjectSchema();
                               return S$RescriptSchema.parseOrThrow(data, schema);
                             };
-                          })), "Assert advanced strict object", (function () {
-                        var schema = makeAdvancedStrictObjectSchema();
+                          })), "Parse advanced strict object", (function () {
+                        S$RescriptSchema.setGlobalConfig({
+                              defaultUnknownKeys: "Strict",
+                              disableNanNumberCheck: true
+                            });
+                        var schema = makeAdvancedObjectSchema();
+                        S$RescriptSchema.setGlobalConfig({
+                              disableNanNumberCheck: true
+                            });
                         var data = makeTestObject();
                         return function () {
-                          S$RescriptSchema.assertOrThrow(data, schema);
+                          return S$RescriptSchema.parseOrThrow(data, schema);
                         };
-                      })), "Reverse convert advanced object", (function () {
+                      })), "Assert advanced strict object", (function () {
+                    S$RescriptSchema.setGlobalConfig({
+                          defaultUnknownKeys: "Strict",
+                          disableNanNumberCheck: true
+                        });
                     var schema = makeAdvancedObjectSchema();
+                    S$RescriptSchema.setGlobalConfig({
+                          disableNanNumberCheck: true
+                        });
                     var data = makeTestObject();
                     return function () {
-                      return S$RescriptSchema.reverseConvertOrThrow(data, schema);
+                      S$RescriptSchema.assertOrThrow(data, schema);
                     };
-                  })), "Reverse convert advanced object - with S.schema", (function () {
-                var schema = makeAdvancedObjectSchemaWithSSchema();
+                  })), "Reverse convert advanced object", (function () {
+                var schema = makeAdvancedObjectSchema();
                 var data = makeTestObject();
                 return function () {
                   return S$RescriptSchema.reverseConvertOrThrow(data, schema);
@@ -296,7 +282,7 @@ run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(a
               })), "Reverse convert advanced object - compile", (function () {
             var schema = makeAdvancedObjectSchema();
             var data = makeTestObject();
-            var fn = S$RescriptSchema.compile(S$RescriptSchema.reverse(schema), "Any", "Output", "Sync", false);
+            var fn = S$RescriptSchema.compile(schema, "Value", "Unknown", "Sync", false);
             return function () {
               return fn(data);
             };

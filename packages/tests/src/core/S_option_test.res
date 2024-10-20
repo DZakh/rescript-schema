@@ -55,7 +55,7 @@ module Common = {
   test("Compiled serialize code snapshot", t => {
     let schema = factory()
 
-    t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
+    t->U.assertCompiledCodeIsNoop(~schema, ~op=#ReverseConvert)
   })
 
   test("Reverse to self", t => {
@@ -122,7 +122,7 @@ test("Serializes Some(None) to undefined for option nested in null", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#Serialize,
+    ~op=#ReverseConvert,
     `i=>{let v0;if(i!==void 0){v0=e[0](i)}else{v0=null}return v0}`,
   )
 })
@@ -135,7 +135,7 @@ test("Applies valFromOption for Some()", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#Serialize,
+    ~op=#ReverseConvert,
     `i=>{let v0;if(i!==void 0){v0=e[0](i)}return v0}`,
   )
 })
@@ -147,7 +147,7 @@ test("Doesn't apply valFromOption for non-undefined literals in option", t => {
   t->Assert.deepEqual(Some(%raw(`null`))->S.reverseConvertOrThrow(schema), %raw(`null`), ())
   t->Assert.deepEqual(None->S.reverseConvertOrThrow(schema), %raw(`undefined`), ())
 
-  t->U.assertCompiledCodeIsNoop(~schema, ~op=#Serialize)
+  t->U.assertCompiledCodeIsNoop(~schema, ~op=#ReverseConvert)
 })
 
 test("Applies valFromOption for unknown in option", t => {
@@ -163,7 +163,7 @@ test("Applies valFromOption for unknown in option", t => {
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#Serialize,
+    ~op=#ReverseConvert,
     `i=>{let v0;if(i!==void 0){v0=e[0](i)}return v0}`,
   )
 })
