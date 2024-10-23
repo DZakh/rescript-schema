@@ -471,13 +471,15 @@ module Builder = {
           mutable asyncCount: int,
           @as("p")
           mutable promiseAllContent: string,
+          @as("f")
+          fields: Js.Dict.t<val>,
         }
 
-        let objectJoin = (key, value) => {
-          `${key->Stdlib.Inlined.Value.fromString}:${value},`
+        let objectJoin = (location, value) => {
+          `${location->Stdlib.Inlined.Value.fromString}:${value},`
         }
 
-        let arrayJoin = (_key, value) => {
+        let arrayJoin = (_location, value) => {
           value ++ ","
         }
 
@@ -490,17 +492,19 @@ module Builder = {
             join: isArray ? arrayJoin : objectJoin,
             asyncCount: 0,
             promiseAllContent: "",
+            fields: Js.Dict.empty(),
           }
         }
 
         @inline
-        let add = (objectVal, key, val: val) => {
+        let add = (objectVal, location, val: val) => {
+          objectVal.fields->Js.Dict.set(location, val)
           if val.isAsync {
             objectVal.promiseAllContent = objectVal.promiseAllContent ++ val.inline ++ ","
             objectVal.inline =
-              objectVal.inline ++ objectVal.join(key, `a[${%raw(`objectVal.c++`)}]`)
+              objectVal.inline ++ objectVal.join(location, `a[${%raw(`objectVal.c++`)}]`)
           } else {
-            objectVal.inline = objectVal.inline ++ objectVal.join(key, val.inline)
+            objectVal.inline = objectVal.inline ++ objectVal.join(location, val.inline)
           }
         }
 
@@ -534,6 +538,13 @@ module Builder = {
           var
         }
       }
+
+      // FIXME: This is not use
+      // let get = (b, targetVal: val, location, ~path) => {
+      //   (targetVal->Obj.magic)["f"]
+      //     ? (targetVal->Obj.magic)["f"](location)
+      //     : b->val(`${b->var(targetVal)}${path}`)
+      // }
 
       let push = (b: b, input: val, val: val) => {
         `${b->var(input)}.push(${val.inline})`
@@ -2104,10 +2115,10 @@ module Object = {
   let typeFilter = (_b, ~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
 
   let rec processInputItems = (b: b, ~outputs, ~input, ~schema, ~path, ~unknownKeys) => {
-    let inputVar = b->B.Val.var(input)
-
     let items = schema->getItems
     let isObject = schema->classify->unsafeGetVarianTag === "Object"
+
+    let inputVar = b->B.Val.var(input)
 
     for idx in 0 to items->Js.Array2.length - 1 {
       let prevCode = b.code
@@ -2144,7 +2155,7 @@ module Object = {
     if isObject && unknownKeys === Strict && b.global.flag->Flag.unsafeHas(Flag.typeValidation) {
       let key = b->B.allocateVal
       let keyVar = key.inline
-      b.code = b.code ++ `for(${keyVar} in ${inputVar}){if(`
+      b.code = b.code ++ `for(${keyVar} in ${input.inline}){if(`
       switch items {
       | [] => b.code = b.code ++ "true"
       | _ =>
@@ -3247,6 +3258,10 @@ module Schema = {
           let location = fieldNames->Js.Array2.unsafe_get(idx)
           let inlinedLocation = `"${location}"`
           let schema = node->Js.Dict.unsafeGet(location)->definitionToSchema
+          // FIXME: Not good to mutate the schema here, but just clean up definer in a simple way
+          let _ = %raw(`delete schema$1["d"]`)
+          let _ = %raw(`delete schema$1["c"]`)
+
           let item: item = {
             schema,
             location,

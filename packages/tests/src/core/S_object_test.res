@@ -650,7 +650,7 @@ test("Successfully serializes object transformed to variant", t => {
   t->Assert.deepEqual(#VARIANT(true)->S.reverseConvertOrThrow(schema), %raw(`{"field": true}`), ())
 })
 
-module Benchmark = {
+module BenchmarkWithSObject = {
   let makeTestObject = () => {
     %raw(`Object.freeze({
     number: 1,
@@ -691,27 +691,123 @@ module Benchmark = {
     )
   }
 
-  let makeAdvancedStrictObjectSchema = () => {
-    S.object(s =>
+  test("Successfully parses object from benchmark - with S.object", t => {
+    S.setGlobalConfig({
+      disableNanNumberCheck: true,
+    })
+    let schema = makeSchema()
+
+    t->Assert.deepEqual(makeTestObject()->S.parseOrThrow(schema), makeTestObject(), ())
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(!i||i.constructor!==Object){e[10](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"];if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"];if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}return {"number":v0,"negNumber":v1,"maxNumber":v2,"string":v3,"longString":v4,"boolean":v5,"deeplyNested":{"foo":v7,"num":v8,"bool":v9,},}}`,
+    )
+    S.setGlobalConfig({})
+  })
+
+  test("Successfully asserts object from benchmark - with S.object", t => {
+    S.setGlobalConfig({
+      disableNanNumberCheck: true,
+    })
+    let schema = makeSchema()
+
+    t->Assert.deepEqual(makeTestObject()->S.assertOrThrow(schema), (), ())
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Assert,
+      `i=>{if(!i||i.constructor!==Object){e[10](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"];if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"];if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}return void 0}`,
+    )
+    S.setGlobalConfig({})
+  })
+
+  test("Successfully parses strict object from benchmark - with S.object", t => {
+    S.setGlobalConfig({
+      disableNanNumberCheck: true,
+      defaultUnknownKeys: Strict,
+    })
+    let schema = makeSchema()
+
+    t->Assert.deepEqual(makeTestObject()->S.parseOrThrow(schema), makeTestObject(), ())
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(!i||i.constructor!==Object){e[12](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"],v11;if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"],v10;if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}for(v10 in v6){if(v10!=="foo"&&v10!=="num"&&v10!=="bool"){e[10](v10)}}for(v11 in i){if(v11!=="number"&&v11!=="negNumber"&&v11!=="maxNumber"&&v11!=="string"&&v11!=="longString"&&v11!=="boolean"&&v11!=="deeplyNested"){e[11](v11)}}return {"number":v0,"negNumber":v1,"maxNumber":v2,"string":v3,"longString":v4,"boolean":v5,"deeplyNested":{"foo":v7,"num":v8,"bool":v9,},}}`,
+    )
+    S.setGlobalConfig({})
+  })
+
+  test("Successfully asserts strict object from benchmark - with S.object", t => {
+    S.setGlobalConfig({
+      disableNanNumberCheck: true,
+      defaultUnknownKeys: Strict,
+    })
+    let schema = makeSchema()
+
+    t->Assert.deepEqual(makeTestObject()->S.assertOrThrow(schema), (), ())
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Assert,
+      `i=>{if(!i||i.constructor!==Object){e[12](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"],v11;if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"],v10;if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}for(v10 in v6){if(v10!=="foo"&&v10!=="num"&&v10!=="bool"){e[10](v10)}}for(v11 in i){if(v11!=="number"&&v11!=="negNumber"&&v11!=="maxNumber"&&v11!=="string"&&v11!=="longString"&&v11!=="boolean"&&v11!=="deeplyNested"){e[11](v11)}}return void 0}`,
+    )
+    S.setGlobalConfig({})
+  })
+
+  test("Successfully serializes object from benchmark - with S.object", t => {
+    S.setGlobalConfig({
+      disableNanNumberCheck: true,
+    })
+    let schema = makeSchema()
+
+    t->Assert.deepEqual(makeTestObject()->S.reverseConvertOrThrow(schema), makeTestObject(), ())
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#ReverseConvert,
+      `i=>{return {"number":i["number"],"negNumber":i["negNumber"],"maxNumber":i["maxNumber"],"string":i["string"],"longString":i["longString"],"boolean":i["boolean"],"deeplyNested":{"foo":i["deeplyNested"]["foo"],"num":i["deeplyNested"]["num"],"bool":i["deeplyNested"]["bool"],},}}`,
+    )
+    S.setGlobalConfig({})
+  })
+}
+
+module Benchmark = {
+  let makeTestObject = () => {
+    %raw(`Object.freeze({
+    number: 1,
+    negNumber: -1,
+    maxNumber: Number.MAX_VALUE,
+    string: 'string',
+    longString:
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
+    boolean: true,
+    deeplyNested: {
+      foo: 'bar',
+      num: 1,
+      bool: false,
+    },
+  })`)
+  }
+
+  let makeSchema = () => {
+    S.schema(s =>
       {
-        "number": s.field("number", S.float),
-        "negNumber": s.field("negNumber", S.float),
-        "maxNumber": s.field("maxNumber", S.float),
-        "string": s.field("string", S.string),
-        "longString": s.field("longString", S.string),
-        "boolean": s.field("boolean", S.bool),
-        "deeplyNested": s.field(
-          "deeplyNested",
-          S.object(s =>
-            {
-              "foo": s.field("foo", S.string),
-              "num": s.field("num", S.float),
-              "bool": s.field("bool", S.bool),
-            }
-          )->S.Object.strict,
-        ),
+        "number": s.matches(S.float),
+        "negNumber": s.matches(S.float),
+        "maxNumber": s.matches(S.float),
+        "string": s.matches(S.string),
+        "longString": s.matches(S.string),
+        "boolean": s.matches(S.bool),
+        "deeplyNested": {
+          "foo": s.matches(S.string),
+          "num": s.matches(S.float),
+          "bool": s.matches(S.bool),
+        },
       }
-    )->S.Object.strict
+    )
   }
 
   test("Successfully parses object from benchmark", t => {
@@ -720,23 +816,7 @@ module Benchmark = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(
-      makeTestObject()->S.parseOrThrow(schema),
-      {
-        "number": 1.,
-        "negNumber": -1.,
-        "maxNumber": %raw("Number.MAX_VALUE"),
-        "string": "string",
-        "longString": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-        "boolean": true,
-        "deeplyNested": {
-          "foo": "bar",
-          "num": 1.,
-          "bool": false,
-        },
-      },
-      (),
-    )
+    t->Assert.deepEqual(makeTestObject()->S.parseOrThrow(schema), makeTestObject(), ())
 
     t->U.assertCompiledCode(
       ~schema,
@@ -769,28 +849,12 @@ module Benchmark = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(
-      makeTestObject()->S.parseOrThrow(schema),
-      {
-        "number": 1.,
-        "negNumber": -1.,
-        "maxNumber": %raw("Number.MAX_VALUE"),
-        "string": "string",
-        "longString": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-        "boolean": true,
-        "deeplyNested": {
-          "foo": "bar",
-          "num": 1.,
-          "bool": false,
-        },
-      },
-      (),
-    )
+    t->Assert.deepEqual(makeTestObject()->S.parseOrThrow(schema), makeTestObject(), ())
 
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[12](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"],v11;if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"],v10;if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}for(v10 in v6){if(v10!=="foo"&&v10!=="num"&&v10!=="bool"){e[10](v10)}}for(v11 in i){if(v11!=="number"&&v11!=="negNumber"&&v11!=="maxNumber"&&v11!=="string"&&v11!=="longString"&&v11!=="boolean"&&v11!=="deeplyNested"){e[11](v11)}}return {"number":v0,"negNumber":v1,"maxNumber":v2,"string":v3,"longString":v4,"boolean":v5,"deeplyNested":{"foo":v7,"num":v8,"bool":v9,},}}`,
+      `i=>{if(!i||i.constructor!==Object){e[12](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"],v11;if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"],v10;if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}for(v10 in v6){if(v10!=="foo"&&v10!=="num"&&v10!=="bool"){e[10](v10)}}for(v11 in i){if(v11!=="number"&&v11!=="negNumber"&&v11!=="maxNumber"&&v11!=="string"&&v11!=="longString"&&v11!=="boolean"&&v11!=="deeplyNested"){e[11](v11)}}return i}`,
     )
     S.setGlobalConfig({})
   })
@@ -818,42 +882,9 @@ module Benchmark = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(
-      {
-        "number": 1.,
-        "negNumber": -1.,
-        "maxNumber": %raw("Number.MAX_VALUE"),
-        "string": "string",
-        "longString": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-        "boolean": true,
-        "deeplyNested": {
-          "foo": "bar",
-          "num": 1.,
-          "bool": false,
-        },
-      }->S.reverseConvertOrThrow(schema),
-      %raw(`{
-        number: 1,
-        negNumber: -1,
-        maxNumber: Number.MAX_VALUE,
-        string: 'string',
-        longString:
-          'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
-        boolean: true,
-        deeplyNested: {
-          foo: 'bar',
-          num: 1,
-          bool: false,
-        },
-      }`),
-      (),
-    )
+    t->Assert.deepEqual(makeTestObject()->S.reverseConvertOrThrow(schema), makeTestObject(), ())
 
-    t->U.assertCompiledCode(
-      ~schema,
-      ~op=#ReverseConvert,
-      `i=>{return {"number":i["number"],"negNumber":i["negNumber"],"maxNumber":i["maxNumber"],"string":i["string"],"longString":i["longString"],"boolean":i["boolean"],"deeplyNested":{"foo":i["deeplyNested"]["foo"],"num":i["deeplyNested"]["num"],"bool":i["deeplyNested"]["bool"],},}}`,
-    )
+    t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{let v0=i["deeplyNested"];return i}`)
     S.setGlobalConfig({})
   })
 }
@@ -1157,6 +1188,25 @@ module Compiled = {
       ~schema,
       ~op=#ReverseConvert,
       `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`,
+    )
+  })
+
+  test("Compiled code snapshot for nested empty object with strict unknown keys", t => {
+    let schema = S.schema(s =>
+      {
+        "nested": s.matches(S.object(_ => ())->S.Object.strict),
+      }
+    )
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1;for(v1 in v0){if(true){e[1](v1)}}return {"nested":e[2],}}`,
+    )
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#ReverseConvert,
+      `i=>{let v0=i["nested"];if(v0!==undefined){e[0](v0)}return {"nested":{},}}`,
     )
   })
 
