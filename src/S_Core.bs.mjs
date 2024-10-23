@@ -141,11 +141,11 @@ function asyncVal(b, initial) {
         };
 }
 
-function objectJoin(key, value) {
-  return JSON.stringify(key) + ":" + value + ",";
+function objectJoin($$location, value) {
+  return JSON.stringify($$location) + ":" + value + ",";
 }
 
-function arrayJoin(_key, value) {
+function arrayJoin(_location, value) {
   return value + ",";
 }
 
@@ -157,7 +157,8 @@ function make(b, isArray) {
           a: false,
           j: isArray ? arrayJoin : objectJoin,
           c: 0,
-          p: ""
+          p: "",
+          f: {}
         };
 }
 
@@ -1317,6 +1318,7 @@ function toOutputVal(b, outputs, outputDefinition) {
       var key = keys[idx];
       var definition$1 = definition[key];
       var output = definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+      objectVal.f[key] = output;
       if (output.a) {
         objectVal.p = objectVal.p + output.i + ",";
         objectVal.i = objectVal.i + objectVal.j(key, "a[" + (objectVal.c++) + "]");
@@ -1334,9 +1336,9 @@ function typeFilter$1(_b, inputVar) {
 }
 
 function processInputItems(b, outputs, input, schema, path, unknownKeys) {
-  var inputVar = $$var(b, input);
   var items = schema.t.items;
   var isObject = schema.t.TAG === "Object";
+  var inputVar = $$var(b, input);
   for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
     var prevCode = b.c;
     b.c = "";
@@ -1368,7 +1370,7 @@ function processInputItems(b, outputs, input, schema, path, unknownKeys) {
   }
   var key = allocateVal(b);
   var keyVar = key.i;
-  b.c = b.c + ("for(" + keyVar + " in " + inputVar + "){if(");
+  b.c = b.c + ("for(" + keyVar + " in " + input.i + "){if(");
   if (items.length !== 0) {
     for(var idx$1 = 0 ,idx_finish$1 = items.length; idx$1 < idx_finish$1; ++idx$1){
       var item$1 = items[idx$1];
@@ -1463,12 +1465,13 @@ function reverse$1(inputDefinition, toItem) {
                       var item = items[idx];
                       var o = embededOutputs.get(item);
                       var itemOutput = o !== undefined ? o : fallbackOutput(item, path);
-                      var key = item.l;
+                      var $$location = item.l;
+                      objectVal.f[$$location] = itemOutput;
                       if (itemOutput.a) {
                         objectVal.p = objectVal.p + itemOutput.i + ",";
-                        objectVal.i = objectVal.i + objectVal.j(key, "a[" + (objectVal.c++) + "]");
+                        objectVal.i = objectVal.i + objectVal.j($$location, "a[" + (objectVal.c++) + "]");
                       } else {
-                        objectVal.i = objectVal.i + objectVal.j(key, itemOutput.i);
+                        objectVal.i = objectVal.i + objectVal.j($$location, itemOutput.i);
                       }
                     }
                     return complete(objectVal, !isObject);
@@ -2162,6 +2165,8 @@ function definitionToSchema(definition) {
     var $$location$1 = fieldNames[idx$1];
     var inlinedLocation$1 = "\"" + $$location$1 + "\"";
     var schema$1 = definitionToSchema(definition[$$location$1]);
+    ((delete schema$1["d"]));
+    ((delete schema$1["c"]));
     var item_p$1 = "[" + inlinedLocation$1 + "]";
     var item$1 = {
       t: schema$1,

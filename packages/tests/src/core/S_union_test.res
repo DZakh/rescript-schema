@@ -479,6 +479,20 @@ test("Compiled serialize code snapshot", t => {
   )
 })
 
+test("Compiled serialize code snapshot of objects returning literal fields", t => {
+  let schema = S.union([
+    S.object(s => s.field("foo", S.literal(0))),
+    S.object(s => s.field("bar", S.literal(1))),
+  ])
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#ReverseConvert,
+    // FIXME: A bug here, it should validate the literal value
+    `i=>{let v0=i;try{v0={"foo":i,}}catch(e0){try{v0={"bar":i,}}catch(e1){e[0]([e0,e1,])}}return v0}`,
+  )
+})
+
 test("Enum is a shorthand for union", t => {
   t->U.assertEqualSchemas(S.enum([0, 1]), S.union([S.literal(0), S.literal(1)]))
 })
